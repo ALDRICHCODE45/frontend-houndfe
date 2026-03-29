@@ -1,7 +1,7 @@
 import { h, resolveComponent } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 import type { Product } from '../interfaces/product.types'
-import { createSortableHeader } from '@/core/shared/components/DataTable'
+import { createSimpleHeader, createSortableHeader } from '@/core/shared/components/DataTable'
 
 const currencyFormatter = new Intl.NumberFormat('es-AR', {
   style: 'currency',
@@ -54,7 +54,7 @@ export function useProductColumns() {
     // Slot #sku-cell en ProductsView
     {
       accessorKey: 'sku',
-      header: () => 'SKU',
+      header: createSimpleHeader('SKU'),
     },
 
     // ── Categoría (sortable) ──────────────────────────────────────────
@@ -83,14 +83,14 @@ export function useProductColumns() {
     // Slot #status-cell en ProductsView
     {
       accessorKey: 'status',
-      header: () => 'Estado',
+      header: createSimpleHeader('Estado'),
     },
 
     // ── Acciones ──────────────────────────────────────────────────────
     // Slot #actions-cell en ProductsView
     {
       id: 'actions',
-      header: () => '',
+      header: createSimpleHeader(''),
       enableHiding: false,
       enableSorting: false,
       meta: { class: { td: 'text-right' } },
