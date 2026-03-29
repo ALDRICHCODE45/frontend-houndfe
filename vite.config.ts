@@ -17,6 +17,16 @@ export default defineConfig({
         button: {
           slots: {
             leadingIcon: 'shrink-0 size-4',
+            trailingIcon: 'shrink-0 size-4',
+            icon: 'shrink-0 size-4',
+          },
+          variants: {
+            size: {
+              md: {
+                leadingIcon: 'size-4',
+                trailingIcon: 'size-4',
+              },
+            },
           },
         },
         navigationMenu: {

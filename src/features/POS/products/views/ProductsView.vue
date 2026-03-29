@@ -6,6 +6,7 @@ import type { BulkAction } from '@/core/shared/types/table.types'
 import { productApi } from '../api/product.api'
 import { useProductColumns } from '../composables/useProductColumns'
 import type { Product } from '../interfaces/product.types'
+import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
 
 const { columns, currencyFormatter } = useProductColumns()
 
@@ -81,15 +82,17 @@ const bulkActions: BulkAction<Product>[] = [
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 px-2">
+  <div class="flex flex-col gap-6 px-10">
     <!-- Page Header -->
-    <div>
-      <h1 class="text-2xl font-bold tracking-tight">Productos</h1>
-      <p class="text-muted mt-1 text-sm">Gestión de inventario y catálogo de productos</p>
-    </div>
 
     <!-- Card wrapper — tabla envuelta como en PF2 -->
     <UCard :ui="{ body: 'p-0 sm:p-0' }">
+      <template #header>
+        <TableHeaderDescription
+          description="Gestión de inventario y catálogo de productos"
+          title="Productos"
+        />
+      </template>
       <div class="px-6 py-5">
         <AppDataTable
           v-model:sorting="sorting"

@@ -50,13 +50,6 @@ const pageSizeItems = computed(() =>
         Mostrando {{ showingFrom }}-{{ showingTo }} de {{ totalCount }}
       </template>
       <template v-else> Sin resultados </template>
-
-      <!-- Fetching indicator -->
-      <UIcon
-        v-if="fetching"
-        name="i-lucide-loader-2"
-        class="text-primary ml-2 size-3.5 animate-spin"
-      />
     </div>
 
     <div class="flex items-center gap-4">
@@ -78,6 +71,7 @@ const pageSizeItems = computed(() =>
         :total="totalCount"
         :disabled="fetching"
         show-edges
+        :sibling-count="1"
       />
     </div>
   </div>
