@@ -54,7 +54,7 @@ export function useProductColumns() {
     // Slot #sku-cell en ProductsView
     {
       accessorKey: 'sku',
-      header: 'SKU',
+      header: () => 'SKU',
     },
 
     // ── Categoría (sortable) ──────────────────────────────────────────
@@ -83,14 +83,14 @@ export function useProductColumns() {
     // Slot #status-cell en ProductsView
     {
       accessorKey: 'status',
-      header: 'Estado',
+      header: () => 'Estado',
     },
 
     // ── Acciones ──────────────────────────────────────────────────────
     // Slot #actions-cell en ProductsView
     {
       id: 'actions',
-      header: '',
+      header: () => '',
       enableHiding: false,
       enableSorting: false,
       meta: { class: { td: 'text-right' } },

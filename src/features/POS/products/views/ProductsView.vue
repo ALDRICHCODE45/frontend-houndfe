@@ -120,7 +120,7 @@ const bulkActions: BulkAction<Product>[] = [
         >
           <!-- ── Nombre ─────────────────────────────────────────── -->
           <template #name-cell="{ row }">
-            <span class="font-medium">{{ row.original.name }}</span>
+            <span>{{ row.original.name }}</span>
           </template>
 
           <!-- ── SKU ───────────────────────────────────────────── -->
