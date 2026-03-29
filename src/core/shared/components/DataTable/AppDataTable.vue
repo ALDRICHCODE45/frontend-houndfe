@@ -150,7 +150,9 @@ function handleClearSelection() {
       v-model:row-selection="rowSelection"
       :data="data"
       :columns="columns"
-      :loading="loading"
+      :loading="loading || fetching"
+      loading-color="primary"
+      loading-animation="carousel"
       :empty="empty"
       sticky
       :sorting-options="{
@@ -162,11 +164,6 @@ function handleClearSelection() {
         <slot :name="name" v-bind="slotProps ?? {}" />
       </template>
     </UTable>
-
-    <!-- Fetching overlay indicator -->
-    <div v-if="fetching && !loading" class="flex justify-center">
-      <UIcon name="i-lucide-loader-2" class="text-primary size-4 animate-spin" />
-    </div>
 
     <!-- Pagination -->
     <DataTablePagination

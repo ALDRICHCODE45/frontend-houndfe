@@ -27,7 +27,7 @@ export function createSortableHeader(column: Column<any>, label: string, UButton
     color: 'neutral',
     variant: 'ghost',
     label,
-    icon: isSorted
+    trailingIcon: isSorted
       ? isSorted === 'asc'
         ? 'i-lucide-arrow-up-narrow-wide'
         : 'i-lucide-arrow-down-wide-narrow'
@@ -92,7 +92,7 @@ export function createSortableHeaderDropdown(
         color: 'neutral',
         variant: 'ghost',
         label,
-        icon: isSorted
+        trailingIcon: isSorted
           ? isSorted === 'asc'
             ? 'i-lucide-arrow-up-narrow-wide'
             : 'i-lucide-arrow-down-wide-narrow'

@@ -48,11 +48,10 @@ function getStockColor(stock: number) {
 
 function getRowItems(product: Product) {
   return [
-    [{ label: 'Editar', icon: 'i-lucide-pencil', onSelect: () => console.log('edit', product.id) }],
+    [{ label: 'Editar', onSelect: () => console.log('edit', product.id) }],
     [
       {
         label: 'Eliminar',
-        icon: 'i-lucide-trash-2',
         color: 'error',
         onSelect: () => console.log('delete', product.id),
       },
@@ -82,83 +81,96 @@ const bulkActions: BulkAction<Product>[] = [
 </script>
 
 <template>
-  <div class="flex flex-col gap-6">
+  <div class="flex flex-col gap-6 px-2">
     <!-- Page Header -->
     <div>
       <h1 class="text-2xl font-bold tracking-tight">Productos</h1>
-      <p class="text-muted mt-1">Gestión de inventario y catálogo de productos</p>
+      <p class="text-muted mt-1 text-sm">Gestión de inventario y catálogo de productos</p>
     </div>
 
-    <!-- DataTable -->
-    <AppDataTable
-      v-model:sorting="sorting"
-      v-model:pagination="pagination"
-      v-model:global-filter="globalFilter"
-      v-model:column-pinning="columnPinning"
-      v-model:column-visibility="columnVisibility"
-      v-model:row-selection="rowSelection"
-      :columns="columns"
-      :data="data"
-      :loading="isLoading"
-      :fetching="isFetching"
-      :page-count="pageCount"
-      :total-count="totalCount"
-      :showing-from="showingFrom"
-      :showing-to="showingTo"
-      :page-size-options="pageSizeOptions"
-      :bulk-actions="bulkActions"
-      search-placeholder="Buscar productos..."
-      show-add-button
-      add-button-text="Nuevo Producto"
-      add-button-icon="i-lucide-package-plus"
-      enable-column-visibility
-      enable-row-selection
-      empty="No se encontraron productos"
-      @add="handleAdd"
-      @refresh="refresh"
-    >
-      <!-- ── Nombre ─────────────────────────────────────────── -->
-      <template #name-cell="{ row }">
-        <span class="font-medium">{{ row.original.name }}</span>
-      </template>
+    <!-- Card wrapper — tabla envuelta como en PF2 -->
+    <UCard :ui="{ body: 'p-0 sm:p-0' }">
+      <div class="px-6 py-5">
+        <AppDataTable
+          v-model:sorting="sorting"
+          v-model:pagination="pagination"
+          v-model:global-filter="globalFilter"
+          v-model:column-pinning="columnPinning"
+          v-model:column-visibility="columnVisibility"
+          v-model:row-selection="rowSelection"
+          :columns="columns"
+          :data="data"
+          :loading="isLoading"
+          :fetching="isFetching"
+          :page-count="pageCount"
+          :total-count="totalCount"
+          :showing-from="showingFrom"
+          :showing-to="showingTo"
+          :page-size-options="pageSizeOptions"
+          :bulk-actions="bulkActions"
+          search-placeholder="Buscar productos..."
+          show-add-button
+          add-button-text="Nuevo Producto"
+          add-button-icon="i-lucide-package-plus"
+          enable-column-visibility
+          enable-row-selection
+          empty="No se encontraron productos"
+          @add="handleAdd"
+          @refresh="refresh"
+        >
+          <!-- ── Nombre ─────────────────────────────────────────── -->
+          <template #name-cell="{ row }">
+            <span class="font-medium">{{ row.original.name }}</span>
+          </template>
 
-      <!-- ── SKU ───────────────────────────────────────────── -->
-      <template #sku-cell="{ row }">
-        <span class="font-mono text-xs text-muted">{{ row.original.sku }}</span>
-      </template>
+          <!-- ── SKU ───────────────────────────────────────────── -->
+          <template #sku-cell="{ row }">
+            <span class="font-mono text-xs text-muted">{{ row.original.sku }}</span>
+          </template>
 
-      <!-- ── Precio ─────────────────────────────────────────── -->
-      <template #price-cell="{ row }">
-        <span class="font-medium tabular-nums">
-          {{ currencyFormatter.format(row.original.price) }}
-        </span>
-      </template>
+          <!-- ── Precio ─────────────────────────────────────────── -->
+          <template #price-cell="{ row }">
+            <span class="font-medium tabular-nums">
+              {{ currencyFormatter.format(row.original.price) }}
+            </span>
+          </template>
 
-      <!-- ── Stock ──────────────────────────────────────────── -->
-      <template #stock-cell="{ row }">
-        <UBadge :color="getStockColor(row.original.stock)" variant="subtle">
-          {{ row.original.stock }}
-        </UBadge>
-      </template>
+          <!-- ── Stock ──────────────────────────────────────────── -->
+          <template #stock-cell="{ row }">
+            <UBadge
+              :color="getStockColor(row.original.stock)"
+              variant="subtle"
+              size="sm"
+              class="font-mono font-semibold"
+            >
+              {{ row.original.stock }}
+            </UBadge>
+          </template>
 
-      <!-- ── Estado ─────────────────────────────────────────── -->
-      <template #status-cell="{ row }">
-        <UBadge :color="statusConfig[(row.original as Product).status].color" variant="subtle">
-          {{ statusConfig[(row.original as Product).status].label }}
-        </UBadge>
-      </template>
+          <!-- ── Estado ─────────────────────────────────────────── -->
+          <template #status-cell="{ row }">
+            <UBadge
+              :color="statusConfig[(row.original as Product).status].color"
+              variant="outline"
+              size="sm"
+            >
+              {{ statusConfig[(row.original as Product).status].label }}
+            </UBadge>
+          </template>
 
-      <!-- ── Acciones ───────────────────────────────────────── -->
-      <template #actions-cell="{ row }">
-        <UDropdownMenu :items="getRowItems(row.original)" :content="{ align: 'end' }">
-          <UButton
-            icon="i-lucide-ellipsis-vertical"
-            color="neutral"
-            variant="ghost"
-            class="size-7"
-          />
-        </UDropdownMenu>
-      </template>
-    </AppDataTable>
+          <!-- ── Acciones ───────────────────────────────────────── -->
+          <template #actions-cell="{ row }">
+            <UDropdownMenu :items="getRowItems(row.original)" :content="{ align: 'end' }">
+              <UButton
+                icon="i-lucide-ellipsis-vertical"
+                color="neutral"
+                variant="ghost"
+                class="size-7"
+              />
+            </UDropdownMenu>
+          </template>
+        </AppDataTable>
+      </div>
+    </UCard>
   </div>
 </template>
