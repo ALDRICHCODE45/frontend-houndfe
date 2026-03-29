@@ -7,25 +7,21 @@ import { productApi } from '../api/product.api'
 import { useProductColumns } from '../composables/useProductColumns'
 import type { Product } from '../interfaces/product.types'
 
-const { columns } = useProductColumns()
+const { columns, currencyFormatter } = useProductColumns()
 
 const {
-  // State (v-model for AppDataTable)
   pagination,
   sorting,
   globalFilter,
   rowSelection,
   columnPinning,
   columnVisibility,
-  // Derived data
   data,
   totalCount,
   pageCount,
   isLoading,
   isFetching,
-  // Actions
   refresh,
-  // Info
   pageSizeOptions,
   showingFrom,
   showingTo,
@@ -38,8 +34,33 @@ const {
   defaultPinning: { left: [], right: ['actions'] },
 })
 
+const statusConfig = {
+  active: { color: 'success' as const, label: 'Activo' },
+  inactive: { color: 'neutral' as const, label: 'Inactivo' },
+  out_of_stock: { color: 'error' as const, label: 'Sin Stock' },
+} as const
+
+function getStockColor(stock: number) {
+  if (stock === 0) return 'error' as const
+  if (stock < 10) return 'warning' as const
+  return 'success' as const
+}
+
+function getRowItems(product: Product) {
+  return [
+    [{ label: 'Editar', icon: 'i-lucide-pencil', onSelect: () => console.log('edit', product.id) }],
+    [
+      {
+        label: 'Eliminar',
+        icon: 'i-lucide-trash-2',
+        color: 'error',
+        onSelect: () => console.log('delete', product.id),
+      },
+    ],
+  ]
+}
+
 function handleAdd() {
-  // TODO: open create product modal
   console.log('Add product clicked')
 }
 
@@ -49,17 +70,13 @@ const bulkActions: BulkAction<Product>[] = [
     label: 'Eliminar',
     icon: 'i-lucide-trash-2',
     variant: 'destructive',
-    onClick: (rows) => {
-      console.log('Delete selected:', rows)
-    },
+    onClick: (rows) => console.log('Delete selected:', rows),
   },
   {
     id: 'export',
     label: 'Exportar',
     icon: 'i-lucide-download',
-    onClick: (rows) => {
-      console.log('Export selected:', rows)
-    },
+    onClick: (rows) => console.log('Export selected:', rows),
   },
 ]
 </script>
@@ -99,6 +116,49 @@ const bulkActions: BulkAction<Product>[] = [
       empty="No se encontraron productos"
       @add="handleAdd"
       @refresh="refresh"
-    />
+    >
+      <!-- ── Nombre ─────────────────────────────────────────── -->
+      <template #name-cell="{ row }">
+        <span class="font-medium">{{ row.original.name }}</span>
+      </template>
+
+      <!-- ── SKU ───────────────────────────────────────────── -->
+      <template #sku-cell="{ row }">
+        <span class="font-mono text-xs text-muted">{{ row.original.sku }}</span>
+      </template>
+
+      <!-- ── Precio ─────────────────────────────────────────── -->
+      <template #price-cell="{ row }">
+        <span class="font-medium tabular-nums">
+          {{ currencyFormatter.format(row.original.price) }}
+        </span>
+      </template>
+
+      <!-- ── Stock ──────────────────────────────────────────── -->
+      <template #stock-cell="{ row }">
+        <UBadge :color="getStockColor(row.original.stock)" variant="subtle">
+          {{ row.original.stock }}
+        </UBadge>
+      </template>
+
+      <!-- ── Estado ─────────────────────────────────────────── -->
+      <template #status-cell="{ row }">
+        <UBadge :color="statusConfig[(row.original as Product).status].color" variant="subtle">
+          {{ statusConfig[(row.original as Product).status].label }}
+        </UBadge>
+      </template>
+
+      <!-- ── Acciones ───────────────────────────────────────── -->
+      <template #actions-cell="{ row }">
+        <UDropdownMenu :items="getRowItems(row.original)" :content="{ align: 'end' }">
+          <UButton
+            icon="i-lucide-ellipsis-vertical"
+            color="neutral"
+            variant="ghost"
+            class="size-7"
+          />
+        </UDropdownMenu>
+      </template>
+    </AppDataTable>
   </div>
 </template>

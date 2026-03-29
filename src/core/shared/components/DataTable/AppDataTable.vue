@@ -1,5 +1,5 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
-import { useTemplateRef, computed } from 'vue'
+import { useTemplateRef, computed, useSlots } from 'vue'
 import type {
   TableColumn,
   SortingState,
@@ -85,6 +85,10 @@ const tableRef = useTemplateRef<any>('table')
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const tableApi = computed<any>(() => tableRef.value?.tableApi)
 
+// Slot pass-through: forward any #xxx-header / #xxx-cell / #expanded / #empty
+// slots from the parent directly to UTable underneath
+const slots = useSlots()
+
 // Selected count for bulk actions
 const selectedCount = computed(() => Object.keys(rowSelection.value).length)
 
@@ -134,6 +138,10 @@ function handleClearSelection() {
     <slot name="above-table" />
 
     <!-- Table -->
+    <!-- All slots are forwarded to UTable dynamically:
+         - Named column slots: #name-cell, #status-cell, #actions-header, etc.
+         - Special slots:      #expanded, #empty, #loading, #caption
+         This allows the parent to use Vue template syntax instead of h() in column defs -->
     <UTable
       ref="table"
       v-model:sorting="sorting"
@@ -150,12 +158,8 @@ function handleClearSelection() {
       }"
       class="flex-1"
     >
-      <template v-if="$slots.expanded" #expanded="slotProps">
-        <slot name="expanded" v-bind="slotProps" />
-      </template>
-
-      <template v-if="$slots.empty" #empty>
-        <slot name="empty" />
+      <template v-for="(_, name) in slots" #[name]="slotProps">
+        <slot :name="name" v-bind="slotProps ?? {}" />
       </template>
     </UTable>
 

@@ -3,12 +3,6 @@ import type { TableColumn } from '@nuxt/ui'
 import type { Product } from '../interfaces/product.types'
 import { createSortableHeader } from '@/core/shared/components/DataTable'
 
-const statusConfig = {
-  active: { color: 'success' as const, label: 'Activo' },
-  inactive: { color: 'neutral' as const, label: 'Inactivo' },
-  out_of_stock: { color: 'error' as const, label: 'Sin Stock' },
-} as const
-
 const currencyFormatter = new Intl.NumberFormat('es-AR', {
   style: 'currency',
   currency: 'ARS',
@@ -17,14 +11,16 @@ const currencyFormatter = new Intl.NumberFormat('es-AR', {
 })
 
 export function useProductColumns() {
-  // MUST be called at setup scope — resolveComponent only works here
-  const UBadge = resolveComponent('UBadge')
+  // resolveComponent() solo para los elementos que NECESITAN h():
+  // headers con sort (dependen del estado de la columna en runtime)
+  // y la columna select (checkbox de selección)
   const UButton = resolveComponent('UButton')
-  const UDropdownMenu = resolveComponent('UDropdownMenu')
   const UCheckbox = resolveComponent('UCheckbox')
 
   const columns: TableColumn<Product>[] = [
-    // Select checkbox
+    // ── Select checkbox ──────────────────────────────────────────────
+    // Debe usar h() porque el estado indeterminate/checked se calcula
+    // a partir del API de TanStack Table en runtime
     {
       id: 'select',
       header: ({ table }) =>
@@ -45,100 +41,61 @@ export function useProductColumns() {
       enableSorting: false,
       enableHiding: false,
     },
-    // Name (sortable)
+
+    // ── Nombre (sortable) ─────────────────────────────────────────────
+    // Header usa h() para el botón de sort interactivo
+    // Cell usa slot #name-cell en ProductsView → Vue template puro
     {
       accessorKey: 'name',
       header: ({ column }) => createSortableHeader(column, 'Nombre', UButton),
-      cell: ({ row }) => h('div', { class: 'font-medium' }, row.getValue('name') as string),
     },
-    // SKU
+
+    // ── SKU ───────────────────────────────────────────────────────────
+    // Slot #sku-cell en ProductsView
     {
       accessorKey: 'sku',
       header: 'SKU',
-      cell: ({ row }) =>
-        h('span', { class: 'text-muted font-mono text-xs' }, row.getValue('sku') as string),
     },
-    // Category (sortable)
+
+    // ── Categoría (sortable) ──────────────────────────────────────────
     {
       accessorKey: 'category',
       header: ({ column }) => createSortableHeader(column, 'Categoría', UButton),
     },
-    // Price (sortable, formatted)
+
+    // ── Precio (sortable, formateado) ─────────────────────────────────
+    // Slot #price-cell en ProductsView
     {
       accessorKey: 'price',
       header: ({ column }) => createSortableHeader(column, 'Precio', UButton),
-      cell: ({ row }) => {
-        const price = row.getValue('price') as number
-        return h('span', { class: 'font-medium tabular-nums' }, currencyFormatter.format(price))
-      },
       meta: { class: { th: 'text-right', td: 'text-right' } },
     },
-    // Stock (sortable, color-coded)
+
+    // ── Stock (sortable, con color) ───────────────────────────────────
+    // Slot #stock-cell en ProductsView
     {
       accessorKey: 'stock',
       header: ({ column }) => createSortableHeader(column, 'Stock', UButton),
-      cell: ({ row }) => {
-        const stock = row.getValue('stock') as number
-        const color = stock === 0 ? 'error' : stock < 10 ? 'warning' : 'success'
-        return h(UBadge, { color, variant: 'subtle' }, () => String(stock))
-      },
       meta: { class: { th: 'text-center', td: 'text-center' } },
     },
-    // Status (badge)
+
+    // ── Estado ────────────────────────────────────────────────────────
+    // Slot #status-cell en ProductsView
     {
       accessorKey: 'status',
       header: 'Estado',
-      cell: ({ row }) => {
-        const status = row.getValue('status') as Product['status']
-        const { color, label } = statusConfig[status]
-        return h(UBadge, { color, variant: 'subtle', class: 'capitalize' }, () => label)
-      },
     },
-    // Actions (dropdown)
+
+    // ── Acciones ──────────────────────────────────────────────────────
+    // Slot #actions-cell en ProductsView
     {
       id: 'actions',
       header: '',
-      cell: ({ row }) => {
-        return h(
-          UDropdownMenu,
-          {
-            content: { align: 'end' as const },
-            items: [
-              [
-                {
-                  label: 'Editar',
-                  icon: 'i-lucide-pencil',
-                  onSelect: () => {
-                    console.log('Edit product:', row.original.id)
-                  },
-                },
-              ],
-              [
-                {
-                  label: 'Eliminar',
-                  icon: 'i-lucide-trash-2',
-                  color: 'error',
-                  onSelect: () => {
-                    console.log('Delete product:', row.original.id)
-                  },
-                },
-              ],
-            ],
-          },
-          () =>
-            h(UButton, {
-              icon: 'i-lucide-ellipsis-vertical',
-              color: 'neutral',
-              variant: 'ghost',
-              class: 'size-7',
-            }),
-        )
-      },
       enableHiding: false,
       enableSorting: false,
       meta: { class: { td: 'text-right' } },
     },
   ]
 
-  return { columns }
+  return { columns, currencyFormatter }
 }
