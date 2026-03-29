@@ -1,7 +1,6 @@
-import { h, resolveComponent } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 import type { Product } from '../interfaces/product.types'
-import { createSimpleHeader, createSortableHeader } from '@/core/shared/components/DataTable'
+import { createSimpleHeader } from '@/core/shared/components/DataTable'
 
 const currencyFormatter = new Intl.NumberFormat('es-AR', {
   style: 'currency',
@@ -11,83 +10,60 @@ const currencyFormatter = new Intl.NumberFormat('es-AR', {
 })
 
 export function useProductColumns() {
-  // resolveComponent() solo para los elementos que NECESITAN h():
-  // headers con sort (dependen del estado de la columna en runtime)
-  // y la columna select (checkbox de selección)
-  const UButton = resolveComponent('UButton')
-  const UCheckbox = resolveComponent('UCheckbox')
-
   const columns: TableColumn<Product>[] = [
     // ── Select checkbox ──────────────────────────────────────────────
-    // Debe usar h() porque el estado indeterminate/checked se calcula
-    // a partir del API de TanStack Table en runtime
+    // Header & cell rendered via #select-header / #select-cell slots
+    // in ProductsView.vue (NuxtUI components need template context)
     {
       id: 'select',
-      header: ({ table }) =>
-        h(UCheckbox, {
-          modelValue: table.getIsSomePageRowsSelected()
-            ? 'indeterminate'
-            : table.getIsAllPageRowsSelected(),
-          'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
-            table.toggleAllPageRowsSelected(!!value),
-          ariaLabel: 'Seleccionar todos',
-        }),
-      cell: ({ row }) =>
-        h(UCheckbox, {
-          modelValue: row.getIsSelected(),
-          'onUpdate:modelValue': (value: boolean | 'indeterminate') => row.toggleSelected(!!value),
-          ariaLabel: 'Seleccionar fila',
-        }),
+      header: '',
       enableSorting: false,
       enableHiding: false,
     },
 
     // ── Nombre (sortable) ─────────────────────────────────────────────
-    // Header usa h() para el botón de sort interactivo
-    // Cell usa slot #name-cell en ProductsView → Vue template puro
+    // Header rendered via #name-header slot (SortableHeader component)
     {
       accessorKey: 'name',
-      header: ({ column }) => createSortableHeader(column, 'Nombre', UButton),
+      header: 'Nombre',
     },
 
     // ── SKU ───────────────────────────────────────────────────────────
-    // Slot #sku-cell en ProductsView
     {
       accessorKey: 'sku',
       header: createSimpleHeader('SKU'),
     },
 
     // ── Categoría (sortable) ──────────────────────────────────────────
+    // Header rendered via #category-header slot
     {
       accessorKey: 'category',
-      header: ({ column }) => createSortableHeader(column, 'Categoría', UButton),
+      header: 'Categoría',
     },
 
     // ── Precio (sortable, formateado) ─────────────────────────────────
-    // Slot #price-cell en ProductsView
+    // Header rendered via #price-header slot
     {
       accessorKey: 'price',
-      header: ({ column }) => createSortableHeader(column, 'Precio', UButton),
+      header: 'Precio',
       meta: { class: { th: 'text-right', td: 'text-right' } },
     },
 
     // ── Stock (sortable, con color) ───────────────────────────────────
-    // Slot #stock-cell en ProductsView
+    // Header rendered via #stock-header slot
     {
       accessorKey: 'stock',
-      header: ({ column }) => createSortableHeader(column, 'Stock', UButton),
+      header: 'Stock',
       meta: { class: { th: 'text-center', td: 'text-center' } },
     },
 
     // ── Estado ────────────────────────────────────────────────────────
-    // Slot #status-cell en ProductsView
     {
       accessorKey: 'status',
       header: createSimpleHeader('Estado'),
     },
 
     // ── Acciones ──────────────────────────────────────────────────────
-    // Slot #actions-cell en ProductsView
     {
       id: 'actions',
       header: createSimpleHeader(''),

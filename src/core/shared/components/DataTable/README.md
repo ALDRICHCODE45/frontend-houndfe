@@ -21,7 +21,7 @@ Sistema completo de tablas con paginación, ordenamiento y filtrado del lado del
 ✅ **Row selection** — checkboxes + bulk actions  
 ✅ **Bulk actions** — sticky bottom bar con animación  
 ✅ **Loading states** — carousel animation en header + fetching indicator  
-✅ **Slots para todo** — renderiza celdas con template Vue puro
+✅ **Slots para todo** — renderiza celdas y headers con template Vue puro
 
 ## Arquitectura
 
@@ -38,7 +38,9 @@ src/core/shared/
     ├── DataTableToolbar.vue          # Search + refresh + filters + actions
     ├── DataTablePagination.vue       # UPagination + page size selector
     ├── DataTableBulkActions.vue      # Sticky bottom bar
-    ├── DataTableColumnHeader.ts      # Helpers: createSimpleHeader, createSortableHeader
+    ├── DataTableColumnHeader.ts      # Helper: createSimpleHeader
+    ├── SortableHeader.vue            # Reusable sortable header button
+    ├── SelectColumn.vue              # Reusable select checkbox (header + cell)
     └── index.ts                      # Exports
 ```
 
@@ -91,64 +93,35 @@ export const productApi = {
 
 ### 3. Define las columnas
 
+Las columnas solo definen estructura y configuración. **No uses `h()` ni `resolveComponent()` con componentes NuxtUI** — no funcionan porque NuxtUI se auto-importa solo en templates `.vue`.
+
 ```ts
 // src/features/POS/products/composables/useProductColumns.ts
-import { resolveComponent } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import { createSimpleHeader, createSortableHeader } from '@/core/shared/components/DataTable'
+import { createSimpleHeader } from '@/core/shared/components/DataTable'
 import type { Product } from '../interfaces/product.types'
 
 export function useProductColumns() {
-  // resolveComponent solo para elementos que necesitan h():
-  // - Headers con sort (dependen del estado de columna en runtime)
-  // - Select checkbox (estado indeterminate/checked)
-  const UButton = resolveComponent('UButton')
-  const UCheckbox = resolveComponent('UCheckbox')
-
   const columns: TableColumn<Product>[] = [
-    // ── Select checkbox (OBLIGATORIO usar h()) ───────────────
     {
       id: 'select',
-      header: ({ table }) =>
-        h(UCheckbox, {
-          modelValue: table.getIsSomePageRowsSelected()
-            ? 'indeterminate'
-            : table.getIsAllPageRowsSelected(),
-          'onUpdate:modelValue': (value) => table.toggleAllPageRowsSelected(!!value),
-          ariaLabel: 'Seleccionar todos',
-        }),
-      cell: ({ row }) =>
-        h(UCheckbox, {
-          modelValue: row.getIsSelected(),
-          'onUpdate:modelValue': (value) => row.toggleSelected(!!value),
-          ariaLabel: 'Seleccionar fila',
-        }),
+      header: '',
       enableSorting: false,
       enableHiding: false,
     },
-
-    // ── Nombre (sortable) ─────────────────────────────────────
     {
       accessorKey: 'name',
-      header: ({ column }) => createSortableHeader(column, 'Nombre', UButton),
-      // Cell usa slot #name-cell en el componente padre
+      header: 'Nombre',
     },
-
-    // ── SKU (simple) ──────────────────────────────────────────
     {
       accessorKey: 'sku',
       header: createSimpleHeader('SKU'),
-      // Cell usa slot #sku-cell en el componente padre
     },
-
-    // ── Precio (sortable + aligned) ───────────────────────────
     {
       accessorKey: 'price',
-      header: ({ column }) => createSortableHeader(column, 'Precio', UButton),
+      header: 'Precio',
       meta: { class: { th: 'text-right', td: 'text-right' } },
     },
-
-    // ── Acciones ──────────────────────────────────────────────
     {
       id: 'actions',
       header: createSimpleHeader(''),
@@ -164,9 +137,11 @@ export function useProductColumns() {
 
 ### 4. Usa la tabla en tu view
 
+Toda la lógica de renderizado de NuxtUI va en **template slots** donde auto-import funciona correctamente. Usa `SortableHeader` y `SelectColumn` para DRY:
+
 ```vue
 <script setup lang="ts">
-import { AppDataTable } from '@/core/shared/components/DataTable'
+import { AppDataTable, SortableHeader, SelectColumn } from '@/core/shared/components/DataTable'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import { productApi } from '../api/product.api'
@@ -195,7 +170,7 @@ const {
   queryKey: productQueryKeys.paginated(),
   queryFn: (params) => productApi.getPaginated(params),
   defaultPageSize: 10,
-  persistKey: 'pos-products', // localStorage key
+  persistKey: 'pos-products',
   defaultSorting: [{ id: 'name', desc: false }],
   defaultPinning: { left: [], right: ['actions'] },
 })
@@ -239,21 +214,34 @@ const bulkActions = [
         @add="handleAdd"
         @refresh="refresh"
       >
-        <!-- ── Slots para celdas (Vue template puro) ──── -->
+        <!-- ── Select (checkbox header + cell) ─────────── -->
+        <template #select-header="{ table }">
+          <SelectColumn mode="header" :table="table" />
+        </template>
+        <template #select-cell="{ row }">
+          <SelectColumn mode="cell" :row="row" />
+        </template>
+
+        <!-- ── Sortable headers ────────────────────────── -->
+        <template #name-header="{ column }">
+          <SortableHeader :column="column" label="Nombre" />
+        </template>
+        <template #price-header="{ column }">
+          <SortableHeader :column="column" label="Precio" />
+        </template>
+
+        <!-- ── Cell slots ──────────────────────────────── -->
         <template #name-cell="{ row }">
           <span>{{ row.original.name }}</span>
         </template>
-
         <template #sku-cell="{ row }">
           <span class="font-mono text-xs text-muted">{{ row.original.sku }}</span>
         </template>
-
         <template #price-cell="{ row }">
           <span class="font-medium tabular-nums">
             {{ currencyFormatter.format(row.original.price) }}
           </span>
         </template>
-
         <template #actions-cell="{ row }">
           <UDropdownMenu :items="getRowItems(row.original)">
             <UButton icon="i-lucide-ellipsis-vertical" variant="ghost" />
@@ -276,38 +264,66 @@ const bulkActions = [
 }
 ```
 
-### Sortable Header (con botón de toggle)
+### Sortable Header (via template slot)
+
+In the column definition — just set the string label:
 
 ```ts
 {
   accessorKey: 'name',
-  header: ({ column }) => createSortableHeader(column, 'Nombre', UButton),
+  header: 'Nombre', // Fallback text if slot is not provided
 }
 ```
 
-### Sortable Header con Dropdown (Asc/Desc con checkboxes)
+In the view template — use the `SortableHeader` component:
+
+```vue
+<template #name-header="{ column }">
+  <SortableHeader :column="column" label="Nombre" />
+</template>
+```
+
+### Select Checkbox Column (via template slots)
+
+In the column definition:
 
 ```ts
 {
-  accessorKey: 'price',
-  header: ({ column }) => createSortableHeaderDropdown(column, 'Precio', UButton, UDropdownMenu),
+  id: 'select',
+  header: '',
+  enableSorting: false,
+  enableHiding: false,
 }
 ```
 
-### ⚠️ NUNCA uses strings directos
+In the view template — use the `SelectColumn` component:
+
+```vue
+<template #select-header="{ table }">
+  <SelectColumn mode="header" :table="table" />
+</template>
+<template #select-cell="{ row }">
+  <SelectColumn mode="cell" :row="row" />
+</template>
+```
+
+### ⚠️ NUNCA uses h() con componentes NuxtUI
 
 ```ts
-// ❌ MAL — no se renderiza en NuxtUI UTable
-{
-  accessorKey: 'sku',
-  header: 'SKU',
-}
+// ❌ MAL — NuxtUI components are auto-imported only in .vue templates
+// resolveComponent('UButton') returns a string in external .ts files
+import { h, resolveComponent } from 'vue'
+const UButton = resolveComponent('UButton')
+header: ({ column }) => h(UButton, { ... }) // renders NOTHING
 
-// ✅ BIEN
-{
-  accessorKey: 'sku',
-  header: createSimpleHeader('SKU'),
-}
+// ✅ BIEN — Use template slots with reusable .vue components
+// In column definition:
+header: 'Nombre',
+
+// In view template:
+<template #name-header="{ column }">
+  <SortableHeader :column="column" label="Nombre" />
+</template>
 ```
 
 ## URL Sync
@@ -339,18 +355,6 @@ Esto genera URLs como:
     {{ getStatusLabel(row.original.status) }}
   </UBadge>
 </template>
-```
-
-### Con h() (solo para casos dinámicos complejos)
-
-```ts
-{
-  accessorKey: 'status',
-  cell: ({ row }) => h(UBadge, {
-    color: getStatusColor(row.original.status),
-    variant: 'outline',
-  }, () => getStatusLabel(row.original.status)),
-}
 ```
 
 ## Tipos Importantes
@@ -386,12 +390,12 @@ export interface BulkAction<T> {
 
 ## Mejores Prácticas
 
-1. **Usa `createSimpleHeader()` para headers sin sort** — previene el bug de strings
-2. **Usa slots para celdas complejas** — más legible que h()
-3. **Solo usa h() para:** select checkbox y sortable headers (dependen de estado runtime)
-4. **Define queryKeys en constants/** — facilita invalidación de cache
-5. **Envuelve tablas en UCard** — con `px-6 py-5` para match con PF2 aesthetic
-6. **Usa `variant="outline"` para badges** — más pastel/sutil que `variant="subtle"`
+1. **Usa template slots para CUALQUIER componente NuxtUI** — `h()` + `resolveComponent()` no funciona en Vite + NuxtUI
+2. **Usa `SortableHeader` para headers con sort** — componente reutilizable, sin repetir código
+3. **Usa `SelectColumn` para checkboxes de selección** — header + cell en un solo componente
+4. **Usa `createSimpleHeader()` para headers estáticos** — retorna string puro, siempre funciona
+5. **Define queryKeys en constants/** — facilita invalidación de cache
+6. **Envuelve tablas en UCard** — con `px-6 py-5` para match con PF2 aesthetic
 7. **Activa URL sync solo si tiene sentido** — no para modales o secciones colapsables
 8. **Siempre pasa `persistKey`** — para localStorage de preferences (pinning, visibility)
 
@@ -403,11 +407,11 @@ Ver implementación completa en:
 
 ## Troubleshooting
 
-### Headers no muestran texto
+### Headers no se muestran (invisibles)
 
-**Problema:** Definiste `header: 'String'` en lugar de `header: createSimpleHeader('String')`
+**Problema:** Usaste `h(resolveComponent('UButton'), {...})` en un archivo `.ts`. `resolveComponent()` retorna un string (no un componente) fuera de `.vue` templates cuando se usa NuxtUI con `unplugin-vue-components`.
 
-**Solución:** Usa siempre helpers `createSimpleHeader()` o `createSortableHeader()`
+**Solución:** Usa template slots con `SortableHeader` o `SelectColumn`. Estos son componentes `.vue` donde NuxtUI auto-import funciona correctamente.
 
 ### Paginación no funciona
 

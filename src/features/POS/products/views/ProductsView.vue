@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AppDataTable } from '@/core/shared/components/DataTable'
+import { AppDataTable, SortableHeader, SelectColumn } from '@/core/shared/components/DataTable'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import type { BulkAction } from '@/core/shared/types/table.types'
@@ -118,6 +118,32 @@ const bulkActions: BulkAction<Product>[] = [
           @add="handleAdd"
           @refresh="refresh"
         >
+          <!-- ── Select Header & Cell ─────────────────────────────── -->
+          <template #select-header="{ table }">
+            <SelectColumn mode="header" :table="table" />
+          </template>
+
+          <template #select-cell="{ row }">
+            <SelectColumn mode="cell" :row="row" />
+          </template>
+
+          <!-- ── Sortable Headers ─────────────────────────────────── -->
+          <template #name-header="{ column }">
+            <SortableHeader :column="column" label="Nombre" />
+          </template>
+
+          <template #category-header="{ column }">
+            <SortableHeader :column="column" label="Categoría" />
+          </template>
+
+          <template #price-header="{ column }">
+            <SortableHeader :column="column" label="Precio" />
+          </template>
+
+          <template #stock-header="{ column }">
+            <SortableHeader :column="column" label="Stock" />
+          </template>
+
           <!-- ── Nombre ─────────────────────────────────────────── -->
           <template #name-cell="{ row }">
             <span>{{ row.original.name }}</span>
