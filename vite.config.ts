@@ -55,7 +55,7 @@ export default defineConfig({
           },
         },
         colors: {
-          primary: 'violet',
+          primary: 'amber',
           secondary: 'rose',
           neutral: 'zinc',
         },

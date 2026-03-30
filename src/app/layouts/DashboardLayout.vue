@@ -95,7 +95,7 @@ defineShortcuts({
     <!-- Main Panel -->
     <UDashboardPanel id="main-panel">
       <template #header>
-        <UDashboardNavbar title="Hound" icon="i-lucide-layout-dashboard">
+        <UDashboardNavbar title="HoundFe System" icon="i-lucide-layout-dashboard">
           <template #leading>
             <UDashboardSidebarCollapse variant="ghost" />
           </template>

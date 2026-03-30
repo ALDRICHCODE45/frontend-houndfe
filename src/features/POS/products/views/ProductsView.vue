@@ -1,12 +1,14 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { AppDataTable, SortableHeader, SelectColumn } from '@/core/shared/components/DataTable'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import type { BulkAction } from '@/core/shared/types/table.types'
 import { productApi } from '../api/product.api'
 import { useProductColumns } from '../composables/useProductColumns'
-import type { Product } from '../interfaces/product.types'
+import type { Product, CreateProductData } from '../interfaces/product.types'
 import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
+import CreateProductSlideover from '../components/CreateProductSlideover.vue'
 
 const { columns, currencyFormatter } = useProductColumns()
 
@@ -60,8 +62,17 @@ function getRowItems(product: Product) {
   ]
 }
 
+const isCreateOpen = ref(false)
+
 function handleAdd() {
-  console.log('Add product clicked')
+  isCreateOpen.value = true
+}
+
+function handleCreateProduct(data: CreateProductData) {
+  console.log('Producto a crear:', data)
+  // TODO: Llamar a la API real para crear el producto
+  // Después de crear, refrescar la tabla:
+  // refresh()
 }
 
 const bulkActions: BulkAction<Product>[] = [
@@ -83,7 +94,8 @@ const bulkActions: BulkAction<Product>[] = [
 
 <template>
   <div class="flex flex-col gap-6 px-10">
-    <!-- Page Header -->
+    <!-- SlideOver de creación -->
+    <CreateProductSlideover v-model:open="isCreateOpen" @submit="handleCreateProduct" />
 
     <!-- Card wrapper — tabla envuelta como en PF2 -->
     <UCard :ui="{ body: 'p-0 sm:p-0' }">

@@ -73,13 +73,17 @@ function capitalize(str: string): string {
             .filter((col: any) => col.getCanHide())
             .map((col: any) => ({
               label: capitalize(col.id),
-              type: 'checkbox' as const,
-              checked: col.getIsVisible(),
-              onUpdateChecked: (checked: boolean) => col.toggleVisibility(!!checked),
-              onSelect: (e: Event) => e.preventDefault(),
+              icon: col.getIsVisible() ? 'i-lucide-circle-check-big' : 'i-lucide-circle',
+              onSelect: (e: Event) => {
+                e.preventDefault()
+                col.toggleVisibility(!col.getIsVisible())
+              },
             }))
         "
         :content="{ align: 'end' as const }"
+        :ui="{
+          itemLeadingIcon: 'size-4 text-primary',
+        }"
       >
         <UButton
           color="neutral"

@@ -7,10 +7,10 @@ const colorMode = useColorMode()
 export const useSidebar = () => {
   const teams = ref([
     {
-      label: 'Hound',
+      label: 'HoundFe',
       avatar: {
         src: 'https://github.com/nuxt.png',
-        alt: 'Hound',
+        alt: 'HoundFe',
       },
     },
   ])
@@ -57,10 +57,10 @@ export const useSidebar = () => {
   }
 
   const user = ref({
-    name: 'Hound Admin',
+    name: 'HoundFe Admin',
     avatar: {
       src: 'https://github.com/github.png',
-      alt: 'Hound Admin',
+      alt: 'HoundFe Admin',
     },
   })
 
