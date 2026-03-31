@@ -10,20 +10,3 @@ export interface Product {
 }
 
 export type ProductStatus = Product['status']
-
-export interface CreateProductData {
-  name: string
-  sku: string
-  category: string
-  price: number
-  stock: number
-}
-
-export interface UpdateProductData {
-  name?: string
-  sku?: string
-  category?: string
-  price?: number
-  stock?: number
-  status?: ProductStatus
-}

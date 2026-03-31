@@ -6,9 +6,15 @@ import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import type { BulkAction } from '@/core/shared/types/table.types'
 import { productApi } from '../api/product.api'
 import { useProductColumns } from '../composables/useProductColumns'
-import type { Product, CreateProductData } from '../interfaces/product.types'
+import type { Product } from '../interfaces/product.types'
 import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
 import CreateProductSlideover from '../components/CreateProductSlideover.vue'
+import type { CreateProductDto } from '../interfaces/Dtos/createProduct.dto'
+import {
+  getProductRowItems,
+  getStockColor,
+  productStatusConfig,
+} from '../utils/productStatusConfig.utils'
 
 const { columns, currencyFormatter } = useProductColumns()
 
@@ -37,38 +43,13 @@ const {
   defaultPinning: { left: [], right: ['actions'] },
 })
 
-const statusConfig = {
-  active: { color: 'success' as const, label: 'Activo' },
-  inactive: { color: 'neutral' as const, label: 'Inactivo' },
-  out_of_stock: { color: 'error' as const, label: 'Sin Stock' },
-} as const
-
-function getStockColor(stock: number) {
-  if (stock === 0) return 'error' as const
-  if (stock < 10) return 'warning' as const
-  return 'success' as const
-}
-
-function getRowItems(product: Product) {
-  return [
-    [{ label: 'Editar', onSelect: () => console.log('edit', product.id) }],
-    [
-      {
-        label: 'Eliminar',
-        color: 'error',
-        onSelect: () => console.log('delete', product.id),
-      },
-    ],
-  ]
-}
-
-const isCreateOpen = ref(false)
+const isCreateOpen = ref<boolean>(false)
 
 function handleAdd() {
   isCreateOpen.value = true
 }
 
-function handleCreateProduct(data: CreateProductData) {
+function handleCreateProduct(data: CreateProductDto) {
   console.log('Producto a crear:', data)
   // TODO: Llamar a la API real para crear el producto
   // Después de crear, refrescar la tabla:
@@ -191,17 +172,17 @@ const bulkActions: BulkAction<Product>[] = [
           <!-- ── Estado ─────────────────────────────────────────── -->
           <template #status-cell="{ row }">
             <UBadge
-              :color="statusConfig[(row.original as Product).status].color"
+              :color="productStatusConfig[(row.original as Product).status].color"
               variant="outline"
               size="sm"
             >
-              {{ statusConfig[(row.original as Product).status].label }}
+              {{ productStatusConfig[(row.original as Product).status].label }}
             </UBadge>
           </template>
 
           <!-- ── Acciones ───────────────────────────────────────── -->
           <template #actions-cell="{ row }">
-            <UDropdownMenu :items="getRowItems(row.original)" :content="{ align: 'end' }">
+            <UDropdownMenu :items="getProductRowItems(row.original)" :content="{ align: 'end' }">
               <UButton
                 icon="i-lucide-ellipsis-vertical"
                 color="neutral"
