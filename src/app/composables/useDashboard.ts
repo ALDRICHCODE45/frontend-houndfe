@@ -23,7 +23,21 @@ export const useDashboard = () => {
     {
       id: 'pages',
       label: 'Pages',
-      items: [{ id: 'home', label: 'Home', icon: 'i-lucide-home', to: '/' }],
+      items: [
+        { id: 'home', label: 'Home', icon: 'i-lucide-home', to: '/' },
+        {
+          id: 'admin-users',
+          label: 'Admin / Usuarios',
+          icon: 'i-lucide-users',
+          to: '/admin/users',
+        },
+        {
+          id: 'admin-roles',
+          label: 'Admin / Roles',
+          icon: 'i-lucide-user-cog',
+          to: '/admin/roles',
+        },
+      ],
     },
     {
       id: 'actions',

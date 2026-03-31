@@ -13,7 +13,7 @@ import DataTableToolbar from './DataTableToolbar.vue'
 import DataTablePagination from './DataTablePagination.vue'
 import DataTableBulkActions from './DataTableBulkActions.vue'
 
-const props = withDefaults(
+withDefaults(
   defineProps<{
     columns: TableColumn<T, unknown>[]
     data: T[]

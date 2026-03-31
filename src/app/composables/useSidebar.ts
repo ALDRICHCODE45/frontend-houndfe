@@ -1,10 +1,15 @@
 import { computed, ref } from 'vue'
 import type { DropdownMenuItem, NavigationMenuItem } from '@nuxt/ui'
 import { useColorMode } from '@vueuse/core'
+import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import { useRouter } from 'vue-router'
 
 const colorMode = useColorMode()
 
 export const useSidebar = () => {
+  const authStore = useAuthStore()
+  const router = useRouter()
+
   const teams = ref([
     {
       label: 'HoundFe',
@@ -53,16 +58,36 @@ export const useSidebar = () => {
               { label: 'Orders', icon: 'i-lucide-receipt', to: '/pos/orders' },
             ],
       },
+      {
+        label: 'Admin',
+        icon: 'i-lucide-shield-check',
+        defaultOpen: true,
+        children: collapsed
+          ? []
+          : [
+              { label: 'Usuarios', icon: 'i-lucide-users', to: '/admin/users' },
+              { label: 'Roles', icon: 'i-lucide-user-cog', to: '/admin/roles' },
+            ],
+      },
     ]
   }
 
-  const user = ref({
-    name: 'HoundFe Admin',
+  const user = computed(() => ({
+    name: authStore.user?.name ?? 'HoundFe Admin',
     avatar: {
-      src: 'https://github.com/github.png',
-      alt: 'HoundFe Admin',
+      alt: authStore.user?.name ?? 'HoundFe Admin',
+      text: (authStore.user?.name ?? 'HA')
+        .split(' ')
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase() ?? '')
+        .join(''),
     },
-  })
+  }))
+
+  async function handleLogout() {
+    await authStore.logout()
+    await router.push('/login')
+  }
 
   const userItems = computed<DropdownMenuItem[][]>(() => [
     [
@@ -101,7 +126,7 @@ export const useSidebar = () => {
         ],
       },
     ],
-    [{ label: 'Log out', icon: 'i-lucide-log-out' }],
+    [{ label: 'Log out', icon: 'i-lucide-log-out', onSelect: handleLogout }],
   ])
 
   const changeColorMode = () => {

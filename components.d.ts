@@ -13,6 +13,7 @@ declare module 'vue' {
   export interface GlobalComponents {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    UAlert: typeof import('./node_modules/.pnpm/@nuxt+ui@4.6.0_@tiptap+extensions@3.21.0_@tiptap+core@3.21.0_@tiptap+pm@3.21.0__@tiptap_8122bd949389e3fd5fa9c0e80a5251ca/node_modules/@nuxt/ui/dist/runtime/components/Alert.vue')['default']
     UApp: typeof import('./node_modules/.pnpm/@nuxt+ui@4.6.0_@tiptap+extensions@3.21.0_@tiptap+core@3.21.0_@tiptap+pm@3.21.0__@tiptap_8122bd949389e3fd5fa9c0e80a5251ca/node_modules/@nuxt/ui/dist/runtime/components/App.vue')['default']
     UAvatar: typeof import('./node_modules/.pnpm/@nuxt+ui@4.6.0_@tiptap+extensions@3.21.0_@tiptap+core@3.21.0_@tiptap+pm@3.21.0__@tiptap_8122bd949389e3fd5fa9c0e80a5251ca/node_modules/@nuxt/ui/dist/runtime/components/Avatar.vue')['default']
     UBadge: typeof import('./node_modules/.pnpm/@nuxt+ui@4.6.0_@tiptap+extensions@3.21.0_@tiptap+core@3.21.0_@tiptap+pm@3.21.0__@tiptap_8122bd949389e3fd5fa9c0e80a5251ca/node_modules/@nuxt/ui/dist/runtime/components/Badge.vue')['default']
@@ -36,6 +37,7 @@ declare module 'vue' {
     UPagination: typeof import('./node_modules/.pnpm/@nuxt+ui@4.6.0_@tiptap+extensions@3.21.0_@tiptap+core@3.21.0_@tiptap+pm@3.21.0__@tiptap_8122bd949389e3fd5fa9c0e80a5251ca/node_modules/@nuxt/ui/dist/runtime/components/Pagination.vue')['default']
     USlideover: typeof import('./node_modules/.pnpm/@nuxt+ui@4.6.0_@tiptap+extensions@3.21.0_@tiptap+core@3.21.0_@tiptap+pm@3.21.0__@tiptap_8122bd949389e3fd5fa9c0e80a5251ca/node_modules/@nuxt/ui/dist/runtime/components/Slideover.vue')['default']
     UTable: typeof import('./node_modules/.pnpm/@nuxt+ui@4.6.0_@tiptap+extensions@3.21.0_@tiptap+core@3.21.0_@tiptap+pm@3.21.0__@tiptap_8122bd949389e3fd5fa9c0e80a5251ca/node_modules/@nuxt/ui/dist/runtime/components/Table.vue')['default']
+    UTextarea: typeof import('./node_modules/.pnpm/@nuxt+ui@4.6.0_@tiptap+extensions@3.21.0_@tiptap+core@3.21.0_@tiptap+pm@3.21.0__@tiptap_8122bd949389e3fd5fa9c0e80a5251ca/node_modules/@nuxt/ui/dist/runtime/components/Textarea.vue')['default']
     UTooltip: typeof import('./node_modules/.pnpm/@nuxt+ui@4.6.0_@tiptap+extensions@3.21.0_@tiptap+core@3.21.0_@tiptap+pm@3.21.0__@tiptap_8122bd949389e3fd5fa9c0e80a5251ca/node_modules/@nuxt/ui/dist/runtime/components/Tooltip.vue')['default']
   }
 }

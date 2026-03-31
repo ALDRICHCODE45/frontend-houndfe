@@ -1,32 +1,21 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
+import type { FormSubmitEvent } from '@nuxt/ui'
+import { useLoginForm, type LoginFormValues } from '../composables/useLoginForm'
 
-const props = defineProps<{
-  email: string
-  password: string
+defineProps<{
   loading?: boolean
 }>()
 
 const emit = defineEmits<{
-  'update:email': [value: string]
-  'update:password': [value: string]
-  submit: []
+  submit: [values: LoginFormValues]
 }>()
 
 const showPassword = ref(false)
+const { schema, state } = useLoginForm()
 
-const emailValue = computed({
-  get: () => props.email,
-  set: (value) => emit('update:email', value),
-})
-
-const passwordValue = computed({
-  get: () => props.password,
-  set: (value) => emit('update:password', value),
-})
-
-function handleSubmit() {
-  emit('submit')
+function handleSubmit(event: FormSubmitEvent<LoginFormValues>) {
+  emit('submit', event.data)
 }
 </script>
 
@@ -43,43 +32,37 @@ function handleSubmit() {
     </div>
 
     <!-- Form -->
-    <form class="space-y-5" @submit.prevent="handleSubmit">
+    <UForm class="space-y-5" :schema="schema" :state="state" @submit="handleSubmit">
       <!-- Email -->
-      <div class="space-y-1.5">
-        <label
-          for="email"
-          class="block text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
-        >
-          Email
-        </label>
+      <UFormField
+        label="Email"
+        name="email"
+        class="text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
+      >
         <UInput
           id="email"
-          v-model="emailValue"
+          v-model="state.email"
           type="email"
           placeholder="tu@email.com"
           size="lg"
           class="w-full"
-          required
           :disabled="loading"
         />
-      </div>
+      </UFormField>
 
       <!-- Password -->
-      <div class="space-y-1.5">
-        <label
-          for="password"
-          class="block text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
-        >
-          Contrase&ntilde;a
-        </label>
+      <UFormField
+        label="Contraseña"
+        name="password"
+        class="text-xs font-medium uppercase tracking-wider text-neutral-500 dark:text-neutral-400"
+      >
         <UInput
           id="password"
-          v-model="passwordValue"
+          v-model="state.password"
           :type="showPassword ? 'text' : 'password'"
           placeholder="&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;&#8226;"
           size="lg"
           class="w-full"
-          required
           :disabled="loading"
         >
           <template #trailing>
@@ -93,7 +76,7 @@ function handleSubmit() {
             />
           </template>
         </UInput>
-      </div>
+      </UFormField>
 
       <!-- Submit Button -->
       <div class="pt-2">
@@ -107,7 +90,7 @@ function handleSubmit() {
           Ingresar
         </UButton>
       </div>
-    </form>
+    </UForm>
   </div>
 </template>
 

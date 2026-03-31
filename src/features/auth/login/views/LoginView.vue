@@ -1,17 +1,36 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useMutation } from '@tanstack/vue-query'
 import LoginForm from '@/features/auth/login/components/LoginForm.vue'
 import LoginHero from '@/features/auth/login/components/LoginHero.vue'
+import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import type { LoginFormValues } from '../composables/useLoginForm'
 
-const email = ref('')
-const password = ref('')
 const isLoading = ref(false)
+const loginError = ref<string | null>(null)
+const router = useRouter()
+const route = useRoute()
+const authStore = useAuthStore()
 
-async function handleLogin() {
+const loginMutation = useMutation({
+  mutationFn: (payload: LoginFormValues) => authStore.login(payload),
+})
+
+async function handleLogin(values: LoginFormValues) {
   isLoading.value = true
-  // TODO: Implement actual login logic
-  await new Promise((resolve) => setTimeout(resolve, 1500))
-  isLoading.value = false
+  loginError.value = null
+
+  try {
+    await loginMutation.mutateAsync(values)
+
+    const redirectTo = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
+    await router.push(redirectTo)
+  } catch {
+    loginError.value = 'No se pudo iniciar sesión. Verificá credenciales y conexión con backend.'
+  } finally {
+    isLoading.value = false
+  }
 }
 </script>
 
@@ -32,12 +51,16 @@ async function handleLogin() {
       </div>
 
       <div class="w-full max-w-sm">
-        <LoginForm
-          v-model:email="email"
-          v-model:password="password"
-          :loading="isLoading"
-          @submit="handleLogin"
+        <UAlert
+          v-if="loginError"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-triangle-alert"
+          :title="loginError"
+          class="mb-4"
         />
+
+        <LoginForm :loading="isLoading" @submit="handleLogin" />
       </div>
     </div>
   </div>
