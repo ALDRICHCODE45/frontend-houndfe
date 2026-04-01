@@ -6,6 +6,19 @@ export interface AuthUser {
   createdAt: string
 }
 
+export type AppAction = 'create' | 'read' | 'update' | 'delete' | 'manage'
+export type AppSubject = 'Product' | 'Order' | 'User' | 'Role' | 'all'
+
+export interface EffectivePermission {
+  subject: AppSubject
+  action: AppAction
+}
+
+export interface UserPermissionsResponse {
+  permissions: EffectivePermission[]
+  permissionCodes: string[]
+}
+
 export interface AuthTokens {
   accessToken: string
   refreshToken: string

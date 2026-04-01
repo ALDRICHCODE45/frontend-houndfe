@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { AppDataTable, SortableHeader, SelectColumn } from '@/core/shared/components/DataTable'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import type { BulkAction } from '@/core/shared/types/table.types'
+import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { productApi } from '../api/product.api'
 import { useProductColumns } from '../composables/useProductColumns'
 import type { Product } from '../interfaces/product.types'
@@ -17,6 +18,7 @@ import {
 } from '../utils/productStatusConfig.utils'
 
 const { columns, currencyFormatter } = useProductColumns()
+const authStore = useAuthStore()
 
 const {
   pagination,
@@ -45,7 +47,13 @@ const {
 
 const isCreateOpen = ref<boolean>(false)
 
+const canCreateProduct = computed(() => authStore.userCan('create', 'Product'))
+const canUpdateProduct = computed(() => authStore.userCan('update', 'Product'))
+const canDeleteProduct = computed(() => authStore.userCan('delete', 'Product'))
+const canManageProductActions = computed(() => canUpdateProduct.value || canDeleteProduct.value)
+
 function handleAdd() {
+  if (!canCreateProduct.value) return
   isCreateOpen.value = true
 }
 
@@ -56,21 +64,28 @@ function handleCreateProduct(data: CreateProductDto) {
   // refresh()
 }
 
-const bulkActions: BulkAction<Product>[] = [
-  {
-    id: 'delete',
-    label: 'Eliminar',
-    icon: 'i-lucide-trash-2',
-    variant: 'destructive',
-    onClick: (rows) => console.log('Delete selected:', rows),
-  },
-  {
+const bulkActions = computed<BulkAction<Product>[]>(() => {
+  const actions: BulkAction<Product>[] = []
+
+  if (canDeleteProduct.value) {
+    actions.push({
+      id: 'delete',
+      label: 'Eliminar',
+      icon: 'i-lucide-trash-2',
+      variant: 'destructive',
+      onClick: (rows) => console.log('Delete selected:', rows),
+    })
+  }
+
+  actions.push({
     id: 'export',
     label: 'Exportar',
     icon: 'i-lucide-download',
     onClick: (rows) => console.log('Export selected:', rows),
-  },
-]
+  })
+
+  return actions
+})
 </script>
 
 <template>
@@ -104,12 +119,12 @@ const bulkActions: BulkAction<Product>[] = [
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
           :bulk-actions="bulkActions"
+          :show-add-button="canCreateProduct"
           search-placeholder="Buscar productos..."
-          show-add-button
           add-button-text="Nuevo Producto"
           add-button-icon="i-lucide-package-plus"
           enable-column-visibility
-          enable-row-selection
+          :enable-row-selection="bulkActions.length > 0"
           empty="No se encontraron productos"
           @add="handleAdd"
           @refresh="refresh"
@@ -182,7 +197,16 @@ const bulkActions: BulkAction<Product>[] = [
 
           <!-- ── Acciones ───────────────────────────────────────── -->
           <template #actions-cell="{ row }">
-            <UDropdownMenu :items="getProductRowItems(row.original)" :content="{ align: 'end' }">
+            <UDropdownMenu
+              v-if="canManageProductActions"
+              :items="
+                getProductRowItems(row.original, {
+                  canUpdate: canUpdateProduct,
+                  canDelete: canDeleteProduct,
+                })
+              "
+              :content="{ align: 'end' }"
+            >
               <UButton
                 icon="i-lucide-ellipsis-vertical"
                 color="neutral"

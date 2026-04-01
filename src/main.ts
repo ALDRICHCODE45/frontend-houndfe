@@ -3,8 +3,10 @@ import './assets/main.css'
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { VueQueryPlugin } from '@tanstack/vue-query'
+import { abilitiesPlugin } from '@casl/vue'
 import ui from '@nuxt/ui/vue-plugin'
 import router from '@/app/router'
+import { ability } from '@/features/auth/authorization/ability'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { onSessionExpired } from '@/features/auth/services/session-events'
 import App from './App.vue'
@@ -13,6 +15,7 @@ const app = createApp(App)
 const pinia = createPinia()
 
 app.use(pinia)
+app.use(abilitiesPlugin, ability)
 app.use(router)
 app.use(ui)
 app.use(VueQueryPlugin)

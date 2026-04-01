@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { adminRoleQueryKeys } from '@/core/shared/constants/query-keys'
+import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { rolesApi } from '../api/roles.api'
 import { usersApi } from '@/features/admin/users/api/users.api'
 import { useRoleColumns } from '../composables/useRoleColumns'
@@ -13,6 +14,7 @@ import RoleUpsertSlideover from '../components/RoleUpsertSlideover.vue'
 import RolePermissionsSlideover from '../components/RolePermissionsSlideover.vue'
 
 const queryClient = useQueryClient()
+const authStore = useAuthStore()
 const { columns } = useRoleColumns()
 
 const {
@@ -91,6 +93,11 @@ const isSubmitting = computed(
     permissionsMutation.isPending.value,
 )
 
+const canCreateRole = computed(() => authStore.userCan('create', 'Role'))
+const canUpdateRole = computed(() => authStore.userCan('update', 'Role'))
+const canDeleteRole = computed(() => authStore.userCan('delete', 'Role'))
+const canManageRoleActions = computed(() => canUpdateRole.value || canDeleteRole.value)
+
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
   day: '2-digit',
   month: 'short',
@@ -98,16 +105,20 @@ const dateFormatter = new Intl.DateTimeFormat('es-AR', {
 })
 
 function openEdit(role: RoleTableRow) {
+  if (!canUpdateRole.value) return
   selectedRole.value = role
   isEditOpen.value = true
 }
 
 function openPermissions(role: RoleTableRow) {
+  if (!canUpdateRole.value) return
   selectedRole.value = role
   isPermissionsOpen.value = true
 }
 
 async function handleDelete(role: RoleTableRow) {
+  if (!canDeleteRole.value) return
+
   if (role.isSystem) {
     window.alert('No se puede eliminar un rol del sistema.')
     return
@@ -120,19 +131,28 @@ async function handleDelete(role: RoleTableRow) {
 }
 
 function getRowItems(role: RoleTableRow) {
-  return [
-    [
-      { label: 'Editar', onSelect: () => openEdit(role) },
-      { label: 'Permisos', onSelect: () => openPermissions(role) },
-    ],
-    [
-      {
-        label: 'Eliminar',
-        color: 'error',
-        onSelect: () => handleDelete(role),
-      },
-    ],
+  const mainActions = [
+    ...(canUpdateRole.value
+      ? [
+          { label: 'Editar', onSelect: () => openEdit(role) },
+          { label: 'Permisos', onSelect: () => openPermissions(role) },
+        ]
+      : []),
   ]
+
+  const destructiveActions = [
+    ...(canDeleteRole.value
+      ? [
+          {
+            label: 'Eliminar',
+            color: 'error' as const,
+            onSelect: () => handleDelete(role),
+          },
+        ]
+      : []),
+  ]
+
+  return [mainActions, destructiveActions].filter((section) => section.length > 0)
 }
 </script>
 
@@ -185,7 +205,7 @@ function getRowItems(role: RoleTableRow) {
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
           search-placeholder="Buscar rol..."
-          show-add-button
+          :show-add-button="canCreateRole"
           add-button-text="Crear Rol"
           add-button-icon="i-lucide-user-plus"
           empty="No se encontraron roles"
@@ -213,7 +233,11 @@ function getRowItems(role: RoleTableRow) {
           </template>
 
           <template #actions-cell="{ row }">
-            <UDropdownMenu :items="getRowItems(row.original)" :content="{ align: 'end' }">
+            <UDropdownMenu
+              v-if="canManageRoleActions"
+              :items="getRowItems(row.original)"
+              :content="{ align: 'end' }"
+            >
               <UButton
                 icon="i-lucide-ellipsis-vertical"
                 color="neutral"

@@ -12,15 +12,29 @@ export const getStockColor = (stock: number) => {
   return 'success' as const
 }
 
-export function getProductRowItems(product: Product) {
-  return [
-    [{ label: 'Editar', onSelect: () => console.log('edit', product.id) }],
-    [
-      {
-        label: 'Eliminar',
-        color: 'error',
-        onSelect: () => console.log('delete', product.id),
-      },
-    ],
+interface ProductRowPermissions {
+  canUpdate: boolean
+  canDelete: boolean
+}
+
+export function getProductRowItems(product: Product, permissions: ProductRowPermissions) {
+  const mainActions = [
+    ...(permissions.canUpdate
+      ? [{ label: 'Editar', onSelect: () => console.log('edit', product.id) }]
+      : []),
   ]
+
+  const destructiveActions = [
+    ...(permissions.canDelete
+      ? [
+          {
+            label: 'Eliminar',
+            color: 'error' as const,
+            onSelect: () => console.log('delete', product.id),
+          },
+        ]
+      : []),
+  ]
+
+  return [mainActions, destructiveActions].filter((section) => section.length > 0)
 }

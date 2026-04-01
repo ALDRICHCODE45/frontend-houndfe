@@ -1,5 +1,8 @@
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import type { AppAction, AppSubject } from '@/features/auth/interfaces/auth.types'
 import { createRouter, createWebHistory } from 'vue-router'
+
+type RoutePermission = [AppAction, AppSubject]
 
 const LoginView = () => import('@/features/auth/login/views/LoginView.vue')
 const DashboardHomeView = () => import('@/features/dashboard/home/views/DashboardHomeView.vue')
@@ -27,25 +30,37 @@ const router = createRouter({
       path: '/pos/products',
       name: 'pos-products',
       component: ProductsView,
-      meta: { layout: 'dashboard' },
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'Product'] as RoutePermission,
+      },
     },
     {
       path: '/pos/orders',
       name: 'pos-orders',
       component: OrdersView,
-      meta: { layout: 'dashboard' },
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'Order'] as RoutePermission,
+      },
     },
     {
       path: '/admin/users',
       name: 'admin-users',
       component: AdminUsersView,
-      meta: { layout: 'dashboard' },
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'User'] as RoutePermission,
+      },
     },
     {
       path: '/admin/roles',
       name: 'admin-roles',
       component: AdminRolesView,
-      meta: { layout: 'dashboard' },
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'Role'] as RoutePermission,
+      },
     },
   ],
 })
@@ -74,7 +89,25 @@ router.beforeEach(async (to) => {
     }
   }
 
+  if (authStore.isAuthenticated && !authStore.permissionsLoaded) {
+    try {
+      await authStore.fetchPermissions()
+    } catch {
+      authStore.clearSession()
+
+      return {
+        path: '/login',
+        query: { redirect: to.fullPath },
+      }
+    }
+  }
+
   if (to.path === '/login' && authStore.isAuthenticated) {
+    return '/'
+  }
+
+  const requiredPermission = to.meta.permission as RoutePermission | undefined
+  if (requiredPermission && !authStore.userCan(requiredPermission[0], requiredPermission[1])) {
     return '/'
   }
 

@@ -16,6 +16,8 @@
     "format": "prettier --write --experimental-cli src/"
   },
   "dependencies": {
+    "@casl/ability": "^6.8.0",
+    "@casl/vue": "^2.2.6",
     "@nuxt/ui": "^4.6.0",
     "@tanstack/vue-query": "^5.95.2",
     "@tanstack/vue-table": "^8.21.3",

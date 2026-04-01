@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { adminUserQueryKeys } from '@/core/shared/constants/query-keys'
+import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { usersApi } from '../api/users.api'
 import { useUserColumns } from '../composables/useUserColumns'
 import type { UserTableRow } from '../interfaces/user.types'
@@ -11,6 +12,7 @@ import UserUpsertSlideover from '../components/UserUpsertSlideover.vue'
 import UserAssignRolesSlideover from '../components/UserAssignRolesSlideover.vue'
 
 const queryClient = useQueryClient()
+const authStore = useAuthStore()
 const { columns } = useUserColumns()
 
 const {
@@ -89,6 +91,11 @@ const isSubmitting = computed(
     deleteMutation.isPending.value,
 )
 
+const canCreateUser = computed(() => authStore.userCan('create', 'User'))
+const canUpdateUser = computed(() => authStore.userCan('update', 'User'))
+const canDeleteUser = computed(() => authStore.userCan('delete', 'User'))
+const canManageUserActions = computed(() => canUpdateUser.value || canDeleteUser.value)
+
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
   day: '2-digit',
   month: 'short',
@@ -102,35 +109,47 @@ function getInitials(name: string) {
 }
 
 function openEdit(user: UserTableRow) {
+  if (!canUpdateUser.value) return
   selectedUser.value = user
   isEditOpen.value = true
 }
 
 function openAssignRoles(user: UserTableRow) {
+  if (!canUpdateUser.value) return
   selectedUser.value = user
   isAssignRolesOpen.value = true
 }
 
 async function handleDelete(user: UserTableRow) {
+  if (!canDeleteUser.value) return
   const confirmed = window.confirm(`¿Querés desactivar al usuario ${user.name}?`)
   if (!confirmed) return
   await deleteMutation.mutateAsync(user.id)
 }
 
 function getRowItems(user: UserTableRow) {
-  return [
-    [
-      { label: 'Editar', onSelect: () => openEdit(user) },
-      { label: 'Roles', onSelect: () => openAssignRoles(user) },
-    ],
-    [
-      {
-        label: 'Eliminar',
-        color: 'error',
-        onSelect: () => handleDelete(user),
-      },
-    ],
+  const mainActions = [
+    ...(canUpdateUser.value
+      ? [
+          { label: 'Editar', onSelect: () => openEdit(user) },
+          { label: 'Roles', onSelect: () => openAssignRoles(user) },
+        ]
+      : []),
   ]
+
+  const destructiveActions = [
+    ...(canDeleteUser.value
+      ? [
+          {
+            label: 'Eliminar',
+            color: 'error' as const,
+            onSelect: () => handleDelete(user),
+          },
+        ]
+      : []),
+  ]
+
+  return [mainActions, destructiveActions].filter((section) => section.length > 0)
 }
 </script>
 
@@ -186,7 +205,7 @@ function getRowItems(user: UserTableRow) {
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
           search-placeholder="Buscar por email..."
-          show-add-button
+          :show-add-button="canCreateUser"
           add-button-text="Crear Usuario"
           add-button-icon="i-lucide-user-plus"
           empty="No se encontraron usuarios"
@@ -233,7 +252,11 @@ function getRowItems(user: UserTableRow) {
           </template>
 
           <template #actions-cell="{ row }">
-            <UDropdownMenu :items="getRowItems(row.original)" :content="{ align: 'end' }">
+            <UDropdownMenu
+              v-if="canManageUserActions"
+              :items="getRowItems(row.original)"
+              :content="{ align: 'end' }"
+            >
               <UButton
                 icon="i-lucide-ellipsis-vertical"
                 color="neutral"

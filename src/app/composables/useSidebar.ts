@@ -2,9 +2,17 @@ import { computed, ref } from 'vue'
 import type { DropdownMenuItem, NavigationMenuItem } from '@nuxt/ui'
 import { useColorMode } from '@vueuse/core'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import type { AppAction, AppSubject } from '@/features/auth/interfaces/auth.types'
 import { useRouter } from 'vue-router'
 
 const colorMode = useColorMode()
+
+type PermissionTuple = [AppAction, AppSubject]
+
+interface GuardedNavigationMenuItem extends NavigationMenuItem {
+  permission?: PermissionTuple
+  children?: GuardedNavigationMenuItem[]
+}
 
 export const useSidebar = () => {
   const authStore = useAuthStore()
@@ -40,7 +48,12 @@ export const useSidebar = () => {
   })
 
   function getNavigationItems(collapsed: boolean): NavigationMenuItem[] {
-    return [
+    const canAccess = (permission?: PermissionTuple) => {
+      if (!permission) return true
+      return authStore.userCan(permission[0], permission[1])
+    }
+
+    const items: GuardedNavigationMenuItem[] = [
       {
         label: 'Dashboard',
         icon: 'i-lucide-layout-dashboard',
@@ -51,25 +64,63 @@ export const useSidebar = () => {
         label: 'POS',
         icon: 'i-lucide-shopping-cart',
         defaultOpen: true,
-        children: collapsed
-          ? []
-          : [
-              { label: 'Products', icon: 'i-lucide-package', to: '/pos/products' },
-              { label: 'Orders', icon: 'i-lucide-receipt', to: '/pos/orders' },
-            ],
+        children: [
+          {
+            label: 'Products',
+            icon: 'i-lucide-package',
+            to: '/pos/products',
+            permission: ['read', 'Product'],
+          },
+          {
+            label: 'Orders',
+            icon: 'i-lucide-receipt',
+            to: '/pos/orders',
+            permission: ['read', 'Order'],
+          },
+        ],
       },
       {
         label: 'Admin',
         icon: 'i-lucide-shield-check',
         defaultOpen: true,
-        children: collapsed
-          ? []
-          : [
-              { label: 'Usuarios', icon: 'i-lucide-users', to: '/admin/users' },
-              { label: 'Roles', icon: 'i-lucide-user-cog', to: '/admin/roles' },
-            ],
+        children: [
+          {
+            label: 'Usuarios',
+            icon: 'i-lucide-users',
+            to: '/admin/users',
+            permission: ['read', 'User'],
+          },
+          {
+            label: 'Roles',
+            icon: 'i-lucide-user-cog',
+            to: '/admin/roles',
+            permission: ['read', 'Role'],
+          },
+        ],
       },
     ]
+
+    return items
+      .map((item) => {
+        if (item.children && item.children.length > 0) {
+          const visibleChildren = item.children
+            .filter((child) => canAccess(child.permission))
+            .map(({ permission: _permission, ...child }) => child)
+
+          if (visibleChildren.length === 0) return null
+
+          return {
+            ...item,
+            children: collapsed ? [] : visibleChildren,
+          }
+        }
+
+        if (!canAccess(item.permission)) return null
+
+        const { permission: _permission, ...visibleItem } = item
+        return visibleItem
+      })
+      .filter((item): item is NavigationMenuItem => item !== null)
   }
 
   const user = computed(() => ({

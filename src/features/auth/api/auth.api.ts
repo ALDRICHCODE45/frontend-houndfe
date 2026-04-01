@@ -1,5 +1,11 @@
 import { http } from '@/core/shared/api/http'
-import type { AuthLoginRequest, AuthResponse, AuthTokens, AuthUser } from '../interfaces/auth.types'
+import type {
+  AuthLoginRequest,
+  AuthResponse,
+  AuthTokens,
+  AuthUser,
+  UserPermissionsResponse,
+} from '../interfaces/auth.types'
 
 export const authApi = {
   async login(payload: AuthLoginRequest) {
@@ -9,6 +15,11 @@ export const authApi = {
 
   async me() {
     const { data } = await http.get<AuthUser>('/auth/me')
+    return data
+  },
+
+  async mePermissions() {
+    const { data } = await http.get<UserPermissionsResponse>('/auth/me/permissions')
     return data
   },
 
