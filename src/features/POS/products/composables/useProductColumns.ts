@@ -5,8 +5,8 @@ import { createSimpleHeader } from '@/core/shared/components/DataTable'
 const currencyFormatter = new Intl.NumberFormat('es-AR', {
   style: 'currency',
   currency: 'ARS',
-  minimumFractionDigits: 0,
-  maximumFractionDigits: 0,
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
 })
 
 export function useProductColumns() {
@@ -37,14 +37,14 @@ export function useProductColumns() {
     // ── Categoría (sortable) ──────────────────────────────────────────
     // Header rendered via #category-header slot
     {
-      accessorKey: 'category',
+      accessorKey: 'categoryName',
       header: 'Categoría',
     },
 
     // ── Precio (sortable, formateado) ─────────────────────────────────
     // Header rendered via #price-header slot
     {
-      accessorKey: 'price',
+      accessorKey: 'priceCents',
       header: 'Precio',
       meta: { class: { th: 'text-right', td: 'text-right' } },
     },
@@ -52,7 +52,7 @@ export function useProductColumns() {
     // ── Stock (sortable, con color) ───────────────────────────────────
     // Header rendered via #stock-header slot
     {
-      accessorKey: 'stock',
+      accessorKey: 'quantity',
       header: 'Stock',
       meta: { class: { th: 'text-center', td: 'text-center' } },
     },

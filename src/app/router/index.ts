@@ -7,6 +7,7 @@ type RoutePermission = [AppAction, AppSubject]
 const LoginView = () => import('@/features/auth/login/views/LoginView.vue')
 const DashboardHomeView = () => import('@/features/dashboard/home/views/DashboardHomeView.vue')
 const ProductsView = () => import('@/features/POS/products/views/ProductsView.vue')
+const ProductDetailView = () => import('@/features/POS/products/views/ProductDetailView.vue')
 const OrdersView = () => import('@/features/POS/orders/views/OrdersView.vue')
 const AdminUsersView = () => import('@/features/admin/users/views/AdminUsersView.vue')
 const AdminRolesView = () => import('@/features/admin/roles/views/AdminRolesView.vue')
@@ -30,6 +31,15 @@ const router = createRouter({
       path: '/pos/products',
       name: 'pos-products',
       component: ProductsView,
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'Product'] as RoutePermission,
+      },
+    },
+    {
+      path: '/pos/products/:id',
+      name: 'pos-product-detail',
+      component: ProductDetailView,
       meta: {
         layout: 'dashboard',
         permission: ['read', 'Product'] as RoutePermission,

@@ -1,83 +1,135 @@
-/**
- * useProductForm — Composable para el form de producto con UForm + Zod
- *
- * ANTES (vee-validate):
- *   - import useForm, toTypedSchema, defineField
- *   - toTypedSchema(schema) para convertir
- *   - defineField('name') por cada campo
- *   - handleSubmit wrapper
- *   - helper toFieldEntry
- *   = ~50 líneas de plomería
- *
- * AHORA (UForm nativo):
- *   - schema de zod (se pasa directo a <UForm :schema>)
- *   - reactive({}) como state
- *   - función para resetear
- *   = ~20 líneas. Eso es TODO.
- *
- * ¿Por qué? Porque <UForm> ya sabe leer schemas de zod
- * gracias a Standard Schema. No necesitás adapters ni bridges.
- */
 import { reactive } from 'vue'
 import { z } from 'zod'
+import type {
+  CreateProductPayload,
+  Product,
+  ProductDetail,
+  ProductFormInput,
+  UpdateProductPayload,
+} from '../interfaces/product.types'
 
-// ─── Schema ─────────────────────────────────────────────────────
-export const productSchema = z.object({
+const priceRegex = /^\d+(?:[.,]\d{1,2})?$/
+
+export const productFormSchema = z.object({
   name: z
     .string({ required_error: 'El nombre es obligatorio' })
-    .min(2, 'El nombre debe tener al menos 2 caracteres'),
-
-  sku: z
-    .string({ required_error: 'El SKU es obligatorio' })
-    .min(3, 'El SKU debe tener al menos 3 caracteres')
-    .regex(/^[A-Za-z0-9-]+$/, 'Solo letras, números y guiones'),
-
-  category: z
-    .string({ required_error: 'La categoría es obligatoria' })
-    .min(2, 'La categoría debe tener al menos 2 caracteres'),
-
+    .trim()
+    .min(2, 'El nombre debe tener al menos 2 caracteres')
+    .max(100, 'Máximo 100 caracteres'),
+  sku: z.string().trim().max(100, 'Máximo 100 caracteres'),
+  barcode: z.string().trim().max(100, 'Máximo 100 caracteres'),
+  categoryId: z.string().trim(),
+  description: z.string().trim().max(2000, 'Máximo 2000 caracteres'),
+  location: z.string().trim().max(120, 'Máximo 120 caracteres'),
+  satKey: z.string().trim().max(100, 'Máximo 100 caracteres'),
   price: z
-    .number({
-      required_error: 'El precio es obligatorio',
-      invalid_type_error: 'Ingresá un número válido',
-    })
-    .min(0.01, 'El precio debe ser mayor a 0'),
-
-  stock: z
-    .number({
-      required_error: 'El stock es obligatorio',
-      invalid_type_error: 'Ingresá un número válido',
-    })
-    .int('El stock debe ser un número entero')
-    .min(0, 'El stock no puede ser negativo'),
+    .string({ required_error: 'El precio es obligatorio' })
+    .trim()
+    .min(1, 'El precio es obligatorio')
+    .regex(priceRegex, 'Ingresá un valor decimal válido (ej: 199.90)'),
+  quantity: z
+    .number({ invalid_type_error: 'Ingresá un número válido' })
+    .int('Debe ser entero')
+    .min(0, 'No puede ser negativo'),
+  minQuantity: z
+    .number({ invalid_type_error: 'Ingresá un número válido' })
+    .int('Debe ser entero')
+    .min(0, 'No puede ser negativo'),
+  useStock: z.boolean(),
+  sellInPos: z.boolean(),
+  includeInOnlineCatalog: z.boolean(),
+  chargeProductTaxes: z.boolean(),
 })
 
-// Tipo inferido del schema
-export type ProductFormValues = z.infer<typeof productSchema>
+export type ProductFormValues = z.infer<typeof productFormSchema>
 
-// ─── Initial values ─────────────────────────────────────────────
-function getInitialState(): Partial<ProductFormValues> {
+function getInitialState(): ProductFormInput {
   return {
-    name: undefined,
-    sku: undefined,
-    category: undefined,
-    price: undefined,
-    stock: undefined,
+    name: '',
+    sku: '',
+    barcode: '',
+    categoryId: '',
+    description: '',
+    location: '',
+    satKey: '',
+    price: '',
+    quantity: 0,
+    minQuantity: 0,
+    useStock: true,
+    sellInPos: true,
+    includeInOnlineCatalog: true,
+    chargeProductTaxes: true,
   }
 }
 
-// ─── Composable ─────────────────────────────────────────────────
+export function centsToDecimalInput(cents: number): string {
+  return (Math.max(cents, 0) / 100).toFixed(2)
+}
+
+export function decimalInputToCents(value: string): number {
+  const normalized = value.replace(',', '.').trim()
+  const parsed = Number.parseFloat(normalized)
+  if (!Number.isFinite(parsed)) return 0
+  return Math.round(parsed * 100)
+}
+
+export function productToFormInput(product: Product | ProductDetail): ProductFormInput {
+  return {
+    name: product.name,
+    sku: product.sku ?? '',
+    barcode: product.barcode ?? '',
+    categoryId: product.categoryId ?? '',
+    description: 'description' in product ? (product.description ?? '') : '',
+    location: 'location' in product ? (product.location ?? '') : '',
+    satKey: 'satKey' in product ? (product.satKey ?? '') : '',
+    price: centsToDecimalInput(product.priceCents),
+    quantity: product.quantity,
+    minQuantity: product.minQuantity,
+    useStock: product.useStock,
+    sellInPos: product.sellInPos,
+    includeInOnlineCatalog: product.includeInOnlineCatalog,
+    chargeProductTaxes: product.chargeProductTaxes,
+  }
+}
+
+export function toCreatePayload(values: ProductFormValues): CreateProductPayload {
+  return {
+    name: values.name,
+    ...(values.sku ? { sku: values.sku } : {}),
+    ...(values.barcode ? { barcode: values.barcode } : {}),
+    ...(values.categoryId ? { categoryId: values.categoryId } : {}),
+    ...(values.description ? { description: values.description } : {}),
+    ...(values.location ? { location: values.location } : {}),
+    ...(values.satKey ? { satKey: values.satKey } : {}),
+    useStock: values.useStock,
+    quantity: values.useStock ? values.quantity : 0,
+    minQuantity: values.useStock ? values.minQuantity : 0,
+    sellInPos: values.sellInPos,
+    includeInOnlineCatalog: values.includeInOnlineCatalog,
+    chargeProductTaxes: values.chargeProductTaxes,
+    priceCents: decimalInputToCents(values.price),
+  }
+}
+
+export function toUpdatePayload(values: ProductFormValues): UpdateProductPayload {
+  return toCreatePayload(values)
+}
+
 export function useProductForm() {
-  // reactive({}) — esto es TODO el state. UForm lo bindea directo.
-  const state = reactive<Partial<ProductFormValues>>(getInitialState())
+  const state = reactive<ProductFormInput>(getInitialState())
 
   function resetForm() {
     Object.assign(state, getInitialState())
   }
 
+  function setState(nextState: ProductFormInput) {
+    Object.assign(state, nextState)
+  }
+
   return {
-    schema: productSchema,
+    schema: productFormSchema,
     state,
     resetForm,
+    setState,
   }
 }

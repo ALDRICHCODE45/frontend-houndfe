@@ -4,6 +4,9 @@
 export const productQueryKeys = {
   paginated: () => ['products', 'paginated'] as const,
   detail: (productId: string) => ['products', 'detail', productId] as const,
+  categories: () => ['products', 'categories'] as const,
+  variants: (productId: string) => ['products', 'variants', productId] as const,
+  lots: (productId: string) => ['products', 'lots', productId] as const,
 }
 
 export const orderQueryKeys = {
