@@ -37,6 +37,15 @@ const router = createRouter({
       },
     },
     {
+      path: '/pos/products/new',
+      name: 'pos-product-create',
+      component: ProductDetailView,
+      meta: {
+        layout: 'dashboard',
+        permission: ['create', 'Product'] as RoutePermission,
+      },
+    },
+    {
       path: '/pos/products/:id',
       name: 'pos-product-detail',
       component: ProductDetailView,

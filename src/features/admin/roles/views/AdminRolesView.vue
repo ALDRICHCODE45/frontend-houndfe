@@ -131,17 +131,14 @@ async function handleDelete(role: RoleTableRow) {
 }
 
 function getRowItems(role: RoleTableRow) {
-  const mainActions = [
-    ...(canUpdateRole.value
+  const mainActions = (canUpdateRole.value
       ? [
           { label: 'Editar', onSelect: () => openEdit(role) },
           { label: 'Permisos', onSelect: () => openPermissions(role) },
         ]
-      : []),
-  ]
+      : [])
 
-  const destructiveActions = [
-    ...(canDeleteRole.value
+  const destructiveActions = (canDeleteRole.value
       ? [
           {
             label: 'Eliminar',
@@ -149,8 +146,7 @@ function getRowItems(role: RoleTableRow) {
             onSelect: () => handleDelete(role),
           },
         ]
-      : []),
-  ]
+      : [])
 
   return [mainActions, destructiveActions].filter((section) => section.length > 0)
 }

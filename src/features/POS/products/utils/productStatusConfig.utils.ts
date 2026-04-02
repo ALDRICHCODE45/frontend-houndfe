@@ -1,5 +1,3 @@
-import type { Product } from '../interfaces/product.types'
-
 export const productStatusConfig = {
   active: { color: 'success' as const, label: 'Activo' },
   inactive: { color: 'neutral' as const, label: 'Inactivo' },

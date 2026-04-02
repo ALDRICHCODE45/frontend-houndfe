@@ -7,6 +7,10 @@ export const productQueryKeys = {
   categories: () => ['products', 'categories'] as const,
   variants: (productId: string) => ['products', 'variants', productId] as const,
   lots: (productId: string) => ['products', 'lots', productId] as const,
+  priceLists: (productId: string) => ['products', 'price-lists', productId] as const,
+  images: (productId: string) => ['products', 'images', productId] as const,
+  variantPrices: (productId: string, variantId: string) =>
+    ['products', 'variant-prices', productId, variantId] as const,
 }
 
 export const orderQueryKeys = {

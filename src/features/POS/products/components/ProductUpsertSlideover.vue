@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { computed, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   productToFormInput,
   toCreatePayload,
@@ -43,7 +44,13 @@ const emit = defineEmits<{
   close: []
 }>()
 
+const router = useRouter()
 const { schema, state, resetForm, setState } = useProductForm()
+
+function goToFullEditor() {
+  open.value = false
+  void router.push('/pos/products/new')
+}
 
 const formId = computed(() =>
   props.mode === 'create' ? 'create-product-form' : 'edit-product-form',
@@ -176,10 +183,9 @@ function handleCancel() {
           </UFormField>
 
           <UFormField label="Stock" name="quantity" :error="errors.quantity">
-            <UInput
-              v-model.number="state.quantity"
+            <UInputNumber
+              v-model="state.quantity"
               class="w-full"
-              type="number"
               :min="0"
               :disabled="!state.useStock"
             />
@@ -187,10 +193,9 @@ function handleCancel() {
         </div>
 
         <UFormField label="Stock mínimo" name="minQuantity" :error="errors.minQuantity">
-          <UInput
-            v-model.number="state.minQuantity"
+          <UInputNumber
+            v-model="state.minQuantity"
             class="w-full"
-            type="number"
             :min="0"
             :disabled="!state.useStock"
           />
@@ -215,6 +220,21 @@ function handleCancel() {
           <UCheckbox v-model="state.sellInPos" label="Vender en POS" />
           <UCheckbox v-model="state.includeInOnlineCatalog" label="Catálogo online" />
           <UCheckbox v-model="state.chargeProductTaxes" label="Cobrar impuestos" />
+        </div>
+
+        <!-- Más Opciones -->
+        <div v-if="mode === 'create'" class="rounded-lg border border-default bg-elevated/30 p-4">
+          <p class="font-semibold">Más Opciones</p>
+          <p class="text-sm text-muted">
+            Para editar Impuestos, Unidades, Lotes, Variantes, etc.,
+            <button
+              type="button"
+              class="font-medium text-primary hover:underline"
+              @click="goToFullEditor"
+            >
+              ir al editor completo
+            </button>
+          </p>
         </div>
       </UForm>
     </template>

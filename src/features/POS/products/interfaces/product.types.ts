@@ -38,16 +38,47 @@ export interface ProductDetail extends Product {
   unit: string
   ivaRate: string
   iepsRate: string
+  purchaseCostMode: 'NET' | 'GROSS'
+  purchaseNetCostCents: number
+  purchaseGrossCostCents: number
+}
+
+export interface VariantPriceMargin {
+  amountCents: number
+  amountDecimal: number
+  percent: number
+}
+
+export interface VariantTierPrice {
+  id: string
+  minQuantity: number
+  priceCents: number
+  priceDecimal?: number
+  margin?: VariantPriceMargin
+}
+
+export interface VariantPrice {
+  id: string
+  variantId: string
+  priceListId: string
+  priceListName: string
+  priceCents: number
+  priceDecimal?: number
+  margin?: VariantPriceMargin
+  tierPrices: VariantTierPrice[]
 }
 
 export interface ProductVariant {
   id: string
   productId: string
   name: string
+  option: string | null
+  value: string | null
   sku: string | null
   barcode: string | null
   priceCents: number
   quantity: number
+  variantPrices: VariantPrice[]
   createdAt: string
   updatedAt: string
 }
@@ -71,6 +102,14 @@ export interface ProductBackendListResponse {
     total: number
     totalPages: number
   }
+}
+
+export interface PurchaseCostResponse {
+  mode: string
+  netCents: number
+  grossCents: number
+  netDecimal: number
+  grossDecimal: number
 }
 
 export interface ProductBackendResponse {
@@ -104,6 +143,10 @@ export interface ProductBackendResponse {
   unit?: string
   ivaRate?: string
   iepsRate?: string
+  purchaseCost?: PurchaseCostResponse | null
+  purchaseCostMode?: string
+  purchaseNetCostCents?: number
+  purchaseGrossCostCents?: number
   createdAt: string
   updatedAt: string
 }
@@ -112,6 +155,8 @@ export interface ProductVariantBackendResponse {
   id: string
   productId?: string
   name: string
+  option?: string | null
+  value?: string | null
   sku?: string | null
   barcode?: string | null
   priceCents?: number
@@ -119,6 +164,7 @@ export interface ProductVariantBackendResponse {
     priceCents?: number
   } | null
   quantity?: number
+  variantPrices?: VariantPrice[]
   createdAt: string
   updatedAt: string
 }
@@ -140,31 +186,67 @@ export interface ProductLotBackendResponse {
   updatedAt: string
 }
 
+export interface PurchaseCostPayload {
+  mode: 'NET' | 'GROSS'
+  valueCents: number
+}
+
 export interface CreateProductPayload {
   name: string
+  type?: 'PRODUCT' | 'SERVICE'
   sku?: string
   barcode?: string
   categoryId?: string
   description?: string
   location?: string
   satKey?: string
+  unit?: string
   useStock: boolean
+  useLotsAndExpirations?: boolean
+  hasVariants?: boolean
   quantity: number
   minQuantity: number
   sellInPos: boolean
   includeInOnlineCatalog: boolean
   chargeProductTaxes: boolean
+  ivaRate?: string
+  iepsRate?: string
+  purchaseCost?: PurchaseCostPayload
   priceCents: number
 }
 
 export interface CreateVariantPayload {
-  name: string
+  name?: string
+  option?: string
+  value?: string
   sku?: string
   barcode?: string
   quantity: number
 }
 
 export type UpdateVariantPayload = Partial<CreateVariantPayload>
+
+// ── Variant Pricing ──────────────────────────────────────────
+
+export interface VariantTierPriceInput {
+  minQuantity: number
+  priceCents: number
+}
+
+export interface UpsertVariantPricePayload {
+  priceCents: number
+  tierPrices?: VariantTierPriceInput[]
+}
+
+export interface BulkVariantPriceItem {
+  priceListId: string
+  priceCents: number
+  tierPrices?: VariantTierPriceInput[]
+}
+
+export interface BulkUpsertVariantPricesPayload {
+  prices: BulkVariantPriceItem[]
+}
 
 export interface CreateLotPayload {
   lotNumber: string
@@ -179,20 +261,99 @@ export type UpdateProductPayload = Partial<CreateProductPayload>
 
 export interface ProductFormInput {
   name: string
+  type: 'PRODUCT' | 'SERVICE'
   sku: string
   barcode: string
   categoryId: string
   description: string
   location: string
   satKey: string
+  unit: string
   price: string
   quantity: number
   minQuantity: number
   useStock: boolean
+  useLotsAndExpirations: boolean
+  hasVariants: boolean
   sellInPos: boolean
   includeInOnlineCatalog: boolean
   chargeProductTaxes: boolean
+  ivaRate: string
+  iepsRate: string
+  purchaseCostMode: 'NET' | 'GROSS'
+  purchaseCost: string
 }
+
+// ── Price Lists ──────────────────────────────────────────────
+
+export interface TierPriceMargin {
+  amountCents: number
+  amountDecimal: number
+  percent: number
+}
+
+export interface TierPrice {
+  id: string
+  minQuantity: number
+  priceCents: number
+  priceDecimal?: number
+  margin?: TierPriceMargin
+}
+
+export interface PriceListMargin {
+  amountCents: number
+  amountDecimal: number
+  percent: number
+}
+
+export interface PriceList {
+  id: string
+  productId: string
+  name: string
+  priceCents: number
+  priceDecimal?: number
+  margin?: PriceListMargin
+  tierPrices: TierPrice[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TierPriceInput {
+  minQuantity: number
+  priceCents: number
+}
+
+export interface CreatePriceListPayload {
+  name: string
+  priceCents: number
+  tierPrices?: TierPriceInput[]
+}
+
+export interface UpdatePriceListPayload {
+  priceCents?: number
+  tierPrices?: TierPriceInput[]
+}
+
+// ── Images ───────────────────────────────────────────────────
+
+export interface ProductImage {
+  id: string
+  productId: string
+  variantId: string | null
+  url: string
+  isMain: boolean
+  sortOrder: number
+  createdAt: string
+}
+
+export interface CreateImagePayload {
+  url: string
+  isMain?: boolean
+  sortOrder?: number
+  variantId?: string
+}
+
+// ── Shared ───────────────────────────────────────────────────
 
 export interface DomainApiError {
   statusCode?: number

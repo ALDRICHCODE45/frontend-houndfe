@@ -128,17 +128,14 @@ async function handleDelete(user: UserTableRow) {
 }
 
 function getRowItems(user: UserTableRow) {
-  const mainActions = [
-    ...(canUpdateUser.value
+  const mainActions = (canUpdateUser.value
       ? [
           { label: 'Editar', onSelect: () => openEdit(user) },
           { label: 'Roles', onSelect: () => openAssignRoles(user) },
         ]
-      : []),
-  ]
+      : [])
 
-  const destructiveActions = [
-    ...(canDeleteUser.value
+  const destructiveActions = (canDeleteUser.value
       ? [
           {
             label: 'Eliminar',
@@ -146,8 +143,7 @@ function getRowItems(user: UserTableRow) {
             onSelect: () => handleDelete(user),
           },
         ]
-      : []),
-  ]
+      : [])
 
   return [mainActions, destructiveActions].filter((section) => section.length > 0)
 }

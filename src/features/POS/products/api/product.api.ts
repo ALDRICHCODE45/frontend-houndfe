@@ -1,11 +1,16 @@
 import type { PaginatedResponse, ServerTableParams } from '@/core/shared/types/table.types'
 import { http } from '@/core/shared/api/http'
 import type {
+  BulkUpsertVariantPricesPayload,
   CreateCategoryPayload,
+  CreateImagePayload,
   CreateLotPayload,
+  CreatePriceListPayload,
   CategoryOption,
   CreateProductPayload,
   CreateVariantPayload,
+  PriceList,
+  ProductImage,
   ProductLot,
   ProductLotBackendResponse,
   Product,
@@ -15,8 +20,11 @@ import type {
   ProductVariant,
   ProductVariantBackendResponse,
   UpdateLotPayload,
+  UpdatePriceListPayload,
   UpdateProductPayload,
   UpdateVariantPayload,
+  UpsertVariantPricePayload,
+  VariantPrice,
 } from '../interfaces/product.types'
 
 interface ProductPaginationMeta {
@@ -66,6 +74,12 @@ function mapProduct(item: ProductBackendResponse): Product {
   }
 }
 
+function resolvePurchaseCostMode(item: ProductBackendResponse): 'NET' | 'GROSS' {
+  if (item.purchaseCost?.mode === 'GROSS') return 'GROSS'
+  if (item.purchaseCostMode === 'GROSS') return 'GROSS'
+  return 'NET'
+}
+
 function mapProductDetail(item: ProductBackendResponse): ProductDetail {
   return {
     ...mapProduct(item),
@@ -76,6 +90,9 @@ function mapProductDetail(item: ProductBackendResponse): ProductDetail {
     unit: item.unit ?? 'UNIDAD',
     ivaRate: item.ivaRate ?? 'IVA_16',
     iepsRate: item.iepsRate ?? 'NO_APLICA',
+    purchaseCostMode: resolvePurchaseCostMode(item),
+    purchaseNetCostCents: item.purchaseCost?.netCents ?? item.purchaseNetCostCents ?? 0,
+    purchaseGrossCostCents: item.purchaseCost?.grossCents ?? item.purchaseGrossCostCents ?? 0,
   }
 }
 
@@ -141,10 +158,13 @@ function mapVariant(productId: string, item: ProductVariantBackendResponse): Pro
     id: item.id,
     productId: item.productId ?? productId,
     name: item.name,
+    option: item.option ?? null,
+    value: item.value ?? null,
     sku: item.sku ?? null,
     barcode: item.barcode ?? null,
     priceCents: item.priceCents ?? item.price?.priceCents ?? 0,
     quantity: item.quantity ?? 0,
+    variantPrices: item.variantPrices ?? [],
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   }
@@ -201,7 +221,7 @@ export const productApi = {
                 q: params.globalFilter,
               }
             : {}),
-          ...(sort ?? {}),
+          ...sort,
         },
       },
     )
@@ -320,5 +340,100 @@ export const productApi = {
 
   async removeLot(productId: string, lotId: string): Promise<void> {
     await http.delete(`/products/${productId}/lots/${lotId}`)
+  },
+
+  // ── Price Lists ──────────────────────────────────────────
+
+  async getPriceLists(productId: string): Promise<PriceList[]> {
+    const { data } = await http.get<PriceList[] | { data: PriceList[] }>(
+      `/products/${productId}/price-lists`,
+    )
+    return mapArrayResponse(data)
+  },
+
+  async createPriceList(productId: string, payload: CreatePriceListPayload): Promise<PriceList> {
+    const { data } = await http.post<PriceList>(`/products/${productId}/price-lists`, payload)
+    return data
+  },
+
+  async updatePriceList(
+    productId: string,
+    priceListId: string,
+    payload: UpdatePriceListPayload,
+  ): Promise<PriceList> {
+    const { data } = await http.patch<PriceList>(
+      `/products/${productId}/price-lists/${priceListId}`,
+      payload,
+    )
+    return data
+  },
+
+  async removePriceList(productId: string, priceListId: string): Promise<void> {
+    await http.delete(`/products/${productId}/price-lists/${priceListId}`)
+  },
+
+  // ── Images ───────────────────────────────────────────────
+
+  async getImages(productId: string): Promise<ProductImage[]> {
+    const { data } = await http.get<ProductImage[] | { data: ProductImage[] }>(
+      `/products/${productId}/images`,
+    )
+    return mapArrayResponse(data)
+  },
+
+  async createImage(productId: string, payload: CreateImagePayload): Promise<ProductImage> {
+    const { data } = await http.post<ProductImage>(`/products/${productId}/images`, payload)
+    return data
+  },
+
+  async setMainImage(productId: string, imageId: string): Promise<ProductImage> {
+    const { data } = await http.patch<ProductImage>(`/products/${productId}/images/${imageId}/main`)
+    return data
+  },
+
+  async removeImage(productId: string, imageId: string): Promise<void> {
+    await http.delete(`/products/${productId}/images/${imageId}`)
+  },
+
+  // ── Variant Prices ───────────────────────────────────────
+
+  async getVariantPrices(productId: string, variantId: string): Promise<VariantPrice[]> {
+    const { data } = await http.get<VariantPrice[] | { data: VariantPrice[] }>(
+      `/products/${productId}/variants/${variantId}/prices`,
+    )
+    return mapArrayResponse(data)
+  },
+
+  async upsertVariantPrice(
+    productId: string,
+    variantId: string,
+    priceListId: string,
+    payload: UpsertVariantPricePayload,
+  ): Promise<VariantPrice> {
+    const { data } = await http.put<VariantPrice>(
+      `/products/${productId}/variants/${variantId}/prices/${priceListId}`,
+      payload,
+    )
+    return data
+  },
+
+  async bulkUpsertVariantPrices(
+    productId: string,
+    variantId: string,
+    payload: BulkUpsertVariantPricesPayload,
+  ): Promise<VariantPrice[]> {
+    const { data } = await http.put<VariantPrice[] | { data: VariantPrice[] }>(
+      `/products/${productId}/variants/${variantId}/prices`,
+      payload,
+    )
+    return mapArrayResponse(data)
+  },
+
+  async removeVariantPrice(
+    productId: string,
+    variantId: string,
+    priceListId: string,
+  ): Promise<void> {
+    await http.delete(`/products/${productId}/variants/${variantId}/prices/${priceListId}`)
   },
 }

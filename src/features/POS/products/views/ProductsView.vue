@@ -336,8 +336,7 @@ function getRowItems(product: Product) {
       : []),
   ]
 
-  const destructiveActions = [
-    ...(canDeleteProduct.value
+  const destructiveActions = (canDeleteProduct.value
       ? [
           {
             label: 'Eliminar',
@@ -345,8 +344,7 @@ function getRowItems(product: Product) {
             onSelect: () => handleDelete(product),
           },
         ]
-      : []),
-  ]
+      : [])
 
   return [mainActions, destructiveActions].filter((section) => section.length > 0)
 }
