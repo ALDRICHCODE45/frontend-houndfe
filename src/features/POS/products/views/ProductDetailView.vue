@@ -170,6 +170,7 @@ const canDeleteProduct = computed(() => authStore.userCan('delete', 'Product'))
 const canSubmitMainForm = computed(() =>
   isCreateMode.value ? canCreateProduct.value : canUpdateProduct.value,
 )
+const isFormReadonly = computed(() => !isCreateMode.value && !canUpdateProduct.value)
 
 const {
   data: product,
@@ -856,7 +857,8 @@ function handleEditLotPlaceholder() {
         </div>
 
         <UButton
-          label="Guardar cambios"
+          v-if="!isFormReadonly"
+          :label="isCreateMode ? 'Crear producto' : 'Guardar cambios'"
           type="submit"
           form="product-detail-form"
           :loading="updateMutation.isPending.value || createMutation.isPending.value"
@@ -888,452 +890,460 @@ function handleEditLotPlaceholder() {
         id="product-detail-form"
         :schema="productFormSchema"
         :state="formState"
-        class="space-y-6"
         @submit="handleSubmitMainForm"
       >
-        <UCard>
-          <template #header>
-            <h2 class="text-lg font-semibold">Datos del producto</h2>
-          </template>
+        <fieldset :disabled="isFormReadonly" class="space-y-6">
+          <UCard>
+            <template #header>
+              <h2 class="text-lg font-semibold">Datos del producto</h2>
+            </template>
 
-          <div class="space-y-4">
-            <UFormField label="Tipo de producto" name="type" class="md:col-span-2">
+            <div class="space-y-4">
+              <UFormField label="Tipo de producto" name="type" class="md:col-span-2">
+                <URadioGroup
+                  v-model="formState.type"
+                  orientation="horizontal"
+                  variant="card"
+                  :items="[
+                    {
+                      label: 'Producto',
+                      description: 'Artículo físico con inventario',
+                      value: 'PRODUCT',
+                    },
+                    {
+                      label: 'Servicio',
+                      description: 'Sin control de inventario',
+                      value: 'SERVICE',
+                    },
+                  ]"
+                />
+              </UFormField>
+
+              <USeparator class="my-4" />
+
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <UFormField label="Nombre" name="name" required class="md:col-span-2">
+                  <UInput v-model="formState.name" class="w-full" placeholder="Ej: Jabón de mano" />
+                </UFormField>
+
+                <UFormField label="Código de barras" name="barcode">
+                  <UInput v-model="formState.barcode" placeholder="Opcional" />
+                </UFormField>
+
+                <UFormField label="SKU" name="sku">
+                  <UInput v-model="formState.sku" placeholder="Opcional" />
+                </UFormField>
+              </div>
+
+              <USeparator class="my-4" />
+
+              <div class="space-y-3">
+                <USwitch
+                  v-model="formState.sellInPos"
+                  label="Vender en Punto de Venta"
+                  description="Este producto aparecerá en la pantalla del POS"
+                />
+                <USwitch
+                  v-model="formState.includeInOnlineCatalog"
+                  label="Incluir en catálogo en línea"
+                  description="Visible en la tienda online"
+                />
+                <USwitch
+                  v-model="formState.requiresPrescription"
+                  label="Requerir receta médica"
+                  description="Exigir receta médica para su venta"
+                />
+              </div>
+
+              <USeparator class="my-4" />
+
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <UFormField label="Unidad" name="unit">
+                  <USelect
+                    v-model="formState.unit"
+                    :items="
+                      UNIT_OPTIONS.map((unit) => ({
+                        label: unit.label.toUpperCase(),
+                        value: unit.value,
+                      }))
+                    "
+                    size="lg"
+                    class="w-full"
+                  />
+                </UFormField>
+
+                <UFormField label="Categoría" name="categoryId">
+                  <CategorySelect
+                    :model-value="formState.categoryId"
+                    :items="categoryItems"
+                    placeholder="Seleccionar categoría"
+                    size="lg"
+                    @update:model-value="handleCategorySelectChange"
+                    @action="handleCategoryAction"
+                  />
+                </UFormField>
+
+                <UFormField label="Ubicación" name="location">
+                  <UInput
+                    v-model="formState.location"
+                    class="w-full"
+                    placeholder="Ej: Estante 3B"
+                  />
+                </UFormField>
+
+                <UFormField label="Descripción" name="description" class="md:col-span-2">
+                  <UTextarea
+                    v-model="formState.description"
+                    :rows="4"
+                    class="w-full"
+                    placeholder="Agregar una descripción..."
+                  />
+                </UFormField>
+              </div>
+            </div>
+          </UCard>
+
+          <UCard>
+            <template #header>
+              <h2 class="text-lg font-semibold">Precio de Compra</h2>
+            </template>
+
+            <div class="space-y-4">
               <URadioGroup
-                v-model="formState.type"
+                v-model="formState.purchaseCostMode"
                 orientation="horizontal"
-                variant="card"
                 :items="[
-                  {
-                    label: 'Producto',
-                    description: 'Artículo físico con inventario',
-                    value: 'PRODUCT',
-                  },
-                  {
-                    label: 'Servicio',
-                    description: 'Sin control de inventario',
-                    value: 'SERVICE',
-                  },
+                  { label: 'Neto', description: 'Sin impuestos', value: 'NET' },
+                  { label: 'Bruto', description: 'Con impuestos', value: 'GROSS' },
                 ]"
               />
-            </UFormField>
 
-            <USeparator class="my-4" />
+              <USeparator class="my-4" />
 
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <UFormField label="Nombre" name="name" required class="md:col-span-2">
-                <UInput v-model="formState.name" class="w-full" placeholder="Ej: Jabón de mano" />
-              </UFormField>
-
-              <UFormField label="Código de barras" name="barcode">
-                <UInput v-model="formState.barcode" placeholder="Opcional" />
-              </UFormField>
-
-              <UFormField label="SKU" name="sku">
-                <UInput v-model="formState.sku" placeholder="Opcional" />
-              </UFormField>
-            </div>
-
-            <USeparator class="my-4" />
-
-            <div class="space-y-3">
-              <USwitch
-                v-model="formState.sellInPos"
-                label="Vender en Punto de Venta"
-                description="Este producto aparecerá en la pantalla del POS"
-              />
-              <USwitch
-                v-model="formState.includeInOnlineCatalog"
-                label="Incluir en catálogo en línea"
-                description="Visible en la tienda online"
-              />
-              <USwitch
-                v-model="formState.requiresPrescription"
-                label="Requerir receta médica"
-                description="Exigir receta médica para su venta"
-              />
-            </div>
-
-            <USeparator class="my-4" />
-
-            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <UFormField label="Unidad" name="unit">
-                <USelect
-                  v-model="formState.unit"
-                  :items="
-                    UNIT_OPTIONS.map((unit) => ({
-                      label: unit.label.toUpperCase(),
-                      value: unit.value,
-                    }))
-                  "
-                  size="lg"
-                  class="w-full"
-                />
-              </UFormField>
-
-              <UFormField label="Categoría" name="categoryId">
-                <CategorySelect
-                  :model-value="formState.categoryId"
-                  :items="categoryItems"
-                  placeholder="Seleccionar categoría"
-                  size="lg"
-                  @update:model-value="handleCategorySelectChange"
-                  @action="handleCategoryAction"
-                />
-              </UFormField>
-
-              <UFormField label="Ubicación" name="location">
-                <UInput v-model="formState.location" class="w-full" placeholder="Ej: Estante 3B" />
-              </UFormField>
-
-              <UFormField label="Descripción" name="description" class="md:col-span-2">
-                <UTextarea
-                  v-model="formState.description"
-                  :rows="4"
-                  class="w-full"
-                  placeholder="Agregar una descripción..."
-                />
+              <UFormField label="" name="purchaseCost">
+                <div class="relative w-full md:max-w-md">
+                  <span
+                    class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
+                    >$</span
+                  >
+                  <UInput
+                    v-model="formState.purchaseCost"
+                    inputmode="decimal"
+                    placeholder="0.00"
+                    class="w-full"
+                    :ui="{ base: 'pl-7 pr-24' }"
+                  />
+                  <span
+                    class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted"
+                    >por Unidad</span
+                  >
+                </div>
               </UFormField>
             </div>
-          </div>
-        </UCard>
+          </UCard>
 
-        <UCard>
-          <template #header>
-            <h2 class="text-lg font-semibold">Precio de Compra</h2>
-          </template>
+          <UCard>
+            <template #header>
+              <h2 class="text-lg font-semibold">Impuestos</h2>
+            </template>
 
-          <div class="space-y-4">
-            <URadioGroup
-              v-model="formState.purchaseCostMode"
-              orientation="horizontal"
-              :items="[
-                { label: 'Neto', description: 'Sin impuestos', value: 'NET' },
-                { label: 'Bruto', description: 'Con impuestos', value: 'GROSS' },
-              ]"
-            />
+            <div class="space-y-4">
+              <USwitch
+                v-model="formState.chargeProductTaxes"
+                label="Cobrar impuestos"
+                description="Aplicar IVA e IEPS a este producto"
+              />
 
-            <USeparator class="my-4" />
+              <div
+                v-if="formState.chargeProductTaxes"
+                class="grid grid-cols-1 gap-4 md:grid-cols-2"
+              >
+                <UFormField label="IVA" name="ivaRate">
+                  <USelect
+                    v-model="formState.ivaRate"
+                    :items="IVA_OPTIONS"
+                    size="lg"
+                    class="w-full"
+                  />
+                </UFormField>
 
-            <UFormField label="" name="purchaseCost">
-              <div class="relative w-full md:max-w-md">
-                <span
-                  class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
-                  >$</span
-                >
-                <UInput
-                  v-model="formState.purchaseCost"
-                  inputmode="decimal"
-                  placeholder="0.00"
-                  class="w-full"
-                  :ui="{ base: 'pl-7 pr-24' }"
-                />
-                <span
-                  class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted"
-                  >por Unidad</span
-                >
+                <UFormField label="IEPS" name="iepsRate">
+                  <USelect
+                    v-model="formState.iepsRate"
+                    :items="IEPS_OPTIONS"
+                    size="lg"
+                    class="w-full"
+                  />
+                </UFormField>
               </div>
-            </UFormField>
-          </div>
-        </UCard>
-
-        <UCard>
-          <template #header>
-            <h2 class="text-lg font-semibold">Impuestos</h2>
-          </template>
-
-          <div class="space-y-4">
-            <USwitch
-              v-model="formState.chargeProductTaxes"
-              label="Cobrar impuestos"
-              description="Aplicar IVA e IEPS a este producto"
-            />
-
-            <div v-if="formState.chargeProductTaxes" class="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <UFormField label="IVA" name="ivaRate">
-                <USelect
-                  v-model="formState.ivaRate"
-                  :items="IVA_OPTIONS"
-                  size="lg"
-                  class="w-full"
-                />
-              </UFormField>
-
-              <UFormField label="IEPS" name="iepsRate">
-                <USelect
-                  v-model="formState.iepsRate"
-                  :items="IEPS_OPTIONS"
-                  size="lg"
-                  class="w-full"
-                />
-              </UFormField>
             </div>
-          </div>
-        </UCard>
+          </UCard>
 
-        <UCard v-if="showInventoryCard">
-          <template #header>
-            <h2 class="text-lg font-semibold">Inventario</h2>
-          </template>
+          <UCard v-if="showInventoryCard">
+            <template #header>
+              <h2 class="text-lg font-semibold">Inventario</h2>
+            </template>
 
-          <div class="space-y-4">
-            <USwitch
-              v-model="formState.useStock"
-              label="Controlar inventario"
-              description="Activar seguimiento de existencias y cantidad mínima"
-            />
-
-            <div v-if="showManualStockFields" class="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <UFormField label="Existencias" name="quantity">
-                <UInputNumber v-model="formState.quantity" :min="0" class="w-full" />
-                <p class="mt-1 text-xs text-muted">Unidades</p>
-              </UFormField>
-
-              <UFormField label="Existencias mínimas" name="minQuantity">
-                <UInputNumber v-model="formState.minQuantity" :min="0" class="w-full" />
-                <p class="mt-1 text-xs text-muted">Unidades</p>
-              </UFormField>
-            </div>
-
-            <USeparator class="my-4" />
-
-            <USwitch
-              v-if="showLotsCheckbox"
-              v-model="formState.useLotsAndExpirations"
-              label="Usar lotes y vencimientos"
-              description="Agrupar unidades por lote y fecha de expiración"
-            />
-
-            <p v-if="showStockByVariantMessage" class="text-sm text-warning">
-              El stock se gestiona por variante
-            </p>
-
-            <USeparator class="my-4" />
-
-            <USwitch
-              v-model="formState.hasVariants"
-              label="Tiene variantes"
-              description="Talles, colores u otras opciones"
-            />
-          </div>
-        </UCard>
-
-        <UCard v-if="showVariantsSection">
-          <template #header>
-            <div class="flex items-center justify-between gap-3">
-              <h2 class="text-lg font-semibold">Variantes</h2>
-              <UButton
-                label="Agregar variante"
-                icon="i-lucide-plus"
-                :disabled="!canUpdateProduct"
-                @click="openAddVariantModal"
+            <div class="space-y-4">
+              <USwitch
+                v-model="formState.useStock"
+                label="Controlar inventario"
+                description="Activar seguimiento de existencias y cantidad mínima"
               />
-            </div>
-          </template>
 
-          <div v-if="variantGroups.length > 0" class="mb-4 space-y-3">
-            <div
-              v-for="group in variantGroups"
-              :key="group.option"
-              class="rounded-md border border-default bg-elevated/20 p-3"
-            >
-              <p class="text-xs font-semibold uppercase tracking-wide text-muted">
-                {{ group.option }}
+              <div v-if="showManualStockFields" class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <UFormField label="Existencias" name="quantity">
+                  <UInputNumber v-model="formState.quantity" :min="0" class="w-full" />
+                  <p class="mt-1 text-xs text-muted">Unidades</p>
+                </UFormField>
+
+                <UFormField label="Existencias mínimas" name="minQuantity">
+                  <UInputNumber v-model="formState.minQuantity" :min="0" class="w-full" />
+                  <p class="mt-1 text-xs text-muted">Unidades</p>
+                </UFormField>
+              </div>
+
+              <USeparator class="my-4" />
+
+              <USwitch
+                v-if="showLotsCheckbox"
+                v-model="formState.useLotsAndExpirations"
+                label="Usar lotes y vencimientos"
+                description="Agrupar unidades por lote y fecha de expiración"
+              />
+
+              <p v-if="showStockByVariantMessage" class="text-sm text-warning">
+                El stock se gestiona por variante
               </p>
-              <div class="mt-2 flex flex-wrap gap-2">
-                <UBadge
-                  v-for="value in group.values"
-                  :key="`${group.option}-${value}`"
-                  color="neutral"
-                  variant="subtle"
-                >
-                  {{ value }}
-                </UBadge>
-              </div>
-            </div>
-          </div>
 
-          <div class="overflow-hidden rounded-md border border-default">
-            <table class="min-w-full divide-y divide-default text-sm">
-              <thead class="bg-elevated/40">
-                <tr>
-                  <th class="px-4 py-3 text-left font-medium">Variante</th>
-                  <th v-if="formState.useStock" class="px-4 py-3 text-left font-medium">
-                    Existencias
-                  </th>
-                  <th class="px-4 py-3 text-left font-medium">Precio Público</th>
-                  <th class="px-4 py-3 text-right font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-default">
-                <tr v-if="isFetchingVariants">
-                  <td :colspan="formState.useStock ? 4 : 3" class="px-4 py-3 text-muted">
-                    Actualizando variantes...
-                  </td>
-                </tr>
-                <tr v-else-if="variantsList.length === 0">
-                  <td :colspan="formState.useStock ? 4 : 3" class="px-4 py-3 text-muted">
-                    Sin variantes registradas.
-                  </td>
-                </tr>
-                <template v-for="variant in variantsList" :key="variant.id">
-                  <tr>
-                    <td class="px-4 py-3">
-                      <div class="font-medium">{{ getVariantLabel(variant) }}</div>
-                      <div class="text-xs text-muted">
-                        SKU: {{ variant.sku ?? '—' }} · Código: {{ variant.barcode ?? '—' }}
-                      </div>
-                    </td>
-                    <td v-if="formState.useStock" class="px-4 py-3">
-                      <UInputNumber
-                        v-model="inlineVariantQuantityInputs[variant.id]"
-                        :min="0"
-                        class="w-28"
-                        :disabled="!canUpdateProduct"
-                        @blur="handleInlineVariantQuantityBlur(variant)"
-                        @keyup.enter="handleInlineVariantQuantityBlur(variant)"
-                      />
-                    </td>
-                    <td class="px-4 py-3">
-                      <div class="relative max-w-[8rem]">
-                        <span
-                          class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
-                          >$</span
-                        >
-                        <UInput
-                          v-model="inlineVariantPublicPriceInputs[variant.id]"
-                          class="w-full"
-                          inputmode="decimal"
-                          placeholder="0.00"
-                          :ui="{ base: 'pl-7' }"
-                          :disabled="!canUpdateProduct"
-                          @blur="handleInlineVariantPublicPriceBlur(variant)"
-                          @keyup.enter="handleInlineVariantPublicPriceBlur(variant)"
-                        />
-                      </div>
-                    </td>
-                    <td class="px-4 py-3">
-                      <div class="flex justify-end gap-2">
-                        <UButton
-                          type="button"
-                          label="Más Datos"
-                          color="neutral"
-                          variant="outline"
-                          @click="handleOpenVariantDetailModal(variant)"
-                        />
-                        <UButton
-                          type="button"
-                          label="Editar"
-                          color="neutral"
-                          variant="outline"
-                          :disabled="!canUpdateProduct"
-                          @click="openEditVariantModal(variant.id)"
-                        />
-                        <UButton
-                          type="button"
-                          label="Eliminar"
-                          color="error"
-                          variant="ghost"
-                          :disabled="!canDeleteProduct"
-                          :loading="deleteVariantMutation.isPending.value"
-                          @click="handleDeleteVariant(variant.id, variant.name)"
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                </template>
-              </tbody>
-            </table>
-          </div>
-        </UCard>
+              <USeparator class="my-4" />
 
-        <UCard v-if="showLotsSection">
-          <template #header>
-            <div class="flex items-center justify-between gap-3">
-              <h2 class="text-lg font-semibold">Lotes</h2>
-              <UButton
-                v-if="!isCreateMode"
-                label="Agregar Lote"
-                icon="i-lucide-plus"
-                :disabled="!canUpdateProduct"
-                @click="isLotModalOpen = true"
+              <USwitch
+                v-model="formState.hasVariants"
+                label="Tiene variantes"
+                description="Talles, colores u otras opciones"
               />
             </div>
-          </template>
+          </UCard>
 
-          <div v-if="!isCreateMode" class="space-y-3">
+          <UCard v-if="showVariantsSection">
+            <template #header>
+              <div class="flex items-center justify-between gap-3">
+                <h2 class="text-lg font-semibold">Variantes</h2>
+                <UButton
+                  label="Agregar variante"
+                  icon="i-lucide-plus"
+                  :disabled="!canUpdateProduct"
+                  @click="openAddVariantModal"
+                />
+              </div>
+            </template>
+
+            <div v-if="variantGroups.length > 0" class="mb-4 space-y-3">
+              <div
+                v-for="group in variantGroups"
+                :key="group.option"
+                class="rounded-md border border-default bg-elevated/20 p-3"
+              >
+                <p class="text-xs font-semibold uppercase tracking-wide text-muted">
+                  {{ group.option }}
+                </p>
+                <div class="mt-2 flex flex-wrap gap-2">
+                  <UBadge
+                    v-for="value in group.values"
+                    :key="`${group.option}-${value}`"
+                    color="neutral"
+                    variant="subtle"
+                  >
+                    {{ value }}
+                  </UBadge>
+                </div>
+              </div>
+            </div>
+
             <div class="overflow-hidden rounded-md border border-default">
               <table class="min-w-full divide-y divide-default text-sm">
                 <thead class="bg-elevated/40">
                   <tr>
-                    <th class="px-4 py-3 text-left font-medium">Lote</th>
-                    <th class="px-4 py-3 text-left font-medium">Caducidad</th>
-                    <th class="px-4 py-3 text-left font-medium">Existencias</th>
+                    <th class="px-4 py-3 text-left font-medium">Variante</th>
+                    <th v-if="formState.useStock" class="px-4 py-3 text-left font-medium">
+                      Existencias
+                    </th>
+                    <th class="px-4 py-3 text-left font-medium">Precio Público</th>
                     <th class="px-4 py-3 text-right font-medium">Actions</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-default">
-                  <tr v-if="isFetchingLots">
-                    <td colspan="4" class="px-4 py-3 text-muted">Actualizando lotes...</td>
-                  </tr>
-                  <tr v-else-if="lotsList.length === 0">
-                    <td colspan="4" class="px-4 py-3 text-muted">Sin lotes registrados.</td>
-                  </tr>
-                  <tr v-for="lot in lotsList" :key="lot.id">
-                    <td class="px-4 py-3">{{ lot.lotNumber }}</td>
-                    <td class="px-4 py-3">{{ lot.expirationDate ?? 'Sin fecha' }}</td>
-                    <td class="px-4 py-3">{{ lot.quantity }}</td>
-                    <td class="px-4 py-3">
-                      <div class="flex justify-end gap-2">
-                        <UButton
-                          type="button"
-                          label="Editar"
-                          color="neutral"
-                          variant="link"
-                          @click="handleEditLotPlaceholder"
-                        />
-                        <UButton
-                          type="button"
-                          label="X"
-                          color="error"
-                          variant="ghost"
-                          :disabled="!canDeleteProduct"
-                          :loading="deleteLotMutation.isPending.value"
-                          @click="handleDeleteLot(lot.id, lot.lotNumber)"
-                        />
-                      </div>
+                  <tr v-if="isFetchingVariants">
+                    <td :colspan="formState.useStock ? 4 : 3" class="px-4 py-3 text-muted">
+                      Actualizando variantes...
                     </td>
                   </tr>
+                  <tr v-else-if="variantsList.length === 0">
+                    <td :colspan="formState.useStock ? 4 : 3" class="px-4 py-3 text-muted">
+                      Sin variantes registradas.
+                    </td>
+                  </tr>
+                  <template v-for="variant in variantsList" :key="variant.id">
+                    <tr>
+                      <td class="px-4 py-3">
+                        <div class="font-medium">{{ getVariantLabel(variant) }}</div>
+                        <div class="text-xs text-muted">
+                          SKU: {{ variant.sku ?? '—' }} · Código: {{ variant.barcode ?? '—' }}
+                        </div>
+                      </td>
+                      <td v-if="formState.useStock" class="px-4 py-3">
+                        <UInputNumber
+                          v-model="inlineVariantQuantityInputs[variant.id]"
+                          :min="0"
+                          class="w-28"
+                          :disabled="!canUpdateProduct"
+                          @blur="handleInlineVariantQuantityBlur(variant)"
+                          @keyup.enter="handleInlineVariantQuantityBlur(variant)"
+                        />
+                      </td>
+                      <td class="px-4 py-3">
+                        <div class="relative max-w-[8rem]">
+                          <span
+                            class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
+                            >$</span
+                          >
+                          <UInput
+                            v-model="inlineVariantPublicPriceInputs[variant.id]"
+                            class="w-full"
+                            inputmode="decimal"
+                            placeholder="0.00"
+                            :ui="{ base: 'pl-7' }"
+                            :disabled="!canUpdateProduct"
+                            @blur="handleInlineVariantPublicPriceBlur(variant)"
+                            @keyup.enter="handleInlineVariantPublicPriceBlur(variant)"
+                          />
+                        </div>
+                      </td>
+                      <td class="px-4 py-3">
+                        <div class="flex justify-end gap-2">
+                          <UButton
+                            type="button"
+                            label="Más Datos"
+                            color="neutral"
+                            variant="outline"
+                            @click="handleOpenVariantDetailModal(variant)"
+                          />
+                          <UButton
+                            type="button"
+                            label="Editar"
+                            color="neutral"
+                            variant="outline"
+                            :disabled="!canUpdateProduct"
+                            @click="openEditVariantModal(variant.id)"
+                          />
+                          <UButton
+                            type="button"
+                            label="Eliminar"
+                            color="error"
+                            variant="ghost"
+                            :disabled="!canDeleteProduct"
+                            :loading="deleteVariantMutation.isPending.value"
+                            @click="handleDeleteVariant(variant.id, variant.name)"
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  </template>
                 </tbody>
               </table>
             </div>
+          </UCard>
 
-            <USeparator class="my-4" />
+          <UCard v-if="showLotsSection">
+            <template #header>
+              <div class="flex items-center justify-between gap-3">
+                <h2 class="text-lg font-semibold">Lotes</h2>
+                <UButton
+                  v-if="!isCreateMode"
+                  label="Agregar Lote"
+                  icon="i-lucide-plus"
+                  :disabled="!canUpdateProduct"
+                  @click="isLotModalOpen = true"
+                />
+              </div>
+            </template>
 
-            <UFormField label="Existencias mínimas" name="minQuantity">
-              <UInputNumber v-model="formState.minQuantity" :min="0" class="w-full md:max-w-xs" />
-              <p class="mt-1 text-xs text-muted">Unidades</p>
-            </UFormField>
-          </div>
+            <div v-if="!isCreateMode" class="space-y-3">
+              <div class="overflow-hidden rounded-md border border-default">
+                <table class="min-w-full divide-y divide-default text-sm">
+                  <thead class="bg-elevated/40">
+                    <tr>
+                      <th class="px-4 py-3 text-left font-medium">Lote</th>
+                      <th class="px-4 py-3 text-left font-medium">Caducidad</th>
+                      <th class="px-4 py-3 text-left font-medium">Existencias</th>
+                      <th class="px-4 py-3 text-right font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-default">
+                    <tr v-if="isFetchingLots">
+                      <td colspan="4" class="px-4 py-3 text-muted">Actualizando lotes...</td>
+                    </tr>
+                    <tr v-else-if="lotsList.length === 0">
+                      <td colspan="4" class="px-4 py-3 text-muted">Sin lotes registrados.</td>
+                    </tr>
+                    <tr v-for="lot in lotsList" :key="lot.id">
+                      <td class="px-4 py-3">{{ lot.lotNumber }}</td>
+                      <td class="px-4 py-3">{{ lot.expirationDate ?? 'Sin fecha' }}</td>
+                      <td class="px-4 py-3">{{ lot.quantity }}</td>
+                      <td class="px-4 py-3">
+                        <div class="flex justify-end gap-2">
+                          <UButton
+                            type="button"
+                            label="Editar"
+                            color="neutral"
+                            variant="link"
+                            @click="handleEditLotPlaceholder"
+                          />
+                          <UButton
+                            type="button"
+                            label="X"
+                            color="error"
+                            variant="ghost"
+                            :disabled="!canDeleteProduct"
+                            :loading="deleteLotMutation.isPending.value"
+                            @click="handleDeleteLot(lot.id, lot.lotNumber)"
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
 
-          <p v-else class="text-sm text-muted">
-            Guardá el producto para empezar a cargar lotes y vencimientos.
-          </p>
-        </UCard>
+              <USeparator class="my-4" />
 
-        <PriceListSection
-          v-if="!isCreateMode"
-          :product-id="productIdOrEmpty"
-          :can-update="canUpdateProduct"
-          :can-delete="canDeleteProduct"
-        />
+              <UFormField label="Existencias mínimas" name="minQuantity">
+                <UInputNumber v-model="formState.minQuantity" :min="0" class="w-full md:max-w-xs" />
+                <p class="mt-1 text-xs text-muted">Unidades</p>
+              </UFormField>
+            </div>
 
-        <ProductImageGallery
-          v-if="!isCreateMode"
-          :product-id="productIdOrEmpty"
-          :variants="variantsList"
-          :can-update="canUpdateProduct"
-          :can-delete="canDeleteProduct"
-        />
+            <p v-else class="text-sm text-muted">
+              Guardá el producto para empezar a cargar lotes y vencimientos.
+            </p>
+          </UCard>
+
+          <PriceListSection
+            v-if="!isCreateMode"
+            :product-id="productIdOrEmpty"
+            :can-update="canUpdateProduct"
+            :can-delete="canDeleteProduct"
+          />
+
+          <ProductImageGallery
+            v-if="!isCreateMode"
+            :product-id="productIdOrEmpty"
+            :variants="variantsList"
+            :can-update="canUpdateProduct"
+            :can-delete="canDeleteProduct"
+          />
+        </fieldset>
       </UForm>
     </div>
 
