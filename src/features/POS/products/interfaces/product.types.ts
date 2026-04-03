@@ -24,6 +24,7 @@ export interface Product {
   useLotsAndExpirations: boolean
   sellInPos: boolean
   includeInOnlineCatalog: boolean
+  requiresPrescription: boolean
   chargeProductTaxes: boolean
   variantStockTotal: number | null
   variantCount: number | null
@@ -135,6 +136,7 @@ export interface ProductBackendResponse {
   hasVariants?: boolean
   sellInPos?: boolean
   includeInOnlineCatalog?: boolean
+  requiresPrescription?: boolean
   chargeProductTaxes?: boolean
   variantStockTotal?: number | null
   variantCount?: number | null
@@ -218,6 +220,7 @@ export interface CreateProductPayload {
   minQuantity: number
   sellInPos: boolean
   includeInOnlineCatalog: boolean
+  requiresPrescription: boolean
   chargeProductTaxes: boolean
   ivaRate?: string
   iepsRate?: string
@@ -289,6 +292,7 @@ export interface ProductFormInput {
   hasVariants: boolean
   sellInPos: boolean
   includeInOnlineCatalog: boolean
+  requiresPrescription: boolean
   chargeProductTaxes: boolean
   ivaRate: string
   iepsRate: string

@@ -82,6 +82,7 @@ function getDefaultFormState(): ProductFormInput {
     hasVariants: false,
     sellInPos: true,
     includeInOnlineCatalog: true,
+    requiresPrescription: false,
     chargeProductTaxes: true,
     ivaRate: 'IVA_16',
     iepsRate: 'NO_APLICA',
@@ -944,6 +945,11 @@ function handleEditLotPlaceholder() {
                 v-model="formState.includeInOnlineCatalog"
                 label="Incluir en catálogo en línea"
                 description="Visible en la tienda online"
+              />
+              <USwitch
+                v-model="formState.requiresPrescription"
+                label="Requerir receta médica"
+                description="Exigir receta médica para su venta"
               />
             </div>
 

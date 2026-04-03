@@ -74,6 +74,7 @@ function mapProduct(item: ProductBackendResponse): Product {
     useLotsAndExpirations: item.useLotsAndExpirations ?? false,
     sellInPos: item.sellInPos ?? true,
     includeInOnlineCatalog: item.includeInOnlineCatalog ?? true,
+    requiresPrescription: item.requiresPrescription ?? false,
     chargeProductTaxes: item.chargeProductTaxes ?? true,
     variantStockTotal: item.variantStockTotal ?? null,
     variantCount: item.variantCount ?? null,
