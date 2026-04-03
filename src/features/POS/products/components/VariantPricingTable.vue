@@ -3,10 +3,11 @@ import type { AxiosError } from 'axios'
 import { computed, reactive, ref, watch } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { productApi } from '../api/product.api'
+import { currencyFormatter } from '@/core/shared/utils/currency.utils'
+import { mapDomainError, type DomainApiError } from '@/core/shared/utils/error.utils'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import { centsToDecimalInput, decimalInputToCents } from '../composables/useProductForm'
 import type {
-  DomainApiError,
   ProductVariant,
   UpsertVariantPricePayload,
   VariantPrice,
@@ -35,13 +36,6 @@ const props = defineProps<{
 const toast = useToast()
 const queryClient = useQueryClient()
 
-const currencyFormatter = new Intl.NumberFormat('es-AR', {
-  style: 'currency',
-  currency: 'ARS',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-})
-
 const salePriceInputs = reactive<Record<string, string>>({})
 
 function syncSalePriceInputs(prices: VariantPrice[]) {
@@ -61,10 +55,6 @@ watch(
   },
   { immediate: true },
 )
-
-function mapDomainError(error: AxiosError<DomainApiError>): string {
-  return error.response?.data?.message ?? 'No pudimos guardar los cambios. Reintentá nuevamente.'
-}
 
 const upsertVariantPriceMutation = useMutation({
   mutationFn: (params: { priceListId: string; payload: UpsertVariantPricePayload }) =>
@@ -159,7 +149,11 @@ function openTierPricesModal(variantPrice: VariantPrice) {
   }))
 
   if (tierRows.value.length === 0) {
-    tierRows.value.push({ key: tierRowKeyCounter++, minQuantity: '', price: '' })
+    tierRows.value.push({
+      key: tierRowKeyCounter++,
+      minQuantity: 0,
+      price: centsToDecimalInput(variantPrice.priceCents),
+    })
   }
 
   isTierModalOpen.value = true
@@ -261,54 +255,107 @@ function handleSaveTierPrices() {
           </td>
         </tr>
 
-        <tr v-for="variantPrice in variant.variantPrices" :key="variantPrice.id">
-          <td class="px-4 py-3 font-medium">{{ variantPrice.priceListName }}</td>
+        <template v-for="variantPrice in variant.variantPrices" :key="variantPrice.id">
+          <!-- Main price row -->
+          <tr>
+            <td class="px-4 py-3 font-medium" :rowspan="variantPrice.tierPrices.length > 0 ? 1 : 1">
+              {{ variantPrice.priceListName }}
+            </td>
 
-          <td class="px-4 py-3">
-            <div class="relative max-w-xs">
-              <span
-                class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
-                >$</span
-              >
-              <UInput
-                v-model="salePriceInputs[variantPrice.priceListId]"
-                class="w-full"
-                inputmode="decimal"
-                placeholder="0.00"
-                :ui="{ base: 'pl-7' }"
+            <td class="px-4 py-3">
+              <div class="relative max-w-xs">
+                <span
+                  class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
+                  >$</span
+                >
+                <UInput
+                  v-model="salePriceInputs[variantPrice.priceListId]"
+                  class="w-full"
+                  inputmode="decimal"
+                  placeholder="0.00"
+                  :ui="{ base: 'pl-7' }"
+                  :disabled="!canUpdate"
+                  @blur="handleInlinePriceSave(variantPrice)"
+                  @keyup.enter="handleInlinePriceSave(variantPrice)"
+                />
+              </div>
+            </td>
+
+            <td class="px-4 py-3 text-center">
+              <UButton
+                type="button"
+                icon="i-lucide-plus"
+                color="neutral"
+                variant="outline"
+                size="xs"
                 :disabled="!canUpdate"
-                @blur="handleInlinePriceSave(variantPrice)"
-                @keyup.enter="handleInlinePriceSave(variantPrice)"
+                @click="openTierPricesModal(variantPrice)"
               />
-            </div>
-          </td>
+            </td>
 
-          <td class="px-4 py-3 text-center">
-            <UButton
-              type="button"
-              icon="i-lucide-plus"
-              color="neutral"
-              variant="outline"
-              size="xs"
-              :disabled="!canUpdate"
-              @click="openTierPricesModal(variantPrice)"
-            />
-          </td>
+            <td
+              class="px-4 py-3"
+              :class="shouldShowMargin(variantPrice) ? marginClass(variantPrice) : ''"
+            >
+              {{ formatMarginPercent(variantPrice) }}
+            </td>
 
-          <td
-            class="px-4 py-3"
-            :class="shouldShowMargin(variantPrice) ? marginClass(variantPrice) : ''"
-          >
-            {{ formatMarginPercent(variantPrice) }}
-          </td>
+            <td
+              class="px-4 py-3"
+              :class="shouldShowMargin(variantPrice) ? marginClass(variantPrice) : ''"
+            >
+              {{ formatMarginAmount(variantPrice) }}
+            </td>
+          </tr>
 
-          <td
-            class="px-4 py-3"
-            :class="shouldShowMargin(variantPrice) ? marginClass(variantPrice) : ''"
-          >
-            {{ formatMarginAmount(variantPrice) }}
-          </td>
-        </tr>
+          <!-- Tier prices sub-rows (inline display like legacy) -->
+          <template v-if="variantPrice.tierPrices.length > 0">
+            <tr v-for="tier in variantPrice.tierPrices" :key="tier.id" class="bg-elevated/20">
+              <td class="py-2 pl-8 pr-4 text-sm text-muted">{{ tier.minQuantity }} o más</td>
+              <td class="px-4 py-2">
+                <span class="text-sm">
+                  $ {{ centsToDecimalInput(tier.priceCents) }}
+                  <span class="text-xs text-muted">por Unidad</span>
+                </span>
+              </td>
+              <td />
+              <td
+                class="px-4 py-2 text-sm"
+                :class="
+                  tier.margin ? (tier.margin.amountCents >= 0 ? 'text-success' : 'text-error') : ''
+                "
+              >
+                {{ tier.margin ? `${tier.margin.percent}%` : '--' }}
+              </td>
+              <td
+                class="px-4 py-2 text-sm"
+                :class="
+                  tier.margin ? (tier.margin.amountCents >= 0 ? 'text-success' : 'text-error') : ''
+                "
+              >
+                {{
+                  tier.margin
+                    ? `${currencyFormatter.format(tier.margin.amountDecimal)} por Unidad`
+                    : '--'
+                }}
+              </td>
+            </tr>
+            <tr class="bg-elevated/20">
+              <td colspan="5" class="px-4 py-2">
+                <UButton
+                  type="button"
+                  label="Editar Cantidades"
+                  icon="i-lucide-pencil"
+                  color="neutral"
+                  variant="outline"
+                  size="xs"
+                  :disabled="!canUpdate"
+                  @click="openTierPricesModal(variantPrice)"
+                />
+              </td>
+            </tr>
+          </template>
+        </template>
       </tbody>
     </table>
   </div>
@@ -331,12 +378,9 @@ function handleSaveTierPrices() {
             :key="row.key"
             class="grid grid-cols-1 gap-3 rounded-md border border-default p-3 md:grid-cols-[1fr_1fr_auto]"
           >
-            <div class="relative">
-              <UInputNumber v-model="row.minQuantity" :min="0" class="w-full" />
-              <span
-                class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted"
-                >o más</span
-              >
+            <div class="flex items-center gap-2">
+              <UInputNumber v-model="row.minQuantity" :min="0" class="flex-1" />
+              <span class="shrink-0 text-xs text-muted">o más</span>
             </div>
 
             <div class="relative">

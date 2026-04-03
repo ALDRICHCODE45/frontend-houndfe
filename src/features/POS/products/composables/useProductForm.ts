@@ -64,10 +64,11 @@ export const productFormSchema = z.object({
   satKey: z.string().trim().max(100, 'Máximo 100 caracteres'),
   unit: z.string().trim(),
   price: z
-    .string({ required_error: 'El precio es obligatorio' })
+    .string()
     .trim()
-    .min(1, 'El precio es obligatorio')
-    .regex(priceRegex, 'Ingresá un valor decimal válido (ej: 199.90)'),
+    .regex(priceRegex, 'Ingresá un valor decimal válido (ej: 199.90)')
+    .or(z.literal(''))
+    .default('0.00'),
   quantity: z
     .number({ invalid_type_error: 'Ingresá un número válido' })
     .int('Debe ser entero')

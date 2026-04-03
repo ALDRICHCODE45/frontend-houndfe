@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
+import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { adminRoleQueryKeys } from '@/core/shared/constants/query-keys'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
@@ -45,6 +46,20 @@ const isCreateOpen = ref(false)
 const isEditOpen = ref(false)
 const isPermissionsOpen = ref(false)
 const selectedRole = ref<RoleTableRow | null>(null)
+const confirmState = ref({
+  open: false,
+  description: '',
+  onConfirm: () => {},
+})
+
+function openConfirm(description: string, onConfirm: () => void) {
+  confirmState.value = { open: true, description, onConfirm }
+}
+
+function handleConfirm() {
+  confirmState.value.onConfirm()
+  confirmState.value.open = false
+}
 
 const createMutation = useMutation({
   mutationFn: rolesApi.create,
@@ -124,29 +139,28 @@ async function handleDelete(role: RoleTableRow) {
     return
   }
 
-  const confirmed = window.confirm(`¿Querés eliminar el rol ${role.name}?`)
-  if (!confirmed) return
-
-  await deleteMutation.mutateAsync(role.id)
+  openConfirm(`¿Querés eliminar el rol ${role.name}?`, () => {
+    void deleteMutation.mutateAsync(role.id)
+  })
 }
 
 function getRowItems(role: RoleTableRow) {
-  const mainActions = (canUpdateRole.value
-      ? [
-          { label: 'Editar', onSelect: () => openEdit(role) },
-          { label: 'Permisos', onSelect: () => openPermissions(role) },
-        ]
-      : [])
+  const mainActions = canUpdateRole.value
+    ? [
+        { label: 'Editar', onSelect: () => openEdit(role) },
+        { label: 'Permisos', onSelect: () => openPermissions(role) },
+      ]
+    : []
 
-  const destructiveActions = (canDeleteRole.value
-      ? [
-          {
-            label: 'Eliminar',
-            color: 'error' as const,
-            onSelect: () => handleDelete(role),
-          },
-        ]
-      : [])
+  const destructiveActions = canDeleteRole.value
+    ? [
+        {
+          label: 'Eliminar',
+          color: 'error' as const,
+          onSelect: () => handleDelete(role),
+        },
+      ]
+    : []
 
   return [mainActions, destructiveActions].filter((section) => section.length > 0)
 }
@@ -174,6 +188,16 @@ function getRowItems(role: RoleTableRow) {
       :role="selectedRole"
       :loading="isSubmitting"
       @save="permissionsMutation.mutate"
+    />
+
+    <ConfirmModal
+      :open="confirmState.open"
+      :description="confirmState.description"
+      confirm-label="Eliminar"
+      confirm-color="error"
+      :loading="deleteMutation.isPending.value"
+      @update:open="confirmState.open = $event"
+      @confirm="handleConfirm"
     />
 
     <UCard :ui="{ body: 'p-0 sm:p-0' }">

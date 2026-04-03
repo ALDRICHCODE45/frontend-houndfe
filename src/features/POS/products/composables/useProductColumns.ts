@@ -1,13 +1,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { Product } from '../interfaces/product.types'
 import { createSimpleHeader } from '@/core/shared/components/DataTable'
-
-const currencyFormatter = new Intl.NumberFormat('es-AR', {
-  style: 'currency',
-  currency: 'ARS',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-})
+import { currencyFormatter } from '@/core/shared/utils/currency.utils'
 
 export function useProductColumns() {
   const columns: TableColumn<Product>[] = [

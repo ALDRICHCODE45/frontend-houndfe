@@ -4,8 +4,8 @@ export const productStatusConfig = {
   out_of_stock: { color: 'error' as const, label: 'Sin Stock' },
 } as const
 
-export const getStockColor = (stock: number) => {
+export const getStockColor = (stock: number, minQuantity = 10) => {
   if (stock === 0) return 'error' as const
-  if (stock < 10) return 'warning' as const
+  if (stock <= minQuantity) return 'warning' as const
   return 'success' as const
 }

@@ -25,6 +25,8 @@ export interface Product {
   sellInPos: boolean
   includeInOnlineCatalog: boolean
   chargeProductTaxes: boolean
+  variantStockTotal: number | null
+  variantCount: number | null
   status: ProductStatus
   createdAt: string
   updatedAt: string
@@ -78,6 +80,9 @@ export interface ProductVariant {
   barcode: string | null
   priceCents: number
   quantity: number
+  minQuantity: number
+  purchaseNetCostCents: number | null
+  purchaseNetCostDecimal: number | null
   variantPrices: VariantPrice[]
   createdAt: string
   updatedAt: string
@@ -131,6 +136,8 @@ export interface ProductBackendResponse {
   sellInPos?: boolean
   includeInOnlineCatalog?: boolean
   chargeProductTaxes?: boolean
+  variantStockTotal?: number | null
+  variantCount?: number | null
   status?: string | null
   priceCents?: number
   price?: {
@@ -164,6 +171,9 @@ export interface ProductVariantBackendResponse {
     priceCents?: number
   } | null
   quantity?: number
+  minQuantity?: number | null
+  purchaseNetCostCents?: number | null
+  purchaseNetCostDecimal?: number | null
   variantPrices?: VariantPrice[]
   createdAt: string
   updatedAt: string
@@ -222,6 +232,8 @@ export interface CreateVariantPayload {
   sku?: string
   barcode?: string
   quantity: number
+  minQuantity?: number
+  purchaseNetCostCents?: number
 }
 
 export type UpdateVariantPayload = Partial<CreateVariantPayload>
@@ -284,7 +296,21 @@ export interface ProductFormInput {
   purchaseCost: string
 }
 
-// ── Price Lists ──────────────────────────────────────────────
+// ── Global Price Lists ──────────────────────────────────────
+
+export interface GlobalPriceList {
+  id: string
+  name: string
+  isDefault: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateGlobalPriceListPayload {
+  name: string
+}
+
+// ── Price Lists (per product) ───────────────────────────────
 
 export interface TierPriceMargin {
   amountCents: number
@@ -351,12 +377,4 @@ export interface CreateImagePayload {
   isMain?: boolean
   sortOrder?: number
   variantId?: string
-}
-
-// ── Shared ───────────────────────────────────────────────────
-
-export interface DomainApiError {
-  statusCode?: number
-  error?: string
-  message?: string
 }

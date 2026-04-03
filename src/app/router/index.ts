@@ -11,6 +11,8 @@ const ProductDetailView = () => import('@/features/POS/products/views/ProductDet
 const OrdersView = () => import('@/features/POS/orders/views/OrdersView.vue')
 const AdminUsersView = () => import('@/features/admin/users/views/AdminUsersView.vue')
 const AdminRolesView = () => import('@/features/admin/roles/views/AdminRolesView.vue')
+const ForbiddenView = () => import('@/features/errors/views/ForbiddenView.vue')
+const NotFoundView = () => import('@/features/errors/views/NotFoundView.vue')
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -81,6 +83,18 @@ const router = createRouter({
         permission: ['read', 'Role'] as RoutePermission,
       },
     },
+    {
+      path: '/403',
+      name: 'forbidden',
+      component: ForbiddenView,
+      meta: { layout: 'auth', public: true },
+    },
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'not-found',
+      component: NotFoundView,
+      meta: { layout: 'auth', public: true },
+    },
   ],
 })
 
@@ -127,7 +141,7 @@ router.beforeEach(async (to) => {
 
   const requiredPermission = to.meta.permission as RoutePermission | undefined
   if (requiredPermission && !authStore.userCan(requiredPermission[0], requiredPermission[1])) {
-    return '/'
+    return '/403'
   }
 
   return true

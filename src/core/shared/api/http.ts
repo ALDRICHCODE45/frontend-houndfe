@@ -10,6 +10,7 @@ interface RetryableRequestConfig extends InternalAxiosRequestConfig {
 }
 
 const authFreePaths = ['/auth/login', '/auth/register', '/auth/refresh']
+let refreshPromise: Promise<{ accessToken: string; refreshToken: string }> | null = null
 
 export const http = axios.create({
   baseURL: API_BASE_URL,
@@ -48,13 +49,21 @@ http.interceptors.response.use(
       }
 
       try {
-        const refreshResponse = await axios.post<{ accessToken: string; refreshToken: string }>(
-          `${API_BASE_URL}/auth/refresh`,
-          { refreshToken },
-        )
+        if (!refreshPromise) {
+          refreshPromise = axios
+            .post<{ accessToken: string; refreshToken: string }>(`${API_BASE_URL}/auth/refresh`, {
+              refreshToken,
+            })
+            .then((res) => res.data)
+            .finally(() => {
+              refreshPromise = null
+            })
+        }
 
-        authStorage.setTokens(refreshResponse.data)
-        originalRequest.headers.Authorization = `Bearer ${refreshResponse.data.accessToken}`
+        const tokens = await refreshPromise
+
+        authStorage.setTokens(tokens)
+        originalRequest.headers.Authorization = `Bearer ${tokens.accessToken}`
 
         return http(originalRequest)
       } catch (refreshError) {

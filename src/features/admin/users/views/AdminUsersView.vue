@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
+import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { adminUserQueryKeys } from '@/core/shared/constants/query-keys'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
@@ -43,6 +44,20 @@ const isCreateOpen = ref(false)
 const isEditOpen = ref(false)
 const isAssignRolesOpen = ref(false)
 const selectedUser = ref<UserTableRow | null>(null)
+const confirmState = ref({
+  open: false,
+  description: '',
+  onConfirm: () => {},
+})
+
+function openConfirm(description: string, onConfirm: () => void) {
+  confirmState.value = { open: true, description, onConfirm }
+}
+
+function handleConfirm() {
+  confirmState.value.onConfirm()
+  confirmState.value.open = false
+}
 
 const createMutation = useMutation({
   mutationFn: usersApi.create,
@@ -122,28 +137,28 @@ function openAssignRoles(user: UserTableRow) {
 
 async function handleDelete(user: UserTableRow) {
   if (!canDeleteUser.value) return
-  const confirmed = window.confirm(`¿Querés desactivar al usuario ${user.name}?`)
-  if (!confirmed) return
-  await deleteMutation.mutateAsync(user.id)
+  openConfirm(`¿Querés desactivar al usuario ${user.name}?`, () => {
+    void deleteMutation.mutateAsync(user.id)
+  })
 }
 
 function getRowItems(user: UserTableRow) {
-  const mainActions = (canUpdateUser.value
-      ? [
-          { label: 'Editar', onSelect: () => openEdit(user) },
-          { label: 'Roles', onSelect: () => openAssignRoles(user) },
-        ]
-      : [])
+  const mainActions = canUpdateUser.value
+    ? [
+        { label: 'Editar', onSelect: () => openEdit(user) },
+        { label: 'Roles', onSelect: () => openAssignRoles(user) },
+      ]
+    : []
 
-  const destructiveActions = (canDeleteUser.value
-      ? [
-          {
-            label: 'Eliminar',
-            color: 'error' as const,
-            onSelect: () => handleDelete(user),
-          },
-        ]
-      : [])
+  const destructiveActions = canDeleteUser.value
+    ? [
+        {
+          label: 'Eliminar',
+          color: 'error' as const,
+          onSelect: () => handleDelete(user),
+        },
+      ]
+    : []
 
   return [mainActions, destructiveActions].filter((section) => section.length > 0)
 }
@@ -174,6 +189,16 @@ function getRowItems(user: UserTableRow) {
       :user="selectedUser"
       :loading="isSubmitting"
       @save="assignRolesMutation.mutate"
+    />
+
+    <ConfirmModal
+      :open="confirmState.open"
+      :description="confirmState.description"
+      confirm-label="Eliminar"
+      confirm-color="error"
+      :loading="deleteMutation.isPending.value"
+      @update:open="confirmState.open = $event"
+      @confirm="handleConfirm"
     />
 
     <UCard :ui="{ body: 'p-0 sm:p-0' }">

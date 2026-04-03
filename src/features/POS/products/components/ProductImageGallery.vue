@@ -3,14 +3,11 @@ import type { AxiosError } from 'axios'
 import { computed, ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import draggable from 'vuedraggable'
+import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import { productApi } from '../api/product.api'
+import { mapDomainError, type DomainApiError } from '@/core/shared/utils/error.utils'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
-import type {
-  CreateImagePayload,
-  DomainApiError,
-  ProductImage,
-  ProductVariant,
-} from '../interfaces/product.types'
+import type { CreateImagePayload, ProductImage, ProductVariant } from '../interfaces/product.types'
 
 declare const useToast: () => {
   add: (options: {
@@ -45,6 +42,8 @@ const allImages = computed(() => images.value ?? [])
 
 type ImageScope = 'all' | 'product' | string
 
+const PRODUCT_IMAGE_SCOPE_VALUE = '__product__'
+
 const activeScope = ref<ImageScope>('all')
 
 const scopeOptions = computed(() => {
@@ -61,7 +60,7 @@ const scopeOptions = computed(() => {
 })
 
 const addImageVariantItems = computed(() => [
-  { label: 'Producto', value: '' },
+  { label: 'Producto', value: PRODUCT_IMAGE_SCOPE_VALUE },
   ...props.variants.map((variant) => ({
     label: variant.value?.trim() || variant.name,
     value: variant.id,
@@ -85,10 +84,24 @@ const sortableImages = computed({
 // ── Add image form ─────────────────────────────────────────
 
 const newImageUrl = ref('')
-const newImageVariantId = ref<string>('')
+const newImageVariantId = ref<string>(PRODUCT_IMAGE_SCOPE_VALUE)
 const newImageIsMain = ref(false)
 const urlError = ref('')
 const previewUrl = ref('')
+const confirmState = ref({
+  open: false,
+  description: '',
+  onConfirm: () => {},
+})
+
+function openConfirm(description: string, onConfirm: () => void) {
+  confirmState.value = { open: true, description, onConfirm }
+}
+
+function handleConfirm() {
+  confirmState.value.onConfirm()
+  confirmState.value.open = false
+}
 
 function isValidUrl(url: string): boolean {
   try {
@@ -110,17 +123,13 @@ function onUrlInput() {
 
 function resetAddForm() {
   newImageUrl.value = ''
-  newImageVariantId.value = ''
+  newImageVariantId.value = PRODUCT_IMAGE_SCOPE_VALUE
   newImageIsMain.value = false
   urlError.value = ''
   previewUrl.value = ''
 }
 
 // ── Mutations ──────────────────────────────────────────────
-
-function mapDomainError(error: AxiosError<DomainApiError>): string {
-  return error.response?.data?.message ?? 'No pudimos completar la operación. Reintentá.'
-}
 
 async function invalidateImages() {
   await queryClient.invalidateQueries({ queryKey: productQueryKeys.images(props.productId) })
@@ -196,7 +205,9 @@ function handleAddImage() {
     url,
     isMain: newImageIsMain.value,
     sortOrder: nextSortOrder,
-    ...(newImageVariantId.value ? { variantId: newImageVariantId.value } : {}),
+    ...(newImageVariantId.value !== PRODUCT_IMAGE_SCOPE_VALUE
+      ? { variantId: newImageVariantId.value }
+      : {}),
   })
 }
 
@@ -206,9 +217,9 @@ function handleSetMain(image: ProductImage) {
 }
 
 function handleDelete(image: ProductImage) {
-  const confirmed = window.confirm('¿Querés eliminar esta imagen?')
-  if (!confirmed) return
-  deleteMutation.mutate(image.id)
+  openConfirm('¿Querés eliminar esta imagen?', () => {
+    deleteMutation.mutate(image.id)
+  })
 }
 
 function getVariantName(variantId: string | null): string {
@@ -409,4 +420,14 @@ function isImageBroken(imageId: string): boolean {
       </draggable>
     </div>
   </UCard>
+
+  <ConfirmModal
+    :open="confirmState.open"
+    :description="confirmState.description"
+    confirm-label="Eliminar"
+    confirm-color="error"
+    :loading="deleteMutation.isPending.value"
+    @update:open="confirmState.open = $event"
+    @confirm="handleConfirm"
+  />
 </template>

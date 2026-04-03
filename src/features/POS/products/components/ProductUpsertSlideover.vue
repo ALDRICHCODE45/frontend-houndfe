@@ -172,7 +172,7 @@ function handleCancel() {
         </UFormField>
 
         <div class="grid grid-cols-2 gap-4">
-          <UFormField label="Precio" name="price" :error="errors.price">
+          <UFormField label="Precio de venta" name="price" :error="errors.price">
             <UInput
               v-model="state.price"
               class="w-full"

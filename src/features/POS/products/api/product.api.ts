@@ -3,12 +3,13 @@ import { http } from '@/core/shared/api/http'
 import type {
   BulkUpsertVariantPricesPayload,
   CreateCategoryPayload,
+  CreateGlobalPriceListPayload,
   CreateImagePayload,
   CreateLotPayload,
-  CreatePriceListPayload,
   CategoryOption,
   CreateProductPayload,
   CreateVariantPayload,
+  GlobalPriceList,
   PriceList,
   ProductImage,
   ProductLot,
@@ -47,7 +48,13 @@ function mapStatus(item: ProductBackendResponse): Product['status'] {
   if (item.status === 'out_of_stock') return 'out_of_stock'
   if (item.status === 'active') return 'active'
 
-  if ((item.useStock ?? true) && (item.quantity ?? 0) <= 0) return 'out_of_stock'
+  if (!(item.useStock ?? true)) return 'active'
+
+  if (item.hasVariants && item.variantStockTotal != null) {
+    return item.variantStockTotal > 0 ? 'active' : 'out_of_stock'
+  }
+
+  if ((item.quantity ?? 0) <= 0) return 'out_of_stock'
   return 'active'
 }
 
@@ -68,6 +75,8 @@ function mapProduct(item: ProductBackendResponse): Product {
     sellInPos: item.sellInPos ?? true,
     includeInOnlineCatalog: item.includeInOnlineCatalog ?? true,
     chargeProductTaxes: item.chargeProductTaxes ?? true,
+    variantStockTotal: item.variantStockTotal ?? null,
+    variantCount: item.variantCount ?? null,
     status: mapStatus(item),
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
@@ -164,6 +173,11 @@ function mapVariant(productId: string, item: ProductVariantBackendResponse): Pro
     barcode: item.barcode ?? null,
     priceCents: item.priceCents ?? item.price?.priceCents ?? 0,
     quantity: item.quantity ?? 0,
+    minQuantity: item.minQuantity ?? 0,
+    purchaseNetCostCents: item.purchaseNetCostCents ?? null,
+    purchaseNetCostDecimal:
+      item.purchaseNetCostDecimal ??
+      (item.purchaseNetCostCents != null ? item.purchaseNetCostCents / 100 : null),
     variantPrices: item.variantPrices ?? [],
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
@@ -342,18 +356,29 @@ export const productApi = {
     await http.delete(`/products/${productId}/lots/${lotId}`)
   },
 
-  // ── Price Lists ──────────────────────────────────────────
+  // ── Global Price Lists ────────────────────────────────────
+
+  async getGlobalPriceLists(): Promise<GlobalPriceList[]> {
+    const { data } = await http.get<GlobalPriceList[] | { data: GlobalPriceList[] }>('/price-lists')
+    return mapArrayResponse(data)
+  },
+
+  async createGlobalPriceList(payload: CreateGlobalPriceListPayload): Promise<GlobalPriceList> {
+    const { data } = await http.post<GlobalPriceList>('/price-lists', payload)
+    return data
+  },
+
+  async removeGlobalPriceList(priceListId: string): Promise<void> {
+    await http.delete(`/price-lists/${priceListId}`)
+  },
+
+  // ── Price Lists (per product) ───────────────────────────
 
   async getPriceLists(productId: string): Promise<PriceList[]> {
     const { data } = await http.get<PriceList[] | { data: PriceList[] }>(
       `/products/${productId}/price-lists`,
     )
     return mapArrayResponse(data)
-  },
-
-  async createPriceList(productId: string, payload: CreatePriceListPayload): Promise<PriceList> {
-    const { data } = await http.post<PriceList>(`/products/${productId}/price-lists`, payload)
-    return data
   },
 
   async updatePriceList(
@@ -366,10 +391,6 @@ export const productApi = {
       payload,
     )
     return data
-  },
-
-  async removePriceList(productId: string, priceListId: string): Promise<void> {
-    await http.delete(`/products/${productId}/price-lists/${priceListId}`)
   },
 
   // ── Images ───────────────────────────────────────────────

@@ -11,6 +11,8 @@ import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import type { BulkAction } from '@/core/shared/types/table.types'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
+import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
+import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { productApi } from '../api/product.api'
 import ProductUpsertSlideover from '../components/ProductUpsertSlideover.vue'
 import { useProductColumns } from '../composables/useProductColumns'
@@ -18,7 +20,6 @@ import type {
   CategoryOption,
   CreateCategoryPayload,
   CreateProductPayload,
-  DomainApiError,
   Product,
   ProductDetail,
   UpdateProductPayload,
@@ -82,6 +83,20 @@ const formErrors = ref<ProductFormErrors>({})
 const createdCategoryId = ref<string | null>(null)
 const categoryCreateError = ref('')
 const isCreateCategoryModalOpen = ref(false)
+const confirmState = ref({
+  open: false,
+  description: '',
+  onConfirm: () => {},
+})
+
+function openConfirm(description: string, onConfirm: () => void) {
+  confirmState.value = { open: true, description, onConfirm }
+}
+
+function handleConfirm() {
+  confirmState.value.onConfirm()
+  confirmState.value.open = false
+}
 
 const createCategorySchema = z.object({
   name: z
@@ -312,10 +327,9 @@ async function handleOpenEdit(product: Product) {
 async function handleDelete(product: Product) {
   if (!canDeleteProduct.value) return
 
-  const confirmed = window.confirm(`¿Querés eliminar el producto ${product.name}?`)
-  if (!confirmed) return
-
-  await deleteMutation.mutateAsync(product.id)
+  openConfirm(`¿Querés eliminar el producto ${product.name}?`, () => {
+    void deleteMutation.mutateAsync(product.id)
+  })
 }
 
 function openDetails(product: Product) {
@@ -336,15 +350,15 @@ function getRowItems(product: Product) {
       : []),
   ]
 
-  const destructiveActions = (canDeleteProduct.value
-      ? [
-          {
-            label: 'Eliminar',
-            color: 'error' as const,
-            onSelect: () => handleDelete(product),
-          },
-        ]
-      : [])
+  const destructiveActions = canDeleteProduct.value
+    ? [
+        {
+          label: 'Eliminar',
+          color: 'error' as const,
+          onSelect: () => handleDelete(product),
+        },
+      ]
+    : []
 
   return [mainActions, destructiveActions].filter((section) => section.length > 0)
 }
@@ -421,6 +435,16 @@ const bulkActions = computed<BulkAction<Product>[]>(() => [])
         </div>
       </template>
     </UModal>
+
+    <ConfirmModal
+      :open="confirmState.open"
+      :description="confirmState.description"
+      confirm-label="Eliminar"
+      confirm-color="error"
+      :loading="deleteMutation.isPending.value"
+      @update:open="confirmState.open = $event"
+      @confirm="handleConfirm"
+    />
 
     <UCard :ui="{ body: 'p-0 sm:p-0' }">
       <template #header>
@@ -501,7 +525,31 @@ const bulkActions = computed<BulkAction<Product>[]>(() => [])
 
           <template #quantity-cell="{ row }">
             <UBadge
-              :color="getStockColor(row.original.quantity)"
+              v-if="
+                (row.original as Product).hasVariants &&
+                (row.original as Product).variantStockTotal != null
+              "
+              :color="getStockColor((row.original as Product).variantStockTotal ?? 0)"
+              variant="subtle"
+              size="sm"
+              class="font-semibold"
+            >
+              {{ (row.original as Product).variantStockTotal }} unidades en
+              {{ (row.original as Product).variantCount }}
+              {{ (row.original as Product).variantCount === 1 ? 'variante' : 'variantes' }}
+            </UBadge>
+            <UBadge
+              v-else-if="(row.original as Product).hasVariants"
+              color="neutral"
+              variant="subtle"
+              size="sm"
+              class="font-semibold"
+            >
+              En variantes
+            </UBadge>
+            <UBadge
+              v-else
+              :color="getStockColor(row.original.quantity, row.original.minQuantity)"
               variant="subtle"
               size="sm"
               class="font-mono font-semibold"
