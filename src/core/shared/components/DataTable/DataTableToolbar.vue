@@ -72,7 +72,10 @@ function capitalize(str: string): string {
             .getAllColumns()
             .filter((col: any) => col.getCanHide())
             .map((col: any) => ({
-              label: capitalize(col.id),
+              label:
+                typeof col.columnDef.header === 'string'
+                  ? col.columnDef.header
+                  : capitalize(col.id),
               icon: col.getIsVisible() ? 'i-lucide-circle-check-big' : 'i-lucide-circle',
               onSelect: (e: Event) => {
                 e.preventDefault()

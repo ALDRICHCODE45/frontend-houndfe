@@ -66,13 +66,13 @@ export const useSidebar = () => {
         defaultOpen: true,
         children: [
           {
-            label: 'Products',
+            label: 'Productos',
             icon: 'i-lucide-package',
             to: '/pos/products',
             permission: ['read', 'Product'],
           },
           {
-            label: 'Orders',
+            label: 'Órdenes',
             icon: 'i-lucide-receipt',
             to: '/pos/orders',
             permission: ['read', 'Order'],
