@@ -128,7 +128,7 @@ defineShortcuts({
     <UDashboardSearch
       v-model:open="isSearchOpen"
       :groups="searchGroups"
-      placeholder="Search pages, actions..."
+      placeholder="Buscar páginas, acciones..."
     />
   </UDashboardGroup>
 </template>

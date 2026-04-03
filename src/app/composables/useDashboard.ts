@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import type { CommandPaletteGroup, CommandPaletteItem } from '@nuxt/ui'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import type { AppAction, AppSubject } from '@/features/auth/interfaces/auth.types'
@@ -16,6 +17,7 @@ interface GuardedCommandPaletteItem extends CommandPaletteItem {
 
 export const useDashboard = () => {
   const authStore = useAuthStore()
+  const router = useRouter()
 
   const canAccess = (permission?: PermissionTuple) => {
     if (!permission) return true
@@ -69,10 +71,17 @@ export const useDashboard = () => {
 
     const actionItems: GuardedCommandPaletteItem[] = [
       {
-        id: 'new-order',
-        label: 'New Order',
+        id: 'new-product',
+        label: 'Nuevo Producto',
         icon: 'i-lucide-plus',
-        onSelect: () => console.log('New order'),
+        to: '/pos/products/new',
+        permission: ['create', 'Product'],
+      },
+      {
+        id: 'new-order',
+        label: 'Nueva Orden',
+        icon: 'i-lucide-plus',
+        onSelect: () => void router.push('/pos/orders/new'),
         permission: ['create', 'Order'],
       },
     ]
@@ -90,7 +99,7 @@ export const useDashboard = () => {
     if (visiblePages.length > 0) {
       groups.push({
         id: 'pages',
-        label: 'Pages',
+        label: 'Páginas',
         items: visiblePages,
       })
     }
@@ -98,7 +107,7 @@ export const useDashboard = () => {
     if (visibleActions.length > 0) {
       groups.push({
         id: 'actions',
-        label: 'Actions',
+        label: 'Acciones',
         items: visibleActions,
       })
     }
