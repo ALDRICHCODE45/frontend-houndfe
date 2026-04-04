@@ -27,7 +27,7 @@ async function handleLogin(values: LoginFormValues) {
     const redirectTo = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
     await router.push(redirectTo)
   } catch {
-    loginError.value = 'No se pudo iniciar sesión. Verificá credenciales y conexión con backend.'
+    loginError.value = 'No se pudo iniciar sesión. Verificá credenciales.'
   } finally {
     isLoading.value = false
   }
@@ -47,7 +47,7 @@ async function handleLogin(values: LoginFormValues) {
     >
       <!-- Mobile logo (visible only on small screens) -->
       <div class="absolute top-8 left-8 lg:hidden">
-        <img src="/hounfeLogos/primary.png" alt="HounFe" class="w-12 h-12 object-contain" />
+        <img src="/hounfeLogos/primary.png" alt="HoundFe" class="w-12 h-12 object-contain" />
       </div>
 
       <div class="w-full max-w-sm">

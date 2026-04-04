@@ -22,7 +22,7 @@ export const useSidebar = () => {
     {
       label: 'HoundFe',
       avatar: {
-        src: 'https://github.com/nuxt.png',
+        src: '/hounfeLogos/primary.png',
         alt: 'HoundFe',
       },
     },

@@ -39,7 +39,7 @@ onMounted(() => {
       <!-- Wordmark -->
       <div class="text-center space-y-3">
         <h1 class="text-4xl font-bold tracking-tight text-white">
-          Houn<span class="text-amber-400">Fe</span>
+          Hound<span class="text-amber-400">Fe</span>
         </h1>
         <p class="text-sm text-neutral-500 font-light tracking-widest uppercase">
           Sistema de Gesti&oacute;n Interna
