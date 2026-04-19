@@ -35,6 +35,13 @@ export function useProductColumns() {
       header: 'Categoría',
     },
 
+    // ── Marca (sortable) ─────────────────────────────────────────────
+    // Header rendered via #brand-header slot
+    {
+      accessorKey: 'brandName',
+      header: 'Marca',
+    },
+
     // ── Precio (sortable, formateado) ─────────────────────────────────
     // Header rendered via #price-header slot
     {

@@ -9,6 +9,15 @@ export interface CreateCategoryPayload {
   name: string
 }
 
+export interface BrandOption {
+  id: string
+  name: string
+}
+
+export interface CreateBrandPayload {
+  name: string
+}
+
 export interface Product {
   id: string
   name: string
@@ -16,6 +25,8 @@ export interface Product {
   barcode: string | null
   categoryId: string | null
   categoryName: string
+  brandId: string | null
+  brandName: string
   priceCents: number
   quantity: number
   minQuantity: number
@@ -129,6 +140,12 @@ export interface ProductBackendResponse {
     name: string
   } | null
   categoryName?: string | null
+  brandId?: string | null
+  brand?: {
+    id: string
+    name: string
+  } | null
+  brandName?: string | null
   quantity?: number
   minQuantity?: number
   useStock?: boolean
@@ -209,6 +226,7 @@ export interface CreateProductPayload {
   sku?: string
   barcode?: string
   categoryId?: string
+  brandId?: string | null
   description?: string
   location?: string
   satKey?: string
@@ -280,6 +298,7 @@ export interface ProductFormInput {
   sku: string
   barcode: string
   categoryId: string
+  brandId: string
   description: string
   location: string
   satKey: string

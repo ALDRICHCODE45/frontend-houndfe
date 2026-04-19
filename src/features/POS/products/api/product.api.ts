@@ -1,7 +1,9 @@
 import type { PaginatedResponse, ServerTableParams } from '@/core/shared/types/table.types'
 import { http } from '@/core/shared/api/http'
 import type {
+  BrandOption,
   BulkUpsertVariantPricesPayload,
+  CreateBrandPayload,
   CreateCategoryPayload,
   CreateGlobalPriceListPayload,
   CreateImagePayload,
@@ -43,6 +45,10 @@ function getCategoryName(item: ProductBackendResponse): string {
   return item.category?.name ?? item.categoryName ?? 'Sin categoría'
 }
 
+function getBrandName(item: ProductBackendResponse): string {
+  return item.brand?.name ?? item.brandName ?? 'Sin marca'
+}
+
 function mapStatus(item: ProductBackendResponse): Product['status'] {
   if (item.status === 'inactive') return 'inactive'
   if (item.status === 'out_of_stock') return 'out_of_stock'
@@ -66,6 +72,8 @@ function mapProduct(item: ProductBackendResponse): Product {
     barcode: item.barcode ?? null,
     categoryId: item.categoryId ?? item.category?.id ?? null,
     categoryName: getCategoryName(item),
+    brandId: item.brandId ?? item.brand?.id ?? null,
+    brandName: getBrandName(item),
     priceCents: getPriceCents(item),
     quantity: item.quantity ?? 0,
     minQuantity: item.minQuantity ?? 0,
@@ -121,7 +129,7 @@ function applyLocalProductFilters(rows: Product[], params: ServerTableParams): P
   if (params.globalFilter) {
     const search = params.globalFilter.toLowerCase().trim()
     filtered = filtered.filter((row) => {
-      return [row.name, row.sku ?? '', row.barcode ?? '', row.categoryName]
+      return [row.name, row.sku ?? '', row.barcode ?? '', row.categoryName, row.brandName]
         .join(' ')
         .toLowerCase()
         .includes(search)
@@ -208,6 +216,7 @@ function resolveSort(params: ServerTableParams) {
 
   const sortByMap: Record<string, string> = {
     categoryName: 'categoryId',
+    brandName: 'brandId',
     priceCents: 'priceCents',
     quantity: 'quantity',
   }
@@ -292,6 +301,16 @@ export const productApi = {
 
   async createCategory(payload: CreateCategoryPayload): Promise<CategoryOption> {
     const { data } = await http.post<CategoryOption>('/categories', payload)
+    return data
+  },
+
+  async getBrands(): Promise<BrandOption[]> {
+    const { data } = await http.get<BrandOption[]>('/brands')
+    return data
+  },
+
+  async createBrand(payload: CreateBrandPayload): Promise<BrandOption> {
+    const { data } = await http.post<BrandOption>('/brands', payload)
     return data
   },
 

@@ -26,6 +26,7 @@ import {
   IEPS_OPTIONS,
 } from '../composables/useProductForm'
 import type {
+  BrandOption,
   CategoryOption,
   CreateLotPayload,
   CreateVariantPayload,
@@ -70,6 +71,7 @@ function getDefaultFormState(): ProductFormInput {
     sku: '',
     barcode: '',
     categoryId: '',
+    brandId: '',
     description: '',
     location: '',
     satKey: '',
@@ -107,6 +109,20 @@ const categoryState = reactive<CategoryFormState>({
   name: '',
 })
 
+const brandSchema = z.object({
+  name: z
+    .string({ required_error: 'El nombre es obligatorio' })
+    .trim()
+    .min(2, 'La marca debe tener al menos 2 caracteres')
+    .max(50, 'Máximo 50 caracteres'),
+})
+
+type BrandFormState = z.infer<typeof brandSchema>
+
+const brandState = reactive<BrandFormState>({
+  name: '',
+})
+
 const variantSchema = z.object({
   option: z.string().trim().min(1, 'Seleccioná una opción'),
   value: z.string().trim().min(1, 'El valor es obligatorio').max(100),
@@ -129,6 +145,8 @@ type MainFormValues = z.infer<typeof productFormSchema>
 
 const isCategoryModalOpen = ref(false)
 const categoryCreateError = ref('')
+const isBrandModalOpen = ref(false)
+const brandCreateError = ref('')
 const isVariantModalOpen = ref(false)
 const isLotModalOpen = ref(false)
 const editingVariantId = ref<string | null>(null)
@@ -190,6 +208,12 @@ const { data: categories } = useQuery<CategoryOption[]>({
   refetchOnWindowFocus: false,
 })
 
+const { data: brands } = useQuery<BrandOption[]>({
+  queryKey: productQueryKeys.brands(),
+  queryFn: productApi.getBrands,
+  refetchOnWindowFocus: false,
+})
+
 const { data: variants, isFetching: isFetchingVariants } = useQuery({
   queryKey: computed(() => productQueryKeys.variants(productIdOrEmpty.value)),
   queryFn: () => productApi.getVariants(productIdOrEmpty.value),
@@ -207,6 +231,7 @@ const { data: lots, isFetching: isFetchingLots } = useQuery({
 const variantsList = computed(() => variants.value ?? [])
 const lotsList = computed(() => lots.value ?? [])
 const categoriesList = computed(() => categories.value ?? [])
+const brandsList = computed(() => brands.value ?? [])
 const inlineVariantQuantityInputs = reactive<Record<string, number>>({})
 const inlineVariantPublicPriceInputs = reactive<Record<string, string>>({})
 
@@ -272,6 +297,17 @@ const categoryItems = computed(() => [
     label: category.name,
     value: category.id,
     icon: 'i-lucide-package',
+  })),
+])
+
+const brandItems = computed(() => [
+  { label: 'Crear marca', value: '__create__', icon: 'i-lucide-plus', type: 'action' as const },
+  { label: '', value: '__sep__', type: 'separator' as const },
+  { label: 'Sin marca', value: '', icon: 'i-lucide-minus' },
+  ...brandsList.value.map((brand) => ({
+    label: brand.name,
+    value: brand.id,
+    icon: 'i-lucide-tag',
   })),
 ])
 
@@ -402,6 +438,11 @@ function resetCategoryForm() {
   categoryCreateError.value = ''
 }
 
+function resetBrandForm() {
+  brandState.name = ''
+  brandCreateError.value = ''
+}
+
 function resetVariantForm() {
   Object.assign(variantState, {
     option: '',
@@ -489,6 +530,31 @@ const createCategoryMutation = useMutation({
     const message = mapDomainError(error as AxiosError<DomainApiError>)
     categoryCreateError.value = message
     toast.add({ title: 'Error al crear categoría', description: message, color: 'error' })
+  },
+})
+
+const createBrandMutation = useMutation({
+  mutationFn: (name: string) => productApi.createBrand({ name }),
+  onMutate: () => {
+    brandCreateError.value = ''
+  },
+  onSuccess: async (brand) => {
+    formState.brandId = brand.id
+    isBrandModalOpen.value = false
+    resetBrandForm()
+
+    toast.add({
+      title: 'Marca creada',
+      description: `La marca ${brand.name} ya está disponible para seleccionar.`,
+      color: 'success',
+    })
+
+    await queryClient.invalidateQueries({ queryKey: productQueryKeys.brands() })
+  },
+  onError: (error) => {
+    const message = mapDomainError(error as AxiosError<DomainApiError>)
+    brandCreateError.value = message
+    toast.add({ title: 'Error al crear marca', description: message, color: 'error' })
   },
 })
 
@@ -632,6 +698,16 @@ function closeCreateCategoryModal() {
   resetCategoryForm()
 }
 
+function openCreateBrandModal() {
+  brandCreateError.value = ''
+  isBrandModalOpen.value = true
+}
+
+function closeCreateBrandModal() {
+  isBrandModalOpen.value = false
+  resetBrandForm()
+}
+
 function openAddVariantModal() {
   resetVariantForm()
   isVariantModalOpen.value = true
@@ -679,6 +755,22 @@ function handleCategoryAction(value: string) {
   }
 }
 
+function handleBrandSelectChange(value: string) {
+  if (value === '__create__') {
+    formState.brandId = ''
+    openCreateBrandModal()
+    return
+  }
+
+  formState.brandId = value
+}
+
+function handleBrandAction(value: string) {
+  if (value === '__create__') {
+    openCreateBrandModal()
+  }
+}
+
 function handleSubmitMainForm(event: FormSubmitEvent<MainFormValues>) {
   if (!canSubmitMainForm.value) return
 
@@ -694,6 +786,10 @@ function handleSubmitMainForm(event: FormSubmitEvent<MainFormValues>) {
 
 function handleCreateCategory(event: FormSubmitEvent<CategoryFormState>) {
   createCategoryMutation.mutate(event.data.name.trim())
+}
+
+function handleCreateBrand(event: FormSubmitEvent<BrandFormState>) {
+  createBrandMutation.mutate(event.data.name.trim())
 }
 
 function handleCreateLot(event: FormSubmitEvent<LotFormState>) {
@@ -980,6 +1076,17 @@ function handleEditLotPlaceholder() {
                     size="lg"
                     @update:model-value="handleCategorySelectChange"
                     @action="handleCategoryAction"
+                  />
+                </UFormField>
+
+                <UFormField label="Marca" name="brandId">
+                  <CategorySelect
+                    :model-value="formState.brandId"
+                    :items="brandItems"
+                    placeholder="Seleccionar marca"
+                    size="lg"
+                    @update:model-value="handleBrandSelectChange"
+                    @action="handleBrandAction"
                   />
                 </UFormField>
 
@@ -1408,6 +1515,47 @@ function handleEditLotPlaceholder() {
             type="submit"
             form="create-category-modal-form"
             :loading="createCategoryMutation.isPending.value"
+          />
+        </div>
+      </template>
+    </UModal>
+
+    <UModal v-model:open="isBrandModalOpen" title="Nueva marca" :content="{ class: 'sm:max-w-lg' }">
+      <template #body>
+        <UForm
+          id="create-brand-modal-form"
+          :schema="brandSchema"
+          :state="brandState"
+          class="space-y-3"
+          @submit="handleCreateBrand"
+        >
+          <UFormField label="Nombre" name="name">
+            <UInput
+              v-model="brandState.name"
+              placeholder="Nombre de la marca"
+              :disabled="createBrandMutation.isPending.value"
+            />
+          </UFormField>
+
+          <p v-if="brandCreateError" class="text-sm text-error">{{ brandCreateError }}</p>
+        </UForm>
+      </template>
+
+      <template #footer>
+        <div class="flex w-full justify-end gap-3">
+          <UButton
+            type="button"
+            label="Cancelar"
+            color="neutral"
+            variant="outline"
+            :disabled="createBrandMutation.isPending.value"
+            @click="closeCreateBrandModal"
+          />
+          <UButton
+            label="Guardar"
+            type="submit"
+            form="create-brand-modal-form"
+            :loading="createBrandMutation.isPending.value"
           />
         </div>
       </template>

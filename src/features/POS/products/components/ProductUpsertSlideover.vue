@@ -10,6 +10,7 @@ import {
   type ProductFormValues,
 } from '../composables/useProductForm'
 import type {
+  BrandOption,
   CategoryOption,
   CreateProductPayload,
   ProductDetail,
@@ -23,15 +24,19 @@ const props = withDefaults(
     loading?: boolean
     product?: ProductDetail | null
     categories?: CategoryOption[]
+    brands?: BrandOption[]
     errors?: Partial<Record<keyof ProductFormValues, string>>
     createdCategoryId?: string | null
+    createdBrandId?: string | null
   }>(),
   {
     loading: false,
     product: null,
     categories: () => [],
+    brands: () => [],
     errors: () => ({}),
     createdCategoryId: null,
+    createdBrandId: null,
   },
 )
 
@@ -41,6 +46,7 @@ const emit = defineEmits<{
   create: [payload: CreateProductPayload]
   edit: [payload: UpdateProductPayload]
   'request-create-category': []
+  'request-create-brand': []
   close: []
 }>()
 
@@ -70,6 +76,22 @@ const categoryItems = computed<CategorySelectItem[]>(() => [
     : []),
   { label: 'Sin categoría', value: '', icon: 'i-lucide-minus' },
   ...props.categories.map((c) => ({ label: c.name, value: c.id, icon: 'i-lucide-package' })),
+])
+
+const brandItems = computed<CategorySelectItem[]>(() => [
+  ...(props.mode === 'create'
+    ? [
+        {
+          label: 'Crear marca',
+          value: '__create__',
+          icon: 'i-lucide-plus',
+          type: 'action' as const,
+        },
+        { label: '', value: '__sep__', type: 'separator' as const },
+      ]
+    : []),
+  { label: 'Sin marca', value: '', icon: 'i-lucide-minus' },
+  ...props.brands.map((b) => ({ label: b.name, value: b.id, icon: 'i-lucide-tag' })),
 ])
 
 const title = computed(() => (props.mode === 'create' ? 'Nuevo producto' : 'Editar producto'))
@@ -102,6 +124,16 @@ watch(
     if (props.mode !== 'create' || !open.value) return
 
     state.categoryId = categoryId
+  },
+)
+
+watch(
+  () => props.createdBrandId,
+  (brandId) => {
+    if (!brandId) return
+    if (props.mode !== 'create' || !open.value) return
+
+    state.brandId = brandId
   },
 )
 
@@ -168,6 +200,17 @@ function handleCancel() {
             size="lg"
             @update:model-value="state.categoryId = $event"
             @action="emit('request-create-category')"
+          />
+        </UFormField>
+
+        <UFormField label="Marca" name="brandId" :error="errors.brandId">
+          <CategorySelect
+            :model-value="state.brandId"
+            :items="brandItems"
+            placeholder="Seleccionar marca"
+            size="lg"
+            @update:model-value="state.brandId = $event"
+            @action="emit('request-create-brand')"
           />
         </UFormField>
 

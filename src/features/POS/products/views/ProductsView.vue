@@ -17,7 +17,9 @@ import { productApi } from '../api/product.api'
 import ProductUpsertSlideover from '../components/ProductUpsertSlideover.vue'
 import { useProductColumns } from '../composables/useProductColumns'
 import type {
+  BrandOption,
   CategoryOption,
+  CreateBrandPayload,
   CreateCategoryPayload,
   CreateProductPayload,
   Product,
@@ -75,6 +77,12 @@ const { data: categories = [] } = useQuery({
   refetchOnWindowFocus: false,
 })
 
+const { data: brandsList = [] } = useQuery({
+  queryKey: productQueryKeys.brands(),
+  queryFn: productApi.getBrands,
+  refetchOnWindowFocus: false,
+})
+
 const isCreateOpen = ref(false)
 const isEditOpen = ref(false)
 const selectedProduct = ref<ProductDetail | null>(null)
@@ -83,6 +91,9 @@ const formErrors = ref<ProductFormErrors>({})
 const createdCategoryId = ref<string | null>(null)
 const categoryCreateError = ref('')
 const isCreateCategoryModalOpen = ref(false)
+const createdBrandId = ref<string | null>(null)
+const brandCreateError = ref('')
+const isCreateBrandModalOpen = ref(false)
 const confirmState = ref({
   open: false,
   description: '',
@@ -112,6 +123,20 @@ const createCategoryFormState = reactive<CreateCategoryFormValues>({
   name: '',
 })
 
+const createBrandSchema = z.object({
+  name: z
+    .string({ required_error: 'El nombre es obligatorio' })
+    .trim()
+    .min(2, 'La marca debe tener al menos 2 caracteres')
+    .max(50, 'Máximo 50 caracteres'),
+})
+
+type CreateBrandFormValues = z.infer<typeof createBrandSchema>
+
+const createBrandFormState = reactive<CreateBrandFormValues>({
+  name: '',
+})
+
 const canReadProduct = computed(() => authStore.userCan('read', 'Product'))
 const canCreateProduct = computed(() => authStore.userCan('create', 'Product'))
 const canUpdateProduct = computed(() => authStore.userCan('update', 'Product'))
@@ -128,13 +153,23 @@ function clearFormContext() {
   categoryCreateError.value = ''
   isCreateCategoryModalOpen.value = false
   createCategoryFormState.name = ''
+  createdBrandId.value = null
+  brandCreateError.value = ''
+  isCreateBrandModalOpen.value = false
+  createBrandFormState.name = ''
 }
 
 function productMatchesFilter(product: ProductDetail, filter: string): boolean {
   const normalizedFilter = filter.toLowerCase().trim()
   if (!normalizedFilter) return true
 
-  return [product.name, product.sku ?? '', product.barcode ?? '', product.categoryName]
+  return [
+    product.name,
+    product.sku ?? '',
+    product.barcode ?? '',
+    product.categoryName,
+    product.brandName,
+  ]
     .join(' ')
     .toLowerCase()
     .includes(normalizedFilter)
@@ -249,6 +284,48 @@ function closeCreateCategoryModal() {
 
 function handleCreateCategorySubmit(event: FormSubmitEvent<CreateCategoryFormValues>) {
   createCategoryMutation.mutate({ name: event.data.name.trim() })
+}
+
+const createBrandMutation = useMutation({
+  mutationFn: (payload: CreateBrandPayload) => productApi.createBrand(payload),
+  onMutate: () => {
+    brandCreateError.value = ''
+  },
+  onSuccess: async (brand: BrandOption) => {
+    createdBrandId.value = brand.id
+    brandCreateError.value = ''
+    isCreateBrandModalOpen.value = false
+    createBrandFormState.name = ''
+
+    toast.add({
+      title: 'Marca creada',
+      description: `La marca ${brand.name} ya está disponible para seleccionar.`,
+      color: 'success',
+    })
+
+    await queryClient.invalidateQueries({ queryKey: productQueryKeys.brands() })
+    await queryClient.refetchQueries({ queryKey: productQueryKeys.brands(), type: 'active' })
+  },
+  onError: (error) => {
+    const { message } = mapDomainError(error as AxiosError<DomainApiError>)
+    brandCreateError.value = message
+    toast.add({ title: 'Error al crear marca', description: message, color: 'error' })
+  },
+})
+
+function openCreateBrandModal() {
+  brandCreateError.value = ''
+  isCreateBrandModalOpen.value = true
+}
+
+function closeCreateBrandModal() {
+  isCreateBrandModalOpen.value = false
+  createBrandFormState.name = ''
+  brandCreateError.value = ''
+}
+
+function handleCreateBrandSubmit(event: FormSubmitEvent<CreateBrandFormValues>) {
+  createBrandMutation.mutate({ name: event.data.name.trim() })
 }
 
 const updateMutation = useMutation({
@@ -372,11 +449,14 @@ const bulkActions = computed<BulkAction<Product>[]>(() => [])
       v-model:open="isCreateOpen"
       mode="create"
       :categories="categories"
+      :brands="brandsList"
       :loading="isSubmitting"
       :errors="formErrors"
       :created-category-id="createdCategoryId"
+      :created-brand-id="createdBrandId"
       @create="createMutation.mutate"
       @request-create-category="openCreateCategoryModal"
+      @request-create-brand="openCreateBrandModal"
       @close="clearFormContext"
     />
 
@@ -384,6 +464,7 @@ const bulkActions = computed<BulkAction<Product>[]>(() => [])
       v-model:open="isEditOpen"
       mode="edit"
       :categories="categories"
+      :brands="brandsList"
       :loading="isSubmitting"
       :errors="formErrors"
       :product="selectedProduct"
@@ -431,6 +512,51 @@ const bulkActions = computed<BulkAction<Product>[]>(() => [])
             type="submit"
             form="create-category-modal-form"
             :loading="createCategoryMutation.isPending.value"
+          />
+        </div>
+      </template>
+    </UModal>
+
+    <UModal
+      v-model:open="isCreateBrandModalOpen"
+      title="Nueva marca"
+      :content="{ class: 'sm:max-w-lg' }"
+    >
+      <template #body>
+        <UForm
+          id="create-brand-modal-form"
+          :schema="createBrandSchema"
+          :state="createBrandFormState"
+          class="space-y-3"
+          @submit="handleCreateBrandSubmit"
+        >
+          <UFormField label="Nombre" name="name">
+            <UInput
+              v-model="createBrandFormState.name"
+              placeholder="Nombre de la marca"
+              :disabled="createBrandMutation.isPending.value"
+              size="lg"
+            />
+          </UFormField>
+
+          <p v-if="brandCreateError" class="text-sm text-error">{{ brandCreateError }}</p>
+        </UForm>
+      </template>
+
+      <template #footer>
+        <div class="flex w-full justify-end gap-3">
+          <UButton
+            label="Cancelar"
+            color="neutral"
+            variant="outline"
+            :disabled="createBrandMutation.isPending.value"
+            @click="closeCreateBrandModal"
+          />
+          <UButton
+            label="Guardar"
+            type="submit"
+            form="create-brand-modal-form"
+            :loading="createBrandMutation.isPending.value"
           />
         </div>
       </template>
@@ -515,6 +641,14 @@ const bulkActions = computed<BulkAction<Product>[]>(() => [])
 
           <template #categoryName-cell="{ row }">
             <span>{{ row.original.categoryName }}</span>
+          </template>
+
+          <template #brandName-header="{ column }">
+            <SortableHeader :column="column" label="Marca" />
+          </template>
+
+          <template #brandName-cell="{ row }">
+            <span>{{ row.original.brandName }}</span>
           </template>
 
           <template #priceCents-cell="{ row }">
