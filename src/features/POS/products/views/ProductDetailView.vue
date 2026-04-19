@@ -29,7 +29,12 @@ import type {
   BrandOption,
   CategoryOption,
   CreateLotPayload,
+  CreateProductPayload,
   CreateVariantPayload,
+  GlobalPriceList,
+  PendingLot,
+  PendingPriceList,
+  PendingVariant,
   ProductFormInput,
   ProductVariant,
   UpdateProductPayload,
@@ -129,6 +134,12 @@ const variantSchema = z.object({
   sku: z.string().trim().max(100),
   barcode: z.string().trim().max(100),
   quantity: z.number().int().min(0),
+  minQuantity: z.number().int().min(0),
+  purchaseCost: z
+    .string()
+    .trim()
+    .regex(/^\d+(?:[.,]\d{1,2})?$/, 'Valor decimal válido')
+    .or(z.literal('')),
 })
 
 type VariantFormState = z.infer<typeof variantSchema>
@@ -173,6 +184,8 @@ const variantState = reactive<VariantFormState>({
   sku: '',
   barcode: '',
   quantity: 0,
+  minQuantity: 0,
+  purchaseCost: '',
 })
 
 const lotState = reactive<LotFormState>({
@@ -181,6 +194,43 @@ const lotState = reactive<LotFormState>({
   manufactureDate: '',
   expirationDate: '',
 })
+
+// ── Local state for create-mode inline sub-resources ────────
+let localIdCounter = 0
+function nextLocalId(): string {
+  return `local-${++localIdCounter}`
+}
+
+const pendingVariants = ref<PendingVariant[]>([])
+const pendingLots = ref<PendingLot[]>([])
+const pendingPriceLists = ref<PendingPriceList[]>([])
+const isAddPriceListPickerOpen = ref(false)
+const pendingPriceListSelection = ref('')
+
+const isTierPricesModalOpen = ref(false)
+const tierModalPriceListId = ref<string | null>(null)
+const tierRows = ref<Array<{ key: number; minQuantity: number | string; price: string }>>([])
+let tierRowKeyCounter = 0
+
+const isPendingVariantDetailModalOpen = ref(false)
+const pendingVariantDetailId = ref<string | null>(null)
+const pendingVariantDetailState = reactive({
+  sku: '',
+  barcode: '',
+  quantity: 0,
+  minQuantity: 0,
+  purchaseCost: '',
+  prices: [] as Array<{
+    priceListId: string
+    priceListName: string
+    priceCents: number
+    tierPrices: { minQuantity: number; priceCents: number }[]
+  }>,
+})
+
+const isPendingVariantTierModalOpen = ref(false)
+const pendingVariantTierPriceListId = ref<string | null>(null)
+const pendingVariantTierRows = ref<Array<{ key: number; minQuantity: number | string; price: string }>>([])
 
 const canCreateProduct = computed(() => authStore.userCan('create', 'Product'))
 const canUpdateProduct = computed(() => authStore.userCan('update', 'Product'))
@@ -208,6 +258,12 @@ const { data: categories } = useQuery<CategoryOption[]>({
   refetchOnWindowFocus: false,
 })
 
+const { data: globalPriceLists } = useQuery<GlobalPriceList[]>({
+  queryKey: productQueryKeys.globalPriceLists(),
+  queryFn: productApi.getGlobalPriceLists,
+  refetchOnWindowFocus: false,
+})
+
 const { data: brands } = useQuery<BrandOption[]>({
   queryKey: productQueryKeys.brands(),
   queryFn: productApi.getBrands,
@@ -232,24 +288,38 @@ const variantsList = computed(() => variants.value ?? [])
 const lotsList = computed(() => lots.value ?? [])
 const categoriesList = computed(() => categories.value ?? [])
 const brandsList = computed(() => brands.value ?? [])
+const globalPriceListOptions = computed(() => globalPriceLists.value ?? [])
+const availablePriceListOptions = computed(() => {
+  const usedIds = new Set(pendingPriceLists.value.map((pl) => pl.priceListId))
+  return globalPriceListOptions.value.filter((gpl) => !usedIds.has(gpl.id))
+})
 const inlineVariantQuantityInputs = reactive<Record<string, number>>({})
 const inlineVariantPublicPriceInputs = reactive<Record<string, string>>({})
 
 const variantGroups = computed(() => {
   const grouped = new Map<string, { option: string; values: string[] }>()
 
-  for (const variant of variantsList.value) {
-    const optionName = variant.option?.trim() || 'Sin opción'
-    const valueName = variant.value?.trim() || variant.name
-    const existing = grouped.get(optionName)
+  // Use pending variants in create mode, backend variants in edit mode
+  const items = isCreateMode.value
+    ? pendingVariants.value.map((pv) => ({
+        option: pv.option || 'Sin opción',
+        value: pv.value || pv.option,
+      }))
+    : variantsList.value.map((v) => ({
+        option: v.option?.trim() || 'Sin opción',
+        value: v.value?.trim() || v.name,
+      }))
+
+  for (const item of items) {
+    const existing = grouped.get(item.option)
 
     if (!existing) {
-      grouped.set(optionName, { option: optionName, values: [valueName] })
+      grouped.set(item.option, { option: item.option, values: [item.value] })
       continue
     }
 
-    if (!existing.values.includes(valueName)) {
-      existing.values.push(valueName)
+    if (!existing.values.includes(item.value)) {
+      existing.values.push(item.value)
     }
   }
 
@@ -320,7 +390,7 @@ const showManualStockFields = computed(
 const showLotsSection = computed(
   () => formState.useStock && formState.useLotsAndExpirations && !formState.hasVariants,
 )
-const showVariantsSection = computed(() => !isCreateMode.value && !formState.useLotsAndExpirations)
+const showVariantsSection = computed(() => !formState.useLotsAndExpirations)
 const variantModalTitle = computed(() =>
   editingVariantId.value ? 'Editar variante' : 'Agregar variante',
 )
@@ -333,6 +403,11 @@ watch(
   (createMode) => {
     if (createMode) {
       Object.assign(formState, getDefaultFormState())
+      pendingVariants.value = []
+      pendingLots.value = []
+      pendingPriceLists.value = []
+      isAddPriceListPickerOpen.value = false
+      pendingPriceListSelection.value = ''
     }
   },
   { immediate: true },
@@ -376,6 +451,20 @@ watch(
   },
 )
 
+// Auto-attach ALL global price lists in create mode
+watch(
+  () => globalPriceListOptions.value,
+  (lists) => {
+    if (!isCreateMode.value || lists.length === 0) return
+    if (pendingPriceLists.value.length > 0) return
+
+    for (const gpl of lists) {
+      addPendingPriceList(gpl.id, 0)
+    }
+  },
+  { immediate: true },
+)
+
 watch(
   () => formState.type,
   (type) => {
@@ -385,6 +474,13 @@ watch(
       formState.hasVariants = false
       formState.quantity = 0
       formState.minQuantity = 0
+      if (isCreateMode.value) {
+        pendingVariants.value = []
+        pendingLots.value = []
+        pendingPriceLists.value = []
+        isAddPriceListPickerOpen.value = false
+        pendingPriceListSelection.value = ''
+      }
     }
   },
 )
@@ -450,6 +546,8 @@ function resetVariantForm() {
     sku: '',
     barcode: '',
     quantity: 0,
+    minQuantity: 0,
+    purchaseCost: '',
   })
   editingVariantId.value = null
 }
@@ -463,9 +561,127 @@ function resetLotForm() {
   })
 }
 
+function buildFullCreatePayload(formValues: MainFormValues): CreateProductPayload {
+  const base = toCreatePayload(formValues)
+
+  // Inline variants
+  if (formValues.hasVariants && pendingVariants.value.length > 0) {
+    base.variants = pendingVariants.value.map((v) => ({
+      option: v.option || undefined,
+      value: v.value || undefined,
+      ...(v.sku ? { sku: v.sku } : {}),
+      ...(v.barcode ? { barcode: v.barcode } : {}),
+      quantity: v.quantity,
+      minQuantity: v.minQuantity,
+      ...(v.purchaseNetCostCents != null ? { purchaseNetCostCents: v.purchaseNetCostCents } : {}),
+    }))
+  }
+
+  // Inline lots
+  if (formValues.useStock && formValues.useLotsAndExpirations && !formValues.hasVariants && pendingLots.value.length > 0) {
+    base.lots = pendingLots.value.map((l) => ({
+      lotNumber: l.lotNumber,
+      quantity: l.quantity,
+      expirationDate: l.expirationDate,
+      ...(l.manufactureDate ? { manufactureDate: l.manufactureDate } : {}),
+    }))
+  }
+
+  // Inline price lists — only include lists with non-zero price or tier prices
+  // (backend auto-creates all lists with default values, so only send overrides)
+  if (pendingPriceLists.value.length > 0) {
+    const overrides = pendingPriceLists.value
+      .filter((pl) => pl.priceCents > 0 || pl.tierPrices.length > 0)
+      .map((pl) => ({
+        priceListId: pl.priceListId,
+        priceCents: pl.priceCents,
+        ...(pl.tierPrices.length > 0 ? { tierPrices: pl.tierPrices } : {}),
+      }))
+
+    if (overrides.length > 0) {
+      base.priceLists = overrides
+    }
+  }
+
+  return base
+}
+
 const createMutation = useMutation({
-  mutationFn: (payload: MainFormValues) => productApi.create(toCreatePayload(payload)),
+  mutationFn: async (payload: MainFormValues) => {
+    const fullPayload = buildFullCreatePayload(payload)
+    const createdProduct = await productApi.create(fullPayload)
+
+    // Step 4 (per backend guide): update variant prices after creation.
+    // The backend auto-creates variantPrices at 0 for each variant × price list.
+    // We need to use the IDs from the raw response to set the prices configured locally.
+    const rawVariants = (createdProduct._raw?.variants ?? []) as Array<{
+      id: string
+      option: string | null
+      value: string | null
+      name: string | null
+      sku: string | null
+      variantPrices: Array<{
+        id: string
+        priceListId: string
+        priceListName: string
+        priceCents: number
+      }>
+    }>
+
+    // Take a snapshot of pending variants BEFORE they get cleared
+    const localVariantsSnapshot = pendingVariants.value.map((pv) => ({
+      ...pv,
+      variantPrices: pv.variantPrices.map((vp) => ({ ...vp, tierPrices: [...vp.tierPrices] })),
+    }))
+
+    if (rawVariants.length > 0 && localVariantsSnapshot.length > 0) {
+      const variantPriceUpdates: Promise<unknown>[] = []
+
+      for (const createdVariant of rawVariants) {
+        const localVariant = localVariantsSnapshot.find((pv) => {
+          if (pv.sku && createdVariant.sku && pv.sku.toUpperCase() === createdVariant.sku.toUpperCase()) return true
+          if (pv.option === createdVariant.option && pv.value === createdVariant.value) return true
+          if (pv.value === createdVariant.name) return true
+          return false
+        })
+
+        if (!localVariant?.variantPrices?.length) continue
+
+        for (const localPrice of localVariant.variantPrices) {
+          if (localPrice.priceCents === 0 && localPrice.tierPrices.length === 0) continue
+
+          const createdVarPrice = createdVariant.variantPrices?.find(
+            (vp) => vp.priceListName === localPrice.priceListName,
+          )
+
+          if (!createdVarPrice) continue
+
+          variantPriceUpdates.push(
+            productApi.upsertVariantPrice(
+              createdProduct.id,
+              createdVariant.id,
+              createdVarPrice.priceListId,
+              {
+                priceCents: localPrice.priceCents,
+                ...(localPrice.tierPrices.length > 0 ? { tierPrices: localPrice.tierPrices } : {}),
+              },
+            ),
+          )
+        }
+      }
+
+      if (variantPriceUpdates.length > 0) {
+        await Promise.allSettled(variantPriceUpdates)
+      }
+    }
+
+    return createdProduct
+  },
   onSuccess: async (createdProduct) => {
+    pendingVariants.value = []
+    pendingLots.value = []
+    pendingPriceLists.value = []
+
     toast.add({
       title: 'Producto creado',
       description: 'El producto se creó correctamente.',
@@ -714,6 +930,27 @@ function openAddVariantModal() {
 }
 
 function openEditVariantModal(variantId: string) {
+  if (isCreateMode.value) {
+    const pending = pendingVariants.value.find((v) => v._localId === variantId)
+    if (!pending) return
+
+    editingVariantId.value = pending._localId
+    Object.assign(variantState, {
+      option: pending.option,
+      value: pending.value,
+      sku: pending.sku,
+      barcode: pending.barcode,
+      quantity: pending.quantity,
+      minQuantity: pending.minQuantity,
+      purchaseCost: pending.purchaseNetCostCents != null
+        ? centsToDecimalInput(pending.purchaseNetCostCents)
+        : '',
+    })
+
+    isVariantModalOpen.value = true
+    return
+  }
+
   const variant = variantsList.value.find((item) => item.id === variantId)
   if (!variant) return
 
@@ -724,9 +961,155 @@ function openEditVariantModal(variantId: string) {
     sku: variant.sku ?? '',
     barcode: variant.barcode ?? '',
     quantity: variant.quantity,
+    minQuantity: variant.minQuantity ?? 0,
+    purchaseCost: variant.purchaseNetCostCents != null
+      ? centsToDecimalInput(variant.purchaseNetCostCents)
+      : '',
   })
 
   isVariantModalOpen.value = true
+}
+
+function openPendingVariantDetailModal(variantId: string) {
+  const variant = pendingVariants.value.find((v) => v._localId === variantId)
+  if (!variant) return
+
+  // Ensure variant has prices for ALL current pending price lists
+  for (const pl of pendingPriceLists.value) {
+    if (!variant.variantPrices.some((vp) => vp.priceListId === pl.priceListId)) {
+      variant.variantPrices.push({
+        priceListId: pl.priceListId,
+        priceListName: pl.priceListName,
+        priceCents: 0,
+        tierPrices: [],
+      })
+    }
+  }
+
+  pendingVariantDetailId.value = variant._localId
+  pendingVariantDetailState.sku = variant.sku
+  pendingVariantDetailState.barcode = variant.barcode
+  pendingVariantDetailState.quantity = variant.quantity
+  pendingVariantDetailState.minQuantity = variant.minQuantity
+  pendingVariantDetailState.purchaseCost =
+    variant.purchaseNetCostCents != null ? centsToDecimalInput(variant.purchaseNetCostCents) : ''
+  pendingVariantDetailState.prices = variant.variantPrices.map((vp) => ({
+    priceListId: vp.priceListId,
+    priceListName: vp.priceListName,
+    priceCents: vp.priceCents,
+    tierPrices: vp.tierPrices.map((t) => ({ ...t })),
+  }))
+
+  isPendingVariantDetailModalOpen.value = true
+}
+
+function closePendingVariantDetailModal() {
+  isPendingVariantDetailModalOpen.value = false
+  pendingVariantDetailId.value = null
+  pendingVariantDetailState.sku = ''
+  pendingVariantDetailState.barcode = ''
+  pendingVariantDetailState.quantity = 0
+  pendingVariantDetailState.minQuantity = 0
+  pendingVariantDetailState.purchaseCost = ''
+  pendingVariantDetailState.prices = []
+}
+
+function savePendingVariantDetailModal() {
+  const variantId = pendingVariantDetailId.value
+  if (!variantId) return
+
+  const index = pendingVariants.value.findIndex((v) => v._localId === variantId)
+  if (index === -1) return
+
+  const updated = pendingVariants.value[index]!
+  updated.sku = pendingVariantDetailState.sku
+  updated.barcode = pendingVariantDetailState.barcode
+  updated.quantity = Math.max(0, Math.trunc(pendingVariantDetailState.quantity))
+  updated.minQuantity = Math.max(0, Math.trunc(pendingVariantDetailState.minQuantity))
+  updated.purchaseNetCostCents = pendingVariantDetailState.purchaseCost
+    ? decimalInputToCents(pendingVariantDetailState.purchaseCost)
+    : null
+  updated.variantPrices = pendingVariantDetailState.prices.map((vp) => ({
+    priceListId: vp.priceListId,
+    priceListName: vp.priceListName,
+    priceCents: vp.priceCents,
+    tierPrices: vp.tierPrices.map((t) => ({ ...t })),
+  }))
+
+  const publicPrice = updated.variantPrices.find((vp) => vp.priceListName === 'PUBLICO')
+  if (publicPrice) {
+    updated.publicPriceCents = publicPrice.priceCents
+  }
+
+  closePendingVariantDetailModal()
+}
+
+const pendingVariantTierPriceListName = computed(() => {
+  const id = pendingVariantTierPriceListId.value
+  if (!id) return ''
+  const target = pendingVariantDetailState.prices.find((p) => p.priceListId === id)
+  return target?.priceListName ?? ''
+})
+
+const pendingVariantDetailName = computed(() => {
+  const id = pendingVariantDetailId.value
+  if (!id) return ''
+  const variant = pendingVariants.value.find((v) => v._localId === id)
+  if (!variant) return ''
+  return variant.option ? `${variant.value}` : variant.value
+})
+
+function openPendingVariantTierPricesModal(priceListId: string) {
+  const target = pendingVariantDetailState.prices.find((p) => p.priceListId === priceListId)
+  if (!target) return
+
+  pendingVariantTierPriceListId.value = priceListId
+  pendingVariantTierRows.value = target.tierPrices.map((tier) => ({
+    key: tierRowKeyCounter++,
+    minQuantity: tier.minQuantity,
+    price: centsToDecimalInput(tier.priceCents),
+  }))
+  isPendingVariantTierModalOpen.value = true
+}
+
+function closePendingVariantTierPricesModal() {
+  isPendingVariantTierModalOpen.value = false
+  pendingVariantTierPriceListId.value = null
+  pendingVariantTierRows.value = []
+}
+
+function savePendingVariantTierPricesModal() {
+  const targetId = pendingVariantTierPriceListId.value
+  if (!targetId) return
+
+  const target = pendingVariantDetailState.prices.find((p) => p.priceListId === targetId)
+  if (!target) return
+
+  target.tierPrices = pendingVariantTierRows.value
+    .filter((row) => String(row.minQuantity).trim() !== '' && row.price.trim() !== '')
+    .map((row) => ({
+      minQuantity:
+        typeof row.minQuantity === 'string'
+          ? Number.parseInt(row.minQuantity, 10)
+          : row.minQuantity,
+      priceCents: decimalInputToCents(row.price),
+    }))
+    .filter((row) => Number.isFinite(row.minQuantity) && row.minQuantity >= 0)
+    .sort((a, b) => a.minQuantity - b.minQuantity)
+
+  closePendingVariantTierPricesModal()
+}
+
+function addPendingVariantTierRow() {
+  pendingVariantTierRows.value.push({
+    key: tierRowKeyCounter++,
+    minQuantity: '',
+    price: '',
+  })
+}
+
+function removePendingVariantTierRow(rowKey: number) {
+  pendingVariantTierRows.value = pendingVariantTierRows.value.filter((row) => row.key !== rowKey)
 }
 
 function closeVariantModal() {
@@ -771,6 +1154,129 @@ function handleBrandAction(value: string) {
   }
 }
 
+// ── Local price list management (create mode) ──────────────
+function addPendingPriceList(priceListId: string, priceCents: number) {
+  if (!priceListId) return
+  const gpl = globalPriceListOptions.value.find((pl) => pl.id === priceListId)
+  if (!gpl) return
+
+  pendingPriceLists.value.push({
+    _localId: nextLocalId(),
+    priceListId: gpl.id,
+    priceListName: gpl.name,
+    priceCents,
+    tierPrices: [],
+  })
+
+  for (const variant of pendingVariants.value) {
+    if (!variant.variantPrices.some((vp) => vp.priceListId === gpl.id)) {
+      variant.variantPrices.push({
+        priceListId: gpl.id,
+        priceListName: gpl.name,
+        priceCents: 0,
+        tierPrices: [],
+      })
+    }
+  }
+}
+
+function removePendingPriceList(localId: string) {
+  const list = pendingPriceLists.value.find((pl) => pl._localId === localId)
+  if (!list) return
+  if (isDefaultPriceList(list.priceListId)) return
+
+  pendingPriceLists.value = pendingPriceLists.value.filter((pl) => pl._localId !== localId)
+
+  for (const variant of pendingVariants.value) {
+    variant.variantPrices = variant.variantPrices.filter((vp) => vp.priceListId !== list.priceListId)
+  }
+}
+
+function updatePendingPriceListPrice(localId: string, priceCents: number) {
+  const item = pendingPriceLists.value.find((pl) => pl._localId === localId)
+  if (item) item.priceCents = priceCents
+}
+
+function getPendingCostCents(): number {
+  const costInput = formState.purchaseCost
+  return costInput ? decimalInputToCents(costInput) : 0
+}
+
+function isDefaultPriceList(priceListId: string): boolean {
+  const gpl = globalPriceListOptions.value.find((pl) => pl.id === priceListId)
+  return gpl?.isDefault ?? false
+}
+
+function setPendingVariantPublicPrice(variantLocalId: string, priceCents: number) {
+  const variant = pendingVariants.value.find((v) => v._localId === variantLocalId)
+  if (!variant) return
+
+  variant.publicPriceCents = priceCents
+  const publicPrice = variant.variantPrices.find((vp) => vp.priceListName === 'PUBLICO')
+  if (publicPrice) {
+    publicPrice.priceCents = priceCents
+  }
+}
+
+function handleAddPendingPriceList() {
+  const id = pendingPriceListSelection.value
+  if (!id) return
+
+  addPendingPriceList(id, 0)
+  pendingPriceListSelection.value = ''
+  isAddPriceListPickerOpen.value = false
+}
+
+function openTierPricesModal(priceListLocalId: string) {
+  const list = pendingPriceLists.value.find((pl) => pl._localId === priceListLocalId)
+  if (!list) return
+
+  tierModalPriceListId.value = priceListLocalId
+  tierRows.value = list.tierPrices.map((tier) => ({
+    key: tierRowKeyCounter++,
+    minQuantity: tier.minQuantity,
+    price: centsToDecimalInput(tier.priceCents),
+  }))
+  isTierPricesModalOpen.value = true
+}
+
+function closeTierPricesModal() {
+  isTierPricesModalOpen.value = false
+  tierModalPriceListId.value = null
+  tierRows.value = []
+}
+
+function addTierRow() {
+  tierRows.value.push({ key: tierRowKeyCounter++, minQuantity: '', price: '' })
+}
+
+function removeTierRow(rowKey: number) {
+  tierRows.value = tierRows.value.filter((row) => row.key !== rowKey)
+}
+
+function saveTierRows() {
+  const targetId = tierModalPriceListId.value
+  if (!targetId) return
+
+  const list = pendingPriceLists.value.find((pl) => pl._localId === targetId)
+  if (!list) return
+
+  const mapped = tierRows.value
+    .filter((row) => String(row.minQuantity).trim() !== '' && row.price.trim() !== '')
+    .map((row) => ({
+      minQuantity:
+        typeof row.minQuantity === 'string'
+          ? Number.parseInt(row.minQuantity, 10)
+          : row.minQuantity,
+      priceCents: decimalInputToCents(row.price),
+    }))
+    .filter((row) => Number.isFinite(row.minQuantity) && row.minQuantity >= 0)
+    .sort((a, b) => a.minQuantity - b.minQuantity)
+
+  list.tierPrices = mapped
+  closeTierPricesModal()
+}
+
 function handleSubmitMainForm(event: FormSubmitEvent<MainFormValues>) {
   if (!canSubmitMainForm.value) return
 
@@ -793,8 +1299,20 @@ function handleCreateBrand(event: FormSubmitEvent<BrandFormState>) {
 }
 
 function handleCreateLot(event: FormSubmitEvent<LotFormState>) {
-  if (isCreateMode.value) return
   if (!showLotsSection.value) return
+
+  if (isCreateMode.value) {
+    pendingLots.value.push({
+      _localId: nextLocalId(),
+      lotNumber: event.data.lotNumber,
+      quantity: event.data.quantity,
+      expirationDate: event.data.expirationDate,
+      manufactureDate: event.data.manufactureDate ?? '',
+    })
+    resetLotForm()
+    isLotModalOpen.value = false
+    return
+  }
 
   createLotMutation.mutate({
     lotNumber: event.data.lotNumber,
@@ -805,7 +1323,53 @@ function handleCreateLot(event: FormSubmitEvent<LotFormState>) {
 }
 
 function handleSubmitVariant(event: FormSubmitEvent<VariantFormState>) {
-  if (isCreateMode.value) return
+  if (isCreateMode.value) {
+    const costCents = event.data.purchaseCost
+      ? decimalInputToCents(event.data.purchaseCost)
+      : null
+
+    // Local CRUD for create mode
+    if (editingVariantId.value) {
+      const index = pendingVariants.value.findIndex((v) => v._localId === editingVariantId.value)
+      if (index !== -1) {
+        pendingVariants.value[index] = {
+          ...pendingVariants.value[index]!,
+          option: event.data.option,
+          value: event.data.value,
+          sku: event.data.sku,
+          barcode: event.data.barcode,
+          quantity: event.data.quantity,
+          minQuantity: event.data.minQuantity,
+          purchaseNetCostCents: costCents,
+        }
+      }
+    } else {
+      pendingVariants.value.push({
+        _localId: nextLocalId(),
+        option: event.data.option,
+        value: event.data.value,
+        sku: event.data.sku,
+        barcode: event.data.barcode,
+        quantity: event.data.quantity,
+        minQuantity: event.data.minQuantity,
+        purchaseNetCostCents: costCents,
+        publicPriceCents: 0,
+        variantPrices: pendingPriceLists.value.map((pl) => ({
+          priceListId: pl.priceListId,
+          priceListName: pl.priceListName,
+          priceCents: 0,
+          tierPrices: [],
+        })),
+      })
+    }
+    resetVariantForm()
+    isVariantModalOpen.value = false
+    return
+  }
+
+  const costCentsEdit = event.data.purchaseCost
+    ? decimalInputToCents(event.data.purchaseCost)
+    : undefined
 
   const payload: CreateVariantPayload = {
     option: event.data.option,
@@ -813,6 +1377,8 @@ function handleSubmitVariant(event: FormSubmitEvent<VariantFormState>) {
     ...(event.data.sku ? { sku: event.data.sku } : {}),
     ...(event.data.barcode ? { barcode: event.data.barcode } : {}),
     quantity: event.data.quantity,
+    minQuantity: event.data.minQuantity,
+    ...(costCentsEdit != null ? { purchaseNetCostCents: costCentsEdit } : {}),
   }
 
   if (editingVariantId.value) {
@@ -895,6 +1461,13 @@ function handleInlineVariantPublicPriceBlur(variant: ProductVariant) {
 }
 
 async function handleDeleteVariant(variantId: string, variantName: string) {
+  if (isCreateMode.value) {
+    openConfirm(`¿Querés eliminar la variante ${variantName}?`, () => {
+      pendingVariants.value = pendingVariants.value.filter((v) => v._localId !== variantId)
+    })
+    return
+  }
+
   if (!canDeleteProduct.value) return
 
   openConfirm(`¿Querés eliminar la variante ${variantName}?`, () => {
@@ -916,6 +1489,13 @@ function getVariantLabel(variant: ProductVariant): string {
 }
 
 async function handleDeleteLot(lotId: string, lotNumber: string) {
+  if (isCreateMode.value) {
+    openConfirm(`¿Querés eliminar el lote ${lotNumber}?`, () => {
+      pendingLots.value = pendingLots.value.filter((l) => l._localId !== lotId)
+    })
+    return
+  }
+
   if (!canDeleteProduct.value) return
 
   openConfirm(`¿Querés eliminar el lote ${lotNumber}?`, () => {
@@ -989,7 +1569,7 @@ function handleEditLotPlaceholder() {
         @submit="handleSubmitMainForm"
       >
         <fieldset :disabled="isFormReadonly" class="space-y-6">
-          <UCard>
+          <UCard :ui="{ root: 'overflow-visible' }">
             <template #header>
               <h2 class="text-lg font-semibold">Datos del producto</h2>
             </template>
@@ -1240,7 +1820,7 @@ function handleEditLotPlaceholder() {
                 <UButton
                   label="Agregar variante"
                   icon="i-lucide-plus"
-                  :disabled="!canUpdateProduct"
+                  :disabled="!isCreateMode && !canUpdateProduct"
                   @click="openAddVariantModal"
                 />
               </div>
@@ -1268,7 +1848,8 @@ function handleEditLotPlaceholder() {
               </div>
             </div>
 
-            <div class="overflow-hidden rounded-md border border-default">
+            <!-- Create mode: pending variants table -->
+            <div v-if="isCreateMode" class="overflow-hidden rounded-md border border-default">
               <table class="min-w-full divide-y divide-default text-sm">
                 <thead class="bg-elevated/40">
                   <tr>
@@ -1277,7 +1858,88 @@ function handleEditLotPlaceholder() {
                       Existencias
                     </th>
                     <th class="px-4 py-3 text-left font-medium">Precio Público</th>
-                    <th class="px-4 py-3 text-right font-medium">Actions</th>
+                    <th class="px-4 py-3 text-right font-medium">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-default">
+                  <tr v-if="pendingVariants.length === 0">
+                    <td :colspan="formState.useStock ? 4 : 3" class="px-4 py-3 text-muted">
+                      Sin variantes agregadas. Usá el botón "Agregar variante".
+                    </td>
+                  </tr>
+                  <tr v-for="pv in pendingVariants" :key="pv._localId">
+                    <td class="px-4 py-3">
+                      <div class="font-medium">
+                        {{ pv.option ? `${pv.option}: ${pv.value}` : pv.value }}
+                      </div>
+                      <div class="text-xs text-muted">
+                        SKU: {{ pv.sku || '—' }} · Código: {{ pv.barcode || '—' }}
+                      </div>
+                    </td>
+                    <td v-if="formState.useStock" class="px-4 py-3">
+                      <UInputNumber
+                        v-model="pv.quantity"
+                        :min="0"
+                        class="w-28"
+                      />
+                    </td>
+                    <td class="px-4 py-3">
+                      <div class="relative max-w-[8rem]">
+                        <span
+                          class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
+                          >$</span
+                        >
+                        <UInput
+                          :model-value="centsToDecimalInput(pv.publicPriceCents)"
+                          class="w-full"
+                          inputmode="decimal"
+                          placeholder="0.00"
+                          :ui="{ base: 'pl-7' }"
+                          @blur="(e: FocusEvent) => setPendingVariantPublicPrice(pv._localId, decimalInputToCents((e.target as HTMLInputElement).value))"
+                        />
+                      </div>
+                    </td>
+                    <td class="px-4 py-3">
+                      <div class="flex justify-end gap-2">
+                        <UButton
+                          type="button"
+                          label="Más Datos"
+                          color="neutral"
+                          variant="outline"
+                          @click="openPendingVariantDetailModal(pv._localId)"
+                        />
+                        <UButton
+                          type="button"
+                          label="Editar"
+                          color="neutral"
+                          variant="outline"
+                          @click="openEditVariantModal(pv._localId)"
+                        />
+                        <UButton
+                          type="button"
+                          label="Eliminar"
+                          color="error"
+                          variant="ghost"
+                          @click="handleDeleteVariant(pv._localId, pv.value || pv.option)"
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Edit mode: backend variants table -->
+            <div v-else class="overflow-hidden rounded-md border border-default">
+              <table class="min-w-full divide-y divide-default text-sm">
+                <thead class="bg-elevated/40">
+                  <tr>
+                    <th class="px-4 py-3 text-left font-medium">Variante</th>
+                    <th v-if="formState.useStock" class="px-4 py-3 text-left font-medium">
+                      Existencias
+                    </th>
+                    <th class="px-4 py-3 text-left font-medium">Precio Público</th>
+                    <th class="px-4 py-3 text-right font-medium">Acciones</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-default">
@@ -1367,24 +2029,61 @@ function handleEditLotPlaceholder() {
               <div class="flex items-center justify-between gap-3">
                 <h2 class="text-lg font-semibold">Lotes</h2>
                 <UButton
-                  v-if="!isCreateMode"
                   label="Agregar Lote"
                   icon="i-lucide-plus"
-                  :disabled="!canUpdateProduct"
+                  :disabled="!isCreateMode && !canUpdateProduct"
                   @click="isLotModalOpen = true"
                 />
               </div>
             </template>
 
-            <div v-if="!isCreateMode" class="space-y-3">
-              <div class="overflow-hidden rounded-md border border-default">
+            <div class="space-y-3">
+              <!-- Create mode: pending lots table -->
+              <div v-if="isCreateMode" class="overflow-hidden rounded-md border border-default">
                 <table class="min-w-full divide-y divide-default text-sm">
                   <thead class="bg-elevated/40">
                     <tr>
                       <th class="px-4 py-3 text-left font-medium">Lote</th>
                       <th class="px-4 py-3 text-left font-medium">Caducidad</th>
                       <th class="px-4 py-3 text-left font-medium">Existencias</th>
-                      <th class="px-4 py-3 text-right font-medium">Actions</th>
+                      <th class="px-4 py-3 text-right font-medium">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-default">
+                    <tr v-if="pendingLots.length === 0">
+                      <td colspan="4" class="px-4 py-3 text-muted">
+                        Sin lotes agregados. Usá el botón "Agregar Lote".
+                      </td>
+                    </tr>
+                    <tr v-for="pl in pendingLots" :key="pl._localId">
+                      <td class="px-4 py-3">{{ pl.lotNumber }}</td>
+                      <td class="px-4 py-3">{{ pl.expirationDate || 'Sin fecha' }}</td>
+                      <td class="px-4 py-3">{{ pl.quantity }}</td>
+                      <td class="px-4 py-3">
+                        <div class="flex justify-end gap-2">
+                          <UButton
+                            type="button"
+                            label="Eliminar"
+                            color="error"
+                            variant="ghost"
+                            @click="handleDeleteLot(pl._localId, pl.lotNumber)"
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Edit mode: backend lots table -->
+              <div v-else class="overflow-hidden rounded-md border border-default">
+                <table class="min-w-full divide-y divide-default text-sm">
+                  <thead class="bg-elevated/40">
+                    <tr>
+                      <th class="px-4 py-3 text-left font-medium">Lote</th>
+                      <th class="px-4 py-3 text-left font-medium">Caducidad</th>
+                      <th class="px-4 py-3 text-left font-medium">Existencias</th>
+                      <th class="px-4 py-3 text-right font-medium">Acciones</th>
                     </tr>
                   </thead>
                   <tbody class="divide-y divide-default">
@@ -1430,12 +2129,136 @@ function handleEditLotPlaceholder() {
                 <p class="mt-1 text-xs text-muted">Unidades</p>
               </UFormField>
             </div>
-
-            <p v-else class="text-sm text-muted">
-              Guardá el producto para empezar a cargar lotes y vencimientos.
-            </p>
           </UCard>
 
+          <!-- Create mode: inline price list management -->
+          <UCard v-if="isCreateMode">
+            <template #header>
+              <div class="flex items-center justify-between gap-3">
+                <h2 class="text-lg font-semibold">Listas de Precios</h2>
+              </div>
+            </template>
+
+            <div class="space-y-4">
+              <div v-if="isAddPriceListPickerOpen && availablePriceListOptions.length > 0" class="flex items-end gap-3">
+                <UFormField label="Agregar lista de precios" class="flex-1">
+                  <USelect
+                    v-model="pendingPriceListSelection"
+                    :items="availablePriceListOptions.map((gpl) => ({ label: gpl.name, value: gpl.id }))"
+                    placeholder="Seleccionar lista..."
+                    size="lg"
+                    class="w-full"
+                  />
+                </UFormField>
+                <UButton
+                  type="button"
+                  label="Agregar"
+                  color="primary"
+                  :disabled="!pendingPriceListSelection"
+                  @click="handleAddPendingPriceList"
+                />
+              </div>
+              <p v-else-if="globalPriceListOptions.length === 0" class="text-sm text-muted">
+                No hay listas de precios globales. Se crearán automáticamente al guardar.
+              </p>
+              <p v-else class="text-sm text-muted">
+                Todas las listas de precios están asignadas.
+              </p>
+
+              <div v-if="pendingPriceLists.length > 0" class="overflow-hidden rounded-md border border-default">
+                <table class="min-w-full divide-y divide-default text-sm">
+                  <thead class="bg-elevated/40">
+                    <tr>
+                      <th class="px-4 py-3 text-left font-medium">Lista de Precios</th>
+                      <th class="px-4 py-3 text-left font-medium">
+                        <div>Precio de Venta</div>
+                        <div class="text-xs font-normal text-muted">(Con Impuestos Incluidos)</div>
+                      </th>
+                      <th class="px-4 py-3 text-center font-medium">+</th>
+                      <th class="px-4 py-3 text-center font-medium">Márgen</th>
+                      <th class="px-4 py-3 text-center font-medium">Ganancia</th>
+                      <th class="px-4 py-3 text-right font-medium">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody class="divide-y divide-default">
+                    <tr v-for="ppl in pendingPriceLists" :key="ppl._localId">
+                      <td class="px-4 py-3 font-medium">{{ ppl.priceListName }}</td>
+                      <td class="px-4 py-3">
+                        <div class="relative max-w-[10rem]">
+                          <span
+                            class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
+                            >$</span
+                          >
+                          <UInput
+                            :model-value="centsToDecimalInput(ppl.priceCents)"
+                            class="w-full"
+                            inputmode="decimal"
+                            placeholder="0.00"
+                            :ui="{ base: 'pl-7' }"
+                            @blur="(e: FocusEvent) => updatePendingPriceListPrice(ppl._localId, decimalInputToCents((e.target as HTMLInputElement).value))"
+                          />
+                        </div>
+                      </td>
+                      <td class="px-4 py-3 text-center">
+                        <UButton
+                          type="button"
+                          icon="i-lucide-plus"
+                          color="neutral"
+                          variant="ghost"
+                          @click="openTierPricesModal(ppl._localId)"
+                        />
+                      </td>
+                      <td class="px-4 py-3 text-center">
+                        <span
+                          v-if="getPendingCostCents() > 0 && ppl.priceCents > 0"
+                          class="font-semibold"
+                          :class="ppl.priceCents >= getPendingCostCents() ? 'text-success' : 'text-error'"
+                        >
+                          {{ Math.round(((ppl.priceCents - getPendingCostCents()) / getPendingCostCents()) * 100) }}%
+                        </span>
+                        <span v-else class="text-muted">--</span>
+                      </td>
+                      <td class="px-4 py-3 text-center">
+                        <span
+                          v-if="getPendingCostCents() > 0 && ppl.priceCents > 0"
+                          class="font-semibold"
+                          :class="ppl.priceCents >= getPendingCostCents() ? 'text-success' : 'text-error'"
+                        >
+                          $ {{ ((ppl.priceCents - getPendingCostCents()) / 100).toFixed(2) }} por Unidad
+                        </span>
+                        <span v-else class="text-muted">--</span>
+                      </td>
+                      <td class="px-4 py-3">
+                        <div class="flex justify-end">
+                          <UButton
+                            v-if="!isDefaultPriceList(ppl.priceListId)"
+                            type="button"
+                            label="Quitar"
+                            color="error"
+                            variant="ghost"
+                            @click="removePendingPriceList(ppl._localId)"
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              <UButton
+                v-if="availablePriceListOptions.length > 0 && !isAddPriceListPickerOpen"
+                type="button"
+                icon="i-lucide-plus"
+                label="Agregar Lista de Precios"
+                color="neutral"
+                variant="ghost"
+                class="text-primary"
+                @click="isAddPriceListPickerOpen = true"
+              />
+            </div>
+          </UCard>
+
+          <!-- Edit mode: full price list management -->
           <PriceListSection
             v-if="!isCreateMode"
             :product-id="productIdOrEmpty"
@@ -1454,7 +2277,278 @@ function handleEditLotPlaceholder() {
       </UForm>
     </div>
 
+    <UModal
+      v-model:open="isTierPricesModalOpen"
+      title="Precios por Cantidad"
+      :content="{ class: 'sm:max-w-3xl' }"
+    >
+      <template #body>
+        <div class="space-y-4">
+          <p class="font-semibold">
+            {{ pendingPriceLists.find((pl) => pl._localId === tierModalPriceListId)?.priceListName ?? '' }}
+          </p>
+
+          <div class="space-y-3">
+            <div
+              v-for="row in tierRows"
+              :key="row.key"
+              class="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-3 rounded-md border border-default p-2"
+            >
+              <UInputNumber v-model="row.minQuantity" :min="0" class="w-full" />
+              <span class="text-sm text-muted">o más</span>
+              <UInput
+                v-model="row.price"
+                inputmode="decimal"
+                placeholder="0.00"
+                class="w-full"
+              />
+              <UButton
+                type="button"
+                icon="i-lucide-trash"
+                color="error"
+                variant="ghost"
+                @click="removeTierRow(row.key)"
+              />
+            </div>
+          </div>
+
+          <UButton
+            type="button"
+            icon="i-lucide-plus"
+            label="Agregar"
+            color="neutral"
+            variant="ghost"
+            @click="addTierRow"
+          />
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex w-full justify-end gap-3">
+          <UButton
+            type="button"
+            label="Cancelar"
+            color="neutral"
+            variant="outline"
+            @click="closeTierPricesModal"
+          />
+          <UButton
+            type="button"
+            label="Guardar"
+            @click="saveTierRows"
+          />
+        </div>
+      </template>
+    </UModal>
+
+    <UModal
+      v-model:open="isPendingVariantDetailModalOpen"
+      title="Editar variante"
+      :content="{ class: 'sm:max-w-4xl' }"
+    >
+      <template #body>
+        <div class="space-y-4">
+          <UCard>
+            <template #header>
+              <h3 class="font-semibold">General</h3>
+            </template>
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <UFormField label="SKU">
+                <UInput v-model="pendingVariantDetailState.sku" placeholder="SKU" />
+              </UFormField>
+              <UFormField label="Código de barras / Barcode">
+                <UInput v-model="pendingVariantDetailState.barcode" placeholder="Código de barras" />
+              </UFormField>
+              <UFormField label="Costo (del producto)" class="md:col-span-2">
+                <div class="relative">
+                  <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
+                    >$</span
+                  >
+                  <UInput
+                    v-model="pendingVariantDetailState.purchaseCost"
+                    inputmode="decimal"
+                    class="w-full"
+                    :ui="{ base: 'pl-7 pr-24' }"
+                  />
+                  <span class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted"
+                    >por Unidad</span
+                  >
+                </div>
+                <p class="mt-1 text-xs text-muted">Ingresá un valor para definir costo propio de esta variante</p>
+              </UFormField>
+            </div>
+          </UCard>
+
+          <UCard>
+            <template #header>
+              <h3 class="font-semibold">Existencias</h3>
+            </template>
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <UFormField label="Cantidad">
+                <UInputNumber v-model="pendingVariantDetailState.quantity" :min="0" class="w-full" />
+              </UFormField>
+              <UFormField label="Cantidad mínima">
+                <UInputNumber v-model="pendingVariantDetailState.minQuantity" :min="0" class="w-full" />
+              </UFormField>
+            </div>
+          </UCard>
+
+          <UCard>
+            <template #header>
+              <h3 class="font-semibold">Precios</h3>
+            </template>
+            <div class="overflow-hidden rounded-md border border-default">
+              <table class="min-w-full divide-y divide-default text-sm">
+                <thead class="bg-elevated/40">
+                  <tr>
+                    <th class="px-4 py-3 text-left font-medium">Lista de Precios</th>
+                    <th class="px-4 py-3 text-left font-medium">Precio de Venta (Con Impuestos Incluidos)</th>
+                    <th class="px-4 py-3 text-center font-medium">+</th>
+                    <th class="px-4 py-3 text-center font-medium">Márgen</th>
+                    <th class="px-4 py-3 text-center font-medium">Ganancia</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-default">
+                  <tr v-for="price in pendingVariantDetailState.prices" :key="price.priceListId">
+                    <td class="px-4 py-3">{{ price.priceListName }}</td>
+                    <td class="px-4 py-3">
+                      <div class="relative max-w-[14rem]">
+                        <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
+                          >$</span
+                        >
+                        <UInput
+                          :model-value="centsToDecimalInput(price.priceCents)"
+                          class="w-full"
+                          inputmode="decimal"
+                          placeholder="0.00"
+                          :ui="{ base: 'pl-7' }"
+                          @blur="(e: FocusEvent) => { price.priceCents = decimalInputToCents((e.target as HTMLInputElement).value) }"
+                        />
+                      </div>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                      <UButton
+                        type="button"
+                        icon="i-lucide-plus"
+                        color="neutral"
+                        variant="ghost"
+                        @click="openPendingVariantTierPricesModal(price.priceListId)"
+                      />
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                      <span
+                        v-if="(pendingVariantDetailState.purchaseCost ? decimalInputToCents(pendingVariantDetailState.purchaseCost) : 0) > 0 && price.priceCents > 0"
+                        class="font-semibold"
+                        :class="price.priceCents >= (pendingVariantDetailState.purchaseCost ? decimalInputToCents(pendingVariantDetailState.purchaseCost) : 0) ? 'text-success' : 'text-error'"
+                      >
+                        {{ Math.round(((price.priceCents - (pendingVariantDetailState.purchaseCost ? decimalInputToCents(pendingVariantDetailState.purchaseCost) : 0)) / (pendingVariantDetailState.purchaseCost ? decimalInputToCents(pendingVariantDetailState.purchaseCost) : 1)) * 100) }}%
+                      </span>
+                      <span v-else class="text-muted">--</span>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                      <span
+                        v-if="(pendingVariantDetailState.purchaseCost ? decimalInputToCents(pendingVariantDetailState.purchaseCost) : 0) > 0 && price.priceCents > 0"
+                        class="font-semibold"
+                        :class="price.priceCents >= (pendingVariantDetailState.purchaseCost ? decimalInputToCents(pendingVariantDetailState.purchaseCost) : 0) ? 'text-success' : 'text-error'"
+                      >
+                        $ {{ ((price.priceCents - (pendingVariantDetailState.purchaseCost ? decimalInputToCents(pendingVariantDetailState.purchaseCost) : 0)) / 100).toFixed(2) }}
+                      </span>
+                      <span v-else class="text-muted">--</span>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </UCard>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex w-full justify-end gap-3">
+          <UButton type="button" label="Cancelar" color="neutral" variant="outline" @click="closePendingVariantDetailModal" />
+          <UButton type="button" label="Guardar" @click="savePendingVariantDetailModal" />
+        </div>
+      </template>
+    </UModal>
+
+    <UModal
+      v-model:open="isPendingVariantTierModalOpen"
+      title="Precios por Cantidad"
+      :content="{ class: 'sm:max-w-3xl' }"
+    >
+      <template #body>
+        <div class="space-y-4">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="font-medium">{{ pendingVariantDetailName }}</span>
+            <UBadge color="primary" variant="subtle">{{ pendingVariantTierPriceListName }}</UBadge>
+          </div>
+
+          <div class="space-y-3">
+            <div
+              v-for="row in pendingVariantTierRows"
+              :key="row.key"
+              class="grid grid-cols-1 gap-3 rounded-md border border-default p-3 md:grid-cols-[1fr_1fr_auto]"
+            >
+              <div class="flex items-center gap-2">
+                <UInputNumber v-model="row.minQuantity" :min="0" class="flex-1" />
+                <span class="shrink-0 text-xs text-muted">o más</span>
+              </div>
+
+              <div class="relative">
+                <span
+                  class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
+                  >$</span
+                >
+                <UInput
+                  v-model="row.price"
+                  inputmode="decimal"
+                  class="w-full"
+                  :ui="{ base: 'pl-7 pr-24' }"
+                />
+                <span
+                  class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted"
+                  >por Unidad</span
+                >
+              </div>
+
+              <div class="flex justify-end md:justify-center">
+                <UButton
+                  type="button"
+                  icon="i-lucide-trash-2"
+                  color="error"
+                  variant="ghost"
+                  @click="removePendingVariantTierRow(row.key)"
+                />
+              </div>
+            </div>
+          </div>
+
+          <UButton
+            type="button"
+            label="+ Agregar"
+            color="neutral"
+            variant="outline"
+            @click="addPendingVariantTierRow"
+          />
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex w-full justify-end gap-3">
+          <UButton
+            type="button"
+            label="Cancelar"
+            color="neutral"
+            variant="outline"
+            @click="closePendingVariantTierPricesModal"
+          />
+          <UButton type="button" label="Guardar" @click="savePendingVariantTierPricesModal" />
+        </div>
+      </template>
+    </UModal>
+
     <VariantDetailModal
+      v-if="!isCreateMode"
       :open="isVariantDetailModalOpen"
       :product-id="productIdOrEmpty"
       :product-name="product?.name ?? ''"
@@ -1649,8 +2743,28 @@ function handleEditLotPlaceholder() {
             <UInput v-model="variantState.barcode" placeholder="Opcional" />
           </UFormField>
 
-          <UFormField label="Existencias" name="quantity" class="md:col-span-2">
+          <UFormField label="Existencias" name="quantity">
             <UInputNumber v-model="variantState.quantity" :min="0" class="w-full" />
+          </UFormField>
+
+          <UFormField label="Existencias mínimas" name="minQuantity">
+            <UInputNumber v-model="variantState.minQuantity" :min="0" class="w-full" />
+          </UFormField>
+
+          <UFormField label="Costo de compra (neto)" name="purchaseCost" class="md:col-span-2">
+            <div class="relative w-full">
+              <span
+                class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
+                >$</span
+              >
+              <UInput
+                v-model="variantState.purchaseCost"
+                inputmode="decimal"
+                placeholder="0.00 (hereda del producto si está vacío)"
+                class="w-full"
+                :ui="{ base: 'pl-7' }"
+              />
+            </div>
           </UFormField>
         </UForm>
       </template>

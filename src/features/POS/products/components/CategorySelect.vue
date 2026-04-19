@@ -151,7 +151,7 @@ watch(search, () => {
     >
       <div
         v-if="isOpen"
-        class="absolute z-50 mt-1 w-full overflow-hidden rounded-md bg-default shadow-lg ring ring-default"
+        class="absolute z-[80] mt-1 w-full overflow-hidden rounded-md bg-default shadow-lg ring ring-default"
       >
         <!-- Search -->
         <div class="border-b border-default p-1.5">

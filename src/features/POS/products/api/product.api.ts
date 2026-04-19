@@ -280,9 +280,11 @@ export const productApi = {
     return mapProductDetail(data)
   },
 
-  async create(payload: CreateProductPayload): Promise<ProductDetail> {
+  async create(payload: CreateProductPayload): Promise<ProductDetail & { _raw?: Record<string, unknown> }> {
     const { data } = await http.post<ProductBackendResponse>('/products', payload)
-    return mapProductDetail(data)
+    const mapped = mapProductDetail(data)
+    // Preserve raw response for post-creation variant price updates
+    return Object.assign(mapped, { _raw: data as unknown as Record<string, unknown> })
   },
 
   async update(productId: string, payload: UpdateProductPayload): Promise<ProductDetail> {
@@ -379,7 +381,9 @@ export const productApi = {
   // ── Global Price Lists ────────────────────────────────────
 
   async getGlobalPriceLists(): Promise<GlobalPriceList[]> {
-    const { data } = await http.get<GlobalPriceList[] | { data: GlobalPriceList[] }>('/price-lists')
+    const { data } = await http.get<GlobalPriceList[] | { data: GlobalPriceList[] }>(
+      '/price-lists',
+    )
     return mapArrayResponse(data)
   },
 

@@ -244,6 +244,83 @@ export interface CreateProductPayload {
   iepsRate?: string
   purchaseCost?: PurchaseCostPayload
   priceCents: number
+  variants?: CreateVariantInline[]
+  lots?: CreateLotInline[]
+  priceLists?: CreatePriceListInline[]
+  images?: CreateImageInline[]
+}
+
+// ── Inline sub-resources for atomic product creation ─────────
+
+export interface CreateVariantInline {
+  option?: string
+  value?: string
+  name?: string
+  sku?: string
+  barcode?: string
+  quantity?: number
+  minQuantity?: number
+  purchaseNetCostCents?: number | null
+}
+
+export interface CreateLotInline {
+  lotNumber: string
+  quantity?: number
+  expirationDate: string
+  manufactureDate?: string
+}
+
+export interface CreatePriceListInline {
+  priceListId: string
+  priceCents: number
+  tierPrices?: {
+    minQuantity: number
+    priceCents: number
+  }[]
+}
+
+export interface CreateImageInline {
+  url: string
+  isMain?: boolean
+  sortOrder?: number
+}
+
+// ── Pending items for local create-mode state ────────────────
+
+export interface PendingVariant {
+  _localId: string
+  option: string
+  value: string
+  sku: string
+  barcode: string
+  quantity: number
+  minQuantity: number
+  purchaseNetCostCents: number | null
+  publicPriceCents: number
+  variantPrices: PendingVariantPrice[]
+}
+
+export interface PendingVariantPrice {
+  priceListId: string
+  priceListName: string
+  priceCents: number
+  tierPrices: { minQuantity: number; priceCents: number }[]
+}
+
+export interface PendingLot {
+  _localId: string
+  lotNumber: string
+  quantity: number
+  expirationDate: string
+  manufactureDate: string
+}
+
+export interface PendingPriceList {
+  _localId: string
+  priceListId: string
+  priceListName: string
+  priceCents: number
+  tierPrices: { minQuantity: number; priceCents: number }[]
 }
 
 export interface CreateVariantPayload {
