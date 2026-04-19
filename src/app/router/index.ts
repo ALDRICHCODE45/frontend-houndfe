@@ -9,6 +9,7 @@ const DashboardHomeView = () => import('@/features/dashboard/home/views/Dashboar
 const ProductsView = () => import('@/features/POS/products/views/ProductsView.vue')
 const ProductDetailView = () => import('@/features/POS/products/views/ProductDetailView.vue')
 const OrdersView = () => import('@/features/POS/orders/views/OrdersView.vue')
+const CustomersView = () => import('@/features/POS/customers/views/CustomersView.vue')
 const AdminUsersView = () => import('@/features/admin/users/views/AdminUsersView.vue')
 const AdminRolesView = () => import('@/features/admin/roles/views/AdminRolesView.vue')
 const ForbiddenView = () => import('@/features/errors/views/ForbiddenView.vue')
@@ -63,6 +64,15 @@ const router = createRouter({
       meta: {
         layout: 'dashboard',
         permission: ['read', 'Order'] as RoutePermission,
+      },
+    },
+    {
+      path: '/pos/customers',
+      name: 'pos-customers',
+      component: CustomersView,
+      meta: {
+        layout: 'dashboard',
+        // TODO: permission: ['read', 'Customer'] as RoutePermission,
       },
     },
     {

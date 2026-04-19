@@ -77,6 +77,12 @@ export const useSidebar = () => {
             to: '/pos/orders',
             permission: ['read', 'Order'],
           },
+          {
+            label: 'Clientes',
+            icon: 'i-lucide-users',
+            to: '/pos/customers',
+            // TODO: permission: ['read', 'Customer'],
+          },
         ],
       },
       {

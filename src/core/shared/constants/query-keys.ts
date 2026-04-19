@@ -34,3 +34,9 @@ export const adminRoleQueryKeys = {
   detail: (roleId: string) => ['admin', 'roles', 'detail', roleId] as const,
   permissions: () => ['admin', 'permissions', 'grouped'] as const,
 }
+
+export const customerQueryKeys = {
+  paginated: () => ['customers', 'paginated'] as const,
+  detail: (customerId: string) => ['customers', 'detail', customerId] as const,
+  addresses: (customerId: string) => ['customers', 'addresses', customerId] as const,
+}
