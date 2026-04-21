@@ -324,6 +324,7 @@ defineExpose({ filterType, filterStatus, filterMethod, getRowItems })
           add-button-text="Nueva Promoción"
           add-button-icon="i-lucide-percent"
           :enable-row-selection="false"
+          enable-column-visibility
           empty="No hay promociones todavía"
           @add="handleAddPromotion"
           @refresh="refresh"
