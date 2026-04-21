@@ -10,6 +10,9 @@ const ProductsView = () => import('@/features/POS/products/views/ProductsView.vu
 const ProductDetailView = () => import('@/features/POS/products/views/ProductDetailView.vue')
 const OrdersView = () => import('@/features/POS/orders/views/OrdersView.vue')
 const CustomersView = () => import('@/features/POS/customers/views/CustomersView.vue')
+const PromotionsView = () => import('@/features/POS/promotions/views/PromotionsView.vue')
+const PromotionDetailView = () =>
+  import('@/features/POS/promotions/views/PromotionDetailView.vue')
 const AdminUsersView = () => import('@/features/admin/users/views/AdminUsersView.vue')
 const AdminRolesView = () => import('@/features/admin/roles/views/AdminRolesView.vue')
 const ForbiddenView = () => import('@/features/errors/views/ForbiddenView.vue')
@@ -72,7 +75,34 @@ const router = createRouter({
       component: CustomersView,
       meta: {
         layout: 'dashboard',
-        // TODO: permission: ['read', 'Customer'] as RoutePermission,
+        permission: ['read', 'Customer'] as RoutePermission,
+      },
+    },
+    {
+      path: '/pos/promociones',
+      name: 'pos-promotions',
+      component: PromotionsView,
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'Promotion'] as RoutePermission,
+      },
+    },
+    {
+      path: '/pos/promociones/crear/:type',
+      name: 'pos-promotion-create',
+      component: PromotionDetailView,
+      meta: {
+        layout: 'dashboard',
+        permission: ['create', 'Promotion'] as RoutePermission,
+      },
+    },
+    {
+      path: '/pos/promociones/:id',
+      name: 'pos-promotion-detail',
+      component: PromotionDetailView,
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'Promotion'] as RoutePermission,
       },
     },
     {

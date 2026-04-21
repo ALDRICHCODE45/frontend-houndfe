@@ -18,11 +18,13 @@
   "dependencies": {
     "@casl/ability": "^6.8.0",
     "@casl/vue": "^2.2.6",
+    "@internationalized/date": "^3.12.1",
     "@nuxt/ui": "^4.6.0",
     "@tanstack/vue-query": "^5.95.2",
     "@tanstack/vue-table": "^8.21.3",
     "@vueuse/core": "^14.2.1",
     "axios": "^1.14.0",
+    "date-fns": "^4.1.0",
     "pinia": "^3.0.4",
     "sortablejs": "^1.15.7",
     "vue": "^3.5.29",

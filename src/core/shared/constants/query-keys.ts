@@ -40,3 +40,8 @@ export const customerQueryKeys = {
   detail: (customerId: string) => ['customers', 'detail', customerId] as const,
   addresses: (customerId: string) => ['customers', 'addresses', customerId] as const,
 }
+
+export const promotionQueryKeys = {
+  paginated: () => ['promotions', 'paginated'] as const,
+  detail: (promotionId: string) => ['promotions', 'detail', promotionId] as const,
+}

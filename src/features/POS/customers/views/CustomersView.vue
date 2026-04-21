@@ -19,11 +19,7 @@ import type {
   CustomerDetail,
   UpdateCustomerPayload,
 } from '../interfaces/customer.types'
-
-// TODO: implement customer permissions
-// const canCreateCustomer = computed(() => authStore.userCan('create', 'Customer'))
-// const canUpdateCustomer = computed(() => authStore.userCan('update', 'Customer'))
-// const canDeleteCustomer = computed(() => authStore.userCan('delete', 'Customer'))
+import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 
 declare const useToast: () => {
   add: (options: {
@@ -35,7 +31,13 @@ declare const useToast: () => {
 
 const queryClient = useQueryClient()
 const toast = useToast()
+const authStore = useAuthStore()
 const { columns } = useCustomerColumns()
+
+// ── Permission helpers ────────────────────────────────────────────────────────
+const canCreate = computed(() => authStore.userCan('create', 'Customer'))
+const canUpdate = computed(() => authStore.userCan('update', 'Customer'))
+const canDelete = computed(() => authStore.userCan('delete', 'Customer'))
 
 const {
   pagination,
@@ -232,15 +234,19 @@ function handleEditSubmit(values: UpdateCustomerPayload) {
 
 function getRowItems(customer: Customer) {
   const mainActions = [
-    { label: 'Editar', onSelect: () => handleOpenEdit(customer) },
+    ...(canUpdate.value
+      ? [{ label: 'Editar', onSelect: () => handleOpenEdit(customer) }]
+      : []),
   ]
 
   const destructiveActions = [
-    {
-      label: 'Eliminar',
-      color: 'error' as const,
-      onSelect: () => handleDelete(customer),
-    },
+    ...(canDelete.value
+      ? [{
+          label: 'Eliminar',
+          color: 'error' as const,
+          onSelect: () => handleDelete(customer),
+        }]
+      : []),
   ]
 
   return [mainActions, destructiveActions].filter((section) => section.length > 0)
@@ -307,7 +313,7 @@ const bulkActions = computed<BulkAction<Customer>[]>(() => [])
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
           :bulk-actions="bulkActions"
-          :show-add-button="true"
+          :show-add-button="canCreate"
           search-placeholder="Buscar clientes..."
           add-button-text="Nuevo Cliente"
           add-button-icon="i-lucide-user-plus"

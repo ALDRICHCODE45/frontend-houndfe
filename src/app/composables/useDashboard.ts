@@ -54,6 +54,20 @@ export const useDashboard = () => {
         permission: ['read', 'Order'],
       },
       {
+        id: 'pos-customers',
+        label: 'POS / Clientes',
+        icon: 'i-lucide-users',
+        to: '/pos/customers',
+        permission: ['read', 'Customer'],
+      },
+      {
+        id: 'pos-promotions',
+        label: 'POS / Promociones',
+        icon: 'i-lucide-tag',
+        to: '/pos/promociones',
+        permission: ['read', 'Promotion'],
+      },
+      {
         id: 'admin-users',
         label: 'Admin / Usuarios',
         icon: 'i-lucide-users',
@@ -83,6 +97,20 @@ export const useDashboard = () => {
         icon: 'i-lucide-plus',
         onSelect: () => void router.push('/pos/orders/new'),
         permission: ['create', 'Order'],
+      },
+      {
+        id: 'new-customer',
+        label: 'Nuevo Cliente',
+        icon: 'i-lucide-user-plus',
+        to: '/pos/customers',
+        permission: ['create', 'Customer'],
+      },
+      {
+        id: 'new-promotion',
+        label: 'Nueva Promoción',
+        icon: 'i-lucide-percent',
+        to: '/pos/promociones',
+        permission: ['create', 'Promotion'],
       },
     ]
 

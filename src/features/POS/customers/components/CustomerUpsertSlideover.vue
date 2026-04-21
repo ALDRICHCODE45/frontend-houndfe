@@ -69,9 +69,7 @@ const formId = computed(() =>
 const title = computed(() => (props.mode === 'create' ? 'Nuevo cliente' : 'Editar cliente'))
 
 const description = computed(() =>
-  props.mode === 'create'
-    ? 'Completá los datos del cliente.'
-    : 'Actualizá los datos del cliente.',
+  props.mode === 'create' ? 'Completá los datos del cliente.' : 'Actualizá los datos del cliente.',
 )
 
 const priceListItems = computed(() =>
@@ -164,7 +162,7 @@ function handleCancel() {
     @after-leave="resetForm"
   >
     <template #body>
-      <UTabs v-model="activeTab" :items="tabs" class="w-full">
+      <UTabs v-model="activeTab" :items="tabs" class="customer-tabs w-full" variant="link">
         <template #content="{ item }">
           <!-- ── Tab: Datos Básicos ─────────────────────────── -->
           <div v-if="item.value === 'basic'" class="pt-4">
@@ -176,21 +174,11 @@ function handleCancel() {
               @submit="onSubmit"
             >
               <UFormField label="Nombre" name="firstName" :error="errors.firstName" required>
-                <UInput
-                  v-model="state.firstName"
-                  class="w-full"
-                  size="lg"
-                  placeholder="Ej: Juan"
-                />
+                <UInput v-model="state.firstName" class="w-full" size="lg" placeholder="Ej: Juan" />
               </UFormField>
 
               <UFormField label="Apellido" name="lastName" :error="errors.lastName">
-                <UInput
-                  v-model="state.lastName"
-                  class="w-full"
-                  size="lg"
-                  placeholder="Ej: Pérez"
-                />
+                <UInput v-model="state.lastName" class="w-full" size="lg" placeholder="Ej: Pérez" />
               </UFormField>
 
               <!-- Teléfono: código de país + número -->
@@ -228,9 +216,16 @@ function handleCancel() {
               <!-- Sección Precios -->
               <div class="rounded-lg border border-default bg-elevated/30 p-4">
                 <p class="mb-3 font-semibold">Precios</p>
-                <UCheckbox v-model="state.assignPriceList" label="Asignar una lista de precios al cliente" />
+                <UCheckbox
+                  v-model="state.assignPriceList"
+                  label="Asignar una lista de precios al cliente"
+                />
                 <div v-if="state.assignPriceList" class="mt-3">
-                  <UFormField label="Lista de precios" name="globalPriceListId" :error="errors.globalPriceListId">
+                  <UFormField
+                    label="Lista de precios"
+                    name="globalPriceListId"
+                    :error="errors.globalPriceListId"
+                  >
                     <USelect
                       v-model="state.globalPriceListId"
                       :items="priceListItems"
@@ -291,9 +286,7 @@ function handleCancel() {
 
                 <p
                   v-if="
-                    mode === 'create'
-                      ? pendingAddresses.length === 0
-                      : !customer?.addresses?.length
+                    mode === 'create' ? pendingAddresses.length === 0 : !customer?.addresses?.length
                   "
                   class="text-sm text-muted"
                 >
@@ -325,7 +318,11 @@ function handleCancel() {
               </UFormField>
 
               <div class="grid grid-cols-2 gap-4">
-                <UFormField label="Código Postal Fiscal" name="fiscalZipCode" :error="errors.fiscalZipCode">
+                <UFormField
+                  label="Código Postal Fiscal"
+                  name="fiscalZipCode"
+                  :error="errors.fiscalZipCode"
+                >
                   <UInput
                     v-model="state.fiscalZipCode"
                     class="w-full"
@@ -362,7 +359,9 @@ function handleCancel() {
                   @click="state.showBillingAddress = !state.showBillingAddress"
                 >
                   <UIcon
-                    :name="state.showBillingAddress ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+                    :name="
+                      state.showBillingAddress ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'
+                    "
                     class="size-4"
                   />
                   {{
@@ -384,7 +383,11 @@ function handleCancel() {
                 </UFormField>
 
                 <div class="grid grid-cols-2 gap-4">
-                  <UFormField label="Número Exterior" name="billingExteriorNumber" :error="errors.billingExteriorNumber">
+                  <UFormField
+                    label="Número Exterior"
+                    name="billingExteriorNumber"
+                    :error="errors.billingExteriorNumber"
+                  >
                     <UInput
                       v-model="state.billingExteriorNumber"
                       class="w-full"
@@ -393,7 +396,11 @@ function handleCancel() {
                     />
                   </UFormField>
 
-                  <UFormField label="Número Interior" name="billingInteriorNumber" :error="errors.billingInteriorNumber">
+                  <UFormField
+                    label="Número Interior"
+                    name="billingInteriorNumber"
+                    :error="errors.billingInteriorNumber"
+                  >
                     <UInput
                       v-model="state.billingInteriorNumber"
                       class="w-full"
@@ -404,7 +411,11 @@ function handleCancel() {
                 </div>
 
                 <div class="grid grid-cols-2 gap-4">
-                  <UFormField label="Código Postal" name="billingZipCode" :error="errors.billingZipCode">
+                  <UFormField
+                    label="Código Postal"
+                    name="billingZipCode"
+                    :error="errors.billingZipCode"
+                  >
                     <UInput
                       v-model="state.billingZipCode"
                       class="w-full"
@@ -413,7 +424,11 @@ function handleCancel() {
                     />
                   </UFormField>
 
-                  <UFormField label="Colonia" name="billingNeighborhood" :error="errors.billingNeighborhood">
+                  <UFormField
+                    label="Colonia"
+                    name="billingNeighborhood"
+                    :error="errors.billingNeighborhood"
+                  >
                     <UInput
                       v-model="state.billingNeighborhood"
                       class="w-full"
@@ -423,7 +438,11 @@ function handleCancel() {
                   </UFormField>
                 </div>
 
-                <UFormField label="Municipio / Delegación" name="billingMunicipality" :error="errors.billingMunicipality">
+                <UFormField
+                  label="Municipio / Delegación"
+                  name="billingMunicipality"
+                  :error="errors.billingMunicipality"
+                >
                   <UInput
                     v-model="state.billingMunicipality"
                     class="w-full"
@@ -482,3 +501,16 @@ function handleCancel() {
     @close="isAddressModalOpen = false"
   />
 </template>
+
+<style scoped>
+.customer-tabs :deep([role='tablist']) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: 100%;
+}
+
+.customer-tabs :deep([role='tab']) {
+  width: 100%;
+  justify-content: center;
+}
+</style>
