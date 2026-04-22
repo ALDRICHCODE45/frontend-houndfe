@@ -45,3 +45,7 @@ export const promotionQueryKeys = {
   paginated: () => ['promotions', 'paginated'] as const,
   detail: (promotionId: string) => ['promotions', 'detail', promotionId] as const,
 }
+
+export const saleQueryKeys = {
+  drafts: () => ['sales', 'drafts'] as const,
+}

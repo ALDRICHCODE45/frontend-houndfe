@@ -66,6 +66,12 @@ export const useSidebar = () => {
         defaultOpen: true,
         children: [
           {
+            label: 'Ventas',
+            icon: 'i-lucide-shopping-cart',
+            to: '/pos/ventas',
+            permission: ['read', 'Sale'],
+          },
+          {
             label: 'Productos',
             icon: 'i-lucide-package',
             to: '/pos/products',

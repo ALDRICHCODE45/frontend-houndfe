@@ -40,6 +40,13 @@ export const useDashboard = () => {
     const pageItems: GuardedCommandPaletteItem[] = [
       { id: 'home', label: 'Home', icon: 'i-lucide-home', to: '/' },
       {
+        id: 'pos-sales',
+        label: 'POS / Ventas',
+        icon: 'i-lucide-shopping-cart',
+        to: '/pos/ventas',
+        permission: ['read', 'Sale'],
+      },
+      {
         id: 'pos-products',
         label: 'POS / Productos',
         icon: 'i-lucide-package',

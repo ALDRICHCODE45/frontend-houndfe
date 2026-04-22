@@ -4,7 +4,7 @@ import type { AppAction, AppSubject } from '../interfaces/auth.types'
 export type AppAbility = MongoAbility<[AppAction, AppSubject]>
 
 const APP_ACTIONS: AppAction[] = ['create', 'read', 'update', 'delete', 'manage']
-const APP_SUBJECTS: AppSubject[] = ['Product', 'Order', 'User', 'Role', 'Promotion', 'Customer', 'all']
+const APP_SUBJECTS: AppSubject[] = ['Product', 'Order', 'User', 'Role', 'Promotion', 'Customer', 'Sale', 'all']
 
 export const ability = createMongoAbility<[AppAction, AppSubject]>([])
 

@@ -7,7 +7,7 @@ export interface AuthUser {
 }
 
 export type AppAction = 'create' | 'read' | 'update' | 'delete' | 'manage'
-export type AppSubject = 'Product' | 'Order' | 'User' | 'Role' | 'Promotion' | 'Customer' | 'all'
+export type AppSubject = 'Product' | 'Order' | 'User' | 'Role' | 'Promotion' | 'Customer' | 'Sale' | 'all'
 
 export interface EffectivePermission {
   subject: AppSubject

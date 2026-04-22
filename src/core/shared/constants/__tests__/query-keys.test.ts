@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { promotionQueryKeys } from '../query-keys'
+import { promotionQueryKeys, saleQueryKeys } from '../query-keys'
 
 describe('promotionQueryKeys', () => {
   it('paginated() returns a tuple starting with "promotions"', () => {
@@ -26,5 +26,19 @@ describe('promotionQueryKeys', () => {
     const key1 = promotionQueryKeys.detail('uuid-1')
     const key2 = promotionQueryKeys.detail('uuid-2')
     expect(key1).not.toEqual(key2)
+  })
+})
+
+describe('saleQueryKeys', () => {
+  it('drafts() returns a tuple starting with "sales"', () => {
+    const key = saleQueryKeys.drafts()
+    expect(key[0]).toBe('sales')
+    expect(key[1]).toBe('drafts')
+  })
+
+  it('drafts() returns same structure on multiple calls', () => {
+    const key1 = saleQueryKeys.drafts()
+    const key2 = saleQueryKeys.drafts()
+    expect(key1).toEqual(key2)
   })
 })

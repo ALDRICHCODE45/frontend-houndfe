@@ -203,11 +203,9 @@ function handleDelete(promotion: PromotionResponse) {
 }
 
 function getRowItems(promotion: PromotionResponse) {
-  const mainActions = [
-    ...(canUpdate.value
+  const mainActions = (canUpdate.value
       ? [{ label: 'Editar', onSelect: () => handleEdit(promotion) }]
-      : []),
-  ]
+      : [])
 
   const extraActions = [
     ...(canUpdate.value && promotion.status !== 'ENDED'

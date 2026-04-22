@@ -233,21 +233,17 @@ function handleEditSubmit(values: UpdateCustomerPayload) {
 }
 
 function getRowItems(customer: Customer) {
-  const mainActions = [
-    ...(canUpdate.value
+  const mainActions = (canUpdate.value
       ? [{ label: 'Editar', onSelect: () => handleOpenEdit(customer) }]
-      : []),
-  ]
+      : [])
 
-  const destructiveActions = [
-    ...(canDelete.value
+  const destructiveActions = (canDelete.value
       ? [{
           label: 'Eliminar',
           color: 'error' as const,
           onSelect: () => handleDelete(customer),
         }]
-      : []),
-  ]
+      : [])
 
   return [mainActions, destructiveActions].filter((section) => section.length > 0)
 }
