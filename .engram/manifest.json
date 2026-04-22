@@ -56,6 +56,14 @@
       "sessions": 6,
       "memories": 56,
       "prompts": 60
+    },
+    {
+      "id": "904ac602",
+      "created_by": "aldrich_coder45",
+      "created_at": "2026-04-22T01:55:41Z",
+      "sessions": 1,
+      "memories": 18,
+      "prompts": 14
     }
   ]
 }
