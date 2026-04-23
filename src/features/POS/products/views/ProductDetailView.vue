@@ -14,6 +14,7 @@ import PriceListSection from '../components/PriceListSection.vue'
 import ProductImageGallery from '../components/ProductImageGallery.vue'
 import CategorySelect from '../components/CategorySelect.vue'
 import VariantDetailModal from '../components/VariantDetailModal.vue'
+import VariantImagePickerModal from '../components/VariantImagePickerModal.vue'
 import {
   productFormSchema,
   centsToDecimalInput,
@@ -163,6 +164,8 @@ const isLotModalOpen = ref(false)
 const editingVariantId = ref<string | null>(null)
 const isVariantDetailModalOpen = ref(false)
 const variantDetailModalVariant = ref<ProductVariant | null>(null)
+const isVariantImageModalOpen = ref(false)
+const variantImageModalVariant = ref<ProductVariant | null>(null)
 const confirmState = ref({
   open: false,
   description: '',
@@ -1403,6 +1406,15 @@ function handleVariantDetailModalOpenChange(isOpen: boolean) {
   isVariantDetailModalOpen.value = isOpen
 }
 
+function handleOpenVariantImageModal(variant: ProductVariant) {
+  variantImageModalVariant.value = variant
+  isVariantImageModalOpen.value = true
+}
+
+function handleVariantImageModalOpenChange(isOpen: boolean) {
+  isVariantImageModalOpen.value = isOpen
+}
+
 function handleInlineVariantQuantityBlur(variant: ProductVariant) {
   if (!canUpdateProduct.value) return
 
@@ -1991,6 +2003,17 @@ function handleEditLotPlaceholder() {
                       </td>
                       <td class="px-4 py-3">
                         <div class="flex justify-end gap-2">
+                          <UTooltip text="Elegir fotos">
+                            <UButton
+                              type="button"
+                              icon="i-lucide-image"
+                              color="neutral"
+                              variant="ghost"
+                              data-testid="variant-image-button"
+                              :disabled="!canUpdateProduct"
+                              @click="handleOpenVariantImageModal(variant)"
+                            />
+                          </UTooltip>
                           <UButton
                             type="button"
                             label="Más Datos"
@@ -2557,6 +2580,17 @@ function handleEditLotPlaceholder() {
       :can-update="canUpdateProduct"
       :product-purchase-net-cost-cents="product?.purchaseNetCostCents ?? 0"
       @update:open="handleVariantDetailModalOpenChange"
+    />
+
+    <VariantImagePickerModal
+      v-if="!isCreateMode && variantImageModalVariant"
+      :open="isVariantImageModalOpen"
+      :product-id="productIdOrEmpty"
+      :product-name="product?.name ?? ''"
+      :variant="variantImageModalVariant"
+      :can-update="canUpdateProduct"
+      :can-delete="canDeleteProduct"
+      @update:open="handleVariantImageModalOpenChange"
     />
 
     <ConfirmModal

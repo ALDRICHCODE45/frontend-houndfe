@@ -41,8 +41,31 @@ const filterType = ref<PromotionType | ''>('')
 const filterStatus = ref<PromotionStatus | ''>('')
 const filterMethod = ref<PromotionMethod | ''>('')
 
+const ALL_FILTER_VALUE = '__ALL__'
+
+const filterTypeSelect = computed<PromotionType | typeof ALL_FILTER_VALUE>({
+  get: () => filterType.value || ALL_FILTER_VALUE,
+  set: (value) => {
+    filterType.value = value === ALL_FILTER_VALUE ? '' : value
+  },
+})
+
+const filterStatusSelect = computed<PromotionStatus | typeof ALL_FILTER_VALUE>({
+  get: () => filterStatus.value || ALL_FILTER_VALUE,
+  set: (value) => {
+    filterStatus.value = value === ALL_FILTER_VALUE ? '' : value
+  },
+})
+
+const filterMethodSelect = computed<PromotionMethod | typeof ALL_FILTER_VALUE>({
+  get: () => filterMethod.value || ALL_FILTER_VALUE,
+  set: (value) => {
+    filterMethod.value = value === ALL_FILTER_VALUE ? '' : value
+  },
+})
+
 const TYPE_OPTIONS = [
-  { label: 'Todos los tipos', value: '' },
+  { label: 'Todos los tipos', value: ALL_FILTER_VALUE },
   { label: 'Descuento en productos', value: 'PRODUCT_DISCOUNT' },
   { label: 'Descuento en pedido', value: 'ORDER_DISCOUNT' },
   { label: '2x1, 3x2 o similares', value: 'BUY_X_GET_Y' },
@@ -50,14 +73,14 @@ const TYPE_OPTIONS = [
 ]
 
 const STATUS_OPTIONS = [
-  { label: 'Todos los estados', value: '' },
+  { label: 'Todos los estados', value: ALL_FILTER_VALUE },
   { label: 'Activa', value: 'ACTIVE' },
   { label: 'Programada', value: 'SCHEDULED' },
   { label: 'Finalizada', value: 'ENDED' },
 ]
 
 const METHOD_OPTIONS = [
-  { label: 'Todos los métodos', value: '' },
+  { label: 'Todos los métodos', value: ALL_FILTER_VALUE },
   { label: 'Automático', value: 'AUTOMATIC' },
   { label: 'Manual', value: 'MANUAL' },
 ]
@@ -262,7 +285,7 @@ defineExpose({ filterType, filterStatus, filterMethod, getRowItems })
         <!-- ── Filter toolbar ─────────────────────────────────────────────── -->
         <div class="mb-4 flex flex-wrap items-center gap-3" data-testid="filter-toolbar">
           <USelect
-            v-model="filterType"
+            v-model="filterTypeSelect"
             :items="TYPE_OPTIONS"
             value-key="value"
             label-key="label"
@@ -271,7 +294,7 @@ defineExpose({ filterType, filterStatus, filterMethod, getRowItems })
             data-testid="filter-type"
           />
           <USelect
-            v-model="filterStatus"
+            v-model="filterStatusSelect"
             :items="STATUS_OPTIONS"
             value-key="value"
             label-key="label"
@@ -280,7 +303,7 @@ defineExpose({ filterType, filterStatus, filterMethod, getRowItems })
             data-testid="filter-status"
           />
           <USelect
-            v-model="filterMethod"
+            v-model="filterMethodSelect"
             :items="METHOD_OPTIONS"
             value-key="value"
             label-key="label"

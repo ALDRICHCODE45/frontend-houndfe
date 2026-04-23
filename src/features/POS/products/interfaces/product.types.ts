@@ -470,7 +470,19 @@ export interface ProductImage {
   isMain: boolean
   sortOrder: number
   createdAt: string
+  fileId: string | null
 }
+
+// ── Image Upload Constants ──────────────────────────────────
+
+export const ALLOWED_IMAGE_MIME_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
+] as const
+
+export const MAX_IMAGE_SIZE_BYTES = 10 * 1024 * 1024 // 10 MB
 
 export interface CreateImagePayload {
   url: string

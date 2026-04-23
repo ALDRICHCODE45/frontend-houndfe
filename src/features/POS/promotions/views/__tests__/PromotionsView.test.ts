@@ -223,7 +223,7 @@ describe('PromotionsView', () => {
     // filterType ref is auto-unwrapped via defineExpose on wrapper.vm
     expect(vm.filterType).toBe('')
     // The select-stub element reflects modelvalue attribute (USelect auto-import behavior)
-    expect(wrapper.find('[data-testid="filter-type"]').attributes('modelvalue')).toBe('')
+    expect(wrapper.find('[data-testid="filter-type"]').attributes('modelvalue')).toBe('__ALL__')
   })
 
   it('S02: filterType ref updates and clear-filters button appears when type is set', async () => {
@@ -249,7 +249,7 @@ describe('PromotionsView', () => {
     await wrapper.vm.$nextTick()
     const vm = wrapper.vm as unknown as { filterType: string }
     expect(vm.filterType).toBe('')
-    expect(wrapper.find('[data-testid="filter-type"]').attributes('modelvalue')).toBe('')
+    expect(wrapper.find('[data-testid="filter-type"]').attributes('modelvalue')).toBe('__ALL__')
     expect(wrapper.find('[data-testid="clear-filters-btn"]').exists()).toBe(false)
   })
 
@@ -258,7 +258,7 @@ describe('PromotionsView', () => {
     const wrapper = mountView()
     const vm = wrapper.vm as unknown as { filterStatus: string }
     expect(vm.filterStatus).toBe('')
-    expect(wrapper.find('[data-testid="filter-status"]').attributes('modelvalue')).toBe('')
+    expect(wrapper.find('[data-testid="filter-status"]').attributes('modelvalue')).toBe('__ALL__')
   })
 
   it('S03: filterStatus ref updates and clear-filters button appears when status is set', async () => {
@@ -279,7 +279,7 @@ describe('PromotionsView', () => {
     await wrapper.vm.$nextTick()
     const vm = wrapper.vm as unknown as { filterStatus: string }
     expect(vm.filterStatus).toBe('')
-    expect(wrapper.find('[data-testid="filter-status"]').attributes('modelvalue')).toBe('')
+    expect(wrapper.find('[data-testid="filter-status"]').attributes('modelvalue')).toBe('__ALL__')
   })
 })
 

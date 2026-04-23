@@ -2,12 +2,12 @@
 import type { AxiosError } from 'axios'
 import { computed, ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
-import draggable from 'vuedraggable'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import { productApi } from '../api/product.api'
 import { mapDomainError, type DomainApiError } from '@/core/shared/utils/error.utils'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
-import type { CreateImagePayload, ProductImage, ProductVariant } from '../interfaces/product.types'
+import type { ProductImage, ProductVariant } from '../interfaces/product.types'
+import { useImageUpload } from '../composables/useImageUpload'
 
 declare const useToast: () => {
   add: (options: {
@@ -38,11 +38,9 @@ const { data: images, isFetching } = useQuery({
 
 const allImages = computed(() => images.value ?? [])
 
-// ── Filter tabs ────────────────────────────────────────────
+// ── Scope tabs ─────────────────────────────────────────────
 
 type ImageScope = 'all' | 'product' | string
-
-const PRODUCT_IMAGE_SCOPE_VALUE = '__product__'
 
 const activeScope = ref<ImageScope>('all')
 
@@ -59,35 +57,42 @@ const scopeOptions = computed(() => {
   return options
 })
 
-const addImageVariantItems = computed(() => [
-  { label: 'Producto', value: PRODUCT_IMAGE_SCOPE_VALUE },
-  ...props.variants.map((variant) => ({
-    label: variant.value?.trim() || variant.name,
-    value: variant.id,
-  })),
-])
-
 const filteredImages = computed(() => {
   if (activeScope.value === 'all') return allImages.value
   if (activeScope.value === 'product') return allImages.value.filter((img) => !img.variantId)
   return allImages.value.filter((img) => img.variantId === activeScope.value)
 })
 
-// Draggable model — wraps filteredImages for drag reorder
-const sortableImages = computed({
-  get: () => [...filteredImages.value],
-  set: () => {
-    // Reorder is visual-only in this phase; backend doesn't have a bulk reorder endpoint
+// ── Dropzone upload (reactive to scope) ────────────────────
+
+// The variantId for upload is determined by the active scope
+const uploadVariantId = computed(() => {
+  if (activeScope.value === 'all' || activeScope.value === 'product') {
+    return null // Upload to product level
+  }
+  return activeScope.value // Upload to this variant
+})
+
+const { dropZoneRef, isOverDropZone, openPicker, isUploading } = useImageUpload({
+  productId: computed(() => props.productId),
+  variantId: uploadVariantId,
+  onSuccess: async () => {
+    await queryClient.invalidateQueries({ queryKey: productQueryKeys.images(props.productId) })
   },
 })
 
-// ── Add image form ─────────────────────────────────────────
+// ── Upload target label ────────────────────────────────────
 
-const newImageUrl = ref('')
-const newImageVariantId = ref<string>(PRODUCT_IMAGE_SCOPE_VALUE)
-const newImageIsMain = ref(false)
-const urlError = ref('')
-const previewUrl = ref('')
+const uploadTargetLabel = computed(() => {
+  if (activeScope.value === 'all' || activeScope.value === 'product') {
+    return 'Producto'
+  }
+  const variant = props.variants.find((v) => v.id === activeScope.value)
+  return variant?.name ?? 'Variante'
+})
+
+// ── Confirm modal ──────────────────────────────────────────
+
 const confirmState = ref({
   open: false,
   description: '',
@@ -103,57 +108,11 @@ function handleConfirm() {
   confirmState.value.open = false
 }
 
-function isValidUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url)
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
-  } catch {
-    return false
-  }
-}
-
-function onUrlInput() {
-  urlError.value = ''
-  if (newImageUrl.value.trim() && isValidUrl(newImageUrl.value.trim())) {
-    previewUrl.value = newImageUrl.value.trim()
-  } else {
-    previewUrl.value = ''
-  }
-}
-
-function resetAddForm() {
-  newImageUrl.value = ''
-  newImageVariantId.value = PRODUCT_IMAGE_SCOPE_VALUE
-  newImageIsMain.value = false
-  urlError.value = ''
-  previewUrl.value = ''
-}
-
 // ── Mutations ──────────────────────────────────────────────
 
 async function invalidateImages() {
   await queryClient.invalidateQueries({ queryKey: productQueryKeys.images(props.productId) })
 }
-
-const createMutation = useMutation({
-  mutationFn: (payload: CreateImagePayload) => productApi.createImage(props.productId, payload),
-  onSuccess: async () => {
-    resetAddForm()
-    toast.add({
-      title: 'Imagen agregada',
-      description: 'La imagen se agregó correctamente.',
-      color: 'success',
-    })
-    await invalidateImages()
-  },
-  onError: (error) => {
-    toast.add({
-      title: 'Error al agregar imagen',
-      description: mapDomainError(error as AxiosError<DomainApiError>),
-      color: 'error',
-    })
-  },
-})
 
 const setMainMutation = useMutation({
   mutationFn: (imageId: string) => productApi.setMainImage(props.productId, imageId),
@@ -187,28 +146,15 @@ const deleteMutation = useMutation({
 
 // ── Handlers ───────────────────────────────────────────────
 
-function handleAddImage() {
-  const url = newImageUrl.value.trim()
-  if (!url) {
-    urlError.value = 'La URL es obligatoria.'
-    return
-  }
-  if (!isValidUrl(url)) {
-    urlError.value = 'Ingresá una URL válida (https://...).'
-    return
-  }
-  urlError.value = ''
+function handleDropzoneClick() {
+  openPicker()
+}
 
-  const nextSortOrder = allImages.value.length
-
-  createMutation.mutate({
-    url,
-    isMain: newImageIsMain.value,
-    sortOrder: nextSortOrder,
-    ...(newImageVariantId.value !== PRODUCT_IMAGE_SCOPE_VALUE
-      ? { variantId: newImageVariantId.value }
-      : {}),
-  })
+function handleDropzoneKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    openPicker()
+  }
 }
 
 function handleSetMain(image: ProductImage) {
@@ -228,6 +174,19 @@ function getVariantName(variantId: string | null): string {
   return found?.name ?? 'Variante'
 }
 
+// ── Image preview modal ────────────────────────────────────
+
+const previewImage = ref<ProductImage | null>(null)
+
+function openPreview(image: ProductImage) {
+  if (isImageBroken(image.id)) return
+  previewImage.value = image
+}
+
+function closePreview() {
+  previewImage.value = null
+}
+
 // ── Image error fallback ───────────────────────────────────
 
 const brokenImages = ref<Set<string>>(new Set())
@@ -244,180 +203,189 @@ function isImageBroken(imageId: string): boolean {
 <template>
   <UCard>
     <template #header>
-      <div class="flex items-center justify-between">
+      <div class="flex flex-col gap-3">
         <div>
           <h3 class="text-xl font-semibold">Imágenes</h3>
-          <p class="text-sm text-muted">Gestioná las imágenes del producto y sus variantes.</p>
+          <p class="text-sm text-muted">
+            Subí y gestioná las imágenes del producto y sus variantes mediante arrastrar y soltar.
+          </p>
+        </div>
+
+        <!-- Scope filter tabs -->
+        <div v-if="variants.length > 0" class="flex flex-wrap gap-2">
+          <UButton
+            v-for="opt in scopeOptions"
+            :key="opt.value"
+            :label="opt.label"
+            size="sm"
+            :variant="activeScope === opt.value ? 'solid' : 'ghost'"
+            :color="activeScope === opt.value ? 'primary' : 'neutral'"
+            class="transition-colors duration-200"
+            @click="activeScope = opt.value"
+          />
         </div>
       </div>
     </template>
 
-    <div class="flex flex-col gap-5">
-      <!-- Add image form -->
-      <div v-if="canUpdate" class="rounded-lg border border-dashed border-default p-4">
-        <p class="text-sm font-medium mb-3">Agregar imagen por URL</p>
-
-        <div class="flex flex-col gap-3">
-          <div class="grid grid-cols-1 gap-3 md:grid-cols-[1fr_220px_auto]">
-            <div>
-              <UInput
-                v-model="newImageUrl"
-                placeholder="https://cdn.ejemplo.com/imagen.jpg"
-                size="lg"
-                :disabled="createMutation.isPending.value"
-                @input="onUrlInput"
-              >
-                <template #leading>
-                  <UIcon name="i-lucide-link" class="text-muted" />
-                </template>
-              </UInput>
-              <p v-if="urlError" class="mt-1 text-sm text-error">{{ urlError }}</p>
-            </div>
-
-            <USelect
-              v-if="variants.length > 0"
-              v-model="newImageVariantId"
-              :items="addImageVariantItems"
-              size="lg"
-              class="w-full"
-              :disabled="createMutation.isPending.value"
-            />
-
-            <UButton
-              label="Agregar"
-              icon="i-lucide-image-plus"
-              :loading="createMutation.isPending.value"
-              @click="handleAddImage"
-            />
+    <div class="flex flex-col gap-6">
+      <!-- Dropzone - PRIMARY affordance -->
+      <div
+        v-if="canUpdate"
+        ref="dropZoneRef"
+        data-dropzone
+        role="button"
+        tabindex="0"
+        class="relative rounded-lg border-2 transition-all duration-200 cursor-pointer"
+        :class="[
+          isOverDropZone
+            ? 'border-solid border-primary bg-primary/10'
+            : 'border-dashed border-default bg-default hover:border-primary/50 hover:bg-primary/5',
+          isUploading ? 'pointer-events-none' : '',
+        ]"
+        @click="handleDropzoneClick"
+        @keydown="handleDropzoneKeydown"
+      >
+        <div class="flex flex-col items-center justify-center py-10 px-4">
+          <UIcon
+            :name="isOverDropZone ? 'i-lucide-upload-cloud' : 'i-lucide-image-plus'"
+            class="text-5xl mb-3 transition-colors duration-200"
+            :class="isOverDropZone ? 'text-primary' : 'text-muted'"
+          />
+          <p class="text-base font-medium mb-1">
+            Arrastrá tus imágenes aquí o hacé click para elegir
+          </p>
+          <p class="text-sm text-muted mb-2">JPG, PNG, WEBP o GIF — máx 10 MB</p>
+          <div class="flex items-center gap-2 mt-2 px-3 py-1.5 rounded-full bg-primary/10">
+            <UIcon name="i-lucide-folder-input" class="text-sm text-primary" />
+            <span class="text-xs font-medium text-primary">
+              Subiendo a: {{ uploadTargetLabel }}
+            </span>
           </div>
+        </div>
 
-          <div class="flex items-center gap-4">
-            <label class="flex items-center gap-2 text-sm cursor-pointer">
-              <UCheckbox v-model="newImageIsMain" :disabled="createMutation.isPending.value" />
-              <span>Marcar como imagen principal</span>
-            </label>
-          </div>
-
-          <!-- URL Preview -->
-          <div v-if="previewUrl" class="flex items-center gap-3 rounded-md bg-elevated p-3">
-            <img
-              :src="previewUrl"
-              alt="Preview"
-              class="h-16 w-16 rounded-md object-cover border border-default"
-              @error="previewUrl = ''"
-            />
-            <p class="text-sm text-muted truncate flex-1">{{ previewUrl }}</p>
-          </div>
+        <!-- Upload progress overlay -->
+        <div
+          v-if="isUploading"
+          class="absolute inset-0 bg-elevated/90 backdrop-blur-sm flex flex-col items-center justify-center gap-3 rounded-lg"
+        >
+          <UIcon name="i-lucide-loader-2" class="text-4xl text-primary animate-spin" />
+          <p class="text-sm font-medium">Subiendo imágenes...</p>
+          <UProgress :value="100" animation="carousel" class="w-48" />
         </div>
       </div>
 
-      <!-- Scope filter tabs -->
-      <div v-if="variants.length > 0" class="flex flex-wrap gap-1">
-        <UButton
-          v-for="opt in scopeOptions"
-          :key="opt.value"
-          :label="opt.label"
-          size="xs"
-          :variant="activeScope === opt.value ? 'solid' : 'ghost'"
-          :color="activeScope === opt.value ? 'primary' : 'neutral'"
-          @click="activeScope = opt.value"
-        />
-      </div>
-
       <!-- Loading -->
-      <div v-if="isFetching" class="text-sm text-muted">Cargando imágenes...</div>
+      <div v-if="isFetching" class="flex items-center justify-center py-8">
+        <UIcon name="i-lucide-loader-2" class="text-3xl text-primary animate-spin" />
+        <span class="ml-3 text-sm text-muted">Cargando imágenes...</span>
+      </div>
 
       <!-- Empty state -->
       <div
         v-else-if="filteredImages.length === 0"
-        class="flex flex-col items-center justify-center py-8 text-center"
+        class="flex flex-col items-center justify-center py-12 text-center"
       >
-        <UIcon name="i-lucide-image-off" class="text-4xl text-muted mb-2" />
-        <p class="text-sm text-muted">
+        <div class="w-16 h-16 rounded-full bg-elevated flex items-center justify-center mb-4">
+          <UIcon name="i-lucide-image-off" class="text-3xl text-muted" />
+        </div>
+        <p class="text-base font-medium mb-1">
+          {{ activeScope === 'all' ? 'Sin imágenes' : 'Sin imágenes en esta categoría' }}
+        </p>
+        <p class="text-sm text-muted max-w-sm">
           {{
-            activeScope === 'all' ? 'Sin imágenes registradas.' : 'Sin imágenes en esta categoría.'
+            canUpdate
+              ? 'Subí tus primeras imágenes usando el área de arrastrar y soltar de arriba.'
+              : 'No hay imágenes disponibles en esta sección.'
           }}
         </p>
       </div>
 
-      <!-- Image gallery -->
-      <draggable
-        v-else
-        :list="sortableImages"
-        item-key="id"
-        class="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4"
-        ghost-class="opacity-30"
-        handle=".drag-handle"
-        animation="200"
-      >
-        <template #item="{ element: image }">
+      <!-- Image gallery grid -->
+      <div v-else class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        <div
+          v-for="image in filteredImages"
+          :key="image.id"
+          class="group relative rounded-lg border border-default overflow-hidden transition-all duration-200 hover:shadow-lg hover:border-primary/30 cursor-pointer"
+          :class="{ 'ring-2 ring-primary ring-offset-2': image.isMain }"
+        >
+          <!-- Main badge - prominent when active -->
           <div
-            class="group relative rounded-lg border border-default overflow-hidden transition-shadow hover:shadow-md"
-            :class="{ 'ring-2 ring-primary ring-offset-2': image.isMain }"
+            v-if="image.isMain"
+            class="absolute top-2 right-2 z-10 flex items-center gap-1 px-2 py-1 rounded-md bg-primary shadow-sm"
           >
-            <!-- Drag handle -->
-            <div
-              class="drag-handle absolute top-1.5 left-1.5 z-10 cursor-grab rounded bg-black/50 p-1 opacity-0 transition-opacity group-hover:opacity-100"
-            >
-              <UIcon name="i-lucide-grip-vertical" class="text-white text-xs" />
-            </div>
-
-            <!-- Main badge -->
-            <div v-if="image.isMain" class="absolute top-1.5 right-1.5 z-10">
-              <UBadge color="primary" size="xs" variant="solid"> Principal </UBadge>
-            </div>
-
-            <!-- Image or broken fallback -->
-            <div class="aspect-square bg-elevated">
-              <div
-                v-if="isImageBroken(image.id)"
-                class="flex h-full w-full items-center justify-center"
-              >
-                <UIcon name="i-lucide-image-off" class="text-3xl text-muted" />
-              </div>
-              <img
-                v-else
-                :src="image.url"
-                :alt="`Imagen ${image.sortOrder + 1}`"
-                class="h-full w-full object-cover"
-                loading="lazy"
-                @error="onImageError(image.id)"
-              />
-            </div>
-
-            <!-- Info footer -->
-            <div class="flex items-center justify-between gap-1 p-2">
-              <span class="text-xs text-muted truncate">
-                {{ getVariantName(image.variantId) }}
-              </span>
-
-              <div class="flex items-center gap-0.5 shrink-0">
-                <UTooltip v-if="canUpdate && !image.isMain" text="Marcar como principal">
-                  <UButton
-                    icon="i-lucide-star"
-                    color="warning"
-                    variant="ghost"
-                    size="2xs"
-                    :loading="setMainMutation.isPending.value"
-                    @click="handleSetMain(image)"
-                  />
-                </UTooltip>
-
-                <UTooltip v-if="canDelete" text="Eliminar imagen">
-                  <UButton
-                    icon="i-lucide-trash-2"
-                    color="error"
-                    variant="ghost"
-                    size="2xs"
-                    :loading="deleteMutation.isPending.value"
-                    @click="handleDelete(image)"
-                  />
-                </UTooltip>
-              </div>
-            </div>
+            <UIcon name="i-lucide-star" class="text-xs text-white" />
+            <span class="text-xs font-semibold text-white">Principal</span>
           </div>
-        </template>
-      </draggable>
+
+          <!-- Scope label (only in "Todas" view) -->
+          <div
+            v-if="activeScope === 'all'"
+            class="absolute top-2 left-2 z-10 px-2 py-1 rounded-md bg-black/70 backdrop-blur-sm"
+          >
+            <span class="text-xs font-medium text-white">
+              {{ getVariantName(image.variantId) }}
+            </span>
+          </div>
+
+          <!-- Image or broken fallback -->
+          <div class="aspect-square bg-elevated" @click="openPreview(image)">
+            <div
+              v-if="isImageBroken(image.id)"
+              class="flex h-full w-full items-center justify-center"
+            >
+              <UIcon name="i-lucide-image-off" class="text-4xl text-muted" />
+            </div>
+            <img
+              v-else
+              :src="image.url"
+              :alt="`Imagen ${getVariantName(image.variantId)} - ${image.sortOrder + 1}`"
+              class="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+              loading="lazy"
+              @error="onImageError(image.id)"
+            />
+          </div>
+
+          <!-- Action buttons overlay (on hover/focus) -->
+          <div
+            class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200 p-3 flex items-center justify-end gap-2"
+          >
+            <UTooltip v-if="canUpdate && !image.isMain" text="Marcar como principal">
+              <UButton
+                icon="i-lucide-star"
+                color="warning"
+                variant="solid"
+                size="sm"
+                :loading="setMainMutation.isPending.value"
+                class="shadow-lg"
+                @click.stop="handleSetMain(image)"
+              />
+            </UTooltip>
+
+            <UTooltip v-if="canUpdate && image.isMain" text="Esta es la imagen principal">
+              <UButton
+                icon="i-lucide-star"
+                color="warning"
+                variant="solid"
+                size="sm"
+                disabled
+                class="opacity-50"
+              />
+            </UTooltip>
+
+            <UTooltip v-if="canDelete" text="Eliminar imagen">
+              <UButton
+                icon="i-lucide-trash-2"
+                color="error"
+                variant="solid"
+                size="sm"
+                :loading="deleteMutation.isPending.value"
+                class="shadow-lg"
+                @click.stop="handleDelete(image)"
+              />
+            </UTooltip>
+          </div>
+        </div>
+      </div>
     </div>
   </UCard>
 
@@ -430,4 +398,68 @@ function isImageBroken(imageId: string): boolean {
     @update:open="confirmState.open = $event"
     @confirm="handleConfirm"
   />
+
+  <!-- Image preview modal (lightbox) -->
+  <UModal
+    :open="previewImage !== null"
+    @update:open="(val: boolean) => { if (!val) closePreview() }"
+  >
+    <template #content>
+      <div class="relative flex flex-col items-center">
+        <!-- Close button -->
+        <UButton
+          icon="i-lucide-x"
+          color="neutral"
+          variant="ghost"
+          size="lg"
+          class="absolute top-3 right-3 z-10"
+          @click="closePreview"
+        />
+
+        <!-- Image -->
+        <img
+          v-if="previewImage"
+          :src="previewImage.url"
+          :alt="`Imagen ${getVariantName(previewImage.variantId)}`"
+          class="max-h-[80vh] w-full object-contain rounded-lg"
+        />
+
+        <!-- Footer info -->
+        <div v-if="previewImage" class="flex items-center justify-between w-full px-4 py-3">
+          <div class="flex items-center gap-2">
+            <UBadge v-if="previewImage.isMain" color="primary" variant="solid" size="sm">
+              <UIcon name="i-lucide-star" class="mr-1" />
+              Principal
+            </UBadge>
+            <UBadge color="neutral" variant="subtle" size="sm">
+              {{ getVariantName(previewImage.variantId) }}
+            </UBadge>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <UTooltip v-if="canUpdate && !previewImage.isMain" text="Marcar como principal">
+              <UButton
+                icon="i-lucide-star"
+                color="warning"
+                variant="ghost"
+                size="sm"
+                :loading="setMainMutation.isPending.value"
+                @click="handleSetMain(previewImage!)"
+              />
+            </UTooltip>
+            <UTooltip v-if="canDelete" text="Eliminar imagen">
+              <UButton
+                icon="i-lucide-trash-2"
+                color="error"
+                variant="ghost"
+                size="sm"
+                :loading="deleteMutation.isPending.value"
+                @click="handleDelete(previewImage!)"
+              />
+            </UTooltip>
+          </div>
+        </div>
+      </div>
+    </template>
+  </UModal>
 </template>

@@ -481,4 +481,30 @@ export const productApi = {
   ): Promise<void> {
     await http.delete(`/products/${productId}/variants/${variantId}/prices/${priceListId}`)
   },
+
+  // ── Image Upload ─────────────────────────────────────────
+
+  async uploadProductImage(productId: string, file: File): Promise<ProductImage> {
+    const formData = new FormData()
+    formData.append('file', file)
+    const { data } = await http.post<ProductImage>(
+      `/products/${productId}/images/upload`,
+      formData,
+    )
+    return data
+  },
+
+  async uploadVariantImage(
+    productId: string,
+    variantId: string,
+    file: File,
+  ): Promise<ProductImage> {
+    const formData = new FormData()
+    formData.append('file', file)
+    const { data } = await http.post<ProductImage>(
+      `/products/${productId}/variants/${variantId}/images/upload`,
+      formData,
+    )
+    return data
+  },
 }
