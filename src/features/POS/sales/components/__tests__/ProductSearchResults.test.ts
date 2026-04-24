@@ -2,46 +2,72 @@ import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ProductSearchResults from '../ProductSearchResults.vue'
 import ProductSearchResultItem from '../ProductSearchResultItem.vue'
-import type { SearchableProduct } from '../../interfaces/sale.types'
+import type { PosCatalogItem } from '../../interfaces/sale.types'
 
 // Stub child components
 vi.mock('../ProductSearchResultItem.vue', () => ({
   default: {
     name: 'ProductSearchResultItem',
-    template: '<div data-testid="result-item" @click="$emit(\'select\', product)">{{ product.name }}</div>',
-    props: ['product'],
+    template: '<div data-testid="result-item" @click="$emit(\'select\', item)">{{ item.name }}</div>',
+    props: ['item'],
     emits: ['select'],
   },
 }))
 
 describe('ProductSearchResults.vue', () => {
-  const mockResults: SearchableProduct[] = [
+  const mockResults: PosCatalogItem[] = [
     {
       id: 'prod-1',
       name: 'Product 1',
-      imageUrl: null,
-      priceCents: 1000,
-      stock: 10,
-      sellInPos: true,
+      sku: null,
+      barcode: null,
+      unit: null,
       hasVariants: false,
-      variantCount: 0,
+      useStock: true,
+      category: null,
+      brand: null,
+      mainImage: null,
+      images: [],
+      price: {
+        priceCents: 1000,
+        priceDecimal: 10.0,
+        priceListName: 'PUBLICO',
+      },
+      stock: {
+        quantity: 10,
+        minQuantity: 5,
+      },
+      variants: [],
     },
     {
       id: 'prod-2',
       name: 'Product 2',
-      imageUrl: null,
-      priceCents: 2000,
-      stock: 20,
-      sellInPos: true,
+      sku: null,
+      barcode: null,
+      unit: null,
       hasVariants: true,
-      variantCount: 2,
+      useStock: true,
+      category: null,
+      brand: null,
+      mainImage: null,
+      images: [],
+      price: {
+        priceCents: 2000,
+        priceDecimal: 20.0,
+        priceListName: 'PUBLICO',
+      },
+      stock: {
+        quantity: 20,
+        minQuantity: 5,
+      },
+      variants: [],
     },
   ]
 
   it('shows idle state when no query entered', () => {
     const wrapper = mount(ProductSearchResults, {
       props: {
-        results: [],
+        items: [],
         isLoading: false,
         isEmpty: false,
         hasQuery: false,
@@ -54,7 +80,7 @@ describe('ProductSearchResults.vue', () => {
   it('shows loading skeletons when loading', () => {
     const wrapper = mount(ProductSearchResults, {
       props: {
-        results: [],
+        items: [],
         isLoading: true,
         isEmpty: false,
         hasQuery: true,
@@ -69,7 +95,7 @@ describe('ProductSearchResults.vue', () => {
   it('shows empty state when query entered but no results', () => {
     const wrapper = mount(ProductSearchResults, {
       props: {
-        results: [],
+        items: [],
         isLoading: false,
         isEmpty: true,
         hasQuery: true,
@@ -82,7 +108,7 @@ describe('ProductSearchResults.vue', () => {
   it('renders result items when results exist', () => {
     const wrapper = mount(ProductSearchResults, {
       props: {
-        results: mockResults,
+        items: mockResults,
         isLoading: false,
         isEmpty: false,
         hasQuery: true,
@@ -103,7 +129,7 @@ describe('ProductSearchResults.vue', () => {
   it('emits select event when result item is clicked', async () => {
     const wrapper = mount(ProductSearchResults, {
       props: {
-        results: mockResults,
+        items: mockResults,
         isLoading: false,
         isEmpty: false,
         hasQuery: true,
@@ -125,7 +151,7 @@ describe('ProductSearchResults.vue', () => {
   it('is scrollable when results are long', () => {
     const wrapper = mount(ProductSearchResults, {
       props: {
-        results: mockResults,
+        items: mockResults,
         isLoading: false,
         isEmpty: false,
         hasQuery: true,

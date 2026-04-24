@@ -1,6 +1,8 @@
 // Centralized query keys — ALL module query keys defined here
 // NEVER define query keys locally in hooks/composables
 
+import type { PosCatalogSearchParams } from '@/features/POS/sales/interfaces/sale.types'
+
 export const productQueryKeys = {
   paginated: () => ['products', 'paginated'] as const,
   detail: (productId: string) => ['products', 'detail', productId] as const,
@@ -48,4 +50,14 @@ export const promotionQueryKeys = {
 
 export const saleQueryKeys = {
   drafts: () => ['sales', 'drafts'] as const,
+  posCatalog: (p: PosCatalogSearchParams = {}) =>
+    [
+      'sales',
+      'pos-catalog',
+      p.q ?? '',
+      p.limit ?? 25,
+      p.offset ?? 0,
+      p.categoryId ?? null,
+      p.brandId ?? null,
+    ] as const,
 }

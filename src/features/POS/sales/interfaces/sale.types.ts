@@ -31,13 +31,56 @@ export interface UpdateQtyPayload {
   quantity: number
 }
 
-export interface SearchableProduct {
+// POS Catalog types — match backend contract exactly
+export interface PosCatalogPrice {
+  priceCents: number
+  priceDecimal: number
+  priceListName: string
+}
+
+export interface PosCatalogStock {
+  quantity: number
+  minQuantity: number
+}
+
+export interface PosCatalogVariant {
   id: string
   name: string
-  imageUrl: string | null
-  priceCents: number
-  stock: number
-  sellInPos: boolean
+  sku: string | null
+  barcode: string | null
+  mainImage: string | null
+  price: PosCatalogPrice | null
+  stock: PosCatalogStock | null
+}
+
+export interface PosCatalogItem {
+  id: string
+  name: string
+  sku: string | null
+  barcode: string | null
+  unit: string | null
   hasVariants: boolean
-  variantCount: number
+  useStock: boolean
+  category: { id: string; name: string } | null
+  brand: { id: string; name: string } | null
+  mainImage: string | null
+  images: string[]
+  price: PosCatalogPrice | null
+  stock: PosCatalogStock | null
+  variants: PosCatalogVariant[]
+}
+
+export interface PosCatalogResponse {
+  items: PosCatalogItem[]
+  total: number
+  limit: number
+  offset: number
+}
+
+export interface PosCatalogSearchParams {
+  q?: string
+  limit?: number
+  offset?: number
+  categoryId?: string
+  brandId?: string
 }

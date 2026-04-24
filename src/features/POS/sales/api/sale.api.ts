@@ -1,5 +1,11 @@
 import { http } from '@/core/shared/api/http'
-import type { Sale, AddItemPayload, UpdateQtyPayload } from '../interfaces/sale.types'
+import type {
+  Sale,
+  AddItemPayload,
+  UpdateQtyPayload,
+  PosCatalogResponse,
+  PosCatalogSearchParams,
+} from '../interfaces/sale.types'
 
 export const saleApi = {
   async createDraft(): Promise<Sale> {
@@ -29,5 +35,10 @@ export const saleApi = {
 
   async closeDraft(saleId: string): Promise<void> {
     await http.delete(`/sales/drafts/${saleId}`)
+  },
+
+  async searchPosCatalog(params: PosCatalogSearchParams): Promise<PosCatalogResponse> {
+    const { data } = await http.get<PosCatalogResponse>('/sales/pos-catalog', { params })
+    return data
   },
 }

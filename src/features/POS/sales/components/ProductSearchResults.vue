@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import ProductSearchResultItem from './ProductSearchResultItem.vue'
-import type { SearchableProduct } from '../interfaces/sale.types'
+import type { PosCatalogItem } from '../interfaces/sale.types'
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 const props = defineProps<{
-  results: SearchableProduct[]
+  items: PosCatalogItem[]
   isLoading: boolean
   isEmpty: boolean
   hasQuery: boolean
@@ -14,7 +14,7 @@ const props = defineProps<{
 // ── Emits ─────────────────────────────────────────────────────────────────────
 
 const emit = defineEmits<{
-  select: [product: SearchableProduct]
+  select: [item: PosCatalogItem]
 }>()
 </script>
 
@@ -54,9 +54,9 @@ const emit = defineEmits<{
     <!-- Results list -->
     <div v-else class="py-2">
       <ProductSearchResultItem
-        v-for="product in results"
-        :key="product.id"
-        :product="product"
+        v-for="item in items"
+        :key="item.id"
+        :item="item"
         @select="emit('select', $event)"
       />
     </div>

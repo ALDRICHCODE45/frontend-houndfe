@@ -6,7 +6,12 @@ import type {
   Sale,
   AddItemPayload,
   UpdateQtyPayload,
-  SearchableProduct,
+  PosCatalogPrice,
+  PosCatalogStock,
+  PosCatalogVariant,
+  PosCatalogItem,
+  PosCatalogResponse,
+  PosCatalogSearchParams,
 } from '../sale.types'
 
 describe('sale.types', () => {
@@ -171,41 +176,277 @@ describe('sale.types', () => {
     })
   })
 
-  describe('SearchableProduct interface', () => {
-    it('should construct SearchableProduct for simple product without variants', () => {
-      const product: SearchableProduct = {
-        id: 'prod-1',
-        name: 'Aspirina 100mg',
-        imageUrl: 'https://example.com/image.jpg',
-        priceCents: 3500,
-        stock: 50,
-        sellInPos: true,
-        hasVariants: false,
-        variantCount: 0,
+
+
+  describe('PosCatalogPrice interface', () => {
+    it('should construct valid price with cents and decimal', () => {
+      const price: PosCatalogPrice = {
+        priceCents: 4998,
+        priceDecimal: 49.98,
+        priceListName: 'PUBLICO',
       }
 
-      expect(product.id).toBe('prod-1')
-      expect(product.name).toBe('Aspirina 100mg')
-      expect(product.hasVariants).toBe(false)
-      expect(product.variantCount).toBe(0)
-      expect(product.sellInPos).toBe(true)
+      expect(price.priceCents).toBe(4998)
+      expect(price.priceDecimal).toBe(49.98)
+      expect(price.priceListName).toBe('PUBLICO')
     })
 
-    it('should construct SearchableProduct for product with variants', () => {
-      const product: SearchableProduct = {
-        id: 'prod-2',
-        name: 'Vitamina D',
-        imageUrl: null,
-        priceCents: 8000,
-        stock: 120,
-        sellInPos: true,
-        hasVariants: true,
-        variantCount: 3,
+    it('should construct price with integer decimal value', () => {
+      const price: PosCatalogPrice = {
+        priceCents: 29900,
+        priceDecimal: 299,
+        priceListName: 'PUBLICO',
       }
 
-      expect(product.hasVariants).toBe(true)
-      expect(product.variantCount).toBe(3)
-      expect(product.imageUrl).toBeNull()
+      expect(price.priceDecimal).toBe(299)
+    })
+  })
+
+  describe('PosCatalogStock interface', () => {
+    it('should construct valid stock with quantity and minQuantity', () => {
+      const stock: PosCatalogStock = {
+        quantity: 120,
+        minQuantity: 10,
+      }
+
+      expect(stock.quantity).toBe(120)
+      expect(stock.minQuantity).toBe(10)
+    })
+
+    it('should allow zero quantity for out-of-stock items', () => {
+      const stock: PosCatalogStock = {
+        quantity: 0,
+        minQuantity: 5,
+      }
+
+      expect(stock.quantity).toBe(0)
+    })
+  })
+
+  describe('PosCatalogVariant interface', () => {
+    it('should construct variant with all required fields and nullables', () => {
+      const variant: PosCatalogVariant = {
+        id: 'var-1',
+        name: 'Roja M',
+        sku: 'CAM-R-M',
+        barcode: '7509876543210',
+        mainImage: 'https://cdn.example.com/camisa-roja.jpg',
+        price: {
+          priceCents: 29900,
+          priceDecimal: 299,
+          priceListName: 'PUBLICO',
+        },
+        stock: {
+          quantity: 5,
+          minQuantity: 2,
+        },
+      }
+
+      expect(variant.id).toBe('var-1')
+      expect(variant.name).toBe('Roja M')
+      expect(variant.sku).toBe('CAM-R-M')
+      expect(variant.price).toBeDefined()
+      expect(variant.price?.priceCents).toBe(29900)
+      expect(variant.stock).toBeDefined()
+      expect(variant.stock?.quantity).toBe(5)
+    })
+
+    it('should allow null for sku, barcode, mainImage, price, and stock', () => {
+      const variant: PosCatalogVariant = {
+        id: 'var-2',
+        name: 'Azul S',
+        sku: null,
+        barcode: null,
+        mainImage: null,
+        price: null,
+        stock: null,
+      }
+
+      expect(variant.sku).toBeNull()
+      expect(variant.barcode).toBeNull()
+      expect(variant.mainImage).toBeNull()
+      expect(variant.price).toBeNull()
+      expect(variant.stock).toBeNull()
+    })
+  })
+
+  describe('PosCatalogItem interface', () => {
+    it('should construct simple product without variants', () => {
+      const item: PosCatalogItem = {
+        id: 'prod-1',
+        name: 'Aspirina 500mg',
+        sku: 'ASP-500',
+        barcode: '7501234567890',
+        unit: 'UNIDAD',
+        hasVariants: false,
+        useStock: true,
+        category: { id: 'cat-1', name: 'Medicamentos' },
+        brand: { id: 'brand-1', name: 'Bayer' },
+        mainImage: 'https://cdn.example.com/asp-main.jpg',
+        images: ['https://cdn.example.com/asp-main.jpg', 'https://cdn.example.com/asp-2.jpg'],
+        price: {
+          priceCents: 4998,
+          priceDecimal: 49.98,
+          priceListName: 'PUBLICO',
+        },
+        stock: {
+          quantity: 120,
+          minQuantity: 10,
+        },
+        variants: [],
+      }
+
+      expect(item.id).toBe('prod-1')
+      expect(item.name).toBe('Aspirina 500mg')
+      expect(item.hasVariants).toBe(false)
+      expect(item.variants).toHaveLength(0)
+      expect(item.price).toBeDefined()
+      expect(item.stock).toBeDefined()
+      expect(item.category?.name).toBe('Medicamentos')
+    })
+
+    it('should construct variant product with null price and stock', () => {
+      const item: PosCatalogItem = {
+        id: 'prod-2',
+        name: 'Camisa',
+        sku: 'CAM-001',
+        barcode: null,
+        unit: 'UNIDAD',
+        hasVariants: true,
+        useStock: true,
+        category: { id: 'cat-2', name: 'Ropa' },
+        brand: null,
+        mainImage: 'https://cdn.example.com/camisa-main.jpg',
+        images: ['https://cdn.example.com/camisa-main.jpg'],
+        price: null,
+        stock: null,
+        variants: [
+          {
+            id: 'var-1',
+            name: 'Roja M',
+            sku: 'CAM-R-M',
+            barcode: '7509876543210',
+            mainImage: 'https://cdn.example.com/camisa-roja.jpg',
+            price: {
+              priceCents: 29900,
+              priceDecimal: 299,
+              priceListName: 'PUBLICO',
+            },
+            stock: {
+              quantity: 5,
+              minQuantity: 2,
+            },
+          },
+        ],
+      }
+
+      expect(item.hasVariants).toBe(true)
+      expect(item.price).toBeNull()
+      expect(item.stock).toBeNull()
+      expect(item.variants).toHaveLength(1)
+      expect(item.variants[0]?.name).toBe('Roja M')
+      expect(item.brand).toBeNull()
+    })
+
+    it('should allow null for all optional nullable fields', () => {
+      const item: PosCatalogItem = {
+        id: 'prod-3',
+        name: 'Producto sin detalles',
+        sku: null,
+        barcode: null,
+        unit: null,
+        hasVariants: false,
+        useStock: false,
+        category: null,
+        brand: null,
+        mainImage: null,
+        images: [],
+        price: null,
+        stock: null,
+        variants: [],
+      }
+
+      expect(item.sku).toBeNull()
+      expect(item.barcode).toBeNull()
+      expect(item.unit).toBeNull()
+      expect(item.category).toBeNull()
+      expect(item.brand).toBeNull()
+      expect(item.mainImage).toBeNull()
+      expect(item.price).toBeNull()
+      expect(item.stock).toBeNull()
+    })
+  })
+
+  describe('PosCatalogResponse interface', () => {
+    it('should construct response with items and pagination metadata', () => {
+      const response: PosCatalogResponse = {
+        items: [
+          {
+            id: 'prod-1',
+            name: 'Test Product',
+            sku: null,
+            barcode: null,
+            unit: null,
+            hasVariants: false,
+            useStock: false,
+            category: null,
+            brand: null,
+            mainImage: null,
+            images: [],
+            price: null,
+            stock: null,
+            variants: [],
+          },
+        ],
+        total: 42,
+        limit: 25,
+        offset: 0,
+      }
+
+      expect(response.items).toHaveLength(1)
+      expect(response.total).toBe(42)
+      expect(response.limit).toBe(25)
+      expect(response.offset).toBe(0)
+    })
+
+    it('should allow empty items array when no results', () => {
+      const response: PosCatalogResponse = {
+        items: [],
+        total: 0,
+        limit: 25,
+        offset: 0,
+      }
+
+      expect(response.items).toHaveLength(0)
+      expect(response.total).toBe(0)
+    })
+  })
+
+  describe('PosCatalogSearchParams interface', () => {
+    it('should construct search params with all fields', () => {
+      const params: PosCatalogSearchParams = {
+        q: 'aspirina',
+        limit: 25,
+        offset: 0,
+        categoryId: 'cat-uuid',
+        brandId: 'brand-uuid',
+      }
+
+      expect(params.q).toBe('aspirina')
+      expect(params.limit).toBe(25)
+      expect(params.offset).toBe(0)
+      expect(params.categoryId).toBe('cat-uuid')
+      expect(params.brandId).toBe('brand-uuid')
+    })
+
+    it('should allow all fields to be undefined for default behavior', () => {
+      const params: PosCatalogSearchParams = {}
+
+      expect(params.q).toBeUndefined()
+      expect(params.limit).toBeUndefined()
+      expect(params.offset).toBeUndefined()
+      expect(params.categoryId).toBeUndefined()
+      expect(params.brandId).toBeUndefined()
     })
   })
 })

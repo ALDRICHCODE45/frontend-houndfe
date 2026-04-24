@@ -1,158 +1,173 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
-import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
+import { describe, it, expect, beforeEach } from 'vitest'
+import { mount } from '@vue/test-utils'
 import VariantPickerModal from '../VariantPickerModal.vue'
-import * as productApi from '@/features/POS/products/api/product.api'
-import type { ProductVariant } from '@/features/POS/products/interfaces/product.types'
-
-vi.mock('@/features/POS/products/api/product.api')
+import type { PosCatalogVariant } from '../../interfaces/sale.types'
 
 describe('VariantPickerModal.vue', () => {
-  let queryClient: QueryClient
-
-  const mockVariants: ProductVariant[] = [
+  const mockVariants: PosCatalogVariant[] = [
     {
       id: 'var-1',
-      productId: 'prod-1',
       name: 'Ibuprofeno 400mg',
-      option: 'Concentración',
-      value: '400mg',
       sku: 'IBU-400',
       barcode: null,
-      priceCents: 8500,
-      quantity: 150,
-      minQuantity: 10,
-      purchaseNetCostCents: null,
-      purchaseNetCostDecimal: null,
-      variantPrices: [],
-      createdAt: '2024-01-01',
-      updatedAt: '2024-01-01',
+      mainImage: null,
+      price: {
+        priceCents: 8500,
+        priceDecimal: 85.0,
+        priceListName: 'PUBLICO',
+      },
+      stock: {
+        quantity: 150,
+        minQuantity: 10,
+      },
     },
     {
       id: 'var-2',
-      productId: 'prod-1',
       name: 'Ibuprofeno 600mg',
-      option: 'Concentración',
-      value: '600mg',
       sku: 'IBU-600',
       barcode: null,
-      priceCents: 12000,
-      quantity: 200,
-      minQuantity: 10,
-      purchaseNetCostCents: null,
-      purchaseNetCostDecimal: null,
-      variantPrices: [],
-      createdAt: '2024-01-01',
-      updatedAt: '2024-01-01',
+      mainImage: 'https://example.com/ibu600.jpg',
+      price: {
+        priceCents: 12000,
+        priceDecimal: 120.0,
+        priceListName: 'PUBLICO',
+      },
+      stock: {
+        quantity: 200,
+        minQuantity: 10,
+      },
     },
   ]
 
   beforeEach(() => {
-    queryClient = new QueryClient({
-      defaultOptions: {
-        queries: { retry: false },
-      },
-    })
-    vi.clearAllMocks()
+    // No setup needed for prop-driven modal
   })
 
-  it('does not fetch variants when modal is closed', () => {
-    const getVariantsSpy = vi.spyOn(productApi.productApi, 'getVariants')
-
-    mount(VariantPickerModal, {
-      props: {
-        open: false,
-        productId: null,
-        productName: null,
-      },
-      global: {
-        plugins: [[VueQueryPlugin, { queryClient }]],
-      },
-    })
-
-    expect(getVariantsSpy).not.toHaveBeenCalled()
-  })
-
-  it('fetches variants when modal opens with productId', async () => {
-    vi.mocked(productApi.productApi.getVariants).mockResolvedValue(mockVariants)
-
-    mount(VariantPickerModal, {
-      props: {
-        open: true,
-        productId: 'prod-1',
-        productName: 'Ibuprofeno',
-      },
-      global: {
-        plugins: [[VueQueryPlugin, { queryClient }]],
-      },
-    })
-
-    await flushPromises()
-
-    expect(productApi.productApi.getVariants).toHaveBeenCalledWith('prod-1')
-  })
-
-  it('emits update:open when modal state changes', async () => {
+  it('renders immediately with prop variants (no API fetch)', async () => {
     const wrapper = mount(VariantPickerModal, {
       props: {
         open: true,
         productId: 'prod-1',
         productName: 'Ibuprofeno',
+        variants: mockVariants,
       },
-      global: {
-        plugins: [[VueQueryPlugin, { queryClient }]],
-      },
+      attachTo: document.body, // Attach to body so teleported content is accessible
     })
 
-    wrapper.vm.$emit('update:open', false)
+    await wrapper.vm.$nextTick()
 
-    expect(wrapper.emitted('update:open')?.[0]).toEqual([false])
+    // Verify modal renders variants immediately without loading state
+    const variantRows = document.body.querySelectorAll('[data-testid^="variant-row-"]')
+    expect(variantRows.length).toBe(2)
+
+    wrapper.unmount()
   })
 
-  it('exposes open prop correctly', () => {
+  it('displays variant details correctly (name, sku, price, stock)', async () => {
     const wrapper = mount(VariantPickerModal, {
       props: {
         open: true,
         productId: 'prod-1',
         productName: 'Ibuprofeno',
+        variants: mockVariants,
       },
-      global: {
-        plugins: [[VueQueryPlugin, { queryClient }]],
-      },
+      attachTo: document.body,
     })
 
-    expect(wrapper.props('open')).toBe(true)
+    await wrapper.vm.$nextTick()
+
+    const firstRow = document.body.querySelector('[data-testid="variant-row-var-1"]')
+    expect(firstRow).not.toBeNull()
+    expect(firstRow?.textContent).toContain('Ibuprofeno 400mg')
+    expect(firstRow?.textContent).toContain('IBU-400')
+    expect(firstRow?.textContent).toContain('150 unidades')
+
+    wrapper.unmount()
   })
 
-  it('exposes productName prop correctly', () => {
+  it('emits add-variant with productId and variantId on click', async () => {
     const wrapper = mount(VariantPickerModal, {
       props: {
         open: true,
         productId: 'prod-1',
         productName: 'Ibuprofeno',
+        variants: mockVariants,
       },
-      global: {
-        plugins: [[VueQueryPlugin, { queryClient }]],
-      },
+      attachTo: document.body,
     })
 
-    expect(wrapper.props('productName')).toBe('Ibuprofeno')
-  })
+    await wrapper.vm.$nextTick()
 
-  it('handles add-variant emission', async () => {
-    const wrapper = mount(VariantPickerModal, {
-      props: {
-        open: true,
-        productId: 'prod-1',
-        productName: 'Ibuprofeno',
-      },
-      global: {
-        plugins: [[VueQueryPlugin, { queryClient }]],
-      },
-    })
+    const firstRow = document.body.querySelector('[data-testid="variant-row-var-1"]') as HTMLElement
+    expect(firstRow).not.toBeNull()
+    firstRow?.click()
 
-    wrapper.vm.$emit('add-variant', 'prod-1', 'var-1')
+    await wrapper.vm.$nextTick()
 
     expect(wrapper.emitted('add-variant')?.[0]).toEqual(['prod-1', 'var-1'])
+
+    wrapper.unmount()
+  })
+
+  it('displays placeholder icon when variant has no image', async () => {
+    const wrapper = mount(VariantPickerModal, {
+      props: {
+        open: true,
+        productId: 'prod-1',
+        productName: 'Ibuprofeno',
+        variants: mockVariants,
+      },
+      attachTo: document.body,
+    })
+
+    await wrapper.vm.$nextTick()
+
+    const firstRow = document.body.querySelector('[data-testid="variant-row-var-1"]')
+    expect(firstRow).not.toBeNull()
+    // When no image, there should be no img tag
+    const img = firstRow?.querySelector('img')
+    expect(img).toBeNull()
+
+    wrapper.unmount()
+  })
+
+  it('displays image when variant has mainImage', async () => {
+    const wrapper = mount(VariantPickerModal, {
+      props: {
+        open: true,
+        productId: 'prod-1',
+        productName: 'Ibuprofeno',
+        variants: mockVariants,
+      },
+      attachTo: document.body,
+    })
+
+    await wrapper.vm.$nextTick()
+
+    const secondRow = document.body.querySelector('[data-testid="variant-row-var-2"]')
+    expect(secondRow).not.toBeNull()
+    const img = secondRow?.querySelector('img')
+    expect(img).not.toBeNull()
+    expect(img?.getAttribute('src')).toBe('https://example.com/ibu600.jpg')
+
+    wrapper.unmount()
+  })
+
+  it('shows empty state when no variants provided', async () => {
+    const wrapper = mount(VariantPickerModal, {
+      props: {
+        open: true,
+        productId: 'prod-1',
+        productName: 'Ibuprofeno',
+        variants: [],
+      },
+      attachTo: document.body,
+    })
+
+    await wrapper.vm.$nextTick()
+
+    expect(document.body.textContent).toContain('Sin resultados')
+
+    wrapper.unmount()
   })
 })

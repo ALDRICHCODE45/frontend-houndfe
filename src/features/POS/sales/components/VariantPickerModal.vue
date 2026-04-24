@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useQuery } from '@tanstack/vue-query'
-import { productApi } from '@/features/POS/products/api/product.api'
-import { formatCentsMXN } from '../utils/currency.utils'
+import type { PosCatalogVariant } from '../interfaces/sale.types'
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
 const props = defineProps<{
   open: boolean
   productId: string | null
-  productName: string | null
+  productName: string
+  variants: PosCatalogVariant[]
 }>()
 
 // ── Emits ─────────────────────────────────────────────────────────────────────
@@ -22,23 +21,15 @@ const emit = defineEmits<{
 // ── State ─────────────────────────────────────────────────────────────────────
 
 const filterQuery = ref('')
-
-// ── Query ─────────────────────────────────────────────────────────────────────
-
-const { data: variants, isLoading } = useQuery({
-  queryKey: computed(() => ['products', 'variants', props.productId]),
-  queryFn: () => productApi.getVariants(props.productId!),
-  enabled: computed(() => props.open && !!props.productId),
-})
+const brokenImages = ref<Set<string>>(new Set())
 
 // ── Computed ──────────────────────────────────────────────────────────────────
 
 const filteredVariants = computed(() => {
-  if (!variants.value) return []
-  if (!filterQuery.value) return variants.value
+  if (!filterQuery.value) return props.variants
 
   const search = filterQuery.value.toLowerCase().trim()
-  return variants.value.filter((v) => v.name.toLowerCase().includes(search))
+  return props.variants.filter((v) => v.name.toLowerCase().includes(search))
 })
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
@@ -47,12 +38,25 @@ function handleVariantClick(variantId: string) {
   if (!props.productId) return
   emit('add-variant', props.productId, variantId)
 }
+
+function formatPrice(priceDecimal: number): string {
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(priceDecimal)
+}
+
+function isLowStock(variant: PosCatalogVariant): boolean {
+  return variant.stock != null && variant.stock.quantity <= variant.stock.minQuantity
+}
 </script>
 
 <template>
   <UModal
     :open="open"
-    :title="`Añadir ${productName || 'producto'}`"
+    :title="`Añadir ${productName}`"
     @update:open="emit('update:open', $event)"
   >
     <template #body>
@@ -65,16 +69,8 @@ function handleVariantClick(variantId: string) {
         />
       </div>
 
-      <!-- Loading state -->
-      <div v-if="isLoading" class="flex items-center justify-center py-12">
-        <div class="flex flex-col items-center gap-3">
-          <UIcon name="i-lucide-loader-2" class="h-10 w-10 text-primary animate-spin" />
-          <p class="text-sm text-muted">Cargando variantes...</p>
-        </div>
-      </div>
-
-      <!-- Variant list -->
-      <div v-else-if="filteredVariants.length > 0" class="space-y-2 max-h-96 overflow-y-auto">
+      <!-- Variant list (immediate render, no loading) -->
+      <div v-if="filteredVariants.length > 0" class="space-y-2 max-h-96 overflow-y-auto">
         <div
           v-for="variant in filteredVariants"
           :key="variant.id"
@@ -82,9 +78,23 @@ function handleVariantClick(variantId: string) {
           class="flex items-center gap-3 p-3 rounded-lg border border-default hover:bg-elevated/60 hover:border-primary/30 cursor-pointer transition-all duration-150"
           @click="handleVariantClick(variant.id)"
         >
-          <!-- Placeholder image -->
-          <div class="h-12 w-12 shrink-0 rounded-lg bg-elevated border border-default flex items-center justify-center">
-            <UIcon name="i-lucide-package" class="h-6 w-6 text-dimmed" />
+          <!-- Variant image or placeholder -->
+          <div
+            class="h-12 w-12 shrink-0 rounded-lg bg-elevated border border-default flex items-center justify-center overflow-hidden"
+          >
+            <UIcon
+              v-if="!variant.mainImage || brokenImages.has(variant.id)"
+              name="i-lucide-package"
+              class="h-6 w-6 text-dimmed"
+            />
+            <img
+              v-else
+              :src="variant.mainImage"
+              :alt="variant.name"
+              class="h-full w-full object-cover rounded-lg"
+              loading="lazy"
+              @error="brokenImages.add(variant.id)"
+            />
           </div>
 
           <!-- Variant info -->
@@ -92,18 +102,21 @@ function handleVariantClick(variantId: string) {
             <p class="text-sm font-medium text-highlighted truncate mb-0.5">
               {{ variant.name }}
             </p>
+            <p v-if="variant.sku" class="text-xs text-dimmed truncate mb-0.5">
+              {{ variant.sku }}
+            </p>
             <p class="text-sm text-toned">
-              {{ formatCentsMXN(variant.priceCents) }}
+              {{ variant.price ? formatPrice(variant.price.priceDecimal) : '—' }}
             </p>
           </div>
 
           <!-- Stock badge -->
-          <div class="shrink-0">
+          <div v-if="variant.stock != null" class="shrink-0">
             <UBadge
-              color="success"
+              :color="isLowStock(variant) ? 'warning' : 'success'"
               variant="subtle"
               size="xs"
-              :label="`${variant.quantity} unidades`"
+              :label="`${variant.stock.quantity} unidades`"
             />
           </div>
         </div>

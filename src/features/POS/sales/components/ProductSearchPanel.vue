@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import ProductSearchResults from './ProductSearchResults.vue'
 import VariantPickerModal from './VariantPickerModal.vue'
 import { useProductSearch } from '../composables/useProductSearch'
-import type { SearchableProduct } from '../interfaces/sale.types'
+import type { PosCatalogItem } from '../interfaces/sale.types'
 
 // ── Emits ─────────────────────────────────────────────────────────────────────
 
@@ -13,26 +13,26 @@ const emit = defineEmits<{
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-const { query, results, isLoading, isEmpty } = useProductSearch()
+const { query, items, isLoading, isEmpty } = useProductSearch()
 
 const variantModalOpen = ref(false)
-const selectedProduct = ref<SearchableProduct | null>(null)
+const selectedItem = ref<PosCatalogItem | null>(null)
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
-function handleProductSelect(product: SearchableProduct) {
-  if (product.hasVariants) {
-    selectedProduct.value = product
+function handleItemSelect(item: PosCatalogItem) {
+  if (item.hasVariants) {
+    selectedItem.value = item
     variantModalOpen.value = true
   } else {
-    emit('add-product', product.id, null)
+    emit('add-product', item.id, null)
   }
 }
 
 function handleAddVariant(productId: string, variantId: string) {
   emit('add-product', productId, variantId)
   variantModalOpen.value = false
-  selectedProduct.value = null
+  selectedItem.value = null
 }
 </script>
 
@@ -60,18 +60,19 @@ function handleAddVariant(productId: string, variantId: string) {
 
     <!-- Results -->
     <ProductSearchResults
-      :results="results"
+      :items="items"
       :is-loading="isLoading"
       :is-empty="isEmpty"
       :has-query="query.length > 0"
-      @select="handleProductSelect"
+      @select="handleItemSelect"
     />
 
     <!-- Variant picker modal -->
     <VariantPickerModal
       v-model:open="variantModalOpen"
-      :product-id="selectedProduct?.id || null"
-      :product-name="selectedProduct?.name || null"
+      :product-id="selectedItem?.id || null"
+      :product-name="selectedItem?.name || ''"
+      :variants="selectedItem?.variants || []"
       @add-variant="handleAddVariant"
     />
   </div>

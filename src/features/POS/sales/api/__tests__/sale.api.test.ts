@@ -1,7 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { saleApi } from '../sale.api'
 import { http } from '@/core/shared/api/http'
-import type { Sale, AddItemPayload, UpdateQtyPayload } from '../../interfaces/sale.types'
+import type {
+  Sale,
+  AddItemPayload,
+  UpdateQtyPayload,
+  PosCatalogResponse,
+  PosCatalogSearchParams,
+} from '../../interfaces/sale.types'
 
 vi.mock('@/core/shared/api/http', () => ({
   http: {
@@ -294,6 +300,77 @@ describe('saleApi', () => {
       await saleApi.closeDraft('sale-999')
 
       expect(http.delete).toHaveBeenCalledWith('/sales/drafts/sale-999')
+    })
+  })
+
+  describe('searchPosCatalog', () => {
+    it('should GET /sales/pos-catalog with query params and return PosCatalogResponse', async () => {
+      const params: PosCatalogSearchParams = {
+        q: 'aspirina',
+        limit: 25,
+        offset: 0,
+      }
+
+      const mockResponse: PosCatalogResponse = {
+        items: [
+          {
+            id: 'prod-1',
+            name: 'Aspirina 500mg',
+            sku: 'ASP-500',
+            barcode: '7501234567890',
+            unit: 'UNIDAD',
+            hasVariants: false,
+            useStock: true,
+            category: { id: 'cat-1', name: 'Medicamentos' },
+            brand: { id: 'brand-1', name: 'Bayer' },
+            mainImage: 'https://cdn.example.com/asp-main.jpg',
+            images: ['https://cdn.example.com/asp-main.jpg'],
+            price: {
+              priceCents: 4998,
+              priceDecimal: 49.98,
+              priceListName: 'PUBLICO',
+            },
+            stock: {
+              quantity: 120,
+              minQuantity: 10,
+            },
+            variants: [],
+          },
+        ],
+        total: 1,
+        limit: 25,
+        offset: 0,
+      }
+
+      vi.mocked(http.get).mockResolvedValue({ data: mockResponse })
+
+      const result = await saleApi.searchPosCatalog(params)
+
+      expect(http.get).toHaveBeenCalledWith('/sales/pos-catalog', { params })
+      expect(result).toEqual(mockResponse)
+      expect(result.items).toHaveLength(1)
+      expect(result.items[0]?.name).toBe('Aspirina 500mg')
+    })
+
+    it('should send only provided params and omit undefined fields', async () => {
+      const params: PosCatalogSearchParams = {
+        limit: 25,
+        offset: 0,
+      }
+
+      const mockResponse: PosCatalogResponse = {
+        items: [],
+        total: 0,
+        limit: 25,
+        offset: 0,
+      }
+
+      vi.mocked(http.get).mockResolvedValue({ data: mockResponse })
+
+      const result = await saleApi.searchPosCatalog(params)
+
+      expect(http.get).toHaveBeenCalledWith('/sales/pos-catalog', { params })
+      expect(result.items).toHaveLength(0)
     })
   })
 })
