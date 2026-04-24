@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, watch } from 'vue'
+import { onMounted, reactive, watch } from 'vue'
 import type { AxiosError } from 'axios'
 import { useSalesDrafts } from '../composables/useSalesDrafts'
 import ProductSearchPanel from '../components/ProductSearchPanel.vue'
@@ -79,6 +79,14 @@ watch(activeTabId, (id) => {
   }
 })
 
+// ── Image map (client-side, keyed by productId or productId:variantId) ─────
+
+const itemImageMap = reactive<Record<string, string>>({})
+
+function getImageKey(productId: string, variantId: string | null): string {
+  return variantId ? `${productId}:${variantId}` : productId
+}
+
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
 function parseStockError(message: string): string {
@@ -90,7 +98,12 @@ function parseStockError(message: string): string {
   return message
 }
 
-async function handleAddProduct(productId: string, variantId: string | null) {
+async function handleAddProduct(productId: string, variantId: string | null, imageUrl: string | null = null) {
+  // Store image for rendering in sale items
+  if (imageUrl) {
+    itemImageMap[getImageKey(productId, variantId)] = imageUrl
+  }
+
   try {
     await addItem(productId, variantId, 1)
   } catch (error) {
@@ -199,6 +212,7 @@ function handleSwitchTab(saleId: string) {
           :active-tab-id="activeTabId"
           :is-loading-list="isLoadingList"
           :is-mutating="isMutating"
+          :item-image-map="itemImageMap"
           @switch-tab="handleSwitchTab"
           @close-tab="handleCloseTab"
           @create-tab="handleCreateTab"

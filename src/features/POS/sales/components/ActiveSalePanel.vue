@@ -14,6 +14,7 @@ const props = defineProps<{
   activeTabId: string | null
   isLoadingList: boolean
   isMutating: boolean
+  itemImageMap?: Record<string, string>
 }>()
 
 // ── Emits ─────────────────────────────────────────────────────────────────────
@@ -144,6 +145,7 @@ function getCloseTabDescription(): string {
           v-for="item in activeDraft.items"
           :key="item.id"
           :item="item"
+          :image-url="itemImageMap?.[item.variantId ? `${item.productId}:${item.variantId}` : item.productId] ?? null"
           :is-updating="isMutating"
           @update-qty="(itemId, quantity) => emit('update-qty', itemId, quantity)"
         />

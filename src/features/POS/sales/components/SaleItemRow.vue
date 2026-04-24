@@ -8,12 +8,16 @@ import { formatCentsMXN, lineCents } from '../utils/currency.utils'
 const props = withDefaults(
   defineProps<{
     item: SaleItem
+    imageUrl?: string | null
     isUpdating?: boolean
   }>(),
   {
+    imageUrl: null,
     isUpdating: false,
   },
 )
+
+const imageBroken = ref(false)
 
 // ── Emits ─────────────────────────────────────────────────────────────────────
 
@@ -61,9 +65,21 @@ function handleQtyCommit() {
     class="mx-3 mb-2 rounded-lg border border-default bg-elevated/40 hover:bg-elevated/60 hover:border-primary/30 transition-all duration-150"
   >
     <div class="flex items-center gap-4 px-4 py-3">
-      <!-- Image placeholder (56x56) -->
+      <!-- Image (56x56) -->
       <div class="h-14 w-14 shrink-0 rounded-lg bg-elevated border border-default flex items-center justify-center overflow-hidden">
-        <UIcon name="i-lucide-package" class="h-7 w-7 text-dimmed" />
+        <UIcon
+          v-if="!imageUrl || imageBroken"
+          name="i-lucide-package"
+          class="h-7 w-7 text-dimmed"
+        />
+        <img
+          v-else
+          :src="imageUrl"
+          :alt="item.productName"
+          class="h-full w-full object-cover"
+          loading="lazy"
+          @error="imageBroken = true"
+        />
       </div>
 
       <!-- Product info -->

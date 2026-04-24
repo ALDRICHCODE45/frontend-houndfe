@@ -8,7 +8,7 @@ import type { PosCatalogItem } from '../interfaces/sale.types'
 // ── Emits ─────────────────────────────────────────────────────────────────────
 
 const emit = defineEmits<{
-  'add-product': [productId: string, variantId: string | null]
+  'add-product': [productId: string, variantId: string | null, imageUrl: string | null]
 }>()
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -25,12 +25,15 @@ function handleItemSelect(item: PosCatalogItem) {
     selectedItem.value = item
     variantModalOpen.value = true
   } else {
-    emit('add-product', item.id, null)
+    emit('add-product', item.id, null, item.mainImage)
   }
 }
 
 function handleAddVariant(productId: string, variantId: string) {
-  emit('add-product', productId, variantId)
+  // Find the selected variant to get its image
+  const variant = selectedItem.value?.variants.find((v) => v.id === variantId)
+  const imageUrl = variant?.mainImage ?? selectedItem.value?.mainImage ?? null
+  emit('add-product', productId, variantId, imageUrl)
   variantModalOpen.value = false
   selectedItem.value = null
 }
@@ -52,8 +55,8 @@ function handleAddVariant(productId: string, variantId: string) {
         <UInput
           v-model="query"
           icon="i-lucide-search"
-          placeholder="Buscar por nombre, SKU..."
-          size="md"
+          placeholder="Buscar por nombre, SKU o código de barras..."
+          size="lg"
         />
       </div>
     </div>
