@@ -74,7 +74,7 @@ export function getInitialState(type: PromotionType): PromotionFormState {
     discountType: '',
     discountValue: 0,
     // PRODUCT_DISCOUNT
-    appliesTo: '',
+    appliesTo: 'PRODUCTS',
     targetItems: [],
     // ORDER_DISCOUNT
     hasMinPurchase: false,
@@ -84,9 +84,9 @@ export function getInitialState(type: PromotionType): PromotionFormState {
     getQuantity: 0,
     getDiscountPercent: 0,
     // ADVANCED
-    buyTargetType: '',
+    buyTargetType: 'PRODUCTS',
     buyTargetItems: [],
-    getTargetType: '',
+    getTargetType: 'PRODUCTS',
     getTargetItems: [],
     // Conditions
     hasVigencia: false,
@@ -113,23 +113,27 @@ export function promotionToFormState(response: PromotionResponse): PromotionForm
     title: response.title,
     type: response.type,
     method: response.method,
-    // Discount
+    // Discount — convert cents → dollars for FIXED type display
     discountType: response.discountType ?? '',
-    discountValue: response.discountValue ?? 0,
+    discountValue:
+      response.discountType === 'FIXED' && response.discountValue != null
+        ? response.discountValue / 100
+        : (response.discountValue ?? 0),
     // PRODUCT_DISCOUNT
-    appliesTo: response.appliesTo ?? '',
+    appliesTo: response.appliesTo ?? 'PRODUCTS',
     targetItems: defaultItems.map((ti) => ({ targetId: ti.targetId, name: '' })),
-    // ORDER_DISCOUNT
+    // ORDER_DISCOUNT — convert cents → dollars for display
     hasMinPurchase: response.minPurchaseAmountCents != null,
-    minPurchaseAmountCents: response.minPurchaseAmountCents ?? 0,
+    minPurchaseAmountCents:
+      response.minPurchaseAmountCents != null ? response.minPurchaseAmountCents / 100 : 0,
     // BUY_X_GET_Y / ADVANCED
     buyQuantity: response.buyQuantity ?? 0,
     getQuantity: response.getQuantity ?? 0,
     getDiscountPercent: response.getDiscountPercent ?? 0,
     // ADVANCED
-    buyTargetType: response.buyTargetType ?? '',
+    buyTargetType: response.buyTargetType ?? 'PRODUCTS',
     buyTargetItems: buyItems.map((ti) => ({ targetId: ti.targetId, name: '' })),
-    getTargetType: response.getTargetType ?? '',
+    getTargetType: response.getTargetType ?? 'PRODUCTS',
     getTargetItems: getItems.map((ti) => ({ targetId: ti.targetId, name: '' })),
     // Conditions
     hasVigencia: response.startDate != null,
@@ -154,7 +158,10 @@ export function toCreatePayload(state: PromotionFormState): CreatePromotionPaylo
       ...base,
       type: 'PRODUCT_DISCOUNT',
       discountType: state.discountType as DiscountType,
-      discountValue: state.discountValue,
+      discountValue:
+        state.discountType === 'FIXED'
+          ? Math.round(state.discountValue * 100)
+          : state.discountValue,
       appliesTo: state.appliesTo as PromotionTargetType,
       ...(state.targetItems.length > 0
         ? {
@@ -172,9 +179,12 @@ export function toCreatePayload(state: PromotionFormState): CreatePromotionPaylo
       ...base,
       type: 'ORDER_DISCOUNT',
       discountType: state.discountType as DiscountType,
-      discountValue: state.discountValue,
+      discountValue:
+        state.discountType === 'FIXED'
+          ? Math.round(state.discountValue * 100)
+          : state.discountValue,
       ...(state.hasMinPurchase && state.minPurchaseAmountCents
-        ? { minPurchaseAmountCents: state.minPurchaseAmountCents }
+        ? { minPurchaseAmountCents: Math.round(state.minPurchaseAmountCents * 100) }
         : {}),
     }
   }
@@ -221,7 +231,7 @@ export function toCreatePayload(state: PromotionFormState): CreatePromotionPaylo
 export function toUpdatePayload(state: PromotionFormState): UpdatePromotionPayload {
   // Build the full create payload and strip the type field
   const full = toCreatePayload(state) as unknown as Record<string, unknown>
-   
+
   const { type: _type, ...rest } = full
   return rest as UpdatePromotionPayload
 }
@@ -288,9 +298,7 @@ const FIELD_PATH_MAP: Record<string, string> = {
  */
 export function mapApiErrorToFields(input: ApiErrorInput): ApiErrorMapping {
   const code = input.error
-  const rawMessage = Array.isArray(input.message)
-    ? input.message.join(', ')
-    : (input.message ?? '')
+  const rawMessage = Array.isArray(input.message) ? input.message.join(', ') : (input.message ?? '')
 
   // ── INVALID_DATE_RANGE → always endDate field ──────────────────────────────
   if (code === 'INVALID_DATE_RANGE') {

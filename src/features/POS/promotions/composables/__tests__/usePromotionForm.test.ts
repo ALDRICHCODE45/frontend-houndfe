@@ -135,12 +135,12 @@ describe('BUY_X_GET_Y_PRESETS', () => {
 // ── getInitialState ────────────────────────────────────────────────────────────
 
 describe('getInitialState', () => {
-  it('returns PRODUCT_DISCOUNT initial state with empty discount fields', () => {
+  it('returns PRODUCT_DISCOUNT initial state with empty discount fields and default appliesTo', () => {
     const state = getInitialState('PRODUCT_DISCOUNT')
     expect(state.type).toBe('PRODUCT_DISCOUNT')
     expect(state.discountType).toBe('')
     expect(state.discountValue).toBe(0)
-    expect(state.appliesTo).toBe('')
+    expect(state.appliesTo).toBe('PRODUCTS')
     expect(state.targetItems).toEqual([])
   })
 
@@ -159,12 +159,12 @@ describe('getInitialState', () => {
     expect(state.getDiscountPercent).toBe(0)
   })
 
-  it('returns ADVANCED initial state with empty buy/get target fields', () => {
+  it('returns ADVANCED initial state with default buy/get target types', () => {
     const state = getInitialState('ADVANCED')
     expect(state.type).toBe('ADVANCED')
-    expect(state.buyTargetType).toBe('')
+    expect(state.buyTargetType).toBe('PRODUCTS')
     expect(state.buyTargetItems).toEqual([])
-    expect(state.getTargetType).toBe('')
+    expect(state.getTargetType).toBe('PRODUCTS')
     expect(state.getTargetItems).toEqual([])
   })
 
@@ -205,11 +205,18 @@ describe('promotionToFormState', () => {
     expect(state.method).toBe('MANUAL')
   })
 
-  it('maps discountValue for PRODUCT_DISCOUNT keeping as number', () => {
+  it('maps discountValue for PRODUCT_DISCOUNT keeping as-is for PERCENTAGE', () => {
     const response = makeBaseResponse({ discountValue: 15, discountType: 'PERCENTAGE' })
     const state = promotionToFormState(response)
     expect(state.discountValue).toBe(15)
     expect(state.discountType).toBe('PERCENTAGE')
+  })
+
+  it('maps discountValue for PRODUCT_DISCOUNT converting cents to dollars for FIXED', () => {
+    const response = makeBaseResponse({ discountValue: 50000, discountType: 'FIXED' })
+    const state = promotionToFormState(response)
+    expect(state.discountValue).toBe(500) // 50000 cents → $500
+    expect(state.discountType).toBe('FIXED')
   })
 
   it('maps appliesTo for PRODUCT_DISCOUNT', () => {
@@ -220,16 +227,14 @@ describe('promotionToFormState', () => {
 
   it('maps targetItems for PRODUCT_DISCOUNT (DEFAULT side)', () => {
     const response = makeBaseResponse({
-      targetItems: [
-        { id: 'ti-1', side: 'DEFAULT', targetType: 'CATEGORIES', targetId: 'cat-1' },
-      ],
+      targetItems: [{ id: 'ti-1', side: 'DEFAULT', targetType: 'CATEGORIES', targetId: 'cat-1' }],
     })
     const state = promotionToFormState(response)
     expect(state.targetItems).toHaveLength(1)
     expect(state.targetItems[0]!.targetId).toBe('cat-1')
   })
 
-  it('maps minPurchaseAmountCents for ORDER_DISCOUNT (cents → number, no division)', () => {
+  it('maps minPurchaseAmountCents for ORDER_DISCOUNT (cents → dollars for display)', () => {
     const response = makeBaseResponse({
       type: 'ORDER_DISCOUNT',
       discountType: 'PERCENTAGE',
@@ -239,7 +244,7 @@ describe('promotionToFormState', () => {
     })
     const state = promotionToFormState(response)
     expect(state.hasMinPurchase).toBe(true)
-    expect(state.minPurchaseAmountCents).toBe(10000)
+    expect(state.minPurchaseAmountCents).toBe(100) // 10000 cents → $100
   })
 
   it('maps hasMinPurchase to false when minPurchaseAmountCents is null', () => {
@@ -311,9 +316,7 @@ describe('promotionToFormState', () => {
 
   it('maps priceListIds correctly', () => {
     const response = makeBaseResponse({
-      priceLists: [
-        { id: 'pl-1', globalPriceListId: 'gpl-1', globalPriceList: null },
-      ],
+      priceLists: [{ id: 'pl-1', globalPriceListId: 'gpl-1', globalPriceList: null }],
     })
     const state = promotionToFormState(response)
     expect(state.hasPriceLists).toBe(true)
@@ -389,7 +392,7 @@ describe('toCreatePayload', () => {
     expect(payload.minPurchaseAmountCents).toBeUndefined()
   })
 
-  it('builds ORDER_DISCOUNT payload WITH minPurchaseAmountCents as number when hasMinPurchase=true', () => {
+  it('builds ORDER_DISCOUNT payload WITH minPurchaseAmountCents converted to cents when hasMinPurchase=true', () => {
     const state = getInitialState('ORDER_DISCOUNT')
     Object.assign(state, {
       title: 'Order Discount Min',
@@ -397,10 +400,10 @@ describe('toCreatePayload', () => {
       discountType: 'PERCENTAGE',
       discountValue: 10,
       hasMinPurchase: true,
-      minPurchaseAmountCents: 10000,
+      minPurchaseAmountCents: 100, // user enters $100
     })
     const payload = toCreatePayload(state) as CreateOrderDiscountPayload
-    expect(payload.minPurchaseAmountCents).toBe(10000)
+    expect(payload.minPurchaseAmountCents).toBe(10000) // sent as 10000 cents to backend
   })
 
   it('builds BUY_X_GET_Y payload with numeric quantities', () => {
@@ -596,7 +599,7 @@ describe('toCreatePayload', () => {
       title: 'Test',
       method: 'AUTOMATIC',
       discountType: 'FIXED',
-      discountValue: 500,
+      discountValue: 500, // user enters $500
       appliesTo: 'BRANDS',
       targetItems: [
         { targetId: 'brand-1', name: 'Brand A' },
@@ -604,6 +607,7 @@ describe('toCreatePayload', () => {
       ],
     })
     const payload = toCreatePayload(state) as CreateProductDiscountPayload
+    expect(payload.discountValue).toBe(50000) // FIXED values converted to cents for backend
     expect(payload.targetItems).toHaveLength(2)
     expect(payload.targetItems![0]!.targetType).toBe('BRANDS')
     expect(payload.targetItems![1]!.targetType).toBe('BRANDS')
@@ -641,7 +645,7 @@ describe('toUpdatePayload', () => {
     expect(payload['discountValue']).toBe(25)
   })
 
-  it('toUpdatePayload for ORDER_DISCOUNT includes minPurchaseAmountCents as number when set', () => {
+  it('toUpdatePayload for ORDER_DISCOUNT includes minPurchaseAmountCents converted to cents when set', () => {
     const state = getInitialState('ORDER_DISCOUNT')
     Object.assign(state, {
       title: 'Test',
@@ -649,10 +653,10 @@ describe('toUpdatePayload', () => {
       discountType: 'PERCENTAGE',
       discountValue: 10,
       hasMinPurchase: true,
-      minPurchaseAmountCents: 5000,
+      minPurchaseAmountCents: 50, // user enters $50
     })
     const payload = toUpdatePayload(state) as Record<string, unknown>
-    expect(payload['minPurchaseAmountCents']).toBe(5000)
+    expect(payload['minPurchaseAmountCents']).toBe(5000) // sent as 5000 cents to backend
   })
 })
 

@@ -179,9 +179,7 @@ function onSubmit() {
 
             <!-- Method selector — read-only in edit mode -->
             <div>
-              <p class="mb-2 text-sm font-medium text-toned">
-                Cómo se Aplica
-              </p>
+              <p class="mb-2 text-sm font-medium text-toned">Cómo se Aplica</p>
               <!-- Edit mode: show read-only badge -->
               <div
                 v-if="mode === 'edit'"
@@ -257,7 +255,7 @@ function onSubmit() {
                   v-model="formState.discountValue"
                   :min="formState.discountType === 'PERCENTAGE' ? 1 : 1"
                   :max="formState.discountType === 'PERCENTAGE' ? 100 : undefined"
-                  :placeholder="formState.discountType === 'PERCENTAGE' ? '1-100' : 'Centavos'"
+                  :placeholder="formState.discountType === 'PERCENTAGE' ? '1-100' : 'Ej.: 150'"
                   size="lg"
                 >
                   <template #trailing>
@@ -273,7 +271,7 @@ function onSubmit() {
             <div>
               <p class="mb-2 text-sm font-medium text-toned">Aplica a</p>
               <PromotionTargetItemsSection
-                :target-type="(formState.appliesTo as PromotionTargetType) || 'PRODUCTS'"
+                :target-type="formState.appliesTo as PromotionTargetType"
                 :selected-items="formState.targetItems"
                 side="DEFAULT"
                 @update:target-type="onAppliesToChange"
@@ -306,7 +304,7 @@ function onSubmit() {
                   v-model="formState.discountValue"
                   :min="formState.discountType === 'PERCENTAGE' ? 1 : 1"
                   :max="formState.discountType === 'PERCENTAGE' ? 100 : undefined"
-                  :placeholder="formState.discountType === 'PERCENTAGE' ? '1-100' : 'Centavos'"
+                  :placeholder="formState.discountType === 'PERCENTAGE' ? '1-100' : 'Ej.: 150'"
                   size="lg"
                 />
               </UFormField>
@@ -316,11 +314,11 @@ function onSubmit() {
             <div>
               <UCheckbox v-model="formState.hasMinPurchase" label="Añadir monto mínimo de compra" />
               <div v-if="formState.hasMinPurchase" class="mt-3 pl-6">
-                <UFormField label="Monto mínimo (centavos)" name="minPurchaseAmountCents">
+                <UFormField label="Monto mínimo ($)" name="minPurchaseAmountCents">
                   <UInputNumber
                     v-model="formState.minPurchaseAmountCents"
                     :min="0"
-                    placeholder="Ej.: 100000 = $1,000"
+                    placeholder="Ej.: 1000"
                     size="lg"
                   />
                 </UFormField>
@@ -338,9 +336,7 @@ function onSubmit() {
           <div class="flex flex-col gap-5">
             <!-- Presets -->
             <div>
-              <p class="mb-2 text-sm font-medium text-toned">
-                Presets rápidos
-              </p>
+              <p class="mb-2 text-sm font-medium text-toned">Presets rápidos</p>
               <div class="flex flex-wrap gap-2">
                 <button
                   v-for="preset in BUY_X_GET_Y_PRESETS"
@@ -380,7 +376,7 @@ function onSubmit() {
             <div>
               <p class="mb-2 text-sm font-medium text-toned">Aplica a</p>
               <PromotionTargetItemsSection
-                :target-type="(formState.appliesTo as PromotionTargetType) || 'PRODUCTS'"
+                :target-type="formState.appliesTo as PromotionTargetType"
                 :selected-items="formState.targetItems"
                 side="DEFAULT"
                 @update:target-type="onAppliesToChange"
@@ -404,7 +400,7 @@ function onSubmit() {
                 <UInputNumber v-model="formState.buyQuantity" :min="1" placeholder="2" size="lg" />
               </UFormField>
               <PromotionTargetItemsSection
-                :target-type="(formState.buyTargetType as PromotionTargetType) || 'PRODUCTS'"
+                :target-type="formState.buyTargetType as PromotionTargetType"
                 :selected-items="formState.buyTargetItems"
                 side="BUY"
                 label="Items de cualquiera de los siguientes"
@@ -438,7 +434,7 @@ function onSubmit() {
                 </UFormField>
               </div>
               <PromotionTargetItemsSection
-                :target-type="(formState.getTargetType as PromotionTargetType) || 'PRODUCTS'"
+                :target-type="formState.getTargetType as PromotionTargetType"
                 :selected-items="formState.getTargetItems"
                 side="GET"
                 label="De cualquiera de los siguientes"
