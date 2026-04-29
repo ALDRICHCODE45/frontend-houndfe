@@ -4,6 +4,7 @@ import type { AxiosError } from 'axios'
 import { useSalesDrafts } from '../composables/useSalesDrafts'
 import ProductSearchPanel from '../components/ProductSearchPanel.vue'
 import ActiveSalePanel from '../components/ActiveSalePanel.vue'
+import type { ApplyItemDiscountPayload, OverrideItemPricePayload } from '../interfaces/sale.types'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
 
 declare const useToast: () => {
@@ -30,6 +31,9 @@ const {
   addItem,
   updateQty,
   clearItems,
+  updateItemPrice,
+  applyItemDiscount,
+  removeItemDiscount,
 } = useSalesDrafts()
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
@@ -145,6 +149,39 @@ async function handleClearItems() {
   }
 }
 
+async function handleSubmitPriceOverride(itemId: string, payload: OverrideItemPricePayload) {
+  try {
+    await updateItemPrice(itemId, payload)
+  } catch (error) {
+    const err = error as AxiosError<DomainApiError>
+    const message = err.response?.data?.message ?? 'No se pudo aplicar el cambio de precio'
+    toast.add({ title: 'Error', description: message, color: 'error' })
+    throw error
+  }
+}
+
+async function handleApplyDiscount(itemId: string, payload: ApplyItemDiscountPayload) {
+  try {
+    await applyItemDiscount(itemId, payload)
+  } catch (error) {
+    const err = error as AxiosError<DomainApiError>
+    const message = err.response?.data?.message ?? 'No se pudo aplicar el descuento'
+    toast.add({ title: 'Error', description: message, color: 'error' })
+    throw error
+  }
+}
+
+async function handleRemoveDiscount(itemId: string) {
+  try {
+    await removeItemDiscount(itemId)
+  } catch (error) {
+    const err = error as AxiosError<DomainApiError>
+    const message = err.response?.data?.message ?? 'No se pudo quitar el descuento'
+    toast.add({ title: 'Error', description: message, color: 'error' })
+    throw error
+  }
+}
+
 async function handleCloseTab(saleId: string) {
   try {
     await closeTab(saleId)
@@ -213,6 +250,9 @@ function handleSwitchTab(saleId: string) {
           :is-loading-list="isLoadingList"
           :is-mutating="isMutating"
           :item-image-map="itemImageMap"
+          :on-submit-price-override="handleSubmitPriceOverride"
+          :on-apply-discount="handleApplyDiscount"
+          :on-remove-discount="handleRemoveDiscount"
           @switch-tab="handleSwitchTab"
           @close-tab="handleCloseTab"
           @create-tab="handleCreateTab"

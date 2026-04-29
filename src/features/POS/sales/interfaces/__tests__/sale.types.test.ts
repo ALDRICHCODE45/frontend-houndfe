@@ -2,10 +2,15 @@ import { describe, it, expect } from 'vitest'
 import type {
   SaleStatus,
   SaleCurrency,
+  PriceSource,
   SaleItem,
   Sale,
   AddItemPayload,
   UpdateQtyPayload,
+  AvailablePriceOption,
+  AvailablePricesResponse,
+  OverrideItemPricePayload,
+  ApplyItemDiscountPayload,
   PosCatalogPrice,
   PosCatalogStock,
   PosCatalogVariant,
@@ -26,6 +31,18 @@ describe('sale.types', () => {
     it('should accept MXN as a valid currency', () => {
       const currency: SaleCurrency = 'MXN'
       expect(currency).toBe('MXN')
+    })
+  })
+
+  describe('PriceSource type', () => {
+    it('should accept default, price_list, and custom values', () => {
+      const sourceA: PriceSource = 'default'
+      const sourceB: PriceSource = 'price_list'
+      const sourceC: PriceSource = 'custom'
+
+      expect(sourceA).toBe('default')
+      expect(sourceB).toBe('price_list')
+      expect(sourceC).toBe('custom')
     })
   })
 
@@ -65,6 +82,132 @@ describe('sale.types', () => {
 
       expect(item.variantId).toBe('var-1')
       expect(item.variantName).toBe('1000mg')
+    })
+
+    it('should support optional price override metadata', () => {
+      const item: SaleItem = {
+        id: 'item-3',
+        productId: 'prod-3',
+        variantId: null,
+        productName: 'Ibuprofeno',
+        variantName: null,
+        quantity: 1,
+        unitPriceCents: 2500,
+        unitPriceCurrency: 'MXN',
+        priceSource: 'price_list',
+        originalPriceCents: 3000,
+        appliedPriceListId: 'list-1',
+        customPriceCents: null,
+      }
+
+      expect(item.priceSource).toBe('price_list')
+      expect(item.originalPriceCents).toBe(3000)
+      expect(item.appliedPriceListId).toBe('list-1')
+      expect(item.customPriceCents).toBeNull()
+    })
+
+    it('supports optional discount metadata fields', () => {
+      const item: SaleItem = {
+        id: 'item-discount',
+        productId: 'prod-1',
+        variantId: null,
+        productName: 'Paracetamol 500mg',
+        variantName: null,
+        quantity: 1,
+        unitPriceCents: 8000,
+        unitPriceCurrency: 'MXN',
+        discountType: 'percentage',
+        discountValue: 20,
+        discountAmountCents: 1600,
+        discountTitle: 'Promo especial',
+        prePriceCentsBeforeDiscount: 9600,
+      }
+
+      expect(item.discountType).toBe('percentage')
+      expect(item.discountAmountCents).toBe(1600)
+      expect(item.discountTitle).toBe('Promo especial')
+      expect(item.prePriceCentsBeforeDiscount).toBe(9600)
+    })
+  })
+
+  describe('Available prices contracts', () => {
+    it('should construct AvailablePriceOption with backend fields', () => {
+      const option: AvailablePriceOption = {
+        priceListId: 'list-publico',
+        priceListName: 'PUBLICO',
+        priceCents: 2198,
+        priceDecimal: 21.98,
+        currency: 'MXN',
+        isCurrent: true,
+      }
+
+      expect(option.priceListName).toBe('PUBLICO')
+      expect(option.priceDecimal).toBe(21.98)
+      expect(option.currency).toBe('MXN')
+      expect(option.isCurrent).toBe(true)
+    })
+
+    it('should construct AvailablePricesResponse with prices array', () => {
+      const response: AvailablePricesResponse = {
+        saleId: 'sale-1',
+        itemId: 'item-1',
+        prices: [
+          {
+            priceListId: 'list-publico',
+            priceListName: 'PUBLICO',
+            priceCents: 2198,
+            priceDecimal: 21.98,
+            currency: 'MXN',
+            isCurrent: true,
+          },
+        ],
+      }
+
+      expect(response.saleId).toBe('sale-1')
+      expect(response.itemId).toBe('item-1')
+      expect(response.prices).toHaveLength(1)
+    })
+  })
+
+  describe('OverrideItemPricePayload XOR contract', () => {
+    it('should allow priceListId payload', () => {
+      const payload: OverrideItemPricePayload = {
+        priceListId: 'list-1',
+      }
+
+      expect(payload.priceListId).toBe('list-1')
+    })
+
+    it('should allow customPriceCents payload', () => {
+      const payload: OverrideItemPricePayload = {
+        customPriceCents: 2198,
+      }
+
+      expect(payload.customPriceCents).toBe(2198)
+    })
+  })
+
+  describe('ApplyItemDiscountPayload XOR contract', () => {
+    it('allows amount discount payload', () => {
+      const payload: ApplyItemDiscountPayload = {
+        type: 'amount',
+        amountCents: 2000,
+        title: 'Descuento empleado',
+      }
+
+      expect(payload.type).toBe('amount')
+      expect(payload.amountCents).toBe(2000)
+      expect(payload.title).toBe('Descuento empleado')
+    })
+
+    it('allows percentage discount payload', () => {
+      const payload: ApplyItemDiscountPayload = {
+        type: 'percentage',
+        percent: 15,
+      }
+
+      expect(payload.type).toBe('percentage')
+      expect(payload.percent).toBe(15)
     })
   })
 

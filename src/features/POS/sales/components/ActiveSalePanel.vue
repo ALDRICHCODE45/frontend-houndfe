@@ -4,7 +4,7 @@ import SalesTabsStrip from './SalesTabsStrip.vue'
 import SaleItemRow from './SaleItemRow.vue'
 import SaleTotalsFooter from './SaleTotalsFooter.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
-import type { Sale } from '../interfaces/sale.types'
+import type { ApplyItemDiscountPayload, OverrideItemPricePayload, Sale } from '../interfaces/sale.types'
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -15,6 +15,9 @@ const props = defineProps<{
   isLoadingList: boolean
   isMutating: boolean
   itemImageMap?: Record<string, string>
+  onSubmitPriceOverride: (itemId: string, payload: OverrideItemPricePayload) => Promise<unknown>
+  onApplyDiscount: (itemId: string, payload: ApplyItemDiscountPayload) => Promise<unknown>
+  onRemoveDiscount: (itemId: string) => Promise<unknown>
 }>()
 
 // ── Emits ─────────────────────────────────────────────────────────────────────
@@ -144,9 +147,14 @@ function getCloseTabDescription(): string {
         <SaleItemRow
           v-for="item in activeDraft.items"
           :key="item.id"
+          :sale-id="activeDraft.id"
+          :is-draft="activeDraft.status === 'DRAFT'"
           :item="item"
           :image-url="itemImageMap?.[item.variantId ? `${item.productId}:${item.variantId}` : item.productId] ?? null"
           :is-updating="isMutating"
+          :on-submit-price-override="onSubmitPriceOverride"
+          :on-apply-discount="onApplyDiscount"
+          :on-remove-discount="onRemoveDiscount"
           @update-qty="(itemId, quantity) => emit('update-qty', itemId, quantity)"
         />
       </div>

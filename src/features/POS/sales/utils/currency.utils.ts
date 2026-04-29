@@ -21,3 +21,13 @@ export function sumLineCents(
 export function lineCents(unitPriceCents: number, quantity: number): number {
   return unitPriceCents * quantity
 }
+
+/** Normalizes decimal input to dot notation. "50,5" => "50.5" */
+export function normalizeDecimalInput(value: string): string {
+  return String(value ?? '').replace(',', '.').trim()
+}
+
+/** Converts major currency units to integer cents. */
+export function currencyToCents(amount: number): number {
+  return Math.round(amount * 100)
+}

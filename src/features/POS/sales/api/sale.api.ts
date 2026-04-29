@@ -3,6 +3,9 @@ import type {
   Sale,
   AddItemPayload,
   UpdateQtyPayload,
+  AvailablePricesResponse,
+  OverrideItemPricePayload,
+  ApplyItemDiscountPayload,
   PosCatalogResponse,
   PosCatalogSearchParams,
 } from '../interfaces/sale.types'
@@ -25,6 +28,36 @@ export const saleApi = {
 
   async updateItemQty(saleId: string, itemId: string, payload: UpdateQtyPayload): Promise<Sale> {
     const { data } = await http.patch<Sale>(`/sales/drafts/${saleId}/items/${itemId}`, payload)
+    return data
+  },
+
+  async getAvailablePrices(saleId: string, itemId: string): Promise<AvailablePricesResponse> {
+    const { data } = await http.get<AvailablePricesResponse>(
+      `/sales/drafts/${saleId}/items/${itemId}/available-prices`,
+    )
+    return data
+  },
+
+  async updateItemPrice(
+    saleId: string,
+    itemId: string,
+    payload: OverrideItemPricePayload,
+  ): Promise<Sale> {
+    const { data } = await http.patch<Sale>(`/sales/drafts/${saleId}/items/${itemId}/price`, payload)
+    return data
+  },
+
+  async applyItemDiscount(
+    saleId: string,
+    itemId: string,
+    payload: ApplyItemDiscountPayload,
+  ): Promise<Sale> {
+    const { data } = await http.patch<Sale>(`/sales/drafts/${saleId}/items/${itemId}/discount`, payload)
+    return data
+  },
+
+  async removeItemDiscount(saleId: string, itemId: string): Promise<Sale> {
+    const { data } = await http.delete<Sale>(`/sales/drafts/${saleId}/items/${itemId}/discount`)
     return data
   },
 

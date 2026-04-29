@@ -5,6 +5,9 @@ import type {
   Sale,
   AddItemPayload,
   UpdateQtyPayload,
+  AvailablePricesResponse,
+  OverrideItemPricePayload,
+  ApplyItemDiscountPayload,
   PosCatalogResponse,
   PosCatalogSearchParams,
 } from '../../interfaces/sale.types'
@@ -371,6 +374,111 @@ describe('saleApi', () => {
 
       expect(http.get).toHaveBeenCalledWith('/sales/pos-catalog', { params })
       expect(result.items).toHaveLength(0)
+    })
+  })
+
+  describe('getAvailablePrices', () => {
+    it('should GET available prices endpoint and return response', async () => {
+      const mockResponse: AvailablePricesResponse = {
+        saleId: 'sale-1',
+        itemId: 'item-1',
+        prices: [
+          {
+            priceListId: 'list-1',
+            priceListName: 'PUBLICO',
+            priceCents: 2198,
+            priceDecimal: 21.98,
+            currency: 'MXN',
+            isCurrent: true,
+          },
+        ],
+      }
+
+      vi.mocked(http.get).mockResolvedValue({ data: mockResponse })
+
+      const result = await saleApi.getAvailablePrices('sale-1', 'item-1')
+
+      expect(http.get).toHaveBeenCalledWith('/sales/drafts/sale-1/items/item-1/available-prices')
+      expect(result.prices[0]?.priceListId).toBe('list-1')
+    })
+  })
+
+  describe('updateItemPrice', () => {
+    const updatedSale: Sale = {
+      id: 'sale-1',
+      userId: 'user-1',
+      status: 'DRAFT',
+      items: [],
+      createdAt: '2026-04-21T10:00:00Z',
+      updatedAt: '2026-04-21T10:00:00Z',
+    }
+
+    it('should PATCH with priceListId payload', async () => {
+      const payload: OverrideItemPricePayload = { priceListId: 'list-1' }
+      vi.mocked(http.patch).mockResolvedValue({ data: updatedSale })
+
+      await saleApi.updateItemPrice('sale-1', 'item-1', payload)
+
+      expect(http.patch).toHaveBeenCalledWith('/sales/drafts/sale-1/items/item-1/price', payload)
+    })
+
+    it('should PATCH with customPriceCents payload', async () => {
+      const payload: OverrideItemPricePayload = { customPriceCents: 2198 }
+      vi.mocked(http.patch).mockResolvedValue({ data: updatedSale })
+
+      await saleApi.updateItemPrice('sale-1', 'item-1', payload)
+
+      expect(http.patch).toHaveBeenCalledWith('/sales/drafts/sale-1/items/item-1/price', payload)
+    })
+
+    it.each([400, 403, 404, 409, 422])('should reject documented error status %s', async (status) => {
+      const payload: OverrideItemPricePayload = { customPriceCents: 2198 }
+      const apiError = { response: { status } }
+      vi.mocked(http.patch).mockRejectedValue(apiError)
+
+      await expect(saleApi.updateItemPrice('sale-1', 'item-1', payload)).rejects.toEqual(apiError)
+    })
+  })
+
+  describe('applyItemDiscount', () => {
+    const updatedSale: Sale = {
+      id: 'sale-1',
+      userId: 'user-1',
+      status: 'DRAFT',
+      items: [],
+      createdAt: '2026-04-21T10:00:00Z',
+      updatedAt: '2026-04-21T10:00:00Z',
+    }
+
+    it('sends PATCH discount request with amount payload', async () => {
+      const payload: ApplyItemDiscountPayload = { type: 'amount', amountCents: 2000, title: 'Promo' }
+      vi.mocked(http.patch).mockResolvedValue({ data: updatedSale })
+
+      await saleApi.applyItemDiscount('sale-1', 'item-1', payload)
+
+      expect(http.patch).toHaveBeenCalledWith('/sales/drafts/sale-1/items/item-1/discount', payload)
+    })
+
+    it('sends PATCH discount request with percentage payload', async () => {
+      const payload: ApplyItemDiscountPayload = { type: 'percentage', percent: 10 }
+      vi.mocked(http.patch).mockResolvedValue({ data: updatedSale })
+
+      await saleApi.applyItemDiscount('sale-1', 'item-1', payload)
+
+      expect(http.patch).toHaveBeenCalledWith('/sales/drafts/sale-1/items/item-1/discount', payload)
+    })
+  })
+
+  describe('removeItemDiscount', () => {
+    it('sends DELETE discount request', async () => {
+      const updatedSale: Sale = {
+        id: 'sale-1', userId: 'user-1', status: 'DRAFT', items: [], createdAt: 'x', updatedAt: 'y'
+      }
+      vi.mocked(http.delete).mockResolvedValue({ data: updatedSale })
+
+      await saleApi.removeItemDiscount('sale-1', 'item-1')
+
+      expect(http.delete).toHaveBeenCalledWith('/sales/drafts/sale-1/items/item-1/discount')
     })
   })
 })

@@ -1,5 +1,6 @@
 export type SaleStatus = 'DRAFT'
 export type SaleCurrency = 'MXN'
+export type PriceSource = 'default' | 'price_list' | 'custom'
 
 export interface SaleItem {
   id: string
@@ -10,6 +11,15 @@ export interface SaleItem {
   quantity: number
   unitPriceCents: number
   unitPriceCurrency: SaleCurrency
+  originalPriceCents?: number | null
+  priceSource?: PriceSource | null
+  appliedPriceListId?: string | null
+  customPriceCents?: number | null
+  discountType?: 'amount' | 'percentage' | null
+  discountValue?: number | null
+  discountAmountCents?: number | null
+  discountTitle?: string | null
+  prePriceCentsBeforeDiscount?: number | null
 }
 
 export interface Sale {
@@ -30,6 +40,29 @@ export interface AddItemPayload {
 export interface UpdateQtyPayload {
   quantity: number
 }
+
+export interface AvailablePriceOption {
+  priceListId: string
+  priceListName: string
+  priceCents: number
+  priceDecimal: number
+  currency: SaleCurrency
+  isCurrent: boolean
+}
+
+export interface AvailablePricesResponse {
+  saleId: string
+  itemId: string
+  prices: AvailablePriceOption[]
+}
+
+export type OverrideItemPricePayload =
+  | { priceListId: string; customPriceCents?: never }
+  | { customPriceCents: number; priceListId?: never }
+
+export type ApplyItemDiscountPayload =
+  | { type: 'amount'; amountCents: number; title?: string }
+  | { type: 'percentage'; percent: number; title?: string }
 
 // POS Catalog types — match backend contract exactly
 export interface PosCatalogPrice {

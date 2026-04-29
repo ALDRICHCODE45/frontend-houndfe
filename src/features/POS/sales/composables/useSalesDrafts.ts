@@ -2,7 +2,13 @@ import { ref, computed } from 'vue'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { saleApi } from '../api/sale.api'
 import { saleQueryKeys } from '@/core/shared/constants/query-keys'
-import type { Sale, AddItemPayload, UpdateQtyPayload } from '../interfaces/sale.types'
+import type {
+  Sale,
+  AddItemPayload,
+  UpdateQtyPayload,
+  OverrideItemPricePayload,
+  ApplyItemDiscountPayload,
+} from '../interfaces/sale.types'
 
 // ── Pure functions for cache manipulation ────────────────────────────────────
 
@@ -124,6 +130,40 @@ export function useSalesDrafts() {
     },
   })
 
+  const updateItemPriceMutation = useMutation({
+    mutationFn: ({
+      saleId,
+      itemId,
+      payload,
+    }: {
+      saleId: string
+      itemId: string
+      payload: OverrideItemPricePayload
+    }) => saleApi.updateItemPrice(saleId, itemId, payload),
+    onSuccess: (updatedSale) => {
+      const currentDrafts = queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts()) ?? []
+      queryClient.setQueryData(saleQueryKeys.drafts(), replaceSaleInCache(currentDrafts, updatedSale))
+    },
+  })
+
+  const applyItemDiscountMutation = useMutation({
+    mutationFn: ({ saleId, itemId, payload }: { saleId: string; itemId: string; payload: ApplyItemDiscountPayload }) =>
+      saleApi.applyItemDiscount(saleId, itemId, payload),
+    onSuccess: (updatedSale) => {
+      const currentDrafts = queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts()) ?? []
+      queryClient.setQueryData(saleQueryKeys.drafts(), replaceSaleInCache(currentDrafts, updatedSale))
+    },
+  })
+
+  const removeItemDiscountMutation = useMutation({
+    mutationFn: ({ saleId, itemId }: { saleId: string; itemId: string }) =>
+      saleApi.removeItemDiscount(saleId, itemId),
+    onSuccess: (updatedSale) => {
+      const currentDrafts = queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts()) ?? []
+      queryClient.setQueryData(saleQueryKeys.drafts(), replaceSaleInCache(currentDrafts, updatedSale))
+    },
+  })
+
   // Computed isMutating
   const isMutating = computed(() => {
     return (
@@ -132,6 +172,9 @@ export function useSalesDrafts() {
       addItemMutation.isPending.value ||
       updateQtyMutation.isPending.value ||
       clearItemsMutation.isPending.value
+      || updateItemPriceMutation.isPending.value
+      || applyItemDiscountMutation.isPending.value
+      || removeItemDiscountMutation.isPending.value
     )
   })
 
@@ -174,6 +217,28 @@ export function useSalesDrafts() {
     return await clearItemsMutation.mutateAsync(activeTabId.value)
   }
 
+  const updateItemPrice = async (
+    itemId: string,
+    payload: OverrideItemPricePayload,
+  ): Promise<Sale> => {
+    if (!activeTabId.value) throw new Error('No active tab')
+    return await updateItemPriceMutation.mutateAsync({
+      saleId: activeTabId.value,
+      itemId,
+      payload,
+    })
+  }
+
+  const applyItemDiscount = async (itemId: string, payload: ApplyItemDiscountPayload): Promise<Sale> => {
+    if (!activeTabId.value) throw new Error('No active tab')
+    return await applyItemDiscountMutation.mutateAsync({ saleId: activeTabId.value, itemId, payload })
+  }
+
+  const removeItemDiscount = async (itemId: string): Promise<Sale> => {
+    if (!activeTabId.value) throw new Error('No active tab')
+    return await removeItemDiscountMutation.mutateAsync({ saleId: activeTabId.value, itemId })
+  }
+
   return {
     drafts: computed(() => drafts.value ?? []),
     activeDraft,
@@ -187,5 +252,8 @@ export function useSalesDrafts() {
     addItem,
     updateQty,
     clearItems,
+    updateItemPrice,
+    applyItemDiscount,
+    removeItemDiscount,
   }
 }

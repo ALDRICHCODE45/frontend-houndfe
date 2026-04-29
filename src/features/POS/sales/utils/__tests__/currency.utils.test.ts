@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { formatCentsMXN, sumLineCents, lineCents } from '../currency.utils'
+import { formatCentsMXN, sumLineCents, lineCents, currencyToCents, normalizeDecimalInput } from '../currency.utils'
 
 describe('currency.utils', () => {
   describe('formatCentsMXN', () => {
@@ -103,6 +103,22 @@ describe('currency.utils', () => {
 
       // 999 * 100 = 99900 cents
       expect(result).toBe(99900)
+    })
+  })
+
+  describe('currencyToCents', () => {
+    it('converts major currency units to integer cents', () => {
+      expect(currencyToCents(50)).toBe(5000)
+    })
+
+    it('converts decimal currency values to cents', () => {
+      expect(currencyToCents(50.5)).toBe(5050)
+    })
+
+    it('normalizes comma decimal input before cents conversion', () => {
+      const normalized = normalizeDecimalInput('50,50')
+      expect(normalized).toBe('50.50')
+      expect(currencyToCents(Number(normalized))).toBe(5050)
     })
   })
 })
