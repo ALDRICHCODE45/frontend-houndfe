@@ -41,6 +41,7 @@ describe('SaleItemRow', () => {
   const onSubmitPriceOverride = async () => undefined
   const onApplyDiscount = async () => undefined
   const onRemoveDiscount = async () => undefined
+  const onRemoveItem = async () => undefined
 
   it('should render product name', () => {
     const wrapper = mount(SaleItemRow, {
@@ -325,5 +326,28 @@ describe('SaleItemRow', () => {
     expect(wrapper.text()).toContain('DESCUENTO -20%')
     expect(wrapper.text()).toContain('$100.00')
     expect(wrapper.text()).toContain('Promo especial')
+  })
+
+  it('includes Eliminar producto action with error color for draft items', () => {
+    const wrapper = mount(SaleItemRow, {
+      props: { item: mockItem, saleId: 'sale-1', isDraft: true, onSubmitPriceOverride, onApplyDiscount, onRemoveDiscount, onRemoveItem },
+      global: { stubs },
+    })
+
+    const actions = (wrapper.vm as unknown as { itemActions: Array<Array<{ label: string; color?: string }>> }).itemActions
+    const labels = actions[0]?.map((action) => action.label)
+    expect(labels).toContain('Cambiar precio')
+    expect(labels).toContain('Eliminar producto')
+    expect(actions[0]?.find((action) => action.label === 'Eliminar producto')?.color).toBe('error')
+  })
+
+  it('hides Eliminar producto action for non-draft items', () => {
+    const wrapper = mount(SaleItemRow, {
+      props: { item: mockItem, saleId: 'sale-1', isDraft: false, onSubmitPriceOverride, onApplyDiscount, onRemoveDiscount, onRemoveItem },
+      global: { stubs },
+    })
+
+    const actions = (wrapper.vm as unknown as { itemActions: Array<Array<{ label: string }>> }).itemActions
+    expect(actions).toEqual([])
   })
 })

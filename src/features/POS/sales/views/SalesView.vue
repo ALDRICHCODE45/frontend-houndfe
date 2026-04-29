@@ -34,6 +34,7 @@ const {
   updateItemPrice,
   applyItemDiscount,
   removeItemDiscount,
+  removeItem,
 } = useSalesDrafts()
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
@@ -182,6 +183,17 @@ async function handleRemoveDiscount(itemId: string) {
   }
 }
 
+async function handleRemoveItem(itemId: string) {
+  try {
+    await removeItem(itemId)
+  } catch (error) {
+    const err = error as AxiosError<DomainApiError>
+    const message = err.response?.data?.message ?? 'No se pudo eliminar el producto'
+    toast.add({ title: 'Error', description: message, color: 'error' })
+    throw error
+  }
+}
+
 async function handleCloseTab(saleId: string) {
   try {
     await closeTab(saleId)
@@ -253,6 +265,7 @@ function handleSwitchTab(saleId: string) {
           :on-submit-price-override="handleSubmitPriceOverride"
           :on-apply-discount="handleApplyDiscount"
           :on-remove-discount="handleRemoveDiscount"
+          :on-remove-item="handleRemoveItem"
           @switch-tab="handleSwitchTab"
           @close-tab="handleCloseTab"
           @create-tab="handleCreateTab"

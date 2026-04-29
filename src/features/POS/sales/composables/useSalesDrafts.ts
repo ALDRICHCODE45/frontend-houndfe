@@ -164,6 +164,15 @@ export function useSalesDrafts() {
     },
   })
 
+  const removeItemMutation = useMutation({
+    mutationFn: ({ saleId, itemId }: { saleId: string; itemId: string }) =>
+      saleApi.removeItem(saleId, itemId),
+    onSuccess: (updatedSale) => {
+      const currentDrafts = queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts()) ?? []
+      queryClient.setQueryData(saleQueryKeys.drafts(), replaceSaleInCache(currentDrafts, updatedSale))
+    },
+  })
+
   // Computed isMutating
   const isMutating = computed(() => {
     return (
@@ -175,6 +184,7 @@ export function useSalesDrafts() {
       || updateItemPriceMutation.isPending.value
       || applyItemDiscountMutation.isPending.value
       || removeItemDiscountMutation.isPending.value
+      || removeItemMutation.isPending.value
     )
   })
 
@@ -239,6 +249,11 @@ export function useSalesDrafts() {
     return await removeItemDiscountMutation.mutateAsync({ saleId: activeTabId.value, itemId })
   }
 
+  const removeItem = async (itemId: string): Promise<Sale> => {
+    if (!activeTabId.value) throw new Error('No active tab')
+    return await removeItemMutation.mutateAsync({ saleId: activeTabId.value, itemId })
+  }
+
   return {
     drafts: computed(() => drafts.value ?? []),
     activeDraft,
@@ -255,5 +270,6 @@ export function useSalesDrafts() {
     updateItemPrice,
     applyItemDiscount,
     removeItemDiscount,
+    removeItem,
   }
 }

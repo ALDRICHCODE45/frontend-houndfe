@@ -15,10 +15,11 @@ const props = withDefaults(
      isUpdating?: boolean
      isDraft?: boolean
      saleId: string
-     onSubmitPriceOverride: (itemId: string, payload: OverrideItemPricePayload) => Promise<unknown>
-     onApplyDiscount: (itemId: string, payload: ApplyItemDiscountPayload) => Promise<unknown>
-     onRemoveDiscount: (itemId: string) => Promise<unknown>
-    }>(),
+      onSubmitPriceOverride: (itemId: string, payload: OverrideItemPricePayload) => Promise<unknown>
+      onApplyDiscount: (itemId: string, payload: ApplyItemDiscountPayload) => Promise<unknown>
+      onRemoveDiscount: (itemId: string) => Promise<unknown>
+      onRemoveItem?: (itemId: string) => Promise<unknown>
+     }>(),
   {
     imageUrl: null,
     isUpdating: false,
@@ -26,6 +27,7 @@ const props = withDefaults(
     onSubmitPriceOverride: async () => undefined,
     onApplyDiscount: async () => undefined,
     onRemoveDiscount: async () => undefined,
+    onRemoveItem: async () => undefined,
   },
 )
 
@@ -76,6 +78,14 @@ const itemActions = computed(() => {
         },
       },
       ...(discountAction ? [discountAction] : []),
+      {
+        label: 'Eliminar producto',
+        icon: 'i-lucide-trash-2',
+        color: 'error' as const,
+        onSelect: () => {
+          void props.onRemoveItem?.(props.item.id)
+        },
+      },
     ],
   ]
 })

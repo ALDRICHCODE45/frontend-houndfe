@@ -25,6 +25,7 @@ vi.mock('../../api/sale.api', () => ({
     updateItemPrice: vi.fn(),
     applyItemDiscount: vi.fn(),
     removeItemDiscount: vi.fn(),
+    removeItem: vi.fn(),
   },
 }))
 
@@ -446,6 +447,35 @@ describe('useSalesDrafts - pure cache update functions', () => {
 
       expect(saleApi.removeItemDiscount).toHaveBeenCalledWith('sale-1', 'item-1')
       expect(queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts())?.[0]?.items[0]?.discountType).toBeNull()
+    })
+  })
+
+  describe('removeItem mutation cache behavior', () => {
+    it('replaces draft cache on successful removeItem', async () => {
+      const existingDraft: Sale = {
+        id: 'sale-1', userId: 'user-1', status: 'DRAFT', createdAt: 'x', updatedAt: 'x',
+        items: [
+          { id: 'item-1', productId: 'prod-1', variantId: null, productName: 'Aspirina', variantName: null, quantity: 1, unitPriceCents: 10000, unitPriceCurrency: 'MXN' },
+          { id: 'item-2', productId: 'prod-2', variantId: null, productName: 'Ibuprofeno', variantName: null, quantity: 1, unitPriceCents: 5000, unitPriceCurrency: 'MXN' },
+        ],
+      }
+      const updatedDraft: Sale = {
+        ...existingDraft,
+        updatedAt: 'y',
+        items: [{ ...existingDraft.items[1]! }],
+      }
+      vi.mocked(saleApi.listDrafts).mockResolvedValue([existingDraft])
+      vi.mocked(saleApi.removeItem).mockResolvedValue(updatedDraft)
+
+      const { result, queryClient } = mountComposable(() => useSalesDrafts())
+      await vi.waitFor(() => expect(queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts())).toEqual([existingDraft]))
+      result.activeTabId.value = 'sale-1'
+
+      await result.removeItem('item-1')
+
+      expect(saleApi.removeItem).toHaveBeenCalledWith('sale-1', 'item-1')
+      expect(queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts())?.[0]?.items).toHaveLength(1)
+      expect(queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts())?.[0]?.items[0]?.id).toBe('item-2')
     })
   })
 })

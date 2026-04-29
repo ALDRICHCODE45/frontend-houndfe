@@ -61,6 +61,11 @@ export const saleApi = {
     return data
   },
 
+  async removeItem(saleId: string, itemId: string): Promise<Sale> {
+    const { data } = await http.delete<Sale>(`/sales/drafts/${saleId}/items/${itemId}`)
+    return data
+  },
+
   async clearItems(saleId: string): Promise<Sale> {
     const { data } = await http.delete<Sale>(`/sales/drafts/${saleId}/items`)
     return data

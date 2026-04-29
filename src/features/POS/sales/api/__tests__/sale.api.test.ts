@@ -481,4 +481,18 @@ describe('saleApi', () => {
       expect(http.delete).toHaveBeenCalledWith('/sales/drafts/sale-1/items/item-1/discount')
     })
   })
+
+  describe('removeItem', () => {
+    it('sends DELETE item request and returns updated sale', async () => {
+      const updatedSale: Sale = {
+        id: 'sale-1', userId: 'user-1', status: 'DRAFT', items: [], createdAt: 'x', updatedAt: 'y'
+      }
+      vi.mocked(http.delete).mockResolvedValue({ data: updatedSale })
+
+      const result = await saleApi.removeItem('sale-1', 'item-1')
+
+      expect(http.delete).toHaveBeenCalledWith('/sales/drafts/sale-1/items/item-1')
+      expect(result).toEqual(updatedSale)
+    })
+  })
 })

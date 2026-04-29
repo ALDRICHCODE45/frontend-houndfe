@@ -18,6 +18,7 @@ const props = defineProps<{
   onSubmitPriceOverride: (itemId: string, payload: OverrideItemPricePayload) => Promise<unknown>
   onApplyDiscount: (itemId: string, payload: ApplyItemDiscountPayload) => Promise<unknown>
   onRemoveDiscount: (itemId: string) => Promise<unknown>
+  onRemoveItem: (itemId: string) => Promise<unknown>
 }>()
 
 // ── Emits ─────────────────────────────────────────────────────────────────────
@@ -155,6 +156,7 @@ function getCloseTabDescription(): string {
           :on-submit-price-override="onSubmitPriceOverride"
           :on-apply-discount="onApplyDiscount"
           :on-remove-discount="onRemoveDiscount"
+          :on-remove-item="onRemoveItem"
           @update-qty="(itemId, quantity) => emit('update-qty', itemId, quantity)"
         />
       </div>
