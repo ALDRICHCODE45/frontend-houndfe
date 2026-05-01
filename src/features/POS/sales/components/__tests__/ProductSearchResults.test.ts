@@ -88,8 +88,8 @@ describe('ProductSearchResults.vue', () => {
       },
     })
 
-    // Check for loading state presence (skeleton container with space-y-2)
-    const loadingContainer = wrapper.find('[class*="space-y-2"]')
+    // Check for loading state presence (skeleton grid container)
+    const loadingContainer = wrapper.find('[class*="grid"]')
     expect(loadingContainer.exists()).toBe(true)
   })
 

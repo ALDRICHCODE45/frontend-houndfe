@@ -45,13 +45,13 @@ function isLowStock(item: PosCatalogItem): boolean {
   >
     <!-- Image area -->
     <div
-      class="relative h-36 w-full flex items-center justify-center overflow-hidden"
+      class="relative h-28 w-full flex items-center justify-center overflow-hidden"
       :class="!item.mainImage || imageError ? 'bg-primary/5' : 'bg-elevated'"
     >
       <UIcon
         v-if="!item.mainImage || imageError"
         name="i-lucide-package"
-        class="h-10 w-10 text-primary/30"
+        class="h-8 w-8 text-primary/30"
         data-testid="placeholder-icon"
       />
       <img
@@ -67,7 +67,7 @@ function isLowStock(item: PosCatalogItem): boolean {
       <span
         v-if="item.stock != null"
         :class="[
-          'absolute top-2 right-2 text-[10px] font-semibold px-1.5 py-0.5 rounded-md',
+          'absolute top-1.5 right-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-md',
           isLowStock(item) ? 'bg-warning/15 text-warning' : 'bg-elevated/80 text-muted',
         ]"
         data-testid="stock-badge"
@@ -77,7 +77,7 @@ function isLowStock(item: PosCatalogItem): boolean {
     </div>
 
     <!-- Card body -->
-    <div class="p-3 space-y-1">
+    <div class="px-2.5 py-2 space-y-0.5">
       <!-- Brand -->
       <p v-if="item.brand" class="text-[11px] text-muted uppercase tracking-wider font-medium truncate">
         {{ item.brand.name }}
@@ -87,14 +87,14 @@ function isLowStock(item: PosCatalogItem): boolean {
       </p>
 
       <!-- Product name -->
-      <p class="text-sm font-medium text-highlighted truncate leading-snug">
+      <p class="text-[13px] font-medium text-highlighted truncate leading-snug">
         {{ item.name }}
       </p>
 
       <!-- Price row + action -->
-      <div class="flex items-center justify-between pt-1">
+      <div class="flex items-center justify-between pt-0.5">
         <div>
-          <p v-if="item.price" class="text-sm font-bold text-highlighted tabular-nums">
+          <p v-if="item.price" class="text-[13px] font-bold text-highlighted tabular-nums">
             {{ formatPrice(item.price.priceDecimal) }}
           </p>
           <p v-else class="text-xs text-toned flex items-center gap-0.5">

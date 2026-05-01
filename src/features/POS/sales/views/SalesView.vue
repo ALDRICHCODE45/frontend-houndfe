@@ -223,24 +223,24 @@ function handleSwitchTab(saleId: string) {
   <div class="h-full flex bg-default">
     <!-- Loading skeleton -->
     <div v-if="isLoadingList" class="h-full w-full flex">
-      <!-- Left skeleton panel (catalog — large) -->
-      <div class="flex-1 p-4 space-y-4">
+      <!-- Left skeleton panel (catalog — 70%) -->
+      <div class="w-[70%] p-4 space-y-4">
         <USkeleton class="h-10 w-full rounded-lg" />
         <div class="flex gap-2">
           <USkeleton v-for="i in 4" :key="i" class="h-8 w-24 rounded-full" />
         </div>
-        <div class="grid grid-cols-2 xl:grid-cols-3 gap-4 mt-3">
-          <div v-for="i in 6" :key="i" class="space-y-3">
-            <USkeleton class="h-36 w-full rounded-xl" />
-            <USkeleton class="h-3 w-20" />
-            <USkeleton class="h-3.5 w-3/4" />
-            <USkeleton class="h-4 w-24" />
+        <div class="grid grid-cols-2 xl:grid-cols-3 gap-3 mt-3">
+          <div v-for="i in 6" :key="i" class="space-y-2">
+            <USkeleton class="h-28 w-full rounded-xl" />
+            <USkeleton class="h-2.5 w-16" />
+            <USkeleton class="h-3 w-3/4" />
+            <USkeleton class="h-3.5 w-20" />
           </div>
         </div>
       </div>
 
-      <!-- Right skeleton panel (cart — small) -->
-      <div class="w-[440px] xl:w-[480px] shrink-0 border-l border-default flex flex-col p-4 space-y-3">
+      <!-- Right skeleton panel (cart — 30%) -->
+      <div class="w-[30%] shrink-0 border-l border-default flex flex-col p-4 space-y-3">
         <USkeleton class="h-10 w-48" />
         <USkeleton class="h-10 w-full" />
         <div class="flex-1 flex items-center justify-center">
@@ -256,13 +256,13 @@ function handleSwitchTab(saleId: string) {
 
     <!-- Main split view -->
     <div v-else class="h-full flex flex-col lg:flex-row w-full">
-      <!-- Left panel: Product catalog (takes most space) -->
-      <div class="flex-1 flex flex-col min-w-0">
+      <!-- Left panel: Product catalog (70%) -->
+      <div class="lg:w-[70%] flex flex-col min-w-0">
         <ProductSearchPanel @add-product="handleAddProduct" />
       </div>
 
-      <!-- Right panel: Active sale cart (fixed width) -->
-      <div class="lg:w-[440px] xl:w-[480px] shrink-0 border-l border-default flex flex-col">
+      <!-- Right panel: Active sale cart (30%) -->
+      <div class="lg:w-[30%] shrink-0 border-l border-default flex flex-col">
         <ActiveSalePanel
           :drafts="drafts"
           :active-draft="activeDraft"
