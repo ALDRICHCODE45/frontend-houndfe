@@ -46,7 +46,7 @@ function isLowStock(item: PosCatalogItem): boolean {
     <!-- Image area -->
     <div
       class="relative h-28 w-full flex items-center justify-center overflow-hidden"
-      :class="!item.mainImage || imageError ? 'bg-primary/5' : 'bg-elevated'"
+      :class="!item.mainImage || imageError ? 'bg-primary/5' : 'bg-elevated/50'"
     >
       <UIcon
         v-if="!item.mainImage || imageError"
@@ -58,7 +58,7 @@ function isLowStock(item: PosCatalogItem): boolean {
         v-else
         :src="item.mainImage"
         :alt="item.name"
-        class="h-full w-full object-cover"
+        class="h-full w-full object-contain p-2"
         loading="lazy"
         @error="handleImageError"
       />
