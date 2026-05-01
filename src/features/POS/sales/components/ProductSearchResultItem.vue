@@ -22,7 +22,7 @@ function handleImageError() {
   imageError.value = true
 }
 
-// ── Computed ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function formatPrice(priceDecimal: number): string {
   return new Intl.NumberFormat('es-MX', {
@@ -40,18 +40,18 @@ function isLowStock(item: PosCatalogItem): boolean {
 
 <template>
   <div
-    class="flex items-center gap-3 mx-3 my-1 px-3 py-2.5 rounded-lg hover:bg-elevated/50 cursor-pointer transition-colors duration-150"
+    class="group rounded-xl border border-default bg-default overflow-hidden cursor-pointer hover:border-primary/30 hover:shadow-sm transition-all duration-150"
     @click="emit('select', item)"
   >
-    <!-- Image or styled placeholder -->
+    <!-- Image area -->
     <div
-      class="h-11 w-11 shrink-0 rounded-lg flex items-center justify-center overflow-hidden"
-      :class="!item.mainImage || imageError ? 'bg-primary/8 border border-primary/15' : 'bg-elevated border border-default'"
+      class="relative h-36 w-full flex items-center justify-center overflow-hidden"
+      :class="!item.mainImage || imageError ? 'bg-primary/5' : 'bg-elevated'"
     >
       <UIcon
         v-if="!item.mainImage || imageError"
         name="i-lucide-package"
-        class="h-5 w-5 text-primary/60"
+        class="h-10 w-10 text-primary/30"
         data-testid="placeholder-icon"
       />
       <img
@@ -62,37 +62,57 @@ function isLowStock(item: PosCatalogItem): boolean {
         loading="lazy"
         @error="handleImageError"
       />
+
+      <!-- Stock badge (top-right corner) -->
+      <span
+        v-if="item.stock != null"
+        :class="[
+          'absolute top-2 right-2 text-[10px] font-semibold px-1.5 py-0.5 rounded-md',
+          isLowStock(item) ? 'bg-warning/15 text-warning' : 'bg-elevated/80 text-muted',
+        ]"
+        data-testid="stock-badge"
+      >
+        {{ item.stock.quantity }} u
+      </span>
     </div>
 
-    <!-- Product info -->
-    <div class="flex-1 min-w-0">
-      <p class="text-sm font-medium text-highlighted truncate">
+    <!-- Card body -->
+    <div class="p-3 space-y-1">
+      <!-- Brand -->
+      <p v-if="item.brand" class="text-[11px] text-muted uppercase tracking-wider font-medium truncate">
+        {{ item.brand.name }}
+      </p>
+      <p v-else-if="item.sku" class="text-[11px] text-muted uppercase tracking-wider font-medium truncate" data-testid="sku-subtitle">
+        {{ item.sku }}
+      </p>
+
+      <!-- Product name -->
+      <p class="text-sm font-medium text-highlighted truncate leading-snug">
         {{ item.name }}
       </p>
-      <div class="flex items-center gap-1.5 mt-0.5">
-        <span v-if="item.brand" class="text-xs text-muted uppercase tracking-wide">
-          {{ item.brand.name }}
-        </span>
-        <span v-else-if="item.sku" class="text-xs text-muted" data-testid="sku-subtitle">
-          {{ item.sku }}
-        </span>
-        <span v-if="(item.brand || item.sku) && item.price" class="text-xs text-dimmed">&middot;</span>
-        <span v-if="item.price" class="text-xs text-toned font-medium">
-          {{ formatPrice(item.price.priceDecimal) }}
-        </span>
-        <span v-else class="text-xs text-toned flex items-center gap-0.5">
-          Ver variantes
-          <UIcon name="i-lucide-chevron-right" class="h-3 w-3" data-testid="chevron-icon" />
+
+      <!-- Price row + action -->
+      <div class="flex items-center justify-between pt-1">
+        <div>
+          <p v-if="item.price" class="text-sm font-bold text-highlighted tabular-nums">
+            {{ formatPrice(item.price.priceDecimal) }}
+          </p>
+          <p v-else class="text-xs text-toned flex items-center gap-0.5">
+            Ver variantes
+            <UIcon name="i-lucide-chevron-right" class="h-3 w-3" data-testid="chevron-icon" />
+          </p>
+        </div>
+
+        <span
+          class="text-xs font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center gap-0.5"
+        >
+          <UIcon name="i-lucide-plus" class="h-3 w-3" />
+          Agregar
         </span>
       </div>
-    </div>
 
-    <!-- Price (right-aligned, prominent) -->
-    <div class="shrink-0 text-right">
-      <p v-if="item.price" class="text-sm font-semibold text-highlighted">
-        {{ formatPrice(item.price.priceDecimal) }}
-      </p>
-      <p v-if="item.hasVariants && item.variants.length > 0" class="text-[11px] text-muted mt-0.5">
+      <!-- Variant count -->
+      <p v-if="item.hasVariants && item.variants.length > 0" class="text-[11px] text-muted">
         {{ item.variants.length }} variantes
       </p>
     </div>

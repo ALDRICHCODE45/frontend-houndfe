@@ -8,20 +8,23 @@ import type { PosCatalogItem } from '../interfaces/sale.types'
 export function useProductSearch() {
   const query = ref('')
   const debouncedQuery = refDebounced(query, 250)
+  const categoryId = ref<string | undefined>(undefined)
 
   const { data, isLoading, isError } = useQuery({
     queryKey: computed(() =>
       saleQueryKeys.posCatalog({
         q: debouncedQuery.value || undefined,
-        limit: debouncedQuery.value ? 25 : 20,
+        limit: debouncedQuery.value ? 30 : 24,
         offset: 0,
+        categoryId: categoryId.value,
       })
     ),
     queryFn: async () => {
       return saleApi.searchPosCatalog({
         q: debouncedQuery.value || undefined,
-        limit: debouncedQuery.value ? 25 : 20,
+        limit: debouncedQuery.value ? 30 : 24,
         offset: 0,
+        categoryId: categoryId.value,
       })
     },
     staleTime: 30_000,
@@ -50,5 +53,6 @@ export function useProductSearch() {
     isLoading,
     isError,
     isEmpty,
+    categoryId,
   }
 }

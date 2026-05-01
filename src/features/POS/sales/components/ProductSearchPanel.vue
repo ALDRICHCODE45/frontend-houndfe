@@ -13,7 +13,7 @@ const emit = defineEmits<{
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-const { query, items, isLoading, isEmpty, hasQuery } = useProductSearch()
+const { query, items, isLoading, isEmpty, hasQuery, categoryId } = useProductSearch()
 
 const isMac = computed(() =>
   typeof globalThis.navigator !== 'undefined' && globalThis.navigator.platform?.includes('Mac'),
@@ -21,6 +21,41 @@ const isMac = computed(() =>
 
 const variantModalOpen = ref(false)
 const selectedItem = ref<PosCatalogItem | null>(null)
+
+// ── Category filters (derived from current items) ─────────────────────────────
+
+const activeCategory = ref<string | null>(null)
+
+const categoryChips = computed(() => {
+  // Build unique categories from the loaded items
+  const catMap = new Map<string, { id: string; name: string; count: number }>()
+  for (const item of items.value) {
+    if (item.category) {
+      const existing = catMap.get(item.category.id)
+      if (existing) {
+        existing.count++
+      } else {
+        catMap.set(item.category.id, { id: item.category.id, name: item.category.name, count: 1 })
+      }
+    }
+  }
+  return Array.from(catMap.values()).sort((a, b) => b.count - a.count)
+})
+
+function handleCategoryClick(catId: string) {
+  if (activeCategory.value === catId) {
+    activeCategory.value = null
+    categoryId.value = undefined
+  } else {
+    activeCategory.value = catId
+    categoryId.value = catId
+  }
+}
+
+function clearCategoryFilter() {
+  activeCategory.value = null
+  categoryId.value = undefined
+}
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
@@ -47,37 +82,70 @@ function handleAddVariant(productId: string, variantId: string) {
   <div class="h-full flex flex-col">
     <!-- Header section (sticky) -->
     <div class="sticky top-0 z-10 bg-default border-b border-default">
-      <div class="p-4 space-y-3">
-        <!-- Title row -->
-        <div class="flex items-center justify-between">
-          <h2 class="text-base font-semibold text-highlighted">
-            Buscar productos
-          </h2>
-          <div class="flex items-center gap-1.5 text-xs text-muted">
+      <div class="px-5 py-4 space-y-3">
+        <!-- Search input (full width) -->
+        <div class="flex items-center gap-3">
+          <UInput
+            v-model="query"
+            icon="i-lucide-search"
+            placeholder="Buscar por nombre, SKU o código..."
+            size="lg"
+            class="flex-1"
+          />
+          <div class="flex items-center gap-1 text-xs text-muted shrink-0">
             <UKbd>{{ isMac ? '⌘' : 'Ctrl' }}</UKbd>
             <UKbd>K</UKbd>
           </div>
         </div>
 
-        <!-- Search input -->
-        <UInput
-          v-model="query"
-          icon="i-lucide-search"
-          placeholder="Buscar por nombre, SKU o código"
-          size="lg"
-          :ui="{ base: 'w-full' }"
-        />
+        <!-- Category filter chips -->
+        <div v-if="categoryChips.length > 0" class="flex items-center gap-2 overflow-x-auto no-scrollbar">
+          <button
+            :class="[
+              'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-150 whitespace-nowrap cursor-pointer',
+              !activeCategory
+                ? 'bg-primary text-white'
+                : 'bg-elevated text-muted hover:bg-elevated/80 hover:text-highlighted',
+            ]"
+            @click="clearCategoryFilter"
+          >
+            Todo
+            <span
+              :class="[
+                'inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-md text-[10px] font-semibold tabular-nums',
+                !activeCategory ? 'bg-white/20 text-white' : 'bg-default text-muted',
+              ]"
+            >
+              {{ items.length }}
+            </span>
+          </button>
+
+          <button
+            v-for="cat in categoryChips"
+            :key="cat.id"
+            :class="[
+              'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-150 whitespace-nowrap cursor-pointer',
+              activeCategory === cat.id
+                ? 'bg-primary text-white'
+                : 'bg-elevated text-muted hover:bg-elevated/80 hover:text-highlighted',
+            ]"
+            @click="handleCategoryClick(cat.id)"
+          >
+            {{ cat.name }}
+            <span
+              :class="[
+                'inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-md text-[10px] font-semibold tabular-nums',
+                activeCategory === cat.id ? 'bg-white/20 text-white' : 'bg-default text-muted',
+              ]"
+            >
+              {{ cat.count }}
+            </span>
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- Section label when browsing catalog -->
-    <div v-if="!hasQuery && items.length > 0" class="px-4 pt-3 pb-1">
-      <p class="text-xs font-medium text-muted uppercase tracking-wider">
-        Productos recientes
-      </p>
-    </div>
-
-    <!-- Results -->
+    <!-- Results (card grid) -->
     <ProductSearchResults
       :items="items"
       :is-loading="isLoading"
@@ -96,3 +164,14 @@ function handleAddVariant(productId: string, variantId: string) {
     />
   </div>
 </template>
+
+<style scoped>
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+</style>

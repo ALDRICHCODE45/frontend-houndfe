@@ -19,16 +19,19 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="overflow-y-auto flex-1">
-    <!-- Loading state -->
-    <div v-if="isLoading && items.length === 0" class="p-3 space-y-2">
-      <div v-for="i in 8" :key="i" class="flex items-center gap-3 px-3 py-3">
-        <USkeleton class="h-11 w-11 rounded-lg shrink-0" />
-        <div class="flex-1 space-y-2">
+  <div class="overflow-y-auto flex-1 px-5 py-4">
+    <!-- Loading state (card grid skeleton) -->
+    <div v-if="isLoading && items.length === 0" class="grid grid-cols-2 xl:grid-cols-3 gap-4">
+      <div v-for="i in 6" :key="i" class="rounded-xl border border-default overflow-hidden">
+        <USkeleton class="h-36 w-full" />
+        <div class="p-3 space-y-2">
+          <USkeleton class="h-3 w-20" />
           <USkeleton class="h-3.5 w-3/4" />
-          <USkeleton class="h-3 w-1/3" />
+          <div class="flex items-center justify-between pt-1">
+            <USkeleton class="h-4 w-20" />
+            <USkeleton class="h-6 w-16 rounded-md" />
+          </div>
         </div>
-        <USkeleton class="h-4 w-16" />
       </div>
     </div>
 
@@ -48,8 +51,8 @@ const emit = defineEmits<{
       </p>
     </div>
 
-    <!-- Results list -->
-    <div v-else>
+    <!-- Results card grid -->
+    <div v-else class="grid grid-cols-2 xl:grid-cols-3 gap-4">
       <ProductSearchResultItem
         v-for="item in items"
         :key="item.id"

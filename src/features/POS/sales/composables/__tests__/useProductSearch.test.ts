@@ -87,8 +87,9 @@ describe('useProductSearch', () => {
       await vi.waitFor(() => {
         expect(saleApi.searchPosCatalog).toHaveBeenCalledWith({
           q: undefined,
-          limit: 20,
+          limit: 24,
           offset: 0,
+          categoryId: undefined,
         })
       })
 
@@ -98,11 +99,11 @@ describe('useProductSearch', () => {
       })
     })
 
-    it('should fetch first page with limit 20 and offset 0 when query is empty', async () => {
+    it('should fetch first page with limit 24 and offset 0 when query is empty', async () => {
       const mockResponse: PosCatalogResponse = {
         items: [],
         total: 0,
-        limit: 20,
+        limit: 24,
         offset: 0,
       }
 
@@ -113,8 +114,9 @@ describe('useProductSearch', () => {
       await vi.waitFor(() => {
         expect(saleApi.searchPosCatalog).toHaveBeenCalledWith({
           q: undefined,
-          limit: 20,
+          limit: 24,
           offset: 0,
+          categoryId: undefined,
         })
       })
     })
@@ -147,8 +149,9 @@ describe('useProductSearch', () => {
         () => {
           expect(saleApi.searchPosCatalog).toHaveBeenCalledWith({
             q: 'asp',
-            limit: 25,
+            limit: 30,
             offset: 0,
+            categoryId: undefined,
           })
         },
         { timeout: 300 }
@@ -159,7 +162,7 @@ describe('useProductSearch', () => {
       const mockResponse: PosCatalogResponse = {
         items: [],
         total: 0,
-        limit: 25,
+        limit: 30,
         offset: 0,
       }
 
@@ -183,8 +186,9 @@ describe('useProductSearch', () => {
           expect(saleApi.searchPosCatalog).toHaveBeenCalledTimes(1)
           expect(saleApi.searchPosCatalog).toHaveBeenCalledWith({
             q: 'asp',
-            limit: 25,
+            limit: 30,
             offset: 0,
+            categoryId: undefined,
           })
         },
         { timeout: 300 }
@@ -400,18 +404,18 @@ describe('useProductSearch', () => {
       })
     })
 
-    it('should be false when query is empty even if results are empty', async () => {
+    it('should be true when query is empty and catalog has no products', async () => {
       vi.mocked(saleApi.searchPosCatalog).mockResolvedValue({
         items: [],
         total: 0,
-        limit: 25,
+        limit: 24,
         offset: 0,
       })
 
       const { result } = mountComposable(() => useProductSearch())
 
       await vi.waitFor(() => {
-        expect(result.isEmpty.value).toBe(false)
+        expect(result.isEmpty.value).toBe(true)
       })
     })
 
