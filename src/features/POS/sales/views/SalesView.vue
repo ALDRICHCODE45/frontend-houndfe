@@ -240,7 +240,7 @@ function handleSwitchTab(saleId: string) {
       </div>
 
       <!-- Right skeleton panel (cart — small) -->
-      <div class="w-[380px] xl:w-[420px] shrink-0 border-l border-default flex flex-col p-4 space-y-3">
+      <div class="w-[440px] xl:w-[480px] shrink-0 border-l border-default flex flex-col p-4 space-y-3">
         <USkeleton class="h-10 w-48" />
         <USkeleton class="h-10 w-full" />
         <div class="flex-1 flex items-center justify-center">
@@ -262,7 +262,7 @@ function handleSwitchTab(saleId: string) {
       </div>
 
       <!-- Right panel: Active sale cart (fixed width) -->
-      <div class="lg:w-[380px] xl:w-[420px] shrink-0 border-l border-default flex flex-col">
+      <div class="lg:w-[440px] xl:w-[480px] shrink-0 border-l border-default flex flex-col">
         <ActiveSalePanel
           :drafts="drafts"
           :active-draft="activeDraft"

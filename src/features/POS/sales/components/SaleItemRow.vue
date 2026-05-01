@@ -153,10 +153,10 @@ function handleQtyCommit() {
   <div
     class="mx-3 mb-1 rounded-lg hover:bg-elevated/40 transition-colors duration-150"
   >
-    <div class="flex items-center gap-3 px-3 py-3">
+    <div class="flex items-center gap-2.5 px-3 py-2.5">
       <!-- Image or styled placeholder -->
       <div
-        class="h-11 w-11 shrink-0 rounded-lg flex items-center justify-center overflow-hidden"
+        class="h-10 w-10 shrink-0 rounded-lg flex items-center justify-center overflow-hidden"
         :class="!imageUrl || imageBroken ? 'bg-primary/8 border border-primary/15' : 'bg-elevated border border-default'"
       >
         <UIcon
@@ -174,26 +174,19 @@ function handleQtyCommit() {
         />
       </div>
 
-      <!-- Product info -->
+      <!-- Product info (name + variant + unit price) -->
       <div class="flex-1 min-w-0">
-        <p class="text-sm font-medium text-highlighted truncate">
+        <p class="text-[13px] font-medium text-highlighted truncate">
           {{ item.productName }}
         </p>
-        <div class="flex items-center gap-1.5 mt-0.5">
-          <span v-if="item.variantName" class="text-xs text-muted uppercase tracking-wide">
-            {{ item.variantName }}
-          </span>
-          <span v-if="item.variantName" class="text-xs text-dimmed">&middot;</span>
-          <span class="text-xs text-toned font-medium">
-            <span v-if="showPriceOrigin" class="mr-1.5 line-through text-muted">
-              {{ formatCentsMXN(item.originalPriceCents ?? 0) }}
-            </span>
-            <span v-if="showDiscountOrigin" class="mr-1.5 line-through text-muted">
-              {{ formatCentsMXN(item.prePriceCentsBeforeDiscount ?? 0) }}
-            </span>
-            {{ formatCentsMXN(item.unitPriceCents) }} c/u
-          </span>
-        </div>
+        <p class="text-[11px] text-muted truncate mt-0.5">
+          <span v-if="item.variantName" class="uppercase tracking-wide">{{ item.variantName }}</span>
+          <span v-if="item.variantName"> · </span>
+          <span v-if="showPriceOrigin" class="line-through mr-1">{{ formatCentsMXN(item.originalPriceCents ?? 0) }}</span>
+          <span v-if="showDiscountOrigin" class="line-through mr-1">{{ formatCentsMXN(item.prePriceCentsBeforeDiscount ?? 0) }}</span>
+          <span class="font-medium text-toned">{{ formatCentsMXN(item.unitPriceCents) }} c/u</span>
+        </p>
+        <!-- Badges row -->
         <div
           v-if="priceSourceBadge || item.discountType"
           data-testid="sale-item-badge-group"
@@ -230,10 +223,10 @@ function handleQtyCommit() {
       </div>
 
       <!-- Quantity input -->
-      <div class="w-[100px]">
+      <div class="w-[90px] shrink-0">
         <UInputNumber
           v-model="localQty"
-          size="sm"
+          size="xs"
           :min="1"
           :disabled="isUpdating"
           @blur="handleQtyCommit"
@@ -242,13 +235,13 @@ function handleQtyCommit() {
       </div>
 
       <!-- Line total -->
-      <div class="w-28 text-right">
-        <p class="text-sm font-bold text-highlighted tabular-nums">
+      <div class="w-[85px] shrink-0 text-right">
+        <p class="text-[13px] font-bold text-highlighted tabular-nums">
           {{ formatCentsMXN(lineCents(item.unitPriceCents, item.quantity)) }}
         </p>
         <p
           v-if="item.discountAmountCents && item.discountAmountCents > 0"
-          class="text-[11px] text-muted line-through tabular-nums mt-0.5"
+          class="text-[10px] text-muted line-through tabular-nums"
         >
           {{ formatCentsMXN(lineCents(item.prePriceCentsBeforeDiscount ?? item.unitPriceCents, item.quantity)) }}
         </p>
