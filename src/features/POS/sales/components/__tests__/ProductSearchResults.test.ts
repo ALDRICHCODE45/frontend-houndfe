@@ -64,20 +64,21 @@ describe('ProductSearchResults.vue', () => {
     },
   ]
 
-  it('shows idle state when no query entered', () => {
+  it('shows empty state when no query and no items (empty catalog)', () => {
     const wrapper = mount(ProductSearchResults, {
       props: {
         items: [],
         isLoading: false,
-        isEmpty: false,
+        isEmpty: true,
         hasQuery: false,
       },
     })
 
-    expect(wrapper.text()).toContain('Empezá a buscar')
+    expect(wrapper.text()).toContain('Sin resultados')
+    expect(wrapper.text()).toContain('No hay productos disponibles en el catálogo POS')
   })
 
-  it('shows loading skeletons when loading', () => {
+  it('shows loading skeletons when loading with no items', () => {
     const wrapper = mount(ProductSearchResults, {
       props: {
         items: [],
@@ -87,8 +88,8 @@ describe('ProductSearchResults.vue', () => {
       },
     })
 
-    // Check for loading state presence
-    const loadingContainer = wrapper.find('[class*="space-y-3"]')
+    // Check for loading state presence (skeleton container with space-y-2)
+    const loadingContainer = wrapper.find('[class*="space-y-2"]')
     expect(loadingContainer.exists()).toBe(true)
   })
 

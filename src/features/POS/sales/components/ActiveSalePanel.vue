@@ -85,12 +85,12 @@ function getCloseTabDescription(): string {
     />
 
     <!-- Type toggle + actions row -->
-    <div class="flex items-center gap-3 px-4 py-3 border-b border-default bg-elevated/20">
-      <!-- Type toggle using UTabs -->
+    <div class="flex items-center gap-3 px-4 py-2.5 border-b border-default">
+      <!-- Type toggle using UTabs with icons -->
       <UTabs
         :items="[
-          { key: 'venta', label: 'Venta', content: false },
-          { key: 'pedido', label: 'Pedido', content: false, disabled: true },
+          { key: 'venta', label: 'Venta', icon: 'i-lucide-shopping-bag', content: false },
+          { key: 'pedido', label: 'Pedido', icon: 'i-lucide-clipboard-list', content: false, disabled: true },
         ]"
         :model-value="'venta'"
         class="w-auto"
@@ -99,52 +99,52 @@ function getCloseTabDescription(): string {
       <div class="flex-1"></div>
 
       <!-- Action buttons -->
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-1">
         <!-- Trash button -->
-        <div :title="activeDraft && activeDraft.items.length === 0 ? 'La venta no tiene productos' : ''">
+        <UTooltip :text="activeDraft && activeDraft.items.length === 0 ? 'La venta no tiene productos' : 'Vaciar venta'">
           <UButton
             color="neutral"
             variant="ghost"
             icon="i-lucide-trash-2"
-            size="sm"
+            size="xs"
             :disabled="!activeDraft || activeDraft.items.length === 0 || isMutating"
             @click="handleTrashClick"
           />
-        </div>
+        </UTooltip>
 
         <!-- 3-dot button -->
-        <div title="Disponible próximamente">
+        <UTooltip text="Más opciones (próximamente)">
           <UButton
             color="neutral"
             variant="ghost"
             icon="i-lucide-ellipsis"
-            size="sm"
+            size="xs"
             disabled
           />
-        </div>
+        </UTooltip>
       </div>
     </div>
 
     <!-- Items list (scrollable middle section) -->
-    <div class="flex-1 overflow-y-auto bg-default">
+    <div class="flex-1 overflow-y-auto">
       <!-- Empty state -->
       <div
         v-if="!activeDraft || activeDraft.items.length === 0"
-        class="flex flex-col items-center justify-center py-20 px-4"
+        class="flex flex-col items-center justify-center h-full px-4"
       >
-        <div class="rounded-full bg-primary/10 p-6 mb-4">
-          <UIcon name="i-lucide-shopping-cart" class="h-12 w-12 text-primary/60" />
+        <div class="rounded-2xl bg-primary/8 p-5 mb-4">
+          <UIcon name="i-lucide-shopping-bag" class="h-10 w-10 text-primary/50" />
         </div>
-        <p class="text-base font-medium text-highlighted mb-1">
+        <p class="text-sm font-semibold text-highlighted mb-1">
           Tu venta está vacía
         </p>
-        <p class="text-sm text-muted text-center max-w-xs">
-          Buscá productos en el panel izquierdo para agregarlos a la venta
+        <p class="text-xs text-muted text-center max-w-[220px] leading-relaxed">
+          Seleccioná productos del catálogo para agregarlos a esta venta
         </p>
       </div>
 
       <!-- Items -->
-      <div v-else class="py-2">
+      <div v-else class="py-1">
         <SaleItemRow
           v-for="item in activeDraft.items"
           :key="item.id"

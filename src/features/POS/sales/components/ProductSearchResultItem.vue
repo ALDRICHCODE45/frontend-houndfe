@@ -40,24 +40,25 @@ function isLowStock(item: PosCatalogItem): boolean {
 
 <template>
   <div
-    class="flex items-center gap-3 px-3 py-3 hover:bg-elevated/60 cursor-pointer transition-colors duration-150 border-b border-default last:border-b-0"
+    class="flex items-center gap-3 mx-3 my-1 px-3 py-2.5 rounded-lg hover:bg-elevated/50 cursor-pointer transition-colors duration-150"
     @click="emit('select', item)"
   >
-    <!-- Image or placeholder -->
+    <!-- Image or styled placeholder -->
     <div
-      class="h-12 w-12 shrink-0 rounded-lg bg-elevated border border-default flex items-center justify-center overflow-hidden"
+      class="h-11 w-11 shrink-0 rounded-lg flex items-center justify-center overflow-hidden"
+      :class="!item.mainImage || imageError ? 'bg-primary/8 border border-primary/15' : 'bg-elevated border border-default'"
     >
       <UIcon
         v-if="!item.mainImage || imageError"
-        name="i-lucide-image"
-        class="h-6 w-6 text-dimmed"
+        name="i-lucide-package"
+        class="h-5 w-5 text-primary/60"
         data-testid="placeholder-icon"
       />
       <img
         v-else
         :src="item.mainImage"
         :alt="item.name"
-        class="h-full w-full object-cover rounded-lg"
+        class="h-full w-full object-cover"
         loading="lazy"
         @error="handleImageError"
       />
@@ -65,35 +66,33 @@ function isLowStock(item: PosCatalogItem): boolean {
 
     <!-- Product info -->
     <div class="flex-1 min-w-0">
-      <p class="text-sm font-medium text-highlighted truncate mb-0.5">
+      <p class="text-sm font-medium text-highlighted truncate">
         {{ item.name }}
       </p>
-      <p v-if="item.sku" class="text-xs text-dimmed truncate mb-0.5" data-testid="sku-subtitle">
-        {{ item.sku }}
-      </p>
-      <!-- Price or variant indicator -->
-      <div class="flex items-center gap-1">
-        <p v-if="item.price" class="text-sm text-toned">
+      <div class="flex items-center gap-1.5 mt-0.5">
+        <span v-if="item.brand" class="text-xs text-muted uppercase tracking-wide">
+          {{ item.brand.name }}
+        </span>
+        <span v-else-if="item.sku" class="text-xs text-muted" data-testid="sku-subtitle">
+          {{ item.sku }}
+        </span>
+        <span v-if="(item.brand || item.sku) && item.price" class="text-xs text-dimmed">&middot;</span>
+        <span v-if="item.price" class="text-xs text-toned font-medium">
           {{ formatPrice(item.price.priceDecimal) }}
-        </p>
-        <p v-else class="text-sm text-toned flex items-center gap-1">
+        </span>
+        <span v-else class="text-xs text-toned flex items-center gap-0.5">
           Ver variantes
-          <UIcon name="i-lucide-chevron-right" class="h-4 w-4" data-testid="chevron-icon" />
-        </p>
+          <UIcon name="i-lucide-chevron-right" class="h-3 w-3" data-testid="chevron-icon" />
+        </span>
       </div>
     </div>
 
-    <!-- Stock badge and variant count -->
-    <div class="shrink-0 flex flex-col items-end gap-1">
-      <UBadge
-        v-if="item.stock != null"
-        :color="isLowStock(item) ? 'warning' : 'success'"
-        variant="subtle"
-        size="xs"
-        :label="`${item.stock.quantity} unidades`"
-        data-testid="stock-badge"
-      />
-      <p v-if="item.hasVariants && item.variants.length > 0" class="text-xs text-dimmed">
+    <!-- Price (right-aligned, prominent) -->
+    <div class="shrink-0 text-right">
+      <p v-if="item.price" class="text-sm font-semibold text-highlighted">
+        {{ formatPrice(item.price.priceDecimal) }}
+      </p>
+      <p v-if="item.hasVariants && item.variants.length > 0" class="text-[11px] text-muted mt-0.5">
         {{ item.variants.length }} variantes
       </p>
     </div>

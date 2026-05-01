@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import ProductSearchResults from './ProductSearchResults.vue'
 import VariantPickerModal from './VariantPickerModal.vue'
 import { useProductSearch } from '../composables/useProductSearch'
@@ -13,7 +13,11 @@ const emit = defineEmits<{
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-const { query, items, isLoading, isEmpty } = useProductSearch()
+const { query, items, isLoading, isEmpty, hasQuery } = useProductSearch()
+
+const isMac = computed(() =>
+  typeof globalThis.navigator !== 'undefined' && globalThis.navigator.platform?.includes('Mac'),
+)
 
 const variantModalOpen = ref(false)
 const selectedItem = ref<PosCatalogItem | null>(null)
@@ -40,25 +44,37 @@ function handleAddVariant(productId: string, variantId: string) {
 </script>
 
 <template>
-  <div class="h-full flex flex-col bg-elevated/20">
+  <div class="h-full flex flex-col">
     <!-- Header section (sticky) -->
-    <div class="sticky top-0 z-10 bg-elevated/40 border-b border-default">
-      <!-- Title -->
-      <div class="px-4 py-4">
-        <h2 class="text-lg font-semibold text-highlighted">
-          Buscar productos
-        </h2>
-      </div>
-      
-      <!-- Search input -->
-      <div class="px-4 pb-4">
+    <div class="sticky top-0 z-10 bg-default border-b border-default">
+      <div class="p-4 space-y-3">
+        <!-- Title row -->
+        <div class="flex items-center justify-between">
+          <h2 class="text-base font-semibold text-highlighted">
+            Buscar productos
+          </h2>
+          <div class="flex items-center gap-1.5 text-xs text-muted">
+            <UKbd>{{ isMac ? '⌘' : 'Ctrl' }}</UKbd>
+            <UKbd>K</UKbd>
+          </div>
+        </div>
+
+        <!-- Search input -->
         <UInput
           v-model="query"
           icon="i-lucide-search"
-          placeholder="Buscar por nombre, SKU o código de barras..."
+          placeholder="Buscar por nombre, SKU o código"
           size="lg"
+          :ui="{ base: 'w-full' }"
         />
       </div>
+    </div>
+
+    <!-- Section label when browsing catalog -->
+    <div v-if="!hasQuery && items.length > 0" class="px-4 pt-3 pb-1">
+      <p class="text-xs font-medium text-muted uppercase tracking-wider">
+        Productos recientes
+      </p>
     </div>
 
     <!-- Results -->
@@ -66,7 +82,7 @@ function handleAddVariant(productId: string, variantId: string) {
       :items="items"
       :is-loading="isLoading"
       :is-empty="isEmpty"
-      :has-query="query.length > 0"
+      :has-query="hasQuery"
       @select="handleItemSelect"
     />
 

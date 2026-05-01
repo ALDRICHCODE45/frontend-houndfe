@@ -3,6 +3,23 @@ import { mount } from '@vue/test-utils'
 import SaleTotalsFooter from '../SaleTotalsFooter.vue'
 import type { SaleItem } from '../../interfaces/sale.types'
 
+const stubs = {
+  UButton: true,
+  USeparator: true,
+  UTooltip: {
+    name: 'UTooltip',
+    props: ['text'],
+    template: '<span><slot /></span>',
+  },
+  UIcon: true,
+  UKbd: true,
+  Tooltip: {
+    name: 'Tooltip',
+    props: ['text'],
+    template: '<span><slot /></span>',
+  },
+}
+
 describe('SaleTotalsFooter', () => {
   const mockItems: SaleItem[] = [
     {
@@ -27,24 +44,23 @@ describe('SaleTotalsFooter', () => {
     },
   ]
 
-  it('should display subtotal count correctly', () => {
+  it('should display subtotal label and total a cobrar', () => {
     const wrapper = mount(SaleTotalsFooter, {
       props: { items: mockItems },
-      global: {
-        stubs: { UButton: true, USeparator: true },
-      },
+      global: { stubs },
     })
 
     expect(wrapper.html()).toContain('Subtotal')
-    expect(wrapper.html()).toContain('2 productos')
+    expect(wrapper.html()).toContain('Total a cobrar')
+    // 5 productos total quantity (2+3), 2 líneas
+    expect(wrapper.html()).toContain('5 productos')
+    expect(wrapper.html()).toContain('2 líneas')
   })
 
   it('should display total amount formatted in MXN', () => {
     const wrapper = mount(SaleTotalsFooter, {
       props: { items: mockItems },
-      global: {
-        stubs: { UButton: true, USeparator: true },
-      },
+      global: { stubs },
     })
 
     // (5000 * 2) + (8000 * 3) = 10000 + 24000 = 34000 cents = $340.00
@@ -54,27 +70,23 @@ describe('SaleTotalsFooter', () => {
   it('should display zero total when items is empty', () => {
     const wrapper = mount(SaleTotalsFooter, {
       props: { items: [] },
-      global: {
-        stubs: { UButton: true, USeparator: true },
-      },
+      global: { stubs },
     })
 
     expect(wrapper.html()).toContain('Subtotal')
-    expect(wrapper.html()).toContain('0 productos')
     expect(wrapper.html()).toContain('$0.00')
+    expect(wrapper.html()).toContain('0 productos')
   })
 
   it('should calculate total correctly for single item', () => {
     const singleItem: SaleItem[] = [mockItems[0]!]
     const wrapper = mount(SaleTotalsFooter, {
       props: { items: singleItem },
-      global: {
-        stubs: { UButton: true, USeparator: true },
-      },
+      global: { stubs },
     })
 
     expect(wrapper.html()).toContain('Subtotal')
-    expect(wrapper.html()).toContain('1 producto')
+    expect(wrapper.html()).toContain('1 línea')
     expect(wrapper.html()).toContain('$100.00') // 5000 * 2 = 10000 cents
   })
 
@@ -104,9 +116,7 @@ describe('SaleTotalsFooter', () => {
 
     const wrapper = mount(SaleTotalsFooter, {
       props: { items: multiQuantityItems },
-      global: {
-        stubs: { UButton: true, USeparator: true },
-      },
+      global: { stubs },
     })
 
     // (1000 * 10) + (2000 * 5) = 10000 + 10000 = 20000 cents = $200.00

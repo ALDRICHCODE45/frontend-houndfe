@@ -99,7 +99,7 @@ describe('SalesTabsStrip', () => {
     })
 
     const activeTab = wrapper.find('[data-testid="tab-sale-2"]')
-    expect(activeTab.classes()).toContain('bg-default')
+    expect(activeTab.classes()).toContain('bg-elevated')
     expect(activeTab.classes()).toContain('shadow-sm')
   })
 })

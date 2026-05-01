@@ -95,21 +95,21 @@ describe('ProductSearchResultItem.vue', () => {
       expect(wrapper.text()).toContain('$49.98')
     })
 
-    it('should render SKU subtitle when sku is present', () => {
+    it('should render brand name when brand is present', () => {
       const wrapper = mount(ProductSearchResultItem, {
         props: { item: simpleProduct },
+      })
+
+      expect(wrapper.text()).toContain('Bayer')
+    })
+
+    it('should render SKU subtitle when sku is present and no brand', () => {
+      const noBrandProduct = { ...simpleProduct, brand: null }
+      const wrapper = mount(ProductSearchResultItem, {
+        props: { item: noBrandProduct },
       })
 
       expect(wrapper.text()).toContain('PAR-500')
-    })
-
-    it('should show stock badge with quantity when stock is not null', () => {
-      const wrapper = mount(ProductSearchResultItem, {
-        props: { item: simpleProduct },
-      })
-
-      expect(wrapper.text()).toContain('120')
-      expect(wrapper.text()).toContain('unidades')
     })
 
     it('should show mainImage as thumbnail', () => {
@@ -215,33 +215,22 @@ describe('ProductSearchResultItem.vue', () => {
     })
   })
 
-  describe('low stock warning', () => {
-    it('should render stock badge with quantity for low stock', () => {
-      const lowStockProduct: PosCatalogItem = {
-        ...simpleProduct,
-        stock: {
-          quantity: 5,
-          minQuantity: 10,
-        },
-      }
-
-      const wrapper = mount(ProductSearchResultItem, {
-        props: { item: lowStockProduct },
-      })
-
-      const badge = wrapper.find('[data-testid="stock-badge"]')
-      expect(badge.exists()).toBe(true)
-      expect(badge.text()).toContain('5 unidades')
-    })
-
-    it('should render stock badge with quantity for normal stock', () => {
+  describe('price display', () => {
+    it('should render price right-aligned for simple product', () => {
       const wrapper = mount(ProductSearchResultItem, {
         props: { item: simpleProduct },
       })
 
-      const badge = wrapper.find('[data-testid="stock-badge"]')
-      expect(badge.exists()).toBe(true)
-      expect(badge.text()).toContain('120 unidades')
+      // Price should appear in the right column as prominent text
+      expect(wrapper.text()).toContain('$49.98')
+    })
+
+    it('should show variant count for products with variants', () => {
+      const wrapper = mount(ProductSearchResultItem, {
+        props: { item: variantProduct },
+      })
+
+      expect(wrapper.text()).toContain('2 variantes')
     })
   })
 

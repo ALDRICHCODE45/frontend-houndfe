@@ -86,8 +86,8 @@ describe('useProductSearch', () => {
 
       await vi.waitFor(() => {
         expect(saleApi.searchPosCatalog).toHaveBeenCalledWith({
-          q: '',
-          limit: 25,
+          q: undefined,
+          limit: 20,
           offset: 0,
         })
       })
@@ -98,11 +98,11 @@ describe('useProductSearch', () => {
       })
     })
 
-    it('should fetch first page with limit 25 and offset 0 by default', async () => {
+    it('should fetch first page with limit 20 and offset 0 when query is empty', async () => {
       const mockResponse: PosCatalogResponse = {
         items: [],
         total: 0,
-        limit: 25,
+        limit: 20,
         offset: 0,
       }
 
@@ -112,8 +112,8 @@ describe('useProductSearch', () => {
 
       await vi.waitFor(() => {
         expect(saleApi.searchPosCatalog).toHaveBeenCalledWith({
-          q: '',
-          limit: 25,
+          q: undefined,
+          limit: 20,
           offset: 0,
         })
       })

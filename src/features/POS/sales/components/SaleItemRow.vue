@@ -151,15 +151,18 @@ function handleQtyCommit() {
 
 <template>
   <div
-    class="mx-3 mb-2 rounded-lg border border-default bg-elevated/40 hover:bg-elevated/60 hover:border-primary/30 transition-all duration-150"
+    class="mx-3 mb-1 rounded-lg hover:bg-elevated/40 transition-colors duration-150"
   >
-    <div class="flex items-center gap-4 px-4 py-3">
-      <!-- Image (56x56) -->
-      <div class="h-14 w-14 shrink-0 rounded-lg bg-elevated border border-default flex items-center justify-center overflow-hidden">
+    <div class="flex items-center gap-3 px-3 py-3">
+      <!-- Image or styled placeholder -->
+      <div
+        class="h-11 w-11 shrink-0 rounded-lg flex items-center justify-center overflow-hidden"
+        :class="!imageUrl || imageBroken ? 'bg-primary/8 border border-primary/15' : 'bg-elevated border border-default'"
+      >
         <UIcon
           v-if="!imageUrl || imageBroken"
           name="i-lucide-package"
-          class="h-7 w-7 text-dimmed"
+          class="h-5 w-5 text-primary/60"
         />
         <img
           v-else
@@ -173,25 +176,28 @@ function handleQtyCommit() {
 
       <!-- Product info -->
       <div class="flex-1 min-w-0">
-        <p class="text-sm font-medium text-highlighted truncate mb-0.5">
+        <p class="text-sm font-medium text-highlighted truncate">
           {{ item.productName }}
         </p>
-        <p v-if="item.variantName" class="text-xs text-muted truncate mb-1">
-          {{ item.variantName }}
-        </p>
-        <p class="text-xs text-toned font-medium">
-          <span v-if="showPriceOrigin" class="mr-2 line-through text-muted">
-            {{ formatCentsMXN(item.originalPriceCents ?? 0) }}
+        <div class="flex items-center gap-1.5 mt-0.5">
+          <span v-if="item.variantName" class="text-xs text-muted uppercase tracking-wide">
+            {{ item.variantName }}
           </span>
-          <span v-if="showDiscountOrigin" class="mr-2 line-through text-muted">
-            {{ formatCentsMXN(item.prePriceCentsBeforeDiscount ?? 0) }}
+          <span v-if="item.variantName" class="text-xs text-dimmed">&middot;</span>
+          <span class="text-xs text-toned font-medium">
+            <span v-if="showPriceOrigin" class="mr-1.5 line-through text-muted">
+              {{ formatCentsMXN(item.originalPriceCents ?? 0) }}
+            </span>
+            <span v-if="showDiscountOrigin" class="mr-1.5 line-through text-muted">
+              {{ formatCentsMXN(item.prePriceCentsBeforeDiscount ?? 0) }}
+            </span>
+            {{ formatCentsMXN(item.unitPriceCents) }} c/u
           </span>
-          {{ formatCentsMXN(item.unitPriceCents) }} c/u
-        </p>
+        </div>
         <div
           v-if="priceSourceBadge || item.discountType"
           data-testid="sale-item-badge-group"
-          class="mt-1.5 flex flex-wrap items-center gap-1.5"
+          class="mt-1 flex flex-wrap items-center gap-1"
         >
           <UBadge
             v-if="priceSourceBadge"
@@ -223,12 +229,8 @@ function handleQtyCommit() {
         </div>
       </div>
 
-      <UDropdownMenu v-if="isDraft" :items="itemActions">
-        <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-ellipsis-vertical" />
-      </UDropdownMenu>
-
       <!-- Quantity input -->
-      <div class="w-24">
+      <div class="w-[100px]">
         <UInputNumber
           v-model="localQty"
           size="sm"
@@ -241,10 +243,21 @@ function handleQtyCommit() {
 
       <!-- Line total -->
       <div class="w-28 text-right">
-        <p class="text-base font-semibold text-highlighted">
+        <p class="text-sm font-bold text-highlighted tabular-nums">
           {{ formatCentsMXN(lineCents(item.unitPriceCents, item.quantity)) }}
         </p>
+        <p
+          v-if="item.discountAmountCents && item.discountAmountCents > 0"
+          class="text-[11px] text-muted line-through tabular-nums mt-0.5"
+        >
+          {{ formatCentsMXN(lineCents(item.prePriceCentsBeforeDiscount ?? item.unitPriceCents, item.quantity)) }}
+        </p>
       </div>
+
+      <!-- Actions dropdown -->
+      <UDropdownMenu v-if="isDraft" :items="itemActions">
+        <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-ellipsis-vertical" />
+      </UDropdownMenu>
     </div>
 
     <PriceOverrideModal

@@ -21,38 +21,35 @@ const emit = defineEmits<{
 <template>
   <div class="overflow-y-auto flex-1">
     <!-- Loading state -->
-    <div v-if="isLoading" class="space-y-3 p-3">
-      <USkeleton v-for="i in 6" :key="i" class="h-16 w-full rounded-lg" />
-    </div>
-
-    <!-- Idle state -->
-    <div v-else-if="!hasQuery" class="flex flex-col items-center justify-center py-16 px-4">
-      <div class="rounded-full bg-primary/10 p-5 mb-4">
-        <UIcon name="i-lucide-search" class="h-10 w-10 text-primary/60" />
+    <div v-if="isLoading && items.length === 0" class="p-3 space-y-2">
+      <div v-for="i in 8" :key="i" class="flex items-center gap-3 px-3 py-3">
+        <USkeleton class="h-11 w-11 rounded-lg shrink-0" />
+        <div class="flex-1 space-y-2">
+          <USkeleton class="h-3.5 w-3/4" />
+          <USkeleton class="h-3 w-1/3" />
+        </div>
+        <USkeleton class="h-4 w-16" />
       </div>
-      <p class="text-sm font-medium text-highlighted mb-1">
-        Empezá a buscar
-      </p>
-      <p class="text-sm text-muted text-center max-w-xs">
-        Escribí el nombre o SKU del producto que querés agregar
-      </p>
     </div>
 
     <!-- Empty state -->
-    <div v-else-if="isEmpty" class="flex flex-col items-center justify-center py-16 px-4">
-      <div class="rounded-full bg-elevated p-5 mb-4">
+    <div v-else-if="isEmpty" class="flex flex-col items-center justify-center py-20 px-4">
+      <div class="rounded-2xl bg-elevated p-5 mb-4">
         <UIcon name="i-lucide-package-x" class="h-10 w-10 text-dimmed" />
       </div>
-      <p class="text-sm font-medium text-highlighted mb-1">
+      <p class="text-sm font-semibold text-highlighted mb-1">
         Sin resultados
       </p>
-      <p class="text-sm text-muted text-center max-w-xs">
-        No encontramos productos habilitados para POS con ese término
+      <p class="text-xs text-muted text-center max-w-xs">
+        {{ hasQuery
+          ? 'No encontramos productos habilitados para POS con ese término'
+          : 'No hay productos disponibles en el catálogo POS'
+        }}
       </p>
     </div>
 
     <!-- Results list -->
-    <div v-else class="py-2">
+    <div v-else>
       <ProductSearchResultItem
         v-for="item in items"
         :key="item.id"

@@ -12,15 +12,15 @@ export function useProductSearch() {
   const { data, isLoading, isError } = useQuery({
     queryKey: computed(() =>
       saleQueryKeys.posCatalog({
-        q: debouncedQuery.value,
-        limit: 25,
+        q: debouncedQuery.value || undefined,
+        limit: debouncedQuery.value ? 25 : 20,
         offset: 0,
       })
     ),
     queryFn: async () => {
       return saleApi.searchPosCatalog({
-        q: debouncedQuery.value,
-        limit: 25,
+        q: debouncedQuery.value || undefined,
+        limit: debouncedQuery.value ? 25 : 20,
         offset: 0,
       })
     },
@@ -36,14 +36,17 @@ export function useProductSearch() {
     return data.value?.total ?? 0
   })
 
+  const hasQuery = computed(() => debouncedQuery.value.length > 0)
+
   const isEmpty = computed(() => {
-    return !isLoading.value && debouncedQuery.value.length > 0 && items.value.length === 0
+    return !isLoading.value && items.value.length === 0
   })
 
   return {
     query,
     items,
     total,
+    hasQuery,
     isLoading,
     isError,
     isEmpty,

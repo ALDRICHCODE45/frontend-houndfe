@@ -189,18 +189,22 @@ describe('SaleItemRow', () => {
     expect(vm.localQty).toBe(5)
   })
 
-  it('should show Cambiar precio inside item actions menu only for draft rows', () => {
+  it('should show item actions dropdown only for draft rows', () => {
     const draftWrapper = mount(SaleItemRow, {
       props: { item: mockItem, saleId: 'sale-1', isDraft: true, onSubmitPriceOverride, onApplyDiscount, onRemoveDiscount },
       global: { stubs },
     })
-    expect(draftWrapper.find('button[aria-haspopup="menu"]').exists()).toBe(true)
+
+    const vm = draftWrapper.vm as unknown as { itemActions: Array<Array<{ label?: string }>> }
+    expect(vm.itemActions.length).toBeGreaterThan(0)
+    expect(vm.itemActions[0]?.some((a) => a.label === 'Cambiar precio')).toBe(true)
 
     const nonDraftWrapper = mount(SaleItemRow, {
       props: { item: mockItem, saleId: 'sale-1', isDraft: false, onSubmitPriceOverride, onApplyDiscount, onRemoveDiscount },
       global: { stubs },
     })
-    expect(nonDraftWrapper.find('button[aria-haspopup="menu"]').exists()).toBe(false)
+    const nonDraftVm = nonDraftWrapper.vm as unknown as { itemActions: Array<Array<{ label?: string }>> }
+    expect(nonDraftVm.itemActions).toHaveLength(0)
   })
 
   it('should pass onSubmit callback and saleId to modal', async () => {

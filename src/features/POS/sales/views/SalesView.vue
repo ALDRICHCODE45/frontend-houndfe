@@ -224,32 +224,44 @@ function handleSwitchTab(saleId: string) {
     <!-- Loading skeleton -->
     <div v-if="isLoadingList" class="h-full w-full flex">
       <!-- Left skeleton panel -->
-      <div class="lg:w-2/5 border-r border-default p-4 space-y-4">
-        <USkeleton class="h-8 w-48" />
-        <USkeleton class="h-10 w-full" />
-        <div class="space-y-3 mt-6">
-          <USkeleton v-for="i in 5" :key="i" class="h-16 w-full rounded-lg" />
+      <div class="lg:w-[380px] xl:w-[420px] border-r border-default p-4 space-y-4">
+        <div class="flex items-center justify-between">
+          <USkeleton class="h-5 w-32" />
+          <USkeleton class="h-5 w-12" />
+        </div>
+        <USkeleton class="h-10 w-full rounded-lg" />
+        <USkeleton class="h-3 w-28 mt-2" />
+        <div class="space-y-2 mt-3">
+          <div v-for="i in 8" :key="i" class="flex items-center gap-3 py-2">
+            <USkeleton class="h-11 w-11 rounded-lg shrink-0" />
+            <div class="flex-1 space-y-2">
+              <USkeleton class="h-3.5 w-3/4" />
+              <USkeleton class="h-3 w-1/3" />
+            </div>
+            <USkeleton class="h-4 w-16" />
+          </div>
         </div>
       </div>
       
       <!-- Right skeleton panel -->
-      <div class="flex-1 flex flex-col p-4 space-y-4">
-        <USkeleton class="h-12 w-full" />
-        <USkeleton class="h-12 w-full" />
+      <div class="flex-1 flex flex-col p-4 space-y-3">
+        <USkeleton class="h-10 w-64" />
+        <USkeleton class="h-10 w-full" />
         <div class="flex-1 flex items-center justify-center">
-          <div class="space-y-3">
-            <USkeleton class="h-32 w-32 rounded-full mx-auto" />
-            <USkeleton class="h-4 w-48" />
+          <div class="text-center space-y-3">
+            <USkeleton class="h-16 w-16 rounded-2xl mx-auto" />
+            <USkeleton class="h-3.5 w-32 mx-auto" />
+            <USkeleton class="h-3 w-48 mx-auto" />
           </div>
         </div>
-        <USkeleton class="h-32 w-full" />
+        <USkeleton class="h-40 w-full rounded-lg" />
       </div>
     </div>
 
     <!-- Main split view -->
     <div v-else class="h-full flex flex-col lg:flex-row w-full">
-      <!-- Left panel: Product search -->
-      <div class="lg:w-2/5 border-r border-default flex flex-col">
+      <!-- Left panel: Product search (fixed width for better proportions) -->
+      <div class="lg:w-[380px] xl:w-[420px] shrink-0 border-r border-default flex flex-col">
         <ProductSearchPanel @add-product="handleAddProduct" />
       </div>
 
