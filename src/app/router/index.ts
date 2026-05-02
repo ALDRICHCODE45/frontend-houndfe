@@ -5,6 +5,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 type RoutePermission = [AppAction, AppSubject]
 
 const LoginView = () => import('@/features/auth/login/views/LoginView.vue')
+const TenantSelectionView = () =>
+  import('@/features/auth/tenant-selection/views/TenantSelectionView.vue')
 const DashboardHomeView = () => import('@/features/dashboard/home/views/DashboardHomeView.vue')
 const ProductsView = () => import('@/features/POS/products/views/ProductsView.vue')
 const ProductDetailView = () => import('@/features/POS/products/views/ProductDetailView.vue')
@@ -27,6 +29,12 @@ const router = createRouter({
       name: 'login',
       component: LoginView,
       meta: { layout: 'auth', public: true },
+    },
+    {
+      path: '/select-tenant',
+      name: 'select-tenant',
+      component: TenantSelectionView,
+      meta: { layout: 'auth', requiresAuth: true, skipTenantCheck: true },
     },
     {
       path: '/',
@@ -164,12 +172,20 @@ router.beforeEach(async (to) => {
   }
 
   const isPublic = to.meta.public === true
+  const skipTenantCheck = to.meta.skipTenantCheck === true
+  const requiresTenantScopedContext = !isPublic && !skipTenantCheck
 
   if (!isPublic && !authStore.isAuthenticated) {
     return {
       path: '/login',
       query: { redirect: to.fullPath },
     }
+  }
+
+  const hasOperationalTenantContext = authStore.currentTenant !== null
+
+  if (authStore.isAuthenticated && requiresTenantScopedContext && !hasOperationalTenantContext) {
+    return { name: 'select-tenant' }
   }
 
   if (authStore.isAuthenticated && !authStore.permissionsLoaded) {

@@ -24,10 +24,17 @@ async function handleLogin(values: LoginFormValues) {
   try {
     await loginMutation.mutateAsync(values)
 
+    if (authStore.authPhase === 'needs-tenant-selection') {
+      await router.push('/select-tenant')
+      return
+    }
+
     const redirectTo = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
     await router.push(redirectTo)
   } catch {
-    loginError.value = 'No se pudo iniciar sesión. Verificá credenciales.'
+    // Prefer store-level authError (e.g. 403 no active tenants) over generic message
+    loginError.value =
+      authStore.authError ?? 'No se pudo iniciar sesión. Verificá credenciales.'
   } finally {
     isLoading.value = false
   }

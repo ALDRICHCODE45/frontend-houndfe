@@ -3,8 +3,17 @@ import { useSidebar } from '@/app/composables/useSidebar'
 import { useDashboard } from '@/app/composables/useDashboard'
 import { defineShortcuts } from '@nuxt/ui/runtime/composables/defineShortcuts.js'
 
-const { selectedTeam, teamsItems, user, userItems, getNavigationItems, changeColorMode } =
-  useSidebar()
+const {
+  tenants,
+  currentTenantLabel,
+  showTenantSwitcher,
+  switchTenant,
+  teamsItems,
+  user,
+  userItems,
+  getNavigationItems,
+  changeColorMode,
+} = useSidebar()
 
 const { isSidebarOpen, isSidebarCollapsed, isSearchOpen, searchGroups, openSearch } = useDashboard()
 
@@ -30,16 +39,16 @@ defineShortcuts({
         body: 'py-2',
       }"
     >
-      <!-- Header: Team selector -->
+      <!-- Header: Tenant selector -->
       <template #header="{ collapsed }">
         <UDropdownMenu
-          v-if="!collapsed"
+          v-if="!collapsed && showTenantSwitcher"
           :items="teamsItems"
           :content="{ align: 'start', collisionPadding: 12 }"
           :ui="{ content: 'w-(--reka-dropdown-menu-trigger-width) min-w-48' }"
         >
           <UButton
-            v-bind="selectedTeam"
+            :label="currentTenantLabel"
             trailing-icon="i-lucide-chevrons-up-down"
             color="neutral"
             variant="ghost"
@@ -48,7 +57,23 @@ defineShortcuts({
           />
         </UDropdownMenu>
 
-        <UAvatar v-else v-bind="selectedTeam?.avatar" size="sm" />
+        <!-- Single-tenant: label only, no dropdown -->
+        <UButton
+          v-else-if="!collapsed && !showTenantSwitcher"
+          :label="currentTenantLabel"
+          color="neutral"
+          variant="ghost"
+          class="w-full overflow-hidden cursor-default"
+          :ui="{ trailingIcon: 'text-dimmed ms-auto' }"
+        />
+
+        <!-- Collapsed: show first letter of tenant name as avatar-like button -->
+        <UAvatar
+          v-else
+          :alt="currentTenantLabel"
+          :text="currentTenantLabel.charAt(0).toUpperCase()"
+          size="sm"
+        />
       </template>
 
       <!-- Body: Navigation + Search button -->

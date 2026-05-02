@@ -1,15 +1,29 @@
 import { http } from '@/core/shared/api/http'
 import type {
   AuthLoginRequest,
-  AuthResponse,
   AuthTokens,
   AuthUser,
+  LoginResponse,
+  SelectTenantRequest,
+  SelectTenantResponse,
+  SwitchTenantRequest,
+  SwitchTenantResponse,
   UserPermissionsResponse,
 } from '../interfaces/auth.types'
 
 export const authApi = {
   async login(payload: AuthLoginRequest) {
-    const { data } = await http.post<AuthResponse>('/auth/login', payload)
+    const { data } = await http.post<LoginResponse>('/auth/login', payload)
+    return data
+  },
+
+  async selectTenant(payload: SelectTenantRequest) {
+    const { data } = await http.post<SelectTenantResponse>('/auth/select-tenant', payload)
+    return data
+  },
+
+  async switchTenant(payload: SwitchTenantRequest) {
+    const { data } = await http.post<SwitchTenantResponse>('/auth/switch-tenant', payload)
     return data
   },
 

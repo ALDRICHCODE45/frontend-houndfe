@@ -3,6 +3,7 @@ import './assets/main.css'
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import { VueQueryPlugin } from '@tanstack/vue-query'
+import { queryClient } from '@/core/shared/api/queryClient'
 import { abilitiesPlugin } from '@casl/vue'
 import ui from '@nuxt/ui/vue-plugin'
 import router from '@/app/router'
@@ -18,7 +19,7 @@ app.use(pinia)
 app.use(abilitiesPlugin, ability)
 app.use(router)
 app.use(ui)
-app.use(VueQueryPlugin)
+app.use(VueQueryPlugin, { queryClient })
 
 const authStore = useAuthStore(pinia)
 authStore.hydrateFromStorage()

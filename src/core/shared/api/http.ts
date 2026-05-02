@@ -30,8 +30,14 @@ http.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as RetryableRequestConfig | undefined
     const requestUrl = originalRequest?.url ?? ''
+    const message = (error.response?.data as { message?: string } | undefined)?.message
 
     const isAuthFreePath = authFreePaths.some((path) => requestUrl.includes(path))
+
+    if (error.response?.status === 401 && message === 'Tenant context required') {
+      emitSessionExpired('tenant-required')
+      return Promise.reject(error)
+    }
 
     if (
       error.response?.status === 401 &&

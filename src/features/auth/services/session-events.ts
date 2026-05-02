@@ -1,6 +1,6 @@
 export const AUTH_SESSION_EXPIRED_EVENT = 'hound:auth-session-expired'
 
-export type SessionExpiredReason = 'missing-refresh-token' | 'refresh-failed'
+export type SessionExpiredReason = 'missing-refresh-token' | 'refresh-failed' | 'tenant-required'
 
 export function emitSessionExpired(reason: SessionExpiredReason) {
   if (typeof window === 'undefined') return

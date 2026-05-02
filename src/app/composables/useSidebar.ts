@@ -18,33 +18,62 @@ export const useSidebar = () => {
   const authStore = useAuthStore()
   const router = useRouter()
 
-  const teams = ref([
-    {
-      label: 'HoundFe',
-      avatar: {
-        src: '/hounfeLogos/primary.png',
-        alt: 'HoundFe',
-      },
-    },
-  ])
-  const selectedTeam = ref(teams.value[0])
+  // ── Tenant switcher ─────────────────────────────────────────────────────────
 
+  /** Real tenant list from auth store (replaces hardcoded teams) */
+  const tenants = computed(() => authStore.memberships)
+
+  /** Display label for the currently active tenant */
+  const currentTenantLabel = computed(() => {
+    if (authStore.isSuperAdmin && !authStore.currentTenant) {
+      return '(Global)'
+    }
+    return authStore.currentTenant?.name ?? ''
+  })
+
+  /** Slug of the active tenant (for secondary display) */
+  const currentTenantSlug = computed(() => authStore.currentTenant?.slug ?? '')
+
+  /** Whether to render the tenant switcher dropdown */
+  const showTenantSwitcher = computed(
+    () => authStore.isSuperAdmin || authStore.memberships.length > 1,
+  )
+
+  /** Switch the active tenant — delegates to authStore which calls the API */
+  async function switchTenant(tenantId: string | null) {
+    await authStore.switchTenant(tenantId)
+  }
+
+  // ── Legacy team dropdown items (kept for layout backwards-compat) ────────────
+  /** @deprecated – kept for template compatibility while layout migrates */
   const teamsItems = computed<DropdownMenuItem[][]>(() => {
-    return [
-      teams.value.map((team, index) => ({
-        ...team,
-        kbds: ['meta', String(index + 1)],
+    const tenantItems: DropdownMenuItem[] = tenants.value.map((tenant, index) => ({
+      label: tenant.name,
+      kbds: ['meta', String(index + 1)],
+      onSelect() {
+        void switchTenant(tenant.id)
+      },
+    }))
+
+    if (authStore.isSuperAdmin) {
+      tenantItems.unshift({
+        label: '(Global)',
         onSelect() {
-          selectedTeam.value = team
+          void switchTenant(null)
         },
-      })),
-      [
-        {
-          label: 'Create team',
-          icon: 'i-lucide-circle-plus',
-        },
-      ],
-    ]
+      })
+    }
+
+    return [tenantItems]
+  })
+
+  // Keep selectedTeam as a derived ref for legacy template compatibility
+  const selectedTeam = ref({
+    label: currentTenantLabel.value,
+    avatar: {
+      src: '/hounfeLogos/primary.png',
+      alt: currentTenantLabel.value,
+    },
   })
 
   function getNavigationItems(collapsed: boolean): NavigationMenuItem[] {
@@ -203,8 +232,16 @@ export const useSidebar = () => {
   }
 
   return {
+    // tenant switcher (new)
+    tenants,
+    currentTenantLabel,
+    currentTenantSlug,
+    showTenantSwitcher,
+    switchTenant,
+    // legacy
     selectedTeam,
     teamsItems,
+    // user / navigation
     user,
     userItems,
     getNavigationItems,
