@@ -88,9 +88,8 @@ export const saleApi = {
     return data
   },
 
-  async getProductDetail(productId: string, variantId?: string | null): Promise<PosProductDetail> {
-    const params = variantId ? { variantId } : undefined
-    const { data } = await http.get<PosProductDetail>(`/sales/pos-catalog/${productId}`, { params })
+  async getProductDetail(productId: string): Promise<PosProductDetail> {
+    const { data } = await http.get<PosProductDetail>(`/sales/pos-catalog/${productId}`)
     return data
   },
 

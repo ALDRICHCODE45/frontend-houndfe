@@ -60,7 +60,7 @@ watch(
     activeVariantId.value = props.variantId
 
     try {
-      detail.value = await saleApi.getProductDetail(props.productId, props.variantId)
+      detail.value = await saleApi.getProductDetail(props.productId)
     } catch {
       error.value = 'No se pudieron cargar los detalles del producto.'
     } finally {

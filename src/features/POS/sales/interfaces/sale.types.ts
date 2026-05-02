@@ -90,6 +90,7 @@ export interface PosCatalogPrice {
 export interface PosCatalogStock {
   quantity: number
   minQuantity: number
+  location?: string | null
 }
 
 export interface PosCatalogVariant {
@@ -105,11 +106,13 @@ export interface PosCatalogVariant {
 export interface PosCatalogItem {
   id: string
   name: string
+  description?: string | null
   sku: string | null
   barcode: string | null
   unit: string | null
   hasVariants: boolean
   useStock: boolean
+  enabledForPos?: boolean
   category: { id: string; name: string } | null
   brand: { id: string; name: string } | null
   mainImage: string | null
@@ -158,11 +161,13 @@ export interface PosProductDetail {
   sku: string | null
   barcode: string | null
   unit: string | null
+  hasVariants: boolean
+  useStock: boolean
+  enabledForPos: boolean
   category: { id: string; name: string } | null
   brand: { id: string; name: string } | null
   mainImage: string | null
   images: string[]
-  enabledForPos: boolean
   price: PosCatalogPrice | null
   stock: PosProductDetailStock | null
   variants: PosProductDetailVariant[]
