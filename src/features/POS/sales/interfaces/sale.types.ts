@@ -133,3 +133,37 @@ export interface PosCatalogSearchParams {
   categoryId?: string
   brandId?: string
 }
+
+// POS Product Detail — extended info for "Ver Detalles" modal
+export interface PosProductDetailStock {
+  quantity: number
+  minQuantity: number
+  location: string | null
+}
+
+export interface PosProductDetailVariant {
+  id: string
+  name: string
+  sku: string | null
+  barcode: string | null
+  mainImage: string | null
+  price: PosCatalogPrice | null
+  stock: PosProductDetailStock | null
+}
+
+export interface PosProductDetail {
+  id: string
+  name: string
+  description: string | null
+  sku: string | null
+  barcode: string | null
+  unit: string | null
+  category: { id: string; name: string } | null
+  brand: { id: string; name: string } | null
+  mainImage: string | null
+  images: string[]
+  enabledForPos: boolean
+  price: PosCatalogPrice | null
+  stock: PosProductDetailStock | null
+  variants: PosProductDetailVariant[]
+}

@@ -5,6 +5,7 @@ import type { ApplyItemDiscountPayload, OverrideItemPricePayload } from '../inte
 import { formatCentsMXN, lineCents } from '../utils/currency.utils'
 import PriceOverrideModal from './PriceOverrideModal.vue'
 import ItemDiscountModal from './ItemDiscountModal.vue'
+import ProductDetailModal from './ProductDetailModal.vue'
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -45,6 +46,7 @@ const localQty = ref(props.item.quantity)
 const previousQty = ref(props.item.quantity)
 const isPriceModalOpen = ref(false)
 const isDiscountModalOpen = ref(false)
+const isDetailModalOpen = ref(false)
 const itemActions = computed(() => {
   if (!props.isDraft) return []
 
@@ -70,6 +72,13 @@ const itemActions = computed(() => {
 
   return [
     [
+      {
+        label: 'Ver detalles',
+        icon: 'i-lucide-info',
+        onSelect: () => {
+          isDetailModalOpen.value = true
+        },
+      },
       {
         label: 'Cambiar precio',
         icon: 'i-lucide-badge-dollar-sign',
@@ -266,6 +275,13 @@ function handleQtyCommit() {
       v-model:open="isDiscountModalOpen"
       :item="item"
       :on-apply-discount="onApplyDiscount"
+    />
+
+    <ProductDetailModal
+      v-if="isDetailModalOpen"
+      v-model:open="isDetailModalOpen"
+      :product-id="item.productId"
+      :variant-id="item.variantId"
     />
   </div>
 </template>

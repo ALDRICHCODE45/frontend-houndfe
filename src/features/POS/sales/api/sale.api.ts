@@ -10,6 +10,7 @@ import type {
   GlobalDiscountResponse,
   PosCatalogResponse,
   PosCatalogSearchParams,
+  PosProductDetail,
 } from '../interfaces/sale.types'
 
 export const saleApi = {
@@ -84,6 +85,12 @@ export const saleApi = {
 
   async removeGlobalDiscount(saleId: string): Promise<Sale> {
     const { data } = await http.delete<Sale>(`/sales/drafts/${saleId}/discount`)
+    return data
+  },
+
+  async getProductDetail(productId: string, variantId?: string | null): Promise<PosProductDetail> {
+    const params = variantId ? { variantId } : undefined
+    const { data } = await http.get<PosProductDetail>(`/sales/pos-catalog/${productId}`, { params })
     return data
   },
 
