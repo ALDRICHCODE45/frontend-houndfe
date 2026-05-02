@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, reactive, watch } from 'vue'
+import { reactive, watch } from 'vue'
 import type { AxiosError } from 'axios'
 import { useSalesDrafts } from '../composables/useSalesDrafts'
 import { saleApi } from '../api/sale.api'
@@ -42,48 +42,44 @@ const {
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
 
-onMounted(async () => {
-  // Initialize: get active tab from localStorage or create first draft
-  const storedTabId = localStorage.getItem('pos:active-tab')
-  
-  // Wait for initial drafts to load
-  await new Promise((resolve) => {
-    const unwatch = watch(
-      isLoadingList,
-      (loading) => {
-        if (!loading) {
-          unwatch()
-          resolve(undefined)
-        }
-      },
-      { immediate: true }
-    )
-  })
+let initDone = false
 
-  // If no drafts exist, create one
-  if (drafts.value.length === 0) {
-    try {
-      await openNewTab()
-    } catch (error) {
-      const err = error as AxiosError<DomainApiError>
-      const message = err.response?.data?.message ?? 'No se pudo crear la venta inicial'
-      toast.add({ title: 'Error', description: message, color: 'error' })
-    }
-  } else {
-    // Set active tab from localStorage if it exists in drafts, else use first
-    const validStoredTab = storedTabId && drafts.value.some((d) => d.id === storedTabId)
-    if (validStoredTab) {
-      activeTabId.value = storedTabId
-    } else {
-      activeTabId.value = drafts.value[0]?.id ?? null
-    }
-  }
+// Restore active tab and hydrate images whenever drafts become available
+// This handles: initial load, page refresh, AND navigating back to this route
+watch(
+  drafts,
+  async (currentDrafts) => {
+    // Skip while still loading
+    if (isLoadingList.value) return
 
-  // Hydrate images for existing cart items (survives page refresh)
-  if (drafts.value.length > 0) {
-    void hydrateItemImages(drafts.value)
-  }
-})
+    if (currentDrafts.length === 0 && !initDone) {
+      initDone = true
+      try {
+        await openNewTab()
+      } catch (error) {
+        const err = error as AxiosError<DomainApiError>
+        const message = err.response?.data?.message ?? 'No se pudo crear la venta inicial'
+        toast.add({ title: 'Error', description: message, color: 'error' })
+      }
+      return
+    }
+
+    // Restore active tab from localStorage (or pick first)
+    if (!activeTabId.value || !currentDrafts.some((d) => d.id === activeTabId.value)) {
+      const storedTabId = localStorage.getItem('pos:active-tab')
+      const validStoredTab = storedTabId && currentDrafts.some((d) => d.id === storedTabId)
+      activeTabId.value = validStoredTab ? storedTabId : (currentDrafts[0]?.id ?? null)
+    }
+
+    initDone = true
+
+    // Hydrate images for cart items that don't have one
+    if (currentDrafts.length > 0) {
+      void hydrateItemImages(currentDrafts)
+    }
+  },
+  { immediate: true },
+)
 
 // Watch activeTabId and persist to localStorage
 watch(activeTabId, (id) => {
