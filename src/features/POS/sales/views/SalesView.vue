@@ -268,11 +268,13 @@ function handleSwitchTab(saleId: string) {
           <USkeleton v-for="i in 4" :key="i" class="h-8 w-24 rounded-full" />
         </div>
         <div class="grid grid-cols-3 xl:grid-cols-4 gap-3 mt-3">
-          <div v-for="i in 6" :key="i" class="space-y-2">
-            <USkeleton class="h-28 w-full rounded-xl" />
-            <USkeleton class="h-2.5 w-16" />
-            <USkeleton class="h-3 w-3/4" />
-            <USkeleton class="h-3.5 w-20" />
+          <div v-for="i in 8" :key="i" class="rounded-xl border border-default overflow-hidden">
+            <USkeleton class="aspect-square w-full" />
+            <div class="p-2.5 space-y-1.5">
+              <USkeleton class="h-2.5 w-16" />
+              <USkeleton class="h-3 w-full" />
+              <USkeleton class="h-3.5 w-20" />
+            </div>
           </div>
         </div>
       </div>

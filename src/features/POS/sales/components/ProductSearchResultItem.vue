@@ -40,25 +40,25 @@ function isLowStock(item: PosCatalogItem): boolean {
 
 <template>
   <div
-    class="group rounded-xl border border-default bg-default overflow-hidden cursor-pointer hover:border-primary/30 hover:shadow-sm transition-all duration-150"
+    class="group rounded-xl border border-default bg-default overflow-hidden cursor-pointer hover:border-primary/30 hover:shadow-sm transition-all duration-150 flex flex-col"
     @click="emit('select', item)"
   >
-    <!-- Image area -->
+    <!-- Image area (aspect-square for consistent sizing) -->
     <div
-      class="relative h-28 w-full flex items-center justify-center overflow-hidden"
-      :class="!item.mainImage || imageError ? 'bg-primary/5' : 'bg-elevated/50'"
+      class="relative aspect-square w-full flex items-center justify-center overflow-hidden"
+      :class="!item.mainImage || imageError ? 'bg-primary/5' : 'bg-elevated/30'"
     >
       <UIcon
         v-if="!item.mainImage || imageError"
         name="i-lucide-package"
-        class="h-8 w-8 text-primary/30"
+        class="h-10 w-10 text-primary/25"
         data-testid="placeholder-icon"
       />
       <img
         v-else
         :src="item.mainImage"
         :alt="item.name"
-        class="h-full w-full object-contain p-2"
+        class="h-full w-full object-contain p-3"
         loading="lazy"
         @error="handleImageError"
       />
@@ -67,7 +67,7 @@ function isLowStock(item: PosCatalogItem): boolean {
       <span
         v-if="item.stock != null"
         :class="[
-          'absolute top-1.5 right-1.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-md',
+          'absolute top-2 right-2 text-[10px] font-semibold px-1.5 py-0.5 rounded-md',
           isLowStock(item) ? 'bg-warning/15 text-warning' : 'bg-elevated/80 text-muted',
         ]"
         data-testid="stock-badge"
@@ -77,7 +77,7 @@ function isLowStock(item: PosCatalogItem): boolean {
     </div>
 
     <!-- Card body -->
-    <div class="px-2.5 py-2 space-y-0.5">
+    <div class="px-3 py-2.5 space-y-1 border-t border-default/50">
       <!-- Brand -->
       <p v-if="item.brand" class="text-[11px] text-muted uppercase tracking-wider font-medium truncate">
         {{ item.brand.name }}
@@ -87,14 +87,14 @@ function isLowStock(item: PosCatalogItem): boolean {
       </p>
 
       <!-- Product name -->
-      <p class="text-[13px] font-medium text-highlighted truncate leading-snug">
+      <p class="text-[13px] font-medium text-highlighted leading-snug line-clamp-2">
         {{ item.name }}
       </p>
 
       <!-- Price row + action -->
-      <div class="flex items-center justify-between pt-0.5">
+      <div class="flex items-center justify-between pt-1">
         <div>
-          <p v-if="item.price" class="text-[13px] font-bold text-highlighted tabular-nums">
+          <p v-if="item.price" class="text-sm font-bold text-highlighted tabular-nums">
             {{ formatPrice(item.price.priceDecimal) }}
           </p>
           <p v-else class="text-xs text-toned flex items-center gap-0.5">

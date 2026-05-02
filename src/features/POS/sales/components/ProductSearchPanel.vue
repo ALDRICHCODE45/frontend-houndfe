@@ -13,7 +13,7 @@ const emit = defineEmits<{
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
-const { query, items, isLoading, isEmpty, hasQuery, categoryId } = useProductSearch()
+const { query, items, isLoading, isEmpty, hasQuery, categoryId, categories, totalUnfiltered } = useProductSearch()
 
 const isMac = computed(() =>
   typeof globalThis.navigator !== 'undefined' && globalThis.navigator.platform?.includes('Mac'),
@@ -22,25 +22,9 @@ const isMac = computed(() =>
 const variantModalOpen = ref(false)
 const selectedItem = ref<PosCatalogItem | null>(null)
 
-// ── Category filters (derived from current items) ─────────────────────────────
+// ── Category filters ──────────────────────────────────────────────────────────
 
 const activeCategory = ref<string | null>(null)
-
-const categoryChips = computed(() => {
-  // Build unique categories from the loaded items
-  const catMap = new Map<string, { id: string; name: string; count: number }>()
-  for (const item of items.value) {
-    if (item.category) {
-      const existing = catMap.get(item.category.id)
-      if (existing) {
-        existing.count++
-      } else {
-        catMap.set(item.category.id, { id: item.category.id, name: item.category.name, count: 1 })
-      }
-    }
-  }
-  return Array.from(catMap.values()).sort((a, b) => b.count - a.count)
-})
 
 function handleCategoryClick(catId: string) {
   if (activeCategory.value === catId) {
@@ -69,7 +53,6 @@ function handleItemSelect(item: PosCatalogItem) {
 }
 
 function handleAddVariant(productId: string, variantId: string) {
-  // Find the selected variant to get its image
   const variant = selectedItem.value?.variants.find((v) => v.id === variantId)
   const imageUrl = variant?.mainImage ?? selectedItem.value?.mainImage ?? null
   emit('add-product', productId, variantId, imageUrl)
@@ -98,8 +81,8 @@ function handleAddVariant(productId: string, variantId: string) {
           </div>
         </div>
 
-        <!-- Category filter chips -->
-        <div v-if="categoryChips.length > 0" class="flex items-center gap-2 overflow-x-auto no-scrollbar">
+        <!-- Category filter chips (derived from unfiltered catalog) -->
+        <div v-if="categories.length > 0" class="flex items-center gap-2 overflow-x-auto no-scrollbar">
           <button
             :class="[
               'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-150 whitespace-nowrap cursor-pointer',
@@ -116,12 +99,12 @@ function handleAddVariant(productId: string, variantId: string) {
                 !activeCategory ? 'bg-white/20 text-white' : 'bg-default text-muted',
               ]"
             >
-              {{ items.length }}
+              {{ totalUnfiltered }}
             </span>
           </button>
 
           <button
-            v-for="cat in categoryChips"
+            v-for="cat in categories"
             :key="cat.id"
             :class="[
               'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-150 whitespace-nowrap cursor-pointer',

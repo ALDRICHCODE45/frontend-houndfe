@@ -22,12 +22,12 @@ const emit = defineEmits<{
   <div class="overflow-y-auto flex-1 px-5 py-4">
     <!-- Loading state (card grid skeleton) -->
     <div v-if="isLoading && items.length === 0" class="grid grid-cols-3 xl:grid-cols-4 gap-3">
-      <div v-for="i in 6" :key="i" class="rounded-xl border border-default overflow-hidden">
-        <USkeleton class="h-28 w-full" />
-        <div class="px-2.5 py-2 space-y-1.5">
+      <div v-for="i in 8" :key="i" class="rounded-xl border border-default overflow-hidden">
+        <USkeleton class="aspect-square w-full" />
+        <div class="px-3 py-2.5 space-y-1.5 border-t border-default/50">
           <USkeleton class="h-2.5 w-16" />
-          <USkeleton class="h-3 w-3/4" />
-          <USkeleton class="h-3.5 w-20" />
+          <USkeleton class="h-3 w-full" />
+          <USkeleton class="h-3.5 w-20 mt-1" />
         </div>
       </div>
     </div>
