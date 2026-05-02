@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, watch } from 'vue'
+import { ref, watch } from 'vue'
 import type { AxiosError } from 'axios'
 import { useSalesDrafts } from '../composables/useSalesDrafts'
 import { saleApi } from '../api/sale.api'
@@ -90,10 +90,14 @@ watch(activeTabId, (id) => {
 
 // ── Image map (client-side, keyed by productId or productId:variantId) ─────
 
-const itemImageMap = reactive<Record<string, string>>({})
+const itemImageMap = ref<Record<string, string>>({})
 
 function getImageKey(productId: string, variantId: string | null): string {
   return variantId ? `${productId}:${variantId}` : productId
+}
+
+function setImage(key: string, url: string) {
+  itemImageMap.value = { ...itemImageMap.value, [key]: url }
 }
 
 /** Hydrate images for cart items that don't have one in the map (e.g. after page refresh) */
@@ -103,7 +107,7 @@ async function hydrateItemImages(allDrafts: Sale[]) {
   for (const draft of allDrafts) {
     for (const item of draft.items) {
       const key = getImageKey(item.productId, item.variantId)
-      if (!itemImageMap[key]) {
+      if (!itemImageMap.value[key]) {
         needsLookup.add(item.productId)
       }
     }
@@ -112,13 +116,15 @@ async function hydrateItemImages(allDrafts: Sale[]) {
   if (needsLookup.size === 0) return
 
   // Fetch product details in parallel to get images
+  const collected: Record<string, string> = {}
+
   const lookups = Array.from(needsLookup).map(async (productId) => {
     try {
       const detail = await saleApi.getProductDetail(productId)
 
       // Map product-level image
       if (detail.mainImage) {
-        itemImageMap[productId] = detail.mainImage
+        collected[productId] = detail.mainImage
       }
 
       // Map variant-level images
@@ -126,7 +132,7 @@ async function hydrateItemImages(allDrafts: Sale[]) {
         const varKey = `${productId}:${variant.id}`
         const img = variant.mainImage ?? detail.mainImage
         if (img) {
-          itemImageMap[varKey] = img
+          collected[varKey] = img
         }
       }
     } catch {
@@ -135,6 +141,11 @@ async function hydrateItemImages(allDrafts: Sale[]) {
   })
 
   await Promise.allSettled(lookups)
+
+  // Batch update — triggers single re-render
+  if (Object.keys(collected).length > 0) {
+    itemImageMap.value = { ...itemImageMap.value, ...collected }
+  }
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
@@ -151,7 +162,7 @@ function parseStockError(message: string): string {
 async function handleAddProduct(productId: string, variantId: string | null, imageUrl: string | null = null) {
   // Store image for rendering in sale items
   if (imageUrl) {
-    itemImageMap[getImageKey(productId, variantId)] = imageUrl
+    setImage(getImageKey(productId, variantId), imageUrl)
   }
 
   try {
