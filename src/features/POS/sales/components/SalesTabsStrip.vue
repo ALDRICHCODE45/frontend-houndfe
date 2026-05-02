@@ -28,17 +28,17 @@ function isActive(saleId: string): boolean {
 </script>
 
 <template>
-  <div class="flex items-center gap-1.5 overflow-x-auto px-4 py-2.5 border-b border-default bg-default no-scrollbar">
+  <div class="flex items-center gap-2 overflow-x-auto px-4 py-3 border-b border-default bg-default no-scrollbar">
     <!-- Tab buttons -->
     <div
       v-for="(draft, index) in drafts"
       :key="draft.id"
       :data-testid="`tab-${draft.id}`"
       :class="[
-        'group flex items-center gap-2 px-3.5 py-2 rounded-lg transition-all duration-150 whitespace-nowrap cursor-pointer',
+        'group flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-150 whitespace-nowrap cursor-pointer border',
         isActive(draft.id)
-          ? 'bg-elevated text-highlighted font-medium shadow-sm border border-default'
-          : 'bg-transparent text-muted hover:bg-elevated/40 hover:text-highlighted',
+          ? 'bg-elevated text-highlighted font-semibold shadow-sm border-default'
+          : 'bg-default text-muted border-transparent hover:bg-elevated/60 hover:text-highlighted hover:border-default',
       ]"
       @click="emit('switch', draft.id)"
     >
@@ -61,7 +61,7 @@ function isActive(saleId: string): boolean {
       <button
         :data-testid="`close-tab-${draft.id}`"
         :class="[
-          'transition-colors duration-150 rounded-sm p-0.5',
+           'transition-colors duration-150 rounded-md p-0.5',
           isActive(draft.id)
             ? 'text-dimmed hover:text-highlighted hover:bg-default'
             : 'text-dimmed/50 hover:text-highlighted hover:bg-elevated/60',
@@ -79,7 +79,7 @@ function isActive(saleId: string): boolean {
       color="neutral"
       size="sm"
       icon="i-lucide-plus"
-      class="ml-1"
+      class="ml-1 rounded-xl"
       @click="emit('create')"
     />
   </div>

@@ -160,12 +160,12 @@ function handleQtyCommit() {
 
 <template>
   <div
-    class="mx-3 mb-1 rounded-lg hover:bg-elevated/40 transition-colors duration-150"
+    class="mx-3 mb-2 rounded-xl border border-neutral-200/90 dark:border-white/10 bg-default hover:bg-elevated/40 hover:border-neutral-300 dark:hover:border-white/15 transition-all duration-150"
   >
-    <div class="flex items-center gap-2.5 px-3 py-2.5">
+    <div class="flex items-center gap-2.5 px-3 py-3">
       <!-- Image or styled placeholder -->
       <div
-        class="h-10 w-10 shrink-0 rounded-lg flex items-center justify-center overflow-hidden"
+        class="h-10 w-10 shrink-0 rounded-xl flex items-center justify-center overflow-hidden"
         :class="!imageUrl || imageBroken ? 'bg-primary/8 border border-primary/15' : 'bg-elevated border border-default'"
       >
         <UIcon
@@ -185,7 +185,7 @@ function handleQtyCommit() {
 
       <!-- Product info (name + variant + unit price) -->
       <div class="flex-1 min-w-0">
-        <p class="text-[13px] font-medium text-highlighted truncate">
+        <p class="text-[13px] font-semibold text-highlighted truncate">
           {{ item.productName }}
         </p>
         <p class="text-[11px] text-muted truncate mt-0.5">
@@ -199,7 +199,7 @@ function handleQtyCommit() {
         <div
           v-if="priceSourceBadge || item.discountType"
           data-testid="sale-item-badge-group"
-          class="mt-1 flex flex-wrap items-center gap-1"
+          class="mt-1.5 flex flex-wrap items-center gap-1"
         >
           <UBadge
             v-if="priceSourceBadge"
@@ -244,7 +244,7 @@ function handleQtyCommit() {
       </div>
 
       <!-- Line total -->
-      <div class="w-[85px] shrink-0 text-right">
+      <div class="w-[90px] shrink-0 text-right">
         <p class="text-[13px] font-bold text-highlighted tabular-nums">
           {{ formatCentsMXN(lineCents(item.unitPriceCents, item.quantity)) }}
         </p>

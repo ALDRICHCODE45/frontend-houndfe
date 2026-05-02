@@ -111,7 +111,7 @@ function getCloseTabDescription(): string {
 </script>
 
 <template>
-  <div class="flex-1 flex flex-col min-w-0">
+  <div class="h-full flex flex-col min-w-0 bg-default">
     <!-- Tabs strip -->
     <SalesTabsStrip
       :drafts="drafts"
@@ -122,7 +122,7 @@ function getCloseTabDescription(): string {
     />
 
     <!-- Type toggle + actions row -->
-    <div class="flex items-center gap-3 px-4 py-2.5 border-b border-default">
+    <div class="flex items-center gap-3 px-4 py-3 border-b border-default bg-elevated/20">
       <!-- Type toggle using UTabs with icons -->
       <UTabs
         :items="[
@@ -163,13 +163,13 @@ function getCloseTabDescription(): string {
     </div>
 
     <!-- Items list (scrollable middle section) -->
-    <div class="flex-1 overflow-y-auto">
+      <div class="flex-1 overflow-y-auto bg-[#fafafa] dark:bg-[#09090b]">
       <!-- Empty state -->
       <div
         v-if="!activeDraft || activeDraft.items.length === 0"
-        class="flex flex-col items-center justify-center h-full px-4"
-      >
-        <div class="rounded-2xl bg-primary/8 p-5 mb-4">
+          class="flex flex-col items-center justify-center h-full px-4"
+        >
+        <div class="rounded-2xl bg-primary/8 border border-primary/15 p-5 mb-4">
           <UIcon name="i-lucide-shopping-bag" class="h-10 w-10 text-primary/50" />
         </div>
         <p class="text-sm font-semibold text-highlighted mb-1">

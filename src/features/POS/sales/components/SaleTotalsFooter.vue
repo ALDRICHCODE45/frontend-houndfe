@@ -39,7 +39,7 @@ const discountFormatted = computed(() => formatCentsMXN(discountCents.value))
 </script>
 
 <template>
-  <div class="sticky bottom-0 bg-default border-t border-default px-5 py-4">
+  <div class="mt-auto bg-default/95 backdrop-blur supports-[backdrop-filter]:bg-default/90 border-t border-default px-5 py-4">
     <!-- Subtotal row -->
     <div class="flex items-center justify-between mb-1.5">
       <span class="text-sm text-muted">Subtotal</span>
@@ -55,7 +55,7 @@ const discountFormatted = computed(() => formatCentsMXN(discountCents.value))
       <span class="text-sm font-medium text-primary tabular-nums">-{{ discountFormatted }}</span>
     </div>
 
-    <USeparator class="my-3" />
+    <USeparator class="my-3 opacity-70" />
 
     <!-- Total row -->
     <div class="flex items-baseline justify-between mb-1">
@@ -65,13 +65,13 @@ const discountFormatted = computed(() => formatCentsMXN(discountCents.value))
           {{ totalQuantity }} {{ totalQuantity === 1 ? 'producto' : 'productos' }} · {{ lineCount }} {{ lineCount === 1 ? 'línea' : 'líneas' }}
         </p>
       </div>
-      <span class="text-2xl font-bold text-highlighted tabular-nums">{{ totalFormatted }}</span>
+      <span class="text-[34px] leading-none font-extrabold text-highlighted tabular-nums">{{ totalFormatted }}</span>
     </div>
 
     <!-- Cobrar button -->
     <div class="mt-4">
       <UTooltip text="Disponible próximamente" class="w-full">
-        <UButton color="primary" block size="xl" disabled class="relative">
+        <UButton color="primary" block size="xl" disabled class="relative rounded-xl font-semibold shadow-sm">
           <template #leading>
             <UIcon name="i-lucide-hand-coins" class="h-5 w-5" />
           </template>

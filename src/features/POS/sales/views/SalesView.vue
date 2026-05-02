@@ -334,48 +334,54 @@ function handleSwitchTab(saleId: string) {
       </div>
 
       <!-- Right skeleton panel (cart — 30%) -->
-      <div class="w-[30%] shrink-0 border-l border-default flex flex-col p-4 space-y-3">
-        <USkeleton class="h-10 w-48" />
-        <USkeleton class="h-10 w-full" />
-        <div class="flex-1 flex items-center justify-center">
-          <div class="text-center space-y-3">
-            <USkeleton class="h-16 w-16 rounded-2xl mx-auto" />
-            <USkeleton class="h-3.5 w-32 mx-auto" />
-            <USkeleton class="h-3 w-48 mx-auto" />
+      <div class="w-[30%] shrink-0 p-3 lg:p-4">
+        <div class="h-full flex flex-col rounded-2xl border border-default bg-elevated/60 shadow-sm p-4 space-y-3">
+          <USkeleton class="h-10 w-48" />
+          <USkeleton class="h-10 w-full" />
+          <div class="flex-1 flex items-center justify-center">
+            <div class="text-center space-y-3">
+              <USkeleton class="h-16 w-16 rounded-2xl mx-auto" />
+              <USkeleton class="h-3.5 w-32 mx-auto" />
+              <USkeleton class="h-3 w-48 mx-auto" />
+            </div>
           </div>
+          <USkeleton class="h-40 w-full rounded-lg" />
         </div>
-        <USkeleton class="h-40 w-full rounded-lg" />
       </div>
     </div>
 
     <!-- Main split view -->
-    <div v-else class="h-full flex flex-col lg:flex-row w-full">
+    <div v-else class="h-full flex flex-col lg:flex-row w-full bg-[#fafafa] dark:bg-[#09090b]">
       <!-- Left panel: Product catalog (70%) -->
-      <div class="lg:w-[70%] flex flex-col min-w-0">
-        <ProductSearchPanel @add-product="handleAddProduct" />
+      <div class="lg:w-[70%] flex flex-col min-w-0 p-3 lg:p-4">
+        <div class="h-full rounded-2xl border border-neutral-200/90 dark:border-white/10 bg-default shadow-sm dark:shadow-none overflow-hidden">
+          <ProductSearchPanel @add-product="handleAddProduct" />
+        </div>
       </div>
 
       <!-- Right panel: Active sale cart (30%) -->
-      <div class="lg:w-[30%] shrink-0 border-l border-default flex flex-col">
-        <ActiveSalePanel
-          :drafts="drafts"
-          :active-draft="activeDraft"
-          :active-tab-id="activeTabId"
-          :is-loading-list="isLoadingList"
-          :is-mutating="isMutating"
-          :item-image-map="itemImageMap"
-          :on-submit-price-override="handleSubmitPriceOverride"
-          :on-apply-discount="handleApplyDiscount"
-          :on-remove-discount="handleRemoveDiscount"
-          :on-remove-item="handleRemoveItem"
-          :on-apply-global-discount="handleApplyGlobalDiscount"
-          :on-remove-global-discount="handleRemoveGlobalDiscount"
-          @switch-tab="handleSwitchTab"
-          @close-tab="handleCloseTab"
-          @create-tab="handleCreateTab"
-          @update-qty="handleUpdateQty"
-          @clear-items="handleClearItems"
-        />
+      <div class="lg:w-[30%] shrink-0 p-3 lg:p-4">
+        <div class="h-full rounded-2xl border border-neutral-200/90 dark:border-white/10 bg-elevated/60 shadow-sm dark:shadow-none overflow-hidden">
+          <ActiveSalePanel
+            :drafts="drafts"
+            :active-draft="activeDraft"
+            :active-tab-id="activeTabId"
+            :is-loading-list="isLoadingList"
+            :is-mutating="isMutating"
+            :item-image-map="itemImageMap"
+            :on-submit-price-override="handleSubmitPriceOverride"
+            :on-apply-discount="handleApplyDiscount"
+            :on-remove-discount="handleRemoveDiscount"
+            :on-remove-item="handleRemoveItem"
+            :on-apply-global-discount="handleApplyGlobalDiscount"
+            :on-remove-global-discount="handleRemoveGlobalDiscount"
+            @switch-tab="handleSwitchTab"
+            @close-tab="handleCloseTab"
+            @create-tab="handleCreateTab"
+            @update-qty="handleUpdateQty"
+            @clear-items="handleClearItems"
+          />
+        </div>
       </div>
     </div>
   </div>

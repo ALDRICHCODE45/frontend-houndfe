@@ -40,13 +40,13 @@ function isLowStock(item: PosCatalogItem): boolean {
 
 <template>
   <div
-    class="group rounded-xl border border-default bg-default overflow-hidden cursor-pointer hover:border-primary/30 hover:shadow-sm transition-all duration-150 flex flex-col"
+    class="group rounded-2xl border border-neutral-200/90 dark:border-white/10 bg-default overflow-hidden cursor-pointer hover:border-primary/30 hover:shadow-md dark:hover:shadow-none transition-all duration-200 flex flex-col"
     @click="emit('select', item)"
   >
     <!-- Image area (aspect-square for consistent sizing) -->
     <div
       class="relative aspect-square w-full flex items-center justify-center overflow-hidden"
-      :class="!item.mainImage || imageError ? 'bg-primary/5' : 'bg-elevated/30'"
+      :class="!item.mainImage || imageError ? 'bg-primary/5' : 'bg-elevated/40'"
     >
       <UIcon
         v-if="!item.mainImage || imageError"
@@ -77,7 +77,7 @@ function isLowStock(item: PosCatalogItem): boolean {
     </div>
 
     <!-- Card body -->
-    <div class="px-3 py-2.5 space-y-1 border-t border-default/50">
+    <div class="px-3 py-3 space-y-1.5 border-t border-default/50">
       <!-- Brand -->
       <p v-if="item.brand" class="text-[11px] text-muted uppercase tracking-wider font-medium truncate">
         {{ item.brand.name }}
@@ -104,7 +104,7 @@ function isLowStock(item: PosCatalogItem): boolean {
         </div>
 
         <span
-          class="text-xs font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center gap-0.5"
+          class="text-xs font-semibold text-primary opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center gap-0.5"
         >
           <UIcon name="i-lucide-plus" class="h-3 w-3" />
           Agregar

@@ -19,10 +19,10 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="overflow-y-auto flex-1 px-5 py-4">
+  <div class="overflow-y-auto flex-1 px-5 py-4 bg-[#fafafa] dark:bg-[#09090b]">
     <!-- Loading state (card grid skeleton) -->
     <div v-if="isLoading && items.length === 0" class="grid grid-cols-4 xl:grid-cols-5 gap-3">
-      <div v-for="i in 8" :key="i" class="rounded-xl border border-default overflow-hidden">
+      <div v-for="i in 8" :key="i" class="rounded-2xl border border-default bg-default overflow-hidden shadow-sm">
         <USkeleton class="aspect-square w-full" />
         <div class="px-3 py-2.5 space-y-1.5 border-t border-default/50">
           <USkeleton class="h-2.5 w-16" />
@@ -34,7 +34,7 @@ const emit = defineEmits<{
 
     <!-- Empty state -->
     <div v-else-if="isEmpty" class="flex flex-col items-center justify-center py-20 px-4">
-      <div class="rounded-2xl bg-elevated p-5 mb-4">
+      <div class="rounded-2xl bg-elevated/70 border border-default p-5 mb-4">
         <UIcon name="i-lucide-package-x" class="h-10 w-10 text-dimmed" />
       </div>
       <p class="text-sm font-semibold text-highlighted mb-1">

@@ -62,10 +62,10 @@ function handleAddVariant(productId: string, variantId: string) {
 </script>
 
 <template>
-  <div class="h-full flex flex-col">
+  <div class="h-full flex flex-col bg-default">
     <!-- Header section (sticky) -->
-    <div class="sticky top-0 z-10 bg-default border-b border-default">
-      <div class="px-5 py-4 space-y-3">
+    <div class="sticky top-0 z-10 bg-default/95 backdrop-blur supports-[backdrop-filter]:bg-default/80 border-b border-default">
+      <div class="px-5 py-4 space-y-3.5">
         <!-- Search input (full width) -->
         <div class="flex items-center gap-3">
           <UInput
@@ -74,6 +74,7 @@ function handleAddVariant(productId: string, variantId: string) {
             placeholder="Buscar por nombre, SKU o código..."
             size="lg"
             class="flex-1"
+            :ui="{ base: 'rounded-xl' }"
           />
           <div class="flex items-center gap-1 text-xs text-muted shrink-0">
             <UKbd>{{ isMac ? '⌘' : 'Ctrl' }}</UKbd>
@@ -82,13 +83,13 @@ function handleAddVariant(productId: string, variantId: string) {
         </div>
 
         <!-- Category filter chips (derived from unfiltered catalog) -->
-        <div v-if="categories.length > 0" class="flex items-center gap-2 overflow-x-auto no-scrollbar">
+        <div v-if="categories.length > 0" class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-0.5">
           <button
             :class="[
-              'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-150 whitespace-nowrap cursor-pointer',
+              'inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-150 whitespace-nowrap cursor-pointer border',
               !activeCategory
-                ? 'bg-primary text-white'
-                : 'bg-elevated text-muted hover:bg-elevated/80 hover:text-highlighted',
+                ? 'bg-primary text-white border-primary shadow-sm'
+                : 'bg-elevated/50 text-muted border-default hover:bg-elevated hover:text-highlighted',
             ]"
             @click="clearCategoryFilter"
           >
@@ -107,10 +108,10 @@ function handleAddVariant(productId: string, variantId: string) {
             v-for="cat in categories"
             :key="cat.id"
             :class="[
-              'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors duration-150 whitespace-nowrap cursor-pointer',
+              'inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-150 whitespace-nowrap cursor-pointer border',
               activeCategory === cat.id
-                ? 'bg-primary text-white'
-                : 'bg-elevated text-muted hover:bg-elevated/80 hover:text-highlighted',
+                ? 'bg-primary text-white border-primary shadow-sm'
+                : 'bg-elevated/50 text-muted border-default hover:bg-elevated hover:text-highlighted',
             ]"
             @click="handleCategoryClick(cat.id)"
           >
