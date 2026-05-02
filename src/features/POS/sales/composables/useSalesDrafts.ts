@@ -8,6 +8,8 @@ import type {
   UpdateQtyPayload,
   OverrideItemPricePayload,
   ApplyItemDiscountPayload,
+  ApplyGlobalDiscountPayload,
+  GlobalDiscountResponse,
 } from '../interfaces/sale.types'
 
 // ── Pure functions for cache manipulation ────────────────────────────────────
@@ -173,6 +175,23 @@ export function useSalesDrafts() {
     },
   })
 
+  const applyGlobalDiscountMutation = useMutation({
+    mutationFn: ({ saleId, payload }: { saleId: string; payload: ApplyGlobalDiscountPayload }) =>
+      saleApi.applyGlobalDiscount(saleId, payload),
+    onSuccess: (response: GlobalDiscountResponse) => {
+      const currentDrafts = queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts()) ?? []
+      queryClient.setQueryData(saleQueryKeys.drafts(), replaceSaleInCache(currentDrafts, response.sale))
+    },
+  })
+
+  const removeGlobalDiscountMutation = useMutation({
+    mutationFn: saleApi.removeGlobalDiscount,
+    onSuccess: (updatedSale) => {
+      const currentDrafts = queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts()) ?? []
+      queryClient.setQueryData(saleQueryKeys.drafts(), replaceSaleInCache(currentDrafts, updatedSale))
+    },
+  })
+
   // Computed isMutating
   const isMutating = computed(() => {
     return (
@@ -185,6 +204,8 @@ export function useSalesDrafts() {
       || applyItemDiscountMutation.isPending.value
       || removeItemDiscountMutation.isPending.value
       || removeItemMutation.isPending.value
+      || applyGlobalDiscountMutation.isPending.value
+      || removeGlobalDiscountMutation.isPending.value
     )
   })
 
@@ -254,6 +275,16 @@ export function useSalesDrafts() {
     return await removeItemMutation.mutateAsync({ saleId: activeTabId.value, itemId })
   }
 
+  const applyGlobalDiscount = async (payload: ApplyGlobalDiscountPayload): Promise<GlobalDiscountResponse> => {
+    if (!activeTabId.value) throw new Error('No active tab')
+    return await applyGlobalDiscountMutation.mutateAsync({ saleId: activeTabId.value, payload })
+  }
+
+  const removeGlobalDiscount = async (): Promise<Sale> => {
+    if (!activeTabId.value) throw new Error('No active tab')
+    return await removeGlobalDiscountMutation.mutateAsync(activeTabId.value)
+  }
+
   return {
     drafts: computed(() => drafts.value ?? []),
     activeDraft,
@@ -271,5 +302,7 @@ export function useSalesDrafts() {
     applyItemDiscount,
     removeItemDiscount,
     removeItem,
+    applyGlobalDiscount,
+    removeGlobalDiscount,
   }
 }

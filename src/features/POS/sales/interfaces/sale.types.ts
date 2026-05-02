@@ -64,6 +64,20 @@ export type ApplyItemDiscountPayload =
   | { type: 'amount'; amountCents: number; title?: string }
   | { type: 'percentage'; percent: number; title?: string }
 
+export type ApplyGlobalDiscountPayload =
+  | { type: 'amount'; amountCents: number; discountTitle?: string }
+  | { type: 'percentage'; percent: number; discountTitle?: string }
+
+export interface GlobalDiscountSkippedItem {
+  itemId: string
+  reason: string
+}
+
+export interface GlobalDiscountResponse {
+  sale: Sale
+  skippedItems: GlobalDiscountSkippedItem[]
+}
+
 // POS Catalog types — match backend contract exactly
 export interface PosCatalogPrice {
   priceCents: number

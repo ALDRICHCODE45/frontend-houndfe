@@ -4,7 +4,7 @@ import type { AxiosError } from 'axios'
 import { useSalesDrafts } from '../composables/useSalesDrafts'
 import ProductSearchPanel from '../components/ProductSearchPanel.vue'
 import ActiveSalePanel from '../components/ActiveSalePanel.vue'
-import type { ApplyItemDiscountPayload, OverrideItemPricePayload } from '../interfaces/sale.types'
+import type { ApplyItemDiscountPayload, ApplyGlobalDiscountPayload, OverrideItemPricePayload } from '../interfaces/sale.types'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
 
 declare const useToast: () => {
@@ -35,6 +35,8 @@ const {
   applyItemDiscount,
   removeItemDiscount,
   removeItem,
+  applyGlobalDiscount,
+  removeGlobalDiscount,
 } = useSalesDrafts()
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
@@ -194,6 +196,37 @@ async function handleRemoveItem(itemId: string) {
   }
 }
 
+async function handleApplyGlobalDiscount(payload: ApplyGlobalDiscountPayload) {
+  try {
+    const result = await applyGlobalDiscount(payload)
+    if (result.skippedItems.length > 0) {
+      toast.add({
+        title: 'Descuento aplicado parcialmente',
+        description: `${result.skippedItems.length} producto(s) no recibieron el descuento por tener precio inferior al monto.`,
+        color: 'warning',
+      })
+    } else {
+      toast.add({ title: 'Descuento global aplicado', color: 'success' })
+    }
+  } catch (error) {
+    const err = error as AxiosError<DomainApiError>
+    const message = err.response?.data?.message ?? 'No se pudo aplicar el descuento global'
+    toast.add({ title: 'Error', description: message, color: 'error' })
+    throw error
+  }
+}
+
+async function handleRemoveGlobalDiscount() {
+  try {
+    await removeGlobalDiscount()
+    toast.add({ title: 'Descuentos eliminados', color: 'success' })
+  } catch (error) {
+    const err = error as AxiosError<DomainApiError>
+    const message = err.response?.data?.message ?? 'No se pudo quitar los descuentos'
+    toast.add({ title: 'Error', description: message, color: 'error' })
+  }
+}
+
 async function handleCloseTab(saleId: string) {
   try {
     await closeTab(saleId)
@@ -274,6 +307,8 @@ function handleSwitchTab(saleId: string) {
           :on-apply-discount="handleApplyDiscount"
           :on-remove-discount="handleRemoveDiscount"
           :on-remove-item="handleRemoveItem"
+          :on-apply-global-discount="handleApplyGlobalDiscount"
+          :on-remove-global-discount="handleRemoveGlobalDiscount"
           @switch-tab="handleSwitchTab"
           @close-tab="handleCloseTab"
           @create-tab="handleCreateTab"

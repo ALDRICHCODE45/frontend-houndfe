@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import SalesTabsStrip from './SalesTabsStrip.vue'
 import SaleItemRow from './SaleItemRow.vue'
 import SaleTotalsFooter from './SaleTotalsFooter.vue'
+import GlobalDiscountModal from './GlobalDiscountModal.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
-import type { ApplyItemDiscountPayload, OverrideItemPricePayload, Sale } from '../interfaces/sale.types'
+import type { ApplyItemDiscountPayload, ApplyGlobalDiscountPayload, OverrideItemPricePayload, Sale } from '../interfaces/sale.types'
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -19,6 +20,8 @@ const props = defineProps<{
   onApplyDiscount: (itemId: string, payload: ApplyItemDiscountPayload) => Promise<unknown>
   onRemoveDiscount: (itemId: string) => Promise<unknown>
   onRemoveItem: (itemId: string) => Promise<unknown>
+  onApplyGlobalDiscount: (payload: ApplyGlobalDiscountPayload) => Promise<unknown>
+  onRemoveGlobalDiscount: () => Promise<unknown>
 }>()
 
 // ── Emits ─────────────────────────────────────────────────────────────────────
@@ -36,6 +39,40 @@ const emit = defineEmits<{
 const trashConfirmOpen = ref(false)
 const closeTabConfirmOpen = ref(false)
 const tabToClose = ref<string | null>(null)
+const globalDiscountModalOpen = ref(false)
+
+// ── Computed ──────────────────────────────────────────────────────────────────
+
+const hasGlobalDiscount = computed(() =>
+  props.activeDraft?.items.some((item) => !!item.discountType) ?? false,
+)
+
+const moreMenuItems = computed(() => {
+  if (!props.activeDraft || props.activeDraft.items.length === 0) return []
+
+  const items: Array<{ label: string; icon: string; color?: 'error'; onSelect: () => void }> = []
+
+  items.push({
+    label: 'Aplicar descuento global',
+    icon: 'i-lucide-badge-percent',
+    onSelect: () => {
+      globalDiscountModalOpen.value = true
+    },
+  })
+
+  if (hasGlobalDiscount.value) {
+    items.push({
+      label: 'Quitar descuentos',
+      icon: 'i-lucide-percent-circle',
+      color: 'error',
+      onSelect: () => {
+        void props.onRemoveGlobalDiscount()
+      },
+    })
+  }
+
+  return [items]
+})
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
@@ -112,16 +149,16 @@ function getCloseTabDescription(): string {
           />
         </UTooltip>
 
-        <!-- 3-dot button -->
-        <UTooltip text="Más opciones (próximamente)">
+        <!-- 3-dot menu -->
+        <UDropdownMenu :items="moreMenuItems">
           <UButton
             color="neutral"
             variant="ghost"
             icon="i-lucide-ellipsis"
             size="xs"
-            disabled
+            :disabled="!activeDraft || activeDraft.items.length === 0 || isMutating"
           />
-        </UTooltip>
+        </UDropdownMenu>
       </div>
     </div>
 
@@ -164,6 +201,14 @@ function getCloseTabDescription(): string {
 
     <!-- Totals footer (sticky bottom) -->
     <SaleTotalsFooter v-if="activeDraft" :items="activeDraft.items" />
+
+    <!-- Global discount modal -->
+    <GlobalDiscountModal
+      v-if="globalDiscountModalOpen"
+      v-model:open="globalDiscountModalOpen"
+      :item-count="activeDraft?.items.length ?? 0"
+      :on-apply-global-discount="onApplyGlobalDiscount"
+    />
 
     <!-- Confirm modals -->
     <ConfirmModal

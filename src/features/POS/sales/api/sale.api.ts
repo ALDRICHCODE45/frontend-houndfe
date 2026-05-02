@@ -6,6 +6,8 @@ import type {
   AvailablePricesResponse,
   OverrideItemPricePayload,
   ApplyItemDiscountPayload,
+  ApplyGlobalDiscountPayload,
+  GlobalDiscountResponse,
   PosCatalogResponse,
   PosCatalogSearchParams,
 } from '../interfaces/sale.types'
@@ -73,6 +75,16 @@ export const saleApi = {
 
   async closeDraft(saleId: string): Promise<void> {
     await http.delete(`/sales/drafts/${saleId}`)
+  },
+
+  async applyGlobalDiscount(saleId: string, payload: ApplyGlobalDiscountPayload): Promise<GlobalDiscountResponse> {
+    const { data } = await http.patch<GlobalDiscountResponse>(`/sales/drafts/${saleId}/discount`, payload)
+    return data
+  },
+
+  async removeGlobalDiscount(saleId: string): Promise<Sale> {
+    const { data } = await http.delete<Sale>(`/sales/drafts/${saleId}/discount`)
+    return data
   },
 
   async searchPosCatalog(params: PosCatalogSearchParams): Promise<PosCatalogResponse> {
