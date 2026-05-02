@@ -2,9 +2,10 @@
 import { onMounted, reactive, watch } from 'vue'
 import type { AxiosError } from 'axios'
 import { useSalesDrafts } from '../composables/useSalesDrafts'
+import { saleApi } from '../api/sale.api'
 import ProductSearchPanel from '../components/ProductSearchPanel.vue'
 import ActiveSalePanel from '../components/ActiveSalePanel.vue'
-import type { ApplyItemDiscountPayload, ApplyGlobalDiscountPayload, OverrideItemPricePayload } from '../interfaces/sale.types'
+import type { ApplyItemDiscountPayload, ApplyGlobalDiscountPayload, OverrideItemPricePayload, Sale } from '../interfaces/sale.types'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
 
 declare const useToast: () => {
@@ -77,6 +78,11 @@ onMounted(async () => {
       activeTabId.value = drafts.value[0]?.id ?? null
     }
   }
+
+  // Hydrate images for existing cart items (survives page refresh)
+  if (drafts.value.length > 0) {
+    void hydrateItemImages(drafts.value)
+  }
 })
 
 // Watch activeTabId and persist to localStorage
@@ -92,6 +98,47 @@ const itemImageMap = reactive<Record<string, string>>({})
 
 function getImageKey(productId: string, variantId: string | null): string {
   return variantId ? `${productId}:${variantId}` : productId
+}
+
+/** Hydrate images for cart items that don't have one in the map (e.g. after page refresh) */
+async function hydrateItemImages(allDrafts: Sale[]) {
+  // Collect unique productIds that need image lookup
+  const needsLookup = new Set<string>()
+  for (const draft of allDrafts) {
+    for (const item of draft.items) {
+      const key = getImageKey(item.productId, item.variantId)
+      if (!itemImageMap[key]) {
+        needsLookup.add(item.productId)
+      }
+    }
+  }
+
+  if (needsLookup.size === 0) return
+
+  // Fetch product details in parallel to get images
+  const lookups = Array.from(needsLookup).map(async (productId) => {
+    try {
+      const detail = await saleApi.getProductDetail(productId)
+
+      // Map product-level image
+      if (detail.mainImage) {
+        itemImageMap[productId] = detail.mainImage
+      }
+
+      // Map variant-level images
+      for (const variant of detail.variants) {
+        const varKey = `${productId}:${variant.id}`
+        const img = variant.mainImage ?? detail.mainImage
+        if (img) {
+          itemImageMap[varKey] = img
+        }
+      }
+    } catch {
+      // Silently skip — product may have been deleted or user lacks permission
+    }
+  })
+
+  await Promise.allSettled(lookups)
 }
 
 // ── Handlers ──────────────────────────────────────────────────────────────────
