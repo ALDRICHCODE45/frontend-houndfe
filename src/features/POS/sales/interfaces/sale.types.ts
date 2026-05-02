@@ -64,9 +64,11 @@ export type ApplyItemDiscountPayload =
   | { type: 'amount'; amountCents: number; title?: string }
   | { type: 'percentage'; percent: number; title?: string }
 
+export type GlobalDiscountStrategy = 'replace' | 'skip'
+
 export type ApplyGlobalDiscountPayload =
-  | { type: 'amount'; amountCents: number; discountTitle?: string }
-  | { type: 'percentage'; percent: number; discountTitle?: string }
+  | { type: 'amount'; amountCents: number; discountTitle?: string; strategy?: GlobalDiscountStrategy }
+  | { type: 'percentage'; percent: number; discountTitle?: string; strategy?: GlobalDiscountStrategy }
 
 export interface GlobalDiscountSkippedItem {
   itemId: string

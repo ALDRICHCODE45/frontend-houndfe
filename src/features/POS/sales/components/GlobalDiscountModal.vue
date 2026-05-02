@@ -1,17 +1,19 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { ApplyGlobalDiscountPayload } from '../interfaces/sale.types'
+import type { ApplyGlobalDiscountPayload, GlobalDiscountStrategy } from '../interfaces/sale.types'
 import { currencyToCents, normalizeDecimalInput } from '../utils/currency.utils'
 
 const props = defineProps<{
   open: boolean
   itemCount: number
+  hasExistingDiscounts: boolean
   onApplyGlobalDiscount: (payload: ApplyGlobalDiscountPayload) => Promise<unknown>
 }>()
 
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 
 const mode = ref<'amount' | 'percentage'>('percentage')
+const strategy = ref<GlobalDiscountStrategy>('replace')
 const amountInput = ref('')
 const percentInput = ref('')
 const titleInput = ref('')
@@ -50,10 +52,15 @@ async function submit() {
   isSubmitting.value = true
   try {
     const title = titleInput.value.trim()
+    const base = {
+      ...(title ? { discountTitle: title } : {}),
+      strategy: strategy.value,
+    }
+
     const payload: ApplyGlobalDiscountPayload =
       mode.value === 'amount'
-        ? { type: 'amount', amountCents: amountCents.value ?? 0, ...(title ? { discountTitle: title } : {}) }
-        : { type: 'percentage', percent: percentValue.value ?? 0, ...(title ? { discountTitle: title } : {}) }
+        ? { type: 'amount', amountCents: amountCents.value ?? 0, ...base }
+        : { type: 'percentage', percent: percentValue.value ?? 0, ...base }
 
     await props.onApplyGlobalDiscount(payload)
     emit('update:open', false)
@@ -69,6 +76,7 @@ watch(
   (isOpen) => {
     if (!isOpen) return
     mode.value = 'percentage'
+    strategy.value = 'replace'
     amountInput.value = ''
     percentInput.value = ''
     titleInput.value = ''
@@ -90,7 +98,6 @@ watch(
           </div>
           <p class="text-xs text-muted">
             El descuento se aplicará a los <strong>{{ itemCount }} {{ itemCount === 1 ? 'producto' : 'productos' }}</strong> del carrito.
-            Si algún producto ya tiene descuento, será reemplazado.
           </p>
         </section>
 
@@ -129,6 +136,42 @@ watch(
         <UFormField label="Título (opcional)">
           <UInput v-model="titleInput" class="w-full" placeholder="Ej: Promo del día" />
         </UFormField>
+
+        <!-- Strategy toggle (only shown when items already have discounts) -->
+        <section v-if="hasExistingDiscounts" class="rounded-lg border border-default p-3 space-y-3">
+          <p class="text-sm font-medium">Descuentos existentes</p>
+          <p class="text-xs text-muted">Algunos productos ya tienen descuento. ¿Qué hacer con ellos?</p>
+          <div class="grid grid-cols-2 gap-2">
+            <UButton
+              type="button"
+              class="w-full"
+              :variant="strategy === 'replace' ? 'solid' : 'outline'"
+              @click="strategy = 'replace'"
+            >
+              <template #leading>
+                <UIcon name="i-lucide-replace" class="h-4 w-4" />
+              </template>
+              Reemplazar
+            </UButton>
+            <UButton
+              type="button"
+              class="w-full"
+              :variant="strategy === 'skip' ? 'solid' : 'outline'"
+              @click="strategy = 'skip'"
+            >
+              <template #leading>
+                <UIcon name="i-lucide-shield-check" class="h-4 w-4" />
+              </template>
+              Mantener
+            </UButton>
+          </div>
+          <p v-if="strategy === 'replace'" class="text-xs text-muted">
+            Se reemplazarán todos los descuentos actuales con el nuevo descuento global.
+          </p>
+          <p v-else class="text-xs text-muted">
+            Los productos que ya tienen descuento lo mantendrán. Solo se aplicará a los que no tienen.
+          </p>
+        </section>
 
         <UAlert v-if="error" color="warning" variant="soft" :description="error" />
       </form>

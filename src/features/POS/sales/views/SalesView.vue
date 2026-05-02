@@ -200,9 +200,14 @@ async function handleApplyGlobalDiscount(payload: ApplyGlobalDiscountPayload) {
   try {
     const result = await applyGlobalDiscount(payload)
     if (result.skippedItems.length > 0) {
+      const alreadyDiscounted = result.skippedItems.filter((s) => s.reason === 'ALREADY_DISCOUNTED').length
+      const amountInvalid = result.skippedItems.filter((s) => s.reason === 'DISCOUNT_AMOUNT_INVALID').length
+      const parts: string[] = []
+      if (alreadyDiscounted > 0) parts.push(`${alreadyDiscounted} ya tenían descuento`)
+      if (amountInvalid > 0) parts.push(`${amountInvalid} con precio inferior al monto`)
       toast.add({
         title: 'Descuento aplicado parcialmente',
-        description: `${result.skippedItems.length} producto(s) no recibieron el descuento por tener precio inferior al monto.`,
+        description: `${result.skippedItems.length} producto(s) omitidos: ${parts.join(', ')}.`,
         color: 'warning',
       })
     } else {

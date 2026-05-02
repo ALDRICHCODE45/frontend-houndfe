@@ -207,6 +207,7 @@ function getCloseTabDescription(): string {
       v-if="globalDiscountModalOpen"
       v-model:open="globalDiscountModalOpen"
       :item-count="activeDraft?.items.length ?? 0"
+      :has-existing-discounts="hasGlobalDiscount"
       :on-apply-global-discount="onApplyGlobalDiscount"
     />
 
