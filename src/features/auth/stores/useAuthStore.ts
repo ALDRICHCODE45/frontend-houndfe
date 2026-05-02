@@ -210,19 +210,39 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function switchTenant(tenantId: string | null) {
     authPhase.value = 'selecting-tenant'
-    const response = await authApi.switchTenant({ tenantId })
-    setSessionFromTokens(response.accessToken, response.refreshToken)
-    await fetchPermissions()
-    queryClient.clear()
-    authPhase.value = 'authenticated'
+
+    try {
+      const response = await authApi.switchTenant({ tenantId })
+      setSessionFromTokens(response.accessToken, response.refreshToken)
+      clearPermissions()
+      queryClient.clear()
+      await fetchPermissions()
+      authPhase.value = 'authenticated'
+    } catch (error) {
+      clearSession()
+      throw error
+    }
   }
 
   async function fetchMe() {
     if (!accessToken.value) return null
 
     const me = await authApi.me()
-    user.value = me
-    authStorage.setUser(me)
+
+    user.value = {
+      id: me.id,
+      email: me.email,
+      name: me.name,
+      isActive: me.isActive,
+      createdAt: me.createdAt,
+    }
+    currentTenant.value = me.tenant
+    memberships.value = me.memberships
+
+    authStorage.setUser(user.value)
+    authStorage.setCurrentTenant(me.tenant)
+    authStorage.setMemberships(me.memberships)
+
     return me
   }
 

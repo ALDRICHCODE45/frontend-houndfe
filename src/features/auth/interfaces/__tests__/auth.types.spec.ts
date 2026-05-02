@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import type { AuthJwtClaims, AuthPhase, LoginResponse, TenantSummary } from '../auth.types'
+import type {
+  AuthJwtClaims,
+  AuthMeResponse,
+  AuthPhase,
+  LoginResponse,
+  TenantSummary,
+} from '../auth.types'
 
 describe('auth.types', () => {
   it('defines TenantSummary shape', () => {
@@ -82,5 +88,20 @@ describe('auth.types', () => {
     ]
 
     expect(phases).toHaveLength(5)
+  })
+
+  it('defines AuthMeResponse with tenant and memberships fields', () => {
+    const me: AuthMeResponse = {
+      id: 'user-1',
+      email: 'user@hound.test',
+      name: 'User One',
+      isActive: true,
+      createdAt: '2026-05-02T00:00:00.000Z',
+      tenant: { id: 'tenant-1', name: 'Sucursal Centro', slug: 'centro' },
+      memberships: [{ id: 'tenant-2', name: 'Sucursal Norte', slug: 'norte' }],
+    }
+
+    expect(me.tenant?.id).toBe('tenant-1')
+    expect(me.memberships).toHaveLength(1)
   })
 })

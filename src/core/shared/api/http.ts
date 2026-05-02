@@ -1,6 +1,8 @@
 import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
+import { getActivePinia } from 'pinia'
 import { authStorage } from '@/features/auth/services/auth-storage'
 import { emitSessionExpired } from '@/features/auth/services/session-events'
+import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 
 const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:3000'
@@ -69,6 +71,13 @@ http.interceptors.response.use(
         const tokens = await refreshPromise
 
         authStorage.setTokens(tokens)
+
+        const activePinia = getActivePinia()
+        if (activePinia) {
+          const authStore = useAuthStore(activePinia)
+          authStore.setSessionFromTokens(tokens.accessToken, tokens.refreshToken)
+        }
+
         originalRequest.headers.Authorization = `Bearer ${tokens.accessToken}`
 
         return http(originalRequest)

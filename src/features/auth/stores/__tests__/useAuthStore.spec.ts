@@ -272,20 +272,88 @@ describe('switchTenant — query cache invalidation', () => {
     expect(clearMock).toHaveBeenCalledOnce()
   })
 
-  it('clears query cache AFTER fetchPermissions completes (not before)', async () => {
-    let permissionsCalledBeforeClear = false
+  it('clears query cache BEFORE fetchPermissions to avoid stale tenant cache', async () => {
+    let permissionsCalledAfterClear = false
     vi.mocked(authApi.mePermissions).mockImplementation(async () => {
-      permissionsCalledBeforeClear = !clearMock.mock.calls.length
+      permissionsCalledAfterClear = clearMock.mock.calls.length > 0
       return { permissions: [], permissionCodes: [] }
     })
 
     const store = useAuthStore()
     await store.switchTenant('tenant-2')
 
-    // permissions were called before clear
-    expect(permissionsCalledBeforeClear).toBe(true)
-    // AND clear was called at least once
+    expect(permissionsCalledAfterClear).toBe(true)
     expect(clearMock).toHaveBeenCalledOnce()
+  })
+
+  it('clears old permission codes before loading new tenant permissions', async () => {
+    const store = useAuthStore()
+    store.permissionCodes = ['product.read', 'sale.read']
+
+    vi.mocked(authApi.mePermissions).mockResolvedValue({
+      permissions: [],
+      permissionCodes: ['customer.read'],
+    })
+
+    await store.switchTenant('tenant-2')
+
+    expect(authStorage.clearPermissionCodes).toHaveBeenCalled()
+    expect(store.permissionCodes).toEqual(['customer.read'])
+  })
+
+  it('clears session when fetchPermissions fails after switchTenant', async () => {
+    vi.mocked(authApi.mePermissions).mockRejectedValue(new Error('permissions failed'))
+    const store = useAuthStore()
+
+    await expect(store.switchTenant('tenant-2')).rejects.toThrow('permissions failed')
+    expect(store.authPhase).toBe('idle')
+    expect(store.accessToken).toBeNull()
+    expect(store.refreshToken).toBeNull()
+  })
+})
+
+describe('fetchMe synchronization', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+    vi.mocked(decodeJwtClaims).mockReturnValue({
+      sub: 'user-1',
+      email: 'user@hound.test',
+      tenantId: 'tenant-1',
+      tenantSlug: 'centro',
+      isSuperAdmin: false,
+      iat: 1,
+      exp: 9999999999,
+    })
+  })
+
+  it('maps /auth/me tenant and memberships into dedicated store fields', async () => {
+    const store = useAuthStore()
+    store.setSessionFromTokens('access', 'refresh')
+
+    vi.mocked(authApi.me).mockResolvedValue({
+      id: 'user-1',
+      email: 'user@hound.test',
+      name: 'User One',
+      isActive: true,
+      createdAt: '2026-05-02T00:00:00.000Z',
+      tenant: { id: 'tenant-2', name: 'Sucursal Norte', slug: 'norte' },
+      memberships: [{ id: 'tenant-2', name: 'Sucursal Norte', slug: 'norte' }],
+    })
+
+    await store.fetchMe()
+
+    expect(store.user?.email).toBe('user@hound.test')
+    expect(store.currentTenant).toEqual({ id: 'tenant-2', name: 'Sucursal Norte', slug: 'norte' })
+    expect(store.memberships).toEqual([{ id: 'tenant-2', name: 'Sucursal Norte', slug: 'norte' }])
+    expect(authStorage.setCurrentTenant).toHaveBeenCalledWith({
+      id: 'tenant-2',
+      name: 'Sucursal Norte',
+      slug: 'norte',
+    })
+    expect(authStorage.setMemberships).toHaveBeenCalledWith([
+      { id: 'tenant-2', name: 'Sucursal Norte', slug: 'norte' },
+    ])
   })
 })
 

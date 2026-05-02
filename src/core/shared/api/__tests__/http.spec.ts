@@ -1,9 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { AxiosError } from 'axios'
 import axios from 'axios'
+import { createPinia, setActivePinia } from 'pinia'
 import { http } from '../http'
 import { authStorage } from '@/features/auth/services/auth-storage'
 import { emitSessionExpired } from '@/features/auth/services/session-events'
+
+const { setSessionFromTokensMock } = vi.hoisted(() => ({
+  setSessionFromTokensMock: vi.fn(),
+}))
 
 vi.mock('@/features/auth/services/auth-storage', () => ({
   authStorage: {
@@ -18,6 +23,12 @@ vi.mock('@/features/auth/services/session-events', () => ({
   emitSessionExpired: vi.fn(),
 }))
 
+vi.mock('@/features/auth/stores/useAuthStore', () => ({
+  useAuthStore: () => ({
+    setSessionFromTokens: setSessionFromTokensMock,
+  }),
+}))
+
 describe('http response interceptor', () => {
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   const responseRejected = (
@@ -26,6 +37,7 @@ describe('http response interceptor', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    setActivePinia(createPinia())
   })
 
   afterEach(() => {
@@ -85,6 +97,7 @@ describe('http response interceptor', () => {
       accessToken: 'new-access-token',
       refreshToken: 'new-refresh-token',
     })
+    expect(setSessionFromTokensMock).toHaveBeenCalledWith('new-access-token', 'new-refresh-token')
     expect(adapterSpy).toHaveBeenCalledTimes(1)
   })
 })

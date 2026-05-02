@@ -1,8 +1,8 @@
 import { http } from '@/core/shared/api/http'
 import type {
   AuthLoginRequest,
+  AuthMeResponse,
   AuthTokens,
-  AuthUser,
   LoginResponse,
   SelectTenantRequest,
   SelectTenantResponse,
@@ -28,7 +28,7 @@ export const authApi = {
   },
 
   async me() {
-    const { data } = await http.get<AuthUser>('/auth/me')
+    const { data } = await http.get<AuthMeResponse>('/auth/me')
     return data
   },
 

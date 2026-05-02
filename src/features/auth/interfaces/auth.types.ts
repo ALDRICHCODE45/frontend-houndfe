@@ -6,6 +6,11 @@ export interface AuthUser {
   createdAt: string
 }
 
+export interface AuthMeResponse extends AuthUser {
+  tenant: TenantSummary | null
+  memberships: TenantSummary[]
+}
+
 export interface TenantSummary {
   id: string
   name: string
