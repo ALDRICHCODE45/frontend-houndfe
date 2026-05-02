@@ -159,4 +159,38 @@ describe('useSidebar — tenant integration', () => {
 
     expect(sidebar.showTenantSwitcher.value).toBe(false)
   })
+
+  it('shows Admin > Sucursales only for super-admin', async () => {
+    vi.mocked(useAuthStore).mockReturnValue(
+      makeAuthStore({
+        isSuperAdmin: true,
+      }) as unknown as ReturnType<typeof useAuthStore>,
+    )
+
+    const { useSidebar } = await import('../useSidebar')
+    const sidebar = useSidebar()
+
+    const items = sidebar.getNavigationItems(false)
+    const adminSection = items.find((item) => item.label === 'Admin')
+    const adminChildren = adminSection?.children ?? []
+
+    expect(adminChildren.some((child) => child.label === 'Sucursales' && child.to === '/admin/tenants')).toBe(true)
+  })
+
+  it('hides Admin > Sucursales for non-super-admin users', async () => {
+    vi.mocked(useAuthStore).mockReturnValue(
+      makeAuthStore({
+        isSuperAdmin: false,
+      }) as unknown as ReturnType<typeof useAuthStore>,
+    )
+
+    const { useSidebar } = await import('../useSidebar')
+    const sidebar = useSidebar()
+
+    const items = sidebar.getNavigationItems(false)
+    const adminSection = items.find((item) => item.label === 'Admin')
+    const adminChildren = adminSection?.children ?? []
+
+    expect(adminChildren.some((child) => child.label === 'Sucursales' && child.to === '/admin/tenants')).toBe(false)
+  })
 })

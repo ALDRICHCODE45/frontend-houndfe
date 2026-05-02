@@ -97,4 +97,47 @@ describe('router tenant guard', () => {
 
     expect(router.currentRoute.value.path).toBe('/login')
   })
+
+  it('redirects unauthenticated users from /admin/tenants to login', async () => {
+    const { default: router } = await import('../index')
+
+    await router.push('/admin/tenants')
+    await router.isReady()
+
+    expect(router.currentRoute.value.path).toBe('/login')
+    expect(router.currentRoute.value.query.redirect).toBe('/admin/tenants')
+  })
+
+  it('redirects authenticated non-super-admin from /admin/tenants to /403', async () => {
+    mockAuthStore.accessToken = 'access-token'
+    mockAuthStore.user = { id: 'user-1' }
+    mockAuthStore.isAuthenticated = true
+    mockAuthStore.permissionsLoaded = true
+    mockAuthStore.currentTenant = { id: 'tenant-1', name: 'Sucursal Centro', slug: 'centro' }
+    mockAuthStore.isSuperAdmin = false
+
+    const { default: router } = await import('../index')
+
+    await router.push('/admin/tenants')
+    await router.isReady()
+
+    expect(router.currentRoute.value.path).toBe('/403')
+  })
+
+  it('allows authenticated super-admin without tenant to access /admin/tenants', async () => {
+    mockAuthStore.accessToken = 'access-token'
+    mockAuthStore.user = { id: 'user-1' }
+    mockAuthStore.isAuthenticated = true
+    mockAuthStore.permissionsLoaded = true
+    mockAuthStore.authPhase = 'authenticated'
+    mockAuthStore.currentTenant = null
+    mockAuthStore.isSuperAdmin = true
+
+    const { default: router } = await import('../index')
+
+    await router.push('/admin/tenants')
+    await router.isReady()
+
+    expect(router.currentRoute.value.path).toBe('/admin/tenants')
+  })
 })

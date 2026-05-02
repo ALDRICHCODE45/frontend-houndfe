@@ -11,6 +11,7 @@ type PermissionTuple = [AppAction, AppSubject]
 
 interface GuardedNavigationMenuItem extends NavigationMenuItem {
   permission?: PermissionTuple
+  requiresSuperAdmin?: boolean
   children?: GuardedNavigationMenuItem[]
 }
 
@@ -77,7 +78,8 @@ export const useSidebar = () => {
   })
 
   function getNavigationItems(collapsed: boolean): NavigationMenuItem[] {
-    const canAccess = (permission?: PermissionTuple) => {
+    const canAccess = (permission?: PermissionTuple, requiresSuperAdmin?: boolean) => {
+      if (requiresSuperAdmin && !authStore.isSuperAdmin) return false
       if (!permission) return true
       return authStore.userCan(permission[0], permission[1])
     }
@@ -143,6 +145,12 @@ export const useSidebar = () => {
             to: '/admin/roles',
             permission: ['read', 'Role'],
           },
+          {
+            label: 'Sucursales',
+            icon: 'i-lucide-building-2',
+            to: '/admin/tenants',
+            requiresSuperAdmin: true,
+          },
         ],
       },
     ]
@@ -151,8 +159,8 @@ export const useSidebar = () => {
       .map((item) => {
         if (item.children && item.children.length > 0) {
           const visibleChildren = item.children
-            .filter((child) => canAccess(child.permission))
-            .map(({ permission: _permission, ...child }) => child)
+            .filter((child) => canAccess(child.permission, child.requiresSuperAdmin))
+            .map(({ permission: _permission, requiresSuperAdmin: _requiresSuperAdmin, ...child }) => child)
 
           if (visibleChildren.length === 0) return null
 
@@ -162,9 +170,9 @@ export const useSidebar = () => {
           }
         }
 
-        if (!canAccess(item.permission)) return null
+        if (!canAccess(item.permission, item.requiresSuperAdmin)) return null
 
-        const { permission: _permission, ...visibleItem } = item
+        const { permission: _permission, requiresSuperAdmin: _requiresSuperAdmin, ...visibleItem } = item
         return visibleItem
       })
       .filter((item): item is NavigationMenuItem => item !== null)

@@ -18,6 +18,7 @@ const PromotionDetailView = () =>
   import('@/features/POS/promotions/views/PromotionDetailView.vue')
 const AdminUsersView = () => import('@/features/admin/users/views/AdminUsersView.vue')
 const AdminRolesView = () => import('@/features/admin/roles/views/AdminRolesView.vue')
+const AdminTenantsView = () => import('@/features/admin/tenants/views/AdminTenantsView.vue')
 const ForbiddenView = () => import('@/features/errors/views/ForbiddenView.vue')
 const NotFoundView = () => import('@/features/errors/views/NotFoundView.vue')
 
@@ -142,6 +143,17 @@ const router = createRouter({
       },
     },
     {
+      path: '/admin/tenants',
+      name: 'admin-tenants',
+      component: AdminTenantsView,
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        skipTenantCheck: true,
+        requiresSuperAdmin: true,
+      },
+    },
+    {
       path: '/403',
       name: 'forbidden',
       component: ForbiddenView,
@@ -203,6 +215,10 @@ router.beforeEach(async (to) => {
 
   if (to.path === '/login' && authStore.isAuthenticated) {
     return '/'
+  }
+
+  if (to.meta.requiresSuperAdmin === true && !authStore.isSuperAdmin) {
+    return '/403'
   }
 
   const requiredPermission = to.meta.permission as RoutePermission | undefined

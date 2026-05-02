@@ -13,13 +13,15 @@ type PermissionTuple = [AppAction, AppSubject]
 
 interface GuardedCommandPaletteItem extends CommandPaletteItem {
   permission?: PermissionTuple
+  requiresSuperAdmin?: boolean
 }
 
 export const useDashboard = () => {
   const authStore = useAuthStore()
   const router = useRouter()
 
-  const canAccess = (permission?: PermissionTuple) => {
+  const canAccess = (permission?: PermissionTuple, requiresSuperAdmin?: boolean) => {
+    if (requiresSuperAdmin && !authStore.isSuperAdmin) return false
     if (!permission) return true
     return authStore.userCan(permission[0], permission[1])
   }
@@ -88,6 +90,13 @@ export const useDashboard = () => {
         to: '/admin/roles',
         permission: ['read', 'Role'],
       },
+      {
+        id: 'admin-tenants',
+        label: 'Admin / Sucursales',
+        icon: 'i-lucide-building-2',
+        to: '/admin/tenants',
+        requiresSuperAdmin: true,
+      },
     ]
 
     const actionItems: GuardedCommandPaletteItem[] = [
@@ -122,8 +131,8 @@ export const useDashboard = () => {
     ]
 
     const visiblePages = pageItems
-      .filter((item) => canAccess(item.permission))
-      .map(({ permission: _permission, ...item }) => item)
+      .filter((item) => canAccess(item.permission, item.requiresSuperAdmin))
+      .map(({ permission: _permission, requiresSuperAdmin: _requiresSuperAdmin, ...item }) => item)
 
     const visibleActions = actionItems
       .filter((item) => canAccess(item.permission))
