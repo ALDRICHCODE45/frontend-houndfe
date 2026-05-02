@@ -21,7 +21,7 @@ const emit = defineEmits<{
 <template>
   <div class="overflow-y-auto flex-1 px-5 py-4">
     <!-- Loading state (card grid skeleton) -->
-    <div v-if="isLoading && items.length === 0" class="grid grid-cols-3 xl:grid-cols-4 gap-3">
+    <div v-if="isLoading && items.length === 0" class="grid grid-cols-4 xl:grid-cols-5 gap-3">
       <div v-for="i in 8" :key="i" class="rounded-xl border border-default overflow-hidden">
         <USkeleton class="aspect-square w-full" />
         <div class="px-3 py-2.5 space-y-1.5 border-t border-default/50">
@@ -49,7 +49,7 @@ const emit = defineEmits<{
     </div>
 
     <!-- Results card grid -->
-    <div v-else class="grid grid-cols-3 xl:grid-cols-4 gap-3">
+    <div v-else class="grid grid-cols-4 xl:grid-cols-5 gap-3">
       <ProductSearchResultItem
         v-for="item in items"
         :key="item.id"

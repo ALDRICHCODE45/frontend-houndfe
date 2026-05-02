@@ -267,7 +267,7 @@ function handleSwitchTab(saleId: string) {
         <div class="flex gap-2">
           <USkeleton v-for="i in 4" :key="i" class="h-8 w-24 rounded-full" />
         </div>
-        <div class="grid grid-cols-3 xl:grid-cols-4 gap-3 mt-3">
+        <div class="grid grid-cols-4 xl:grid-cols-5 gap-3 mt-3">
           <div v-for="i in 8" :key="i" class="rounded-xl border border-default overflow-hidden">
             <USkeleton class="aspect-square w-full" />
             <div class="p-2.5 space-y-1.5">
