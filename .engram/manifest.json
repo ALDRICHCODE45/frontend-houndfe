@@ -80,6 +80,14 @@
       "sessions": 9,
       "memories": 103,
       "prompts": 73
+    },
+    {
+      "id": "4bab6968",
+      "created_by": "aldrich_coder45",
+      "created_at": "2026-05-03T09:24:30Z",
+      "sessions": 1,
+      "memories": 2,
+      "prompts": 10
     }
   ]
 }
