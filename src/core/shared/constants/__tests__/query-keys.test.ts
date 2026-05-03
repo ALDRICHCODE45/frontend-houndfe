@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { promotionQueryKeys, saleQueryKeys, adminTenantQueryKeys } from '../query-keys'
+import {
+  promotionQueryKeys,
+  saleQueryKeys,
+  adminTenantQueryKeys,
+  adminTenantMembershipQueryKeys,
+} from '../query-keys'
 
 describe('promotionQueryKeys', () => {
   it('paginated() returns a tuple starting with "promotions"', () => {
@@ -151,6 +156,66 @@ describe('adminTenantQueryKeys', () => {
       // Should be ['admin', 'tenants', 'detail', 'target-tenant']
       // NOT ['admin', 'tenants', 'current-tenant', 'detail', 'target-tenant']
       expect(key).toEqual(['admin', 'tenants', 'detail', 'target-tenant'])
+    })
+  })
+})
+
+describe('adminTenantMembershipQueryKeys', () => {
+  describe('list', () => {
+    it('returns tuple starting with admin, tenant-memberships, and tenantId', () => {
+      const key = adminTenantMembershipQueryKeys.list('tenant-1')
+      expect(key[0]).toBe('admin')
+      expect(key[1]).toBe('tenant-memberships')
+      expect(key[2]).toBe('tenant-1')
+      expect(key[3]).toBe('list')
+    })
+
+    it('produces different keys for different tenant IDs', () => {
+      const key1 = adminTenantMembershipQueryKeys.list('tenant-1')
+      const key2 = adminTenantMembershipQueryKeys.list('tenant-2')
+      expect(key1).not.toEqual(key2)
+    })
+
+    it('returns same structure on multiple calls with same tenant', () => {
+      const key1 = adminTenantMembershipQueryKeys.list('tenant-1')
+      const key2 = adminTenantMembershipQueryKeys.list('tenant-1')
+      expect(key1).toEqual(key2)
+    })
+
+    it('invalidating by tenantId prefix works correctly', () => {
+      const key = adminTenantMembershipQueryKeys.list('tenant-1')
+      const prefix = ['admin', 'tenant-memberships', 'tenant-1']
+      // Verify key starts with prefix (TanStack Query invalidation pattern)
+      expect(key.slice(0, 3)).toEqual(prefix)
+    })
+  })
+
+  describe('detail', () => {
+    it('returns tuple with admin, tenant-memberships, tenantId, detail, and membershipId', () => {
+      const key = adminTenantMembershipQueryKeys.detail('tenant-1', 'membership-uuid')
+      expect(key[0]).toBe('admin')
+      expect(key[1]).toBe('tenant-memberships')
+      expect(key[2]).toBe('tenant-1')
+      expect(key[3]).toBe('detail')
+      expect(key[4]).toBe('membership-uuid')
+    })
+
+    it('produces different keys for different membership IDs within same tenant', () => {
+      const key1 = adminTenantMembershipQueryKeys.detail('tenant-1', 'membership-1')
+      const key2 = adminTenantMembershipQueryKeys.detail('tenant-1', 'membership-2')
+      expect(key1).not.toEqual(key2)
+    })
+
+    it('produces different keys for different tenants with same membershipId', () => {
+      const key1 = adminTenantMembershipQueryKeys.detail('tenant-1', 'membership-1')
+      const key2 = adminTenantMembershipQueryKeys.detail('tenant-2', 'membership-1')
+      expect(key1).not.toEqual(key2)
+    })
+
+    it('invalidating by tenantId prefix affects detail keys', () => {
+      const key = adminTenantMembershipQueryKeys.detail('tenant-1', 'membership-1')
+      const prefix = ['admin', 'tenant-memberships', 'tenant-1']
+      expect(key.slice(0, 3)).toEqual(prefix)
     })
   })
 })

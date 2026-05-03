@@ -13,15 +13,23 @@ export function buildTenantRowActions(
   options: {
     canUpdate: boolean
     canDelete: boolean
+    canManageMembers?: boolean
     onEdit: (tenant: TenantTableRow) => void
     onDeactivate: (tenant: TenantTableRow) => void
+    onManageMembers?: (tenant: TenantTableRow) => void
   },
 ): TenantRowActionSection[] {
-  const { canUpdate, canDelete, onEdit, onDeactivate } = options
+  const { canUpdate, canDelete, canManageMembers, onEdit, onDeactivate, onManageMembers } = options
 
-  const mainActions: TenantRowAction[] = canUpdate
-    ? [{ label: 'Editar', onSelect: () => onEdit(tenant) }]
-    : []
+  const mainActions: TenantRowAction[] = []
+  
+  if (canUpdate) {
+    mainActions.push({ label: 'Editar', onSelect: () => onEdit(tenant) })
+  }
+  
+  if (canManageMembers && onManageMembers) {
+    mainActions.push({ label: 'Gestionar miembros', onSelect: () => onManageMembers(tenant) })
+  }
 
   const destructiveActions: TenantRowAction[] = canDelete
     ? [

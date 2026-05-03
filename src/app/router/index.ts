@@ -19,6 +19,8 @@ const PromotionDetailView = () =>
 const AdminUsersView = () => import('@/features/admin/users/views/AdminUsersView.vue')
 const AdminRolesView = () => import('@/features/admin/roles/views/AdminRolesView.vue')
 const AdminTenantsView = () => import('@/features/admin/tenants/views/AdminTenantsView.vue')
+const AdminTenantMembersView = () =>
+  import('@/features/admin/tenants/memberships/views/AdminTenantMembersView.vue')
 const ForbiddenView = () => import('@/features/errors/views/ForbiddenView.vue')
 const NotFoundView = () => import('@/features/errors/views/NotFoundView.vue')
 
@@ -146,6 +148,17 @@ const router = createRouter({
       path: '/admin/tenants',
       name: 'admin-tenants',
       component: AdminTenantsView,
+      meta: {
+        layout: 'dashboard',
+        requiresAuth: true,
+        skipTenantCheck: true,
+        requiresSuperAdmin: true,
+      },
+    },
+    {
+      path: '/admin/tenants/:tenantId/members',
+      name: 'admin-tenant-members',
+      component: AdminTenantMembersView,
       meta: {
         layout: 'dashboard',
         requiresAuth: true,

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import type { AxiosError } from 'axios'
 import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
@@ -22,6 +23,7 @@ declare const useToast: () => {
   }) => void
 }
 
+const router = useRouter()
 const queryClient = useQueryClient()
 const authStore = useAuthStore()
 const toast = useToast()
@@ -152,12 +154,18 @@ async function handleDeactivate(tenant: TenantTableRow) {
   })
 }
 
+function handleManageMembers(tenant: TenantTableRow) {
+  void router.push(`/admin/tenants/${tenant.id}/members`)
+}
+
 function getRowItems(tenant: TenantTableRow) {
   return buildTenantRowActions(tenant, {
     canUpdate: canUpdateTenant.value,
     canDelete: canDeleteTenant.value,
+    canManageMembers: authStore.isSuperAdmin,
     onEdit: openEdit,
     onDeactivate: handleDeactivate,
+    onManageMembers: handleManageMembers,
   })
 }
 </script>

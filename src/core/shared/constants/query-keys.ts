@@ -67,3 +67,9 @@ export const adminTenantQueryKeys = {
   list: (includeInactive: boolean) => ['admin', 'tenants', { includeInactive }] as const,
   detail: (tenantId: string) => ['admin', 'tenants', 'detail', tenantId] as const,
 }
+
+export const adminTenantMembershipQueryKeys = {
+  list: (tenantId: string) => ['admin', 'tenant-memberships', tenantId, 'list'] as const,
+  detail: (tenantId: string, membershipId: string) =>
+    ['admin', 'tenant-memberships', tenantId, 'detail', membershipId] as const,
+}
