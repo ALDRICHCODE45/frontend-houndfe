@@ -220,7 +220,18 @@ export const useAuthStore = defineStore('auth', () => {
       await fetchPermissions()
       authPhase.value = 'authenticated'
     } catch (error) {
-      clearSession()
+      // Distinguish recoverable errors from unrecoverable ones
+      const axiosError = error as { response?: { status?: number; data?: { code?: string } } }
+      const errorCode = axiosError?.response?.data?.code
+      const isRecoverableError =
+        axiosError?.response?.status === 403 &&
+        (errorCode === 'SUPER_ADMIN_REQUIRED' || errorCode === 'TENANT_INACTIVE')
+
+      if (!isRecoverableError) {
+        // Only clear session for unrecoverable errors (network, 500, unknown)
+        clearSession()
+      }
+
       throw error
     }
   }

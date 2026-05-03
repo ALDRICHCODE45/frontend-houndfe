@@ -310,6 +310,84 @@ describe('switchTenant — query cache invalidation', () => {
     expect(store.accessToken).toBeNull()
     expect(store.refreshToken).toBeNull()
   })
+
+  it('does NOT clear session on recoverable 403 SUPER_ADMIN_REQUIRED error', async () => {
+    const error403 = Object.assign(new Error('Request failed with status code 403'), {
+      isAxiosError: true,
+      response: {
+        status: 403,
+        data: { code: 'SUPER_ADMIN_REQUIRED', message: 'Super admin required' },
+      },
+    })
+    vi.mocked(authApi.switchTenant).mockRejectedValue(error403)
+    
+    const store = useAuthStore()
+    store.setSessionFromTokens('access-token', 'refresh-token')
+    
+    await expect(store.switchTenant('tenant-2')).rejects.toThrow()
+    
+    // Session should NOT be cleared for recoverable errors
+    expect(store.accessToken).toBe('access-token')
+    expect(store.refreshToken).toBe('refresh-token')
+    expect(store.authPhase).toBe('selecting-tenant')
+  })
+
+  it('does NOT clear session on recoverable 403 TENANT_INACTIVE error', async () => {
+    const error403 = Object.assign(new Error('Request failed with status code 403'), {
+      isAxiosError: true,
+      response: {
+        status: 403,
+        data: { code: 'TENANT_INACTIVE', message: 'Tenant is inactive' },
+      },
+    })
+    vi.mocked(authApi.switchTenant).mockRejectedValue(error403)
+    
+    const store = useAuthStore()
+    store.setSessionFromTokens('access-token', 'refresh-token')
+    
+    await expect(store.switchTenant('tenant-2')).rejects.toThrow()
+    
+    // Session should NOT be cleared for recoverable errors
+    expect(store.accessToken).toBe('access-token')
+    expect(store.refreshToken).toBe('refresh-token')
+    expect(store.authPhase).toBe('selecting-tenant')
+  })
+
+  it('DOES clear session on unrecoverable network error', async () => {
+    const networkError = new Error('Network Error')
+    vi.mocked(authApi.switchTenant).mockRejectedValue(networkError)
+    
+    const store = useAuthStore()
+    store.setSessionFromTokens('access-token', 'refresh-token')
+    
+    await expect(store.switchTenant('tenant-2')).rejects.toThrow('Network Error')
+    
+    // Session SHOULD be cleared for unrecoverable errors
+    expect(store.accessToken).toBeNull()
+    expect(store.refreshToken).toBeNull()
+    expect(store.authPhase).toBe('idle')
+  })
+
+  it('DOES clear session on unrecoverable 500 error', async () => {
+    const error500 = Object.assign(new Error('Request failed with status code 500'), {
+      isAxiosError: true,
+      response: {
+        status: 500,
+        data: { message: 'Internal server error' },
+      },
+    })
+    vi.mocked(authApi.switchTenant).mockRejectedValue(error500)
+    
+    const store = useAuthStore()
+    store.setSessionFromTokens('access-token', 'refresh-token')
+    
+    await expect(store.switchTenant('tenant-2')).rejects.toThrow()
+    
+    // Session SHOULD be cleared for unrecoverable errors
+    expect(store.accessToken).toBeNull()
+    expect(store.refreshToken).toBeNull()
+    expect(store.authPhase).toBe('idle')
+  })
 })
 
 describe('fetchMe synchronization', () => {

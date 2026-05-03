@@ -4,6 +4,15 @@ import { useColorMode } from '@vueuse/core'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import type { AppAction, AppSubject } from '@/features/auth/interfaces/auth.types'
 import { useRouter } from 'vue-router'
+import { mapTenantError } from '@/features/admin/tenants/api/tenants.api'
+
+declare const useToast: () => {
+  add: (options: {
+    title: string
+    description?: string
+    color?: 'success' | 'error' | 'warning' | 'primary' | 'neutral'
+  }) => void
+}
 
 const colorMode = useColorMode()
 
@@ -18,6 +27,7 @@ interface GuardedNavigationMenuItem extends NavigationMenuItem {
 export const useSidebar = () => {
   const authStore = useAuthStore()
   const router = useRouter()
+  const toast = useToast()
 
   // ── Tenant switcher ─────────────────────────────────────────────────────────
 
@@ -42,7 +52,24 @@ export const useSidebar = () => {
 
   /** Switch the active tenant — delegates to authStore which calls the API */
   async function switchTenant(tenantId: string | null) {
-    await authStore.switchTenant(tenantId)
+    try {
+      await authStore.switchTenant(tenantId)
+    } catch (error: unknown) {
+      // Extract error code and map to user-facing message
+      const axiosError = error as { response?: { status?: number; data?: { code?: string; message?: string } } }
+      const errorCode = axiosError?.response?.data?.code
+      const errorMessage = axiosError?.response?.data?.message
+
+      const message = mapTenantError(errorCode || errorMessage || '')
+
+      toast.add({
+        title: 'Error al cambiar sucursal',
+        description: message,
+        color: 'error',
+      })
+
+      // User stays logged in — error is handled via toast
+    }
   }
 
   // ── Legacy team dropdown items (kept for layout backwards-compat) ────────────

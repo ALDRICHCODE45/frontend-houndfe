@@ -12,6 +12,7 @@ const TENANT_ERROR_MAP: Record<string, string> = {
   TENANT_NOT_FOUND: 'Sucursal no encontrada',
   SUPER_ADMIN_REQUIRED: 'Se requieren permisos de super administrador',
   TENANT_INACTIVE: 'La sucursal está desactivada',
+  GLOBAL_CONTEXT_REQUIRED: 'Operación requiere contexto global. Salí de la sucursal actual.',
 }
 
 const FALLBACK_ERROR_MESSAGE = 'Ocurrió un error inesperado'

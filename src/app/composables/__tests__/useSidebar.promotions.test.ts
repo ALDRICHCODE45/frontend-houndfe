@@ -15,9 +15,13 @@ vi.mock('vue-router', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }))
 
-vi.mock('@vueuse/core', () => ({
-  useColorMode: () => ({ value: 'light' }),
-}))
+vi.mock('@vueuse/core', async () => {
+  const actual = await vi.importActual('@vueuse/core')
+  return {
+    ...actual,
+    useColorMode: () => ({ value: 'light' }),
+  }
+})
 
 // ── Import REAL useSidebar after mocking dependencies ─────────────────────────
 
