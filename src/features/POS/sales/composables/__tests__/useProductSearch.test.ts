@@ -44,7 +44,7 @@ function mountComposable<T>(composable: () => T) {
 
 describe('useProductSearch', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
+    vi.resetAllMocks()
   })
 
   describe('empty query loads first page', () => {
@@ -244,7 +244,13 @@ describe('useProductSearch', () => {
       })
 
       // Mock successful response for retry
-      vi.mocked(saleApi.searchPosCatalog).mockResolvedValue({
+      vi.mocked(saleApi.searchPosCatalog).mockResolvedValueOnce({
+        items: [],
+        total: 0,
+        limit: 25,
+        offset: 0,
+      })
+      vi.mocked(saleApi.searchPosCatalog).mockResolvedValueOnce({
         items: [],
         total: 0,
         limit: 25,

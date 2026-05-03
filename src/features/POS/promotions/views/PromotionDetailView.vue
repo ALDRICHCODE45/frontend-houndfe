@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { AxiosError } from 'axios'
 import { promotionQueryKeys } from '@/core/shared/constants/query-keys'
+import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { promotionApi } from '../api/promotion.api'
 import PromotionForm from '../components/PromotionForm.vue'
@@ -27,6 +28,7 @@ const route = useRoute()
 const router = useRouter()
 const queryClient = useQueryClient()
 const toast = useToast()
+const tenantId = useSafeTenantId()
 
 // ── Valid type guard ──────────────────────────────────────────────────────────
 
@@ -84,7 +86,7 @@ const {
   isLoading: isLoadingPromotion,
   isError: isQueryError,
 } = useQuery({
-  queryKey: computed(() => promotionQueryKeys.detail(promotionId.value ?? '')),
+  queryKey: computed(() => promotionQueryKeys.detail(tenantId.value, promotionId.value ?? '')),
   queryFn: () => promotionApi.getById(promotionId.value!),
   enabled: computed(() => !isCreateMode.value && promotionId.value !== null),
   retry: false,
@@ -140,7 +142,7 @@ const createMutation = useMutation({
       title: 'Promoción creada correctamente',
       color: 'success',
     })
-    await queryClient.invalidateQueries({ queryKey: promotionQueryKeys.paginated() })
+    await queryClient.invalidateQueries({ queryKey: promotionQueryKeys.paginated(tenantId.value) })
     await router.push('/pos/promociones')
   },
   onError: (error) => {
@@ -157,9 +159,9 @@ const updateMutation = useMutation({
       color: 'success',
     })
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: promotionQueryKeys.paginated() }),
+      queryClient.invalidateQueries({ queryKey: promotionQueryKeys.paginated(tenantId.value) }),
       queryClient.invalidateQueries({
-        queryKey: promotionQueryKeys.detail(promotionId.value!),
+        queryKey: promotionQueryKeys.detail(tenantId.value, promotionId.value!),
       }),
     ])
     await router.push('/pos/promociones')

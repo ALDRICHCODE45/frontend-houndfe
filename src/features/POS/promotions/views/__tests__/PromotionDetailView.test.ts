@@ -78,7 +78,7 @@ function mountEdit(id: string = 'promo-123') {
   mockRoute.mockReturnValue({ params: { id }, query: {} })
   const queryClient = makeQueryClient()
   // Pre-seed query data to skip loading state
-  queryClient.setQueryData(['promotions', 'detail', id], {
+  queryClient.setQueryData(['promotions', '', 'detail', id], {
     id,
     title: 'Test Promotion',
     type: 'PRODUCT_DISCOUNT',

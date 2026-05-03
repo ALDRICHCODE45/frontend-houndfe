@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { saleApi } from '../api/sale.api'
 import { saleQueryKeys } from '@/core/shared/constants/query-keys'
+import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import type {
   Sale,
   AddItemPayload,
@@ -54,12 +55,14 @@ export function getNextActiveIdAfterClose(remainingDrafts: Sale[]): string | nul
 // ── Main composable ───────────────────────────────────────────────────────────
 
 export function useSalesDrafts() {
+  const tenantId = useSafeTenantId()
   const queryClient = useQueryClient()
+  const draftsKey = computed(() => saleQueryKeys.drafts(tenantId.value))
   const activeTabId = ref<string | null>(null)
 
   // Query for drafts list
   const { data: drafts, isLoading: isLoadingList } = useQuery({
-    queryKey: saleQueryKeys.drafts(),
+    queryKey: draftsKey,
     queryFn: saleApi.listDrafts,
     staleTime: Infinity,
   })
@@ -74,8 +77,8 @@ export function useSalesDrafts() {
   const createMutation = useMutation({
     mutationFn: saleApi.createDraft,
     onSuccess: (newSale) => {
-      const currentDrafts = queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts()) ?? []
-      queryClient.setQueryData(saleQueryKeys.drafts(), appendSaleToCache(currentDrafts, newSale))
+      const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
+      queryClient.setQueryData(draftsKey.value, appendSaleToCache(currentDrafts, newSale))
       activeTabId.value = newSale.id
     },
   })
@@ -83,9 +86,9 @@ export function useSalesDrafts() {
   const closeMutation = useMutation({
     mutationFn: saleApi.closeDraft,
     onSuccess: (_data, saleId) => {
-      const currentDrafts = queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts()) ?? []
+      const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
       const newDrafts = removeSaleFromCache(currentDrafts, saleId)
-      queryClient.setQueryData(saleQueryKeys.drafts(), newDrafts)
+      queryClient.setQueryData(draftsKey.value, newDrafts)
 
       // If closed tab was active, switch to first remaining
       if (activeTabId.value === saleId) {
@@ -103,8 +106,8 @@ export function useSalesDrafts() {
     mutationFn: ({ saleId, payload }: { saleId: string; payload: AddItemPayload }) =>
       saleApi.addItem(saleId, payload),
     onSuccess: (updatedSale) => {
-      const currentDrafts = queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts()) ?? []
-      queryClient.setQueryData(saleQueryKeys.drafts(), replaceSaleInCache(currentDrafts, updatedSale))
+      const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
+      queryClient.setQueryData(draftsKey.value, replaceSaleInCache(currentDrafts, updatedSale))
     },
   })
 
@@ -119,16 +122,16 @@ export function useSalesDrafts() {
       payload: UpdateQtyPayload
     }) => saleApi.updateItemQty(saleId, itemId, payload),
     onSuccess: (updatedSale) => {
-      const currentDrafts = queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts()) ?? []
-      queryClient.setQueryData(saleQueryKeys.drafts(), replaceSaleInCache(currentDrafts, updatedSale))
+      const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
+      queryClient.setQueryData(draftsKey.value, replaceSaleInCache(currentDrafts, updatedSale))
     },
   })
 
   const clearItemsMutation = useMutation({
     mutationFn: saleApi.clearItems,
     onSuccess: (updatedSale) => {
-      const currentDrafts = queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts()) ?? []
-      queryClient.setQueryData(saleQueryKeys.drafts(), replaceSaleInCache(currentDrafts, updatedSale))
+      const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
+      queryClient.setQueryData(draftsKey.value, replaceSaleInCache(currentDrafts, updatedSale))
     },
   })
 
@@ -143,8 +146,8 @@ export function useSalesDrafts() {
       payload: OverrideItemPricePayload
     }) => saleApi.updateItemPrice(saleId, itemId, payload),
     onSuccess: (updatedSale) => {
-      const currentDrafts = queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts()) ?? []
-      queryClient.setQueryData(saleQueryKeys.drafts(), replaceSaleInCache(currentDrafts, updatedSale))
+      const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
+      queryClient.setQueryData(draftsKey.value, replaceSaleInCache(currentDrafts, updatedSale))
     },
   })
 
@@ -152,8 +155,8 @@ export function useSalesDrafts() {
     mutationFn: ({ saleId, itemId, payload }: { saleId: string; itemId: string; payload: ApplyItemDiscountPayload }) =>
       saleApi.applyItemDiscount(saleId, itemId, payload),
     onSuccess: (updatedSale) => {
-      const currentDrafts = queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts()) ?? []
-      queryClient.setQueryData(saleQueryKeys.drafts(), replaceSaleInCache(currentDrafts, updatedSale))
+      const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
+      queryClient.setQueryData(draftsKey.value, replaceSaleInCache(currentDrafts, updatedSale))
     },
   })
 
@@ -161,8 +164,8 @@ export function useSalesDrafts() {
     mutationFn: ({ saleId, itemId }: { saleId: string; itemId: string }) =>
       saleApi.removeItemDiscount(saleId, itemId),
     onSuccess: (updatedSale) => {
-      const currentDrafts = queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts()) ?? []
-      queryClient.setQueryData(saleQueryKeys.drafts(), replaceSaleInCache(currentDrafts, updatedSale))
+      const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
+      queryClient.setQueryData(draftsKey.value, replaceSaleInCache(currentDrafts, updatedSale))
     },
   })
 
@@ -170,8 +173,8 @@ export function useSalesDrafts() {
     mutationFn: ({ saleId, itemId }: { saleId: string; itemId: string }) =>
       saleApi.removeItem(saleId, itemId),
     onSuccess: (updatedSale) => {
-      const currentDrafts = queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts()) ?? []
-      queryClient.setQueryData(saleQueryKeys.drafts(), replaceSaleInCache(currentDrafts, updatedSale))
+      const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
+      queryClient.setQueryData(draftsKey.value, replaceSaleInCache(currentDrafts, updatedSale))
     },
   })
 
@@ -179,16 +182,16 @@ export function useSalesDrafts() {
     mutationFn: ({ saleId, payload }: { saleId: string; payload: ApplyGlobalDiscountPayload }) =>
       saleApi.applyGlobalDiscount(saleId, payload),
     onSuccess: (response: GlobalDiscountResponse) => {
-      const currentDrafts = queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts()) ?? []
-      queryClient.setQueryData(saleQueryKeys.drafts(), replaceSaleInCache(currentDrafts, response.sale))
+      const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
+      queryClient.setQueryData(draftsKey.value, replaceSaleInCache(currentDrafts, response.sale))
     },
   })
 
   const removeGlobalDiscountMutation = useMutation({
     mutationFn: saleApi.removeGlobalDiscount,
     onSuccess: (updatedSale) => {
-      const currentDrafts = queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts()) ?? []
-      queryClient.setQueryData(saleQueryKeys.drafts(), replaceSaleInCache(currentDrafts, updatedSale))
+      const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
+      queryClient.setQueryData(draftsKey.value, replaceSaleInCache(currentDrafts, updatedSale))
     },
   })
 

@@ -3,6 +3,7 @@ import { refDebounced } from '@vueuse/core'
 import { useQuery, keepPreviousData } from '@tanstack/vue-query'
 import { saleApi } from '../api/sale.api'
 import { saleQueryKeys } from '@/core/shared/constants/query-keys'
+import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import type { PosCatalogItem } from '../interfaces/sale.types'
 
 export interface CategoryChip {
@@ -12,6 +13,7 @@ export interface CategoryChip {
 }
 
 export function useProductSearch() {
+  const tenantId = useSafeTenantId()
   const query = ref('')
   const debouncedQuery = refDebounced(query, 250)
   const categoryId = ref<string | undefined>(undefined)
@@ -19,7 +21,7 @@ export function useProductSearch() {
   // Main search query (filtered)
   const { data, isLoading, isError } = useQuery({
     queryKey: computed(() =>
-      saleQueryKeys.posCatalog({
+      saleQueryKeys.posCatalog(tenantId.value, {
         q: debouncedQuery.value || undefined,
         limit: debouncedQuery.value ? 30 : 24,
         offset: 0,
@@ -41,7 +43,7 @@ export function useProductSearch() {
   // Separate unfiltered query for category chips (never filtered by categoryId)
   const { data: allData } = useQuery({
     queryKey: computed(() =>
-      saleQueryKeys.posCatalog({ q: undefined, limit: 50, offset: 0 })
+      saleQueryKeys.posCatalog(tenantId.value, { q: undefined, limit: 50, offset: 0 })
     ),
     queryFn: async () => {
       return saleApi.searchPosCatalog({ q: undefined, limit: 50, offset: 0 })

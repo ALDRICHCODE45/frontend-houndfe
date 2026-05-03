@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { rolesApi } from '@/features/admin/roles/api/roles.api'
 import { adminRoleQueryKeys } from '@/core/shared/constants/query-keys'
+import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import { usersApi } from '../api/users.api'
 import type { UserTableRow } from '../interfaces/user.types'
 
@@ -18,9 +19,10 @@ const emit = defineEmits<{
 }>()
 
 const selectedRoleIds = ref<string[]>([])
+const tenantId = useSafeTenantId()
 
 const rolesQuery = useQuery({
-  queryKey: adminRoleQueryKeys.paginated(),
+  queryKey: computed(() => adminRoleQueryKeys.paginated(tenantId.value)),
   queryFn: () =>
     rolesApi.getPaginated({ pageIndex: 0, pageSize: 100, sorting: [], globalFilter: '' }),
   enabled: computed(() => open.value),

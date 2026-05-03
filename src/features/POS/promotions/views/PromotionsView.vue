@@ -28,6 +28,7 @@ const router = useRouter()
 const queryClient = useQueryClient()
 const toast = useToast()
 const authStore = useAuthStore()
+const tenantId = computed(() => authStore.currentTenantId)
 const { columns, getStatusConfig, getTypeConfig, getMethodConfig, formatDate } = usePromotionColumns()
 
 // ── Permission helpers ────────────────────────────────────────────────────────
@@ -105,7 +106,7 @@ const {
   showingTo,
 } = useServerTable<PromotionResponse>({
   queryKey: () => [
-    ...promotionQueryKeys.paginated(),
+    ...promotionQueryKeys.paginated(tenantId.value),
     { type: filterType.value, status: filterStatus.value, method: filterMethod.value },
   ],
   queryFn: (params) =>
@@ -176,7 +177,7 @@ const endMutation = useMutation({
       title: 'Promoción finalizada',
       color: 'success',
     })
-    await queryClient.invalidateQueries({ queryKey: promotionQueryKeys.paginated() })
+    await queryClient.invalidateQueries({ queryKey: promotionQueryKeys.paginated(tenantId.value) })
   },
   onError: (error) => {
     const err = error as AxiosError<DomainApiError>
@@ -192,7 +193,7 @@ const deleteMutation = useMutation({
       title: 'Promoción eliminada',
       color: 'success',
     })
-    await queryClient.invalidateQueries({ queryKey: promotionQueryKeys.paginated() })
+    await queryClient.invalidateQueries({ queryKey: promotionQueryKeys.paginated(tenantId.value) })
   },
   onError: (error) => {
     const err = error as AxiosError<DomainApiError>

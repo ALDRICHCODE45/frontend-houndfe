@@ -6,6 +6,7 @@ import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import { productApi } from '../api/product.api'
 import { mapDomainError, type DomainApiError } from '@/core/shared/utils/error.utils'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
+import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import type { ProductImage, ProductVariant } from '../interfaces/product.types'
 import { useImageUpload } from '../composables/useImageUpload'
 
@@ -26,11 +27,12 @@ const props = defineProps<{
 
 const toast = useToast()
 const queryClient = useQueryClient()
+const tenantId = useSafeTenantId()
 
 // ── Queries ────────────────────────────────────────────────
 
 const { data: images, isFetching } = useQuery({
-  queryKey: computed(() => productQueryKeys.images(props.productId)),
+  queryKey: computed(() => productQueryKeys.images(tenantId.value, props.productId)),
   queryFn: () => productApi.getImages(props.productId),
   enabled: computed(() => props.productId.length > 0),
   refetchOnWindowFocus: false,
@@ -77,7 +79,7 @@ const { dropZoneRef, isOverDropZone, openPicker, isUploading } = useImageUpload(
   productId: computed(() => props.productId),
   variantId: uploadVariantId,
   onSuccess: async () => {
-    await queryClient.invalidateQueries({ queryKey: productQueryKeys.images(props.productId) })
+    await queryClient.invalidateQueries({ queryKey: productQueryKeys.images(tenantId.value, props.productId) })
   },
 })
 
@@ -111,7 +113,7 @@ function handleConfirm() {
 // ── Mutations ──────────────────────────────────────────────
 
 async function invalidateImages() {
-  await queryClient.invalidateQueries({ queryKey: productQueryKeys.images(props.productId) })
+  await queryClient.invalidateQueries({ queryKey: productQueryKeys.images(tenantId.value, props.productId) })
 }
 
 const setMainMutation = useMutation({

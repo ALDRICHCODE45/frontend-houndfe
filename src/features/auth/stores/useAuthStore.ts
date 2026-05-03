@@ -29,6 +29,7 @@ export const useAuthStore = defineStore('auth', () => {
   const tempToken = ref<string | null>(null)
 
   const isAuthenticated = computed(() => Boolean(accessToken.value))
+  const currentTenantId = computed(() => currentTenant.value?.id ?? '')
 
   function setPermissionCodes(nextCodes: string[]) {
     const uniqueCodes = Array.from(new Set(nextCodes))
@@ -283,6 +284,7 @@ export const useAuthStore = defineStore('auth', () => {
     currentTenant,
     memberships,
     isSuperAdmin,
+    currentTenantId,
     tempToken,
     isAuthenticated,
     hydrateFromStorage,

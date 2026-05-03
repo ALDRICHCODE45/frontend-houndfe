@@ -9,6 +9,7 @@ import { productApi } from '../api/product.api'
 import { currencyFormatter } from '@/core/shared/utils/currency.utils'
 import { mapDomainError, type DomainApiError } from '@/core/shared/utils/error.utils'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
+import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import type { PriceList, TierPriceInput, UpdatePriceListPayload } from '../interfaces/product.types'
 
 declare const useToast: () => {
@@ -27,11 +28,12 @@ const props = defineProps<{
 
 const toast = useToast()
 const queryClient = useQueryClient()
+const tenantId = useSafeTenantId()
 
 // ── Queries ────────────────────────────────────────────────
 
 const { data: priceLists, isFetching } = useQuery({
-  queryKey: computed(() => productQueryKeys.priceLists(props.productId)),
+  queryKey: computed(() => productQueryKeys.priceLists(tenantId.value, props.productId)),
   queryFn: () => productApi.getPriceLists(props.productId),
   enabled: computed(() => props.productId.length > 0),
   refetchOnWindowFocus: false,
@@ -191,10 +193,10 @@ function closeModal() {
 
 async function invalidatePriceLists() {
   await Promise.all([
-    queryClient.invalidateQueries({ queryKey: productQueryKeys.priceLists(props.productId) }),
+    queryClient.invalidateQueries({ queryKey: productQueryKeys.priceLists(tenantId.value, props.productId) }),
     queryClient.invalidateQueries({ queryKey: productQueryKeys.globalPriceLists() }),
-    queryClient.invalidateQueries({ queryKey: productQueryKeys.variants(props.productId) }),
-    queryClient.invalidateQueries({ queryKey: productQueryKeys.detail(props.productId) }),
+    queryClient.invalidateQueries({ queryKey: productQueryKeys.variants(tenantId.value, props.productId) }),
+    queryClient.invalidateQueries({ queryKey: productQueryKeys.detail(tenantId.value, props.productId) }),
   ])
 }
 

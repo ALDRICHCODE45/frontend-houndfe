@@ -29,6 +29,12 @@ vi.mock('../../api/sale.api', () => ({
   },
 }))
 
+vi.mock('@/features/auth/stores/useAuthStore', () => ({
+  useAuthStore: () => ({ currentTenantId: 'tenant-1' }),
+}))
+
+const tenantDraftsKey = saleQueryKeys.drafts('tenant-1')
+
 function mountComposable<T>(composable: () => T) {
   let result: T | undefined
 
@@ -349,13 +355,13 @@ describe('useSalesDrafts - pure cache update functions', () => {
 
       const { result, queryClient } = mountComposable(() => useSalesDrafts())
       await vi.waitFor(() => {
-        expect(queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts())).toEqual([existingDraft])
+        expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual([existingDraft])
       })
       result.activeTabId.value = 'sale-1'
 
       await result.updateItemPrice('item-1', { customPriceCents: 250 })
 
-      const cachedDrafts = queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts())
+      const cachedDrafts = queryClient.getQueryData<Sale[]>(tenantDraftsKey)
       expect(cachedDrafts).toHaveLength(1)
       expect(cachedDrafts?.[0]?.items[0]?.unitPriceCents).toBe(250)
       expect(cachedDrafts?.[0]?.updatedAt).toBe('2026-04-21T10:05:00Z')
@@ -390,13 +396,13 @@ describe('useSalesDrafts - pure cache update functions', () => {
 
       const { result, queryClient } = mountComposable(() => useSalesDrafts())
       await vi.waitFor(() => {
-        expect(queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts())).toEqual([existingDraft])
+        expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual([existingDraft])
       })
       result.activeTabId.value = 'sale-1'
 
       await expect(result.updateItemPrice('item-1', { priceListId: 'list-1' })).rejects.toThrow('conflict')
 
-      const cachedDrafts = queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts())
+      const cachedDrafts = queryClient.getQueryData<Sale[]>(tenantDraftsKey)
       expect(cachedDrafts).toEqual([existingDraft])
       expect(cachedDrafts?.[0]?.items[0]?.unitPriceCents).toBe(100)
     })
@@ -417,13 +423,13 @@ describe('useSalesDrafts - pure cache update functions', () => {
       vi.mocked(saleApi.applyItemDiscount).mockResolvedValue(updatedDraft)
 
       const { result, queryClient } = mountComposable(() => useSalesDrafts())
-      await vi.waitFor(() => expect(queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts())).toEqual([existingDraft]))
+      await vi.waitFor(() => expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual([existingDraft]))
       result.activeTabId.value = 'sale-1'
 
       await result.applyItemDiscount('item-1', { type: 'amount', amountCents: 2000 })
 
       expect(saleApi.applyItemDiscount).toHaveBeenCalledWith('sale-1', 'item-1', { type: 'amount', amountCents: 2000 })
-      expect(queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts())?.[0]?.items[0]?.unitPriceCents).toBe(8000)
+      expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)?.[0]?.items[0]?.unitPriceCents).toBe(8000)
     })
 
     it('replaces draft cache on successful removeItemDiscount', async () => {
@@ -440,13 +446,13 @@ describe('useSalesDrafts - pure cache update functions', () => {
       vi.mocked(saleApi.removeItemDiscount).mockResolvedValue(updatedDraft)
 
       const { result, queryClient } = mountComposable(() => useSalesDrafts())
-      await vi.waitFor(() => expect(queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts())).toEqual([existingDraft]))
+      await vi.waitFor(() => expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual([existingDraft]))
       result.activeTabId.value = 'sale-1'
 
       await result.removeItemDiscount('item-1')
 
       expect(saleApi.removeItemDiscount).toHaveBeenCalledWith('sale-1', 'item-1')
-      expect(queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts())?.[0]?.items[0]?.discountType).toBeNull()
+      expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)?.[0]?.items[0]?.discountType).toBeNull()
     })
   })
 
@@ -468,14 +474,14 @@ describe('useSalesDrafts - pure cache update functions', () => {
       vi.mocked(saleApi.removeItem).mockResolvedValue(updatedDraft)
 
       const { result, queryClient } = mountComposable(() => useSalesDrafts())
-      await vi.waitFor(() => expect(queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts())).toEqual([existingDraft]))
+      await vi.waitFor(() => expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual([existingDraft]))
       result.activeTabId.value = 'sale-1'
 
       await result.removeItem('item-1')
 
       expect(saleApi.removeItem).toHaveBeenCalledWith('sale-1', 'item-1')
-      expect(queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts())?.[0]?.items).toHaveLength(1)
-      expect(queryClient.getQueryData<Sale[]>(saleQueryKeys.drafts())?.[0]?.items[0]?.id).toBe('item-2')
+      expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)?.[0]?.items).toHaveLength(1)
+      expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)?.[0]?.items[0]?.id).toBe('item-2')
     })
   })
 })

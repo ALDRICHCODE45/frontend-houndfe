@@ -6,6 +6,7 @@ import { productApi } from '../api/product.api'
 import { currencyFormatter } from '@/core/shared/utils/currency.utils'
 import { mapDomainError, type DomainApiError } from '@/core/shared/utils/error.utils'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
+import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import { centsToDecimalInput, decimalInputToCents } from '../composables/useProductForm'
 import type {
   ProductVariant,
@@ -35,6 +36,7 @@ const props = defineProps<{
 
 const toast = useToast()
 const queryClient = useQueryClient()
+const tenantId = useSafeTenantId()
 
 const salePriceInputs = reactive<Record<string, string>>({})
 
@@ -72,9 +74,9 @@ const upsertVariantPriceMutation = useMutation({
     })
 
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: productQueryKeys.variants(props.productId) }),
+      queryClient.invalidateQueries({ queryKey: productQueryKeys.variants(tenantId.value, props.productId) }),
       queryClient.invalidateQueries({
-        queryKey: productQueryKeys.variantPrices(props.productId, props.variant.id),
+        queryKey: productQueryKeys.variantPrices(tenantId.value, props.productId, props.variant.id),
       }),
     ])
   },

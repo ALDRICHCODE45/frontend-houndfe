@@ -16,6 +16,7 @@ import RolePermissionsSlideover from '../components/RolePermissionsSlideover.vue
 
 const queryClient = useQueryClient()
 const authStore = useAuthStore()
+const tenantId = computed(() => authStore.currentTenantId)
 const { columns } = useRoleColumns()
 
 const {
@@ -34,7 +35,7 @@ const {
   showingFrom,
   showingTo,
 } = useServerTable<RoleTableRow>({
-  queryKey: adminRoleQueryKeys.paginated(),
+  queryKey: () => adminRoleQueryKeys.paginated(tenantId.value),
   queryFn: (params) => rolesApi.getPaginated(params),
   defaultPageSize: 10,
   persistKey: 'admin-roles',
@@ -66,7 +67,7 @@ const createMutation = useMutation({
   onSuccess: async () => {
     isCreateOpen.value = false
     usersApi.clearRolesCache()
-    await queryClient.invalidateQueries({ queryKey: adminRoleQueryKeys.paginated() })
+    await queryClient.invalidateQueries({ queryKey: adminRoleQueryKeys.paginated(tenantId.value) })
   },
 })
 
@@ -77,7 +78,7 @@ const editMutation = useMutation({
     isEditOpen.value = false
     selectedRole.value = null
     usersApi.clearRolesCache()
-    await queryClient.invalidateQueries({ queryKey: adminRoleQueryKeys.paginated() })
+    await queryClient.invalidateQueries({ queryKey: adminRoleQueryKeys.paginated(tenantId.value) })
   },
 })
 
@@ -85,7 +86,7 @@ const deleteMutation = useMutation({
   mutationFn: rolesApi.remove,
   onSuccess: async () => {
     usersApi.clearRolesCache()
-    await queryClient.invalidateQueries({ queryKey: adminRoleQueryKeys.paginated() })
+    await queryClient.invalidateQueries({ queryKey: adminRoleQueryKeys.paginated(tenantId.value) })
   },
 })
 
@@ -96,7 +97,7 @@ const permissionsMutation = useMutation({
     isPermissionsOpen.value = false
     selectedRole.value = null
     usersApi.clearRolesCache()
-    await queryClient.invalidateQueries({ queryKey: adminRoleQueryKeys.paginated() })
+    await queryClient.invalidateQueries({ queryKey: adminRoleQueryKeys.paginated(tenantId.value) })
   },
 })
 

@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { productApi } from '../api/product.api'
 import { mapDomainError, type DomainApiError } from '@/core/shared/utils/error.utils'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
+import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import { centsToDecimalInput, decimalInputToCents } from '../composables/useProductForm'
 import VariantPricingTable from './VariantPricingTable.vue'
 import type { ProductVariant, UpdateVariantPayload } from '../interfaces/product.types'
@@ -33,6 +34,7 @@ const emit = defineEmits<{
 
 const toast = useToast()
 const queryClient = useQueryClient()
+const tenantId = useSafeTenantId()
 
 const formState = reactive({
   sku: '',
@@ -184,7 +186,7 @@ async function persistChanges(
       values: changes,
     })
 
-    await queryClient.invalidateQueries({ queryKey: productQueryKeys.variants(props.productId) })
+    await queryClient.invalidateQueries({ queryKey: productQueryKeys.variants(tenantId.value, props.productId) })
 
     initialState.sku = normalizeText(changes.sku ?? initialState.sku)
     initialState.barcode = normalizeText(changes.barcode ?? initialState.barcode)

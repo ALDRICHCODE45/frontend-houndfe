@@ -32,6 +32,7 @@ declare const useToast: () => {
 const queryClient = useQueryClient()
 const toast = useToast()
 const authStore = useAuthStore()
+const tenantId = computed(() => authStore.currentTenantId)
 const { columns } = useCustomerColumns()
 
 // ── Permission helpers ────────────────────────────────────────────────────────
@@ -56,7 +57,7 @@ const {
   showingFrom,
   showingTo,
 } = useServerTable<Customer>({
-  queryKey: customerQueryKeys.paginated(),
+  queryKey: () => customerQueryKeys.paginated(tenantId.value),
   queryFn: (params) => customerApi.getPaginated(params),
   defaultPageSize: 10,
   persistKey: 'pos-customers',
@@ -135,8 +136,8 @@ const createMutation = useMutation({
       color: 'success',
     })
 
-    await queryClient.invalidateQueries({ queryKey: customerQueryKeys.paginated() })
-    await queryClient.refetchQueries({ queryKey: customerQueryKeys.paginated(), type: 'active' })
+    await queryClient.invalidateQueries({ queryKey: customerQueryKeys.paginated(tenantId.value) })
+    await queryClient.refetchQueries({ queryKey: customerQueryKeys.paginated(tenantId.value), type: 'active' })
   },
   onError: (error) => {
     const { message, fields } = mapDomainError(error as AxiosError<DomainApiError>)
@@ -158,9 +159,9 @@ const updateMutation = useMutation({
     })
 
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: customerQueryKeys.paginated() }),
+      queryClient.invalidateQueries({ queryKey: customerQueryKeys.paginated(tenantId.value) }),
       queryClient.invalidateQueries({
-        queryKey: customerQueryKeys.detail(variables.customerId),
+        queryKey: customerQueryKeys.detail(tenantId.value, variables.customerId),
       }),
     ])
   },
@@ -180,7 +181,7 @@ const deleteMutation = useMutation({
       color: 'success',
     })
 
-    await queryClient.invalidateQueries({ queryKey: customerQueryKeys.paginated() })
+    await queryClient.invalidateQueries({ queryKey: customerQueryKeys.paginated(tenantId.value) })
   },
   onError: (error) => {
     const { message } = mapDomainError(error as AxiosError<DomainApiError>)

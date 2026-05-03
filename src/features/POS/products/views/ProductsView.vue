@@ -45,6 +45,7 @@ const queryClient = useQueryClient()
 const toast = useToast()
 const { columns, currencyFormatter } = useProductColumns()
 const authStore = useAuthStore()
+const tenantId = computed(() => authStore.currentTenantId)
 
 const {
   pagination,
@@ -63,7 +64,7 @@ const {
   showingFrom,
   showingTo,
 } = useServerTable<Product>({
-  queryKey: productQueryKeys.paginated(),
+  queryKey: () => productQueryKeys.paginated(tenantId.value),
   queryFn: (params) => productApi.getPaginated(params),
   defaultPageSize: 10,
   persistKey: 'pos-products',
@@ -72,13 +73,13 @@ const {
 })
 
 const { data: categories = [] } = useQuery({
-  queryKey: productQueryKeys.categories(),
+  queryKey: computed(() => productQueryKeys.categories(tenantId.value)),
   queryFn: productApi.getCategories,
   refetchOnWindowFocus: false,
 })
 
 const { data: brandsList = [] } = useQuery({
-  queryKey: productQueryKeys.brands(),
+  queryKey: computed(() => productQueryKeys.brands(tenantId.value)),
   queryFn: productApi.getBrands,
   refetchOnWindowFocus: false,
 })
@@ -234,8 +235,8 @@ const createMutation = useMutation({
       color: 'success',
     })
 
-    await queryClient.invalidateQueries({ queryKey: productQueryKeys.paginated() })
-    await queryClient.refetchQueries({ queryKey: productQueryKeys.paginated(), type: 'active' })
+    await queryClient.invalidateQueries({ queryKey: productQueryKeys.paginated(tenantId.value) })
+    await queryClient.refetchQueries({ queryKey: productQueryKeys.paginated(tenantId.value), type: 'active' })
   },
   onError: (error) => {
     const { message, fields } = mapDomainError(error as AxiosError<DomainApiError>)
@@ -261,8 +262,8 @@ const createCategoryMutation = useMutation({
       color: 'success',
     })
 
-    await queryClient.invalidateQueries({ queryKey: productQueryKeys.categories() })
-    await queryClient.refetchQueries({ queryKey: productQueryKeys.categories(), type: 'active' })
+    await queryClient.invalidateQueries({ queryKey: productQueryKeys.categories(tenantId.value) })
+    await queryClient.refetchQueries({ queryKey: productQueryKeys.categories(tenantId.value), type: 'active' })
   },
   onError: (error) => {
     const { message } = mapDomainError(error as AxiosError<DomainApiError>)
@@ -303,8 +304,8 @@ const createBrandMutation = useMutation({
       color: 'success',
     })
 
-    await queryClient.invalidateQueries({ queryKey: productQueryKeys.brands() })
-    await queryClient.refetchQueries({ queryKey: productQueryKeys.brands(), type: 'active' })
+    await queryClient.invalidateQueries({ queryKey: productQueryKeys.brands(tenantId.value) })
+    await queryClient.refetchQueries({ queryKey: productQueryKeys.brands(tenantId.value), type: 'active' })
   },
   onError: (error) => {
     const { message } = mapDomainError(error as AxiosError<DomainApiError>)
@@ -341,8 +342,8 @@ const updateMutation = useMutation({
     })
 
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: productQueryKeys.paginated() }),
-      queryClient.invalidateQueries({ queryKey: productQueryKeys.detail(variables.productId) }),
+      queryClient.invalidateQueries({ queryKey: productQueryKeys.paginated(tenantId.value) }),
+      queryClient.invalidateQueries({ queryKey: productQueryKeys.detail(tenantId.value, variables.productId) }),
     ])
   },
   onError: (error) => {
@@ -361,7 +362,7 @@ const deleteMutation = useMutation({
       color: 'success',
     })
 
-    await queryClient.invalidateQueries({ queryKey: productQueryKeys.paginated() })
+    await queryClient.invalidateQueries({ queryKey: productQueryKeys.paginated(tenantId.value) })
   },
   onError: (error) => {
     const { message } = mapDomainError(error as AxiosError<DomainApiError>)

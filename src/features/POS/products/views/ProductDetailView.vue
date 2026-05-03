@@ -54,6 +54,7 @@ const route = useRoute()
 const router = useRouter()
 const queryClient = useQueryClient()
 const authStore = useAuthStore()
+const tenantId = computed(() => authStore.currentTenantId)
 const toast = useToast()
 
 const VARIANT_OPTION_CHOICES = ['Tamaño', 'Color', 'Material', 'Estilo'] as const
@@ -249,14 +250,14 @@ const {
   isError: isProductError,
   refetch: refetchProduct,
 } = useQuery({
-  queryKey: computed(() => productQueryKeys.detail(productIdOrEmpty.value)),
+  queryKey: computed(() => productQueryKeys.detail(tenantId.value, productIdOrEmpty.value)),
   queryFn: () => productApi.getById(productIdOrEmpty.value),
   enabled: computed(() => !isCreateMode.value),
   refetchOnWindowFocus: false,
 })
 
 const { data: categories } = useQuery<CategoryOption[]>({
-  queryKey: productQueryKeys.categories(),
+  queryKey: computed(() => productQueryKeys.categories(tenantId.value)),
   queryFn: productApi.getCategories,
   refetchOnWindowFocus: false,
 })
@@ -268,20 +269,20 @@ const { data: globalPriceLists } = useQuery<GlobalPriceList[]>({
 })
 
 const { data: brands } = useQuery<BrandOption[]>({
-  queryKey: productQueryKeys.brands(),
+  queryKey: computed(() => productQueryKeys.brands(tenantId.value)),
   queryFn: productApi.getBrands,
   refetchOnWindowFocus: false,
 })
 
 const { data: variants, isFetching: isFetchingVariants } = useQuery({
-  queryKey: computed(() => productQueryKeys.variants(productIdOrEmpty.value)),
+  queryKey: computed(() => productQueryKeys.variants(tenantId.value, productIdOrEmpty.value)),
   queryFn: () => productApi.getVariants(productIdOrEmpty.value),
   enabled: computed(() => !isCreateMode.value),
   refetchOnWindowFocus: false,
 })
 
 const { data: lots, isFetching: isFetchingLots } = useQuery({
-  queryKey: computed(() => productQueryKeys.lots(productIdOrEmpty.value)),
+  queryKey: computed(() => productQueryKeys.lots(tenantId.value, productIdOrEmpty.value)),
   queryFn: () => productApi.getLots(productIdOrEmpty.value),
   enabled: computed(() => !isCreateMode.value),
   refetchOnWindowFocus: false,
@@ -691,7 +692,7 @@ const createMutation = useMutation({
       color: 'success',
     })
 
-    await queryClient.invalidateQueries({ queryKey: productQueryKeys.paginated() })
+    await queryClient.invalidateQueries({ queryKey: productQueryKeys.paginated(tenantId.value) })
     await router.push(`/pos/products/${createdProduct.id}`)
   },
   onError: (error) => {
@@ -715,10 +716,10 @@ const updateMutation = useMutation({
     if (!productId.value) return
 
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: productQueryKeys.paginated() }),
-      queryClient.invalidateQueries({ queryKey: productQueryKeys.detail(productId.value) }),
-      queryClient.invalidateQueries({ queryKey: productQueryKeys.priceLists(productId.value) }),
-      queryClient.invalidateQueries({ queryKey: productQueryKeys.variants(productId.value) }),
+      queryClient.invalidateQueries({ queryKey: productQueryKeys.paginated(tenantId.value) }),
+      queryClient.invalidateQueries({ queryKey: productQueryKeys.detail(tenantId.value, productId.value) }),
+      queryClient.invalidateQueries({ queryKey: productQueryKeys.priceLists(tenantId.value, productId.value) }),
+      queryClient.invalidateQueries({ queryKey: productQueryKeys.variants(tenantId.value, productId.value) }),
     ])
   },
   onError: (error) => {
@@ -743,7 +744,7 @@ const createCategoryMutation = useMutation({
       color: 'success',
     })
 
-    await queryClient.invalidateQueries({ queryKey: productQueryKeys.categories() })
+    await queryClient.invalidateQueries({ queryKey: productQueryKeys.categories(tenantId.value) })
   },
   onError: (error) => {
     const message = mapDomainError(error as AxiosError<DomainApiError>)
@@ -768,7 +769,7 @@ const createBrandMutation = useMutation({
       color: 'success',
     })
 
-    await queryClient.invalidateQueries({ queryKey: productQueryKeys.brands() })
+    await queryClient.invalidateQueries({ queryKey: productQueryKeys.brands(tenantId.value) })
   },
   onError: (error) => {
     const message = mapDomainError(error as AxiosError<DomainApiError>)
@@ -791,9 +792,9 @@ const createVariantMutation = useMutation({
     })
 
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: productQueryKeys.detail(productIdOrEmpty.value) }),
+      queryClient.invalidateQueries({ queryKey: productQueryKeys.detail(tenantId.value, productIdOrEmpty.value) }),
       queryClient.invalidateQueries({
-        queryKey: productQueryKeys.variants(productIdOrEmpty.value),
+        queryKey: productQueryKeys.variants(tenantId.value, productIdOrEmpty.value),
       }),
     ])
   },
@@ -817,9 +818,9 @@ const updateVariantMutation = useMutation({
     })
 
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: productQueryKeys.detail(productIdOrEmpty.value) }),
+      queryClient.invalidateQueries({ queryKey: productQueryKeys.detail(tenantId.value, productIdOrEmpty.value) }),
       queryClient.invalidateQueries({
-        queryKey: productQueryKeys.variants(productIdOrEmpty.value),
+        queryKey: productQueryKeys.variants(tenantId.value, productIdOrEmpty.value),
       }),
     ])
   },
@@ -834,7 +835,7 @@ const updateVariantInlineStockMutation = useMutation({
     productApi.updateVariant(productIdOrEmpty.value, payload.variantId, payload.values),
   onSuccess: async () => {
     await queryClient.invalidateQueries({
-      queryKey: productQueryKeys.variants(productIdOrEmpty.value),
+      queryKey: productQueryKeys.variants(tenantId.value, productIdOrEmpty.value),
     })
   },
   onError: (error) => {
@@ -853,9 +854,9 @@ const deleteVariantMutation = useMutation({
     })
 
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: productQueryKeys.detail(productIdOrEmpty.value) }),
+      queryClient.invalidateQueries({ queryKey: productQueryKeys.detail(tenantId.value, productIdOrEmpty.value) }),
       queryClient.invalidateQueries({
-        queryKey: productQueryKeys.variants(productIdOrEmpty.value),
+        queryKey: productQueryKeys.variants(tenantId.value, productIdOrEmpty.value),
       }),
     ])
   },
@@ -877,8 +878,8 @@ const createLotMutation = useMutation({
     })
 
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: productQueryKeys.detail(productIdOrEmpty.value) }),
-      queryClient.invalidateQueries({ queryKey: productQueryKeys.lots(productIdOrEmpty.value) }),
+      queryClient.invalidateQueries({ queryKey: productQueryKeys.detail(tenantId.value, productIdOrEmpty.value) }),
+      queryClient.invalidateQueries({ queryKey: productQueryKeys.lots(tenantId.value, productIdOrEmpty.value) }),
     ])
   },
   onError: (error) => {
@@ -897,8 +898,8 @@ const deleteLotMutation = useMutation({
     })
 
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: productQueryKeys.detail(productIdOrEmpty.value) }),
-      queryClient.invalidateQueries({ queryKey: productQueryKeys.lots(productIdOrEmpty.value) }),
+      queryClient.invalidateQueries({ queryKey: productQueryKeys.detail(tenantId.value, productIdOrEmpty.value) }),
+      queryClient.invalidateQueries({ queryKey: productQueryKeys.lots(tenantId.value, productIdOrEmpty.value) }),
     ])
   },
   onError: (error) => {
@@ -1460,7 +1461,7 @@ function handleInlineVariantPublicPriceBlur(variant: ProductVariant) {
         color: 'success',
       })
       await queryClient.invalidateQueries({
-        queryKey: productQueryKeys.variants(productIdOrEmpty.value),
+        queryKey: productQueryKeys.variants(tenantId.value, productIdOrEmpty.value),
       })
     })
     .catch((error: unknown) => {
