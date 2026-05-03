@@ -62,3 +62,8 @@ export const saleQueryKeys = {
       p.brandId ?? null,
     ] as const,
 }
+
+export const adminTenantQueryKeys = {
+  list: (includeInactive: boolean) => ['admin', 'tenants', { includeInactive }] as const,
+  detail: (tenantId: string) => ['admin', 'tenants', 'detail', tenantId] as const,
+}
