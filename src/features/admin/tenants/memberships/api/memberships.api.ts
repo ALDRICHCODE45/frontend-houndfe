@@ -207,4 +207,11 @@ export const membershipsApi = {
   async remove(tenantId: string, membershipId: string): Promise<void> {
     await http.delete(`/admin/tenants/${tenantId}/members/${membershipId}`)
   },
+
+  async getTenantRoles(tenantId: string): Promise<{ id: string; name: string }[]> {
+    const { data } = await http.get<{ data: { id: string; name: string }[] }>(
+      `/admin/tenants/${tenantId}/roles`,
+    )
+    return data.data
+  },
 }

@@ -48,6 +48,11 @@ const formId = computed(() =>
 
 const activeState = computed(() => (props.mode === 'create' ? createState : editState))
 
+const selectedUserAvatar = computed(() => {
+  const user = userOptions.value.find((u) => u.value === createState.userId)
+  return user?.avatar
+})
+
 watch(
   () => props.membership,
   (membership) => {
@@ -100,8 +105,10 @@ function onSubmit(
               :items="userOptions"
               value-key="value"
               label-key="label"
+              description-key="email"
               placeholder="Seleccioná un usuario"
               searchable
+              :avatar="selectedUserAvatar"
               class="w-full"
               size="lg"
             />
@@ -110,10 +117,10 @@ function onSubmit(
 
         <template v-else>
           <div class="space-y-2">
-            <label class="block text-sm font-medium text-gray-700">Usuario</label>
-            <div class="rounded-lg border border-gray-200 bg-gray-50 p-3">
-              <p class="font-medium text-gray-900">{{ membership?.userName }}</p>
-              <p class="text-sm text-gray-500">{{ membership?.userEmail }}</p>
+            <label class="block text-sm font-medium text-highlighted">Usuario</label>
+            <div class="rounded-lg border border-default bg-elevated/30 p-3">
+              <p class="font-medium text-highlighted">{{ membership?.userName }}</p>
+              <p class="text-sm text-muted">{{ membership?.userEmail }}</p>
             </div>
           </div>
         </template>

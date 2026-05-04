@@ -72,4 +72,5 @@ export const adminTenantMembershipQueryKeys = {
   list: (tenantId: string) => ['admin', 'tenant-memberships', tenantId, 'list'] as const,
   detail: (tenantId: string, membershipId: string) =>
     ['admin', 'tenant-memberships', tenantId, 'detail', membershipId] as const,
+  roles: (tenantId: string) => ['admin', 'tenant-memberships', tenantId, 'roles'] as const,
 }

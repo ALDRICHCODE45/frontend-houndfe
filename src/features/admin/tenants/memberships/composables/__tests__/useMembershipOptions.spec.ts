@@ -25,6 +25,7 @@ describe('useMembershipOptions', () => {
     const { useQuery } = await import('@tanstack/vue-query')
 
     vi.mocked(useQuery)
+      // usersQuery
       .mockReturnValueOnce({
         data: ref({
           data: [
@@ -35,10 +36,12 @@ describe('useMembershipOptions', () => {
         }),
         isLoading: ref(false),
       } as never)
+      // rolesQuery — now returns flat array from getTenantRoles
       .mockReturnValueOnce({
-        data: ref({ data: [{ id: 'r-1', name: 'Admin' }] }),
+        data: ref([{ id: 'r-1', name: 'Admin' }]),
         isLoading: ref(false),
       } as never)
+      // membershipsQuery
       .mockReturnValueOnce({
         data: ref({ data: [{ userId: 'u-3' }] }),
         isLoading: ref(false),
@@ -46,7 +49,14 @@ describe('useMembershipOptions', () => {
 
     const { userOptions, roleOptions } = useMembershipOptions(() => 'tenant-1')
 
-    expect(userOptions.value).toEqual([{ value: 'u-1', label: 'Ana · ana@test.com' }])
+    expect(userOptions.value).toEqual([
+      {
+        value: 'u-1',
+        label: 'Ana',
+        email: 'ana@test.com',
+        avatar: { alt: 'Ana' },
+      },
+    ])
     expect(roleOptions.value).toEqual([{ value: 'r-1', label: 'Admin' }])
   })
 

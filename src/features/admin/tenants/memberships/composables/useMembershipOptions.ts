@@ -1,14 +1,20 @@
 import { computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
-import { adminRoleQueryKeys, adminTenantMembershipQueryKeys, adminUserQueryKeys } from '@/core/shared/constants/query-keys'
+import { adminTenantMembershipQueryKeys, adminUserQueryKeys } from '@/core/shared/constants/query-keys'
 import { usersApi } from '@/features/admin/users/api/users.api'
-import { rolesApi } from '@/features/admin/roles/api/roles.api'
 import type { ServerTableParams } from '@/core/shared/types/table.types'
 import { membershipsApi } from '../api/memberships.api'
 
 interface SelectOption {
   label: string
   value: string
+}
+
+export interface UserSelectOption extends SelectOption {
+  email: string
+  avatar: {
+    alt: string
+  }
 }
 
 const FULL_LIST_PARAMS: ServerTableParams = {
@@ -56,8 +62,8 @@ export function useMembershipOptions(tenantId: () => string) {
   })
 
   const rolesQuery = useQuery({
-    queryKey: computed(() => adminRoleQueryKeys.paginated(tenantId())),
-    queryFn: () => rolesApi.getPaginated(FULL_LIST_PARAMS),
+    queryKey: computed(() => adminTenantMembershipQueryKeys.roles(tenantId())),
+    queryFn: () => membershipsApi.getTenantRoles(tenantId()),
   })
 
   const membershipsQuery = useQuery({
@@ -65,7 +71,7 @@ export function useMembershipOptions(tenantId: () => string) {
     queryFn: () => membershipsApi.getPaginated(tenantId(), FULL_LIST_PARAMS),
   })
 
-  const userOptions = computed<SelectOption[]>(() => {
+  const userOptions = computed<UserSelectOption[]>(() => {
     const existingMemberUserIds = new Set(
       (membershipsQuery.data.value?.data ?? []).map((membership) => membership.userId),
     )
@@ -74,12 +80,16 @@ export function useMembershipOptions(tenantId: () => string) {
       .filter((user) => user.isActive && !existingMemberUserIds.has(user.id))
       .map((user) => ({
         value: user.id,
-        label: `${user.name} · ${user.email}`,
+        label: user.name,
+        email: user.email,
+        avatar: {
+          alt: user.name,
+        },
       }))
   })
 
   const roleOptions = computed<SelectOption[]>(() =>
-    (rolesQuery.data.value?.data ?? []).map((role) => ({
+    (rolesQuery.data.value ?? []).map((role) => ({
       value: role.id,
       label: role.name,
     })),
