@@ -200,7 +200,9 @@ router.beforeEach(async (to) => {
   const skipTenantCheck = to.meta.skipTenantCheck === true
   const requiresTenantScopedContext = !isPublic && !skipTenantCheck
 
-  if (!isPublic && !authStore.isAuthenticated) {
+  // Allow /select-tenant when the user has a tempToken (multi-tenant login pending selection)
+  const hasTenantSelectionToken = authStore.tempToken !== null
+  if (!isPublic && !authStore.isAuthenticated && !(to.name === 'select-tenant' && hasTenantSelectionToken)) {
     return {
       path: '/login',
       query: { redirect: to.fullPath },
