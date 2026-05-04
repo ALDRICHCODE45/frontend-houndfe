@@ -7,10 +7,12 @@ import {
   type UpdateMembershipFormValues,
 } from '../composables/useMembershipForm'
 import type { MembershipTableRow } from '../interfaces/membership.types'
+import { useMembershipOptions } from '../composables/useMembershipOptions'
 
 const props = withDefaults(
   defineProps<{
     mode: 'create' | 'edit'
+    tenantId: string
     loading?: boolean
     membership?: MembershipTableRow | null
   }>(),
@@ -28,6 +30,7 @@ const emit = defineEmits<{
 }>()
 
 const { schema, createState, editState, resetForm, setValues } = useMembershipForm(props.mode)
+const { userOptions, roleOptions, isLoadingOptions } = useMembershipOptions(() => props.tenantId)
 
 const title = computed(() =>
   props.mode === 'create' ? 'Agregar miembro' : 'Editar rol del miembro',
@@ -92,11 +95,15 @@ function onSubmit(
       >
         <template v-if="mode === 'create'">
           <UFormField label="Usuario" name="userId">
-            <UInput
+            <USelectMenu
               v-model="createState.userId"
+              :items="userOptions"
+              value-key="value"
+              label-key="label"
+              placeholder="Seleccioná un usuario"
+              searchable
               class="w-full"
               size="lg"
-              placeholder="Seleccioná un usuario"
             />
           </UFormField>
         </template>
@@ -112,13 +119,20 @@ function onSubmit(
         </template>
 
         <UFormField label="Rol" name="roleId">
-          <UInput
+          <USelectMenu
             v-model="activeState.roleId"
+            :items="roleOptions"
+            value-key="value"
+            label-key="label"
+            placeholder="Seleccioná un rol"
             class="w-full"
             size="lg"
-            placeholder="Seleccioná un rol"
           />
         </UFormField>
+
+        <p v-if="mode === 'create' && !isLoadingOptions && userOptions.length === 0" class="text-sm text-muted">
+          No hay usuarios activos disponibles para agregar.
+        </p>
       </UForm>
     </template>
 

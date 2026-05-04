@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
+import AppBadge from '@/core/shared/components/AppBadge.vue'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { adminRoleQueryKeys } from '@/core/shared/constants/query-keys'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
@@ -242,11 +243,11 @@ function getRowItems(role: RoleTableRow) {
           </template>
 
           <template #permissionCount-cell="{ row }">
-            <UBadge color="neutral" variant="soft">{{ row.original.permissionCount }}</UBadge>
+            <AppBadge tone="info" :value="row.original.permissionCount" />
           </template>
 
           <template #userCount-cell="{ row }">
-            <UBadge color="neutral" variant="outline">{{ row.original.userCount }}</UBadge>
+            <AppBadge tone="type" :value="row.original.userCount" variant="outline" />
           </template>
 
           <template #createdAt-cell="{ row }">

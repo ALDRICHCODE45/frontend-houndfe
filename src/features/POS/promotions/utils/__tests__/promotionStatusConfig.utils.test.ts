@@ -9,27 +9,24 @@ import {
 } from '../promotionStatusConfig.utils'
 
 describe('PROMOTION_STATUS_CONFIG — structure', () => {
-  it('has ACTIVE config with label, color, and icon', () => {
+  it('has ACTIVE config with label, tone, and icon', () => {
     const config = PROMOTION_STATUS_CONFIG['ACTIVE']
     expect(config.label).toBe('Activa')
-    expect(config.color).toBe('success')
-    expect(config.variant).toBe('subtle')
+    expect(config.tone).toBe('active')
     expect(config.icon).toBeDefined()
   })
 
-  it('has SCHEDULED config with label, color, and icon', () => {
+  it('has SCHEDULED config with label, tone, and icon', () => {
     const config = PROMOTION_STATUS_CONFIG['SCHEDULED']
     expect(config.label).toBe('Programada')
-    expect(config.color).toBe('info')
-    expect(config.variant).toBe('subtle')
+    expect(config.tone).toBe('pending')
     expect(config.icon).toBeDefined()
   })
 
-  it('has ENDED config with label, color, and icon', () => {
+  it('has ENDED config with label, tone, and icon', () => {
     const config = PROMOTION_STATUS_CONFIG['ENDED']
     expect(config.label).toBe('Finalizada')
-    expect(config.color).toBe('neutral')
-    expect(config.variant).toBe('subtle')
+    expect(config.tone).toBe('inactive')
     expect(config.icon).toBeDefined()
   })
 })
@@ -38,19 +35,19 @@ describe('getStatusConfig', () => {
   it('returns ACTIVE config for ACTIVE status', () => {
     const config = getStatusConfig('ACTIVE')
     expect(config.label).toBe('Activa')
-    expect(config.color).toBe('success')
+    expect(config.tone).toBe('active')
   })
 
   it('returns SCHEDULED config for SCHEDULED status', () => {
     const config = getStatusConfig('SCHEDULED')
     expect(config.label).toBe('Programada')
-    expect(config.color).toBe('info')
+    expect(config.tone).toBe('pending')
   })
 
   it('returns ENDED config for ENDED status', () => {
     const config = getStatusConfig('ENDED')
     expect(config.label).toBe('Finalizada')
-    expect(config.color).toBe('neutral')
+    expect(config.tone).toBe('inactive')
   })
 })
 
@@ -58,32 +55,28 @@ describe('PROMOTION_TYPE_CONFIG — structure', () => {
   it('has PRODUCT_DISCOUNT with label and icon', () => {
     const config = PROMOTION_TYPE_CONFIG['PRODUCT_DISCOUNT']
     expect(config.label).toBe('Descuento en productos')
-    expect(config.color).toBe('warning')
-    expect(config.variant).toBe('subtle')
+    expect(config.tone).toBe('type')
     expect(config.icon).toBeDefined()
   })
 
   it('has ORDER_DISCOUNT with label and icon', () => {
     const config = PROMOTION_TYPE_CONFIG['ORDER_DISCOUNT']
     expect(config.label).toBe('Descuento en pedido')
-    expect(config.color).toBe('primary')
-    expect(config.variant).toBe('subtle')
+    expect(config.tone).toBe('type')
     expect(config.icon).toBeDefined()
   })
 
   it('has BUY_X_GET_Y with label and icon', () => {
     const config = PROMOTION_TYPE_CONFIG['BUY_X_GET_Y']
     expect(config.label).toBe('2x1, 3x2...')
-    expect(config.color).toBe('success')
-    expect(config.variant).toBe('subtle')
+    expect(config.tone).toBe('type')
     expect(config.icon).toBeDefined()
   })
 
   it('has ADVANCED with label and icon', () => {
     const config = PROMOTION_TYPE_CONFIG['ADVANCED']
     expect(config.label).toBe('Avanzada')
-    expect(config.color).toBe('secondary')
-    expect(config.variant).toBe('subtle')
+    expect(config.tone).toBe('type')
     expect(config.icon).toBeDefined()
   })
 })
@@ -104,15 +97,13 @@ describe('PROMOTION_METHOD_CONFIG — structure', () => {
   it('has AUTOMATIC with label and icon', () => {
     const config = PROMOTION_METHOD_CONFIG['AUTOMATIC']
     expect(config.label).toBe('Automático')
-    expect(config.color).toBe('info')
-    expect(config.variant).toBe('outline')
+    expect(config.tone).toBe('automatic')
   })
 
   it('has MANUAL with label and icon', () => {
     const config = PROMOTION_METHOD_CONFIG['MANUAL']
     expect(config.label).toBe('Manual')
-    expect(config.color).toBe('neutral')
-    expect(config.variant).toBe('outline')
+    expect(config.tone).toBe('manual')
   })
 })
 

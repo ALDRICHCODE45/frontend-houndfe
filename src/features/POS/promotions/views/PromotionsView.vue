@@ -9,6 +9,7 @@ import type { BulkAction } from '@/core/shared/types/table.types'
 import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
+import AppBadge from '@/core/shared/components/AppBadge.vue'
 import { promotionApi } from '../api/promotion.api'
 import { usePromotionColumns } from '../composables/usePromotionColumns'
 import type { PromotionMethod, PromotionResponse, PromotionStatus, PromotionType } from '../interfaces/promotion.types'
@@ -370,34 +371,26 @@ defineExpose({ filterType, filterStatus, filterMethod, getRowItems })
           </template>
 
           <template #status-cell="{ row }">
-            <UBadge
-              :color="getStatusConfig(row.original.status).color"
-              :variant="getStatusConfig(row.original.status).variant"
+            <AppBadge
+              :tone="getStatusConfig(row.original.status).tone"
               :icon="getStatusConfig(row.original.status).icon"
               :label="getStatusConfig(row.original.status).label"
-              size="md"
-              :ui="{ label: 'font-medium' }"
             />
           </template>
 
           <template #type-cell="{ row }">
-            <UBadge
-              :color="getTypeConfig(row.original.type).color"
-              :variant="getTypeConfig(row.original.type).variant"
+            <AppBadge
+              :tone="getTypeConfig(row.original.type).tone"
               :icon="getTypeConfig(row.original.type).icon"
               :label="getTypeConfig(row.original.type).label"
-              size="md"
-              :ui="{ label: 'font-medium' }"
             />
           </template>
 
           <template #method-cell="{ row }">
-            <UBadge
-              :color="getMethodConfig(row.original.method).color"
-              :variant="getMethodConfig(row.original.method).variant"
+            <AppBadge
+              :tone="getMethodConfig(row.original.method).tone"
               :label="getMethodConfig(row.original.method).label"
-              size="md"
-              :ui="{ label: 'font-medium' }"
+              variant="outline"
             />
           </template>
 

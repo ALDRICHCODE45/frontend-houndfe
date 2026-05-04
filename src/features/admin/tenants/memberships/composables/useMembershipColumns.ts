@@ -5,19 +5,15 @@ import type { MembershipTableRow } from '../interfaces/membership.types'
 export function useMembershipColumns() {
   const columns: TableColumn<MembershipTableRow>[] = [
     {
-      accessorKey: 'userEmail',
-      header: 'Email',
-    },
-    {
       accessorKey: 'userName',
-      header: 'Nombre',
+      header: 'Usuario',
     },
     {
       accessorKey: 'roleName',
       header: 'Rol',
     },
     {
-      accessorKey: 'id',
+      accessorKey: 'createdAt',
       header: 'Fecha de ingreso',
     },
     {

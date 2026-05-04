@@ -60,6 +60,9 @@ describe('membership.types', () => {
       const result = createMembershipSchema.safeParse(invalidPayload)
 
       expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error.errors[0]?.message).toBe('Seleccioná un usuario')
+      }
     })
 
     it('fails validation when roleId is empty string', () => {
@@ -71,6 +74,9 @@ describe('membership.types', () => {
       const result = createMembershipSchema.safeParse(invalidPayload)
 
       expect(result.success).toBe(false)
+      if (!result.success) {
+        expect(result.error.errors[0]?.message).toBe('Seleccioná un rol')
+      }
     })
   })
 

@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import type { AxiosError } from 'axios'
 import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
+import AppBadge from '@/core/shared/components/AppBadge.vue'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { adminTenantMembershipQueryKeys } from '@/core/shared/constants/query-keys'
 import { membershipsApi, mapMembershipError } from '../api/memberships.api'
@@ -28,6 +29,18 @@ const route = useRoute()
 const queryClient = useQueryClient()
 const toast = useToast()
 const { columns } = useMembershipColumns()
+const dateFormatter = new Intl.DateTimeFormat('es-AR', {
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+})
+
+function getInitials(name?: string | null) {
+  if (!name) return 'U'
+  const parts = name.trim().split(' ').filter(Boolean)
+  const initials = parts.slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '')
+  return initials.join('') || 'U'
+}
 
 const tenantId = computed(() => route.params.tenantId as string)
 
@@ -167,72 +180,92 @@ function getRowItems(membership: MembershipTableRow) {
 </script>
 
 <template>
-  <div class="flex h-full flex-col">
-    <div class="mb-6 flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-semibold text-gray-900">Miembros del Tenant</h1>
-        <p class="mt-1 text-sm text-gray-500">
-          Administra los usuarios que pertenecen a este tenant y sus roles.
-        </p>
+  <div class="flex flex-col gap-6 px-4 sm:px-6 lg:px-10">
+    <UCard :ui="{ body: 'p-0 sm:p-0' }">
+      <template #header>
+        <div>
+          <h2 class="text-2xl font-semibold">Miembros del tenant</h2>
+          <p class="text-sm text-muted">Administrá los usuarios que pertenecen a este tenant y sus roles.</p>
+        </div>
+      </template>
+
+      <div class="px-6 py-5">
+        <AppDataTable
+          v-model:sorting="sorting"
+          v-model:pagination="pagination"
+          v-model:global-filter="globalFilter"
+          v-model:column-pinning="columnPinning"
+          v-model:column-visibility="columnVisibility"
+          :columns="columns"
+          :data="data"
+          :loading="isLoading"
+          :fetching="isFetching"
+          :page-count="pageCount"
+          :total-count="totalCount"
+          :showing-from="showingFrom"
+          :showing-to="showingTo"
+          :page-size-options="pageSizeOptions"
+          search-placeholder="Buscar por email, nombre o rol..."
+          empty="No hay miembros en este tenant"
+          show-add-button
+          add-button-text="Agregar miembro"
+          add-button-icon="i-lucide-user-plus"
+          @add="isCreateOpen = true"
+          @refresh="refresh"
+        >
+          <template #userName-header="{ column }">
+            <SortableHeader :column="column" label="Usuario" />
+          </template>
+
+          <template #roleName-header="{ column }">
+            <SortableHeader :column="column" label="Rol" />
+          </template>
+
+          <template #createdAt-header="{ column }">
+            <SortableHeader :column="column" label="Fecha de ingreso" />
+          </template>
+
+          <template #userName-cell="{ row }">
+            <div class="flex items-center gap-3">
+              <UAvatar :alt="row.original.userName" :text="getInitials(row.original.userName)" />
+              <div>
+                <p class="font-medium">{{ row.original.userName }}</p>
+                <p class="text-sm text-muted">{{ row.original.userEmail }}</p>
+              </div>
+            </div>
+          </template>
+
+          <template #roleName-cell="{ row }">
+            <AppBadge tone="info" :label="row.original.roleName" />
+          </template>
+
+          <template #createdAt-cell="{ row }">
+            <span>{{ row.original.createdAt ? dateFormatter.format(new Date(row.original.createdAt)) : '-' }}</span>
+          </template>
+
+          <template #actions-cell="{ row }">
+            <UDropdownMenu :items="getRowItems(row.original)" :content="{ align: 'end' }">
+              <UButton icon="i-lucide-ellipsis-vertical" color="neutral" variant="ghost" class="size-7" />
+            </UDropdownMenu>
+          </template>
+        </AppDataTable>
       </div>
-      <button
-        type="button"
-        class="rounded-md bg-primary-600 px-3.5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-600"
-        @click="isCreateOpen = true"
-      >
-        Agregar Miembro
-      </button>
-    </div>
-
-    <AppDataTable
-      :data="data"
-      :columns="columns"
-      :pagination="pagination"
-      :sorting="sorting"
-      :global-filter="globalFilter"
-      :column-pinning="columnPinning"
-      :column-visibility="columnVisibility"
-      :total-count="totalCount"
-      :page-count="pageCount"
-      :is-loading="isLoading"
-      :is-fetching="isFetching"
-      :page-size-options="pageSizeOptions"
-      :showing-from="showingFrom"
-      :showing-to="showingTo"
-      :get-row-items="getRowItems"
-      search-placeholder="Buscar por email, nombre o rol..."
-      empty-title="No hay miembros"
-      empty-description="No se encontraron miembros en este tenant. Agrega el primer miembro."
-    >
-      <template #userEmail-header="{ column }">
-        <SortableHeader :column="column" label="Email" />
-      </template>
-
-      <template #userName-header="{ column }">
-        <SortableHeader :column="column" label="Nombre" />
-      </template>
-
-      <template #roleName-header="{ column }">
-        <SortableHeader :column="column" label="Rol" />
-      </template>
-
-      <template #id-header="{ column }">
-        <SortableHeader :column="column" label="Fecha de ingreso" />
-      </template>
-    </AppDataTable>
+    </UCard>
 
     <MembershipUpsertSlideover
       v-model:open="isCreateOpen"
       mode="create"
-      :is-loading="createMutation.isPending.value"
+      :tenant-id="tenantId"
+      :loading="createMutation.isPending.value"
       @create="handleCreate"
     />
 
     <MembershipUpsertSlideover
       v-model:open="isEditOpen"
       mode="edit"
+      :tenant-id="tenantId"
       :membership="selectedMembership"
-      :is-loading="editMutation.isPending.value"
+      :loading="editMutation.isPending.value"
       @edit="handleEdit"
     />
 

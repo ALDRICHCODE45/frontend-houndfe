@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
+import AppBadge from '@/core/shared/components/AppBadge.vue'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { adminUserQueryKeys } from '@/core/shared/constants/query-keys'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
@@ -254,15 +255,13 @@ function getRowItems(user: UserTableRow) {
 
           <template #roles-cell="{ row }">
             <div class="flex flex-wrap gap-2">
-              <UBadge
+              <AppBadge
                 v-for="role in row.original.roles"
                 :key="role.id"
-                color="neutral"
-                variant="soft"
-                size="sm"
+                tone="info"
+                :label="role.name"
               >
-                {{ role.name }}
-              </UBadge>
+              </AppBadge>
               <span v-if="row.original.roles.length === 0" class="text-sm text-muted"
                 >Sin roles</span
               >

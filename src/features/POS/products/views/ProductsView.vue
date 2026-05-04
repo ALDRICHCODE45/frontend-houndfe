@@ -12,6 +12,7 @@ import type { BulkAction } from '@/core/shared/types/table.types'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
+import AppBadge from '@/core/shared/components/AppBadge.vue'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { productApi } from '../api/product.api'
 import ProductUpsertSlideover from '../components/ProductUpsertSlideover.vue'
@@ -26,7 +27,7 @@ import type {
   ProductDetail,
   UpdateProductPayload,
 } from '../interfaces/product.types'
-import { getStockColor, productStatusConfig } from '../utils/productStatusConfig.utils'
+import { getStockTone, productStatusConfig } from '../utils/productStatusConfig.utils'
 
 type ProductFormErrors = Partial<
   Record<'name' | 'sku' | 'barcode' | 'price' | 'quantity' | 'minQuantity', string>
@@ -659,48 +660,37 @@ const bulkActions = computed<BulkAction<Product>[]>(() => [])
           </template>
 
           <template #quantity-cell="{ row }">
-            <UBadge
+            <AppBadge
               v-if="
                 (row.original as Product).hasVariants &&
                 (row.original as Product).variantStockTotal != null
               "
-              :color="getStockColor((row.original as Product).variantStockTotal ?? 0)"
-              variant="subtle"
-              size="sm"
-              class="font-semibold"
+              :tone="getStockTone((row.original as Product).variantStockTotal ?? 0)"
             >
               {{ (row.original as Product).variantStockTotal }} unidades en
               {{ (row.original as Product).variantCount }}
               {{ (row.original as Product).variantCount === 1 ? 'variante' : 'variantes' }}
-            </UBadge>
-            <UBadge
+            </AppBadge>
+            <AppBadge
               v-else-if="(row.original as Product).hasVariants"
-              color="neutral"
-              variant="subtle"
-              size="sm"
-              class="font-semibold"
+              tone="info"
             >
               En variantes
-            </UBadge>
-            <UBadge
+            </AppBadge>
+            <AppBadge
               v-else
-              :color="getStockColor(row.original.quantity, row.original.minQuantity)"
-              variant="subtle"
-              size="sm"
-              class="font-mono font-semibold"
+              :tone="getStockTone(row.original.quantity, row.original.minQuantity)"
             >
               {{ row.original.quantity }}
-            </UBadge>
+            </AppBadge>
           </template>
 
           <template #status-cell="{ row }">
-            <UBadge
-              :color="productStatusConfig[(row.original as Product).status].color"
+            <AppBadge
+              :tone="productStatusConfig[(row.original as Product).status].tone"
+              :label="productStatusConfig[(row.original as Product).status].label"
               variant="outline"
-              size="sm"
-            >
-              {{ productStatusConfig[(row.original as Product).status].label }}
-            </UBadge>
+            />
           </template>
 
           <template #actions-cell="{ row }">

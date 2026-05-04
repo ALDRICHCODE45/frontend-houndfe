@@ -5,8 +5,10 @@ import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import type { AxiosError } from 'axios'
 import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
+import AppBadge from '@/core/shared/components/AppBadge.vue'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { adminTenantQueryKeys } from '@/core/shared/constants/query-keys'
+import { activityToBadgeTone } from '@/core/shared/utils/badge.utils'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { tenantsApi, mapTenantError } from '../api/tenants.api'
 import { useTenantColumns } from '../composables/useTenantColumns'
@@ -250,14 +252,12 @@ function getRowItems(tenant: TenantTableRow) {
           </template>
 
           <template #isActive-cell="{ row }">
-            <UBadge
+            <AppBadge
               :data-testid="`status-badge-${row.original.id}`"
-              :color="row.original.isActive ? 'success' : 'error'"
-              variant="soft"
-              size="sm"
+              :tone="activityToBadgeTone(row.original.isActive)"
+              :label="row.original.isActive ? 'Activa' : 'Inactiva'"
             >
-              {{ row.original.isActive ? 'Activa' : 'Inactiva' }}
-            </UBadge>
+            </AppBadge>
           </template>
 
           <template #createdAt-cell="{ row }">

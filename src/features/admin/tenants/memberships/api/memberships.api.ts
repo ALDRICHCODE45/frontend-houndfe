@@ -1,11 +1,28 @@
 import type { PaginatedResponse, ServerTableParams } from '@/core/shared/types/table.types'
 import { http } from '@/core/shared/api/http'
+import type { RoleWithUserCountResponse } from '@/features/admin/shared/interfaces/rbac.types'
+import type { UsersBackendListResponse } from '@/features/admin/users/interfaces/user.types'
 import type {
   MembershipResponse,
   MembershipTableRow,
   CreateMembershipRequest,
   UpdateMembershipRequest,
 } from '../interfaces/membership.types'
+
+type MembershipApiRow = MembershipResponse & {
+  userName?: string
+  userEmail?: string
+  roleName?: string
+  user?: {
+    id?: string
+    name?: string
+    email?: string
+  }
+  role?: {
+    id?: string
+    name?: string
+  }
+}
 
 const MEMBERSHIP_ERROR_MAP: Record<string, string> = {
   ROLE_TENANT_MISMATCH: 'El rol seleccionado no pertenece a esta sucursal',
@@ -16,6 +33,10 @@ const MEMBERSHIP_ERROR_MAP: Record<string, string> = {
 }
 
 const FALLBACK_ERROR_MESSAGE = 'Ocurrió un error inesperado'
+const UNKNOWN_USER_LABEL = 'Usuario desconocido'
+const UNKNOWN_ROLE_LABEL = 'Rol desconocido'
+const UNKNOWN_EMAIL_LABEL = '-'
+const USERS_PAGE_SIZE = 100
 
 export function mapMembershipError(codeOrMessage: string): string {
   if (!codeOrMessage) {
@@ -36,7 +57,9 @@ function applyLocalMembershipFilters(
     const search = params.globalFilter.toLowerCase()
     filtered = filtered.filter(
       (row) =>
-        row.userId.toLowerCase().includes(search) || row.roleId.toLowerCase().includes(search),
+        row.userEmail.toLowerCase().includes(search) ||
+        row.userName.toLowerCase().includes(search) ||
+        row.roleName.toLowerCase().includes(search),
     )
   }
 
@@ -63,15 +86,86 @@ function applyLocalMembershipFilters(
   return filtered
 }
 
+function needsCatalogEnrichment(row: MembershipApiRow): boolean {
+  return !row.userName && !row.user?.name && !row.roleName && !row.role?.name
+}
+
+async function loadUsersCatalog() {
+  const usersById = new Map<string, { name: string; email: string }>()
+  let page = 1
+
+  while (true) {
+    const { data } = await http.get<UsersBackendListResponse>('/admin/users', {
+      params: { page, limit: USERS_PAGE_SIZE },
+    })
+
+    for (const user of data.data) {
+      usersById.set(user.id, { name: user.name, email: user.email })
+    }
+
+    if (page >= data.meta.totalPages) {
+      break
+    }
+
+    page += 1
+  }
+
+  return usersById
+}
+
+async function loadRolesCatalog() {
+  const { data } = await http.get<RoleWithUserCountResponse[]>('/admin/roles')
+  const rolesById = new Map<string, string>()
+
+  for (const row of data) {
+    rolesById.set(row.role.id, row.role.name)
+  }
+
+  return rolesById
+}
+
+function normalizeMembershipRow(
+  row: MembershipApiRow,
+  usersById?: Map<string, { name: string; email: string }>,
+  rolesById?: Map<string, string>,
+): MembershipTableRow {
+  const catalogUser = usersById?.get(row.userId)
+  const safeUserName = row.userName ?? row.user?.name ?? catalogUser?.name ?? UNKNOWN_USER_LABEL
+  const safeUserEmail = row.userEmail ?? row.user?.email ?? catalogUser?.email ?? UNKNOWN_EMAIL_LABEL
+  const safeRoleName =
+    row.roleName ?? row.role?.name ?? (row.roleId ? rolesById?.get(row.roleId) : undefined) ?? UNKNOWN_ROLE_LABEL
+
+  return {
+    ...row,
+    userId: row.userId ?? row.user?.id ?? '',
+    roleId: row.roleId ?? row.role?.id ?? '',
+    userName: safeUserName,
+    userEmail: safeUserEmail,
+    roleName: safeRoleName,
+  }
+}
+
 export const membershipsApi = {
   async getPaginated(
     tenantId: string,
     params: ServerTableParams,
   ): Promise<PaginatedResponse<MembershipTableRow>> {
-    const { data } = await http.get<MembershipResponse[]>(`/admin/tenants/${tenantId}/members`)
+    const { data } = await http.get<MembershipApiRow[]>(`/admin/tenants/${tenantId}/members`)
 
-    // Backend returns flat array — cast to TableRow (enrichment happens in composable)
-    const rows: MembershipTableRow[] = data as MembershipTableRow[]
+    let usersById: Map<string, { name: string; email: string }> | undefined
+    let rolesById: Map<string, string> | undefined
+
+    if (data.some(needsCatalogEnrichment)) {
+      const [usersCatalog, rolesCatalog] = await Promise.allSettled([
+        loadUsersCatalog(),
+        loadRolesCatalog(),
+      ])
+
+      usersById = usersCatalog.status === 'fulfilled' ? usersCatalog.value : undefined
+      rolesById = rolesCatalog.status === 'fulfilled' ? rolesCatalog.value : undefined
+    }
+
+    const rows: MembershipTableRow[] = data.map((row) => normalizeMembershipRow(row, usersById, rolesById))
     const filteredRows = applyLocalMembershipFilters(rows, params)
 
     const totalCount = filteredRows.length

@@ -33,8 +33,40 @@ describe('membershipsApi', () => {
       },
     ]
 
+    function mockCatalogRequests(memberships: MembershipResponse[] = []) {
+      vi.mocked(http.get).mockImplementation((url: string) => {
+        if (url === '/admin/tenants/tenant-1/members') {
+          return Promise.resolve({ data: memberships })
+        }
+
+        if (url === '/admin/users') {
+          return Promise.resolve({
+            data: {
+              data: [
+                { id: 'u1', name: 'Ana Pérez', email: 'ana@test.com', isActive: true, createdAt: '' },
+                { id: 'u2', name: 'Bruno Díaz', email: 'bruno@test.com', isActive: true, createdAt: '' },
+                { id: 'u3', name: 'Carla Ruiz', email: 'carla@test.com', isActive: true, createdAt: '' },
+              ],
+              meta: { total: 3, page: 1, limit: 100, totalPages: 1 },
+            },
+          })
+        }
+
+        if (url === '/admin/roles') {
+          return Promise.resolve({
+            data: [
+              { role: { id: 'r1', name: 'Administrador', permissions: [], description: null, isSystem: false, createdAt: '', updatedAt: '' }, userCount: 2 },
+              { role: { id: 'r2', name: 'Operador', permissions: [], description: null, isSystem: false, createdAt: '', updatedAt: '' }, userCount: 1 },
+            ],
+          })
+        }
+
+        return Promise.resolve({ data: [] })
+      })
+    }
+
     it('calls GET /admin/tenants/:tenantId/members', async () => {
-      vi.mocked(http.get).mockResolvedValue({ data: [] })
+      mockCatalogRequests()
 
       const params: ServerTableParams = {
         pageIndex: 0,
@@ -47,7 +79,7 @@ describe('membershipsApi', () => {
     })
 
     it('calls backend with different tenantId parameter', async () => {
-      vi.mocked(http.get).mockResolvedValue({ data: [] })
+      mockCatalogRequests()
 
       const params: ServerTableParams = {
         pageIndex: 0,
@@ -60,7 +92,18 @@ describe('membershipsApi', () => {
     })
 
     it('maps backend array to paginated response with correct structure', async () => {
-      vi.mocked(http.get).mockResolvedValue({ data: mockMemberships })
+      vi.mocked(http.get).mockImplementation((url: string) => {
+        if (url === '/admin/tenants/tenant-1/members') {
+          return Promise.resolve({ data: mockMemberships })
+        }
+        if (url === '/admin/users') {
+          return Promise.resolve({ data: { data: [], meta: { total: 0, page: 1, limit: 100, totalPages: 1 } } })
+        }
+        if (url === '/admin/roles') {
+          return Promise.resolve({ data: [] })
+        }
+        return Promise.resolve({ data: [] })
+      })
 
       const params: ServerTableParams = {
         pageIndex: 0,
@@ -78,7 +121,12 @@ describe('membershipsApi', () => {
     })
 
     it('applies client-side pagination correctly', async () => {
-      vi.mocked(http.get).mockResolvedValue({ data: mockMemberships })
+      vi.mocked(http.get).mockImplementation((url: string) => {
+        if (url === '/admin/tenants/tenant-1/members') return Promise.resolve({ data: mockMemberships })
+        if (url === '/admin/users') return Promise.resolve({ data: { data: [], meta: { total: 0, page: 1, limit: 100, totalPages: 1 } } })
+        if (url === '/admin/roles') return Promise.resolve({ data: [] })
+        return Promise.resolve({ data: [] })
+      })
 
       const params: ServerTableParams = {
         pageIndex: 0,
@@ -93,7 +141,12 @@ describe('membershipsApi', () => {
     })
 
     it('returns correct page 2 data', async () => {
-      vi.mocked(http.get).mockResolvedValue({ data: mockMemberships })
+      vi.mocked(http.get).mockImplementation((url: string) => {
+        if (url === '/admin/tenants/tenant-1/members') return Promise.resolve({ data: mockMemberships })
+        if (url === '/admin/users') return Promise.resolve({ data: { data: [], meta: { total: 0, page: 1, limit: 100, totalPages: 1 } } })
+        if (url === '/admin/roles') return Promise.resolve({ data: [] })
+        return Promise.resolve({ data: [] })
+      })
 
       const params: ServerTableParams = {
         pageIndex: 1,
@@ -107,53 +160,58 @@ describe('membershipsApi', () => {
       expect(result.pagination.pageIndex).toBe(1)
     })
 
-    it('filters rows by globalFilter in userId', async () => {
-      vi.mocked(http.get).mockResolvedValue({ data: mockMemberships })
+    it('filters rows by globalFilter in user label', async () => {
+      mockCatalogRequests(mockMemberships)
 
       const params: ServerTableParams = {
         pageIndex: 0,
         pageSize: 10,
-        globalFilter: 'u2',
+        globalFilter: 'bruno',
       }
 
       const result = await membershipsApi.getPaginated('tenant-1', params)
 
       expect(result.data).toHaveLength(1)
-      expect(result.data[0]?.userId).toBe('u2')
+      expect(result.data[0]?.userName).toBe('Bruno Díaz')
     })
 
-    it('filters rows by globalFilter in roleId', async () => {
-      vi.mocked(http.get).mockResolvedValue({ data: mockMemberships })
+    it('filters rows by globalFilter in roleName', async () => {
+      mockCatalogRequests(mockMemberships)
 
       const params: ServerTableParams = {
         pageIndex: 0,
         pageSize: 10,
-        globalFilter: 'r2',
+        globalFilter: 'operador',
       }
 
       const result = await membershipsApi.getPaginated('tenant-1', params)
 
       expect(result.data).toHaveLength(1)
-      expect(result.data[0]?.roleId).toBe('r2')
+      expect(result.data[0]?.roleName).toBe('Operador')
     })
 
     it('filters case-insensitively', async () => {
-      vi.mocked(http.get).mockResolvedValue({ data: mockMemberships })
+      mockCatalogRequests(mockMemberships)
 
       const params: ServerTableParams = {
         pageIndex: 0,
         pageSize: 10,
-        globalFilter: 'U1',
+        globalFilter: 'ANa',
       }
 
       const result = await membershipsApi.getPaginated('tenant-1', params)
 
       expect(result.data).toHaveLength(1)
-      expect(result.data[0]?.userId).toBe('u1')
+      expect(result.data[0]?.userName).toBe('Ana Pérez')
     })
 
     it('sorts by userId ascending', async () => {
-      vi.mocked(http.get).mockResolvedValue({ data: mockMemberships })
+      vi.mocked(http.get).mockImplementation((url: string) => {
+        if (url === '/admin/tenants/tenant-1/members') return Promise.resolve({ data: mockMemberships })
+        if (url === '/admin/users') return Promise.resolve({ data: { data: [], meta: { total: 0, page: 1, limit: 100, totalPages: 1 } } })
+        if (url === '/admin/roles') return Promise.resolve({ data: [] })
+        return Promise.resolve({ data: [] })
+      })
 
       const params: ServerTableParams = {
         pageIndex: 0,
@@ -169,7 +227,12 @@ describe('membershipsApi', () => {
     })
 
     it('sorts by userId descending', async () => {
-      vi.mocked(http.get).mockResolvedValue({ data: mockMemberships })
+      vi.mocked(http.get).mockImplementation((url: string) => {
+        if (url === '/admin/tenants/tenant-1/members') return Promise.resolve({ data: mockMemberships })
+        if (url === '/admin/users') return Promise.resolve({ data: { data: [], meta: { total: 0, page: 1, limit: 100, totalPages: 1 } } })
+        if (url === '/admin/roles') return Promise.resolve({ data: [] })
+        return Promise.resolve({ data: [] })
+      })
 
       const params: ServerTableParams = {
         pageIndex: 0,
@@ -185,7 +248,12 @@ describe('membershipsApi', () => {
     })
 
     it('returns empty array when no memberships match filter', async () => {
-      vi.mocked(http.get).mockResolvedValue({ data: mockMemberships })
+      vi.mocked(http.get).mockImplementation((url: string) => {
+        if (url === '/admin/tenants/tenant-1/members') return Promise.resolve({ data: mockMemberships })
+        if (url === '/admin/users') return Promise.resolve({ data: { data: [], meta: { total: 0, page: 1, limit: 100, totalPages: 1 } } })
+        if (url === '/admin/roles') return Promise.resolve({ data: [] })
+        return Promise.resolve({ data: [] })
+      })
 
       const params: ServerTableParams = {
         pageIndex: 0,
@@ -197,6 +265,94 @@ describe('membershipsApi', () => {
 
       expect(result.data).toEqual([])
       expect(result.pagination.totalCount).toBe(0)
+    })
+
+    it('normalizes nested user/role payload for table rendering', async () => {
+      vi.mocked(http.get).mockResolvedValue({
+        data: [
+          {
+            id: 'm1',
+            userId: 'u1',
+            tenantId: 't1',
+            roleId: 'r1',
+            user: { id: 'u1', name: 'Ana Pérez', email: 'ana@test.com' },
+            role: { id: 'r1', name: 'Administrador' },
+          },
+        ],
+      })
+
+      const result = await membershipsApi.getPaginated('tenant-1', {
+        pageIndex: 0,
+        pageSize: 10,
+      })
+
+      expect(result.data[0]).toMatchObject({
+        userName: 'Ana Pérez',
+        userEmail: 'ana@test.com',
+        roleName: 'Administrador',
+      })
+    })
+
+    it('provides safe fallback labels when backend omits enriched fields', async () => {
+      vi.mocked(http.get).mockResolvedValue({
+        data: [
+          {
+            id: 'm1',
+            userId: 'u1',
+            tenantId: 't1',
+            roleId: 'r1',
+          },
+        ],
+      })
+
+      const result = await membershipsApi.getPaginated('tenant-1', {
+        pageIndex: 0,
+        pageSize: 10,
+      })
+
+      expect(result.data[0]).toMatchObject({
+        userName: 'Usuario desconocido',
+        userEmail: '-',
+        roleName: 'Rol desconocido',
+      })
+    })
+
+    it('resolves missing labels from users and roles catalogs', async () => {
+      mockCatalogRequests()
+      vi.mocked(http.get).mockImplementation((url: string) => {
+        if (url === '/admin/tenants/tenant-1/members') {
+          return Promise.resolve({
+            data: [{ id: 'm1', userId: 'u1', tenantId: 't1', roleId: 'r1' }],
+          })
+        }
+
+        if (url === '/admin/users') {
+          return Promise.resolve({
+            data: {
+              data: [{ id: 'u1', name: 'Ana Pérez', email: 'ana@test.com', isActive: true, createdAt: '' }],
+              meta: { total: 1, page: 1, limit: 100, totalPages: 1 },
+            },
+          })
+        }
+
+        if (url === '/admin/roles') {
+          return Promise.resolve({
+            data: [
+              { role: { id: 'r1', name: 'Administrador', permissions: [], description: null, isSystem: false, createdAt: '', updatedAt: '' }, userCount: 1 },
+            ],
+          })
+        }
+
+        return Promise.resolve({ data: [] })
+      })
+
+      const result = await membershipsApi.getPaginated('tenant-1', { pageIndex: 0, pageSize: 10 })
+
+      expect(result.data[0]).toMatchObject({
+        userName: 'Ana Pérez',
+        userEmail: 'ana@test.com',
+        roleName: 'Administrador',
+      })
     })
   })
 

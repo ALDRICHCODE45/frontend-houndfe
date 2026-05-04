@@ -2,8 +2,8 @@ import { z } from 'zod'
 
 // Validation messages
 const VALIDATION_MESSAGES = {
-  USER_ID_REQUIRED: 'User ID es requerido',
-  ROLE_ID_REQUIRED: 'Role ID es requerido',
+  USER_ID_REQUIRED: 'Seleccioná un usuario',
+  ROLE_ID_REQUIRED: 'Seleccioná un rol',
 } as const
 
 // Zod schema for creating membership
@@ -26,6 +26,7 @@ export interface MembershipResponse {
   userId: string
   tenantId: string
   roleId: string
+  createdAt?: string
 }
 
 // Enriched row for table display (includes resolved user/role names)

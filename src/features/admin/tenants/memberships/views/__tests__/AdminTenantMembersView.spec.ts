@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { ref } from 'vue'
+import { defineComponent, h } from 'vue'
 import AdminTenantMembersView from '../AdminTenantMembersView.vue'
 
 /**
@@ -28,6 +29,11 @@ vi.mock('vue-router', () => ({
 }))
 
 vi.mock('@tanstack/vue-query', () => ({
+  QueryClient: vi.fn(() => ({})),
+  useQuery: vi.fn(() => ({
+    data: ref({ data: [] }),
+    isLoading: ref(false),
+  })),
   useQueryClient: vi.fn(() => ({
     invalidateQueries: vi.fn(),
   })),
@@ -350,5 +356,41 @@ describe('AdminTenantMembersView - behavioral tests', () => {
 
     const callArgs = vi.mocked(useServerTable).mock.calls[0]![0]
     expect(callArgs.defaultPinning).toEqual({ left: [], right: ['actions'] })
+  })
+
+  it('renders only the table header section (no duplicated outer header)', async () => {
+    const UCardStub = defineComponent({
+      setup(_, { slots }) {
+        return () => h('div', [slots.header?.(), slots.default?.()])
+      },
+    })
+
+    const AppDataTableStub = defineComponent({
+      props: {
+        addButtonText: {
+          type: String,
+          default: '',
+        },
+      },
+      setup(props) {
+        return () => h('div', [h('span', props.addButtonText)])
+      },
+    })
+
+    const wrapper = mount(AdminTenantMembersView, {
+      global: {
+        stubs: {
+          UCard: UCardStub,
+          AppDataTable: AppDataTableStub,
+          SortableHeader: true,
+          MembershipUpsertSlideover: true,
+          ConfirmModal: true,
+        },
+      },
+    })
+
+    expect(wrapper.find('h1').exists()).toBe(false)
+    expect(wrapper.text().match(/Miembros del tenant/g)?.length ?? 0).toBe(1)
+    expect(wrapper.text().match(/Agregar miembro/g)?.length ?? 0).toBe(1)
   })
 })

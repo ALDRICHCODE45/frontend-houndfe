@@ -1,7 +1,15 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { shallowMount } from '@vue/test-utils'
 import MembershipUpsertSlideover from '../MembershipUpsertSlideover.vue'
 import { createMembershipSchema, updateMembershipSchema } from '../../interfaces/membership.types'
+
+vi.mock('../../composables/useMembershipOptions', () => ({
+  useMembershipOptions: () => ({
+    userOptions: [],
+    roleOptions: [],
+    isLoadingOptions: false,
+  }),
+}))
 
 describe('MembershipUpsertSlideover', () => {
   describe('create mode', () => {
@@ -9,6 +17,7 @@ describe('MembershipUpsertSlideover', () => {
       const wrapper = shallowMount(MembershipUpsertSlideover, {
         props: {
           mode: 'create',
+          tenantId: 'tenant-1',
           open: true,
         },
       })
@@ -21,6 +30,7 @@ describe('MembershipUpsertSlideover', () => {
       const wrapper = shallowMount(MembershipUpsertSlideover, {
         props: {
           mode: 'create',
+          tenantId: 'tenant-1',
           open: true,
         },
       })
@@ -37,6 +47,7 @@ describe('MembershipUpsertSlideover', () => {
       const wrapper = shallowMount(MembershipUpsertSlideover, {
         props: {
           mode: 'create',
+          tenantId: 'tenant-1',
           open: true,
         },
       })
@@ -53,6 +64,7 @@ describe('MembershipUpsertSlideover', () => {
       const wrapper = shallowMount(MembershipUpsertSlideover, {
         props: {
           mode: 'edit',
+          tenantId: 'tenant-1',
           open: true,
           membership: {
             id: 'membership-1',
@@ -74,6 +86,7 @@ describe('MembershipUpsertSlideover', () => {
       const wrapper = shallowMount(MembershipUpsertSlideover, {
         props: {
           mode: 'edit',
+          tenantId: 'tenant-1',
           open: true,
           membership: {
             id: 'membership-1',
@@ -99,6 +112,7 @@ describe('MembershipUpsertSlideover', () => {
       const wrapper = shallowMount(MembershipUpsertSlideover, {
         props: {
           mode: 'edit',
+          tenantId: 'tenant-1',
           open: true,
           membership: {
             id: 'membership-1',
@@ -123,6 +137,7 @@ describe('MembershipUpsertSlideover', () => {
       const wrapper = shallowMount(MembershipUpsertSlideover, {
         props: {
           mode: 'create',
+          tenantId: 'tenant-1',
           open: true,
         },
       })
@@ -135,6 +150,7 @@ describe('MembershipUpsertSlideover', () => {
       const wrapper = shallowMount(MembershipUpsertSlideover, {
         props: {
           mode: 'edit',
+          tenantId: 'tenant-1',
           open: true,
           membership: {
             id: 'membership-1',
@@ -156,6 +172,7 @@ describe('MembershipUpsertSlideover', () => {
       const wrapper = shallowMount(MembershipUpsertSlideover, {
         props: {
           mode: 'create',
+          tenantId: 'tenant-1',
           open: true,
         },
       })
@@ -168,6 +185,7 @@ describe('MembershipUpsertSlideover', () => {
       const wrapper = shallowMount(MembershipUpsertSlideover, {
         props: {
           mode: 'edit',
+          tenantId: 'tenant-1',
           open: true,
           membership: {
             id: 'membership-1',
