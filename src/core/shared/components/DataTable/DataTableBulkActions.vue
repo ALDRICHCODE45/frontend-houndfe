@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { BulkAction } from '../../types/table.types'
+import AppBadge from '../AppBadge.vue'
 
 defineProps<{
   selectedCount: number
@@ -27,7 +28,7 @@ const emit = defineEmits<{
       class="bg-elevated border-default sticky bottom-0 z-10 flex items-center justify-between gap-3 rounded-lg border p-3 shadow-lg"
     >
       <div class="flex items-center gap-2 text-sm">
-        <UBadge color="primary" variant="subtle" :label="String(selectedCount)" />
+        <AppBadge tone="info" :label="String(selectedCount)" />
         <span class="text-muted"> de {{ totalCount }} seleccionados </span>
         <UButton
           color="neutral"

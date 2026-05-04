@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
+import AppBadge from '@/core/shared/components/AppBadge.vue'
 import { adminRoleQueryKeys } from '@/core/shared/constants/query-keys'
 import { rolesApi } from '../api/roles.api'
 import { useRolePermissions } from '../composables/useRolePermissions'
@@ -173,18 +174,17 @@ function getCode(subject: string, action: string) {
                 />
               </div>
 
-              <UBadge
-                :color="
+              <AppBadge
+                :tone="
                   permissions.filter((p) => isPermissionSelected(p.id)).length > 0
-                    ? 'primary'
+                    ? 'info'
                     : 'neutral'
                 "
-                variant="subtle"
               >
                 {{ permissions.filter((p) => isPermissionSelected(p.id)).length }}/{{
                   permissions.length
                 }}
-              </UBadge>
+              </AppBadge>
             </button>
 
             <div v-if="isSubjectExpanded(subject)" class="px-3 pb-3">

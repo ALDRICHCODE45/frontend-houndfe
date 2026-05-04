@@ -2,6 +2,7 @@
 import { ref, watch, computed } from 'vue'
 import { saleApi } from '../api/sale.api'
 import type { PosProductDetail } from '../interfaces/sale.types'
+import AppBadge from '@/core/shared/components/AppBadge.vue'
 
 const props = defineProps<{
   open: boolean
@@ -118,7 +119,7 @@ watch(
           <div class="flex-1 min-w-0 space-y-2">
             <!-- Category + Brand -->
             <div class="flex items-center gap-2">
-              <UBadge v-if="detail.category" size="sm" color="neutral" variant="subtle" :label="detail.category.name" />
+              <AppBadge v-if="detail.category" tone="neutral" :label="detail.category.name" />
               <span v-if="detail.brand" class="text-xs text-muted">{{ detail.brand.name }}</span>
             </div>
 

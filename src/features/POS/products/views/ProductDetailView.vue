@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { z } from 'zod'
 import { productApi } from '../api/product.api'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
+import AppBadge from '@/core/shared/components/AppBadge.vue'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
@@ -1849,14 +1850,13 @@ function handleEditLotPlaceholder() {
                   {{ group.option }}
                 </p>
                 <div class="mt-2 flex flex-wrap gap-2">
-                  <UBadge
+                  <AppBadge
                     v-for="value in group.values"
                     :key="`${group.option}-${value}`"
-                    color="neutral"
-                    variant="subtle"
+                    tone="neutral"
                   >
                     {{ value }}
-                  </UBadge>
+                  </AppBadge>
                 </div>
               </div>
             </div>
@@ -2504,7 +2504,7 @@ function handleEditLotPlaceholder() {
         <div class="space-y-4">
           <div class="flex flex-wrap items-center gap-2">
             <span class="font-medium">{{ pendingVariantDetailName }}</span>
-            <UBadge color="primary" variant="subtle">{{ pendingVariantTierPriceListName }}</UBadge>
+            <AppBadge tone="info">{{ pendingVariantTierPriceListName }}</AppBadge>
           </div>
 
           <div class="space-y-3">

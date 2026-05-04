@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import type { SaleItem } from '../interfaces/sale.types'
 import type { ApplyItemDiscountPayload, OverrideItemPricePayload } from '../interfaces/sale.types'
 import { formatCentsMXN, lineCents } from '../utils/currency.utils'
+import AppBadge from '@/core/shared/components/AppBadge.vue'
 import PriceOverrideModal from './PriceOverrideModal.vue'
 import ItemDiscountModal from './ItemDiscountModal.vue'
 import ProductDetailModal from './ProductDetailModal.vue'
@@ -113,7 +114,7 @@ const priceSourceBadge = computed(() => {
     return {
       label: 'PRECIO LISTA',
       icon: 'i-lucide-tags',
-      color: 'primary' as const,
+      tone: 'info' as const,
     }
   }
 
@@ -121,7 +122,7 @@ const priceSourceBadge = computed(() => {
     return {
       label: 'PRECIO MANUAL',
       icon: 'i-lucide-pencil-ruler',
-      color: 'warning' as const,
+      tone: 'warning' as const,
     }
   }
 
@@ -201,33 +202,26 @@ function handleQtyCommit() {
           data-testid="sale-item-badge-group"
           class="mt-1.5 flex flex-wrap items-center gap-1"
         >
-          <UBadge
+          <AppBadge
             v-if="priceSourceBadge"
-            size="sm"
-            :color="priceSourceBadge.color"
-            variant="subtle"
-            class="font-semibold"
-          >
-            <span class="inline-flex items-center gap-1 text-[11px] leading-none tracking-wide">
-              <UIcon :name="priceSourceBadge.icon" class="h-3.5 w-3.5" />
-              {{ priceSourceBadge.label }}
-            </span>
-          </UBadge>
+            :tone="priceSourceBadge.tone"
+            :icon="priceSourceBadge.icon"
+            :label="priceSourceBadge.label"
+          />
 
           <UTooltip v-if="item.discountType && item.discountTitle" :text="item.discountTitle">
-            <UBadge size="sm" color="success" variant="subtle" class="font-semibold">
-              <span class="inline-flex items-center gap-1 text-[11px] leading-none tracking-wide">
-                <UIcon name="i-lucide-badge-percent" class="h-3.5 w-3.5" />
-                {{ discountBadgeLabel }}
-              </span>
-            </UBadge>
+            <AppBadge
+              tone="success"
+              icon="i-lucide-badge-percent"
+              :label="discountBadgeLabel"
+            />
           </UTooltip>
-          <UBadge v-else-if="item.discountType" size="sm" color="success" variant="subtle" class="font-semibold">
-            <span class="inline-flex items-center gap-1 text-[11px] leading-none tracking-wide">
-              <UIcon name="i-lucide-badge-percent" class="h-3.5 w-3.5" />
-              {{ discountBadgeLabel }}
-            </span>
-          </UBadge>
+          <AppBadge
+            v-else-if="item.discountType"
+            tone="success"
+            icon="i-lucide-badge-percent"
+            :label="discountBadgeLabel"
+          />
         </div>
       </div>
 

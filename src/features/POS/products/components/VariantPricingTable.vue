@@ -7,6 +7,7 @@ import { currencyFormatter } from '@/core/shared/utils/currency.utils'
 import { mapDomainError, type DomainApiError } from '@/core/shared/utils/error.utils'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
+import AppBadge from '@/core/shared/components/AppBadge.vue'
 import { centsToDecimalInput, decimalInputToCents } from '../composables/useProductForm'
 import type {
   ProductVariant,
@@ -371,7 +372,7 @@ function handleSaveTierPrices() {
       <div class="space-y-4">
         <div class="flex flex-wrap items-center gap-2">
           <span class="font-medium">{{ variant.name }}</span>
-          <UBadge color="primary" variant="subtle">{{ selectedPriceListName }}</UBadge>
+          <AppBadge tone="info">{{ selectedPriceListName }}</AppBadge>
         </div>
 
         <div class="space-y-3">

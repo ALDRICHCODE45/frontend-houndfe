@@ -7,6 +7,7 @@ import { productApi } from '../api/product.api'
 import { mapDomainError, type DomainApiError } from '@/core/shared/utils/error.utils'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
+import AppBadge from '@/core/shared/components/AppBadge.vue'
 import type { ProductImage, ProductVariant } from '../interfaces/product.types'
 import { useImageUpload } from '../composables/useImageUpload'
 
@@ -237,7 +238,7 @@ const modalTitle = computed(() => {
         >
           <!-- Main badge -->
           <div v-if="image.isMain" class="absolute top-1.5 right-1.5 z-10">
-            <UBadge color="primary" size="xs" variant="solid"> Principal </UBadge>
+            <AppBadge tone="info" variant="solid"> Principal </AppBadge>
           </div>
 
           <!-- Image or broken fallback -->

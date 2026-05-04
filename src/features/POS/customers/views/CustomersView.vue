@@ -8,6 +8,7 @@ import { customerQueryKeys, productQueryKeys } from '@/core/shared/constants/que
 import type { BulkAction } from '@/core/shared/types/table.types'
 import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
+import AppBadge from '@/core/shared/components/AppBadge.vue'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { productApi } from '@/features/POS/products/api/product.api'
 import { customerApi } from '../api/customer.api'
@@ -350,14 +351,12 @@ const bulkActions = computed<BulkAction<Customer>[]>(() => [])
           </template>
 
           <template #globalPriceListName-cell="{ row }">
-            <UBadge
+            <AppBadge
               v-if="row.original.globalPriceListName"
-              color="neutral"
-              variant="subtle"
-              size="sm"
+              tone="neutral"
             >
               {{ row.original.globalPriceListName }}
-            </UBadge>
+            </AppBadge>
             <span v-else class="text-sm text-muted">—</span>
           </template>
 

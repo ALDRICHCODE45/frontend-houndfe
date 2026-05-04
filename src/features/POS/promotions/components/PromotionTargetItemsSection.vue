@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
+import AppBadge from '@/core/shared/components/AppBadge.vue'
 import type {
   PromotionTargetItemFormEntry,
   PromotionTargetType,
@@ -165,11 +166,9 @@ defineExpose({ addItem, removeItem, onTargetTypeChange })
       data-testid="selected-items"
       class="flex flex-wrap gap-2"
     >
-      <UBadge
+      <AppBadge
         v-for="item in selectedItems"
         :key="item.targetId"
-        variant="subtle"
-        class="gap-1 pr-1"
       >
         {{ item.name || item.targetId }}
         <button
@@ -179,7 +178,7 @@ defineExpose({ addItem, removeItem, onTargetTypeChange })
         >
           <UIcon name="i-lucide-x" class="h-3 w-3" />
         </button>
-      </UBadge>
+      </AppBadge>
     </div>
 
     <!-- Empty state -->

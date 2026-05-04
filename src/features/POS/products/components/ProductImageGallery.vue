@@ -7,6 +7,7 @@ import { productApi } from '../api/product.api'
 import { mapDomainError, type DomainApiError } from '@/core/shared/utils/error.utils'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
+import AppBadge from '@/core/shared/components/AppBadge.vue'
 import type { ProductImage, ProductVariant } from '../interfaces/product.types'
 import { useImageUpload } from '../composables/useImageUpload'
 
@@ -429,13 +430,12 @@ function isImageBroken(imageId: string): boolean {
         <!-- Footer info -->
         <div v-if="previewImage" class="flex items-center justify-between w-full px-4 py-3">
           <div class="flex items-center gap-2">
-            <UBadge v-if="previewImage.isMain" color="primary" variant="solid" size="sm">
-              <UIcon name="i-lucide-star" class="mr-1" />
+            <AppBadge v-if="previewImage.isMain" tone="info" variant="solid" icon="i-lucide-star">
               Principal
-            </UBadge>
-            <UBadge color="neutral" variant="subtle" size="sm">
+            </AppBadge>
+            <AppBadge tone="neutral">
               {{ getVariantName(previewImage.variantId) }}
-            </UBadge>
+            </AppBadge>
           </div>
 
           <div class="flex items-center gap-2">
