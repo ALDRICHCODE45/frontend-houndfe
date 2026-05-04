@@ -75,17 +75,31 @@ export const useSidebar = () => {
   // ── Legacy team dropdown items (kept for layout backwards-compat) ────────────
   /** @deprecated – kept for template compatibility while layout migrates */
   const teamsItems = computed<DropdownMenuItem[][]>(() => {
-    const tenantItems: DropdownMenuItem[] = tenants.value.map((tenant, index) => ({
-      label: tenant.name,
-      kbds: ['meta', String(index + 1)],
-      onSelect() {
-        void switchTenant(tenant.id)
-      },
-    }))
+    const tenantItems: DropdownMenuItem[] = tenants.value.map((tenant, index) => {
+      const isCurrentTenant = authStore.currentTenant?.id === tenant.id
+
+      return {
+        label: tenant.name,
+        avatar: {
+          alt: tenant.name,
+          text: tenant.name.trim().charAt(0).toUpperCase() || 'S',
+        },
+        icon: isCurrentTenant ? 'i-lucide-check' : undefined,
+        kbds: ['meta', String(index + 1)],
+        onSelect() {
+          void switchTenant(tenant.id)
+        },
+      }
+    })
 
     if (authStore.isSuperAdmin) {
       tenantItems.unshift({
         label: '(Global)',
+        avatar: {
+          alt: 'Global',
+          text: 'G',
+        },
+        icon: authStore.currentTenant ? undefined : 'i-lucide-check',
         onSelect() {
           void switchTenant(null)
         },

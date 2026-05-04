@@ -48,23 +48,25 @@ defineShortcuts({
           :ui="{ content: 'w-(--reka-dropdown-menu-trigger-width) min-w-48' }"
         >
           <UButton
+            :avatar="{ alt: currentTenantLabel, text: currentTenantLabel.charAt(0).toUpperCase() || 'G' }"
             :label="currentTenantLabel"
             trailing-icon="i-lucide-chevrons-up-down"
             color="neutral"
             variant="ghost"
             class="w-full data-[state=open]:bg-elevated overflow-hidden"
-            :ui="{ trailingIcon: 'text-dimmed ms-auto' }"
+            :ui="{ trailingIcon: 'text-dimmed ms-auto', leadingAvatar: 'size-5' }"
           />
         </UDropdownMenu>
 
         <!-- Single-tenant: label only, no dropdown -->
         <UButton
           v-else-if="!collapsed && !showTenantSwitcher"
+          :avatar="{ alt: currentTenantLabel, text: currentTenantLabel.charAt(0).toUpperCase() || 'G' }"
           :label="currentTenantLabel"
           color="neutral"
           variant="ghost"
           class="w-full overflow-hidden cursor-default"
-          :ui="{ trailingIcon: 'text-dimmed ms-auto' }"
+          :ui="{ leadingAvatar: 'size-5' }"
         />
 
         <!-- Collapsed: show first letter of tenant name as avatar-like button -->
