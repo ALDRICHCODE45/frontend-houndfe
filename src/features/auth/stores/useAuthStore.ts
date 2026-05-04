@@ -225,9 +225,12 @@ export const useAuthStore = defineStore('auth', () => {
       const errorCode = axiosError?.response?.data?.code
       const isRecoverableError =
         axiosError?.response?.status === 403 &&
-        (errorCode === 'SUPER_ADMIN_REQUIRED' || errorCode === 'TENANT_INACTIVE')
+        (errorCode === 'SUPER_ADMIN_REQUIRED' || errorCode === 'TENANT_INACTIVE' || errorCode === 'TENANT_ACCESS_DENIED')
 
-      if (!isRecoverableError) {
+      if (isRecoverableError) {
+        // Keep session intact — user stays logged in with the current tenant
+        authPhase.value = 'authenticated'
+      } else {
         // Only clear session for unrecoverable errors (network, 500, unknown)
         clearSession()
       }
