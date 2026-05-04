@@ -315,8 +315,8 @@ function handleSwitchTab(saleId: string) {
   <div class="h-full flex bg-default">
     <!-- Loading skeleton -->
     <div v-if="isLoadingList" class="h-full w-full flex">
-      <!-- Left skeleton panel (catalog — 70%) -->
-      <div class="w-[70%] p-4 space-y-4">
+      <!-- Left skeleton panel (catalog — 60%) -->
+      <div class="w-[60%] p-4 space-y-4">
         <USkeleton class="h-10 w-full rounded-lg" />
         <div class="flex gap-2">
           <USkeleton v-for="i in 4" :key="i" class="h-8 w-24 rounded-full" />
@@ -333,8 +333,8 @@ function handleSwitchTab(saleId: string) {
         </div>
       </div>
 
-      <!-- Right skeleton panel (cart — 30%) -->
-      <div class="w-[30%] shrink-0 p-3 lg:p-4">
+      <!-- Right skeleton panel (cart — 40%) -->
+      <div class="w-[40%] shrink-0 p-3 lg:p-4">
         <div class="h-full flex flex-col rounded-2xl border border-default bg-elevated/60 shadow-sm p-4 space-y-3">
           <USkeleton class="h-10 w-48" />
           <USkeleton class="h-10 w-full" />
@@ -352,15 +352,15 @@ function handleSwitchTab(saleId: string) {
 
     <!-- Main split view -->
     <div v-else class="h-full flex flex-col lg:flex-row w-full bg-[#fafafa] dark:bg-[#09090b]">
-      <!-- Left panel: Product catalog (70%) -->
-      <div class="lg:w-[70%] flex flex-col min-w-0 p-3 lg:p-4">
+      <!-- Left panel: Product catalog (60%) -->
+      <div class="lg:w-[60%] flex flex-col min-w-0 p-3 lg:p-4">
         <div class="h-full rounded-2xl border border-neutral-200/90 dark:border-white/10 bg-default shadow-sm dark:shadow-none overflow-hidden">
           <ProductSearchPanel @add-product="handleAddProduct" />
         </div>
       </div>
 
-      <!-- Right panel: Active sale cart (30%) -->
-      <div class="lg:w-[30%] shrink-0 p-3 lg:p-4">
+      <!-- Right panel: Active sale cart (40%) -->
+      <div class="lg:w-[40%] shrink-0 p-3 lg:p-4">
         <div class="h-full rounded-2xl border border-neutral-200/90 dark:border-white/10 bg-elevated/60 shadow-sm dark:shadow-none overflow-hidden">
           <ActiveSalePanel
             :drafts="drafts"

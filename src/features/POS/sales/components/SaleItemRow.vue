@@ -101,7 +101,10 @@ const itemActions = computed(() => {
 })
 
 const showPriceOrigin = computed(
-  () => ['price_list', 'custom'].includes(props.item.priceSource ?? '') && !!props.item.originalPriceCents,
+  () =>
+    ['price_list', 'custom'].includes(props.item.priceSource ?? '') &&
+    !!props.item.originalPriceCents &&
+    props.item.originalPriceCents !== props.item.unitPriceCents,
 )
 const showDiscountOrigin = computed(() => !!props.item.discountType && !!props.item.prePriceCentsBeforeDiscount)
 const discountBadgeLabel = computed(() => {
@@ -110,7 +113,11 @@ const discountBadgeLabel = computed(() => {
   return 'DESCUENTO'
 })
 const priceSourceBadge = computed(() => {
-  if (props.item.priceSource === 'price_list') {
+  const source = props.item.priceSource
+  const priceChanged = props.item.originalPriceCents != null &&
+    props.item.originalPriceCents !== props.item.unitPriceCents
+
+  if (source === 'price_list' && priceChanged) {
     return {
       label: 'PRECIO LISTA',
       icon: 'i-lucide-tags',
@@ -118,7 +125,7 @@ const priceSourceBadge = computed(() => {
     }
   }
 
-  if (props.item.priceSource === 'custom') {
+  if (source === 'custom' && priceChanged) {
     return {
       label: 'PRECIO MANUAL',
       icon: 'i-lucide-pencil-ruler',
