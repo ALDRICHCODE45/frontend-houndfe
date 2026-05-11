@@ -10,6 +10,11 @@ import type {
   ApplyItemDiscountPayload,
   PosCatalogResponse,
   PosCatalogSearchParams,
+  ChargeSalePayload,
+  ChargeSaleResponse,
+  ListSalesParams,
+  ConfirmedSalesListResponse,
+  SaleDetail,
 } from '../../interfaces/sale.types'
 
 vi.mock('@/core/shared/api/http', () => ({
@@ -306,6 +311,69 @@ describe('saleApi', () => {
     })
   })
 
+  describe('chargeDraft', () => {
+    it('posts charge payload to draft charge endpoint with idempotency header', async () => {
+      const payload: ChargeSalePayload = {
+        method: 'cash',
+        amountCents: 20000,
+      }
+      const response: ChargeSaleResponse = {
+        saleId: 'sale-1',
+        folio: 'A-202605-000001',
+        subtotalCents: 20000,
+        discountCents: 5000,
+        totalCents: 15000,
+        paidCents: 20000,
+        debtCents: 0,
+        changeDueCents: 5000,
+        paymentStatus: 'PAID',
+        confirmedAt: '2026-05-06T19:00:00.000Z',
+      }
+
+      vi.mocked(http.post).mockResolvedValue({ data: response })
+
+      const result = await saleApi.chargeDraft('sale-1', payload, 'idem-key-1')
+
+      expect(http.post).toHaveBeenCalledWith('/sales/drafts/sale-1/charge', payload, {
+        headers: {
+          'Idempotency-Key': 'idem-key-1',
+        },
+      })
+      expect(result).toEqual(response)
+    })
+
+    it('supports non-cash methods with locked amount equal total', async () => {
+      const payload: ChargeSalePayload = {
+        method: 'card_debit',
+        amountCents: 15000,
+      }
+      const response: ChargeSaleResponse = {
+        saleId: 'sale-2',
+        folio: 'A-202605-000002',
+        subtotalCents: 15000,
+        discountCents: 0,
+        totalCents: 15000,
+        paidCents: 15000,
+        debtCents: 0,
+        changeDueCents: 0,
+        paymentStatus: 'PAID',
+        confirmedAt: '2026-05-06T20:00:00.000Z',
+      }
+
+      vi.mocked(http.post).mockResolvedValue({ data: response })
+
+      const result = await saleApi.chargeDraft('sale-2', payload, 'idem-key-2')
+
+      expect(http.post).toHaveBeenCalledWith('/sales/drafts/sale-2/charge', payload, {
+        headers: {
+          'Idempotency-Key': 'idem-key-2',
+        },
+      })
+      expect(result.paidCents).toBe(15000)
+      expect(result.changeDueCents).toBe(0)
+    })
+  })
+
   describe('searchPosCatalog', () => {
     it('should GET /sales/pos-catalog with query params and return PosCatalogResponse', async () => {
       const params: PosCatalogSearchParams = {
@@ -374,6 +442,147 @@ describe('saleApi', () => {
 
       expect(http.get).toHaveBeenCalledWith('/sales/pos-catalog', { params })
       expect(result.items).toHaveLength(0)
+    })
+  })
+
+  describe('listConfirmed', () => {
+    it('should GET /sales with typed list params and return full list response', async () => {
+      const params: ListSalesParams = {
+        page: 1,
+        limit: 20,
+        sortBy: 'confirmedAt',
+        sortOrder: 'desc',
+        q: 'jean',
+        deliveryStatus: 'PENDING',
+      }
+
+      const response: ConfirmedSalesListResponse = {
+        data: [
+          {
+            id: 'sale-1',
+            folio: 'A-202605-000012',
+            status: 'CONFIRMED',
+            paymentStatus: 'PAID',
+            deliveryStatus: 'DELIVERED',
+            totalCents: 127000,
+            debtCents: 0,
+            confirmedAt: '2026-05-06T14:43:00.000Z',
+            customer: { id: 'customer-1', name: 'Empresa F.' },
+            cashier: { id: 'cashier-1', name: 'cesar flores' },
+            seller: null,
+          },
+        ],
+        pagination: { page: 1, limit: 20, total: 50, totalPages: 3 },
+        counts: { all: 50, pendingPayments: 3, notDelivered: 1 },
+      }
+
+      vi.mocked(http.get).mockResolvedValue({ data: response })
+
+      const result = await saleApi.listConfirmed(params)
+
+      expect(http.get).toHaveBeenCalledWith('/sales', { params })
+      expect(result.pagination.totalPages).toBe(3)
+      expect(result.counts.notDelivered).toBe(1)
+      expect(result.data[0]?.debtCents).toBe(0)
+    })
+
+    it('should pass empty params object and keep backend defaults', async () => {
+      const response: ConfirmedSalesListResponse = {
+        data: [],
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
+        counts: { all: 0, pendingPayments: 0, notDelivered: 0 },
+      }
+      vi.mocked(http.get).mockResolvedValue({ data: response })
+
+      const result = await saleApi.listConfirmed({})
+
+      expect(http.get).toHaveBeenCalledWith('/sales', { params: {} })
+      expect(result.data).toHaveLength(0)
+    })
+  })
+
+  describe('getById', () => {
+    it('should GET /sales/:id and return sale detail response', async () => {
+      const response: SaleDetail = {
+        id: 'sale-1',
+        folio: 'A-202605-000012',
+        status: 'CONFIRMED',
+        channel: 'POS',
+        register: 'Principal',
+        confirmedAt: '2026-05-06T14:43:00.000Z',
+        subtotalCents: 127000,
+        discountCents: 0,
+        totalCents: 127000,
+        paidCents: 127000,
+        debtCents: 0,
+        changeDueCents: 0,
+        paymentStatus: 'PAID',
+        deliveryStatus: 'DELIVERED',
+        customer: { id: 'customer-1', name: 'Empresa F.' },
+        cashier: { id: 'cashier-1', name: 'cesar flores' },
+        seller: null,
+        items: [],
+        payments: [],
+        timeline: [],
+      }
+      vi.mocked(http.get).mockResolvedValue({ data: response })
+
+      const result = await saleApi.getById('sale-1')
+
+      expect(http.get).toHaveBeenCalledWith('/sales/sale-1')
+      expect(result.folio).toBe('A-202605-000012')
+      expect(result.channel).toBe('POS')
+    })
+
+    it('should support UUID-like ids and preserve nested arrays', async () => {
+      const response: SaleDetail = {
+        id: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+        folio: 'A-202605-000013',
+        status: 'CONFIRMED',
+        channel: 'POS',
+        register: 'Principal',
+        confirmedAt: '2026-05-07T14:43:00.000Z',
+        subtotalCents: 17000,
+        discountCents: 0,
+        totalCents: 17000,
+        paidCents: 17000,
+        debtCents: 0,
+        changeDueCents: 0,
+        paymentStatus: 'PAID',
+        deliveryStatus: 'DELIVERED',
+        customer: null,
+        cashier: { id: 'cashier-2', name: 'ana' },
+        seller: null,
+        items: [
+          {
+            productName: 'Jean Recto',
+            variantName: null,
+            imageUrl: null,
+            unitPriceCents: 17000,
+            quantity: 1,
+            discountCents: 0,
+            subtotalCents: 17000,
+          },
+        ],
+        payments: [
+          {
+            method: 'CASH',
+            amountCents: 17000,
+            tenderedCents: 17000,
+            changeCents: 0,
+            reference: null,
+            paidAt: '2026-05-07T14:43:00.000Z',
+          },
+        ],
+        timeline: [{ type: 'SALE_REGISTERED', at: '2026-05-07T14:43:00.000Z' }],
+      }
+      vi.mocked(http.get).mockResolvedValue({ data: response })
+
+      const result = await saleApi.getById('a1b2c3d4-e5f6-7890-abcd-ef1234567890')
+
+      expect(http.get).toHaveBeenCalledWith('/sales/a1b2c3d4-e5f6-7890-abcd-ef1234567890')
+      expect(result.items).toHaveLength(1)
+      expect(result.payments[0]?.method).toBe('CASH')
     })
   })
 

@@ -1,6 +1,142 @@
-export type SaleStatus = 'DRAFT'
+export type SaleStatus = 'DRAFT' | 'CONFIRMED'
 export type SaleCurrency = 'MXN'
 export type PriceSource = 'default' | 'price_list' | 'custom'
+export type PaymentMethod = 'cash' | 'card_credit' | 'card_debit' | 'transfer' | 'credit'
+export type SalePaymentStatus = 'PAID' | 'PARTIAL' | 'CREDIT'
+export type SaleDeliveryStatus = 'PENDING' | 'DELIVERED' | 'NOT_APPLICABLE'
+
+export interface SaleActorRef {
+  id: string
+  name: string
+}
+
+export interface SalesListCounts {
+  all: number
+  pendingPayments: number
+  notDelivered: number
+}
+
+export interface SalesListPagination {
+  page: number
+  limit: number
+  total: number
+  totalPages: number
+}
+
+export interface ConfirmedSaleRow {
+  id: string
+  folio: string
+  status: SaleStatus
+  paymentStatus: SalePaymentStatus
+  deliveryStatus: SaleDeliveryStatus
+  totalCents: number
+  debtCents: number
+  confirmedAt: string
+  customer: SaleActorRef | null
+  cashier: SaleActorRef
+  seller: SaleActorRef | null
+}
+
+export interface ConfirmedSalesListResponse {
+  data: ConfirmedSaleRow[]
+  pagination: SalesListPagination
+  counts: SalesListCounts
+}
+
+export type SaleDetailTimelineType = 'SALE_REGISTERED' | 'PAYMENT_RECEIVED' | 'PRODUCTS_DELIVERED'
+export type SaleDetailPaymentMethod = 'CASH' | 'CARD_CREDIT' | 'CARD_DEBIT' | 'TRANSFER' | 'CREDIT'
+
+export interface SaleDetailItem {
+  productName: string
+  variantName: string | null
+  imageUrl: string | null
+  unitPriceCents: number
+  quantity: number
+  discountCents: number
+  subtotalCents: number
+}
+
+export interface SaleDetailPayment {
+  method: SaleDetailPaymentMethod
+  amountCents: number
+  tenderedCents: number
+  changeCents: number
+  reference: string | null
+  paidAt: string
+}
+
+export interface SaleTimelineEvent {
+  type: SaleDetailTimelineType
+  at: string
+}
+
+export interface SaleDetail {
+  id: string
+  folio: string
+  status: SaleStatus
+  channel: string
+  register: string
+  confirmedAt: string
+  subtotalCents: number
+  discountCents: number
+  totalCents: number
+  paidCents: number
+  debtCents: number
+  changeDueCents: number
+  paymentStatus: SalePaymentStatus
+  deliveryStatus: SaleDeliveryStatus
+  customer: SaleActorRef | null
+  cashier: SaleActorRef
+  seller: SaleActorRef | null
+  items: SaleDetailItem[]
+  payments: SaleDetailPayment[]
+  timeline: SaleTimelineEvent[]
+}
+
+export interface ListSalesParams {
+  page?: number
+  limit?: number
+  sortBy?: 'confirmedAt' | 'totalCents' | 'createdAt'
+  sortOrder?: 'asc' | 'desc'
+  q?: string
+  status?: SaleStatus
+  paymentStatus?: SalePaymentStatus
+  deliveryStatus?: SaleDeliveryStatus
+  from?: string
+  to?: string
+  cashierUserId?: string
+  customerId?: string
+}
+
+export interface ChargeSalePayload {
+  method: PaymentMethod
+  amountCents: number
+}
+
+export interface ChargeSaleResponse {
+  saleId: string
+  folio: string
+  subtotalCents: number
+  discountCents: number
+  totalCents: number
+  paidCents: number
+  debtCents: number
+  changeDueCents: number
+  paymentStatus: SalePaymentStatus
+  confirmedAt: string
+}
+
+export type ChargeDomainErrorCode =
+  | 'PAYMENT_AMOUNT_INSUFFICIENT'
+  | 'PAYMENT_AMOUNT_INVALID'
+  | 'IDEMPOTENCY_KEY_CONFLICT'
+  | 'IDEMPOTENCY_KEY_IN_FLIGHT'
+  | 'PRICE_OUT_OF_DATE'
+  | 'STOCK_INSUFFICIENT_AT_CONFIRM'
+  | 'SALE_ALREADY_CONFIRMED'
+  | 'SALE_NOT_FOUND'
+  | 'IDEMPOTENCY_KEY_REQUIRED'
+  | 'PAYMENT_METHOD_NOT_SUPPORTED'
 
 export interface SaleItem {
   id: string

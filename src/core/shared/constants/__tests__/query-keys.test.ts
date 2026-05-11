@@ -107,6 +107,47 @@ describe('saleQueryKeys', () => {
       expect(key1).not.toEqual(key2)
     })
   })
+
+  describe('confirmed', () => {
+    it('returns a stable key tuple for confirmed sales list params', () => {
+      const key = saleQueryKeys.confirmed('tenant-1', {
+        page: 1,
+        limit: 20,
+        sortBy: 'confirmedAt',
+        sortOrder: 'desc',
+        q: 'jean',
+      })
+
+      expect(key[0]).toBe('sales')
+      expect(key[1]).toBe('tenant-1')
+      expect(key[2]).toBe('confirmed')
+      expect(key[3]).toEqual({
+        page: 1,
+        limit: 20,
+        sortBy: 'confirmedAt',
+        sortOrder: 'desc',
+        q: 'jean',
+      })
+    })
+
+    it('uses defaults when params are omitted', () => {
+      const key = saleQueryKeys.confirmed('tenant-1')
+      expect(key[3]).toEqual({})
+    })
+  })
+
+  describe('detail', () => {
+    it('returns a detail key tuple including sale id', () => {
+      const key = saleQueryKeys.detail('tenant-1', 'sale-123')
+      expect(key).toEqual(['sales', 'tenant-1', 'detail', 'sale-123'])
+    })
+
+    it('produces different keys for different sale ids', () => {
+      const key1 = saleQueryKeys.detail('tenant-1', 'sale-123')
+      const key2 = saleQueryKeys.detail('tenant-1', 'sale-999')
+      expect(key1).not.toEqual(key2)
+    })
+  })
 })
 
 describe('adminTenantQueryKeys', () => {

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nextTick, watch } from 'vue'
 import { useSidebar } from '@/app/composables/useSidebar'
 import { useDashboard } from '@/app/composables/useDashboard'
 import { defineShortcuts } from '@nuxt/ui/runtime/composables/defineShortcuts.js'
@@ -20,6 +21,17 @@ const { isSidebarOpen, isSidebarCollapsed, isSearchOpen, searchGroups, openSearc
 defineShortcuts({
   o: () => (isSidebarCollapsed.value = !isSidebarCollapsed.value),
   t: () => changeColorMode(),
+})
+
+watch(isSearchOpen, async (open) => {
+  if (open) return
+
+  await nextTick()
+
+  const activeElement = document.activeElement
+  if (activeElement instanceof HTMLElement) {
+    activeElement.blur()
+  }
 })
 </script>
 

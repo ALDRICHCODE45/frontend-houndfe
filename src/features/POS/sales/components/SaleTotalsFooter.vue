@@ -7,6 +7,11 @@ import { formatCentsMXN, sumLineCents } from '../utils/currency.utils'
 
 const props = defineProps<{
   items: SaleItem[]
+  isChargePending?: boolean
+}>()
+
+const emit = defineEmits<{
+  'charge-click': []
 }>()
 
 // ── Computed ──────────────────────────────────────────────────────────────────
@@ -36,6 +41,13 @@ const totalFormatted = computed(() => formatCentsMXN(totalCents.value))
 const subtotalFormatted = computed(() => formatCentsMXN(subtotalCents.value))
 
 const discountFormatted = computed(() => formatCentsMXN(discountCents.value))
+const hasItems = computed(() => props.items.length > 0)
+const isChargeDisabled = computed(() => !hasItems.value || Boolean(props.isChargePending))
+const chargeTooltip = computed(() => {
+  if (!hasItems.value) return 'La venta no tiene productos'
+  if (props.isChargePending) return 'Cobro en proceso'
+  return ''
+})
 </script>
 
 <template>
@@ -70,8 +82,8 @@ const discountFormatted = computed(() => formatCentsMXN(discountCents.value))
 
     <!-- Cobrar button -->
     <div class="mt-4">
-      <UTooltip text="Disponible próximamente" class="w-full">
-        <UButton color="primary" block size="xl" disabled class="relative rounded-xl font-semibold shadow-sm">
+      <UTooltip :text="chargeTooltip" class="w-full">
+        <UButton color="primary" block size="xl" :loading="isChargePending" :disabled="isChargeDisabled" class="relative rounded-xl font-semibold shadow-sm" @click="emit('charge-click')">
           <template #leading>
             <UIcon name="i-lucide-hand-coins" class="h-5 w-5" />
           </template>

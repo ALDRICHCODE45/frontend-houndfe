@@ -4,12 +4,16 @@ import SaleTotalsFooter from '../SaleTotalsFooter.vue'
 import type { SaleItem } from '../../interfaces/sale.types'
 
 const stubs = {
-  UButton: true,
+  UButton: {
+    props: ['disabled', 'loading'],
+    emits: ['click'],
+    template: '<button :disabled="disabled" @click="$emit(\'click\')"><slot /></button>',
+  },
   USeparator: true,
   UTooltip: {
     name: 'UTooltip',
     props: ['text'],
-    template: '<span><slot /></span>',
+    template: '<span>{{ text }}<slot /></span>',
   },
   UIcon: true,
   UKbd: true,
@@ -121,5 +125,41 @@ describe('SaleTotalsFooter', () => {
 
     // (1000 * 10) + (2000 * 5) = 10000 + 10000 = 20000 cents = $200.00
     expect(wrapper.html()).toContain('$200.00')
+  })
+
+  it('enables Cobrar and emits click when items exist and not pending', async () => {
+    const wrapper = mount(SaleTotalsFooter, {
+      props: { items: mockItems, isChargePending: false },
+      global: { stubs },
+    })
+
+    const button = wrapper.find('button')
+    expect(button.attributes('disabled')).toBeUndefined()
+
+    await button.trigger('click')
+    expect(wrapper.emitted('charge-click')).toBeTruthy()
+  })
+
+  it('disables Cobrar when draft has no items', () => {
+    const wrapper = mount(SaleTotalsFooter, {
+      props: { items: [], isChargePending: false },
+      global: { stubs },
+    })
+
+    const button = wrapper.find('button')
+    expect(button.attributes('disabled')).toBeDefined()
+  })
+
+  it('disables Cobrar and shows loading while charge is pending (S31)', async () => {
+    const wrapper = mount(SaleTotalsFooter, {
+      props: { items: mockItems, isChargePending: true },
+      global: { stubs },
+    })
+
+    const button = wrapper.find('button')
+    expect(button.attributes('disabled')).toBeDefined()
+
+    await button.trigger('click')
+    expect(wrapper.emitted('charge-click')).toBeFalsy()
   })
 })

@@ -11,6 +11,11 @@ import type {
   PosCatalogResponse,
   PosCatalogSearchParams,
   PosProductDetail,
+  ChargeSalePayload,
+  ChargeSaleResponse,
+  ListSalesParams,
+  ConfirmedSalesListResponse,
+  SaleDetail,
 } from '../interfaces/sale.types'
 
 export const saleApi = {
@@ -78,6 +83,19 @@ export const saleApi = {
     await http.delete(`/sales/drafts/${saleId}`)
   },
 
+  async chargeDraft(
+    saleId: string,
+    payload: ChargeSalePayload,
+    idempotencyKey: string,
+  ): Promise<ChargeSaleResponse> {
+    const { data } = await http.post<ChargeSaleResponse>(`/sales/drafts/${saleId}/charge`, payload, {
+      headers: {
+        'Idempotency-Key': idempotencyKey,
+      },
+    })
+    return data
+  },
+
   async applyGlobalDiscount(saleId: string, payload: ApplyGlobalDiscountPayload): Promise<GlobalDiscountResponse> {
     const { data } = await http.patch<GlobalDiscountResponse>(`/sales/drafts/${saleId}/discount`, payload)
     return data
@@ -95,6 +113,16 @@ export const saleApi = {
 
   async searchPosCatalog(params: PosCatalogSearchParams): Promise<PosCatalogResponse> {
     const { data } = await http.get<PosCatalogResponse>('/sales/pos-catalog', { params })
+    return data
+  },
+
+  async listConfirmed(params: ListSalesParams): Promise<ConfirmedSalesListResponse> {
+    const { data } = await http.get<ConfirmedSalesListResponse>('/sales', { params })
+    return data
+  },
+
+  async getById(id: string): Promise<SaleDetail> {
+    const { data } = await http.get<SaleDetail>(`/sales/${id}`)
     return data
   },
 }

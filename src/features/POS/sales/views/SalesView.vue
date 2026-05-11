@@ -1,12 +1,25 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { AxiosError } from 'axios'
+import { useQueryClient } from '@tanstack/vue-query'
 import { useSalesDrafts } from '../composables/useSalesDrafts'
 import { saleApi } from '../api/sale.api'
 import ProductSearchPanel from '../components/ProductSearchPanel.vue'
 import ActiveSalePanel from '../components/ActiveSalePanel.vue'
-import type { ApplyItemDiscountPayload, ApplyGlobalDiscountPayload, OverrideItemPricePayload, Sale } from '../interfaces/sale.types'
+import PaymentModal from '../components/PaymentModal.vue'
+import PaymentSuccessModal from '../components/PaymentSuccessModal.vue'
+import type {
+  ApplyItemDiscountPayload,
+  ApplyGlobalDiscountPayload,
+  ChargeSalePayload,
+  ChargeSaleResponse,
+  ChargeDomainErrorCode,
+  OverrideItemPricePayload,
+  Sale,
+} from '../interfaces/sale.types'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
+import { saleQueryKeys } from '@/core/shared/constants/query-keys'
+import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 
 declare const useToast: () => {
   add: (options: {
@@ -19,6 +32,8 @@ declare const useToast: () => {
 // ── Composables ───────────────────────────────────────────────────────────────
 
 const toast = useToast()
+const queryClient = useQueryClient()
+const tenantId = useSafeTenantId()
 
 const {
   drafts,
@@ -38,11 +53,24 @@ const {
   removeItem,
   applyGlobalDiscount,
   removeGlobalDiscount,
+  chargeDraft,
 } = useSalesDrafts()
+
+const paymentModalOpen = ref(false)
+const successModalOpen = ref(false)
+const latestChargeSuccess = ref<ChargeSaleResponse | null>(null)
+const inlineAmountError = ref<string | null>(null)
+const inFlightUntil = ref<number>(0)
+
+const isChargeTemporarilyBlocked = computed(() => Date.now() < inFlightUntil.value)
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
 
 let initDone = false
+
+// ── Image map (client-side, keyed by productId or productId:variantId) ─────
+
+const itemImageMap = ref<Record<string, string>>({})
 
 // Restore active tab and hydrate images whenever drafts become available
 // This handles: initial load, page refresh, AND navigating back to this route
@@ -87,10 +115,6 @@ watch(activeTabId, (id) => {
     localStorage.setItem('pos:active-tab', id)
   }
 })
-
-// ── Image map (client-side, keyed by productId or productId:variantId) ─────
-
-const itemImageMap = ref<Record<string, string>>({})
 
 function getImageKey(productId: string, variantId: string | null): string {
   return variantId ? `${productId}:${variantId}` : productId
@@ -306,6 +330,101 @@ async function handleCreateTab() {
   }
 }
 
+async function handleChargeDraft(saleId: string, payload: ChargeSalePayload, idempotencyKey: string) {
+  inlineAmountError.value = null
+  try {
+    const response = await chargeDraft(saleId, payload, idempotencyKey)
+    paymentModalOpen.value = false
+    latestChargeSuccess.value = response
+    successModalOpen.value = true
+
+    // The charged draft is already evicted from cache by useSalesDrafts. Close local tab state too.
+    if (activeDraft.value?.id === saleId) {
+      activeTabId.value = drafts.value[0]?.id ?? null
+    }
+    return
+  } catch (error) {
+    const err = error as AxiosError<DomainApiError & { error?: ChargeDomainErrorCode }>
+    const code = err.response?.data?.error
+
+    if (code === 'PAYMENT_AMOUNT_INSUFFICIENT' || code === 'PAYMENT_AMOUNT_INVALID') {
+      inlineAmountError.value = 'El monto es insuficiente'
+      return
+    }
+
+    if (code === 'IDEMPOTENCY_KEY_CONFLICT') {
+      toast.add({ title: 'Advertencia', description: 'Cobro duplicado detectado. Reintentá.', color: 'warning' })
+      return
+    }
+
+    if (code === 'IDEMPOTENCY_KEY_IN_FLIGHT') {
+      inFlightUntil.value = Date.now() + 2000
+      toast.add({ title: 'Cobro en proceso.', color: 'warning' })
+      return
+    }
+
+    if (code === 'PRICE_OUT_OF_DATE') {
+      paymentModalOpen.value = false
+      await queryClient.invalidateQueries({ queryKey: saleQueryKeys.drafts(tenantId.value) })
+      toast.add({ title: 'Advertencia', description: 'Cambiaron precios. Revisá la venta.', color: 'warning' })
+      return
+    }
+
+    if (code === 'STOCK_INSUFFICIENT_AT_CONFIRM') {
+      paymentModalOpen.value = false
+      await queryClient.invalidateQueries({ queryKey: saleQueryKeys.drafts(tenantId.value) })
+      toast.add({ title: 'Error', description: 'Stock insuficiente al confirmar. Revisá la venta.', color: 'error' })
+      return
+    }
+
+    if (code === 'SALE_ALREADY_CONFIRMED') {
+      paymentModalOpen.value = false
+      if (activeDraft.value?.id === saleId) {
+        activeTabId.value = drafts.value.find((draft) => draft.id !== saleId)?.id ?? null
+      }
+      toast.add({ title: 'Aviso', description: 'Esta venta ya fue cobrada.', color: 'primary' })
+      return
+    }
+
+    if (code === 'SALE_NOT_FOUND') {
+      paymentModalOpen.value = false
+      if (activeDraft.value?.id === saleId) {
+        activeTabId.value = drafts.value.find((draft) => draft.id !== saleId)?.id ?? null
+      }
+      toast.add({ title: 'Error', description: 'No encontramos esta venta.', color: 'error' })
+      return
+    }
+
+    if (code === 'IDEMPOTENCY_KEY_REQUIRED' || code === 'PAYMENT_METHOD_NOT_SUPPORTED') {
+      toast.add({ title: 'Error', description: 'No se pudo procesar el cobro.', color: 'error' })
+      return
+    }
+
+    const message = err.response?.data?.message ?? 'No se pudo cobrar la venta. Reintentá.'
+    toast.add({ title: 'Error', description: message, color: 'error' })
+  }
+}
+
+function openPaymentModal() {
+  if (!activeDraft.value || activeDraft.value.items.length === 0) return
+  if (isMutating.value || isChargeTemporarilyBlocked.value) return
+  paymentModalOpen.value = true
+}
+
+function handleF8(event: KeyboardEvent) {
+  if (event.key !== 'F8') return
+  event.preventDefault()
+  openPaymentModal()
+}
+
+onMounted(() => {
+  window.addEventListener('keydown', handleF8)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleF8)
+})
+
 function handleSwitchTab(saleId: string) {
   switchTab(saleId)
 }
@@ -372,11 +491,12 @@ function handleSwitchTab(saleId: string) {
             :on-submit-price-override="handleSubmitPriceOverride"
             :on-apply-discount="handleApplyDiscount"
             :on-remove-discount="handleRemoveDiscount"
-            :on-remove-item="handleRemoveItem"
-            :on-apply-global-discount="handleApplyGlobalDiscount"
-            :on-remove-global-discount="handleRemoveGlobalDiscount"
-            @switch-tab="handleSwitchTab"
-            @close-tab="handleCloseTab"
+              :on-remove-item="handleRemoveItem"
+              :on-apply-global-discount="handleApplyGlobalDiscount"
+              :on-remove-global-discount="handleRemoveGlobalDiscount"
+              @charge-click="openPaymentModal"
+              @switch-tab="handleSwitchTab"
+             @close-tab="handleCloseTab"
             @create-tab="handleCreateTab"
             @update-qty="handleUpdateQty"
             @clear-items="handleClearItems"
@@ -384,5 +504,25 @@ function handleSwitchTab(saleId: string) {
         </div>
       </div>
     </div>
+
+    <PaymentModal
+      v-if="activeDraft"
+      v-model:open="paymentModalOpen"
+      :sale-id="activeDraft.id"
+      :total-cents="activeDraft.items.reduce((sum, item) => sum + item.unitPriceCents * item.quantity, 0)"
+      :is-submitting="isMutating || isChargeTemporarilyBlocked"
+      :external-error="inlineAmountError"
+      @submit="({ saleId, payload, idempotencyKey }) => void handleChargeDraft(saleId, payload, idempotencyKey)"
+    />
+
+    <PaymentSuccessModal
+      v-if="latestChargeSuccess"
+      v-model:open="successModalOpen"
+      :folio="latestChargeSuccess.folio"
+      :total-cents="latestChargeSuccess.totalCents"
+      :paid-cents="latestChargeSuccess.paidCents"
+      :change-due-cents="latestChargeSuccess.changeDueCents"
+      :confirmed-at="latestChargeSuccess.confirmedAt"
+    />
   </div>
 </template>

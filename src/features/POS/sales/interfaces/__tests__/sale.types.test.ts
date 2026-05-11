@@ -17,6 +17,19 @@ import type {
   PosCatalogItem,
   PosCatalogResponse,
   PosCatalogSearchParams,
+  PaymentMethod,
+  ChargeSalePayload,
+  ChargeSaleResponse,
+  ChargeDomainErrorCode,
+  ConfirmedSaleRow,
+  ConfirmedSalesListResponse,
+  SaleDetail,
+  SaleDetailItem,
+  SaleDetailPayment,
+  SaleTimelineEvent,
+  ListSalesParams,
+  SalesListCounts,
+  SalesListPagination,
 } from '../sale.types'
 
 describe('sale.types', () => {
@@ -24,6 +37,200 @@ describe('sale.types', () => {
     it('should accept DRAFT as a valid status', () => {
       const status: SaleStatus = 'DRAFT'
       expect(status).toBe('DRAFT')
+    })
+
+    it('should accept CONFIRMED as a valid status', () => {
+      const status: SaleStatus = 'CONFIRMED'
+      expect(status).toBe('CONFIRMED')
+    })
+  })
+
+  describe('charge contracts', () => {
+    it('accepts supported payment methods only', () => {
+      const methodA: PaymentMethod = 'cash'
+      const methodB: PaymentMethod = 'card_credit'
+      const methodC: PaymentMethod = 'card_debit'
+      const methodD: PaymentMethod = 'transfer'
+      const methodE: PaymentMethod = 'credit'
+
+      expect(methodA).toBe('cash')
+      expect(methodB).toBe('card_credit')
+      expect(methodC).toBe('card_debit')
+      expect(methodD).toBe('transfer')
+      expect(methodE).toBe('credit')
+    })
+
+    it('builds charge payload and response contracts', () => {
+      const payload: ChargeSalePayload = {
+        method: 'cash',
+        amountCents: 20000,
+      }
+
+      const response: ChargeSaleResponse = {
+        saleId: 'sale-1',
+        folio: 'A-202605-000001',
+        subtotalCents: 20000,
+        discountCents: 5000,
+        totalCents: 15000,
+        paidCents: 20000,
+        debtCents: 0,
+        changeDueCents: 5000,
+        paymentStatus: 'PAID',
+        confirmedAt: '2026-05-06T19:00:00.000Z',
+      }
+
+      expect(payload.method).toBe('cash')
+      expect(response.paymentStatus).toBe('PAID')
+      expect(response.changeDueCents).toBe(5000)
+      expect(response.folio).toMatch(/^A-\d{6}-\d{6}$/)
+      expect(response.totalCents).toBe(response.subtotalCents - response.discountCents)
+    })
+
+    it('accepts all backend payment statuses', () => {
+      const paid: ChargeSaleResponse['paymentStatus'] = 'PAID'
+      const partial: ChargeSaleResponse['paymentStatus'] = 'PARTIAL'
+      const credit: ChargeSaleResponse['paymentStatus'] = 'CREDIT'
+
+      expect(paid).toBe('PAID')
+      expect(partial).toBe('PARTIAL')
+      expect(credit).toBe('CREDIT')
+    })
+
+    it('supports known charge domain error codes', () => {
+      const codeA: ChargeDomainErrorCode = 'PAYMENT_AMOUNT_INSUFFICIENT'
+      const codeB: ChargeDomainErrorCode = 'IDEMPOTENCY_KEY_CONFLICT'
+      const codeC: ChargeDomainErrorCode = 'PRICE_OUT_OF_DATE'
+
+      expect(codeA).toBe('PAYMENT_AMOUNT_INSUFFICIENT')
+      expect(codeB).toBe('IDEMPOTENCY_KEY_CONFLICT')
+      expect(codeC).toBe('PRICE_OUT_OF_DATE')
+    })
+  })
+
+  describe('confirmed sales list contracts', () => {
+    it('builds ListSalesParams with all supported filters', () => {
+      const params: ListSalesParams = {
+        page: 2,
+        limit: 20,
+        sortBy: 'totalCents',
+        sortOrder: 'asc',
+        q: 'jean',
+        status: 'CONFIRMED',
+        paymentStatus: 'PARTIAL',
+        deliveryStatus: 'PENDING',
+        from: '2026-05-01T00:00:00.000Z',
+        to: '2026-05-31T23:59:59.999Z',
+        cashierUserId: 'cashier-1',
+        customerId: 'customer-1',
+      }
+
+      expect(params.sortBy).toBe('totalCents')
+      expect(params.deliveryStatus).toBe('PENDING')
+      expect(params.q).toBe('jean')
+    })
+
+    it('builds ConfirmedSaleRow with exact backend item fields including debtCents', () => {
+      const row: ConfirmedSaleRow = {
+        id: 'sale-1',
+        folio: 'A-202605-000012',
+        status: 'CONFIRMED',
+        paymentStatus: 'PAID',
+        deliveryStatus: 'DELIVERED',
+        totalCents: 127000,
+        debtCents: 0,
+        confirmedAt: '2026-05-06T14:43:00.000Z',
+        customer: { id: 'customer-1', name: 'Empresa F.' },
+        cashier: { id: 'cashier-1', name: 'cesar flores' },
+        seller: null,
+      }
+
+      expect(row.debtCents).toBe(0)
+      expect(row.customer?.name).toBe('Empresa F.')
+      expect(row.seller).toBeNull()
+    })
+
+    it('builds ConfirmedSalesListResponse with pagination and counts', () => {
+      const pagination: SalesListPagination = {
+        page: 1,
+        limit: 20,
+        total: 50,
+        totalPages: 3,
+      }
+      const counts: SalesListCounts = {
+        all: 50,
+        pendingPayments: 3,
+        notDelivered: 1,
+      }
+
+      const response: ConfirmedSalesListResponse = {
+        data: [],
+        pagination,
+        counts,
+      }
+
+      expect(response.pagination.totalPages).toBe(3)
+      expect(response.counts.pendingPayments).toBe(3)
+    })
+  })
+
+  describe('sale detail contracts', () => {
+    it('accepts detail item, payment and timeline nested types', () => {
+      const item: SaleDetailItem = {
+        productName: 'Jean Recto',
+        variantName: null,
+        imageUrl: null,
+        unitPriceCents: 17000,
+        quantity: 1,
+        discountCents: 0,
+        subtotalCents: 17000,
+      }
+
+      const payment: SaleDetailPayment = {
+        method: 'CASH',
+        amountCents: 127000,
+        tenderedCents: 127000,
+        changeCents: 0,
+        reference: null,
+        paidAt: '2026-05-06T14:43:00.000Z',
+      }
+
+      const event: SaleTimelineEvent = {
+        type: 'PAYMENT_RECEIVED',
+        at: '2026-05-06T14:43:00.000Z',
+      }
+
+      expect(item.imageUrl).toBeNull()
+      expect(payment.method).toBe('CASH')
+      expect(event.type).toBe('PAYMENT_RECEIVED')
+    })
+
+    it('builds SaleDetail with backend fields and nullable actors', () => {
+      const detail: SaleDetail = {
+        id: 'sale-1',
+        folio: 'A-202605-000012',
+        status: 'CONFIRMED',
+        channel: 'POS',
+        register: 'Principal',
+        confirmedAt: '2026-05-06T14:43:00.000Z',
+        subtotalCents: 127000,
+        discountCents: 0,
+        totalCents: 127000,
+        paidCents: 127000,
+        debtCents: 0,
+        changeDueCents: 0,
+        paymentStatus: 'PAID',
+        deliveryStatus: 'DELIVERED',
+        customer: null,
+        cashier: { id: 'cashier-1', name: 'cesar flores' },
+        seller: null,
+        items: [],
+        payments: [],
+        timeline: [],
+      }
+
+      expect(detail.channel).toBe('POS')
+      expect(detail.register).toBe('Principal')
+      expect(detail.customer).toBeNull()
     })
   })
 

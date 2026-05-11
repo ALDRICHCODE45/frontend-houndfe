@@ -133,6 +133,12 @@ export const useSidebar = () => {
         exact: true,
       },
       {
+        label: 'Nueva Venta',
+        icon: 'i-lucide-plus-circle',
+        to: '/pos/ventas/nueva',
+        permission: ['update', 'Sale'],
+      },
+      {
         label: 'POS',
         icon: 'i-lucide-shopping-cart',
         defaultOpen: true,

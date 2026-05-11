@@ -4,6 +4,7 @@ export interface DomainApiError {
   statusCode?: number
   error?: string
   message?: string
+  timestamp?: string
 }
 
 export function mapDomainError(

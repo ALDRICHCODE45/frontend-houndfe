@@ -32,6 +32,7 @@ const emit = defineEmits<{
   'create-tab': []
   'update-qty': [itemId: string, quantity: number]
   'clear-items': []
+  'charge-click': []
 }>()
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -108,6 +109,7 @@ function getCloseTabDescription(): string {
   }
   return `Vas a cerrar una venta con ${draft.items.length} productos. Esta acción no se puede deshacer.`
 }
+
 </script>
 
 <template>
@@ -200,7 +202,12 @@ function getCloseTabDescription(): string {
     </div>
 
     <!-- Totals footer (sticky bottom) -->
-    <SaleTotalsFooter v-if="activeDraft" :items="activeDraft.items" />
+    <SaleTotalsFooter
+      v-if="activeDraft"
+      :items="activeDraft.items"
+      :is-charge-pending="isMutating"
+      @charge-click="emit('charge-click')"
+    />
 
     <!-- Global discount modal -->
     <GlobalDiscountModal

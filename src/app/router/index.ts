@@ -13,6 +13,8 @@ const ProductDetailView = () => import('@/features/POS/products/views/ProductDet
 const OrdersView = () => import('@/features/POS/orders/views/OrdersView.vue')
 const CustomersView = () => import('@/features/POS/customers/views/CustomersView.vue')
 const SalesView = () => import('@/features/POS/sales/views/SalesView.vue')
+const SalesListView = () => import('@/features/POS/sales/views/SalesListView.vue')
+const SaleDetailView = () => import('@/features/POS/sales/views/SaleDetailView.vue')
 const PromotionsView = () => import('@/features/POS/promotions/views/PromotionsView.vue')
 const PromotionDetailView = () =>
   import('@/features/POS/promotions/views/PromotionDetailView.vue')
@@ -92,8 +94,26 @@ const router = createRouter({
     },
     {
       path: '/pos/ventas',
+      name: 'pos-sales-list',
+      component: SalesListView,
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'Sale'] as RoutePermission,
+      },
+    },
+    {
+      path: '/pos/ventas/nueva',
       name: 'pos-sales',
       component: SalesView,
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'Sale'] as RoutePermission,
+      },
+    },
+    {
+      path: '/pos/ventas/:id',
+      name: 'pos-sale-detail',
+      component: SaleDetailView,
       meta: {
         layout: 'dashboard',
         permission: ['read', 'Sale'] as RoutePermission,

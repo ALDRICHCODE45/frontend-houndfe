@@ -11,6 +11,8 @@ import type {
   ApplyItemDiscountPayload,
   ApplyGlobalDiscountPayload,
   GlobalDiscountResponse,
+  ChargeSalePayload,
+  ChargeSaleResponse,
 } from '../interfaces/sale.types'
 
 // ── Pure functions for cache manipulation ────────────────────────────────────
@@ -50,6 +52,10 @@ export function getActiveDraftId(
 
 export function getNextActiveIdAfterClose(remainingDrafts: Sale[]): string | null {
   return remainingDrafts[0]?.id ?? null
+}
+
+export function removeChargedDraftFromCache(currentSales: Sale[], chargedSaleId: string): Sale[] {
+  return currentSales.filter((sale) => sale.id !== chargedSaleId)
 }
 
 // ── Main composable ───────────────────────────────────────────────────────────
@@ -195,6 +201,25 @@ export function useSalesDrafts() {
     },
   })
 
+  const chargeDraftMutation = useMutation({
+    mutationFn: ({
+      saleId,
+      payload,
+      idempotencyKey,
+    }: {
+      saleId: string
+      payload: ChargeSalePayload
+      idempotencyKey: string
+    }) => saleApi.chargeDraft(saleId, payload, idempotencyKey),
+    onSuccess: (response: ChargeSaleResponse) => {
+      const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
+      queryClient.setQueryData(
+        draftsKey.value,
+        removeChargedDraftFromCache(currentDrafts, response.saleId),
+      )
+    },
+  })
+
   // Computed isMutating
   const isMutating = computed(() => {
     return (
@@ -209,6 +234,7 @@ export function useSalesDrafts() {
       || removeItemMutation.isPending.value
       || applyGlobalDiscountMutation.isPending.value
       || removeGlobalDiscountMutation.isPending.value
+      || chargeDraftMutation.isPending.value
     )
   })
 
@@ -288,6 +314,14 @@ export function useSalesDrafts() {
     return await removeGlobalDiscountMutation.mutateAsync(activeTabId.value)
   }
 
+  const chargeDraft = async (
+    saleId: string,
+    payload: ChargeSalePayload,
+    idempotencyKey: string,
+  ): Promise<ChargeSaleResponse> => {
+    return await chargeDraftMutation.mutateAsync({ saleId, payload, idempotencyKey })
+  }
+
   return {
     drafts: computed(() => drafts.value ?? []),
     activeDraft,
@@ -307,5 +341,6 @@ export function useSalesDrafts() {
     removeItem,
     applyGlobalDiscount,
     removeGlobalDiscount,
+    chargeDraft,
   }
 }

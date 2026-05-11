@@ -10,9 +10,10 @@ import {
   replaceSaleInCache,
   getActiveDraftId,
   getNextActiveIdAfterClose,
+  removeChargedDraftFromCache,
   useSalesDrafts,
 } from '../useSalesDrafts'
-import type { Sale } from '../../interfaces/sale.types'
+import type { Sale, ChargeSaleResponse } from '../../interfaces/sale.types'
 
 vi.mock('../../api/sale.api', () => ({
   saleApi: {
@@ -26,6 +27,9 @@ vi.mock('../../api/sale.api', () => ({
     applyItemDiscount: vi.fn(),
     removeItemDiscount: vi.fn(),
     removeItem: vi.fn(),
+    applyGlobalDiscount: vi.fn(),
+    removeGlobalDiscount: vi.fn(),
+    chargeDraft: vi.fn(),
   },
 }))
 
@@ -314,6 +318,114 @@ describe('useSalesDrafts - pure cache update functions', () => {
       const result = getNextActiveIdAfterClose([])
 
       expect(result).toBeNull()
+    })
+  })
+
+  describe('removeChargedDraftFromCache', () => {
+    it('should remove charged draft from cache', () => {
+      const result = removeChargedDraftFromCache(mockSales, 'sale-2')
+
+      expect(result).toHaveLength(1)
+      expect(result[0]?.id).toBe('sale-1')
+    })
+
+    it('should keep cache unchanged when sale id does not exist', () => {
+      const result = removeChargedDraftFromCache(mockSales, 'sale-999')
+
+      expect(result).toEqual(mockSales)
+    })
+  })
+
+  describe('chargeDraft mutation skeleton', () => {
+    it('evicts charged draft from cache after successful charge', async () => {
+      vi.mocked(saleApi.listDrafts).mockResolvedValue(mockSales)
+      vi.mocked(saleApi.chargeDraft).mockResolvedValue({
+        saleId: 'sale-2',
+        folio: 'A-202605-000002',
+        subtotalCents: 10000,
+        discountCents: 0,
+        totalCents: 10000,
+        paidCents: 10000,
+        debtCents: 0,
+        changeDueCents: 0,
+        paymentStatus: 'PAID',
+        confirmedAt: '2026-05-06T21:00:00.000Z',
+      })
+
+      const { result, queryClient } = mountComposable(() => useSalesDrafts())
+      await vi.waitFor(() => {
+        expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual(mockSales)
+      })
+
+      await result.chargeDraft('sale-2', { method: 'card_credit', amountCents: 10000 }, 'idem-key-2')
+
+      const cachedDrafts = queryClient.getQueryData<Sale[]>(tenantDraftsKey)
+      expect(cachedDrafts).toHaveLength(1)
+      expect(cachedDrafts?.[0]?.id).toBe('sale-1')
+      expect(saleApi.chargeDraft).toHaveBeenCalledWith(
+        'sale-2',
+        { method: 'card_credit', amountCents: 10000 },
+        'idem-key-2',
+      )
+    })
+
+    it('exposes pending state while charge mutation is in flight', async () => {
+      vi.mocked(saleApi.listDrafts).mockResolvedValue(mockSales)
+
+      let resolveCharge: ((value: ChargeSaleResponse) => void) | null = null
+
+      vi.mocked(saleApi.chargeDraft).mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveCharge = resolve
+          }),
+      )
+
+      const { result } = mountComposable(() => useSalesDrafts())
+      await vi.waitFor(() => {
+        expect(result.drafts.value).toHaveLength(2)
+      })
+
+      const chargePromise = result.chargeDraft('sale-2', { method: 'cash', amountCents: 10000 }, 'idem-key-pending')
+
+      await vi.waitFor(() => {
+        expect(result.isMutating.value).toBe(true)
+      })
+
+      ;(resolveCharge as unknown as (value: ChargeSaleResponse) => void)({
+        saleId: 'sale-2',
+        folio: 'A-202605-000002',
+        subtotalCents: 10000,
+        discountCents: 0,
+        totalCents: 10000,
+        paidCents: 10000,
+        debtCents: 0,
+        changeDueCents: 0,
+        paymentStatus: 'PAID',
+        confirmedAt: '2026-05-06T21:00:00.000Z',
+      })
+      await chargePromise
+
+      await vi.waitFor(() => {
+        expect(result.isMutating.value).toBe(false)
+      })
+    })
+
+    it('keeps drafts cache unchanged when charge fails', async () => {
+      vi.mocked(saleApi.listDrafts).mockResolvedValue(mockSales)
+      vi.mocked(saleApi.chargeDraft).mockRejectedValue(new Error('network'))
+
+      const { result, queryClient } = mountComposable(() => useSalesDrafts())
+      await vi.waitFor(() => {
+        expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual(mockSales)
+      })
+
+      await expect(
+        result.chargeDraft('sale-2', { method: 'cash', amountCents: 10000 }, 'idem-key-fail'),
+      ).rejects.toThrow('network')
+
+      expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual(mockSales)
+      expect(result.isMutating.value).toBe(false)
     })
   })
 

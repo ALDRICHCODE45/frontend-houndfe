@@ -115,6 +115,13 @@ export const useDashboard = () => {
         permission: ['create', 'Order'],
       },
       {
+        id: 'new-sale',
+        label: 'Nueva Venta',
+        icon: 'i-lucide-receipt-text',
+        to: '/pos/ventas/nueva',
+        permission: ['read', 'Sale'],
+      },
+      {
         id: 'new-customer',
         label: 'Nuevo Cliente',
         icon: 'i-lucide-user-plus',
