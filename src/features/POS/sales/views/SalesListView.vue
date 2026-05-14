@@ -8,11 +8,11 @@ import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { useConfirmedSales } from '../composables/useConfirmedSales'
 import { useSalesColumns } from '../composables/useSalesColumns'
 import SalesListTabs from '../components/SalesListTabs.vue'
+import PaymentMethodPills from '../components/PaymentMethodPills.vue'
 import { formatSaleDate } from '../utils/saleDate.utils'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { extractFolioNumber } from '../utils/saleFolio.utils'
 import { getDeliveryStatusBadge, getPaymentStatusBadge } from '../utils/saleStatus.utils'
-import { formatPaymentMethod, getPaymentMethodColor } from '../utils/salePaymentMethod.utils'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -84,6 +84,7 @@ function goToSaleDetail(id: string) {
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
           :enable-row-selection="false"
+          enable-column-visibility
           search-placeholder="Buscar ventas..."
           empty="No hay ventas todavía"
           @refresh="refresh"
@@ -133,23 +134,7 @@ function goToSaleDetail(id: string) {
           </template>
 
           <template #paymentMethods-cell="{ row }">
-            <div class="flex flex-wrap gap-1">
-              <template v-if="row.original.paymentMethods.length > 0">
-                <UBadge
-                  v-for="method in row.original.paymentMethods"
-                  :key="method"
-                  variant="subtle"
-                  :color="getPaymentMethodColor(method)"
-                  size="md"
-                >
-                  {{ formatPaymentMethod(method) }}
-                </UBadge>
-              </template>
-              <UBadge v-else-if="row.original.paymentStatus === 'CREDIT'" variant="subtle" color="error" size="md">
-                Crédito
-              </UBadge>
-              <span v-else>—</span>
-            </div>
+            <PaymentMethodPills :methods="row.original.paymentMethods" />
           </template>
 
           <template #totalCents-cell="{ row }">

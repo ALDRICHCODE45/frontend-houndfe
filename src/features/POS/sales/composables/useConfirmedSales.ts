@@ -5,6 +5,7 @@ import { saleQueryKeys } from '@/core/shared/constants/query-keys'
 import { saleApi } from '../api/sale.api'
 import type { ListSalesParams, SalesListCounts, SaleDeliveryStatus } from '../interfaces/sale.types'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import { defaultColumnVisibility } from './useSalesColumns'
 
 const DEFAULT_COUNTS: SalesListCounts = { all: 0, pendingPayments: 0, notDelivered: 0 }
 
@@ -48,6 +49,7 @@ export function useConfirmedSales() {
     defaultPageSize: 20,
     persistKey: 'pos-sales-list',
     defaultSorting: [{ id: 'confirmedAt', desc: true }],
+    defaultColumnVisibility,
     urlSync: false,
   })
 

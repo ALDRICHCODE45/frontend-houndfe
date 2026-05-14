@@ -1,6 +1,22 @@
 import type { TableColumn } from '@nuxt/ui'
+import type { VisibilityState } from '@tanstack/vue-table'
 import { createSimpleHeader } from '@/core/shared/components/DataTable'
 import type { ConfirmedSaleRow } from '../interfaces/sale.types'
+
+export const defaultColumnVisibility: VisibilityState = {
+  venta: true,
+  confirmedAt: true,
+  customer: true,
+  paymentStatus: true,
+  paymentMethods: true,
+  totalCents: true,
+  debtCents: true,
+  deliveryStatus: true,
+  cashier: false,
+  seller: false,
+  channel: false,
+  invoice: false,
+}
 
 export function useSalesColumns() {
   const columns: TableColumn<ConfirmedSaleRow>[] = [
