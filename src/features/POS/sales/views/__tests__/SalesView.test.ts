@@ -151,7 +151,9 @@ describe('SalesView charge orchestration', () => {
     await wrapper.get('[data-testid="charge-click"]').trigger('click')
     await wrapper.get('[data-testid="submit-charge"]').trigger('click')
 
-    expect(wrapper.get('[data-testid="external-error"]').text()).toContain('El monto es insuficiente')
+    expect(wrapper.get('[data-testid="external-error"]').text()).toContain(
+      'Monto inválido. Revisá los importes ingresados.',
+    )
   })
 
   it('maps SALE_ALREADY_CONFIRMED by error code and closes stale tab', async () => {

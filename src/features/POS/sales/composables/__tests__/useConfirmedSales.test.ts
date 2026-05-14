@@ -59,6 +59,7 @@ describe('useConfirmedSales', () => {
           customer: { id: 'customer-1', name: 'Empresa F.' },
           cashier: { id: 'cashier-1', name: 'cesar flores' },
           seller: null,
+          paymentMethods: ['CASH'],
         },
       ],
       pagination: { page: 1, limit: 20, total: 50, totalPages: 3 },

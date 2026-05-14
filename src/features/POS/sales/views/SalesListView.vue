@@ -12,6 +12,7 @@ import { formatSaleDate } from '../utils/saleDate.utils'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { extractFolioNumber } from '../utils/saleFolio.utils'
 import { getDeliveryStatusBadge, getPaymentStatusBadge } from '../utils/saleStatus.utils'
+import { formatPaymentMethod, getPaymentMethodColor } from '../utils/salePaymentMethod.utils'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -129,6 +130,26 @@ function goToSaleDetail(id: string) {
             <AppBadge :tone="getPaymentStatusBadge(row.original.paymentStatus).color">
               {{ getPaymentStatusBadge(row.original.paymentStatus).label }}
             </AppBadge>
+          </template>
+
+          <template #paymentMethods-cell="{ row }">
+            <div class="flex flex-wrap gap-1">
+              <template v-if="row.original.paymentMethods.length > 0">
+                <UBadge
+                  v-for="method in row.original.paymentMethods"
+                  :key="method"
+                  variant="subtle"
+                  :color="getPaymentMethodColor(method)"
+                  size="md"
+                >
+                  {{ formatPaymentMethod(method) }}
+                </UBadge>
+              </template>
+              <UBadge v-else-if="row.original.paymentStatus === 'CREDIT'" variant="subtle" color="error" size="md">
+                Crédito
+              </UBadge>
+              <span v-else>—</span>
+            </div>
           </template>
 
           <template #totalCents-cell="{ row }">

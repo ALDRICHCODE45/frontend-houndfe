@@ -10,13 +10,14 @@ describe('useSalesColumns', () => {
   it('returns all expected columns in order', () => {
     const { columns } = useSalesColumns()
 
-    expect(columns).toHaveLength(12)
+    expect(columns).toHaveLength(13)
     expect(columns.map((column) => keyOf(column))).toEqual([
       'select',
       'venta',
       'confirmedAt',
       'customer',
       'paymentStatus',
+      'paymentMethods',
       'totalCents',
       'debtCents',
       'deliveryStatus',

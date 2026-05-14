@@ -9,6 +9,7 @@ export function useSalesColumns() {
     { accessorKey: 'confirmedAt', header: 'Fecha' },
     { accessorKey: 'customer', header: createSimpleHeader('Cliente') },
     { accessorKey: 'paymentStatus', header: createSimpleHeader('Pago') },
+    { id: 'paymentMethods', accessorKey: 'paymentMethods', header: createSimpleHeader('Método'), enableSorting: false },
     { accessorKey: 'totalCents', header: 'Total' },
     { accessorKey: 'debtCents', header: createSimpleHeader('Deuda') },
     { accessorKey: 'deliveryStatus', header: createSimpleHeader('Productos') },

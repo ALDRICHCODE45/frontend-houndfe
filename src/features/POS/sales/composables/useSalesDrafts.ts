@@ -58,6 +58,12 @@ export function removeChargedDraftFromCache(currentSales: Sale[], chargedSaleId:
   return currentSales.filter((sale) => sale.id !== chargedSaleId)
 }
 
+interface ChargeDraftMutationInput {
+  saleId: string
+  payload: ChargeSalePayload
+  idempotencyKey: string
+}
+
 // ── Main composable ───────────────────────────────────────────────────────────
 
 export function useSalesDrafts() {
@@ -202,15 +208,8 @@ export function useSalesDrafts() {
   })
 
   const chargeDraftMutation = useMutation({
-    mutationFn: ({
-      saleId,
-      payload,
-      idempotencyKey,
-    }: {
-      saleId: string
-      payload: ChargeSalePayload
-      idempotencyKey: string
-    }) => saleApi.chargeDraft(saleId, payload, idempotencyKey),
+    mutationFn: ({ saleId, payload, idempotencyKey }: ChargeDraftMutationInput) =>
+      saleApi.chargeDraft(saleId, payload, idempotencyKey),
     onSuccess: (response: ChargeSaleResponse) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
       queryClient.setQueryData(

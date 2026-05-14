@@ -15,6 +15,8 @@ import type {
   ListSalesParams,
   ConfirmedSalesListResponse,
   SaleDetail,
+  DebtPaymentPayload,
+  DebtPaymentResponse,
 } from '../../interfaces/sale.types'
 
 vi.mock('@/core/shared/api/http', () => ({
@@ -470,6 +472,7 @@ describe('saleApi', () => {
             customer: { id: 'customer-1', name: 'Empresa F.' },
             cashier: { id: 'cashier-1', name: 'cesar flores' },
             seller: null,
+            paymentMethods: ['CASH'],
           },
         ],
         pagination: { page: 1, limit: 20, total: 50, totalPages: 3 },
@@ -702,6 +705,61 @@ describe('saleApi', () => {
 
       expect(http.delete).toHaveBeenCalledWith('/sales/drafts/sale-1/items/item-1')
       expect(result).toEqual(updatedSale)
+    })
+  })
+
+  describe('registerDebtPayment', () => {
+    it('posts debt payload with idempotency header', async () => {
+      const payload: DebtPaymentPayload = {
+        method: 'card_credit',
+        amountCents: 15000,
+        reference: 'AUTH-1',
+      }
+
+      const response: DebtPaymentResponse = {
+        saleId: 'sale-1',
+        paidCents: 30000,
+        debtCents: 5000,
+        totalCents: 35000,
+        paymentStatus: 'PARTIAL',
+      }
+
+      vi.mocked(http.post).mockResolvedValue({ data: response })
+
+      const result = await saleApi.registerDebtPayment('sale-1', payload, 'idem-debt-1')
+
+      expect(http.post).toHaveBeenCalledWith('/sales/sale-1/payments', payload, {
+        headers: {
+          'Idempotency-Key': 'idem-debt-1',
+        },
+      })
+      expect(result.paymentStatus).toBe('PARTIAL')
+    })
+
+    it('supports cash debt payload without reference', async () => {
+      const payload: DebtPaymentPayload = {
+        method: 'cash',
+        amountCents: 5000,
+      }
+
+      const response: DebtPaymentResponse = {
+        saleId: 'sale-1',
+        paidCents: 35000,
+        debtCents: 0,
+        totalCents: 35000,
+        paymentStatus: 'PAID',
+      }
+
+      vi.mocked(http.post).mockResolvedValue({ data: response })
+
+      const result = await saleApi.registerDebtPayment('sale-1', payload, 'idem-debt-2')
+
+      expect(http.post).toHaveBeenCalledWith('/sales/sale-1/payments', payload, {
+        headers: {
+          'Idempotency-Key': 'idem-debt-2',
+        },
+      })
+      expect(result.paymentStatus).toBe('PAID')
     })
   })
 })

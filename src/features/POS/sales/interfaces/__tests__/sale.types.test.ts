@@ -21,6 +21,8 @@ import type {
   ChargeSalePayload,
   ChargeSaleResponse,
   ChargeDomainErrorCode,
+  DebtPaymentPayload,
+  DebtPaymentResponse,
   ConfirmedSaleRow,
   ConfirmedSalesListResponse,
   SaleDetail,
@@ -97,13 +99,46 @@ describe('sale.types', () => {
     })
 
     it('supports known charge domain error codes', () => {
-      const codeA: ChargeDomainErrorCode = 'PAYMENT_AMOUNT_INSUFFICIENT'
+      const codeA: ChargeDomainErrorCode = 'AMBIGUOUS_PAYMENT_SHAPE'
       const codeB: ChargeDomainErrorCode = 'IDEMPOTENCY_KEY_CONFLICT'
       const codeC: ChargeDomainErrorCode = 'PRICE_OUT_OF_DATE'
+      const codeD: ChargeDomainErrorCode = 'PAYMENT_EXCEEDS_DEBT'
 
-      expect(codeA).toBe('PAYMENT_AMOUNT_INSUFFICIENT')
+      expect(codeA).toBe('AMBIGUOUS_PAYMENT_SHAPE')
       expect(codeB).toBe('IDEMPOTENCY_KEY_CONFLICT')
       expect(codeC).toBe('PRICE_OUT_OF_DATE')
+      expect(codeD).toBe('PAYMENT_EXCEEDS_DEBT')
+    })
+
+    it('supports multi-payment payload shape', () => {
+      const payload: ChargeSalePayload = {
+        payments: [
+          { method: 'cash', amountCents: 20000 },
+          { method: 'card_debit', amountCents: 10000, reference: 'V-42' },
+        ],
+      }
+
+      expect(payload.payments).toHaveLength(2)
+      expect(payload.payments[1]?.reference).toBe('V-42')
+    })
+
+    it('supports debt payment contracts', () => {
+      const payload: DebtPaymentPayload = {
+        method: 'transfer',
+        amountCents: 5000,
+        reference: 'TRX-100',
+      }
+
+      const response: DebtPaymentResponse = {
+        saleId: 'sale-1',
+        paidCents: 45000,
+        debtCents: 5000,
+        totalCents: 50000,
+        paymentStatus: 'PARTIAL',
+      }
+
+      expect(payload.method).toBe('transfer')
+      expect(response.debtCents).toBe(5000)
     })
   })
 
@@ -142,6 +177,7 @@ describe('sale.types', () => {
         customer: { id: 'customer-1', name: 'Empresa F.' },
         cashier: { id: 'cashier-1', name: 'cesar flores' },
         seller: null,
+        paymentMethods: ['CASH'],
       }
 
       expect(row.debtCents).toBe(0)

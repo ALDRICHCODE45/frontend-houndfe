@@ -20,6 +20,7 @@ import type {
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { saleQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
+import { getSalePaymentErrorAction } from '../utils/salePaymentErrors.utils'
 
 declare const useToast: () => {
   add: (options: {
@@ -347,56 +348,41 @@ async function handleChargeDraft(saleId: string, payload: ChargeSalePayload, ide
     const err = error as AxiosError<DomainApiError & { error?: ChargeDomainErrorCode }>
     const code = err.response?.data?.error
 
-    if (code === 'PAYMENT_AMOUNT_INSUFFICIENT' || code === 'PAYMENT_AMOUNT_INVALID') {
-      inlineAmountError.value = 'El monto es insuficiente'
-      return
-    }
+    if (code) {
+      const action = getSalePaymentErrorAction(code)
 
-    if (code === 'IDEMPOTENCY_KEY_CONFLICT') {
-      toast.add({ title: 'Advertencia', description: 'Cobro duplicado detectado. Reintentá.', color: 'warning' })
-      return
-    }
-
-    if (code === 'IDEMPOTENCY_KEY_IN_FLIGHT') {
-      inFlightUntil.value = Date.now() + 2000
-      toast.add({ title: 'Cobro en proceso.', color: 'warning' })
-      return
-    }
-
-    if (code === 'PRICE_OUT_OF_DATE') {
-      paymentModalOpen.value = false
-      await queryClient.invalidateQueries({ queryKey: saleQueryKeys.drafts(tenantId.value) })
-      toast.add({ title: 'Advertencia', description: 'Cambiaron precios. Revisá la venta.', color: 'warning' })
-      return
-    }
-
-    if (code === 'STOCK_INSUFFICIENT_AT_CONFIRM') {
-      paymentModalOpen.value = false
-      await queryClient.invalidateQueries({ queryKey: saleQueryKeys.drafts(tenantId.value) })
-      toast.add({ title: 'Error', description: 'Stock insuficiente al confirmar. Revisá la venta.', color: 'error' })
-      return
-    }
-
-    if (code === 'SALE_ALREADY_CONFIRMED') {
-      paymentModalOpen.value = false
-      if (activeDraft.value?.id === saleId) {
-        activeTabId.value = drafts.value.find((draft) => draft.id !== saleId)?.id ?? null
+      if (action.type === 'inline') {
+        inlineAmountError.value = action.message
+        return
       }
-      toast.add({ title: 'Aviso', description: 'Esta venta ya fue cobrada.', color: 'primary' })
-      return
-    }
 
-    if (code === 'SALE_NOT_FOUND') {
-      paymentModalOpen.value = false
-      if (activeDraft.value?.id === saleId) {
-        activeTabId.value = drafts.value.find((draft) => draft.id !== saleId)?.id ?? null
+      if (action.type === 'new-key') {
+        toast.add({ title: 'Advertencia', description: action.message, color: 'warning' })
+        return
       }
-      toast.add({ title: 'Error', description: 'No encontramos esta venta.', color: 'error' })
-      return
-    }
 
-    if (code === 'IDEMPOTENCY_KEY_REQUIRED' || code === 'PAYMENT_METHOD_NOT_SUPPORTED') {
-      toast.add({ title: 'Error', description: 'No se pudo procesar el cobro.', color: 'error' })
+      if (action.type === 'retry') {
+        inFlightUntil.value = Date.now() + 2000
+        toast.add({ title: 'Cobro en proceso.', description: action.message, color: 'warning' })
+        return
+      }
+
+      if (action.type === 'refetch') {
+        paymentModalOpen.value = false
+        await queryClient.invalidateQueries({ queryKey: saleQueryKeys.drafts(tenantId.value) })
+
+        if (code === 'SALE_ALREADY_CONFIRMED' || code === 'SALE_NOT_FOUND') {
+          if (activeDraft.value?.id === saleId) {
+            activeTabId.value = drafts.value.find((draft) => draft.id !== saleId)?.id ?? null
+          }
+        }
+
+        toast.add({
+          title: code === 'STOCK_INSUFFICIENT_AT_CONFIRM' ? 'Error' : 'Advertencia',
+          description: action.message,
+          color: code === 'STOCK_INSUFFICIENT_AT_CONFIRM' ? 'error' : 'warning',
+        })
+      }
       return
     }
 

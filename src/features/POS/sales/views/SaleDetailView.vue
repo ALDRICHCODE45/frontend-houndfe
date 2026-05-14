@@ -1,15 +1,17 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { useSaleDetail } from '../composables/useSaleDetail'
+import { useDebtPayment } from '../composables/useDebtPayment'
 import { extractFolioNumber } from '../utils/saleFolio.utils'
 import { getDeliveryStatusBadge } from '../utils/saleStatus.utils'
 import SaleDetailItemsTable from '../components/SaleDetailItemsTable.vue'
 import SaleDetailTotalsCard from '../components/SaleDetailTotalsCard.vue'
 import SaleDetailTimeline from '../components/SaleDetailTimeline.vue'
 import SaleDetailSidebar from '../components/SaleDetailSidebar.vue'
+import DebtPaymentModal from '../components/DebtPaymentModal.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -18,6 +20,13 @@ const authStore = useAuthStore()
 const saleId = computed(() => String(route.params.id ?? ''))
 const canReadSales = computed(() => authStore.userCan('read', 'Sale'))
 const { sale, isLoading } = useSaleDetail(saleId)
+const debtModalOpen = ref(false)
+const { submit, isSubmitting, externalError } = useDebtPayment(saleId.value)
+
+async function handleDebtSubmit(payload: { method: 'cash' | 'card_credit' | 'card_debit' | 'transfer'; amountCents: number; reference?: string }) {
+  await submit(payload)
+  debtModalOpen.value = false
+}
 
 function goBack() {
   void router.push('/pos/ventas')
@@ -49,6 +58,21 @@ function goBack() {
       <SaleDetailTimeline v-if="sale" :timeline="sale.timeline" :payments="sale.payments" />
     </div>
 
-    <SaleDetailSidebar v-if="sale" :sale="sale" class="lg:col-span-1" />
+    <SaleDetailSidebar
+      v-if="sale"
+      :sale="sale"
+      class="lg:col-span-1"
+      @register-payment="debtModalOpen = true"
+    />
+
+    <DebtPaymentModal
+      v-if="sale"
+      v-model:open="debtModalOpen"
+      :sale-id="sale.id"
+      :debt-cents="sale.debtCents"
+      :is-submitting="isSubmitting"
+      :external-error="externalError"
+      @submit="handleDebtSubmit"
+    />
   </div>
 </template>

@@ -16,6 +16,8 @@ import type {
   ListSalesParams,
   ConfirmedSalesListResponse,
   SaleDetail,
+  DebtPaymentPayload,
+  DebtPaymentResponse,
 } from '../interfaces/sale.types'
 
 export const saleApi = {
@@ -89,6 +91,19 @@ export const saleApi = {
     idempotencyKey: string,
   ): Promise<ChargeSaleResponse> {
     const { data } = await http.post<ChargeSaleResponse>(`/sales/drafts/${saleId}/charge`, payload, {
+      headers: {
+        'Idempotency-Key': idempotencyKey,
+      },
+    })
+    return data
+  },
+
+  async registerDebtPayment(
+    saleId: string,
+    payload: DebtPaymentPayload,
+    idempotencyKey: string,
+  ): Promise<DebtPaymentResponse> {
+    const { data } = await http.post<DebtPaymentResponse>(`/sales/${saleId}/payments`, payload, {
       headers: {
         'Idempotency-Key': idempotencyKey,
       },

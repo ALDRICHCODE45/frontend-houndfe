@@ -2,6 +2,7 @@ export type SaleStatus = 'DRAFT' | 'CONFIRMED'
 export type SaleCurrency = 'MXN'
 export type PriceSource = 'default' | 'price_list' | 'custom'
 export type PaymentMethod = 'cash' | 'card_credit' | 'card_debit' | 'transfer' | 'credit'
+export type NonCreditPaymentMethod = Exclude<PaymentMethod, 'credit'>
 export type SalePaymentStatus = 'PAID' | 'PARTIAL' | 'CREDIT'
 export type SaleDeliveryStatus = 'PENDING' | 'DELIVERED' | 'NOT_APPLICABLE'
 
@@ -35,6 +36,7 @@ export interface ConfirmedSaleRow {
   customer: SaleActorRef | null
   cashier: SaleActorRef
   seller: SaleActorRef | null
+  paymentMethods: SaleDetailPaymentMethod[]
 }
 
 export interface ConfirmedSalesListResponse {
@@ -108,9 +110,37 @@ export interface ListSalesParams {
   customerId?: string
 }
 
-export interface ChargeSalePayload {
+export interface LegacyChargePayload {
   method: PaymentMethod
   amountCents: number
+}
+
+export interface PaymentEntry {
+  method: NonCreditPaymentMethod
+  amountCents: number
+  reference?: string
+}
+
+export interface MultiPaymentChargePayload {
+  payments: PaymentEntry[]
+}
+
+export type ChargeSalePayload =
+  | (LegacyChargePayload & { payments?: never })
+  | (MultiPaymentChargePayload & { method?: never; amountCents?: never })
+
+export interface DebtPaymentPayload {
+  method: NonCreditPaymentMethod
+  amountCents: number
+  reference?: string
+}
+
+export interface DebtPaymentResponse {
+  saleId: string
+  paidCents: number
+  debtCents: number
+  totalCents: number
+  paymentStatus: SalePaymentStatus
 }
 
 export interface ChargeSaleResponse {
@@ -127,16 +157,24 @@ export interface ChargeSaleResponse {
 }
 
 export type ChargeDomainErrorCode =
-  | 'PAYMENT_AMOUNT_INSUFFICIENT'
+  | 'AMBIGUOUS_PAYMENT_SHAPE'
+  | 'TOO_MANY_PAYMENTS'
+  | 'CREDIT_METHOD_NOT_VALID_IN_MULTI'
+  | 'REFERENCE_REQUIRED'
+  | 'PAYMENT_METHOD_NOT_SUPPORTED'
+  | 'INVALID_CREDIT_CHARGE'
   | 'PAYMENT_AMOUNT_INVALID'
-  | 'IDEMPOTENCY_KEY_CONFLICT'
-  | 'IDEMPOTENCY_KEY_IN_FLIGHT'
+  | 'CUSTOMER_REQUIRED_FOR_CREDIT'
+  | 'SALE_NOT_FOUND'
+  | 'SALE_ALREADY_CONFIRMED'
   | 'PRICE_OUT_OF_DATE'
   | 'STOCK_INSUFFICIENT_AT_CONFIRM'
-  | 'SALE_ALREADY_CONFIRMED'
-  | 'SALE_NOT_FOUND'
+  | 'IDEMPOTENCY_KEY_CONFLICT'
+  | 'IDEMPOTENCY_KEY_IN_FLIGHT'
   | 'IDEMPOTENCY_KEY_REQUIRED'
-  | 'PAYMENT_METHOD_NOT_SUPPORTED'
+  | 'SALE_NOT_CONFIRMABLE_FOR_PAYMENT'
+  | 'NO_OUTSTANDING_DEBT'
+  | 'PAYMENT_EXCEEDS_DEBT'
 
 export interface SaleItem {
   id: string
