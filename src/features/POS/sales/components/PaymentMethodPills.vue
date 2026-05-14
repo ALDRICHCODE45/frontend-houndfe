@@ -38,6 +38,16 @@ const overflowLabel = computed(() =>
         :icon="getMethodMeta(method).icon"
         :aria-label="getMethodMeta(method).label"
       >
+        <!--
+          R-105 — CSS-only responsive strategy (icon-only below md breakpoint).
+          `hidden md:inline-flex` hides the text label below Tailwind's `md` breakpoint
+          (768 px) and shows it at md and above. The icon from the `icon` prop is always
+          rendered by UBadge regardless of viewport width, satisfying the icon-only
+          fallback requirement. The `aria-label` on the parent UBadge exposes the full
+          method name to screen readers at every width.
+          This behavior is enforced by Tailwind breakpoints (CSS-only), not by JavaScript,
+          and is therefore covered by visual/e2e review rather than unit tests.
+        -->
         <span
           data-testid="pill-label"
           :class="compact ? 'hidden' : 'hidden md:inline-flex'"
