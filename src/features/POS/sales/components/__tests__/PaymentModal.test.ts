@@ -10,7 +10,7 @@ type PaymentModalSubmitEvent = {
 }
 
 const modalStub = {
-  template: '<div><slot name="body" /><slot name="footer" /></div>',
+  template: '<div><slot /><slot name="content" /><slot name="body" /><slot name="footer" /></div>',
 }
 
 const buttonStub = {
@@ -46,6 +46,8 @@ const formFieldStub = {
 const stubs = {
   UModal: modalStub,
   Modal: modalStub,
+  USlideover: modalStub,
+  Slideover: modalStub,
   UButton: buttonStub,
   Button: buttonStub,
   UInputNumber: inputNumberStub,
@@ -54,6 +56,10 @@ const stubs = {
   Input: inputStub,
   USelect: selectStub,
   Select: selectStub,
+  UBadge: { template: '<span><slot /></span>' },
+  Badge: { template: '<span><slot /></span>' },
+  USeparator: { template: '<hr />' },
+  Separator: { template: '<hr />' },
   UFormField: formFieldStub,
   FormField: formFieldStub,
   UIcon: { template: '<span />' },
@@ -115,14 +121,11 @@ describe('PaymentModal', () => {
 
     expect(wrapper.find('[data-testid="payment-reference-0"]').exists()).toBe(false)
 
-    await wrapper.get('[data-testid="payment-method-0"]').setValue('card_credit')
-    expect(wrapper.find('[data-testid="payment-reference-0"]').exists()).toBe(true)
+    await wrapper.get('[data-method="card_credit"]').trigger('click')
+    expect(wrapper.find('[data-testid="payment-reference-1"]').exists()).toBe(true)
 
-    await wrapper.get('[data-testid="payment-method-0"]').setValue('transfer')
-    expect(wrapper.find('[data-testid="payment-reference-0"]').exists()).toBe(true)
-
-    await wrapper.get('[data-testid="payment-method-0"]').setValue('cash')
-    expect(wrapper.find('[data-testid="payment-reference-0"]').exists()).toBe(false)
+    await wrapper.get('[data-method="transfer"]').trigger('click')
+    expect(wrapper.find('[data-testid="payment-reference-2"]').exists()).toBe(true)
   })
 
   it('requires reference for card and transfer methods', async () => {
@@ -135,8 +138,9 @@ describe('PaymentModal', () => {
       global: { stubs },
     })
 
-    await wrapper.get('[data-testid="payment-method-0"]').setValue('card_debit')
-    await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
+    await wrapper.get('[data-method="card_debit"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('0')
+    await wrapper.get('[data-testid="payment-amount-1"]').setValue('150')
     await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
 
     expect(wrapper.html()).toContain('Ingresá la referencia para tarjeta o transferencia')

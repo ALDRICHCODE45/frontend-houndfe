@@ -1,7 +1,7 @@
 const paymentMethodLabels: Record<string, string> = {
   CASH: 'Efectivo',
-  CARD_CREDIT: 'Tarjeta Crédito',
-  CARD_DEBIT: 'Tarjeta Débito',
+  CARD_CREDIT: 'Tarjeta de Crédito',
+  CARD_DEBIT: 'Tarjeta de Débito',
   TRANSFER: 'Transferencia',
   CREDIT: 'Crédito',
 }
