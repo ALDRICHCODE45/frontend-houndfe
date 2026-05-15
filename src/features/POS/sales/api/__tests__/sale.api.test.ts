@@ -4,6 +4,8 @@ import { http } from '@/core/shared/api/http'
 import type {
   Sale,
   AddItemPayload,
+  AssignCustomerPayload,
+  AssignShippingAddressPayload,
   UpdateQtyPayload,
   AvailablePricesResponse,
   OverrideItemPricePayload,
@@ -23,6 +25,7 @@ vi.mock('@/core/shared/api/http', () => ({
   http: {
     post: vi.fn(),
     get: vi.fn(),
+    put: vi.fn(),
     patch: vi.fn(),
     delete: vi.fn(),
   },
@@ -310,6 +313,84 @@ describe('saleApi', () => {
       await saleApi.closeDraft('sale-999')
 
       expect(http.delete).toHaveBeenCalledWith('/sales/drafts/sale-999')
+    })
+  })
+
+  describe('draft customer assignment endpoints', () => {
+    it('assignCustomer should PUT /sales/drafts/:id/customer with payload and return Sale', async () => {
+      const payload: AssignCustomerPayload = {
+        customerId: 'customer-1',
+        shippingAddressId: 'address-1',
+      }
+      const updatedSale = {
+        id: 'sale-1',
+        userId: 'user-1',
+        status: 'DRAFT',
+        items: [],
+        customer: { id: 'customer-1', firstName: 'Ada', lastName: 'Lovelace' },
+        shippingAddress: null,
+        createdAt: '2026-04-21T10:00:00Z',
+        updatedAt: '2026-04-21T10:00:00Z',
+      } satisfies Sale
+
+      vi.mocked(http.put).mockResolvedValue({ data: updatedSale })
+
+      const result = await saleApi.assignCustomer('sale-1', payload)
+
+      expect(http.put).toHaveBeenCalledWith('/sales/drafts/sale-1/customer', payload)
+      expect(result).toEqual(updatedSale)
+    })
+
+    it('unassignCustomer should DELETE /sales/drafts/:id/customer', async () => {
+      vi.mocked(http.delete).mockResolvedValue({ data: undefined })
+
+      await saleApi.unassignCustomer('sale-1')
+
+      expect(http.delete).toHaveBeenCalledWith('/sales/drafts/sale-1/customer')
+    })
+
+    it('assignShippingAddress should PUT /sales/drafts/:id/shipping-address with payload and return Sale', async () => {
+      const payload: AssignShippingAddressPayload = {
+        shippingAddressId: 'address-1',
+      }
+      const updatedSale = {
+        id: 'sale-1',
+        userId: 'user-1',
+        status: 'DRAFT',
+        items: [],
+        customer: { id: 'customer-1', firstName: 'Ada', lastName: 'Lovelace' },
+        shippingAddress: {
+          id: 'address-1',
+          customerId: 'customer-1',
+          street: 'Main',
+          exteriorNumber: '1',
+          interiorNumber: null,
+          zipCode: '64000',
+          neighborhood: 'Centro',
+          municipality: 'Monterrey',
+          city: 'Monterrey',
+          state: 'Nuevo León',
+          createdAt: '2026-04-21T10:00:00Z',
+          updatedAt: '2026-04-21T10:00:00Z',
+        },
+        createdAt: '2026-04-21T10:00:00Z',
+        updatedAt: '2026-04-21T10:00:00Z',
+      } satisfies Sale
+
+      vi.mocked(http.put).mockResolvedValue({ data: updatedSale })
+
+      const result = await saleApi.assignShippingAddress('sale-1', payload)
+
+      expect(http.put).toHaveBeenCalledWith('/sales/drafts/sale-1/shipping-address', payload)
+      expect(result).toEqual(updatedSale)
+    })
+
+    it('unassignShippingAddress should DELETE /sales/drafts/:id/shipping-address', async () => {
+      vi.mocked(http.delete).mockResolvedValue({ data: undefined })
+
+      await saleApi.unassignShippingAddress('sale-1')
+
+      expect(http.delete).toHaveBeenCalledWith('/sales/drafts/sale-1/shipping-address')
     })
   })
 

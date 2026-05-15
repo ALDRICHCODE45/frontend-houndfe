@@ -18,6 +18,8 @@ import type {
   SaleDetail,
   DebtPaymentPayload,
   DebtPaymentResponse,
+  AssignCustomerPayload,
+  AssignShippingAddressPayload,
 } from '../interfaces/sale.types'
 
 export const saleApi = {
@@ -83,6 +85,24 @@ export const saleApi = {
 
   async closeDraft(saleId: string): Promise<void> {
     await http.delete(`/sales/drafts/${saleId}`)
+  },
+
+  async assignCustomer(saleId: string, payload: AssignCustomerPayload): Promise<Sale> {
+    const { data } = await http.put<Sale>(`/sales/drafts/${saleId}/customer`, payload)
+    return data
+  },
+
+  async unassignCustomer(saleId: string): Promise<void> {
+    await http.delete(`/sales/drafts/${saleId}/customer`)
+  },
+
+  async assignShippingAddress(saleId: string, payload: AssignShippingAddressPayload): Promise<Sale> {
+    const { data } = await http.put<Sale>(`/sales/drafts/${saleId}/shipping-address`, payload)
+    return data
+  },
+
+  async unassignShippingAddress(saleId: string): Promise<void> {
+    await http.delete(`/sales/drafts/${saleId}/shipping-address`)
   },
 
   async chargeDraft(
