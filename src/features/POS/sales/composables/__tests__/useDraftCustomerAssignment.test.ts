@@ -4,7 +4,7 @@ import { mount } from '@vue/test-utils'
 import { computed, defineComponent, h } from 'vue'
 import { saleApi } from '../../api/sale.api'
 import { useDraftCustomerAssignment } from '../useDraftCustomerAssignment'
-import type { Sale } from '../../interfaces/sale.types'
+import type { Sale, SaleDraftCustomer } from '../../interfaces/sale.types'
 import { saleQueryKeys } from '@/core/shared/constants/query-keys'
 
 vi.mock('../../api/sale.api', () => ({
@@ -70,13 +70,132 @@ describe('useDraftCustomerAssignment', () => {
     vi.mocked(saleApi.unassignShippingAddress).mockResolvedValue(undefined)
   })
 
-  it('assignCustomer invalidates drafts query key', async () => {
-    const { composable, invalidateQueries } = mountComposable('sale-1')
+  it('assignCustomer updates drafts cache via setQueryData', async () => {
+    const { composable, queryClient } = mountComposable('sale-1')
+    const draftsKey = saleQueryKeys.drafts('tenant-1')
+    
+    // Seed cache with a draft that has no customer
+    const draftWithoutCustomer = makeSale({ id: 'sale-1', customer: null })
+    queryClient.setQueryData(draftsKey, [draftWithoutCustomer])
+    
+    // Mock API to return updated Sale with customer
+    const customer: SaleDraftCustomer = { id: 'customer-1', firstName: 'Ada', lastName: null }
+    const updatedSaleWithCustomer = makeSale({
+      id: 'sale-1',
+      customer
+    })
+    vi.mocked(saleApi.assignCustomer).mockResolvedValueOnce(updatedSaleWithCustomer)
 
     await composable.assignCustomer({ customerId: 'customer-1' })
 
     expect(saleApi.assignCustomer).toHaveBeenCalledWith('sale-1', { customerId: 'customer-1' })
-    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: saleQueryKeys.drafts('tenant-1') })
+    
+    // Assert cache was updated with the returned Sale
+    const cachedDrafts = queryClient.getQueryData<Sale[]>(draftsKey)
+    expect(cachedDrafts).toHaveLength(1)
+    expect(cachedDrafts?.[0]).toEqual(updatedSaleWithCustomer)
+  })
+
+  it('unassignCustomer clears customer AND shippingAddress from cache', async () => {
+    const { composable, queryClient } = mountComposable('sale-1')
+    const draftsKey = saleQueryKeys.drafts('tenant-1')
+    
+    // Seed cache with a draft that has customer and shipping
+    const customer: SaleDraftCustomer = { id: 'customer-1', firstName: 'John', lastName: 'Doe' }
+    const shippingAddress = {
+      id: 'address-1',
+      customerId: 'customer-1',
+      street: 'Main',
+      exteriorNumber: '10',
+      interiorNumber: null,
+      zipCode: '64000',
+      neighborhood: 'Centro',
+      municipality: 'Monterrey',
+      city: 'Monterrey',
+      state: 'Nuevo León',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    }
+    queryClient.setQueryData(draftsKey, [makeSale({ id: 'sale-1', customer, shippingAddress })])
+
+    await composable.unassignCustomer()
+
+    expect(saleApi.unassignCustomer).toHaveBeenCalledWith('sale-1')
+    
+    // Assert cache was updated to remove both customer and shippingAddress
+    const cachedDrafts = queryClient.getQueryData<Sale[]>(draftsKey)
+    expect(cachedDrafts).toHaveLength(1)
+    expect(cachedDrafts![0]!.customer).toBe(null)
+    expect(cachedDrafts![0]!.shippingAddress).toBe(null)
+  })
+
+  it('setShippingAddress updates cache with returned Sale', async () => {
+    const { composable, queryClient } = mountComposable('sale-1')
+    const draftsKey = saleQueryKeys.drafts('tenant-1')
+    
+    // Seed cache with a draft that has customer but no shipping
+    const customer: SaleDraftCustomer = { id: 'customer-1', firstName: 'John', lastName: 'Doe' }
+    queryClient.setQueryData(draftsKey, [makeSale({ id: 'sale-1', customer, shippingAddress: null })])
+    
+    // Mock API to return updated Sale with shipping address
+    const shippingAddress = {
+      id: 'address-2',
+      customerId: 'customer-1',
+      street: 'Oak',
+      exteriorNumber: '20',
+      interiorNumber: null,
+      zipCode: '64001',
+      neighborhood: 'Norte',
+      municipality: 'Monterrey',
+      city: 'Monterrey',
+      state: 'Nuevo León',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    }
+    const updatedSaleWithShipping = makeSale({ id: 'sale-1', customer, shippingAddress })
+    vi.mocked(saleApi.assignShippingAddress).mockResolvedValueOnce(updatedSaleWithShipping)
+
+    await composable.setShippingAddress({ shippingAddressId: 'address-2' })
+
+    expect(saleApi.assignShippingAddress).toHaveBeenCalledWith('sale-1', { shippingAddressId: 'address-2' })
+    
+    // Assert cache was updated with the returned Sale
+    const cachedDrafts = queryClient.getQueryData<Sale[]>(draftsKey)
+    expect(cachedDrafts).toHaveLength(1)
+    expect(cachedDrafts?.[0]).toEqual(updatedSaleWithShipping)
+  })
+
+  it('clearShippingAddress only clears shippingAddress, preserves customer', async () => {
+    const { composable, queryClient } = mountComposable('sale-1')
+    const draftsKey = saleQueryKeys.drafts('tenant-1')
+    
+    // Seed cache with a draft that has customer and shipping
+    const customer: SaleDraftCustomer = { id: 'customer-1', firstName: 'John', lastName: 'Doe' }
+    const shippingAddress = {
+      id: 'address-1',
+      customerId: 'customer-1',
+      street: 'Main',
+      exteriorNumber: '10',
+      interiorNumber: null,
+      zipCode: '64000',
+      neighborhood: 'Centro',
+      municipality: 'Monterrey',
+      city: 'Monterrey',
+      state: 'Nuevo León',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    }
+    queryClient.setQueryData(draftsKey, [makeSale({ id: 'sale-1', customer, shippingAddress })])
+
+    await composable.clearShippingAddress()
+
+    expect(saleApi.unassignShippingAddress).toHaveBeenCalledWith('sale-1')
+    
+    // Assert cache was updated to remove shippingAddress but preserve customer
+    const cachedDrafts = queryClient.getQueryData<Sale[]>(draftsKey)
+    expect(cachedDrafts).toHaveLength(1)
+    expect(cachedDrafts![0]!.customer).toEqual(customer)
+    expect(cachedDrafts![0]!.shippingAddress).toBe(null)
   })
 
   it('preserves current shippingAddress when preserveShipping=true', async () => {
@@ -108,16 +227,7 @@ describe('useDraftCustomerAssignment', () => {
     })
   })
 
-  it('setShippingAddress and clearShippingAddress call API and invalidate', async () => {
-    const { composable, invalidateQueries } = mountComposable('sale-1')
 
-    await composable.setShippingAddress({ shippingAddressId: 'address-2' })
-    await composable.clearShippingAddress()
-
-    expect(saleApi.assignShippingAddress).toHaveBeenCalledWith('sale-1', { shippingAddressId: 'address-2' })
-    expect(saleApi.unassignShippingAddress).toHaveBeenCalledWith('sale-1')
-    expect(invalidateQueries).toHaveBeenCalledTimes(2)
-  })
 
   it('maps backend domain errors to typed lastError', async () => {
     const { composable } = mountComposable('sale-1')

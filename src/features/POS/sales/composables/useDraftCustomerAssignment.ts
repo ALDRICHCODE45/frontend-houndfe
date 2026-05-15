@@ -6,6 +6,7 @@ import { saleApi } from '../api/sale.api'
 import { saleQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import type { DraftCustomerAssignmentErrorCode, Sale } from '../interfaces/sale.types'
+import { replaceSaleInCache } from './useSalesDrafts'
 
 interface DomainErrorResponse {
   error?: string
@@ -46,9 +47,7 @@ export function useDraftCustomerAssignment(saleId: MaybeRefOrGetter<string>) {
   const lastError = ref<DraftCustomerAssignmentError | null>(null)
   const draftsKey = computed(() => saleQueryKeys.drafts(tenantId.value))
 
-  const invalidateDraft = async () => {
-    await queryClient.invalidateQueries({ queryKey: draftsKey.value })
-  }
+
 
   const assignCustomerMutation = useMutation({
     mutationFn: async ({ customerId, preserveShipping }: { customerId: string; preserveShipping?: boolean }) => {
@@ -69,9 +68,10 @@ export function useDraftCustomerAssignment(saleId: MaybeRefOrGetter<string>) {
         throw parseAssignmentError(error) ?? error
       }
     },
-    onSuccess: async () => {
+    onSuccess: async (updatedSale) => {
       lastError.value = null
-      await invalidateDraft()
+      const drafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
+      queryClient.setQueryData(draftsKey.value, replaceSaleInCache(drafts, updatedSale))
     },
     onError: (error) => {
       lastError.value = parseAssignmentError(error)
@@ -88,7 +88,15 @@ export function useDraftCustomerAssignment(saleId: MaybeRefOrGetter<string>) {
     },
     onSuccess: async () => {
       lastError.value = null
-      await invalidateDraft()
+      const resolvedSaleId = toValue(saleId)
+      const drafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
+      const currentDraft = drafts.find((draft) => draft.id === resolvedSaleId)
+      
+      if (currentDraft) {
+        // Unassigning customer also clears shipping address (per backend behavior)
+        const updatedDraft: Sale = { ...currentDraft, customer: null, shippingAddress: null }
+        queryClient.setQueryData(draftsKey.value, replaceSaleInCache(drafts, updatedDraft))
+      }
     },
     onError: (error) => {
       lastError.value = parseAssignmentError(error)
@@ -103,9 +111,10 @@ export function useDraftCustomerAssignment(saleId: MaybeRefOrGetter<string>) {
         throw parseAssignmentError(error) ?? error
       }
     },
-    onSuccess: async () => {
+    onSuccess: async (updatedSale) => {
       lastError.value = null
-      await invalidateDraft()
+      const drafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
+      queryClient.setQueryData(draftsKey.value, replaceSaleInCache(drafts, updatedSale))
     },
     onError: (error) => {
       lastError.value = parseAssignmentError(error)
@@ -122,7 +131,15 @@ export function useDraftCustomerAssignment(saleId: MaybeRefOrGetter<string>) {
     },
     onSuccess: async () => {
       lastError.value = null
-      await invalidateDraft()
+      const resolvedSaleId = toValue(saleId)
+      const drafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
+      const currentDraft = drafts.find((draft) => draft.id === resolvedSaleId)
+      
+      if (currentDraft) {
+        // Clear only shipping address, preserve customer
+        const updatedDraft: Sale = { ...currentDraft, shippingAddress: null }
+        queryClient.setQueryData(draftsKey.value, replaceSaleInCache(drafts, updatedDraft))
+      }
     },
     onError: (error) => {
       lastError.value = parseAssignmentError(error)
