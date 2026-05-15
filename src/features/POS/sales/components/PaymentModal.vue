@@ -64,10 +64,13 @@ const changeDueCents = computed(() => {
 })
 const canAddEntry = computed(() => entries.value.length < MAX_ENTRIES)
 const canSubmit = computed(
-  () => !props.isSubmitting && (!isPartial.value || canSubmitPartial.value) && !inlineError.value && !hasReferenceErrors.value,
+  () => !props.isSubmitting && (entries.value.length === 0 ? hasCustomer.value : (!isPartial.value || canSubmitPartial.value)) && !inlineError.value && !hasReferenceErrors.value,
 )
 const hasReferenceErrors = computed(() => Object.keys(referenceErrorByIndex.value).length > 0)
 const confirmButtonLabel = computed(() => {
+  if (entries.value.length === 0 && hasCustomer.value) {
+    return `Confirmar cobro · Deuda ${formatCentsMXN(debtToGenerateCents.value)}`
+  }
   if (isPartial.value && hasCustomer.value) {
     return `Confirmar cobro · Deuda ${formatCentsMXN(debtToGenerateCents.value)}`
   }
@@ -88,25 +91,27 @@ function entryNeedsReference(method: NonCreditPaymentMethod): boolean {
 }
 
 function normalizeEntries(): PaymentEntry[] {
-  return entries.value.map((entry) => {
-    const payment: PaymentEntry = {
-      method: entry.method,
-      amountCents: Math.max(0, Math.round(entry.amountPesos * 100)),
-    }
+  return entries.value
+    .map((entry) => {
+      const payment: PaymentEntry = {
+        method: entry.method,
+        amountCents: Math.max(0, Math.round(entry.amountPesos * 100)),
+      }
 
-    if (entryNeedsReference(entry.method)) {
-      payment.reference = entry.reference.trim()
-    }
+      if (entryNeedsReference(entry.method)) {
+        payment.reference = entry.reference.trim()
+      }
 
-    return payment
-  })
+      return payment
+    })
+    .filter((payment) => payment.amountCents > 0) // Filter out zero-amount entries
 }
 
 watch(
   () => props.open,
   (open) => {
     if (!open) return
-    entries.value = [createDefaultEntry()]
+    entries.value = [] // Start with empty list, no preselected payment
     inlineError.value = null
     referenceErrorByIndex.value = {}
     idempotencyKey.value = newIdempotencyKey()
@@ -139,14 +144,20 @@ watch(
   { deep: true },
 )
 
-watch([isPartial, hasCustomer], ([partial, customerAssigned]) => {
+watch([isPartial, hasCustomer, entries], ([partial, customerAssigned, entriesList]) => {
   if (!props.open) return
-  if (!partial || customerAssigned) {
-    inlineError.value = null
+  // For empty payments with no customer: show error
+  if (entriesList.length === 0 && !customerAssigned) {
+    inlineError.value = 'Para pago parcial asigná un cliente'
     return
   }
-  inlineError.value = 'Asigná un cliente para registrar una venta con deuda'
-})
+  // For partial payments with no customer: show error
+  if (partial && !customerAssigned) {
+    inlineError.value = 'Para pago parcial asigná un cliente'
+    return
+  }
+  inlineError.value = null
+}, { deep: true })
 
 function addEntry() {
   if (!canAddEntry.value) return
@@ -156,6 +167,21 @@ function addEntry() {
 function addEntryWithMethod(method: NonCreditPaymentMethod) {
   if (!canAddEntry.value) return
   entries.value.push({ method, amountPesos: 0, reference: '' })
+}
+
+function toggleMethod(method: NonCreditPaymentMethod) {
+  const existingIndex = entries.value.findIndex(entry => entry.method === method)
+  
+  if (existingIndex >= 0) {
+    // Remove the existing entry (toggle off)
+    entries.value = entries.value.filter(entry => entry.method !== method)
+  } else {
+    // Add new entry (toggle on)
+    if (canAddEntry.value) {
+      const defaultAmount = method === 'cash' ? props.totalCents / 100 : 0
+      entries.value.push({ method, amountPesos: defaultAmount, reference: '' })
+    }
+  }
 }
 
 function removeEntry(index: number) {
@@ -177,8 +203,13 @@ function validate(): boolean {
     return false
   }
 
+  if (entries.value.length === 0 && !hasCustomer.value) {
+    inlineError.value = 'Para pago parcial asigná un cliente'
+    return false
+  }
+  
   if (isPartial.value && !hasCustomer.value) {
-    inlineError.value = 'Asigná un cliente para registrar una venta con deuda'
+    inlineError.value = 'Para pago parcial asigná un cliente'
     return false
   }
 
@@ -297,8 +328,8 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
                     ? 'border-primary/40 bg-primary/5'
                     : 'border-default bg-elevated hover:border-primary/40 hover:bg-primary/5'
                 "
-                :disabled="!canAddEntry || isSubmitting"
-                @click="addEntryWithMethod(option.value)"
+                :disabled="getMethodCount(option.value) === 0 && !canAddEntry || isSubmitting"
+                @click="toggleMethod(option.value)"
               >
                 <UBadge
                   v-if="getMethodCount(option.value) > 0"
@@ -406,12 +437,12 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
           </div>
 
           <UAlert
-            v-if="isPartial && !hasCustomer"
+            v-if="(isPartial || entries.length === 0) && !hasCustomer"
             color="warning"
             variant="soft"
             icon="i-lucide-info"
-            title="Asigná un cliente para registrar una venta con deuda"
-            description="Asigná un cliente para registrar una venta con deuda"
+            title="Para pago parcial asigná un cliente"
+            description="Para pago parcial asigná un cliente"
           >
             <template #actions>
               <UButton
@@ -427,7 +458,7 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
           </UAlert>
 
           <div
-            v-if="isPartial && hasCustomer"
+            v-if="(isPartial || entries.length === 0) && hasCustomer"
             class="flex items-center justify-between gap-2 rounded-xl border border-warning/20 bg-warning/10 px-4 py-3 text-sm"
           >
             <p class="text-highlighted">Deuda a generar: <span class="font-semibold">{{ formatCentsMXN(debtToGenerateCents) }}</span></p>

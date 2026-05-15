@@ -76,6 +76,116 @@ const stubs = {
 }
 
 describe('PaymentModal', () => {
+  it('opens with empty payments list (no method preselected)', () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+      },
+      global: { stubs },
+    })
+
+    expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(0)
+  })
+
+  it('clicking an unselected method tile adds it to the payments list', async () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+      },
+      global: { stubs },
+    })
+
+    const cashButton = wrapper.get('[data-testid="add-payment-entry"]')
+    await cashButton.trigger('click')
+
+    expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(1)
+  })
+
+  it('clicking a selected method tile removes it from the payments list (toggle)', async () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+      },
+      global: { stubs },
+    })
+
+    const cashButton = wrapper.get('[data-testid="add-payment-entry"]')
+    await cashButton.trigger('click')
+    expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(1)
+
+    // Click again to remove
+    await cashButton.trigger('click')
+    expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(0)
+  })
+
+  it('submit with empty payments + customer assigned + total > 0 → emits submit with payments: [] (allowed, all-debt)', async () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+        customer: { id: 'customer-1', firstName: 'Test', lastName: 'Customer' }
+      },
+      global: { stubs },
+    })
+
+    const submitButton = wrapper.get('[data-testid="confirm-charge"]')
+    await submitButton.trigger('click')
+
+    const emitted = wrapper.emitted('submit') as PaymentModalSubmitEvent[][]
+    expect(emitted).toHaveLength(1)
+    expect(emitted[0]![0]!.payload.payments).toEqual([])
+  })
+
+  it('submit with empty payments + NO customer + total > 0 → blocked, alert visible with assign CTA', async () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+        customer: null
+      },
+      global: { stubs },
+    })
+
+    const submitButton = wrapper.get('[data-testid="confirm-charge"]')
+    expect(submitButton.attributes('disabled')).toBeDefined() // Should be disabled
+
+    expect(wrapper.text()).toContain('Para pago parcial asigná un cliente')
+  })
+
+  it('submit with one method @ 0 → entry is filtered out before emit; if customer present, treated as all-debt', async () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+        customer: { id: 'customer-1', firstName: 'Test', lastName: 'Customer' }
+      },
+      global: { stubs },
+    })
+
+    // Add a payment method with zero amount
+    const cashButton = wrapper.get('[data-testid="add-payment-entry"]')
+    await cashButton.trigger('click')
+
+    const amountInput = wrapper.get('[data-testid="payment-amount-0"]')
+    await amountInput.setValue(0)
+
+    const submitButton = wrapper.get('[data-testid="confirm-charge"]')
+    await submitButton.trigger('click')
+
+    const emitted = wrapper.emitted('submit') as PaymentModalSubmitEvent[][]
+    expect(emitted).toHaveLength(1)
+    expect(emitted[0]![0]!.payload.payments).toEqual([]) // Zero amount filtered out
+  })
+
   it('allows up to 5 payment entries and disables add at max', async () => {
     const wrapper = mount(PaymentModal, {
       props: {
