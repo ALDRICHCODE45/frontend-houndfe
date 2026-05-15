@@ -237,7 +237,7 @@ describe('AssignCustomerSlideover', () => {
     expect(pageText()).toContain('Bob Smith')
   })
 
-  it('selecting customer triggers assignCustomer', async () => {
+  it('selecting customer triggers assignCustomer but keeps slideover open for address picker', async () => {
     const ada = makeCustomer()
     customerApiMock.getPaginated.mockResolvedValueOnce(makePaginatedResponse([ada]))
 
@@ -245,8 +245,13 @@ describe('AssignCustomerSlideover', () => {
     await flushPromises()
 
     getByTestId('customer-row-customer-1').click()
+    await flushPromises()
 
     expect(assignCustomerMock).toHaveBeenCalledWith({ customerId: 'customer-1' })
+    // Should NOT emit close on customer selection
+    expect(wrapper.emitted('update:open') ?? []).toEqual([])
+    // Address picker step should be visible
+    expect(pageText()).toContain('Cliente seleccionado: Ada Lovelace')
   })
 
   it('shows address picker only when customer has addresses and always includes Sin dirección option', async () => {
@@ -264,7 +269,7 @@ describe('AssignCustomerSlideover', () => {
     expect(pageText()).toContain('Sin dirección')
   })
 
-  it('hides address picker when selected customer has zero addresses', async () => {
+  it('shows "Sin dirección" button even when customer has zero addresses', async () => {
     const ada = makeCustomer()
     customerApiMock.getPaginated.mockResolvedValueOnce(makePaginatedResponse([ada]))
     customerApiMock.getById.mockResolvedValueOnce(makeCustomerDetail(ada, []))
@@ -275,7 +280,9 @@ describe('AssignCustomerSlideover', () => {
     getByTestId('customer-row-customer-1').click()
     await flushPromises()
 
-    expect(document.body.querySelector('[data-testid="shipping-address-picker"]')).toBeNull()
+    // Should show the skip button even with 0 addresses
+    expect(document.body.querySelector('[data-testid="skip-shipping-address"]')).not.toBeNull()
+    expect(pageText()).toContain('Sin dirección')
   })
 
   it('gates + Nuevo cliente button with authStore.userCan(create, Customer)', async () => {
@@ -320,7 +327,7 @@ describe('AssignCustomerSlideover', () => {
     expect(assignCustomerMock).toHaveBeenCalledWith({ customerId: 'customer-99' })
   })
 
-  it('clicking "Sin dirección" calls setShippingAddress with null', async () => {
+  it('clicking "Sin dirección" calls setShippingAddress with null and closes slideover', async () => {
     const ada = makeCustomer()
     customerApiMock.getPaginated.mockResolvedValueOnce(makePaginatedResponse([ada]))
     customerApiMock.getById.mockResolvedValueOnce(makeCustomerDetail(ada, [makeAddress('address-1')]))
@@ -335,6 +342,7 @@ describe('AssignCustomerSlideover', () => {
     await flushPromises()
 
     expect(setShippingAddressMock).toHaveBeenCalledWith({ shippingAddressId: null })
+    expect(wrapper.emitted('update:open')).toEqual([[false]])
   })
 
   it('clicking + Nueva dirección opens AddressModal', async () => {
@@ -356,6 +364,27 @@ describe('AssignCustomerSlideover', () => {
     const addressModal = wrapper.findComponent({ name: 'AddressModal' })
     expect(addressModal.exists()).toBe(true)
     expect(addressModal.props('open')).toBe(true)
+  })
+
+  it('address pick after customer pick closes the slideover', async () => {
+    const ada = makeCustomer()
+    customerApiMock.getPaginated.mockResolvedValueOnce(makePaginatedResponse([ada]))
+    customerApiMock.getById.mockResolvedValueOnce(makeCustomerDetail(ada, [makeAddress('address-1')]))
+
+    const { wrapper } = mountSlideover()
+    await flushPromises()
+
+    // Pick customer - should NOT close
+    getByTestId('customer-row-customer-1').click()
+    await flushPromises()
+    expect(wrapper.emitted('update:open') ?? []).toEqual([])
+
+    // Pick address - should close
+    getByTestId('shipping-address-option-address-1').click()
+    await flushPromises()
+
+    expect(setShippingAddressMock).toHaveBeenCalledWith({ shippingAddressId: 'address-1' })
+    expect(wrapper.emitted('update:open')).toEqual([[false]])
   })
 
   it('invalidates customer addresses query on SHIPPING_ADDRESS_NOT_FOR_CUSTOMER', async () => {

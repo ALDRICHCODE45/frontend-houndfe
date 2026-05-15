@@ -121,7 +121,7 @@ async function handleSelectCustomer(customer: Customer) {
   try {
     await assignCustomer({ customerId: customer.id })
     selectedCustomer.value = await customerApi.getById(customer.id)
-    emit('update:open', false)
+    // Do NOT close the slideover - let user pick address or skip
   } catch (error) {
     toast.add({ title: 'Error', description: resolveErrorMessage(error), color: 'error' })
   }
@@ -247,7 +247,7 @@ function formatAddress(address: CustomerAddress): string {
           <div v-if="selectedCustomer" class="space-y-3 rounded-md border border-default p-3">
             <p class="text-sm font-semibold">Cliente seleccionado: {{ selectedCustomer.fullName }}</p>
 
-            <div v-if="showAddressPicker" data-testid="shipping-address-picker" class="space-y-2">
+            <div class="space-y-2">
               <p class="text-sm font-medium">Dirección de envío</p>
               <UButton
                 data-testid="skip-shipping-address"
@@ -256,16 +256,18 @@ function formatAddress(address: CustomerAddress): string {
                 color="neutral"
                 @click="handleAddressSelect(null)"
               />
-              <button
-                v-for="address in addresses"
-                :key="address.id"
-                :data-testid="`shipping-address-option-${address.id}`"
-                type="button"
-                class="block w-full rounded-md border border-default px-3 py-2 text-left text-sm"
-                @click="handleAddressSelect(address.id)"
-              >
-                {{ formatAddress(address) }}
-              </button>
+              <div v-if="showAddressPicker" data-testid="shipping-address-picker" class="space-y-2">
+                <button
+                  v-for="address in addresses"
+                  :key="address.id"
+                  :data-testid="`shipping-address-option-${address.id}`"
+                  type="button"
+                  class="block w-full rounded-md border border-default px-3 py-2 text-left text-sm"
+                  @click="handleAddressSelect(address.id)"
+                >
+                  {{ formatAddress(address) }}
+                </button>
+              </div>
             </div>
 
             <UButton
