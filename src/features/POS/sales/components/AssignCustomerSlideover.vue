@@ -190,94 +190,182 @@ function formatAddress(address: CustomerAddress): string {
     <template #content>
       <div class="flex h-full flex-col" data-testid="assign-customer-slideover">
         <div class="border-b border-default px-5 py-4">
-          <div class="flex items-center justify-between gap-3">
+          <!-- Step 1: Customer Selection Header -->
+          <div v-if="!selectedCustomer" class="flex items-center justify-between gap-3">
             <div>
               <p class="text-lg font-semibold">Asignar cliente</p>
-              <p class="text-sm text-muted">Seleccioná cliente y dirección de envío</p>
+              <p class="text-sm text-muted">Seleccioná un cliente</p>
+            </div>
+            <UButton color="neutral" variant="ghost" icon="i-lucide-x" @click="emit('update:open', false)" />
+          </div>
+
+          <!-- Step 2: Address Selection Header -->
+          <div v-else class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <UAvatar :alt="selectedCustomer.fullName" size="sm" />
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <p class="text-lg font-semibold truncate">{{ selectedCustomer.fullName }}</p>
+                  <UBadge color="primary" label="Seleccionado" size="xs" />
+                </div>
+                <button 
+                  type="button"
+                  class="text-xs text-primary hover:underline"
+                  @click="selectedCustomer = null"
+                >
+                  Cambiar cliente
+                </button>
+              </div>
             </div>
             <UButton color="neutral" variant="ghost" icon="i-lucide-x" @click="emit('update:open', false)" />
           </div>
         </div>
 
         <div class="flex-1 space-y-4 overflow-y-auto px-5 py-4">
-          <div class="flex items-center justify-between gap-3">
-            <UInput
-              v-model="searchInput"
-              data-testid="customer-search-input"
-              icon="i-lucide-search"
-              placeholder="Buscar por nombre, email o teléfono"
-              class="w-full"
-            />
-            <UButton
-              v-if="canCreateCustomer"
-              data-testid="open-create-customer"
-              color="neutral"
-              variant="outline"
-              label="+ Nuevo cliente"
-              @click="isCreateCustomerOpen = true"
-            />
-          </div>
-
-          <div v-if="customersQuery.isLoading.value" class="space-y-2">
-            <USkeleton v-for="idx in 3" :key="idx" class="h-12 w-full" />
-          </div>
-
-          <div v-else-if="customersQuery.isError.value" class="rounded-md border border-error/50 p-4 text-sm text-error">
-            No se pudieron cargar los clientes.
-          </div>
-
-          <div v-else-if="filteredCustomers.length === 0" class="rounded-md border border-dashed border-default p-6 text-center text-sm text-muted">
-            Aún no hay clientes registrados
-          </div>
-
-          <div v-else class="space-y-2">
-            <button
-              v-for="customer in filteredCustomers"
-              :key="customer.id"
-              :data-testid="`customer-row-${customer.id}`"
-              type="button"
-              class="w-full rounded-md border border-default px-3 py-2 text-left"
-              @click="handleSelectCustomer(customer)"
-            >
-              <p class="font-medium">{{ customer.fullName }}</p>
-              <p class="text-xs text-muted">{{ customer.email ?? 'Sin email' }} · {{ customer.phone ?? 'Sin teléfono' }}</p>
-            </button>
-          </div>
-
-          <div v-if="selectedCustomer" class="space-y-3 rounded-md border border-default p-3">
-            <p class="text-sm font-semibold">Cliente seleccionado: {{ selectedCustomer.fullName }}</p>
-
-            <div class="space-y-2">
-              <p class="text-sm font-medium">Dirección de envío</p>
-              <UButton
-                data-testid="skip-shipping-address"
-                label="Sin dirección"
-                variant="soft"
-                color="neutral"
-                @click="handleAddressSelect(null)"
+          <!-- Step 1: Customer Selection -->
+          <template v-if="!selectedCustomer">
+            <div class="flex items-center justify-between gap-3">
+              <UInput
+                v-model="searchInput"
+                data-testid="customer-search-input"
+                icon="i-lucide-search"
+                placeholder="Buscar por nombre, email o teléfono"
+                class="w-full"
               />
-              <div v-if="showAddressPicker" data-testid="shipping-address-picker" class="space-y-2">
-                <button
-                  v-for="address in addresses"
-                  :key="address.id"
-                  :data-testid="`shipping-address-option-${address.id}`"
-                  type="button"
-                  class="block w-full rounded-md border border-default px-3 py-2 text-left text-sm"
-                  @click="handleAddressSelect(address.id)"
-                >
-                  {{ formatAddress(address) }}
-                </button>
+              <UButton
+                v-if="canCreateCustomer"
+                data-testid="open-create-customer"
+                color="neutral"
+                variant="outline"
+                label="+ Nuevo cliente"
+                @click="isCreateCustomerOpen = true"
+              />
+            </div>
+
+            <div v-if="customersQuery.isLoading.value" class="space-y-2">
+              <USkeleton v-for="idx in 3" :key="idx" class="h-16 w-full" />
+            </div>
+
+            <div v-else-if="customersQuery.isError.value" class="rounded-md border border-error/50 p-4 text-sm text-error">
+              No se pudieron cargar los clientes.
+            </div>
+
+            <div v-else-if="filteredCustomers.length === 0" class="space-y-4">
+              <div class="rounded-md border border-dashed border-default p-6 text-center">
+                <UIcon name="i-lucide-user-search" class="mx-auto size-8 text-muted mb-2" />
+                <p class="text-sm text-muted">
+                  {{ debouncedSearch ? 'No se encontraron clientes' : 'Aún no hay clientes registrados' }}
+                </p>
+                <UButton
+                  v-if="canCreateCustomer && !debouncedSearch"
+                  data-testid="open-create-customer"
+                  color="primary"
+                  variant="soft"
+                  label="+ Nuevo cliente"
+                  class="mt-3"
+                  @click="isCreateCustomerOpen = true"
+                />
               </div>
             </div>
 
-            <UButton
-              data-testid="open-create-address"
-              label="+ Nueva dirección"
-              color="neutral"
-              variant="outline"
-              @click="isCreateAddressOpen = true"
-            />
-          </div>
+            <div v-else class="space-y-3">
+              <UCard
+                v-for="customer in filteredCustomers"
+                :key="customer.id"
+                :data-testid="`customer-row-${customer.id}`"
+                class="cursor-pointer transition-colors hover:bg-elevated/70"
+                @click="handleSelectCustomer(customer)"
+              >
+                <div class="flex items-center gap-3">
+                  <UAvatar :alt="customer.fullName" size="sm" />
+                  <div class="min-w-0 flex-1">
+                    <p class="font-medium truncate">{{ customer.fullName }}</p>
+                    <p class="text-xs text-muted truncate">
+                      {{ customer.email ?? 'Sin email' }} · {{ customer.phone ?? 'Sin teléfono' }}
+                    </p>
+                  </div>
+                  <UIcon name="i-lucide-chevron-right" class="size-4 text-muted" />
+                </div>
+              </UCard>
+            </div>
+          </template>
+
+          <!-- Step 2: Address Selection -->
+          <template v-if="selectedCustomer">
+            <div class="space-y-4">
+              <div>
+                <h3 class="text-sm font-medium text-highlighted mb-3">Dirección de envío</h3>
+                
+                <div class="space-y-2">
+                  <!-- No shipping address option -->
+                  <UCard 
+                    data-testid="skip-shipping-address"
+                    class="cursor-pointer transition-colors hover:bg-elevated/70"
+                    @click="handleAddressSelect(null)"
+                  >
+                    <div class="flex items-center gap-3">
+                      <UIcon name="i-lucide-circle-slash" class="size-5 text-muted" />
+                      <div class="min-w-0 flex-1">
+                        <p class="font-medium">Sin dirección de envío</p>
+                        <p class="text-xs text-muted">El cliente recogerá en persona</p>
+                      </div>
+                    </div>
+                  </UCard>
+
+                  <!-- Existing addresses -->
+                  <div v-if="showAddressPicker" data-testid="shipping-address-picker" class="space-y-2">
+                    <UCard
+                      v-for="address in addresses"
+                      :key="address.id"
+                      :data-testid="`shipping-address-option-${address.id}`"
+                      class="cursor-pointer transition-colors hover:bg-elevated/70"
+                      @click="handleAddressSelect(address.id)"
+                    >
+                      <div class="flex items-center gap-3">
+                        <UIcon name="i-lucide-map-pin" class="size-5 text-muted" />
+                        <div class="min-w-0 flex-1">
+                          <p class="font-medium truncate">{{ formatAddress(address) }}</p>
+                          <p class="text-xs text-muted">{{ address.neighborhood ?? 'Sin colonia' }}</p>
+                        </div>
+                      </div>
+                    </UCard>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Footer with actions -->
+              <div class="flex items-center justify-between pt-3 border-t border-default">
+                <UButton
+                  v-if="canCreateCustomer"
+                  data-testid="open-create-address"
+                  label="+ Nueva dirección"
+                  color="neutral"
+                  variant="ghost"
+                  @click="isCreateAddressOpen = true"
+                />
+                <div class="flex gap-2">
+                  <UButton
+                    label="Cancelar"
+                    color="neutral"
+                    variant="outline"
+                    @click="emit('update:open', false)"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Sticky footer for step 1 -->
+            <div class="border-t border-default p-4">
+              <UButton
+                v-if="canCreateCustomer"
+                data-testid="open-create-customer"
+                label="+ Nuevo cliente"
+                color="primary"
+                class="w-full"
+                @click="isCreateCustomerOpen = true"
+              />
+            </div>
+          </template>
         </div>
       </div>
     </template>

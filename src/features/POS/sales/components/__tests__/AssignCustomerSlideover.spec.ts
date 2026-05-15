@@ -250,9 +250,12 @@ describe('AssignCustomerSlideover', () => {
     expect(assignCustomerMock).toHaveBeenCalledWith({ customerId: 'customer-1' })
     // Should NOT emit close on customer selection
     expect(wrapper.emitted('update:open') ?? []).toEqual([])
-    // Address picker step should be visible
-    expect(pageText()).toContain('Cliente seleccionado: Ada Lovelace')
+    // Address picker step should be visible (refactored design with badge)
+    expect(pageText()).toContain('Ada Lovelace')
+    expect(pageText()).toContain('Seleccionado')
   })
+
+
 
   it('shows address picker only when customer has addresses and always includes Sin dirección option', async () => {
     const ada = makeCustomer()
