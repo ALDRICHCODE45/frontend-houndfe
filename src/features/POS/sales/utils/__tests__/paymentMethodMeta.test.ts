@@ -18,7 +18,7 @@ describe('getMethodMeta', () => {
 
   it('returns warning color and credit-card icon for CARD_CREDIT', () => {
     const meta = getMethodMeta('CARD_CREDIT')
-    expect(meta.label).toBe('Crédito')
+    expect(meta.label).toBe('T. Crédito')
     expect(meta.color).toBe('warning')
     expect(meta.icon).toBe('i-lucide-credit-card')
   })

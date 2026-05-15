@@ -9,7 +9,7 @@ interface MethodMeta {
 const METHOD_META = {
   CASH: { label: 'Efectivo', color: 'success', icon: 'i-lucide-banknote' },
   CARD_DEBIT: { label: 'Débito', color: 'warning', icon: 'i-lucide-credit-card' },
-  CARD_CREDIT: { label: 'Crédito', color: 'warning', icon: 'i-lucide-credit-card' },
+  CARD_CREDIT: { label: 'T. Crédito', color: 'warning', icon: 'i-lucide-credit-card' },
   TRANSFER: { label: 'Transferencia', color: 'warning', icon: 'i-lucide-arrow-left-right' },
   CREDIT: { label: 'Crédito', color: 'error', icon: 'i-lucide-hand-coins' },
 } as const satisfies Record<string, MethodMeta>
