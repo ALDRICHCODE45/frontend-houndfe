@@ -186,7 +186,7 @@ function formatAddress(address: CustomerAddress): string {
 </script>
 
 <template>
-  <USlideover :open="open" side="right" @update:open="emit('update:open', $event)">
+  <USlideover :open="open" side="right" inset @update:open="emit('update:open', $event)">
     <template #content>
       <div class="flex h-full flex-col" data-testid="assign-customer-slideover">
         <div class="border-b border-default px-5 py-4">

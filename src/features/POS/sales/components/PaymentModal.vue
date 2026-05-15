@@ -248,6 +248,7 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
 <template>
   <USlideover
     :open="open"
+    inset
     :ui="{
       content: 'sm:max-w-lg',
       body: 'p-0 flex flex-col h-full',

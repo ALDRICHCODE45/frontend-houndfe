@@ -539,7 +539,7 @@ async function handleUnassignCustomer() {
           />
 
           <AssignCustomerSlideover
-            v-if="activeDraft"
+            v-if="activeDraft?.id"
             v-model:open="assignCustomerSlideoverOpen"
             :sale-id="activeDraft.id"
           />
@@ -548,7 +548,7 @@ async function handleUnassignCustomer() {
     </div>
 
     <PaymentModal
-      v-if="activeDraft"
+      v-if="activeDraft?.id"
       v-model:open="paymentModalOpen"
       :sale-id="activeDraft.id"
       :customer="activeDraft.customer ?? null"
