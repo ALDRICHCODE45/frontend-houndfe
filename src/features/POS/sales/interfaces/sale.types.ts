@@ -1,3 +1,5 @@
+import type { CustomerAddress } from '@/features/POS/customers/interfaces/customer.types'
+
 export type SaleStatus = 'DRAFT' | 'CONFIRMED'
 export type SaleCurrency = 'MXN'
 export type PriceSource = 'default' | 'price_list' | 'custom'
@@ -196,11 +198,36 @@ export interface SaleItem {
   prePriceCentsBeforeDiscount?: number | null
 }
 
+export interface SaleDraftCustomer {
+  id: string
+  firstName: string
+  lastName: string | null
+}
+
+export interface AssignCustomerPayload {
+  customerId: string
+  shippingAddressId?: string | null
+}
+
+export interface AssignShippingAddressPayload {
+  shippingAddressId: string | null
+}
+
+export type DraftCustomerAssignmentErrorCode =
+  | 'CUSTOMER_NOT_FOUND'
+  | 'SHIPPING_ADDRESS_NOT_FOUND'
+  | 'SHIPPING_ADDRESS_NOT_FOR_CUSTOMER'
+  | 'SHIPPING_ADDRESS_REQUIRES_CUSTOMER'
+  | 'SALE_NOT_DRAFT'
+  | 'SALE_UPDATE_FORBIDDEN'
+
 export interface Sale {
   id: string
   userId: string
   status: SaleStatus
   items: SaleItem[]
+  customer?: SaleDraftCustomer | null
+  shippingAddress?: CustomerAddress | null
   createdAt: string
   updatedAt: string
 }
