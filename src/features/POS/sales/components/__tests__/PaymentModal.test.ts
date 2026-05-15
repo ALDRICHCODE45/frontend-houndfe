@@ -157,7 +157,7 @@ describe('PaymentModal', () => {
     const submitButton = wrapper.get('[data-testid="confirm-charge"]')
     expect(submitButton.attributes('disabled')).toBeDefined() // Should be disabled
 
-    expect(wrapper.text()).toContain('Para pago parcial asigná un cliente')
+    expect(wrapper.text()).toContain('Asigná un cliente para registrar una venta con deuda')
   })
 
   it('submit with one method @ 0 → entry is filtered out before emit; if customer present, treated as all-debt', async () => {
@@ -186,7 +186,7 @@ describe('PaymentModal', () => {
     expect(emitted[0]![0]!.payload.payments).toEqual([]) // Zero amount filtered out
   })
 
-  it('allows up to 5 payment entries and disables add at max', async () => {
+  it('allows up to 4 payment entries (one per supported method) and toggles them on/off', async () => {
     const wrapper = mount(PaymentModal, {
       props: {
         open: true,
@@ -196,17 +196,16 @@ describe('PaymentModal', () => {
       global: { stubs },
     })
 
-    const addButton = wrapper.get('[data-testid="add-payment-entry"]')
-    await addButton.trigger('click')
-    await addButton.trigger('click')
-    await addButton.trigger('click')
-    await addButton.trigger('click')
+    // Each tile toggles ONE entry of its method. There are 4 supported methods.
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-method="card_credit"]').trigger('click')
+    await wrapper.get('[data-method="card_debit"]').trigger('click')
+    await wrapper.get('[data-method="transfer"]').trigger('click')
 
-    expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(5)
-    expect(addButton.attributes('disabled')).toBeDefined()
+    expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(4)
   })
 
-  it('adds and removes payment entries', async () => {
+  it('adds and removes payment entries via toggle on method tiles', async () => {
     const wrapper = mount(PaymentModal, {
       props: {
         open: true,
@@ -216,10 +215,12 @@ describe('PaymentModal', () => {
       global: { stubs },
     })
 
-    await wrapper.get('[data-testid="add-payment-entry"]').trigger('click')
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-method="card_debit"]').trigger('click')
     expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(2)
 
-    await wrapper.get('[data-testid="remove-payment-entry-1"]').trigger('click')
+    // Click an already-selected tile to deselect it (toggle off)
+    await wrapper.get('[data-method="card_debit"]').trigger('click')
     expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(1)
   })
 
@@ -233,13 +234,16 @@ describe('PaymentModal', () => {
       global: { stubs },
     })
 
+    // Initially no entries, so no reference fields
     expect(wrapper.find('[data-testid="payment-reference-0"]').exists()).toBe(false)
 
+    // Click card_credit - creates entry 0 with reference field
     await wrapper.get('[data-method="card_credit"]').trigger('click')
-    expect(wrapper.find('[data-testid="payment-reference-1"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="payment-reference-0"]').exists()).toBe(true)
 
+    // Click transfer - creates entry 1 with reference field
     await wrapper.get('[data-method="transfer"]').trigger('click')
-    expect(wrapper.find('[data-testid="payment-reference-2"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="payment-reference-1"]').exists()).toBe(true)
   })
 
   it('requires reference for card and transfer methods', async () => {
@@ -252,9 +256,14 @@ describe('PaymentModal', () => {
       global: { stubs },
     })
 
+    // Click card_debit to create entry 0 (requires reference)
     await wrapper.get('[data-method="card_debit"]').trigger('click')
     await wrapper.get('[data-testid="payment-amount-0"]').setValue('0')
+    
+    // Click transfer to create entry 1 (also requires reference)  
+    await wrapper.get('[data-method="transfer"]').trigger('click')
     await wrapper.get('[data-testid="payment-amount-1"]').setValue('150')
+    
     await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
 
     expect(wrapper.html()).toContain('Ingresá la referencia para tarjeta o transferencia')
@@ -270,6 +279,8 @@ describe('PaymentModal', () => {
       global: { stubs },
     })
 
+    // Add a cash entry first
+    await wrapper.get('[data-method="cash"]').trigger('click')
     await wrapper.get('[data-testid="payment-amount-0"]').setValue('100')
     const confirmButton = wrapper.get('[data-testid="confirm-charge"]')
     expect(confirmButton.attributes('disabled')).toBeDefined()
@@ -286,6 +297,8 @@ describe('PaymentModal', () => {
       global: { stubs },
     })
 
+    // Add a cash entry first
+    await wrapper.get('[data-testid="add-payment-entry"]').trigger('click')
     await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
     await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
     const firstPayload = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
@@ -310,6 +323,8 @@ describe('PaymentModal', () => {
       global: { stubs },
     })
 
+    // Add a cash entry for single payment test
+    await wrapper.get('[data-method="cash"]').trigger('click')
     await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
     await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
     const singleSubmit = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
@@ -318,9 +333,12 @@ describe('PaymentModal', () => {
     expect(singlePayload).toMatchObject({ method: 'cash', amountCents: 15000 })
     expect(singlePayload).not.toHaveProperty('payments')
 
-    await wrapper.get('[data-testid="add-payment-entry"]').trigger('click')
+    // Add a second method to make it a multi-payment (sum must equal total = $150 = 15000 cents)
+    await wrapper.get('[data-method="card_debit"]').trigger('click')
     await wrapper.get('[data-testid="payment-amount-0"]').setValue('50')
     await wrapper.get('[data-testid="payment-amount-1"]').setValue('100')
+    // card_debit requires reference
+    await wrapper.get('[data-testid="payment-reference-1"]').setValue('AUTH-123')
     await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
 
     const multiSubmit = wrapper.emitted('submit')?.[1]?.[0] as PaymentModalSubmitEvent | undefined
@@ -360,8 +378,8 @@ describe('PaymentModal', () => {
       global: { stubs },
     })
 
-    const amountInput = wrapper.get('[data-testid="payment-amount-0"]')
-    await amountInput.setValue('100')
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('100')
 
     const confirmButton = wrapper.get('[data-testid="confirm-charge"]')
     expect(confirmButton.attributes('disabled')).toBeDefined()
@@ -379,6 +397,7 @@ describe('PaymentModal', () => {
       global: { stubs },
     })
 
+    await wrapper.get('[data-method="cash"]').trigger('click')
     await wrapper.get('[data-testid="payment-amount-0"]').setValue('100')
     expect(wrapper.text()).toContain('Deuda a generar:')
     expect(wrapper.text()).toContain('$50.00')
@@ -398,6 +417,7 @@ describe('PaymentModal', () => {
       global: { stubs },
     })
 
+    await wrapper.get('[data-method="cash"]').trigger('click')
     await wrapper.get('[data-testid="payment-amount-0"]').setValue('100')
     const cta = wrapper.get('[data-testid="assign-customer-cta"]')
     await cta.trigger('click')
@@ -405,7 +425,7 @@ describe('PaymentModal', () => {
     expect(wrapper.emitted('request-assign-customer')).toBeTruthy()
   })
 
-  it('allows pure-credit when customer is assigned', async () => {
+  it('allows pure-credit (empty payments) when customer is assigned', async () => {
     const wrapper = mount(PaymentModal, {
       props: {
         open: true,
@@ -416,7 +436,8 @@ describe('PaymentModal', () => {
       global: { stubs },
     })
 
-    await wrapper.get('[data-testid="payment-amount-0"]').setValue('0')
+    // No method selected = pure debt for the full total
+    expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(0)
     expect(wrapper.get('[data-testid="confirm-charge"]').text()).toContain('Deuda $150.00')
 
     await wrapper.get('[data-testid="confirm-charge"]').trigger('click')

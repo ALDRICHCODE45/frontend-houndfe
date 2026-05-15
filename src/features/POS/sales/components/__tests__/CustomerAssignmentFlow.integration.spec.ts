@@ -270,6 +270,12 @@ describe('customer assignment integration flow', () => {
 
     await wrapper.get('[data-testid="change-customer-trigger"]').trigger('click')
     await flushPromises()
+
+    // After redesign (a9ae66f), slideover is in step 2 showing the selected customer.
+    // Click "Cambiar cliente" to return to step 1 (customer list) before picking B.
+    document.body.querySelector('[data-testid="change-customer-step"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    await flushPromises()
+
     document.body.querySelector('[data-testid="customer-row-customer-b"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await flushPromises()
 

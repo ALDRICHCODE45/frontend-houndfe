@@ -153,7 +153,7 @@ watch([isPartial, hasCustomer, entries], ([partial, customerAssigned, entriesLis
   }
   // For partial payments with no customer: show error
   if (partial && !customerAssigned) {
-    inlineError.value = 'Para pago parcial asigná un cliente'
+    inlineError.value = 'Asigná un cliente para registrar una venta con deuda'
     return
   }
   inlineError.value = null
@@ -441,8 +441,8 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
             color="warning"
             variant="soft"
             icon="i-lucide-info"
-            title="Para pago parcial asigná un cliente"
-            description="Para pago parcial asigná un cliente"
+            title="Asigná un cliente para registrar una venta con deuda"
+            description="Asigná un cliente para registrar una venta con deuda"
           >
             <template #actions>
               <UButton

@@ -208,8 +208,9 @@ function formatAddress(address: CustomerAddress): string {
                   <p class="text-lg font-semibold truncate">{{ selectedCustomer.fullName }}</p>
                   <UBadge color="primary" label="Seleccionado" size="xs" />
                 </div>
-                <button 
+                <button
                   type="button"
+                  data-testid="change-customer-step"
                   class="text-xs text-primary hover:underline"
                   @click="selectedCustomer = null"
                 >
