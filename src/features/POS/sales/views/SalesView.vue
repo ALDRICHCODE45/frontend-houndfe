@@ -446,6 +446,11 @@ function handleOpenCustomerAssignment() {
   assignCustomerSlideoverOpen.value = true
 }
 
+function handleRequestAssignCustomerFromPayment() {
+  paymentModalOpen.value = false
+  handleOpenCustomerAssignment()
+}
+
 async function handleUnassignCustomer() {
   if (!activeDraft.value) return
 
@@ -546,10 +551,12 @@ async function handleUnassignCustomer() {
       v-if="activeDraft"
       v-model:open="paymentModalOpen"
       :sale-id="activeDraft.id"
+      :customer="activeDraft.customer ?? null"
       :total-cents="activeDraft.items.reduce((sum, item) => sum + item.unitPriceCents * item.quantity, 0)"
       :is-submitting="isMutating || isChargeTemporarilyBlocked"
       :external-error="inlineAmountError"
       @submit="({ saleId, payload, idempotencyKey }) => void handleChargeDraft(saleId, payload, idempotencyKey)"
+      @request-assign-customer="handleRequestAssignCustomerFromPayment"
     />
 
     <PaymentSuccessModal
@@ -559,6 +566,8 @@ async function handleUnassignCustomer() {
       :total-cents="latestChargeSuccess.totalCents"
       :paid-cents="latestChargeSuccess.paidCents"
       :change-due-cents="latestChargeSuccess.changeDueCents"
+      :debt-cents="latestChargeSuccess.debtCents"
+      :payment-status="latestChargeSuccess.paymentStatus"
       :confirmed-at="latestChargeSuccess.confirmedAt"
     />
   </div>

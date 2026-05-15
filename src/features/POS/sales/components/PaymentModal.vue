@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { ChargeSalePayload, NonCreditPaymentMethod, PaymentEntry } from '../interfaces/sale.types'
+import type { ChargeSalePayload, NonCreditPaymentMethod, PaymentEntry, SaleDraftCustomer } from '../interfaces/sale.types'
 import { newIdempotencyKey } from '../utils/idempotency.utils'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { formatPaymentMethod, getPaymentMethodColor } from '../utils/salePaymentMethod.utils'
@@ -9,6 +9,7 @@ const props = defineProps<{
   open: boolean
   totalCents: number
   saleId: string
+  customer?: SaleDraftCustomer | null
   isSubmitting?: boolean
   externalError?: string | null
 }>()
@@ -16,6 +17,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:open': [open: boolean]
   submit: [{ saleId: string; payload: ChargeSalePayload; idempotencyKey: string }]
+  'request-assign-customer': []
 }>()
 
 type PaymentEntryForm = {
@@ -52,16 +54,26 @@ const paidSumCents = computed(() => {
 })
 const hasCashPayment = computed(() => entries.value.some((entry) => entry.method === 'cash'))
 const remainingCents = computed(() => props.totalCents - paidSumCents.value)
-const isPartialWithoutCustomer = computed(() => paidSumCents.value < props.totalCents)
+const hasCustomer = computed(() => props.customer != null)
+const isPartial = computed(() => paidSumCents.value < props.totalCents)
+const debtToGenerateCents = computed(() => Math.max(0, props.totalCents - paidSumCents.value))
+const canSubmitPartial = computed(() => hasCustomer.value && isPartial.value)
 const changeDueCents = computed(() => {
-  if (!hasCashPayment.value || paidSumCents.value < props.totalCents) return 0
+  if (!hasCashPayment.value || isPartial.value) return 0
   return paidSumCents.value - props.totalCents
 })
 const canAddEntry = computed(() => entries.value.length < MAX_ENTRIES)
 const canSubmit = computed(
-  () => !props.isSubmitting && !isPartialWithoutCustomer.value && !inlineError.value && !hasReferenceErrors.value,
+  () => !props.isSubmitting && (!isPartial.value || canSubmitPartial.value) && !inlineError.value && !hasReferenceErrors.value,
 )
 const hasReferenceErrors = computed(() => Object.keys(referenceErrorByIndex.value).length > 0)
+const confirmButtonLabel = computed(() => {
+  if (isPartial.value && hasCustomer.value) {
+    return `Confirmar cobro · Deuda ${formatCentsMXN(debtToGenerateCents.value)}`
+  }
+
+  return 'Confirmar cobro'
+})
 
 function createDefaultEntry(): PaymentEntryForm {
   return {
@@ -127,13 +139,13 @@ watch(
   { deep: true },
 )
 
-watch(isPartialWithoutCustomer, (isPartial) => {
+watch([isPartial, hasCustomer], ([partial, customerAssigned]) => {
   if (!props.open) return
-  if (!isPartial) {
+  if (!partial || customerAssigned) {
     inlineError.value = null
     return
   }
-  inlineError.value = 'Para pago parcial asigná un cliente (próximamente)'
+  inlineError.value = 'Asigná un cliente para registrar una venta con deuda'
 })
 
 function addEntry() {
@@ -165,8 +177,8 @@ function validate(): boolean {
     return false
   }
 
-  if (isPartialWithoutCustomer.value) {
-    inlineError.value = 'Para pago parcial asigná un cliente (próximamente)'
+  if (isPartial.value && !hasCustomer.value) {
+    inlineError.value = 'Asigná un cliente para registrar una venta con deuda'
     return false
   }
 
@@ -393,12 +405,32 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
           </div>
 
           <UAlert
-            v-if="isPartialWithoutCustomer"
+            v-if="isPartial && !hasCustomer"
             color="warning"
             variant="soft"
             icon="i-lucide-info"
-            title="Pago parcial requiere cliente asignado (próximamente)"
-          />
+            title="Asigná un cliente para registrar una venta con deuda"
+            description="Asigná un cliente para registrar una venta con deuda"
+          >
+            <template #actions>
+              <UButton
+                data-testid="assign-customer-cta"
+                color="warning"
+                variant="soft"
+                size="sm"
+                @click="emit('request-assign-customer')"
+              >
+                Asignar cliente
+              </UButton>
+            </template>
+          </UAlert>
+
+          <div
+            v-if="isPartial && hasCustomer"
+            class="flex items-center justify-between gap-2 rounded-xl border border-warning/20 bg-warning/10 px-4 py-3 text-sm"
+          >
+            <p class="text-highlighted">Deuda a generar: <span class="font-semibold">{{ formatCentsMXN(debtToGenerateCents) }}</span></p>
+          </div>
 
           <p v-if="inlineError || externalError" class="text-sm text-error">{{ inlineError ?? externalError }}</p>
 
@@ -413,7 +445,7 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
               :disabled="!canSubmit"
               @click="handleSubmit"
             >
-              Confirmar cobro
+              {{ confirmButtonLabel }}
             </UButton>
           </div>
         </div>

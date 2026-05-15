@@ -1,14 +1,21 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import type { SalePaymentStatus } from '../interfaces/sale.types'
 import { formatCentsMXN } from '../utils/currency.utils'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   open: boolean
   folio: string
   totalCents: number
   paidCents: number
   changeDueCents?: number
+  debtCents?: number
+  paymentStatus?: SalePaymentStatus
   confirmedAt: string
-}>()
+}>(), {
+  debtCents: 0,
+  paymentStatus: 'PAID',
+})
 
 const emit = defineEmits<{
   'update:open': [open: boolean]
@@ -17,6 +24,18 @@ const emit = defineEmits<{
 function formatDate(value: string): string {
   return new Date(value).toLocaleString('es-MX')
 }
+
+const debtStatus = computed(() => {
+  if (props.paymentStatus === 'PARTIAL') {
+    return { label: 'Parcial', color: 'warning' as const }
+  }
+
+  if (props.paymentStatus === 'CREDIT') {
+    return { label: 'Crédito', color: 'error' as const }
+  }
+
+  return { label: 'Pagado', color: 'success' as const }
+})
 </script>
 
 <template>
@@ -51,6 +70,12 @@ function formatDate(value: string): string {
           <div v-if="(changeDueCents ?? 0) > 0" class="flex justify-between gap-4">
             <dt class="text-muted">Cambio</dt>
             <dd class="font-semibold tabular-nums text-primary">{{ formatCentsMXN(changeDueCents ?? 0) }}</dd>
+          </div>
+          <div v-if="debtCents > 0" class="flex items-center justify-between gap-4">
+            <dt class="text-muted">Deuda generada: {{ formatCentsMXN(debtCents) }}</dt>
+            <dd>
+              <UBadge :color="debtStatus.color" variant="soft">{{ debtStatus.label }}</UBadge>
+            </dd>
           </div>
         </dl>
 

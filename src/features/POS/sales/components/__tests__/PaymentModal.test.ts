@@ -64,6 +64,10 @@ const stubs = {
   FormField: formFieldStub,
   UIcon: { template: '<span />' },
   Icon: { template: '<span />' },
+  UAlert: {
+    props: ['title', 'description'],
+    template: '<div role="alert"><p>{{ title }}</p><p>{{ description }}</p><slot name="actions" /></div>',
+  },
   URadioGroup: {
     props: ['modelValue', 'items'],
     emits: ['update:modelValue'],
@@ -159,7 +163,7 @@ describe('PaymentModal', () => {
     await wrapper.get('[data-testid="payment-amount-0"]').setValue('100')
     const confirmButton = wrapper.get('[data-testid="confirm-charge"]')
     expect(confirmButton.attributes('disabled')).toBeDefined()
-    expect(wrapper.html()).toContain('Para pago parcial asigná un cliente (próximamente)')
+    expect(wrapper.html()).toContain('Asigná un cliente para registrar una venta con deuda')
   })
 
   it('regenerates idempotency key when entry fields change', async () => {
@@ -251,6 +255,61 @@ describe('PaymentModal', () => {
 
     const confirmButton = wrapper.get('[data-testid="confirm-charge"]')
     expect(confirmButton.attributes('disabled')).toBeDefined()
-    expect(wrapper.html()).toContain('Para pago parcial asigná un cliente (próximamente)')
+    expect(wrapper.html()).toContain('Asigná un cliente para registrar una venta con deuda')
+  })
+
+  it('allows partial payment with customer, shows debt, and emits submit', async () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+        customer: { id: 'c-1', firstName: 'Ada', lastName: null },
+      },
+      global: { stubs },
+    })
+
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('100')
+    expect(wrapper.text()).toContain('Deuda a generar:')
+    expect(wrapper.text()).toContain('$50.00')
+    expect(wrapper.get('[data-testid="confirm-charge"]').text()).toContain('Deuda $50.00')
+
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    expect(wrapper.emitted('submit')).toBeTruthy()
+  })
+
+  it('emits request-assign-customer when partial without customer clicks CTA', async () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+      },
+      global: { stubs },
+    })
+
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('100')
+    const cta = wrapper.get('[data-testid="assign-customer-cta"]')
+    await cta.trigger('click')
+
+    expect(wrapper.emitted('request-assign-customer')).toBeTruthy()
+  })
+
+  it('allows pure-credit when customer is assigned', async () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+        customer: { id: 'c-2', firstName: 'Lin', lastName: null },
+      },
+      global: { stubs },
+    })
+
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('0')
+    expect(wrapper.get('[data-testid="confirm-charge"]').text()).toContain('Deuda $150.00')
+
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    expect(wrapper.emitted('submit')).toBeTruthy()
   })
 })

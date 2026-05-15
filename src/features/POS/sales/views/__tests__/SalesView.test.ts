@@ -84,17 +84,21 @@ const globalStubs = {
     template: '<div><button data-testid="charge-click" @click="$emit(\'charge-click\')">charge</button><button data-testid="unassign-customer" @click="$emit(\'unassign-customer\')">unassign</button></div>',
   },
   PaymentModal: {
-    props: ['open', 'saleId', 'externalError', 'isSubmitting'],
-    emits: ['submit', 'update:open'],
+    props: ['open', 'saleId', 'externalError', 'isSubmitting', 'customer'],
+    emits: ['submit', 'update:open', 'request-assign-customer'],
     template:
-      '<div><button data-testid="submit-charge" :disabled="isSubmitting" @click="$emit(\'submit\', { saleId, payload: { method: \'cash\', amountCents: 10000 }, idempotencyKey: \'idem-1\' })">submit</button><p data-testid="external-error">{{ externalError }}</p></div>',
+      '<div><p data-testid="payment-modal-open">{{ open }}</p><button data-testid="submit-charge" :disabled="isSubmitting" @click="$emit(\'submit\', { saleId, payload: { method: \'cash\', amountCents: 10000 }, idempotencyKey: \'idem-1\' })">submit</button><button data-testid="request-assign-customer" @click="$emit(\'request-assign-customer\')">assign</button><p data-testid="external-error">{{ externalError }}</p><p data-testid="modal-customer-id">{{ customer?.id }}</p></div>',
   },
   PaymentSuccessModal: {
-    props: ['open', 'folio'],
-    template: '<div data-testid="success-modal">{{ folio }}</div>',
+    props: ['open', 'folio', 'debtCents', 'paymentStatus'],
+    template:
+      '<div data-testid="success-modal">{{ folio }}|{{ debtCents }}|{{ paymentStatus }}</div>',
   },
   USkeleton: { template: '<div />' },
-  AssignCustomerSlideover: { template: '<div />' },
+  AssignCustomerSlideover: {
+    props: ['open'],
+    template: '<div data-testid="assign-slideover-open">{{ open }}</div>',
+  },
 }
 
 function mountView() {
@@ -149,6 +153,37 @@ describe('SalesView charge orchestration', () => {
 
     expect(chargeDraft).toHaveBeenCalledWith('sale-1', { method: 'cash', amountCents: 10000 }, 'idem-1')
     expect(wrapper.get('[data-testid="success-modal"]').text()).toContain('A-202605-000123')
+  })
+
+  it('closes payment modal and opens assign customer slideover when request event is emitted', async () => {
+    const wrapper = mountView()
+
+    await wrapper.get('[data-testid="charge-click"]').trigger('click')
+    await wrapper.get('[data-testid="request-assign-customer"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="payment-modal-open"]').text()).toBe('false')
+    expect(wrapper.get('[data-testid="assign-slideover-open"]').text()).toBe('true')
+  })
+
+  it('passes debt and payment status to PaymentSuccessModal from charge response', async () => {
+    chargeDraft.mockResolvedValueOnce({
+      saleId: 'sale-1',
+      folio: 'A-202605-000987',
+      subtotalCents: 12000,
+      discountCents: 0,
+      totalCents: 12000,
+      paidCents: 7000,
+      debtCents: 5000,
+      changeDueCents: 0,
+      paymentStatus: 'PARTIAL',
+      confirmedAt: '2026-05-06T21:00:00.000Z',
+    })
+
+    const wrapper = mountView()
+    await wrapper.get('[data-testid="charge-click"]').trigger('click')
+    await wrapper.get('[data-testid="submit-charge"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="success-modal"]').text()).toContain('A-202605-000987|5000|PARTIAL')
   })
 
   it('maps PRICE_OUT_OF_DATE by error code and invalidates drafts', async () => {

@@ -25,4 +25,12 @@ describe('getSalePaymentErrorAction', () => {
     expect(stale.type).toBe('refetch')
     expect(alreadyPaid.type).toBe('refetch')
   })
+
+  it('maps CUSTOMER_REQUIRED_FOR_CREDIT with updated actionable copy', () => {
+    const customerRequired = getSalePaymentErrorAction('CUSTOMER_REQUIRED_FOR_CREDIT')
+
+    expect(customerRequired.type).toBe('inline')
+    expect(customerRequired.message).toBe('Asigná un cliente para registrar una venta con deuda')
+    expect(customerRequired.message).not.toContain('próximamente')
+  })
 })

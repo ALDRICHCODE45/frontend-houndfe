@@ -38,7 +38,7 @@ const ERROR_ACTIONS: Record<ChargeDomainErrorCode, SalePaymentUxAction> = {
   },
   CUSTOMER_REQUIRED_FOR_CREDIT: {
     type: 'inline',
-    message: 'Para pago parcial asigná un cliente (próximamente).',
+    message: 'Asigná un cliente para registrar una venta con deuda',
   },
   SALE_NOT_FOUND: {
     type: 'refetch',
