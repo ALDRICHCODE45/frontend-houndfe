@@ -15,6 +15,7 @@ import { customerApi } from '../api/customer.api'
 import CustomerUpsertSlideover from '../components/CustomerUpsertSlideover.vue'
 import { useCustomerColumns } from '../composables/useCustomerColumns'
 import type {
+  CreateCustomerAddressPayload,
   CreateCustomerPayload,
   Customer,
   CustomerDetail,
@@ -190,11 +191,86 @@ const deleteMutation = useMutation({
   },
 })
 
+const createAddressMutation = useMutation({
+  mutationFn: ({ customerId, payload }: { customerId: string; payload: CreateCustomerAddressPayload }) =>
+    customerApi.createAddress(customerId, payload),
+  onSuccess: async (_, { customerId }) => {
+    toast.add({
+      title: 'Dirección añadida',
+      description: 'La dirección se añadió correctamente.',
+      color: 'success',
+    })
+    
+    // Refresh the selected customer to show the new address
+    if (selectedCustomerId.value === customerId) {
+      selectedCustomer.value = await customerApi.getById(customerId)
+    }
+    
+    await queryClient.invalidateQueries({ queryKey: customerQueryKeys.paginated(tenantId.value) })
+  },
+  onError: (error) => {
+    const { message } = mapDomainError(error as AxiosError<DomainApiError>)
+    toast.add({ title: 'Error al añadir dirección', description: message, color: 'error' })
+  },
+})
+
+const updateAddressMutation = useMutation({
+  mutationFn: ({ customerId, addressId, payload }: { 
+    customerId: string; 
+    addressId: string; 
+    payload: CreateCustomerAddressPayload 
+  }) => customerApi.updateAddress(customerId, addressId, payload),
+  onSuccess: async (_, { customerId }) => {
+    toast.add({
+      title: 'Dirección actualizada',
+      description: 'La dirección se actualizó correctamente.',
+      color: 'success',
+    })
+    
+    // Refresh the selected customer to show the updated address
+    if (selectedCustomerId.value === customerId) {
+      selectedCustomer.value = await customerApi.getById(customerId)
+    }
+    
+    await queryClient.invalidateQueries({ queryKey: customerQueryKeys.paginated(tenantId.value) })
+  },
+  onError: (error) => {
+    const { message } = mapDomainError(error as AxiosError<DomainApiError>)
+    toast.add({ title: 'Error al actualizar dirección', description: message, color: 'error' })
+  },
+})
+
+const removeAddressMutation = useMutation({
+  mutationFn: ({ customerId, addressId }: { customerId: string; addressId: string }) =>
+    customerApi.removeAddress(customerId, addressId),
+  onSuccess: async (_, { customerId }) => {
+    toast.add({
+      title: 'Dirección eliminada',
+      description: 'La dirección se eliminó correctamente.',
+      color: 'success',
+    })
+    
+    // Refresh the selected customer to show the address is gone
+    if (selectedCustomerId.value === customerId) {
+      selectedCustomer.value = await customerApi.getById(customerId)
+    }
+    
+    await queryClient.invalidateQueries({ queryKey: customerQueryKeys.paginated(tenantId.value) })
+  },
+  onError: (error) => {
+    const { message } = mapDomainError(error as AxiosError<DomainApiError>)
+    toast.add({ title: 'Error al eliminar dirección', description: message, color: 'error' })
+  },
+})
+
 const isSubmitting = computed(
   () =>
     createMutation.isPending.value ||
     updateMutation.isPending.value ||
-    deleteMutation.isPending.value,
+    deleteMutation.isPending.value ||
+    createAddressMutation.isPending.value ||
+    updateAddressMutation.isPending.value ||
+    removeAddressMutation.isPending.value,
 )
 
 function handleAdd() {
@@ -232,6 +308,18 @@ async function handleDelete(customer: Customer) {
 function handleEditSubmit(values: UpdateCustomerPayload) {
   if (!selectedCustomerId.value) return
   updateMutation.mutate({ customerId: selectedCustomerId.value, values })
+}
+
+function handleCreateAddress(customerId: string, payload: CreateCustomerAddressPayload) {
+  createAddressMutation.mutate({ customerId, payload })
+}
+
+function handleUpdateAddress(customerId: string, addressId: string, payload: CreateCustomerAddressPayload) {
+  updateAddressMutation.mutate({ customerId, addressId, payload })
+}
+
+function handleRemoveAddress(customerId: string, addressId: string) {
+  removeAddressMutation.mutate({ customerId, addressId })
 }
 
 function getRowItems(customer: Customer) {
@@ -273,6 +361,9 @@ const bulkActions = computed<BulkAction<Customer>[]>(() => [])
       :errors="formErrors"
       :customer="selectedCustomer"
       @edit="handleEditSubmit"
+      @create-address="handleCreateAddress"
+      @update-address="handleUpdateAddress"
+      @remove-address="handleRemoveAddress"
       @close="clearFormContext"
     />
 

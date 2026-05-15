@@ -42,6 +42,9 @@ const emit = defineEmits<{
   create: [payload: CreateCustomerPayload]
   edit: [payload: UpdateCustomerPayload]
   close: []
+  'create-address': [customerId: string, payload: CreateCustomerAddressPayload]
+  'update-address': [customerId: string, addressId: string, payload: CreateCustomerAddressPayload]
+  'remove-address': [customerId: string, addressId: string]
 }>()
 
 const { schema, state, resetForm, setState } = useCustomerForm()
@@ -116,6 +119,15 @@ function handleAddressSave(payload: CreateCustomerAddressPayload) {
     } else {
       pendingAddresses.value.push(payload)
     }
+  } else if (props.mode === 'edit' && props.customer) {
+    // Edit mode: emit events for parent to handle
+    if (editingAddress.value?.id) {
+      // Update existing address
+      emit('update-address', props.customer.id, editingAddress.value.id, payload)
+    } else {
+      // Create new address
+      emit('create-address', props.customer.id, payload)
+    }
   }
   isAddressModalOpen.value = false
   editingAddress.value = null
@@ -124,6 +136,18 @@ function handleAddressSave(payload: CreateCustomerAddressPayload) {
 
 function removePendingAddress(index: number) {
   pendingAddresses.value.splice(index, 1)
+}
+
+function editExistingAddress(address: CustomerAddress) {
+  editingAddress.value = address
+  editingAddressIndex.value = null
+  isAddressModalOpen.value = true
+}
+
+function removeExistingAddress(address: CustomerAddress) {
+  if (props.customer) {
+    emit('remove-address', props.customer.id, address.id)
+  }
 }
 
 function formatAddress(addr: CreateCustomerAddressPayload | CustomerAddress): string {
@@ -281,6 +305,26 @@ function handleCancel() {
                     class="flex items-center justify-between rounded-md border border-default bg-background px-3 py-2"
                   >
                     <span class="truncate text-sm">{{ formatAddress(addr) }}</span>
+                    <div class="flex gap-1">
+                      <UButton
+                        :data-testid="`edit-address-${addr.id}`"
+                        icon="i-lucide-pencil"
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        type="button"
+                        @click="editExistingAddress(addr)"
+                      />
+                      <UButton
+                        :data-testid="`remove-address-${addr.id}`"
+                        icon="i-lucide-trash-2"
+                        size="xs"
+                        color="error"
+                        variant="ghost"
+                        type="button"
+                        @click="removeExistingAddress(addr)"
+                      />
+                    </div>
                   </div>
                 </div>
 
