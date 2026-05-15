@@ -5,6 +5,8 @@ import { customerApi } from '@/features/POS/customers/api/customer.api'
 import CustomerUpsertSlideover from '@/features/POS/customers/components/CustomerUpsertSlideover.vue'
 import AddressModal from '@/features/POS/customers/components/AddressModal.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
+import { customerQueryKeys } from '@/core/shared/constants/query-keys'
 import { useDraftCustomerAssignment, DraftCustomerAssignmentError } from '../composables/useDraftCustomerAssignment'
 import type {
   CreateCustomerAddressPayload,
@@ -28,6 +30,7 @@ const emit = defineEmits<{
 }>()
 
 const authStore = useAuthStore()
+const tenantId = useSafeTenantId()
 const queryClient = useQueryClient()
 const toast = useToast()
 const { assignCustomer, setShippingAddress } = useDraftCustomerAssignment(() => props.saleId)
@@ -64,7 +67,7 @@ watch(
 )
 
 const customersQuery = useQuery({
-  queryKey: ['customers', 'list'],
+  queryKey: computed(() => customerQueryKeys.paginated(tenantId.value)),
   queryFn: () => customerApi.getPaginated({ pageIndex: 0, pageSize: 100, globalFilter: '' }),
   enabled: computed(() => props.open),
   staleTime: 30_000,
@@ -128,7 +131,7 @@ async function handleCreateCustomer(payload: CreateCustomerPayload) {
   isCreatingCustomer.value = true
   try {
     const createdCustomer = await customerApi.create(payload)
-    await queryClient.invalidateQueries({ queryKey: ['customers', 'list'] })
+    await queryClient.invalidateQueries({ queryKey: customerQueryKeys.paginated(tenantId.value) })
     await assignCustomer({ customerId: createdCustomer.id })
     selectedCustomer.value = createdCustomer
     isCreateCustomerOpen.value = false
@@ -144,6 +147,16 @@ async function handleAddressSelect(shippingAddressId: string | null) {
     await setShippingAddress({ shippingAddressId })
     emit('update:open', false)
   } catch (error) {
+    if (
+      selectedCustomer.value
+      && error instanceof DraftCustomerAssignmentError
+      && error.code === 'SHIPPING_ADDRESS_NOT_FOR_CUSTOMER'
+    ) {
+      await queryClient.invalidateQueries({
+        queryKey: customerQueryKeys.addresses(tenantId.value, selectedCustomer.value.id),
+      })
+    }
+
     toast.add({ title: 'Error', description: resolveErrorMessage(error), color: 'error' })
   }
 }
@@ -154,7 +167,7 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
   isCreatingAddress.value = true
   try {
     const createdAddress = await customerApi.createAddress(selectedCustomer.value.id, payload)
-    await queryClient.invalidateQueries({ queryKey: ['customers', 'list'] })
+    await queryClient.invalidateQueries({ queryKey: customerQueryKeys.paginated(tenantId.value) })
     await handleAddressSelect(createdAddress.id)
     isCreateAddressOpen.value = false
     selectedCustomer.value = await customerApi.getById(selectedCustomer.value.id)
@@ -236,10 +249,17 @@ function formatAddress(address: CustomerAddress): string {
 
             <div v-if="showAddressPicker" data-testid="shipping-address-picker" class="space-y-2">
               <p class="text-sm font-medium">Dirección de envío</p>
-              <UButton label="Sin dirección" variant="soft" color="neutral" @click="handleAddressSelect(null)" />
+              <UButton
+                data-testid="skip-shipping-address"
+                label="Sin dirección"
+                variant="soft"
+                color="neutral"
+                @click="handleAddressSelect(null)"
+              />
               <button
                 v-for="address in addresses"
                 :key="address.id"
+                :data-testid="`shipping-address-option-${address.id}`"
                 type="button"
                 class="block w-full rounded-md border border-default px-3 py-2 text-left text-sm"
                 @click="handleAddressSelect(address.id)"
@@ -270,6 +290,7 @@ function formatAddress(address: CustomerAddress): string {
   />
 
   <AddressModal
+    v-if="isCreateAddressOpen"
     :open="isCreateAddressOpen"
     :loading="isCreatingAddress"
     @update:open="isCreateAddressOpen = $event"

@@ -5,6 +5,7 @@ import { computed, defineComponent, h } from 'vue'
 import { saleApi } from '../../api/sale.api'
 import { useDraftCustomerAssignment } from '../useDraftCustomerAssignment'
 import type { Sale } from '../../interfaces/sale.types'
+import { saleQueryKeys } from '@/core/shared/constants/query-keys'
 
 vi.mock('../../api/sale.api', () => ({
   saleApi: {
@@ -13,6 +14,10 @@ vi.mock('../../api/sale.api', () => ({
     assignShippingAddress: vi.fn(),
     unassignShippingAddress: vi.fn(),
   },
+}))
+
+vi.mock('@/features/auth/composables/useSafeTenantId', () => ({
+  useSafeTenantId: () => ({ value: 'tenant-1' }),
 }))
 
 function makeSale(overrides: Partial<Sale> = {}): Sale {
@@ -65,33 +70,35 @@ describe('useDraftCustomerAssignment', () => {
     vi.mocked(saleApi.unassignShippingAddress).mockResolvedValue(undefined)
   })
 
-  it('assignCustomer invalidates sale-draft query key', async () => {
+  it('assignCustomer invalidates drafts query key', async () => {
     const { composable, invalidateQueries } = mountComposable('sale-1')
 
     await composable.assignCustomer({ customerId: 'customer-1' })
 
     expect(saleApi.assignCustomer).toHaveBeenCalledWith('sale-1', { customerId: 'customer-1' })
-    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sale-draft', 'sale-1'] })
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: saleQueryKeys.drafts('tenant-1') })
   })
 
   it('preserves current shippingAddress when preserveShipping=true', async () => {
     const { composable, queryClient } = mountComposable('sale-1')
-    queryClient.setQueryData(['sale-draft', 'sale-1'], makeSale({
-      shippingAddress: {
-        id: 'address-1',
-        customerId: 'customer-1',
-        street: 'Main',
-        exteriorNumber: '10',
-        interiorNumber: null,
-        zipCode: '64000',
-        neighborhood: 'Centro',
-        municipality: 'Monterrey',
-        city: 'Monterrey',
-        state: 'Nuevo León',
-        createdAt: '2026-01-01T00:00:00.000Z',
-        updatedAt: '2026-01-01T00:00:00.000Z',
-      },
-    }))
+    queryClient.setQueryData(saleQueryKeys.drafts('tenant-1'), [
+      makeSale({
+        shippingAddress: {
+          id: 'address-1',
+          customerId: 'customer-1',
+          street: 'Main',
+          exteriorNumber: '10',
+          interiorNumber: null,
+          zipCode: '64000',
+          neighborhood: 'Centro',
+          municipality: 'Monterrey',
+          city: 'Monterrey',
+          state: 'Nuevo León',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      }),
+    ])
 
     await composable.assignCustomer({ customerId: 'customer-2', preserveShipping: true })
 

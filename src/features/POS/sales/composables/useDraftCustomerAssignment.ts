@@ -3,6 +3,8 @@ import type { MaybeRefOrGetter } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import type { AxiosError } from 'axios'
 import { saleApi } from '../api/sale.api'
+import { saleQueryKeys } from '@/core/shared/constants/query-keys'
+import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import type { DraftCustomerAssignmentErrorCode, Sale } from '../interfaces/sale.types'
 
 interface DomainErrorResponse {
@@ -40,10 +42,12 @@ function parseAssignmentError(error: unknown): DraftCustomerAssignmentError | nu
 
 export function useDraftCustomerAssignment(saleId: MaybeRefOrGetter<string>) {
   const queryClient = useQueryClient()
+  const tenantId = useSafeTenantId()
   const lastError = ref<DraftCustomerAssignmentError | null>(null)
+  const draftsKey = computed(() => saleQueryKeys.drafts(tenantId.value))
 
   const invalidateDraft = async () => {
-    await queryClient.invalidateQueries({ queryKey: ['sale-draft', toValue(saleId)] })
+    await queryClient.invalidateQueries({ queryKey: draftsKey.value })
   }
 
   const assignCustomerMutation = useMutation({
@@ -53,7 +57,8 @@ export function useDraftCustomerAssignment(saleId: MaybeRefOrGetter<string>) {
         const payload: { customerId: string; shippingAddressId?: string | null } = { customerId }
 
         if (preserveShipping) {
-          const currentDraft = queryClient.getQueryData<Sale>(['sale-draft', resolvedSaleId])
+          const drafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
+          const currentDraft = drafts.find((draft) => draft.id === resolvedSaleId)
           if (currentDraft?.shippingAddress?.id) {
             payload.shippingAddressId = currentDraft.shippingAddress.id
           }

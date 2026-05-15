@@ -7,6 +7,7 @@ import { DraftCustomerAssignmentError } from '../../composables/useDraftCustomer
 import type { Customer, CustomerAddress, CustomerDetail } from '@/features/POS/customers/interfaces/customer.types'
 import { customerApi } from '@/features/POS/customers/api/customer.api'
 import type { PaginatedResponse, ServerTableParams } from '@/core/shared/types/table.types'
+import { customerQueryKeys } from '@/core/shared/constants/query-keys'
 
 const assignCustomerMock = vi.fn()
 const setShippingAddressMock = vi.fn()
@@ -27,6 +28,10 @@ vi.mock('@/features/POS/customers/api/customer.api', () => ({
 
 vi.mock('@/features/auth/stores/useAuthStore', () => ({
   useAuthStore: () => authStoreMock,
+}))
+
+vi.mock('@/features/auth/composables/useSafeTenantId', () => ({
+  useSafeTenantId: () => ({ value: 'tenant-1' }),
 }))
 
 vi.mock('@/features/POS/sales/composables/useDraftCustomerAssignment', () => ({
@@ -122,7 +127,9 @@ function mountSlideover() {
     },
   })
 
-  return mount(AssignCustomerSlideover, {
+  const invalidateQueries = vi.spyOn(queryClient, 'invalidateQueries')
+
+  const wrapper = mount(AssignCustomerSlideover, {
     props: {
       open: true,
       saleId: 'sale-1',
@@ -151,11 +158,15 @@ function mountSlideover() {
           template: `<button data-testid="nested-customer-slideover" @click="$emit('create', { firstName: 'Nuevo' })" />`,
         },
         AddressModal: {
-          template: '<div data-testid="address-modal" />',
+          name: 'AddressModal',
+          props: ['open'],
+          template: '<div v-if="open" data-testid="address-modal" />',
         },
       },
     },
   })
+
+  return { wrapper, queryClient, invalidateQueries }
 }
 
 function pageText() {
@@ -178,6 +189,8 @@ describe('AssignCustomerSlideover', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     authStoreMock.userCan.mockReturnValue(true)
+    assignCustomerMock.mockResolvedValue(undefined)
+    setShippingAddressMock.mockResolvedValue(undefined)
     customerApiMock.getPaginated.mockResolvedValue(makePaginatedResponse([]))
     customerApiMock.getById.mockResolvedValue(makeCustomerDetail(makeCustomer(), []))
     customerApiMock.create.mockResolvedValue(makeCustomerDetail(makeCustomer({ id: 'customer-99' }), []))
@@ -197,7 +210,7 @@ describe('AssignCustomerSlideover', () => {
 
     customerApiMock.getPaginated.mockResolvedValueOnce(makePaginatedResponse([ada, bob]))
 
-    const wrapper = mountSlideover()
+    const { wrapper } = mountSlideover()
     await flushPromises()
 
     expect(customerApiMock.getPaginated).toHaveBeenCalledWith(expect.any(Object) as ServerTableParams)
@@ -213,7 +226,7 @@ describe('AssignCustomerSlideover', () => {
       ]),
     )
 
-    const wrapper = mountSlideover()
+    const { wrapper } = mountSlideover()
     await flushPromises()
 
     const searchInput = getByTestId('customer-search-input') as HTMLInputElement
@@ -228,7 +241,7 @@ describe('AssignCustomerSlideover', () => {
     const ada = makeCustomer()
     customerApiMock.getPaginated.mockResolvedValueOnce(makePaginatedResponse([ada]))
 
-    const wrapper = mountSlideover()
+    const { wrapper } = mountSlideover()
     await flushPromises()
 
     getByTestId('customer-row-customer-1').click()
@@ -241,7 +254,7 @@ describe('AssignCustomerSlideover', () => {
     customerApiMock.getPaginated.mockResolvedValueOnce(makePaginatedResponse([ada]))
     customerApiMock.getById.mockResolvedValueOnce(makeCustomerDetail(ada, [makeAddress('address-1')]))
 
-    const wrapper = mountSlideover()
+    const { wrapper } = mountSlideover()
     await flushPromises()
 
     getByTestId('customer-row-customer-1').click()
@@ -256,7 +269,7 @@ describe('AssignCustomerSlideover', () => {
     customerApiMock.getPaginated.mockResolvedValueOnce(makePaginatedResponse([ada]))
     customerApiMock.getById.mockResolvedValueOnce(makeCustomerDetail(ada, []))
 
-    const wrapper = mountSlideover()
+    const { wrapper } = mountSlideover()
     await flushPromises()
 
     getByTestId('customer-row-customer-1').click()
@@ -267,7 +280,7 @@ describe('AssignCustomerSlideover', () => {
 
   it('gates + Nuevo cliente button with authStore.userCan(create, Customer)', async () => {
     authStoreMock.userCan.mockReturnValue(false)
-    const wrapper = mountSlideover()
+    const { wrapper } = mountSlideover()
     await flushPromises()
 
     expect(pageText()).not.toContain('+ Nuevo cliente')
@@ -275,27 +288,29 @@ describe('AssignCustomerSlideover', () => {
 
   it('shows empty state when no customers exist', async () => {
     customerApiMock.getPaginated.mockResolvedValueOnce(makePaginatedResponse([]))
-    const wrapper = mountSlideover()
+    const { wrapper } = mountSlideover()
     await flushPromises()
 
     expect(pageText()).toContain('Aún no hay clientes registrados')
   })
 
-  it('surfaces typed backend error code from composable', async () => {
+  it('keeps slideover open when assignCustomer fails with typed backend error', async () => {
     customerApiMock.getPaginated.mockResolvedValueOnce(makePaginatedResponse([makeCustomer()]))
-    assignCustomerMock.mockRejectedValueOnce(new DraftCustomerAssignmentError('CUSTOMER_NOT_FOUND'))
+    assignCustomerMock.mockRejectedValueOnce({ code: 'CUSTOMER_NOT_FOUND' })
 
-    const wrapper = mountSlideover()
+    const { wrapper } = mountSlideover()
     await flushPromises()
     getByTestId('customer-row-customer-1').click()
     await flushPromises()
 
     expect(assignCustomerMock).toHaveBeenCalledWith({ customerId: 'customer-1' })
+    // Boundary: toast plumbing is owned by Nuxt runtime composable; component-level unit test asserts error path keeps overlay open.
+    expect(wrapper.emitted('update:open') ?? []).toEqual([])
   })
 
   it('opens nested customer slideover and auto-selects created customer', async () => {
     customerApiMock.getPaginated.mockResolvedValueOnce(makePaginatedResponse([]))
-    const wrapper = mountSlideover()
+    const { wrapper } = mountSlideover()
     await flushPromises()
 
     getByTestId('open-create-customer').click()
@@ -303,5 +318,63 @@ describe('AssignCustomerSlideover', () => {
     await flushPromises()
 
     expect(assignCustomerMock).toHaveBeenCalledWith({ customerId: 'customer-99' })
+  })
+
+  it('clicking "Sin dirección" calls setShippingAddress with null', async () => {
+    const ada = makeCustomer()
+    customerApiMock.getPaginated.mockResolvedValueOnce(makePaginatedResponse([ada]))
+    customerApiMock.getById.mockResolvedValueOnce(makeCustomerDetail(ada, [makeAddress('address-1')]))
+
+    const { wrapper } = mountSlideover()
+    await flushPromises()
+
+    getByTestId('customer-row-customer-1').click()
+    await flushPromises()
+
+    getByTestId('skip-shipping-address').click()
+    await flushPromises()
+
+    expect(setShippingAddressMock).toHaveBeenCalledWith({ shippingAddressId: null })
+  })
+
+  it('clicking + Nueva dirección opens AddressModal', async () => {
+    const ada = makeCustomer()
+    customerApiMock.getPaginated.mockResolvedValueOnce(makePaginatedResponse([ada]))
+    customerApiMock.getById.mockResolvedValueOnce(makeCustomerDetail(ada, [makeAddress('address-1')]))
+
+    const { wrapper } = mountSlideover()
+    await flushPromises()
+
+    getByTestId('customer-row-customer-1').click()
+    await vi.waitFor(() => {
+      expect(document.body.querySelector('[data-testid="open-create-address"]')).not.toBeNull()
+    })
+
+    getByTestId('open-create-address').click()
+    await flushPromises()
+
+    const addressModal = wrapper.findComponent({ name: 'AddressModal' })
+    expect(addressModal.exists()).toBe(true)
+    expect(addressModal.props('open')).toBe(true)
+  })
+
+  it('invalidates customer addresses query on SHIPPING_ADDRESS_NOT_FOR_CUSTOMER', async () => {
+    const ada = makeCustomer()
+    customerApiMock.getPaginated.mockResolvedValueOnce(makePaginatedResponse([ada]))
+    customerApiMock.getById.mockResolvedValueOnce(makeCustomerDetail(ada, [makeAddress('address-1')]))
+    setShippingAddressMock.mockRejectedValueOnce(new DraftCustomerAssignmentError('SHIPPING_ADDRESS_NOT_FOR_CUSTOMER'))
+
+    const { wrapper, invalidateQueries } = mountSlideover()
+    await flushPromises()
+
+    getByTestId('customer-row-customer-1').click()
+    await flushPromises()
+
+    getByTestId('shipping-address-option-address-1').click()
+    await flushPromises()
+
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: customerQueryKeys.addresses('tenant-1', 'customer-1'),
+    })
   })
 })
