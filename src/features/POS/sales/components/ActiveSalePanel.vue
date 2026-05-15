@@ -181,55 +181,7 @@ function getCloseTabDescription(): string {
       </div>
     </div>
 
-    <div class="border-b border-default px-4 py-3 bg-elevated/20">
-      <UCard>
-        <div class="space-y-3">
-          <div class="flex items-center justify-between gap-2">
-            <p class="text-xs font-medium uppercase tracking-wide text-muted">Cliente</p>
-            <USkeleton v-if="isCustomerMutationPending" class="h-5 w-16" data-testid="customer-slot-loading" />
-          </div>
 
-          <div v-if="!activeDraft?.customer" class="flex items-center justify-between gap-3">
-            <p class="text-sm text-muted">Sin cliente asignado</p>
-            <UButton
-              data-testid="assign-customer-trigger"
-              color="neutral"
-              variant="soft"
-              icon="i-lucide-user-plus"
-              label="Asignar cliente"
-              :disabled="isCustomerMutationPending"
-              @click="emit('open-customer-assignment')"
-            />
-          </div>
-
-          <div v-else class="space-y-2">
-            <p class="text-sm font-semibold">{{ customerFullName }}</p>
-            <p v-if="customerAddressSummary" class="text-xs text-muted">{{ customerAddressSummary }}</p>
-
-            <div class="flex items-center gap-2">
-              <UButton
-                data-testid="change-customer-trigger"
-                color="neutral"
-                variant="soft"
-                size="xs"
-                label="Cambiar"
-                :disabled="isCustomerMutationPending"
-                @click="emit('open-customer-assignment')"
-              />
-              <UButton
-                data-testid="unassign-customer-trigger"
-                color="error"
-                variant="ghost"
-                size="xs"
-                label="Quitar"
-                :disabled="isCustomerMutationPending"
-                @click="emit('unassign-customer')"
-              />
-            </div>
-          </div>
-        </div>
-      </UCard>
-    </div>
 
     <!-- Items list (scrollable middle section) -->
       <div class="flex-1 overflow-y-auto bg-[#fafafa] dark:bg-[#09090b]">
@@ -265,6 +217,58 @@ function getCloseTabDescription(): string {
           :on-remove-item="onRemoveItem"
           @update-qty="(itemId, quantity) => emit('update-qty', itemId, quantity)"
         />
+      </div>
+    </div>
+
+    <!-- Customer slot (slim line above totals) -->
+    <div class="border-t border-default px-4 py-2 flex items-center justify-between gap-3 text-sm">
+      <div v-if="!activeDraft?.customer" class="flex items-center gap-2">
+        <USkeleton v-if="isCustomerMutationPending" class="h-4 w-32" data-testid="customer-slot-loading" />
+        <template v-else>
+          <span class="text-muted">Cliente:</span>
+          <span class="text-muted">Sin asignar</span>
+          <UButton
+            data-testid="assign-customer-trigger"
+            variant="link"
+            color="primary"
+            size="xs"
+            label="Asignar cliente"
+            @click="emit('open-customer-assignment')"
+          />
+        </template>
+      </div>
+      <div v-else class="flex items-center justify-between gap-3 w-full">
+        <div class="flex flex-col gap-0.5 min-w-0">
+          <USkeleton v-if="isCustomerMutationPending" class="h-4 w-48" data-testid="customer-slot-loading" />
+          <template v-else>
+            <p class="text-sm font-medium truncate">
+              <span class="text-muted font-normal">Cliente:</span> {{ customerFullName }}
+            </p>
+            <p v-if="customerAddressSummary" class="text-xs text-muted truncate">
+              Dirección: {{ customerAddressSummary }}
+            </p>
+          </template>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <UButton
+            data-testid="change-customer-trigger"
+            variant="link"
+            color="primary"
+            size="xs"
+            label="Cambiar"
+            :disabled="isCustomerMutationPending"
+            @click="emit('open-customer-assignment')"
+          />
+          <UButton
+            data-testid="unassign-customer-trigger"
+            variant="link"
+            color="error"
+            size="xs"
+            label="Quitar"
+            :disabled="isCustomerMutationPending"
+            @click="emit('unassign-customer')"
+          />
+        </div>
       </div>
     </div>
 

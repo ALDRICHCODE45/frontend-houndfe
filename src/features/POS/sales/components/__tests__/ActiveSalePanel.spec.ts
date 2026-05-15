@@ -65,9 +65,10 @@ function mountPanel(activeDraft: Sale | null, isCustomerMutationPending = false)
 }
 
 describe('ActiveSalePanel customer slot', () => {
-  it('renders empty state with Asignar cliente trigger and opens slideover event', async () => {
+  it('renders empty state with Asignar cliente trigger as inline link and opens slideover event', async () => {
     const wrapper = mountPanel(makeDraft())
 
+    expect(wrapper.text()).toContain('Sin asignar')
     const assignButton = wrapper.get('[data-testid="assign-customer-trigger"]')
     expect(assignButton.text()).toContain('Asignar cliente')
 
@@ -75,7 +76,7 @@ describe('ActiveSalePanel customer slot', () => {
     expect(wrapper.emitted('open-customer-assignment')).toHaveLength(1)
   })
 
-  it('renders assigned card with Cambiar and Quitar actions', async () => {
+  it('renders assigned customer with inline Cambiar and Quitar link actions', async () => {
     const wrapper = mountPanel(makeDraft({
       customer: { id: 'customer-1', firstName: 'Ada', lastName: 'Lovelace' },
       shippingAddress: {
@@ -97,10 +98,17 @@ describe('ActiveSalePanel customer slot', () => {
     expect(wrapper.text()).toContain('Ada Lovelace')
     expect(wrapper.text()).toContain('Main St')
 
-    await wrapper.get('[data-testid="change-customer-trigger"]').trigger('click')
+    const changeButton = wrapper.get('[data-testid="change-customer-trigger"]')
+    const removeButton = wrapper.get('[data-testid="unassign-customer-trigger"]')
+    
+    // Should be link-style buttons, not large buttons
+    expect(changeButton.text()).toContain('Cambiar')
+    expect(removeButton.text()).toContain('Quitar')
+
+    await changeButton.trigger('click')
     expect(wrapper.emitted('open-customer-assignment')).toHaveLength(1)
 
-    await wrapper.get('[data-testid="unassign-customer-trigger"]').trigger('click')
+    await removeButton.trigger('click')
     expect(wrapper.emitted('unassign-customer')).toHaveLength(1)
   })
 
