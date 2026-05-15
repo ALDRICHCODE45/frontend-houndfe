@@ -98,17 +98,17 @@ function resolveErrorMessage(error: unknown): string {
 
   switch (code) {
     case 'CUSTOMER_NOT_FOUND':
-      return 'Cliente no encontrado'
+      return 'No se encontró el cliente. Recargá la lista.'
     case 'SHIPPING_ADDRESS_NOT_FOUND':
-      return 'Dirección no encontrada'
+      return 'No se encontró la dirección. Recargá la lista.'
     case 'SHIPPING_ADDRESS_NOT_FOR_CUSTOMER':
-      return 'Esta dirección ya no pertenece al cliente'
+      return 'Esa dirección no pertenece al cliente seleccionado.'
     case 'SHIPPING_ADDRESS_REQUIRES_CUSTOMER':
-      return 'Primero asigna un cliente'
+      return 'Asigná un cliente antes de elegir la dirección.'
     case 'SALE_NOT_DRAFT':
-      return 'Esta venta ya no es borrador'
+      return 'Esta venta ya no es un borrador. Recargá la página.'
     case 'SALE_UPDATE_FORBIDDEN':
-      return 'No tienes permiso para modificar esta venta'
+      return 'No tenés permisos para modificar esta venta.'
     default:
       return 'No se pudo completar la operación'
   }
@@ -118,8 +118,9 @@ async function handleSelectCustomer(customer: Customer) {
   try {
     await assignCustomer({ customerId: customer.id })
     selectedCustomer.value = await customerApi.getById(customer.id)
+    emit('update:open', false)
   } catch (error) {
-    toast.add({ title: resolveErrorMessage(error), color: 'error' })
+    toast.add({ title: 'Error', description: resolveErrorMessage(error), color: 'error' })
   }
 }
 
@@ -132,7 +133,7 @@ async function handleCreateCustomer(payload: CreateCustomerPayload) {
     selectedCustomer.value = createdCustomer
     isCreateCustomerOpen.value = false
   } catch (error) {
-    toast.add({ title: resolveErrorMessage(error), color: 'error' })
+    toast.add({ title: 'Error', description: resolveErrorMessage(error), color: 'error' })
   } finally {
     isCreatingCustomer.value = false
   }
@@ -141,8 +142,9 @@ async function handleCreateCustomer(payload: CreateCustomerPayload) {
 async function handleAddressSelect(shippingAddressId: string | null) {
   try {
     await setShippingAddress({ shippingAddressId })
+    emit('update:open', false)
   } catch (error) {
-    toast.add({ title: resolveErrorMessage(error), color: 'error' })
+    toast.add({ title: 'Error', description: resolveErrorMessage(error), color: 'error' })
   }
 }
 
@@ -157,7 +159,7 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
     isCreateAddressOpen.value = false
     selectedCustomer.value = await customerApi.getById(selectedCustomer.value.id)
   } catch (error) {
-    toast.add({ title: resolveErrorMessage(error), color: 'error' })
+    toast.add({ title: 'Error', description: resolveErrorMessage(error), color: 'error' })
   } finally {
     isCreatingAddress.value = false
   }

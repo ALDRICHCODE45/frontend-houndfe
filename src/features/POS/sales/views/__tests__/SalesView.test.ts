@@ -22,6 +22,8 @@ vi.mock('@/features/auth/composables/useSafeTenantId', () => ({
 }))
 
 const chargeDraft = vi.fn()
+const unassignCustomerMock = vi.fn()
+const clearShippingAddressMock = vi.fn()
 const activeTabId = ref<string | null>('sale-1')
 const isMutating = ref(false)
 const drafts = ref<Sale[]>([
@@ -60,12 +62,26 @@ vi.mock('../../composables/useSalesDrafts', () => ({
 
 vi.mock('../../api/sale.api', () => ({ saleApi: { getProductDetail: vi.fn() } }))
 
+vi.mock('../../composables/useDraftCustomerAssignment', () => ({
+  DraftCustomerAssignmentError: class DraftCustomerAssignmentError extends Error {
+    constructor(public readonly code: string) {
+      super(code)
+    }
+  },
+  useDraftCustomerAssignment: () => ({
+    unassignCustomer: unassignCustomerMock,
+    clearShippingAddress: clearShippingAddressMock,
+    isPending: ref(false),
+    lastError: ref(null),
+  }),
+}))
+
 const globalStubs = {
   ProductSearchPanel: { template: '<div />' },
   ActiveSalePanel: {
     props: ['activeDraft'],
-    emits: ['charge-click'],
-    template: '<button data-testid="charge-click" @click="$emit(\'charge-click\')">charge</button>',
+    emits: ['charge-click', 'unassign-customer'],
+    template: '<div><button data-testid="charge-click" @click="$emit(\'charge-click\')">charge</button><button data-testid="unassign-customer" @click="$emit(\'unassign-customer\')">unassign</button></div>',
   },
   PaymentModal: {
     props: ['open', 'saleId', 'externalError', 'isSubmitting'],
@@ -78,6 +94,7 @@ const globalStubs = {
     template: '<div data-testid="success-modal">{{ folio }}</div>',
   },
   USkeleton: { template: '<div />' },
+  AssignCustomerSlideover: { template: '<div />' },
 }
 
 function mountView() {
@@ -96,6 +113,8 @@ describe('SalesView charge orchestration', () => {
     drafts.value = [{ ...drafts.value[0]!, items: [...drafts.value[0]!.items] }]
     activeTabId.value = 'sale-1'
     isMutating.value = false
+    unassignCustomerMock.mockReset()
+    clearShippingAddressMock.mockReset()
   })
 
   it('opens payment flow with F8 only when active draft has items', async () => {
@@ -221,4 +240,5 @@ describe('SalesView charge orchestration', () => {
     window.dispatchEvent(f8Event)
     expect(wrapper.get('[data-testid="submit-charge"]').attributes('disabled')).toBeDefined()
   })
+
 })

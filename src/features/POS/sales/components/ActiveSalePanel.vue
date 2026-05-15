@@ -15,6 +15,7 @@ const props = defineProps<{
   activeTabId: string | null
   isLoadingList: boolean
   isMutating: boolean
+  isCustomerMutationPending?: boolean
   itemImageMap?: Record<string, string>
   onSubmitPriceOverride: (itemId: string, payload: OverrideItemPricePayload) => Promise<unknown>
   onApplyDiscount: (itemId: string, payload: ApplyItemDiscountPayload) => Promise<unknown>
@@ -33,6 +34,8 @@ const emit = defineEmits<{
   'update-qty': [itemId: string, quantity: number]
   'clear-items': []
   'charge-click': []
+  'open-customer-assignment': []
+  'unassign-customer': []
 }>()
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -47,6 +50,20 @@ const globalDiscountModalOpen = ref(false)
 const hasGlobalDiscount = computed(() =>
   props.activeDraft?.items.some((item) => !!item.discountType) ?? false,
 )
+
+const customerFullName = computed(() => {
+  const customer = props.activeDraft?.customer
+  if (!customer) return ''
+  return [customer.firstName, customer.lastName ?? ''].join(' ').trim()
+})
+
+const customerAddressSummary = computed(() => {
+  const address = props.activeDraft?.shippingAddress
+  if (!address) return null
+  return [address.street, address.exteriorNumber ? `#${address.exteriorNumber}` : null, address.city]
+    .filter(Boolean)
+    .join(', ')
+})
 
 const moreMenuItems = computed(() => {
   if (!props.activeDraft || props.activeDraft.items.length === 0) return []
@@ -162,6 +179,56 @@ function getCloseTabDescription(): string {
           />
         </UDropdownMenu>
       </div>
+    </div>
+
+    <div class="border-b border-default px-4 py-3 bg-elevated/20">
+      <UCard>
+        <div class="space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-xs font-medium uppercase tracking-wide text-muted">Cliente</p>
+            <USkeleton v-if="isCustomerMutationPending" class="h-5 w-16" data-testid="customer-slot-loading" />
+          </div>
+
+          <div v-if="!activeDraft?.customer" class="flex items-center justify-between gap-3">
+            <p class="text-sm text-muted">Sin cliente asignado</p>
+            <UButton
+              data-testid="assign-customer-trigger"
+              color="neutral"
+              variant="soft"
+              icon="i-lucide-user-plus"
+              label="Asignar cliente"
+              :disabled="isCustomerMutationPending"
+              @click="emit('open-customer-assignment')"
+            />
+          </div>
+
+          <div v-else class="space-y-2">
+            <p class="text-sm font-semibold">{{ customerFullName }}</p>
+            <p v-if="customerAddressSummary" class="text-xs text-muted">{{ customerAddressSummary }}</p>
+
+            <div class="flex items-center gap-2">
+              <UButton
+                data-testid="change-customer-trigger"
+                color="neutral"
+                variant="soft"
+                size="xs"
+                label="Cambiar"
+                :disabled="isCustomerMutationPending"
+                @click="emit('open-customer-assignment')"
+              />
+              <UButton
+                data-testid="unassign-customer-trigger"
+                color="error"
+                variant="ghost"
+                size="xs"
+                label="Quitar"
+                :disabled="isCustomerMutationPending"
+                @click="emit('unassign-customer')"
+              />
+            </div>
+          </div>
+        </div>
+      </UCard>
     </div>
 
     <!-- Items list (scrollable middle section) -->

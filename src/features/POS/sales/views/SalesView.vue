@@ -8,6 +8,7 @@ import ProductSearchPanel from '../components/ProductSearchPanel.vue'
 import ActiveSalePanel from '../components/ActiveSalePanel.vue'
 import PaymentModal from '../components/PaymentModal.vue'
 import PaymentSuccessModal from '../components/PaymentSuccessModal.vue'
+import AssignCustomerSlideover from '../components/AssignCustomerSlideover.vue'
 import type {
   ApplyItemDiscountPayload,
   ApplyGlobalDiscountPayload,
@@ -17,6 +18,7 @@ import type {
   OverrideItemPricePayload,
   Sale,
 } from '../interfaces/sale.types'
+import { DraftCustomerAssignmentError, useDraftCustomerAssignment } from '../composables/useDraftCustomerAssignment'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { saleQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
@@ -58,12 +60,36 @@ const {
 } = useSalesDrafts()
 
 const paymentModalOpen = ref(false)
+const assignCustomerSlideoverOpen = ref(false)
 const successModalOpen = ref(false)
 const latestChargeSuccess = ref<ChargeSaleResponse | null>(null)
 const inlineAmountError = ref<string | null>(null)
 const inFlightUntil = ref<number>(0)
 
 const isChargeTemporarilyBlocked = computed(() => Date.now() < inFlightUntil.value)
+const activeDraftId = computed(() => activeDraft.value?.id ?? '')
+const { unassignCustomer, clearShippingAddress, isPending: isCustomerMutationPending } = useDraftCustomerAssignment(activeDraftId)
+
+function mapCustomerAssignmentErrorMessage(error: unknown): string {
+  const code = error instanceof DraftCustomerAssignmentError ? error.code : (error as { code?: string })?.code
+
+  switch (code) {
+    case 'CUSTOMER_NOT_FOUND':
+      return 'No se encontró el cliente. Recargá la lista.'
+    case 'SHIPPING_ADDRESS_NOT_FOUND':
+      return 'No se encontró la dirección. Recargá la lista.'
+    case 'SHIPPING_ADDRESS_NOT_FOR_CUSTOMER':
+      return 'Esa dirección no pertenece al cliente seleccionado.'
+    case 'SHIPPING_ADDRESS_REQUIRES_CUSTOMER':
+      return 'Asigná un cliente antes de elegir la dirección.'
+    case 'SALE_NOT_DRAFT':
+      return 'Esta venta ya no es un borrador. Recargá la página.'
+    case 'SALE_UPDATE_FORBIDDEN':
+      return 'No tenés permisos para modificar esta venta.'
+    default:
+      return 'No se pudo completar la operación'
+  }
+}
 
 // ── Lifecycle ─────────────────────────────────────────────────────────────────
 
@@ -414,6 +440,22 @@ onBeforeUnmount(() => {
 function handleSwitchTab(saleId: string) {
   switchTab(saleId)
 }
+
+function handleOpenCustomerAssignment() {
+  if (!activeDraft.value) return
+  assignCustomerSlideoverOpen.value = true
+}
+
+async function handleUnassignCustomer() {
+  if (!activeDraft.value) return
+
+  try {
+    await unassignCustomer()
+    await clearShippingAddress()
+  } catch (error) {
+    toast.add({ title: 'Error', description: mapCustomerAssignmentErrorMessage(error), color: 'error' })
+  }
+}
 </script>
 
 <template>
@@ -471,9 +513,10 @@ function handleSwitchTab(saleId: string) {
             :drafts="drafts"
             :active-draft="activeDraft"
             :active-tab-id="activeTabId"
-            :is-loading-list="isLoadingList"
-            :is-mutating="isMutating"
-            :item-image-map="itemImageMap"
+             :is-loading-list="isLoadingList"
+             :is-mutating="isMutating"
+             :is-customer-mutation-pending="isCustomerMutationPending"
+             :item-image-map="itemImageMap"
             :on-submit-price-override="handleSubmitPriceOverride"
             :on-apply-discount="handleApplyDiscount"
             :on-remove-discount="handleRemoveDiscount"
@@ -481,11 +524,19 @@ function handleSwitchTab(saleId: string) {
               :on-apply-global-discount="handleApplyGlobalDiscount"
               :on-remove-global-discount="handleRemoveGlobalDiscount"
               @charge-click="openPaymentModal"
+              @open-customer-assignment="handleOpenCustomerAssignment"
+              @unassign-customer="handleUnassignCustomer"
               @switch-tab="handleSwitchTab"
              @close-tab="handleCloseTab"
             @create-tab="handleCreateTab"
             @update-qty="handleUpdateQty"
             @clear-items="handleClearItems"
+          />
+
+          <AssignCustomerSlideover
+            v-if="activeDraft"
+            v-model:open="assignCustomerSlideoverOpen"
+            :sale-id="activeDraft.id"
           />
         </div>
       </div>
