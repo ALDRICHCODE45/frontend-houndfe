@@ -29,10 +29,13 @@ import type {
   SaleDetailItem,
   SaleDetailPayment,
   SaleTimelineEvent,
+  SaleComment,
+  SaleCommentErrorCode,
   ListSalesParams,
   SalesListCounts,
   SalesListPagination,
 } from '../sale.types'
+import { SaleCommentError } from '../sale.types'
 
 describe('sale.types', () => {
   describe('SaleStatus type', () => {
@@ -234,11 +237,84 @@ describe('sale.types', () => {
       const event: SaleTimelineEvent = {
         type: 'PAYMENT_RECEIVED',
         at: '2026-05-06T14:43:00.000Z',
+        actor: { id: 'user-1', name: 'Cajero' },
+        register: 'Principal',
+        method: 'CASH',
+        amountCents: 127000,
+        reference: null,
       }
 
       expect(item.imageUrl).toBeNull()
       expect(payment.method).toBe('CASH')
       expect(event.type).toBe('PAYMENT_RECEIVED')
+    })
+
+    it('supports all discriminated timeline variants', () => {
+      const events: SaleTimelineEvent[] = [
+        {
+          type: 'SALE_REGISTERED',
+          at: '2026-05-06T14:40:00.000Z',
+          actor: null,
+          register: 'Principal',
+        },
+        {
+          type: 'PAYMENT_RECEIVED',
+          at: '2026-05-06T14:42:00.000Z',
+          actor: { id: 'u-1', name: 'Ana' },
+          register: 'Principal',
+          method: 'CARD_DEBIT',
+          amountCents: 5000,
+          reference: 'TX-1',
+        },
+        {
+          type: 'PRODUCTS_DELIVERED',
+          at: '2026-05-06T14:43:00.000Z',
+          actor: { id: 'u-2', name: 'Luis' },
+          register: 'Principal',
+        },
+        {
+          type: 'COMMENT',
+          at: '2026-05-06T14:44:00.000Z',
+          actor: { id: 'u-3', name: 'Marta' },
+          commentId: 'comment-1',
+          body: 'Cliente pidió factura',
+        },
+      ]
+
+      expect(events).toHaveLength(4)
+      expect(events[1]?.type).toBe('PAYMENT_RECEIVED')
+      expect(events[3]?.type).toBe('COMMENT')
+    })
+
+    it('requires non-null actor in COMMENT events', () => {
+      // @ts-expect-error COMMENT actor cannot be null
+      const invalid: SaleTimelineEvent = {
+        type: 'COMMENT',
+        at: '2026-05-06T14:44:00.000Z',
+        actor: null,
+        commentId: 'comment-1',
+        body: 'Cliente pidió factura',
+      }
+
+      expect(invalid).toBeDefined()
+    })
+
+    it('supports SaleComment and typed SaleCommentError', () => {
+      const comment: SaleComment = {
+        id: 'comment-1',
+        saleId: 'sale-1',
+        tenantId: 'tenant-1',
+        authorUserId: 'user-1',
+        body: 'ok',
+        createdAt: '2026-05-06T14:44:00.000Z',
+        updatedAt: '2026-05-06T14:44:00.000Z',
+        deletedAt: null,
+      }
+      const code: SaleCommentErrorCode = 'COMMENT_AUTHOR_FORBIDDEN'
+      const error = new SaleCommentError(code)
+
+      expect(comment.id).toBe('comment-1')
+      expect(error.code).toBe('COMMENT_AUTHOR_FORBIDDEN')
     })
 
     it('builds SaleDetail with backend fields and nullable actors', () => {

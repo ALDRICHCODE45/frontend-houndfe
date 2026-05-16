@@ -47,6 +47,16 @@ vi.mock('../../composables/useDebtPayment', () => ({
   }),
 }))
 
+vi.mock('../../composables/useSaleComments', () => ({
+  useSaleComments: () => ({
+    addComment: vi.fn().mockResolvedValue(undefined),
+    updateComment: vi.fn().mockResolvedValue(undefined),
+    deleteComment: vi.fn().mockResolvedValue(undefined),
+    isPending: computed(() => false),
+    lastError: computed(() => null),
+  }),
+}))
+
 vi.mock('@/features/auth/stores/useAuthStore', () => ({
   useAuthStore: () => ({ userCan: vi.fn(() => true) }),
 }))
@@ -62,6 +72,7 @@ describe('SaleDetailView', () => {
           SaleDetailItemsTable: { template: '<div data-testid="items" />' },
           SaleDetailTotalsCard: { template: '<div data-testid="totals" />' },
           SaleDetailTimeline: { template: '<div data-testid="timeline" />' },
+          SaleCommentInput: { template: '<div data-testid="comment-input" />' },
           SaleDetailSidebar: { template: '<div data-testid="sidebar" />' },
         },
       },
@@ -84,6 +95,7 @@ describe('SaleDetailView', () => {
           SaleDetailItemsTable: { template: '<div data-testid="items" />' },
           SaleDetailTotalsCard: { template: '<div data-testid="totals" />' },
           SaleDetailTimeline: { template: '<div data-testid="timeline" />' },
+          SaleCommentInput: { template: '<div data-testid="comment-input" />' },
           SaleDetailSidebar: {
             props: ['sale'],
             emits: ['register-payment'],

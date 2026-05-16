@@ -1,4 +1,5 @@
 import { http } from '@/core/shared/api/http'
+import type { AxiosError } from 'axios'
 import type {
   Sale,
   AddItemPayload,
@@ -20,7 +21,23 @@ import type {
   DebtPaymentResponse,
   AssignCustomerPayload,
   AssignShippingAddressPayload,
+  SaleComment,
+  SaleCommentErrorCode,
 } from '../interfaces/sale.types'
+import { SaleCommentError } from '../interfaces/sale.types'
+
+interface DomainErrorResponse {
+  error?: string
+}
+
+function parseCommentError(error: unknown): SaleCommentError | null {
+  const code = (error as AxiosError<DomainErrorResponse>)?.response?.data?.error
+  const knownCodes: SaleCommentErrorCode[] = ['COMMENT_NOT_FOUND', 'COMMENT_AUTHOR_FORBIDDEN', 'SALE_NOT_FOUND']
+  if (code && knownCodes.includes(code as SaleCommentErrorCode)) {
+    return new SaleCommentError(code as SaleCommentErrorCode)
+  }
+  return null
+}
 
 export const saleApi = {
   async createDraft(): Promise<Sale> {
@@ -159,5 +176,31 @@ export const saleApi = {
   async getById(id: string): Promise<SaleDetail> {
     const { data } = await http.get<SaleDetail>(`/sales/${id}`)
     return data
+  },
+
+  async addComment(saleId: string, payload: { body: string }): Promise<SaleComment> {
+    try {
+      const { data } = await http.post<SaleComment>(`/sales/${saleId}/comments`, payload)
+      return data
+    } catch (error) {
+      throw parseCommentError(error) ?? error
+    }
+  },
+
+  async updateComment(saleId: string, commentId: string, payload: { body: string }): Promise<SaleComment> {
+    try {
+      const { data } = await http.patch<SaleComment>(`/sales/${saleId}/comments/${commentId}`, payload)
+      return data
+    } catch (error) {
+      throw parseCommentError(error) ?? error
+    }
+  },
+
+  async deleteComment(saleId: string, commentId: string): Promise<void> {
+    try {
+      await http.delete(`/sales/${saleId}/comments/${commentId}`)
+    } catch (error) {
+      throw parseCommentError(error) ?? error
+    }
   },
 }

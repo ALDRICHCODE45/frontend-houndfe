@@ -48,8 +48,9 @@ export interface ConfirmedSalesListResponse {
   counts: SalesListCounts
 }
 
-export type SaleDetailTimelineType = 'SALE_REGISTERED' | 'PAYMENT_RECEIVED' | 'PRODUCTS_DELIVERED'
 export type SaleDetailPaymentMethod = 'CASH' | 'CARD_CREDIT' | 'CARD_DEBIT' | 'TRANSFER' | 'CREDIT'
+
+export type SaleCommentErrorCode = 'COMMENT_NOT_FOUND' | 'COMMENT_AUTHOR_FORBIDDEN' | 'SALE_NOT_FOUND'
 
 export interface SaleDetailItem {
   productName: string
@@ -70,9 +71,52 @@ export interface SaleDetailPayment {
   paidAt: string
 }
 
-export interface SaleTimelineEvent {
-  type: SaleDetailTimelineType
-  at: string
+export type SaleTimelineEvent =
+  | {
+    type: 'SALE_REGISTERED'
+    at: string
+    actor: SaleActorRef | null
+    register: string
+  }
+  | {
+    type: 'PAYMENT_RECEIVED'
+    at: string
+    actor: SaleActorRef | null
+    register: string
+    method: SaleDetailPaymentMethod
+    amountCents: number
+    reference: string | null
+  }
+  | {
+    type: 'PRODUCTS_DELIVERED'
+    at: string
+    actor: SaleActorRef | null
+    register: string
+  }
+  | {
+    type: 'COMMENT'
+    at: string
+    actor: SaleActorRef
+    commentId: string
+    body: string
+  }
+
+export interface SaleComment {
+  id: string
+  saleId: string
+  tenantId: string
+  authorUserId: string
+  body: string
+  createdAt: string
+  updatedAt: string
+  deletedAt: string | null
+}
+
+export class SaleCommentError extends Error {
+  constructor(public readonly code: SaleCommentErrorCode, message?: string) {
+    super(message ?? code)
+    this.name = 'SaleCommentError'
+  }
 }
 
 export interface SaleDetail {

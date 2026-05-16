@@ -661,7 +661,7 @@ describe('saleApi', () => {
             paidAt: '2026-05-07T14:43:00.000Z',
           },
         ],
-        timeline: [{ type: 'SALE_REGISTERED', at: '2026-05-07T14:43:00.000Z' }],
+        timeline: [{ type: 'SALE_REGISTERED', at: '2026-05-07T14:43:00.000Z', actor: null, register: 'Principal' }],
       }
       vi.mocked(http.get).mockResolvedValue({ data: response })
 
@@ -844,6 +844,70 @@ describe('saleApi', () => {
         },
       })
       expect(result.paymentStatus).toBe('PAID')
+    })
+  })
+
+  describe('sale comments endpoints', () => {
+    it('addComment POSTs to /sales/:id/comments', async () => {
+      const response = {
+        id: 'comment-1',
+        saleId: 'sale-1',
+        tenantId: 'tenant-1',
+        authorUserId: 'user-1',
+        body: 'hola',
+        createdAt: '2026-05-06T14:44:00.000Z',
+        updatedAt: '2026-05-06T14:44:00.000Z',
+        deletedAt: null,
+      }
+      vi.mocked(http.post).mockResolvedValue({ data: response })
+
+      const result = await saleApi.addComment('sale-1', { body: 'hola' })
+
+      expect(http.post).toHaveBeenCalledWith('/sales/sale-1/comments', { body: 'hola' })
+      expect(result.id).toBe('comment-1')
+    })
+
+    it('updateComment PATCHes to /sales/:id/comments/:commentId', async () => {
+      const response = {
+        id: 'comment-1',
+        saleId: 'sale-1',
+        tenantId: 'tenant-1',
+        authorUserId: 'user-1',
+        body: 'editado',
+        createdAt: '2026-05-06T14:44:00.000Z',
+        updatedAt: '2026-05-06T14:45:00.000Z',
+        deletedAt: null,
+      }
+      vi.mocked(http.patch).mockResolvedValue({ data: response })
+
+      const result = await saleApi.updateComment('sale-1', 'comment-1', { body: 'editado' })
+
+      expect(http.patch).toHaveBeenCalledWith('/sales/sale-1/comments/comment-1', { body: 'editado' })
+      expect(result.body).toBe('editado')
+    })
+
+    it('deleteComment DELETEs /sales/:id/comments/:commentId', async () => {
+      vi.mocked(http.delete).mockResolvedValue({ data: undefined })
+
+      await saleApi.deleteComment('sale-1', 'comment-1')
+
+      expect(http.delete).toHaveBeenCalledWith('/sales/sale-1/comments/comment-1')
+    })
+
+    it('maps known backend comment errors to SaleCommentError', async () => {
+      vi.mocked(http.post).mockRejectedValueOnce({ response: { data: { error: 'COMMENT_AUTHOR_FORBIDDEN' } } })
+      vi.mocked(http.patch).mockRejectedValueOnce({ response: { data: { error: 'COMMENT_NOT_FOUND' } } })
+      vi.mocked(http.delete).mockRejectedValueOnce({ response: { data: { error: 'SALE_NOT_FOUND' } } })
+
+      await expect(saleApi.addComment('sale-1', { body: 'x' })).rejects.toMatchObject({
+        code: 'COMMENT_AUTHOR_FORBIDDEN',
+      })
+      await expect(saleApi.updateComment('sale-1', 'comment-1', { body: 'x' })).rejects.toMatchObject({
+        code: 'COMMENT_NOT_FOUND',
+      })
+      await expect(saleApi.deleteComment('sale-1', 'comment-1')).rejects.toMatchObject({
+        code: 'SALE_NOT_FOUND',
+      })
     })
   })
 })

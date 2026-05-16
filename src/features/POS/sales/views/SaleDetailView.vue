@@ -1,17 +1,27 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { useSaleDetail } from '../composables/useSaleDetail'
 import { useDebtPayment } from '../composables/useDebtPayment'
+import { useSaleComments } from '../composables/useSaleComments'
 import { extractFolioNumber } from '../utils/saleFolio.utils'
 import { getDeliveryStatusBadge } from '../utils/saleStatus.utils'
 import SaleDetailItemsTable from '../components/SaleDetailItemsTable.vue'
 import SaleDetailTotalsCard from '../components/SaleDetailTotalsCard.vue'
 import SaleDetailTimeline from '../components/SaleDetailTimeline.vue'
+import SaleCommentInput from '../components/SaleCommentInput.vue'
 import SaleDetailSidebar from '../components/SaleDetailSidebar.vue'
 import DebtPaymentModal from '../components/DebtPaymentModal.vue'
+
+declare const useToast: () => {
+  add: (options: {
+    title: string
+    description?: string
+    color?: 'success' | 'error' | 'warning' | 'primary' | 'neutral'
+  }) => void
+}
 
 const route = useRoute()
 const router = useRouter()
@@ -20,6 +30,7 @@ const authStore = useAuthStore()
 const saleId = computed(() => String(route.params.id ?? ''))
 const canReadSales = computed(() => authStore.userCan('read', 'Sale'))
 const { sale, isLoading } = useSaleDetail(saleId)
+const { addComment, updateComment, deleteComment, isPending: commentsPending, lastError } = useSaleComments(saleId)
 const debtModalOpen = ref(false)
 const { submit, isSubmitting, externalError } = useDebtPayment(saleId.value)
 
@@ -31,6 +42,21 @@ async function handleDebtSubmit(payload: { method: 'cash' | 'card_credit' | 'car
 function goBack() {
   void router.push('/pos/ventas')
 }
+
+function mapCommentErrorMessage(code?: string | null): string {
+  if (code === 'COMMENT_AUTHOR_FORBIDDEN') return 'Solo el autor puede editar o eliminar este comentario'
+  if (code === 'COMMENT_NOT_FOUND') return 'Comentario no encontrado'
+  if (code === 'SALE_NOT_FOUND') return 'Venta no encontrada'
+  return 'No se pudo guardar el comentario'
+}
+
+watch(
+  () => lastError.value,
+  (error) => {
+    if (!error) return
+    useToast().add({ title: 'Error', description: mapCommentErrorMessage(error.code), color: 'error' })
+  },
+)
 </script>
 
 <template>
@@ -55,7 +81,15 @@ function goBack() {
         :discount-cents="sale.discountCents"
         :total-cents="sale.totalCents"
       />
-      <SaleDetailTimeline v-if="sale" :timeline="sale.timeline" :payments="sale.payments" />
+      <SaleDetailTimeline
+        v-if="sale"
+        :timeline="sale.timeline"
+        :current-user-id="authStore.user?.id ?? null"
+        :is-pending="commentsPending"
+        :on-update-comment="updateComment"
+        :on-delete-comment="deleteComment"
+      />
+      <SaleCommentInput v-if="sale" :is-pending="commentsPending" :on-submit="addComment" />
     </div>
 
     <SaleDetailSidebar
