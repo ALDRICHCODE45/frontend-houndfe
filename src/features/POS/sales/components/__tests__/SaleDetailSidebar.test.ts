@@ -40,6 +40,10 @@ const defaultStubs = {
     props: ['open', 'saleId'],
     template: '<div data-testid="assign-seller-slideover-stub" />',
   },
+  DueDateEditModal: {
+    props: ['open', 'saleId', 'currentDueDate'],
+    template: '<div data-testid="due-date-modal-stub" />',
+  },
 }
 
 const buildSaleDetail = (overrides: Partial<SaleDetail> = {}): SaleDetail => ({
@@ -254,7 +258,7 @@ describe('SaleDetailSidebar', () => {
     expect(wrapper.find('[data-testid="register-debt-payment"]').exists()).toBe(false)
   })
 
-  it('renders Vence row when dueDate exists and paymentStatus is PARTIAL', () => {
+  it('renders Vence row with formatted date when dueDate exists and paymentStatus is PARTIAL', () => {
     const wrapper = mount(SaleDetailSidebar, {
       props: {
         sale: buildSaleDetail({
@@ -271,11 +275,12 @@ describe('SaleDetailSidebar', () => {
 
     const dueDateRow = wrapper.find('[data-testid="sidebar-due-date"]')
     expect(dueDateRow.exists()).toBe(true)
-    expect(dueDateRow.text()).toContain('Vence:')
+    expect(dueDateRow.text()).toContain('Vence')
     expect(dueDateRow.text()).toContain('01/06/2026')
+    expect(wrapper.find('[data-testid="edit-due-date-trigger"]').exists()).toBe(true)
   })
 
-  it('hides Vence row when dueDate is null', () => {
+  it('shows Vence row with "Sin fecha" + asignar trigger when dueDate is null and paymentStatus is CREDIT', () => {
     const wrapper = mount(SaleDetailSidebar, {
       props: {
         sale: buildSaleDetail({
@@ -288,7 +293,10 @@ describe('SaleDetailSidebar', () => {
       },
     })
 
-    expect(wrapper.find('[data-testid="sidebar-due-date"]').exists()).toBe(false)
+    const dueDateRow = wrapper.find('[data-testid="sidebar-due-date"]')
+    expect(dueDateRow.exists()).toBe(true)
+    expect(dueDateRow.text()).toContain('Sin fecha')
+    expect(wrapper.get('[data-testid="edit-due-date-trigger"]').text()).toBe('Asignar fecha')
   })
 
   it('hides Vence row when paymentStatus is PAID even with dueDate', () => {

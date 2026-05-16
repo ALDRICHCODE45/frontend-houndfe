@@ -161,6 +161,9 @@ export interface ListSalesParams {
 export interface LegacyChargePayload {
   method: PaymentMethod
   amountCents: number
+  /** Optional ISO date string for debt due date (per backend §8). Frontend
+   *  validates `>= today` before sending. Omit to let backend apply default. */
+  dueDate?: string
 }
 
 export interface PaymentEntry {
@@ -171,6 +174,8 @@ export interface PaymentEntry {
 
 export interface MultiPaymentChargePayload {
   payments: PaymentEntry[]
+  /** Optional ISO date string for debt due date (per backend §8). */
+  dueDate?: string
 }
 
 export type ChargeSalePayload =
@@ -281,6 +286,24 @@ export class SellerAssignmentError extends Error {
   constructor(public readonly code: SellerAssignmentErrorCode, message?: string) {
     super(message ?? code)
     this.name = 'SellerAssignmentError'
+  }
+}
+
+export interface SetDueDatePayload {
+  // ISO date or null (clear)
+  dueDate: string | null
+}
+
+export type SaleDueDateErrorCode =
+  | 'INVALID_DUE_DATE'
+  | 'SALE_ALREADY_PAID'
+  | 'SALE_NOT_FOUND'
+  | 'SALE_UPDATE_FORBIDDEN'
+
+export class SaleDueDateError extends Error {
+  constructor(public readonly code: SaleDueDateErrorCode, message?: string) {
+    super(message ?? code)
+    this.name = 'SaleDueDateError'
   }
 }
 

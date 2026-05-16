@@ -417,6 +417,30 @@ describe('saleApi', () => {
     })
   })
 
+  describe('due date edit endpoint', () => {
+    it('setDueDate should PATCH /sales/:id/due-date with payload and return SaleDetail', async () => {
+      const mockResponse: Partial<SaleDetail> = {
+        id: 'sale-1',
+        dueDate: '2026-06-15T00:00:00.000Z',
+      }
+      vi.mocked(http.patch).mockResolvedValue({ data: mockResponse })
+
+      const result = await saleApi.setDueDate('sale-1', { dueDate: '2026-06-15' })
+
+      expect(http.patch).toHaveBeenCalledWith('/sales/sale-1/due-date', { dueDate: '2026-06-15' })
+      expect(result).toEqual(mockResponse)
+    })
+
+    it('setDueDate should accept null to clear the due date', async () => {
+      const mockResponse: Partial<SaleDetail> = { id: 'sale-1', dueDate: null }
+      vi.mocked(http.patch).mockResolvedValue({ data: mockResponse })
+
+      await saleApi.setDueDate('sale-1', { dueDate: null })
+
+      expect(http.patch).toHaveBeenCalledWith('/sales/sale-1/due-date', { dueDate: null })
+    })
+  })
+
   describe('chargeDraft', () => {
     it('posts charge payload to draft charge endpoint with idempotency header', async () => {
       const payload: ChargeSalePayload = {

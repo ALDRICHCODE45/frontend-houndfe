@@ -33,6 +33,21 @@ const entries = ref<PaymentEntryForm[]>([])
 const inlineError = ref<string | null>(null)
 const referenceErrorByIndex = ref<Record<number, string>>({})
 const idempotencyKey = ref<string>('')
+const dueDateInput = ref<string>('')
+
+function todayISODate(): string {
+  const today = new Date()
+  const yyyy = today.getFullYear()
+  const mm = String(today.getMonth() + 1).padStart(2, '0')
+  const dd = String(today.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
+const minDueDate = computed(() => todayISODate())
+const isDueDateValid = computed(() => {
+  if (!dueDateInput.value) return true // empty is valid (optional)
+  return dueDateInput.value >= minDueDate.value
+})
 
 const methodOptions: ReadonlyArray<{ value: NonCreditPaymentMethod; label: string; icon: string }> = [
   { value: 'cash', label: 'Efectivo', icon: 'i-lucide-banknote' },
@@ -115,6 +130,7 @@ watch(
     inlineError.value = null
     referenceErrorByIndex.value = {}
     idempotencyKey.value = newIdempotencyKey()
+    dueDateInput.value = ''
   },
   { immediate: true },
 )
@@ -213,24 +229,30 @@ function validate(): boolean {
     return false
   }
 
+  if (!isDueDateValid.value) {
+    inlineError.value = 'La fecha de vencimiento debe ser hoy o posterior'
+    return false
+  }
+
   inlineError.value = null
   return true
 }
 
 function buildPayload(): ChargeSalePayload {
   const payments = normalizeEntries()
+  const dueDate = dueDateInput.value || undefined
+
   if (payments.length === 1) {
     const single = payments[0]
     if (!single) {
-      return { payments }
+      return dueDate ? { payments, dueDate } : { payments }
     }
-    return {
-      method: single.method,
-      amountCents: single.amountCents,
-    }
+    return dueDate
+      ? { method: single.method, amountCents: single.amountCents, dueDate }
+      : { method: single.method, amountCents: single.amountCents }
   }
 
-  return { payments }
+  return dueDate ? { payments, dueDate } : { payments }
 }
 
 function handleSubmit() {
@@ -419,10 +441,26 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
                   placeholder="Ej: VOUCHER-123"
                   :disabled="isSubmitting"
                 />
-              </UFormField>
-            </div>
-          </section>
-        </div>
+                </UFormField>
+              </div>
+            </section>
+
+            <!-- Optional due date for resulting debt -->
+            <section class="space-y-2" data-testid="due-date-section">
+              <p class="text-sm font-semibold text-highlighted">Vence (opcional)</p>
+              <p class="text-xs text-muted">
+                Si la venta queda con deuda, esta es la fecha en que debe pagarse. Si no la
+                indicás, el sistema aplica el plazo por defecto.
+              </p>
+              <UInput
+                v-model="dueDateInput"
+                data-testid="due-date-input"
+                type="date"
+                :min="minDueDate"
+                :disabled="isSubmitting"
+              />
+            </section>
+          </div>
 
         <!-- Sticky footer -->
         <div class="shrink-0 space-y-3 border-t border-default bg-default px-5 py-4">

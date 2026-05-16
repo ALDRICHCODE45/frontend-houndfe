@@ -22,6 +22,7 @@ import type {
   AssignCustomerPayload,
   AssignShippingAddressPayload,
   AssignSellerPayload,
+  SetDueDatePayload,
   SaleComment,
   SaleCommentErrorCode,
 } from '../interfaces/sale.types'
@@ -126,6 +127,11 @@ export const saleApi = {
 
   async unassignSeller(saleId: string): Promise<void> {
     await http.delete(`/sales/${saleId}/seller`)
+  },
+
+  async setDueDate(saleId: string, payload: SetDueDatePayload): Promise<SaleDetail> {
+    const { data } = await http.patch<SaleDetail>(`/sales/${saleId}/due-date`, payload)
+    return data
   },
 
   async unassignShippingAddress(saleId: string): Promise<void> {

@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
 import AssignSellerSlideover from './AssignSellerSlideover.vue'
+import DueDateEditModal from './DueDateEditModal.vue'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { formatSaleDate } from '../utils/saleDate.utils'
 import { getPaymentStatusBadge } from '../utils/saleStatus.utils'
@@ -28,8 +29,12 @@ const emit = defineEmits<{
 const authStore = useAuthStore()
 const toast = useToast()
 const isAssignSellerOpen = ref(false)
+const isDueDateModalOpen = ref(false)
 
 const canUpdateSale = computed(() => authStore.userCan('update', 'Sale'))
+const canEditDueDate = computed(
+  () => canUpdateSale.value && props.sale.paymentStatus !== 'PAID',
+)
 const { unassignSeller, isPending: isSellerMutating } = useSellerAssignment(() => props.sale.id)
 
 async function handleUnassignSeller() {
@@ -59,9 +64,21 @@ async function handleUnassignSeller() {
       </div>
 
       <div><p class="text-xs text-muted">Fecha</p><p>{{ formatSaleDate(sale.confirmedAt) }}</p></div>
-      <div v-if="sale.dueDate && sale.paymentStatus !== 'PAID'" data-testid="sidebar-due-date">
-        <span class="text-xs text-muted">Vence:</span>
-        <span class="font-medium">{{ formatSaleDate(sale.dueDate) }}</span>
+      <div v-if="sale.paymentStatus !== 'PAID'" data-testid="sidebar-due-date">
+        <p class="text-xs text-muted">Vence</p>
+        <div class="flex items-center gap-2">
+          <p v-if="sale.dueDate" class="font-medium">{{ formatSaleDate(sale.dueDate) }}</p>
+          <p v-else class="font-medium text-muted font-normal">Sin fecha</p>
+          <button
+            v-if="canEditDueDate"
+            type="button"
+            data-testid="edit-due-date-trigger"
+            class="text-xs text-primary hover:underline"
+            @click="isDueDateModalOpen = true"
+          >
+            {{ sale.dueDate ? 'Editar' : 'Asignar fecha' }}
+          </button>
+        </div>
       </div>
       <div><p class="text-xs text-muted">Canal</p><p>Punto de Venta</p></div>
       <div><p class="text-xs text-muted">Caja</p><p>{{ sale.register }}</p></div>
@@ -118,5 +135,11 @@ async function handleUnassignSeller() {
   <AssignSellerSlideover
     v-model:open="isAssignSellerOpen"
     :sale-id="sale.id"
+  />
+
+  <DueDateEditModal
+    v-model:open="isDueDateModalOpen"
+    :sale-id="sale.id"
+    :current-due-date="sale.dueDate"
   />
 </template>

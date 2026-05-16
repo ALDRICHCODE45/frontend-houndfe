@@ -443,4 +443,48 @@ describe('PaymentModal', () => {
     await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
     expect(wrapper.emitted('submit')).toBeTruthy()
   })
+
+  it('includes optional dueDate in the charge payload when provided', async () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+        customer: { id: 'c-1', firstName: 'Ada', lastName: null },
+      },
+      global: { stubs },
+    })
+
+    // Add a partial payment (so the sale will end with debt)
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('100')
+
+    // Pick a due date far in the future (safe across clocks)
+    await wrapper.get('[data-testid="due-date-input"]').setValue('2099-12-31')
+
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    const submitted = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
+    expect(submitted).toBeDefined()
+    expect(submitted?.payload).toMatchObject({ dueDate: '2099-12-31' })
+  })
+
+  it('omits dueDate from the payload when input is empty', async () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+        customer: { id: 'c-1', firstName: 'Ada', lastName: null },
+      },
+      global: { stubs },
+    })
+
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+
+    const submitted = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
+    expect(submitted).toBeDefined()
+    expect(submitted?.payload).not.toHaveProperty('dueDate')
+  })
 })
