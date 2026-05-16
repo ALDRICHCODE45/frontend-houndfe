@@ -3,6 +3,45 @@ import { mount } from '@vue/test-utils'
 import SaleDetailSidebar from '../SaleDetailSidebar.vue'
 import type { SaleDetail } from '../../interfaces/sale.types'
 
+const mocks = vi.hoisted(() => ({
+  unassignSellerMock: vi.fn(),
+  userCanMock: vi.fn((_action: string, _subject: string) => true),
+}))
+
+vi.mock('@/features/POS/sales/composables/useSellerAssignment', async () => {
+  const { ref: vueRef } = await import('vue')
+  return {
+    useSellerAssignment: () => ({
+      assignSeller: vi.fn(),
+      unassignSeller: mocks.unassignSellerMock,
+      isPending: vueRef(false),
+      lastError: vueRef(null),
+    }),
+  }
+})
+
+vi.mock('@/features/auth/stores/useAuthStore', () => ({
+  useAuthStore: () => ({ userCan: mocks.userCanMock }),
+}))
+
+const unassignSellerMock = mocks.unassignSellerMock
+
+vi.stubGlobal('useToast', () => ({ add: vi.fn() }))
+
+const defaultStubs = {
+  AppBadge: { template: '<span><slot /></span>' },
+  UCard: { template: '<div><slot /></div>' },
+  UButton: {
+    props: ['block'],
+    emits: ['click'],
+    template: '<button @click="$emit(\'click\')"><slot /></button>',
+  },
+  AssignSellerSlideover: {
+    props: ['open', 'saleId'],
+    template: '<div data-testid="assign-seller-slideover-stub" />',
+  },
+}
+
 const buildSaleDetail = (overrides: Partial<SaleDetail> = {}): SaleDetail => ({
   id: 'sale-1',
   folio: 'A-202605-000012',
@@ -57,10 +96,7 @@ describe('SaleDetailSidebar', () => {
         },
       },
       global: {
-        stubs: {
-          AppBadge: { template: '<span><slot /></span>' },
-          UCard: { template: '<div><slot /></div>' },
-        },
+        stubs: defaultStubs,
       },
     })
 
@@ -96,14 +132,12 @@ describe('SaleDetailSidebar', () => {
         },
       },
       global: {
-        stubs: {
-          AppBadge: { template: '<span><slot /></span>' },
-          UCard: { template: '<div><slot /></div>' },
-        },
+        stubs: defaultStubs,
       },
     })
 
-    expect(wrapper.text()).toContain('Asignar Vendedor')
+    expect(wrapper.text()).toContain('Sin asignar')
+    expect(wrapper.find('[data-testid="assign-seller-trigger"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('Punto de Venta')
   })
 
@@ -135,10 +169,7 @@ describe('SaleDetailSidebar', () => {
         },
       },
       global: {
-        stubs: {
-          AppBadge: { template: '<span><slot /></span>' },
-          UCard: { template: '<div><slot /></div>' },
-        },
+        stubs: defaultStubs,
       },
     })
 
@@ -176,11 +207,7 @@ describe('SaleDetailSidebar', () => {
         onRegisterPayment,
       },
       global: {
-        stubs: {
-          AppBadge: { template: '<span><slot /></span>' },
-          UCard: { template: '<div><slot /></div>' },
-          UButton: { template: '<button @click="$emit(\'click\')"><slot /></button>' },
-        },
+        stubs: defaultStubs,
       },
     })
 
@@ -220,11 +247,7 @@ describe('SaleDetailSidebar', () => {
         },
       },
       global: {
-        stubs: {
-          AppBadge: { template: '<span><slot /></span>' },
-          UCard: { template: '<div><slot /></div>' },
-          UButton: { template: '<button><slot /></button>' },
-        },
+        stubs: defaultStubs,
       },
     })
 
@@ -242,11 +265,7 @@ describe('SaleDetailSidebar', () => {
         }),
       },
       global: {
-        stubs: {
-          AppBadge: { template: '<span><slot /></span>' },
-          UCard: { template: '<div><slot /></div>' },
-          UButton: { template: '<button><slot /></button>' },
-        },
+        stubs: defaultStubs,
       },
     })
 
@@ -265,11 +284,7 @@ describe('SaleDetailSidebar', () => {
         }),
       },
       global: {
-        stubs: {
-          AppBadge: { template: '<span><slot /></span>' },
-          UCard: { template: '<div><slot /></div>' },
-          UButton: { template: '<button><slot /></button>' },
-        },
+        stubs: defaultStubs,
       },
     })
 
@@ -285,14 +300,48 @@ describe('SaleDetailSidebar', () => {
         }),
       },
       global: {
-        stubs: {
-          AppBadge: { template: '<span><slot /></span>' },
-          UCard: { template: '<div><slot /></div>' },
-          UButton: { template: '<button><slot /></button>' },
-        },
+        stubs: defaultStubs,
       },
     })
 
     expect(wrapper.find('[data-testid="sidebar-due-date"]').exists()).toBe(false)
+  })
+
+  it('shows Cambiar + Quitar triggers when seller is assigned and user has update:Sale', () => {
+    const wrapper = mount(SaleDetailSidebar, {
+      props: {
+        sale: buildSaleDetail({ seller: { id: 'u-2', name: 'Vendedor X' } }),
+      },
+      global: { stubs: defaultStubs },
+    })
+
+    expect(wrapper.text()).toContain('Vendedor X')
+    expect(wrapper.find('[data-testid="change-seller-trigger"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="unassign-seller-trigger"]').exists()).toBe(true)
+  })
+
+  it('clicking Quitar triggers unassignSeller', async () => {
+    const wrapper = mount(SaleDetailSidebar, {
+      props: {
+        sale: buildSaleDetail({ seller: { id: 'u-2', name: 'Vendedor X' } }),
+      },
+      global: { stubs: defaultStubs },
+    })
+
+    await wrapper.get('[data-testid="unassign-seller-trigger"]').trigger('click')
+    expect(unassignSellerMock).toHaveBeenCalled()
+  })
+
+  it('hides seller affordances when user lacks update:Sale ability', () => {
+    mocks.userCanMock.mockReturnValueOnce(false)
+    const wrapper = mount(SaleDetailSidebar, {
+      props: {
+        sale: buildSaleDetail({ seller: null }),
+      },
+      global: { stubs: defaultStubs },
+    })
+
+    expect(wrapper.text()).toContain('Sin asignar')
+    expect(wrapper.find('[data-testid="assign-seller-trigger"]').exists()).toBe(false)
   })
 })

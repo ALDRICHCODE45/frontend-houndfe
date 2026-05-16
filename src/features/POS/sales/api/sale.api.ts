@@ -21,6 +21,7 @@ import type {
   DebtPaymentResponse,
   AssignCustomerPayload,
   AssignShippingAddressPayload,
+  AssignSellerPayload,
   SaleComment,
   SaleCommentErrorCode,
 } from '../interfaces/sale.types'
@@ -116,6 +117,15 @@ export const saleApi = {
   async assignShippingAddress(saleId: string, payload: AssignShippingAddressPayload): Promise<Sale> {
     const { data } = await http.put<Sale>(`/sales/drafts/${saleId}/shipping-address`, payload)
     return data
+  },
+
+  async assignSeller(saleId: string, payload: AssignSellerPayload): Promise<SaleDetail> {
+    const { data } = await http.put<SaleDetail>(`/sales/${saleId}/seller`, payload)
+    return data
+  },
+
+  async unassignSeller(saleId: string): Promise<void> {
+    await http.delete(`/sales/${saleId}/seller`)
   },
 
   async unassignShippingAddress(saleId: string): Promise<void> {

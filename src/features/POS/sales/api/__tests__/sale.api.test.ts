@@ -394,6 +394,29 @@ describe('saleApi', () => {
     })
   })
 
+  describe('seller assignment endpoints', () => {
+    it('assignSeller should PUT /sales/:id/seller with payload and return SaleDetail', async () => {
+      const mockResponse: Partial<SaleDetail> = {
+        id: 'sale-1',
+        seller: { id: 'user-5', name: 'César Flores' },
+      }
+      vi.mocked(http.put).mockResolvedValue({ data: mockResponse })
+
+      const result = await saleApi.assignSeller('sale-1', { sellerUserId: 'user-5' })
+
+      expect(http.put).toHaveBeenCalledWith('/sales/sale-1/seller', { sellerUserId: 'user-5' })
+      expect(result).toEqual(mockResponse)
+    })
+
+    it('unassignSeller should DELETE /sales/:id/seller', async () => {
+      vi.mocked(http.delete).mockResolvedValue({ data: undefined })
+
+      await saleApi.unassignSeller('sale-1')
+
+      expect(http.delete).toHaveBeenCalledWith('/sales/sale-1/seller')
+    })
+  })
+
   describe('chargeDraft', () => {
     it('posts charge payload to draft charge endpoint with idempotency header', async () => {
       const payload: ChargeSalePayload = {

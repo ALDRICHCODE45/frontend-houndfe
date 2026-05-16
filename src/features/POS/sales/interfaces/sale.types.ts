@@ -267,6 +267,23 @@ export type DraftCustomerAssignmentErrorCode =
   | 'SALE_NOT_DRAFT'
   | 'SALE_UPDATE_FORBIDDEN'
 
+export interface AssignSellerPayload {
+  sellerUserId: string
+}
+
+export type SellerAssignmentErrorCode =
+  | 'SELLER_NOT_FOUND'
+  | 'SELLER_NOT_ASSIGNABLE'
+  | 'SALE_NOT_FOUND'
+  | 'SALE_UPDATE_FORBIDDEN'
+
+export class SellerAssignmentError extends Error {
+  constructor(public readonly code: SellerAssignmentErrorCode, message?: string) {
+    super(message ?? code)
+    this.name = 'SellerAssignmentError'
+  }
+}
+
 export interface Sale {
   id: string
   userId: string

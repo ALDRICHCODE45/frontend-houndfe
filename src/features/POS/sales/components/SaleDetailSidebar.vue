@@ -1,17 +1,48 @@
 <script setup lang="ts">
+import { computed, ref } from 'vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
+import AssignSellerSlideover from './AssignSellerSlideover.vue'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { formatSaleDate } from '../utils/saleDate.utils'
 import { getPaymentStatusBadge } from '../utils/saleStatus.utils'
+import { useSellerAssignment } from '../composables/useSellerAssignment'
+import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import type { SaleDetail } from '../interfaces/sale.types'
 
-defineProps<{
+declare const useToast: () => {
+  add: (options: {
+    title: string
+    description?: string
+    color?: 'error' | 'success' | 'warning' | 'primary' | 'neutral'
+  }) => void
+}
+
+const props = defineProps<{
   sale: SaleDetail
 }>()
 
 const emit = defineEmits<{
   'register-payment': []
 }>()
+
+const authStore = useAuthStore()
+const toast = useToast()
+const isAssignSellerOpen = ref(false)
+
+const canUpdateSale = computed(() => authStore.userCan('update', 'Sale'))
+const { unassignSeller, isPending: isSellerMutating } = useSellerAssignment(() => props.sale.id)
+
+async function handleUnassignSeller() {
+  try {
+    await unassignSeller()
+  } catch (error) {
+    const code = (error as { code?: string })?.code
+    const description = code === 'SALE_UPDATE_FORBIDDEN'
+      ? 'No tenés permisos para modificar esta venta.'
+      : 'No se pudo quitar el vendedor.'
+    toast.add({ title: 'Error', description, color: 'error' })
+  }
+}
 </script>
 
 <template>
@@ -36,7 +67,43 @@ const emit = defineEmits<{
       <div><p class="text-xs text-muted">Caja</p><p>{{ sale.register }}</p></div>
       <div><p class="text-xs text-muted">Cliente</p><p>{{ sale.customer?.name ?? 'Público en General' }}</p></div>
       <div><p class="text-xs text-muted">Cajero</p><p>{{ sale.cashier.name }}</p></div>
-      <div><p class="text-xs text-muted">Vendedor</p><p>{{ sale.seller?.name ?? 'Asignar Vendedor' }}</p></div>
+      <div>
+        <p class="text-xs text-muted">Vendedor</p>
+        <div class="flex items-center gap-2">
+          <p class="font-medium" :class="{ 'text-muted font-normal': !sale.seller }">
+            {{ sale.seller?.name ?? 'Sin asignar' }}
+          </p>
+          <template v-if="canUpdateSale && !isSellerMutating">
+            <button
+              v-if="!sale.seller"
+              data-testid="assign-seller-trigger"
+              type="button"
+              class="text-xs text-primary hover:underline"
+              @click="isAssignSellerOpen = true"
+            >
+              Asignar
+            </button>
+            <template v-else>
+              <button
+                data-testid="change-seller-trigger"
+                type="button"
+                class="text-xs text-primary hover:underline"
+                @click="isAssignSellerOpen = true"
+              >
+                Cambiar
+              </button>
+              <button
+                data-testid="unassign-seller-trigger"
+                type="button"
+                class="text-xs text-error hover:underline"
+                @click="handleUnassignSeller"
+              >
+                Quitar
+              </button>
+            </template>
+          </template>
+        </div>
+      </div>
 
       <div v-if="sale.paymentStatus !== 'PAID'" class="space-y-2">
         <p class="text-xs text-muted">Deuda pendiente</p>
@@ -47,4 +114,9 @@ const emit = defineEmits<{
       </div>
     </div>
   </UCard>
+
+  <AssignSellerSlideover
+    v-model:open="isAssignSellerOpen"
+    :sale-id="sale.id"
+  />
 </template>
