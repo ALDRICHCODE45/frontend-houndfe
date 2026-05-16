@@ -4,7 +4,7 @@ import AppBadge from '@/core/shared/components/AppBadge.vue'
 import AssignSellerSlideover from './AssignSellerSlideover.vue'
 import DueDateEditModal from './DueDateEditModal.vue'
 import { formatCentsMXN } from '../utils/currency.utils'
-import { formatSaleDate } from '../utils/saleDate.utils'
+import { formatSaleDate, formatSaleDueDate } from '../utils/saleDate.utils'
 import { getPaymentStatusBadge } from '../utils/saleStatus.utils'
 import { useSellerAssignment } from '../composables/useSellerAssignment'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
@@ -67,7 +67,7 @@ async function handleUnassignSeller() {
       <div v-if="sale.paymentStatus !== 'PAID'" data-testid="sidebar-due-date">
         <p class="text-xs text-muted">Vence</p>
         <div class="flex items-center gap-2">
-          <p v-if="sale.dueDate" class="font-medium">{{ formatSaleDate(sale.dueDate) }}</p>
+          <p v-if="sale.dueDate" class="font-medium">{{ formatSaleDueDate(sale.dueDate) }}</p>
           <p v-else class="font-medium text-muted font-normal">Sin fecha</p>
           <button
             v-if="canEditDueDate"

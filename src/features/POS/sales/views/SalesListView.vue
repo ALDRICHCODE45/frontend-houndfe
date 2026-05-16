@@ -9,7 +9,7 @@ import { useConfirmedSales } from '../composables/useConfirmedSales'
 import { useSalesColumns } from '../composables/useSalesColumns'
 import SalesListTabs from '../components/SalesListTabs.vue'
 import PaymentMethodPills from '../components/PaymentMethodPills.vue'
-import { formatSaleDate } from '../utils/saleDate.utils'
+import { formatSaleDate, formatSaleDueDate } from '../utils/saleDate.utils'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { extractFolioNumber } from '../utils/saleFolio.utils'
 import { getDeliveryStatusBadge, getPaymentStatusBadge } from '../utils/saleStatus.utils'
@@ -146,7 +146,7 @@ function goToSaleDetail(id: string) {
           </template>
 
           <template #dueDate-cell="{ row }">
-            {{ row.original.dueDate ? formatSaleDate(row.original.dueDate) : '—' }}
+            {{ row.original.dueDate ? formatSaleDueDate(row.original.dueDate) : '—' }}
           </template>
 
           <template #deliveryStatus-cell="{ row }">
