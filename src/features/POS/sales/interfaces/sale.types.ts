@@ -35,6 +35,7 @@ export interface ConfirmedSaleRow {
   totalCents: number
   debtCents: number
   confirmedAt: string
+  dueDate: string | null
   customer: SaleActorRef | null
   cashier: SaleActorRef
   seller: SaleActorRef | null
@@ -81,6 +82,7 @@ export interface SaleDetail {
   channel: string
   register: string
   confirmedAt: string
+  dueDate: string | null
   subtotalCents: number
   discountCents: number
   totalCents: number

@@ -28,6 +28,10 @@ const emit = defineEmits<{
       </div>
 
       <div><p class="text-xs text-muted">Fecha</p><p>{{ formatSaleDate(sale.confirmedAt) }}</p></div>
+      <div v-if="sale.dueDate && sale.paymentStatus !== 'PAID'" data-testid="sidebar-due-date">
+        <span class="text-xs text-muted">Vence:</span>
+        <span class="font-medium">{{ formatSaleDate(sale.dueDate) }}</span>
+      </div>
       <div><p class="text-xs text-muted">Canal</p><p>Punto de Venta</p></div>
       <div><p class="text-xs text-muted">Caja</p><p>{{ sale.register }}</p></div>
       <div><p class="text-xs text-muted">Cliente</p><p>{{ sale.customer?.name ?? 'Público en General' }}</p></div>

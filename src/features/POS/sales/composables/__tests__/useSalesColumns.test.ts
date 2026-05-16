@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { useSalesColumns } from '../useSalesColumns'
+import { defaultColumnVisibility, useSalesColumns } from '../useSalesColumns'
 
 describe('useSalesColumns', () => {
   const keyOf = (column: unknown) => {
@@ -10,7 +10,7 @@ describe('useSalesColumns', () => {
   it('returns all expected columns in order', () => {
     const { columns } = useSalesColumns()
 
-    expect(columns).toHaveLength(13)
+    expect(columns).toHaveLength(14)
     expect(columns.map((column) => keyOf(column))).toEqual([
       'select',
       'venta',
@@ -20,12 +20,22 @@ describe('useSalesColumns', () => {
       'paymentMethods',
       'totalCents',
       'debtCents',
+      'dueDate',
       'deliveryStatus',
       'cashier',
       'seller',
       'channel',
       'invoice',
     ])
+  })
+
+  it('defines Vence column as non-sortable and hidden by default', () => {
+    const { columns } = useSalesColumns()
+    const dueDate = columns.find((column) => keyOf(column) === 'dueDate')
+
+    expect(dueDate).toBeDefined()
+    expect(defaultColumnVisibility.dueDate).toBe(false)
+    expect(dueDate?.enableSorting).toBe(false)
   })
 
   it('keeps non-sortable fixed columns disabled for sorting', () => {

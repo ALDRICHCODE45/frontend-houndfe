@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, RouterLinkStub } from '@vue/test-utils'
 import { computed, ref } from 'vue'
 import SalesListView from '../SalesListView.vue'
+import type { ConfirmedSaleRow } from '../../interfaces/sale.types'
 
 const push = vi.fn()
 vi.mock('vue-router', () => ({
@@ -9,20 +10,26 @@ vi.mock('vue-router', () => ({
   useRoute: () => ({ query: {}, path: '/pos/ventas' }),
 }))
 
+const initialRow: ConfirmedSaleRow = {
+  id: 'sale-1',
+  folio: 'A-202605-000012',
+  status: 'CONFIRMED',
+  confirmedAt: '2026-05-06T14:43:00.000Z',
+  dueDate: '2026-06-01T10:00:00.000Z',
+  customer: null,
+  paymentStatus: 'PAID',
+  totalCents: 127000,
+  debtCents: 0,
+  deliveryStatus: 'DELIVERED',
+  cashier: { id: 'cash-1', name: 'César' },
+  seller: null,
+  paymentMethods: [],
+}
+
 const mockState = {
-  data: ref([
+  data: ref<ConfirmedSaleRow[]>([
     {
-      id: 'sale-1',
-      folio: 'A-202605-000012',
-      confirmedAt: '2026-05-06T14:43:00.000Z',
-      customer: null,
-      paymentStatus: 'PAID',
-      totalCents: 127000,
-      debtCents: 0,
-      deliveryStatus: 'DELIVERED',
-      cashier: { id: 'cash-1', name: 'César' },
-      seller: null,
-      paymentMethods: [],
+      ...initialRow,
     },
   ]),
   counts: ref({ all: 50, pendingPayments: 3, notDelivered: 1 }),
@@ -61,6 +68,7 @@ vi.mock('../../composables/useSalesColumns', () => ({
   useSalesColumns: () => ({
     columns: [
       { id: 'venta', accessorKey: 'folio', header: 'Venta' },
+      { id: 'dueDate', accessorKey: 'dueDate', header: 'Vence' },
       { id: 'cashier', accessorKey: 'cashier', header: 'Cajero' },
       { id: 'seller', accessorKey: 'seller', header: 'Vendedor' },
     ],
@@ -68,6 +76,7 @@ vi.mock('../../composables/useSalesColumns', () => ({
   defaultColumnVisibility: {
     cashier: false,
     seller: false,
+    dueDate: false,
     channel: false,
     invoice: false,
   },
@@ -95,6 +104,7 @@ const appDataTableStub = {
         <slot name="venta-cell" :row="{ original: row }" />
         <slot name="customer-cell" :row="{ original: row }" />
         <slot name="debtCents-cell" :row="{ original: row }" />
+        <slot name="dueDate-cell" :row="{ original: row }" />
         <slot name="paymentMethods-cell" :row="{ original: row }" />
       </div>
     </div>
@@ -121,6 +131,7 @@ describe('SalesListView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockState.columnVisibility.value = {}
+    mockState.data.value = [{ ...initialRow }]
     localStorage.clear()
   })
 
@@ -154,10 +165,10 @@ describe('SalesListView', () => {
     expect(attrValue === true || attrValue === '').toBe(true)
   })
 
-  it('default hidden columns are reflected in columnVisibility (cashier, seller, channel, invoice)', () => {
+  it('default hidden columns are reflected in columnVisibility (cashier, seller, dueDate, channel, invoice)', () => {
     // Simulate what useConfirmedSales returns when defaultColumnVisibility is seeded:
     // cashier:false, seller:false, channel:false, invoice:false
-    mockState.columnVisibility.value = { cashier: false, seller: false, channel: false, invoice: false }
+    mockState.columnVisibility.value = { cashier: false, seller: false, dueDate: false, channel: false, invoice: false }
 
     const wrapper = mount(SalesListView, { global: { stubs } })
     const table = wrapper.find('[data-testid="app-data-table"]')
@@ -165,13 +176,14 @@ describe('SalesListView', () => {
 
     expect(visibility.cashier).toBe(false)
     expect(visibility.seller).toBe(false)
+    expect(visibility.dueDate).toBe(false)
     expect(visibility.channel).toBe(false)
     expect(visibility.invoice).toBe(false)
   })
 
   it('restores persisted visibility state from columnVisibility ref', () => {
     // Simulate persisted state: user had previously made seller visible
-    mockState.columnVisibility.value = { cashier: false, seller: true, channel: false, invoice: false }
+    mockState.columnVisibility.value = { cashier: false, seller: true, dueDate: false, channel: false, invoice: false }
 
     const wrapper = mount(SalesListView, { global: { stubs } })
     const table = wrapper.find('[data-testid="app-data-table"]')
@@ -193,5 +205,29 @@ describe('SalesListView', () => {
   it('renders PaymentMethodPills in paymentMethods cell slot', () => {
     const wrapper = mount(SalesListView, { global: { stubs } })
     expect(wrapper.find('[data-testid="payment-method-pills"]').exists()).toBe(true)
+  })
+
+  it('renders dueDate formatted when value exists', () => {
+    mockState.data.value = [
+      {
+        ...initialRow,
+        dueDate: '2026-06-01T10:00:00.000Z',
+      },
+    ]
+
+    const wrapper = mount(SalesListView, { global: { stubs } })
+    expect(wrapper.text()).toContain('01/06/2026')
+  })
+
+  it('renders em-dash when dueDate is null', () => {
+    mockState.data.value = [
+      {
+        ...initialRow,
+        dueDate: null,
+      },
+    ]
+
+    const wrapper = mount(SalesListView, { global: { stubs } })
+    expect(wrapper.text()).toContain('—')
   })
 })

@@ -61,6 +61,7 @@ describe('useSaleDetail', () => {
       channel: 'POS',
       register: 'Principal',
       confirmedAt: '2026-05-06T14:43:00.000Z',
+      dueDate: null,
       subtotalCents: 127000,
       discountCents: 0,
       totalCents: 127000,

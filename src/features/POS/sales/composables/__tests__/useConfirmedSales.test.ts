@@ -56,6 +56,7 @@ describe('useConfirmedSales', () => {
           totalCents: 127000,
           debtCents: 0,
           confirmedAt: '2026-05-06T14:43:00.000Z',
+          dueDate: null,
           customer: { id: 'customer-1', name: 'Empresa F.' },
           cashier: { id: 'cashier-1', name: 'cesar flores' },
           seller: null,

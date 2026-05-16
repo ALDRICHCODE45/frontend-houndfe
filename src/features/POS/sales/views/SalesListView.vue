@@ -145,6 +145,10 @@ function goToSaleDetail(id: string) {
             {{ row.original.debtCents > 0 ? formatCentsMXN(row.original.debtCents) : '—' }}
           </template>
 
+          <template #dueDate-cell="{ row }">
+            {{ row.original.dueDate ? formatSaleDate(row.original.dueDate) : '—' }}
+          </template>
+
           <template #deliveryStatus-cell="{ row }">
             <AppBadge :tone="getDeliveryStatusBadge(row.original.deliveryStatus).color">
               {{ getDeliveryStatusBadge(row.original.deliveryStatus).label }}
