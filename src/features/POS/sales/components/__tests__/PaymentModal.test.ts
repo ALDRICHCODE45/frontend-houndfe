@@ -445,6 +445,12 @@ describe('PaymentModal', () => {
   })
 
   it('includes optional dueDate in the charge payload when provided', async () => {
+    const dueDateStub = {
+      props: ['modelValue', 'placeholder', 'disabled', 'minIso', 'testid'],
+      emits: ['update:modelValue'],
+      template: '<input :data-testid="testid" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+    }
+
     const wrapper = mount(PaymentModal, {
       props: {
         open: true,
@@ -452,12 +458,17 @@ describe('PaymentModal', () => {
         saleId: 'sale-1',
         customer: { id: 'c-1', firstName: 'Ada', lastName: null },
       },
-      global: { stubs },
+      global: {
+        stubs: { ...stubs, DateFieldPopover: dueDateStub },
+      },
     })
 
     // Add a partial payment (so the sale will end with debt)
     await wrapper.get('[data-method="cash"]').trigger('click')
     await wrapper.get('[data-testid="payment-amount-0"]').setValue('100')
+
+    // Expand the optional dueDate section
+    await wrapper.get('[data-testid="expand-due-date"]').trigger('click')
 
     // Pick a due date far in the future (safe across clocks)
     await wrapper.get('[data-testid="due-date-input"]').setValue('2099-12-31')

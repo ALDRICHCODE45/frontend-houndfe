@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { ChargeSalePayload, NonCreditPaymentMethod, PaymentEntry, SaleDraftCustomer } from '../interfaces/sale.types'
+import DateFieldPopover from './DateFieldPopover.vue'
 import { newIdempotencyKey } from '../utils/idempotency.utils'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { formatPaymentMethod, getPaymentMethodColor } from '../utils/salePaymentMethod.utils'
@@ -33,13 +34,14 @@ const entries = ref<PaymentEntryForm[]>([])
 const inlineError = ref<string | null>(null)
 const referenceErrorByIndex = ref<Record<number, string>>({})
 const idempotencyKey = ref<string>('')
-const dueDateInput = ref<string>('')
+const dueDateInput = ref<string | null>(null)
+const isDueDateExpanded = ref(false)
 
 function todayISODate(): string {
-  const today = new Date()
-  const yyyy = today.getFullYear()
-  const mm = String(today.getMonth() + 1).padStart(2, '0')
-  const dd = String(today.getDate()).padStart(2, '0')
+  const t = new Date()
+  const yyyy = t.getFullYear()
+  const mm = String(t.getMonth() + 1).padStart(2, '0')
+  const dd = String(t.getDate()).padStart(2, '0')
   return `${yyyy}-${mm}-${dd}`
 }
 
@@ -130,7 +132,8 @@ watch(
     inlineError.value = null
     referenceErrorByIndex.value = {}
     idempotencyKey.value = newIdempotencyKey()
-    dueDateInput.value = ''
+    dueDateInput.value = null
+    isDueDateExpanded.value = false
   },
   { immediate: true },
 )
@@ -160,18 +163,12 @@ watch(
   { deep: true },
 )
 
-watch([isPartial, hasCustomer, entries], ([partial, customerAssigned, entriesList]) => {
+// The "no customer + partial/empty payment" state is communicated by the UAlert
+// in the footer (with its CTA). Do NOT duplicate that message in inlineError —
+// it would render twice (yellow alert + red inline text). inlineError is kept
+// for orthogonal validation messages set elsewhere (reference required, etc.).
+watch([isPartial, hasCustomer, entries], () => {
   if (!props.open) return
-  // For empty payments with no customer: show error
-  if (entriesList.length === 0 && !customerAssigned) {
-    inlineError.value = 'Para pago parcial asigná un cliente'
-    return
-  }
-  // For partial payments with no customer: show error
-  if (partial && !customerAssigned) {
-    inlineError.value = 'Asigná un cliente para registrar una venta con deuda'
-    return
-  }
   inlineError.value = null
 }, { deep: true })
 
@@ -219,13 +216,13 @@ function validate(): boolean {
     return false
   }
 
+  // "no customer + partial" is communicated by the UAlert; just block submit
+  // without setting inlineError (we don't want two parallel messages).
   if (entries.value.length === 0 && !hasCustomer.value) {
-    inlineError.value = 'Para pago parcial asigná un cliente'
     return false
   }
-  
+
   if (isPartial.value && !hasCustomer.value) {
-    inlineError.value = 'Para pago parcial asigná un cliente'
     return false
   }
 
@@ -445,20 +442,44 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
               </div>
             </section>
 
-            <!-- Optional due date for resulting debt -->
-            <section class="space-y-2" data-testid="due-date-section">
-              <p class="text-sm font-semibold text-highlighted">Vence (opcional)</p>
-              <p class="text-xs text-muted">
-                Si la venta queda con deuda, esta es la fecha en que debe pagarse. Si no la
-                indicás, el sistema aplica el plazo por defecto.
-              </p>
-              <UInput
-                v-model="dueDateInput"
-                data-testid="due-date-input"
-                type="date"
-                :min="minDueDate"
+            <!-- Optional due date for resulting debt — collapsed by default -->
+            <section data-testid="due-date-section">
+              <button
+                v-if="!isDueDateExpanded && !dueDateInput"
+                type="button"
+                data-testid="expand-due-date"
+                class="flex items-center gap-1.5 text-xs text-primary hover:underline disabled:opacity-50"
                 :disabled="isSubmitting"
-              />
+                @click="isDueDateExpanded = true"
+              >
+                <UIcon name="i-lucide-calendar-plus" class="size-3.5" />
+                Agregar fecha de vencimiento
+              </button>
+
+              <div v-else class="space-y-1.5">
+                <div class="flex items-center justify-between">
+                  <p class="text-sm font-medium text-highlighted">Vencimiento</p>
+                  <button
+                    type="button"
+                    data-testid="collapse-due-date"
+                    class="text-xs text-muted hover:underline"
+                    :disabled="isSubmitting"
+                    @click="dueDateInput = null; isDueDateExpanded = false"
+                  >
+                    Quitar
+                  </button>
+                </div>
+                <p class="text-xs text-muted">
+                  Fecha en que vence la deuda generada. Si no la indicás, el sistema aplica el plazo por defecto.
+                </p>
+                <DateFieldPopover
+                  v-model="dueDateInput"
+                  testid="due-date-input"
+                  placeholder="Elegir fecha"
+                  :disabled="isSubmitting"
+                  :min-iso="minDueDate"
+                />
+              </div>
             </section>
           </div>
 

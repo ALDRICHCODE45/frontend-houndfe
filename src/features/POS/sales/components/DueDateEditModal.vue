@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useSaleDueDate } from '../composables/useSaleDueDate'
 import { SaleDueDateError } from '../interfaces/sale.types'
+import DateFieldPopover from './DateFieldPopover.vue'
 
 declare const useToast: () => {
   add: (options: {
@@ -25,20 +26,20 @@ const emit = defineEmits<{
 const toast = useToast()
 const { setDueDate, isPending } = useSaleDueDate(() => props.saleId)
 
-// Local input value as YYYY-MM-DD (HTML date input format)
-const inputValue = ref('')
+// Local input value as YYYY-MM-DD (ISO date)
+const inputValue = ref<string | null>(null)
 
-function toDateInputValue(iso: string | null): string {
-  if (!iso) return ''
+function toDateInputValue(iso: string | null): string | null {
+  if (!iso) return null
   // Extract YYYY-MM-DD from ISO timestamp
   return iso.slice(0, 10)
 }
 
 function todayISODate(): string {
-  const today = new Date()
-  const yyyy = today.getFullYear()
-  const mm = String(today.getMonth() + 1).padStart(2, '0')
-  const dd = String(today.getDate()).padStart(2, '0')
+  const t = new Date()
+  const yyyy = t.getFullYear()
+  const mm = String(t.getMonth() + 1).padStart(2, '0')
+  const dd = String(t.getDate()).padStart(2, '0')
   return `${yyyy}-${mm}-${dd}`
 }
 
@@ -76,7 +77,7 @@ function resolveErrorMessage(error: unknown): string {
 }
 
 async function handleSave() {
-  if (!isValid.value) return
+  if (!isValid.value || !inputValue.value) return
   try {
     await setDueDate(inputValue.value)
     emit('update:open', false)
@@ -112,12 +113,12 @@ async function handleClear() {
         </p>
 
         <UFormField label="Vence" name="dueDate">
-          <UInput
+          <DateFieldPopover
             v-model="inputValue"
-            data-testid="due-date-input"
-            type="date"
-            :min="minDate"
+            testid="due-date-input"
+            placeholder="Elegir fecha"
             :disabled="isPending"
+            :min-iso="minDate"
           />
         </UFormField>
       </div>

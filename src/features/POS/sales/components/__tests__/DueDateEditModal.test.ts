@@ -20,17 +20,6 @@ vi.mock('@/features/POS/sales/composables/useSaleDueDate', async () => {
 vi.stubGlobal('useToast', () => ({ add: vi.fn() }))
 
 const modalStub = { template: '<div><slot name="body" /><slot name="footer" /></div>' }
-const inputStub = {
-  props: ['modelValue', 'type', 'min', 'disabled'],
-  emits: ['update:modelValue'],
-  template: `<input
-    :value="modelValue"
-    :type="type"
-    :min="min"
-    :disabled="disabled"
-    @input="$emit('update:modelValue', $event.target.value)"
-  />`,
-}
 const buttonStub = {
   props: ['label', 'disabled', 'loading'],
   emits: ['click'],
@@ -40,16 +29,27 @@ const formFieldStub = {
   props: ['label'],
   template: '<label>{{ label }}<slot /></label>',
 }
+// DateFieldPopover stub exposes a plain text input mapped to modelValue so
+// existing assertions (setValue on the testid) keep working.
+const dateFieldStub = {
+  props: ['modelValue', 'placeholder', 'disabled', 'minIso', 'testid'],
+  emits: ['update:modelValue'],
+  template: `<input
+    :data-testid="testid"
+    :value="modelValue || ''"
+    :disabled="disabled"
+    @input="$emit('update:modelValue', $event.target.value || null)"
+  />`,
+}
 
 const stubs = {
   UModal: modalStub,
   Modal: modalStub,
   UFormField: formFieldStub,
   FormField: formFieldStub,
-  UInput: inputStub,
-  Input: inputStub,
   UButton: buttonStub,
   Button: buttonStub,
+  DateFieldPopover: dateFieldStub,
 }
 
 function mountModal(currentDueDate: string | null = null) {
