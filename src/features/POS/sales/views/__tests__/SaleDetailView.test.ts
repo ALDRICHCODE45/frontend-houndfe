@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount } from '@vue/test-utils'
 import { computed } from 'vue'
+import { mountWithUApp } from '@/test/mountWithUApp'
 import SaleDetailView from '../SaleDetailView.vue'
 
 const debtSubmit = vi.fn()
@@ -71,14 +71,13 @@ describe('SaleDetailView', () => {
   })
 
   it('renders two-column detail layout and title', () => {
-    const wrapper = mount(SaleDetailView, {
+    const wrapper = mountWithUApp(SaleDetailView, {
       global: {
         stubs: {
           AppBadge: { template: '<span><slot /></span>' },
           UCard: { template: '<div><slot /></div>' },
           UButton: { template: '<button><slot /></button>' },
           UDropdownMenu: { template: '<div data-testid="dropdown"><slot /></div>' },
-          UTooltip: { template: '<div><slot /></div>' },
 
           SaleDetailItemsTable: { template: '<div data-testid="items" />' },
           SaleDetailTotalsCard: { template: '<div data-testid="totals" />' },
@@ -95,14 +94,13 @@ describe('SaleDetailView', () => {
   })
 
   it('renders payment badge with correct label for PAID status', () => {
-    const wrapper = mount(SaleDetailView, {
+    const wrapper = mountWithUApp(SaleDetailView, {
       global: {
         stubs: {
           AppBadge: { template: '<span data-testid="badge"><slot /></span>' },
           UCard: { template: '<div><slot /></div>' },
           UButton: { template: '<button><slot /></button>' },
           UDropdownMenu: { template: '<div><slot /></div>' },
-          UTooltip: { template: '<div><slot /></div>' },
 
           SaleDetailItemsTable: { template: '<div />' },
           SaleDetailTotalsCard: { template: '<div />' },
@@ -119,7 +117,7 @@ describe('SaleDetailView', () => {
   })
 
   it('renders "Más Acciones" dropdown trigger', () => {
-    const wrapper = mount(SaleDetailView, {
+    const wrapper = mountWithUApp(SaleDetailView, {
       global: {
         stubs: {
           AppBadge: { template: '<span><slot /></span>' },
@@ -146,14 +144,13 @@ describe('SaleDetailView', () => {
   it('renders payment badge with correct label for PARTIAL status', () => {
     mockSaleDetail.value = { ...defaultSale, paymentStatus: 'PARTIAL' }
     
-    const wrapper = mount(SaleDetailView, {
+    const wrapper = mountWithUApp(SaleDetailView, {
       global: {
         stubs: {
           AppBadge: { template: '<span data-testid="badge"><slot /></span>' },
           UCard: { template: '<div><slot /></div>' },
           UButton: { template: '<button><slot /></button>' },
           UDropdownMenu: { template: '<div><slot /></div>' },
-          UTooltip: { template: '<div><slot /></div>' },
 
           SaleDetailItemsTable: { template: '<div />' },
           SaleDetailTotalsCard: { template: '<div />' },
@@ -171,14 +168,13 @@ describe('SaleDetailView', () => {
   it('renders payment badge with correct label for CREDIT status', () => {
     mockSaleDetail.value = { ...defaultSale, paymentStatus: 'CREDIT' }
     
-    const wrapper = mount(SaleDetailView, {
+    const wrapper = mountWithUApp(SaleDetailView, {
       global: {
         stubs: {
           AppBadge: { template: '<span data-testid="badge"><slot /></span>' },
           UCard: { template: '<div><slot /></div>' },
           UButton: { template: '<button><slot /></button>' },
           UDropdownMenu: { template: '<div><slot /></div>' },
-          UTooltip: { template: '<div><slot /></div>' },
 
           SaleDetailItemsTable: { template: '<div />' },
           SaleDetailTotalsCard: { template: '<div />' },
@@ -196,14 +192,13 @@ describe('SaleDetailView', () => {
   it('does not render payment badge when paymentStatus is null', () => {
     mockSaleDetail.value = { ...defaultSale, paymentStatus: null }
     
-    const wrapper = mount(SaleDetailView, {
+    const wrapper = mountWithUApp(SaleDetailView, {
       global: {
         stubs: {
           AppBadge: { template: '<span data-testid="badge"><slot /></span>' },
           UCard: { template: '<div><slot /></div>' },
           UButton: { template: '<button><slot /></button>' },
           UDropdownMenu: { template: '<div><slot /></div>' },
-          UTooltip: { template: '<div><slot /></div>' },
 
           SaleDetailItemsTable: { template: '<div />' },
           SaleDetailTotalsCard: { template: '<div />' },
@@ -221,7 +216,7 @@ describe('SaleDetailView', () => {
   it('shows debt payment CTA for non-PAID sale and opens modal', async () => {
     vi.mocked(debtSubmit).mockResolvedValue(undefined)
 
-    const wrapper = mount(SaleDetailView, {
+    const wrapper = mountWithUApp(SaleDetailView, {
       global: {
         stubs: {
           AppBadge: { template: '<span><slot /></span>' },

@@ -3,8 +3,8 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
+import { mountWithUApp } from '@/test/mountWithUApp'
 import ProductDetailView from '../ProductDetailView.vue'
 import VariantImagePickerModal from '../../components/VariantImagePickerModal.vue'
 
@@ -103,9 +103,8 @@ vi.mock('../../api/product.api', () => ({
   },
 }))
 
-// NOTE: UTooltip provider context is now provided via global test setup (vitest.setup.ts)
-// These tests temporarily skipped while investigating component stubbing issues
-describe.skip('ProductDetailView - Variant Image Modal Integration', () => {
+// NOTE: UTooltip provider context is now provided via mountWithUApp helper
+describe('ProductDetailView - Variant Image Modal Integration', () => {
   let queryClient: QueryClient
 
   beforeEach(() => {
@@ -135,7 +134,7 @@ describe.skip('ProductDetailView - Variant Image Modal Integration', () => {
       UBadge: { template: '<span><slot /></span>' },
       UIcon: { template: '<i />' },
       UModal: { template: '<div v-if="open"><slot name="header" /><slot name="body" /><slot /></div>', props: ['open'] },
-      UTooltip: { template: '<span><slot /></span>' },
+
       UProgress: { template: '<div />' },
       UCollapsible: { template: '<div><slot name="trigger" /><slot /></div>' },
       UCheckbox: { template: '<input type="checkbox" />' },
@@ -152,7 +151,7 @@ describe.skip('ProductDetailView - Variant Image Modal Integration', () => {
   })
 
   it('renders variant rows with image icon buttons in edit mode', async () => {
-    const wrapper = mount(ProductDetailView, {
+    const wrapper = mountWithUApp(ProductDetailView, {
       global: getGlobalConfig(),
       attachTo: document.body,
     })
@@ -171,7 +170,7 @@ describe.skip('ProductDetailView - Variant Image Modal Integration', () => {
   })
 
   it('opens VariantImagePickerModal when image icon button is clicked', async () => {
-    const wrapper = mount(ProductDetailView, {
+    const wrapper = mountWithUApp(ProductDetailView, {
       global: getGlobalConfig(),
       attachTo: document.body,
     })
@@ -195,7 +194,7 @@ describe.skip('ProductDetailView - Variant Image Modal Integration', () => {
   })
 
   it('passes correct props to VariantImagePickerModal', async () => {
-    const wrapper = mount(ProductDetailView, {
+    const wrapper = mountWithUApp(ProductDetailView, {
       global: getGlobalConfig(),
       attachTo: document.body,
     })

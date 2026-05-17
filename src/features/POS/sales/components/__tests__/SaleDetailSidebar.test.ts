@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mountWithUApp } from '@/test/mountWithUApp'
 import SaleDetailSidebar from '../SaleDetailSidebar.vue'
 import type { SaleDetail } from '../../interfaces/sale.types'
 
@@ -73,7 +73,7 @@ const buildSaleDetail = (overrides: Partial<SaleDetail> = {}): SaleDetail => ({
 
 describe('SaleDetailSidebar', () => {
   it('shows customer name when customer is present', () => {
-    const wrapper = mount(SaleDetailSidebar, {
+    const wrapper = mountWithUApp(SaleDetailSidebar, {
       props: {
         sale: {
           id: 'sale-1',
@@ -109,7 +109,7 @@ describe('SaleDetailSidebar', () => {
   })
 
   it('shows fallback seller label when seller is null', () => {
-    const wrapper = mount(SaleDetailSidebar, {
+    const wrapper = mountWithUApp(SaleDetailSidebar, {
       props: {
         sale: {
           id: 'sale-1',
@@ -146,7 +146,7 @@ describe('SaleDetailSidebar', () => {
   })
 
   it('shows Público en General when customer is null', () => {
-    const wrapper = mount(SaleDetailSidebar, {
+    const wrapper = mountWithUApp(SaleDetailSidebar, {
       props: {
         sale: {
           id: 'sale-1',
@@ -183,7 +183,7 @@ describe('SaleDetailSidebar', () => {
 
   it('shows Registrar Pago CTA only when sale has outstanding debt', async () => {
     const onRegisterPayment = vi.fn()
-    const wrapper = mount(SaleDetailSidebar, {
+    const wrapper = mountWithUApp(SaleDetailSidebar, {
       props: {
         sale: {
           id: 'sale-1',
@@ -224,7 +224,7 @@ describe('SaleDetailSidebar', () => {
   })
 
   it('hides Registrar Pago CTA when payment status is PAID', () => {
-    const wrapper = mount(SaleDetailSidebar, {
+    const wrapper = mountWithUApp(SaleDetailSidebar, {
       props: {
         sale: {
           id: 'sale-1',
@@ -259,7 +259,7 @@ describe('SaleDetailSidebar', () => {
   })
 
   it('renders Vence row with formatted date when dueDate exists and paymentStatus is PARTIAL', () => {
-    const wrapper = mount(SaleDetailSidebar, {
+    const wrapper = mountWithUApp(SaleDetailSidebar, {
       props: {
         sale: buildSaleDetail({
           dueDate: '2026-06-01T10:00:00.000Z',
@@ -281,7 +281,7 @@ describe('SaleDetailSidebar', () => {
   })
 
   it('shows Vence row with "Sin fecha" + asignar trigger when dueDate is null and paymentStatus is CREDIT', () => {
-    const wrapper = mount(SaleDetailSidebar, {
+    const wrapper = mountWithUApp(SaleDetailSidebar, {
       props: {
         sale: buildSaleDetail({
           dueDate: null,
@@ -300,7 +300,7 @@ describe('SaleDetailSidebar', () => {
   })
 
   it('hides Vence row when paymentStatus is PAID even with dueDate', () => {
-    const wrapper = mount(SaleDetailSidebar, {
+    const wrapper = mountWithUApp(SaleDetailSidebar, {
       props: {
         sale: buildSaleDetail({
           dueDate: '2026-06-01T10:00:00.000Z',
@@ -316,7 +316,7 @@ describe('SaleDetailSidebar', () => {
   })
 
   it('shows Cambiar + Quitar triggers when seller is assigned and user has update:Sale', () => {
-    const wrapper = mount(SaleDetailSidebar, {
+    const wrapper = mountWithUApp(SaleDetailSidebar, {
       props: {
         sale: buildSaleDetail({ seller: { id: 'u-2', name: 'Vendedor X' } }),
       },
@@ -329,7 +329,7 @@ describe('SaleDetailSidebar', () => {
   })
 
   it('clicking Quitar triggers unassignSeller', async () => {
-    const wrapper = mount(SaleDetailSidebar, {
+    const wrapper = mountWithUApp(SaleDetailSidebar, {
       props: {
         sale: buildSaleDetail({ seller: { id: 'u-2', name: 'Vendedor X' } }),
       },
@@ -342,7 +342,7 @@ describe('SaleDetailSidebar', () => {
 
   it('hides seller affordances when user lacks update:Sale ability', () => {
     mocks.userCanMock.mockReturnValueOnce(false)
-    const wrapper = mount(SaleDetailSidebar, {
+    const wrapper = mountWithUApp(SaleDetailSidebar, {
       props: {
         sale: buildSaleDetail({ seller: null }),
       },
@@ -354,7 +354,7 @@ describe('SaleDetailSidebar', () => {
   })
 
   it('renders Factura card with disabled "Ver detalles" link', () => {
-    const wrapper = mount(SaleDetailSidebar, {
+    const wrapper = mountWithUApp(SaleDetailSidebar, {
       props: {
         sale: buildSaleDetail(),
       },
