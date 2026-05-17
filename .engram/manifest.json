@@ -136,6 +136,14 @@
       "sessions": 1,
       "memories": 13,
       "prompts": 6
+    },
+    {
+      "id": "b0559b5e",
+      "created_by": "aldrich_coder45",
+      "created_at": "2026-05-17T03:37:57Z",
+      "sessions": 2,
+      "memories": 76,
+      "prompts": 98
     }
   ]
 }
