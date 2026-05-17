@@ -10,7 +10,7 @@ defineProps<{
 <template>
   <UCard>
     <template #header>
-      <h3 class="text-base font-semibold text-muted">Detalles</h3>
+      <h3 class="text-xs font-semibold uppercase tracking-wider text-muted">Detalles</h3>
     </template>
     
     <div class="grid gap-y-2 text-sm">

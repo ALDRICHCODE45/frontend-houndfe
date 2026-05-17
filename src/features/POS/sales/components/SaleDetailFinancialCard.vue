@@ -27,31 +27,28 @@ const hasDebt = computed(() => props.sale.debtCents > 0)
 
 <template>
   <UCard>
+    <template #header>
+      <div class="flex items-center justify-between">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-muted">Estado</h3>
+        <UBadge 
+          :color="paymentStatusBadge.color" 
+          variant="subtle"
+          data-testid="payment-status-badge"
+        >
+          {{ paymentStatusBadge.label }}
+        </UBadge>
+      </div>
+    </template>
+    
     <div class="space-y-4">
-      <!-- Payment Status Badge -->
-      <UBadge 
-        :color="paymentStatusBadge.color" 
-        variant="soft" 
-        size="lg"
-        class="w-full justify-center"
-        data-testid="payment-status-badge"
-      >
-        {{ paymentStatusBadge.label }}
-      </UBadge>
       
-      <!-- Total and Paid amounts -->
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <p class="text-sm text-muted">Total</p>
-          <p class="text-base font-medium">{{ formatCentsMXN(sale.totalCents) }}</p>
-        </div>
-        <div>
-          <p class="text-sm text-muted">Pagado</p>
-          <p class="text-base font-medium">{{ formatCentsMXN(sale.paidCents) }}</p>
-        </div>
+      <!-- Paid amount -->
+      <div>
+        <p class="text-sm text-muted">Pagado</p>
+        <p class="text-base font-medium">{{ formatCentsMXN(sale.paidCents) }}</p>
       </div>
       
-      <hr class="border-t border-gray-200" />
+      <USeparator />
       
       <!-- Balance -->
       <div>
@@ -61,7 +58,7 @@ const hasDebt = computed(() => props.sale.debtCents > 0)
         </p>
       </div>
       
-      <hr class="border-t border-gray-200" />
+      <USeparator />
       
       <!-- Due Date -->
       <div v-if="sale.paymentStatus !== 'PAID'" class="flex items-center justify-between" data-testid="sidebar-due-date">
@@ -83,7 +80,7 @@ const hasDebt = computed(() => props.sale.debtCents > 0)
         </UButton>
       </div>
       
-      <hr class="border-t border-gray-200" />
+      <USeparator />
       
       <!-- Payment Action -->
       <div v-if="hasDebt">

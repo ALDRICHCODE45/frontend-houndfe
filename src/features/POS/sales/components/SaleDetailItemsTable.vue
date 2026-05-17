@@ -12,7 +12,7 @@ const PLACEHOLDER_IMAGE = 'https://placehold.co/64x64?text=placeholder'
 <template>
   <UCard>
     <template #header>
-      <h3 class="text-base font-semibold text-muted">Productos</h3>
+      <h3 class="text-xs font-semibold uppercase tracking-wider text-muted">Productos</h3>
     </template>
 
     <div class="divide-y divide-default">
@@ -29,7 +29,7 @@ const PLACEHOLDER_IMAGE = 'https://placehold.co/64x64?text=placeholder'
         />
         
         <div class="flex-1 min-w-0">
-          <p class="font-medium">{{ item.productName }}</p>
+          <p class="font-medium text-base">{{ item.productName }}</p>
           <p v-if="item.variantName" class="text-sm text-muted">
             {{ item.variantName }} • {{ formatCentsMXN(item.unitPriceCents) }}
           </p>
@@ -38,11 +38,9 @@ const PLACEHOLDER_IMAGE = 'https://placehold.co/64x64?text=placeholder'
           </p>
         </div>
         
-        <UBadge variant="soft" size="sm" class="ml-auto">
-          {{ item.quantity }}
-        </UBadge>
+        <span class="text-sm font-medium text-muted ml-auto">× {{ item.quantity }}</span>
         
-        <p class="font-semibold text-right min-w-[80px]">
+        <p class="font-semibold text-base text-right min-w-[80px]">
           {{ formatCentsMXN(item.subtotalCents) }}
         </p>
       </div>

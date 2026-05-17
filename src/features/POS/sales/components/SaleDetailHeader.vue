@@ -19,11 +19,10 @@ const paymentBadge = computed(() => props.sale.paymentStatus ? getPaymentStatusB
 
 <template>
   <div class="flex items-center justify-between">
-    <UButton variant="ghost" icon="i-lucide-arrow-left" @click="emit('back')">
-      Volver
-    </UButton>
-    
     <div class="flex items-center gap-3">
+      <UButton variant="ghost" icon="i-lucide-arrow-left" @click="emit('back')">
+        Volver
+      </UButton>
       <h1 class="text-2xl font-bold">Venta {{ extractFolioNumber(sale.folio) }}</h1>
       <UBadge :color="deliveryBadge.color" variant="soft" data-testid="badge">
         {{ deliveryBadge.label }}

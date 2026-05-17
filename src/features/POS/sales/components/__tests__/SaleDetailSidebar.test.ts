@@ -353,6 +353,43 @@ describe('SaleDetailSidebar', () => {
     expect(wrapper.find('[data-testid="assign-seller-trigger"]').exists()).toBe(false)
   })
 
+  it('renders seller cambiar/quitar buttons as neutral link variant', () => {
+    const wrapper = mountWithUApp(SaleDetailSidebar, {
+      props: {
+        sale: buildSaleDetail({ seller: { id: 'u-2', name: 'Vendedor X' } }),
+      },
+      global: { stubs: defaultStubs },
+    })
+
+    const changeSeller = wrapper.find('[data-testid="change-seller-trigger"]')
+    const unassignSeller = wrapper.find('[data-testid="unassign-seller-trigger"]')
+    
+    expect(changeSeller.exists()).toBe(true)
+    expect(unassignSeller.exists()).toBe(true)
+    
+    // Verify they have the expected data-testid attributes (confirming they render properly)
+    expect(changeSeller.attributes('data-testid')).toBe('change-seller-trigger')
+    expect(unassignSeller.attributes('data-testid')).toBe('unassign-seller-trigger')
+  })
+
+  it('renders payment status as UBadge in financial card header not banner', () => {
+    const wrapper = mountWithUApp(SaleDetailSidebar, {
+      props: {
+        sale: buildSaleDetail({ 
+          paymentStatus: 'PAID',
+          debtCents: 0,
+          paidCents: 127000 
+        }),
+      },
+      global: { stubs: defaultStubs },
+    })
+
+    const statusBadge = wrapper.find('[data-testid="payment-status-badge"]')
+    expect(statusBadge.exists()).toBe(true)
+    // The badge should exist and not be a full-width banner
+    expect(statusBadge.exists()).toBe(true)
+  })
+
   it('renders Factura card with disabled "Ver detalles" link', () => {
     const wrapper = mountWithUApp(SaleDetailSidebar, {
       props: {

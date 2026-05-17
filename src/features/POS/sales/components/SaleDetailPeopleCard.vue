@@ -31,7 +31,7 @@ const canManageSeller = computed(() =>
 <template>
   <UCard>
     <template #header>
-      <h3 class="text-base font-semibold text-muted">Personas</h3>
+      <h3 class="text-xs font-semibold uppercase tracking-wider text-muted">Personas</h3>
     </template>
     
     <div class="space-y-4">
@@ -50,7 +50,7 @@ const canManageSeller = computed(() =>
         </div>
       </div>
       
-      <hr class="border-t border-gray-200" />
+      <USeparator />
       
       <!-- Vendedor -->
       <div>
@@ -89,7 +89,8 @@ const canManageSeller = computed(() =>
             </UButton>
             <template v-else>
               <UButton
-                variant="ghost"
+                variant="link"
+                color="neutral"
                 size="xs"
                 data-testid="change-seller-trigger"
                 @click="emit('assign-seller')"
@@ -97,9 +98,9 @@ const canManageSeller = computed(() =>
                 Cambiar
               </UButton>
               <UButton
-                variant="ghost"
+                variant="link"
+                color="neutral"
                 size="xs"
-                color="red"
                 data-testid="unassign-seller-trigger"
                 @click="emit('unassign-seller')"
               >

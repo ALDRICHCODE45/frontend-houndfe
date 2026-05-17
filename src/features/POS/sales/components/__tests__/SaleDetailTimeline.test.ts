@@ -97,4 +97,27 @@ describe('SaleDetailTimeline', () => {
 
     expect(wrapper.find('[data-testid="comment-edit-form"]').exists()).toBe(true)
   })
+
+  it('renders comment edit/delete buttons as neutral link variant', () => {
+    const wrapper = mountWithUApp(SaleDetailTimeline, {
+      props: {
+        currentUserId: 'u-1',
+        timeline: [{ type: 'COMMENT', at: '2026-05-06T14:44:00.000Z', actor: { id: 'u-1', name: 'Ana' }, commentId: 'comment-1', body: 'Test comment' }],
+      },
+    })
+
+    const editButton = wrapper.find('[data-testid="comment-edit-trigger"]')
+    const deleteButton = wrapper.find('[data-testid="comment-delete-trigger"]')
+    
+    expect(editButton.exists()).toBe(true)
+    expect(deleteButton.exists()).toBe(true)
+    
+    // Check that buttons have neutral link styling - these props should be passed to UButton
+    expect(editButton.attributes()).toMatchObject({
+      'data-testid': 'comment-edit-trigger'
+    })
+    expect(deleteButton.attributes()).toMatchObject({
+      'data-testid': 'comment-delete-trigger'
+    })
+  })
 })

@@ -36,12 +36,12 @@ describe('SaleDetailFinancialCard', () => {
     expect(wrapper.find('[data-testid="payment-status-badge"]').exists()).toBe(true)
   })
 
-  it('displays total and paid amounts', () => {
+  it('displays paid amount only (total removed from financial card)', () => {
     const wrapper = mountWithUApp(SaleDetailFinancialCard, {
       props: { sale: mockSale }
     })
     
-    expect(wrapper.text()).toContain('$95.00') // total
+    expect(wrapper.text()).not.toContain('$95.00') // total removed from financial card  
     expect(wrapper.text()).toContain('$50.00') // paid
   })
 

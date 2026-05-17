@@ -108,7 +108,7 @@ async function deleteCommentForEvent(event: SaleTimelineEvent) {
 <template>
   <UCard>
     <template #header>
-      <h3 class="text-base font-semibold text-muted">Historial</h3>
+      <h3 class="text-xs font-semibold uppercase tracking-wider text-muted">Historial</h3>
     </template>
 
     <div class="space-y-4">
@@ -143,7 +143,7 @@ async function deleteCommentForEvent(event: SaleTimelineEvent) {
             </UTooltip>
           </div>
           
-          <p v-if="event.type === 'COMMENT'" class="mt-1 text-sm" data-testid="timeline-comment-body">
+          <p v-if="event.type === 'COMMENT'" class="mt-2 text-sm" data-testid="timeline-comment-body">
             {{ event.body }}
           </p>
           
@@ -161,8 +161,8 @@ async function deleteCommentForEvent(event: SaleTimelineEvent) {
             </div>
           </div>
           <div v-else-if="canManageComment(event)" class="mt-1 flex gap-2">
-            <UButton variant="ghost" size="xs" data-testid="comment-edit-trigger" @click="startEdit(event)">Editar</UButton>
-            <UButton variant="ghost" size="xs" data-testid="comment-delete-trigger" @click="deleteCommentForEvent(event)">Eliminar</UButton>
+            <UButton variant="link" color="neutral" size="xs" data-testid="comment-edit-trigger" @click="startEdit(event)">Editar</UButton>
+            <UButton variant="link" color="neutral" size="xs" data-testid="comment-delete-trigger" @click="deleteCommentForEvent(event)">Eliminar</UButton>
           </div>
         </div>
       </div>

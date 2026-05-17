@@ -69,8 +69,9 @@ function handleEditDueDate() {
     
     <!-- Factura card -->
     <UCard>
-      <div>
-        <p class="text-sm text-muted mb-2">Factura</p>
+      <template #header>
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-muted">Factura</h3>
+      </template>
         <UTooltip text="Funcionalidad próximamente">
           <UButton
             variant="ghost"
@@ -81,7 +82,6 @@ function handleEditDueDate() {
             Ver detalles
           </UButton>
         </UTooltip>
-      </div>
     </UCard>
     
     <!-- Block 2: People Card -->
