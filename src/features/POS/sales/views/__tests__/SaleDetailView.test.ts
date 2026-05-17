@@ -10,7 +10,7 @@ vi.mock('vue-router', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }))
 
-const mockSaleDetail = vi.hoisted(() => ({ value: null }))
+const mockSaleDetail = vi.hoisted(() => ({ value: null as any }))
 
 vi.mock('../../composables/useSaleDetail', () => ({
   useSaleDetail: () => ({
@@ -113,7 +113,7 @@ describe('SaleDetailView', () => {
 
     const badges = wrapper.findAll('[data-testid="badge"]')
     expect(badges).toHaveLength(2) // delivery + payment
-    expect(badges[1].text()).toBe('Pagada')
+    expect(badges[1]?.text()).toBe('Pagada')
   })
 
   it('renders "Más Acciones" dropdown trigger', () => {
@@ -162,7 +162,7 @@ describe('SaleDetailView', () => {
     })
 
     const badges = wrapper.findAll('[data-testid="badge"]')
-    expect(badges[1].text()).toBe('Impaga')
+    expect(badges[1]?.text()).toBe('Impaga')
   })
 
   it('renders payment badge with correct label for CREDIT status', () => {
@@ -186,7 +186,7 @@ describe('SaleDetailView', () => {
     })
 
     const badges = wrapper.findAll('[data-testid="badge"]')
-    expect(badges[1].text()).toBe('Deuda')
+    expect(badges[1]?.text()).toBe('Deuda')
   })
 
   it('does not render payment badge when paymentStatus is null', () => {
