@@ -74,9 +74,11 @@ watch(
         
         <h1 class="text-xl font-semibold">Venta {{ extractFolioNumber(sale?.folio ?? '') }}</h1>
         
-        <UDropdownMenu :items="actionItems">
-          <UButton trailing-icon="i-lucide-chevron-down" variant="outline">Más Acciones</UButton>
-        </UDropdownMenu>
+         <UDropdownMenu :items="actionItems">
+           <UTooltip text="Funcionalidad próximamente">
+             <UButton trailing-icon="i-lucide-chevron-down" variant="outline">Más Acciones</UButton>
+           </UTooltip>
+         </UDropdownMenu>
       </div>
 
       <UCard v-if="sale && !isLoading" class="space-y-4">

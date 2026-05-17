@@ -1,7 +1,9 @@
 /**
  * Vitest global setup
- * Ensures localStorage is properly mocked in jsdom environment
+ * Configures test environment with localStorage mock and UTooltip stub for component testing
  */
+
+import { config } from '@vue/test-utils'
 
 // Create a full localStorage implementation
 // jsdom's localStorage implementation is incomplete
@@ -41,4 +43,14 @@ if (typeof global !== 'undefined') {
 
 if (typeof window !== 'undefined') {
   window.localStorage = new LocalStorageMock()
+}
+
+// Global UTooltip stub that renders slot content and exposes tooltip text as a data attribute
+// This allows components using UTooltip to mount successfully in tests while preserving
+// the ability to test tooltip text content via data-tooltip-text attribute
+config.global.stubs = {
+  UTooltip: {
+    template: '<div :data-tooltip-text="text" class="tooltip-stub"><slot /></div>',
+    props: ['text', 'defaultOpen', 'open', 'delayDuration', 'skipDelayDuration', 'side', 'sideOffset', 'align', 'alignOffset', 'avoidCollisions', 'collisionBoundary', 'collisionPadding', 'arrowPadding', 'sticky', 'hideWhenDetached', 'preventPointerDownOutside', 'portal', 'forceMount'],
+  },
 }

@@ -103,8 +103,8 @@ vi.mock('../../api/product.api', () => ({
   },
 }))
 
-// NOTE: These tests are skipped due to UTooltip provider context injection error in test environment
-// The implementation is correct - this is a test infrastructure issue with Nuxt UI components
+// NOTE: UTooltip provider context is now provided via global test setup (vitest.setup.ts)
+// These tests temporarily skipped while investigating component stubbing issues
 describe.skip('ProductDetailView - Variant Image Modal Integration', () => {
   let queryClient: QueryClient
 
@@ -118,9 +118,6 @@ describe.skip('ProductDetailView - Variant Image Modal Integration', () => {
     mockToast.add.mockClear()
   })
 
-  // Mock the TooltipProvider to avoid injection errors
-  const TooltipProviderSymbol = Symbol('TooltipProviderContext')
-  
   const getGlobalConfig = () => ({
     plugins: [[VueQueryPlugin, { queryClient }]] as any,
     stubs: {
@@ -150,17 +147,6 @@ describe.skip('ProductDetailView - Variant Image Modal Integration', () => {
       VariantImagePickerModal: {
         template: '<div v-if="open" data-testid="variant-image-modal" />',
         props: ['open', 'productId', 'productName', 'variant', 'canUpdate', 'canDelete'],
-      },
-    },
-    provide: {
-      [TooltipProviderSymbol]: {
-        // Mock tooltip provider context
-        delayDuration: 0,
-        skipDelayDuration: 300,
-        disableHoverableContent: false,
-        disableClosingTrigger: false,
-        disabled: false,
-        ignoreNonKeyboardFocus: false,
       },
     },
   })

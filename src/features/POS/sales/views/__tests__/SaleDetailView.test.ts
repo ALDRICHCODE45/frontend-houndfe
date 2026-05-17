@@ -78,6 +78,7 @@ describe('SaleDetailView', () => {
           UCard: { template: '<div><slot /></div>' },
           UButton: { template: '<button><slot /></button>' },
           UDropdownMenu: { template: '<div data-testid="dropdown"><slot /></div>' },
+          UTooltip: { template: '<div><slot /></div>' },
 
           SaleDetailItemsTable: { template: '<div data-testid="items" />' },
           SaleDetailTotalsCard: { template: '<div data-testid="totals" />' },
@@ -101,6 +102,7 @@ describe('SaleDetailView', () => {
           UCard: { template: '<div><slot /></div>' },
           UButton: { template: '<button><slot /></button>' },
           UDropdownMenu: { template: '<div><slot /></div>' },
+          UTooltip: { template: '<div><slot /></div>' },
 
           SaleDetailItemsTable: { template: '<div />' },
           SaleDetailTotalsCard: { template: '<div />' },
@@ -151,6 +153,7 @@ describe('SaleDetailView', () => {
           UCard: { template: '<div><slot /></div>' },
           UButton: { template: '<button><slot /></button>' },
           UDropdownMenu: { template: '<div><slot /></div>' },
+          UTooltip: { template: '<div><slot /></div>' },
 
           SaleDetailItemsTable: { template: '<div />' },
           SaleDetailTotalsCard: { template: '<div />' },
@@ -175,6 +178,7 @@ describe('SaleDetailView', () => {
           UCard: { template: '<div><slot /></div>' },
           UButton: { template: '<button><slot /></button>' },
           UDropdownMenu: { template: '<div><slot /></div>' },
+          UTooltip: { template: '<div><slot /></div>' },
 
           SaleDetailItemsTable: { template: '<div />' },
           SaleDetailTotalsCard: { template: '<div />' },
@@ -199,6 +203,7 @@ describe('SaleDetailView', () => {
           UCard: { template: '<div><slot /></div>' },
           UButton: { template: '<button><slot /></button>' },
           UDropdownMenu: { template: '<div><slot /></div>' },
+          UTooltip: { template: '<div><slot /></div>' },
 
           SaleDetailItemsTable: { template: '<div />' },
           SaleDetailTotalsCard: { template: '<div />' },

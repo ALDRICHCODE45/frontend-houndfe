@@ -65,17 +65,18 @@ async function handleUnassignSeller() {
 
       <div><p class="text-xs text-muted">Fecha</p><p>{{ formatSaleDate(sale.confirmedAt) }}</p></div>
       
-      <div>
-        <p class="text-xs text-muted">Factura</p>
-        <button
-          type="button"
-          disabled
-          class="text-xs text-muted cursor-not-allowed"
-          title="Funcionalidad próximamente"
-        >
-          Ver detalles
-        </button>
-      </div>
+       <div>
+         <p class="text-xs text-muted">Factura</p>
+         <UTooltip text="Funcionalidad próximamente">
+           <button
+             type="button"
+             disabled
+             class="text-xs text-muted cursor-not-allowed"
+           >
+             Ver detalles
+           </button>
+         </UTooltip>
+       </div>
       <div v-if="sale.paymentStatus !== 'PAID'" data-testid="sidebar-due-date">
         <p class="text-xs text-muted">Vence</p>
         <div class="flex items-center gap-2">
