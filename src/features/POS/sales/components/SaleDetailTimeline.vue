@@ -43,8 +43,19 @@ function actorLabel(event: SaleTimelineEvent): string | null {
 }
 
 function eventIcon(event: SaleTimelineEvent): string {
+  if (event.type === 'SALE_REGISTERED') return 'i-lucide-plus-circle'
+  if (event.type === 'PAYMENT_RECEIVED') return 'i-lucide-circle-dollar-sign'
+  if (event.type === 'PRODUCTS_DELIVERED') return 'i-lucide-shopping-cart'
   if (event.type === 'COMMENT') return 'i-lucide-message-circle'
   return 'i-lucide-circle'
+}
+
+function eventIconColor(event: SaleTimelineEvent): string {
+  if (event.type === 'SALE_REGISTERED') return 'text-primary-600 bg-primary-50'
+  if (event.type === 'PAYMENT_RECEIVED') return 'text-success-600 bg-success-50'
+  if (event.type === 'PRODUCTS_DELIVERED') return 'text-success-600 bg-success-50'
+  if (event.type === 'COMMENT') return 'text-neutral-600 bg-neutral-50'
+  return 'text-neutral-600 bg-neutral-50'
 }
 
 function canManageComment(event: SaleTimelineEvent): boolean {
@@ -96,24 +107,46 @@ async function deleteCommentForEvent(event: SaleTimelineEvent) {
 
 <template>
   <UCard>
-    <h3 class="mb-4 text-sm font-semibold">Timeline</h3>
+    <template #header>
+      <h3 class="text-base font-semibold text-muted">Historial</h3>
+    </template>
 
-    <div class="space-y-3">
+    <div class="space-y-4">
       <div
-        v-for="event in orderedTimeline"
+        v-for="(event, index) in orderedTimeline"
         :key="event.type === 'COMMENT' ? event.commentId : `${event.type}-${event.at}`"
         data-testid="timeline-event"
-        class="flex items-start gap-3"
+        class="flex items-start gap-3 relative"
       >
-        <UIcon :name="eventIcon(event)" class="mt-1 size-4" data-testid="timeline-icon" />
-        <div>
-          <p class="text-sm font-medium">{{ eventLabel(event) }}</p>
-          <p v-if="actorLabel(event)" class="text-xs text-muted" data-testid="timeline-actor">
-            {{ actorLabel(event) }}
-          </p>
-          <p v-if="event.type === 'COMMENT'" class="text-sm" data-testid="timeline-comment-body">
+        <!-- Vertical connector line (except for last event) -->
+        <div
+          v-if="index < orderedTimeline.length - 1"
+          class="absolute left-5 top-10 bottom-0 w-px bg-gray-200"
+        />
+        
+        <!-- Icon container -->
+        <div 
+          class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center relative"
+          :class="eventIconColor(event)"
+        >
+          <UIcon :name="eventIcon(event)" class="size-5" data-testid="timeline-icon" />
+        </div>
+        
+        <div class="flex-1 min-w-0">
+          <p class="font-medium">{{ eventLabel(event) }}</p>
+          <div class="flex items-center justify-between">
+            <p v-if="actorLabel(event)" class="text-sm text-muted" data-testid="timeline-actor">
+              {{ actorLabel(event) }}
+            </p>
+            <UTooltip :text="formatSaleDate(event.at)">
+              <p class="text-sm text-muted">{{ formatSaleDate(event.at) }}</p>
+            </UTooltip>
+          </div>
+          
+          <p v-if="event.type === 'COMMENT'" class="mt-1 text-sm" data-testid="timeline-comment-body">
             {{ event.body }}
           </p>
+          
           <div
             v-if="event.type === 'COMMENT' && editingCommentId === event.commentId"
             class="mt-2 space-y-2"
@@ -131,7 +164,6 @@ async function deleteCommentForEvent(event: SaleTimelineEvent) {
             <UButton variant="ghost" size="xs" data-testid="comment-edit-trigger" @click="startEdit(event)">Editar</UButton>
             <UButton variant="ghost" size="xs" data-testid="comment-delete-trigger" @click="deleteCommentForEvent(event)">Eliminar</UButton>
           </div>
-          <p class="text-xs text-muted">{{ formatSaleDate(event.at) }}</p>
         </div>
       </div>
     </div>

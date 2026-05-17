@@ -11,24 +11,40 @@ const PLACEHOLDER_IMAGE = 'https://placehold.co/64x64?text=placeholder'
 
 <template>
   <UCard>
-    <h3 class="mb-4 text-sm font-semibold">Productos</h3>
+    <template #header>
+      <h3 class="text-base font-semibold text-muted">Productos</h3>
+    </template>
 
-    <div class="space-y-3">
+    <div class="divide-y divide-default">
       <div
         v-for="(item, index) in items"
         :key="`${item.productName}-${index}`"
-        class="grid grid-cols-[64px_1fr_100px_80px_120px] items-center gap-3"
+        class="flex items-center gap-4 py-3 hover:bg-elevated first:pt-0 last:pb-0"
       >
         <img
           :data-testid="`item-image-${index}`"
           :src="item.imageUrl ?? PLACEHOLDER_IMAGE"
           :alt="item.productName"
-          class="h-16 w-16 rounded object-cover"
+          class="h-12 w-12 rounded-lg border border-default object-cover"
         />
-        <p>{{ item.productName }}</p>
-        <p class="text-right">{{ formatCentsMXN(item.unitPriceCents) }}</p>
-        <p class="text-right">{{ item.quantity }}</p>
-        <p class="text-right font-medium">{{ formatCentsMXN(item.subtotalCents) }}</p>
+        
+        <div class="flex-1 min-w-0">
+          <p class="font-medium">{{ item.productName }}</p>
+          <p v-if="item.variantName" class="text-sm text-muted">
+            {{ item.variantName }} • {{ formatCentsMXN(item.unitPriceCents) }}
+          </p>
+          <p v-else class="text-sm text-muted">
+            {{ formatCentsMXN(item.unitPriceCents) }}
+          </p>
+        </div>
+        
+        <UBadge variant="soft" size="sm" class="ml-auto">
+          {{ item.quantity }}
+        </UBadge>
+        
+        <p class="font-semibold text-right min-w-[80px]">
+          {{ formatCentsMXN(item.subtotalCents) }}
+        </p>
       </div>
     </div>
   </UCard>

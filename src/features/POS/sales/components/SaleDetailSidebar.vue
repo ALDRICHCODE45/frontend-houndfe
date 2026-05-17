@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
+import SaleDetailFinancialCard from './SaleDetailFinancialCard.vue'
+import SaleDetailPeopleCard from './SaleDetailPeopleCard.vue'
+import SaleDetailMetadataCard from './SaleDetailMetadataCard.vue'
 import AssignSellerSlideover from './AssignSellerSlideover.vue'
 import DueDateEditModal from './DueDateEditModal.vue'
-import { formatCentsMXN } from '../utils/currency.utils'
-import { formatSaleDate, formatSaleDueDate } from '../utils/saleDate.utils'
-import { getPaymentStatusBadge } from '../utils/saleStatus.utils'
 import { useSellerAssignment } from '../composables/useSellerAssignment'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import type { SaleDetail } from '../interfaces/sale.types'
@@ -48,102 +47,55 @@ async function handleUnassignSeller() {
     toast.add({ title: 'Error', description, color: 'error' })
   }
 }
+
+function handleAssignSeller() {
+  isAssignSellerOpen.value = true
+}
+
+function handleEditDueDate() {
+  isDueDateModalOpen.value = true
+}
 </script>
 
 <template>
-  <UCard>
-    <div class="space-y-4 text-sm">
+  <div class="sticky top-6 self-start space-y-4" data-testid="sidebar">
+    <!-- Block 1: Financial Card -->
+    <SaleDetailFinancialCard
+      :sale="sale"
+      :can-edit-due-date="canEditDueDate"
+      @register-payment="emit('register-payment')"
+      @edit-due-date="handleEditDueDate"
+    />
+    
+    <!-- Factura card -->
+    <UCard>
       <div>
-        <p class="text-xs text-muted">Estado</p>
-        <div class="mt-1 flex items-center gap-2">
-          <AppBadge :tone="getPaymentStatusBadge(sale.paymentStatus).color">
-            {{ getPaymentStatusBadge(sale.paymentStatus).label }}
-          </AppBadge>
-          <span>{{ formatCentsMXN(sale.totalCents) }}</span>
-        </div>
-      </div>
-
-      <div><p class="text-xs text-muted">Fecha</p><p>{{ formatSaleDate(sale.confirmedAt) }}</p></div>
-      
-       <div>
-         <p class="text-xs text-muted">Factura</p>
-         <UTooltip text="Funcionalidad próximamente">
-           <button
-             type="button"
-             disabled
-             class="text-xs text-muted cursor-not-allowed"
-           >
-             Ver detalles
-           </button>
-         </UTooltip>
-       </div>
-      <div v-if="sale.paymentStatus !== 'PAID'" data-testid="sidebar-due-date">
-        <p class="text-xs text-muted">Vence</p>
-        <div class="flex items-center gap-2">
-          <p v-if="sale.dueDate" class="font-medium">{{ formatSaleDueDate(sale.dueDate) }}</p>
-          <p v-else class="font-medium text-muted font-normal">Sin fecha</p>
-          <button
-            v-if="canEditDueDate"
-            type="button"
-            data-testid="edit-due-date-trigger"
-            class="text-xs text-primary hover:underline"
-            @click="isDueDateModalOpen = true"
+        <p class="text-sm text-muted mb-2">Factura</p>
+        <UTooltip text="Funcionalidad próximamente">
+          <UButton
+            variant="ghost"
+            size="sm"
+            disabled
+            class="cursor-not-allowed"
           >
-            {{ sale.dueDate ? 'Editar' : 'Asignar fecha' }}
-          </button>
-        </div>
+            Ver detalles
+          </UButton>
+        </UTooltip>
       </div>
-      <div><p class="text-xs text-muted">Canal</p><p>Punto de Venta</p></div>
-      <div><p class="text-xs text-muted">Caja</p><p>{{ sale.register }}</p></div>
-      <div><p class="text-xs text-muted">Cliente</p><p>{{ sale.customer?.name ?? 'Público en General' }}</p></div>
-      <div><p class="text-xs text-muted">Cajero</p><p>{{ sale.cashier.name }}</p></div>
-      <div>
-        <p class="text-xs text-muted">Vendedor</p>
-        <div class="flex items-center gap-2">
-          <p class="font-medium" :class="{ 'text-muted font-normal': !sale.seller }">
-            {{ sale.seller?.name ?? 'Sin asignar' }}
-          </p>
-          <template v-if="canUpdateSale && !isSellerMutating">
-            <button
-              v-if="!sale.seller"
-              data-testid="assign-seller-trigger"
-              type="button"
-              class="text-xs text-primary hover:underline"
-              @click="isAssignSellerOpen = true"
-            >
-              Asignar
-            </button>
-            <template v-else>
-              <button
-                data-testid="change-seller-trigger"
-                type="button"
-                class="text-xs text-primary hover:underline"
-                @click="isAssignSellerOpen = true"
-              >
-                Cambiar
-              </button>
-              <button
-                data-testid="unassign-seller-trigger"
-                type="button"
-                class="text-xs text-error hover:underline"
-                @click="handleUnassignSeller"
-              >
-                Quitar
-              </button>
-            </template>
-          </template>
-        </div>
-      </div>
-
-      <div v-if="sale.paymentStatus !== 'PAID'" class="space-y-2">
-        <p class="text-xs text-muted">Deuda pendiente</p>
-        <p class="font-medium">{{ formatCentsMXN(sale.debtCents) }}</p>
-        <UButton data-testid="register-debt-payment" block @click="emit('register-payment')">
-          Registrar Pago
-        </UButton>
-      </div>
-    </div>
-  </UCard>
+    </UCard>
+    
+    <!-- Block 2: People Card -->
+    <SaleDetailPeopleCard
+      :sale="sale"
+      :can-update-sale="canUpdateSale"
+      :is-seller-mutating="isSellerMutating"
+      @assign-seller="handleAssignSeller"
+      @unassign-seller="handleUnassignSeller"
+    />
+    
+    <!-- Block 3: Details Card -->
+    <SaleDetailMetadataCard :sale="sale" />
+  </div>
 
   <AssignSellerSlideover
     v-model:open="isAssignSellerOpen"

@@ -1,18 +1,16 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { useSaleDetail } from '../composables/useSaleDetail'
 import { useDebtPayment } from '../composables/useDebtPayment'
 import { useSaleComments } from '../composables/useSaleComments'
-import { extractFolioNumber } from '../utils/saleFolio.utils'
-import { getDeliveryStatusBadge, getPaymentStatusBadge } from '../utils/saleStatus.utils'
 import SaleDetailItemsTable from '../components/SaleDetailItemsTable.vue'
 import SaleDetailTotalsCard from '../components/SaleDetailTotalsCard.vue'
 import SaleDetailTimeline from '../components/SaleDetailTimeline.vue'
 import SaleCommentInput from '../components/SaleCommentInput.vue'
 import SaleDetailSidebar from '../components/SaleDetailSidebar.vue'
+import SaleDetailHeader from '../components/SaleDetailHeader.vue'
 import DebtPaymentModal from '../components/DebtPaymentModal.vue'
 
 declare const useToast: () => {
@@ -67,55 +65,45 @@ watch(
 </script>
 
 <template>
-  <div v-if="canReadSales" data-testid="sale-detail-layout" class="grid grid-cols-1 gap-6 px-10 lg:grid-cols-3">
-    <div class="space-y-4 lg:col-span-2">
-      <div class="flex items-center justify-between">
-        <UButton variant="ghost" icon="i-lucide-arrow-left" @click="goBack">Volver</UButton>
-        
-        <h1 class="text-xl font-semibold">Venta {{ extractFolioNumber(sale?.folio ?? '') }}</h1>
-        
-         <UDropdownMenu :items="actionItems">
-           <UTooltip text="Funcionalidad próximamente">
-             <UButton trailing-icon="i-lucide-chevron-down" variant="outline">Más Acciones</UButton>
-           </UTooltip>
-         </UDropdownMenu>
+  <div v-if="canReadSales" data-testid="sale-detail-layout" class="px-10 space-y-6">
+    <!-- Header -->
+    <SaleDetailHeader
+      v-if="sale && !isLoading"
+      :sale="sale"
+      :action-items="actionItems"
+      @back="goBack"
+    />
+
+    <!-- Main content grid -->
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+      <!-- Main column -->
+      <div class="space-y-4 lg:col-span-2">
+        <SaleDetailItemsTable v-if="sale" :items="sale.items" />
+        <SaleDetailTotalsCard
+          v-if="sale"
+          :subtotal-cents="sale.subtotalCents"
+          :discount-cents="sale.discountCents"
+          :total-cents="sale.totalCents"
+        />
+        <SaleDetailTimeline
+          v-if="sale"
+          :timeline="sale.timeline"
+          :current-user-id="authStore.user?.id ?? null"
+          :is-pending="commentsPending"
+          :on-update-comment="updateComment"
+          :on-delete-comment="deleteComment"
+        />
+        <SaleCommentInput v-if="sale" :is-pending="commentsPending" :on-submit="addComment" />
       </div>
 
-      <UCard v-if="sale && !isLoading" class="space-y-4">
-        <div class="flex items-center gap-2">
-          <AppBadge :tone="getDeliveryStatusBadge(sale.deliveryStatus).color">
-            {{ getDeliveryStatusBadge(sale.deliveryStatus).label }}
-          </AppBadge>
-          <AppBadge v-if="sale.paymentStatus" :tone="getPaymentStatusBadge(sale.paymentStatus).color">
-            {{ getPaymentStatusBadge(sale.paymentStatus).label }}
-          </AppBadge>
-        </div>
-      </UCard>
-
-      <SaleDetailItemsTable v-if="sale" :items="sale.items" />
-      <SaleDetailTotalsCard
+      <!-- Sidebar -->
+      <SaleDetailSidebar
         v-if="sale"
-        :subtotal-cents="sale.subtotalCents"
-        :discount-cents="sale.discountCents"
-        :total-cents="sale.totalCents"
+        :sale="sale"
+        class="lg:col-span-1"
+        @register-payment="debtModalOpen = true"
       />
-      <SaleDetailTimeline
-        v-if="sale"
-        :timeline="sale.timeline"
-        :current-user-id="authStore.user?.id ?? null"
-        :is-pending="commentsPending"
-        :on-update-comment="updateComment"
-        :on-delete-comment="deleteComment"
-      />
-      <SaleCommentInput v-if="sale" :is-pending="commentsPending" :on-submit="addComment" />
     </div>
-
-    <SaleDetailSidebar
-      v-if="sale"
-      :sale="sale"
-      class="lg:col-span-1"
-      @register-payment="debtModalOpen = true"
-    />
 
     <DebtPaymentModal
       v-if="sale"

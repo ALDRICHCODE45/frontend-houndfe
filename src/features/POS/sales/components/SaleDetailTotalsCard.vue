@@ -10,19 +10,25 @@ defineProps<{
 
 <template>
   <UCard>
-    <h3 class="mb-4 text-sm font-semibold">Totales</h3>
-    <div class="space-y-2 text-sm">
-      <div class="flex items-center justify-between">
-        <span>Subtotal</span>
+    <template #header>
+      <h3 class="text-base font-semibold text-muted">Totales</h3>
+    </template>
+    
+    <div class="space-y-3 text-right">
+      <div class="flex items-center justify-between text-sm">
+        <span class="text-muted">Subtotal</span>
         <span>{{ formatCentsMXN(subtotalCents) }}</span>
       </div>
-      <div class="flex items-center justify-between">
-        <span>Descuentos</span>
+      <div class="flex items-center justify-between text-sm">
+        <span class="text-muted">Descuentos</span>
         <span>{{ formatCentsMXN(discountCents) }}</span>
       </div>
-      <div class="flex items-center justify-between font-semibold">
-        <span>Total</span>
-        <span>{{ formatCentsMXN(totalCents) }}</span>
+      
+      <hr class="border-t border-gray-200" />
+      
+      <div class="flex items-center justify-between">
+        <span class="text-muted">Total</span>
+        <span class="text-2xl font-bold">{{ formatCentsMXN(totalCents) }}</span>
       </div>
     </div>
   </UCard>
