@@ -7,7 +7,7 @@ import { useSaleDetail } from '../composables/useSaleDetail'
 import { useDebtPayment } from '../composables/useDebtPayment'
 import { useSaleComments } from '../composables/useSaleComments'
 import { extractFolioNumber } from '../utils/saleFolio.utils'
-import { getDeliveryStatusBadge } from '../utils/saleStatus.utils'
+import { getDeliveryStatusBadge, getPaymentStatusBadge } from '../utils/saleStatus.utils'
 import SaleDetailItemsTable from '../components/SaleDetailItemsTable.vue'
 import SaleDetailTotalsCard from '../components/SaleDetailTotalsCard.vue'
 import SaleDetailTimeline from '../components/SaleDetailTimeline.vue'
@@ -33,6 +33,13 @@ const { sale, isLoading } = useSaleDetail(saleId)
 const { addComment, updateComment, deleteComment, isPending: commentsPending, lastError } = useSaleComments(saleId)
 const debtModalOpen = ref(false)
 const { submit, isSubmitting, externalError } = useDebtPayment(saleId.value)
+
+const actionItems = computed(() => [
+  { label: 'Imprimir Ticket', icon: 'i-lucide-printer', disabled: true },
+  { label: 'Descargar PDF', icon: 'i-lucide-download', disabled: true },
+  { label: 'Facturar Venta', icon: 'i-lucide-file-text', disabled: true },
+  { label: 'Enviar Recordatorio', icon: 'i-lucide-message-circle', disabled: true },
+])
 
 async function handleDebtSubmit(payload: { method: 'cash' | 'card_credit' | 'card_debit' | 'transfer'; amountCents: number; reference?: string }) {
   await submit(payload)
@@ -64,14 +71,23 @@ watch(
     <div class="space-y-4 lg:col-span-2">
       <div class="flex items-center justify-between">
         <UButton variant="ghost" icon="i-lucide-arrow-left" @click="goBack">Volver</UButton>
-
+        
         <h1 class="text-xl font-semibold">Venta {{ extractFolioNumber(sale?.folio ?? '') }}</h1>
+        
+        <UDropdownMenu :items="actionItems">
+          <UButton trailing-icon="i-lucide-chevron-down" variant="outline">Más Acciones</UButton>
+        </UDropdownMenu>
       </div>
 
       <UCard v-if="sale && !isLoading" class="space-y-4">
-        <AppBadge :tone="getDeliveryStatusBadge(sale.deliveryStatus).color">
-          {{ getDeliveryStatusBadge(sale.deliveryStatus).label }}
-        </AppBadge>
+        <div class="flex items-center gap-2">
+          <AppBadge :tone="getDeliveryStatusBadge(sale.deliveryStatus).color">
+            {{ getDeliveryStatusBadge(sale.deliveryStatus).label }}
+          </AppBadge>
+          <AppBadge v-if="sale.paymentStatus" :tone="getPaymentStatusBadge(sale.paymentStatus).color">
+            {{ getPaymentStatusBadge(sale.paymentStatus).label }}
+          </AppBadge>
+        </div>
       </UCard>
 
       <SaleDetailItemsTable v-if="sale" :items="sale.items" />

@@ -352,4 +352,23 @@ describe('SaleDetailSidebar', () => {
     expect(wrapper.text()).toContain('Sin asignar')
     expect(wrapper.find('[data-testid="assign-seller-trigger"]').exists()).toBe(false)
   })
+
+  it('renders Factura card with disabled "Ver detalles" link', () => {
+    const wrapper = mount(SaleDetailSidebar, {
+      props: {
+        sale: buildSaleDetail(),
+      },
+      global: {
+        stubs: {
+          ...defaultStubs,
+        },
+      },
+    })
+
+    expect(wrapper.text()).toContain('Factura')
+    expect(wrapper.text()).toContain('Ver detalles')
+    const verDetallesButton = wrapper.find('button:disabled')
+    expect(verDetallesButton.exists()).toBe(true)
+    expect(verDetallesButton.text()).toBe('Ver detalles')
+  })
 })

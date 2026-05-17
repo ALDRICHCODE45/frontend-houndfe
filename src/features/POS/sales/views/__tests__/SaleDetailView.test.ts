@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { computed } from 'vue'
 import SaleDetailView from '../SaleDetailView.vue'
@@ -10,30 +10,11 @@ vi.mock('vue-router', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }))
 
+const mockSaleDetail = vi.hoisted(() => ({ value: null }))
+
 vi.mock('../../composables/useSaleDetail', () => ({
   useSaleDetail: () => ({
-    sale: computed(() => ({
-        id: 'sale-1',
-        folio: 'A-202605-000012',
-        status: 'CONFIRMED',
-        channel: 'POS',
-        register: 'Principal',
-        confirmedAt: '2026-05-06T14:43:00.000Z',
-        subtotalCents: 127000,
-        discountCents: 0,
-        totalCents: 127000,
-        paidCents: 127000,
-        debtCents: 0,
-        changeDueCents: 0,
-        paymentStatus: 'PAID',
-        deliveryStatus: 'DELIVERED',
-        customer: null,
-        cashier: { id: 'u1', name: 'Cajero' },
-        seller: null,
-        items: [],
-        payments: [],
-        timeline: [],
-      })),
+    sale: computed(() => mockSaleDetail.value),
     isLoading: computed(() => false),
     isError: computed(() => false),
   }),
@@ -61,7 +42,34 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
   useAuthStore: () => ({ userCan: vi.fn(() => true) }),
 }))
 
+const defaultSale = {
+  id: 'sale-1',
+  folio: 'A-202605-000012',
+  status: 'CONFIRMED' as const,
+  channel: 'POS',
+  register: 'Principal',
+  confirmedAt: '2026-05-06T14:43:00.000Z',
+  subtotalCents: 127000,
+  discountCents: 0,
+  totalCents: 127000,
+  paidCents: 127000,
+  debtCents: 0,
+  changeDueCents: 0,
+  paymentStatus: 'PAID' as const,
+  deliveryStatus: 'DELIVERED' as const,
+  customer: null,
+  cashier: { id: 'u1', name: 'Cajero' },
+  seller: null,
+  items: [],
+  payments: [],
+  timeline: [],
+}
+
 describe('SaleDetailView', () => {
+  beforeEach(() => {
+    mockSaleDetail.value = defaultSale
+  })
+
   it('renders two-column detail layout and title', () => {
     const wrapper = mount(SaleDetailView, {
       global: {
@@ -69,6 +77,8 @@ describe('SaleDetailView', () => {
           AppBadge: { template: '<span><slot /></span>' },
           UCard: { template: '<div><slot /></div>' },
           UButton: { template: '<button><slot /></button>' },
+          UDropdownMenu: { template: '<div data-testid="dropdown"><slot /></div>' },
+
           SaleDetailItemsTable: { template: '<div data-testid="items" />' },
           SaleDetailTotalsCard: { template: '<div data-testid="totals" />' },
           SaleDetailTimeline: { template: '<div data-testid="timeline" />' },
@@ -81,6 +91,126 @@ describe('SaleDetailView', () => {
     expect(wrapper.get('[data-testid="sale-detail-layout"]')).toBeTruthy()
     expect(wrapper.text()).toContain('Venta #12')
     expect(wrapper.find('[data-testid="sidebar"]').exists()).toBe(true)
+  })
+
+  it('renders payment badge with correct label for PAID status', () => {
+    const wrapper = mount(SaleDetailView, {
+      global: {
+        stubs: {
+          AppBadge: { template: '<span data-testid="badge"><slot /></span>' },
+          UCard: { template: '<div><slot /></div>' },
+          UButton: { template: '<button><slot /></button>' },
+          UDropdownMenu: { template: '<div><slot /></div>' },
+
+          SaleDetailItemsTable: { template: '<div />' },
+          SaleDetailTotalsCard: { template: '<div />' },
+          SaleDetailTimeline: { template: '<div />' },
+          SaleCommentInput: { template: '<div />' },
+          SaleDetailSidebar: { template: '<div />' },
+        },
+      },
+    })
+
+    const badges = wrapper.findAll('[data-testid="badge"]')
+    expect(badges).toHaveLength(2) // delivery + payment
+    expect(badges[1].text()).toBe('Pagada')
+  })
+
+  it('renders "Más Acciones" dropdown trigger', () => {
+    const wrapper = mount(SaleDetailView, {
+      global: {
+        stubs: {
+          AppBadge: { template: '<span><slot /></span>' },
+          UCard: { template: '<div><slot /></div>' },
+          UButton: { template: '<button><slot /></button>' },
+          UDropdownMenu: { 
+            props: ['items'],
+            template: '<div data-testid="dropdown"><slot /></div>' 
+          },
+          SaleDetailItemsTable: { template: '<div />' },
+          SaleDetailTotalsCard: { template: '<div />' },
+          SaleDetailTimeline: { template: '<div />' },
+          SaleCommentInput: { template: '<div />' },
+          SaleDetailSidebar: { template: '<div />' },
+        },
+      },
+    })
+
+    expect(wrapper.text()).toContain('Más Acciones')
+    // The dropdown trigger button has aria-haspopup="menu"
+    expect(wrapper.find('[aria-haspopup="menu"]').exists()).toBe(true)
+  })
+
+  it('renders payment badge with correct label for PARTIAL status', () => {
+    mockSaleDetail.value = { ...defaultSale, paymentStatus: 'PARTIAL' }
+    
+    const wrapper = mount(SaleDetailView, {
+      global: {
+        stubs: {
+          AppBadge: { template: '<span data-testid="badge"><slot /></span>' },
+          UCard: { template: '<div><slot /></div>' },
+          UButton: { template: '<button><slot /></button>' },
+          UDropdownMenu: { template: '<div><slot /></div>' },
+
+          SaleDetailItemsTable: { template: '<div />' },
+          SaleDetailTotalsCard: { template: '<div />' },
+          SaleDetailTimeline: { template: '<div />' },
+          SaleCommentInput: { template: '<div />' },
+          SaleDetailSidebar: { template: '<div />' },
+        },
+      },
+    })
+
+    const badges = wrapper.findAll('[data-testid="badge"]')
+    expect(badges[1].text()).toBe('Impaga')
+  })
+
+  it('renders payment badge with correct label for CREDIT status', () => {
+    mockSaleDetail.value = { ...defaultSale, paymentStatus: 'CREDIT' }
+    
+    const wrapper = mount(SaleDetailView, {
+      global: {
+        stubs: {
+          AppBadge: { template: '<span data-testid="badge"><slot /></span>' },
+          UCard: { template: '<div><slot /></div>' },
+          UButton: { template: '<button><slot /></button>' },
+          UDropdownMenu: { template: '<div><slot /></div>' },
+
+          SaleDetailItemsTable: { template: '<div />' },
+          SaleDetailTotalsCard: { template: '<div />' },
+          SaleDetailTimeline: { template: '<div />' },
+          SaleCommentInput: { template: '<div />' },
+          SaleDetailSidebar: { template: '<div />' },
+        },
+      },
+    })
+
+    const badges = wrapper.findAll('[data-testid="badge"]')
+    expect(badges[1].text()).toBe('Deuda')
+  })
+
+  it('does not render payment badge when paymentStatus is null', () => {
+    mockSaleDetail.value = { ...defaultSale, paymentStatus: null }
+    
+    const wrapper = mount(SaleDetailView, {
+      global: {
+        stubs: {
+          AppBadge: { template: '<span data-testid="badge"><slot /></span>' },
+          UCard: { template: '<div><slot /></div>' },
+          UButton: { template: '<button><slot /></button>' },
+          UDropdownMenu: { template: '<div><slot /></div>' },
+
+          SaleDetailItemsTable: { template: '<div />' },
+          SaleDetailTotalsCard: { template: '<div />' },
+          SaleDetailTimeline: { template: '<div />' },
+          SaleCommentInput: { template: '<div />' },
+          SaleDetailSidebar: { template: '<div />' },
+        },
+      },
+    })
+
+    const badges = wrapper.findAll('[data-testid="badge"]')
+    expect(badges).toHaveLength(1) // only delivery badge
   })
 
   it('shows debt payment CTA for non-PAID sale and opens modal', async () => {
