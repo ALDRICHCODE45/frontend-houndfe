@@ -1,10 +1,33 @@
 import { describe, it, expect } from 'vitest'
-import { mount } from '@vue/test-utils'
 import SaleDetailItemsTable from '../SaleDetailItemsTable.vue'
+import { mountWithUApp } from '@/test/mountWithUApp'
 
 describe('SaleDetailItemsTable', () => {
-  it('renders placeholder when imageUrl is null', () => {
-    const wrapper = mount(SaleDetailItemsTable, {
+  it('renders image when imageUrl is a non-empty string', () => {
+    const wrapper = mountWithUApp(SaleDetailItemsTable, {
+      props: {
+        items: [
+          {
+            productName: 'Jean Recto',
+            variantName: 'Talla M',
+            imageUrl: 'https://example.com/jean.jpg',
+            unitPriceCents: 17000,
+            quantity: 2,
+            discountCents: 0,
+            subtotalCents: 34000,
+          },
+        ],
+      },
+    })
+
+    const avatar = wrapper.get('[data-testid="item-image-0"]')
+    expect(avatar.attributes('src')).toBe('https://example.com/jean.jpg')
+    expect(avatar.attributes('alt')).toBe('Jean Recto - Talla M')
+    expect(wrapper.text()).toContain('Jean Recto')
+  })
+
+  it('renders fallback icon when imageUrl is null', () => {
+    const wrapper = mountWithUApp(SaleDetailItemsTable, {
       props: {
         items: [
           {
@@ -20,13 +43,41 @@ describe('SaleDetailItemsTable', () => {
       },
     })
 
-    const image = wrapper.get('[data-testid="item-image-0"]')
-    expect(image.attributes('src')).toContain('placeholder')
+    const avatar = wrapper.get('[data-testid="item-image-0"]')
+    // UAvatar with icon renders as an SVG element
+    expect(avatar.element.tagName.toLowerCase()).toBe('svg')
+    expect(avatar.attributes('data-slot')).toBe('icon')
+    expect(avatar.attributes('src')).toBeUndefined()
     expect(wrapper.text()).toContain('Jean Recto')
   })
 
+  it('renders fallback icon when imageUrl is empty string', () => {
+    const wrapper = mountWithUApp(SaleDetailItemsTable, {
+      props: {
+        items: [
+          {
+            productName: 'Camisa',
+            variantName: 'XL',
+            imageUrl: '',
+            unitPriceCents: 25000,
+            quantity: 1,
+            discountCents: 0,
+            subtotalCents: 25000,
+          },
+        ],
+      },
+    })
+
+    const avatar = wrapper.get('[data-testid="item-image-0"]')
+    // UAvatar with icon renders as an SVG element
+    expect(avatar.element.tagName.toLowerCase()).toBe('svg')
+    expect(avatar.attributes('data-slot')).toBe('icon')
+    expect(avatar.attributes('src')).toBeUndefined()
+    expect(wrapper.text()).toContain('Camisa')
+  })
+
   it('renders quantity as clean text with × prefix', () => {
-    const wrapper = mount(SaleDetailItemsTable, {
+    const wrapper = mountWithUApp(SaleDetailItemsTable, {
       props: {
         items: [
           {

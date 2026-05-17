@@ -5,8 +5,6 @@ import type { SaleDetailItem } from '../interfaces/sale.types'
 defineProps<{
   items: SaleDetailItem[]
 }>()
-
-const PLACEHOLDER_IMAGE = 'https://placehold.co/64x64?text=placeholder'
 </script>
 
 <template>
@@ -21,11 +19,21 @@ const PLACEHOLDER_IMAGE = 'https://placehold.co/64x64?text=placeholder'
         :key="`${item.productName}-${index}`"
         class="flex items-center gap-4 py-3 hover:bg-elevated first:pt-0 last:pb-0"
       >
-        <img
+        <UAvatar
+          v-if="item.imageUrl"
           :data-testid="`item-image-${index}`"
-          :src="item.imageUrl ?? PLACEHOLDER_IMAGE"
-          :alt="item.productName"
-          class="h-12 w-12 rounded-lg border border-default object-cover"
+          :src="item.imageUrl"
+          :alt="`${item.productName}${item.variantName ? ' - ' + item.variantName : ''}`"
+          size="lg"
+          :ui="{ rounded: 'rounded-lg' }"
+        />
+        <UAvatar
+          v-else
+          :data-testid="`item-image-${index}`"
+          icon="i-lucide-image-off"
+          alt="Sin imagen"
+          size="lg"
+          :ui="{ rounded: 'rounded-lg' }"
         />
         
         <div class="flex-1 min-w-0">
