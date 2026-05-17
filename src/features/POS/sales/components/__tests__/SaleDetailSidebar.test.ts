@@ -28,6 +28,11 @@ const unassignSellerMock = mocks.unassignSellerMock
 
 vi.stubGlobal('useToast', () => ({ add: vi.fn() }))
 
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ params: { id: 'sale-1' } }),
+  useRouter: () => ({ push: vi.fn() }),
+}))
+
 const defaultStubs = {
   AppBadge: { template: '<span><slot /></span>' },
   UCard: { template: '<div><slot /></div>' },
@@ -320,7 +325,9 @@ describe('SaleDetailSidebar', () => {
       props: {
         sale: buildSaleDetail({ seller: { id: 'u-2', name: 'Vendedor X' } }),
       },
-      global: { stubs: defaultStubs },
+      global: {
+        stubs: defaultStubs,
+      },
     })
 
     expect(wrapper.text()).toContain('Vendedor X')
@@ -333,7 +340,9 @@ describe('SaleDetailSidebar', () => {
       props: {
         sale: buildSaleDetail({ seller: { id: 'u-2', name: 'Vendedor X' } }),
       },
-      global: { stubs: defaultStubs },
+      global: {
+        stubs: defaultStubs,
+      },
     })
 
     await wrapper.get('[data-testid="unassign-seller-trigger"]').trigger('click')
@@ -346,22 +355,22 @@ describe('SaleDetailSidebar', () => {
       props: {
         sale: buildSaleDetail({ seller: null }),
       },
-      global: { stubs: defaultStubs },
+      global: {
+        stubs: defaultStubs,
+      },
     })
 
     expect(wrapper.text()).toContain('Sin asignar')
     expect(wrapper.find('[data-testid="assign-seller-trigger"]').exists()).toBe(false)
   })
 
-  it('renders Factura card with disabled "Ver detalles" link', () => {
+  it('renders Factura card with disabled "Ver detalles" link with title attribute', () => {
     const wrapper = mount(SaleDetailSidebar, {
       props: {
         sale: buildSaleDetail(),
       },
       global: {
-        stubs: {
-          ...defaultStubs,
-        },
+        stubs: defaultStubs,
       },
     })
 
@@ -370,5 +379,8 @@ describe('SaleDetailSidebar', () => {
     const verDetallesButton = wrapper.find('button:disabled')
     expect(verDetallesButton.exists()).toBe(true)
     expect(verDetallesButton.text()).toBe('Ver detalles')
+    
+    // Check button has correct title attribute
+    expect(verDetallesButton.attributes('title')).toBe('Funcionalidad próximamente')
   })
 })

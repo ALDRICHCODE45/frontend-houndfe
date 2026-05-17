@@ -39,7 +39,12 @@ vi.mock('../../composables/useSaleComments', () => ({
 }))
 
 vi.mock('@/features/auth/stores/useAuthStore', () => ({
-  useAuthStore: () => ({ userCan: vi.fn(() => true) }),
+  useAuthStore: () => ({ userCan: vi.fn(() => true), user: { id: 'user-1' } }),
+}))
+
+vi.mock('vue-router', () => ({
+  useRoute: () => ({ params: { id: 'sale-1' } }),
+  useRouter: () => ({ push: vi.fn() }),
 }))
 
 const defaultSale = {
@@ -116,13 +121,16 @@ describe('SaleDetailView', () => {
     expect(badges[1]?.text()).toBe('Pagada')
   })
 
-  it('renders "Más Acciones" dropdown trigger', () => {
+  it('renders "Más Acciones" dropdown trigger with title attribute', () => {
     const wrapper = mount(SaleDetailView, {
       global: {
         stubs: {
           AppBadge: { template: '<span><slot /></span>' },
           UCard: { template: '<div><slot /></div>' },
-          UButton: { template: '<button><slot /></button>' },
+          UButton: { 
+            props: ['title', 'trailingIcon', 'variant'],
+            template: '<button :title="title"><slot /></button>' 
+          },
           UDropdownMenu: { 
             props: ['items'],
             template: '<div data-testid="dropdown"><slot /></div>' 
@@ -137,8 +145,11 @@ describe('SaleDetailView', () => {
     })
 
     expect(wrapper.text()).toContain('Más Acciones')
-    // The dropdown trigger button has aria-haspopup="menu"
-    expect(wrapper.find('[aria-haspopup="menu"]').exists()).toBe(true)
+    
+    // Check button has correct title attribute (it's the dropdown trigger)
+    const dropdownButton = wrapper.find('button[title]')
+    expect(dropdownButton.exists()).toBe(true)
+    expect(dropdownButton.attributes('title')).toBe('Funcionalidad próximamente')
   })
 
   it('renders payment badge with correct label for PARTIAL status', () => {
