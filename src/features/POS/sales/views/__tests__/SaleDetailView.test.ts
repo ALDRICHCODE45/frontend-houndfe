@@ -79,7 +79,7 @@ describe('SaleDetailView', () => {
           UButton: { template: '<button><slot /></button>' },
           UDropdownMenu: { template: '<div data-testid="dropdown"><slot /></div>' },
 
-          SaleDetailItemsTable: { template: '<div data-testid="items" />' },
+          SaleDetailItemsList: { template: '<div data-testid="items" />' },
           SaleDetailTotalsCard: { template: '<div data-testid="totals" />' },
           SaleDetailTimeline: { template: '<div data-testid="timeline" />' },
           SaleCommentInput: { template: '<div data-testid="comment-input" />' },
@@ -102,7 +102,7 @@ describe('SaleDetailView', () => {
           UButton: { template: '<button><slot /></button>' },
           UDropdownMenu: { template: '<div><slot /></div>' },
 
-          SaleDetailItemsTable: { template: '<div />' },
+          SaleDetailItemsList: { template: '<div />' },
           SaleDetailTotalsCard: { template: '<div />' },
           SaleDetailTimeline: { template: '<div />' },
           SaleCommentInput: { template: '<div />' },
@@ -127,7 +127,7 @@ describe('SaleDetailView', () => {
           UButton: { template: '<button><slot /></button>' },
           UDropdownMenu: { template: '<div><slot /></div>' },
 
-          SaleDetailItemsTable: { template: '<div />' },
+          SaleDetailItemsList: { template: '<div />' },
           SaleDetailTotalsCard: { template: '<div />' },
           SaleDetailTimeline: { template: '<div />' },
           SaleCommentInput: { template: '<div />' },
@@ -151,7 +151,7 @@ describe('SaleDetailView', () => {
           UButton: { template: '<button><slot /></button>' },
           UDropdownMenu: { template: '<div><slot /></div>' },
 
-          SaleDetailItemsTable: { template: '<div />' },
+          SaleDetailItemsList: { template: '<div />' },
           SaleDetailTotalsCard: { template: '<div />' },
           SaleDetailTimeline: { template: '<div />' },
           SaleCommentInput: { template: '<div />' },
@@ -175,7 +175,7 @@ describe('SaleDetailView', () => {
           UButton: { template: '<button><slot /></button>' },
           UDropdownMenu: { template: '<div><slot /></div>' },
 
-          SaleDetailItemsTable: { template: '<div />' },
+          SaleDetailItemsList: { template: '<div />' },
           SaleDetailTotalsCard: { template: '<div />' },
           SaleDetailTimeline: { template: '<div />' },
           SaleCommentInput: { template: '<div />' },
@@ -197,7 +197,7 @@ describe('SaleDetailView', () => {
           AppBadge: { template: '<span><slot /></span>' },
           UCard: { template: '<div><slot /></div>' },
           UButton: { template: '<button><slot /></button>' },
-          SaleDetailItemsTable: { template: '<div data-testid="items" />' },
+          SaleDetailItemsList: { template: '<div data-testid="items" />' },
           SaleDetailTotalsCard: { template: '<div data-testid="totals" />' },
           SaleDetailTimeline: { template: '<div data-testid="timeline" />' },
           SaleCommentInput: { template: '<div data-testid="comment-input" />' },

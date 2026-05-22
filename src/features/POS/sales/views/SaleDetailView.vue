@@ -5,7 +5,7 @@ import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { useSaleDetail } from '../composables/useSaleDetail'
 import { useDebtPayment } from '../composables/useDebtPayment'
 import { useSaleComments } from '../composables/useSaleComments'
-import SaleDetailItemsTable from '../components/SaleDetailItemsTable.vue'
+import SaleDetailItemsList from '../components/SaleDetailItemsList.vue'
 import SaleDetailTotalsCard from '../components/SaleDetailTotalsCard.vue'
 import SaleDetailTimeline from '../components/SaleDetailTimeline.vue'
 import SaleCommentInput from '../components/SaleCommentInput.vue'
@@ -77,8 +77,13 @@ watch(
     <!-- Main content grid -->
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
       <!-- Main column -->
-      <div class="space-y-4 lg:col-span-2">
-        <SaleDetailItemsTable v-if="sale" :items="sale.items" />
+      <div class="space-y-6 lg:col-span-2">
+        <section v-if="sale" class="space-y-3">
+          <h3 class="text-xs font-semibold uppercase tracking-wider text-muted">
+            Productos<span v-if="sale.items.length" class="text-muted/70"> · {{ sale.items.length }}</span>
+          </h3>
+          <SaleDetailItemsList :items="sale.items" />
+        </section>
         <SaleDetailTotalsCard
           v-if="sale"
           :subtotal-cents="sale.subtotalCents"

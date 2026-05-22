@@ -1,10 +1,65 @@
 import { describe, it, expect } from 'vitest'
-import SaleDetailItemsTable from '../SaleDetailItemsTable.vue'
+import SaleDetailItemsList from '../SaleDetailItemsList.vue'
 import { mountWithUApp } from '@/test/mountWithUApp'
 
-describe('SaleDetailItemsTable', () => {
+describe('SaleDetailItemsList', () => {
+  it('renders one individual card per item', () => {
+    const wrapper = mountWithUApp(SaleDetailItemsList, {
+      props: {
+        items: [
+          {
+            productName: 'Jean Recto',
+            variantName: 'Talla M',
+            imageUrl: null,
+            unitPriceCents: 17000,
+            quantity: 3,
+            discountCents: 0,
+            subtotalCents: 51000,
+          },
+          {
+            productName: 'Camisa',
+            variantName: 'XL',
+            imageUrl: null,
+            unitPriceCents: 25000,
+            quantity: 1,
+            discountCents: 0,
+            subtotalCents: 25000,
+          },
+        ],
+      },
+    })
+
+    const cards = wrapper.findAll('[data-testid^="item-card-"]')
+    expect(cards).toHaveLength(2)
+  })
+
+  it('does NOT apply hover background or border-color transitions on item cards', () => {
+    const wrapper = mountWithUApp(SaleDetailItemsList, {
+      props: {
+        items: [
+          {
+            productName: 'Jean Recto',
+            variantName: 'Talla M',
+            imageUrl: null,
+            unitPriceCents: 17000,
+            quantity: 3,
+            discountCents: 0,
+            subtotalCents: 51000,
+          },
+        ],
+      },
+    })
+
+    const card = wrapper.get('[data-testid="item-card-0"]')
+    const classes = card.classes()
+    // The previous "hover:bg-elevated" produced an ugly grey block hover on a
+    // non-interactive row. Item cards are not clickable, so they must NOT have
+    // any hover state.
+    expect(classes.some((c) => c.startsWith('hover:'))).toBe(false)
+  })
+
   it('applies typographic hierarchy to name, subtitle, quantity, and subtotal', () => {
-    const wrapper = mountWithUApp(SaleDetailItemsTable, {
+    const wrapper = mountWithUApp(SaleDetailItemsList, {
       props: {
         items: [
           {
@@ -32,7 +87,7 @@ describe('SaleDetailItemsTable', () => {
   })
 
   it('renders image when imageUrl is a non-empty string', () => {
-    const wrapper = mountWithUApp(SaleDetailItemsTable, {
+    const wrapper = mountWithUApp(SaleDetailItemsList, {
       props: {
         items: [
           {
@@ -55,7 +110,7 @@ describe('SaleDetailItemsTable', () => {
   })
 
   it('renders fallback icon when imageUrl is null', () => {
-    const wrapper = mountWithUApp(SaleDetailItemsTable, {
+    const wrapper = mountWithUApp(SaleDetailItemsList, {
       props: {
         items: [
           {
@@ -80,7 +135,7 @@ describe('SaleDetailItemsTable', () => {
   })
 
   it('renders fallback icon when imageUrl is empty string', () => {
-    const wrapper = mountWithUApp(SaleDetailItemsTable, {
+    const wrapper = mountWithUApp(SaleDetailItemsList, {
       props: {
         items: [
           {
@@ -97,7 +152,6 @@ describe('SaleDetailItemsTable', () => {
     })
 
     const avatar = wrapper.get('[data-testid="item-image-0"]')
-    // UAvatar with icon renders as an SVG element
     expect(avatar.element.tagName.toLowerCase()).toBe('svg')
     expect(avatar.attributes('data-slot')).toBe('icon')
     expect(avatar.attributes('src')).toBeUndefined()
@@ -105,7 +159,7 @@ describe('SaleDetailItemsTable', () => {
   })
 
   it('renders quantity as clean text with × prefix', () => {
-    const wrapper = mountWithUApp(SaleDetailItemsTable, {
+    const wrapper = mountWithUApp(SaleDetailItemsList, {
       props: {
         items: [
           {
