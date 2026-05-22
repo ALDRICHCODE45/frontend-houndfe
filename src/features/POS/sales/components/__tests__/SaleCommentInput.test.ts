@@ -5,17 +5,27 @@ import SaleCommentInput from '../SaleCommentInput.vue'
 const toastAdd = vi.fn()
 vi.stubGlobal('useToast', () => ({ add: toastAdd }))
 
+const SaleCommentSlideoverStub = {
+  name: 'SaleCommentSlideover',
+  props: ['open', 'isPending'],
+  emits: ['update:open', 'submit'],
+  template: '<div data-testid="sale-comment-slideover" :data-open="String(open)" :data-pending="String(isPending)" />',
+}
+
 const globalStubs = {
   UButton: {
-    props: ['disabled'],
+    props: ['disabled', 'variant', 'color', 'icon'],
     emits: ['click'],
-    template: '<button :disabled="disabled" @click="$emit(\'click\')"><slot /></button>',
+    template:
+      '<button :disabled="disabled" :data-variant="variant" :data-color="color" :data-icon="icon" @click="$emit(\'click\')"><slot /></button>',
   },
-  UTextarea: {
-    props: ['modelValue'],
-    emits: ['update:modelValue'],
-    template: '<textarea :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+  Button: {
+    props: ['disabled', 'variant', 'color', 'icon'],
+    emits: ['click'],
+    template:
+      '<button :disabled="disabled" :data-variant="variant" :data-color="color" :data-icon="icon" @click="$emit(\'click\')"><slot /></button>',
   },
+  SaleCommentSlideover: SaleCommentSlideoverStub,
 }
 
 describe('SaleCommentInput', () => {
@@ -23,60 +33,46 @@ describe('SaleCommentInput', () => {
     vi.clearAllMocks()
   })
 
-  it('expands input, cancels, and clears body', async () => {
+  it('renders a single Agregar comentario trigger button with icon', () => {
     const wrapper = mount(SaleCommentInput, {
       props: { onSubmit: vi.fn().mockResolvedValue(undefined) },
       global: { stubs: globalStubs },
     })
 
-    await wrapper.get('[data-testid="comment-open"]').trigger('click')
-    await wrapper.get('[data-testid="comment-body"]').setValue('hola')
-    await wrapper.get('[data-testid="comment-cancel"]').trigger('click')
-
-    expect(wrapper.find('[data-testid="comment-form"]').exists()).toBe(false)
-
-    await wrapper.get('[data-testid="comment-open"]').trigger('click')
-    expect((wrapper.get('[data-testid="comment-body"]').element as HTMLTextAreaElement).value).toBe('')
+    const button = wrapper.get('[data-testid="comment-open"]')
+    expect(button.text()).toContain('Agregar comentario')
+    expect(button.attributes('data-variant')).toBe('soft')
+    expect(button.attributes('data-color')).toBe('primary')
+    expect(button.attributes('data-icon')).toContain('message')
   })
 
-  it('disables submit for empty and whitespace-only body', async () => {
+  it('opens internal slideover when trigger is clicked', async () => {
     const wrapper = mount(SaleCommentInput, {
       props: { onSubmit: vi.fn().mockResolvedValue(undefined) },
       global: { stubs: globalStubs },
     })
 
+    expect(wrapper.get('[data-testid="sale-comment-slideover"]').attributes('data-open')).toBe('false')
     await wrapper.get('[data-testid="comment-open"]').trigger('click')
-    const submit = wrapper.get('[data-testid="comment-submit"]')
 
-    expect(submit.attributes('disabled')).toBeDefined()
-    await wrapper.get('[data-testid="comment-body"]').setValue('   ')
-    expect(submit.attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[data-testid="sale-comment-slideover"]').attributes('data-open')).toBe('true')
   })
 
-  it('collapses and clears on successful submit', async () => {
+  it('forwards slideover submit payload to onSubmit callback', async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined)
     const wrapper = mount(SaleCommentInput, { props: { onSubmit }, global: { stubs: globalStubs } })
 
-    await wrapper.get('[data-testid="comment-open"]').trigger('click')
-    await wrapper.get('[data-testid="comment-body"]').setValue(' comentario ')
-    await wrapper.get('[data-testid="comment-submit"]').trigger('click')
+    await wrapper.getComponent(SaleCommentSlideoverStub).vm.$emit('submit', { body: 'test' })
 
-    expect(onSubmit).toHaveBeenCalledWith({ body: 'comentario' })
-    expect(wrapper.find('[data-testid="comment-form"]').exists()).toBe(false)
+    expect(onSubmit).toHaveBeenCalledWith({ body: 'test' })
   })
 
-  it('keeps form open and shows toast on submit error', async () => {
+  it('preserves isPending and onSubmit prop contract', () => {
     const wrapper = mount(SaleCommentInput, {
-      props: { onSubmit: vi.fn().mockRejectedValue(new Error('boom')) },
+      props: { onSubmit: vi.fn().mockResolvedValue(undefined), isPending: true },
       global: { stubs: globalStubs },
     })
 
-    await wrapper.get('[data-testid="comment-open"]').trigger('click')
-    await wrapper.get('[data-testid="comment-body"]').setValue('hola')
-    await wrapper.get('[data-testid="comment-submit"]').trigger('click')
-    await Promise.resolve()
-
-    expect(wrapper.find('[data-testid="comment-form"]').exists()).toBe(true)
-    expect((wrapper.get('[data-testid="comment-body"]').element as HTMLTextAreaElement).value).toBe('hola')
+    expect(wrapper.getComponent(SaleCommentSlideoverStub).props('isPending')).toBe(true)
   })
 })
