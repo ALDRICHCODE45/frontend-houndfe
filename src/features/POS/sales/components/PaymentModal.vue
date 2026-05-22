@@ -54,14 +54,14 @@ const isDueDateValid = computed(() => {
 const methodOptions: ReadonlyArray<{ value: NonCreditPaymentMethod; label: string; icon: string }> = [
   { value: 'cash', label: 'Efectivo', icon: 'i-lucide-banknote' },
   { value: 'card_credit', label: 'Tarjeta crédito', icon: 'i-lucide-credit-card' },
-  { value: 'card_debit', label: 'Tarjeta débito', icon: 'i-lucide-badge-credit-card' },
+  { value: 'card_debit', label: 'Tarjeta débito', icon: 'i-lucide-wallet-cards' },
   { value: 'transfer', label: 'Transferencia', icon: 'i-lucide-arrow-right-left' },
 ] as const
 
 const methodIconMap: Readonly<Record<NonCreditPaymentMethod, string>> = {
   cash: 'i-lucide-banknote',
   card_credit: 'i-lucide-credit-card',
-  card_debit: 'i-lucide-badge-credit-card',
+  card_debit: 'i-lucide-wallet-cards',
   transfer: 'i-lucide-arrow-right-left',
 } as const
 

@@ -65,7 +65,7 @@ watch(
 </script>
 
 <template>
-  <div v-if="canReadSales" data-testid="sale-detail-layout" class="px-10 space-y-6">
+  <div v-if="canReadSales" data-testid="sale-detail-layout" class="mx-auto w-full max-w-7xl px-10 space-y-6">
     <!-- Header -->
     <SaleDetailHeader
       v-if="sale && !isLoading"
