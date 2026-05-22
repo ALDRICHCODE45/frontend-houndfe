@@ -15,6 +15,7 @@ const emit = defineEmits<{
 
 const deliveryBadge = computed(() => getDeliveryStatusBadge(props.sale.deliveryStatus))
 const paymentBadge = computed(() => props.sale.paymentStatus ? getPaymentStatusBadge(props.sale.paymentStatus) : null)
+const hasEnabledAction = computed(() => props.actionItems.some(item => !item.disabled))
 </script>
 
 <template>
@@ -23,16 +24,16 @@ const paymentBadge = computed(() => props.sale.paymentStatus ? getPaymentStatusB
       <UButton variant="ghost" icon="i-lucide-arrow-left" @click="emit('back')">
         Volver
       </UButton>
-      <h1 class="text-2xl font-bold">Venta {{ extractFolioNumber(sale.folio) }}</h1>
-      <UBadge :color="deliveryBadge.color" variant="soft" data-testid="badge">
+      <h1 class="text-2xl font-bold text-highlighted">Venta {{ extractFolioNumber(sale.folio) }}</h1>
+      <UBadge :color="deliveryBadge.color" size="sm" variant="soft" data-testid="badge">
         {{ deliveryBadge.label }}
       </UBadge>
-      <UBadge v-if="paymentBadge" :color="paymentBadge.color" variant="soft" data-testid="badge">
+      <UBadge v-if="paymentBadge" :color="paymentBadge.color" size="sm" variant="soft" data-testid="badge">
         {{ paymentBadge.label }}
       </UBadge>
     </div>
-    
-    <UDropdownMenu :items="actionItems">
+
+    <UDropdownMenu v-if="hasEnabledAction" :items="actionItems">
       <UTooltip text="Funcionalidad próximamente">
         <UButton trailing-icon="i-lucide-chevron-down" variant="outline">
           Más Acciones

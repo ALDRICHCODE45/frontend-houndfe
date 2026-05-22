@@ -32,6 +32,18 @@ const mockActionItems = [
   { label: 'Descargar PDF', icon: 'i-lucide-download', disabled: true },
 ]
 
+function findUiBadges(wrapper: ReturnType<typeof mountWithUApp>) {
+  return wrapper.findAllComponents({ name: 'UBadge' }).length
+    ? wrapper.findAllComponents({ name: 'UBadge' })
+    : wrapper.findAllComponents({ name: 'Badge' })
+}
+
+function findUiButtons(wrapper: ReturnType<typeof mountWithUApp>) {
+  return wrapper.findAllComponents({ name: 'UButton' }).length
+    ? wrapper.findAllComponents({ name: 'UButton' })
+    : wrapper.findAllComponents({ name: 'Button' })
+}
+
 describe('SaleDetailHeader', () => {
   it('displays sale folio in title', () => {
     const wrapper = mountWithUApp(SaleDetailHeader, {
@@ -39,6 +51,23 @@ describe('SaleDetailHeader', () => {
     })
     
     expect(wrapper.text()).toContain('Venta #1')
+  })
+
+  it('renders dominant title hierarchy with subordinate badges', () => {
+    const wrapper = mountWithUApp(SaleDetailHeader, {
+      props: { sale: mockSale, actionItems: mockActionItems }
+    })
+
+    const title = wrapper.get('h1')
+    expect(title.text()).toContain('Venta #1')
+    expect(title.classes()).toContain('text-2xl')
+    expect(title.classes()).toContain('font-bold')
+
+    const badges = findUiBadges(wrapper)
+    expect(badges.length).toBeGreaterThan(0)
+    for (const badge of badges) {
+      expect(badge.props('size')).toBe('sm')
+    }
   })
 
   it('shows delivery and payment status badges', () => {
@@ -74,11 +103,37 @@ describe('SaleDetailHeader', () => {
     expect(wrapper.emitted('back')).toBeTruthy()
   })
 
-  it('displays "Más Acciones" dropdown', () => {
+  it('keeps volver button as ghost variant', () => {
     const wrapper = mountWithUApp(SaleDetailHeader, {
       props: { sale: mockSale, actionItems: mockActionItems }
     })
-    
+
+    const backButton = findUiButtons(wrapper)
+      .find(button => button.text().includes('Volver'))
+
+    expect(backButton).toBeDefined()
+    expect(backButton?.props('variant')).toBe('ghost')
+  })
+
+  it('hides "Más Acciones" dropdown when all actions are disabled', () => {
+    const wrapper = mountWithUApp(SaleDetailHeader, {
+      props: { sale: mockSale, actionItems: mockActionItems }
+    })
+
+    expect(wrapper.text()).not.toContain('Más Acciones')
+  })
+
+  it('shows "Más Acciones" dropdown when at least one action is enabled', () => {
+    const wrapper = mountWithUApp(SaleDetailHeader, {
+      props: {
+        sale: mockSale,
+        actionItems: [
+          ...mockActionItems,
+          { label: 'Facturar Venta', icon: 'i-lucide-file-text', disabled: false }
+        ]
+      }
+    })
+
     expect(wrapper.text()).toContain('Más Acciones')
   })
 })
