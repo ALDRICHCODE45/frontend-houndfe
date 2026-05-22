@@ -67,23 +67,6 @@ function handleEditDueDate() {
       @edit-due-date="handleEditDueDate"
     />
     
-    <!-- Factura card -->
-    <UCard>
-      <template #header>
-        <h3 class="text-xs font-semibold uppercase tracking-wider text-muted">Factura</h3>
-      </template>
-        <UTooltip text="Funcionalidad próximamente">
-          <UButton
-            variant="ghost"
-            size="sm"
-            disabled
-            class="cursor-not-allowed"
-          >
-            Ver detalles
-          </UButton>
-        </UTooltip>
-    </UCard>
-    
     <!-- Block 2: People Card -->
     <SaleDetailPeopleCard
       :sale="sale"

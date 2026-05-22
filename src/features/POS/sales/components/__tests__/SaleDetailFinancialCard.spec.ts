@@ -28,6 +28,14 @@ const mockSale: SaleDetail = {
 }
 
 describe('SaleDetailFinancialCard', () => {
+  it('does not render internal separators in card body', () => {
+    const wrapper = mountWithUApp(SaleDetailFinancialCard, {
+      props: { sale: mockSale }
+    })
+
+    expect(wrapper.findComponent({ name: 'USeparator' }).exists()).toBe(false)
+  })
+
   it('renders payment status badge', () => {
     const wrapper = mountWithUApp(SaleDetailFinancialCard, {
       props: { sale: mockSale }
@@ -83,6 +91,17 @@ describe('SaleDetailFinancialCard', () => {
     
     expect(wrapper.text()).toContain('20/05/2026')
     expect(wrapper.find('button').text()).toContain('Editar')
+  })
+
+  it('keeps key financial information and CTA visible', () => {
+    const wrapper = mountWithUApp(SaleDetailFinancialCard, {
+      props: { sale: mockSale, canEditDueDate: true }
+    })
+
+    expect(wrapper.text()).toContain('$50.00')
+    expect(wrapper.text()).toContain('$45.00')
+    expect(wrapper.text()).toContain('20/05/2026')
+    expect(wrapper.find('[data-testid="register-debt-payment"]').exists()).toBe(true)
   })
 
   it('shows "Sin fecha" when no due date', () => {

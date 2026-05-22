@@ -37,7 +37,7 @@ const canManageSeller = computed(() =>
     <div class="space-y-4">
       <!-- Cliente -->
       <div>
-        <p class="text-sm text-muted mb-2">Cliente</p>
+        <p class="text-xs font-semibold uppercase tracking-wider text-muted mb-2">Cliente</p>
         <div class="flex items-center gap-3">
           <UAvatar
             size="sm"
@@ -50,11 +50,9 @@ const canManageSeller = computed(() =>
         </div>
       </div>
       
-      <USeparator />
-      
       <!-- Vendedor -->
       <div>
-        <p class="text-sm text-muted mb-2">Vendedor</p>
+        <p class="text-xs font-semibold uppercase tracking-wider text-muted mb-2">Vendedor</p>
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-3">
             <UAvatar

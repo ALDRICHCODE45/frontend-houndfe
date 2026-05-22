@@ -40,15 +40,13 @@ const hasDebt = computed(() => props.sale.debtCents > 0)
       </div>
     </template>
     
-    <div class="space-y-4">
+    <div class="space-y-3">
       
       <!-- Paid amount -->
       <div>
         <p class="text-sm text-muted">Pagado</p>
         <p class="text-base font-medium">{{ formatCentsMXN(sale.paidCents) }}</p>
       </div>
-      
-      <USeparator />
       
       <!-- Balance -->
       <div>
@@ -57,8 +55,6 @@ const hasDebt = computed(() => props.sale.debtCents > 0)
           {{ formatCentsMXN(sale.debtCents) }}
         </p>
       </div>
-      
-      <USeparator />
       
       <!-- Due Date -->
       <div v-if="sale.paymentStatus !== 'PAID'" class="flex items-center justify-between" data-testid="sidebar-due-date">
@@ -79,8 +75,6 @@ const hasDebt = computed(() => props.sale.debtCents > 0)
           {{ sale.dueDate ? 'Editar' : 'Asignar fecha' }}
         </UButton>
       </div>
-      
-      <USeparator />
       
       <!-- Payment Action -->
       <div v-if="hasDebt">

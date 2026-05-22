@@ -28,6 +28,25 @@ const mockSale: SaleDetail = {
 }
 
 describe('SaleDetailPeopleCard', () => {
+  it('does not render separators between cliente and vendedor sections', () => {
+    const wrapper = mountWithUApp(SaleDetailPeopleCard, {
+      props: { sale: mockSale }
+    })
+
+    expect(wrapper.findComponent({ name: 'USeparator' }).exists()).toBe(false)
+  })
+
+  it('renders both cliente and vendedor labels with content', () => {
+    const wrapper = mountWithUApp(SaleDetailPeopleCard, {
+      props: { sale: mockSale }
+    })
+
+    expect(wrapper.text()).toContain('Cliente')
+    expect(wrapper.text()).toContain('Juan Pérez')
+    expect(wrapper.text()).toContain('Vendedor')
+    expect(wrapper.text()).toContain('Carlos López')
+  })
+
   it('displays customer information', () => {
     const wrapper = mountWithUApp(SaleDetailPeopleCard, {
       props: { sale: mockSale }

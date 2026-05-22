@@ -390,7 +390,7 @@ describe('SaleDetailSidebar', () => {
     expect(statusBadge.exists()).toBe(true)
   })
 
-  it('renders Factura card with disabled "Ver detalles" link', () => {
+  it('does not render Factura card placeholder', () => {
     const wrapper = mountWithUApp(SaleDetailSidebar, {
       props: {
         sale: buildSaleDetail(),
@@ -402,10 +402,30 @@ describe('SaleDetailSidebar', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('Factura')
-    expect(wrapper.text()).toContain('Ver detalles')
-    const verDetallesButton = wrapper.find('button:disabled')
-    expect(verDetallesButton.exists()).toBe(true)
-    expect(verDetallesButton.text()).toBe('Ver detalles')
+    expect(wrapper.text()).not.toContain('Factura')
+    expect(wrapper.text()).not.toContain('Ver detalles')
+  })
+
+  it('renders financial, people and metadata cards in order', () => {
+    const wrapper = mountWithUApp(SaleDetailSidebar, {
+      props: {
+        sale: buildSaleDetail(),
+      },
+      global: {
+        stubs: {
+          ...defaultStubs,
+          SaleDetailFinancialCard: { template: '<div data-testid="financial-card-stub">Financial</div>' },
+          SaleDetailPeopleCard: { template: '<div data-testid="people-card-stub">People</div>' },
+          SaleDetailMetadataCard: { template: '<div data-testid="metadata-card-stub">Metadata</div>' },
+        },
+      },
+    })
+
+    const sidebarText = wrapper.get('[data-testid="sidebar"]').text()
+    expect(sidebarText.indexOf('Financial')).toBeLessThan(sidebarText.indexOf('People'))
+    expect(sidebarText.indexOf('People')).toBeLessThan(sidebarText.indexOf('Metadata'))
+
+    const cardsCount = wrapper.findAll('[data-testid$="-card-stub"]').length
+    expect(cardsCount).toBe(3)
   })
 })
