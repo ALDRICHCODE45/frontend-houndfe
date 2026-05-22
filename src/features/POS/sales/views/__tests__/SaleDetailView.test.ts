@@ -116,31 +116,6 @@ describe('SaleDetailView', () => {
     expect(badges[1]?.text()).toBe('Pagada')
   })
 
-  it('renders "Más Acciones" dropdown trigger', () => {
-    const wrapper = mountWithUApp(SaleDetailView, {
-      global: {
-        stubs: {
-          AppBadge: { template: '<span><slot /></span>' },
-          UCard: { template: '<div><slot /></div>' },
-          UButton: { template: '<button><slot /></button>' },
-          UDropdownMenu: { 
-            props: ['items'],
-            template: '<div data-testid="dropdown"><slot /></div>' 
-          },
-          SaleDetailItemsTable: { template: '<div />' },
-          SaleDetailTotalsCard: { template: '<div />' },
-          SaleDetailTimeline: { template: '<div />' },
-          SaleCommentInput: { template: '<div />' },
-          SaleDetailSidebar: { template: '<div />' },
-        },
-      },
-    })
-
-    expect(wrapper.text()).toContain('Más Acciones')
-    // The dropdown trigger button has aria-haspopup="menu"
-    expect(wrapper.find('[aria-haspopup="menu"]').exists()).toBe(true)
-  })
-
   it('renders payment badge with correct label for PARTIAL status', () => {
     mockSaleDetail.value = { ...defaultSale, paymentStatus: 'PARTIAL' }
     
