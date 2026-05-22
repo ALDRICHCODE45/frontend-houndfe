@@ -37,18 +37,18 @@ defineProps<{
         />
         
         <div class="flex-1 min-w-0">
-          <p class="font-medium text-base">{{ item.productName }}</p>
-          <p v-if="item.variantName" class="text-sm text-muted">
+          <p :data-testid="`item-name-${index}`" class="text-base font-semibold text-highlighted">{{ item.productName }}</p>
+          <p v-if="item.variantName" :data-testid="`item-subtitle-${index}`" class="text-sm text-muted">
             {{ item.variantName }} • {{ formatCentsMXN(item.unitPriceCents) }}
           </p>
-          <p v-else class="text-sm text-muted">
+          <p v-else :data-testid="`item-subtitle-${index}`" class="text-sm text-muted">
             {{ formatCentsMXN(item.unitPriceCents) }}
           </p>
         </div>
         
-        <span class="text-sm font-medium text-muted ml-auto">× {{ item.quantity }}</span>
+        <span :data-testid="`item-quantity-${index}`" class="ml-auto text-sm text-muted tabular-nums">× {{ item.quantity }}</span>
         
-        <p class="font-semibold text-base text-right min-w-[80px]">
+        <p :data-testid="`item-subtotal-${index}`" class="min-w-[88px] text-right text-sm font-semibold tabular-nums text-default">
           {{ formatCentsMXN(item.subtotalCents) }}
         </p>
       </div>

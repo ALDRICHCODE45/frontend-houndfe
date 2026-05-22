@@ -27,6 +27,15 @@ const editingBody = ref('')
 
 const isPending = computed(() => props.isPending ?? false)
 
+type TimelineEventType = 'SALE_REGISTERED' | 'PAYMENT_RECEIVED' | 'PRODUCTS_DELIVERED' | 'COMMENT'
+
+const EVENT_COLORS: Readonly<Record<TimelineEventType, { text: string; bg: string }>> = {
+  SALE_REGISTERED: { text: 'text-primary', bg: 'bg-primary/10' },
+  PAYMENT_RECEIVED: { text: 'text-success', bg: 'bg-success/10' },
+  PRODUCTS_DELIVERED: { text: 'text-info', bg: 'bg-info/10' },
+  COMMENT: { text: 'text-muted', bg: 'bg-muted/10' },
+} as const
+
 const orderedTimeline = computed(() => [...props.timeline].sort((a, b) => b.at.localeCompare(a.at)))
 
 function eventLabel(event: SaleTimelineEvent): string {
@@ -51,11 +60,8 @@ function eventIcon(event: SaleTimelineEvent): string {
 }
 
 function eventIconColor(event: SaleTimelineEvent): string {
-  if (event.type === 'SALE_REGISTERED') return 'text-primary-600 bg-primary-50'
-  if (event.type === 'PAYMENT_RECEIVED') return 'text-success-600 bg-success-50'
-  if (event.type === 'PRODUCTS_DELIVERED') return 'text-success-600 bg-success-50'
-  if (event.type === 'COMMENT') return 'text-neutral-600 bg-neutral-50'
-  return 'text-neutral-600 bg-neutral-50'
+  const colors = EVENT_COLORS[event.type] ?? { text: 'text-muted', bg: 'bg-muted/10' }
+  return `${colors.text} ${colors.bg}`
 }
 
 function canManageComment(event: SaleTimelineEvent): boolean {
@@ -127,6 +133,7 @@ async function deleteCommentForEvent(event: SaleTimelineEvent) {
         <!-- Icon container -->
         <div 
           class="flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center relative"
+          :data-testid="`timeline-event-icon-${event.type}`"
           :class="eventIconColor(event)"
         >
           <UIcon :name="eventIcon(event)" class="size-5" data-testid="timeline-icon" />

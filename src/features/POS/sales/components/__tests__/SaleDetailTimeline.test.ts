@@ -14,6 +14,32 @@ const mockTimeline = [
 ]
 
 describe('SaleDetailTimeline', () => {
+  it('applies semantic color classes per timeline event type', () => {
+    const wrapper = mountWithUApp(SaleDetailTimeline, {
+      props: {
+        timeline: [
+          { type: 'SALE_REGISTERED', at: '2026-05-06T14:41:00.000Z', actor: null, register: 'Principal' },
+          { type: 'PAYMENT_RECEIVED', at: '2026-05-06T14:42:00.000Z', actor: null, register: 'Principal', method: 'CASH', amountCents: 5000, reference: null },
+          { type: 'PRODUCTS_DELIVERED', at: '2026-05-06T14:43:00.000Z', actor: null, register: 'Principal' },
+          { type: 'COMMENT', at: '2026-05-06T14:44:00.000Z', actor: { id: 'u-1', name: 'Ana' }, commentId: 'comment-1', body: 'ok' },
+        ],
+      },
+    })
+
+    expect(wrapper.get('[data-testid="timeline-event-icon-SALE_REGISTERED"]').classes()).toEqual(
+      expect.arrayContaining(['text-primary', 'bg-primary/10'])
+    )
+    expect(wrapper.get('[data-testid="timeline-event-icon-PAYMENT_RECEIVED"]').classes()).toEqual(
+      expect.arrayContaining(['text-success', 'bg-success/10'])
+    )
+    expect(wrapper.get('[data-testid="timeline-event-icon-PRODUCTS_DELIVERED"]').classes()).toEqual(
+      expect.arrayContaining(['text-info', 'bg-info/10'])
+    )
+    expect(wrapper.get('[data-testid="timeline-event-icon-COMMENT"]').classes()).toEqual(
+      expect.arrayContaining(['text-muted', 'bg-muted/10'])
+    )
+  })
+
   it('renders events in reverse order and payment labels from each event payload', () => {
     const wrapper = mountWithUApp(SaleDetailTimeline, {
       props: { timeline: mockTimeline },

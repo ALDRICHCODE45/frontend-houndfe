@@ -3,6 +3,34 @@ import SaleDetailItemsTable from '../SaleDetailItemsTable.vue'
 import { mountWithUApp } from '@/test/mountWithUApp'
 
 describe('SaleDetailItemsTable', () => {
+  it('applies typographic hierarchy to name, subtitle, quantity, and subtotal', () => {
+    const wrapper = mountWithUApp(SaleDetailItemsTable, {
+      props: {
+        items: [
+          {
+            productName: 'Jean Recto',
+            variantName: 'Talla M',
+            imageUrl: null,
+            unitPriceCents: 17000,
+            quantity: 3,
+            discountCents: 0,
+            subtotalCents: 51000,
+          },
+        ],
+      },
+    })
+
+    const name = wrapper.get('[data-testid="item-name-0"]')
+    const subtitle = wrapper.get('[data-testid="item-subtitle-0"]')
+    const quantity = wrapper.get('[data-testid="item-quantity-0"]')
+    const subtotal = wrapper.get('[data-testid="item-subtotal-0"]')
+
+    expect(name.classes()).toEqual(expect.arrayContaining(['text-base', 'font-semibold', 'text-highlighted']))
+    expect(subtitle.classes()).toEqual(expect.arrayContaining(['text-sm', 'text-muted']))
+    expect(quantity.classes()).toEqual(expect.arrayContaining(['text-sm', 'text-muted', 'tabular-nums']))
+    expect(subtotal.classes()).toEqual(expect.arrayContaining(['text-right', 'font-semibold', 'tabular-nums']))
+  })
+
   it('renders image when imageUrl is a non-empty string', () => {
     const wrapper = mountWithUApp(SaleDetailItemsTable, {
       props: {
