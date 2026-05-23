@@ -81,6 +81,9 @@ export interface AppDataTableProps<T> {
   showAddButton?: boolean
   addButtonText?: string
   addButtonIcon?: string
+  // Mobile rendering
+  mobileRender?: 'table' | 'cards'
+  mobileBreakpoint?: 'sm' | 'md' | 'lg' | 'xl'
 }
 
 // Re-export TanStack types for convenience

@@ -1,5 +1,6 @@
 <script setup lang="ts" generic="T extends Record<string, any>">
 import { useTemplateRef, computed, useSlots } from 'vue'
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import type {
   TableColumn,
   SortingState,
@@ -13,7 +14,7 @@ import DataTableToolbar from './DataTableToolbar.vue'
 import DataTablePagination from './DataTablePagination.vue'
 import DataTableBulkActions from './DataTableBulkActions.vue'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     columns: TableColumn<T, unknown>[]
     data: T[]
@@ -37,6 +38,9 @@ withDefaults(
     showRefresh?: boolean
     // Bulk actions
     bulkActions?: BulkAction<T>[]
+    // Mobile rendering
+    mobileRender?: 'table' | 'cards'
+    mobileBreakpoint?: 'sm' | 'md' | 'lg' | 'xl'
   }>(),
   {
     loading: false,
@@ -55,6 +59,8 @@ withDefaults(
     addButtonIcon: 'i-lucide-plus',
     showRefresh: true,
     bulkActions: () => [],
+    mobileRender: 'table',
+    mobileBreakpoint: 'md',
   },
 )
 
@@ -89,6 +95,11 @@ const tableApi = computed<any>(() => tableRef.value?.tableApi)
 // slots from the parent directly to UTable underneath
 const slots = useSlots()
 
+const breakpoints = useBreakpoints(breakpointsTailwind)
+const isMobileViewport = breakpoints.smaller(() => props.mobileBreakpoint)
+const isCardsMode = computed(() => props.mobileRender === 'cards' && isMobileViewport.value)
+const isLoading = computed(() => props.loading || props.fetching)
+
 // Selected count for bulk actions
 const selectedCount = computed(() => Object.keys(rowSelection.value).length)
 
@@ -114,13 +125,13 @@ function handleClearSelection() {
     <!-- Toolbar -->
     <DataTableToolbar
       :global-filter="globalFilter"
-      :search-placeholder="searchPlaceholder"
-      :show-add-button="showAddButton"
-      :add-button-text="addButtonText"
-      :add-button-icon="addButtonIcon"
-      :show-column-visibility="enableColumnVisibility"
-      :show-refresh="showRefresh"
-      :fetching="fetching"
+      :search-placeholder="props.searchPlaceholder"
+      :show-add-button="props.showAddButton"
+      :add-button-text="props.addButtonText"
+      :add-button-icon="props.addButtonIcon"
+      :show-column-visibility="props.enableColumnVisibility && !isCardsMode"
+      :show-refresh="props.showRefresh"
+      :fetching="props.fetching"
       :table-api="tableApi"
       @update:global-filter="globalFilter = $event"
       @add="emit('add')"
@@ -142,23 +153,62 @@ function handleClearSelection() {
          - Named column slots: #name-cell, #status-cell, #actions-header, etc.
          - Special slots:      #expanded, #empty, #loading, #caption
          This allows the parent to use Vue template syntax instead of h() in column defs -->
+    <template v-if="isCardsMode">
+      <div
+        v-if="isLoading"
+        class="grid gap-3"
+        data-testid="mobile-cards-loading"
+      >
+        <div
+          v-for="index in 3"
+          :key="`mobile-skeleton-${index}`"
+          class="h-28 animate-pulse rounded-lg border border-default bg-elevated"
+          data-testid="mobile-card-skeleton"
+        />
+      </div>
+
+      <div
+        v-else-if="props.data.length === 0 || !slots['mobile-card']"
+        class="flex min-h-32 items-center justify-center rounded-lg border border-dashed border-default px-4 py-8 text-sm text-muted"
+        data-testid="mobile-empty-state"
+      >
+        {{ props.empty }}
+      </div>
+
+      <div
+        v-else
+        class="grid gap-3"
+        data-testid="mobile-cards-list"
+      >
+        <slot
+          v-for="(row, index) in props.data"
+          :key="index"
+          name="mobile-card"
+          :row="row"
+          :index="index"
+        />
+      </div>
+    </template>
+
     <UTable
+      v-else
       ref="table"
       v-model:sorting="sorting"
       v-model:column-pinning="columnPinning"
       v-model:column-visibility="columnVisibility"
       v-model:row-selection="rowSelection"
-      :data="data"
-      :columns="columns"
-      :loading="loading || fetching"
+      :data="props.data"
+      :columns="props.columns"
+      :loading="isLoading"
       loading-color="primary"
       loading-animation="carousel"
-      :empty="empty"
+      :empty="props.empty"
       sticky
       :sorting-options="{
         manualSorting: true,
       }"
       class="flex-1"
+      data-testid="table-view"
     >
       <template v-for="(_, name) in slots" #[name]="slotProps">
         <slot :name="name" v-bind="slotProps ?? {}" />
@@ -167,25 +217,25 @@ function handleClearSelection() {
 
     <!-- Pagination -->
     <DataTablePagination
-      v-if="totalCount > 0"
+      v-if="props.totalCount > 0"
       :page-index="pagination.pageIndex"
       :page-size="pagination.pageSize"
-      :page-count="pageCount"
-      :total-count="totalCount"
-      :showing-from="showingFrom"
-      :showing-to="showingTo"
-      :page-size-options="pageSizeOptions"
-      :fetching="fetching"
+      :page-count="props.pageCount"
+      :total-count="props.totalCount"
+      :showing-from="props.showingFrom"
+      :showing-to="props.showingTo"
+      :page-size-options="props.pageSizeOptions"
+      :fetching="props.fetching"
       @update:page-index="handlePageIndexChange"
       @update:page-size="handlePageSizeChange"
     />
 
     <!-- Bulk Actions -->
     <DataTableBulkActions
-      v-if="bulkActions.length > 0 && enableRowSelection"
+      v-if="props.bulkActions.length > 0 && props.enableRowSelection"
       :selected-count="selectedCount"
-      :total-count="totalCount"
-      :actions="bulkActions"
+      :total-count="props.totalCount"
+      :actions="props.bulkActions"
       @clear-selection="handleClearSelection"
     />
   </div>
