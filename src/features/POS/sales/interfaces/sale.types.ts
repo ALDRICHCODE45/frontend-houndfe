@@ -149,13 +149,24 @@ export interface ListSalesParams {
   sortBy?: 'confirmedAt' | 'totalCents' | 'createdAt'
   sortOrder?: 'asc' | 'desc'
   q?: string
-  status?: SaleStatus
-  paymentStatus?: SalePaymentStatus
-  deliveryStatus?: SaleDeliveryStatus
-  from?: string
-  to?: string
+  status?: Array<SaleStatus | 'CANCELED'>
+  paymentStatus?: SalePaymentStatus[]
+  paymentMethod?: SaleDetailPaymentMethod[]
+  deliveryStatus?: SaleDeliveryStatus[]
+  folio?: string[]
+  confirmedFrom?: string
+  confirmedTo?: string
+  dueDateFrom?: string
+  dueDateTo?: string
+  totalMin?: number
+  totalMax?: number
+  debtMin?: number
+  debtMax?: number
+  customerIncludeNull?: boolean
+  dueDateIncludeNull?: boolean
+  paymentMethodIncludeNull?: boolean
   cashierUserId?: string
-  customerId?: string
+  customerId?: string[]
 }
 
 export interface LegacyChargePayload {

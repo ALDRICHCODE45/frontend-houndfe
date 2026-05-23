@@ -153,17 +153,17 @@ describe('sale.types', () => {
         sortBy: 'totalCents',
         sortOrder: 'asc',
         q: 'jean',
-        status: 'CONFIRMED',
-        paymentStatus: 'PARTIAL',
-        deliveryStatus: 'PENDING',
-        from: '2026-05-01T00:00:00.000Z',
-        to: '2026-05-31T23:59:59.999Z',
+        status: ['CONFIRMED'],
+        paymentStatus: ['PARTIAL'],
+        deliveryStatus: ['PENDING'],
+        confirmedFrom: '2026-05-01T00:00:00.000Z',
+        confirmedTo: '2026-05-31T23:59:59.999Z',
         cashierUserId: 'cashier-1',
-        customerId: 'customer-1',
+        customerId: ['customer-1'],
       }
 
       expect(params.sortBy).toBe('totalCents')
-      expect(params.deliveryStatus).toBe('PENDING')
+      expect(params.deliveryStatus).toEqual(['PENDING'])
       expect(params.q).toBe('jean')
     })
 

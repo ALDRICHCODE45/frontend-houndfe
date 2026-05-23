@@ -116,7 +116,7 @@ describe('useConfirmedSales', () => {
         limit: 20,
         sortBy: 'confirmedAt',
         sortOrder: 'desc',
-        deliveryStatus: 'PENDING',
+        deliveryStatus: ['PENDING'],
       })
     })
   })

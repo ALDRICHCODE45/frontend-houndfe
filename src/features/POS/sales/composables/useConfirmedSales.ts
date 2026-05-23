@@ -27,11 +27,14 @@ export function useConfirmedSales() {
   const deliveryStatusFilter = ref<SaleDeliveryStatus | undefined>(undefined)
 
   const table = useServerTable({
-    queryKey: () => saleQueryKeys.confirmed(authStore.currentTenantId, { deliveryStatus: deliveryStatusFilter.value }),
+    queryKey: () =>
+      saleQueryKeys.confirmed(authStore.currentTenantId, {
+        deliveryStatus: deliveryStatusFilter.value ? [deliveryStatusFilter.value] : undefined,
+      }),
     queryFn: async (params) => {
       const response = await saleApi.listConfirmed({
         ...mapServerTableParamsToListSalesParams(params),
-        deliveryStatus: deliveryStatusFilter.value,
+        deliveryStatus: deliveryStatusFilter.value ? [deliveryStatusFilter.value] : undefined,
       })
 
       counts.value = response.counts

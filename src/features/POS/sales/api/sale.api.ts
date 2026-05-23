@@ -27,6 +27,7 @@ import type {
   SaleCommentErrorCode,
 } from '../interfaces/sale.types'
 import { SaleCommentError } from '../interfaces/sale.types'
+import { endOfDayUTC } from '../utils/saleDate.utils'
 
 interface DomainErrorResponse {
   error?: string
@@ -39,6 +40,36 @@ function parseCommentError(error: unknown): SaleCommentError | null {
     return new SaleCommentError(code as SaleCommentErrorCode)
   }
   return null
+}
+
+const TO_DATE_FIELDS = ['confirmedTo', 'dueDateTo'] as const
+
+export function buildSalesListParams(params: ListSalesParams): ListSalesParams {
+  const result: Record<string, unknown> = {}
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value == null) {
+      continue
+    }
+
+    if (Array.isArray(value)) {
+      if (value.length === 0) {
+        continue
+      }
+
+      result[key] = value
+      continue
+    }
+
+    if (TO_DATE_FIELDS.includes(key as (typeof TO_DATE_FIELDS)[number])) {
+      result[key] = endOfDayUTC(value as string)
+      continue
+    }
+
+    result[key] = value
+  }
+
+  return result as ListSalesParams
 }
 
 export const saleApi = {
@@ -185,7 +216,9 @@ export const saleApi = {
   },
 
   async listConfirmed(params: ListSalesParams): Promise<ConfirmedSalesListResponse> {
-    const { data } = await http.get<ConfirmedSalesListResponse>('/sales', { params })
+    const { data } = await http.get<ConfirmedSalesListResponse>('/sales', {
+      params: buildSalesListParams(params),
+    })
     return data
   },
 

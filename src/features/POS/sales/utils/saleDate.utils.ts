@@ -38,3 +38,11 @@ export function formatSaleDueDate(iso: string): string {
   const dd = String(d.getUTCDate()).padStart(2, '0')
   return `${dd}/${mm}/${yyyy}`
 }
+
+export function endOfDayUTC(date: Date | string): string {
+  const value = new Date(date)
+  const yyyy = value.getUTCFullYear()
+  const mm = String(value.getUTCMonth() + 1).padStart(2, '0')
+  const dd = String(value.getUTCDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}T23:59:59.999Z`
+}

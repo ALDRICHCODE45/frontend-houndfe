@@ -3,6 +3,7 @@ import { getActivePinia } from 'pinia'
 import { authStorage } from '@/features/auth/services/auth-storage'
 import { emitSessionExpired } from '@/features/auth/services/session-events'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import { csvParamsSerializer } from './paramsSerializer'
 
 const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:3000'
@@ -16,6 +17,9 @@ let refreshPromise: Promise<{ accessToken: string; refreshToken: string }> | nul
 
 export const http = axios.create({
   baseURL: API_BASE_URL,
+  paramsSerializer: {
+    serialize: csvParamsSerializer,
+  },
 })
 
 http.interceptors.request.use((config) => {
