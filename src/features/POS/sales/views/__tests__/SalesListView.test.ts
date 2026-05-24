@@ -4,6 +4,39 @@ import { computed, ref } from 'vue'
 import SalesListView from '../SalesListView.vue'
 import type { ConfirmedSaleRow } from '../../interfaces/sale.types'
 
+const customersQueryState = {
+  data: ref<{ data: Array<{ id: string; firstName: string; lastName: string | null }> } | undefined>(undefined),
+  isLoading: ref(false),
+}
+
+const cashiersQueryState = {
+  data: ref<Array<{ id: string; name: string }> | undefined>(undefined),
+  isLoading: ref(false),
+}
+
+vi.mock('@tanstack/vue-query', () => ({
+  useQuery: vi.fn((options: { queryKey: unknown }) => {
+    const rawKey = options.queryKey as { value?: unknown } | unknown[]
+    const queryKey = Array.isArray(rawKey)
+      ? rawKey
+      : Array.isArray((rawKey as { value?: unknown })?.value)
+        ? ((rawKey as { value?: unknown[] }).value ?? [])
+        : []
+
+    if (queryKey[0] === 'customers') {
+      return {
+        data: computed(() => customersQueryState.data.value),
+        isLoading: computed(() => customersQueryState.isLoading.value),
+      }
+    }
+
+    return {
+      data: computed(() => cashiersQueryState.data.value),
+      isLoading: computed(() => cashiersQueryState.isLoading.value),
+    }
+  }),
+}))
+
 const push = vi.fn()
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push }),
@@ -87,6 +120,7 @@ vi.mock('../../composables/useSalesColumns', () => ({
 vi.mock('@/features/auth/stores/useAuthStore', () => ({
   useAuthStore: () => ({
     userCan: vi.fn(() => true),
+    currentTenantId: 'tenant-1',
   }),
 }))
 
@@ -124,7 +158,7 @@ const stubs = {
   AppDataTable: appDataTableStub,
   DataTableFilters: {
     props: ['modelValue', 'schema', 'errors'],
-    template: '<div data-testid="sales-filters" :data-errors="JSON.stringify(errors)" />',
+    template: '<div data-testid="sales-filters" :data-errors="JSON.stringify(errors)" :data-schema="JSON.stringify(schema)" />',
   },
   SaleCard: {
     props: ['sale'],
@@ -142,6 +176,10 @@ describe('SalesListView', () => {
     vi.clearAllMocks()
     mockState.columnVisibility.value = {}
     mockState.data.value = [{ ...initialRow }]
+    customersQueryState.data.value = undefined
+    customersQueryState.isLoading.value = false
+    cashiersQueryState.data.value = undefined
+    cashiersQueryState.isLoading.value = false
     localStorage.clear()
   })
 
@@ -222,6 +260,38 @@ describe('SalesListView', () => {
     const wrapper = mount(SalesListView, { global: { stubs } })
     const filters = wrapper.get('[data-testid="sales-filters"]')
     expect(filters.attributes('data-errors')).toContain('Valor inválido')
+  })
+
+  it('passes customer and cashier options into reactive sales schema', () => {
+    customersQueryState.data.value = {
+      data: [{ id: 'customer-1', firstName: 'Ada', lastName: 'Lovelace' }],
+    }
+    cashiersQueryState.data.value = [{ id: 'cashier-1', name: 'Grace Hopper' }]
+
+    const wrapper = mount(SalesListView, { global: { stubs } })
+    const filters = wrapper.get('[data-testid="sales-filters"]')
+    const schema = JSON.parse(filters.attributes('data-schema') ?? '[]') as Array<Record<string, unknown>>
+
+    const customerField = schema.find((field) => field.id === 'customerId')
+    const cashierField = schema.find((field) => field.id === 'cashierUserId')
+
+    expect(customerField?.options).toEqual([{ value: 'customer-1', label: 'Ada Lovelace' }])
+    expect(cashierField?.options).toEqual([{ value: 'cashier-1', label: 'Grace Hopper' }])
+  })
+
+  it('passes loading hints for customer and cashier filters', () => {
+    customersQueryState.isLoading.value = true
+    cashiersQueryState.isLoading.value = true
+
+    const wrapper = mount(SalesListView, { global: { stubs } })
+    const filters = wrapper.get('[data-testid="sales-filters"]')
+    const schema = JSON.parse(filters.attributes('data-schema') ?? '[]') as Array<Record<string, unknown>>
+
+    const customerField = schema.find((field) => field.id === 'customerId')
+    const cashierField = schema.find((field) => field.id === 'cashierUserId')
+
+    expect(customerField?.loading).toBe(true)
+    expect(cashierField?.loading).toBe(true)
   })
 
   it('renders dueDate formatted when value exists', () => {

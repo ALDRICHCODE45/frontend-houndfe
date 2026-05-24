@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useQuery } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
 import { AppDataTable } from '@/core/shared/components/DataTable'
 import DataTableFilters from '@/core/shared/components/data-table-filters/DataTableFilters.vue'
@@ -11,16 +12,53 @@ import { useSalesColumns } from '../composables/useSalesColumns'
 import SalesListTabs from '../components/SalesListTabs.vue'
 import SaleCard from '../components/SaleCard.vue'
 import PaymentMethodPills from '../components/PaymentMethodPills.vue'
-import { salesFiltersSchema } from '../config/salesFiltersSchema'
+import { createSalesFiltersSchema } from '../config/salesFiltersSchema'
 import { formatSaleDate, formatSaleDueDate } from '../utils/saleDate.utils'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { extractFolioNumber } from '../utils/saleFolio.utils'
 import { getDeliveryStatusBadge, getPaymentStatusBadge } from '../utils/saleStatus.utils'
+import { customerApi } from '@/features/POS/customers/api/customer.api'
+import { usersApi } from '@/features/POS/users/api/user.api'
+import { customerQueryKeys, usersQueryKeys } from '@/core/shared/constants/query-keys'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const canReadSales = computed(() => authStore.userCan('read', 'Sale'))
+const tenantId = computed(() => authStore.currentTenantId || 'default')
 const filters = ref<Record<string, unknown>>({})
+
+const customersQuery = useQuery({
+  queryKey: computed(() => customerQueryKeys.paginated(tenantId.value)),
+  queryFn: () => customerApi.getPaginated({ pageIndex: 0, pageSize: 100, sorting: [], globalFilter: '' }),
+  staleTime: 30_000,
+})
+
+const cashiersQuery = useQuery({
+  queryKey: usersQueryKeys.assignable(),
+  queryFn: () => usersApi.listAssignable(),
+  staleTime: 30_000,
+})
+
+const customerOptions = computed(() =>
+  (customersQuery.data.value?.data ?? []).map((customer) => ({
+    value: customer.id,
+    label: `${customer.firstName} ${customer.lastName ?? ''}`.trim(),
+  })),
+)
+
+const cashierOptions = computed(() =>
+  (cashiersQuery.data.value ?? []).map((user) => ({
+    value: user.id,
+    label: user.name,
+  })),
+)
+
+const salesFiltersSchema = computed(() => createSalesFiltersSchema({
+  customerOptions: customerOptions.value,
+  cashierOptions: cashierOptions.value,
+  customersLoading: customersQuery.isLoading.value,
+  cashiersLoading: cashiersQuery.isLoading.value,
+}))
 
 const {
   pagination,

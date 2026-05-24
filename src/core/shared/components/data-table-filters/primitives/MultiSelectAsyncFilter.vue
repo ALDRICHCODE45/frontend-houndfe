@@ -13,10 +13,14 @@ const props = withDefaults(defineProps<{
   placeholder: string
   includeNullOption?: string
   includeNullValue?: boolean
+  loading?: boolean
+  loadingLabel?: string
   error?: string
 }>(), {
   includeNullOption: undefined,
   includeNullValue: false,
+  loading: false,
+  loadingLabel: 'Cargando opciones...',
   error: undefined,
 })
 
@@ -59,8 +63,13 @@ function updateSearch(value: unknown) {
       :multiple="true"
       :searchable="true"
       value-key="value"
+      :loading="props.loading"
       @update:model-value="(value: unknown) => emit('update:modelValue', (value as string[]) ?? [])"
     />
+
+    <p v-if="props.loading" class="text-xs text-muted" data-testid="async-loading-hint">
+      {{ props.loadingLabel }}
+    </p>
 
     <div v-if="props.includeNullOption" class="flex items-center gap-2">
       <UCheckbox

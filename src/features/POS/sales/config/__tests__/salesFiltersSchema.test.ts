@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { salesFiltersSchema } from '../salesFiltersSchema'
+import { createSalesFiltersSchema } from '../salesFiltersSchema'
 
 describe('salesFiltersSchema', () => {
   it('defines the expected sales filter ids and kinds', () => {
+    const salesFiltersSchema = createSalesFiltersSchema()
     const ids = salesFiltersSchema.map(field => field.id)
 
     expect(ids).toEqual([
@@ -21,6 +22,7 @@ describe('salesFiltersSchema', () => {
   })
 
   it('defines includeNull behavior for paymentMethod, customerId and dueDate', () => {
+    const salesFiltersSchema = createSalesFiltersSchema()
     const paymentMethod = salesFiltersSchema.find(field => field.id === 'paymentMethod')
     const customer = salesFiltersSchema.find(field => field.id === 'customerId')
     const dueDate = salesFiltersSchema.find(field => field.id === 'dueDate')
@@ -38,6 +40,30 @@ describe('salesFiltersSchema', () => {
     expect(dueDate?.kind).toBe('date-range')
     if (dueDate?.kind === 'date-range') {
       expect(dueDate.includeNull).toEqual({ param: 'dueDateIncludeNull', label: 'Sin vencimiento' })
+    }
+  })
+
+  it('wires customer and cashier options from reactive sources', () => {
+    const schema = createSalesFiltersSchema({
+      customerOptions: [{ value: 'customer-1', label: 'Ada Lovelace' }],
+      cashierOptions: [{ value: 'cashier-1', label: 'Grace Hopper' }],
+      customersLoading: true,
+      cashiersLoading: true,
+    })
+
+    const customer = schema.find(field => field.id === 'customerId')
+    const cashier = schema.find(field => field.id === 'cashierUserId')
+
+    expect(customer?.kind).toBe('multi-async')
+    if (customer?.kind === 'multi-async') {
+      expect(customer.options).toEqual([{ value: 'customer-1', label: 'Ada Lovelace' }])
+      expect(customer.loading).toBe(true)
+    }
+
+    expect(cashier?.kind).toBe('multi-async')
+    if (cashier?.kind === 'multi-async') {
+      expect(cashier.options).toEqual([{ value: 'cashier-1', label: 'Grace Hopper' }])
+      expect(cashier.loading).toBe(true)
     }
   })
 })

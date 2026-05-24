@@ -3,7 +3,7 @@ export type FilterOption = {
   value: string
 }
 
-export type FilterKind = 'multi-enum' | 'multi-uuid' | 'multi-async' | 'number-range' | 'date-range'
+export type FilterKind = 'multi-enum' | 'multi-uuid' | 'multi-async' | 'multi-text' | 'number-range' | 'date-range'
 
 type BaseFilterDefinition = {
   id: string
@@ -28,9 +28,21 @@ export type MultiUuidFilterDefinition = BaseFilterDefinition & {
   options: FilterOption[]
   placeholder?: string
   max?: number
+  loading?: boolean
+  loadingLabel?: string
   includeNull?: {
     param: string
     label: string
+  }
+}
+
+export type MultiTextFilterDefinition = BaseFilterDefinition & {
+  kind: 'multi-text'
+  param: string
+  placeholder?: string
+  max?: number
+  parse?: {
+    stripPrefix?: string
   }
 }
 
@@ -54,6 +66,7 @@ export type DateRangeFilterDefinition = BaseFilterDefinition & {
 export type FilterDefinition =
   | MultiEnumFilterDefinition
   | MultiUuidFilterDefinition
+  | MultiTextFilterDefinition
   | NumberRangeFilterDefinition
   | DateRangeFilterDefinition
 

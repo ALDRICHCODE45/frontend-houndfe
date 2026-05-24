@@ -7,6 +7,7 @@ import MultiSelectEnumFilter from './primitives/MultiSelectEnumFilter.vue'
 import NumericRangeFilter from './primitives/NumericRangeFilter.vue'
 import DateRangeFilter from './primitives/DateRangeFilter.vue'
 import MultiSelectAsyncFilter from './primitives/MultiSelectAsyncFilter.vue'
+import MultiTextInputFilter from './primitives/MultiTextInputFilter.vue'
 import { useTableFiltersUrlSync } from '@/core/shared/composables/useTableFiltersUrlSync'
 
 const props = withDefaults(defineProps<{
@@ -38,7 +39,7 @@ const isDesktop = useBreakpoints(breakpointsTailwind).greaterOrEqual('md')
 const slideoverSide = computed(() => (isDesktop.value ? 'right' : 'bottom'))
 
 function toLabelValue(field: FilterDefinition): string | null {
-  if (field.kind === 'multi-enum' || field.kind === 'multi-uuid' || field.kind === 'multi-async') {
+  if (field.kind === 'multi-enum' || field.kind === 'multi-uuid' || field.kind === 'multi-async' || field.kind === 'multi-text') {
     const current = localState.value[field.param]
     if (!Array.isArray(current) || current.length === 0) return null
     return current.join(', ')
@@ -76,6 +77,9 @@ function clearByField(field: FilterDefinition, state: FilterState) {
     state[field.param] = []
     if (field.includeNull) state[field.includeNull.param] = false
   }
+  if (field.kind === 'multi-text') {
+    state[field.param] = []
+  }
   if (field.kind === 'number-range') {
     state[field.minParam] = undefined
     state[field.maxParam] = undefined
@@ -105,6 +109,12 @@ function validateState(): boolean {
     }
 
     if (field.kind === 'multi-uuid' || field.kind === 'multi-async') {
+      const values = localState.value[field.param]
+      const max = field.max ?? 200
+      if (Array.isArray(values) && values.length > max) errors[field.id] = `Máximo ${max} valores permitidos`
+    }
+
+    if (field.kind === 'multi-text') {
       const values = localState.value[field.param]
       const max = field.max ?? 200
       if (Array.isArray(values) && values.length > max) errors[field.id] = `Máximo ${max} valores permitidos`
@@ -145,6 +155,7 @@ function removeChip(filterId: string) {
 
 function componentForField(field: FilterDefinition) {
   if (field.kind === 'multi-enum') return MultiSelectEnumFilter
+  if (field.kind === 'multi-text') return MultiTextInputFilter
   if (field.kind === 'number-range') return NumericRangeFilter
   if (field.kind === 'date-range') return DateRangeFilter
   return MultiSelectAsyncFilter
@@ -199,11 +210,25 @@ function componentForField(field: FilterDefinition) {
 
             <component
               :is="componentForField(field)"
+              v-else-if="field.kind === 'multi-text'"
+              :label="field.label"
+              :model-value="(localState[field.param] as string[]) ?? []"
+              :placeholder="field.placeholder ?? 'Ingresá valores separados por coma'"
+              :strip-prefix="field.parse?.stripPrefix"
+              :max="field.max ?? 200"
+              :error="validationErrors[field.id] ?? props.errors[field.id]"
+              @update:model-value="(value: string[]) => localState[field.param] = value"
+            />
+
+            <component
+              :is="componentForField(field)"
               v-else
               :label="field.label"
               :model-value="(localState[field.param] as string[]) ?? []"
               :options="field.options"
               :placeholder="field.placeholder ?? 'Seleccioná opciones'"
+              :loading="field.loading"
+              :loading-label="field.loadingLabel ?? 'Cargando opciones...'"
               :error="validationErrors[field.id] ?? props.errors[field.id]"
               @update:model-value="(value: string[]) => localState[field.param] = value"
             />

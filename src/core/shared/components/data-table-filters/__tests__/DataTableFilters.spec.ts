@@ -34,6 +34,13 @@ const schema: FilterDefinition[] = [
     max: 50,
   },
   {
+    kind: 'multi-text',
+    id: 'folio',
+    label: 'Folio',
+    param: 'folio',
+    max: 200,
+  },
+  {
     kind: 'number-range',
     id: 'total',
     label: 'Total',
@@ -48,6 +55,7 @@ function mountComponent(overrideProps: Record<string, unknown> = {}) {
       schema,
       modelValue: {
         paymentStatus: ['PAID'],
+        folio: ['12'],
         totalMin: 100,
         totalMax: 200,
       },
@@ -85,6 +93,11 @@ function mountComponent(overrideProps: Record<string, unknown> = {}) {
         },
         DateRangeFilter: true,
         MultiSelectAsyncFilter: true,
+        MultiTextInputFilter: {
+          props: ['modelValue', 'error'],
+          emits: ['update:modelValue'],
+          template: '<div data-testid="multi-text-filter" />',
+        },
         DataTableFiltersChips: {
           props: ['chips'],
           emits: ['remove', 'clear'],
@@ -117,9 +130,15 @@ describe('DataTableFilters', () => {
 
     expect(wrapper.emitted('update:modelValue')?.[0]?.[0]).toEqual({
       paymentStatus: [],
+      folio: [],
       totalMin: undefined,
       totalMax: undefined,
     })
+  })
+
+  it('renders multi-text primitive for multi-text fields', () => {
+    const wrapper = mountComponent()
+    expect(wrapper.find('[data-testid="multi-text-filter"]').exists()).toBe(true)
   })
 
   it('blocks inverted numeric range before emit', async () => {

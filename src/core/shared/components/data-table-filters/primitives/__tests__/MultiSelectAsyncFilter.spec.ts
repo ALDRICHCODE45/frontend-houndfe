@@ -103,4 +103,26 @@ describe('MultiSelectAsyncFilter', () => {
 
     expect(wrapper.text()).toContain('Demasiados valores seleccionados')
   })
+
+  it('renders loading hint when options are loading', () => {
+    const wrapper = mount(MultiSelectAsyncFilter, {
+      props: {
+        modelValue: [],
+        label: 'Cliente',
+        placeholder: 'Buscá cliente',
+        options: [],
+        loading: true,
+        loadingLabel: 'Cargando clientes...',
+      },
+      global: {
+        stubs: {
+          USelectMenu: { ...SelectStub },
+          SelectMenu: { ...SelectStub },
+          UInput: UInputStub,
+        },
+      },
+    })
+
+    expect(wrapper.get('[data-testid="async-loading-hint"]').text()).toContain('Cargando clientes...')
+  })
 })
