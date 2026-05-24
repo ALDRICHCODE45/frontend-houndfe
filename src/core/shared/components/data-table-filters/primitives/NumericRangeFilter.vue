@@ -2,28 +2,37 @@
 import { computed, ref, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
-  modelValue: { min?: number; max?: number }
   label: string
   unit?: string
+  formatAs?: 'currency' | 'plain'
   step?: number
+  displayDivisor?: number
   error?: string
 }>(), {
   unit: '$',
-  step: 100,
+  formatAs: 'currency',
+  step: 1,
+  displayDivisor: 1,
   error: undefined,
 })
 
-const emit = defineEmits<{
-  (event: 'update:modelValue', value: { min?: number; max?: number }): void
-}>()
+const modelValue = defineModel<{ min?: number; max?: number }>({ default: () => ({}) })
 
-const minDisplay = ref<number | undefined>(props.modelValue.min !== undefined ? props.modelValue.min / 100 : undefined)
-const maxDisplay = ref<number | undefined>(props.modelValue.max !== undefined ? props.modelValue.max / 100 : undefined)
+const minDisplay = ref<number | undefined>(modelValue.value.min !== undefined ? modelValue.value.min / props.displayDivisor : undefined)
+const maxDisplay = ref<number | undefined>(modelValue.value.max !== undefined ? modelValue.value.max / props.displayDivisor : undefined)
 
-watch(() => props.modelValue, (next) => {
-  minDisplay.value = next.min !== undefined ? next.min / 100 : undefined
-  maxDisplay.value = next.max !== undefined ? next.max / 100 : undefined
+watch(() => modelValue.value, (next) => {
+  minDisplay.value = next.min !== undefined ? next.min / props.displayDivisor : undefined
+  maxDisplay.value = next.max !== undefined ? next.max / props.displayDivisor : undefined
 }, { deep: true })
+
+const formatOptions = computed<Intl.NumberFormatOptions | undefined>(() => {
+  if (props.formatAs === 'currency') {
+    return { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }
+  }
+
+  return undefined
+})
 
 const localError = computed(() => {
   const min = minDisplay.value
@@ -42,14 +51,14 @@ function emitRange() {
   const next: { min?: number; max?: number } = {}
 
   if (minDisplay.value !== undefined) {
-    next.min = Math.round(minDisplay.value * 100)
+    next.min = Math.round(minDisplay.value * props.displayDivisor)
   }
 
   if (maxDisplay.value !== undefined) {
-    next.max = Math.round(maxDisplay.value * 100)
+    next.max = Math.round(maxDisplay.value * props.displayDivisor)
   }
 
-  emit('update:modelValue', next)
+  modelValue.value = next
 }
 
 function updateMin(value: unknown) {
@@ -72,7 +81,7 @@ function updateMax(value: unknown) {
         :min="0"
         :step="props.step"
         :model-value="minDisplay"
-        :format-options="{ style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }"
+        :format-options="formatOptions"
         :increment="false"
         :decrement="false"
         placeholder="$ mín"
@@ -87,7 +96,7 @@ function updateMax(value: unknown) {
         :min="0"
         :step="props.step"
         :model-value="maxDisplay"
-        :format-options="{ style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }"
+        :format-options="formatOptions"
         :increment="false"
         :decrement="false"
         placeholder="$ máx"

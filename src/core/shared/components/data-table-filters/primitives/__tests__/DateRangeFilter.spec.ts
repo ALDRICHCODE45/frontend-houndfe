@@ -31,7 +31,7 @@ function mountComponent(modelValue: { from?: string; to?: string } = {}) {
         Popover: PopoverStub,
         UButton: { template: '<button v-bind="$attrs" @click="$emit(\'click\')"><slot /></button>' },
         Button: { template: '<button v-bind="$attrs" @click="$emit(\'click\')"><slot /></button>' },
-        UFormField: { template: '<div><slot /></div>' },
+        UFormField: { props: ['error'], template: '<div><slot /><p data-testid="error">{{ error }}</p></div>' },
         FormField: { template: '<div><slot /></div>' },
         UCheckbox: { props: ['modelValue'], emits: ['update:modelValue'], template: '<button v-bind="$attrs" @click="$emit(\'update:modelValue\', !modelValue)" />' },
         USeparator: { template: '<hr data-testid="separator-stub" />' },
@@ -157,5 +157,23 @@ describe('DateRangeFilter', () => {
 
     await wrapper.find('[data-testid="include-null-vence_at"]').trigger('click')
     expect(wrapper.emitted('update:includeNullValue')?.[0]).toEqual([true])
+
+    await wrapper.setProps({ includeNullValue: true })
+    await wrapper.find('[data-testid="include-null-vence_at"]').trigger('click')
+    expect(wrapper.emitted('update:includeNullValue')?.[1]).toEqual([false])
+  })
+
+  it('renders external error message', () => {
+    const wrapper = mount(DateRangeFilter, {
+      props: { modelValue: {}, label: 'Fecha', error: 'Fecha inválida' },
+      global: { stubs: { UCalendar: CalendarStub, UPopover: PopoverStub, UButton: { template: '<button v-bind="$attrs"><slot /></button>' }, UFormField: { props: ['error'], template: '<div><slot /><p>{{ error }}</p></div>' } } },
+    })
+
+    expect(wrapper.text()).toContain('Fecha inválida')
   })
 })
+  it('renders with default props and full-width trigger', () => {
+    const wrapper = mountComponent()
+    expect(wrapper.find('[data-testid="date-range-filter"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="date-range-trigger"]').classes()).toContain('w-full')
+  })

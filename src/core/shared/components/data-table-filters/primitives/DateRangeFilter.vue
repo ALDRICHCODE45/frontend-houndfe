@@ -4,20 +4,16 @@ import { computed, shallowRef, watch } from 'vue'
 import { endOfDayUTC } from '@/features/POS/sales/utils/saleDate.utils'
 
 const props = withDefaults(defineProps<{
-  modelValue: { from?: string; to?: string }
   label: string
   includeNullOption?: string
-  includeNullValue?: boolean
   error?: string
   presets?: boolean
 }>(), {
-  presets: false,
+  presets: true,
 })
 
-const emit = defineEmits<{
-  (event: 'update:modelValue', value: { from?: string; to?: string }): void
-  (event: 'update:includeNullValue', value: boolean): void
-}>()
+const modelValue = defineModel<{ from?: string; to?: string }>({ default: () => ({}) })
+const includeNullValue = defineModel<boolean>('includeNullValue', { default: false })
 
 function toDateInput(value?: string): string {
   if (!value) return ''
@@ -44,9 +40,9 @@ function fromCalendarDate(value?: CalendarDate): string | undefined {
   return `${value.year}-${month}-${day}`
 }
 
-const selectedRange = shallowRef<CalendarRange | undefined>(toCalendarRange(props.modelValue))
+const selectedRange = shallowRef<CalendarRange | undefined>(toCalendarRange(modelValue.value))
 
-watch(() => props.modelValue, (next) => {
+watch(() => modelValue.value, (next) => {
   selectedRange.value = toCalendarRange(next)
 }, { deep: true })
 
@@ -76,7 +72,7 @@ function emitRange() {
     payload.to = endOfDayUTC(to)
   }
 
-  emit('update:modelValue', payload)
+  modelValue.value = payload
 }
 
 function updateRange(value: unknown) {
@@ -205,9 +201,8 @@ const rangeLabel = computed(() => {
           <USeparator />
           <label class="flex cursor-pointer items-center gap-2 p-3 text-sm text-muted">
             <UCheckbox
-              :model-value="props.includeNullValue"
+              v-model="includeNullValue"
               :data-testid="`include-null-${props.label}`"
-              @update:model-value="(value: unknown) => emit('update:includeNullValue', Boolean(value))"
             />
             <span>{{ props.includeNullOption }}</span>
           </label>

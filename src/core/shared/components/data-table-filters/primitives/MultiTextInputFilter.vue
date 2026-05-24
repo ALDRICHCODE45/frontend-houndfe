@@ -2,7 +2,6 @@
 import { computed, ref, watch } from 'vue'
 
 const props = withDefaults(defineProps<{
-  modelValue: string[]
   label: string
   placeholder?: string
   max?: number
@@ -15,19 +14,17 @@ const props = withDefaults(defineProps<{
   error: undefined,
 })
 
-const emit = defineEmits<{
-  (event: 'update:modelValue', value: string[]): void
-}>()
+const modelValue = defineModel<string[]>({ default: () => [] })
 
 const inputValue = ref('')
 
-watch(() => props.modelValue, (value) => {
+watch(() => modelValue.value, (value) => {
   inputValue.value = value.join(', ')
 }, { immediate: true })
 
 const helperText = computed(() => {
-  if (props.modelValue.length === 0) return ''
-  return `Valores detectados: ${props.modelValue.join(', ')}`
+  if (modelValue.value.length === 0) return ''
+  return `${modelValue.value.length} valores`
 })
 
 function normalizeToken(token: string): string {
@@ -57,7 +54,7 @@ function parseInput(value: string): string[] {
 
 function commit() {
   const parsed = parseInput(inputValue.value)
-  emit('update:modelValue', parsed)
+  modelValue.value = parsed
   inputValue.value = parsed.join(', ')
 }
 

@@ -7,41 +7,37 @@ type PrimitiveOption = {
 }
 
 const props = withDefaults(defineProps<{
-  modelValue: string[]
   options: PrimitiveOption[]
   label: string
-  placeholder: string
+  placeholder?: string
   includeNullOption?: string
-  includeNullValue?: boolean
   error?: string
   searchable?: boolean
 }>(), {
-  includeNullValue: false,
+  placeholder: 'Seleccionar opciones',
   includeNullOption: undefined,
   error: undefined,
   searchable: false,
 })
 
-const emit = defineEmits<{
-  (event: 'update:modelValue', value: string[]): void
-  (event: 'update:includeNullValue', value: boolean): void
-}>()
+const modelValue = defineModel<string[]>({ default: () => [] })
+const includeNullValue = defineModel<boolean>('includeNullValue', { default: false })
 
 const selectedLabel = computed(() => {
-  if (props.modelValue.length === 0) return props.placeholder
-  if (props.modelValue.length === 1) {
-    return props.options.find(option => option.value === props.modelValue[0])?.label ?? props.modelValue[0]
+  if (modelValue.value.length === 0) return props.placeholder
+  if (modelValue.value.length === 1) {
+    return props.options.find(option => option.value === modelValue.value[0])?.label ?? modelValue.value[0]
   }
 
-  return `${props.modelValue.length} seleccionados`
+  if (modelValue.value.length <= 3) {
+    return modelValue.value
+      .map(value => props.options.find(option => option.value === value)?.label ?? value)
+      .join(', ')
+  }
+
+  return `${modelValue.value.length} seleccionados`
 })
 
-const includeNullChecked = computed({
-  get: () => Boolean(props.includeNullValue),
-  set: (value: boolean) => {
-    emit('update:includeNullValue', value)
-  },
-})
 </script>
 
 <template>
@@ -49,13 +45,12 @@ const includeNullChecked = computed({
     <USelectMenu
       data-testid="enum-select"
       class="w-full"
-      :model-value="props.modelValue"
+      v-model="modelValue"
       :items="props.options"
       :placeholder="props.placeholder"
       :multiple="true"
       :search-input="props.searchable"
       value-key="value"
-      @update:model-value="(value: unknown) => emit('update:modelValue', (value as string[]) ?? [])"
     >
       <template #default>
         <span class="truncate" data-testid="enum-trigger-label">{{ selectedLabel }}</span>
@@ -66,7 +61,7 @@ const includeNullChecked = computed({
         <USeparator class="my-1" />
         <div class="px-2 py-1">
           <UCheckbox
-            v-model="includeNullChecked"
+            v-model="includeNullValue"
             :label="props.includeNullOption"
             variant="list"
             data-testid="enum-include-null"

@@ -4,9 +4,9 @@ import MultiSelectEnumFilter from '../MultiSelectEnumFilter.vue'
 
 const SelectStub = {
   name: 'SelectStub',
-  props: ['modelValue', 'searchInput'],
+  props: ['modelValue', 'searchInput', 'valueKey', 'items', 'multiple'],
   emits: ['update:model-value'],
-  template: '<div data-testid="u-select-menu" :data-searchable="String(searchInput)"><slot /><slot name="content-bottom" /></div>',
+  template: '<div data-testid="u-select-menu" :data-searchable="String(searchInput)" :data-value-key="valueKey" :data-multiple="String(multiple)"><slot /><slot name="content-bottom" /></div>',
 }
 
 const CheckboxStub = {
@@ -40,19 +40,16 @@ function mountComponent(overrideProps: Record<string, unknown> = {}) {
           ...CheckboxStub,
         },
         Checkbox: { ...CheckboxStub },
-        UFormField: {
-          template: '<div><slot /></div>',
-        },
-      },
-    },
-  })
+         UFormField: { props: ['error'], template: '<div><slot /><p data-testid="error">{{ error }}</p></div>' },
+       },
+     },
+   })
 }
 
 describe('MultiSelectEnumFilter', () => {
-  it('starts with empty selection', () => {
+  it('renders with default props', () => {
     const wrapper = mountComponent()
-
-    expect(wrapper.emitted('update:modelValue')).toBeUndefined()
+    expect(wrapper.find('[data-testid="multi-select-enum-filter"]').exists()).toBe(true)
   })
 
   it('emits single selected value', async () => {
@@ -97,17 +94,49 @@ describe('MultiSelectEnumFilter', () => {
     expect(wrapper.text()).toContain('Demasiados valores seleccionados')
   })
 
-  it('passes searchable flag to USelectMenu', () => {
+  it('passes searchable flag and canonical value-key/multiple to USelectMenu', () => {
     const wrapper = mountComponent({
       options: [{ label: 'Pagada', value: 'PAID' }],
       searchable: true,
     })
 
-    expect(wrapper.get('[data-testid="enum-select"]').attributes('data-searchable')).toBe('true')
+    const select = wrapper.get('[data-testid="enum-select"]')
+    expect(select.attributes('data-searchable')).toBe('true')
+    expect(select.attributes('data-value-key')).toBe('value')
+    expect(select.attributes('data-multiple')).toBe('true')
+    const selectVm = wrapper.findComponent(SelectStub).vm as { $props: { items: Array<{ label: string; value: string }> } }
+    expect(selectVm.$props.items).toEqual([
+      { label: 'Pagada', value: 'PAID' },
+    ])
   })
 
-  it('shows compact trigger label', () => {
-    const wrapper = mountComponent({ modelValue: ['PAID', 'PARTIAL'] })
-    expect(wrapper.get('[data-testid="enum-trigger-label"]').text()).toContain('2 seleccionados')
+  it('follows trigger label rules 0/1/2-3/4+', async () => {
+    const wrapper = mountComponent({ modelValue: [] })
+    expect(wrapper.get('[data-testid="enum-trigger-label"]').text()).toContain('Seleccioná estados')
+
+    await wrapper.setProps({ modelValue: ['PAID'] })
+    expect(wrapper.get('[data-testid="enum-trigger-label"]').text()).toContain('Pagada')
+
+    await wrapper.setProps({
+      modelValue: ['PAID', 'PARTIAL'],
+      options: [
+        { label: 'Pagada', value: 'PAID' },
+        { label: 'Parcial', value: 'PARTIAL' },
+        { label: 'Pendiente', value: 'PENDING' },
+        { label: 'Cancelada', value: 'CANCELLED' },
+      ],
+    })
+    expect(wrapper.get('[data-testid="enum-trigger-label"]').text()).toContain('Pagada, Parcial')
+
+    await wrapper.setProps({ modelValue: ['PAID', 'PARTIAL', 'PENDING'] })
+    expect(wrapper.get('[data-testid="enum-trigger-label"]').text()).toContain('Pagada, Parcial, Pendiente')
+
+    await wrapper.setProps({ modelValue: ['PAID', 'PARTIAL', 'PENDING', 'CANCELLED'] })
+    expect(wrapper.get('[data-testid="enum-trigger-label"]').text()).toContain('4 seleccionados')
+  })
+
+  it('uses w-full on control root', () => {
+    const wrapper = mountComponent()
+    expect(wrapper.get('[data-testid="enum-select"]').classes()).toContain('w-full')
   })
 })

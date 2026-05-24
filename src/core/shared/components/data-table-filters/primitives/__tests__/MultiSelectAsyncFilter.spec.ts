@@ -4,9 +4,9 @@ import MultiSelectAsyncFilter from '../MultiSelectAsyncFilter.vue'
 
 const SelectStub = {
   name: 'SelectStub',
-  props: ['modelValue', 'items', 'searchInput'],
+  props: ['modelValue', 'items', 'searchInput', 'valueKey', 'multiple', 'loading'],
   emits: ['update:model-value'],
-  template: '<div data-testid="u-select-menu" :data-searchable="String(searchInput)"><slot /><slot name="content-bottom" /></div>',
+  template: '<div data-testid="u-select-menu" :data-searchable="String(searchInput)" :data-value-key="valueKey" :data-multiple="String(multiple)" :data-loading="String(loading)"><slot /><slot name="content-bottom" /></div>',
 }
 
 const CheckboxStub = {
@@ -36,13 +36,18 @@ function mountComponent() {
         SelectMenu: { ...SelectStub },
         UCheckbox: { ...CheckboxStub },
         Checkbox: { ...CheckboxStub },
-        UFormField: { template: '<div><slot /></div>' },
+         UFormField: { props: ['error'], template: '<div><slot /><p data-testid="error">{{ error }}</p></div>' },
       },
     },
   })
 }
 
 describe('MultiSelectAsyncFilter', () => {
+  it('renders with default props', () => {
+    const wrapper = mountComponent()
+    expect(wrapper.find('[data-testid="multi-select-async-filter"]').exists()).toBe(true)
+  })
+
   it('renders a single searchable select (no duplicate search input)', () => {
     const wrapper = mountComponent()
     const selects = wrapper.findAllComponents(SelectStub)
@@ -117,12 +122,26 @@ describe('MultiSelectAsyncFilter', () => {
     expect(wrapper.get('[data-testid="async-loading-hint"]').text()).toContain('Cargando clientes...')
   })
 
-  it('shows selected counter', () => {
+  it('shows joined labels for 2-3 selections', () => {
     const wrapper = mount(MultiSelectAsyncFilter, {
       props: { modelValue: ['uuid-1', 'uuid-2'], label: 'Cliente', placeholder: 'Buscar', options: [{ label: 'A', value: 'uuid-1' }, { label: 'B', value: 'uuid-2' }] },
       global: { stubs: { USelectMenu: { ...SelectStub }, UFormField: { template: '<div><slot /></div>' } } },
     })
 
-    expect(wrapper.get('[data-testid="async-trigger-label"]').text()).toContain('2 seleccionados')
+    expect(wrapper.get('[data-testid="async-trigger-label"]').text()).toContain('A, B')
+  })
+
+  it('uses canonical value-key/multiple with string model and searchable true', () => {
+    const wrapper = mountComponent()
+    const select = wrapper.get('[data-testid="async-select"]')
+    expect(select.attributes('data-searchable')).toBe('true')
+    expect(select.attributes('data-value-key')).toBe('value')
+    expect(select.attributes('data-multiple')).toBe('true')
+    expect(select.attributes('data-loading')).toBe('false')
+  })
+
+  it('uses w-full on control root', () => {
+    const wrapper = mountComponent()
+    expect(wrapper.get('[data-testid="async-select"]').classes()).toContain('w-full')
   })
 })
