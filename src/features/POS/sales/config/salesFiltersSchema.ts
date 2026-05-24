@@ -12,7 +12,6 @@ export function createSalesFiltersSchema(sources: SalesFilterSchemaSources = {})
     {
       id: 'folio',
       kind: 'multi-text',
-      section: 'Identificación',
       label: 'Folio',
       param: 'folio',
       placeholder: 'Ej: #15, #16, 20',
@@ -117,6 +116,7 @@ export function createSalesFiltersSchema(sources: SalesFilterSchemaSources = {})
       label: 'Fecha de venta',
       fromParam: 'confirmedFrom',
       toParam: 'confirmedTo',
+      presets: true,
     },
     {
       id: 'dueDate',
@@ -125,6 +125,7 @@ export function createSalesFiltersSchema(sources: SalesFilterSchemaSources = {})
       label: 'Vencimiento',
       fromParam: 'dueDateFrom',
       toParam: 'dueDateTo',
+      presets: true,
       includeNull: { param: 'dueDateIncludeNull', label: 'Incluir ventas sin vencimiento' },
     },
   ]

@@ -64,24 +64,32 @@ function updateMax(value: unknown) {
 </script>
 
 <template>
-  <UFormField :label="props.label" :error="resolvedError" data-testid="numeric-range-filter">
-    <div class="grid grid-cols-2 gap-2">
+  <UFormField :label="props.label" :error="resolvedError" class="w-full" data-testid="numeric-range-filter">
+    <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
       <UInputNumber
         data-testid="numeric-min"
+        class="w-full"
         :min="0"
         :step="props.step"
         :model-value="minDisplay"
         :format-options="{ style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }"
+        :increment="false"
+        :decrement="false"
         placeholder="$ mín"
         @update:model-value="updateMin"
       />
 
+      <span class="text-sm text-muted" data-testid="numeric-separator">—</span>
+
       <UInputNumber
         data-testid="numeric-max"
+        class="w-full"
         :min="0"
         :step="props.step"
         :model-value="maxDisplay"
         :format-options="{ style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }"
+        :increment="false"
+        :decrement="false"
         placeholder="$ máx"
         @update:model-value="updateMax"
       />

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { CalendarDate } from '@internationalized/date'
 import DateRangeFilter from '../DateRangeFilter.vue'
@@ -23,8 +23,8 @@ function mountComponent(modelValue: { from?: string; to?: string } = {}) {
         'u-calendar': CalendarStub,
         UPopover: { template: '<div><slot /><slot name="content" /></div>' },
         Popover: { template: '<div><slot /><slot name="content" /></div>' },
-        UButton: { template: '<button><slot /></button>' },
-        Button: { template: '<button><slot /></button>' },
+        UButton: { template: '<button v-bind="$attrs" @click="$emit(\'click\')"><slot /></button>' },
+        Button: { template: '<button v-bind="$attrs" @click="$emit(\'click\')"><slot /></button>' },
         UFormField: { template: '<div><slot /></div>' },
         FormField: { template: '<div><slot /></div>' },
         UCheckbox: { props: ['modelValue'], emits: ['update:modelValue'], template: '<div />' },
@@ -34,6 +34,15 @@ function mountComponent(modelValue: { from?: string; to?: string } = {}) {
 }
 
 describe('DateRangeFilter', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-15T10:00:00.000Z'))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('emits only from when from is selected', async () => {
     const wrapper = mountComponent()
 
@@ -106,5 +115,18 @@ describe('DateRangeFilter', () => {
     await wrapper.vm.$nextTick()
 
     expect(wrapper.text()).toContain('15 feb 2026')
+  })
+
+  it('applies today preset and emits start/end in ISO', async () => {
+    const wrapper = mount(DateRangeFilter, {
+      props: { modelValue: {}, label: 'Fecha', presets: true },
+      global: { stubs: { UCalendar: CalendarStub, UPopover: { template: '<div><slot /><slot name="content" /></div>' }, Popover: { template: '<div><slot /><slot name="content" /></div>' }, UButton: { template: '<button v-bind="$attrs" @click="$emit(\'click\')"><slot /></button>' }, Button: { template: '<button v-bind="$attrs" @click="$emit(\'click\')"><slot /></button>' }, UFormField: { template: '<div><slot /></div>' } } },
+    })
+
+    const presets = wrapper.findAll('[data-testid="date-preset"]')
+    expect(presets.length).toBeGreaterThan(0)
+    await presets[0]!.trigger('click')
+    const events = wrapper.emitted('update:modelValue') ?? []
+    expect(events[events.length - 1]?.[0]).toEqual({ from: '2026-03-15T00:00:00.000Z', to: '2026-03-15T23:59:59.999Z' })
   })
 })

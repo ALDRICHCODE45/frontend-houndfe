@@ -8,7 +8,7 @@ export type FilterKind = 'multi-enum' | 'multi-uuid' | 'multi-async' | 'multi-te
 type BaseFilterDefinition = {
   id: string
   label: string
-  section?: string
+  section?: string | null
 }
 
 export type MultiEnumFilterDefinition = BaseFilterDefinition & {
@@ -58,6 +58,7 @@ export type DateRangeFilterDefinition = BaseFilterDefinition & {
   kind: 'date-range'
   fromParam: string
   toParam: string
+  presets?: boolean
   includeNull?: {
     param: string
     label: string

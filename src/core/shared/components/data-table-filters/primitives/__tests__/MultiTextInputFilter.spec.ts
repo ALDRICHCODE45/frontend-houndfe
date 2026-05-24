@@ -5,7 +5,7 @@ import MultiTextInputFilter from '../MultiTextInputFilter.vue'
 const UInputStub = {
   props: ['modelValue'],
   emits: ['update:modelValue', 'blur', 'keydown'],
-  template: '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" @blur="$emit(\'blur\')" @keydown="$emit(\'keydown\', $event)" />',
+  template: '<input :value="modelValue" data-testid="multi-text-input" @input="$emit(\'update:modelValue\', $event.target.value)" @blur="$emit(\'blur\')" @keydown="$emit(\'keydown\', $event)" />',
 }
 
 function mountComponent() {
@@ -55,4 +55,5 @@ describe('MultiTextInputFilter', () => {
     const events = wrapper.emitted('update:modelValue') ?? []
     expect(events[events.length - 1]).toEqual([['1', '2', '3']])
   })
+
 })

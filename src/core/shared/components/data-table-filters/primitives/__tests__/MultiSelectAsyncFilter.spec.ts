@@ -4,16 +4,16 @@ import MultiSelectAsyncFilter from '../MultiSelectAsyncFilter.vue'
 
 const SelectStub = {
   name: 'SelectStub',
-  props: ['modelValue', 'items', 'searchable'],
-  emits: ['update:modelValue'],
-  template: '<div data-testid="u-select-menu" :data-searchable="String(searchable)" />',
+  props: ['modelValue', 'items', 'searchInput'],
+  emits: ['update:model-value'],
+  template: '<div data-testid="u-select-menu" :data-searchable="String(searchInput)"><slot /><slot name="content-bottom" /></div>',
 }
 
 const CheckboxStub = {
   name: 'CheckboxStub',
   props: ['modelValue'],
   emits: ['update:modelValue'],
-  template: '<div data-testid="u-checkbox" />',
+  template: '<button data-testid="u-checkbox" @click="$emit(\'update:modelValue\', !modelValue)"></button>',
 }
 
 function mountComponent() {
@@ -48,7 +48,7 @@ describe('MultiSelectAsyncFilter', () => {
     const selects = wrapper.findAllComponents(SelectStub)
     expect(selects.length).toBe(1)
     expect(wrapper.find('[data-testid="async-search"]').exists()).toBe(false)
-    expect(selects[0]?.props('searchable')).toBe(true)
+    expect(selects[0]?.props('searchInput')).toBe(true)
   })
 
   it('emits selected UUIDs', async () => {
@@ -62,12 +62,13 @@ describe('MultiSelectAsyncFilter', () => {
     expect(events[events.length - 1]).toEqual([['uuid-1', 'uuid-2']])
   })
 
-  it('toggles includeNull on/off', async () => {
+  it('toggles includeNull on/off via bound model', async () => {
     const wrapper = mountComponent()
     const checkbox = wrapper.findComponent(CheckboxStub)
 
-    checkbox.vm.$emit('update:model-value', true)
-    checkbox.vm.$emit('update:model-value', false)
+    await checkbox.trigger('click')
+    await wrapper.setProps({ includeNullValue: true })
+    await checkbox.trigger('click')
     await wrapper.vm.$nextTick()
 
     expect(wrapper.emitted('update:includeNullValue')).toEqual([[true], [false]])
@@ -114,5 +115,14 @@ describe('MultiSelectAsyncFilter', () => {
     })
 
     expect(wrapper.get('[data-testid="async-loading-hint"]').text()).toContain('Cargando clientes...')
+  })
+
+  it('shows selected counter', () => {
+    const wrapper = mount(MultiSelectAsyncFilter, {
+      props: { modelValue: ['uuid-1', 'uuid-2'], label: 'Cliente', placeholder: 'Buscar', options: [{ label: 'A', value: 'uuid-1' }, { label: 'B', value: 'uuid-2' }] },
+      global: { stubs: { USelectMenu: { ...SelectStub }, UFormField: { template: '<div><slot /></div>' } } },
+    })
+
+    expect(wrapper.get('[data-testid="async-trigger-label"]').text()).toContain('2 seleccionados')
   })
 })

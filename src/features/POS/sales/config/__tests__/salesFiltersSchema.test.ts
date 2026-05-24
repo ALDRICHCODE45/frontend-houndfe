@@ -48,7 +48,7 @@ describe('salesFiltersSchema', () => {
     const sections = Object.fromEntries(salesFiltersSchema.map(field => [field.id, field.section]))
 
     expect(sections).toMatchObject({
-      folio: 'Identificación',
+      folio: undefined,
       status: 'Estado',
       paymentStatus: 'Estado',
       paymentMethod: 'Estado',

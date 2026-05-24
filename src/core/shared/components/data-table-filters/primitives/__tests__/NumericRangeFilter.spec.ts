@@ -96,4 +96,12 @@ describe('NumericRangeFilter', () => {
     expect(numbers.length).toBe(2)
     expect(numbers[0]?.props('formatOptions')).toEqual({ style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
   })
+
+  it('disables increment/decrement buttons and shows range separator', () => {
+    const wrapper = mount(NumericRangeFilter, { props: { modelValue: {}, label: 'Total' } })
+    const numbers = wrapper.findAllComponents({ name: 'InputNumber' })
+    expect(numbers[0]?.props('increment')).toBe(false)
+    expect(numbers[0]?.props('decrement')).toBe(false)
+    expect(wrapper.get('[data-testid="numeric-separator"]').text()).toBe('—')
+  })
 })

@@ -69,9 +69,10 @@ function onKeydown(event: KeyboardEvent) {
 </script>
 
 <template>
-  <UFormField :label="props.label" :error="props.error" data-testid="multi-text-input-filter">
+  <UFormField :label="props.label" :error="props.error" class="w-full" data-testid="multi-text-input-filter">
     <UInput
       v-model="inputValue"
+      class="w-full"
       data-testid="multi-text-input"
       :placeholder="props.placeholder"
       @blur="commit"

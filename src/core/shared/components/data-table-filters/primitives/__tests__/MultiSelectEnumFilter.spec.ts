@@ -4,16 +4,16 @@ import MultiSelectEnumFilter from '../MultiSelectEnumFilter.vue'
 
 const SelectStub = {
   name: 'SelectStub',
-  props: ['modelValue', 'searchable'],
-  emits: ['update:modelValue'],
-  template: '<div data-testid="u-select-menu" :data-searchable="String(searchable)" />',
+  props: ['modelValue', 'searchInput'],
+  emits: ['update:model-value'],
+  template: '<div data-testid="u-select-menu" :data-searchable="String(searchInput)"><slot /><slot name="content-bottom" /></div>',
 }
 
 const CheckboxStub = {
   name: 'CheckboxStub',
   props: ['modelValue'],
   emits: ['update:modelValue'],
-  template: '<div data-testid="u-checkbox" />',
+  template: '<button data-testid="u-checkbox" @click="$emit(\'update:modelValue\', !modelValue)"></button>',
 }
 
 function mountComponent(overrideProps: Record<string, unknown> = {}) {
@@ -76,12 +76,13 @@ describe('MultiSelectEnumFilter', () => {
     expect(wrapper.emitted('update:modelValue')?.[1]).toEqual([['PAID', 'PARTIAL']])
   })
 
-  it('toggles includeNull on/off', async () => {
-    const wrapper = mountComponent()
+  it('toggles includeNull on/off via bound model', async () => {
+    const wrapper = mountComponent({ includeNullValue: false })
     const checkbox = wrapper.findComponent(CheckboxStub)
 
-    checkbox.vm.$emit('update:model-value', true)
-    checkbox.vm.$emit('update:model-value', false)
+    await checkbox.trigger('click')
+    await wrapper.setProps({ includeNullValue: true })
+    await checkbox.trigger('click')
     await wrapper.vm.$nextTick()
 
     expect(wrapper.emitted('update:includeNullValue')).toEqual([[true], [false]])
@@ -103,5 +104,10 @@ describe('MultiSelectEnumFilter', () => {
     })
 
     expect(wrapper.get('[data-testid="enum-select"]').attributes('data-searchable')).toBe('true')
+  })
+
+  it('shows compact trigger label', () => {
+    const wrapper = mountComponent({ modelValue: ['PAID', 'PARTIAL'] })
+    expect(wrapper.get('[data-testid="enum-trigger-label"]').text()).toContain('2 seleccionados')
   })
 })
