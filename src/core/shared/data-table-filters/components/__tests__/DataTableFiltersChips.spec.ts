@@ -56,8 +56,8 @@ describe('DataTableFiltersChips (v2)', () => {
     expect(wrapper.text()).toContain('Método: 4 seleccionados')
     expect(wrapper.text()).toContain('Vendedor: Ana, Juan')
     expect(wrapper.text()).toContain('Folio: A-10')
-    expect(wrapper.text()).toContain('Total: 100 - 800')
-    expect(wrapper.text()).toContain('Fecha: 2026-01-10T00:00:00.000Z - 2026-01-12T23:59:59.999Z')
+    expect(wrapper.text()).toContain('Total: 100 — 800')
+    expect(wrapper.text()).toContain('Fecha: 09/01/2026 — 12/01/2026')
   })
 
   it('uses resolveLabel labels instead of raw enum codes', () => {
@@ -96,7 +96,7 @@ describe('DataTableFiltersChips (v2)', () => {
       },
     })
 
-    expect(wrapper.text()).toContain('Método: Incluye nulos')
+    expect(wrapper.text()).toContain('Método: Sin método')
   })
 
   it('emits clear(filterId) and clearAll', async () => {

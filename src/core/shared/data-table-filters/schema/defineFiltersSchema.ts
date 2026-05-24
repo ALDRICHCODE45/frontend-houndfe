@@ -3,7 +3,13 @@ import { multiAsyncSerializer } from './serializers/multiAsync'
 import { multiEnumSerializer } from './serializers/multiEnum'
 import { multiTextSerializer } from './serializers/multiText'
 import { numericRangeSerializer } from './serializers/numericRange'
-import type { ActiveFilterChip, FilterDefinition, FilterState, FiltersSchema } from './types'
+import type { ActiveFilterChip, FilterDefinition, FilterState, FiltersSchema, NumericRangeFilterDefinition } from './types'
+
+const MXN_NO_DECIMALS = new Intl.NumberFormat('es-MX', {
+  style: 'currency',
+  currency: 'MXN',
+  maximumFractionDigits: 0,
+})
 
 function stable(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stable).join(',')}]`
@@ -12,6 +18,31 @@ function stable(value: unknown): string {
     return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${stable(v)}`).join(',')}}`
   }
   return JSON.stringify(value)
+}
+
+function lowerFirst(s: string): string {
+  return s ? s.charAt(0).toLowerCase() + s.slice(1) : s
+}
+
+function formatLocalDateLabel(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ''
+  const day = String(date.getDate()).padStart(2, '0')
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  return `${day}/${month}/${date.getFullYear()}`
+}
+
+function isSameLocalDay(isoA: string, isoB: string): boolean {
+  const a = new Date(isoA)
+  const b = new Date(isoB)
+  if (Number.isNaN(a.getTime()) || Number.isNaN(b.getTime())) return false
+  return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+}
+
+function formatNumericValue(value: number, field: NumericRangeFilterDefinition): string {
+  if (field.formatAs === 'currency') return MXN_NO_DECIMALS.format(value / 100)
+  const raw = String(value)
+  return field.unit ? `${raw} ${field.unit}` : raw
 }
 
 export function defineFiltersSchema(fields: FilterDefinition[]): FiltersSchema {
@@ -130,23 +161,54 @@ export function defineFiltersSchema(fields: FilterDefinition[]): FiltersSchema {
         if (!this.isActive(field.id, state)) continue
         if (field.kind === 'multi-enum' || field.kind === 'multi-async' || field.kind === 'multi-text') {
           const values = (state[field.id] as string[] | undefined) ?? []
+          const includeNullLabel = 'includeNull' in field && field.includeNull ? field.includeNull.label : undefined
+          const includeNullActive = 'includeNull' in field && field.includeNull ? state[field.includeNull.param] === true : false
+
           let displayValue = ''
-          if (values.length <= 1) displayValue = values[0] ? this.resolveLabel(field.id, values[0]) : 'Incluye nulos'
+          if (values.length <= 1) displayValue = values[0] ? this.resolveLabel(field.id, values[0]) : ''
           else if (values.length <= 3) displayValue = values.map(v => this.resolveLabel(field.id, v)).join(', ')
           else displayValue = `${values.length} seleccionados`
-          if (displayValue === '' && 'includeNull' in field && field.includeNull && state[field.includeNull.param] === true) {
-            displayValue = 'Incluye nulos'
+
+          if (values.length === 0 && includeNullActive && includeNullLabel) {
+            displayValue = includeNullLabel
+          } else if (values.length > 0 && includeNullActive && includeNullLabel) {
+            displayValue = `${displayValue} + ${lowerFirst(includeNullLabel)}`
           }
+
           chips.push({ filterId: field.id, label: field.label, displayValue })
           continue
         }
         if (field.kind === 'numeric-range') {
           const value = (state[field.id] as { min?: number, max?: number } | undefined) ?? {}
-          chips.push({ filterId: field.id, label: field.label, displayValue: `${value.min ?? '—'} - ${value.max ?? '—'}` })
+          const min = typeof value.min === 'number' ? formatNumericValue(value.min, field) : undefined
+          const max = typeof value.max === 'number' ? formatNumericValue(value.max, field) : undefined
+
+          let displayValue = ''
+          if (min && max) displayValue = `${min} — ${max}`
+          else if (min) displayValue = `Desde ${min}`
+          else if (max) displayValue = `Hasta ${max}`
+
+          chips.push({ filterId: field.id, label: field.label, displayValue })
           continue
         }
+
         const value = (state[field.id] as { from?: string, to?: string } | undefined) ?? {}
-        chips.push({ filterId: field.id, label: field.label, displayValue: `${value.from ?? '—'} - ${value.to ?? '—'}` })
+        const includeNullActive = field.includeNull ? state[field.includeNull.param] === true : false
+        const from = value.from ? formatLocalDateLabel(value.from) : ''
+        const to = value.to ? formatLocalDateLabel(value.to) : ''
+
+        let displayValue = ''
+        if (from && to) displayValue = isSameLocalDay(value.from!, value.to!) ? from : `${from} — ${to}`
+        else if (from) displayValue = `Desde ${from}`
+        else if (to) displayValue = `Hasta ${to}`
+
+        if (!from && !to && includeNullActive && field.includeNull) {
+          displayValue = field.includeNull.label
+        } else if ((from || to) && includeNullActive && field.includeNull) {
+          displayValue = `${displayValue} + ${lowerFirst(field.includeNull.label)}`
+        }
+
+        chips.push({ filterId: field.id, label: field.label, displayValue })
       }
       return chips
     },
