@@ -8,7 +8,7 @@ const CalendarStub = {
   name: 'Calendar',
   props: ['modelValue', 'range'],
   emits: ['update:modelValue'],
-  template: '<div data-testid="calendar-stub" />',
+  template: '<div data-testid="calendar-stub">{{ modelValue?.start?.year }}-{{ modelValue?.start?.month }}-{{ modelValue?.start?.day }}|{{ modelValue?.end?.year }}-{{ modelValue?.end?.month }}-{{ modelValue?.end?.day }}</div>',
 }
 
 const PopoverStub = {
@@ -41,6 +41,22 @@ function mountComponent(modelValue: { from?: string; to?: string } = {}) {
   })
 }
 
+function getLocalYmd(value: string) {
+  const date = new Date(value)
+  return {
+    year: date.getFullYear(),
+    month: date.getMonth() + 1,
+    day: date.getDate(),
+  }
+}
+
+async function clickPreset(wrapper: ReturnType<typeof mountComponent>, label: string) {
+  await wrapper.find('[data-testid="popover-trigger"]').trigger('click')
+  const preset = wrapper.findAll('[data-testid="date-preset"]').find((node) => node.text() === label)
+  expect(preset).toBeDefined()
+  await preset!.trigger('click')
+}
+
 describe('DateRangeFilter', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -55,7 +71,7 @@ describe('DateRangeFilter', () => {
     const wrapper = mountComponent()
     await wrapper.find('[data-testid="popover-trigger"]').trigger('click')
 
-    const calendar = wrapper.findComponent(CalendarStub)
+    const calendar = wrapper.findComponent({ name: 'Calendar' })
     calendar.vm.$emit('update:modelValue', { start: new CalendarDate(2026, 1, 1) })
     await wrapper.vm.$nextTick()
 
@@ -133,21 +149,84 @@ describe('DateRangeFilter', () => {
   })
 
   it('applies today preset and emits start/end in ISO', async () => {
-    const wrapper = mount(DateRangeFilter, {
-      props: { modelValue: {}, label: 'Fecha', presets: true },
-      global: { stubs: { UCalendar: CalendarStub, UPopover: PopoverStub, Popover: PopoverStub, UButton: { template: '<button v-bind="$attrs" @click="$emit(\'click\')"><slot /></button>' }, Button: { template: '<button v-bind="$attrs" @click="$emit(\'click\')"><slot /></button>' }, UFormField: { template: '<div><slot /></div>' } } },
-    })
-
-    await wrapper.find('[data-testid="popover-trigger"]').trigger('click')
-
-    const presets = wrapper.findAll('[data-testid="date-preset"]')
-    expect(presets.length).toBeGreaterThan(0)
-    await presets[0]!.trigger('click')
+    const wrapper = mountComponent()
+    await clickPreset(wrapper, 'Hoy')
     const events = wrapper.emitted('update:modelValue') ?? []
     expect(events[events.length - 1]?.[0]).toEqual({
       from: localStartOfDayUTC('2026-03-15'),
       to: localEndOfDayUTC('2026-03-15'),
     })
+
+    const payload = events[events.length - 1]?.[0] as { from: string; to: string }
+    expect(getLocalYmd(payload.from)).toEqual(getLocalYmd(payload.to))
+  })
+
+  it('keeps yesterday preset as a single local day', async () => {
+    const wrapper = mountComponent()
+    await clickPreset(wrapper, 'Ayer')
+
+    const events = wrapper.emitted('update:modelValue') ?? []
+    const payload = events[events.length - 1]?.[0] as { from: string; to: string }
+    expect(getLocalYmd(payload.from)).toEqual(getLocalYmd(payload.to))
+  })
+
+  it('applies last 7 days as inclusive range', async () => {
+    const wrapper = mountComponent()
+    await clickPreset(wrapper, 'Últimos 7 días')
+
+    const events = wrapper.emitted('update:modelValue') ?? []
+    const payload = events[events.length - 1]?.[0] as { from: string; to: string }
+    expect(payload).toEqual({
+      from: localStartOfDayUTC('2026-03-09'),
+      to: localEndOfDayUTC('2026-03-15'),
+    })
+  })
+
+  it('applies last 30 days as inclusive range', async () => {
+    const wrapper = mountComponent()
+    await clickPreset(wrapper, 'Últimos 30 días')
+
+    const events = wrapper.emitted('update:modelValue') ?? []
+    const payload = events[events.length - 1]?.[0] as { from: string; to: string }
+    expect(payload).toEqual({
+      from: localStartOfDayUTC('2026-02-14'),
+      to: localEndOfDayUTC('2026-03-15'),
+    })
+  })
+
+  it('applies this month preset from day one to today', async () => {
+    const wrapper = mountComponent()
+    await clickPreset(wrapper, 'Este mes')
+
+    const events = wrapper.emitted('update:modelValue') ?? []
+    const payload = events[events.length - 1]?.[0] as { from: string; to: string }
+    expect(payload).toEqual({
+      from: localStartOfDayUTC('2026-03-01'),
+      to: localEndOfDayUTC('2026-03-15'),
+    })
+  })
+
+  it('applies last month preset from first to last day of previous month', async () => {
+    const wrapper = mountComponent()
+    await clickPreset(wrapper, 'Mes pasado')
+
+    const events = wrapper.emitted('update:modelValue') ?? []
+    const payload = events[events.length - 1]?.[0] as { from: string; to: string }
+    expect(payload).toEqual({
+      from: localStartOfDayUTC('2026-02-01'),
+      to: localEndOfDayUTC('2026-02-28'),
+    })
+  })
+
+  it('hydrates UTC ISO roundtrip back to same local calendar day', () => {
+    const wrapper = mountComponent({
+      from: '2026-05-24T06:00:00.000Z',
+      to: '2026-05-25T05:59:59.999Z',
+    })
+
+    const triggerText = wrapper.get('[data-testid="date-range-trigger"]').text()
+    const [start, end] = triggerText.split(' - ')
+    expect(start).toBe(end)
   })
 
   it('renders includeNull checkbox only when popover opens and emits toggle', async () => {
@@ -175,9 +254,10 @@ describe('DateRangeFilter', () => {
 
     expect(wrapper.text()).toContain('Fecha inválida')
   })
-})
+
   it('renders with default props and full-width trigger', () => {
     const wrapper = mountComponent()
     expect(wrapper.find('[data-testid="date-range-filter"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="date-range-trigger"]').classes()).toContain('w-full')
   })
+})

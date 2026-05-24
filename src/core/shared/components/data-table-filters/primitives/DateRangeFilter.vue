@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CalendarDate, getLocalTimeZone, parseDate, today } from '@internationalized/date'
+import { CalendarDate, getLocalTimeZone, today } from '@internationalized/date'
 import { computed, shallowRef, watch } from 'vue'
 import { localEndOfDayUTC, localStartOfDayUTC } from '@/core/shared/utils/dateRangeBoundaries'
 
@@ -15,16 +15,21 @@ const props = withDefaults(defineProps<{
 const modelValue = defineModel<{ from?: string; to?: string }>({ default: () => ({}) })
 const includeNullValue = defineModel<boolean>('includeNullValue', { default: false })
 
-function toDateInput(value?: string): string {
-  if (!value) return ''
-  return value.slice(0, 10)
-}
-
 type CalendarRange = { start?: CalendarDate; end?: CalendarDate }
 
+function isoToLocalCalendarDate(iso: string): CalendarDate | undefined {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return undefined
+  return new CalendarDate(
+    date.getFullYear(),
+    date.getMonth() + 1,
+    date.getDate(),
+  )
+}
+
 function toCalendarRange(value: { from?: string; to?: string }): CalendarRange | undefined {
-  const start = value.from ? parseDate(toDateInput(value.from)) : undefined
-  const end = value.to ? parseDate(toDateInput(value.to)) : undefined
+  const start = value.from ? isoToLocalCalendarDate(value.from) : undefined
+  const end = value.to ? isoToLocalCalendarDate(value.to) : undefined
   if (!start && !end) return undefined
   return { start, end }
 }
@@ -90,56 +95,34 @@ const presets: Preset[] = [
   { key: 'lastMonth', label: 'Mes pasado' },
 ]
 
-function toIsoDate(value: Date): string {
-  const month = String(value.getMonth() + 1).padStart(2, '0')
-  const day = String(value.getDate()).padStart(2, '0')
-  return `${value.getFullYear()}-${month}-${day}`
-}
-
-function toJsDate(value: CalendarDate): Date {
-  return new Date(value.year, value.month - 1, value.day)
-}
-
-function toCalendarDate(value: Date): CalendarDate {
-  return parseDate(toIsoDate(value))
-}
-
 function applyPreset(key: Preset['key']) {
-  const current = today(getLocalTimeZone())
-  const now = toJsDate(current)
-  let from = now
-  let to = now
+  const todayDate = today(getLocalTimeZone())
+  let start: CalendarDate = todayDate
+  let end: CalendarDate = todayDate
 
   if (key === 'yesterday') {
-    from = new Date(now)
-    from.setDate(from.getDate() - 1)
-    to = new Date(from)
+    start = todayDate.subtract({ days: 1 })
+    end = start
+  }
+  else if (key === 'last7') {
+    start = todayDate.subtract({ days: 6 })
+    end = todayDate
+  }
+  else if (key === 'last30') {
+    start = todayDate.subtract({ days: 29 })
+    end = todayDate
+  }
+  else if (key === 'thisMonth') {
+    start = todayDate.set({ day: 1 })
+    end = todayDate
+  }
+  else if (key === 'lastMonth') {
+    const firstOfThis = todayDate.set({ day: 1 })
+    start = firstOfThis.subtract({ months: 1 })
+    end = firstOfThis.subtract({ days: 1 })
   }
 
-  if (key === 'last7') {
-    from = new Date(now)
-    from.setDate(from.getDate() - 7)
-  }
-
-  if (key === 'last30') {
-    from = new Date(now)
-    from.setDate(from.getDate() - 30)
-  }
-
-  if (key === 'thisMonth') {
-    from = new Date(now.getFullYear(), now.getMonth(), 1)
-    to = new Date(now)
-  }
-
-  if (key === 'lastMonth') {
-    from = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-    to = new Date(now.getFullYear(), now.getMonth(), 0)
-  }
-
-  selectedRange.value = {
-    start: toCalendarDate(from),
-    end: toCalendarDate(to),
-  }
+  selectedRange.value = { start, end }
 
   emitRange()
 }
