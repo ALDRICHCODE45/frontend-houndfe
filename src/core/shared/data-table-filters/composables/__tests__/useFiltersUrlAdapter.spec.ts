@@ -1,4 +1,4 @@
-import { defineComponent, nextTick } from 'vue'
+import { computed, defineComponent, nextTick, ref } from 'vue'
 import { mount } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { describe, expect, it, vi } from 'vitest'
@@ -47,5 +47,32 @@ describe('useFiltersUrlAdapter', () => {
   it('router optional fallback does not throw', () => {
     const adapter = useFiltersUrlAdapter(schema)
     expect(() => adapter.write(schema.defaults())).not.toThrow()
+  })
+
+  it('uses latest schema when schema is reactive', async () => {
+    let adapter!: ReturnType<typeof useFiltersUrlAdapter>
+    const useV2 = ref(false)
+    const reactiveSchema = computed(() => defineFiltersSchema([
+      filter.multiEnum({ id: 'paymentStatus', label: 'Estado', param: useV2.value ? 'paymentStatusV2' : 'paymentStatus', options: [] }),
+    ]))
+
+    const Harness = defineComponent({ setup() { adapter = useFiltersUrlAdapter(reactiveSchema); return () => null } })
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: Harness }] })
+
+    await router.push('/?paymentStatus=PAID')
+    await router.isReady()
+    mount(Harness, { global: { plugins: [router] } })
+
+    expect(adapter.read().paymentStatus).toEqual(['PAID'])
+
+    useV2.value = true
+    await nextTick()
+
+    const replaceSpy = vi.spyOn(router, 'replace')
+    adapter.write({ paymentStatus: ['PARTIAL'] })
+    await nextTick()
+
+    const last = replaceSpy.mock.calls[replaceSpy.mock.calls.length - 1]?.[0] as { query: Record<string, string> }
+    expect(last.query.paymentStatusV2).toBe('PARTIAL')
   })
 })

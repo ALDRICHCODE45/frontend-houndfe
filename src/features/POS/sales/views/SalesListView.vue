@@ -59,7 +59,7 @@ const salesFiltersSchema = computed(() => createSalesFiltersSchema({
   cashierLoading: cashiersQuery.isLoading.value,
 }))
 
-const filtersAdapter = useFiltersUrlAdapter(salesFiltersSchema.value)
+const filtersAdapter = useFiltersUrlAdapter(salesFiltersSchema)
 const filtersCtl = useDataTableFilters(salesFiltersSchema, filtersAdapter)
 const filtersState = computed({
   get: () => filtersCtl.state.value,
