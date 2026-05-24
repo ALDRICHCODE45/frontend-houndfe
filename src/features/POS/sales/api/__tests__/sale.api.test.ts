@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { buildSalesListParams, saleApi } from '../sale.api'
-import { localEndOfDayUTC } from '@/core/shared/utils/dateRangeBoundaries'
+import { saleApi } from '../sale.api'
 import { http } from '@/core/shared/api/http'
 import type {
   Sale,
@@ -619,7 +618,7 @@ describe('saleApi', () => {
       expect(result.data[0]?.debtCents).toBe(0)
     })
 
-    it('should build canonical params before calling /sales', async () => {
+    it('passes already-serialized UTC date params through unchanged', async () => {
       const response: ConfirmedSalesListResponse = {
         data: [],
         pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
@@ -627,27 +626,53 @@ describe('saleApi', () => {
       }
       vi.mocked(http.get).mockResolvedValue({ data: response })
 
-      await saleApi.listConfirmed({
-        paymentStatus: ['PAID', 'PARTIAL'],
-        customerId: ['customer-1', 'customer-2'],
-        totalMin: 10000,
-        totalMax: 50000,
-        confirmedFrom: '2026-01-01T00:00:00.000Z',
-        confirmedTo: '2026-01-31',
-        customerIncludeNull: true,
-      })
+      const params: ListSalesParams = {
+        confirmedFrom: '2026-05-23T06:00:00.000Z',
+        confirmedTo: '2026-05-24T05:59:59.999Z',
+      }
+
+      await saleApi.listConfirmed(params)
 
       expect(http.get).toHaveBeenCalledWith('/sales', {
-        params: {
-          paymentStatus: ['PAID', 'PARTIAL'],
-          customerId: ['customer-1', 'customer-2'],
-          totalMin: 10000,
-          totalMax: 50000,
-          confirmedFrom: '2026-01-01T00:00:00.000Z',
-          confirmedTo: localEndOfDayUTC('2026-01-31'),
-          customerIncludeNull: true,
-        },
+        params,
       })
+    })
+
+    it('does not re-transform folio CSV already normalized upstream', async () => {
+      const response: ConfirmedSalesListResponse = {
+        data: [],
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
+        counts: { all: 0, pendingPayments: 0, notDelivered: 0 },
+      }
+      vi.mocked(http.get).mockResolvedValue({ data: response })
+
+      const params = {
+        folio: 'A-202605-000017,A-202605-000018',
+      } as unknown as ListSalesParams
+
+      await saleApi.listConfirmed(params)
+
+      expect(http.get).toHaveBeenCalledWith('/sales', {
+        params,
+      })
+    })
+
+    it('regression: accepts Hoy preset UTC range without throwing and calls HTTP', async () => {
+      const response: ConfirmedSalesListResponse = {
+        data: [],
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
+        counts: { all: 0, pendingPayments: 0, notDelivered: 0 },
+      }
+      vi.mocked(http.get).mockResolvedValue({ data: response })
+
+      const params: ListSalesParams = {
+        confirmedFrom: '2026-05-23T06:00:00.000Z',
+        confirmedTo: '2026-05-24T05:59:59.999Z',
+      }
+
+      await expect(saleApi.listConfirmed(params)).resolves.toEqual(response)
+      expect(http.get).toHaveBeenCalledWith('/sales', { params })
+      expect(http.get).toHaveBeenCalledTimes(1)
     })
 
     it('should pass empty params object and keep backend defaults', async () => {
@@ -662,82 +687,6 @@ describe('saleApi', () => {
 
       expect(http.get).toHaveBeenCalledWith('/sales', { params: {} })
       expect(result.data).toHaveLength(0)
-    })
-  })
-
-  describe('buildSalesListParams', () => {
-    it('maps arrays, ranges and includeNull fields without legacy from/to keys', () => {
-      const params = buildSalesListParams({
-        paymentStatus: ['PAID', 'PARTIAL'],
-        paymentMethod: ['CASH'],
-        deliveryStatus: ['PENDING'],
-        status: ['CONFIRMED'],
-        folio: ['A-0001', 'A-0002'],
-        customerId: ['customer-1'],
-        totalMin: 10000,
-        totalMax: 50000,
-        debtMin: 0,
-        debtMax: 1000,
-        confirmedFrom: '2026-01-01T00:00:00.000Z',
-        confirmedTo: '2026-01-31',
-        dueDateFrom: '2026-02-01',
-        dueDateTo: '2026-02-28',
-        customerIncludeNull: true,
-        dueDateIncludeNull: false,
-        paymentMethodIncludeNull: true,
-      })
-
-      expect(params).toMatchObject({
-        paymentStatus: ['PAID', 'PARTIAL'],
-        paymentMethod: ['CASH'],
-        deliveryStatus: ['PENDING'],
-        status: ['CONFIRMED'],
-        folio: ['A-0001', 'A-0002'],
-        customerId: ['customer-1'],
-        totalMin: 10000,
-        totalMax: 50000,
-        debtMin: 0,
-        debtMax: 1000,
-        confirmedFrom: '2026-01-01T00:00:00.000Z',
-        confirmedTo: localEndOfDayUTC('2026-01-31'),
-        dueDateFrom: '2026-02-01',
-        dueDateTo: localEndOfDayUTC('2026-02-28'),
-        customerIncludeNull: true,
-        dueDateIncludeNull: false,
-        paymentMethodIncludeNull: true,
-      })
-      expect(params).not.toHaveProperty('from')
-      expect(params).not.toHaveProperty('to')
-    })
-
-    it('omits empty and undefined values', () => {
-      const params = buildSalesListParams({
-        paymentStatus: [],
-        customerId: [],
-        confirmedFrom: undefined,
-        confirmedTo: undefined,
-        customerIncludeNull: undefined,
-      })
-
-      expect(params).toEqual({})
-    })
-
-    it('formats folio tokens for backend contract', () => {
-      vi.useFakeTimers()
-      vi.setSystemTime(new Date('2026-05-23T12:00:00.000Z'))
-
-      const params = buildSalesListParams({
-        folio: ['16', '#16', 'A-202605-000016', 'invalid', ''],
-      })
-
-      expect(params.folio).toEqual([
-        'A-202605-000016',
-        'A-202605-000016',
-        'A-202605-000016',
-        'invalid',
-      ])
-
-      vi.useRealTimers()
     })
   })
 
