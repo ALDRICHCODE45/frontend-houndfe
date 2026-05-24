@@ -3,8 +3,8 @@ import { createSalesFiltersSchema } from '../salesFiltersSchema'
 
 describe('salesFiltersSchema', () => {
   it('defines the expected sales filter ids and kinds', () => {
-    const salesFiltersSchema = createSalesFiltersSchema()
-    const ids = salesFiltersSchema.map(field => field.id)
+    const salesFiltersSchema = createSalesFiltersSchema({ customerOptions: [], customerLoading: false, cashierOptions: [], cashierLoading: false })
+    const ids = salesFiltersSchema.fields.map(field => field.id)
 
     expect(ids).toEqual([
       'folio',
@@ -22,10 +22,10 @@ describe('salesFiltersSchema', () => {
   })
 
   it('defines includeNull behavior for paymentMethod, customerId and dueDate', () => {
-    const salesFiltersSchema = createSalesFiltersSchema()
-    const paymentMethod = salesFiltersSchema.find(field => field.id === 'paymentMethod')
-    const customer = salesFiltersSchema.find(field => field.id === 'customerId')
-    const dueDate = salesFiltersSchema.find(field => field.id === 'dueDate')
+    const salesFiltersSchema = createSalesFiltersSchema({ customerOptions: [], customerLoading: false, cashierOptions: [], cashierLoading: false })
+    const paymentMethod = salesFiltersSchema.fields.find(field => field.id === 'paymentMethod')
+    const customer = salesFiltersSchema.fields.find(field => field.id === 'customerId')
+    const dueDate = salesFiltersSchema.fields.find(field => field.id === 'dueDate')
 
     expect(paymentMethod?.kind).toBe('multi-enum')
     if (paymentMethod?.kind === 'multi-enum') {
@@ -44,8 +44,8 @@ describe('salesFiltersSchema', () => {
   })
 
   it('assigns sections for visual grouping in slideover', () => {
-    const salesFiltersSchema = createSalesFiltersSchema()
-    const sections = Object.fromEntries(salesFiltersSchema.map(field => [field.id, field.section]))
+    const salesFiltersSchema = createSalesFiltersSchema({ customerOptions: [], customerLoading: false, cashierOptions: [], cashierLoading: false })
+    const sections = Object.fromEntries(salesFiltersSchema.fields.map(field => [field.id, field.section]))
 
     expect(sections).toMatchObject({
       folio: undefined,
@@ -66,12 +66,12 @@ describe('salesFiltersSchema', () => {
     const schema = createSalesFiltersSchema({
       customerOptions: [{ value: 'customer-1', label: 'Ada Lovelace' }],
       cashierOptions: [{ value: 'cashier-1', label: 'Grace Hopper' }],
-      customersLoading: true,
-      cashiersLoading: true,
+      customerLoading: true,
+      cashierLoading: true,
     })
 
-    const customer = schema.find(field => field.id === 'customerId')
-    const cashier = schema.find(field => field.id === 'cashierUserId')
+    const customer = schema.fields.find(field => field.id === 'customerId')
+    const cashier = schema.fields.find(field => field.id === 'cashierUserId')
 
     expect(customer?.kind).toBe('multi-async')
     if (customer?.kind === 'multi-async') {

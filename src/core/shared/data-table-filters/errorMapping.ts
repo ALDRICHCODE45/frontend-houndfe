@@ -1,4 +1,7 @@
-import type { FilterFieldError } from './types'
+export type FilterFieldError = {
+  filterId: string
+  message: string
+}
 
 const LISTING_ERROR_MESSAGES: Record<string, string> = {
   LISTING_INVALID_ENUM_VALUE: 'Valor inválido en {field}',
@@ -15,23 +18,10 @@ type ListingErrorLike = {
 }
 
 export function mapListingErrorToFilterField(error: unknown): FilterFieldError | null {
-  if (!error || typeof error !== 'object') {
-    return null
-  }
-
+  if (!error || typeof error !== 'object') return null
   const { code, field } = error as ListingErrorLike
-
-  if (typeof code !== 'string' || typeof field !== 'string' || !field) {
-    return null
-  }
-
+  if (typeof code !== 'string' || typeof field !== 'string' || !field) return null
   const template = LISTING_ERROR_MESSAGES[code]
-  if (!template) {
-    return null
-  }
-
-  return {
-    filterId: field,
-    message: template.replace('{field}', field),
-  }
+  if (!template) return null
+  return { filterId: field, message: template.replace('{field}', field) }
 }

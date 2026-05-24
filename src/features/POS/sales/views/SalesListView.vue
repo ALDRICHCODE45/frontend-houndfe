@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
 import { AppDataTable } from '@/core/shared/components/DataTable'
-import DataTableFilters from '@/core/shared/components/data-table-filters/DataTableFilters.vue'
+import { DataTableFilters, useDataTableFilters, useFiltersUrlAdapter } from '@/core/shared/data-table-filters'
 import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
@@ -25,7 +25,6 @@ const router = useRouter()
 const authStore = useAuthStore()
 const canReadSales = computed(() => authStore.userCan('read', 'Sale'))
 const tenantId = computed(() => authStore.currentTenantId || 'default')
-const filters = ref<Record<string, unknown>>({})
 
 const customersQuery = useQuery({
   queryKey: computed(() => customerQueryKeys.paginated(tenantId.value)),
@@ -56,9 +55,16 @@ const cashierOptions = computed(() =>
 const salesFiltersSchema = computed(() => createSalesFiltersSchema({
   customerOptions: customerOptions.value,
   cashierOptions: cashierOptions.value,
-  customersLoading: customersQuery.isLoading.value,
-  cashiersLoading: cashiersQuery.isLoading.value,
+  customerLoading: customersQuery.isLoading.value,
+  cashierLoading: cashiersQuery.isLoading.value,
 }))
+
+const filtersAdapter = useFiltersUrlAdapter(salesFiltersSchema.value)
+const filtersCtl = useDataTableFilters(salesFiltersSchema, filtersAdapter)
+const filtersState = computed({
+  get: () => filtersCtl.state.value,
+  set: (next) => { filtersCtl.state.value = next },
+})
 
 const {
   pagination,
@@ -79,7 +85,7 @@ const {
   counts,
   setDeliveryStatusFilter,
   filterErrors,
-} = useConfirmedSales(filters)
+} = useConfirmedSales(filtersCtl.backendParams)
 
 const { columns } = useSalesColumns()
 
@@ -98,16 +104,11 @@ function goToSaleDetail(id: string) {
   void router.push(`/pos/ventas/${id}`)
 }
 
-const baseFilterIds = new Set(['q', 'confirmedFrom', 'confirmedTo', 'cashierUserId', 'customerId', 'customerIncludeNull'])
-const activeExtendedFiltersCount = computed(() => Object.entries(filters.value).filter(([key, value]) => {
-  if (baseFilterIds.has(key)) return false
-  if (Array.isArray(value)) return value.length > 0
-  return value !== undefined && value !== null && value !== '' && value !== false
-}).length)
+const activeExtendedFiltersCount = computed(() => filtersCtl.activeCount.value)
 
-watch(filters, () => {
+watch(() => filtersCtl.serializedState.value, () => {
   pagination.value = { ...pagination.value, pageIndex: 0 }
-}, { deep: true })
+})
 </script>
 
 <template>
@@ -122,11 +123,11 @@ watch(filters, () => {
 
       <div class="px-6 py-5 space-y-4">
         <div class="overflow-x-auto">
-          <DataTableFilters
-            v-model="filters"
-            :schema="salesFiltersSchema"
-            :errors="filterErrors"
-          />
+            <DataTableFilters
+              v-model:state="filtersState"
+              :schema="salesFiltersSchema"
+              :errors="filterErrors"
+            />
         </div>
         <div v-if="activeExtendedFiltersCount > 0" class="text-xs text-muted" data-testid="extended-filters-indicator">
           Filtros activos: {{ activeExtendedFiltersCount }} · Limpiar

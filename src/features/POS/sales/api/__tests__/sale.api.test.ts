@@ -720,6 +720,24 @@ describe('saleApi', () => {
 
       expect(params).toEqual({})
     })
+
+    it('formats folio tokens for backend contract', () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date('2026-05-23T12:00:00.000Z'))
+
+      const params = buildSalesListParams({
+        folio: ['16', '#16', 'A-202605-000016', 'invalid', ''],
+      })
+
+      expect(params.folio).toEqual([
+        'A-202605-000016',
+        'A-202605-000016',
+        'A-202605-000016',
+        'invalid',
+      ])
+
+      vi.useRealTimers()
+    })
   })
 
   describe('getById', () => {

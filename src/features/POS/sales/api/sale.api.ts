@@ -28,6 +28,7 @@ import type {
 } from '../interfaces/sale.types'
 import { SaleCommentError } from '../interfaces/sale.types'
 import { endOfDayUTC } from '../utils/saleDate.utils'
+import { formatFolioForBackend } from '../utils/folio'
 
 interface DomainErrorResponse {
   error?: string
@@ -54,6 +55,11 @@ export function buildSalesListParams(params: ListSalesParams): ListSalesParams {
 
     if (Array.isArray(value)) {
       if (value.length === 0) {
+        continue
+      }
+
+      if (key === 'folio') {
+        result[key] = value.map(token => formatFolioForBackend(token)).filter(Boolean)
         continue
       }
 

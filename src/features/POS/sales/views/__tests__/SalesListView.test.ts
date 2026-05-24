@@ -157,7 +157,7 @@ const stubs = {
   },
   AppDataTable: appDataTableStub,
   DataTableFilters: {
-    props: ['modelValue', 'schema', 'errors'],
+    props: ['state', 'schema', 'errors'],
     template: '<div data-testid="sales-filters" :data-errors="JSON.stringify(errors)" :data-schema="JSON.stringify(schema)" />',
   },
   SaleCard: {
@@ -270,10 +270,10 @@ describe('SalesListView', () => {
 
     const wrapper = mount(SalesListView, { global: { stubs } })
     const filters = wrapper.get('[data-testid="sales-filters"]')
-    const schema = JSON.parse(filters.attributes('data-schema') ?? '[]') as Array<Record<string, unknown>>
+    const schema = JSON.parse(filters.attributes('data-schema') ?? '{}') as { fields?: Array<Record<string, unknown>> }
 
-    const customerField = schema.find((field) => field.id === 'customerId')
-    const cashierField = schema.find((field) => field.id === 'cashierUserId')
+    const customerField = schema.fields?.find((field) => field.id === 'customerId')
+    const cashierField = schema.fields?.find((field) => field.id === 'cashierUserId')
 
     expect(customerField?.options).toEqual([{ value: 'customer-1', label: 'Ada Lovelace' }])
     expect(cashierField?.options).toEqual([{ value: 'cashier-1', label: 'Grace Hopper' }])
@@ -285,10 +285,10 @@ describe('SalesListView', () => {
 
     const wrapper = mount(SalesListView, { global: { stubs } })
     const filters = wrapper.get('[data-testid="sales-filters"]')
-    const schema = JSON.parse(filters.attributes('data-schema') ?? '[]') as Array<Record<string, unknown>>
+    const schema = JSON.parse(filters.attributes('data-schema') ?? '{}') as { fields?: Array<Record<string, unknown>> }
 
-    const customerField = schema.find((field) => field.id === 'customerId')
-    const cashierField = schema.find((field) => field.id === 'cashierUserId')
+    const customerField = schema.fields?.find((field) => field.id === 'customerId')
+    const cashierField = schema.fields?.find((field) => field.id === 'cashierUserId')
 
     expect(customerField?.loading).toBe(true)
     expect(cashierField?.loading).toBe(true)
