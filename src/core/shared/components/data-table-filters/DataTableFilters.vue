@@ -169,7 +169,7 @@ function setIncludeNullValue(field: { includeNull?: { param: string } }, value: 
       <DataTableFiltersChips :chips="activeChips" @remove="removeChip" @clear="clearAllFilters" />
     </slot>
 
-    <USlideover :open="open" :side="slideoverSide" :inset="isDesktop" :content="{ class: 'w-full md:max-w-md max-h-[90vh]' }" @update:open="open = $event">
+    <USlideover :open="open" :side="slideoverSide" :content="{ class: 'max-h-[95vh] sm:max-h-screen' }" @update:open="open = $event">
       <template #content>
         <div class="flex h-full flex-col" data-testid="filters-slideover-layout">
           <div class="sticky top-0 z-10 space-y-3 border-b border-default bg-default px-6 py-5" data-testid="filters-header">

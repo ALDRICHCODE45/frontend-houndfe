@@ -200,15 +200,19 @@ const rangeLabel = computed(() => {
             @update:model-value="updateRange"
           />
         </div>
+
+        <template v-if="props.includeNullOption">
+          <USeparator />
+          <label class="flex cursor-pointer items-center gap-2 p-3 text-sm text-muted">
+            <UCheckbox
+              :model-value="props.includeNullValue"
+              :data-testid="`include-null-${props.label}`"
+              @update:model-value="(value: unknown) => emit('update:includeNullValue', Boolean(value))"
+            />
+            <span>{{ props.includeNullOption }}</span>
+          </label>
+        </template>
       </template>
     </UPopover>
-
-    <div v-if="props.includeNullOption" class="mt-2 flex items-center gap-2">
-      <UCheckbox
-        :model-value="props.includeNullValue"
-        @update:model-value="(value: unknown) => emit('update:includeNullValue', Boolean(value))"
-      />
-      <span class="text-sm text-muted">{{ props.includeNullOption }}</span>
-    </div>
   </UFormField>
 </template>
