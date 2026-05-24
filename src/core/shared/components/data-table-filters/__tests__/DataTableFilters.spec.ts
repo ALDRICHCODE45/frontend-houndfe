@@ -25,6 +25,7 @@ const schema: FilterDefinition[] = [
   {
     kind: 'multi-enum',
     id: 'paymentStatus',
+    section: 'Estado',
     label: 'Estado',
     param: 'paymentStatus',
     options: [
@@ -36,6 +37,7 @@ const schema: FilterDefinition[] = [
   {
     kind: 'multi-text',
     id: 'folio',
+    section: 'Identificación',
     label: 'Folio',
     param: 'folio',
     max: 200,
@@ -43,6 +45,7 @@ const schema: FilterDefinition[] = [
   {
     kind: 'number-range',
     id: 'total',
+    section: 'Montos',
     label: 'Total',
     minParam: 'totalMin',
     maxParam: 'totalMax',
@@ -74,6 +77,7 @@ function mountComponent(overrideProps: Record<string, unknown> = {}) {
           template: '<div :data-side="side"><slot name="content" /></div>',
         },
         UButton: {
+          props: ['variant', 'size'],
           emits: ['click'],
           template: '<button @click="$emit(\'click\')"><slot /></button>',
         },
@@ -103,6 +107,8 @@ function mountComponent(overrideProps: Record<string, unknown> = {}) {
           emits: ['remove', 'clear'],
           template: '<div data-testid="chips" />',
         },
+        UBadge: { template: '<span data-testid="active-filters-badge"><slot /></span>' },
+        USeparator: { template: '<hr data-testid="separator" />' },
       },
     },
   })
@@ -134,6 +140,32 @@ describe('DataTableFilters', () => {
       totalMin: undefined,
       totalMax: undefined,
     })
+  })
+
+  it('renders schema sections in slideover body', () => {
+    const wrapper = mountComponent()
+    expect(wrapper.text()).toContain('Identificación')
+    expect(wrapper.text()).toContain('Estado')
+    expect(wrapper.text()).toContain('Montos')
+  })
+
+  it('shows active filter count badge and clear-all in slideover header only when active filters exist', async () => {
+    const wrapper = mountComponent()
+    expect(wrapper.find('[data-testid="active-filters-badge"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="clear-all-inside"]').exists()).toBe(true)
+
+    await wrapper.find('[data-testid="clear-all-inside"]').trigger('click')
+
+    expect(wrapper.find('[data-testid="active-filters-badge"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="clear-all-inside"]').exists()).toBe(false)
+  })
+
+  it('renders sticky layout containers for header/body/footer', () => {
+    const wrapper = mountComponent()
+    expect(wrapper.find('[data-testid="filters-slideover-layout"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="filters-header"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="filters-body"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="filters-footer"]').exists()).toBe(true)
   })
 
   it('renders multi-text primitive for multi-text fields', () => {

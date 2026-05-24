@@ -27,10 +27,9 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="space-y-2" data-testid="multi-select-enum-filter">
-    <label class="text-sm font-medium text-highlighted">{{ props.label }}</label>
-
+  <UFormField :label="props.label" :error="props.error" data-testid="multi-select-enum-filter">
     <USelectMenu
+      data-testid="enum-select"
       :model-value="props.modelValue"
       :items="props.options"
       :placeholder="props.placeholder"
@@ -40,14 +39,12 @@ const emit = defineEmits<{
       @update:model-value="(value: unknown) => emit('update:modelValue', (value as string[]) ?? [])"
     />
 
-    <div v-if="props.includeNullOption" class="flex items-center gap-2">
+    <div v-if="props.includeNullOption" class="mt-2 flex items-center gap-2">
       <UCheckbox
         :model-value="props.includeNullValue"
         @update:model-value="(value: unknown) => emit('update:includeNullValue', Boolean(value))"
       />
       <span class="text-sm text-muted">{{ props.includeNullOption }}</span>
     </div>
-
-    <p v-if="props.error" class="text-sm text-error">{{ props.error }}</p>
-  </div>
+  </UFormField>
 </template>

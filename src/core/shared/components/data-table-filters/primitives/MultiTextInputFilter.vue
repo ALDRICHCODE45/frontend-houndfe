@@ -69,9 +69,7 @@ function onKeydown(event: KeyboardEvent) {
 </script>
 
 <template>
-  <div class="space-y-2" data-testid="multi-text-input-filter">
-    <label class="text-sm font-medium text-highlighted">{{ props.label }}</label>
-
+  <UFormField :label="props.label" :error="props.error" data-testid="multi-text-input-filter">
     <UInput
       v-model="inputValue"
       data-testid="multi-text-input"
@@ -80,10 +78,8 @@ function onKeydown(event: KeyboardEvent) {
       @keydown="onKeydown"
     />
 
-    <p v-if="helperText" class="text-xs text-muted" data-testid="multi-text-helper">
+    <p v-if="helperText" class="mt-2 text-xs text-muted" data-testid="multi-text-helper">
       {{ helperText }}
     </p>
-
-    <p v-if="props.error" class="text-sm text-error">{{ props.error }}</p>
-  </div>
+  </UFormField>
 </template>

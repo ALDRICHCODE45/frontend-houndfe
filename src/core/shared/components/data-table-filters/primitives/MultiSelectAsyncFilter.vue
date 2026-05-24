@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
 
 type PrimitiveOption = {
   label: string
@@ -29,36 +28,14 @@ const emit = defineEmits<{
   (event: 'update:includeNullValue', value: boolean): void
 }>()
 
-const search = ref('')
-
-const filteredOptions = computed(() => {
-  const query = search.value.trim().toLowerCase()
-  if (!query) {
-    return props.options
-  }
-
-  return props.options.filter(option => option.label.toLowerCase().includes(query))
-})
-
-function updateSearch(value: unknown) {
-  search.value = String(value ?? '')
-}
 </script>
 
 <template>
-  <div class="space-y-2" data-testid="multi-select-async-filter">
-    <label class="text-sm font-medium text-highlighted">{{ props.label }}</label>
-
-    <UInput
-      data-testid="async-search"
-      :model-value="search"
-      placeholder="Buscar"
-      @update:model-value="updateSearch"
-    />
-
+  <UFormField :label="props.label" :error="props.error" data-testid="multi-select-async-filter">
     <USelectMenu
+      data-testid="async-select"
       :model-value="props.modelValue"
-      :items="filteredOptions"
+      :items="props.options"
       :placeholder="props.placeholder"
       :multiple="true"
       :searchable="true"
@@ -67,18 +44,16 @@ function updateSearch(value: unknown) {
       @update:model-value="(value: unknown) => emit('update:modelValue', (value as string[]) ?? [])"
     />
 
-    <p v-if="props.loading" class="text-xs text-muted" data-testid="async-loading-hint">
+    <p v-if="props.loading" class="mt-2 text-xs text-muted" data-testid="async-loading-hint">
       {{ props.loadingLabel }}
     </p>
 
-    <div v-if="props.includeNullOption" class="flex items-center gap-2">
+    <div v-if="props.includeNullOption" class="mt-2 flex items-center gap-2">
       <UCheckbox
         :model-value="props.includeNullValue"
         @update:model-value="(value: unknown) => emit('update:includeNullValue', Boolean(value))"
       />
       <span class="text-sm text-muted">{{ props.includeNullOption }}</span>
     </div>
-
-    <p v-if="props.error" class="text-sm text-error">{{ props.error }}</p>
-  </div>
+  </UFormField>
 </template>

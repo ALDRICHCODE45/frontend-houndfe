@@ -34,13 +34,32 @@ describe('salesFiltersSchema', () => {
 
     expect(customer?.kind).toBe('multi-async')
     if (customer?.kind === 'multi-async') {
-      expect(customer.includeNull).toEqual({ param: 'customerIncludeNull', label: 'Público en General' })
+      expect(customer.includeNull).toEqual({ param: 'customerIncludeNull', label: 'Incluir Público en General' })
     }
 
     expect(dueDate?.kind).toBe('date-range')
     if (dueDate?.kind === 'date-range') {
-      expect(dueDate.includeNull).toEqual({ param: 'dueDateIncludeNull', label: 'Sin vencimiento' })
+      expect(dueDate.includeNull).toEqual({ param: 'dueDateIncludeNull', label: 'Incluir ventas sin vencimiento' })
     }
+  })
+
+  it('assigns sections for visual grouping in slideover', () => {
+    const salesFiltersSchema = createSalesFiltersSchema()
+    const sections = Object.fromEntries(salesFiltersSchema.map(field => [field.id, field.section]))
+
+    expect(sections).toMatchObject({
+      folio: 'Identificación',
+      status: 'Estado',
+      paymentStatus: 'Estado',
+      paymentMethod: 'Estado',
+      deliveryStatus: 'Estado',
+      customerId: 'Personas',
+      cashierUserId: 'Personas',
+      totalCents: 'Montos',
+      debtCents: 'Montos',
+      confirmedAt: 'Fechas',
+      dueDate: 'Fechas',
+    })
   })
 
   it('wires customer and cashier options from reactive sources', () => {

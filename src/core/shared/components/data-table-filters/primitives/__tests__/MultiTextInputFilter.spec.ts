@@ -20,6 +20,9 @@ function mountComponent() {
     global: {
       stubs: {
         UInput: UInputStub,
+        UFormField: {
+          template: '<div><slot /></div>',
+        },
       },
     },
   })

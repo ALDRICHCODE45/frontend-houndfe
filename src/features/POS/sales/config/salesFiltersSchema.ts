@@ -12,6 +12,7 @@ export function createSalesFiltersSchema(sources: SalesFilterSchemaSources = {})
     {
       id: 'folio',
       kind: 'multi-text',
+      section: 'Identificación',
       label: 'Folio',
       param: 'folio',
       placeholder: 'Ej: #15, #16, 20',
@@ -21,6 +22,7 @@ export function createSalesFiltersSchema(sources: SalesFilterSchemaSources = {})
     {
       id: 'status',
       kind: 'multi-enum',
+      section: 'Estado',
       label: 'Estado',
       param: 'status',
       options: [
@@ -32,6 +34,7 @@ export function createSalesFiltersSchema(sources: SalesFilterSchemaSources = {})
     {
       id: 'paymentStatus',
       kind: 'multi-enum',
+      section: 'Estado',
       label: 'Estado de pago',
       param: 'paymentStatus',
       options: [
@@ -43,6 +46,7 @@ export function createSalesFiltersSchema(sources: SalesFilterSchemaSources = {})
     {
       id: 'paymentMethod',
       kind: 'multi-enum',
+      section: 'Estado',
       label: 'Método de pago',
       param: 'paymentMethod',
       includeNull: { param: 'paymentMethodIncludeNull', label: 'Sin método' },
@@ -56,6 +60,7 @@ export function createSalesFiltersSchema(sources: SalesFilterSchemaSources = {})
     {
       id: 'deliveryStatus',
       kind: 'multi-enum',
+      section: 'Estado',
       label: 'Entrega',
       param: 'deliveryStatus',
       options: [
@@ -67,9 +72,10 @@ export function createSalesFiltersSchema(sources: SalesFilterSchemaSources = {})
     {
       id: 'customerId',
       kind: 'multi-async',
+      section: 'Personas',
       label: 'Cliente',
       param: 'customerId',
-      includeNull: { param: 'customerIncludeNull', label: 'Público en General' },
+      includeNull: { param: 'customerIncludeNull', label: 'Incluir Público en General' },
       options: sources.customerOptions ?? [],
       loading: sources.customersLoading,
       loadingLabel: 'Cargando clientes...',
@@ -78,6 +84,7 @@ export function createSalesFiltersSchema(sources: SalesFilterSchemaSources = {})
     {
       id: 'cashierUserId',
       kind: 'multi-async',
+      section: 'Personas',
       label: 'Cajero',
       param: 'cashierUserId',
       options: sources.cashierOptions ?? [],
@@ -88,6 +95,7 @@ export function createSalesFiltersSchema(sources: SalesFilterSchemaSources = {})
     {
       id: 'totalCents',
       kind: 'number-range',
+      section: 'Montos',
       label: 'Total',
       minParam: 'totalMin',
       maxParam: 'totalMax',
@@ -96,6 +104,7 @@ export function createSalesFiltersSchema(sources: SalesFilterSchemaSources = {})
     {
       id: 'debtCents',
       kind: 'number-range',
+      section: 'Montos',
       label: 'Deuda',
       minParam: 'debtMin',
       maxParam: 'debtMax',
@@ -104,6 +113,7 @@ export function createSalesFiltersSchema(sources: SalesFilterSchemaSources = {})
     {
       id: 'confirmedAt',
       kind: 'date-range',
+      section: 'Fechas',
       label: 'Fecha de venta',
       fromParam: 'confirmedFrom',
       toParam: 'confirmedTo',
@@ -111,10 +121,11 @@ export function createSalesFiltersSchema(sources: SalesFilterSchemaSources = {})
     {
       id: 'dueDate',
       kind: 'date-range',
+      section: 'Fechas',
       label: 'Vencimiento',
       fromParam: 'dueDateFrom',
       toParam: 'dueDateTo',
-      includeNull: { param: 'dueDateIncludeNull', label: 'Sin vencimiento' },
+      includeNull: { param: 'dueDateIncludeNull', label: 'Incluir ventas sin vencimiento' },
     },
   ]
 }

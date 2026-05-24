@@ -72,6 +72,28 @@ const activeChips = computed<ActiveFilterChip[]>(() => {
     .filter((chip): chip is ActiveFilterChip => chip !== null)
 })
 
+const activeFiltersCount = computed(() => activeChips.value.length)
+
+const groupedSchema = computed(() => {
+  const groups: Array<{ key: string; section?: string; fields: FilterDefinition[] }> = []
+  const byKey = new Map<string, { key: string; section?: string; fields: FilterDefinition[] }>()
+
+  for (const field of props.schema) {
+    const key = field.section?.trim() || '__untitled__'
+    const existing = byKey.get(key)
+    if (existing) {
+      existing.fields.push(field)
+      continue
+    }
+
+    const created = { key, section: field.section, fields: [field] }
+    byKey.set(key, created)
+    groups.push(created)
+  }
+
+  return groups
+})
+
 function clearByField(field: FilterDefinition, state: FilterState) {
   if (field.kind === 'multi-enum' || field.kind === 'multi-uuid' || field.kind === 'multi-async') {
     state[field.param] = []
@@ -144,6 +166,12 @@ function applyFilters() {
   open.value = false
 }
 
+function cancelFilters() {
+  localState.value = { ...props.modelValue }
+  validationErrors.value = {}
+  open.value = false
+}
+
 function removeChip(filterId: string) {
   const field = props.schema.find(item => item.id === filterId)
   if (!field) return
@@ -159,6 +187,16 @@ function componentForField(field: FilterDefinition) {
   if (field.kind === 'number-range') return NumericRangeFilter
   if (field.kind === 'date-range') return DateRangeFilter
   return MultiSelectAsyncFilter
+}
+
+function getIncludeNullValue(field: { includeNull?: { param: string } }): boolean {
+  if (!field.includeNull) return false
+  return Boolean(localState.value[field.includeNull.param])
+}
+
+function setIncludeNullValue(field: { includeNull?: { param: string } }, value: boolean) {
+  if (!field.includeNull) return
+  localState.value[field.includeNull.param] = value
 }
 </script>
 
@@ -177,72 +215,107 @@ function componentForField(field: FilterDefinition) {
 
     <USlideover :open="open" :side="slideoverSide" :inset="isDesktop" @update:open="open = $event">
       <template #content>
-        <div class="space-y-4 p-4">
-          <template v-for="field in props.schema" :key="field.id">
-            <component
-              :is="componentForField(field)"
-              v-if="field.kind === 'multi-enum'"
-              :label="field.label"
-              :model-value="(localState[field.param] as string[]) ?? []"
-              :options="field.options"
-              :placeholder="field.placeholder ?? 'Seleccioná opciones'"
-              :error="validationErrors[field.id] ?? props.errors[field.id]"
-              @update:model-value="(value: string[]) => localState[field.param] = value"
-            />
+        <div class="flex h-full flex-col" data-testid="filters-slideover-layout">
+          <div class="sticky top-0 z-10 space-y-3 border-b border-default bg-default p-4" data-testid="filters-header">
+            <div class="flex items-center justify-between gap-2">
+              <h2 class="text-lg font-semibold">Filtros</h2>
+              <div v-if="activeFiltersCount > 0" class="flex items-center gap-2">
+                <UBadge color="neutral" variant="subtle" data-testid="active-filters-badge">{{ activeFiltersCount }}</UBadge>
+                <UButton variant="ghost" size="sm" data-testid="clear-all-inside" @click="clearAllFilters">Limpiar todo</UButton>
+              </div>
+            </div>
+            <USeparator />
+          </div>
 
-            <component
-              :is="componentForField(field)"
-              v-else-if="field.kind === 'number-range'"
-              :label="field.label"
-              :model-value="{ min: localState[field.minParam] as number | undefined, max: localState[field.maxParam] as number | undefined }"
-              :error="validationErrors[field.id] ?? props.errors[field.id]"
-              @update:model-value="(value: { min?: number; max?: number }) => { localState[field.minParam] = value.min; localState[field.maxParam] = value.max }"
-            />
+          <div class="min-h-0 flex-1 space-y-4 overflow-y-auto p-4" data-testid="filters-body">
+            <section v-for="group in groupedSchema" :key="group.key" class="space-y-3">
+              <p v-if="group.section" class="text-xs font-semibold uppercase tracking-wide text-muted">{{ group.section }}</p>
 
-            <component
-              :is="componentForField(field)"
-              v-else-if="field.kind === 'date-range'"
-              :label="field.label"
-              :model-value="{ from: localState[field.fromParam] as string | undefined, to: localState[field.toParam] as string | undefined }"
-              :error="validationErrors[field.id] ?? props.errors[field.id]"
-              @update:model-value="(value: { from?: string; to?: string }) => { localState[field.fromParam] = value.from; localState[field.toParam] = value.to }"
-            />
+              <div class="space-y-3">
+                <template v-for="field in group.fields" :key="field.id">
+                  <component
+                    :is="componentForField(field)"
+                    v-if="field.kind === 'multi-enum'"
+                    :label="field.label"
+                    :model-value="(localState[field.param] as string[]) ?? []"
+                    :options="field.options"
+                    :placeholder="field.placeholder ?? 'Seleccioná opciones'"
+                    :include-null-option="field.includeNull?.label"
+                    :include-null-value="getIncludeNullValue(field)"
+                    :error="validationErrors[field.id] ?? props.errors[field.id]"
+                    @update:model-value="(value: string[]) => localState[field.param] = value"
+                    @update:include-null-value="(value: boolean) => setIncludeNullValue(field, value)"
+                  />
 
-            <component
-              :is="componentForField(field)"
-              v-else-if="field.kind === 'multi-text'"
-              :label="field.label"
-              :model-value="(localState[field.param] as string[]) ?? []"
-              :placeholder="field.placeholder ?? 'Ingresá valores separados por coma'"
-              :strip-prefix="field.parse?.stripPrefix"
-              :max="field.max ?? 200"
-              :error="validationErrors[field.id] ?? props.errors[field.id]"
-              @update:model-value="(value: string[]) => localState[field.param] = value"
-            />
+                  <component
+                    :is="componentForField(field)"
+                    v-else-if="field.kind === 'number-range'"
+                    :label="field.label"
+                    :model-value="{ min: localState[field.minParam] as number | undefined, max: localState[field.maxParam] as number | undefined }"
+                    :error="validationErrors[field.id] ?? props.errors[field.id]"
+                    @update:model-value="(value: { min?: number; max?: number }) => { localState[field.minParam] = value.min; localState[field.maxParam] = value.max }"
+                  />
 
-            <component
-              :is="componentForField(field)"
-              v-else
-              :label="field.label"
-              :model-value="(localState[field.param] as string[]) ?? []"
-              :options="field.options"
-              :placeholder="field.placeholder ?? 'Seleccioná opciones'"
-              :loading="field.loading"
-              :loading-label="field.loadingLabel ?? 'Cargando opciones...'"
-              :error="validationErrors[field.id] ?? props.errors[field.id]"
-              @update:model-value="(value: string[]) => localState[field.param] = value"
-            />
+                  <component
+                    :is="componentForField(field)"
+                    v-else-if="field.kind === 'date-range'"
+                    :label="field.label"
+                    :model-value="{ from: localState[field.fromParam] as string | undefined, to: localState[field.toParam] as string | undefined }"
+                    :include-null-option="field.includeNull?.label"
+                    :include-null-value="getIncludeNullValue(field)"
+                    :error="validationErrors[field.id] ?? props.errors[field.id]"
+                    @update:model-value="(value: { from?: string; to?: string }) => { localState[field.fromParam] = value.from; localState[field.toParam] = value.to }"
+                    @update:include-null-value="(value: boolean) => setIncludeNullValue(field, value)"
+                  />
 
-            <p
-              v-if="validationErrors[field.id]"
-              :data-testid="`validation-error-${field.id}`"
-              class="text-sm text-error"
-            >
-              {{ validationErrors[field.id] }}
-            </p>
-          </template>
+                  <component
+                    :is="componentForField(field)"
+                    v-else-if="field.kind === 'multi-text'"
+                    :label="field.label"
+                    :model-value="(localState[field.param] as string[]) ?? []"
+                    :placeholder="field.placeholder ?? 'Ingresá valores separados por coma'"
+                    :strip-prefix="field.parse?.stripPrefix"
+                    :max="field.max ?? 200"
+                    :error="validationErrors[field.id] ?? props.errors[field.id]"
+                    @update:model-value="(value: string[]) => localState[field.param] = value"
+                  />
 
-          <UButton data-testid="apply-filters" @click="applyFilters">Aplicar filtros</UButton>
+                  <component
+                    :is="componentForField(field)"
+                    v-else
+                    :label="field.label"
+                    :model-value="(localState[field.param] as string[]) ?? []"
+                    :options="field.options"
+                    :placeholder="field.placeholder ?? 'Seleccioná opciones'"
+                    :loading="field.loading"
+                    :loading-label="field.loadingLabel ?? 'Cargando opciones...'"
+                    :include-null-option="field.includeNull?.label"
+                    :include-null-value="getIncludeNullValue(field)"
+                    :error="validationErrors[field.id] ?? props.errors[field.id]"
+                    @update:model-value="(value: string[]) => localState[field.param] = value"
+                    @update:include-null-value="(value: boolean) => setIncludeNullValue(field, value)"
+                  />
+
+                  <p
+                    v-if="validationErrors[field.id]"
+                    :data-testid="`validation-error-${field.id}`"
+                    class="text-sm text-error"
+                  >
+                    {{ validationErrors[field.id] }}
+                  </p>
+                </template>
+              </div>
+
+              <USeparator v-if="group.key !== groupedSchema[groupedSchema.length - 1]?.key" />
+            </section>
+          </div>
+
+          <div class="sticky bottom-0 z-10 border-t border-default bg-default p-4" data-testid="filters-footer">
+            <div class="flex justify-end gap-2">
+              <UButton variant="ghost" data-testid="cancel-filters" @click="cancelFilters">Cancelar</UButton>
+              <UButton data-testid="apply-filters" @click="applyFilters">Aplicar filtros</UButton>
+            </div>
+          </div>
         </div>
       </template>
     </USlideover>

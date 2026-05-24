@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { shallowMount } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import MultiSelectEnumFilter from '../MultiSelectEnumFilter.vue'
 
 const SelectStub = {
@@ -17,7 +17,7 @@ const CheckboxStub = {
 }
 
 function mountComponent(overrideProps: Record<string, unknown> = {}) {
-  return shallowMount(MultiSelectEnumFilter, {
+  return mount(MultiSelectEnumFilter, {
     props: {
       modelValue: [],
       label: 'Estado',
@@ -40,6 +40,9 @@ function mountComponent(overrideProps: Record<string, unknown> = {}) {
           ...CheckboxStub,
         },
         Checkbox: { ...CheckboxStub },
+        UFormField: {
+          template: '<div><slot /></div>',
+        },
       },
     },
   })
@@ -99,6 +102,6 @@ describe('MultiSelectEnumFilter', () => {
       searchable: true,
     })
 
-    expect(wrapper.get('[data-testid="u-select-menu"]').attributes('data-searchable')).toBe('true')
+    expect(wrapper.get('[data-testid="enum-select"]').attributes('data-searchable')).toBe('true')
   })
 })

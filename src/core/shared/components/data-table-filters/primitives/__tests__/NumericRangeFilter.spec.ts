@@ -1,19 +1,32 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { defineComponent, h } from 'vue'
 import NumericRangeFilter from '../NumericRangeFilter.vue'
 
-const UInputStub = {
-  props: ['modelValue'],
+const UInputNumberStub = defineComponent({
+  name: 'InputNumber',
+  props: { modelValue: Number },
   emits: ['update:modelValue'],
-  template: '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
-}
+  setup(props, { emit }) {
+    return () => h('input', {
+      'data-testid': 'input-number',
+      value: props.modelValue ?? '',
+      onInput: (event: Event) => {
+        const value = (event.target as HTMLInputElement).value
+        emit('update:modelValue', value === '' ? undefined : Number(value))
+      },
+    })
+  },
+})
 
 function mountComponent(modelValue: { min?: number; max?: number } = {}) {
   return mount(NumericRangeFilter, {
     props: { modelValue, label: 'Total', unit: '$' },
     global: {
       stubs: {
-        UInput: UInputStub,
+        UInputNumber: UInputNumberStub,
+        InputNumber: UInputNumberStub,
+        UFormField: { template: '<div><slot /></div>' },
       },
     },
   })
@@ -72,5 +85,15 @@ describe('NumericRangeFilter', () => {
 
     const events = wrapper.emitted('update:modelValue') ?? []
     expect(events[events.length - 1]).toEqual([{ min: 0 }])
+  })
+
+  it('passes ARS currency format options to UInputNumber', () => {
+    const wrapper = mount(NumericRangeFilter, {
+      props: { modelValue: {}, label: 'Total' },
+    })
+
+    const numbers = wrapper.findAllComponents({ name: 'InputNumber' })
+    expect(numbers.length).toBe(2)
+    expect(numbers[0]?.props('formatOptions')).toEqual({ style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
   })
 })

@@ -8,6 +8,7 @@ export type FilterKind = 'multi-enum' | 'multi-uuid' | 'multi-async' | 'multi-te
 type BaseFilterDefinition = {
   id: string
   label: string
+  section?: string
 }
 
 export type MultiEnumFilterDefinition = BaseFilterDefinition & {

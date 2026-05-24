@@ -4,9 +4,9 @@ import MultiSelectAsyncFilter from '../MultiSelectAsyncFilter.vue'
 
 const SelectStub = {
   name: 'SelectStub',
-  props: ['modelValue', 'items'],
+  props: ['modelValue', 'items', 'searchable'],
   emits: ['update:modelValue'],
-  template: '<div data-testid="u-select-menu" />',
+  template: '<div data-testid="u-select-menu" :data-searchable="String(searchable)" />',
 }
 
 const CheckboxStub = {
@@ -14,12 +14,6 @@ const CheckboxStub = {
   props: ['modelValue'],
   emits: ['update:modelValue'],
   template: '<div data-testid="u-checkbox" />',
-}
-
-const UInputStub = {
-  props: ['modelValue'],
-  emits: ['update:modelValue'],
-  template: '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
 }
 
 function mountComponent() {
@@ -42,23 +36,19 @@ function mountComponent() {
         SelectMenu: { ...SelectStub },
         UCheckbox: { ...CheckboxStub },
         Checkbox: { ...CheckboxStub },
-        UInput: UInputStub,
+        UFormField: { template: '<div><slot /></div>' },
       },
     },
   })
 }
 
 describe('MultiSelectAsyncFilter', () => {
-  it('filters options by local search', async () => {
+  it('renders a single searchable select (no duplicate search input)', () => {
     const wrapper = mountComponent()
-
-    await wrapper.get('[data-testid="async-search"]').setValue('Mar')
-
-    const select = wrapper.findComponent(SelectStub)
-    expect(select.props('items')).toEqual([
-      { label: 'María Pérez', value: 'uuid-1' },
-      { label: 'Marco Díaz', value: 'uuid-3' },
-    ])
+    const selects = wrapper.findAllComponents(SelectStub)
+    expect(selects.length).toBe(1)
+    expect(wrapper.find('[data-testid="async-search"]').exists()).toBe(false)
+    expect(selects[0]?.props('searchable')).toBe(true)
   })
 
   it('emits selected UUIDs', async () => {
@@ -96,7 +86,7 @@ describe('MultiSelectAsyncFilter', () => {
         stubs: {
           USelectMenu: { ...SelectStub },
           SelectMenu: { ...SelectStub },
-          UInput: UInputStub,
+          UFormField: { template: '<div><slot /></div>' },
         },
       },
     })
@@ -118,7 +108,7 @@ describe('MultiSelectAsyncFilter', () => {
         stubs: {
           USelectMenu: { ...SelectStub },
           SelectMenu: { ...SelectStub },
-          UInput: UInputStub,
+          UFormField: { template: '<div><slot /></div>' },
         },
       },
     })
