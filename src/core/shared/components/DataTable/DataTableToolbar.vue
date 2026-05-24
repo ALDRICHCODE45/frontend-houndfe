@@ -38,18 +38,20 @@ function capitalize(str: string): string {
 
 <template>
   <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-    <div class="flex flex-1 items-center gap-2">
+    <div class="flex flex-1 flex-col items-stretch gap-2 sm:flex-row sm:items-center">
       <!-- Search Input -->
       <UInput
         :model-value="props.globalFilter"
         :placeholder="props.searchPlaceholder"
         icon="i-lucide-search"
-        class="max-w-sm"
+        class="w-full sm:max-w-sm"
         @update:model-value="emit('update:globalFilter', $event as string)"
       />
 
       <!-- Extra filter slots -->
-      <slot name="filters" />
+      <div class="min-w-0 flex flex-1 items-center gap-2">
+        <slot name="filters" />
+      </div>
     </div>
 
     <div class="flex items-center gap-2">

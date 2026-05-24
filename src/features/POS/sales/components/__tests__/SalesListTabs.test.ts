@@ -33,4 +33,22 @@ describe('SalesListTabs', () => {
 
     expect(wrapper.emitted('change')).toEqual([['PENDING']])
   })
+
+  it('renders quick filter buttons with whitespace-nowrap to prevent text wrapping in mobile toolbars', () => {
+    const wrapper = mount(SalesListTabs, {
+      props: {
+        counts: {
+          all: 5,
+          pendingPayments: 1,
+          notDelivered: 2,
+        },
+      },
+    })
+
+    const buttons = wrapper.findAll('[data-testid^="sales-tab-"]')
+    expect(buttons).toHaveLength(2)
+    buttons.forEach((btn) => {
+      expect(btn.classes()).toContain('whitespace-nowrap')
+    })
+  })
 })

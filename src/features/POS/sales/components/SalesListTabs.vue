@@ -20,6 +20,7 @@ const emit = defineEmits<{
     <UButton
       variant="soft"
       color="neutral"
+      class="whitespace-nowrap"
       data-testid="sales-tab-all"
       @click="emit('change', undefined)"
     >
@@ -29,6 +30,7 @@ const emit = defineEmits<{
     <UButton
       variant="soft"
       color="neutral"
+      class="whitespace-nowrap"
       data-testid="sales-tab-pending-delivery"
       @click="emit('change', 'PENDING')"
     >

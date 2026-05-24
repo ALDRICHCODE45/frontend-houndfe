@@ -34,11 +34,11 @@ const baseStubs = {
   UIcon: true,
   UBadge: { template: '<span :data-testid="$attrs[\'data-testid\']">{{ label }}<slot /></span>', props: ['label'] },
   UButton: { template: '<button :data-testid="$attrs[\'data-testid\']" @click="$emit(\'click\')"><slot /></button>' },
-  USlideover: { props: ['open', 'side'], template: '<div data-testid="slideover" :data-open="String(open)" :data-side="side"><slot name="content" /></div>' },
+  USlideover: { props: ['open', 'side', 'ui'], template: '<div data-testid="slideover" :data-open="String(open)" :data-side="side" :data-ui="ui ? JSON.stringify(ui) : \'\'"><slot name="content" /></div>' },
   Icon: true,
   Badge: { template: '<span :data-testid="$attrs[\'data-testid\']">{{ label }}<slot /></span>', props: ['label'] },
   Button: { template: '<button :data-testid="$attrs[\'data-testid\']" @click="$emit(\'click\')"><slot /></button>' },
-  Slideover: { props: ['open', 'side'], template: '<div data-testid="slideover" :data-open="String(open)" :data-side="side"><slot name="content" /></div>' },
+  Slideover: { props: ['open', 'side', 'ui'], template: '<div data-testid="slideover" :data-open="String(open)" :data-side="side" :data-ui="ui ? JSON.stringify(ui) : \'\'"><slot name="content" /></div>' },
   MultiSelectEnumFilter: { name: 'MultiSelectEnumFilter', template: '<div data-testid="primitive-enum" />', props: ['error', 'displayDivisor'] },
   MultiSelectAsyncFilter: { name: 'MultiSelectAsyncFilter', template: '<div data-testid="primitive-async" />' },
   MultiTextInputFilter: { name: 'MultiTextInputFilter', template: '<div data-testid="primitive-text" />' },
@@ -65,6 +65,18 @@ describe('DataTableFilters (v2)', () => {
     desktopRef.value = false
     const mobile = mount(DataTableFilters, { props: { schema, state: schema.defaults() }, global: { stubs: baseStubs } })
     expect(mobile.find('[data-testid="slideover"]').attributes('data-side')).toBe('bottom')
+  })
+
+  it('applies bottom-sheet ui overrides only on mobile', () => {
+    desktopRef.value = true
+    const desktop = mount(DataTableFilters, { props: { schema, state: schema.defaults() }, global: { stubs: baseStubs } })
+    expect(desktop.find('[data-testid="slideover"]').attributes('data-ui')).toBe('{}')
+
+    desktopRef.value = false
+    const mobile = mount(DataTableFilters, { props: { schema, state: schema.defaults() }, global: { stubs: baseStubs } })
+    const mobileUi = mobile.find('[data-testid="slideover"]').attributes('data-ui') ?? ''
+    expect(mobileUi).toContain('max-h-[85vh]')
+    expect(mobileUi).toContain('rounded-t-2xl')
   })
 
   it('groups fields by section, no-section first, section dot active', () => {

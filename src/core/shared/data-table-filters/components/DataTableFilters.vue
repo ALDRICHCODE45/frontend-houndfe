@@ -21,6 +21,7 @@ const state = defineModel<FilterState>('state', { default: () => ({}) })
 const isOpen = ref(false)
 const isDesktop = useBreakpoints(breakpointsTailwind).greaterOrEqual('md')
 const slideoverSide = computed(() => (isDesktop.value ? 'right' : 'bottom'))
+const slideoverUi = computed(() => (isDesktop.value ? {} : { content: 'max-h-[85vh] rounded-t-2xl' }))
 
 const activeChips = computed(() => props.schema.activeChips(state.value))
 const activeCount = computed(() => activeChips.value.length)
@@ -112,7 +113,7 @@ defineExpose({ open, close })
       <DataTableFiltersChips :schema="props.schema" :state="state" @clear="clearField" @clear-all="clearAll" />
     </slot>
 
-    <USlideover :open="isOpen" :side="slideoverSide" @update:open="isOpen = $event">
+    <USlideover :open="isOpen" :side="slideoverSide" :ui="slideoverUi" @update:open="isOpen = $event">
       <template #content>
         <div class="flex h-full flex-col" data-testid="filters-slideover-layout">
           <div class="sticky top-0 z-10 space-y-3 border-b border-default bg-default px-6 py-5" data-testid="filters-header">
