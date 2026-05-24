@@ -48,6 +48,7 @@ const mockState = {
   pageSizeOptions: [10, 20, 50],
   refresh: vi.fn(),
   setDeliveryStatusFilter: vi.fn(),
+  filterErrors: ref<Record<string, string>>({}),
 }
 
 vi.mock('../../composables/useConfirmedSales', () => ({
@@ -61,6 +62,7 @@ vi.mock('../../composables/useConfirmedSales', () => ({
     showingTo: computed(() => mockState.showingTo.value),
     isLoading: computed(() => mockState.isLoading.value),
     isFetching: computed(() => mockState.isFetching.value),
+    filterErrors: computed(() => mockState.filterErrors.value),
   }),
 }))
 
@@ -120,6 +122,14 @@ const stubs = {
     props: ['counts'],
   },
   AppDataTable: appDataTableStub,
+  DataTableFilters: {
+    props: ['modelValue', 'schema', 'errors'],
+    template: '<div data-testid="sales-filters" :data-errors="JSON.stringify(errors)" />',
+  },
+  SaleCard: {
+    props: ['sale'],
+    template: '<div data-testid="sale-card-stub">{{ sale.id }}</div>',
+  },
   PaymentMethodPills: {
     props: ['methods'],
     template: '<div data-testid="payment-method-pills"></div>',
@@ -205,6 +215,13 @@ describe('SalesListView', () => {
   it('renders PaymentMethodPills in paymentMethods cell slot', () => {
     const wrapper = mount(SalesListView, { global: { stubs } })
     expect(wrapper.find('[data-testid="payment-method-pills"]').exists()).toBe(true)
+  })
+
+  it('renders DataTableFilters with mapped errors', () => {
+    mockState.filterErrors.value = { paymentStatus: 'Valor inválido' }
+    const wrapper = mount(SalesListView, { global: { stubs } })
+    const filters = wrapper.get('[data-testid="sales-filters"]')
+    expect(filters.attributes('data-errors')).toContain('Valor inválido')
   })
 
   it('renders dueDate formatted when value exists', () => {

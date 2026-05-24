@@ -1,7 +1,9 @@
-import { computed, ref } from 'vue'
+import { computed, ref, type Ref } from 'vue'
+import type { AxiosError } from 'axios'
 import type { ServerTableParams } from '@/core/shared/types/table.types'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { saleQueryKeys } from '@/core/shared/constants/query-keys'
+import { mapListingErrorToFilterField } from '@/core/shared/components/data-table-filters/errorMapping'
 import { saleApi } from '../api/sale.api'
 import type { ListSalesParams, SalesListCounts, SaleDeliveryStatus } from '../interfaces/sale.types'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
@@ -21,33 +23,51 @@ export function mapServerTableParamsToListSalesParams(params: ServerTableParams)
   }
 }
 
-export function useConfirmedSales() {
+function toListingErrorPayload(error: unknown): unknown {
+  const axiosError = error as AxiosError<{ error?: unknown }>
+  return axiosError?.response?.data?.error ?? axiosError?.response?.data
+}
+
+export function useConfirmedSales(filters: Ref<Record<string, unknown>> = ref({})) {
   const authStore = useAuthStore()
   const counts = ref<SalesListCounts>(DEFAULT_COUNTS)
   const deliveryStatusFilter = ref<SaleDeliveryStatus | undefined>(undefined)
+  const filterErrors = ref<Record<string, string>>({})
 
   const table = useServerTable({
     queryKey: () =>
       saleQueryKeys.confirmed(authStore.currentTenantId, {
+        ...filters.value,
         deliveryStatus: deliveryStatusFilter.value ? [deliveryStatusFilter.value] : undefined,
       }),
     queryFn: async (params) => {
-      const response = await saleApi.listConfirmed({
-        ...mapServerTableParamsToListSalesParams(params),
-        deliveryStatus: deliveryStatusFilter.value ? [deliveryStatusFilter.value] : undefined,
-      })
+      try {
+        const response = await saleApi.listConfirmed({
+          ...mapServerTableParamsToListSalesParams(params),
+          ...filters.value,
+          deliveryStatus: deliveryStatusFilter.value ? [deliveryStatusFilter.value] : undefined,
+        })
 
-      counts.value = response.counts
+        filterErrors.value = {}
 
-      return {
-        data: response.data,
-        pagination: {
-          pageIndex: response.pagination.page - 1,
-          pageSize: response.pagination.limit,
-          totalCount: response.pagination.total,
-          pageCount: response.pagination.totalPages,
-        },
+        counts.value = response.counts
+
+        return {
+          data: response.data,
+          pagination: {
+            pageIndex: response.pagination.page - 1,
+            pageSize: response.pagination.limit,
+            totalCount: response.pagination.total,
+            pageCount: response.pagination.totalPages,
+          },
+        }
       }
+      catch (error) {
+        const mapped = mapListingErrorToFilterField(toListingErrorPayload(error))
+        filterErrors.value = mapped ? { [mapped.filterId]: mapped.message } : {}
+        throw error
+      }
+
     },
     defaultPageSize: 20,
     persistKey: 'pos-sales-list',
@@ -64,6 +84,7 @@ export function useConfirmedSales() {
   return {
     ...table,
     counts: computed(() => counts.value),
+    filterErrors: computed(() => filterErrors.value),
     setDeliveryStatusFilter,
   }
 }

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { mount } from '@vue/test-utils'
-import { defineComponent, h } from 'vue'
+import { defineComponent, h, ref } from 'vue'
 import { saleApi } from '../../api/sale.api'
 import { useConfirmedSales, mapServerTableParamsToListSalesParams } from '../useConfirmedSales'
 
@@ -105,7 +105,7 @@ describe('useConfirmedSales', () => {
   })
 
   it('forwards deliveryStatus when tab filter changes', async () => {
-    const { result } = mountComposable(() => useConfirmedSales())
+    const { result } = mountComposable(() => useConfirmedSales(ref({})))
     await vi.waitFor(() => expect(saleApi.listConfirmed).toHaveBeenCalledTimes(1))
 
     result.setDeliveryStatusFilter('PENDING')
@@ -118,6 +118,45 @@ describe('useConfirmedSales', () => {
         sortOrder: 'desc',
         deliveryStatus: ['PENDING'],
       })
+    })
+  })
+
+  it('forwards extended filter state to listConfirmed params', async () => {
+    const filters = ref({
+      paymentStatus: ['PAID'],
+      customerId: ['customer-1'],
+      customerIncludeNull: true,
+      totalMin: 1000,
+    })
+
+    mountComposable(() => useConfirmedSales(filters))
+
+    await vi.waitFor(() => {
+      expect(saleApi.listConfirmed).toHaveBeenLastCalledWith(expect.objectContaining({
+        paymentStatus: ['PAID'],
+        customerId: ['customer-1'],
+        customerIncludeNull: true,
+        totalMin: 1000,
+      }))
+    })
+  })
+
+  it('maps backend listing 400 errors to filterErrors', async () => {
+    vi.mocked(saleApi.listConfirmed).mockRejectedValueOnce({
+      response: {
+        data: {
+          error: {
+            code: 'LISTING_INVALID_ENUM_VALUE',
+            field: 'paymentStatus',
+          },
+        },
+      },
+    })
+
+    const { result } = mountComposable(() => useConfirmedSales(ref({ paymentStatus: ['BAD'] })))
+
+    await vi.waitFor(() => {
+      expect(result.filterErrors.value.paymentStatus).toContain('Valor inválido')
     })
   })
 })

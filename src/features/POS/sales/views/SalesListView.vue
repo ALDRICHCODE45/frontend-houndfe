@@ -2,13 +2,16 @@
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { AppDataTable } from '@/core/shared/components/DataTable'
+import DataTableFilters from '@/core/shared/components/data-table-filters/DataTableFilters.vue'
 import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { useConfirmedSales } from '../composables/useConfirmedSales'
 import { useSalesColumns } from '../composables/useSalesColumns'
 import SalesListTabs from '../components/SalesListTabs.vue'
+import SaleCard from '../components/SaleCard.vue'
 import PaymentMethodPills from '../components/PaymentMethodPills.vue'
+import { salesFiltersSchema } from '../config/salesFiltersSchema'
 import { formatSaleDate, formatSaleDueDate } from '../utils/saleDate.utils'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { extractFolioNumber } from '../utils/saleFolio.utils'
@@ -17,6 +20,7 @@ import { getDeliveryStatusBadge, getPaymentStatusBadge } from '../utils/saleStat
 const router = useRouter()
 const authStore = useAuthStore()
 const canReadSales = computed(() => authStore.userCan('read', 'Sale'))
+const filters = ref<Record<string, unknown>>({})
 
 const {
   pagination,
@@ -36,7 +40,8 @@ const {
   showingTo,
   counts,
   setDeliveryStatusFilter,
-} = useConfirmedSales()
+  filterErrors,
+} = useConfirmedSales(filters)
 
 const { columns } = useSalesColumns()
 
@@ -54,6 +59,17 @@ function goToNewSale() {
 function goToSaleDetail(id: string) {
   void router.push(`/pos/ventas/${id}`)
 }
+
+const baseFilterIds = new Set(['q', 'confirmedFrom', 'confirmedTo', 'cashierUserId', 'customerId', 'customerIncludeNull'])
+const activeExtendedFiltersCount = computed(() => Object.entries(filters.value).filter(([key, value]) => {
+  if (baseFilterIds.has(key)) return false
+  if (Array.isArray(value)) return value.length > 0
+  return value !== undefined && value !== null && value !== '' && value !== false
+}).length)
+
+watch(filters, () => {
+  pagination.value = { ...pagination.value, pageIndex: 0 }
+}, { deep: true })
 </script>
 
 <template>
@@ -66,7 +82,18 @@ function goToSaleDetail(id: string) {
         />
       </template>
 
-      <div class="px-6 py-5">
+      <div class="px-6 py-5 space-y-4">
+        <div class="overflow-x-auto">
+          <DataTableFilters
+            v-model="filters"
+            :schema="salesFiltersSchema"
+            :errors="filterErrors"
+          />
+        </div>
+        <div v-if="activeExtendedFiltersCount > 0" class="text-xs text-muted" data-testid="extended-filters-indicator">
+          Filtros activos: {{ activeExtendedFiltersCount }} · Limpiar
+        </div>
+
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"
@@ -84,13 +111,18 @@ function goToSaleDetail(id: string) {
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
           :enable-row-selection="false"
+          mobile-render="cards"
           enable-column-visibility
           search-placeholder="Buscar ventas..."
           empty="No hay ventas todavía"
           @refresh="refresh"
         >
           <template #filters>
-            <SalesListTabs :counts="counts" @change="setDeliveryStatusFilter" />
+            <div class="flex w-full flex-col gap-3">
+              <div class="overflow-x-auto">
+                <SalesListTabs :counts="counts" @change="setDeliveryStatusFilter" />
+              </div>
+            </div>
             <USelect
               v-model="sortValue"
               :items="[
@@ -103,9 +135,13 @@ function goToSaleDetail(id: string) {
           </template>
 
           <template #actions>
-            <UButton color="primary" icon="i-lucide-plus" @click="goToNewSale">
+            <UButton color="primary" icon="i-lucide-plus" class="w-full sm:w-auto" @click="goToNewSale">
               Nueva Venta
             </UButton>
+          </template>
+
+          <template #mobile-card="{ row }">
+            <SaleCard :sale="row" />
           </template>
 
           <template #venta-cell="{ row }">
