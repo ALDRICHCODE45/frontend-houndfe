@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { format } from 'date-fns'
-import { endOfDayUTC, formatSaleDate, formatSaleDueDate } from '../saleDate.utils'
+import { formatSaleDate, formatSaleDueDate } from '../saleDate.utils'
 
 describe('saleDate.utils', () => {
   afterEach(() => {
@@ -57,20 +57,6 @@ describe('saleDate.utils', () => {
     it('renders dd/MM/yyyy format', () => {
       expect(formatSaleDueDate('2026-12-09T00:00:00.000Z')).toBe('09/12/2026')
       expect(formatSaleDueDate('2026-01-05T00:00:00.000Z')).toBe('05/01/2026')
-    })
-  })
-
-  describe('endOfDayUTC', () => {
-    it('returns end of day for date string inputs', () => {
-      expect(endOfDayUTC('2026-01-31')).toBe('2026-01-31T23:59:59.999Z')
-    })
-
-    it('returns end of day for Date object inputs', () => {
-      expect(endOfDayUTC(new Date('2026-06-15T10:30:00.000Z'))).toBe('2026-06-15T23:59:59.999Z')
-    })
-
-    it('is idempotent for already end-of-day values', () => {
-      expect(endOfDayUTC('2026-01-31T23:59:59.999Z')).toBe('2026-01-31T23:59:59.999Z')
     })
   })
 })

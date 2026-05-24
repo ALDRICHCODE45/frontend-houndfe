@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { CalendarDate, getLocalTimeZone, parseDate, today } from '@internationalized/date'
 import { computed, shallowRef, watch } from 'vue'
-import { endOfDayUTC } from '@/features/POS/sales/utils/saleDate.utils'
+import { localEndOfDayUTC, localStartOfDayUTC } from '@/core/shared/utils/dateRangeBoundaries'
 
 const props = withDefaults(defineProps<{
   label: string
@@ -21,10 +21,6 @@ function toDateInput(value?: string): string {
 }
 
 type CalendarRange = { start?: CalendarDate; end?: CalendarDate }
-
-function startOfDayUTC(value: string): string {
-  return `${value}T00:00:00.000Z`
-}
 
 function toCalendarRange(value: { from?: string; to?: string }): CalendarRange | undefined {
   const start = value.from ? parseDate(toDateInput(value.from)) : undefined
@@ -65,11 +61,11 @@ function emitRange() {
   const to = fromCalendarDate(selectedRange.value?.end)
 
   if (from) {
-    payload.from = startOfDayUTC(from)
+    payload.from = localStartOfDayUTC(from)
   }
 
   if (to) {
-    payload.to = endOfDayUTC(to)
+    payload.to = localEndOfDayUTC(to)
   }
 
   modelValue.value = payload
@@ -153,9 +149,9 @@ const rangeLabel = computed(() => {
   const to = fromCalendarDate(selectedRange.value?.end)
   if (!from && !to) return 'Seleccionar fechas'
 
-  const formatter = new Intl.DateTimeFormat('es-AR', { dateStyle: 'medium', timeZone: 'UTC' })
-  const fromText = from ? formatter.format(new Date(`${from}T00:00:00.000Z`)) : '—'
-  const toText = to ? formatter.format(new Date(`${to}T00:00:00.000Z`)) : '—'
+  const formatter = new Intl.DateTimeFormat('es-AR', { dateStyle: 'medium' })
+  const fromText = from ? formatter.format(new Date(`${from}T12:00:00`)) : '—'
+  const toText = to ? formatter.format(new Date(`${to}T12:00:00`)) : '—'
   return `${fromText} - ${toText}`
 })
 </script>

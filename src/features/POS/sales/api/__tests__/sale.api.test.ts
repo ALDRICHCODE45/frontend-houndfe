@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { buildSalesListParams, saleApi } from '../sale.api'
+import { localEndOfDayUTC } from '@/core/shared/utils/dateRangeBoundaries'
 import { http } from '@/core/shared/api/http'
 import type {
   Sale,
@@ -643,7 +644,7 @@ describe('saleApi', () => {
           totalMin: 10000,
           totalMax: 50000,
           confirmedFrom: '2026-01-01T00:00:00.000Z',
-          confirmedTo: '2026-01-31T23:59:59.999Z',
+          confirmedTo: localEndOfDayUTC('2026-01-31'),
           customerIncludeNull: true,
         },
       })
@@ -698,9 +699,9 @@ describe('saleApi', () => {
         debtMin: 0,
         debtMax: 1000,
         confirmedFrom: '2026-01-01T00:00:00.000Z',
-        confirmedTo: '2026-01-31T23:59:59.999Z',
+        confirmedTo: localEndOfDayUTC('2026-01-31'),
         dueDateFrom: '2026-02-01',
-        dueDateTo: '2026-02-28T23:59:59.999Z',
+        dueDateTo: localEndOfDayUTC('2026-02-28'),
         customerIncludeNull: true,
         dueDateIncludeNull: false,
         paymentMethodIncludeNull: true,

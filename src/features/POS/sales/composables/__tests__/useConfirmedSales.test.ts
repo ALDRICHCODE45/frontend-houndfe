@@ -141,6 +141,25 @@ describe('useConfirmedSales', () => {
     })
   })
 
+  it('transforms folio CSV tokens before calling listConfirmed', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-05-23T12:00:00.000Z'))
+
+    const filters = ref({
+      folio: '17,#18,A-202605-000016',
+    })
+
+    mountComposable(() => useConfirmedSales(filters))
+
+    await vi.waitFor(() => {
+      expect(saleApi.listConfirmed).toHaveBeenLastCalledWith(expect.objectContaining({
+        folio: 'A-202605-000017,A-202605-000018,A-202605-000016',
+      }))
+    })
+
+    vi.useRealTimers()
+  })
+
   it('maps backend listing 400 errors to filterErrors', async () => {
     vi.mocked(saleApi.listConfirmed).mockRejectedValueOnce({
       response: {

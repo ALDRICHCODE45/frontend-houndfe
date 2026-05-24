@@ -1,4 +1,4 @@
-import { endOfDayUTC } from '@/features/POS/sales/utils/saleDate.utils'
+import { localEndOfDayUTC } from '@/core/shared/utils/dateRangeBoundaries'
 import type { DateRangeFilterDefinition } from '../types'
 import { booleanFlagFromQuery, booleanFlagToQuery } from './booleanFlag'
 
@@ -8,7 +8,7 @@ export const dateRangeSerializer = {
   toQuery(value: DateRange, field: DateRangeFilterDefinition, includeNull?: boolean): Record<string, string> {
     const query: Record<string, string> = {}
     if (value.from) query[field.fromParam] = value.from
-    if (value.to) query[field.toParam] = endOfDayUTC(value.to)
+    if (value.to) query[field.toParam] = localEndOfDayUTC(value.to)
     if (field.includeNull) Object.assign(query, booleanFlagToQuery(includeNull, field.includeNull.param))
     return query
   },

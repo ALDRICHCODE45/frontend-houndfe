@@ -8,6 +8,7 @@ import { saleApi } from '../api/sale.api'
 import type { ListSalesParams, SalesListCounts, SaleDeliveryStatus } from '../interfaces/sale.types'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { defaultColumnVisibility } from './useSalesColumns'
+import { formatFolioForBackend } from '../utils/folio'
 
 const DEFAULT_COUNTS: SalesListCounts = { all: 0, pendingPayments: 0, notDelivered: 0 }
 
@@ -28,6 +29,21 @@ function toListingErrorPayload(error: unknown): unknown {
   return axiosError?.response?.data?.error ?? axiosError?.response?.data
 }
 
+function transformFolioParam(filters: Record<string, unknown>): Record<string, unknown> {
+  const folio = filters.folio
+  if (typeof folio !== 'string' || folio.length === 0) return filters
+
+  const transformed = folio
+    .split(',')
+    .map(token => token.trim())
+    .filter(Boolean)
+    .map(formatFolioForBackend)
+    .filter(Boolean)
+    .join(',')
+
+  return { ...filters, folio: transformed }
+}
+
 export function useConfirmedSales(filters: Ref<Record<string, unknown>> = ref({})) {
   const authStore = useAuthStore()
   const counts = ref<SalesListCounts>(DEFAULT_COUNTS)
@@ -42,9 +58,10 @@ export function useConfirmedSales(filters: Ref<Record<string, unknown>> = ref({}
       }),
     queryFn: async (params) => {
       try {
+        const transformedFilters = transformFolioParam(filters.value)
         const response = await saleApi.listConfirmed({
           ...mapServerTableParamsToListSalesParams(params),
-          ...filters.value,
+          ...transformedFilters,
           deliveryStatus: deliveryStatusFilter.value ? [deliveryStatusFilter.value] : undefined,
         })
 

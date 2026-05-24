@@ -27,8 +27,8 @@ import type {
   SaleCommentErrorCode,
 } from '../interfaces/sale.types'
 import { SaleCommentError } from '../interfaces/sale.types'
-import { endOfDayUTC } from '../utils/saleDate.utils'
 import { formatFolioForBackend } from '../utils/folio'
+import { localEndOfDayUTC } from '@/core/shared/utils/dateRangeBoundaries'
 
 interface DomainErrorResponse {
   error?: string
@@ -68,7 +68,7 @@ export function buildSalesListParams(params: ListSalesParams): ListSalesParams {
     }
 
     if (TO_DATE_FIELDS.includes(key as (typeof TO_DATE_FIELDS)[number])) {
-      result[key] = endOfDayUTC(value as string)
+      result[key] = localEndOfDayUTC(value as string)
       continue
     }
 

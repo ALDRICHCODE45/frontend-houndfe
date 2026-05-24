@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { CalendarDate } from '@internationalized/date'
 import DateRangeFilter from '../DateRangeFilter.vue'
+import { localEndOfDayUTC, localStartOfDayUTC } from '@/core/shared/utils/dateRangeBoundaries'
 
 const CalendarStub = {
   name: 'Calendar',
@@ -59,7 +60,7 @@ describe('DateRangeFilter', () => {
     await wrapper.vm.$nextTick()
 
     const events = wrapper.emitted('update:modelValue') ?? []
-    expect(events[events.length - 1]).toEqual([{ from: '2026-01-01T00:00:00.000Z' }])
+    expect(events[events.length - 1]).toEqual([{ from: localStartOfDayUTC('2026-01-01') }])
   })
 
   it('emits only to with end-of-day UTC', async () => {
@@ -71,7 +72,7 @@ describe('DateRangeFilter', () => {
     await wrapper.vm.$nextTick()
 
     const events = wrapper.emitted('update:modelValue') ?? []
-    expect(events[events.length - 1]).toEqual([{ to: '2026-01-31T23:59:59.999Z' }])
+    expect(events[events.length - 1]).toEqual([{ to: localEndOfDayUTC('2026-01-31') }])
   })
 
   it('emits both from/to when complete range is selected', async () => {
@@ -86,8 +87,8 @@ describe('DateRangeFilter', () => {
     const events = wrapper.emitted('update:modelValue') ?? []
     expect(events[events.length - 1]).toEqual([
       {
-        from: '2026-01-01T00:00:00.000Z',
-        to: '2026-01-31T23:59:59.999Z',
+        from: localStartOfDayUTC('2026-01-01'),
+        to: localEndOfDayUTC('2026-01-31'),
       },
     ])
   })
@@ -114,7 +115,7 @@ describe('DateRangeFilter', () => {
 
     const events = wrapper.emitted('update:modelValue') ?? []
     expect(events[events.length - 1]?.[0]).toEqual({
-      to: '2026-02-15T23:59:59.999Z',
+      to: localEndOfDayUTC('2026-02-15'),
     })
   })
 
@@ -143,7 +144,10 @@ describe('DateRangeFilter', () => {
     expect(presets.length).toBeGreaterThan(0)
     await presets[0]!.trigger('click')
     const events = wrapper.emitted('update:modelValue') ?? []
-    expect(events[events.length - 1]?.[0]).toEqual({ from: '2026-03-15T00:00:00.000Z', to: '2026-03-15T23:59:59.999Z' })
+    expect(events[events.length - 1]?.[0]).toEqual({
+      from: localStartOfDayUTC('2026-03-15'),
+      to: localEndOfDayUTC('2026-03-15'),
+    })
   })
 
   it('renders includeNull checkbox only when popover opens and emits toggle', async () => {
