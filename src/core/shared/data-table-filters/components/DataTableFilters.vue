@@ -21,7 +21,7 @@ const state = defineModel<FilterState>('state', { default: () => ({}) })
 const isOpen = ref(false)
 const isDesktop = useBreakpoints(breakpointsTailwind).greaterOrEqual('md')
 const slideoverSide = computed(() => (isDesktop.value ? 'right' : 'bottom'))
-const slideoverUi = computed(() => (isDesktop.value ? {} : { content: 'max-h-[85vh] rounded-t-2xl' }))
+const slideoverUi = computed(() => (isDesktop.value ? {} : { content: 'h-[85vh] max-h-[85vh] rounded-t-2xl' }))
 
 const activeChips = computed(() => props.schema.activeChips(state.value))
 const activeCount = computed(() => activeChips.value.length)

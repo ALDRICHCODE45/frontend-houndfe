@@ -75,6 +75,7 @@ describe('DataTableFilters (v2)', () => {
     desktopRef.value = false
     const mobile = mount(DataTableFilters, { props: { schema, state: schema.defaults() }, global: { stubs: baseStubs } })
     const mobileUi = mobile.find('[data-testid="slideover"]').attributes('data-ui') ?? ''
+    expect(mobileUi).toContain('h-[85vh]')
     expect(mobileUi).toContain('max-h-[85vh]')
     expect(mobileUi).toContain('rounded-t-2xl')
   })
