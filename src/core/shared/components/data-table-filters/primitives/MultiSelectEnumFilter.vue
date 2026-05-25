@@ -49,9 +49,13 @@ const selectionWithSentinel = computed<string[]>({
   },
 })
 
+function lowerFirst(text: string): string {
+  return text.length === 0 ? text : `${text.charAt(0).toLowerCase()}${text.slice(1)}`
+}
+
 const selectedLabel = computed(() => {
   const includeNullLabel = props.includeNullOption
-  const hasIncludeNull = Boolean(includeNullLabel && includeNullValue.value)
+  const hasIncludeNull = includeNullValue.value && typeof includeNullLabel === 'string'
 
   if (modelValue.value.length === 0) {
     if (hasIncludeNull) return includeNullLabel
@@ -63,9 +67,7 @@ const selectedLabel = computed(() => {
 
   if (hasIncludeNull) {
     if (modelValue.value.length <= 2) {
-      const [firstChar = '', ...rest] = includeNullLabel
-      const includeNullText = `${firstChar.toLowerCase()}${rest.join('')}`
-      return [...selectedLabels, includeNullText].join(', ')
+      return [...selectedLabels, lowerFirst(includeNullLabel)].join(', ')
     }
 
     return `${modelValue.value.length + 1} seleccionados`
