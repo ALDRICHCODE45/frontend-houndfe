@@ -6,14 +6,7 @@ const SelectStub = {
   name: 'SelectStub',
   props: ['modelValue', 'items', 'searchInput', 'valueKey', 'multiple', 'loading'],
   emits: ['update:model-value'],
-  template: '<div data-testid="u-select-menu" :data-searchable="String(searchInput)" :data-value-key="valueKey" :data-multiple="String(multiple)" :data-loading="String(loading)"><slot /><slot name="content-bottom" /></div>',
-}
-
-const CheckboxStub = {
-  name: 'CheckboxStub',
-  props: ['modelValue'],
-  emits: ['update:modelValue'],
-  template: '<button data-testid="u-checkbox" @click="$emit(\'update:modelValue\', !modelValue)"></button>',
+  template: '<div data-testid="u-select-menu" :data-searchable="String(searchInput)" :data-value-key="valueKey" :data-multiple="String(multiple)" :data-loading="String(loading)"><slot /></div>',
 }
 
 function mountComponent() {
@@ -34,8 +27,6 @@ function mountComponent() {
       stubs: {
         USelectMenu: { ...SelectStub },
         SelectMenu: { ...SelectStub },
-        UCheckbox: { ...CheckboxStub },
-        Checkbox: { ...CheckboxStub },
          UFormField: { props: ['error'], template: '<div><slot /><p data-testid="error">{{ error }}</p></div>' },
       },
     },
@@ -67,16 +58,37 @@ describe('MultiSelectAsyncFilter', () => {
     expect(events[events.length - 1]).toEqual([['uuid-1', 'uuid-2']])
   })
 
-  it('toggles includeNull on/off via bound model', async () => {
+  it('appends includeNull as an additional virtual item', () => {
     const wrapper = mountComponent()
-    const checkbox = wrapper.findComponent(CheckboxStub)
+    const selectVm = wrapper.findComponent(SelectStub).vm as { $props: { items: Array<{ label: string; value: string }> } }
+    expect(selectVm.$props.items).toEqual([
+      { label: 'María Pérez', value: 'uuid-1' },
+      { label: 'Juan Gomez', value: 'uuid-2' },
+      { label: 'Marco Díaz', value: 'uuid-3' },
+      { label: 'Incluir público general', value: '__INCLUDE_NULL__' },
+    ])
+  })
 
-    await checkbox.trigger('click')
-    await wrapper.setProps({ includeNullValue: true })
-    await checkbox.trigger('click')
+  it('selecting virtual option sets includeNull without polluting modelValue', async () => {
+    const wrapper = mountComponent()
+    const select = wrapper.findComponent(SelectStub)
+
+    select.vm.$emit('update:model-value', ['uuid-1', '__INCLUDE_NULL__'])
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.emitted('update:includeNullValue')).toEqual([[true], [false]])
+    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([['uuid-1']])
+    expect(wrapper.emitted('update:includeNullValue')?.[0]).toEqual([true])
+  })
+
+  it('deselecting virtual option sets includeNull to false', async () => {
+    const wrapper = mountComponent()
+    const select = wrapper.findComponent(SelectStub)
+
+    await wrapper.setProps({ includeNullValue: true, modelValue: ['uuid-1'] })
+    select.vm.$emit('update:model-value', ['uuid-1'])
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.emitted('update:includeNullValue')?.[0]).toEqual([false])
   })
 
   it('renders external error', () => {
@@ -129,6 +141,23 @@ describe('MultiSelectAsyncFilter', () => {
     })
 
     expect(wrapper.get('[data-testid="async-trigger-label"]').text()).toContain('A, B')
+  })
+
+  it('shows includeNull label when only virtual option is active', async () => {
+    const wrapper = mountComponent()
+    await wrapper.setProps({ modelValue: [], includeNullValue: true, includeNullOption: 'Incluir público general' })
+    expect(wrapper.get('[data-testid="async-trigger-label"]').text()).toContain('Incluir público general')
+  })
+
+  it('combines real labels and includeNull label in trigger', async () => {
+    const wrapper = mountComponent()
+    await wrapper.setProps({
+      modelValue: ['uuid-1'],
+      includeNullValue: true,
+      includeNullOption: 'Sin método',
+      options: [{ label: 'Efectivo', value: 'uuid-1' }],
+    })
+    expect(wrapper.get('[data-testid="async-trigger-label"]').text()).toContain('Efectivo, sin método')
   })
 
   it('uses canonical value-key/multiple with string model and searchable true', () => {

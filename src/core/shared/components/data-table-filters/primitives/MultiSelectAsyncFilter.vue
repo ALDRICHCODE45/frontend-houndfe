@@ -25,16 +25,60 @@ const props = withDefaults(defineProps<{
 const modelValue = defineModel<string[]>({ default: () => [] })
 const includeNullValue = defineModel<boolean>('includeNullValue', { default: false })
 
+const INCLUDE_NULL_SENTINEL = '__INCLUDE_NULL__'
+
+const displayItems = computed(() => {
+  if (!props.includeNullOption) return props.options
+  return [
+    ...props.options,
+    { value: INCLUDE_NULL_SENTINEL, label: props.includeNullOption },
+  ]
+})
+
+const selectionWithSentinel = computed<string[]>({
+  get() {
+    return includeNullValue.value
+      ? [...modelValue.value, INCLUDE_NULL_SENTINEL]
+      : modelValue.value
+  },
+  set(next) {
+    const hasSentinel = next.includes(INCLUDE_NULL_SENTINEL)
+    const realValues = next.filter(v => v !== INCLUDE_NULL_SENTINEL)
+    modelValue.value = realValues
+    if (props.includeNullOption) {
+      includeNullValue.value = hasSentinel
+    }
+  },
+})
+
 const selectedLabel = computed(() => {
-  if (modelValue.value.length === 0) return props.placeholder
+  const includeNullLabel = props.includeNullOption
+  const hasIncludeNull = Boolean(includeNullLabel && includeNullValue.value)
+
+  if (modelValue.value.length === 0) {
+    if (hasIncludeNull) return includeNullLabel
+    return props.placeholder
+  }
+
+  const selectedLabels = modelValue.value
+    .map(value => props.options.find(option => option.value === value)?.label ?? value)
+
+  if (hasIncludeNull) {
+    if (modelValue.value.length <= 2) {
+      const [firstChar = '', ...rest] = includeNullLabel
+      const includeNullText = `${firstChar.toLowerCase()}${rest.join('')}`
+      return [...selectedLabels, includeNullText].join(', ')
+    }
+
+    return `${modelValue.value.length + 1} seleccionados`
+  }
+
   if (modelValue.value.length === 1) {
     return props.options.find(option => option.value === modelValue.value[0])?.label ?? modelValue.value[0]
   }
 
   if (modelValue.value.length <= 3) {
-    return modelValue.value
-      .map(value => props.options.find(option => option.value === value)?.label ?? value)
-      .join(', ')
+    return selectedLabels.join(', ')
   }
 
   return `${modelValue.value.length} seleccionados`
@@ -47,8 +91,8 @@ const selectedLabel = computed(() => {
     <USelectMenu
       data-testid="async-select"
       class="w-full"
-      v-model="modelValue"
-      :items="props.options"
+      v-model="selectionWithSentinel"
+      :items="displayItems"
       :placeholder="props.placeholder"
       :multiple="true"
       :search-input="true"
@@ -57,20 +101,6 @@ const selectedLabel = computed(() => {
     >
       <template #default>
         <span class="truncate" data-testid="async-trigger-label">{{ selectedLabel }}</span>
-      </template>
-
-      <template #content-bottom>
-        <div v-if="props.includeNullOption">
-        <USeparator class="my-1" />
-        <div class="px-2 py-1">
-          <UCheckbox
-            v-model="includeNullValue"
-            :label="props.includeNullOption"
-            variant="list"
-            data-testid="async-include-null"
-          />
-        </div>
-        </div>
       </template>
     </USelectMenu>
 

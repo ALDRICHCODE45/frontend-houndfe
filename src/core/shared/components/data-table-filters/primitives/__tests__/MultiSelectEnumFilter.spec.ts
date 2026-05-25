@@ -6,14 +6,7 @@ const SelectStub = {
   name: 'SelectStub',
   props: ['modelValue', 'searchInput', 'valueKey', 'items', 'multiple'],
   emits: ['update:model-value'],
-  template: '<div data-testid="u-select-menu" :data-searchable="String(searchInput)" :data-value-key="valueKey" :data-multiple="String(multiple)"><slot /><slot name="content-bottom" /></div>',
-}
-
-const CheckboxStub = {
-  name: 'CheckboxStub',
-  props: ['modelValue'],
-  emits: ['update:modelValue'],
-  template: '<button data-testid="u-checkbox" @click="$emit(\'update:modelValue\', !modelValue)"></button>',
+  template: '<div data-testid="u-select-menu" :data-searchable="String(searchInput)" :data-value-key="valueKey" :data-multiple="String(multiple)"><slot /></div>',
 }
 
 function mountComponent(overrideProps: Record<string, unknown> = {}) {
@@ -36,10 +29,6 @@ function mountComponent(overrideProps: Record<string, unknown> = {}) {
           ...SelectStub,
         },
         SelectMenu: { ...SelectStub },
-        UCheckbox: {
-          ...CheckboxStub,
-        },
-        Checkbox: { ...CheckboxStub },
          UFormField: { props: ['error'], template: '<div><slot /><p data-testid="error">{{ error }}</p></div>' },
        },
      },
@@ -73,16 +62,35 @@ describe('MultiSelectEnumFilter', () => {
     expect(wrapper.emitted('update:modelValue')?.[1]).toEqual([['PAID', 'PARTIAL']])
   })
 
-  it('toggles includeNull on/off via bound model', async () => {
-    const wrapper = mountComponent({ includeNullValue: false })
-    const checkbox = wrapper.findComponent(CheckboxStub)
+  it('appends includeNull as an additional virtual item', () => {
+    const wrapper = mountComponent({ includeNullOption: 'Incluir sin valor' })
+    const selectVm = wrapper.findComponent(SelectStub).vm as { $props: { items: Array<{ label: string; value: string }> } }
+    expect(selectVm.$props.items).toEqual([
+      { label: 'Pagada', value: 'PAID' },
+      { label: 'Parcial', value: 'PARTIAL' },
+      { label: 'Incluir sin valor', value: '__INCLUDE_NULL__' },
+    ])
+  })
 
-    await checkbox.trigger('click')
-    await wrapper.setProps({ includeNullValue: true })
-    await checkbox.trigger('click')
+  it('selecting virtual option sets includeNull without polluting modelValue', async () => {
+    const wrapper = mountComponent()
+    const select = wrapper.findComponent(SelectStub)
+
+    select.vm.$emit('update:model-value', ['PAID', '__INCLUDE_NULL__'])
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.emitted('update:includeNullValue')).toEqual([[true], [false]])
+    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([['PAID']])
+    expect(wrapper.emitted('update:includeNullValue')?.[0]).toEqual([true])
+  })
+
+  it('deselecting virtual option sets includeNull to false', async () => {
+    const wrapper = mountComponent({ includeNullValue: true, modelValue: ['PAID'] })
+    const select = wrapper.findComponent(SelectStub)
+
+    select.vm.$emit('update:model-value', ['PAID'])
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.emitted('update:includeNullValue')?.[0]).toEqual([false])
   })
 
   it('renders external error message', () => {
@@ -98,6 +106,7 @@ describe('MultiSelectEnumFilter', () => {
     const wrapper = mountComponent({
       options: [{ label: 'Pagada', value: 'PAID' }],
       searchable: true,
+      includeNullOption: undefined,
     })
 
     const select = wrapper.get('[data-testid="enum-select"]')
@@ -133,6 +142,25 @@ describe('MultiSelectEnumFilter', () => {
 
     await wrapper.setProps({ modelValue: ['PAID', 'PARTIAL', 'PENDING', 'CANCELLED'] })
     expect(wrapper.get('[data-testid="enum-trigger-label"]').text()).toContain('4 seleccionados')
+  })
+
+  it('shows includeNull label when only virtual option is active', async () => {
+    const wrapper = mountComponent({ modelValue: [], includeNullValue: true, includeNullOption: 'Incluir sin valor' })
+    expect(wrapper.get('[data-testid="enum-trigger-label"]').text()).toContain('Incluir sin valor')
+  })
+
+  it('combines real labels and includeNull label in trigger', async () => {
+    const wrapper = mountComponent({
+      modelValue: ['PAID'],
+      includeNullValue: true,
+      includeNullOption: 'Sin método',
+      options: [
+        { label: 'Pagada', value: 'PAID' },
+        { label: 'Parcial', value: 'PARTIAL' },
+      ],
+    })
+
+    expect(wrapper.get('[data-testid="enum-trigger-label"]').text()).toContain('Pagada, sin método')
   })
 
   it('uses w-full on control root', () => {

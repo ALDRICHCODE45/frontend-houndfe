@@ -29,7 +29,6 @@ export function createSalesFiltersSchema(sources: SalesFilterSchemaSources) {
     filter.multiEnum({ id: 'deliveryStatus', section: 'Estado', label: 'Entrega', param: 'deliveryStatus', options: [
         { value: 'PENDING', label: 'Pendiente' },
         { value: 'DELIVERED', label: 'Entregada' },
-        { value: 'NOT_APPLICABLE', label: 'No aplica' },
       ] }),
     filter.multiAsync({ id: 'customerId', section: 'Personas', label: 'Cliente', param: 'customerId', includeNull: { param: 'customerIncludeNull', label: 'Incluir Público en General' }, options: sources.customerOptions, loading: sources.customerLoading, loadingLabel: 'Cargando clientes...', placeholder: 'Buscar cliente' }),
     filter.multiAsync({ id: 'cashierUserId', section: 'Personas', label: 'Cajero', param: 'cashierUserId', options: sources.cashierOptions, loading: sources.cashierLoading, loadingLabel: 'Cargando cajeros...', placeholder: 'Buscar cajero' }),
