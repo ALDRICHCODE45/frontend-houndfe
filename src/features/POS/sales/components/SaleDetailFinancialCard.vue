@@ -8,6 +8,7 @@ import type { SaleDetail } from '../interfaces/sale.types'
 const props = defineProps<{
   sale: SaleDetail
   canEditDueDate?: boolean
+  isPaymentSubmitting?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -22,7 +23,9 @@ const debtColor = computed(() => {
   return 'text-error-600'
 })
 
-const hasDebt = computed(() => props.sale.debtCents > 0)
+const canRegisterPayment = computed(
+  () => props.sale.paymentStatus !== 'PAID' && props.sale.status === 'CONFIRMED',
+)
 </script>
 
 <template>
@@ -77,11 +80,12 @@ const hasDebt = computed(() => props.sale.debtCents > 0)
       </div>
       
       <!-- Payment Action -->
-      <div v-if="hasDebt">
+      <div v-if="canRegisterPayment">
         <UButton
           block
           icon="i-lucide-credit-card"
           data-testid="register-debt-payment"
+          :disabled="isPaymentSubmitting"
           @click="emit('register-payment')"
         >
           Registrar Pago

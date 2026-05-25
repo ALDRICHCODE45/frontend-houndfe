@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import SaleDetailView from '../SaleDetailView.vue'
 
 const debtSubmit = vi.fn()
+const debtSubmittingRef = ref(false)
 
 vi.mock('vue-router', () => ({
   useRoute: () => ({ params: { id: 'sale-1' } }),
@@ -23,8 +24,12 @@ vi.mock('../../composables/useSaleDetail', () => ({
 vi.mock('../../composables/useDebtPayment', () => ({
   useDebtPayment: () => ({
     submit: debtSubmit,
-    isSubmitting: computed(() => false),
+    submitSafe: debtSubmit,
+    isSubmitting: computed(() => debtSubmittingRef.value),
     externalError: computed(() => null),
+    externalErrorCode: computed(() => null),
+    shouldClose: computed(() => false),
+    resetError: vi.fn(),
   }),
 }))
 
@@ -68,6 +73,7 @@ const defaultSale = {
 describe('SaleDetailView', () => {
   beforeEach(() => {
     mockSaleDetail.value = defaultSale
+    debtSubmittingRef.value = false
   })
 
   it('renders two-column detail layout and title', () => {
@@ -219,5 +225,61 @@ describe('SaleDetailView', () => {
 
     await wrapper.get('[data-testid="register-debt-payment"]').trigger('click')
     expect(wrapper.find('[data-testid="submit-debt-payment"]').exists()).toBe(true)
+  })
+
+  it('shows register payment button when sale is CREDIT or PARTIAL and CONFIRMED; hides when PAID', () => {
+    const SidebarStub = {
+      props: ['sale'],
+      template: `
+        <button
+          v-if="sale.paymentStatus !== 'PAID' && sale.status === 'CONFIRMED'"
+          data-testid="register-debt-payment"
+        >
+          Registrar Pago
+        </button>
+      `,
+    }
+
+    mockSaleDetail.value = { ...defaultSale, paymentStatus: 'PARTIAL' }
+    const partialWrapper = mountWithUApp(SaleDetailView, {
+      global: { stubs: { SaleDetailSidebar: SidebarStub } },
+    })
+    expect(partialWrapper.find('[data-testid="register-debt-payment"]').exists()).toBe(true)
+
+    mockSaleDetail.value = { ...defaultSale, paymentStatus: 'CREDIT' }
+    const creditWrapper = mountWithUApp(SaleDetailView, {
+      global: { stubs: { SaleDetailSidebar: SidebarStub } },
+    })
+    expect(creditWrapper.find('[data-testid="register-debt-payment"]').exists()).toBe(true)
+
+    mockSaleDetail.value = { ...defaultSale, paymentStatus: 'PAID' }
+    const paidWrapper = mountWithUApp(SaleDetailView, {
+      global: { stubs: { SaleDetailSidebar: SidebarStub } },
+    })
+    expect(paidWrapper.find('[data-testid="register-debt-payment"]').exists()).toBe(false)
+  })
+
+  it('disables register payment button while submitting', () => {
+    debtSubmittingRef.value = true
+
+    const SidebarStub = {
+      props: ['sale', 'isPaymentSubmitting'],
+      template: `
+        <button
+          v-if="sale.paymentStatus !== 'PAID' && sale.status === 'CONFIRMED'"
+          data-testid="register-debt-payment"
+          :disabled="isPaymentSubmitting"
+        >
+          Registrar Pago
+        </button>
+      `,
+    }
+
+    mockSaleDetail.value = { ...defaultSale, paymentStatus: 'PARTIAL', status: 'CONFIRMED' }
+    const wrapper = mountWithUApp(SaleDetailView, {
+      global: { stubs: { SaleDetailSidebar: SidebarStub } },
+    })
+
+    expect(wrapper.get('[data-testid="register-debt-payment"]').attributes('disabled')).toBeDefined()
   })
 })

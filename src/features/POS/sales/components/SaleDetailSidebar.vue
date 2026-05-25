@@ -19,6 +19,7 @@ declare const useToast: () => {
 
 const props = defineProps<{
   sale: SaleDetail
+  isPaymentSubmitting?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -63,6 +64,7 @@ function handleEditDueDate() {
     <SaleDetailFinancialCard
       :sale="sale"
       :can-edit-due-date="canEditDueDate"
+      :is-payment-submitting="isPaymentSubmitting"
       @register-payment="emit('register-payment')"
       @edit-due-date="handleEditDueDate"
     />

@@ -30,7 +30,7 @@ const canReadSales = computed(() => authStore.userCan('read', 'Sale'))
 const { sale, isLoading } = useSaleDetail(saleId)
 const { addComment, updateComment, deleteComment, isPending: commentsPending, lastError } = useSaleComments(saleId)
 const debtModalOpen = ref(false)
-const { submit, isSubmitting, externalError } = useDebtPayment(saleId.value)
+const { isSubmitting } = useDebtPayment(saleId.value)
 
 const actionItems = computed(() => [
   { label: 'Imprimir Ticket', icon: 'i-lucide-printer', disabled: true },
@@ -38,11 +38,6 @@ const actionItems = computed(() => [
   { label: 'Facturar Venta', icon: 'i-lucide-file-text', disabled: true },
   { label: 'Enviar Recordatorio', icon: 'i-lucide-message-circle', disabled: true },
 ])
-
-async function handleDebtSubmit(payload: { method: 'cash' | 'card_credit' | 'card_debit' | 'transfer'; amountCents: number; reference?: string }) {
-  await submit(payload)
-  debtModalOpen.value = false
-}
 
 function goBack() {
   void router.push('/pos/ventas')
@@ -105,6 +100,7 @@ watch(
       <SaleDetailSidebar
         v-if="sale"
         :sale="sale"
+        :is-payment-submitting="isSubmitting"
         class="lg:col-span-1"
         @register-payment="debtModalOpen = true"
       />
@@ -115,9 +111,7 @@ watch(
       v-model:open="debtModalOpen"
       :sale-id="sale.id"
       :debt-cents="sale.debtCents"
-      :is-submitting="isSubmitting"
-      :external-error="externalError"
-      @submit="handleDebtSubmit"
+      @success="debtModalOpen = false"
     />
   </div>
 </template>

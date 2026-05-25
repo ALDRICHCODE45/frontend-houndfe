@@ -49,8 +49,8 @@ describe('PaymentEntryCard', () => {
     })
 
     expect(wrapper.text()).toContain('Efectivo')
-    expect(wrapper.get('[data-testid="payment-entry-amount-0"]').exists()).toBe(true)
-    expect(wrapper.get('[data-testid="payment-entry-remove-0"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="payment-entry-amount-0"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="payment-entry-remove-0"]').exists()).toBe(true)
   })
 
   it('shows reference input when method is not cash', () => {
@@ -63,7 +63,7 @@ describe('PaymentEntryCard', () => {
       global: { stubs },
     })
 
-    expect(wrapper.get('[data-testid="payment-entry-reference-1"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="payment-entry-reference-1"]').exists()).toBe(true)
   })
 
   it('emits update(index, { amountCents }) when amount changes', async () => {
