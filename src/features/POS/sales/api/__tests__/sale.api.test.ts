@@ -897,11 +897,12 @@ describe('saleApi', () => {
   })
 
   describe('registerDebtPayment', () => {
-    it('posts debt payload with idempotency header', async () => {
+    it('posts multi-method Form A payload with idempotency header', async () => {
       const payload: DebtPaymentPayload = {
-        method: 'card_credit',
-        amountCents: 15000,
-        reference: 'AUTH-1',
+        payments: [
+          { method: 'card_credit', amountCents: 15000, reference: 'AUTH-1' },
+          { method: 'cash', amountCents: 5000 },
+        ],
       }
 
       const response: DebtPaymentResponse = {
@@ -910,6 +911,7 @@ describe('saleApi', () => {
         debtCents: 5000,
         totalCents: 35000,
         paymentStatus: 'PARTIAL',
+        paymentIds: ['pay-1', 'pay-2'],
       }
 
       vi.mocked(http.post).mockResolvedValue({ data: response })
@@ -922,12 +924,12 @@ describe('saleApi', () => {
         },
       })
       expect(result.paymentStatus).toBe('PARTIAL')
+      expect(result.paymentIds).toEqual(['pay-1', 'pay-2'])
     })
 
-    it('supports cash debt payload without reference', async () => {
+    it('posts single-entry Form A payload for cash-only payment', async () => {
       const payload: DebtPaymentPayload = {
-        method: 'cash',
-        amountCents: 5000,
+        payments: [{ method: 'cash', amountCents: 5000 }],
       }
 
       const response: DebtPaymentResponse = {
@@ -936,6 +938,7 @@ describe('saleApi', () => {
         debtCents: 0,
         totalCents: 35000,
         paymentStatus: 'PAID',
+        paymentIds: ['pay-3'],
       }
 
       vi.mocked(http.post).mockResolvedValue({ data: response })
@@ -948,6 +951,7 @@ describe('saleApi', () => {
         },
       })
       expect(result.paymentStatus).toBe('PAID')
+      expect(result.paymentIds).toEqual(['pay-3'])
     })
   })
 

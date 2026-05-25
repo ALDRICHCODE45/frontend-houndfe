@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
-import { mount } from '@vue/test-utils'
-import { defineComponent, h } from 'vue'
+import { mount, flushPromises } from '@vue/test-utils'
+import { defineComponent, h, nextTick } from 'vue'
 import { saleApi } from '../../api/sale.api'
 import { useDebtPayment } from '../useDebtPayment'
 import { getSalePaymentErrorAction } from '../../utils/salePaymentErrors.utils'
+import type { DebtPaymentPayload, DebtPaymentResponse } from '../../interfaces/sale.types'
 
 const addToast = vi.fn()
 const invalidateQueries = vi.fn()
@@ -32,6 +33,22 @@ vi.mock('../../utils/salePaymentErrors.utils', () => ({
 }))
 
 vi.stubGlobal('useToast', () => ({ add: addToast }))
+
+const MULTI_PAYLOAD: DebtPaymentPayload = {
+  payments: [
+    { method: 'cash', amountCents: 5000 },
+    { method: 'transfer', amountCents: 3000, reference: 'TRF-001' },
+  ],
+}
+
+const SUCCESS_RESPONSE: DebtPaymentResponse = {
+  saleId: 'sale-1',
+  paidCents: 8000,
+  debtCents: 2000,
+  totalCents: 10000,
+  paymentStatus: 'PARTIAL',
+  paymentIds: ['pay-1', 'pay-2'],
+}
 
 function mountComposable() {
   let result: ReturnType<typeof useDebtPayment> | undefined
@@ -62,59 +79,139 @@ function mountComposable() {
 describe('useDebtPayment', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(saleApi.registerDebtPayment).mockResolvedValue({
-      saleId: 'sale-1',
-      paidCents: 8000,
-      debtCents: 2000,
-      totalCents: 10000,
-      paymentStatus: 'PARTIAL',
-    })
+    // @ts-expect-error — global auto-import mock
+    globalThis.useToast = () => ({ add: addToast })
+    vi.mocked(saleApi.registerDebtPayment).mockResolvedValue(SUCCESS_RESPONSE)
   })
 
-  it('submits debt payment with method/amount/reference and generated idempotency key', async () => {
+  it('submits multi-method Form A payload with idempotency key', async () => {
     const composable = mountComposable()
 
-    await composable.submit({ method: 'transfer', amountCents: 2000, reference: 'TRF-001' })
+    await composable.submit({ payload: MULTI_PAYLOAD, idempotencyKey: 'key-1' })
 
     expect(saleApi.registerDebtPayment).toHaveBeenCalledWith(
       'sale-1',
-      { method: 'transfer', amountCents: 2000, reference: 'TRF-001' },
-      expect.any(String),
+      MULTI_PAYLOAD,
+      'key-1',
     )
   })
 
-  it('invalidates sale detail query after successful payment', async () => {
+  it('invalidates detail and confirmed list queries on success', async () => {
     const composable = mountComposable()
 
-    await composable.submit({ method: 'cash', amountCents: 1000 })
+    await composable.submit({ payload: MULTI_PAYLOAD, idempotencyKey: 'key-2' })
 
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sales', 'tenant-1', 'detail', 'sale-1'] })
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sales', 'tenant-1', 'confirmed', {}] })
+  })
+
+  it('shows "Venta pagada" toast when paymentStatus is PAID', async () => {
+    vi.mocked(saleApi.registerDebtPayment).mockResolvedValue({
+      ...SUCCESS_RESPONSE,
+      paymentStatus: 'PAID',
+      debtCents: 0,
+    })
+
+    const composable = mountComposable()
+    await composable.submitSafe({ payload: MULTI_PAYLOAD, idempotencyKey: 'key-3' })
+    await flushPromises()
+
+    expect(addToast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Venta pagada', color: 'success' }),
+    )
+  })
+
+  it('shows "Pago parcial registrado" toast when paymentStatus is PARTIAL', async () => {
+    const composable = mountComposable()
+    await composable.submitSafe({ payload: MULTI_PAYLOAD, idempotencyKey: 'key-4' })
+    await flushPromises()
+
+    expect(addToast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Pago parcial registrado', color: 'success' }),
+    )
+  })
+
+  it('sets externalErrorCode on PAYMENT_EXCEEDS_DEBT and does NOT signal close', async () => {
+    vi.mocked(saleApi.registerDebtPayment).mockRejectedValueOnce({
+      response: { data: { error: 'PAYMENT_EXCEEDS_DEBT' } },
+    })
+    vi.mocked(getSalePaymentErrorAction).mockReturnValueOnce({ type: 'inline', message: 'El monto supera la deuda actual.' })
+
+    const composable = mountComposable()
+    try {
+      await composable.submit({ payload: MULTI_PAYLOAD, idempotencyKey: 'key-5' })
+    } catch {
+      // expected rejection from mutateAsync
+    }
+
+    await flushPromises()
+    await flushPromises()
+    expect(composable.externalErrorCode.value).toBe('PAYMENT_EXCEEDS_DEBT')
+    expect(composable.shouldClose.value).toBe(false)
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sales', 'tenant-1', 'detail', 'sale-1'] })
   })
 
-  it('uses mapped UX action for error handling', async () => {
-    vi.mocked(saleApi.registerDebtPayment).mockRejectedValueOnce({ response: { data: { error: 'PAYMENT_EXCEEDS_DEBT' } } })
+  it('signals close and toasts on NO_OUTSTANDING_DEBT', async () => {
+    vi.mocked(saleApi.registerDebtPayment).mockRejectedValueOnce({
+      response: { data: { error: 'NO_OUTSTANDING_DEBT' } },
+    })
+    vi.mocked(getSalePaymentErrorAction).mockReturnValueOnce({ type: 'refetch', message: 'Ya no tiene deuda.' })
+
     const composable = mountComposable()
+    // Use submitSafe (catches rejection) to let onError run before assertions
+    await composable.submitSafe({ payload: MULTI_PAYLOAD, idempotencyKey: 'key-6' })
+    await flushPromises()
 
-    await expect(composable.submit({ method: 'cash', amountCents: 1000 })).rejects.toBeTruthy()
-
-    expect(getSalePaymentErrorAction).toHaveBeenCalledWith('PAYMENT_EXCEEDS_DEBT')
+    expect(composable.shouldClose.value).toBe(true)
+    expect(addToast).toHaveBeenCalledWith(expect.objectContaining({ color: 'error' }))
   })
 
-  it('refetches detail on NO_OUTSTANDING_DEBT', async () => {
-    vi.mocked(saleApi.registerDebtPayment).mockRejectedValueOnce({ response: { data: { error: 'NO_OUTSTANDING_DEBT' } } })
+  it('signals close on SALE_NOT_FOUND and invalidates list', async () => {
+    vi.mocked(saleApi.registerDebtPayment).mockRejectedValueOnce({
+      response: { data: { error: 'SALE_NOT_FOUND' } },
+    })
+    vi.mocked(getSalePaymentErrorAction).mockReturnValueOnce({ type: 'refetch', message: 'No existe.' })
+
     const composable = mountComposable()
+    await composable.submitSafe({ payload: MULTI_PAYLOAD, idempotencyKey: 'key-7' })
+    await flushPromises()
 
-    await expect(composable.submit({ method: 'cash', amountCents: 1000 })).rejects.toBeTruthy()
-
-    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sales', 'tenant-1', 'detail', 'sale-1'] })
+    expect(composable.shouldClose.value).toBe(true)
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sales', 'tenant-1', 'confirmed', {}] })
   })
 
-  it('refetches detail on PAYMENT_EXCEEDS_DEBT', async () => {
-    vi.mocked(saleApi.registerDebtPayment).mockRejectedValueOnce({ response: { data: { error: 'PAYMENT_EXCEEDS_DEBT' } } })
+  it('shows generic toast on network error without error code', async () => {
+    vi.mocked(saleApi.registerDebtPayment).mockRejectedValueOnce(new Error('Network Error'))
+
     const composable = mountComposable()
+    await composable.submitSafe({ payload: MULTI_PAYLOAD, idempotencyKey: 'key-8' })
+    await flushPromises()
 
-    await expect(composable.submit({ method: 'cash', amountCents: 1000 })).rejects.toBeTruthy()
+    expect(addToast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'No pudimos registrar el pago' }),
+    )
+    expect(composable.shouldClose.value).toBe(false)
+  })
 
-    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sales', 'tenant-1', 'detail', 'sale-1'] })
+  it('resetError clears externalErrorCode and shouldClose', async () => {
+    vi.mocked(saleApi.registerDebtPayment).mockRejectedValueOnce({
+      response: { data: { error: 'PAYMENT_EXCEEDS_DEBT' } },
+    })
+    vi.mocked(getSalePaymentErrorAction).mockReturnValueOnce({ type: 'inline', message: 'Supera deuda.' })
+
+    const composable = mountComposable()
+    try {
+      await composable.submit({ payload: MULTI_PAYLOAD, idempotencyKey: 'key-9' })
+    } catch {
+      // expected rejection from mutateAsync
+    }
+
+    await flushPromises()
+    await flushPromises()
+    expect(composable.externalErrorCode.value).toBe('PAYMENT_EXCEEDS_DEBT')
+
+    composable.resetError()
+    expect(composable.externalErrorCode.value).toBeNull()
+    expect(composable.shouldClose.value).toBe(false)
   })
 })
