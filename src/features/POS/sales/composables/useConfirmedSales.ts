@@ -48,9 +48,13 @@ function transformFolioParam(filters: Record<string, unknown>): Record<string, u
  * Merge the slideover-supplied deliveryStatus with the quick-filter tab value.
  *
  * Rules (UX intent — slideover is more explicit, so it wins):
- *  - If the slideover sets `deliveryStatus` to a non-empty array, use it as-is.
+ *  - If the slideover sets `deliveryStatus` to a non-empty value, use it.
  *  - Otherwise, fall back to the quick filter (`PENDING` etc.) wrapped in an array.
  *  - If neither opines, leave it undefined so the backend returns all rows.
+ *
+ * The schema's `backendParams` serializes multi-enum filters as CSV strings
+ * (e.g. "PENDING,DELIVERED") to match the URL query-string contract, so we
+ * also accept that shape and normalize to an array.
  */
 function resolveDeliveryStatus(
   schemaValue: unknown,
@@ -58,6 +62,10 @@ function resolveDeliveryStatus(
 ): SaleDeliveryStatus[] | undefined {
   if (Array.isArray(schemaValue) && schemaValue.length > 0) {
     return schemaValue as SaleDeliveryStatus[]
+  }
+  if (typeof schemaValue === 'string' && schemaValue.length > 0) {
+    const parsed = schemaValue.split(',').map(s => s.trim()).filter(Boolean) as SaleDeliveryStatus[]
+    if (parsed.length > 0) return parsed
   }
   return quickFilter ? [quickFilter] : undefined
 }

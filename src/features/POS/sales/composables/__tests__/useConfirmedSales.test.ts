@@ -121,26 +121,42 @@ describe('useConfirmedSales', () => {
     })
   })
 
-  it('forwards deliveryStatus from extended filter (slideover) when quick filter is unset', async () => {
-    // Regression: previously the queryFn unconditionally overwrote deliveryStatus
-    // with the quick-filter value (undefined when "Todas" is selected), so the
-    // schema-driven slideover filter never reached the API and no request fired.
+  it('forwards deliveryStatus from extended filter (CSV string from schema serializer) when quick filter is unset', async () => {
+    // Regression: the schema's backendParams serializes multi-enum filters as
+    // CSV strings (e.g. "PENDING"), not arrays. Previously resolveDeliveryStatus
+    // only checked Array.isArray, so the string slipped through and the
+    // queryFn overwrote it with undefined, leaving the network silent and the
+    // list unfiltered.
     const filters = ref<Record<string, unknown>>({
-      deliveryStatus: ['DELIVERED'],
+      deliveryStatus: 'PENDING',
     })
 
     mountComposable(() => useConfirmedSales(filters))
 
     await vi.waitFor(() => {
       expect(saleApi.listConfirmed).toHaveBeenLastCalledWith(expect.objectContaining({
-        deliveryStatus: ['DELIVERED'],
+        deliveryStatus: ['PENDING'],
       }))
     })
   })
 
-  it('slideover deliveryStatus wins over quick filter when both are set', async () => {
+  it('parses multi-value CSV deliveryStatus from schema into an array', async () => {
     const filters = ref<Record<string, unknown>>({
-      deliveryStatus: ['DELIVERED'],
+      deliveryStatus: 'PENDING,DELIVERED',
+    })
+
+    mountComposable(() => useConfirmedSales(filters))
+
+    await vi.waitFor(() => {
+      expect(saleApi.listConfirmed).toHaveBeenLastCalledWith(expect.objectContaining({
+        deliveryStatus: ['PENDING', 'DELIVERED'],
+      }))
+    })
+  })
+
+  it('slideover deliveryStatus (CSV) wins over quick filter when both are set', async () => {
+    const filters = ref<Record<string, unknown>>({
+      deliveryStatus: 'DELIVERED',
     })
 
     const { result } = mountComposable(() => useConfirmedSales(filters))
