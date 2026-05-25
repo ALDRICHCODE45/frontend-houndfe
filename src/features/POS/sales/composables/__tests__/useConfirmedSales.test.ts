@@ -121,6 +121,40 @@ describe('useConfirmedSales', () => {
     })
   })
 
+  it('forwards deliveryStatus from extended filter (slideover) when quick filter is unset', async () => {
+    // Regression: previously the queryFn unconditionally overwrote deliveryStatus
+    // with the quick-filter value (undefined when "Todas" is selected), so the
+    // schema-driven slideover filter never reached the API and no request fired.
+    const filters = ref<Record<string, unknown>>({
+      deliveryStatus: ['DELIVERED'],
+    })
+
+    mountComposable(() => useConfirmedSales(filters))
+
+    await vi.waitFor(() => {
+      expect(saleApi.listConfirmed).toHaveBeenLastCalledWith(expect.objectContaining({
+        deliveryStatus: ['DELIVERED'],
+      }))
+    })
+  })
+
+  it('slideover deliveryStatus wins over quick filter when both are set', async () => {
+    const filters = ref<Record<string, unknown>>({
+      deliveryStatus: ['DELIVERED'],
+    })
+
+    const { result } = mountComposable(() => useConfirmedSales(filters))
+    await vi.waitFor(() => expect(saleApi.listConfirmed).toHaveBeenCalledTimes(1))
+
+    result.setDeliveryStatusFilter('PENDING')
+
+    await vi.waitFor(() => {
+      expect(saleApi.listConfirmed).toHaveBeenLastCalledWith(expect.objectContaining({
+        deliveryStatus: ['DELIVERED'],
+      }))
+    })
+  })
+
   it('forwards extended filter state to listConfirmed params', async () => {
     const filters = ref({
       paymentStatus: ['PAID'],

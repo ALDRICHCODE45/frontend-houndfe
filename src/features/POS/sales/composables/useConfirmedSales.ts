@@ -44,6 +44,24 @@ function transformFolioParam(filters: Record<string, unknown>): Record<string, u
   return { ...filters, folio: transformed }
 }
 
+/**
+ * Merge the slideover-supplied deliveryStatus with the quick-filter tab value.
+ *
+ * Rules (UX intent — slideover is more explicit, so it wins):
+ *  - If the slideover sets `deliveryStatus` to a non-empty array, use it as-is.
+ *  - Otherwise, fall back to the quick filter (`PENDING` etc.) wrapped in an array.
+ *  - If neither opines, leave it undefined so the backend returns all rows.
+ */
+function resolveDeliveryStatus(
+  schemaValue: unknown,
+  quickFilter: SaleDeliveryStatus | undefined,
+): SaleDeliveryStatus[] | undefined {
+  if (Array.isArray(schemaValue) && schemaValue.length > 0) {
+    return schemaValue as SaleDeliveryStatus[]
+  }
+  return quickFilter ? [quickFilter] : undefined
+}
+
 export function useConfirmedSales(filters: Ref<Record<string, unknown>> = ref({})) {
   const authStore = useAuthStore()
   const counts = ref<SalesListCounts>(DEFAULT_COUNTS)
@@ -54,7 +72,7 @@ export function useConfirmedSales(filters: Ref<Record<string, unknown>> = ref({}
     queryKey: () =>
       saleQueryKeys.confirmed(authStore.currentTenantId, {
         ...filters.value,
-        deliveryStatus: deliveryStatusFilter.value ? [deliveryStatusFilter.value] : undefined,
+        deliveryStatus: resolveDeliveryStatus(filters.value.deliveryStatus, deliveryStatusFilter.value),
       }),
     queryFn: async (params) => {
       try {
@@ -62,7 +80,7 @@ export function useConfirmedSales(filters: Ref<Record<string, unknown>> = ref({}
         const response = await saleApi.listConfirmed({
           ...mapServerTableParamsToListSalesParams(params),
           ...transformedFilters,
-          deliveryStatus: deliveryStatusFilter.value ? [deliveryStatusFilter.value] : undefined,
+          deliveryStatus: resolveDeliveryStatus(filters.value.deliveryStatus, deliveryStatusFilter.value),
         })
 
         filterErrors.value = {}
