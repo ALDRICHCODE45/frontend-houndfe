@@ -79,8 +79,6 @@ function mountComposable() {
 describe('useDebtPayment', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    // @ts-expect-error — global auto-import mock
-    globalThis.useToast = () => ({ add: addToast })
     vi.mocked(saleApi.registerDebtPayment).mockResolvedValue(SUCCESS_RESPONSE)
   })
 

@@ -11,21 +11,14 @@ import type {
 } from '../interfaces/sale.types'
 import { getSalePaymentErrorAction } from '../utils/salePaymentErrors.utils'
 
-interface ToastApi {
+// useToast is auto-imported by @nuxt/ui/vite plugin (unplugin-auto-import).
+// In tests, stub via vi.stubGlobal('useToast', () => ({ add: mockFn })).
+declare const useToast: () => {
   add: (options: {
     title: string
     description?: string
     color?: 'success' | 'error' | 'warning' | 'primary' | 'neutral'
   }) => void
-}
-
-// useToast is auto-imported globally by Nuxt UI plugin at runtime.
-// In test environment, stub it via vi.stubGlobal or globalThis.useToast.
-function resolveToast(): ToastApi {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const fn = (globalThis as any).useToast
-  if (typeof fn === 'function') return fn()
-  throw new Error('useToast is not available. Ensure Nuxt UI plugin is installed or mock it in tests.')
 }
 
 interface DomainErrorResponse {
@@ -57,7 +50,7 @@ const INVALIDATE_LIST_CODES: ReadonlySet<string> = new Set([
 export function useDebtPayment(saleId: string) {
   const tenantId = useSafeTenantId()
   const queryClient = useQueryClient()
-  const toast = resolveToast()
+  const toast = useToast()
 
   const externalErrorCode = ref<DebtPaymentDomainErrorCode | null>(null)
   const shouldClose = ref(false)
