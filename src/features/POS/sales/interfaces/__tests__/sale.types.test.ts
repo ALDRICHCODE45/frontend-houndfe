@@ -18,11 +18,14 @@ import type {
   PosCatalogResponse,
   PosCatalogSearchParams,
   PaymentMethod,
+  CollectionPaymentMethod,
+  PaymentEntry,
   ChargeSalePayload,
   ChargeSaleResponse,
   ChargeDomainErrorCode,
   DebtPaymentPayload,
   DebtPaymentResponse,
+  DebtPaymentDomainErrorCode,
   ConfirmedSaleRow,
   ConfirmedSalesListResponse,
   SaleDetail,
@@ -127,9 +130,10 @@ describe('sale.types', () => {
 
     it('supports debt payment contracts', () => {
       const payload: DebtPaymentPayload = {
-        method: 'transfer',
-        amountCents: 5000,
-        reference: 'TRX-100',
+        payments: [
+          { method: 'transfer', amountCents: 5000, reference: 'TRX-100' },
+          { method: 'cash', amountCents: 2000 },
+        ],
       }
 
       const response: DebtPaymentResponse = {
@@ -138,10 +142,53 @@ describe('sale.types', () => {
         debtCents: 5000,
         totalCents: 50000,
         paymentStatus: 'PARTIAL',
+        paymentIds: ['pay-1', 'pay-2'],
       }
 
-      expect(payload.method).toBe('transfer')
+      expect(payload.payments[0]?.method).toBe('transfer')
       expect(response.debtCents).toBe(5000)
+      expect(response.paymentIds).toHaveLength(2)
+    })
+
+    it('supports collection methods without credit', () => {
+      const methodA: CollectionPaymentMethod = 'cash'
+      const methodB: CollectionPaymentMethod = 'card_credit'
+      const methodC: CollectionPaymentMethod = 'card_debit'
+      const methodD: CollectionPaymentMethod = 'transfer'
+
+      expect(methodA).toBe('cash')
+      expect(methodB).toBe('card_credit')
+      expect(methodC).toBe('card_debit')
+      expect(methodD).toBe('transfer')
+
+      // @ts-expect-error credit is not part of CollectionPaymentMethod
+      const invalid: CollectionPaymentMethod = 'credit'
+      expect(invalid).toBe('credit')
+    })
+
+    it('supports debt payment domain error codes', () => {
+      const codeA: DebtPaymentDomainErrorCode = 'SALE_NOT_FOUND'
+      const codeB: DebtPaymentDomainErrorCode = 'NO_OUTSTANDING_DEBT'
+      const codeC: DebtPaymentDomainErrorCode = 'PAYMENT_EXCEEDS_DEBT'
+      const codeD: DebtPaymentDomainErrorCode = 'IDEMPOTENCY_KEY_CONFLICT'
+
+      expect(codeA).toBe('SALE_NOT_FOUND')
+      expect(codeB).toBe('NO_OUTSTANDING_DEBT')
+      expect(codeC).toBe('PAYMENT_EXCEEDS_DEBT')
+      expect(codeD).toBe('IDEMPOTENCY_KEY_CONFLICT')
+    })
+
+    it('accepts PaymentEntry list in debt payload', () => {
+      const entries: PaymentEntry[] = [
+        { method: 'cash', amountCents: 10000 },
+        { method: 'card_debit', amountCents: 2000, reference: 'V-99' },
+      ]
+
+      const payload: DebtPaymentPayload = {
+        payments: entries,
+      }
+
+      expect(payload.payments).toHaveLength(2)
     })
   })
 

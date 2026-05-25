@@ -5,6 +5,7 @@ export type SaleCurrency = 'MXN'
 export type PriceSource = 'default' | 'price_list' | 'custom'
 export type PaymentMethod = 'cash' | 'card_credit' | 'card_debit' | 'transfer' | 'credit'
 export type NonCreditPaymentMethod = Exclude<PaymentMethod, 'credit'>
+export type CollectionPaymentMethod = NonCreditPaymentMethod
 export type SalePaymentStatus = 'PAID' | 'PARTIAL' | 'CREDIT'
 export type SaleDeliveryStatus = 'PENDING' | 'DELIVERED' | 'NOT_APPLICABLE'
 
@@ -178,7 +179,7 @@ export interface LegacyChargePayload {
 }
 
 export interface PaymentEntry {
-  method: NonCreditPaymentMethod
+  method: CollectionPaymentMethod
   amountCents: number
   reference?: string
 }
@@ -194,9 +195,7 @@ export type ChargeSalePayload =
   | (MultiPaymentChargePayload & { method?: never; amountCents?: never })
 
 export interface DebtPaymentPayload {
-  method: NonCreditPaymentMethod
-  amountCents: number
-  reference?: string
+  payments: PaymentEntry[]
 }
 
 export interface DebtPaymentResponse {
@@ -205,7 +204,17 @@ export interface DebtPaymentResponse {
   debtCents: number
   totalCents: number
   paymentStatus: SalePaymentStatus
+  paymentIds: string[]
 }
+
+export type DebtPaymentDomainErrorCode =
+  | 'SALE_NOT_FOUND'
+  | 'SALE_NOT_CONFIRMABLE_FOR_PAYMENT'
+  | 'NO_OUTSTANDING_DEBT'
+  | 'PAYMENT_EXCEEDS_DEBT'
+  | 'IDEMPOTENCY_KEY_CONFLICT'
+  | 'IDEMPOTENCY_KEY_IN_FLIGHT'
+  | 'IDEMPOTENCY_KEY_REQUIRED'
 
 export interface ChargeSaleResponse {
   saleId: string
