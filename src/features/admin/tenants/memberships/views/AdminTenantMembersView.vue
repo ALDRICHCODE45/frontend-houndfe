@@ -8,6 +8,7 @@ import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { adminTenantMembershipQueryKeys } from '@/core/shared/constants/query-keys'
+import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { membershipsApi, mapMembershipError } from '../api/memberships.api'
 import { useMembershipColumns } from '../composables/useMembershipColumns'
 import type { MembershipTableRow } from '../interfaces/membership.types'
@@ -30,7 +31,13 @@ declare const useToast: () => {
 const route = useRoute()
 const queryClient = useQueryClient()
 const toast = useToast()
+const authStore = useAuthStore()
 const { columns } = useMembershipColumns()
+
+const canReadMemberships = computed(() => authStore.userCan('read', 'TenantMembership'))
+const canCreateMembership = computed(() => authStore.userCan('create', 'TenantMembership'))
+const canUpdateMembership = computed(() => authStore.userCan('update', 'TenantMembership'))
+const canDeleteMembership = computed(() => authStore.userCan('delete', 'TenantMembership'))
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
   day: '2-digit',
   month: 'short',
@@ -176,12 +183,18 @@ function openRemoveConfirm(membership: MembershipTableRow) {
 }
 
 function getRowItems(membership: MembershipTableRow) {
-  return [
-    [
-      { label: 'Editar rol', onSelect: () => openEdit(membership) },
-      { label: 'Eliminar miembro', color: 'error' as const, onSelect: () => openRemoveConfirm(membership) },
-    ],
-  ]
+  const items: Array<{ label: string; color?: 'error'; onSelect: () => void }> = []
+  if (canUpdateMembership.value) {
+    items.push({ label: 'Editar rol', onSelect: () => openEdit(membership) })
+  }
+  if (canDeleteMembership.value) {
+    items.push({
+      label: 'Eliminar miembro',
+      color: 'error' as const,
+      onSelect: () => openRemoveConfirm(membership),
+    })
+  }
+  return items.length > 0 ? [items] : []
 }
 </script>
 
@@ -196,7 +209,11 @@ function getRowItems(membership: MembershipTableRow) {
         />
       </template>
 
-      <div class="px-6 py-5">
+      <div v-if="!canReadMemberships" class="px-6 py-10 text-center text-sm text-muted">
+        No tenés acceso a esta sección.
+      </div>
+
+      <div v-else class="px-6 py-5">
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"
@@ -214,7 +231,7 @@ function getRowItems(membership: MembershipTableRow) {
           :page-size-options="pageSizeOptions"
           search-placeholder="Buscar por email, nombre o rol..."
           empty="No hay miembros en este tenant"
-          show-add-button
+          :show-add-button="canCreateMembership"
           add-button-text="Agregar miembro"
           add-button-icon="i-lucide-user-plus"
           @add="isCreateOpen = true"
@@ -251,7 +268,11 @@ function getRowItems(membership: MembershipTableRow) {
           </template>
 
           <template #actions-cell="{ row }">
-            <UDropdownMenu :items="getRowItems(row.original)" :content="{ align: 'end' }">
+            <UDropdownMenu
+              v-if="getRowItems(row.original).length > 0"
+              :items="getRowItems(row.original)"
+              :content="{ align: 'end' }"
+            >
               <UButton icon="i-lucide-ellipsis-vertical" color="neutral" variant="ghost" class="size-7" />
             </UDropdownMenu>
           </template>

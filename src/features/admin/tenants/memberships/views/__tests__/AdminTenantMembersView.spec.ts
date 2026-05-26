@@ -66,6 +66,7 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
   useAuthStore: vi.fn(() => ({
     isSuperAdmin: true,
     currentTenant: { id: 'tenant-123', name: 'Sucursal de prueba', slug: 'test' },
+    userCan: vi.fn(() => true),
   })),
 }))
 
@@ -393,5 +394,137 @@ describe('AdminTenantMembersView - behavioral tests', () => {
     expect(wrapper.find('h1').exists()).toBe(false)
     expect(wrapper.text().match(/Miembros del tenant/g)?.length ?? 0).toBe(1)
     expect(wrapper.text().match(/Agregar miembro/g)?.length ?? 0).toBe(1)
+  })
+})
+
+describe('AdminTenantMembersView - permission guards', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  async function mountWithPermissions(perms: {
+    read?: boolean
+    create?: boolean
+    update?: boolean
+    delete?: boolean
+  }) {
+    const { useAuthStore } = await import('@/features/auth/stores/useAuthStore')
+    vi.mocked(useAuthStore).mockReturnValue({
+      isSuperAdmin: false,
+      currentTenant: { id: 'tenant-123', name: 'Sucursal de prueba', slug: 'test' },
+      userCan: vi.fn((_action: string, _subject: string) => {
+        const action = _action as keyof typeof perms
+        return perms[action] ?? false
+      }),
+    } as never)
+
+    const UCardStub = defineComponent({
+      props: ['ui'],
+      setup(_, { slots }) {
+        return () =>
+          h('div', { class: 'u-card-stub' }, [
+            slots.header?.(),
+            slots.default?.(),
+          ])
+      },
+    })
+
+    const AppDataTableStub = defineComponent({
+      props: ['showAddButton', 'addButtonText'],
+      setup(props) {
+        return () =>
+          h('div', { class: 'app-data-table-stub' }, [
+            props.showAddButton
+              ? h('button', { class: 'add-btn' }, props.addButtonText)
+              : null,
+          ])
+      },
+    })
+
+    return mount(AdminTenantMembersView, {
+      global: {
+        stubs: {
+          UCard: UCardStub,
+          AppDataTable: AppDataTableStub,
+          SortableHeader: true,
+          MembershipUpsertSlideover: true,
+          ConfirmModal: true,
+        },
+      },
+    })
+  }
+
+  it('renders neutral empty state and hides the table when read is denied', async () => {
+    const wrapper = await mountWithPermissions({ read: false })
+    expect(wrapper.text()).toContain('No tenés acceso a esta sección.')
+    expect(wrapper.find('.app-data-table-stub').exists()).toBe(false)
+  })
+
+  it('hides the "Agregar miembro" button when create is denied', async () => {
+    const wrapper = await mountWithPermissions({
+      read: true,
+      create: false,
+      update: true,
+      delete: true,
+    })
+    expect(wrapper.find('.app-data-table-stub').exists()).toBe(true)
+    expect(wrapper.find('button.add-btn').exists()).toBe(false)
+  })
+
+  it('renders the "Agregar miembro" button when create is allowed', async () => {
+    const wrapper = await mountWithPermissions({
+      read: true,
+      create: true,
+      update: true,
+      delete: true,
+    })
+    const btn = wrapper.find('button.add-btn')
+    expect(btn.exists()).toBe(true)
+    expect(btn.text()).toBe('Agregar miembro')
+  })
+
+  it('getRowItems returns empty when both update and delete are denied', async () => {
+    const wrapper = await mountWithPermissions({
+      read: true,
+      create: false,
+      update: false,
+      delete: false,
+    })
+    // Access the exposed function via the component instance
+    const vm = wrapper.vm as unknown as {
+      getRowItems: (m: { id: string; userEmail: string }) => unknown[]
+    }
+    const items = vm.getRowItems({ id: 'm1', userEmail: 'u@example.com' })
+    expect(items).toEqual([])
+  })
+
+  it('getRowItems exposes only "Editar rol" when delete is denied but update is allowed', async () => {
+    const wrapper = await mountWithPermissions({
+      read: true,
+      update: true,
+      delete: false,
+    })
+    const vm = wrapper.vm as unknown as {
+      getRowItems: (m: { id: string; userEmail: string }) => Array<Array<{ label: string }>>
+    }
+    const items = vm.getRowItems({ id: 'm1', userEmail: 'u@example.com' })
+    expect(items.length).toBe(1)
+    expect(items[0]?.length).toBe(1)
+    expect(items[0]?.[0]?.label).toBe('Editar rol')
+  })
+
+  it('getRowItems exposes only "Eliminar miembro" when update is denied but delete is allowed', async () => {
+    const wrapper = await mountWithPermissions({
+      read: true,
+      update: false,
+      delete: true,
+    })
+    const vm = wrapper.vm as unknown as {
+      getRowItems: (m: { id: string; userEmail: string }) => Array<Array<{ label: string }>>
+    }
+    const items = vm.getRowItems({ id: 'm1', userEmail: 'u@example.com' })
+    expect(items.length).toBe(1)
+    expect(items[0]?.length).toBe(1)
+    expect(items[0]?.[0]?.label).toBe('Eliminar miembro')
   })
 })
