@@ -31,6 +31,7 @@ vi.mock('vue-router', () => ({
 
 vi.mock('@tanstack/vue-query', () => ({
   QueryClient: vi.fn(() => ({})),
+  keepPreviousData: vi.fn(),
   useQuery: vi.fn(() => ({
     data: ref({ data: [] }),
     isLoading: ref(false),
@@ -279,6 +280,10 @@ describe('AdminTenantMembersView - behavioral tests', () => {
 
     expect(invalidateQueries).toHaveBeenCalledWith({
       queryKey: adminTenantMembershipQueryKeys.list('tenant-123'),
+    })
+
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['admin', 'tenant-memberships', 'tenant-123', 'eligible'],
     })
   })
 

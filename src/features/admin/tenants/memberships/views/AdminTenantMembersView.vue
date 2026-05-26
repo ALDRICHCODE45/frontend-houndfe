@@ -112,6 +112,9 @@ const createMutation = useMutation({
     await queryClient.invalidateQueries({
       queryKey: adminTenantMembershipQueryKeys.list(tenantId.value),
     })
+    await queryClient.invalidateQueries({
+      queryKey: ['admin', 'tenant-memberships', tenantId.value, 'eligible'],
+    })
   },
   onError: (error: AxiosError<{ message?: string }>) => {
     const message = mapMembershipError(error.response?.data?.message || error.message || '')

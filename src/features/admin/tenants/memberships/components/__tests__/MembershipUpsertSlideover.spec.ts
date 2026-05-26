@@ -1,15 +1,55 @@
 import { describe, it, expect, vi } from 'vitest'
 import { shallowMount } from '@vue/test-utils'
+import { ref } from 'vue'
 import MembershipUpsertSlideover from '../MembershipUpsertSlideover.vue'
 import { createMembershipSchema, updateMembershipSchema } from '../../interfaces/membership.types'
 
-vi.mock('../../composables/useMembershipOptions', () => ({
-  useMembershipOptions: () => ({
-    userOptions: [],
-    roleOptions: [],
-    isLoadingOptions: false,
-  }),
+const mockUseEligibleUsersQuery = vi.fn((..._args: any[]) => ({
+  users: ref<any[]>([]),
+  isLoading: ref(false),
+  isError: ref(false),
+  error: ref(null),
 }))
+
+const mockUseTenantRolesQuery = vi.fn((..._args: any[]) => ({
+  roles: ref<any[]>([]),
+  isLoading: ref(false),
+  isError: ref(false),
+}))
+
+const mockToastAdd = vi.fn()
+const mockUseToast = vi.fn(() => ({ add: mockToastAdd }))
+
+vi.mock('../../composables/useEligibleUsersQuery', () => ({
+  useEligibleUsersQuery: (tenantId: unknown, search: unknown) =>
+    mockUseEligibleUsersQuery(tenantId, search),
+}))
+
+vi.mock('../../composables/useTenantRolesQuery', () => ({
+  useTenantRolesQuery: (tenantId: unknown) => mockUseTenantRolesQuery(tenantId),
+}))
+
+vi.mock('@vueuse/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@vueuse/core')>()
+  return {
+    ...actual,
+    refDebounced: (source: unknown) => source,
+  }
+})
+
+vi.mock('../../api/memberships.api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../api/memberships.api')>()
+  return {
+    ...actual,
+    mapEligibleUsersError: vi.fn((code: string) =>
+      code === 'SEARCH_QUERY_TOO_SHORT'
+        ? 'Escribí al menos 2 caracteres para buscar.'
+        : 'Ocurrió un error inesperado',
+    ),
+  }
+})
+
+vi.stubGlobal('useToast', mockUseToast)
 
 describe('MembershipUpsertSlideover', () => {
   describe('create mode', () => {
@@ -56,6 +96,81 @@ describe('MembershipUpsertSlideover', () => {
       expect(vm.createState).toBeDefined()
       expect(vm.createState.userId).toBeDefined()
       expect(vm.createState.roleId).toBeDefined()
+    })
+
+    it('shows helper state when search has exactly 1 character', async () => {
+      const wrapper = shallowMount(MembershipUpsertSlideover, {
+        props: {
+          mode: 'create',
+          tenantId: 'tenant-1',
+          open: true,
+        },
+      })
+
+      const vm = wrapper.vm as any
+      vm.userSearchTerm = 'm'
+      await wrapper.vm.$nextTick()
+
+      expect(vm.isSingleCharSearch).toBe(true)
+    })
+
+    it('maps eligible users into dropdown options when search has 3 chars', () => {
+      mockUseEligibleUsersQuery.mockReturnValueOnce({
+        users: ref([{ id: 'u-1', name: 'Maria', email: 'maria@test.com', isActive: true }]),
+        isLoading: ref(false),
+        isError: ref(false),
+        error: ref(null),
+      })
+
+      const wrapper = shallowMount(MembershipUpsertSlideover, {
+        props: {
+          mode: 'create',
+          tenantId: 'tenant-1',
+          open: true,
+        },
+      })
+
+      const vm = wrapper.vm as any
+      vm.userSearchTerm = 'mar'
+
+      expect(mockUseEligibleUsersQuery).toHaveBeenCalled()
+      expect(vm.userOptions).toEqual([
+        {
+          value: 'u-1',
+          label: 'Maria',
+          email: 'maria@test.com',
+          avatar: { alt: 'Maria' },
+        },
+      ])
+    })
+
+    it('fires warning toast on SEARCH_QUERY_TOO_SHORT backend error', async () => {
+      mockUseEligibleUsersQuery.mockReturnValueOnce({
+        users: ref([]),
+        isLoading: ref(false),
+        isError: ref(false),
+        error: ref(null),
+      })
+
+      const wrapper = shallowMount(MembershipUpsertSlideover, {
+        props: {
+          mode: 'create',
+          tenantId: 'tenant-1',
+          open: true,
+        },
+      })
+
+      const vm = wrapper.vm as any
+      vm.notifyEligibleUsersSearchError({
+        response: {
+          status: 400,
+          data: { code: 'SEARCH_QUERY_TOO_SHORT' },
+        },
+        message: 'SEARCH_QUERY_TOO_SHORT',
+      })
+
+      const { mapEligibleUsersError } = await import('../../api/memberships.api')
+      expect(mapEligibleUsersError).toHaveBeenCalledWith('SEARCH_QUERY_TOO_SHORT')
     })
   })
 
