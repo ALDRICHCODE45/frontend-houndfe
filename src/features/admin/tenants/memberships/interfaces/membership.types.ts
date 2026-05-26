@@ -26,7 +26,7 @@ export interface MembershipResponse {
   userId: string
   tenantId: string
   roleId: string
-  createdAt?: string
+  createdAt: string
 }
 
 // Enriched row for table display (includes resolved user/role names)
@@ -34,6 +34,7 @@ export interface MembershipTableRow extends MembershipResponse {
   userName: string
   userEmail: string
   roleName: string
+  userIsActive?: boolean
 }
 
 // Create request (POST /admin/tenants/:tenantId/members)

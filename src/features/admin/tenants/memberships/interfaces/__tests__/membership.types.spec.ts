@@ -123,12 +123,14 @@ describe('membership.types', () => {
         userId: 'user-id',
         tenantId: 'tenant-id',
         roleId: 'role-id',
+        createdAt: '2026-05-26T20:24:00.000Z',
       }
 
       expect(response.id).toBe('membership-id')
       expect(response.userId).toBe('user-id')
       expect(response.tenantId).toBe('tenant-id')
       expect(response.roleId).toBe('role-id')
+      expect(response.createdAt).toBe('2026-05-26T20:24:00.000Z')
     })
 
     it('MembershipTableRow includes enriched user and role data', () => {
@@ -137,14 +139,17 @@ describe('membership.types', () => {
         userId: 'user-id',
         tenantId: 'tenant-id',
         roleId: 'role-id',
+        createdAt: '2026-05-26T20:24:00.000Z',
         userName: 'John Doe',
         userEmail: 'john@example.com',
         roleName: 'Manager',
+        userIsActive: true,
       }
 
       expect(row.userName).toBe('John Doe')
       expect(row.userEmail).toBe('john@example.com')
       expect(row.roleName).toBe('Manager')
+      expect(row.userIsActive).toBe(true)
     })
 
     it('CreateMembershipRequest has userId and roleId', () => {

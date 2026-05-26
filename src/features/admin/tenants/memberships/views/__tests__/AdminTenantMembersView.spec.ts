@@ -3,6 +3,7 @@ import { mount } from '@vue/test-utils'
 import { ref } from 'vue'
 import { defineComponent, h } from 'vue'
 import AdminTenantMembersView from '../AdminTenantMembersView.vue'
+import { adminTenantMembershipQueryKeys } from '@/core/shared/constants/query-keys'
 
 /**
  * Behavioral tests for AdminTenantMembersView
@@ -253,8 +254,12 @@ describe('AdminTenantMembersView - behavioral tests', () => {
   })
 
   it('invalidates membership queries after successful create', async () => {
-    const { useQueryClient } = await import('@tanstack/vue-query')
-    
+    const { useQueryClient, useMutation } = await import('@tanstack/vue-query')
+    const { useRoute } = await import('vue-router')
+    const invalidateQueries = vi.fn().mockResolvedValue(undefined)
+    vi.mocked(useRoute).mockReturnValue({ params: { tenantId: 'tenant-123' } } as any)
+    vi.mocked(useQueryClient).mockReturnValue({ invalidateQueries } as any)
+
     mount(AdminTenantMembersView, {
       global: {
         stubs: {
@@ -266,8 +271,15 @@ describe('AdminTenantMembersView - behavioral tests', () => {
       },
     })
 
-    // Component should invalidate queries on success
-    expect(useQueryClient).toHaveBeenCalled()
+    const createMutationOptions = vi.mocked(useMutation).mock.calls[0]?.[0] as
+      | { onSuccess?: () => Promise<void> }
+      | undefined
+
+    await createMutationOptions?.onSuccess?.()
+
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: adminTenantMembershipQueryKeys.list('tenant-123'),
+    })
   })
 
   it('invalidates membership queries after successful edit', async () => {

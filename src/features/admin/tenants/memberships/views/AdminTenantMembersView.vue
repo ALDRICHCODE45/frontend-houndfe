@@ -110,7 +110,7 @@ const createMutation = useMutation({
       color: 'success',
     })
     await queryClient.invalidateQueries({
-      queryKey: ['admin', 'tenants', tenantId.value, 'memberships'],
+      queryKey: adminTenantMembershipQueryKeys.list(tenantId.value),
     })
   },
   onError: (error: AxiosError<{ message?: string }>) => {
@@ -131,7 +131,7 @@ const editMutation = useMutation({
       color: 'success',
     })
     await queryClient.invalidateQueries({
-      queryKey: ['admin', 'tenants', tenantId.value, 'memberships'],
+      queryKey: adminTenantMembershipQueryKeys.list(tenantId.value),
     })
   },
   onError: (error: AxiosError<{ message?: string }>) => {
@@ -149,7 +149,7 @@ const removeMutation = useMutation({
       color: 'success',
     })
     await queryClient.invalidateQueries({
-      queryKey: ['admin', 'tenants', tenantId.value, 'memberships'],
+      queryKey: adminTenantMembershipQueryKeys.list(tenantId.value),
     })
   },
   onError: (error: AxiosError<{ message?: string }>) => {
