@@ -6,6 +6,10 @@ import type {
   CreateMembershipRequest,
   UpdateMembershipRequest,
 } from '../interfaces/membership.types'
+import type {
+  EligibleUsersList,
+  GetEligibleUsersParams,
+} from '../interfaces/eligible-user.types'
 
 type MembershipApiRow = MembershipResponse & {
   user?: {
@@ -38,6 +42,19 @@ export function mapMembershipError(codeOrMessage: string): string {
 
   const normalizedCode = codeOrMessage.toUpperCase()
   return MEMBERSHIP_ERROR_MAP[normalizedCode] ?? FALLBACK_ERROR_MESSAGE
+}
+
+const ELIGIBLE_USERS_ERROR_MAP: Record<string, string> = {
+  SEARCH_QUERY_TOO_SHORT: 'Escribí al menos 2 caracteres para buscar.',
+}
+
+export function mapEligibleUsersError(codeOrMessage: string): string {
+  if (!codeOrMessage) {
+    return FALLBACK_ERROR_MESSAGE
+  }
+
+  const normalizedCode = codeOrMessage.toUpperCase()
+  return ELIGIBLE_USERS_ERROR_MAP[normalizedCode] ?? FALLBACK_ERROR_MESSAGE
 }
 
 function applyLocalMembershipFilters(
@@ -147,5 +164,25 @@ export const membershipsApi = {
       `/admin/tenants/${tenantId}/roles`,
     )
     return data.data
+  },
+
+  async getEligibleUsers(
+    tenantId: string,
+    params: GetEligibleUsersParams,
+  ): Promise<EligibleUsersList> {
+    // Strip undefined values so axios doesn't serialize `?search=undefined`
+    const requestParams: Record<string, string | number | boolean> = {}
+    if (params.search !== undefined) requestParams.search = params.search
+    if (params.page !== undefined) requestParams.page = params.page
+    if (params.limit !== undefined) requestParams.limit = params.limit
+    if (params.includeInactive !== undefined) {
+      requestParams.includeInactive = params.includeInactive
+    }
+
+    const { data } = await http.get<EligibleUsersList>(
+      `/admin/tenants/${tenantId}/eligible-users`,
+      { params: requestParams },
+    )
+    return data
   },
 }

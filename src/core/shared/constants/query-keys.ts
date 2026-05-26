@@ -80,4 +80,12 @@ export const adminTenantMembershipQueryKeys = {
   detail: (tenantId: string, membershipId: string) =>
     ['admin', 'tenant-memberships', tenantId, 'detail', membershipId] as const,
   roles: (tenantId: string) => ['admin', 'tenant-memberships', tenantId, 'roles'] as const,
+  eligible: (tenantId: string, params: { search?: string; page?: number } = {}) =>
+    [
+      'admin',
+      'tenant-memberships',
+      tenantId,
+      'eligible',
+      { search: params.search ?? '', page: params.page ?? 1 },
+    ] as const,
 }

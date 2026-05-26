@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { membershipsApi } from '../memberships.api'
+import { membershipsApi, mapEligibleUsersError } from '../memberships.api'
 import { http } from '@/core/shared/api/http'
 import type { MembershipResponse } from '../../interfaces/membership.types'
 import type { ServerTableParams } from '@/core/shared/types/table.types'
@@ -433,5 +433,79 @@ describe('mapMembershipError', () => {
   it('handles mixed case error codes', () => {
     const result = mapMembershipError('role_tenant_mismatch')
     expect(result).toBe('El rol seleccionado no pertenece a esta sucursal')
+  })
+})
+
+describe('membershipsApi.getEligibleUsers', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('calls GET /admin/tenants/:tenantId/eligible-users with all params', async () => {
+    vi.mocked(http.get).mockResolvedValue({
+      data: {
+        data: [],
+        meta: { total: 0, page: 1, limit: 20, totalPages: 0 },
+      },
+    } as never)
+
+    await membershipsApi.getEligibleUsers('tenant-1', {
+      search: 'mar',
+      page: 1,
+      limit: 20,
+      includeInactive: false,
+    })
+
+    expect(http.get).toHaveBeenCalledWith('/admin/tenants/tenant-1/eligible-users', {
+      params: { search: 'mar', page: 1, limit: 20, includeInactive: false },
+    })
+  })
+
+  it('omits undefined params from the request', async () => {
+    vi.mocked(http.get).mockResolvedValue({
+      data: { data: [], meta: { total: 0, page: 1, limit: 20, totalPages: 0 } },
+    } as never)
+
+    await membershipsApi.getEligibleUsers('tenant-1', { page: 2, limit: 10 })
+
+    expect(http.get).toHaveBeenCalledWith('/admin/tenants/tenant-1/eligible-users', {
+      params: { page: 2, limit: 10 },
+    })
+  })
+
+  it('returns the backend envelope unchanged', async () => {
+    const envelope = {
+      data: [
+        { id: 'u1', email: 'juan@test.com', name: 'Juan', isActive: true },
+      ],
+      meta: { total: 1, page: 1, limit: 20, totalPages: 1 },
+    }
+    vi.mocked(http.get).mockResolvedValue({ data: envelope } as never)
+
+    const result = await membershipsApi.getEligibleUsers('tenant-1', {})
+
+    expect(result).toEqual(envelope)
+  })
+})
+
+describe('mapEligibleUsersError', () => {
+  it('maps SEARCH_QUERY_TOO_SHORT to user-facing message', () => {
+    expect(mapEligibleUsersError('SEARCH_QUERY_TOO_SHORT')).toBe(
+      'Escribí al menos 2 caracteres para buscar.',
+    )
+  })
+
+  it('handles mixed-case codes', () => {
+    expect(mapEligibleUsersError('search_query_too_short')).toBe(
+      'Escribí al menos 2 caracteres para buscar.',
+    )
+  })
+
+  it('returns fallback for unknown code', () => {
+    expect(mapEligibleUsersError('SOMETHING_ELSE')).toBe('Ocurrió un error inesperado')
+  })
+
+  it('returns fallback for empty string', () => {
+    expect(mapEligibleUsersError('')).toBe('Ocurrió un error inesperado')
   })
 })
