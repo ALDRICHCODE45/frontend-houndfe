@@ -494,6 +494,11 @@ describe('mapMembershipError', () => {
     expect(result).toBe('No tenés permisos para gestionar esta sucursal')
   })
 
+  it('maps INSUFFICIENT_PERMISSIONS_IN_TARGET_TENANT to user-facing message', () => {
+    const result = mapMembershipError('INSUFFICIENT_PERMISSIONS_IN_TARGET_TENANT')
+    expect(result).toBe('Tu rol en esta sucursal no te permite hacer esta acción.')
+  })
+
   it('maps TENANT_NOT_FOUND to user-facing message', () => {
     const result = mapMembershipError('TENANT_NOT_FOUND')
     expect(result).toBe('Sucursal no encontrada')
