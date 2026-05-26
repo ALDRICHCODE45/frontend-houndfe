@@ -35,7 +35,16 @@ export type AuthPhase =
   | 'authenticated'
 
 export type AppAction = 'create' | 'read' | 'update' | 'delete' | 'manage'
-export type AppSubject = 'Product' | 'Order' | 'User' | 'Role' | 'Promotion' | 'Customer' | 'Sale' | 'all'
+export type AppSubject =
+  | 'Product'
+  | 'Order'
+  | 'User'
+  | 'Role'
+  | 'Promotion'
+  | 'Customer'
+  | 'Sale'
+  | 'TenantMembership'
+  | 'all'
 
 export interface EffectivePermission {
   subject: AppSubject

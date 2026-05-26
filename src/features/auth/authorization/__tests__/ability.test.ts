@@ -48,4 +48,16 @@ describe('ability with Sale subject', () => {
     const subject: AppSubject = 'Sale'
     expect(subject).toBe('Sale')
   })
+
+  it('should parse read:TenantMembership permission correctly', () => {
+    updateAbilityFromPermissionCodes(['read:TenantMembership'])
+
+    expect(ability.can('read', 'TenantMembership')).toBe(true)
+    expect(ability.can('create', 'TenantMembership')).toBe(false)
+  })
+
+  it('should validate TenantMembership is in AppSubject type union', () => {
+    const subject: AppSubject = 'TenantMembership'
+    expect(subject).toBe('TenantMembership')
+  })
 })
