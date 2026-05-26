@@ -11,7 +11,6 @@ import { usersApi } from '../api/users.api'
 import { useUserColumns } from '../composables/useUserColumns'
 import type { UserTableRow } from '../interfaces/user.types'
 import UserUpsertSlideover from '../components/UserUpsertSlideover.vue'
-import UserAssignRolesSlideover from '../components/UserAssignRolesSlideover.vue'
 
 const queryClient = useQueryClient()
 const authStore = useAuthStore()
@@ -44,7 +43,6 @@ const {
 
 const isCreateOpen = ref(false)
 const isEditOpen = ref(false)
-const isAssignRolesOpen = ref(false)
 const selectedUser = ref<UserTableRow | null>(null)
 const confirmState = ref({
   open: false,
@@ -81,17 +79,6 @@ const editMutation = useMutation({
   },
 })
 
-const assignRolesMutation = useMutation({
-  mutationFn: (payload: { userId: string; roleIds: string[] }) =>
-    usersApi.assignRoles(payload.userId, { roleIds: payload.roleIds }),
-  onSuccess: async () => {
-    isAssignRolesOpen.value = false
-    selectedUser.value = null
-    usersApi.clearRolesCache()
-    await queryClient.invalidateQueries({ queryKey: adminUserQueryKeys.paginated(tenantId.value) })
-  },
-})
-
 const deleteMutation = useMutation({
   mutationFn: usersApi.remove,
   onSuccess: async () => {
@@ -104,7 +91,6 @@ const isSubmitting = computed(
   () =>
     createMutation.isPending.value ||
     editMutation.isPending.value ||
-    assignRolesMutation.isPending.value ||
     deleteMutation.isPending.value,
 )
 
@@ -131,12 +117,6 @@ function openEdit(user: UserTableRow) {
   isEditOpen.value = true
 }
 
-function openAssignRoles(user: UserTableRow) {
-  if (!canUpdateUser.value) return
-  selectedUser.value = user
-  isAssignRolesOpen.value = true
-}
-
 async function handleDelete(user: UserTableRow) {
   if (!canDeleteUser.value) return
   openConfirm(`¿Querés desactivar al usuario ${user.name}?`, () => {
@@ -148,7 +128,6 @@ function getRowItems(user: UserTableRow) {
   const mainActions = canUpdateUser.value
     ? [
         { label: 'Editar', onSelect: () => openEdit(user) },
-        { label: 'Roles', onSelect: () => openAssignRoles(user) },
       ]
     : []
 
@@ -184,13 +163,6 @@ function getRowItems(user: UserTableRow) {
         (payload) =>
           selectedUser && editMutation.mutate({ userId: selectedUser.id, name: payload.name })
       "
-    />
-
-    <UserAssignRolesSlideover
-      v-model:open="isAssignRolesOpen"
-      :user="selectedUser"
-      :loading="isSubmitting"
-      @save="assignRolesMutation.mutate"
     />
 
     <ConfirmModal

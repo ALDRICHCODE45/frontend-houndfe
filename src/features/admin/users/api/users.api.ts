@@ -2,7 +2,6 @@ import type { PaginatedResponse, ServerTableParams } from '@/core/shared/types/t
 import { http } from '@/core/shared/api/http'
 import type { UserWithRolesResponse } from '../../shared/interfaces/rbac.types'
 import type {
-  AssignRolesRequest,
   CreateUserRequest,
   UpdateUserRequest,
   UserTableRow,
@@ -117,10 +116,6 @@ export const usersApi = {
   async update(userId: string, payload: UpdateUserRequest) {
     const { data } = await http.patch(`/admin/users/${userId}`, payload)
     return data
-  },
-
-  async assignRoles(userId: string, payload: AssignRolesRequest) {
-    await http.patch(`/admin/users/${userId}/roles`, payload)
   },
 
   async remove(userId: string) {

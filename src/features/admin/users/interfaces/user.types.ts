@@ -22,7 +22,3 @@ export interface CreateUserRequest {
 export interface UpdateUserRequest {
   name: string
 }
-
-export interface AssignRolesRequest {
-  roleIds: string[]
-}
