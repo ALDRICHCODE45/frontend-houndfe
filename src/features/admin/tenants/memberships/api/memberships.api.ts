@@ -29,7 +29,7 @@ const MEMBERSHIP_ERROR_MAP: Record<string, string> = {
   TENANT_MEMBERSHIP_EXISTS: 'El usuario ya es miembro de esta sucursal',
   TENANT_MEMBERSHIP_NOT_FOUND: 'Membresía no encontrada',
   TENANT_ACCESS_DENIED: 'No tenés permisos para gestionar esta sucursal',
-  INSUFFICIENT_PERMISSIONS_IN_TARGET_TENANT: 'Tu rol en esta sucursal no te permite hacer esta acción.',
+  INSUFFICIENT_PERMISSIONS_IN_TARGET_TENANT: 'No tenés permisos suficientes para operar en esta sucursal',
   TENANT_NOT_FOUND: 'Sucursal no encontrada',
 }
 

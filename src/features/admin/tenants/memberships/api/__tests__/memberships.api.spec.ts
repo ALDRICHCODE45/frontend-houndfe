@@ -496,7 +496,7 @@ describe('mapMembershipError', () => {
 
   it('maps INSUFFICIENT_PERMISSIONS_IN_TARGET_TENANT to user-facing message', () => {
     const result = mapMembershipError('INSUFFICIENT_PERMISSIONS_IN_TARGET_TENANT')
-    expect(result).toBe('Tu rol en esta sucursal no te permite hacer esta acción.')
+    expect(result).toBe('No tenés permisos suficientes para operar en esta sucursal')
   })
 
   it('maps TENANT_NOT_FOUND to user-facing message', () => {
