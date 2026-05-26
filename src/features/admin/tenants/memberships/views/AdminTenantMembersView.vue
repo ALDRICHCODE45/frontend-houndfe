@@ -16,6 +16,8 @@ import type {
   UpdateMembershipFormValues,
 } from '../composables/useMembershipForm'
 import MembershipUpsertSlideover from '../components/MembershipUpsertSlideover.vue'
+import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
+import { useTenantSummary } from '@/features/admin/tenants/composables/useTenantSummary'
 
 declare const useToast: () => {
   add: (options: {
@@ -43,6 +45,10 @@ function getInitials(name?: string | null) {
 }
 
 const tenantId = computed(() => route.params.tenantId as string)
+const { tenantName, isLoadingTenantName } = useTenantSummary(tenantId)
+const headerDescription = computed(
+  () => `Administrá los usuarios que pertenecen a ${tenantName.value} y sus roles.`,
+)
 
 const {
   pagination,
@@ -183,10 +189,11 @@ function getRowItems(membership: MembershipTableRow) {
   <div class="flex flex-col gap-6 px-4 sm:px-6 lg:px-10">
     <UCard :ui="{ body: 'p-0 sm:p-0' }">
       <template #header>
-        <div>
-          <h2 class="text-2xl font-semibold">Miembros del tenant</h2>
-          <p class="text-sm text-muted">Administrá los usuarios que pertenecen a este tenant y sus roles.</p>
-        </div>
+        <AdminPageHeader
+          title="Miembros del tenant"
+          :description="headerDescription"
+          :loading="isLoadingTenantName"
+        />
       </template>
 
       <div class="px-6 py-5">

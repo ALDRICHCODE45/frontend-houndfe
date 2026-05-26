@@ -11,10 +11,15 @@ import { usersApi } from '../api/users.api'
 import { useUserColumns } from '../composables/useUserColumns'
 import type { UserTableRow } from '../interfaces/user.types'
 import UserUpsertSlideover from '../components/UserUpsertSlideover.vue'
+import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
 
 const queryClient = useQueryClient()
 const authStore = useAuthStore()
 const tenantId = computed(() => authStore.currentTenantId)
+const headerDescription = computed(() => {
+  const name = authStore.currentTenant?.name ?? '(Global)'
+  return `Administrá los usuarios de ${name}`
+})
 const { columns } = useUserColumns()
 
 const {
@@ -177,10 +182,7 @@ function getRowItems(user: UserTableRow) {
 
     <UCard :ui="{ body: 'p-0 sm:p-0' }">
       <template #header>
-        <div>
-          <h2 class="text-2xl font-semibold">Gestión de usuarios</h2>
-          <p class="text-sm text-muted">Administrá los usuarios de tu organización</p>
-        </div>
+        <AdminPageHeader title="Gestión de usuarios" :description="headerDescription" />
       </template>
 
       <div class="px-6 py-5">

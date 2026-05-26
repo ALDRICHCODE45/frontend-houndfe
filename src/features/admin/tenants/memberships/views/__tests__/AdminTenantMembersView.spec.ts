@@ -65,6 +65,7 @@ vi.mock('@/core/shared/composables/useServerTable', () => ({
 vi.mock('@/features/auth/stores/useAuthStore', () => ({
   useAuthStore: vi.fn(() => ({
     isSuperAdmin: true,
+    currentTenant: { id: 'tenant-123', name: 'Sucursal de prueba', slug: 'test' },
   })),
 }))
 
