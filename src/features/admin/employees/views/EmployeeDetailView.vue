@@ -36,6 +36,8 @@ import CompensacionPanel from '../components/CompensacionPanel.vue'
 import DocumentosPanel from '../components/DocumentosPanel.vue'
 import OrganigramaPanel from '../components/OrganigramaPanel.vue'
 import CvPanel from '../components/CvPanel.vue'
+import AusenciasPanel from '../components/AusenciasPanel.vue'
+import EmergencyContactsPanel from '../components/EmergencyContactsPanel.vue'
 import type { Employee } from '../interfaces/employee.types'
 
 const authStore = useAuthStore()
@@ -76,6 +78,21 @@ const canCreateSalary = computed(() => authStore.userCan('create', 'EmployeeSala
 // ── Additional CASL guards (WU-09) ────────────────────────────────────────────
 const canCreateDocument = computed(() => authStore.userCan('create', 'EmployeeDocument'))
 const canDeleteDocument = computed(() => authStore.userCan('delete', 'EmployeeDocument'))
+
+// ── Additional CASL guards (WU-10) ────────────────────────────────────────────
+const canCreateTimeOff = computed(() => authStore.userCan('create', 'EmployeeTimeOff'))
+const canUpdateTimeOff = computed(() => authStore.userCan('update', 'EmployeeTimeOff'))
+
+// ── Additional CASL guards (WU-11) ────────────────────────────────────────────
+const canCreateEmergencyContact = computed(() =>
+  authStore.userCan('create', 'EmployeeEmergencyContact'),
+)
+const canUpdateEmergencyContact = computed(() =>
+  authStore.userCan('update', 'EmployeeEmergencyContact'),
+)
+const canDeleteEmergencyContact = computed(() =>
+  authStore.userCan('delete', 'EmployeeEmergencyContact'),
+)
 
 // ── Slideover / dialog state ───────────────────────────────────────────────────
 const isEditOpen = ref(false)
@@ -208,13 +225,22 @@ function goBack(): void {
               :can-read-salary="canReadSalary"
             />
 
-            <!-- Personal -->
-            <PersonalPanel
-              v-else-if="activeTab === 'personal'"
-              :employee="employee"
-              :can-update="canUpdate"
-              @edit="openEdit"
-            />
+            <!-- Personal + Emergency Contacts — WU-11 -->
+            <template v-else-if="activeTab === 'personal'">
+              <div class="flex flex-col gap-6">
+                <PersonalPanel
+                  :employee="employee"
+                  :can-update="canUpdate"
+                  @edit="openEdit"
+                />
+                <EmergencyContactsPanel
+                  :employee="employee"
+                  :can-create="canCreateEmergencyContact"
+                  :can-update="canUpdateEmergencyContact"
+                  :can-delete="canDeleteEmergencyContact"
+                />
+              </div>
+            </template>
 
             <!-- Laboral -->
             <LaboralPanel
@@ -255,6 +281,14 @@ function goBack(): void {
               :employee="employee"
               :can-create="canCreateDocument"
               :can-delete="canDeleteDocument"
+            />
+
+            <!-- Ausencias — WU-10 -->
+            <AusenciasPanel
+              v-else-if="activeTab === 'ausencias'"
+              :employee="employee"
+              :can-create="canCreateTimeOff"
+              :can-update="canUpdateTimeOff"
             />
 
             <!-- Remaining tabs — "Próximamente" placeholder -->

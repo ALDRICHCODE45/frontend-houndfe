@@ -423,3 +423,79 @@ export const UploadDocumentDtoSchema = z.object({
 })
 
 export type UploadDocumentDto = z.infer<typeof UploadDocumentDtoSchema>
+
+// ─── ReviewTimeOffDto ─────────────────────────────────────────────────────────
+
+/**
+ * Zod schema for POST /admin/employees/:employeeId/time-off/:timeOffId/review.
+ *
+ * Requires update:EmployeeTimeOff permission.
+ * Only works if the current status is PENDING — backend returns TIME_OFF_INVALID_TRANSITION otherwise.
+ * decision: 'APPROVED' | 'REJECTED' — only these two values.
+ * reviewerNotes: optional, max 500 chars.
+ *
+ * NEVER send tenantId.
+ */
+export const ReviewTimeOffDtoSchema = z.object({
+  decision: z.enum(['APPROVED', 'REJECTED']),
+  reviewerNotes: z.string().max(500).optional(),
+})
+
+export type ReviewTimeOffDto = z.infer<typeof ReviewTimeOffDtoSchema>
+
+// ─── CreateEmergencyContactDto ────────────────────────────────────────────────
+
+/**
+ * Zod schema for POST /admin/employees/:employeeId/emergency-contacts.
+ *
+ * Requires create:EmployeeEmergencyContact permission.
+ * name: 1-120 chars.
+ * relationship: 1-60 chars, free text.
+ * phone: 1-40 chars.
+ * email: optional, must be valid email if provided.
+ *
+ * NEVER send tenantId.
+ */
+export const CreateEmergencyContactDtoSchema = z.object({
+  name: z.string().min(1).max(120),
+  relationship: z.string().min(1).max(60),
+  phone: z.string().min(1).max(40),
+  email: z.string().email().optional(),
+})
+
+export type CreateEmergencyContactDto = z.infer<typeof CreateEmergencyContactDtoSchema>
+
+// ─── UpdateEmergencyContactDto ────────────────────────────────────────────────
+
+/**
+ * Zod schema for PATCH /admin/employees/:employeeId/emergency-contacts/:contactId.
+ *
+ * Requires update:EmployeeEmergencyContact permission.
+ * All fields from CreateEmergencyContactDto, all optional (partial update).
+ *
+ * NEVER send tenantId.
+ */
+export const UpdateEmergencyContactDtoSchema = CreateEmergencyContactDtoSchema.partial()
+
+export type UpdateEmergencyContactDto = z.infer<typeof UpdateEmergencyContactDtoSchema>
+
+// ─── CreateTimeOffDto ─────────────────────────────────────────────────────────
+
+/**
+ * Zod schema for POST /admin/employees/:employeeId/time-off request body.
+ *
+ * Required: type, startDate, endDate.
+ * reason is optional, max 500 chars.
+ * endDate must be >= startDate (enforced by backend; backend returns TIME_OFF_INVALID_DATE_RANGE).
+ *
+ * TimeOffType values: VACATION, SICK, PERSONAL, UNPAID.
+ * NEVER send tenantId — backend reads from JWT via TenantContextGuard.
+ */
+export const CreateTimeOffDtoSchema = z.object({
+  type: TimeOffTypeSchema,
+  startDate: z.string().min(1), // YYYY-MM-DD
+  endDate: z.string().min(1),   // YYYY-MM-DD, inclusive, >= startDate
+  reason: z.string().max(500).optional(),
+})
+
+export type CreateTimeOffDto = z.infer<typeof CreateTimeOffDtoSchema>
