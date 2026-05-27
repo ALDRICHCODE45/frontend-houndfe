@@ -21,6 +21,7 @@
 
 import { computed, reactive, ref } from 'vue'
 import type { FormSubmitEvent } from '@nuxt/ui'
+import DateFieldPopover from '@/features/POS/sales/components/DateFieldPopover.vue'
 import { hasSalary } from '../interfaces/employee.types'
 import {
   AddSalaryChangeDtoSchema,
@@ -384,12 +385,11 @@ function closePositionModal(): void {
       >
         <UFormField label="Monto (centavos)" name="amountCents" required
           hint="Ej: $45,000.00 = 4500000">
-          <UInput
+          <UInputNumber
             v-model="salaryState.amountCents"
-            class="w-full"
-            size="lg"
-            type="number"
+            :min="1"
             placeholder="4500000"
+            class="w-full"
             :disabled="isAddingSalary"
           />
         </UFormField>
@@ -406,11 +406,10 @@ function closePositionModal(): void {
         </UFormField>
 
         <UFormField label="Fecha de vigencia" name="effectiveFrom" required>
-          <UInput
+          <DateFieldPopover
             v-model="salaryState.effectiveFrom"
-            class="w-full"
-            size="lg"
-            type="date"
+            placeholder="Elegir fecha"
+            :min-iso="null"
             :disabled="isAddingSalary"
           />
         </UFormField>
@@ -485,11 +484,10 @@ function closePositionModal(): void {
         </UFormField>
 
         <UFormField label="Fecha de vigencia" name="effectiveFrom" required>
-          <UInput
+          <DateFieldPopover
             v-model="positionState.effectiveFrom"
-            class="w-full"
-            size="lg"
-            type="date"
+            placeholder="Elegir fecha"
+            :min-iso="null"
             :disabled="isAddingPosition"
           />
         </UFormField>

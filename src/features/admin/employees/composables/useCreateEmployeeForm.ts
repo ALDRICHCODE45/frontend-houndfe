@@ -53,8 +53,8 @@ export interface CreateEmployeeFormState {
   // Optional text fields
   currentPosition: string
   currentDepartment: string
-  // Optional number field (kept as string for UInput)
-  annualVacationDays: string
+  // Optional number field (UInputNumber binds number | null)
+  annualVacationDays: number | null
   // Optional reference (null = no manager selected)
   managerId: string | null
 }
@@ -78,7 +78,7 @@ export function buildCreateEmployeeFormState(): CreateEmployeeFormState {
     workModality: '',
     currentPosition: '',
     currentDepartment: '',
-    annualVacationDays: '',
+    annualVacationDays: null,
     managerId: null,
   }
 }
@@ -115,12 +115,9 @@ export function formStateToDto(state: CreateEmployeeFormState): CreateEmployeeDt
   const modalityParsed = WorkModalitySchema.safeParse(state.workModality)
   if (modalityParsed.success) dto.workModality = modalityParsed.data as WorkModality
 
-  // ── annualVacationDays — cast string → integer ────────────────────────────
-  if (state.annualVacationDays !== '') {
-    const parsed = parseInt(state.annualVacationDays, 10)
-    if (!isNaN(parsed) && parsed >= 0) {
-      dto.annualVacationDays = parsed
-    }
+  // ── annualVacationDays — include when set ──────────────────────────────────
+  if (state.annualVacationDays != null && state.annualVacationDays >= 0) {
+    dto.annualVacationDays = state.annualVacationDays
   }
 
   // ── managerId — include only when a UUID is selected ─────────────────────

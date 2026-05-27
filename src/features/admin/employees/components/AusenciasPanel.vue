@@ -27,6 +27,7 @@
  */
 
 import { computed, reactive, ref } from 'vue'
+import DateFieldPopover from '@/features/POS/sales/components/DateFieldPopover.vue'
 import type { Employee } from '../interfaces/employee.types'
 import { ReviewTimeOffDtoSchema, CreateTimeOffDtoSchema } from '../interfaces/employee.types'
 import {
@@ -341,10 +342,18 @@ function typeColor(type: string): string {
           />
         </UFormField>
         <UFormField label="Fecha inicio">
-          <UInput v-model="requestForm.startDate" type="date" />
+          <DateFieldPopover
+            v-model="requestForm.startDate"
+            placeholder="Elegir fecha inicio"
+            :min-iso="null"
+          />
         </UFormField>
         <UFormField label="Fecha fin">
-          <UInput v-model="requestForm.endDate" type="date" />
+          <DateFieldPopover
+            v-model="requestForm.endDate"
+            placeholder="Elegir fecha fin"
+            :min-iso="requestForm.startDate"
+          />
         </UFormField>
         <UFormField label="Motivo (opcional)">
           <UTextarea v-model="requestForm.reason" placeholder="Motivo de la ausencia..." rows="3" />

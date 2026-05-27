@@ -30,6 +30,7 @@
  */
 
 import { computed, reactive, ref } from 'vue'
+import DateFieldPopover from '@/features/POS/sales/components/DateFieldPopover.vue'
 import { UploadDocumentDtoSchema } from '../interfaces/employee.types'
 import type { Employee, EmployeeDocumentCategory } from '../interfaces/employee.types'
 import { downloadFile } from '@/core/shared/api/multipart'
@@ -453,10 +454,10 @@ const CATEGORY_BADGE_COLORS: Record<EmployeeDocumentCategory, string> = {
 
         <!-- Expiration date -->
         <UFormField label="Fecha de vencimiento" hint="Opcional">
-          <UInput
+          <DateFieldPopover
             v-model="uploadState.expiresAt"
-            type="date"
-            class="w-full"
+            placeholder="Elegir fecha de vencimiento"
+            :min-iso="null"
           />
         </UFormField>
 

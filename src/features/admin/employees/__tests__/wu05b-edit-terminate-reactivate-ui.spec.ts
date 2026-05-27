@@ -162,7 +162,7 @@ describe('editFormStateToDto — maps edit state to UpdateEmployeeDto (WU-05B.2)
     workModality: 'HYBRID',
     currentPosition: 'Analista',
     currentDepartment: 'Finanzas',
-    annualVacationDays: '',
+    annualVacationDays: null,
     managerId: '',
   }
 
@@ -225,15 +225,14 @@ describe('editFormStateToDto — maps edit state to UpdateEmployeeDto (WU-05B.2)
     expect(dto.managerId).toBe(uuid)
   })
 
-  it('omits annualVacationDays when empty string', () => {
-    const dto = editFormStateToDto({ ...BASE_STATE, annualVacationDays: '' })
+  it('omits annualVacationDays when null', () => {
+    const dto = editFormStateToDto({ ...BASE_STATE, annualVacationDays: null })
     expect('annualVacationDays' in dto).toBe(false)
   })
 
-  it('casts annualVacationDays to integer when provided as string', () => {
-    const dto = editFormStateToDto({ ...BASE_STATE, annualVacationDays: '15' })
+  it('includes annualVacationDays when provided as number', () => {
+    const dto = editFormStateToDto({ ...BASE_STATE, annualVacationDays: 15 })
     expect(dto.annualVacationDays).toBe(15)
-    expect(Number.isInteger(dto.annualVacationDays)).toBe(true)
   })
 
   it('does NOT include hireDate in the dto (not patchable)', () => {

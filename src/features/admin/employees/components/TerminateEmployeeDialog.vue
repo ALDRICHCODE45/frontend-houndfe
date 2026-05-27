@@ -17,6 +17,7 @@
 
 import { reactive } from 'vue'
 import type { FormSubmitEvent } from '@nuxt/ui'
+import DateFieldPopover from '@/features/POS/sales/components/DateFieldPopover.vue'
 import { TerminateEmployeeDtoSchema } from '../interfaces/employee.types'
 import type { Employee } from '../interfaces/employee.types'
 import { useTerminateEmployee } from '../composables/useTerminateEmployee'
@@ -108,11 +109,10 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
           @submit="onSubmit"
         >
           <UFormField label="Fecha de baja" name="terminationDate" required>
-            <UInput
+            <DateFieldPopover
               v-model="state.terminationDate"
-              class="w-full"
-              size="lg"
-              type="date"
+              placeholder="Elegir fecha de baja"
+              :min-iso="null"
               :disabled="isPending"
             />
           </UFormField>

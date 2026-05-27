@@ -50,8 +50,8 @@ describe('buildCreateEmployeeFormState — initial state (WU-04C.1)', () => {
     expect(state.workModality).toBe('')
     // managerId starts as null (no manager selected)
     expect(state.managerId).toBeNull()
-    // annualVacationDays starts as empty string (renders empty input)
-    expect(state.annualVacationDays).toBe('')
+    // annualVacationDays starts as null (UInputNumber binds number | null)
+    expect(state.annualVacationDays).toBeNull()
   })
 
   it('returns a fresh object on each call (not a shared reference)', () => {
@@ -93,7 +93,7 @@ describe('formStateToDto — maps form state to dto (WU-04C.2)', () => {
     workModality: '',
     currentPosition: '',
     currentDepartment: '',
-    annualVacationDays: '',
+    annualVacationDays: null,
     managerId: null,
   }
 
@@ -183,15 +183,14 @@ describe('formStateToDto — maps form state to dto (WU-04C.2)', () => {
     expect('managerId' in dto).toBe(false)
   })
 
-  it('omits annualVacationDays from dto when form value is empty string', () => {
-    const dto = formStateToDto({ ...VALID_STATE, annualVacationDays: '' })
+  it('omits annualVacationDays from dto when form value is null', () => {
+    const dto = formStateToDto({ ...VALID_STATE, annualVacationDays: null })
     expect('annualVacationDays' in dto).toBe(false)
   })
 
-  it('casts annualVacationDays to integer when a string number is provided', () => {
-    const dto = formStateToDto({ ...VALID_STATE, annualVacationDays: '15' })
+  it('includes annualVacationDays when provided as number', () => {
+    const dto = formStateToDto({ ...VALID_STATE, annualVacationDays: 15 })
     expect(dto.annualVacationDays).toBe(15)
-    expect(Number.isInteger(dto.annualVacationDays)).toBe(true)
   })
 
   it('produces a DTO that passes CreateEmployeeDtoSchema validation (minimal)', () => {
@@ -212,7 +211,7 @@ describe('formStateToDto — maps form state to dto (WU-04C.2)', () => {
       workModality: 'HYBRID',
       currentPosition: 'Director Comercial',
       currentDepartment: 'Ventas',
-      annualVacationDays: '20',
+      annualVacationDays: 20,
       managerId: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a22',
     }
     const dto = formStateToDto(fullState)

@@ -34,6 +34,7 @@ import type { ContractType, WorkModality } from '../interfaces/employee.types'
 import { useCreateEmployeeForm, formStateToDto } from '../composables/useCreateEmployeeForm'
 import { useCreateEmployee } from '../composables/useCreateEmployee'
 import { useManagerPicker } from '../composables/useManagerPicker'
+import DateFieldPopover from '@/features/POS/sales/components/DateFieldPopover.vue'
 
 // ─── Props & emits ─────────────────────────────────────────────────────────────
 
@@ -192,11 +193,10 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
           <p class="mb-4 text-sm font-semibold text-highlighted">Datos de empleo</p>
           <div class="flex flex-col gap-4">
             <UFormField label="Fecha de ingreso" name="hireDate" required>
-              <UInput
+              <DateFieldPopover
                 v-model="state.hireDate"
-                class="w-full"
-                size="lg"
-                type="date"
+                placeholder="Elegir fecha de ingreso"
+                :min-iso="null"
                 :disabled="isPending"
               />
             </UFormField>
@@ -250,13 +250,12 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
             </UFormField>
 
             <UFormField label="Días de vacaciones anuales" name="annualVacationDays">
-              <UInput
+              <UInputNumber
                 v-model="state.annualVacationDays"
-                class="w-full"
-                size="lg"
-                type="number"
-                min="0"
+                :min="0"
+                :max="365"
                 placeholder="Ej: 12"
+                class="w-full"
                 :disabled="isPending"
               />
             </UFormField>

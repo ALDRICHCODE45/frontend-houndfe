@@ -254,13 +254,12 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
             </UFormField>
 
             <UFormField label="Días de vacaciones anuales" name="annualVacationDays">
-              <UInput
+              <UInputNumber
                 v-model="state.annualVacationDays"
-                class="w-full"
-                size="lg"
-                type="number"
-                min="0"
+                :min="0"
+                :max="365"
                 placeholder="Ej: 12"
+                class="w-full"
                 :disabled="isPending"
               />
             </UFormField>

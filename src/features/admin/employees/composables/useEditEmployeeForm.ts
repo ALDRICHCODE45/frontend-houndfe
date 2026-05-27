@@ -49,7 +49,7 @@ export interface EditEmployeeFormState {
   workModality: string
   currentPosition: string
   currentDepartment: string
-  annualVacationDays: string
+  annualVacationDays: number | null
   managerId: string
 }
 
@@ -86,7 +86,7 @@ export function buildEditEmployeeFormState(employee: Employee): EditEmployeeForm
     workModality: employee.workModality,
     currentPosition: employee.currentPosition ?? '',
     currentDepartment: employee.currentDepartment ?? '',
-    annualVacationDays: '',
+    annualVacationDays: employee.annualVacationDays ?? null,
     managerId: employee.managerId ?? '',
   }
 }
@@ -125,12 +125,9 @@ export function editFormStateToDto(state: EditEmployeeFormState): UpdateEmployee
   const modalityParsed = WorkModalitySchema.safeParse(state.workModality)
   if (modalityParsed.success) dto.workModality = modalityParsed.data as WorkModality
 
-  // ── annualVacationDays — cast string → integer ────────────────────────────
-  if (state.annualVacationDays !== '') {
-    const parsed = parseInt(state.annualVacationDays, 10)
-    if (!isNaN(parsed) && parsed >= 0) {
-      dto.annualVacationDays = parsed
-    }
+  // ── annualVacationDays — include when set ──────────────────────────────────
+  if (state.annualVacationDays != null && state.annualVacationDays >= 0) {
+    dto.annualVacationDays = state.annualVacationDays
   }
 
   // ── managerId — include only when a UUID is provided ─────────────────────
@@ -156,7 +153,7 @@ export function useEditEmployeeForm(employeeGetter: () => Employee | null) {
     workModality: '',
     currentPosition: '',
     currentDepartment: '',
-    annualVacationDays: '',
+    annualVacationDays: null,
     managerId: '',
   })
 
@@ -181,7 +178,7 @@ export function useEditEmployeeForm(employeeGetter: () => Employee | null) {
       workModality: '',
       currentPosition: '',
       currentDepartment: '',
-      annualVacationDays: '',
+      annualVacationDays: null,
       managerId: '',
     })
   }
