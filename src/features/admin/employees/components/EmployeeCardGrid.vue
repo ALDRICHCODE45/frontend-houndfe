@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * EmployeeCardGrid — WU-03
+ * EmployeeCardGrid — WU-03 (updated WU-05B: action events forwarded)
  *
  * Presentational grid that wraps a list of EmployeeCard components.
  *
@@ -8,6 +8,7 @@
  *   - Responsive grid layout (1→2→3 columns)
  *   - Skeleton loading state
  *   - Empty state when no employees
+ *   - Forward edit/terminate/reactivate events from cards to the parent view
  *
  * No data fetching — receives employees + managerMap as props (props down pattern).
  */
@@ -21,6 +22,13 @@ const props = defineProps<{
   managerMap: Map<string, string>
   loading?: boolean
   empty?: string
+  canUpdate?: boolean
+}>()
+
+const emit = defineEmits<{
+  edit: [employee: Employee]
+  terminate: [employee: Employee]
+  reactivate: [employee: Employee]
 }>()
 
 function getManagerDisplay(employee: Employee): string {
@@ -60,6 +68,10 @@ function getManagerDisplay(employee: Employee): string {
       :key="employee.id"
       :employee="employee"
       :manager-display="getManagerDisplay(employee)"
+      :can-update="props.canUpdate"
+      @edit="emit('edit', $event)"
+      @terminate="emit('terminate', $event)"
+      @reactivate="emit('reactivate', $event)"
     />
   </div>
 </template>

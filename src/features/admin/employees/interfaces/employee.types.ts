@@ -294,3 +294,36 @@ export const CreateEmployeeDtoSchema = z.object({
 })
 
 export type CreateEmployeeDto = z.infer<typeof CreateEmployeeDtoSchema>
+
+// ─── UpdateEmployeeDto ────────────────────────────────────────────────────────
+
+/**
+ * Zod schema for PATCH /admin/employees/:id request body.
+ *
+ * All fields from CreateEmployeeDto are optional (partial update), EXCEPT:
+ * - `hireDate` is excluded entirely (not patchable)
+ * - `employeeNumber` is included but optional
+ * - `tenantId` is NEVER included (backend reads from JWT)
+ *
+ * Manager cycle validation errors: MANAGER_SELF_REFERENCE, MANAGER_CYCLE.
+ */
+export const UpdateEmployeeDtoSchema = CreateEmployeeDtoSchema.omit({ hireDate: true }).partial()
+
+export type UpdateEmployeeDto = z.infer<typeof UpdateEmployeeDtoSchema>
+
+// ─── TerminateEmployeeDto ─────────────────────────────────────────────────────
+
+/**
+ * Zod schema for POST /admin/employees/:id/terminate request body.
+ *
+ * Both fields are required per backend v1 spec (§4.1).
+ * Domain error on already-terminated employee: EMPLOYEE_ALREADY_TERMINATED.
+ */
+export const TerminateEmployeeDtoSchema = z.object({
+  /** Termination date — YYYY-MM-DD format */
+  terminationDate: z.string().min(1),
+  /** Free-text reason for termination */
+  terminationReason: z.string().min(1),
+})
+
+export type TerminateEmployeeDto = z.infer<typeof TerminateEmployeeDtoSchema>

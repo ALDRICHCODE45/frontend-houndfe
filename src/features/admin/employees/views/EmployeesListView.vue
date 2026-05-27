@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * EmployeesListView — WU-04C (create slideover wired)
+ * EmployeesListView — WU-05B (action menu + edit/terminate/reactivate dialogs)
  *
  * Orchestrator view for the Colaboradores list page.
  * Composition surface: wires useEmployeesList + useEmployeeColumns +
@@ -16,6 +16,13 @@
  * - "Nuevo colaborador" button opens CreateEmployeeSlideover (gated by create:Employee)
  * - On success: slideover closes, list auto-refreshes via TanStack query invalidation
  *
+ * WU-05B additions:
+ * - Row action menu (table + card) — Editar, Dar de baja, Reactivar
+ * - EmployeeEditSlideover — pre-fills form from selected employee
+ * - TerminateEmployeeDialog — terminationDate + terminationReason fields
+ * - ReactivateEmployeeDialog — simple confirm dialog
+ * - All actions gated by update:Employee CASL permission
+ *
  * Design: Claude "Colaboradores" adapted to warm-orange Nuxt UI 4 tokens.
  * Status tabs: Todos / Activos / Bajas
  * Table columns: Colaborador, Cargo, Departamento, Jefe directo, Fecha de ingreso, Modalidad, Estado
@@ -23,6 +30,7 @@
  *
  * Permission gate: route-level meta.permission ['read', 'Employee'].
  * Create button gated by create:Employee.
+ * Edit/terminate/reactivate gated by update:Employee.
  */
 
 import { computed, ref } from 'vue'
@@ -40,10 +48,14 @@ import {
 } from '../composables/useEmployeeColumns'
 import { useEmployeeViewMode } from '../composables/useEmployeeViewMode'
 import { useManagerResolution, resolveManagerName } from '../composables/useManagerResolution'
+import { getEmployeeRowActions } from '../composables/useEmployeeActions'
 import EmployeeFilters from '../components/EmployeeFilters.vue'
 import EmployeeViewToggle from '../components/EmployeeViewToggle.vue'
 import EmployeeCardGrid from '../components/EmployeeCardGrid.vue'
 import CreateEmployeeSlideover from '../components/CreateEmployeeSlideover.vue'
+import EmployeeEditSlideover from '../components/EmployeeEditSlideover.vue'
+import TerminateEmployeeDialog from '../components/TerminateEmployeeDialog.vue'
+import ReactivateEmployeeDialog from '../components/ReactivateEmployeeDialog.vue'
 import type { Employee } from '../interfaces/employee.types'
 
 const authStore = useAuthStore()
@@ -51,12 +63,50 @@ const tenantId = computed(() => authStore.currentTenantId)
 
 // ── CASL guards ────────────────────────────────────────────────────────────────
 const canCreate = computed(() => authStore.userCan('create', 'Employee'))
+const canUpdate = computed(() => authStore.userCan('update', 'Employee'))
 
 // ── Create slideover ───────────────────────────────────────────────────────────
 const isCreateOpen = ref(false)
 
 function openCreateSlideover(): void {
   isCreateOpen.value = true
+}
+
+// ── Edit slideover ─────────────────────────────────────────────────────────────
+const isEditOpen = ref(false)
+const selectedEmployee = ref<Employee | null>(null)
+
+function openEditSlideover(employee: Employee): void {
+  selectedEmployee.value = employee
+  isEditOpen.value = true
+}
+
+// ── Terminate dialog ───────────────────────────────────────────────────────────
+const isTerminateOpen = ref(false)
+const terminateTarget = ref<Employee | null>(null)
+
+function openTerminateDialog(employee: Employee): void {
+  terminateTarget.value = employee
+  isTerminateOpen.value = true
+}
+
+// ── Reactivate dialog ──────────────────────────────────────────────────────────
+const isReactivateOpen = ref(false)
+const reactivateTarget = ref<Employee | null>(null)
+
+function openReactivateDialog(employee: Employee): void {
+  reactivateTarget.value = employee
+  isReactivateOpen.value = true
+}
+
+// ── Table row action menu builder ──────────────────────────────────────────────
+function getTableRowItems(employee: Employee) {
+  const actions = getEmployeeRowActions(employee, canUpdate.value, {
+    onEdit: () => openEditSlideover(employee),
+    onTerminate: () => openTerminateDialog(employee),
+    onReactivate: () => openReactivateDialog(employee),
+  })
+  return actions.length > 0 ? [actions] : []
 }
 
 // ── List composable ────────────────────────────────────────────────────────────
@@ -243,9 +293,21 @@ const showingTo = computed(() => {
             />
           </template>
 
-          <!-- Actions cell — placeholder for WU-04+ mutations -->
-          <template #actions-cell>
-            <!-- Mutation actions (terminate/reactivate/edit) deferred to WU-04 -->
+          <!-- Actions cell — row action dropdown (WU-05B) -->
+          <template #actions-cell="{ row }">
+            <UDropdownMenu
+              v-if="getTableRowItems(row.original).length > 0"
+              :items="getTableRowItems(row.original)"
+              :content="{ align: 'end' }"
+            >
+              <UButton
+                icon="i-lucide-ellipsis-vertical"
+                color="neutral"
+                variant="ghost"
+                class="size-7"
+                aria-label="Acciones del colaborador"
+              />
+            </UDropdownMenu>
           </template>
         </AppDataTable>
 
@@ -255,7 +317,11 @@ const showingTo = computed(() => {
             :employees="employees"
             :manager-map="managerMap"
             :loading="isLoading"
+            :can-update="canUpdate"
             empty="No se encontraron colaboradores"
+            @edit="openEditSlideover"
+            @terminate="openTerminateDialog"
+            @reactivate="openReactivateDialog"
           />
 
           <!-- Card view pagination — simple row count info + page navigation -->
@@ -293,6 +359,30 @@ const showingTo = computed(() => {
   <CreateEmployeeSlideover
     v-if="canCreate"
     v-model:open="isCreateOpen"
+    @success="refresh"
+  />
+
+  <!-- Edit Employee Slideover — gated by canUpdate (update:Employee CASL) -->
+  <EmployeeEditSlideover
+    v-if="canUpdate"
+    v-model:open="isEditOpen"
+    :employee="selectedEmployee"
+    @success="refresh"
+  />
+
+  <!-- Terminate Employee Dialog — gated by canUpdate (update:Employee CASL) -->
+  <TerminateEmployeeDialog
+    v-if="canUpdate"
+    v-model:open="isTerminateOpen"
+    :employee="terminateTarget"
+    @success="refresh"
+  />
+
+  <!-- Reactivate Employee Dialog — gated by canUpdate (update:Employee CASL) -->
+  <ReactivateEmployeeDialog
+    v-if="canUpdate"
+    v-model:open="isReactivateOpen"
+    :employee="reactivateTarget"
     @success="refresh"
   />
 </template>

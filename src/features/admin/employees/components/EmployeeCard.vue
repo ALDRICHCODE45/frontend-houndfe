@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * EmployeeCard — WU-03
+ * EmployeeCard — WU-03 (updated WU-05B: action menu)
  *
  * Card view for a single employee. Shows:
  *   - Avatar with initials (no photo in v1)
@@ -12,6 +12,7 @@
  *   - Hire date (formatted)
  *   - Work modality chip
  *   - Seniority (computed from hireDate)
+ *   - Row action menu (WU-05B): Editar, Dar de baja / Reactivar — gated by canUpdate prop
  *
  * NO salary fields — salary belongs in Compensación detail tab (WU-06+).
  *
@@ -31,10 +32,18 @@ import {
   WORK_MODALITY_LABELS,
   type Employee,
 } from '../interfaces/employee.types'
+import { getEmployeeRowActions } from '../composables/useEmployeeActions'
 
 const props = defineProps<{
   employee: Employee
   managerDisplay: string
+  canUpdate?: boolean
+}>()
+
+const emit = defineEmits<{
+  edit: [employee: Employee]
+  terminate: [employee: Employee]
+  reactivate: [employee: Employee]
 }>()
 
 // Initials helper — first two words, first letter each
@@ -55,6 +64,15 @@ const modalityTone = computed(() => workModalityToBadgeTone(props.employee.workM
 const modalityLabel = computed(() => WORK_MODALITY_LABELS[props.employee.workModality])
 const hireDateFormatted = computed(() => formatHireDate(props.employee.hireDate))
 const seniority = computed(() => computeSeniority(props.employee.hireDate))
+
+// Row action menu items — pure function, no reactivity overhead
+const rowActions = computed(() =>
+  getEmployeeRowActions(props.employee, props.canUpdate ?? false, {
+    onEdit: () => emit('edit', props.employee),
+    onTerminate: () => emit('terminate', props.employee),
+    onReactivate: () => emit('reactivate', props.employee),
+  }),
+)
 </script>
 
 <template>
@@ -62,8 +80,24 @@ const seniority = computed(() => computeSeniority(props.employee.hireDate))
     class="group flex flex-col gap-0 overflow-hidden transition-shadow hover:shadow-md"
     :ui="{ body: 'p-0 sm:p-0', root: 'cursor-pointer' }"
   >
-    <!-- Card header: avatar + name + position + status -->
-    <div class="flex flex-col items-center gap-3 px-5 pb-4 pt-5 text-center">
+    <!-- Card header: avatar + name + position + status (+ action menu) -->
+    <div class="flex flex-col items-center gap-3 px-5 pb-4 pt-5 text-center relative">
+      <!-- Row action menu (top-right corner) -->
+      <div v-if="rowActions.length > 0" class="absolute right-2 top-2">
+        <UDropdownMenu
+          :items="rowActions"
+          :content="{ align: 'end' }"
+        >
+          <UButton
+            icon="i-lucide-ellipsis-vertical"
+            color="neutral"
+            variant="ghost"
+            class="size-7 opacity-0 group-hover:opacity-100 transition-opacity"
+            aria-label="Acciones del colaborador"
+          />
+        </UDropdownMenu>
+      </div>
+
       <!-- Avatar with initials -->
       <UAvatar
         :alt="employee.fullName"

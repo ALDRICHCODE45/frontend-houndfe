@@ -11,7 +11,13 @@
 
 import { http } from '@/core/shared/api/http'
 import type { PaginatedResponse } from '@/core/shared/types/table.types'
-import type { Employee, EmployeesBackendList, CreateEmployeeDto } from '../interfaces/employee.types'
+import type {
+  Employee,
+  EmployeesBackendList,
+  CreateEmployeeDto,
+  UpdateEmployeeDto,
+  TerminateEmployeeDto,
+} from '../interfaces/employee.types'
 
 // ─── Query param types ────────────────────────────────────────────────────────
 
@@ -131,6 +137,53 @@ export const employeesApi = {
    */
   async create(dto: CreateEmployeeDto): Promise<Employee> {
     const { data } = await http.post<Employee>('/admin/employees', dto)
+    return data
+  },
+
+  /**
+   * PATCH /admin/employees/:id — partial update of an employee.
+   *
+   * Requires update:Employee permission. Returns 200 with the updated Employee.
+   * NEVER sends tenantId.
+   *
+   * Possible domain errors:
+   * - EMPLOYEE_NOT_FOUND (404)
+   * - EMPLOYEE_NUMBER_CONFLICT (409): new employeeNumber already taken
+   * - MANAGER_SELF_REFERENCE (400): cannot set self as manager
+   * - MANAGER_CYCLE (400): would create a cycle in the org chart
+   */
+  async update(id: string, dto: UpdateEmployeeDto): Promise<Employee> {
+    const { data } = await http.patch<Employee>(`/admin/employees/${id}`, dto)
+    return data
+  },
+
+  /**
+   * POST /admin/employees/:id/terminate — terminate (give baja to) an employee.
+   *
+   * Requires update:Employee permission. Returns 200 with the updated Employee.
+   * Body: { terminationDate, terminationReason } — both required.
+   *
+   * Possible domain errors:
+   * - EMPLOYEE_NOT_FOUND (404)
+   * - EMPLOYEE_ALREADY_TERMINATED (409): employee status is already TERMINATED
+   */
+  async terminate(id: string, dto: TerminateEmployeeDto): Promise<Employee> {
+    const { data } = await http.post<Employee>(`/admin/employees/${id}/terminate`, dto)
+    return data
+  },
+
+  /**
+   * POST /admin/employees/:id/reactivate — reactivate a terminated employee.
+   *
+   * Requires update:Employee permission. Returns 200 with the updated Employee.
+   * No request body (backend ignores body).
+   *
+   * Possible domain errors:
+   * - EMPLOYEE_NOT_FOUND (404)
+   * - EMPLOYEE_NOT_TERMINATED (409): employee is not in TERMINATED status
+   */
+  async reactivate(id: string): Promise<Employee> {
+    const { data } = await http.post<Employee>(`/admin/employees/${id}/reactivate`, {})
     return data
   },
 }
