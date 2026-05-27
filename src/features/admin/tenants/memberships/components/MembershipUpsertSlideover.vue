@@ -80,12 +80,28 @@ const userOptions = computed<UserSelectOption[]>(() =>
   })),
 )
 
-const roleOptions = computed<RoleSelectOption[]>(() =>
-  roles.value.map((role) => ({
+const roleOptions = computed<RoleSelectOption[]>(() => {
+  const fetched = roles.value.map((role) => ({
     value: role.id,
     label: role.name,
-  })),
-)
+  }))
+
+  // In edit mode, seed the options with the membership's current role so that
+  // USelectMenu can resolve its label immediately — even before
+  // useTenantRolesQuery resolves, or if the role is no longer in the tenant's
+  // role catalog. Prevents the raw UUID from leaking into the trigger.
+  if (props.mode === 'edit' && props.membership) {
+    const alreadyPresent = fetched.some((opt) => opt.value === props.membership!.roleId)
+    if (!alreadyPresent) {
+      return [
+        { value: props.membership.roleId, label: props.membership.roleName },
+        ...fetched,
+      ]
+    }
+  }
+
+  return fetched
+})
 
 const isLoadingOptions = computed(() => isLoadingUsers.value || isLoadingRoles.value)
 const trimmedSearchTerm = computed(() => userSearchTerm.value.trim())

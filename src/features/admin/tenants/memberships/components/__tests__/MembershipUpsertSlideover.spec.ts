@@ -322,5 +322,79 @@ describe('MembershipUpsertSlideover', () => {
       const vm = wrapper.vm as any
       expect(vm.formId).toBe('edit-membership-form')
     })
+
+    it('seeds roleOptions with the current membership role when tenant roles are not yet loaded', () => {
+      // RED: simulate the slideover opening BEFORE useTenantRolesQuery resolves
+      mockUseTenantRolesQuery.mockReturnValueOnce({
+        roles: ref([]),
+        isLoading: ref(true),
+        isError: ref(false),
+      })
+
+      const wrapper = shallowMount(MembershipUpsertSlideover, {
+        props: {
+          mode: 'edit',
+          tenantId: 'tenant-1',
+          open: true,
+          membership: {
+            id: 'membership-1',
+            userId: 'user-1',
+            tenantId: 'tenant-1',
+            roleId: 'abd93355-a3dc-4ae7-8f17-877ff3986d2c',
+            createdAt: '2026-05-26T20:24:00.000Z',
+            userName: 'Super Admin',
+            userEmail: 'admin@houndfe.com',
+            roleName: 'Super Admin',
+          },
+        },
+      })
+
+      const vm = wrapper.vm as any
+      // The role from the current membership MUST be present in roleOptions
+      // even when the tenant roles query has not resolved yet,
+      // so USelectMenu can render its label instead of the raw UUID.
+      const matchingOption = vm.roleOptions.find(
+        (opt: { value: string; label: string }) =>
+          opt.value === 'abd93355-a3dc-4ae7-8f17-877ff3986d2c',
+      )
+      expect(matchingOption).toBeDefined()
+      expect(matchingOption.label).toBe('Super Admin')
+    })
+
+    it('does not duplicate the membership role when it is also present in tenant roles', () => {
+      mockUseTenantRolesQuery.mockReturnValueOnce({
+        roles: ref([
+          { id: 'role-1', name: 'Admin' },
+          { id: 'role-2', name: 'Cashier' },
+        ]),
+        isLoading: ref(false),
+        isError: ref(false),
+      })
+
+      const wrapper = shallowMount(MembershipUpsertSlideover, {
+        props: {
+          mode: 'edit',
+          tenantId: 'tenant-1',
+          open: true,
+          membership: {
+            id: 'membership-1',
+            userId: 'user-1',
+            tenantId: 'tenant-1',
+            roleId: 'role-1',
+            createdAt: '2026-05-26T20:24:00.000Z',
+            userName: 'John',
+            userEmail: 'john@test.com',
+            roleName: 'Admin',
+          },
+        },
+      })
+
+      const vm = wrapper.vm as any
+      const adminMatches = vm.roleOptions.filter(
+        (opt: { value: string }) => opt.value === 'role-1',
+      )
+      expect(adminMatches).toHaveLength(1)
+      expect(vm.roleOptions).toHaveLength(2)
+    })
   })
 })
