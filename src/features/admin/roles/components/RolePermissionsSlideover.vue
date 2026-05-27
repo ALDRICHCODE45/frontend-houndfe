@@ -5,6 +5,11 @@ import AppBadge from '@/core/shared/components/AppBadge.vue'
 import { adminRoleQueryKeys } from '@/core/shared/constants/query-keys'
 import { rolesApi } from '../api/roles.api'
 import { useRolePermissions } from '../composables/useRolePermissions'
+import {
+  getPermissionDescription,
+  getPermissionLabel,
+  getSubjectLabel,
+} from '../i18n/permissions'
 import type { GroupedPermissions, RoleTableRow } from '../interfaces/role.types'
 
 const props = withDefaults(
@@ -159,18 +164,18 @@ function getCode(subject: string, action: string) {
               class="flex items-center justify-between w-full p-3 cursor-pointer"
               @click="toggleSubjectExpanded(subject)"
             >
-              <div class="flex items-center gap-3">
+              <div class="flex items-center gap-3 min-w-0">
                 <UCheckbox
                   :model-value="isSubjectChecked(subject)"
                   @click.stop
                   @update:model-value="toggleSubject(subject)"
                 />
-                <span class="font-semibold">{{ subject }}</span>
+                <span class="font-semibold truncate">{{ getSubjectLabel(subject) }}</span>
                 <UIcon
                   :name="
                     isSubjectExpanded(subject) ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'
                   "
-                  class="size-4 text-muted"
+                  class="size-4 text-muted shrink-0"
                 />
               </div>
 
@@ -197,13 +202,21 @@ function getCode(subject: string, action: string) {
                   <UCheckbox
                     :model-value="isPermissionSelected(permission.id)"
                     @update:model-value="togglePermission(permission.id)"
+                    class="mt-0.5"
                   />
 
-                  <div class="min-w-0">
-                    <p class="font-mono text-sm text-primary truncate">
+                  <div class="min-w-0 flex-1 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-1 sm:gap-3">
+                    <div class="min-w-0">
+                      <p class="text-sm font-medium text-highlighted">
+                        {{ getPermissionLabel(subject, permission.action) }}
+                      </p>
+                      <p class="text-xs sm:text-sm text-muted">
+                        {{ getPermissionDescription(subject, permission.action) || permission.description }}
+                      </p>
+                    </div>
+                    <code class="font-mono text-xs text-muted/70 sm:shrink-0 sm:text-right break-all">
                       {{ getCode(subject, permission.action) }}
-                    </p>
-                    <p class="text-xs sm:text-sm text-muted">{{ permission.description }}</p>
+                    </code>
                   </div>
                 </label>
               </div>
