@@ -90,7 +90,6 @@ watch(
       .filter((value): value is string => Boolean(value))
 
     setSelectedPermissions(selectedIds)
-    expandAll()
   },
 )
 
