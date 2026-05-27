@@ -175,7 +175,7 @@ export const useSidebar = () => {
           },
         ],
       },
-      // ─── RR.HH. group (WU-02) ────────────────────────────────────────────────
+      // ─── RR.HH. group (WU-02, WU-12B) ───────────────────────────────────────
       {
         label: 'RR.HH.',
         icon: 'i-lucide-users-round',
@@ -186,6 +186,18 @@ export const useSidebar = () => {
             icon: 'i-lucide-user-check',
             to: '/admin/colaboradores',
             permission: ['read', 'Employee'] as PermissionTuple,
+          },
+          {
+            label: 'Vencimientos',
+            icon: 'i-lucide-file-clock',
+            to: '/admin/colaboradores/documentos-vencer',
+            permission: ['read', 'EmployeeDocument'] as PermissionTuple,
+          },
+          {
+            label: 'Aprobaciones',
+            icon: 'i-lucide-calendar-check',
+            to: '/admin/colaboradores/aprobaciones-pendientes',
+            permission: ['read', 'EmployeeTimeOff'] as PermissionTuple,
           },
         ],
       },

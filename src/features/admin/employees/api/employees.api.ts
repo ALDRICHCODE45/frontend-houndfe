@@ -381,6 +381,26 @@ export const employeesApi = {
     await http.delete(`/admin/employees/${employeeId}/documents/${docId}`)
   },
 
+  /**
+   * GET /admin/employees-documents/expiring — Tenant-wide expiring documents
+   *
+   * Requires read:EmployeeDocument permission.
+   * Route uses HYPHEN (employees-documents) and is NOT under /:employeeId — tenant-wide view.
+   * Query param: daysUntilExpiry (parsed with parseInt server-side, default 30).
+   * Returns array of EmployeeDocument sorted by expiresAt asc (soonest first).
+   * NEVER send tenantId.
+   */
+  async getExpiringDocuments(daysUntilExpiry?: number): Promise<EmployeeDocument[]> {
+    const queryParams: Record<string, unknown> = {}
+    if (daysUntilExpiry !== undefined) queryParams.daysUntilExpiry = daysUntilExpiry
+
+    const { data } = await http.get<EmployeeDocument[]>(
+      '/admin/employees-documents/expiring',
+      { params: queryParams },
+    )
+    return data
+  },
+
   // ─── Time-off — WU-10 ────────────────────────────────────────────────────
 
   /**

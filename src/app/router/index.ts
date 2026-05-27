@@ -20,11 +20,15 @@ const PromotionDetailView = () =>
   import('@/features/POS/promotions/views/PromotionDetailView.vue')
 const AdminUsersView = () => import('@/features/admin/users/views/AdminUsersView.vue')
 const AdminRolesView = () => import('@/features/admin/roles/views/AdminRolesView.vue')
-// ─── Employees module (WU-02, WU-06A) ────────────────────────────────────────
+// ─── Employees module (WU-02, WU-06A, WU-12B) ───────────────────────────────
 const EmployeesListView = () =>
   import('@/features/admin/employees/views/EmployeesListView.vue')
 const EmployeeDetailView = () =>
   import('@/features/admin/employees/views/EmployeeDetailView.vue')
+const ExpiringDocumentsView = () =>
+  import('@/features/admin/employees/views/ExpiringDocumentsView.vue')
+const PendingApprovalsView = () =>
+  import('@/features/admin/employees/views/PendingApprovalsView.vue')
 const AdminTenantsView = () => import('@/features/admin/tenants/views/AdminTenantsView.vue')
 const AdminTenantMembersView = () =>
   import('@/features/admin/tenants/memberships/views/AdminTenantMembersView.vue')
@@ -168,6 +172,25 @@ const router = createRouter({
       meta: {
         layout: 'dashboard',
         permission: ['read', 'Employee'] as RoutePermission,
+      },
+    },
+    // ─── Employees dashboard routes (WU-12B) ─────────────────────────────────
+    {
+      path: '/admin/colaboradores/documentos-vencer',
+      name: 'admin-employees-expiring-documents',
+      component: ExpiringDocumentsView,
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'EmployeeDocument'] as RoutePermission,
+      },
+    },
+    {
+      path: '/admin/colaboradores/aprobaciones-pendientes',
+      name: 'admin-employees-pending-approvals',
+      component: PendingApprovalsView,
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'EmployeeTimeOff'] as RoutePermission,
       },
     },
     {
