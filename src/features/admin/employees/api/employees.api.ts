@@ -98,6 +98,29 @@ export function mapPaginated<T>(raw: {
   }
 }
 
+/**
+ * Normalize backend employee payloads to the frontend Employee contract.
+ *
+ * Some backend responses expose firstName/lastName instead of fullName. The list
+ * UI relies on fullName for avatars, links, and manager labels, so derive it
+ * defensively before rows reach Vue render functions.
+ */
+export function normalizeEmployee(raw: Employee & {
+  firstName?: string | null
+  lastName?: string | null
+}): Employee {
+  const apiFullName = typeof raw.fullName === 'string' ? raw.fullName.trim() : ''
+  const derivedFullName = [raw.firstName, raw.lastName]
+    .filter((part): part is string => typeof part === 'string' && part.trim() !== '')
+    .map((part) => part.trim())
+    .join(' ')
+
+  return {
+    ...raw,
+    fullName: apiFullName || derivedFullName || raw.employeeNumber || 'Colaborador',
+  }
+}
+
 // ─── API object ───────────────────────────────────────────────────────────────
 
 export const employeesApi = {
@@ -134,7 +157,10 @@ export const employeesApi = {
       params: queryParams,
     })
 
-    return mapPaginated(data)
+    return mapPaginated({
+      ...data,
+      data: data.data.map(normalizeEmployee),
+    })
   },
 
   /**
@@ -142,7 +168,7 @@ export const employeesApi = {
    */
   async getById(id: string): Promise<Employee> {
     const { data } = await http.get<Employee>(`/admin/employees/${id}`)
-    return data
+    return normalizeEmployee(data)
   },
 
   /**
@@ -157,7 +183,7 @@ export const employeesApi = {
         ...(search.trim() ? { search: search.trim() } : {}),
       },
     })
-    return data.data
+    return data.data.map(normalizeEmployee)
   },
 
   /**
@@ -172,7 +198,7 @@ export const employeesApi = {
    */
   async create(dto: CreateEmployeeDto): Promise<Employee> {
     const { data } = await http.post<Employee>('/admin/employees', dto)
-    return data
+    return normalizeEmployee(data)
   },
 
   /**
@@ -189,7 +215,7 @@ export const employeesApi = {
    */
   async update(id: string, dto: UpdateEmployeeDto): Promise<Employee> {
     const { data } = await http.patch<Employee>(`/admin/employees/${id}`, dto)
-    return data
+    return normalizeEmployee(data)
   },
 
   /**
@@ -204,7 +230,7 @@ export const employeesApi = {
    */
   async terminate(id: string, dto: TerminateEmployeeDto): Promise<Employee> {
     const { data } = await http.post<Employee>(`/admin/employees/${id}/terminate`, dto)
-    return data
+    return normalizeEmployee(data)
   },
 
   /**
@@ -219,7 +245,7 @@ export const employeesApi = {
    */
   async reactivate(id: string): Promise<Employee> {
     const { data } = await http.post<Employee>(`/admin/employees/${id}/reactivate`, {})
-    return data
+    return normalizeEmployee(data)
   },
 
   // ─── Org chart — WU-08 ────────────────────────────────────────────────────
@@ -234,7 +260,7 @@ export const employeesApi = {
    */
   async getSubordinates(id: string): Promise<Employee[]> {
     const { data } = await http.get<Employee[]>(`/admin/employees/${id}/subordinates`)
-    return data
+    return data.map(normalizeEmployee)
   },
 
   /**
@@ -247,7 +273,7 @@ export const employeesApi = {
    */
   async getManagerChain(id: string): Promise<Employee[]> {
     const { data } = await http.get<Employee[]>(`/admin/employees/${id}/manager-chain`)
-    return data
+    return data.map(normalizeEmployee)
   },
 
   // ─── Salary history — WU-07 ────────────────────────────────────────────────

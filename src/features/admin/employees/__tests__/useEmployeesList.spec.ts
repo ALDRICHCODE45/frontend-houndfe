@@ -24,6 +24,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import {
   employeesApi,
   mapPaginated,
+  normalizeEmployee,
 } from '@/features/admin/employees/api/employees.api'
 
 // ─── Task 2.2 — Composable ────────────────────────────────────────────────────
@@ -126,6 +127,33 @@ describe('mapPaginated — pagination adapter (task 2.1)', () => {
     const result = mapPaginated(raw)
     // ceil(11 / 10) = 2
     expect(result.pagination.pageCount).toBe(2)
+  })
+})
+
+// ─── normalizeEmployee — backend payload adapter ──────────────────────────────
+
+describe('normalizeEmployee — backend payload adapter', () => {
+  it('derives fullName from firstName and lastName when backend omits fullName', () => {
+    const raw = {
+      ...makeEmployee({ fullName: undefined as unknown as string }),
+      firstName: 'Daniela',
+      lastName: 'Pérez',
+    }
+
+    const employee = normalizeEmployee(raw)
+
+    expect(employee.fullName).toBe('Daniela Pérez')
+  })
+
+  it('falls back to employeeNumber when name fields are missing', () => {
+    const raw = makeEmployee({
+      employeeNumber: 'EMP-404',
+      fullName: undefined as unknown as string,
+    })
+
+    const employee = normalizeEmployee(raw)
+
+    expect(employee.fullName).toBe('EMP-404')
   })
 })
 
