@@ -89,3 +89,40 @@ export const adminTenantMembershipQueryKeys = {
       { search: params.search ?? '', page: params.page ?? 1 },
     ] as const,
 }
+
+// ─── Employees module query keys ──────────────────────────────────────────────
+
+export const employeeQueryKeys = {
+  paginated: (tenantId: string) => ['employees', tenantId, 'paginated'] as const,
+  detail: (tenantId: string, id: string) => ['employees', tenantId, 'detail', id] as const,
+  managerChain: (tenantId: string, id: string) =>
+    ['employees', tenantId, 'manager-chain', id] as const,
+  activeForPicker: (tenantId: string, search: string) =>
+    ['employees', tenantId, 'picker', search] as const,
+}
+
+export const employeeSalaryQueryKeys = {
+  history: (tenantId: string, employeeId: string) =>
+    ['employees', tenantId, 'salary-history', employeeId] as const,
+}
+
+export const employeeDocumentQueryKeys = {
+  list: (tenantId: string, employeeId: string) =>
+    ['employees', tenantId, 'documents', employeeId] as const,
+  expiring: (tenantId: string, days: 30 | 60 | 90) =>
+    ['employees', tenantId, 'documents-expiring', days] as const,
+}
+
+export const employeeTimeOffQueryKeys = {
+  list: (tenantId: string, employeeId: string, year: number, status?: string) =>
+    ['employees', tenantId, 'time-off', employeeId, { year, status }] as const,
+  balance: (tenantId: string, employeeId: string, year: number) =>
+    ['employees', tenantId, 'time-off-balance', employeeId, year] as const,
+  pending: (tenantId: string, managerId: string) =>
+    ['employees', tenantId, 'time-off-pending', managerId] as const,
+}
+
+export const employeeEmergencyContactQueryKeys = {
+  list: (tenantId: string, employeeId: string) =>
+    ['employees', tenantId, 'emergency-contacts', employeeId] as const,
+}

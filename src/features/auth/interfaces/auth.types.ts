@@ -44,6 +44,12 @@ export type AppSubject =
   | 'Customer'
   | 'Sale'
   | 'TenantMembership'
+  | 'Employee'
+  | 'EmployeeSalary'
+  | 'EmployeeDocument'
+  | 'EmployeeTimeOff'
+  | 'EmployeeTimeOffMedical'
+  | 'EmployeeEmergencyContact'
   | 'all'
 
 export interface EffectivePermission {
