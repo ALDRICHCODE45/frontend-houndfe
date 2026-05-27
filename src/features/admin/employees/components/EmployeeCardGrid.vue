@@ -29,6 +29,7 @@ const emit = defineEmits<{
   edit: [employee: Employee]
   terminate: [employee: Employee]
   reactivate: [employee: Employee]
+  'card-click': [employee: Employee]
 }>()
 
 function getManagerDisplay(employee: Employee): string {
@@ -72,6 +73,7 @@ function getManagerDisplay(employee: Employee): string {
       @edit="emit('edit', $event)"
       @terminate="emit('terminate', $event)"
       @reactivate="emit('reactivate', $event)"
+      @click="emit('card-click', $event)"
     />
   </div>
 </template>

@@ -44,6 +44,7 @@ const emit = defineEmits<{
   edit: [employee: Employee]
   terminate: [employee: Employee]
   reactivate: [employee: Employee]
+  click: [employee: Employee]
 }>()
 
 // Initials helper — first two words, first letter each
@@ -79,6 +80,7 @@ const rowActions = computed(() =>
   <UCard
     class="group flex flex-col gap-0 overflow-hidden transition-shadow hover:shadow-md"
     :ui="{ body: 'p-0 sm:p-0', root: 'cursor-pointer' }"
+    @click.self="emit('click', employee)"
   >
     <!-- Card header: avatar + name + position + status (+ action menu) -->
     <div class="flex flex-col items-center gap-3 px-5 pb-4 pt-5 text-center relative">

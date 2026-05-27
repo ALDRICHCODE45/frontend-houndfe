@@ -34,6 +34,7 @@
  */
 
 import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { AppDataTable } from '@/core/shared/components/DataTable'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
 import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
@@ -59,7 +60,13 @@ import ReactivateEmployeeDialog from '../components/ReactivateEmployeeDialog.vue
 import type { Employee } from '../interfaces/employee.types'
 
 const authStore = useAuthStore()
+const router = useRouter()
 const tenantId = computed(() => authStore.currentTenantId)
+
+// ── Navigation to detail view ──────────────────────────────────────────────────
+function navigateToDetail(employee: Employee): void {
+  void router.push({ name: 'admin-employee-detail', params: { id: employee.id } })
+}
 
 // ── CASL guards ────────────────────────────────────────────────────────────────
 const canCreate = computed(() => authStore.userCan('create', 'Employee'))
@@ -237,16 +244,21 @@ const showingTo = computed(() => {
           @refresh="refresh"
           @add="openCreateSlideover"
         >
-          <!-- Colaborador cell — avatar + name + email -->
+          <!-- Colaborador cell — avatar + name + email (click → detail view) -->
           <template #colaborador-cell="{ row }">
-            <div class="flex items-center gap-3">
+            <div
+              class="flex cursor-pointer items-center gap-3"
+              @click="navigateToDetail(row.original)"
+            >
               <UAvatar
                 :alt="row.original.fullName"
                 :text="getInitials(row.original.fullName)"
                 size="sm"
               />
               <div class="min-w-0">
-                <p class="truncate font-medium text-highlighted">{{ row.original.fullName }}</p>
+                <p class="truncate font-medium text-highlighted hover:text-primary hover:underline">
+                  {{ row.original.fullName }}
+                </p>
                 <p v-if="row.original.email" class="truncate text-sm text-muted">
                   {{ row.original.email }}
                 </p>
@@ -322,6 +334,7 @@ const showingTo = computed(() => {
             @edit="openEditSlideover"
             @terminate="openTerminateDialog"
             @reactivate="openReactivateDialog"
+            @card-click="navigateToDetail"
           />
 
           <!-- Card view pagination — simple row count info + page navigation -->

@@ -66,26 +66,55 @@ export type TimeOffStatus = z.infer<typeof TimeOffStatusSchema>
 /**
  * Employee schema.
  *
+ * Includes all backend v1 fields (§2.1 of the implementation guide).
+ *
  * Salary fields are OPTIONAL (not nullable!) because the backend DELETE-strips
  * them when the caller lacks read:EmployeeSalary. Use hasSalary() to check
  * key presence — never use ?. or ?? to fallback to 0.
+ *
+ * WU-06A: Extended with personal, address, schedule, responsibilities, and
+ * annualVacationDays fields needed for the detail view panels.
  */
 export const EmployeeSchema = z.object({
   id: z.string(),
   employeeNumber: z.string(),
   fullName: z.string(),
+  // ── Personal info ──────────────────────────────────────────────────────────
   email: z.string().email().nullable(),
+  phone: z.string().nullable().optional(),
+  dateOfBirth: z.string().nullable().optional(),       // YYYY-MM-DD
+  nationalId: z.string().nullable().optional(),
+  nationalIdType: IdentityDocumentTypeSchema.nullable().optional(),
+  // ── Address fields ─────────────────────────────────────────────────────────
+  street: z.string().nullable().optional(),
+  exteriorNumber: z.string().nullable().optional(),
+  interiorNumber: z.string().nullable().optional(),
+  zipCode: z.string().nullable().optional(),
+  neighborhood: z.string().nullable().optional(),
+  municipality: z.string().nullable().optional(),
+  city: z.string().nullable().optional(),
+  state: z.string().nullable().optional(),
+  // ── Status / lifecycle ──────────────────────────────────────────────────────
   status: EmployeeStatusSchema,
+  terminationDate: z.string().nullable(),
+  terminationReason: z.string().nullable().optional(),
+  // ── Employment ─────────────────────────────────────────────────────────────
   contractType: ContractTypeSchema,
   workModality: WorkModalitySchema,
   currentPosition: z.string().nullable(),
   currentDepartment: z.string().nullable(),
+  currentSchedule: z.string().nullable().optional(),
+  currentResponsibilities: z.string().nullable().optional(),
+  annualVacationDays: z.number().int().nonnegative().optional(),
+  // ── References ─────────────────────────────────────────────────────────────
   managerId: z.string().nullable(),
   hireDate: z.string(),
-  terminationDate: z.string().nullable(),
   photoFileId: z.string().nullable(),
   cvFileId: z.string().nullable(),
-  // Optional — present ONLY when caller has read:EmployeeSalary
+  // ── Timestamps ─────────────────────────────────────────────────────────────
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
+  // ── Tier 2 Financial — OPTIONAL (DELETE-stripped if no read:EmployeeSalary)
   currentSalaryCents: z.number().int().optional(),
   currentSalaryCurrency: z.string().optional(),
 })
