@@ -23,7 +23,11 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
-import { useEmployeeDetail } from '../composables/useEmployeeDetail'
+import {
+  useEmployeeDetail,
+  filterVisibleTabs,
+  resolveActiveTabWithFallback,
+} from '../composables/useEmployeeDetail'
 import { useManagerResolution } from '../composables/useManagerResolution'
 import EmployeeProfileCard from '../components/EmployeeProfileCard.vue'
 import ResumenPanel from '../components/ResumenPanel.vue'
@@ -39,6 +43,7 @@ import CvPanel from '../components/CvPanel.vue'
 import AusenciasPanel from '../components/AusenciasPanel.vue'
 import EmergencyContactsPanel from '../components/EmergencyContactsPanel.vue'
 import type { Employee } from '../interfaces/employee.types'
+import type { AppAction, AppSubject } from '@/features/auth/interfaces/auth.types'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -50,7 +55,7 @@ const {
   employee,
   isLoading,
   isError,
-  activeTab,
+  activeTab: rawActiveTab,
   setTab,
   tabs,
   canUpdate,
@@ -58,6 +63,19 @@ const {
   initials,
   refetch,
 } = useEmployeeDetail()
+
+// ── WU-12A: Compute which tabs are visible for this user ──────────────────────
+const visibleTabs = computed(() =>
+  filterVisibleTabs(tabs, (action, subject) =>
+    authStore.userCan(action as AppAction, subject as AppSubject),
+  ),
+)
+
+// When the URL points to a now-hidden tab (e.g. ?tab=compensacion but salary revoked),
+// resolve gracefully to 'resumen' instead of showing an empty panel.
+const activeTab = computed(() =>
+  resolveActiveTabWithFallback(rawActiveTab.value, visibleTabs.value),
+)
 
 // ── Manager resolution (reuses batch pattern from list — single employee wrapped in array)
 const employeesForManager = computed<Employee[]>(() =>
@@ -198,7 +216,7 @@ function goBack(): void {
           <div class="overflow-x-auto">
             <div class="flex min-w-max gap-1 rounded-xl border border-default bg-elevated/50 p-1">
               <button
-                v-for="tab in tabs"
+                v-for="tab in visibleTabs"
                 :key="tab.key"
                 :class="[
                   'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap',

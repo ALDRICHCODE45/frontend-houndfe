@@ -1,5 +1,5 @@
 /**
- * useEmployeeDetail — WU-06A
+ * useEmployeeDetail — WU-06A / WU-12A
  *
  * Composable + pure helpers for the Employee Detail View.
  *
@@ -7,16 +7,17 @@
  * - Uses TanStack useQuery with employeeQueryKeys.detail for caching.
  * - Employee id comes from Vue Router param (:id).
  * - Tab state is driven by ?tab= query param for deep linking.
- * - Tab bar shows all 8 tabs; only Resumen/Personal/Laboral have real content.
- * - Others show "Próximamente" placeholder in this slice.
+ * - Tab bar shows only tabs the user is permitted to see (WU-12A).
  * - Salary display guarded by hasSalary() — never shows undefined as "0".
  *
  * Pure helpers (exported for unit testing — ZERO mocks needed):
- * - computeTabFromQuery(query)   — maps ?tab= string → valid tab key (default: 'resumen')
- * - resolveDetailTab(tabKey)     — validates tab key, returns default on invalid input
- * - buildProfileInitials(name)   — first 2 words, first char each, uppercase
- * - formatCurrencyMXN(cents, c)  — formats cents → locale currency string
- * - EMPLOYEE_DETAIL_TABS          — ordered tab definitions (all 8 tabs)
+ * - computeTabFromQuery(query)              — maps ?tab= string → valid tab key (default: 'resumen')
+ * - resolveDetailTab(tabKey)               — validates tab key, returns default on invalid input
+ * - buildProfileInitials(name)             — first 2 words, first char each, uppercase
+ * - formatCurrencyMXN(cents, c)            — formats cents → locale currency string
+ * - filterVisibleTabs(tabs, can)           — filters tabs by CASL predicate (WU-12A)
+ * - resolveActiveTabWithFallback(tab, vis) — falls back to 'resumen' when active tab hidden (WU-12A)
+ * - EMPLOYEE_DETAIL_TABS                   — ordered tab definitions (all 8 tabs)
  */
 
 import { computed } from 'vue'
@@ -32,8 +33,14 @@ import type { Employee } from '../interfaces/employee.types'
 export interface EmployeeDetailTab {
   key: EmployeeDetailTabKey
   label: string
-  /** If false, this tab shows "Próximamente" placeholder in WU-06A */
-  implemented: boolean
+  /**
+   * Optional CASL permission tuple [action, subject] that gates tab visibility.
+   * When present, the tab is only shown when `can(action, subject)` is true.
+   * When absent, the tab is always visible (gated only at route level by read:Employee).
+   *
+   * WU-12A: compensacion, documentos, ausencias require fine-grained read permissions.
+   */
+  permission?: [string, string]
 }
 
 export type EmployeeDetailTabKey =
@@ -47,19 +54,56 @@ export type EmployeeDetailTabKey =
   | 'cv'
 
 export const EMPLOYEE_DETAIL_TABS: EmployeeDetailTab[] = [
-  { key: 'resumen', label: 'Resumen', implemented: true },
-  { key: 'personal', label: 'Personal', implemented: true },
-  { key: 'laboral', label: 'Laboral', implemented: true },
-  { key: 'compensacion', label: 'Compensación', implemented: true },
-  { key: 'organigrama', label: 'Organigrama', implemented: true },
-  { key: 'documentos', label: 'Documentos', implemented: true },
-  { key: 'ausencias', label: 'Ausencias', implemented: true },
-  { key: 'cv', label: 'CV', implemented: true },
+  { key: 'resumen', label: 'Resumen' },
+  { key: 'personal', label: 'Personal' },
+  { key: 'laboral', label: 'Laboral' },
+  { key: 'compensacion', label: 'Compensación', permission: ['read', 'EmployeeSalary'] },
+  { key: 'organigrama', label: 'Organigrama' },
+  { key: 'documentos', label: 'Documentos', permission: ['read', 'EmployeeDocument'] },
+  { key: 'ausencias', label: 'Ausencias', permission: ['read', 'EmployeeTimeOff'] },
+  { key: 'cv', label: 'CV' },
 ]
 
-const VALID_TAB_KEYS = new Set<string>(EMPLOYEE_DETAIL_TABS.map((t) => t.key))
-
 const DEFAULT_TAB: EmployeeDetailTabKey = 'resumen'
+
+// ─── Tab visibility pure helpers (WU-12A) ─────────────────────────────────────
+
+/**
+ * Filter tab definitions to only those the current user is allowed to see.
+ *
+ * Tabs without a `permission` field are always included.
+ * Tabs with a `permission` field are included only when `can(action, subject)` returns true.
+ *
+ * PURE — deterministic, no side effects. Accepts a `can` predicate so tests
+ * can pass any function without mocking the auth store.
+ */
+export function filterVisibleTabs(
+  tabs: EmployeeDetailTab[],
+  can: (action: string, subject: string) => boolean,
+): EmployeeDetailTab[] {
+  return tabs.filter((tab) => {
+    if (!tab.permission) return true
+    const [action, subject] = tab.permission
+    return can(action, subject)
+  })
+}
+
+/**
+ * Resolve the active tab, falling back to 'resumen' when the current active
+ * tab is no longer in the visible set (e.g. user navigated to ?tab=compensacion
+ * but their salary permission was revoked).
+ *
+ * PURE — deterministic, no side effects.
+ */
+export function resolveActiveTabWithFallback(
+  activeTab: EmployeeDetailTabKey,
+  visibleTabs: EmployeeDetailTab[],
+): EmployeeDetailTabKey {
+  const isVisible = visibleTabs.some((t) => t.key === activeTab)
+  return isVisible ? activeTab : DEFAULT_TAB
+}
+
+const VALID_TAB_KEYS = new Set<string>(EMPLOYEE_DETAIL_TABS.map((t) => t.key))
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
