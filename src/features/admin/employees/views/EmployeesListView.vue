@@ -1,16 +1,21 @@
 <script setup lang="ts">
 /**
- * EmployeesListView — WU-02 (warning fixes applied)
+ * EmployeesListView — WU-03 (card view + toggle + manager name resolution)
  *
  * Orchestrator view for the Colaboradores list page.
- * Composition surface: wires useEmployeesList + useEmployeeColumns + EmployeeFilters.
+ * Composition surface: wires useEmployeesList + useEmployeeColumns +
+ * useEmployeeViewMode + useManagerResolution + EmployeeFilters.
  *
- * Design direction: Claude "Colaboradores" adapted to warm-orange Nuxt UI 4 tokens.
- * - Title: Colaboradores
- * - Subtitle: Equipo, lifecycle, organigrama y documentos del personal
- * - Status tabs: Todos / Activos / Bajas (on_leave removed — not a backend list param)
- * - Table columns: Colaborador, Cargo, Departamento, Jefe directo, Fecha de ingreso, Modalidad, Estado
- *   (Salary column removed from list — belongs in Compensación detail tab WU-06+)
+ * WU-03 additions:
+ * - Tabla / Tarjetas segmented toggle via EmployeeViewToggle
+ * - Card grid view via EmployeeCardGrid (delegates to EmployeeCard per item)
+ * - Manager name resolution via useManagerResolution (batch, no N+1)
+ * - View mode persisted in localStorage via useEmployeeViewMode
+ *
+ * Design: Claude "Colaboradores" adapted to warm-orange Nuxt UI 4 tokens.
+ * Status tabs: Todos / Activos / Bajas
+ * Table columns: Colaborador, Cargo, Departamento, Jefe directo, Fecha de ingreso, Modalidad, Estado
+ * Salary: intentionally NOT shown in list or cards — belongs in Compensación detail tab (WU-06+)
  *
  * Permission gate: route-level meta.permission ['read', 'Employee'].
  * Create button gated by create:Employee.
@@ -23,11 +28,21 @@ import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { EMPLOYEE_STATUS_LABELS, WORK_MODALITY_LABELS } from '../interfaces/employee.types'
 import { useEmployeesList } from '../composables/useEmployeesList'
-import { useEmployeeColumns, employeeStatusToBadgeTone, workModalityToBadgeTone, formatHireDate, getManagerDisplay } from '../composables/useEmployeeColumns'
+import {
+  useEmployeeColumns,
+  employeeStatusToBadgeTone,
+  workModalityToBadgeTone,
+  formatHireDate,
+} from '../composables/useEmployeeColumns'
+import { useEmployeeViewMode } from '../composables/useEmployeeViewMode'
+import { useManagerResolution, resolveManagerName } from '../composables/useManagerResolution'
 import EmployeeFilters from '../components/EmployeeFilters.vue'
+import EmployeeViewToggle from '../components/EmployeeViewToggle.vue'
+import EmployeeCardGrid from '../components/EmployeeCardGrid.vue'
 import type { Employee } from '../interfaces/employee.types'
 
 const authStore = useAuthStore()
+const tenantId = computed(() => authStore.currentTenantId)
 
 // ── CASL guards ────────────────────────────────────────────────────────────────
 const canCreate = computed(() => authStore.userCan('create', 'Employee'))
@@ -53,19 +68,30 @@ const {
 // ── Column definitions ─────────────────────────────────────────────────────────
 const { columns } = useEmployeeColumns()
 
+// ── View mode (Tabla / Tarjetas) ───────────────────────────────────────────────
+const { viewMode, setMode } = useEmployeeViewMode()
+
+// ── Manager name resolution (batch, no N+1) ───────────────────────────────────
+const { managerMap } = useManagerResolution(
+  () => employees.value,
+  () => tenantId.value,
+)
+
 // ── Avatar helper ──────────────────────────────────────────────────────────────
 function getInitials(fullName: string): string {
   const parts = fullName.trim().split(' ').filter(Boolean)
-  return parts
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? '')
-    .join('') || 'C'
+  return (
+    parts
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase() ?? '')
+      .join('') || 'C'
+  )
 }
 
-// ── Manager display ────────────────────────────────────────────────────────────
-// Delegated to the pure helper getManagerDisplay() in useEmployeeColumns.
-// Returns "—" for null and for non-null UUIDs until WU-03 adds name resolution.
-// The pure helper is tested independently in __tests__/useEmployeesList.spec.ts.
+// ── Manager display (table view — reads from resolved map via pure helper) ─────
+function getManagerDisplay(employee: Employee): string {
+  return resolveManagerName(employee.managerId, managerMap.value)
+}
 
 // ── Pagination state forwarding ────────────────────────────────────────────────
 const pagination = computed({
@@ -98,17 +124,39 @@ const showingTo = computed(() => {
       </template>
 
       <div class="flex flex-col gap-4 px-6 py-5">
-        <!-- Filters row -->
-        <EmployeeFilters
-          :search="search"
-          :status-tab="statusTab"
-          :is-loading="isFetching"
-          @update:search="setSearch"
-          @update:status-tab="setStatusTab"
-        />
+        <!-- Filters + view toggle row -->
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <!-- Filters (search + status tabs) -->
+          <EmployeeFilters
+            :search="search"
+            :status-tab="statusTab"
+            :is-loading="isFetching"
+            @update:search="setSearch"
+            @update:status-tab="setStatusTab"
+          />
 
-        <!-- Table -->
+          <!-- Tabla / Tarjetas toggle -->
+          <EmployeeViewToggle
+            :model-value="viewMode"
+            @update:model-value="setMode"
+          />
+        </div>
+
+        <!-- Add button row (only in card view — table has its own) -->
+        <div v-if="viewMode === 'card' && canCreate" class="flex justify-end">
+          <UButton
+            icon="i-lucide-user-plus"
+            color="primary"
+            size="sm"
+            disabled
+          >
+            Nuevo colaborador
+          </UButton>
+        </div>
+
+        <!-- Table view -->
         <AppDataTable
+          v-if="viewMode === 'table'"
           v-model:pagination="pagination"
           :columns="columns"
           :data="employees"
@@ -154,7 +202,7 @@ const showingTo = computed(() => {
             <span class="text-sm">{{ row.original.currentDepartment ?? '—' }}</span>
           </template>
 
-          <!-- Jefe directo cell — graceful fallback for WU-02 -->
+          <!-- Jefe directo cell — resolved manager name or "—" -->
           <template #jefedirecto-cell="{ row }">
             <span class="text-sm text-muted">{{ getManagerDisplay(row.original) }}</span>
           </template>
@@ -182,11 +230,48 @@ const showingTo = computed(() => {
             />
           </template>
 
-          <!-- Actions cell — placeholder for WU-03+ mutations -->
+          <!-- Actions cell — placeholder for WU-04+ mutations -->
           <template #actions-cell>
-            <!-- Mutation actions (terminate/reactivate/edit) deferred to WU-03 -->
+            <!-- Mutation actions (terminate/reactivate/edit) deferred to WU-04 -->
           </template>
         </AppDataTable>
+
+        <!-- Card view -->
+        <template v-else>
+          <EmployeeCardGrid
+            :employees="employees"
+            :manager-map="managerMap"
+            :loading="isLoading"
+            empty="No se encontraron colaboradores"
+          />
+
+          <!-- Card view pagination — simple row count info + page navigation -->
+          <div
+            v-if="totalCount > 0"
+            class="flex items-center justify-between border-t border-default pt-4 text-sm text-muted"
+          >
+            <span>Mostrando {{ showingFrom }}–{{ showingTo }} de {{ totalCount }}</span>
+            <div class="flex items-center gap-2">
+              <UButton
+                variant="ghost"
+                size="xs"
+                icon="i-lucide-chevron-left"
+                :disabled="page <= 1"
+                aria-label="Página anterior"
+                @click="setPage(page - 1)"
+              />
+              <span class="px-1">{{ page }} / {{ pageCount || 1 }}</span>
+              <UButton
+                variant="ghost"
+                size="xs"
+                icon="i-lucide-chevron-right"
+                :disabled="page >= pageCount"
+                aria-label="Página siguiente"
+                @click="setPage(page + 1)"
+              />
+            </div>
+          </div>
+        </template>
       </div>
     </UCard>
   </div>

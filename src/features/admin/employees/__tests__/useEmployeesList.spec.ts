@@ -112,7 +112,6 @@ describe('mapPaginated — pagination adapter (task 2.1)', () => {
     }
     const result = mapPaginated(raw)
     expect(result.data).toHaveLength(2)
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     expect(result.data[0]!.id).toBe('1')
   })
 
@@ -268,7 +267,6 @@ describe('employeesApi.list — outbound request snapshot (task 2.1)', () => {
 
     const result = await employeesApi.list({ status: 'all', page: 1, pageSize: 10 })
 
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     expect(result.data[0]!.id).toBe('emp-1')
     expect(result.pagination.totalCount).toBe(1)
     expect(result.pagination.pageCount).toBe(1)
