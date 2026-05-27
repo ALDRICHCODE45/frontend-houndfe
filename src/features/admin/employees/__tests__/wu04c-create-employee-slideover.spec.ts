@@ -23,6 +23,7 @@ import { describe, it, expect } from 'vitest'
 // ── RED: imports referencing production code that does NOT exist yet ───────────
 import {
   buildCreateEmployeeFormState,
+  CreateEmployeeFormSchema,
   formStateToDto,
   type CreateEmployeeFormState,
 } from '@/features/admin/employees/composables/useCreateEmployeeForm'
@@ -226,5 +227,35 @@ describe('formStateToDto — maps form state to dto (WU-04C.2)', () => {
   it('does NOT include tenantId in the produced dto', () => {
     const dto = formStateToDto(VALID_STATE)
     expect('tenantId' in dto).toBe(false)
+  })
+})
+
+// ─── CreateEmployeeFormSchema — validates raw UI state ────────────────────────
+
+describe('CreateEmployeeFormSchema — raw form validation (regression)', () => {
+  it('accepts a minimal first employee form with no manager selected', () => {
+    const state = buildCreateEmployeeFormState()
+    state.employeeNumber = 'EMP-001'
+    state.firstName = 'Primer'
+    state.lastName = 'Colaborador'
+    state.hireDate = '2026-05-27'
+
+    const result = CreateEmployeeFormSchema.safeParse(state)
+
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts empty optional select fields used by Nuxt UI placeholders', () => {
+    const state = buildCreateEmployeeFormState()
+    state.employeeNumber = 'EMP-002'
+    state.firstName = 'Sin'
+    state.lastName = 'Opcionales'
+    state.hireDate = '2026-05-27'
+    state.contractType = ''
+    state.workModality = ''
+
+    const result = CreateEmployeeFormSchema.safeParse(state)
+
+    expect(result.success).toBe(true)
   })
 })

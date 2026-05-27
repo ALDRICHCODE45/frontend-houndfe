@@ -21,12 +21,36 @@
  */
 
 import { reactive } from 'vue'
+import { z } from 'zod'
 import {
-  CreateEmployeeDtoSchema,
   ContractTypeSchema,
   WorkModalitySchema,
 } from '../interfaces/employee.types'
 import type { CreateEmployeeDto, ContractType, WorkModality } from '../interfaces/employee.types'
+
+// ─── Form validation schema ───────────────────────────────────────────────────
+
+/**
+ * Schema for the UI form state, not the API DTO.
+ *
+ * Nuxt UI validates the raw form state before `onSubmit` runs. The API DTO schema
+ * cannot be used directly here because the form intentionally stores empty
+ * optional selects as '' and an empty manager as null for placeholder behavior.
+ */
+export const CreateEmployeeFormSchema = z.object({
+  employeeNumber: z.string().min(1),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  hireDate: z.string().min(1),
+  email: z.union([z.literal(''), z.string().email()]),
+  phone: z.string(),
+  contractType: z.union([z.literal(''), ContractTypeSchema]),
+  workModality: z.union([z.literal(''), WorkModalitySchema]),
+  currentPosition: z.string(),
+  currentDepartment: z.string(),
+  annualVacationDays: z.number().int().nonnegative().nullable(),
+  managerId: z.string().uuid().nullable(),
+})
 
 // ─── Form state shape ─────────────────────────────────────────────────────────
 
@@ -135,7 +159,7 @@ export function useCreateEmployeeForm() {
   const state = reactive<CreateEmployeeFormState>(buildCreateEmployeeFormState())
 
   /** The Zod schema passed to Nuxt UI UForm :schema for validation */
-  const schema = CreateEmployeeDtoSchema
+  const schema = CreateEmployeeFormSchema
 
   /** Reset all fields to their initial values */
   function resetForm(): void {
