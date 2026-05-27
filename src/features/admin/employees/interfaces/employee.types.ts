@@ -400,3 +400,26 @@ export const AddPositionChangeDtoSchema = z.object({
 })
 
 export type AddPositionChangeDto = z.infer<typeof AddPositionChangeDtoSchema>
+
+// ─── UploadDocumentDto ────────────────────────────────────────────────────────
+
+/**
+ * Zod schema for the FormData fields in POST /admin/employees/:employeeId/documents.
+ *
+ * The `file` (binary) is added to the FormData separately before upload.
+ * These fields are the text fields passed in the multipart body.
+ *
+ * category:  Required — one of the 9 EmployeeDocumentCategory values.
+ * expiresAt: Optional — YYYY-MM-DD expiration date.
+ * notes:     Optional — max 500 chars; serves as document title/description.
+ *            Backend desviación #1: no `title` field — use `notes` instead.
+ *
+ * NEVER send tenantId — backend reads it from JWT via TenantContextGuard.
+ */
+export const UploadDocumentDtoSchema = z.object({
+  category: EmployeeDocumentCategorySchema,
+  expiresAt: z.string().optional(),
+  notes: z.string().max(500).optional(),
+})
+
+export type UploadDocumentDto = z.infer<typeof UploadDocumentDtoSchema>
