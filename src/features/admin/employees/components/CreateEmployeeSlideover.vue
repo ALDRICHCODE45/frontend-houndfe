@@ -15,16 +15,10 @@
  *   - Salary fields (belong in Compensación detail tab — WU-06+)
  *   - CV / photo uploads (require file handling — WU-07+)
  *
- * ManagerPicker workaround:
- *   ManagerPicker.vue uses USelectMenu which nests a Reka UI focus trap inside
- *   the USlideover's own focus trap, causing the UI to freeze (Reka UI bug #3408).
- *   Workaround: managerId is collected via a plain UInput (UUID text field) in
- *   this slideover for v1. ManagerPicker.vue can be used in non-slideover
- *   contexts (e.g., a UModal or full-page form) without issues.
- *   See: https://github.com/nuxt/ui/issues/3408
- *
- *   TODO (WU-04C follow-up): Replace UInput[type=text] for managerId with ManagerPicker
- *   once Reka UI resolves the nested focus-trap issue or Nuxt UI provides a workaround.
+ * Manager picker:
+ *   Uses USelectMenu with async search (v-model:search-term + ignore-filter)
+ *   following the same pattern as MembershipUpsertSlideover. The field is optional —
+ *   if no manager is selected, managerId is omitted from the DTO.
  *
  * Contract:
  *   - Props: open (v-model:open)
@@ -34,11 +28,12 @@
  */
 
 import type { FormSubmitEvent } from '@nuxt/ui'
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { CONTRACT_TYPE_LABELS, WORK_MODALITY_LABELS } from '../interfaces/employee.types'
 import type { ContractType, WorkModality } from '../interfaces/employee.types'
 import { useCreateEmployeeForm, formStateToDto } from '../composables/useCreateEmployeeForm'
 import { useCreateEmployee } from '../composables/useCreateEmployee'
+import { useManagerPicker } from '../composables/useManagerPicker'
 
 // ─── Props & emits ─────────────────────────────────────────────────────────────
 
@@ -52,6 +47,23 @@ const emit = defineEmits<{
 
 const { state, schema, resetForm } = useCreateEmployeeForm()
 const { mutateAsync, isPending } = useCreateEmployee()
+
+// ─── Manager picker ────────────────────────────────────────────────────────────
+const { search: managerSearch, managers, isLoading: isLoadingManagers } = useManagerPicker()
+const managerSearchTerm = ref('')
+
+const managerOptions = computed(() =>
+  managers.value.map((m) => ({
+    label: m.label,
+    value: m.id,
+    description: [m.position, m.department].filter((s) => s !== '—').join(' · ') || undefined,
+  })),
+)
+
+// Sync the external search term with the composable
+watch(managerSearchTerm, (v) => {
+  managerSearch.value = v
+})
 
 // ─── Select options ────────────────────────────────────────────────────────────
 
@@ -249,22 +261,27 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
               />
             </UFormField>
 
-            <!-- managerId via plain UInput — workaround for Reka UI focus trap bug
-                 (USelectMenu / ManagerPicker inside USlideover freezes the UI).
-                 ManagerPicker.vue is tested standalone and works in non-slideover contexts.
-                 TODO: replace with ManagerPicker once Reka UI #3408 is resolved. -->
-            <UFormField
-              label="Jefe directo (UUID)"
-              name="managerId"
-              help="Pegá el UUID del jefe directo. Campo opcional."
-            >
-              <UInput
+            <UFormField label="Jefe directo" name="managerId">
+              <USelectMenu
                 v-model="state.managerId"
+                :items="managerOptions"
+                value-key="value"
+                label-key="label"
+                description-key="description"
+                placeholder="Buscar jefe directo..."
+                v-model:search-term="managerSearchTerm"
+                :search-input="{ placeholder: 'Escribí para buscar colaboradores' }"
+                :ignore-filter="true"
+                :loading="isLoadingManagers"
                 class="w-full"
                 size="lg"
-                placeholder="UUID del jefe directo (opcional)"
                 :disabled="isPending"
-              />
+              >
+                <template #empty>
+                  <span v-if="managerSearchTerm.length < 1">Escribí para buscar colaboradores</span>
+                  <span v-else>No se encontraron colaboradores</span>
+                </template>
+              </USelectMenu>
             </UFormField>
           </div>
         </div>

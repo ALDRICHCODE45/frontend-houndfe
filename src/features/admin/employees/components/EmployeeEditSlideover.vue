@@ -10,12 +10,7 @@
  *   - employeeNumber is editable but may trigger EMPLOYEE_NUMBER_CONFLICT on PATCH.
  *   - Form is pre-filled from the existing employee data.
  *   - Uses UpdateEmployeeDtoSchema (no hireDate, all fields optional).
- *   - Manager field follows the same Reka UI focus-trap workaround as create.
- *
- * ManagerPicker workaround (same as WU-04C):
- *   USelectMenu inside USlideover freezes focus trap (Reka UI bug #3408).
- *   Uses plain UInput for managerId UUID entry.
- *   TODO: replace with ManagerPicker once Reka UI #3408 is resolved.
+ *   - Manager field uses USelectMenu with async search (same pattern as memberships).
  *
  * Contract:
  *   - Props: open (v-model:open), employee (the Employee to edit)
@@ -25,12 +20,13 @@
  */
 
 import type { FormSubmitEvent } from '@nuxt/ui'
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { CONTRACT_TYPE_LABELS, WORK_MODALITY_LABELS } from '../interfaces/employee.types'
 import type { ContractType, Employee, WorkModality } from '../interfaces/employee.types'
 import { useEditEmployeeForm, editFormStateToDto } from '../composables/useEditEmployeeForm'
 import { useUpdateEmployee } from '../composables/useUpdateEmployee'
 import { formatHireDate } from '../composables/useEmployeeColumns'
+import { useManagerPicker } from '../composables/useManagerPicker'
 
 // ─── Props & emits ─────────────────────────────────────────────────────────────
 
@@ -48,6 +44,24 @@ const emit = defineEmits<{
 
 const { state, schema, resetForm } = useEditEmployeeForm(() => props.employee)
 const { mutateAsync, isPending } = useUpdateEmployee()
+
+// ─── Manager picker (exclude self) ─────────────────────────────────────────────
+const { search: managerSearch, managers, isLoading: isLoadingManagers } = useManagerPicker({
+  excludeId: props.employee?.id ?? null,
+})
+const managerSearchTerm = ref('')
+
+const managerOptions = computed(() =>
+  managers.value.map((m) => ({
+    label: m.label,
+    value: m.id,
+    description: [m.position, m.department].filter((s) => s !== '—').join(' · ') || undefined,
+  })),
+)
+
+watch(managerSearchTerm, (v) => {
+  managerSearch.value = v
+})
 
 // ─── Select options ────────────────────────────────────────────────────────────
 
@@ -251,22 +265,27 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
               />
             </UFormField>
 
-            <!-- managerId via plain UInput — workaround for Reka UI focus trap bug
-                 (USelectMenu / ManagerPicker inside USlideover freezes the UI).
-                 ManagerPicker.vue is tested standalone and works in non-slideover contexts.
-                 TODO: replace with ManagerPicker once Reka UI #3408 is resolved. -->
-            <UFormField
-              label="Jefe directo (UUID)"
-              name="managerId"
-              help="Pegá el UUID del jefe directo. Dejá vacío para quitar el jefe actual."
-            >
-              <UInput
+            <UFormField label="Jefe directo" name="managerId">
+              <USelectMenu
                 v-model="state.managerId"
+                :items="managerOptions"
+                value-key="value"
+                label-key="label"
+                description-key="description"
+                placeholder="Buscar jefe directo..."
+                v-model:search-term="managerSearchTerm"
+                :search-input="{ placeholder: 'Escribí para buscar colaboradores' }"
+                :ignore-filter="true"
+                :loading="isLoadingManagers"
                 class="w-full"
                 size="lg"
-                placeholder="UUID del jefe directo (opcional)"
                 :disabled="isPending"
-              />
+              >
+                <template #empty>
+                  <span v-if="managerSearchTerm.length < 1">Escribí para buscar colaboradores</span>
+                  <span v-else>No se encontraron colaboradores</span>
+                </template>
+              </USelectMenu>
             </UFormField>
           </div>
         </div>
