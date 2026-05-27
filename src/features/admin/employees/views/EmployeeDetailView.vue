@@ -33,6 +33,9 @@ import EmployeeEditSlideover from '../components/EmployeeEditSlideover.vue'
 import TerminateEmployeeDialog from '../components/TerminateEmployeeDialog.vue'
 import ReactivateEmployeeDialog from '../components/ReactivateEmployeeDialog.vue'
 import CompensacionPanel from '../components/CompensacionPanel.vue'
+import DocumentosPanel from '../components/DocumentosPanel.vue'
+import OrganigramaPanel from '../components/OrganigramaPanel.vue'
+import CvPanel from '../components/CvPanel.vue'
 import type { Employee } from '../interfaces/employee.types'
 
 const authStore = useAuthStore()
@@ -69,6 +72,10 @@ const managerDisplay = computed<string>(() =>
 
 // ── Additional CASL guards (WU-07) ────────────────────────────────────────────
 const canCreateSalary = computed(() => authStore.userCan('create', 'EmployeeSalary'))
+
+// ── Additional CASL guards (WU-09) ────────────────────────────────────────────
+const canCreateDocument = computed(() => authStore.userCan('create', 'EmployeeDocument'))
+const canDeleteDocument = computed(() => authStore.userCan('delete', 'EmployeeDocument'))
 
 // ── Slideover / dialog state ───────────────────────────────────────────────────
 const isEditOpen = ref(false)
@@ -226,6 +233,28 @@ function goBack(): void {
               :can-read-salary="canReadSalary"
               :can-create-salary="canCreateSalary"
               :can-update="canUpdate"
+            />
+
+            <!-- Organigrama — WU-08 -->
+            <OrganigramaPanel
+              v-else-if="activeTab === 'organigrama'"
+              :employee="employee"
+            />
+
+            <!-- CV — WU-08 -->
+            <CvPanel
+              v-else-if="activeTab === 'cv'"
+              :employee="employee"
+              :can-update="canUpdate"
+              @cv-updated="onActionSuccess"
+            />
+
+            <!-- Documentos — WU-09 -->
+            <DocumentosPanel
+              v-else-if="activeTab === 'documentos'"
+              :employee="employee"
+              :can-create="canCreateDocument"
+              :can-delete="canDeleteDocument"
             />
 
             <!-- Remaining tabs — "Próximamente" placeholder -->

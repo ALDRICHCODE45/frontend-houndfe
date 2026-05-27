@@ -51,10 +51,10 @@ export const EMPLOYEE_DETAIL_TABS: EmployeeDetailTab[] = [
   { key: 'personal', label: 'Personal', implemented: true },
   { key: 'laboral', label: 'Laboral', implemented: true },
   { key: 'compensacion', label: 'Compensación', implemented: true },
-  { key: 'organigrama', label: 'Organigrama', implemented: false },
-  { key: 'documentos', label: 'Documentos', implemented: false },
+  { key: 'organigrama', label: 'Organigrama', implemented: true },
+  { key: 'documentos', label: 'Documentos', implemented: true },
   { key: 'ausencias', label: 'Ausencias', implemented: false },
-  { key: 'cv', label: 'CV', implemented: false },
+  { key: 'cv', label: 'CV', implemented: true },
 ]
 
 const VALID_TAB_KEYS = new Set<string>(EMPLOYEE_DETAIL_TABS.map((t) => t.key))

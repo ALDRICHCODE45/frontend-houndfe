@@ -97,6 +97,8 @@ export const employeeQueryKeys = {
   detail: (tenantId: string, id: string) => ['employees', tenantId, 'detail', id] as const,
   managerChain: (tenantId: string, id: string) =>
     ['employees', tenantId, 'manager-chain', id] as const,
+  subordinates: (tenantId: string, id: string) =>
+    ['employees', tenantId, 'subordinates', id] as const,
   activeForPicker: (tenantId: string, search: string) =>
     ['employees', tenantId, 'picker', search] as const,
 }

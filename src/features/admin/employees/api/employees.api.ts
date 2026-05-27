@@ -11,6 +11,7 @@
 
 import { http } from '@/core/shared/api/http'
 import type { PaginatedResponse } from '@/core/shared/types/table.types'
+import { uploadMultipart } from '@/core/shared/api/multipart'
 import type {
   Employee,
   EmployeesBackendList,
@@ -21,7 +22,30 @@ import type {
   AddPositionChangeDto,
   SalaryChange,
   PositionChange,
+  EmployeeDocument,
 } from '../interfaces/employee.types'
+
+// ─── Document query param types ───────────────────────────────────────────────
+
+export interface GetDocumentsParams {
+  /** Filter by category */
+  category?: string
+  /** Documents expiring within N days */
+  expiringWithinDays?: number
+  /** 1-indexed page number */
+  page?: number
+  /** Items per page */
+  pageSize?: number
+}
+
+/** Backend shape for paginated documents list */
+export interface DocumentsBackendList {
+  data: EmployeeDocument[]
+  total: number
+  page: number
+  limit: number
+  pageSize?: number
+}
 
 // ─── Query param types ────────────────────────────────────────────────────────
 
@@ -191,6 +215,34 @@ export const employeesApi = {
     return data
   },
 
+  // ─── Org chart — WU-08 ────────────────────────────────────────────────────
+
+  /**
+   * GET /admin/employees/:id/subordinates
+   *
+   * Requires read:Employee permission.
+   * Returns array of direct subordinates (NOT recursive).
+   * Salary stripping applied server-side.
+   * NEVER sends tenantId.
+   */
+  async getSubordinates(id: string): Promise<Employee[]> {
+    const { data } = await http.get<Employee[]>(`/admin/employees/${id}/subordinates`)
+    return data
+  },
+
+  /**
+   * GET /admin/employees/:id/manager-chain
+   *
+   * Requires read:Employee permission.
+   * Returns array of Employee from direct manager to top (max 50 levels).
+   * Salary stripping applied server-side.
+   * NEVER sends tenantId.
+   */
+  async getManagerChain(id: string): Promise<Employee[]> {
+    const { data } = await http.get<Employee[]>(`/admin/employees/${id}/manager-chain`)
+    return data
+  },
+
   // ─── Salary history — WU-07 ────────────────────────────────────────────────
 
   /**
@@ -249,5 +301,76 @@ export const employeesApi = {
       dto,
     )
     return data
+  },
+
+  // ─── Documents — WU-09 ────────────────────────────────────────────────────
+
+  /**
+   * GET /admin/employees/:employeeId/documents
+   *
+   * Requires read:EmployeeDocument permission.
+   * Returns paginated list of EmployeeDocument.
+   * Optional filters: category, expiringWithinDays, page, pageSize.
+   * NEVER send tenantId.
+   */
+  async getDocuments(
+    employeeId: string,
+    params?: GetDocumentsParams,
+  ): Promise<DocumentsBackendList> {
+    const queryParams: Record<string, unknown> = {
+      page: params?.page ?? 1,
+      pageSize: params?.pageSize ?? 20,
+    }
+    if (params?.category) queryParams.category = params.category
+    if (params?.expiringWithinDays) queryParams.expiringWithinDays = params.expiringWithinDays
+
+    const { data } = await http.get<DocumentsBackendList>(
+      `/admin/employees/${employeeId}/documents`,
+      { params: queryParams },
+    )
+    return data
+  },
+
+  /**
+   * POST /admin/employees/:employeeId/documents — upload a document.
+   *
+   * Requires create:EmployeeDocument permission. Returns 201 with created EmployeeDocument.
+   * MUST use multipart/form-data (uploadMultipart helper).
+   * FormData fields: file (binary), category, expiresAt?, notes?.
+   * NEVER send tenantId. NEVER manually set Content-Type.
+   */
+  async uploadDocument(employeeId: string, formData: FormData): Promise<EmployeeDocument> {
+    return uploadMultipart<EmployeeDocument>(
+      `/admin/employees/${employeeId}/documents`,
+      formData,
+    )
+  },
+
+  /**
+   * GET /admin/employees/:employeeId/documents/:docId/download
+   *
+   * Requires read:EmployeeDocument permission.
+   * Returns { fileId } — caller uses fileId to call downloadFile('/files/' + fileId).
+   */
+  async downloadDocumentInfo(
+    employeeId: string,
+    docId: string,
+  ): Promise<{ fileId: string }> {
+    const { data } = await http.get<{ fileId: string }>(
+      `/admin/employees/${employeeId}/documents/${docId}/download`,
+    )
+    return data
+  },
+
+  /**
+   * DELETE /admin/employees/:employeeId/documents/:docId
+   *
+   * Requires delete:EmployeeDocument permission. Returns 204 No Content.
+   * Backend best-efforts blob deletion in DO Spaces — logs but does NOT
+   * throw if blob delete fails.
+   * NEVER send tenantId.
+   */
+  async deleteDocument(employeeId: string, docId: string): Promise<void> {
+    await http.delete(`/admin/employees/${employeeId}/documents/${docId}`)
   },
 }
