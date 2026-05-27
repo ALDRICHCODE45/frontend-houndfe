@@ -11,7 +11,7 @@
 
 import { http } from '@/core/shared/api/http'
 import type { PaginatedResponse } from '@/core/shared/types/table.types'
-import type { Employee, EmployeesBackendList } from '../interfaces/employee.types'
+import type { Employee, EmployeesBackendList, CreateEmployeeDto } from '../interfaces/employee.types'
 
 // ─── Query param types ────────────────────────────────────────────────────────
 
@@ -117,5 +117,20 @@ export const employeesApi = {
       },
     })
     return data.data
+  },
+
+  /**
+   * POST /admin/employees — create a new employee.
+   *
+   * Requires create:Employee permission. Returns 201 with the created Employee.
+   * NEVER sends tenantId — extracted from JWT by TenantContextGuard.
+   *
+   * Possible domain errors (via EMPLOYEE_ERROR_MAP):
+   * - EMPLOYEE_NUMBER_CONFLICT (409): employeeNumber already exists in tenant
+   * - EMPLOYEE_NOT_FOUND (404): managerId refers to non-existent employee
+   */
+  async create(dto: CreateEmployeeDto): Promise<Employee> {
+    const { data } = await http.post<Employee>('/admin/employees', dto)
+    return data
   },
 }

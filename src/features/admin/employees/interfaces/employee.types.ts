@@ -2,6 +2,15 @@ import { z } from 'zod'
 
 // ─── Enums — pinned to backend v1 values ─────────────────────────────────────
 
+export const IdentityDocumentTypeSchema = z.enum([
+  'INE',
+  'PASSPORT',
+  'DRIVER_LICENSE',
+  'MILITARY_ID',
+  'OTHER',
+])
+export type IdentityDocumentType = z.infer<typeof IdentityDocumentTypeSchema>
+
 export const EmployeeStatusSchema = z.enum(['ACTIVE', 'ON_LEAVE', 'TERMINATED'])
 export type EmployeeStatus = z.infer<typeof EmployeeStatusSchema>
 
@@ -235,3 +244,53 @@ export const EmergencyContactSchema = z.object({
   updatedAt: z.string(),
 })
 export type EmergencyContact = z.infer<typeof EmergencyContactSchema>
+
+// ─── CreateEmployeeDto ────────────────────────────────────────────────────────
+
+/**
+ * Zod schema for POST /admin/employees request body.
+ *
+ * Required: employeeNumber, firstName, lastName, hireDate.
+ * All other fields are optional per backend v1 spec (§4.1).
+ * NEVER include tenantId — backend reads it from the JWT via TenantContextGuard.
+ */
+export const CreateEmployeeDtoSchema = z.object({
+  // ── Required fields ───────────────────────────────────────────────────────
+  employeeNumber: z.string().min(1),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  hireDate: z.string().min(1), // YYYY-MM-DD
+
+  // ── Personal info (optional) ──────────────────────────────────────────────
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
+  dateOfBirth: z.string().optional(), // YYYY-MM-DD
+  nationalId: z.string().optional(),
+  nationalIdType: IdentityDocumentTypeSchema.optional(),
+
+  // ── Address fields (optional) ─────────────────────────────────────────────
+  street: z.string().optional(),
+  exteriorNumber: z.string().optional(),
+  interiorNumber: z.string().optional(),
+  zipCode: z.string().optional(),
+  neighborhood: z.string().optional(),
+  municipality: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+
+  // ── Employment info (optional) ────────────────────────────────────────────
+  contractType: ContractTypeSchema.optional(),
+  workModality: WorkModalitySchema.optional(),
+  currentPosition: z.string().optional(),
+  currentDepartment: z.string().optional(),
+  currentSchedule: z.string().optional(),
+  currentResponsibilities: z.string().optional(),
+  annualVacationDays: z.number().int().nonnegative().optional(),
+
+  // ── References (optional) ─────────────────────────────────────────────────
+  managerId: z.string().uuid().optional(),
+  photoFileId: z.string().uuid().optional(),
+  cvFileId: z.string().uuid().optional(),
+})
+
+export type CreateEmployeeDto = z.infer<typeof CreateEmployeeDtoSchema>

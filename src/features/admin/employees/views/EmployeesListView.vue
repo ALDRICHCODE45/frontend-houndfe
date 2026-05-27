@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * EmployeesListView — WU-03 (card view + toggle + manager name resolution)
+ * EmployeesListView — WU-04C (create slideover wired)
  *
  * Orchestrator view for the Colaboradores list page.
  * Composition surface: wires useEmployeesList + useEmployeeColumns +
@@ -12,6 +12,10 @@
  * - Manager name resolution via useManagerResolution (batch, no N+1)
  * - View mode persisted in localStorage via useEmployeeViewMode
  *
+ * WU-04C additions:
+ * - "Nuevo colaborador" button opens CreateEmployeeSlideover (gated by create:Employee)
+ * - On success: slideover closes, list auto-refreshes via TanStack query invalidation
+ *
  * Design: Claude "Colaboradores" adapted to warm-orange Nuxt UI 4 tokens.
  * Status tabs: Todos / Activos / Bajas
  * Table columns: Colaborador, Cargo, Departamento, Jefe directo, Fecha de ingreso, Modalidad, Estado
@@ -21,7 +25,7 @@
  * Create button gated by create:Employee.
  */
 
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { AppDataTable } from '@/core/shared/components/DataTable'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
 import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
@@ -39,6 +43,7 @@ import { useManagerResolution, resolveManagerName } from '../composables/useMana
 import EmployeeFilters from '../components/EmployeeFilters.vue'
 import EmployeeViewToggle from '../components/EmployeeViewToggle.vue'
 import EmployeeCardGrid from '../components/EmployeeCardGrid.vue'
+import CreateEmployeeSlideover from '../components/CreateEmployeeSlideover.vue'
 import type { Employee } from '../interfaces/employee.types'
 
 const authStore = useAuthStore()
@@ -46,6 +51,13 @@ const tenantId = computed(() => authStore.currentTenantId)
 
 // ── CASL guards ────────────────────────────────────────────────────────────────
 const canCreate = computed(() => authStore.userCan('create', 'Employee'))
+
+// ── Create slideover ───────────────────────────────────────────────────────────
+const isCreateOpen = ref(false)
+
+function openCreateSlideover(): void {
+  isCreateOpen.value = true
+}
 
 // ── List composable ────────────────────────────────────────────────────────────
 const {
@@ -148,7 +160,7 @@ const showingTo = computed(() => {
             icon="i-lucide-user-plus"
             color="primary"
             size="sm"
-            disabled
+            @click="openCreateSlideover"
           >
             Nuevo colaborador
           </UButton>
@@ -173,6 +185,7 @@ const showingTo = computed(() => {
           empty="No se encontraron colaboradores"
           search-placeholder="Buscar colaborador..."
           @refresh="refresh"
+          @add="openCreateSlideover"
         >
           <!-- Colaborador cell — avatar + name + email -->
           <template #colaborador-cell="{ row }">
@@ -275,4 +288,11 @@ const showingTo = computed(() => {
       </div>
     </UCard>
   </div>
+
+  <!-- Create Employee Slideover — gated by canCreate (create:Employee CASL) -->
+  <CreateEmployeeSlideover
+    v-if="canCreate"
+    v-model:open="isCreateOpen"
+    @success="refresh"
+  />
 </template>
