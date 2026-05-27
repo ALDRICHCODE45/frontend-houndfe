@@ -20,6 +20,9 @@ const PromotionDetailView = () =>
   import('@/features/POS/promotions/views/PromotionDetailView.vue')
 const AdminUsersView = () => import('@/features/admin/users/views/AdminUsersView.vue')
 const AdminRolesView = () => import('@/features/admin/roles/views/AdminRolesView.vue')
+// ─── Employees module (WU-02) ──────────────────────────────────────────────────
+const EmployeesListView = () =>
+  import('@/features/admin/employees/views/EmployeesListView.vue')
 const AdminTenantsView = () => import('@/features/admin/tenants/views/AdminTenantsView.vue')
 const AdminTenantMembersView = () =>
   import('@/features/admin/tenants/memberships/views/AdminTenantMembersView.vue')
@@ -144,6 +147,16 @@ const router = createRouter({
       meta: {
         layout: 'dashboard',
         permission: ['read', 'Promotion'] as RoutePermission,
+      },
+    },
+    // ─── Employees routes (WU-02) ────────────────────────────────────────────────
+    {
+      path: '/admin/colaboradores',
+      name: 'admin-employees-list',
+      component: EmployeesListView,
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'Employee'] as RoutePermission,
       },
     },
     {

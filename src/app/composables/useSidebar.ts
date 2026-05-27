@@ -175,6 +175,20 @@ export const useSidebar = () => {
           },
         ],
       },
+      // ─── RR.HH. group (WU-02) ────────────────────────────────────────────────
+      {
+        label: 'RR.HH.',
+        icon: 'i-lucide-users-round',
+        defaultOpen: true,
+        children: [
+          {
+            label: 'Colaboradores',
+            icon: 'i-lucide-user-check',
+            to: '/admin/colaboradores',
+            permission: ['read', 'Employee'] as PermissionTuple,
+          },
+        ],
+      },
       {
         label: 'Admin',
         icon: 'i-lucide-shield-check',
