@@ -17,6 +17,10 @@ import type {
   CreateEmployeeDto,
   UpdateEmployeeDto,
   TerminateEmployeeDto,
+  AddSalaryChangeDto,
+  AddPositionChangeDto,
+  SalaryChange,
+  PositionChange,
 } from '../interfaces/employee.types'
 
 // ─── Query param types ────────────────────────────────────────────────────────
@@ -184,6 +188,66 @@ export const employeesApi = {
    */
   async reactivate(id: string): Promise<Employee> {
     const { data } = await http.post<Employee>(`/admin/employees/${id}/reactivate`, {})
+    return data
+  },
+
+  // ─── Salary history — WU-07 ────────────────────────────────────────────────
+
+  /**
+   * GET /admin/employees/:employeeId/salary-history
+   *
+   * Requires read:EmployeeSalary permission.
+   * Returns array of EmployeeSalaryHistory ordered by effectiveFrom desc.
+   */
+  async getSalaryHistory(employeeId: string): Promise<SalaryChange[]> {
+    const { data } = await http.get<SalaryChange[]>(
+      `/admin/employees/${employeeId}/salary-history`,
+    )
+    return data
+  },
+
+  /**
+   * POST /admin/employees/:employeeId/salary-history
+   *
+   * Requires create:EmployeeSalary permission. Returns 201 with created entry.
+   * Atomic operation: creates history row AND updates currentSalaryCents + currency on Employee.
+   * NEVER send tenantId.
+   */
+  async addSalaryChange(employeeId: string, dto: AddSalaryChangeDto): Promise<SalaryChange> {
+    const { data } = await http.post<SalaryChange>(
+      `/admin/employees/${employeeId}/salary-history`,
+      dto,
+    )
+    return data
+  },
+
+  // ─── Position history — WU-07 ──────────────────────────────────────────────
+
+  /**
+   * GET /admin/employees/:employeeId/position-history
+   *
+   * Requires read:Employee permission.
+   * Returns array of EmployeePositionHistory ordered by effectiveFrom desc.
+   */
+  async getPositionHistory(employeeId: string): Promise<PositionChange[]> {
+    const { data } = await http.get<PositionChange[]>(
+      `/admin/employees/${employeeId}/position-history`,
+    )
+    return data
+  },
+
+  /**
+   * POST /admin/employees/:employeeId/position-history
+   *
+   * Requires update:Employee permission. Returns 201 with created entry.
+   * Atomic operation: creates history row AND updates currentPosition + currentDepartment on Employee.
+   * NEVER send tenantId.
+   */
+  async addPositionChange(employeeId: string, dto: AddPositionChangeDto): Promise<PositionChange> {
+    const { data } = await http.post<PositionChange>(
+      `/admin/employees/${employeeId}/position-history`,
+      dto,
+    )
     return data
   },
 }

@@ -32,6 +32,7 @@ import LaboralPanel from '../components/LaboralPanel.vue'
 import EmployeeEditSlideover from '../components/EmployeeEditSlideover.vue'
 import TerminateEmployeeDialog from '../components/TerminateEmployeeDialog.vue'
 import ReactivateEmployeeDialog from '../components/ReactivateEmployeeDialog.vue'
+import CompensacionPanel from '../components/CompensacionPanel.vue'
 import type { Employee } from '../interfaces/employee.types'
 
 const authStore = useAuthStore()
@@ -65,6 +66,9 @@ const { managerMap, resolveManagerName } = useManagerResolution(
 const managerDisplay = computed<string>(() =>
   employee.value ? resolveManagerName(employee.value.managerId) : '—',
 )
+
+// ── Additional CASL guards (WU-07) ────────────────────────────────────────────
+const canCreateSalary = computed(() => authStore.userCan('create', 'EmployeeSalary'))
 
 // ── Slideover / dialog state ───────────────────────────────────────────────────
 const isEditOpen = ref(false)
@@ -213,6 +217,15 @@ function goBack(): void {
               :manager-id="employee.managerId"
               :can-update="canUpdate"
               @edit="openEdit"
+            />
+
+            <!-- Compensación — WU-07 -->
+            <CompensacionPanel
+              v-else-if="activeTab === 'compensacion'"
+              :employee="employee"
+              :can-read-salary="canReadSalary"
+              :can-create-salary="canCreateSalary"
+              :can-update="canUpdate"
             />
 
             <!-- Remaining tabs — "Próximamente" placeholder -->

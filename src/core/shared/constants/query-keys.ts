@@ -126,3 +126,8 @@ export const employeeEmergencyContactQueryKeys = {
   list: (tenantId: string, employeeId: string) =>
     ['employees', tenantId, 'emergency-contacts', employeeId] as const,
 }
+
+export const employeePositionQueryKeys = {
+  history: (tenantId: string, employeeId: string) =>
+    ['employees', tenantId, 'position-history', employeeId] as const,
+}

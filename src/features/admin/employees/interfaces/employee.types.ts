@@ -356,3 +356,47 @@ export const TerminateEmployeeDtoSchema = z.object({
 })
 
 export type TerminateEmployeeDto = z.infer<typeof TerminateEmployeeDtoSchema>
+
+// ─── AddSalaryChangeDto ───────────────────────────────────────────────────────
+
+/**
+ * Zod schema for POST /admin/employees/:employeeId/salary-history.
+ *
+ * Requires create:EmployeeSalary permission.
+ * amountCents: integer, min 1 (centavos — e.g. $45,000.00 = 4_500_000).
+ * currency: exactly 3-char ISO 4217, default "MXN".
+ * effectiveFrom: YYYY-MM-DD date string.
+ * reason: required, min 1 char.
+ *
+ * NEVER send tenantId — backend reads from JWT via TenantContextGuard.
+ */
+export const AddSalaryChangeDtoSchema = z.object({
+  amountCents: z.number().int().min(1),
+  currency: z.string().length(3).default('MXN'),
+  effectiveFrom: z.string().min(1),
+  reason: z.string().min(1),
+})
+
+export type AddSalaryChangeDto = z.infer<typeof AddSalaryChangeDtoSchema>
+
+// ─── AddPositionChangeDto ─────────────────────────────────────────────────────
+
+/**
+ * Zod schema for POST /admin/employees/:employeeId/position-history.
+ *
+ * Requires update:Employee permission (NOT EmployeeSalary).
+ * position: required, min 1 char.
+ * department: optional (new department).
+ * effectiveFrom: YYYY-MM-DD date string.
+ * reason: required, min 1 char.
+ *
+ * NEVER send tenantId — backend reads from JWT via TenantContextGuard.
+ */
+export const AddPositionChangeDtoSchema = z.object({
+  position: z.string().min(1),
+  department: z.string().optional(),
+  effectiveFrom: z.string().min(1),
+  reason: z.string().min(1),
+})
+
+export type AddPositionChangeDto = z.infer<typeof AddPositionChangeDtoSchema>

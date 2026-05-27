@@ -50,7 +50,7 @@ export const EMPLOYEE_DETAIL_TABS: EmployeeDetailTab[] = [
   { key: 'resumen', label: 'Resumen', implemented: true },
   { key: 'personal', label: 'Personal', implemented: true },
   { key: 'laboral', label: 'Laboral', implemented: true },
-  { key: 'compensacion', label: 'Compensación', implemented: false },
+  { key: 'compensacion', label: 'Compensación', implemented: true },
   { key: 'organigrama', label: 'Organigrama', implemented: false },
   { key: 'documentos', label: 'Documentos', implemented: false },
   { key: 'ausencias', label: 'Ausencias', implemented: false },
