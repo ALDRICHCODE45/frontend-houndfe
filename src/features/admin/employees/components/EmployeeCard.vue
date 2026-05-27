@@ -23,7 +23,6 @@ import { computed } from 'vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
 import {
   employeeStatusToBadgeTone,
-  workModalityToBadgeTone,
   formatHireDate,
 } from '../composables/useEmployeeColumns'
 import { computeSeniority } from '../composables/useEmployeeViewMode'
@@ -61,10 +60,24 @@ function getInitials(fullName: string): string {
 const initials = computed(() => getInitials(props.employee.fullName))
 const statusTone = computed(() => employeeStatusToBadgeTone(props.employee.status))
 const statusLabel = computed(() => EMPLOYEE_STATUS_LABELS[props.employee.status])
-const modalityTone = computed(() => workModalityToBadgeTone(props.employee.workModality))
 const modalityLabel = computed(() => WORK_MODALITY_LABELS[props.employee.workModality])
 const hireDateFormatted = computed(() => formatHireDate(props.employee.hireDate))
 const seniority = computed(() => computeSeniority(props.employee.hireDate))
+const avatarClass = computed(() => {
+  const palettes = [
+    'bg-amber-500 text-white',
+    'bg-pink-500 text-white',
+    'bg-violet-500 text-white',
+    'bg-red-500 text-white',
+    'bg-cyan-500 text-white',
+    'bg-emerald-500 text-white',
+    'bg-blue-500 text-white',
+  ]
+  const seed = props.employee.id
+    .split('')
+    .reduce((sum, char) => sum + char.charCodeAt(0), 0)
+  return palettes[seed % palettes.length]
+})
 
 // Row action menu items — pure function, no reactivity overhead
 const rowActions = computed(() =>
@@ -77,98 +90,86 @@ const rowActions = computed(() =>
 </script>
 
 <template>
-  <UCard
-    class="group flex flex-col gap-0 overflow-hidden transition-shadow hover:shadow-md"
-    :ui="{ body: 'p-0 sm:p-0', root: 'cursor-pointer' }"
-    @click.self="emit('click', employee)"
+  <article
+    class="group relative flex min-h-[220px] cursor-pointer flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+    @click="emit('click', employee)"
   >
-    <!-- Card header: avatar + name + position + status (+ action menu) -->
-    <div class="flex flex-col items-center gap-3 px-5 pb-4 pt-5 text-center relative">
-      <!-- Row action menu (top-right corner) -->
-      <div v-if="rowActions.length > 0" class="absolute right-2 top-2">
-        <UDropdownMenu
-          :items="rowActions"
-          :content="{ align: 'end' }"
-        >
-          <UButton
-            icon="i-lucide-ellipsis-vertical"
-            color="neutral"
-            variant="ghost"
-            class="size-7 opacity-0 group-hover:opacity-100 transition-opacity"
-            aria-label="Acciones del colaborador"
-          />
-        </UDropdownMenu>
-      </div>
+    <!-- Row action menu (top-right corner) -->
+    <div v-if="rowActions.length > 0" class="absolute right-3 top-3 z-10" @click.stop>
+      <UDropdownMenu
+        :items="rowActions"
+        :content="{ align: 'end' }"
+      >
+        <UButton
+          icon="i-lucide-ellipsis"
+          color="neutral"
+          variant="ghost"
+          class="size-7 opacity-60 transition-opacity hover:opacity-100"
+          aria-label="Acciones del colaborador"
+        />
+      </UDropdownMenu>
+    </div>
 
-      <!-- Avatar with initials -->
-      <UAvatar
-        :alt="employee.fullName"
-        :text="initials"
-        size="xl"
-        :ui="{
-          root: 'ring-2 ring-primary/20',
-        }"
-      />
+    <!-- Card header: avatar + name + position + chips -->
+    <div class="flex flex-col items-start gap-3">
+      <div class="relative">
+        <div
+          class="flex size-12 items-center justify-center rounded-full text-base font-semibold shadow-sm"
+          :class="avatarClass"
+          :aria-label="employee.fullName"
+        >
+          {{ initials }}
+        </div>
+        <span
+          v-if="employee.status === 'ACTIVE'"
+          class="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-default bg-emerald-500"
+          aria-label="Activo"
+        />
+      </div>
 
       <!-- Name + employee number -->
-      <div class="min-w-0 space-y-0.5">
-        <p class="truncate text-base font-semibold text-highlighted">
+      <div class="min-w-0 space-y-1 pr-7">
+        <p class="truncate text-sm font-semibold leading-tight text-highlighted">
           {{ employee.fullName }}
         </p>
-        <p class="text-xs text-muted">{{ employee.employeeNumber }}</p>
+        <p class="line-clamp-1 text-xs text-muted">{{ employee.currentPosition ?? employee.employeeNumber }}</p>
       </div>
 
-      <!-- Position -->
-      <p class="line-clamp-2 text-center text-sm text-default">
-        {{ employee.currentPosition ?? '—' }}
-      </p>
-
-      <!-- Status chip -->
-      <AppBadge
-        :label="statusLabel"
-        :tone="statusTone"
-        :aria-label="`Estado: ${statusLabel}`"
-      />
-    </div>
-
-    <UDivider />
-
-    <!-- Card body: department, manager, hire date, modality, seniority -->
-    <div class="flex flex-col gap-2.5 px-5 py-4">
-      <!-- Department -->
-      <div v-if="employee.currentDepartment" class="flex items-center justify-between gap-2">
-        <span class="shrink-0 text-xs text-muted">Área</span>
+      <div class="flex min-h-6 flex-wrap items-center gap-1.5">
         <AppBadge
+          v-if="employee.currentDepartment"
           :label="employee.currentDepartment"
           tone="neutral"
-          class="max-w-[140px] truncate"
+          class="max-w-[120px] truncate"
         />
-      </div>
-
-      <!-- Work modality -->
-      <div class="flex items-center justify-between gap-2">
-        <span class="shrink-0 text-xs text-muted">Modalidad</span>
         <AppBadge
-          :label="modalityLabel"
-          :tone="modalityTone"
-          :aria-label="`Modalidad: ${modalityLabel}`"
+          :label="statusLabel"
+          :tone="statusTone"
+          :aria-label="`Estado: ${statusLabel}`"
         />
-      </div>
-
-      <!-- Manager -->
-      <div class="flex items-center justify-between gap-2">
-        <span class="shrink-0 text-xs text-muted">Jefe directo</span>
-        <span class="truncate text-xs font-medium text-default">{{ managerDisplay }}</span>
-      </div>
-
-      <!-- Hire date + seniority -->
-      <div class="flex items-center justify-between gap-2">
-        <span class="shrink-0 text-xs text-muted">Ingreso</span>
-        <span class="text-xs text-default">
-          {{ hireDateFormatted }}
-          <span class="text-muted"> · {{ seniority }}</span>
-        </span>
       </div>
     </div>
-  </UCard>
+
+    <div class="my-3 border-t border-dashed border-default" />
+
+    <!-- Card body: department, manager, hire date, modality, seniority -->
+    <div class="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+      <div class="min-w-0">
+        <p class="text-muted">Jefe directo</p>
+        <p class="mt-1 truncate font-medium text-default">{{ managerDisplay }}</p>
+      </div>
+      <div class="min-w-0 text-right">
+        <p class="text-muted">Fecha de ingreso</p>
+        <p class="mt-1 truncate font-semibold text-default">{{ hireDateFormatted }}</p>
+      </div>
+      <div class="min-w-0">
+        <p class="text-muted">Modalidad</p>
+        <p class="mt-1 font-medium text-default">{{ modalityLabel }}</p>
+      </div>
+      <div class="min-w-0 text-right">
+        <p class="text-muted">Antigüedad</p>
+        <p class="mt-1 font-semibold text-default">{{ seniority }}</p>
+      </div>
+    </div>
+  </article>
 </template>

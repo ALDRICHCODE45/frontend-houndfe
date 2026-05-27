@@ -32,7 +32,7 @@ function onSelect(value: EmployeeViewMode) {
 
 <template>
   <div
-    class="flex items-center gap-1 rounded-lg bg-elevated p-1"
+    class="flex items-center gap-1 rounded-lg border border-default bg-elevated/70 p-1 shadow-sm"
     role="tablist"
     aria-label="Vista de colaboradores"
   >
@@ -41,12 +41,12 @@ function onSelect(value: EmployeeViewMode) {
       :key="tab.value"
       role="tab"
       :aria-selected="props.modelValue === tab.value"
-      class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
-      :class="
-        props.modelValue === tab.value
-          ? 'bg-default text-default shadow-sm'
-          : 'text-muted hover:text-default'
-      "
+        class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+        :class="
+          props.modelValue === tab.value
+            ? 'bg-default text-highlighted shadow-sm'
+            : 'text-muted hover:text-default'
+        "
       @click="onSelect(tab.value)"
     >
       <UIcon :name="tab.icon" class="size-4" />

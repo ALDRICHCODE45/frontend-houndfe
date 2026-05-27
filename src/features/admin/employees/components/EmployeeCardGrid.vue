@@ -41,12 +41,12 @@ function getManagerDisplay(employee: Employee): string {
   <!-- Loading skeleton -->
   <div
     v-if="props.loading"
-    class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+    class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-7"
   >
     <div
       v-for="i in 8"
       :key="i"
-      class="h-64 animate-pulse rounded-xl bg-elevated"
+      class="h-56 animate-pulse rounded-xl border border-default bg-elevated"
     />
   </div>
 
@@ -62,7 +62,7 @@ function getManagerDisplay(employee: Employee): string {
   <!-- Card grid -->
   <div
     v-else
-    class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+    class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-7"
   >
     <EmployeeCard
       v-for="employee in props.employees"

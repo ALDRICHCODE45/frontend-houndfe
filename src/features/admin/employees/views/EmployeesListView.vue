@@ -37,7 +37,6 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { AppDataTable } from '@/core/shared/components/DataTable'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
-import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { EMPLOYEE_STATUS_LABELS, WORK_MODALITY_LABELS } from '../interfaces/employee.types'
 import { useEmployeesList } from '../composables/useEmployeesList'
@@ -183,18 +182,62 @@ const showingTo = computed(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 px-4 sm:px-6 lg:px-10">
-    <UCard :ui="{ body: 'p-0 sm:p-0' }">
-      <template #header>
-        <AdminPageHeader
-          title="Colaboradores"
-          description="Equipo, lifecycle, organigrama y documentos del personal"
-        />
-      </template>
+  <div class="flex flex-col gap-4 px-4 py-3 sm:px-6 lg:px-8">
+    <section class="overflow-hidden rounded-2xl border border-default bg-default shadow-sm">
+      <!-- Header: matches the dense Claude directory reference -->
+      <div class="flex flex-col gap-4 border-b border-default px-5 py-4 xl:flex-row xl:items-start xl:justify-between">
+        <div>
+          <h1 class="text-2xl font-semibold tracking-tight text-highlighted">Colaboradores</h1>
+          <p class="mt-1 text-sm text-muted">Equipo, lifecycle, organigrama y documentos del personal</p>
+        </div>
 
-      <div class="flex flex-col gap-4 px-6 py-5">
+        <div class="flex flex-wrap items-center gap-2">
+          <UButton
+            icon="i-lucide-upload"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            disabled
+          >
+            Importar
+          </UButton>
+          <UButton
+            icon="i-lucide-download"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            disabled
+          >
+            Exportar
+          </UButton>
+          <UButton
+            v-if="canCreate"
+            icon="i-lucide-plus"
+            color="primary"
+            size="sm"
+            class="shadow-sm"
+            @click="openCreateSlideover"
+          >
+            Nuevo colaborador
+          </UButton>
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2 border-b border-default px-5 py-3">
+        <UButton icon="i-lucide-sliders-horizontal" color="neutral" variant="outline" size="sm" disabled>
+          Filtros
+        </UButton>
+        <UButton trailing-icon="i-lucide-chevron-down" color="neutral" variant="outline" size="sm" disabled>
+          Todos los departamentos
+        </UButton>
+        <UButton trailing-icon="i-lucide-chevron-down" color="neutral" variant="outline" size="sm" disabled>
+          Cualquier modalidad
+        </UButton>
+      </div>
+
+      <div class="flex flex-col gap-4 px-5 py-4">
         <!-- Filters + view toggle row -->
-        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <!-- Filters (search + status tabs) -->
           <EmployeeFilters
             :search="search"
@@ -204,23 +247,31 @@ const showingTo = computed(() => {
             @update:status-tab="setStatusTab"
           />
 
-          <!-- Tabla / Tarjetas toggle -->
-          <EmployeeViewToggle
-            :model-value="viewMode"
-            @update:model-value="setMode"
-          />
-        </div>
-
-        <!-- Add button row (only in card view — table has its own) -->
-        <div v-if="viewMode === 'card' && canCreate" class="flex justify-end">
-          <UButton
-            icon="i-lucide-user-plus"
-            color="primary"
-            size="sm"
-            @click="openCreateSlideover"
-          >
-            Nuevo colaborador
-          </UButton>
+          <div class="flex items-center justify-end gap-2">
+            <USelect
+              model-value="recent"
+              :items="[{ label: 'Más recientes', value: 'recent' }]"
+              value-key="value"
+              label-key="label"
+              size="sm"
+              class="w-40"
+              disabled
+            />
+            <UButton
+              icon="i-lucide-refresh-cw"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              :loading="isFetching"
+              aria-label="Actualizar colaboradores"
+              @click="refresh"
+            />
+            <!-- Tabla / Tarjetas toggle -->
+            <EmployeeViewToggle
+              :model-value="viewMode"
+              @update:model-value="setMode"
+            />
+          </div>
         </div>
 
         <!-- Table view -->
@@ -236,7 +287,7 @@ const showingTo = computed(() => {
           :showing-from="showingFrom"
           :showing-to="showingTo"
           :page-size-options="[10, 20, 50]"
-          :show-add-button="canCreate"
+          :show-add-button="false"
           add-button-text="Nuevo colaborador"
           add-button-icon="i-lucide-user-plus"
           empty="No se encontraron colaboradores"
@@ -365,7 +416,7 @@ const showingTo = computed(() => {
           </div>
         </template>
       </div>
-    </UCard>
+    </section>
   </div>
 
   <!-- Create Employee Slideover — gated by canCreate (create:Employee CASL) -->

@@ -48,27 +48,28 @@ function onTabSelect(value: EmployeeStatusFilter) {
 </script>
 
 <template>
-  <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+  <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
     <!-- Search -->
     <UInput
       :model-value="props.search"
       icon="i-lucide-search"
       placeholder="Buscar colaborador..."
       :loading="isLoading"
-      class="w-full sm:max-w-xs"
+      class="w-full lg:w-72"
+      size="lg"
       @update:model-value="onSearchUpdate"
     />
 
     <!-- Status tabs -->
-    <div class="flex items-center gap-1 rounded-lg bg-elevated p-1">
+    <div class="flex items-center gap-1 rounded-lg bg-transparent">
       <button
         v-for="tab in STATUS_TABS"
         :key="tab.value"
-        class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+        class="rounded-lg px-3.5 py-2 text-sm font-medium transition-colors"
         :class="
           props.statusTab === tab.value
-            ? 'bg-default text-default shadow-sm'
-            : 'text-muted hover:text-default'
+            ? 'border border-default bg-elevated text-highlighted shadow-sm'
+            : 'text-muted hover:bg-elevated/60 hover:text-default'
         "
         @click="onTabSelect(tab.value)"
       >
