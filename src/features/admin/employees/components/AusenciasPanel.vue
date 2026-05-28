@@ -164,12 +164,28 @@ async function submitReview(): Promise<void> {
 // ─── Year options ─────────────────────────────────────────────────────────────
 
 const yearOptions = computed(() => {
-  const years: number[] = []
+  const years: { label: string; value: number }[] = []
   for (let y = currentYear + 1; y >= currentYear - 2; y--) {
-    years.push(y)
+    years.push({ label: String(y), value: y })
   }
   return years
 })
+
+// ─── Time-off type options (Spanish labels) ──────────────────────────────────
+
+const TIME_OFF_TYPE_OPTIONS = [
+  { label: 'Vacaciones', value: 'VACATION' },
+  { label: 'Enfermedad', value: 'SICK' },
+  { label: 'Personal', value: 'PERSONAL' },
+  { label: 'Sin goce de sueldo', value: 'UNPAID' },
+] as const
+
+// ─── Review decision options ─────────────────────────────────────────────────
+
+const REVIEW_DECISION_OPTIONS = [
+  { label: 'Aprobar', value: 'APPROVED' },
+  { label: 'Rechazar', value: 'REJECTED' },
+] as const
 
 // ─── Status badge color helper ────────────────────────────────────────────────
 
@@ -232,7 +248,9 @@ function typeColor(type: string): string {
         <span class="text-sm font-medium text-muted">Año:</span>
         <USelect
           v-model="selectedYear"
-          :options="yearOptions"
+          :items="yearOptions"
+          value-key="value"
+          label-key="label"
           size="sm"
         />
       </div>
@@ -333,12 +351,11 @@ function typeColor(type: string): string {
         <UFormField label="Tipo">
           <USelect
             v-model="requestForm.type"
-            :options="[
-              { label: 'Vacaciones', value: 'VACATION' },
-              { label: 'Enfermedad', value: 'SICK' },
-              { label: 'Personal', value: 'PERSONAL' },
-              { label: 'Sin goce de sueldo', value: 'UNPAID' },
-            ]"
+            :items="TIME_OFF_TYPE_OPTIONS"
+            value-key="value"
+            label-key="label"
+            placeholder="Seleccionar tipo"
+            class="w-full"
           />
         </UFormField>
         <UFormField label="Fecha inicio">
@@ -356,7 +373,12 @@ function typeColor(type: string): string {
           />
         </UFormField>
         <UFormField label="Motivo (opcional)">
-          <UTextarea v-model="requestForm.reason" placeholder="Motivo de la ausencia..." rows="3" />
+          <UTextarea
+            v-model="requestForm.reason"
+            placeholder="Motivo de la ausencia..."
+            :rows="3"
+            class="w-full"
+          />
         </UFormField>
         <p v-if="requestError" class="text-sm text-error">{{ requestError }}</p>
       </div>
@@ -380,18 +402,18 @@ function typeColor(type: string): string {
         <UFormField label="Decisión">
           <URadioGroup
             v-model="reviewForm.decision"
-            :options="[
-              { label: 'Aprobar', value: 'APPROVED' },
-              { label: 'Rechazar', value: 'REJECTED' },
-            ]"
+            :items="REVIEW_DECISION_OPTIONS"
+            value-key="value"
+            label-key="label"
           />
         </UFormField>
-        <UFormField label="Notas (opcional, max 500 chars)">
+        <UFormField label="Notas (opcional, máx. 500 caracteres)">
           <UTextarea
             v-model="reviewForm.reviewerNotes"
             placeholder="Notas para el colaborador..."
             :rows="3"
             :maxlength="500"
+            class="w-full"
           />
         </UFormField>
         <p v-if="reviewError" class="text-sm text-error">{{ reviewError }}</p>
