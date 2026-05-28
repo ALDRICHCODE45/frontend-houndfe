@@ -25,8 +25,10 @@
  */
 
 import { computed, ref } from 'vue'
+import { useQueries } from '@tanstack/vue-query'
 import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import { employeeQueryKeys } from '@/core/shared/constants/query-keys'
 import { usePendingApprovals } from '../composables/useReviewTimeOff'
 import { useReviewTimeOff } from '../composables/useReviewTimeOff'
 import {
@@ -35,15 +37,24 @@ import {
   computeTimeOffDays,
   resolveSickReason,
 } from '../composables/useAusencias'
-import type { TimeOffRequest, ReviewTimeOffDto } from '../interfaces/employee.types'
+import { formatTimeOffDateRange } from '../composables/useEmployeeColumns'
+import { employeesApi } from '../api/employees.api'
+import type { Employee, TimeOffRequest, ReviewTimeOffDto } from '../interfaces/employee.types'
 
 // ─── Auth + manager id ─────────────────────────────────────────────────────────
 
 const authStore = useAuthStore()
+const tenantId = computed(() => authStore.currentTenantId)
 
-// Manager ID: the current user's employee ID — the backend resolves this.
-// The user managing approvals is identified by their profile's employee record.
-// We use authStore.user?.id as the managerId passed to the query.
+// LIMITATION (tracked in docs/backend-requests/employees-time-off-approvals.md):
+//
+// The backend expects a `managerId` that points to an `Employee` row, but the
+// only id we have from `authStore.user` is a `User` id. The schema does not
+// currently expose a `User ↔ Employee` link, so any value we send here will
+// fail the WHERE clause and the endpoint always returns []. The frontend
+// keeps using `authStore.user?.id` for now so the wiring stays in place; once
+// backend ships the relation (or moves resolution into the JWT), we just swap
+// this getter for the real Employee id.
 const managerId = computed(() => authStore.user?.id ?? '')
 
 const canReview = computed(() => authStore.userCan('update', 'EmployeeTimeOff'))
@@ -51,6 +62,61 @@ const canReview = computed(() => authStore.userCan('update', 'EmployeeTimeOff'))
 // ─── Query ─────────────────────────────────────────────────────────────────────
 
 const { data: pendingRequests, isLoading, isError, refetch } = usePendingApprovals(managerId)
+
+// ─── Resolve employee details for each pending request (avatar + name) ────────
+//
+// The endpoint returns `employeeId` only. Render the UUID directly is unusable,
+// so we batch-fetch each unique employee via TanStack `useQueries`. Bounded by
+// the number of unique subordinates with pending requests — typically small.
+const uniqueEmployeeIds = computed(() => {
+  const ids = new Set<string>()
+  for (const r of pendingRequests.value ?? []) ids.add(r.employeeId)
+  return Array.from(ids)
+})
+
+const employeeQueries = useQueries({
+  queries: computed(() =>
+    uniqueEmployeeIds.value.map((id) => ({
+      queryKey: employeeQueryKeys.detail(tenantId.value, id),
+      queryFn: () => employeesApi.getById(id),
+      staleTime: 60_000,
+      retry: 1,
+    })),
+  ),
+})
+
+const employeeMap = computed<Map<string, Employee>>(() => {
+  const map = new Map<string, Employee>()
+  for (const q of employeeQueries.value) {
+    if (q.data) map.set(q.data.id, q.data)
+  }
+  return map
+})
+
+function getEmployeeName(employeeId: string): string {
+  return employeeMap.value.get(employeeId)?.fullName ?? 'Colaborador'
+}
+
+function getEmployeeInitials(employeeId: string): string {
+  const name = employeeMap.value.get(employeeId)?.fullName ?? ''
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  return parts.slice(0, 2).map((p) => p[0]?.toUpperCase() ?? '').join('') || 'CL'
+}
+
+const AVATAR_PALETTE = [
+  'bg-amber-500 text-white',
+  'bg-pink-500 text-white',
+  'bg-violet-500 text-white',
+  'bg-red-500 text-white',
+  'bg-cyan-500 text-white',
+  'bg-emerald-500 text-white',
+  'bg-blue-500 text-white',
+]
+
+function getAvatarClass(seedValue: string): string {
+  const seed = seedValue.split('').reduce((sum, c) => sum + c.charCodeAt(0), 0)
+  return AVATAR_PALETTE[seed % AVATAR_PALETTE.length] ?? AVATAR_PALETTE[0]!
+}
 
 // ─── Review mutation ───────────────────────────────────────────────────────────
 
@@ -114,15 +180,7 @@ function getTypeColor(type: string): 'primary' | 'warning' | 'error' | 'neutral'
   }
 }
 
-function formatDateRange(startDate: string, endDate: string): string {
-  const fmt = new Intl.DateTimeFormat('es-MX', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-    timeZone: 'UTC',
-  })
-  return `${fmt.format(new Date(startDate))} – ${fmt.format(new Date(endDate))}`
-}
+// formatTimeOffDateRange is imported from useEmployeeColumns and shared with AusenciasPanel.
 </script>
 
 <template>
@@ -164,15 +222,22 @@ function formatDateRange(startDate: string, endDate: string): string {
         <!-- Empty state -->
         <div
           v-else-if="!pendingRequests || pendingRequests.length === 0"
-          class="flex flex-col items-center gap-3 py-16 text-center"
+          class="flex flex-col items-center gap-4 py-16 text-center"
         >
-          <div class="flex size-16 items-center justify-center rounded-full bg-success/10">
-            <UIcon name="i-lucide-check-circle-2" class="size-8 text-success" />
+          <div class="flex size-16 items-center justify-center rounded-full bg-warning/10">
+            <UIcon name="i-lucide-info" class="size-8 text-warning" />
           </div>
-          <div>
-            <p class="font-medium text-highlighted">Sin solicitudes pendientes</p>
-            <p class="mt-1 text-sm text-muted">
-              Todas las solicitudes de tu equipo están al día.
+          <div class="max-w-md space-y-2">
+            <p class="font-medium text-highlighted">No se encuentran solicitudes para este usuario</p>
+            <p class="text-sm text-muted">
+              Esta vista lista las ausencias pendientes del equipo a tu cargo. Hoy el
+              backend aún no tiene una relación directa entre tu usuario y tu ficha de
+              colaborador, por lo que no podemos resolver automáticamente a tu equipo.
+            </p>
+            <p class="text-xs text-muted/80">
+              Si esperabas ver solicitudes acá y no aparecen, avisá al equipo de
+              plataforma. Una vez que se habilite la relación usuario↔colaborador,
+              esta lista se va a llenar sola.
             </p>
           </div>
         </div>
@@ -193,10 +258,18 @@ function formatDateRange(startDate: string, endDate: string): string {
             <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <!-- Request info -->
               <div class="flex flex-col gap-2">
-                <!-- Employee ID + type badge -->
+                <!-- Employee identity + type badge -->
                 <div class="flex items-center gap-2">
-                  <UIcon name="i-lucide-user" class="size-4 shrink-0 text-muted" />
-                  <span class="font-mono text-xs text-muted">{{ request.employeeId }}</span>
+                  <div
+                    class="flex size-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold shadow-sm"
+                    :class="getAvatarClass(request.employeeId)"
+                    :aria-label="getEmployeeName(request.employeeId)"
+                  >
+                    {{ getEmployeeInitials(request.employeeId) }}
+                  </div>
+                  <span class="text-sm font-medium text-highlighted">
+                    {{ getEmployeeName(request.employeeId) }}
+                  </span>
                   <UBadge :color="getTypeColor(request.type)" variant="subtle" size="sm">
                     {{ formatTimeOffType(request.type) }}
                   </UBadge>
@@ -206,7 +279,7 @@ function formatDateRange(startDate: string, endDate: string): string {
                 <div class="flex items-center gap-2 text-sm">
                   <UIcon name="i-lucide-calendar" class="size-4 shrink-0 text-muted" />
                   <span class="text-highlighted">
-                    {{ formatDateRange(request.startDate, request.endDate) }}
+                    {{ formatTimeOffDateRange(request.startDate, request.endDate) }}
                   </span>
                   <span class="text-muted">
                     ({{ computeTimeOffDays(request.startDate, request.endDate) }}
@@ -290,7 +363,7 @@ function formatDateRange(startDate: string, endDate: string): string {
             <div class="rounded-md bg-elevated p-3 text-sm">
               <p class="font-medium text-highlighted">
                 {{ formatTimeOffType(reviewingRequest.type) }} —
-                {{ formatDateRange(reviewingRequest.startDate, reviewingRequest.endDate) }}
+                {{ formatTimeOffDateRange(reviewingRequest.startDate, reviewingRequest.endDate) }}
               </p>
               <p class="text-xs text-muted">
                 {{ computeTimeOffDays(reviewingRequest.startDate, reviewingRequest.endDate) }} días
