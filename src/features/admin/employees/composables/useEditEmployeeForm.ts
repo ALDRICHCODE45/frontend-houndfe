@@ -26,8 +26,15 @@ import {
   UpdateEmployeeDtoSchema,
   ContractTypeSchema,
   WorkModalitySchema,
+  IdentityDocumentTypeSchema,
 } from '../interfaces/employee.types'
-import type { Employee, UpdateEmployeeDto, ContractType, WorkModality } from '../interfaces/employee.types'
+import type {
+  Employee,
+  UpdateEmployeeDto,
+  ContractType,
+  WorkModality,
+  IdentityDocumentType,
+} from '../interfaces/employee.types'
 
 // ─── Form state shape ─────────────────────────────────────────────────────────
 
@@ -45,10 +52,23 @@ export interface EditEmployeeFormState {
   lastName: string
   email: string
   phone: string
+  dateOfBirth: string
+  nationalId: string
+  nationalIdType: string
+  street: string
+  exteriorNumber: string
+  interiorNumber: string
+  zipCode: string
+  neighborhood: string
+  municipality: string
+  city: string
+  state: string
   contractType: string
   workModality: string
   currentPosition: string
   currentDepartment: string
+  currentSchedule: string
+  currentResponsibilities: string
   annualVacationDays: number | null
   managerId: string
 }
@@ -81,11 +101,24 @@ export function buildEditEmployeeFormState(employee: Employee): EditEmployeeForm
     firstName,
     lastName,
     email: employee.email ?? '',
-    phone: '',
+    phone: employee.phone ?? '',
+    dateOfBirth: employee.dateOfBirth ?? '',
+    nationalId: employee.nationalId ?? '',
+    nationalIdType: employee.nationalIdType ?? '',
+    street: employee.street ?? '',
+    exteriorNumber: employee.exteriorNumber ?? '',
+    interiorNumber: employee.interiorNumber ?? '',
+    zipCode: employee.zipCode ?? '',
+    neighborhood: employee.neighborhood ?? '',
+    municipality: employee.municipality ?? '',
+    city: employee.city ?? '',
+    state: employee.state ?? '',
     contractType: employee.contractType,
     workModality: employee.workModality,
     currentPosition: employee.currentPosition ?? '',
     currentDepartment: employee.currentDepartment ?? '',
+    currentSchedule: employee.currentSchedule ?? '',
+    currentResponsibilities: employee.currentResponsibilities ?? '',
     annualVacationDays: employee.annualVacationDays ?? null,
     managerId: employee.managerId ?? '',
   }
@@ -115,8 +148,27 @@ export function editFormStateToDto(state: EditEmployeeFormState): UpdateEmployee
   // ── Optional string fields — omit when empty ──────────────────────────────
   if (state.email.trim()) dto.email = state.email.trim()
   if (state.phone.trim()) dto.phone = state.phone.trim()
+  if (state.dateOfBirth.trim()) dto.dateOfBirth = state.dateOfBirth.trim()
+  if (state.nationalId.trim()) dto.nationalId = state.nationalId.trim()
+  if (state.street.trim()) dto.street = state.street.trim()
+  if (state.exteriorNumber.trim()) dto.exteriorNumber = state.exteriorNumber.trim()
+  if (state.interiorNumber.trim()) dto.interiorNumber = state.interiorNumber.trim()
+  if (state.zipCode.trim()) dto.zipCode = state.zipCode.trim()
+  if (state.neighborhood.trim()) dto.neighborhood = state.neighborhood.trim()
+  if (state.municipality.trim()) dto.municipality = state.municipality.trim()
+  if (state.city.trim()) dto.city = state.city.trim()
+  if (state.state.trim()) dto.state = state.state.trim()
   if (state.currentPosition.trim()) dto.currentPosition = state.currentPosition.trim()
   if (state.currentDepartment.trim()) dto.currentDepartment = state.currentDepartment.trim()
+  if (state.currentSchedule.trim()) dto.currentSchedule = state.currentSchedule.trim()
+  if (state.currentResponsibilities.trim()) {
+    dto.currentResponsibilities = state.currentResponsibilities.trim()
+  }
+
+  const nationalIdTypeParsed = IdentityDocumentTypeSchema.safeParse(state.nationalIdType)
+  if (nationalIdTypeParsed.success) {
+    dto.nationalIdType = nationalIdTypeParsed.data as IdentityDocumentType
+  }
 
   // ── Optional selects — validate against enums before including ────────────
   const contractParsed = ContractTypeSchema.safeParse(state.contractType)
@@ -149,10 +201,23 @@ export function useEditEmployeeForm(employeeGetter: () => Employee | null) {
     lastName: '',
     email: '',
     phone: '',
+    dateOfBirth: '',
+    nationalId: '',
+    nationalIdType: '',
+    street: '',
+    exteriorNumber: '',
+    interiorNumber: '',
+    zipCode: '',
+    neighborhood: '',
+    municipality: '',
+    city: '',
+    state: '',
     contractType: '',
     workModality: '',
     currentPosition: '',
     currentDepartment: '',
+    currentSchedule: '',
+    currentResponsibilities: '',
     annualVacationDays: null,
     managerId: '',
   })
@@ -174,10 +239,23 @@ export function useEditEmployeeForm(employeeGetter: () => Employee | null) {
       lastName: '',
       email: '',
       phone: '',
+      dateOfBirth: '',
+      nationalId: '',
+      nationalIdType: '',
+      street: '',
+      exteriorNumber: '',
+      interiorNumber: '',
+      zipCode: '',
+      neighborhood: '',
+      municipality: '',
+      city: '',
+      state: '',
       contractType: '',
       workModality: '',
       currentPosition: '',
       currentDepartment: '',
+      currentSchedule: '',
+      currentResponsibilities: '',
       annualVacationDays: null,
       managerId: '',
     })

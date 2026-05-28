@@ -22,11 +22,17 @@
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { computed, ref, watch } from 'vue'
 import { CONTRACT_TYPE_LABELS, WORK_MODALITY_LABELS } from '../interfaces/employee.types'
-import type { ContractType, Employee, WorkModality } from '../interfaces/employee.types'
+import type {
+  ContractType,
+  Employee,
+  IdentityDocumentType,
+  WorkModality,
+} from '../interfaces/employee.types'
 import { useEditEmployeeForm, editFormStateToDto } from '../composables/useEditEmployeeForm'
 import { useUpdateEmployee } from '../composables/useUpdateEmployee'
 import { formatHireDate } from '../composables/useEmployeeColumns'
 import { useManagerPicker } from '../composables/useManagerPicker'
+import DateFieldPopover from '@/features/POS/sales/components/DateFieldPopover.vue'
 
 // ─── Props & emits ─────────────────────────────────────────────────────────────
 
@@ -79,6 +85,21 @@ const WORK_MODALITY_OPTIONS = computed(() =>
   })),
 )
 
+const IDENTITY_DOCUMENT_TYPE_LABELS: Record<IdentityDocumentType, string> = {
+  INE: 'INE / IFE',
+  PASSPORT: 'Pasaporte',
+  DRIVER_LICENSE: 'Licencia de conducir',
+  MILITARY_ID: 'Cartilla militar',
+  OTHER: 'Otro',
+}
+
+const IDENTITY_DOCUMENT_TYPE_OPTIONS = computed(() =>
+  Object.entries(IDENTITY_DOCUMENT_TYPE_LABELS).map(([value, label]) => ({
+    label,
+    value: value as IdentityDocumentType,
+  })),
+)
+
 // ─── Display helpers ───────────────────────────────────────────────────────────
 
 const hireDateDisplay = computed(() =>
@@ -113,19 +134,19 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
   <USlideover
     v-model:open="open"
     title="Editar colaborador"
-    description="Modificá los datos del colaborador. La fecha de ingreso no es editable."
+    description="Actualizá la información personal, domicilio y datos laborales visibles en el perfil."
     side="right"
     inset
     @after-leave="resetForm"
   >
     <template #body>
-      <UForm
-        id="edit-employee-form"
-        :schema="schema"
-        :state="state"
-        class="flex flex-col gap-5"
-        @submit="onSubmit"
-      >
+        <UForm
+          id="edit-employee-form"
+          :schema="schema"
+          :state="state"
+          class="flex flex-col gap-5 pb-2"
+          @submit="onSubmit"
+        >
         <!-- ── Sección: Identificación ───────────────────────────────────── -->
         <div class="rounded-lg border border-default bg-elevated/30 px-4 py-4">
           <p class="mb-4 text-sm font-semibold text-highlighted">Identificación</p>
@@ -201,6 +222,139 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
           </div>
         </div>
 
+        <!-- ── Sección: Información personal ──────────────────────────────── -->
+        <div class="rounded-lg border border-default bg-elevated/30 px-4 py-4">
+          <p class="mb-4 text-sm font-semibold text-highlighted">Información personal</p>
+          <div class="flex flex-col gap-4">
+            <UFormField label="Fecha de nacimiento" name="dateOfBirth">
+              <DateFieldPopover
+                v-model="state.dateOfBirth"
+                placeholder="Elegir fecha de nacimiento"
+                :min-iso="null"
+                :disabled="isPending"
+              />
+            </UFormField>
+
+            <div class="grid grid-cols-2 gap-3">
+              <UFormField label="Tipo de documento" name="nationalIdType">
+                <USelect
+                  v-model="state.nationalIdType"
+                  :items="IDENTITY_DOCUMENT_TYPE_OPTIONS"
+                  value-key="value"
+                  label-key="label"
+                  placeholder="Seleccionar"
+                  class="w-full"
+                  size="lg"
+                  :disabled="isPending"
+                />
+              </UFormField>
+
+              <UFormField label="Documento" name="nationalId">
+                <UInput
+                  v-model="state.nationalId"
+                  class="w-full"
+                  size="lg"
+                  placeholder="Ej: ABC123456"
+                  :disabled="isPending"
+                />
+              </UFormField>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Sección: Domicilio ──────────────────────────────────────────── -->
+        <div class="rounded-lg border border-default bg-elevated/30 px-4 py-4">
+          <p class="mb-4 text-sm font-semibold text-highlighted">Domicilio</p>
+          <div class="flex flex-col gap-4">
+            <UFormField label="Calle" name="street">
+              <UInput
+                v-model="state.street"
+                class="w-full"
+                size="lg"
+                placeholder="Ej: Av. Reforma"
+                :disabled="isPending"
+              />
+            </UFormField>
+
+            <div class="grid grid-cols-2 gap-3">
+              <UFormField label="Número exterior" name="exteriorNumber">
+                <UInput
+                  v-model="state.exteriorNumber"
+                  class="w-full"
+                  size="lg"
+                  placeholder="Ej: 123"
+                  :disabled="isPending"
+                />
+              </UFormField>
+
+              <UFormField label="Número interior" name="interiorNumber">
+                <UInput
+                  v-model="state.interiorNumber"
+                  class="w-full"
+                  size="lg"
+                  placeholder="Ej: 4B"
+                  :disabled="isPending"
+                />
+              </UFormField>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <UFormField label="Código postal" name="zipCode">
+                <UInput
+                  v-model="state.zipCode"
+                  class="w-full"
+                  size="lg"
+                  placeholder="Ej: 06600"
+                  inputmode="numeric"
+                  :disabled="isPending"
+                />
+              </UFormField>
+
+              <UFormField label="Colonia" name="neighborhood">
+                <UInput
+                  v-model="state.neighborhood"
+                  class="w-full"
+                  size="lg"
+                  placeholder="Ej: Juárez"
+                  :disabled="isPending"
+                />
+              </UFormField>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <UFormField label="Municipio / Alcaldía" name="municipality">
+                <UInput
+                  v-model="state.municipality"
+                  class="w-full"
+                  size="lg"
+                  placeholder="Ej: Cuauhtémoc"
+                  :disabled="isPending"
+                />
+              </UFormField>
+
+              <UFormField label="Ciudad" name="city">
+                <UInput
+                  v-model="state.city"
+                  class="w-full"
+                  size="lg"
+                  placeholder="Ej: Ciudad de México"
+                  :disabled="isPending"
+                />
+              </UFormField>
+            </div>
+
+            <UFormField label="Estado" name="state">
+              <UInput
+                v-model="state.state"
+                class="w-full"
+                size="lg"
+                placeholder="Ej: CDMX"
+                :disabled="isPending"
+              />
+            </UFormField>
+          </div>
+        </div>
+
         <!-- ── Sección: Datos de empleo ───────────────────────────────────── -->
         <div class="rounded-lg border border-default bg-elevated/30 px-4 py-4">
           <p class="mb-4 text-sm font-semibold text-highlighted">Datos de empleo</p>
@@ -249,6 +403,27 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
                 class="w-full"
                 size="lg"
                 placeholder="Ej: Recursos Humanos"
+                :disabled="isPending"
+              />
+            </UFormField>
+
+            <UFormField label="Horario" name="currentSchedule">
+              <UInput
+                v-model="state.currentSchedule"
+                class="w-full"
+                size="lg"
+                placeholder="Ej: Lunes a viernes 9:00–18:00"
+                :disabled="isPending"
+              />
+            </UFormField>
+
+            <UFormField label="Responsabilidades" name="currentResponsibilities">
+              <UTextarea
+                v-model="state.currentResponsibilities"
+                class="w-full"
+                :rows="4"
+                size="lg"
+                placeholder="Describí las responsabilidades principales"
                 :disabled="isPending"
               />
             </UFormField>

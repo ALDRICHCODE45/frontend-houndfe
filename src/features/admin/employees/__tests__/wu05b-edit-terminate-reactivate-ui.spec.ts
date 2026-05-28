@@ -158,10 +158,23 @@ describe('editFormStateToDto — maps edit state to UpdateEmployeeDto (WU-05B.2)
     lastName: 'García',
     email: 'juan@empresa.com',
     phone: '',
+    dateOfBirth: '',
+    nationalId: '',
+    nationalIdType: '',
+    street: '',
+    exteriorNumber: '',
+    interiorNumber: '',
+    zipCode: '',
+    neighborhood: '',
+    municipality: '',
+    city: '',
+    state: '',
     contractType: 'PERMANENT',
     workModality: 'HYBRID',
     currentPosition: 'Analista',
     currentDepartment: 'Finanzas',
+    currentSchedule: '',
+    currentResponsibilities: '',
     annualVacationDays: null,
     managerId: '',
   }
@@ -197,6 +210,66 @@ describe('editFormStateToDto — maps edit state to UpdateEmployeeDto (WU-05B.2)
   it('includes phone in dto when non-empty', () => {
     const dto = editFormStateToDto({ ...BASE_STATE, phone: '+5215555555555' })
     expect(dto.phone).toBe('+5215555555555')
+  })
+
+  it('prefills phone, personal document, address, schedule and responsibilities fields', () => {
+    const emp = makeEmployee({
+      phone: '+52 55 1234 5678',
+      dateOfBirth: '1990-05-20',
+      nationalId: 'ABC123456',
+      nationalIdType: 'INE',
+      street: 'Av. Reforma',
+      exteriorNumber: '123',
+      interiorNumber: '4B',
+      zipCode: '06600',
+      neighborhood: 'Juárez',
+      municipality: 'Cuauhtémoc',
+      city: 'Ciudad de México',
+      state: 'CDMX',
+      currentSchedule: 'Lunes a viernes 9:00–18:00',
+      currentResponsibilities: 'Coordinar operación diaria',
+    })
+    const state = buildEditEmployeeFormState(emp)
+
+    expect(state.phone).toBe('+52 55 1234 5678')
+    expect(state.dateOfBirth).toBe('1990-05-20')
+    expect(state.nationalId).toBe('ABC123456')
+    expect(state.nationalIdType).toBe('INE')
+    expect(state.street).toBe('Av. Reforma')
+    expect(state.exteriorNumber).toBe('123')
+    expect(state.interiorNumber).toBe('4B')
+    expect(state.zipCode).toBe('06600')
+    expect(state.neighborhood).toBe('Juárez')
+    expect(state.municipality).toBe('Cuauhtémoc')
+    expect(state.city).toBe('Ciudad de México')
+    expect(state.state).toBe('CDMX')
+    expect(state.currentSchedule).toBe('Lunes a viernes 9:00–18:00')
+    expect(state.currentResponsibilities).toBe('Coordinar operación diaria')
+  })
+
+  it('includes visible personal, address and labor fields in dto when provided', () => {
+    const dto = editFormStateToDto({
+      ...BASE_STATE,
+      dateOfBirth: '1990-05-20',
+      nationalId: 'ABC123456',
+      nationalIdType: 'PASSPORT',
+      street: 'Av. Reforma',
+      exteriorNumber: '123',
+      zipCode: '06600',
+      city: 'Ciudad de México',
+      currentSchedule: 'Lunes a viernes 9:00–18:00',
+      currentResponsibilities: 'Coordinar operación diaria',
+    })
+
+    expect(dto.dateOfBirth).toBe('1990-05-20')
+    expect(dto.nationalId).toBe('ABC123456')
+    expect(dto.nationalIdType).toBe('PASSPORT')
+    expect(dto.street).toBe('Av. Reforma')
+    expect(dto.exteriorNumber).toBe('123')
+    expect(dto.zipCode).toBe('06600')
+    expect(dto.city).toBe('Ciudad de México')
+    expect(dto.currentSchedule).toBe('Lunes a viernes 9:00–18:00')
+    expect(dto.currentResponsibilities).toBe('Coordinar operación diaria')
   })
 
   it('includes contractType from enum value', () => {
