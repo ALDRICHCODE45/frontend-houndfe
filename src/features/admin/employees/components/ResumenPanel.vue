@@ -1,32 +1,31 @@
 <script setup lang="ts">
 /**
- * ResumenPanel — WU-06A
+ * ResumenPanel — WU-06A (redesigned)
  *
- * "Vista rápida" panel for the Employee Detail View — Resumen tab.
+ * "Vista rapida" panel for the Employee Detail View — Resumen tab.
  *
  * Displays:
- *   - Key stats cards: antigüedad, sueldo actual (if hasSalary), vacaciones (placeholder), reportes directos (placeholder)
- *   - "Reporta a" section — manager info (resolved via useManagerResolution or prop)
+ *   - Key stats cards: seniority, current salary (if hasSalary), vacations, department
+ *   - "Reporta a" section — manager with colorful avatar, name, position + department subtitle
  *
- * Design: warm-orange accented stat cards, per Claude Design screenshots.
+ * Design: matches Claude Design reference with dot-badge pattern.
  * Salary display guarded by hasSalary() — never renders undefined as "0".
  */
 
 import { computed } from 'vue'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
 import { computeSeniority } from '../composables/useEmployeeViewMode'
 import { formatCurrencyMXN } from '../composables/useEmployeeDetail'
 import { hasSalary } from '../interfaces/employee.types'
-import { employeeStatusToBadgeTone, formatHireDate } from '../composables/useEmployeeColumns'
-import { EMPLOYEE_STATUS_LABELS } from '../interfaces/employee.types'
+import { formatHireDate } from '../composables/useEmployeeColumns'
 import type { Employee } from '../interfaces/employee.types'
+import type { ManagerInfo } from '../composables/useManagerResolution'
 
 const props = defineProps<{
   employee: Employee
-  /** Resolved manager display name (or "—") */
+  /** Resolved manager display name (or "---") */
   managerDisplay: string
-  /** Manager Employee object for linking (optional) */
-  manager?: Employee | null
+  /** Full manager info from the expanded ManagerInfo map */
+  managerInfo?: ManagerInfo | null
   canReadSalary?: boolean
 }>()
 
@@ -37,19 +36,40 @@ const salaryDisplay = computed<string>(() => {
   if (!hasSalary(props.employee)) return '—'
   return formatCurrencyMXN(props.employee.currentSalaryCents, props.employee.currentSalaryCurrency)
 })
-const managerStatusTone = computed(() =>
-  props.manager ? employeeStatusToBadgeTone(props.manager.status) : 'neutral',
-)
-const managerStatusLabel = computed(() =>
-  props.manager ? EMPLOYEE_STATUS_LABELS[props.manager.status] : '',
-)
+
+// ── Manager avatar helpers ─────────────────────────────────────────────────────
+function getAvatarClass(seedValue: string): string {
+  const palettes = [
+    'bg-amber-500 text-white',
+    'bg-pink-500 text-white',
+    'bg-violet-500 text-white',
+    'bg-red-500 text-white',
+    'bg-cyan-500 text-white',
+    'bg-emerald-500 text-white',
+    'bg-blue-500 text-white',
+  ]
+  const seed = seedValue.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)
+  return palettes[seed % palettes.length] ?? palettes[0]!
+}
+
+function getInitials(fullName: string): string {
+  const parts = fullName.trim().split(' ').filter(Boolean)
+  return parts.slice(0, 2).map(p => p[0]?.toUpperCase() ?? '').join('') || 'C'
+}
+
+const managerSubtitle = computed(() => {
+  const parts: string[] = []
+  if (props.managerInfo?.currentPosition) parts.push(props.managerInfo.currentPosition)
+  if (props.managerInfo?.currentDepartment) parts.push(props.managerInfo.currentDepartment)
+  return parts.length > 0 ? parts.join(' \u00B7 ') : null
+})
 </script>
 
 <template>
   <div class="flex flex-col gap-6">
     <!-- Stats cards row -->
     <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
-      <!-- Antigüedad -->
+      <!-- Seniority -->
       <UCard :ui="{ body: 'p-4 sm:p-4' }">
         <div class="flex flex-col gap-1">
           <div class="flex items-center gap-2 text-xs text-muted">
@@ -61,7 +81,7 @@ const managerStatusLabel = computed(() =>
         </div>
       </UCard>
 
-      <!-- Sueldo actual — only when canReadSalary and hasSalary -->
+      <!-- Current salary — only when canReadSalary and hasSalary -->
       <UCard
         v-if="canReadSalary && hasSalary(employee)"
         :ui="{ body: 'p-4 sm:p-4' }"
@@ -76,7 +96,7 @@ const managerStatusLabel = computed(() =>
         </div>
       </UCard>
 
-      <!-- Vacaciones (placeholder) -->
+      <!-- Vacations (placeholder) -->
       <UCard :ui="{ body: 'p-4 sm:p-4' }">
         <div class="flex flex-col gap-1">
           <div class="flex items-center gap-2 text-xs text-muted">
@@ -90,7 +110,7 @@ const managerStatusLabel = computed(() =>
         </div>
       </UCard>
 
-      <!-- Departamento -->
+      <!-- Department -->
       <UCard :ui="{ body: 'p-4 sm:p-4' }">
         <div class="flex flex-col gap-1">
           <div class="flex items-center gap-2 text-xs text-muted">
@@ -111,26 +131,23 @@ const managerStatusLabel = computed(() =>
 
       <template v-if="managerDisplay !== '—' && managerDisplay">
         <div class="flex items-center gap-4">
-          <!-- Manager avatar -->
-          <UAvatar
-            :alt="managerDisplay"
-            :text="managerDisplay.split(' ').slice(0, 2).map(w => w[0]?.toUpperCase() ?? '').join('')"
-            size="lg"
-            :ui="{ root: 'ring-2 ring-primary/20' }"
-          />
+          <!-- Colorful manager avatar -->
+          <div
+            class="flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-semibold shadow-sm"
+            :class="getAvatarClass(managerDisplay)"
+          >
+            {{ getInitials(managerDisplay) }}
+          </div>
 
           <!-- Manager info -->
           <div class="min-w-0 flex-1">
             <p class="font-semibold text-highlighted">{{ managerDisplay }}</p>
-            <p v-if="manager?.currentPosition" class="text-sm text-muted">
-              {{ manager.currentPosition }}
+            <p v-if="managerSubtitle" class="text-sm text-muted">
+              {{ managerSubtitle }}
             </p>
-            <div v-if="manager" class="mt-1">
-              <AppBadge
-                :label="managerStatusLabel"
-                :tone="managerStatusTone"
-              />
-            </div>
+            <p v-if="managerInfo?.email" class="text-xs text-muted">
+              {{ managerInfo.email }}
+            </p>
           </div>
         </div>
       </template>

@@ -32,6 +32,8 @@ import type { Employee } from '../interfaces/employee.types'
 export interface ManagerInfo {
   fullName: string
   email: string | null
+  currentPosition: string | null
+  currentDepartment: string | null
 }
 
 /**
@@ -42,7 +44,12 @@ export interface ManagerInfo {
 export function buildManagerMap(managers: Employee[]): Map<string, ManagerInfo> {
   const map = new Map<string, ManagerInfo>()
   for (const manager of managers) {
-    map.set(manager.id, { fullName: manager.fullName, email: manager.email })
+    map.set(manager.id, {
+      fullName: manager.fullName,
+      email: manager.email,
+      currentPosition: manager.currentPosition,
+      currentDepartment: manager.currentDepartment,
+    })
   }
   return map
 }
@@ -119,7 +126,12 @@ export function useManagerResolution(
     const map = new Map<string, ManagerInfo>()
     for (const query of managerQueries.value) {
       if (query.data) {
-        map.set(query.data.id, { fullName: query.data.fullName, email: query.data.email })
+        map.set(query.data.id, {
+          fullName: query.data.fullName,
+          email: query.data.email,
+          currentPosition: query.data.currentPosition,
+          currentDepartment: query.data.currentDepartment,
+        })
       }
     }
     return map

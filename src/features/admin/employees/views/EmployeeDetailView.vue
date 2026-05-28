@@ -90,6 +90,12 @@ const managerDisplay = computed<string>(() =>
   employee.value ? resolveManagerName(employee.value.managerId) : '—',
 )
 
+/** Full manager info for detail panels (position, department, email) */
+const managerInfo = computed(() => {
+  if (!employee.value?.managerId) return null
+  return managerMap.value.get(employee.value.managerId) ?? null
+})
+
 // ── Additional CASL guards (WU-07) ────────────────────────────────────────────
 const canCreateSalary = computed(() => authStore.userCan('create', 'EmployeeSalary'))
 
@@ -240,6 +246,7 @@ function goBack(): void {
               v-if="activeTab === 'resumen'"
               :employee="employee"
               :manager-display="managerDisplay"
+              :manager-info="managerInfo"
               :can-read-salary="canReadSalary"
             />
 

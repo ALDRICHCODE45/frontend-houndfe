@@ -1,27 +1,24 @@
 <script setup lang="ts">
 /**
- * EmployeeProfileCard — WU-06A
+ * EmployeeProfileCard — WU-06A (redesigned)
  *
  * Left sidebar profile card for the Employee Detail View.
  * Displays:
- *   - Large avatar with initials (no photo in v1)
- *   - Full name + employee number (copyable via UButton icon)
- *   - Current position
- *   - Status, department, and modality chips
- *   - Email, phone, location (if available)
- *   - Hire date formatted
- *   - Birthday (if available)
- *   - Action buttons: Editar (guarded by update:Employee), action menu (terminate/reactivate)
+ *   - Large colorful avatar (deterministic palette based on id) with active status dot
+ *   - Full name prominently displayed
+ *   - Employee number with copy icon
+ *   - Current position title
+ *   - Row of UBadge chips: department (neutral bg + colored dot), status (colored bg + dot), modality (colored bg)
+ *   - Action buttons: Mensaje, Exportar, Editar
+ *   - Contact section: Email, Phone, Location — label-value pairs separated by dividers
+ *   - Personal section: Birthday, Contract type, Hire date
  *
- * Design: warm-orange accented, dense HR card per Claude Design screenshots.
+ * Design: matches Claude Design reference with dot-badge pattern from list view.
  * Light/dark compatible via Nuxt UI 4 tokens.
  */
 
 import { computed } from 'vue'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
 import {
-  employeeStatusToBadgeTone,
-  workModalityToBadgeTone,
   formatHireDate,
 } from '../composables/useEmployeeColumns'
 import { buildProfileInitials } from '../composables/useEmployeeDetail'
@@ -29,6 +26,7 @@ import { getEmployeeRowActions } from '../composables/useEmployeeActions'
 import {
   EMPLOYEE_STATUS_LABELS,
   WORK_MODALITY_LABELS,
+  CONTRACT_TYPE_LABELS,
   type Employee,
 } from '../interfaces/employee.types'
 
@@ -43,22 +41,83 @@ const emit = defineEmits<{
   reactivate: [employee: Employee]
 }>()
 
-// ── Derived display ────────────────────────────────────────────────────────────
+// ── Avatar ─────────────────────────────────────────────────────────────────────
 const initials = computed(() => buildProfileInitials(props.employee.fullName))
-const statusTone = computed(() => employeeStatusToBadgeTone(props.employee.status))
-const statusLabel = computed(() => EMPLOYEE_STATUS_LABELS[props.employee.status])
-const modalityTone = computed(() => workModalityToBadgeTone(props.employee.workModality))
-const modalityLabel = computed(() => WORK_MODALITY_LABELS[props.employee.workModality])
-const hireDateFormatted = computed(() => formatHireDate(props.employee.hireDate))
 
-// ── Address display ────────────────────────────────────────────────────────────
+function getAvatarClass(seedValue: string): string {
+  const palettes = [
+    'bg-amber-500 text-white',
+    'bg-pink-500 text-white',
+    'bg-violet-500 text-white',
+    'bg-red-500 text-white',
+    'bg-cyan-500 text-white',
+    'bg-emerald-500 text-white',
+    'bg-blue-500 text-white',
+  ]
+  const seed = seedValue.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)
+  return palettes[seed % palettes.length] ?? palettes[0]!
+}
+
+// ── Badge helpers (same pattern as list view) ──────────────────────────────────
+const statusLabel = computed(() => EMPLOYEE_STATUS_LABELS[props.employee.status])
+const modalityLabel = computed(() => WORK_MODALITY_LABELS[props.employee.workModality])
+
+function getStatusBadgeClass(status: Employee['status']): string {
+  switch (status) {
+    case 'ACTIVE':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    case 'ON_LEAVE':
+      return 'border-amber-200 bg-amber-50 text-amber-700'
+    case 'TERMINATED':
+      return 'border-red-200 bg-red-50 text-red-700'
+  }
+}
+
+function getStatusDotClass(status: Employee['status']): string {
+  switch (status) {
+    case 'ACTIVE':
+      return 'bg-emerald-500'
+    case 'ON_LEAVE':
+      return 'bg-amber-500'
+    case 'TERMINATED':
+      return 'bg-red-500'
+  }
+}
+
+function getDepartmentDotClass(department: string | null): string {
+  const value = department?.toLowerCase() ?? ''
+  if (value.includes('producto')) return 'bg-violet-500'
+  if (value.includes('diseño')) return 'bg-pink-500'
+  if (value.includes('finanzas')) return 'bg-blue-500'
+  if (value.includes('recursos')) return 'bg-cyan-500'
+  if (value.includes('operaciones')) return 'bg-amber-500'
+  if (value.includes('legal')) return 'bg-slate-500'
+  return 'bg-emerald-500'
+}
+
+function getModalityBadgeClass(modality: Employee['workModality']): string {
+  switch (modality) {
+    case 'REMOTE':
+      return 'border-blue-200 bg-blue-50 text-blue-700'
+    case 'HYBRID':
+      return 'border-orange-200 bg-orange-50 text-orange-700'
+    case 'ONSITE':
+      return 'border-slate-200 bg-slate-100 text-slate-700'
+  }
+}
+
+const DEPARTMENT_BADGE_CLASS = 'border-gray-200 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300'
+
+// ── Derived display ────────────────────────────────────────────────────────────
+const hireDateFormatted = computed(() => formatHireDate(props.employee.hireDate))
+const contractLabel = computed(() => CONTRACT_TYPE_LABELS[props.employee.contractType])
+
 const locationDisplay = computed<string | null>(() => {
   const e = props.employee
   const parts = [e.neighborhood, e.city, e.state].filter(Boolean)
   return parts.length > 0 ? parts.join(', ') : null
 })
 
-// ── Date of birth display ──────────────────────────────────────────────────────
 const dobDisplay = computed<string | null>(() => {
   if (!props.employee.dateOfBirth) return null
   try {
@@ -93,121 +152,119 @@ const rowActions = computed(() =>
 
 <template>
   <UCard :ui="{ body: 'p-0 sm:p-0' }">
-    <!-- Avatar + name section -->
-    <div class="flex flex-col items-center gap-4 px-6 pb-5 pt-6 text-center">
-      <!-- Avatar with initials -->
-      <UAvatar
-        :alt="employee.fullName"
-        :text="initials"
-        size="3xl"
-        :ui="{ root: 'ring-4 ring-primary/20 shadow-sm' }"
-      />
+    <!-- Avatar + identity section -->
+    <div class="flex flex-col items-center gap-3 px-6 pb-4 pt-6 text-center">
+      <!-- Colorful avatar with active dot -->
+      <div class="relative">
+        <div
+          class="flex size-20 items-center justify-center rounded-full text-2xl font-bold shadow-md"
+          :class="getAvatarClass(employee.id)"
+          :aria-label="employee.fullName"
+        >
+          {{ initials }}
+        </div>
+        <!-- Active status green dot -->
+        <span
+          v-if="employee.status === 'ACTIVE'"
+          class="absolute bottom-0.5 right-0.5 size-4 rounded-full border-[3px] border-white bg-emerald-500 dark:border-gray-900"
+          aria-label="Activo"
+        />
+      </div>
 
       <!-- Name -->
-      <div class="space-y-1">
-        <h2 class="text-xl font-bold text-highlighted leading-tight">
-          {{ employee.fullName }}
-        </h2>
+      <h2 class="text-lg font-bold text-highlighted leading-tight">
+        {{ employee.fullName }}
+      </h2>
 
-        <!-- Employee number — copyable -->
-        <button
-          class="inline-flex items-center gap-1.5 text-sm text-muted hover:text-default transition-colors group"
-          :title="`Copiar número de empleado: ${employee.employeeNumber}`"
-          @click="copyEmployeeNumber"
-        >
-          <UIcon name="i-lucide-hash" class="size-3.5" />
-          <span class="font-mono">{{ employee.employeeNumber }}</span>
-          <UIcon
-            name="i-lucide-copy"
-            class="size-3 opacity-0 group-hover:opacity-60 transition-opacity"
-          />
-        </button>
-      </div>
+      <!-- Employee number — copyable -->
+      <button
+        class="inline-flex items-center gap-1.5 text-sm text-muted hover:text-default transition-colors group"
+        :title="`Copiar: ${employee.employeeNumber}`"
+        @click="copyEmployeeNumber"
+      >
+        <UIcon name="i-lucide-hash" class="size-3.5" />
+        <span class="font-mono text-xs">{{ employee.employeeNumber }}</span>
+        <UIcon
+          name="i-lucide-copy"
+          class="size-3 opacity-0 group-hover:opacity-60 transition-opacity"
+        />
+      </button>
 
       <!-- Current position -->
       <p
         v-if="employee.currentPosition"
-        class="text-sm font-medium text-default"
+        class="text-sm text-muted"
       >
         {{ employee.currentPosition }}
       </p>
 
-      <!-- Status + modality chips -->
-      <div class="flex flex-wrap justify-center gap-2">
-        <AppBadge
-          :label="statusLabel"
-          :tone="statusTone"
-          :aria-label="`Estado: ${statusLabel}`"
-        />
-        <AppBadge
+      <!-- Badges: department, status, modality -->
+      <div class="flex flex-wrap justify-center gap-1.5">
+        <!-- Department badge (neutral bg, colored dot) -->
+        <UBadge
           v-if="employee.currentDepartment"
-          :label="employee.currentDepartment"
-          tone="neutral"
-        />
-        <AppBadge
-          :label="modalityLabel"
-          :tone="modalityTone"
+          variant="outline"
+          size="md"
+          :class="DEPARTMENT_BADGE_CLASS"
+          :ui="{ base: 'gap-2 rounded-full px-3 py-1.5 shadow-none ring ring-inset ring-gray-200 dark:ring-gray-700', label: 'text-xs font-medium' }"
+        >
+          <template #leading>
+            <span class="size-2 rounded-full" :class="getDepartmentDotClass(employee.currentDepartment)" />
+          </template>
+          {{ employee.currentDepartment }}
+        </UBadge>
+
+        <!-- Status badge (colored bg + dot) -->
+        <UBadge
+          variant="outline"
+          size="md"
+          :class="getStatusBadgeClass(employee.status)"
+          :ui="{ base: 'gap-2 rounded-full px-3 py-1.5 shadow-none ring-0', label: 'text-xs font-semibold' }"
+          :aria-label="`Estado: ${statusLabel}`"
+        >
+          <template #leading>
+            <span class="size-2 rounded-full" :class="getStatusDotClass(employee.status)" />
+          </template>
+          {{ statusLabel }}
+        </UBadge>
+
+        <!-- Modality badge (colored bg, no dot) -->
+        <UBadge
+          variant="outline"
+          size="md"
+          :class="getModalityBadgeClass(employee.workModality)"
+          :ui="{ base: 'gap-1.5 rounded-full px-3 py-1.5 shadow-none ring-0', label: 'text-xs font-semibold' }"
           :aria-label="`Modalidad: ${modalityLabel}`"
-        />
+        >
+          {{ modalityLabel }}
+        </UBadge>
       </div>
     </div>
 
     <UDivider />
 
-    <!-- Contact + info section -->
-    <div class="flex flex-col gap-3 px-6 py-5">
-      <!-- Email -->
-      <div v-if="employee.email" class="flex items-start gap-3">
-        <UIcon name="i-lucide-mail" class="mt-0.5 size-4 shrink-0 text-muted" />
-        <a
-          :href="`mailto:${employee.email}`"
-          class="min-w-0 break-all text-sm text-default hover:text-primary hover:underline"
-        >
-          {{ employee.email }}
-        </a>
-      </div>
-
-      <!-- Phone -->
-      <div v-if="employee.phone" class="flex items-center gap-3">
-        <UIcon name="i-lucide-phone" class="size-4 shrink-0 text-muted" />
-        <a
-          :href="`tel:${employee.phone}`"
-          class="text-sm text-default hover:text-primary"
-        >
-          {{ employee.phone }}
-        </a>
-      </div>
-
-      <!-- Location -->
-      <div v-if="locationDisplay" class="flex items-start gap-3">
-        <UIcon name="i-lucide-map-pin" class="mt-0.5 size-4 shrink-0 text-muted" />
-        <span class="text-sm text-default">{{ locationDisplay }}</span>
-      </div>
-
-      <!-- Hire date -->
-      <div class="flex items-center gap-3">
-        <UIcon name="i-lucide-calendar" class="size-4 shrink-0 text-muted" />
-        <div class="flex flex-col">
-          <span class="text-xs text-muted">Fecha de ingreso</span>
-          <span class="text-sm font-medium text-default">{{ hireDateFormatted }}</span>
-        </div>
-      </div>
-
-      <!-- Birthday -->
-      <div v-if="dobDisplay" class="flex items-center gap-3">
-        <UIcon name="i-lucide-cake" class="size-4 shrink-0 text-muted" />
-        <div class="flex flex-col">
-          <span class="text-xs text-muted">Fecha de nacimiento</span>
-          <span class="text-sm text-default">{{ dobDisplay }}</span>
-        </div>
-      </div>
-    </div>
-
-    <UDivider />
-
-    <!-- Action buttons -->
-    <div class="flex items-center justify-between gap-2 px-6 py-4">
-      <!-- Edit button (gated by update:Employee) -->
+    <!-- Action buttons row -->
+    <div class="flex items-center gap-2 px-6 py-3">
+      <UButton
+        icon="i-lucide-mail"
+        color="neutral"
+        variant="outline"
+        size="sm"
+        class="flex-1"
+        :href="employee.email ? `mailto:${employee.email}` : undefined"
+        :disabled="!employee.email"
+      >
+        Mensaje
+      </UButton>
+      <UButton
+        icon="i-lucide-download"
+        color="neutral"
+        variant="outline"
+        size="sm"
+        class="flex-1"
+      >
+        Exportar
+      </UButton>
       <UButton
         v-if="canUpdate"
         icon="i-lucide-pencil"
@@ -234,6 +291,72 @@ const rowActions = computed(() =>
           aria-label="Más acciones"
         />
       </UDropdownMenu>
+    </div>
+
+    <UDivider />
+
+    <!-- Contact section -->
+    <div class="px-6 py-4">
+      <h3 class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">
+        Contacto
+      </h3>
+      <div class="flex flex-col divide-y divide-default">
+        <!-- Email -->
+        <div v-if="employee.email" class="flex items-center justify-between gap-3 py-2.5">
+          <span class="text-xs text-muted">Email</span>
+          <a
+            :href="`mailto:${employee.email}`"
+            class="min-w-0 truncate text-sm font-medium text-default hover:text-primary"
+          >
+            {{ employee.email }}
+          </a>
+        </div>
+
+        <!-- Phone -->
+        <div v-if="employee.phone" class="flex items-center justify-between gap-3 py-2.5">
+          <span class="text-xs text-muted">Teléfono</span>
+          <a
+            :href="`tel:${employee.phone}`"
+            class="text-sm font-medium text-default hover:text-primary"
+          >
+            {{ employee.phone }}
+          </a>
+        </div>
+
+        <!-- Location -->
+        <div v-if="locationDisplay" class="flex items-center justify-between gap-3 py-2.5">
+          <span class="shrink-0 text-xs text-muted">Ubicación</span>
+          <span class="min-w-0 truncate text-sm font-medium text-default text-right">{{ locationDisplay }}</span>
+        </div>
+      </div>
+    </div>
+
+    <UDivider />
+
+    <!-- Personal section -->
+    <div class="px-6 py-4">
+      <h3 class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted">
+        Personal
+      </h3>
+      <div class="flex flex-col divide-y divide-default">
+        <!-- Birthday -->
+        <div v-if="dobDisplay" class="flex items-center justify-between gap-3 py-2.5">
+          <span class="text-xs text-muted">Cumpleaños</span>
+          <span class="text-sm font-medium text-default">{{ dobDisplay }}</span>
+        </div>
+
+        <!-- Contract type -->
+        <div class="flex items-center justify-between gap-3 py-2.5">
+          <span class="text-xs text-muted">Contrato</span>
+          <span class="text-sm font-medium text-default">{{ contractLabel }}</span>
+        </div>
+
+        <!-- Hire date -->
+        <div class="flex items-center justify-between gap-3 py-2.5">
+          <span class="text-xs text-muted">Fecha de ingreso</span>
+          <span class="text-sm font-medium text-default">{{ hireDateFormatted }}</span>
+        </div>
+      </div>
     </div>
   </UCard>
 </template>

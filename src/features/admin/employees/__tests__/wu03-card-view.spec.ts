@@ -24,6 +24,7 @@ import {
 import {
   resolveManagerName,
   buildManagerMap,
+  type ManagerInfo,
 } from '@/features/admin/employees/composables/useManagerResolution'
 
 // ── Task 3.3 — EmployeeCard data helper ─────────────────────────────────────
@@ -133,15 +134,15 @@ describe('buildManagerMap — manager id to name map', () => {
 // ─── resolveManagerName — resolves name from map ──────────────────────────────
 
 describe('resolveManagerName — manager name resolution', () => {
-  const info = (fullName: string, email: string | null = null) => ({ fullName, email })
+  const info = (fullName: string, email: string | null = null) => ({ fullName, email, currentPosition: null, currentDepartment: null })
 
   it('returns "—" when managerId is null', () => {
-    const map = new Map<string, { fullName: string; email: string | null }>()
+    const map = new Map<string, ManagerInfo>()
     expect(resolveManagerName(null, map)).toBe('—')
   })
 
   it('returns "—" when managerId is undefined', () => {
-    const map = new Map<string, { fullName: string; email: string | null }>()
+    const map = new Map<string, ManagerInfo>()
     expect(resolveManagerName(undefined, map)).toBe('—')
   })
 
