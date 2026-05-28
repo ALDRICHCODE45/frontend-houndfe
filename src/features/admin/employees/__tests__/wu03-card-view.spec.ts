@@ -103,14 +103,15 @@ describe('useEmployeeViewMode — view mode persistence', () => {
 // ─── buildManagerMap — creates id→name map from array ────────────────────────
 
 describe('buildManagerMap — manager id to name map', () => {
-  it('builds map of id → fullName from employee array', () => {
+  it('builds map of id → ManagerInfo from employee array', () => {
     const managers: Employee[] = [
-      makeEmployee({ id: 'mgr-1', fullName: 'Carlos López' }),
-      makeEmployee({ id: 'mgr-2', fullName: 'María Ruiz' }),
+      makeEmployee({ id: 'mgr-1', fullName: 'Carlos López', email: 'carlos@test.com' }),
+      makeEmployee({ id: 'mgr-2', fullName: 'María Ruiz', email: 'maria@test.com' }),
     ]
     const map = buildManagerMap(managers)
-    expect(map.get('mgr-1')).toBe('Carlos López')
-    expect(map.get('mgr-2')).toBe('María Ruiz')
+    expect(map.get('mgr-1')?.fullName).toBe('Carlos López')
+    expect(map.get('mgr-1')?.email).toBe('carlos@test.com')
+    expect(map.get('mgr-2')?.fullName).toBe('María Ruiz')
   })
 
   it('returns empty map for empty array', () => {
@@ -132,31 +133,33 @@ describe('buildManagerMap — manager id to name map', () => {
 // ─── resolveManagerName — resolves name from map ──────────────────────────────
 
 describe('resolveManagerName — manager name resolution', () => {
+  const info = (fullName: string, email: string | null = null) => ({ fullName, email })
+
   it('returns "—" when managerId is null', () => {
-    const map = new Map<string, string>()
+    const map = new Map<string, { fullName: string; email: string | null }>()
     expect(resolveManagerName(null, map)).toBe('—')
   })
 
   it('returns "—" when managerId is undefined', () => {
-    const map = new Map<string, string>()
+    const map = new Map<string, { fullName: string; email: string | null }>()
     expect(resolveManagerName(undefined, map)).toBe('—')
   })
 
   it('returns "—" when manager is not found in map', () => {
-    const map = new Map<string, string>([['mgr-1', 'Carlos López']])
+    const map = new Map([['mgr-1', info('Carlos López')]])
     expect(resolveManagerName('mgr-999', map)).toBe('—')
   })
 
   it('returns manager fullName when found in map', () => {
-    const map = new Map<string, string>([['mgr-1', 'Carlos López']])
+    const map = new Map([['mgr-1', info('Carlos López')]])
     expect(resolveManagerName('mgr-1', map)).toBe('Carlos López')
   })
 
   it('returns correct name among multiple managers in map', () => {
-    const map = new Map<string, string>([
-      ['a', 'Alice'],
-      ['b', 'Bob'],
-      ['c', 'Charlie'],
+    const map = new Map([
+      ['a', info('Alice')],
+      ['b', info('Bob')],
+      ['c', info('Charlie')],
     ])
     expect(resolveManagerName('b', map)).toBe('Bob')
   })

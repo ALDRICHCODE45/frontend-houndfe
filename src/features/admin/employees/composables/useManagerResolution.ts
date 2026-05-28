@@ -29,15 +29,20 @@ import type { Employee } from '../interfaces/employee.types'
 
 // ─── Pure helpers (exported for unit testing) ─────────────────────────────────
 
+export interface ManagerInfo {
+  fullName: string
+  email: string | null
+}
+
 /**
- * Build a Map<id, fullName> from an array of resolved Employee objects.
+ * Build a Map<id, ManagerInfo> from an array of resolved Employee objects.
  *
  * Pure — no side effects.
  */
-export function buildManagerMap(managers: Employee[]): Map<string, string> {
-  const map = new Map<string, string>()
+export function buildManagerMap(managers: Employee[]): Map<string, ManagerInfo> {
+  const map = new Map<string, ManagerInfo>()
   for (const manager of managers) {
-    map.set(manager.id, manager.fullName)
+    map.set(manager.id, { fullName: manager.fullName, email: manager.email })
   }
   return map
 }
@@ -54,10 +59,18 @@ export function buildManagerMap(managers: Employee[]): Map<string, string> {
  */
 export function resolveManagerName(
   managerId: string | null | undefined,
-  managerMap: Map<string, string>,
+  managerMap: Map<string, ManagerInfo>,
 ): string {
   if (!managerId) return '—'
-  return managerMap.get(managerId) ?? '—'
+  return managerMap.get(managerId)?.fullName ?? '—'
+}
+
+export function resolveManagerEmail(
+  managerId: string | null | undefined,
+  managerMap: Map<string, ManagerInfo>,
+): string | null {
+  if (!managerId) return null
+  return managerMap.get(managerId)?.email ?? null
 }
 
 // ─── Reactive composable ──────────────────────────────────────────────────────
@@ -101,12 +114,12 @@ export function useManagerResolution(
     ),
   })
 
-  // Build the id→name map from all successfully resolved managers
-  const managerMap = computed<Map<string, string>>(() => {
-    const map = new Map<string, string>()
+  // Build the id→info map from all successfully resolved managers
+  const managerMap = computed<Map<string, ManagerInfo>>(() => {
+    const map = new Map<string, ManagerInfo>()
     for (const query of managerQueries.value) {
       if (query.data) {
-        map.set(query.data.id, query.data.fullName)
+        map.set(query.data.id, { fullName: query.data.fullName, email: query.data.email })
       }
     }
     return map

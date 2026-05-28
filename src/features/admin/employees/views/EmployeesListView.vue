@@ -44,7 +44,7 @@ import {
   formatHireDate,
 } from '../composables/useEmployeeColumns'
 import { useEmployeeViewMode } from '../composables/useEmployeeViewMode'
-import { useManagerResolution, resolveManagerName } from '../composables/useManagerResolution'
+import { useManagerResolution, resolveManagerName, resolveManagerEmail } from '../composables/useManagerResolution'
 import { getEmployeeRowActions } from '../composables/useEmployeeActions'
 import EmployeeFilters from '../components/EmployeeFilters.vue'
 import EmployeeViewToggle from '../components/EmployeeViewToggle.vue'
@@ -167,16 +167,8 @@ function getAvatarClass(seedValue: string): string {
   return palettes[seed % palettes.length] ?? palettes[0]!
 }
 
-function getDepartmentBadgeClass(department: string | null): string {
-  const value = department?.toLowerCase() ?? ''
-  if (value.includes('producto')) return 'border-violet-200 bg-violet-50 text-violet-700'
-  if (value.includes('diseño')) return 'border-pink-200 bg-pink-50 text-pink-700'
-  if (value.includes('finanzas')) return 'border-blue-200 bg-blue-50 text-blue-700'
-  if (value.includes('recursos')) return 'border-cyan-200 bg-cyan-50 text-cyan-700'
-  if (value.includes('operaciones')) return 'border-amber-200 bg-amber-50 text-amber-700'
-  if (value.includes('legal')) return 'border-slate-200 bg-slate-50 text-slate-700'
-  return 'border-emerald-200 bg-emerald-50 text-emerald-700'
-}
+// Department badge is always neutral — only the dot carries color
+const DEPARTMENT_BADGE_CLASS = 'border-gray-200 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300'
 
 function getDepartmentDotClass(department: string | null): string {
   const value = department?.toLowerCase() ?? ''
@@ -233,6 +225,10 @@ function getPositionLevel(position: string | null): string {
 // ── Manager display (table view — reads from resolved map via pure helper) ─────
 function getManagerDisplay(employee: Employee): string {
   return resolveManagerName(employee.managerId, managerMap.value)
+}
+
+function getManagerEmail(employee: Employee): string | null {
+  return resolveManagerEmail(employee.managerId, managerMap.value)
 }
 
 // ── Pagination state forwarding ────────────────────────────────────────────────
@@ -418,12 +414,12 @@ const showingTo = computed(() => {
             <UBadge
               v-if="row.original.currentDepartment"
               variant="outline"
-              size="sm"
-              :class="getDepartmentBadgeClass(row.original.currentDepartment)"
-              :ui="{ base: 'gap-1.5 rounded-md px-2 py-1 shadow-none ring-0', label: 'text-xs font-medium' }"
+              size="md"
+              :class="DEPARTMENT_BADGE_CLASS"
+              :ui="{ base: 'gap-2 rounded-full px-3 py-1.5 shadow-none ring ring-inset ring-gray-200 dark:ring-gray-700', label: 'text-xs font-medium' }"
             >
               <template #leading>
-                <span class="size-1.5 rounded-full" :class="getDepartmentDotClass(row.original.currentDepartment)" />
+                <span class="size-2 rounded-full" :class="getDepartmentDotClass(row.original.currentDepartment)" />
               </template>
               {{ row.original.currentDepartment }}
             </UBadge>
@@ -434,12 +430,15 @@ const showingTo = computed(() => {
           <template #jefedirecto-cell="{ row }">
             <div v-if="getManagerDisplay(row.original) !== '—'" class="flex items-center gap-2">
               <div
-                class="flex size-6 items-center justify-center rounded-full text-[10px] font-semibold shadow-sm"
+                class="flex size-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold shadow-sm"
                 :class="getAvatarClass(getManagerDisplay(row.original))"
               >
                 {{ getInitials(getManagerDisplay(row.original)) }}
               </div>
-              <span class="truncate text-sm text-default">{{ getManagerDisplay(row.original) }}</span>
+              <div class="min-w-0">
+                <p class="truncate text-sm font-medium text-default">{{ getManagerDisplay(row.original) }}</p>
+                <p v-if="getManagerEmail(row.original)" class="truncate text-xs text-muted">{{ getManagerEmail(row.original) }}</p>
+              </div>
             </div>
             <span v-else class="text-sm text-muted">—</span>
           </template>
@@ -453,9 +452,9 @@ const showingTo = computed(() => {
           <template #modalidad-cell="{ row }">
             <UBadge
               variant="outline"
-              size="sm"
+              size="md"
               :class="getModalityBadgeClass((row.original as Employee).workModality)"
-              :ui="{ base: 'rounded-md px-2 py-1 shadow-none ring-0', label: 'text-xs font-semibold' }"
+              :ui="{ base: 'rounded-full px-3 py-1.5 shadow-none ring-0', label: 'text-xs font-semibold' }"
             >
               {{ WORK_MODALITY_LABELS[(row.original as Employee).workModality] }}
             </UBadge>
@@ -465,12 +464,12 @@ const showingTo = computed(() => {
           <template #estado-cell="{ row }">
             <UBadge
               variant="outline"
-              size="sm"
+              size="md"
               :class="getStatusBadgeClass((row.original as Employee).status)"
-              :ui="{ base: 'gap-1.5 rounded-md px-2.5 py-1 shadow-none ring-0', label: 'text-xs font-semibold' }"
+              :ui="{ base: 'gap-2 rounded-full px-3 py-1.5 shadow-none ring-0', label: 'text-xs font-semibold' }"
             >
               <template #leading>
-                <span class="size-1.5 rounded-full" :class="getStatusDotClass((row.original as Employee).status)" />
+                <span class="size-2 rounded-full" :class="getStatusDotClass((row.original as Employee).status)" />
               </template>
               {{ EMPLOYEE_STATUS_LABELS[(row.original as Employee).status] }}
             </UBadge>

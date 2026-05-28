@@ -14,12 +14,12 @@
  */
 
 import EmployeeCard from './EmployeeCard.vue'
-import { resolveManagerName } from '../composables/useManagerResolution'
+import { resolveManagerName, type ManagerInfo } from '../composables/useManagerResolution'
 import type { Employee } from '../interfaces/employee.types'
 
 const props = defineProps<{
   employees: Employee[]
-  managerMap: Map<string, string>
+  managerMap: Map<string, ManagerInfo>
   loading?: boolean
   empty?: string
   canUpdate?: boolean
