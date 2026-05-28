@@ -65,11 +65,11 @@ const modalityLabel = computed(() => WORK_MODALITY_LABELS[props.employee.workMod
 function getStatusBadgeClass(status: Employee['status']): string {
   switch (status) {
     case 'ACTIVE':
-      return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300'
     case 'ON_LEAVE':
-      return 'border-amber-200 bg-amber-50 text-amber-700'
+      return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/15 dark:text-amber-300'
     case 'TERMINATED':
-      return 'border-red-200 bg-red-50 text-red-700'
+      return 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/15 dark:text-red-300'
   }
 }
 
@@ -98,11 +98,11 @@ function getDepartmentDotClass(department: string | null): string {
 function getModalityBadgeClass(modality: Employee['workModality']): string {
   switch (modality) {
     case 'REMOTE':
-      return 'border-blue-200 bg-blue-50 text-blue-700'
+      return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/15 dark:text-blue-300'
     case 'HYBRID':
-      return 'border-orange-200 bg-orange-50 text-orange-700'
+      return 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-500/30 dark:bg-orange-500/15 dark:text-orange-300'
     case 'ONSITE':
-      return 'border-slate-200 bg-slate-100 text-slate-700'
+      return 'border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-500/30 dark:bg-slate-500/15 dark:text-slate-300'
   }
 }
 
@@ -151,13 +151,21 @@ const rowActions = computed(() =>
 </script>
 
 <template>
-  <UCard :ui="{ body: 'p-0 sm:p-0' }">
+  <UCard :ui="{ body: 'p-0 sm:p-0' }" class="overflow-hidden">
+    <!-- Decorative header band: soft gradient + bottom border -->
+    <div
+      class="relative h-20 bg-gradient-to-br from-primary-500/15 via-primary-500/5 to-transparent dark:from-primary-400/15 dark:via-primary-400/5"
+      aria-hidden="true"
+    >
+      <div class="absolute inset-x-0 bottom-0 h-px bg-default" />
+    </div>
+
     <!-- Avatar + identity section -->
-    <div class="flex flex-col items-center gap-3 px-6 pb-4 pt-6 text-center">
+    <div class="flex flex-col items-center gap-3 px-6 pb-5 text-center -mt-12">
       <!-- Colorful avatar with active dot -->
       <div class="relative">
         <div
-          class="flex size-20 items-center justify-center rounded-full text-2xl font-bold shadow-md"
+          class="flex size-24 items-center justify-center rounded-full text-2xl font-bold shadow-lg ring-4 ring-white dark:ring-gray-900"
           :class="getAvatarClass(employee.id)"
           :aria-label="employee.fullName"
         >
@@ -166,7 +174,7 @@ const rowActions = computed(() =>
         <!-- Active status green dot -->
         <span
           v-if="employee.status === 'ACTIVE'"
-          class="absolute bottom-0.5 right-0.5 size-4 rounded-full border-[3px] border-white bg-emerald-500 dark:border-gray-900"
+          class="absolute bottom-1 right-1 size-4 rounded-full border-[3px] border-white bg-emerald-500 dark:border-gray-900"
           aria-label="Activo"
         />
       </div>
@@ -178,7 +186,8 @@ const rowActions = computed(() =>
 
       <!-- Employee number — copyable -->
       <button
-        class="inline-flex items-center gap-1.5 text-sm text-muted hover:text-default transition-colors group"
+        type="button"
+        class="inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-0.5 text-sm text-muted transition-colors hover:bg-elevated hover:text-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary group"
         :title="`Copiar: ${employee.employeeNumber}`"
         @click="copyEmployeeNumber"
       >
@@ -186,7 +195,7 @@ const rowActions = computed(() =>
         <span class="font-mono text-xs">{{ employee.employeeNumber }}</span>
         <UIcon
           name="i-lucide-copy"
-          class="size-3 opacity-0 group-hover:opacity-60 transition-opacity"
+          class="size-3 opacity-0 group-hover:opacity-70 transition-opacity"
         />
       </button>
 
@@ -244,20 +253,8 @@ const rowActions = computed(() =>
     <UDivider />
 
     <!-- Action buttons row -->
-    <div class="flex items-center gap-2 px-6 py-3">
+    <div v-if="canUpdate" class="flex items-center gap-2 px-6 py-3">
       <UButton
-        icon="i-lucide-download"
-        color="neutral"
-        variant="outline"
-        size="sm"
-        block
-        class="flex-1 min-w-0"
-        :ui="{ label: 'truncate' }"
-      >
-        Exportar
-      </UButton>
-      <UButton
-        v-if="canUpdate"
         icon="i-lucide-pencil"
         color="primary"
         variant="soft"
@@ -267,7 +264,7 @@ const rowActions = computed(() =>
         :ui="{ label: 'truncate' }"
         @click="emit('edit', employee)"
       >
-        Editar
+        Editar perfil
       </UButton>
 
       <!-- Action menu (terminate / reactivate) -->
@@ -286,7 +283,7 @@ const rowActions = computed(() =>
       </UDropdownMenu>
     </div>
 
-    <UDivider />
+    <UDivider v-if="canUpdate" />
 
     <!-- Contact section -->
     <div class="px-6 py-4">

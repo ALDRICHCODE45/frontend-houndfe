@@ -154,7 +154,7 @@ function goBack(): void {
 
       <!-- Content skeleton: left sidebar + right panels -->
       <div class="flex flex-col gap-6 lg:flex-row lg:items-start">
-        <div class="h-96 w-full animate-pulse rounded-xl bg-elevated lg:w-72 lg:shrink-0" />
+        <div class="h-96 w-full animate-pulse rounded-xl bg-elevated lg:w-80 lg:shrink-0" />
         <div class="flex flex-1 flex-col gap-4">
           <div class="h-10 animate-pulse rounded-lg bg-elevated" />
           <div class="h-64 animate-pulse rounded-xl bg-elevated" />
@@ -206,7 +206,7 @@ function goBack(): void {
       <div class="flex flex-col gap-6 lg:flex-row lg:items-start">
 
         <!-- Left sidebar: Profile Card -->
-        <div class="w-full lg:w-72 lg:shrink-0">
+        <div class="w-full lg:w-80 lg:shrink-0">
           <EmployeeProfileCard
             :employee="employee"
             :can-update="canUpdate"
