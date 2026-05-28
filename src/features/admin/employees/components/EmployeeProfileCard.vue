@@ -9,7 +9,7 @@
  *   - Employee number with copy icon
  *   - Current position title
  *   - Row of UBadge chips: department (neutral bg + colored dot), status (colored bg + dot), modality (colored bg)
- *   - Action buttons: Mensaje, Exportar, Editar
+ *   - Action buttons: Exportar, Editar
  *   - Contact section: Email, Phone, Location — label-value pairs separated by dividers
  *   - Personal section: Birthday, Contract type, Hire date
  *
@@ -246,22 +246,13 @@ const rowActions = computed(() =>
     <!-- Action buttons row -->
     <div class="flex items-center gap-2 px-6 py-3">
       <UButton
-        icon="i-lucide-mail"
-        color="neutral"
-        variant="outline"
-        size="sm"
-        class="flex-1"
-        :href="employee.email ? `mailto:${employee.email}` : undefined"
-        :disabled="!employee.email"
-      >
-        Mensaje
-      </UButton>
-      <UButton
         icon="i-lucide-download"
         color="neutral"
         variant="outline"
         size="sm"
-        class="flex-1"
+        block
+        class="flex-1 min-w-0"
+        :ui="{ label: 'truncate' }"
       >
         Exportar
       </UButton>
@@ -271,7 +262,9 @@ const rowActions = computed(() =>
         color="primary"
         variant="soft"
         size="sm"
-        class="flex-1"
+        block
+        class="flex-1 min-w-0"
+        :ui="{ label: 'truncate' }"
         @click="emit('edit', employee)"
       >
         Editar
