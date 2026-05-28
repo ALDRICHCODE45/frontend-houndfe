@@ -36,14 +36,11 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { AppDataTable } from '@/core/shared/components/DataTable'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { EMPLOYEE_STATUS_LABELS, WORK_MODALITY_LABELS } from '../interfaces/employee.types'
 import { useEmployeesList } from '../composables/useEmployeesList'
 import {
   useEmployeeColumns,
-  employeeStatusToBadgeTone,
-  workModalityToBadgeTone,
   formatHireDate,
 } from '../composables/useEmployeeColumns'
 import { useEmployeeViewMode } from '../composables/useEmployeeViewMode'
@@ -154,6 +151,83 @@ function getInitials(fullName: string): string {
       .map((p) => p[0]?.toUpperCase() ?? '')
       .join('') || 'C'
   )
+}
+
+function getAvatarClass(seedValue: string): string {
+  const palettes = [
+    'bg-amber-500 text-white',
+    'bg-pink-500 text-white',
+    'bg-violet-500 text-white',
+    'bg-red-500 text-white',
+    'bg-cyan-500 text-white',
+    'bg-emerald-500 text-white',
+    'bg-blue-500 text-white',
+  ]
+  const seed = seedValue.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)
+  return palettes[seed % palettes.length] ?? palettes[0]!
+}
+
+function getDepartmentBadgeClass(department: string | null): string {
+  const value = department?.toLowerCase() ?? ''
+  if (value.includes('producto')) return 'border-violet-200 bg-violet-50 text-violet-700'
+  if (value.includes('diseño')) return 'border-pink-200 bg-pink-50 text-pink-700'
+  if (value.includes('finanzas')) return 'border-blue-200 bg-blue-50 text-blue-700'
+  if (value.includes('recursos')) return 'border-cyan-200 bg-cyan-50 text-cyan-700'
+  if (value.includes('operaciones')) return 'border-amber-200 bg-amber-50 text-amber-700'
+  if (value.includes('legal')) return 'border-slate-200 bg-slate-50 text-slate-700'
+  return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+}
+
+function getDepartmentDotClass(department: string | null): string {
+  const value = department?.toLowerCase() ?? ''
+  if (value.includes('producto')) return 'bg-violet-500'
+  if (value.includes('diseño')) return 'bg-pink-500'
+  if (value.includes('finanzas')) return 'bg-blue-500'
+  if (value.includes('recursos')) return 'bg-cyan-500'
+  if (value.includes('operaciones')) return 'bg-amber-500'
+  if (value.includes('legal')) return 'bg-slate-500'
+  return 'bg-emerald-500'
+}
+
+function getModalityBadgeClass(modality: Employee['workModality']): string {
+  switch (modality) {
+    case 'REMOTE':
+      return 'border-blue-200 bg-blue-50 text-blue-700'
+    case 'HYBRID':
+      return 'border-orange-200 bg-orange-50 text-orange-700'
+    case 'ONSITE':
+      return 'border-slate-200 bg-slate-100 text-slate-700'
+  }
+}
+
+function getStatusBadgeClass(status: Employee['status']): string {
+  switch (status) {
+    case 'ACTIVE':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    case 'ON_LEAVE':
+      return 'border-amber-200 bg-amber-50 text-amber-700'
+    case 'TERMINATED':
+      return 'border-red-200 bg-red-50 text-red-700'
+  }
+}
+
+function getStatusDotClass(status: Employee['status']): string {
+  switch (status) {
+    case 'ACTIVE':
+      return 'bg-emerald-500'
+    case 'ON_LEAVE':
+      return 'bg-amber-500'
+    case 'TERMINATED':
+      return 'bg-red-500'
+  }
+}
+
+function getPositionLevel(position: string | null): string {
+  const value = position?.toLowerCase() ?? ''
+  if (value.includes('senior') || value.includes('gerente') || value.includes('director')) return 'Senior'
+  if (value.includes('junior') || value.includes('practicante')) return 'Junior'
+  if (!position) return '—'
+  return 'Mid'
 }
 
 // ── Manager display (table view — reads from resolved map via pure helper) ─────
@@ -287,7 +361,9 @@ const showingTo = computed(() => {
           :showing-from="showingFrom"
           :showing-to="showingTo"
           :page-size-options="[10, 20, 50]"
+          :show-toolbar="false"
           :show-add-button="false"
+          :show-refresh="false"
           add-button-text="Nuevo colaborador"
           add-button-icon="i-lucide-user-plus"
           empty="No se encontraron colaboradores"
@@ -301,59 +377,103 @@ const showingTo = computed(() => {
               class="flex cursor-pointer items-center gap-3"
               @click="navigateToDetail(row.original)"
             >
-              <UAvatar
-                :alt="row.original.fullName"
-                :text="getInitials(row.original.fullName)"
-                size="sm"
-              />
+              <div class="relative shrink-0">
+                <div
+                  class="flex size-8 items-center justify-center rounded-full text-xs font-semibold shadow-sm"
+                  :class="getAvatarClass(row.original.id)"
+                  :aria-label="row.original.fullName"
+                >
+                  {{ getInitials(row.original.fullName) }}
+                </div>
+                <span
+                  v-if="row.original.status === 'ACTIVE'"
+                  class="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-default bg-emerald-500"
+                  aria-label="Activo"
+                />
+              </div>
               <div class="min-w-0">
-                <p class="truncate font-medium text-highlighted hover:text-primary hover:underline">
+                <p class="truncate text-sm font-semibold text-highlighted hover:text-primary hover:underline">
                   {{ row.original.fullName }}
                 </p>
-                <p v-if="row.original.email" class="truncate text-sm text-muted">
+                <p v-if="row.original.email" class="truncate text-xs text-muted">
                   {{ row.original.email }}
                 </p>
-                <p v-else class="text-sm text-muted">—</p>
+                <p v-else class="text-xs text-muted">{{ row.original.employeeNumber }}</p>
               </div>
             </div>
           </template>
 
           <!-- Cargo cell -->
           <template #cargo-cell="{ row }">
-            <span class="text-sm">{{ row.original.currentPosition ?? '—' }}</span>
+            <div class="min-w-0">
+              <p class="truncate text-sm font-semibold text-highlighted">
+                {{ row.original.currentPosition ?? '—' }}
+              </p>
+              <p class="text-xs text-muted">{{ getPositionLevel(row.original.currentPosition) }}</p>
+            </div>
           </template>
 
           <!-- Departamento cell -->
           <template #departamento-cell="{ row }">
-            <span class="text-sm">{{ row.original.currentDepartment ?? '—' }}</span>
+            <UBadge
+              v-if="row.original.currentDepartment"
+              variant="outline"
+              size="sm"
+              :class="getDepartmentBadgeClass(row.original.currentDepartment)"
+              :ui="{ base: 'gap-1.5 rounded-md px-2 py-1 shadow-none ring-0', label: 'text-xs font-medium' }"
+            >
+              <template #leading>
+                <span class="size-1.5 rounded-full" :class="getDepartmentDotClass(row.original.currentDepartment)" />
+              </template>
+              {{ row.original.currentDepartment }}
+            </UBadge>
+            <span v-else class="text-sm text-muted">—</span>
           </template>
 
           <!-- Jefe directo cell — resolved manager name or "—" -->
           <template #jefedirecto-cell="{ row }">
-            <span class="text-sm text-muted">{{ getManagerDisplay(row.original) }}</span>
+            <div v-if="getManagerDisplay(row.original) !== '—'" class="flex items-center gap-2">
+              <div
+                class="flex size-6 items-center justify-center rounded-full text-[10px] font-semibold shadow-sm"
+                :class="getAvatarClass(getManagerDisplay(row.original))"
+              >
+                {{ getInitials(getManagerDisplay(row.original)) }}
+              </div>
+              <span class="truncate text-sm text-default">{{ getManagerDisplay(row.original) }}</span>
+            </div>
+            <span v-else class="text-sm text-muted">—</span>
           </template>
 
           <!-- Fecha de ingreso cell -->
           <template #fechaIngreso-cell="{ row }">
-            <span class="text-sm">{{ formatHireDate(row.original.hireDate) }}</span>
+            <span class="text-sm font-medium text-default">{{ formatHireDate(row.original.hireDate) }}</span>
           </template>
 
           <!-- Modalidad cell — badge chip -->
           <template #modalidad-cell="{ row }">
-            <AppBadge
-              :label="WORK_MODALITY_LABELS[(row.original as Employee).workModality]"
-              :tone="workModalityToBadgeTone((row.original as Employee).workModality)"
-              :aria-label="`Modalidad: ${WORK_MODALITY_LABELS[(row.original as Employee).workModality]}`"
-            />
+            <UBadge
+              variant="outline"
+              size="sm"
+              :class="getModalityBadgeClass((row.original as Employee).workModality)"
+              :ui="{ base: 'rounded-md px-2 py-1 shadow-none ring-0', label: 'text-xs font-semibold' }"
+            >
+              {{ WORK_MODALITY_LABELS[(row.original as Employee).workModality] }}
+            </UBadge>
           </template>
 
           <!-- Estado cell — badge chip -->
           <template #estado-cell="{ row }">
-            <AppBadge
-              :label="EMPLOYEE_STATUS_LABELS[(row.original as Employee).status]"
-              :tone="employeeStatusToBadgeTone((row.original as Employee).status)"
-              :aria-label="`Estado: ${EMPLOYEE_STATUS_LABELS[(row.original as Employee).status]}`"
-            />
+            <UBadge
+              variant="outline"
+              size="sm"
+              :class="getStatusBadgeClass((row.original as Employee).status)"
+              :ui="{ base: 'gap-1.5 rounded-md px-2.5 py-1 shadow-none ring-0', label: 'text-xs font-semibold' }"
+            >
+              <template #leading>
+                <span class="size-1.5 rounded-full" :class="getStatusDotClass((row.original as Employee).status)" />
+              </template>
+              {{ EMPLOYEE_STATUS_LABELS[(row.original as Employee).status] }}
+            </UBadge>
           </template>
 
           <!-- Actions cell — row action dropdown (WU-05B) -->

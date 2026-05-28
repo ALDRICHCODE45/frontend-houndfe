@@ -31,6 +31,7 @@ const props = withDefaults(
     enableColumnVisibility?: boolean
     enableRowSelection?: boolean
     // Toolbar
+    showToolbar?: boolean
     searchPlaceholder?: string
     showAddButton?: boolean
     addButtonText?: string
@@ -53,6 +54,7 @@ const props = withDefaults(
     showingTo: 0,
     enableColumnVisibility: false,
     enableRowSelection: false,
+    showToolbar: true,
     searchPlaceholder: 'Buscar...',
     showAddButton: false,
     addButtonText: 'Agregar',
@@ -124,6 +126,7 @@ function handleClearSelection() {
   <div class="flex flex-col gap-4">
     <!-- Toolbar -->
     <DataTableToolbar
+      v-if="props.showToolbar"
       :global-filter="globalFilter"
       :search-placeholder="props.searchPlaceholder"
       :show-add-button="props.showAddButton"
