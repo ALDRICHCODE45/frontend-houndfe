@@ -31,7 +31,9 @@ import type {
 import { useEditEmployeeForm, editFormStateToDto } from '../composables/useEditEmployeeForm'
 import { useUpdateEmployee } from '../composables/useUpdateEmployee'
 import { formatHireDate } from '../composables/useEmployeeColumns'
-import { useManagerPicker } from '../composables/useManagerPicker'
+import { useManagerPicker, type ManagerPickerOption } from '../composables/useManagerPicker'
+import { useManagerResolution } from '../composables/useManagerResolution'
+import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import DateFieldPopover from '@/features/POS/sales/components/DateFieldPopover.vue'
 
 // ─── Props & emits ─────────────────────────────────────────────────────────────
@@ -51,9 +53,45 @@ const emit = defineEmits<{
 const { state, schema, resetForm } = useEditEmployeeForm(() => props.employee)
 const { mutateAsync, isPending } = useUpdateEmployee()
 
-// ─── Manager picker (exclude self) ─────────────────────────────────────────────
-const { search: managerSearch, managers, isLoading: isLoadingManagers } = useManagerPicker({
+// ─── Manager picker (exclude self, preload current manager) ───────────────────
+const authStore = useAuthStore()
+const tenantId = computed(() => authStore.currentTenantId)
+
+// Resolve the current manager (if any) so the picker can render the real label
+// instead of the UUID stored in `state.managerId`.
+const employeesForManager = computed(() =>
+  props.employee?.managerId ? [props.employee] : [],
+)
+const { managerMap } = useManagerResolution(
+  () => employeesForManager.value,
+  () => tenantId.value,
+)
+
+const currentManagerOption = computed<ManagerPickerOption | null>(() => {
+  const id = props.employee?.managerId
+  if (!id) return null
+  const info = managerMap.value.get(id)
+  if (!info) {
+    // Manager still loading — render the id as fallback label so the trigger is
+    // never blank, but flag it so the description hints at the loading state.
+    return { id, label: id, position: '—', department: '—' }
+  }
+  return {
+    id,
+    label: info.fullName,
+    position: info.currentPosition ?? '—',
+    department: info.currentDepartment ?? '—',
+  }
+})
+
+const {
+  search: managerSearch,
+  isOpen: isManagerPickerOpen,
+  managers,
+  isLoading: isLoadingManagers,
+} = useManagerPicker({
   excludeId: props.employee?.id ?? null,
+  currentManager: () => currentManagerOption.value,
 })
 const managerSearchTerm = ref('')
 
@@ -86,7 +124,7 @@ const WORK_MODALITY_OPTIONS = computed(() =>
 )
 
 const IDENTITY_DOCUMENT_TYPE_LABELS: Record<IdentityDocumentType, string> = {
-  INE: 'INE / IFE',
+  INE: 'INE',
   PASSPORT: 'Pasaporte',
   DRIVER_LICENSE: 'Licencia de conducir',
   MILITARY_ID: 'Cartilla militar',
@@ -442,13 +480,14 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
             <UFormField label="Jefe directo" name="managerId">
               <USelectMenu
                 v-model="state.managerId"
+                v-model:open="isManagerPickerOpen"
+                v-model:search-term="managerSearchTerm"
                 :items="managerOptions"
                 value-key="value"
                 label-key="label"
                 description-key="description"
-                placeholder="Buscar jefe directo..."
-                v-model:search-term="managerSearchTerm"
-                :search-input="{ placeholder: 'Escribí para buscar colaboradores' }"
+                placeholder="Seleccionar jefe directo"
+                :search-input="{ placeholder: 'Buscar colaborador…' }"
                 :ignore-filter="true"
                 :loading="isLoadingManagers"
                 class="w-full"
@@ -456,8 +495,11 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
                 :disabled="isPending"
               >
                 <template #empty>
-                  <span v-if="managerSearchTerm.length < 1">Escribí para buscar colaboradores</span>
-                  <span v-else>No se encontraron colaboradores</span>
+                  <span v-if="isLoadingManagers">Cargando colaboradores…</span>
+                  <span v-else-if="managerSearchTerm.length > 0">
+                    No se encontraron colaboradores
+                  </span>
+                  <span v-else>No hay colaboradores disponibles</span>
                 </template>
               </USelectMenu>
             </UFormField>

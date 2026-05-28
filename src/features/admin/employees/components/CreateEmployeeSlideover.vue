@@ -50,7 +50,12 @@ const { state, schema, resetForm } = useCreateEmployeeForm()
 const { mutateAsync, isPending } = useCreateEmployee()
 
 // ─── Manager picker ────────────────────────────────────────────────────────────
-const { search: managerSearch, managers, isLoading: isLoadingManagers } = useManagerPicker()
+const {
+  search: managerSearch,
+  isOpen: isManagerPickerOpen,
+  managers,
+  isLoading: isLoadingManagers,
+} = useManagerPicker()
 const managerSearchTerm = ref('')
 
 const managerOptions = computed(() =>
@@ -263,13 +268,14 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
             <UFormField label="Jefe directo" name="managerId">
               <USelectMenu
                 v-model="state.managerId"
+                v-model:open="isManagerPickerOpen"
+                v-model:search-term="managerSearchTerm"
                 :items="managerOptions"
                 value-key="value"
                 label-key="label"
                 description-key="description"
-                placeholder="Buscar jefe directo..."
-                v-model:search-term="managerSearchTerm"
-                :search-input="{ placeholder: 'Escribí para buscar colaboradores' }"
+                placeholder="Seleccionar jefe directo"
+                :search-input="{ placeholder: 'Buscar colaborador…' }"
                 :ignore-filter="true"
                 :loading="isLoadingManagers"
                 class="w-full"
@@ -277,8 +283,11 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
                 :disabled="isPending"
               >
                 <template #empty>
-                  <span v-if="managerSearchTerm.length < 1">Escribí para buscar colaboradores</span>
-                  <span v-else>No se encontraron colaboradores</span>
+                  <span v-if="isLoadingManagers">Cargando colaboradores…</span>
+                  <span v-else-if="managerSearchTerm.length > 0">
+                    No se encontraron colaboradores
+                  </span>
+                  <span v-else>No hay colaboradores disponibles</span>
                 </template>
               </USelectMenu>
             </UFormField>

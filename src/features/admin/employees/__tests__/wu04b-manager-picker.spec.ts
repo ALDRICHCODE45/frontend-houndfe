@@ -24,6 +24,7 @@ import { describe, it, expect } from 'vitest'
 import {
   filterExcludedId,
   buildPickerOptions,
+  mergeCurrentManagerOption,
   type ManagerPickerOption,
 } from '@/features/admin/employees/composables/useManagerPicker'
 
@@ -207,5 +208,49 @@ describe('filterExcludedId + buildPickerOptions — combined pipeline (WU-04B tr
     // MANAGER_C has null values — must use fallback
     expect(options[1]?.position).toBe('—')
     expect(options[1]?.department).toBe('—')
+  })
+})
+
+// ─── mergeCurrentManagerOption — preload selected manager in edit mode ─────────
+
+describe('mergeCurrentManagerOption — preload current manager for edit slideover', () => {
+  const CURRENT: ManagerPickerOption = {
+    id: 'uuid-current',
+    label: 'Pedro Soto',
+    position: 'CTO',
+    department: 'Tecnología',
+  }
+
+  it('prepends the current manager when not present in the fetched options', () => {
+    const options = buildPickerOptions([MANAGER_A, MANAGER_B])
+    const merged = mergeCurrentManagerOption(options, CURRENT)
+
+    expect(merged).toHaveLength(3)
+    expect(merged[0]).toEqual(CURRENT)
+  })
+
+  it('does not duplicate when the current manager already exists in options', () => {
+    const options = buildPickerOptions([MANAGER_A])
+    const merged = mergeCurrentManagerOption(options, {
+      id: 'uuid-manager-a',
+      label: 'Ana López',
+      position: 'Directora',
+      department: 'Operaciones',
+    })
+
+    expect(merged).toHaveLength(1)
+    expect(merged[0]?.id).toBe('uuid-manager-a')
+  })
+
+  it('returns the original list unchanged when current is null', () => {
+    const options = buildPickerOptions([MANAGER_A])
+    const merged = mergeCurrentManagerOption(options, null)
+    expect(merged).toBe(options)
+  })
+
+  it('returns the original list unchanged when current is undefined', () => {
+    const options = buildPickerOptions([MANAGER_A])
+    const merged = mergeCurrentManagerOption(options, undefined)
+    expect(merged).toBe(options)
   })
 })

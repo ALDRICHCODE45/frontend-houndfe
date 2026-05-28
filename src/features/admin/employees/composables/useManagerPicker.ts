@@ -82,15 +82,51 @@ export function buildPickerOptions(employees: Employee[]): ManagerPickerOption[]
   }))
 }
 
+/**
+ * Prepend a "current manager" option so the picker can always render the
+ * pre-selected value as a human label, even before any search results are
+ * cached.
+ *
+ * Rules:
+ * - If `current` is null or undefined → returns `options` unchanged.
+ * - If an option with the same id already exists → returns `options` unchanged
+ *   (avoids duplicates when the manager is also part of the search results).
+ * - Otherwise prepends `current` at the top so it stays visible without scroll.
+ *
+ * Pure — no side effects.
+ */
+export function mergeCurrentManagerOption(
+  options: ManagerPickerOption[],
+  current: ManagerPickerOption | null | undefined,
+): ManagerPickerOption[] {
+  if (!current) return options
+  if (options.some((o) => o.id === current.id)) return options
+  return [current, ...options]
+}
+
 // ─── Composable ───────────────────────────────────────────────────────────────
 
 export interface UseManagerPickerOptions {
   /** When provided, this employee is excluded from results (edit mode self-exclusion) */
   excludeId?: string | null
+  /**
+   * Reactive getter for the currently-selected manager (edit mode).
+   * When provided, the option is always merged at the top of `managers` so the
+   * trigger renders the human label instead of a UUID.
+   */
+  currentManager?: () => ManagerPickerOption | null
 }
 
 /**
- * useManagerPicker — async manager search composable.
+ * useManagerPicker — preloaded combobox composable.
+ *
+ * UX contract (search-on-open pattern):
+ *  - When the picker opens, fetch the first 100 active employees without
+ *    requiring the user to type. Most tenants have <100 collaborators so the
+ *    full list is visible immediately.
+ *  - When the user types, debounce 300ms and re-fetch filtered results.
+ *  - In edit mode, the current manager is always merged at the top of the list
+ *    so the trigger and the dropdown stay in sync even before any fetch.
  *
  * @returns search (ref), isOpen (ref), managers (ManagerPickerOption[]), isLoading
  */
@@ -121,10 +157,21 @@ export function useManagerPicker(options: UseManagerPickerOptions = {}) {
 
   /**
    * Query is enabled when:
-   *  - The picker is open (show first 100 active employees without a search term), OR
-   *  - The user has typed at least 1 character (search-driven)
+   *  - The picker has been opened at least once (show first 100 active
+   *    employees without a search term — preloaded combobox UX), OR
+   *  - The user has typed at least 1 character (search-driven refinement).
+   *
+   * We use a sticky flag instead of `isOpen` directly so the query stays
+   * cached after the picker closes, and re-opening is instant.
    */
-  const isEnabled = computed(() => isOpen.value || debouncedSearch.value.length >= 1)
+  const hasBeenOpened = ref(false)
+  watch(isOpen, (open) => {
+    if (open) hasBeenOpened.value = true
+  })
+
+  const isEnabled = computed(
+    () => hasBeenOpened.value || debouncedSearch.value.length >= 1,
+  )
 
   const { data: rawData, isLoading } = useQuery({
     queryKey: computed(() =>
@@ -135,11 +182,18 @@ export function useManagerPicker(options: UseManagerPickerOptions = {}) {
     enabled: isEnabled,
   })
 
-  /** Manager options with exclusion applied and mapped to picker shape */
+  /**
+   * Manager options:
+   *  1. start from the fetched results,
+   *  2. drop the excluded id (self in edit mode),
+   *  3. map to the picker shape,
+   *  4. prepend the current manager so the trigger always shows a real label.
+   */
   const managers = computed<ManagerPickerOption[]>(() => {
     const raw = rawData.value ?? []
     const filtered = filterExcludedId(raw, options.excludeId)
-    return buildPickerOptions(filtered)
+    const built = buildPickerOptions(filtered)
+    return mergeCurrentManagerOption(built, options.currentManager?.() ?? null)
   })
 
   return {
