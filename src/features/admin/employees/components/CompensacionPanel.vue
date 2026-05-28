@@ -20,13 +20,25 @@
  */
 
 import { computed, reactive, ref } from 'vue'
+import { z } from 'zod'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import DateFieldPopover from '@/features/POS/sales/components/DateFieldPopover.vue'
 import { hasSalary } from '../interfaces/employee.types'
 import {
-  AddSalaryChangeDtoSchema,
   AddPositionChangeDtoSchema,
 } from '../interfaces/employee.types'
+
+/**
+ * Form-level schema for the salary modal.
+ * User enters amount in whole currency units (pesos), NOT centavos.
+ * Conversion to centavos (×100) happens in onSalarySubmit before API call.
+ */
+const SalaryFormSchema = z.object({
+  amount: z.number().min(1, 'El monto debe ser al menos 1'),
+  currency: z.string().min(1).max(3),
+  effectiveFrom: z.string().min(1),
+  reason: z.string().min(1),
+})
 import type { Employee } from '../interfaces/employee.types'
 import {
   useEmployeeSalaryHistory,
@@ -84,15 +96,17 @@ const currentSalaryDisplay = computed<string>(() => {
 const isSalaryModalOpen = ref(false)
 const salaryFormId = 'add-salary-change-form'
 
+/** User enters amount in whole currency units (e.g. 45000 = $45,000 MXN).
+ *  Backend expects centavos, so we multiply × 100 in onSalarySubmit. */
 const salaryState = reactive({
-  amountCents: undefined as number | undefined,
+  amount: undefined as number | undefined,
   currency: 'MXN',
   effectiveFrom: '',
   reason: '',
 })
 
 function resetSalaryForm(): void {
-  salaryState.amountCents = undefined
+  salaryState.amount = undefined
   salaryState.currency = 'MXN'
   salaryState.effectiveFrom = ''
   salaryState.reason = ''
@@ -102,11 +116,12 @@ const { mutateAsync: addSalaryChange, isPending: isAddingSalary } =
   useAddSalaryChange(employeeId)
 
 async function onSalarySubmit(
-  event: FormSubmitEvent<{ amountCents: number; currency: string; effectiveFrom: string; reason: string }>,
+  event: FormSubmitEvent<{ amount: number; currency: string; effectiveFrom: string; reason: string }>,
 ): Promise<void> {
   try {
+    // Convert user-entered whole currency units to centavos for the backend
     await addSalaryChange({
-      amountCents: event.data.amountCents,
+      amountCents: Math.round(event.data.amount * 100),
       currency: event.data.currency,
       effectiveFrom: event.data.effectiveFrom,
       reason: event.data.reason,
@@ -378,17 +393,17 @@ function closePositionModal(): void {
     <template #body>
       <UForm
         :id="salaryFormId"
-        :schema="AddSalaryChangeDtoSchema"
+        :schema="SalaryFormSchema"
         :state="salaryState"
         class="flex flex-col gap-4"
         @submit="onSalarySubmit"
       >
-        <UFormField label="Monto (centavos)" name="amountCents" required
-          hint="Ej: $45,000.00 = 4500000">
+        <UFormField label="Monto" name="amount" required
+          hint="Ingresá el monto en pesos (ej: 45000)">
           <UInputNumber
-            v-model="salaryState.amountCents"
+            v-model="salaryState.amount"
             :min="1"
-            placeholder="4500000"
+            placeholder="45000"
             class="w-full"
             :disabled="isAddingSalary"
           />
