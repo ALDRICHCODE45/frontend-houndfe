@@ -34,7 +34,7 @@ function getFullAddress(e: Employee): string | null {
 
 // ── Identity document type labels ─────────────────────────────────────────────
 const ID_TYPE_LABELS: Record<string, string> = {
-  INE: 'INE / IFE',
+  INE: 'INE',
   PASSPORT: 'Pasaporte',
   DRIVER_LICENSE: 'Licencia de conducir',
   MILITARY_ID: 'Cartilla militar',
