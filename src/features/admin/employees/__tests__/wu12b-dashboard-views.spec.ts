@@ -197,15 +197,26 @@ describe('tenantId regression — no tenantId in outbound requests', () => {
     expect(config?.params).not.toHaveProperty('tenantId')
   })
 
-  it('getPendingApprovals does not send tenantId in params', async () => {
+  it('getPendingApprovals calls the endpoint without query params (backend reads JWT)', async () => {
     const getSpy = vi.spyOn(http, 'get').mockResolvedValue({ data: [] })
-    await employeesApi.getPendingApprovals('mgr-1')
+    await employeesApi.getPendingApprovals()
     expect(getSpy).toHaveBeenCalledTimes(1)
     const callArgs = getSpy.mock.calls[0]!
+    expect(callArgs[0]).toBe('/admin/employees-time-off/pending-approvals')
+    // No second argument means no params/config — neither tenantId nor managerId.
+    expect(callArgs[1]).toBeUndefined()
+  })
+
+  it('getPendingApprovalsByManager hits the by-manager admin route with the Employee.id in the path', async () => {
+    const getSpy = vi.spyOn(http, 'get').mockResolvedValue({ data: [] })
+    await employeesApi.getPendingApprovalsByManager('mgr-1')
+    expect(getSpy).toHaveBeenCalledTimes(1)
+    const callArgs = getSpy.mock.calls[0]!
+    expect(callArgs[0]).toBe(
+      '/admin/employees-time-off/pending-approvals/by-manager/mgr-1',
+    )
     const config = callArgs[1] as { params?: Record<string, unknown> } | undefined
-    expect(config?.params).not.toHaveProperty('tenantId')
-    // Also verify managerId IS in params (correct call structure)
-    expect(config?.params?.managerId).toBe('mgr-1')
+    expect(config?.params).toBeUndefined()
   })
 
   it('getDocuments does not send tenantId in params', async () => {

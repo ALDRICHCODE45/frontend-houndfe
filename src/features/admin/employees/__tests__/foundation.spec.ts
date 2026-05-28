@@ -171,10 +171,16 @@ describe('employeeTimeOffQueryKeys (task 1.4)', () => {
     expect(key).toContain('time-off-balance')
   })
 
-  it('pending key includes managerId', () => {
-    const key = employeeTimeOffQueryKeys.pending('tenant-1', 'manager-1')
-    expect(key).toContain('manager-1')
+  it('pending key is scoped per tenant (user resolved from JWT)', () => {
+    const key = employeeTimeOffQueryKeys.pending('tenant-1')
+    expect(key).toContain('tenant-1')
     expect(key).toContain('time-off-pending')
+  })
+
+  it('pendingByManager key includes the Employee.id of the target manager', () => {
+    const key = employeeTimeOffQueryKeys.pendingByManager('tenant-1', 'manager-1')
+    expect(key).toContain('manager-1')
+    expect(key).toContain('time-off-pending-by-manager')
   })
 })
 

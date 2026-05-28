@@ -224,17 +224,30 @@ describe('UpdateEmergencyContactDtoSchema', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('employeeTimeOffQueryKeys', () => {
-  it('pending key has correct shape with managerId', () => {
-    const key = employeeTimeOffQueryKeys.pending('tenant-1', 'mgr-42')
+  it('pending key has correct shape and is scoped per tenant (user is implicit in JWT)', () => {
+    const key = employeeTimeOffQueryKeys.pending('tenant-1')
     expect(key[0]).toBe('employees')
     expect(key[1]).toBe('tenant-1')
     expect(key[2]).toBe('time-off-pending')
+  })
+
+  it('pending keys are unique per tenant', () => {
+    const key1 = employeeTimeOffQueryKeys.pending('tenant-A')
+    const key2 = employeeTimeOffQueryKeys.pending('tenant-B')
+    expect(key1[1]).not.toBe(key2[1])
+  })
+
+  it('pendingByManager key has correct shape with managerId', () => {
+    const key = employeeTimeOffQueryKeys.pendingByManager('tenant-1', 'mgr-42')
+    expect(key[0]).toBe('employees')
+    expect(key[1]).toBe('tenant-1')
+    expect(key[2]).toBe('time-off-pending-by-manager')
     expect(key[3]).toBe('mgr-42')
   })
 
-  it('pending keys are unique per managerId', () => {
-    const key1 = employeeTimeOffQueryKeys.pending('tenant-1', 'mgr-A')
-    const key2 = employeeTimeOffQueryKeys.pending('tenant-1', 'mgr-B')
+  it('pendingByManager keys are unique per managerId', () => {
+    const key1 = employeeTimeOffQueryKeys.pendingByManager('tenant-1', 'mgr-A')
+    const key2 = employeeTimeOffQueryKeys.pendingByManager('tenant-1', 'mgr-B')
     expect(key1[3]).not.toBe(key2[3])
   })
 })
@@ -316,15 +329,32 @@ describe('employeesApi — getPendingApprovals', () => {
     vi.spyOn(employeesApi, 'getPendingApprovals').mockResolvedValue([MOCK_TIME_OFF])
   })
 
-  it('returns an array of pending TimeOffRequests', async () => {
-    const result = await employeesApi.getPendingApprovals('mgr-1')
+  it('returns an array of pending TimeOffRequests for the current user', async () => {
+    const result = await employeesApi.getPendingApprovals()
     expect(result).toHaveLength(1)
     expect(result[0]!.status).toBe('APPROVED') // mock value
   })
 
-  it('calls getPendingApprovals with correct managerId', async () => {
+  it('calls getPendingApprovals without any arguments (backend resolves from JWT)', async () => {
     const spy = vi.spyOn(employeesApi, 'getPendingApprovals').mockResolvedValue([])
-    await employeesApi.getPendingApprovals('mgr-42')
+    await employeesApi.getPendingApprovals()
+    expect(spy).toHaveBeenCalledWith()
+  })
+})
+
+describe('employeesApi — getPendingApprovalsByManager (admin/HR)', () => {
+  beforeEach(() => {
+    vi.spyOn(employeesApi, 'getPendingApprovalsByManager').mockResolvedValue([MOCK_TIME_OFF])
+  })
+
+  it('returns an array of pending TimeOffRequests for the given Employee.id', async () => {
+    const result = await employeesApi.getPendingApprovalsByManager('mgr-1')
+    expect(result).toHaveLength(1)
+  })
+
+  it('calls getPendingApprovalsByManager with the supplied Employee.id', async () => {
+    const spy = vi.spyOn(employeesApi, 'getPendingApprovalsByManager').mockResolvedValue([])
+    await employeesApi.getPendingApprovalsByManager('mgr-42')
     expect(spy).toHaveBeenCalledWith('mgr-42')
   })
 })

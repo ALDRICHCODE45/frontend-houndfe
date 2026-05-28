@@ -4,8 +4,9 @@
  * Mutation composable to approve or reject a pending time-off request.
  *
  * Exports:
- *   - useReviewTimeOff(employeeId)  — mutation for POST /:employeeId/time-off/:timeOffId/review
- *   - usePendingApprovals(managerId) — query for GET /admin/employees-time-off/pending-approvals
+ *   - useReviewTimeOff(employeeId)         — mutation for POST /:employeeId/time-off/:timeOffId/review
+ *   - usePendingApprovals()                — GET /admin/employees-time-off/pending-approvals (current user)
+ *   - usePendingApprovalsByManager(id)     — GET /admin/employees-time-off/pending-approvals/by-manager/:id (admin/HR)
  *
  * CASL gates:
  *   - Review requires can('update', 'EmployeeTimeOff')
@@ -13,8 +14,10 @@
  *
  * Backend constraints (§4.5):
  *   - reviewTimeOff only works on PENDING status — backend throws TIME_OFF_INVALID_TRANSITION otherwise.
- *   - pending-approvals route: /admin/employees-time-off/pending-approvals (hyphen, NOT under employeeId).
- *   - NEVER send tenantId.
+ *   - pending-approvals route uses hyphen (employees-time-off) — NOT under employeeId.
+ *   - The personal endpoint resolves the manager Employee from the JWT via
+ *     Employee.userId; frontend NEVER sends managerId for that variant.
+ *   - NEVER send tenantId on either endpoint.
  */
 
 import { computed } from 'vue'
@@ -99,30 +102,58 @@ export function useReviewTimeOff(employeeId: MaybeRef<string>) {
 }
 
 /**
- * usePendingApprovals — query for pending approvals as seen by a manager.
+ * usePendingApprovals — pending approvals for the current logged-in user.
  *
- * Returns all PENDING time-off requests for direct subordinates of managerId.
- * Ordered by startDate asc (nearest first).
- * Medical reason stripping applied server-side.
- * Requires read:EmployeeTimeOff permission.
+ * Backend resolves the manager Employee from the JWT (via Employee.userId)
+ * and returns PENDING requests for the direct subordinates of that Employee.
+ * If the user has no linked Employee, the backend returns [].
  *
- * Uses employeeTimeOffQueryKeys.pending(tenantId, managerId) for cache key.
+ * - Ordered by startDate asc (nearest first).
+ * - Medical reason stripping applied server-side.
+ * - Requires read:EmployeeTimeOff permission.
+ * - Cache key is scoped per tenant (the user is implicit in the JWT).
  */
-export function usePendingApprovals(managerId: MaybeRef<string>) {
+export function usePendingApprovals() {
+  const authStore = useAuthStore()
+  const tenantId = computed(() => authStore.currentTenantId)
+
+  const queryKey = computed(() => employeeTimeOffQueryKeys.pending(tenantId.value))
+
+  const isReady = computed(() => !!tenantId.value)
+
+  return useQuery<TimeOffRequest[]>({
+    queryKey,
+    queryFn: () => employeesApi.getPendingApprovals(),
+    enabled: isReady,
+    staleTime: 30_000,
+    refetchOnWindowFocus: true, // approvals are time-sensitive — refetch on focus
+  })
+}
+
+/**
+ * usePendingApprovalsByManager — admin/HR view of any manager's pending queue.
+ *
+ * `managerId` is an Employee.id (NOT a User.id). Backend filters subordinates
+ * of that specific Employee. Same response semantics as `usePendingApprovals`.
+ *
+ * Requires read:EmployeeTimeOff permission. Intended for HR dashboards where
+ * an admin wants to see another manager's queue without impersonation.
+ */
+export function usePendingApprovalsByManager(managerId: MaybeRef<string>) {
   const authStore = useAuthStore()
   const tenantId = computed(() => authStore.currentTenantId)
 
   const queryKey = computed(() =>
-    employeeTimeOffQueryKeys.pending(tenantId.value, toValue(managerId)),
+    employeeTimeOffQueryKeys.pendingByManager(tenantId.value, toValue(managerId)),
   )
 
   const isReady = computed(() => !!tenantId.value && !!toValue(managerId))
 
   return useQuery<TimeOffRequest[]>({
     queryKey,
-    queryFn: () => employeesApi.getPendingApprovals(toValue(managerId)),
+    queryFn: () => employeesApi.getPendingApprovalsByManager(toValue(managerId)),
     enabled: isReady,
     staleTime: 30_000,
-    refetchOnWindowFocus: true, // approvals are time-sensitive — refetch on focus
+    refetchOnWindowFocus: true,
   })
 }

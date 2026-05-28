@@ -41,27 +41,19 @@ import { formatTimeOffDateRange } from '../composables/useEmployeeColumns'
 import { employeesApi } from '../api/employees.api'
 import type { Employee, TimeOffRequest, ReviewTimeOffDto } from '../interfaces/employee.types'
 
-// ─── Auth + manager id ─────────────────────────────────────────────────────────
+// ─── Auth ──────────────────────────────────────────────────────────────────────
 
 const authStore = useAuthStore()
 const tenantId = computed(() => authStore.currentTenantId)
 
-// LIMITATION (tracked in docs/backend-requests/employees-time-off-approvals.md):
-//
-// The backend expects a `managerId` that points to an `Employee` row, but the
-// only id we have from `authStore.user` is a `User` id. The schema does not
-// currently expose a `User ↔ Employee` link, so any value we send here will
-// fail the WHERE clause and the endpoint always returns []. The frontend
-// keeps using `authStore.user?.id` for now so the wiring stays in place; once
-// backend ships the relation (or moves resolution into the JWT), we just swap
-// this getter for the real Employee id.
-const managerId = computed(() => authStore.user?.id ?? '')
-
 const canReview = computed(() => authStore.userCan('update', 'EmployeeTimeOff'))
 
 // ─── Query ─────────────────────────────────────────────────────────────────────
-
-const { data: pendingRequests, isLoading, isError, refetch } = usePendingApprovals(managerId)
+//
+// Backend resolves the manager Employee from the JWT (Employee.userId). The
+// frontend does NOT send any managerId. If the logged-in user has no Employee
+// linked to it, the backend returns an empty array (not an error).
+const { data: pendingRequests, isLoading, isError, refetch } = usePendingApprovals()
 
 // ─── Resolve employee details for each pending request (avatar + name) ────────
 //
@@ -222,22 +214,16 @@ function getTypeColor(type: string): 'primary' | 'warning' | 'error' | 'neutral'
         <!-- Empty state -->
         <div
           v-else-if="!pendingRequests || pendingRequests.length === 0"
-          class="flex flex-col items-center gap-4 py-16 text-center"
+          class="flex flex-col items-center gap-3 py-16 text-center"
         >
-          <div class="flex size-16 items-center justify-center rounded-full bg-warning/10">
-            <UIcon name="i-lucide-info" class="size-8 text-warning" />
+          <div class="flex size-16 items-center justify-center rounded-full bg-success/10">
+            <UIcon name="i-lucide-check-circle-2" class="size-8 text-success" />
           </div>
-          <div class="max-w-md space-y-2">
-            <p class="font-medium text-highlighted">No se encuentran solicitudes para este usuario</p>
+          <div class="max-w-md space-y-1">
+            <p class="font-medium text-highlighted">Sin solicitudes pendientes</p>
             <p class="text-sm text-muted">
-              Esta vista lista las ausencias pendientes del equipo a tu cargo. Hoy el
-              backend aún no tiene una relación directa entre tu usuario y tu ficha de
-              colaborador, por lo que no podemos resolver automáticamente a tu equipo.
-            </p>
-            <p class="text-xs text-muted/80">
-              Si esperabas ver solicitudes acá y no aparecen, avisá al equipo de
-              plataforma. Una vez que se habilite la relación usuario↔colaborador,
-              esta lista se va a llenar sola.
+              Todas las solicitudes de tu equipo están al día. Si tu usuario no tiene
+              un colaborador vinculado, esta lista también se mostrará vacía.
             </p>
           </div>
         </div>
