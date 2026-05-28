@@ -458,6 +458,21 @@ describe('formatEffectiveDate', () => {
     // They should be different
     expect(jan).not.toBe(dec)
   })
+
+  it('accepts full ISO date string with time component (backend format)', () => {
+    // Backend returns effectiveFrom as '2027-05-27T00:00:00.000Z', not 'YYYY-MM-DD'.
+    // Regression: formatEffectiveDate used to break by appending a second time suffix,
+    // producing an invalid date that crashed the salary history timeline.
+    const result = formatEffectiveDate('2027-05-27T00:00:00.000Z')
+    expect(result).toContain('2027')
+    expect(result).not.toContain('NaN')
+    expect(result).not.toBe('Invalid Date')
+  })
+
+  it('returns the original string when given an unparseable date (graceful fallback)', () => {
+    const result = formatEffectiveDate('not-a-date')
+    expect(result).toBe('not-a-date')
+  })
 })
 
 describe('buildSalaryTimelineEntry', () => {

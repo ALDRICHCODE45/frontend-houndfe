@@ -59,15 +59,21 @@ const DATE_FORMATTER = new Intl.DateTimeFormat('es-MX', {
 })
 
 /**
- * Format a YYYY-MM-DD ISO date string to a locale date string.
+ * Format a date string (YYYY-MM-DD or full ISO with time) to a locale date.
  * Uses UTC timezone to avoid off-by-one day due to timezone shifts.
  *
- * Example: formatEffectiveDate('2026-06-01') → '1 de junio de 2026'
+ * Accepts both:
+ *   '2026-06-01'                  → '1 de junio de 2026'
+ *   '2026-06-01T00:00:00.000Z'    → '1 de junio de 2026'
  *
  * PURE — deterministic for a given locale.
  */
 export function formatEffectiveDate(isoDate: string): string {
-  const date = new Date(`${isoDate}T00:00:00Z`)
+  // If the string already contains a time component, parse as-is.
+  // Otherwise append a UTC midnight suffix so 'YYYY-MM-DD' renders correctly.
+  const normalized = isoDate.includes('T') ? isoDate : `${isoDate}T00:00:00Z`
+  const date = new Date(normalized)
+  if (Number.isNaN(date.getTime())) return isoDate
   return DATE_FORMATTER.format(date)
 }
 
