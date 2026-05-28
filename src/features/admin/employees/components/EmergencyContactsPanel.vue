@@ -262,6 +262,7 @@ async function confirmDelete(): Promise<void> {
             v-model="form.name"
             placeholder="María García"
             :maxlength="120"
+            class="w-full"
           />
         </UFormField>
         <UFormField label="Relación *">
@@ -269,6 +270,7 @@ async function confirmDelete(): Promise<void> {
             v-model="form.relationship"
             placeholder="Esposa, Padre, Hermano…"
             :maxlength="60"
+            class="w-full"
           />
         </UFormField>
         <UFormField label="Teléfono *">
@@ -277,6 +279,7 @@ async function confirmDelete(): Promise<void> {
             type="tel"
             placeholder="+5215598765432"
             :maxlength="40"
+            class="w-full"
           />
         </UFormField>
         <UFormField label="Email (opcional)">
@@ -284,6 +287,7 @@ async function confirmDelete(): Promise<void> {
             v-model="form.email"
             type="email"
             placeholder="contacto@ejemplo.com"
+            class="w-full"
           />
         </UFormField>
         <p v-if="formError" class="text-sm text-error">{{ formError }}</p>
