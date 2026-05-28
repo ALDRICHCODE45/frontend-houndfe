@@ -42,6 +42,7 @@ import {
   canCancelTimeOff,
 } from '../composables/useAusencias'
 import { useReviewTimeOff } from '../composables/useReviewTimeOff'
+import { formatTimeOffDateRange } from '../composables/useEmployeeColumns'
 
 // ─── Props ─────────────────────────────────────────────────────────────────────
 
@@ -300,9 +301,10 @@ function typeColor(type: string): string {
               </UBadge>
             </div>
             <p class="text-sm font-medium text-highlighted">
-              {{ item.startDate }} — {{ item.endDate }}
+              {{ formatTimeOffDateRange(item.startDate, item.endDate) }}
               <span class="font-normal text-muted">
-                ({{ computeTimeOffDays(item.startDate, item.endDate) }} días)
+                ({{ computeTimeOffDays(item.startDate, item.endDate) }}
+                {{ computeTimeOffDays(item.startDate, item.endDate) === 1 ? 'día' : 'días' }})
               </span>
             </p>
             <p v-if="item.reason !== undefined" class="text-xs text-muted">

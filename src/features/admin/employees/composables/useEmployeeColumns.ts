@@ -66,6 +66,41 @@ export function formatHireDate(isoDate: string): string {
 }
 
 /**
+ * Format a single ISO date or YYYY-MM-DD string as a short localized date
+ * (e.g. "27 may 2026").
+ *
+ * Backend returns time-off dates either as full ISO strings (with time and Z
+ * suffix) or as date-only `YYYY-MM-DD`. Both produce a valid Date when handed
+ * to `new Date(...)`. Using UTC timezone avoids the day-shift that happens
+ * when the local timezone is west of UTC.
+ *
+ * Pure function — no side effects.
+ */
+const TIME_OFF_DATE_FORMATTER = new Intl.DateTimeFormat('es-MX', {
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+  timeZone: 'UTC',
+})
+
+export function formatTimeOffDate(isoDate: string): string {
+  if (!isoDate) return '—'
+  const d = new Date(isoDate)
+  if (Number.isNaN(d.getTime())) return isoDate
+  return TIME_OFF_DATE_FORMATTER.format(d)
+}
+
+/**
+ * Format a start/end date pair as a human-readable range.
+ * Example: "27 may 2026 – 1 jun 2026".
+ *
+ * Pure function — no side effects.
+ */
+export function formatTimeOffDateRange(startIso: string, endIso: string): string {
+  return `${formatTimeOffDate(startIso)} – ${formatTimeOffDate(endIso)}`
+}
+
+/**
  * Resolve the manager display string for a given employee.
  *
  * Pure function — returns "—" in all WU-02 scenarios:
