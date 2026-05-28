@@ -20,9 +20,7 @@
  */
 
 import { computed } from 'vue'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
 import {
-  employeeStatusToBadgeTone,
   formatHireDate,
 } from '../composables/useEmployeeColumns'
 import { computeSeniority } from '../composables/useEmployeeViewMode'
@@ -58,11 +56,50 @@ function getInitials(fullName: string): string {
 }
 
 const initials = computed(() => getInitials(props.employee.fullName))
-const statusTone = computed(() => employeeStatusToBadgeTone(props.employee.status))
 const statusLabel = computed(() => EMPLOYEE_STATUS_LABELS[props.employee.status])
 const modalityLabel = computed(() => WORK_MODALITY_LABELS[props.employee.workModality])
 const hireDateFormatted = computed(() => formatHireDate(props.employee.hireDate))
 const seniority = computed(() => computeSeniority(props.employee.hireDate))
+
+// ── Badge styling — mirrors the dot-badge pattern used in the table view ──────
+const DEPARTMENT_BADGE_CLASS =
+  'border-gray-200 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300'
+
+function getDepartmentDotClass(department: string | null): string {
+  const value = department?.toLowerCase() ?? ''
+  if (value.includes('producto')) return 'bg-violet-500'
+  if (value.includes('diseño')) return 'bg-pink-500'
+  if (value.includes('finanzas')) return 'bg-blue-500'
+  if (value.includes('recursos')) return 'bg-cyan-500'
+  if (value.includes('operaciones')) return 'bg-amber-500'
+  if (value.includes('legal')) return 'bg-slate-500'
+  if (value.includes('almac')) return 'bg-orange-500'
+  if (value.includes('ingen') || value.includes('tecnolog')) return 'bg-indigo-500'
+  if (value.includes('tienda')) return 'bg-emerald-500'
+  return 'bg-emerald-500'
+}
+
+function getStatusBadgeClass(status: Employee['status']): string {
+  switch (status) {
+    case 'ACTIVE':
+      return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300'
+    case 'ON_LEAVE':
+      return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/15 dark:text-amber-300'
+    case 'TERMINATED':
+      return 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/15 dark:text-red-300'
+  }
+}
+
+function getStatusDotClass(status: Employee['status']): string {
+  switch (status) {
+    case 'ACTIVE':
+      return 'bg-emerald-500'
+    case 'ON_LEAVE':
+      return 'bg-amber-500'
+    case 'TERMINATED':
+      return 'bg-red-500'
+  }
+}
 const avatarClass = computed(() => {
   const palettes = [
     'bg-amber-500 text-white',
@@ -136,17 +173,37 @@ const rowActions = computed(() =>
       </div>
 
       <div class="flex min-h-6 flex-wrap items-center gap-1.5">
-        <AppBadge
+        <UBadge
           v-if="employee.currentDepartment"
-          :label="employee.currentDepartment"
-          tone="neutral"
-          class="max-w-[120px] truncate"
-        />
-        <AppBadge
-          :label="statusLabel"
-          :tone="statusTone"
+          variant="outline"
+          size="md"
+          :class="DEPARTMENT_BADGE_CLASS"
+          :ui="{
+            base: 'gap-2 rounded-full px-3 py-1 shadow-none ring ring-inset ring-gray-200 dark:ring-gray-700',
+            label: 'text-xs font-medium',
+          }"
+        >
+          <template #leading>
+            <span class="size-2 rounded-full" :class="getDepartmentDotClass(employee.currentDepartment)" />
+          </template>
+          <span class="max-w-[140px] truncate">{{ employee.currentDepartment }}</span>
+        </UBadge>
+
+        <UBadge
+          variant="outline"
+          size="md"
+          :class="getStatusBadgeClass(employee.status)"
+          :ui="{
+            base: 'gap-2 rounded-full px-3 py-1 shadow-none ring-0',
+            label: 'text-xs font-semibold',
+          }"
           :aria-label="`Estado: ${statusLabel}`"
-        />
+        >
+          <template #leading>
+            <span class="size-2 rounded-full" :class="getStatusDotClass(employee.status)" />
+          </template>
+          {{ statusLabel }}
+        </UBadge>
       </div>
     </div>
 
