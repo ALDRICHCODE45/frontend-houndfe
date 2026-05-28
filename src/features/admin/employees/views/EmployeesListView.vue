@@ -232,11 +232,21 @@ function getManagerEmail(employee: Employee): string | null {
 }
 
 // ── Pagination state forwarding ────────────────────────────────────────────────
+// IMPORTANT: setPageSize resets page to 1 by design (filter-change semantics),
+// so we must only invoke it when the size actually changes — otherwise the
+// page-index update is immediately overridden and the user appears stuck on
+// page 1 when clicking the next-page button.
 const pagination = computed({
   get: () => ({ pageIndex: page.value - 1, pageSize: pageSize.value }),
   set: (val: { pageIndex: number; pageSize: number }) => {
-    setPage(val.pageIndex + 1)
-    setPageSize(val.pageSize)
+    const nextPage = val.pageIndex + 1
+    const nextSize = val.pageSize
+    if (nextSize !== pageSize.value) {
+      setPageSize(nextSize)
+    }
+    if (nextPage !== page.value) {
+      setPage(nextPage)
+    }
   },
 })
 
