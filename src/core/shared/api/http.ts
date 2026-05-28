@@ -28,6 +28,15 @@ http.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`
   }
 
+  // Disable HTTP cache on authenticated GETs.
+  // TanStack Query already handles client-side caching; HTTP-level 304s with
+  // stale bodies break cache-invalidation after mutations (e.g. a fresh
+  // salary-history GET after POST returning the previous empty array).
+  if ((config.method ?? 'get').toLowerCase() === 'get') {
+    config.headers['Cache-Control'] = 'no-cache'
+    config.headers.Pragma = 'no-cache'
+  }
+
   return config
 })
 
