@@ -63,7 +63,9 @@ describe('useProductColumns – non-regression guard (R-201)', () => {
     const { columns, currencyFormatter } = useProductColumns()
 
     expect(columns).toHaveLength(9)
-    // currencyFormatter is an Intl.NumberFormat instance — verify it can format numbers
-    expect(currencyFormatter.format(1000)).toContain('1.000')
+    // currencyFormatter is an Intl.NumberFormat instance using MXN (es-MX),
+    // so 1000 must format as "$1,000.00" with comma as thousand separator.
+    expect(currencyFormatter.format(1000)).toContain('1,000')
+    expect(currencyFormatter.format(1000)).toContain('$')
   })
 })

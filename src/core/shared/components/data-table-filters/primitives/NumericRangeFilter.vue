@@ -1,16 +1,25 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { CURRENCY_CONFIG } from '@/core/shared/utils/currency.utils'
 
 const props = withDefaults(defineProps<{
   label: string
   unit?: string
   formatAs?: 'currency' | 'plain'
+  /**
+   * ISO 4217 currency code used when `formatAs === 'currency'`.
+   * Defaults to the app-wide currency from `CURRENCY_CONFIG`. Override
+   * only if a specific table column needs a different currency than the
+   * tenant default.
+   */
+  currency?: string
   step?: number
   displayDivisor?: number
   error?: string
 }>(), {
   unit: '$',
   formatAs: 'currency',
+  currency: CURRENCY_CONFIG.currency,
   step: 1,
   displayDivisor: 1,
   error: undefined,
@@ -28,7 +37,7 @@ watch(() => modelValue.value, (next) => {
 
 const formatOptions = computed<Intl.NumberFormatOptions | undefined>(() => {
   if (props.formatAs === 'currency') {
-    return { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }
+    return { style: 'currency', currency: props.currency, maximumFractionDigits: 0 }
   }
 
   return undefined

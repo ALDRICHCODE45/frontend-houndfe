@@ -100,14 +100,32 @@ describe('NumericRangeFilter', () => {
     expect(events[events.length - 1]).toEqual([{ min: 0 }])
   })
 
-  it('passes ARS currency format options to UInputNumber', () => {
+  it('passes MXN currency format options to UInputNumber by default', () => {
     const wrapper = mount(NumericRangeFilter, {
       props: { modelValue: {}, label: 'Total' },
     })
 
     const numbers = wrapper.findAllComponents({ name: 'InputNumber' })
     expect(numbers.length).toBe(2)
-    expect(numbers[0]?.props('formatOptions')).toEqual({ style: 'currency', currency: 'ARS', maximumFractionDigits: 0 })
+    expect(numbers[0]?.props('formatOptions')).toEqual({ style: 'currency', currency: 'MXN', maximumFractionDigits: 0 })
+  })
+
+  it('honors an explicit currency prop override', () => {
+    const wrapper = mount(NumericRangeFilter, {
+      props: { modelValue: {}, label: 'Total', currency: 'USD' },
+    })
+
+    const numbers = wrapper.findAllComponents({ name: 'InputNumber' })
+    expect(numbers[0]?.props('formatOptions')).toEqual({ style: 'currency', currency: 'USD', maximumFractionDigits: 0 })
+  })
+
+  it('emits undefined formatOptions when formatAs is plain', () => {
+    const wrapper = mount(NumericRangeFilter, {
+      props: { modelValue: {}, label: 'Total', formatAs: 'plain' },
+    })
+
+    const numbers = wrapper.findAllComponents({ name: 'InputNumber' })
+    expect(numbers[0]?.props('formatOptions')).toBeUndefined()
   })
 
   it('disables increment/decrement buttons and shows range separator', () => {
