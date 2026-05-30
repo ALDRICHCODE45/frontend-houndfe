@@ -3,7 +3,7 @@ import { computed, ref, watch } from 'vue'
 import type { SaleItem } from '../interfaces/sale.types'
 import type { ApplyItemDiscountPayload, OverrideItemPricePayload } from '../interfaces/sale.types'
 import { formatCentsMXN, lineCents } from '../utils/currency.utils'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
+import SaleItemBadges from './SaleItemBadges.vue'
 import PriceOverrideModal from './PriceOverrideModal.vue'
 import ItemDiscountModal from './ItemDiscountModal.vue'
 import ProductDetailModal from './ProductDetailModal.vue'
@@ -107,34 +107,6 @@ const showPriceOrigin = computed(
     props.item.originalPriceCents !== props.item.unitPriceCents,
 )
 const showDiscountOrigin = computed(() => !!props.item.discountType && !!props.item.prePriceCentsBeforeDiscount)
-const discountBadgeLabel = computed(() => {
-  if (props.item.discountType === 'percentage') return `DESCUENTO -${props.item.discountValue ?? 0}%`
-  if (props.item.discountAmountCents) return `DESCUENTO -${formatCentsMXN(props.item.discountAmountCents)}`
-  return 'DESCUENTO'
-})
-const priceSourceBadge = computed(() => {
-  const source = props.item.priceSource
-  const priceChanged = props.item.originalPriceCents != null &&
-    props.item.originalPriceCents !== props.item.unitPriceCents
-
-  if (source === 'price_list' && priceChanged) {
-    return {
-      label: 'PRECIO LISTA',
-      icon: 'i-lucide-tags',
-      tone: 'info' as const,
-    }
-  }
-
-  if (source === 'custom' && priceChanged) {
-    return {
-      label: 'PRECIO MANUAL',
-      icon: 'i-lucide-pencil-ruler',
-      tone: 'warning' as const,
-    }
-  }
-
-  return null
-})
 
 // Sync localQty when item.quantity changes from parent
 watch(
@@ -204,32 +176,16 @@ function handleQtyCommit() {
           <span class="font-medium text-toned">{{ formatCentsMXN(item.unitPriceCents) }} c/u</span>
         </p>
         <!-- Badges row -->
-        <div
-          v-if="priceSourceBadge || item.discountType"
-          data-testid="sale-item-badge-group"
-          class="mt-1.5 flex flex-wrap items-center gap-1"
-        >
-          <AppBadge
-            v-if="priceSourceBadge"
-            :tone="priceSourceBadge.tone"
-            :icon="priceSourceBadge.icon"
-            :label="priceSourceBadge.label"
-          />
-
-          <UTooltip v-if="item.discountType && item.discountTitle" :text="item.discountTitle">
-            <AppBadge
-              tone="success"
-              icon="i-lucide-badge-percent"
-              :label="discountBadgeLabel"
-            />
-          </UTooltip>
-          <AppBadge
-            v-else-if="item.discountType"
-            tone="success"
-            icon="i-lucide-badge-percent"
-            :label="discountBadgeLabel"
-          />
-        </div>
+        <SaleItemBadges
+          class="mt-1.5"
+          :price-source="item.priceSource"
+          :original-price-cents="item.originalPriceCents"
+          :unit-price-cents="item.unitPriceCents"
+          :discount-type="item.discountType"
+          :discount-value="item.discountValue"
+          :discount-amount-cents="item.discountAmountCents"
+          :discount-title="item.discountTitle"
+        />
       </div>
 
       <!-- Quantity input -->

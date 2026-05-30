@@ -43,4 +43,18 @@ describe('SaleDetailTotalsCard', () => {
     expect(wrapper.text()).toContain('Descuentos')
     expect(wrapper.text()).toContain('$50.00')
   })
+
+  it('renders discount value with a leading minus sign', () => {
+    const wrapper = mount(SaleDetailTotalsCard, {
+      props: {
+        subtotalCents: 340000,
+        discountCents: 14000,
+        totalCents: 326000,
+      },
+      global: { stubs: { UCard: { template: '<div><slot /></div>' } } },
+    })
+
+    const discountValue = wrapper.get('[data-testid="totals-discount-value"]')
+    expect(discountValue.text()).toBe('-$140.00')
+  })
 })

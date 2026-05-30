@@ -180,4 +180,93 @@ describe('SaleDetailItemsList', () => {
     expect(wrapper.text()).toContain('$170.00')
     expect(wrapper.text()).toContain('$510.00')
   })
+
+  it('shows DESCUENTO badge and strikethrough pre-discount price when discountType is set', () => {
+    const wrapper = mountWithUApp(SaleDetailItemsList, {
+      props: {
+        items: [
+          {
+            productName: 'Croqueta',
+            variantName: 'Normal',
+            imageUrl: null,
+            unitPriceCents: 63000,
+            quantity: 2,
+            discountCents: 14000,
+            subtotalCents: 126000,
+            priceSource: 'default',
+            discountType: 'percentage',
+            discountValue: 10,
+            discountAmountCents: 14000,
+            prePriceCentsBeforeDiscount: 70000,
+          },
+        ],
+      },
+    })
+
+    expect(wrapper.text()).toContain('DESCUENTO -10%')
+    // Strikethrough pre-discount unit price ($700.00) appears in subtitle.
+    const preDiscount = wrapper.get('[data-testid="item-pre-discount-price-0"]')
+    expect(preDiscount.classes()).toContain('line-through')
+    expect(preDiscount.text()).toContain('$700.00')
+    // Strikethrough pre-discount line total ($1,400.00) appears under subtotal.
+    const lineOriginal = wrapper.get('[data-testid="item-line-original-0"]')
+    expect(lineOriginal.classes()).toContain('line-through')
+    expect(lineOriginal.text()).toContain('$1,400.00')
+    // Final unit price shown unstruck.
+    expect(wrapper.text()).toContain('$630.00')
+  })
+
+  it('shows PRECIO MANUAL badge and strikethrough catalog price when priceSource is custom', () => {
+    const wrapper = mountWithUApp(SaleDetailItemsList, {
+      props: {
+        items: [
+          {
+            productName: 'Croqueta',
+            variantName: 'Extra Grande',
+            imageUrl: null,
+            unitPriceCents: 90000,
+            quantity: 2,
+            discountCents: 0,
+            subtotalCents: 180000,
+            originalPriceCents: 80000,
+            priceSource: 'custom',
+          },
+        ],
+      },
+    })
+
+    expect(wrapper.text()).toContain('PRECIO MANUAL')
+    const original = wrapper.get('[data-testid="item-original-price-0"]')
+    expect(original.classes()).toContain('line-through')
+    expect(original.text()).toContain('$800.00')
+    expect(wrapper.text()).toContain('$900.00')
+    // Custom override does NOT generate a line discount strikethrough.
+    expect(wrapper.find('[data-testid="item-line-original-0"]').exists()).toBe(false)
+  })
+
+  it('renders no badges and no strikethroughs when item is plain', () => {
+    const wrapper = mountWithUApp(SaleDetailItemsList, {
+      props: {
+        items: [
+          {
+            productName: 'Ibuprofeno 400mg',
+            variantName: null,
+            imageUrl: null,
+            unitPriceCents: 20000,
+            quantity: 1,
+            discountCents: 0,
+            subtotalCents: 20000,
+            priceSource: 'default',
+          },
+        ],
+      },
+    })
+
+    expect(wrapper.text()).not.toContain('DESCUENTO')
+    expect(wrapper.text()).not.toContain('PRECIO MANUAL')
+    expect(wrapper.text()).not.toContain('PRECIO LISTA')
+    expect(wrapper.find('[data-testid="item-original-price-0"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="item-pre-discount-price-0"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="item-line-original-0"]').exists()).toBe(false)
+  })
 })

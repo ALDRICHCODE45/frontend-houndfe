@@ -61,6 +61,17 @@ export interface SaleDetailItem {
   quantity: number
   discountCents: number
   subtotalCents: number
+  // Traceability snapshot — populated by the backend at confirm time.
+  // All fields are nullable: only populated when the cashier overrode
+  // price or applied a line discount.
+  originalPriceCents?: number | null
+  priceSource?: PriceSource | null
+  appliedPriceListId?: string | null
+  discountType?: 'amount' | 'percentage' | null
+  discountValue?: number | null
+  discountAmountCents?: number | null
+  discountTitle?: string | null
+  prePriceCentsBeforeDiscount?: number | null
 }
 
 export interface SaleDetailPayment {
