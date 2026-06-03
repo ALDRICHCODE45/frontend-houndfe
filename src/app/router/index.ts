@@ -32,6 +32,7 @@ const PendingApprovalsView = () =>
 const AdminTenantsView = () => import('@/features/admin/tenants/views/AdminTenantsView.vue')
 const AdminTenantMembersView = () =>
   import('@/features/admin/tenants/memberships/views/AdminTenantMembersView.vue')
+const CatalogView = () => import('@/features/catalog/views/CatalogView.vue')
 const ForbiddenView = () => import('@/features/errors/views/ForbiddenView.vue')
 const NotFoundView = () => import('@/features/errors/views/NotFoundView.vue')
 
@@ -232,6 +233,13 @@ const router = createRouter({
         skipTenantCheck: true,
         requiresSuperAdmin: true,
       },
+    },
+    // ─── Public catalog ─────────────────────────────────────────────────────────
+    {
+      path: '/catalogo/:branchSlug?',
+      name: 'public-catalog',
+      component: CatalogView,
+      meta: { layout: 'catalog', public: true },
     },
     {
       path: '/403',
