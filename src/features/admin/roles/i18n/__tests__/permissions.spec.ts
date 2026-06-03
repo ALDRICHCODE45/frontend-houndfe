@@ -55,6 +55,12 @@ describe('permissions i18n', () => {
       expect(getSubjectLabel('File')).toBe('Archivos')
       expect(getSubjectLabel('GlobalPriceList')).toBe('Listas de precios globales')
       expect(getSubjectLabel('Role')).toBe('Roles')
+      expect(getSubjectLabel('Employee')).toBe('Colaboradores')
+      expect(getSubjectLabel('EmployeeDocument')).toBe('Documentos de colaboradores')
+      expect(getSubjectLabel('EmployeeEmergencyContact')).toBe('Contactos de emergencia')
+      expect(getSubjectLabel('EmployeeSalary')).toBe('Compensaciones')
+      expect(getSubjectLabel('EmployeeTimeOff')).toBe('Ausencias')
+      expect(getSubjectLabel('EmployeeTimeOffMedical')).toBe('Incapacidades médicas')
     })
 
     it('falls back to the raw subject string for unknown subjects', () => {

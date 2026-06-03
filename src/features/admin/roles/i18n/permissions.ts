@@ -42,6 +42,12 @@ const SUBJECT_LABELS: Record<string, string> = {
   Customer: 'Clientes',
   Promotion: 'Promociones',
   File: 'Archivos',
+  Employee: 'Colaboradores',
+  EmployeeDocument: 'Documentos de colaboradores',
+  EmployeeEmergencyContact: 'Contactos de emergencia',
+  EmployeeSalary: 'Compensaciones',
+  EmployeeTimeOff: 'Ausencias',
+  EmployeeTimeOffMedical: 'Incapacidades médicas',
   GlobalPriceList: 'Listas de precios globales',
 }
 
@@ -354,6 +360,121 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
     manage: {
       label: 'Gestión completa de archivos',
       description: 'Subir, ver y eliminar archivos sin restricciones.',
+    },
+  },
+
+  Employee: {
+    create: {
+      label: 'Registrar colaboradores',
+      description: 'Dar de alta colaboradores nuevos con sus datos personales y laborales.',
+    },
+    read: {
+      label: 'Ver colaboradores',
+      description: 'Consultar el listado y perfil detallado de colaboradores.',
+    },
+    update: {
+      label: 'Editar colaboradores',
+      description: 'Modificar datos personales, laborales y de contacto de colaboradores.',
+    },
+    delete: {
+      label: 'Desactivar colaboradores',
+      description: 'Dar de baja a un colaborador. Los datos históricos se conservan.',
+    },
+    manage: {
+      label: 'Gestión completa de colaboradores',
+      description:
+        'Registrar, ver, editar y desactivar colaboradores sin restricciones.',
+    },
+  },
+
+  EmployeeDocument: {
+    create: {
+      label: 'Subir documentos de colaboradores',
+      description: 'Cargar documentos (INE, CURP, contratos, etc.) al expediente del colaborador.',
+    },
+    read: {
+      label: 'Ver documentos de colaboradores',
+      description: 'Consultar y descargar documentos del expediente del colaborador.',
+    },
+    delete: {
+      label: 'Eliminar documentos de colaboradores',
+      description: 'Borrar documentos del expediente del colaborador.',
+    },
+    manage: {
+      label: 'Gestión completa de documentos',
+      description: 'Subir, ver y eliminar documentos de colaboradores sin restricciones.',
+    },
+  },
+
+  EmployeeEmergencyContact: {
+    create: {
+      label: 'Agregar contactos de emergencia',
+      description: 'Registrar contactos de emergencia para un colaborador.',
+    },
+    read: {
+      label: 'Ver contactos de emergencia',
+      description: 'Consultar los contactos de emergencia registrados.',
+    },
+    update: {
+      label: 'Editar contactos de emergencia',
+      description: 'Modificar datos de los contactos de emergencia de un colaborador.',
+    },
+    delete: {
+      label: 'Eliminar contactos de emergencia',
+      description: 'Borrar un contacto de emergencia del expediente.',
+    },
+    manage: {
+      label: 'Gestión completa de contactos de emergencia',
+      description:
+        'Agregar, ver, editar y eliminar contactos de emergencia sin restricciones.',
+    },
+  },
+
+  EmployeeSalary: {
+    create: {
+      label: 'Registrar ajustes salariales',
+      description: 'Crear registros de compensación (alta, aumento, ajuste) para un colaborador.',
+    },
+    read: {
+      label: 'Ver historial de compensaciones',
+      description: 'Consultar el historial salarial y ajustes de un colaborador.',
+    },
+    manage: {
+      label: 'Gestión completa de compensaciones',
+      description:
+        'Registrar y consultar compensaciones sin restricciones. Información sensible.',
+    },
+  },
+
+  EmployeeTimeOff: {
+    create: {
+      label: 'Solicitar ausencias',
+      description: 'Crear solicitudes de ausencia (vacaciones, permiso, etc.) para colaboradores.',
+    },
+    read: {
+      label: 'Ver ausencias',
+      description: 'Consultar las solicitudes de ausencia y su estado de aprobación.',
+    },
+    update: {
+      label: 'Aprobar o rechazar ausencias',
+      description: 'Cambiar el estado de una solicitud de ausencia (aprobar, rechazar).',
+    },
+    delete: {
+      label: 'Cancelar ausencias',
+      description: 'Eliminar una solicitud de ausencia pendiente.',
+    },
+    manage: {
+      label: 'Gestión completa de ausencias',
+      description:
+        'Solicitar, ver, aprobar y cancelar ausencias de cualquier colaborador.',
+    },
+  },
+
+  EmployeeTimeOffMedical: {
+    read: {
+      label: 'Ver incapacidades médicas',
+      description:
+        'Consultar las incapacidades médicas de colaboradores. Información confidencial.',
     },
   },
 
