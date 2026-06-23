@@ -9,6 +9,7 @@ import { productApi } from '../api/product.api'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
+import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import PriceListSection from '../components/PriceListSection.vue'
@@ -37,7 +38,9 @@ import type {
   PendingLot,
   PendingPriceList,
   PendingVariant,
+  PriceList,
   ProductFormInput,
+  ProductImage,
   ProductVariant,
   UpdateProductPayload,
   UpdateVariantPayload,
@@ -269,6 +272,20 @@ const { data: globalPriceLists } = useQuery<GlobalPriceList[]>({
   refetchOnWindowFocus: false,
 })
 
+const { data: productPriceLists } = useQuery<PriceList[]>({
+  queryKey: computed(() => productQueryKeys.priceLists(tenantId.value, productIdOrEmpty.value)),
+  queryFn: () => productApi.getPriceLists(productIdOrEmpty.value),
+  enabled: computed(() => !isCreateMode.value && productIdOrEmpty.value.length > 0),
+  refetchOnWindowFocus: false,
+})
+
+const { data: productImages } = useQuery<ProductImage[]>({
+  queryKey: computed(() => productQueryKeys.images(tenantId.value, productIdOrEmpty.value)),
+  queryFn: () => productApi.getImages(productIdOrEmpty.value),
+  enabled: computed(() => !isCreateMode.value && productIdOrEmpty.value.length > 0),
+  refetchOnWindowFocus: false,
+})
+
 const { data: brands } = useQuery<BrandOption[]>({
   queryKey: computed(() => productQueryKeys.brands(tenantId.value)),
   queryFn: productApi.getBrands,
@@ -294,6 +311,8 @@ const lotsList = computed(() => lots.value ?? [])
 const categoriesList = computed(() => categories.value ?? [])
 const brandsList = computed(() => brands.value ?? [])
 const globalPriceListOptions = computed(() => globalPriceLists.value ?? [])
+const productPriceListsList = computed(() => productPriceLists.value ?? [])
+const productImagesList = computed(() => productImages.value ?? [])
 const availablePriceListOptions = computed(() => {
   const usedIds = new Set(pendingPriceLists.value.map((pl) => pl.priceListId))
   return globalPriceListOptions.value.filter((gpl) => !usedIds.has(gpl.id))
@@ -396,6 +415,79 @@ const showLotsSection = computed(
   () => formState.useStock && formState.useLotsAndExpirations && !formState.hasVariants,
 )
 const showVariantsSection = computed(() => !formState.useLotsAndExpirations)
+const previewEditPublicPriceList = computed(() =>
+  productPriceListsList.value.find((priceList) => priceList.name.toUpperCase() === 'PUBLICO'),
+)
+const previewMainImage = computed(() => {
+  if (isCreateMode.value) return null
+
+  return (
+    productImagesList.value.find((image) => image.variantId === null && image.isMain) ??
+    productImagesList.value.find((image) => image.variantId === null) ??
+    productImagesList.value[0] ??
+    null
+  )
+})
+const previewPublicPriceCents = computed(() => {
+  if (isCreateMode.value) {
+    const defaultPriceList = pendingPriceLists.value.find((pl) => isDefaultPriceList(pl.priceListId))
+    return defaultPriceList?.priceCents ?? 0
+  }
+
+  return previewEditPublicPriceList.value?.priceCents ?? product.value?.priceCents ?? decimalInputToCents(formState.price)
+})
+const previewCostCents = computed(() => decimalInputToCents(formState.purchaseCost))
+const previewMarginPercent = computed(() => {
+  if (previewPublicPriceCents.value <= 0 || previewCostCents.value <= 0) return null
+
+  return Math.round(
+    ((previewPublicPriceCents.value - previewCostCents.value) / previewPublicPriceCents.value) * 100,
+  )
+})
+const previewStockTotal = computed(() => {
+  if (formState.type === 'SERVICE' || !formState.useStock) return null
+
+  if (formState.hasVariants) {
+    if (isCreateMode.value) {
+      return pendingVariants.value.reduce((total, variant) => total + variant.quantity, 0)
+    }
+
+    if (variantsList.value.length > 0) {
+      return variantsList.value.reduce((total, variant) => total + variant.quantity, 0)
+    }
+
+    return product.value?.variantStockTotal ?? 0
+  }
+
+  if (formState.useLotsAndExpirations) {
+    if (isCreateMode.value) {
+      return pendingLots.value.reduce((total, lot) => total + lot.quantity, 0)
+    }
+
+    return lotsList.value.reduce((total, lot) => total + lot.quantity, 0)
+  }
+
+  return formState.quantity
+})
+const previewChecklistItems = computed(() => [
+  { label: 'Nombre del producto', done: formState.name.trim().length >= 2, disabled: false },
+  { label: 'Precio de venta definido', done: previewPublicPriceCents.value > 0, disabled: false },
+  { label: 'Categoría asignada', done: Boolean(formState.categoryId), disabled: false },
+  {
+    label: isCreateMode.value ? 'Imágenes disponibles después de crear' : 'Al menos una imagen',
+    done: !isCreateMode.value && productImagesList.value.length > 0,
+    disabled: isCreateMode.value,
+  },
+])
+const previewApplicableChecklistItems = computed(() =>
+  previewChecklistItems.value.filter((item) => !item.disabled),
+)
+const previewCompletedItems = computed(
+  () => previewApplicableChecklistItems.value.filter((item) => item.done).length,
+)
+const previewCompletionPercent = computed(() =>
+  Math.round((previewCompletedItems.value / previewApplicableChecklistItems.value.length) * 100),
+)
 const variantModalTitle = computed(() =>
   editingVariantId.value ? 'Editar variante' : 'Agregar variante',
 )
@@ -1536,9 +1628,9 @@ function handleEditLotPlaceholder() {
 </script>
 
 <template>
-  <div class="-m-4 flex h-[calc(100%+2rem)] flex-col sm:-m-6 sm:h-[calc(100%+3rem)]">
-    <div class="shrink-0 border-b border-default bg-default px-10 py-4">
-      <div class="mx-auto flex w-full max-w-6xl items-center justify-between">
+  <div class="-m-4 flex h-[calc(100%+2rem)] flex-col bg-[#f7f7f5] sm:-m-6 sm:h-[calc(100%+3rem)] dark:bg-[#0a0a0b]">
+    <div class="shrink-0 border-b border-default bg-white/95 px-10 py-4 backdrop-blur dark:bg-[#131316]/95">
+      <div class="mx-auto flex w-full max-w-[1480px] items-center justify-between">
         <div class="flex items-center gap-3">
           <UButton
             icon="i-lucide-arrow-left"
@@ -1548,26 +1640,32 @@ function handleEditLotPlaceholder() {
             @click="handleBack"
           />
           <div>
-            <h1 class="text-xl font-semibold">
+            <h1 class="text-xl font-semibold text-[#111316] dark:text-white">
               {{ isCreateMode ? 'Nuevo producto' : formState.name || 'Producto' }}
             </h1>
-            <p v-if="!isCreateMode" class="text-sm text-muted">Editando producto</p>
+            <p class="text-sm text-muted">
+              {{ isCreateMode ? 'Completá la información del artículo para tu catálogo' : 'Editando producto' }}
+            </p>
           </div>
         </div>
 
-        <UButton
-          v-if="!isFormReadonly"
-          :label="isCreateMode ? 'Crear producto' : 'Guardar cambios'"
-          type="submit"
-          form="product-detail-form"
-          :loading="updateMutation.isPending.value || createMutation.isPending.value"
-          :disabled="!canSubmitMainForm"
-        />
+        <div class="flex items-center gap-3">
+          <UButton type="button" label="Cancelar" color="neutral" variant="outline" @click="handleBack" />
+          <UButton
+            v-if="!isFormReadonly"
+            :label="isCreateMode ? 'Crear producto' : 'Guardar cambios'"
+            type="submit"
+            form="product-detail-form"
+            :loading="updateMutation.isPending.value || createMutation.isPending.value"
+            :disabled="!canSubmitMainForm"
+            class="bg-[#f0954a] hover:bg-[#e88835]"
+          />
+        </div>
       </div>
     </div>
 
     <div
-      class="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-6 overflow-y-auto px-10 pb-6 pt-6"
+      class="mx-auto flex w-full max-w-[1480px] flex-1 flex-col gap-6 overflow-y-auto px-4 pb-6 pt-6 sm:px-6 lg:px-10"
     >
       <div
         v-if="!isCreateMode && isProductError"
@@ -1584,13 +1682,14 @@ function handleEditLotPlaceholder() {
         <p class="text-sm text-muted">Cargando datos del producto...</p>
       </div>
 
-      <UForm
-        v-else
-        id="product-detail-form"
-        :schema="productFormSchema"
-        :state="formState"
-        @submit="handleSubmitMainForm"
-      >
+      <div v-else class="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_332px]">
+        <UForm
+          id="product-detail-form"
+          class="min-w-0"
+          :schema="productFormSchema"
+          :state="formState"
+          @submit="handleSubmitMainForm"
+        >
         <fieldset :disabled="isFormReadonly" class="space-y-6">
           <UCard :ui="{ root: 'overflow-visible' }">
             <template #header>
@@ -2316,6 +2415,106 @@ function handleEditLotPlaceholder() {
           />
         </fieldset>
       </UForm>
+
+        <aside class="hidden xl:block">
+          <div class="sticky top-6 space-y-4">
+            <div class="overflow-hidden rounded-[13px] border border-default bg-white shadow-sm dark:bg-[#131316]">
+              <div class="flex h-44 items-center justify-center overflow-hidden bg-[repeating-linear-gradient(45deg,#f7f7f5_0,#f7f7f5_10px,#eeeeea_10px,#eeeeea_20px)] text-muted dark:bg-[repeating-linear-gradient(45deg,#18181c_0,#18181c_10px,#1f1f24_10px,#1f1f24_20px)]">
+                <img
+                  v-if="previewMainImage"
+                  :src="previewMainImage.url"
+                  :alt="formState.name || 'Imagen del producto'"
+                  class="h-full w-full object-cover"
+                >
+                <div v-else class="text-center">
+                  <UIcon name="i-lucide-image" class="mx-auto mb-2 size-8" />
+                  <p class="font-mono text-xs">sin imagen</p>
+                </div>
+              </div>
+
+              <div class="space-y-4 p-4">
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-wide text-muted">Vista previa</p>
+                  <h2 class="mt-1 line-clamp-2 text-lg font-semibold text-[#111316] dark:text-white">
+                    {{ formState.name || 'Producto sin nombre' }}
+                  </h2>
+                  <div class="mt-2 flex flex-wrap gap-2">
+                    <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                      {{ formState.type === 'PRODUCT' ? 'Producto' : 'Servicio' }}
+                    </span>
+                    <span v-if="formState.sellInPos" class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                      POS
+                    </span>
+                    <span v-if="formState.includeInOnlineCatalog" class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                      Online
+                    </span>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-2 overflow-hidden rounded-lg border border-default">
+                  <div class="border-b border-r border-default p-3">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-muted">Precio venta</p>
+                    <p class="mt-1 font-mono text-xl font-bold text-[#111316] dark:text-white">
+                      {{ formatCentsMXN(previewPublicPriceCents) }}
+                    </p>
+                  </div>
+                  <div class="border-b border-default p-3">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-muted">Costo</p>
+                    <p class="mt-1 font-mono text-xl font-bold text-[#111316] dark:text-white">
+                      {{ formatCentsMXN(previewCostCents) }}
+                    </p>
+                  </div>
+                  <div class="border-r border-default p-3">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-muted">Margen</p>
+                    <p
+                      class="mt-1 font-mono text-lg font-bold"
+                      :class="previewMarginPercent == null ? 'text-muted' : previewMarginPercent >= 0 ? 'text-success' : 'text-error'"
+                    >
+                      {{ previewMarginPercent == null ? '—' : `${previewMarginPercent}%` }}
+                    </p>
+                  </div>
+                  <div class="p-3">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-muted">Stock</p>
+                    <p class="mt-1 font-mono text-lg font-bold text-[#d97a2a]">
+                      {{ previewStockTotal ?? '—' }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="rounded-[13px] border border-default bg-white p-4 shadow-sm dark:bg-[#131316]">
+              <div class="mb-3 flex items-center justify-between">
+                <h3 class="font-semibold text-[#111316] dark:text-white">Lista para publicar</h3>
+                <span class="font-mono text-sm font-semibold text-[#d97a2a]">
+                  {{ previewCompletedItems }}/{{ previewApplicableChecklistItems.length }}
+                </span>
+              </div>
+
+              <div class="mb-4 h-2 overflow-hidden rounded-full bg-[#ebebe8] dark:bg-[#1f1f24]">
+                <div class="h-full rounded-full bg-[#f0954a] transition-all" :style="{ width: `${previewCompletionPercent}%` }" />
+              </div>
+
+              <ul class="space-y-3">
+                <li
+                  v-for="item in previewChecklistItems"
+                  :key="item.label"
+                  class="flex items-center gap-3 text-sm"
+                  :class="item.disabled ? 'text-muted' : 'text-[#4b5563] dark:text-gray-300'"
+                >
+                  <span
+                    class="flex size-4 shrink-0 items-center justify-center rounded border"
+                    :class="item.done ? 'border-emerald-500 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'border-default bg-[#f3f3f1] dark:bg-[#1f1f24]'"
+                  >
+                    <UIcon v-if="item.done" name="i-lucide-check" class="size-3" />
+                  </span>
+                  <span>{{ item.label }}</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </aside>
+      </div>
     </div>
 
     <UModal
