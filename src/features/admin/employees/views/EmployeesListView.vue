@@ -7,7 +7,7 @@
  * useEmployeeViewMode + useManagerResolution + EmployeeFilters.
  *
  * WU-03 additions:
- * - Tabla / Tarjetas segmented toggle via EmployeeViewToggle
+ * - Tabla / Tarjetas segmented toggle via shared ViewToggle
  * - Card grid view via EmployeeCardGrid (delegates to EmployeeCard per item)
  * - Manager name resolution via useManagerResolution (batch, no N+1)
  * - View mode persisted in localStorage via useEmployeeViewMode
@@ -47,8 +47,11 @@ import { useEmployeeViewMode } from '../composables/useEmployeeViewMode'
 import { useManagerResolution, resolveManagerName, resolveManagerEmail } from '../composables/useManagerResolution'
 import { getEmployeeRowActions } from '../composables/useEmployeeActions'
 import EmployeeFilters from '../components/EmployeeFilters.vue'
-import EmployeeViewToggle from '../components/EmployeeViewToggle.vue'
 import EmployeeCardGrid from '../components/EmployeeCardGrid.vue'
+import ViewToggle from '@/core/shared/components/ViewToggle.vue'
+import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
+import DotBadge from '@/core/shared/components/DotBadge.vue'
+import type { EmployeeViewMode } from '../composables/useEmployeeViewMode'
 import CreateEmployeeSlideover from '../components/CreateEmployeeSlideover.vue'
 import EmployeeEditSlideover from '../components/EmployeeEditSlideover.vue'
 import TerminateEmployeeDialog from '../components/TerminateEmployeeDialog.vue'
@@ -142,34 +145,8 @@ const { managerMap } = useManagerResolution(
   () => tenantId.value,
 )
 
-// ── Avatar helper ──────────────────────────────────────────────────────────────
-function getInitials(fullName: string): string {
-  const parts = fullName.trim().split(' ').filter(Boolean)
-  return (
-    parts
-      .slice(0, 2)
-      .map((p) => p[0]?.toUpperCase() ?? '')
-      .join('') || 'C'
-  )
-}
-
-function getAvatarClass(seedValue: string): string {
-  const palettes = [
-    'bg-amber-500 text-white',
-    'bg-pink-500 text-white',
-    'bg-violet-500 text-white',
-    'bg-red-500 text-white',
-    'bg-cyan-500 text-white',
-    'bg-emerald-500 text-white',
-    'bg-blue-500 text-white',
-  ]
-  const seed = seedValue.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)
-  return palettes[seed % palettes.length] ?? palettes[0]!
-}
-
-// Department badge is always neutral — only the dot carries color
-const DEPARTMENT_BADGE_CLASS = 'border-gray-200 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300'
-
+// ── Department dot color map — domain data passed into DotBadge ───────────────
+// EntityAvatar owns initials + color hashing; DEPARTMENT_BADGE_CLASS is DotBadge's default.
 function getDepartmentDotClass(department: string | null): string {
   const value = department?.toLowerCase() ?? ''
   if (value.includes('producto')) return 'bg-violet-500'
@@ -347,9 +324,10 @@ const showingTo = computed(() => {
               @click="refresh"
             />
             <!-- Tabla / Tarjetas toggle -->
-            <EmployeeViewToggle
+            <ViewToggle
               :model-value="viewMode"
-              @update:model-value="setMode"
+              aria-label="Vista de colaboradores"
+              @update:model-value="(v) => setMode(v as EmployeeViewMode)"
             />
           </div>
         </div>
@@ -383,20 +361,11 @@ const showingTo = computed(() => {
               class="flex cursor-pointer items-center gap-3"
               @click="navigateToDetail(row.original)"
             >
-              <div class="relative shrink-0">
-                <div
-                  class="flex size-8 items-center justify-center rounded-full text-xs font-semibold shadow-sm"
-                  :class="getAvatarClass(row.original.id)"
-                  :aria-label="row.original.fullName"
-                >
-                  {{ getInitials(row.original.fullName) }}
-                </div>
-                <span
-                  v-if="row.original.status === 'ACTIVE'"
-                  class="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-default bg-emerald-500"
-                  aria-label="Activo"
-                />
-              </div>
+              <EntityAvatar
+                :name="row.original.fullName"
+                :seed="row.original.id"
+                :show-dot="row.original.status === 'ACTIVE'"
+              />
               <div class="min-w-0">
                 <p class="truncate text-sm font-semibold text-highlighted hover:text-primary hover:underline">
                   {{ row.original.fullName }}
@@ -421,30 +390,22 @@ const showingTo = computed(() => {
 
           <!-- Departamento cell -->
           <template #departamento-cell="{ row }">
-            <UBadge
+            <DotBadge
               v-if="row.original.currentDepartment"
-              variant="outline"
-              size="md"
-              :class="DEPARTMENT_BADGE_CLASS"
-              :ui="{ base: 'gap-2 rounded-full px-3 py-1.5 shadow-none ring ring-inset ring-gray-200 dark:ring-gray-700', label: 'text-xs font-medium' }"
-            >
-              <template #leading>
-                <span class="size-2 rounded-full" :class="getDepartmentDotClass(row.original.currentDepartment)" />
-              </template>
-              {{ row.original.currentDepartment }}
-            </UBadge>
+              :label="row.original.currentDepartment"
+              :dot-class="getDepartmentDotClass(row.original.currentDepartment)"
+            />
             <span v-else class="text-sm text-muted">—</span>
           </template>
 
           <!-- Jefe directo cell — resolved manager name or "—" -->
           <template #jefedirecto-cell="{ row }">
             <div v-if="getManagerDisplay(row.original) !== '—'" class="flex items-center gap-2">
-              <div
-                class="flex size-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold shadow-sm"
-                :class="getAvatarClass(getManagerDisplay(row.original))"
-              >
-                {{ getInitials(getManagerDisplay(row.original)) }}
-              </div>
+              <EntityAvatar
+                :name="getManagerDisplay(row.original)"
+                :seed="getManagerDisplay(row.original)"
+                size="sm"
+              />
               <div class="min-w-0">
                 <p class="truncate text-sm font-medium text-default">{{ getManagerDisplay(row.original) }}</p>
                 <p v-if="getManagerEmail(row.original)" class="truncate text-xs text-muted">{{ getManagerEmail(row.original) }}</p>

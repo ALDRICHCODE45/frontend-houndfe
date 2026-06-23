@@ -30,6 +30,8 @@ import {
   type Employee,
 } from '../interfaces/employee.types'
 import { getEmployeeRowActions } from '../composables/useEmployeeActions'
+import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
+import DotBadge from '@/core/shared/components/DotBadge.vue'
 
 const props = defineProps<{
   employee: Employee
@@ -44,27 +46,12 @@ const emit = defineEmits<{
   click: [employee: Employee]
 }>()
 
-// Initials helper — first two words, first letter each
-function getInitials(fullName: string): string {
-  const parts = fullName.trim().split(' ').filter(Boolean)
-  return (
-    parts
-      .slice(0, 2)
-      .map((p) => p[0]?.toUpperCase() ?? '')
-      .join('') || 'C'
-  )
-}
-
-const initials = computed(() => getInitials(props.employee.fullName))
 const statusLabel = computed(() => EMPLOYEE_STATUS_LABELS[props.employee.status])
 const modalityLabel = computed(() => WORK_MODALITY_LABELS[props.employee.workModality])
 const hireDateFormatted = computed(() => formatHireDate(props.employee.hireDate))
 const seniority = computed(() => computeSeniority(props.employee.hireDate))
 
-// ── Badge styling — mirrors the dot-badge pattern used in the table view ──────
-const DEPARTMENT_BADGE_CLASS =
-  'border-gray-200 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300'
-
+// ── Department dot color map — domain data passed into DotBadge ───────────────
 function getDepartmentDotClass(department: string | null): string {
   const value = department?.toLowerCase() ?? ''
   if (value.includes('producto')) return 'bg-violet-500'
@@ -100,22 +87,6 @@ function getStatusDotClass(status: Employee['status']): string {
       return 'bg-red-500'
   }
 }
-const avatarClass = computed(() => {
-  const palettes = [
-    'bg-amber-500 text-white',
-    'bg-pink-500 text-white',
-    'bg-violet-500 text-white',
-    'bg-red-500 text-white',
-    'bg-cyan-500 text-white',
-    'bg-emerald-500 text-white',
-    'bg-blue-500 text-white',
-  ]
-  const seed = props.employee.id
-    .split('')
-    .reduce((sum, char) => sum + char.charCodeAt(0), 0)
-  return palettes[seed % palettes.length]
-})
-
 // Row action menu items — pure function, no reactivity overhead
 const rowActions = computed(() =>
   getEmployeeRowActions(props.employee, props.canUpdate ?? false, {
@@ -149,20 +120,13 @@ const rowActions = computed(() =>
 
     <!-- Card header: avatar + name + position + chips -->
     <div class="flex flex-col items-start gap-3">
-      <div class="relative">
-        <div
-          class="flex size-12 items-center justify-center rounded-full text-base font-semibold shadow-sm"
-          :class="avatarClass"
-          :aria-label="employee.fullName"
-        >
-          {{ initials }}
-        </div>
-        <span
-          v-if="employee.status === 'ACTIVE'"
-          class="absolute -bottom-0.5 -right-0.5 size-3 rounded-full border-2 border-default bg-emerald-500"
-          aria-label="Activo"
-        />
-      </div>
+      <!-- EntityAvatar handles initials, color hash, and active status dot -->
+      <EntityAvatar
+        :name="employee.fullName"
+        :seed="employee.id"
+        :show-dot="employee.status === 'ACTIVE'"
+        size="lg"
+      />
 
       <!-- Name + employee number -->
       <div class="min-w-0 space-y-1 pr-7">
@@ -173,22 +137,16 @@ const rowActions = computed(() =>
       </div>
 
       <div class="flex min-h-6 flex-wrap items-center gap-1.5">
-        <UBadge
+        <!-- DotBadge handles the neutral-outlined + colored-dot department pattern -->
+        <DotBadge
           v-if="employee.currentDepartment"
-          variant="outline"
-          size="md"
-          :class="DEPARTMENT_BADGE_CLASS"
-          :ui="{
-            base: 'gap-2 rounded-full px-3 py-1 shadow-none ring ring-inset ring-gray-200 dark:ring-gray-700',
-            label: 'text-xs font-medium',
-          }"
-        >
-          <template #leading>
-            <span class="size-2 rounded-full" :class="getDepartmentDotClass(employee.currentDepartment)" />
-          </template>
-          <span class="max-w-[140px] truncate">{{ employee.currentDepartment }}</span>
-        </UBadge>
+          :label="employee.currentDepartment"
+          :dot-class="getDepartmentDotClass(employee.currentDepartment)"
+          :truncate="true"
+          :compact="true"
+        />
 
+        <!-- Status badge keeps its semantic coloring (not the neutral DotBadge pattern) -->
         <UBadge
           variant="outline"
           size="md"

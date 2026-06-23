@@ -9,15 +9,15 @@
  *
  * Exports:
  * - VIEW_MODE_STORAGE_KEY  — stable key for localStorage
- * - getViewMode()          — reads persisted mode or returns 'table' default
- * - setViewMode(mode)      — writes to localStorage
+ * - getViewMode()          — reads persisted mode (delegates to shared readViewMode)
+ * - setViewMode(mode)      — writes persisted mode (delegates to shared writeViewMode)
  * - computeSeniority()     — pure; converts hireDate → "< 1 año" / "N año(s)" string
  * - buildCardData()        — pure; assembles EmployeeCardData from Employee (NO salary exposed)
- * - useEmployeeViewMode()  — reactive composable for Vue components
+ * - useEmployeeViewMode()  — reactive composable (delegates to shared useViewMode)
  */
 
-import { ref, watch } from 'vue'
 import type { Employee } from '../interfaces/employee.types'
+import { useViewMode, readViewMode, writeViewMode } from '@/core/shared/composables/useViewMode'
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -55,39 +55,25 @@ export interface EmployeeCardData {
  */
 export const VIEW_MODE_STORAGE_KEY = 'employee-view-mode'
 
-const VALID_MODES: EmployeeViewMode[] = ['table', 'card']
+const VALID_MODES = ['table', 'card'] as const
 
 // ─── Pure helpers (exported for unit testing) ─────────────────────────────────
 
 /**
  * Read the persisted view mode from localStorage.
  * Falls back to 'table' if not set or invalid.
- * Pure (depends only on localStorage state, no Vue reactivity).
+ * Delegates to the shared readViewMode helper (single source of truth).
  */
 export function getViewMode(): EmployeeViewMode {
-  if (typeof window === 'undefined') return 'table'
-  try {
-    const stored = localStorage.getItem(VIEW_MODE_STORAGE_KEY)
-    if (stored && (VALID_MODES as string[]).includes(stored)) {
-      return stored as EmployeeViewMode
-    }
-  } catch {
-    // Storage unavailable
-  }
-  return 'table'
+  return readViewMode(VIEW_MODE_STORAGE_KEY, VALID_MODES, 'table')
 }
 
 /**
  * Persist the view mode to localStorage.
- * Pure (no Vue reactivity — composable wraps this for reactive use).
+ * Delegates to the shared writeViewMode helper (single source of truth).
  */
 export function setViewMode(mode: EmployeeViewMode): void {
-  if (typeof window === 'undefined') return
-  try {
-    localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode)
-  } catch {
-    // Storage unavailable
-  }
+  writeViewMode(VIEW_MODE_STORAGE_KEY, mode)
 }
 
 /**
@@ -158,28 +144,22 @@ export function buildCardData(employee: Employee, managerDisplay: string): Emplo
 /**
  * useEmployeeViewMode — reactive wrapper for view mode state.
  *
- * Reads initial state from localStorage and persists changes back.
- * Used by EmployeesListView to drive the Tabla/Tarjetas toggle.
+ * Thin wrapper around the generic useViewMode composable that binds
+ * VIEW_MODE_STORAGE_KEY and the employee-specific mode union type.
+ *
+ * Pure helper functions (getViewMode, setViewMode, computeSeniority, buildCardData)
+ * remain in this file so existing tests and callers keep working without changes.
  */
 export function useEmployeeViewMode() {
-  const viewMode = ref<EmployeeViewMode>(getViewMode())
-
-  // Persist changes to localStorage
-  watch(viewMode, (mode) => {
-    setViewMode(mode)
-  })
-
-  function toggleViewMode() {
-    viewMode.value = viewMode.value === 'table' ? 'card' : 'table'
-  }
-
-  function setMode(mode: EmployeeViewMode) {
-    viewMode.value = mode
-  }
+  const { viewMode, setMode, toggleMode } = useViewMode(
+    VIEW_MODE_STORAGE_KEY,
+    ['table', 'card'] as const,
+    'table',
+  )
 
   return {
     viewMode,
-    toggleViewMode,
+    toggleViewMode: toggleMode,
     setMode,
   }
 }
