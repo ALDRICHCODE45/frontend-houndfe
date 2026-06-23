@@ -569,6 +569,15 @@ function resetLotForm() {
 function buildFullCreatePayload(formValues: MainFormValues): CreateProductPayload {
   const base = toCreatePayload(formValues)
 
+  // Sync product-level priceCents with the PUBLICO price list price.
+  // In the full editor, formState.price is never rendered (stays at 0),
+  // so we derive priceCents from the PUBLICO pending price list — the single
+  // source of truth for the default sale price (matches edit-mode behavior).
+  const publicoPriceList = pendingPriceLists.value.find((pl) => isDefaultPriceList(pl.priceListId))
+  if (publicoPriceList) {
+    base.priceCents = publicoPriceList.priceCents
+  }
+
   // Inline variants
   if (formValues.hasVariants && pendingVariants.value.length > 0) {
     base.variants = pendingVariants.value.map((v) => ({
@@ -1692,6 +1701,14 @@ function handleEditLotPlaceholder() {
                   />
                 </UFormField>
 
+                <UFormField label="SAT Key" name="satKey">
+                  <UInput
+                    v-model="formState.satKey"
+                    class="w-full"
+                    placeholder="Opcional"
+                  />
+                </UFormField>
+
                 <UFormField label="Descripción" name="description" class="md:col-span-2">
                   <UTextarea
                     v-model="formState.description"
@@ -2238,7 +2255,7 @@ function handleEditLotPlaceholder() {
                           class="font-semibold"
                           :class="ppl.priceCents >= getPendingCostCents() ? 'text-success' : 'text-error'"
                         >
-                          {{ Math.round(((ppl.priceCents - getPendingCostCents()) / getPendingCostCents()) * 100) }}%
+                          {{ Math.round(((ppl.priceCents - getPendingCostCents()) / ppl.priceCents) * 100) }}%
                         </span>
                         <span v-else class="text-muted">--</span>
                       </td>
@@ -2465,7 +2482,7 @@ function handleEditLotPlaceholder() {
                         class="font-semibold"
                         :class="price.priceCents >= (pendingVariantDetailState.purchaseCost ? decimalInputToCents(pendingVariantDetailState.purchaseCost) : 0) ? 'text-success' : 'text-error'"
                       >
-                        {{ Math.round(((price.priceCents - (pendingVariantDetailState.purchaseCost ? decimalInputToCents(pendingVariantDetailState.purchaseCost) : 0)) / (pendingVariantDetailState.purchaseCost ? decimalInputToCents(pendingVariantDetailState.purchaseCost) : 1)) * 100) }}%
+                        {{ Math.round(((price.priceCents - (pendingVariantDetailState.purchaseCost ? decimalInputToCents(pendingVariantDetailState.purchaseCost) : 0)) / price.priceCents) * 100) }}%
                       </span>
                       <span v-else class="text-muted">--</span>
                     </td>
