@@ -17,7 +17,13 @@ import { computed } from 'vue'
 import { createSimpleHeader } from '@/core/shared/components/DataTable'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import type { AppBadgeTone } from '@/core/shared/utils/badge.utils'
-import type { Employee, EmployeeStatus, WorkModality } from '../interfaces/employee.types'
+import type { Employee, WorkModality } from '../interfaces/employee.types'
+import { employeeStatusToBadgeTone } from '../utils/employeeBadgeConfig.utils'
+
+// Re-export so existing call sites (table columns, tests) keep working.
+// The actual definition lives in employeeBadgeConfig.utils so the status tone
+// map and the badge config stay in one place.
+export { employeeStatusToBadgeTone }
 
 // ─── Pure helpers (exported for unit testing) ─────────────────────────────────
 
@@ -26,21 +32,6 @@ const HIRE_DATE_FORMATTER = new Intl.DateTimeFormat('es-MX', {
   month: 'short',
   year: 'numeric',
 })
-
-/**
- * Map EmployeeStatus → AppBadgeTone.
- * Design spec: ACTIVE→success, ON_LEAVE→warning, TERMINATED→error
- */
-export function employeeStatusToBadgeTone(status: EmployeeStatus): AppBadgeTone {
-  switch (status) {
-    case 'ACTIVE':
-      return 'success'
-    case 'ON_LEAVE':
-      return 'warning'
-    case 'TERMINATED':
-      return 'error'
-  }
-}
 
 /**
  * Map WorkModality → AppBadgeTone.

@@ -24,11 +24,16 @@ import {
 import { buildProfileInitials } from '../composables/useEmployeeDetail'
 import { getEmployeeRowActions } from '../composables/useEmployeeActions'
 import {
-  EMPLOYEE_STATUS_LABELS,
   WORK_MODALITY_LABELS,
   CONTRACT_TYPE_LABELS,
   type Employee,
 } from '../interfaces/employee.types'
+import {
+  employeeStatusConfig,
+  getDepartmentDotClass,
+} from '../utils/employeeBadgeConfig.utils'
+import DotBadge from '@/core/shared/components/DotBadge.vue'
+import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
 
 const props = defineProps<{
   employee: Employee
@@ -58,42 +63,9 @@ function getAvatarClass(seedValue: string): string {
   return palettes[seed % palettes.length] ?? palettes[0]!
 }
 
-// ── Badge helpers (same pattern as list view) ──────────────────────────────────
-const statusLabel = computed(() => EMPLOYEE_STATUS_LABELS[props.employee.status])
+// ── Badge config lookups (status + modality) ──────────────────────────────────
+const statusConfig = computed(() => employeeStatusConfig[props.employee.status])
 const modalityLabel = computed(() => WORK_MODALITY_LABELS[props.employee.workModality])
-
-function getStatusBadgeClass(status: Employee['status']): string {
-  switch (status) {
-    case 'ACTIVE':
-      return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/15 dark:text-emerald-300'
-    case 'ON_LEAVE':
-      return 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/15 dark:text-amber-300'
-    case 'TERMINATED':
-      return 'border-red-200 bg-red-50 text-red-700 dark:border-red-500/30 dark:bg-red-500/15 dark:text-red-300'
-  }
-}
-
-function getStatusDotClass(status: Employee['status']): string {
-  switch (status) {
-    case 'ACTIVE':
-      return 'bg-emerald-500'
-    case 'ON_LEAVE':
-      return 'bg-amber-500'
-    case 'TERMINATED':
-      return 'bg-red-500'
-  }
-}
-
-function getDepartmentDotClass(department: string | null): string {
-  const value = department?.toLowerCase() ?? ''
-  if (value.includes('producto')) return 'bg-violet-500'
-  if (value.includes('diseño')) return 'bg-pink-500'
-  if (value.includes('finanzas')) return 'bg-blue-500'
-  if (value.includes('recursos')) return 'bg-cyan-500'
-  if (value.includes('operaciones')) return 'bg-amber-500'
-  if (value.includes('legal')) return 'bg-slate-500'
-  return 'bg-emerald-500'
-}
 
 function getModalityBadgeClass(modality: Employee['workModality']): string {
   switch (modality) {
@@ -105,8 +77,6 @@ function getModalityBadgeClass(modality: Employee['workModality']): string {
       return 'border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-500/30 dark:bg-slate-500/15 dark:text-slate-300'
   }
 }
-
-const DEPARTMENT_BADGE_CLASS = 'border-gray-200 bg-white text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300'
 
 // ── Derived display ────────────────────────────────────────────────────────────
 const hireDateFormatted = computed(() => formatHireDate(props.employee.hireDate))
@@ -210,32 +180,17 @@ const rowActions = computed(() =>
       <!-- Badges: department, status, modality -->
       <div class="flex flex-wrap justify-center gap-1.5">
         <!-- Department badge (neutral bg, colored dot) -->
-        <UBadge
+        <DotBadge
           v-if="employee.currentDepartment"
-          variant="outline"
-          size="md"
-          :class="DEPARTMENT_BADGE_CLASS"
-          :ui="{ base: 'gap-2 rounded-full px-3 py-1.5 shadow-none ring ring-inset ring-gray-200 dark:ring-gray-700', label: 'text-xs font-medium' }"
-        >
-          <template #leading>
-            <span class="size-2 rounded-full" :class="getDepartmentDotClass(employee.currentDepartment)" />
-          </template>
-          {{ employee.currentDepartment }}
-        </UBadge>
+          :label="employee.currentDepartment"
+          :dot-class="getDepartmentDotClass(employee.currentDepartment)"
+        />
 
-        <!-- Status badge (colored bg + dot) -->
-        <UBadge
-          variant="outline"
-          size="md"
-          :class="getStatusBadgeClass(employee.status)"
-          :ui="{ base: 'gap-2 rounded-full px-3 py-1.5 shadow-none ring-0', label: 'text-xs font-semibold' }"
-          :aria-label="`Estado: ${statusLabel}`"
-        >
-          <template #leading>
-            <span class="size-2 rounded-full" :class="getStatusDotClass(employee.status)" />
-          </template>
-          {{ statusLabel }}
-        </UBadge>
+        <!-- Status badge (semantic tone + dark mode from shared component) -->
+        <StatusDotBadge
+          :tone="statusConfig.tone"
+          :label="statusConfig.label"
+        />
 
         <!-- Modality badge (colored bg, no dot) -->
         <UBadge

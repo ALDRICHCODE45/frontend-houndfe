@@ -37,7 +37,7 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { AppDataTable } from '@/core/shared/components/DataTable'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
-import { EMPLOYEE_STATUS_LABELS, WORK_MODALITY_LABELS } from '../interfaces/employee.types'
+import { WORK_MODALITY_LABELS } from '../interfaces/employee.types'
 import { useEmployeesList } from '../composables/useEmployeesList'
 import {
   useEmployeeColumns,
@@ -46,11 +46,13 @@ import {
 import { useEmployeeViewMode } from '../composables/useEmployeeViewMode'
 import { useManagerResolution, resolveManagerName, resolveManagerEmail } from '../composables/useManagerResolution'
 import { getEmployeeRowActions } from '../composables/useEmployeeActions'
+import { employeeStatusConfig, getDepartmentDotClass } from '../utils/employeeBadgeConfig.utils'
 import EmployeeFilters from '../components/EmployeeFilters.vue'
 import EmployeeCardGrid from '../components/EmployeeCardGrid.vue'
 import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import DotBadge from '@/core/shared/components/DotBadge.vue'
+import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
 import type { EmployeeViewMode } from '../composables/useEmployeeViewMode'
 import CreateEmployeeSlideover from '../components/CreateEmployeeSlideover.vue'
 import EmployeeEditSlideover from '../components/EmployeeEditSlideover.vue'
@@ -145,19 +147,7 @@ const { managerMap } = useManagerResolution(
   () => tenantId.value,
 )
 
-// ── Department dot color map — domain data passed into DotBadge ───────────────
-// EntityAvatar owns initials + color hashing; DEPARTMENT_BADGE_CLASS is DotBadge's default.
-function getDepartmentDotClass(department: string | null): string {
-  const value = department?.toLowerCase() ?? ''
-  if (value.includes('producto')) return 'bg-violet-500'
-  if (value.includes('diseño')) return 'bg-pink-500'
-  if (value.includes('finanzas')) return 'bg-blue-500'
-  if (value.includes('recursos')) return 'bg-cyan-500'
-  if (value.includes('operaciones')) return 'bg-amber-500'
-  if (value.includes('legal')) return 'bg-slate-500'
-  return 'bg-emerald-500'
-}
-
+// ── Modality badge class — kept inline (out of scope for this migration) ─────
 function getModalityBadgeClass(modality: Employee['workModality']): string {
   switch (modality) {
     case 'REMOTE':
@@ -166,28 +156,6 @@ function getModalityBadgeClass(modality: Employee['workModality']): string {
       return 'border-orange-200 bg-orange-50 text-orange-700'
     case 'ONSITE':
       return 'border-slate-200 bg-slate-100 text-slate-700'
-  }
-}
-
-function getStatusBadgeClass(status: Employee['status']): string {
-  switch (status) {
-    case 'ACTIVE':
-      return 'border-emerald-200 bg-emerald-50 text-emerald-700'
-    case 'ON_LEAVE':
-      return 'border-amber-200 bg-amber-50 text-amber-700'
-    case 'TERMINATED':
-      return 'border-red-200 bg-red-50 text-red-700'
-  }
-}
-
-function getStatusDotClass(status: Employee['status']): string {
-  switch (status) {
-    case 'ACTIVE':
-      return 'bg-emerald-500'
-    case 'ON_LEAVE':
-      return 'bg-amber-500'
-    case 'TERMINATED':
-      return 'bg-red-500'
   }
 }
 
@@ -431,19 +399,12 @@ const showingTo = computed(() => {
             </UBadge>
           </template>
 
-          <!-- Estado cell — badge chip -->
+          <!-- Estado cell — semantic status badge (tone + dark mode from shared component) -->
           <template #estado-cell="{ row }">
-            <UBadge
-              variant="outline"
-              size="md"
-              :class="getStatusBadgeClass((row.original as Employee).status)"
-              :ui="{ base: 'gap-2 rounded-full px-3 py-1.5 shadow-none ring-0', label: 'text-xs font-semibold' }"
-            >
-              <template #leading>
-                <span class="size-2 rounded-full" :class="getStatusDotClass((row.original as Employee).status)" />
-              </template>
-              {{ EMPLOYEE_STATUS_LABELS[(row.original as Employee).status] }}
-            </UBadge>
+            <StatusDotBadge
+              :tone="employeeStatusConfig[(row.original as Employee).status].tone"
+              :label="employeeStatusConfig[(row.original as Employee).status].label"
+            />
           </template>
 
           <!-- Actions cell — row action dropdown (WU-05B) -->
