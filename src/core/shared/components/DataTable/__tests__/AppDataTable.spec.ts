@@ -20,7 +20,10 @@ type Row = { id: number; name: string }
 const columns = [{ accessorKey: 'name', header: 'Name' }]
 const data: Row[] = [{ id: 1, name: 'Alpha' }, { id: 2, name: 'Beta' }]
 
-function mountComponent(overrideProps: Record<string, unknown> = {}) {
+function mountComponent(
+  overrideProps: Record<string, unknown> = {},
+  options: { includeCardsSlot?: boolean } = {},
+) {
   return mount(AppDataTable<Row>, {
     props: {
       columns,
@@ -32,13 +35,28 @@ function mountComponent(overrideProps: Record<string, unknown> = {}) {
     slots: {
       'mobile-card': ({ row, index }) =>
         h('article', { 'data-testid': 'mobile-card' }, `${index}:${row.name}`),
+      ...(options.includeCardsSlot
+        ? {
+            cards: ({ data, loading, empty }: { data: Row[]; loading: boolean; empty: string }) =>
+              h(
+                'section',
+                {
+                  'data-testid': 'cards-slot',
+                  'data-loading': String(loading),
+                  'data-empty': empty,
+                  'data-size': String(data.length),
+                },
+                data.map((row: Row) => row.name).join(','),
+              ),
+          }
+        : {}),
     },
     global: {
       stubs: {
         DataTableToolbar: { template: '<div data-testid="toolbar"><slot name="filters" /><slot name="actions" /></div>' },
         DataTablePagination: { template: '<div data-testid="pagination" />' },
         DataTableBulkActions: { template: '<div data-testid="bulk-actions" />' },
-        UTable: { template: '<div data-testid="table" v-bind="$attrs" />' },
+        UTable: { template: '<div data-testid="table" v-bind="$attrs"><slot name="cards" /><slot name="name-cell" /></div>' },
       },
     },
   })
@@ -55,6 +73,30 @@ describe('AppDataTable mobile rendering', () => {
 
     expect(wrapper.find('[data-testid="table-view"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="mobile-card"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="cards-slot"]').exists()).toBe(false)
+  })
+
+  it('renders cards slot when displayMode is cards', () => {
+    const wrapper = mountComponent({ displayMode: 'cards' }, { includeCardsSlot: true })
+
+    expect(wrapper.find('[data-testid="table-view"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="cards-slot"]').exists()).toBe(true)
+  })
+
+  it('renders table path when displayMode is table', () => {
+    isBelowBreakpoint.value = true
+    const wrapper = mountComponent({ displayMode: 'table', mobileRender: 'cards' })
+
+    expect(wrapper.find('[data-testid="table-view"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="cards-slot"]').exists()).toBe(false)
+  })
+
+  it('keeps auto mode mobile behavior when mobileRender is cards below breakpoint', () => {
+    isBelowBreakpoint.value = true
+    const wrapper = mountComponent({ displayMode: 'auto', mobileRender: 'cards' }, { includeCardsSlot: true })
+
+    expect(wrapper.find('[data-testid="cards-slot"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="table-view"]').exists()).toBe(false)
   })
 
   it('renders mobile-card slot when mobileRender is cards and below breakpoint', () => {
@@ -86,6 +128,16 @@ describe('AppDataTable mobile rendering', () => {
     const wrapper = mountComponent({ mobileRender: 'cards', data: [], totalCount: 0 })
 
     expect(wrapper.find('[data-testid="mobile-empty-state"]').text()).toContain('No se encontraron resultados')
+  })
+
+  it('passes expected slot props to cards slot', () => {
+    const wrapper = mountComponent({ displayMode: 'cards', fetching: true }, { includeCardsSlot: true })
+    const cardsSlot = wrapper.find('[data-testid="cards-slot"]')
+
+    expect(cardsSlot.attributes('data-size')).toBe('2')
+    expect(cardsSlot.attributes('data-loading')).toBe('true')
+    expect(cardsSlot.attributes('data-empty')).toBe('No se encontraron resultados')
+    expect(cardsSlot.text()).toContain('Alpha,Beta')
   })
 
   it('keeps pagination visible in cards mode', () => {

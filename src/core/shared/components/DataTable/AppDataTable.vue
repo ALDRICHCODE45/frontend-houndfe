@@ -40,6 +40,7 @@ const props = withDefaults(
     // Bulk actions
     bulkActions?: BulkAction<T>[]
     // Mobile rendering
+    displayMode?: 'auto' | 'table' | 'cards'
     mobileRender?: 'table' | 'cards'
     mobileBreakpoint?: 'sm' | 'md' | 'lg' | 'xl'
   }>(),
@@ -61,6 +62,7 @@ const props = withDefaults(
     addButtonIcon: 'i-lucide-plus',
     showRefresh: true,
     bulkActions: () => [],
+    displayMode: 'auto',
     mobileRender: 'table',
     mobileBreakpoint: 'md',
   },
@@ -97,10 +99,26 @@ const tableApi = computed<any>(() => tableRef.value?.tableApi)
 // slots from the parent directly to UTable underneath
 const slots = useSlots()
 
+// Slots owned by this wrapper (toolbar + card views); never forwarded to UTable.
+const SLOTS_NOT_FORWARDED_TO_TABLE = new Set([
+  'filters',
+  'actions',
+  'above-table',
+  'cards',
+  'mobile-card',
+])
+
 const breakpoints = useBreakpoints(breakpointsTailwind)
 const isMobileViewport = breakpoints.smaller(() => props.mobileBreakpoint)
-const isCardsMode = computed(() => props.mobileRender === 'cards' && isMobileViewport.value)
+const isCardsMode = computed(() => {
+  if (props.displayMode === 'cards') return true
+  if (props.displayMode === 'table') return false
+  return props.mobileRender === 'cards' && isMobileViewport.value
+})
 const isLoading = computed(() => props.loading || props.fetching)
+const forwardedTableSlots = computed(() =>
+  Object.keys(slots).filter((name) => !SLOTS_NOT_FORWARDED_TO_TABLE.has(name)),
+)
 
 // Selected count for bulk actions
 const selectedCount = computed(() => Object.keys(rowSelection.value).length)
@@ -157,40 +175,50 @@ function handleClearSelection() {
          - Special slots:      #expanded, #empty, #loading, #caption
          This allows the parent to use Vue template syntax instead of h() in column defs -->
     <template v-if="isCardsMode">
-      <div
-        v-if="isLoading"
-        class="grid gap-3"
-        data-testid="mobile-cards-loading"
-      >
+      <slot
+        v-if="slots.cards"
+        name="cards"
+        :data="props.data"
+        :loading="isLoading"
+        :empty="props.empty"
+      />
+
+      <template v-else>
         <div
-          v-for="index in 3"
-          :key="`mobile-skeleton-${index}`"
-          class="h-28 animate-pulse rounded-lg border border-default bg-elevated"
-          data-testid="mobile-card-skeleton"
-        />
-      </div>
+          v-if="isLoading"
+          class="grid gap-3"
+          data-testid="mobile-cards-loading"
+        >
+          <div
+            v-for="index in 3"
+            :key="`mobile-skeleton-${index}`"
+            class="h-28 animate-pulse rounded-lg border border-default bg-elevated"
+            data-testid="mobile-card-skeleton"
+          />
+        </div>
 
-      <div
-        v-else-if="props.data.length === 0 || !slots['mobile-card']"
-        class="flex min-h-32 items-center justify-center rounded-lg border border-dashed border-default px-4 py-8 text-sm text-muted"
-        data-testid="mobile-empty-state"
-      >
-        {{ props.empty }}
-      </div>
+        <div
+          v-else-if="props.data.length === 0 || !slots['mobile-card']"
+          class="flex min-h-32 items-center justify-center rounded-lg border border-dashed border-default px-4 py-8 text-sm text-muted"
+          data-testid="mobile-empty-state"
+        >
+          {{ props.empty }}
+        </div>
 
-      <div
-        v-else
-        class="grid gap-3"
-        data-testid="mobile-cards-list"
-      >
-        <slot
-          v-for="(row, index) in props.data"
-          :key="index"
-          name="mobile-card"
-          :row="row"
-          :index="index"
-        />
-      </div>
+        <div
+          v-else
+          class="grid gap-3"
+          data-testid="mobile-cards-list"
+        >
+          <slot
+            v-for="(row, index) in props.data"
+            :key="index"
+            name="mobile-card"
+            :row="row"
+            :index="index"
+          />
+        </div>
+      </template>
     </template>
 
     <UTable
@@ -213,7 +241,7 @@ function handleClearSelection() {
       class="flex-1"
       data-testid="table-view"
     >
-      <template v-for="(_, name) in slots" #[name]="slotProps">
+      <template v-for="name in forwardedTableSlots" #[name]="slotProps">
         <slot :name="name" v-bind="slotProps ?? {}" />
       </template>
     </UTable>

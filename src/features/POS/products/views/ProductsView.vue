@@ -13,10 +13,13 @@ import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
+import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { productApi } from '../api/product.api'
+import ProductCardGrid from '../components/ProductCardGrid.vue'
 import ProductUpsertSlideover from '../components/ProductUpsertSlideover.vue'
 import { useProductColumns } from '../composables/useProductColumns'
+import { useProductViewMode, isProductViewMode } from '../composables/useProductViewMode'
 import type {
   BrandOption,
   CategoryOption,
@@ -27,7 +30,7 @@ import type {
   ProductDetail,
   UpdateProductPayload,
 } from '../interfaces/product.types'
-import { getStockTone, productStatusConfig } from '../utils/productStatusConfig.utils'
+import { getProductStockTone, productStatusConfig } from '../utils/productStatusConfig.utils'
 
 type ProductFormErrors = Partial<
   Record<'name' | 'sku' | 'barcode' | 'price' | 'quantity' | 'minQuantity', string>
@@ -146,6 +149,10 @@ const canDeleteProduct = computed(() => authStore.userCan('delete', 'Product'))
 const canManageProductActions = computed(
   () => canReadProduct.value || canUpdateProduct.value || canDeleteProduct.value,
 )
+const { viewMode, setMode: setViewMode } = useProductViewMode()
+
+// Bridge the products domain vocabulary ('card') to AppDataTable's ('cards').
+const tableDisplayMode = computed(() => (viewMode.value === 'card' ? 'cards' : 'table'))
 
 function clearFormContext() {
   selectedProduct.value = null
@@ -416,6 +423,11 @@ function openDetails(product: Product) {
   void router.push(`/pos/products/${product.id}`)
 }
 
+function handleViewModeChange(mode: string) {
+  if (!isProductViewMode(mode)) return
+  setViewMode(mode)
+}
+
 function handleEditSubmit(values: UpdateProductPayload) {
   if (!selectedProductId.value) return
   updateMutation.mutate({ productId: selectedProductId.value, values })
@@ -598,6 +610,7 @@ const bulkActions = computed<BulkAction<Product>[]>(() => [])
           :showing-from="showingFrom"
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
+          :display-mode="tableDisplayMode"
           :bulk-actions="bulkActions"
           :show-add-button="canCreateProduct"
           search-placeholder="Buscar productos..."
@@ -609,6 +622,30 @@ const bulkActions = computed<BulkAction<Product>[]>(() => [])
           @add="handleAdd"
           @refresh="refresh"
         >
+          <template #actions>
+            <ViewToggle
+              :model-value="viewMode"
+              aria-label="Seleccionar vista de productos"
+              @update:model-value="handleViewModeChange"
+            />
+          </template>
+
+          <template #cards>
+            <ProductCardGrid
+              :products="data"
+              :loading="isLoading || isFetching"
+              :empty="'No se encontraron productos'"
+              :currency-formatter="currencyFormatter"
+              :can-read="canReadProduct"
+              :can-update="canUpdateProduct"
+              :can-delete="canDeleteProduct"
+              @details="openDetails"
+              @edit="handleOpenEdit"
+              @delete="handleDelete"
+              @card-click="openDetails"
+            />
+          </template>
+
           <template #select-header="{ table }">
             <SelectColumn mode="header" :table="table" />
           </template>
@@ -665,22 +702,16 @@ const bulkActions = computed<BulkAction<Product>[]>(() => [])
                 (row.original as Product).hasVariants &&
                 (row.original as Product).variantStockTotal != null
               "
-              :tone="getStockTone((row.original as Product).variantStockTotal ?? 0)"
+              :tone="getProductStockTone(row.original as Product)"
             >
               {{ (row.original as Product).variantStockTotal }} unidades en
               {{ (row.original as Product).variantCount }}
               {{ (row.original as Product).variantCount === 1 ? 'variante' : 'variantes' }}
             </AppBadge>
-            <AppBadge
-              v-else-if="(row.original as Product).hasVariants"
-              tone="info"
-            >
+            <AppBadge v-else-if="(row.original as Product).hasVariants" :tone="getProductStockTone(row.original as Product)">
               En variantes
             </AppBadge>
-            <AppBadge
-              v-else
-              :tone="getStockTone(row.original.quantity, row.original.minQuantity)"
-            >
+            <AppBadge v-else :tone="getProductStockTone(row.original as Product)">
               {{ row.original.quantity }}
             </AppBadge>
           </template>
