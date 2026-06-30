@@ -586,14 +586,14 @@ const bulkActions = computed<BulkAction<Product>[]>(() => [])
       @confirm="handleConfirm"
     />
 
-    <UCard :ui="{ body: 'p-0 sm:p-0' }">
-      <template #header>
+    <section class="overflow-hidden rounded-2xl border border-default bg-default shadow-sm">
+      <div class="border-b border-default px-5 py-4">
         <TableHeaderDescription
           description="Gestión de inventario y catálogo de productos"
           title="Productos"
         />
-      </template>
-      <div class="px-6 py-5">
+      </div>
+      <div class="px-5 py-4">
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"
@@ -740,6 +740,6 @@ const bulkActions = computed<BulkAction<Product>[]>(() => [])
           </template>
         </AppDataTable>
       </div>
-    </UCard>
+    </section>
   </div>
 </template>
