@@ -20,7 +20,7 @@
  */
 
 import { computed } from 'vue'
-import { badgeToneToColor, type AppBadgeTone } from '@/core/shared/utils/badge.utils'
+import { badgeToneToColor, toneToDotClass, type AppBadgeTone } from '@/core/shared/utils/badge.utils'
 
 const props = withDefaults(
   defineProps<{
@@ -40,19 +40,11 @@ const props = withDefaults(
 const resolvedAriaLabel = computed(() => props.ariaLabel ?? `${props.ariaPrefix} ${props.label}`)
 
 // Resolve the semantic tone to a base color family, then map that family to the
-// dot + shell tints. Keeping the dot map keyed by the resolved color (not the
-// raw tone) means aliased tones (active->success, inactive->error, ...) reuse
-// the same visual treatment automatically.
+// shell tint. Keeping the map keyed by the resolved color (not the raw tone)
+// means aliased tones (active->success, inactive->error, ...) reuse the same
+// visual treatment automatically. The dot color comes from the shared
+// toneToDotClass helper so it never drifts from other dot-driven badges.
 const color = computed(() => badgeToneToColor(props.tone))
-
-const DOT_CLASS_BY_COLOR = {
-  success: 'bg-emerald-500',
-  warning: 'bg-amber-500',
-  error: 'bg-red-500',
-  info: 'bg-blue-500',
-  secondary: 'bg-violet-500',
-  neutral: 'bg-gray-400',
-} as const
 
 const SHELL_CLASS_BY_COLOR = {
   success:
@@ -68,7 +60,7 @@ const SHELL_CLASS_BY_COLOR = {
     'border-gray-200 bg-gray-50 text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300',
 } as const
 
-const dotClass = computed(() => DOT_CLASS_BY_COLOR[color.value])
+const dotClass = computed(() => toneToDotClass(props.tone))
 const shellClass = computed(() => SHELL_CLASS_BY_COLOR[color.value])
 const uiBase = computed(
   () => `gap-2 rounded-full px-3 ${props.compact ? 'py-1' : 'py-1.5'} shadow-none ring-0`,

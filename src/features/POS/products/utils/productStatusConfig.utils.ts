@@ -1,4 +1,4 @@
-import type { AppBadgeTone } from '@/core/shared/utils/badge.utils'
+import { toneToDotClass, type AppBadgeTone } from '@/core/shared/utils/badge.utils'
 import type { Product } from '../interfaces/product.types'
 
 export const productStatusConfig = {
@@ -32,9 +32,18 @@ export const getProductStockTone = (product: Product): AppBadgeTone => {
 }
 
 /**
- * Card-oriented stock display (verbose label + shared tone).
- * The table renders its own compact label but reuses getProductStockTone,
- * so only the presentation differs, never the stock-level rule.
+ * Dot color class for a product's stock level, derived from its tone.
+ * Lets the stock badge use the neutral DotBadge (dot-only color) while
+ * keeping the out-of-stock/low/healthy rule as the single source of truth.
+ */
+export const getProductStockDotClass = (product: Product): string =>
+  toneToDotClass(getProductStockTone(product))
+
+/**
+ * Stock display (verbose label + shared tone) used by BOTH the products table
+ * and the product cards. Centralizes the label so the two surfaces never drift;
+ * the dot color is derived separately via getProductStockDotClass, and the
+ * stock-level rule always comes from getProductStockTone.
  */
 export const getProductStockDisplay = (product: Product): ProductStockDisplay => {
   if (product.hasVariants && product.variantStockTotal != null) {

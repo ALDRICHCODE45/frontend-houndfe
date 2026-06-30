@@ -179,8 +179,8 @@ function mountView() {
         TableHeaderDescription: { template: '<div />' },
         SortableHeader: true,
         SelectColumn: true,
-        AppBadge: { template: '<span><slot /></span>' },
         StatusDotBadge: { template: '<span><slot /></span>' },
+        DotBadge: { template: '<span><slot /></span>' },
       },
     },
   })

@@ -1,11 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
 import DotBadge from '@/core/shared/components/DotBadge.vue'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import type { Product } from '../interfaces/product.types'
-import { getProductStockDisplay, productStatusConfig } from '../utils/productStatusConfig.utils'
+import {
+  getProductStockDisplay,
+  getProductStockDotClass,
+  productStatusConfig,
+} from '../utils/productStatusConfig.utils'
 
 const props = defineProps<{
   product: Product
@@ -26,9 +29,8 @@ const statusConfig = computed(() => productStatusConfig[props.product.status])
 const priceLabel = computed(() => props.currencyFormatter.format(props.product.priceCents / 100))
 const canOpenDetails = computed(() => props.canRead ?? false)
 const updatedAtLabel = computed(() => new Date(props.product.updatedAt).toLocaleDateString())
-const stockDisplay = computed(() => getProductStockDisplay(props.product))
-const stockLabel = computed(() => stockDisplay.value.label)
-const stockTone = computed(() => stockDisplay.value.tone)
+const stockLabel = computed(() => getProductStockDisplay(props.product).label)
+const stockDotClass = computed(() => getProductStockDotClass(props.product))
 const rowActions = computed(() => {
   const mainActions = [
     ...(props.canRead ? [{ label: 'Detalles', onSelect: () => emit('details', props.product) }] : []),
@@ -121,9 +123,7 @@ function handleCardKeydown(event: KeyboardEvent): void {
       <div class="min-w-0">
         <p class="text-muted">Stock</p>
         <div class="mt-1">
-          <AppBadge :tone="stockTone">
-            {{ stockLabel }}
-          </AppBadge>
+          <DotBadge :label="stockLabel" :dot-class="stockDotClass" :truncate="true" :compact="true" />
         </div>
       </div>
       <div class="min-w-0 text-right">

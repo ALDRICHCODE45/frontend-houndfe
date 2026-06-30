@@ -39,7 +39,6 @@ function mountComponent(overrideProps: Record<string, unknown> = {}) {
     global: {
       renderStubDefaultSlot: true,
       stubs: {
-        AppBadge: { template: '<span><slot /></span>' },
         StatusDotBadge: { template: '<span><slot /></span>' },
         DotBadge: { template: '<span><slot /></span>' },
         EntityAvatar: { template: '<div data-testid="avatar" />' },

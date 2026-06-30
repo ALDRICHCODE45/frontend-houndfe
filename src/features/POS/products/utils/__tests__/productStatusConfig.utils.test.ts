@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   getProductStockDisplay,
+  getProductStockDotClass,
   getProductStockTone,
   getStockTone,
 } from '../productStatusConfig.utils'
@@ -95,5 +96,31 @@ describe('getProductStockDisplay (card label) reuses the shared tone', () => {
     const display = getProductStockDisplay(product)
     expect(display.label).toBe('En variantes')
     expect(display.tone).toBe('info')
+  })
+})
+
+describe('getProductStockDotClass derives the dot color from the stock tone', () => {
+  it('healthy stock -> emerald dot', () => {
+    expect(getProductStockDotClass(makeProduct({ quantity: 50, minQuantity: 5 }))).toBe(
+      'bg-emerald-500',
+    )
+  })
+
+  it('low stock -> amber dot', () => {
+    expect(getProductStockDotClass(makeProduct({ quantity: 3, minQuantity: 5 }))).toBe(
+      'bg-amber-500',
+    )
+  })
+
+  it('out of stock -> red dot', () => {
+    expect(getProductStockDotClass(makeProduct({ quantity: 0, minQuantity: 5 }))).toBe('bg-red-500')
+  })
+
+  it('variants without a total -> blue (info) dot', () => {
+    expect(
+      getProductStockDotClass(
+        makeProduct({ hasVariants: true, variantStockTotal: null, variantCount: 3 }),
+      ),
+    ).toBe('bg-blue-500')
   })
 })
