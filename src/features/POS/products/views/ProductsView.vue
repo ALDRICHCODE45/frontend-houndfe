@@ -13,6 +13,7 @@ import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
+import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
 import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { productApi } from '../api/product.api'
@@ -717,10 +718,9 @@ const bulkActions = computed<BulkAction<Product>[]>(() => [])
           </template>
 
           <template #status-cell="{ row }">
-            <AppBadge
+            <StatusDotBadge
               :tone="productStatusConfig[(row.original as Product).status].tone"
               :label="productStatusConfig[(row.original as Product).status].label"
-              variant="outline"
             />
           </template>
 

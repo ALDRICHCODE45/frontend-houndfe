@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
 import DotBadge from '@/core/shared/components/DotBadge.vue'
+import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import type { Product } from '../interfaces/product.types'
 import { getProductStockDisplay, productStatusConfig } from '../utils/productStatusConfig.utils'
@@ -103,7 +104,7 @@ function handleCardKeydown(event: KeyboardEvent): void {
         :compact="true"
       />
 
-      <AppBadge :tone="statusConfig.tone" :label="statusConfig.label" variant="outline" />
+      <StatusDotBadge :tone="statusConfig.tone" :label="statusConfig.label" :compact="true" />
     </div>
 
     <div class="my-3 border-t border-dashed border-default" />

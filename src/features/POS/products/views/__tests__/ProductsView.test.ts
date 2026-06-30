@@ -180,6 +180,7 @@ function mountView() {
         SortableHeader: true,
         SelectColumn: true,
         AppBadge: { template: '<span><slot /></span>' },
+        StatusDotBadge: { template: '<span><slot /></span>' },
       },
     },
   })
