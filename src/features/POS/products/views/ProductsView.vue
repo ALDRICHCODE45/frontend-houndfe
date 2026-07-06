@@ -38,7 +38,7 @@ import {
 } from '../utils/productStatusConfig.utils'
 
 type ProductFormErrors = Partial<
-  Record<'name' | 'sku' | 'barcode' | 'price' | 'quantity' | 'minQuantity', string>
+  Record<'name' | 'sku' | 'barcode' | 'price' | 'quantity' | 'minQuantity' | 'satKey', string>
 >
 
 declare const useToast: () => {
@@ -231,6 +231,10 @@ function mapDomainError(error: AxiosError<DomainApiError>): {
     if (normalized.includes('minquantity') || normalized.includes('min quantity')) {
       fields.minQuantity = message
     }
+  }
+
+  if (code === 'SAT_KEY_NOT_FOUND') {
+    fields.satKey = message
   }
 
   return { message, fields }
