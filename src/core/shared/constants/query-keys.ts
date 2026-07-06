@@ -17,6 +17,17 @@ export const productQueryKeys = {
     ['products', tenantId, 'variant-prices', productId, variantId] as const,
 }
 
+/**
+ * SAT c_ClaveProdServ catalog query keys.
+ * Search term lives in the key (trimmed) so TanStack auto-aborts
+ * stale in-flight requests when the user keeps typing.
+ * Detail keys never include tenant — backend resolves tenant from the JWT.
+ */
+export const satKeyQueryKeys = {
+  search: (term: string) => ['sat-keys', 'search', term] as const,
+  detail: (key: string) => ['sat-keys', 'detail', key] as const,
+}
+
 export const orderQueryKeys = {
   paginated: (tenantId: string) => ['orders', tenantId, 'paginated'] as const,
   detail: (tenantId: string, orderId: string) => ['orders', tenantId, 'detail', orderId] as const,
