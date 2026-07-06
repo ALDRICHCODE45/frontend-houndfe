@@ -17,6 +17,7 @@ import type {
   UpdateProductPayload,
 } from '../interfaces/product.types'
 import CategorySelect, { type CategorySelectItem } from './CategorySelect.vue'
+import SatKeySelect from './SatKeySelect.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -254,7 +255,7 @@ function handleCancel() {
           </UFormField>
 
           <UFormField label="SAT Key" name="satKey" :error="errors.satKey">
-            <UInput v-model="state.satKey" class="w-full" placeholder="Opcional" />
+            <SatKeySelect v-model="state.satKey" :error="errors.satKey" />
           </UFormField>
         </div>
 
