@@ -15,6 +15,7 @@ import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import PriceListSection from '../components/PriceListSection.vue'
 import ProductImageGallery from '../components/ProductImageGallery.vue'
 import CategorySelect from '../components/CategorySelect.vue'
+import SatKeySelect from '../components/SatKeySelect.vue'
 import VariantDetailModal from '../components/VariantDetailModal.vue'
 import VariantImagePickerModal from '../components/VariantImagePickerModal.vue'
 import {
@@ -164,6 +165,7 @@ const isCategoryModalOpen = ref(false)
 const categoryCreateError = ref('')
 const isBrandModalOpen = ref(false)
 const brandCreateError = ref('')
+const satKeyError = ref('')
 const isVariantModalOpen = ref(false)
 const isLotModalOpen = ref(false)
 const editingVariantId = ref<string | null>(null)
@@ -619,6 +621,14 @@ watch(
 function mapDomainError(error: AxiosError<DomainApiError>): string {
   const response = error.response?.data
   if (!response) return 'No pudimos completar la operación. Reintentá en unos segundos.'
+  // SAT_KEY_NOT_FOUND surfaces as a field-level error under the
+  // SatKeySelect (mirrors ProductsView's `ProductFormErrors.satKey`
+  // mapping for the slideover path).
+  if (response.error === 'SAT_KEY_NOT_FOUND') {
+    satKeyError.value = response.message ?? 'Clave SAT inválida.'
+  } else {
+    satKeyError.value = ''
+  }
   return response.message ?? 'No pudimos completar la operación. Reintentá en unos segundos.'
 }
 
@@ -784,6 +794,7 @@ const createMutation = useMutation({
     return createdProduct
   },
   onSuccess: async (createdProduct) => {
+    satKeyError.value = ''
     pendingVariants.value = []
     pendingLots.value = []
     pendingPriceLists.value = []
@@ -809,6 +820,7 @@ const updateMutation = useMutation({
     return productApi.update(productId.value, payload)
   },
   onSuccess: async () => {
+    satKeyError.value = ''
     toast.add({
       title: 'Producto actualizado',
       description: 'Los cambios se guardaron correctamente.',
@@ -1801,11 +1813,7 @@ function handleEditLotPlaceholder() {
                 </UFormField>
 
                 <UFormField label="SAT Key" name="satKey">
-                  <UInput
-                    v-model="formState.satKey"
-                    class="w-full"
-                    placeholder="Opcional"
-                  />
+                  <SatKeySelect v-model="formState.satKey" :error="satKeyError" />
                 </UFormField>
 
                 <UFormField label="Descripción" name="description" class="md:col-span-2">
