@@ -16,6 +16,9 @@ export interface SatKeyOption {
 
 export type SatSearchState = 'idle' | 'loading' | 'no-matches' | 'results'
 
+/** Structural subset the helpers actually consume. Lets tests pass minimal objects. */
+type SatKeyLike = Pick<SatKey, 'key' | 'description'>
+
 /** Minimum trimmed-length before a search request fires (per spec R1). */
 export const MIN_SEARCH_CHARS = 2
 /** Debounce window (per spec R1, "250-300ms" — choose the upper bound). */
@@ -33,8 +36,10 @@ export function formatSatKeyLabel(key: string, description: string): string {
 
 /**
  * Map an array of SatKey entities to dropdown option shape.
+ * Accepts the structural subset (key + description) — the helper
+ * does not read the translado/validity fields.
  */
-export function buildSatKeyOptions(items: SatKey[]): SatKeyOption[] {
+export function buildSatKeyOptions(items: SatKeyLike[]): SatKeyOption[] {
   return items.map((item) => ({
     value: item.key,
     label: formatSatKeyLabel(item.key, item.description),

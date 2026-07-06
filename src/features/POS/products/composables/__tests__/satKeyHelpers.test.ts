@@ -104,7 +104,7 @@ describe('deriveSearchState', () => {
       deriveSearchState({
         term: '12',
         isLoading: false,
-        items: [{ key: '12345678', description: 'X' }],
+        items: [{ value: '12345678', label: '12345678 — X' }],
       }),
     ).toBe('results')
   })

@@ -37,9 +37,9 @@ const searchState = {
   debouncedTerm: ref(''),
   items: ref<{ key: string; description: string }[]>([]),
 }
-const useSatKeySearchMock = vi.fn(() => searchState)
+const useSatKeySearchMock = vi.fn((_input: unknown) => searchState)
 vi.mock('../../composables/useSatKeySearch', () => ({
-  useSatKeySearch: (...args: unknown[]) => useSatKeySearchMock(...args),
+  useSatKeySearch: (input: unknown) => useSatKeySearchMock(input),
 }))
 
 const lookupState = {
@@ -47,9 +47,9 @@ const lookupState = {
   isLoading: ref(false),
   isFetching: ref(false),
 }
-const useSatKeyLookupMock = vi.fn(() => lookupState)
+const useSatKeyLookupMock = vi.fn((_input: unknown) => lookupState)
 vi.mock('../../composables/useSatKeyLookup', () => ({
-  useSatKeyLookup: (...args: unknown[]) => useSatKeyLookupMock(...args),
+  useSatKeyLookup: (input: unknown) => useSatKeyLookupMock(input),
 }))
 
 const flushPromises = async () => {
@@ -66,8 +66,10 @@ function mountSelect(props: Record<string, unknown> = {}) {
 /** Open the dropdown so the search input is in the DOM. */
 async function openDropdown(wrapper: ReturnType<typeof mountSelect>) {
   // Click the trigger (the <button> wrapping the chevron + label).
-  const trigger = wrapper.findAll('button[type="button"]').find((b) => b.classes().length === 0) ??
-    wrapper.findAll('button[type="button"]')[0]
+  const buttons = wrapper.findAll('button[type="button"]')
+  const trigger =
+    buttons.find((b) => b.classes().length === 0) ?? buttons[0]
+  if (!trigger) throw new Error('No trigger button found')
   await trigger.trigger('click')
   await flushPromises()
 }
@@ -124,7 +126,7 @@ describe('SatKeySelect', () => {
 
     const events = wrapper.emitted('update:modelValue')
     expect(events).toBeTruthy()
-    expect(events!.at(-1)).toEqual(['12345678'])
+    expect(events![events!.length - 1]).toEqual(['12345678'])
   })
 
   it('shows the "showing 20 of N" hint when total > items.length', async () => {
@@ -207,7 +209,9 @@ describe('SatKeySelect', () => {
     expect(clearBtn.exists()).toBe(true)
     await clearBtn.trigger('click')
 
-    expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual([''])
+    const updateEvents = wrapper.emitted('update:modelValue')
+    expect(updateEvents).toBeTruthy()
+    expect(updateEvents![updateEvents!.length - 1]).toEqual([''])
   })
 
   it('forwards :error to the wrapper test-id', () => {
