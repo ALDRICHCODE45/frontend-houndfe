@@ -19,6 +19,7 @@ const APP_SUBJECTS: AppSubject[] = [
   'EmployeeTimeOff',
   'EmployeeTimeOffMedical',
   'EmployeeEmergencyContact',
+  'NotificationConfig',
   'all',
 ]
 
