@@ -11,9 +11,11 @@
 //      trigger a toast, UNKNOWN_ACTION_KEY must NEVER trigger a field error.
 
 import { describe, it, expect, vi } from 'vitest'
+import type { AxiosError } from 'axios'
 import {
   handleUpdateSuccess,
   handleUpdateError,
+  extractErrorPayload,
   type UpdateMutationDeps,
 } from '../useUpdateNotificationConfigMutation'
 import { fromConfigResponse } from '../../utils/notificationConfigMappers'
@@ -167,5 +169,76 @@ describe('handleUpdateError (routes through mapNotificationConfigError)', () => 
 
     expect(deps.setFieldError).toHaveBeenCalledWith('recipients', expect.any(String))
     expect(deps.addToast).not.toHaveBeenCalled()
+  })
+})
+
+describe('extractErrorPayload (reads the REAL backend error field)', () => {
+  // The real backend returns error bodies as `{ error: "CODE", message: "..." }`,
+  // NOT `{ code: "CODE" }`. These cases lock in that the axios-boundary
+  // extraction reads `error` (with `code` as a resilience fallback) so the
+  // domain code is actually routed, not silently dropped.
+
+  function makeAxiosError(data: unknown, status = 400): AxiosError {
+    return {
+      response: { data, status },
+    } as unknown as AxiosError
+  }
+
+  it('reads the domain code from response.data.error (real backend shape)', () => {
+    const payload = extractErrorPayload(
+      makeAxiosError({ error: 'INVALID_RECIPIENT', message: 'bad recipient' }),
+    )
+
+    expect(payload.code).toBe('INVALID_RECIPIENT')
+    expect(payload.status).toBe(400)
+    expect(payload.message).toBe('bad recipient')
+  })
+
+  it('INVALID_RECIPIENT from real backend routes to recipients field, NO toast', () => {
+    const deps = makeDeps()
+    const axiosError = makeAxiosError({
+      error: 'INVALID_RECIPIENT',
+      message: 'recipient not in tenant',
+    })
+
+    handleUpdateError(extractErrorPayload(axiosError), deps)
+
+    expect(deps.setFieldError).toHaveBeenCalledWith('recipients', expect.any(String))
+    expect(deps.addToast).not.toHaveBeenCalled()
+  })
+
+  it('UNKNOWN_ACTION_KEY from real backend routes to toast, NO field error', () => {
+    const deps = makeDeps()
+    const axiosError = makeAxiosError({ error: 'UNKNOWN_ACTION_KEY' })
+
+    handleUpdateError(extractErrorPayload(axiosError), deps)
+
+    expect(deps.addToast).toHaveBeenCalledTimes(1)
+    expect(deps.setFieldError).not.toHaveBeenCalled()
+  })
+
+  it('falls back to response.data.code for resilience (legacy shape)', () => {
+    const payload = extractErrorPayload(
+      makeAxiosError({ code: 'INVALID_RECIPIENT' }),
+    )
+
+    expect(payload.code).toBe('INVALID_RECIPIENT')
+  })
+
+  it('prefers `error` over `code` when both are present', () => {
+    const payload = extractErrorPayload(
+      makeAxiosError({ error: 'INVALID_RECIPIENT', code: 'UNKNOWN_ACTION_KEY' }),
+    )
+
+    expect(payload.code).toBe('INVALID_RECIPIENT')
+  })
+
+  it('ignores non-string discriminators and keeps status for the fallback path', () => {
+    const payload = extractErrorPayload(
+      makeAxiosError({ error: 42, code: {} }, 500),
+    )
+
+    expect(payload.code).toBeUndefined()
+    expect(payload.status).toBe(500)
   })
 })

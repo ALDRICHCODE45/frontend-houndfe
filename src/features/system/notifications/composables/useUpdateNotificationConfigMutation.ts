@@ -175,15 +175,27 @@ export function useUpdateNotificationConfigMutation(deps: {
 
 /**
  * Best-effort extraction of the backend error payload from an Axios error.
- * The backend returns `{ code, message }` on the response body, so we
- * prefer that. Falls back to status-only for transport-level errors.
+ *
+ * The REAL backend returns error bodies as `{ error: "CODE", message: "..." }`
+ * — the domain discriminator is `error`, NOT `code`. We read `error` first and
+ * fall back to `code` for resilience against older/alternate shapes. Without
+ * this, `INVALID_RECIPIENT` never reaches the inline recipients field (spec
+ * REQ-8) and wrongly falls through to a generic 400 toast.
+ *
+ * Falls back to status-only for transport-level errors.
  */
-function extractErrorPayload(error: AxiosError): NotificationConfigErrorInput {
-  const data = error.response?.data as { code?: unknown; message?: unknown } | undefined
-  const code = typeof data?.code === 'string' ? data.code : undefined
+export function extractErrorPayload(error: AxiosError): NotificationConfigErrorInput {
+  const data = error.response?.data as
+    | { error?: unknown; code?: unknown; message?: unknown }
+    | undefined
+  const pick = (value: unknown): string | undefined =>
+    typeof value === 'string' ? value : undefined
+  const code = pick(data?.error) ?? pick(data?.code)
+  const message = pick(data?.message)
   return {
     status: error.response?.status,
     code,
+    ...(message !== undefined ? { message } : {}),
   }
 }
 
