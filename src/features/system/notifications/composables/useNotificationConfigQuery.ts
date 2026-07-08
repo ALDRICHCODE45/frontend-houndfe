@@ -32,7 +32,7 @@ import type { AssignableUser } from '@/features/POS/users/interfaces/user.types'
  * invisible to consumers.
  */
 export function useNotificationConfigQuery(tenantId: MaybeRefOrGetter<string>) {
-  const query = useQuery({
+  const query = useQuery<NotificationConfigResponse>({
     queryKey: computed(() => notificationConfigQueryKeys.config(toValue(tenantId))),
     queryFn: () => notificationConfigApi.get(),
     placeholderData: keepPreviousData,
@@ -40,9 +40,10 @@ export function useNotificationConfigQuery(tenantId: MaybeRefOrGetter<string>) {
 
   // Shape the GET view through the mapper so consumers see the form
   // shape (`recipientUserIds`, not `recipients`). The mapper is pure and
-  // identity on `enabled` / `enabledActions`.
+  // identity on `enabled` / `enabledActions`. `query.data.value` is already
+  // typed as `NotificationConfigResponse | undefined` via the useQuery generic.
   const data: Ref<NotificationConfigForm | undefined> = computed(() => {
-    const view = query.data.value as NotificationConfigResponse | undefined
+    const view = query.data.value
     return view ? fromConfigResponse(view) : undefined
   })
 
