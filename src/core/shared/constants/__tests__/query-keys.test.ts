@@ -4,6 +4,7 @@ import {
   saleQueryKeys,
   adminTenantQueryKeys,
   adminTenantMembershipQueryKeys,
+  notificationConfigQueryKeys,
 } from '../query-keys'
 
 describe('promotionQueryKeys', () => {
@@ -257,6 +258,33 @@ describe('adminTenantMembershipQueryKeys', () => {
       const key = adminTenantMembershipQueryKeys.detail('tenant-1', 'membership-1')
       const prefix = ['admin', 'tenant-memberships', 'tenant-1']
       expect(key.slice(0, 3)).toEqual(prefix)
+    })
+  })
+})
+
+describe('notificationConfigQueryKeys', () => {
+  describe('config', () => {
+    it('returns a tuple starting with "notification-config" and including tenantId', () => {
+      const key = notificationConfigQueryKeys.config('tenant-1')
+      expect(key[0]).toBe('notification-config')
+      expect(key[1]).toBe('tenant-1')
+    })
+
+    it('returns the same key tuple on repeated calls with same tenantId', () => {
+      const key1 = notificationConfigQueryKeys.config('tenant-1')
+      const key2 = notificationConfigQueryKeys.config('tenant-1')
+      expect(key1).toEqual(key2)
+    })
+
+    it('produces different keys for different tenants so cache is isolated', () => {
+      const key1 = notificationConfigQueryKeys.config('tenant-1')
+      const key2 = notificationConfigQueryKeys.config('tenant-2')
+      expect(key1).not.toEqual(key2)
+    })
+
+    it('exact tuple shape includes tenantId as second segment', () => {
+      const key = notificationConfigQueryKeys.config('tenant-abc')
+      expect(key).toEqual(['notification-config', 'tenant-abc'])
     })
   })
 })

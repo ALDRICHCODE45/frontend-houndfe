@@ -81,6 +81,15 @@ export const usersQueryKeys = {
   assignable: () => ['users', 'assignable'] as const,
 }
 
+/**
+ * Notification configuration (tenant-admin screen at
+ * /sistema/configuracion/notificaciones). Cache is scoped per tenantId so
+ * switching tenants does not bleed the form.
+ */
+export const notificationConfigQueryKeys = {
+  config: (tenantId: string) => ['notification-config', tenantId] as const,
+}
+
 export const adminTenantQueryKeys = {
   list: (includeInactive: boolean) => ['admin', 'tenants', { includeInactive }] as const,
   detail: (tenantId: string) => ['admin', 'tenants', 'detail', tenantId] as const,
