@@ -15,7 +15,7 @@
 // lives in the pure core so unit tests can prove it without spinning up
 // QueryClient, Pinia, or Vue's reactivity runtime.
 
-import { computed, reactive, readonly, type Ref } from 'vue'
+import { computed, reactive, readonly, watch, type Ref } from 'vue'
 import {
   computeCanSave,
   computeZeroRecipientViolation,
@@ -110,21 +110,19 @@ export function useNotificationConfigForm(source: Ref<NotificationConfigResponse
   // lifecycle that owns the form snapshot.
   const fieldErrors = reactive<{ recipients: string | null }>({ recipients: null })
 
-  // Re-hydrate the form + pristine whenever the source changes. We use a
-  // simple watch pattern via `effect` semantics: a `computed` reading
-  // `source.value` will track it, and we mirror the result into the
-  // reactive snapshots via a side-effecting computed (which is the
-  // idiomatic Vue way to derive reactive state from another reactive).
-  const hydrated = computed(() => source.value)
-  // Sync the snapshots when `source` changes. Using `watchEffect` keeps
-  // this composable adaptable — `source` can be a Ref, computed, or
-  // (with a small wrapper) a plain value.
-  void hydrated
+  // Re-hydrate the form + pristine whenever the source changes. `immediate`
+  // covers the case where the GET has already resolved by the time this
+  // composable runs; subsequent changes (e.g. tenant switch) re-hydrate too.
+  // Hydration goes through `hydrate()` so form + pristine are set in the same
+  // snapshot — no spurious "dirty on hydration".
+  watch(
+    source,
+    (value) => {
+      if (value) hydrate(value)
+    },
+    { immediate: true },
+  )
 
-  // Initial hydration: when the source is first defined, apply it.
-  // We do this lazily via a one-shot sync: the view typically passes a
-  // ref backed by the query data, so the snapshot updates whenever the
-  // query resolves.
   const mutation = useUpdateNotificationConfigMutation({
     setForm: (next: NotificationConfigForm) => applyFormSnapshot(form, pristine, next),
     setFieldError: (_field, message) => {

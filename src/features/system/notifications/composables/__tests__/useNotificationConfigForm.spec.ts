@@ -13,13 +13,36 @@
 // up. The pure helpers are the load-bearing logic: spec REQ-6 dictates the
 // canSave gate, REQ-7 the save round-trip.
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
+import { effectScope, nextTick, ref } from 'vue'
 import {
   buildDefaultForm,
   computeFormState,
+  useNotificationConfigForm,
   type FormStateInputs,
 } from '../useNotificationConfigForm'
-import type { NotificationConfigForm } from '../../interfaces/notification-config.types'
+import type {
+  NotificationConfigForm,
+  NotificationConfigResponse,
+} from '../../interfaces/notification-config.types'
+
+// The reactive wrapper pulls in the auth store (Pinia) and the update
+// mutation (which itself calls useQueryClient + useToast). We stub both at
+// the module boundary so the hydration behaviour can be tested in isolation,
+// mirroring the extract-before-mock harness used across the feature.
+vi.mock('@/features/auth/stores/useAuthStore', () => ({
+  useAuthStore: () => ({
+    userCan: () => true,
+  }),
+}))
+
+vi.mock('../useUpdateNotificationConfigMutation', () => ({
+  useUpdateNotificationConfigMutation: () => ({
+    mutateAsync: vi.fn(),
+    isPending: ref(false),
+    error: ref(null),
+  }),
+}))
 
 describe('buildDefaultForm (never-configured snapshot)', () => {
   it('returns the OFF / empty defaults', () => {
@@ -208,5 +231,82 @@ describe('computeFormState (pure core: isDirty, canSave, zeroRecipientViolation)
       expect(state.zeroRecipientViolation).toBe(false)
       expect(state.canSave).toBe(true)
     })
+  })
+})
+
+describe('useNotificationConfigForm (source-driven hydration)', () => {
+  let scope: ReturnType<typeof effectScope> | undefined
+
+  afterEach(() => {
+    scope?.stop()
+    scope = undefined
+  })
+
+  /** Run the composable inside an effect scope so its `watch` runs. */
+  function withForm<T>(
+    fn: (api: ReturnType<typeof useNotificationConfigForm>) => T,
+    source: ReturnType<typeof ref<NotificationConfigResponse | undefined>>,
+  ): T {
+    scope = effectScope()
+    return scope.run(() => fn(useNotificationConfigForm(source)))!
+  }
+
+  it('hydrates the form when the GET source resolves (undefined → value)', async () => {
+    const source = ref<NotificationConfigResponse | undefined>(undefined)
+    const api = withForm((a) => a, source)
+
+    // Before resolution: form stays at defaults.
+    expect(api.form.enabled).toBe(false)
+    expect(api.form.recipientUserIds).toEqual([])
+    expect(api.form.enabledActions).toEqual([])
+
+    // GET resolves.
+    source.value = {
+      enabled: true,
+      recipients: ['u1', 'u2'],
+      enabledActions: ['LOW_STOCK'],
+    }
+    await nextTick()
+
+    expect(api.form.enabled).toBe(true)
+    expect(api.form.recipientUserIds).toEqual(['u1', 'u2'])
+    expect(api.form.enabledActions).toEqual(['LOW_STOCK'])
+    // Hydration sets pristine in the same snapshot — no spurious dirty state.
+    expect(api.isDirty.value).toBe(false)
+  })
+
+  it('hydrates immediately when the source already has a value on setup', async () => {
+    const source = ref<NotificationConfigResponse | undefined>({
+      enabled: true,
+      recipients: ['u9'],
+      enabledActions: ['LOW_STOCK'],
+    })
+    const api = withForm((a) => a, source)
+    await nextTick()
+
+    expect(api.form.enabled).toBe(true)
+    expect(api.form.recipientUserIds).toEqual(['u9'])
+    expect(api.isDirty.value).toBe(false)
+  })
+
+  it('re-hydrates when the source changes to a new value', async () => {
+    const source = ref<NotificationConfigResponse | undefined>({
+      enabled: false,
+      recipients: [],
+      enabledActions: [],
+    })
+    const api = withForm((a) => a, source)
+    await nextTick()
+
+    source.value = {
+      enabled: true,
+      recipients: ['u3'],
+      enabledActions: ['LOW_STOCK'],
+    }
+    await nextTick()
+
+    expect(api.form.enabled).toBe(true)
+    expect(api.form.recipientUserIds).toEqual(['u3'])
+    expect(api.isDirty.value).toBe(false)
   })
 })
