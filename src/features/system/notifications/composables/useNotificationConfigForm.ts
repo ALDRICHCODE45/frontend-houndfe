@@ -19,7 +19,6 @@ import { computed, reactive, readonly, watch, type Ref } from 'vue'
 import {
   computeCanSave,
   computeZeroRecipientViolation,
-  fromConfigResponse,
   isDirty,
   toPutBody,
 } from '../utils/notificationConfigMappers'
@@ -28,7 +27,6 @@ import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import type {
   ActionKey,
   NotificationConfigForm,
-  NotificationConfigResponse,
 } from '../interfaces/notification-config.types'
 
 // ─── Pure core ────────────────────────────────────────────────────────────────
@@ -94,22 +92,15 @@ export function computeFormState(inputs: FormStateInputs): FormStateOutputs {
  * exposes the three gates as readonly computeds. `save()` builds the
  * whitelisted PUT body and triggers the mutation.
  *
- * The `source` argument is the GET response that hydrates the form on
- * mount. It can be reactive (ref/computed) or a plain value — the
- * composable reads it once on each change via a `watch`-like pattern
- * inside the composable.
- */
-/**
- * The composable accepts EITHER shape:
- *   - `NotificationConfigResponse` (raw GET view: `recipients`)
- *   - `NotificationConfigForm`     (already mapped: `recipientUserIds`)
- *
- * The query composable returns the mapped form shape; legacy callers may
- * still pass the raw view. The watch handler routes both through
- * `fromConfigResponse` so the field asymmetry is invisible to the form.
+ * The `source` argument is the query's ALREADY-MAPPED data ref
+ * (`useNotificationConfigQuery` runs `fromConfigResponse` exactly once), so
+ * it is a `NotificationConfigForm` — NOT the raw GET view. Hydration applies
+ * it directly. The GET→Form map happens in exactly ONE place (the query), so
+ * this composable must never map again. It can be reactive (ref/computed);
+ * the composable reads it on each change via a `watch`.
  */
 export function useNotificationConfigForm(
-  source: Ref<NotificationConfigResponse | NotificationConfigForm | undefined>,
+  source: Ref<NotificationConfigForm | undefined>,
 ) {
   const authStore = useAuthStore()
 
@@ -124,8 +115,10 @@ export function useNotificationConfigForm(
   // Re-hydrate the form + pristine whenever the source changes. `immediate`
   // covers the case where the GET has already resolved by the time this
   // composable runs; subsequent changes (e.g. tenant switch) re-hydrate too.
-  // Hydration goes through `hydrate()` so form + pristine are set in the same
-  // snapshot — no spurious "dirty on hydration".
+  // `source` is already a mapped Form (the query mapped it once), so we apply
+  // it DIRECTLY — no second `fromConfigResponse` map. Hydration goes through
+  // `hydrate()` so form + pristine are set in the same snapshot — no spurious
+  // "dirty on hydration".
   watch(
     source,
     (value) => {
@@ -172,12 +165,15 @@ export function useNotificationConfigForm(
   }
 
   /**
-   * Replace the form + pristine snapshots. Used by:
-   *   - the view on initial GET hydration
-   *   - the mutation onSuccess (re-hydrate from server response)
+   * Replace the form + pristine snapshots from an ALREADY-MAPPED form.
+   *
+   * Single-map invariant: the GET→Form mapping happens exactly once, inside
+   * `useNotificationConfigQuery`. This applies that form DIRECTLY — it must
+   * NOT call `fromConfigResponse` again. The mutation re-hydration path maps
+   * its raw PUT response once in `handleUpdateSuccess` before reaching
+   * `setForm`, so both callers feed `applyFormSnapshot` a Form.
    */
-  function hydrate(response: NotificationConfigResponse | NotificationConfigForm): void {
-    const next = fromConfigResponse(response as NotificationConfigResponse)
+  function hydrate(next: NotificationConfigForm): void {
     applyFormSnapshot(form, pristine, next)
     fieldErrors.recipients = null
   }

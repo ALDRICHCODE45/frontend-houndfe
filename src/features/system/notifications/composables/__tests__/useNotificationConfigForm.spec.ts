@@ -21,6 +21,7 @@ import {
   useNotificationConfigForm,
   type FormStateInputs,
 } from '../useNotificationConfigForm'
+import { handleUpdateSuccess } from '../useUpdateNotificationConfigMutation'
 import type {
   NotificationConfigForm,
   NotificationConfigResponse,
@@ -36,13 +37,21 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
   }),
 }))
 
-vi.mock('../useUpdateNotificationConfigMutation', () => ({
-  useUpdateNotificationConfigMutation: () => ({
-    mutateAsync: vi.fn(),
-    isPending: ref(false),
-    error: ref(null),
-  }),
-}))
+// Partial mock: stub the composable (pulls in QueryClient + toast) but keep
+// the PURE `handleUpdateSuccess` export so the mutation re-hydration path can
+// be tested directly without a QueryClient.
+vi.mock('../useUpdateNotificationConfigMutation', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('../useUpdateNotificationConfigMutation')>()
+  return {
+    ...actual,
+    useUpdateNotificationConfigMutation: () => ({
+      mutateAsync: vi.fn(),
+      isPending: ref(false),
+      error: ref(null),
+    }),
+  }
+})
 
 describe('buildDefaultForm (never-configured snapshot)', () => {
   it('returns the OFF / empty defaults', () => {
@@ -235,6 +244,13 @@ describe('computeFormState (pure core: isDirty, canSave, zeroRecipientViolation)
 })
 
 describe('useNotificationConfigForm (source-driven hydration)', () => {
+  // The `source` is the QUERY's mapped data ref. `useNotificationConfigQuery`
+  // already runs `fromConfigResponse`, so `source.value` is a
+  // NotificationConfigForm (`recipientUserIds`) — NOT the raw GET view
+  // (`recipients`). These tests feed the REAL production shape through the
+  // query→view→form seam so a second `fromConfigResponse` map would crash
+  // (`[...undefined]`) or silently drop recipients. Feeding the raw view
+  // shape here (as the old tests did) hid that bug.
   let scope: ReturnType<typeof effectScope> | undefined
 
   afterEach(() => {
@@ -245,14 +261,14 @@ describe('useNotificationConfigForm (source-driven hydration)', () => {
   /** Run the composable inside an effect scope so its `watch` runs. */
   function withForm<T>(
     fn: (api: ReturnType<typeof useNotificationConfigForm>) => T,
-    source: ReturnType<typeof ref<NotificationConfigResponse | undefined>>,
+    source: ReturnType<typeof ref<NotificationConfigForm | undefined>>,
   ): T {
     scope = effectScope()
     return scope.run(() => fn(useNotificationConfigForm(source)))!
   }
 
-  it('hydrates the form when the GET source resolves (undefined → value)', async () => {
-    const source = ref<NotificationConfigResponse | undefined>(undefined)
+  it('applies the already-mapped form when the GET source resolves (undefined → value)', async () => {
+    const source = ref<NotificationConfigForm | undefined>(undefined)
     const api = withForm((a) => a, source)
 
     // Before resolution: form stays at defaults.
@@ -260,25 +276,31 @@ describe('useNotificationConfigForm (source-driven hydration)', () => {
     expect(api.form.recipientUserIds).toEqual([])
     expect(api.form.enabledActions).toEqual([])
 
-    // GET resolves.
-    source.value = {
-      enabled: true,
-      recipients: ['u1', 'u2'],
-      enabledActions: ['LOW_STOCK'],
-    }
+    // GET resolves — the query hands over the mapped Form shape.
+    // The current double-map code does fromConfigResponse(form as Response),
+    // which reads `view.recipients` (undefined on a Form) and throws
+    // TypeError on `[...undefined]`.
+    expect(() => {
+      source.value = {
+        enabled: true,
+        recipientUserIds: ['u1', 'u2'],
+        enabledActions: ['LOW_STOCK'],
+      }
+    }).not.toThrow()
     await nextTick()
 
     expect(api.form.enabled).toBe(true)
+    // Recipients must survive — the double-map would drop them to [].
     expect(api.form.recipientUserIds).toEqual(['u1', 'u2'])
     expect(api.form.enabledActions).toEqual(['LOW_STOCK'])
     // Hydration sets pristine in the same snapshot — no spurious dirty state.
     expect(api.isDirty.value).toBe(false)
   })
 
-  it('hydrates immediately when the source already has a value on setup', async () => {
-    const source = ref<NotificationConfigResponse | undefined>({
+  it('applies the mapped form immediately when the source already has a value on setup', async () => {
+    const source = ref<NotificationConfigForm | undefined>({
       enabled: true,
-      recipients: ['u9'],
+      recipientUserIds: ['u9'],
       enabledActions: ['LOW_STOCK'],
     })
     const api = withForm((a) => a, source)
@@ -289,10 +311,10 @@ describe('useNotificationConfigForm (source-driven hydration)', () => {
     expect(api.isDirty.value).toBe(false)
   })
 
-  it('re-hydrates when the source changes to a new value', async () => {
-    const source = ref<NotificationConfigResponse | undefined>({
+  it('re-applies when the source changes to a new mapped form', async () => {
+    const source = ref<NotificationConfigForm | undefined>({
       enabled: false,
-      recipients: [],
+      recipientUserIds: [],
       enabledActions: [],
     })
     const api = withForm((a) => a, source)
@@ -300,7 +322,7 @@ describe('useNotificationConfigForm (source-driven hydration)', () => {
 
     source.value = {
       enabled: true,
-      recipients: ['u3'],
+      recipientUserIds: ['u3'],
       enabledActions: ['LOW_STOCK'],
     }
     await nextTick()
@@ -308,5 +330,38 @@ describe('useNotificationConfigForm (source-driven hydration)', () => {
     expect(api.form.enabled).toBe(true)
     expect(api.form.recipientUserIds).toEqual(['u3'])
     expect(api.isDirty.value).toBe(false)
+  })
+})
+
+describe('mutation re-hydration path (raw PUT response maps EXACTLY once)', () => {
+  // The mutation success path is separate from the query→view→form seam.
+  // `handleUpdateSuccess` receives the RAW PUT response (`recipients`) and
+  // maps it ONCE via `fromConfigResponse`, then feeds the resulting Form to
+  // `setForm` (= applyFormSnapshot). This proves the raw-view branch still
+  // maps correctly and lands the right `recipientUserIds`.
+  it('maps a raw NotificationConfigResponse once through setForm', () => {
+    const rawResponse: NotificationConfigResponse = {
+      enabled: true,
+      recipients: ['u1', 'u2'],
+      enabledActions: ['LOW_STOCK'],
+    }
+
+    let received: NotificationConfigForm | undefined
+    handleUpdateSuccess(rawResponse, {
+      invalidateConfig: vi.fn(),
+      setForm: (form) => {
+        received = form
+      },
+      addToast: vi.fn(),
+      setFieldError: vi.fn(),
+      clearFieldError: vi.fn(),
+    })
+
+    // Exactly one map: recipients → recipientUserIds, no double-map.
+    expect(received).toEqual({
+      enabled: true,
+      recipientUserIds: ['u1', 'u2'],
+      enabledActions: ['LOW_STOCK'],
+    })
   })
 })
