@@ -5,6 +5,7 @@
 // Nuxt UI mount overhead.
 
 import type { AssignableUser } from '@/features/POS/users/interfaces/user.types'
+import { NOTIFICATION_CONFIG_COPY } from '../copy'
 
 /** A resolved recipient row — name if available, otherwise a stale marker. */
 export interface ResolvedRecipient {
@@ -42,9 +43,8 @@ export function resolveSelectedRows(
   assignable: readonly AssignableUser[],
 ): ResolvedRecipient[] {
   const byId = new Map(assignable.map((u) => [u.id, u.name]))
-  // Local copy of the import — keeps the file standalone-friendly for tests
-  // that don't pull in copy.ts.
-  const staleLabel = 'Usuario no disponible'
+  // Single source of truth: the stale-recipient label lives in copy.ts.
+  const staleLabel = NOTIFICATION_CONFIG_COPY.staleRecipient
   return selectedIds.map((id) => {
     const name = byId.get(id)
     return name !== undefined

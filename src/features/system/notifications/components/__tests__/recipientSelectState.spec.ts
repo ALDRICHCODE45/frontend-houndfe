@@ -8,6 +8,7 @@ import {
   resolveSelectedRows,
 } from '../recipientSelectState'
 import type { AssignableUser } from '@/features/POS/users/interfaces/user.types'
+import { NOTIFICATION_CONFIG_COPY } from '../../copy'
 
 const ASSIGNABLE: AssignableUser[] = [
   { id: 'u1', name: 'Ana' },
@@ -37,10 +38,14 @@ describe('resolveSelectedRows', () => {
     ])
   })
 
-  it('renders a "Usuario no disponible" chip for stale ids (REQ-5)', () => {
+  it('renders the stale-recipient copy chip for stale ids (REQ-5)', () => {
     const rows = resolveSelectedRows(['u1', 'ghost'], ASSIGNABLE)
     expect(rows[0]).toEqual({ id: 'u1', label: 'Ana', isStale: false })
-    expect(rows[1]).toEqual({ id: 'ghost', label: 'Usuario no disponible', isStale: true })
+    expect(rows[1]).toEqual({
+      id: 'ghost',
+      label: NOTIFICATION_CONFIG_COPY.staleRecipient,
+      isStale: true,
+    })
   })
 
   it('preserves selection order (does not re-sort)', () => {
@@ -54,7 +59,7 @@ describe('resolveSelectedRows', () => {
   it('marks every row as stale when assignable is empty', () => {
     const rows = resolveSelectedRows(['u1'], [])
     expect(rows[0]?.isStale).toBe(true)
-    expect(rows[0]?.label).toBe('Usuario no disponible')
+    expect(rows[0]?.label).toBe(NOTIFICATION_CONFIG_COPY.staleRecipient)
   })
 })
 
