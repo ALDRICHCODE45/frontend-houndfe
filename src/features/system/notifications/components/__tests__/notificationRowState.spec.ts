@@ -7,7 +7,10 @@ import {
   computeModuleActionCount,
   toggleActionMembership,
 } from '../notificationRowState'
-import type { ModuleDescriptor } from '../../interfaces/notification-config.types'
+import type {
+  ActionDescriptor,
+  ModuleDescriptor,
+} from '../../interfaces/notification-config.types'
 
 const LOW_STOCK = { key: 'LOW_STOCK', label: 'Bajo inventario' } as const
 
@@ -42,7 +45,9 @@ describe('computeActionRowState', () => {
 
   it('unknown action keys never match (checked=false)', () => {
     // Defensive: registry-driven, but should be safe against stale prop sets.
-    const ghost = { key: 'GHOST', label: 'Ghost' } as const
+    // Cast through unknown to ActionDescriptor — the helper is typed
+    // strictly but the runtime semantics are pure inclusion checks.
+    const ghost = { key: 'GHOST', label: 'Ghost' } as unknown as ActionDescriptor
     expect(computeActionRowState(ghost, true, ['LOW_STOCK']).checked).toBe(false)
   })
 })
@@ -71,13 +76,11 @@ describe('computeModuleActionCount', () => {
   })
 
   it('reports "1/2" for a 2-action module with one enabled', () => {
+    const newHire = { key: 'NEW_HIRE', label: 'Nuevo empleado' } as unknown as ActionDescriptor
     const two: ModuleDescriptor = {
       moduleKey: 'pos',
       moduleLabel: 'Punto de venta',
-      actions: [
-        LOW_STOCK,
-        { key: 'NEW_HIRE', label: 'Nuevo empleado' },
-      ],
+      actions: [LOW_STOCK, newHire],
     }
     expect(computeModuleActionCount(two, ['LOW_STOCK'])).toEqual({
       enabled: 1,

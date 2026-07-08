@@ -266,3 +266,29 @@ describe('NotificationConfigView — composable wiring (REQ-3, REQ-7)', () => {
     expect(wrapper.text()).toContain('Ana')
   })
 })
+
+describe('NotificationConfigView — in-view permission gate (WU-12)', () => {
+  it('hides the no-update notice when canUpdate=true (default)', () => {
+    queryMockState.data.value = undefined
+    currentFormMock.canUpdate.value = true
+    const wrapper = mountWithUApp(NotificationConfigView)
+    expect(wrapper.text()).not.toContain('No tienes permisos para guardar')
+  })
+
+  it('renders the no-update notice when canUpdate=false', () => {
+    queryMockState.data.value = undefined
+    currentFormMock.canUpdate.value = false
+    const wrapper = mountWithUApp(NotificationConfigView)
+    expect(wrapper.text()).toContain('No tienes permisos para guardar')
+  })
+
+  it('keeps Save disabled when canUpdate=false even if other gates pass', () => {
+    queryMockState.data.value = undefined
+    currentFormMock.canUpdate.value = false
+    currentFormMock.isDirty.value = true
+    currentFormMock.canSave.value = false
+    const wrapper = mountWithUApp(NotificationConfigView)
+    const saveBtn = wrapper.find('[data-testid="save-button"]')
+    expect(saveBtn.attributes('disabled')).toBeDefined()
+  })
+})

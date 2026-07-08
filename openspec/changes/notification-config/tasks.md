@@ -30,18 +30,18 @@ Estimated ~1500–1800 lines. Solo, no PRs — intra-branch commit boundaries.
 - [x] 3.5 **WU-8**: `composables/useNotificationConfigForm.ts` (snapshot `pristine` + reactive `form`; exposes `form, isDirty, canSave, zeroRecipientViolation, save()`) + test (`save()`→`toPutBody`; `canSave` false on pending/not-dirty/zero-recipient/no-update-perm).
 
 ## Phase 4 — UI components (props↓/emits↑)
-- [ ] 4.1 **WU-9a**: `components/MasterToggle.vue` (USwitch wrapper, `modelValue:boolean`, `@update:modelValue`).
-- [ ] 4.2 **WU-9b**: `components/RecipientSelect.vue` (USelectMenu `:multiple`; props `assignable, modelValue, disabled, error?`; `"Usuario no disponible"` chip for absent ids; never auto-strips) + test.
-- [ ] 4.3 **WU-9c RED**: smoke render test for `ActionsAccordion.vue` (`mountWithUApp`) — every module + action label renders from registry. **No in-repo UAccordion precedent** — first contact contract.
-- [ ] 4.4 **WU-9c GREEN**: `ActionsAccordion.vue` → `ModuleAccordionItem.vue` → `ActionRow.vue` (UAccordion; `disabled = !masterEnabled`; emits checked keys) + test (master-OFF greys rows; flip adds key, emits dirty).
+- [x] 4.1 **WU-9a**: `components/MasterToggle.vue` (USwitch wrapper, `modelValue:boolean`, `@update:modelValue`).
+- [x] 4.2 **WU-9b**: `components/RecipientSelect.vue` (USelectMenu `:multiple`; props `assignable, modelValue, disabled, error?`; `"Usuario no disponible"` chip for absent ids; never auto-strips) + test.
+- [x] 4.3 **WU-9c RED**: smoke render test for `ActionsAccordion.vue` (`mountWithUApp`) — every module + action label renders from registry. **No in-repo UAccordion precedent** — first contact contract.
+- [x] 4.4 **WU-9c GREEN**: `ActionsAccordion.vue` → `ModuleAccordionItem.vue` → `ActionRow.vue` (UAccordion; `disabled = !masterEnabled`; emits checked keys) + test (master-OFF greys rows; flip adds key, emits dirty).
 
 ## Phase 5 — View + routing + permission gating  [P5]
-- [ ] 5.1 **WU-10**: `views/NotificationConfigView.vue` (composition surface: composables + USkeleton on `isLoading`, defaults render, Spanish inline errors) + test (skeleton; defaults; no error toast on 404).
-- [ ] 5.2 **WU-11**: lazy route `/sistema/configuracion/notificaciones` in `app/router/index.ts` (`meta.permission: ['read','NotificationConfig']`) + sidebar entry Sistema → Configuración in `app/composables/useSidebar.ts` (guarded, direct link, no empty tabs).
-- [ ] 5.3 **WU-12**: in view, gate Save with `userCan('update','NotificationConfig')`; show Spanish `"No tienes permisos para guardar cambios"`.
+- [x] 5.1 **WU-10**: `views/NotificationConfigView.vue` (composition surface: composables + USkeleton on `isLoading`, defaults render, Spanish inline errors) + test (skeleton; defaults; no error toast on 404).
+- [x] 5.2 **WU-11**: lazy route `/sistema/configuracion/notificaciones` in `app/router/index.ts` (`meta.permission: ['read','NotificationConfig']`) + sidebar entry Sistema → Configuración in `app/composables/useSidebar.ts` (guarded, direct link, no empty tabs).
+- [x] 5.3 **WU-12**: in view, gate Save with `userCan('update','NotificationConfig')`; show Spanish `"No tienes permisos para guardar cambios"`.
 
 ## Phase 6 — Final verification  [P6]
-- [ ] 6.1 **WU-13**: `pnpm test:unit` all green; `pnpm build` (vue-tsc --build + vite build) green.
+- [x] 6.1 **WU-13**: `pnpm test:unit` all green; `pnpm build` (vue-tsc --build + vite build) green.
 - [ ] 6.2 **WU-13 manual**: toggle master + action; assign user; save; refresh; verify persisted.
 - [ ] 6.3 **WU-13 manual**: revoked perm → 403 redirect + sidebar hidden.
 

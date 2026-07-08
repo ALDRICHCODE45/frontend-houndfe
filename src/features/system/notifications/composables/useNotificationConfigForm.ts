@@ -99,7 +99,18 @@ export function computeFormState(inputs: FormStateInputs): FormStateOutputs {
  * composable reads it once on each change via a `watch`-like pattern
  * inside the composable.
  */
-export function useNotificationConfigForm(source: Ref<NotificationConfigResponse | undefined>) {
+/**
+ * The composable accepts EITHER shape:
+ *   - `NotificationConfigResponse` (raw GET view: `recipients`)
+ *   - `NotificationConfigForm`     (already mapped: `recipientUserIds`)
+ *
+ * The query composable returns the mapped form shape; legacy callers may
+ * still pass the raw view. The watch handler routes both through
+ * `fromConfigResponse` so the field asymmetry is invisible to the form.
+ */
+export function useNotificationConfigForm(
+  source: Ref<NotificationConfigResponse | NotificationConfigForm | undefined>,
+) {
   const authStore = useAuthStore()
 
   const form = reactive<NotificationConfigForm>(buildDefaultForm())
@@ -165,8 +176,8 @@ export function useNotificationConfigForm(source: Ref<NotificationConfigResponse
    *   - the view on initial GET hydration
    *   - the mutation onSuccess (re-hydrate from server response)
    */
-  function hydrate(response: NotificationConfigResponse): void {
-    const next = fromConfigResponse(response)
+  function hydrate(response: NotificationConfigResponse | NotificationConfigForm): void {
+    const next = fromConfigResponse(response as NotificationConfigResponse)
     applyFormSnapshot(form, pristine, next)
     fieldErrors.recipients = null
   }

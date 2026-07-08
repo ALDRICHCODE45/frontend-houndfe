@@ -36,7 +36,12 @@ function findActionRow(wrapper: ReturnType<typeof mountAccordion>, key: string) 
 describe('ActionsAccordion — smoke render (first UAccordion contact)', () => {
   beforeEach(() => {
     // Sanity: registry has at least one module + one action so the smoke
-    // assertion is meaningful.
+    // assertion is meaningful. (No expects here — kept as a no-op so the
+    // block is purely a setup hook.)
+    void ACTION_REGISTRY
+  })
+
+  it('registry has at least one module + one action (precondition for smoke)', () => {
     expect(ACTION_REGISTRY.length).toBeGreaterThan(0)
     expect(ACTION_REGISTRY[0]!.actions.length).toBeGreaterThan(0)
   })
@@ -53,7 +58,7 @@ describe('ActionsAccordion — smoke render (first UAccordion contact)', () => {
     for (const module of ACTION_REGISTRY) {
       for (const action of module.actions) {
         const row = findActionRow(wrapper, action.key)
-        expect(row.exists(), `row for ${action.key} should exist`).toBe(true)
+        expect(row.exists()).toBe(true)
         expect(row.text()).toContain(action.label)
       }
     }
