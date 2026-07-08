@@ -33,6 +33,9 @@ const AdminTenantsView = () => import('@/features/admin/tenants/views/AdminTenan
 const AdminTenantMembersView = () =>
   import('@/features/admin/tenants/memberships/views/AdminTenantMembersView.vue')
 const CatalogView = () => import('@/features/catalog/views/CatalogView.vue')
+// ─── Notification config (WU-11) ──────────────────────────────────────────
+const NotificationConfigView = () =>
+  import('@/features/system/notifications/views/NotificationConfigView.vue')
 const ForbiddenView = () => import('@/features/errors/views/ForbiddenView.vue')
 const NotFoundView = () => import('@/features/errors/views/NotFoundView.vue')
 
@@ -232,6 +235,16 @@ const router = createRouter({
         requiresAuth: true,
         skipTenantCheck: true,
         requiresSuperAdmin: true,
+      },
+    },
+    // ─── Notification config (WU-11) ──────────────────────────────────────────
+    {
+      path: '/sistema/configuracion/notificaciones',
+      name: 'sistema-notification-config',
+      component: NotificationConfigView,
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'NotificationConfig'] as RoutePermission,
       },
     },
     // ─── Public catalog ─────────────────────────────────────────────────────────
