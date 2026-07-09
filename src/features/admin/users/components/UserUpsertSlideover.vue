@@ -6,6 +6,8 @@ import {
   type CreateUserFormValues,
   type EditUserFormValues,
 } from '../composables/useUserForm'
+import { useAdminRolesQuery } from '../composables/useAdminRolesQuery'
+import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import type { UserTableRow } from '../interfaces/user.types'
 
 const props = withDefaults(
@@ -28,6 +30,12 @@ const emit = defineEmits<{
 }>()
 
 const { schema, createState, editState, resetForm, setEditName } = useUserForm(props.mode)
+
+const authStore = useAuthStore()
+const canReadRoles = computed(() => authStore.userCan('read', 'Role'))
+
+const { roleOptions, isLoading: isLoadingRoles, isError: isRolesError } =
+  useAdminRolesQuery(() => authStore.currentTenantId)
 
 const title = computed(() => (props.mode === 'create' ? 'Crear usuario' : 'Editar usuario'))
 
@@ -105,6 +113,26 @@ function onSubmit(event: FormSubmitEvent<CreateUserFormValues | EditUserFormValu
               type="password"
               placeholder="********"
             />
+          </UFormField>
+
+          <UFormField label="Rol" name="roleId">
+            <USelectMenu
+              v-model="createState.roleId"
+              :items="roleOptions"
+              value-key="value"
+              label-key="label"
+              placeholder="Seleccioná un rol"
+              :loading="isLoadingRoles"
+              :disabled="!canReadRoles || isRolesError"
+              class="w-full"
+              size="lg"
+            >
+              <template #empty>
+                <span v-if="!canReadRoles">No tenés permisos para listar roles.</span>
+                <span v-else-if="isRolesError">No pudimos cargar los roles.</span>
+                <span v-else>No hay roles disponibles.</span>
+              </template>
+            </USelectMenu>
           </UFormField>
         </template>
       </UForm>
