@@ -7,6 +7,7 @@ const createUserSchema = z.object({
   password: z
     .string({ required_error: 'La contraseña es obligatoria' })
     .min(8, 'Mínimo 8 caracteres'),
+  roleId: z.string({ required_error: 'El rol es obligatorio' }).uuid('ID de rol inválido'),
 })
 
 const editUserSchema = z.object({
@@ -21,6 +22,7 @@ function getCreateInitialState(): CreateUserFormValues {
     name: '',
     email: '',
     password: '',
+    roleId: '',
   }
 }
 
