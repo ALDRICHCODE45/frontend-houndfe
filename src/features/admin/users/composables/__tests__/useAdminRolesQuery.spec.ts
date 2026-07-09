@@ -1,7 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useAdminRolesQuery } from '../useAdminRolesQuery'
 import { rolesApi } from '../../../roles/api/roles.api'
+
+// ─── Reactive auth-store mock ────────────────────────────────────────────────
+// Mirrors the auth-store contract that useAdminRolesQuery depends on:
+//   - currentTenantId: reactive string (ComputedRef in production)
+//   - userCan(action, subject): boolean
+//
+// In production, `userCan` reads `permissionCodes.value` (a ref) so the
+// composable's `enabled` computed re-evaluates whenever permissions change.
+// The mock mirrors that: `mockUserCan` reads `mockPermissionCodes.value`,
+// so tests drive permission state by mutating the ref.
+const mockPermissionCodes = ref<string[]>(['read:Role'])
+const mockUserCan = vi.fn((action: string, subject: string) =>
+  mockPermissionCodes.value.includes(`${action}:${subject}`),
+)
+const mockCurrentTenantId = ref('tenant-1')
 
 vi.mock('@tanstack/vue-query', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/vue-query')>()
@@ -21,9 +36,50 @@ vi.mock('../../../roles/api/roles.api', async (importOriginal) => {
   }
 })
 
+vi.mock('@/features/auth/stores/useAuthStore', () => ({
+  useAuthStore: () => ({
+    userCan: mockUserCan,
+    currentTenantId: computed(() => mockCurrentTenantId.value),
+  }),
+}))
+
+// ─── Test helpers ────────────────────────────────────────────────────────────
+
+interface ResolvedQueryOptions {
+  queryKey?: { value?: readonly unknown[] } | readonly unknown[]
+  enabled?: { value: boolean }
+  queryFn?: () => Promise<unknown>
+}
+
+async function resolveQueryOptions(): Promise<ResolvedQueryOptions> {
+  const { useQuery } = await import('@tanstack/vue-query')
+  const calls = vi.mocked(useQuery).mock.calls
+  const lastCall = calls[calls.length - 1]
+  const raw = lastCall?.[0] as unknown
+  return (typeof raw === 'function' ? (raw as () => unknown)() : raw) as ResolvedQueryOptions
+}
+
+async function resolveQueryKey(): Promise<readonly unknown[]> {
+  const { queryKey } = await resolveQueryOptions()
+  if (!queryKey) throw new Error('queryKey was not provided to useQuery')
+  return 'value' in (queryKey as object)
+    ? (queryKey as { value: readonly unknown[] }).value
+    : (queryKey as readonly unknown[])
+}
+
+async function resolveEnabled(): Promise<boolean> {
+  const { enabled } = await resolveQueryOptions()
+  if (!enabled) throw new Error('enabled was not provided to useQuery')
+  return (enabled as { value: boolean }).value
+}
+
+// ─── Tests ───────────────────────────────────────────────────────────────────
+
 describe('useAdminRolesQuery', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockPermissionCodes.value = ['read:Role']
+    mockCurrentTenantId.value = 'tenant-1'
   })
 
   it('returns role options mapped from getPaginated response', async () => {
@@ -98,7 +154,7 @@ describe('useAdminRolesQuery', () => {
     expect(isError.value).toBe(false)
   })
 
-  it('uses adminRoleQueryKeys.paginated as the cache key for shared cache with the roles table', async () => {
+  it('uses adminRoleQueryKeys.paginated(tenantId) as the picker cache key', async () => {
     const { useQuery } = await import('@tanstack/vue-query')
 
     vi.mocked(useQuery).mockReturnValue({
@@ -110,14 +166,10 @@ describe('useAdminRolesQuery', () => {
 
     useAdminRolesQuery(() => 'tenant-abc')
 
-    // vue-query may receive a MaybeRefOrGetter<options>; unwrap if needed.
-    const raw = vi.mocked(useQuery).mock.calls[0]?.[0] as unknown
-    const options = (typeof raw === 'function' ? (raw as () => unknown)() : raw) as {
-      queryKey?: { value?: readonly unknown[] } | readonly unknown[]
-    }
-    const key = options.queryKey as { value?: readonly unknown[] } | readonly unknown[]
-    const resolved = 'value' in (key as object) ? (key as { value: readonly unknown[] }).value : key
-    expect(resolved).toEqual(['admin', 'roles', 'tenant-abc', 'paginated'])
+    // The picker uses the paginated BASE key (no serverParams suffix). This is
+    // intentionally NOT the same cache entry as the AdminRolesView table query,
+    // which appends serverParams to the same base via useServerTable.
+    expect(await resolveQueryKey()).toEqual(['admin', 'roles', 'tenant-abc', 'paginated'])
   })
 
   it('calls rolesApi.getPaginated to fetch roles from GET /admin/roles', async () => {
@@ -132,14 +184,140 @@ describe('useAdminRolesQuery', () => {
 
     useAdminRolesQuery(() => 'tenant-1')
 
-    // vue-query may receive a MaybeRefOrGetter<options>; unwrap if needed.
-    const raw = vi.mocked(useQuery).mock.calls[0]?.[0] as unknown
-    const options = (typeof raw === 'function' ? (raw as () => unknown)() : raw) as {
-      queryFn?: () => Promise<unknown>
-    }
-
-    await options.queryFn!()
+    const { queryFn } = await resolveQueryOptions()
+    await queryFn!()
 
     expect(rolesApi.getPaginated).toHaveBeenCalledTimes(1)
+  })
+
+  it('requests pageSize 1000 to fetch all roles for the picker in one call', async () => {
+    const { useQuery } = await import('@tanstack/vue-query')
+
+    vi.mocked(useQuery).mockReturnValue({
+      data: ref(null),
+      isLoading: ref(false),
+      isError: ref(false),
+      error: ref(null),
+    } as never)
+
+    useAdminRolesQuery(() => 'tenant-1')
+
+    const { queryFn } = await resolveQueryOptions()
+    await queryFn!()
+
+    expect(rolesApi.getPaginated).toHaveBeenCalledWith({
+      pageIndex: 0,
+      pageSize: 1000,
+    })
+  })
+
+  // ─── enabled gate ──────────────────────────────────────────────────────────
+
+  describe('enabled gate', () => {
+    it('is disabled when tenantId is empty', async () => {
+      const { useQuery } = await import('@tanstack/vue-query')
+      mockCurrentTenantId.value = ''
+      vi.mocked(useQuery).mockReturnValue({
+        data: ref(null),
+        isLoading: ref(false),
+        isError: ref(false),
+        error: ref(null),
+      } as never)
+
+      useAdminRolesQuery(() => mockCurrentTenantId.value)
+
+      expect(await resolveEnabled()).toBe(false)
+    })
+
+    it('is disabled when user lacks read:Role permission', async () => {
+      const { useQuery } = await import('@tanstack/vue-query')
+      mockPermissionCodes.value = [] // no permissions at all
+      vi.mocked(useQuery).mockReturnValue({
+        data: ref(null),
+        isLoading: ref(false),
+        isError: ref(false),
+        error: ref(null),
+      } as never)
+
+      useAdminRolesQuery(() => 'tenant-1')
+
+      expect(await resolveEnabled()).toBe(false)
+    })
+
+    it('is enabled when tenantId is present AND user has read:Role permission', async () => {
+      const { useQuery } = await import('@tanstack/vue-query')
+      vi.mocked(useQuery).mockReturnValue({
+        data: ref(null),
+        isLoading: ref(false),
+        isError: ref(false),
+        error: ref(null),
+      } as never)
+
+      useAdminRolesQuery(() => 'tenant-1')
+
+      expect(await resolveEnabled()).toBe(true)
+    })
+
+    it('re-checks the gate when userCan is called from the enabled computed (no cache)', async () => {
+      // Each reactivity tick of the enabled computed must consult the current
+      // permission codes — not capture a stale boolean at composable-call time.
+      const { useQuery } = await import('@tanstack/vue-query')
+      vi.mocked(useQuery).mockReturnValue({
+        data: ref(null),
+        isLoading: ref(false),
+        isError: ref(false),
+        error: ref(null),
+      } as never)
+
+      useAdminRolesQuery(() => 'tenant-1')
+
+      // Baseline: enabled, canRead=true (default mock has 'read:Role')
+      expect(await resolveEnabled()).toBe(true)
+
+      // Now flip the permission codes off — the reactive signal triggers the
+      // computed to re-read userCan() with the new codes
+      mockPermissionCodes.value = []
+      expect(await resolveEnabled()).toBe(false)
+    })
+  })
+
+  // ─── reactivity ────────────────────────────────────────────────────────────
+
+  describe('reactivity', () => {
+    it('updates the query key when tenantId changes', async () => {
+      const { useQuery } = await import('@tanstack/vue-query')
+      vi.mocked(useQuery).mockReturnValue({
+        data: ref(null),
+        isLoading: ref(false),
+        isError: ref(false),
+        error: ref(null),
+      } as never)
+
+      const tenantId = ref('tenant-A')
+      useAdminRolesQuery(tenantId)
+
+      expect(await resolveQueryKey()).toEqual(['admin', 'roles', 'tenant-A', 'paginated'])
+
+      tenantId.value = 'tenant-B'
+      expect(await resolveQueryKey()).toEqual(['admin', 'roles', 'tenant-B', 'paginated'])
+    })
+
+    it('flips the enabled gate when tenantId changes from empty to set', async () => {
+      const { useQuery } = await import('@tanstack/vue-query')
+      vi.mocked(useQuery).mockReturnValue({
+        data: ref(null),
+        isLoading: ref(false),
+        isError: ref(false),
+        error: ref(null),
+      } as never)
+
+      const tenantId = ref('')
+      useAdminRolesQuery(tenantId)
+
+      expect(await resolveEnabled()).toBe(false)
+
+      tenantId.value = 'tenant-X'
+      expect(await resolveEnabled()).toBe(true)
+    })
   })
 })
