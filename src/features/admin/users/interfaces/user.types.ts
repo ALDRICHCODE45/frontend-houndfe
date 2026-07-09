@@ -17,6 +17,7 @@ export interface CreateUserRequest {
   email: string
   password: string
   name: string
+  roleId: string
 }
 
 export interface UpdateUserRequest {
