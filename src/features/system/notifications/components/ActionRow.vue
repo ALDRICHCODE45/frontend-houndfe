@@ -3,12 +3,15 @@
  * ActionRow — one row inside an accordion module.
  *
  * Thin component: takes a single action descriptor and renders it as a
- * USwitch + label. All gating logic (master-enabled, dirty detection,
+ * self-contained card (label + optional description on the left, USwitch
+ * pinned to the right). All gating logic (master-enabled, dirty detection,
  * count formatting) is in pure helpers (`notificationRowState.ts`) — the
  * SFC just forwards props and emits.
  *
  * Props ↓ / Events ↑:
- *   - action:        descriptor to render
+ *   - action:        descriptor to render (label required, description
+ *                    optional — when absent, no subtitle is rendered so
+ *                    the card layout stays clean)
  *   - modelValue:    the current membership set (so the switch can be
  *                    marked checked when this action is in it)
  *   - disabled:      from parent (master-off greys)
@@ -48,12 +51,23 @@ function handleToggle(nextChecked: boolean) {
     :data-testid="`action-row-${action.key.toLowerCase().replace(/_/g, '-')}`"
     :data-checked="state.checked"
     :data-disabled="state.disabled"
-    class="flex items-center"
+    class="flex items-center justify-between gap-4 rounded-lg border border-default bg-default p-4"
   >
+    <div class="min-w-0">
+      <div class="font-medium text-default">
+        {{ action.label }}
+      </div>
+      <p
+        v-if="action.description"
+        class="mt-1 text-sm text-muted"
+        data-testid="action-description"
+      >
+        {{ action.description }}
+      </p>
+    </div>
     <USwitch
       :model-value="state.checked"
       :disabled="state.disabled"
-      :label="action.label"
       @update:model-value="handleToggle"
     />
   </div>

@@ -38,7 +38,7 @@ function onToggle(next: string[]) {
       </span>
       <span data-testid="module-count">{{ count.label }}</span>
     </div>
-    <div class="space-y-2">
+    <div class="space-y-3">
       <ActionRow
         v-for="action in module.actions"
         :key="action.key"

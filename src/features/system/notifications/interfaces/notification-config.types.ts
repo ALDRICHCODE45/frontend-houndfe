@@ -48,11 +48,15 @@ export interface NotificationConfigForm {
 
 /**
  * One action inside an action registry module. `label` is plain Spanish
- * because it is shown directly to the tenant admin.
+ * because it is shown directly to the tenant admin. `description` is
+ * optional — simple actions (a single switch) get a one-line muted
+ * subtitle under the label; complex actions (a future config form) may
+ * omit it and render their own richer UI instead.
  */
 export interface ActionDescriptor {
   key: ActionKey
   label: string
+  description?: string
 }
 
 /**

@@ -29,7 +29,14 @@ export const ACTION_REGISTRY: readonly ModuleDescriptor[] = [
   {
     moduleKey: 'pos',
     moduleLabel: 'Punto de venta',
-    actions: [{ key: 'LOW_STOCK', label: 'Bajo inventario' }],
+    actions: [
+      {
+        key: 'LOW_STOCK',
+        label: 'Bajo inventario',
+        description:
+          'Envía un correo cuando un producto cae por debajo de su inventario mínimo.',
+      },
+    ],
   },
 ] as const
 

@@ -58,6 +58,14 @@ describe('ACTION_REGISTRY shape', () => {
     expect(lowStock).toBeDefined()
     expect(lowStock!.label).toBe('Bajo inventario')
   })
+
+  it('LOW_STOCK carries a one-line description (so the card row can render it)', () => {
+    const pos = ACTION_REGISTRY.find((m) => m.moduleKey === 'pos')
+    const lowStock = pos!.actions.find((a) => a.key === 'LOW_STOCK')!
+    expect(lowStock.description).toBeDefined()
+    expect(typeof lowStock.description).toBe('string')
+    expect(lowStock.description!.length).toBeGreaterThan(0)
+  })
 })
 
 describe('isRegisteredActionKey', () => {
