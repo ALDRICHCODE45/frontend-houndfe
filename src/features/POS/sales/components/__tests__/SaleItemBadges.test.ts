@@ -77,4 +77,75 @@ describe('SaleItemBadges', () => {
 
     expect(wrapper.text()).toContain('DESCUENTO -$50.00')
   })
+
+  // ── C.1 — promotionId discriminator (per-line promo badge + remove) ─────────
+
+  it('renders promo badge with discountTitle and a remove control when promotionId is set and removable=true', async () => {
+    const wrapper = mountWithUApp(SaleItemBadges, {
+      props: {
+        priceSource: 'default',
+        unitPriceCents: 63000,
+        discountType: 'percentage',
+        discountValue: 15,
+        discountAmountCents: 9450,
+        discountTitle: 'Promo 2x1 Vitaminas',
+        promotionId: 'promo-uuid-1',
+        removable: true,
+      },
+    })
+
+    const promoBadge = wrapper.find('[data-testid="sale-item-promo-badge"]')
+    expect(promoBadge.exists()).toBe(true)
+    expect(promoBadge.text()).toContain('Promo 2x1 Vitaminas')
+
+    const removeBtn = wrapper.find('[data-testid="sale-item-remove-promo"]')
+    expect(removeBtn.exists()).toBe(true)
+
+    await removeBtn.trigger('click')
+
+    expect(wrapper.emitted('remove-promo')).toBeTruthy()
+    expect(wrapper.emitted('remove-promo')?.[0]).toEqual(['promo-uuid-1'])
+  })
+
+  it('renders the promo badge but NOT the remove control when promotionId is set and removable is omitted (confirmed-sale safety)', () => {
+    const wrapper = mountWithUApp(SaleItemBadges, {
+      props: {
+        priceSource: 'default',
+        unitPriceCents: 63000,
+        discountType: 'percentage',
+        discountValue: 15,
+        discountAmountCents: 9450,
+        discountTitle: 'Promo 2x1 Vitaminas',
+        promotionId: 'promo-uuid-1',
+      },
+    })
+
+    expect(wrapper.find('[data-testid="sale-item-promo-badge"]').exists()).toBe(true)
+
+    // Critical: SaleDetailItem (confirmed-sale) renders this component WITHOUT
+    // removable=true. The remove control MUST NOT appear in that surface.
+    expect(wrapper.find('[data-testid="sale-item-remove-promo"]').exists()).toBe(false)
+  })
+
+  it('does NOT render a promo badge for a manual free-form discount (promotionId=null) but keeps the existing manual discount badge', () => {
+    const wrapper = mountWithUApp(SaleItemBadges, {
+      props: {
+        priceSource: 'default',
+        unitPriceCents: 60000,
+        discountType: 'amount',
+        discountValue: 5000,
+        discountAmountCents: 5000,
+        discountTitle: 'Descuento manual',
+        promotionId: null,
+      },
+    })
+
+    // Manual free-form discount path: NO promo badge, NO remove control.
+    expect(wrapper.find('[data-testid="sale-item-promo-badge"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="sale-item-remove-promo"]').exists()).toBe(false)
+
+    // The existing manual discount badge must still render unchanged.
+    expect(wrapper.text()).toContain('DESCUENTO')
+    expect(wrapper.text()).toContain('-$50.00')
+  })
 })
