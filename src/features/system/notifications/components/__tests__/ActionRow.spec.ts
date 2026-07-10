@@ -57,6 +57,40 @@ describe('ActionRow — description rendering', () => {
   })
 })
 
+describe('ActionRow — accessible name wiring', () => {
+  it('exposes a stable id on the label element and points the switch at it via aria-labelledby', () => {
+    const wrapper = mountWithUApp(ActionRow, {
+      props: { action: withDescription, modelValue: [] },
+    })
+    const label = wrapper.find('[id="action-label-low-stock"]')
+    expect(label.exists()).toBe(true)
+    expect(label.text()).toBe('Bajo inventario')
+
+    const switchBtn = wrapper.find('button[role="switch"]')
+    expect(switchBtn.attributes('aria-labelledby')).toBe('action-label-low-stock')
+  })
+
+  it('also associates the description via aria-describedby when one is present', () => {
+    const wrapper = mountWithUApp(ActionRow, {
+      props: { action: withDescription, modelValue: [] },
+    })
+    const desc = wrapper.find('[data-testid="action-description"]')
+    expect(desc.attributes('id')).toBe('action-description-low-stock')
+
+    const switchBtn = wrapper.find('button[role="switch"]')
+    expect(switchBtn.attributes('aria-describedby')).toBe('action-description-low-stock')
+  })
+
+  it('does NOT add aria-describedby when the action has no description', () => {
+    const wrapper = mountWithUApp(ActionRow, {
+      props: { action: withoutDescription, modelValue: [] },
+    })
+    const switchBtn = wrapper.find('button[role="switch"]')
+    expect(switchBtn.attributes('aria-labelledby')).toBe('action-label-low-stock')
+    expect(switchBtn.attributes('aria-describedby')).toBeUndefined()
+  })
+})
+
 describe('ActionRow — structural contract preserved after redesign', () => {
   it('keeps the action-row-<slug> data-testid on the wrapper', () => {
     const wrapper = mountWithUApp(ActionRow, {

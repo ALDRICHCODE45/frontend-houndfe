@@ -39,6 +39,17 @@ const state = computed(() =>
   computeActionRowState(props.action, !props.disabled, props.modelValue),
 )
 
+// Stable, unique ids for the label and (optional) description elements.
+// The USwitch's `aria-labelledby` / `aria-describedby` point at these so the
+// role="switch" control has a programmatic accessible name even though we no
+// longer use USwitch's built-in `label` prop (the card layout owns the text).
+// Mirrors the slug already used for the row's data-testid.
+const actionSlug = computed(() =>
+  props.action.key.toLowerCase().replace(/_/g, '-'),
+)
+const labelId = computed(() => `action-label-${actionSlug.value}`)
+const descriptionId = computed(() => `action-description-${actionSlug.value}`)
+
 function handleToggle(nextChecked: boolean) {
   // USwitch emits a boolean; we translate that to the action's membership.
   if (nextChecked === state.value.checked) return
@@ -54,11 +65,12 @@ function handleToggle(nextChecked: boolean) {
     class="flex items-center justify-between gap-4 rounded-lg border border-default bg-default p-4"
   >
     <div class="min-w-0">
-      <div class="font-medium text-default">
+      <div :id="labelId" class="font-medium text-default">
         {{ action.label }}
       </div>
       <p
         v-if="action.description"
+        :id="descriptionId"
         class="mt-1 text-sm text-muted"
         data-testid="action-description"
       >
@@ -68,6 +80,8 @@ function handleToggle(nextChecked: boolean) {
     <USwitch
       :model-value="state.checked"
       :disabled="state.disabled"
+      :aria-labelledby="labelId"
+      :aria-describedby="action.description ? descriptionId : undefined"
       @update:model-value="handleToggle"
     />
   </div>
