@@ -278,6 +278,9 @@ export interface SaleItem {
   discountAmountCents?: number | null
   discountTitle?: string | null
   prePriceCentsBeforeDiscount?: number | null
+  // promotions-in-sale: non-null = line discount came from an auto/manual promotion
+  // (call veto to remove). Null/absent = seller's manual free-form discount or no discount.
+  promotionId?: string | null
 }
 
 export interface SaleDraftCustomer {
@@ -347,6 +350,37 @@ export interface Sale {
   shippingAddress?: CustomerAddress | null
   createdAt: string
   updatedAt: string
+  // promotions-in-sale: backend-owned totals. Frontend MUST render these
+  // directly (do NOT recompute). All optional so pre-deploy drafts work.
+  subtotalCents?: number
+  discountCents?: number
+  totalCents?: number
+  // promotions-in-sale: applied ORDER_DISCOUNT snapshot. Null when no order
+  // promo applies; undefined on pre-deploy drafts.
+  appliedOrderPromotion?: AppliedOrderPromotion | null
+}
+
+// promotions-in-sale: ORDER_DISCOUNT snapshot embedded in the Sale response.
+export interface AppliedOrderPromotion {
+  promotionId: string
+  discountType: 'amount' | 'percentage'
+  discountValue: number
+  discountAmountCents: number
+  discountTitle: string
+}
+
+// promotions-in-sale: item on the "Promociones disponibles" list returned by
+// GET /sales/drafts/:id/applicable-promotions.
+export interface ApplicablePromotion {
+  id: string
+  title: string
+  type: 'PRODUCT_DISCOUNT' | 'ORDER_DISCOUNT'
+}
+
+// promotions-in-sale: response shape of GET /sales/drafts/:id/applicable-promotions.
+export interface ListApplicablePromotionsResponse {
+  saleId: string
+  promotions: ApplicablePromotion[]
 }
 
 export interface AddItemPayload {

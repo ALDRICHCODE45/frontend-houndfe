@@ -37,6 +37,9 @@ import type {
   ListSalesParams,
   SalesListCounts,
   SalesListPagination,
+  AppliedOrderPromotion,
+  ApplicablePromotion,
+  ListApplicablePromotionsResponse,
 } from '../sale.types'
 import { SaleCommentError } from '../sale.types'
 
@@ -958,6 +961,178 @@ describe('sale.types', () => {
       expect(params.offset).toBeUndefined()
       expect(params.categoryId).toBeUndefined()
       expect(params.brandId).toBeUndefined()
+    })
+  })
+
+  describe('promotion contracts (promotions-in-sale)', () => {
+    describe('SaleItem.promotionId optional field', () => {
+      it('accepts promotionId when a per-line promo is applied', () => {
+        const item: SaleItem = {
+          id: 'item-promo',
+          productId: 'prod-1',
+          variantId: null,
+          productName: 'Paracetamol 500mg',
+          variantName: null,
+          quantity: 1,
+          unitPriceCents: 8000,
+          unitPriceCurrency: 'MXN',
+          promotionId: '0192b1f0-7c8d-7e0a-9d4a-abcdef012345',
+        }
+
+        expect(item.promotionId).toBe('0192b1f0-7c8d-7e0a-9d4a-abcdef012345')
+      })
+
+      it('accepts explicit promotionId = null (no promo on this line)', () => {
+        const item: SaleItem = {
+          id: 'item-nopromo',
+          productId: 'prod-1',
+          variantId: null,
+          productName: 'Paracetamol 500mg',
+          variantName: null,
+          quantity: 1,
+          unitPriceCents: 8000,
+          unitPriceCurrency: 'MXN',
+          promotionId: null,
+        }
+
+        expect(item.promotionId).toBeNull()
+      })
+
+      it('omits promotionId for backward compat with pre-deploy drafts', () => {
+        const item: SaleItem = {
+          id: 'item-legacy',
+          productId: 'prod-1',
+          variantId: null,
+          productName: 'Paracetamol 500mg',
+          variantName: null,
+          quantity: 1,
+          unitPriceCents: 8000,
+          unitPriceCurrency: 'MXN',
+        }
+
+        expect(item.promotionId).toBeUndefined()
+      })
+    })
+
+    describe('Sale totals fields (subtotalCents/discountCents/totalCents) + appliedOrderPromotion optional', () => {
+      it('accepts backend-provided totals + applied order promo', () => {
+        const orderPromo: AppliedOrderPromotion = {
+          promotionId: '0192b1f0-7c8d-7e0a-9d4a-aaaaaaaaaaaa',
+          discountType: 'percentage',
+          discountValue: 10,
+          discountAmountCents: 1000,
+          discountTitle: 'Black Friday 10% off the cart',
+        }
+
+        const sale: Sale = {
+          id: 'sale-promo',
+          userId: 'user-1',
+          status: 'DRAFT',
+          items: [],
+          createdAt: '2026-04-21T10:00:00Z',
+          updatedAt: '2026-04-21T10:00:00Z',
+          subtotalCents: 10000,
+          discountCents: 1500,
+          totalCents: 8500,
+          appliedOrderPromotion: orderPromo,
+        }
+
+        expect(sale.subtotalCents).toBe(10000)
+        expect(sale.discountCents).toBe(1500)
+        expect(sale.totalCents).toBe(8500)
+        expect(sale.appliedOrderPromotion?.discountTitle).toBe('Black Friday 10% off the cart')
+        expect(sale.appliedOrderPromotion?.discountType).toBe('percentage')
+      })
+
+      it('accepts appliedOrderPromotion = null when no order promo applies', () => {
+        const sale: Sale = {
+          id: 'sale-no-order-promo',
+          userId: 'user-1',
+          status: 'DRAFT',
+          items: [],
+          createdAt: '2026-04-21T10:00:00Z',
+          updatedAt: '2026-04-21T10:00:00Z',
+          subtotalCents: 5000,
+          discountCents: 0,
+          totalCents: 5000,
+          appliedOrderPromotion: null,
+        }
+
+        expect(sale.appliedOrderPromotion).toBeNull()
+      })
+
+      it('omits totals + appliedOrderPromotion for backward compat with pre-deploy drafts', () => {
+        const sale: Sale = {
+          id: 'sale-legacy',
+          userId: 'user-1',
+          status: 'DRAFT',
+          items: [],
+          createdAt: '2026-04-21T10:00:00Z',
+          updatedAt: '2026-04-21T10:00:00Z',
+        }
+
+        expect(sale.subtotalCents).toBeUndefined()
+        expect(sale.discountCents).toBeUndefined()
+        expect(sale.totalCents).toBeUndefined()
+        expect(sale.appliedOrderPromotion).toBeUndefined()
+      })
+    })
+
+    describe('ApplicablePromotion type', () => {
+      it('builds a PRODUCT_DISCOUNT applicable promotion', () => {
+        const promo: ApplicablePromotion = {
+          id: '0192b1f0-7c8d-7e0a-9d4a-product0001',
+          title: '20% off Aspirina',
+          type: 'PRODUCT_DISCOUNT',
+        }
+
+        expect(promo.type).toBe('PRODUCT_DISCOUNT')
+        expect(promo.title).toBe('20% off Aspirina')
+      })
+
+      it('builds an ORDER_DISCOUNT applicable promotion', () => {
+        const promo: ApplicablePromotion = {
+          id: '0192b1f0-7c8d-7e0a-9d4a-order000001',
+          title: '$50 off cart',
+          type: 'ORDER_DISCOUNT',
+        }
+
+        expect(promo.type).toBe('ORDER_DISCOUNT')
+      })
+    })
+
+    describe('ListApplicablePromotionsResponse type', () => {
+      it('builds the response shape exactly as the backend returns it', () => {
+        const response: ListApplicablePromotionsResponse = {
+          saleId: '0192b1f0-7c8d-7e0a-9d4a-salebbbbbbb',
+          promotions: [
+            {
+              id: '0192b1f0-7c8d-7e0a-9d4a-pro000000001',
+              title: '20% off Aspirina',
+              type: 'PRODUCT_DISCOUNT',
+            },
+            {
+              id: '0192b1f0-7c8d-7e0a-9d4a-pro000000002',
+              title: '10% off cart over $500',
+              type: 'ORDER_DISCOUNT',
+            },
+          ],
+        }
+
+        expect(response.saleId).toBe('0192b1f0-7c8d-7e0a-9d4a-salebbbbbbb')
+        expect(response.promotions).toHaveLength(2)
+        expect(response.promotions[0]?.type).toBe('PRODUCT_DISCOUNT')
+        expect(response.promotions[1]?.type).toBe('ORDER_DISCOUNT')
+      })
+
+      it('accepts empty promotions array (no applicable promos for this draft)', () => {
+        const response: ListApplicablePromotionsResponse = {
+          saleId: 'sale-empty',
+          promotions: [],
+        }
+
+        expect(response.promotions).toEqual([])
+      })
     })
   })
 })
