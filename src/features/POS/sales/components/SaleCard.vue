@@ -6,6 +6,7 @@ import { formatSaleDate, formatSaleDueDate } from '../utils/saleDate.utils'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { getDeliveryStatusBadge } from '../utils/saleStatus.utils'
 import { formatPaymentMethod } from '../utils/salePaymentMethod.utils'
+import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
 
 const props = defineProps<{ sale: ConfirmedSaleRow }>()
 
@@ -26,7 +27,7 @@ function statusColor(status: ConfirmedSaleRow['status']) {
           <article class="space-y-3">
             <div class="flex items-center justify-between">
               <p class="text-sm font-semibold text-primary">#{{ extractFolioNumber(sale.folio) }}</p>
-              <UBadge :color="statusColor(sale.status)" variant="soft">{{ sale.status }}</UBadge>
+              <StatusDotBadge :tone="statusColor(sale.status)" :label="sale.status" />
             </div>
 
             <div class="space-y-1">
@@ -47,9 +48,10 @@ function statusColor(status: ConfirmedSaleRow['status']) {
               <p class="text-sm text-muted">
                 {{ firstPaymentMethod ? formatPaymentMethod(firstPaymentMethod) : 'Sin método' }}
               </p>
-              <UBadge :color="getDeliveryStatusBadge(sale.deliveryStatus).color" variant="soft">
-                {{ getDeliveryStatusBadge(sale.deliveryStatus).label }}
-              </UBadge>
+              <StatusDotBadge
+                :tone="getDeliveryStatusBadge(sale.deliveryStatus).color"
+                :label="getDeliveryStatusBadge(sale.deliveryStatus).label"
+              />
             </div>
           </article>
     </UCard>
