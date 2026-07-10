@@ -27,6 +27,9 @@ const props = defineProps<{
 
 // ── Emits ─────────────────────────────────────────────────────────────────────
 
+// promotions-in-sale B.2: forward the order-promo remove event from
+// SaleTotalsFooter up to SalesView (which routes it through the veto
+// confirmation flow in work-unit C.5).
 const emit = defineEmits<{
   'switch-tab': [saleId: string]
   'close-tab': [saleId: string]
@@ -36,6 +39,7 @@ const emit = defineEmits<{
   'charge-click': []
   'open-customer-assignment': []
   'unassign-customer': []
+  'remove-order-promo': [promotionId: string]
 }>()
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -272,12 +276,14 @@ function getCloseTabDescription(): string {
       </div>
     </div>
 
-    <!-- Totals footer (sticky bottom) -->
+    <!-- Totals footer (sticky bottom) — B.2 binds the full sale so the
+         footer can read backend totals + appliedOrderPromotion directly. -->
     <SaleTotalsFooter
       v-if="activeDraft"
-      :items="activeDraft.items"
+      :sale="activeDraft"
       :is-charge-pending="isMutating"
       @charge-click="emit('charge-click')"
+      @remove-order-promo="(promotionId) => emit('remove-order-promo', promotionId)"
     />
 
     <!-- Global discount modal -->

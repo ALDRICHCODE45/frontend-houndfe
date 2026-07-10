@@ -37,7 +37,14 @@ function mountPanel(activeDraft: Sale | null, isCustomerMutationPending = false)
       stubs: {
         SalesTabsStrip: { template: '<div />' },
         SaleItemRow: { template: '<div />' },
-        SaleTotalsFooter: { template: '<div />' },
+        // B.2: stub forwards emits so we can test remove-order-promo / charge-click propagation.
+        SaleTotalsFooter: {
+          name: 'SaleTotalsFooter',
+          emits: ['charge-click', 'remove-order-promo'],
+          props: ['sale', 'isChargePending'],
+          template:
+            '<div data-testid="sale-totals-footer-stub" :data-sale-id="sale?.id" @click="$emit(\'charge-click\')" />',
+        },
         GlobalDiscountModal: { template: '<div />' },
         ConfirmModal: { template: '<div />' },
         UTabs: { template: '<div />' },
@@ -63,6 +70,84 @@ function mountPanel(activeDraft: Sale | null, isCustomerMutationPending = false)
     },
   })
 }
+
+// ── B.2: SaleTotalsFooter prop + event wiring ────────────────────────────────
+
+describe('ActiveSalePanel B.2 — SaleTotalsFooter wiring', () => {
+  it('passes the activeDraft to SaleTotalsFooter (not just items)', () => {
+    const draft = makeDraft({ subtotalCents: 10000, discountCents: 1500, totalCents: 8500 })
+    const wrapper = mountPanel(draft)
+
+    const footer = wrapper.findComponent({ name: 'SaleTotalsFooter' })
+    expect(footer.exists()).toBe(true)
+    const passedSale = footer.props('sale') as Sale
+    expect(passedSale).toBeDefined()
+    expect(passedSale.id).toBe('sale-1')
+    expect(passedSale.subtotalCents).toBe(10000)
+    expect(passedSale.discountCents).toBe(1500)
+    expect(passedSale.totalCents).toBe(8500)
+  })
+
+  it('forwards remove-order-promo up to the parent (activeSalePanel emits it)', async () => {
+    const draft = makeDraft({
+      appliedOrderPromotion: {
+        promotionId: 'promo-order-uuid',
+        discountType: 'amount',
+        discountValue: 500,
+        discountAmountCents: 500,
+        discountTitle: 'Cupón Test',
+      },
+    })
+    const wrapper = mountPanel(draft)
+
+    await wrapper.get('[data-testid="sale-totals-footer-stub"]').trigger('click')
+    // The stub currently fires charge-click on click — use $emit directly to test
+    // the order-promo path without rewriting the stub DOM for every event.
+    const footer = wrapper.findComponent({ name: 'SaleTotalsFooter' })
+    footer.vm.$emit('remove-order-promo', 'promo-order-uuid')
+    await wrapper.vm.$nextTick()
+
+    const emitted = wrapper.emitted('remove-order-promo')
+    expect(emitted).toBeTruthy()
+    expect(emitted).toHaveLength(1)
+    expect(emitted![0]).toEqual(['promo-order-uuid'])
+  })
+
+  it('forwards remove-order-promo with the right payload from the footer stub', () => {
+    const draft = makeDraft({
+      appliedOrderPromotion: {
+        promotionId: 'promo-other',
+        discountType: 'percentage',
+        discountValue: 10,
+        discountAmountCents: 1000,
+        discountTitle: 'Black Friday',
+      },
+    })
+    const wrapper = mountPanel(draft)
+
+    const footer = wrapper.findComponent({ name: 'SaleTotalsFooter' })
+    // Direct emit on the stub vm (the child stub doesn't actually render a button).
+    footer.vm.$emit('remove-order-promo', 'promo-other')
+
+    const emitted = wrapper.emitted('remove-order-promo')
+    expect(emitted).toBeTruthy()
+    expect(emitted![0]).toEqual(['promo-other'])
+  })
+
+  it('still forwards charge-click to the parent (preserved behavior)', async () => {
+    const draft = makeDraft()
+    const wrapper = mountPanel(draft)
+
+    await wrapper.get('[data-testid="sale-totals-footer-stub"]').trigger('click')
+
+    expect(wrapper.emitted('charge-click')).toBeTruthy()
+  })
+
+  it('does not render SaleTotalsFooter when there is no active draft', () => {
+    const wrapper = mountPanel(null)
+    expect(wrapper.findComponent({ name: 'SaleTotalsFooter' }).exists()).toBe(false)
+  })
+})
 
 describe('ActiveSalePanel customer slot', () => {
   it('renders empty state with Asignar cliente trigger as inline link and opens slideover event', async () => {

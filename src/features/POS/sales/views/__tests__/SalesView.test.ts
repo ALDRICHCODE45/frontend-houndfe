@@ -24,6 +24,7 @@ vi.mock('@/features/auth/composables/useSafeTenantId', () => ({
 const chargeDraft = vi.fn()
 const unassignCustomerMock = vi.fn()
 const clearShippingAddressMock = vi.fn()
+const vetoAutoPromotionMock = vi.fn()
 const activeTabId = ref<string | null>('sale-1')
 const isMutating = ref(false)
 const drafts = ref<Sale[]>([
@@ -57,6 +58,7 @@ vi.mock('../../composables/useSalesDrafts', () => ({
     applyGlobalDiscount: vi.fn(),
     removeGlobalDiscount: vi.fn(),
     chargeDraft,
+    vetoAutoPromotion: vetoAutoPromotionMock,
   }),
 }))
 
@@ -80,14 +82,15 @@ const globalStubs = {
   ProductSearchPanel: { template: '<div />' },
   ActiveSalePanel: {
     props: ['activeDraft'],
-    emits: ['charge-click', 'unassign-customer'],
-    template: '<div><button data-testid="charge-click" @click="$emit(\'charge-click\')">charge</button><button data-testid="unassign-customer" @click="$emit(\'unassign-customer\')">unassign</button></div>',
+    emits: ['charge-click', 'unassign-customer', 'remove-order-promo'],
+    template:
+      '<div><button data-testid="charge-click" @click="$emit(\'charge-click\')">charge</button><button data-testid="unassign-customer" @click="$emit(\'unassign-customer\')">unassign</button><button data-testid="remove-order-promo" @click="$emit(\'remove-order-promo\', \'order-promo-uuid\')">remove-order-promo</button></div>',
   },
   PaymentModal: {
-    props: ['open', 'saleId', 'externalError', 'isSubmitting', 'customer'],
+    props: ['open', 'saleId', 'externalError', 'isSubmitting', 'customer', 'totalCents'],
     emits: ['submit', 'update:open', 'request-assign-customer'],
     template:
-      '<div><p data-testid="payment-modal-open">{{ open }}</p><button data-testid="submit-charge" :disabled="isSubmitting" @click="$emit(\'submit\', { saleId, payload: { method: \'cash\', amountCents: 10000 }, idempotencyKey: \'idem-1\' })">submit</button><button data-testid="request-assign-customer" @click="$emit(\'request-assign-customer\')">assign</button><p data-testid="external-error">{{ externalError }}</p><p data-testid="modal-customer-id">{{ customer?.id }}</p></div>',
+      '<div><p data-testid="payment-modal-open">{{ open }}</p><p data-testid="payment-modal-total-cents">{{ totalCents }}</p><button data-testid="submit-charge" :disabled="isSubmitting" @click="$emit(\'submit\', { saleId, payload: { method: \'cash\', amountCents: totalCents }, idempotencyKey: \'idem-1\' })">submit</button><button data-testid="request-assign-customer" @click="$emit(\'request-assign-customer\')">assign</button><p data-testid="external-error">{{ externalError }}</p><p data-testid="modal-customer-id">{{ customer?.id }}</p></div>',
   },
   PaymentSuccessModal: {
     props: ['open', 'folio', 'debtCents', 'paymentStatus'],
@@ -119,8 +122,8 @@ describe('SalesView charge orchestration', () => {
     isMutating.value = false
     unassignCustomerMock.mockReset()
     clearShippingAddressMock.mockReset()
+    vetoAutoPromotionMock.mockReset()
   })
-
   it('opens payment flow with F8 only when active draft has items', async () => {
     mountView()
     const event = new KeyboardEvent('keydown', { key: 'F8', cancelable: true })
@@ -146,6 +149,11 @@ describe('SalesView charge orchestration', () => {
       paymentStatus: 'PAID',
       confirmedAt: '2026-05-06T21:00:00.000Z',
     })
+
+    // B.3: seed totalCents on the fixture so PaymentModal's prop wiring matches
+    // the assertion below (was previously 10000 via items.reduce; now it's a
+    // direct read of the backend-provided totalCents).
+    drafts.value = [{ ...drafts.value[0]!, totalCents: 10000 }]
 
     const wrapper = mountView()
     await wrapper.get('[data-testid="charge-click"]').trigger('click')
@@ -275,5 +283,92 @@ describe('SalesView charge orchestration', () => {
     window.dispatchEvent(f8Event)
     expect(wrapper.get('[data-testid="submit-charge"]').attributes('disabled')).toBeDefined()
   })
+})
 
+// ─── B.3: PaymentModal :total-cents binding + remove-order-promo forwarding ─
+
+describe('SalesView B.3 — totals + order-promo event wiring', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    unassignCustomerMock.mockReset()
+    clearShippingAddressMock.mockReset()
+    vetoAutoPromotionMock.mockReset()
+  })
+
+  it('passes activeDraft.totalCents to PaymentModal (NOT a client reduce)', async () => {
+    // items reduce would return 10000 (10000 * 1); backend totalCents is 8500.
+    // The PaymentModal must receive 8500.
+    drafts.value = [
+      {
+        id: 'sale-1',
+        userId: 'user-1',
+        status: 'DRAFT',
+        items: [{ id: 'item-1', productId: 'prod-1', variantId: null, productName: 'A', variantName: null, quantity: 1, unitPriceCents: 10000, unitPriceCurrency: 'MXN' }],
+        subtotalCents: 10000,
+        discountCents: 1500,
+        totalCents: 8500,
+        createdAt: 'x',
+        updatedAt: 'x',
+      },
+    ]
+    activeTabId.value = 'sale-1'
+
+    const wrapper = mountView()
+    await wrapper.get('[data-testid="charge-click"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="payment-modal-total-cents"]').text()).toBe('8500')
+  })
+
+  it('passes 0 to PaymentModal when activeDraft has no totalCents (pre-deploy backward compat)', async () => {
+    // Pre-deploy fixture: NO totalCents field. The `?? 0` fallback must produce 0
+    // (no crash, no NaN).
+    drafts.value = [
+      {
+        id: 'sale-1',
+        userId: 'user-1',
+        status: 'DRAFT',
+        items: [{ id: 'item-1', productId: 'prod-1', variantId: null, productName: 'A', variantName: null, quantity: 1, unitPriceCents: 10000, unitPriceCurrency: 'MXN' }],
+        // subtotalCents/discountCents/totalCents are intentionally undefined.
+        createdAt: 'x',
+        updatedAt: 'x',
+      },
+    ]
+    activeTabId.value = 'sale-1'
+
+    const wrapper = mountView()
+    expect(() => wrapper.get('[data-testid="charge-click"]').trigger('click')).not.toThrow()
+    await wrapper.get('[data-testid="charge-click"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="payment-modal-total-cents"]').text()).toBe('0')
+  })
+
+  it('accepts the remove-order-promo event without crashing (C.5 will wire veto + confirm)', async () => {
+    drafts.value = [
+      {
+        id: 'sale-1',
+        userId: 'user-1',
+        status: 'DRAFT',
+        items: [],
+        appliedOrderPromotion: {
+          promotionId: 'order-promo-uuid',
+          discountType: 'amount',
+          discountValue: 500,
+          discountAmountCents: 500,
+          discountTitle: 'Cupón Test',
+        },
+        createdAt: 'x',
+        updatedAt: 'x',
+      },
+    ]
+    activeTabId.value = 'sale-1'
+
+    const wrapper = mountView()
+    // Event propagates from ActiveSalePanel stub to SalesView's handler.
+    // B wires the handler as a no-op stub; C.5 will wire veto + confirm + toast.
+    // MUST NOT throw and MUST NOT call vetoAutoPromotion yet.
+    expect(() =>
+      wrapper.get('[data-testid="remove-order-promo"]').trigger('click'),
+    ).not.toThrow()
+    expect(vetoAutoPromotionMock).not.toHaveBeenCalled()
+  })
 })

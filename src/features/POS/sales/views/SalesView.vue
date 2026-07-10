@@ -57,6 +57,10 @@ const {
   applyGlobalDiscount,
   removeGlobalDiscount,
   chargeDraft,
+  // promotions-in-sale: exposed for work-unit C.5 (veto + toast + confirm).
+  // Not used in work-unit B — the remove-order-promo event handler below
+  // is intentionally a no-op stub; C.5 wires the veto + ConfirmModal + toast.
+  vetoAutoPromotion,
 } = useSalesDrafts()
 
 const paymentModalOpen = ref(false)
@@ -461,6 +465,25 @@ async function handleUnassignCustomer() {
     toast.add({ title: 'Error', description: mapCustomerAssignmentErrorMessage(error), color: 'error' })
   }
 }
+
+// promotions-in-sale B.3 handler for the order-promo remove event forwarded
+// from ActiveSalePanel → SaleTotalsFooter.
+//
+// In work-unit B this is intentionally a NO-OP handler that:
+//   - just logs in dev (to confirm the wiring) so we can SEE the event flow.
+//   - does NOT call vetoAutoPromotion yet (work-unit C.5 must wrap it in a
+//     ConfirmModal first — spec §7a: "veto MUST open a confirmation dialog
+//     warning 'Esta acción es permanente para este borrador'").
+//   - does NOT show a toast yet (work-unit C.5 adds the toast wiring).
+//
+// C.5 replaces this handler with: open ConfirmModal → on confirm →
+// vetoAutoPromotion(promotionId) → toast "Promoción quitada".
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function handleRemoveOrderPromoRequest(promotionId: string) {
+  // Intentional: work-unit B wires the data path; C.5 wires the action.
+  // Keep a runtime no-op so the handler exists and is exported.
+  void promotionId
+}
 </script>
 
 <template>
@@ -531,6 +554,7 @@ async function handleUnassignCustomer() {
               @charge-click="openPaymentModal"
               @open-customer-assignment="handleOpenCustomerAssignment"
               @unassign-customer="handleUnassignCustomer"
+              @remove-order-promo="handleRemoveOrderPromoRequest"
               @switch-tab="handleSwitchTab"
              @close-tab="handleCloseTab"
             @create-tab="handleCreateTab"
@@ -552,7 +576,7 @@ async function handleUnassignCustomer() {
       v-model:open="paymentModalOpen"
       :sale-id="activeDraft.id"
       :customer="activeDraft.customer ?? null"
-      :total-cents="activeDraft.items.reduce((sum, item) => sum + item.unitPriceCents * item.quantity, 0)"
+      :total-cents="activeDraft.totalCents ?? 0"
       :is-submitting="isMutating || isChargeTemporarilyBlocked"
       :external-error="inlineAmountError"
       @submit="({ saleId, payload, idempotencyKey }) => void handleChargeDraft(saleId, payload, idempotencyKey)"
