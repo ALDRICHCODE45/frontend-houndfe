@@ -19,6 +19,7 @@ import type {
   SaleDetail,
   DebtPaymentPayload,
   DebtPaymentResponse,
+  ListApplicablePromotionsResponse,
 } from '../../interfaces/sale.types'
 
 vi.mock('@/core/shared/api/http', () => ({
@@ -1016,6 +1017,138 @@ describe('saleApi', () => {
       await expect(saleApi.deleteComment('sale-1', 'comment-1')).rejects.toMatchObject({
         code: 'SALE_NOT_FOUND',
       })
+    })
+  })
+
+  describe('promotion endpoints (promotions-in-sale A.2)', () => {
+    it('listApplicablePromotions GETs /sales/drafts/:id/applicable-promotions with no body', async () => {
+      const response: ListApplicablePromotionsResponse = {
+        saleId: '0192b1f0-7c8d-7e0a-9d4a-salebbbbbbb',
+        promotions: [
+          { id: '0192b1f0-7c8d-7e0a-9d4a-pro000000001', title: '20% off Aspirina', type: 'PRODUCT_DISCOUNT' },
+          { id: '0192b1f0-7c8d-7e0a-9d4a-pro000000002', title: '10% off cart over $500', type: 'ORDER_DISCOUNT' },
+        ],
+      }
+      vi.mocked(http.get).mockResolvedValue({ data: response })
+
+      const result = await saleApi.listApplicablePromotions('0192b1f0-7c8d-7e0a-9d4a-salebbbbbbb')
+
+      expect(http.get).toHaveBeenCalledWith(
+        '/sales/drafts/0192b1f0-7c8d-7e0a-9d4a-salebbbbbbb/applicable-promotions',
+      )
+      expect(result).toEqual(response)
+    })
+
+    it('listApplicablePromotions returns empty list when no promos apply', async () => {
+      const response: ListApplicablePromotionsResponse = {
+        saleId: 'sale-empty',
+        promotions: [],
+      }
+      vi.mocked(http.get).mockResolvedValue({ data: response })
+
+      const result = await saleApi.listApplicablePromotions('sale-empty')
+
+      expect(result.promotions).toEqual([])
+    })
+
+    it('applyManualPromotion POSTs to /sales/drafts/:id/manual-promotions/:promotionId with empty body {}', async () => {
+      const updatedSale: Sale = {
+        id: 'sale-1',
+        userId: 'user-1',
+        status: 'DRAFT',
+        items: [],
+        subtotalCents: 10000,
+        discountCents: 1500,
+        totalCents: 8500,
+        createdAt: '2026-04-21T10:00:00Z',
+        updatedAt: '2026-04-21T10:01:00Z',
+      }
+      vi.mocked(http.post).mockResolvedValue({ data: updatedSale })
+
+      const result = await saleApi.applyManualPromotion(
+        'sale-1',
+        '0192b1f0-7c8d-7e0a-9d4a-pro000000001',
+      )
+
+      expect(http.post).toHaveBeenCalledWith(
+        '/sales/drafts/sale-1/manual-promotions/0192b1f0-7c8d-7e0a-9d4a-pro000000001',
+        {},
+      )
+      expect(result).toEqual(updatedSale)
+    })
+
+    it('removeManualPromotion DELETEs /sales/drafts/:id/manual-promotions/:promotionId and returns Sale', async () => {
+      const updatedSale: Sale = {
+        id: 'sale-1',
+        userId: 'user-1',
+        status: 'DRAFT',
+        items: [],
+        createdAt: '2026-04-21T10:00:00Z',
+        updatedAt: '2026-04-21T10:02:00Z',
+      }
+      vi.mocked(http.delete).mockResolvedValue({ data: updatedSale })
+
+      const result = await saleApi.removeManualPromotion(
+        'sale-1',
+        '0192b1f0-7c8d-7e0a-9d4a-pro000000001',
+      )
+
+      expect(http.delete).toHaveBeenCalledWith(
+        '/sales/drafts/sale-1/manual-promotions/0192b1f0-7c8d-7e0a-9d4a-pro000000001',
+      )
+      expect(result).toEqual(updatedSale)
+    })
+
+    it('vetoAutoPromotion DELETEs /sales/drafts/:id/promotions/:promotionId and returns Sale', async () => {
+      const updatedSale: Sale = {
+        id: 'sale-1',
+        userId: 'user-1',
+        status: 'DRAFT',
+        items: [
+          {
+            id: 'item-1',
+            productId: 'prod-1',
+            variantId: null,
+            productName: 'Aspirina',
+            variantName: null,
+            quantity: 1,
+            unitPriceCents: 8000,
+            unitPriceCurrency: 'MXN',
+            promotionId: null,
+          },
+        ],
+        subtotalCents: 8000,
+        discountCents: 0,
+        totalCents: 8000,
+        createdAt: '2026-04-21T10:00:00Z',
+        updatedAt: '2026-04-21T10:03:00Z',
+      }
+      vi.mocked(http.delete).mockResolvedValue({ data: updatedSale })
+
+      const result = await saleApi.vetoAutoPromotion(
+        'sale-1',
+        '0192b1f0-7c8d-7e0a-9d4a-pro000000002',
+      )
+
+      expect(http.delete).toHaveBeenCalledWith(
+        '/sales/drafts/sale-1/promotions/0192b1f0-7c8d-7e0a-9d4a-pro000000002',
+      )
+      expect(result.items[0]?.promotionId).toBeNull()
+      expect(result.totalCents).toBe(8000)
+    })
+
+    it('passes UUID-style promotionId unchanged into the URL', async () => {
+      const response: ListApplicablePromotionsResponse = {
+        saleId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
+        promotions: [],
+      }
+      vi.mocked(http.get).mockResolvedValue({ data: response })
+
+      await saleApi.listApplicablePromotions('a1b2c3d4-e5f6-7890-abcd-ef1234567890')
+
+      expect(http.get).toHaveBeenCalledWith(
+        '/sales/drafts/a1b2c3d4-e5f6-7890-abcd-ef1234567890/applicable-promotions',
+      )
     })
   })
 })
