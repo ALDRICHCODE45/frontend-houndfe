@@ -8,6 +8,10 @@
  * via @update:modelValue so the parent owns the canonical state — this
  * component never mutates `modelValue` directly.
  *
+ * The per-module count lives in the TRIGGER (right side of the pill),
+ * not in the body. The count is computed in this component from the
+ * pure `computeModuleActionCount` helper — single source of truth.
+ *
  * Props ↓ / Events ↑:
  *   - modelValue:      ActionKey[] — currently-enabled actions
  *   - masterEnabled:   when false, all action rows render disabled
@@ -18,6 +22,7 @@
  */
 import { computed } from 'vue'
 import { ACTION_REGISTRY } from '../registry/action-registry'
+import { computeModuleActionCount } from './notificationRowState'
 import ModuleAccordionItem from './ModuleAccordionItem.vue'
 
 const props = defineProps<{
@@ -29,14 +34,21 @@ const emit = defineEmits<{
   'update:modelValue': [next: string[]]
 }>()
 
-// Shape the registry into UAccordion items. The label is shown in the
-// trigger; the per-module count is rendered inside the body (so the
-// registry stays the only source of truth).
+// Shape the registry into UAccordion items. The `label` is the module
+// name shown on the left of the trigger; `countLabel` is the "enabled/total"
+// fraction that renders on the RIGHT of the trigger pill (next to the
+// chevron). The trigger owns the count — the body stays focused on the
+// action rows. `moduleKey` is kept so the per-item ui hook can target
+// the pill (not used right now but cheap to surface for future tweaks).
 const accordionItems = computed(() =>
-  ACTION_REGISTRY.map((module) => ({
-    value: module.moduleKey,
-    label: module.moduleLabel,
-  })),
+  ACTION_REGISTRY.map((module) => {
+    const count = computeModuleActionCount(module, props.modelValue)
+    return {
+      value: module.moduleKey,
+      label: module.moduleLabel,
+      countLabel: count.label,
+    }
+  }),
 )
 
 function onModuleToggle(next: string[]) {
@@ -51,7 +63,36 @@ function onModuleToggle(next: string[]) {
     type="single"
     :default-value="accordionItems[0]?.value"
     data-testid="actions-accordion"
+    :ui="{
+      root: 'space-y-2',
+      item: 'border border-default rounded-lg overflow-hidden',
+      header: 'flex',
+      trigger:
+        'group flex items-center justify-between gap-2 w-full px-4 py-3 font-medium text-sm cursor-pointer min-w-0 hover:bg-elevated/50 transition-colors',
+      content: 'border-t border-default',
+      body: 'p-4',
+      label: 'text-start break-words min-w-0',
+    }"
   >
+    <!--
+      Per-module count lives on the right of the trigger, alongside the
+      chevron. The `trailing` slot REPLACES the default chevron, so we
+      re-render the chevron here. The wrapper `ml-auto` + flex container
+      pushes the count + chevron group to the right edge of the pill.
+    -->
+    <template #trailing="{ item }">
+      <div class="flex items-center gap-2 ml-auto shrink-0">
+        <span
+          data-testid="module-count"
+          class="text-xs font-medium text-muted tabular-nums"
+        >{{ item.countLabel }}</span>
+        <UIcon
+          name="i-lucide-chevron-down"
+          class="size-4 text-muted transition-transform duration-200 group-data-[state=open]:rotate-180"
+        />
+      </div>
+    </template>
+
     <template #body="{ item }">
       <ModuleAccordionItem
         :module="ACTION_REGISTRY.find((m) => m.moduleKey === item.value)!"

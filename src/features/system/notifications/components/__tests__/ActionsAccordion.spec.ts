@@ -10,6 +10,11 @@
 // by ActionRow.vue via `[data-testid^="action-row-"]`. The switch's
 // `disabled` and `checked` states are exposed as data attributes on those
 // wrappers so tests can assert without binding to USwitch internals.
+//
+// Same caveat for UAccordion itself: we never query by component name.
+// The trigger is found via the data-slot attribute Nuxt UI renders on
+// the internal `AccordionTrigger` element. The per-module count testid
+// lives inside the trigger (not inside the body).
 
 import { describe, it, expect, beforeEach } from 'vitest'
 import { nextTick } from 'vue'
@@ -67,6 +72,12 @@ describe('ActionsAccordion — smoke render (first UAccordion contact)', () => {
   it('renders the per-module count "0/1" when no actions are enabled', () => {
     const wrapper = mountAccordion({ modelValue: [] })
     expect(wrapper.text()).toContain('0/1')
+
+    // The count is part of the trigger pill, NOT a sub-header in the body.
+    // UAccordion's internal trigger carries `data-slot="trigger"`.
+    const count = wrapper.find('[data-slot="trigger"] [data-testid="module-count"]')
+    expect(count.exists()).toBe(true)
+    expect(count.text()).toBe('0/1')
   })
 })
 
@@ -136,10 +147,17 @@ describe('ActionsAccordion — toggle wiring', () => {
   it('updates the per-module count when modelValue changes', async () => {
     const empty = mountAccordion({ modelValue: [] })
     expect(empty.text()).toContain('0/1')
+    // Count sits in the trigger pill.
+    const emptyCount = empty.find('[data-slot="trigger"] [data-testid="module-count"]')
+    expect(emptyCount.text()).toBe('0/1')
 
     const enabled = mountAccordion({ modelValue: ['LOW_STOCK'] })
     await nextTick()
     expect(enabled.text()).toContain('1/1')
+    // The new count value lands in the SAME trigger slot.
+    const enabledCount = enabled.find('[data-slot="trigger"] [data-testid="module-count"]')
+    expect(enabledCount.exists()).toBe(true)
+    expect(enabledCount.text()).toBe('1/1')
   })
 
   it('does not mutate the parent modelValue array directly (parent owns reactivity)', async () => {
