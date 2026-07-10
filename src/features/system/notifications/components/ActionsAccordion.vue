@@ -68,8 +68,9 @@ function onModuleToggle(next: string[]) {
       header: 'flex',
       trigger:
         'group flex items-center justify-between gap-2 w-full px-4 py-3 font-medium text-sm cursor-pointer min-w-0 hover:bg-elevated/50 transition-colors',
-      content: 'border-t border-default',
-      body: 'p-4',
+      content:
+        'border-t border-default data-[state=open]:animate-[accordion-down_200ms_ease-out] data-[state=closed]:animate-[accordion-up_200ms_ease-out] data-[state=closed]:overflow-hidden',
+      body: 'px-4 pb-4 pt-3',
       label: 'text-start break-words min-w-0',
     }"
   >
