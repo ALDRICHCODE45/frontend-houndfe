@@ -1,19 +1,23 @@
 <script setup lang="ts">
 /**
- * ModuleAccordionItem — one accordion panel for a single registry module.
+ * ModuleAccordionItem — one accordion panel body for a single registry module.
  *
- * Wraps UAccordion's items shape: provides a label (module name + "enabled/total"
- * badge), and a content slot pre-populated with the action rows.
+ * The UAccordion parent (ActionsAccordion) composes items from the registry
+ * and renders the trigger (label + count badge + chevron). This component
+ * is the *body* of a single item — it only owns the action-row list. The
+ * per-module count was lifted to the trigger so the panel stays clean
+ * (no redundant uppercase sub-header).
  *
- * The UAccordion parent composes items from the registry; this component is
- * the *body* of a single item, so it does NOT wrap UAccordion itself.
+ * Props ↓ / Events ↑:
+ *   - module:      the registry entry (used to enumerate actions)
+ *   - modelValue:  the current enabledActions set (forwarded to rows)
+ *   - disabled:    master-off → all rows render greyed
+ *   - Emits @toggle with the next enabledActions array (parent owns state)
  */
-import { computed } from 'vue'
 import type { ModuleDescriptor } from '../interfaces/notification-config.types'
-import { computeModuleActionCount } from './notificationRowState'
 import ActionRow from './ActionRow.vue'
 
-const props = defineProps<{
+defineProps<{
   module: ModuleDescriptor
   modelValue: readonly string[]
   disabled?: boolean
@@ -23,30 +27,20 @@ const emit = defineEmits<{
   toggle: [next: string[]]
 }>()
 
-const count = computed(() => computeModuleActionCount(props.module, props.modelValue))
-
 function onToggle(next: string[]) {
   emit('toggle', next)
 }
 </script>
 
 <template>
-  <div class="space-y-3 py-2">
-    <div class="flex items-center justify-between text-xs text-muted">
-      <span class="font-medium uppercase tracking-wide">
-        Acciones del módulo
-      </span>
-      <span data-testid="module-count">{{ count.label }}</span>
-    </div>
-    <div class="space-y-3">
-      <ActionRow
-        v-for="action in module.actions"
-        :key="action.key"
-        :action="action"
-        :model-value="modelValue"
-        :disabled="disabled"
-        @toggle="onToggle"
-      />
-    </div>
+  <div class="space-y-3">
+    <ActionRow
+      v-for="action in module.actions"
+      :key="action.key"
+      :action="action"
+      :model-value="modelValue"
+      :disabled="disabled"
+      @toggle="onToggle"
+    />
   </div>
 </template>

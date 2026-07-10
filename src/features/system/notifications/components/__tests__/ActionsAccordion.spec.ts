@@ -79,6 +79,13 @@ describe('ActionsAccordion — smoke render (first UAccordion contact)', () => {
     expect(count.exists()).toBe(true)
     expect(count.text()).toBe('0/1')
   })
+
+  it('does NOT render a redundant "Acciones del módulo" sub-header in the body', () => {
+    const wrapper = mountAccordion({ modelValue: [] })
+    // The count was lifted to the trigger pill — the body must not carry
+    // an uppercase "Acciones del módulo" sub-row anymore.
+    expect(wrapper.text()).not.toContain('Acciones del módulo')
+  })
 })
 
 describe('ActionsAccordion — masterEnabled OFF greys action rows', () => {
