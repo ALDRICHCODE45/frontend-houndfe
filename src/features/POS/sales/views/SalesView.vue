@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { AxiosError } from 'axios'
 import { useQueryClient } from '@tanstack/vue-query'
 import { useSalesDrafts } from '../composables/useSalesDrafts'
+import { useApplicablePromotions } from '../composables/useApplicablePromotions'
 import { saleApi } from '../api/sale.api'
 import ProductSearchPanel from '../components/ProductSearchPanel.vue'
 import ActiveSalePanel from '../components/ActiveSalePanel.vue'
@@ -61,7 +62,25 @@ const {
   // Not used in work-unit B — the remove-order-promo event handler below
   // is intentionally a no-op stub; C.5 wires the veto + ConfirmModal + toast.
   vetoAutoPromotion,
+  // promotions-in-sale C.4: manual-promo apply/remove handlers consumed by
+  // the "Promociones disponibles" accordion. No toast yet — C.5 adds toasts.
+  applyManualPromotion,
+  removeManualPromotion,
 } = useSalesDrafts()
+
+// promotions-in-sale C.4: applicable-promo list for the active draft.
+// Adapts to MaybeRefOrGetter via toValue inside the composable, so passing
+// the computed getter keeps the query reactive as the seller switches tabs.
+const applicablePromotionsQuery = useApplicablePromotions(
+  () => activeTabId.value ?? undefined,
+)
+const applicablePromotions = computed(
+  () => applicablePromotionsQuery.data.value?.promotions ?? [],
+)
+const isLoadingPromotions = computed(
+  () => applicablePromotionsQuery.isPending.value
+    || applicablePromotionsQuery.isFetching.value,
+)
 
 const paymentModalOpen = ref(false)
 const assignCustomerSlideoverOpen = ref(false)
@@ -484,6 +503,38 @@ function handleRemoveOrderPromoRequest(promotionId: string) {
   // Keep a runtime no-op so the handler exists and is exported.
   void promotionId
 }
+
+// promotions-in-sale C.4 — manual-promo handlers for the accordion.
+//
+// `appliedManualPromotionIds` is intentionally passed as [] from SalesView
+// to the accordion: there is no clean per-promo "this manual promo is
+// currently applied" signal on the backend response (item.promotionId
+// conflates auto + manual line discounts; appliedOrderPromotion is the
+// order-level only). The accordion's Remove affordance therefore stays
+// dormant for now — the seller always sees "Aplicar", never "Quitar",
+// inside this accordion. When the backend exposes a manual-applied list
+// (per spec §4, deferred), wire it here.
+//
+// No toast yet — C.5 adds success/error toasts for the manual mutations.
+async function handleApplyManualPromo(promotionId: string) {
+  try {
+    await applyManualPromotion(promotionId)
+  } catch (error) {
+    const err = error as AxiosError<DomainApiError>
+    const message = err.response?.data?.message ?? 'No se pudo aplicar la promoción'
+    toast.add({ title: 'Error', description: message, color: 'error' })
+  }
+}
+
+async function handleRemoveManualPromo(promotionId: string) {
+  try {
+    await removeManualPromotion(promotionId)
+  } catch (error) {
+    const err = error as AxiosError<DomainApiError>
+    const message = err.response?.data?.message ?? 'No se pudo quitar la promoción'
+    toast.add({ title: 'Error', description: message, color: 'error' })
+  }
+}
 </script>
 
 <template>
@@ -545,6 +596,9 @@ function handleRemoveOrderPromoRequest(promotionId: string) {
              :is-mutating="isMutating"
              :is-customer-mutation-pending="isCustomerMutationPending"
              :item-image-map="itemImageMap"
+             :applicable-promotions="applicablePromotions"
+             :is-loading-promotions="isLoadingPromotions"
+             :applied-manual-promotion-ids="[]"
             :on-submit-price-override="handleSubmitPriceOverride"
             :on-apply-discount="handleApplyDiscount"
             :on-remove-discount="handleRemoveDiscount"
@@ -555,6 +609,8 @@ function handleRemoveOrderPromoRequest(promotionId: string) {
               @open-customer-assignment="handleOpenCustomerAssignment"
               @unassign-customer="handleUnassignCustomer"
               @remove-order-promo="handleRemoveOrderPromoRequest"
+              @apply-manual-promo="handleApplyManualPromo"
+              @remove-manual-promo="handleRemoveManualPromo"
               @switch-tab="handleSwitchTab"
              @close-tab="handleCloseTab"
             @create-tab="handleCreateTab"

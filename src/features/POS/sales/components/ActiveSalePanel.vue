@@ -3,9 +3,16 @@ import { ref, computed } from 'vue'
 import SalesTabsStrip from './SalesTabsStrip.vue'
 import SaleItemRow from './SaleItemRow.vue'
 import SaleTotalsFooter from './SaleTotalsFooter.vue'
+import PromocionesDisponiblesAccordion from './PromocionesDisponiblesAccordion.vue'
 import GlobalDiscountModal from './GlobalDiscountModal.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
-import type { ApplyItemDiscountPayload, ApplyGlobalDiscountPayload, OverrideItemPricePayload, Sale } from '../interfaces/sale.types'
+import type {
+  ApplicablePromotion,
+  ApplyItemDiscountPayload,
+  ApplyGlobalDiscountPayload,
+  OverrideItemPricePayload,
+  Sale,
+} from '../interfaces/sale.types'
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -23,6 +30,11 @@ const props = defineProps<{
   onRemoveItem: (itemId: string) => Promise<unknown>
   onApplyGlobalDiscount: (payload: ApplyGlobalDiscountPayload) => Promise<unknown>
   onRemoveGlobalDiscount: () => Promise<unknown>
+  // promotions-in-sale C.4: data for the manual-promo accordion. Kept
+  // presentational — the query lives in SalesView, this panel just renders.
+  applicablePromotions?: ApplicablePromotion[]
+  isLoadingPromotions?: boolean
+  appliedManualPromotionIds?: string[]
 }>()
 
 // ── Emits ─────────────────────────────────────────────────────────────────────
@@ -30,6 +42,8 @@ const props = defineProps<{
 // promotions-in-sale B.2: forward the order-promo remove event from
 // SaleTotalsFooter up to SalesView (which routes it through the veto
 // confirmation flow in work-unit C.5).
+//
+// C.4 adds the manual-promo apply/remove forwarding for the accordion.
 const emit = defineEmits<{
   'switch-tab': [saleId: string]
   'close-tab': [saleId: string]
@@ -40,6 +54,8 @@ const emit = defineEmits<{
   'open-customer-assignment': []
   'unassign-customer': []
   'remove-order-promo': [promotionId: string]
+  'apply-manual-promo': [promotionId: string]
+  'remove-manual-promo': [promotionId: string]
 }>()
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -275,6 +291,19 @@ function getCloseTabDescription(): string {
         </div>
       </div>
     </div>
+
+    <!-- Promociones disponibles (C.4) — manual-promo accordion mounted
+         above the totals footer. The outer v-if ensures the section hides
+         when there are no applicable promos; the inner component also
+         guards with v-if on its own. -->
+    <PromocionesDisponiblesAccordion
+      v-if="(applicablePromotions?.length ?? 0) > 0"
+      :promotions="applicablePromotions ?? []"
+      :loading="isLoadingPromotions ?? false"
+      :applied-ids="appliedManualPromotionIds ?? []"
+      @apply="(promotionId) => emit('apply-manual-promo', promotionId)"
+      @remove="(promotionId) => emit('remove-manual-promo', promotionId)"
+    />
 
     <!-- Totals footer (sticky bottom) — B.2 binds the full sale so the
          footer can read backend totals + appliedOrderPromotion directly. -->
