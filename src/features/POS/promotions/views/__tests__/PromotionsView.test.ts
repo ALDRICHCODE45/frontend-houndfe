@@ -33,7 +33,7 @@ vi.mock('@/core/shared/composables/useServerTable', () => {
     showingTo: { value: 0 },
   }
   return {
-    useServerTable: vi.fn(() => defaultReturn),
+    useServerTable: vi.fn(() => defaultReturn as unknown as ReturnType<typeof import('@/core/shared/composables/useServerTable').useServerTable<unknown>>),
   }
 })
 
@@ -363,7 +363,7 @@ describe('PromotionsView', () => {
       pageSizeOptions: { value: [10, 20, 50] },
       showingFrom: { value: 1 },
       showingTo: { value: 1 },
-    })
+    } as unknown as ReturnType<typeof useServerTable>)
 
     const wrapper = mountView()
     await wrapper.vm.$nextTick()
