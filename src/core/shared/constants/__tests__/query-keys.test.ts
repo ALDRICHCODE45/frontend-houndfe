@@ -288,3 +288,43 @@ describe('notificationConfigQueryKeys', () => {
     })
   })
 })
+
+describe('saleQueryKeys.applicablePromotions (promotions-in-sale A.3)', () => {
+  it('returns a tuple starting with "sales" then tenantId then "applicable-promotions" then draftId', () => {
+    const key = saleQueryKeys.applicablePromotions('tenant-1', 'sale-abc')
+    expect(key[0]).toBe('sales')
+    expect(key[1]).toBe('tenant-1')
+    expect(key[2]).toBe('applicable-promotions')
+    expect(key[3]).toBe('sale-abc')
+    expect(key).toHaveLength(4)
+  })
+
+  it('returns the same key tuple on repeated calls with same tenantId + draftId', () => {
+    const key1 = saleQueryKeys.applicablePromotions('tenant-1', 'sale-abc')
+    const key2 = saleQueryKeys.applicablePromotions('tenant-1', 'sale-abc')
+    expect(key1).toEqual(key2)
+  })
+
+  it('produces different keys for different draftIds within the same tenant', () => {
+    const key1 = saleQueryKeys.applicablePromotions('tenant-1', 'sale-abc')
+    const key2 = saleQueryKeys.applicablePromotions('tenant-1', 'sale-xyz')
+    expect(key1).not.toEqual(key2)
+  })
+
+  it('produces different keys for different tenants so cache is isolated', () => {
+    const key1 = saleQueryKeys.applicablePromotions('tenant-1', 'sale-abc')
+    const key2 = saleQueryKeys.applicablePromotions('tenant-2', 'sale-abc')
+    expect(key1).not.toEqual(key2)
+  })
+
+  it('exact tuple shape deep-equals ["sales", tenantId, "applicable-promotions", draftId]', () => {
+    const key = saleQueryKeys.applicablePromotions('tenant-abc', 'sale-123')
+    expect(key).toEqual(['sales', 'tenant-abc', 'applicable-promotions', 'sale-123'])
+  })
+
+  it('invalidating by tenantId prefix catches applicablePromotions keys (TanStack pattern)', () => {
+    const key = saleQueryKeys.applicablePromotions('tenant-1', 'sale-abc')
+    const prefix = ['sales', 'tenant-1']
+    expect(key.slice(0, 2)).toEqual(prefix)
+  })
+})
