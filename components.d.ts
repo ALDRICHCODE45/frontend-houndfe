@@ -13,6 +13,7 @@ declare module 'vue' {
   export interface GlobalComponents {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    UAccordion: typeof import('./node_modules/.pnpm/@nuxt+ui@4.6.0_@tiptap+extensions@3.21.0_@tiptap+core@3.21.0_@tiptap+pm@3.21.0__@tiptap_8750bdee224f87800c8ee7eea9dc6cca/node_modules/@nuxt/ui/dist/runtime/components/Accordion.vue')['default']
     UAlert: typeof import('./node_modules/.pnpm/@nuxt+ui@4.6.0_@tiptap+extensions@3.21.0_@tiptap+core@3.21.0_@tiptap+pm@3.21.0__@tiptap_8750bdee224f87800c8ee7eea9dc6cca/node_modules/@nuxt/ui/dist/runtime/components/Alert.vue')['default']
     UApp: typeof import('./node_modules/.pnpm/@nuxt+ui@4.6.0_@tiptap+extensions@3.21.0_@tiptap+core@3.21.0_@tiptap+pm@3.21.0__@tiptap_8750bdee224f87800c8ee7eea9dc6cca/node_modules/@nuxt/ui/dist/runtime/components/App.vue')['default']
     UAvatar: typeof import('./node_modules/.pnpm/@nuxt+ui@4.6.0_@tiptap+extensions@3.21.0_@tiptap+core@3.21.0_@tiptap+pm@3.21.0__@tiptap_8750bdee224f87800c8ee7eea9dc6cca/node_modules/@nuxt/ui/dist/runtime/components/Avatar.vue')['default']

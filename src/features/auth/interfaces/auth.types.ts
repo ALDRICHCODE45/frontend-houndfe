@@ -50,6 +50,7 @@ export type AppSubject =
   | 'EmployeeTimeOff'
   | 'EmployeeTimeOffMedical'
   | 'EmployeeEmergencyContact'
+  | 'NotificationConfig'
   | 'all'
 
 export interface EffectivePermission {

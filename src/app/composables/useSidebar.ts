@@ -226,6 +226,20 @@ export const useSidebar = () => {
           },
         ],
       },
+      // ─── Sistema group (WU-11) ────────────────────────────────────────────
+      {
+        label: 'Sistema',
+        icon: 'i-lucide-settings',
+        defaultOpen: true,
+        children: [
+          {
+            label: 'Notificaciones',
+            icon: 'i-lucide-bell',
+            to: '/sistema/configuracion/notificaciones',
+            permission: ['read', 'NotificationConfig'] as PermissionTuple,
+          },
+        ],
+      },
     ]
 
     return items
