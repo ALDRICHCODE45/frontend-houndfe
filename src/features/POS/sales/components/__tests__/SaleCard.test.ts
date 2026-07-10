@@ -25,6 +25,10 @@ function mountCard(overrides: Partial<ConfirmedSaleRow> = {}) {
     global: {
       stubs: {
         RouterLink: RouterLinkStub,
+        StatusDotBadge: {
+          props: ['label', 'tone'],
+          template: '<span :data-tone="tone">{{ label }}</span>',
+        },
       },
     },
   })
@@ -58,5 +62,21 @@ describe('SaleCard', () => {
     const wrapper = mountCard()
     const link = wrapper.getComponent(RouterLinkStub)
     expect(link.props('to')).toBe('/pos/ventas/sale-1')
+  })
+
+  // status-badge-unification: sale.status + deliveryStatus migrate to StatusDotBadge.
+  // The StatusDotBadge stub exposes :data-tone; raw UBadge does not, so the
+  // data-tone assertion is the RED→GREEN gate.
+
+  it('renders sale status via StatusDotBadge (CONFIRMED, success)', () => {
+    const wrapper = mountCard({ status: 'CONFIRMED' })
+    expect(wrapper.text()).toContain('CONFIRMED')
+    expect(wrapper.find('[data-tone="success"]').exists()).toBe(true)
+  })
+
+  it('renders delivery status via StatusDotBadge (No Entregados, error for PENDING)', () => {
+    const wrapper = mountCard({ deliveryStatus: 'PENDING' })
+    expect(wrapper.text()).toContain('No Entregados')
+    expect(wrapper.find('[data-tone="error"]').exists()).toBe(true)
   })
 })
