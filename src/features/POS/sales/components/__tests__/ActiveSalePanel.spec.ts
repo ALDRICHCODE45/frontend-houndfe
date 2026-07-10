@@ -48,7 +48,16 @@ function mountPanel(
     global: {
       stubs: {
         SalesTabsStrip: { template: '<div />' },
-        SaleItemRow: { template: '<div />' },
+        // C.5: SaleItemRow stub now exposes a `remove-promo` button so we can
+        // drive the per-line auto-promo veto event forwarding contract.
+        SaleItemRow: {
+          name: 'SaleItemRow',
+          emits: ['update-qty', 'remove-promo'],
+          template:
+            '<div>'
+            + '<button data-testid="item-remove-promo" @click="$emit(\'remove-promo\', \'line-promo-uuid\')">remove-promo</button>'
+            + '</div>',
+        },
         // B.2: stub forwards emits so we can test remove-order-promo / charge-click propagation.
         SaleTotalsFooter: {
           name: 'SaleTotalsFooter',
@@ -309,5 +318,45 @@ describe('ActiveSalePanel C.4 — PromocionesDisponiblesAccordion wiring', () =>
     expect(events).toBeTruthy()
     expect(events).toHaveLength(1)
     expect(events![0]).toEqual(['promo-test-id'])
+  })
+})
+
+// ── C.5: SaleItemRow per-line `remove-promo` forwarding ─────────────────────
+//
+// Spec §7a: per-line auto-promo veto (the remove control on the promo badge
+// of a SaleItemRow) MUST route up to SalesView where it opens the same
+// confirmation dialog + veto flow as the order-level `remove-order-promo`.
+
+describe('ActiveSalePanel C.5 — SaleItemRow per-line remove-promo forwarding', () => {
+  it('forwards the per-line `remove-promo` event up to the parent (ActiveSalePanel emits it)', async () => {
+    // We need at least one item in the draft so the v-for over activeDraft.items
+    // renders a SaleItemRow stub (otherwise there's no row to emit from).
+    const draft = makeDraft({
+      items: [{
+        id: 'item-1',
+        productId: 'prod-1',
+        variantId: null,
+        productName: 'A',
+        variantName: null,
+        quantity: 1,
+        unitPriceCents: 10000,
+        unitPriceCurrency: 'MXN',
+        promotionId: 'line-promo-uuid',
+      }],
+    })
+    const wrapper = mountPanel(draft)
+
+    const item = wrapper.findComponent({ name: 'SaleItemRow' })
+    expect(item.exists()).toBe(true)
+
+    // Drive the event the way the real badge would: clicking the remove
+    // control on the SaleItemBadges row re-emits as `remove-promo`.
+    item.vm.$emit('remove-promo', 'line-promo-uuid')
+    await wrapper.vm.$nextTick()
+
+    const events = wrapper.emitted('remove-promo')
+    expect(events).toBeTruthy()
+    expect(events).toHaveLength(1)
+    expect(events![0]).toEqual(['line-promo-uuid'])
   })
 })

@@ -117,12 +117,15 @@ const globalStubs = {
   ActiveSalePanel: {
     name: 'ActiveSalePanel',
     props: ['activeDraft', 'applicablePromotions', 'isLoadingPromotions', 'appliedManualPromotionIds'],
-    emits: ['charge-click', 'unassign-customer', 'remove-order-promo', 'apply-manual-promo', 'remove-manual-promo'],
+    // C.5: `remove-promo` (per-line) is now forwarded from ActiveSalePanel
+    // alongside the existing `remove-order-promo` (order-level).
+    emits: ['charge-click', 'unassign-customer', 'remove-order-promo', 'remove-promo', 'apply-manual-promo', 'remove-manual-promo'],
     template:
       '<div>'
       + '<button data-testid="charge-click" @click="$emit(\'charge-click\')">charge</button>'
       + '<button data-testid="unassign-customer" @click="$emit(\'unassign-customer\')">unassign</button>'
       + '<button data-testid="remove-order-promo" @click="$emit(\'remove-order-promo\', \'order-promo-uuid\')">remove-order-promo</button>'
+      + '<button data-testid="remove-line-promo" @click="$emit(\'remove-promo\', \'line-promo-uuid\')">remove-line-promo</button>'
       + '<p data-testid="applicable-promotions-count">{{ (applicablePromotions ?? []).length }}</p>'
       + '<p data-testid="is-loading-promotions">{{ isLoadingPromotions }}</p>'
       + '</div>',
@@ -135,8 +138,23 @@ const globalStubs = {
   },
   PaymentSuccessModal: {
     props: ['open', 'folio', 'debtCents', 'paymentStatus'],
+    template: '<div data-testid="success-modal">{{ folio }}|{{ debtCents }}|{{ paymentStatus }}</div>',
+  },
+  // C.5: stubbed ConfirmModal — surfaces its `open` prop + a `confirm` button
+  // so we can drive the veto confirmation flow without the real UModal.
+  ConfirmModal: {
+    name: 'ConfirmModal',
+    props: ['open', 'title', 'description', 'confirmLabel', 'cancelLabel', 'confirmColor', 'loading'],
+    emits: ['update:open', 'confirm', 'cancel'],
     template:
-      '<div data-testid="success-modal">{{ folio }}|{{ debtCents }}|{{ paymentStatus }}</div>',
+      '<div data-testid="confirm-modal">'
+      + '<p data-testid="confirm-modal-open">{{ open }}</p>'
+      + '<p data-testid="confirm-modal-title">{{ title }}</p>'
+      + '<p data-testid="confirm-modal-description">{{ description }}</p>'
+      + '<p data-testid="confirm-modal-confirm-color">{{ confirmColor }}</p>'
+      + '<button data-testid="confirm-modal-confirm" @click="$emit(\'confirm\')">confirm</button>'
+      + '<button data-testid="confirm-modal-cancel" @click="$emit(\'update:open\', false); $emit(\'cancel\')">cancel</button>'
+      + '</div>',
   },
   USkeleton: { template: '<div />' },
   AssignCustomerSlideover: {
@@ -387,7 +405,12 @@ describe('SalesView B.3 — totals + order-promo event wiring', () => {
     expect(wrapper.get('[data-testid="payment-modal-total-cents"]').text()).toBe('0')
   })
 
-  it('accepts the remove-order-promo event without crashing (C.5 will wire veto + confirm)', async () => {
+  it('C.5 — opens ConfirmModal on remove-order-promo and only vetoes after the user confirms', async () => {
+    vetoAutoPromotionMock.mockResolvedValueOnce({
+      id: 'sale-1',
+      items: [],
+    })
+
     drafts.value = [
       {
         id: 'sale-1',
@@ -408,13 +431,83 @@ describe('SalesView B.3 — totals + order-promo event wiring', () => {
     activeTabId.value = 'sale-1'
 
     const wrapper = mountView()
-    // Event propagates from ActiveSalePanel stub to SalesView's handler.
-    // B wires the handler as a no-op stub; C.5 will wire veto + confirm + toast.
-    // MUST NOT throw and MUST NOT call vetoAutoPromotion yet.
-    expect(() =>
-      wrapper.get('[data-testid="remove-order-promo"]').trigger('click'),
-    ).not.toThrow()
+    // Wrap toast.add so we can spy on it (the real @nuxt/ui useToast isn't
+    // affected by vi.stubGlobal — see C.5 manual success-toast tests below).
+    const toastRef = (wrapper.vm as unknown as { toast: { add: (opts: { title: string; color: string }) => unknown } }).toast
+    const realAdd = toastRef.add
+    const addCalls: Array<{ title: string; color?: string }> = []
+    toastRef.add = (opts) => {
+      addCalls.push(opts)
+      return realAdd(opts)
+    }
+
+    // Step 1: emit the order-promo remove event from the ActiveSalePanel stub.
+    await wrapper.get('[data-testid="remove-order-promo"]').trigger('click')
+    await wrapper.vm.$nextTick()
+
+    // Step 2: the ConfirmModal must now be OPEN with the expected copy
+    // (spec §7a: "Esta acción es permanente para este borrador",
+    //  confirm-color "error").
+    expect(wrapper.get('[data-testid="confirm-modal-open"]').text()).toBe('true')
+    expect(wrapper.get('[data-testid="confirm-modal-title"]').text()).toBe('Quitar promoción')
+    expect(wrapper.get('[data-testid="confirm-modal-description"]').text()).toBe('Esta acción es permanente para este borrador.')
+    expect(wrapper.get('[data-testid="confirm-modal-confirm-color"]').text()).toBe('error')
+
+    // Step 3: veto MUST NOT have run yet — confirmation is the gate.
     expect(vetoAutoPromotionMock).not.toHaveBeenCalled()
+
+    // Step 4: confirm the modal → veto runs and a success toast fires.
+    await wrapper.get('[data-testid="confirm-modal-confirm"]').trigger('click')
+
+    await vi.waitFor(() => {
+      expect(vetoAutoPromotionMock).toHaveBeenCalledTimes(1)
+    })
+    expect(vetoAutoPromotionMock).toHaveBeenCalledWith('order-promo-uuid')
+    await vi.waitFor(() => {
+      expect(addCalls.length).toBeGreaterThan(0)
+    })
+    expect(addCalls[0]).toEqual(expect.objectContaining({ title: 'Promoción quitada', color: 'success' }))
+  })
+
+  it('C.5 — does NOT call vetoAutoPromotion if the user cancels the confirm modal', async () => {
+    drafts.value = [
+      {
+        id: 'sale-1',
+        userId: 'user-1',
+        status: 'DRAFT',
+        items: [],
+        appliedOrderPromotion: {
+          promotionId: 'order-promo-uuid',
+          discountType: 'amount',
+          discountValue: 500,
+          discountAmountCents: 500,
+          discountTitle: 'Cupón Test',
+        },
+        createdAt: 'x',
+        updatedAt: 'x',
+      },
+    ]
+    activeTabId.value = 'sale-1'
+
+    const wrapper = mountView()
+    const toastRef = (wrapper.vm as unknown as { toast: { add: (opts: { title: string; color: string }) => unknown } }).toast
+    const realAdd = toastRef.add
+    const addCalls: Array<{ title: string; color?: string }> = []
+    toastRef.add = (opts) => {
+      addCalls.push(opts)
+      return realAdd(opts)
+    }
+
+    await wrapper.get('[data-testid="remove-order-promo"]').trigger('click')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.get('[data-testid="confirm-modal-open"]').text()).toBe('true')
+
+    // Cancel path → modal closes via update:open, no veto, no toast.
+    await wrapper.get('[data-testid="confirm-modal-cancel"]').trigger('click')
+    await wrapper.vm.$nextTick()
+
+    expect(vetoAutoPromotionMock).not.toHaveBeenCalled()
+    expect(addCalls.find((c) => c.title === 'Promoción quitada')).toBeUndefined()
   })
 })
 
@@ -501,4 +594,121 @@ describe('SalesView C.4 — applicable-promotions data + manual-promo event wiri
   // error-toast pattern is identical to the existing
   // `maps PRICE_OUT_OF_DATE by error code and invalidates drafts` test
   // which verifies the same handler shape.
+})
+
+// ─── C.5: veto confirm flow (per-line + manual success toasts) ─────────────
+
+describe('SalesView C.5 — veto confirm flow + manual success toasts', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    unassignCustomerMock.mockReset()
+    clearShippingAddressMock.mockReset()
+    vetoAutoPromotionMock.mockReset()
+    applyManualPromotionMock.mockReset()
+    removeManualPromotionMock.mockReset()
+    resetApplicablePromotionsMock()
+    drafts.value = [
+      {
+        id: 'sale-1',
+        userId: 'user-1',
+        status: 'DRAFT',
+        items: [{ id: 'item-1', productId: 'prod-1', variantId: null, productName: 'A', variantName: null, quantity: 1, unitPriceCents: 10000, unitPriceCurrency: 'MXN' }],
+        createdAt: 'x',
+        updatedAt: 'x',
+      },
+    ]
+    activeTabId.value = 'sale-1'
+  })
+
+  it('C.5 — opens ConfirmModal on the per-line `remove-promo` event and only vetoes after confirm', async () => {
+    vetoAutoPromotionMock.mockResolvedValueOnce({ id: 'sale-1', items: [] })
+
+    const wrapper = mountView()
+    const panel = wrapper.findComponent({ name: 'ActiveSalePanel' })
+    expect(panel.exists()).toBe(true)
+    // Wrap toast.add so we can spy on it (the real @nuxt/ui useToast isn't
+    // affected by vi.stubGlobal — see C.5 manual success-toast tests below).
+    const toastRef = (wrapper.vm as unknown as { toast: { add: (opts: { title: string; color: string }) => unknown } }).toast
+    const realAdd = toastRef.add
+    const addCalls: Array<{ title: string; color?: string }> = []
+    toastRef.add = (opts) => {
+      addCalls.push(opts)
+      return realAdd(opts)
+    }
+
+    // Drive the per-line auto-promo veto event the way a real SaleItemRow
+    // would: ActiveSalePanel forwards `remove-promo` upward (see C.5
+    // ActiveSalePanel.spec.ts test) and SalesView must route it through
+    // the SAME confirm + veto flow as the order-level `remove-order-promo`.
+    panel.vm.$emit('remove-promo', 'line-promo-uuid')
+    await wrapper.vm.$nextTick()
+
+    // Modal is open and copy matches the spec — both veto kinds share the
+    // same confirmation (veto is permanent regardless of scope).
+    expect(wrapper.get('[data-testid="confirm-modal-open"]').text()).toBe('true')
+    expect(wrapper.get('[data-testid="confirm-modal-title"]').text()).toBe('Quitar promoción')
+    expect(wrapper.get('[data-testid="confirm-modal-description"]').text()).toBe('Esta acción es permanente para este borrador.')
+    expect(wrapper.get('[data-testid="confirm-modal-confirm-color"]').text()).toBe('error')
+
+    expect(vetoAutoPromotionMock).not.toHaveBeenCalled()
+
+    // Confirm → veto fires with the per-line promotionId and success toast.
+    await wrapper.get('[data-testid="confirm-modal-confirm"]').trigger('click')
+
+    await vi.waitFor(() => {
+      expect(vetoAutoPromotionMock).toHaveBeenCalledTimes(1)
+    })
+    expect(vetoAutoPromotionMock).toHaveBeenCalledWith('line-promo-uuid')
+    await vi.waitFor(() => {
+      expect(addCalls.length).toBeGreaterThan(0)
+    })
+    expect(addCalls[0]).toEqual(expect.objectContaining({ title: 'Promoción quitada', color: 'success' }))
+  })
+
+  it('C.5 — adds a success toast when applyManualPromotion resolves', async () => {
+    applyManualPromotionMock.mockImplementation(async () => ({ id: 'sale-1', items: [] }))
+
+    const wrapper = mountView()
+    const panel = wrapper.findComponent({ name: 'ActiveSalePanel' })
+    // The `toast` ref captured in setup holds the same function the handler calls.
+    // (`@nuxt/ui` auto-imports the real useToast; vi.stubGlobal only shadows the
+    // global lookup, not the local binding, so we wrap toast.add to spy on it.)
+    const toastRef = (wrapper.vm as unknown as { toast: { add: (opts: { title: string; color: string }) => unknown } }).toast
+    const realAdd = toastRef.add
+    const addCalls: Array<{ title: string; color?: string }> = []
+    toastRef.add = (opts) => {
+      addCalls.push(opts)
+      return realAdd(opts)
+    }
+
+    panel.vm.$emit('apply-manual-promo', 'promo-uuid-42')
+
+    await vi.waitFor(() => {
+      expect(addCalls.length).toBeGreaterThan(0)
+    })
+    expect(applyManualPromotionMock).toHaveBeenCalledWith('promo-uuid-42')
+    expect(addCalls[0]).toEqual(expect.objectContaining({ title: 'Promoción aplicada', color: 'success' }))
+  })
+
+  it('C.5 — adds a success toast when removeManualPromotion resolves', async () => {
+    removeManualPromotionMock.mockImplementation(async () => ({ id: 'sale-1', items: [] }))
+
+    const wrapper = mountView()
+    const panel = wrapper.findComponent({ name: 'ActiveSalePanel' })
+    const toastRef = (wrapper.vm as unknown as { toast: { add: (opts: { title: string; color: string }) => unknown } }).toast
+    const realAdd = toastRef.add
+    const addCalls: Array<{ title: string; color?: string }> = []
+    toastRef.add = (opts) => {
+      addCalls.push(opts)
+      return realAdd(opts)
+    }
+
+    panel.vm.$emit('remove-manual-promo', 'promo-uuid-99')
+
+    await vi.waitFor(() => {
+      expect(addCalls.length).toBeGreaterThan(0)
+    })
+    expect(removeManualPromotionMock).toHaveBeenCalledWith('promo-uuid-99')
+    expect(addCalls[0]).toEqual(expect.objectContaining({ title: 'Promoción quitada', color: 'success' }))
+  })
 })

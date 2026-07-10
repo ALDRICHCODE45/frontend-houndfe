@@ -44,6 +44,11 @@ const props = defineProps<{
 // confirmation flow in work-unit C.5).
 //
 // C.4 adds the manual-promo apply/remove forwarding for the accordion.
+//
+// C.5 adds `remove-promo` — the per-line auto-promo veto coming from
+// SaleItemRow's promo-badge remove control. Both `remove-order-promo`
+// and `remove-promo` route through the SAME confirm+veto flow in
+// SalesView (veto is permanent regardless of scope — spec §7a).
 const emit = defineEmits<{
   'switch-tab': [saleId: string]
   'close-tab': [saleId: string]
@@ -54,6 +59,7 @@ const emit = defineEmits<{
   'open-customer-assignment': []
   'unassign-customer': []
   'remove-order-promo': [promotionId: string]
+  'remove-promo': [promotionId: string]
   'apply-manual-promo': [promotionId: string]
   'remove-manual-promo': [promotionId: string]
 }>()
@@ -236,6 +242,7 @@ function getCloseTabDescription(): string {
           :on-remove-discount="onRemoveDiscount"
           :on-remove-item="onRemoveItem"
           @update-qty="(itemId, quantity) => emit('update-qty', itemId, quantity)"
+          @remove-promo="(promotionId) => emit('remove-promo', promotionId)"
         />
       </div>
     </div>

@@ -10,6 +10,7 @@ import ActiveSalePanel from '../components/ActiveSalePanel.vue'
 import PaymentModal from '../components/PaymentModal.vue'
 import PaymentSuccessModal from '../components/PaymentSuccessModal.vue'
 import AssignCustomerSlideover from '../components/AssignCustomerSlideover.vue'
+import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import type {
   ApplyItemDiscountPayload,
   ApplyGlobalDiscountPayload,
@@ -58,9 +59,9 @@ const {
   applyGlobalDiscount,
   removeGlobalDiscount,
   chargeDraft,
-  // promotions-in-sale: exposed for work-unit C.5 (veto + toast + confirm).
-  // Not used in work-unit B — the remove-order-promo event handler below
-  // is intentionally a no-op stub; C.5 wires the veto + ConfirmModal + toast.
+  // promotions-in-sale C.5: drives the auto-promo veto confirmation flow
+  // (ConfirmModal → vetoAutoPromotion → toast). Both order-level
+  // `remove-order-promo` and per-line `remove-promo` route here.
   vetoAutoPromotion,
   // promotions-in-sale C.4: manual-promo apply/remove handlers consumed by
   // the "Promociones disponibles" accordion. No toast yet — C.5 adds toasts.
@@ -485,26 +486,43 @@ async function handleUnassignCustomer() {
   }
 }
 
-// promotions-in-sale B.3 handler for the order-promo remove event forwarded
-// from ActiveSalePanel → SaleTotalsFooter.
+// promotions-in-sale C.5: auto-promo veto confirmation flow.
 //
-// In work-unit B this is intentionally a NO-OP handler that:
-//   - just logs in dev (to confirm the wiring) so we can SEE the event flow.
-//   - does NOT call vetoAutoPromotion yet (work-unit C.5 must wrap it in a
-//     ConfirmModal first — spec §7a: "veto MUST open a confirmation dialog
-//     warning 'Esta acción es permanente para este borrador'").
-//   - does NOT show a toast yet (work-unit C.5 adds the toast wiring).
+// Both the order-level `remove-order-promo` (from SaleTotalsFooter) and the
+// per-line `remove-promo` (from SaleItemRow's badge remove control) MUST
+// route through the same confirmation + veto + toast UX. A veto is permanent
+// for the draft — there is no "restore" path on the backend. Spec §7a:
+// "Esta acción es permanente para este borrador", confirm-color: error.
 //
-// C.5 replaces this handler with: open ConfirmModal → on confirm →
-// vetoAutoPromotion(promotionId) → toast "Promoción quitada".
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-function handleRemoveOrderPromoRequest(promotionId: string) {
-  // Intentional: work-unit B wires the data path; C.5 wires the action.
-  // Keep a runtime no-op so the handler exists and is exported.
-  void promotionId
+// One ConfirmModal instance serves both kinds — we only need to know which
+// promotionId is being vetoed (kind is irrelevant: both call vetoAutoPromotion).
+const vetoConfirmOpen = ref(false)
+const promoToVeto = ref<string | null>(null)
+
+function handleVetoRequest(promotionId: string) {
+  promoToVeto.value = promotionId
+  vetoConfirmOpen.value = true
 }
 
-// promotions-in-sale C.4 — manual-promo handlers for the accordion.
+async function handleConfirmVeto() {
+  const id = promoToVeto.value
+  if (!id) return
+  // Close the modal FIRST so the seller sees it disappear immediately; then
+  // run the mutation. If it fails we still surface an error toast — but the
+  // pending state is cleared so a follow-up request can open the modal again.
+  vetoConfirmOpen.value = false
+  promoToVeto.value = null
+  try {
+    await vetoAutoPromotion(id)
+    toast.add({ title: 'Promoción quitada', color: 'success' })
+  } catch (error) {
+    const err = error as AxiosError<DomainApiError>
+    const message = err.response?.data?.message ?? 'No se pudo quitar la promoción'
+    toast.add({ title: 'Error', description: message, color: 'error' })
+  }
+}
+
+// promotions-in-sale C.4 + C.5 — manual-promo handlers for the accordion.
 //
 // `appliedManualPromotionIds` is intentionally passed as [] from SalesView
 // to the accordion: there is no clean per-promo "this manual promo is
@@ -515,10 +533,11 @@ function handleRemoveOrderPromoRequest(promotionId: string) {
 // inside this accordion. When the backend exposes a manual-applied list
 // (per spec §4, deferred), wire it here.
 //
-// No toast yet — C.5 adds success/error toasts for the manual mutations.
+// C.5 adds success toasts; the error-toast catch was already wired in C.4.
 async function handleApplyManualPromo(promotionId: string) {
   try {
     await applyManualPromotion(promotionId)
+    toast.add({ title: 'Promoción aplicada', color: 'success' })
   } catch (error) {
     const err = error as AxiosError<DomainApiError>
     const message = err.response?.data?.message ?? 'No se pudo aplicar la promoción'
@@ -529,6 +548,7 @@ async function handleApplyManualPromo(promotionId: string) {
 async function handleRemoveManualPromo(promotionId: string) {
   try {
     await removeManualPromotion(promotionId)
+    toast.add({ title: 'Promoción quitada', color: 'success' })
   } catch (error) {
     const err = error as AxiosError<DomainApiError>
     const message = err.response?.data?.message ?? 'No se pudo quitar la promoción'
@@ -608,7 +628,8 @@ async function handleRemoveManualPromo(promotionId: string) {
               @charge-click="openPaymentModal"
               @open-customer-assignment="handleOpenCustomerAssignment"
               @unassign-customer="handleUnassignCustomer"
-              @remove-order-promo="handleRemoveOrderPromoRequest"
+              @remove-order-promo="handleVetoRequest"
+              @remove-promo="handleVetoRequest"
               @apply-manual-promo="handleApplyManualPromo"
               @remove-manual-promo="handleRemoveManualPromo"
               @switch-tab="handleSwitchTab"
@@ -649,6 +670,18 @@ async function handleRemoveManualPromo(promotionId: string) {
       :debt-cents="latestChargeSuccess.debtCents"
       :payment-status="latestChargeSuccess.paymentStatus"
       :confirmed-at="latestChargeSuccess.confirmedAt"
+    />
+
+    <!-- promotions-in-sale C.5: auto-promo veto confirmation.
+         Serves BOTH the order-level `remove-order-promo` and the per-line
+         `remove-promo` (kind is irrelevant — both call vetoAutoPromotion). -->
+    <ConfirmModal
+      v-model:open="vetoConfirmOpen"
+      title="Quitar promoción"
+      description="Esta acción es permanente para este borrador."
+      confirm-label="Quitar promoción"
+      confirm-color="error"
+      @confirm="handleConfirmVeto"
     />
   </div>
 </template>
