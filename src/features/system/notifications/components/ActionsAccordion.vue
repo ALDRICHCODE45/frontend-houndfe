@@ -34,12 +34,11 @@ const emit = defineEmits<{
   'update:modelValue': [next: string[]]
 }>()
 
-// Shape the registry into UAccordion items. The `label` is the module
-// name shown on the left of the trigger; `countLabel` is the "enabled/total"
-// fraction that renders on the RIGHT of the trigger pill (next to the
-// chevron). The trigger owns the count — the body stays focused on the
-// action rows. `moduleKey` is kept so the per-item ui hook can target
-// the pill (not used right now but cheap to surface for future tweaks).
+// Shape the registry into UAccordion items. `value` is the module key
+// (UAccordion's item identity); `label` is the module name shown on the
+// left of the trigger; `countLabel` is the "enabled/total" fraction that
+// renders on the RIGHT of the trigger pill (next to the chevron). The
+// trigger owns the count — the body stays focused on the action rows.
 const accordionItems = computed(() =>
   ACTION_REGISTRY.map((module) => {
     const count = computeModuleActionCount(module, props.modelValue)
