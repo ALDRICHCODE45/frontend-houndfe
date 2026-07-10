@@ -14,8 +14,8 @@ vi.mock('vue-router', () => ({
   useRoute: () => ({ params: {}, query: {} }),
 }))
 
-vi.mock('@/core/shared/composables/useServerTable', () => ({
-  useServerTable: () => ({
+vi.mock('@/core/shared/composables/useServerTable', () => {
+  const defaultReturn = {
     pagination: { value: { pageIndex: 0, pageSize: 20 } },
     sorting: { value: [] },
     globalFilter: { value: '' },
@@ -31,8 +31,11 @@ vi.mock('@/core/shared/composables/useServerTable', () => ({
     pageSizeOptions: { value: [10, 20, 50] },
     showingFrom: { value: 0 },
     showingTo: { value: 0 },
-  }),
-}))
+  }
+  return {
+    useServerTable: vi.fn(() => defaultReturn),
+  }
+})
 
 vi.mock('../../api/promotion.api', () => ({
   promotionApi: {
@@ -45,9 +48,27 @@ vi.mock('../../api/promotion.api', () => ({
 vi.mock('../../composables/usePromotionColumns', () => ({
   usePromotionColumns: () => ({
     columns: [],
-    getStatusConfig: (status: string) => ({ label: status, color: 'green', icon: '' }),
-    getTypeConfig: (type: string) => ({ label: type, icon: '' }),
-    getMethodConfig: (method: string) => ({ label: method, icon: '' }),
+    getStatusConfig: (status: string) => {
+      const map: Record<string, { label: string; tone: string; icon: string }> = {
+        ACTIVE: { label: 'Activa', tone: 'active', icon: 'i-lucide-circle-check' },
+        SCHEDULED: { label: 'Programada', tone: 'pending', icon: 'i-lucide-clock' },
+        ENDED: { label: 'Finalizada', tone: 'inactive', icon: 'i-lucide-circle-x' },
+      }
+      return map[status] ?? { label: status, tone: 'neutral', icon: '' }
+    },
+    getTypeConfig: (type: string) => {
+      const map: Record<string, { label: string; tone: string; icon: string }> = {
+        PRODUCT_DISCOUNT: { label: 'Descuento en productos', tone: 'type', icon: 'i-lucide-tag' },
+        ORDER_DISCOUNT: { label: 'Descuento en pedido', tone: 'type', icon: 'i-lucide-receipt' },
+        BUY_X_GET_Y: { label: '2x1, 3x2...', tone: 'type', icon: 'i-lucide-gift' },
+        ADVANCED: { label: 'Avanzada', tone: 'type', icon: 'i-lucide-settings-2' },
+      }
+      return map[type] ?? { label: type, tone: 'type', icon: '' }
+    },
+    getMethodConfig: (method: string) => ({
+      AUTOMATIC: { label: 'Automático', tone: 'automatic' },
+      MANUAL: { label: 'Manual', tone: 'manual' },
+    }[method] ?? { label: method, tone: 'automatic', icon: '' }),
   }),
 }))
 
@@ -69,6 +90,12 @@ const STUBS = {
       <div data-testid="app-data-table">
         <slot name="empty-state" />
         <button data-testid="add-btn" @click="$emit('add')">Add</button>
+        <div v-for="row in (Array.isArray(data) ? data : (data?.value ?? []))" :key="row.id">
+          <slot name="title-cell" :row="{ original: row }" />
+          <slot name="status-cell" :row="{ original: row }" />
+          <slot name="type-cell" :row="{ original: row }" />
+          <slot name="method-cell" :row="{ original: row }" />
+        </div>
       </div>
     `,
   },
@@ -116,6 +143,10 @@ const STUBS = {
   SelectColumn: {
     props: ['mode', 'table', 'row'],
     template: '<div />',
+  },
+  StatusDotBadge: {
+    props: ['label', 'tone'],
+    template: '<span :data-tone="tone">{{ label }}</span>',
   },
 }
 
@@ -280,6 +311,64 @@ describe('PromotionsView', () => {
     const vm = wrapper.vm as unknown as { filterStatus: string }
     expect(vm.filterStatus).toBe('')
     expect(wrapper.find('[data-testid="filter-status"]').attributes('modelvalue')).toBe('__ALL__')
+  })
+
+  // status-badge-unification: PromotionsView status cell migrates from AppBadge
+  // to StatusDotBadge (drops the lucide icon; leading dot carries the signal).
+  // The StatusDotBadge stub exposes :data-tone; AppBadge does not, so the
+  // data-tone assertion is the RED→GREEN gate.
+  it('renders ACTIVE status via StatusDotBadge (Activa, active tone)', async () => {
+    const { useServerTable } = await import('@/core/shared/composables/useServerTable')
+    vi.mocked(useServerTable).mockReturnValueOnce({
+      pagination: { value: { pageIndex: 0, pageSize: 20 } },
+      sorting: { value: [] },
+      globalFilter: { value: '' },
+      rowSelection: { value: {} },
+      columnPinning: { value: { left: [], right: ['actions'] } },
+      columnVisibility: { value: {} },
+      data: {
+        value: [
+          {
+            id: 'promo-001',
+            title: 'Test Promo',
+            type: 'PRODUCT_DISCOUNT',
+            method: 'AUTOMATIC',
+            status: 'ACTIVE',
+            startDate: null,
+            endDate: null,
+            customerScope: 'ALL',
+            discountType: 'PERCENTAGE',
+            discountValue: 10,
+            minPurchaseAmountCents: null,
+            appliesTo: 'PRODUCTS',
+            buyQuantity: null,
+            getQuantity: null,
+            getDiscountPercent: null,
+            buyTargetType: null,
+            getTargetType: null,
+            targetItems: [],
+            customers: [],
+            priceLists: [],
+            daysOfWeek: [],
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ],
+      },
+      totalCount: { value: 1 },
+      pageCount: { value: 1 },
+      isLoading: { value: false },
+      isFetching: { value: false },
+      refresh: vi.fn(),
+      pageSizeOptions: { value: [10, 20, 50] },
+      showingFrom: { value: 1 },
+      showingTo: { value: 1 },
+    })
+
+    const wrapper = mountView()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.text()).toContain('Activa')
+    expect(wrapper.find('[data-tone="active"]').exists()).toBe(true)
   })
 })
 

@@ -10,6 +10,7 @@ import TableHeaderDescription from '@/core/shared/components/DataTable/TableHead
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
+import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
 import { promotionApi } from '../api/promotion.api'
 import { usePromotionColumns } from '../composables/usePromotionColumns'
 import type { PromotionMethod, PromotionResponse, PromotionStatus, PromotionType } from '../interfaces/promotion.types'
@@ -371,9 +372,8 @@ defineExpose({ filterType, filterStatus, filterMethod, getRowItems })
           </template>
 
           <template #status-cell="{ row }">
-            <AppBadge
+            <StatusDotBadge
               :tone="getStatusConfig(row.original.status).tone"
-              :icon="getStatusConfig(row.original.status).icon"
               :label="getStatusConfig(row.original.status).label"
             />
           </template>
