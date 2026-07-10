@@ -139,9 +139,11 @@ const appDataTableStub = {
       <div v-for="row in data" :key="row.id">
         <slot name="venta-cell" :row="{ original: row }" />
         <slot name="customer-cell" :row="{ original: row }" />
+        <slot name="paymentStatus-cell" :row="{ original: row }" />
+        <slot name="paymentMethods-cell" :row="{ original: row }" />
         <slot name="debtCents-cell" :row="{ original: row }" />
         <slot name="dueDate-cell" :row="{ original: row }" />
-        <slot name="paymentMethods-cell" :row="{ original: row }" />
+        <slot name="deliveryStatus-cell" :row="{ original: row }" />
       </div>
     </div>
   `,
@@ -151,6 +153,10 @@ const stubs = {
   UCard: { template: '<div><slot name="header" /><slot /></div>' },
   TableHeaderDescription: { template: '<div><slot /></div>', props: ['title', 'description'] },
   AppBadge: { template: '<span><slot /></span>' },
+  StatusDotBadge: {
+    props: ['label', 'tone'],
+    template: '<span :data-tone="tone">{{ label }}</span>',
+  },
   SalesListTabs: {
     template: `<button data-testid="tab-pending" @click="$emit('change', 'PENDING')">tab</button>`,
     props: ['counts'],
@@ -316,5 +322,38 @@ describe('SalesListView', () => {
 
     const wrapper = mount(SalesListView, { global: { stubs } })
     expect(wrapper.text()).toContain('—')
+  })
+
+  // status-badge-unification: paymentStatus + deliveryStatus render via StatusDotBadge.
+  // The StatusDotBadge stub exposes :data-tone so we assert both the label text
+  // and the tone attribute (the AppBadge stub has no data-tone, so the attribute
+  // assertion is the RED→GREEN gate).
+
+  it('renders PAID payment status via StatusDotBadge (Pagada, success)', () => {
+    mockState.data.value = [{ ...initialRow, paymentStatus: 'PAID' }]
+    const wrapper = mount(SalesListView, { global: { stubs } })
+    expect(wrapper.text()).toContain('Pagada')
+    expect(wrapper.find('[data-tone="success"]').exists()).toBe(true)
+  })
+
+  it('renders PARTIAL payment status via StatusDotBadge (Impaga, warning)', () => {
+    mockState.data.value = [{ ...initialRow, paymentStatus: 'PARTIAL' }]
+    const wrapper = mount(SalesListView, { global: { stubs } })
+    expect(wrapper.text()).toContain('Impaga')
+    expect(wrapper.find('[data-tone="warning"]').exists()).toBe(true)
+  })
+
+  it('renders DELIVERED status via StatusDotBadge (Entregados, success)', () => {
+    mockState.data.value = [{ ...initialRow, deliveryStatus: 'DELIVERED' }]
+    const wrapper = mount(SalesListView, { global: { stubs } })
+    expect(wrapper.text()).toContain('Entregados')
+    expect(wrapper.find('[data-tone="success"]').exists()).toBe(true)
+  })
+
+  it('renders PENDING delivery status via StatusDotBadge (No Entregados, error)', () => {
+    mockState.data.value = [{ ...initialRow, deliveryStatus: 'PENDING' }]
+    const wrapper = mount(SalesListView, { global: { stubs } })
+    expect(wrapper.text()).toContain('No Entregados')
+    expect(wrapper.find('[data-tone="error"]').exists()).toBe(true)
   })
 })

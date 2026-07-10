@@ -5,7 +5,7 @@ import { useRouter } from 'vue-router'
 import { AppDataTable } from '@/core/shared/components/DataTable'
 import { DataTableFilters, useDataTableFilters, useFiltersUrlAdapter } from '@/core/shared/data-table-filters'
 import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
+import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { useConfirmedSales } from '../composables/useConfirmedSales'
 import { useSalesColumns } from '../composables/useSalesColumns'
@@ -203,9 +203,10 @@ watch(() => filtersCtl.serializedState.value, () => {
           </template>
 
           <template #paymentStatus-cell="{ row }">
-            <AppBadge :tone="getPaymentStatusBadge(row.original.paymentStatus).color">
-              {{ getPaymentStatusBadge(row.original.paymentStatus).label }}
-            </AppBadge>
+            <StatusDotBadge
+              :tone="getPaymentStatusBadge(row.original.paymentStatus).color"
+              :label="getPaymentStatusBadge(row.original.paymentStatus).label"
+            />
           </template>
 
           <template #paymentMethods-cell="{ row }">
@@ -225,9 +226,10 @@ watch(() => filtersCtl.serializedState.value, () => {
           </template>
 
           <template #deliveryStatus-cell="{ row }">
-            <AppBadge :tone="getDeliveryStatusBadge(row.original.deliveryStatus).color">
-              {{ getDeliveryStatusBadge(row.original.deliveryStatus).label }}
-            </AppBadge>
+            <StatusDotBadge
+              :tone="getDeliveryStatusBadge(row.original.deliveryStatus).color"
+              :label="getDeliveryStatusBadge(row.original.deliveryStatus).label"
+            />
           </template>
 
           <template #cashier-cell="{ row }">
