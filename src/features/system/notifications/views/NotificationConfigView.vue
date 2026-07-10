@@ -154,14 +154,13 @@ function onSave() {
     </template>
 
     <!-- Footer — Save action bar.
-         Stays inside the page flow (no card border, no glass overlay) so it
-         reads as a continuation of the page rather than a detached 4th card.
-         The negative margins extend it full-width to escape the parent
-         container's p-6 padding; sticky-to-bottom keeps it within reach when
-         the actions card scrolls past the viewport. -->
+         Aligned to the same width and horizontal rhythm as the cards above
+         (no negative margins, no card border): the Save button floats
+         cleanly to the right within the page flow. sticky-to-bottom keeps it
+         within reach when the actions card scrolls past the viewport. -->
     <footer
       v-if="!isLoading"
-      class="sticky bottom-0 -mx-6 -mb-6 flex items-center justify-end gap-3 bg-default px-6 py-4"
+      class="sticky bottom-0 flex items-center justify-end gap-3 py-4"
       data-testid="notifications-footer"
     >
       <p
