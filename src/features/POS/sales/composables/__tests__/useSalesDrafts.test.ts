@@ -30,6 +30,10 @@ vi.mock('../../api/sale.api', () => ({
     applyGlobalDiscount: vi.fn(),
     removeGlobalDiscount: vi.fn(),
     chargeDraft: vi.fn(),
+    // promotions-in-sale A.4:
+    applyManualPromotion: vi.fn(),
+    removeManualPromotion: vi.fn(),
+    vetoAutoPromotion: vi.fn(),
   },
 }))
 
@@ -594,6 +598,208 @@ describe('useSalesDrafts - pure cache update functions', () => {
       expect(saleApi.removeItem).toHaveBeenCalledWith('sale-1', 'item-1')
       expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)?.[0]?.items).toHaveLength(1)
       expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)?.[0]?.items[0]?.id).toBe('item-2')
+    })
+  })
+
+  // ────────────────────────────────────────────────────────────────────────
+  // promotions-in-sale A.4 — every draft mutation onSuccess MUST invalidate
+  // the applicable-promotions query for that draft, plus the 3 new promotion
+  // mutations also setQueryData with replaceSaleInCache like the existing ones.
+  // Spec §6: "Every useSalesDrafts mutation (onSuccess) MUST invalidate
+  //   query { queryKey: applicablePromotionsKey(draftId) }".
+  // ────────────────────────────────────────────────────────────────────────
+  describe('promotion applicable-list invalidation + new promotion mutations (A.4)', () => {
+    const existingDraft: Sale = {
+      id: 'sale-1',
+      userId: 'user-1',
+      status: 'DRAFT',
+      createdAt: '2026-04-21T10:00:00Z',
+      updatedAt: '2026-04-21T10:00:00Z',
+      items: [
+        {
+          id: 'item-1',
+          productId: 'prod-1',
+          variantId: null,
+          productName: 'Aspirina',
+          variantName: null,
+          quantity: 1,
+          unitPriceCents: 10000,
+          unitPriceCurrency: 'MXN',
+        },
+      ],
+    }
+    const updatedDraft: Sale = { ...existingDraft, updatedAt: '2026-04-21T10:01:00Z' }
+    const expectedApplicableKey = saleQueryKeys.applicablePromotions('tenant-1', 'sale-1')
+
+    async function setupWithSpy() {
+      vi.mocked(saleApi.listDrafts).mockResolvedValue([existingDraft])
+      const { result, queryClient } = mountComposable(() => useSalesDrafts())
+      await vi.waitFor(() =>
+        expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual([existingDraft]),
+      )
+      result.activeTabId.value = 'sale-1'
+      const spy = vi.spyOn(queryClient, 'invalidateQueries')
+      return { result, queryClient, spy }
+    }
+
+    // ── Existing mutations: assert new behavior ──
+
+    it('addItem onSuccess invalidates applicable-promotions for the affected draft', async () => {
+      vi.mocked(saleApi.addItem).mockResolvedValue(updatedDraft)
+      const { result, spy } = await setupWithSpy()
+
+      await result.addItem('prod-2', null, 1)
+
+      expect(spy).toHaveBeenCalledWith({ queryKey: expectedApplicableKey })
+    })
+
+    it('updateQty onSuccess invalidates applicable-promotions for the affected draft', async () => {
+      vi.mocked(saleApi.updateItemQty).mockResolvedValue(updatedDraft)
+      const { result, spy } = await setupWithSpy()
+
+      await result.updateQty('item-1', 3)
+
+      expect(spy).toHaveBeenCalledWith({ queryKey: expectedApplicableKey })
+    })
+
+    it('clearItems onSuccess invalidates applicable-promotions for the affected draft', async () => {
+      vi.mocked(saleApi.clearItems).mockResolvedValue({ ...updatedDraft, items: [] })
+      const { result, spy } = await setupWithSpy()
+
+      await result.clearItems()
+
+      expect(spy).toHaveBeenCalledWith({ queryKey: expectedApplicableKey })
+    })
+
+    it('removeItem onSuccess invalidates applicable-promotions for the affected draft', async () => {
+      vi.mocked(saleApi.removeItem).mockResolvedValue({
+        ...updatedDraft,
+        items: [],
+      })
+      const { result, spy } = await setupWithSpy()
+
+      await result.removeItem('item-1')
+
+      expect(spy).toHaveBeenCalledWith({ queryKey: expectedApplicableKey })
+    })
+
+    it('updateItemPrice onSuccess invalidates applicable-promotions for the affected draft', async () => {
+      vi.mocked(saleApi.updateItemPrice).mockResolvedValue(updatedDraft)
+      const { result, spy } = await setupWithSpy()
+
+      await result.updateItemPrice('item-1', { customPriceCents: 9000 })
+
+      expect(spy).toHaveBeenCalledWith({ queryKey: expectedApplicableKey })
+    })
+
+    it('applyItemDiscount onSuccess invalidates applicable-promotions for the affected draft', async () => {
+      vi.mocked(saleApi.applyItemDiscount).mockResolvedValue(updatedDraft)
+      const { result, spy } = await setupWithSpy()
+
+      await result.applyItemDiscount('item-1', { type: 'amount', amountCents: 500 })
+
+      expect(spy).toHaveBeenCalledWith({ queryKey: expectedApplicableKey })
+    })
+
+    it('removeItemDiscount onSuccess invalidates applicable-promotions for the affected draft', async () => {
+      vi.mocked(saleApi.removeItemDiscount).mockResolvedValue(updatedDraft)
+      const { result, spy } = await setupWithSpy()
+
+      await result.removeItemDiscount('item-1')
+
+      expect(spy).toHaveBeenCalledWith({ queryKey: expectedApplicableKey })
+    })
+
+    it('applyGlobalDiscount onSuccess invalidates applicable-promotions for the affected draft', async () => {
+      vi.mocked(saleApi.applyGlobalDiscount).mockResolvedValue({ sale: updatedDraft, skippedItems: [] })
+      const { result, spy } = await setupWithSpy()
+
+      await result.applyGlobalDiscount({ type: 'percentage', percent: 10 })
+
+      expect(spy).toHaveBeenCalledWith({ queryKey: expectedApplicableKey })
+    })
+
+    it('removeGlobalDiscount onSuccess invalidates applicable-promotions for the affected draft', async () => {
+      vi.mocked(saleApi.removeGlobalDiscount).mockResolvedValue(updatedDraft)
+      const { result, spy } = await setupWithSpy()
+
+      await result.removeGlobalDiscount()
+
+      expect(spy).toHaveBeenCalledWith({ queryKey: expectedApplicableKey })
+    })
+
+    // ── 3 new promotion mutations: mirror existing pattern (setQueryData + invalidate) ──
+
+    async function assertSetQueryDataAndInvalidate(
+      result: { activeDraft: unknown; addItem: unknown; applyManualPromotion: any; removeManualPromotion: any; vetoAutoPromotion: any },
+      // Loosely-typed QueryClient surface — only the bits the helper uses
+      // (getQueryData + setQueryData for vi.spyOn). The runtime value is the
+      // real QueryClient; the parameter is intentionally narrow to keep the
+      // helper easy to call.
+      queryClient: {
+        getQueryData: <T>(key: readonly unknown[]) => T | undefined
+        setQueryData: <T>(key: unknown, value: unknown) => unknown
+        [k: string]: unknown
+      },
+      spy: { mock: { calls: any[] } } & ((...args: unknown[]) => unknown),
+      invoke: () => Promise<unknown>,
+    ) {
+      const resultSpy = vi.spyOn(queryClient as unknown as { setQueryData: () => void }, 'setQueryData')
+      await invoke()
+      expect(spy).toHaveBeenCalledWith({ queryKey: expectedApplicableKey })
+      // setQueryData was called with the draftsKey + the result of
+      // replaceSaleInCache(currentDrafts, updatedSale) which is a Sale[]
+      // (matches the imperative pattern used by every other mutation in this
+      // composable — getQueryData → setQueryData(array)).
+      expect(resultSpy).toHaveBeenCalledWith(
+        tenantDraftsKey,
+        expect.any(Array),
+      )
+      resultSpy.mockRestore()
+    }
+
+    it('applyManualPromotion onSuccess sets draftsKey cache AND invalidates applicable-promotions', async () => {
+      vi.mocked(saleApi.applyManualPromotion).mockResolvedValue(updatedDraft)
+      const { result, queryClient, spy } = await setupWithSpy()
+
+      await assertSetQueryDataAndInvalidate(
+        result as never,
+        queryClient as never,
+        spy as never,
+        // Public surface mirrors the existing useSalesDrafts pattern:
+        // saleId comes from activeTabId; only promotionId is an arg.
+        () => (result as { applyManualPromotion: (promotionId: string) => Promise<unknown> }).applyManualPromotion('promo-a'),
+      )
+
+      expect(saleApi.applyManualPromotion).toHaveBeenCalledWith('sale-1', 'promo-a')
+    })
+
+    it('removeManualPromotion onSuccess sets draftsKey cache AND invalidates applicable-promotions', async () => {
+      vi.mocked(saleApi.removeManualPromotion).mockResolvedValue(updatedDraft)
+      const { result, queryClient, spy } = await setupWithSpy()
+
+      await assertSetQueryDataAndInvalidate(
+        result as never,
+        queryClient as never,
+        spy as never,
+        () => (result as { removeManualPromotion: (promotionId: string) => Promise<unknown> }).removeManualPromotion('promo-b'),
+      )
+
+      expect(saleApi.removeManualPromotion).toHaveBeenCalledWith('sale-1', 'promo-b')
+    })
+
+    it('vetoAutoPromotion onSuccess sets draftsKey cache AND invalidates applicable-promotions', async () => {
+      vi.mocked(saleApi.vetoAutoPromotion).mockResolvedValue(updatedDraft)
+      const { result, queryClient, spy } = await setupWithSpy()
+
+      await assertSetQueryDataAndInvalidate(
+        result as never,
+        queryClient as never,
+        spy as never,
+        () => (result as { vetoAutoPromotion: (promotionId: string) => Promise<unknown> }).vetoAutoPromotion('promo-c'),
+      )
+
+      expect(saleApi.vetoAutoPromotion).toHaveBeenCalledWith('sale-1', 'promo-c')
     })
   })
 })

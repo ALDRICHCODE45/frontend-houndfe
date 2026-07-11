@@ -72,6 +72,12 @@ export function useDraftCustomerAssignment(saleId: MaybeRefOrGetter<string>) {
       lastError.value = null
       const drafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
       queryClient.setQueryData(draftsKey.value, replaceSaleInCache(drafts, updatedSale))
+      // Customer-scoped promos depend on the assigned customer (backend
+      // contract §5, §2.2, §5 line 51-54). Mirror the useSalesDrafts pattern
+      // so the "Promociones disponibles" list re-reads after assign.
+      queryClient.invalidateQueries({
+        queryKey: saleQueryKeys.applicablePromotions(tenantId.value, toValue(saleId)),
+      })
     },
     onError: (error) => {
       lastError.value = parseAssignmentError(error)
@@ -91,12 +97,16 @@ export function useDraftCustomerAssignment(saleId: MaybeRefOrGetter<string>) {
       const resolvedSaleId = toValue(saleId)
       const drafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
       const currentDraft = drafts.find((draft) => draft.id === resolvedSaleId)
-      
+
       if (currentDraft) {
         // Unassigning customer also clears shipping address (per backend behavior)
         const updatedDraft: Sale = { ...currentDraft, customer: null, shippingAddress: null }
         queryClient.setQueryData(draftsKey.value, replaceSaleInCache(drafts, updatedDraft))
       }
+      // Customer-scoped promos no longer match when the customer is dropped.
+      queryClient.invalidateQueries({
+        queryKey: saleQueryKeys.applicablePromotions(tenantId.value, resolvedSaleId),
+      })
     },
     onError: (error) => {
       lastError.value = parseAssignmentError(error)
@@ -115,6 +125,10 @@ export function useDraftCustomerAssignment(saleId: MaybeRefOrGetter<string>) {
       lastError.value = null
       const drafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
       queryClient.setQueryData(draftsKey.value, replaceSaleInCache(drafts, updatedSale))
+      // Shipping-address-scoped promos may now apply (or stop applying).
+      queryClient.invalidateQueries({
+        queryKey: saleQueryKeys.applicablePromotions(tenantId.value, toValue(saleId)),
+      })
     },
     onError: (error) => {
       lastError.value = parseAssignmentError(error)
@@ -134,12 +148,16 @@ export function useDraftCustomerAssignment(saleId: MaybeRefOrGetter<string>) {
       const resolvedSaleId = toValue(saleId)
       const drafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
       const currentDraft = drafts.find((draft) => draft.id === resolvedSaleId)
-      
+
       if (currentDraft) {
         // Clear only shipping address, preserve customer
         const updatedDraft: Sale = { ...currentDraft, shippingAddress: null }
         queryClient.setQueryData(draftsKey.value, replaceSaleInCache(drafts, updatedDraft))
       }
+      // Shipping-address-scoped promos may stop applying.
+      queryClient.invalidateQueries({
+        queryKey: saleQueryKeys.applicablePromotions(tenantId.value, resolvedSaleId),
+      })
     },
     onError: (error) => {
       lastError.value = parseAssignmentError(error)

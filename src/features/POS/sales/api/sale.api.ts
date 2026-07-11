@@ -25,6 +25,7 @@ import type {
   SetDueDatePayload,
   SaleComment,
   SaleCommentErrorCode,
+  ListApplicablePromotionsResponse,
 } from '../interfaces/sale.types'
 import { SaleCommentError } from '../interfaces/sale.types'
 
@@ -218,5 +219,44 @@ export const saleApi = {
     } catch (error) {
       throw parseCommentError(error) ?? error
     }
+  },
+
+  // promotions-in-sale: 4 promotion endpoints (per design §9 / backend contract §3).
+  // All guarded by `update:Sale`; the backend owns eligibility, best-wins, discount math.
+
+  /** GET /sales/drafts/:saleId/applicable-promotions → list of MANUAL promos the
+   * seller can opt into on this draft. Read-only — does NOT mutate the draft. */
+  async listApplicablePromotions(saleId: string): Promise<ListApplicablePromotionsResponse> {
+    const { data } = await http.get<ListApplicablePromotionsResponse>(
+      `/sales/drafts/${saleId}/applicable-promotions`,
+    )
+    return data
+  },
+
+  /** POST /sales/drafts/:saleId/manual-promotions/:promotionId body={}
+   * → opt-in (also un-vetoes if previously vetoed). Returns updated Sale. */
+  async applyManualPromotion(saleId: string, promotionId: string): Promise<Sale> {
+    const { data } = await http.post<Sale>(
+      `/sales/drafts/${saleId}/manual-promotions/${promotionId}`,
+      {},
+    )
+    return data
+  },
+
+  /** DELETE /sales/drafts/:saleId/manual-promotions/:promotionId
+   * → remove a manual opt-in. Idempotent. Returns updated Sale. */
+  async removeManualPromotion(saleId: string, promotionId: string): Promise<Sale> {
+    const { data } = await http.delete<Sale>(
+      `/sales/drafts/${saleId}/manual-promotions/${promotionId}`,
+    )
+    return data
+  },
+
+  /** DELETE /sales/drafts/:saleId/promotions/:promotionId
+   * → veto a previously AUTO-applied promotion. Sticky per draft. Idempotent.
+   * Same endpoint is used for both per-line and order-level vetoes. */
+  async vetoAutoPromotion(saleId: string, promotionId: string): Promise<Sale> {
+    const { data } = await http.delete<Sale>(`/sales/drafts/${saleId}/promotions/${promotionId}`)
+    return data
   },
 }

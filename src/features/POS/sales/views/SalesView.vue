@@ -3,12 +3,14 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { AxiosError } from 'axios'
 import { useQueryClient } from '@tanstack/vue-query'
 import { useSalesDrafts } from '../composables/useSalesDrafts'
+import { useApplicablePromotions } from '../composables/useApplicablePromotions'
 import { saleApi } from '../api/sale.api'
 import ProductSearchPanel from '../components/ProductSearchPanel.vue'
 import ActiveSalePanel from '../components/ActiveSalePanel.vue'
 import PaymentModal from '../components/PaymentModal.vue'
 import PaymentSuccessModal from '../components/PaymentSuccessModal.vue'
 import AssignCustomerSlideover from '../components/AssignCustomerSlideover.vue'
+import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import type {
   ApplyItemDiscountPayload,
   ApplyGlobalDiscountPayload,
@@ -57,7 +59,29 @@ const {
   applyGlobalDiscount,
   removeGlobalDiscount,
   chargeDraft,
+  // promotions-in-sale C.5: drives the auto-promo veto confirmation flow
+  // (ConfirmModal → vetoAutoPromotion → toast). Both order-level
+  // `remove-order-promo` and per-line `remove-promo` route here.
+  vetoAutoPromotion,
+  // promotions-in-sale C.4: manual-promo apply/remove handlers consumed by
+  // the "Promociones disponibles" accordion. No toast yet — C.5 adds toasts.
+  applyManualPromotion,
+  removeManualPromotion,
 } = useSalesDrafts()
+
+// promotions-in-sale C.4: applicable-promo list for the active draft.
+// Adapts to MaybeRefOrGetter via toValue inside the composable, so passing
+// the computed getter keeps the query reactive as the seller switches tabs.
+const applicablePromotionsQuery = useApplicablePromotions(
+  () => activeTabId.value ?? undefined,
+)
+const applicablePromotions = computed(
+  () => applicablePromotionsQuery.data.value?.promotions ?? [],
+)
+const isLoadingPromotions = computed(
+  () => applicablePromotionsQuery.isPending.value
+    || applicablePromotionsQuery.isFetching.value,
+)
 
 const paymentModalOpen = ref(false)
 const assignCustomerSlideoverOpen = ref(false)
@@ -461,6 +485,76 @@ async function handleUnassignCustomer() {
     toast.add({ title: 'Error', description: mapCustomerAssignmentErrorMessage(error), color: 'error' })
   }
 }
+
+// promotions-in-sale C.5: auto-promo veto confirmation flow.
+//
+// Both the order-level `remove-order-promo` (from SaleTotalsFooter) and the
+// per-line `remove-promo` (from SaleItemRow's badge remove control) MUST
+// route through the same confirmation + veto + toast UX. A veto is permanent
+// for the draft — there is no "restore" path on the backend. Spec §7a:
+// "Esta acción es permanente para este borrador", confirm-color: error.
+//
+// One ConfirmModal instance serves both kinds — we only need to know which
+// promotionId is being vetoed (kind is irrelevant: both call vetoAutoPromotion).
+const vetoConfirmOpen = ref(false)
+const promoToVeto = ref<string | null>(null)
+
+function handleVetoRequest(promotionId: string) {
+  promoToVeto.value = promotionId
+  vetoConfirmOpen.value = true
+}
+
+async function handleConfirmVeto() {
+  const id = promoToVeto.value
+  if (!id) return
+  // Close the modal FIRST so the seller sees it disappear immediately; then
+  // run the mutation. If it fails we still surface an error toast — but the
+  // pending state is cleared so a follow-up request can open the modal again.
+  vetoConfirmOpen.value = false
+  promoToVeto.value = null
+  try {
+    await vetoAutoPromotion(id)
+    toast.add({ title: 'Promoción quitada', color: 'success' })
+  } catch (error) {
+    const err = error as AxiosError<DomainApiError>
+    const message = err.response?.data?.message ?? 'No se pudo quitar la promoción'
+    toast.add({ title: 'Error', description: message, color: 'error' })
+  }
+}
+
+// promotions-in-sale C.4 + C.5 — manual-promo handlers for the accordion.
+//
+// `appliedManualPromotionIds` is intentionally passed as [] from SalesView
+// to the accordion: there is no clean per-promo "this manual promo is
+// currently applied" signal on the backend response (item.promotionId
+// conflates auto + manual line discounts; appliedOrderPromotion is the
+// order-level only). The accordion's Remove affordance therefore stays
+// dormant for now — the seller always sees "Aplicar", never "Quitar",
+// inside this accordion. When the backend exposes a manual-applied list
+// (per spec §4, deferred), wire it here.
+//
+// C.5 adds success toasts; the error-toast catch was already wired in C.4.
+async function handleApplyManualPromo(promotionId: string) {
+  try {
+    await applyManualPromotion(promotionId)
+    toast.add({ title: 'Promoción aplicada', color: 'success' })
+  } catch (error) {
+    const err = error as AxiosError<DomainApiError>
+    const message = err.response?.data?.message ?? 'No se pudo aplicar la promoción'
+    toast.add({ title: 'Error', description: message, color: 'error' })
+  }
+}
+
+async function handleRemoveManualPromo(promotionId: string) {
+  try {
+    await removeManualPromotion(promotionId)
+    toast.add({ title: 'Promoción quitada', color: 'success' })
+  } catch (error) {
+    const err = error as AxiosError<DomainApiError>
+    const message = err.response?.data?.message ?? 'No se pudo quitar la promoción'
+    toast.add({ title: 'Error', description: message, color: 'error' })
+  }
+}
 </script>
 
 <template>
@@ -522,6 +616,9 @@ async function handleUnassignCustomer() {
              :is-mutating="isMutating"
              :is-customer-mutation-pending="isCustomerMutationPending"
              :item-image-map="itemImageMap"
+             :applicable-promotions="applicablePromotions"
+             :is-loading-promotions="isLoadingPromotions"
+             :applied-manual-promotion-ids="[]"
             :on-submit-price-override="handleSubmitPriceOverride"
             :on-apply-discount="handleApplyDiscount"
             :on-remove-discount="handleRemoveDiscount"
@@ -531,6 +628,10 @@ async function handleUnassignCustomer() {
               @charge-click="openPaymentModal"
               @open-customer-assignment="handleOpenCustomerAssignment"
               @unassign-customer="handleUnassignCustomer"
+              @remove-order-promo="handleVetoRequest"
+              @remove-promo="handleVetoRequest"
+              @apply-manual-promo="handleApplyManualPromo"
+              @remove-manual-promo="handleRemoveManualPromo"
               @switch-tab="handleSwitchTab"
              @close-tab="handleCloseTab"
             @create-tab="handleCreateTab"
@@ -552,7 +653,7 @@ async function handleUnassignCustomer() {
       v-model:open="paymentModalOpen"
       :sale-id="activeDraft.id"
       :customer="activeDraft.customer ?? null"
-      :total-cents="activeDraft.items.reduce((sum, item) => sum + item.unitPriceCents * item.quantity, 0)"
+      :total-cents="activeDraft.totalCents ?? 0"
       :is-submitting="isMutating || isChargeTemporarilyBlocked"
       :external-error="inlineAmountError"
       @submit="({ saleId, payload, idempotencyKey }) => void handleChargeDraft(saleId, payload, idempotencyKey)"
@@ -569,6 +670,18 @@ async function handleUnassignCustomer() {
       :debt-cents="latestChargeSuccess.debtCents"
       :payment-status="latestChargeSuccess.paymentStatus"
       :confirmed-at="latestChargeSuccess.confirmedAt"
+    />
+
+    <!-- promotions-in-sale C.5: auto-promo veto confirmation.
+         Serves BOTH the order-level `remove-order-promo` and the per-line
+         `remove-promo` (kind is irrelevant — both call vetoAutoPromotion). -->
+    <ConfirmModal
+      v-model:open="vetoConfirmOpen"
+      title="Quitar promoción"
+      description="Esta acción es permanente para este borrador."
+      confirm-label="Quitar promoción"
+      confirm-color="error"
+      @confirm="handleConfirmVeto"
     />
   </div>
 </template>

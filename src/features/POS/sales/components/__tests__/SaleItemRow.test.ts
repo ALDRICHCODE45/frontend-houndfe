@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import SaleItemRow from '../SaleItemRow.vue'
+import SaleItemBadges from '../SaleItemBadges.vue'
 import type { SaleItem } from '../../interfaces/sale.types'
 
 describe('SaleItemRow', () => {
@@ -353,5 +354,90 @@ describe('SaleItemRow', () => {
 
     const actions = (wrapper.vm as unknown as { itemActions: Array<Array<{ label: string }>> }).itemActions
     expect(actions).toEqual([])
+  })
+
+  // ── C.2 — forward per-line promotion remove from SaleItemBadges ─────────────
+
+  it('passes promotionId to SaleItemBadges and marks it removable for draft rows', () => {
+    const wrapper = mount(SaleItemRow, {
+      props: {
+        item: {
+          ...mockItem,
+          discountType: 'percentage',
+          discountValue: 15,
+          discountAmountCents: 1500,
+          discountTitle: 'Promo 2x1',
+          promotionId: 'promo-uuid-42',
+        },
+        saleId: 'sale-1',
+        isDraft: true,
+        onSubmitPriceOverride,
+        onApplyDiscount,
+        onRemoveDiscount,
+      },
+      global: { stubs },
+    })
+
+    const badges = wrapper.findComponent(SaleItemBadges)
+    expect(badges.exists()).toBe(true)
+    expect(badges.props('promotionId')).toBe('promo-uuid-42')
+    expect(badges.props('removable')).toBe(true)
+  })
+
+  it('passes promotionId but NOT removable for non-draft rows (confirmed-sale safety)', () => {
+    const wrapper = mount(SaleItemRow, {
+      props: {
+        item: {
+          ...mockItem,
+          discountType: 'percentage',
+          discountValue: 15,
+          discountAmountCents: 1500,
+          discountTitle: 'Promo 2x1',
+          promotionId: 'promo-uuid-42',
+        },
+        saleId: 'sale-1',
+        isDraft: false,
+        onSubmitPriceOverride,
+        onApplyDiscount,
+        onRemoveDiscount,
+      },
+      global: { stubs },
+    })
+
+    const badges = wrapper.findComponent(SaleItemBadges)
+    expect(badges.exists()).toBe(true)
+    expect(badges.props('promotionId')).toBe('promo-uuid-42')
+    expect(badges.props('removable')).toBe(false)
+  })
+
+  it('re-emits remove-promo from SaleItemBadges upward with the promotionId', async () => {
+    const wrapper = mount(SaleItemRow, {
+      props: {
+        item: {
+          ...mockItem,
+          discountType: 'percentage',
+          discountValue: 15,
+          discountAmountCents: 1500,
+          discountTitle: 'Promo 2x1',
+          promotionId: 'promo-uuid-42',
+        },
+        saleId: 'sale-1',
+        isDraft: true,
+        onSubmitPriceOverride,
+        onApplyDiscount,
+        onRemoveDiscount,
+      },
+      global: { stubs },
+    })
+
+    const badges = wrapper.findComponent(SaleItemBadges)
+    expect(badges.exists()).toBe(true)
+
+    // Drive the event from the child as the parent would.
+    badges.vm.$emit('remove-promo', 'promo-uuid-42')
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.emitted('remove-promo')).toBeTruthy()
+    expect(wrapper.emitted('remove-promo')?.[0]).toEqual(['promo-uuid-42'])
   })
 })

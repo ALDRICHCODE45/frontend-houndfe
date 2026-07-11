@@ -34,6 +34,23 @@ function makeSale(overrides: Partial<Sale> = {}): Sale {
   }
 }
 
+// Shared fixture used by invalidation tests — matches the shape in the
+// existing unassignCustomer / clearShippingAddress tests.
+const stubShippingAddress = {
+  id: 'address-1',
+  customerId: 'customer-1',
+  street: 'Main',
+  exteriorNumber: '10',
+  interiorNumber: null,
+  zipCode: '64000',
+  neighborhood: 'Centro',
+  municipality: 'Monterrey',
+  city: 'Monterrey',
+  state: 'Nuevo León',
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+}
+
 function mountComposable(saleId: string) {
   const queryClient = new QueryClient({
     defaultOptions: {
@@ -246,6 +263,72 @@ describe('useDraftCustomerAssignment', () => {
       await expect(composable.assignCustomer({ customerId: 'customer-1' })).rejects.toMatchObject({ code })
       expect(composable.lastError.value?.code).toBe(code)
     }
+  })
+
+  // ────────────────────────────────────────────────────────────────────────
+  // promotions-in-sale WARNING-1 remediation: customer-scoped promos depend
+  // on the assigned customer + shipping address, so EVERY one of the 4
+  // mutations onSuccess MUST invalidate applicable-promotions for the draft,
+  // mirroring the useSalesDrafts pattern (helper that calls
+  // `queryClient.invalidateQueries({ queryKey: saleQueryKeys.applicablePromotions(tenantId, draftId) })`).
+  // Backed by client spec §5, §2.2, §5 line 51-54.
+  // ────────────────────────────────────────────────────────────────────────
+  describe('applicable-promotions invalidation on customer mutations', () => {
+    const expectedApplicableKey = saleQueryKeys.applicablePromotions('tenant-1', 'sale-1')
+
+    it('assignCustomer onSuccess invalidates applicable-promotions for the draft', async () => {
+      const { composable, queryClient, invalidateQueries } = mountComposable('sale-1')
+      queryClient.setQueryData(saleQueryKeys.drafts('tenant-1'), [makeSale({ id: 'sale-1' })])
+
+      await composable.assignCustomer({ customerId: 'customer-1' })
+
+      expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: expectedApplicableKey })
+    })
+
+    it('unassignCustomer onSuccess invalidates applicable-promotions for the draft', async () => {
+      const { composable, queryClient, invalidateQueries } = mountComposable('sale-1')
+      queryClient.setQueryData(saleQueryKeys.drafts('tenant-1'), [
+        makeSale({
+          id: 'sale-1',
+          customer: { id: 'customer-1', firstName: 'Ada', lastName: null },
+          shippingAddress: stubShippingAddress,
+        }),
+      ])
+
+      await composable.unassignCustomer()
+
+      expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: expectedApplicableKey })
+    })
+
+    it('setShippingAddress onSuccess invalidates applicable-promotions for the draft', async () => {
+      const { composable, queryClient, invalidateQueries } = mountComposable('sale-1')
+      queryClient.setQueryData(saleQueryKeys.drafts('tenant-1'), [
+        makeSale({
+          id: 'sale-1',
+          customer: { id: 'customer-1', firstName: 'Ada', lastName: null },
+          shippingAddress: null,
+        }),
+      ])
+
+      await composable.setShippingAddress({ shippingAddressId: 'address-2' })
+
+      expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: expectedApplicableKey })
+    })
+
+    it('clearShippingAddress onSuccess invalidates applicable-promotions for the draft', async () => {
+      const { composable, queryClient, invalidateQueries } = mountComposable('sale-1')
+      queryClient.setQueryData(saleQueryKeys.drafts('tenant-1'), [
+        makeSale({
+          id: 'sale-1',
+          customer: { id: 'customer-1', firstName: 'Ada', lastName: null },
+          shippingAddress: stubShippingAddress,
+        }),
+      ])
+
+      await composable.clearShippingAddress()
+
+      expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: expectedApplicableKey })
+    })
   })
 
   it('isPending toggles while request is in flight', async () => {

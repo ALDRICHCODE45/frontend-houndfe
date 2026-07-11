@@ -39,6 +39,7 @@ const imageBroken = ref(false)
 
 const emit = defineEmits<{
   'update-qty': [itemId: string, quantity: number]
+  'remove-promo': [promotionId: string]
 }>()
 
 // ── Local state ───────────────────────────────────────────────────────────────
@@ -185,6 +186,9 @@ function handleQtyCommit() {
           :discount-value="item.discountValue"
           :discount-amount-cents="item.discountAmountCents"
           :discount-title="item.discountTitle"
+          :promotion-id="item.promotionId"
+          :removable="isDraft"
+          @remove-promo="(id) => emit('remove-promo', id)"
         />
       </div>
 

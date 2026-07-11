@@ -75,6 +75,12 @@ export const saleQueryKeys = {
       p.categoryId ?? null,
       p.brandId ?? null,
     ] as const,
+  // promotions-in-sale (A.3): cache key for "Promociones disponibles" list.
+  // Tenant-scoped (cache isolate per tenant); draftId-scoped (one cache slot
+  // per active draft). Used by useApplicablePromotions + invalidateQueries
+  // after EVERY draft mutation so auto promos never get stale.
+  applicablePromotions: (tenantId: string, draftId: string) =>
+    ['sales', tenantId, 'applicable-promotions', draftId] as const,
 }
 
 export const usersQueryKeys = {

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ActiveSalePanel from '../ActiveSalePanel.vue'
-import type { Sale } from '../../interfaces/sale.types'
+import type { ApplicablePromotion, Sale } from '../../interfaces/sale.types'
 
 function makeDraft(overrides: Partial<Sale> = {}): Sale {
   return {
@@ -17,7 +17,15 @@ function makeDraft(overrides: Partial<Sale> = {}): Sale {
   }
 }
 
-function mountPanel(activeDraft: Sale | null, isCustomerMutationPending = false) {
+function mountPanel(
+  activeDraft: Sale | null,
+  isCustomerMutationPending = false,
+  promoOverrides: {
+    applicablePromotions?: ApplicablePromotion[]
+    isLoadingPromotions?: boolean
+    appliedManualPromotionIds?: string[]
+  } = {},
+) {
   return mount(ActiveSalePanel, {
     props: {
       drafts: activeDraft ? [activeDraft] : [],
@@ -32,14 +40,48 @@ function mountPanel(activeDraft: Sale | null, isCustomerMutationPending = false)
       onRemoveItem: vi.fn(async () => undefined),
       onApplyGlobalDiscount: vi.fn(async () => undefined),
       onRemoveGlobalDiscount: vi.fn(async () => undefined),
+      // C.4: optional promo data — tests pass these explicitly when needed.
+      applicablePromotions: promoOverrides.applicablePromotions,
+      isLoadingPromotions: promoOverrides.isLoadingPromotions ?? false,
+      appliedManualPromotionIds: promoOverrides.appliedManualPromotionIds ?? [],
     },
     global: {
       stubs: {
         SalesTabsStrip: { template: '<div />' },
-        SaleItemRow: { template: '<div />' },
-        SaleTotalsFooter: { template: '<div />' },
+        // C.5: SaleItemRow stub now exposes a `remove-promo` button so we can
+        // drive the per-line auto-promo veto event forwarding contract.
+        SaleItemRow: {
+          name: 'SaleItemRow',
+          emits: ['update-qty', 'remove-promo'],
+          template:
+            '<div>'
+            + '<button data-testid="item-remove-promo" @click="$emit(\'remove-promo\', \'line-promo-uuid\')">remove-promo</button>'
+            + '</div>',
+        },
+        // B.2: stub forwards emits so we can test remove-order-promo / charge-click propagation.
+        SaleTotalsFooter: {
+          name: 'SaleTotalsFooter',
+          emits: ['charge-click', 'remove-order-promo'],
+          props: ['sale', 'isChargePending'],
+          template:
+            '<div data-testid="sale-totals-footer-stub" :data-sale-id="sale?.id" @click="$emit(\'charge-click\')" />',
+        },
         GlobalDiscountModal: { template: '<div />' },
         ConfirmModal: { template: '<div />' },
+        // C.4: stub forwards apply/remove emits so tests can verify the
+        // accordion's event bubbling reaches ActiveSalePanel's parent emits.
+        PromocionesDisponiblesAccordion: {
+          name: 'PromocionesDisponiblesAccordion',
+          emits: ['apply', 'remove'],
+          props: ['promotions', 'loading', 'appliedIds'],
+          template:
+            '<div data-testid="promociones-accordion-stub" '
+            + ':data-loading="loading" '
+            + ':data-applied-count="(appliedIds ?? []).length">'
+            + '<button data-testid="accordion-apply-btn" @click="$emit(\'apply\', \'promo-test-id\')">apply</button>'
+            + '<button data-testid="accordion-remove-btn" @click="$emit(\'remove\', \'promo-test-id\')">remove</button>'
+            + '</div>',
+        },
         UTabs: { template: '<div />' },
         UTooltip: { template: '<div><slot /></div>' },
         UDropdownMenu: { template: '<div><slot /></div>' },
@@ -63,6 +105,84 @@ function mountPanel(activeDraft: Sale | null, isCustomerMutationPending = false)
     },
   })
 }
+
+// ── B.2: SaleTotalsFooter prop + event wiring ────────────────────────────────
+
+describe('ActiveSalePanel B.2 — SaleTotalsFooter wiring', () => {
+  it('passes the activeDraft to SaleTotalsFooter (not just items)', () => {
+    const draft = makeDraft({ subtotalCents: 10000, discountCents: 1500, totalCents: 8500 })
+    const wrapper = mountPanel(draft)
+
+    const footer = wrapper.findComponent({ name: 'SaleTotalsFooter' })
+    expect(footer.exists()).toBe(true)
+    const passedSale = footer.props('sale') as Sale
+    expect(passedSale).toBeDefined()
+    expect(passedSale.id).toBe('sale-1')
+    expect(passedSale.subtotalCents).toBe(10000)
+    expect(passedSale.discountCents).toBe(1500)
+    expect(passedSale.totalCents).toBe(8500)
+  })
+
+  it('forwards remove-order-promo up to the parent (activeSalePanel emits it)', async () => {
+    const draft = makeDraft({
+      appliedOrderPromotion: {
+        promotionId: 'promo-order-uuid',
+        discountType: 'amount',
+        discountValue: 500,
+        discountAmountCents: 500,
+        discountTitle: 'Cupón Test',
+      },
+    })
+    const wrapper = mountPanel(draft)
+
+    await wrapper.get('[data-testid="sale-totals-footer-stub"]').trigger('click')
+    // The stub currently fires charge-click on click — use $emit directly to test
+    // the order-promo path without rewriting the stub DOM for every event.
+    const footer = wrapper.findComponent({ name: 'SaleTotalsFooter' })
+    footer.vm.$emit('remove-order-promo', 'promo-order-uuid')
+    await wrapper.vm.$nextTick()
+
+    const emitted = wrapper.emitted('remove-order-promo')
+    expect(emitted).toBeTruthy()
+    expect(emitted).toHaveLength(1)
+    expect(emitted![0]).toEqual(['promo-order-uuid'])
+  })
+
+  it('forwards remove-order-promo with the right payload from the footer stub', () => {
+    const draft = makeDraft({
+      appliedOrderPromotion: {
+        promotionId: 'promo-other',
+        discountType: 'percentage',
+        discountValue: 10,
+        discountAmountCents: 1000,
+        discountTitle: 'Black Friday',
+      },
+    })
+    const wrapper = mountPanel(draft)
+
+    const footer = wrapper.findComponent({ name: 'SaleTotalsFooter' })
+    // Direct emit on the stub vm (the child stub doesn't actually render a button).
+    footer.vm.$emit('remove-order-promo', 'promo-other')
+
+    const emitted = wrapper.emitted('remove-order-promo')
+    expect(emitted).toBeTruthy()
+    expect(emitted![0]).toEqual(['promo-other'])
+  })
+
+  it('still forwards charge-click to the parent (preserved behavior)', async () => {
+    const draft = makeDraft()
+    const wrapper = mountPanel(draft)
+
+    await wrapper.get('[data-testid="sale-totals-footer-stub"]').trigger('click')
+
+    expect(wrapper.emitted('charge-click')).toBeTruthy()
+  })
+
+  it('does not render SaleTotalsFooter when there is no active draft', () => {
+    const wrapper = mountPanel(null)
+    expect(wrapper.findComponent({ name: 'SaleTotalsFooter' }).exists()).toBe(false)
+  })
+})
 
 describe('ActiveSalePanel customer slot', () => {
   it('renders empty state with Asignar cliente trigger as inline link and opens slideover event', async () => {
@@ -120,5 +240,123 @@ describe('ActiveSalePanel customer slot', () => {
     expect(wrapper.find('[data-testid="customer-slot-loading"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="change-customer-trigger"]').attributes('disabled')).toBeDefined()
     expect(wrapper.get('[data-testid="unassign-customer-trigger"]').attributes('disabled')).toBeDefined()
+  })
+})
+
+// ── C.4: PromocionesDisponiblesAccordion wiring ─────────────────────────────
+
+describe('ActiveSalePanel C.4 — PromocionesDisponiblesAccordion wiring', () => {
+  const samplePromotions: ApplicablePromotion[] = [
+    { id: 'promo-a', title: '2x1 Aspirinas', type: 'PRODUCT_DISCOUNT' },
+    { id: 'promo-b', title: '10% en subtotal', type: 'ORDER_DISCOUNT' },
+  ]
+
+  it('does NOT mount the accordion when applicablePromotions is undefined or empty', () => {
+    const wrapperEmpty = mountPanel(makeDraft(), false, { applicablePromotions: [] })
+    expect(wrapperEmpty.find('[data-testid="promociones-accordion-stub"]').exists()).toBe(false)
+
+    const wrapperUndef = mountPanel(makeDraft(), false, {})
+    expect(wrapperUndef.find('[data-testid="promociones-accordion-stub"]').exists()).toBe(false)
+  })
+
+  it('mounts the accordion ABOVE SaleTotalsFooter and passes the promotions, loading, and appliedIds props', () => {
+    const wrapper = mountPanel(makeDraft(), false, {
+      applicablePromotions: samplePromotions,
+      isLoadingPromotions: false,
+      appliedManualPromotionIds: ['promo-a'],
+    })
+
+    const accordion = wrapper.findComponent({ name: 'PromocionesDisponiblesAccordion' })
+    expect(accordion.exists()).toBe(true)
+
+    // Prop pass-through contract.
+    expect(accordion.props('promotions')).toEqual(samplePromotions)
+    expect(accordion.props('loading')).toBe(false)
+    expect(accordion.props('appliedIds')).toEqual(['promo-a'])
+
+    // Mount-order contract: accordion must come BEFORE the totals footer
+    // in the rendered DOM so the seller sees promos above the totals row.
+    const accordionNode = wrapper.find('[data-testid="promociones-accordion-stub"]').element
+    const footerNode = wrapper.find('[data-testid="sale-totals-footer-stub"]').element
+    const docOrder = accordionNode.compareDocumentPosition(footerNode)
+    // Node.DOCUMENT_POSITION_FOLLOWING === 4 → accordion precedes footer.
+    expect(docOrder & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('passes isLoadingPromotions=true through to the accordion when the query is fetching', () => {
+    const wrapper = mountPanel(makeDraft(), false, {
+      applicablePromotions: samplePromotions,
+      isLoadingPromotions: true,
+      appliedManualPromotionIds: [],
+    })
+
+    const accordion = wrapper.findComponent({ name: 'PromocionesDisponiblesAccordion' })
+    expect(accordion.props('loading')).toBe(true)
+  })
+
+  it('re-emits the accordion\'s `apply` event upward as `apply-manual-promo` with the promotionId', async () => {
+    const wrapper = mountPanel(makeDraft(), false, { applicablePromotions: samplePromotions })
+
+    const accordion = wrapper.findComponent({ name: 'PromocionesDisponiblesAccordion' })
+    accordion.vm.$emit('apply', 'promo-test-id')
+    await wrapper.vm.$nextTick()
+
+    const events = wrapper.emitted('apply-manual-promo')
+    expect(events).toBeTruthy()
+    expect(events).toHaveLength(1)
+    expect(events![0]).toEqual(['promo-test-id'])
+  })
+
+  it('re-emits the accordion\'s `remove` event upward as `remove-manual-promo` with the promotionId', async () => {
+    const wrapper = mountPanel(makeDraft(), false, { applicablePromotions: samplePromotions })
+
+    const accordion = wrapper.findComponent({ name: 'PromocionesDisponiblesAccordion' })
+    accordion.vm.$emit('remove', 'promo-test-id')
+    await wrapper.vm.$nextTick()
+
+    const events = wrapper.emitted('remove-manual-promo')
+    expect(events).toBeTruthy()
+    expect(events).toHaveLength(1)
+    expect(events![0]).toEqual(['promo-test-id'])
+  })
+})
+
+// ── C.5: SaleItemRow per-line `remove-promo` forwarding ─────────────────────
+//
+// Spec §7a: per-line auto-promo veto (the remove control on the promo badge
+// of a SaleItemRow) MUST route up to SalesView where it opens the same
+// confirmation dialog + veto flow as the order-level `remove-order-promo`.
+
+describe('ActiveSalePanel C.5 — SaleItemRow per-line remove-promo forwarding', () => {
+  it('forwards the per-line `remove-promo` event up to the parent (ActiveSalePanel emits it)', async () => {
+    // We need at least one item in the draft so the v-for over activeDraft.items
+    // renders a SaleItemRow stub (otherwise there's no row to emit from).
+    const draft = makeDraft({
+      items: [{
+        id: 'item-1',
+        productId: 'prod-1',
+        variantId: null,
+        productName: 'A',
+        variantName: null,
+        quantity: 1,
+        unitPriceCents: 10000,
+        unitPriceCurrency: 'MXN',
+        promotionId: 'line-promo-uuid',
+      }],
+    })
+    const wrapper = mountPanel(draft)
+
+    const item = wrapper.findComponent({ name: 'SaleItemRow' })
+    expect(item.exists()).toBe(true)
+
+    // Drive the event the way the real badge would: clicking the remove
+    // control on the SaleItemBadges row re-emits as `remove-promo`.
+    item.vm.$emit('remove-promo', 'line-promo-uuid')
+    await wrapper.vm.$nextTick()
+
+    const events = wrapper.emitted('remove-promo')
+    expect(events).toBeTruthy()
+    expect(events).toHaveLength(1)
+    expect(events![0]).toEqual(['line-promo-uuid'])
   })
 })
