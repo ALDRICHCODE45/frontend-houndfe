@@ -123,52 +123,52 @@ function mapPagination(meta: ProductPaginationMeta): PaginatedResponse<Product>[
   }
 }
 
-function applyLocalProductFilters(rows: Product[], params: ServerTableParams): Product[] {
-  let filtered = [...rows]
-
-  if (params.globalFilter) {
-    const search = params.globalFilter.toLowerCase().trim()
-    filtered = filtered.filter((row) => {
-      return [row.name, row.sku ?? '', row.barcode ?? '', row.categoryName, row.brandName]
-        .join(' ')
-        .toLowerCase()
-        .includes(search)
-    })
-  }
-
-  if (params.sorting?.length) {
-    const sort = params.sorting[0]
-
-    if (sort) {
-      filtered.sort((a, b) => {
-        const aValue = a[sort.id as keyof Product]
-        const bValue = b[sort.id as keyof Product]
-
-        if (typeof aValue === 'string' && typeof bValue === 'string') {
-          return sort.desc ? bValue.localeCompare(aValue) : aValue.localeCompare(bValue)
-        }
-
-        if (typeof aValue === 'number' && typeof bValue === 'number') {
-          return sort.desc ? bValue - aValue : aValue - bValue
-        }
-
-        if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
-          if (aValue === bValue) return 0
-          return sort.desc ? Number(aValue) - Number(bValue) : Number(bValue) - Number(aValue)
-        }
-
-        return 0
-      })
-    }
-  }
-
-  return filtered
+function applyLocalTextFilter(rows: Product[], globalFilter?: string): Product[] {
+  if (!globalFilter) return rows
+  const search = globalFilter.toLowerCase().trim()
+  return rows.filter((row) => {
+    return [row.name, row.sku ?? '', row.barcode ?? '', row.categoryName, row.brandName]
+      .join(' ')
+      .toLowerCase()
+      .includes(search)
+  })
 }
 
-function isPaginatedProductResponse(
-  response: ProductBackendListResponse | ProductBackendResponse[],
-): response is ProductBackendListResponse {
-  return !Array.isArray(response) && Array.isArray(response.data) && !!response.meta
+function applyLocalSort(rows: Product[], params: ServerTableParams): Product[] {
+  if (!params.sorting?.length) return rows
+  const sort = params.sorting[0]
+  if (!sort) return rows
+
+  return [...rows].sort((a, b) => {
+    const aValue = a[sort.id as keyof Product]
+    const bValue = b[sort.id as keyof Product]
+
+    if (typeof aValue === 'string' && typeof bValue === 'string') {
+      return sort.desc ? bValue.localeCompare(aValue) : aValue.localeCompare(bValue)
+    }
+
+    if (typeof aValue === 'number' && typeof bValue === 'number') {
+      return sort.desc ? bValue - aValue : aValue - bValue
+    }
+
+    if (typeof aValue === 'boolean' && typeof bValue === 'boolean') {
+      if (aValue === bValue) return 0
+      return sort.desc ? Number(aValue) - Number(bValue) : Number(bValue) - Number(aValue)
+    }
+
+    return 0
+  })
+}
+
+/**
+ * @deprecated Kept only for the "flat-array, no server search" branch where
+ * we still want client-side text filtering on top of the unfiltered list.
+ * New code should call {@link applyLocalTextFilter} and {@link applyLocalSort}
+ * separately so server-side search results are not double-filtered.
+ */
+function applyLocalProductFilters(rows: Product[], params: ServerTableParams): Product[] {
+  const filtered = applyLocalTextFilter(rows, params.globalFilter)
+  return applyLocalSort(filtered, params)
 }
 
 function mapVariant(productId: string, item: ProductVariantBackendResponse): ProductVariant {
@@ -210,6 +210,16 @@ function mapArrayResponse<T>(response: T[] | { data: T[] }): T[] {
   return Array.isArray(response) ? response : response.data
 }
 
+/**
+ * Resolve the server-side sort keys for the /products endpoint.
+ *
+ * NOTE: As of this change, GET /products uses a strict whitelist on the
+ * backend that ONLY accepts page / limit / search / q (and rejects sortBy /
+ * sortOrder with HTTP 400). This function is kept here so that when the
+ * backend adds server-side sort support to its whitelist we can re-enable
+ * it by spreading the result into the request params. For now, the
+ * composable intentionally does NOT spread `sort` into the request.
+ */
 function resolveSort(params: ServerTableParams) {
   const firstSort = params.sorting?.[0]
   if (!firstSort) return undefined
@@ -228,41 +238,91 @@ function resolveSort(params: ServerTableParams) {
 }
 
 export const productApi = {
+  /**
+   * Fetches a page of products from GET /products.
+   *
+   * Architecture note (see fix/products-table-sort-and-error-surfacing):
+   *
+   *   The /products backend uses a strict whitelist that ONLY accepts
+   *   page / limit / search / q — sortBy and sortOrder are REJECTED with
+   *   HTTP 400. As of this change we therefore:
+   *
+   *     1. Do NOT send page, limit, sortBy or sortOrder. We rely on the
+   *        backend to return the FULL list (or, when globalFilter is set,
+   *        the FULL filtered list), and we sort + paginate locally so the
+   *        sort column in the UI works as users expect.
+   *     2. When the backend does support server-side sort, re-enable it by
+   *        spreading `resolveSort(params)` into the request params and
+   *        skipping the local sort step below.
+   *
+   *   search / q are still server-side because they ARE in the whitelist,
+   *   and we don't double-filter the result locally when globalFilter is
+   *   set (the server already filtered).
+   */
   async getPaginated(params: ServerTableParams): Promise<PaginatedResponse<Product>> {
-    const page = params.pageIndex + 1
-    const limit = params.pageSize
-    const sort = resolveSort(params)
-
+    // `resolveSort` is intentionally NOT spread into the request params — see
+    // the architectural note above.
     const { data } = await http.get<ProductBackendListResponse | ProductBackendResponse[]>(
       '/products',
       {
         params: {
-          page,
-          limit,
           ...(params.globalFilter
             ? {
                 search: params.globalFilter,
                 q: params.globalFilter,
               }
             : {}),
-          ...sort,
         },
       },
     )
 
-    if (isPaginatedProductResponse(data)) {
-      return {
-        data: data.data.map(mapProduct),
-        pagination: mapPagination(data.meta),
+    // Normalize response shape to a flat array of ProductBackendResponse.
+    // Three possible shapes:
+    //   1. Bare array                         -> use directly
+    //   2. { data: [...] }   (no meta)        -> unwrap; legacy/non-paginated
+    //   3. { data: [...], meta: {...} }       -> unwrap; future server-paginated
+    //                                          (still local-sort because sort
+    //                                          is always client-side now)
+    let backendRows: ProductBackendResponse[]
+    let serverPagination: ProductPaginationMeta | null = null
+
+    if (Array.isArray(data)) {
+      backendRows = data
+    } else {
+      backendRows = data.data
+      if (data.meta) {
+        serverPagination = data.meta
       }
     }
 
-    const rows = data.map(mapProduct)
-    const filteredRows = applyLocalProductFilters(rows, params)
-    const totalCount = filteredRows.length
+    let rows = backendRows.map(mapProduct)
+
+    // Apply local text-filter ONLY when the server didn't already filter.
+    // When globalFilter is set, we sent search/q; the server returned the
+    // filtered set; double-filtering would shrink it incorrectly.
+    if (!params.globalFilter) {
+      rows = applyLocalTextFilter(rows, params.globalFilter)
+    }
+
+    // Sort is ALWAYS client-side now (backend rejects sortBy/sortOrder).
+    rows = applyLocalSort(rows, params)
+
+    // Server pagination metadata (if present) takes priority over local
+    // math — this path is reserved for a future backend change that adds
+    // server-side sort/pagination to the whitelist. Today we don't send
+    // page/limit so this branch is dead, but it's here to keep the
+    // contract stable if/when the backend evolves.
+    if (serverPagination) {
+      return {
+        data: rows,
+        pagination: mapPagination(serverPagination),
+      }
+    }
+
+    const totalCount = rows.length
     const pageCount = Math.ceil(totalCount / params.pageSize) || 1
     const start = params.pageIndex * params.pageSize
-    const pagedRows = filteredRows.slice(start, start + params.pageSize)
+    const pagedRows = rows.slice(start, start + params.pageSize)
 
     return {
       data: pagedRows,

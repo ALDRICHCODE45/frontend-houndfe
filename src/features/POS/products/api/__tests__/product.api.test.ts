@@ -1,7 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { productApi } from '../product.api'
 import { http } from '@/core/shared/api/http'
-import type { ProductImage } from '../../interfaces/product.types'
+import type {
+  ProductImage,
+  ProductBackendResponse,
+  ProductBackendListResponse,
+} from '../../interfaces/product.types'
 
 vi.mock('@/core/shared/api/http', () => ({
   http: {
@@ -125,5 +129,107 @@ describe('productApi - Image Upload', () => {
       expect(result.variantId).toBe('var-2')
       expect(result.fileId).toBe('file-999')
     })
+  })
+})
+
+// ─── getPaginated ─────────────────────────────────────────────────────────────
+// As of this change, GET /products uses a strict whitelist on the backend and
+// rejects sortBy/sortOrder with HTTP 400. The client must therefore:
+//   - NEVER send sortBy / sortOrder / page / limit (the latter two would
+//     trigger server-side pagination on a non-server-paginated endpoint)
+//   - apply sorting client-side from the returned flat array
+//   - paginate client-side from the returned flat array
+// Search is server-side: search/q are accepted by the whitelist and are kept.
+
+const buildProductBackendRow = (overrides: Partial<ProductBackendResponse>): ProductBackendResponse => ({
+  id: 'p',
+  name: 'Placeholder',
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+  ...overrides,
+})
+
+describe('productApi.getPaginated', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('does NOT send sortBy, sortOrder, page, or limit to /products', async () => {
+    const flat = [buildProductBackendRow({ id: 'p1', name: 'Alpha' })]
+    vi.mocked(http.get).mockResolvedValue({ data: flat })
+
+    await productApi.getPaginated({
+      pageIndex: 0,
+      pageSize: 10,
+      sorting: [{ id: 'name', desc: false }],
+    })
+
+    const calls = vi.mocked(http.get).mock.calls
+    expect(calls[0]?.[0]).toBe('/products')
+    const params = calls[0]?.[1]?.params as Record<string, unknown> | undefined
+    expect(params).toBeDefined()
+    expect(params).not.toHaveProperty('sortBy')
+    expect(params).not.toHaveProperty('sortOrder')
+    expect(params).not.toHaveProperty('page')
+    expect(params).not.toHaveProperty('limit')
+  })
+
+  it('sends search and q (both aliases) when globalFilter is provided', async () => {
+    const flat = [buildProductBackendRow({ id: 'p1', name: 'Alpha' })]
+    vi.mocked(http.get).mockResolvedValue({ data: flat })
+
+    await productApi.getPaginated({
+      pageIndex: 0,
+      pageSize: 10,
+      globalFilter: 'alpha',
+    })
+
+    const calls = vi.mocked(http.get).mock.calls
+    const params = calls[0]?.[1]?.params as Record<string, unknown> | undefined
+    expect(params).toBeDefined()
+    expect(params).toEqual({ search: 'alpha', q: 'alpha' })
+  })
+
+  it('applies local sorting to the returned flat array (no server sort)', async () => {
+    const flat = [
+      buildProductBackendRow({ id: 'p1', name: 'Banana' }),
+      buildProductBackendRow({ id: 'p2', name: 'Apple' }),
+    ]
+    vi.mocked(http.get).mockResolvedValue({ data: flat })
+
+    const result = await productApi.getPaginated({
+      pageIndex: 0,
+      pageSize: 10,
+      sorting: [{ id: 'name', desc: true }],
+    })
+
+    expect(result.data.map((r) => r.name)).toEqual(['Banana', 'Apple'])
+    expect(result.pagination.totalCount).toBe(2)
+  })
+
+  it('applies local sorting and pagination to a {data:[...]} envelope without server pagination meta', async () => {
+    // The {data:[...]} envelope shape is what the backend returns when it
+    // does NOT paginate server-side. We must still apply client-side sort
+    // and slice; otherwise we'd either skip sorting (wrong order) or apply
+    // no pagination (too many rows).
+    const envelope: { data: ProductBackendResponse[] } = {
+      data: [
+        buildProductBackendRow({ id: 'p1', name: 'Banana' }),
+        buildProductBackendRow({ id: 'p2', name: 'Apple' }),
+        buildProductBackendRow({ id: 'p3', name: 'Cherry' }),
+      ],
+    }
+    vi.mocked(http.get).mockResolvedValue({ data: envelope })
+
+    const result = await productApi.getPaginated({
+      pageIndex: 0,
+      pageSize: 2,
+      sorting: [{ id: 'name', desc: false }],
+    })
+
+    // Sorted asc by name, then paginated to first 2.
+    expect(result.data.map((r) => r.name)).toEqual(['Apple', 'Banana'])
+    expect(result.pagination.totalCount).toBe(3)
+    expect(result.pagination.pageCount).toBe(2)
   })
 })
