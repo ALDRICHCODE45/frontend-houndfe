@@ -30,6 +30,11 @@ export interface UseServerTableReturn<T> {
   isLoading: ComputedRef<boolean>
   isFetching: ComputedRef<boolean>
 
+  // Error state (surfaced from TanStack Query so consumers can distinguish
+  // "request failed" from "0 results" instead of masking it as an empty table)
+  isError: ComputedRef<boolean>
+  error: ComputedRef<unknown>
+
   // UTable config objects
   paginationOptions: ComputedRef<Record<string, unknown>>
   sortingOptions: ComputedRef<Record<string, unknown>>
@@ -125,6 +130,8 @@ export function useServerTable<T>(config: ServerTableConfig<T>): UseServerTableR
     data: queryData,
     isLoading: queryIsLoading,
     isFetching: queryIsFetching,
+    isError: queryIsError,
+    error: queryError,
     refetch,
   } = useQuery<PaginatedResponse<T>>({
     queryKey,
@@ -140,6 +147,11 @@ export function useServerTable<T>(config: ServerTableConfig<T>): UseServerTableR
   const pageCount = computed(() => queryData.value?.pagination?.pageCount ?? 0)
   const isLoading = computed(() => queryIsLoading.value && !queryData.value)
   const isFetching = computed(() => queryIsFetching.value && !isLoading.value)
+  // Surface error state verbatim. This lets views distinguish a failed request
+  // (HTTP 4xx/5xx) from an empty result set — without this, a 400/500 from the
+  // server renders as "No se encontraron resultados", which masks real bugs.
+  const isError = computed(() => queryIsError.value)
+  const error = computed(() => queryError.value)
 
   // --- Pagination Info ---
   const showingFrom = computed(() => {
@@ -196,6 +208,8 @@ export function useServerTable<T>(config: ServerTableConfig<T>): UseServerTableR
     pageCount,
     isLoading,
     isFetching,
+    isError,
+    error,
     // UTable config
     paginationOptions,
     sortingOptions,

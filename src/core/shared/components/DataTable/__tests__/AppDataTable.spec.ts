@@ -147,3 +147,84 @@ describe('AppDataTable mobile rendering', () => {
     expect(wrapper.find('[data-testid="pagination"]').exists()).toBe(true)
   })
 })
+
+// ─── Error state ─────────────────────────────────────────────────────────────
+// When the underlying query has failed, AppDataTable must render a distinct
+// error block INSTEAD of the empty/loading placeholders so users (and devs)
+// see a real error message instead of a fake "no results" empty state.
+
+describe('AppDataTable error state', () => {
+  beforeEach(() => {
+    isBelowBreakpoint.value = false
+  })
+
+  it('renders the error block (and not the empty text) in table view when error=true', () => {
+    const wrapper = mountComponent({
+      error: true,
+      errorMessage: 'No se pudieron cargar los datos. Reintentá.',
+      data: [],
+      totalCount: 0,
+    })
+
+    expect(wrapper.find('[data-testid="table-error-state"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="table-error-state"]').text()).toContain(
+      'No se pudieron cargar los datos. Reintentá.',
+    )
+    // The generic empty text must NOT show when error is true.
+    expect(wrapper.text()).not.toContain('No se encontraron resultados')
+    expect(wrapper.find('[data-testid="table-view"]').exists()).toBe(false)
+  })
+
+  it('renders the error block (and not the mobile empty state) in cards view when error=true', () => {
+    isBelowBreakpoint.value = true
+    const wrapper = mountComponent({
+      error: true,
+      errorMessage: 'No se pudieron cargar los datos. Reintentá.',
+      data: [],
+      totalCount: 0,
+      mobileRender: 'cards',
+    })
+
+    expect(wrapper.find('[data-testid="mobile-error-state"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="mobile-error-state"]').text()).toContain(
+      'No se pudieron cargar los datos. Reintentá.',
+    )
+    expect(wrapper.find('[data-testid="mobile-empty-state"]').exists()).toBe(false)
+  })
+
+  it('emits "refresh" when the retry button is clicked in error state', async () => {
+    const wrapper = mountComponent({
+      error: true,
+      data: [],
+      totalCount: 0,
+    })
+
+    await wrapper.get('[data-testid="table-error-retry"]').trigger('click')
+
+    expect(wrapper.emitted('refresh')).toBeTruthy()
+    expect(wrapper.emitted('refresh')).toHaveLength(1)
+  })
+
+  it('renders the empty text (and not the error block) when error=false and data is empty', () => {
+    const wrapper = mountComponent({
+      error: false,
+      data: [],
+      totalCount: 0,
+    })
+
+    expect(wrapper.find('[data-testid="table-error-state"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('No se encontraron resultados')
+  })
+
+  it('uses the default error message in Spanish when errorMessage prop is not provided', () => {
+    const wrapper = mountComponent({
+      error: true,
+      data: [],
+      totalCount: 0,
+    })
+
+    const errorBlock = wrapper.find('[data-testid="table-error-state"]')
+    expect(errorBlock.exists()).toBe(true)
+    expect(errorBlock.text()).toContain('No se pudieron cargar los datos')
+  })
+})

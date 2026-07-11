@@ -21,6 +21,11 @@ const props = withDefaults(
     loading?: boolean
     fetching?: boolean
     empty?: string
+    // Error state — when true, the table renders a distinct error block
+    // INSTEAD of the empty placeholder, so a failed request is never masked
+    // as "0 results". Consumers wire this to useServerTable's isError.
+    error?: boolean
+    errorMessage?: string
     // Pagination
     pageCount?: number
     totalCount?: number
@@ -48,6 +53,8 @@ const props = withDefaults(
     loading: false,
     fetching: false,
     empty: 'No se encontraron resultados',
+    error: false,
+    errorMessage: 'No se pudieron cargar los datos. Reintentá.',
     pageCount: 0,
     totalCount: 0,
     pageSizeOptions: () => [5, 10, 20, 50],
@@ -184,8 +191,31 @@ function handleClearSelection() {
       />
 
       <template v-else>
+        <!-- Error state: shown instead of skeleton/empty when the query failed.
+             Distinct from "no results" so users (and devs) see the real error
+             instead of a fake empty placeholder. -->
         <div
-          v-if="isLoading"
+          v-if="props.error"
+          class="flex min-h-32 flex-col items-center justify-center gap-3 rounded-lg border border-error/30 bg-error/5 px-4 py-8 text-sm"
+          data-testid="mobile-error-state"
+          role="alert"
+        >
+          <UIcon name="i-lucide-alert-triangle" class="size-6 text-error" />
+          <p class="text-center text-error">{{ props.errorMessage }}</p>
+          <UButton
+            v-if="props.showRefresh"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            icon="i-lucide-rotate-cw"
+            label="Reintentar"
+            data-testid="mobile-error-retry"
+            @click="emit('refresh')"
+          />
+        </div>
+
+        <div
+          v-else-if="isLoading"
           class="grid gap-3"
           data-testid="mobile-cards-loading"
         >
@@ -221,30 +251,55 @@ function handleClearSelection() {
       </template>
     </template>
 
-    <UTable
-      v-else
-      ref="table"
-      v-model:sorting="sorting"
-      v-model:column-pinning="columnPinning"
-      v-model:column-visibility="columnVisibility"
-      v-model:row-selection="rowSelection"
-      :data="props.data"
-      :columns="props.columns"
-      :loading="isLoading"
-      loading-color="primary"
-      loading-animation="carousel"
-      :empty="props.empty"
-      sticky
-      :sorting-options="{
-        manualSorting: true,
-      }"
-      class="flex-1"
-      data-testid="table-view"
-    >
-      <template v-for="name in forwardedTableSlots" #[name]="slotProps">
-        <slot :name="name" v-bind="slotProps ?? {}" />
-      </template>
-    </UTable>
+    <template v-else>
+      <!-- Error state for the table view: shown instead of UTable so a failed
+           request never renders as the generic "No se encontraron resultados"
+           empty row inside UTable. -->
+      <div
+        v-if="props.error"
+        class="flex min-h-32 flex-col items-center justify-center gap-3 rounded-lg border border-error/30 bg-error/5 px-4 py-10 text-sm"
+        data-testid="table-error-state"
+        role="alert"
+      >
+        <UIcon name="i-lucide-alert-triangle" class="size-6 text-error" />
+        <p class="text-center text-error">{{ props.errorMessage }}</p>
+        <UButton
+          v-if="props.showRefresh"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          icon="i-lucide-rotate-cw"
+          label="Reintentar"
+          data-testid="table-error-retry"
+          @click="emit('refresh')"
+        />
+      </div>
+
+      <UTable
+        v-else
+        ref="table"
+        v-model:sorting="sorting"
+        v-model:column-pinning="columnPinning"
+        v-model:column-visibility="columnVisibility"
+        v-model:row-selection="rowSelection"
+        :data="props.data"
+        :columns="props.columns"
+        :loading="isLoading"
+        loading-color="primary"
+        loading-animation="carousel"
+        :empty="props.empty"
+        sticky
+        :sorting-options="{
+          manualSorting: true,
+        }"
+        class="flex-1"
+        data-testid="table-view"
+      >
+        <template v-for="name in forwardedTableSlots" #[name]="slotProps">
+          <slot :name="name" v-bind="slotProps ?? {}" />
+        </template>
+      </UTable>
+    </template>
 
     <!-- Pagination -->
     <DataTablePagination
