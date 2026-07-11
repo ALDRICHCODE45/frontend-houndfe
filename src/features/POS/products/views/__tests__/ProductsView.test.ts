@@ -61,6 +61,8 @@ vi.mock('@/core/shared/composables/useServerTable', () => ({
     pageCount: 1,
     isLoading: false,
     isFetching: false,
+    isError: ref(false),
+    error: ref(null),
     refresh: vi.fn(),
     pageSizeOptions: [10],
     showingFrom: 1,
