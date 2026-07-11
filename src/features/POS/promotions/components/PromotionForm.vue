@@ -15,6 +15,7 @@ import {
   promotionToFormState,
   type FormFieldError,
 } from '../composables/usePromotionForm'
+import { usePromotionTargetNames } from '../composables/usePromotionTargetNames'
 import { getTypeConfig } from '../utils/promotionStatusConfig.utils'
 
 // ── Discount percent select options ───────────────────────────────────────────
@@ -60,12 +61,58 @@ const formState = reactive<PromotionFormState>(
   props.initialData ? promotionToFormState(props.initialData) : getInitialState(props.type),
 )
 
+// ── Edit-mode name resolution ─────────────────────────────────────────────────
+//
+// `promotionToFormState` is a PURE function — it hydrates target entries with
+// `name: ''` because it has no access to the catalog APIs. In edit mode we
+// cross-reference the existing categories/brands/products catalogs to fill in
+// the friendly name so the selected-item chips don't fall back to the raw UUID.
+// The form renders immediately with the (empty-name) chips and the names
+// populate progressively once the catalogs resolve.
+const { resolveTargetNames } = usePromotionTargetNames()
+
+async function resolveAndApplyNames() {
+  if (props.mode !== 'edit') return
+  if (formState.targetItems.length > 0 && formState.targetItems.some((i) => !i.name)) {
+    formState.targetItems = await resolveTargetNames(
+      formState.appliesTo,
+      formState.targetItems,
+    )
+  }
+  if (formState.type === 'ADVANCED') {
+    if (
+      formState.buyTargetItems.length > 0 &&
+      formState.buyTargetItems.some((i) => !i.name)
+    ) {
+      formState.buyTargetItems = await resolveTargetNames(
+        formState.buyTargetType,
+        formState.buyTargetItems,
+      )
+    }
+    if (
+      formState.getTargetItems.length > 0 &&
+      formState.getTargetItems.some((i) => !i.name)
+    ) {
+      formState.getTargetItems = await resolveTargetNames(
+        formState.getTargetType,
+        formState.getTargetItems,
+      )
+    }
+  }
+}
+
+// Fire-and-forget: form already rendered with empty names — names populate
+// once the catalog resolves. We deliberately do NOT await this in setup so
+// the form mounts synchronously.
+void resolveAndApplyNames()
+
 // Sync when initialData changes (edit mode load)
 watch(
   () => props.initialData,
   (data) => {
     if (data) {
       Object.assign(formState, promotionToFormState(data))
+      void resolveAndApplyNames()
     }
   },
 )
