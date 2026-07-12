@@ -54,6 +54,7 @@ function mountSection(props: {
   selectedItems?: PromotionTargetItemFormEntry[]
   side?: 'DEFAULT' | 'BUY' | 'GET'
   label?: string
+  allowVariants?: boolean
 }) {
   const queryClient = makeQueryClient()
   return mount(PromotionTargetItemsSection, {
@@ -62,12 +63,24 @@ function mountSection(props: {
       selectedItems: props.selectedItems ?? [],
       side: props.side ?? 'DEFAULT',
       label: props.label,
+      allowVariants: props.allowVariants,
     },
     global: {
       plugins: [[VueQueryPlugin, { queryClient }]],
       stubs: FULL_STUBS,
     },
   })
+}
+
+function getRadioValues(wrapper: ReturnType<typeof mountSection>): string[] {
+  // Nuxt UI's URadioGroup renders <button role="radio" value="..."> for each
+  // item. Extract the values to assert against the rendered options — this is
+  // what the user actually sees in the radio group, independent of the internal
+  // option-source shape.
+  return wrapper
+    .findAll('[role="radio"]')
+    .map((node) => node.attributes('value') ?? '')
+    .filter(Boolean)
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -259,5 +272,33 @@ describe('PromotionTargetItemsSection', () => {
     expect(wrapper.text()).toContain('Camisa')
     expect(wrapper.text()).toContain('Talle M')
     expect(wrapper.text()).toContain('·')
+  })
+
+  // ── REQ-1 second scenario: VARIANTS hidden under BUY_X_GET_Y / ADVANCED ──
+  // The global TARGET_TYPE_OPTIONS constant lists all four options
+  // (CATEGORIES/BRANDS/PRODUCTS/VARIANTS). The section must NOT leak VARIANTS
+  // into BUY_X_GET_Y / ADVANCED instances. The section exposes a boolean
+  // `allowVariants` prop (default false) — only the PRODUCT_DISCOUNT instance
+  // sets it to true.
+
+  it('does NOT render VARIANTS option when allowVariants is omitted (default — BUY_X_GET_Y/ADVANCED)', () => {
+    const wrapper = mountSection({ targetType: 'PRODUCTS' })
+    const values = getRadioValues(wrapper)
+    expect(values).not.toContain('VARIANTS')
+    expect(values).toEqual(expect.arrayContaining(['CATEGORIES', 'BRANDS', 'PRODUCTS']))
+  })
+
+  it('does NOT render VARIANTS option when allowVariants is explicitly false', () => {
+    const wrapper = mountSection({ targetType: 'PRODUCTS', allowVariants: false })
+    const values = getRadioValues(wrapper)
+    expect(values).not.toContain('VARIANTS')
+  })
+
+  it('renders VARIANTS option when allowVariants is true (PRODUCT_DISCOUNT)', () => {
+    const wrapper = mountSection({ targetType: 'PRODUCTS', allowVariants: true })
+    const values = getRadioValues(wrapper)
+    expect(values).toEqual(
+      expect.arrayContaining(['CATEGORIES', 'BRANDS', 'PRODUCTS', 'VARIANTS']),
+    )
   })
 })

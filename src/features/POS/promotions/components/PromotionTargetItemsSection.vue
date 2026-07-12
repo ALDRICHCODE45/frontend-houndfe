@@ -17,10 +17,15 @@ const props = withDefaults(
     selectedItems: PromotionTargetItemFormEntry[]
     side?: 'DEFAULT' | 'BUY' | 'GET'
     label?: string
+    // REQ-1: VARIANTS is only allowed for PRODUCT_DISCOUNT. The parent must
+    // opt in explicitly; the default hides VARIANTS so the BUY_X_GET_Y /
+    // ADVANCED instances don't need to know about promotion-type semantics.
+    allowVariants?: boolean
   }>(),
   {
     side: 'DEFAULT',
     label: undefined,
+    allowVariants: false,
   },
 )
 
@@ -85,6 +90,14 @@ const catalogItems = computed<Array<{ id: string; name: string }>>(() => {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+// REQ-1: VARIANTS is conditionally appended. The base TARGET_TYPE_OPTIONS keeps
+// all four entries (so it remains a single source of truth and tests asserting
+// the global constant can still pass); per-instance filtering happens here so
+// BUY_X_GET_Y / ADVANCED instances never leak VARIANTS.
+const targetTypeOptions = computed(() =>
+  props.allowVariants ? TARGET_TYPE_OPTIONS : TARGET_TYPE_OPTIONS.filter((o) => o.value !== 'VARIANTS'),
+)
+
 function onTargetTypeChange(type: PromotionTargetType) {
   emit('update:targetType', type)
   emit('update:selectedItems', [])
@@ -141,7 +154,7 @@ defineExpose({ addItem, removeItem, onTargetTypeChange })
     <!-- Target type radio group -->
     <URadioGroup
       :model-value="targetType"
-      :items="TARGET_TYPE_OPTIONS"
+      :items="targetTypeOptions"
       value-key="value"
       label-key="label"
       orientation="horizontal"
