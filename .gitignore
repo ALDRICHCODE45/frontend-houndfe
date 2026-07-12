@@ -25,6 +25,7 @@ coverage
 *.sw?
 .atl/
 .opencode/
+.codegraph/
 
 *.tsbuildinfo
 
