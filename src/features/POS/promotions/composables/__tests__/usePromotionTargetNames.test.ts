@@ -30,12 +30,14 @@ import type { PromotionTargetItemFormEntry } from '../../interfaces/promotion.ty
 const getCategoriesMock = vi.fn()
 const getBrandsMock = vi.fn()
 const getByIdMock = vi.fn()
+const getVariantsMock = vi.fn()
 
 vi.mock('@/features/POS/products/api/product.api', () => ({
   productApi: {
     getCategories: (...args: unknown[]) => getCategoriesMock(...args),
     getBrands: (...args: unknown[]) => getBrandsMock(...args),
     getById: (...args: unknown[]) => getByIdMock(...args),
+    getVariants: (...args: unknown[]) => getVariantsMock(...args),
   },
 }))
 
@@ -201,5 +203,111 @@ describe('usePromotionTargetNames', () => {
       { targetId: 'c1', name: 'Analgésicos' },
       { targetId: 'c-missing', name: '' },
     ])
+  })
+
+  // ── VARIANTS branch (REQ-5) ─────────────────────────────────────────────
+
+  it('resolves VARIANTS names via getVariants(productId) for entries that carry a productId', async () => {
+    getVariantsMock.mockImplementation(async (productId: string) => {
+      if (productId === 'p1') return [{ id: 'v1', productId: 'p1', name: 'Talle M' }]
+      if (productId === 'p2') return [{ id: 'v2', productId: 'p2', name: 'Rojo' }]
+      return []
+    })
+
+    const { resolveTargetNames } = mountComposable()
+    const result = await resolveTargetNames('VARIANTS', [
+      { targetId: 'v1', name: '', productId: 'p1' },
+      { targetId: 'v2', name: '', productId: 'p2' },
+    ])
+
+    expect(getVariantsMock).toHaveBeenCalledWith('p1')
+    expect(getVariantsMock).toHaveBeenCalledWith('p2')
+    expect(getVariantsMock).toHaveBeenCalledTimes(2)
+    expect(result).toEqual([
+      { targetId: 'v1', name: 'Talle M', productId: 'p1' },
+      { targetId: 'v2', name: 'Rojo', productId: 'p2' },
+    ])
+  })
+
+  it('VARIANTS: batches multiple variants from the same product into ONE getVariants call', async () => {
+    getVariantsMock.mockResolvedValueOnce([
+      { id: 'v1', productId: 'p1', name: 'Talle M' },
+      { id: 'v2', productId: 'p1', name: 'Talle L' },
+    ])
+
+    const { resolveTargetNames } = mountComposable()
+    const result = await resolveTargetNames('VARIANTS', [
+      { targetId: 'v1', name: '', productId: 'p1' },
+      { targetId: 'v2', name: '', productId: 'p1' },
+    ])
+
+    // One product → one fetch (group-by-product dedup).
+    expect(getVariantsMock).toHaveBeenCalledTimes(1)
+    expect(result).toEqual([
+      { targetId: 'v1', name: 'Talle M', productId: 'p1' },
+      { targetId: 'v2', name: 'Talle L', productId: 'p1' },
+    ])
+  })
+
+  it('VARIANTS: entries WITHOUT productId are returned unchanged (no fetch, no throw)', async () => {
+    const { resolveTargetNames } = mountComposable()
+    const result = await resolveTargetNames('VARIANTS', [
+      // Hydrated from a fresh backend response: no productId known.
+      { targetId: 'v-unknown', name: '' },
+    ])
+
+    expect(getVariantsMock).not.toHaveBeenCalled()
+    expect(result).toEqual([{ targetId: 'v-unknown', name: '' }])
+  })
+
+  it('VARIANTS: mixed entries — productId-bearing resolve, others fall back unchanged', async () => {
+    getVariantsMock.mockResolvedValueOnce([
+      { id: 'v1', productId: 'p1', name: 'Talle M' },
+    ])
+
+    const { resolveTargetNames } = mountComposable()
+    const result = await resolveTargetNames('VARIANTS', [
+      { targetId: 'v1', name: '', productId: 'p1' },
+      { targetId: 'v-orphan', name: '' },
+    ])
+
+    expect(result).toEqual([
+      { targetId: 'v1', name: 'Talle M', productId: 'p1' },
+      { targetId: 'v-orphan', name: '' },
+    ])
+  })
+
+  it('VARIANTS: getVariants throwing → entries returned unchanged, resolver does not throw', async () => {
+    getVariantsMock.mockRejectedValueOnce(new Error('network down'))
+
+    const { resolveTargetNames } = mountComposable()
+    const result = await resolveTargetNames('VARIANTS', [
+      { targetId: 'v1', name: '', productId: 'p1' },
+    ])
+
+    expect(result).toEqual([{ targetId: 'v1', name: '', productId: 'p1' }])
+  })
+
+  it('VARIANTS: variant id not present in the fetched list → entry returned unchanged', async () => {
+    getVariantsMock.mockResolvedValueOnce([
+      { id: 'v1', productId: 'p1', name: 'Talle M' },
+    ])
+
+    const { resolveTargetNames } = mountComposable()
+    const result = await resolveTargetNames('VARIANTS', [
+      { targetId: 'v-deleted', name: '', productId: 'p1' },
+    ])
+
+    expect(result).toEqual([{ targetId: 'v-deleted', name: '', productId: 'p1' }])
+  })
+
+  it('VARIANTS: entries that already carry a name are passed through (idempotent)', async () => {
+    const { resolveTargetNames } = mountComposable()
+    const result = await resolveTargetNames('VARIANTS', [
+      { targetId: 'v1', name: 'Talle M', productId: 'p1' },
+    ])
+
+    expect(getVariantsMock).not.toHaveBeenCalled()
+    expect(result).toEqual([{ targetId: 'v1', name: 'Talle M', productId: 'p1' }])
   })
 })
