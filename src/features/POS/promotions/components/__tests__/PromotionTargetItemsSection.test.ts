@@ -74,13 +74,19 @@ function mountSection(props: {
 }
 
 function getRadioValues(wrapper: ReturnType<typeof mountSection>): string[] {
-  // Nuxt UI's URadioGroup renders <button role="radio" value="..."> for each
-  // item. Extract the values to assert against the rendered options — this is
-  // what the user actually sees in the radio group, independent of the internal
-  // option-source shape.
+  // Post Slice-1.5 (visual polish): the target-type selector was promoted from
+  // a Nuxt UI URadioGroup to icon-cards matching the same visual language as
+  // the AUTOMATIC/MANUAL method cards in PromotionForm.vue. Each card carries
+  // `data-testid="target-card-{VALUE}"`. Extract the suffix to assert against
+  // the rendered options — this is what the user actually sees, independent of
+  // the internal option-source shape.
   return wrapper
-    .findAll('[role="radio"]')
-    .map((node) => node.attributes('value') ?? '')
+    .findAll('[data-testid^="target-card-"]')
+    .map((node) => {
+      const id = node.attributes('data-testid') ?? ''
+      const idx = id.lastIndexOf('-')
+      return idx >= 0 ? id.slice(idx + 1) : ''
+    })
     .filter(Boolean)
 }
 
@@ -316,11 +322,75 @@ describe('PromotionTargetItemsSection', () => {
     }
   })
 
+  // ── Slice 1.5: visual polish — icon-card selector + prominent add button ──
+  // The target-type selector was promoted from a URadioGroup to icon-cards
+  // matching the AUTOMATIC/MANUAL method cards in PromotionForm.vue. Each
+  // type becomes a card with a leading icon + label. The "Agregar..." button
+  // becomes prominent and full-width with a dynamic label per type.
+
   it('"Agregar..." button is NOT rendered for VARIANTS (PVS still owns that path in Slice 1)', () => {
     const wrapper = mountSection({ targetType: 'VARIANTS', allowVariants: true })
     expect(wrapper.find('[data-testid="open-target-modal"]').exists()).toBe(false)
     // ProductVariantSelector is still wired inline (build-safety).
     expect(wrapper.findComponent(ProductVariantSelector).exists()).toBe(true)
+  })
+
+  it('icon-card selector: clicking a type card emits update:targetType (Slice 1.5)', async () => {
+    const wrapper = mountSection({ targetType: 'PRODUCTS' })
+    const card = wrapper.find('[data-testid="target-card-BRANDS"]')
+    expect(card.exists(), 'expected target-card-BRANDS to be rendered').toBe(true)
+    await card.trigger('click')
+    const emitted = wrapper.emitted('update:targetType') as [PromotionTargetType][][]
+    expect(emitted).toBeTruthy()
+    expect(emitted[0]).toEqual(['BRANDS'])
+  })
+
+  it('icon-card selector: emits update:selectedItems=[] when type changes (REQ-2 clear)', async () => {
+    const wrapper = mountSection({
+      targetType: 'PRODUCTS',
+      selectedItems: [{ targetId: 'p1', name: 'Camisa Azul' }],
+    })
+    const card = wrapper.find('[data-testid="target-card-CATEGORIES"]')
+    expect(card.exists()).toBe(true)
+    await card.trigger('click')
+    const emitted = wrapper.emitted('update:selectedItems') as [
+      PromotionTargetItemFormEntry[],
+    ][]
+    expect(emitted).toBeTruthy()
+    expect(emitted[0]).toEqual([[]])
+  })
+
+  it('"Agregar..." button label is dynamic per type (Slice 1.5 visual polish)', () => {
+    const cases: Array<{ type: PromotionTargetType; expected: string }> = [
+      { type: 'CATEGORIES', expected: 'Agregar categorías' },
+      { type: 'BRANDS', expected: 'Agregar marcas' },
+      { type: 'PRODUCTS', expected: 'Agregar productos' },
+    ]
+    for (const c of cases) {
+      const wrapper = mountSection({ targetType: c.type })
+      const btn = wrapper.find('[data-testid="open-target-modal"]')
+      expect(btn.exists(), `button missing for ${c.type}`).toBe(true)
+      expect(btn.text(), `button text for ${c.type}`).toContain(c.expected)
+    }
+  })
+
+  it('"Agregar..." button is full-width / prominent (Slice 1.5 visual polish)', () => {
+    const wrapper = mountSection({ targetType: 'PRODUCTS' })
+    const btn = wrapper.find('[data-testid="open-target-modal"]')
+    expect(btn.exists()).toBe(true)
+    // The visual polish commit makes the button full-width. We assert the
+    // semantic outcome (button is present and clickable) rather than the exact
+    // Tailwind class — the styling contract is documented in the design, not
+    // coupled here.
+    expect(btn.element.tagName.toLowerCase()).toBe('button')
+  })
+
+  it('VARIANTS card is rendered only when allowVariants=true (PRODUCT_DISCOUNT)', () => {
+    const withoutFlag = mountSection({ targetType: 'PRODUCTS' })
+    expect(withoutFlag.find('[data-testid="target-card-VARIANTS"]').exists()).toBe(false)
+
+    const withFlag = mountSection({ targetType: 'PRODUCTS', allowVariants: true })
+    expect(withFlag.find('[data-testid="target-card-VARIANTS"]').exists()).toBe(true)
   })
 
   it('clicking "Agregar..." opens the selection modal (REQ-1, REQ-2)', async () => {

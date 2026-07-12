@@ -35,6 +35,19 @@ const emit = defineEmits<{
   'update:selectedItems': [items: PromotionTargetItemFormEntry[]]
 }>()
 
+// ── Target type card metadata (Slice 1.5 visual polish) ─────────────────────
+// Icon map is LOCAL to the section so we don't mutate the shared
+// TARGET_TYPE_OPTIONS shape (a unit test asserts it stays {label,value}[]).
+// Icons chosen to match the project's existing i-lucide-* conventions and
+// verified against icon usage elsewhere in the codebase (see the visual-
+// polish commit message for the source mappings).
+const TARGET_TYPE_CARDS: Record<PromotionTargetType, { icon: string; noun: string }> = {
+  CATEGORIES: { icon: 'i-lucide-layout-grid', noun: 'categorías' },
+  BRANDS: { icon: 'i-lucide-tag', noun: 'marcas' },
+  PRODUCTS: { icon: 'i-lucide-package', noun: 'productos' },
+  VARIANTS: { icon: 'i-lucide-git-branch', noun: 'variantes' },
+}
+
 // ── Modal state (Slice 1: flat types only) ───────────────────────────────────
 // Slice 2 routes VARIANTS through the same modal. Until then, VARIANTS still
 // uses the inline ProductVariantSelector (build-safety).
@@ -53,6 +66,14 @@ const showFlatModalButton = computed(
     props.targetType === 'BRANDS' ||
     props.targetType === 'PRODUCTS',
 )
+
+// Dynamic "Agregar <tipo>" label (Slice 1.5 visual polish — full-width,
+// prominent, type-aware). Reuses the same noun map as the empty-state so
+// the wording stays consistent across the section.
+const addButtonLabel = computed(() => {
+  const noun = TARGET_TYPE_CARDS[props.targetType]?.noun ?? 'items'
+  return `Agregar ${noun}`
+})
 
 // ── Handlers ─────────────────────────────────────────────────────────────────
 
@@ -88,13 +109,7 @@ function removeItem(id: string) {
 // ── Empty state text ─────────────────────────────────────────────────────────
 
 const emptyStateLabel = computed(() => {
-  const typeMap: Record<PromotionTargetType, string> = {
-    CATEGORIES: 'categorías',
-    BRANDS: 'marcas',
-    PRODUCTS: 'productos',
-    VARIANTS: 'variantes',
-  }
-  const noun = typeMap[props.targetType]
+  const noun = TARGET_TYPE_CARDS[props.targetType]?.noun ?? 'items'
   return `Elige los ${noun} a los que aplicará la promoción`
 })
 
@@ -108,25 +123,41 @@ defineExpose({ openModal, removeItem, onTargetTypeChange, onModalConfirm })
       {{ label }}
     </p>
 
-    <!-- Target type radio group (unchanged contract) -->
-    <URadioGroup
-      :model-value="targetType"
-      :items="targetTypeOptions"
-      value-key="value"
-      label-key="label"
-      orientation="horizontal"
-      @update:model-value="onTargetTypeChange($event as PromotionTargetType)"
-    />
+    <!-- Target type selector — icon-cards matching the AUTOMATIC/MANUAL
+         method cards in PromotionForm.vue (Slice 1.5 visual polish).
+         Visual language (border, ring, hover, transition) is shared so
+         the two card selectors in this form look consistent. -->
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <button
+        v-for="opt in targetTypeOptions"
+        :key="opt.value"
+        type="button"
+        :data-testid="`target-card-${opt.value}`"
+        class="flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border p-4 text-center transition-all duration-200"
+        :class="
+          targetType === opt.value
+            ? 'border-primary bg-primary/15 ring-1 ring-primary/35'
+            : 'border-default bg-elevated/20 hover:border-primary/40 hover:bg-elevated/60'
+        "
+        @click="onTargetTypeChange(opt.value)"
+      >
+        <UIcon :name="TARGET_TYPE_CARDS[opt.value]!.icon" class="h-5 w-5 text-toned" />
+        <span class="text-sm font-medium text-highlighted">{{ opt.label }}</span>
+      </button>
+    </div>
 
-    <!-- Flat types: "Agregar..." button → modal -->
-    <div v-if="showFlatModalButton" class="flex items-center gap-2">
+    <!-- Flat types: prominent, full-width "Agregar <tipo>" button → modal -->
+    <div v-if="showFlatModalButton" class="flex">
       <UButton
         color="primary"
         variant="solid"
+        size="lg"
+        icon="i-lucide-plus"
+        block
         data-testid="open-target-modal"
         @click="openModal"
       >
-        Agregar...
+        {{ addButtonLabel }}
       </UButton>
     </div>
 
