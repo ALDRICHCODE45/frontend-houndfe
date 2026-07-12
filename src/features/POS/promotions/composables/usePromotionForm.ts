@@ -54,6 +54,7 @@ export const TARGET_TYPE_OPTIONS: SelectOption<PromotionTargetType>[] = [
   { label: 'Categorías', value: 'CATEGORIES' },
   { label: 'Marcas', value: 'BRANDS' },
   { label: 'Productos', value: 'PRODUCTS' },
+  { label: 'Variantes', value: 'VARIANTS' },
 ]
 
 export const BUY_X_GET_Y_PRESETS: BuyXGetYPreset[] = [
@@ -350,6 +351,22 @@ export function mapApiErrorToFields(input: ApiErrorInput): ApiErrorMapping {
         {
           path: 'targetItems',
           message: 'Hay targets duplicados. Revisá que no haya items repetidos.',
+        },
+      ],
+      toastMessage: null,
+    }
+  }
+
+  // ── INVALID_TARGET → field-level error on targetItems (REQ-6) ───────────
+  // Triggered when the backend rejects a variant id as no longer valid
+  // (deleted, moved to another tenant, etc.). The form stays editable so
+  // the merchant can swap the variant and resubmit.
+  if (code === 'INVALID_TARGET') {
+    return {
+      fieldErrors: [
+        {
+          path: 'targetItems',
+          message: 'La variante seleccionada no existe o no pertenece a tu comercio',
         },
       ],
       toastMessage: null,

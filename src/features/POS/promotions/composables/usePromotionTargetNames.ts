@@ -40,6 +40,8 @@ export const promotionTargetNameQueryKeys = {
   categories: () => ['promotions', 'categories-all'] as const,
   brands: () => ['promotions', 'brands-all'] as const,
   product: (id: string) => ['promotions', 'product-by-id', id] as const,
+  variantsByProduct: (id: string) =>
+    ['promotions', 'variants-by-product', id] as const,
 }
 
 // ── Composable ────────────────────────────────────────────────────────────────
@@ -83,6 +85,8 @@ export function usePromotionTargetNames(): UsePromotionTargetNames {
         return resolveViaBrands(queryClient, items)
       case 'PRODUCTS':
         return resolveProducts(queryClient, items)
+      case 'VARIANTS':
+        return resolveVariants(queryClient, items)
       default:
         // Unknown target type (e.g. '' before user picks) — return as-is.
         return items.map((item) => ({ ...item }))
@@ -216,5 +220,83 @@ async function fetchProductName(
     return product?.name ?? null
   } catch {
     return null
+  }
+}
+
+type VariantEntry = { id: string; name: string }
+
+/**
+ * Resolve VARIANTS target names on edit-mode hydration.
+ *
+ * A VARIANTS entry that carries a `productId` (created in this session) can be
+ * resolved by fetching that product's variants via productApi.getVariants and
+ * mapping variantId → name. We group items by productId so each product's
+ * variants are fetched EXACTLY ONCE per resolver call (and then cached by
+ * QueryClient across subsequent calls).
+ *
+ * Entries WITHOUT a productId (e.g. loaded fresh from the backend in edit
+ * mode) cannot be resolved — they're returned unchanged so the chip falls
+ * back to the variant id. This matches the design's "honest fallback" choice:
+ * the backend has no parent product relation to traverse.
+ *
+ * Like resolveProducts, this helper is wrapped in try/catch and NEVER throws
+ * — per-resolver failure must not block the form from rendering.
+ */
+async function resolveVariants(
+  queryClient: QueryClient,
+  items: PromotionTargetItemFormEntry[],
+): Promise<PromotionTargetItemFormEntry[]> {
+  // Idempotent: skip the network entirely if every entry already has a name.
+  if (items.every((i) => i.name.trim().length > 0)) {
+    return items.map((i) => ({ ...i }))
+  }
+
+  try {
+    const productModule = await import('@/features/POS/products/api/product.api')
+    const productApi: ProductApi & { getVariants: (id: string) => Promise<VariantEntry[]> } =
+      productModule.productApi as ProductApi & {
+        getVariants: (id: string) => Promise<VariantEntry[]>
+      }
+
+    // Group resolvable entries by productId — fetch each product once.
+    const resolvable = items.filter(
+      (i) => i.name.trim().length === 0 && typeof i.productId === 'string' && i.productId.length > 0,
+    )
+    const productIds = Array.from(new Set(resolvable.map((i) => i.productId!)))
+
+    const lookups = await Promise.all(
+      productIds.map(async (productId) => {
+        try {
+          const variants = await queryClient.fetchQuery<VariantEntry[]>({
+            queryKey: promotionTargetNameQueryKeys.variantsByProduct(productId),
+            queryFn: () => productApi.getVariants(productId),
+            // Variants change more often; shorter stale window matches the
+            // ProductVariantSelector picker for consistency.
+            staleTime: 60_000,
+          })
+          return [productId, new Map(variants.map((v) => [v.id, v.name]))] as const
+        } catch {
+          // Per-product failure → return empty map; entries will fall through
+          // unchanged. Never let one bad product take down the whole batch.
+          return [productId, new Map<string, string>()] as const
+        }
+      }),
+    )
+    const lookupByProduct = new Map<string, Map<string, string>>(lookups)
+
+    return items.map((item) => {
+      // Idempotent: original entry already has a name → keep it untouched.
+      if (item.name.trim().length > 0) return { ...item }
+      // Unresolvable: no productId → return as-is (chip falls back to id).
+      if (!item.productId) return { ...item }
+      const lookup = lookupByProduct.get(item.productId)
+      const resolvedName = lookup?.get(item.targetId)
+      return resolvedName
+        ? { ...item, name: resolvedName }
+        : { ...item }
+    })
+  } catch (error) {
+    console.warn('[usePromotionTargetNames] failed to resolve variants', { error })
+    return items.map((item) => ({ ...item }))
   }
 }

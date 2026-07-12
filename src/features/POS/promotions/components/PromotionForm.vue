@@ -320,6 +320,7 @@ function onSubmit() {
               <PromotionTargetItemsSection
                 :target-type="formState.appliesTo as PromotionTargetType"
                 :selected-items="formState.targetItems"
+                :allow-variants="true"
                 side="DEFAULT"
                 @update:target-type="onAppliesToChange"
                 @update:selected-items="formState.targetItems = $event"

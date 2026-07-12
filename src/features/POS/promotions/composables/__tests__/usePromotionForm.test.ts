@@ -109,6 +109,12 @@ describe('TARGET_TYPE_OPTIONS', () => {
     expect(values).toContain('BRANDS')
     expect(values).toContain('PRODUCTS')
   })
+
+  it('contains VARIANTS with label "Variantes"', () => {
+    const variantsOpt = TARGET_TYPE_OPTIONS.find((o) => o.value === 'VARIANTS')
+    expect(variantsOpt).toBeDefined()
+    expect(variantsOpt!.label).toBe('Variantes')
+  })
 })
 
 describe('BUY_X_GET_Y_PRESETS', () => {
@@ -612,6 +618,35 @@ describe('toCreatePayload', () => {
     expect(payload.targetItems![0]!.targetType).toBe('BRANDS')
     expect(payload.targetItems![1]!.targetType).toBe('BRANDS')
   })
+
+  it('VARIANTS payload shape: targetItems emit only {targetType, targetId} and strip productId/name/side', () => {
+    const state = getInitialState('PRODUCT_DISCOUNT')
+    Object.assign(state, {
+      title: 'Variants Discount',
+      method: 'AUTOMATIC',
+      discountType: 'PERCENTAGE',
+      discountValue: 10,
+      appliesTo: 'VARIANTS',
+      targetItems: [
+        {
+          targetId: 'v1',
+          name: 'Talle M',
+          productId: 'p1',
+          productName: 'Camisa',
+        },
+      ],
+    })
+    const payload = toCreatePayload(state) as CreateProductDiscountPayload
+    expect(payload.appliesTo).toBe('VARIANTS')
+    expect(payload.targetItems).toEqual([{ targetType: 'VARIANTS', targetId: 'v1' }])
+    // Hard invariant: the optional productId / productName / side / id keys must
+    // NEVER leak into the payload sent to the backend (REQ-4 invariant).
+    const serialized = JSON.stringify(payload)
+    expect(serialized).not.toContain('productId')
+    expect(serialized).not.toContain('productName')
+    expect(serialized).not.toContain('"side"')
+    expect(serialized).not.toContain('Talle M')
+  })
 })
 
 // ── toUpdatePayload ────────────────────────────────────────────────────────────
@@ -699,6 +734,19 @@ describe('mapApiErrorToFields', () => {
     expect(result.fieldErrors[0]!.path).toBe('targetItems')
     expect(result.fieldErrors[0]!.message).toBe(
       'Hay targets duplicados. Revisá que no haya items repetidos.',
+    )
+    expect(result.toastMessage).toBeNull()
+  })
+
+  it('maps INVALID_TARGET to field-level error on targetItems with Spanish message (REQ-6)', () => {
+    const result = mapApiErrorToFields({
+      error: 'INVALID_TARGET',
+      message: 'Variant not found',
+    })
+    expect(result.fieldErrors).toHaveLength(1)
+    expect(result.fieldErrors[0]!.path).toBe('targetItems')
+    expect(result.fieldErrors[0]!.message).toBe(
+      'La variante seleccionada no existe o no pertenece a tu comercio',
     )
     expect(result.toastMessage).toBeNull()
   })

@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
+import ProductVariantSelector from './ProductVariantSelector.vue'
 import type {
   PromotionTargetItemFormEntry,
   PromotionTargetType,
@@ -16,10 +17,15 @@ const props = withDefaults(
     selectedItems: PromotionTargetItemFormEntry[]
     side?: 'DEFAULT' | 'BUY' | 'GET'
     label?: string
+    // REQ-1: VARIANTS is only allowed for PRODUCT_DISCOUNT. The parent must
+    // opt in explicitly; the default hides VARIANTS so the BUY_X_GET_Y /
+    // ADVANCED instances don't need to know about promotion-type semantics.
+    allowVariants?: boolean
   }>(),
   {
     side: 'DEFAULT',
     label: undefined,
+    allowVariants: false,
   },
 )
 
@@ -84,6 +90,14 @@ const catalogItems = computed<Array<{ id: string; name: string }>>(() => {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+// REQ-1: VARIANTS is conditionally appended. The base TARGET_TYPE_OPTIONS keeps
+// all four entries (so it remains a single source of truth and tests asserting
+// the global constant can still pass); per-instance filtering happens here so
+// BUY_X_GET_Y / ADVANCED instances never leak VARIANTS.
+const targetTypeOptions = computed(() =>
+  props.allowVariants ? TARGET_TYPE_OPTIONS : TARGET_TYPE_OPTIONS.filter((o) => o.value !== 'VARIANTS'),
+)
+
 function onTargetTypeChange(type: PromotionTargetType) {
   emit('update:targetType', type)
   emit('update:selectedItems', [])
@@ -103,6 +117,17 @@ function removeItem(id: string) {
   )
 }
 
+// ── Chip label (REQ-3 — show product context for VARIANTS) ──────────────────
+//
+// When an entry carries a `productName` (variant entries created in this
+// session), render "{productName} · {name}" so chips across multiple products
+// stay distinguishable. Otherwise fall back to the existing `name || targetId`
+// behavior so other target types render unchanged.
+function chipLabel(item: PromotionTargetItemFormEntry): string {
+  if (item.productName && item.name) return `${item.productName} · ${item.name}`
+  return item.name || item.targetId
+}
+
 // ── Empty state text ──────────────────────────────────────────────────────────
 
 const emptyStateLabel = computed(() => {
@@ -110,6 +135,7 @@ const emptyStateLabel = computed(() => {
     CATEGORIES: 'categorías',
     BRANDS: 'marcas',
     PRODUCTS: 'productos',
+    VARIANTS: 'variantes',
   }
   const noun = typeMap[props.targetType]
   return `Elige los ${noun} a los que aplicará la promoción`
@@ -128,7 +154,7 @@ defineExpose({ addItem, removeItem, onTargetTypeChange })
     <!-- Target type radio group -->
     <URadioGroup
       :model-value="targetType"
-      :items="TARGET_TYPE_OPTIONS"
+      :items="targetTypeOptions"
       value-key="value"
       label-key="label"
       orientation="horizontal"
@@ -137,10 +163,19 @@ defineExpose({ addItem, removeItem, onTargetTypeChange })
 
     <!-- Search input -->
     <UInput
+      v-if="targetType !== 'VARIANTS'"
       v-model="searchQuery"
       :placeholder="`Buscar ${targetType === 'CATEGORIES' ? 'categorías' : targetType === 'BRANDS' ? 'marcas' : 'productos'}...`"
       leading-icon="i-lucide-search"
       data-testid="target-search-input"
+    />
+
+    <!-- VARIANTS branch (REQ-3) — two-step product → variant picker -->
+    <ProductVariantSelector
+      v-else
+      :selected-items="selectedItems"
+      data-testid="variant-selector"
+      @update:selected-items="(items) => emit('update:selectedItems', items)"
     />
 
     <!-- Catalog results dropdown -->
@@ -170,7 +205,7 @@ defineExpose({ addItem, removeItem, onTargetTypeChange })
         v-for="item in selectedItems"
         :key="item.targetId"
       >
-        {{ item.name || item.targetId }}
+        {{ chipLabel(item) }}
         <button
           type="button"
           class="cursor-pointer ml-1 rounded-full hover:bg-elevated transition-colors"
