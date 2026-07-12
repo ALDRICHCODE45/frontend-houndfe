@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
+import { defineComponent, h, ref } from 'vue'
 import type { PromotionTargetItemFormEntry, PromotionTargetType } from '../../interfaces/promotion.types'
 
 // ── Stubs ─────────────────────────────────────────────────────────────────────
@@ -31,6 +32,16 @@ const FULL_STUBS = {
 // ── Import after mocks ────────────────────────────────────────────────────────
 
 import PromotionTargetItemsSection from '../PromotionTargetItemsSection.vue'
+import ProductVariantSelector from '../ProductVariantSelector.vue'
+
+const getPaginatedMockForVariantSection = vi.fn()
+const getVariantsMockForVariantSection = vi.fn()
+vi.mock('@/features/POS/products/api/product.api', () => ({
+  productApi: {
+    getPaginated: (...args: unknown[]) => getPaginatedMockForVariantSection(...args),
+    getVariants: (...args: unknown[]) => getVariantsMockForVariantSection(...args),
+  },
+}))
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -157,5 +168,96 @@ describe('PromotionTargetItemsSection', () => {
       label: 'Aplica a estos productos',
     })
     expect(wrapper.text()).toContain('Aplica a estos productos')
+  })
+
+  // ── VARIANTS branch (REQ-2 / REQ-3) ──────────────────────────────────────
+
+  it('renders the ProductVariantSelector when targetType is VARIANTS', () => {
+    const wrapper = mountSection({
+      targetType: 'VARIANTS',
+      selectedItems: [],
+    })
+    expect(wrapper.findComponent(ProductVariantSelector).exists()).toBe(true)
+    // The plain search/catalog inputs for the legacy branches must NOT render.
+    expect(wrapper.find('[data-testid="target-search-input"]').exists()).toBe(false)
+  })
+
+  it('does not render ProductVariantSelector when targetType is not VARIANTS', () => {
+    const wrapper = mountSection({
+      targetType: 'PRODUCTS',
+      selectedItems: [],
+    })
+    expect(wrapper.findComponent(ProductVariantSelector).exists()).toBe(false)
+  })
+
+  it('switching from VARIANTS to another targetType clears items (REQ-2)', async () => {
+    const wrapper = mountSection({
+      targetType: 'VARIANTS',
+      selectedItems: [
+        { targetId: 'v1', name: 'Talle M', productId: 'p1', productName: 'Camisa' },
+      ],
+    })
+    await (
+      wrapper.vm as unknown as {
+        onTargetTypeChange: (t: PromotionTargetType) => void
+      }
+    ).onTargetTypeChange('PRODUCTS')
+    const emitted = wrapper.emitted('update:selectedItems') as [
+      PromotionTargetItemFormEntry[],
+    ][]
+    expect(emitted).toBeTruthy()
+    expect(emitted[0]![0]).toEqual([])
+  })
+
+  it('forwards update:selectedItems from ProductVariantSelector unchanged', async () => {
+    // Stub productApi so the selector can render its product list without 404.
+    getPaginatedMockForVariantSection.mockResolvedValue({
+      data: [{ id: 'p1', name: 'Camisa', hasVariants: true }],
+      pagination: { pageIndex: 0, pageSize: 20, totalCount: 1, pageCount: 1 },
+    })
+
+    const wrapper = mountSection({
+      targetType: 'VARIANTS',
+      selectedItems: [],
+    })
+    const innerSelector = wrapper.findComponent(ProductVariantSelector)
+    expect(innerSelector.exists()).toBe(true)
+    await innerSelector.vm.$emit('update:selectedItems', [
+      { targetId: 'v1', name: 'Talle M', productId: 'p1', productName: 'Camisa' },
+    ])
+
+    const emitted = wrapper.emitted('update:selectedItems') as [
+      PromotionTargetItemFormEntry[],
+    ][]
+    expect(emitted).toBeTruthy()
+    expect(emitted[emitted.length - 1]![0]).toEqual([
+      { targetId: 'v1', name: 'Talle M', productId: 'p1', productName: 'Camisa' },
+    ])
+  })
+
+  it('chip label for VARIANTS renders "{productName} · {name}" when productName is present', async () => {
+    // Stub productApi so the selector can render its product list.
+    getPaginatedMockForVariantSection.mockResolvedValue({
+      data: [],
+      pagination: { pageIndex: 0, pageSize: 20, totalCount: 0, pageCount: 0 },
+    })
+
+    const wrapper = mount(ProductVariantSelector, {
+      props: {
+        selectedItems: [
+          { targetId: 'v1', name: 'Talle M', productId: 'p1', productName: 'Camisa' },
+        ],
+      },
+      global: {
+        plugins: [[VueQueryPlugin, { queryClient: makeQueryClient() }]],
+        stubs: FULL_STUBS,
+      },
+    })
+
+    // Verify the chip label rendered by the selector itself (the section just
+    // forwards events unchanged — verifying the contract at the source).
+    expect(wrapper.text()).toContain('Camisa')
+    expect(wrapper.text()).toContain('Talle M')
+    expect(wrapper.text()).toContain('·')
   })
 })

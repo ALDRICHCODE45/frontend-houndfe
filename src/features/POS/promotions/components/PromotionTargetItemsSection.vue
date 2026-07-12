@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
+import ProductVariantSelector from './ProductVariantSelector.vue'
 import type {
   PromotionTargetItemFormEntry,
   PromotionTargetType,
@@ -103,6 +104,17 @@ function removeItem(id: string) {
   )
 }
 
+// ── Chip label (REQ-3 — show product context for VARIANTS) ──────────────────
+//
+// When an entry carries a `productName` (variant entries created in this
+// session), render "{productName} · {name}" so chips across multiple products
+// stay distinguishable. Otherwise fall back to the existing `name || targetId`
+// behavior so other target types render unchanged.
+function chipLabel(item: PromotionTargetItemFormEntry): string {
+  if (item.productName && item.name) return `${item.productName} · ${item.name}`
+  return item.name || item.targetId
+}
+
 // ── Empty state text ──────────────────────────────────────────────────────────
 
 const emptyStateLabel = computed(() => {
@@ -138,10 +150,19 @@ defineExpose({ addItem, removeItem, onTargetTypeChange })
 
     <!-- Search input -->
     <UInput
+      v-if="targetType !== 'VARIANTS'"
       v-model="searchQuery"
-      :placeholder="`Buscar ${targetType === 'CATEGORIES' ? 'categorías' : targetType === 'BRANDS' ? 'marcas' : targetType === 'VARIANTS' ? 'variantes' : 'productos'}...`"
+      :placeholder="`Buscar ${targetType === 'CATEGORIES' ? 'categorías' : targetType === 'BRANDS' ? 'marcas' : 'productos'}...`"
       leading-icon="i-lucide-search"
       data-testid="target-search-input"
+    />
+
+    <!-- VARIANTS branch (REQ-3) — two-step product → variant picker -->
+    <ProductVariantSelector
+      v-else
+      :selected-items="selectedItems"
+      data-testid="variant-selector"
+      @update:selected-items="(items) => emit('update:selectedItems', items)"
     />
 
     <!-- Catalog results dropdown -->
@@ -171,7 +192,7 @@ defineExpose({ addItem, removeItem, onTargetTypeChange })
         v-for="item in selectedItems"
         :key="item.targetId"
       >
-        {{ item.name || item.targetId }}
+        {{ chipLabel(item) }}
         <button
           type="button"
           class="cursor-pointer ml-1 rounded-full hover:bg-elevated transition-colors"
