@@ -288,7 +288,7 @@ function onSubmit() {
           <div class="flex flex-col gap-5">
             <!-- Discount type + value -->
             <div class="flex gap-3">
-              <UFormField label="Tipo" name="discountType" class="w-44 shrink-0">
+              <UFormField label="Tipo" name="discountType" class="flex-1">
                 <USelect
                   v-model="formState.discountType"
                   :items="DISCOUNT_TYPE_OPTIONS"
@@ -338,7 +338,7 @@ function onSubmit() {
           <div class="flex flex-col gap-5">
             <!-- Discount type + value -->
             <div class="flex gap-3">
-              <UFormField label="Tipo" name="discountType" class="w-44 shrink-0">
+              <UFormField label="Tipo" name="discountType" class="flex-1">
                 <USelect
                   v-model="formState.discountType"
                   :items="DISCOUNT_TYPE_OPTIONS"
