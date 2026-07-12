@@ -109,6 +109,12 @@ describe('TARGET_TYPE_OPTIONS', () => {
     expect(values).toContain('BRANDS')
     expect(values).toContain('PRODUCTS')
   })
+
+  it('contains VARIANTS with label "Variantes"', () => {
+    const variantsOpt = TARGET_TYPE_OPTIONS.find((o) => o.value === 'VARIANTS')
+    expect(variantsOpt).toBeDefined()
+    expect(variantsOpt!.label).toBe('Variantes')
+  })
 })
 
 describe('BUY_X_GET_Y_PRESETS', () => {

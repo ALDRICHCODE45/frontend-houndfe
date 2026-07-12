@@ -110,6 +110,7 @@ const emptyStateLabel = computed(() => {
     CATEGORIES: 'categorías',
     BRANDS: 'marcas',
     PRODUCTS: 'productos',
+    VARIANTS: 'variantes',
   }
   const noun = typeMap[props.targetType]
   return `Elige los ${noun} a los que aplicará la promoción`
@@ -138,7 +139,7 @@ defineExpose({ addItem, removeItem, onTargetTypeChange })
     <!-- Search input -->
     <UInput
       v-model="searchQuery"
-      :placeholder="`Buscar ${targetType === 'CATEGORIES' ? 'categorías' : targetType === 'BRANDS' ? 'marcas' : 'productos'}...`"
+      :placeholder="`Buscar ${targetType === 'CATEGORIES' ? 'categorías' : targetType === 'BRANDS' ? 'marcas' : targetType === 'VARIANTS' ? 'variantes' : 'productos'}...`"
       leading-icon="i-lucide-search"
       data-testid="target-search-input"
     />

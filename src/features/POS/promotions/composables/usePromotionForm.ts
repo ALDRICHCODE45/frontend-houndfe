@@ -54,6 +54,7 @@ export const TARGET_TYPE_OPTIONS: SelectOption<PromotionTargetType>[] = [
   { label: 'Categorías', value: 'CATEGORIES' },
   { label: 'Marcas', value: 'BRANDS' },
   { label: 'Productos', value: 'PRODUCTS' },
+  { label: 'Variantes', value: 'VARIANTS' },
 ]
 
 export const BUY_X_GET_Y_PRESETS: BuyXGetYPreset[] = [

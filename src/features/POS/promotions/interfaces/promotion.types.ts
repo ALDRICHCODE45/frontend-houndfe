@@ -8,7 +8,7 @@ export type PromotionStatus = 'ACTIVE' | 'SCHEDULED' | 'ENDED'
 
 export type DiscountType = 'PERCENTAGE' | 'FIXED'
 
-export type PromotionTargetType = 'CATEGORIES' | 'BRANDS' | 'PRODUCTS'
+export type PromotionTargetType = 'CATEGORIES' | 'BRANDS' | 'PRODUCTS' | 'VARIANTS'
 
 export type CustomerScope = 'ALL' | 'REGISTERED_ONLY' | 'SPECIFIC'
 
@@ -145,6 +145,15 @@ export type UpdatePromotionPayload = Partial<Omit<CreatePromotionPayload, 'type'
 export interface PromotionTargetItemFormEntry {
   targetId: string
   name: string
+  /**
+   * Optional session-only context for variant entries: the parent product id.
+   * Survives within a creation → same-session edit cycle so chips can show
+   * product context across multiple products. Stripped from the create/update
+   * payload by `toCreatePayload`/`toUpdatePayload` — never reaches the backend.
+   */
+  productId?: string
+  /** Optional parent product display name for chip rendering. Session-only. */
+  productName?: string
 }
 
 export interface PromotionFormState {
