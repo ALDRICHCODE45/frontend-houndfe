@@ -357,6 +357,22 @@ export function mapApiErrorToFields(input: ApiErrorInput): ApiErrorMapping {
     }
   }
 
+  // ── INVALID_TARGET → field-level error on targetItems (REQ-6) ───────────
+  // Triggered when the backend rejects a variant id as no longer valid
+  // (deleted, moved to another tenant, etc.). The form stays editable so
+  // the merchant can swap the variant and resubmit.
+  if (code === 'INVALID_TARGET') {
+    return {
+      fieldErrors: [
+        {
+          path: 'targetItems',
+          message: 'La variante seleccionada no existe o no pertenece a tu comercio',
+        },
+      ],
+      toastMessage: null,
+    }
+  }
+
   // ── ENTITY_ALREADY_EXISTS → toast only ────────────────────────────────────
   if (code === 'ENTITY_ALREADY_EXISTS') {
     return {

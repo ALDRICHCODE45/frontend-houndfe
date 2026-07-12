@@ -738,6 +738,19 @@ describe('mapApiErrorToFields', () => {
     expect(result.toastMessage).toBeNull()
   })
 
+  it('maps INVALID_TARGET to field-level error on targetItems with Spanish message (REQ-6)', () => {
+    const result = mapApiErrorToFields({
+      error: 'INVALID_TARGET',
+      message: 'Variant not found',
+    })
+    expect(result.fieldErrors).toHaveLength(1)
+    expect(result.fieldErrors[0]!.path).toBe('targetItems')
+    expect(result.fieldErrors[0]!.message).toBe(
+      'La variante seleccionada no existe o no pertenece a tu comercio',
+    )
+    expect(result.toastMessage).toBeNull()
+  })
+
   it('maps ENTITY_ALREADY_EXISTS to toast (cannot bind to specific field)', () => {
     const result = mapApiErrorToFields({ error: 'ENTITY_ALREADY_EXISTS', message: 'exists' })
     expect(result.fieldErrors).toHaveLength(0)
