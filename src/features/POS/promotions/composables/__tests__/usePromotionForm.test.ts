@@ -618,6 +618,35 @@ describe('toCreatePayload', () => {
     expect(payload.targetItems![0]!.targetType).toBe('BRANDS')
     expect(payload.targetItems![1]!.targetType).toBe('BRANDS')
   })
+
+  it('VARIANTS payload shape: targetItems emit only {targetType, targetId} and strip productId/name/side', () => {
+    const state = getInitialState('PRODUCT_DISCOUNT')
+    Object.assign(state, {
+      title: 'Variants Discount',
+      method: 'AUTOMATIC',
+      discountType: 'PERCENTAGE',
+      discountValue: 10,
+      appliesTo: 'VARIANTS',
+      targetItems: [
+        {
+          targetId: 'v1',
+          name: 'Talle M',
+          productId: 'p1',
+          productName: 'Camisa',
+        },
+      ],
+    })
+    const payload = toCreatePayload(state) as CreateProductDiscountPayload
+    expect(payload.appliesTo).toBe('VARIANTS')
+    expect(payload.targetItems).toEqual([{ targetType: 'VARIANTS', targetId: 'v1' }])
+    // Hard invariant: the optional productId / productName / side / id keys must
+    // NEVER leak into the payload sent to the backend (REQ-4 invariant).
+    const serialized = JSON.stringify(payload)
+    expect(serialized).not.toContain('productId')
+    expect(serialized).not.toContain('productName')
+    expect(serialized).not.toContain('"side"')
+    expect(serialized).not.toContain('Talle M')
+  })
 })
 
 // ── toUpdatePayload ────────────────────────────────────────────────────────────
