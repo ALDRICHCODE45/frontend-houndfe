@@ -428,4 +428,120 @@ describe('usePromotionTargetNames', () => {
     ])
     expect(getVariantsMock).toHaveBeenCalledTimes(1)
   })
+
+  // ── REQ-8: No second round-trip when enrichment is present (Slice 4) ─────
+  //
+  // Spec scenario: "No second round-trip when enrichment is present".
+  // End-to-end: hydrate a VARIANTS entry through `promotionToFormState` so
+  // `name` is populated from `variantName`, then call
+  // `resolveTargetNames('VARIANTS', hydratedItems)`. The resolver's
+  // idempotent short-circuit (line 250 of usePromotionTargetNames.ts:
+  // `items.every((i) => i.name.trim().length > 0)`) must fire — NO
+  // `getVariants` call must be issued, even though the entry carries a
+  // productId. This is the whole point of the backend enrichment: the
+  // form gets a friendly chip label with zero follow-up fetch.
+
+  it('REQ-8: hydrated VARIANTS entry with non-empty name triggers NO getVariants fetch (idempotent short-circuit)', async () => {
+    // No mock set up for getVariants — if the resolver hits it, the
+    // unhandled call will surface as a (mocked) call we can assert against.
+    // To be even more defensive, we give the mock an explicit mock that
+    // would fail if called.
+    getVariantsMock.mockImplementation(async () => {
+      throw new Error('REQ-8 short-circuit violated: getVariants should NOT be called when name is already populated')
+    })
+
+    const { resolveTargetNames } = mountComposable()
+    // Simulate a hydrated entry — name already populated from variantName.
+    const hydrated: PromotionTargetItemFormEntry[] = [
+      { targetId: 'v1', name: 'Talle M', productId: 'p1', productName: 'Camisa' },
+    ]
+    const result = await resolveTargetNames('VARIANTS', hydrated)
+
+    // Hard invariant: ZERO fetches. The idempotent guard must fire.
+    expect(getVariantsMock).not.toHaveBeenCalled()
+    // The entry must be passed through unchanged.
+    expect(result).toEqual([
+      { targetId: 'v1', name: 'Talle M', productId: 'p1', productName: 'Camisa' },
+    ])
+  })
+
+  it('REQ-8: when ALL hydrated entries have non-empty names, the resolver still issues ZERO getVariants calls (mixed productIds)', async () => {
+    getVariantsMock.mockImplementation(async () => {
+      throw new Error('REQ-8 short-circuit violated: getVariants should NOT be called when every name is populated')
+    })
+
+    const { resolveTargetNames } = mountComposable()
+    // 3 entries, 3 different productIds, all names pre-populated.
+    const hydrated: PromotionTargetItemFormEntry[] = [
+      { targetId: 'v1', name: 'Talle M', productId: 'p1', productName: 'Camisa' },
+      { targetId: 'v2', name: 'Rojo', productId: 'p2', productName: 'Remera' },
+      { targetId: 'v3', name: 'XL', productId: 'p3', productName: 'Buzo' },
+    ]
+    const result = await resolveTargetNames('VARIANTS', hydrated)
+
+    // Even with 3 unique productIds, the every-name-non-empty short-circuit
+    // means zero fetches.
+    expect(getVariantsMock).not.toHaveBeenCalled()
+    expect(result).toEqual(hydrated)
+  })
+
+  it('REQ-8: round-trip integration — promotionToFormState + resolveTargetNames → zero fetches when enrichment is present', async () => {
+    // Full integration: build a PromotionResponse with enriched VARIANTS,
+    // hydrate via promotionToFormState, then resolve via usePromotionTargetNames.
+    // The chain is exactly the path PromotionForm.vue takes on edit-mode
+    // hydration. We import the function from usePromotionForm to keep the
+    // integration honest.
+    const { promotionToFormState } = await import('../usePromotionForm')
+    const response = {
+      id: 'promo-1',
+      title: 'Test',
+      type: 'PRODUCT_DISCOUNT' as const,
+      method: 'AUTOMATIC' as const,
+      status: 'ACTIVE' as const,
+      startDate: null,
+      endDate: null,
+      customerScope: 'ALL' as const,
+      discountType: 'PERCENTAGE' as const,
+      discountValue: 10,
+      minPurchaseAmountCents: null,
+      appliesTo: 'VARIANTS' as const,
+      buyQuantity: null,
+      getQuantity: null,
+      getDiscountPercent: null,
+      buyTargetType: null,
+      getTargetType: null,
+      targetItems: [
+        {
+          id: 'ti-1',
+          side: 'DEFAULT' as const,
+          targetType: 'VARIANTS' as const,
+          targetId: 'v1',
+          productId: 'p1',
+          variantName: 'Talle M',
+          productName: 'Camisa',
+        },
+      ],
+      customers: [],
+      priceLists: [],
+      daysOfWeek: [],
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+    }
+    const state = promotionToFormState(response)
+    // Sanity check: hydration populated name from variantName.
+    expect(state.targetItems[0]?.name).toBe('Talle M')
+
+    // Now the resolver must short-circuit. Mock getVariants to throw if hit.
+    getVariantsMock.mockImplementation(async () => {
+      throw new Error('REQ-8 round-trip violated: resolver must not fetch when hydration populated the name')
+    })
+
+    const { resolveTargetNames } = mountComposable()
+    const result = await resolveTargetNames('VARIANTS', state.targetItems)
+
+    expect(getVariantsMock).not.toHaveBeenCalled()
+    expect(result).toEqual([
+      { targetId: 'v1', name: 'Talle M', productId: 'p1', productName: 'Camisa' },
+    ])
+  })
 })

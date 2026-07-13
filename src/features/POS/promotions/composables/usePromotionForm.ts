@@ -104,6 +104,42 @@ export function getInitialState(type: PromotionType): PromotionFormState {
 
 // ── API Response → Form State ─────────────────────────────────────────────────
 
+/**
+ * Hydrate a backend `PromotionTargetItem` into a form entry.
+ *
+ * For VARIANTS entries that the backend has enriched with `variantName`
+ * (the Slice 4 backend follow-up), we map the friendly variant name into
+ * the entry's `name` field and carry the optional `productId` + `productName`
+ * so the chip renders `"{productName} · {variantName}"` directly from the
+ * read response — no second round-trip.
+ *
+ * For everything else (non-VARIANTS, OR VARIANTS whose enrichment fields are
+ * absent because the variant was deleted or the backend is older), we fall
+ * back to the existing `{ targetId, name: '' }` shape. The form entry's
+ * `productId` and `productName` are LEFT UNDEFINED (never `null`) so the
+ * serializer spread in `toCreatePayload` / `toUpdatePayload` strips them
+ * rather than promoting them into the request body.
+ *
+ * The mapping is intentionally side-agnostic — it keys off the presence of
+ * the enrichment fields, not off `side` (DEFAULT / BUY / GET). All three
+ * hydration sites in `promotionToFormState` use this helper.
+ */
+function hydrateTargetItem(
+  ti: PromotionResponse['targetItems'][number],
+): PromotionFormState['targetItems'][number] {
+  if (ti.targetType === 'VARIANTS' && typeof ti.variantName === 'string') {
+    return {
+      targetId: ti.targetId,
+      name: ti.variantName,
+      // Carried for chip rendering ("{productName} · {name}"). Session-only;
+      // stripped by toCreatePayload / toUpdatePayload (INV-1 + INV-3).
+      ...(ti.productId != null ? { productId: ti.productId } : {}),
+      ...(ti.productName != null ? { productName: ti.productName } : {}),
+    }
+  }
+  return { targetId: ti.targetId, name: '' }
+}
+
 export function promotionToFormState(response: PromotionResponse): PromotionFormState {
   const defaultItems = response.targetItems.filter((ti) => ti.side === 'DEFAULT')
   const buyItems = response.targetItems.filter((ti) => ti.side === 'BUY')
@@ -122,7 +158,7 @@ export function promotionToFormState(response: PromotionResponse): PromotionForm
         : (response.discountValue ?? 0),
     // PRODUCT_DISCOUNT
     appliesTo: response.appliesTo ?? 'PRODUCTS',
-    targetItems: defaultItems.map((ti) => ({ targetId: ti.targetId, name: '' })),
+    targetItems: defaultItems.map(hydrateTargetItem),
     // ORDER_DISCOUNT — convert cents → dollars for display
     hasMinPurchase: response.minPurchaseAmountCents != null,
     minPurchaseAmountCents:
@@ -133,9 +169,9 @@ export function promotionToFormState(response: PromotionResponse): PromotionForm
     getDiscountPercent: response.getDiscountPercent ?? 0,
     // ADVANCED
     buyTargetType: response.buyTargetType ?? 'PRODUCTS',
-    buyTargetItems: buyItems.map((ti) => ({ targetId: ti.targetId, name: '' })),
+    buyTargetItems: buyItems.map(hydrateTargetItem),
     getTargetType: response.getTargetType ?? 'PRODUCTS',
-    getTargetItems: getItems.map((ti) => ({ targetId: ti.targetId, name: '' })),
+    getTargetItems: getItems.map(hydrateTargetItem),
     // Conditions
     hasVigencia: response.startDate != null,
     startDate: response.startDate ? response.startDate.slice(0, 10) : '',
