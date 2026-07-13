@@ -5,6 +5,7 @@ import type {
   PromotionTargetType,
 } from '../../interfaces/promotion.types'
 import FlatChecklistPanel from './FlatChecklistPanel.vue'
+import VariantsPanel from './VariantsPanel.vue'
 
 // ── Props & emits ─────────────────────────────────────────────────────────────
 
@@ -15,7 +16,7 @@ const props = defineProps<{
   type: PromotionTargetType
   /** Already-confirmed items from the parent form. Used to seed staged. */
   selectedItems: PromotionTargetItemFormEntry[]
-  /** Reserved for Slice 2 — VARIANTS routing honors allowVariants. */
+  /** Reserved — VARIANTS routing honors allowVariants. */
   allowVariants?: boolean
 }>()
 
@@ -81,10 +82,12 @@ defineExpose({ onConfirm, onCancel, staged })
           :staged="staged"
           @update:staged="onUpdateStaged"
         />
-        <!-- VARIANTS is NOT routed yet (Slice 2 introduces VariantsPanel).
-             Keeping the modal open for VARIANTS without a body is the
-             build-safety path (see tasks 1.8). The parent still owns the
-             VARIANTS path inline (ProductVariantSelector). -->
+        <!-- Variants accordion: VARIANTS (REQ-4) -->
+        <VariantsPanel
+          v-else-if="type === 'VARIANTS'"
+          :staged="staged"
+          @update:staged="onUpdateStaged"
+        />
       </div>
     </template>
 

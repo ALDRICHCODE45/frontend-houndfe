@@ -21,22 +21,25 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import UApp from '@nuxt/ui/runtime/components/App.vue'
 import PromotionTargetSelectionModal from '../PromotionTargetSelectionModal.vue'
 import FlatChecklistPanel from '../FlatChecklistPanel.vue'
+import VariantsPanel from '../VariantsPanel.vue'
 import type {
   PromotionTargetItemFormEntry,
   PromotionTargetType,
 } from '../../../interfaces/promotion.types'
 
-// ── productApi mocks (FlatChecklistPanel reaches into this) ──────────────────
+// ── productApi mocks (FlatChecklistPanel + VariantsPanel reach into this) ─────
 
 const getCategoriesMock = vi.fn()
 const getBrandsMock = vi.fn()
 const getPaginatedMock = vi.fn()
+const getVariantsMock = vi.fn()
 
 vi.mock('@/features/POS/products/api/product.api', () => ({
   productApi: {
     getCategories: (...args: unknown[]) => getCategoriesMock(...args),
     getBrands: (...args: unknown[]) => getBrandsMock(...args),
     getPaginated: (...args: unknown[]) => getPaginatedMock(...args),
+    getVariants: (...args: unknown[]) => getVariantsMock(...args),
   },
 }))
 
@@ -111,6 +114,9 @@ describe('PromotionTargetSelectionModal', () => {
       data: [{ id: 'p1', name: 'Camisa A', hasVariants: false }],
       pagination: { pageIndex: 0, pageSize: 20, totalCount: 1, pageCount: 1 },
     })
+    getVariantsMock.mockResolvedValue([
+      { id: 'v1', productId: 'p1', name: 'Talle M' },
+    ])
   })
 
   afterEach(() => {
@@ -297,9 +303,21 @@ describe('PromotionTargetSelectionModal', () => {
     expect(wrapper.findComponent(FlatChecklistPanel).exists()).toBe(true)
   })
 
-  it('VARIANTS type does NOT route to FlatChecklistPanel (Slice 2 introduces VariantsPanel)', async () => {
+  it('VARIANTS type does NOT route to FlatChecklistPanel (VariantsPanel owns the VARIANTS path)', async () => {
     const wrapper = mountModalTracked({ open: true, type: 'VARIANTS' })
     await flushPromises()
     expect(wrapper.findComponent(FlatChecklistPanel).exists()).toBe(false)
+  })
+
+  it('VARIANTS type routes to VariantsPanel (Slice 2)', async () => {
+    const wrapper = mountModalTracked({ open: true, type: 'VARIANTS' })
+    await flushPromises()
+    expect(wrapper.findComponent(VariantsPanel).exists()).toBe(true)
+  })
+
+  it('CATEGORIES type does NOT route to VariantsPanel', async () => {
+    const wrapper = mountModalTracked({ open: true, type: 'CATEGORIES' })
+    await flushPromises()
+    expect(wrapper.findComponent(VariantsPanel).exists()).toBe(false)
   })
 })

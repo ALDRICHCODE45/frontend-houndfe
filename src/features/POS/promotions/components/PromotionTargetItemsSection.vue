@@ -2,7 +2,6 @@
 import { computed, ref } from 'vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
 import PromotionTargetSelectionModal from './PromotionTargetSelection/PromotionTargetSelectionModal.vue'
-import ProductVariantSelector from './ProductVariantSelector.vue'
 import type {
   PromotionTargetItemFormEntry,
   PromotionTargetType,
@@ -48,9 +47,10 @@ const TARGET_TYPE_CARDS: Record<PromotionTargetType, { icon: string; noun: strin
   VARIANTS: { icon: 'i-lucide-git-branch', noun: 'variantes' },
 }
 
-// ── Modal state (Slice 1: flat types only) ───────────────────────────────────
-// Slice 2 routes VARIANTS through the same modal. Until then, VARIANTS still
-// uses the inline ProductVariantSelector (build-safety).
+// ── Modal state ───────────────────────────────────────────────────────────────
+// All four target types route through the same transactional modal (Slice 2
+// retires the legacy ProductVariantSelector; VariantsPanel handles VARIANTS
+// inside the modal).
 
 const modalOpen = ref(false)
 
@@ -58,13 +58,6 @@ const targetTypeOptions = computed(() =>
   props.allowVariants
     ? TARGET_TYPE_OPTIONS
     : TARGET_TYPE_OPTIONS.filter((o) => o.value !== 'VARIANTS'),
-)
-
-const showFlatModalButton = computed(
-  () =>
-    props.targetType === 'CATEGORIES' ||
-    props.targetType === 'BRANDS' ||
-    props.targetType === 'PRODUCTS',
 )
 
 // Dynamic "Agregar <tipo>" label (Slice 1.5 visual polish — full-width,
@@ -146,8 +139,10 @@ defineExpose({ openModal, removeItem, onTargetTypeChange, onModalConfirm })
       </button>
     </div>
 
-    <!-- Flat types: prominent, full-width "Agregar <tipo>" button → modal -->
-    <div v-if="showFlatModalButton" class="flex">
+    <!-- All four target types: prominent, full-width "Agregar <tipo>" button
+         → modal. The modal routes internally to FlatChecklistPanel for the
+         three flat types and to VariantsPanel for VARIANTS (Slice 2). -->
+    <div class="flex">
       <UButton
         color="primary"
         variant="solid"
@@ -160,15 +155,6 @@ defineExpose({ openModal, removeItem, onTargetTypeChange, onModalConfirm })
         {{ addButtonLabel }}
       </UButton>
     </div>
-
-    <!-- VARIANTS: keep the existing two-step inline picker (build-safety).
-         Slice 2 introduces VariantsPanel and retires this path. -->
-    <ProductVariantSelector
-      v-else-if="targetType === 'VARIANTS'"
-      :selected-items="selectedItems"
-      data-testid="variant-selector"
-      @update:selected-items="(items) => emit('update:selectedItems', items)"
-    />
 
     <!-- Selected items chips (all four types) -->
     <div
@@ -201,7 +187,9 @@ defineExpose({ openModal, removeItem, onTargetTypeChange, onModalConfirm })
       {{ emptyStateLabel }}
     </p>
 
-    <!-- Transactional selection modal (flat types only in Slice 1) -->
+    <!-- Transactional selection modal — handles ALL four target types via
+         FlatChecklistPanel (CATEGORIES|BRANDS|PRODUCTS) + VariantsPanel
+         (VARIANTS). Cancel/Esc/backdrop never emits `confirm`. -->
     <PromotionTargetSelectionModal
       :open="modalOpen"
       :type="targetType"

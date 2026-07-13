@@ -33,7 +33,7 @@ const FULL_STUBS = {
 // ── Import after mocks ────────────────────────────────────────────────────────
 
 import PromotionTargetItemsSection from '../PromotionTargetItemsSection.vue'
-import ProductVariantSelector from '../ProductVariantSelector.vue'
+import VariantsPanel from '../PromotionTargetSelection/VariantsPanel.vue'
 
 const getPaginatedMockForVariantSection = vi.fn()
 const getVariantsMockForVariantSection = vi.fn()
@@ -191,24 +191,19 @@ describe('PromotionTargetItemsSection', () => {
     expect(wrapper.text()).toContain('Aplica a estos productos')
   })
 
-  // ── VARIANTS branch (REQ-2 / REQ-3) ──────────────────────────────────────
+  // ── VARIANTS branch (REQ-4) ──────────────────────────────────────────────
+  // Slice 2 retired the legacy ProductVariantSelector. VARIANTS now goes
+  // through the same transactional modal as the flat types; the modal
+  // internally routes to VariantsPanel. These tests assert the section's
+  // VARIANTS contract from the user's point of view.
 
-  it('renders the ProductVariantSelector when targetType is VARIANTS', () => {
+  it('VARIANTS: Agregar button is rendered (VARIANTS opens the modal, not an inline picker)', () => {
     const wrapper = mountSection({
       targetType: 'VARIANTS',
       selectedItems: [],
+      allowVariants: true,
     })
-    expect(wrapper.findComponent(ProductVariantSelector).exists()).toBe(true)
-    // The plain search/catalog inputs for the legacy branches must NOT render.
-    expect(wrapper.find('[data-testid="target-search-input"]').exists()).toBe(false)
-  })
-
-  it('does not render ProductVariantSelector when targetType is not VARIANTS', () => {
-    const wrapper = mountSection({
-      targetType: 'PRODUCTS',
-      selectedItems: [],
-    })
-    expect(wrapper.findComponent(ProductVariantSelector).exists()).toBe(false)
+    expect(wrapper.find('[data-testid="open-target-modal"]').exists()).toBe(true)
   })
 
   it('switching from VARIANTS to another targetType clears items (REQ-2)', async () => {
@@ -230,53 +225,74 @@ describe('PromotionTargetItemsSection', () => {
     expect(emitted[0]![0]).toEqual([])
   })
 
-  it('forwards update:selectedItems from ProductVariantSelector unchanged', async () => {
-    // Stub productApi so the selector can render its product list without 404.
+  it('VARIANTS: clicking Agregar opens modal which routes to VariantsPanel', async () => {
+    const wrapper = mountSection({
+      targetType: 'VARIANTS',
+      selectedItems: [],
+      allowVariants: true,
+    })
+
+    // Stub the products query that VariantsPanel mounts with.
     getPaginatedMockForVariantSection.mockResolvedValue({
       data: [{ id: 'p1', name: 'Camisa', hasVariants: true }],
       pagination: { pageIndex: 0, pageSize: 20, totalCount: 1, pageCount: 1 },
     })
 
+    await wrapper.find('[data-testid="open-target-modal"]').trigger('click')
+    await flushPromises()
+
+    const modal = wrapper.findComponent(PromotionTargetSelectionModalFallback)
+    expect(modal.exists()).toBe(true)
+    // The modal's inner VariantsPanel renders once the products query resolves.
+    const variantsPanel = wrapper.findComponent(VariantsPanel)
+    expect(variantsPanel.exists()).toBe(true)
+  })
+
+  it('VARIANTS: modal confirm flows through section to update:selectedItems (REQ-2 transactional)', async () => {
     const wrapper = mountSection({
       targetType: 'VARIANTS',
       selectedItems: [],
+      allowVariants: true,
     })
-    const innerSelector = wrapper.findComponent(ProductVariantSelector)
-    expect(innerSelector.exists()).toBe(true)
-    await innerSelector.vm.$emit('update:selectedItems', [
-      { targetId: 'v1', name: 'Talle M', productId: 'p1', productName: 'Camisa' },
+
+    await wrapper.find('[data-testid="open-target-modal"]').trigger('click')
+    await flushPromises()
+
+    const modal = wrapper.findComponent(PromotionTargetSelectionModalFallback)
+    await modal.vm.$emit('confirm', [
+      {
+        targetId: 'v1',
+        name: 'Talle M',
+        productId: 'p1',
+        productName: 'Camisa',
+      },
     ])
 
     const emitted = wrapper.emitted('update:selectedItems') as [
       PromotionTargetItemFormEntry[],
     ][]
     expect(emitted).toBeTruthy()
-    expect(emitted[emitted.length - 1]![0]).toEqual([
-      { targetId: 'v1', name: 'Talle M', productId: 'p1', productName: 'Camisa' },
+    const last = emitted[emitted.length - 1]![0]!
+    expect(last).toEqual([
+      {
+        targetId: 'v1',
+        name: 'Talle M',
+        productId: 'p1',
+        productName: 'Camisa',
+      },
     ])
   })
 
-  it('chip label for VARIANTS renders "{productName} · {name}" when productName is present', async () => {
-    // Stub productApi so the selector can render its product list.
-    getPaginatedMockForVariantSection.mockResolvedValue({
-      data: [],
-      pagination: { pageIndex: 0, pageSize: 20, totalCount: 0, pageCount: 0 },
+  it('VARIANTS: chip label renders "{productName} · {name}" when productName is present (via chipLabel util)', async () => {
+    // The section renders chips via the chipLabel util — this verifies the
+    // VARIANTS chip formatting contract from the section's perspective.
+    const wrapper = mountSection({
+      targetType: 'VARIANTS',
+      selectedItems: [
+        { targetId: 'v1', name: 'Talle M', productId: 'p1', productName: 'Camisa' },
+      ],
+      allowVariants: true,
     })
-
-    const wrapper = mount(ProductVariantSelector, {
-      props: {
-        selectedItems: [
-          { targetId: 'v1', name: 'Talle M', productId: 'p1', productName: 'Camisa' },
-        ],
-      },
-      global: {
-        plugins: [[VueQueryPlugin, { queryClient: makeQueryClient() }]],
-        stubs: FULL_STUBS,
-      },
-    })
-
-    // Verify the chip label rendered by the selector itself (the section just
-    // forwards events unchanged — verifying the contract at the source).
     expect(wrapper.text()).toContain('Camisa')
     expect(wrapper.text()).toContain('Talle M')
     expect(wrapper.text()).toContain('·')
@@ -312,9 +328,9 @@ describe('PromotionTargetItemsSection', () => {
 
   // ── Slice 1: "Agregar..." button + transactional modal (REQ-1, REQ-2) ────
 
-  it('"Agregar..." button is visible for flat types (CATEGORIES/BRANDS/PRODUCTS)', () => {
-    for (const type of ['CATEGORIES', 'BRANDS', 'PRODUCTS'] as PromotionTargetType[]) {
-      const wrapper = mountSection({ targetType: type })
+  it('"Agregar..." button is visible for ALL FOUR target types (Slice 2 — VARIANTS now goes through the modal)', () => {
+    for (const type of ['CATEGORIES', 'BRANDS', 'PRODUCTS', 'VARIANTS'] as PromotionTargetType[]) {
+      const wrapper = mountSection({ targetType: type, allowVariants: true })
       expect(
         wrapper.find('[data-testid="open-target-modal"]').exists(),
         `expected Agregar button for ${type}`,
@@ -327,13 +343,6 @@ describe('PromotionTargetItemsSection', () => {
   // matching the AUTOMATIC/MANUAL method cards in PromotionForm.vue. Each
   // type becomes a card with a leading icon + label. The "Agregar..." button
   // becomes prominent and full-width with a dynamic label per type.
-
-  it('"Agregar..." button is NOT rendered for VARIANTS (PVS still owns that path in Slice 1)', () => {
-    const wrapper = mountSection({ targetType: 'VARIANTS', allowVariants: true })
-    expect(wrapper.find('[data-testid="open-target-modal"]').exists()).toBe(false)
-    // ProductVariantSelector is still wired inline (build-safety).
-    expect(wrapper.findComponent(ProductVariantSelector).exists()).toBe(true)
-  })
 
   it('icon-card selector: clicking a type card emits update:targetType (Slice 1.5)', async () => {
     const wrapper = mountSection({ targetType: 'PRODUCTS' })
@@ -365,9 +374,10 @@ describe('PromotionTargetItemsSection', () => {
       { type: 'CATEGORIES', expected: 'Agregar categorías' },
       { type: 'BRANDS', expected: 'Agregar marcas' },
       { type: 'PRODUCTS', expected: 'Agregar productos' },
+      { type: 'VARIANTS', expected: 'Agregar variantes' },
     ]
     for (const c of cases) {
-      const wrapper = mountSection({ targetType: c.type })
+      const wrapper = mountSection({ targetType: c.type, allowVariants: c.type === 'VARIANTS' })
       const btn = wrapper.find('[data-testid="open-target-modal"]')
       expect(btn.exists(), `button missing for ${c.type}`).toBe(true)
       expect(btn.text(), `button text for ${c.type}`).toContain(c.expected)
