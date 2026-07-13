@@ -4,6 +4,7 @@ import type {
   PromotionTargetItemFormEntry,
   PromotionTargetType,
 } from '../../interfaces/promotion.types'
+import { chipLabel } from '../../utils/promotionChipLabel'
 import FlatChecklistPanel from './FlatChecklistPanel.vue'
 import VariantsPanel from './VariantsPanel.vue'
 
@@ -25,6 +26,20 @@ const emit = defineEmits<{
   /** Emitted only on explicit confirm (REQ-2 transactional). */
   confirm: [items: PromotionTargetItemFormEntry[]]
 }>()
+
+// ── Toast (REQ-7) ─────────────────────────────────────────────────────────────
+// useToast is provided by UApp via inject. We declare the shape locally so TS
+// knows the call signature without depending on @nuxt/ui auto-imports during
+// tests (UApp's runtime provider supplies the actual implementation).
+
+declare const useToast: () => {
+  add: (options: {
+    title: string
+    description?: string
+    color?: 'success' | 'error' | 'warning' | 'primary' | 'neutral'
+  }) => void
+}
+const toast = useToast()
 
 // ── Staged state (modal-local, seeded on open) ──────────────────────────────
 // REQ-2: selections live in modal-local state. Cancel/Esc/backdrop MUST NOT
@@ -56,8 +71,63 @@ function onCancel() {
   emit('update:open', false)
 }
 
+/**
+ * REQ-7 duplicate-label guard.
+ *
+ * Walks the staged array and skips any entry whose `chipLabel` collides with
+ * an already-confirmed chip's label (the parent's `selectedItems`) OR with
+ * another staged entry's label — provided the targetId differs. Same id is
+ * always idempotent and never flagged.
+ *
+ * On any skip, fires a single warning toast with the canonical Spanish copy
+ * (the UI copy table in the spec) and the modal then emits the deduped array.
+ * Distinct labels pass through untouched.
+ */
+function dedupeStagedForConfirm(): PromotionTargetItemFormEntry[] {
+  const seenLabelsById = new Map<string, Set<string>>()
+  // Seed the seen map with the parent's already-confirmed chips.
+  for (const existing of props.selectedItems) {
+    const label = chipLabel(existing, props.type)
+    if (!seenLabelsById.has(label)) seenLabelsById.set(label, new Set())
+    seenLabelsById.get(label)!.add(existing.targetId)
+  }
+
+  let skipped = false
+  const out: PromotionTargetItemFormEntry[] = []
+
+  for (const entry of staged.value) {
+    const label = chipLabel(entry, props.type)
+    const idsForLabel = seenLabelsById.get(label)
+
+    if (idsForLabel) {
+      if (idsForLabel.has(entry.targetId)) {
+        // Same label + same id → idempotent, keep it (no warning).
+        out.push(entry)
+        continue
+      }
+      // Same label, different id → skip + warn.
+      idsForLabel.add(entry.targetId)
+      skipped = true
+      continue
+    }
+
+    // First time we see this label — keep and register the id.
+    seenLabelsById.set(label, new Set([entry.targetId]))
+    out.push(entry)
+  }
+
+  if (skipped) {
+    toast.add({
+      title: 'Ya existe un elemento con este nombre. ¿Deseas continuar?',
+      color: 'warning',
+    })
+  }
+
+  return out
+}
+
 function onConfirm() {
-  emit('confirm', staged.value)
+  emit('confirm', dedupeStagedForConfirm())
   emit('update:open', false)
 }
 

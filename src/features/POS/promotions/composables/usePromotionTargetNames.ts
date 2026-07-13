@@ -287,7 +287,10 @@ async function resolveVariants(
     return items.map((item) => {
       // Idempotent: original entry already has a name → keep it untouched.
       if (item.name.trim().length > 0) return { ...item }
-      // Unresolvable: no productId → return as-is (chip falls back to id).
+      // REQ-6 honest fallback: no productId → keep entry as-is (name stays
+      // empty) so the chipLabel util's `name || targetId` renders the raw
+      // variant id as the chip's identifier. We never invent a synthetic
+      // name like "Variante" — the UUID is the honest fallback.
       if (!item.productId) return { ...item }
       const lookup = lookupByProduct.get(item.productId)
       const resolvedName = lookup?.get(item.targetId)

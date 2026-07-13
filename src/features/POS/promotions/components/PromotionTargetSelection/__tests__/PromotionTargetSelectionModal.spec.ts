@@ -92,6 +92,26 @@ function clickPortal(selector: string): boolean {
   return true
 }
 
+/**
+ * Query only toast titles — NOT the modal title.
+ *
+ * `[data-slot="title"]` matches both the UModal header ("Seleccionar
+ * categorías", etc.) AND the toast title rendered by the Toaster. To
+ * distinguish the two, we restrict the query to elements inside the
+ * Toaster viewport (`[data-slot="viewport"]`).
+ *
+ * Returns the array of title text contents inside any active toast
+ * viewport, which is empty when no toast has been fired.
+ */
+function queryToastTitles(): string[] {
+  const titles: string[] = []
+  document.body.querySelectorAll('[data-slot="viewport"] [data-slot="title"]').forEach((n) => {
+    const text = n.textContent?.trim() ?? ''
+    if (text.length > 0) titles.push(text)
+  })
+  return titles
+}
+
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 describe('PromotionTargetSelectionModal', () => {
@@ -117,12 +137,19 @@ describe('PromotionTargetSelectionModal', () => {
     getVariantsMock.mockResolvedValue([
       { id: 'v1', productId: 'p1', name: 'Talle M' },
     ])
+    // Wipe any leftover Toaster viewports from a previous test. The Toaster
+    // teleports to document.body and survives wrapper.unmount() in jsdom, so
+    // without this cleanup later tests would see ghost toasts with stale
+    // titles. Removing the viewport nukes every toast inside it.
+    document.body.querySelectorAll('[data-slot="viewport"]').forEach((n) => n.remove())
   })
 
   afterEach(() => {
     for (const w of wrappers) w.unmount()
     wrappers.length = 0
     vi.useRealTimers()
+    // Final toast sweep — same reason as beforeEach.
+    document.body.querySelectorAll('[data-slot="viewport"]').forEach((n) => n.remove())
   })
 
   // ── Seed-on-open (REQ-2) ─────────────────────────────────────────────────
@@ -319,5 +346,146 @@ describe('PromotionTargetSelectionModal', () => {
     const wrapper = mountModalTracked({ open: true, type: 'CATEGORIES' })
     await flushPromises()
     expect(wrapper.findComponent(VariantsPanel).exists()).toBe(false)
+  })
+
+  // ── REQ-7: Duplicate-label protection (Slice 3) ─────────────────────────
+  //
+  // Spec wording (UI copy): "Ya existe un elemento con este nombre. ¿Deseas continuar?"
+  // When a staged entry's chipLabel collides with an existing chip's chipLabel
+  // OR with another staged entry's chipLabel — but with a DIFFERENT targetId —
+  // the modal MUST:
+  //   1) Show a warning toast with the canonical Spanish copy.
+  //   2) SKIP the duplicate from the emitted `confirm` payload.
+  //
+  // Same label + SAME id is idempotent and NOT flagged (it's the same item).
+  // Distinct labels pass through untouched.
+  //
+  // We assert by querying the rendered DOM for the toast title slot, because
+  // @nuxt/ui's useToast cannot be vi.stubGlobal'd (UApp shadows it).
+
+  it('REQ-7: same label, different id vs existing chip → warning toast rendered AND dup skipped from emit', async () => {
+    // Existing chip: "Rojo" with id V1 (this is what the form already has).
+    const wrapper = mountModalTracked({
+      open: true,
+      type: 'CATEGORIES',
+      selectedItems: [{ targetId: 'V1', name: 'Rojo' }],
+    })
+    await flushPromises()
+
+    const modal = wrapper.findComponent(PromotionTargetSelectionModal)
+    // Simulate the user ADDING a colliding V2 to the existing V1 chip.
+    // Both stay in staged; the dedupe pass should keep V1 and skip V2.
+    modal.vm.staged = [
+      { targetId: 'V1', name: 'Rojo' }, // existing — preserved
+      { targetId: 'V2', name: 'Rojo' }, // new collision — must be skipped
+    ]
+
+    clickPortal('[data-testid="confirm-add-selected"]')
+    await flushPromises()
+
+    // 1) Toast rendered with the canonical Spanish copy.
+    //    Use `queryToastTitles()` (viewport-scoped) so the modal's own
+    //    title is excluded — see helper comment.
+    const toastTexts = queryToastTitles()
+    expect(
+      toastTexts.some((t) => t.includes('Ya existe un elemento con este nombre. ¿Deseas continuar?')),
+    ).toBe(true)
+
+    // 2) Dup skipped from emit: emitted payload must NOT contain V2.
+    const emitted = modal.emitted('confirm') as [PromotionTargetItemFormEntry[]][] | undefined
+    expect(emitted).toBeTruthy()
+    const payload = emitted?.[emitted.length - 1]?.[0] ?? []
+    expect(payload.some((e) => e.targetId === 'V2')).toBe(false)
+    expect(payload.some((e) => e.targetId === 'V1')).toBe(true)
+  })
+
+  it('REQ-7: distinct labels unaffected — both new entries pass through, no toast', async () => {
+    const wrapper = mountModalTracked({
+      open: true,
+      type: 'CATEGORIES',
+      selectedItems: [{ targetId: 'V1', name: 'Rojo' }],
+    })
+    await flushPromises()
+
+    const modal = wrapper.findComponent(PromotionTargetSelectionModal)
+    modal.vm.staged = [
+      { targetId: 'V1', name: 'Rojo' }, // existing — preserved
+      { targetId: 'V3', name: 'Azul' }, // distinct label — passes through
+    ]
+
+    const toastsBefore = queryToastTitles().length
+    clickPortal('[data-testid="confirm-add-selected"]')
+    await flushPromises()
+
+    const emitted = modal.emitted('confirm') as [PromotionTargetItemFormEntry[]][] | undefined
+    expect(emitted).toBeTruthy()
+    const payload = emitted?.[emitted.length - 1]?.[0] ?? []
+    expect(payload).toEqual([
+      { targetId: 'V1', name: 'Rojo' },
+      { targetId: 'V3', name: 'Azul' },
+    ])
+
+    // No NEW toast for distinct-label case. Comparing the count delta
+    // (rather than absolute presence) makes the assertion robust against
+    // any toasts a previous test left behind in the Toaster's internal
+    // state — the test asserts ONLY that THIS action did not add one.
+    const toastsAfter = queryToastTitles().length
+    expect(toastsAfter).toBe(toastsBefore)
+  })
+
+  it('REQ-7: same label + same id is NOT flagged (idempotent re-stage)', async () => {
+    const wrapper = mountModalTracked({
+      open: true,
+      type: 'CATEGORIES',
+      selectedItems: [{ targetId: 'V1', name: 'Rojo' }],
+    })
+    await flushPromises()
+
+    const modal = wrapper.findComponent(PromotionTargetSelectionModal)
+    // Same id, same label — the user simply re-staged the same chip.
+    modal.vm.staged = [{ targetId: 'V1', name: 'Rojo' }]
+
+    const toastsBefore = queryToastTitles().length
+    clickPortal('[data-testid="confirm-add-selected"]')
+    await flushPromises()
+
+    // No NEW warning toast for the same-id case.
+    expect(queryToastTitles().length).toBe(toastsBefore)
+
+    // Emit still happens (the entry stays; nothing flagged).
+    const emitted = modal.emitted('confirm') as [PromotionTargetItemFormEntry[]][] | undefined
+    expect(emitted).toBeTruthy()
+  })
+
+  it('REQ-7: within-staged dup (two staged entries, same label, different ids) → toast + one skipped', async () => {
+    const wrapper = mountModalTracked({
+      open: true,
+      type: 'CATEGORIES',
+      selectedItems: [],
+    })
+    await flushPromises()
+
+    const modal = wrapper.findComponent(PromotionTargetSelectionModal)
+    // Two newly-staged entries with the SAME label but different ids.
+    modal.vm.staged = [
+      { targetId: 'V1', name: 'Rojo' },
+      { targetId: 'V2', name: 'Rojo' },
+    ]
+
+    clickPortal('[data-testid="confirm-add-selected"]')
+    await flushPromises()
+
+    // Toast rendered (canonical copy).
+    const toastTexts = queryToastTitles()
+    expect(
+      toastTexts.some((t) => t.includes('Ya existe un elemento con este nombre. ¿Deseas continuar?')),
+    ).toBe(true)
+
+    // Only ONE of the two staged entries survives in the emitted payload.
+    const emitted = modal.emitted('confirm') as [PromotionTargetItemFormEntry[]][] | undefined
+    expect(emitted).toBeTruthy()
+    const payload = emitted?.[emitted.length - 1]?.[0] ?? []
+    expect(payload.length).toBe(1)
+    expect(payload[0]?.targetId).toBe('V1')
   })
 })
