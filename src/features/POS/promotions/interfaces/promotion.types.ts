@@ -25,11 +25,34 @@ export type TargetSide = 'DEFAULT' | 'BUY' | 'GET'
 
 // ── Backend Response Shape ─────────────────────────────────────────────────────
 
+/**
+ * Backend `targetItem` row from `GET /promotions/:id` and paginated
+ * `GET /promotions` responses.
+ *
+ * For `VARIANTS` entries the backend MAY enrich the row with three
+ * OPTIONAL response-only fields (`productId`, `variantName`, `productName`)
+ * so the form can render `"<productName> · <variantName>"` chips directly
+ * from the read response (REQ-8, Slice 4). These fields are READ-ONLY on
+ * the response — they MUST NEVER be serialized into the create/update
+ * payload (INV-1 + INV-3). When the variant was later deleted (or on an
+ * older backend without enrichment), the backend simply omits these fields;
+ * the hydration layer falls back to the existing `{ targetId, name: '' }`
+ * shape and the chip shows the raw `targetId` honestly.
+ *
+ * For `CATEGORIES` / `BRANDS` / `PRODUCTS` entries the enrichment fields
+ * are ignored and never read.
+ */
 export interface PromotionTargetItem {
   id: string
   side: TargetSide
   targetType: PromotionTargetType
   targetId: string
+  /** Response-only. Parent product id for VARIANTS enrichment. Never serialized. */
+  productId?: string
+  /** Response-only. Friendly variant name for VARIANTS enrichment. Never serialized. */
+  variantName?: string
+  /** Response-only. Parent product display name for VARIANTS enrichment. Never serialized. */
+  productName?: string
 }
 
 export interface PromotionCustomer {

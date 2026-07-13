@@ -248,6 +248,22 @@
       "sessions": 1,
       "memories": 2,
       "prompts": 10
+    },
+    {
+      "id": "4c5e55fc",
+      "created_by": "aldrich_coder45",
+      "created_at": "2026-07-12T12:07:01Z",
+      "sessions": 1,
+      "memories": 21,
+      "prompts": 14
+    },
+    {
+      "id": "cc050ab6",
+      "created_by": "aldrich_coder45",
+      "created_at": "2026-07-12T12:10:24Z",
+      "sessions": 0,
+      "memories": 1,
+      "prompts": 1
     }
   ]
 }

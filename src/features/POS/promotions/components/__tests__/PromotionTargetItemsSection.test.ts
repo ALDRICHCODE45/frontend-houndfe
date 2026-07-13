@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
 import { defineComponent, h, ref } from 'vue'
 import type { PromotionTargetItemFormEntry, PromotionTargetType } from '../../interfaces/promotion.types'
+import PromotionTargetSelectionModalFallback from '../PromotionTargetSelection/PromotionTargetSelectionModal.vue'
 
 // ── Stubs ─────────────────────────────────────────────────────────────────────
 
@@ -32,7 +33,7 @@ const FULL_STUBS = {
 // ── Import after mocks ────────────────────────────────────────────────────────
 
 import PromotionTargetItemsSection from '../PromotionTargetItemsSection.vue'
-import ProductVariantSelector from '../ProductVariantSelector.vue'
+import VariantsPanel from '../PromotionTargetSelection/VariantsPanel.vue'
 
 const getPaginatedMockForVariantSection = vi.fn()
 const getVariantsMockForVariantSection = vi.fn()
@@ -73,13 +74,19 @@ function mountSection(props: {
 }
 
 function getRadioValues(wrapper: ReturnType<typeof mountSection>): string[] {
-  // Nuxt UI's URadioGroup renders <button role="radio" value="..."> for each
-  // item. Extract the values to assert against the rendered options — this is
-  // what the user actually sees in the radio group, independent of the internal
-  // option-source shape.
+  // Post Slice-1.5 (visual polish): the target-type selector was promoted from
+  // a Nuxt UI URadioGroup to icon-cards matching the same visual language as
+  // the AUTOMATIC/MANUAL method cards in PromotionForm.vue. Each card carries
+  // `data-testid="target-card-{VALUE}"`. Extract the suffix to assert against
+  // the rendered options — this is what the user actually sees, independent of
+  // the internal option-source shape.
   return wrapper
-    .findAll('[role="radio"]')
-    .map((node) => node.attributes('value') ?? '')
+    .findAll('[data-testid^="target-card-"]')
+    .map((node) => {
+      const id = node.attributes('data-testid') ?? ''
+      const idx = id.lastIndexOf('-')
+      return idx >= 0 ? id.slice(idx + 1) : ''
+    })
     .filter(Boolean)
 }
 
@@ -91,9 +98,9 @@ describe('PromotionTargetItemsSection', () => {
     expect(wrapper.exists()).toBe(true)
   })
 
-  it('renders search input', () => {
+  it('does not render the legacy inline search input (search moved to the modal in Slice 1)', () => {
     const wrapper = mountSection({ targetType: 'PRODUCTS' })
-    expect(wrapper.find('[data-testid="target-search-input"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="target-search-input"]').exists()).toBe(false)
   })
 
   it('renders empty state when no items selected', () => {
@@ -135,33 +142,34 @@ describe('PromotionTargetItemsSection', () => {
     expect(emitted[0]![0]![0]!.targetId).toBe('p2')
   })
 
-  it('emits update:selectedItems with item added when addItem is called', async () => {
-    const wrapper = mountSection({
-      targetType: 'PRODUCTS',
-      selectedItems: [],
-    })
-    await (
-      wrapper.vm as unknown as {
-        addItem: (id: string, name: string) => void
-      }
-    ).addItem('p1', 'Camisa Azul')
-    expect(wrapper.emitted('update:selectedItems')).toBeTruthy()
-    const emitted = wrapper.emitted('update:selectedItems') as [PromotionTargetItemFormEntry[]][]
-    expect(emitted[0]![0]!).toHaveLength(1)
-    expect(emitted[0]![0]![0]!.targetId).toBe('p1')
-    expect(emitted[0]![0]![0]!.name).toBe('Camisa Azul')
-  })
-
-  it('does not add duplicate items', async () => {
+  it('does not add duplicate items via modal confirm (REQ-2 merge dedupes)', async () => {
     const wrapper = mountSection({
       targetType: 'PRODUCTS',
       selectedItems: [{ targetId: 'p1', name: 'Camisa Azul' }],
     })
-    await (
-      wrapper.vm as unknown as { addItem: (id: string, name: string) => void }
-    ).addItem('p1', 'Camisa Azul')
-    // No emit if duplicate
-    expect(wrapper.emitted('update:selectedItems')).toBeFalsy()
+
+    // Open modal and simulate confirm with an item already in selectedItems.
+    await wrapper.find('[data-testid="open-target-modal"]').trigger('click')
+    await flushPromises()
+
+    const modal = wrapper.findComponent({ name: 'PromotionTargetSelectionModal' })
+    // If the inner component isn't found by name, fall back to finding the
+    // file-based component.
+    const modalVm = modal.exists()
+      ? modal
+      : wrapper.findComponent(PromotionTargetSelectionModalFallback)
+    await modalVm.vm.$emit('confirm', [
+      { targetId: 'p1', name: 'Camisa Azul' }, // duplicate
+    ])
+
+    const emitted = wrapper.emitted('update:selectedItems') as [
+      PromotionTargetItemFormEntry[],
+    ][]
+    expect(emitted).toBeTruthy()
+    const last = emitted[emitted.length - 1]![0]!
+    // Still exactly 1 — the duplicate was filtered by the merge.
+    expect(last).toHaveLength(1)
+    expect(last[0]!.targetId).toBe('p1')
   })
 
   it('emits update:targetType when radio group changes', async () => {
@@ -183,24 +191,19 @@ describe('PromotionTargetItemsSection', () => {
     expect(wrapper.text()).toContain('Aplica a estos productos')
   })
 
-  // ── VARIANTS branch (REQ-2 / REQ-3) ──────────────────────────────────────
+  // ── VARIANTS branch (REQ-4) ──────────────────────────────────────────────
+  // Slice 2 retired the legacy ProductVariantSelector. VARIANTS now goes
+  // through the same transactional modal as the flat types; the modal
+  // internally routes to VariantsPanel. These tests assert the section's
+  // VARIANTS contract from the user's point of view.
 
-  it('renders the ProductVariantSelector when targetType is VARIANTS', () => {
+  it('VARIANTS: Agregar button is rendered (VARIANTS opens the modal, not an inline picker)', () => {
     const wrapper = mountSection({
       targetType: 'VARIANTS',
       selectedItems: [],
+      allowVariants: true,
     })
-    expect(wrapper.findComponent(ProductVariantSelector).exists()).toBe(true)
-    // The plain search/catalog inputs for the legacy branches must NOT render.
-    expect(wrapper.find('[data-testid="target-search-input"]').exists()).toBe(false)
-  })
-
-  it('does not render ProductVariantSelector when targetType is not VARIANTS', () => {
-    const wrapper = mountSection({
-      targetType: 'PRODUCTS',
-      selectedItems: [],
-    })
-    expect(wrapper.findComponent(ProductVariantSelector).exists()).toBe(false)
+    expect(wrapper.find('[data-testid="open-target-modal"]').exists()).toBe(true)
   })
 
   it('switching from VARIANTS to another targetType clears items (REQ-2)', async () => {
@@ -222,53 +225,74 @@ describe('PromotionTargetItemsSection', () => {
     expect(emitted[0]![0]).toEqual([])
   })
 
-  it('forwards update:selectedItems from ProductVariantSelector unchanged', async () => {
-    // Stub productApi so the selector can render its product list without 404.
+  it('VARIANTS: clicking Agregar opens modal which routes to VariantsPanel', async () => {
+    const wrapper = mountSection({
+      targetType: 'VARIANTS',
+      selectedItems: [],
+      allowVariants: true,
+    })
+
+    // Stub the products query that VariantsPanel mounts with.
     getPaginatedMockForVariantSection.mockResolvedValue({
       data: [{ id: 'p1', name: 'Camisa', hasVariants: true }],
       pagination: { pageIndex: 0, pageSize: 20, totalCount: 1, pageCount: 1 },
     })
 
+    await wrapper.find('[data-testid="open-target-modal"]').trigger('click')
+    await flushPromises()
+
+    const modal = wrapper.findComponent(PromotionTargetSelectionModalFallback)
+    expect(modal.exists()).toBe(true)
+    // The modal's inner VariantsPanel renders once the products query resolves.
+    const variantsPanel = wrapper.findComponent(VariantsPanel)
+    expect(variantsPanel.exists()).toBe(true)
+  })
+
+  it('VARIANTS: modal confirm flows through section to update:selectedItems (REQ-2 transactional)', async () => {
     const wrapper = mountSection({
       targetType: 'VARIANTS',
       selectedItems: [],
+      allowVariants: true,
     })
-    const innerSelector = wrapper.findComponent(ProductVariantSelector)
-    expect(innerSelector.exists()).toBe(true)
-    await innerSelector.vm.$emit('update:selectedItems', [
-      { targetId: 'v1', name: 'Talle M', productId: 'p1', productName: 'Camisa' },
+
+    await wrapper.find('[data-testid="open-target-modal"]').trigger('click')
+    await flushPromises()
+
+    const modal = wrapper.findComponent(PromotionTargetSelectionModalFallback)
+    await modal.vm.$emit('confirm', [
+      {
+        targetId: 'v1',
+        name: 'Talle M',
+        productId: 'p1',
+        productName: 'Camisa',
+      },
     ])
 
     const emitted = wrapper.emitted('update:selectedItems') as [
       PromotionTargetItemFormEntry[],
     ][]
     expect(emitted).toBeTruthy()
-    expect(emitted[emitted.length - 1]![0]).toEqual([
-      { targetId: 'v1', name: 'Talle M', productId: 'p1', productName: 'Camisa' },
+    const last = emitted[emitted.length - 1]![0]!
+    expect(last).toEqual([
+      {
+        targetId: 'v1',
+        name: 'Talle M',
+        productId: 'p1',
+        productName: 'Camisa',
+      },
     ])
   })
 
-  it('chip label for VARIANTS renders "{productName} · {name}" when productName is present', async () => {
-    // Stub productApi so the selector can render its product list.
-    getPaginatedMockForVariantSection.mockResolvedValue({
-      data: [],
-      pagination: { pageIndex: 0, pageSize: 20, totalCount: 0, pageCount: 0 },
+  it('VARIANTS: chip label renders "{productName} · {name}" when productName is present (via chipLabel util)', async () => {
+    // The section renders chips via the chipLabel util — this verifies the
+    // VARIANTS chip formatting contract from the section's perspective.
+    const wrapper = mountSection({
+      targetType: 'VARIANTS',
+      selectedItems: [
+        { targetId: 'v1', name: 'Talle M', productId: 'p1', productName: 'Camisa' },
+      ],
+      allowVariants: true,
     })
-
-    const wrapper = mount(ProductVariantSelector, {
-      props: {
-        selectedItems: [
-          { targetId: 'v1', name: 'Talle M', productId: 'p1', productName: 'Camisa' },
-        ],
-      },
-      global: {
-        plugins: [[VueQueryPlugin, { queryClient: makeQueryClient() }]],
-        stubs: FULL_STUBS,
-      },
-    })
-
-    // Verify the chip label rendered by the selector itself (the section just
-    // forwards events unchanged — verifying the contract at the source).
     expect(wrapper.text()).toContain('Camisa')
     expect(wrapper.text()).toContain('Talle M')
     expect(wrapper.text()).toContain('·')
@@ -300,5 +324,228 @@ describe('PromotionTargetItemsSection', () => {
     expect(values).toEqual(
       expect.arrayContaining(['CATEGORIES', 'BRANDS', 'PRODUCTS', 'VARIANTS']),
     )
+  })
+
+  // ── Slice 1: "Agregar..." button + transactional modal (REQ-1, REQ-2) ────
+
+  it('"Agregar..." button is visible for ALL FOUR target types (Slice 2 — VARIANTS now goes through the modal)', () => {
+    for (const type of ['CATEGORIES', 'BRANDS', 'PRODUCTS', 'VARIANTS'] as PromotionTargetType[]) {
+      const wrapper = mountSection({ targetType: type, allowVariants: true })
+      expect(
+        wrapper.find('[data-testid="open-target-modal"]').exists(),
+        `expected Agregar button for ${type}`,
+      ).toBe(true)
+    }
+  })
+
+  // ── Slice 1.5: visual polish — icon-card selector + prominent add button ──
+  // The target-type selector was promoted from a URadioGroup to icon-cards
+  // matching the AUTOMATIC/MANUAL method cards in PromotionForm.vue. Each
+  // type becomes a card with a leading icon + label. The "Agregar..." button
+  // becomes prominent and full-width with a dynamic label per type.
+
+  it('icon-card selector: clicking a type card emits update:targetType (Slice 1.5)', async () => {
+    const wrapper = mountSection({ targetType: 'PRODUCTS' })
+    const card = wrapper.find('[data-testid="target-card-BRANDS"]')
+    expect(card.exists(), 'expected target-card-BRANDS to be rendered').toBe(true)
+    await card.trigger('click')
+    const emitted = wrapper.emitted('update:targetType') as [PromotionTargetType][][]
+    expect(emitted).toBeTruthy()
+    expect(emitted[0]).toEqual(['BRANDS'])
+  })
+
+  it('icon-card selector: emits update:selectedItems=[] when type changes (REQ-2 clear)', async () => {
+    const wrapper = mountSection({
+      targetType: 'PRODUCTS',
+      selectedItems: [{ targetId: 'p1', name: 'Camisa Azul' }],
+    })
+    const card = wrapper.find('[data-testid="target-card-CATEGORIES"]')
+    expect(card.exists()).toBe(true)
+    await card.trigger('click')
+    const emitted = wrapper.emitted('update:selectedItems') as [
+      PromotionTargetItemFormEntry[],
+    ][]
+    expect(emitted).toBeTruthy()
+    expect(emitted[0]).toEqual([[]])
+  })
+
+  it('"Agregar..." button label is dynamic per type (Slice 1.5 visual polish)', () => {
+    const cases: Array<{ type: PromotionTargetType; expected: string }> = [
+      { type: 'CATEGORIES', expected: 'Agregar categorías' },
+      { type: 'BRANDS', expected: 'Agregar marcas' },
+      { type: 'PRODUCTS', expected: 'Agregar productos' },
+      { type: 'VARIANTS', expected: 'Agregar variantes' },
+    ]
+    for (const c of cases) {
+      const wrapper = mountSection({ targetType: c.type, allowVariants: c.type === 'VARIANTS' })
+      const btn = wrapper.find('[data-testid="open-target-modal"]')
+      expect(btn.exists(), `button missing for ${c.type}`).toBe(true)
+      expect(btn.text(), `button text for ${c.type}`).toContain(c.expected)
+    }
+  })
+
+  it('"Agregar..." button is full-width / prominent (Slice 1.5 visual polish)', () => {
+    const wrapper = mountSection({ targetType: 'PRODUCTS' })
+    const btn = wrapper.find('[data-testid="open-target-modal"]')
+    expect(btn.exists()).toBe(true)
+    // The visual polish commit makes the button full-width. We assert the
+    // semantic outcome (button is present and clickable) rather than the exact
+    // Tailwind class — the styling contract is documented in the design, not
+    // coupled here.
+    expect(btn.element.tagName.toLowerCase()).toBe('button')
+  })
+
+  it('VARIANTS card is rendered only when allowVariants=true (PRODUCT_DISCOUNT)', () => {
+    const withoutFlag = mountSection({ targetType: 'PRODUCTS' })
+    expect(withoutFlag.find('[data-testid="target-card-VARIANTS"]').exists()).toBe(false)
+
+    const withFlag = mountSection({ targetType: 'PRODUCTS', allowVariants: true })
+    expect(withFlag.find('[data-testid="target-card-VARIANTS"]').exists()).toBe(true)
+  })
+
+  it('clicking "Agregar..." opens the selection modal (REQ-1, REQ-2)', async () => {
+    const wrapper = mountSection({ targetType: 'PRODUCTS' })
+    const btn = wrapper.find('[data-testid="open-target-modal"]')
+    expect(btn.exists()).toBe(true)
+    await btn.trigger('click')
+    await Promise.resolve()
+
+    // The modal's open state is local to the section. We assert via the
+    // portaled modal's title or by finding the modal's data-testid in
+    // document.body (UModal portals to body).
+    const confirmBtn = document.body.querySelector(
+      '[data-testid="confirm-add-selected"]',
+    )
+    expect(confirmBtn).not.toBeNull()
+  })
+
+  it('confirm: modal emit confirm flows to update:selectedItems with merged array (REQ-2)', async () => {
+    const existing: PromotionTargetItemFormEntry[] = [
+      { targetId: 'p1', name: 'Camisa Azul' },
+    ]
+    const wrapper = mountSection({
+      targetType: 'PRODUCTS',
+      selectedItems: existing,
+    })
+
+    // Open modal.
+    await wrapper.find('[data-testid="open-target-modal"]').trigger('click')
+    await flushPromises()
+
+    // Emit 'confirm' directly on the inner modal component (deterministic).
+    // The section's contract is to merge: existing chips + confirmed new items.
+    const modal = wrapper.findComponent(PromotionTargetSelectionModalFallback)
+    await modal.vm.$emit('confirm', [
+      { targetId: 'p2', name: 'Zapato Negro' }, // new
+    ])
+
+    const emitted = wrapper.emitted('update:selectedItems') as [
+      PromotionTargetItemFormEntry[],
+    ][]
+    expect(emitted).toBeTruthy()
+    const last = emitted[emitted.length - 1]![0]!
+    // Existing chip p1 must still be present (merge, not replace).
+    expect(last.find((e) => e.targetId === 'p1')).toBeDefined()
+    // And the newly confirmed item must be added.
+    expect(last.find((e) => e.targetId === 'p2')).toBeDefined()
+    expect(last).toHaveLength(2)
+  })
+
+  it('cancel: modal close does NOT emit update:selectedItems (REQ-2 discard)', async () => {
+    const wrapper = mountSection({
+      targetType: 'PRODUCTS',
+      selectedItems: [{ targetId: 'p1', name: 'Camisa Azul' }],
+    })
+    const before = (wrapper.emitted('update:selectedItems') ?? []).length
+
+    await wrapper.find('[data-testid="open-target-modal"]').trigger('click')
+    await Promise.resolve()
+
+    const cancelBtn = document.body.querySelector(
+      '[data-testid="cancel-modal"]',
+    ) as HTMLElement | null
+    expect(cancelBtn).not.toBeNull()
+    cancelBtn!.click()
+    await Promise.resolve()
+
+    const after = (wrapper.emitted('update:selectedItems') ?? []).length
+    expect(after).toBe(before)
+  })
+
+  it('chip removal: clicking the X on a chip emits update:selectedItems without that chip (REQ-3)', async () => {
+    const wrapper = mountSection({
+      targetType: 'PRODUCTS',
+      selectedItems: [
+        { targetId: 'p1', name: 'Camisa Azul' },
+        { targetId: 'p2', name: 'Zapato Negro' },
+      ],
+    })
+
+    const removeButtons = wrapper.findAll('[data-testid="remove-chip"]')
+    expect(removeButtons.length).toBe(2)
+    await removeButtons[0]!.trigger('click')
+
+    const emitted = wrapper.emitted('update:selectedItems') as [
+      PromotionTargetItemFormEntry[],
+    ][]
+    expect(emitted).toBeTruthy()
+    const last = emitted[emitted.length - 1]![0]!
+    expect(last).toHaveLength(1)
+    expect(last[0]!.targetId).toBe('p2')
+  })
+
+  it('all four target types render chips when selectedItems carry the right shape (REQ-3)', () => {
+    const cases: Array<{
+      type: PromotionTargetType
+      items: PromotionTargetItemFormEntry[]
+    }> = [
+      { type: 'CATEGORIES', items: [{ targetId: 'c1', name: 'Camisetas' }] },
+      { type: 'BRANDS', items: [{ targetId: 'b1', name: 'Nike' }] },
+      { type: 'PRODUCTS', items: [{ targetId: 'p1', name: 'Camisa Azul' }] },
+      {
+        type: 'VARIANTS',
+        items: [
+          {
+            targetId: 'v1',
+            name: 'Talle M',
+            productId: 'p1',
+            productName: 'Camisa',
+          },
+        ],
+      },
+    ]
+    for (const c of cases) {
+      const wrapper = mountSection({
+        targetType: c.type,
+        selectedItems: c.items,
+        allowVariants: c.type === 'VARIANTS',
+      })
+      const chips = wrapper.findAll('[data-testid="selected-items"]')
+      expect(chips.length, `chips for ${c.type}`).toBe(1)
+      expect(wrapper.text(), `chip text for ${c.type}`).toContain(c.items[0]!.name)
+    }
+  })
+
+  // ── INV-4: external contract frozen ──────────────────────────────────────
+
+  it('INV-4: emits are exactly {update:targetType, update:selectedItems} — no new emits leaked', async () => {
+    const wrapper = mountSection({ targetType: 'PRODUCTS' })
+    // Trigger every public path: radio change, modal confirm, removeItem.
+    await (
+      wrapper.vm as unknown as {
+        onTargetTypeChange: (t: PromotionTargetType) => void
+      }
+    ).onTargetTypeChange('BRANDS')
+
+    const modal = wrapper.findComponent(PromotionTargetSelectionModalFallback)
+    await modal.vm.$emit('confirm', [{ targetId: 'p1', name: 'Camisa' }])
+    await modal.vm.$emit('confirm', [{ targetId: 'p2', name: 'Zapato' }])
+    await (
+      wrapper.vm as unknown as { removeItem: (id: string) => void }
+    ).removeItem('p1')
+
+    const emitNames = Object.keys(wrapper.emitted()).sort()
+    // Must be exactly these two — no leakage of internal events.
+    expect(emitNames).toEqual(['update:selectedItems', 'update:targetType'])
   })
 })

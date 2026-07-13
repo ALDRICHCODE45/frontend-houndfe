@@ -1,15 +1,15 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useQuery } from '@tanstack/vue-query'
+import { computed, ref } from 'vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
-import ProductVariantSelector from './ProductVariantSelector.vue'
+import PromotionTargetSelectionModal from './PromotionTargetSelection/PromotionTargetSelectionModal.vue'
 import type {
   PromotionTargetItemFormEntry,
   PromotionTargetType,
 } from '../interfaces/promotion.types'
 import { TARGET_TYPE_OPTIONS } from '../composables/usePromotionForm'
+import { chipLabel } from '../utils/promotionChipLabel'
 
-// ── Props & emits ─────────────────────────────────────────────────────────────
+// ── Props & emits (INV-4 — FROZEN external contract) ─────────────────────────
 
 const props = withDefaults(
   defineProps<{
@@ -34,80 +34,62 @@ const emit = defineEmits<{
   'update:selectedItems': [items: PromotionTargetItemFormEntry[]]
 }>()
 
-// ── Search state ──────────────────────────────────────────────────────────────
+// ── Target type card metadata (Slice 1.5 visual polish) ─────────────────────
+// Icon map is LOCAL to the section so we don't mutate the shared
+// TARGET_TYPE_OPTIONS shape (a unit test asserts it stays {label,value}[]).
+// Icons chosen to match the project's existing i-lucide-* conventions and
+// verified against icon usage elsewhere in the codebase (see the visual-
+// polish commit message for the source mappings).
+const TARGET_TYPE_CARDS: Record<PromotionTargetType, { icon: string; noun: string }> = {
+  CATEGORIES: { icon: 'i-lucide-layout-grid', noun: 'categorías' },
+  BRANDS: { icon: 'i-lucide-tag', noun: 'marcas' },
+  PRODUCTS: { icon: 'i-lucide-package', noun: 'productos' },
+  VARIANTS: { icon: 'i-lucide-git-branch', noun: 'variantes' },
+}
 
-const searchQuery = ref('')
+// ── Modal state ───────────────────────────────────────────────────────────────
+// All four target types route through the same transactional modal (Slice 2
+// retires the legacy ProductVariantSelector; VariantsPanel handles VARIANTS
+// inside the modal).
 
-// ── Catalog queries ───────────────────────────────────────────────────────────
+const modalOpen = ref(false)
 
-const { data: categoryResults } = useQuery({
-  queryKey: ['categories-search', searchQuery],
-  queryFn: async () => {
-    const { productApi } = await import('@/features/POS/products/api/product.api')
-    const results = await productApi.getCategories()
-    if (!searchQuery.value) return results
-    const q = searchQuery.value.toLowerCase()
-    return results.filter((c: { name: string }) => c.name.toLowerCase().includes(q))
-  },
-  enabled: () => props.targetType === 'CATEGORIES',
-})
-
-const { data: brandResults } = useQuery({
-  queryKey: ['brands-search', searchQuery],
-  queryFn: async () => {
-    const { productApi } = await import('@/features/POS/products/api/product.api')
-    const results = await productApi.getBrands()
-    if (!searchQuery.value) return results
-    const q = searchQuery.value.toLowerCase()
-    return results.filter((b: { name: string }) => b.name.toLowerCase().includes(q))
-  },
-  enabled: () => props.targetType === 'BRANDS',
-})
-
-const { data: productResults } = useQuery({
-  queryKey: ['products-search', searchQuery],
-  queryFn: async () => {
-    const { productApi } = await import('@/features/POS/products/api/product.api')
-    const result = await productApi.getPaginated({
-      pageIndex: 0,
-      pageSize: 20,
-      sorting: [{ id: 'name', desc: false }],
-      globalFilter: searchQuery.value,
-    })
-    return result.data ?? []
-  },
-  enabled: () => props.targetType === 'PRODUCTS',
-})
-
-// ── Computed catalog items ────────────────────────────────────────────────────
-
-const catalogItems = computed<Array<{ id: string; name: string }>>(() => {
-  if (props.targetType === 'CATEGORIES') return categoryResults.value ?? []
-  if (props.targetType === 'BRANDS') return brandResults.value ?? []
-  if (props.targetType === 'PRODUCTS') return productResults.value ?? []
-  return []
-})
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-// REQ-1: VARIANTS is conditionally appended. The base TARGET_TYPE_OPTIONS keeps
-// all four entries (so it remains a single source of truth and tests asserting
-// the global constant can still pass); per-instance filtering happens here so
-// BUY_X_GET_Y / ADVANCED instances never leak VARIANTS.
 const targetTypeOptions = computed(() =>
-  props.allowVariants ? TARGET_TYPE_OPTIONS : TARGET_TYPE_OPTIONS.filter((o) => o.value !== 'VARIANTS'),
+  props.allowVariants
+    ? TARGET_TYPE_OPTIONS
+    : TARGET_TYPE_OPTIONS.filter((o) => o.value !== 'VARIANTS'),
 )
+
+// Dynamic "Agregar <tipo>" label (Slice 1.5 visual polish — full-width,
+// prominent, type-aware). Reuses the same noun map as the empty-state so
+// the wording stays consistent across the section.
+const addButtonLabel = computed(() => {
+  const noun = TARGET_TYPE_CARDS[props.targetType]?.noun ?? 'items'
+  return `Agregar ${noun}`
+})
+
+// ── Handlers ─────────────────────────────────────────────────────────────────
 
 function onTargetTypeChange(type: PromotionTargetType) {
   emit('update:targetType', type)
   emit('update:selectedItems', [])
-  searchQuery.value = ''
 }
 
-function addItem(id: string, name: string) {
-  if (props.selectedItems.some((i) => i.targetId === id)) return
-  emit('update:selectedItems', [...props.selectedItems, { targetId: id, name }])
-  searchQuery.value = ''
+function openModal() {
+  modalOpen.value = true
+}
+
+function onModalConfirm(items: PromotionTargetItemFormEntry[]) {
+  // Merge: existing chips + confirmed new items. The modal already dedupes
+  // its staged set against itself; we additionally dedupe against the
+  // existing selectedItems so a confirmed chip that was already in the form
+  // doesn't produce a duplicate.
+  const existingIds = new Set(props.selectedItems.map((s) => s.targetId))
+  const merged = [
+    ...props.selectedItems,
+    ...items.filter((entry) => !existingIds.has(entry.targetId)),
+  ]
+  emit('update:selectedItems', merged)
 }
 
 function removeItem(id: string) {
@@ -117,31 +99,14 @@ function removeItem(id: string) {
   )
 }
 
-// ── Chip label (REQ-3 — show product context for VARIANTS) ──────────────────
-//
-// When an entry carries a `productName` (variant entries created in this
-// session), render "{productName} · {name}" so chips across multiple products
-// stay distinguishable. Otherwise fall back to the existing `name || targetId`
-// behavior so other target types render unchanged.
-function chipLabel(item: PromotionTargetItemFormEntry): string {
-  if (item.productName && item.name) return `${item.productName} · ${item.name}`
-  return item.name || item.targetId
-}
-
-// ── Empty state text ──────────────────────────────────────────────────────────
+// ── Empty state text ─────────────────────────────────────────────────────────
 
 const emptyStateLabel = computed(() => {
-  const typeMap: Record<PromotionTargetType, string> = {
-    CATEGORIES: 'categorías',
-    BRANDS: 'marcas',
-    PRODUCTS: 'productos',
-    VARIANTS: 'variantes',
-  }
-  const noun = typeMap[props.targetType]
+  const noun = TARGET_TYPE_CARDS[props.targetType]?.noun ?? 'items'
   return `Elige los ${noun} a los que aplicará la promoción`
 })
 
-defineExpose({ addItem, removeItem, onTargetTypeChange })
+defineExpose({ openModal, removeItem, onTargetTypeChange, onModalConfirm })
 </script>
 
 <template>
@@ -151,51 +116,47 @@ defineExpose({ addItem, removeItem, onTargetTypeChange })
       {{ label }}
     </p>
 
-    <!-- Target type radio group -->
-    <URadioGroup
-      :model-value="targetType"
-      :items="targetTypeOptions"
-      value-key="value"
-      label-key="label"
-      orientation="horizontal"
-      @update:model-value="onTargetTypeChange($event as PromotionTargetType)"
-    />
-
-    <!-- Search input -->
-    <UInput
-      v-if="targetType !== 'VARIANTS'"
-      v-model="searchQuery"
-      :placeholder="`Buscar ${targetType === 'CATEGORIES' ? 'categorías' : targetType === 'BRANDS' ? 'marcas' : 'productos'}...`"
-      leading-icon="i-lucide-search"
-      data-testid="target-search-input"
-    />
-
-    <!-- VARIANTS branch (REQ-3) — two-step product → variant picker -->
-    <ProductVariantSelector
-      v-else
-      :selected-items="selectedItems"
-      data-testid="variant-selector"
-      @update:selected-items="(items) => emit('update:selectedItems', items)"
-    />
-
-    <!-- Catalog results dropdown -->
-    <div
-      v-if="catalogItems.length > 0"
-      class="rounded-lg border border-default bg-default max-h-48 overflow-y-auto"
-    >
+    <!-- Target type selector — icon-cards matching the AUTOMATIC/MANUAL
+         method cards in PromotionForm.vue (Slice 1.5 visual polish).
+         Visual language (border, ring, hover, transition) is shared so
+         the two card selectors in this form look consistent. -->
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
       <button
-        v-for="item in catalogItems"
-        :key="item.id"
+        v-for="opt in targetTypeOptions"
+        :key="opt.value"
         type="button"
-        class="flex w-full cursor-pointer items-center justify-between px-3 py-2 text-sm hover:bg-elevated/60 transition-colors duration-150"
-        @click="addItem(item.id, item.name)"
+        :data-testid="`target-card-${opt.value}`"
+        class="flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border p-4 text-center transition-all duration-200"
+        :class="
+          targetType === opt.value
+            ? 'border-primary bg-primary/15 ring-1 ring-primary/35'
+            : 'border-default bg-elevated/20 hover:border-primary/40 hover:bg-elevated/60'
+        "
+        @click="onTargetTypeChange(opt.value)"
       >
-        <span>{{ item.name }}</span>
-        <UIcon name="i-lucide-plus" class="h-4 w-4 text-dimmed" />
+        <UIcon :name="TARGET_TYPE_CARDS[opt.value]!.icon" class="h-5 w-5 text-toned" />
+        <span class="text-sm font-medium text-highlighted">{{ opt.label }}</span>
       </button>
     </div>
 
-    <!-- Selected items chips -->
+    <!-- All four target types: prominent, full-width "Agregar <tipo>" button
+         → modal. The modal routes internally to FlatChecklistPanel for the
+         three flat types and to VariantsPanel for VARIANTS (Slice 2). -->
+    <div class="flex">
+      <UButton
+        color="primary"
+        variant="solid"
+        size="lg"
+        icon="i-lucide-plus"
+        block
+        data-testid="open-target-modal"
+        @click="openModal"
+      >
+        {{ addButtonLabel }}
+      </UButton>
+    </div>
+
+    <!-- Selected items chips (all four types) -->
     <div
       v-if="selectedItems.length > 0"
       data-testid="selected-items"
@@ -205,9 +166,10 @@ defineExpose({ addItem, removeItem, onTargetTypeChange })
         v-for="item in selectedItems"
         :key="item.targetId"
       >
-        {{ chipLabel(item) }}
+        {{ chipLabel(item, targetType) }}
         <button
           type="button"
+          data-testid="remove-chip"
           class="cursor-pointer ml-1 rounded-full hover:bg-elevated transition-colors"
           @click="removeItem(item.targetId)"
         >
@@ -224,5 +186,17 @@ defineExpose({ addItem, removeItem, onTargetTypeChange })
     >
       {{ emptyStateLabel }}
     </p>
+
+    <!-- Transactional selection modal — handles ALL four target types via
+         FlatChecklistPanel (CATEGORIES|BRANDS|PRODUCTS) + VariantsPanel
+         (VARIANTS). Cancel/Esc/backdrop never emits `confirm`. -->
+    <PromotionTargetSelectionModal
+      :open="modalOpen"
+      :type="targetType"
+      :selected-items="selectedItems"
+      :allow-variants="allowVariants"
+      @update:open="(v: boolean) => (modalOpen = v)"
+      @confirm="onModalConfirm"
+    />
   </div>
 </template>

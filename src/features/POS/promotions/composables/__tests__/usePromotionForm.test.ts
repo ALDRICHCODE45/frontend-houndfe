@@ -357,6 +357,250 @@ describe('promotionToFormState', () => {
     const state = promotionToFormState(response)
     expect(state.hasVigencia).toBe(false)
   })
+
+  // ── REQ-8: Edit-mode enriched VARIANTS hydration from backend read response ─
+  //
+  // Spec scenarios:
+  //   - Enriched VARIANTS entry → name === variantName, productId/productName carried
+  //     (applies to DEFAULT / BUY / GET sides — side-agnostic)
+  //   - Deleted variant (enrichment fields ABSENT) → name === '' with productId/
+  //     productName UNDEFINED, never throws
+  //   - Non-VARIANTS entries (CATEGORIES / BRANDS / PRODUCTS) hydration UNCHANGED
+  //     regardless of whether enrichment fields are present (the response could
+  //     theoretically include them for any targetType — they MUST be ignored)
+
+  it('REQ-8: enriched VARIANTS entry on DEFAULT side hydrates name from variantName and carries productId + productName', () => {
+    const response = makeBaseResponse({
+      appliesTo: 'VARIANTS',
+      targetItems: [
+        {
+          id: 'ti-1',
+          side: 'DEFAULT',
+          targetType: 'VARIANTS',
+          targetId: 'v1',
+          productId: 'p1',
+          variantName: 'Talle M',
+          productName: 'Camisa',
+        },
+      ],
+    })
+    const state = promotionToFormState(response)
+    expect(state.targetItems).toEqual([
+      { targetId: 'v1', name: 'Talle M', productId: 'p1', productName: 'Camisa' },
+    ])
+  })
+
+  it('REQ-8: enriched VARIANTS entry on BUY side (ADVANCED) hydrates identically — side-agnostic', () => {
+    const response = makeBaseResponse({
+      type: 'ADVANCED',
+      discountType: null,
+      discountValue: null,
+      appliesTo: null,
+      buyQuantity: 2,
+      getQuantity: 1,
+      getDiscountPercent: 50,
+      buyTargetType: 'VARIANTS',
+      getTargetType: 'VARIANTS',
+      targetItems: [
+        {
+          id: 'ti-1',
+          side: 'BUY',
+          targetType: 'VARIANTS',
+          targetId: 'v-buy',
+          productId: 'p1',
+          variantName: 'Rojo',
+          productName: 'Remera',
+        },
+      ],
+    })
+    const state = promotionToFormState(response)
+    expect(state.buyTargetItems).toEqual([
+      { targetId: 'v-buy', name: 'Rojo', productId: 'p1', productName: 'Remera' },
+    ])
+    // GET side still untouched (no entry → empty array)
+    expect(state.getTargetItems).toEqual([])
+  })
+
+  it('REQ-8: enriched VARIANTS entry on GET side (ADVANCED) hydrates identically — side-agnostic', () => {
+    const response = makeBaseResponse({
+      type: 'ADVANCED',
+      discountType: null,
+      discountValue: null,
+      appliesTo: null,
+      buyQuantity: 2,
+      getQuantity: 1,
+      getDiscountPercent: 50,
+      buyTargetType: 'VARIANTS',
+      getTargetType: 'VARIANTS',
+      targetItems: [
+        {
+          id: 'ti-1',
+          side: 'GET',
+          targetType: 'VARIANTS',
+          targetId: 'v-get',
+          productId: 'p2',
+          variantName: 'XL',
+          productName: 'Buzo',
+        },
+      ],
+    })
+    const state = promotionToFormState(response)
+    expect(state.getTargetItems).toEqual([
+      { targetId: 'v-get', name: 'XL', productId: 'p2', productName: 'Buzo' },
+    ])
+    // BUY side still untouched
+    expect(state.buyTargetItems).toEqual([])
+  })
+
+  it('REQ-8: BUY_X_GET_Y with VARIANTS appliesTo and enriched DEFAULT entry hydrates name (BUG_X_GET_Y uses DEFAULT side)', () => {
+    const response = makeBaseResponse({
+      type: 'BUY_X_GET_Y',
+      discountType: null,
+      discountValue: null,
+      appliesTo: 'VARIANTS',
+      buyQuantity: 2,
+      getQuantity: 1,
+      getDiscountPercent: 0,
+      targetItems: [
+        {
+          id: 'ti-1',
+          side: 'DEFAULT',
+          targetType: 'VARIANTS',
+          targetId: 'v-2x1',
+          productId: 'p1',
+          variantName: 'Negro',
+          productName: 'Camiseta',
+        },
+      ],
+    })
+    const state = promotionToFormState(response)
+    expect(state.targetItems).toEqual([
+      { targetId: 'v-2x1', name: 'Negro', productId: 'p1', productName: 'Camiseta' },
+    ])
+  })
+
+  it('REQ-8: deleted-variant VARIANTS entry (enrichment fields absent) hydrates to name="" with productId/productName UNDEFINED, no throw', () => {
+    // Backend omits enrichment fields when the variant was deleted (no 404 thrown).
+    // The shape: the variant id is preserved (so the chip shows the honest UUID
+    // via `name || targetId`), and productId/productName are UNDEFINED — never
+    // null, never empty string (so the serializer spread does not promote them
+    // into the payload).
+    const response = makeBaseResponse({
+      appliesTo: 'VARIANTS',
+      targetItems: [
+        { id: 'ti-1', side: 'DEFAULT', targetType: 'VARIANTS', targetId: 'v-deleted' },
+      ],
+    })
+    const state = promotionToFormState(response)
+    expect(state.targetItems).toHaveLength(1)
+    const entry = state.targetItems[0]!
+    expect(entry.targetId).toBe('v-deleted')
+    expect(entry.name).toBe('')
+    // productId / productName MUST be UNDEFINED (not null, not empty string)
+    // so the toCreatePayload spread never promotes them into the request body.
+    expect(entry.productId).toBeUndefined()
+    expect(entry.productName).toBeUndefined()
+    expect('productId' in entry).toBe(false)
+    expect('productName' in entry).toBe(false)
+  })
+
+  it('REQ-8: deleted-variant VARIANTS on BUY side — identical fallback behavior, no throw', () => {
+    const response = makeBaseResponse({
+      type: 'ADVANCED',
+      discountType: null,
+      discountValue: null,
+      appliesTo: null,
+      buyQuantity: 2,
+      getQuantity: 1,
+      getDiscountPercent: 50,
+      buyTargetType: 'VARIANTS',
+      getTargetType: 'VARIANTS',
+      targetItems: [
+        { id: 'ti-1', side: 'BUY', targetType: 'VARIANTS', targetId: 'v-buy-deleted' },
+      ],
+    })
+    const state = promotionToFormState(response)
+    expect(state.buyTargetItems).toEqual([{ targetId: 'v-buy-deleted', name: '' }])
+  })
+
+  it('REQ-8: deleted-variant VARIANTS on GET side — identical fallback behavior, no throw', () => {
+    const response = makeBaseResponse({
+      type: 'ADVANCED',
+      discountType: null,
+      discountValue: null,
+      appliesTo: null,
+      buyQuantity: 2,
+      getQuantity: 1,
+      getDiscountPercent: 50,
+      buyTargetType: 'VARIANTS',
+      getTargetType: 'VARIANTS',
+      targetItems: [
+        { id: 'ti-1', side: 'GET', targetType: 'VARIANTS', targetId: 'v-get-deleted' },
+      ],
+    })
+    const state = promotionToFormState(response)
+    expect(state.getTargetItems).toEqual([{ targetId: 'v-get-deleted', name: '' }])
+  })
+
+  it('REQ-8: non-VARIANTS items (CATEGORIES) are hydration-untouched even if enrichment fields are present', () => {
+    // The backend only enriches VARIANTS, but a defensive guard: enrichment
+    // fields on a CATEGORIES entry MUST be ignored — `name` must remain ''
+    // (the chip will fall back to targetId via the chipLabel util).
+    const response = makeBaseResponse({
+      appliesTo: 'CATEGORIES',
+      targetItems: [
+        {
+          id: 'ti-1',
+          side: 'DEFAULT',
+          targetType: 'CATEGORIES',
+          targetId: 'cat-1',
+          productId: 'p1',
+          variantName: 'Talle M',
+          productName: 'Camisa',
+        },
+      ],
+    })
+    const state = promotionToFormState(response)
+    expect(state.targetItems).toEqual([{ targetId: 'cat-1', name: '' }])
+  })
+
+  it('REQ-8: non-VARIANTS items (BRANDS) are hydration-untouched even if enrichment fields are present', () => {
+    const response = makeBaseResponse({
+      appliesTo: 'BRANDS',
+      targetItems: [
+        {
+          id: 'ti-1',
+          side: 'DEFAULT',
+          targetType: 'BRANDS',
+          targetId: 'brand-1',
+          productId: 'p1',
+          variantName: 'Talle M',
+          productName: 'Camisa',
+        },
+      ],
+    })
+    const state = promotionToFormState(response)
+    expect(state.targetItems).toEqual([{ targetId: 'brand-1', name: '' }])
+  })
+
+  it('REQ-8: non-VARIANTS items (PRODUCTS) are hydration-untouched even if enrichment fields are present', () => {
+    const response = makeBaseResponse({
+      appliesTo: 'PRODUCTS',
+      targetItems: [
+        {
+          id: 'ti-1',
+          side: 'DEFAULT',
+          targetType: 'PRODUCTS',
+          targetId: 'prod-1',
+          productId: 'p1',
+          variantName: 'Talle M',
+          productName: 'Camisa',
+        },
+      ],
+    })
+    const state = promotionToFormState(response)
+    expect(state.targetItems).toEqual([{ targetId: 'prod-1', name: '' }])
+  })
 })
 
 // ── toCreatePayload ────────────────────────────────────────────────────────────
@@ -646,6 +890,158 @@ describe('toCreatePayload', () => {
     expect(serialized).not.toContain('productName')
     expect(serialized).not.toContain('"side"')
     expect(serialized).not.toContain('Talle M')
+  })
+
+  // ── REQ-8: INV-1 + INV-3 write-payload regression for enriched hydration ──
+  //
+  // Spec scenario: "Write payload remains { targetType, targetId }".
+  // End-to-end: load a PromotionResponse with enriched VARIANTS entries
+  // across all three sides, hydrate through `promotionToFormState`, then
+  // serialize with `toCreatePayload` (PRODUCT_DISCOUNT + BUY_X_GET_Y) and
+  // `toUpdatePayload` (ADVANCED). Assert each entry contains ONLY
+  // { targetType, targetId } and the enrichment fields NEVER leak.
+
+  it('REQ-8: PRODUCT_DISCOUNT write payload: enriched VARIANTS entry hydrates then serializes to { targetType, targetId } only', () => {
+    const response = makeBaseResponse({
+      appliesTo: 'VARIANTS',
+      targetItems: [
+        {
+          id: 'ti-1',
+          side: 'DEFAULT',
+          targetType: 'VARIANTS',
+          targetId: 'v1',
+          productId: 'p1',
+          variantName: 'Talle M',
+          productName: 'Camisa',
+        },
+      ],
+    })
+    const state = promotionToFormState(response)
+    // Re-mark required non-target fields the hydration doesn't touch.
+    state.discountType = 'PERCENTAGE'
+    state.discountValue = 10
+
+    const payload = toCreatePayload(state) as CreateProductDiscountPayload
+    expect(payload.targetItems).toEqual([{ targetType: 'VARIANTS', targetId: 'v1' }])
+    // Hard invariant: enrichment fields MUST NEVER appear in the request body.
+    const serialized = JSON.stringify(payload)
+    expect(serialized).not.toContain('productId')
+    expect(serialized).not.toContain('variantName')
+    expect(serialized).not.toContain('productName')
+    expect(serialized).not.toContain('Talle M')
+    expect(serialized).not.toContain('Camisa')
+  })
+
+  it('REQ-8: BUY_X_GET_Y write payload: enriched VARIANTS entry hydrates then serializes to { targetType, targetId } only', () => {
+    const response = makeBaseResponse({
+      type: 'BUY_X_GET_Y',
+      discountType: null,
+      discountValue: null,
+      appliesTo: 'VARIANTS',
+      buyQuantity: 2,
+      getQuantity: 1,
+      getDiscountPercent: 0,
+      targetItems: [
+        {
+          id: 'ti-1',
+          side: 'DEFAULT',
+          targetType: 'VARIANTS',
+          targetId: 'v-2x1',
+          productId: 'p1',
+          variantName: 'Negro',
+          productName: 'Camiseta',
+        },
+      ],
+    })
+    const state = promotionToFormState(response)
+
+    const payload = toCreatePayload(state) as CreateBuyXGetYPayload
+    expect(payload.type).toBe('BUY_X_GET_Y')
+    expect(payload.targetItems).toEqual([{ targetType: 'VARIANTS', targetId: 'v-2x1' }])
+    const serialized = JSON.stringify(payload)
+    expect(serialized).not.toContain('productId')
+    expect(serialized).not.toContain('variantName')
+    expect(serialized).not.toContain('productName')
+    expect(serialized).not.toContain('Negro')
+    expect(serialized).not.toContain('Camiseta')
+  })
+
+  it('REQ-8: ADVANCED write payload (toUpdatePayload): enriched VARIANTS entries on BUY + GET sides hydrate then serialize to { targetId } only', () => {
+    const response = makeBaseResponse({
+      type: 'ADVANCED',
+      discountType: null,
+      discountValue: null,
+      appliesTo: null,
+      buyQuantity: 2,
+      getQuantity: 1,
+      getDiscountPercent: 50,
+      buyTargetType: 'VARIANTS',
+      getTargetType: 'VARIANTS',
+      targetItems: [
+        {
+          id: 'ti-1',
+          side: 'BUY',
+          targetType: 'VARIANTS',
+          targetId: 'v-buy',
+          productId: 'p1',
+          variantName: 'Rojo',
+          productName: 'Remera',
+        },
+        {
+          id: 'ti-2',
+          side: 'GET',
+          targetType: 'VARIANTS',
+          targetId: 'v-get',
+          productId: 'p2',
+          variantName: 'XL',
+          productName: 'Buzo',
+        },
+      ],
+    })
+    const state = promotionToFormState(response)
+
+    const payload = toUpdatePayload(state) as Record<string, unknown>
+    const buyArr = payload['buyTargetItems'] as Array<Record<string, unknown>>
+    const getArr = payload['getTargetItems'] as Array<Record<string, unknown>>
+
+    expect(buyArr).toEqual([{ targetId: 'v-buy' }])
+    expect(getArr).toEqual([{ targetId: 'v-get' }])
+    // Hard invariant: enrichment fields MUST NEVER leak into the update body.
+    const serialized = JSON.stringify(payload)
+    expect(serialized).not.toContain('productId')
+    expect(serialized).not.toContain('variantName')
+    expect(serialized).not.toContain('productName')
+    expect(serialized).not.toContain('Rojo')
+    expect(serialized).not.toContain('XL')
+    expect(serialized).not.toContain('Remera')
+    expect(serialized).not.toContain('Buzo')
+  })
+
+  it('REQ-8: deleted-variant enrichment-absent entry hydrates with UNDEFINED productId/productName — never promotes null into the payload', () => {
+    // Hard guard: when enrichment is absent, hydration MUST NOT set productId/
+    // productName to null (which would survive the serializer spread and leak
+    // to the backend). They MUST be UNDEFINED so the spread strips them.
+    const response = makeBaseResponse({
+      appliesTo: 'VARIANTS',
+      targetItems: [
+        { id: 'ti-1', side: 'DEFAULT', targetType: 'VARIANTS', targetId: 'v-deleted' },
+      ],
+    })
+    const state = promotionToFormState(response)
+    const entry = state.targetItems[0]!
+    expect(entry.productId).toBeUndefined()
+    expect(entry.productName).toBeUndefined()
+    expect(entry.name).toBe('')
+
+    state.discountType = 'PERCENTAGE'
+    state.discountValue = 10
+    const payload = toCreatePayload(state) as CreateProductDiscountPayload
+    expect(payload.targetItems).toEqual([{ targetType: 'VARIANTS', targetId: 'v-deleted' }])
+    // Verify the serialized form has no `null` keys either.
+    const serialized = JSON.stringify(payload)
+    expect(serialized).not.toContain('null')
+    expect(serialized).not.toContain('productId')
+    expect(serialized).not.toContain('productName')
   })
 })
 
