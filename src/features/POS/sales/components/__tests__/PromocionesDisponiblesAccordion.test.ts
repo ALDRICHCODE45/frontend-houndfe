@@ -134,4 +134,129 @@ describe('PromocionesDisponiblesAccordion C.3 — presentational contract', () =
     expect(wrapper.find('[data-testid="promociones-disponibles-accordion"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="promociones-loading"]').exists()).toBe(true)
   })
+
+  // ── bxgy-promotion-followups REQ-5 — Aplicar disabled binding ────────────
+  //
+  // The gate is GENERIC on `eligible` (NOT on `promo.type`). It MUST use the
+  // strict `eligible === false` check — `!eligible` would disable legacy rows
+  // where the field is undefined, which the spec scenario 3 explicitly
+  // forbids. Legacy fixtures (omitted eligible) MUST stay enabled.
+
+  it('disables Aplicar when `eligible: false` and clicking it does NOT emit `apply`', async () => {
+    const wrapper = mountAccordion({
+      promotions: [
+        { id: 'promo-a', title: '2x1 Aspirinas', type: 'PRODUCT_DISCOUNT', eligible: false },
+      ],
+    })
+
+    const applyBtn = wrapper.get('[data-testid="promo-apply-promo-a"]')
+    // UButton forwards the `disabled` attribute to the underlying button.
+    expect(applyBtn.attributes('disabled')).toBeDefined()
+
+    await applyBtn.trigger('click')
+
+    // The disabled click must NOT bubble up an `apply` emit.
+    expect(wrapper.emitted('apply')).toBeFalsy()
+  })
+
+  it('keeps Aplicar enabled when `eligible: true` and clicking emits `apply`', async () => {
+    const wrapper = mountAccordion({
+      promotions: [
+        { id: 'promo-a', title: '2x1 Aspirinas', type: 'PRODUCT_DISCOUNT', eligible: true },
+      ],
+    })
+
+    const applyBtn = wrapper.get('[data-testid="promo-apply-promo-a"]')
+    expect(applyBtn.attributes('disabled')).toBeUndefined()
+
+    await applyBtn.trigger('click')
+
+    const events = wrapper.emitted('apply')
+    expect(events).toBeTruthy()
+    expect(events).toHaveLength(1)
+    expect(events![0]).toEqual(['promo-a'])
+  })
+
+  it('keeps Aplicar enabled for legacy fixtures that omit `eligible` (undefined stays eligible)', async () => {
+    const wrapper = mountAccordion({
+      promotions: [
+        // No `eligible` field — pre-deploy / legacy fixture.
+        { id: 'promo-a', title: '2x1 Aspirinas', type: 'PRODUCT_DISCOUNT' },
+      ],
+    })
+
+    const applyBtn = wrapper.get('[data-testid="promo-apply-promo-a"]')
+    // STRICT `=== false` check: undefined must NOT disable.
+    expect(applyBtn.attributes('disabled')).toBeUndefined()
+
+    await applyBtn.trigger('click')
+
+    const events = wrapper.emitted('apply')
+    expect(events).toBeTruthy()
+    expect(events![0]).toEqual(['promo-a'])
+  })
+
+  it('leaves empty + loading variant unaffected by the eligible gate', () => {
+    const wrapper = mountAccordion({ promotions: [], loading: true })
+
+    expect(wrapper.find('[data-testid="promociones-disponibles-accordion"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="promo-apply-promo-a"]').exists()).toBe(false)
+  })
+
+  // ── bxgy-promotion-followups REQ-6 — `unitsNeeded` hint with plural ───────
+  //
+  // The hint testid is `promo-hint-${id}` and the text agrees with N:
+  // N === 1 → singular "unidad"; N >= 2 → plural "unidades". When the field
+  // is absent or null, the hint MUST NOT render at all (parent v-if gate).
+
+  it('renders the singular hint "2x1 · requiere 1 unidad más" when unitsNeeded = 1', () => {
+    const wrapper = mountAccordion({
+      promotions: [
+        {
+          id: 'promo-a',
+          title: '2x1 Vitaminas',
+          type: 'BUY_X_GET_Y',
+          buyQuantity: 2,
+          getQuantity: 1,
+          unitsNeeded: 1,
+          method: 'MANUAL',
+        },
+      ],
+    })
+
+    const hint = wrapper.find('[data-testid="promo-hint-promo-a"]')
+    expect(hint.exists()).toBe(true)
+    expect(hint.text()).toBe('2x1 · requiere 1 unidad más')
+  })
+
+  it('renders the plural hint "2x1 · requiere 2 unidades más" when unitsNeeded = 2', () => {
+    const wrapper = mountAccordion({
+      promotions: [
+        {
+          id: 'promo-a',
+          title: '2x1 Vitaminas',
+          type: 'BUY_X_GET_Y',
+          buyQuantity: 2,
+          getQuantity: 1,
+          unitsNeeded: 2,
+          method: 'MANUAL',
+        },
+      ],
+    })
+
+    const hint = wrapper.find('[data-testid="promo-hint-promo-a"]')
+    expect(hint.exists()).toBe(true)
+    expect(hint.text()).toBe('2x1 · requiere 2 unidades más')
+  })
+
+  it('does NOT render the hint element when `unitsNeeded` is absent or null', () => {
+    const wrapper = mountAccordion({
+      promotions: [
+        // unitsNeeded omitted — product/order discount with no BXGY hint.
+        { id: 'promo-a', title: '2x1 Vitaminas', type: 'BUY_X_GET_Y' },
+      ],
+    })
+
+    expect(wrapper.find('[data-testid="promo-hint-promo-a"]').exists()).toBe(false)
+  })
 })

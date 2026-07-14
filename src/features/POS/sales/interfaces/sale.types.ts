@@ -391,6 +391,18 @@ export interface ApplicablePromotion {
   id: string
   title: string
   type: 'PRODUCT_DISCOUNT' | 'ORDER_DISCOUNT' | 'BUY_X_GET_Y'
+  // bxgy-promotion-followups REQ-4: BXGY eligibility snapshot. All optional
+  // + nullable so existing pre-deploy / product/order fixtures keep parsing.
+  // `eligible === false` is the only signal that disables the Aplicar control;
+  // `undefined` MUST stay eligible (legacy fixtures omit this field on purpose).
+  eligible?: boolean
+  buyQuantity?: number | null
+  getQuantity?: number | null
+  // unitsNeeded: how many MORE units the seller must add to qualify for the
+  // BXGY reward (rendered via the localized singular/plural hint).
+  unitsNeeded?: number
+  // 'MANUAL' for now — the only BXGY method exposed via "Promociones disponibles".
+  method?: 'MANUAL'
 }
 
 // promotions-in-sale: response shape of GET /sales/drafts/:id/applicable-promotions.
