@@ -77,6 +77,11 @@ export interface SaleDetailItem {
   // Pre-deploy backend responses omit the field; optional + nullable keeps
   // backward compat so old payloads still parse.
   rewardKind?: 'buy_x_get_y' | null
+  // bxgy-promotion-followups REQ-7: line-level promotion trace. Non-null =
+  // the line carries a promotion (BXGY or otherwise) and the details
+  // surface MUST render a promo-name chip through `SaleItemBadges`.
+  // Optional + nullable keeps pre-deploy confirmed-sale responses parsing.
+  promotionId?: string | null
 }
 
 export interface SaleDetailPayment {
@@ -391,6 +396,18 @@ export interface ApplicablePromotion {
   id: string
   title: string
   type: 'PRODUCT_DISCOUNT' | 'ORDER_DISCOUNT' | 'BUY_X_GET_Y'
+  // bxgy-promotion-followups REQ-4: BXGY eligibility snapshot. All optional
+  // + nullable so existing pre-deploy / product/order fixtures keep parsing.
+  // `eligible === false` is the only signal that disables the Aplicar control;
+  // `undefined` MUST stay eligible (legacy fixtures omit this field on purpose).
+  eligible?: boolean
+  buyQuantity?: number | null
+  getQuantity?: number | null
+  // unitsNeeded: how many MORE units the seller must add to qualify for the
+  // BXGY reward (rendered via the localized singular/plural hint).
+  unitsNeeded?: number
+  // 'MANUAL' for now — the only BXGY method exposed via "Promociones disponibles".
+  method?: 'MANUAL'
 }
 
 // promotions-in-sale: response shape of GET /sales/drafts/:id/applicable-promotions.

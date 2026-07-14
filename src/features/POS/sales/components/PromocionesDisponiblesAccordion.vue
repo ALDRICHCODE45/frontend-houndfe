@@ -42,6 +42,7 @@
  */
 import { computed } from 'vue'
 import type { ApplicablePromotion } from '../interfaces/sale.types'
+import { buildBxgyHint } from '../utils/promotion.utils'
 
 const ACCORDION_VALUE = 'promociones'
 
@@ -147,14 +148,22 @@ function handleRemove(promotionId: string) {
             :data-testid="`promo-row-${promo.id}`"
             class="flex items-center justify-between gap-2 py-1.5"
           >
-            <span
-              :data-testid="`promo-title-${promo.id}`"
-              class="text-sm truncate flex-1 min-w-0"
-            >{{ promo.title }}</span>
+            <div class="flex-1 min-w-0 flex flex-col">
+              <span
+                :data-testid="`promo-title-${promo.id}`"
+                class="text-sm truncate"
+              >{{ promo.title }}</span>
+              <span
+                v-if="promo.unitsNeeded != null"
+                :data-testid="`promo-hint-${promo.id}`"
+                class="text-xs text-muted"
+              >{{ buildBxgyHint(promo.unitsNeeded) }}</span>
+            </div>
 
             <UButton
               v-if="!isApplied(promo.id)"
               :data-testid="`promo-apply-${promo.id}`"
+              :disabled="promo.eligible === false"
               size="xs"
               color="primary"
               variant="solid"

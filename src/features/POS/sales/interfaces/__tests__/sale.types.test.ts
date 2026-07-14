@@ -1171,6 +1171,61 @@ describe('sale.types', () => {
 
         expect(promo.type).toBe('BUY_X_GET_Y')
       })
+
+      // bxgy-promotion-followups REQ-4: five optional + nullable eligibility
+      // fields surface BXGY backend hints. Every existing fixture omits them,
+      // so all five MUST be optional (`?`) and the numeric pair MUST accept
+      // null. Required fields would break the legacy fixtures across the app.
+
+      it('accepts all five eligibility fields with concrete values', () => {
+        const promo: ApplicablePromotion = {
+          id: 'promo-eligible-1',
+          title: '2x1 Vitaminas',
+          type: 'BUY_X_GET_Y',
+          eligible: true,
+          buyQuantity: 2,
+          getQuantity: 1,
+          unitsNeeded: 1,
+          method: 'MANUAL',
+        }
+
+        expect(promo.eligible).toBe(true)
+        expect(promo.buyQuantity).toBe(2)
+        expect(promo.getQuantity).toBe(1)
+        expect(promo.unitsNeeded).toBe(1)
+        expect(promo.method).toBe('MANUAL')
+      })
+
+      it('accepts explicit null for buyQuantity and getQuantity', () => {
+        const promo: ApplicablePromotion = {
+          id: 'promo-eligible-2',
+          title: '2x1 Vitaminas',
+          type: 'BUY_X_GET_Y',
+          eligible: false,
+          buyQuantity: null,
+          getQuantity: null,
+        }
+
+        expect(promo.buyQuantity).toBeNull()
+        expect(promo.getQuantity).toBeNull()
+        expect(promo.eligible).toBe(false)
+      })
+
+      it('remains omittable for legacy fixtures with all five fields absent', () => {
+        // Minimal legacy fixture — keeps backward compat with pre-deploy
+        // backend responses that do not yet include any eligibility metadata.
+        const promo: ApplicablePromotion = {
+          id: 'promo-eligible-3',
+          title: '20% off Aspirina',
+          type: 'PRODUCT_DISCOUNT',
+        }
+
+        expect(promo.eligible).toBeUndefined()
+        expect(promo.buyQuantity).toBeUndefined()
+        expect(promo.getQuantity).toBeUndefined()
+        expect(promo.unitsNeeded).toBeUndefined()
+        expect(promo.method).toBeUndefined()
+      })
     })
 
     describe('SaleDetailItem.rewardKind optional field (buy-x-get-y-promotion REQ-2)', () => {
@@ -1220,6 +1275,60 @@ describe('sale.types', () => {
         }
 
         expect(item.rewardKind).toBeUndefined()
+      })
+    })
+
+    describe('SaleDetailItem.promotionId optional field (bxgy-promotion-followups REQ-7)', () => {
+      // The confirmed-sale surface forwards the line's promotionId to
+      // `SaleItemBadges` so the promo-name chip renders on the listed line.
+      // The field MUST be optional + nullable to keep pre-deploy confirmed-sale
+      // responses parsing without modification.
+
+      it('accepts promotionId as a string when the line carries a promo', () => {
+        const item: SaleDetailItem = {
+          productName: 'Camisa',
+          variantName: null,
+          imageUrl: null,
+          unitPriceCents: 25000,
+          quantity: 1,
+          discountCents: 5000,
+          subtotalCents: 20000,
+          discountTitle: 'Black Friday 2x1',
+          promotionId: 'promo-abc',
+        }
+
+        expect(item.promotionId).toBe('promo-abc')
+      })
+
+      it('accepts explicit null for promotionId (no promo on this line)', () => {
+        const item: SaleDetailItem = {
+          productName: 'Camisa',
+          variantName: null,
+          imageUrl: null,
+          unitPriceCents: 25000,
+          quantity: 1,
+          discountCents: 5000,
+          subtotalCents: 20000,
+          discountTitle: 'Descuento manual',
+          promotionId: null,
+        }
+
+        expect(item.promotionId).toBeNull()
+      })
+
+      it('omits promotionId for legacy confirmed-sale fixtures', () => {
+        const item: SaleDetailItem = {
+          productName: 'Camisa',
+          variantName: null,
+          imageUrl: null,
+          unitPriceCents: 25000,
+          quantity: 1,
+          discountCents: 5000,
+          subtotalCents: 20000,
+          discountTitle: 'Descuento manual',
+        }
+
+        expect(item.promotionId).toBeUndefined()
       })
     })
 

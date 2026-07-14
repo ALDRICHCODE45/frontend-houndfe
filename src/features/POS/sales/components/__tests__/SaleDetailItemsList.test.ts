@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import SaleDetailItemsList from '../SaleDetailItemsList.vue'
+import SaleItemBadges from '../SaleItemBadges.vue'
 import { mountWithUApp } from '@/test/mountWithUApp'
 
 describe('SaleDetailItemsList', () => {
@@ -347,5 +348,77 @@ describe('SaleDetailItemsList', () => {
     })
 
     expect(wrapper.findAll('[data-testid="sale-item-reward-badge"]')).toHaveLength(1)
+  })
+
+  // ── bxgy-promotion-followups REQ-8 — promotionId forwarded to badges ─────
+
+  it('forwards promotionId to SaleItemBadges + renders the promo-name chip with non-empty discountTitle (no remove button on confirmed-sale surface)', () => {
+    const wrapper = mountWithUApp(SaleDetailItemsList, {
+      props: {
+        items: [
+          {
+            productName: 'Camisa',
+            variantName: 'XL',
+            imageUrl: null,
+            unitPriceCents: 20000,
+            quantity: 1,
+            discountCents: 5000,
+            subtotalCents: 15000,
+            discountTitle: 'Black Friday 2x1',
+            promotionId: 'promo-abc',
+          },
+        ],
+      },
+    })
+
+    // Parent MUST forward the line promotionId to the badge child.
+    const badges = wrapper.findComponent(SaleItemBadges)
+    expect(badges.exists()).toBe(true)
+    expect(badges.props('promotionId')).toBe('promo-abc')
+    expect(badges.props('discountTitle')).toBe('Black Friday 2x1')
+
+    // Chip with the promo title renders — badge group + chip testid present.
+    expect(wrapper.find('[data-testid="sale-item-badge-group"]').exists()).toBe(true)
+    const chip = wrapper.find('[data-testid="sale-item-promo-badge"]')
+    expect(chip.exists()).toBe(true)
+    expect(chip.text()).toContain('Black Friday 2x1')
+
+    // Critical: confirmed-sale surface MUST NOT render the remove button.
+    // Only the draft context (SaleItemRow) sets `removable=true`.
+    expect(wrapper.find('[data-testid="sale-item-remove-promo"]').exists()).toBe(false)
+  })
+
+  it('forwards promotionId to SaleItemBadges when discountTitle is empty, with no remove button on the confirmed-sale surface', () => {
+    // Note: with an empty discountTitle, SaleItemBadges renders a fallback
+    // "Promoción" chip (its `v-if="hasPromotion"` gate is independent of
+    // `discountTitle`). That rendering decision lives in the locked child.
+    // At the SaleDetailItemsList boundary we MUST still forward promotionId
+    // (the parent MUST NOT silently swallow it based on title presence),
+    // and the confirmed-sale surface MUST NOT render a remove control.
+    const wrapper = mountWithUApp(SaleDetailItemsList, {
+      props: {
+        items: [
+          {
+            productName: 'Camisa',
+            variantName: 'XL',
+            imageUrl: null,
+            unitPriceCents: 20000,
+            quantity: 1,
+            discountCents: 5000,
+            subtotalCents: 15000,
+            discountTitle: '',
+            promotionId: 'promo-abc',
+          },
+        ],
+      },
+    })
+
+    // Forwarding always happens (no parent-side gate on discountTitle).
+    const badges = wrapper.findComponent(SaleItemBadges)
+    expect(badges.exists()).toBe(true)
+    expect(badges.props('promotionId')).toBe('promo-abc')
+
+    // Critical: confirmed-sale surface MUST NOT render the remove button.
+    expect(wrapper.find('[data-testid="sale-item-remove-promo"]').exists()).toBe(false)
   })
 })
