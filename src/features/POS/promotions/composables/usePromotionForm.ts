@@ -57,10 +57,28 @@ export const TARGET_TYPE_OPTIONS: SelectOption<PromotionTargetType>[] = [
   { label: 'Variantes', value: 'VARIANTS' },
 ]
 
+// ── Discount percent select options (REQ-8) ───────────────────────────────────
+//
+// REQ-8: BXGY bound is 0..100 inclusive; 100 = gratis ("Gratis" maps to 100,
+// NOT the legacy inverted 0→"Gratis"). ADVANCED still rejects 100 via the
+// schema bound (0..99), so this shared list intentionally exposes the full
+// BXGY range — ADVANCED is enforced at the schema level, not here.
+//
+// Extracted from PromotionForm.vue so it can be unit-tested as pure data
+// without mounting the SFC (Extract-Before-Mock).
+export const DISCOUNT_PERCENT_OPTIONS: { label: string; value: number }[] = [
+  ...Array.from({ length: 19 }, (_, i) => {
+    const pct = (i + 1) * 5
+    return { label: `${pct}% OFF`, value: pct }
+  }),
+  { label: 'Gratis', value: 100 },
+]
+
+// REQ-10: locked preset table for BUY_X_GET_Y quick-pick.
 export const BUY_X_GET_Y_PRESETS: BuyXGetYPreset[] = [
-  { label: '2x1', buyQuantity: 2, getQuantity: 1, getDiscountPercent: 0 },
-  { label: '3x2', buyQuantity: 3, getQuantity: 2, getDiscountPercent: 0 },
-  { label: 'Segundo al 50%', buyQuantity: 2, getQuantity: 1, getDiscountPercent: 50 },
+  { label: '2x1', buyQuantity: 1, getQuantity: 1, getDiscountPercent: 100 },
+  { label: '3x2', buyQuantity: 2, getQuantity: 1, getDiscountPercent: 100 },
+  { label: 'Segundo al 50%', buyQuantity: 1, getQuantity: 1, getDiscountPercent: 50 },
 ]
 
 // ── Initial state factory ─────────────────────────────────────────────────────

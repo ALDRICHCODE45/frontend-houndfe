@@ -178,10 +178,10 @@ export const promotionFormSchema = baseSchema.superRefine((data, ctx) => {
         message: 'El descuento porcentual es obligatorio',
         path: ['getDiscountPercent'],
       })
-    } else if (data.getDiscountPercent < 0 || data.getDiscountPercent > 99) {
+    } else if (data.getDiscountPercent < 0 || data.getDiscountPercent > 100) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'El descuento debe estar entre 0 y 99 (0 = gratis, 100 no permitido)',
+        message: 'El descuento debe estar entre 0 y 100 (100 = gratis)',
         path: ['getDiscountPercent'],
       })
     }
