@@ -104,10 +104,30 @@ const itemActions = computed(() => {
 const showPriceOrigin = computed(
   () =>
     ['price_list', 'custom'].includes(props.item.priceSource ?? '') &&
-    !!props.item.originalPriceCents &&
-    props.item.originalPriceCents !== props.item.unitPriceCents,
+    props.item.originalPriceCents != null &&
+    props.item.originalPriceCents > props.item.unitPriceCents,
 )
-const showDiscountOrigin = computed(() => !!props.item.discountType && !!props.item.prePriceCentsBeforeDiscount)
+const showDiscountOrigin = computed(
+  () =>
+    props.item.discountType != null &&
+    props.item.prePriceCentsBeforeDiscount != null &&
+    props.item.prePriceCentsBeforeDiscount > props.item.unitPriceCents,
+)
+
+// buy-x-get-y-promotion REQ-3: unified line-total display contract for the
+// draft cart row. The backend now ADDITIVELY returns `subtotalCents` (NET
+// per line) and `rewardKind` on every draft response. The frontend MUST
+// prefer backend NET and only render a struck-through gross when there is
+// actually a discount. BXGY lines (unitPriceCents === prePriceCentsBeforeDiscount,
+// reward is line-level not unit-level) show struck gross without a
+// unit-price strikethrough.
+const lineDisplay = computed(() => {
+  const grossPerUnit = props.item.prePriceCentsBeforeDiscount ?? props.item.unitPriceCents
+  const grossLine = lineCents(grossPerUnit, props.item.quantity)
+  const netLine = props.item.subtotalCents ?? grossLine
+  const showStruckGross = netLine < grossLine
+  return { grossPerUnit, grossLine, netLine, showStruckGross }
+})
 
 // Sync localQty when item.quantity changes from parent
 watch(
@@ -172,8 +192,16 @@ function handleQtyCommit() {
         <p class="text-[11px] text-muted truncate mt-0.5">
           <span v-if="item.variantName" class="uppercase tracking-wide">{{ item.variantName }}</span>
           <span v-if="item.variantName"> · </span>
-          <span v-if="showPriceOrigin" class="line-through mr-1">{{ formatCentsMXN(item.originalPriceCents ?? 0) }}</span>
-          <span v-if="showDiscountOrigin" class="line-through mr-1">{{ formatCentsMXN(item.prePriceCentsBeforeDiscount ?? 0) }}</span>
+          <span
+            v-if="showPriceOrigin"
+            data-testid="sale-item-unit-strike-original"
+            class="line-through mr-1"
+          >{{ formatCentsMXN(item.originalPriceCents ?? 0) }}</span>
+          <span
+            v-if="showDiscountOrigin"
+            data-testid="sale-item-unit-strike-pre-discount"
+            class="line-through mr-1"
+          >{{ formatCentsMXN(item.prePriceCentsBeforeDiscount ?? 0) }}</span>
           <span class="font-medium text-toned">{{ formatCentsMXN(item.unitPriceCents) }} c/u</span>
         </p>
         <!-- Badges row -->
@@ -187,6 +215,7 @@ function handleQtyCommit() {
           :discount-amount-cents="item.discountAmountCents"
           :discount-title="item.discountTitle"
           :promotion-id="item.promotionId"
+          :reward-kind="item.rewardKind"
           :removable="isDraft"
           @remove-promo="(id) => emit('remove-promo', id)"
         />
@@ -206,14 +235,18 @@ function handleQtyCommit() {
 
       <!-- Line total -->
       <div class="w-[90px] shrink-0 text-right">
-        <p class="text-[13px] font-bold text-highlighted tabular-nums">
-          {{ formatCentsMXN(lineCents(item.unitPriceCents, item.quantity)) }}
+        <p
+          data-testid="sale-item-line-net"
+          class="text-[13px] font-bold text-highlighted tabular-nums"
+        >
+          {{ formatCentsMXN(lineDisplay.netLine) }}
         </p>
         <p
-          v-if="item.discountAmountCents && item.discountAmountCents > 0"
+          v-if="lineDisplay.showStruckGross"
+          data-testid="sale-item-line-gross-strike"
           class="text-[10px] text-muted line-through tabular-nums"
         >
-          {{ formatCentsMXN(lineCents(item.prePriceCentsBeforeDiscount ?? item.unitPriceCents, item.quantity)) }}
+          {{ formatCentsMXN(lineDisplay.grossLine) }}
         </p>
       </div>
 

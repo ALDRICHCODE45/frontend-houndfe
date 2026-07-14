@@ -286,6 +286,17 @@ export interface SaleItem {
   // promotions-in-sale: non-null = line discount came from an auto/manual promotion
   // (call veto to remove). Null/absent = seller's manual free-form discount or no discount.
   promotionId?: string | null
+  // buy-x-get-y-promotion REQ-3: backend-provided NET per line. Same
+  // semantics as SaleDetailItem.subtotalCents — line-level total after
+  // the line discount (cashier-applied or promo-applied). The client
+  // MUST render this directly and MUST NOT recompute it. Null/undefined
+  // for pre-deploy draft responses (fall back to unitPrice × qty).
+  subtotalCents?: number | null
+  // buy-x-get-y-promotion REQ-3: BXGY reward flag. 'buy_x_get_y' = this
+  // line was the free unit of a BXGY promo (the line itself is the
+  // reward). Null/absent = regular line. Pre-deploy draft responses
+  // omit the field; optional + nullable keeps backward compat.
+  rewardKind?: 'buy_x_get_y' | null
 }
 
 export interface SaleDraftCustomer {

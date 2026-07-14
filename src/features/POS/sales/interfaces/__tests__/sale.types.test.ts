@@ -1014,6 +1014,66 @@ describe('sale.types', () => {
       })
     })
 
+    describe('SaleItem subtotalCents + rewardKind optional fields (buy-x-get-y-promotion REQ-3)', () => {
+      // BXGY draft lines receive backend NET subtotalCents and a
+      // rewardKind='buy_x_get_y' tag. The frontend MUST accept both fields
+      // so the draft cart row can render NET + the GRATIS reward badge.
+
+      it('accepts subtotalCents and rewardKind = "buy_x_get_y" on a BXGY draft line', () => {
+        const item: SaleItem = {
+          id: 'item-bxgy',
+          productId: 'prod-1',
+          variantId: null,
+          productName: 'Vitamina C',
+          variantName: null,
+          quantity: 2,
+          unitPriceCents: 20000,
+          unitPriceCurrency: 'MXN',
+          prePriceCentsBeforeDiscount: 20000,
+          discountAmountCents: 20000,
+          subtotalCents: 20000,
+          rewardKind: 'buy_x_get_y',
+        }
+
+        expect(item.subtotalCents).toBe(20000)
+        expect(item.rewardKind).toBe('buy_x_get_y')
+      })
+
+      it('accepts rewardKind = null on a non-reward draft line', () => {
+        const item: SaleItem = {
+          id: 'item-regular',
+          productId: 'prod-1',
+          variantId: null,
+          productName: 'Vitamina C',
+          variantName: null,
+          quantity: 1,
+          unitPriceCents: 12000,
+          unitPriceCurrency: 'MXN',
+          subtotalCents: 12000,
+          rewardKind: null,
+        }
+
+        expect(item.rewardKind).toBeNull()
+        expect(item.subtotalCents).toBe(12000)
+      })
+
+      it('omits subtotalCents and rewardKind for backward compat with pre-deploy draft responses', () => {
+        const item: SaleItem = {
+          id: 'item-legacy-draft',
+          productId: 'prod-1',
+          variantId: null,
+          productName: 'Vitamina C',
+          variantName: null,
+          quantity: 1,
+          unitPriceCents: 12000,
+          unitPriceCurrency: 'MXN',
+        }
+
+        expect(item.subtotalCents).toBeUndefined()
+        expect(item.rewardKind).toBeUndefined()
+      })
+    })
+
     describe('Sale totals fields (subtotalCents/discountCents/totalCents) + appliedOrderPromotion optional', () => {
       it('accepts backend-provided totals + applied order promo', () => {
         const orderPromo: AppliedOrderPromotion = {
