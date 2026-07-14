@@ -1,33 +1,36 @@
-# Sales Specification
+# Delta Spec for `sales` — `bxgy-reward-badge-label`
 
-Domain: `sales` · POS sale-detail and draft-cart rendering of promotion-driven state. This capability covers the union widening of `ApplicablePromotion.type` to include `BUY_X_GET_Y`, percent-aware rendering of the BXGY reward badge on confirmed sale lines based on backend-provided `rewardDiscountPercent`, the `subtotalCents` (NET) rendering rule for confirmed-sale lines, and the unified draft-cart line display contract (`subtotalCents` + `rewardKind` + `rewardDiscountPercent` + tightened unit-strikethrough rules).
+Purpose: tighten the BXGY reward-badge label so it is percent-aware (no more
+hardcoded `"GRATIS"` on partial-discount reward lines), and add an optional
+`rewardDiscountPercent?: number | null` field to both `SaleItem` and
+`SaleDetailItem` so the label can be computed deterministically from a
+backend-provided discriminator. Pre-deploy payloads (field absent) MUST fall
+back to NO reward badge — never to the legacy `"GRATIS"`.
 
-## Purpose
+Out of scope: backend contract (already shipped in main), tone/icon/testid on
+the reward badge (unchanged), the `DESCUENTO` badge (unchanged), the
+`sale-item-remove-promo` button (unchanged), the 18 unrelated pre-existing
+test failures.
 
-When the backend evaluates a `BUY_X_GET_Y` promotion, it now reports per-line metadata (`rewardKind`, `rewardDiscountPercent`, `subtotalCents`) on both confirmed `SaleDetailItem` and draft `SaleItem` payloads. The frontend must accept those fields, render a percent-aware reward badge (`GRATIS` only at 100%; `-N%` for a positive partial discount; no badge for null or <=0), show the backend-provided NET amount without recomputation, and never strike through a unit price that did not actually drop. All copy is neutral Spanish; identifiers remain English.
-
-## Requirements
-
-### REQ-1 Applicable Promotions Include BUY_X_GET_Y
-The sales `ApplicablePromotion.type` contract MUST include `'BUY_X_GET_Y'` alongside the existing promotion types, so applicable-promotion responses containing BXGY are accepted and represented without type errors.
-
-#### Scenario: BXGY applicable promotion is accepted
-- GIVEN the applicable-promotions response contains `type: 'BUY_X_GET_Y'`
-- WHEN the sales flow parses and renders the response
-- THEN the promotion is accepted as a valid applicable promotion
+## MODIFIED Requirements
 
 ### REQ-2 Confirmed Sale Reward Badge
 
-The confirmed-sale reward badge label MUST be driven by the reward's `getDiscountPercent` (exposed as the optional field `rewardDiscountPercent`), never hardcoded. Four cases:
+The confirmed-sale reward badge label MUST be driven by the reward's
+`getDiscountPercent` (exposed as the optional field `rewardDiscountPercent`),
+never hardcoded. Four cases:
 - `rewardKind !== 'buy_x_get_y'` → no reward badge.
 - `rewardKind === 'buy_x_get_y'` AND `rewardDiscountPercent === 100` → badge label `"GRATIS"`.
 - `rewardKind === 'buy_x_get_y'` AND `rewardDiscountPercent != null` AND `!== 100` → badge label `"-{pct}%"` (e.g. `50` → `"-50%"`).
 - `rewardKind === 'buy_x_get_y'` AND `rewardDiscountPercent == null` (pre-deploy) → no reward badge (defensive).
 
-When rendered, the badge keeps the existing green `success` tone, `i-lucide-gift` icon, and `data-testid="sale-item-reward-badge"`; only the label text changes.
-The line MUST still render its backend-provided NET `subtotalCents` verbatim (client MUST NOT recompute).
+When rendered, the badge keeps the existing green `success` tone, `i-lucide-gift`
+icon, and `data-testid="sale-item-reward-badge"`; only the label text changes.
+The line MUST still render its backend-provided NET `subtotalCents` verbatim
+(client MUST NOT recompute).
 
-(Previously: badge always rendered hardcoded `"GRATIS"` whenever `rewardKind === 'buy_x_get_y'`.)
+(Previously: badge always rendered hardcoded `"GRATIS"` whenever
+`rewardKind === 'buy_x_get_y'`.)
 
 #### Scenario: confirmed BXGY reward at 100% renders GRATIS badge
 - GIVEN a confirmed-sale detail line has `rewardKind: 'buy_x_get_y'` and `rewardDiscountPercent: 100`
@@ -60,7 +63,12 @@ The line MUST still render its backend-provided NET `subtotalCents` verbatim (cl
 
 ### REQ-3 Draft Cart Line NET Display + Reward Badge + Strikethrough Fix
 
-The draft cart row (`SaleItemRow`) MUST render the line total and the unit-price strikethrough using a single, unified contract that works for BXGY promotions, cashier line discounts, and no-discount lines. `SaleItem` MUST accept `subtotalCents?: number | null`, `rewardKind?: 'buy_x_get_y' | null`, AND `rewardDiscountPercent?: number | null` — all optional + nullable for backward compat with pre-deploy draft responses.
+The draft cart row (`SaleItemRow`) MUST render the line total and the unit-price
+strikethrough using a single, unified contract that works for BXGY promotions,
+cashier line discounts, and no-discount lines. `SaleItem` MUST accept
+`subtotalCents?: number | null`, `rewardKind?: 'buy_x_get_y' | null`, AND
+`rewardDiscountPercent?: number | null` — all optional + nullable for
+backward compat with pre-deploy draft responses.
 
 The display rules are:
 - `grossPerUnit = item.prePriceCentsBeforeDiscount ?? item.unitPriceCents`
@@ -73,7 +81,8 @@ The display rules are:
   - `showDiscountOrigin`: require `discountType != null && prePriceCentsBeforeDiscount != null && unitPriceCents < prePriceCentsBeforeDiscount`.
 - `rewardKind` AND `rewardDiscountPercent` MUST be forwarded to `SaleItemBadges` so the percent-aware reward badge appears on draft cart lines that are BXGY rewards; the rendered label MUST match the confirmed-detail surface for the same `(rewardKind, rewardDiscountPercent)` pair.
 
-(Previously: only `rewardKind` was forwarded and the badge label was hardcoded `GRATIS`; `rewardDiscountPercent` was not part of the `SaleItem` contract.)
+(Previously: only `rewardKind` was forwarded and the badge label was hardcoded
+`GRATIS`; `rewardDiscountPercent` was not part of the `SaleItem` contract.)
 
 #### Scenario: BXGY draft line at 100% renders NET + struck gross + GRATIS badge, NO unit strikethrough
 - GIVEN a draft line with `unitPriceCents: 20000`, `quantity: 2`, `prePriceCentsBeforeDiscount: 20000`, `discountAmountCents: 20000`, `subtotalCents: 20000`, `rewardKind: 'buy_x_get_y'`, `rewardDiscountPercent: 100`
@@ -110,99 +119,7 @@ The display rules are:
 - THEN `showDiscountOrigin` is `false`
 - AND no pre-discount unit-price strikethrough is rendered
 
-### REQ-4 ApplicablePromotion Eligibility Fields Are Optional + Nullable
-
-`ApplicablePromotion` MUST accept five OPTIONAL + nullable fields: `eligible?: boolean`, `buyQuantity?: number | null`, `getQuantity?: number | null`, `unitsNeeded?: number`, `method?: 'MANUAL'`. Fixtures omitting all five MUST still type-check.
-
-#### Scenario: all eligibility fields accept concrete values
-- GIVEN `eligible: true, buyQuantity: 2, getQuantity: 1, unitsNeeded: 1, method: 'MANUAL'`
-- WHEN the literal is type-checked
-- THEN the literal is accepted
-
-#### Scenario: `buyQuantity` and `getQuantity` accept null
-- GIVEN `buyQuantity: null, getQuantity: null`
-- WHEN the literal is type-checked
-- THEN the literal is accepted
-
-#### Scenario: eligibility fields are omittable for legacy fixtures
-- GIVEN all five fields are omitted
-- WHEN the literal is type-checked
-- THEN the literal is accepted
-
-### REQ-5 Aplicar Button Honors Generic `eligible` Gate
-
-The accordion MUST bind `:disabled="promo.eligible === false"` on the `Aplicar` `UButton` (testid `promo-apply-${id}`). The STRICT `=== false` comparison is required so that only an explicit `false` disables the button; `undefined` (legacy rows omitting `eligible`) and `true` MUST remain enabled — a loose `!eligible` would wrongly disable legacy rows. When `eligible === false`, the button renders disabled and clicking MUST NOT emit `apply`. When `eligible === true` or `undefined`, the button MUST remain enabled. The gate is GENERIC on `eligible`; it MUST NOT branch on `promo.type`.
-
-#### Scenario: `eligible: false` disables Aplicar
-- GIVEN a row has `eligible: false`
-- WHEN the accordion renders the row
-- THEN `promo-apply-${id}` is rendered with `disabled` and clicking does not emit `apply`
-
-#### Scenario: `eligible: true` keeps Aplicar enabled
-- GIVEN a row has `eligible: true`
-- WHEN the accordion renders the row
-- THEN `promo-apply-${id}` is enabled and clicking emits `apply`
-
-#### Scenario: legacy fixture without `eligible` keeps Aplicar enabled
-- GIVEN a row omits `eligible`
-- WHEN the accordion renders the row
-- THEN `promo-apply-${id}` is enabled (undefined is treated as eligible)
-
-### REQ-6 `unitsNeeded` Renders Localized Hint With Singular/Plural
-
-When a row carries `unitsNeeded != null`, the accordion MUST render a hint under the title with testid `promo-hint-${id}` and text `"2x1 · requiere N unidad(es) más"`. The noun MUST agree with `N`: `N === 1` → `"2x1 · requiere 1 unidad más"`; `N >= 2` → `"2x1 · requiere N unidades más"`. When `unitsNeeded` is absent or null, the hint MUST NOT render.
-
-#### Scenario: N=1 renders singular hint
-- GIVEN a row has `unitsNeeded: 1`
-- WHEN the accordion renders the row
-- THEN `promo-hint-${id}` contains `2x1 · requiere 1 unidad más`
-
-#### Scenario: N=2 renders plural hint
-- GIVEN a row has `unitsNeeded: 2`
-- WHEN the accordion renders the row
-- THEN `promo-hint-${id}` contains `2x1 · requiere 2 unidades más`
-
-#### Scenario: no `unitsNeeded` renders no hint
-- GIVEN a row has `unitsNeeded` absent or null
-- WHEN the accordion renders the row
-- THEN no element with testid `promo-hint-${id}` is rendered
-
-### REQ-7 SaleDetailItem Carries Optional `promotionId`
-
-`SaleDetailItem` MUST accept `promotionId?: string | null`. Fixtures omitting the field MUST still type-check.
-
-#### Scenario: `promotionId` accepts a string value
-- GIVEN `promotionId: 'promo-abc'`
-- WHEN the literal is type-checked
-- THEN the literal is accepted
-
-#### Scenario: `promotionId` accepts null
-- GIVEN `promotionId: null`
-- WHEN the literal is type-checked
-- THEN the literal is accepted
-
-#### Scenario: `promotionId` is omittable for legacy fixtures
-- GIVEN `promotionId` is omitted
-- WHEN the literal is type-checked
-- THEN the literal is accepted
-
-### REQ-8 Confirmed-Sale List Forwards `promotionId` to Item Badges
-
-`SaleDetailItemsList` MUST forward each item's `promotionId` to `SaleItemBadges` via `:promotion-id`. The promo chip is gated on `promotionId != null` (the existing `SaleItemBadges` `hasPromotion` gate): when a promotion is present the chip renders the promotion title from `discountTitle`, and when `discountTitle` is empty or null it renders a defensive `"Promoción"` fallback label. In a confirmed sale the backend always supplies `discountTitle`, so the fallback is defensive-only in practice. The confirmed-sale surface MUST NOT render the `sale-item-remove-promo` button (it never sets `removable`). `SaleItemBadges.vue` MUST NOT be modified.
-
-#### Scenario: promotionId + non-empty discountTitle renders promo-name chip
-- GIVEN a confirmed-sale item with `promotionId: 'promo-abc'` and `discountTitle: 'Black Friday 2x1'`
-- WHEN `SaleDetailItemsList` renders the row
-- THEN `SaleItemBadges` receives `promotion-id="promo-abc"`
-- AND the `sale-item-promo-badge` chip with that title is visible
-- AND no `sale-item-remove-promo` button renders
-
-#### Scenario: promotionId with empty discountTitle renders defensive fallback chip
-- GIVEN a confirmed-sale item with `promotionId: 'promo-abc'` and `discountTitle: ''` or null
-- WHEN `SaleDetailItemsList` renders the row
-- THEN `SaleItemBadges` receives `promotion-id="promo-abc"`
-- AND the `sale-item-promo-badge` chip renders with the `"Promoción"` fallback label
-- AND no `sale-item-remove-promo` button renders
+## ADDED Requirements
 
 ### REQ-9 SaleItem + SaleDetailItem Accept Optional `rewardDiscountPercent`
 
@@ -335,10 +252,3 @@ NEITHER MUST fall back to the legacy hardcoded `"GRATIS"`.
 - WHEN `SaleDetailItemsList` renders the item
 - THEN the view renders without throwing
 - AND no `GRATIS` and no `-50%` badge is rendered
-
-## UI Copy (neutral Spanish, examples)
-
-- Reward badge label: `GRATIS`
-- Partial-discount reward badge label: `-N%` (e.g. `-50%`)
-- BXGY units-needed hint: `2x1 · requiere N unidad(es) más` (N=1 → `"2x1 · requiere 1 unidad más"`; N≥2 → `"2x1 · requiere N unidades más"`)
-- Defensive promo fallback label: `Promoción`

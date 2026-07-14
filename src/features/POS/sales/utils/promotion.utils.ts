@@ -11,3 +11,15 @@ export function buildBxgyHint(unitsNeeded: number): string {
   const noun = unitsNeeded === 1 ? 'unidad' : 'unidades'
   return `2x1 · requiere ${unitsNeeded} ${noun} más`
 }
+
+export function getRewardBadgeLabel(
+  rewardKind: 'buy_x_get_y' | null | undefined,
+  rewardDiscountPercent: number | null | undefined,
+): string | null {
+  if (rewardKind !== 'buy_x_get_y') return null
+  if (rewardDiscountPercent === 100) return 'GRATIS'
+  if (rewardDiscountPercent != null && rewardDiscountPercent > 0) {
+    return `-${rewardDiscountPercent}%`
+  }
+  return null
+}

@@ -7,7 +7,7 @@
 // Mount-based coverage is reserved for the v-if/v-bind wiring in
 // `PromocionesDisponiblesAccordion.test.ts`.
 import { describe, it, expect } from 'vitest'
-import { buildBxgyHint } from '../promotion.utils'
+import { buildBxgyHint, getRewardBadgeLabel } from '../promotion.utils'
 
 describe('buildBxgyHint (bxgy-promotion-followups REQ-6)', () => {
   it('returns singular "unidad" when unitsNeeded === 1', () => {
@@ -31,5 +31,30 @@ describe('buildBxgyHint (bxgy-promotion-followups REQ-6)', () => {
   it('ends with "más" per spec REQ-6', () => {
     expect(buildBxgyHint(1).endsWith('más')).toBe(true)
     expect(buildBxgyHint(2).endsWith('más')).toBe(true)
+  })
+})
+
+describe('getRewardBadgeLabel (bxgy-reward-badge-label REQ-10)', () => {
+  it('returns GRATIS for a 100% BXGY reward', () => {
+    expect(getRewardBadgeLabel('buy_x_get_y', 100)).toBe('GRATIS')
+  })
+
+  it('returns the partial discount percent for a BXGY reward', () => {
+    expect(getRewardBadgeLabel('buy_x_get_y', 50)).toBe('-50%')
+  })
+
+  it('returns null for a non-BXGY reward kind', () => {
+    expect(getRewardBadgeLabel(null, 100)).toBeNull()
+    expect(getRewardBadgeLabel(undefined, 50)).toBeNull()
+  })
+
+  it('returns null for a BXGY reward with a missing percent', () => {
+    expect(getRewardBadgeLabel('buy_x_get_y', null)).toBeNull()
+    expect(getRewardBadgeLabel('buy_x_get_y', undefined)).toBeNull()
+  })
+
+  it('returns null for a zero or negative BXGY percent', () => {
+    expect(getRewardBadgeLabel('buy_x_get_y', 0)).toBeNull()
+    expect(getRewardBadgeLabel('buy_x_get_y', -1)).toBeNull()
   })
 })

@@ -216,6 +216,7 @@ function handleQtyCommit() {
           :discount-title="item.discountTitle"
           :promotion-id="item.promotionId"
           :reward-kind="item.rewardKind"
+          :reward-discount-percent="item.rewardDiscountPercent"
           :removable="isDraft"
           @remove-promo="(id) => emit('remove-promo', id)"
         />

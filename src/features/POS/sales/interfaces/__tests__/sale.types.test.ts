@@ -1031,12 +1031,15 @@ describe('sale.types', () => {
           unitPriceCurrency: 'MXN',
           prePriceCentsBeforeDiscount: 20000,
           discountAmountCents: 20000,
-          subtotalCents: 20000,
-          rewardKind: 'buy_x_get_y',
-        }
+           subtotalCents: 20000,
+           rewardKind: 'buy_x_get_y',
+           rewardDiscountPercent: 50,
+         }
 
-        expect(item.subtotalCents).toBe(20000)
-        expect(item.rewardKind).toBe('buy_x_get_y')
+         expect(item.subtotalCents).toBe(20000)
+         expect(item.rewardKind).toBe('buy_x_get_y')
+         expect(item.rewardDiscountPercent).toBe(50)
+
       })
 
       it('accepts rewardKind = null on a non-reward draft line', () => {
@@ -1049,12 +1052,15 @@ describe('sale.types', () => {
           quantity: 1,
           unitPriceCents: 12000,
           unitPriceCurrency: 'MXN',
-          subtotalCents: 12000,
-          rewardKind: null,
-        }
+           subtotalCents: 12000,
+           rewardKind: null,
+           rewardDiscountPercent: null,
+         }
 
-        expect(item.rewardKind).toBeNull()
-        expect(item.subtotalCents).toBe(12000)
+         expect(item.rewardKind).toBeNull()
+         expect(item.rewardDiscountPercent).toBeNull()
+         expect(item.subtotalCents).toBe(12000)
+
       })
 
       it('omits subtotalCents and rewardKind for backward compat with pre-deploy draft responses', () => {
@@ -1069,8 +1075,10 @@ describe('sale.types', () => {
           unitPriceCurrency: 'MXN',
         }
 
-        expect(item.subtotalCents).toBeUndefined()
-        expect(item.rewardKind).toBeUndefined()
+         expect(item.subtotalCents).toBeUndefined()
+         expect(item.rewardKind).toBeUndefined()
+         expect(item.rewardDiscountPercent).toBeUndefined()
+
       })
     })
 
@@ -1239,11 +1247,14 @@ describe('sale.types', () => {
           unitPriceCents: 12000,
           quantity: 1,
           discountCents: 0,
-          subtotalCents: 0,
-          rewardKind: 'buy_x_get_y',
-        }
+           subtotalCents: 0,
+           rewardKind: 'buy_x_get_y',
+           rewardDiscountPercent: 50,
+         }
 
-        expect(item.rewardKind).toBe('buy_x_get_y')
+         expect(item.rewardKind).toBe('buy_x_get_y')
+         expect(item.rewardDiscountPercent).toBe(50)
+
       })
 
       // null = backend explicitly says "not a reward" (regular confirmed line).
@@ -1255,11 +1266,14 @@ describe('sale.types', () => {
           unitPriceCents: 12000,
           quantity: 1,
           discountCents: 0,
-          subtotalCents: 12000,
-          rewardKind: null,
-        }
+           subtotalCents: 12000,
+           rewardKind: null,
+           rewardDiscountPercent: null,
+         }
 
-        expect(item.rewardKind).toBeNull()
+         expect(item.rewardKind).toBeNull()
+         expect(item.rewardDiscountPercent).toBeNull()
+
       })
 
       // Omitted = pre-deploy backend response. Must remain backward-compatible.
@@ -1274,11 +1288,12 @@ describe('sale.types', () => {
           subtotalCents: 12000,
         }
 
-        expect(item.rewardKind).toBeUndefined()
-      })
-    })
+         expect(item.rewardKind).toBeUndefined()
+         expect(item.rewardDiscountPercent).toBeUndefined()
+       })
+     })
 
-    describe('SaleDetailItem.promotionId optional field (bxgy-promotion-followups REQ-7)', () => {
+     describe('SaleDetailItem.promotionId optional field (bxgy-promotion-followups REQ-7)', () => {
       // The confirmed-sale surface forwards the line's promotionId to
       // `SaleItemBadges` so the promo-name chip renders on the listed line.
       // The field MUST be optional + nullable to keep pre-deploy confirmed-sale
