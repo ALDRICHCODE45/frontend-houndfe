@@ -278,25 +278,73 @@ describe('SaleDetailItemsList', () => {
       props: {
         items: [
           {
-            productName: 'Vitamina C',
-            variantName: '1000mg',
-            imageUrl: null,
-            unitPriceCents: 12000,
-            quantity: 1,
-            discountCents: 0,
-            subtotalCents: 0,
-            rewardKind: 'buy_x_get_y',
-          },
+             discountCents: 0,
+             subtotalCents: 0,
+             rewardKind: 'buy_x_get_y',
+             rewardDiscountPercent: 100,
+           },
+
         ],
       },
     })
 
-    const rewardBadge = wrapper.find('[data-testid="sale-item-reward-badge"]')
-    expect(rewardBadge.exists()).toBe(true)
-    expect(rewardBadge.text()).toContain('GRATIS')
-    // Backend-provided NET subtotal must render verbatim — client MUST NOT recompute.
-    expect(wrapper.get('[data-testid="item-subtotal-0"]').text()).toContain('$0.00')
-  })
+     const rewardBadge = wrapper.find('[data-testid="sale-item-reward-badge"]')
+     expect(rewardBadge.exists()).toBe(true)
+     expect(rewardBadge.text()).toContain('GRATIS')
+     const badges = wrapper.findComponent(SaleItemBadges)
+     expect(badges.props('rewardDiscountPercent')).toBe(100)
+     // Backend-provided NET subtotal must render verbatim — client MUST NOT recompute.
+     expect(wrapper.get('[data-testid="item-subtotal-0"]').text()).toContain('$0.00')
+   })
+
+   it('renders a partial reward percent on the confirmed detail surface', () => {
+     const wrapper = mountWithUApp(SaleDetailItemsList, {
+       props: {
+         items: [
+           {
+             productName: 'Vitamina C',
+             variantName: '1000mg',
+             imageUrl: null,
+             unitPriceCents: 12000,
+             quantity: 1,
+             discountCents: 0,
+             subtotalCents: 6000,
+             rewardKind: 'buy_x_get_y',
+             rewardDiscountPercent: 50,
+           },
+         ],
+       },
+     })
+
+     const rewardBadge = wrapper.find('[data-testid="sale-item-reward-badge"]')
+     expect(rewardBadge.text()).toContain('-50%')
+     expect(rewardBadge.text()).not.toContain('GRATIS')
+     expect(wrapper.findComponent(SaleItemBadges).props('rewardDiscountPercent')).toBe(50)
+   })
+
+   it('does NOT render a reward badge when the confirmed detail percent is null', () => {
+     const wrapper = mountWithUApp(SaleDetailItemsList, {
+       props: {
+         items: [
+           {
+             productName: 'Vitamina C',
+             variantName: null,
+             imageUrl: null,
+             unitPriceCents: 12000,
+             quantity: 1,
+             discountCents: 0,
+             subtotalCents: 12000,
+             rewardKind: 'buy_x_get_y',
+             rewardDiscountPercent: null,
+           },
+         ],
+       },
+     })
+
+     expect(wrapper.find('[data-testid="sale-item-reward-badge"]').exists()).toBe(false)
+     expect(wrapper.findComponent(SaleItemBadges).props('rewardDiscountPercent')).toBeNull()
+   })
+
 
   it('does NOT render a reward badge on a line without rewardKind', () => {
     const wrapper = mountWithUApp(SaleDetailItemsList, {
@@ -330,9 +378,11 @@ describe('SaleDetailItemsList', () => {
             unitPriceCents: 12000,
             quantity: 2,
             discountCents: 0,
-            subtotalCents: 0,
-            rewardKind: 'buy_x_get_y',
-          },
+             subtotalCents: 0,
+             rewardKind: 'buy_x_get_y',
+             rewardDiscountPercent: 100,
+           },
+
           {
             productName: 'Paracetamol',
             variantName: null,

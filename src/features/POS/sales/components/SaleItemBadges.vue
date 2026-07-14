@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
 import { formatCentsMXN } from '../utils/currency.utils'
+import { getRewardBadgeLabel } from '../utils/promotion.utils'
 import type { PriceSource } from '../interfaces/sale.types'
 
 // Shared between draft items (SaleItem) and confirmed-sale items
@@ -17,12 +18,15 @@ import type { PriceSource } from '../interfaces/sale.types'
 // affordance — that surface MUST render the badge but NOT the remove
 // button. Only the draft context (SaleItemRow) sets `removable=true`.
 //
-// `rewardKind` (buy-x-get-y-promotion REQ-2): when the backend marks a
-// confirmed-sale line as the FREE unit of a BXGY promo, this component
-// renders a distinct reward badge labeled `GRATIS`. Null/absent means
-// the line is a regular confirmed line and no reward badge renders.
-// Prop-driven and pure: parent passes the value, this component only
-// decides whether to render the badge.
+// `rewardKind` + `rewardDiscountPercent` (bxgy-reward-badge-label):
+// when the backend marks a line as the reward unit of a BXGY promo
+// (`rewardKind === 'buy_x_get_y'`), this component renders a reward
+// badge whose text depends on the reward's discount percent:
+// 100 => `GRATIS`, a positive partial => `-N%` (e.g. `-50%`), and
+// null/absent/<=0 => no reward badge (defensive — never assume free).
+// The label rule lives in the pure `getRewardBadgeLabel` helper.
+// Prop-driven and pure: parents pass both values, this component only
+// decides whether (and what) to render.
 const props = withDefaults(
   defineProps<{
     priceSource?: PriceSource | null
@@ -35,6 +39,7 @@ const props = withDefaults(
     promotionId?: string | null
     removable?: boolean
     rewardKind?: 'buy_x_get_y' | null
+    rewardDiscountPercent?: number | null
   }>(),
   {
     removable: false,
@@ -81,14 +86,16 @@ const discountBadgeLabel = computed(() => {
 
 const hasPromotion = computed(() => props.promotionId != null)
 
-const isReward = computed(() => props.rewardKind === 'buy_x_get_y')
+const rewardBadgeLabel = computed(() =>
+  getRewardBadgeLabel(props.rewardKind, props.rewardDiscountPercent),
+)
 
 const hasAnyBadge = computed(
   () =>
     priceSourceBadge.value !== null ||
     props.discountType != null ||
     hasPromotion.value ||
-    isReward.value,
+    rewardBadgeLabel.value != null,
 )
 
 function handleRemovePromo() {
@@ -155,10 +162,10 @@ function handleRemovePromo() {
     />
 
     <AppBadge
-      v-if="isReward"
+      v-if="rewardBadgeLabel != null"
       tone="success"
       icon="i-lucide-gift"
-      label="GRATIS"
+      :label="rewardBadgeLabel"
       data-testid="sale-item-reward-badge"
     />
   </div>

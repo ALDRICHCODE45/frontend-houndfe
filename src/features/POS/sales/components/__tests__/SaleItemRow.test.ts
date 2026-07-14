@@ -470,60 +470,109 @@ describe('SaleItemRow', () => {
     // of a $200 product, but one is free; the frontend MUST trust
     // subtotalCents and not recompute). unitPriceCents is unchanged ($200),
     // prePriceCentsBeforeDiscount equals unitPrice (no per-unit discount).
-    const bxgyItem: SaleItem = {
-      id: 'item-bxgy',
-      productId: 'prod-1',
-      variantId: null,
-      productName: 'Vitamina C',
-      variantName: '500mg',
-      quantity: 2,
-      unitPriceCents: 20000,
-      unitPriceCurrency: 'MXN',
-      prePriceCentsBeforeDiscount: 20000,
-      discountAmountCents: 20000,
-      subtotalCents: 20000,
-      rewardKind: 'buy_x_get_y',
-    }
+     const bxgyItem: SaleItem = {
+       id: 'item-bxgy',
+       productId: 'prod-1',
+       variantId: null,
+       productName: 'Vitamina C',
+       variantName: '500mg',
+       quantity: 2,
+       unitPriceCents: 20000,
+       unitPriceCurrency: 'MXN',
+       prePriceCentsBeforeDiscount: 20000,
+       discountAmountCents: 20000,
+       subtotalCents: 20000,
+       rewardKind: 'buy_x_get_y',
+       rewardDiscountPercent: 100,
+     }
 
-    const wrapper = mount(SaleItemRow, {
-      props: {
-        item: bxgyItem,
-        saleId: 'sale-1',
-        onSubmitPriceOverride,
-        onApplyDiscount,
-        onRemoveDiscount,
-      },
-      global: { stubs },
-    })
+     const wrapper = mount(SaleItemRow, {
+       props: {
+         item: bxgyItem,
+         saleId: 'sale-1',
+         onSubmitPriceOverride,
+         onApplyDiscount,
+         onRemoveDiscount,
+       },
+       global: { stubs },
+     })
 
-    // Bold NET line shows the backend-provided subtotalCents ($200.00).
-    const netLine = wrapper.find('[data-testid="sale-item-line-net"]')
-    expect(netLine.exists()).toBe(true)
-    expect(netLine.text()).toContain('$200.00')
-    expect(netLine.classes()).toContain('font-bold')
+     // Bold NET line shows the backend-provided subtotalCents ($200.00).
+     const netLine = wrapper.find('[data-testid="sale-item-line-net"]')
+     expect(netLine.exists()).toBe(true)
+     expect(netLine.text()).toContain('$200.00')
+     expect(netLine.classes()).toContain('font-bold')
 
-    // Struck-through gross line shows prePrice × qty ($400.00).
-    const grossLine = wrapper.find('[data-testid="sale-item-line-gross-strike"]')
-    expect(grossLine.exists()).toBe(true)
-    expect(grossLine.text()).toContain('$400.00')
-    expect(grossLine.classes()).toContain('line-through')
+     // Struck-through gross line shows prePrice × qty ($400.00).
+     const grossLine = wrapper.find('[data-testid="sale-item-line-gross-strike"]')
+     expect(grossLine.exists()).toBe(true)
+     expect(grossLine.text()).toContain('$400.00')
+     expect(grossLine.classes()).toContain('line-through')
 
-    // Unit price strikethrough MUST NOT appear: unitPriceCents (20000) is
-    // NOT less than prePriceCentsBeforeDiscount (20000) — the unit price
-    // did not drop on a BXGY line, the reward is line-level.
-    expect(wrapper.find('[data-testid="sale-item-unit-strike-original"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="sale-item-unit-strike-pre-discount"]').exists()).toBe(false)
+     // Unit price strikethrough MUST NOT appear: unitPriceCents (20000) is
+     // NOT less than prePriceCentsBeforeDiscount (20000) — the unit price
+     // did not drop on a BXGY line, the reward is line-level.
+     expect(wrapper.find('[data-testid="sale-item-unit-strike-original"]').exists()).toBe(false)
+     expect(wrapper.find('[data-testid="sale-item-unit-strike-pre-discount"]').exists()).toBe(false)
 
-    // Current unit price still renders, unchanged.
-    expect(wrapper.text()).toContain('$200.00 c/u')
+     // Current unit price still renders, unchanged.
+     expect(wrapper.text()).toContain('$200.00 c/u')
 
-    // GRATIS reward badge is forwarded to SaleItemBadges.
-    const badges = wrapper.findComponent(SaleItemBadges)
-    expect(badges.exists()).toBe(true)
-    expect(badges.props('rewardKind')).toBe('buy_x_get_y')
-  })
+     // GRATIS reward badge is forwarded to SaleItemBadges.
+     const badges = wrapper.findComponent(SaleItemBadges)
+     expect(badges.exists()).toBe(true)
+     expect(badges.props('rewardKind')).toBe('buy_x_get_y')
+     expect(badges.props('rewardDiscountPercent')).toBe(100)
+   })
 
-  it('renders NET bold + struck gross + unit-price strikethrough on a cashier line discount', () => {
+   it('forwards a partial reward percent and renders the matching badge label', () => {
+     const partialRewardItem: SaleItem = {
+       ...mockItem,
+       rewardKind: 'buy_x_get_y',
+       rewardDiscountPercent: 50,
+     }
+
+     const wrapper = mount(SaleItemRow, {
+       props: {
+         item: partialRewardItem,
+         saleId: 'sale-1',
+         onSubmitPriceOverride,
+         onApplyDiscount,
+         onRemoveDiscount,
+       },
+       global: { stubs },
+     })
+
+     const badges = wrapper.findComponent(SaleItemBadges)
+     expect(badges.props('rewardDiscountPercent')).toBe(50)
+     expect(wrapper.find('[data-testid="sale-item-reward-badge"]').text()).toContain('-50%')
+     expect(wrapper.text()).not.toContain('GRATIS')
+   })
+
+   it('does not render a reward badge when a BXGY percent is omitted', () => {
+     const legacyRewardItem: SaleItem = {
+       ...mockItem,
+       rewardKind: 'buy_x_get_y',
+     }
+
+     const wrapper = mount(SaleItemRow, {
+       props: {
+         item: legacyRewardItem,
+         saleId: 'sale-1',
+         onSubmitPriceOverride,
+         onApplyDiscount,
+         onRemoveDiscount,
+       },
+       global: { stubs },
+     })
+
+     const badges = wrapper.findComponent(SaleItemBadges)
+     expect(badges.props('rewardDiscountPercent')).toBeUndefined()
+     expect(wrapper.find('[data-testid="sale-item-reward-badge"]').exists()).toBe(false)
+     expect(wrapper.text()).not.toContain('GRATIS')
+   })
+
+   it('renders NET bold + struck gross + unit-price strikethrough on a cashier line discount', () => {
     // Cashier applied 20% off: prePrice $96.00 → unit $80.00. Backend NET
     // per line = unit × qty = $80.00 (qty 1). Unit-price strikethrough
     // appears because unitPriceCents (8000) < prePriceCentsBeforeDiscount

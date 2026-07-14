@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import SaleItemBadges from '../SaleItemBadges.vue'
+import AppBadge from '@/core/shared/components/AppBadge.vue'
 import { mountWithUApp } from '@/test/mountWithUApp'
 
 describe('SaleItemBadges', () => {
@@ -151,18 +152,66 @@ describe('SaleItemBadges', () => {
 
   // ── B.2 — BXGY reward badge (buy-x-get-y-promotion REQ-2) ─────────────────
 
-  it('renders a GRATIS reward badge when rewardKind === "buy_x_get_y"', () => {
+  it('renders a percent-aware reward badge for a 100% BXGY reward', () => {
     const wrapper = mountWithUApp(SaleItemBadges, {
       props: {
         priceSource: 'default',
         unitPriceCents: 12000,
         rewardKind: 'buy_x_get_y',
+        rewardDiscountPercent: 100,
       },
     })
 
     const rewardBadge = wrapper.find('[data-testid="sale-item-reward-badge"]')
     expect(rewardBadge.exists()).toBe(true)
     expect(rewardBadge.text()).toContain('GRATIS')
+  })
+
+  it('renders a partial reward percent and never GRATIS for a partial BXGY reward', () => {
+    const wrapper = mountWithUApp(SaleItemBadges, {
+      props: {
+        priceSource: 'default',
+        unitPriceCents: 12000,
+        rewardKind: 'buy_x_get_y',
+        rewardDiscountPercent: 50,
+      },
+    })
+
+    const rewardBadge = wrapper.find('[data-testid="sale-item-reward-badge"]')
+    expect(rewardBadge.exists()).toBe(true)
+    expect(rewardBadge.text()).toContain('-50%')
+    expect(rewardBadge.text()).not.toContain('GRATIS')
+  })
+
+  it('does NOT render a reward badge when a BXGY reward percent is null', () => {
+    const wrapper = mountWithUApp(SaleItemBadges, {
+      props: {
+        priceSource: 'default',
+        unitPriceCents: 12000,
+        rewardKind: 'buy_x_get_y',
+        rewardDiscountPercent: null,
+      },
+    })
+
+    expect(wrapper.find('[data-testid="sale-item-reward-badge"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="sale-item-badge-group"]').exists()).toBe(false)
+  })
+
+  it('keeps success tone and gift icon for free and partial reward badges', () => {
+    for (const rewardDiscountPercent of [100, 50]) {
+      const wrapper = mountWithUApp(SaleItemBadges, {
+        props: {
+          priceSource: 'default',
+          unitPriceCents: 12000,
+          rewardKind: 'buy_x_get_y',
+          rewardDiscountPercent,
+        },
+      })
+
+      const rewardBadge = wrapper.findComponent(AppBadge)
+      expect(rewardBadge.props('tone')).toBe('success')
+      expect(rewardBadge.props('icon')).toBe('i-lucide-gift')
+    }
   })
 
   it('does NOT render a reward badge when rewardKind is null', () => {
