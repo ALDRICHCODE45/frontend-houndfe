@@ -90,12 +90,12 @@ const itemsView = computed(() =>
           :unit-price-cents="item.unitPriceCents"
           :discount-type="item.discountType"
           :discount-value="item.discountValue"
-           :discount-amount-cents="item.discountAmountCents"
-           :discount-title="item.discountTitle"
-           :reward-kind="item.rewardKind"
-           :reward-discount-percent="item.rewardDiscountPercent"
-           :promotion-id="item.promotionId"
-         />
+          :discount-amount-cents="item.discountAmountCents"
+          :discount-title="item.discountTitle"
+          :reward-kind="item.rewardKind"
+          :reward-discount-percent="item.rewardDiscountPercent"
+          :promotion-id="item.promotionId"
+        />
       </div>
 
       <span

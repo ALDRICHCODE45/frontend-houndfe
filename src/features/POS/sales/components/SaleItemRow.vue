@@ -212,13 +212,13 @@ function handleQtyCommit() {
           :unit-price-cents="item.unitPriceCents"
           :discount-type="item.discountType"
           :discount-value="item.discountValue"
-           :discount-amount-cents="item.discountAmountCents"
-           :discount-title="item.discountTitle"
-           :promotion-id="item.promotionId"
-           :reward-kind="item.rewardKind"
-           :reward-discount-percent="item.rewardDiscountPercent"
-           :removable="isDraft"
-           @remove-promo="(id) => emit('remove-promo', id)"
+          :discount-amount-cents="item.discountAmountCents"
+          :discount-title="item.discountTitle"
+          :promotion-id="item.promotionId"
+          :reward-kind="item.rewardKind"
+          :reward-discount-percent="item.rewardDiscountPercent"
+          :removable="isDraft"
+          @remove-promo="(id) => emit('remove-promo', id)"
         />
       </div>
 
