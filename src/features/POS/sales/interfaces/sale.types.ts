@@ -77,6 +77,11 @@ export interface SaleDetailItem {
   // Pre-deploy backend responses omit the field; optional + nullable keeps
   // backward compat so old payloads still parse.
   rewardKind?: 'buy_x_get_y' | null
+  // bxgy-promotion-followups REQ-7: line-level promotion trace. Non-null =
+  // the line carries a promotion (BXGY or otherwise) and the details
+  // surface MUST render a promo-name chip through `SaleItemBadges`.
+  // Optional + nullable keeps pre-deploy confirmed-sale responses parsing.
+  promotionId?: string | null
 }
 
 export interface SaleDetailPayment {

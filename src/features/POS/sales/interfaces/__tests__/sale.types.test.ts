@@ -1278,6 +1278,60 @@ describe('sale.types', () => {
       })
     })
 
+    describe('SaleDetailItem.promotionId optional field (bxgy-promotion-followups REQ-7)', () => {
+      // The confirmed-sale surface forwards the line's promotionId to
+      // `SaleItemBadges` so the promo-name chip renders on the listed line.
+      // The field MUST be optional + nullable to keep pre-deploy confirmed-sale
+      // responses parsing without modification.
+
+      it('accepts promotionId as a string when the line carries a promo', () => {
+        const item: SaleDetailItem = {
+          productName: 'Camisa',
+          variantName: null,
+          imageUrl: null,
+          unitPriceCents: 25000,
+          quantity: 1,
+          discountCents: 5000,
+          subtotalCents: 20000,
+          discountTitle: 'Black Friday 2x1',
+          promotionId: 'promo-abc',
+        }
+
+        expect(item.promotionId).toBe('promo-abc')
+      })
+
+      it('accepts explicit null for promotionId (no promo on this line)', () => {
+        const item: SaleDetailItem = {
+          productName: 'Camisa',
+          variantName: null,
+          imageUrl: null,
+          unitPriceCents: 25000,
+          quantity: 1,
+          discountCents: 5000,
+          subtotalCents: 20000,
+          discountTitle: 'Descuento manual',
+          promotionId: null,
+        }
+
+        expect(item.promotionId).toBeNull()
+      })
+
+      it('omits promotionId for legacy confirmed-sale fixtures', () => {
+        const item: SaleDetailItem = {
+          productName: 'Camisa',
+          variantName: null,
+          imageUrl: null,
+          unitPriceCents: 25000,
+          quantity: 1,
+          discountCents: 5000,
+          subtotalCents: 20000,
+          discountTitle: 'Descuento manual',
+        }
+
+        expect(item.promotionId).toBeUndefined()
+      })
+    })
+
     describe('ListApplicablePromotionsResponse type', () => {
       it('builds the response shape exactly as the backend returns it', () => {
         const response: ListApplicablePromotionsResponse = {
