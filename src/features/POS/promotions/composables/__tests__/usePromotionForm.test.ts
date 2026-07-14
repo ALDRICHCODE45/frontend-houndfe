@@ -1178,6 +1178,38 @@ describe('mapApiErrorToFields', () => {
     expect(result.toastMessage).toBeNull()
   })
 
+  // ── REQ-12: error-code matching MUST be case-insensitive ────────────────────
+  // The backend may emit `duplicate_target` (or any casing variant) — the
+  // canonical mapping table is uppercase, so the mapper MUST normalize the
+  // incoming `error` code before lookup. lowercase + canonical produce the
+  // same {fieldErrors, toastMessage} envelope byte-for-byte.
+
+  it('REQ-12: maps lowercase "duplicate_target" identically to DUPLICATE_TARGET (case-insensitive)', () => {
+    const result = mapApiErrorToFields({ error: 'duplicate_target', message: 'duplicate' })
+    expect(result.fieldErrors).toHaveLength(1)
+    expect(result.fieldErrors[0]!.path).toBe('targetItems')
+    expect(result.fieldErrors[0]!.message).toBe(
+      'Hay targets duplicados. Revisá que no haya items repetidos.',
+    )
+    expect(result.toastMessage).toBeNull()
+  })
+
+  it('REQ-12: maps FORBIDDEN_FIELD to a user-visible Spanish toast, no field errors', () => {
+    const result = mapApiErrorToFields({ error: 'FORBIDDEN_FIELD', message: 'cannot edit' })
+    expect(result.fieldErrors).toEqual([])
+    expect(result.toastMessage).toBe(
+      'No se permite modificar ese campo para este tipo de promoción.',
+    )
+  })
+
+  it('REQ-12: maps INVALID_FIELD_CHANGE to a user-visible Spanish toast, no field errors', () => {
+    const result = mapApiErrorToFields({ error: 'INVALID_FIELD_CHANGE', message: 'cannot change' })
+    expect(result.fieldErrors).toEqual([])
+    expect(result.toastMessage).toBe(
+      'No se puede cambiar el tipo de una promoción existente.',
+    )
+  })
+
   it('maps INVALID_TARGET to field-level error on targetItems with Spanish message (REQ-6)', () => {
     const result = mapApiErrorToFields({
       error: 'INVALID_TARGET',

@@ -53,7 +53,8 @@ const FULL_STUBS = {
     template: '<div data-testid="conditions-section" />',
   },
   PromotionTargetItemsSection: {
-    props: ['targetType', 'selectedItems', 'side', 'label'],
+    name: 'PromotionTargetItemsSection',
+    props: ['targetType', 'selectedItems', 'side', 'label', 'allowVariants'],
     emits: ['update:targetType', 'update:selectedItems'],
     template: '<div data-testid="target-items-section" />',
   },
@@ -265,5 +266,24 @@ describe('PromotionForm', () => {
     const wrapper = mountForm('PRODUCT_DISCOUNT')
     await wrapper.find('[data-testid="cancel-btn"]').trigger('click')
     expect(wrapper.emitted('cancel')).toBeTruthy()
+  })
+
+  // ── REQ-1 MODIFIED: BXGY card must expose VARIANTS as a target option ──────
+  // PromotionTargetItemsSection only renders the variant accordion when
+  // `allow-variants="true"` is passed in. BXGY previously omitted this
+  // prop, hiding VARIANTS as a valid target. The form must now pass it
+  // (parity with PRODUCT_DISCOUNT).
+  it('REQ-1 (BXGY): BUY_X_GET_Y card passes allow-variants=true to PromotionTargetItemsSection', () => {
+    const wrapper = mountForm('BUY_X_GET_Y')
+    const section = wrapper.findComponent({ name: 'PromotionTargetItemsSection' })
+    expect(section.exists()).toBe(true)
+    expect(section.props('allowVariants')).toBe(true)
+  })
+
+  it('REQ-1 (PRODUCT_DISCOUNT parity): PRODUCT_DISCOUNT card still passes allow-variants=true', () => {
+    const wrapper = mountForm('PRODUCT_DISCOUNT')
+    const section = wrapper.findComponent({ name: 'PromotionTargetItemsSection' })
+    expect(section.exists()).toBe(true)
+    expect(section.props('allowVariants')).toBe(true)
   })
 })

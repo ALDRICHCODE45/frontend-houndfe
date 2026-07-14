@@ -352,7 +352,11 @@ const FIELD_PATH_MAP: Record<string, string> = {
  * - `toastMessage`: non-null string for errors that can't be bound to a specific field
  */
 export function mapApiErrorToFields(input: ApiErrorInput): ApiErrorMapping {
-  const code = input.error
+  // REQ-12: error-code matching MUST be case-insensitive — the backend may emit
+  // `duplicate_target` (or any casing variant) and the user expects the same
+  // mapping regardless. We canonicalize once up-front so the comparisons below
+  // stay readable against uppercase constants.
+  const code = (input.error ?? '').toUpperCase()
   const rawMessage = Array.isArray(input.message) ? input.message.join(', ') : (input.message ?? '')
 
   // ── INVALID_DATE_RANGE → always endDate field ──────────────────────────────
@@ -424,6 +428,27 @@ export function mapApiErrorToFields(input: ApiErrorInput): ApiErrorMapping {
         },
       ],
       toastMessage: null,
+    }
+  }
+
+  // ── FORBIDDEN_FIELD → toast only (REQ-12) ─────────────────────────────
+  // The backend refused the update because the field is immutable for this
+  // promotion type (e.g. flipping BXGY → ADVANCED post-creation). No field
+  // binding: the user must rethink the change, not retry it.
+  if (code === 'FORBIDDEN_FIELD') {
+    return {
+      fieldErrors: [],
+      toastMessage: 'No se permite modificar ese campo para este tipo de promoción.',
+    }
+  }
+
+  // ── INVALID_FIELD_CHANGE → toast only (REQ-12) ───────────────────────
+  // The backend refused the update because the promotion's `type` cannot be
+  // changed after creation. No field binding for the same reason as above.
+  if (code === 'INVALID_FIELD_CHANGE') {
+    return {
+      fieldErrors: [],
+      toastMessage: 'No se puede cambiar el tipo de una promoción existente.',
     }
   }
 

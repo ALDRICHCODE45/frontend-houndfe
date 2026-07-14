@@ -1,5 +1,14 @@
 import { z } from 'zod'
 
+// ── BXGY-only constants (REQ-11) ───────────────────────────────────────────────
+//
+// REQ-11: a BUY_X_GET_Y submission must target PRODUCTS, VARIANTS, CATEGORIES
+// or BRANDS — the same set PRODUCT_DISCOUNT allows minus ORDERS (which has no
+// "appliesTo" semantics) and minus the ADVANCED-only sides. Intentionally
+// scoped to the BXGY branch only so the base `appliesTo: z.string()` stays
+// free for ORDER_DISCOUNT (`appliesTo: ''`) and ADVANCED (`appliesTo: ''`).
+const BXGY_ALLOWED_APPLIES_TO = ['PRODUCTS', 'VARIANTS', 'CATEGORIES', 'BRANDS'] as const
+
 // ── Base shared fields ─────────────────────────────────────────────────────────
 
 const baseSchema = z.object({
@@ -144,6 +153,29 @@ export const promotionFormSchema = baseSchema.superRefine((data, ctx) => {
 
   // ── BUY_X_GET_Y ─────────────────────────────────────────────────────────────
   if (type === 'BUY_X_GET_Y') {
+    // REQ-11: BXGY MUST include `appliesTo` ∈ {PRODUCTS, VARIANTS, CATEGORIES,
+    // BRANDS} and at least one `targetItem`. Empty / unknown `appliesTo` both
+    // surface as a single appliesTo issue with a Spanish message so the form
+    // can show one clear hint instead of a wall of redundant errors.
+    const appliesToAllowed =
+      typeof data.appliesTo === 'string' &&
+      (BXGY_ALLOWED_APPLIES_TO as readonly string[]).includes(data.appliesTo)
+    if (!appliesToAllowed) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Debe seleccionar a qué se aplica la promoción',
+        path: ['appliesTo'],
+      })
+    }
+
+    if (data.targetItems.length === 0) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Debe seleccionar al menos un producto',
+        path: ['targetItems'],
+      })
+    }
+
     if (data.buyQuantity == null || data.buyQuantity === 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

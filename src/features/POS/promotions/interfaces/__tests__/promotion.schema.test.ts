@@ -44,11 +44,18 @@ function makeOrderDiscount(overrides: Record<string, unknown> = {}) {
 }
 
 function makeBuyXGetY(overrides: Record<string, unknown> = {}) {
+  // REQ-11: a valid BUY_X_GET_Y submission MUST include `appliesTo` (one of
+  // PRODUCTS/VARIANTS/CATEGORIES/BRANDS) and at least one `targetItem`.
+  // The default helper below therefore provides those two pieces so the
+  // existing per-field tests can isolate the field they care about.
+  // Tests that need to exercise the missing-appliesTo / missing-target
+  // cases explicitly override the relevant fields with empty values.
   return makeProductDiscount({
     type: 'BUY_X_GET_Y',
     discountType: '',
     discountValue: 0,
-    appliesTo: '',
+    appliesTo: 'CATEGORIES',
+    targetItems: [{ targetId: 'uuid-bxgy', name: 'Product A' }],
     buyQuantity: 2,
     getQuantity: 1,
     getDiscountPercent: 0,
@@ -203,6 +210,75 @@ describe('promotionFormSchema — BUY_X_GET_Y', () => {
     const result = promotionFormSchema.safeParse(makeBuyXGetY({ buyQuantity: 0 }))
     expect(result.success).toBe(false)
     expect(result.error?.issues.some((i) => i.message.includes('buyQuantity') || i.message.includes('1') || i.message.includes('cantidad'))).toBe(true)
+  })
+
+  // ── REQ-11: BXGY target guard ───────────────────────────────────────────────
+  // A `BUY_X_GET_Y` submission MUST include `appliesTo` ∈ {PRODUCTS, VARIANTS,
+  // CATEGORIES, BRANDS} and at least one `targetItem` whose `targetType`
+  // inherits from `appliesTo`. The frontend enforces the membership and
+  // non-empty-array preconditions here; the backend enforces targetType match.
+
+  it('REQ-11: rejects BXGY with empty appliesTo (issues path: appliesTo, Spanish message)', () => {
+    const result = promotionFormSchema.safeParse(
+      makeBuyXGetY({ appliesTo: '', targetItems: [{ targetId: 'p1', name: 'A' }] }),
+    )
+    expect(result.success).toBe(false)
+    const issue = result.error?.issues.find((i) => i.path[0] === 'appliesTo')
+    expect(issue).toBeDefined()
+    expect(issue!.message).toBe('Debe seleccionar a qué se aplica la promoción')
+  })
+
+  it('REQ-11: rejects BXGY with appliesTo outside {PRODUCTS, VARIANTS, CATEGORIES, BRANDS}', () => {
+    const result = promotionFormSchema.safeParse(
+      makeBuyXGetY({
+        appliesTo: 'UNKNOWN_VALUE',
+        targetItems: [{ targetId: 'p1', name: 'A' }],
+      }),
+    )
+    expect(result.success).toBe(false)
+    const issue = result.error?.issues.find((i) => i.path[0] === 'appliesTo')
+    expect(issue).toBeDefined()
+    expect(issue!.message).toBe('Debe seleccionar a qué se aplica la promoción')
+  })
+
+  it('REQ-11: rejects BXGY with empty targetItems array (issues path: targetItems, Spanish message)', () => {
+    const result = promotionFormSchema.safeParse(
+      makeBuyXGetY({ appliesTo: 'CATEGORIES', targetItems: [] }),
+    )
+    expect(result.success).toBe(false)
+    const issue = result.error?.issues.find((i) => i.path[0] === 'targetItems')
+    expect(issue).toBeDefined()
+    expect(issue!.message).toBe('Debe seleccionar al menos un producto')
+  })
+
+  it('REQ-11: accepts BXGY with PRODUCTS appliesTo + matching targetItem', () => {
+    const result = promotionFormSchema.safeParse(
+      makeBuyXGetY({
+        appliesTo: 'PRODUCTS',
+        targetItems: [{ targetId: 'p1', name: 'Product X' }],
+      }),
+    )
+    expect(result.success).toBe(true)
+  })
+
+  it('REQ-11 + REQ-1 MODIFIED: accepts BXGY with VARIANTS appliesTo + targetItem', () => {
+    const result = promotionFormSchema.safeParse(
+      makeBuyXGetY({
+        appliesTo: 'VARIANTS',
+        targetItems: [{ targetId: 'v1', name: 'Talle M' }],
+      }),
+    )
+    expect(result.success).toBe(true)
+  })
+
+  it('REQ-11: accepts BXGY with BRANDS appliesTo + targetItem', () => {
+    const result = promotionFormSchema.safeParse(
+      makeBuyXGetY({
+        appliesTo: 'BRANDS',
+        targetItems: [{ targetId: 'b1', name: 'Acme' }],
+      }),
+    )
+    expect(result.success).toBe(true)
   })
 })
 
