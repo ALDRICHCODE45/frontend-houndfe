@@ -269,4 +269,83 @@ describe('SaleDetailItemsList', () => {
     expect(wrapper.find('[data-testid="item-pre-discount-price-0"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="item-line-original-0"]').exists()).toBe(false)
   })
+
+  // ── B.3 — BXGY reward badge forwarded from item.rewardKind ────────────────
+
+  it('surfaces the GRATIS reward badge on a line with rewardKind === "buy_x_get_y"', () => {
+    const wrapper = mountWithUApp(SaleDetailItemsList, {
+      props: {
+        items: [
+          {
+            productName: 'Vitamina C',
+            variantName: '1000mg',
+            imageUrl: null,
+            unitPriceCents: 12000,
+            quantity: 1,
+            discountCents: 0,
+            subtotalCents: 0,
+            rewardKind: 'buy_x_get_y',
+          },
+        ],
+      },
+    })
+
+    const rewardBadge = wrapper.find('[data-testid="sale-item-reward-badge"]')
+    expect(rewardBadge.exists()).toBe(true)
+    expect(rewardBadge.text()).toContain('GRATIS')
+    // Backend-provided NET subtotal must render verbatim — client MUST NOT recompute.
+    expect(wrapper.get('[data-testid="item-subtotal-0"]').text()).toContain('$0.00')
+  })
+
+  it('does NOT render a reward badge on a line without rewardKind', () => {
+    const wrapper = mountWithUApp(SaleDetailItemsList, {
+      props: {
+        items: [
+          {
+            productName: 'Vitamina C',
+            variantName: null,
+            imageUrl: null,
+            unitPriceCents: 12000,
+            quantity: 1,
+            discountCents: 0,
+            subtotalCents: 12000,
+            priceSource: 'default',
+          },
+        ],
+      },
+    })
+
+    expect(wrapper.find('[data-testid="sale-item-reward-badge"]').exists()).toBe(false)
+  })
+
+  it('forwards rewardKind only on the reward line, not on sibling lines', () => {
+    const wrapper = mountWithUApp(SaleDetailItemsList, {
+      props: {
+        items: [
+          {
+            productName: 'Vitamina C',
+            variantName: null,
+            imageUrl: null,
+            unitPriceCents: 12000,
+            quantity: 2,
+            discountCents: 0,
+            subtotalCents: 0,
+            rewardKind: 'buy_x_get_y',
+          },
+          {
+            productName: 'Paracetamol',
+            variantName: null,
+            imageUrl: null,
+            unitPriceCents: 8000,
+            quantity: 1,
+            discountCents: 0,
+            subtotalCents: 8000,
+            priceSource: 'default',
+          },
+        ],
+      },
+    })
+
+    expect(wrapper.findAll('[data-testid="sale-item-reward-badge"]')).toHaveLength(1)
+  })
 })

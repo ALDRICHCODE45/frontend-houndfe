@@ -1099,6 +1099,68 @@ describe('sale.types', () => {
 
         expect(promo.type).toBe('ORDER_DISCOUNT')
       })
+
+      // buy-x-get-y-promotion REQ-1: applicable-promotion response may include
+      // BXGY promotions. The frontend type union MUST accept it.
+      it('builds a BUY_X_GET_Y applicable promotion', () => {
+        const promo: ApplicablePromotion = {
+          id: '0192b1f0-7c8d-7e0a-9d4a-bxgy00000001',
+          title: '2x1 Vitaminas',
+          type: 'BUY_X_GET_Y',
+        }
+
+        expect(promo.type).toBe('BUY_X_GET_Y')
+      })
+    })
+
+    describe('SaleDetailItem.rewardKind optional field (buy-x-get-y-promotion REQ-2)', () => {
+      // BXGY reward lines receive rewardKind='buy_x_get_y'. The frontend MUST
+      // accept it so a confirmed-sale detail response surfaces the GRATIS badge.
+      it('accepts rewardKind = "buy_x_get_y" on a confirmed-sale detail line', () => {
+        const item: SaleDetailItem = {
+          productName: 'Vitamina C',
+          variantName: null,
+          imageUrl: null,
+          unitPriceCents: 12000,
+          quantity: 1,
+          discountCents: 0,
+          subtotalCents: 0,
+          rewardKind: 'buy_x_get_y',
+        }
+
+        expect(item.rewardKind).toBe('buy_x_get_y')
+      })
+
+      // null = backend explicitly says "not a reward" (regular confirmed line).
+      it('accepts rewardKind = null when the line is not a reward', () => {
+        const item: SaleDetailItem = {
+          productName: 'Vitamina C',
+          variantName: null,
+          imageUrl: null,
+          unitPriceCents: 12000,
+          quantity: 1,
+          discountCents: 0,
+          subtotalCents: 12000,
+          rewardKind: null,
+        }
+
+        expect(item.rewardKind).toBeNull()
+      })
+
+      // Omitted = pre-deploy backend response. Must remain backward-compatible.
+      it('omits rewardKind for backward compat with pre-deploy confirmed-sale responses', () => {
+        const item: SaleDetailItem = {
+          productName: 'Vitamina C',
+          variantName: null,
+          imageUrl: null,
+          unitPriceCents: 12000,
+          quantity: 1,
+          discountCents: 0,
+          subtotalCents: 12000,
+        }
+
+        expect(item.rewardKind).toBeUndefined()
+      })
     })
 
     describe('ListApplicablePromotionsResponse type', () => {

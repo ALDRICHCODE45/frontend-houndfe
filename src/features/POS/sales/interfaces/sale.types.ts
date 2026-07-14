@@ -72,6 +72,11 @@ export interface SaleDetailItem {
   discountAmountCents?: number | null
   discountTitle?: string | null
   prePriceCentsBeforeDiscount?: number | null
+  // buy-x-get-y-promotion: 'buy_x_get_y' = this line was the free unit of a
+  // BXGY promo (the line itself is the reward). Null/absent = regular line.
+  // Pre-deploy backend responses omit the field; optional + nullable keeps
+  // backward compat so old payloads still parse.
+  rewardKind?: 'buy_x_get_y' | null
 }
 
 export interface SaleDetailPayment {
@@ -374,7 +379,7 @@ export interface AppliedOrderPromotion {
 export interface ApplicablePromotion {
   id: string
   title: string
-  type: 'PRODUCT_DISCOUNT' | 'ORDER_DISCOUNT'
+  type: 'PRODUCT_DISCOUNT' | 'ORDER_DISCOUNT' | 'BUY_X_GET_Y'
 }
 
 // promotions-in-sale: response shape of GET /sales/drafts/:id/applicable-promotions.
