@@ -10,6 +10,7 @@ import type {
 import { promotionFormSchema } from '../interfaces/promotion.schema'
 import {
   BUY_X_GET_Y_PRESETS,
+  DISCOUNT_PERCENT_OPTIONS,
   DISCOUNT_TYPE_OPTIONS,
   getInitialState,
   promotionToFormState,
@@ -18,14 +19,6 @@ import {
 import { usePromotionTargetNames } from '../composables/usePromotionTargetNames'
 import { getTypeConfig } from '../utils/promotionStatusConfig.utils'
 
-// ── Discount percent select options ───────────────────────────────────────────
-const DISCOUNT_PERCENT_OPTIONS = [
-  { label: 'Gratis', value: 0 },
-  ...Array.from({ length: 19 }, (_, i) => {
-    const pct = (i + 1) * 5
-    return { label: `${pct}% OFF`, value: pct }
-  }),
-]
 import PromotionConditionsSection from './PromotionConditionsSection.vue'
 import PromotionTargetItemsSection from './PromotionTargetItemsSection.vue'
 import PromotionSummaryCard from './PromotionSummaryCard.vue'
@@ -426,6 +419,7 @@ function onSubmit() {
               <PromotionTargetItemsSection
                 :target-type="formState.appliesTo as PromotionTargetType"
                 :selected-items="formState.targetItems"
+                :allow-variants="true"
                 side="DEFAULT"
                 @update:target-type="onAppliesToChange"
                 @update:selected-items="formState.targetItems = $event"

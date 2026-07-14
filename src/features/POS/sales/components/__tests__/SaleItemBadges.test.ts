@@ -148,4 +148,45 @@ describe('SaleItemBadges', () => {
     expect(wrapper.text()).toContain('DESCUENTO')
     expect(wrapper.text()).toContain('-$50.00')
   })
+
+  // ── B.2 — BXGY reward badge (buy-x-get-y-promotion REQ-2) ─────────────────
+
+  it('renders a GRATIS reward badge when rewardKind === "buy_x_get_y"', () => {
+    const wrapper = mountWithUApp(SaleItemBadges, {
+      props: {
+        priceSource: 'default',
+        unitPriceCents: 12000,
+        rewardKind: 'buy_x_get_y',
+      },
+    })
+
+    const rewardBadge = wrapper.find('[data-testid="sale-item-reward-badge"]')
+    expect(rewardBadge.exists()).toBe(true)
+    expect(rewardBadge.text()).toContain('GRATIS')
+  })
+
+  it('does NOT render a reward badge when rewardKind is null', () => {
+    const wrapper = mountWithUApp(SaleItemBadges, {
+      props: {
+        priceSource: 'default',
+        unitPriceCents: 12000,
+        rewardKind: null,
+      },
+    })
+
+    expect(wrapper.find('[data-testid="sale-item-reward-badge"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="sale-item-badge-group"]').exists()).toBe(false)
+  })
+
+  it('does NOT render a reward badge when rewardKind is omitted', () => {
+    const wrapper = mountWithUApp(SaleItemBadges, {
+      props: {
+        priceSource: 'default',
+        unitPriceCents: 12000,
+      },
+    })
+
+    expect(wrapper.find('[data-testid="sale-item-reward-badge"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="sale-item-badge-group"]').exists()).toBe(false)
+  })
 })

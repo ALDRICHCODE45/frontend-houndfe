@@ -53,7 +53,8 @@ const FULL_STUBS = {
     template: '<div data-testid="conditions-section" />',
   },
   PromotionTargetItemsSection: {
-    props: ['targetType', 'selectedItems', 'side', 'label'],
+    name: 'PromotionTargetItemsSection',
+    props: ['targetType', 'selectedItems', 'side', 'label', 'allowVariants'],
     emits: ['update:targetType', 'update:selectedItems'],
     template: '<div data-testid="target-items-section" />',
   },
@@ -227,26 +228,29 @@ describe('PromotionForm', () => {
     expect(wrapper.find('[data-testid="method-card-MANUAL"]').classes()).not.toContain('border-primary')
   })
 
-  // ── S25/S26: BUY_X_GET_Y preset autofill ─────────────────────────────────
-  // Preset button clicks update input values reactively
-  it('S25: clicking 2x1 preset sets buyQuantity and getQuantity inputs', async () => {
+  // ── S25/S26: BUY_X_GET_Y preset autofill (REQ-10 locked table) ────────────
+  // Preset button clicks update input values reactively.
+  // Per the locked REQ-10 table:
+  //   2x1 → buyQuantity=1, getQuantity=1
+  //   3x2 → buyQuantity=2, getQuantity=1
+  it('S25: clicking 2x1 preset sets buyQuantity=1 and getQuantity=1 in inputs', async () => {
     const wrapper = mountForm('BUY_X_GET_Y')
     await wrapper.find('[data-testid="preset-2x1"]').trigger('click')
     await wrapper.vm.$nextTick()
-    // buyQuantity and getQuantity are UInputNumber, getDiscountPercent is now a USelect
+    // buyQuantity and getQuantity are UInputNumber, getDiscountPercent is a USelect
     const inputValues = wrapper.findAll('input').map((i) => i.element.value)
-    expect(inputValues).toContain('2') // buyQuantity
-    expect(inputValues).toContain('1') // getQuantity
-    // getDiscountPercent is a select (not an input), so we don't check input values for it
+    // Both fields carry value "1" — assert at least two occurrences.
+    const oneCount = inputValues.filter((v) => v === '1').length
+    expect(oneCount).toBeGreaterThanOrEqual(2) // buyQuantity=1 + getQuantity=1
   })
 
-  it('S26: clicking 3x2 preset sets buyQuantity=3, getQuantity=2 in input values', async () => {
+  it('S26: clicking 3x2 preset sets buyQuantity=2 and getQuantity=1 in inputs', async () => {
     const wrapper = mountForm('BUY_X_GET_Y')
     await wrapper.find('[data-testid="preset-3x2"]').trigger('click')
     await wrapper.vm.$nextTick()
     const inputValues = wrapper.findAll('input').map((i) => i.element.value)
-    expect(inputValues).toContain('3') // buyQuantity
-    expect(inputValues).toContain('2') // getQuantity
+    expect(inputValues).toContain('2') // buyQuantity
+    expect(inputValues).toContain('1') // getQuantity
   })
 
   // ── S44: Edit mode shows method as read-only badge ───────────────────────
@@ -262,5 +266,24 @@ describe('PromotionForm', () => {
     const wrapper = mountForm('PRODUCT_DISCOUNT')
     await wrapper.find('[data-testid="cancel-btn"]').trigger('click')
     expect(wrapper.emitted('cancel')).toBeTruthy()
+  })
+
+  // ── REQ-1 MODIFIED: BXGY card must expose VARIANTS as a target option ──────
+  // PromotionTargetItemsSection only renders the variant accordion when
+  // `allow-variants="true"` is passed in. BXGY previously omitted this
+  // prop, hiding VARIANTS as a valid target. The form must now pass it
+  // (parity with PRODUCT_DISCOUNT).
+  it('REQ-1 (BXGY): BUY_X_GET_Y card passes allow-variants=true to PromotionTargetItemsSection', () => {
+    const wrapper = mountForm('BUY_X_GET_Y')
+    const section = wrapper.findComponent({ name: 'PromotionTargetItemsSection' })
+    expect(section.exists()).toBe(true)
+    expect(section.props('allowVariants')).toBe(true)
+  })
+
+  it('REQ-1 (PRODUCT_DISCOUNT parity): PRODUCT_DISCOUNT card still passes allow-variants=true', () => {
+    const wrapper = mountForm('PRODUCT_DISCOUNT')
+    const section = wrapper.findComponent({ name: 'PromotionTargetItemsSection' })
+    expect(section.exists()).toBe(true)
+    expect(section.props('allowVariants')).toBe(true)
   })
 })

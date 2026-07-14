@@ -44,11 +44,18 @@ function makeOrderDiscount(overrides: Record<string, unknown> = {}) {
 }
 
 function makeBuyXGetY(overrides: Record<string, unknown> = {}) {
+  // REQ-11: a valid BUY_X_GET_Y submission MUST include `appliesTo` (one of
+  // PRODUCTS/VARIANTS/CATEGORIES/BRANDS) and at least one `targetItem`.
+  // The default helper below therefore provides those two pieces so the
+  // existing per-field tests can isolate the field they care about.
+  // Tests that need to exercise the missing-appliesTo / missing-target
+  // cases explicitly override the relevant fields with empty values.
   return makeProductDiscount({
     type: 'BUY_X_GET_Y',
     discountType: '',
     discountValue: 0,
-    appliesTo: '',
+    appliesTo: 'CATEGORIES',
+    targetItems: [{ targetId: 'uuid-bxgy', name: 'Product A' }],
     buyQuantity: 2,
     getQuantity: 1,
     getDiscountPercent: 0,
@@ -167,13 +174,29 @@ describe('promotionFormSchema — BUY_X_GET_Y', () => {
     expect(result.error?.issues.some((i) => i.message.includes('cantidad a llevar') || i.message.includes('cantidad'))).toBe(true)
   })
 
-  it('rejects BUY_X_GET_Y getDiscountPercent of 100 (0=free is max)', () => {
+  // REQ-8: BXGY bound is now 0..100 inclusive (Gratis → 100)
+  it('accepts BUY_X_GET_Y getDiscountPercent of 100 (Gratis)', () => {
     const result = promotionFormSchema.safeParse(makeBuyXGetY({ getDiscountPercent: 100 }))
-    expect(result.success).toBe(false)
-    expect(result.error?.issues.some((i) => i.message.includes('100') || i.message.includes('99'))).toBe(true)
+    expect(result.success).toBe(true)
   })
 
-  it('accepts BUY_X_GET_Y getDiscountPercent of 0 (free)', () => {
+  it('rejects BUY_X_GET_Y getDiscountPercent of 101', () => {
+    const result = promotionFormSchema.safeParse(makeBuyXGetY({ getDiscountPercent: 101 }))
+    expect(result.success).toBe(false)
+    const issue = result.error?.issues.find((i) => i.path[0] === 'getDiscountPercent')
+    expect(issue).toBeDefined()
+    expect(issue!.message).toContain('100 = gratis')
+  })
+
+  it('rejects BUY_X_GET_Y getDiscountPercent of -1 (negative)', () => {
+    const result = promotionFormSchema.safeParse(makeBuyXGetY({ getDiscountPercent: -1 }))
+    expect(result.success).toBe(false)
+    const issue = result.error?.issues.find((i) => i.path[0] === 'getDiscountPercent')
+    expect(issue).toBeDefined()
+    expect(issue!.message).toContain('100 = gratis')
+  })
+
+  it('accepts BUY_X_GET_Y getDiscountPercent of 0 (no discount)', () => {
     const result = promotionFormSchema.safeParse(makeBuyXGetY({ getDiscountPercent: 0 }))
     expect(result.success).toBe(true)
   })
@@ -187,6 +210,75 @@ describe('promotionFormSchema — BUY_X_GET_Y', () => {
     const result = promotionFormSchema.safeParse(makeBuyXGetY({ buyQuantity: 0 }))
     expect(result.success).toBe(false)
     expect(result.error?.issues.some((i) => i.message.includes('buyQuantity') || i.message.includes('1') || i.message.includes('cantidad'))).toBe(true)
+  })
+
+  // ── REQ-11: BXGY target guard ───────────────────────────────────────────────
+  // A `BUY_X_GET_Y` submission MUST include `appliesTo` ∈ {PRODUCTS, VARIANTS,
+  // CATEGORIES, BRANDS} and at least one `targetItem` whose `targetType`
+  // inherits from `appliesTo`. The frontend enforces the membership and
+  // non-empty-array preconditions here; the backend enforces targetType match.
+
+  it('REQ-11: rejects BXGY with empty appliesTo (issues path: appliesTo, Spanish message)', () => {
+    const result = promotionFormSchema.safeParse(
+      makeBuyXGetY({ appliesTo: '', targetItems: [{ targetId: 'p1', name: 'A' }] }),
+    )
+    expect(result.success).toBe(false)
+    const issue = result.error?.issues.find((i) => i.path[0] === 'appliesTo')
+    expect(issue).toBeDefined()
+    expect(issue!.message).toBe('Debe seleccionar a qué se aplica la promoción')
+  })
+
+  it('REQ-11: rejects BXGY with appliesTo outside {PRODUCTS, VARIANTS, CATEGORIES, BRANDS}', () => {
+    const result = promotionFormSchema.safeParse(
+      makeBuyXGetY({
+        appliesTo: 'UNKNOWN_VALUE',
+        targetItems: [{ targetId: 'p1', name: 'A' }],
+      }),
+    )
+    expect(result.success).toBe(false)
+    const issue = result.error?.issues.find((i) => i.path[0] === 'appliesTo')
+    expect(issue).toBeDefined()
+    expect(issue!.message).toBe('Debe seleccionar a qué se aplica la promoción')
+  })
+
+  it('REQ-11: rejects BXGY with empty targetItems array (issues path: targetItems, Spanish message)', () => {
+    const result = promotionFormSchema.safeParse(
+      makeBuyXGetY({ appliesTo: 'CATEGORIES', targetItems: [] }),
+    )
+    expect(result.success).toBe(false)
+    const issue = result.error?.issues.find((i) => i.path[0] === 'targetItems')
+    expect(issue).toBeDefined()
+    expect(issue!.message).toBe('Debe seleccionar al menos un producto')
+  })
+
+  it('REQ-11: accepts BXGY with PRODUCTS appliesTo + matching targetItem', () => {
+    const result = promotionFormSchema.safeParse(
+      makeBuyXGetY({
+        appliesTo: 'PRODUCTS',
+        targetItems: [{ targetId: 'p1', name: 'Product X' }],
+      }),
+    )
+    expect(result.success).toBe(true)
+  })
+
+  it('REQ-11 + REQ-1 MODIFIED: accepts BXGY with VARIANTS appliesTo + targetItem', () => {
+    const result = promotionFormSchema.safeParse(
+      makeBuyXGetY({
+        appliesTo: 'VARIANTS',
+        targetItems: [{ targetId: 'v1', name: 'Talle M' }],
+      }),
+    )
+    expect(result.success).toBe(true)
+  })
+
+  it('REQ-11: accepts BXGY with BRANDS appliesTo + targetItem', () => {
+    const result = promotionFormSchema.safeParse(
+      makeBuyXGetY({
+        appliesTo: 'BRANDS',
+        targetItems: [{ targetId: 'b1', name: 'Acme' }],
+      }),
+    )
+    expect(result.success).toBe(true)
   })
 })
 
@@ -224,6 +316,19 @@ describe('promotionFormSchema — ADVANCED', () => {
     const result = promotionFormSchema.safeParse(makeAdvanced({ buyQuantity: 0 }))
     expect(result.success).toBe(false)
     expect(result.error?.issues.some((i) => i.message.includes('cantidad de compra') || i.message.includes('cantidad'))).toBe(true)
+  })
+
+  // REQ-9: ADVANCED regression pin — bound stays 0..99 (100 must remain invalid)
+  it('REGRESSION: ADVANCED still rejects getDiscountPercent of 100 (bound stays 0..99)', () => {
+    const result = promotionFormSchema.safeParse(makeAdvanced({ getDiscountPercent: 100 }))
+    expect(result.success).toBe(false)
+    const issue = result.error?.issues.find((i) => i.path[0] === 'getDiscountPercent')
+    expect(issue).toBeDefined()
+    // ADVANCED message intentionally differs from BXGY — keeps the
+    // historical "100 no permitido" wording so ADVANCED users see the
+    // same hint they've always seen.
+    expect(issue!.message).toContain('99')
+    expect(issue!.message).toContain('100 no permitido')
   })
 })
 

@@ -16,6 +16,13 @@ import type { PriceSource } from '../interfaces/sale.types'
 // because SaleDetailItem (confirmed-sale surface) has no remove
 // affordance — that surface MUST render the badge but NOT the remove
 // button. Only the draft context (SaleItemRow) sets `removable=true`.
+//
+// `rewardKind` (buy-x-get-y-promotion REQ-2): when the backend marks a
+// confirmed-sale line as the FREE unit of a BXGY promo, this component
+// renders a distinct reward badge labeled `GRATIS`. Null/absent means
+// the line is a regular confirmed line and no reward badge renders.
+// Prop-driven and pure: parent passes the value, this component only
+// decides whether to render the badge.
 const props = withDefaults(
   defineProps<{
     priceSource?: PriceSource | null
@@ -27,6 +34,7 @@ const props = withDefaults(
     discountTitle?: string | null
     promotionId?: string | null
     removable?: boolean
+    rewardKind?: 'buy_x_get_y' | null
   }>(),
   {
     removable: false,
@@ -73,11 +81,14 @@ const discountBadgeLabel = computed(() => {
 
 const hasPromotion = computed(() => props.promotionId != null)
 
+const isReward = computed(() => props.rewardKind === 'buy_x_get_y')
+
 const hasAnyBadge = computed(
   () =>
     priceSourceBadge.value !== null ||
     props.discountType != null ||
-    hasPromotion.value,
+    hasPromotion.value ||
+    isReward.value,
 )
 
 function handleRemovePromo() {
@@ -141,6 +152,14 @@ function handleRemovePromo() {
       tone="success"
       icon="i-lucide-badge-percent"
       :label="discountBadgeLabel"
+    />
+
+    <AppBadge
+      v-if="isReward"
+      tone="success"
+      icon="i-lucide-gift"
+      label="GRATIS"
+      data-testid="sale-item-reward-badge"
     />
   </div>
 </template>

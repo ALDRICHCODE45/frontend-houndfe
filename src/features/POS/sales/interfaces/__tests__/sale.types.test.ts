@@ -1014,6 +1014,66 @@ describe('sale.types', () => {
       })
     })
 
+    describe('SaleItem subtotalCents + rewardKind optional fields (buy-x-get-y-promotion REQ-3)', () => {
+      // BXGY draft lines receive backend NET subtotalCents and a
+      // rewardKind='buy_x_get_y' tag. The frontend MUST accept both fields
+      // so the draft cart row can render NET + the GRATIS reward badge.
+
+      it('accepts subtotalCents and rewardKind = "buy_x_get_y" on a BXGY draft line', () => {
+        const item: SaleItem = {
+          id: 'item-bxgy',
+          productId: 'prod-1',
+          variantId: null,
+          productName: 'Vitamina C',
+          variantName: null,
+          quantity: 2,
+          unitPriceCents: 20000,
+          unitPriceCurrency: 'MXN',
+          prePriceCentsBeforeDiscount: 20000,
+          discountAmountCents: 20000,
+          subtotalCents: 20000,
+          rewardKind: 'buy_x_get_y',
+        }
+
+        expect(item.subtotalCents).toBe(20000)
+        expect(item.rewardKind).toBe('buy_x_get_y')
+      })
+
+      it('accepts rewardKind = null on a non-reward draft line', () => {
+        const item: SaleItem = {
+          id: 'item-regular',
+          productId: 'prod-1',
+          variantId: null,
+          productName: 'Vitamina C',
+          variantName: null,
+          quantity: 1,
+          unitPriceCents: 12000,
+          unitPriceCurrency: 'MXN',
+          subtotalCents: 12000,
+          rewardKind: null,
+        }
+
+        expect(item.rewardKind).toBeNull()
+        expect(item.subtotalCents).toBe(12000)
+      })
+
+      it('omits subtotalCents and rewardKind for backward compat with pre-deploy draft responses', () => {
+        const item: SaleItem = {
+          id: 'item-legacy-draft',
+          productId: 'prod-1',
+          variantId: null,
+          productName: 'Vitamina C',
+          variantName: null,
+          quantity: 1,
+          unitPriceCents: 12000,
+          unitPriceCurrency: 'MXN',
+        }
+
+        expect(item.subtotalCents).toBeUndefined()
+        expect(item.rewardKind).toBeUndefined()
+      })
+    })
+
     describe('Sale totals fields (subtotalCents/discountCents/totalCents) + appliedOrderPromotion optional', () => {
       it('accepts backend-provided totals + applied order promo', () => {
         const orderPromo: AppliedOrderPromotion = {
@@ -1098,6 +1158,68 @@ describe('sale.types', () => {
         }
 
         expect(promo.type).toBe('ORDER_DISCOUNT')
+      })
+
+      // buy-x-get-y-promotion REQ-1: applicable-promotion response may include
+      // BXGY promotions. The frontend type union MUST accept it.
+      it('builds a BUY_X_GET_Y applicable promotion', () => {
+        const promo: ApplicablePromotion = {
+          id: '0192b1f0-7c8d-7e0a-9d4a-bxgy00000001',
+          title: '2x1 Vitaminas',
+          type: 'BUY_X_GET_Y',
+        }
+
+        expect(promo.type).toBe('BUY_X_GET_Y')
+      })
+    })
+
+    describe('SaleDetailItem.rewardKind optional field (buy-x-get-y-promotion REQ-2)', () => {
+      // BXGY reward lines receive rewardKind='buy_x_get_y'. The frontend MUST
+      // accept it so a confirmed-sale detail response surfaces the GRATIS badge.
+      it('accepts rewardKind = "buy_x_get_y" on a confirmed-sale detail line', () => {
+        const item: SaleDetailItem = {
+          productName: 'Vitamina C',
+          variantName: null,
+          imageUrl: null,
+          unitPriceCents: 12000,
+          quantity: 1,
+          discountCents: 0,
+          subtotalCents: 0,
+          rewardKind: 'buy_x_get_y',
+        }
+
+        expect(item.rewardKind).toBe('buy_x_get_y')
+      })
+
+      // null = backend explicitly says "not a reward" (regular confirmed line).
+      it('accepts rewardKind = null when the line is not a reward', () => {
+        const item: SaleDetailItem = {
+          productName: 'Vitamina C',
+          variantName: null,
+          imageUrl: null,
+          unitPriceCents: 12000,
+          quantity: 1,
+          discountCents: 0,
+          subtotalCents: 12000,
+          rewardKind: null,
+        }
+
+        expect(item.rewardKind).toBeNull()
+      })
+
+      // Omitted = pre-deploy backend response. Must remain backward-compatible.
+      it('omits rewardKind for backward compat with pre-deploy confirmed-sale responses', () => {
+        const item: SaleDetailItem = {
+          productName: 'Vitamina C',
+          variantName: null,
+          imageUrl: null,
+          unitPriceCents: 12000,
+          quantity: 1,
+          discountCents: 0,
+          subtotalCents: 12000,
+        }
+
+        expect(item.rewardKind).toBeUndefined()
       })
     })
 

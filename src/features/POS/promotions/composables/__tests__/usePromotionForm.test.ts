@@ -12,6 +12,7 @@ import {
   DAY_OPTIONS,
   TARGET_TYPE_OPTIONS,
   BUY_X_GET_Y_PRESETS,
+  DISCOUNT_PERCENT_OPTIONS,
 } from '../usePromotionForm'
 import type {
   CreateProductDiscountPayload,
@@ -118,23 +119,66 @@ describe('TARGET_TYPE_OPTIONS', () => {
 })
 
 describe('BUY_X_GET_Y_PRESETS', () => {
-  it('has 2x1 preset with buyQuantity 2, getQuantity 1, getDiscountPercent 0', () => {
+  // REQ-10: locked preset table — buy quantities corrected (2x1=1, 3x2=2)
+  // and Gratis (100) substituted for the legacy "discount 0".
+  it('REGRESSION: 2x1 preset is locked at buyQuantity 1, getQuantity 1, getDiscountPercent 100 (Gratis)', () => {
     const preset = BUY_X_GET_Y_PRESETS.find((p) => p.label === '2x1')
+    expect(preset).toBeDefined()
+    expect(preset!.buyQuantity).toBe(1)
+    expect(preset!.getQuantity).toBe(1)
+    expect(preset!.getDiscountPercent).toBe(100)
+  })
+
+  it('REGRESSION: 3x2 preset is locked at buyQuantity 2, getQuantity 1, getDiscountPercent 100 (Gratis)', () => {
+    const preset = BUY_X_GET_Y_PRESETS.find((p) => p.label === '3x2')
     expect(preset).toBeDefined()
     expect(preset!.buyQuantity).toBe(2)
     expect(preset!.getQuantity).toBe(1)
-    expect(preset!.getDiscountPercent).toBe(0)
+    expect(preset!.getDiscountPercent).toBe(100)
   })
 
-  it('has 3x2 preset with buyQuantity 3, getQuantity 2', () => {
-    const preset = BUY_X_GET_Y_PRESETS.find((p) => p.label === '3x2')
+  it('"Segundo al 50%" preset is locked at buyQuantity 1, getQuantity 1, getDiscountPercent 50', () => {
+    const preset = BUY_X_GET_Y_PRESETS.find((p) => p.label === 'Segundo al 50%')
     expect(preset).toBeDefined()
-    expect(preset!.buyQuantity).toBe(3)
-    expect(preset!.getQuantity).toBe(2)
+    expect(preset!.buyQuantity).toBe(1)
+    expect(preset!.getQuantity).toBe(1)
+    expect(preset!.getDiscountPercent).toBe(50)
   })
 
-  it('has at least 3 presets', () => {
-    expect(BUY_X_GET_Y_PRESETS.length).toBeGreaterThanOrEqual(3)
+  it('has exactly the three locked presets (no stale extras)', () => {
+    expect(BUY_X_GET_Y_PRESETS).toHaveLength(3)
+    expect(BUY_X_GET_Y_PRESETS.map((p) => p.label)).toEqual([
+      '2x1',
+      '3x2',
+      'Segundo al 50%',
+    ])
+  })
+})
+
+describe('DISCOUNT_PERCENT_OPTIONS (REQ-8 extract)', () => {
+  // Extract-Before-Mock: this list must live as exported pure data in
+  // usePromotionForm.ts so it can be unit-tested without mounting the SFC.
+  it('contains a 100 → "Gratis" entry', () => {
+    const gratis = DISCOUNT_PERCENT_OPTIONS.find((o) => o.value === 100)
+    expect(gratis).toBeDefined()
+    expect(gratis!.label).toBe('Gratis')
+  })
+
+  it('does NOT contain a value:0 entry (legacy inverted Gratis)', () => {
+    const zero = DISCOUNT_PERCENT_OPTIONS.find((o) => o.value === 0)
+    expect(zero).toBeUndefined()
+  })
+
+  it('contains all 5%-step percentages from 5 through 95 with "X% OFF" labels', () => {
+    for (let pct = 5; pct <= 95; pct += 5) {
+      const opt = DISCOUNT_PERCENT_OPTIONS.find((o) => o.value === pct)
+      expect(opt).toBeDefined()
+      expect(opt!.label).toBe(`${pct}% OFF`)
+    }
+  })
+
+  it('length is 20 (19 stepped percents + 1 Gratis at 100)', () => {
+    expect(DISCOUNT_PERCENT_OPTIONS).toHaveLength(20)
   })
 })
 
@@ -1132,6 +1176,38 @@ describe('mapApiErrorToFields', () => {
       'Hay targets duplicados. Revisá que no haya items repetidos.',
     )
     expect(result.toastMessage).toBeNull()
+  })
+
+  // ── REQ-12: error-code matching MUST be case-insensitive ────────────────────
+  // The backend may emit `duplicate_target` (or any casing variant) — the
+  // canonical mapping table is uppercase, so the mapper MUST normalize the
+  // incoming `error` code before lookup. lowercase + canonical produce the
+  // same {fieldErrors, toastMessage} envelope byte-for-byte.
+
+  it('REQ-12: maps lowercase "duplicate_target" identically to DUPLICATE_TARGET (case-insensitive)', () => {
+    const result = mapApiErrorToFields({ error: 'duplicate_target', message: 'duplicate' })
+    expect(result.fieldErrors).toHaveLength(1)
+    expect(result.fieldErrors[0]!.path).toBe('targetItems')
+    expect(result.fieldErrors[0]!.message).toBe(
+      'Hay targets duplicados. Revisá que no haya items repetidos.',
+    )
+    expect(result.toastMessage).toBeNull()
+  })
+
+  it('REQ-12: maps FORBIDDEN_FIELD to a user-visible Spanish toast, no field errors', () => {
+    const result = mapApiErrorToFields({ error: 'FORBIDDEN_FIELD', message: 'cannot edit' })
+    expect(result.fieldErrors).toEqual([])
+    expect(result.toastMessage).toBe(
+      'No se permite modificar ese campo para este tipo de promoción.',
+    )
+  })
+
+  it('REQ-12: maps INVALID_FIELD_CHANGE to a user-visible Spanish toast, no field errors', () => {
+    const result = mapApiErrorToFields({ error: 'INVALID_FIELD_CHANGE', message: 'cannot change' })
+    expect(result.fieldErrors).toEqual([])
+    expect(result.toastMessage).toBe(
+      'No se puede cambiar el tipo de una promoción existente.',
+    )
   })
 
   it('maps INVALID_TARGET to field-level error on targetItems with Spanish message (REQ-6)', () => {

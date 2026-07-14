@@ -57,10 +57,28 @@ export const TARGET_TYPE_OPTIONS: SelectOption<PromotionTargetType>[] = [
   { label: 'Variantes', value: 'VARIANTS' },
 ]
 
+// ── Discount percent select options (REQ-8) ───────────────────────────────────
+//
+// REQ-8: BXGY bound is 0..100 inclusive; 100 = gratis ("Gratis" maps to 100,
+// NOT the legacy inverted 0→"Gratis"). ADVANCED still rejects 100 via the
+// schema bound (0..99), so this shared list intentionally exposes the full
+// BXGY range — ADVANCED is enforced at the schema level, not here.
+//
+// Extracted from PromotionForm.vue so it can be unit-tested as pure data
+// without mounting the SFC (Extract-Before-Mock).
+export const DISCOUNT_PERCENT_OPTIONS: { label: string; value: number }[] = [
+  ...Array.from({ length: 19 }, (_, i) => {
+    const pct = (i + 1) * 5
+    return { label: `${pct}% OFF`, value: pct }
+  }),
+  { label: 'Gratis', value: 100 },
+]
+
+// REQ-10: locked preset table for BUY_X_GET_Y quick-pick.
 export const BUY_X_GET_Y_PRESETS: BuyXGetYPreset[] = [
-  { label: '2x1', buyQuantity: 2, getQuantity: 1, getDiscountPercent: 0 },
-  { label: '3x2', buyQuantity: 3, getQuantity: 2, getDiscountPercent: 0 },
-  { label: 'Segundo al 50%', buyQuantity: 2, getQuantity: 1, getDiscountPercent: 50 },
+  { label: '2x1', buyQuantity: 1, getQuantity: 1, getDiscountPercent: 100 },
+  { label: '3x2', buyQuantity: 2, getQuantity: 1, getDiscountPercent: 100 },
+  { label: 'Segundo al 50%', buyQuantity: 1, getQuantity: 1, getDiscountPercent: 50 },
 ]
 
 // ── Initial state factory ─────────────────────────────────────────────────────
@@ -334,7 +352,11 @@ const FIELD_PATH_MAP: Record<string, string> = {
  * - `toastMessage`: non-null string for errors that can't be bound to a specific field
  */
 export function mapApiErrorToFields(input: ApiErrorInput): ApiErrorMapping {
-  const code = input.error
+  // REQ-12: error-code matching MUST be case-insensitive — the backend may emit
+  // `duplicate_target` (or any casing variant) and the user expects the same
+  // mapping regardless. We canonicalize once up-front so the comparisons below
+  // stay readable against uppercase constants.
+  const code = (input.error ?? '').toUpperCase()
   const rawMessage = Array.isArray(input.message) ? input.message.join(', ') : (input.message ?? '')
 
   // ── INVALID_DATE_RANGE → always endDate field ──────────────────────────────
@@ -406,6 +428,27 @@ export function mapApiErrorToFields(input: ApiErrorInput): ApiErrorMapping {
         },
       ],
       toastMessage: null,
+    }
+  }
+
+  // ── FORBIDDEN_FIELD → toast only (REQ-12) ─────────────────────────────
+  // The backend refused the update because the field is immutable for this
+  // promotion type (e.g. flipping BXGY → ADVANCED post-creation). No field
+  // binding: the user must rethink the change, not retry it.
+  if (code === 'FORBIDDEN_FIELD') {
+    return {
+      fieldErrors: [],
+      toastMessage: 'No se permite modificar ese campo para este tipo de promoción.',
+    }
+  }
+
+  // ── INVALID_FIELD_CHANGE → toast only (REQ-12) ───────────────────────
+  // The backend refused the update because the promotion's `type` cannot be
+  // changed after creation. No field binding for the same reason as above.
+  if (code === 'INVALID_FIELD_CHANGE') {
+    return {
+      fieldErrors: [],
+      toastMessage: 'No se puede cambiar el tipo de una promoción existente.',
     }
   }
 
