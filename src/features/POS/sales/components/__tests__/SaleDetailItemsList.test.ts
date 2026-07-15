@@ -537,14 +537,25 @@ describe('SaleDetailItemsList', () => {
     expect(subtotal.text()).toContain('$100.00')
   })
 
-  it('renders backend subtotalCents verbatim and asserts the totals invariant', () => {
-    // Representative invariant payload per spec WU-B REQ-totals-invariant:
-    // subtotalCents=40000, discountCents=20000, totalCents=20000.
-    // Invariant: discountCents === subtotalCents − totalCents
-    //   (20000 === 40000 − 20000) — holds.
+  it('renders the backend-provided subtotalCents verbatim (no client-side recompute)', () => {
+    // Per spec WU-B REQ-totals-invariant: the per-item subtotal MUST come from
+    // the backend-provided `subtotalCents` field. The component MUST NOT
+    // recompute `unitPriceCents × quantity` locally.
+    //
+    // Why this is the test:
+    //   - `unitPriceCents: 50000 × quantity: 1 = 50000 cents` = $500.00 — this
+    //     is what a client recompute would render.
+    //   - `subtotalCents: 40000` is what the backend provided = $400.00.
+    //   - The component must render $400.00 (NOT $500.00) in the bold subtotal
+    //     cell, proving it trusts the backend field instead of doing the math.
+    //
+    // Note: the old assertion `expect(discountCents).toBe(subtotalCents - totalCents)`
+    // was a fixture-only tautology — `totalCents` was never passed to the
+    // component (this per-item list has no sale-level totalCents), so the
+    // arithmetic check on test-local literals proved nothing about the
+    // rendered behavior. Removed.
     const subtotalCents = 40000
     const discountCents = 20000
-    const totalCents = 20000
 
     const wrapper = mountWithUApp(SaleDetailItemsList, {
       props: {
@@ -562,12 +573,6 @@ describe('SaleDetailItemsList', () => {
       },
     })
 
-    // 1. Backend cents invariant: discountCents === subtotalCents − totalCents.
-    expect(discountCents).toBe(subtotalCents - totalCents)
-
-    // 2. Frontend MUST render the backend subtotalCents verbatim — no
-    //    client-side recompute. The unit-price × quantity number ($500.00)
-    //    MUST NOT appear in the bold subtotal cell.
     const subtotal = wrapper.find('[data-testid="item-subtotal-0"]')
     expect(subtotal.text()).toContain('$400.00')
     expect(subtotal.text()).not.toContain('$500.00')

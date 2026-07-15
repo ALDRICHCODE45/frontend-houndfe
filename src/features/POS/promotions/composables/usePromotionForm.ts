@@ -13,7 +13,10 @@ import type {
   UpdatePromotionPayload,
 } from '../interfaces/promotion.types'
 import { DAY_OF_WEEK_LABELS } from '../interfaces/promotion.types'
-import { findOverlappingTargets, type OverlappingTarget } from '../utils/advancedTargets.utils'
+import {
+  computeOverlappingTargets,
+  type OverlappingTarget,
+} from '../utils/advancedTargets.utils'
 
 // ── Select option types ────────────────────────────────────────────────────────
 
@@ -519,26 +522,24 @@ export function usePromotionForm(type: PromotionType = 'PRODUCT_DISCOUNT') {
    * Non-blocking warning — `advanced-promotion-type` WU-A (R-D).
    *
    * Detects BUY∩GET target overlap for ADVANCED promotions via the pure
-   * `findOverlappingTargets` helper. Exposed as a `computed` so the form
-   * can render a `UAlert` BEFORE submit (the user sees the conflict and
-   * can fix it). The form DOES NOT block submit on overlap — backend
-   * `advanced_overlapping_targets` is the authoritative gate.
+   * `computeOverlappingTargets` wrapper (single source of truth shared with
+   * `PromotionForm.vue`'s rendered path). Exposed as a `computed` so callers
+   * can react to overlap reactively. The form DOES NOT block submit on
+   * overlap — backend `advanced_overlapping_targets` is the authoritative
+   * gate.
    *
    * For non-ADVANCED types (and when either side is empty) returns `[]`,
    * which is the "no warning" state.
    */
-  const overlappingTargets: ComputedRef<OverlappingTarget[]> = computed(() => {
-    if (state.type !== 'ADVANCED') return []
-    // Coerce empty `buyTargetType` / `getTargetType` to ''; the helper guards
-    // against different types (returns []), which is exactly what we want
-    // when the form hasn't been fully populated yet.
-    return findOverlappingTargets(
-      (state.buyTargetType || '') as PromotionTargetType,
+  const overlappingTargets: ComputedRef<OverlappingTarget[]> = computed(() =>
+    computeOverlappingTargets(
+      state.type,
+      state.buyTargetType || '',
       state.buyTargetItems,
-      (state.getTargetType || '') as PromotionTargetType,
+      state.getTargetType || '',
       state.getTargetItems,
-    )
-  })
+    ),
+  )
 
   function resetForm() {
     Object.assign(state, getInitialState(state.type))

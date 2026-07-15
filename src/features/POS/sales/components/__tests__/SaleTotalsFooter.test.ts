@@ -102,9 +102,41 @@ describe('SaleTotalsFooter — totals binding (work-unit B)', () => {
     expect(wrapper.html()).toContain('2 líneas')
   })
 
-  it('preserves invariant fixture: discountCents === subtotalCents − totalCents', () => {
-    // Sanity check on the fixture itself (the component just renders them).
-    expect(TOTALS.discountCents).toBe(TOTALS.subtotalCents - TOTALS.totalCents)
+  it('renders the TOTALS fixture cents verbatim — backend values, no client recompute', () => {
+    // Per spec WU-B REQ-totals-invariant: the component MUST render the
+    // backend-provided integer-cent totals (subtotalCents, discountCents,
+    // totalCents) DIRECTLY — formatted as MXN currency — and MUST NOT do a
+    // client-side reduce over the items list.
+    //
+    // Why this is the test:
+    //   - Mount with the TOTALS fixture: subtotal 10000, discount 1500,
+    //     total 8500.
+    //   - Assert the rendered HTML contains $100.00 (subtotal), $15.00
+    //     (discount), and $85.00 (total).
+    //   - Assert it does NOT contain $340.00 — that's what a client-side
+    //     reduce over items.unitPriceCents × quantity would yield
+    //     (2 × 5000 + 3 × 8000 = 34000 cents = $340.00), proving no
+    //     recompute happens.
+    //
+    // Note: the old assertion
+    //   `expect(TOTALS.discountCents).toBe(TOTALS.subtotalCents - TOTALS.totalCents)`
+    // was a fixture-only tautology — it compared the test-local object
+    // against itself and proved nothing about the component's behavior.
+    // Replaced with a real mount-and-render check below.
+    const wrapper = mountFooter(makeSale(TOTALS))
+
+    // Subtotal — formatted from sale.subtotalCents (10000 → $100.00)
+    expect(wrapper.html()).toContain('Subtotal')
+    expect(wrapper.html()).toContain('$100.00')
+    // Discounts — formatted from sale.discountCents (1500 → $15.00)
+    expect(wrapper.html()).toContain('Descuentos')
+    expect(wrapper.html()).toContain('$15.00')
+    // Total a cobrar — formatted from sale.totalCents (8500 → $85.00)
+    expect(wrapper.html()).toContain('Total a cobrar')
+    expect(wrapper.html()).toContain('$85.00')
+    // No client-side recompute: $340.00 must NOT appear (that would be
+    // 2 × $50 + 3 × $80 = $340 from the items list, not the backend total).
+    expect(wrapper.html()).not.toContain('$340.00')
   })
 
   it('reflects ORDER_DISCOUNT into the Descuentos row when appliedOrderPromotion is present', () => {

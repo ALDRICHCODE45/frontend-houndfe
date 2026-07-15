@@ -18,7 +18,7 @@ import {
 } from '../composables/usePromotionForm'
 import { usePromotionTargetNames } from '../composables/usePromotionTargetNames'
 import { getTypeConfig } from '../utils/promotionStatusConfig.utils'
-import { findOverlappingTargets } from '../utils/advancedTargets.utils'
+import { computeOverlappingTargets } from '../utils/advancedTargets.utils'
 
 import PromotionConditionsSection from './PromotionConditionsSection.vue'
 import PromotionTargetItemsSection from './PromotionTargetItemsSection.vue'
@@ -173,17 +173,19 @@ function onSubmit() {
 // Spec (Delta 1 / REQ: Client-Side Disjoint BUY∩GET Validation): warn the user
 // BEFORE submit when the same {targetType, targetId} appears on both sides.
 // Submit is NOT blocked — backend `advanced_overlapping_targets` is the
-// authoritative gate. The warning uses a PURE helper + computed (NOT zod
-// superRefine, which would block submit).
-const overlappingTargets = computed(() => {
-  if (formState.type !== 'ADVANCED') return []
-  return findOverlappingTargets(
-    (formState.buyTargetType || '') as PromotionTargetType,
+// authoritative gate. The warning uses a PURE wrapper helper + computed (NOT
+// zod superRefine, which would block submit). The wrapper is shared with
+// `usePromotionForm` so the rendered path and the composable test path are
+// the same single source of truth.
+const overlappingTargets = computed(() =>
+  computeOverlappingTargets(
+    formState.type,
+    formState.buyTargetType || '',
     formState.buyTargetItems,
-    (formState.getTargetType || '') as PromotionTargetType,
+    formState.getTargetType || '',
     formState.getTargetItems,
-  )
-})
+  ),
+)
 </script>
 
 <template>

@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { findOverlappingTargets } from '../advancedTargets.utils'
+import {
+  findOverlappingTargets,
+  computeOverlappingTargets,
+} from '../advancedTargets.utils'
 import type { PromotionTargetItemFormEntry } from '../../interfaces/promotion.types'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -98,5 +101,90 @@ describe('findOverlappingTargets', () => {
     // No mutation of inputs
     expect(buy).toEqual([item('cat-A')])
     expect(get).toEqual([item('cat-A')])
+  })
+})
+
+// ── computeOverlappingTargets ─────────────────────────────────────────────────
+//
+// Thin wrapper that bundles the ADVANCED-only guard + the empty-string coercion
+// for buyTargetType / getTargetType. Exists so the form (PromotionForm.vue) and
+// the composable (usePromotionForm) can share ONE source of truth for the
+// non-blocking overlap warning, and so the rendered path is the tested path.
+//
+// findOverlappingTargets stays pure and unchanged — it expects already-cast
+// non-empty strings (or whatever the type system has enforced upstream).
+
+describe('computeOverlappingTargets', () => {
+  it('returns [] for non-ADVANCED promotion types (warning must never surface)', () => {
+    const overlaps = computeOverlappingTargets(
+      'PRODUCT_DISCOUNT',
+      'CATEGORIES',
+      [item('cat-A')],
+      'CATEGORIES',
+      [item('cat-A')],
+    )
+    expect(overlaps).toEqual([])
+  })
+
+  it('returns [] for ORDER_DISCOUNT and BUY_X_GET_Y types even when BUY/GET sides share ids', () => {
+    // Belt-and-braces — non-ADVANCED types should NEVER trigger the overlap
+    // warning surface, regardless of what the form's BUY/GET state happens to
+    // hold.
+    for (const t of ['ORDER_DISCOUNT', 'BUY_X_GET_Y'] as const) {
+      expect(
+        computeOverlappingTargets(t, 'CATEGORIES', [item('x')], 'CATEGORIES', [
+          item('x'),
+        ]),
+      ).toEqual([])
+    }
+  })
+
+  it('coerces empty buyTargetType to "" and returns [] (form-not-fully-populated guard)', () => {
+    // Mirrors the form's runtime state where buyTargetType is still '' while
+    // the user hasn't picked anything yet. The wrapper must NOT crash and
+    // must NOT report a false-positive overlap.
+    const overlaps = computeOverlappingTargets(
+      'ADVANCED',
+      '', // buyTargetType unset
+      [item('cat-A')],
+      'CATEGORIES',
+      [item('cat-A')],
+    )
+    expect(overlaps).toEqual([])
+  })
+
+  it('coerces empty getTargetType to "" and returns []', () => {
+    const overlaps = computeOverlappingTargets(
+      'ADVANCED',
+      'CATEGORIES',
+      [item('cat-A')],
+      '', // getTargetType unset
+      [item('cat-A')],
+    )
+    expect(overlaps).toEqual([])
+  })
+
+  it('delegates to findOverlappingTargets and surfaces the overlap on ADVANCED', () => {
+    const overlaps = computeOverlappingTargets(
+      'ADVANCED',
+      'CATEGORIES',
+      [item('cat-A')],
+      'CATEGORIES',
+      [item('cat-A')],
+    )
+    expect(overlaps).toEqual([
+      { targetType: 'CATEGORIES', targetId: 'cat-A', buyCount: 1, getCount: 1 },
+    ])
+  })
+
+  it('returns [] when BUY/GET are disjoint on ADVANCED', () => {
+    const overlaps = computeOverlappingTargets(
+      'ADVANCED',
+      'CATEGORIES',
+      [item('cat-A')],
+      'CATEGORIES',
+      [item('cat-B')],
+    )
+    expect(overlaps).toEqual([])
   })
 })

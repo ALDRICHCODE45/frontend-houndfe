@@ -1,6 +1,7 @@
 import type {
   PromotionTargetItemFormEntry,
   PromotionTargetType,
+  PromotionType,
 } from '../interfaces/promotion.types'
 
 /**
@@ -11,8 +12,8 @@ import type {
  * many times each pair appears on each side (so a duplicate id is reflected).
  *
  * Design decision (advanced-promotion-type): the form warns the user BEFORE
- * submit (via `computed overlappingTargets` in `usePromotionForm`) but does
- * NOT block submit. Backend `advanced_overlapping_targets` is the
+ * submit (via the `overlappingTargets` computed that wraps this helper) but
+ * does NOT block submit. Backend `advanced_overlapping_targets` is the
  * authoritative gate.
  *
  * Why a pure helper instead of `zod.superRefine`?
@@ -64,4 +65,37 @@ export function findOverlappingTargets(
   }
 
   return overlaps
+}
+
+/**
+ * Pure wrapper that bundles the form-runtime concerns around
+ * `findOverlappingTargets`:
+ *   - the ADVANCED-only guard (overlap warning is meaningless for other types)
+ *   - the empty-string coercion for `buyTargetType` / `getTargetType` (the form
+ *     starts with `''` until the user picks a target type, and the cast back
+ *     to `PromotionTargetType` only happens here — ONE place)
+ *
+ * This wrapper is the single source of truth for the BUY∩GET overlap warning
+ * surface, consumed by:
+ *   - `usePromotionForm.composable` (its `overlappingTargets` computed wraps it)
+ *   - `PromotionForm.vue` (its `overlappingTargets` computed wraps it)
+ *
+ * Keeping the rendered path (the SFC's computed) and the composable path
+ * pointed at the same helper guarantees the form's `UAlert` shows exactly
+ * what the tests prove.
+ */
+export function computeOverlappingTargets(
+  promotionType: PromotionType | string,
+  buyTargetType: PromotionTargetType | '',
+  buyItems: PromotionTargetItemFormEntry[],
+  getTargetType: PromotionTargetType | '',
+  getItems: PromotionTargetItemFormEntry[],
+): OverlappingTarget[] {
+  if (promotionType !== 'ADVANCED') return []
+  return findOverlappingTargets(
+    buyTargetType as PromotionTargetType,
+    buyItems,
+    getTargetType as PromotionTargetType,
+    getItems,
+  )
 }
