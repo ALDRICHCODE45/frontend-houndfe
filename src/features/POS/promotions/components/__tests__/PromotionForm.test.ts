@@ -46,6 +46,23 @@ const FULL_STUBS = {
     props: ['type', 'loading'],
     template: '<button :type="type || \'button\'"><slot /></button>',
   },
+  // Non-blocking overlap warning (advanced-promotion-type WU-A). The actual
+  // visibility is driven by the form's `overlappingTargets` computed; the
+  // stub renders the message content so the test can assert text presence.
+  // Nuxt UI v4 test gotcha: stubs use INTERNAL un-prefixed names — register
+  // both `UAlert` and `Alert` keys to cover Nuxt UI's naming convention.
+  UAlert: {
+    inheritAttrs: false,
+    props: ['title', 'color', 'icon', 'description'],
+    template:
+      '<div data-testid="overlap-alert"><slot /><slot name="title" />{{ title }}<slot name="description" />{{ description }}</div>',
+  },
+  Alert: {
+    inheritAttrs: false,
+    props: ['title', 'color', 'icon', 'description'],
+    template:
+      '<div data-testid="overlap-alert"><slot /><slot name="title" />{{ title }}<slot name="description" />{{ description }}</div>',
+  },
   // Child section components — stub them to avoid deep rendering
   PromotionConditionsSection: {
     props: ['modelValue', 'mode'],
@@ -285,5 +302,102 @@ describe('PromotionForm', () => {
     const section = wrapper.findComponent({ name: 'PromotionTargetItemsSection' })
     expect(section.exists()).toBe(true)
     expect(section.props('allowVariants')).toBe(true)
+  })
+
+  // ── advanced-promotion-type WU-A: VARIANTS enabled on ADVANCED BUY + GET ───
+  // Spec (Delta 1 / MODIFIED Target Type Union Includes VARIANTS):
+  // ADVANCED must expose VARIANTS as a selectable target type on BOTH the
+  // BUY and GET sides — previously it was hidden. The form achieves this
+  // by passing `:allow-variants="true"` to BOTH `PromotionTargetItemsSection`
+  // instances inside the ADVANCED card.
+
+  it('REQ-1 (ADVANCED BUY): ADVANCED card passes allow-variants=true to the BUY-side PromotionTargetItemsSection', () => {
+    const wrapper = mountForm('ADVANCED')
+    const sections = wrapper.findAllComponents({ name: 'PromotionTargetItemsSection' })
+    expect(sections.length).toBeGreaterThanOrEqual(2)
+    const buy = sections.find((s) => s.props('side') === 'BUY')
+    expect(buy).toBeDefined()
+    expect(buy!.props('allowVariants')).toBe(true)
+  })
+
+  it('REQ-1 (ADVANCED GET): ADVANCED card passes allow-variants=true to the GET-side PromotionTargetItemsSection', () => {
+    const wrapper = mountForm('ADVANCED')
+    const sections = wrapper.findAllComponents({ name: 'PromotionTargetItemsSection' })
+    const get = sections.find((s) => s.props('side') === 'GET')
+    expect(get).toBeDefined()
+    expect(get!.props('allowVariants')).toBe(true)
+  })
+
+  // ── Non-blocking disjoint overlap warning UI (A4.2) ─────────────────────────
+  // Spec (Delta 1 / REQ: Client-Side Disjoint BUY∩GET Validation):
+  // A non-blocking UAlert renders when the same {targetType, targetId} appears
+  // on both BUY and GET sides. Submit is STILL allowed — the backend is the
+  // authoritative gate.
+  //
+  // We drive state through the `initialData` (edit mode) hydration path
+  // because `formState` is a `<script setup>` reactive variable that's not
+  // exposed on the component instance — emitting from the stubbed
+  // PromotionTargetItemsSection is the cleanest mutation channel here.
+
+  function makeAdvancedInitialData(overlap: 'shared' | 'disjoint') {
+    return {
+      id: 'promo-1',
+      title: 'Overlap test',
+      type: 'ADVANCED' as const,
+      method: 'AUTOMATIC' as const,
+      status: 'ACTIVE' as const,
+      startDate: null,
+      endDate: null,
+      customerScope: 'ALL' as const,
+      discountType: null,
+      discountValue: null,
+      minPurchaseAmountCents: null,
+      appliesTo: null,
+      buyQuantity: 2,
+      getQuantity: 1,
+      getDiscountPercent: 100,
+      buyTargetType: 'CATEGORIES' as const,
+      getTargetType: 'CATEGORIES' as const,
+      targetItems: [
+        { id: 'ti-1', side: 'BUY' as const, targetType: 'CATEGORIES' as const, targetId: 'cat-A' },
+        {
+          id: 'ti-2',
+          side: 'GET' as const,
+          targetType: 'CATEGORIES' as const,
+          targetId: overlap === 'shared' ? 'cat-A' : 'cat-B',
+        },
+      ],
+      customers: [],
+      priceLists: [],
+      daysOfWeek: [],
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    }
+  }
+
+  it('A4.2: ADVANCED form renders a non-blocking UAlert when BUY and GET share a target', () => {
+    const wrapper = mountForm('ADVANCED', {
+      mode: 'edit' as const,
+      initialData: makeAdvancedInitialData('shared'),
+    })
+    // Find by data-testid (stub-rendered attr) — most robust against stub
+    // naming conventions. The stub renders `data-testid="overlap-alert"`
+    // when v-if=overlappingTargets.length>0 triggers.
+    const alert = wrapper.find('[data-testid="overlap-alert"]')
+    expect(alert.exists()).toBe(true)
+    expect(alert.text()).toContain('superponerse')
+
+    // The submit button MUST still be present (non-blocking).
+    const submit = wrapper.find('[data-testid="submit-btn"]')
+    expect(submit.exists()).toBe(true)
+  })
+
+  it('A4.2: ADVANCED form does NOT render the overlap UAlert when BUY and GET are disjoint', () => {
+    const wrapper = mountForm('ADVANCED', {
+      mode: 'edit' as const,
+      initialData: makeAdvancedInitialData('disjoint'),
+    })
+    const alert = wrapper.find('[data-testid="overlap-alert"]')
+    expect(alert.exists()).toBe(false)
   })
 })

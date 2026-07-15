@@ -1,4 +1,4 @@
-import { reactive } from 'vue'
+import { computed, reactive, type ComputedRef } from 'vue'
 import { promotionFormSchema } from '../interfaces/promotion.schema'
 import type {
   CreatePromotionPayload,
@@ -13,6 +13,7 @@ import type {
   UpdatePromotionPayload,
 } from '../interfaces/promotion.types'
 import { DAY_OF_WEEK_LABELS } from '../interfaces/promotion.types'
+import { findOverlappingTargets, type OverlappingTarget } from '../utils/advancedTargets.utils'
 
 // ── Select option types ────────────────────────────────────────────────────────
 
@@ -431,6 +432,39 @@ export function mapApiErrorToFields(input: ApiErrorInput): ApiErrorMapping {
     }
   }
 
+  // ── ADVANCED_OVERLAPPING_TARGETS → field-level error on getTargetItems ─────
+  // (advanced-promotion-type WU-A) The backend refused the submission because
+  // the same {targetType, targetId} appears on both BUY and GET sides. The
+  // form surfaces this as a field-level error on the GET side because that's
+  // where the user is most likely to react first. The local client-side
+  // `overlappingTargets` computed (exposed by usePromotionForm) also surfaces
+  // the warning non-blockingly before submit, but backend remains authoritative.
+  if (code === 'ADVANCED_OVERLAPPING_TARGETS') {
+    return {
+      fieldErrors: [
+        {
+          path: 'getTargetItems',
+          message: 'Los objetivos de compra y obtención no pueden superponerse.',
+        },
+      ],
+      toastMessage: null,
+    }
+  }
+
+  // ── ADVANCED_MISSING_TARGETS → toast (side not derivable from code) ──────
+  // The backend rejected because either BUY or GET side has zero targets, but
+  // the code alone does not tell us WHICH side. Defaulting to a toast is the
+  // safer UX choice (no false-positive field highlight). The client-side
+  // zod schema already guards empty sides per type, so this toast is the
+  // last line of defense for cross-cutting cases (e.g. all targets removed
+  // mid-edit by a server-side race).
+  if (code === 'ADVANCED_MISSING_TARGETS') {
+    return {
+      fieldErrors: [],
+      toastMessage: 'Debe seleccionar objetivos de compra y de obtención.',
+    }
+  }
+
   // ── FORBIDDEN_FIELD → toast only (REQ-12) ─────────────────────────────
   // The backend refused the update because the field is immutable for this
   // promotion type (e.g. flipping BXGY → ADVANCED post-creation). No field
@@ -481,6 +515,31 @@ function extractFieldPath(message: string): string | null {
 export function usePromotionForm(type: PromotionType = 'PRODUCT_DISCOUNT') {
   const state = reactive<PromotionFormState>(getInitialState(type))
 
+  /**
+   * Non-blocking warning — `advanced-promotion-type` WU-A (R-D).
+   *
+   * Detects BUY∩GET target overlap for ADVANCED promotions via the pure
+   * `findOverlappingTargets` helper. Exposed as a `computed` so the form
+   * can render a `UAlert` BEFORE submit (the user sees the conflict and
+   * can fix it). The form DOES NOT block submit on overlap — backend
+   * `advanced_overlapping_targets` is the authoritative gate.
+   *
+   * For non-ADVANCED types (and when either side is empty) returns `[]`,
+   * which is the "no warning" state.
+   */
+  const overlappingTargets: ComputedRef<OverlappingTarget[]> = computed(() => {
+    if (state.type !== 'ADVANCED') return []
+    // Coerce empty `buyTargetType` / `getTargetType` to ''; the helper guards
+    // against different types (returns []), which is exactly what we want
+    // when the form hasn't been fully populated yet.
+    return findOverlappingTargets(
+      (state.buyTargetType || '') as PromotionTargetType,
+      state.buyTargetItems,
+      (state.getTargetType || '') as PromotionTargetType,
+      state.getTargetItems,
+    )
+  })
+
   function resetForm() {
     Object.assign(state, getInitialState(state.type))
   }
@@ -492,6 +551,7 @@ export function usePromotionForm(type: PromotionType = 'PRODUCT_DISCOUNT') {
   return {
     schema: promotionFormSchema,
     state,
+    overlappingTargets,
     resetForm,
     setState,
   }

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, watch } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import type {
   PromotionFormState,
   PromotionMethod,
@@ -18,6 +18,7 @@ import {
 } from '../composables/usePromotionForm'
 import { usePromotionTargetNames } from '../composables/usePromotionTargetNames'
 import { getTypeConfig } from '../utils/promotionStatusConfig.utils'
+import { findOverlappingTargets } from '../utils/advancedTargets.utils'
 
 import PromotionConditionsSection from './PromotionConditionsSection.vue'
 import PromotionTargetItemsSection from './PromotionTargetItemsSection.vue'
@@ -167,6 +168,22 @@ function onConditionsUpdate(updated: PromotionFormState) {
 function onSubmit() {
   emit('submit', { ...formState })
 }
+
+// ── ADVANCED: non-blocking BUY∩GET overlap warning ─────────────────────────────
+// Spec (Delta 1 / REQ: Client-Side Disjoint BUY∩GET Validation): warn the user
+// BEFORE submit when the same {targetType, targetId} appears on both sides.
+// Submit is NOT blocked — backend `advanced_overlapping_targets` is the
+// authoritative gate. The warning uses a PURE helper + computed (NOT zod
+// superRefine, which would block submit).
+const overlappingTargets = computed(() => {
+  if (formState.type !== 'ADVANCED') return []
+  return findOverlappingTargets(
+    (formState.buyTargetType || '') as PromotionTargetType,
+    formState.buyTargetItems,
+    (formState.getTargetType || '') as PromotionTargetType,
+    formState.getTargetItems,
+  )
+})
 </script>
 
 <template>
@@ -444,6 +461,7 @@ function onSubmit() {
               <PromotionTargetItemsSection
                 :target-type="formState.buyTargetType as PromotionTargetType"
                 :selected-items="formState.buyTargetItems"
+                :allow-variants="true"
                 side="BUY"
                 label="Items de cualquiera de los siguientes"
                 @update:target-type="onBuyTargetTypeChange"
@@ -478,6 +496,7 @@ function onSubmit() {
               <PromotionTargetItemsSection
                 :target-type="formState.getTargetType as PromotionTargetType"
                 :selected-items="formState.getTargetItems"
+                :allow-variants="true"
                 side="GET"
                 label="De cualquiera de los siguientes"
                 @update:target-type="onGetTargetTypeChange"
@@ -485,6 +504,22 @@ function onSubmit() {
               />
             </div>
           </div>
+
+          <!-- ── Non-blocking overlap warning (advanced-promotion-type WU-A) ──
+               Spec: surface a non-blocking UI hint when BUY and GET share a
+               target. Submit is NOT blocked — backend
+               `advanced_overlapping_targets` is the authoritative gate. The
+               warning uses the PURE `findOverlappingTargets` helper + a
+               `computed`, NOT zod `superRefine` (which would block submit). -->
+          <UAlert
+            v-if="overlappingTargets.length > 0"
+            color="warning"
+            icon="i-lucide-triangle-alert"
+            data-testid="overlap-alert"
+            class="mt-4"
+            :title="`${overlappingTargets.length} objetivo(s) en común`"
+            description="Los objetivos de compra y obtención no pueden superponerse. El backend rechazará la promoción si los mismos productos aparecen en ambos lados."
+          />
         </UCard>
 
         <!-- ── Conditions section ──────────────────────────────────────── -->

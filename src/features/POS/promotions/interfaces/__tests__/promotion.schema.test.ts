@@ -318,17 +318,36 @@ describe('promotionFormSchema — ADVANCED', () => {
     expect(result.error?.issues.some((i) => i.message.includes('cantidad de compra') || i.message.includes('cantidad'))).toBe(true)
   })
 
-  // REQ-9: ADVANCED regression pin — bound stays 0..99 (100 must remain invalid)
-  it('REGRESSION: ADVANCED still rejects getDiscountPercent of 100 (bound stays 0..99)', () => {
+  // REQ-9 MODIFIED (advanced-promotion-type): bound is now 0..100 inclusive
+  // for ADVANCED — 100 means "free" (canonical buy-N-get-M-free case).
+  //
+  // SUPERSEDE NOTE: this assertion INTENTIONALLY supersedes the prior locked
+  // regression test at promotion.schema.test.ts:322-331, which pinned the
+  // bound at 0..99 and rejected 100. The 0..99 bound was a defensive mistake
+  // carried over from before the ADVANCED promotion type supported the
+  // buy-N-get-M-free case. The proposal
+  // (`sdd/advanced-promotion-type/proposal`) is the authoritative contract;
+  // this rewrite is intentional, not a regression. See commit body for the
+  // matching supersede marker.
+  it('REQ-9 MODIFIED: ADVANCED accepts getDiscountPercent of 100 (free reward — bound 0..100)', () => {
     const result = promotionFormSchema.safeParse(makeAdvanced({ getDiscountPercent: 100 }))
+    expect(result.success).toBe(true)
+  })
+
+  it('REQ-9 MODIFIED: ADVANCED rejects getDiscountPercent of 101 (above bound)', () => {
+    const result = promotionFormSchema.safeParse(makeAdvanced({ getDiscountPercent: 101 }))
     expect(result.success).toBe(false)
     const issue = result.error?.issues.find((i) => i.path[0] === 'getDiscountPercent')
     expect(issue).toBeDefined()
-    // ADVANCED message intentionally differs from BXGY — keeps the
-    // historical "100 no permitido" wording so ADVANCED users see the
-    // same hint they've always seen.
-    expect(issue!.message).toContain('99')
-    expect(issue!.message).toContain('100 no permitido')
+    expect(issue!.message).toBe('El descuento debe estar entre 0 y 100 (100 = gratis)')
+  })
+
+  it('REQ-9 MODIFIED: ADVANCED rejects getDiscountPercent of -1 (below bound)', () => {
+    const result = promotionFormSchema.safeParse(makeAdvanced({ getDiscountPercent: -1 }))
+    expect(result.success).toBe(false)
+    const issue = result.error?.issues.find((i) => i.path[0] === 'getDiscountPercent')
+    expect(issue).toBeDefined()
+    expect(issue!.message).toBe('El descuento debe estar entre 0 y 100 (100 = gratis)')
   })
 })
 

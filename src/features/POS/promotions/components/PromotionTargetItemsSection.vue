@@ -17,9 +17,10 @@ const props = withDefaults(
     selectedItems: PromotionTargetItemFormEntry[]
     side?: 'DEFAULT' | 'BUY' | 'GET'
     label?: string
-    // REQ-1: VARIANTS is only allowed for PRODUCT_DISCOUNT. The parent must
-    // opt in explicitly; the default hides VARIANTS so the BUY_X_GET_Y /
-    // ADVANCED instances don't need to know about promotion-type semantics.
+    // REQ-1 MODIFIED (advanced-promotion-type WU-A): VARIANTS is now allowed
+    // for PRODUCT_DISCOUNT, BUY_X_GET_Y AND ADVANCED (on both BUY and GET sides).
+    // The parent opts in explicitly via this prop; the default keeps VARIANTS
+    // hidden so other instances stay scoped to their promotion-type semantics.
     allowVariants?: boolean
   }>(),
   {

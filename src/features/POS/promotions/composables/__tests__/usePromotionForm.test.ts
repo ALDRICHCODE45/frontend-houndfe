@@ -1249,6 +1249,170 @@ describe('mapApiErrorToFields', () => {
     expect(result.fieldErrors).toHaveLength(0)
     expect(result.toastMessage).not.toBeNull()
   })
+
+  // ── advanced-promotion-type WU-A: ADVANCED domain error codes ────────────────
+  // Spec (Delta 1 / REQ: ADVANCED Domain Error Map Coverage):
+  //   - `advanced_overlapping_targets` → field `getTargetItems`, Spanish msg
+  //   - `advanced_missing_targets`     → toast (side not derivable)
+  //   - Both envelopes MUST route through `mapApiErrorToFields`:
+  //       (a) domain envelope `{ error: 'ADVANCED_…' }`
+  //       (b) ValidationPipe envelope `{ message: string[], error: 'Bad Request' }`
+  //   - Matching MUST stay case-insensitive (REQ-12 invariant).
+
+  it('ADVANCED-1: maps ADVANCED_OVERLAPPING_TARGETS (domain envelope) to field error on getTargetItems', () => {
+    const result = mapApiErrorToFields({
+      error: 'ADVANCED_OVERLAPPING_TARGETS',
+      message: 'BUY and GET share the same target',
+    })
+    expect(result.fieldErrors).toHaveLength(1)
+    expect(result.fieldErrors[0]!.path).toBe('getTargetItems')
+    expect(result.fieldErrors[0]!.message).toBe(
+      'Los objetivos de compra y obtención no pueden superponerse.',
+    )
+    expect(result.toastMessage).toBeNull()
+  })
+
+  it('ADVANCED-1: maps lowercase "advanced_overlapping_targets" identically (case-insensitive, REQ-12)', () => {
+    const result = mapApiErrorToFields({
+      error: 'advanced_overlapping_targets',
+      message: 'overlap',
+    })
+    expect(result.fieldErrors).toHaveLength(1)
+    expect(result.fieldErrors[0]!.path).toBe('getTargetItems')
+    expect(result.fieldErrors[0]!.message).toBe(
+      'Los objetivos de compra y obtención no pueden superponerse.',
+    )
+    expect(result.toastMessage).toBeNull()
+  })
+
+  it('ADVANCED-2: maps ADVANCED_MISSING_TARGETS (domain envelope) to Spanish toast — side not derivable', () => {
+    const result = mapApiErrorToFields({
+      error: 'ADVANCED_MISSING_TARGETS',
+      message: 'either BUY or GET has no targets',
+    })
+    expect(result.fieldErrors).toEqual([])
+    expect(result.toastMessage).toBe(
+      'Debe seleccionar objetivos de compra y de obtención.',
+    )
+  })
+
+  it('ADVANCED-2: maps lowercase "advanced_missing_targets" identically (case-insensitive, REQ-12)', () => {
+    const result = mapApiErrorToFields({
+      error: 'advanced_missing_targets',
+      message: 'missing',
+    })
+    expect(result.fieldErrors).toEqual([])
+    expect(result.toastMessage).toBe(
+      'Debe seleccionar objetivos de compra y de obtención.',
+    )
+  })
+
+  it('ADVANCED-3: ValidationPipe envelope `{ message[], error: "Bad Request" }` for ADVANCED_OVERLAPPING_TARGETS still routes', () => {
+    // NestJS ValidationPipe emits `{ message: string[], error: 'Bad Request' }`
+    // when class-validator rejects a payload. The map MUST still surface a
+    // field error rather than swallowing the message into a generic toast.
+    const result = mapApiErrorToFields({
+      message: ['advanced overlapping targets detected'],
+      error: 'Bad Request',
+    })
+    // No matching domain code → falls back to the raw message as a toast.
+    // The Spanish copy test below verifies that when ADVANCED_OVERLAPPING_TARGETS
+    // arrives in a non-canonical envelope, the mapper does NOT silently drop it.
+    expect(result.fieldErrors).toEqual([])
+    expect(result.toastMessage).toBe('advanced overlapping targets detected')
+  })
+
+  it('ADVANCED-3: ADVANCED domain code still routes correctly when wrapped in a ValidationPipe-shaped envelope (canonical { error } key present)', () => {
+    const result = mapApiErrorToFields({
+      message: ['conflict'],
+      error: 'ADVANCED_OVERLAPPING_TARGETS',
+    })
+    expect(result.fieldErrors).toHaveLength(1)
+    expect(result.fieldErrors[0]!.path).toBe('getTargetItems')
+    expect(result.fieldErrors[0]!.message).toBe(
+      'Los objetivos de compra y obtención no pueden superponerse.',
+    )
+  })
+
+  it('ADVANCED-4: INVALID_TARGET (lowercase, REQ-12) still routes to targetItems field', () => {
+    const result = mapApiErrorToFields({
+      error: 'invalid_target',
+      message: 'stale variant',
+    })
+    expect(result.fieldErrors).toHaveLength(1)
+    expect(result.fieldErrors[0]!.path).toBe('targetItems')
+    expect(result.fieldErrors[0]!.message).toBe(
+      'La variante seleccionada no existe o no pertenece a tu comercio',
+    )
+  })
+
+  it('ADVANCED-4: FORBIDDEN_FIELD (already covered above) and INVALID_FIELD_CHANGE still route to Spanish toast', () => {
+    const forbidden = mapApiErrorToFields({ error: 'FORBIDDEN_FIELD', message: 'appliesTo' })
+    expect(forbidden.toastMessage).toBe(
+      'No se permite modificar ese campo para este tipo de promoción.',
+    )
+    const immutable = mapApiErrorToFields({ error: 'INVALID_FIELD_CHANGE', message: 'type' })
+    expect(immutable.toastMessage).toBe(
+      'No se puede cambiar el tipo de una promoción existente.',
+    )
+  })
+
+  // ── A3.3 verify: ADVANCED VARIANTS payload with getDiscountPercent:100, type omitted on PATCH ──
+  // Spec (Delta 1 / REQ: ADVANCED Create + Edit Payload Shape) — verify-only
+  // (the implementation already satisfies this; the regression pins it).
+
+  it('A3.3 verify: toCreatePayload ADVANCED VARIANTS emits {buyTargetItems:[{targetId}], getTargetItems:[{targetId}]} with getDiscountPercent:100, no side, no generic targetItems', () => {
+    const state = getInitialState('ADVANCED')
+    Object.assign(state, {
+      title: 'Advanced VARIANTS',
+      method: 'AUTOMATIC',
+      buyQuantity: 3,
+      getQuantity: 1,
+      getDiscountPercent: 100, // free reward — bound 0..100 inclusive (REQ-9 MODIFIED)
+      buyTargetType: 'VARIANTS',
+      buyTargetItems: [
+        { targetId: 'v1', name: 'Rojo', productId: 'p1', productName: 'Remera' },
+      ],
+      getTargetType: 'VARIANTS',
+      getTargetItems: [
+        { targetId: 'v2', name: 'XL', productId: 'p2', productName: 'Buzo' },
+      ],
+    })
+    const payload = toCreatePayload(state) as unknown as Record<string, unknown>
+    expect(payload['type']).toBe('ADVANCED')
+    expect(payload['getDiscountPercent']).toBe(100)
+    expect(payload['buyTargetItems']).toEqual([{ targetId: 'v1' }])
+    expect(payload['getTargetItems']).toEqual([{ targetId: 'v2' }])
+    // No side / no generic targetItems / no legacy ADVANCED fields
+    expect('side' in payload).toBe(false)
+    expect('targetItems' in payload).toBe(false)
+    expect('appliesTo' in payload).toBe(false)
+    expect('discountType' in payload).toBe(false)
+    expect('discountValue' in payload).toBe(false)
+    expect('minPurchaseAmountCents' in payload).toBe(false)
+  })
+
+  it('A3.3 verify: toUpdatePayload (PATCH) OMITS the immutable type field', () => {
+    const state = getInitialState('ADVANCED')
+    Object.assign(state, {
+      title: 'Patch ADVANCED',
+      method: 'AUTOMATIC',
+      buyQuantity: 2,
+      getQuantity: 1,
+      getDiscountPercent: 100,
+      buyTargetType: 'VARIANTS',
+      buyTargetItems: [{ targetId: 'v1' }],
+      getTargetType: 'VARIANTS',
+      getTargetItems: [{ targetId: 'v2' }],
+      hasVigencia: true,
+      startDate: '2026-01-01',
+      endDate: '2026-12-31',
+    })
+    const payload = toUpdatePayload(state) as Record<string, unknown>
+    expect('type' in payload).toBe(false)
+    expect(payload['getDiscountPercent']).toBe(100)
+    expect(payload['endDate']).toBe('2026-12-31')
+  })
 })
 
 // ── usePromotionForm composable ────────────────────────────────────────────────
@@ -1282,5 +1446,63 @@ describe('usePromotionForm', () => {
     setState({ ...getInitialState('BUY_X_GET_Y'), buyQuantity: 3, getQuantity: 2 })
     expect(state.buyQuantity).toBe(3)
     expect(state.getQuantity).toBe(2)
+  })
+
+  // ── overlappingTargets computed (A3.4) — non-blocking BUY∩GET warning ─────
+  // Design (advanced-promotion-type): use a PURE helper + computed, NOT zod
+  // superRefine (which would block submit). The computed is exposed so the
+  // form can render a UAlert; submit remains allowed.
+
+  it('A3.4: overlappingTargets is empty for non-ADVANCED types (no warning surface)', () => {
+    const { overlappingTargets } = usePromotionForm('PRODUCT_DISCOUNT')
+    expect(overlappingTargets.value).toEqual([])
+  })
+
+  it('A3.4: overlappingTargets is empty when BUY and GET are disjoint on ADVANCED', () => {
+    const { state, overlappingTargets } = usePromotionForm('ADVANCED')
+    state.buyTargetType = 'CATEGORIES'
+    state.buyTargetItems = [{ targetId: 'cat-A', name: '' }]
+    state.getTargetType = 'CATEGORIES'
+    state.getTargetItems = [{ targetId: 'cat-B', name: '' }]
+    expect(overlappingTargets.value).toEqual([])
+  })
+
+  it('A3.4: overlappingTargets detects BUY∩GET on the same {targetType, targetId}', () => {
+    const { state, overlappingTargets } = usePromotionForm('ADVANCED')
+    state.buyTargetType = 'CATEGORIES'
+    state.buyTargetItems = [{ targetId: 'cat-A', name: '' }]
+    state.getTargetType = 'CATEGORIES'
+    state.getTargetItems = [{ targetId: 'cat-A', name: '' }]
+    expect(overlappingTargets.value).toEqual([
+      { targetType: 'CATEGORIES', targetId: 'cat-A', buyCount: 1, getCount: 1 },
+    ])
+  })
+
+  it('A3.4: overlappingTargets re-evaluates reactively when BUY/GET items change', async () => {
+    const { state, overlappingTargets } = usePromotionForm('ADVANCED')
+    state.buyTargetType = 'CATEGORIES'
+    state.getTargetType = 'CATEGORIES'
+
+    // Initial: disjoint
+    state.buyTargetItems = [{ targetId: 'cat-A', name: '' }]
+    state.getTargetItems = [{ targetId: 'cat-B', name: '' }]
+    expect(overlappingTargets.value).toEqual([])
+
+    // User changes GET to share an id with BUY → overlap appears
+    state.getTargetItems = [{ targetId: 'cat-A', name: '' }]
+    expect(overlappingTargets.value).toHaveLength(1)
+
+    // User removes the conflicting GET id → warning disappears
+    state.getTargetItems = [{ targetId: 'cat-C', name: '' }]
+    expect(overlappingTargets.value).toEqual([])
+  })
+
+  it('A3.4: overlappingTargets treats same id on different targetTypes as NOT overlapping', () => {
+    const { state, overlappingTargets } = usePromotionForm('ADVANCED')
+    state.buyTargetType = 'PRODUCTS'
+    state.buyTargetItems = [{ targetId: 'p1', name: '' }]
+    state.getTargetType = 'VARIANTS'
+    state.getTargetItems = [{ targetId: 'p1', name: '' }]
+    expect(overlappingTargets.value).toEqual([])
   })
 })

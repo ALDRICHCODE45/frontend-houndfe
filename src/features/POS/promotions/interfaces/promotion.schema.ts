@@ -255,10 +255,15 @@ export const promotionFormSchema = baseSchema.superRefine((data, ctx) => {
         message: 'El descuento porcentual es obligatorio',
         path: ['getDiscountPercent'],
       })
-    } else if (data.getDiscountPercent < 0 || data.getDiscountPercent > 99) {
+      // SUPERSEDE NOTE: bound was 0..99 (and rejected 100). Proposal
+      // `sdd/advanced-promotion-type/proposal` widens to 0..100 inclusive
+      // so ADVANCED can model the buy-N-get-M-free case (100 = gratis).
+      // Mirrors the BUY_X_GET_Y branch (L213) which already uses the wider
+      // bound. INTENTIONAL supersede of the prior 0..99 rule — not a bug.
+    } else if (data.getDiscountPercent < 0 || data.getDiscountPercent > 100) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: 'El descuento debe estar entre 0 y 99 (0 = gratis, 100 no permitido)',
+        message: 'El descuento debe estar entre 0 y 100 (100 = gratis)',
         path: ['getDiscountPercent'],
       })
     }
