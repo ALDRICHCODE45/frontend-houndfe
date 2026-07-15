@@ -1,7 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import SaleDetailMetadataCard from '../SaleDetailMetadataCard.vue'
 import type { SaleDetail } from '../../interfaces/sale.types'
+
+// Freeze the clock so the "Hoy a las" relative-format branch is deterministic:
+// the fixture's confirmedAt must fall on the same calendar day as the frozen now.
+const FROZEN_NOW = new Date('2026-05-16T12:00:00Z')
 
 const mockSale: SaleDetail = {
   id: 'sale-1',
@@ -28,6 +32,15 @@ const mockSale: SaleDetail = {
 }
 
 describe('SaleDetailMetadataCard', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(FROZEN_NOW)
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('displays all metadata fields', () => {
     const wrapper = mountWithUApp(SaleDetailMetadataCard, {
       props: { sale: mockSale }

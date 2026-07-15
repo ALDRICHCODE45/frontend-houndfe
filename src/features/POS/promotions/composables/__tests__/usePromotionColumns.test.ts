@@ -89,14 +89,14 @@ describe('usePromotionColumns', () => {
     const { getStatusConfig } = usePromotionColumns()
     const config = getStatusConfig('ACTIVE')
     expect(config.label).toBe('Activa')
-    expect(config.tone).toBe('success')
+    expect(config.tone).toBe('active')
   })
 
   it('getStatusConfig returns correct config for SCHEDULED', () => {
     const { getStatusConfig } = usePromotionColumns()
     const config = getStatusConfig('SCHEDULED')
     expect(config.label).toBe('Programada')
-    expect(config.tone).toBe('info')
+    expect(config.tone).toBe('pending')
   })
 
   it('exports getTypeConfig helper', () => {

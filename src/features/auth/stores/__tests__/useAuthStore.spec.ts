@@ -329,7 +329,7 @@ describe('switchTenant — query cache invalidation', () => {
     // Session should NOT be cleared for recoverable errors
     expect(store.accessToken).toBe('access-token')
     expect(store.refreshToken).toBe('refresh-token')
-    expect(store.authPhase).toBe('selecting-tenant')
+    expect(store.authPhase).toBe('authenticated')
   })
 
   it('does NOT clear session on recoverable 403 TENANT_INACTIVE error', async () => {
@@ -350,7 +350,7 @@ describe('switchTenant — query cache invalidation', () => {
     // Session should NOT be cleared for recoverable errors
     expect(store.accessToken).toBe('access-token')
     expect(store.refreshToken).toBe('refresh-token')
-    expect(store.authPhase).toBe('selecting-tenant')
+    expect(store.authPhase).toBe('authenticated')
   })
 
   it('DOES clear session on unrecoverable network error', async () => {

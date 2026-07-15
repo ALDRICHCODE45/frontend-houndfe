@@ -7,8 +7,15 @@ import { useDebtPayment } from '../useDebtPayment'
 import { getSalePaymentErrorAction } from '../../utils/salePaymentErrors.utils'
 import type { DebtPaymentPayload, DebtPaymentResponse } from '../../interfaces/sale.types'
 
-const addToast = vi.fn()
+const { addToast } = vi.hoisted(() => ({ addToast: vi.fn() }))
 const invalidateQueries = vi.fn()
+
+// `useDebtPayment` calls the bare `useToast()`, which @nuxt/ui's Vite
+// auto-import transform rewrites into a real module import — so vi.stubGlobal
+// no longer intercepts it. Mock the auto-imported module directly instead.
+vi.mock('@nuxt/ui/runtime/composables/useToast.js', () => ({
+  useToast: () => ({ add: addToast }),
+}))
 
 vi.mock('../../api/sale.api', () => ({
   saleApi: {
@@ -31,8 +38,6 @@ vi.mock('@tanstack/vue-query', async () => {
 vi.mock('../../utils/salePaymentErrors.utils', () => ({
   getSalePaymentErrorAction: vi.fn(() => ({ type: 'inline', message: 'Error de prueba' })),
 }))
-
-vi.stubGlobal('useToast', () => ({ add: addToast }))
 
 const MULTI_PAYLOAD: DebtPaymentPayload = {
   payments: [

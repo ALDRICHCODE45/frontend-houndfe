@@ -33,43 +33,55 @@ vi.mock('vue-router', () => ({
   RouterLink: { template: '<a><slot /></a>' },
 }))
 
-const stubs = {
-  USlideover: {
+// Nuxt UI v4 components resolve to internal names WITHOUT the `U` prefix
+// (e.g. <USlideover> → `Slideover`, <UButton> → `Button`). VTU matches stubs by
+// that resolved name, so stubs must be keyed by the un-prefixed name. We register
+// both keys (prefixed + un-prefixed) so the stub applies regardless. The Slideover
+// stub renders the named #content slot that holds the entire modal body.
+const stubDefs = {
+  Slideover: {
     props: ['open'],
     emits: ['update:open'],
     template: '<div v-if="open"><slot name="content" /></div>',
   },
-  UButton: {
+  Button: {
     props: ['disabled', 'loading', 'icon', 'color', 'variant'],
     emits: ['click'],
     template: '<button v-bind="$attrs" :disabled="disabled" @click="$emit(\'click\')"><slot /></button>',
   },
-  UIcon: {
+  Icon: {
     props: ['name'],
     template: '<span :data-icon="name" />',
   },
-  UBadge: {
+  Badge: {
     props: ['color', 'variant', 'size'],
     template: '<span><slot /></span>',
   },
-  USeparator: {
+  Separator: {
     template: '<hr />',
   },
-  UFormField: {
+  FormField: {
     props: ['label', 'error'],
     template: '<div><label>{{ label }}</label><slot /><p v-if="error" class="text-error">{{ error }}</p></div>',
   },
-  UInputNumber: {
+  InputNumber: {
     props: ['modelValue', 'min', 'step', 'disabled', 'formatOptions', 'color', 'variant'],
     emits: ['update:modelValue'],
     template: '<input type="number" v-bind="$attrs" :value="modelValue" :disabled="disabled" @input="$emit(\'update:modelValue\', Number($event.target.value))" />',
   },
-  UInput: {
+  Input: {
     props: ['modelValue', 'placeholder', 'disabled'],
     emits: ['update:modelValue'],
     template: '<input v-bind="$attrs" :value="modelValue" :disabled="disabled" @input="$emit(\'update:modelValue\', $event.target.value)" />',
   },
-}
+} as const
+
+const stubs = Object.fromEntries(
+  Object.entries(stubDefs).flatMap(([name, def]) => [
+    [name, def],
+    [`U${name}`, def],
+  ]),
+)
 
 function mountModal(debtCents = 80000) {
   return mount(DebtPaymentModal, {
