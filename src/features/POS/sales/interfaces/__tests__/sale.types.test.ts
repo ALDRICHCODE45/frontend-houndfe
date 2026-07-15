@@ -40,6 +40,7 @@ import type {
   AppliedOrderPromotion,
   ApplicablePromotion,
   ListApplicablePromotionsResponse,
+  SaleRewardKind,
 } from '../sale.types'
 import { SaleCommentError } from '../sale.types'
 
@@ -1378,6 +1379,73 @@ describe('sale.types', () => {
         }
 
         expect(response.promotions).toEqual([])
+      })
+    })
+
+    // ── advanced-promotion-type WU-B — SaleRewardKind widening ───────────────
+    //
+    // The rewardKind literal widens from 'buy_x_get_y' | null to a union that
+    // also accepts 'advanced' and any unknown runtime string (forward-compat for
+    // new reward families the backend may add). The (string & {}) intersection
+    // preserves literal autocomplete at the call site while still letting the
+    // type accept arbitrary strings at runtime.
+    describe('SaleRewardKind widening (advanced-promotion-type WU-B)', () => {
+      it('accepts the literal "buy_x_get_y" — backwards compatible', () => {
+        const kind: SaleRewardKind = 'buy_x_get_y'
+        expect(kind).toBe('buy_x_get_y')
+      })
+
+      it('accepts the new literal "advanced" for ADVANCED reward lines', () => {
+        const kind: SaleRewardKind = 'advanced'
+        expect(kind).toBe('advanced')
+      })
+
+      it('accepts an unknown runtime string for forward-compat with future reward kinds', () => {
+        const kind: SaleRewardKind = 'mystery_code' as SaleRewardKind
+        // Widening-safe: must NOT collapse to "buy_x_get_y" nor "advanced".
+        expect(kind).not.toBe('buy_x_get_y')
+        expect(kind).not.toBe('advanced')
+        expect(kind).toBe('mystery_code')
+      })
+
+      it('accepts null when the line is not a reward', () => {
+        const kind: SaleRewardKind = null
+        expect(kind).toBeNull()
+      })
+
+      it('SaleItem.rewardKind accepts the "advanced" literal', () => {
+        const item: SaleItem = {
+          id: 'item-advanced',
+          productId: 'prod-1',
+          variantId: null,
+          productName: 'Camisa',
+          variantName: null,
+          quantity: 1,
+          unitPriceCents: 20000,
+          unitPriceCurrency: 'MXN',
+          rewardKind: 'advanced',
+          rewardDiscountPercent: 100,
+        }
+
+        expect(item.rewardKind).toBe('advanced')
+        expect(item.rewardDiscountPercent).toBe(100)
+      })
+
+      it('SaleDetailItem.rewardKind accepts the "advanced" literal', () => {
+        const item: SaleDetailItem = {
+          productName: 'Camisa',
+          variantName: null,
+          imageUrl: null,
+          unitPriceCents: 20000,
+          quantity: 1,
+          discountCents: 0,
+          subtotalCents: 0,
+          rewardKind: 'advanced',
+          rewardDiscountPercent: 50,
+        }
+
+        expect(item.rewardKind).toBe('advanced')
+        expect(item.rewardDiscountPercent).toBe(50)
       })
     })
   })

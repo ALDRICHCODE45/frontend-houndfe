@@ -697,4 +697,91 @@ describe('SaleItemRow', () => {
     const badges = wrapper.findComponent(SaleItemBadges)
     expect(badges.props('rewardKind')).toBeUndefined()
   })
+
+  // ── advanced-promotion-type WU-B — parity + totals-from-backend-cents ───────
+  //
+  // Spec WU-B ADDED Requirement: Draft + Confirmed ADVANCED Reward-Badge Parity.
+  // Spec WU-B ADDED Requirement: Totals Rendered From Backend Cents (Invariant).
+  //
+  // The two contracts share the same shape: `SaleItemRow` (draft) and
+  // `SaleDetailItemsList` (confirmed) must both (a) render the SAME reward
+  // badge label for the same `{rewardKind, rewardDiscountPercent}` input and
+  // (b) render the bold line total from `subtotalCents` returned by the
+  // backend — the frontend MUST NOT recompute reward math.
+  //
+  // These tests verify the draft side. The confirmed side is mirrored in
+  // `SaleDetailItemsList.test.ts` so a regression on either surface is caught
+  // at the boundary that owns it.
+
+  it('renders the ADVANCED 100% reward badge as "GRATIS" on the draft side', () => {
+    const advancedItem: SaleItem = {
+      ...mockItem,
+      unitPriceCents: 100000,
+      prePriceCentsBeforeDiscount: 100000,
+      discountAmountCents: 100000,
+      subtotalCents: 0,
+      rewardKind: 'advanced',
+      rewardDiscountPercent: 100,
+    }
+
+    const wrapper = mount(SaleItemRow, {
+      props: { item: advancedItem, saleId: 'sale-1', onSubmitPriceOverride, onApplyDiscount, onRemoveDiscount },
+      global: { stubs },
+    })
+
+    const rewardBadge = wrapper.find('[data-testid="sale-item-reward-badge"]')
+    expect(rewardBadge.exists()).toBe(true)
+    expect(rewardBadge.text()).toContain('GRATIS')
+
+    const netLine = wrapper.find('[data-testid="sale-item-line-net"]')
+    // Backend returns subtotalCents=0 (free) → formatted "$0.00".
+    expect(netLine.text()).toContain('$0.00')
+  })
+
+  it('renders the ADVANCED 50% reward badge as "-50%" on the draft side', () => {
+    const advancedItem: SaleItem = {
+      ...mockItem,
+      unitPriceCents: 20000,
+      prePriceCentsBeforeDiscount: 20000,
+      discountAmountCents: 10000,
+      subtotalCents: 10000,
+      rewardKind: 'advanced',
+      rewardDiscountPercent: 50,
+    }
+
+    const wrapper = mount(SaleItemRow, {
+      props: { item: advancedItem, saleId: 'sale-1', onSubmitPriceOverride, onApplyDiscount, onRemoveDiscount },
+      global: { stubs },
+    })
+
+    const rewardBadge = wrapper.find('[data-testid="sale-item-reward-badge"]')
+    expect(rewardBadge.exists()).toBe(true)
+    expect(rewardBadge.text()).toContain('-50%')
+
+    // Frontend MUST render backend NET cents directly — no client recompute.
+    const netLine = wrapper.find('[data-testid="sale-item-line-net"]')
+    expect(netLine.text()).toContain('$100.00')
+  })
+
+  it('renders the bold line total from backend subtotalCents (no client recompute)', () => {
+    // Representative invariant payload: subtotalCents=40000, the backend chose
+    // that NET — the client MUST render $400.00 verbatim even when the local
+    // unit-price × quantity math would give a different number.
+    const backendTotalsItem: SaleItem = {
+      ...mockItem,
+      unitPriceCents: 25000, // 25000 * 2 = 50000 (would be the gross)
+      subtotalCents: 40000, // backend-decided NET — must be rendered verbatim
+    }
+
+    const wrapper = mount(SaleItemRow, {
+      props: { item: backendTotalsItem, saleId: 'sale-1', onSubmitPriceOverride, onApplyDiscount, onRemoveDiscount },
+      global: { stubs },
+    })
+
+    const netLine = wrapper.find('[data-testid="sale-item-line-net"]')
+    expect(netLine.text()).toContain('$400.00')
+    // No client recompute: the unit-price × quantity number ($500.00) MUST NOT
+    // appear in the bold line total.
+    expect(netLine.text()).not.toContain('$500.00')
+  })
 })

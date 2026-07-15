@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import SaleItemBadges from '../SaleItemBadges.vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
 import { mountWithUApp } from '@/test/mountWithUApp'
+import type { SaleRewardKind } from '../../interfaces/sale.types'
 
 describe('SaleItemBadges', () => {
   it('renders nothing when there is no override and no discount', () => {
@@ -237,5 +238,139 @@ describe('SaleItemBadges', () => {
 
     expect(wrapper.find('[data-testid="sale-item-reward-badge"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="sale-item-badge-group"]').exists()).toBe(false)
+  })
+
+  // ── advanced-promotion-type WU-B — ADVANCED reward branch ───────────────────
+  //
+  // Per spec WU-B REQ-2: 'advanced' reward lines follow the same percent matrix
+  // as BXGY (100 -> 'GRATIS', 0<pct<100 -> `-${pct}%`, null/<=0 -> no badge).
+  // The label rule lives in `getRewardBadgeLabel` — the component just widens
+  // its prop type and renders the returned string verbatim.
+
+  it('renders the GRATIS reward badge for an ADVANCED reward at 100%', () => {
+    const wrapper = mountWithUApp(SaleItemBadges, {
+      props: {
+        priceSource: 'default',
+        unitPriceCents: 12000,
+        rewardKind: 'advanced',
+        rewardDiscountPercent: 100,
+      },
+    })
+
+    const rewardBadge = wrapper.find('[data-testid="sale-item-reward-badge"]')
+    expect(rewardBadge.exists()).toBe(true)
+    expect(rewardBadge.text()).toContain('GRATIS')
+  })
+
+  it('renders the partial percent reward badge for an ADVANCED reward at 50%', () => {
+    const wrapper = mountWithUApp(SaleItemBadges, {
+      props: {
+        priceSource: 'default',
+        unitPriceCents: 12000,
+        rewardKind: 'advanced',
+        rewardDiscountPercent: 50,
+      },
+    })
+
+    const rewardBadge = wrapper.find('[data-testid="sale-item-reward-badge"]')
+    expect(rewardBadge.exists()).toBe(true)
+    expect(rewardBadge.text()).toContain('-50%')
+    expect(rewardBadge.text()).not.toContain('GRATIS')
+  })
+
+  it('does NOT render a reward badge for an ADVANCED reward with null percent', () => {
+    const wrapper = mountWithUApp(SaleItemBadges, {
+      props: {
+        priceSource: 'default',
+        unitPriceCents: 12000,
+        rewardKind: 'advanced',
+        rewardDiscountPercent: null,
+      },
+    })
+
+    expect(wrapper.find('[data-testid="sale-item-reward-badge"]').exists()).toBe(false)
+  })
+
+  it('does NOT render a reward badge for an ADVANCED reward with zero percent', () => {
+    const wrapper = mountWithUApp(SaleItemBadges, {
+      props: {
+        priceSource: 'default',
+        unitPriceCents: 12000,
+        rewardKind: 'advanced',
+        rewardDiscountPercent: 0,
+      },
+    })
+
+    expect(wrapper.find('[data-testid="sale-item-reward-badge"]').exists()).toBe(false)
+  })
+
+  // ── advanced-promotion-type WU-B — mandatory generic fallback in the helper ─
+  //
+  // Any non-null rewardKind that is NOT 'buy_x_get_y' nor 'advanced' MUST
+  // surface a stable 'Recompensa' badge via the helper. This is the
+  // forward-compat contract: future reward families the backend may add
+  // MUST render something stable and MUST NEVER crash the surrounding line.
+
+  it('renders the "Recompensa" generic fallback for an unknown non-null rewardKind', () => {
+    const wrapper = mountWithUApp(SaleItemBadges, {
+      props: {
+        priceSource: 'default',
+        unitPriceCents: 12000,
+        // The prop widening to `SaleRewardKind` accepts unknown runtime strings.
+        rewardKind: 'mystery_code' as SaleRewardKind,
+        rewardDiscountPercent: 50,
+      },
+    })
+
+    const rewardBadge = wrapper.find('[data-testid="sale-item-reward-badge"]')
+    expect(rewardBadge.exists()).toBe(true)
+    expect(rewardBadge.text()).toBe('Recompensa')
+  })
+
+  it('renders the "Recompensa" generic fallback even with null percent for an unknown rewardKind', () => {
+    const wrapper = mountWithUApp(SaleItemBadges, {
+      props: {
+        priceSource: 'default',
+        unitPriceCents: 12000,
+        rewardKind: 'tiered_bundle' as SaleRewardKind,
+        rewardDiscountPercent: null,
+      },
+    })
+
+    const rewardBadge = wrapper.find('[data-testid="sale-item-reward-badge"]')
+    expect(rewardBadge.exists()).toBe(true)
+    expect(rewardBadge.text()).toBe('Recompensa')
+  })
+
+  it('keeps success tone + gift icon for ADVANCED free and partial reward badges', () => {
+    for (const rewardDiscountPercent of [100, 50]) {
+      const wrapper = mountWithUApp(SaleItemBadges, {
+        props: {
+          priceSource: 'default',
+          unitPriceCents: 12000,
+          rewardKind: 'advanced',
+          rewardDiscountPercent,
+        },
+      })
+
+      const rewardBadge = wrapper.findComponent(AppBadge)
+      expect(rewardBadge.props('tone')).toBe('success')
+      expect(rewardBadge.props('icon')).toBe('i-lucide-gift')
+    }
+  })
+
+  it('keeps success tone + gift icon for the generic "Recompensa" fallback badge', () => {
+    const wrapper = mountWithUApp(SaleItemBadges, {
+      props: {
+        priceSource: 'default',
+        unitPriceCents: 12000,
+        rewardKind: 'mystery_code' as SaleRewardKind,
+        rewardDiscountPercent: 50,
+      },
+    })
+
+    const rewardBadge = wrapper.findComponent(AppBadge)
+    expect(rewardBadge.props('tone')).toBe('success')
+    expect(rewardBadge.props('icon')).toBe('i-lucide-gift')
   })
 })

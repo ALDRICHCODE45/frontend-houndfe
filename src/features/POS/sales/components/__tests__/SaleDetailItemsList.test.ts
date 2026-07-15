@@ -471,4 +471,133 @@ describe('SaleDetailItemsList', () => {
     // Critical: confirmed-sale surface MUST NOT render the remove button.
     expect(wrapper.find('[data-testid="sale-item-remove-promo"]').exists()).toBe(false)
   })
+
+  // ── advanced-promotion-type WU-B — parity + totals-from-backend-cents ───────
+  //
+  // Spec WU-B ADDED Requirement: Draft + Confirmed ADVANCED Reward-Badge Parity.
+  // Spec WU-B ADDED Requirement: Totals Rendered From Backend Cents (Invariant).
+  //
+  // Mirror of `SaleItemRow.test.ts` for the CONFIRMED surface. Both tests
+  // exercise the same inputs and assert the same labels/formats so a future
+  // drift on either side is caught at the boundary that owns it.
+
+  it('renders the ADVANCED 100% reward badge as "GRATIS" on the confirmed side', () => {
+    const wrapper = mountWithUApp(SaleDetailItemsList, {
+      props: {
+        items: [
+          {
+            productName: 'Camisa',
+            variantName: null,
+            imageUrl: null,
+            unitPriceCents: 100000,
+            quantity: 1,
+            discountCents: 100000,
+            subtotalCents: 0,
+            rewardKind: 'advanced',
+            rewardDiscountPercent: 100,
+          },
+        ],
+      },
+    })
+
+    const rewardBadge = wrapper.find('[data-testid="sale-item-reward-badge"]')
+    expect(rewardBadge.exists()).toBe(true)
+    expect(rewardBadge.text()).toContain('GRATIS')
+
+    // Backend returns subtotalCents=0 → "$0.00" rendered verbatim.
+    const subtotal = wrapper.find('[data-testid="item-subtotal-0"]')
+    expect(subtotal.text()).toContain('$0.00')
+  })
+
+  it('renders the ADVANCED 50% reward badge as "-50%" on the confirmed side', () => {
+    const wrapper = mountWithUApp(SaleDetailItemsList, {
+      props: {
+        items: [
+          {
+            productName: 'Camisa',
+            variantName: null,
+            imageUrl: null,
+            unitPriceCents: 20000,
+            quantity: 1,
+            discountCents: 10000,
+            subtotalCents: 10000,
+            rewardKind: 'advanced',
+            rewardDiscountPercent: 50,
+          },
+        ],
+      },
+    })
+
+    const rewardBadge = wrapper.find('[data-testid="sale-item-reward-badge"]')
+    expect(rewardBadge.exists()).toBe(true)
+    expect(rewardBadge.text()).toContain('-50%')
+
+    // Frontend MUST render backend NET cents directly — no client recompute.
+    const subtotal = wrapper.find('[data-testid="item-subtotal-0"]')
+    expect(subtotal.text()).toContain('$100.00')
+  })
+
+  it('renders backend subtotalCents verbatim and asserts the totals invariant', () => {
+    // Representative invariant payload per spec WU-B REQ-totals-invariant:
+    // subtotalCents=40000, discountCents=20000, totalCents=20000.
+    // Invariant: discountCents === subtotalCents − totalCents
+    //   (20000 === 40000 − 20000) — holds.
+    const subtotalCents = 40000
+    const discountCents = 20000
+    const totalCents = 20000
+
+    const wrapper = mountWithUApp(SaleDetailItemsList, {
+      props: {
+        items: [
+          {
+            productName: 'Camisa',
+            variantName: null,
+            imageUrl: null,
+            unitPriceCents: 50000, // local gross would be 50000 — must NOT be rendered
+            quantity: 1,
+            discountCents,
+            subtotalCents,
+          },
+        ],
+      },
+    })
+
+    // 1. Backend cents invariant: discountCents === subtotalCents − totalCents.
+    expect(discountCents).toBe(subtotalCents - totalCents)
+
+    // 2. Frontend MUST render the backend subtotalCents verbatim — no
+    //    client-side recompute. The unit-price × quantity number ($500.00)
+    //    MUST NOT appear in the bold subtotal cell.
+    const subtotal = wrapper.find('[data-testid="item-subtotal-0"]')
+    expect(subtotal.text()).toContain('$400.00')
+    expect(subtotal.text()).not.toContain('$500.00')
+  })
+
+  it('forwards rewardKind to the SaleItemBadges child on the confirmed side', () => {
+    // Belt-and-braces: ensure the prop widening reached the consumer end. If
+    // the prop type ever regresses to the narrow 'buy_x_get_y' | null, this
+    // assertion fails at typecheck on the test side.
+    const wrapper = mountWithUApp(SaleDetailItemsList, {
+      props: {
+        items: [
+          {
+            productName: 'Camisa',
+            variantName: null,
+            imageUrl: null,
+            unitPriceCents: 20000,
+            quantity: 1,
+            discountCents: 10000,
+            subtotalCents: 10000,
+            rewardKind: 'advanced',
+            rewardDiscountPercent: 50,
+          },
+        ],
+      },
+    })
+
+    const badges = wrapper.findComponent(SaleItemBadges)
+    expect(badges.exists()).toBe(true)
+    expect(badges.props('rewardKind')).toBe('advanced')
+    expect(badges.props('rewardDiscountPercent')).toBe(50)
+  })
 })

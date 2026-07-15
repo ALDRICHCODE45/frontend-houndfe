@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { getRewardBadgeLabel } from '../utils/promotion.utils'
-import type { PriceSource } from '../interfaces/sale.types'
+import type { PriceSource, SaleRewardKind } from '../interfaces/sale.types'
 
 // Shared between draft items (SaleItem) and confirmed-sale items
 // (SaleDetailItem). Both expose the same traceability fields, so a
@@ -18,15 +18,17 @@ import type { PriceSource } from '../interfaces/sale.types'
 // affordance — that surface MUST render the badge but NOT the remove
 // button. Only the draft context (SaleItemRow) sets `removable=true`.
 //
-// `rewardKind` + `rewardDiscountPercent` (bxgy-reward-badge-label):
-// when the backend marks a line as the reward unit of a BXGY promo
-// (`rewardKind === 'buy_x_get_y'`), this component renders a reward
-// badge whose text depends on the reward's discount percent:
-// 100 => `GRATIS`, a positive partial => `-N%` (e.g. `-50%`), and
-// null/absent/<=0 => no reward badge (defensive — never assume free).
-// The label rule lives in the pure `getRewardBadgeLabel` helper.
-// Prop-driven and pure: parents pass both values, this component only
-// decides whether (and what) to render.
+// `rewardKind` + `rewardDiscountPercent` (bxgy-reward-badge-label +
+// advanced-promotion-type WU-B):
+// when the backend marks a line as a reward unit (BXGY or ADVANCED), this
+// component renders a reward badge whose text depends on the reward's
+// discount percent: 100 => `GRATIS`, a positive partial => `-N%`
+// (e.g. `-50%`), null/absent/<=0 => no reward badge (defensive — never
+// assume free). Any other non-null `rewardKind` falls back to the stable
+// "Recompensa" generic label so future reward families never break the
+// surrounding line render. The label rule lives in the pure
+// `getRewardBadgeLabel` helper. Prop-driven and pure: parents pass both
+// values, this component only decides whether (and what) to render.
 const props = withDefaults(
   defineProps<{
     priceSource?: PriceSource | null
@@ -38,7 +40,7 @@ const props = withDefaults(
     discountTitle?: string | null
     promotionId?: string | null
     removable?: boolean
-    rewardKind?: 'buy_x_get_y' | null
+    rewardKind?: SaleRewardKind
     rewardDiscountPercent?: number | null
   }>(),
   {

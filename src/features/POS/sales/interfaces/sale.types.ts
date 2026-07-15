@@ -9,6 +9,13 @@ export type CollectionPaymentMethod = NonCreditPaymentMethod
 export type SalePaymentStatus = 'PAID' | 'PARTIAL' | 'CREDIT'
 export type SaleDeliveryStatus = 'PENDING' | 'DELIVERED' | 'NOT_APPLICABLE'
 
+// advanced-promotion-type WU-B — single source of truth for the rewardKind
+// literal that surfaces on both SaleItem (draft) and SaleDetailItem
+// (confirmed). The (string & {}) intersection keeps literal autocomplete at
+// the call site while tolerating unknown runtime strings the backend may add
+// in future reward families (forward-compat without churn).
+export type SaleRewardKind = 'buy_x_get_y' | 'advanced' | (string & {}) | null
+
 export interface SaleActorRef {
   id: string
   name: string
@@ -74,9 +81,11 @@ export interface SaleDetailItem {
   prePriceCentsBeforeDiscount?: number | null
   // buy-x-get-y-promotion: 'buy_x_get_y' = this line was the free unit of a
   // BXGY promo (the line itself is the reward). Null/absent = regular line.
-  // Pre-deploy backend responses omit the field; optional + nullable keeps
-  // backward compat so old payloads still parse.
-  rewardKind?: 'buy_x_get_y' | null
+  // advanced-promotion-type WU-B: also accepts 'advanced' for ADVANCED promo
+  // reward lines; the union widens to SaleRewardKind for forward-compat with
+  // future reward kinds. Pre-deploy backend responses omit the field;
+  // optional + nullable keeps backward compat so old payloads still parse.
+  rewardKind?: SaleRewardKind
   rewardDiscountPercent?: number | null
   // bxgy-promotion-followups REQ-7: line-level promotion trace. Non-null =
   // the line carries a promotion (BXGY or otherwise) and the details
@@ -300,9 +309,11 @@ export interface SaleItem {
   subtotalCents?: number | null
   // buy-x-get-y-promotion REQ-3: BXGY reward flag. 'buy_x_get_y' = this
   // line was the free unit of a BXGY promo (the line itself is the
-  // reward). Null/absent = regular line. Pre-deploy draft responses
-  // omit the field; optional + nullable keeps backward compat.
-  rewardKind?: 'buy_x_get_y' | null
+  // reward). Null/absent = regular line. advanced-promotion-type WU-B:
+  // widened to SaleRewardKind so ADVANCED reward lines + future reward
+  // families type-check. Pre-deploy draft responses omit the field;
+  // optional + nullable keeps backward compat.
+  rewardKind?: SaleRewardKind
   rewardDiscountPercent?: number | null
 }
 
