@@ -117,26 +117,38 @@ defineExpose({ openModal, removeItem, onTargetTypeChange, onModalConfirm })
       {{ label }}
     </p>
 
-    <!-- Target type selector — icon-cards matching the AUTOMATIC/MANUAL
-         method cards in PromotionForm.vue (Slice 1.5 visual polish).
-         Visual language (border, ring, hover, transition) is shared so
-         the two card selectors in this form look consistent. -->
-    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <!-- Target type selector — compact segmented control (single-select).
+         Replaces the previous four heavy icon-cards: the same four options now
+         read as ONE control (single wrapping border + shared background)
+         instead of four competing cards. This roughly halves the vertical
+         footprint and de-clutters the ADVANCED layout, where this section
+         renders TWICE at half width (BUY / GET columns). Semantics upgraded to
+         a proper radiogroup with `aria-checked` + `focus-visible` ring — the
+         old plain buttons carried no ARIA. The `data-testid`
+         (`target-card-<value>`) and the emit contract are preserved, so
+         behavior and the existing test suite are unchanged. -->
+    <div
+      role="radiogroup"
+      aria-label="Tipo de objetivo de la promoción"
+      class="flex w-full gap-1 rounded-lg border border-default bg-elevated/20 p-1"
+    >
       <button
         v-for="opt in targetTypeOptions"
         :key="opt.value"
         type="button"
+        role="radio"
+        :aria-checked="targetType === opt.value"
         :data-testid="`target-card-${opt.value}`"
-        class="flex cursor-pointer flex-col items-center gap-1.5 rounded-xl border p-4 text-center transition-all duration-200"
+        class="flex min-w-0 flex-1 cursor-pointer flex-col items-center gap-1 rounded-md px-1.5 py-2 text-center transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
         :class="
           targetType === opt.value
-            ? 'border-primary bg-primary/15 ring-1 ring-primary/35'
-            : 'border-default bg-elevated/20 hover:border-primary/40 hover:bg-elevated/60'
+            ? 'bg-primary/15 text-highlighted ring-1 ring-primary/35'
+            : 'text-toned hover:bg-elevated/60 hover:text-highlighted'
         "
         @click="onTargetTypeChange(opt.value)"
       >
-        <UIcon :name="TARGET_TYPE_CARDS[opt.value]!.icon" class="h-5 w-5 text-toned" />
-        <span class="text-sm font-medium text-highlighted">{{ opt.label }}</span>
+        <UIcon :name="TARGET_TYPE_CARDS[opt.value]!.icon" class="h-4 w-4 shrink-0" />
+        <span class="w-full truncate text-xs font-medium">{{ opt.label }}</span>
       </button>
     </div>
 
