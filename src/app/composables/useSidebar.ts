@@ -2,9 +2,12 @@ import { computed, ref } from 'vue'
 import type { DropdownMenuItem, NavigationMenuItem } from '@nuxt/ui'
 import { useColorMode } from '@vueuse/core'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
-import type { AppAction, AppSubject } from '@/features/auth/interfaces/auth.types'
 import { useRouter } from 'vue-router'
 import { mapTenantError } from '@/features/admin/tenants/api/tenants.api'
+import { navigationGroups } from '@/app/navigation/navigation.registry'
+import type { CanAccess } from '@/app/navigation/navigation.access'
+import { filterAccessibleGroups } from '@/app/navigation/navigation.access'
+import type { PermissionTuple } from '@/app/navigation/navigation.types'
 
 declare const useToast: () => {
   add: (options: {
@@ -15,8 +18,6 @@ declare const useToast: () => {
 }
 
 const colorMode = useColorMode()
-
-type PermissionTuple = [AppAction, AppSubject]
 
 interface GuardedNavigationMenuItem extends NavigationMenuItem {
   permission?: PermissionTuple
@@ -119,13 +120,14 @@ export const useSidebar = () => {
   })
 
   function getNavigationItems(collapsed: boolean): NavigationMenuItem[] {
-    const canAccess = (permission?: PermissionTuple, requiresSuperAdmin?: boolean) => {
+    const canAccess: CanAccess = (permission, requiresSuperAdmin) => {
       if (requiresSuperAdmin && !authStore.isSuperAdmin) return false
       if (!permission) return true
       return authStore.userCan(permission[0], permission[1])
     }
 
-    const items: GuardedNavigationMenuItem[] = [
+    // Consumer-specific top-level extras (not part of the shared module tree).
+    const topLevelExtras: GuardedNavigationMenuItem[] = [
       {
         label: 'Dashboard',
         icon: 'i-lucide-layout-dashboard',
@@ -138,131 +140,29 @@ export const useSidebar = () => {
         to: '/pos/ventas/nueva',
         permission: ['update', 'Sale'],
       },
-      {
-        label: 'POS',
-        icon: 'i-lucide-shopping-cart',
-        defaultOpen: true,
-        children: [
-          {
-            label: 'Ventas',
-            icon: 'i-lucide-shopping-cart',
-            to: '/pos/ventas',
-            permission: ['read', 'Sale'],
-          },
-          {
-            label: 'Productos',
-            icon: 'i-lucide-package',
-            to: '/pos/products',
-            permission: ['read', 'Product'],
-          },
-          {
-            label: 'Órdenes',
-            icon: 'i-lucide-receipt',
-            to: '/pos/orders',
-            permission: ['read', 'Order'],
-          },
-          {
-            label: 'Clientes',
-            icon: 'i-lucide-users',
-            to: '/pos/customers',
-            permission: ['read', 'Customer'],
-          },
-          {
-            label: 'Promociones',
-            icon: 'i-lucide-tag',
-            to: '/pos/promociones',
-            permission: ['read', 'Promotion'],
-          },
-        ],
-      },
-      // ─── RR.HH. group (WU-02, WU-12B) ───────────────────────────────────────
-      {
-        label: 'RR.HH.',
-        icon: 'i-lucide-users-round',
-        defaultOpen: true,
-        children: [
-          {
-            label: 'Colaboradores',
-            icon: 'i-lucide-user-check',
-            to: '/admin/colaboradores',
-            permission: ['read', 'Employee'] as PermissionTuple,
-          },
-          {
-            label: 'Vencimientos',
-            icon: 'i-lucide-file-clock',
-            to: '/admin/colaboradores/documentos-vencer',
-            permission: ['read', 'EmployeeDocument'] as PermissionTuple,
-          },
-          {
-            label: 'Aprobaciones',
-            icon: 'i-lucide-calendar-check',
-            to: '/admin/colaboradores/aprobaciones-pendientes',
-            permission: ['read', 'EmployeeTimeOff'] as PermissionTuple,
-          },
-        ],
-      },
-      {
-        label: 'Admin',
-        icon: 'i-lucide-shield-check',
-        defaultOpen: true,
-        children: [
-          {
-            label: 'Usuarios',
-            icon: 'i-lucide-users',
-            to: '/admin/users',
-            permission: ['read', 'User'],
-          },
-          {
-            label: 'Roles',
-            icon: 'i-lucide-user-cog',
-            to: '/admin/roles',
-            permission: ['read', 'Role'],
-          },
-          {
-            label: 'Sucursales',
-            icon: 'i-lucide-building-2',
-            to: '/admin/tenants',
-            requiresSuperAdmin: true,
-          },
-        ],
-      },
-      // ─── Sistema group (WU-11) ────────────────────────────────────────────
-      {
-        label: 'Sistema',
-        icon: 'i-lucide-settings',
-        defaultOpen: true,
-        children: [
-          {
-            label: 'Notificaciones',
-            icon: 'i-lucide-bell',
-            to: '/sistema/configuracion/notificaciones',
-            permission: ['read', 'NotificationConfig'] as PermissionTuple,
-          },
-        ],
-      },
     ]
 
-    return items
-      .map((item) => {
-        if (item.children && item.children.length > 0) {
-          const visibleChildren = item.children
-            .filter((child) => canAccess(child.permission, child.requiresSuperAdmin))
-            .map(({ permission: _permission, requiresSuperAdmin: _requiresSuperAdmin, ...child }) => child)
+    const visibleExtras: NavigationMenuItem[] = topLevelExtras
+      .filter((item) => canAccess(item.permission, item.requiresSuperAdmin))
+      .map(({ permission: _permission, requiresSuperAdmin: _requiresSuperAdmin, ...item }) => item)
 
-          if (visibleChildren.length === 0) return null
+    // Shared module groups, derived from the registry through the access filter.
+    const groupItems: NavigationMenuItem[] = filterAccessibleGroups(navigationGroups, canAccess).map(
+      (group) => ({
+        label: group.label,
+        icon: group.icon,
+        defaultOpen: group.defaultOpen,
+        children: collapsed
+          ? []
+          : group.children.map((child) => ({
+              label: child.label,
+              icon: child.icon,
+              to: child.to,
+            })),
+      }),
+    )
 
-          return {
-            ...item,
-            children: collapsed ? [] : visibleChildren,
-          }
-        }
-
-        if (!canAccess(item.permission, item.requiresSuperAdmin)) return null
-
-        const { permission: _permission, requiresSuperAdmin: _requiresSuperAdmin, ...visibleItem } = item
-        return visibleItem
-      })
-      .filter((item): item is NavigationMenuItem => item !== null)
+    return [...visibleExtras, ...groupItems]
   }
 
   const user = computed(() => ({

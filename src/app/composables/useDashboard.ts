@@ -1,26 +1,23 @@
 import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
 import type { CommandPaletteGroup, CommandPaletteItem } from '@nuxt/ui'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
-import type { AppAction, AppSubject } from '@/features/auth/interfaces/auth.types'
+import { navigationGroups, quickActions } from '@/app/navigation/navigation.registry'
+import type { CanAccess } from '@/app/navigation/navigation.access'
+import {
+  filterAccessibleActions,
+  filterAccessibleGroups,
+  toPaletteItems,
+} from '@/app/navigation/navigation.access'
 
 // Shared state (singleton pattern)
 const isSidebarOpen = ref(false)
 const isSidebarCollapsed = ref(false)
 const isSearchOpen = ref(false)
 
-type PermissionTuple = [AppAction, AppSubject]
-
-interface GuardedCommandPaletteItem extends CommandPaletteItem {
-  permission?: PermissionTuple
-  requiresSuperAdmin?: boolean
-}
-
 export const useDashboard = () => {
   const authStore = useAuthStore()
-  const router = useRouter()
 
-  const canAccess = (permission?: PermissionTuple, requiresSuperAdmin?: boolean) => {
+  const canAccess: CanAccess = (permission, requiresSuperAdmin) => {
     if (requiresSuperAdmin && !authStore.isSuperAdmin) return false
     if (!permission) return true
     return authStore.userCan(permission[0], permission[1])
@@ -39,127 +36,30 @@ export const useDashboard = () => {
   }
 
   const searchGroups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => {
-    const pageItems: GuardedCommandPaletteItem[] = [
-      { id: 'home', label: 'Home', icon: 'i-lucide-home', to: '/' },
-      {
-        id: 'pos-sales',
-        label: 'POS / Ventas',
-        icon: 'i-lucide-shopping-cart',
-        to: '/pos/ventas',
-        permission: ['read', 'Sale'],
-      },
-      {
-        id: 'pos-products',
-        label: 'POS / Productos',
-        icon: 'i-lucide-package',
-        to: '/pos/products',
-        permission: ['read', 'Product'],
-      },
-      {
-        id: 'pos-orders',
-        label: 'POS / Órdenes',
-        icon: 'i-lucide-receipt',
-        to: '/pos/orders',
-        permission: ['read', 'Order'],
-      },
-      {
-        id: 'pos-customers',
-        label: 'POS / Clientes',
-        icon: 'i-lucide-users',
-        to: '/pos/customers',
-        permission: ['read', 'Customer'],
-      },
-      {
-        id: 'pos-promotions',
-        label: 'POS / Promociones',
-        icon: 'i-lucide-tag',
-        to: '/pos/promociones',
-        permission: ['read', 'Promotion'],
-      },
-      {
-        id: 'admin-users',
-        label: 'Admin / Usuarios',
-        icon: 'i-lucide-users',
-        to: '/admin/users',
-        permission: ['read', 'User'],
-      },
-      {
-        id: 'admin-roles',
-        label: 'Admin / Roles',
-        icon: 'i-lucide-user-cog',
-        to: '/admin/roles',
-        permission: ['read', 'Role'],
-      },
-      {
-        id: 'admin-tenants',
-        label: 'Admin / Sucursales',
-        icon: 'i-lucide-building-2',
-        to: '/admin/tenants',
-        requiresSuperAdmin: true,
-      },
+    const homeItem: CommandPaletteItem = { id: 'home', label: 'Home', icon: 'i-lucide-home', to: '/' }
+
+    const pageItems: CommandPaletteItem[] = [
+      homeItem,
+      ...toPaletteItems(filterAccessibleGroups(navigationGroups, canAccess)),
     ]
 
-    const actionItems: GuardedCommandPaletteItem[] = [
-      {
-        id: 'new-product',
-        label: 'Nuevo Producto',
-        icon: 'i-lucide-plus',
-        to: '/pos/products/new',
-        permission: ['create', 'Product'],
-      },
-      {
-        id: 'new-order',
-        label: 'Nueva Orden',
-        icon: 'i-lucide-plus',
-        onSelect: () => void router.push('/pos/orders/new'),
-        permission: ['create', 'Order'],
-      },
-      {
-        id: 'new-sale',
-        label: 'Nueva Venta',
-        icon: 'i-lucide-receipt-text',
-        to: '/pos/ventas/nueva',
-        permission: ['read', 'Sale'],
-      },
-      {
-        id: 'new-customer',
-        label: 'Nuevo Cliente',
-        icon: 'i-lucide-user-plus',
-        to: '/pos/customers',
-        permission: ['create', 'Customer'],
-      },
-      {
-        id: 'new-promotion',
-        label: 'Nueva Promoción',
-        icon: 'i-lucide-percent',
-        to: '/pos/promociones',
-        permission: ['create', 'Promotion'],
-      },
-    ]
-
-    const visiblePages = pageItems
-      .filter((item) => canAccess(item.permission, item.requiresSuperAdmin))
-      .map(({ permission: _permission, requiresSuperAdmin: _requiresSuperAdmin, ...item }) => item)
-
-    const visibleActions = actionItems
-      .filter((item) => canAccess(item.permission))
-      .map(({ permission: _permission, ...item }) => item)
+    const actionItems: CommandPaletteItem[] = filterAccessibleActions(quickActions, canAccess)
 
     const groups: CommandPaletteGroup<CommandPaletteItem>[] = []
 
-    if (visiblePages.length > 0) {
+    if (pageItems.length > 0) {
       groups.push({
         id: 'pages',
         label: 'Páginas',
-        items: visiblePages,
+        items: pageItems,
       })
     }
 
-    if (visibleActions.length > 0) {
+    if (actionItems.length > 0) {
       groups.push({
         id: 'actions',
         label: 'Acciones',
-        items: visibleActions,
+        items: actionItems,
       })
     }
 
