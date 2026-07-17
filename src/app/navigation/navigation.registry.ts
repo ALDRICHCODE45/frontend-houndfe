@@ -30,7 +30,10 @@ export const navigationGroups: NavGroup[] = [
     children: [
       { id: 'rrhh-colaboradores', label: 'Colaboradores', icon: 'i-lucide-user-check', to: '/admin/colaboradores', permission: ['read', 'Employee'] },
       { id: 'rrhh-vencimientos', label: 'Vencimientos', icon: 'i-lucide-file-clock', to: '/admin/colaboradores/documentos-vencer', permission: ['read', 'EmployeeDocument'] },
-      { id: 'rrhh-aprobaciones', label: 'Aprobaciones', icon: 'i-lucide-calendar-check', to: '/admin/colaboradores/aprobaciones-pendientes', permission: ['read', 'EmployeeTimeOff'] },
+      // S5 (hr-validation-notifications): label reframe to the voseo/tenant-wide
+      // concept "Validaciones pendientes". The path and the CASL permission are
+      // intentionally kept — this is a label-only change.
+      { id: 'rrhh-aprobaciones', label: 'Validaciones pendientes', icon: 'i-lucide-calendar-check', to: '/admin/colaboradores/aprobaciones-pendientes', permission: ['read', 'EmployeeTimeOff'] },
     ],
   },
   {

@@ -1,31 +1,45 @@
 <script setup lang="ts">
 /**
- * PendingApprovalsView — WU-12B
+ * PendingApprovalsView — WU-12B + S5 (hr-validation-notifications)
  *
- * Tenant-wide dashboard showing PENDING time-off approval requests
- * for the current user as manager.
+ * Tenant-wide "Validaciones pendientes" tray showing PENDING time-off approval
+ * requests across the whole tenant. The manager→subordinates model was removed
+ * backend-side; any user with read:EmployeeTimeOff sees the same queue.
  *
- * Layout:
- *   - Page header
+ * Layout (S5):
+ *   - Page header: title "Validaciones pendientes", tenant-wide description
+ *   - Search box (client-side) filtering by resolved employee name
  *   - Approval cards/rows: employee, type, dates, days, reason (SICK guard), actions
- *   - Empty state: "Sin solicitudes pendientes"
+ *   - Empty state: voseo, no "tu equipo" copy
  *   - Loading skeleton
  *
  * Permission gate: read:EmployeeTimeOff (enforced at route level).
  * Review action gated by update:EmployeeTimeOff.
  *
  * Backend constraint (§4.5):
- *   GET /admin/employees-time-off/pending-approvals?managerId=...
- *   Route uses HYPHEN (employees-time-off) — NOT under /:employeeId.
- *   Returns array of PENDING requests for direct subordinates of managerId.
- *   SICK reason is null if caller lacks read:EmployeeTimeOffMedical (Tier 3 stripping).
- *   NEVER send tenantId.
+ *   GET /admin/employees-time-off/pending-approvals
+ *   - Route uses HYPHEN (employees-time-off) — NOT under /:employeeId.
+ *   - Returns the full tenant PENDING queue (no managerId, no tenantId).
+ *   - Ordered by startDate asc, then id asc (backend-sorted — we do NOT
+ *     re-sort; the filter preserves the backend order).
+ *   - SICK reason is null if caller lacks read:EmployeeTimeOffMedical
+ *     (Tier 3 stripping). `resolveSickReason` renders the SICK+null
+ *     case as "Motivo médico reservado" (S5).
+ *
+ * Name resolution (S5):
+ *   One cached `listForPicker('')` (active employees, pageSize 100) feeds
+ *   a `buildManagerMap` lookup. ZERO per-row `getById` calls — the prior
+ *   per-row `useQueries(getById)` design was replaced because it scaled
+ *   with the number of unique employees in the queue.
+ *   KNOWN LIMITATION (v1, accepted): picker caps at 100 active employees;
+ *   a tenant with >100 active employees may show "—" for some names.
+ *   A future `/admin/employees?ids=` batch endpoint would lift this.
  *
  * Design: warm orange primary, Nuxt UI 4. Card-based list for easy scanning.
  */
 
 import { computed, ref } from 'vue'
-import { useQueries } from '@tanstack/vue-query'
+import { useQuery } from '@tanstack/vue-query'
 import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { employeeQueryKeys } from '@/core/shared/constants/query-keys'
@@ -36,10 +50,12 @@ import {
   formatTimeOffStatus,
   computeTimeOffDays,
   resolveSickReason,
+  filterPendingBySearch,
 } from '../composables/useAusencias'
+import { buildManagerMap } from '../composables/useManagerResolution'
 import { formatTimeOffDateRange } from '../composables/useEmployeeColumns'
 import { employeesApi } from '../api/employees.api'
-import type { Employee, TimeOffRequest, ReviewTimeOffDto } from '../interfaces/employee.types'
+import type { TimeOffRequest, ReviewTimeOffDto, Employee } from '../interfaces/employee.types'
 
 // ─── Auth ──────────────────────────────────────────────────────────────────────
 
@@ -48,51 +64,41 @@ const tenantId = computed(() => authStore.currentTenantId)
 
 const canReview = computed(() => authStore.userCan('update', 'EmployeeTimeOff'))
 
-// ─── Query ─────────────────────────────────────────────────────────────────────
-//
-// Backend resolves the manager Employee from the JWT (Employee.userId). The
-// frontend does NOT send any managerId. If the logged-in user has no Employee
-// linked to it, the backend returns an empty array (not an error).
+// ─── Pending queue (tenant-wide) ─────────────────────────────────────────────
+
 const { data: pendingRequests, isLoading, isError, refetch } = usePendingApprovals()
 
-// ─── Resolve employee details for each pending request (avatar + name) ────────
+// ─── Name resolution: ONE cached list → buildManagerMap ──────────────────────
 //
-// The endpoint returns `employeeId` only. Render the UUID directly is unusable,
-// so we batch-fetch each unique employee via TanStack `useQueries`. Bounded by
-// the number of unique subordinates with pending requests — typically small.
-const uniqueEmployeeIds = computed(() => {
-  const ids = new Set<string>()
-  for (const r of pendingRequests.value ?? []) ids.add(r.employeeId)
-  return Array.from(ids)
+// Single `listForPicker('')` query (active employees, pageSize 100) feeds the
+// lookup map. Replaces the prior per-row `useQueries(getById)` which scaled
+// with the number of unique employees in the queue.
+const { data: employeesList } = useQuery<Employee[]>({
+  queryKey: computed(() => employeeQueryKeys.activeForPicker(tenantId.value, '')),
+  queryFn: () => employeesApi.listForPicker(''),
+  staleTime: 60_000,
+  refetchOnWindowFocus: false,
+  retry: 1,
 })
 
-const employeeQueries = useQueries({
-  queries: computed(() =>
-    uniqueEmployeeIds.value.map((id) => ({
-      queryKey: employeeQueryKeys.detail(tenantId.value, id),
-      queryFn: () => employeesApi.getById(id),
-      staleTime: 60_000,
-      retry: 1,
-    })),
-  ),
-})
-
-const employeeMap = computed<Map<string, Employee>>(() => {
-  const map = new Map<string, Employee>()
-  for (const q of employeeQueries.value) {
-    if (q.data) map.set(q.data.id, q.data)
-  }
-  return map
-})
+const employeeMap = computed(() => buildManagerMap(employeesList.value ?? []))
 
 function getEmployeeName(employeeId: string): string {
-  return employeeMap.value.get(employeeId)?.fullName ?? 'Colaborador'
+  // S5: missing name → "—" (per spec scenario "Employee absent from cache").
+  // The prior 'Colaborador' placeholder was generic and read as a real
+  // employee name; '—' is the canonical "not resolved" sentinel.
+  return employeeMap.value.get(employeeId)?.fullName ?? '—'
 }
 
 function getEmployeeInitials(employeeId: string): string {
-  const name = employeeMap.value.get(employeeId)?.fullName ?? ''
+  const name = employeeMap.value.get(employeeId)?.fullName ?? '—'
   const parts = name.trim().split(/\s+/).filter(Boolean)
-  return parts.slice(0, 2).map((p) => p[0]?.toUpperCase() ?? '').join('') || 'CL'
+  return (
+    parts
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase() ?? '')
+      .join('') || '—'
+  )
 }
 
 const AVATAR_PALETTE = [
@@ -109,6 +115,17 @@ function getAvatarClass(seedValue: string): string {
   const seed = seedValue.split('').reduce((sum, c) => sum + c.charCodeAt(0), 0)
   return AVATAR_PALETTE[seed % AVATAR_PALETTE.length] ?? AVATAR_PALETTE[0]!
 }
+
+// ─── Client-side search by resolved name (S5) ────────────────────────────────
+
+const searchQuery = ref('')
+
+/** View-side computed that mirrors `computeTrayRows` (S5 runtime test). */
+const filteredRequests = computed(() =>
+  filterPendingBySearch(pendingRequests.value ?? [], employeeMap.value, searchQuery.value),
+)
+
+const isSearchActive = computed(() => searchQuery.value.trim().length > 0)
 
 // ─── Review mutation ───────────────────────────────────────────────────────────
 
@@ -144,7 +161,8 @@ async function confirmReview(): Promise<void> {
     isReviewDialogOpen.value = false
     reviewingRequest.value = null
   } catch {
-    // Error toast handled by mutation onError
+    // Error toast handled by mutation onError (S5: routes through
+    // normalizeApiError + resolveDomainErrorMessage for 409 voseo).
   }
 }
 
@@ -181,8 +199,8 @@ function getTypeColor(type: string): 'primary' | 'warning' | 'error' | 'neutral'
       <template #header>
         <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
           <AdminPageHeader
-            title="Aprobaciones pendientes"
-            description="Solicitudes de ausencia que requieren tu revisión"
+            title="Validaciones pendientes"
+            description="Solicitudes de ausencia de toda la organización que requieren validación."
           />
           <UButton
             icon="i-lucide-refresh-cw"
@@ -211,7 +229,7 @@ function getTypeColor(type: string): 'primary' | 'warning' | 'error' | 'neutral'
           </p>
         </div>
 
-        <!-- Empty state -->
+        <!-- Empty state (no requests at all) -->
         <div
           v-else-if="!pendingRequests || pendingRequests.length === 0"
           class="flex flex-col items-center gap-3 py-16 text-center"
@@ -222,22 +240,51 @@ function getTypeColor(type: string): 'primary' | 'warning' | 'error' | 'neutral'
           <div class="max-w-md space-y-1">
             <p class="font-medium text-highlighted">Sin solicitudes pendientes</p>
             <p class="text-sm text-muted">
-              Todas las solicitudes de tu equipo están al día. Si tu usuario no tiene
-              un colaborador vinculado, esta lista también se mostrará vacía.
+              No hay solicitudes de ausencia esperando validación en la organización.
             </p>
           </div>
         </div>
 
-        <!-- Pending approvals list -->
+        <!-- Loaded: show search + filtered list (or no-match sub-state) -->
         <div v-else class="flex flex-col gap-3">
-          <!-- Summary count -->
+          <!-- Search by employee name (S5) -->
+          <UInput
+            v-model="searchQuery"
+            icon="i-lucide-search"
+            placeholder="Buscar por nombre del colaborador..."
+            size="sm"
+            class="w-full sm:max-w-sm"
+            data-testid="pending-search-input"
+          />
+
+          <!-- Summary count (after search) -->
           <p class="text-sm text-muted">
-            {{ pendingRequests.length }}
-            {{ pendingRequests.length === 1 ? 'solicitud pendiente' : 'solicitudes pendientes' }}
+            {{ filteredRequests.length }}
+            {{
+              filteredRequests.length === 1
+                ? 'solicitud pendiente'
+                : 'solicitudes pendientes'
+            }}
+            <template v-if="isSearchActive && (pendingRequests?.length ?? 0) !== filteredRequests.length">
+              <span class="text-muted-foreground">
+                (de {{ pendingRequests?.length ?? 0 }} en total)
+              </span>
+            </template>
           </p>
 
+          <!-- No-match sub-state when the search filters everything out -->
           <div
-            v-for="request in pendingRequests"
+            v-if="filteredRequests.length === 0"
+            class="flex flex-col items-center gap-2 rounded-lg border border-dashed border-default py-10 text-center"
+          >
+            <UIcon name="i-lucide-search-x" class="size-7 text-muted" />
+            <p class="text-sm text-muted">
+              No hay coincidencias para «{{ searchQuery.trim() }}».
+            </p>
+          </div>
+
+          <div
+            v-for="request in filteredRequests"
             :key="request.id"
             class="rounded-lg border border-default bg-elevated/30 p-4 transition-colors hover:bg-elevated/50"
           >
@@ -273,7 +320,7 @@ function getTypeColor(type: string): 'primary' | 'warning' | 'error' | 'neutral'
                   </span>
                 </div>
 
-                <!-- Reason (SICK guard: null = Confidencial) -->
+                <!-- Reason (SICK guard: null = "Motivo médico reservado" per S5) -->
                 <div
                   v-if="resolveSickReason(request.type, request.reason) !== '—'"
                   class="flex items-start gap-2 text-sm"

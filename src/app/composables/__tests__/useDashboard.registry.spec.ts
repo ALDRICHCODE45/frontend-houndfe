@@ -41,7 +41,9 @@ describe('useDashboard — palette derives from navigation registry', () => {
 
     expect(labels).toContain('RR.HH. / Colaboradores')
     expect(labels).toContain('RR.HH. / Vencimientos')
-    expect(labels).toContain('RR.HH. / Aprobaciones')
+    // S5 (hr-validation-notifications): reframe of the tray label from
+    // "Aprobaciones" to "Validaciones pendientes" (voseo, tenant-wide).
+    expect(labels).toContain('RR.HH. / Validaciones pendientes')
     expect(labels).toContain('Sistema / Notificaciones')
   })
 

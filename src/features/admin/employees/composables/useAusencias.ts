@@ -1,15 +1,19 @@
 /**
- * useAusencias — WU-10
+ * useAusencias — WU-10 + S5 (hr-validation-notifications)
  *
- * Pure helpers + composables for the Ausencias (time-off) tab.
+ * Pure helpers + composables for the Ausencias (time-off) tab and the
+ * tenant-wide "Validaciones pendientes" tray.
  *
  * Exports:
  *   Pure helpers (exported for direct unit testing — ZERO mocks needed):
- *   - formatTimeOffType(type)           — TimeOffType enum → Spanish label
- *   - formatTimeOffStatus(status)       — TimeOffStatus enum → Spanish label
- *   - computeTimeOffDays(start, end)    — inclusive UTC day count (same as computeDays in types)
- *   - resolveSickReason(type, reason)   — Tier 3 medical guard: null+SICK → "Confidencial"
- *   - canCancelTimeOff(status, start)   — PENDING always; APPROVED only if start is future
+ *   - formatTimeOffType(type)                    — TimeOffType enum → Spanish label
+ *   - formatTimeOffStatus(status)                — TimeOffStatus enum → Spanish label
+ *   - computeTimeOffDays(start, end)             — inclusive UTC day count (same as computeDays in types)
+ *   - resolveSickReason(type, reason)            — Tier 3 medical guard: null+SICK → "Motivo médico reservado" (S5)
+ *   - canCancelTimeOff(status, start)            — PENDING always; APPROVED only if start is future
+ *   - filterPendingBySearch(requests, map, q)    — pure client-side search by resolved employee name (S5)
+ *   - resolveDomainErrorMessage(code, fallback?) — pure EMPLOYEE_ERROR_MAP lookup → voseo message (S5)
+ *   - computeTrayRows(requests, map, q)          — runtime mirror of PendingApprovalsView's filteredRequests computed (S5)
  *
  *   Composables (require Vue + TanStack Query context):
  *   - useEmployeeTimeOff(employeeId)    — query for time-off list (with optional year/status)
@@ -51,6 +55,13 @@ import type {
   VacationBalance,
   CreateTimeOffDto,
 } from '../interfaces/employee.types'
+import { EMPLOYEE_ERROR_MAP } from '../interfaces/errors'
+import type { EmployeeDomainErrorCode } from '../interfaces/errors'
+import type { ManagerInfo } from './useManagerResolution'
+
+/** Default fallback used when a code is not in {@link EMPLOYEE_ERROR_MAP}.
+ *  Kept in lockstep with `DEFAULT_FALLBACK` in `core/shared/utils/error.utils.ts`. */
+const DEFAULT_ERROR_FALLBACK = 'No pudimos completar la operación. Reintentá.'
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
@@ -92,18 +103,22 @@ export function computeTimeOffDays(startDate: string, endDate: string): number {
  * Resolve the display value for a time-off reason, applying the Tier 3 medical guard.
  *
  * Rules:
- *   - type === 'SICK' && (reason === null || reason === '') → "Confidencial"
+ *   - type === 'SICK' && reason === null → "Motivo médico reservado"
  *     (null means backend stripped it — caller lacks read:EmployeeTimeOffMedical)
  *   - type !== 'SICK' && (reason === null || reason === '') → "—"
  *   - reason has a non-empty value → return reason as-is
  *
+ * S5 (hr-validation-notifications): the SICK+null placeholder changed from
+ * "Confidencial" to "Motivo médico reservado" — the prior copy was ambiguous
+ * and read as confidential-by-policy rather than confidential-by-permission.
+ *
  * PURE — deterministic.
  */
 export function resolveSickReason(type: TimeOffType, reason: string | null): string {
-  // null = backend-stripped (Tier 3 medical guard) → "Confidencial" for SICK only
+  // null = backend-stripped (Tier 3 medical guard) → voseo placeholder for SICK only
   // '' (empty string) = user provided no reason → "—" regardless of type
   if (reason === null) {
-    return type === 'SICK' ? 'Confidencial' : '—'
+    return type === 'SICK' ? 'Motivo médico reservado' : '—'
   }
   if (reason.trim() === '') {
     return '—'
@@ -133,6 +148,90 @@ export function canCancelTimeOff(status: TimeOffStatus, startDate: string): bool
   const todayStart = now - (now % MS_PER_DAY) // midnight UTC today
   const startMs = new Date(startDate).getTime()
   return startMs > todayStart
+}
+
+/**
+ * Pure client-side filter for the tenant-wide pending approvals tray.
+ *
+ * Filters the given list of PENDING `TimeOffRequest`s by employee name.
+ * The lookup uses a pre-built `id→ManagerInfo` map (produced by
+ * `buildManagerMap` in {@link useManagerResolution}); an unknown
+ * `employeeId` is treated as "—" and therefore does NOT match any
+ * non-empty query.
+ *
+ * Rules:
+ *   - Empty / whitespace-only query → returns the input array unchanged
+ *     (preserves backend ordering: startDate asc, then id asc).
+ *   - Otherwise → case-insensitive substring match against the resolved
+ *     `fullName`. Missing names resolve to "—" and never match.
+ *
+ * PURE — no side effects, no I/O.
+ */
+export function filterPendingBySearch(
+  requests: TimeOffRequest[],
+  nameMap: Map<string, ManagerInfo>,
+  query: string,
+): TimeOffRequest[] {
+  const normalized = query.trim().toLowerCase()
+  if (normalized === '') return requests
+
+  return requests.filter((req) => {
+    const name = nameMap.get(req.employeeId)?.fullName ?? '—'
+    return name.toLowerCase().includes(normalized)
+  })
+}
+
+/**
+ * Pure lookup of a domain error code against {@link EMPLOYEE_ERROR_MAP}.
+ *
+ * Returns the voseo message for known codes. For unknown / empty codes,
+ * returns the explicit `fallback` (when provided and non-blank) or the
+ * module default (`DEFAULT_ERROR_FALLBACK`).
+ *
+ * The map is authoritative — an explicit fallback is ONLY used on a
+ * miss. Pair with {@link normalizeApiError} (core/shared/utils/error.utils.ts)
+ * to extract `code` from a 409 / 400 backend envelope, then pass the code
+ * here to surface a user-visible Spanish message.
+ *
+ * PURE — deterministic.
+ */
+export function resolveDomainErrorMessage(
+  code: string | null | undefined,
+  fallback?: string,
+): string {
+  if (typeof code === 'string' && code.length > 0) {
+    // Narrow the index lookup to known codes — TS will type-check the union.
+    if (code in EMPLOYEE_ERROR_MAP) {
+      const known = code as EmployeeDomainErrorCode
+      return EMPLOYEE_ERROR_MAP[known]
+    }
+  }
+  if (typeof fallback === 'string' && fallback.trim().length > 0) {
+    return fallback
+  }
+  return DEFAULT_ERROR_FALLBACK
+}
+
+/**
+ * Runtime computed-logic mirror of `PendingApprovalsView.vue`'s
+ * `filteredRequests` computed.
+ *
+ * Used by the runtime computed-logic test pattern (see strict-tdd.md):
+ * the SAME pure pipeline that the view wires into a Vue `computed`
+ * is exported here so tests can exercise it without mounting the
+ * component or mocking the TanStack query.
+ *
+ * Equivalent to:
+ *   `filterPendingBySearch(requests, nameMap, query.trim())`
+ *
+ * PURE — deterministic.
+ */
+export function computeTrayRows(
+  requests: TimeOffRequest[],
+  nameMap: Map<string, ManagerInfo>,
+  query: string,
+): TimeOffRequest[] {
+  return filterPendingBySearch(requests, nameMap, query.trim())
 }
 
 // ─── Composables ──────────────────────────────────────────────────────────────
