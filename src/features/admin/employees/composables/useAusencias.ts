@@ -1,5 +1,5 @@
 /**
- * useAusencias — WU-10 + S5 (hr-validation-notifications)
+ * useAusencias — WU-10 + S5 + S6 (hr-validation-notifications)
  *
  * Pure helpers + composables for the Ausencias (time-off) tab and the
  * tenant-wide "Validaciones pendientes" tray.
@@ -14,6 +14,9 @@
  *   - filterPendingBySearch(requests, map, q)    — pure client-side search by resolved employee name (S5)
  *   - resolveDomainErrorMessage(code, fallback?) — pure EMPLOYEE_ERROR_MAP lookup → voseo message (S5)
  *   - computeTrayRows(requests, map, q)          — runtime mirror of PendingApprovalsView's filteredRequests computed (S5)
+ *   - firstZodIssueMessage(error)                — first issue's voseo message from a failed safeParse (S6)
+ *   - resolveCancelErrorMessage(err, fallback?)  — 409 TIME_OFF_INVALID_TRANSITION surfacing for useCancelTimeOff (S6)
+ *   - resolveCreateErrorMessage(err, fallback?)  — 400 TIME_OFF_INVALID_DATE_RANGE surfacing for create (S6)
  *
  *   Composables (require Vue + TanStack Query context):
  *   - useEmployeeTimeOff(employeeId)    — query for time-off list (with optional year/status)
@@ -41,8 +44,10 @@ import { computed } from 'vue'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import type { MaybeRef } from 'vue'
 import { toValue } from 'vue'
+import type { ZodError } from 'zod'
 import { employeeTimeOffQueryKeys, employeeQueryKeys } from '@/core/shared/constants/query-keys'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import { normalizeApiError } from '@/core/shared/utils/error.utils'
 import { employeesApi } from '../api/employees.api'
 import {
   TIME_OFF_TYPE_LABELS,
@@ -234,6 +239,81 @@ export function computeTrayRows(
   return filterPendingBySearch(requests, nameMap, query.trim())
 }
 
+/**
+ * Extract the first issue's voseo message from a failed Zod safeParse.
+ *
+ * Used by `AusenciasPanel.submitRequest` (S6) to surface the SPECIFIC
+ * voseo message from `CreateTimeOffDtoSchema.superRefine` (e.g.
+ * "La fecha de fin debe ser igual o posterior a la fecha de inicio")
+ * instead of the prior generic "Verificá los datos del formulario."
+ *
+ * Returns the first issue's message verbatim. Returns `null` when the
+ * error has no issues — defensive guard against a malformed `ZodError`
+ * (safeParse does not produce this, but the helper MUST NOT crash if
+ * the panel is ever handed a stub error from a future test harness).
+ *
+ * PURE — deterministic, no side effects.
+ */
+export function firstZodIssueMessage(error: ZodError): string | null {
+  const first = error.issues[0]
+  if (first === undefined) return null
+  return first.message
+}
+
+/** Default voseo message surfaced by `useCancelTimeOff` when the
+ *  backend sends no domain code AND the caller passes no fallback. */
+const DEFAULT_CANCEL_FALLBACK = 'No se pudo cancelar la ausencia.'
+
+/**
+ * Pure message resolver for the cancel mutation's error toast.
+ *
+ * Composes S3's `normalizeApiError` (parses both envelopes + extracts
+ * the backend `error` code) with S5's `resolveDomainErrorMessage` (maps
+ * the code to a voseo message via `EMPLOYEE_ERROR_MAP`).
+ *
+ * Surfaces the REAL 409 `TIME_OFF_INVALID_TRANSITION` voseo message
+ * ("La solicitud de ausencia no permite esa transición de estado.")
+ * instead of the prior hardcoded "Solo se pueden cancelar solicitudes
+ * pendientes o aprobadas con fecha futura." — a code-driven message
+ * stays accurate as the backend evolves.
+ *
+ * Falls back to `DEFAULT_CANCEL_FALLBACK` when the envelope has no
+ * code AND no fallback was passed by the caller.
+ *
+ * PURE — deterministic for a given `(err, fallback)` pair.
+ */
+export function resolveCancelErrorMessage(
+  err: unknown,
+  fallback: string = DEFAULT_CANCEL_FALLBACK,
+): string {
+  const { code, message } = normalizeApiError(err, fallback)
+  return resolveDomainErrorMessage(code, message)
+}
+
+/** Default voseo message surfaced when the create mutation fails and
+ *  the backend sends no domain code AND the caller passes no fallback. */
+const DEFAULT_CREATE_FALLBACK = 'No se pudo registrar la ausencia.'
+
+/**
+ * Pure message resolver for the create mutation's error toast
+ * (`AusenciasPanel.submitRequest`).
+ *
+ * Same composition contract as {@link resolveCancelErrorMessage} —
+ * composes `normalizeApiError` + `resolveDomainErrorMessage`. Surfaces
+ * the REAL 400 `TIME_OFF_INVALID_DATE_RANGE` voseo message OR a joined
+ * Nest class-validator `string[]` (never `[object Object]` or a raw
+ * array).
+ *
+ * PURE — deterministic for a given `(err, fallback)` pair.
+ */
+export function resolveCreateErrorMessage(
+  err: unknown,
+  fallback: string = DEFAULT_CREATE_FALLBACK,
+): string {
+  const { code, message } = normalizeApiError(err, fallback)
+  return resolveDomainErrorMessage(code, message)
+}
+
 // ─── Composables ──────────────────────────────────────────────────────────────
 
 declare const useToast: () => {
@@ -382,6 +462,12 @@ export function useCreateTimeOff(employeeId: MaybeRef<string>) {
  * Requires update:EmployeeTimeOff permission.
  * On success: invalidates time-off list + vacation balance keys.
  * Backend error TIME_OFF_INVALID_TRANSITION if the row is not cancellable.
+ *
+ * On error (S6): routes the error through `resolveCancelErrorMessage`
+ * (composes S3 `normalizeApiError` + S5 `resolveDomainErrorMessage`) so
+ * the user sees the real 409 voseo message ("La solicitud de ausencia
+ * no permite esa transición de estado.") instead of the prior
+ * hardcoded generic.
  */
 export function useCancelTimeOff(employeeId: MaybeRef<string>) {
   const queryClient = useQueryClient()
@@ -413,10 +499,15 @@ export function useCancelTimeOff(employeeId: MaybeRef<string>) {
       toast.add({ title: 'Ausencia cancelada', color: 'success' })
     },
 
-    onError: () => {
+    onError: (err) => {
+      // S6: route the error through resolveCancelErrorMessage so the
+      // user sees the real domain code (e.g. 409
+      // TIME_OFF_INVALID_TRANSITION) translated to voseo, not a
+      // hardcoded generic.
+      const description = resolveCancelErrorMessage(err)
       toast.add({
         title: 'No se pudo cancelar la ausencia',
-        description: 'Solo se pueden cancelar solicitudes pendientes o aprobadas con fecha futura.',
+        description,
         color: 'error',
       })
     },
