@@ -413,10 +413,14 @@ export function useCreateTimeOff(employeeId: MaybeRef<string>) {
       toast.add({ title: 'Ausencia solicitada', color: 'success' })
     },
 
-    onError: () => {
+    onError: (err) => {
+      // S6 follow-up: surface the real normalized voseo message (consistent
+      // with useReviewTimeOff / useCancelTimeOff) via resolveCreateErrorMessage
+      // instead of a hardcoded generic. Handles the 400 TIME_OFF_INVALID_DATE_RANGE
+      // domain code and joined Nest class-validator arrays.
       toast.add({
         title: 'No se pudo registrar la ausencia',
-        description: 'Verificá que las fechas sean válidas (fecha fin ≥ fecha inicio) e intentá de nuevo.',
+        description: resolveCreateErrorMessage(err),
         color: 'error',
       })
     },
