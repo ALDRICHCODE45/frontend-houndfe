@@ -274,6 +274,13 @@ const MOCK_TIME_OFF: TimeOffRequest = {
   reason: 'Viaje familiar',
   status: 'APPROVED',
   createdAt: '2026-07-01T10:00:00Z',
+  // S4 additions — backend EmployeeTimeOff v1 shape
+  requestedByUserId: 'user-42',
+  reviewerUserId: 'user-99',
+  reviewedAt: '2026-07-02T10:00:00Z',
+  reviewerNotes: 'Aprobado según política',
+  tenantId: 'tenant-1',
+  updatedAt: '2026-07-02T10:00:00Z',
 }
 
 const MOCK_CONTACT: EmergencyContact = {

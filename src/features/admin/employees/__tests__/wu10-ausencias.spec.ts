@@ -182,9 +182,18 @@ const MOCK_TIME_OFF: TimeOffRequest = {
   reason: 'Viaje familiar',
   status: 'PENDING',
   createdAt: '2026-05-01T00:00:00Z',
+  // S4 additions — backend EmployeeTimeOff v1 shape
+  requestedByUserId: 'user-42',
+  reviewerUserId: null,
+  reviewedAt: null,
+  reviewerNotes: null,
+  tenantId: 'tenant-1',
+  updatedAt: '2026-05-01T00:00:00Z',
 }
 
 const MOCK_BALANCE: VacationBalance = {
+  // S4 addition — year is required by the backend vacation-balance contract
+  year: 2026,
   entitlement: 12,
   used: 5,
   pending: 3,

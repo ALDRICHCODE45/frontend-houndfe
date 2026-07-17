@@ -151,6 +151,27 @@ export function computeDays(startDate: string, endDate: string): number {
   return (end - start) / 86_400_000 + 1
 }
 
+/**
+ * Pure predicate for client-side date-range validation.
+ *
+ * Returns `true` when `endDate >= startDate` (inclusive on the equal
+ * case so single-day requests pass). The backend enforces the same rule
+ * server-side and returns 400 `TIME_OFF_INVALID_DATE_RANGE` if violated —
+ * this client-side check exists to block the submit BEFORE the network
+ * call and surface a voseo error in the form.
+ *
+ * Co-located with the schema (instead of a separate util) because it is
+ * the exact predicate {@link CreateTimeOffDtoSchema}'s `superRefine` uses.
+ * Pure — zero side effects, no module-level state.
+ */
+export function isValidTimeOffRange(startDate: string, endDate: string): boolean {
+  const start = new Date(startDate).getTime()
+  const end = new Date(endDate).getTime()
+  // NaN guard: unparseable strings should fail closed (invalid range).
+  if (Number.isNaN(start) || Number.isNaN(end)) return false
+  return end >= start
+}
+
 // ─── Label maps ───────────────────────────────────────────────────────────────
 
 export const EMPLOYEE_STATUS_LABELS: Record<EmployeeStatus, string> = {
@@ -242,6 +263,23 @@ export const EmployeeDocumentSchema = z.object({
 })
 export type EmployeeDocument = z.infer<typeof EmployeeDocumentSchema>
 
+/**
+ * TimeOffRequestSchema — backend EmployeeTimeOff v1 contract.
+ *
+ * Added in slice S4 (hr-validation-notifications) per
+ * `sdd/hr-validation-notifications/design` (obs 3176):
+ *   - `requestedByUserId` — nullable (null while being prepared)
+ *   - `reviewerUserId`   — nullable (null until a reviewer acts)
+ *   - `reviewedAt`       — nullable (null until reviewed)
+ *   - `reviewerNotes`    — nullable (null unless reviewer wrote notes)
+ *   - `tenantId`         — required (backend always stamps it)
+ *   - `updatedAt`        — required (backend always stamps it)
+ *
+ * Convention matches the rest of the file: `.nullable()` for fields the
+ * backend always sends but that can be null; required for fields that are
+ * NEVER stripped. Do NOT widen these to `.optional()` — the backend always
+ * includes them.
+ */
 export const TimeOffRequestSchema = z.object({
   id: z.string(),
   employeeId: z.string(),
@@ -251,10 +289,25 @@ export const TimeOffRequestSchema = z.object({
   reason: z.string().nullable(),
   status: TimeOffStatusSchema,
   createdAt: z.string(),
+  requestedByUserId: z.string().nullable(),
+  reviewerUserId: z.string().nullable(),
+  reviewedAt: z.string().nullable(),
+  reviewerNotes: z.string().nullable(),
+  tenantId: z.string(),
+  updatedAt: z.string(),
 })
 export type TimeOffRequest = z.infer<typeof TimeOffRequestSchema>
 
+/**
+ * VacationBalanceSchema — backend vacation-balance v1 contract.
+ *
+ * Added in slice S4: `year` (integer). Backend returns
+ * `{ year, entitlement, used, pending, remaining }`. The year is the
+ * anchor the balance applies to; the card in `AusenciasPanel.vue` (S6)
+ * filters by it.
+ */
 export const VacationBalanceSchema = z.object({
+  year: z.number().int(),
   entitlement: z.number(),
   used: z.number(),
   pending: z.number(),
@@ -486,16 +539,32 @@ export type UpdateEmergencyContactDto = z.infer<typeof UpdateEmergencyContactDto
  *
  * Required: type, startDate, endDate.
  * reason is optional, max 500 chars.
- * endDate must be >= startDate (enforced by backend; backend returns TIME_OFF_INVALID_DATE_RANGE).
+ * endDate must be >= startDate — enforced CLIENT-SIDE here via
+ * superRefine (blocks submit before the network call AND surfaces a voseo
+ * error attached to the `endDate` field). Backend re-enforces the same
+ * rule and returns 400 `TIME_OFF_INVALID_DATE_RANGE` as a safety net.
  *
  * TimeOffType values: VACATION, SICK, PERSONAL, UNPAID.
  * NEVER send tenantId — backend reads from JWT via TenantContextGuard.
+ *
+ * Range validation: see {@link isValidTimeOffRange} (the same pure
+ * predicate the superRefine delegates to).
  */
-export const CreateTimeOffDtoSchema = z.object({
-  type: TimeOffTypeSchema,
-  startDate: z.string().min(1), // YYYY-MM-DD
-  endDate: z.string().min(1),   // YYYY-MM-DD, inclusive, >= startDate
-  reason: z.string().max(500).optional(),
-})
+export const CreateTimeOffDtoSchema = z
+  .object({
+    type: TimeOffTypeSchema,
+    startDate: z.string().min(1), // YYYY-MM-DD
+    endDate: z.string().min(1), // YYYY-MM-DD, inclusive, >= startDate
+    reason: z.string().max(500).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (!isValidTimeOffRange(data.startDate, data.endDate)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'La fecha de fin debe ser igual o posterior a la fecha de inicio',
+        path: ['endDate'],
+      })
+    }
+  })
 
 export type CreateTimeOffDto = z.infer<typeof CreateTimeOffDtoSchema>
