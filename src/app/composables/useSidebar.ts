@@ -5,9 +5,8 @@ import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { useRouter } from 'vue-router'
 import { mapTenantError } from '@/features/admin/tenants/api/tenants.api'
 import { navigationGroups } from '@/app/navigation/navigation.registry'
-import type { CanAccess } from '@/app/navigation/navigation.access'
-import { filterAccessibleGroups } from '@/app/navigation/navigation.access'
-import type { PermissionTuple } from '@/app/navigation/navigation.types'
+import { buildCanAccess, filterAccessibleGroups, stripMeta } from '@/app/navigation/navigation.access'
+import type { AccessMeta } from '@/app/navigation/navigation.types'
 
 declare const useToast: () => {
   add: (options: {
@@ -19,9 +18,7 @@ declare const useToast: () => {
 
 const colorMode = useColorMode()
 
-interface GuardedNavigationMenuItem extends NavigationMenuItem {
-  permission?: PermissionTuple
-  requiresSuperAdmin?: boolean
+interface GuardedNavigationMenuItem extends NavigationMenuItem, AccessMeta {
   children?: GuardedNavigationMenuItem[]
 }
 
@@ -29,6 +26,11 @@ export const useSidebar = () => {
   const authStore = useAuthStore()
   const router = useRouter()
   const toast = useToast()
+
+  // Access guard bound to this composable's auth store. buildCanAccess returns a
+  // closure that reads isSuperAdmin/userCan live on each call, so hoisting it to
+  // composable scope preserves the previous per-call reactive behavior.
+  const canAccess = buildCanAccess(authStore)
 
   // ── Tenant switcher ─────────────────────────────────────────────────────────
 
@@ -120,12 +122,6 @@ export const useSidebar = () => {
   })
 
   function getNavigationItems(collapsed: boolean): NavigationMenuItem[] {
-    const canAccess: CanAccess = (permission, requiresSuperAdmin) => {
-      if (requiresSuperAdmin && !authStore.isSuperAdmin) return false
-      if (!permission) return true
-      return authStore.userCan(permission[0], permission[1])
-    }
-
     // Consumer-specific top-level extras (not part of the shared module tree).
     const topLevelExtras: GuardedNavigationMenuItem[] = [
       {
@@ -144,7 +140,7 @@ export const useSidebar = () => {
 
     const visibleExtras: NavigationMenuItem[] = topLevelExtras
       .filter((item) => canAccess(item.permission, item.requiresSuperAdmin))
-      .map(({ permission: _permission, requiresSuperAdmin: _requiresSuperAdmin, ...item }) => item)
+      .map(stripMeta)
 
     // Shared module groups, derived from the registry through the access filter.
     const groupItems: NavigationMenuItem[] = filterAccessibleGroups(navigationGroups, canAccess).map(

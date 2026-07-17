@@ -1,10 +1,11 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import {
+  buildCanAccess,
   filterAccessibleActions,
   filterAccessibleGroups,
   toPaletteItems,
 } from '../navigation.access'
-import type { CanAccess } from '../navigation.access'
+import type { AccessAuthStore, CanAccess } from '../navigation.access'
 import type { NavAction, NavGroup } from '../navigation.types'
 
 const groups: NavGroup[] = [
@@ -106,5 +107,57 @@ describe('toPaletteItems', () => {
       icon: 'i-lucide-shopping-cart',
       to: '/pos/ventas',
     })
+  })
+})
+
+describe('buildCanAccess', () => {
+  it('denies super-admin-only entries when the store is not a super admin', () => {
+    const store: AccessAuthStore = { isSuperAdmin: false, userCan: () => true }
+    const canAccess = buildCanAccess(store)
+    expect(canAccess(undefined, true)).toBe(false)
+  })
+
+  it('allows super-admin-only entries when the store is a super admin', () => {
+    const store: AccessAuthStore = { isSuperAdmin: true, userCan: () => true }
+    const canAccess = buildCanAccess(store)
+    expect(canAccess(undefined, true)).toBe(true)
+  })
+
+  it('allows entries without a permission requirement, regardless of userCan', () => {
+    const store: AccessAuthStore = { isSuperAdmin: false, userCan: () => false }
+    const canAccess = buildCanAccess(store)
+    expect(canAccess(undefined, false)).toBe(true)
+    expect(canAccess()).toBe(true)
+  })
+
+  it('forwards the permission tuple to userCan as (action, subject)', () => {
+    const userCan = vi.fn(() => true)
+    const store: AccessAuthStore = { isSuperAdmin: false, userCan }
+    const canAccess = buildCanAccess(store)
+
+    expect(canAccess(['read', 'Sale'])).toBe(true)
+    expect(userCan).toHaveBeenCalledWith('read', 'Sale')
+  })
+
+  it('returns the userCan verdict for permissioned entries', () => {
+    const store: AccessAuthStore = { isSuperAdmin: false, userCan: () => false }
+    const canAccess = buildCanAccess(store)
+    expect(canAccess(['read', 'Sale'])).toBe(false)
+  })
+
+  it('reads live store state on every call (reactivity-safe, not snapshotted)', () => {
+    // A mutable fake standing in for the reactive Pinia store.
+    const store = { isSuperAdmin: false, userCan: vi.fn(() => false) }
+    const canAccess = buildCanAccess(store)
+
+    // Super-admin gate must reflect a later isSuperAdmin change.
+    expect(canAccess(undefined, true)).toBe(false)
+    store.isSuperAdmin = true
+    expect(canAccess(undefined, true)).toBe(true)
+
+    // Permission check must reflect a later userCan verdict change.
+    expect(canAccess(['read', 'Sale'])).toBe(false)
+    store.userCan.mockReturnValue(true)
+    expect(canAccess(['read', 'Sale'])).toBe(true)
   })
 })

@@ -2,8 +2,8 @@ import { ref, computed } from 'vue'
 import type { CommandPaletteGroup, CommandPaletteItem } from '@nuxt/ui'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { navigationGroups, quickActions } from '@/app/navigation/navigation.registry'
-import type { CanAccess } from '@/app/navigation/navigation.access'
 import {
+  buildCanAccess,
   filterAccessibleActions,
   filterAccessibleGroups,
   toPaletteItems,
@@ -17,11 +17,7 @@ const isSearchOpen = ref(false)
 export const useDashboard = () => {
   const authStore = useAuthStore()
 
-  const canAccess: CanAccess = (permission, requiresSuperAdmin) => {
-    if (requiresSuperAdmin && !authStore.isSuperAdmin) return false
-    if (!permission) return true
-    return authStore.userCan(permission[0], permission[1])
-  }
+  const canAccess = buildCanAccess(authStore)
 
   const toggleSidebarOpen = () => {
     isSidebarOpen.value = !isSidebarOpen.value

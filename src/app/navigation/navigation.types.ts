@@ -3,15 +3,25 @@ import type { AppAction, AppSubject } from '@/features/auth/interfaces/auth.type
 /** Permission required to see a navigation entry: [action, subject]. */
 export type PermissionTuple = [AppAction, AppSubject]
 
-/** A single navigable module entry, shared by the sidebar and the command palette. */
-export interface NavItem {
+/** Access-control metadata shared by every guarded navigation entry. */
+export interface AccessMeta {
+  permission?: PermissionTuple
+  requiresSuperAdmin?: boolean
+}
+
+/**
+ * Shared fields for a navigable entry (a module item or an action shortcut).
+ * {@link NavItem} and {@link NavAction} both derive from this single base.
+ */
+export interface NavEntry extends AccessMeta {
   id: string
   label: string
   icon: string
   to: string
-  permission?: PermissionTuple
-  requiresSuperAdmin?: boolean
 }
+
+/** A single navigable module entry, shared by the sidebar and the command palette. */
+export type NavItem = NavEntry
 
 /** A collapsible module group in the sidebar; flattened into palette items. */
 export interface NavGroup {
@@ -23,11 +33,4 @@ export interface NavGroup {
 }
 
 /** A create-shortcut surfaced in the command palette "Acciones" group. */
-export interface NavAction {
-  id: string
-  label: string
-  icon: string
-  to: string
-  permission?: PermissionTuple
-  requiresSuperAdmin?: boolean
-}
+export type NavAction = NavEntry
