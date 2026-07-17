@@ -237,19 +237,8 @@ describe('employeeTimeOffQueryKeys', () => {
     expect(key1[1]).not.toBe(key2[1])
   })
 
-  it('pendingByManager key has correct shape with managerId', () => {
-    const key = employeeTimeOffQueryKeys.pendingByManager('tenant-1', 'mgr-42')
-    expect(key[0]).toBe('employees')
-    expect(key[1]).toBe('tenant-1')
-    expect(key[2]).toBe('time-off-pending-by-manager')
-    expect(key[3]).toBe('mgr-42')
-  })
-
-  it('pendingByManager keys are unique per managerId', () => {
-    const key1 = employeeTimeOffQueryKeys.pendingByManager('tenant-1', 'mgr-A')
-    const key2 = employeeTimeOffQueryKeys.pendingByManager('tenant-1', 'mgr-B')
-    expect(key1[3]).not.toBe(key2[3])
-  })
+  // by-manager surface removed: the queue is tenant-wide now (HR-validation-notifications S1).
+  // usePendingApprovals / employeeTimeOffQueryKeys.pending is the single source of truth.
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -342,22 +331,8 @@ describe('employeesApi — getPendingApprovals', () => {
   })
 })
 
-describe('employeesApi — getPendingApprovalsByManager (admin/HR)', () => {
-  beforeEach(() => {
-    vi.spyOn(employeesApi, 'getPendingApprovalsByManager').mockResolvedValue([MOCK_TIME_OFF])
-  })
-
-  it('returns an array of pending TimeOffRequests for the given Employee.id', async () => {
-    const result = await employeesApi.getPendingApprovalsByManager('mgr-1')
-    expect(result).toHaveLength(1)
-  })
-
-  it('calls getPendingApprovalsByManager with the supplied Employee.id', async () => {
-    const spy = vi.spyOn(employeesApi, 'getPendingApprovalsByManager').mockResolvedValue([])
-    await employeesApi.getPendingApprovalsByManager('mgr-42')
-    expect(spy).toHaveBeenCalledWith('mgr-42')
-  })
-})
+// by-manager surface removed: the queue is tenant-wide now (HR-validation-notifications S1).
+// getPendingApprovals / usePendingApprovals / employeeTimeOffQueryKeys.pending is the single source of truth.
 
 describe('employeesApi — getEmergencyContacts', () => {
   beforeEach(() => {

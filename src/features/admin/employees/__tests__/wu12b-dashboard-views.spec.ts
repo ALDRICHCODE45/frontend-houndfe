@@ -207,17 +207,8 @@ describe('tenantId regression — no tenantId in outbound requests', () => {
     expect(callArgs[1]).toBeUndefined()
   })
 
-  it('getPendingApprovalsByManager hits the by-manager admin route with the Employee.id in the path', async () => {
-    const getSpy = vi.spyOn(http, 'get').mockResolvedValue({ data: [] })
-    await employeesApi.getPendingApprovalsByManager('mgr-1')
-    expect(getSpy).toHaveBeenCalledTimes(1)
-    const callArgs = getSpy.mock.calls[0]!
-    expect(callArgs[0]).toBe(
-      '/admin/employees-time-off/pending-approvals/by-manager/mgr-1',
-    )
-    const config = callArgs[1] as { params?: Record<string, unknown> } | undefined
-    expect(config?.params).toBeUndefined()
-  })
+  // by-manager surface removed: the queue is tenant-wide now (HR-validation-notifications S1).
+  // getPendingApprovals is the single endpoint — no admin by-manager route.
 
   it('getDocuments does not send tenantId in params', async () => {
     const getSpy = vi.spyOn(http, 'get').mockResolvedValue({ data: { data: [], total: 0, page: 1, limit: 20 } })

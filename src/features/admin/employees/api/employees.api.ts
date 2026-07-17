@@ -546,33 +546,17 @@ export const employeesApi = {
    *
    * Requires read:EmployeeTimeOff permission.
    *
-   * Backend resolves the manager Employee from the JWT (via Employee.userId)
-   * and returns PENDING time-off requests for all direct subordinates.
+   * Tenant-wide queue of PENDING time-off requests — the manager→subordinates
+   * model was removed backend-side; any user with read:EmployeeTimeOff sees
+   * the full tenant backlog.
    * - Route uses HYPHEN (employees-time-off) — NOT under /:employeeId.
    * - Ordered by startDate asc.
    * - Medical reason stripping applied server-side.
-   * - NEVER send tenantId or managerId — both are inferred from the JWT.
-   * - If the user is not linked to any Employee row the backend returns [].
+   * - NEVER send tenantId — taken from the JWT.
    */
   async getPendingApprovals(): Promise<TimeOffRequest[]> {
     const { data } = await http.get<TimeOffRequest[]>(
       '/admin/employees-time-off/pending-approvals',
-    )
-    return data
-  },
-
-  /**
-   * GET /admin/employees-time-off/pending-approvals/by-manager/:managerId
-   *
-   * Admin/HR-only variant of `getPendingApprovals`.
-   *
-   * Requires read:EmployeeTimeOff permission. `managerId` is an Employee.id
-   * (NOT a User.id). Backend returns the pending queue for that specific
-   * manager. NEVER send tenantId — taken from the JWT.
-   */
-  async getPendingApprovalsByManager(managerId: string): Promise<TimeOffRequest[]> {
-    const { data } = await http.get<TimeOffRequest[]>(
-      `/admin/employees-time-off/pending-approvals/by-manager/${managerId}`,
     )
     return data
   },

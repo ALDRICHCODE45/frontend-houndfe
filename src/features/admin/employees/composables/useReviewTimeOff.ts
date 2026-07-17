@@ -5,8 +5,7 @@
  *
  * Exports:
  *   - useReviewTimeOff(employeeId)         — mutation for POST /:employeeId/time-off/:timeOffId/review
- *   - usePendingApprovals()                — GET /admin/employees-time-off/pending-approvals (current user)
- *   - usePendingApprovalsByManager(id)     — GET /admin/employees-time-off/pending-approvals/by-manager/:id (admin/HR)
+ *   - usePendingApprovals()                — GET /admin/employees-time-off/pending-approvals (tenant-wide)
  *
  * CASL gates:
  *   - Review requires can('update', 'EmployeeTimeOff')
@@ -15,9 +14,9 @@
  * Backend constraints (§4.5):
  *   - reviewTimeOff only works on PENDING status — backend throws TIME_OFF_INVALID_TRANSITION otherwise.
  *   - pending-approvals route uses hyphen (employees-time-off) — NOT under employeeId.
- *   - The personal endpoint resolves the manager Employee from the JWT via
- *     Employee.userId; frontend NEVER sends managerId for that variant.
- *   - NEVER send tenantId on either endpoint.
+ *   - The endpoint returns the tenant-wide PENDING queue (the manager→subordinates
+ *     model was removed backend-side); frontend NEVER sends managerId.
+ *   - NEVER send tenantId.
  */
 
 import { computed } from 'vue'
@@ -102,16 +101,16 @@ export function useReviewTimeOff(employeeId: MaybeRef<string>) {
 }
 
 /**
- * usePendingApprovals — pending approvals for the current logged-in user.
+ * usePendingApprovals — tenant-wide pending approvals queue.
  *
- * Backend resolves the manager Employee from the JWT (via Employee.userId)
- * and returns PENDING requests for the direct subordinates of that Employee.
- * If the user has no linked Employee, the backend returns [].
+ * Returns every PENDING time-off request in the tenant (the manager→subordinates
+ * model was removed backend-side). Anyone with read:EmployeeTimeOff sees the
+ * same queue — there is no per-user filtering at the API level.
  *
  * - Ordered by startDate asc (nearest first).
  * - Medical reason stripping applied server-side.
  * - Requires read:EmployeeTimeOff permission.
- * - Cache key is scoped per tenant (the user is implicit in the JWT).
+ * - Cache key is scoped per tenant; the current user is implicit in the JWT.
  */
 export function usePendingApprovals() {
   const authStore = useAuthStore()
@@ -127,33 +126,5 @@ export function usePendingApprovals() {
     enabled: isReady,
     staleTime: 30_000,
     refetchOnWindowFocus: true, // approvals are time-sensitive — refetch on focus
-  })
-}
-
-/**
- * usePendingApprovalsByManager — admin/HR view of any manager's pending queue.
- *
- * `managerId` is an Employee.id (NOT a User.id). Backend filters subordinates
- * of that specific Employee. Same response semantics as `usePendingApprovals`.
- *
- * Requires read:EmployeeTimeOff permission. Intended for HR dashboards where
- * an admin wants to see another manager's queue without impersonation.
- */
-export function usePendingApprovalsByManager(managerId: MaybeRef<string>) {
-  const authStore = useAuthStore()
-  const tenantId = computed(() => authStore.currentTenantId)
-
-  const queryKey = computed(() =>
-    employeeTimeOffQueryKeys.pendingByManager(tenantId.value, toValue(managerId)),
-  )
-
-  const isReady = computed(() => !!tenantId.value && !!toValue(managerId))
-
-  return useQuery<TimeOffRequest[]>({
-    queryKey,
-    queryFn: () => employeesApi.getPendingApprovalsByManager(toValue(managerId)),
-    enabled: isReady,
-    staleTime: 30_000,
-    refetchOnWindowFocus: true,
   })
 }

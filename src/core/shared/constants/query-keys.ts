@@ -147,18 +147,13 @@ export const employeeTimeOffQueryKeys = {
   balance: (tenantId: string, employeeId: string, year: number) =>
     ['employees', tenantId, 'time-off-balance', employeeId, year] as const,
   /**
-   * Pending approvals for the currently-logged-in user. Backend resolves the
-   * Employee from the JWT, so no managerId is part of the key — the cache is
-   * scoped per tenant + per user (the JWT user is implicit in the http layer).
+   * Tenant-wide pending approvals. Backend returns the full tenant queue
+   * (no managerId on the route — the manager→subordinates model is gone),
+   * so the cache key is scoped only per tenant. The current user is implicit
+   * in the JWT and does NOT participate in the key.
    */
   pending: (tenantId: string) =>
     ['employees', tenantId, 'time-off-pending'] as const,
-  /**
-   * Admin/HR variant: pending approvals for a specific manager Employee.id.
-   * Used only by the admin "by-manager" view, not by the personal dashboard.
-   */
-  pendingByManager: (tenantId: string, managerId: string) =>
-    ['employees', tenantId, 'time-off-pending-by-manager', managerId] as const,
 }
 
 export const employeeEmergencyContactQueryKeys = {
