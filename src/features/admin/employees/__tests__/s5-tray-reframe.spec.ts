@@ -13,9 +13,6 @@
  *   4. `resolveDomainErrorMessage(code, fallback)` — pure lookup against the
  *      `EMPLOYEE_ERROR_MAP`, used by the `useReviewTimeOff` mutation to
  *      surface 409 `TIME_OFF_INVALID_TRANSITION` as a voseo message.
- *   5. `computeTrayRows` — runtime computed-logic test pattern mirroring the
- *      `filteredRequests` `computed` in `PendingApprovalsView.vue` (the
- *      view's search/filter pipeline).
  *
  * No component mount, no axios mock, no Pinia — these are all pure
  * data-transformation helpers extracted via the Extract-Before-Mock rule.
@@ -28,7 +25,6 @@ import {
   resolveSickReason,
   filterPendingBySearch,
   resolveDomainErrorMessage,
-  computeTrayRows,
 } from '../composables/useAusencias'
 import { buildManagerMap } from '../composables/useManagerResolution'
 
@@ -317,60 +313,5 @@ describe('resolveDomainErrorMessage — EMPLOYEE_ERROR_MAP lookup (S5.d)', () =>
   it('returns the fallback for empty string code', () => {
     const msg = resolveDomainErrorMessage('')
     expect(msg).toBe('No pudimos completar la operación. Reintentá.')
-  })
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 5. computeTrayRows — runtime computed-logic test pattern
-//
-// Mirrors the view's `filteredRequests` `computed` exactly:
-//   filteredRequests = filterPendingBySearch(requests, nameMap, query.trim())
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('computeTrayRows — view mirror of filteredRequests computed (S5 runtime)', () => {
-  const nameMap = buildManagerMap(EMP_FIXTURES)
-
-  it('returns empty array when requests is empty', () => {
-    expect(computeTrayRows([], nameMap, '')).toEqual([])
-  })
-
-  it('returns all requests when query is empty (after trim)', () => {
-    const result = computeTrayRows(REQ_FIXTURES, nameMap, '   ')
-    expect(result).toHaveLength(3)
-  })
-
-  it('trims the query before filtering', () => {
-    // Leading/trailing whitespace should not break the match
-    const result = computeTrayRows(REQ_FIXTURES, nameMap, '  Carlos  ')
-    expect(result).toHaveLength(1)
-    expect(result[0]!.employeeId).toBe('emp-2')
-  })
-
-  it('preserves backend order (does not re-sort) when there is no match', () => {
-    // Even with a no-match query, the result is just []; but with a match,
-    // the surviving entries must keep their original index order.
-    const result = computeTrayRows(REQ_FIXTURES, nameMap, 'a')
-    // "a" appears in: María, Carlos (no — "a" is in c-a-rlos), Ana
-    // Carlos: c-a-r-l-o-s → yes "a" present
-    // María: m-a-r-í-a → yes
-    // Ana: a-n-a → yes
-    const ids = result.map((r) => r.employeeId)
-    expect(ids).toContain('emp-1')
-    expect(ids).toContain('emp-2')
-    expect(ids).toContain('emp-3')
-    // Order preserved: emp-1, emp-2, emp-3 (matches input)
-    expect(ids).toEqual(['emp-1', 'emp-2', 'emp-3'])
-  })
-
-  it('returns empty array when query has no matches', () => {
-    expect(computeTrayRows(REQ_FIXTURES, nameMap, 'zzz no match')).toEqual([])
-  })
-
-  it('handles a nameMap that does not cover the request employeeId', () => {
-    // Build a map that only knows about emp-1
-    const partialMap = buildManagerMap(EMP_FIXTURES.slice(0, 1))
-    const result = computeTrayRows(REQ_FIXTURES, partialMap, 'María')
-    expect(result).toHaveLength(1)
-    expect(result[0]!.employeeId).toBe('emp-1')
   })
 })

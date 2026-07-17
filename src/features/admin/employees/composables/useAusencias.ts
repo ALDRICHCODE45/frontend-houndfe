@@ -13,7 +13,6 @@
  *   - canCancelTimeOff(status, start)            — PENDING always; APPROVED only if start is future
  *   - filterPendingBySearch(requests, map, q)    — pure client-side search by resolved employee name (S5)
  *   - resolveDomainErrorMessage(code, fallback?) — pure EMPLOYEE_ERROR_MAP lookup → voseo message (S5)
- *   - computeTrayRows(requests, map, q)          — runtime mirror of PendingApprovalsView's filteredRequests computed (S5)
  *   - firstZodIssueMessage(error)                — first issue's voseo message from a failed safeParse (S6)
  *   - resolveCancelErrorMessage(err, fallback?)  — 409 TIME_OFF_INVALID_TRANSITION surfacing for useCancelTimeOff (S6)
  *   - resolveCreateErrorMessage(err, fallback?)  — 400 TIME_OFF_INVALID_DATE_RANGE surfacing for create (S6)
@@ -47,7 +46,7 @@ import { toValue } from 'vue'
 import type { ZodError } from 'zod'
 import { employeeTimeOffQueryKeys, employeeQueryKeys } from '@/core/shared/constants/query-keys'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
-import { normalizeApiError } from '@/core/shared/utils/error.utils'
+import { normalizeApiError, DEFAULT_FALLBACK } from '@/core/shared/utils/error.utils'
 import { employeesApi } from '../api/employees.api'
 import {
   TIME_OFF_TYPE_LABELS,
@@ -63,10 +62,6 @@ import type {
 import { EMPLOYEE_ERROR_MAP } from '../interfaces/errors'
 import type { EmployeeDomainErrorCode } from '../interfaces/errors'
 import type { ManagerInfo } from './useManagerResolution'
-
-/** Default fallback used when a code is not in {@link EMPLOYEE_ERROR_MAP}.
- *  Kept in lockstep with `DEFAULT_FALLBACK` in `core/shared/utils/error.utils.ts`. */
-const DEFAULT_ERROR_FALLBACK = 'No pudimos completar la operación. Reintentá.'
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
@@ -191,7 +186,7 @@ export function filterPendingBySearch(
  *
  * Returns the voseo message for known codes. For unknown / empty codes,
  * returns the explicit `fallback` (when provided and non-blank) or the
- * module default (`DEFAULT_ERROR_FALLBACK`).
+ * shared {@link DEFAULT_FALLBACK} from `core/shared/utils/error.utils.ts`.
  *
  * The map is authoritative — an explicit fallback is ONLY used on a
  * miss. Pair with {@link normalizeApiError} (core/shared/utils/error.utils.ts)
@@ -214,29 +209,7 @@ export function resolveDomainErrorMessage(
   if (typeof fallback === 'string' && fallback.trim().length > 0) {
     return fallback
   }
-  return DEFAULT_ERROR_FALLBACK
-}
-
-/**
- * Runtime computed-logic mirror of `PendingApprovalsView.vue`'s
- * `filteredRequests` computed.
- *
- * Used by the runtime computed-logic test pattern (see strict-tdd.md):
- * the SAME pure pipeline that the view wires into a Vue `computed`
- * is exported here so tests can exercise it without mounting the
- * component or mocking the TanStack query.
- *
- * Equivalent to:
- *   `filterPendingBySearch(requests, nameMap, query.trim())`
- *
- * PURE — deterministic.
- */
-export function computeTrayRows(
-  requests: TimeOffRequest[],
-  nameMap: Map<string, ManagerInfo>,
-  query: string,
-): TimeOffRequest[] {
-  return filterPendingBySearch(requests, nameMap, query.trim())
+  return DEFAULT_FALLBACK
 }
 
 /**

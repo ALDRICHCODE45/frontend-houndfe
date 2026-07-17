@@ -120,7 +120,7 @@ function getAvatarClass(seedValue: string): string {
 
 const searchQuery = ref('')
 
-/** View-side computed that mirrors `computeTrayRows` (S5 runtime test). */
+/** Client-side filtered tray rows: search by resolved employee name. */
 const filteredRequests = computed(() =>
   filterPendingBySearch(pendingRequests.value ?? [], employeeMap.value, searchQuery.value),
 )
