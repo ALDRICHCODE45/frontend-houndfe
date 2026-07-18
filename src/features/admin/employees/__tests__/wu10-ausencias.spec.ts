@@ -13,7 +13,7 @@
  * (Extract-Before-Mock rule from strict-tdd.md).
  *
  * SICK reason guard (Tier 3):
- *   - reason === null && type === 'SICK' → display "Confidencial"
+ *   - reason === null && type === 'SICK' → display "Motivo médico reservado" (S5)
  *   - reason === null && type !== 'SICK' → display "—"
  *   - reason === '' (empty string) → display "—"
  *   - reason has value → display reason
@@ -182,9 +182,18 @@ const MOCK_TIME_OFF: TimeOffRequest = {
   reason: 'Viaje familiar',
   status: 'PENDING',
   createdAt: '2026-05-01T00:00:00Z',
+  // S4 additions — backend EmployeeTimeOff v1 shape
+  requestedByUserId: 'user-42',
+  reviewerUserId: null,
+  reviewedAt: null,
+  reviewerNotes: null,
+  tenantId: 'tenant-1',
+  updatedAt: '2026-05-01T00:00:00Z',
 }
 
 const MOCK_BALANCE: VacationBalance = {
+  // S4 addition — year is required by the backend vacation-balance contract
+  year: 2026,
   entitlement: 12,
   used: 5,
   pending: 3,
@@ -356,11 +365,14 @@ describe('computeTimeOffDays', () => {
   })
 })
 
-describe('resolveSickReason — Tier 3 medical stripping guard', () => {
-  it('returns "Confidencial" when type is SICK and reason is null', () => {
-    // This is the core Tier 3 guard behavior
+describe('resolveSickReason — Tier 3 medical stripping guard (S5: placeholder updated to "Motivo médico reservado")', () => {
+  it('returns "Motivo médico reservado" when type is SICK and reason is null', () => {
+    // S5 (hr-validation-notifications) updated the Tier 3 medical-stripped
+    // placeholder from "Confidencial" to the voseo "Motivo médico reservado"
+    // — the prior copy was ambiguous and read as confidential-by-policy
+    // rather than confidential-by-permission.
     const display = resolveSickReason('SICK', null)
-    expect(display).toBe('Confidencial')
+    expect(display).toBe('Motivo médico reservado')
   })
 
   it('returns the reason when type is SICK and reason has a value', () => {

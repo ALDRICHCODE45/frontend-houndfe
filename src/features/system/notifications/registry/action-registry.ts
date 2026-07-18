@@ -38,6 +38,16 @@ export const ACTION_REGISTRY: readonly ModuleDescriptor[] = [
       },
     ],
   },
+  {
+    moduleKey: 'hr',
+    moduleLabel: 'Recursos Humanos',
+    actions: [
+      {
+        key: 'TIME_OFF_REQUESTED',
+        label: 'Solicitud de validación',
+      },
+    ],
+  },
 ] as const
 
 /**

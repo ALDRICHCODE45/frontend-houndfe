@@ -177,11 +177,8 @@ describe('employeeTimeOffQueryKeys (task 1.4)', () => {
     expect(key).toContain('time-off-pending')
   })
 
-  it('pendingByManager key includes the Employee.id of the target manager', () => {
-    const key = employeeTimeOffQueryKeys.pendingByManager('tenant-1', 'manager-1')
-    expect(key).toContain('manager-1')
-    expect(key).toContain('time-off-pending-by-manager')
-  })
+  // by-manager surface removed: the queue is tenant-wide now (HR-validation-notifications S1).
+  // employeeTimeOffQueryKeys.pending is the single source of truth.
 })
 
 describe('employeeEmergencyContactQueryKeys (task 1.4)', () => {

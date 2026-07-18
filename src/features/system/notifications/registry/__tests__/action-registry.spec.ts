@@ -138,3 +138,45 @@ describe('EXTENSION GUARANTEE — adding a module is registry-only', () => {
     })
   })
 })
+
+describe('HR module entry (S2 — hr-validation-notifications)', () => {
+  it('contains the "hr" module with the exact backend-specified moduleLabel', () => {
+    // backend-specified string — keep EXACTLY
+    const hr = ACTION_REGISTRY.find((m) => m.moduleKey === 'hr')
+    expect(hr).toBeDefined()
+    expect(hr!.moduleLabel).toBe('Recursos Humanos')
+  })
+
+  it('contains the TIME_OFF_REQUESTED action with the exact backend-specified label', () => {
+    const hr = ACTION_REGISTRY.find((m) => m.moduleKey === 'hr')
+    expect(hr).toBeDefined()
+    const action = hr!.actions.find((a) => a.key === 'TIME_OFF_REQUESTED')
+    expect(action).toBeDefined()
+    // backend-specified string — keep EXACTLY
+    expect(action!.label).toBe('Solicitud de validación')
+  })
+
+  it('isRegisteredActionKey returns true for TIME_OFF_REQUESTED (id ↔ enabledActions mapping)', () => {
+    expect(isRegisteredActionKey('TIME_OFF_REQUESTED')).toBe(true)
+  })
+
+  it('findActionDescriptor returns the TIME_OFF_REQUESTED descriptor with its Spanish label', () => {
+    const descriptor = findActionDescriptor('TIME_OFF_REQUESTED')
+    expect(descriptor).toBeDefined()
+    expect(descriptor!.key).toBe('TIME_OFF_REQUESTED')
+    expect(descriptor!.label).toBe('Solicitud de validación')
+  })
+
+  it('getActionsByKeys returns the TIME_OFF_REQUESTED descriptor in input order', () => {
+    const result = getActionsByKeys(['LOW_STOCK', 'TIME_OFF_REQUESTED'])
+    expect(result.map((a) => a.key)).toEqual(['LOW_STOCK', 'TIME_OFF_REQUESTED'])
+  })
+
+  it('ActionKey union accepts the literal "TIME_OFF_REQUESTED" (compile-time contract)', () => {
+    // Type-level RED gate: this assignment fails to compile until the
+    // ActionKey union includes 'TIME_OFF_REQUESTED'. Runtime value is
+    // asserted only after the type check passes.
+    const key: ActionKey = 'TIME_OFF_REQUESTED'
+    expect(key).toBe('TIME_OFF_REQUESTED')
+  })
+})

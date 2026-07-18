@@ -10,7 +10,7 @@
  * Known notification action keys. Add here ONLY when the backend adds a new
  * action to the registry; the front-end action registry mirrors it.
  */
-export type ActionKey = 'LOW_STOCK'
+export type ActionKey = 'LOW_STOCK' | 'TIME_OFF_REQUESTED'
 
 /**
  * GET /notification-config response.

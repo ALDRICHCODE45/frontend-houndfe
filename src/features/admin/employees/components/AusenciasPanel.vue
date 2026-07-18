@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * AusenciasPanel — WU-11 (review wiring)
+ * AusenciasPanel — WU-11 + S6 (hr-validation-notifications)
  *
  * Ausencias tab panel for the Employee Detail View.
  *
@@ -22,8 +22,18 @@
  * Backend constraints (§4.5):
  *   - Review: POST /:employeeId/time-off/:timeOffId/review — PENDING only
  *   - Cancel: POST /:employeeId/time-off/:timeOffId/cancel — PENDING or future APPROVED
- *   - Pending approvals: GET /admin/employees-time-off/pending-approvals?managerId=...
+ *   - Pending approvals: GET /admin/employees-time-off/pending-approvals (tenant-wide, no managerId)
  *   - NEVER send tenantId.
+ *
+ * S6 hardening:
+ *   - submitRequest surfaces the SPECIFIC voseo Zod issue message via
+ *     `firstZodIssueMessage` (e.g. "La fecha de fin debe ser igual o
+ *     posterior a la fecha de inicio") instead of the prior generic.
+ *   - submitRequest mutation error → `resolveCreateErrorMessage` (real
+ *     400 TIME_OFF_INVALID_DATE_RANGE voseo or joined Nest array).
+ *   - Cancel mutation error is surfaced by `useCancelTimeOff.onError`
+ *     via `resolveCancelErrorMessage` (real 409
+ *     TIME_OFF_INVALID_TRANSITION voseo).
  */
 
 import { computed, reactive, ref } from 'vue'
@@ -40,6 +50,8 @@ import {
   computeTimeOffDays,
   resolveSickReason,
   canCancelTimeOff,
+  firstZodIssueMessage,
+  resolveCreateErrorMessage,
 } from '../composables/useAusencias'
 import { useReviewTimeOff } from '../composables/useReviewTimeOff'
 import { formatTimeOffDateRange } from '../composables/useEmployeeColumns'
@@ -93,7 +105,14 @@ async function submitRequest(): Promise<void> {
     reason: requestForm.reason || undefined,
   })
   if (!parseResult.success) {
-    requestError.value = 'Verificá los datos del formulario.'
+    // S6: surface the SPECIFIC voseo message from the schema (e.g.
+    // "La fecha de fin debe ser igual o posterior a la fecha de
+    // inicio") instead of the prior generic "Verificá los datos del
+    // formulario." Falls back to a generic only if the error carries
+    // no issue (defensive — should never happen with safeParse).
+    requestError.value =
+      firstZodIssueMessage(parseResult.error) ??
+      'Verificá los datos del formulario.'
     return
   }
   try {
@@ -103,8 +122,12 @@ async function submitRequest(): Promise<void> {
     requestForm.startDate = ''
     requestForm.endDate = ''
     requestForm.reason = ''
-  } catch {
-    requestError.value = 'Error al enviar la solicitud. Intentá de nuevo.'
+  } catch (err) {
+    // S6: route the mutation error through `resolveCreateErrorMessage`
+    // so the user sees the REAL 400 TIME_OFF_INVALID_DATE_RANGE voseo
+    // message OR a joined Nest class-validator array — never the prior
+    // generic "Error al enviar la solicitud. Intentá de nuevo."
+    requestError.value = resolveCreateErrorMessage(err)
   }
 }
 

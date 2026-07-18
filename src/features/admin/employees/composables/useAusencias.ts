@@ -1,15 +1,21 @@
 /**
- * useAusencias — WU-10
+ * useAusencias — WU-10 + S5 + S6 (hr-validation-notifications)
  *
- * Pure helpers + composables for the Ausencias (time-off) tab.
+ * Pure helpers + composables for the Ausencias (time-off) tab and the
+ * tenant-wide "Validaciones pendientes" tray.
  *
  * Exports:
  *   Pure helpers (exported for direct unit testing — ZERO mocks needed):
- *   - formatTimeOffType(type)           — TimeOffType enum → Spanish label
- *   - formatTimeOffStatus(status)       — TimeOffStatus enum → Spanish label
- *   - computeTimeOffDays(start, end)    — inclusive UTC day count (same as computeDays in types)
- *   - resolveSickReason(type, reason)   — Tier 3 medical guard: null+SICK → "Confidencial"
- *   - canCancelTimeOff(status, start)   — PENDING always; APPROVED only if start is future
+ *   - formatTimeOffType(type)                    — TimeOffType enum → Spanish label
+ *   - formatTimeOffStatus(status)                — TimeOffStatus enum → Spanish label
+ *   - computeTimeOffDays(start, end)             — inclusive UTC day count (same as computeDays in types)
+ *   - resolveSickReason(type, reason)            — Tier 3 medical guard: null+SICK → "Motivo médico reservado" (S5)
+ *   - canCancelTimeOff(status, start)            — PENDING always; APPROVED only if start is future
+ *   - filterPendingBySearch(requests, map, q)    — pure client-side search by resolved employee name (S5)
+ *   - resolveDomainErrorMessage(code, fallback?) — pure EMPLOYEE_ERROR_MAP lookup → voseo message (S5)
+ *   - firstZodIssueMessage(error)                — first issue's voseo message from a failed safeParse (S6)
+ *   - resolveCancelErrorMessage(err, fallback?)  — 409 TIME_OFF_INVALID_TRANSITION surfacing for useCancelTimeOff (S6)
+ *   - resolveCreateErrorMessage(err, fallback?)  — 400 TIME_OFF_INVALID_DATE_RANGE surfacing for create (S6)
  *
  *   Composables (require Vue + TanStack Query context):
  *   - useEmployeeTimeOff(employeeId)    — query for time-off list (with optional year/status)
@@ -37,8 +43,10 @@ import { computed } from 'vue'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import type { MaybeRef } from 'vue'
 import { toValue } from 'vue'
+import type { ZodError } from 'zod'
 import { employeeTimeOffQueryKeys, employeeQueryKeys } from '@/core/shared/constants/query-keys'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import { normalizeApiError, DEFAULT_FALLBACK } from '@/core/shared/utils/error.utils'
 import { employeesApi } from '../api/employees.api'
 import {
   TIME_OFF_TYPE_LABELS,
@@ -51,6 +59,9 @@ import type {
   VacationBalance,
   CreateTimeOffDto,
 } from '../interfaces/employee.types'
+import { EMPLOYEE_ERROR_MAP } from '../interfaces/errors'
+import type { EmployeeDomainErrorCode } from '../interfaces/errors'
+import type { ManagerInfo } from './useManagerResolution'
 
 // ─── Pure helpers ─────────────────────────────────────────────────────────────
 
@@ -92,18 +103,22 @@ export function computeTimeOffDays(startDate: string, endDate: string): number {
  * Resolve the display value for a time-off reason, applying the Tier 3 medical guard.
  *
  * Rules:
- *   - type === 'SICK' && (reason === null || reason === '') → "Confidencial"
+ *   - type === 'SICK' && reason === null → "Motivo médico reservado"
  *     (null means backend stripped it — caller lacks read:EmployeeTimeOffMedical)
  *   - type !== 'SICK' && (reason === null || reason === '') → "—"
  *   - reason has a non-empty value → return reason as-is
  *
+ * S5 (hr-validation-notifications): the SICK+null placeholder changed from
+ * "Confidencial" to "Motivo médico reservado" — the prior copy was ambiguous
+ * and read as confidential-by-policy rather than confidential-by-permission.
+ *
  * PURE — deterministic.
  */
 export function resolveSickReason(type: TimeOffType, reason: string | null): string {
-  // null = backend-stripped (Tier 3 medical guard) → "Confidencial" for SICK only
+  // null = backend-stripped (Tier 3 medical guard) → voseo placeholder for SICK only
   // '' (empty string) = user provided no reason → "—" regardless of type
   if (reason === null) {
-    return type === 'SICK' ? 'Confidencial' : '—'
+    return type === 'SICK' ? 'Motivo médico reservado' : '—'
   }
   if (reason.trim() === '') {
     return '—'
@@ -133,6 +148,143 @@ export function canCancelTimeOff(status: TimeOffStatus, startDate: string): bool
   const todayStart = now - (now % MS_PER_DAY) // midnight UTC today
   const startMs = new Date(startDate).getTime()
   return startMs > todayStart
+}
+
+/**
+ * Pure client-side filter for the tenant-wide pending approvals tray.
+ *
+ * Filters the given list of PENDING `TimeOffRequest`s by employee name.
+ * The lookup uses a pre-built `id→ManagerInfo` map (produced by
+ * `buildManagerMap` in {@link useManagerResolution}); an unknown
+ * `employeeId` is treated as "—" and therefore does NOT match any
+ * non-empty query.
+ *
+ * Rules:
+ *   - Empty / whitespace-only query → returns the input array unchanged
+ *     (preserves backend ordering: startDate asc, then id asc).
+ *   - Otherwise → case-insensitive substring match against the resolved
+ *     `fullName`. Missing names resolve to "—" and never match.
+ *
+ * PURE — no side effects, no I/O.
+ */
+export function filterPendingBySearch(
+  requests: TimeOffRequest[],
+  nameMap: Map<string, ManagerInfo>,
+  query: string,
+): TimeOffRequest[] {
+  const normalized = query.trim().toLowerCase()
+  if (normalized === '') return requests
+
+  return requests.filter((req) => {
+    const name = nameMap.get(req.employeeId)?.fullName ?? '—'
+    return name.toLowerCase().includes(normalized)
+  })
+}
+
+/**
+ * Pure lookup of a domain error code against {@link EMPLOYEE_ERROR_MAP}.
+ *
+ * Returns the voseo message for known codes. For unknown / empty codes,
+ * returns the explicit `fallback` (when provided and non-blank) or the
+ * shared {@link DEFAULT_FALLBACK} from `core/shared/utils/error.utils.ts`.
+ *
+ * The map is authoritative — an explicit fallback is ONLY used on a
+ * miss. Pair with {@link normalizeApiError} (core/shared/utils/error.utils.ts)
+ * to extract `code` from a 409 / 400 backend envelope, then pass the code
+ * here to surface a user-visible Spanish message.
+ *
+ * PURE — deterministic.
+ */
+export function resolveDomainErrorMessage(
+  code: string | null | undefined,
+  fallback?: string,
+): string {
+  if (typeof code === 'string' && code.length > 0) {
+    // Narrow the index lookup to known codes — TS will type-check the union.
+    if (code in EMPLOYEE_ERROR_MAP) {
+      const known = code as EmployeeDomainErrorCode
+      return EMPLOYEE_ERROR_MAP[known]
+    }
+  }
+  if (typeof fallback === 'string' && fallback.trim().length > 0) {
+    return fallback
+  }
+  return DEFAULT_FALLBACK
+}
+
+/**
+ * Extract the first issue's voseo message from a failed Zod safeParse.
+ *
+ * Used by `AusenciasPanel.submitRequest` (S6) to surface the SPECIFIC
+ * voseo message from `CreateTimeOffDtoSchema.superRefine` (e.g.
+ * "La fecha de fin debe ser igual o posterior a la fecha de inicio")
+ * instead of the prior generic "Verificá los datos del formulario."
+ *
+ * Returns the first issue's message verbatim. Returns `null` when the
+ * error has no issues — defensive guard against a malformed `ZodError`
+ * (safeParse does not produce this, but the helper MUST NOT crash if
+ * the panel is ever handed a stub error from a future test harness).
+ *
+ * PURE — deterministic, no side effects.
+ */
+export function firstZodIssueMessage(error: ZodError): string | null {
+  const first = error.issues[0]
+  if (first === undefined) return null
+  return first.message
+}
+
+/** Default voseo message surfaced by `useCancelTimeOff` when the
+ *  backend sends no domain code AND the caller passes no fallback. */
+const DEFAULT_CANCEL_FALLBACK = 'No se pudo cancelar la ausencia.'
+
+/**
+ * Pure message resolver for the cancel mutation's error toast.
+ *
+ * Composes S3's `normalizeApiError` (parses both envelopes + extracts
+ * the backend `error` code) with S5's `resolveDomainErrorMessage` (maps
+ * the code to a voseo message via `EMPLOYEE_ERROR_MAP`).
+ *
+ * Surfaces the REAL 409 `TIME_OFF_INVALID_TRANSITION` voseo message
+ * ("La solicitud de ausencia no permite esa transición de estado.")
+ * instead of the prior hardcoded "Solo se pueden cancelar solicitudes
+ * pendientes o aprobadas con fecha futura." — a code-driven message
+ * stays accurate as the backend evolves.
+ *
+ * Falls back to `DEFAULT_CANCEL_FALLBACK` when the envelope has no
+ * code AND no fallback was passed by the caller.
+ *
+ * PURE — deterministic for a given `(err, fallback)` pair.
+ */
+export function resolveCancelErrorMessage(
+  err: unknown,
+  fallback: string = DEFAULT_CANCEL_FALLBACK,
+): string {
+  const { code, message } = normalizeApiError(err, fallback)
+  return resolveDomainErrorMessage(code, message)
+}
+
+/** Default voseo message surfaced when the create mutation fails and
+ *  the backend sends no domain code AND the caller passes no fallback. */
+const DEFAULT_CREATE_FALLBACK = 'No se pudo registrar la ausencia.'
+
+/**
+ * Pure message resolver for the create mutation's error toast
+ * (`AusenciasPanel.submitRequest`).
+ *
+ * Same composition contract as {@link resolveCancelErrorMessage} —
+ * composes `normalizeApiError` + `resolveDomainErrorMessage`. Surfaces
+ * the REAL 400 `TIME_OFF_INVALID_DATE_RANGE` voseo message OR a joined
+ * Nest class-validator `string[]` (never `[object Object]` or a raw
+ * array).
+ *
+ * PURE — deterministic for a given `(err, fallback)` pair.
+ */
+export function resolveCreateErrorMessage(
+  err: unknown,
+  fallback: string = DEFAULT_CREATE_FALLBACK,
+): string {
+  const { code, message } = normalizeApiError(err, fallback)
+  return resolveDomainErrorMessage(code, message)
 }
 
 // ─── Composables ──────────────────────────────────────────────────────────────
@@ -261,10 +413,14 @@ export function useCreateTimeOff(employeeId: MaybeRef<string>) {
       toast.add({ title: 'Ausencia solicitada', color: 'success' })
     },
 
-    onError: () => {
+    onError: (err) => {
+      // S6 follow-up: surface the real normalized voseo message (consistent
+      // with useReviewTimeOff / useCancelTimeOff) via resolveCreateErrorMessage
+      // instead of a hardcoded generic. Handles the 400 TIME_OFF_INVALID_DATE_RANGE
+      // domain code and joined Nest class-validator arrays.
       toast.add({
         title: 'No se pudo registrar la ausencia',
-        description: 'Verificá que las fechas sean válidas (fecha fin ≥ fecha inicio) e intentá de nuevo.',
+        description: resolveCreateErrorMessage(err),
         color: 'error',
       })
     },
@@ -283,6 +439,12 @@ export function useCreateTimeOff(employeeId: MaybeRef<string>) {
  * Requires update:EmployeeTimeOff permission.
  * On success: invalidates time-off list + vacation balance keys.
  * Backend error TIME_OFF_INVALID_TRANSITION if the row is not cancellable.
+ *
+ * On error (S6): routes the error through `resolveCancelErrorMessage`
+ * (composes S3 `normalizeApiError` + S5 `resolveDomainErrorMessage`) so
+ * the user sees the real 409 voseo message ("La solicitud de ausencia
+ * no permite esa transición de estado.") instead of the prior
+ * hardcoded generic.
  */
 export function useCancelTimeOff(employeeId: MaybeRef<string>) {
   const queryClient = useQueryClient()
@@ -314,10 +476,15 @@ export function useCancelTimeOff(employeeId: MaybeRef<string>) {
       toast.add({ title: 'Ausencia cancelada', color: 'success' })
     },
 
-    onError: () => {
+    onError: (err) => {
+      // S6: route the error through resolveCancelErrorMessage so the
+      // user sees the real domain code (e.g. 409
+      // TIME_OFF_INVALID_TRANSITION) translated to voseo, not a
+      // hardcoded generic.
+      const description = resolveCancelErrorMessage(err)
       toast.add({
         title: 'No se pudo cancelar la ausencia',
-        description: 'Solo se pueden cancelar solicitudes pendientes o aprobadas con fecha futura.',
+        description,
         color: 'error',
       })
     },
