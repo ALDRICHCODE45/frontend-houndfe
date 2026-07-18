@@ -32,7 +32,9 @@ import type { EmployeeDocument } from '../interfaces/employee.types'
 import {
   formatDaysRemaining,
   computeExpiringDocumentRow,
+  paginateRows,
 } from '../composables/useExpiringDocuments'
+import { formatTimeOffDate } from '../composables/useEmployeeColumns'
 
 // ─── http module for tenantId regression ──────────────────────────────────────
 import { http } from '@/core/shared/api/http'
@@ -159,6 +161,10 @@ describe('computeExpiringDocumentRow', () => {
     expect(row.expiresAt).toBe('2026-06-30')
     expect(row.daysRemaining).toBe(34)
     expect(row.daysRemainingLabel).toBe('34 días')
+    // expiresAtLabel is the localized, human-readable date (via the shared
+    // formatTimeOffDate formatter) — NOT the raw ISO string.
+    expect(row.expiresAtLabel).toBe(formatTimeOffDate('2026-06-30'))
+    expect(row.expiresAtLabel).toContain('2026')
   })
 
   it('falls back to category label when notes is null', () => {
@@ -175,6 +181,83 @@ describe('computeExpiringDocumentRow', () => {
     expect(row.title).toBe('Contrato')
     expect(row.daysRemaining).toBe(0)
     expect(row.daysRemainingLabel).toBe('Hoy')
+    expect(row.expiresAtLabel).toBe(formatTimeOffDate('2026-05-27'))
+  })
+
+  it('formats expiresAtLabel as "—" when expiresAt is null', () => {
+    const doc: EmployeeDocument = {
+      id: 'doc-4',
+      employeeId: 'emp-4',
+      fileId: 'file-4',
+      category: 'CONTRACT',
+      notes: 'Documento sin vencimiento',
+      expiresAt: null,
+      createdAt: '2026-01-01T00:00:00Z',
+    }
+    const row = computeExpiringDocumentRow(doc, new Date('2026-05-27T00:00:00Z'))
+    expect(row.expiresAt).toBeNull()
+    expect(row.expiresAtLabel).toBe('—')
+    expect(row.daysRemaining).toBe(0)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 3b. paginateRows — client-side pagination slice (the expiring endpoint returns
+//     the FULL array unpaginated, so the view slices it client-side).
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('paginateRows — client-side pagination slice', () => {
+  const makeRows = (n: number): { id: string }[] =>
+    Array.from({ length: n }, (_, i) => ({ id: `r${i + 1}` }))
+
+  it('returns an empty slice and zero counts for empty input', () => {
+    const result = paginateRows([], 1, 10)
+    expect(result.pageRows).toEqual([])
+    expect(result.total).toBe(0)
+    expect(result.pageCount).toBe(0)
+  })
+
+  it('returns all rows on a single page when total <= pageSize', () => {
+    const rows = makeRows(7)
+    const result = paginateRows(rows, 1, 10)
+    expect(result.pageRows).toHaveLength(7)
+    expect(result.total).toBe(7)
+    expect(result.pageCount).toBe(1)
+  })
+
+  it('slices the first page when total > pageSize', () => {
+    const rows = makeRows(25)
+    const result = paginateRows(rows, 1, 10)
+    expect(result.pageRows).toHaveLength(10)
+    expect(result.pageRows[0]).toEqual({ id: 'r1' })
+    expect(result.pageRows[9]).toEqual({ id: 'r10' })
+    expect(result.total).toBe(25)
+    expect(result.pageCount).toBe(3)
+  })
+
+  it('slices a middle page correctly', () => {
+    const rows = makeRows(25)
+    const result = paginateRows(rows, 2, 10)
+    expect(result.pageRows).toHaveLength(10)
+    expect(result.pageRows[0]).toEqual({ id: 'r11' })
+    expect(result.pageRows[9]).toEqual({ id: 'r20' })
+  })
+
+  it('returns the partial remainder on the last page', () => {
+    const rows = makeRows(25)
+    const result = paginateRows(rows, 3, 10)
+    expect(result.pageRows).toHaveLength(5)
+    expect(result.pageRows[0]).toEqual({ id: 'r21' })
+    expect(result.pageRows[4]).toEqual({ id: 'r25' })
+    expect(result.pageCount).toBe(3)
+  })
+
+  it('returns an empty slice when the page is beyond the range', () => {
+    const rows = makeRows(5)
+    const result = paginateRows(rows, 3, 10)
+    expect(result.pageRows).toEqual([])
+    expect(result.total).toBe(5)
+    expect(result.pageCount).toBe(1)
   })
 })
 
