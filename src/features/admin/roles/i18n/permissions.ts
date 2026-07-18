@@ -8,8 +8,11 @@
  * UI — but they are NOT what the user reads first when assigning a role.
  *
  * This module maps every (subject, action) the backend exposes to:
- *   - a short, action-oriented label in Rioplatense Spanish (the "title")
+ *   - a short, action-oriented label in neutral Spanish (the "title")
  *   - a 1-liner description explaining the implication (the "subtitle")
+ *
+ * Register: NEUTRAL, impersonal Spanish (Mexico client) — impersonal
+ * infinitives ("Crear", "Ver", "Editar"). No voseo, no "usted"/"tú".
  *
  * It also enumerates subjects that should be HIDDEN from the role
  * permissions UI because they are not meant for role composition:
@@ -49,6 +52,9 @@ const SUBJECT_LABELS: Record<string, string> = {
   EmployeeTimeOff: 'Ausencias',
   EmployeeTimeOffMedical: 'Incapacidades médicas',
   GlobalPriceList: 'Listas de precios globales',
+  SatKey: 'Claves del SAT',
+  ReceiptEvidence: 'Comprobantes de pago',
+  NotificationConfig: 'Configuración de notificaciones',
 }
 
 export function getSubjectLabel(subject: string): string {
@@ -64,8 +70,8 @@ interface PermissionCopy {
  * Per (subject, action) copy.
  *
  * Conventions:
- *   - Labels are action-oriented and use voseo ("Crear", "Agregar",
- *     "Editar", "Quitar", "Ver"). Avoid passive phrasing.
+ *   - Labels are action-oriented and use neutral, impersonal infinitives
+ *     ("Crear", "Agregar", "Editar", "Quitar", "Ver"). Avoid passive phrasing.
  *   - Descriptions explain WHAT the permission unlocks and any caveat
  *     worth knowing (e.g. "La cuenta del usuario sigue existiendo").
  *   - `manage` is the backend wildcard; describe it as "Gestión completa".
@@ -503,6 +509,48 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
         'Crear, ver, editar y eliminar listas de precios globales sin restricciones.',
     },
   },
+
+  // SatKey — catálogo nacional del SAT (solo lectura).
+  SatKey: {
+    read: {
+      label: 'Ver claves del SAT',
+      description:
+        'Consultar el catálogo de claves de productos y servicios del SAT.',
+    },
+  },
+
+  // ReceiptEvidence — revisión de comprobantes de pago (confirmar/rechazar).
+  ReceiptEvidence: {
+    read: {
+      label: 'Ver comprobantes de pago',
+      description: 'Consultar los comprobantes de pago enviados para revisión.',
+    },
+    update: {
+      label: 'Revisar comprobantes de pago',
+      description:
+        'Confirmar o rechazar los comprobantes de pago enviados para revisión.',
+    },
+    manage: {
+      label: 'Gestión completa de comprobantes',
+      description:
+        'Ver, confirmar y rechazar comprobantes de pago sin restricciones.',
+    },
+  },
+
+  // NotificationConfig — configuración de notificaciones por sucursal
+  // (alertas de bajo stock). Backend solo expone read + update.
+  NotificationConfig: {
+    read: {
+      label: 'Ver configuración de notificaciones',
+      description:
+        'Consultar la configuración de notificaciones y alertas de la sucursal.',
+    },
+    update: {
+      label: 'Editar configuración de notificaciones',
+      description:
+        'Modificar qué notificaciones y alertas se envían y quiénes las reciben en la sucursal.',
+    },
+  },
 }
 
 /** Generic fallback labels for actions when the (subject, action) pair is unknown. */
@@ -526,4 +574,24 @@ export function getPermissionLabel(subject: string, action: string): string {
 
 export function getPermissionDescription(subject: string, action: string): string {
   return PERMISSION_COPY[subject]?.[action]?.description ?? ''
+}
+
+/**
+ * Neutral-Spanish generic shown when a (subject, action) has no curated
+ * description. Used as the safety net so the UI never falls back to the
+ * backend-provided English `description`.
+ */
+export const GENERIC_PERMISSION_DESCRIPTION = 'Permiso del sistema para este recurso.'
+
+/**
+ * Resolve the description to render in the role-permission UI.
+ *
+ * Returns the curated neutral-Spanish description when available, otherwise a
+ * neutral-Spanish generic. It NEVER returns empty and — critically — never the
+ * backend's English `description`. Call this from the UI instead of
+ * `getPermissionDescription(...) || permission.description`, which leaked raw
+ * backend English for any unmapped (subject, action) pair.
+ */
+export function getPermissionDescriptionOrFallback(subject: string, action: string): string {
+  return getPermissionDescription(subject, action) || GENERIC_PERMISSION_DESCRIPTION
 }

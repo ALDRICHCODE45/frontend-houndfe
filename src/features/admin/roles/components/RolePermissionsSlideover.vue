@@ -6,7 +6,7 @@ import { adminRoleQueryKeys } from '@/core/shared/constants/query-keys'
 import { rolesApi } from '../api/roles.api'
 import { useRolePermissions } from '../composables/useRolePermissions'
 import {
-  getPermissionDescription,
+  getPermissionDescriptionOrFallback,
   getPermissionLabel,
   getSubjectLabel,
 } from '../i18n/permissions'
@@ -210,7 +210,7 @@ function getCode(subject: string, action: string) {
                         {{ getPermissionLabel(subject, permission.action) }}
                       </p>
                       <p class="text-xs sm:text-sm text-muted">
-                        {{ getPermissionDescription(subject, permission.action) || permission.description }}
+                        {{ getPermissionDescriptionOrFallback(subject, permission.action) }}
                       </p>
                     </div>
                     <code class="font-mono text-xs text-muted/70 sm:shrink-0 sm:text-right break-all">
