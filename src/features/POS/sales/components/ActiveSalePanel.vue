@@ -5,6 +5,7 @@ import SaleItemRow from './SaleItemRow.vue'
 import SaleTotalsFooter from './SaleTotalsFooter.vue'
 import PromocionesDisponiblesAccordion from './PromocionesDisponiblesAccordion.vue'
 import GlobalDiscountModal from './GlobalDiscountModal.vue'
+import PriceListSelector from './PriceListSelector.vue' // sdd/pos-price-list-tiers
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import type {
   ApplicablePromotion,
@@ -50,6 +51,12 @@ const props = defineProps<{
 // SaleItemRow's promo-badge remove control. Both `remove-order-promo`
 // and `remove-promo` route through the SAME confirm+veto flow in
 // SalesView (veto is permanent regardless of scope — spec §7a).
+//
+// pos-price-list-tiers adds `change-price-list` — the parent (SalesView)
+// calls `setPriceList(activeDraftId, globalPriceListId)` to apply the
+// price-list tier change. The confirm-gate lives HERE in the panel:
+// PriceListSelector emits `request-confirm` when the sale has items, and
+// we open a ConfirmModal that, on accept, re-emits `change-price-list`.
 const emit = defineEmits<{
   'switch-tab': [saleId: string]
   'close-tab': [saleId: string]
@@ -63,6 +70,7 @@ const emit = defineEmits<{
   'remove-promo': [promotionId: string]
   'apply-manual-promo': [promotionId: string]
   'remove-manual-promo': [promotionId: string]
+  'change-price-list': [globalPriceListId: string | null]
 }>()
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -71,6 +79,11 @@ const trashConfirmOpen = ref(false)
 const closeTabConfirmOpen = ref(false)
 const tabToClose = ref<string | null>(null)
 const globalDiscountModalOpen = ref(false)
+// pos-price-list-tiers: confirm modal state for price-list change. Holds
+// the pending list id while the dialog is open so the confirm handler can
+// forward it via `change-price-list`.
+const priceListConfirmOpen = ref(false)
+const pendingPriceListId = ref<string | null>(null)
 
 // ── Computed ──────────────────────────────────────────────────────────────────
 
@@ -152,6 +165,25 @@ function getCloseTabDescription(): string {
     return '¿Cerrar esta venta vacía?'
   }
   return `Vas a cerrar una venta con ${draft.items.length} productos. Esta acción no se puede deshacer.`
+
+}
+
+// pos-price-list-tiers: PriceListSelector hands the chosen id to the
+// parent via two events. The selector itself decides which event to fire
+// based on the item count; we just open the confirm modal on
+// `request-confirm` and re-emit `change-price-list` on accept.
+function handleRequestPriceListConfirm(globalPriceListId: string | null) {
+  pendingPriceListId.value = globalPriceListId
+  priceListConfirmOpen.value = true
+}
+
+function handleConfirmPriceListChange() {
+  // Forward whatever the selector asked for. `null` is the "Sin lista"
+  // sentinel — the parent's `setPriceList(saleId, null)` clears the
+  // assignment.
+  emit('change-price-list', pendingPriceListId.value)
+  pendingPriceListId.value = null
+  priceListConfirmOpen.value = false
 }
 
 </script>
@@ -177,6 +209,20 @@ function getCloseTabDescription(): string {
         ]"
         :model-value="'venta'"
         class="w-auto"
+      />
+
+      <!-- pos-price-list-tiers: tier selector lives between the type toggle
+           and the action buttons. Empty-state contract: PriceListSelector
+           shows a "Sin lista" placeholder when no list is assigned, and
+           routes the selection through `request-confirm` when the sale
+           has items (so the parent gets a chance to show a confirm modal
+           before the backend reprices everything). -->
+      <PriceListSelector
+        v-if="activeDraft"
+        :active-draft="activeDraft"
+        :is-mutating="isMutating"
+        @change-price-list="emit('change-price-list', $event)"
+        @request-confirm="handleRequestPriceListConfirm"
       />
 
       <div class="flex-1"></div>
@@ -349,6 +395,19 @@ function getCloseTabDescription(): string {
       confirm-label="Quitar todos"
       confirm-color="error"
       @confirm="handleConfirmTrash"
+    />
+
+    <!-- pos-price-list-tiers: confirmation gate for changing the active
+         price list when the sale has items. The backend will reprice all
+         non-sticky lines on success — the seller gets one chance to back
+         out. -->
+    <ConfirmModal
+      v-model:open="priceListConfirmOpen"
+      title="Cambiar lista de precios"
+      description="Esto va a recalcular los precios de todos los ítems."
+      confirm-label="Cambiar lista"
+      confirm-color="primary"
+      @confirm="handleConfirmPriceListChange"
     />
   </div>
 </template>

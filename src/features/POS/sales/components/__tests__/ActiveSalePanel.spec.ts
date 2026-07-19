@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
+import { mountWithUApp } from '@/test/mountWithUApp'
 import ActiveSalePanel from '../ActiveSalePanel.vue'
 import type { ApplicablePromotion, Sale } from '../../interfaces/sale.types'
 
@@ -26,6 +28,14 @@ function mountPanel(
     appliedManualPromotionIds?: string[]
   } = {},
 ) {
+  // pos-price-list-tiers: PriceListSelector uses useQuery for its price-
+  // lists fetch. The shared QueryClient here exists only to satisfy that
+  // injection — none of these tests assert on the query, so we don't seed
+  // it (an empty cache is fine; the selector's UI renders regardless).
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+  })
+
   return mount(ActiveSalePanel, {
     props: {
       drafts: activeDraft ? [activeDraft] : [],
@@ -46,6 +56,7 @@ function mountPanel(
       appliedManualPromotionIds: promoOverrides.appliedManualPromotionIds ?? [],
     },
     global: {
+      plugins: [[VueQueryPlugin, { queryClient }]],
       stubs: {
         SalesTabsStrip: { template: '<div />' },
         // C.5: SaleItemRow stub now exposes a `remove-promo` button so we can
@@ -68,6 +79,16 @@ function mountPanel(
         },
         GlobalDiscountModal: { template: '<div />' },
         ConfirmModal: { template: '<div />' },
+        // pos-price-list-tiers: stub PriceListSelector so the existing
+        // panel tests don't depend on the (unstubbable) UInputMenu.
+        PriceListSelector: {
+          name: 'PriceListSelector',
+          props: ['activeDraft', 'isMutating'],
+          emits: ['change-price-list', 'request-confirm'],
+          template:
+            '<div data-testid="price-list-selector-stub" '
+            + ':data-items-count="(activeDraft?.items ?? []).length" />',
+        },
         // C.4: stub forwards apply/remove emits so tests can verify the
         // accordion's event bubbling reaches ActiveSalePanel's parent emits.
         PromocionesDisponiblesAccordion: {
@@ -358,5 +379,170 @@ describe('ActiveSalePanel C.5 — SaleItemRow per-line remove-promo forwarding',
     expect(events).toBeTruthy()
     expect(events).toHaveLength(1)
     expect(events![0]).toEqual(['line-promo-uuid'])
+  })
+})
+
+// ── pos-price-list-tiers: PriceListSelector + confirm dialog wiring ───────────
+
+describe('ActiveSalePanel — PriceListSelector wiring (pos-price-list-tiers)', () => {
+  // Helper that mounts the panel AND stubs PriceListSelector so we can
+  // drive its emits from the test. The component's job is just to forward
+  // events and show a confirm dialog; the dropdown internals are covered
+  // by PriceListSelector.test.ts.
+  //
+  // We use `mountWithUApp` because the real ActiveSalePanel renders
+  // UTooltip (which depends on UApp's TooltipProvider context).
+
+  function mountPanelWithSelector(draft: Sale | null) {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 } },
+    })
+
+    return mountWithUApp(ActiveSalePanel, {
+      props: {
+        drafts: draft ? [draft] : [],
+        activeDraft: draft,
+        activeTabId: draft?.id ?? null,
+        isLoadingList: false,
+        isMutating: false,
+        onSubmitPriceOverride: vi.fn(async () => undefined),
+        onApplyDiscount: vi.fn(async () => undefined),
+        onRemoveDiscount: vi.fn(async () => undefined),
+        onRemoveItem: vi.fn(async () => undefined),
+        onApplyGlobalDiscount: vi.fn(async () => undefined),
+        onRemoveGlobalDiscount: vi.fn(async () => undefined),
+        applicablePromotions: [],
+        isLoadingPromotions: false,
+        appliedManualPromotionIds: [],
+      },
+      global: {
+        plugins: [[VueQueryPlugin, { queryClient }]],
+        stubs: {
+          SalesTabsStrip: { template: '<div />' },
+          SaleItemRow: { template: '<div />' },
+          SaleTotalsFooter: {
+            name: 'SaleTotalsFooter',
+            emits: ['charge-click', 'remove-order-promo'],
+            props: ['sale', 'isChargePending'],
+            template: '<div data-testid="sale-totals-footer-stub" />',
+          },
+          GlobalDiscountModal: { template: '<div />' },
+          // ConfirmModal stub: surfaces its `open` prop + the title prop +
+          // a clickable confirm button so we can drive the price-list
+          // confirm flow without the real UModal.
+          ConfirmModal: {
+            name: 'ConfirmModal',
+            props: ['open', 'title', 'description', 'confirmLabel', 'cancelLabel', 'confirmColor', 'loading'],
+            emits: ['update:open', 'confirm', 'cancel'],
+            template:
+              '<div data-testid="confirm-modal">'
+              + '<p data-testid="confirm-modal-open">{{ open }}</p>'
+              + '<p data-testid="confirm-modal-title">{{ title }}</p>'
+              + '<p data-testid="confirm-modal-confirm-color">{{ confirmColor }}</p>'
+              + '<button data-testid="confirm-modal-confirm" @click="$emit(\'confirm\')">confirm</button>'
+              + '<button data-testid="confirm-modal-cancel" @click="$emit(\'update:open\', false); $emit(\'cancel\')">cancel</button>'
+              + '</div>',
+          },
+          PromocionesDisponiblesAccordion: { template: '<div />' },
+          UTabs: { template: '<div />' },
+          UTooltip: { template: '<div><slot /></div>' },
+          UDropdownMenu: { template: '<div><slot /></div>' },
+          UButton: { template: '<button><slot /></button>' },
+          USkeleton: { template: '<div />' },
+          UIcon: { template: '<i />' },
+          // PriceListSelector stub: surfaces `active-draft` and `is-mutating`
+          // as data attributes + a button that drives each emit. The
+          // `request-confirm` button uses the itemCount to decide which
+          // event is appropriate (mirrors the real component's contract).
+          PriceListSelector: {
+            name: 'PriceListSelector',
+            props: ['activeDraft', 'isMutating'],
+            emits: ['change-price-list', 'request-confirm'],
+            template:
+              '<div data-testid="price-list-selector-stub" '
+              + ':data-items-count="(activeDraft?.items ?? []).length">'
+              + '<button data-testid="pls-change-btn" @click="$emit(\'change-price-list\', \'list-mayoreo\')">change</button>'
+              + '<button data-testid="pls-confirm-btn" @click="$emit(\'request-confirm\', \'list-mayoreo\')">request-confirm</button>'
+              + '<button data-testid="pls-clear-btn" @click="$emit(\'change-price-list\', null)">clear</button>'
+              + '</div>',
+          },
+        },
+      },
+    })
+  }
+
+  it('renders PriceListSelector in the panel when an active draft is present', () => {
+    const wrapper = mountPanelWithSelector(makeDraft({ items: [{ id: 'item-1', productId: 'prod-1', variantId: null, productName: 'A', variantName: null, quantity: 1, unitPriceCents: 1000, unitPriceCurrency: 'MXN' }] }))
+
+    const selector = wrapper.findComponent({ name: 'PriceListSelector' })
+    expect(selector.exists()).toBe(true)
+    expect(selector.props('activeDraft')).toBeDefined()
+  })
+
+  it('forwards `change-price-list` from PriceListSelector up to the parent (no confirm dialog)', async () => {
+    const draft = makeDraft({ items: [] })
+    const wrapper = mountPanelWithSelector(draft)
+
+    const selector = wrapper.findComponent({ name: 'PriceListSelector' })
+    selector.vm.$emit('change-price-list', 'list-mayoreo')
+    await wrapper.vm.$nextTick()
+
+    const events = wrapper.emitted('change-price-list')
+    expect(events).toBeTruthy()
+    expect(events).toHaveLength(1)
+    expect(events![0]).toEqual(['list-mayoreo'])
+
+    // The price-list ConfirmModal must NOT have opened — empty-sale flow
+    // bypasses it (the parent applies immediately). We identify the
+    // price-list modal by its title prop ("Cambiar lista de precios") and
+    // check its `open` flag specifically.
+    const priceListModal = wrapper.findAll('[data-testid="confirm-modal"]')
+      .find((m) => m.text().includes('Cambiar lista de precios'))
+    expect(priceListModal).toBeDefined()
+    expect(priceListModal!.find('[data-testid="confirm-modal-open"]').text()).toBe('false')
+  })
+
+  it('opens the price-list ConfirmModal when `request-confirm` fires on a sale with items', async () => {
+    const draft = makeDraft({
+      items: [{ id: 'item-1', productId: 'prod-1', variantId: null, productName: 'A', variantName: null, quantity: 1, unitPriceCents: 1000, unitPriceCurrency: 'MXN' }],
+    })
+    const wrapper = mountPanelWithSelector(draft)
+
+    const selector = wrapper.findComponent({ name: 'PriceListSelector' })
+    selector.vm.$emit('request-confirm', 'list-mayoreo')
+    await wrapper.vm.$nextTick()
+
+    // The price-list ConfirmModal is one of the ConfirmModal stubs in the
+    // tree. We identify it by its title prop ("Cambiar lista de precios").
+    const modal = wrapper.findAll('[data-testid="confirm-modal"]').find((m) => m.text().includes('Cambiar lista de precios'))
+    expect(modal).toBeDefined()
+    expect(modal!.find('[data-testid="confirm-modal-open"]').text()).toBe('true')
+    expect(modal!.text()).toContain('Cambiar lista de precios')
+  })
+
+  it('emits `change-price-list` from the parent when the price-list confirm dialog is accepted', async () => {
+    const draft = makeDraft({
+      items: [{ id: 'item-1', productId: 'prod-1', variantId: null, productName: 'A', variantName: null, quantity: 1, unitPriceCents: 1000, unitPriceCurrency: 'MXN' }],
+    })
+    const wrapper = mountPanelWithSelector(draft)
+
+    // Open the modal via the selector's `request-confirm`.
+    const selector = wrapper.findComponent({ name: 'PriceListSelector' })
+    selector.vm.$emit('request-confirm', 'list-mayoreo')
+    await wrapper.vm.$nextTick()
+
+    // Locate the price-list modal by its title and click its confirm button.
+    const modal = wrapper.findAll('[data-testid="confirm-modal"]')
+      .find((m) => m.text().includes('Cambiar lista de precios'))
+    expect(modal).toBeDefined()
+    const confirmBtn = modal!.find('[data-testid="confirm-modal-confirm"]')
+    await confirmBtn.trigger('click')
+    await wrapper.vm.$nextTick()
+
+    const events = wrapper.emitted('change-price-list')
+    expect(events).toBeTruthy()
+    // The id forwarded from the confirm dialog must match what the
+    // selector originally requested.
+    expect(events![events!.length - 1]).toEqual(['list-mayoreo'])
   })
 })
