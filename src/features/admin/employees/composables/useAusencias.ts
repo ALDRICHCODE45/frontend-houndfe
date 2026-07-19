@@ -48,6 +48,7 @@ import { employeeTimeOffQueryKeys, employeeQueryKeys } from '@/core/shared/const
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { normalizeApiError, DEFAULT_FALLBACK } from '@/core/shared/utils/error.utils'
 import { employeesApi } from '../api/employees.api'
+import { TIME_OFF_STATUS, TIME_OFF_TYPE } from '../constants/employee.constants'
 import {
   TIME_OFF_TYPE_LABELS,
   TIME_OFF_STATUS_LABELS,
@@ -118,7 +119,7 @@ export function resolveSickReason(type: TimeOffType, reason: string | null): str
   // null = backend-stripped (Tier 3 medical guard) → voseo placeholder for SICK only
   // '' (empty string) = user provided no reason → "—" regardless of type
   if (reason === null) {
-    return type === 'SICK' ? 'Motivo médico reservado' : '—'
+    return type === TIME_OFF_TYPE.SICK ? 'Motivo médico reservado' : '—'
   }
   if (reason.trim() === '') {
     return '—'
@@ -139,8 +140,8 @@ export function resolveSickReason(type: TimeOffType, reason: string | null): str
  * PURE — deterministic for a given wall-clock instant.
  */
 export function canCancelTimeOff(status: TimeOffStatus, startDate: string): boolean {
-  if (status === 'PENDING') return true
-  if (status !== 'APPROVED') return false
+  if (status === TIME_OFF_STATUS.PENDING) return true
+  if (status !== TIME_OFF_STATUS.APPROVED) return false
 
   // APPROVED: only if startDate is strictly in the future
   const MS_PER_DAY = 86_400_000

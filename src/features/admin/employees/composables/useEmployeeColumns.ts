@@ -17,6 +17,7 @@ import { computed } from 'vue'
 import { createSimpleHeader } from '@/core/shared/components/DataTable'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import type { AppBadgeTone } from '@/core/shared/utils/badge.utils'
+import { WORK_MODALITY } from '../constants/employee.constants'
 import type { Employee, WorkModality } from '../interfaces/employee.types'
 import { employeeStatusToBadgeTone } from '../utils/employeeBadgeConfig.utils'
 
@@ -39,11 +40,11 @@ const HIRE_DATE_FORMATTER = new Intl.DateTimeFormat('es-MX', {
  */
 export function workModalityToBadgeTone(modality: WorkModality): AppBadgeTone {
   switch (modality) {
-    case 'ONSITE':
+    case WORK_MODALITY.ONSITE:
       return 'neutral'
-    case 'REMOTE':
+    case WORK_MODALITY.REMOTE:
       return 'info'
-    case 'HYBRID':
+    case WORK_MODALITY.HYBRID:
       return 'pending'
   }
 }

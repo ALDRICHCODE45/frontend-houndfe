@@ -50,6 +50,8 @@ import {
   FIRST_PAGE,
   DEFAULT_TABLE_PAGE_SIZE,
 } from '@/core/shared/utils/pagination.utils'
+import { TIME_OFF_TYPE, REVIEW_DECISION } from '../constants/employee.constants'
+import type { ReviewDecisionValue } from '../constants/employee.constants'
 import { usePendingApprovals } from '../composables/useReviewTimeOff'
 import { useReviewTimeOff } from '../composables/useReviewTimeOff'
 import {
@@ -181,10 +183,10 @@ const { mutateAsync: submitReview, isPending: isReviewing } =
   useReviewTimeOff(reviewEmployeeId)
 
 const isReviewDialogOpen = ref(false)
-const reviewDecision = ref<'APPROVED' | 'REJECTED' | null>(null)
+const reviewDecision = ref<ReviewDecisionValue | null>(null)
 const reviewerNotes = ref('')
 
-function openReviewDialog(request: TimeOffRequest, decision: 'APPROVED' | 'REJECTED'): void {
+function openReviewDialog(request: TimeOffRequest, decision: ReviewDecisionValue): void {
   reviewingRequest.value = request
   reviewDecision.value = decision
   reviewerNotes.value = ''
@@ -220,13 +222,13 @@ function cancelReview(): void {
 
 function getTypeColor(type: string): 'primary' | 'warning' | 'error' | 'neutral' | 'success' {
   switch (type) {
-    case 'VACATION':
+    case TIME_OFF_TYPE.VACATION:
       return 'primary'
-    case 'SICK':
+    case TIME_OFF_TYPE.SICK:
       return 'error'
-    case 'PERSONAL':
+    case TIME_OFF_TYPE.PERSONAL:
       return 'warning'
-    case 'UNPAID':
+    case TIME_OFF_TYPE.UNPAID:
       return 'neutral'
     default:
       return 'neutral'
@@ -371,7 +373,7 @@ function getTypeColor(type: string): 'primary' | 'warning' | 'error' | 'neutral'
                   <UIcon name="i-lucide-message-square" class="mt-0.5 size-4 shrink-0 text-muted" />
                   <span
                     :class="[
-                      request.type === 'SICK' && request.reason === null
+                      request.type === TIME_OFF_TYPE.SICK && request.reason === null
                         ? 'italic text-muted'
                         : 'text-highlighted',
                     ]"
@@ -399,7 +401,7 @@ function getTypeColor(type: string): 'primary' | 'warning' | 'error' | 'neutral'
                   variant="soft"
                   size="sm"
                   :disabled="isReviewing"
-                  @click="openReviewDialog(request, 'REJECTED')"
+                  @click="openReviewDialog(request, REVIEW_DECISION.REJECTED)"
                 >
                   Rechazar
                 </UButton>
@@ -409,7 +411,7 @@ function getTypeColor(type: string): 'primary' | 'warning' | 'error' | 'neutral'
                   variant="soft"
                   size="sm"
                   :disabled="isReviewing"
-                  @click="openReviewDialog(request, 'APPROVED')"
+                  @click="openReviewDialog(request, REVIEW_DECISION.APPROVED)"
                 >
                   Aprobar
                 </UButton>
@@ -444,7 +446,7 @@ function getTypeColor(type: string): 'primary' | 'warning' | 'error' | 'neutral'
           <template #header>
             <h3 class="text-base font-semibold">
               {{
-                reviewDecision === 'APPROVED'
+                reviewDecision === REVIEW_DECISION.APPROVED
                   ? 'Aprobar solicitud de ausencia'
                   : 'Rechazar solicitud de ausencia'
               }}
@@ -467,11 +469,11 @@ function getTypeColor(type: string): 'primary' | 'warning' | 'error' | 'neutral'
             <UFormField label="Notas del revisor (opcional)">
               <UTextarea
                 v-model="reviewerNotes"
-                :placeholder="
-                  reviewDecision === 'REJECTED'
-                    ? 'Motivo del rechazo...'
-                    : 'Comentarios adicionales...'
-                "
+                  :placeholder="
+                    reviewDecision === REVIEW_DECISION.REJECTED
+                      ? 'Motivo del rechazo...'
+                      : 'Comentarios adicionales...'
+                  "
                 :rows="3"
                 class="w-full"
               />
@@ -489,12 +491,12 @@ function getTypeColor(type: string): 'primary' | 'warning' | 'error' | 'neutral'
                 Cancelar
               </UButton>
               <UButton
-                :color="reviewDecision === 'APPROVED' ? 'success' : 'error'"
+                :color="reviewDecision === REVIEW_DECISION.APPROVED ? 'success' : 'error'"
                 :loading="isReviewing"
                 @click="confirmReview"
               >
                 {{
-                  reviewDecision === 'APPROVED' ? 'Confirmar aprobación' : 'Confirmar rechazo'
+                  reviewDecision === REVIEW_DECISION.APPROVED ? 'Confirmar aprobación' : 'Confirmar rechazo'
                 }}
               </UButton>
             </div>

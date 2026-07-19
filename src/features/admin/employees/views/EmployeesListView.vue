@@ -37,6 +37,7 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { AppDataTable } from '@/core/shared/components/DataTable'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import { EMPLOYEE_STATUS, WORK_MODALITY } from '../constants/employee.constants'
 import { WORK_MODALITY_LABELS } from '../interfaces/employee.types'
 import { useEmployeesList } from '../composables/useEmployeesList'
 import {
@@ -150,11 +151,11 @@ const { managerMap } = useManagerResolution(
 // ── Modality badge class — kept inline (out of scope for this migration) ─────
 function getModalityBadgeClass(modality: Employee['workModality']): string {
   switch (modality) {
-    case 'REMOTE':
+    case WORK_MODALITY.REMOTE:
       return 'border-blue-200 bg-blue-50 text-blue-700'
-    case 'HYBRID':
+    case WORK_MODALITY.HYBRID:
       return 'border-orange-200 bg-orange-50 text-orange-700'
-    case 'ONSITE':
+    case WORK_MODALITY.ONSITE:
       return 'border-slate-200 bg-slate-100 text-slate-700'
   }
 }
@@ -332,7 +333,7 @@ const showingTo = computed(() => {
               <EntityAvatar
                 :name="row.original.fullName"
                 :seed="row.original.id"
-                :show-dot="row.original.status === 'ACTIVE'"
+                :show-dot="row.original.status === EMPLOYEE_STATUS.ACTIVE"
               />
               <div class="min-w-0">
                 <p class="truncate text-sm font-semibold text-highlighted hover:text-primary hover:underline">

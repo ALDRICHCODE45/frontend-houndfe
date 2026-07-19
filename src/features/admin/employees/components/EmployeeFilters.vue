@@ -14,6 +14,7 @@
  * but it is NOT a valid list filter param. It must not be emitted from here.
  * Ref: backend doc §4.1 GET /admin/employees query params.
  */
+import { EMPLOYEE_STATUS_FILTER } from '../constants/employee.constants'
 import type { EmployeeStatusFilter } from '../api/employees.api'
 
 const props = withDefaults(
@@ -33,9 +34,9 @@ const emit = defineEmits<{
 }>()
 
 const STATUS_TABS: { label: string; value: EmployeeStatusFilter }[] = [
-  { label: 'Todos', value: 'all' },
-  { label: 'Activos', value: 'active' },
-  { label: 'Bajas', value: 'terminated' },
+  { label: 'Todos', value: EMPLOYEE_STATUS_FILTER.ALL },
+  { label: 'Activos', value: EMPLOYEE_STATUS_FILTER.ACTIVE },
+  { label: 'Bajas', value: EMPLOYEE_STATUS_FILTER.TERMINATED },
 ]
 
 function onSearchUpdate(value: string) {

@@ -31,6 +31,7 @@
 
 import { computed, reactive, ref } from 'vue'
 import DateFieldPopover from '@/features/POS/sales/components/DateFieldPopover.vue'
+import { EMPLOYEE_DOCUMENT_CATEGORY } from '../constants/employee.constants'
 import { UploadDocumentDtoSchema } from '../interfaces/employee.types'
 import type { Employee, EmployeeDocumentCategory } from '../interfaces/employee.types'
 import { downloadFile } from '@/core/shared/api/multipart'
@@ -145,15 +146,15 @@ const isUploadOpen = ref(false)
 const uploadFormId = 'upload-document-form'
 
 const CATEGORY_OPTIONS: { label: string; value: EmployeeDocumentCategory }[] = [
-  { label: 'Contrato', value: 'CONTRACT' },
-  { label: 'Acuerdo de confidencialidad', value: 'NDA' },
-  { label: 'Evaluación', value: 'EVALUATION' },
-  { label: 'Certificado', value: 'CERTIFICATE' },
-  { label: 'Amonestación', value: 'WARNING' },
-  { label: 'Identificación', value: 'ID_DOCUMENT' },
-  { label: 'Currículum', value: 'CV' },
-  { label: 'Médico', value: 'MEDICAL' },
-  { label: 'Otro', value: 'OTHER' },
+  { label: 'Contrato', value: EMPLOYEE_DOCUMENT_CATEGORY.CONTRACT },
+  { label: 'Acuerdo de confidencialidad', value: EMPLOYEE_DOCUMENT_CATEGORY.NDA },
+  { label: 'Evaluación', value: EMPLOYEE_DOCUMENT_CATEGORY.EVALUATION },
+  { label: 'Certificado', value: EMPLOYEE_DOCUMENT_CATEGORY.CERTIFICATE },
+  { label: 'Amonestación', value: EMPLOYEE_DOCUMENT_CATEGORY.WARNING },
+  { label: 'Identificación', value: EMPLOYEE_DOCUMENT_CATEGORY.ID_DOCUMENT },
+  { label: 'Currículum', value: EMPLOYEE_DOCUMENT_CATEGORY.CV },
+  { label: 'Médico', value: EMPLOYEE_DOCUMENT_CATEGORY.MEDICAL },
+  { label: 'Otro', value: EMPLOYEE_DOCUMENT_CATEGORY.OTHER },
 ]
 
 const uploadState = reactive({
@@ -198,15 +199,15 @@ async function onUploadSubmit(): Promise<void> {
 // ─── Category badge color ─────────────────────────────────────────────────────
 
 const CATEGORY_BADGE_COLORS: Record<EmployeeDocumentCategory, string> = {
-  CONTRACT: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-  NDA: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
-  EVALUATION: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
-  CERTIFICATE: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
-  WARNING: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
-  ID_DOCUMENT: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
-  CV: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300',
-  MEDICAL: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-  OTHER: 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400',
+  [EMPLOYEE_DOCUMENT_CATEGORY.CONTRACT]: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+  [EMPLOYEE_DOCUMENT_CATEGORY.NDA]: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
+  [EMPLOYEE_DOCUMENT_CATEGORY.EVALUATION]: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+  [EMPLOYEE_DOCUMENT_CATEGORY.CERTIFICATE]: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
+  [EMPLOYEE_DOCUMENT_CATEGORY.WARNING]: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
+  [EMPLOYEE_DOCUMENT_CATEGORY.ID_DOCUMENT]: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
+  [EMPLOYEE_DOCUMENT_CATEGORY.CV]: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300',
+  [EMPLOYEE_DOCUMENT_CATEGORY.MEDICAL]: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+  [EMPLOYEE_DOCUMENT_CATEGORY.OTHER]: 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400',
 }
 </script>
 

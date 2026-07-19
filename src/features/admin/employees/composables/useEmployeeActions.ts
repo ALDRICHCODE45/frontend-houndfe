@@ -18,6 +18,7 @@
  * - Both require update:Employee CASL permission.
  */
 
+import { EMPLOYEE_STATUS } from '../constants/employee.constants'
 import type { Employee, EmployeeStatus } from '../interfaces/employee.types'
 
 // ─── Status guards (PURE) ─────────────────────────────────────────────────────
@@ -30,7 +31,7 @@ import type { Employee, EmployeeStatus } from '../interfaces/employee.types'
  * PURE — deterministic, no side effects.
  */
 export function canTerminate(status: EmployeeStatus): boolean {
-  return status === 'ACTIVE' || status === 'ON_LEAVE'
+  return status === EMPLOYEE_STATUS.ACTIVE || status === EMPLOYEE_STATUS.ON_LEAVE
 }
 
 /**
@@ -41,7 +42,7 @@ export function canTerminate(status: EmployeeStatus): boolean {
  * PURE — deterministic, no side effects.
  */
 export function canReactivate(status: EmployeeStatus): boolean {
-  return status === 'TERMINATED'
+  return status === EMPLOYEE_STATUS.TERMINATED
 }
 
 // ─── Action item shape ────────────────────────────────────────────────────────
