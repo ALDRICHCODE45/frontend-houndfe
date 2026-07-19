@@ -1,13 +1,43 @@
 import type { CustomerAddress } from '@/features/POS/customers/interfaces/customer.types'
 
-export type SaleStatus = 'DRAFT' | 'CONFIRMED'
+import type {
+  PAYMENT_METHOD,
+  SALE_DELIVERY_STATUS,
+  SALE_DETAIL_PAYMENT_METHOD,
+  SALE_PAYMENT_STATUS,
+  SALE_STATUS,
+  SALE_TIMELINE_EVENT_TYPE,
+} from '../constants/sale.constants'
+
+// Union types below are derived from the matching `as const` object in
+// `constants/sale.constants.ts` (sdd/magic-string-constants slice 3). The
+// const is the single source of truth — any value-level change happens there
+// and the type follows automatically. Call sites should still import the
+// TYPE from this file and the VALUES from the constants file (no import
+// aliasing; SCREAMING_SNAKE value + PascalCase type coexist).
+//
+// GUARDRAIL: SaleStatus now includes 'CANCELED' (ONE L). It is intentionally
+// a SEPARATE module-scoped string from admin/employees' 'CANCELLED' (TWO
+// L's). Per-module constants prevent the cross-module homonym bug.
+
+export type SaleStatus = (typeof SALE_STATUS)[keyof typeof SALE_STATUS]
 export type SaleCurrency = 'MXN'
 export type PriceSource = 'default' | 'price_list' | 'custom'
-export type PaymentMethod = 'cash' | 'card_credit' | 'card_debit' | 'transfer' | 'credit'
+export type PaymentMethod = (typeof PAYMENT_METHOD)[keyof typeof PAYMENT_METHOD]
 export type NonCreditPaymentMethod = Exclude<PaymentMethod, 'credit'>
 export type CollectionPaymentMethod = NonCreditPaymentMethod
-export type SalePaymentStatus = 'PAID' | 'PARTIAL' | 'CREDIT'
-export type SaleDeliveryStatus = 'PENDING' | 'DELIVERED' | 'NOT_APPLICABLE'
+export type SalePaymentStatus =
+  (typeof SALE_PAYMENT_STATUS)[keyof typeof SALE_PAYMENT_STATUS]
+export type SaleDeliveryStatus =
+  (typeof SALE_DELIVERY_STATUS)[keyof typeof SALE_DELIVERY_STATUS] // 'NOT_APPLICABLE' = instant-delivery (e.g. take-away); NOT "unknown".
+
+/**
+ * Discriminator used by `SaleTimelineEvent` for its `type` field.
+ * Each value maps to a distinct payload shape (see the discriminated
+ * union below).
+ */
+export type SaleTimelineEventType =
+  (typeof SALE_TIMELINE_EVENT_TYPE)[keyof typeof SALE_TIMELINE_EVENT_TYPE] // 'COMMENT' carries its own payload (actor + commentId + body); the other three are register-event shapes.
 
 // advanced-promotion-type WU-B — single source of truth for the rewardKind
 // literal that surfaces on both SaleItem (draft) and SaleDetailItem
@@ -56,7 +86,8 @@ export interface ConfirmedSalesListResponse {
   counts: SalesListCounts
 }
 
-export type SaleDetailPaymentMethod = 'CASH' | 'CARD_CREDIT' | 'CARD_DEBIT' | 'TRANSFER' | 'CREDIT'
+export type SaleDetailPaymentMethod =
+  (typeof SALE_DETAIL_PAYMENT_METHOD)[keyof typeof SALE_DETAIL_PAYMENT_METHOD] // UPPERCASE — distinct from PaymentMethod (LOWERCASE). Two different backend contracts.
 
 export type SaleCommentErrorCode = 'COMMENT_NOT_FOUND' | 'COMMENT_AUTHOR_FORBIDDEN' | 'SALE_NOT_FOUND'
 
@@ -181,7 +212,7 @@ export interface ListSalesParams {
   sortBy?: 'confirmedAt' | 'totalCents' | 'createdAt'
   sortOrder?: 'asc' | 'desc'
   q?: string
-  status?: Array<SaleStatus | 'CANCELED'>
+  status?: SaleStatus[] // 'CANCELED' (one L) is now part of the SaleStatus union (sdd/magic-string-constants slice 3).
   paymentStatus?: SalePaymentStatus[]
   paymentMethod?: SaleDetailPaymentMethod[]
   deliveryStatus?: SaleDeliveryStatus[]
