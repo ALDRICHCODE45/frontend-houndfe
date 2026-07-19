@@ -276,6 +276,24 @@ export function useSalesDrafts() {
     },
   })
 
+  // pos-price-list-tiers: PUT /sales/drafts/:id/price-list. Backend reprices
+  // all non-sticky lines; FE just replaces the draft in cache and invalidates
+  // applicable-promotions so the panel refetches any auto-promo eligibility.
+  const setPriceListMutation = useMutation({
+    mutationFn: ({
+      saleId,
+      globalPriceListId,
+    }: {
+      saleId: string
+      globalPriceListId: string | null
+    }) => saleApi.setPriceList(saleId, { globalPriceListId }),
+    onSuccess: (updatedSale) => {
+      const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
+      queryClient.setQueryData(draftsKey.value, replaceSaleInCache(currentDrafts, updatedSale))
+      invalidateApplicablePromotions(updatedSale.id)
+    },
+  })
+
   // Computed isMutating
   const isMutating = computed(() => {
     return (
@@ -294,6 +312,8 @@ export function useSalesDrafts() {
       || applyManualPromotionMutation.isPending.value
       || removeManualPromotionMutation.isPending.value
       || vetoAutoPromotionMutation.isPending.value
+      // pos-price-list-tiers:
+      || setPriceListMutation.isPending.value
     )
   })
 
@@ -407,6 +427,16 @@ export function useSalesDrafts() {
     })
   }
 
+  // pos-price-list-tiers: assign (or clear) the global price list on a draft.
+  // saleId is passed explicitly so callers can target any draft, not only the
+  // currently active one. `null` clears the assignment (reverts to PUBLICO).
+  const setPriceList = async (
+    saleId: string,
+    globalPriceListId: string | null,
+  ): Promise<Sale> => {
+    return await setPriceListMutation.mutateAsync({ saleId, globalPriceListId })
+  }
+
   return {
     drafts: computed(() => drafts.value ?? []),
     activeDraft,
@@ -431,5 +461,7 @@ export function useSalesDrafts() {
     applyManualPromotion,
     removeManualPromotion,
     vetoAutoPromotion,
+    // pos-price-list-tiers:
+    setPriceList,
   }
 }

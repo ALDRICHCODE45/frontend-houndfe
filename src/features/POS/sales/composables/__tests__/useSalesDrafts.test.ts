@@ -34,6 +34,8 @@ vi.mock('../../api/sale.api', () => ({
     applyManualPromotion: vi.fn(),
     removeManualPromotion: vi.fn(),
     vetoAutoPromotion: vi.fn(),
+    // pos-price-list-tiers:
+    setPriceList: vi.fn(),
   },
 }))
 
@@ -800,6 +802,112 @@ describe('useSalesDrafts - pure cache update functions', () => {
       )
 
       expect(saleApi.vetoAutoPromotion).toHaveBeenCalledWith('sale-1', 'promo-c')
+    })
+  })
+
+  // ────────────────────────────────────────────────────────────────────────
+  // pos-price-list-tiers — setPriceList mutation mirrors the existing
+  // pattern (replaceSaleInCache on draftsKey + invalidate applicable
+  // promotions). SaleId is passed explicitly because the assignment can
+  // target any draft, not just the active one.
+  // ────────────────────────────────────────────────────────────────────────
+  describe('setPriceList mutation cache behavior (pos-price-list-tiers)', () => {
+    const existingDraft: Sale = {
+      id: 'sale-1',
+      userId: 'user-1',
+      status: 'DRAFT',
+      createdAt: '2026-04-21T10:00:00Z',
+      updatedAt: '2026-04-21T10:00:00Z',
+      items: [],
+    }
+    const updatedDraft: Sale = {
+      ...existingDraft,
+      globalPriceListId: 'list-mayoreo',
+      updatedAt: '2026-04-21T10:30:00Z',
+    }
+    const expectedApplicableKey = saleQueryKeys.applicablePromotions('tenant-1', 'sale-1')
+
+    async function setupWithSpyForPriceList() {
+      vi.mocked(saleApi.listDrafts).mockResolvedValue([existingDraft])
+      const { result, queryClient } = mountComposable(() => useSalesDrafts())
+      await vi.waitFor(() =>
+        expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual([existingDraft]),
+      )
+      const spy = vi.spyOn(queryClient, 'invalidateQueries')
+      return { result, queryClient, spy }
+    }
+
+    it('replaces the draft cache on successful setPriceList (PUT returns updated Sale)', async () => {
+      vi.mocked(saleApi.setPriceList).mockResolvedValue(updatedDraft)
+      const { result, queryClient } = await setupWithSpyForPriceList()
+
+      const returned = await result.setPriceList('sale-1', 'list-mayoreo')
+
+      expect(saleApi.setPriceList).toHaveBeenCalledWith('sale-1', { globalPriceListId: 'list-mayoreo' })
+      expect(returned).toEqual(updatedDraft)
+
+      const cached = queryClient.getQueryData<Sale[]>(tenantDraftsKey)
+      expect(cached).toHaveLength(1)
+      expect(cached?.[0]?.globalPriceListId).toBe('list-mayoreo')
+      expect(cached?.[0]?.updatedAt).toBe('2026-04-21T10:30:00Z')
+    })
+
+    it('invalidates applicable-promotions for the affected draft on success', async () => {
+      vi.mocked(saleApi.setPriceList).mockResolvedValue(updatedDraft)
+      const { result, spy } = await setupWithSpyForPriceList()
+
+      await result.setPriceList('sale-1', 'list-mayoreo')
+
+      expect(spy).toHaveBeenCalledWith({ queryKey: expectedApplicableKey })
+    })
+
+    it('clears the active price list when globalPriceListId is null', async () => {
+      const clearedDraft: Sale = { ...existingDraft, globalPriceListId: null }
+      vi.mocked(saleApi.setPriceList).mockResolvedValue(clearedDraft)
+      const { result, queryClient } = await setupWithSpyForPriceList()
+
+      const returned = await result.setPriceList('sale-1', null)
+
+      expect(saleApi.setPriceList).toHaveBeenCalledWith('sale-1', { globalPriceListId: null })
+      expect(returned.globalPriceListId).toBeNull()
+      expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)?.[0]?.globalPriceListId).toBeNull()
+    })
+
+    it('keeps the existing draft cache unchanged when setPriceList fails', async () => {
+      vi.mocked(saleApi.setPriceList).mockRejectedValue(new Error('PRICE_LIST_NOT_FOUND'))
+      const { result, queryClient } = await setupWithSpyForPriceList()
+
+      await expect(result.setPriceList('sale-1', 'list-mayoreo')).rejects.toThrow('PRICE_LIST_NOT_FOUND')
+
+      const cached = queryClient.getQueryData<Sale[]>(tenantDraftsKey)
+      expect(cached).toEqual([existingDraft])
+      expect(cached?.[0]?.globalPriceListId).toBeUndefined()
+      expect(result.isMutating.value).toBe(false)
+    })
+
+    it('flips isMutating to true while setPriceList is in flight, false after settle', async () => {
+      let resolveSetPriceList: ((value: Sale) => void) | null = null
+      vi.mocked(saleApi.setPriceList).mockImplementation(
+        () =>
+          new Promise<Sale>((resolve) => {
+            resolveSetPriceList = resolve
+          }),
+      )
+
+      const { result } = await setupWithSpyForPriceList()
+
+      const inFlight = result.setPriceList('sale-1', 'list-mayoreo')
+
+      await vi.waitFor(() => {
+        expect(result.isMutating.value).toBe(true)
+      })
+
+      ;(resolveSetPriceList as unknown as (value: Sale) => void)(updatedDraft)
+      await inFlight
+
+      await vi.waitFor(() => {
+        expect(result.isMutating.value).toBe(false)
+      })
     })
   })
 })
