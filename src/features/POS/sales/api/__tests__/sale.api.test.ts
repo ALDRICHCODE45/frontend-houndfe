@@ -1151,4 +1151,53 @@ describe('saleApi', () => {
       )
     })
   })
+
+  describe('setPriceList (pos-price-list-tiers)', () => {
+    // pos-price-list-tiers: PUT /sales/drafts/:id/price-list with payload
+    // { globalPriceListId: string | null }. Returns the updated Sale.
+    const updatedSale: Sale = {
+      id: 'sale-1',
+      userId: 'user-1',
+      status: 'DRAFT',
+      items: [],
+      globalPriceListId: 'list-mayoreo',
+      createdAt: '2026-04-21T10:00:00Z',
+      updatedAt: '2026-04-21T10:20:00Z',
+    }
+
+    it('PUTs the payload to /sales/drafts/:id/price-list and returns the updated Sale', async () => {
+      vi.mocked(http.put).mockResolvedValue({ data: updatedSale })
+
+      const result = await saleApi.setPriceList('sale-1', { globalPriceListId: 'list-mayoreo' })
+
+      expect(http.put).toHaveBeenCalledWith(
+        '/sales/drafts/sale-1/price-list',
+        { globalPriceListId: 'list-mayoreo' },
+      )
+      expect(result).toEqual(updatedSale)
+      expect(result.globalPriceListId).toBe('list-mayoreo')
+    })
+
+    it('accepts null to clear the active price list', async () => {
+      const clearedSale: Sale = { ...updatedSale, globalPriceListId: null }
+      vi.mocked(http.put).mockResolvedValue({ data: clearedSale })
+
+      const result = await saleApi.setPriceList('sale-1', { globalPriceListId: null })
+
+      expect(http.put).toHaveBeenCalledWith(
+        '/sales/drafts/sale-1/price-list',
+        { globalPriceListId: null },
+      )
+      expect(result.globalPriceListId).toBeNull()
+    })
+
+    it.each([400, 403, 404, 409])('rejects documented error status %s', async (status) => {
+      const apiError = { response: { status } }
+      vi.mocked(http.put).mockRejectedValue(apiError)
+
+      await expect(
+        saleApi.setPriceList('sale-1', { globalPriceListId: 'list-mayoreo' }),
+      ).rejects.toEqual(apiError)
+    })
+  })
 })

@@ -259,4 +259,15 @@ export const saleApi = {
     const { data } = await http.delete<Sale>(`/sales/drafts/${saleId}/promotions/${promotionId}`)
     return data
   },
+
+  // pos-price-list-tiers: assign (or clear) the global price list on a draft.
+  // Backend reprices all non-sticky lines on success. `null` payload clears
+  // the assignment (reverts items to default pricing).
+  async setPriceList(
+    saleId: string,
+    payload: { globalPriceListId: string | null },
+  ): Promise<Sale> {
+    const { data } = await http.put<Sale>(`/sales/drafts/${saleId}/price-list`, payload)
+    return data
+  },
 }
