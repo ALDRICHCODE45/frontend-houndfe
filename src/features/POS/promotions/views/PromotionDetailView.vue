@@ -15,6 +15,10 @@ import {
   mapApiErrorToFields,
   type FormFieldError,
 } from '../composables/usePromotionForm'
+import {
+  INVALID_PROMOTION_TYPE,
+  PROMOTION_TYPE,
+} from '../constants/promotion.constants'
 
 declare const useToast: () => {
   add: (options: {
@@ -33,10 +37,10 @@ const tenantId = useSafeTenantId()
 // ── Valid type guard ──────────────────────────────────────────────────────────
 
 const VALID_PROMOTION_TYPES: PromotionType[] = [
-  'PRODUCT_DISCOUNT',
-  'ORDER_DISCOUNT',
-  'BUY_X_GET_Y',
-  'ADVANCED',
+  PROMOTION_TYPE.PRODUCT_DISCOUNT,
+  PROMOTION_TYPE.ORDER_DISCOUNT,
+  PROMOTION_TYPE.BUY_X_GET_Y,
+  PROMOTION_TYPE.ADVANCED,
 ]
 
 function isValidPromotionType(t: string): t is PromotionType {
@@ -50,7 +54,7 @@ const promotionType = computed(() => {
   const t = route.params.type
   if (typeof t === 'string' && t.length > 0) {
     if (isValidPromotionType(t)) return t
-    return 'INVALID' as const
+    return INVALID_PROMOTION_TYPE
   }
   return null
 })
@@ -67,7 +71,7 @@ const isCreateMode = computed(() => promotionType.value !== null)
 watch(
   () => promotionType.value,
   (type) => {
-    if (type === 'INVALID') {
+    if (type === INVALID_PROMOTION_TYPE) {
       toast.add({
         title: 'Tipo de promoción inválido',
         description: 'El tipo de promoción no es válido.',
@@ -195,10 +199,10 @@ const isSubmitting = computed(
 const formType = computed<PromotionType>(() => {
   if (isCreateMode.value) {
     const t = promotionType.value
-    if (t && t !== 'INVALID') return t
-    return 'PRODUCT_DISCOUNT'
+    if (t && t !== INVALID_PROMOTION_TYPE) return t
+    return PROMOTION_TYPE.PRODUCT_DISCOUNT
   }
-  return promotionData.value?.type ?? 'PRODUCT_DISCOUNT'
+  return promotionData.value?.type ?? PROMOTION_TYPE.PRODUCT_DISCOUNT
 })
 </script>
 

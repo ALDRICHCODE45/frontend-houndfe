@@ -1,27 +1,39 @@
 // ── Enums ─────────────────────────────────────────────────────────────────────
+//
+// Each union type below is derived from the matching `as const` object in
+// `constants/promotion.constants.ts` (sdd/magic-string-constants slice 2). The
+// const is the single source of truth — any value-level change happens there
+// and the type follows automatically. Call sites should still import the
+// TYPE from this file and the VALUES from the constants file (no import
+// aliasing; SCREAMING_SNAKE value + PascalCase type coexist).
 
-export type PromotionType = 'PRODUCT_DISCOUNT' | 'ORDER_DISCOUNT' | 'BUY_X_GET_Y' | 'ADVANCED'
+import type {
+  CUSTOMER_SCOPE,
+  DAY_OF_WEEK,
+  DISCOUNT_TYPE,
+  PROMOTION_METHOD,
+  PROMOTION_STATUS,
+  PROMOTION_TARGET_TYPE,
+  PROMOTION_TYPE,
+  TARGET_SIDE,
+} from '../constants/promotion.constants'
 
-export type PromotionMethod = 'AUTOMATIC' | 'MANUAL'
+export type PromotionType = (typeof PROMOTION_TYPE)[keyof typeof PROMOTION_TYPE]
 
-export type PromotionStatus = 'ACTIVE' | 'SCHEDULED' | 'ENDED'
+export type PromotionMethod = (typeof PROMOTION_METHOD)[keyof typeof PROMOTION_METHOD]
 
-export type DiscountType = 'PERCENTAGE' | 'FIXED'
+export type PromotionStatus = (typeof PROMOTION_STATUS)[keyof typeof PROMOTION_STATUS]
 
-export type PromotionTargetType = 'CATEGORIES' | 'BRANDS' | 'PRODUCTS' | 'VARIANTS'
+export type DiscountType = (typeof DISCOUNT_TYPE)[keyof typeof DISCOUNT_TYPE]
 
-export type CustomerScope = 'ALL' | 'REGISTERED_ONLY' | 'SPECIFIC'
+export type PromotionTargetType =
+  (typeof PROMOTION_TARGET_TYPE)[keyof typeof PROMOTION_TARGET_TYPE]
 
-export type DayOfWeek =
-  | 'MONDAY'
-  | 'TUESDAY'
-  | 'WEDNESDAY'
-  | 'THURSDAY'
-  | 'FRIDAY'
-  | 'SATURDAY'
-  | 'SUNDAY'
+export type CustomerScope = (typeof CUSTOMER_SCOPE)[keyof typeof CUSTOMER_SCOPE]
 
-export type TargetSide = 'DEFAULT' | 'BUY' | 'GET'
+export type DayOfWeek = (typeof DAY_OF_WEEK)[keyof typeof DAY_OF_WEEK]
+
+export type TargetSide = (typeof TARGET_SIDE)[keyof typeof TARGET_SIDE]
 
 // ── Backend Response Shape ─────────────────────────────────────────────────────
 

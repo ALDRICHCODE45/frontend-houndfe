@@ -3,6 +3,7 @@ import type {
   PromotionTargetType,
   PromotionType,
 } from '../interfaces/promotion.types'
+import { PROMOTION_TYPE } from '../constants/promotion.constants'
 
 /**
  * Pure helper — ADVANCED promotion disjoint BUY∩GET target check.
@@ -91,7 +92,7 @@ export function computeOverlappingTargets(
   getTargetType: PromotionTargetType | '',
   getItems: PromotionTargetItemFormEntry[],
 ): OverlappingTarget[] {
-  if (promotionType !== 'ADVANCED') return []
+  if (promotionType !== PROMOTION_TYPE.ADVANCED) return []
   return findOverlappingTargets(
     buyTargetType as PromotionTargetType,
     buyItems,

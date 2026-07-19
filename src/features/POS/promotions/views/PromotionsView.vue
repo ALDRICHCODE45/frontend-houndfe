@@ -17,6 +17,11 @@ import type { PromotionMethod, PromotionResponse, PromotionStatus, PromotionType
 import PromotionTypeSelector from '../components/PromotionTypeSelector.vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import {
+  PROMOTION_METHOD,
+  PROMOTION_STATUS,
+  PROMOTION_TYPE,
+} from '../constants/promotion.constants'
 
 declare const useToast: () => {
   add: (options: {
@@ -69,23 +74,23 @@ const filterMethodSelect = computed<PromotionMethod | typeof ALL_FILTER_VALUE>({
 
 const TYPE_OPTIONS = [
   { label: 'Todos los tipos', value: ALL_FILTER_VALUE },
-  { label: 'Descuento en productos', value: 'PRODUCT_DISCOUNT' },
-  { label: 'Descuento en pedido', value: 'ORDER_DISCOUNT' },
-  { label: '2x1, 3x2 o similares', value: 'BUY_X_GET_Y' },
-  { label: 'Avanzada', value: 'ADVANCED' },
+  { label: 'Descuento en productos', value: PROMOTION_TYPE.PRODUCT_DISCOUNT },
+  { label: 'Descuento en pedido', value: PROMOTION_TYPE.ORDER_DISCOUNT },
+  { label: '2x1, 3x2 o similares', value: PROMOTION_TYPE.BUY_X_GET_Y },
+  { label: 'Avanzada', value: PROMOTION_TYPE.ADVANCED },
 ]
 
 const STATUS_OPTIONS = [
   { label: 'Todos los estados', value: ALL_FILTER_VALUE },
-  { label: 'Activa', value: 'ACTIVE' },
-  { label: 'Programada', value: 'SCHEDULED' },
-  { label: 'Finalizada', value: 'ENDED' },
+  { label: 'Activa', value: PROMOTION_STATUS.ACTIVE },
+  { label: 'Programada', value: PROMOTION_STATUS.SCHEDULED },
+  { label: 'Finalizada', value: PROMOTION_STATUS.ENDED },
 ]
 
 const METHOD_OPTIONS = [
   { label: 'Todos los métodos', value: ALL_FILTER_VALUE },
-  { label: 'Automático', value: 'AUTOMATIC' },
-  { label: 'Manual', value: 'MANUAL' },
+  { label: 'Automático', value: PROMOTION_METHOD.AUTOMATIC },
+  { label: 'Manual', value: PROMOTION_METHOD.MANUAL },
 ]
 
 // ── Server table ──────────────────────────────────────────────────────────────
@@ -234,7 +239,7 @@ function getRowItems(promotion: PromotionResponse) {
       : [])
 
   const extraActions = [
-    ...(canUpdate.value && promotion.status !== 'ENDED'
+    ...(canUpdate.value && promotion.status !== PROMOTION_STATUS.ENDED
       ? [{ label: 'Finalizar', onSelect: () => handleEnd(promotion) }]
       : []),
     ...(canDelete.value

@@ -7,6 +7,7 @@ import type {
 import { chipLabel } from '../../utils/promotionChipLabel'
 import FlatChecklistPanel from './FlatChecklistPanel.vue'
 import VariantsPanel from './VariantsPanel.vue'
+import { PROMOTION_TARGET_TYPE } from '../../constants/promotion.constants'
 
 // ── Props & emits ─────────────────────────────────────────────────────────────
 
@@ -138,7 +139,7 @@ defineExpose({ onConfirm, onCancel, staged })
 <template>
   <UModal
     :open="open"
-    :title="`Seleccionar ${type === 'CATEGORIES' ? 'categorías' : type === 'BRANDS' ? 'marcas' : type === 'PRODUCTS' ? 'productos' : 'variantes'}`"
+    :title="`Seleccionar ${type === PROMOTION_TARGET_TYPE.CATEGORIES ? 'categorías' : type === PROMOTION_TARGET_TYPE.BRANDS ? 'marcas' : type === PROMOTION_TARGET_TYPE.PRODUCTS ? 'productos' : 'variantes'}`"
     description="Modal de selección de targets para promociones"
     :ui="{ width: 'max-w-2xl' }"
     @update:open="(v: boolean) => emit('update:open', v)"
@@ -147,14 +148,14 @@ defineExpose({ onConfirm, onCancel, staged })
       <div class="flex flex-col gap-4">
         <!-- Flat panel: CATEGORIES | BRANDS | PRODUCTS (REQ-1, REQ-3, REQ-5) -->
         <FlatChecklistPanel
-          v-if="type === 'CATEGORIES' || type === 'BRANDS' || type === 'PRODUCTS'"
+          v-if="type === PROMOTION_TARGET_TYPE.CATEGORIES || type === PROMOTION_TARGET_TYPE.BRANDS || type === PROMOTION_TARGET_TYPE.PRODUCTS"
           :data-source="type"
           :staged="staged"
           @update:staged="onUpdateStaged"
         />
         <!-- Variants accordion: VARIANTS (REQ-4) -->
         <VariantsPanel
-          v-else-if="type === 'VARIANTS'"
+          v-else-if="type === PROMOTION_TARGET_TYPE.VARIANTS"
           :staged="staged"
           @update:staged="onUpdateStaged"
         />
