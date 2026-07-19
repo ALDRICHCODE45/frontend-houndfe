@@ -16,6 +16,7 @@ import { useQuery, keepPreviousData } from '@tanstack/vue-query'
 import { refDebounced } from '@vueuse/core'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { employeeQueryKeys } from '@/core/shared/constants/query-keys'
+import { EMPLOYEE_STATUS_FILTER } from '../constants/employee.constants'
 import { employeesApi, type EmployeeStatusFilter, type EmployeesListParams } from '../api/employees.api'
 import type { Employee } from '../interfaces/employee.types'
 import type { PaginatedResponse } from '@/core/shared/types/table.types'
@@ -66,7 +67,7 @@ export function useEmployeesList(options: UseEmployeesListOptions = {}) {
   const tenantId = computed(() => authStore.currentTenantId)
 
   // ── Filter state ──────────────────────────────────────────────────────────
-  const statusTab = ref<EmployeeStatusFilter>('all')
+  const statusTab = ref<EmployeeStatusFilter>(EMPLOYEE_STATUS_FILTER.ALL)
   const search = ref('')
   const managerId = ref<string | undefined>(undefined)
   const page = ref(1)

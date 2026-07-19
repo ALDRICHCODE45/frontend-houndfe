@@ -24,6 +24,7 @@ import {
   formatHireDate,
 } from '../composables/useEmployeeColumns'
 import { computeSeniority } from '../composables/useEmployeeViewMode'
+import { EMPLOYEE_STATUS } from '../constants/employee.constants'
 import {
   WORK_MODALITY_LABELS,
   type Employee,
@@ -92,7 +93,7 @@ const rowActions = computed(() =>
       <EntityAvatar
         :name="employee.fullName"
         :seed="employee.id"
-        :show-dot="employee.status === 'ACTIVE'"
+        :show-dot="employee.status === EMPLOYEE_STATUS.ACTIVE"
         size="lg"
       />
 

@@ -38,6 +38,7 @@ import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { employeeQueryKeys } from '@/core/shared/constants/query-keys'
 import { DEFAULT_TABLE_PAGE_SIZE } from '@/core/shared/utils/pagination.utils'
+import { EMPLOYEE_DOCUMENT_CATEGORY } from '../constants/employee.constants'
 import { employeesApi } from '../api/employees.api'
 import {
   useExpiringDocuments,
@@ -145,14 +146,14 @@ function getCategoryColor(
   category: string,
 ): 'primary' | 'warning' | 'error' | 'neutral' | 'success' {
   switch (category) {
-    case 'CONTRACT':
-    case 'NDA':
+    case EMPLOYEE_DOCUMENT_CATEGORY.CONTRACT:
+    case EMPLOYEE_DOCUMENT_CATEGORY.NDA:
       return 'primary'
-    case 'MEDICAL':
-    case 'WARNING':
+    case EMPLOYEE_DOCUMENT_CATEGORY.MEDICAL:
+    case EMPLOYEE_DOCUMENT_CATEGORY.WARNING:
       return 'error'
-    case 'EVALUATION':
-    case 'CERTIFICATE':
+    case EMPLOYEE_DOCUMENT_CATEGORY.EVALUATION:
+    case EMPLOYEE_DOCUMENT_CATEGORY.CERTIFICATE:
       return 'success'
     default:
       return 'neutral'

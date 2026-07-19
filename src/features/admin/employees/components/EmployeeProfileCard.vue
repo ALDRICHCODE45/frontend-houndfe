@@ -23,6 +23,7 @@ import {
 } from '../composables/useEmployeeColumns'
 import { buildProfileInitials } from '../composables/useEmployeeDetail'
 import { getEmployeeRowActions } from '../composables/useEmployeeActions'
+import { EMPLOYEE_STATUS, WORK_MODALITY } from '../constants/employee.constants'
 import {
   WORK_MODALITY_LABELS,
   CONTRACT_TYPE_LABELS,
@@ -69,11 +70,11 @@ const modalityLabel = computed(() => WORK_MODALITY_LABELS[props.employee.workMod
 
 function getModalityBadgeClass(modality: Employee['workModality']): string {
   switch (modality) {
-    case 'REMOTE':
+    case WORK_MODALITY.REMOTE:
       return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/15 dark:text-blue-300'
-    case 'HYBRID':
+    case WORK_MODALITY.HYBRID:
       return 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-500/30 dark:bg-orange-500/15 dark:text-orange-300'
-    case 'ONSITE':
+    case WORK_MODALITY.ONSITE:
       return 'border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-500/30 dark:bg-slate-500/15 dark:text-slate-300'
   }
 }
@@ -143,7 +144,7 @@ const rowActions = computed(() =>
         </div>
         <!-- Active status green dot -->
         <span
-          v-if="employee.status === 'ACTIVE'"
+          v-if="employee.status === EMPLOYEE_STATUS.ACTIVE"
           class="absolute bottom-1 right-1 size-4 rounded-full border-[3px] border-white bg-emerald-500 dark:border-gray-900"
           aria-label="Activo"
         />

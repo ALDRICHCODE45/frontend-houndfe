@@ -38,6 +38,8 @@
 
 import { computed, reactive, ref } from 'vue'
 import DateFieldPopover from '@/features/POS/sales/components/DateFieldPopover.vue'
+import { TIME_OFF_STATUS, TIME_OFF_TYPE, REVIEW_DECISION } from '../constants/employee.constants'
+import type { ReviewDecisionValue } from '../constants/employee.constants'
 import type { Employee } from '../interfaces/employee.types'
 import { ReviewTimeOffDtoSchema, CreateTimeOffDtoSchema } from '../interfaces/employee.types'
 import {
@@ -89,7 +91,7 @@ const timeOffList = computed(() => timeOffResponse.value?.data ?? [])
 
 const isRequestOpen = ref(false)
 const requestForm = reactive({
-  type: 'VACATION' as const,
+  type: TIME_OFF_TYPE.VACATION,
   startDate: '',
   endDate: '',
   reason: '',
@@ -118,7 +120,7 @@ async function submitRequest(): Promise<void> {
   try {
     await requestTimeOff(parseResult.data)
     isRequestOpen.value = false
-    requestForm.type = 'VACATION'
+    requestForm.type = TIME_OFF_TYPE.VACATION
     requestForm.startDate = ''
     requestForm.endDate = ''
     requestForm.reason = ''
@@ -149,14 +151,14 @@ async function handleCancel(timeOffId: string): Promise<void> {
 const isReviewOpen = ref(false)
 const reviewingId = ref<string | null>(null)
 const reviewForm = reactive({
-  decision: 'APPROVED' as 'APPROVED' | 'REJECTED',
+  decision: REVIEW_DECISION.APPROVED as ReviewDecisionValue,
   reviewerNotes: '',
 })
 const reviewError = ref<string | null>(null)
 
 function openReview(timeOffId: string): void {
   reviewingId.value = timeOffId
-  reviewForm.decision = 'APPROVED'
+  reviewForm.decision = REVIEW_DECISION.APPROVED
   reviewForm.reviewerNotes = ''
   reviewError.value = null
   isReviewOpen.value = true
@@ -198,27 +200,27 @@ const yearOptions = computed(() => {
 // ─── Time-off type options (Spanish labels) ──────────────────────────────────
 
 const TIME_OFF_TYPE_OPTIONS = [
-  { label: 'Vacaciones', value: 'VACATION' },
-  { label: 'Enfermedad', value: 'SICK' },
-  { label: 'Personal', value: 'PERSONAL' },
-  { label: 'Sin goce de sueldo', value: 'UNPAID' },
+  { label: 'Vacaciones', value: TIME_OFF_TYPE.VACATION },
+  { label: 'Enfermedad', value: TIME_OFF_TYPE.SICK },
+  { label: 'Personal', value: TIME_OFF_TYPE.PERSONAL },
+  { label: 'Sin goce de sueldo', value: TIME_OFF_TYPE.UNPAID },
 ] as const
 
 // ─── Review decision options ─────────────────────────────────────────────────
 
 const REVIEW_DECISION_OPTIONS = [
-  { label: 'Aprobar', value: 'APPROVED' },
-  { label: 'Rechazar', value: 'REJECTED' },
+  { label: 'Aprobar', value: REVIEW_DECISION.APPROVED },
+  { label: 'Rechazar', value: REVIEW_DECISION.REJECTED },
 ] as const
 
 // ─── Status badge color helper ────────────────────────────────────────────────
 
 function statusColor(status: string): string {
   const map: Record<string, string> = {
-    PENDING: 'warning',
-    APPROVED: 'success',
-    REJECTED: 'error',
-    CANCELLED: 'neutral',
+    [TIME_OFF_STATUS.PENDING]: 'warning',
+    [TIME_OFF_STATUS.APPROVED]: 'success',
+    [TIME_OFF_STATUS.REJECTED]: 'error',
+    [TIME_OFF_STATUS.CANCELLED]: 'neutral',
   }
   return map[status] ?? 'neutral'
 }
@@ -227,10 +229,10 @@ function statusColor(status: string): string {
 
 function typeColor(type: string): string {
   const map: Record<string, string> = {
-    VACATION: 'primary',
-    SICK: 'error',
-    PERSONAL: 'secondary',
-    UNPAID: 'neutral',
+    [TIME_OFF_TYPE.VACATION]: 'primary',
+    [TIME_OFF_TYPE.SICK]: 'error',
+    [TIME_OFF_TYPE.PERSONAL]: 'secondary',
+    [TIME_OFF_TYPE.UNPAID]: 'neutral',
   }
   return map[type] ?? 'neutral'
 }
@@ -339,7 +341,7 @@ function typeColor(type: string): string {
           <div class="flex items-center gap-2">
             <!-- Review button — only for PENDING items, requires canUpdate -->
             <UButton
-              v-if="canUpdate && item.status === 'PENDING'"
+              v-if="canUpdate && item.status === TIME_OFF_STATUS.PENDING"
               size="xs"
               color="primary"
               variant="outline"

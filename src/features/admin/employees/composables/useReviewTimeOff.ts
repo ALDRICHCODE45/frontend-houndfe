@@ -27,6 +27,7 @@ import { employeeTimeOffQueryKeys } from '@/core/shared/constants/query-keys'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
 import { employeesApi } from '../api/employees.api'
+import { TIME_OFF_STATUS } from '../constants/employee.constants'
 import { resolveDomainErrorMessage } from './useAusencias'
 import type { TimeOffRequest, ReviewTimeOffDto } from '../interfaces/employee.types'
 
@@ -100,7 +101,7 @@ export function useReviewTimeOff(employeeId: MaybeRef<string>) {
         ),
       })
 
-      const decisionLabel = result.status === 'APPROVED' ? 'aprobada' : 'rechazada'
+      const decisionLabel = result.status === TIME_OFF_STATUS.APPROVED ? 'aprobada' : 'rechazada'
       toast.add({ title: `Ausencia ${decisionLabel}`, color: 'success' })
     },
 

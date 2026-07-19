@@ -12,6 +12,8 @@
 import { http } from '@/core/shared/api/http'
 import type { PaginatedResponse } from '@/core/shared/types/table.types'
 import { uploadMultipart } from '@/core/shared/api/multipart'
+import { EMPLOYEE_STATUS_FILTER } from '../constants/employee.constants'
+import type { EmployeeStatusFilterValue } from '../constants/employee.constants'
 import type {
   Employee,
   EmployeesBackendList,
@@ -56,7 +58,7 @@ export interface DocumentsBackendList {
 
 // ─── Query param types ────────────────────────────────────────────────────────
 
-export type EmployeeStatusFilter = 'active' | 'terminated' | 'all'
+export type EmployeeStatusFilter = EmployeeStatusFilterValue
 
 export interface EmployeesListParams {
   /** Lowercase status filter — NOT the backend enum value */
@@ -137,12 +139,12 @@ export const employeesApi = {
       pageSize: params.pageSize ?? 10,
     }
 
-    if (params.status && params.status !== 'all') {
+    if (params.status && params.status !== EMPLOYEE_STATUS_FILTER.ALL) {
       queryParams.status = params.status
-    } else if (params.status === 'all') {
+    } else if (params.status === EMPLOYEE_STATUS_FILTER.ALL) {
       // 'all' means no status filter — some backends ignore it, some need it
       // Send it explicitly to communicate intent
-      queryParams.status = 'all'
+      queryParams.status = EMPLOYEE_STATUS_FILTER.ALL
     }
 
     if (params.search && params.search.trim() !== '') {
@@ -178,7 +180,7 @@ export const employeesApi = {
   async listForPicker(search: string): Promise<Employee[]> {
     const { data } = await http.get<EmployeesBackendList>('/admin/employees', {
       params: {
-        status: 'active',
+        status: EMPLOYEE_STATUS_FILTER.ACTIVE,
         pageSize: 100,
         ...(search.trim() ? { search: search.trim() } : {}),
       },
