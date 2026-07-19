@@ -565,17 +565,21 @@ async function handleRemoveManualPromo(promotionId: string) {
 // here. We call setPriceList(activeDraftId, globalPriceListId) which
 // triggers the PUT /sales/drafts/:id/price-list mutation; on success the
 // draft cache is replaced and isMutating flips back to false (so the
-// selector re-enables). On error we surface a generic toast — the
-// selector's UI naturally reverts because the modelValue is bound
-// directly to activeDraft.globalPriceListId (no local optimistic state).
+// selector re-enables). On error we surface the backend message (or a
+// generic fallback) — the selector's UI naturally reverts because the
+// modelValue is bound directly to activeDraft.globalPriceListId (no local
+// optimistic state). Follows the same pattern as handleClearItems and
+// handleAddProduct for consistent error observability.
 async function handleChangePriceList(globalPriceListId: string | null) {
   if (!activeDraftId.value) return
   try {
     await setPriceList(activeDraftId.value, globalPriceListId)
-  } catch {
+  } catch (error) {
+    const err = error as AxiosError<DomainApiError>
+    const message = err.response?.data?.message ?? 'No se pudo cambiar la lista de precios'
     toast.add({
       title: 'Error',
-      description: 'No se pudo cambiar la lista de precios',
+      description: message,
       color: 'error',
     })
   }

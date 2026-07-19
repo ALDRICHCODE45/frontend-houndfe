@@ -22,6 +22,7 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import PriceListSelector from '../PriceListSelector.vue'
 import type { Sale } from '../../interfaces/sale.types'
 import type { GlobalPriceList } from '@/features/POS/products/interfaces/product.types'
+import { productQueryKeys } from '@/core/shared/constants/query-keys'
 
 function makeDraft(overrides: Partial<Sale> = {}): Sale {
   return {
@@ -50,7 +51,7 @@ function mountSelector(props: Record<string, unknown> = {}, options: { preSeedLi
   })
 
   if (options.preSeedLists) {
-    queryClient.setQueryData(['price-lists', 'global'], options.preSeedLists)
+    queryClient.setQueryData(productQueryKeys.globalPriceLists(), options.preSeedLists)
   }
 
   return mount(PriceListSelector, {
@@ -91,17 +92,16 @@ describe('PriceListSelector (pos-price-list-tiers)', () => {
   // ── (c) Disabled state while mutating ────────────────────────────────────
   //
   // UInputMenu forwards `disabled` to its underlying `<input>` element.
-  // We check that the input is disabled when isMutating is true.
+  // We use the same `input[aria-expanded]` selector as the non-disabled
+  // test and check the `disabled` attribute to avoid coupling to UInputMenu
+  // internals.
 
   it('disables the dropdown when isMutating is true', () => {
     const wrapper = mountSelector({ isMutating: true }, { preSeedLists: sampleLists })
 
-    const disabledInputs = wrapper.findAll('input[disabled]')
-    // The chevron toggle button is also disabled when isMutating is true,
-    // so we expect AT LEAST one disabled input. The contract is "the
-    // dropdown is disabled" — exact count of disabled inputs is not part
-    // of the spec.
-    expect(disabledInputs.length).toBeGreaterThanOrEqual(1)
+    const primaryInput = wrapper.find('input[aria-expanded]')
+    expect(primaryInput.exists()).toBe(true)
+    expect(primaryInput.attributes('disabled')).toBeDefined()
   })
 
   it('does NOT disable the dropdown when isMutating is false', () => {
@@ -183,9 +183,9 @@ describe('PriceListSelector (pos-price-list-tiers)', () => {
     expect(events![0]).toEqual([null])
   })
 
-  // ── (g) "Sin lista" entry is always present in the dropdown options ─────
+  // ── (g) handleUpdate is exposed and emits no events on mount ───────────
 
-  it('always exposes a "Sin lista" entry in the dropdown options regardless of query state', () => {
+  it('exposes handleUpdate and does not emit events on initial mount (no pre-selection)', () => {
     // We verify the items prop passed to UInputMenu includes the sentinel.
     // The internal `menuItems` computed isn't exposed, but we can read it
     // back through the rendered UInputMenu's `items` prop via the
@@ -193,11 +193,10 @@ describe('PriceListSelector (pos-price-list-tiers)', () => {
     // can always add an expose for `menuItems` later.
     const wrapper = mountSelector({}, { preSeedLists: sampleLists })
 
-    // Verify the contract via the rendered HTML — UInputMenu renders an
-    // `<input role="combobox">` we can confirm exists. The "Sin lista"
-    // entry's existence is implicit in handleUpdate mapping `__none__` to
-    // null — that mapping IS the contract (otherwise the dropdown option
-    // wouldn't be useful). The handler tests above cover that path.
+    // Verify the contract: handleUpdate is callable via defineExpose so
+    // tests can drive the selection-flow logic without depending on
+    // UInputMenu's popover DOM. On mount with no user interaction, no
+    // events have been emitted yet.
     const exposed = wrapper.vm as unknown as { handleUpdate: (raw: unknown) => void }
     expect(typeof exposed.handleUpdate).toBe('function')
 

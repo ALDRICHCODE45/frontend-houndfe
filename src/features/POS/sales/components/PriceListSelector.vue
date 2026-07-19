@@ -127,15 +127,28 @@ defineExpose({ handleUpdate })
       <span>Lista: <strong class="font-semibold">{{ activeListName ?? activeDraft.globalPriceListId }}</strong></span>
     </div>
 
-    <UInputMenu
-      :model-value="modelValue"
-      :items="menuItems"
-      :placeholder="activeDraft?.globalPriceListId ? 'Cambiar lista' : 'Sin lista'"
-      :disabled="isMutating || priceListsQuery.isFetching.value"
-      :loading="priceListsQuery.isFetching.value"
-      value-key="value"
-      data-testid="price-list-menu"
-      @update:model-value="handleUpdate"
-    />
+	    <!--
+	      Query-failure state: when the price-lists endpoint is unreachable
+	      the dropdown stays disabled so the cashier can't pick a list from
+	      stale/missing data. The "Sin lista" option remains reachable via
+	      the confirmation gate in ActiveSalePanel if the cashier wants to
+	      explicitly clear the assignment.
+	    -->
+	    <UInputMenu
+	      :model-value="modelValue"
+	      :items="menuItems"
+	      :placeholder="activeDraft?.globalPriceListId ? 'Cambiar lista' : 'Sin lista'"
+	      :disabled="isMutating || priceListsQuery.isFetching.value || priceListsQuery.isError.value"
+	      :loading="priceListsQuery.isFetching.value"
+	      value-key="value"
+	      data-testid="price-list-menu"
+	      @update:model-value="handleUpdate"
+	    />
+	    <span
+	      v-if="priceListsQuery.isError.value && !priceListsQuery.isFetching.value"
+	      class="text-[11px] text-error-500 dark:text-error-400"
+	    >
+	      Error al cargar listas
+	    </span>
   </div>
 </template>
