@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { formatSaleDueDate } from '../utils/saleDate.utils'
 import { getPaymentStatusBadge } from '../utils/saleStatus.utils'
+import { SALE_PAYMENT_STATUS, SALE_STATUS } from '../constants/sale.constants' // sdd/magic-string-constants slice 3
 import type { SaleDetail } from '../interfaces/sale.types'
 
 const props = defineProps<{
@@ -24,7 +25,9 @@ const debtColor = computed(() => {
 })
 
 const canRegisterPayment = computed(
-  () => props.sale.paymentStatus !== 'PAID' && props.sale.status === 'CONFIRMED',
+  () =>
+    props.sale.paymentStatus !== SALE_PAYMENT_STATUS.PAID
+    && props.sale.status === SALE_STATUS.CONFIRMED,
 )
 </script>
 
@@ -60,7 +63,7 @@ const canRegisterPayment = computed(
       </div>
       
       <!-- Due Date -->
-      <div v-if="sale.paymentStatus !== 'PAID'" class="flex items-center justify-between" data-testid="sidebar-due-date">
+      <div v-if="sale.paymentStatus !== SALE_PAYMENT_STATUS.PAID" class="flex items-center justify-between" data-testid="sidebar-due-date">
         <div>
           <p class="text-sm text-muted">Vence</p>
           <p v-if="sale.dueDate" class="font-medium">

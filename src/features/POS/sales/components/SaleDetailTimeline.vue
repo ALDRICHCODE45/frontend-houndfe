@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import type { SaleTimelineEvent } from '../interfaces/sale.types'
+import type { SaleTimelineEvent, SaleTimelineEventType } from '../interfaces/sale.types'
+import { SALE_TIMELINE_EVENT_TYPE } from '../constants/sale.constants'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { formatPaymentMethod } from '../utils/salePaymentMethod.utils'
 import { formatSaleDate } from '../utils/saleDate.utils'
@@ -27,35 +28,38 @@ const editingBody = ref('')
 
 const isPending = computed(() => props.isPending ?? false)
 
-type TimelineEventType = 'SALE_REGISTERED' | 'PAYMENT_RECEIVED' | 'PRODUCTS_DELIVERED' | 'COMMENT'
+// sdd/magic-string-constants slice 3: timeline event type comes from the
+// per-module constants file (value-pin tests in __tests__/sale.constants.spec.ts
+// lock the spelling). The key list is exhaustive at compile time; a new
+// backend event type would force this Record to be extended.
 
-const EVENT_COLORS: Readonly<Record<TimelineEventType, { text: string; bg: string }>> = {
-  SALE_REGISTERED: { text: 'text-primary', bg: 'bg-primary/10' },
-  PAYMENT_RECEIVED: { text: 'text-success', bg: 'bg-success/10' },
-  PRODUCTS_DELIVERED: { text: 'text-info', bg: 'bg-info/10' },
-  COMMENT: { text: 'text-muted', bg: 'bg-muted/10' },
-} as const
+const EVENT_COLORS: Readonly<Record<SaleTimelineEventType, { text: string; bg: string }>> = {
+  [SALE_TIMELINE_EVENT_TYPE.SALE_REGISTERED]: { text: 'text-primary', bg: 'bg-primary/10' },
+  [SALE_TIMELINE_EVENT_TYPE.PAYMENT_RECEIVED]: { text: 'text-success', bg: 'bg-success/10' },
+  [SALE_TIMELINE_EVENT_TYPE.PRODUCTS_DELIVERED]: { text: 'text-info', bg: 'bg-info/10' },
+  [SALE_TIMELINE_EVENT_TYPE.COMMENT]: { text: 'text-muted', bg: 'bg-muted/10' },
+}
 
 const orderedTimeline = computed(() => [...props.timeline].sort((a, b) => b.at.localeCompare(a.at)))
 
 function eventLabel(event: SaleTimelineEvent): string {
-  if (event.type === 'SALE_REGISTERED') return 'Venta Registrada'
-  if (event.type === 'PRODUCTS_DELIVERED') return 'Entrega de Productos'
-  if (event.type === 'COMMENT') return 'Comentario'
+  if (event.type === SALE_TIMELINE_EVENT_TYPE.SALE_REGISTERED) return 'Venta Registrada'
+  if (event.type === SALE_TIMELINE_EVENT_TYPE.PRODUCTS_DELIVERED) return 'Entrega de Productos'
+  if (event.type === SALE_TIMELINE_EVENT_TYPE.COMMENT) return 'Comentario'
 
   return `Cobro de ${formatCentsMXN(event.amountCents)} en ${formatPaymentMethod(event.method)}`
 }
 
 function actorLabel(event: SaleTimelineEvent): string | null {
-  if (event.type === 'COMMENT') return event.actor.name
+  if (event.type === SALE_TIMELINE_EVENT_TYPE.COMMENT) return event.actor.name
   return event.actor?.name ?? null
 }
 
 function eventIcon(event: SaleTimelineEvent): string {
-  if (event.type === 'SALE_REGISTERED') return 'i-lucide-plus-circle'
-  if (event.type === 'PAYMENT_RECEIVED') return 'i-lucide-circle-dollar-sign'
-  if (event.type === 'PRODUCTS_DELIVERED') return 'i-lucide-shopping-cart'
-  if (event.type === 'COMMENT') return 'i-lucide-message-circle'
+  if (event.type === SALE_TIMELINE_EVENT_TYPE.SALE_REGISTERED) return 'i-lucide-plus-circle'
+  if (event.type === SALE_TIMELINE_EVENT_TYPE.PAYMENT_RECEIVED) return 'i-lucide-circle-dollar-sign'
+  if (event.type === SALE_TIMELINE_EVENT_TYPE.PRODUCTS_DELIVERED) return 'i-lucide-shopping-cart'
+  if (event.type === SALE_TIMELINE_EVENT_TYPE.COMMENT) return 'i-lucide-message-circle'
   return 'i-lucide-circle'
 }
 
@@ -65,12 +69,12 @@ function eventIconColor(event: SaleTimelineEvent): string {
 }
 
 function canManageComment(event: SaleTimelineEvent): boolean {
-  if (event.type !== 'COMMENT') return false
+  if (event.type !== SALE_TIMELINE_EVENT_TYPE.COMMENT) return false
   return event.actor.id === props.currentUserId
 }
 
 function startEdit(event: SaleTimelineEvent) {
-  if (event.type !== 'COMMENT') return
+  if (event.type !== SALE_TIMELINE_EVENT_TYPE.COMMENT) return
   editingCommentId.value = event.commentId
   editingBody.value = event.body
 }
@@ -91,7 +95,7 @@ async function saveEdit(commentId: string) {
 }
 
 async function saveEditForEvent(event: SaleTimelineEvent) {
-  if (event.type !== 'COMMENT') return
+  if (event.type !== SALE_TIMELINE_EVENT_TYPE.COMMENT) return
   await saveEdit(event.commentId)
 }
 
@@ -105,7 +109,7 @@ async function deleteComment(commentId: string) {
 }
 
 async function deleteCommentForEvent(event: SaleTimelineEvent) {
-  if (event.type !== 'COMMENT') return
+  if (event.type !== SALE_TIMELINE_EVENT_TYPE.COMMENT) return
   await deleteComment(event.commentId)
 }
 
@@ -120,7 +124,7 @@ async function deleteCommentForEvent(event: SaleTimelineEvent) {
     <div class="space-y-4">
       <div
         v-for="(event, index) in orderedTimeline"
-        :key="event.type === 'COMMENT' ? event.commentId : `${event.type}-${event.at}`"
+        :key="event.type === SALE_TIMELINE_EVENT_TYPE.COMMENT ? event.commentId : `${event.type}-${event.at}`"
         data-testid="timeline-event"
         class="flex items-start gap-3 relative"
       >
@@ -150,12 +154,12 @@ async function deleteCommentForEvent(event: SaleTimelineEvent) {
             </UTooltip>
           </div>
           
-          <p v-if="event.type === 'COMMENT'" class="mt-2 text-sm" data-testid="timeline-comment-body">
+          <p v-if="event.type === SALE_TIMELINE_EVENT_TYPE.COMMENT" class="mt-2 text-sm" data-testid="timeline-comment-body">
             {{ event.body }}
           </p>
-          
+
           <div
-            v-if="event.type === 'COMMENT' && editingCommentId === event.commentId"
+            v-if="event.type === SALE_TIMELINE_EVENT_TYPE.COMMENT && editingCommentId === event.commentId"
             class="mt-2 space-y-2"
             data-testid="comment-edit-form"
           >

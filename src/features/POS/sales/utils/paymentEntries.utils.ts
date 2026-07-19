@@ -1,10 +1,11 @@
 import type { CollectionPaymentMethod, PaymentEntry } from '../interfaces/sale.types'
+import { PAYMENT_METHOD } from '../constants/sale.constants' // sdd/magic-string-constants slice 3 — lowercase contract.
 
 export const COLLECTION_PAYMENT_METHODS: CollectionPaymentMethod[] = [
-  'cash',
-  'card_credit',
-  'card_debit',
-  'transfer',
+  PAYMENT_METHOD.CASH,
+  PAYMENT_METHOD.CARD_CREDIT,
+  PAYMENT_METHOD.CARD_DEBIT,
+  PAYMENT_METHOD.TRANSFER,
 ]
 
 export const MAX_PAYMENT_ENTRIES = 5
@@ -15,7 +16,7 @@ type PaymentEntryValidation = Partial<Record<'amountCents' | 'reference', string
 export function createEntry(method: CollectionPaymentMethod, remainingCents: number): PaymentEntry {
   return {
     method,
-    amountCents: method === 'cash' ? remainingCents : 0,
+    amountCents: method === PAYMENT_METHOD.CASH ? remainingCents : 0,
   }
 }
 
@@ -61,7 +62,7 @@ export function validateEntry(entry: PaymentEntry): PaymentEntryValidation {
     errors.amountCents = 'El monto debe ser mayor a 0'
   }
 
-  if (entry.method !== 'cash') {
+  if (entry.method !== PAYMENT_METHOD.CASH) {
     const reference = entry.reference?.trim() ?? ''
     if (!reference) {
       errors.reference = 'La referencia es obligatoria'

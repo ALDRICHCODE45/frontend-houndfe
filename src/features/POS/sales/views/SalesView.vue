@@ -25,6 +25,7 @@ import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { saleQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import { getSalePaymentErrorAction } from '../utils/salePaymentErrors.utils'
+import { POS_ACTIVE_TAB_STORAGE_KEY } from '../constants/sale.constants' // sdd/magic-string-constants slice 3: the ONLY raw localStorage key left in the project.
 
 declare const useToast: () => {
   add: (options: {
@@ -145,7 +146,7 @@ watch(
 
     // Restore active tab from localStorage (or pick first)
     if (!activeTabId.value || !currentDrafts.some((d) => d.id === activeTabId.value)) {
-      const storedTabId = localStorage.getItem('pos:active-tab')
+      const storedTabId = localStorage.getItem(POS_ACTIVE_TAB_STORAGE_KEY)
       const validStoredTab = storedTabId && currentDrafts.some((d) => d.id === storedTabId)
       activeTabId.value = validStoredTab ? storedTabId : (currentDrafts[0]?.id ?? null)
     }
@@ -163,7 +164,7 @@ watch(
 // Watch activeTabId and persist to localStorage
 watch(activeTabId, (id) => {
   if (id) {
-    localStorage.setItem('pos:active-tab', id)
+    localStorage.setItem(POS_ACTIVE_TAB_STORAGE_KEY, id)
   }
 })
 
