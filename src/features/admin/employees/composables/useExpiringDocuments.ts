@@ -32,6 +32,11 @@ import { DOCUMENT_CATEGORY_LABELS } from '../interfaces/employee.types'
 import type { EmployeeDocument } from '../interfaces/employee.types'
 import { formatTimeOffDate } from './useEmployeeColumns'
 
+// Client-side pagination now lives in the shared util. Re-exported here so
+// existing importers (ExpiringDocumentsView + its tests) keep working unchanged.
+export { paginateRows } from '@/core/shared/utils/pagination.utils'
+export type { PaginatedRows } from '@/core/shared/utils/pagination.utils'
+
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000
@@ -107,39 +112,6 @@ export function computeExpiringDocumentRow(
     daysRemainingLabel: formatDaysRemaining(daysRemaining),
     category: doc.category,
   }
-}
-
-// ─── Client-side pagination ─────────────────────────────────────────────────────
-
-export interface PaginatedRows<T> {
-  /** The slice of rows for the requested page. */
-  pageRows: T[]
-  /** Total number of rows across all pages. */
-  total: number
-  /** Number of pages (0 when there are no rows). */
-  pageCount: number
-}
-
-/**
- * Slice an in-memory array into a single page.
- *
- * The tenant-wide expiring-documents endpoint returns the FULL array
- * (server-sorted, NOT paginated), so the view paginates client-side. Uses
- * straight Array.slice semantics: a page beyond the range yields an empty slice.
- *
- * PURE — deterministic, no side effects.
- */
-export function paginateRows<T>(
-  rows: readonly T[],
-  page: number,
-  pageSize: number,
-): PaginatedRows<T> {
-  const total = rows.length
-  const size = pageSize > 0 ? Math.floor(pageSize) : total
-  const pageCount = size > 0 ? Math.ceil(total / size) : 0
-  const start = Math.max(0, (page - 1) * size)
-  const pageRows = size > 0 ? rows.slice(start, start + size) : [...rows]
-  return { pageRows, total, pageCount }
 }
 
 // ─── Composable ───────────────────────────────────────────────────────────────
