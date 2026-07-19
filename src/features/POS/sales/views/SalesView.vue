@@ -68,6 +68,10 @@ const {
   // the "Promociones disponibles" accordion. No toast yet — C.5 adds toasts.
   applyManualPromotion,
   removeManualPromotion,
+  // pos-price-list-tiers: tier-assignment mutation. Routed from
+  // ActiveSalePanel's `change-price-list` emit, which is itself fed by
+  // PriceListSelector (after the confirm-gate for non-empty carts).
+  setPriceList,
 } = useSalesDrafts()
 
 // promotions-in-sale C.4: applicable-promo list for the active draft.
@@ -556,6 +560,26 @@ async function handleRemoveManualPromo(promotionId: string) {
     toast.add({ title: 'Error', description: message, color: 'error' })
   }
 }
+
+// pos-price-list-tiers: ActiveSalePanel forwards the chosen price list id
+// here. We call setPriceList(activeDraftId, globalPriceListId) which
+// triggers the PUT /sales/drafts/:id/price-list mutation; on success the
+// draft cache is replaced and isMutating flips back to false (so the
+// selector re-enables). On error we surface a generic toast — the
+// selector's UI naturally reverts because the modelValue is bound
+// directly to activeDraft.globalPriceListId (no local optimistic state).
+async function handleChangePriceList(globalPriceListId: string | null) {
+  if (!activeDraftId.value) return
+  try {
+    await setPriceList(activeDraftId.value, globalPriceListId)
+  } catch {
+    toast.add({
+      title: 'Error',
+      description: 'No se pudo cambiar la lista de precios',
+      color: 'error',
+    })
+  }
+}
 </script>
 
 <template>
@@ -633,6 +657,7 @@ async function handleRemoveManualPromo(promotionId: string) {
               @remove-promo="handleVetoRequest"
               @apply-manual-promo="handleApplyManualPromo"
               @remove-manual-promo="handleRemoveManualPromo"
+              @change-price-list="handleChangePriceList"
               @switch-tab="handleSwitchTab"
              @close-tab="handleCloseTab"
             @create-tab="handleCreateTab"

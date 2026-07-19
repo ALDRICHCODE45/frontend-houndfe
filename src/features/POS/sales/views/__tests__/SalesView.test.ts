@@ -27,6 +27,7 @@ const clearShippingAddressMock = vi.fn()
 const vetoAutoPromotionMock = vi.fn()
 const applyManualPromotionMock = vi.fn()
 const removeManualPromotionMock = vi.fn()
+const setPriceListMock = vi.fn()
 const activeTabId = ref<string | null>('sale-1')
 const isMutating = ref(false)
 const drafts = ref<Sale[]>([
@@ -64,6 +65,9 @@ vi.mock('../../composables/useSalesDrafts', () => ({
     // C.4 — manual-promo mutations consumed by the accordion.
     applyManualPromotion: applyManualPromotionMock,
     removeManualPromotion: removeManualPromotionMock,
+    // pos-price-list-tiers — setPriceList mutation consumed by
+    // PriceListSelector via ActiveSalePanel's `change-price-list` emit.
+    setPriceList: setPriceListMock,
   }),
 }))
 
@@ -184,6 +188,7 @@ describe('SalesView charge orchestration', () => {
     vetoAutoPromotionMock.mockReset()
     applyManualPromotionMock.mockReset()
     removeManualPromotionMock.mockReset()
+    setPriceListMock.mockReset()
   })
   it('opens payment flow with F8 only when active draft has items', async () => {
     mountView()
@@ -356,6 +361,7 @@ describe('SalesView B.3 — totals + order-promo event wiring', () => {
     vetoAutoPromotionMock.mockReset()
     applyManualPromotionMock.mockReset()
     removeManualPromotionMock.mockReset()
+    setPriceListMock.mockReset()
   })
 
   it('passes activeDraft.totalCents to PaymentModal (NOT a client reduce)', async () => {
@@ -521,6 +527,7 @@ describe('SalesView C.4 — applicable-promotions data + manual-promo event wiri
     vetoAutoPromotionMock.mockReset()
     applyManualPromotionMock.mockReset()
     removeManualPromotionMock.mockReset()
+    setPriceListMock.mockReset()
     resetApplicablePromotionsMock()
     // Default to a draft with items so the accordion would render if it
     // weren't stubbed out.
@@ -606,6 +613,7 @@ describe('SalesView C.5 — veto confirm flow + manual success toasts', () => {
     vetoAutoPromotionMock.mockReset()
     applyManualPromotionMock.mockReset()
     removeManualPromotionMock.mockReset()
+    setPriceListMock.mockReset()
     resetApplicablePromotionsMock()
     drafts.value = [
       {
@@ -710,5 +718,91 @@ describe('SalesView C.5 — veto confirm flow + manual success toasts', () => {
     })
     expect(removeManualPromotionMock).toHaveBeenCalledWith('promo-uuid-99')
     expect(addCalls[0]).toEqual(expect.objectContaining({ title: 'Promoción quitada', color: 'success' }))
+  })
+})
+
+// ─── pos-price-list-tiers — setPriceList wiring ──────────────────────────────
+
+describe('SalesView — setPriceList wiring (pos-price-list-tiers)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    unassignCustomerMock.mockReset()
+    clearShippingAddressMock.mockReset()
+    vetoAutoPromotionMock.mockReset()
+    applyManualPromotionMock.mockReset()
+    removeManualPromotionMock.mockReset()
+    setPriceListMock.mockReset()
+    resetApplicablePromotionsMock()
+    drafts.value = [
+      {
+        id: 'sale-1',
+        userId: 'user-1',
+        status: 'DRAFT',
+        items: [{ id: 'item-1', productId: 'prod-1', variantId: null, productName: 'A', variantName: null, quantity: 1, unitPriceCents: 1000, unitPriceCurrency: 'MXN' }],
+        createdAt: 'x',
+        updatedAt: 'x',
+      },
+    ]
+    activeTabId.value = 'sale-1'
+  })
+
+  it('routes change-price-list from ActiveSalePanel to setPriceList mutation with the active sale id', async () => {
+    setPriceListMock.mockResolvedValueOnce({ id: 'sale-1', items: [] })
+
+    const wrapper = mountView()
+    const panel = wrapper.findComponent({ name: 'ActiveSalePanel' })
+    expect(panel.exists()).toBe(true)
+
+    // Drive the event the way ActiveSalePanel would: it forwards the
+    // selector's chosen id as `change-price-list`.
+    panel.vm.$emit('change-price-list', 'list-mayoreo')
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    expect(setPriceListMock).toHaveBeenCalledTimes(1)
+    expect(setPriceListMock).toHaveBeenCalledWith('sale-1', 'list-mayoreo')
+  })
+
+  it('routes null (Sin lista) to setPriceList mutation for clearing', async () => {
+    setPriceListMock.mockResolvedValueOnce({ id: 'sale-1', items: [] })
+
+    const wrapper = mountView()
+    const panel = wrapper.findComponent({ name: 'ActiveSalePanel' })
+
+    panel.vm.$emit('change-price-list', null)
+    await wrapper.vm.$nextTick()
+    await wrapper.vm.$nextTick()
+
+    expect(setPriceListMock).toHaveBeenCalledTimes(1)
+    expect(setPriceListMock).toHaveBeenCalledWith('sale-1', null)
+  })
+
+  it('shows an error toast when setPriceList rejects (e.g. PRICE_LIST_NOT_FOUND)', async () => {
+    setPriceListMock.mockRejectedValueOnce(new Error('PRICE_LIST_NOT_FOUND'))
+
+    const wrapper = mountView()
+    const panel = wrapper.findComponent({ name: 'ActiveSalePanel' })
+    // Spy on the real toast (see C.5 manual success-toast tests for the
+    // vi.stubGlobal caveat — we wrap toast.add to capture calls).
+    const toastRef = (wrapper.vm as unknown as { toast: { add: (opts: { title: string; color: string; description?: string }) => unknown } }).toast
+    const realAdd = toastRef.add
+    const addCalls: Array<{ title: string; color?: string; description?: string }> = []
+    toastRef.add = (opts) => {
+      addCalls.push(opts)
+      return realAdd(opts)
+    }
+
+    panel.vm.$emit('change-price-list', 'list-mayoreo')
+
+    await vi.waitFor(() => {
+      expect(addCalls.find((c) => c.title === 'Error')).toBeDefined()
+    })
+    expect(addCalls.find((c) => c.title === 'Error')).toEqual(
+      expect.objectContaining({
+        title: 'Error',
+        color: 'error',
+        description: 'No se pudo cambiar la lista de precios',
+      }),
+    )
   })
 })
