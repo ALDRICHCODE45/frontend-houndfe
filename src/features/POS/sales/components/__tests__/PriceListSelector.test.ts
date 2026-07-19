@@ -4,18 +4,14 @@
 // design.md §"Component: PriceListSelector.vue"):
 //
 //   Props ↓
-//     activeDraft: Sale | null        (current draft; null renders no UI)
+//     activeDraft: Sale | null        (current draft; drives model value)
 //     isMutating:  boolean            (disables the dropdown while true)
 //   Events ↑
-//     change-price-list:  [string | null]   (apply this id to the active draft)
+//     change-price-list:  [string | null]   (apply this id; null = PUBLICO default)
 //     request-confirm:    [string | null]   (parent should open the confirm dialog)
 //
-// We exercise the component's selection-flow contract via the
-// `handleUpdate` exposed method (defined via `defineExpose`). Driving the
-// real UInputMenu popover from jsdom is flaky, and stubbing it is blocked
-// by @nuxt/ui's vite plugin auto-registering the real component globally.
-// The expose is a TEST-ONLY handle — production callers always go through
-// the component's events.
+// The PUBLICO sentinel (__publico__) maps to null on emit. PUBLICO is the
+// system-wide default price list — it's always active, never "no list".
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
@@ -81,12 +77,14 @@ describe('PriceListSelector (pos-price-list-tiers)', () => {
     expect(activeLabel.text()).toContain('MAYOREO')
   })
 
-  // ── (b) Hidden when null ─────────────────────────────────────────────────
+  // ── (b) PUBLICO shown when null (default list) ──────────────────────────
 
-  it('hides the "Lista:" label when activeDraft.globalPriceListId is null/undefined', () => {
+  it('displays "Lista: PUBLICO" when activeDraft.globalPriceListId is null (system default)', () => {
     const wrapper = mountSelector({ activeDraft: makeDraft({ globalPriceListId: null }) }, { preSeedLists: sampleLists })
 
-    expect(wrapper.find('[data-testid="price-list-active-label"]').exists()).toBe(false)
+    const activeLabel = wrapper.find('[data-testid="price-list-active-label"]')
+    expect(activeLabel.exists()).toBe(true)
+    expect(activeLabel.text()).toContain('PUBLICO')
   })
 
   // ── (c) Disabled state while mutating ────────────────────────────────────
@@ -153,14 +151,14 @@ describe('PriceListSelector (pos-price-list-tiers)', () => {
     expect(wrapper.emitted('change-price-list')).toBeFalsy()
   })
 
-  // ── (f) "Sin lista" option: emits null ──────────────────────────────────
+  // ── (f) PUBLICO option: emits null (default-list contract) ─────────────
 
-  it('emits change-price-list with null when "Sin lista" is selected on an empty draft', async () => {
+  it('emits change-price-list with null when PUBLICO is selected on an empty draft', async () => {
     const draft = makeDraft({ items: [] })
     const wrapper = mountSelector({ activeDraft: draft }, { preSeedLists: sampleLists })
 
     const exposed = wrapper.vm as unknown as { handleUpdate: (raw: unknown) => void }
-    exposed.handleUpdate('__none__')
+    exposed.handleUpdate('__publico__')
     await wrapper.vm.$nextTick()
 
     const events = wrapper.emitted('change-price-list')
@@ -168,14 +166,14 @@ describe('PriceListSelector (pos-price-list-tiers)', () => {
     expect(events![0]).toEqual([null])
   })
 
-  it('emits request-confirm with null when "Sin lista" is selected on a non-empty draft', async () => {
+  it('emits request-confirm with null when PUBLICO is selected on a non-empty draft', async () => {
     const draft = makeDraft({
       items: [{ id: 'item-1', productId: 'prod-1', variantId: null, productName: 'A', variantName: null, quantity: 1, unitPriceCents: 1000, unitPriceCurrency: 'MXN' }],
     })
     const wrapper = mountSelector({ activeDraft: draft }, { preSeedLists: sampleLists })
 
     const exposed = wrapper.vm as unknown as { handleUpdate: (raw: unknown) => void }
-    exposed.handleUpdate('__none__')
+    exposed.handleUpdate('__publico__')
     await wrapper.vm.$nextTick()
 
     const events = wrapper.emitted('request-confirm')
@@ -200,8 +198,8 @@ describe('PriceListSelector (pos-price-list-tiers)', () => {
     const exposed = wrapper.vm as unknown as { handleUpdate: (raw: unknown) => void }
     expect(typeof exposed.handleUpdate).toBe('function')
 
-    // The sentinel value MUST map to null — that's what makes "Sin lista"
-    // work end-to-end.
+    // The PUBLICO sentinel (__publico__) MUST map to null — that's the
+    // backend default-list contract.
     expect(
       JSON.stringify((wrapper.emitted('change-price-list') ?? [])) +
       JSON.stringify((wrapper.emitted('request-confirm') ?? [])),

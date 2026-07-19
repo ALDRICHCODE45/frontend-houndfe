@@ -17,8 +17,11 @@
  *     request-confirm:    [globalPriceListId: string | null]
  *         — fire when the sale has items; the parent shows a ConfirmModal.
  *
- * The "Sin lista" option always lives at the top of the dropdown — selecting
- * it emits `null` (the backend treats `null` as "clear assignment").
+ * PUBLICO is the system-wide default price list. It is ALWAYS active —
+ * there is no "no list" state. When the backend sees `globalPriceListId: null`,
+ * it resolves to PUBLICO automatically. This component uses a sentinel value
+ * for the PUBLICO menu option so UInputMenu can bind to it, then emits `null`
+ * upstream (the backend contract is `null`, not a hardcoded UUID).
  *
  * Empty-sale contract (spec §"Price List Change on Empty Sale"):
  *   When `activeDraft.items.length === 0`, selecting a new list applies
@@ -29,10 +32,10 @@
  *   parent can show its ConfirmModal. The actual `change-price-list` emit
  *   only fires after the parent confirms.
  *
- * Active-list display (spec §"Active Price List Display"):
- *   When `activeDraft.globalPriceListId` is set, render "Lista: <name>"
- *   with the `i-lucide-tags` icon to give the cashier a constant reminder of
- *   the active tier even when the dropdown is closed.
+ * Active-list display:
+ *   The "Lista: <name>" badge with `i-lucide-tags` icon is ALWAYS visible
+ *   because PUBLICO is always active. When `globalPriceListId` is null we
+ *   render "Lista: PUBLICO" as the default.
  */
 import { computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
@@ -41,9 +44,11 @@ import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import type { GlobalPriceList } from '@/features/POS/products/interfaces/product.types'
 import type { Sale } from '../interfaces/sale.types'
 
-// Sentinel id for the "Sin lista" option. The backend never sees this
-// value — the component maps it to `null` before emitting.
-const NONE_ID = '__none__'
+// Sentinel for the PUBLICO menu entry. UInputMenu needs a non-null value to
+// bind the selected state, but the backend contract uses `null` for "default
+// list". We map this sentinel → `null` in mapValueToEmit before emitting.
+const PUBLICO_SENTINEL = '__publico__'
+const PUBLICO_LABEL = 'PUBLICO'
 
 const props = defineProps<{
   activeDraft: Sale | null
@@ -55,7 +60,7 @@ const emit = defineEmits<{
   'request-confirm': [globalPriceListId: string | null]
 }>()
 
-// 5min staleTime avoids re-fetching on every tab switch. Spec wants this.
+// 5min staleTime avoids re-fetching on every tab switch.
 const priceListsQuery = useQuery({
   queryKey: productQueryKeys.globalPriceLists(),
   queryFn: () => productApi.getGlobalPriceLists(),
@@ -66,36 +71,37 @@ const priceLists = computed<GlobalPriceList[]>(
   () => priceListsQuery.data.value ?? [],
 )
 
-// UInputMenu items: the "Sin lista" option first, then the real lists.
-// Each item exposes both `label` (display) and `value` (model binding) so
-// we can recover the id when UInputMenu emits `update:modelValue`.
+// Menu items: PUBLICO (default) first, then the custom lists.
 const menuItems = computed(() => [
-  { label: 'Sin lista', value: NONE_ID },
+  { label: PUBLICO_LABEL, value: PUBLICO_SENTINEL },
   ...priceLists.value.map((list) => ({ label: list.name, value: list.id })),
 ])
 
-// The value UInputMenu binds to. We pass the active draft's id directly
-// (or null when there's no active list). When the user picks "Sin lista"
-// we set this to null locally so the dropdown reflects the choice.
-const modelValue = computed<string | null>(() => props.activeDraft?.globalPriceListId ?? null)
+// UInputMenu model binding. When globalPriceListId is null the draft is
+// using PUBLICO (the system default), so we bind to the PUBLICO sentinel.
+const modelValue = computed<string | null>(() =>
+  props.activeDraft?.globalPriceListId ?? PUBLICO_SENTINEL,
+)
 
-// Spec §"Active Price List Display": visible only when a list is active.
-const activeListName = computed<string | null>(() => {
+// Always display the active list label — PUBLICO is always active.
+const activeListName = computed<string>(() => {
   const id = props.activeDraft?.globalPriceListId
-  if (!id) return null
-  return priceLists.value.find((list) => list.id === id)?.name ?? null
+  if (id) {
+    return priceLists.value.find((list) => list.id === id)?.name ?? id
+  }
+  return PUBLICO_LABEL
 })
 
 function mapValueToEmit(raw: unknown): string | null {
-  if (raw === null || raw === undefined || raw === NONE_ID) return null
+  // PUBLICO sentinel → null (backend default-list contract)
+  if (raw === PUBLICO_SENTINEL) return null
+  if (raw === null || raw === undefined) return null
   return String(raw)
 }
 
 function handleUpdate(raw: unknown) {
   const id = mapValueToEmit(raw)
-  // Spec §"Price List Change on Empty Sale" vs §"Price List Change on Sale
-  // With Items" — the only difference is whether we ask the parent to
-  // confirm first. The id itself doesn't change.
+  // Empty sale → apply immediately. Sale with items → ask parent to confirm.
   const itemCount = props.activeDraft?.items.length ?? 0
   if (itemCount === 0) {
     emit('change-price-list', id)
@@ -114,41 +120,38 @@ defineExpose({ handleUpdate })
 <template>
   <div class="flex items-center gap-2" data-testid="price-list-selector">
     <!--
-      Active-list badge: visible only when a list is assigned. Renders the
-      list name resolved from the query (or the raw id if the list isn't in
-      the cache yet — the query will resolve shortly).
+      Active-list badge: ALWAYS shown because PUBLICO is always the active
+      default. When a custom list is assigned we resolve its name from the
+      query; otherwise we render "PUBLICO".
     -->
     <div
-      v-if="activeDraft?.globalPriceListId"
       data-testid="price-list-active-label"
       class="flex items-center gap-1 text-xs text-muted"
     >
       <UIcon name="i-lucide-tags" class="size-3.5" />
-      <span>Lista: <strong class="font-semibold">{{ activeListName ?? activeDraft.globalPriceListId }}</strong></span>
+      <span>Lista: <strong class="font-semibold">{{ activeListName }}</strong></span>
     </div>
 
-	    <!--
-	      Query-failure state: when the price-lists endpoint is unreachable
-	      the dropdown stays disabled so the cashier can't pick a list from
-	      stale/missing data. The "Sin lista" option remains reachable via
-	      the confirmation gate in ActiveSalePanel if the cashier wants to
-	      explicitly clear the assignment.
-	    -->
-	    <UInputMenu
-	      :model-value="modelValue"
-	      :items="menuItems"
-	      :placeholder="activeDraft?.globalPriceListId ? 'Cambiar lista' : 'Sin lista'"
-	      :disabled="isMutating || priceListsQuery.isFetching.value || priceListsQuery.isError.value"
-	      :loading="priceListsQuery.isFetching.value"
-	      value-key="value"
-	      data-testid="price-list-menu"
-	      @update:model-value="handleUpdate"
-	    />
-	    <span
-	      v-if="priceListsQuery.isError.value && !priceListsQuery.isFetching.value"
-	      class="text-[11px] text-error-500 dark:text-error-400"
-	    >
-	      Error al cargar listas
-	    </span>
+    <!--
+      Query-failure state: when the price-lists endpoint is unreachable
+      the dropdown stays disabled so the cashier can't pick a list from
+      stale/missing data. PUBLICO remains always reachable via the sentinel.
+    -->
+    <UInputMenu
+      :model-value="modelValue"
+      :items="menuItems"
+      :placeholder="'Cambiar lista'"
+      :disabled="isMutating || priceListsQuery.isFetching.value || priceListsQuery.isError.value"
+      :loading="priceListsQuery.isFetching.value"
+      value-key="value"
+      data-testid="price-list-menu"
+      @update:model-value="handleUpdate"
+    />
+    <span
+      v-if="priceListsQuery.isError.value && !priceListsQuery.isFetching.value"
+      class="text-[11px] text-error-500 dark:text-error-400"
+    >
+      Error al cargar listas
+    </span>
   </div>
 </template>
