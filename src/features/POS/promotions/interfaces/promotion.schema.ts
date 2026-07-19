@@ -1,4 +1,12 @@
 import { z } from 'zod'
+import {
+  BXGY_ALLOWED_APPLIES_TO,
+  CUSTOMER_SCOPE,
+  DAY_OF_WEEK,
+  DISCOUNT_TYPE,
+  PROMOTION_METHOD,
+  PROMOTION_TYPE,
+} from '../constants/promotion.constants'
 
 // ── BXGY-only constants (REQ-11) ───────────────────────────────────────────────
 //
@@ -7,7 +15,7 @@ import { z } from 'zod'
 // "appliesTo" semantics) and minus the ADVANCED-only sides. Intentionally
 // scoped to the BXGY branch only so the base `appliesTo: z.string()` stays
 // free for ORDER_DISCOUNT (`appliesTo: ''`) and ADVANCED (`appliesTo: ''`).
-const BXGY_ALLOWED_APPLIES_TO = ['PRODUCTS', 'VARIANTS', 'CATEGORIES', 'BRANDS'] as const
+// Tuple lives in `constants/promotion.constants.ts` — see BXGY_ALLOWED_APPLIES_TO.
 
 // ── Base shared fields ─────────────────────────────────────────────────────────
 
@@ -16,8 +24,13 @@ const baseSchema = z.object({
     .string()
     .min(1, 'El título es requerido')
     .max(200, 'El título no puede exceder 200 caracteres'),
-  type: z.enum(['PRODUCT_DISCOUNT', 'ORDER_DISCOUNT', 'BUY_X_GET_Y', 'ADVANCED']),
-  method: z.enum(['AUTOMATIC', 'MANUAL']),
+  type: z.enum([
+    PROMOTION_TYPE.PRODUCT_DISCOUNT,
+    PROMOTION_TYPE.ORDER_DISCOUNT,
+    PROMOTION_TYPE.BUY_X_GET_Y,
+    PROMOTION_TYPE.ADVANCED,
+  ]),
+  method: z.enum([PROMOTION_METHOD.AUTOMATIC, PROMOTION_METHOD.MANUAL]),
   // Discount fields (accept numbers directly from UInputNumber)
   discountType: z.string(),
   discountValue: z.number(),
@@ -40,13 +53,25 @@ const baseSchema = z.object({
   hasVigencia: z.boolean(),
   startDate: z.string(),
   endDate: z.string(),
-  customerScope: z.enum(['ALL', 'REGISTERED_ONLY', 'SPECIFIC']),
+  customerScope: z.enum([
+    CUSTOMER_SCOPE.ALL,
+    CUSTOMER_SCOPE.REGISTERED_ONLY,
+    CUSTOMER_SCOPE.SPECIFIC,
+  ]),
   customerIds: z.array(z.string()),
   hasPriceLists: z.boolean(),
   priceListIds: z.array(z.string()),
   hasDaysOfWeek: z.boolean(),
   daysOfWeek: z.array(
-    z.enum(['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY']),
+    z.enum([
+      DAY_OF_WEEK.MONDAY,
+      DAY_OF_WEEK.TUESDAY,
+      DAY_OF_WEEK.WEDNESDAY,
+      DAY_OF_WEEK.THURSDAY,
+      DAY_OF_WEEK.FRIDAY,
+      DAY_OF_WEEK.SATURDAY,
+      DAY_OF_WEEK.SUNDAY,
+    ]),
   ),
 })
 
@@ -69,7 +94,7 @@ export const promotionFormSchema = baseSchema.superRefine((data, ctx) => {
   }
 
   // ── PRODUCT_DISCOUNT ────────────────────────────────────────────────────────
-  if (type === 'PRODUCT_DISCOUNT') {
+  if (type === PROMOTION_TYPE.PRODUCT_DISCOUNT) {
     if (!data.discountType) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -93,7 +118,7 @@ export const promotionFormSchema = baseSchema.superRefine((data, ctx) => {
     }
 
     if (data.discountType && data.discountValue != null) {
-      if (data.discountType === 'PERCENTAGE') {
+      if (data.discountType === DISCOUNT_TYPE.PERCENTAGE) {
         if (data.discountValue < 1 || data.discountValue > 100) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -101,7 +126,7 @@ export const promotionFormSchema = baseSchema.superRefine((data, ctx) => {
             path: ['discountValue'],
           })
         }
-      } else if (data.discountType === 'FIXED') {
+      } else if (data.discountType === DISCOUNT_TYPE.FIXED) {
         if (data.discountValue <= 0) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -114,7 +139,7 @@ export const promotionFormSchema = baseSchema.superRefine((data, ctx) => {
   }
 
   // ── ORDER_DISCOUNT ──────────────────────────────────────────────────────────
-  if (type === 'ORDER_DISCOUNT') {
+  if (type === PROMOTION_TYPE.ORDER_DISCOUNT) {
     if (!data.discountType) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -131,7 +156,7 @@ export const promotionFormSchema = baseSchema.superRefine((data, ctx) => {
     }
 
     if (data.discountType && data.discountValue != null) {
-      if (data.discountType === 'PERCENTAGE') {
+      if (data.discountType === DISCOUNT_TYPE.PERCENTAGE) {
         if (data.discountValue < 1 || data.discountValue > 100) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -139,7 +164,7 @@ export const promotionFormSchema = baseSchema.superRefine((data, ctx) => {
             path: ['discountValue'],
           })
         }
-      } else if (data.discountType === 'FIXED') {
+      } else if (data.discountType === DISCOUNT_TYPE.FIXED) {
         if (data.discountValue <= 0) {
           ctx.addIssue({
             code: z.ZodIssueCode.custom,
@@ -152,7 +177,7 @@ export const promotionFormSchema = baseSchema.superRefine((data, ctx) => {
   }
 
   // ── BUY_X_GET_Y ─────────────────────────────────────────────────────────────
-  if (type === 'BUY_X_GET_Y') {
+  if (type === PROMOTION_TYPE.BUY_X_GET_Y) {
     // REQ-11: BXGY MUST include `appliesTo` ∈ {PRODUCTS, VARIANTS, CATEGORIES,
     // BRANDS} and at least one `targetItem`. Empty / unknown `appliesTo` both
     // surface as a single appliesTo issue with a Spanish message so the form
@@ -220,7 +245,7 @@ export const promotionFormSchema = baseSchema.superRefine((data, ctx) => {
   }
 
   // ── ADVANCED ────────────────────────────────────────────────────────────────
-  if (type === 'ADVANCED') {
+  if (type === PROMOTION_TYPE.ADVANCED) {
     if (data.buyQuantity == null || data.buyQuantity === 0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,

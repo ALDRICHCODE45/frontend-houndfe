@@ -14,6 +14,15 @@ import type {
 } from '../interfaces/promotion.types'
 import { DAY_OF_WEEK_LABELS } from '../interfaces/promotion.types'
 import {
+  CUSTOMER_SCOPE,
+  DAY_OF_WEEK,
+  DISCOUNT_TYPE,
+  PROMOTION_METHOD,
+  PROMOTION_TARGET_TYPE,
+  PROMOTION_TYPE,
+  TARGET_SIDE,
+} from '../constants/promotion.constants'
+import {
   computeOverlappingTargets,
   type OverlappingTarget,
 } from '../utils/advancedTargets.utils'
@@ -35,19 +44,19 @@ export interface BuyXGetYPreset {
 // ── Option arrays ─────────────────────────────────────────────────────────────
 
 export const METHOD_OPTIONS: SelectOption<PromotionMethod>[] = [
-  { label: 'Automático', value: 'AUTOMATIC' },
-  { label: 'Manual', value: 'MANUAL' },
+  { label: 'Automático', value: PROMOTION_METHOD.AUTOMATIC },
+  { label: 'Manual', value: PROMOTION_METHOD.MANUAL },
 ]
 
 export const DISCOUNT_TYPE_OPTIONS: SelectOption<DiscountType>[] = [
-  { label: 'Porcentaje (%)', value: 'PERCENTAGE' },
-  { label: 'Monto fijo ($)', value: 'FIXED' },
+  { label: 'Porcentaje (%)', value: DISCOUNT_TYPE.PERCENTAGE },
+  { label: 'Monto fijo ($)', value: DISCOUNT_TYPE.FIXED },
 ]
 
 export const CUSTOMER_SCOPE_OPTIONS: SelectOption<CustomerScope>[] = [
-  { label: 'Todos los clientes', value: 'ALL' },
-  { label: 'Solo clientes registrados', value: 'REGISTERED_ONLY' },
-  { label: 'Clientes específicos', value: 'SPECIFIC' },
+  { label: 'Todos los clientes', value: CUSTOMER_SCOPE.ALL },
+  { label: 'Solo clientes registrados', value: CUSTOMER_SCOPE.REGISTERED_ONLY },
+  { label: 'Clientes específicos', value: CUSTOMER_SCOPE.SPECIFIC },
 ]
 
 export const DAY_OPTIONS: SelectOption<DayOfWeek>[] = (
@@ -55,10 +64,10 @@ export const DAY_OPTIONS: SelectOption<DayOfWeek>[] = (
 ).map(([value, label]) => ({ value, label }))
 
 export const TARGET_TYPE_OPTIONS: SelectOption<PromotionTargetType>[] = [
-  { label: 'Categorías', value: 'CATEGORIES' },
-  { label: 'Marcas', value: 'BRANDS' },
-  { label: 'Productos', value: 'PRODUCTS' },
-  { label: 'Variantes', value: 'VARIANTS' },
+  { label: 'Categorías', value: PROMOTION_TARGET_TYPE.CATEGORIES },
+  { label: 'Marcas', value: PROMOTION_TARGET_TYPE.BRANDS },
+  { label: 'Productos', value: PROMOTION_TARGET_TYPE.PRODUCTS },
+  { label: 'Variantes', value: PROMOTION_TARGET_TYPE.VARIANTS },
 ]
 
 // ── Discount percent select options (REQ-8) ───────────────────────────────────
@@ -92,12 +101,12 @@ export function getInitialState(type: PromotionType): PromotionFormState {
     // Shared
     title: '',
     type,
-    method: 'AUTOMATIC',
+    method: PROMOTION_METHOD.AUTOMATIC,
     // Discount fields
     discountType: '',
     discountValue: 0,
     // PRODUCT_DISCOUNT
-    appliesTo: 'PRODUCTS',
+    appliesTo: PROMOTION_TARGET_TYPE.PRODUCTS,
     targetItems: [],
     // ORDER_DISCOUNT
     hasMinPurchase: false,
@@ -107,15 +116,15 @@ export function getInitialState(type: PromotionType): PromotionFormState {
     getQuantity: 0,
     getDiscountPercent: 0,
     // ADVANCED
-    buyTargetType: 'PRODUCTS',
+    buyTargetType: PROMOTION_TARGET_TYPE.PRODUCTS,
     buyTargetItems: [],
-    getTargetType: 'PRODUCTS',
+    getTargetType: PROMOTION_TARGET_TYPE.PRODUCTS,
     getTargetItems: [],
     // Conditions
     hasVigencia: false,
     startDate: '',
     endDate: '',
-    customerScope: 'ALL',
+    customerScope: CUSTOMER_SCOPE.ALL,
     customerIds: [],
     hasPriceLists: false,
     priceListIds: [],
@@ -149,7 +158,7 @@ export function getInitialState(type: PromotionType): PromotionFormState {
 function hydrateTargetItem(
   ti: PromotionResponse['targetItems'][number],
 ): PromotionFormState['targetItems'][number] {
-  if (ti.targetType === 'VARIANTS' && typeof ti.variantName === 'string') {
+  if (ti.targetType === PROMOTION_TARGET_TYPE.VARIANTS && typeof ti.variantName === 'string') {
     return {
       targetId: ti.targetId,
       name: ti.variantName,
@@ -163,9 +172,9 @@ function hydrateTargetItem(
 }
 
 export function promotionToFormState(response: PromotionResponse): PromotionFormState {
-  const defaultItems = response.targetItems.filter((ti) => ti.side === 'DEFAULT')
-  const buyItems = response.targetItems.filter((ti) => ti.side === 'BUY')
-  const getItems = response.targetItems.filter((ti) => ti.side === 'GET')
+  const defaultItems = response.targetItems.filter((ti) => ti.side === TARGET_SIDE.DEFAULT)
+  const buyItems = response.targetItems.filter((ti) => ti.side === TARGET_SIDE.BUY)
+  const getItems = response.targetItems.filter((ti) => ti.side === TARGET_SIDE.GET)
 
   return {
     // Shared
@@ -175,11 +184,11 @@ export function promotionToFormState(response: PromotionResponse): PromotionForm
     // Discount — convert cents → dollars for FIXED type display
     discountType: response.discountType ?? '',
     discountValue:
-      response.discountType === 'FIXED' && response.discountValue != null
+      response.discountType === DISCOUNT_TYPE.FIXED && response.discountValue != null
         ? response.discountValue / 100
         : (response.discountValue ?? 0),
     // PRODUCT_DISCOUNT
-    appliesTo: response.appliesTo ?? 'PRODUCTS',
+    appliesTo: response.appliesTo ?? PROMOTION_TARGET_TYPE.PRODUCTS,
     targetItems: defaultItems.map(hydrateTargetItem),
     // ORDER_DISCOUNT — convert cents → dollars for display
     hasMinPurchase: response.minPurchaseAmountCents != null,
@@ -190,9 +199,9 @@ export function promotionToFormState(response: PromotionResponse): PromotionForm
     getQuantity: response.getQuantity ?? 0,
     getDiscountPercent: response.getDiscountPercent ?? 0,
     // ADVANCED
-    buyTargetType: response.buyTargetType ?? 'PRODUCTS',
+    buyTargetType: response.buyTargetType ?? PROMOTION_TARGET_TYPE.PRODUCTS,
     buyTargetItems: buyItems.map(hydrateTargetItem),
-    getTargetType: response.getTargetType ?? 'PRODUCTS',
+    getTargetType: response.getTargetType ?? PROMOTION_TARGET_TYPE.PRODUCTS,
     getTargetItems: getItems.map(hydrateTargetItem),
     // Conditions
     hasVigencia: response.startDate != null,
@@ -212,13 +221,13 @@ export function promotionToFormState(response: PromotionResponse): PromotionForm
 export function toCreatePayload(state: PromotionFormState): CreatePromotionPayload {
   const base = buildBasePayload(state)
 
-  if (state.type === 'PRODUCT_DISCOUNT') {
+  if (state.type === PROMOTION_TYPE.PRODUCT_DISCOUNT) {
     return {
       ...base,
-      type: 'PRODUCT_DISCOUNT',
+      type: PROMOTION_TYPE.PRODUCT_DISCOUNT,
       discountType: state.discountType as DiscountType,
       discountValue:
-        state.discountType === 'FIXED'
+        state.discountType === DISCOUNT_TYPE.FIXED
           ? Math.round(state.discountValue * 100)
           : state.discountValue,
       appliesTo: state.appliesTo as PromotionTargetType,
@@ -233,13 +242,13 @@ export function toCreatePayload(state: PromotionFormState): CreatePromotionPaylo
     }
   }
 
-  if (state.type === 'ORDER_DISCOUNT') {
+  if (state.type === PROMOTION_TYPE.ORDER_DISCOUNT) {
     return {
       ...base,
-      type: 'ORDER_DISCOUNT',
+      type: PROMOTION_TYPE.ORDER_DISCOUNT,
       discountType: state.discountType as DiscountType,
       discountValue:
-        state.discountType === 'FIXED'
+        state.discountType === DISCOUNT_TYPE.FIXED
           ? Math.round(state.discountValue * 100)
           : state.discountValue,
       ...(state.hasMinPurchase && state.minPurchaseAmountCents
@@ -248,10 +257,10 @@ export function toCreatePayload(state: PromotionFormState): CreatePromotionPaylo
     }
   }
 
-  if (state.type === 'BUY_X_GET_Y') {
+  if (state.type === PROMOTION_TYPE.BUY_X_GET_Y) {
     return {
       ...base,
-      type: 'BUY_X_GET_Y',
+      type: PROMOTION_TYPE.BUY_X_GET_Y,
       buyQuantity: state.buyQuantity,
       getQuantity: state.getQuantity,
       getDiscountPercent: state.getDiscountPercent,
@@ -270,7 +279,7 @@ export function toCreatePayload(state: PromotionFormState): CreatePromotionPaylo
   // ADVANCED
   return {
     ...base,
-    type: 'ADVANCED',
+    type: PROMOTION_TYPE.ADVANCED,
     buyQuantity: state.buyQuantity,
     getQuantity: state.getQuantity,
     getDiscountPercent: state.getDiscountPercent,
@@ -304,10 +313,10 @@ function buildBasePayload(state: PromotionFormState) {
     ...(state.hasVigencia && state.startDate ? { startDate: state.startDate } : {}),
     ...(state.hasVigencia && state.endDate ? { endDate: state.endDate } : {}),
     // customerScope: always include when not ALL
-    ...(state.customerScope !== 'ALL' ? { customerScope: state.customerScope } : {}),
+    ...(state.customerScope !== CUSTOMER_SCOPE.ALL ? { customerScope: state.customerScope } : {}),
     // customerIds: always send the array — empty [] clears the relation on backend
     // SPECIFIC → send the actual IDs; any other scope → send [] to clear
-    customerIds: state.customerScope === 'SPECIFIC' ? state.customerIds : [],
+    customerIds: state.customerScope === CUSTOMER_SCOPE.SPECIFIC ? state.customerIds : [],
     // priceListIds: always include the array — empty [] clears relation on backend
     priceListIds: state.hasPriceLists ? state.priceListIds : [],
     // daysOfWeek: always include the array — empty [] clears relation on backend
@@ -515,7 +524,7 @@ function extractFieldPath(message: string): string | null {
 
 // ── Composable ────────────────────────────────────────────────────────────────
 
-export function usePromotionForm(type: PromotionType = 'PRODUCT_DISCOUNT') {
+export function usePromotionForm(type: PromotionType = PROMOTION_TYPE.PRODUCT_DISCOUNT) {
   const state = reactive<PromotionFormState>(getInitialState(type))
 
   /**

@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/vue-query'
 import { parseDate, CalendarDate } from '@internationalized/date'
 import type { CustomerScope, DayOfWeek, PromotionFormState } from '../interfaces/promotion.types'
 import { DAY_OPTIONS, CUSTOMER_SCOPE_OPTIONS } from '../composables/usePromotionForm'
+import { CUSTOMER_SCOPE } from '../constants/promotion.constants'
 
 // ── Props & emits ─────────────────────────────────────────────────────────────
 
@@ -45,7 +46,8 @@ const { data: customerResults } = useQuery({
     return result.data ?? []
   },
   enabled: () =>
-    props.modelValue.customerScope === 'SPECIFIC' && customerSearchQuery.value.length > 0,
+    props.modelValue.customerScope === CUSTOMER_SCOPE.SPECIFIC &&
+    customerSearchQuery.value.length > 0,
 })
 
 // Map customers to SelectMenu format
@@ -202,14 +204,14 @@ defineExpose({ updateField })
         <!-- Customer scope -->
         <div class="flex flex-col gap-3">
           <UCheckbox
-            :model-value="modelValue.customerScope !== 'ALL'"
+            :model-value="modelValue.customerScope !== CUSTOMER_SCOPE.ALL"
             label="Limitar a ciertos clientes"
             @update:model-value="
-              updateField('customerScope', $event ? 'REGISTERED_ONLY' : 'ALL')
+              updateField('customerScope', $event ? CUSTOMER_SCOPE.REGISTERED_ONLY : CUSTOMER_SCOPE.ALL)
             "
           />
 
-          <div v-if="modelValue.customerScope !== 'ALL'" class="pl-6 flex flex-col gap-3">
+          <div v-if="modelValue.customerScope !== CUSTOMER_SCOPE.ALL" class="pl-6 flex flex-col gap-3">
             <URadioGroup
               :model-value="modelValue.customerScope"
               :items="CUSTOMER_SCOPE_OPTIONS"
@@ -220,7 +222,7 @@ defineExpose({ updateField })
 
             <!-- Specific customer search -->
             <div
-              v-if="modelValue.customerScope === 'SPECIFIC'"
+              v-if="modelValue.customerScope === CUSTOMER_SCOPE.SPECIFIC"
               data-testid="customer-search-section"
               class="flex flex-col gap-2"
             >

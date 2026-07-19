@@ -5,6 +5,7 @@ import type {
   PromotionTargetItemFormEntry,
   PromotionTargetType,
 } from '../../interfaces/promotion.types'
+import { PROMOTION_TARGET_TYPE } from '../../constants/promotion.constants'
 
 // ── Props & emits ─────────────────────────────────────────────────────────────
 
@@ -44,7 +45,7 @@ const { data: categories } = useQuery({
     const { productApi } = await import('@/features/POS/products/api/product.api')
     return productApi.getCategories()
   },
-  enabled: computed(() => props.dataSource === 'CATEGORIES'),
+  enabled: computed(() => props.dataSource === PROMOTION_TARGET_TYPE.CATEGORIES),
 })
 
 const { data: brands } = useQuery({
@@ -53,7 +54,7 @@ const { data: brands } = useQuery({
     const { productApi } = await import('@/features/POS/products/api/product.api')
     return productApi.getBrands()
   },
-  enabled: computed(() => props.dataSource === 'BRANDS'),
+  enabled: computed(() => props.dataSource === PROMOTION_TARGET_TYPE.BRANDS),
 })
 
 const { data: products } = useQuery({
@@ -71,7 +72,7 @@ const { data: products } = useQuery({
     })
     return result.data ?? []
   },
-  enabled: computed(() => props.dataSource === 'PRODUCTS'),
+  enabled: computed(() => props.dataSource === PROMOTION_TARGET_TYPE.PRODUCTS),
 })
 
 // ── Computed list (raw = unfiltered, filtered = client-side for cats/brands) ─
@@ -82,10 +83,10 @@ interface ChecklistRow {
 }
 
 const rawRows = computed<ChecklistRow[]>(() => {
-  if (props.dataSource === 'CATEGORIES') {
+  if (props.dataSource === PROMOTION_TARGET_TYPE.CATEGORIES) {
     return (categories.value ?? []).map((c) => ({ id: c.id, name: c.name }))
   }
-  if (props.dataSource === 'BRANDS') {
+  if (props.dataSource === PROMOTION_TARGET_TYPE.BRANDS) {
     return (brands.value ?? []).map((b) => ({ id: b.id, name: b.name }))
   }
   return (products.value ?? []).map((p) => ({ id: p.id, name: p.name }))
@@ -95,7 +96,7 @@ const rawRows = computed<ChecklistRow[]>(() => {
 // the full taxonomy). For PRODUCTS the search is server-side; we just render
 // whatever the backend returned for the current query.
 const visibleRows = computed<ChecklistRow[]>(() => {
-  if (props.dataSource === 'PRODUCTS') return rawRows.value
+  if (props.dataSource === PROMOTION_TARGET_TYPE.PRODUCTS) return rawRows.value
   const q = search.value.trim().toLowerCase()
   if (!q) return rawRows.value
   return rawRows.value.filter((r) => r.name.toLowerCase().includes(q))
@@ -130,9 +131,9 @@ defineExpose({ toggleRow, isStaged })
 // ── Display helpers ─────────────────────────────────────────────────────────
 
 const dataSourceLabel: Record<typeof props.dataSource, string> = {
-  CATEGORIES: 'categorías',
-  BRANDS: 'marcas',
-  PRODUCTS: 'productos',
+  [PROMOTION_TARGET_TYPE.CATEGORIES]: 'categorías',
+  [PROMOTION_TARGET_TYPE.BRANDS]: 'marcas',
+  [PROMOTION_TARGET_TYPE.PRODUCTS]: 'productos',
 }
 
 const searchPlaceholder = computed(() => `Buscar ${dataSourceLabel[props.dataSource]}...`)

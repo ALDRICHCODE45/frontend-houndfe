@@ -19,6 +19,12 @@ import {
 import { usePromotionTargetNames } from '../composables/usePromotionTargetNames'
 import { getTypeConfig } from '../utils/promotionStatusConfig.utils'
 import { computeOverlappingTargets } from '../utils/advancedTargets.utils'
+import {
+  DISCOUNT_TYPE,
+  PROMOTION_METHOD,
+  PROMOTION_TYPE,
+  TARGET_SIDE,
+} from '../constants/promotion.constants'
 
 import PromotionConditionsSection from './PromotionConditionsSection.vue'
 import PromotionTargetItemsSection from './PromotionTargetItemsSection.vue'
@@ -73,7 +79,7 @@ async function resolveAndApplyNames() {
       formState.targetItems,
     )
   }
-  if (formState.type === 'ADVANCED') {
+  if (formState.type === PROMOTION_TYPE.ADVANCED) {
     if (
       formState.buyTargetItems.length > 0 &&
       formState.buyTargetItems.some((i) => !i.name)
@@ -222,11 +228,11 @@ const overlappingTargets = computed(() =>
                 class="w-full"
                 size="lg"
                 :placeholder="
-                  type === 'PRODUCT_DISCOUNT'
+                  type === PROMOTION_TYPE.PRODUCT_DISCOUNT
                     ? 'Ej.: 30% off en zapatos de temporada'
-                    : type === 'ORDER_DISCOUNT'
+                    : type === PROMOTION_TYPE.ORDER_DISCOUNT
                       ? 'Ej.: 10% en compras mayores a $1,000'
-                      : type === 'BUY_X_GET_Y'
+                      : type === PROMOTION_TYPE.BUY_X_GET_Y
                         ? 'Ej.: 2x1 en playeras seleccionadas'
                         : 'Ej.: Compra short → Gorra gratis'
                 "
@@ -246,18 +252,18 @@ const overlappingTargets = computed(() =>
                 class="inline-flex items-center gap-2 rounded-xl border border-default bg-elevated/50 px-4 py-3"
               >
                 <UIcon
-                  :name="formState.method === 'AUTOMATIC' ? 'i-lucide-cpu' : 'i-lucide-hand'"
+                  :name="formState.method === PROMOTION_METHOD.AUTOMATIC ? 'i-lucide-cpu' : 'i-lucide-hand'"
                   class="h-4 w-4 text-toned"
                 />
                 <span class="text-sm font-medium text-highlighted">
-                  {{ formState.method === 'AUTOMATIC' ? 'Aplicar automáticamente' : 'Manualmente' }}
+                  {{ formState.method === PROMOTION_METHOD.AUTOMATIC ? 'Aplicar automáticamente' : 'Manualmente' }}
                 </span>
                 <span class="ml-1 text-xs text-muted">(no editable)</span>
               </div>
               <!-- Create mode: interactive cards -->
               <div v-else class="grid grid-cols-2 gap-3">
                 <button
-                  v-for="m in ['AUTOMATIC', 'MANUAL'] as const"
+                  v-for="m in [PROMOTION_METHOD.AUTOMATIC, PROMOTION_METHOD.MANUAL] as const"
                   :key="m"
                   type="button"
                   :data-testid="`method-card-${m}`"
@@ -271,16 +277,16 @@ const overlappingTargets = computed(() =>
                 >
                   <div class="flex items-center gap-2">
                     <UIcon
-                      :name="m === 'AUTOMATIC' ? 'i-lucide-cpu' : 'i-lucide-hand'"
+                      :name="m === PROMOTION_METHOD.AUTOMATIC ? 'i-lucide-cpu' : 'i-lucide-hand'"
                       class="h-4 w-4 text-toned"
                     />
                     <span class="text-sm font-medium text-highlighted">
-                      {{ m === 'AUTOMATIC' ? 'Aplicar automáticamente' : 'Manualmente' }}
+                      {{ m === PROMOTION_METHOD.AUTOMATIC ? 'Aplicar automáticamente' : 'Manualmente' }}
                     </span>
                   </div>
                   <p class="text-xs text-muted">
                     {{
-                      m === 'AUTOMATIC'
+                      m === PROMOTION_METHOD.AUTOMATIC
                         ? 'Se aplicará si se cumplen las condiciones'
                         : 'Tú eliges si deseas aplicar el descuento'
                     }}
@@ -292,7 +298,7 @@ const overlappingTargets = computed(() =>
         </UCard>
 
         <!-- ── Card 2: PRODUCT_DISCOUNT ───────────────────────────────── -->
-        <UCard v-if="type === 'PRODUCT_DISCOUNT'" data-testid="product-discount-section">
+        <UCard v-if="type === PROMOTION_TYPE.PRODUCT_DISCOUNT" data-testid="product-discount-section">
           <template #header>
             <h3 class="font-semibold text-highlighted">Valor del Descuento</h3>
           </template>
@@ -312,14 +318,14 @@ const overlappingTargets = computed(() =>
               <UFormField label="Valor" name="discountValue" class="flex-1">
                 <UInputNumber
                   v-model="formState.discountValue"
-                  :min="formState.discountType === 'PERCENTAGE' ? 1 : 1"
-                  :max="formState.discountType === 'PERCENTAGE' ? 100 : undefined"
-                  :placeholder="formState.discountType === 'PERCENTAGE' ? '1-100' : 'Ej.: 150'"
+                  :min="formState.discountType === DISCOUNT_TYPE.PERCENTAGE ? 1 : 1"
+                  :max="formState.discountType === DISCOUNT_TYPE.PERCENTAGE ? 100 : undefined"
+                  :placeholder="formState.discountType === DISCOUNT_TYPE.PERCENTAGE ? '1-100' : 'Ej.: 150'"
                   size="lg"
                 >
                   <template #trailing>
                     <span class="text-dimmed text-sm">
-                      {{ formState.discountType === 'PERCENTAGE' ? '%' : '$' }}
+                      {{ formState.discountType === DISCOUNT_TYPE.PERCENTAGE ? '%' : '$' }}
                     </span>
                   </template>
                 </UInputNumber>
@@ -333,7 +339,7 @@ const overlappingTargets = computed(() =>
                 :target-type="formState.appliesTo as PromotionTargetType"
                 :selected-items="formState.targetItems"
                 :allow-variants="true"
-                side="DEFAULT"
+                :side="TARGET_SIDE.DEFAULT"
                 @update:target-type="onAppliesToChange"
                 @update:selected-items="formState.targetItems = $event"
               />
@@ -342,7 +348,7 @@ const overlappingTargets = computed(() =>
         </UCard>
 
         <!-- ── Card 2: ORDER_DISCOUNT ─────────────────────────────────── -->
-        <UCard v-else-if="type === 'ORDER_DISCOUNT'" data-testid="order-discount-section">
+        <UCard v-else-if="type === PROMOTION_TYPE.ORDER_DISCOUNT" data-testid="order-discount-section">
           <template #header>
             <h3 class="font-semibold text-highlighted">Valor del Descuento</h3>
           </template>
@@ -362,9 +368,9 @@ const overlappingTargets = computed(() =>
               <UFormField label="Valor" name="discountValue" class="flex-1">
                 <UInputNumber
                   v-model="formState.discountValue"
-                  :min="formState.discountType === 'PERCENTAGE' ? 1 : 1"
-                  :max="formState.discountType === 'PERCENTAGE' ? 100 : undefined"
-                  :placeholder="formState.discountType === 'PERCENTAGE' ? '1-100' : 'Ej.: 150'"
+                  :min="formState.discountType === DISCOUNT_TYPE.PERCENTAGE ? 1 : 1"
+                  :max="formState.discountType === DISCOUNT_TYPE.PERCENTAGE ? 100 : undefined"
+                  :placeholder="formState.discountType === DISCOUNT_TYPE.PERCENTAGE ? '1-100' : 'Ej.: 150'"
                   size="lg"
                 />
               </UFormField>
@@ -388,7 +394,7 @@ const overlappingTargets = computed(() =>
         </UCard>
 
         <!-- ── Card 2: BUY_X_GET_Y ───────────────────────────────────── -->
-        <UCard v-else-if="type === 'BUY_X_GET_Y'" data-testid="buy-x-get-y-section">
+        <UCard v-else-if="type === PROMOTION_TYPE.BUY_X_GET_Y" data-testid="buy-x-get-y-section">
           <template #header>
             <h3 class="font-semibold text-highlighted">Tipo de Promoción</h3>
           </template>
@@ -439,7 +445,7 @@ const overlappingTargets = computed(() =>
                 :target-type="formState.appliesTo as PromotionTargetType"
                 :selected-items="formState.targetItems"
                 :allow-variants="true"
-                side="DEFAULT"
+                :side="TARGET_SIDE.DEFAULT"
                 @update:target-type="onAppliesToChange"
                 @update:selected-items="formState.targetItems = $event"
               />
@@ -448,7 +454,7 @@ const overlappingTargets = computed(() =>
         </UCard>
 
         <!-- ── Card 2: ADVANCED ───────────────────────────────────────── -->
-        <UCard v-else-if="type === 'ADVANCED'" data-testid="advanced-section">
+        <UCard v-else-if="type === PROMOTION_TYPE.ADVANCED" data-testid="advanced-section">
           <template #header>
             <h3 class="font-semibold text-highlighted">Condiciones</h3>
           </template>
@@ -464,7 +470,7 @@ const overlappingTargets = computed(() =>
                 :target-type="formState.buyTargetType as PromotionTargetType"
                 :selected-items="formState.buyTargetItems"
                 :allow-variants="true"
-                side="BUY"
+                :side="TARGET_SIDE.BUY"
                 label="Items de cualquiera de los siguientes"
                 @update:target-type="onBuyTargetTypeChange"
                 @update:selected-items="formState.buyTargetItems = $event"
@@ -499,7 +505,7 @@ const overlappingTargets = computed(() =>
                 :target-type="formState.getTargetType as PromotionTargetType"
                 :selected-items="formState.getTargetItems"
                 :allow-variants="true"
-                side="GET"
+                :side="TARGET_SIDE.GET"
                 label="De cualquiera de los siguientes"
                 @update:target-type="onGetTargetTypeChange"
                 @update:selected-items="formState.getTargetItems = $event"

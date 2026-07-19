@@ -28,6 +28,7 @@ import type {
   PromotionTargetItemFormEntry,
   PromotionTargetType,
 } from '../interfaces/promotion.types'
+import { PROMOTION_TARGET_TYPE } from '../constants/promotion.constants'
 
 // ── Query keys (stable, namespaced under 'promotions') ─────────────────────────
 //
@@ -79,13 +80,13 @@ export function usePromotionTargetNames(): UsePromotionTargetNames {
     if (!items || items.length === 0) return []
 
     switch (targetType) {
-      case 'CATEGORIES':
+      case PROMOTION_TARGET_TYPE.CATEGORIES:
         return resolveViaCategories(queryClient, items)
-      case 'BRANDS':
+      case PROMOTION_TARGET_TYPE.BRANDS:
         return resolveViaBrands(queryClient, items)
-      case 'PRODUCTS':
+      case PROMOTION_TARGET_TYPE.PRODUCTS:
         return resolveProducts(queryClient, items)
-      case 'VARIANTS':
+      case PROMOTION_TARGET_TYPE.VARIANTS:
         return resolveVariants(queryClient, items)
       default:
         // Unknown target type (e.g. '' before user picks) — return as-is.

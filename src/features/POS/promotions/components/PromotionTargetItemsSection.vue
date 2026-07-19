@@ -8,6 +8,10 @@ import type {
 } from '../interfaces/promotion.types'
 import { TARGET_TYPE_OPTIONS } from '../composables/usePromotionForm'
 import { chipLabel } from '../utils/promotionChipLabel'
+import {
+  PROMOTION_TARGET_TYPE,
+  TARGET_SIDE,
+} from '../constants/promotion.constants'
 
 // ── Props & emits (INV-4 — FROZEN external contract) ─────────────────────────
 
@@ -24,7 +28,7 @@ const props = withDefaults(
     allowVariants?: boolean
   }>(),
   {
-    side: 'DEFAULT',
+    side: TARGET_SIDE.DEFAULT,
     label: undefined,
     allowVariants: false,
   },
@@ -58,7 +62,7 @@ const modalOpen = ref(false)
 const targetTypeOptions = computed(() =>
   props.allowVariants
     ? TARGET_TYPE_OPTIONS
-    : TARGET_TYPE_OPTIONS.filter((o) => o.value !== 'VARIANTS'),
+    : TARGET_TYPE_OPTIONS.filter((o) => o.value !== PROMOTION_TARGET_TYPE.VARIANTS),
 )
 
 // Dynamic "Agregar <tipo>" label (Slice 1.5 visual polish — full-width,

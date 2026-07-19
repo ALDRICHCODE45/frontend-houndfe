@@ -2,6 +2,12 @@ import type {
   PromotionFormState,
   PromotionTargetItemFormEntry,
 } from '../interfaces/promotion.types'
+import {
+  CUSTOMER_SCOPE,
+  DISCOUNT_TYPE,
+  PROMOTION_METHOD,
+  PROMOTION_TYPE,
+} from '../constants/promotion.constants'
 
 // ── Summary bullet builder ────────────────────────────────────────────────────
 
@@ -13,7 +19,7 @@ export function buildPromotionSummaryBullets(state: PromotionFormState): string[
   const bullets: string[] = []
 
   // ── Method ──────────────────────────────────────────────────────────────────
-  if (state.method === 'AUTOMATIC') {
+  if (state.method === PROMOTION_METHOD.AUTOMATIC) {
     bullets.push('Se aplicará automáticamente en el Punto de Venta')
   } else {
     bullets.push('Se aplica manualmente')
@@ -21,19 +27,24 @@ export function buildPromotionSummaryBullets(state: PromotionFormState): string[
 
   // ── Discount info (PRODUCT_DISCOUNT / ORDER_DISCOUNT) ─────────────────────
   if (
-    (state.type === 'PRODUCT_DISCOUNT' || state.type === 'ORDER_DISCOUNT') &&
+    (state.type === PROMOTION_TYPE.PRODUCT_DISCOUNT ||
+      state.type === PROMOTION_TYPE.ORDER_DISCOUNT) &&
     state.discountValue
   ) {
     const val = state.discountValue
-    if (state.discountType === 'PERCENTAGE') {
+    if (state.discountType === DISCOUNT_TYPE.PERCENTAGE) {
       bullets.push(`${val}% de descuento`)
-    } else if (state.discountType === 'FIXED') {
+    } else if (state.discountType === DISCOUNT_TYPE.FIXED) {
       bullets.push(`$${val} de descuento`)
     }
   }
 
   // ── BUY_X_GET_Y ──────────────────────────────────────────────────────────
-  if (state.type === 'BUY_X_GET_Y' && state.buyQuantity && state.getQuantity) {
+  if (
+    state.type === PROMOTION_TYPE.BUY_X_GET_Y &&
+    state.buyQuantity &&
+    state.getQuantity
+  ) {
     const buy = state.buyQuantity
     const get = state.getQuantity
     const pct = state.getDiscountPercent
@@ -50,7 +61,11 @@ export function buildPromotionSummaryBullets(state: PromotionFormState): string[
   }
 
   // ── ADVANCED ─────────────────────────────────────────────────────────────
-  if (state.type === 'ADVANCED' && state.buyQuantity && state.getQuantity) {
+  if (
+    state.type === PROMOTION_TYPE.ADVANCED &&
+    state.buyQuantity &&
+    state.getQuantity
+  ) {
     const discountText =
       state.getDiscountPercent === 0
         ? 'gratis'
@@ -73,7 +88,8 @@ export function buildPromotionSummaryBullets(state: PromotionFormState): string[
 
   // ── Target count (for PRODUCT_DISCOUNT / ORDER_DISCOUNT) ────────────────
   if (
-    (state.type === 'PRODUCT_DISCOUNT' || state.type === 'ORDER_DISCOUNT') &&
+    (state.type === PROMOTION_TYPE.PRODUCT_DISCOUNT ||
+      state.type === PROMOTION_TYPE.ORDER_DISCOUNT) &&
     state.targetItems.length > 0
   ) {
     const names = formatTargetNames(state.targetItems)
@@ -94,9 +110,9 @@ export function buildPromotionSummaryBullets(state: PromotionFormState): string[
   }
 
   // ── Customer scope ────────────────────────────────────────────────────────
-  if (state.customerScope === 'REGISTERED_ONLY') {
+  if (state.customerScope === CUSTOMER_SCOPE.REGISTERED_ONLY) {
     bullets.push('Solo clientes registrados')
-  } else if (state.customerScope === 'SPECIFIC' && state.customerIds.length > 0) {
+  } else if (state.customerScope === CUSTOMER_SCOPE.SPECIFIC && state.customerIds.length > 0) {
     bullets.push(`Para ${state.customerIds.length} cliente(s) específico(s)`)
   }
 
