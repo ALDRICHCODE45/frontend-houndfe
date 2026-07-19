@@ -415,6 +415,10 @@ export interface Sale {
   shippingAddress?: CustomerAddress | null
   createdAt: string
   updatedAt: string
+  // pos-price-list-tiers: identifier of the global price list active on this
+  // draft. Null when the seller never assigned one (defaults to PUBLICO).
+  // Optional so pre-deploy fixtures that omit the field still type-check.
+  globalPriceListId?: string | null
   // promotions-in-sale: backend-owned totals. Frontend MUST render these
   // directly (do NOT recompute). All optional so pre-deploy drafts work.
   subtotalCents?: number
