@@ -4,6 +4,7 @@ import { formatCentsMXN } from '../utils/currency.utils'
 import { formatPaymentMethod, getPaymentMethodColor } from '../utils/salePaymentMethod.utils'
 import { useDebtPayment } from '../composables/useDebtPayment'
 import type { CollectionPaymentMethod, PaymentEntry } from '../interfaces/sale.types'
+import { PAYMENT_METHOD } from '../constants/sale.constants' // sdd/magic-string-constants slice 3 — lowercase contract.
 import {
   MAX_PAYMENT_ENTRIES,
   addEntry,
@@ -30,20 +31,24 @@ const entries = ref<PaymentEntry[]>([])
 const idempotencyKey = ref('')
 const inlineAggregateError = ref<string | null>(null)
 
-const CARD_METHODS: CollectionPaymentMethod[] = ['card_credit', 'card_debit', 'transfer']
+const CARD_METHODS: CollectionPaymentMethod[] = [
+  PAYMENT_METHOD.CARD_CREDIT,
+  PAYMENT_METHOD.CARD_DEBIT,
+  PAYMENT_METHOD.TRANSFER,
+]
 
 const methodOptions: ReadonlyArray<{ value: CollectionPaymentMethod; label: string; icon: string }> = [
-  { value: 'cash', label: 'Efectivo', icon: 'i-lucide-banknote' },
-  { value: 'card_credit', label: 'Tarjeta crédito', icon: 'i-lucide-credit-card' },
-  { value: 'card_debit', label: 'Tarjeta débito', icon: 'i-lucide-wallet-cards' },
-  { value: 'transfer', label: 'Transferencia', icon: 'i-lucide-arrow-right-left' },
+  { value: PAYMENT_METHOD.CASH, label: 'Efectivo', icon: 'i-lucide-banknote' },
+  { value: PAYMENT_METHOD.CARD_CREDIT, label: 'Tarjeta crédito', icon: 'i-lucide-credit-card' },
+  { value: PAYMENT_METHOD.CARD_DEBIT, label: 'Tarjeta débito', icon: 'i-lucide-wallet-cards' },
+  { value: PAYMENT_METHOD.TRANSFER, label: 'Transferencia', icon: 'i-lucide-arrow-right-left' },
 ] as const
 
 const methodIconMap: Readonly<Record<CollectionPaymentMethod, string>> = {
-  cash: 'i-lucide-banknote',
-  card_credit: 'i-lucide-credit-card',
-  card_debit: 'i-lucide-wallet-cards',
-  transfer: 'i-lucide-arrow-right-left',
+  [PAYMENT_METHOD.CASH]: 'i-lucide-banknote',
+  [PAYMENT_METHOD.CARD_CREDIT]: 'i-lucide-credit-card',
+  [PAYMENT_METHOD.CARD_DEBIT]: 'i-lucide-wallet-cards',
+  [PAYMENT_METHOD.TRANSFER]: 'i-lucide-arrow-right-left',
 } as const
 
 const {

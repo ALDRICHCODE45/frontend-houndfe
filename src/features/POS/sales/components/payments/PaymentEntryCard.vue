@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { PaymentEntry } from '../../interfaces/sale.types'
+import { PAYMENT_METHOD } from '../../constants/sale.constants' // sdd/magic-string-constants slice 3 — lowercase contract.
 import { currencyToCents } from '../../utils/currency.utils'
 import { PAYMENT_METHOD_CONFIG } from './paymentMethod.config'
 
@@ -35,7 +36,7 @@ const amountPesos = computed<number>({
   },
 })
 
-const requiresReference = computed(() => props.entry.method !== 'cash')
+const requiresReference = computed(() => props.entry.method !== PAYMENT_METHOD.CASH)
 
 function onReferenceInput(value: string): void {
   emit('update', props.index, { reference: value })

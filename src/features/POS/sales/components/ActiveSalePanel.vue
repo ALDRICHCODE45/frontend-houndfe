@@ -13,6 +13,7 @@ import type {
   OverrideItemPricePayload,
   Sale,
 } from '../interfaces/sale.types'
+import { SALE_STATUS } from '../constants/sale.constants' // sdd/magic-string-constants slice 3
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -233,7 +234,7 @@ function getCloseTabDescription(): string {
           v-for="item in activeDraft.items"
           :key="item.id"
           :sale-id="activeDraft.id"
-          :is-draft="activeDraft.status === 'DRAFT'"
+          :is-draft="activeDraft.status === SALE_STATUS.DRAFT"
           :item="item"
           :image-url="itemImageMap?.[item.variantId ? `${item.productId}:${item.variantId}` : item.productId] ?? null"
           :is-updating="isMutating"

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { ConfirmedSaleRow } from '../interfaces/sale.types'
+import { SALE_STATUS } from '../constants/sale.constants' // sdd/magic-string-constants slice 3: status value comes from the per-module constants file.
 import { extractFolioNumber } from '../utils/saleFolio.utils'
 import { formatSaleDate, formatSaleDueDate } from '../utils/saleDate.utils'
 import { formatCentsMXN } from '../utils/currency.utils'
@@ -15,8 +16,8 @@ const hasDebt = computed(() => props.sale.debtCents > 0)
 const firstPaymentMethod = computed(() => props.sale.paymentMethods[0] ?? null)
 
 function statusColor(status: ConfirmedSaleRow['status']) {
-  if (status === 'CONFIRMED') return 'success'
-  if (status === 'DRAFT') return 'warning'
+  if (status === SALE_STATUS.CONFIRMED) return 'success'
+  if (status === SALE_STATUS.DRAFT) return 'warning'
   return 'error'
 }
 </script>

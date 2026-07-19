@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { SalesListCounts, SaleDeliveryStatus } from '../interfaces/sale.types'
+import { SALE_DELIVERY_STATUS } from '../constants/sale.constants'
 
 withDefaults(
   defineProps<{
@@ -32,7 +33,7 @@ const emit = defineEmits<{
       color="neutral"
       class="whitespace-nowrap"
       data-testid="sales-tab-pending-delivery"
-      @click="emit('change', 'PENDING')"
+      @click="emit('change', SALE_DELIVERY_STATUS.PENDING)"
     >
       No Entregadas ({{ counts.notDelivered }})
     </UButton>

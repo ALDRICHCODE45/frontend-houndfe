@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { ChargeSalePayload, NonCreditPaymentMethod, PaymentEntry, SaleDraftCustomer } from '../interfaces/sale.types'
+import { PAYMENT_METHOD } from '../constants/sale.constants' // sdd/magic-string-constants slice 3 — lowercase contract.
 import DateFieldPopover from './DateFieldPopover.vue'
 import { newIdempotencyKey } from '../utils/idempotency.utils'
 import { formatCentsMXN } from '../utils/currency.utils'
@@ -27,7 +28,11 @@ type PaymentEntryForm = {
   reference: string
 }
 
-const CARD_METHODS: NonCreditPaymentMethod[] = ['card_credit', 'card_debit', 'transfer']
+const CARD_METHODS: NonCreditPaymentMethod[] = [
+  PAYMENT_METHOD.CARD_CREDIT,
+  PAYMENT_METHOD.CARD_DEBIT,
+  PAYMENT_METHOD.TRANSFER,
+]
 const MAX_ENTRIES = 5
 
 const entries = ref<PaymentEntryForm[]>([])
@@ -52,24 +57,24 @@ const isDueDateValid = computed(() => {
 })
 
 const methodOptions: ReadonlyArray<{ value: NonCreditPaymentMethod; label: string; icon: string }> = [
-  { value: 'cash', label: 'Efectivo', icon: 'i-lucide-banknote' },
-  { value: 'card_credit', label: 'Tarjeta crédito', icon: 'i-lucide-credit-card' },
-  { value: 'card_debit', label: 'Tarjeta débito', icon: 'i-lucide-wallet-cards' },
-  { value: 'transfer', label: 'Transferencia', icon: 'i-lucide-arrow-right-left' },
+  { value: PAYMENT_METHOD.CASH, label: 'Efectivo', icon: 'i-lucide-banknote' },
+  { value: PAYMENT_METHOD.CARD_CREDIT, label: 'Tarjeta crédito', icon: 'i-lucide-credit-card' },
+  { value: PAYMENT_METHOD.CARD_DEBIT, label: 'Tarjeta débito', icon: 'i-lucide-wallet-cards' },
+  { value: PAYMENT_METHOD.TRANSFER, label: 'Transferencia', icon: 'i-lucide-arrow-right-left' },
 ] as const
 
 const methodIconMap: Readonly<Record<NonCreditPaymentMethod, string>> = {
-  cash: 'i-lucide-banknote',
-  card_credit: 'i-lucide-credit-card',
-  card_debit: 'i-lucide-wallet-cards',
-  transfer: 'i-lucide-arrow-right-left',
+  [PAYMENT_METHOD.CASH]: 'i-lucide-banknote',
+  [PAYMENT_METHOD.CARD_CREDIT]: 'i-lucide-credit-card',
+  [PAYMENT_METHOD.CARD_DEBIT]: 'i-lucide-wallet-cards',
+  [PAYMENT_METHOD.TRANSFER]: 'i-lucide-arrow-right-left',
 } as const
 
 const totalFormatted = computed(() => formatCentsMXN(props.totalCents))
 const paidSumCents = computed(() => {
   return entries.value.reduce((sum, entry) => sum + Math.max(0, Math.round(entry.amountPesos * 100)), 0)
 })
-const hasCashPayment = computed(() => entries.value.some((entry) => entry.method === 'cash'))
+const hasCashPayment = computed(() => entries.value.some((entry) => entry.method === PAYMENT_METHOD.CASH))
 const remainingCents = computed(() => props.totalCents - paidSumCents.value)
 const hasCustomer = computed(() => props.customer != null)
 const isPartial = computed(() => paidSumCents.value < props.totalCents)
@@ -97,7 +102,7 @@ const confirmButtonLabel = computed(() => {
 
 function createDefaultEntry(): PaymentEntryForm {
   return {
-    method: 'cash',
+    method: PAYMENT_METHOD.CASH,
     amountPesos: props.totalCents / 100,
     reference: '',
   }
@@ -174,7 +179,7 @@ watch([isPartial, hasCustomer, entries], () => {
 
 function addEntry() {
   if (!canAddEntry.value) return
-  entries.value.push({ method: 'cash', amountPesos: 0, reference: '' })
+  entries.value.push({ method: PAYMENT_METHOD.CASH, amountPesos: 0, reference: '' })
 }
 
 function addEntryWithMethod(method: NonCreditPaymentMethod) {
@@ -184,14 +189,14 @@ function addEntryWithMethod(method: NonCreditPaymentMethod) {
 
 function toggleMethod(method: NonCreditPaymentMethod) {
   const existingIndex = entries.value.findIndex(entry => entry.method === method)
-  
+
   if (existingIndex >= 0) {
     // Remove the existing entry (toggle off)
     entries.value = entries.value.filter(entry => entry.method !== method)
   } else {
     // Add new entry (toggle on)
     if (canAddEntry.value) {
-      const defaultAmount = method === 'cash' ? props.totalCents / 100 : 0
+      const defaultAmount = method === PAYMENT_METHOD.CASH ? props.totalCents / 100 : 0
       entries.value.push({ method, amountPesos: defaultAmount, reference: '' })
     }
   }
@@ -338,7 +343,7 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
               <button
                 v-for="option in methodOptions"
                 :key="option.value"
-                :data-testid="option.value === 'cash' ? 'add-payment-entry' : undefined"
+                :data-testid="option.value === PAYMENT_METHOD.CASH ? 'add-payment-entry' : undefined"
                 :data-method="option.value"
                 type="button"
                 class="relative rounded-xl border px-3 py-4 text-left transition disabled:cursor-not-allowed disabled:opacity-50"

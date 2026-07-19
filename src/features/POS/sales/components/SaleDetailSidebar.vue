@@ -7,6 +7,7 @@ import AssignSellerSlideover from './AssignSellerSlideover.vue'
 import DueDateEditModal from './DueDateEditModal.vue'
 import { useSellerAssignment } from '../composables/useSellerAssignment'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import { SALE_PAYMENT_STATUS } from '../constants/sale.constants' // sdd/magic-string-constants slice 3
 import type { SaleDetail } from '../interfaces/sale.types'
 
 declare const useToast: () => {
@@ -33,7 +34,7 @@ const isDueDateModalOpen = ref(false)
 
 const canUpdateSale = computed(() => authStore.userCan('update', 'Sale'))
 const canEditDueDate = computed(
-  () => canUpdateSale.value && props.sale.paymentStatus !== 'PAID',
+  () => canUpdateSale.value && props.sale.paymentStatus !== SALE_PAYMENT_STATUS.PAID,
 )
 const { unassignSeller, isPending: isSellerMutating } = useSellerAssignment(() => props.sale.id)
 

@@ -9,6 +9,7 @@ import type {
   DebtPaymentPayload,
   DebtPaymentResponse,
 } from '../interfaces/sale.types'
+import { SALE_PAYMENT_STATUS } from '../constants/sale.constants' // sdd/magic-string-constants slice 3
 import { getSalePaymentErrorAction } from '../utils/salePaymentErrors.utils'
 
 // useToast is auto-imported by @nuxt/ui/vite plugin (unplugin-auto-import).
@@ -63,7 +64,7 @@ export function useDebtPayment(saleId: string) {
       void queryClient.invalidateQueries({ queryKey: saleQueryKeys.detail(tenantId.value, saleId) })
       void queryClient.invalidateQueries({ queryKey: saleQueryKeys.confirmed(tenantId.value) })
 
-      const title = data.paymentStatus === 'PAID' ? 'Venta pagada' : 'Pago parcial registrado'
+      const title = data.paymentStatus === SALE_PAYMENT_STATUS.PAID ? 'Venta pagada' : 'Pago parcial registrado'
       toast.add({ title, color: 'success' })
     },
     onError: (error: AxiosError<DomainErrorResponse>) => {

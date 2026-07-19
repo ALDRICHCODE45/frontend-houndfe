@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { SalePaymentStatus } from '../interfaces/sale.types'
+import { SALE_PAYMENT_STATUS } from '../constants/sale.constants' // sdd/magic-string-constants slice 3
 import { formatCentsMXN } from '../utils/currency.utils'
 
 const props = withDefaults(defineProps<{
@@ -14,7 +15,7 @@ const props = withDefaults(defineProps<{
   confirmedAt: string
 }>(), {
   debtCents: 0,
-  paymentStatus: 'PAID',
+  paymentStatus: SALE_PAYMENT_STATUS.PAID,
 })
 
 const emit = defineEmits<{
@@ -26,11 +27,11 @@ function formatDate(value: string): string {
 }
 
 const debtStatus = computed(() => {
-  if (props.paymentStatus === 'PARTIAL') {
+  if (props.paymentStatus === SALE_PAYMENT_STATUS.PARTIAL) {
     return { label: 'Parcial', color: 'warning' as const }
   }
 
-  if (props.paymentStatus === 'CREDIT') {
+  if (props.paymentStatus === SALE_PAYMENT_STATUS.CREDIT) {
     return { label: 'Crédito', color: 'error' as const }
   }
 
