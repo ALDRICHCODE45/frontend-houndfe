@@ -38,11 +38,18 @@
  * Design: warm orange primary, Nuxt UI 4. Card-based list for easy scanning.
  */
 
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { employeeQueryKeys } from '@/core/shared/constants/query-keys'
+import {
+  paginateRows,
+  pageAfterQueryChange,
+  clampPage,
+  FIRST_PAGE,
+  DEFAULT_TABLE_PAGE_SIZE,
+} from '@/core/shared/utils/pagination.utils'
 import { usePendingApprovals } from '../composables/useReviewTimeOff'
 import { useReviewTimeOff } from '../composables/useReviewTimeOff'
 import {
@@ -126,6 +133,42 @@ const filteredRequests = computed(() =>
 )
 
 const isSearchActive = computed(() => searchQuery.value.trim().length > 0)
+
+// ─── Client-side pagination ───────────────────────────────────────────────────
+//
+// The pending-approvals endpoint returns the FULL tenant queue as a flat array
+// (server-sorted, NO server pagination), so we slice it client-side AFTER the
+// name search. Page size is shared with the "Documentos por vencer" table for a
+// consistent feel across the two tenant-wide list views.
+const page = ref(FIRST_PAGE)
+const pageSize = DEFAULT_TABLE_PAGE_SIZE
+
+/** Current page slice of the searched queue — page clamped so it is always valid. */
+const paged = computed(() => {
+  const pageCount = Math.ceil(filteredRequests.value.length / pageSize)
+  return paginateRows(filteredRequests.value, clampPage(page.value, pageCount), pageSize)
+})
+
+const showingFrom = computed(() =>
+  paged.value.total === 0 ? 0 : (page.value - 1) * pageSize + 1,
+)
+const showingTo = computed(() => Math.min(page.value * pageSize, paged.value.total))
+
+// Reset to the first page whenever the search query changes (the result set,
+// and therefore the page range, changes).
+watch(searchQuery, (next, previous) => {
+  page.value = pageAfterQueryChange(previous, next, page.value)
+})
+
+// Recover the page ref when the queue shrinks from a NON-search source (a
+// review-mutation refetch drops pending below the current page); clampPage is
+// idempotent, so this watch cannot loop.
+watch(
+  () => paged.value.pageCount,
+  (count) => {
+    page.value = clampPage(page.value, count)
+  },
+)
 
 // ─── Review mutation ───────────────────────────────────────────────────────────
 
@@ -284,7 +327,7 @@ function getTypeColor(type: string): 'primary' | 'warning' | 'error' | 'neutral'
           </div>
 
           <div
-            v-for="request in filteredRequests"
+            v-for="request in paged.pageRows"
             :key="request.id"
             class="rounded-lg border border-default bg-elevated/30 p-4 transition-colors hover:bg-elevated/50"
           >
@@ -372,6 +415,23 @@ function getTypeColor(type: string): 'primary' | 'warning' | 'error' | 'neutral'
                 </UButton>
               </div>
             </div>
+          </div>
+
+          <!-- Client-side pagination (hidden on a single page or empty list) -->
+          <div
+            v-if="paged.pageCount > 1"
+            class="flex flex-col gap-3 border-t border-default pt-4 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <p class="text-sm text-muted">
+              Mostrando {{ showingFrom }}-{{ showingTo }} de {{ paged.total }}
+            </p>
+            <UPagination
+              v-model:page="page"
+              :items-per-page="pageSize"
+              :total="paged.total"
+              :sibling-count="1"
+              size="sm"
+            />
           </div>
         </div>
       </div>

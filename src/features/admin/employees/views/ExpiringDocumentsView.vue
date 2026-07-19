@@ -37,6 +37,7 @@ import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { employeeQueryKeys } from '@/core/shared/constants/query-keys'
+import { DEFAULT_TABLE_PAGE_SIZE } from '@/core/shared/utils/pagination.utils'
 import { employeesApi } from '../api/employees.api'
 import {
   useExpiringDocuments,
@@ -95,7 +96,7 @@ const allRows = computed<ExpiringDocumentRow[]>(() =>
 )
 
 const page = ref(1)
-const pageSize = ref(10)
+const pageSize = ref(DEFAULT_TABLE_PAGE_SIZE)
 
 const paged = computed(() => paginateRows(allRows.value, page.value, pageSize.value))
 
