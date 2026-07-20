@@ -38,6 +38,10 @@ vi.mock('@nuxt/ui/composables/useToast', async (importOriginal) => {
   }
 })
 
+vi.mock('../../components/AssignSellerSlideover.vue', () => ({
+  default: { template: '<div />', props: ['open', 'saleId'], emits: ['update:open'] },
+}))
+
 vi.mock('vue-router', () => ({
   useRoute: () => ({ params: { id: 'sale-1' } }),
   useRouter: () => ({ push: vi.fn() }),
@@ -142,13 +146,14 @@ describe('SaleDetailView', () => {
   // so widen the helper's input type away from the CONFIRMED-only default.
   type TestSale = Omit<typeof defaultSale, 'status'> & { status: typeof defaultSale.status | 'DRAFT' | 'CANCELED' }
 
-  function mountWithDropdown(sale: TestSale) {
+   function mountWithDropdown(sale: TestSale) {
     mockSaleDetail.value = sale as typeof defaultSale
     return mountWithUApp(SaleDetailView, {
       global: {
         stubs: {
           UDropdownMenu: pdfDropdownStub(),
           DebtPaymentModal: { template: '<div />' },
+          AssignSellerSlideover: { template: '<div />' },
         },
       },
     })

@@ -19,6 +19,7 @@ import SaleDetailTimeline from '../components/SaleDetailTimeline.vue'
 import SaleCommentInput from '../components/SaleCommentInput.vue'
 import SaleDetailHeader from '../components/SaleDetailHeader.vue'
 import DebtPaymentModal from '../components/DebtPaymentModal.vue'
+import AssignSellerSlideover from '../components/AssignSellerSlideover.vue'
 
 declare const useToast: () => {
   add: (options: {
@@ -37,6 +38,7 @@ const canReadSales = computed(() => authStore.userCan('read', 'Sale'))
 const { sale, isLoading } = useSaleDetail(saleId)
 const { addComment, updateComment, deleteComment, isPending: commentsPending, lastError } = useSaleComments(saleId)
 const debtModalOpen = ref(false)
+const sellerSlideoverOpen = ref(false)
 const { isSubmitting } = useDebtPayment(saleId.value)
 
 const canRegisterPayment = computed(
@@ -254,10 +256,14 @@ watch(
             <p class="text-xs font-semibold uppercase tracking-wider text-muted">Cajero</p>
             <p class="font-medium">{{ sale.cashier.name }}</p>
           </div>
-          <div class="rounded-md border border-default p-3" data-testid="reflow-vendedor">
+          <div
+            class="rounded-md border border-default p-3 cursor-pointer hover:bg-elevated/50 transition-colors"
+            data-testid="reflow-vendedor"
+            @click="sellerSlideoverOpen = true"
+          >
             <p class="text-xs font-semibold uppercase tracking-wider text-muted">Vendedor</p>
             <p class="font-medium" :class="{ 'text-muted': !sale.seller }">
-              {{ sale.seller?.name ?? 'Sin asignar' }}
+              {{ sale.seller?.name ?? 'Sin asignar — click para asignar' }}
             </p>
           </div>
           <div class="rounded-md border border-default p-3" data-testid="reflow-cliente">
@@ -293,6 +299,11 @@ watch(
       :sale-id="sale.id"
       :debt-cents="sale.debtCents"
       @success="debtModalOpen = false"
+    />
+    <AssignSellerSlideover
+      v-if="sale"
+      v-model:open="sellerSlideoverOpen"
+      :sale-id="sale.id"
     />
   </div>
 </template>
