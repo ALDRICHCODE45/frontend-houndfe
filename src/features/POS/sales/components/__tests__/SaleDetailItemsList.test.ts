@@ -4,7 +4,73 @@ import SaleItemBadges from '../SaleItemBadges.vue'
 import { mountWithUApp } from '@/test/mountWithUApp'
 
 describe('SaleDetailItemsList', () => {
-  it('renders one individual card per item', () => {
+  // sales-detail-redesign: receipt layout renders a proper <table> with
+  // PRODUCTO | CANT | PRECIO UNIT | DESC | SUBTOTAL columns. No avatars.
+  it('renders a <table> with the 5 receipt columns', () => {
+    const wrapper = mountWithUApp(SaleDetailItemsList, {
+      props: {
+        items: [
+          {
+            productName: 'Jean Recto',
+            variantName: 'Talla M',
+            imageUrl: null,
+            unitPriceCents: 17000,
+            quantity: 3,
+            discountCents: 0,
+            subtotalCents: 51000,
+          },
+        ],
+      },
+    })
+
+    expect(wrapper.find('[data-testid="items-table"]').element.tagName.toLowerCase()).toBe('table')
+
+    const headers = wrapper.findAll('th')
+    expect(headers).toHaveLength(5)
+    expect(headers.map(h => h.text().trim())).toEqual([
+      'Producto',
+      'Cant',
+      'Precio Unit',
+      'Desc',
+      'Subtotal',
+    ])
+  })
+
+  it('does NOT render any avatar or image element per row', () => {
+    const wrapper = mountWithUApp(SaleDetailItemsList, {
+      props: {
+        items: [
+          {
+            productName: 'Jean Recto',
+            variantName: 'Talla M',
+            imageUrl: 'https://example.com/jean.jpg',
+            unitPriceCents: 17000,
+            quantity: 2,
+            discountCents: 0,
+            subtotalCents: 34000,
+          },
+          {
+            productName: 'Camisa',
+            variantName: 'XL',
+            imageUrl: null,
+            unitPriceCents: 25000,
+            quantity: 1,
+            discountCents: 0,
+            subtotalCents: 25000,
+          },
+        ],
+      },
+    })
+
+    // No avatar/img element anywhere in the table — receipt rows are text only.
+    expect(wrapper.findAll('[data-testid^="item-image-"]')).toHaveLength(0)
+    expect(wrapper.findAll('img').filter((img) => {
+      // Filter out images that belong to badge components if any (none in this fixture).
+      return img.attributes('alt') !== 'Houndé'
+    })).toHaveLength(0)
+  })
+
+  it('renders one table row per item with a stable row testid', () => {
     const wrapper = mountWithUApp(SaleDetailItemsList, {
       props: {
         items: [
@@ -30,11 +96,13 @@ describe('SaleDetailItemsList', () => {
       },
     })
 
-    const cards = wrapper.findAll('[data-testid^="item-card-"]')
-    expect(cards).toHaveLength(2)
+    const rows = wrapper.findAll('[data-testid^="item-row-"]')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]?.attributes('data-testid')).toBe('item-row-0')
+    expect(rows[1]?.attributes('data-testid')).toBe('item-row-1')
   })
 
-  it('does NOT apply hover background or border-color transitions on item cards', () => {
+  it('does NOT apply hover background or border-color transitions on rows', () => {
     const wrapper = mountWithUApp(SaleDetailItemsList, {
       props: {
         items: [
@@ -51,15 +119,13 @@ describe('SaleDetailItemsList', () => {
       },
     })
 
-    const card = wrapper.get('[data-testid="item-card-0"]')
-    const classes = card.classes()
-    // The previous "hover:bg-elevated" produced an ugly grey block hover on a
-    // non-interactive row. Item cards are not clickable, so they must NOT have
-    // any hover state.
+    const row = wrapper.get('[data-testid="item-row-0"]')
+    const classes = row.classes()
+    // Item rows are not clickable — no hover state.
     expect(classes.some((c) => c.startsWith('hover:'))).toBe(false)
   })
 
-  it('applies typographic hierarchy to name, subtitle, quantity, and subtotal', () => {
+  it('applies typographic hierarchy to name, quantity, and subtotal', () => {
     const wrapper = mountWithUApp(SaleDetailItemsList, {
       props: {
         items: [
@@ -77,89 +143,15 @@ describe('SaleDetailItemsList', () => {
     })
 
     const name = wrapper.get('[data-testid="item-name-0"]')
-    const subtitle = wrapper.get('[data-testid="item-subtitle-0"]')
     const quantity = wrapper.get('[data-testid="item-quantity-0"]')
     const subtotal = wrapper.get('[data-testid="item-subtotal-0"]')
 
-    expect(name.classes()).toEqual(expect.arrayContaining(['text-base', 'font-semibold', 'text-highlighted']))
-    expect(subtitle.classes()).toEqual(expect.arrayContaining(['text-sm', 'text-muted']))
-    expect(quantity.classes()).toEqual(expect.arrayContaining(['text-sm', 'text-muted', 'tabular-nums']))
-    expect(subtotal.classes()).toEqual(expect.arrayContaining(['text-right', 'font-semibold', 'tabular-nums']))
+    expect(name.classes()).toEqual(expect.arrayContaining(['font-semibold', 'text-highlighted']))
+    expect(quantity.classes()).toEqual(expect.arrayContaining(['text-muted', 'tabular-nums']))
+    expect(subtotal.classes()).toEqual(expect.arrayContaining(['font-semibold', 'tabular-nums']))
   })
 
-  it('renders image when imageUrl is a non-empty string', () => {
-    const wrapper = mountWithUApp(SaleDetailItemsList, {
-      props: {
-        items: [
-          {
-            productName: 'Jean Recto',
-            variantName: 'Talla M',
-            imageUrl: 'https://example.com/jean.jpg',
-            unitPriceCents: 17000,
-            quantity: 2,
-            discountCents: 0,
-            subtotalCents: 34000,
-          },
-        ],
-      },
-    })
-
-    const avatar = wrapper.get('[data-testid="item-image-0"]')
-    expect(avatar.attributes('src')).toBe('https://example.com/jean.jpg')
-    expect(avatar.attributes('alt')).toBe('Jean Recto - Talla M')
-    expect(wrapper.text()).toContain('Jean Recto')
-  })
-
-  it('renders fallback icon when imageUrl is null', () => {
-    const wrapper = mountWithUApp(SaleDetailItemsList, {
-      props: {
-        items: [
-          {
-            productName: 'Jean Recto',
-            variantName: null,
-            imageUrl: null,
-            unitPriceCents: 17000,
-            quantity: 2,
-            discountCents: 0,
-            subtotalCents: 34000,
-          },
-        ],
-      },
-    })
-
-    const avatar = wrapper.get('[data-testid="item-image-0"]')
-    // UAvatar with icon renders as an SVG element
-    expect(avatar.element.tagName.toLowerCase()).toBe('svg')
-    expect(avatar.attributes('data-slot')).toBe('icon')
-    expect(avatar.attributes('src')).toBeUndefined()
-    expect(wrapper.text()).toContain('Jean Recto')
-  })
-
-  it('renders fallback icon when imageUrl is empty string', () => {
-    const wrapper = mountWithUApp(SaleDetailItemsList, {
-      props: {
-        items: [
-          {
-            productName: 'Camisa',
-            variantName: 'XL',
-            imageUrl: '',
-            unitPriceCents: 25000,
-            quantity: 1,
-            discountCents: 0,
-            subtotalCents: 25000,
-          },
-        ],
-      },
-    })
-
-    const avatar = wrapper.get('[data-testid="item-image-0"]')
-    expect(avatar.element.tagName.toLowerCase()).toBe('svg')
-    expect(avatar.attributes('data-slot')).toBe('icon')
-    expect(avatar.attributes('src')).toBeUndefined()
-    expect(wrapper.text()).toContain('Camisa')
-  })
-
-  it('renders quantity as clean text with × prefix', () => {
+  it('renders quantity with × prefix and the unit/subtotal prices', () => {
     const wrapper = mountWithUApp(SaleDetailItemsList, {
       props: {
         items: [
@@ -193,11 +185,11 @@ describe('SaleDetailItemsList', () => {
             unitPriceCents: 63000,
             quantity: 2,
             discountCents: 14000,
+            discountAmountCents: 14000,
             subtotalCents: 126000,
             priceSource: 'default',
             discountType: 'percentage',
             discountValue: 10,
-            discountAmountCents: 14000,
             prePriceCentsBeforeDiscount: 70000,
           },
         ],

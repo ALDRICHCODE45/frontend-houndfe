@@ -31,95 +31,99 @@ const itemsView = computed(() =>
 </script>
 
 <template>
-  <div class="space-y-3">
-    <div
-      v-for="(item, index) in itemsView"
-      :key="`${item.productName}-${index}`"
-      :data-testid="`item-card-${index}`"
-      class="flex items-start gap-4 rounded-xl border border-default bg-default px-4 py-3"
-    >
-      <UAvatar
-        v-if="item.imageUrl"
-        :data-testid="`item-image-${index}`"
-        :src="item.imageUrl"
-        :alt="`${item.productName}${item.variantName ? ' - ' + item.variantName : ''}`"
-        size="lg"
-        :ui="{ rounded: 'rounded-lg' }"
-      />
-      <UAvatar
-        v-else
-        :data-testid="`item-image-${index}`"
-        icon="i-lucide-image-off"
-        alt="Sin imagen"
-        size="lg"
-        :ui="{ rounded: 'rounded-lg' }"
-      />
-
-      <div class="flex-1 min-w-0">
-        <p
-          :data-testid="`item-name-${index}`"
-          class="text-base font-semibold text-highlighted"
-        >
-          {{ item.productName }}
-        </p>
-        <p
-          :data-testid="`item-subtitle-${index}`"
-          class="text-sm text-muted"
-        >
-          <span v-if="item.variantName">{{ item.variantName }} · </span>
-          <span
-            v-if="item.priceOverridden"
-            :data-testid="`item-original-price-${index}`"
-            class="line-through mr-1"
-          >
-            {{ formatCentsMXN(item.originalPriceCents ?? 0) }}
-          </span>
-          <span
-            v-if="item.hasLineDiscount"
-            :data-testid="`item-pre-discount-price-${index}`"
-            class="line-through mr-1"
-          >
-            {{ formatCentsMXN(item.prePriceCentsBeforeDiscount ?? 0) }}
-          </span>
-          <span>{{ formatCentsMXN(item.unitPriceCents) }}</span>
-        </p>
-        <SaleItemBadges
-          class="mt-1.5"
-          :price-source="item.priceSource"
-          :original-price-cents="item.originalPriceCents"
-          :unit-price-cents="item.unitPriceCents"
-          :discount-type="item.discountType"
-          :discount-value="item.discountValue"
-          :discount-amount-cents="item.discountAmountCents"
-          :discount-title="item.discountTitle"
-          :reward-kind="item.rewardKind"
-          :reward-discount-percent="item.rewardDiscountPercent"
-          :promotion-id="item.promotionId"
-        />
-      </div>
-
-      <span
-        :data-testid="`item-quantity-${index}`"
-        class="ml-auto self-center text-sm text-muted tabular-nums"
+  <table class="w-full text-sm" data-testid="items-table">
+    <thead>
+      <tr class="border-b border-default text-xs font-semibold uppercase tracking-wider text-muted">
+        <th class="py-2 text-left">Producto</th>
+        <th class="py-2 text-right">Cant</th>
+        <th class="py-2 text-right">Precio Unit</th>
+        <th class="py-2 text-right">Desc</th>
+        <th class="py-2 text-right">Subtotal</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr
+        v-for="(item, index) in itemsView"
+        :key="`${item.productName}-${index}`"
+        :data-testid="`item-row-${index}`"
+        class="border-b border-default/50 align-top"
       >
-        × {{ item.quantity }}
-      </span>
-
-      <div class="min-w-[88px] self-center">
-        <p
-          :data-testid="`item-subtotal-${index}`"
-          class="text-right text-sm font-semibold tabular-nums text-default"
+        <td class="py-2">
+          <p
+            :data-testid="`item-name-${index}`"
+            class="font-semibold text-highlighted"
+          >
+            {{ item.productName }}
+          </p>
+          <p
+            v-if="item.variantName || item.priceOverridden || item.hasLineDiscount"
+            :data-testid="`item-subtitle-${index}`"
+            class="text-xs text-muted"
+          >
+            <span v-if="item.variantName">{{ item.variantName }} · </span>
+            <span
+              v-if="item.priceOverridden"
+              :data-testid="`item-original-price-${index}`"
+              class="line-through mr-1"
+            >
+              {{ formatCentsMXN(item.originalPriceCents ?? 0) }}
+            </span>
+            <span
+              v-if="item.hasLineDiscount"
+              :data-testid="`item-pre-discount-price-${index}`"
+              class="line-through mr-1"
+            >
+              {{ formatCentsMXN(item.prePriceCentsBeforeDiscount ?? 0) }}
+            </span>
+          </p>
+          <SaleItemBadges
+            class="mt-1"
+            :price-source="item.priceSource"
+            :original-price-cents="item.originalPriceCents"
+            :unit-price-cents="item.unitPriceCents"
+            :discount-type="item.discountType"
+            :discount-value="item.discountValue"
+            :discount-amount-cents="item.discountAmountCents"
+            :discount-title="item.discountTitle"
+            :reward-kind="item.rewardKind"
+            :reward-discount-percent="item.rewardDiscountPercent"
+            :promotion-id="item.promotionId"
+          />
+        </td>
+        <td
+          :data-testid="`item-quantity-${index}`"
+          class="py-2 text-right text-muted tabular-nums"
         >
-          {{ formatCentsMXN(item.subtotalCents) }}
-        </p>
-        <p
-          v-if="item.hasLineDiscount"
-          :data-testid="`item-line-original-${index}`"
-          class="text-right text-xs text-muted line-through tabular-nums"
+          × {{ item.quantity }}
+        </td>
+        <td class="py-2 text-right tabular-nums">
+          {{ formatCentsMXN(item.unitPriceCents) }}
+        </td>
+        <td
+          :data-testid="`item-discount-${index}`"
+          class="py-2 text-right tabular-nums"
         >
-          {{ formatCentsMXN((item.prePriceCentsBeforeDiscount ?? 0) * item.quantity) }}
-        </p>
-      </div>
-    </div>
-  </div>
+          <span v-if="item.discountAmountCents" class="text-muted">
+            -{{ formatCentsMXN(item.discountAmountCents) }}
+          </span>
+          <span v-else>—</span>
+        </td>
+        <td class="py-2 text-right">
+          <p
+            :data-testid="`item-subtotal-${index}`"
+            class="font-semibold tabular-nums text-default"
+          >
+            {{ formatCentsMXN(item.subtotalCents) }}
+          </p>
+          <p
+            v-if="item.hasLineDiscount"
+            :data-testid="`item-line-original-${index}`"
+            class="text-right text-xs text-muted line-through tabular-nums"
+          >
+            {{ formatCentsMXN((item.prePriceCentsBeforeDiscount ?? 0) * item.quantity) }}
+          </p>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </template>
