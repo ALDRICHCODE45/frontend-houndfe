@@ -12,7 +12,6 @@ import SaleDetailItemsList from '../components/SaleDetailItemsList.vue'
 import SaleDetailTotalsCard from '../components/SaleDetailTotalsCard.vue'
 import SaleDetailTimeline from '../components/SaleDetailTimeline.vue'
 import SaleCommentInput from '../components/SaleCommentInput.vue'
-import SaleDetailSidebar from '../components/SaleDetailSidebar.vue'
 import SaleDetailHeader from '../components/SaleDetailHeader.vue'
 import DebtPaymentModal from '../components/DebtPaymentModal.vue'
 
@@ -182,41 +181,29 @@ watch(
       @back="goBack"
     />
 
-    <!-- Main content grid -->
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-      <!-- Main column -->
-      <div class="space-y-6 lg:col-span-2">
-        <section v-if="sale" class="space-y-3">
-          <h3 class="text-xs font-semibold uppercase tracking-wider text-muted">
-            Productos<span v-if="sale.items.length" class="text-muted/70"> · {{ sale.items.length }}</span>
-          </h3>
-          <SaleDetailItemsList :items="sale.items" />
-        </section>
-        <SaleDetailTotalsCard
-          v-if="sale"
-          :subtotal-cents="sale.subtotalCents"
-          :discount-cents="sale.discountCents"
-          :total-cents="sale.totalCents"
-        />
-        <SaleDetailTimeline
-          v-if="sale"
-          :timeline="sale.timeline"
-          :current-user-id="authStore.user?.id ?? null"
-          :is-pending="commentsPending"
-          :on-update-comment="updateComment"
-          :on-delete-comment="deleteComment"
-        />
-        <SaleCommentInput v-if="sale" :is-pending="commentsPending" :on-submit="addComment" />
-      </div>
-
-      <!-- Sidebar -->
-      <SaleDetailSidebar
+    <!-- Receipt content (single column) -->
+    <div class="space-y-6">
+      <section v-if="sale" class="space-y-3">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-muted">
+          Productos<span v-if="sale.items.length" class="text-muted/70"> · {{ sale.items.length }}</span>
+        </h3>
+        <SaleDetailItemsList :items="sale.items" />
+      </section>
+      <SaleDetailTotalsCard
         v-if="sale"
-        :sale="sale"
-        :is-payment-submitting="isSubmitting"
-        class="lg:col-span-1"
-        @register-payment="debtModalOpen = true"
+        :subtotal-cents="sale.subtotalCents"
+        :discount-cents="sale.discountCents"
+        :total-cents="sale.totalCents"
       />
+      <SaleDetailTimeline
+        v-if="sale"
+        :timeline="sale.timeline"
+        :current-user-id="authStore.user?.id ?? null"
+        :is-pending="commentsPending"
+        :on-update-comment="updateComment"
+        :on-delete-comment="deleteComment"
+      />
+      <SaleCommentInput v-if="sale" :is-pending="commentsPending" :on-submit="addComment" />
     </div>
 
     <DebtPaymentModal

@@ -148,18 +148,16 @@ describe('SaleDetailView', () => {
       global: {
         stubs: {
           UDropdownMenu: pdfDropdownStub(),
-          // The real sidebar pulls in useSellerAssignment → useQueryClient,
-          // which requires VueQueryPlugin. The PDF tests don't exercise the
-          // sidebar, so stub it out (matching the pattern used by the rest
-          // of this file).
-          SaleDetailSidebar: { template: '<div data-testid="sidebar" />' },
           DebtPaymentModal: { template: '<div />' },
         },
       },
     })
   }
 
-  it('renders two-column detail layout and title', () => {
+  // sales-detail-redesign: receipt layout is single-column — header +
+  // products + totals + timeline + comments stacked. The previous two-column
+  // grid + sticky sidebar is gone.
+  it('renders single-column receipt layout with header title', () => {
     const wrapper = mountWithUApp(SaleDetailView, {
       global: {
         stubs: {
@@ -172,14 +170,20 @@ describe('SaleDetailView', () => {
           SaleDetailTotalsCard: { template: '<div data-testid="totals" />' },
           SaleDetailTimeline: { template: '<div data-testid="timeline" />' },
           SaleCommentInput: { template: '<div data-testid="comment-input" />' },
-          SaleDetailSidebar: { template: '<div data-testid="sidebar" />' },
         },
       },
     })
 
     expect(wrapper.get('[data-testid="sale-detail-layout"]')).toBeTruthy()
     expect(wrapper.text()).toContain('Venta #12')
-    expect(wrapper.find('[data-testid="sidebar"]').exists()).toBe(true)
+    // Header, products, totals, timeline, comment-input stack as siblings
+    // inside a single column — no separate sidebar column.
+    expect(wrapper.find('[data-testid="items"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="totals"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="timeline"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="comment-input"]').exists()).toBe(true)
+    // Sidebar testid is gone with the deleted sidebar component.
+    expect(wrapper.find('[data-testid="sidebar"]').exists()).toBe(false)
   })
 
   it('renders payment badge with correct label for PAID status', () => {
@@ -195,7 +199,6 @@ describe('SaleDetailView', () => {
           SaleDetailTotalsCard: { template: '<div />' },
           SaleDetailTimeline: { template: '<div />' },
           SaleCommentInput: { template: '<div />' },
-          SaleDetailSidebar: { template: '<div />' },
         },
       },
     })
@@ -207,7 +210,7 @@ describe('SaleDetailView', () => {
 
   it('renders payment badge with correct label for PARTIAL status', () => {
     mockSaleDetail.value = { ...defaultSale, paymentStatus: 'PARTIAL' }
-    
+
     const wrapper = mountWithUApp(SaleDetailView, {
       global: {
         stubs: {
@@ -220,7 +223,6 @@ describe('SaleDetailView', () => {
           SaleDetailTotalsCard: { template: '<div />' },
           SaleDetailTimeline: { template: '<div />' },
           SaleCommentInput: { template: '<div />' },
-          SaleDetailSidebar: { template: '<div />' },
         },
       },
     })
@@ -231,7 +233,7 @@ describe('SaleDetailView', () => {
 
   it('renders payment badge with correct label for CREDIT status', () => {
     mockSaleDetail.value = { ...defaultSale, paymentStatus: 'CREDIT' }
-    
+
     const wrapper = mountWithUApp(SaleDetailView, {
       global: {
         stubs: {
@@ -244,7 +246,6 @@ describe('SaleDetailView', () => {
           SaleDetailTotalsCard: { template: '<div />' },
           SaleDetailTimeline: { template: '<div />' },
           SaleCommentInput: { template: '<div />' },
-          SaleDetailSidebar: { template: '<div />' },
         },
       },
     })
@@ -255,7 +256,7 @@ describe('SaleDetailView', () => {
 
   it('does not render payment badge when paymentStatus is null', () => {
     mockSaleDetail.value = { ...defaultSale, paymentStatus: null }
-    
+
     const wrapper = mountWithUApp(SaleDetailView, {
       global: {
         stubs: {
@@ -268,102 +269,12 @@ describe('SaleDetailView', () => {
           SaleDetailTotalsCard: { template: '<div />' },
           SaleDetailTimeline: { template: '<div />' },
           SaleCommentInput: { template: '<div />' },
-          SaleDetailSidebar: { template: '<div />' },
         },
       },
     })
 
     const badges = wrapper.findAll('[data-testid="badge"]')
     expect(badges).toHaveLength(1) // only delivery badge
-  })
-
-  it('shows debt payment CTA for non-PAID sale and opens modal', async () => {
-    vi.mocked(debtSubmit).mockResolvedValue(undefined)
-
-    const wrapper = mountWithUApp(SaleDetailView, {
-      global: {
-        stubs: {
-          AppBadge: { template: '<span><slot /></span>' },
-          UCard: { template: '<div><slot /></div>' },
-          UButton: { template: '<button><slot /></button>' },
-          SaleDetailItemsList: { template: '<div data-testid="items" />' },
-          SaleDetailTotalsCard: { template: '<div data-testid="totals" />' },
-          SaleDetailTimeline: { template: '<div data-testid="timeline" />' },
-          SaleCommentInput: { template: '<div data-testid="comment-input" />' },
-          SaleDetailSidebar: {
-            props: ['sale'],
-            emits: ['register-payment'],
-            template:
-              '<button data-testid="register-debt-payment" @click="$emit(\'register-payment\')">Registrar Pago</button>',
-          },
-          DebtPaymentModal: {
-            props: ['open', 'saleId', 'debtCents'],
-            emits: ['submit', 'update:open'],
-            template:
-              '<div v-if="open"><button data-testid="submit-debt-payment" @click="$emit(\'submit\', { method: \'cash\', amountCents: debtCents })">submit</button></div>',
-          },
-        },
-      },
-    })
-
-    await wrapper.get('[data-testid="register-debt-payment"]').trigger('click')
-    expect(wrapper.find('[data-testid="submit-debt-payment"]').exists()).toBe(true)
-  })
-
-  it('shows register payment button when sale is CREDIT or PARTIAL and CONFIRMED; hides when PAID', () => {
-    const SidebarStub = {
-      props: ['sale'],
-      template: `
-        <button
-          v-if="sale.paymentStatus !== 'PAID' && sale.status === 'CONFIRMED'"
-          data-testid="register-debt-payment"
-        >
-          Registrar Pago
-        </button>
-      `,
-    }
-
-    mockSaleDetail.value = { ...defaultSale, paymentStatus: 'PARTIAL' }
-    const partialWrapper = mountWithUApp(SaleDetailView, {
-      global: { stubs: { SaleDetailSidebar: SidebarStub } },
-    })
-    expect(partialWrapper.find('[data-testid="register-debt-payment"]').exists()).toBe(true)
-
-    mockSaleDetail.value = { ...defaultSale, paymentStatus: 'CREDIT' }
-    const creditWrapper = mountWithUApp(SaleDetailView, {
-      global: { stubs: { SaleDetailSidebar: SidebarStub } },
-    })
-    expect(creditWrapper.find('[data-testid="register-debt-payment"]').exists()).toBe(true)
-
-    mockSaleDetail.value = { ...defaultSale, paymentStatus: 'PAID' }
-    const paidWrapper = mountWithUApp(SaleDetailView, {
-      global: { stubs: { SaleDetailSidebar: SidebarStub } },
-    })
-    expect(paidWrapper.find('[data-testid="register-debt-payment"]').exists()).toBe(false)
-  })
-
-  it('disables register payment button while submitting', () => {
-    debtSubmittingRef.value = true
-
-    const SidebarStub = {
-      props: ['sale', 'isPaymentSubmitting'],
-      template: `
-        <button
-          v-if="sale.paymentStatus !== 'PAID' && sale.status === 'CONFIRMED'"
-          data-testid="register-debt-payment"
-          :disabled="isPaymentSubmitting"
-        >
-          Registrar Pago
-        </button>
-      `,
-    }
-
-    mockSaleDetail.value = { ...defaultSale, paymentStatus: 'PARTIAL', status: 'CONFIRMED' }
-    const wrapper = mountWithUApp(SaleDetailView, {
-      global: { stubs: { SaleDetailSidebar: SidebarStub } },
-    })
-
-    expect(wrapper.get('[data-testid="register-debt-payment"]').attributes('disabled')).toBeDefined()
   })
 
   // sales-pdf-download: actionItems computed wires CONFIRMED/DRAFT/CANCELED
