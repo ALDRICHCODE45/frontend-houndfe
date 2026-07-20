@@ -33,6 +33,43 @@ interface DomainErrorResponse {
   error?: string
 }
 
+export type SalePdfFormat = 'receipt-a4' | 'receipt-ticket'
+
+export type SalePdfErrorCode =
+  | 'INVALID_FORMAT'
+  | 'SALE_NOT_CONFIRMED'
+  | 'PDF_GENERATION_FAILED'
+
+export class SalePdfError extends Error {
+  readonly code: SalePdfErrorCode
+  constructor(code: SalePdfErrorCode) {
+    super(code)
+    this.code = code
+    this.name = 'SalePdfError'
+  }
+}
+
+async function parsePdfError(error: unknown): Promise<SalePdfError | null> {
+  const data = (error as AxiosError)?.response?.data
+  if (!(data instanceof Blob)) return null
+  const knownCodes: SalePdfErrorCode[] = [
+    'INVALID_FORMAT',
+    'SALE_NOT_CONFIRMED',
+    'PDF_GENERATION_FAILED',
+  ]
+  try {
+    const text = await data.text()
+    const parsed = JSON.parse(text) as DomainErrorResponse
+    const code = parsed.error
+    if (code && knownCodes.includes(code as SalePdfErrorCode)) {
+      return new SalePdfError(code as SalePdfErrorCode)
+    }
+  } catch {
+    return null
+  }
+  return null
+}
+
 function parseCommentError(error: unknown): SaleCommentError | null {
   const code = (error as AxiosError<DomainErrorResponse>)?.response?.data?.error
   const knownCodes: SaleCommentErrorCode[] = ['COMMENT_NOT_FOUND', 'COMMENT_AUTHOR_FORBIDDEN', 'SALE_NOT_FOUND']
@@ -269,5 +306,23 @@ export const saleApi = {
   ): Promise<Sale> {
     const { data } = await http.put<Sale>(`/sales/drafts/${saleId}/price-list`, payload)
     return data
+  },
+
+  // sales-pdf-download: download the PDF receipt for a confirmed sale.
+  // The backend returns a binary Blob with Content-Disposition; errors come
+  // back as a Blob too (responseType: 'blob' covers both). Domain error
+  // codes (INVALID_FORMAT, SALE_NOT_CONFIRMED, PDF_GENERATION_FAILED) are
+  // surfaced as `SalePdfError`; everything else (network failures, unknown
+  // codes) rethrows the original axios error for the caller to handle.
+  async getPdfBlob(saleId: string, format: SalePdfFormat): Promise<Blob> {
+    try {
+      const { data } = await http.get<Blob>(`/sales/${saleId}/pdf`, {
+        params: { format },
+        responseType: 'blob',
+      })
+      return data
+    } catch (error) {
+      throw (await parsePdfError(error)) ?? error
+    }
   },
 }

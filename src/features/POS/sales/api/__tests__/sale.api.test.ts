@@ -1200,4 +1200,80 @@ describe('saleApi', () => {
       ).rejects.toEqual(apiError)
     })
   })
+
+  // sales-pdf-download: PDF receipt download for confirmed sales.
+  // GET /sales/:id/pdf?format=receipt-a4|receipt-ticket returns a binary PDF
+  // Blob with Content-Disposition. Errors come back as a Blob too — they
+  // need .text() + JSON.parse() to extract the domain code.
+  describe('getPdfBlob (sales-pdf-download)', () => {
+    const makeBlob = (text: string) =>
+      new Blob([text], { type: 'application/json' })
+
+    it('should GET /sales/:id/pdf with format param and responseType blob, returning the Blob', async () => {
+      const pdfBytes = new Blob(['%PDF-1.4 fake bytes'], { type: 'application/pdf' })
+      vi.mocked(http.get).mockResolvedValue({ data: pdfBytes })
+
+      const result = await saleApi.getPdfBlob('sale-1', 'receipt-a4')
+
+      expect(http.get).toHaveBeenCalledWith('/sales/sale-1/pdf', {
+        params: { format: 'receipt-a4' },
+        responseType: 'blob',
+      })
+      expect(result).toBe(pdfBytes)
+    })
+
+    it('should pass the receipt-ticket format param through unchanged', async () => {
+      const pdfBytes = new Blob(['%PDF-1.4 ticket bytes'], { type: 'application/pdf' })
+      vi.mocked(http.get).mockResolvedValue({ data: pdfBytes })
+
+      const result = await saleApi.getPdfBlob('sale-abc', 'receipt-ticket')
+
+      expect(http.get).toHaveBeenCalledWith('/sales/sale-abc/pdf', {
+        params: { format: 'receipt-ticket' },
+        responseType: 'blob',
+      })
+      expect(result).toBe(pdfBytes)
+    })
+
+    it('should parse known backend PDF error codes from a Blob error body and throw SalePdfError', async () => {
+      vi.mocked(http.get).mockRejectedValueOnce({
+        response: { status: 400, data: makeBlob(JSON.stringify({ error: 'INVALID_FORMAT' })) },
+      })
+      vi.mocked(http.get).mockRejectedValueOnce({
+        response: { status: 400, data: makeBlob(JSON.stringify({ error: 'SALE_NOT_CONFIRMED' })) },
+      })
+      vi.mocked(http.get).mockRejectedValueOnce({
+        response: { status: 500, data: makeBlob(JSON.stringify({ error: 'PDF_GENERATION_FAILED' })) },
+      })
+
+      await expect(saleApi.getPdfBlob('sale-1', 'receipt-a4')).rejects.toMatchObject({
+        code: 'INVALID_FORMAT',
+      })
+      await expect(saleApi.getPdfBlob('sale-1', 'receipt-a4')).rejects.toMatchObject({
+        code: 'SALE_NOT_CONFIRMED',
+      })
+      await expect(saleApi.getPdfBlob('sale-1', 'receipt-a4')).rejects.toMatchObject({
+        code: 'PDF_GENERATION_FAILED',
+      })
+    })
+
+    it('should rethrow the original axios error when the Blob body has no known code', async () => {
+      const apiError = {
+        response: {
+          status: 503,
+          data: makeBlob(JSON.stringify({ error: 'SOME_UNKNOWN_CODE' })),
+        },
+      }
+      vi.mocked(http.get).mockRejectedValue(apiError)
+
+      await expect(saleApi.getPdfBlob('sale-1', 'receipt-a4')).rejects.toBe(apiError)
+    })
+
+    it('should rethrow the original axios error when the error body is not a Blob (network failures)', async () => {
+      const networkError = new Error('Network Error')
+      vi.mocked(http.get).mockRejectedValue(networkError)
+
+      await expect(saleApi.getPdfBlob('sale-1', 'receipt-a4')).rejects.toBe(networkError)
+    })
+  })
 })
