@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import type { AxiosError } from 'axios'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { useSaleDetail } from '../composables/useSaleDetail'
 import { useDebtPayment } from '../composables/useDebtPayment'
 import { useSaleComments } from '../composables/useSaleComments'
+import { saleApi, SalePdfError, type SalePdfFormat } from '../api/sale.api'
+import { SALE_STATUS } from '../constants/sale.constants'
 import SaleDetailItemsList from '../components/SaleDetailItemsList.vue'
 import SaleDetailTotalsCard from '../components/SaleDetailTotalsCard.vue'
 import SaleDetailTimeline from '../components/SaleDetailTimeline.vue'
@@ -32,12 +35,53 @@ const { addComment, updateComment, deleteComment, isPending: commentsPending, la
 const debtModalOpen = ref(false)
 const { isSubmitting } = useDebtPayment(saleId.value)
 
-const actionItems = computed(() => [
-  { label: 'Imprimir Ticket', icon: 'i-lucide-printer', disabled: true },
-  { label: 'Descargar PDF', icon: 'i-lucide-download', disabled: true },
-  { label: 'Facturar Venta', icon: 'i-lucide-file-text', disabled: true },
-  { label: 'Enviar Recordatorio', icon: 'i-lucide-message-circle', disabled: true },
-])
+// sales-pdf-download: tracks which PDF format is currently being fetched so
+// only that dropdown row shows the loading spinner (R5). null when idle.
+const generatingPdfFormat = ref<SalePdfFormat | null>(null)
+const isGeneratingPdf = computed(() => generatingPdfFormat.value !== null)
+
+const actionItems = computed(() => {
+  const status = sale.value?.status
+  const isConfirmed = status === SALE_STATUS.CONFIRMED
+  // R7: CANCELED sales MUST NOT display PDF format options at all.
+  // DRAFT keeps them visible-but-disabled so the header can render the
+  // "Solo disponible para ventas confirmadas" tooltip (R1).
+  const showPdfEntries = status === SALE_STATUS.CONFIRMED || status === SALE_STATUS.DRAFT
+
+  const items: Array<{
+    label: string
+    icon: string
+    disabled: boolean
+    loading?: boolean
+    onSelect?: (event: Event) => void
+  }> = [{ label: 'Imprimir Ticket', icon: 'i-lucide-printer', disabled: true }]
+
+  if (showPdfEntries) {
+    items.push(
+      {
+        label: 'Recibo A4',
+        icon: 'i-lucide-download',
+        disabled: !isConfirmed,
+        loading: generatingPdfFormat.value === 'receipt-a4',
+        onSelect: () => void handlePreviewPdf('receipt-a4'),
+      },
+      {
+        label: 'Recibo Ticket',
+        icon: 'i-lucide-download',
+        disabled: !isConfirmed,
+        loading: generatingPdfFormat.value === 'receipt-ticket',
+        onSelect: () => void handlePreviewPdf('receipt-ticket'),
+      },
+    )
+  }
+
+  items.push(
+    { label: 'Facturar Venta', icon: 'i-lucide-file-text', disabled: true },
+    { label: 'Enviar Recordatorio', icon: 'i-lucide-message-circle', disabled: true },
+  )
+
+  return items
+})
 
 function goBack() {
   void router.push('/pos/ventas')
@@ -48,6 +92,56 @@ function mapCommentErrorMessage(code?: string | null): string {
   if (code === 'COMMENT_NOT_FOUND') return 'Comentario no encontrado'
   if (code === 'SALE_NOT_FOUND') return 'Venta no encontrada'
   return 'No se pudo guardar el comentario'
+}
+
+// sales-pdf-download: error → toast mapping (R3). Centralised so the view
+// handler stays focused on flow control.
+function mapPdfError(err: unknown): { description: string; color: 'error' | 'warning' } {
+  if (err instanceof SalePdfError) {
+    if (err.code === 'INVALID_FORMAT') return { description: 'Formato de recibo no válido', color: 'error' }
+    if (err.code === 'SALE_NOT_CONFIRMED')
+      return { description: 'Solo ventas confirmadas pueden descargar recibo', color: 'error' }
+    if (err.code === 'PDF_GENERATION_FAILED')
+      return { description: 'Error al generar el PDF. Intentá nuevamente', color: 'error' }
+  }
+  const status = (err as AxiosError)?.response?.status
+  if (status === 401) return { description: 'Sesión expirada. Iniciá sesión nuevamente', color: 'error' }
+  if (status === 403) return { description: 'No tenés permiso para descargar este recibo', color: 'error' }
+  if (status === 404) return { description: 'Venta no encontrada', color: 'error' }
+  // Network failure (no HTTP response at all).
+  if (!(err as AxiosError)?.response)
+    return { description: 'Error de conexión. Verificá tu red', color: 'error' }
+  return { description: 'No se pudo generar el PDF. Intentá nuevamente', color: 'error' }
+}
+
+// sales-pdf-download: fetch PDF blob → create object URL → window.open in a
+// new tab. The object URL is revoked after a 1s grace period so the new
+// tab has time to load before the source URL disappears (R6).
+async function handlePreviewPdf(format: SalePdfFormat) {
+  if (!sale.value) return
+  generatingPdfFormat.value = format
+  let objectUrl: string | null = null
+  try {
+    const blob = await saleApi.getPdfBlob(sale.value.id, format)
+    objectUrl = URL.createObjectURL(blob)
+    const opened = window.open(objectUrl, '_blank')
+    if (!opened) {
+      useToast().add({
+        title: 'Recibo no disponible',
+        description: 'Permití ventanas emergentes para ver el recibo',
+        color: 'warning',
+      })
+    }
+  } catch (error) {
+    const mapped = mapPdfError(error)
+    useToast().add({ title: 'Error al generar el PDF', ...mapped })
+  } finally {
+    const urlToRevoke = objectUrl
+    if (urlToRevoke) {
+      setTimeout(() => URL.revokeObjectURL(urlToRevoke), 1000)
+    }
+    generatingPdfFormat.value = null
+  }
 }
 
 watch(

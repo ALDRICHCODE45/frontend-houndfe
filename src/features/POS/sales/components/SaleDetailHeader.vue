@@ -6,7 +6,13 @@ import type { SaleDetail } from '../interfaces/sale.types'
 
 const props = defineProps<{
   sale: SaleDetail
-  actionItems: Array<{ label: string; icon: string; disabled: boolean }>
+  actionItems: Array<{
+    label: string
+    icon: string
+    disabled: boolean
+    loading?: boolean
+    onSelect?: (event: Event) => void
+  }>
 }>()
 
 const emit = defineEmits<{
