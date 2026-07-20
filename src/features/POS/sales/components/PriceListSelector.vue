@@ -72,9 +72,13 @@ const priceLists = computed<GlobalPriceList[]>(
 )
 
 // Menu items: PUBLICO (default) first, then the custom lists.
+// Filter out the real PUBLICO from the API response (isDefault === true)
+// because we already have a sentinel entry for it — avoids a duplicate.
 const menuItems = computed(() => [
   { label: PUBLICO_LABEL, value: PUBLICO_SENTINEL },
-  ...priceLists.value.map((list) => ({ label: list.name, value: list.id })),
+  ...priceLists.value
+    .filter((list) => !list.isDefault)
+    .map((list) => ({ label: list.name, value: list.id })),
 ])
 
 // UInputMenu model binding. When globalPriceListId is null the draft is
