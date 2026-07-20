@@ -52,17 +52,21 @@ const canRegisterPayment = computed(
 // once on mount so the inline label is decoupled from the network round
 // trip.
 const priceLists = ref<GlobalPriceList[]>([])
+const priceListsLoading = ref(true)
 onMounted(async () => {
   try {
     priceLists.value = await productApi.getGlobalPriceLists()
   } catch {
     // Silently degrade — the raw ID (or "PUBLICO") will be shown as fallback.
+  } finally {
+    priceListsLoading.value = false
   }
 })
 
 const priceListName = computed<string>(() => {
   const id = sale.value?.globalPriceListId
   if (!id) return 'PUBLICO'
+  if (priceListsLoading.value) return '...'
   return priceLists.value.find((l) => l.id === id)?.name ?? id
 })
 
