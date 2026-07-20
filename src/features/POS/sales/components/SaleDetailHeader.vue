@@ -55,9 +55,11 @@ const triggerTooltipText = computed(() =>
           Más Acciones
         </UButton>
       </UTooltip>
-      <UButton v-else trailing-icon="i-lucide-chevron-down" variant="outline">
-        Más Acciones
-      </UButton>
+      <template v-else>
+        <UButton trailing-icon="i-lucide-chevron-down" variant="outline">
+          Más Acciones
+        </UButton>
+      </template>
     </UDropdownMenu>
   </div>
 </template>

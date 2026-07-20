@@ -1215,10 +1215,13 @@ describe('saleApi', () => {
 
       const result = await saleApi.getPdfBlob('sale-1', 'receipt-a4')
 
-      expect(http.get).toHaveBeenCalledWith('/sales/sale-1/pdf', {
-        params: { format: 'receipt-a4' },
-        responseType: 'blob',
-      })
+      expect(http.get).toHaveBeenCalledWith(
+        '/sales/sale-1/pdf',
+        expect.objectContaining({
+          params: { format: 'receipt-a4' },
+          responseType: 'blob',
+        }),
+      )
       expect(result).toBe(pdfBytes)
     })
 
@@ -1228,10 +1231,13 @@ describe('saleApi', () => {
 
       const result = await saleApi.getPdfBlob('sale-abc', 'receipt-ticket')
 
-      expect(http.get).toHaveBeenCalledWith('/sales/sale-abc/pdf', {
-        params: { format: 'receipt-ticket' },
-        responseType: 'blob',
-      })
+      expect(http.get).toHaveBeenCalledWith(
+        '/sales/sale-abc/pdf',
+        expect.objectContaining({
+          params: { format: 'receipt-ticket' },
+          responseType: 'blob',
+        }),
+      )
       expect(result).toBe(pdfBytes)
     })
 

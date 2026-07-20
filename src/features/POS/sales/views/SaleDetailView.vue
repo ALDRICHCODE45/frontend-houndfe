@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { AxiosError } from 'axios'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
@@ -37,8 +37,9 @@ const { isSubmitting } = useDebtPayment(saleId.value)
 
 // sales-pdf-download: tracks which PDF format is currently being fetched so
 // only that dropdown row shows the loading spinner (R5). null when idle.
+// Guard: if non-null, a fetch is already in-flight — reject concurrent clicks.
 const generatingPdfFormat = ref<SalePdfFormat | null>(null)
-const isGeneratingPdf = computed(() => generatingPdfFormat.value !== null)
+const pdfAbortController = ref<AbortController | null>(null)
 
 const actionItems = computed(() => {
   const status = sale.value?.status
@@ -96,7 +97,7 @@ function mapCommentErrorMessage(code?: string | null): string {
 
 // sales-pdf-download: error → toast mapping (R3). Centralised so the view
 // handler stays focused on flow control.
-function mapPdfError(err: unknown): { description: string; color: 'error' | 'warning' } {
+function mapPdfError(err: unknown): { description: string; color: 'error' } {
   if (err instanceof SalePdfError) {
     if (err.code === 'INVALID_FORMAT') return { description: 'Formato de recibo no válido', color: 'error' }
     if (err.code === 'SALE_NOT_CONFIRMED')
@@ -117,32 +118,50 @@ function mapPdfError(err: unknown): { description: string; color: 'error' | 'war
 // sales-pdf-download: fetch PDF blob → create object URL → window.open in a
 // new tab. The object URL is revoked after a 1s grace period so the new
 // tab has time to load before the source URL disappears (R6).
+// Concurrency guard: rejects re-entry while a fetch is already in-flight.
+// AbortController cancels in-flight requests on component unmount.
 async function handlePreviewPdf(format: SalePdfFormat) {
-  if (!sale.value) return
+  if (!sale.value || generatingPdfFormat.value !== null) return
   generatingPdfFormat.value = format
   let objectUrl: string | null = null
+  const controller = new AbortController()
+  pdfAbortController.value = controller
   try {
-    const blob = await saleApi.getPdfBlob(sale.value.id, format)
+    const blob = await saleApi.getPdfBlob(sale.value.id, format, { signal: controller.signal })
     objectUrl = URL.createObjectURL(blob)
     const opened = window.open(objectUrl, '_blank')
     if (!opened) {
+      // Popup blocked — fall back to a direct download via anchor click.
+      const disposition = `attachment; filename="recibo-${sale.value.folio ?? sale.value.id}.pdf"`
+      const link = document.createElement('a')
+      link.href = objectUrl
+      link.download = disposition
+      link.click()
       useToast().add({
-        title: 'Recibo no disponible',
-        description: 'Permití ventanas emergentes para ver el recibo',
-        color: 'warning',
+        title: 'Recibo descargado',
+        description: 'Se descargó el recibo. Permití ventanas emergentes para previsualizar.',
+        color: 'primary',
       })
     }
   } catch (error) {
+    if ((error as { code?: string }).code === 'ERR_CANCELED') return
     const mapped = mapPdfError(error)
     useToast().add({ title: 'Error al generar el PDF', ...mapped })
   } finally {
     const urlToRevoke = objectUrl
     if (urlToRevoke) {
-      setTimeout(() => URL.revokeObjectURL(urlToRevoke), 1000)
+      setTimeout(() => URL.revokeObjectURL(urlToRevoke), 1_000)
     }
     generatingPdfFormat.value = null
+    if (pdfAbortController.value === controller) {
+      pdfAbortController.value = null
+    }
   }
 }
+
+onUnmounted(() => {
+  pdfAbortController.value?.abort()
+})
 
 watch(
   () => lastError.value,

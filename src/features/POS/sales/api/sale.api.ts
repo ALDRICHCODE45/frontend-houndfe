@@ -314,11 +314,17 @@ export const saleApi = {
   // codes (INVALID_FORMAT, SALE_NOT_CONFIRMED, PDF_GENERATION_FAILED) are
   // surfaced as `SalePdfError`; everything else (network failures, unknown
   // codes) rethrows the original axios error for the caller to handle.
-  async getPdfBlob(saleId: string, format: SalePdfFormat): Promise<Blob> {
+  async getPdfBlob(
+    saleId: string,
+    format: SalePdfFormat,
+    options?: { signal?: AbortSignal },
+  ): Promise<Blob> {
     try {
       const { data } = await http.get<Blob>(`/sales/${saleId}/pdf`, {
         params: { format },
         responseType: 'blob',
+        timeout: 15_000,
+        signal: options?.signal,
       })
       return data
     } catch (error) {

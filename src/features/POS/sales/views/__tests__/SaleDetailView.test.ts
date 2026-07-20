@@ -435,6 +435,7 @@ describe('SaleDetailView', () => {
       createObjectURLSpy.mockRestore()
       revokeObjectURLSpy.mockRestore()
       windowOpenSpy.mockRestore()
+      vi.useRealTimers()
     })
 
     function triggerPreviewPdf(wrapper: ReturnType<typeof mountWithDropdown>, label: 'Recibo A4' | 'Recibo Ticket') {
@@ -455,7 +456,7 @@ describe('SaleDetailView', () => {
       await nextTick()
       await nextTick()
 
-      expect(saleApi.getPdfBlob).toHaveBeenCalledWith('sale-1', 'receipt-a4')
+      expect(saleApi.getPdfBlob).toHaveBeenCalledWith('sale-1', 'receipt-a4', expect.any(Object))
       expect(createObjectURLSpy).toHaveBeenCalledWith(pdfBlob)
       expect(windowOpenSpy).toHaveBeenCalledWith('blob:mock-url-123', '_blank')
 
@@ -476,10 +477,10 @@ describe('SaleDetailView', () => {
       await nextTick()
       await nextTick()
 
-      expect(saleApi.getPdfBlob).toHaveBeenCalledWith('sale-1', 'receipt-ticket')
+      expect(saleApi.getPdfBlob).toHaveBeenCalledWith('sale-1', 'receipt-ticket', expect.any(Object))
     })
 
-    it('shows a warning toast when window.open returns null (popup blocked)', async () => {
+    it('shows an info toast with download fallback when window.open returns null (popup blocked)', async () => {
       vi.mocked(saleApi.getPdfBlob).mockResolvedValue(new Blob(['%PDF'], { type: 'application/pdf' }))
       windowOpenSpy.mockReturnValue(null)
       vi.stubGlobal('useToast', () => ({ add: addToast }))
@@ -490,7 +491,7 @@ describe('SaleDetailView', () => {
       await nextTick()
 
       expect(addToast).toHaveBeenCalledWith(
-        expect.objectContaining({ description: expect.stringContaining('ventanas emergentes') }),
+        expect.objectContaining({ color: 'primary', description: expect.stringContaining('descargó el recibo') }),
       )
 
       vi.unstubAllGlobals()
