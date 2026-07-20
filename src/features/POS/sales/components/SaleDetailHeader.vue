@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { extractFolioNumber } from '../utils/saleFolio.utils'
 import { getDeliveryStatusBadge, getPaymentStatusBadge } from '../utils/saleStatus.utils'
+import { SALE_STATUS } from '../constants/sale.constants'
 import type { SaleDetail } from '../interfaces/sale.types'
 
 const props = defineProps<{
@@ -21,7 +22,16 @@ const emit = defineEmits<{
 
 const deliveryBadge = computed(() => getDeliveryStatusBadge(props.sale.deliveryStatus))
 const paymentBadge = computed(() => props.sale.paymentStatus ? getPaymentStatusBadge(props.sale.paymentStatus) : null)
-const hasEnabledAction = computed(() => props.actionItems.some(item => !item.disabled))
+// sales-pdf-download: show the dropdown whenever there are items, regardless
+// of enabled state — the user must see disabled PDF entries on DRAFT sales
+// so the trigger tooltip can explain why they're unavailable (R1).
+const hasAnyAction = computed(() => props.actionItems.length > 0)
+// sales-pdf-download: only DRAFT has visible-but-disabled PDF entries, so
+// that's the only status that needs the "Solo disponible para ventas
+// confirmadas" tooltip on the trigger button. CONFIRMED → no tooltip.
+const triggerTooltipText = computed(() =>
+  props.sale.status === SALE_STATUS.DRAFT ? 'Solo disponible para ventas confirmadas' : null,
+)
 </script>
 
 <template>
@@ -39,12 +49,15 @@ const hasEnabledAction = computed(() => props.actionItems.some(item => !item.dis
       </UBadge>
     </div>
 
-    <UDropdownMenu v-if="hasEnabledAction" :items="actionItems">
-      <UTooltip text="Funcionalidad próximamente">
+    <UDropdownMenu v-if="hasAnyAction" :items="actionItems">
+      <UTooltip v-if="triggerTooltipText" :text="triggerTooltipText">
         <UButton trailing-icon="i-lucide-chevron-down" variant="outline">
           Más Acciones
         </UButton>
       </UTooltip>
+      <UButton v-else trailing-icon="i-lucide-chevron-down" variant="outline">
+        Más Acciones
+      </UButton>
     </UDropdownMenu>
   </div>
 </template>

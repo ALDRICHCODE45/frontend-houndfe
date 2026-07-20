@@ -117,7 +117,7 @@ describe('SaleDetailHeader', () => {
 
   it('hides "Más Acciones" dropdown when all actions are disabled', () => {
     const wrapper = mountWithUApp(SaleDetailHeader, {
-      props: { sale: mockSale, actionItems: mockActionItems }
+      props: { sale: mockSale, actionItems: [] }
     })
 
     expect(wrapper.text()).not.toContain('Más Acciones')
@@ -135,5 +135,58 @@ describe('SaleDetailHeader', () => {
     })
 
     expect(wrapper.text()).toContain('Más Acciones')
+  })
+
+  // sales-pdf-download: DRAFT sales MUST keep the PDF entries visible-but-
+  // disabled so the user can see why the action is unavailable (R1). The
+  // "Más Acciones" trigger button shows the explanatory tooltip in that
+  // case. CONFIRMED sales have no tooltip — the action works as expected.
+  describe('PDF receipt tooltip (sales-pdf-download)', () => {
+    it('shows "Solo disponible para ventas confirmadas" tooltip when sale.status is DRAFT and PDF entries are disabled', () => {
+      const draftSale: SaleDetail = { ...mockSale, status: 'DRAFT', paymentStatus: null }
+      const actionItemsWithDisabledPdf = [
+        { label: 'Imprimir Ticket', icon: 'i-lucide-printer', disabled: true },
+        { label: 'Recibo A4', icon: 'i-lucide-download', disabled: true },
+        { label: 'Recibo Ticket', icon: 'i-lucide-download', disabled: true },
+      ]
+
+      const wrapper = mountWithUApp(SaleDetailHeader, {
+        props: { sale: draftSale, actionItems: actionItemsWithDisabledPdf },
+      })
+
+      expect(wrapper.text()).toContain('Más Acciones')
+      // UTooltip from Nuxt UI may register under a different component name
+      // — accept either UTooltip/Tooltip and any case the resolver picks.
+      const tooltipTexts = wrapper
+        .findAllComponents({ name: 'UTooltip' })
+        .concat(wrapper.findAllComponents({ name: 'Tooltip' }))
+        .map((t) => t.props('text'))
+        .filter((text): text is string => typeof text === 'string')
+      const disabledTooltipText = tooltipTexts.find((text) =>
+        text.includes('Solo disponible para ventas confirmadas'),
+      )
+      expect(disabledTooltipText).toBeDefined()
+    })
+
+    it('does NOT show the "Solo disponible para ventas confirmadas" tooltip when sale.status is CONFIRMED and PDF entries are enabled', () => {
+      const confirmedSale: SaleDetail = { ...mockSale, status: 'CONFIRMED' }
+      const actionItemsWithEnabledPdf = [
+        { label: 'Recibo A4', icon: 'i-lucide-download', disabled: false },
+        { label: 'Recibo Ticket', icon: 'i-lucide-download', disabled: false },
+      ]
+
+      const wrapper = mountWithUApp(SaleDetailHeader, {
+        props: { sale: confirmedSale, actionItems: actionItemsWithEnabledPdf },
+      })
+
+      expect(wrapper.text()).toContain('Más Acciones')
+      const tooltipTexts = wrapper
+        .findAllComponents({ name: 'UTooltip' })
+        .map((t) => t.props('text'))
+        .filter((text): text is string => typeof text === 'string')
+      expect(
+        tooltipTexts.some((text) => text.includes('Solo disponible para ventas confirmadas')),
+      ).toBe(false)
+    })
   })
 })
