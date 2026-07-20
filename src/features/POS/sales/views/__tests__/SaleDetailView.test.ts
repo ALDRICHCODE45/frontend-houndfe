@@ -186,6 +186,125 @@ describe('SaleDetailView', () => {
     expect(wrapper.find('[data-testid="sidebar"]').exists()).toBe(false)
   })
 
+  // sales-detail-redesign Slice 4: sidebar data (Cajero, Vendedor, Cliente,
+  // Lista de precios, Métodos de pago) reflows into simple bordered cards
+  // below the totals block.
+  it('renders the sidebar data reflow section with all five simple cards', () => {
+    const wrapper = mountWithUApp(SaleDetailView, {
+      global: {
+        stubs: {
+          AppBadge: { template: '<span><slot /></span>' },
+          UCard: { template: '<div><slot /></div>' },
+          UButton: { template: '<button><slot /></button>' },
+          UDropdownMenu: { template: '<div data-testid="dropdown"><slot /></div>' },
+
+          SaleDetailItemsList: { template: '<div data-testid="items" />' },
+          SaleDetailTotalsCard: { template: '<div data-testid="totals" />' },
+          SaleDetailTimeline: { template: '<div data-testid="timeline" />' },
+          SaleCommentInput: { template: '<div data-testid="comment-input" />' },
+        },
+      },
+    })
+
+    expect(wrapper.find('[data-testid="sidebar-data-reflow"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="reflow-cajero"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="reflow-vendedor"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="reflow-cliente"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="reflow-price-list"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="reflow-payment-methods"]').exists()).toBe(true)
+    // Cajero from defaultSale = 'Cajero'; customer falls back to 'Público en General'.
+    expect(wrapper.find('[data-testid="reflow-cajero"]').text()).toContain('Cajero')
+    expect(wrapper.find('[data-testid="reflow-cliente"]').text()).toContain('Público en General')
+    // No seller on defaultSale → fallback "Sin asignar".
+    expect(wrapper.find('[data-testid="reflow-vendedor"]').text()).toContain('Sin asignar')
+  })
+
+  // sales-detail-redesign Slice 4: debt CTA is now inside SaleDetailTotalsCard.
+  // We render the real TotalsCard (no stub) and verify the CTA appears when
+  // debt > 0 and disappears when PAID.
+  describe('debt payment CTA (sales-detail-redesign)', () => {
+    function totalsStubWithDebt() {
+      return {
+        props: [
+          'subtotalCents', 'discountCents', 'totalCents',
+          'paidCents', 'debtCents', 'changeDueCents',
+          'canRegisterPayment', 'isPaymentSubmitting',
+        ],
+        emits: ['register-payment'],
+        template: `
+          <div data-testid="totals">
+            <button
+              v-if="canRegisterPayment"
+              data-testid="register-debt-payment"
+              :disabled="isPaymentSubmitting"
+              @click="$emit('register-payment')"
+            >
+              Registrar Pago
+            </button>
+          </div>
+        `,
+      }
+    }
+
+    it('shows debt payment CTA for non-PAID sale and opens modal', async () => {
+      mockSaleDetail.value = { ...defaultSale, paymentStatus: 'PARTIAL', paidCents: 90000, debtCents: 37000 }
+
+      const wrapper = mountWithUApp(SaleDetailView, {
+        global: {
+          stubs: {
+            AppBadge: { template: '<span><slot /></span>' },
+            UCard: { template: '<div><slot /></div>' },
+            UButton: { template: '<button><slot /></button>' },
+            SaleDetailItemsList: { template: '<div data-testid="items" />' },
+            SaleDetailTotalsCard: totalsStubWithDebt(),
+            SaleDetailTimeline: { template: '<div data-testid="timeline" />' },
+            SaleCommentInput: { template: '<div data-testid="comment-input" />' },
+            DebtPaymentModal: {
+              props: ['open', 'saleId', 'debtCents'],
+              emits: ['submit', 'update:open'],
+              template:
+                '<div v-if="open"><button data-testid="submit-debt-payment" @click="$emit(\'submit\', { method: \'cash\', amountCents: debtCents })">submit</button></div>',
+            },
+          },
+        },
+      })
+
+      await wrapper.get('[data-testid="register-debt-payment"]').trigger('click')
+      expect(wrapper.find('[data-testid="submit-debt-payment"]').exists()).toBe(true)
+    })
+
+    it('shows register payment button when sale is CREDIT or PARTIAL and CONFIRMED; hides when PAID', () => {
+      mockSaleDetail.value = { ...defaultSale, paymentStatus: 'PARTIAL', debtCents: 50000, paidCents: 77000 }
+      const partialWrapper = mountWithUApp(SaleDetailView, {
+        global: { stubs: { SaleDetailTotalsCard: totalsStubWithDebt() } },
+      })
+      expect(partialWrapper.find('[data-testid="register-debt-payment"]').exists()).toBe(true)
+
+      mockSaleDetail.value = { ...defaultSale, paymentStatus: 'CREDIT', debtCents: 127000, paidCents: 0 }
+      const creditWrapper = mountWithUApp(SaleDetailView, {
+        global: { stubs: { SaleDetailTotalsCard: totalsStubWithDebt() } },
+      })
+      expect(creditWrapper.find('[data-testid="register-debt-payment"]').exists()).toBe(true)
+
+      mockSaleDetail.value = { ...defaultSale, paymentStatus: 'PAID' }
+      const paidWrapper = mountWithUApp(SaleDetailView, {
+        global: { stubs: { SaleDetailTotalsCard: totalsStubWithDebt() } },
+      })
+      expect(paidWrapper.find('[data-testid="register-debt-payment"]').exists()).toBe(false)
+    })
+
+    it('disables register payment button while submitting', () => {
+      debtSubmittingRef.value = true
+      mockSaleDetail.value = { ...defaultSale, paymentStatus: 'PARTIAL', debtCents: 50000, paidCents: 77000 }
+
+      const wrapper = mountWithUApp(SaleDetailView, {
+        global: { stubs: { SaleDetailTotalsCard: totalsStubWithDebt() } },
+      })
+
+      expect(wrapper.get('[data-testid="register-debt-payment"]').attributes('disabled')).toBeDefined()
+    })
+  })
+
   it('renders payment badge with correct label for PAID status', () => {
     const wrapper = mountWithUApp(SaleDetailView, {
       global: {

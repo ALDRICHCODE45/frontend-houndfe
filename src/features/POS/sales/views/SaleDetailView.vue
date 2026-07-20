@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { AxiosError } from 'axios'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
@@ -7,7 +7,12 @@ import { useSaleDetail } from '../composables/useSaleDetail'
 import { useDebtPayment } from '../composables/useDebtPayment'
 import { useSaleComments } from '../composables/useSaleComments'
 import { saleApi, SalePdfError, type SalePdfFormat } from '../api/sale.api'
-import { SALE_STATUS } from '../constants/sale.constants'
+import { productApi } from '@/features/POS/products/api/product.api'
+import { formatCentsMXN } from '../utils/currency.utils'
+import { formatSaleDate } from '../utils/saleDate.utils'
+import { formatPaymentMethod } from '../utils/salePaymentMethod.utils'
+import { SALE_PAYMENT_STATUS, SALE_STATUS } from '../constants/sale.constants'
+import type { GlobalPriceList } from '@/features/POS/products/interfaces/product.types'
 import SaleDetailItemsList from '../components/SaleDetailItemsList.vue'
 import SaleDetailTotalsCard from '../components/SaleDetailTotalsCard.vue'
 import SaleDetailTimeline from '../components/SaleDetailTimeline.vue'
@@ -33,6 +38,44 @@ const { sale, isLoading } = useSaleDetail(saleId)
 const { addComment, updateComment, deleteComment, isPending: commentsPending, lastError } = useSaleComments(saleId)
 const debtModalOpen = ref(false)
 const { isSubmitting } = useDebtPayment(saleId.value)
+
+const canRegisterPayment = computed(
+  () =>
+    sale.value?.paymentStatus !== SALE_PAYMENT_STATUS.PAID
+    && sale.value?.status === SALE_STATUS.CONFIRMED,
+)
+
+// pos-price-list-tiers: resolve the active price list name. Mirrors the
+// pattern previously used by the deleted SaleDetailMetadataCard — fetch
+// once on mount so the inline label is decoupled from the network round
+// trip.
+const priceLists = ref<GlobalPriceList[]>([])
+onMounted(async () => {
+  try {
+    priceLists.value = await productApi.getGlobalPriceLists()
+  } catch {
+    // Silently degrade — the raw ID (or "PUBLICO") will be shown as fallback.
+  }
+})
+
+const priceListName = computed<string>(() => {
+  const id = sale.value?.globalPriceListId
+  if (!id) return 'PUBLICO'
+  return priceLists.value.find((l) => l.id === id)?.name ?? id
+})
+
+const uniquePaymentMethods = computed<string[]>(() => {
+  const methods = sale.value?.payments ?? []
+  const seen = new Set<string>()
+  const ordered: string[] = []
+  for (const p of methods) {
+    if (!seen.has(p.method)) {
+      seen.add(p.method)
+      ordered.push(formatPaymentMethod(p.method))
+    }
+  }
+  return ordered
+})
 
 // sales-pdf-download: tracks which PDF format is currently being fetched so
 // only that dropdown row shows the loading spinner (R5). null when idle.
@@ -194,7 +237,45 @@ watch(
         :subtotal-cents="sale.subtotalCents"
         :discount-cents="sale.discountCents"
         :total-cents="sale.totalCents"
+        :paid-cents="sale.paidCents"
+        :debt-cents="sale.debtCents"
+        :change-due-cents="sale.changeDueCents"
+        :can-register-payment="canRegisterPayment"
+        :is-payment-submitting="isSubmitting"
+        @register-payment="debtModalOpen = true"
       />
+
+      <!-- Sidebar data reflow (MVP) — simple bordered cards. The richer
+           inline Info Row and timestamped Payments Block are pt2. -->
+      <section v-if="sale" class="space-y-3" data-testid="sidebar-data-reflow">
+        <h3 class="text-xs font-semibold uppercase tracking-wider text-muted">Datos de la venta</h3>
+        <div class="grid gap-3 sm:grid-cols-2">
+          <div class="rounded-md border border-default p-3" data-testid="reflow-cajero">
+            <p class="text-xs font-semibold uppercase tracking-wider text-muted">Cajero</p>
+            <p class="font-medium">{{ sale.cashier.name }}</p>
+          </div>
+          <div class="rounded-md border border-default p-3" data-testid="reflow-vendedor">
+            <p class="text-xs font-semibold uppercase tracking-wider text-muted">Vendedor</p>
+            <p class="font-medium" :class="{ 'text-muted': !sale.seller }">
+              {{ sale.seller?.name ?? 'Sin asignar' }}
+            </p>
+          </div>
+          <div class="rounded-md border border-default p-3" data-testid="reflow-cliente">
+            <p class="text-xs font-semibold uppercase tracking-wider text-muted">Cliente</p>
+            <p class="font-medium">{{ sale.customer?.name ?? 'Público en General' }}</p>
+          </div>
+          <div class="rounded-md border border-default p-3" data-testid="reflow-price-list">
+            <p class="text-xs font-semibold uppercase tracking-wider text-muted">Lista de precios</p>
+            <p class="font-medium">{{ priceListName }}</p>
+          </div>
+          <div class="rounded-md border border-default p-3 sm:col-span-2" data-testid="reflow-payment-methods">
+            <p class="text-xs font-semibold uppercase tracking-wider text-muted">Métodos de pago</p>
+            <p v-if="uniquePaymentMethods.length === 0" class="font-medium text-muted">—</p>
+            <p v-else class="font-medium">{{ uniquePaymentMethods.join(' · ') }}</p>
+          </div>
+        </div>
+      </section>
+
       <SaleDetailTimeline
         v-if="sale"
         :timeline="sale.timeline"
