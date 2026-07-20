@@ -143,7 +143,7 @@ describe('SaleDetailHeader', () => {
   // case. CONFIRMED sales have no tooltip — the action works as expected.
   describe('PDF receipt tooltip (sales-pdf-download)', () => {
     it('shows "Solo disponible para ventas confirmadas" tooltip when sale.status is DRAFT and PDF entries are disabled', () => {
-      const draftSale: SaleDetail = { ...mockSale, status: 'DRAFT', paymentStatus: null }
+      const draftSale: SaleDetail = { ...mockSale, status: 'DRAFT', paymentStatus: null as unknown as SaleDetail['paymentStatus'] }
       const actionItemsWithDisabledPdf = [
         { label: 'Imprimir Ticket', icon: 'i-lucide-printer', disabled: true },
         { label: 'Recibo A4', icon: 'i-lucide-download', disabled: true },

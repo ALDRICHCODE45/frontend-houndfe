@@ -24,8 +24,8 @@ vi.mock('../../api/sale.api', async (importOriginal) => {
 // as a module import at compile time (not as a free variable), so
 // vi.stubGlobal cannot override it. Mocking the module replaces the import
 // binding in the compiled SaleDetailView module.
-vi.mock('@nuxt/ui/runtime/composables/useToast', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@nuxt/ui/runtime/composables/useToast')>()
+vi.mock('@nuxt/ui/composables/useToast', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@nuxt/ui/composables/useToast')>()
   return {
     ...actual,
     useToast: () => ({
@@ -138,8 +138,12 @@ describe('SaleDetailView', () => {
       items.find(i => i.label === label)
   }
 
-  function mountWithDropdown(sale: typeof defaultSale) {
-    mockSaleDetail.value = sale
+  // PDF tests need to vary sale.status across CONFIRMED / DRAFT / CANCELED,
+  // so widen the helper's input type away from the CONFIRMED-only default.
+  type TestSale = Omit<typeof defaultSale, 'status'> & { status: typeof defaultSale.status | 'DRAFT' | 'CANCELED' }
+
+  function mountWithDropdown(sale: TestSale) {
+    mockSaleDetail.value = sale as typeof defaultSale
     return mountWithUApp(SaleDetailView, {
       global: {
         stubs: {
@@ -369,7 +373,7 @@ describe('SaleDetailView', () => {
   // confirmadas" tooltip (R1).
   describe('actionItems PDF entries (sales-pdf-download)', () => {
     it('CONFIRMED sale exposes both Recibo A4 and Recibo Ticket enabled with onSelect handlers', () => {
-      const wrapper = mountWithDropdown({ ...defaultSale, status: 'CONFIRMED' as const })
+      const wrapper = mountWithDropdown({ ...defaultSale, status: 'CONFIRMED' })
       const items = wrapper.vm.actionItems as Array<{ label: string; disabled: boolean; onSelect?: () => void }>
 
       const a4 = findActionItem('Recibo A4')(items)
@@ -385,7 +389,8 @@ describe('SaleDetailView', () => {
     })
 
     it('DRAFT sale shows both PDF entries disabled (header renders the tooltip)', () => {
-      const wrapper = mountWithDropdown({ ...defaultSale, status: 'DRAFT' as const })
+      const draftSale = { ...defaultSale, status: 'DRAFT' as TestSale['status'] }
+      const wrapper = mountWithDropdown(draftSale)
       const items = wrapper.vm.actionItems as Array<{ label: string; disabled: boolean }>
 
       const a4 = findActionItem('Recibo A4')(items)
@@ -398,7 +403,8 @@ describe('SaleDetailView', () => {
     })
 
     it('CANCELED sale hides PDF entries entirely (R7)', () => {
-      const wrapper = mountWithDropdown({ ...defaultSale, status: 'CANCELED' as const })
+      const canceledSale = { ...defaultSale, status: 'CANCELED' as TestSale['status'] }
+      const wrapper = mountWithDropdown(canceledSale)
       const items = wrapper.vm.actionItems as Array<{ label: string }>
 
       expect(findActionItem('Recibo A4')(items)).toBeUndefined()
