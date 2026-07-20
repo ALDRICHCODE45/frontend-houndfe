@@ -204,6 +204,10 @@ export interface SaleDetail {
   items: SaleDetailItem[]
   payments: SaleDetailPayment[]
   timeline: SaleTimelineEvent[]
+  // pos-price-list-tiers: the global price list active when the sale was
+  // confirmed. Null means PUBLICO (the system default). Optional so
+  // pre-existing fixtures that omit the field still type-check.
+  globalPriceListId?: string | null
 }
 
 export interface ListSalesParams {

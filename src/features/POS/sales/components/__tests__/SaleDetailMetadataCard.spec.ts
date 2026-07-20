@@ -29,6 +29,7 @@ const mockSale: SaleDetail = {
   items: [],
   payments: [],
   timeline: [],
+  globalPriceListId: null,
 }
 
 describe('SaleDetailMetadataCard', () => {
@@ -43,7 +44,7 @@ describe('SaleDetailMetadataCard', () => {
 
   it('displays all metadata fields', () => {
     const wrapper = mountWithUApp(SaleDetailMetadataCard, {
-      props: { sale: mockSale }
+      props: { sale: mockSale },
     })
     
     const text = wrapper.text()
@@ -54,14 +55,15 @@ describe('SaleDetailMetadataCard', () => {
     expect(text).toContain('Principal')
     expect(text).toContain('Cajero')
     expect(text).toContain('María García')
+    // pos-price-list-tiers: always shows the list used
+    expect(text).toContain('Lista')
   })
 
   it('displays formatted date', () => {
     const wrapper = mountWithUApp(SaleDetailMetadataCard, {
-      props: { sale: mockSale }
+      props: { sale: mockSale },
     })
     
-    // The date is shown as relative format "Hoy a las..." for today's date
     expect(wrapper.text()).toContain('Hoy a las')
   })
 })

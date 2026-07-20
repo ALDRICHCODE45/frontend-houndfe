@@ -68,6 +68,7 @@ const buildSaleDetail = (overrides: Partial<SaleDetail> = {}): SaleDetail => ({
   items: [],
   payments: [],
   timeline: [],
+  globalPriceListId: null,
   ...overrides,
 })
 
