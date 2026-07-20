@@ -1,7 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import SaleDetailHeader from '../SaleDetailHeader.vue'
 import type { SaleDetail } from '../../interfaces/sale.types'
+
+// Freeze the clock so the "Hoy a las HH:mm" branch is deterministic:
+// the fixture's confirmedAt must fall on the same calendar day as the frozen now.
+const FROZEN_NOW = new Date('2026-05-16T12:00:00Z')
 
 const mockSale: SaleDetail = {
   id: 'sale-1',
@@ -45,23 +49,57 @@ function findUiButtons(wrapper: ReturnType<typeof mountWithUApp>) {
 }
 
 describe('SaleDetailHeader', () => {
-  it('displays sale folio in title', () => {
+  // sales-detail-redesign: receipt header now carries the Houndé logo on the
+  // left block (matches the PDF receipt visual). The logo is rendered as a
+  // plain <img> with src="/hounfeLogos/primary.png" — no new AppLogo
+  // component yet (deferred to pt2).
+  it('renders the Houndé logo with the primary.png source', () => {
     const wrapper = mountWithUApp(SaleDetailHeader, {
       props: { sale: mockSale, actionItems: mockActionItems }
     })
-    
-    expect(wrapper.text()).toContain('Venta #1')
+
+    const logo = wrapper.get('[data-testid="header-logo"]')
+    expect(logo.element.tagName.toLowerCase()).toBe('img')
+    expect(logo.attributes('src')).toBe('/hounfeLogos/primary.png')
+    expect(logo.attributes('alt')).toBe('Houndé')
+    // Business name rendered next to the logo.
+    expect(wrapper.text()).toContain('Houndé')
   })
 
-  it('renders dominant title hierarchy with subordinate badges', () => {
+  it('displays sale folio in the right-side folio block', () => {
     const wrapper = mountWithUApp(SaleDetailHeader, {
       props: { sale: mockSale, actionItems: mockActionItems }
     })
 
-    const title = wrapper.get('h1')
-    expect(title.text()).toContain('Venta #1')
-    expect(title.classes()).toContain('text-2xl')
-    expect(title.classes()).toContain('font-bold')
+    const folio = wrapper.get('[data-testid="header-folio"]')
+    expect(folio.text()).toContain('Venta #1')
+    // Folio is the dominant typographic element on the right block.
+    expect(folio.classes()).toContain('text-2xl')
+    expect(folio.classes()).toContain('font-bold')
+    expect(folio.classes()).toContain('text-highlighted')
+    expect(folio.classes()).toContain('tabular-nums')
+  })
+
+  it('renders the formatted confirmedAt date below the folio', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(FROZEN_NOW)
+    try {
+      const wrapper = mountWithUApp(SaleDetailHeader, {
+        props: { sale: mockSale, actionItems: mockActionItems }
+      })
+
+      const date = wrapper.get('[data-testid="header-date"]')
+      // Same-day fixture is rendered as "Hoy a las HH:mm" by formatSaleDate.
+      expect(date.text()).toContain('Hoy a las')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('renders dominant folio hierarchy with subordinate badges', () => {
+    const wrapper = mountWithUApp(SaleDetailHeader, {
+      props: { sale: mockSale, actionItems: mockActionItems }
+    })
 
     const badges = findUiBadges(wrapper)
     expect(badges.length).toBeGreaterThan(0)
@@ -74,7 +112,7 @@ describe('SaleDetailHeader', () => {
     const wrapper = mountWithUApp(SaleDetailHeader, {
       props: { sale: mockSale, actionItems: mockActionItems }
     })
-    
+
     expect(wrapper.text()).toContain('No Entregados')
     expect(wrapper.text()).toContain('Impaga')
   })
@@ -84,11 +122,11 @@ describe('SaleDetailHeader', () => {
       ...mockSale,
       paymentStatus: null as any, // DRAFT case
     }
-    
+
     const wrapper = mountWithUApp(SaleDetailHeader, {
       props: { sale: draftSale, actionItems: mockActionItems }
     })
-    
+
     expect(wrapper.text()).toContain('No Entregados')
     // Should not show payment badge for draft sales
     expect(wrapper.text()).not.toContain('Impaga')
@@ -98,7 +136,7 @@ describe('SaleDetailHeader', () => {
     const wrapper = mountWithUApp(SaleDetailHeader, {
       props: { sale: mockSale, actionItems: mockActionItems }
     })
-    
+
     await wrapper.find('button').trigger('click')
     expect(wrapper.emitted('back')).toBeTruthy()
   })

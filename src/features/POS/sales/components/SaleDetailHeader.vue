@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { extractFolioNumber } from '../utils/saleFolio.utils'
+import { formatSaleDate } from '../utils/saleDate.utils'
 import { getDeliveryStatusBadge, getPaymentStatusBadge } from '../utils/saleStatus.utils'
 import { SALE_STATUS } from '../constants/sale.constants'
 import type { SaleDetail } from '../interfaces/sale.types'
@@ -35,31 +36,58 @@ const triggerTooltipText = computed(() =>
 </script>
 
 <template>
-  <div class="flex items-center justify-between">
-    <div class="flex items-center gap-3">
+  <header class="flex items-start justify-between gap-6">
+    <!-- Left block: back button + logo + business name -->
+    <div class="flex items-center gap-4">
       <UButton variant="ghost" icon="i-lucide-arrow-left" @click="emit('back')">
         Volver
       </UButton>
-      <h1 class="text-2xl font-bold text-highlighted">Venta {{ extractFolioNumber(sale.folio) }}</h1>
-      <UBadge :color="deliveryBadge.color" size="sm" variant="soft" data-testid="badge">
-        {{ deliveryBadge.label }}
-      </UBadge>
-      <UBadge v-if="paymentBadge" :color="paymentBadge.color" size="sm" variant="soft" data-testid="badge">
-        {{ paymentBadge.label }}
-      </UBadge>
+      <img
+        src="/hounfeLogos/primary.png"
+        alt="Houndé"
+        width="56"
+        height="56"
+        data-testid="header-logo"
+        class="h-14 w-auto"
+      >
+      <div>
+        <p class="text-sm font-medium text-muted">Houndé</p>
+      </div>
     </div>
 
-    <UDropdownMenu v-if="hasAnyAction" :items="actionItems">
-      <UTooltip v-if="triggerTooltipText" :text="triggerTooltipText">
-        <UButton trailing-icon="i-lucide-chevron-down" variant="outline">
-          Más Acciones
-        </UButton>
-      </UTooltip>
-      <template v-else>
-        <UButton trailing-icon="i-lucide-chevron-down" variant="outline">
-          Más Acciones
-        </UButton>
-      </template>
-    </UDropdownMenu>
-  </div>
+    <!-- Right block: folio + status badges + date + dropdown -->
+    <div class="flex flex-col items-end gap-2">
+      <div class="flex items-center gap-2">
+        <UBadge :color="deliveryBadge.color" size="sm" variant="soft" data-testid="badge">
+          {{ deliveryBadge.label }}
+        </UBadge>
+        <UBadge v-if="paymentBadge" :color="paymentBadge.color" size="sm" variant="soft" data-testid="badge">
+          {{ paymentBadge.label }}
+        </UBadge>
+      </div>
+      <div class="flex items-center gap-3">
+        <div class="text-right">
+          <p class="text-xs font-semibold uppercase tracking-wider text-muted">Folio</p>
+          <p class="text-2xl font-bold text-highlighted tabular-nums" data-testid="header-folio">
+            Venta {{ extractFolioNumber(sale.folio) }}
+          </p>
+          <p class="text-xs text-muted tabular-nums" data-testid="header-date">
+            {{ formatSaleDate(sale.confirmedAt) }}
+          </p>
+        </div>
+        <UDropdownMenu v-if="hasAnyAction" :items="actionItems">
+          <UTooltip v-if="triggerTooltipText" :text="triggerTooltipText">
+            <UButton trailing-icon="i-lucide-chevron-down" variant="outline">
+              Más Acciones
+            </UButton>
+          </UTooltip>
+          <template v-else>
+            <UButton trailing-icon="i-lucide-chevron-down" variant="outline">
+              Más Acciones
+            </UButton>
+          </template>
+        </UDropdownMenu>
+      </div>
+    </div>
+  </header>
 </template>
