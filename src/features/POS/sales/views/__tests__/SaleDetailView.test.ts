@@ -159,10 +159,10 @@ describe('SaleDetailView', () => {
     })
   }
 
-  // sales-detail-redesign: receipt layout is single-column — header +
-  // products + totals + timeline + comments stacked. The previous two-column
-  // grid + sticky sidebar is gone.
-  it('renders single-column receipt layout with header title', () => {
+  // sales-detail-redesign: workbench layout is a sticky header above a
+  // tabbed body. All four tab panels are mounted (unmount-on-hide=false)
+  // so items, totals, timeline, and comment-input coexist in the DOM.
+  it('renders tabbed workbench layout with header title', () => {
     const wrapper = mountWithUApp(SaleDetailView, {
       global: {
         stubs: {
@@ -181,19 +181,21 @@ describe('SaleDetailView', () => {
 
     expect(wrapper.get('[data-testid="sale-detail-layout"]')).toBeTruthy()
     expect(wrapper.text()).toContain('Venta #12')
-    // Header, products, totals, timeline, comment-input stack as siblings
-    // inside a single column — no separate sidebar column.
+    // All four tab panels are mounted (unmount-on-hide=false) inside the
+    // UTabs body — items, totals, timeline, comment-input coexist in the DOM.
     expect(wrapper.find('[data-testid="items"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="totals"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="timeline"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="comment-input"]').exists()).toBe(true)
+    // Sticky workbench header is present.
+    expect(wrapper.find('[data-testid="sale-detail-header"]').exists()).toBe(true)
     // Sidebar testid is gone with the deleted sidebar component.
     expect(wrapper.find('[data-testid="sidebar"]').exists()).toBe(false)
   })
 
   // sales-detail-redesign Slice 4: sidebar data (Cajero, Vendedor, Cliente,
-  // Lista de precios, Métodos de pago) reflows into simple bordered cards
-  // below the totals block.
+  // Lista de precios, Métodos de pago) lives inside the Datos tab as simple
+  // bordered cards. All tab panels are mounted (unmount-on-hide=false).
   it('renders the sidebar data reflow section with all five simple cards', () => {
     const wrapper = mountWithUApp(SaleDetailView, {
       global: {
@@ -404,7 +406,7 @@ describe('SaleDetailView', () => {
   // sales-pdf-download: actionItems computed wires CONFIRMED/DRAFT/CANCELED
   // to the right PDF entry state. CANCELED MUST hide PDF entries entirely
   // (R7). CONFIRMED enables both. DRAFT keeps them visible-but-disabled so
-  // the SaleDetailHeader can show the "Solo disponible para ventas
+  // the sticky header can show the "Solo disponible para ventas
   // confirmadas" tooltip (R1).
   describe('actionItems PDF entries (sales-pdf-download)', () => {
     it('CONFIRMED sale exposes both Recibo A4 and Recibo Ticket enabled with onSelect handlers', () => {
@@ -437,16 +439,12 @@ describe('SaleDetailView', () => {
       expect(ticket?.disabled).toBe(true)
     })
 
-    it('CANCELED sale hides PDF entries entirely (R7)', () => {
+    it('CANCELED sale hides all action items entirely (R7)', () => {
       const canceledSale = { ...defaultSale, status: 'CANCELED' as TestSale['status'] }
       const wrapper = mountWithDropdown(canceledSale)
       const items = wrapper.vm.actionItems as Array<{ label: string }>
 
-      expect(findActionItem('Recibo A4')(items)).toBeUndefined()
-      expect(findActionItem('Recibo Ticket')(items)).toBeUndefined()
-      // unrelated placeholders stay
-      expect(findActionItem('Imprimir Ticket')(items)).toBeDefined()
-      expect(findActionItem('Facturar Venta')(items)).toBeDefined()
+      expect(items).toEqual([])
     })
   })
 
