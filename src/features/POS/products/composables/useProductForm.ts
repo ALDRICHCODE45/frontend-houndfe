@@ -67,15 +67,15 @@ export const productFormSchema = z.object({
   price: z
     .string()
     .trim()
-    .regex(priceRegex, 'Ingresá un valor decimal válido (ej: 199.90)')
+    .regex(priceRegex, 'Ingresa un valor decimal válido (ej: 199.90)')
     .or(z.literal(''))
     .default('0.00'),
   quantity: z
-    .number({ invalid_type_error: 'Ingresá un número válido' })
+    .number({ invalid_type_error: 'Ingresa un número válido' })
     .int('Debe ser entero')
     .min(0, 'No puede ser negativo'),
   minQuantity: z
-    .number({ invalid_type_error: 'Ingresá un número válido' })
+    .number({ invalid_type_error: 'Ingresa un número válido' })
     .int('Debe ser entero')
     .min(0, 'No puede ser negativo'),
   useStock: z.boolean(),
@@ -91,7 +91,7 @@ export const productFormSchema = z.object({
   purchaseCost: z
     .string()
     .trim()
-    .regex(priceRegex, 'Ingresá un valor decimal válido')
+    .regex(priceRegex, 'Ingresa un valor decimal válido')
     .or(z.literal('')),
 })
 

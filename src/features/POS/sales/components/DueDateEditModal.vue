@@ -70,7 +70,7 @@ function resolveErrorMessage(error: unknown): string {
     case 'SALE_NOT_FOUND':
       return 'La venta ya no existe.'
     case 'SALE_UPDATE_FORBIDDEN':
-      return 'No tenés permisos para modificar esta venta.'
+      return 'No tienes permisos para modificar esta venta.'
     default:
       return 'No se pudo actualizar el vencimiento.'
   }
@@ -109,7 +109,7 @@ async function handleClear() {
     <template #body>
       <div data-testid="due-date-edit-modal" class="space-y-4">
         <p class="text-sm text-muted">
-          Elegí la fecha en la que vence la deuda de esta venta.
+          Elige la fecha en la que vence la deuda de esta venta.
         </p>
 
         <UFormField label="Vence" name="dueDate">

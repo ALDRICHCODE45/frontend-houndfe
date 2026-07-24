@@ -44,7 +44,7 @@ const canSubmit = computed(() => {
 async function submit() {
   error.value = null
   if (!canSubmit.value) {
-    error.value = 'Ingresá un descuento válido.'
+    error.value = 'Ingresa un descuento válido.'
     return
   }
 
@@ -87,7 +87,7 @@ watch(
             <UButton type="button" class="w-full" label="Porcentaje" :variant="mode === 'percentage' ? 'solid' : 'outline'" @click="mode = 'percentage'" />
           </div>
           <p v-if="mode === 'amount'" class="text-xs text-muted">Descontá un monto fijo en MXN sobre el precio unitario.</p>
-          <p v-else class="text-xs text-muted">Aplicá un porcentaje del 0 al 100 sobre el precio unitario.</p>
+          <p v-else class="text-xs text-muted">Aplica un porcentaje del 0 al 100 sobre el precio unitario.</p>
         </section>
 
         <UFormField v-if="mode === 'amount'" label="Descuento en pesos (MXN)" description="Debe ser mayor a 0 y menor que el precio actual.">

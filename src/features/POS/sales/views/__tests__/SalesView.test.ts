@@ -280,7 +280,7 @@ describe('SalesView charge orchestration', () => {
     await wrapper.get('[data-testid="submit-charge"]').trigger('click')
 
     expect(wrapper.get('[data-testid="external-error"]').text()).toContain(
-      'Monto inválido. Revisá los importes ingresados.',
+      'Monto inválido. Revisa los importes ingresados.',
     )
   })
 

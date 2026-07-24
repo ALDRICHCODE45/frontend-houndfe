@@ -193,7 +193,7 @@ export function useUploadDocument(employeeId: MaybeRef<string>) {
     onError: () => {
       toast.add({
         title: 'No se pudo subir el documento',
-        description: 'Verificá que el archivo sea válido (PDF, DOC, DOCX, JPG, PNG o WEBP) e intentá de nuevo.',
+        description: 'Verifica que el archivo sea válido (PDF, DOC, DOCX, JPG, PNG o WEBP) e intentá de nuevo.',
         color: 'error',
       })
     },
@@ -233,7 +233,7 @@ export function useDeleteDocument(employeeId: MaybeRef<string>) {
     onError: () => {
       toast.add({
         title: 'No se pudo eliminar el documento',
-        description: 'Intentá de nuevo.',
+        description: 'Intenta de nuevo.',
         color: 'error',
       })
     },

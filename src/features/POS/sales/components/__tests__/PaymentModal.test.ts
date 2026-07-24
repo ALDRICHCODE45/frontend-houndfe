@@ -157,7 +157,7 @@ describe('PaymentModal', () => {
     const submitButton = wrapper.get('[data-testid="confirm-charge"]')
     expect(submitButton.attributes('disabled')).toBeDefined() // Should be disabled
 
-    expect(wrapper.text()).toContain('Asigná un cliente para registrar una venta con deuda')
+    expect(wrapper.text()).toContain('Asigna un cliente para registrar una venta con deuda')
   })
 
   it('submit with one method @ 0 → entry is filtered out before emit; if customer present, treated as all-debt', async () => {
@@ -266,7 +266,7 @@ describe('PaymentModal', () => {
     
     await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
 
-    expect(wrapper.html()).toContain('Ingresá la referencia para tarjeta o transferencia')
+    expect(wrapper.html()).toContain('Ingresa la referencia para tarjeta o transferencia')
   })
 
   it('disables submit for partial payment without customer assignment', async () => {
@@ -284,7 +284,7 @@ describe('PaymentModal', () => {
     await wrapper.get('[data-testid="payment-amount-0"]').setValue('100')
     const confirmButton = wrapper.get('[data-testid="confirm-charge"]')
     expect(confirmButton.attributes('disabled')).toBeDefined()
-    expect(wrapper.html()).toContain('Asigná un cliente para registrar una venta con deuda')
+    expect(wrapper.html()).toContain('Asigna un cliente para registrar una venta con deuda')
   })
 
   it('regenerates idempotency key when entry fields change', async () => {
@@ -383,7 +383,7 @@ describe('PaymentModal', () => {
 
     const confirmButton = wrapper.get('[data-testid="confirm-charge"]')
     expect(confirmButton.attributes('disabled')).toBeDefined()
-    expect(wrapper.html()).toContain('Asigná un cliente para registrar una venta con deuda')
+    expect(wrapper.html()).toContain('Asigna un cliente para registrar una venta con deuda')
   })
 
   it('allows partial payment with customer, shows debt, and emits submit', async () => {

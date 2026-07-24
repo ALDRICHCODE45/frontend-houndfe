@@ -2,8 +2,8 @@ import { z } from 'zod'
 
 // Validation messages
 const VALIDATION_MESSAGES = {
-  USER_ID_REQUIRED: 'Seleccioná un usuario',
-  ROLE_ID_REQUIRED: 'Seleccioná un rol',
+  USER_ID_REQUIRED: 'Selecciona un usuario',
+  ROLE_ID_REQUIRED: 'Selecciona un rol',
 } as const
 
 // Zod schema for creating membership

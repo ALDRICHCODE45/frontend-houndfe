@@ -254,7 +254,7 @@ const CATEGORY_BADGE_COLORS: Record<EmployeeDocumentCategory, string> = {
         <UIcon name="i-lucide-file-x" class="size-10 text-muted opacity-40" />
         <p class="text-sm font-medium text-muted">Sin documentos adjuntos</p>
         <p v-if="canCreate" class="text-xs text-muted">
-          Usá el botón "Subir" para agregar el primer documento.
+          Usa el botón "Subir" para agregar el primer documento.
         </p>
       </div>
 
@@ -424,7 +424,7 @@ const CATEGORY_BADGE_COLORS: Record<EmployeeDocumentCategory, string> = {
               {{
                 uploadState.file
                   ? uploadState.file.name
-                  : 'Arrastrá o seleccioná un archivo (PDF, DOC, DOCX, JPG, PNG, WEBP)'
+                  : 'Arrastra o seleccioná un archivo (PDF, DOC, DOCX, JPG, PNG, WEBP)'
               }}
             </p>
             <label class="cursor-pointer">
@@ -448,7 +448,7 @@ const CATEGORY_BADGE_COLORS: Record<EmployeeDocumentCategory, string> = {
             :items="CATEGORY_OPTIONS"
             value-key="value"
             label-key="label"
-            placeholder="Seleccioná una categoría"
+            placeholder="Selecciona una categoría"
             class="w-full"
           />
         </UFormField>

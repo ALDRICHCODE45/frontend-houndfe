@@ -270,7 +270,7 @@ function getTypeColor(type: string): 'primary' | 'warning' | 'error' | 'neutral'
         <div v-else-if="isError" class="flex flex-col items-center gap-3 py-12 text-center">
           <UIcon name="i-lucide-alert-triangle" class="size-10 text-error" />
           <p class="text-sm text-muted">
-            No se pudo cargar las solicitudes pendientes. Intentá de nuevo.
+            No se pudo cargar las solicitudes pendientes. Intenta de nuevo.
           </p>
         </div>
 

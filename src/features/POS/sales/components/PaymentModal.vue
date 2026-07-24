@@ -212,12 +212,12 @@ function validate(): boolean {
 
   entries.value.forEach((entry, index) => {
     if (entryNeedsReference(entry.method) && entry.reference.trim().length === 0) {
-      referenceErrorByIndex.value[index] = 'Ingresá la referencia para tarjeta o transferencia'
+      referenceErrorByIndex.value[index] = 'Ingresa la referencia para tarjeta o transferencia'
     }
   })
 
   if (Object.keys(referenceErrorByIndex.value).length > 0) {
-    inlineError.value = 'Ingresá la referencia para tarjeta o transferencia'
+    inlineError.value = 'Ingresa la referencia para tarjeta o transferencia'
     return false
   }
 
@@ -286,7 +286,7 @@ watch(entries, (next) => {
 
 watch(referenceErrorByIndex, () => {
   if (!props.open) return
-  if (Object.keys(referenceErrorByIndex.value).length === 0 && inlineError.value === 'Ingresá la referencia para tarjeta o transferencia') {
+  if (Object.keys(referenceErrorByIndex.value).length === 0 && inlineError.value === 'Ingresa la referencia para tarjeta o transferencia') {
     inlineError.value = null
   }
 })
@@ -317,7 +317,7 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
           <div class="flex items-center justify-between">
             <div>
               <p class="text-lg font-bold text-highlighted">Cobrar venta</p>
-              <p class="text-xs text-muted">Seleccioná los métodos de pago</p>
+              <p class="text-xs text-muted">Selecciona los métodos de pago</p>
             </div>
             <UButton
               color="neutral"
@@ -380,7 +380,7 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
               v-if="entries.length === 0"
               class="rounded-xl border border-dashed border-default bg-elevated px-4 py-6 text-center"
             >
-              <p class="text-sm text-muted">Seleccioná un método de pago arriba</p>
+              <p class="text-sm text-muted">Selecciona un método de pago arriba</p>
             </div>
 
             <div
@@ -505,8 +505,8 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
             color="warning"
             variant="soft"
             icon="i-lucide-info"
-            title="Asigná un cliente para registrar una venta con deuda"
-            description="Asigná un cliente para registrar una venta con deuda"
+            title="Asigna un cliente para registrar una venta con deuda"
+            description="Asigna un cliente para registrar una venta con deuda"
           >
             <template #actions>
               <UButton

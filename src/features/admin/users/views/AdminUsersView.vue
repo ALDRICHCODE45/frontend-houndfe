@@ -124,7 +124,7 @@ function openEdit(user: UserTableRow) {
 
 async function handleDelete(user: UserTableRow) {
   if (!canDeleteUser.value) return
-  openConfirm(`¿Querés desactivar al usuario ${user.name}?`, () => {
+  openConfirm(`¿Quieres desactivar al usuario ${user.name}?`, () => {
     void deleteMutation.mutateAsync(user.id)
   })
 }

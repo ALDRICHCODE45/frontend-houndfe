@@ -151,7 +151,7 @@ function openEdit(tenant: TenantTableRow) {
 
 async function handleDeactivate(tenant: TenantTableRow) {
   if (!canDeleteTenant.value) return
-  openConfirm(`¿Querés desactivar la sucursal ${tenant.name}?`, () => {
+  openConfirm(`¿Quieres desactivar la sucursal ${tenant.name}?`, () => {
     void deactivateMutation.mutateAsync(tenant.id)
   })
 }

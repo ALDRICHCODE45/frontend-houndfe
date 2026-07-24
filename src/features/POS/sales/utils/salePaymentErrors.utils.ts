@@ -10,11 +10,11 @@ export interface SalePaymentUxAction {
 const ERROR_ACTIONS: Record<ChargeDomainErrorCode, SalePaymentUxAction> = {
   AMBIGUOUS_PAYMENT_SHAPE: {
     type: 'inline',
-    message: 'Formato de pago inválido. Reintentá cargar el cobro.',
+    message: 'Formato de pago inválido. Reintenta cargar el cobro.',
   },
   TOO_MANY_PAYMENTS: {
     type: 'inline',
-    message: 'Solo podés registrar hasta 5 métodos de pago.',
+    message: 'Solo puedes registrar hasta 5 métodos de pago.',
   },
   CREDIT_METHOD_NOT_VALID_IN_MULTI: {
     type: 'inline',
@@ -22,7 +22,7 @@ const ERROR_ACTIONS: Record<ChargeDomainErrorCode, SalePaymentUxAction> = {
   },
   REFERENCE_REQUIRED: {
     type: 'inline',
-    message: 'Ingresá la referencia para tarjeta o transferencia.',
+    message: 'Ingresa la referencia para tarjeta o transferencia.',
   },
   PAYMENT_METHOD_NOT_SUPPORTED: {
     type: 'inline',
@@ -34,11 +34,11 @@ const ERROR_ACTIONS: Record<ChargeDomainErrorCode, SalePaymentUxAction> = {
   },
   PAYMENT_AMOUNT_INVALID: {
     type: 'inline',
-    message: 'Monto inválido. Revisá los importes ingresados.',
+    message: 'Monto inválido. Revisa los importes ingresados.',
   },
   CUSTOMER_REQUIRED_FOR_CREDIT: {
     type: 'inline',
-    message: 'Asigná un cliente para registrar una venta con deuda',
+    message: 'Asigna un cliente para registrar una venta con deuda',
   },
   SALE_NOT_FOUND: {
     type: 'refetch',
@@ -58,15 +58,15 @@ const ERROR_ACTIONS: Record<ChargeDomainErrorCode, SalePaymentUxAction> = {
   },
   IDEMPOTENCY_KEY_CONFLICT: {
     type: 'new-key',
-    message: 'Ese intento ya fue usado con otros datos. Generá una nueva clave y reintentá.',
+    message: 'Ese intento ya fue usado con otros datos. Genera una nueva clave y reintentá.',
   },
   IDEMPOTENCY_KEY_IN_FLIGHT: {
     type: 'retry',
-    message: 'Ya hay un cobro en proceso con esta clave. Esperá y reintentá.',
+    message: 'Ya hay un cobro en proceso con esta clave. Espera y reintentá.',
   },
   IDEMPOTENCY_KEY_REQUIRED: {
     type: 'new-key',
-    message: 'Falta clave de idempotencia. Generá una nueva e intentá otra vez.',
+    message: 'Falta clave de idempotencia. Genera una nueva e intentá otra vez.',
   },
   SALE_NOT_CONFIRMABLE_FOR_PAYMENT: {
     type: 'refetch',
@@ -78,7 +78,7 @@ const ERROR_ACTIONS: Record<ChargeDomainErrorCode, SalePaymentUxAction> = {
   },
   PAYMENT_EXCEEDS_DEBT: {
     type: 'inline',
-    message: 'El monto supera la deuda actual. Revisá el saldo y reintentá.',
+    message: 'El monto supera la deuda actual. Revisa el saldo y reintentá.',
   },
 }
 

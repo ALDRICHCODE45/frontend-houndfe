@@ -41,8 +41,8 @@ const title = computed(() => (props.mode === 'create' ? 'Crear usuario' : 'Edita
 
 const description = computed(() =>
   props.mode === 'create'
-    ? 'Completá los datos para crear un nuevo usuario'
-    : 'Actualizá el nombre del usuario',
+    ? 'Completa los datos para crear un nuevo usuario'
+    : 'Actualiza el nombre del usuario',
 )
 
 const formId = computed(() => (props.mode === 'create' ? 'create-user-form' : 'edit-user-form'))
@@ -121,14 +121,14 @@ function onSubmit(event: FormSubmitEvent<CreateUserFormValues | EditUserFormValu
               :items="roleOptions"
               value-key="value"
               label-key="label"
-              placeholder="Seleccioná un rol"
+              placeholder="Selecciona un rol"
               :loading="isLoadingRoles"
               :disabled="!canReadRoles || isRolesError"
               class="w-full"
               size="lg"
             >
               <template #empty>
-                <span v-if="!canReadRoles">No tenés permisos para listar roles.</span>
+                <span v-if="!canReadRoles">No tienes permisos para listar roles.</span>
                 <span v-else-if="isRolesError">No pudimos cargar los roles.</span>
                 <span v-else>No hay roles disponibles.</span>
               </template>

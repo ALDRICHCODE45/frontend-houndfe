@@ -34,8 +34,8 @@ const title = computed(() => (props.mode === 'create' ? 'Crear sucursal' : 'Edit
 
 const description = computed(() =>
   props.mode === 'create'
-    ? 'Completá los datos para crear una nueva sucursal'
-    : 'Actualizá los datos de la sucursal',
+    ? 'Completa los datos para crear una nueva sucursal'
+    : 'Actualiza los datos de la sucursal',
 )
 
 const formId = computed(() =>

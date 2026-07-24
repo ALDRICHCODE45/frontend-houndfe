@@ -96,7 +96,7 @@ export function useDebtPayment(saleId: string) {
 
       toast.add({
         title: 'No pudimos registrar el pago',
-        description: error.response?.data?.message ?? 'Reintentá en unos segundos.',
+        description: error.response?.data?.message ?? 'Reintenta en unos segundos.',
         color: 'error',
       })
     },

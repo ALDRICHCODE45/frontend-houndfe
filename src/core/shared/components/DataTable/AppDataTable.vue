@@ -54,7 +54,7 @@ const props = withDefaults(
     fetching: false,
     empty: 'No se encontraron resultados',
     error: false,
-    errorMessage: 'No se pudieron cargar los datos. Reintentá.',
+    errorMessage: 'No se pudieron cargar los datos. Reintenta.',
     pageCount: 0,
     totalCount: 0,
     pageSizeOptions: () => [5, 10, 20, 50],

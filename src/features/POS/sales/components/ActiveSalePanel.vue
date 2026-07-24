@@ -276,7 +276,7 @@ function handleConfirmPriceListChange() {
           Tu venta está vacía
         </p>
         <p class="text-xs text-muted text-center max-w-[220px] leading-relaxed">
-          Seleccioná productos del catálogo para agregarlos a esta venta
+          Selecciona productos del catálogo para agregarlos a esta venta
         </p>
       </div>
 

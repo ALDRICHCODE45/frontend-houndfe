@@ -13,7 +13,7 @@ function mountComponent() {
     props: {
       modelValue: [],
       label: 'Folio',
-      placeholder: 'Ingresá folios',
+      placeholder: 'Ingresa folios',
       stripPrefix: '#',
       max: 3,
     },

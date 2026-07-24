@@ -109,12 +109,12 @@ async function submitRequest(): Promise<void> {
   if (!parseResult.success) {
     // S6: surface the SPECIFIC voseo message from the schema (e.g.
     // "La fecha de fin debe ser igual o posterior a la fecha de
-    // inicio") instead of the prior generic "Verificá los datos del
+    // inicio") instead of the prior generic "Verifica los datos del
     // formulario." Falls back to a generic only if the error carries
     // no issue (defensive — should never happen with safeParse).
     requestError.value =
       firstZodIssueMessage(parseResult.error) ??
-      'Verificá los datos del formulario.'
+      'Verifica los datos del formulario.'
     return
   }
   try {
@@ -128,7 +128,7 @@ async function submitRequest(): Promise<void> {
     // S6: route the mutation error through `resolveCreateErrorMessage`
     // so the user sees the REAL 400 TIME_OFF_INVALID_DATE_RANGE voseo
     // message OR a joined Nest class-validator array — never the prior
-    // generic "Error al enviar la solicitud. Intentá de nuevo."
+    // generic "Error al enviar la solicitud. Intenta de nuevo."
     requestError.value = resolveCreateErrorMessage(err)
   }
 }
@@ -183,7 +183,7 @@ async function submitReview(): Promise<void> {
     isReviewOpen.value = false
     reviewingId.value = null
   } catch {
-    reviewError.value = 'Error al procesar la revisión. Intentá de nuevo.'
+    reviewError.value = 'Error al procesar la revisión. Intenta de nuevo.'
   }
 }
 

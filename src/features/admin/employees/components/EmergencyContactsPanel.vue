@@ -110,7 +110,7 @@ async function submitForm(): Promise<void> {
 
   if (!parseResult.success) {
     const firstError = parseResult.error.errors[0]
-    formError.value = firstError?.message ?? 'Verificá los datos del formulario.'
+    formError.value = firstError?.message ?? 'Verifica los datos del formulario.'
     return
   }
 
@@ -122,7 +122,7 @@ async function submitForm(): Promise<void> {
     }
     isFormOpen.value = false
   } catch {
-    formError.value = 'Error al guardar el contacto. Intentá de nuevo.'
+    formError.value = 'Error al guardar el contacto. Intenta de nuevo.'
   }
 }
 
@@ -181,7 +181,7 @@ async function confirmDelete(): Promise<void> {
       <div>
         <p class="text-sm font-medium text-highlighted">Sin contactos de emergencia</p>
         <p class="text-xs text-muted">
-          Agregá al menos un contacto en caso de emergencia.
+          Agrega al menos un contacto en caso de emergencia.
         </p>
       </div>
     </div>
@@ -312,7 +312,7 @@ async function confirmDelete(): Promise<void> {
   <UModal v-model:open="isDeleteOpen" title="Eliminar contacto">
     <template #body>
       <p class="text-sm text-muted">
-        ¿Estás seguro de que querés eliminar a
+        ¿Estás seguro de que quieres eliminar a
         <span class="font-semibold text-highlighted">{{ deletingContactName }}</span>
         de los contactos de emergencia?
       </p>

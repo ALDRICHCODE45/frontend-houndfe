@@ -30,7 +30,7 @@ describe('getSalePaymentErrorAction', () => {
     const customerRequired = getSalePaymentErrorAction('CUSTOMER_REQUIRED_FOR_CREDIT')
 
     expect(customerRequired.type).toBe('inline')
-    expect(customerRequired.message).toBe('Asigná un cliente para registrar una venta con deuda')
+    expect(customerRequired.message).toBe('Asigna un cliente para registrar una venta con deuda')
     expect(customerRequired.message).not.toContain('próximamente')
   })
 })

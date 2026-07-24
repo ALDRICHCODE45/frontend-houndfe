@@ -217,7 +217,7 @@ function handleEdit(promotion: PromotionResponse) {
 
 function handleEnd(promotion: PromotionResponse) {
   openConfirm(
-    `¿Querés finalizar la promoción "${promotion.title}"? Esta acción no se puede deshacer.`,
+    `¿Quieres finalizar la promoción "${promotion.title}"? Esta acción no se puede deshacer.`,
     'Finalizar',
     'warning',
     () => { void endMutation.mutateAsync(promotion.id) },
@@ -226,7 +226,7 @@ function handleEnd(promotion: PromotionResponse) {
 
 function handleDelete(promotion: PromotionResponse) {
   openConfirm(
-    `¿Querés eliminar la promoción "${promotion.title}"?`,
+    `¿Quieres eliminar la promoción "${promotion.title}"?`,
     'Eliminar',
     'error',
     () => { void deleteMutation.mutateAsync(promotion.id) },

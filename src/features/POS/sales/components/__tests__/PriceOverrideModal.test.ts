@@ -72,7 +72,7 @@ describe('PriceOverrideModal', () => {
     expect(saleApi.getAvailablePrices).toHaveBeenCalledWith('sale-1', 'item-1')
     expect(wrapper.text()).toContain('PUBLICO')
     expect(wrapper.text()).toContain('Contexto del precio')
-    expect(wrapper.text()).toContain('Seleccioná el origen del precio')
+    expect(wrapper.text()).toContain('Selecciona el origen del precio')
   })
 
   it('submits XOR payload with priceListId only', async () => {
@@ -112,7 +112,7 @@ describe('PriceOverrideModal', () => {
     })
 
     await flushPromises()
-    expect(wrapper.text()).toContain('No se pudieron cargar los precios disponibles. Reintentá.')
+    expect(wrapper.text()).toContain('No se pudieron cargar los precios disponibles. Reintenta.')
 
     const retryButton = wrapper.findAll('button').find((button) => button.text() === 'Reintentar')
     expect(retryButton).toBeTruthy()
@@ -121,7 +121,7 @@ describe('PriceOverrideModal', () => {
 
     expect(saleApi.getAvailablePrices).toHaveBeenCalledTimes(2)
     expect(wrapper.text()).toContain('PUBLICO')
-    expect(wrapper.text()).not.toContain('No se pudieron cargar los precios disponibles. Reintentá.')
+    expect(wrapper.text()).not.toContain('No se pudieron cargar los precios disponibles. Reintenta.')
   })
 
   it('validates custom cents and blocks invalid submit', async () => {
@@ -293,12 +293,12 @@ describe('PriceOverrideModal', () => {
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(wrapper.text()).toContain('No se pudo aplicar el cambio de precio. Reintentá.')
+    expect(wrapper.text()).toContain('No se pudo aplicar el cambio de precio. Reintenta.')
 
     await wrapper.find('form').trigger('submit')
     await flushPromises()
 
-    expect(wrapper.text()).not.toContain('No se pudo aplicar el cambio de precio. Reintentá.')
+    expect(wrapper.text()).not.toContain('No se pudo aplicar el cambio de precio. Reintenta.')
     expect(onSubmit).toHaveBeenCalledTimes(2)
   })
 
@@ -319,6 +319,6 @@ describe('PriceOverrideModal', () => {
     expect(wrapper.findAll('button').some((button) => button.text() === 'Personalizado')).toBe(true)
 
     await wrapper.findAll('button').find((button) => button.text() === 'Personalizado')?.trigger('click')
-    expect(wrapper.text()).toContain('Aplicá un precio personalizado en pesos')
+    expect(wrapper.text()).toContain('Aplica un precio personalizado en pesos')
   })
 })

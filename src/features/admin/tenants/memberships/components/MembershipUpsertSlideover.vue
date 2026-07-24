@@ -126,8 +126,8 @@ const title = computed(() =>
 
 const description = computed(() =>
   props.mode === 'create'
-    ? 'Seleccioná el usuario y asignale un rol en esta sucursal'
-    : 'Cambiá el rol del miembro en esta sucursal',
+    ? 'Selecciona el usuario y asignale un rol en esta sucursal'
+    : 'Cambia el rol del miembro en esta sucursal',
 )
 
 const formId = computed(() =>
@@ -202,7 +202,7 @@ function onSubmit(
               value-key="value"
               label-key="label"
               description-key="email"
-              placeholder="Seleccioná un usuario"
+              placeholder="Selecciona un usuario"
               v-model:search-term="userSearchTerm"
               :search-input="{ placeholder: 'Escribí para buscar usuarios' }"
               :ignore-filter="true"
@@ -235,7 +235,7 @@ function onSubmit(
             :items="roleOptions"
             value-key="value"
             label-key="label"
-            placeholder="Seleccioná un rol"
+            placeholder="Selecciona un rol"
             class="w-full"
             size="lg"
           />

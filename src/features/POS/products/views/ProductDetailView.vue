@@ -136,7 +136,7 @@ const brandState = reactive<BrandFormState>({
 })
 
 const variantSchema = z.object({
-  option: z.string().trim().min(1, 'Seleccioná una opción'),
+  option: z.string().trim().min(1, 'Selecciona una opción'),
   value: z.string().trim().min(1, 'El valor es obligatorio').max(100),
   sku: z.string().trim().max(100),
   barcode: z.string().trim().max(100),
@@ -620,7 +620,7 @@ watch(
 
 function mapDomainError(error: AxiosError<DomainApiError>): string {
   const response = error.response?.data
-  if (!response) return 'No pudimos completar la operación. Reintentá en unos segundos.'
+  if (!response) return 'No pudimos completar la operación. Reintenta en unos segundos.'
   // SAT_KEY_NOT_FOUND surfaces as a field-level error under the
   // SatKeySelect (mirrors ProductsView's `ProductFormErrors.satKey`
   // mapping for the slideover path).
@@ -629,7 +629,7 @@ function mapDomainError(error: AxiosError<DomainApiError>): string {
   } else {
     satKeyError.value = ''
   }
-  return response.message ?? 'No pudimos completar la operación. Reintentá en unos segundos.'
+  return response.message ?? 'No pudimos completar la operación. Reintenta en unos segundos.'
 }
 
 function handleBack() {
@@ -1589,7 +1589,7 @@ function handleInlineVariantPublicPriceBlur(variant: ProductVariant) {
 
 async function handleDeleteVariant(variantId: string, variantName: string) {
   if (isCreateMode.value) {
-    openConfirm(`¿Querés eliminar la variante ${variantName}?`, () => {
+    openConfirm(`¿Quieres eliminar la variante ${variantName}?`, () => {
       pendingVariants.value = pendingVariants.value.filter((v) => v._localId !== variantId)
     })
     return
@@ -1597,7 +1597,7 @@ async function handleDeleteVariant(variantId: string, variantName: string) {
 
   if (!canDeleteProduct.value) return
 
-  openConfirm(`¿Querés eliminar la variante ${variantName}?`, () => {
+  openConfirm(`¿Quieres eliminar la variante ${variantName}?`, () => {
     void deleteVariantMutation.mutateAsync(variantId).then(() => {
       if (variantDetailModalVariant.value?.id === variantId) {
         isVariantDetailModalOpen.value = false
@@ -1617,7 +1617,7 @@ function getVariantLabel(variant: ProductVariant): string {
 
 async function handleDeleteLot(lotId: string, lotNumber: string) {
   if (isCreateMode.value) {
-    openConfirm(`¿Querés eliminar el lote ${lotNumber}?`, () => {
+    openConfirm(`¿Quieres eliminar el lote ${lotNumber}?`, () => {
       pendingLots.value = pendingLots.value.filter((l) => l._localId !== lotId)
     })
     return
@@ -1625,7 +1625,7 @@ async function handleDeleteLot(lotId: string, lotNumber: string) {
 
   if (!canDeleteProduct.value) return
 
-  openConfirm(`¿Querés eliminar el lote ${lotNumber}?`, () => {
+  openConfirm(`¿Quieres eliminar el lote ${lotNumber}?`, () => {
     void deleteLotMutation.mutateAsync(lotId)
   })
 }
@@ -1656,7 +1656,7 @@ function handleEditLotPlaceholder() {
               {{ isCreateMode ? 'Nuevo producto' : formState.name || 'Producto' }}
             </h1>
             <p class="text-sm text-muted">
-              {{ isCreateMode ? 'Completá la información del artículo para tu catálogo' : 'Editando producto' }}
+              {{ isCreateMode ? 'Completa la información del artículo para tu catálogo' : 'Editando producto' }}
             </p>
           </div>
         </div>
@@ -1683,7 +1683,7 @@ function handleEditLotPlaceholder() {
         v-if="!isCreateMode && isProductError"
         class="flex items-center justify-between gap-4 rounded-lg border border-error/30 bg-error/5 p-4"
       >
-        <p class="text-sm text-error">No pudimos cargar el producto. Reintentá nuevamente.</p>
+        <p class="text-sm text-error">No pudimos cargar el producto. Reintenta nuevamente.</p>
         <UButton label="Reintentar" color="neutral" variant="outline" @click="refetchProduct" />
       </div>
 
@@ -2001,7 +2001,7 @@ function handleEditLotPlaceholder() {
                 <tbody class="divide-y divide-default">
                   <tr v-if="pendingVariants.length === 0">
                     <td :colspan="formState.useStock ? 4 : 3" class="px-4 py-3 text-muted">
-                      Sin variantes agregadas. Usá el botón "Agregar variante".
+                      Sin variantes agregadas. Usa el botón "Agregar variante".
                     </td>
                   </tr>
                   <tr v-for="pv in pendingVariants" :key="pv._localId">
@@ -2200,7 +2200,7 @@ function handleEditLotPlaceholder() {
                   <tbody class="divide-y divide-default">
                     <tr v-if="pendingLots.length === 0">
                       <td colspan="4" class="px-4 py-3 text-muted">
-                        Sin lotes agregados. Usá el botón "Agregar Lote".
+                        Sin lotes agregados. Usa el botón "Agregar Lote".
                       </td>
                     </tr>
                     <tr v-for="pl in pendingLots" :key="pl._localId">
@@ -2622,7 +2622,7 @@ function handleEditLotPlaceholder() {
                     >por Unidad</span
                   >
                 </div>
-                <p class="mt-1 text-xs text-muted">Ingresá un valor para definir costo propio de esta variante</p>
+                <p class="mt-1 text-xs text-muted">Ingresa un valor para definir costo propio de esta variante</p>
               </UFormField>
             </div>
           </UCard>
@@ -2984,7 +2984,7 @@ function handleEditLotPlaceholder() {
             <USelect
               v-model="variantState.option"
               :items="variantOptionItems"
-              placeholder="Seleccioná una opción"
+              placeholder="Selecciona una opción"
               size="lg"
               class="w-full"
             />

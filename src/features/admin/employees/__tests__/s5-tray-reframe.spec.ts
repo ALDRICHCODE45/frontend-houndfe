@@ -293,7 +293,7 @@ describe('resolveDomainErrorMessage — EMPLOYEE_ERROR_MAP lookup (S5.d)', () =>
   it('falls back to a voseo default for an unknown code', () => {
     const msg = resolveDomainErrorMessage('SOME_UNKNOWN_CODE')
     // Default is the same defensive fallback normalizeApiError uses.
-    expect(msg).toBe('No pudimos completar la operación. Reintentá.')
+    expect(msg).toBe('No pudimos completar la operación. Reintenta.')
   })
 
   it('respects an explicit fallback override when the code is unknown', () => {
@@ -312,6 +312,6 @@ describe('resolveDomainErrorMessage — EMPLOYEE_ERROR_MAP lookup (S5.d)', () =>
 
   it('returns the fallback for empty string code', () => {
     const msg = resolveDomainErrorMessage('')
-    expect(msg).toBe('No pudimos completar la operación. Reintentá.')
+    expect(msg).toBe('No pudimos completar la operación. Reintenta.')
   })
 })

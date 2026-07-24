@@ -94,14 +94,14 @@ describe('useTenantSelection', () => {
   it('stores API message for non-401 errors', async () => {
     mockAuthStore.tempToken = 'temp-token-123'
     mockAuthStore.selectTenant.mockRejectedValue({
-      response: { status: 400, data: { message: 'No tenés acceso a esta sucursal' } },
+      response: { status: 400, data: { message: 'No tienes acceso a esta sucursal' } },
     })
 
     const tenantSelection = useTenantSelection()
     await tenantSelection.submit('tenant-1')
     await nextTick()
 
-    expect(tenantSelection.error.value).toBe('No tenés acceso a esta sucursal')
+    expect(tenantSelection.error.value).toBe('No tienes acceso a esta sucursal')
     expect(pushMock).not.toHaveBeenCalledWith('/')
   })
 

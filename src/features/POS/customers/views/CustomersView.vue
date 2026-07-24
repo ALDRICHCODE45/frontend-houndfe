@@ -106,7 +106,7 @@ function mapDomainError(error: AxiosError<DomainApiError>): {
   fields: Partial<Record<string, string>>
 } {
   const response = error.response?.data
-  const fallback = 'No pudimos guardar el cliente. Reintentá en unos segundos.'
+  const fallback = 'No pudimos guardar el cliente. Reintenta en unos segundos.'
 
   if (!response) {
     return { message: fallback, fields: {} }
@@ -298,7 +298,7 @@ async function handleOpenEdit(customer: Customer) {
 async function handleDelete(customer: Customer) {
   // TODO: check canDeleteCustomer permission when available
   openConfirm(
-    `¿Querés eliminar al cliente ${customer.fullName}?`,
+    `¿Quieres eliminar al cliente ${customer.fullName}?`,
     () => {
       void deleteMutation.mutateAsync(customer.id)
     },

@@ -61,7 +61,7 @@ describe('membership.types', () => {
 
       expect(result.success).toBe(false)
       if (!result.success) {
-        expect(result.error.errors[0]?.message).toBe('Seleccioná un usuario')
+        expect(result.error.errors[0]?.message).toBe('Selecciona un usuario')
       }
     })
 
@@ -75,7 +75,7 @@ describe('membership.types', () => {
 
       expect(result.success).toBe(false)
       if (!result.success) {
-        expect(result.error.errors[0]?.message).toBe('Seleccioná un rol')
+        expect(result.error.errors[0]?.message).toBe('Selecciona un rol')
       }
     })
   })

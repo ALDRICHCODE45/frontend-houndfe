@@ -45,7 +45,7 @@ const canSubmit = computed(() => {
 async function submit() {
   error.value = null
   if (!canSubmit.value) {
-    error.value = 'Ingresá un descuento válido.'
+    error.value = 'Ingresa un descuento válido.'
     return
   }
 
@@ -65,7 +65,7 @@ async function submit() {
     await props.onApplyGlobalDiscount(payload)
     emit('update:open', false)
   } catch {
-    error.value = 'No se pudo aplicar el descuento. Intentá de nuevo.'
+    error.value = 'No se pudo aplicar el descuento. Intenta de nuevo.'
   } finally {
     isSubmitting.value = false
   }
@@ -108,7 +108,7 @@ watch(
             <UButton type="button" class="w-full" label="Porcentaje" :variant="mode === 'percentage' ? 'solid' : 'outline'" @click="mode = 'percentage'" />
             <UButton type="button" class="w-full" label="Monto fijo" :variant="mode === 'amount' ? 'solid' : 'outline'" @click="mode = 'amount'" />
           </div>
-          <p v-if="mode === 'percentage'" class="text-xs text-muted">Aplicá un porcentaje (1–99%) sobre el precio unitario de cada producto.</p>
+          <p v-if="mode === 'percentage'" class="text-xs text-muted">Aplica un porcentaje (1–99%) sobre el precio unitario de cada producto.</p>
           <p v-else class="text-xs text-muted">Descontá un monto fijo en MXN a cada producto. Si algún producto tiene precio menor, se omitirá.</p>
         </section>
 

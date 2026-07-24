@@ -396,7 +396,7 @@ export function mapApiErrorToFields(input: ApiErrorInput): ApiErrorMapping {
     }
     return {
       fieldErrors: [],
-      toastMessage: rawMessage || 'Campo requerido faltante. Verificá el formulario.',
+      toastMessage: rawMessage || 'Campo requerido faltante. Verifica el formulario.',
     }
   }
 
@@ -421,7 +421,7 @@ export function mapApiErrorToFields(input: ApiErrorInput): ApiErrorMapping {
       fieldErrors: [
         {
           path: 'targetItems',
-          message: 'Hay targets duplicados. Revisá que no haya items repetidos.',
+          message: 'Hay targets duplicados. Revisa que no haya items repetidos.',
         },
       ],
       toastMessage: null,
@@ -509,7 +509,7 @@ export function mapApiErrorToFields(input: ApiErrorInput): ApiErrorMapping {
   // ── Fallback: show whatever message we got ─────────────────────────────────
   return {
     fieldErrors: [],
-    toastMessage: rawMessage || 'No se pudo completar la operación. Reintentá en unos segundos.',
+    toastMessage: rawMessage || 'No se pudo completar la operación. Reintenta en unos segundos.',
   }
 }
 

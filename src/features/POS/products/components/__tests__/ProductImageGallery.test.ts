@@ -63,11 +63,11 @@ describe('ProductImageGallery - Dropzone-first refactor', () => {
       expect(dropzone.classes()).toContain('bg-default')
     })
 
-    it('should show idle copy "Arrastrá tus imágenes aquí o hacé click para elegir"', () => {
+    it('should show idle copy "Arrastra tus imágenes aquí o hacé click para elegir"', () => {
       const wrapper = createWrapper()
       
       const dropzone = wrapper.find('[role="button"]')
-      expect(dropzone.text()).toContain('Arrastrá tus imágenes aquí')
+      expect(dropzone.text()).toContain('Arrastra tus imágenes aquí')
       expect(dropzone.text()).toContain('hacé click para elegir')
     })
 
@@ -206,7 +206,7 @@ describe('ProductImageGallery - Dropzone-first refactor', () => {
       
       // The component should have the dropzone for adding first images when empty
       expect(html).toContain('data-dropzone')
-      expect(html).toContain('Arrastrá tus imágenes aquí')
+      expect(html).toContain('Arrastra tus imágenes aquí')
     })
   })
 

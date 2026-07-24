@@ -75,7 +75,7 @@ const productCostHint = computed(() => {
   if (hasOwnCost.value) {
     return `Costo del producto: $ ${centsToDecimalInput(props.productPurchaseNetCostCents)}`
   }
-  return 'Ingresá un valor para definir costo propio de esta variante'
+  return 'Ingresa un valor para definir costo propio de esta variante'
 })
 
 function normalizeText(value: string | null | undefined): string {

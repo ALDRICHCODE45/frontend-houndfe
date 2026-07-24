@@ -67,13 +67,13 @@ function resolveErrorMessage(error: unknown): string {
   const code = error instanceof SellerAssignmentError ? error.code : (error as { code?: string })?.code
   switch (code) {
     case 'SELLER_NOT_FOUND':
-      return 'No se encontró el usuario. Recargá la lista.'
+      return 'No se encontró el usuario. Recarga la lista.'
     case 'SELLER_NOT_ASSIGNABLE':
       return 'Ese usuario no se puede asignar como vendedor.'
     case 'SALE_NOT_FOUND':
       return 'La venta ya no existe.'
     case 'SALE_UPDATE_FORBIDDEN':
-      return 'No tenés permisos para modificar esta venta.'
+      return 'No tienes permisos para modificar esta venta.'
     default:
       return 'No se pudo asignar el vendedor.'
   }
@@ -102,7 +102,7 @@ async function handleSelectUser(user: AssignableUser) {
           <div class="flex items-center justify-between gap-3">
             <div>
               <p class="text-lg font-semibold">Asignar vendedor</p>
-              <p class="text-sm text-muted">Seleccioná un usuario activo del equipo</p>
+              <p class="text-sm text-muted">Selecciona un usuario activo del equipo</p>
             </div>
             <UButton
               color="neutral"

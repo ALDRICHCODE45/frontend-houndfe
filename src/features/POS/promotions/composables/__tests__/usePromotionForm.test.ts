@@ -1173,7 +1173,7 @@ describe('mapApiErrorToFields', () => {
     expect(result.fieldErrors).toHaveLength(1)
     expect(result.fieldErrors[0]!.path).toBe('targetItems')
     expect(result.fieldErrors[0]!.message).toBe(
-      'Hay targets duplicados. Revisá que no haya items repetidos.',
+      'Hay targets duplicados. Revisa que no haya items repetidos.',
     )
     expect(result.toastMessage).toBeNull()
   })
@@ -1189,7 +1189,7 @@ describe('mapApiErrorToFields', () => {
     expect(result.fieldErrors).toHaveLength(1)
     expect(result.fieldErrors[0]!.path).toBe('targetItems')
     expect(result.fieldErrors[0]!.message).toBe(
-      'Hay targets duplicados. Revisá que no haya items repetidos.',
+      'Hay targets duplicados. Revisa que no haya items repetidos.',
     )
     expect(result.toastMessage).toBeNull()
   })

@@ -341,6 +341,6 @@ describe('mapTenantError', () => {
 
   it('maps GLOBAL_CONTEXT_REQUIRED to user-facing message', () => {
     const result = mapTenantError('GLOBAL_CONTEXT_REQUIRED')
-    expect(result).toBe('Operación requiere contexto global. Salí de la sucursal actual.')
+    expect(result).toBe('Operación requiere contexto global. Sal de la sucursal actual.')
   })
 })

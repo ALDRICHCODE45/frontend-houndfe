@@ -8,7 +8,7 @@ const props = withDefaults(defineProps<{
   stripPrefix?: string
   error?: string
 }>(), {
-  placeholder: 'Ingresá valores separados por coma',
+  placeholder: 'Ingresa valores separados por coma',
   max: 200,
   stripPrefix: undefined,
   error: undefined,

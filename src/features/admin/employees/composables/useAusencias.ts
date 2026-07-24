@@ -219,7 +219,7 @@ export function resolveDomainErrorMessage(
  * Used by `AusenciasPanel.submitRequest` (S6) to surface the SPECIFIC
  * voseo message from `CreateTimeOffDtoSchema.superRefine` (e.g.
  * "La fecha de fin debe ser igual o posterior a la fecha de inicio")
- * instead of the prior generic "Verificá los datos del formulario."
+ * instead of the prior generic "Verifica los datos del formulario."
  *
  * Returns the first issue's message verbatim. Returns `null` when the
  * error has no issues — defensive guard against a malformed `ZodError`

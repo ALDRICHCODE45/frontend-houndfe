@@ -120,9 +120,9 @@ describe('AdminTenantsView - Query key generation runtime behavior', () => {
 describe('AdminTenantsView - Confirm modal copy runtime construction', () => {
   it('should construct deactivate confirmation message with tenant name', () => {
     const tenantName = 'Sucursal Centro'
-    const expectedMessage = `¿Querés desactivar la sucursal ${tenantName}?`
+    const expectedMessage = `¿Quieres desactivar la sucursal ${tenantName}?`
     
-    expect(expectedMessage).toBe('¿Querés desactivar la sucursal Sucursal Centro?')
+    expect(expectedMessage).toBe('¿Quieres desactivar la sucursal Sucursal Centro?')
     expect(expectedMessage).toContain(tenantName)
     expect(expectedMessage.toLowerCase()).toContain('desactivar')
   })

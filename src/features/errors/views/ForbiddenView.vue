@@ -18,7 +18,7 @@ function goBack() {
       <h1 class="text-6xl font-bold text-muted">403</h1>
       <h2 class="text-xl font-semibold">Acceso denegado</h2>
       <p class="text-muted max-w-md">
-        No tenés permisos para acceder a esta página. Contactá al administrador si creés que es un
+        No tienes permisos para acceder a esta página. Contacta al administrador si crees que es un
         error.
       </p>
       <div class="flex justify-center gap-3 pt-2">

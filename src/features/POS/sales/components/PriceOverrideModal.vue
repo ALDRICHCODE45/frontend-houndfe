@@ -43,7 +43,7 @@ async function loadAvailablePrices() {
     const current = response.prices.find((opt) => opt.isCurrent)
     selectedPriceListId.value = current?.priceListId ?? ''
   } catch {
-    apiError.value = 'No se pudieron cargar los precios disponibles. Reintentá.'
+    apiError.value = 'No se pudieron cargar los precios disponibles. Reintenta.'
   } finally {
     isLoading.value = false
   }
@@ -53,11 +53,11 @@ async function submit() {
   validationError.value = null
   apiError.value = null
   if (mode.value === 'custom' && !canSubmit.value) {
-    validationError.value = 'Ingresá un precio válido mayor a 0.'
+    validationError.value = 'Ingresa un precio válido mayor a 0.'
     return
   }
   if (mode.value === 'price_list' && !selectedPriceListId.value) {
-    validationError.value = 'Seleccioná una lista de precios.'
+    validationError.value = 'Selecciona una lista de precios.'
     return
   }
 
@@ -69,7 +69,7 @@ async function submit() {
     }
     emit('update:open', false)
   } catch {
-    apiError.value = 'No se pudo aplicar el cambio de precio. Reintentá.'
+    apiError.value = 'No se pudo aplicar el cambio de precio. Reintenta.'
   } finally {
     isLoading.value = false
   }
@@ -95,7 +95,7 @@ watch(
       <form id="price-override-form" class="space-y-4" @submit.prevent="submit">
         <section class="rounded-lg border border-default p-3 space-y-2 bg-elevated/30">
           <p class="text-sm font-medium">Contexto del precio</p>
-          <p class="text-xs text-muted">Elegí una lista vigente o definí un valor manual para este ítem.</p>
+          <p class="text-xs text-muted">Elige una lista vigente o definí un valor manual para este ítem.</p>
         </section>
 
         <div v-if="isLoading" class="text-sm text-muted">Cargando precios...</div>
@@ -107,13 +107,13 @@ watch(
 
         <div v-else class="space-y-4">
           <section class="rounded-lg border border-default p-3 space-y-3">
-            <p class="text-sm font-medium">Seleccioná el origen del precio</p>
+            <p class="text-sm font-medium">Selecciona el origen del precio</p>
             <div class="grid grid-cols-2 gap-2 w-full">
               <UButton type="button" class="w-full" :variant="mode === 'price_list' ? 'solid' : 'outline'" label="Desde lista" @click="mode = 'price_list'" />
               <UButton type="button" class="w-full" :variant="mode === 'custom' ? 'solid' : 'outline'" label="Personalizado" @click="mode = 'custom'" />
             </div>
-            <p v-if="mode === 'custom'" class="text-xs text-muted">Aplicá un precio personalizado en pesos (MXN).</p>
-            <p v-else class="text-xs text-muted">Seleccioná una alternativa de lista para reemplazar el valor actual.</p>
+            <p v-if="mode === 'custom'" class="text-xs text-muted">Aplica un precio personalizado en pesos (MXN).</p>
+            <p v-else class="text-xs text-muted">Selecciona una alternativa de lista para reemplazar el valor actual.</p>
           </section>
 
           <div class="rounded-lg border border-default p-3">
@@ -128,7 +128,7 @@ watch(
               }))"
             />
 
-            <UFormField v-else label="Precio manual (MXN)" description="Ingresá un valor mayor a 0.">
+            <UFormField v-else label="Precio manual (MXN)" description="Ingresa un valor mayor a 0.">
               <UInput
                 v-model="customPriceInput"
                 type="number"

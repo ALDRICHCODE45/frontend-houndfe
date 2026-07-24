@@ -26,8 +26,8 @@ function computeSlideoverTitle(mode: 'create' | 'edit'): string {
  */
 function computeSlideoverDescription(mode: 'create' | 'edit'): string {
   return mode === 'create'
-    ? 'Completá los datos para crear una nueva sucursal'
-    : 'Actualizá los datos de la sucursal'
+    ? 'Completa los datos para crear una nueva sucursal'
+    : 'Actualiza los datos de la sucursal'
 }
 
 /**
@@ -78,14 +78,14 @@ describe('TenantUpsertSlideover - Mode-specific title runtime behavior', () => {
 describe('TenantUpsertSlideover - Mode-specific description runtime behavior', () => {
   it('should compute create instruction description for create mode', () => {
     const result = computeSlideoverDescription('create')
-    expect(result).toBe('Completá los datos para crear una nueva sucursal')
+    expect(result).toBe('Completa los datos para crear una nueva sucursal')
     expect(result).toContain('crear')
   })
 
   it('should compute update instruction description for edit mode', () => {
     const result = computeSlideoverDescription('edit')
-    expect(result).toBe('Actualizá los datos de la sucursal')
-    expect(result).toContain('Actualizá')
+    expect(result).toBe('Actualiza los datos de la sucursal')
+    expect(result).toContain('Actualiza')
   })
 })
 

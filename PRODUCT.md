@@ -30,7 +30,7 @@ Beyond these, HoundFe bundles further capabilities the owner considers different
 - **Environment:** physical branch counter, desktop, web browser (SPA).
 - **Flow:** login -> tenant/sucursal selection -> dashboard -> POS / HR / Admin workflows.
 - **Core workflows:** new sale, sales list, sale detail (with PDF receipt download), products, promotions, customers, orders; HR (colaboradores, expiring documents, pending approvals); admin (users, roles, tenants/memberships, notifications).
-- **UI language:** Rioplatense Spanish with voseo throughout.
+- **UI language:** Neutral Mexican Spanish (tuteo: "tú", "elegir", "puedes", "quieres"). The product is delivered to a single client in Mexico. No voseo, no argentinismos.
 - **Navigation:** sidebar + command palette driven by a single registry (`navigation.registry.ts`). Groups: POS, RR.HH., Admin, Sistema.
 
 ## Capabilities and Constraints
@@ -47,7 +47,7 @@ Beyond these, HoundFe bundles further capabilities the owner considers different
 
 - **Name:** "HoundFe" (never "Hounde"). Logo assets at `public/hounfeLogos/primary.png` and `secondary.png`.
 - **Primary color:** amber (fixed).
-- **Voice:** Rioplatense Spanish with voseo.
+- **Voice:** Neutral Mexican Spanish (tuteo). No voseo, no argentinismos ("dale", "che", "pibe", etc.). Imperatives address the user as "tú" (e.g. "Selecciona", "Ingresa", "Verifica").
 - **Fixed stack:** Nuxt UI 4 + Tailwind v4.
 - **Authorization model:** CASL permission-based (do not revert to hardcoded roles).
 

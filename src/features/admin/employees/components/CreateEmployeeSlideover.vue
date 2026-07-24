@@ -114,7 +114,7 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
   <USlideover
     v-model:open="open"
     title="Nuevo colaborador"
-    description="Completá los datos para registrar al colaborador en el sistema"
+    description="Completa los datos para registrar al colaborador en el sistema"
     side="right"
     inset
     @after-leave="resetForm"

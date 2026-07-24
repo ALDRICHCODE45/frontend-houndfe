@@ -10,7 +10,7 @@
  *      message from a failed `CreateTimeOffDtoSchema.safeParse` so the
  *      panel can show the SPECIFIC voseo error (e.g. "La fecha de fin
  *      debe ser igual o posterior a la fecha de inicio") instead of the
- *      prior generic "Verificá los datos del formulario."
+ *      prior generic "Verifica los datos del formulario."
  *
  *   2. `resolveCancelErrorMessage(err, fallback?)` — composes S3's
  *      `normalizeApiError` + S5's `resolveDomainErrorMessage` so the
@@ -226,7 +226,7 @@ describe('resolveCancelErrorMessage — 409 TIME_OFF_INVALID_TRANSITION surfacin
     // own DEFAULT_CANCEL_FALLBACK). resolveDomainErrorMessage then
     // receives that fallback as its fallback and returns it (code
     // is unknown). The S3 `DEFAULT_FALLBACK` ('No pudimos completar la
-    // operación. Reintentá.') is the deeper safety net that ONLY fires
+    // operación. Reintenta.') is the deeper safety net that ONLY fires
     // when the caller passes an empty/non-string fallback.
     const envelopeWithoutMessage = {
       response: {

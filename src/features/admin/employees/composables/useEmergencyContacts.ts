@@ -181,7 +181,7 @@ export function useCreateEmergencyContact(employeeId: MaybeRef<string>) {
     onError: () => {
       toast.add({
         title: 'No se pudo agregar el contacto',
-        description: 'Verificá los datos e intentá de nuevo.',
+        description: 'Verifica los datos e intentá de nuevo.',
         color: 'error',
       })
     },
@@ -224,7 +224,7 @@ export function useUpdateEmergencyContact(employeeId: MaybeRef<string>) {
     onError: () => {
       toast.add({
         title: 'No se pudo actualizar el contacto',
-        description: 'Verificá los datos e intentá de nuevo.',
+        description: 'Verifica los datos e intentá de nuevo.',
         color: 'error',
       })
     },
@@ -263,7 +263,7 @@ export function useDeleteEmergencyContact(employeeId: MaybeRef<string>) {
     onError: () => {
       toast.add({
         title: 'No se pudo eliminar el contacto',
-        description: 'Intentá de nuevo.',
+        description: 'Intenta de nuevo.',
         color: 'error',
       })
     },

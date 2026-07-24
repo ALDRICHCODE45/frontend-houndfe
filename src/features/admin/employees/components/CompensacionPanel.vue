@@ -292,7 +292,7 @@ function closePositionModal(): void {
     <UCard v-else :ui="{ body: 'p-5 sm:p-5' }">
       <div class="flex items-center gap-3 text-sm text-muted">
         <UIcon name="i-lucide-lock" class="size-4 shrink-0" />
-        <span>No tenés acceso para ver la información de sueldos de este colaborador.</span>
+        <span>No tienes acceso para ver la información de sueldos de este colaborador.</span>
       </div>
     </UCard>
 
@@ -399,7 +399,7 @@ function closePositionModal(): void {
         @submit="onSalarySubmit"
       >
         <UFormField label="Monto" name="amount" required
-          hint="Ingresá el monto en pesos (ej: 45000)">
+          hint="Ingresa el monto en pesos (ej: 45000)">
           <UInputNumber
             v-model="salaryState.amount"
             :min="1"

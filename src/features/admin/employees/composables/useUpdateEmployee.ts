@@ -80,7 +80,7 @@ export function useUpdateEmployee() {
       const axiosErr = error as AxiosError<{ message?: string }>
       toast.add({
         title: 'No se pudo actualizar el colaborador',
-        description: axiosErr.response?.data?.message ?? 'Reintentá en unos segundos.',
+        description: axiosErr.response?.data?.message ?? 'Reintenta en unos segundos.',
         color: 'error',
       })
     },

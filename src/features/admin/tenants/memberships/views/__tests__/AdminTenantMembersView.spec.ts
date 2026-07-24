@@ -473,7 +473,7 @@ describe('AdminTenantMembersView - permission guards', () => {
 
   it('renders neutral empty state and hides the table when read is denied', async () => {
     const wrapper = await mountWithPermissions({ read: false })
-    expect(wrapper.text()).toContain('No tenés acceso a esta sección.')
+    expect(wrapper.text()).toContain('No tienes acceso a esta sección.')
     expect(wrapper.find('.app-data-table-stub').exists()).toBe(false)
   })
 

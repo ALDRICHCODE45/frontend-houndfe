@@ -311,7 +311,7 @@ function handleInlinePriceSave(list: PriceList) {
 function handleDeletePriceList(list: PriceList) {
   if (!props.canDelete) return
 
-  openConfirm(`¿Querés eliminar la lista de precios ${list.name}?`, () => {
+  openConfirm(`¿Quieres eliminar la lista de precios ${list.name}?`, () => {
     void deleteMutation.mutateAsync(list.id)
   })
 }

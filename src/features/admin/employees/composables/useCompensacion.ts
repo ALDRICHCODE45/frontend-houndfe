@@ -193,7 +193,7 @@ export function useAddSalaryChange(employeeId: MaybeRef<string>) {
     onError: () => {
       toast.add({
         title: 'No se pudo registrar el ajuste de sueldo',
-        description: 'Verificá los datos e intentá de nuevo.',
+        description: 'Verifica los datos e intentá de nuevo.',
         color: 'error',
       })
     },
@@ -262,7 +262,7 @@ export function useAddPositionChange(employeeId: MaybeRef<string>) {
     onError: () => {
       toast.add({
         title: 'No se pudo registrar el cambio de posición',
-        description: 'Verificá los datos e intentá de nuevo.',
+        description: 'Verifica los datos e intentá de nuevo.',
         color: 'error',
       })
     },

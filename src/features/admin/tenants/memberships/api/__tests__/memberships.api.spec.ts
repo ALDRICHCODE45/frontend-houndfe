@@ -407,12 +407,12 @@ describe('mapMembershipError', () => {
 
   it('maps TENANT_ACCESS_DENIED to user-facing message', () => {
     const result = mapMembershipError('TENANT_ACCESS_DENIED')
-    expect(result).toBe('No tenés permisos para gestionar esta sucursal')
+    expect(result).toBe('No tienes permisos para gestionar esta sucursal')
   })
 
   it('maps INSUFFICIENT_PERMISSIONS_IN_TARGET_TENANT to user-facing message', () => {
     const result = mapMembershipError('INSUFFICIENT_PERMISSIONS_IN_TARGET_TENANT')
-    expect(result).toBe('No tenés permisos suficientes para operar en esta sucursal')
+    expect(result).toBe('No tienes permisos suficientes para operar en esta sucursal')
   })
 
   it('maps TENANT_NOT_FOUND to user-facing message', () => {

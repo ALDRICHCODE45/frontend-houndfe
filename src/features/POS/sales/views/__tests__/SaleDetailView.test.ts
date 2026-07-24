@@ -590,13 +590,13 @@ describe('SaleDetailView', () => {
       )
     })
 
-    it('403 → "No tenés permiso para descargar este recibo"', async () => {
+    it('403 → "No tienes permiso para descargar este recibo"', async () => {
       vi.mocked(saleApi.getPdfBlob).mockRejectedValue({ response: { status: 403 } })
 
       await clickAndExpectToast(
         { ...defaultSale, status: 'CONFIRMED' as const },
         'Recibo A4',
-        'No tenés permiso para descargar este recibo',
+        'No tienes permiso para descargar este recibo',
         'error',
       )
     })
@@ -612,25 +612,25 @@ describe('SaleDetailView', () => {
       )
     })
 
-    it('500 PDF_GENERATION_FAILED → "Error al generar el PDF. Intentá nuevamente"', async () => {
+    it('500 PDF_GENERATION_FAILED → "Error al generar el PDF. Intenta nuevamente"', async () => {
       const { SalePdfError } = await import('../../api/sale.api')
       vi.mocked(saleApi.getPdfBlob).mockRejectedValue(new SalePdfError('PDF_GENERATION_FAILED'))
 
       await clickAndExpectToast(
         { ...defaultSale, status: 'CONFIRMED' as const },
         'Recibo A4',
-        'Error al generar el PDF. Intentá nuevamente',
+        'Error al generar el PDF. Intenta nuevamente',
         'error',
       )
     })
 
-    it('network error (no axios response) → "Error de conexión. Verificá tu red"', async () => {
+    it('network error (no axios response) → "Error de conexión. Verifica tu red"', async () => {
       vi.mocked(saleApi.getPdfBlob).mockRejectedValue(new Error('Network Error'))
 
       await clickAndExpectToast(
         { ...defaultSale, status: 'CONFIRMED' as const },
         'Recibo A4',
-        'Error de conexión. Verificá tu red',
+        'Error de conexión. Verifica tu red',
         'error',
       )
     })

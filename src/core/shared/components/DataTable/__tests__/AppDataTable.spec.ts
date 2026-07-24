@@ -161,14 +161,14 @@ describe('AppDataTable error state', () => {
   it('renders the error block (and not the empty text) in table view when error=true', () => {
     const wrapper = mountComponent({
       error: true,
-      errorMessage: 'No se pudieron cargar los datos. Reintentá.',
+      errorMessage: 'No se pudieron cargar los datos. Reintenta.',
       data: [],
       totalCount: 0,
     })
 
     expect(wrapper.find('[data-testid="table-error-state"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="table-error-state"]').text()).toContain(
-      'No se pudieron cargar los datos. Reintentá.',
+      'No se pudieron cargar los datos. Reintenta.',
     )
     // The generic empty text must NOT show when error is true.
     expect(wrapper.text()).not.toContain('No se encontraron resultados')
@@ -179,7 +179,7 @@ describe('AppDataTable error state', () => {
     isBelowBreakpoint.value = true
     const wrapper = mountComponent({
       error: true,
-      errorMessage: 'No se pudieron cargar los datos. Reintentá.',
+      errorMessage: 'No se pudieron cargar los datos. Reintenta.',
       data: [],
       totalCount: 0,
       mobileRender: 'cards',
@@ -187,7 +187,7 @@ describe('AppDataTable error state', () => {
 
     expect(wrapper.find('[data-testid="mobile-error-state"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="mobile-error-state"]').text()).toContain(
-      'No se pudieron cargar los datos. Reintentá.',
+      'No se pudieron cargar los datos. Reintenta.',
     )
     expect(wrapper.find('[data-testid="mobile-empty-state"]').exists()).toBe(false)
   })

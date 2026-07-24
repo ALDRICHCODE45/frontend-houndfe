@@ -14,7 +14,7 @@ function mountComponent() {
     props: {
       modelValue: [],
       label: 'Cliente',
-      placeholder: 'Buscá cliente',
+      placeholder: 'Busca cliente',
       includeNullOption: 'Incluir público general',
       includeNullValue: false,
       options: [
@@ -96,7 +96,7 @@ describe('MultiSelectAsyncFilter', () => {
       props: {
         modelValue: [],
         label: 'Cliente',
-        placeholder: 'Buscá cliente',
+        placeholder: 'Busca cliente',
         options: [{ label: 'María Pérez', value: 'uuid-1' }],
         error: 'Demasiados valores seleccionados',
       },
@@ -117,7 +117,7 @@ describe('MultiSelectAsyncFilter', () => {
       props: {
         modelValue: [],
         label: 'Cliente',
-        placeholder: 'Buscá cliente',
+        placeholder: 'Busca cliente',
         options: [],
         loading: true,
         loadingLabel: 'Cargando clientes...',

@@ -72,7 +72,7 @@ const formId = computed(() =>
 const title = computed(() => (props.mode === 'create' ? 'Nuevo cliente' : 'Editar cliente'))
 
 const description = computed(() =>
-  props.mode === 'create' ? 'Completá los datos del cliente.' : 'Actualizá los datos del cliente.',
+  props.mode === 'create' ? 'Completa los datos del cliente.' : 'Actualiza los datos del cliente.',
 )
 
 const priceListItems = computed(() =>

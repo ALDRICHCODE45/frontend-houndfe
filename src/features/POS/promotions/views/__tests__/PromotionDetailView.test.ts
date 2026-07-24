@@ -405,7 +405,7 @@ describe('PromotionDetailView — Field-level API errors (FIX 2)', () => {
     const errors = JSON.parse(form.attributes('data-api-errors') ?? '[]')
     expect(errors).toHaveLength(1)
     expect(errors[0].path).toBe('targetItems')
-    expect(errors[0].message).toBe('Hay targets duplicados. Revisá que no haya items repetidos.')
+    expect(errors[0].message).toBe('Hay targets duplicados. Revisa que no haya items repetidos.')
   })
 
   it('clears apiErrors when PromotionForm emits errorsCleared', async () => {

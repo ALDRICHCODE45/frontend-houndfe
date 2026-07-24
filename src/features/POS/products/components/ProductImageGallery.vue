@@ -166,7 +166,7 @@ function handleSetMain(image: ProductImage) {
 }
 
 function handleDelete(image: ProductImage) {
-  openConfirm('¿Querés eliminar esta imagen?', () => {
+  openConfirm('¿Quieres eliminar esta imagen?', () => {
     deleteMutation.mutate(image.id)
   })
 }
@@ -210,7 +210,7 @@ function isImageBroken(imageId: string): boolean {
         <div>
           <h3 class="text-xl font-semibold">Imágenes</h3>
           <p class="text-sm text-muted">
-            Subí y gestioná las imágenes del producto y sus variantes mediante arrastrar y soltar.
+            Sube y gestioná las imágenes del producto y sus variantes mediante arrastrar y soltar.
           </p>
         </div>
 
@@ -255,7 +255,7 @@ function isImageBroken(imageId: string): boolean {
             :class="isOverDropZone ? 'text-primary' : 'text-muted'"
           />
           <p class="text-base font-medium mb-1">
-            Arrastrá tus imágenes aquí o hacé click para elegir
+            Arrastra tus imágenes aquí o hacé click para elegir
           </p>
           <p class="text-sm text-muted mb-2">JPG, PNG, WEBP o GIF — máx 10 MB</p>
           <div class="flex items-center gap-2 mt-2 px-3 py-1.5 rounded-full bg-primary/10">
@@ -297,7 +297,7 @@ function isImageBroken(imageId: string): boolean {
         <p class="text-sm text-muted max-w-sm">
           {{
             canUpdate
-              ? 'Subí tus primeras imágenes usando el área de arrastrar y soltar de arriba.'
+              ? 'Sube tus primeras imágenes usando el área de arrastrar y soltar de arriba.'
               : 'No hay imágenes disponibles en esta sección.'
           }}
         </p>

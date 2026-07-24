@@ -75,5 +75,5 @@ The frontend MUST NOT replicate backend precedence logic (variant > product). Th
 ## UI Copy (neutral Spanish, examples)
 
 - `VARIANTS` radio label: "Variantes"
-- Variant selector empty state: "Elegí un producto para ver sus variantes"
+- Variant selector empty state: "Elige un producto para ver sus variantes"
 - INVALID_TARGET message: "La variante seleccionada no existe o no pertenece a tu comercio"

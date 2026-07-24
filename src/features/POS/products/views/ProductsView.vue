@@ -207,7 +207,7 @@ function mapDomainError(error: AxiosError<DomainApiError>): {
   fields: ProductFormErrors
 } {
   const response = error.response?.data
-  const fallback = 'No pudimos guardar el producto. Reintentá en unos segundos.'
+  const fallback = 'No pudimos guardar el producto. Reintenta en unos segundos.'
 
   if (!response) {
     return { message: fallback, fields: {} }
@@ -424,7 +424,7 @@ async function handleOpenEdit(product: Product) {
 async function handleDelete(product: Product) {
   if (!canDeleteProduct.value) return
 
-  openConfirm(`¿Querés eliminar el producto ${product.name}?`, () => {
+  openConfirm(`¿Quieres eliminar el producto ${product.name}?`, () => {
     void deleteMutation.mutateAsync(product.id)
   })
 }
@@ -491,7 +491,7 @@ const productsErrorMessage = computed(() => {
   if (typeof err?.message === 'string' && err.message.trim()) {
     return err.message
   }
-  return 'No se pudieron cargar los productos. Reintentá.'
+  return 'No se pudieron cargar los productos. Reintenta.'
 })
 </script>
 

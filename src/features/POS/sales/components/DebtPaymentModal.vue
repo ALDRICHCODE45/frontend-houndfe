@@ -156,7 +156,7 @@ watch(shouldClose, (value) => {
 
 watch(externalErrorCode, (code) => {
   if (code === 'PAYMENT_EXCEEDS_DEBT') {
-    inlineAggregateError.value = 'El monto supera la deuda actual. Revisá el saldo.'
+    inlineAggregateError.value = 'El monto supera la deuda actual. Revisa el saldo.'
   }
 })
 </script>
@@ -178,7 +178,7 @@ watch(externalErrorCode, (code) => {
           <div class="flex items-center justify-between">
             <div>
               <p class="text-lg font-bold text-highlighted">Cobrar deuda</p>
-              <p class="text-xs text-muted">Seleccioná los métodos de pago</p>
+              <p class="text-xs text-muted">Selecciona los métodos de pago</p>
             </div>
             <UButton
               color="neutral"
@@ -242,7 +242,7 @@ watch(externalErrorCode, (code) => {
               v-if="entries.length === 0"
               class="rounded-xl border border-dashed border-default bg-elevated px-4 py-6 text-center"
             >
-              <p class="text-sm text-muted">Seleccioná un método de pago arriba</p>
+              <p class="text-sm text-muted">Selecciona un método de pago arriba</p>
             </div>
 
             <div

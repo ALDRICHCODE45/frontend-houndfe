@@ -46,7 +46,7 @@ function makeAxiosError(
   return err
 }
 
-const DEFAULT_FALLBACK = 'No pudimos completar la operación. Reintentá.'
+const DEFAULT_FALLBACK = 'No pudimos completar la operación. Reintenta.'
 
 // ── normalizeApiError — DOMAIN envelope ───────────────────────────────────────
 
@@ -54,19 +54,19 @@ describe('normalizeApiError — domain envelope', () => {
   it('returns the string message from a domain envelope', () => {
     const err = makeAxiosError(409, {
       error: 'TIME_OFF_INVALID_TRANSITION',
-      message: 'No podés cambiar el estado de una solicitud ya aprobada.',
+      message: 'No puedes cambiar el estado de una solicitud ya aprobada.',
       timestamp: '2026-07-17T10:00:00.000Z',
     })
 
     const result = normalizeApiError(err)
 
-    expect(result.message).toBe('No podés cambiar el estado de una solicitud ya aprobada.')
+    expect(result.message).toBe('No puedes cambiar el estado de una solicitud ya aprobada.')
   })
 
   it('exposes the domain `error` code so consumers can map specific cases', () => {
     const err = makeAxiosError(409, {
       error: 'TIME_OFF_INVALID_TRANSITION',
-      message: 'No podés cambiar el estado de una solicitud ya aprobada.',
+      message: 'No puedes cambiar el estado de una solicitud ya aprobada.',
       timestamp: '2026-07-17T10:00:00.000Z',
     })
 
@@ -260,17 +260,17 @@ describe('normalizeApiError — defensive fallback (must NEVER throw)', () => {
 
 describe('normalizeApiError — fallback override', () => {
   it('honours a custom fallback on a null err', () => {
-    const result = normalizeApiError(null, 'Algo salió mal. Probá de nuevo.')
+    const result = normalizeApiError(null, 'Algo salió mal. Prueba de nuevo.')
 
-    expect(result.message).toBe('Algo salió mal. Probá de nuevo.')
+    expect(result.message).toBe('Algo salió mal. Prueba de nuevo.')
   })
 
   it('honours a custom fallback when envelope has no usable message', () => {
     const err = makeAxiosError(500, {})
 
-    const result = normalizeApiError(err, 'Servidor ocupado. Esperá unos segundos.')
+    const result = normalizeApiError(err, 'Servidor ocupado. Espera unos segundos.')
 
-    expect(result.message).toBe('Servidor ocupado. Esperá unos segundos.')
+    expect(result.message).toBe('Servidor ocupado. Espera unos segundos.')
   })
 
   it('falls back to the default when the custom fallback is an empty string', () => {
@@ -286,12 +286,12 @@ describe('mapDomainError — back-compat wrapper (POS callers stay green)', () =
   it('returns the message string from a domain envelope', () => {
     const err = makeAxiosError(409, {
       error: 'TIME_OFF_INVALID_TRANSITION',
-      message: 'No podés cambiar el estado de una solicitud ya aprobada.',
+      message: 'No puedes cambiar el estado de una solicitud ya aprobada.',
     })
 
     const result = mapDomainError(err)
 
-    expect(result).toBe('No podés cambiar el estado de una solicitud ya aprobada.')
+    expect(result).toBe('No puedes cambiar el estado de una solicitud ya aprobada.')
   })
 
   it('joins a Nest string[] message into a single string (no raw array leaks)', () => {

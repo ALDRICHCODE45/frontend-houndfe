@@ -250,7 +250,7 @@ watch(() => filtersCtl.serializedState.value, () => {
       v-else
       color="error"
       variant="soft"
-      title="No tenés permisos para ver ventas"
+      title="No tienes permisos para ver ventas"
     />
   </div>
 </template>

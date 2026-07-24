@@ -66,7 +66,7 @@ async function handleDownload(): Promise<void> {
     document.body.removeChild(anchor)
     URL.revokeObjectURL(objectUrl)
   } catch {
-    downloadError.value = 'No se pudo descargar el CV. Intentá de nuevo.'
+    downloadError.value = 'No se pudo descargar el CV. Intenta de nuevo.'
   } finally {
     isDownloading.value = false
   }
@@ -102,7 +102,7 @@ async function handleFileSelected(event: Event): Promise<void> {
     // Signal parent to refetch employee detail
     emit('cv-updated')
   } catch {
-    uploadError.value = 'No se pudo subir el CV. Verificá el archivo e intentá de nuevo.'
+    uploadError.value = 'No se pudo subir el CV. Verifica el archivo e intentá de nuevo.'
   } finally {
     isUploading.value = false
     // Reset input so same file can be re-selected if needed
@@ -160,7 +160,7 @@ async function handleFileSelected(event: Event): Promise<void> {
 
             <!-- Replace CV option (only for users who can update) -->
             <div v-if="canUpdate" class="mt-2">
-              <p class="mb-2 text-xs text-muted">¿Querés reemplazar el CV actual?</p>
+              <p class="mb-2 text-xs text-muted">¿Quieres reemplazar el CV actual?</p>
               <UButton
                 icon="i-lucide-upload"
                 color="neutral"
@@ -185,7 +185,7 @@ async function handleFileSelected(event: Event): Promise<void> {
             <div>
               <p class="font-semibold text-highlighted">Sin CV registrado</p>
               <p class="mt-1 text-sm text-muted">
-                Subí el CV del colaborador en formato PDF, DOC, DOCX o imagen.
+                Sube el CV del colaborador en formato PDF, DOC, DOCX o imagen.
               </p>
             </div>
             <UButton

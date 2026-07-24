@@ -101,17 +101,17 @@ function resolveErrorMessage(error: unknown): string {
 
   switch (code) {
     case 'CUSTOMER_NOT_FOUND':
-      return 'No se encontró el cliente. Recargá la lista.'
+      return 'No se encontró el cliente. Recarga la lista.'
     case 'SHIPPING_ADDRESS_NOT_FOUND':
-      return 'No se encontró la dirección. Recargá la lista.'
+      return 'No se encontró la dirección. Recarga la lista.'
     case 'SHIPPING_ADDRESS_NOT_FOR_CUSTOMER':
       return 'Esa dirección no pertenece al cliente seleccionado.'
     case 'SHIPPING_ADDRESS_REQUIRES_CUSTOMER':
-      return 'Asigná un cliente antes de elegir la dirección.'
+      return 'Asigna un cliente antes de elegir la dirección.'
     case 'SALE_NOT_DRAFT':
-      return 'Esta venta ya no es un borrador. Recargá la página.'
+      return 'Esta venta ya no es un borrador. Recarga la página.'
     case 'SALE_UPDATE_FORBIDDEN':
-      return 'No tenés permisos para modificar esta venta.'
+      return 'No tienes permisos para modificar esta venta.'
     default:
       return 'No se pudo completar la operación'
   }
@@ -194,7 +194,7 @@ function formatAddress(address: CustomerAddress): string {
           <div v-if="!selectedCustomer" class="flex items-center justify-between gap-3">
             <div>
               <p class="text-lg font-semibold">Asignar cliente</p>
-              <p class="text-sm text-muted">Seleccioná un cliente</p>
+              <p class="text-sm text-muted">Selecciona un cliente</p>
             </div>
             <UButton color="neutral" variant="ghost" icon="i-lucide-x" @click="emit('update:open', false)" />
           </div>

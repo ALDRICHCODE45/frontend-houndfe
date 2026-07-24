@@ -99,8 +99,8 @@ const title = computed(() => (props.mode === 'create' ? 'Nuevo producto' : 'Edit
 
 const description = computed(() =>
   props.mode === 'create'
-    ? 'Completá los datos básicos del producto para POS.'
-    : 'Actualizá los datos base del producto.',
+    ? 'Completa los datos básicos del producto para POS.'
+    : 'Actualiza los datos base del producto.',
 )
 
 watch(

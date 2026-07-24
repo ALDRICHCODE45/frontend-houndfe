@@ -114,7 +114,7 @@ function getCode(subject: string, action: string) {
   <USlideover
     v-model:open="open"
     title="Asignar permisos"
-    :description="`Seleccioná permisos para el rol ${role?.name ?? ''}`"
+    :description="`Selecciona permisos para el rol ${role?.name ?? ''}`"
     side="right"
     inset
     :ui="{ content: '!max-w-2xl' }"

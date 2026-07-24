@@ -167,7 +167,7 @@ function goBack(): void {
       <UIcon name="i-lucide-alert-circle" class="size-12 text-error opacity-70" />
       <div>
         <p class="font-semibold text-highlighted">No se pudo cargar el colaborador</p>
-        <p class="text-sm text-muted">Verificá que el ID sea válido o intentá de nuevo.</p>
+        <p class="text-sm text-muted">Verifica que el ID sea válido o intentá de nuevo.</p>
       </div>
       <div class="flex items-center gap-3">
         <UButton color="neutral" variant="outline" icon="i-lucide-arrow-left" @click="goBack">

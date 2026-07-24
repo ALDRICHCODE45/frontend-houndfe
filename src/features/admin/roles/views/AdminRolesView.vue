@@ -141,7 +141,7 @@ async function handleDelete(role: RoleTableRow) {
     return
   }
 
-  openConfirm(`¿Querés eliminar el rol ${role.name}?`, () => {
+  openConfirm(`¿Quieres eliminar el rol ${role.name}?`, () => {
     void deleteMutation.mutateAsync(role.id)
   })
 }

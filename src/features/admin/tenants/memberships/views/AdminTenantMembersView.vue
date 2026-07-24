@@ -213,7 +213,7 @@ function getRowItems(membership: MembershipTableRow) {
       </template>
 
       <div v-if="!canReadMemberships" class="px-6 py-10 text-center text-sm text-muted">
-        No tenés acceso a esta sección.
+        No tienes acceso a esta sección.
       </div>
 
       <div v-else class="px-6 py-5">

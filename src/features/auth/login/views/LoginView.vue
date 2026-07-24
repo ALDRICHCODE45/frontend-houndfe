@@ -34,7 +34,7 @@ async function handleLogin(values: LoginFormValues) {
   } catch {
     // Prefer store-level authError (e.g. 403 no active tenants) over generic message
     loginError.value =
-      authStore.authError ?? 'No se pudo iniciar sesión. Verificá credenciales.'
+      authStore.authError ?? 'No se pudo iniciar sesión. Verifica credenciales.'
   } finally {
     isLoading.value = false
   }

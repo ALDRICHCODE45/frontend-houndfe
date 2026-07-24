@@ -9,6 +9,6 @@
       </div>
     </template>
 
-    <p class="text-dimmed">Bienvenido a Hound. Seleccioná una sección en el sidebar.</p>
+    <p class="text-dimmed">Bienvenido a Hound. Selecciona una sección en el sidebar.</p>
   </UCard>
 </template>

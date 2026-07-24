@@ -141,7 +141,7 @@ function handleSetMain(image: ProductImage) {
 }
 
 function handleDelete(image: ProductImage) {
-  openConfirm('¿Querés eliminar esta imagen?', () => {
+  openConfirm('¿Quieres eliminar esta imagen?', () => {
     deleteMutation.mutate(image.id)
   })
 }
@@ -200,7 +200,7 @@ const modalTitle = computed(() => {
             :class="isOverDropZone ? 'text-primary' : 'text-muted'"
           />
           <p class="text-base font-medium mb-1">
-            Arrastrá tus imágenes aquí o hacé click para elegir
+            Arrastra tus imágenes aquí o hacé click para elegir
           </p>
           <p class="text-sm text-muted">JPG, PNG, WEBP o GIF — máx 10 MB</p>
         </div>

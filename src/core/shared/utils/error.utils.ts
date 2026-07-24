@@ -32,7 +32,7 @@ export interface NormalizedApiError {
 /** Shared voseo fallback used when no domain code nor caller fallback applies.
  *  Re-used by feature modules (e.g. {@link resolveDomainErrorMessage}) so the
  *  defensive string stays in ONE place. */
-export const DEFAULT_FALLBACK = 'No pudimos completar la operación. Reintentá.'
+export const DEFAULT_FALLBACK = 'No pudimos completar la operación. Reintenta.'
 
 function sanitizeFallback(fallback: string | undefined): string {
   if (typeof fallback !== 'string') return DEFAULT_FALLBACK

@@ -189,16 +189,16 @@ function mapPdfError(err: unknown): { description: string; color: 'error' } {
     if (err.code === 'SALE_NOT_CONFIRMED')
       return { description: 'Solo ventas confirmadas pueden descargar recibo', color: 'error' }
     if (err.code === 'PDF_GENERATION_FAILED')
-      return { description: 'Error al generar el PDF. Intentá nuevamente', color: 'error' }
+      return { description: 'Error al generar el PDF. Intenta nuevamente', color: 'error' }
   }
   const status = (err as AxiosError)?.response?.status
   if (status === 401) return { description: 'Sesión expirada. Iniciá sesión nuevamente', color: 'error' }
-  if (status === 403) return { description: 'No tenés permiso para descargar este recibo', color: 'error' }
+  if (status === 403) return { description: 'No tienes permiso para descargar este recibo', color: 'error' }
   if (status === 404) return { description: 'Venta no encontrada', color: 'error' }
   // Network failure (no HTTP response at all).
   if (!(err as AxiosError)?.response)
-    return { description: 'Error de conexión. Verificá tu red', color: 'error' }
-  return { description: 'No se pudo generar el PDF. Intentá nuevamente', color: 'error' }
+    return { description: 'Error de conexión. Verifica tu red', color: 'error' }
+  return { description: 'No se pudo generar el PDF. Intenta nuevamente', color: 'error' }
 }
 
 // sales-pdf-download: fetch PDF blob → create object URL → window.open in a

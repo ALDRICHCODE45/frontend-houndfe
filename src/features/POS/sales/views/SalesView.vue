@@ -136,17 +136,17 @@ function mapCustomerAssignmentErrorMessage(error: unknown): string {
 
   switch (code) {
     case 'CUSTOMER_NOT_FOUND':
-      return 'No se encontró el cliente. Recargá la lista.'
+      return 'No se encontró el cliente. Recarga la lista.'
     case 'SHIPPING_ADDRESS_NOT_FOUND':
-      return 'No se encontró la dirección. Recargá la lista.'
+      return 'No se encontró la dirección. Recarga la lista.'
     case 'SHIPPING_ADDRESS_NOT_FOR_CUSTOMER':
       return 'Esa dirección no pertenece al cliente seleccionado.'
     case 'SHIPPING_ADDRESS_REQUIRES_CUSTOMER':
-      return 'Asigná un cliente antes de elegir la dirección.'
+      return 'Asigna un cliente antes de elegir la dirección.'
     case 'SALE_NOT_DRAFT':
-      return 'Esta venta ya no es un borrador. Recargá la página.'
+      return 'Esta venta ya no es un borrador. Recarga la página.'
     case 'SALE_UPDATE_FORBIDDEN':
-      return 'No tenés permisos para modificar esta venta.'
+      return 'No tienes permisos para modificar esta venta.'
     default:
       return 'No se pudo completar la operación'
   }
@@ -473,7 +473,7 @@ async function handleChargeDraft(saleId: string, payload: ChargeSalePayload, ide
       return
     }
 
-    const message = err.response?.data?.message ?? 'No se pudo cobrar la venta. Reintentá.'
+    const message = err.response?.data?.message ?? 'No se pudo cobrar la venta. Reintenta.'
     toast.add({ title: 'Error', description: message, color: 'error' })
   }
 }

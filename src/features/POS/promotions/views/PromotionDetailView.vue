@@ -104,7 +104,7 @@ watch(
     if (hasError && !isCreateMode.value) {
       toast.add({
         title: 'Promoción no encontrada',
-        description: 'La promoción que buscás no existe o fue eliminada.',
+        description: 'La promoción que buscas no existe o fue eliminada.',
         color: 'error',
       })
       void router.push('/pos/promociones')
@@ -131,7 +131,7 @@ function handleMutationError(error: AxiosError<DomainApiError>, context: 'crear'
   if (toastMessage || fieldErrors.length === 0) {
     toast.add({
       title: `Error al ${context}`,
-      description: toastMessage ?? 'Verificá los campos del formulario.',
+      description: toastMessage ?? 'Verifica los campos del formulario.',
       color: 'error',
     })
   }

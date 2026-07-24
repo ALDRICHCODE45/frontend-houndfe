@@ -14,7 +14,7 @@ function mountComponent(overrideProps: Record<string, unknown> = {}) {
     props: {
       modelValue: [],
       label: 'Estado',
-      placeholder: 'Seleccioná estados',
+      placeholder: 'Selecciona estados',
       includeNullOption: 'Incluir sin valor',
       includeNullValue: false,
       options: [
@@ -121,7 +121,7 @@ describe('MultiSelectEnumFilter', () => {
 
   it('follows trigger label rules 0/1/2-3/4+', async () => {
     const wrapper = mountComponent({ modelValue: [] })
-    expect(wrapper.get('[data-testid="enum-trigger-label"]').text()).toContain('Seleccioná estados')
+    expect(wrapper.get('[data-testid="enum-trigger-label"]').text()).toContain('Selecciona estados')
 
     await wrapper.setProps({ modelValue: ['PAID'] })
     expect(wrapper.get('[data-testid="enum-trigger-label"]').text()).toContain('Pagada')

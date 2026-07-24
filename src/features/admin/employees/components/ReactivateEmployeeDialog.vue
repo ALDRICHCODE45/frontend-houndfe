@@ -63,7 +63,7 @@ async function handleConfirm(): Promise<void> {
   >
     <template #body>
       <p class="text-sm text-muted">
-        ¿Confirmás que querés reactivar a
+        ¿Confirmás que quieres reactivar a
         <span class="font-semibold text-highlighted">{{ employee?.fullName ?? 'este colaborador' }}</span>?
         Su estado volverá a <span class="font-medium text-success">Activo</span>.
       </p>

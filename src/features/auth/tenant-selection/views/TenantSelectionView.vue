@@ -57,10 +57,10 @@ function handleSelect(tenantId: string) {
         <div class="space-y-1.5">
           <p class="text-sm text-muted">Bienvenido, {{ userName }}</p>
           <h1 class="text-2xl sm:text-3xl font-semibold text-highlighted tracking-tight">
-            Seleccioná tu sucursal
+            Selecciona tu sucursal
           </h1>
           <p class="text-sm text-toned max-w-md mx-auto leading-relaxed">
-            Elegí la sucursal con la que querés trabajar en esta sesión. Podés cambiarla más tarde.
+            Elige la sucursal con la que quieres trabajar en esta sesión. Puedes cambiarla más tarde.
           </p>
         </div>
       </div>

@@ -172,7 +172,7 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
   <USlideover
     v-model:open="open"
     title="Editar colaborador"
-    description="Actualizá la información personal, domicilio y datos laborales visibles en el perfil."
+    description="Actualiza la información personal, domicilio y datos laborales visibles en el perfil."
     side="right"
     inset
     @after-leave="resetForm"

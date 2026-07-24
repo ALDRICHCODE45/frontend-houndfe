@@ -216,7 +216,7 @@ function getCategoryLabel(category: string): string {
           :page-size-options="[10, 20, 50]"
           :show-toolbar="false"
           :empty="emptyMessage"
-          error-message="No se pudo cargar los documentos. Intentá de nuevo."
+          error-message="No se pudo cargar los documentos. Intenta de nuevo."
           @refresh="() => refetch()"
         >
           <!-- Document title (notes or category fallback) -->

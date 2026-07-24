@@ -131,7 +131,7 @@ The promotion form MUST map `FORBIDDEN_FIELD` and `INVALID_FIELD_CHANGE` to user
 ## UI Copy (neutral Spanish, examples)
 
 - `VARIANTS` radio label: "Variantes"
-- Variant selector empty state: "Elegí un producto para ver sus variantes"
+- Variant selector empty state: "Elige un producto para ver sus variantes"
 - INVALID_TARGET message: "La variante seleccionada no existe o no pertenece a tu comercio"
 - BXGY `getDiscountPercent: 100` label: "Gratis"
 - BXGY missing `appliesTo` field error: "Debe seleccionar a qué se aplica la promoción"
