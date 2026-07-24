@@ -199,58 +199,64 @@ function handleConfirmPriceListChange() {
       @create="emit('create-tab')"
     />
 
-    <!-- Type toggle + actions row -->
-    <div class="flex items-center gap-3 px-4 py-3 border-b border-default bg-elevated/20">
+    <!-- Type toggle + actions row.
+         Desktop (md+): single row with UTabs, PriceListSelector, flex spacer, actions.
+         Mobile (<md): two stacked rows — UTabs+actions on top, PriceListSelector below. -->
+    <div class="flex flex-col md:flex-row md:items-center md:gap-3 md:px-4 md:py-3 md:border-b md:border-default md:bg-elevated/20">
       <!-- Type toggle using UTabs with icons -->
-      <UTabs
-        :items="[
-          { key: 'venta', label: 'Venta', icon: 'i-lucide-shopping-bag', content: false },
-          { key: 'pedido', label: 'Pedido', icon: 'i-lucide-clipboard-list', content: false, disabled: true },
-        ]"
-        :model-value="'venta'"
-        class="w-auto"
-      />
+      <div class="flex items-center gap-3 px-4 py-3 border-b border-default bg-elevated/20 md:border-0 md:bg-transparent md:p-0 md:flex-1 md:min-w-0">
+        <UTabs
+          :items="[
+            { key: 'venta', label: 'Venta', icon: 'i-lucide-shopping-bag', content: false },
+            { key: 'pedido', label: 'Pedido', icon: 'i-lucide-clipboard-list', content: false, disabled: true },
+          ]"
+          :model-value="'venta'"
+          class="w-auto"
+        />
+
+        <div class="flex-1"></div>
+
+        <!-- Action buttons -->
+        <div class="flex items-center gap-1">
+          <!-- Trash button -->
+          <UTooltip :text="activeDraft && activeDraft.items.length === 0 ? 'La venta no tiene productos' : 'Vaciar venta'">
+            <UButton
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-trash-2"
+              size="xs"
+              :disabled="!activeDraft || activeDraft.items.length === 0 || isMutating"
+              @click="handleTrashClick"
+            />
+          </UTooltip>
+
+          <!-- 3-dot menu -->
+          <UDropdownMenu :items="moreMenuItems">
+            <UButton
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-ellipsis"
+              size="xs"
+              :disabled="!activeDraft || activeDraft.items.length === 0 || isMutating"
+            />
+          </UDropdownMenu>
+        </div>
+      </div>
 
       <!-- pos-price-list-tiers: tier selector lives between the type toggle
            and the action buttons. Empty-state contract: PriceListSelector
            shows a "Sin lista" placeholder when no list is assigned, and
            routes the selection through `request-confirm` when the sale
            has items (so the parent gets a chance to show a confirm modal
-           before the backend reprices everything). -->
-      <PriceListSelector
-        v-if="activeDraft"
-        :active-draft="activeDraft"
-        :is-mutating="isMutating"
-        @change-price-list="emit('change-price-list', $event)"
-        @request-confirm="handleRequestPriceListConfirm"
-      />
-
-      <div class="flex-1"></div>
-
-      <!-- Action buttons -->
-      <div class="flex items-center gap-1">
-        <!-- Trash button -->
-        <UTooltip :text="activeDraft && activeDraft.items.length === 0 ? 'La venta no tiene productos' : 'Vaciar venta'">
-          <UButton
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-trash-2"
-            size="xs"
-            :disabled="!activeDraft || activeDraft.items.length === 0 || isMutating"
-            @click="handleTrashClick"
-          />
-        </UTooltip>
-
-        <!-- 3-dot menu -->
-        <UDropdownMenu :items="moreMenuItems">
-          <UButton
-            color="neutral"
-            variant="ghost"
-            icon="i-lucide-ellipsis"
-            size="xs"
-            :disabled="!activeDraft || activeDraft.items.length === 0 || isMutating"
-          />
-        </UDropdownMenu>
+           before the backend reprices everything). On mobile it occupies
+           its own row to avoid horizontal overflow at <360px widths. -->
+      <div v-if="activeDraft" class="px-4 py-2 border-b border-default bg-elevated/20 md:border-0 md:bg-transparent md:p-0">
+        <PriceListSelector
+          :active-draft="activeDraft"
+          :is-mutating="isMutating"
+          @change-price-list="emit('change-price-list', $event)"
+          @request-confirm="handleRequestPriceListConfirm"
+        />
       </div>
     </div>
 

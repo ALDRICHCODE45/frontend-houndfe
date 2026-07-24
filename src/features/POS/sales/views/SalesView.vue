@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { AxiosError } from 'axios'
 import { useQueryClient } from '@tanstack/vue-query'
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import { useSalesDrafts } from '../composables/useSalesDrafts'
 import { useApplicablePromotions } from '../composables/useApplicablePromotions'
 import { saleApi } from '../api/sale.api'
@@ -94,6 +95,37 @@ const successModalOpen = ref(false)
 const latestChargeSuccess = ref<ChargeSaleResponse | null>(null)
 const inlineAmountError = ref<string | null>(null)
 const inFlightUntil = ref<number>(0)
+
+// ── Mobile cart drawer (responsive UX, not functionality) ──────────────────
+// Below the lg breakpoint the cart panel moves out of the split layout and
+// into a bottom-anchored slideover triggered by a floating action button.
+// This mirrors the DataTableFilters pattern: same component on both
+// layouts, only the surrounding chrome changes. No emits, no state, no
+// callbacks differ from the desktop split — this is purely UX.
+const cartDrawerOpen = ref(false)
+const isMobileViewport = useBreakpoints(breakpointsTailwind).smaller('lg')
+
+const activeDraftItemsCount = computed(() => activeDraft.value?.items.length ?? 0)
+const activeDraftTotalCents = computed(() => activeDraft.value?.totalCents ?? 0)
+
+// Mirror of formatCurrency used in ActiveSalePanel footer — kept inline so
+// the FAB badge stays self-contained.
+function formatCents(cents: number): string {
+  return new Intl.NumberFormat('es-MX', {
+    style: 'currency',
+    currency: 'MXN',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(cents / 100)
+}
+
+function openCartDrawer() {
+  cartDrawerOpen.value = true
+}
+
+function closeCartDrawer() {
+  cartDrawerOpen.value = false
+}
 
 const isChargeTemporarilyBlocked = computed(() => Date.now() < inFlightUntil.value)
 const activeDraftId = computed(() => activeDraft.value?.id ?? '')
@@ -589,14 +621,14 @@ async function handleChangePriceList(globalPriceListId: string | null) {
 <template>
   <div class="h-full flex bg-default">
     <!-- Loading skeleton -->
-    <div v-if="isLoadingList" class="h-full w-full flex">
-      <!-- Left skeleton panel (catalog — 60%) -->
-      <div class="w-[60%] p-4 space-y-4">
+    <div v-if="isLoadingList" class="h-full w-full flex flex-col lg:flex-row">
+      <!-- Left skeleton panel: full-width on mobile, 60% on lg+ -->
+      <div class="w-full lg:w-[60%] p-3 sm:p-4 space-y-4">
         <USkeleton class="h-10 w-full rounded-lg" />
         <div class="flex gap-2">
           <USkeleton v-for="i in 4" :key="i" class="h-8 w-24 rounded-full" />
         </div>
-        <div class="grid grid-cols-4 xl:grid-cols-5 gap-3 mt-3">
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3 mt-3">
           <div v-for="i in 8" :key="i" class="rounded-xl border border-default overflow-hidden">
             <USkeleton class="aspect-square w-full" />
             <div class="p-2.5 space-y-1.5">
@@ -608,8 +640,9 @@ async function handleChangePriceList(globalPriceListId: string | null) {
         </div>
       </div>
 
-      <!-- Right skeleton panel (cart — 40%) -->
-      <div class="w-[40%] shrink-0 p-3 lg:p-4">
+      <!-- Right skeleton panel: hidden on mobile (cart lives in slideover),
+           40% on lg+ -->
+      <div class="hidden lg:block lg:w-[40%] shrink-0 p-3 lg:p-4">
         <div class="h-full flex flex-col rounded-2xl border border-default bg-elevated/60 shadow-sm p-4 space-y-3">
           <USkeleton class="h-10 w-48" />
           <USkeleton class="h-10 w-full" />
@@ -625,18 +658,22 @@ async function handleChangePriceList(globalPriceListId: string | null) {
       </div>
     </div>
 
-    <!-- Main split view -->
+    <!-- Main split view.
+         Desktop (lg+): horizontal split, catalog 60% / cart 40%.
+         Mobile/tablet (<lg): catalog full-width, cart lives in a bottom
+         slideover triggered by a FAB pinned bottom-right. -->
     <div v-else class="h-full flex flex-col lg:flex-row w-full bg-[#fafafa] dark:bg-[#09090b]">
-      <!-- Left panel: Product catalog (60%) -->
+      <!-- Left panel: Product catalog (60% on desktop, full-width on mobile) -->
       <div class="lg:w-[60%] flex flex-col min-w-0 p-3 lg:p-4">
         <div class="h-full rounded-2xl border border-neutral-200/90 dark:border-white/10 bg-default shadow-sm dark:shadow-none overflow-hidden">
           <ProductSearchPanel @add-product="handleAddProduct" />
         </div>
       </div>
 
-      <!-- Right panel: Active sale cart (40%) -->
-      <div class="lg:w-[40%] shrink-0 p-3 lg:p-4">
-        <div class="h-full rounded-2xl border border-neutral-200/90 dark:border-white/10 bg-elevated/60 shadow-sm dark:shadow-none overflow-hidden">
+      <!-- Right panel: Active sale cart (40% on desktop only — hidden on mobile
+           where the cart lives inside the USlideover below). -->
+      <div class="hidden lg:block lg:w-[40%] shrink-0 p-3 lg:p-4">
+        <div class="h-full w-full rounded-2xl border border-neutral-200/90 dark:border-white/10 bg-elevated/60 shadow-sm dark:shadow-none overflow-hidden">
           <ActiveSalePanel
             :drafts="drafts"
             :active-draft="activeDraft"
@@ -668,15 +705,105 @@ async function handleChangePriceList(globalPriceListId: string | null) {
             @update-qty="handleUpdateQty"
             @clear-items="handleClearItems"
           />
-
-          <AssignCustomerSlideover
-            v-if="activeDraft?.id"
-            v-model:open="assignCustomerSlideoverOpen"
-            :sale-id="activeDraft.id"
-          />
         </div>
       </div>
+
+      <!-- Mobile-only: FAB + bottom slideover for the cart.
+           Hidden on lg+ where the cart already sits in the split layout.
+           Same ActiveSalePanel, same emits — only the surrounding chrome
+           changes. -->
+      <template v-if="isMobileViewport">
+        <!-- Floating action button: shows item count + running total,
+             stays out of the way until tapped. Tap opens the slideover. -->
+        <button
+          type="button"
+          class="fixed bottom-4 right-4 z-30 inline-flex items-center gap-2.5 rounded-full
+                 bg-primary text-primary-contrast shadow-lg shadow-primary/30
+                 px-4 py-3 font-semibold text-sm
+                 min-h-[48px] min-w-[48px]
+                 hover:bg-primary/90 active:scale-[0.98] transition-transform"
+          data-testid="mobile-cart-fab"
+          aria-label="Abrir carrito de venta"
+          @click="openCartDrawer"
+        >
+          <UIcon name="i-lucide-shopping-bag" class="h-5 w-5" />
+          <span class="tabular-nums">{{ formatCents(activeDraftTotalCents) }}</span>
+          <span
+            v-if="activeDraftItemsCount > 0"
+            class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5
+                   rounded-full bg-primary-contrast/20 text-primary-contrast text-xs font-bold tabular-nums"
+            data-testid="mobile-cart-fab-count"
+          >
+            {{ activeDraftItemsCount }}
+          </span>
+        </button>
+
+        <USlideover
+          :open="cartDrawerOpen"
+          side="bottom"
+          :ui="{ content: 'h-[90vh] max-h-[90vh] rounded-t-2xl' }"
+          @update:open="cartDrawerOpen = $event"
+        >
+          <template #content>
+            <div class="flex h-full flex-col" data-testid="mobile-cart-drawer">
+              <div class="flex items-center justify-between px-4 py-3 border-b border-default">
+                <div class="flex items-center gap-2">
+                  <UIcon name="i-lucide-shopping-bag" class="h-4 w-4 text-primary" />
+                  <span class="text-sm font-semibold">Carrito</span>
+                </div>
+                <UButton
+                  color="neutral"
+                  variant="ghost"
+                  icon="i-lucide-x"
+                  size="sm"
+                  aria-label="Cerrar carrito"
+                  @click="closeCartDrawer"
+                />
+              </div>
+              <div class="flex-1 min-h-0 overflow-hidden">
+                <ActiveSalePanel
+                  :drafts="drafts"
+                  :active-draft="activeDraft"
+                  :active-tab-id="activeTabId"
+                  :is-loading-list="isLoadingList"
+                  :is-mutating="isMutating"
+                  :is-customer-mutation-pending="isCustomerMutationPending"
+                  :item-image-map="itemImageMap"
+                  :applicable-promotions="applicablePromotions"
+                  :is-loading-promotions="isLoadingPromotions"
+                  :applied-manual-promotion-ids="[]"
+                  :on-submit-price-override="handleSubmitPriceOverride"
+                  :on-apply-discount="handleApplyDiscount"
+                  :on-remove-discount="handleRemoveDiscount"
+                  :on-remove-item="handleRemoveItem"
+                  :on-apply-global-discount="handleApplyGlobalDiscount"
+                  :on-remove-global-discount="handleRemoveGlobalDiscount"
+                  @charge-click="openPaymentModal"
+                  @open-customer-assignment="handleOpenCustomerAssignment"
+                  @unassign-customer="handleUnassignCustomer"
+                  @remove-order-promo="handleVetoRequest"
+                  @remove-promo="handleVetoRequest"
+                  @apply-manual-promo="handleApplyManualPromo"
+                  @remove-manual-promo="handleRemoveManualPromo"
+                  @change-price-list="handleChangePriceList"
+                  @switch-tab="handleSwitchTab"
+                  @close-tab="handleCloseTab"
+                  @create-tab="handleCreateTab"
+                  @update-qty="handleUpdateQty"
+                  @clear-items="handleClearItems"
+                />
+              </div>
+            </div>
+          </template>
+        </USlideover>
+      </template>
     </div>
+
+    <AssignCustomerSlideover
+      v-if="activeDraft?.id"
+      v-model:open="assignCustomerSlideoverOpen"
+      :sale-id="activeDraft.id"
+    />
 
     <PaymentModal
       v-if="activeDraft?.id"

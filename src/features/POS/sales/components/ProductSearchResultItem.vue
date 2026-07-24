@@ -103,8 +103,10 @@ function isLowStock(item: PosCatalogItem): boolean {
           </p>
         </div>
 
+        <!-- "Agregar" badge: visible by default on touch, hover-revealed on pointer devices -->
         <span
-          class="text-xs font-semibold text-primary opacity-0 group-hover:opacity-100 transition-opacity duration-150 flex items-center gap-0.5"
+          class="text-xs font-semibold text-primary flex items-center gap-0.5
+                 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150"
         >
           <UIcon name="i-lucide-plus" class="h-3 w-3" />
           Agregar
