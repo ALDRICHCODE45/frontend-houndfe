@@ -15,6 +15,17 @@ export interface TenantSummary {
   id: string
   name: string
   slug: string
+  // Optional fields surfaced on the tenant selection surface (TenantSelectionView).
+  // All optional so the type stays compatible with the current backend payload —
+  // when the API starts exposing address/status/staff, the UI renders them via
+  // v-if without a type or store change. The selection contract does not depend
+  // on these fields; they are pure presentation enrichment.
+  address?: string | null
+  /** 'open' = currently operating, 'closed' = not operating. Free-form to allow
+   *  future states (e.g. 'maintenance') without a type bump. */
+  status?: 'open' | 'closed' | string | null
+  /** Number of staff currently on shift at this branch. Rendered as "N en turno". */
+  onShiftCount?: number | null
 }
 
 export interface AuthJwtClaims {
