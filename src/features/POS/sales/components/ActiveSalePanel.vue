@@ -202,9 +202,9 @@ function handleConfirmPriceListChange() {
     <!-- Type toggle + actions row.
          Desktop (md+): single row with UTabs, PriceListSelector, flex spacer, actions.
          Mobile (<md): two stacked rows — UTabs+actions on top, PriceListSelector below. -->
-    <div class="flex flex-col md:flex-row md:items-center md:gap-3 md:px-4 md:py-3 md:border-b md:border-default md:bg-elevated/20">
+    <div class="flex flex-col md:flex-row md:items-center md:gap-3 md:px-4 md:py-3">
       <!-- Type toggle using UTabs with icons -->
-      <div class="flex items-center gap-3 px-4 py-3 border-b border-default bg-elevated/20 md:border-0 md:bg-transparent md:p-0 md:flex-1 md:min-w-0">
+      <div class="flex items-center gap-3 px-4 py-3 md:border-0 md:bg-transparent md:p-0 md:flex-1 md:min-w-0">
         <UTabs
           :items="[
             { key: 'venta', label: 'Venta', icon: 'i-lucide-shopping-bag', content: false },
@@ -250,7 +250,7 @@ function handleConfirmPriceListChange() {
            has items (so the parent gets a chance to show a confirm modal
            before the backend reprices everything). On mobile it occupies
            its own row to avoid horizontal overflow at <360px widths. -->
-      <div v-if="activeDraft" class="px-4 py-2 border-b border-default bg-elevated/20 md:border-0 md:bg-transparent md:p-0">
+      <div v-if="activeDraft" class="px-4 py-2 md:border-0 md:bg-transparent md:p-0">
         <PriceListSelector
           :active-draft="activeDraft"
           :is-mutating="isMutating"
@@ -263,7 +263,7 @@ function handleConfirmPriceListChange() {
 
 
     <!-- Items list (scrollable middle section) -->
-      <div class="flex-1 overflow-y-auto bg-elevated/40">
+      <div class="flex-1 overflow-y-auto">
       <!-- Empty state -->
       <div
         v-if="!activeDraft || activeDraft.items.length === 0"
@@ -301,7 +301,7 @@ function handleConfirmPriceListChange() {
     </div>
 
     <!-- Customer slot (slim line above totals) -->
-    <div class="border-t border-default px-4 py-2 flex items-center justify-between gap-3 text-sm">
+    <div class="px-4 py-2 flex items-center justify-between gap-3 text-sm">
       <div v-if="!activeDraft?.customer" class="flex items-center gap-2">
         <USkeleton v-if="isCustomerMutationPending" class="h-4 w-32" data-testid="customer-slot-loading" />
         <template v-else>
