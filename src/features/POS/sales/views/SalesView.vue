@@ -662,7 +662,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
          Desktop (lg+): horizontal split, catalog 60% / cart 40%.
          Mobile/tablet (<lg): catalog full-width, cart lives in a bottom
          slideover triggered by a FAB pinned bottom-right. -->
-<div v-else class="h-full flex flex-col lg:flex-row w-full">
+<div v-else class="h-full flex flex-col lg:flex-row w-full bg-(--light-surface-page) dark:bg-(--surface-page)">
       <!-- Left panel: Product catalog (60% on desktop, full-width on mobile) -->
       <div class="lg:w-[60%] flex flex-col min-w-0 p-3 lg:p-4">
         <div class="h-full rounded-2xl border border-default/50 overflow-hidden">
