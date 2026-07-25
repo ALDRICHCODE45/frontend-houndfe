@@ -223,9 +223,28 @@ function handleQtyCommit() {
         </UDropdownMenu>
       </div>
 
-      <!-- Row 2: qty (left) + line total (right) — full width row, no
-           other affordances competing for horizontal space. -->
-      <div class="flex items-center justify-between gap-3">
+      <!-- Row 2: chips (left, flex-1) + qty (110px) + line total (right).
+           Badges share this row with the qty controls so they read at
+           the same horizontal level as the counter. The reference
+           design places them inline; the user explicitly asked for
+           this horizontal alignment. -->
+      <div class="flex items-center justify-between gap-3 mt-1">
+        <div class="flex-1 min-w-0">
+          <SaleItemBadges
+            :price-source="item.priceSource"
+            :original-price-cents="item.originalPriceCents"
+            :unit-price-cents="item.unitPriceCents"
+            :discount-type="item.discountType"
+            :discount-value="item.discountValue"
+            :discount-amount-cents="item.discountAmountCents"
+            :discount-title="item.discountTitle"
+            :promotion-id="item.promotionId"
+            :reward-kind="item.rewardKind"
+            :reward-discount-percent="item.rewardDiscountPercent"
+            :removable="isDraft"
+            @remove-promo="(id) => emit('remove-promo', id)"
+          />
+        </div>
         <div class="w-[110px] shrink-0">
           <UInputNumber
             v-model="localQty"
@@ -236,7 +255,7 @@ function handleQtyCommit() {
             @change="handleQtyCommit"
           />
         </div>
-        <div class="flex-1 text-right">
+        <div class="text-right">
           <p
             data-testid="sale-item-line-net"
             class="text-[15px] font-bold text-highlighted tabular-nums"
@@ -254,7 +273,7 @@ function handleQtyCommit() {
       </div>
     </div>
 
-    <!-- ── Desktop (sm+): 3 stacked rows (info | qty+price | badges) ──── -->
+    <!-- ── Desktop (sm+): 2 stacked rows (info | qty+price+chips) ──── -->
     <div class="hidden sm:block">
       <!-- Row 1: thumb + info + actions (top-right) -->
       <div class="flex items-start gap-2.5">
@@ -307,12 +326,28 @@ function handleQtyCommit() {
         </UDropdownMenu>
       </div>
 
-      <!-- Row 2: qty (centered) + line total (right-aligned). The leading
-           flex-1 spacer pushes the qty block to the right-center, matching
-           the reference where qty sits between the info column and the
-           price column. -->
-      <div class="flex items-center mt-0.5">
-        <div class="flex-1"></div>
+      <!-- Row 2: chips (left, flex-1) + qty (90px) + line total (90px,
+           right). Badges share this row with the qty controls so they
+           read at the same horizontal level as the counter. The
+           reference design places them inline; the user explicitly
+           asked for this horizontal alignment. -->
+      <div class="flex items-center gap-3 mt-1">
+        <div class="flex-1 min-w-0">
+          <SaleItemBadges
+            :price-source="item.priceSource"
+            :original-price-cents="item.originalPriceCents"
+            :unit-price-cents="item.unitPriceCents"
+            :discount-type="item.discountType"
+            :discount-value="item.discountValue"
+            :discount-amount-cents="item.discountAmountCents"
+            :discount-title="item.discountTitle"
+            :promotion-id="item.promotionId"
+            :reward-kind="item.rewardKind"
+            :reward-discount-percent="item.rewardDiscountPercent"
+            :removable="isDraft"
+            @remove-promo="(id) => emit('remove-promo', id)"
+          />
+        </div>
         <div class="w-[90px] shrink-0">
           <UInputNumber
             v-model="localQty"
@@ -340,27 +375,6 @@ function handleQtyCommit() {
         </div>
       </div>
     </div>
-
-    <!-- ── Row 3: badges on their own subordinate line ────────────── -->
-    <!-- mt-3 (12px) instead of mt-2 (8px) so the chips read as a
-         subordinate line, not a continuation of the qty/total row.
-         Same data-testid="sale-item-badge-group" is preserved inside
-         SaleItemBadges (flex-wrap asserted by tests). -->
-    <SaleItemBadges
-      class="mt-1"
-      :price-source="item.priceSource"
-      :original-price-cents="item.originalPriceCents"
-      :unit-price-cents="item.unitPriceCents"
-      :discount-type="item.discountType"
-      :discount-value="item.discountValue"
-      :discount-amount-cents="item.discountAmountCents"
-      :discount-title="item.discountTitle"
-      :promotion-id="item.promotionId"
-      :reward-kind="item.rewardKind"
-      :reward-discount-percent="item.rewardDiscountPercent"
-      :removable="isDraft"
-      @remove-promo="(id) => emit('remove-promo', id)"
-    />
 
     <PriceOverrideModal
       v-if="isPriceModalOpen"
