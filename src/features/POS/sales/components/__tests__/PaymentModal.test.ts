@@ -15,7 +15,7 @@ const modalStub = {
 
 const buttonStub = {
   props: ['disabled', 'loading'],
-  template: '<button :disabled="disabled"><slot name="leading" /><slot /></button>',
+  template: '<button v-bind="$attrs" :disabled="disabled"><slot name="leading" /><slot /></button>',
 }
 
 const inputNumberStub = {
@@ -497,5 +497,37 @@ describe('PaymentModal', () => {
     const submitted = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
     expect(submitted).toBeDefined()
     expect(submitted?.payload).not.toHaveProperty('dueDate')
+  })
+
+  it('confirm-charge button uses the Cobrar precedent coco-gold class [PMT-REQ-004]', () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+      },
+      global: { stubs },
+    })
+
+    const confirmButton = wrapper.get('[data-testid="confirm-charge"]')
+    expect(confirmButton.classes()).toContain('!bg-(--brand-action)')
+    expect(confirmButton.classes()).toContain('!text-black')
+  })
+
+  it('selected method tile renders coco-gold tint when toggled on [PMT-REQ-002]', async () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+      },
+      global: { stubs },
+    })
+
+    const cashTile = wrapper.get('[data-testid="add-payment-entry"]')
+    await cashTile.trigger('click')
+
+    expect(cashTile.classes()).toContain('border-coco-gold-500/40')
+    expect(cashTile.classes()).toContain('bg-coco-gold-500/5')
   })
 })
