@@ -160,22 +160,20 @@ function handleQtyCommit() {
 </script>
 
 <template>
-  <!-- sdd-4 sales-layout-redesign T4: vertical mini-card.
-       Top row: thumb · info · qty/price controls · ⋮ actions.
-       Bottom row: <SaleItemBadges> on its own visually subordinate line.
-       Same props, same emits, same SaleItem payload. Every existing
-       data-testid preserved so the 787-line test suite keeps its
-       selector contract. -->
+  <!-- sdd-4 sales-layout-redesign T4 + fix: 3-row vertical mini-card aligned
+       with the reference design.
+       Row 1: thumb · info · ⋮ actions
+       Row 2: qty controls · line total (right-aligned)
+       Row 3: <SaleItemBadges> on its own subordinate line (more space).
+       Same props, same emits, same SaleItem payload. Every data-testid
+       preserved: sale-item-unit-strike-*, sale-item-line-net,
+       sale-item-line-gross-strike, sale-item-badge-group. -->
   <div
     class="mx-3 mb-2 rounded-xl border border-default hover:bg-elevated/40 hover:border-default transition-all duration-150 px-3 py-3"
   >
-    <!-- ── TOP ROW: thumb · info · qty/price · actions ───────────────────── -->
-    <!-- Mobile (<sm): stacks in two lines — line 1 = thumb + info,
-         line 2 = qty · line total · actions (the dropdown moves down to
-         sit inline with qty/price as the task spec requires). -->
+    <!-- ── Mobile (<sm): 3 stacked rows ─────────────────────────────────── -->
     <div class="flex flex-col gap-2.5 sm:hidden">
-      <!-- Line 1: thumb + info (grows). Actions dropdown intentionally NOT
-           here on mobile — it lands on the qty/price row per T4 spec. -->
+      <!-- Row 1: thumb + info + actions (top-right) -->
       <div class="flex items-start gap-2.5">
         <!-- Image or styled placeholder -->
         <div
@@ -218,9 +216,15 @@ function handleQtyCommit() {
             <span class="font-medium text-toned">{{ formatCentsMXN(item.unitPriceCents) }} c/u</span>
           </p>
         </div>
+
+        <!-- Actions dropdown (top-right, like the X in the reference) -->
+        <UDropdownMenu v-if="isDraft" :items="itemActions">
+          <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-ellipsis-vertical" />
+        </UDropdownMenu>
       </div>
 
-      <!-- Line 2: qty + line total + actions dropdown (inline, per T4 mobile spec) -->
+      <!-- Row 2: qty (left) + line total (right) — full width row, no
+           other affordances competing for horizontal space. -->
       <div class="flex items-center justify-between gap-3">
         <div class="w-[110px] shrink-0">
           <UInputNumber
@@ -247,100 +251,103 @@ function handleQtyCommit() {
             {{ formatCentsMXN(lineDisplay.grossLine) }}
           </p>
         </div>
+      </div>
+    </div>
+
+    <!-- ── Desktop (sm+): 3 stacked rows (info | qty+price | badges) ──── -->
+    <div class="hidden sm:block">
+      <!-- Row 1: thumb + info + actions (top-right) -->
+      <div class="flex items-start gap-2.5">
+        <!-- Image or styled placeholder -->
+        <div
+          class="h-10 w-10 shrink-0 rounded-xl flex items-center justify-center overflow-hidden"
+          :class="!imageUrl || imageBroken ? 'bg-primary/8 border border-primary/15' : 'bg-elevated border border-default'"
+        >
+          <UIcon
+            v-if="!imageUrl || imageBroken"
+            name="i-lucide-package"
+            class="h-5 w-5 text-primary/60"
+          />
+          <img
+            v-else
+            :src="imageUrl"
+            :alt="item.productName"
+            class="h-full w-full object-cover"
+            loading="lazy"
+            @error="imageBroken = true"
+          />
+        </div>
+
+        <!-- Product info (name + variant + unit price) — owns the
+             unit-price strikethrough testids; grow to fill center. -->
+        <div class="flex-1 min-w-0">
+          <p class="text-[13px] font-semibold text-highlighted truncate">
+            {{ item.productName }}
+          </p>
+          <p class="text-[11px] text-muted truncate mt-0.5">
+            <span v-if="item.variantName" class="uppercase tracking-wide">{{ item.variantName }}</span>
+            <span v-if="item.variantName"> · </span>
+            <span
+              v-if="showPriceOrigin"
+              data-testid="sale-item-unit-strike-original"
+              class="line-through mr-1"
+            >{{ formatCentsMXN(item.originalPriceCents ?? 0) }}</span>
+            <span
+              v-if="showDiscountOrigin"
+              data-testid="sale-item-unit-strike-pre-discount"
+              class="line-through mr-1"
+            >{{ formatCentsMXN(item.prePriceCentsBeforeDiscount ?? 0) }}</span>
+            <span class="font-medium text-toned">{{ formatCentsMXN(item.unitPriceCents) }} c/u</span>
+          </p>
+        </div>
+
+        <!-- Actions dropdown (top-right, like the X in the reference) -->
         <UDropdownMenu v-if="isDraft" :items="itemActions">
           <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-ellipsis-vertical" />
         </UDropdownMenu>
       </div>
+
+      <!-- Row 2: qty (centered) + line total (right-aligned). The leading
+           flex-1 spacer pushes the qty block to the right-center, matching
+           the reference where qty sits between the info column and the
+           price column. -->
+      <div class="flex items-center mt-2.5">
+        <div class="flex-1"></div>
+        <div class="w-[90px] shrink-0">
+          <UInputNumber
+            v-model="localQty"
+            size="xs"
+            :min="1"
+            :disabled="isUpdating"
+            @blur="handleQtyCommit"
+            @change="handleQtyCommit"
+          />
+        </div>
+        <div class="w-[90px] shrink-0 text-right">
+          <p
+            data-testid="sale-item-line-net"
+            class="text-[13px] font-bold text-highlighted tabular-nums"
+          >
+            {{ formatCentsMXN(lineDisplay.netLine) }}
+          </p>
+          <p
+            v-if="lineDisplay.showStruckGross"
+            data-testid="sale-item-line-gross-strike"
+            class="text-[10px] text-muted line-through tabular-nums"
+          >
+            {{ formatCentsMXN(lineDisplay.grossLine) }}
+          </p>
+        </div>
+      </div>
     </div>
 
-    <!-- Desktop (sm+): single horizontal row, but now with explicit
-         thumb · info · qty/price · actions layout (badges drop to the
-         second row below). -->
-    <div class="hidden sm:flex sm:items-center sm:gap-2.5">
-      <!-- Image or styled placeholder -->
-      <div
-        class="h-10 w-10 shrink-0 rounded-xl flex items-center justify-center overflow-hidden"
-        :class="!imageUrl || imageBroken ? 'bg-primary/8 border border-primary/15' : 'bg-elevated border border-default'"
-      >
-        <UIcon
-          v-if="!imageUrl || imageBroken"
-          name="i-lucide-package"
-          class="h-5 w-5 text-primary/60"
-        />
-        <img
-          v-else
-          :src="imageUrl"
-          :alt="item.productName"
-          class="h-full w-full object-cover"
-          loading="lazy"
-          @error="imageBroken = true"
-        />
-      </div>
-
-      <!-- Product info (name + variant + unit price) — still owns the
-           unit-price strikethrough testids; grow to fill center. -->
-      <div class="flex-1 min-w-0">
-        <p class="text-[13px] font-semibold text-highlighted truncate">
-          {{ item.productName }}
-        </p>
-        <p class="text-[11px] text-muted truncate mt-0.5">
-          <span v-if="item.variantName" class="uppercase tracking-wide">{{ item.variantName }}</span>
-          <span v-if="item.variantName"> · </span>
-          <span
-            v-if="showPriceOrigin"
-            data-testid="sale-item-unit-strike-original"
-            class="line-through mr-1"
-          >{{ formatCentsMXN(item.originalPriceCents ?? 0) }}</span>
-          <span
-            v-if="showDiscountOrigin"
-            data-testid="sale-item-unit-strike-pre-discount"
-            class="line-through mr-1"
-          >{{ formatCentsMXN(item.prePriceCentsBeforeDiscount ?? 0) }}</span>
-          <span class="font-medium text-toned">{{ formatCentsMXN(item.unitPriceCents) }} c/u</span>
-        </p>
-      </div>
-
-      <!-- Quantity input (compact) -->
-      <div class="w-[90px] shrink-0">
-        <UInputNumber
-          v-model="localQty"
-          size="xs"
-          :min="1"
-          :disabled="isUpdating"
-          @blur="handleQtyCommit"
-          @change="handleQtyCommit"
-        />
-      </div>
-
-      <!-- Line total -->
-      <div class="w-[90px] shrink-0 text-right">
-        <p
-          data-testid="sale-item-line-net"
-          class="text-[13px] font-bold text-highlighted tabular-nums"
-        >
-          {{ formatCentsMXN(lineDisplay.netLine) }}
-        </p>
-        <p
-          v-if="lineDisplay.showStruckGross"
-          data-testid="sale-item-line-gross-strike"
-          class="text-[10px] text-muted line-through tabular-nums"
-        >
-          {{ formatCentsMXN(lineDisplay.grossLine) }}
-        </p>
-      </div>
-
-      <!-- Actions dropdown (right) -->
-      <UDropdownMenu v-if="isDraft" :items="itemActions">
-        <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-ellipsis-vertical" />
-      </UDropdownMenu>
-    </div>
-
-    <!-- ── BOTTOM ROW: badges on their own subordinate line ────────────── -->
-    <!-- Gap above keeps badges visually subordinate to the top row.
-         Same data-testid="sale-item-badge-group" is preserved inside the
-         SaleItemBadges component (flex-wrap asserted by tests). -->
+    <!-- ── Row 3: badges on their own subordinate line ────────────── -->
+    <!-- mt-3 (12px) instead of mt-2 (8px) so the chips read as a
+         subordinate line, not a continuation of the qty/total row.
+         Same data-testid="sale-item-badge-group" is preserved inside
+         SaleItemBadges (flex-wrap asserted by tests). -->
     <SaleItemBadges
-      class="mt-2"
+      class="mt-3"
       :price-source="item.priceSource"
       :original-price-cents="item.originalPriceCents"
       :unit-price-cents="item.unitPriceCents"
