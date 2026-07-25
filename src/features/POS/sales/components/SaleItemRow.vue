@@ -347,7 +347,7 @@ function handleQtyCommit() {
          Same data-testid="sale-item-badge-group" is preserved inside
          SaleItemBadges (flex-wrap asserted by tests). -->
     <SaleItemBadges
-      class="mt-1 justify-center"
+      class="mt-1"
       :price-source="item.priceSource"
       :original-price-cents="item.originalPriceCents"
       :unit-price-cents="item.unitPriceCents"
