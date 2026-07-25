@@ -40,12 +40,12 @@ function isLowStock(item: PosCatalogItem): boolean {
 
 <template>
   <div
-    class="group rounded-2xl border border-(--border-subtle) bg-(--surface-card) overflow-hidden cursor-pointer hover:border-primary/30 hover:shadow-md dark:hover:shadow-none transition-all duration-200 flex flex-col"
+    class="group rounded-2xl border border-default bg-elevated overflow-hidden cursor-pointer hover:border-primary/30 hover:shadow-md dark:hover:shadow-none transition-all duration-200 flex flex-col"
     @click="emit('select', item)"
   >
     <!-- Image area (aspect-square, hero image fills the space) -->
     <div
-      class="relative aspect-square w-full flex items-center justify-center overflow-hidden bg-linear-to-br from-(--surface-hover) to-(--surface-card)"
+      class="relative aspect-square w-full flex items-center justify-center overflow-hidden bg-linear-to-br from-elevated to-default"
     >
       <UIcon
         v-if="!item.mainImage || imageError"
@@ -69,7 +69,7 @@ function isLowStock(item: PosCatalogItem): boolean {
           'absolute top-2 right-2 text-[10px] font-semibold px-1.5 py-0.5 rounded-md',
           isLowStock(item)
             ? 'bg-(--brand-danger)/15 text-(--brand-danger)'
-            : 'bg-(--surface-hover)/80 text-muted',
+            : 'bg-default/80 text-muted',
         ]"
         data-testid="stock-badge"
       >
@@ -78,7 +78,7 @@ function isLowStock(item: PosCatalogItem): boolean {
     </div>
 
     <!-- Card body -->
-    <div class="px-3 py-3 space-y-1.5 border-t border-(--border-subtle)">
+    <div class="px-3 py-3 space-y-1.5 border-t border-default/50">
       <!-- Brand -->
       <p v-if="item.brand" class="text-[10px] text-dimmed uppercase tracking-wider font-medium truncate">
         {{ item.brand.name }}

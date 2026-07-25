@@ -13,8 +13,8 @@ import { onSessionExpired } from '@/features/auth/services/session-events'
 import App from './App.vue'
 
 // ── Coco dark-first default ───────────────────────────────────────────────────
-// The user explicitly chose dark as the default theme. Force the `dark` class
-// on the <html> element on first load unless the user has already toggled.
+// The user explicitly chose dark as the default theme. Force dark mode on first
+// load; light mode is opt-in via the user menu toggle.
 const stored = typeof localStorage !== 'undefined' && localStorage.getItem('vueuse-color-mode')
 if (!stored) {
   document.documentElement.classList.add('dark')
