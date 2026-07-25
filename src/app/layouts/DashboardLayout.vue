@@ -134,7 +134,7 @@ watch(isSearchOpen, async (open) => {
     <!-- Main Panel -->
     <UDashboardPanel id="main-panel">
       <template #header>
-        <UDashboardNavbar title="HoundFe System" icon="i-lucide-layout-dashboard">
+        <UDashboardNavbar title="Coco" icon="i-lucide-layout-dashboard">
           <template #leading>
             <UDashboardSidebarCollapse variant="ghost" />
           </template>

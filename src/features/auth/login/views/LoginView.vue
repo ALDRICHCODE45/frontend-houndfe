@@ -54,7 +54,7 @@ async function handleLogin(values: LoginFormValues) {
     >
       <!-- Mobile logo (visible only on small screens) -->
       <div class="absolute top-8 left-8 lg:hidden">
-        <img src="/hounfeLogos/primary.png" alt="HoundFe" class="w-12 h-12 object-contain" />
+        <img src="/hounfeLogos/primary.png" alt="Coco" class="w-12 h-12 object-contain" />
       </div>
 
       <div class="w-full max-w-sm">

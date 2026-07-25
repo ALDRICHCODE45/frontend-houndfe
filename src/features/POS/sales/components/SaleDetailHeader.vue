@@ -44,14 +44,14 @@ const triggerTooltipText = computed(() =>
       </UButton>
       <img
         src="/hounfeLogos/primary.png"
-        alt="HoundFe"
+        alt="Coco"
         width="56"
         height="56"
         data-testid="header-logo"
         class="h-14 w-auto"
       >
       <div>
-        <p class="text-sm font-medium text-muted">HoundFe</p>
+        <p class="text-sm font-medium text-muted">Coco</p>
       </div>
     </div>
 

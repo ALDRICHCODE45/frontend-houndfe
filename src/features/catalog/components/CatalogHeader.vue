@@ -51,7 +51,7 @@ const branchMenuItems = computed(() => [
           <div class="flex size-9 items-center justify-center rounded-xl bg-orange-500 text-white shadow-sm">
             <UIcon name="i-lucide-paw-print" class="size-5" />
           </div>
-          <span class="hidden text-lg font-bold tracking-tight text-highlighted sm:block">HoundFe</span>
+          <span class="hidden text-lg font-bold tracking-tight text-highlighted sm:block">Coco</span>
         </div>
 
         <!-- Branch selector -->

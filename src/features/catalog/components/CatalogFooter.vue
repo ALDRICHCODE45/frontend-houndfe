@@ -11,7 +11,7 @@ const catalog = useCatalogStore()
         <div class="flex size-6 items-center justify-center rounded-lg bg-orange-500 text-white">
           <UIcon name="i-lucide-paw-print" class="size-3.5" />
         </div>
-        <span class="text-sm font-semibold text-highlighted">HoundFe</span>
+        <span class="text-sm font-semibold text-highlighted">Coco</span>
       </div>
       <p class="mt-2 text-xs text-dimmed">
         Catálogo en línea · precios sujetos a cambio · {{ catalog.branches.length }} sucursales

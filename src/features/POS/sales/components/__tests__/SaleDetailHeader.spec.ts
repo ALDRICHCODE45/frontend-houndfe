@@ -61,9 +61,9 @@ describe('SaleDetailHeader', () => {
     const logo = wrapper.get('[data-testid="header-logo"]')
     expect(logo.element.tagName.toLowerCase()).toBe('img')
     expect(logo.attributes('src')).toBe('/hounfeLogos/primary.png')
-    expect(logo.attributes('alt')).toBe('HoundFe')
+    expect(logo.attributes('alt')).toBe('Coco')
     // Business name rendered next to the logo.
-    expect(wrapper.text()).toContain('HoundFe')
+    expect(wrapper.text()).toContain('Coco')
   })
 
   it('displays sale folio in the right-side folio block', () => {

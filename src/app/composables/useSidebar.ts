@@ -162,9 +162,9 @@ export const useSidebar = () => {
   }
 
   const user = computed(() => ({
-    name: authStore.user?.name ?? 'HoundFe Admin',
+    name: authStore.user?.name ?? 'Coco',
     avatar: {
-      alt: authStore.user?.name ?? 'HoundFe Admin',
+      alt: authStore.user?.name ?? 'Coco',
       text: (authStore.user?.name ?? 'HA')
         .split(' ')
         .slice(0, 2)

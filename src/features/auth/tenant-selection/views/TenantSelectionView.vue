@@ -10,7 +10,7 @@ const authStore = useAuthStore()
 const { tenants, isSubmitting, error, submit, cancel } = useTenantSelection()
 
 const isExpiredFlow = computed(() => route.query.expired === 'tenant')
-const userName = computed(() => authStore.user?.name ?? 'Equipo HoundFe')
+const userName = computed(() => authStore.user?.name ?? 'Equipo Coco')
 const userEmail = computed(() => authStore.user?.email ?? '')
 // Role pill text: explicit Super Admin badge, otherwise a neutral "Equipo"
 // label so we never silently render an empty chip on non-super-admin flows.
@@ -44,7 +44,7 @@ function handleSelect(tenantId: string) {
       <!-- Header: logo + role badge + welcome + title + subtitle -->
       <div class="flex flex-col items-center text-center space-y-3">
         <div class="rounded-2xl bg-default border border-default p-2.5 shadow-sm">
-          <img src="/hounfeLogos/primary.png" alt="HoundFe" class="size-10 object-contain" />
+          <img src="/hounfeLogos/primary.png" alt="Coco" class="size-10 object-contain" />
         </div>
 
         <span
