@@ -328,7 +328,7 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
             />
           </div>
 
-          <div class="rounded-2xl border border-primary/20 bg-primary/5 px-5 py-4 text-center">
+          <div class="rounded-2xl border border-coco-gold-500/20 bg-coco-gold-500/5 px-5 py-4 text-center">
             <p class="text-xs font-semibold uppercase tracking-[0.16em] text-muted">Total a cobrar</p>
             <p class="mt-1 text-4xl font-black tabular-nums text-highlighted">{{ totalFormatted }}</p>
           </div>
@@ -349,8 +349,8 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
                 class="relative rounded-xl border px-3 py-4 text-left transition disabled:cursor-not-allowed disabled:opacity-50"
                 :class="
                   getMethodCount(option.value) > 0
-                    ? 'border-primary/40 bg-primary/5'
-                    : 'border-default bg-elevated hover:border-primary/40 hover:bg-primary/5'
+                    ? 'border-coco-gold-500/40 bg-coco-gold-500/5'
+                    : 'border-default bg-elevated hover:border-coco-gold-500/40 hover:bg-coco-gold-500/5'
                 "
                 :disabled="getMethodCount(option.value) === 0 && !canAddEntry || isSubmitting"
                 @click="toggleMethod(option.value)"
@@ -364,7 +364,7 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
                 >
                   {{ getMethodCount(option.value) }}
                 </UBadge>
-                <UIcon :name="option.icon" class="mb-2 size-6 text-primary" />
+                <UIcon :name="option.icon" class="mb-2 size-6 text-coco-gold-700 dark:text-coco-gold-400" />
                 <p class="text-sm font-semibold text-highlighted">{{ option.label }}</p>
               </button>
             </div>
@@ -426,7 +426,7 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   }"
-                  color="primary"
+                  color="warning"
                   variant="outline"
                   class="w-full"
                 />
@@ -453,7 +453,7 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
                 v-if="!isDueDateExpanded && !dueDateInput"
                 type="button"
                 data-testid="expand-due-date"
-                class="flex items-center gap-1.5 text-xs text-primary hover:underline disabled:opacity-50"
+                class="flex items-center gap-1.5 text-xs text-coco-gold-700 dark:text-coco-gold-400 hover:underline disabled:opacity-50"
                 :disabled="isSubmitting"
                 @click="isDueDateExpanded = true"
               >
@@ -539,6 +539,7 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
               color="primary"
               :loading="isSubmitting"
               :disabled="!canSubmit"
+              class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
               @click="handleSubmit"
             >
               {{ confirmButtonLabel }}
