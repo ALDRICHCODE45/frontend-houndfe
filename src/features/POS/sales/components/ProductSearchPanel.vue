@@ -64,7 +64,7 @@ function handleAddVariant(productId: string, variantId: string) {
 <template>
   <div class="h-full flex flex-col">
     <!-- Header section (sticky) -->
-    <div class="sticky top-0 z-10 bg-(--light-surface-page)/80 dark:bg-(--surface-page)/80 backdrop-blur supports-[backdrop-filter]:bg-(--light-surface-page)/70 dark:supports-[backdrop-filter]:bg-(--surface-page)/70 border-b border-default">
+    <div class="sticky top-0 z-10 bg-coco-neutral-50/80 dark:bg-coco-neutral-950/80 backdrop-blur supports-[backdrop-filter]:bg-coco-neutral-50/70 dark:supports-[backdrop-filter]:bg-coco-neutral-950/70 border-b border-default">
       <div class="px-5 py-4 space-y-3.5">
         <!-- Search input (full width) -->
         <div class="flex items-center gap-3">
