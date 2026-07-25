@@ -65,6 +65,7 @@ import { buildManagerMap } from '../composables/useManagerResolution'
 import { formatTimeOffDateRange } from '../composables/useEmployeeColumns'
 import { employeesApi } from '../api/employees.api'
 import type { TimeOffRequest, ReviewTimeOffDto, Employee } from '../interfaces/employee.types'
+import { AVATAR_PALETTE } from '@/app/constants/avatarPalette'
 
 // ─── Auth ──────────────────────────────────────────────────────────────────────
 
@@ -109,16 +110,6 @@ function getEmployeeInitials(employeeId: string): string {
       .join('') || '—'
   )
 }
-
-const AVATAR_PALETTE = [
-  'bg-amber-500 text-white',
-  'bg-pink-500 text-white',
-  'bg-violet-500 text-white',
-  'bg-red-500 text-white',
-  'bg-cyan-500 text-white',
-  'bg-emerald-500 text-white',
-  'bg-blue-500 text-white',
-]
 
 function getAvatarClass(seedValue: string): string {
   const seed = seedValue.split('').reduce((sum, c) => sum + c.charCodeAt(0), 0)

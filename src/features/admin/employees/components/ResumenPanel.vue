@@ -19,6 +19,7 @@ import { hasSalary } from '../interfaces/employee.types'
 import { formatHireDate } from '../composables/useEmployeeColumns'
 import type { Employee } from '../interfaces/employee.types'
 import type { ManagerInfo } from '../composables/useManagerResolution'
+import { AVATAR_PALETTE } from '@/app/constants/avatarPalette'
 
 const props = defineProps<{
   employee: Employee
@@ -39,17 +40,8 @@ const salaryDisplay = computed<string>(() => {
 
 // ── Manager avatar helpers ─────────────────────────────────────────────────────
 function getAvatarClass(seedValue: string): string {
-  const palettes = [
-    'bg-amber-500 text-white',
-    'bg-pink-500 text-white',
-    'bg-violet-500 text-white',
-    'bg-red-500 text-white',
-    'bg-cyan-500 text-white',
-    'bg-emerald-500 text-white',
-    'bg-blue-500 text-white',
-  ]
   const seed = seedValue.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)
-  return palettes[seed % palettes.length] ?? palettes[0]!
+  return AVATAR_PALETTE[seed % AVATAR_PALETTE.length] ?? AVATAR_PALETTE[0]!
 }
 
 function getInitials(fullName: string): string {

@@ -16,17 +16,7 @@
  */
 
 import { computed } from 'vue'
-
-// Palette matches the original 7-color palette used in EmployeesListView + EmployeeCard.
-const AVATAR_PALETTES = [
-  'bg-amber-500 text-white',
-  'bg-pink-500 text-white',
-  'bg-violet-500 text-white',
-  'bg-red-500 text-white',
-  'bg-cyan-500 text-white',
-  'bg-emerald-500 text-white',
-  'bg-blue-500 text-white',
-] as const
+import { AVATAR_PALETTE } from '@/app/constants/avatarPalette'
 
 const props = withDefaults(
   defineProps<{
@@ -57,7 +47,7 @@ const initials = computed<string>(() => {
 // Deterministic color from seed string — same algorithm as the original helpers.
 const avatarClass = computed<string>(() => {
   const hash = props.seed.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)
-  return AVATAR_PALETTES[hash % AVATAR_PALETTES.length] ?? AVATAR_PALETTES[0]!
+  return AVATAR_PALETTE[hash % AVATAR_PALETTE.length] ?? AVATAR_PALETTE[0]!
 })
 
 const sizeClass = computed<string>(() => {

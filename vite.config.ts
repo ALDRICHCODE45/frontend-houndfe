@@ -46,18 +46,18 @@ export default defineConfig({
         },
         card: {
           slots: {
-            root: 'rounded-lg overflow-hidden shadow-sm dark:shadow-md dark:shadow-black/20 bg-white dark:bg-zinc-900',
+            root: 'rounded-lg overflow-hidden shadow-sm dark:shadow-md dark:shadow-black/20 bg-white dark:bg-coco-neutral-900',
           },
         },
         dashboardPanel: {
           slots: {
-            body: 'flex flex-col gap-4 sm:gap-6 flex-1 overflow-y-auto p-4 sm:p-6 bg-zinc-50 dark:bg-zinc-950',
+            body: 'flex flex-col gap-4 sm:gap-6 flex-1 overflow-y-auto p-4 sm:p-6 bg-coco-neutral-50 dark:bg-coco-neutral-950',
           },
         },
         colors: {
-          primary: 'amber',
-          secondary: 'rose',
-          neutral: 'zinc',
+          primary: 'coco',
+          secondary: 'coco-navy',
+          neutral: 'coco-neutral',
         },
       },
     }),

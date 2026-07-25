@@ -1,9 +1,106 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap');
 @import 'tailwindcss';
 @import '@nuxt/ui';
 
-@theme {
-  --font-sans: 'Outfit', system-ui, sans-serif;
+/* ── Coco Design Token Foundation ── */
+@theme static {
+  /* ── Coco primary shade scale (blue #2442f6 → 50–950) ── */
+  --color-coco-50:  #e9edff;
+  --color-coco-100: #d4dcff;
+  --color-coco-200: #a9b9ff;
+  --color-coco-300: #7e96ff;
+  --color-coco-400: #5373fb;
+  --color-coco-500: #2442f6;
+  --color-coco-600: #1d35c4;
+  --color-coco-700: #162893;
+  --color-coco-800: #0f1b62;
+  --color-coco-900: #080e31;
+  --color-coco-950: #040718;
+
+  /* ── Coco neutral shade scale (deep purple #2c2434 → 50–950) ── */
+  --color-coco-neutral-50:  #f5f4f6;
+  --color-coco-neutral-100: #e8e5eb;
+  --color-coco-neutral-200: #d1cbd8;
+  --color-coco-neutral-300: #bab1c4;
+  --color-coco-neutral-400: #a397b1;
+  --color-coco-neutral-500: #8c7d9d;
+  --color-coco-neutral-600: #73658a;
+  --color-coco-neutral-700: #5a4d6e;
+  --color-coco-neutral-800: #423651;
+  --color-coco-neutral-900: #2c2434;
+  --color-coco-neutral-950: #16121a;
+
+  /* ── Coco navy shade scale (deep blue #173968 → 50–950) ── */
+  --color-coco-navy-50:  #e7eef7;
+  --color-coco-navy-100: #d0ddf0;
+  --color-coco-navy-200: #a0bce0;
+  --color-coco-navy-300: #719ad1;
+  --color-coco-navy-400: #4178c1;
+  --color-coco-navy-500: #173968;
+  --color-coco-navy-600: #122e53;
+  --color-coco-navy-700: #0e223e;
+  --color-coco-navy-800: #09172a;
+  --color-coco-navy-900: #050b15;
+  --color-coco-navy-950: #02060a;
+
+  /* ── Brand palette swatches ── */
+  --coco-black:  #000000;
+  --coco-deep:   #2c2434;
+  --coco-mid:    #493f54;
+  --coco-navy:   #173968;
+  --coco-blue:   #2442f6;
+  --coco-cyan:   #5eeaf1;
+  --coco-brown:  #443218;
+  --coco-peach:  #ebd5d0;
+  --coco-gold:   #f6bb13;
+  --coco-white:  #ffffff;
+  --coco-red:    #ef4444;
+
+  /* ── Semantic surface tokens (dark-first) ── */
+  --surface-page:    #000000;
+  --surface-card:    #2c2434;
+  --surface-hover:   #493f54;
+  --surface-input:   #2c2434;
+
+  /* ── Semantic border tokens ── */
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-card:   rgba(255, 255, 255, 0.12);
+
+  /* ── Semantic text tokens ── */
+  --text-primary:   #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.60);
+  --text-muted:     rgba(255, 255, 255, 0.38);
+
+  /* ── Semantic brand role tokens ── */
+  --brand-primary:  #2442f6;
+  --brand-soft:     #173968;
+  --brand-action:   #f6bb13;
+  --brand-accent:   #5eeaf1;
+  --brand-danger:   #ef4444;
+  --brand-warm:     #443218;
+  --brand-warm-soft: #ebd5d0;
+
+  /* ── Radius scale ── */
+  --radius-xs:   4px;
+  --radius-sm:   8px;
+  --radius-md:   12px;
+  --radius-lg:   18px;
+  --radius-xl:   28px;
+  --radius-full: 9999px;
+
+  /* ── Typography ── */
+  --font-sans: 'Inter', system-ui, sans-serif;
+
+  /* ── Light mode variants (inert — defined for future SDDs) ── */
+  --light-surface-page:    #f5f4f6;
+  --light-surface-card:    #ffffff;
+  --light-surface-hover:   #e8e5eb;
+  --light-surface-input:   #ffffff;
+  --light-border-subtle: rgba(0, 0, 0, 0.08);
+  --light-border-card:   rgba(0, 0, 0, 0.12);
+  --light-text-primary:   #0f172a;
+  --light-text-secondary: rgba(15, 23, 42, 0.60);
+  --light-text-muted:     rgba(15, 23, 42, 0.38);
 }
 
 html,
@@ -11,4 +108,5 @@ body,
 #app {
   height: 100%;
   margin: 0;
+  font-feature-settings: "cv11", "ss01", "tnum";
 }

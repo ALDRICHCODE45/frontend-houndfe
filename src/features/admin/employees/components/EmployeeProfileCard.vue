@@ -35,6 +35,7 @@ import {
 } from '../utils/employeeBadgeConfig.utils'
 import DotBadge from '@/core/shared/components/DotBadge.vue'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
+import { AVATAR_PALETTE } from '@/app/constants/avatarPalette'
 
 const props = defineProps<{
   employee: Employee
@@ -51,17 +52,8 @@ const emit = defineEmits<{
 const initials = computed(() => buildProfileInitials(props.employee.fullName))
 
 function getAvatarClass(seedValue: string): string {
-  const palettes = [
-    'bg-amber-500 text-white',
-    'bg-pink-500 text-white',
-    'bg-violet-500 text-white',
-    'bg-red-500 text-white',
-    'bg-cyan-500 text-white',
-    'bg-emerald-500 text-white',
-    'bg-blue-500 text-white',
-  ]
   const seed = seedValue.split('').reduce((sum, char) => sum + char.charCodeAt(0), 0)
-  return palettes[seed % palettes.length] ?? palettes[0]!
+  return AVATAR_PALETTE[seed % AVATAR_PALETTE.length] ?? AVATAR_PALETTE[0]!
 }
 
 // ── Badge config lookups (status + modality) ──────────────────────────────────
