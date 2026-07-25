@@ -169,15 +169,15 @@ function handleQtyCommit() {
        preserved: sale-item-unit-strike-*, sale-item-line-net,
        sale-item-line-gross-strike, sale-item-badge-group. -->
   <div
-    class="mx-3 mb-2 rounded-xl border border-default hover:bg-elevated/40 hover:border-default transition-all duration-150 px-3 py-3"
+    class="mx-3 mb-2 rounded-xl border border-default hover:bg-elevated/40 hover:border-default transition-all duration-150 px-3 py-2.5"
   >
     <!-- ── Mobile (<sm): 3 stacked rows ─────────────────────────────────── -->
-    <div class="flex flex-col gap-2.5 sm:hidden">
+    <div class="flex flex-col gap-2 sm:hidden">
       <!-- Row 1: thumb + info + actions (top-right) -->
       <div class="flex items-start gap-2.5">
         <!-- Image or styled placeholder -->
         <div
-          class="h-10 w-10 shrink-0 rounded-xl flex items-center justify-center overflow-hidden"
+          class="h-10 w-10 shrink-0 rounded-md flex items-center justify-center overflow-hidden"
           :class="!imageUrl || imageBroken ? 'bg-primary/8 border border-primary/15' : 'bg-elevated border border-default'"
         >
           <UIcon
@@ -260,7 +260,7 @@ function handleQtyCommit() {
       <div class="flex items-start gap-2.5">
         <!-- Image or styled placeholder -->
         <div
-          class="h-10 w-10 shrink-0 rounded-xl flex items-center justify-center overflow-hidden"
+          class="h-10 w-10 shrink-0 rounded-md flex items-center justify-center overflow-hidden"
           :class="!imageUrl || imageBroken ? 'bg-primary/8 border border-primary/15' : 'bg-elevated border border-default'"
         >
           <UIcon
@@ -311,7 +311,7 @@ function handleQtyCommit() {
            flex-1 spacer pushes the qty block to the right-center, matching
            the reference where qty sits between the info column and the
            price column. -->
-      <div class="flex items-center mt-2.5">
+      <div class="flex items-center mt-2">
         <div class="flex-1"></div>
         <div class="w-[90px] shrink-0">
           <UInputNumber
@@ -347,7 +347,7 @@ function handleQtyCommit() {
          Same data-testid="sale-item-badge-group" is preserved inside
          SaleItemBadges (flex-wrap asserted by tests). -->
     <SaleItemBadges
-      class="mt-3"
+      class="mt-2.5"
       :price-source="item.priceSource"
       :original-price-cents="item.originalPriceCents"
       :unit-price-cents="item.unitPriceCents"
