@@ -43,6 +43,19 @@
   --color-coco-navy-900: #050b15;
   --color-coco-navy-950: #02060a;
 
+  /* ── Coco gold shade scale (gold #f6bb13 → 50–950, for action/CTA) ── */
+  --color-coco-gold-50:  #fef9e8;
+  --color-coco-gold-100: #fdf0c3;
+  --color-coco-gold-200: #fbe49a;
+  --color-coco-gold-300: #f7d15b;
+  --color-coco-gold-400: #f4c433;
+  --color-coco-gold-500: #f6bb13;
+  --color-coco-gold-600: #d6a010;
+  --color-coco-gold-700: #aa7e0d;
+  --color-coco-gold-800: #745609;
+  --color-coco-gold-900: #4a3605;
+  --color-coco-gold-950: #281d03;
+
   /* ── Brand palette swatches ── */
   --coco-black:  #000000;
   --coco-deep:   #2c2434;

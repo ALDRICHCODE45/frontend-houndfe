@@ -161,7 +161,7 @@ function handleQtyCommit() {
 
 <template>
   <div
-    class="mx-3 mb-2 rounded-xl border border-neutral-200/90 dark:border-white/10 bg-default hover:bg-elevated/40 hover:border-neutral-300 dark:hover:border-white/15 transition-all duration-150"
+    class="mx-3 mb-2 rounded-xl border border-(--border-subtle) bg-default hover:bg-elevated/40 hover:border-(--border-card) transition-all duration-150"
   >
     <!-- Mobile (<sm): stacked layout — image, name+actions header, badges full-width,
          then qty+total row. Prevents the badges from wrapping into the qty/total

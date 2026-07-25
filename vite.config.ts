@@ -58,6 +58,7 @@ export default defineConfig({
           primary: 'coco',
           secondary: 'coco-navy',
           neutral: 'coco-neutral',
+          action: 'coco-gold',
         },
       },
     }),

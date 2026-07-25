@@ -662,10 +662,10 @@ async function handleChangePriceList(globalPriceListId: string | null) {
          Desktop (lg+): horizontal split, catalog 60% / cart 40%.
          Mobile/tablet (<lg): catalog full-width, cart lives in a bottom
          slideover triggered by a FAB pinned bottom-right. -->
-    <div v-else class="h-full flex flex-col lg:flex-row w-full bg-[#fafafa] dark:bg-[#09090b]">
+    <div v-else class="h-full flex flex-col lg:flex-row w-full bg-(--surface-page)">
       <!-- Left panel: Product catalog (60% on desktop, full-width on mobile) -->
       <div class="lg:w-[60%] flex flex-col min-w-0 p-3 lg:p-4">
-        <div class="h-full rounded-2xl border border-neutral-200/90 dark:border-white/10 bg-default shadow-sm dark:shadow-none overflow-hidden">
+        <div class="h-full rounded-2xl border border-(--border-subtle) bg-default shadow-sm dark:shadow-none overflow-hidden">
           <ProductSearchPanel @add-product="handleAddProduct" />
         </div>
       </div>

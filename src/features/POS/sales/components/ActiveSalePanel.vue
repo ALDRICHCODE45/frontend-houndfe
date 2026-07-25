@@ -263,7 +263,7 @@ function handleConfirmPriceListChange() {
 
 
     <!-- Items list (scrollable middle section) -->
-      <div class="flex-1 overflow-y-auto bg-[#fafafa] dark:bg-[#09090b]">
+      <div class="flex-1 overflow-y-auto bg-(--surface-card)">
       <!-- Empty state -->
       <div
         v-if="!activeDraft || activeDraft.items.length === 0"

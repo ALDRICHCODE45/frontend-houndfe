@@ -19,7 +19,7 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="overflow-y-auto flex-1 px-3 sm:px-5 py-3 sm:py-4 bg-[#fafafa] dark:bg-[#09090b]">
+  <div class="overflow-y-auto flex-1 px-3 sm:px-5 py-3 sm:py-4 bg-(--surface-card)">
     <!-- Loading state (card grid skeleton) -->
     <div
       v-if="isLoading && items.length === 0"
