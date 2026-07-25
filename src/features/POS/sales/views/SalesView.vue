@@ -662,19 +662,16 @@ async function handleChangePriceList(globalPriceListId: string | null) {
          Desktop (lg+): horizontal split, catalog 60% / cart 40%.
          Mobile/tablet (<lg): catalog full-width, cart lives in a bottom
          slideover triggered by a FAB pinned bottom-right. -->
-    <div v-else class="h-full flex flex-col lg:flex-row w-full bg-default">
+<div v-else class="h-full flex flex-col lg:flex-row w-full bg-default">
       <!-- Left panel: Product catalog (60% on desktop, full-width on mobile) -->
       <div class="lg:w-[60%] flex flex-col min-w-0 p-3 lg:p-4">
-        <div class="h-full rounded-2xl border border-default bg-default shadow-sm dark:shadow-none overflow-hidden">
-          <ProductSearchPanel @add-product="handleAddProduct" />
-        </div>
+        <ProductSearchPanel @add-product="handleAddProduct" />
       </div>
 
       <!-- Right panel: Active sale cart (40% on desktop only — hidden on mobile
            where the cart lives inside the USlideover below). -->
       <div class="hidden lg:block lg:w-[40%] shrink-0 p-3 lg:p-4">
-        <div class="h-full w-full rounded-2xl border border-neutral-200/90 dark:border-white/10 bg-elevated/60 shadow-sm dark:shadow-none overflow-hidden">
-          <ActiveSalePanel
+        <ActiveSalePanel
             :drafts="drafts"
             :active-draft="activeDraft"
             :active-tab-id="activeTabId"
@@ -703,9 +700,8 @@ async function handleChangePriceList(globalPriceListId: string | null) {
              @close-tab="handleCloseTab"
             @create-tab="handleCreateTab"
             @update-qty="handleUpdateQty"
-            @clear-items="handleClearItems"
-          />
-        </div>
+@clear-items="handleClearItems"
+           />
       </div>
 
       <!-- Mobile-only: FAB + bottom slideover for the cart.
