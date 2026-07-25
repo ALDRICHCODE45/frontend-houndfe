@@ -60,7 +60,7 @@ Chain strategy: pending
 - **Diff size**: ~150–200 lines
 - **Test updates**: INCLUDED — selector audit (every existing `data-testid` lookup must still find its element) + one new test asserting the badges live on their own line below the top row.
 
-### T5 — `chore(pos): verify sales layout end-to-end`
+### [x] T5 — `chore(pos): verify sales layout end-to-end`
 
 - **Description**: Run the full build + test suite, then a manual visual check on `/sales` for desktop + mobile × light + dark. Confirms the layout shift lands cleanly with no doble fondo, no broken strip, no cascading rows.
 - **Files**: none
