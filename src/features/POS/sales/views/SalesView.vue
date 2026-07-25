@@ -665,13 +665,16 @@ async function handleChangePriceList(globalPriceListId: string | null) {
 <div v-else class="h-full flex flex-col lg:flex-row w-full bg-default">
       <!-- Left panel: Product catalog (60% on desktop, full-width on mobile) -->
       <div class="lg:w-[60%] flex flex-col min-w-0 p-3 lg:p-4">
-        <ProductSearchPanel @add-product="handleAddProduct" />
+        <div class="h-full rounded-2xl border border-default/50 overflow-hidden">
+          <ProductSearchPanel @add-product="handleAddProduct" />
+        </div>
       </div>
 
       <!-- Right panel: Active sale cart (40% on desktop only — hidden on mobile
            where the cart lives inside the USlideover below). -->
       <div class="hidden lg:block lg:w-[40%] shrink-0 p-3 lg:p-4">
-        <ActiveSalePanel
+        <div class="h-full w-full rounded-2xl border border-default/50 overflow-hidden">
+          <ActiveSalePanel
             :drafts="drafts"
             :active-draft="activeDraft"
             :active-tab-id="activeTabId"
@@ -702,6 +705,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
             @update-qty="handleUpdateQty"
 @clear-items="handleClearItems"
            />
+        </div>
       </div>
 
       <!-- Mobile-only: FAB + bottom slideover for the cart.
