@@ -51,7 +51,7 @@ Chain strategy: pending
 - **Diff size**: ~30–50 lines
 - **Test updates**: None (no `ActiveSalePanel` test exists; structural only).
 
-### T4 — `feat(pos): redesign SaleItemRow as vertical mini-card + sync tests`
+### [x] T4 — `feat(pos): redesign SaleItemRow as vertical mini-card + sync tests`
 
 - **Description**: Desktop: switch from horizontal single-row to vertical mini-card — top row = thumbnail (left) · info (center) · qty/price controls + actions dropdown (right); bottom row = `<SaleItemBadges>` on its own visually subordinate line. Mobile: keep stacked, only reposition the dropdown inline with the qty/price row. Preserve every existing `data-testid`. Same props, same emits, same `SaleItem` payload.
 - **Files**: `src/features/POS/sales/components/SaleItemRow.vue`, `src/features/POS/sales/components/__tests__/SaleItemRow.test.ts`

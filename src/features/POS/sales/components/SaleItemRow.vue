@@ -160,14 +160,22 @@ function handleQtyCommit() {
 </script>
 
 <template>
+  <!-- sdd-4 sales-layout-redesign T4: vertical mini-card.
+       Top row: thumb · info · qty/price controls · ⋮ actions.
+       Bottom row: <SaleItemBadges> on its own visually subordinate line.
+       Same props, same emits, same SaleItem payload. Every existing
+       data-testid preserved so the 787-line test suite keeps its
+       selector contract. -->
   <div
-    class="mx-3 mb-2 rounded-xl border border-default hover:bg-elevated/40 hover:border-default transition-all duration-150"
+    class="mx-3 mb-2 rounded-xl border border-default hover:bg-elevated/40 hover:border-default transition-all duration-150 px-3 py-3"
   >
-    <!-- Mobile (<sm): stacked layout — image, name+actions header, badges full-width,
-         then qty+total row. Prevents the badges from wrapping into the qty/total
-         column when the slideover narrows to ~360px. -->
-    <div class="flex flex-col gap-2.5 px-3 py-3 sm:hidden">
-      <!-- Top row: image + name + ⋮ actions -->
+    <!-- ── TOP ROW: thumb · info · qty/price · actions ───────────────────── -->
+    <!-- Mobile (<sm): stacks in two lines — line 1 = thumb + info,
+         line 2 = qty · line total · actions (the dropdown moves down to
+         sit inline with qty/price as the task spec requires). -->
+    <div class="flex flex-col gap-2.5 sm:hidden">
+      <!-- Line 1: thumb + info (grows). Actions dropdown intentionally NOT
+           here on mobile — it lands on the qty/price row per T4 spec. -->
       <div class="flex items-start gap-2.5">
         <!-- Image or styled placeholder -->
         <div
@@ -189,7 +197,7 @@ function handleQtyCommit() {
           />
         </div>
 
-        <!-- Name + variant/price -->
+        <!-- Name + variant/price (unit-price strikethroughs preserved here) -->
         <div class="flex-1 min-w-0">
           <p class="text-[13px] font-semibold text-highlighted truncate">
             {{ item.productName }}
@@ -210,30 +218,9 @@ function handleQtyCommit() {
             <span class="font-medium text-toned">{{ formatCentsMXN(item.unitPriceCents) }} c/u</span>
           </p>
         </div>
-
-        <!-- Actions dropdown: anchored next to the name so it never gets pushed off-screen -->
-        <UDropdownMenu v-if="isDraft" :items="itemActions">
-          <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-ellipsis-vertical" />
-        </UDropdownMenu>
       </div>
 
-      <!-- Badges row (full width, always its own line on mobile) -->
-      <SaleItemBadges
-        :price-source="item.priceSource"
-        :original-price-cents="item.originalPriceCents"
-        :unit-price-cents="item.unitPriceCents"
-        :discount-type="item.discountType"
-        :discount-value="item.discountValue"
-        :discount-amount-cents="item.discountAmountCents"
-        :discount-title="item.discountTitle"
-        :promotion-id="item.promotionId"
-        :reward-kind="item.rewardKind"
-        :reward-discount-percent="item.rewardDiscountPercent"
-        :removable="isDraft"
-        @remove-promo="(id) => emit('remove-promo', id)"
-      />
-
-      <!-- Bottom row: qty (compact) + line total -->
+      <!-- Line 2: qty + line total + actions dropdown (inline, per T4 mobile spec) -->
       <div class="flex items-center justify-between gap-3">
         <div class="w-[110px] shrink-0">
           <UInputNumber
@@ -260,11 +247,16 @@ function handleQtyCommit() {
             {{ formatCentsMXN(lineDisplay.grossLine) }}
           </p>
         </div>
+        <UDropdownMenu v-if="isDraft" :items="itemActions">
+          <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-ellipsis-vertical" />
+        </UDropdownMenu>
       </div>
     </div>
 
-    <!-- Desktop (sm+): original horizontal layout — image | info+badges | qty | total | ⋮ -->
-    <div class="hidden sm:flex sm:items-center sm:gap-2.5 sm:px-3 sm:py-3">
+    <!-- Desktop (sm+): single horizontal row, but now with explicit
+         thumb · info · qty/price · actions layout (badges drop to the
+         second row below). -->
+    <div class="hidden sm:flex sm:items-center sm:gap-2.5">
       <!-- Image or styled placeholder -->
       <div
         class="h-10 w-10 shrink-0 rounded-xl flex items-center justify-center overflow-hidden"
@@ -285,7 +277,8 @@ function handleQtyCommit() {
         />
       </div>
 
-      <!-- Product info (name + variant + unit price) -->
+      <!-- Product info (name + variant + unit price) — still owns the
+           unit-price strikethrough testids; grow to fill center. -->
       <div class="flex-1 min-w-0">
         <p class="text-[13px] font-semibold text-highlighted truncate">
           {{ item.productName }}
@@ -305,25 +298,9 @@ function handleQtyCommit() {
           >{{ formatCentsMXN(item.prePriceCentsBeforeDiscount ?? 0) }}</span>
           <span class="font-medium text-toned">{{ formatCentsMXN(item.unitPriceCents) }} c/u</span>
         </p>
-        <!-- Badges row -->
-        <SaleItemBadges
-          class="mt-1.5"
-          :price-source="item.priceSource"
-          :original-price-cents="item.originalPriceCents"
-          :unit-price-cents="item.unitPriceCents"
-          :discount-type="item.discountType"
-          :discount-value="item.discountValue"
-          :discount-amount-cents="item.discountAmountCents"
-          :discount-title="item.discountTitle"
-          :promotion-id="item.promotionId"
-          :reward-kind="item.rewardKind"
-          :reward-discount-percent="item.rewardDiscountPercent"
-          :removable="isDraft"
-          @remove-promo="(id) => emit('remove-promo', id)"
-        />
       </div>
 
-      <!-- Quantity input -->
+      <!-- Quantity input (compact) -->
       <div class="w-[90px] shrink-0">
         <UInputNumber
           v-model="localQty"
@@ -352,11 +329,31 @@ function handleQtyCommit() {
         </p>
       </div>
 
-      <!-- Actions dropdown -->
+      <!-- Actions dropdown (right) -->
       <UDropdownMenu v-if="isDraft" :items="itemActions">
         <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-ellipsis-vertical" />
       </UDropdownMenu>
     </div>
+
+    <!-- ── BOTTOM ROW: badges on their own subordinate line ────────────── -->
+    <!-- Gap above keeps badges visually subordinate to the top row.
+         Same data-testid="sale-item-badge-group" is preserved inside the
+         SaleItemBadges component (flex-wrap asserted by tests). -->
+    <SaleItemBadges
+      class="mt-2"
+      :price-source="item.priceSource"
+      :original-price-cents="item.originalPriceCents"
+      :unit-price-cents="item.unitPriceCents"
+      :discount-type="item.discountType"
+      :discount-value="item.discountValue"
+      :discount-amount-cents="item.discountAmountCents"
+      :discount-title="item.discountTitle"
+      :promotion-id="item.promotionId"
+      :reward-kind="item.rewardKind"
+      :reward-discount-percent="item.rewardDiscountPercent"
+      :removable="isDraft"
+      @remove-promo="(id) => emit('remove-promo', id)"
+    />
 
     <PriceOverrideModal
       v-if="isPriceModalOpen"

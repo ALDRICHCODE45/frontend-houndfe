@@ -784,4 +784,57 @@ describe('SaleItemRow', () => {
     // appear in the bold line total.
     expect(netLine.text()).not.toContain('$500.00')
   })
+
+  // ── sdd-4 sales-layout-redesign T4/T5 — mini-card spatial contract ─────
+  //
+  // The row was redesigned as a vertical mini-card: the top row holds
+  // thumb · info · qty/price · actions, and the badges live on their OWN
+  // subordinate line below. This test pins that DOM-ordering contract so
+  // future refactors can't silently drift back to inline badges.
+
+  it('renders SaleItemBadges on their own subordinate line below the top row (sdd-4 mini-card)', () => {
+    const wrapper = mount(SaleItemRow, {
+      props: {
+        item: {
+          ...mockItem,
+          priceSource: 'price_list',
+          originalPriceCents: 7000,
+          discountType: 'percentage',
+          discountValue: 20,
+          discountAmountCents: 1000,
+          promotionId: 'promo-uuid-42',
+        },
+        saleId: 'sale-1',
+        isDraft: true,
+        onSubmitPriceOverride,
+        onApplyDiscount,
+        onRemoveDiscount,
+        onRemoveItem,
+      },
+      global: { stubs },
+    })
+
+    // Sanity: with both a price-source AND a discount, the badge group
+    // is forced to render multiple chips (otherwise hasAnyBadge may be false).
+    const badgeGroup = wrapper.find('[data-testid="sale-item-badge-group"]')
+    expect(badgeGroup.exists()).toBe(true)
+
+    // The line-net element lives in the rightmost column of the top row.
+    // After the sdd-4 redesign, SaleItemBadges must render AFTER it in
+    // document order — i.e. on its own subordinate line below the top row,
+    // not inline alongside the qty controls.
+    const lineNet = wrapper.find('[data-testid="sale-item-line-net"]').element
+    const pos = lineNet.compareDocumentPosition(badgeGroup.element)
+    // Node.DOCUMENT_POSITION_FOLLOWING === 4 → badge group follows line-net.
+    expect(pos & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+
+    // And the badges must NOT be nested inside the qty/price controls
+    // region — i.e. the badge group is a SIBLING of the top-row container,
+    // not its descendant.
+    const topRowContainers = wrapper.findAll('[data-testid="sale-item-line-net"]')
+      .map((n) => n.element.parentElement?.parentElement ?? null)
+      .filter((n): n is HTMLElement => n !== null)
+    const badgeInsideTopRow = topRowContainers.some((container) => container.contains(badgeGroup.element))
+    expect(badgeInsideTopRow).toBe(false)
+  })
 })
