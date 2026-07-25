@@ -42,7 +42,7 @@ Chain strategy: pending
 - **Diff size**: ~30–50 lines
 - **Test updates**: None (structural change; behavior preserved).
 
-### T3 — `refactor(pos): partition ActiveSalePanel into header/body/footer`
+### [x] T3 — `refactor(pos): partition ActiveSalePanel into header/body/footer`
 
 - **Description**: Wrap type-toggle row, items list, and footer block (customer + manual-promo accordion + totals) in three `<section>` wrappers with `data-testid="cart-header"`, `cart-body`, `cart-footer`. No visual or behavior change.
 - **Files**: `src/features/POS/sales/components/ActiveSalePanel.vue`
