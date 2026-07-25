@@ -311,7 +311,7 @@ function handleQtyCommit() {
            flex-1 spacer pushes the qty block to the right-center, matching
            the reference where qty sits between the info column and the
            price column. -->
-      <div class="flex items-center mt-1">
+      <div class="flex items-center mt-0.5">
         <div class="flex-1"></div>
         <div class="w-[90px] shrink-0">
           <UInputNumber
@@ -347,7 +347,7 @@ function handleQtyCommit() {
          Same data-testid="sale-item-badge-group" is preserved inside
          SaleItemBadges (flex-wrap asserted by tests). -->
     <SaleItemBadges
-      class="mt-1.5"
+      class="mt-1 justify-center"
       :price-source="item.priceSource"
       :original-price-cents="item.originalPriceCents"
       :unit-price-cents="item.unitPriceCents"
