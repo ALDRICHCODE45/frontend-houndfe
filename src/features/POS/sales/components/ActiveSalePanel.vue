@@ -189,7 +189,7 @@ function handleConfirmPriceListChange() {
 </script>
 
 <template>
-  <div class="h-full flex flex-col min-w-0 bg-default">
+  <div class="h-full flex flex-col min-w-0">
     <!-- Tabs strip -->
     <SalesTabsStrip
       :drafts="drafts"

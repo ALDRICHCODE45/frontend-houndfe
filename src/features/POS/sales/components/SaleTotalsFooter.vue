@@ -68,7 +68,7 @@ function handleRemoveOrderPromo() {
 </script>
 
 <template>
-  <div class="mt-auto bg-default px-5 py-4">
+  <div class="mt-auto px-5 py-4">
     <!-- Subtotal row -->
     <div class="flex items-center justify-between mb-1.5">
       <span class="text-sm text-muted">Subtotal</span>
