@@ -12,6 +12,14 @@ import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { onSessionExpired } from '@/features/auth/services/session-events'
 import App from './App.vue'
 
+// ── Coco dark-first default ───────────────────────────────────────────────────
+// The user explicitly chose dark as the default theme. Force the `dark` class
+// on the <html> element on first load unless the user has already toggled.
+const stored = typeof localStorage !== 'undefined' && localStorage.getItem('vueuse-color-mode')
+if (!stored) {
+  document.documentElement.classList.add('dark')
+}
+
 const app = createApp(App)
 const pinia = createPinia()
 

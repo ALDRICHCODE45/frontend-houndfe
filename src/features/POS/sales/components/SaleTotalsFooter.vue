@@ -123,7 +123,7 @@ function handleRemoveOrderPromo() {
     <!-- Cobrar button -->
     <div class="mt-4">
       <UTooltip :text="chargeTooltip" class="w-full">
-        <UButton color="action" block size="xl" :loading="isChargePending" :disabled="isChargeDisabled" class="relative rounded-xl font-semibold shadow-sm" @click="emit('charge-click')">
+        <UButton color="primary" block size="xl" :loading="isChargePending" :disabled="isChargeDisabled" class="relative !bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm" @click="emit('charge-click')">
           <template #leading>
             <UIcon name="i-lucide-hand-coins" class="h-5 w-5" />
           </template>
