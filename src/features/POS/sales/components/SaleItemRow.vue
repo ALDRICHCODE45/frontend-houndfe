@@ -169,7 +169,7 @@ function handleQtyCommit() {
        preserved: sale-item-unit-strike-*, sale-item-line-net,
        sale-item-line-gross-strike, sale-item-badge-group. -->
   <div
-    class="mx-3 mb-2 rounded-xl border border-default hover:bg-elevated/40 hover:border-default transition-all duration-150 px-3 py-2.5"
+    class="mx-3 mb-2 rounded-xl border border-default hover:bg-elevated/40 hover:border-default transition-all duration-150 px-3 py-2"
   >
     <!-- ── Mobile (<sm): 3 stacked rows ─────────────────────────────────── -->
     <div class="flex flex-col gap-2 sm:hidden">
@@ -311,7 +311,7 @@ function handleQtyCommit() {
            flex-1 spacer pushes the qty block to the right-center, matching
            the reference where qty sits between the info column and the
            price column. -->
-      <div class="flex items-center mt-2">
+      <div class="flex items-center mt-1">
         <div class="flex-1"></div>
         <div class="w-[90px] shrink-0">
           <UInputNumber
@@ -347,7 +347,7 @@ function handleQtyCommit() {
          Same data-testid="sale-item-badge-group" is preserved inside
          SaleItemBadges (flex-wrap asserted by tests). -->
     <SaleItemBadges
-      class="mt-2.5"
+      class="mt-1.5"
       :price-source="item.priceSource"
       :original-price-cents="item.originalPriceCents"
       :unit-price-cents="item.unitPriceCents"
