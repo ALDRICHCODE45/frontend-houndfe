@@ -8,6 +8,7 @@ import { useApplicablePromotions } from '../composables/useApplicablePromotions'
 import { saleApi } from '../api/sale.api'
 import ProductSearchPanel from '../components/ProductSearchPanel.vue'
 import ActiveSalePanel from '../components/ActiveSalePanel.vue'
+import SalesTabsStrip from '../components/SalesTabsStrip.vue'
 import PaymentModal from '../components/PaymentModal.vue'
 import PaymentSuccessModal from '../components/PaymentSuccessModal.vue'
 import AssignCustomerSlideover from '../components/AssignCustomerSlideover.vue'
@@ -661,8 +662,26 @@ async function handleChangePriceList(globalPriceListId: string | null) {
     <!-- Main split view.
          Desktop (lg+): horizontal split, catalog 60% / cart 40%.
          Mobile/tablet (<lg): catalog full-width, cart lives in a bottom
-         slideover triggered by a FAB pinned bottom-right. -->
-<div v-else class="h-full flex flex-col lg:flex-row w-full bg-(--light-surface-page) dark:bg-coco-neutral-950">
+         slideover triggered by a FAB pinned bottom-right.
+
+         Tab strip is mounted here at view level (sibling of the split)
+         so BOTH the desktop right-panel ActiveSalePanel instance AND the
+         mobile slideover ActiveSalePanel instance reflect the same
+         active tab — single source of truth, no desync risk. -->
+    <div v-else class="h-full flex flex-col bg-(--light-surface-page) dark:bg-coco-neutral-950">
+      <!-- View-level tab strip. The ActiveSalePanel instances below no
+           longer render their own strip — they were double-mounted and
+           could desync on rapid tab switches. -->
+      <SalesTabsStrip
+        class="shrink-0"
+        :drafts="drafts"
+        :active-tab-id="activeTabId"
+        @switch="handleSwitchTab"
+        @close="handleCloseTab"
+        @create="handleCreateTab"
+      />
+
+      <div class="flex-1 flex flex-col lg:flex-row w-full min-h-0">
       <!-- Left panel: Product catalog (60% on desktop, full-width on mobile) -->
       <div class="lg:w-[60%] flex flex-col min-w-0 p-3 lg:p-4">
         <div class="h-full rounded-2xl border border-default/50 overflow-hidden">
@@ -797,6 +816,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
           </template>
         </USlideover>
       </template>
+      </div>
     </div>
 
     <AssignCustomerSlideover

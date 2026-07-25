@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import SalesTabsStrip from './SalesTabsStrip.vue'
 import SaleItemRow from './SaleItemRow.vue'
 import SaleTotalsFooter from './SaleTotalsFooter.vue'
 import PromocionesDisponiblesAccordion from './PromocionesDisponiblesAccordion.vue'
@@ -190,15 +189,6 @@ function handleConfirmPriceListChange() {
 
 <template>
   <div class="h-full flex flex-col min-w-0">
-    <!-- Tabs strip -->
-    <SalesTabsStrip
-      :drafts="drafts"
-      :active-tab-id="activeTabId"
-      @switch="emit('switch-tab', $event)"
-      @close="handleCloseTabRequest"
-      @create="emit('create-tab')"
-    />
-
     <!-- Type toggle + actions row.
          Desktop (md+): single row with UTabs, PriceListSelector, flex spacer, actions.
          Mobile (<md): two stacked rows — UTabs+actions on top, PriceListSelector below. -->

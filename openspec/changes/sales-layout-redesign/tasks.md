@@ -33,7 +33,7 @@ Chain strategy: pending
 - **Diff size**: ~5 lines
 - **Test updates**: None (visual change inside cart card is invisible).
 
-### T2 — `feat(pos): lift SalesTabsStrip to view level`
+### [x] T2 — `feat(pos): lift SalesTabsStrip to view level`
 
 - **Description**: Mount strip ONCE at view level in `SalesView.vue` so both desktop right panel and mobile slideover share the same active tab. Remove the inline strip from `ActiveSalePanel.vue`. Same props/emits/helpers — purely a parent move.
 - **Files**: `src/features/POS/sales/views/SalesView.vue`, `src/features/POS/sales/components/ActiveSalePanel.vue`
