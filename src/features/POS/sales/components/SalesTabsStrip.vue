@@ -28,7 +28,7 @@ function isActive(saleId: string): boolean {
 </script>
 
 <template>
-  <div class="flex items-center gap-2 overflow-x-auto px-4 py-3 border-b border-default no-scrollbar">
+  <div class="flex items-center gap-2 overflow-x-auto px-4 py-3">
     <!-- Tab buttons -->
     <div
       v-for="(draft, index) in drafts"
@@ -84,14 +84,3 @@ function isActive(saleId: string): boolean {
     />
   </div>
 </template>
-
-<style scoped>
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-</style>
