@@ -28,7 +28,7 @@ function isActive(saleId: string): boolean {
 </script>
 
 <template>
-  <div class="flex items-center gap-2 overflow-x-auto px-4 py-3">
+  <div class="flex items-center gap-2 overflow-x-auto px-4 pt-2.5 pb-1.5">
     <!-- Tab buttons -->
     <div
       v-for="(draft, index) in drafts"

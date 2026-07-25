@@ -683,7 +683,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
 
       <div class="flex-1 flex flex-col lg:flex-row w-full min-h-0">
       <!-- Left panel: Product catalog (60% on desktop, full-width on mobile) -->
-      <div class="lg:w-[60%] flex flex-col min-w-0 p-3 lg:p-4">
+      <div class="lg:w-[60%] flex flex-col min-w-0 px-3 lg:px-4 pt-1.5 lg:pt-2 pb-3 lg:pb-4">
         <div class="h-full rounded-2xl border border-default/50 overflow-hidden">
           <ProductSearchPanel @add-product="handleAddProduct" />
         </div>
@@ -691,7 +691,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
 
       <!-- Right panel: Active sale cart (40% on desktop only — hidden on mobile
            where the cart lives inside the USlideover below). -->
-      <div class="hidden lg:block lg:w-[40%] shrink-0 p-3 lg:p-4">
+      <div class="hidden lg:block lg:w-[40%] shrink-0 px-3 lg:px-4 pt-1.5 lg:pt-2 pb-3 lg:pb-4">
         <div class="h-full w-full rounded-2xl border border-default/50 overflow-hidden">
           <ActiveSalePanel
             :drafts="drafts"
