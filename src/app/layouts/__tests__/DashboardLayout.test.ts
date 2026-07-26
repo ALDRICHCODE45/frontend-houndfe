@@ -91,7 +91,7 @@ function extractUiBlock(sfc: string, componentName: string): string {
   )
   const match = sfc.match(pattern)
   if (!match) return ''
-  return match[1]
+  return match[1] ?? ''
 }
 
 function mountLayout() {
@@ -134,7 +134,7 @@ describe('DashboardLayout — Coco shell binding (DSC-REQ-013)', () => {
     const pattern = /<UDashboardSidebarCollapse[^>]*:ui="\{([\s\S]*?)\}"/g
     const matches = [...sfc.matchAll(pattern)]
     expect(matches.length, 'at least one UDashboardSidebarCollapse must exist').toBeGreaterThanOrEqual(1)
-    const anyWithGold = matches.some((m) => /leadingIcon:\s*['"][^'"]*text-coco-gold-500/.test(m[1]))
+    const anyWithGold = matches.some((m) => /leadingIcon:\s*['"][^'"]*text-coco-gold-500/.test(m[1] ?? ''))
     expect(anyWithGold, 'at least one UDashboardSidebarCollapse :ui.leadingIcon must carry text-coco-gold-500').toBe(true)
   })
 
@@ -164,7 +164,7 @@ describe('DashboardLayout — Coco shell binding (DSC-REQ-013)', () => {
     const matches = [...sfc.matchAll(pattern)]
     expect(matches.length, 'at least one UDropdownMenu :ui must exist').toBeGreaterThanOrEqual(1)
     const anyWithGold = matches.some((m) =>
-      /itemLeadingIcon:\s*['"][^'"]*group-data-\[checked=true\]:text-coco-gold-500/.test(m[1]),
+      /itemLeadingIcon:\s*['"][^'"]*group-data-\[checked=true\]:text-coco-gold-500/.test(m[1] ?? ''),
     )
     expect(
       anyWithGold,
@@ -181,7 +181,7 @@ describe('DashboardLayout — Coco shell binding (DSC-REQ-013)', () => {
     const pattern = /<UDropdownMenu[^>]*:ui="\{([\s\S]*?)\}"/g
     const matches = [...sfc.matchAll(pattern)]
     const withoutGold = matches.filter(
-      (m) => !/itemLeadingIcon:\s*['"][^'"]*group-data-\[checked=true\]:text-coco-gold-500/.test(m[1]),
+      (m) => !/itemLeadingIcon:\s*['"][^'"]*group-data-\[checked=true\]:text-coco-gold-500/.test(m[1] ?? ''),
     )
     // We need at least one without the gold (tenant dropdown). And
     // the wrapper must still render — regression anchor.
