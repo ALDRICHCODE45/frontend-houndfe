@@ -1640,8 +1640,8 @@ function handleEditLotPlaceholder() {
 </script>
 
 <template>
-  <div class="-m-4 flex h-[calc(100%+2rem)] flex-col bg-[#f7f7f5] sm:-m-6 sm:h-[calc(100%+3rem)] dark:bg-[#0a0a0b]">
-    <div class="shrink-0 border-b border-default bg-white/95 px-10 py-4 backdrop-blur dark:bg-[#131316]/95">
+  <div class="-m-4 flex h-[calc(100%+2rem)] flex-col bg-coco-neutral-50 sm:-m-6 sm:h-[calc(100%+3rem)] dark:bg-coco-neutral-950">
+    <div class="shrink-0 border-b border-default bg-coco-neutral-50/95 px-10 py-4 backdrop-blur dark:bg-coco-neutral-950/95">
       <div class="mx-auto flex w-full max-w-[1480px] items-center justify-between">
         <div class="flex items-center gap-3">
           <UButton
@@ -1652,7 +1652,7 @@ function handleEditLotPlaceholder() {
             @click="handleBack"
           />
           <div>
-            <h1 class="text-xl font-semibold text-[#111316] dark:text-white">
+            <h1 class="text-xl font-semibold text-coco-neutral-950 dark:text-white">
               {{ isCreateMode ? 'Nuevo producto' : formState.name || 'Producto' }}
             </h1>
             <p class="text-sm text-muted">
@@ -1670,7 +1670,8 @@ function handleEditLotPlaceholder() {
             form="product-detail-form"
             :loading="updateMutation.isPending.value || createMutation.isPending.value"
             :disabled="!canSubmitMainForm"
-            class="bg-[#f0954a] hover:bg-[#e88835]"
+            color="primary"
+            class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
           />
         </div>
       </div>
@@ -2302,6 +2303,7 @@ function handleEditLotPlaceholder() {
                   type="button"
                   label="Agregar"
                   color="primary"
+                  class="!bg-coco-gold-500/15 !text-coco-gold-800 dark:!text-coco-gold-300 hover:!bg-coco-gold-500/25"
                   :disabled="!pendingPriceListSelection"
                   @click="handleAddPendingPriceList"
                 />
@@ -2400,7 +2402,7 @@ function handleEditLotPlaceholder() {
                 label="Agregar Lista de Precios"
                 color="neutral"
                 variant="ghost"
-                class="text-primary"
+                class="text-coco-gold-800 dark:text-coco-gold-400"
                 @click="isAddPriceListPickerOpen = true"
               />
             </div>
@@ -2426,8 +2428,8 @@ function handleEditLotPlaceholder() {
 
         <aside class="hidden xl:block">
           <div class="sticky top-6 space-y-4">
-            <div class="overflow-hidden rounded-[13px] border border-default bg-white shadow-sm dark:bg-[#131316]">
-              <div class="flex h-44 items-center justify-center overflow-hidden bg-[repeating-linear-gradient(45deg,#f7f7f5_0,#f7f7f5_10px,#eeeeea_10px,#eeeeea_20px)] text-muted dark:bg-[repeating-linear-gradient(45deg,#18181c_0,#18181c_10px,#1f1f24_10px,#1f1f24_20px)]">
+            <div class="overflow-hidden rounded-[13px] border border-default bg-coco-neutral-50 shadow-sm dark:bg-coco-neutral-950">
+              <div class="flex h-44 items-center justify-center overflow-hidden bg-[repeating-linear-gradient(45deg,var(--color-coco-neutral-50)_0,var(--color-coco-neutral-50)_10px,var(--color-coco-neutral-100)_10px,var(--color-coco-neutral-100)_20px)] text-muted dark:bg-[repeating-linear-gradient(45deg,var(--color-coco-neutral-950)_0,var(--color-coco-neutral-950)_10px,var(--color-coco-neutral-900)_10px,var(--color-coco-neutral-900)_20px)]">
                 <img
                   v-if="previewMainImage"
                   :src="previewMainImage.url"
@@ -2443,7 +2445,7 @@ function handleEditLotPlaceholder() {
               <div class="space-y-4 p-4">
                 <div>
                   <p class="text-xs font-semibold uppercase tracking-wide text-muted">Vista previa</p>
-                  <h2 class="mt-1 line-clamp-2 text-lg font-semibold text-[#111316] dark:text-white">
+                  <h2 class="mt-1 line-clamp-2 text-lg font-semibold text-coco-neutral-950 dark:text-white">
                     {{ formState.name || 'Producto sin nombre' }}
                   </h2>
                   <div class="mt-2 flex flex-wrap gap-2">
@@ -2462,13 +2464,13 @@ function handleEditLotPlaceholder() {
                 <div class="grid grid-cols-2 overflow-hidden rounded-lg border border-default">
                   <div class="border-b border-r border-default p-3">
                     <p class="text-[11px] font-semibold uppercase tracking-wide text-muted">Precio venta</p>
-                    <p class="mt-1 font-mono text-xl font-bold text-[#111316] dark:text-white">
+                    <p class="mt-1 font-mono text-xl font-bold text-coco-neutral-950 dark:text-white">
                       {{ formatCentsMXN(previewPublicPriceCents) }}
                     </p>
                   </div>
                   <div class="border-b border-default p-3">
                     <p class="text-[11px] font-semibold uppercase tracking-wide text-muted">Costo</p>
-                    <p class="mt-1 font-mono text-xl font-bold text-[#111316] dark:text-white">
+                    <p class="mt-1 font-mono text-xl font-bold text-coco-neutral-950 dark:text-white">
                       {{ formatCentsMXN(previewCostCents) }}
                     </p>
                   </div>
@@ -2483,7 +2485,7 @@ function handleEditLotPlaceholder() {
                   </div>
                   <div class="p-3">
                     <p class="text-[11px] font-semibold uppercase tracking-wide text-muted">Stock</p>
-                    <p class="mt-1 font-mono text-lg font-bold text-[#d97a2a]">
+                    <p class="mt-1 font-mono text-lg font-bold text-coco-gold-700 dark:text-coco-gold-400">
                       {{ previewStockTotal ?? '—' }}
                     </p>
                   </div>
@@ -2491,16 +2493,16 @@ function handleEditLotPlaceholder() {
               </div>
             </div>
 
-            <div class="rounded-[13px] border border-default bg-white p-4 shadow-sm dark:bg-[#131316]">
+            <div class="rounded-[13px] border border-default bg-coco-neutral-50 p-4 shadow-sm dark:bg-coco-neutral-950">
               <div class="mb-3 flex items-center justify-between">
-                <h3 class="font-semibold text-[#111316] dark:text-white">Lista para publicar</h3>
-                <span class="font-mono text-sm font-semibold text-[#d97a2a]">
+                <h3 class="font-semibold text-coco-neutral-950 dark:text-white">Lista para publicar</h3>
+                <span class="font-mono text-sm font-semibold text-coco-gold-800 dark:text-coco-gold-400">
                   {{ previewCompletedItems }}/{{ previewApplicableChecklistItems.length }}
                 </span>
               </div>
 
-              <div class="mb-4 h-2 overflow-hidden rounded-full bg-[#ebebe8] dark:bg-[#1f1f24]">
-                <div class="h-full rounded-full bg-[#f0954a] transition-all" :style="{ width: `${previewCompletionPercent}%` }" />
+              <div class="mb-4 h-2 overflow-hidden rounded-full bg-coco-neutral-100 dark:bg-coco-neutral-900">
+                <div class="h-full rounded-full bg-coco-gold-500 transition-all" :style="{ width: `${previewCompletionPercent}%` }" />
               </div>
 
               <ul class="space-y-3">
@@ -2508,11 +2510,11 @@ function handleEditLotPlaceholder() {
                   v-for="item in previewChecklistItems"
                   :key="item.label"
                   class="flex items-center gap-3 text-sm"
-                  :class="item.disabled ? 'text-muted' : 'text-[#4b5563] dark:text-gray-300'"
+                  :class="item.disabled ? 'text-muted' : 'text-coco-neutral-700 dark:text-coco-neutral-300'"
                 >
                   <span
                     class="flex size-4 shrink-0 items-center justify-center rounded border"
-                    :class="item.done ? 'border-emerald-500 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'border-default bg-[#f3f3f1] dark:bg-[#1f1f24]'"
+                    :class="item.done ? 'border-emerald-500 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'border-coco-neutral-200 dark:border-coco-neutral-800 bg-coco-neutral-100 dark:bg-coco-neutral-900'"
                   >
                     <UIcon v-if="item.done" name="i-lucide-check" class="size-3" />
                   </span>
@@ -2583,6 +2585,8 @@ function handleEditLotPlaceholder() {
           <UButton
             type="button"
             label="Guardar"
+            color="primary"
+            class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
             @click="saveTierRows"
           />
         </div>
@@ -2714,7 +2718,7 @@ function handleEditLotPlaceholder() {
       <template #footer>
         <div class="flex w-full justify-end gap-3">
           <UButton type="button" label="Cancelar" color="neutral" variant="outline" @click="closePendingVariantDetailModal" />
-          <UButton type="button" label="Guardar" @click="savePendingVariantDetailModal" />
+          <UButton type="button" label="Guardar" color="primary" class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm" @click="savePendingVariantDetailModal" />
         </div>
       </template>
     </UModal>
@@ -2790,7 +2794,7 @@ function handleEditLotPlaceholder() {
             variant="outline"
             @click="closePendingVariantTierPricesModal"
           />
-          <UButton type="button" label="Guardar" @click="savePendingVariantTierPricesModal" />
+          <UButton type="button" label="Guardar" color="primary" class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm" @click="savePendingVariantTierPricesModal" />
         </div>
       </template>
     </UModal>
@@ -2867,6 +2871,8 @@ function handleEditLotPlaceholder() {
             label="Guardar"
             type="submit"
             form="create-category-modal-form"
+            color="primary"
+            class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
             :loading="createCategoryMutation.isPending.value"
           />
         </div>
@@ -2908,6 +2914,8 @@ function handleEditLotPlaceholder() {
             label="Guardar"
             type="submit"
             form="create-brand-modal-form"
+            color="primary"
+            class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
             :loading="createBrandMutation.isPending.value"
           />
         </div>
@@ -2960,6 +2968,8 @@ function handleEditLotPlaceholder() {
             label="Guardar lote"
             type="submit"
             form="create-lot-modal-form"
+            color="primary"
+            class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
             :loading="createLotMutation.isPending.value"
           />
         </div>
@@ -3044,6 +3054,8 @@ function handleEditLotPlaceholder() {
             :label="variantSubmitLabel"
             type="submit"
             form="variant-modal-form"
+            color="primary"
+            class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
             :loading="
               createVariantMutation.isPending.value || updateVariantMutation.isPending.value
             "
