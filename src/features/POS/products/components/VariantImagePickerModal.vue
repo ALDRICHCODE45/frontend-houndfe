@@ -186,7 +186,7 @@ const modalTitle = computed(() => {
         class="relative rounded-lg border transition-all cursor-pointer"
         :class="[
           isOverDropZone
-            ? 'border-solid border-primary bg-primary/10'
+            ? 'border-solid border-coco-gold-500 bg-coco-gold-500/10'
             : 'border-dashed border-default bg-default',
           isUploading ? 'pointer-events-none' : '',
         ]"
@@ -197,7 +197,7 @@ const modalTitle = computed(() => {
           <UIcon
             :name="isOverDropZone ? 'i-lucide-upload-cloud' : 'i-lucide-image-plus'"
             class="text-5xl mb-3"
-            :class="isOverDropZone ? 'text-primary' : 'text-muted'"
+            :class="isOverDropZone ? 'text-coco-gold-700 dark:text-coco-gold-400' : 'text-muted'"
           />
           <p class="text-base font-medium mb-1">
             Arrastra tus imágenes aquí o hacé click para elegir
@@ -210,7 +210,7 @@ const modalTitle = computed(() => {
           v-if="isUploading"
           class="absolute inset-0 bg-elevated/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 rounded-lg"
         >
-          <UIcon name="i-lucide-loader-2" class="text-4xl text-primary animate-spin" />
+          <UIcon name="i-lucide-loader-2" class="text-4xl text-coco-gold-700 dark:text-coco-gold-400 animate-spin" />
           <p class="text-sm font-medium">Subiendo imágenes...</p>
           <UProgress :value="100" animation="carousel" class="w-48" />
         </div>
@@ -234,7 +234,7 @@ const modalTitle = computed(() => {
           v-for="image in variantImages"
           :key="image.id"
           class="group relative rounded-lg border border-default overflow-hidden transition-shadow hover:shadow-md"
-          :class="{ 'ring-2 ring-primary ring-offset-2': image.isMain }"
+          :class="{ 'ring-2 ring-coco-gold-500 ring-offset-2': image.isMain }"
         >
           <!-- Main badge -->
           <div v-if="image.isMain" class="absolute top-1.5 right-1.5 z-10">
@@ -269,10 +269,11 @@ const modalTitle = computed(() => {
               <UTooltip v-if="canUpdate && !image.isMain" text="Marcar como principal">
                 <UButton
                   icon="i-lucide-star"
-                  color="warning"
+                  color="primary"
                   variant="ghost"
                   size="2xs"
                   :loading="setMainMutation.isPending.value"
+                  class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
                   @click="handleSetMain(image)"
                 />
               </UTooltip>
