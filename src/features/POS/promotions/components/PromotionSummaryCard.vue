@@ -21,7 +21,7 @@ const typeConfig = computed(() => getTypeConfig(props.formState.type))
   <UCard class="sticky top-6">
     <template #header>
       <div class="flex items-center gap-2">
-        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15 text-primary">
+        <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-coco-gold-500/15 text-coco-gold-700">
           <UIcon :name="typeConfig.icon" class="h-4 w-4" />
         </div>
         <h3 class="font-semibold text-highlighted">Resumen</h3>
@@ -37,7 +37,7 @@ const typeConfig = computed(() => getTypeConfig(props.formState.type))
         >
           <UIcon
             name="i-lucide-check"
-            class="mt-0.5 h-4 w-4 shrink-0 text-primary-500"
+            class="mt-0.5 h-4 w-4 shrink-0 text-coco-gold-800"
           />
           <span>{{ bullet }}</span>
         </li>

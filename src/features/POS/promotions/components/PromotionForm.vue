@@ -212,7 +212,7 @@ const overlappingTargets = computed(() =>
             <div class="flex items-center gap-3">
               <div
                 data-testid="type-badge"
-                class="flex items-center gap-1.5 rounded-full bg-primary/15 px-3 py-1 text-sm font-medium text-primary"
+                class="flex items-center gap-1.5 rounded-full bg-coco-gold-500/15 px-3 py-1 text-sm font-medium text-coco-gold-700"
               >
                 <UIcon :name="typeConfig.icon" class="h-4 w-4" />
                 {{ typeConfig.label }}
@@ -270,8 +270,8 @@ const overlappingTargets = computed(() =>
                   class="flex cursor-pointer flex-col gap-1 rounded-xl border p-4 text-left transition-all duration-200"
                   :class="
                     formState.method === m
-                      ? 'border-primary bg-primary/15 ring-1 ring-primary/35'
-                      : 'border-default bg-elevated/20 hover:border-primary/40 hover:bg-elevated/60'
+                      ? 'border-coco-gold-500 bg-coco-gold-500/15 ring-1 ring-coco-gold-500/35'
+                      : 'border-default bg-elevated/20 hover:border-coco-gold-500/40 hover:bg-elevated/60'
                   "
                   @click="selectMethod(m)"
                 >
@@ -409,7 +409,7 @@ const overlappingTargets = computed(() =>
                   :key="preset.label"
                   type="button"
                   :data-testid="`preset-${preset.label.replace(/\s+/g, '').toLowerCase()}`"
-                  class="cursor-pointer rounded-lg border border-default px-3 py-1.5 text-sm text-highlighted transition-colors duration-200 hover:border-primary/40 hover:bg-primary/10"
+                  class="cursor-pointer rounded-lg border border-default px-3 py-1.5 text-sm text-highlighted transition-colors duration-200 hover:border-coco-gold-500/40 hover:bg-coco-gold-500/10"
                   @click="applyPreset(preset)"
                 >
                   {{ preset.label }}
@@ -548,7 +548,13 @@ const overlappingTargets = computed(() =>
           >
             Cancelar
           </UButton>
-          <UButton type="submit" :loading="loading" data-testid="submit-btn">
+          <UButton
+            type="submit"
+            :loading="loading"
+            color="primary"
+            class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+            data-testid="submit-btn"
+          >
             {{ mode === 'create' ? 'Crear Promoción' : 'Guardar Cambios' }}
           </UButton>
         </div>

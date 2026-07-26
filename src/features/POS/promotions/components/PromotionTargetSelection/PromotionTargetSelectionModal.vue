@@ -174,6 +174,7 @@ defineExpose({ onConfirm, onCancel, staged })
         </UButton>
         <UButton
           color="primary"
+          class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
           data-testid="confirm-add-selected"
           @click="onConfirm"
         >

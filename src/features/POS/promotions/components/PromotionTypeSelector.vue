@@ -38,12 +38,12 @@ defineExpose({ selectType })
           :key="card.type"
           :data-testid="`type-card-${card.type}`"
           type="button"
-          class="group flex cursor-pointer items-center gap-3 rounded-lg border border-default p-3 text-left transition-all duration-200 hover:border-primary/40 hover:bg-primary/10"
+          class="group flex cursor-pointer items-center gap-3 rounded-lg border border-default p-3 text-left transition-all duration-200 hover:border-coco-gold-500/40 hover:bg-coco-gold-500/10"
           @click="selectType(card.type)"
         >
           <!-- Icon with colored background -->
           <div
-            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary transition-colors duration-200 group-hover:bg-primary/25"
+            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-coco-gold-500/15 text-coco-gold-700 transition-colors duration-200 group-hover:bg-coco-gold-500/25"
           >
             <UIcon :name="card.icon" class="h-4 w-4" />
           </div>
@@ -57,7 +57,7 @@ defineExpose({ selectType })
           <!-- Chevron -->
           <UIcon
             name="i-lucide-chevron-right"
-            class="h-4 w-4 shrink-0 text-muted transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-primary"
+            class="h-4 w-4 shrink-0 text-muted transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-coco-gold-700"
           />
         </button>
       </div>
