@@ -113,7 +113,7 @@ watch(() => filtersCtl.serializedState.value, () => {
 
 <template>
   <div class="flex flex-col gap-6 px-10">
-    <UCard v-if="canReadSales" :ui="{ body: 'p-0 sm:p-0' }">
+    <UCard v-if="canReadSales" :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }">
       <template #header>
         <TableHeaderDescription
           title="Ventas"
@@ -174,7 +174,12 @@ watch(() => filtersCtl.serializedState.value, () => {
           </template>
 
           <template #actions>
-            <UButton color="primary" icon="i-lucide-plus" class="w-full sm:w-auto" @click="goToNewSale">
+            <UButton
+              color="primary"
+              icon="i-lucide-plus"
+              class="w-full sm:w-auto !bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+              @click="goToNewSale"
+            >
               Nueva Venta
             </UButton>
           </template>
@@ -188,6 +193,7 @@ watch(() => filtersCtl.serializedState.value, () => {
               variant="link"
               color="primary"
               :data-testid="`sale-link-${row.original.id}`"
+              class="text-coco-gold-800 dark:text-coco-gold-400 font-medium hover:underline"
               @click="goToSaleDetail(row.original.id)"
             >
               {{ extractFolioNumber(row.original.folio) }}
