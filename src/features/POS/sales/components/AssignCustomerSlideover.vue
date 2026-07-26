@@ -206,12 +206,12 @@ function formatAddress(address: CustomerAddress): string {
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2">
                   <p class="text-lg font-semibold truncate">{{ selectedCustomer.fullName }}</p>
-                  <UBadge color="primary" label="Seleccionado" size="xs" />
+                  <UBadge color="neutral" class="text-coco-gold-800" label="Seleccionado" size="xs" />
                 </div>
                 <button
                   type="button"
                   data-testid="change-customer-step"
-                  class="text-xs text-primary hover:underline"
+                  class="text-xs text-coco-gold-800 hover:underline"
                   @click="selectedCustomer = null"
                 >
                   Cambiar cliente
@@ -263,7 +263,7 @@ function formatAddress(address: CustomerAddress): string {
                   color="primary"
                   variant="soft"
                   label="+ Nuevo cliente"
-                  class="mt-3"
+                  class="mt-3 !bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
                   @click="isCreateCustomerOpen = true"
                 />
               </div>
@@ -362,7 +362,7 @@ function formatAddress(address: CustomerAddress): string {
                 data-testid="open-create-customer"
                 label="+ Nuevo cliente"
                 color="primary"
-                class="w-full"
+                class="w-full !bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
                 @click="isCreateCustomerOpen = true"
               />
             </div>

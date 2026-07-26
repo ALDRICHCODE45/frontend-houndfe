@@ -143,10 +143,10 @@ defineExpose({ openModal, removeItem, onTargetTypeChange, onModalConfirm })
         role="radio"
         :aria-checked="targetType === opt.value"
         :data-testid="`target-card-${opt.value}`"
-        class="flex min-w-0 flex-1 cursor-pointer flex-col items-center gap-1 rounded-md px-1.5 py-2 text-center transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+        class="flex min-w-0 flex-1 cursor-pointer flex-col items-center gap-1 rounded-md px-1.5 py-2 text-center transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-coco-gold-500/50"
         :class="
           targetType === opt.value
-            ? 'bg-primary/15 text-highlighted ring-1 ring-primary/35'
+            ? 'bg-coco-gold-500/15 text-highlighted ring-1 ring-coco-gold-500/35'
             : 'text-toned hover:bg-elevated/60 hover:text-highlighted'
         "
         @click="onTargetTypeChange(opt.value)"
@@ -166,6 +166,7 @@ defineExpose({ openModal, removeItem, onTargetTypeChange, onModalConfirm })
         size="lg"
         icon="i-lucide-plus"
         block
+        class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
         data-testid="open-target-modal"
         @click="openModal"
       >

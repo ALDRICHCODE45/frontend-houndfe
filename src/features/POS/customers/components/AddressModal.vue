@@ -223,6 +223,8 @@ function handleClose() {
         />
         <UButton
           :label="address ? 'Guardar cambios' : 'Añadir dirección'"
+          color="primary"
+          class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
           type="submit"
           form="address-modal-form"
           :loading="loading"
