@@ -584,8 +584,8 @@ function formatMarginAmount(list: PriceList): string {
         v-if="canUpdate"
         label="Agregar Lista de Precios"
         icon="i-lucide-plus"
-        color="primary"
         variant="link"
+        class="text-coco-gold-800 dark:text-coco-gold-400"
         size="sm"
         @click="openCreate"
       />
@@ -697,6 +697,8 @@ function formatMarginAmount(list: PriceList): string {
           :label="isEditing ? 'Guardar cambios' : 'Crear lista'"
           type="submit"
           form="price-list-form"
+          color="primary"
+          class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
           :loading="isSaving"
         />
       </div>
@@ -779,6 +781,8 @@ function formatMarginAmount(list: PriceList): string {
         <UButton
           type="button"
           label="Guardar"
+          color="primary"
+          class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
           :loading="updateMutation.isPending.value"
           @click="handleSaveTierModal"
         />

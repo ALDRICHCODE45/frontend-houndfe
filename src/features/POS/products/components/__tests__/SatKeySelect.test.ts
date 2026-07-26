@@ -223,4 +223,22 @@ describe('SatKeySelect', () => {
     const wrapper = mountSelect({ modelValue: '00000000' })
     expect(wrapper.find('[data-testid="sat-error"]').exists()).toBe(false)
   })
+
+  it('selected-item checkmark uses text-coco-gold-700 (SDD-7)', async () => {
+    searchState.items.value = [
+      { key: '12345678', description: 'Servicios' },
+      { key: '87654321', description: 'Comida' },
+    ]
+    lookupState.satKey.value = { key: '12345678', description: 'Servicios' }
+
+    const wrapper = mountSelect({ modelValue: '12345678' })
+    await openDropdown(wrapper)
+    await wrapper.find('input[type="text"]').setValue('Servi')
+    searchState.debouncedTerm.value = 'Servi'
+    vi.advanceTimersByTime(300)
+    await flushPromises()
+
+    // PRD-REQ-004 checkmark; 20px graphical object uses gold-700 (3:1).
+    expect(wrapper.html()).toContain('text-coco-gold-700')
+  })
 })

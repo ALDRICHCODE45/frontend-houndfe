@@ -63,4 +63,13 @@ describe('ProductCardGrid', () => {
     expect(wrapper.findAll('[data-testid="product-card"]')).toHaveLength(1)
     expect(wrapper.text()).toContain('Alpha')
   })
+
+  it('skeleton uses bg-coco-neutral-100 token (SDD-7)', () => {
+    const wrapper = mountComponent({ products: [], loading: true })
+
+    const skeletons = wrapper.findAll('.animate-pulse')
+    expect(skeletons.length).toBeGreaterThan(0)
+    // PRD-REQ-005 skeleton surface.
+    expect(skeletons[0]!.classes()).toContain('bg-coco-neutral-100')
+  })
 })

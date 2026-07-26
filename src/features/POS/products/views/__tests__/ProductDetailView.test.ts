@@ -223,4 +223,26 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
     expect(modal.props('canUpdate')).toBe(true)
     expect(modal.props('canDelete')).toBe(true)
   })
+
+  it('page bg + completion bar + main submit use coco tokens (SDD-7)', async () => {
+    const wrapper = mountWithUApp(ProductDetailView, {
+      global: getGlobalConfig(),
+      attachTo: document.body,
+    })
+
+    await wrapper.vm.$nextTick()
+    await new Promise((resolve) => setTimeout(resolve, 100))
+
+    // PRD-REQ-005 page bg — find the root container that carries the
+    // bg-coco-neutral-50 class (any of the wrappers will match).
+    const pageBg = wrapper.find('[class*="bg-coco-neutral-50"]')
+    expect(pageBg.exists()).toBe(true)
+
+    // PRD-REQ-004 completion-bar fill uses bg-coco-gold-500.
+    expect(wrapper.html()).toContain('bg-coco-gold-500')
+
+    // PRD-REQ-003 main submit uses the Cobrar class string.
+    expect(wrapper.html()).toContain('bg-(--brand-action)')
+    expect(wrapper.html()).toContain('!text-black')
+  })
 })

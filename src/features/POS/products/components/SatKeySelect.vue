@@ -157,7 +157,7 @@ watch(
         :id="id"
         type="button"
         :disabled="disabled"
-        class="relative w-full rounded-md border bg-default px-3 py-2 text-left text-sm shadow-xs outline-none transition-colors focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-75"
+        class="relative w-full rounded-md border bg-default px-3 py-2 text-left text-sm shadow-xs outline-none transition-colors focus:ring-2 focus:ring-coco-gold-500 disabled:cursor-not-allowed disabled:opacity-75"
         :class="error ? 'border-error' : 'border-accented'"
         @click="toggle"
         @keydown.down.prevent="open"
@@ -258,7 +258,7 @@ watch(
               <UIcon
                 v-if="option.value === modelValue"
                 name="i-lucide-check"
-                class="ml-auto size-5 shrink-0 text-primary"
+                class="ml-auto size-5 shrink-0 text-coco-gold-700 dark:text-coco-gold-400"
               />
             </button>
 

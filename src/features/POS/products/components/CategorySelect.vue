@@ -124,7 +124,7 @@ watch(search, () => {
     <button
       type="button"
       :disabled="disabled"
-      class="relative w-full rounded-md border border-accented bg-default shadow-xs outline-none transition-colors focus:ring-2 focus:ring-primary disabled:cursor-not-allowed disabled:opacity-75"
+      class="relative w-full rounded-md border border-accented bg-default shadow-xs outline-none transition-colors focus:ring-2 focus:ring-coco-gold-500 disabled:cursor-not-allowed disabled:opacity-75"
       :class="sizeClasses"
       @click="toggle"
       @keydown.down.prevent="toggle"
@@ -179,7 +179,7 @@ watch(search, () => {
             <button
               v-else-if="item.type === 'action'"
               type="button"
-              class="relative flex w-full items-center gap-1.5 rounded-md px-1.5 py-1.5 text-sm text-primary outline-none transition-colors before:absolute before:inset-px before:z-[-1] before:rounded-md hover:before:bg-elevated/50"
+              class="relative flex w-full items-center gap-1.5 rounded-md px-1.5 py-1.5 text-sm text-coco-gold-800 dark:text-coco-gold-400 outline-none transition-colors before:absolute before:inset-px before:z-[-1] before:rounded-md hover:before:bg-elevated/50"
               @click="selectItem(item)"
             >
               <UIcon v-if="item.icon" :name="item.icon" class="size-5 shrink-0" />
@@ -203,7 +203,7 @@ watch(search, () => {
               <UIcon
                 v-if="item.value === modelValue"
                 name="i-lucide-check"
-                class="ml-auto size-5 shrink-0 text-primary"
+                class="ml-auto size-5 shrink-0 text-coco-gold-700 dark:text-coco-gold-400"
               />
             </button>
           </template>

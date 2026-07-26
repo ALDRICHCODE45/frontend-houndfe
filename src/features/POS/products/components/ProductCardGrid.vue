@@ -28,7 +28,7 @@ const emit = defineEmits<{
     <div
       v-for="index in 8"
       :key="index"
-      class="h-56 animate-pulse rounded-xl border border-default bg-elevated"
+      class="h-56 animate-pulse rounded-xl border border-coco-neutral-200 dark:border-coco-neutral-800 bg-coco-neutral-100 dark:bg-coco-neutral-900"
     />
   </div>
 
