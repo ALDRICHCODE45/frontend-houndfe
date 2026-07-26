@@ -129,6 +129,7 @@ export const useSidebar = () => {
         icon: 'i-lucide-layout-dashboard',
         to: '/',
         exact: true,
+        class: 'text-coco-gold-500',
       },
       {
         label: 'Nueva Venta',
