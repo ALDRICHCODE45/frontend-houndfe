@@ -82,9 +82,11 @@ const showChangeRow = computed(() => props.changeDueCents > 0)
 
       <div v-if="canRegisterPayment" class="pt-2">
         <UButton
+          color="primary"
           block
           icon="i-lucide-credit-card"
           data-testid="register-debt-payment"
+          class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
           :disabled="isPaymentSubmitting"
           @click="emit('register-payment')"
         >
