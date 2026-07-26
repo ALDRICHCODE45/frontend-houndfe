@@ -784,4 +784,56 @@ describe('SaleItemRow', () => {
     // appear in the bold line total.
     expect(netLine.text()).not.toContain('$500.00')
   })
+
+  // ── sdd-4 sales-layout-redesign T4/T5 — mini-card spatial contract ─────
+  //
+  // The row was redesigned as a vertical mini-card: the top row holds
+  // thumb · info · actions, and the bottom row holds chips · qty ·
+  // line total at the SAME horizontal level — the user explicitly
+  // asked for the chips to be inline with the counter. This test
+  // pins that DOM-ordering contract so future refactors can't silently
+  // drift back to a separate "badges below" row.
+
+  it('renders SaleItemBadges inline with the qty controls in Row 2 (sdd-4 step 5)', () => {
+    const wrapper = mount(SaleItemRow, {
+      props: {
+        item: {
+          ...mockItem,
+          priceSource: 'price_list',
+          originalPriceCents: 7000,
+          discountType: 'percentage',
+          discountValue: 20,
+          discountAmountCents: 1000,
+          promotionId: 'promo-uuid-42',
+        },
+        saleId: 'sale-1',
+        isDraft: true,
+        onSubmitPriceOverride,
+        onApplyDiscount,
+        onRemoveDiscount,
+        onRemoveItem,
+      },
+      global: { stubs },
+    })
+
+    // Sanity: with both a price-source AND a discount, the badge group
+    // is forced to render multiple chips (otherwise hasAnyBadge may be false).
+    const badgeGroup = wrapper.find('[data-testid="sale-item-badge-group"]')
+    expect(badgeGroup.exists()).toBe(true)
+
+    // The line-net element lives in the rightmost column of Row 2.
+    // After the sdd-4 step-5 fix, SaleItemBadges renders BEFORE it in
+    // document order — i.e. to its LEFT in the same flex row, not below
+    // it on a subordinate line.
+    const lineNet = wrapper.find('[data-testid="sale-item-line-net"]').element
+    const pos = lineNet.compareDocumentPosition(badgeGroup.element)
+    // Node.DOCUMENT_POSITION_PRECEDING === 2 → badge group precedes line-net.
+    expect(pos & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
+
+    // The badge group must share the same flex parent as the qty
+    // controls (the Row 2 div) — i.e. they're SIBLINGS in the same row.
+    const lineNetRow = lineNet.parentElement?.parentElement
+    const badgeRow = badgeGroup.element.parentElement?.parentElement
+    expect(badgeRow).toBe(lineNetRow)
+  })
 })

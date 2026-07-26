@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import SalesTabsStrip from './SalesTabsStrip.vue'
 import SaleItemRow from './SaleItemRow.vue'
 import SaleTotalsFooter from './SaleTotalsFooter.vue'
 import PromocionesDisponiblesAccordion from './PromocionesDisponiblesAccordion.vue'
@@ -190,19 +189,10 @@ function handleConfirmPriceListChange() {
 
 <template>
   <div class="h-full flex flex-col min-w-0">
-    <!-- Tabs strip -->
-    <SalesTabsStrip
-      :drafts="drafts"
-      :active-tab-id="activeTabId"
-      @switch="emit('switch-tab', $event)"
-      @close="handleCloseTabRequest"
-      @create="emit('create-tab')"
-    />
-
-    <!-- Type toggle + actions row.
-         Desktop (md+): single row with UTabs, PriceListSelector, flex spacer, actions.
-         Mobile (<md): two stacked rows — UTabs+actions on top, PriceListSelector below. -->
-    <div class="flex flex-col md:flex-row md:items-center md:gap-3 md:px-4 md:py-3">
+    <!-- cart-header (sdd-4 sales-layout-redesign T3) — type toggle + trash
+         + ⋮ menu + price-list selector. NO bg-* classes: stays transparent
+         and inherits from UDashboardPanel body bg (SDD-3 doble-fondo rule). -->
+    <section data-testid="cart-header" class="shrink-0 flex flex-col md:flex-row md:items-center md:gap-3 md:px-4 md:py-3">
       <!-- Type toggle using UTabs with icons -->
       <div class="flex items-center gap-3 px-4 py-3 md:border-0 md:bg-transparent md:p-0 md:flex-1 md:min-w-0">
         <UTabs
@@ -258,17 +248,17 @@ function handleConfirmPriceListChange() {
           @request-confirm="handleRequestPriceListConfirm"
         />
       </div>
-    </div>
+    </section>
 
-
-
-    <!-- Items list (scrollable middle section) -->
-      <div class="flex-1 overflow-y-auto">
+    <!-- cart-body (sdd-4 sales-layout-redesign T3) — scrollable items list
+         (or empty state). NO bg-* classes: stays transparent and inherits
+         from UDashboardPanel body bg (SDD-3 doble-fondo rule). -->
+    <section data-testid="cart-body" class="flex-1 min-h-0 overflow-y-auto">
       <!-- Empty state -->
       <div
         v-if="!activeDraft || activeDraft.items.length === 0"
-          class="flex flex-col items-center justify-center h-full px-4"
-        >
+        class="flex flex-col items-center justify-center h-full px-4"
+      >
         <div class="rounded-2xl bg-primary/8 border border-primary/15 p-5 mb-4">
           <UIcon name="i-lucide-shopping-bag" class="h-10 w-10 text-primary/50" />
         </div>
@@ -298,82 +288,88 @@ function handleConfirmPriceListChange() {
           @remove-promo="(promotionId) => emit('remove-promo', promotionId)"
         />
       </div>
-    </div>
+    </section>
 
-    <!-- Customer slot (slim line above totals) -->
-    <div class="px-4 py-2 flex items-center justify-between gap-3 text-sm">
-      <div v-if="!activeDraft?.customer" class="flex items-center gap-2">
-        <USkeleton v-if="isCustomerMutationPending" class="h-4 w-32" data-testid="customer-slot-loading" />
-        <template v-else>
-          <span class="text-muted">Cliente:</span>
-          <span class="text-muted">Sin asignar</span>
-          <UButton
-            data-testid="assign-customer-trigger"
-            variant="link"
-            color="primary"
-            size="xs"
-            label="Asignar cliente"
-            @click="emit('open-customer-assignment')"
-          />
-        </template>
-      </div>
-      <div v-else class="flex items-center justify-between gap-3 w-full">
-        <div class="flex flex-col gap-0.5 min-w-0">
-          <USkeleton v-if="isCustomerMutationPending" class="h-4 w-48" data-testid="customer-slot-loading" />
+    <!-- cart-footer (sdd-4 sales-layout-redesign T3) — customer slot,
+         manual-promo accordion, totals footer. NO bg-* classes: stays
+         transparent and inherits from UDashboardPanel body bg (SDD-3
+         doble-fondo rule). -->
+    <section data-testid="cart-footer" class="shrink-0 flex flex-col">
+      <!-- Customer slot (slim line above totals) -->
+      <div class="px-4 py-2 flex items-center justify-between gap-3 text-sm">
+        <div v-if="!activeDraft?.customer" class="flex items-center gap-2">
+          <USkeleton v-if="isCustomerMutationPending" class="h-4 w-32" data-testid="customer-slot-loading" />
           <template v-else>
-            <p class="text-sm font-medium truncate">
-              <span class="text-muted font-normal">Cliente:</span> {{ customerFullName }}
-            </p>
-            <p v-if="customerAddressSummary" class="text-xs text-muted truncate">
-              Dirección: {{ customerAddressSummary }}
-            </p>
+            <span class="text-muted">Cliente:</span>
+            <span class="text-muted">Sin asignar</span>
+            <UButton
+              data-testid="assign-customer-trigger"
+              variant="link"
+              color="primary"
+              size="xs"
+              label="Asignar cliente"
+              @click="emit('open-customer-assignment')"
+            />
           </template>
         </div>
-        <div class="flex items-center gap-2 shrink-0">
-          <UButton
-            data-testid="change-customer-trigger"
-            variant="link"
-            color="primary"
-            size="xs"
-            label="Cambiar"
-            :disabled="isCustomerMutationPending"
-            @click="emit('open-customer-assignment')"
-          />
-          <UButton
-            data-testid="unassign-customer-trigger"
-            variant="link"
-            color="error"
-            size="xs"
-            label="Quitar"
-            :disabled="isCustomerMutationPending"
-            @click="emit('unassign-customer')"
-          />
+        <div v-else class="flex items-center justify-between gap-3 w-full">
+          <div class="flex flex-col gap-0.5 min-w-0">
+            <USkeleton v-if="isCustomerMutationPending" class="h-4 w-48" data-testid="customer-slot-loading" />
+            <template v-else>
+              <p class="text-sm font-medium truncate">
+                <span class="text-muted font-normal">Cliente:</span> {{ customerFullName }}
+              </p>
+              <p v-if="customerAddressSummary" class="text-xs text-muted truncate">
+                Dirección: {{ customerAddressSummary }}
+              </p>
+            </template>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <UButton
+              data-testid="change-customer-trigger"
+              variant="link"
+              color="primary"
+              size="xs"
+              label="Cambiar"
+              :disabled="isCustomerMutationPending"
+              @click="emit('open-customer-assignment')"
+            />
+            <UButton
+              data-testid="unassign-customer-trigger"
+              variant="link"
+              color="error"
+              size="xs"
+              label="Quitar"
+              :disabled="isCustomerMutationPending"
+              @click="emit('unassign-customer')"
+            />
+          </div>
         </div>
       </div>
-    </div>
 
-    <!-- Promociones disponibles (C.4) — manual-promo accordion mounted
-         above the totals footer. The outer v-if ensures the section hides
-         when there are no applicable promos; the inner component also
-         guards with v-if on its own. -->
-    <PromocionesDisponiblesAccordion
-      v-if="(applicablePromotions?.length ?? 0) > 0"
-      :promotions="applicablePromotions ?? []"
-      :loading="isLoadingPromotions ?? false"
-      :applied-ids="appliedManualPromotionIds ?? []"
-      @apply="(promotionId) => emit('apply-manual-promo', promotionId)"
-      @remove="(promotionId) => emit('remove-manual-promo', promotionId)"
-    />
+      <!-- Promociones disponibles (C.4) — manual-promo accordion mounted
+           above the totals footer. The outer v-if ensures the section hides
+           when there are no applicable promos; the inner component also
+           guards with v-if on its own. -->
+      <PromocionesDisponiblesAccordion
+        v-if="(applicablePromotions?.length ?? 0) > 0"
+        :promotions="applicablePromotions ?? []"
+        :loading="isLoadingPromotions ?? false"
+        :applied-ids="appliedManualPromotionIds ?? []"
+        @apply="(promotionId) => emit('apply-manual-promo', promotionId)"
+        @remove="(promotionId) => emit('remove-manual-promo', promotionId)"
+      />
 
-    <!-- Totals footer (sticky bottom) — B.2 binds the full sale so the
-         footer can read backend totals + appliedOrderPromotion directly. -->
-    <SaleTotalsFooter
-      v-if="activeDraft"
-      :sale="activeDraft"
-      :is-charge-pending="isMutating"
-      @charge-click="emit('charge-click')"
-      @remove-order-promo="(promotionId) => emit('remove-order-promo', promotionId)"
-    />
+      <!-- Totals footer (sticky bottom) — B.2 binds the full sale so the
+           footer can read backend totals + appliedOrderPromotion directly. -->
+      <SaleTotalsFooter
+        v-if="activeDraft"
+        :sale="activeDraft"
+        :is-charge-pending="isMutating"
+        @charge-click="emit('charge-click')"
+        @remove-order-promo="(promotionId) => emit('remove-order-promo', promotionId)"
+      />
+    </section>
 
     <!-- Global discount modal -->
     <GlobalDiscountModal
