@@ -32,14 +32,17 @@ defineExpose({ selectType })
 <template>
   <UModal
     v-model:open="open"
-    title="Elige el Tipo de Promoción"
     :ui="{
       width: 'max-w-xl',
       body: 'bg-coco-neutral-900',
-      header: 'bg-coco-neutral-900 border-b border-coco-neutral-700 text-coco-neutral-100',
+      header: 'bg-coco-neutral-900 border-b border-coco-neutral-700',
       footer: 'bg-coco-neutral-900 border-t border-coco-neutral-700',
     }"
   >
+    <template #title>
+      <span class="text-white text-base font-semibold">Elige el Tipo de Promoción</span>
+    </template>
+
     <template #body>
       <div class="flex flex-col gap-2">
         <button
