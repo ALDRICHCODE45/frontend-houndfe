@@ -34,7 +34,7 @@ const isPending = computed(() => props.isPending ?? false)
 // backend event type would force this Record to be extended.
 
 const EVENT_COLORS: Readonly<Record<SaleTimelineEventType, { text: string; bg: string }>> = {
-  [SALE_TIMELINE_EVENT_TYPE.SALE_REGISTERED]: { text: 'text-primary', bg: 'bg-primary/10' },
+  [SALE_TIMELINE_EVENT_TYPE.SALE_REGISTERED]: { text: 'text-coco-gold-700 dark:text-coco-gold-400', bg: 'bg-coco-gold-500/10' },
   [SALE_TIMELINE_EVENT_TYPE.PAYMENT_RECEIVED]: { text: 'text-success', bg: 'bg-success/10' },
   [SALE_TIMELINE_EVENT_TYPE.PRODUCTS_DELIVERED]: { text: 'text-info', bg: 'bg-info/10' },
   [SALE_TIMELINE_EVENT_TYPE.COMMENT]: { text: 'text-muted', bg: 'bg-muted/10' },
@@ -131,7 +131,7 @@ async function deleteCommentForEvent(event: SaleTimelineEvent) {
         <!-- Vertical connector line (except for last event) -->
         <div
           v-if="index < orderedTimeline.length - 1"
-          class="absolute left-5 top-10 bottom-0 w-px bg-gray-200"
+          class="absolute left-5 top-10 bottom-0 w-px bg-coco-neutral-200 dark:bg-coco-neutral-800"
         />
         
         <!-- Icon container -->
