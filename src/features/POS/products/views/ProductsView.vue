@@ -563,6 +563,8 @@ const productsErrorMessage = computed(() => {
             label="Guardar"
             type="submit"
             form="create-category-modal-form"
+            color="primary"
+            class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
             :loading="createCategoryMutation.isPending.value"
           />
         </div>
@@ -608,6 +610,8 @@ const productsErrorMessage = computed(() => {
             label="Guardar"
             type="submit"
             form="create-brand-modal-form"
+            color="primary"
+            class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
             :loading="createBrandMutation.isPending.value"
           />
         </div>
@@ -624,8 +628,8 @@ const productsErrorMessage = computed(() => {
       @confirm="handleConfirm"
     />
 
-    <section class="overflow-hidden rounded-2xl border border-default bg-default shadow-sm">
-      <div class="border-b border-default px-5 py-4">
+    <section class="overflow-hidden rounded-2xl border border-coco-neutral-200 dark:border-coco-neutral-800 bg-coco-neutral-50 dark:bg-coco-neutral-950 shadow-sm">
+      <div class="border-b border-coco-neutral-200 dark:border-coco-neutral-800 px-5 py-4">
         <TableHeaderDescription
           description="Gestión de inventario y catálogo de productos"
           title="Productos"
