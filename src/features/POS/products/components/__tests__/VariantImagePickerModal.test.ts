@@ -152,4 +152,23 @@ describe('VariantImagePickerModal', () => {
     
     wrapper.unmount()
   })
+
+  it('dropzone idle base is preserved (SDD-7 minimal-scope interpretation)', async () => {
+    const wrapper = createWrapper()
+    await wrapper.vm.$nextTick()
+
+    // The dropzone idle base (border-dashed + border-default + bg-default)
+    // is kept per design — only the drag-over branch migrates to coco-gold.
+    // This pin guards the minimal-scope interpretation so a refactor
+    // doesn't accidentally drift the idle state to a different brand color.
+    const localDropzone = wrapper.find('[data-dropzone]')
+    const dropzone = (localDropzone.exists()
+      ? localDropzone.element
+      : document.body.querySelector('[data-dropzone]')) as HTMLElement | null
+    expect(dropzone).not.toBeNull()
+    expect(dropzone!.className).toContain('border-dashed')
+    expect(dropzone!.className).toContain('border-default')
+
+    wrapper.unmount()
+  })
 })

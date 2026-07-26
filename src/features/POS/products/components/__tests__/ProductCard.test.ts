@@ -111,4 +111,18 @@ describe('ProductCard', () => {
     expect(wrapper.text()).toContain('Editar')
     expect(wrapper.text()).not.toContain('Eliminar')
   })
+
+  it('uses coco-neutral surface + coco-gold hover border (SDD-7)', () => {
+    const wrapper = mountComponent({ canRead: true })
+    const card = wrapper.get('article')
+
+    // PRD-REQ-005 surface; PRD-REQ-004 hover.
+    expect(card.classes()).toEqual(
+      expect.arrayContaining([
+        'bg-coco-neutral-50',
+        'dark:bg-coco-neutral-950',
+        'hover:border-coco-gold-500/30',
+      ]),
+    )
+  })
 })

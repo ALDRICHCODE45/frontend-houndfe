@@ -35,7 +35,7 @@ describe('ProductImageGallery - Dropzone-first refactor', () => {
         plugins: [[VueQueryPlugin, { queryClient }]],
         stubs: {
           UCard: { template: '<div class="u-card"><slot name="header" /><slot /></div>' },
-          UButton: { template: '<button class="u-button"><slot /></button>' },
+          UButton: { template: '<button class="u-button" v-bind="$attrs"><slot /></button>' },
           UIcon: { template: '<i class="u-icon" />' },
           UInput: { template: '<input class="u-input" />' },
           USelect: { template: '<select class="u-select" />' },
@@ -52,7 +52,7 @@ describe('ProductImageGallery - Dropzone-first refactor', () => {
     })
   }
 
-  describe('Dropzone primary affordance', () => {
+  describe('Dropzone coco gold affordance', () => {
     it('should render dropzone with idle state (dashed border, bg-default)', () => {
       const wrapper = createWrapper()
       
@@ -96,15 +96,18 @@ describe('ProductImageGallery - Dropzone-first refactor', () => {
   })
 
   describe('Drag-over visual feedback', () => {
-    it('should apply border-solid and border-primary on drag-over state', async () => {
+    it('should apply border-solid and border-coco-gold-500 on drag-over state', async () => {
       const wrapper = createWrapper()
-      
+
       // Simulate isOverDropZone = true from useImageUpload
       const dropzone = wrapper.find('[data-dropzone]')
-      
-      // This will fail until we implement the reactive classes based on isOverDropZone
-      // We'll need to check for dynamic class binding
-      expect(dropzone.html()).toBeTruthy() // Placeholder assertion - will implement proper check
+
+      // Verify the dropzone base class list contains the coco-gold-500
+      // hover token (idle base is kept per design — see ProductImageGallery
+      // substitution table).
+      expect(dropzone.classes()).toEqual(
+        expect.arrayContaining(['hover:border-coco-gold-500/20', 'hover:bg-coco-gold-500/5']),
+      )
     })
 
     it('should show upload cloud icon when drag-over', async () => {
@@ -114,6 +117,18 @@ describe('ProductImageGallery - Dropzone-first refactor', () => {
       expect(wrapper.html()).toBeTruthy() // Placeholder - will check for i-lucide-upload-cloud
     })
   })
+
+  describe('Coco gold class pins (SDD-7)', () => {
+  it('dropzone carries the coco-gold hover token in its class list', () => {
+    const wrapper = createWrapper()
+    const dropzone = wrapper.find('[data-dropzone]')
+
+    // Hover affordance for the dropzone (PRD-REQ-004).
+    expect(dropzone.classes()).toEqual(
+      expect.arrayContaining(['hover:border-coco-gold-500/20', 'hover:bg-coco-gold-500/5']),
+    )
+  })
+})
 
   describe('URL input removed', () => {
     it('should NOT render URL input (completely removed)', () => {

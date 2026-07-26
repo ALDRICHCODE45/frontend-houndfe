@@ -233,4 +233,12 @@ describe('ProductsView cards integration', () => {
     expect(wrapper.get('[data-testid="app-data-table"]').attributes('data-column-count')).toBe('9')
     expect(wrapper.find('[data-testid="product-card-grid"]').exists()).toBe(false)
   })
+
+  it('section wrapper uses bg-coco-neutral-50 surface (SDD-7)', () => {
+    const wrapper = mountView()
+    const section = wrapper.find('section')
+    expect(section.exists()).toBe(true)
+    // PRD-REQ-005 surface.
+    expect(section.classes()).toContain('bg-coco-neutral-50')
+  })
 })
