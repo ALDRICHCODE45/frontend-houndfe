@@ -70,7 +70,7 @@ const debtStatus = computed(() => {
           </div>
           <div v-if="(changeDueCents ?? 0) > 0" class="flex justify-between gap-4">
             <dt class="text-muted">Cambio</dt>
-            <dd class="font-semibold tabular-nums text-primary">{{ formatCentsMXN(changeDueCents ?? 0) }}</dd>
+            <dd class="font-semibold tabular-nums text-coco-gold-700 dark:text-coco-gold-400">{{ formatCentsMXN(changeDueCents ?? 0) }}</dd>
           </div>
           <div v-if="debtCents > 0" class="flex items-center justify-between gap-4">
             <dt class="text-muted">Deuda generada: {{ formatCentsMXN(debtCents) }}</dt>
@@ -86,7 +86,7 @@ const debtStatus = computed(() => {
 
     <template #footer>
       <div class="flex w-full justify-end">
-        <UButton color="primary" @click="emit('update:open', false)">Cerrar</UButton>
+        <UButton color="primary" class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm" @click="emit('update:open', false)">Cerrar</UButton>
       </div>
     </template>
   </UModal>

@@ -212,4 +212,12 @@ describe('DebtPaymentModal', () => {
     expect(wrapper.text()).toContain('$700.00')
     expect(wrapper.text()).toContain('Deuda pendiente')
   })
+
+  it('confirm-debt-payment button uses the Cobrar precedent coco-gold class [PMT-REQ-004]', () => {
+    const wrapper = mountModal()
+
+    const confirmButton = wrapper.get('[data-testid="confirm-debt-payment"]')
+    expect(confirmButton.classes()).toContain('!bg-(--brand-action)')
+    expect(confirmButton.classes()).toContain('!text-black')
+  })
 })

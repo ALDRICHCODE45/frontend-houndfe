@@ -16,8 +16,8 @@ const stubs = {
   UIcon: { template: '<span />' },
   UBadge: { props: ['color', 'variant'], template: '<span :data-color="color"><slot /></span>' },
   Badge: { props: ['color', 'variant'], template: '<span :data-color="color"><slot /></span>' },
-  UButton: { template: '<button><slot /></button>' },
-  Button: { template: '<button><slot /></button>' },
+  UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
+  Button: { template: '<button v-bind="$attrs"><slot /></button>' },
 }
 
 function mountModal(overrides: Record<string, unknown> = {}) {
@@ -58,5 +58,21 @@ describe('PaymentSuccessModal', () => {
     expect(wrapper.text()).toContain('$100.00')
     expect(wrapper.text()).toContain('Crédito')
     expect(wrapper.find('[data-color="error"]').exists()).toBe(true)
+  })
+
+  it('Cambio dd renders coco-gold text when changeDueCents > 0 [PMT-REQ-003]', () => {
+    const wrapper = mountModal({ changeDueCents: 500 })
+
+    const cambioRow = wrapper.find('dd.text-coco-gold-700')
+    expect(cambioRow.exists()).toBe(true)
+    expect(cambioRow.text()).toContain('$5.00')
+  })
+
+  it('Cerrar button uses the Cobrar precedent coco-gold class [PMT-REQ-004]', () => {
+    const wrapper = mountModal()
+
+    const closeButton = wrapper.get('button')
+    expect(closeButton.classes()).toContain('!bg-(--brand-action)')
+    expect(closeButton.classes()).toContain('!text-black')
   })
 })

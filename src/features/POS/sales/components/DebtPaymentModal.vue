@@ -190,7 +190,7 @@ watch(externalErrorCode, (code) => {
           </div>
 
           <!-- Total banner -->
-          <div class="rounded-2xl border border-primary/20 bg-primary/5 px-5 py-4 text-center">
+          <div class="rounded-2xl border border-coco-gold-500/20 bg-coco-gold-500/5 px-5 py-4 text-center">
             <p class="text-xs font-semibold uppercase tracking-[0.16em] text-muted">Deuda pendiente</p>
             <p class="mt-1 text-4xl font-black tabular-nums text-highlighted">{{ formatCentsMXN(debtCents) }}</p>
           </div>
@@ -210,8 +210,8 @@ watch(externalErrorCode, (code) => {
                 class="relative rounded-xl border px-3 py-4 text-left transition disabled:cursor-not-allowed disabled:opacity-50"
                 :class="
                   getMethodCount(option.value) > 0
-                    ? 'border-primary/40 bg-primary/5'
-                    : 'border-default bg-elevated hover:border-primary/40 hover:bg-primary/5'
+                    ? 'border-coco-gold-500/40 bg-coco-gold-500/5'
+                    : 'border-default bg-elevated hover:border-coco-gold-500/40 hover:bg-coco-gold-500/5'
                 "
                 :disabled="(getMethodCount(option.value) === 0 && !canAddEntry) || isSubmitting"
                 @click="handleMethodToggle(option.value)"
@@ -225,7 +225,7 @@ watch(externalErrorCode, (code) => {
                 >
                   {{ getMethodCount(option.value) }}
                 </UBadge>
-                <UIcon :name="option.icon" class="mb-2 size-6 text-primary" />
+                <UIcon :name="option.icon" class="mb-2 size-6 text-coco-gold-700 dark:text-coco-gold-400" />
                 <p class="text-sm font-semibold text-highlighted">{{ option.label }}</p>
               </button>
             </div>
@@ -287,7 +287,7 @@ watch(externalErrorCode, (code) => {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
                   }"
-                  color="primary"
+                  color="warning"
                   variant="outline"
                   class="w-full"
                   @update:model-value="handleAmountChange(index, $event ?? 0)"
@@ -339,6 +339,7 @@ watch(externalErrorCode, (code) => {
               color="primary"
               :loading="isSubmitting"
               :disabled="!canSubmit"
+              class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
               @click="handleSubmit"
             >
               Confirmar cobro
