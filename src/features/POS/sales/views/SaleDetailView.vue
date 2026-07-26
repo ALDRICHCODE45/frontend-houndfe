@@ -275,7 +275,7 @@ watch(
     <template v-else>
       <!-- Sticky compact header — identity + actions persist on scroll -->
       <header
-        class="sticky top-0 z-30 border-b border-default bg-white/90 backdrop-blur-sm dark:bg-zinc-950/90"
+        class="sticky top-0 z-30 border-b border-default bg-coco-neutral-50/90 backdrop-blur-sm dark:bg-coco-neutral-950/90"
         data-testid="sale-detail-header"
       >
         <div class="flex items-center justify-between gap-4 px-6 py-3">
@@ -356,9 +356,11 @@ watch(
 
             <UButton
               v-if="canRegisterPayment"
+              color="primary"
               icon="i-lucide-credit-card"
               size="sm"
               data-testid="register-payment-header"
+              class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
               :disabled="isSubmitting"
               @click="debtModalOpen = true"
             >
@@ -412,14 +414,14 @@ watch(
           <template #datos>
             <section class="space-y-3 pt-4" data-testid="sidebar-data-reflow">
               <div class="grid gap-3 sm:grid-cols-2">
-                <div class="rounded-lg shadow-sm bg-white dark:bg-zinc-900 border border-default p-3" data-testid="reflow-cajero">
+                <div class="rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 border border-default p-3" data-testid="reflow-cajero">
                   <p class="text-xs font-semibold uppercase tracking-wider text-muted">Cajero</p>
                   <p class="font-medium">{{ sale.cashier.name }}</p>
                 </div>
                  <div
                    role="button"
                    tabindex="0"
-                   class="cursor-pointer rounded-lg shadow-sm bg-white dark:bg-zinc-900 border border-default p-3 transition-colors hover:bg-elevated/50"
+                   class="cursor-pointer rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 border border-default p-3 transition-colors hover:bg-elevated/50"
                    data-testid="reflow-vendedor"
                    @click="sellerSlideoverOpen = true"
                    @keydown.enter.prevent="sellerSlideoverOpen = true"
@@ -430,15 +432,15 @@ watch(
                     {{ sale.seller?.name ?? 'Sin asignar — click para asignar' }}
                   </p>
                 </div>
-                <div class="rounded-lg shadow-sm bg-white dark:bg-zinc-900 border border-default p-3" data-testid="reflow-cliente">
+                <div class="rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 border border-default p-3" data-testid="reflow-cliente">
                   <p class="text-xs font-semibold uppercase tracking-wider text-muted">Cliente</p>
                   <p class="font-medium">{{ sale.customer?.name ?? 'Público en General' }}</p>
                 </div>
-                <div class="rounded-lg shadow-sm bg-white dark:bg-zinc-900 border border-default p-3" data-testid="reflow-price-list">
+                <div class="rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 border border-default p-3" data-testid="reflow-price-list">
                   <p class="text-xs font-semibold uppercase tracking-wider text-muted">Lista de precios</p>
                   <p class="font-medium">{{ priceListName }}</p>
                 </div>
-                <div class="rounded-lg shadow-sm bg-white dark:bg-zinc-900 border border-default p-3 sm:col-span-2" data-testid="reflow-payment-methods">
+                <div class="rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 border border-default p-3 sm:col-span-2" data-testid="reflow-payment-methods">
                   <p class="text-xs font-semibold uppercase tracking-wider text-muted">Métodos de pago</p>
                   <p v-if="uniquePaymentMethods.length === 0" class="font-medium text-muted">—</p>
                   <p v-else class="font-medium">{{ uniquePaymentMethods.join(' · ') }}</p>
