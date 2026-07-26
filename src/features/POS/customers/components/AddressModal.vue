@@ -113,6 +113,7 @@ function handleClose() {
     :open="open"
     :title="address ? 'Editar dirección' : 'Añadir dirección'"
     :content="{ class: 'sm:max-w-lg' }"
+    :ui="{ body: 'bg-coco-neutral-900' }"
     @update:open="emit('update:open', $event)"
   >
     <template #body>
@@ -126,7 +127,7 @@ function handleClose() {
         <UFormField label="Calle" name="street" required>
           <UInput
             v-model="formState.street"
-            class="w-full"
+            class="w-full bg-coco-neutral-800 border-coco-neutral-700"
             size="lg"
             placeholder="Ej: Av. Insurgentes Sur"
             :disabled="loading"
@@ -137,7 +138,7 @@ function handleClose() {
           <UFormField label="Número Exterior" name="exteriorNumber">
             <UInput
               v-model="formState.exteriorNumber"
-              class="w-full"
+              class="w-full bg-coco-neutral-800 border-coco-neutral-700"
               size="lg"
               placeholder="Ej: 123"
               :disabled="loading"
@@ -147,7 +148,7 @@ function handleClose() {
           <UFormField label="Número Interior" name="interiorNumber">
             <UInput
               v-model="formState.interiorNumber"
-              class="w-full"
+              class="w-full bg-coco-neutral-800 border-coco-neutral-700"
               size="lg"
               placeholder="Ej: 4B"
               :disabled="loading"
@@ -159,7 +160,7 @@ function handleClose() {
           <UFormField label="Código Postal" name="zipCode">
             <UInput
               v-model="formState.zipCode"
-              class="w-full"
+              class="w-full bg-coco-neutral-800 border-coco-neutral-700"
               size="lg"
               placeholder="Ej: 03100"
               :disabled="loading"
@@ -169,7 +170,7 @@ function handleClose() {
           <UFormField label="Colonia" name="neighborhood">
             <UInput
               v-model="formState.neighborhood"
-              class="w-full"
+              class="w-full bg-coco-neutral-800 border-coco-neutral-700"
               size="lg"
               placeholder="Ej: Del Valle"
               :disabled="loading"
@@ -180,7 +181,7 @@ function handleClose() {
         <UFormField label="Municipio / Delegación" name="municipality">
           <UInput
             v-model="formState.municipality"
-            class="w-full"
+            class="w-full bg-coco-neutral-800 border-coco-neutral-700"
             size="lg"
             placeholder="Ej: Benito Juárez"
             :disabled="loading"
@@ -191,7 +192,7 @@ function handleClose() {
           <UFormField label="Ciudad" name="city">
             <UInput
               v-model="formState.city"
-              class="w-full"
+              class="w-full bg-coco-neutral-800 border-coco-neutral-700"
               size="lg"
               placeholder="Ej: Ciudad de México"
               :disabled="loading"
@@ -203,7 +204,7 @@ function handleClose() {
               v-model="formState.state"
               :items="MEXICO_STATE_OPTIONS"
               placeholder="Seleccionar"
-              class="w-full"
+              class="w-full bg-coco-neutral-800 border-coco-neutral-700"
               size="lg"
               :disabled="loading"
             />
@@ -223,6 +224,8 @@ function handleClose() {
         />
         <UButton
           :label="address ? 'Guardar cambios' : 'Añadir dirección'"
+          color="primary"
+          class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
           type="submit"
           form="address-modal-form"
           :loading="loading"

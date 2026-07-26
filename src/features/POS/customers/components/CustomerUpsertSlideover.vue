@@ -399,7 +399,7 @@ function handleCancel() {
               <div>
                 <button
                   type="button"
-                  class="flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+                  class="flex items-center gap-1 text-sm font-medium text-coco-gold-800 hover:underline"
                   @click="state.showBillingAddress = !state.showBillingAddress"
                 >
                   <UIcon
@@ -530,6 +530,8 @@ function handleCancel() {
           :loading="loading"
           type="submit"
           :form="formId"
+          color="primary"
+          class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
         />
       </div>
     </template>
