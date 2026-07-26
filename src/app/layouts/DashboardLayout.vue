@@ -48,7 +48,7 @@ watch(isSearchOpen, async (open) => {
       :max-size="30"
       :ui="{
         root: 'transition-[width] duration-200 ease-out',
-        body: 'py-2',
+        body: 'py-2 bg-coco-neutral-50 dark:bg-coco-neutral-950',
       }"
     >
       <!-- Header: Tenant selector -->
@@ -92,7 +92,10 @@ watch(isSearchOpen, async (open) => {
 
       <!-- Body: Navigation + Search button -->
       <template #default="{ collapsed }">
-        <UDashboardSearchButton :collapsed="collapsed" />
+        <UDashboardSearchButton
+          :collapsed="collapsed"
+          :ui="{ base: 'hover:bg-coco-gold-500/10' }"
+        />
 
         <UDivider class="my-2" />
 
@@ -103,18 +106,30 @@ watch(isSearchOpen, async (open) => {
           :ui="{
             link: 'p-1.5 overflow-hidden',
             linkLeadingIcon: 'size-4',
+            linkLabel: 'text-dimmed group-data-[active=true]:text-coco-gold-500',
+            linkActive: 'bg-coco-gold-500/10',
+            linkLeadingIconActive: 'text-coco-gold-500',
           }"
         />
       </template>
 
       <!-- Footer: User dropdown + Collapse button -->
       <template #footer="{ collapsed }">
-        <UDashboardSidebarCollapse v-if="!collapsed" variant="ghost" class="mr-auto" />
+        <UDashboardSidebarCollapse
+          v-if="!collapsed"
+          variant="ghost"
+          :ui="{ leadingIcon: 'text-coco-gold-500' }"
+          class="mr-auto"
+        />
 
         <UDropdownMenu
           :items="userItems"
           :content="{ align: collapsed ? 'start' : 'end', collisionPadding: 12 }"
-          :ui="{ itemLeadingIcon: 'size-4', content: 'min-w-48' }"
+          :ui="{
+            itemLeadingIcon:
+              'size-4 group-data-[checked=true]:text-coco-gold-500',
+            content: 'min-w-48',
+          }"
         >
           <UButton
             :avatar="user.avatar"
@@ -134,9 +149,16 @@ watch(isSearchOpen, async (open) => {
     <!-- Main Panel -->
     <UDashboardPanel id="main-panel">
       <template #header>
-        <UDashboardNavbar title="Coco" icon="i-lucide-layout-dashboard">
+        <UDashboardNavbar
+          title="Coco"
+          icon="i-lucide-layout-dashboard"
+          :ui="{ title: 'text-coco-gold-500', leading: 'text-coco-gold-500' }"
+        >
           <template #leading>
-            <UDashboardSidebarCollapse variant="ghost" />
+            <UDashboardSidebarCollapse
+              variant="ghost"
+              :ui="{ leadingIcon: 'text-coco-gold-500' }"
+            />
           </template>
 
           <template #right>
@@ -168,6 +190,11 @@ watch(isSearchOpen, async (open) => {
       v-model:open="isSearchOpen"
       :groups="searchGroups"
       placeholder="Buscar páginas, acciones..."
+      :ui="{
+        input: 'focus-visible:ring-coco-gold-500',
+        groupLabel: 'text-coco-gold-700 dark:text-coco-gold-400',
+        itemActive: 'bg-coco-gold-500/10',
+      }"
     />
   </UDashboardGroup>
 </template>
