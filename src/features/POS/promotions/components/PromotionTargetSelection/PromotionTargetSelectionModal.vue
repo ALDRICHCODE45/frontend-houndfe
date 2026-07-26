@@ -141,7 +141,12 @@ defineExpose({ onConfirm, onCancel, staged })
     :open="open"
     :title="`Seleccionar ${type === PROMOTION_TARGET_TYPE.CATEGORIES ? 'categorías' : type === PROMOTION_TARGET_TYPE.BRANDS ? 'marcas' : type === PROMOTION_TARGET_TYPE.PRODUCTS ? 'productos' : 'variantes'}`"
     description="Modal de selección de targets para promociones"
-    :ui="{ width: 'max-w-2xl' }"
+    :ui="{
+      width: 'max-w-2xl',
+      body: 'bg-coco-neutral-900',
+      header: 'bg-coco-neutral-900 border-b border-coco-neutral-700 text-coco-neutral-100',
+      footer: 'bg-coco-neutral-900 border-t border-coco-neutral-700',
+    }"
     @update:open="(v: boolean) => emit('update:open', v)"
   >
     <template #body>
