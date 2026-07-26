@@ -24,10 +24,10 @@ function statusColor(status: ConfirmedSaleRow['status']) {
 
 <template>
   <RouterLink :to="`/pos/ventas/${sale.id}`" class="block focus:outline-none">
-    <UCard class="rounded-xl border border-default bg-default" :ui="{ body: 'p-4' }">
+    <UCard class="rounded-xl border border-default" :ui="{ body: 'p-4 bg-coco-neutral-50 dark:bg-coco-neutral-950' }">
           <article class="space-y-3">
             <div class="flex items-center justify-between">
-              <p class="text-sm font-semibold text-primary">#{{ extractFolioNumber(sale.folio) }}</p>
+              <p class="text-sm font-semibold text-coco-gold-800 dark:text-coco-gold-400">#{{ extractFolioNumber(sale.folio) }}</p>
               <StatusDotBadge :tone="statusColor(sale.status)" :label="sale.status" />
             </div>
 

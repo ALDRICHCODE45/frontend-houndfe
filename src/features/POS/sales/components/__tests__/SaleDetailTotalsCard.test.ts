@@ -220,4 +220,25 @@ describe('SaleDetailTotalsCard', () => {
     await wrapper.get('[data-testid="register-debt-payment"]').trigger('click')
     expect(wrapper.emitted('register-payment')).toBeTruthy()
   })
+
+  // HST-REQ-003: register-debt-payment UButton follows the Cobrar precedent
+  // (gold action background, !text-black override, rounded-xl, font-semibold,
+  // shadow-sm) so both the totals card and the header CTA open the same modal
+  // with identical visual prominence.
+  it('pins Cobrar precedent on the Registrar Pago button (HST-REQ-003)', () => {
+    const wrapper = mount(SaleDetailTotalsCard, {
+      props: {
+        subtotalCents: 100000,
+        discountCents: 0,
+        totalCents: 100000,
+        paidCents: 50000,
+        debtCents: 50000,
+        changeDueCents: 0,
+        canRegisterPayment: true,
+      },
+    })
+
+    const button = wrapper.get('[data-testid="register-debt-payment"]')
+    expect(button.classes()).toEqual(expect.arrayContaining(['!bg-(--brand-action)', '!text-black', 'rounded-xl', 'font-semibold', 'shadow-sm']))
+  })
 })
