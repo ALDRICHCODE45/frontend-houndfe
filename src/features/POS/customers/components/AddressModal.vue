@@ -111,20 +111,10 @@ function handleClose() {
 <template>
   <UModal
     :open="open"
+    :title="address ? 'Editar dirección' : 'Añadir dirección'"
     :content="{ class: 'sm:max-w-lg' }"
-    :ui="{
-      body: 'bg-coco-neutral-900',
-      header: 'bg-coco-neutral-900 border-b border-coco-neutral-700',
-      footer: 'bg-coco-neutral-900 border-t border-coco-neutral-700',
-    }"
     @update:open="emit('update:open', $event)"
   >
-    <template #title>
-      <span class="text-white text-base font-semibold">
-        {{ address ? 'Editar dirección' : 'Añadir dirección' }}
-      </span>
-    </template>
-
     <template #body>
       <UForm
         id="address-modal-form"

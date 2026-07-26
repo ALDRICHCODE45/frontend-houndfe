@@ -139,28 +139,11 @@ defineExpose({ onConfirm, onCancel, staged })
 <template>
   <UModal
     :open="open"
+    :title="`Seleccionar ${type === PROMOTION_TARGET_TYPE.CATEGORIES ? 'categorías' : type === PROMOTION_TARGET_TYPE.BRANDS ? 'marcas' : type === PROMOTION_TARGET_TYPE.PRODUCTS ? 'productos' : 'variantes'}`"
     description="Modal de selección de targets para promociones"
-    :ui="{
-      width: 'max-w-2xl',
-      body: 'bg-coco-neutral-900',
-      header: 'bg-coco-neutral-900 border-b border-coco-neutral-700',
-      footer: 'bg-coco-neutral-900 border-t border-coco-neutral-700',
-    }"
+    :ui="{ width: 'max-w-2xl' }"
     @update:open="(v: boolean) => emit('update:open', v)"
   >
-    <template #title>
-      <span class="text-white text-base font-semibold">
-        Seleccionar
-        {{ type === PROMOTION_TARGET_TYPE.CATEGORIES
-          ? 'categorías'
-          : type === PROMOTION_TARGET_TYPE.BRANDS
-          ? 'marcas'
-          : type === PROMOTION_TARGET_TYPE.PRODUCTS
-          ? 'productos'
-          : 'variantes' }}
-      </span>
-    </template>
-
     <template #body>
       <div class="flex flex-col gap-4">
         <!-- Flat panel: CATEGORIES | BRANDS | PRODUCTS (REQ-1, REQ-3, REQ-5) -->
