@@ -168,7 +168,7 @@ describe('SaleDetailView', () => {
         stubs: {
           AppBadge: { template: '<span><slot /></span>' },
           UCard: { template: '<div><slot /></div>' },
-          UButton: { template: '<button><slot /></button>' },
+          UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
           UDropdownMenu: { template: '<div data-testid="dropdown"><slot /></div>' },
 
           SaleDetailItemsList: { template: '<div data-testid="items" />' },
@@ -191,6 +191,47 @@ describe('SaleDetailView', () => {
     expect(wrapper.find('[data-testid="sale-detail-header"]').exists()).toBe(true)
     // Sidebar testid is gone with the deleted sidebar component.
     expect(wrapper.find('[data-testid="sidebar"]').exists()).toBe(false)
+
+    // HST-REQ-002: header sticky surface is coco-neutral-50/950 (translucency
+    // kept for the sticky blur).
+    const header = wrapper.get('[data-testid="sale-detail-header"]')
+    expect(header.classes()).toEqual(expect.arrayContaining(['bg-coco-neutral-50/90', 'dark:bg-coco-neutral-950/90']))
+    expect(header.classes()).not.toContain('bg-white/90')
+    expect(header.classes()).not.toContain('dark:bg-zinc-950/90')
+
+    // HST-REQ-002: every Datos-tab reflow card carries the coco-neutral surface.
+    for (const testid of ['reflow-cajero', 'reflow-vendedor', 'reflow-cliente', 'reflow-price-list', 'reflow-payment-methods']) {
+      const card = wrapper.get(`[data-testid="${testid}"]`)
+      expect(card.classes()).toEqual(expect.arrayContaining(['bg-coco-neutral-50', 'dark:bg-coco-neutral-950']))
+      expect(card.classes()).not.toContain('bg-white')
+      expect(card.classes()).not.toContain('dark:bg-zinc-900')
+    }
+  })
+
+  // HST-REQ-003: the header "Registrar pago" UButton (when canRegisterPayment
+  // is true) follows the Cobrar precedent — the same class string as the
+  // totals-card "Registrar Pago" so both open DebtPaymentModal with identical
+  // visual prominence.
+  it('pins Cobrar precedent on the register-payment-header button (HST-REQ-003)', () => {
+    mockSaleDetail.value = { ...defaultSale, paymentStatus: 'PARTIAL', debtCents: 50000, paidCents: 77000 }
+
+    const wrapper = mountWithUApp(SaleDetailView, {
+      global: {
+        stubs: {
+          UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
+          UCard: { template: '<div><slot /></div>' },
+          SaleDetailItemsList: { template: '<div data-testid="items" />' },
+          SaleDetailTotalsCard: { template: '<div data-testid="totals" />' },
+          SaleDetailTimeline: { template: '<div data-testid="timeline" />' },
+          SaleCommentInput: { template: '<div data-testid="comment-input" />' },
+        },
+      },
+    })
+
+    const button = wrapper.get('[data-testid="register-payment-header"]')
+    expect(button.classes()).toEqual(
+      expect.arrayContaining(['!bg-(--brand-action)', '!text-black', 'rounded-xl', 'font-semibold', 'shadow-sm'])
+    )
   })
 
   // sales-detail-redesign Slice 4: sidebar data (Cajero, Vendedor, Cliente,
@@ -202,7 +243,7 @@ describe('SaleDetailView', () => {
         stubs: {
           AppBadge: { template: '<span><slot /></span>' },
           UCard: { template: '<div><slot /></div>' },
-          UButton: { template: '<button><slot /></button>' },
+          UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
           UDropdownMenu: { template: '<div data-testid="dropdown"><slot /></div>' },
 
           SaleDetailItemsList: { template: '<div data-testid="items" />' },
@@ -261,7 +302,7 @@ describe('SaleDetailView', () => {
           stubs: {
             AppBadge: { template: '<span><slot /></span>' },
             UCard: { template: '<div><slot /></div>' },
-            UButton: { template: '<button><slot /></button>' },
+            UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
             SaleDetailItemsList: { template: '<div data-testid="items" />' },
             SaleDetailTotalsCard: totalsStubWithDebt(),
             SaleDetailTimeline: { template: '<div data-testid="timeline" />' },
@@ -318,7 +359,7 @@ describe('SaleDetailView', () => {
         stubs: {
           AppBadge: { template: '<span data-testid="badge"><slot /></span>' },
           UCard: { template: '<div><slot /></div>' },
-          UButton: { template: '<button><slot /></button>' },
+          UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
           UDropdownMenu: { template: '<div><slot /></div>' },
 
           SaleDetailItemsList: { template: '<div />' },
@@ -342,7 +383,7 @@ describe('SaleDetailView', () => {
         stubs: {
           AppBadge: { template: '<span data-testid="badge"><slot /></span>' },
           UCard: { template: '<div><slot /></div>' },
-          UButton: { template: '<button><slot /></button>' },
+          UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
           UDropdownMenu: { template: '<div><slot /></div>' },
 
           SaleDetailItemsList: { template: '<div />' },
@@ -365,7 +406,7 @@ describe('SaleDetailView', () => {
         stubs: {
           AppBadge: { template: '<span data-testid="badge"><slot /></span>' },
           UCard: { template: '<div><slot /></div>' },
-          UButton: { template: '<button><slot /></button>' },
+          UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
           UDropdownMenu: { template: '<div><slot /></div>' },
 
           SaleDetailItemsList: { template: '<div />' },
@@ -388,7 +429,7 @@ describe('SaleDetailView', () => {
         stubs: {
           AppBadge: { template: '<span data-testid="badge"><slot /></span>' },
           UCard: { template: '<div><slot /></div>' },
-          UButton: { template: '<button><slot /></button>' },
+          UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
           UDropdownMenu: { template: '<div><slot /></div>' },
 
           SaleDetailItemsList: { template: '<div />' },

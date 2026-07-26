@@ -27,7 +27,7 @@ describe('SaleDetailTimeline', () => {
     })
 
     expect(wrapper.get('[data-testid="timeline-event-icon-SALE_REGISTERED"]').classes()).toEqual(
-      expect.arrayContaining(['text-primary', 'bg-primary/10'])
+      expect.arrayContaining(['text-coco-gold-700', 'dark:text-coco-gold-400', 'bg-coco-gold-500/10'])
     )
     expect(wrapper.get('[data-testid="timeline-event-icon-PAYMENT_RECEIVED"]').classes()).toEqual(
       expect.arrayContaining(['text-success', 'bg-success/10'])
@@ -38,6 +38,19 @@ describe('SaleDetailTimeline', () => {
     expect(wrapper.get('[data-testid="timeline-event-icon-COMMENT"]').classes()).toEqual(
       expect.arrayContaining(['text-muted', 'bg-muted/10'])
     )
+  })
+
+  it('pins coco-neutral-200 on the timeline connector line (HST-REQ-004)', () => {
+    const wrapper = mountWithUApp(SaleDetailTimeline, {
+      props: { timeline: mockTimeline },
+    })
+
+    const connectors = wrapper.findAll('div.w-px')
+    expect(connectors.length).toBeGreaterThan(0)
+    for (const connector of connectors) {
+      expect(connector.classes()).toEqual(expect.arrayContaining(['bg-coco-neutral-200']))
+      expect(connector.classes()).not.toContain('bg-gray-200')
+    }
   })
 
   it('renders events in reverse order and payment labels from each event payload', () => {

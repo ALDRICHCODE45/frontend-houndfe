@@ -64,6 +64,23 @@ describe('SaleCard', () => {
     expect(link.props('to')).toBe('/pos/ventas/sale-1')
   })
 
+  // HST-REQ-002/004: folio text is coco-gold-800 (AA contrast at 14px) and
+  // the wrapping UCard body is coco-neutral-50/950 surface.
+  it('pins coco-gold-800 on the folio and coco-neutral surface on the UCard body', () => {
+    const wrapper = mountCard()
+    const folio = wrapper.findAll('p').find(p => p.text().startsWith('#'))
+    expect(folio).toBeDefined()
+    expect(folio!.classes()).toEqual(expect.arrayContaining(['text-coco-gold-800', 'dark:text-coco-gold-400']))
+    expect(folio!.classes()).not.toContain('text-primary')
+
+    // HST-REQ-002: the rendered UCard body carries the coco-neutral surface
+    // (the design's `ui.body` override is what determines the visible card
+    // surface, not the root slot's theme default).
+    const bodySlot = wrapper.find('[data-slot="body"]')
+    expect(bodySlot.exists()).toBe(true)
+    expect(bodySlot.classes()).toEqual(expect.arrayContaining(['bg-coco-neutral-50', 'dark:bg-coco-neutral-950']))
+  })
+
   // status-badge-unification: sale.status + deliveryStatus migrate to StatusDotBadge.
   // The StatusDotBadge stub exposes :data-tone; raw UBadge does not, so the
   // data-tone assertion is the RED→GREEN gate.

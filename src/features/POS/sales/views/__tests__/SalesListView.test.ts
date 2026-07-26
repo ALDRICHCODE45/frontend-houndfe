@@ -356,4 +356,22 @@ describe('SalesListView', () => {
     expect(wrapper.text()).toContain('No Entregados')
     expect(wrapper.find('[data-tone="error"]').exists()).toBe(true)
   })
+
+  // HST-REQ-002/003/004: Nueva Venta adopts the Cobrar precedent
+  // (gold action background) and the folio link uses coco-gold-800 for AA
+  // contrast at 14px inline text.
+  it('pins Cobrar precedent on Nueva Venta and coco-gold on the folio link', () => {
+    mockState.data.value = [{ ...initialRow }]
+    const wrapper = mount(SalesListView, { global: { stubs } })
+
+    const nuevaVenta = wrapper.findAll('button').find(b => b.text().includes('Nueva Venta'))
+    expect(nuevaVenta).toBeDefined()
+    expect(nuevaVenta!.classes()).toEqual(
+      expect.arrayContaining(['!bg-(--brand-action)', '!text-black', 'rounded-xl', 'font-semibold', 'shadow-sm'])
+    )
+
+    const folioLink = wrapper.get('[data-testid="sale-link-sale-1"]')
+    expect(folioLink.classes()).toEqual(expect.arrayContaining(['text-coco-gold-800', 'dark:text-coco-gold-400']))
+    expect(folioLink.attributes('data-color')).not.toBe('primary')
+  })
 })
