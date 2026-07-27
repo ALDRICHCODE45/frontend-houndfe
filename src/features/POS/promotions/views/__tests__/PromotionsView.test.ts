@@ -122,7 +122,7 @@ const STUBS = {
     props: ['columns', 'data', 'loading', 'empty', 'bulkActions', 'enableRowSelection'],
     emits: ['add', 'refresh'],
     template: `
-      <div data-testid="app-data-table" :data-bulk-count="String((bulkActions?.length) ?? 0)">
+      <div data-testid="app-data-table" :data-bulk-count="String((bulkActions?.length) ?? 0)" :data-enable-row-selection="String(enableRowSelection)">
         <slot name="empty-state" />
         <button data-testid="add-btn" @click="$emit('add')">Add</button>
         <div
@@ -871,7 +871,17 @@ describe('PromotionsView — batch end', () => {
     expect(vm.bulkActions.some((item) => item.id === 'batch-end')).toBe(false)
   })
 
-  it('BE-REQ-003: renders warning Finalizar (3) enabled for 3 selected rows', async () => {
+  it('BE-REQ-009: shows row selection for update-only users', () => {
+    userCanMock.mockImplementation((action: string, subject: string) =>
+      action === 'update' && subject === 'Promotion',
+    )
+
+    const wrapper = mountView()
+
+    expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-enable-row-selection')).toBe('true')
+  })
+
+  it('BE-REQ-003: renders warning Finalizar (3) enabled with 3 selected rows', async () => {
     const promotions = [
       makePromotion('p1', 'Promo A'),
       makePromotion('p2', 'Promo B'),

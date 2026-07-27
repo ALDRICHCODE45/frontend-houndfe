@@ -13,4 +13,6 @@
 - `pnpm build` — PASS (type-check + Vite build; chunk-size warning only)
 
 ## Phase 3 — Selection Gate + Constants (WU-3)
-- [ ] 3.1–3.3 — Add update-only selection visibility coverage, widen gate, and verify `BATCH_END_CAP`.
+- [x] 3.1–3.3 — Added update-only selection visibility coverage, widened gate, and added `BATCH_END_CAP`.
+- [x] 3.4 — Full verification completed: `pnpm test:unit` and `pnpm build`.
+- [x] 3.5 — Reviewed diff against SDD-10; changes are limited to documented batch-end deltas plus the shared BulkAction warning/disabled type extension.

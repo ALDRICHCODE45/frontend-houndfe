@@ -570,7 +570,7 @@ defineExpose({
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
           :bulk-actions="bulkActions"
-          :enable-row-selection="canBatchDelete"
+          :enable-row-selection="canBatchDelete || canBatchEnd"
           :show-add-button="canCreate"
           search-placeholder="Buscar promociones..."
           add-button-text="Nueva Promoción"

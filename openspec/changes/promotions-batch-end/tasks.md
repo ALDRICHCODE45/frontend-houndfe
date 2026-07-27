@@ -51,8 +51,8 @@ Chain strategy: size-exception
 
 ## Phase 3: Selection Gate + Constants (WU-3, Commit 3)
 
-- [ ] 3.1 RED: test checkboxes visible when `canBatchDelete === false && canBatchEnd === true` (BE-REQ-009)
-- [ ] 3.2 GREEN: widen `:enable-row-selection` from `canBatchDelete` to `canBatchDelete || canBatchEnd`
+- [x] 3.1 RED: test checkboxes visible when `canBatchDelete === false && canBatchEnd === true` (BE-REQ-009)
+- [x] 3.2 GREEN: widen `:enable-row-selection` from `canBatchDelete` to `canBatchDelete || canBatchEnd`
 - [x] 3.3 GREEN: add `const BATCH_END_CAP = 100` next to existing `BATCH_DELETE_CAP` in `PromotionsView.vue` (line 104); reuse in WU-2's `disabled` check
 - [ ] 3.4 VERIFY: run `pnpm test:unit` — all new + existing pass; run `pnpm build` — no type errors
 - [ ] 3.5 VERIFY: `git diff` against SDD-10 shows only documented deltas (no refactor leakage)
