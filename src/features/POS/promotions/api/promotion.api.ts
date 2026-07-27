@@ -107,4 +107,28 @@ export const promotionApi = {
   async remove(promotionId: string): Promise<void> {
     await http.delete(`/promotions/${promotionId}`)
   },
+
+  /**
+   * Bulk-delete promotions. The backend is all-or-nothing atomic.
+   *
+   * Client-side pre-flight guards (kept in lockstep with the server):
+   *  - rejects empty arrays (UI never lets the bulk button fire with 0 rows)
+   *  - rejects >100 ids (matches the server cap; the UI also disables the
+   *    button before the user can click into an invalid state)
+   *  - deduplicates ids before posting (server would 400 on dupes anyway)
+   */
+  async batchDelete(ids: string[]): Promise<{ deleted: number }> {
+    const uniqueIds = Array.from(new Set(ids))
+    if (uniqueIds.length === 0) {
+      throw new Error('batchDelete requires at least one id')
+    }
+    if (uniqueIds.length > 100) {
+      throw new Error('batchDelete is capped at 100 ids per request')
+    }
+
+    const { data } = await http.post<{ deleted: number }>('/promotions/batch-delete', {
+      ids: uniqueIds,
+    })
+    return data
+  },
 }

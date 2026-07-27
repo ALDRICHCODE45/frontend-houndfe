@@ -45,7 +45,7 @@ export type AuthPhase =
   | 'selecting-tenant'
   | 'authenticated'
 
-export type AppAction = 'create' | 'read' | 'update' | 'delete' | 'manage'
+export type AppAction = 'create' | 'read' | 'update' | 'delete' | 'batch_delete' | 'manage'
 export type AppSubject =
   | 'Product'
   | 'Order'

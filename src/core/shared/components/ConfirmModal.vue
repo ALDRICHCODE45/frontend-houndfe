@@ -1,4 +1,10 @@
 <script setup lang="ts">
+export interface ConfirmModalItem {
+  id: string
+  title: string
+  status?: string
+}
+
 const props = withDefaults(
   defineProps<{
     open: boolean
@@ -8,6 +14,13 @@ const props = withDefaults(
     cancelLabel?: string
     confirmColor?: 'primary' | 'error' | 'warning' | 'success' | 'neutral'
     loading?: boolean
+    /**
+     * Optional list of items to confirm against (e.g. promotions to delete).
+     * When provided AND non-empty, the modal renders a scrollable ordered
+     * list of titles INSTEAD of the description paragraph. The description
+     * stays REQUIRED so the 26 existing callers stay green with ZERO changes.
+     */
+    items?: ConfirmModalItem[]
   }>(),
   {
     title: 'Confirmar acción',
@@ -15,6 +28,7 @@ const props = withDefaults(
     cancelLabel: 'Cancelar',
     confirmColor: 'primary',
     loading: false,
+    items: undefined,
   },
 )
 
@@ -43,7 +57,30 @@ function handleCancel() {
     @update:open="emit('update:open', $event)"
   >
     <template #body>
-      <p class="text-sm text-muted">{{ props.description }}</p>
+      <ul
+        v-if="props.items && props.items.length > 0"
+        class="max-h-60 overflow-y-auto"
+        data-testid="confirm-items-list"
+      >
+        <li
+          v-for="item in props.items"
+          :key="item.id"
+          class="flex items-center justify-between gap-2 py-1 text-sm"
+          data-testid="confirm-item-row"
+        >
+          <span data-testid="confirm-item-title">{{ item.title }}</span>
+          <span
+            v-if="item.status"
+            class="text-xs text-muted"
+            data-testid="confirm-item-status"
+          >
+            {{ item.status }}
+          </span>
+        </li>
+      </ul>
+      <p v-else class="text-sm text-muted" data-testid="confirm-description">
+        {{ props.description }}
+      </p>
     </template>
 
     <template #footer>

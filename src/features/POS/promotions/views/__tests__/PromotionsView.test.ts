@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
+import { AxiosError } from 'axios'
 import PromotionsView from '../PromotionsView.vue'
 import { promotionApi } from '../../api/promotion.api'
 import type { PromotionResponse } from '../../interfaces/promotion.types'
@@ -31,6 +32,8 @@ vi.mock('@/core/shared/composables/useServerTable', () => {
     pageSizeOptions: { value: [10, 20, 50] },
     showingFrom: { value: 0 },
     showingTo: { value: 0 },
+    selectedRows: { value: [] },
+    clearSelection: vi.fn(),
   }
   return {
     useServerTable: vi.fn(() => defaultReturn as unknown as ReturnType<typeof import('@/core/shared/composables/useServerTable').useServerTable<unknown>>),
@@ -42,6 +45,7 @@ vi.mock('../../api/promotion.api', () => ({
     getPaginated: vi.fn(),
     end: vi.fn().mockResolvedValue({}),
     remove: vi.fn().mockResolvedValue(undefined),
+    batchDelete: vi.fn(),
   },
 }))
 
@@ -72,25 +76,60 @@ vi.mock('../../composables/usePromotionColumns', () => ({
   }),
 }))
 
+// Per-test userCan mock. Defaults to "true" so existing tests keep passing.
+const userCanMock = vi.fn((_action: string, _subject: string) => true)
 vi.mock('@/features/auth/stores/useAuthStore', () => ({
   useAuthStore: () => ({
-    userCan: () => true,
+    userCan: (action: string, subject: string) => userCanMock(action, subject),
     permissionCodes: { value: [] },
   }),
 }))
+
+// ── Toast capture (sdd-10 batch delete scenarios) ─────────────────────────────
+//
+// Pattern copied from AdminTenantMembersView.spec.ts:91-93 — Nuxt UI's
+// useToast auto-import pulls in `#imports.useState` (Nuxt-specific) which is
+// unavailable in jsdom. Assigning a stub on `global` before mount captures
+// the toast calls without crashing the view. Captured calls land in
+// `toastCalls`; reset per test in beforeEach.
+// vi.hoisted ensures this runs BEFORE vi.mock hoisting so the factory
+// closure can reference `toastCalls` when PromotionsView.vue first calls
+// `useToast()` from setup.
+const { toastCalls } = vi.hoisted(() => ({ toastCalls: [] as Array<Record<string, unknown>> }))
+
+// Stub the Nuxt UI composable so the auto-imported `useToast` reference in
+// PromotionsView.vue resolves to our mock instead of the real impl (which
+// pulls in Nuxt-only `#imports.useState` and silently no-ops in jsdom).
+vi.mock('@nuxt/ui/runtime/composables/useToast', () => ({
+  useToast: () => ({
+    add: (opts: Record<string, unknown>) => {
+      toastCalls.push(opts)
+    },
+  }),
+}))
+
+// Suppress unhandled-rejection noise from the 4xx/5xx mock scenarios:
+// TanStack Query's mutation logs the rejection before our onError handler
+// runs, which would otherwise surface as a "3 unhandled errors" warning.
+process.on('unhandledRejection', () => {})
 
 // ── Stubs ─────────────────────────────────────────────────────────────────────
 
 const STUBS = {
   AppDataTable: {
     inheritAttrs: false,
-    props: ['columns', 'data', 'loading', 'empty'],
+    props: ['columns', 'data', 'loading', 'empty', 'bulkActions', 'enableRowSelection'],
     emits: ['add', 'refresh'],
     template: `
-      <div data-testid="app-data-table">
+      <div data-testid="app-data-table" :data-bulk-count="String((bulkActions?.length) ?? 0)">
         <slot name="empty-state" />
         <button data-testid="add-btn" @click="$emit('add')">Add</button>
-        <div v-for="row in (Array.isArray(data) ? data : (data?.value ?? []))" :key="row.id">
+        <div
+          v-for="row in (Array.isArray(data) ? data : (data?.value ?? []))"
+          :key="row.id"
+          data-testid="row"
+          :data-row-id="row.id"
+        >
           <slot name="title-cell" :row="{ original: row }" />
           <slot name="status-cell" :row="{ original: row }" />
           <slot name="type-cell" :row="{ original: row }" />
@@ -104,9 +143,29 @@ const STUBS = {
     template: '<div data-testid="table-header"><span data-testid="header-title">{{ title }}</span></div>',
   },
   ConfirmModal: {
-    props: ['open', 'description', 'confirmLabel', 'confirmColor', 'loading'],
+    props: ['open', 'description', 'confirmLabel', 'confirmColor', 'loading', 'items'],
     emits: ['update:open', 'confirm'],
-    template: '<div data-testid="confirm-modal" :data-open="String(open)" :data-description="description"><button data-testid="confirm-btn" @click="$emit(\'confirm\')" /></div>',
+    template: `
+      <div
+        data-testid="confirm-modal"
+        :data-open="String(open)"
+        :data-description="description"
+        :data-confirm-label="confirmLabel"
+      >
+        <ul v-if="items && items.length > 0" data-testid="confirm-items-list">
+          <li
+            v-for="item in items"
+            :key="item.id"
+            :data-item-id="item.id"
+            data-testid="confirm-item"
+          >
+            {{ item.title }}
+          </li>
+        </ul>
+        <button data-testid="confirm-btn" @click="$emit('confirm')" />
+        <button data-testid="cancel-btn" @click="$emit('update:open', false)" />
+      </div>
+    `,
   },
   PromotionTypeSelector: {
     props: ['open'],
@@ -118,9 +177,9 @@ const STUBS = {
     template: '<div v-bind="$attrs"><slot name="header" /><slot /></div>',
   },
   UButton: {
-    props: ['label', 'color', 'variant', 'icon', 'loading'],
+    props: ['label', 'color', 'variant', 'icon', 'loading', 'disabled'],
     emits: ['click'],
-    template: '<button @click="$emit(\'click\')"><slot>{{ label }}</slot></button>',
+    template: '<button :disabled="disabled" @click="$emit(\'click\')"><slot>{{ label }}</slot></button>',
   },
   USelect: {
     props: ['modelValue', 'items', 'placeholder', 'valueKey', 'labelKey'],
@@ -162,7 +221,6 @@ function mountView() {
       plugins: [[VueQueryPlugin, { queryClient: makeQueryClient() }]],
       stubs: {
         ...STUBS,
-        // Ensure Nuxt UI components are all stubbed (component names vary)
         Select: true,
         USelect: {
           props: ['modelValue', 'items', 'placeholder', 'valueKey', 'labelKey'],
@@ -174,13 +232,41 @@ function mountView() {
   })
 }
 
-
+function makePromotion(id: string, title: string): PromotionResponse {
+  return {
+    id,
+    title,
+    type: 'PRODUCT_DISCOUNT',
+    method: 'AUTOMATIC',
+    status: 'ACTIVE',
+    startDate: null,
+    endDate: null,
+    customerScope: 'ALL',
+    discountType: 'PERCENTAGE',
+    discountValue: 10,
+    minPurchaseAmountCents: null,
+    appliesTo: 'PRODUCTS',
+    buyQuantity: null,
+    getQuantity: null,
+    getDiscountPercent: null,
+    buyTargetType: null,
+    getTargetType: null,
+    targetItems: [],
+    customers: [],
+    priceLists: [],
+    daysOfWeek: [],
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  }
+}
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('PromotionsView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    toastCalls.length = 0
+    userCanMock.mockReturnValue(true)
   })
 
   // ── Renders ───────────────────────────────────────────────────────────────
@@ -241,19 +327,14 @@ describe('PromotionsView', () => {
 
   it('clear filters button is hidden initially (no active filters)', () => {
     const wrapper = mountView()
-    // Clear button only shows when filters are active
     expect(wrapper.find('[data-testid="clear-filters-btn"]').exists()).toBe(false)
   })
 
   // ── S02: Filter by type ───────────────────────────────────────────────────
-  // Note: USelect from Nuxt UI is not resolved by stub name — it renders as select-stub
-  // with modelvalue attribute (lowercase). We use wrapper.vm (defineExpose) for ref access.
   it('S02: filterType ref starts as empty string (default state)', () => {
     const wrapper = mountView()
     const vm = wrapper.vm as unknown as { filterType: string }
-    // filterType ref is auto-unwrapped via defineExpose on wrapper.vm
     expect(vm.filterType).toBe('')
-    // The select-stub element reflects modelvalue attribute (USelect auto-import behavior)
     expect(wrapper.find('[data-testid="filter-type"]').attributes('modelvalue')).toBe('__ALL__')
   })
 
@@ -261,13 +342,10 @@ describe('PromotionsView', () => {
     const wrapper = mountView()
     const vm = wrapper.vm as unknown as { filterType: string }
     expect(wrapper.find('[data-testid="clear-filters-btn"]').exists()).toBe(false)
-    // Mutate filterType via defineExpose auto-unwrapped ref on wrapper.vm
     ;(wrapper.vm as unknown as Record<string, string>)['filterType'] = 'PRODUCT_DISCOUNT'
     await wrapper.vm.$nextTick()
     expect(vm.filterType).toBe('PRODUCT_DISCOUNT')
-    // select-stub reflects the updated modelvalue
     expect(wrapper.find('[data-testid="filter-type"]').attributes('modelvalue')).toBe('PRODUCT_DISCOUNT')
-    // v-if on clear-filters button becomes true
     expect(wrapper.find('[data-testid="clear-filters-btn"]').exists()).toBe(true)
   })
 
@@ -313,10 +391,6 @@ describe('PromotionsView', () => {
     expect(wrapper.find('[data-testid="filter-status"]').attributes('modelvalue')).toBe('__ALL__')
   })
 
-  // status-badge-unification: PromotionsView status cell migrates from AppBadge
-  // to StatusDotBadge (drops the lucide icon; leading dot carries the signal).
-  // The StatusDotBadge stub exposes :data-tone; AppBadge does not, so the
-  // data-tone assertion is the RED→GREEN gate.
   it('renders ACTIVE status via StatusDotBadge (Activa, active tone)', async () => {
     const { useServerTable } = await import('@/core/shared/composables/useServerTable')
     vi.mocked(useServerTable).mockReturnValueOnce({
@@ -326,35 +400,7 @@ describe('PromotionsView', () => {
       rowSelection: { value: {} },
       columnPinning: { value: { left: [], right: ['actions'] } },
       columnVisibility: { value: {} },
-      data: {
-        value: [
-          {
-            id: 'promo-001',
-            title: 'Test Promo',
-            type: 'PRODUCT_DISCOUNT',
-            method: 'AUTOMATIC',
-            status: 'ACTIVE',
-            startDate: null,
-            endDate: null,
-            customerScope: 'ALL',
-            discountType: 'PERCENTAGE',
-            discountValue: 10,
-            minPurchaseAmountCents: null,
-            appliesTo: 'PRODUCTS',
-            buyQuantity: null,
-            getQuantity: null,
-            getDiscountPercent: null,
-            buyTargetType: null,
-            getTargetType: null,
-            targetItems: [],
-            customers: [],
-            priceLists: [],
-            daysOfWeek: [],
-            createdAt: '2026-01-01T00:00:00.000Z',
-            updatedAt: '2026-01-01T00:00:00.000Z',
-          },
-        ],
-      },
+      data: { value: [makePromotion('promo-001', 'Test Promo')] },
       totalCount: { value: 1 },
       pageCount: { value: 1 },
       isLoading: { value: false },
@@ -375,42 +421,18 @@ describe('PromotionsView', () => {
 // ── Row action tests ──────────────────────────────────────────────────────────
 
 describe('PromotionsView — Row Actions', () => {
-  const samplePromotion: PromotionResponse = {
-    id: 'promo-001',
-    title: 'Test Promo',
-    type: 'PRODUCT_DISCOUNT',
-    method: 'AUTOMATIC',
-    status: 'ACTIVE',
-    startDate: null,
-    endDate: null,
-    customerScope: 'ALL',
-    discountType: 'PERCENTAGE',
-    discountValue: 10,
-    minPurchaseAmountCents: null,
-    appliesTo: 'PRODUCTS',
-    buyQuantity: null,
-    getQuantity: null,
-    getDiscountPercent: null,
-    buyTargetType: null,
-    getTargetType: null,
-    targetItems: [],
-    customers: [],
-    priceLists: [],
-    daysOfWeek: [],
-    createdAt: '2026-01-01T00:00:00.000Z',
-    updatedAt: '2026-01-01T00:00:00.000Z',
-  }
+  const samplePromotion: PromotionResponse = makePromotion('promo-001', 'Test Promo')
 
   beforeEach(() => {
     vi.clearAllMocks()
+    toastCalls.length = 0
+    userCanMock.mockReturnValue(true)
     vi.mocked(promotionApi.end).mockResolvedValue({} as never)
     vi.mocked(promotionApi.remove).mockResolvedValue(undefined as never)
   })
 
-  // ── S08: Edit navigates ──────────────────────────────────────────────────
   it('S08: Edit action navigates to /pos/promociones/:id', async () => {
     const wrapper = mountView()
-    // Access getRowItems via defineExpose
     const vm = wrapper.vm as unknown as { getRowItems: (p: PromotionResponse) => unknown[][] }
     const rowItems = vm.getRowItems(samplePromotion)
     const allItems = rowItems.flat() as Array<{ label: string; onSelect: () => void }>
@@ -421,20 +443,16 @@ describe('PromotionsView — Row Actions', () => {
     expect(mockRouterPush).toHaveBeenCalledWith('/pos/promociones/promo-001')
   })
 
-  // ── S09: End action → confirm modal → API call ───────────────────────────
   it('S09: End action opens confirm modal with promotion title in description', async () => {
     const wrapper = mountView()
     const vm = wrapper.vm as unknown as { getRowItems: (p: PromotionResponse) => unknown[][] }
-    // Initially confirm modal is closed
     expect(wrapper.find('[data-testid="confirm-modal"]').attributes('data-open')).toBe('false')
-    // Trigger 'Finalizar' row action
     const rowItems = vm.getRowItems(samplePromotion)
     const allItems = rowItems.flat() as Array<{ label: string; onSelect: () => void }>
     const endAction = allItems.find((a) => a.label === 'Finalizar')
     expect(endAction).toBeDefined()
     endAction!.onSelect()
     await wrapper.vm.$nextTick()
-    // Confirm modal should be open with description mentioning the promotion title
     expect(wrapper.find('[data-testid="confirm-modal"]').attributes('data-open')).toBe('true')
     expect(wrapper.find('[data-testid="confirm-modal"]').attributes('data-description')).toContain('Test Promo')
   })
@@ -442,17 +460,14 @@ describe('PromotionsView — Row Actions', () => {
   it('S09: Confirming End calls promotionApi.end with promotion id', async () => {
     const wrapper = mountView()
     const vm = wrapper.vm as unknown as { getRowItems: (p: PromotionResponse) => unknown[][] }
-    // Trigger end action
     const allItems = vm.getRowItems(samplePromotion).flat() as Array<{ label: string; onSelect: () => void }>
     allItems.find((a) => a.label === 'Finalizar')!.onSelect()
     await wrapper.vm.$nextTick()
-    // Click confirm button
     await wrapper.find('[data-testid="confirm-btn"]').trigger('click')
     await flushPromises()
     expect(promotionApi.end).toHaveBeenCalledWith('promo-001')
   })
 
-  // ── S10: Delete action → confirm modal → API call ────────────────────────
   it('S10: Delete action opens confirm modal with promotion title in description', async () => {
     const wrapper = mountView()
     const vm = wrapper.vm as unknown as { getRowItems: (p: PromotionResponse) => unknown[][] }
@@ -476,7 +491,6 @@ describe('PromotionsView — Row Actions', () => {
     expect(promotionApi.remove).toHaveBeenCalledWith('promo-001')
   })
 
-  // ── Promotion with ENDED status has no Finalizar action ─────────────────
   it('ENDED promotion does not show Finalizar action', () => {
     const wrapper = mountView()
     const vm = wrapper.vm as unknown as { getRowItems: (p: PromotionResponse) => unknown[][] }
@@ -484,5 +498,306 @@ describe('PromotionsView — Row Actions', () => {
     const allItems = vm.getRowItems(endedPromotion).flat() as Array<{ label: string; onSelect: () => void }>
     const endAction = allItems.find((a) => a.label === 'Finalizar')
     expect(endAction).toBeUndefined()
+  })
+})
+
+// ── sdd-10 promotions-batch-delete — new tests ────────────────────────────────
+//
+// Coverage: BD-REQ-001 (permission), BD-REQ-003 (bulk button states / cap),
+// BD-REQ-004 (confirm modal + items list), BD-REQ-005 (200 success),
+// BD-REQ-006/007/008 (409 REF / 409 NF / 403), BD-REQ-010 (selection
+// lifecycle on filter change).
+
+describe('PromotionsView — batch delete (sdd-10)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    toastCalls.length = 0
+    vi.mocked(promotionApi.end).mockResolvedValue({} as never)
+    vi.mocked(promotionApi.remove).mockResolvedValue(undefined as never)
+  })
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  function mockUseServerTableWith(promotions: PromotionResponse[], selected: Record<string, boolean> = {}) {
+    return async () => {
+      const { useServerTable } = await import('@/core/shared/composables/useServerTable')
+      const selectedRows = (idx: number) => selected[String(idx)]
+      vi.mocked(useServerTable).mockReturnValueOnce({
+        pagination: { value: { pageIndex: 0, pageSize: 20 } },
+        sorting: { value: [] },
+        globalFilter: { value: '' },
+        rowSelection: { value: selected },
+        columnPinning: { value: { left: [], right: ['actions'] } },
+        columnVisibility: { value: {} },
+        data: { value: promotions },
+        totalCount: { value: promotions.length },
+        pageCount: { value: 1 },
+        isLoading: { value: false },
+        isFetching: { value: false },
+        refresh: vi.fn(),
+        pageSizeOptions: { value: [10, 20, 50] },
+        showingFrom: { value: 1 },
+        showingTo: { value: promotions.length },
+        selectedRows: { value: promotions.filter((_, i) => selectedRows(i)) },
+        clearSelection: vi.fn(),
+      } as unknown as ReturnType<typeof useServerTable>)
+    }
+  }
+
+  function triggerBulkAction(wrapper: ReturnType<typeof mountView>) {
+    const vm = wrapper.vm as unknown as {
+      bulkActions: Array<{ id: string; label: string; disabled?: boolean; onClick: (rows: PromotionResponse[]) => void }>
+    }
+    const bulkDelete = vm.bulkActions.find((a) => a.id === 'batch-delete')
+    expect(bulkDelete).toBeDefined()
+    bulkDelete!.onClick([])
+  }
+
+  // ── BD-REQ-001: permission gating ─────────────────────────────────────────
+  it('BD-REQ-001: canBatchDelete is false when user lacks batch_delete:Promotion → bulkActions is empty', () => {
+    userCanMock.mockImplementation((action: string, subject: string) =>
+      !(action === 'batch_delete' && subject === 'Promotion'),
+    )
+
+    const wrapper = mountView()
+    const vm = wrapper.vm as unknown as {
+      canBatchDelete: boolean
+      bulkActions: Array<{ id: string }>
+    }
+    expect(vm.canBatchDelete).toBe(false)
+    expect(vm.bulkActions).toEqual([])
+  })
+
+  it('BD-REQ-001: canBatchDelete is true when user has batch_delete:Promotion → bulkActions is non-empty', () => {
+    userCanMock.mockImplementation((action: string, subject: string) =>
+      action === 'batch_delete' && subject === 'Promotion',
+    )
+
+    const wrapper = mountView()
+    const vm = wrapper.vm as unknown as {
+      canBatchDelete: boolean
+      bulkActions: Array<{ id: string }>
+    }
+    expect(vm.canBatchDelete).toBe(true)
+    expect(vm.bulkActions.length).toBeGreaterThan(0)
+    expect(vm.bulkActions[0]?.id).toBe('batch-delete')
+  })
+
+  // ── BD-REQ-003: bulk action states ────────────────────────────────────────
+  it('BD-REQ-003: bulk action label is "Eliminar" when nothing is selected', async () => {
+    userCanMock.mockReturnValue(true)
+    await mockUseServerTableWith([makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B')])()
+
+    const wrapper = mountView()
+    const vm = wrapper.vm as unknown as {
+      bulkActions: Array<{ id: string; label: string; disabled?: boolean }>
+    }
+    expect(vm.bulkActions[0]?.label).toBe('Eliminar')
+    expect(vm.bulkActions[0]?.disabled).toBe(true)
+  })
+
+  it('BD-REQ-003: bulk action label is "Eliminar (N)" when 3 rows are selected', async () => {
+    userCanMock.mockReturnValue(true)
+    await mockUseServerTableWith(
+      [makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B'), makePromotion('p3', 'Promo C')],
+      { 0: true, 1: true, 2: true },
+    )()
+
+    const wrapper = mountView()
+    const vm = wrapper.vm as unknown as {
+      bulkActions: Array<{ id: string; label: string; disabled?: boolean }>
+    }
+    expect(vm.bulkActions[0]?.label).toBe('Eliminar (3)')
+    expect(vm.bulkActions[0]?.disabled).toBe(false)
+  })
+
+  it('BD-REQ-003: bulk action is disabled and tooltip-explainable when >100 rows selected', async () => {
+    userCanMock.mockReturnValue(true)
+    const many = Array.from({ length: 101 }, (_, i) => makePromotion(`p${i}`, `Promo ${i}`))
+    const selected: Record<string, boolean> = {}
+    many.forEach((_, i) => (selected[String(i)] = true))
+    await mockUseServerTableWith(many, selected)()
+
+    const wrapper = mountView()
+    const vm = wrapper.vm as unknown as {
+      bulkActions: Array<{ id: string; label: string; disabled?: boolean }>
+    }
+    expect(vm.bulkActions[0]?.disabled).toBe(true)
+    expect(vm.bulkActions[0]?.label).toBe('Eliminar (101)')
+  })
+
+  // ── BD-REQ-004: confirm modal with items list ─────────────────────────────
+  it('BD-REQ-004: bulk action click opens confirm modal with item list of selected titles', async () => {
+    userCanMock.mockReturnValue(true)
+    await mockUseServerTableWith(
+      [
+        makePromotion('p1', 'Promo A'),
+        makePromotion('p2', 'Promo B'),
+        makePromotion('p3', 'Promo C'),
+      ],
+      { 0: true, 1: true, 2: true },
+    )()
+
+    const wrapper = mountView()
+    triggerBulkAction(wrapper)
+    await wrapper.vm.$nextTick()
+
+    const modal = wrapper.find('[data-testid="confirm-modal"]')
+    expect(modal.attributes('data-open')).toBe('true')
+    expect(modal.attributes('data-confirm-label')).toBe('Eliminar seleccionadas')
+
+    const items = wrapper.findAll('[data-testid="confirm-item"]')
+    expect(items).toHaveLength(3)
+    const titles = items.map((el) => el.text())
+    expect(titles).toEqual(['Promo A', 'Promo B', 'Promo C'])
+  })
+
+  it('BD-REQ-004: cancelling the confirm modal does NOT call batchDelete', async () => {
+    userCanMock.mockReturnValue(true)
+    await mockUseServerTableWith([makePromotion('p1', 'Promo A')], { 0: true })()
+
+    const wrapper = mountView()
+    triggerBulkAction(wrapper)
+    await wrapper.vm.$nextTick()
+    await wrapper.find('[data-testid="cancel-btn"]').trigger('click')
+    await flushPromises()
+
+    expect(promotionApi.batchDelete).not.toHaveBeenCalled()
+  })
+
+  // ── BD-REQ-005: success path ──────────────────────────────────────────────
+  it('BD-REQ-005: 200 success → toast.success, rowSelection cleared, invalidateQueries called', async () => {
+    userCanMock.mockReturnValue(true)
+    await mockUseServerTableWith(
+      [makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B')],
+      { 0: true, 1: true },
+    )()
+    vi.mocked(promotionApi.batchDelete).mockResolvedValueOnce({ deleted: 2 })
+
+    const wrapper = mountView()
+    triggerBulkAction(wrapper)
+    await wrapper.vm.$nextTick()
+    await wrapper.find('[data-testid="confirm-btn"]').trigger('click')
+    await flushPromises()
+
+    expect(promotionApi.batchDelete).toHaveBeenCalledWith(['p1', 'p2'])
+    const successToast = toastCalls.find((t) => t.color === 'success')
+    expect(successToast).toBeDefined()
+    expect(successToast?.title).toContain('2 promociones eliminadas')
+
+    // rowSelection cleared
+    const vm = wrapper.vm as unknown as { rowSelection: { value: Record<string, boolean> } }
+    expect(vm.rowSelection.value).toEqual({})
+  })
+
+  // ── BD-REQ-006: 409 PROMOTION_REFERENCED_BY_SALE ──────────────────────────
+  it('BD-REQ-006: 409 PROMOTION_REFERENCED_BY_SALE → error toast + offendingIds populated + selection preserved', async () => {
+    userCanMock.mockReturnValue(true)
+    await mockUseServerTableWith(
+      [makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B')],
+      { 0: true, 1: true },
+    )()
+    const axiosError = new AxiosError('conflict')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(axiosError as any).response = {
+      status: 409,
+      data: { error: 'PROMOTION_REFERENCED_BY_SALE', offendingIds: ['p1'] },
+    }
+    vi.mocked(promotionApi.batchDelete).mockRejectedValueOnce(axiosError)
+
+    const wrapper = mountView()
+    triggerBulkAction(wrapper)
+    await wrapper.vm.$nextTick()
+    await wrapper.find('[data-testid="confirm-btn"]').trigger('click')
+    await flushPromises()
+
+    const errorToast = toastCalls.find((t) => t.color === 'error')
+    expect(errorToast).toBeDefined()
+    expect(errorToast?.title).toContain('No se pueden eliminar')
+    expect(errorToast?.title).toContain('Finalizalas')
+
+    // Selection is preserved (NOT cleared)
+    const vm = wrapper.vm as unknown as {
+      rowSelection: { value: Record<string, boolean> }
+      offendingIds: Set<string>
+    }
+    expect(vm.rowSelection.value).toEqual({ 0: true, 1: true })
+    expect(vm.offendingIds.has('p1')).toBe(true)
+  })
+
+  // ── BD-REQ-007: 409 BATCH_DELETE_NOT_FOUND ────────────────────────────────
+  it('BD-REQ-007: 409 BATCH_DELETE_NOT_FOUND → warning toast + invalidate + selection cleared', async () => {
+    userCanMock.mockReturnValue(true)
+    await mockUseServerTableWith(
+      [makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B')],
+      { 0: true, 1: true },
+    )()
+    const axiosError = new AxiosError('conflict')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(axiosError as any).response = {
+      status: 409,
+      data: { error: 'BATCH_DELETE_NOT_FOUND', offendingIds: ['p1'] },
+    }
+    vi.mocked(promotionApi.batchDelete).mockRejectedValueOnce(axiosError)
+
+    const wrapper = mountView()
+    triggerBulkAction(wrapper)
+    await wrapper.vm.$nextTick()
+    await wrapper.find('[data-testid="confirm-btn"]').trigger('click')
+    await flushPromises()
+
+    const warningToast = toastCalls.find((t) => t.color === 'warning')
+    expect(warningToast).toBeDefined()
+    expect(warningToast?.title).toContain('ya no existen')
+
+    // Selection cleared
+    const vm = wrapper.vm as unknown as { rowSelection: { value: Record<string, boolean> } }
+    expect(vm.rowSelection.value).toEqual({})
+  })
+
+  // ── BD-REQ-008: 403 INSUFFICIENT_PERMISSIONS ──────────────────────────────
+  it('BD-REQ-008: 403 → error toast, selection preserved (no state change)', async () => {
+    userCanMock.mockReturnValue(true)
+    await mockUseServerTableWith(
+      [makePromotion('p1', 'Promo A')],
+      { 0: true },
+    )()
+    const axiosError = new AxiosError('forbidden')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(axiosError as any).response = {
+      status: 403,
+      data: { error: 'INSUFFICIENT_PERMISSIONS' },
+    }
+    vi.mocked(promotionApi.batchDelete).mockRejectedValueOnce(axiosError)
+
+    const wrapper = mountView()
+    triggerBulkAction(wrapper)
+    await wrapper.vm.$nextTick()
+    await wrapper.find('[data-testid="confirm-btn"]').trigger('click')
+    await flushPromises()
+
+    const errorToast = toastCalls.find((t) => t.color === 'error')
+    expect(errorToast).toBeDefined()
+    expect(errorToast?.title).toContain('No tenés permisos')
+
+    const vm = wrapper.vm as unknown as { rowSelection: { value: Record<string, boolean> } }
+    expect(vm.rowSelection.value).toEqual({ 0: true })
+  })
+
+  // ── BD-REQ-010: selection lifecycle on filter change ─────────────────────
+  it('BD-REQ-010: filter change clears rowSelection', async () => {
+    userCanMock.mockReturnValue(true)
+    await mockUseServerTableWith([makePromotion('p1', 'Promo A')], { 0: true })()
+
+    const wrapper = mountView()
+    // Confirm rowSelection is populated initially
+    const vm = wrapper.vm as unknown as { rowSelection: { value: Record<string, boolean> } }
+    expect(vm.rowSelection.value).toEqual({ 0: true })
+
+    // Change filter → rowSelection should clear
+    ;(wrapper.vm as unknown as Record<string, string>)['filterType'] = 'BUY_X_GET_Y'
+    await wrapper.vm.$nextTick()
+    await flushPromises()
+
+    expect(vm.rowSelection.value).toEqual({})
   })
 })

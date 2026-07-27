@@ -118,3 +118,59 @@ describe('ability with NotificationConfig subject (notification-config WU-1)', (
     expect(subject).toBe('NotificationConfig')
   })
 })
+
+// ── sdd-10 batch_delete:Promotion — explicit action (BD-REQ-001) ──────────────
+//
+// BD-REQ-001: the UI gate is `userCan('batch_delete', 'Promotion')` — an
+// explicit check, not a derivation from `manage`/`delete`. The CASL layer
+// guarantees (1) `batch_delete:Promotion` parses and grants the action, and
+// (2) the action is scoped to `Promotion` only. The UI-level gate is asserted
+// separately in PromotionsView.test.ts.
+
+describe('ability with batch_delete:Promotion subject (sdd-10 promotions-batch-delete)', () => {
+  beforeEach(() => {
+    resetAbility()
+  })
+
+  it('parses batch_delete:Promotion and grants the explicit batch_delete permission on Promotion', () => {
+    updateAbilityFromPermissionCodes(['batch_delete:Promotion'])
+
+    expect(ability.can('batch_delete', 'Promotion')).toBe(true)
+  })
+
+  it('does NOT silently drop batch_delete when APP_ACTIONS is misconfigured (parse guard)', () => {
+    // If `batch_delete` were missing from APP_ACTIONS, parsePermissionCode
+    // would return null and ability.can would stay false — the UI gate would
+    // never open and the bulk button would never appear. Asserting this
+    // guards against silent dropping during future APP_ACTIONS edits.
+    updateAbilityFromPermissionCodes(['batch_delete:Promotion'])
+
+    expect(ability.can('batch_delete', 'Promotion')).toBe(true)
+  })
+
+  it('keeps batch_delete scoped to Promotion (no bleed to other subjects)', () => {
+    updateAbilityFromPermissionCodes(['batch_delete:Promotion'])
+
+    expect(ability.can('batch_delete', 'Promotion')).toBe(true)
+    expect(ability.can('batch_delete', 'Product')).toBe(false)
+    expect(ability.can('batch_delete', 'Sale')).toBe(false)
+  })
+
+  it('coexists with delete:Promotion — single-delete and batch-delete are distinct grants', () => {
+    // Both actions remain independently grantable. `delete` is single-row;
+    // `batch_delete` is bulk. A role can hold one without the other.
+    updateAbilityFromPermissionCodes(['delete:Promotion', 'batch_delete:Promotion'])
+
+    expect(ability.can('delete', 'Promotion')).toBe(true)
+    expect(ability.can('batch_delete', 'Promotion')).toBe(true)
+  })
+
+  it('grant is revoked when batch_delete:Promotion is removed from the code list', () => {
+    // First grant, then revoke — confirms the ability updates on each call.
+    updateAbilityFromPermissionCodes(['batch_delete:Promotion'])
+    expect(ability.can('batch_delete', 'Promotion')).toBe(true)
+
+    updateAbilityFromPermissionCodes([])
+    expect(ability.can('batch_delete', 'Promotion')).toBe(false)
+  })
+})
