@@ -282,6 +282,7 @@ function handleClearSelection() {
         v-model:column-pinning="columnPinning"
         v-model:column-visibility="columnVisibility"
         v-model:row-selection="rowSelection"
+        :enable-row-selection="props.enableRowSelection"
         :data="props.data"
         :columns="props.columns"
         :loading="isLoading"
