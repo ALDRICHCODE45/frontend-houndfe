@@ -1,0 +1,88 @@
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { promotionApi } from '../promotion.api'
+import { http } from '@/core/shared/api/http'
+
+// ── Mocks ──────────────────────────────────────────────────────────────────────
+
+vi.mock('@/core/shared/api/http', () => ({
+  http: {
+    post: vi.fn(),
+    get: vi.fn(),
+    patch: vi.fn(),
+    delete: vi.fn(),
+  },
+}))
+
+const httpMock = vi.mocked(http)
+
+// ── Tests ─────────────────────────────────────────────────────────────────────
+
+// BD-REQ-002: `promotionApi.batchDelete(ids: string[])` MUST POST `{ ids }` to
+// `/promotions/batch-delete` and return `{ deleted: number }`. The backend is
+// all-or-nothing atomic; the frontend is the validation surface for the cap.
+
+describe('promotionApi.batchDelete (sdd-10 promotions-batch-delete)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('POSTs to /promotions/batch-delete with { ids } body and returns { deleted: number }', async () => {
+    httpMock.post.mockResolvedValueOnce({ data: { deleted: 3 } } as never)
+
+    const result = await promotionApi.batchDelete(['a', 'b', 'c'])
+
+    expect(httpMock.post).toHaveBeenCalledTimes(1)
+    expect(httpMock.post).toHaveBeenCalledWith('/promotions/batch-delete', { ids: ['a', 'b', 'c'] })
+    expect(result).toEqual({ deleted: 3 })
+  })
+
+  it('deduplicates ids before POST (same id twice → one network entry)', async () => {
+    httpMock.post.mockResolvedValueOnce({ data: { deleted: 2 } } as never)
+
+    const result = await promotionApi.batchDelete(['a', 'b', 'a', 'b'])
+
+    expect(httpMock.post).toHaveBeenCalledTimes(1)
+    expect(httpMock.post).toHaveBeenCalledWith('/promotions/batch-delete', { ids: ['a', 'b'] })
+    expect(result).toEqual({ deleted: 2 })
+  })
+
+  it('rejects empty arrays client-side (no network call) — UI guards 0-row selection', async () => {
+    await expect(promotionApi.batchDelete([])).rejects.toThrow()
+    expect(httpMock.post).not.toHaveBeenCalled()
+  })
+
+  it('rejects arrays longer than 100 client-side — UI guards cap', async () => {
+    const tooMany = Array.from({ length: 101 }, (_, i) => `id-${i}`)
+    await expect(promotionApi.batchDelete(tooMany)).rejects.toThrow()
+    expect(httpMock.post).not.toHaveBeenCalled()
+  })
+
+  it('accepts arrays at exactly the 100-row cap', async () => {
+    const exactly100 = Array.from({ length: 100 }, (_, i) => `id-${i}`)
+    httpMock.post.mockResolvedValueOnce({ data: { deleted: 100 } } as never)
+
+    const result = await promotionApi.batchDelete(exactly100)
+
+    expect(httpMock.post).toHaveBeenCalledTimes(1)
+    expect(httpMock.post).toHaveBeenCalledWith('/promotions/batch-delete', { ids: exactly100 })
+    expect(result).toEqual({ deleted: 100 })
+  })
+
+  it('propagates axios errors unchanged so callers can dispatch on response.data.error', async () => {
+    const axiosError = new Error('Network Error') as Error & { response?: unknown }
+    httpMock.post.mockRejectedValueOnce(axiosError)
+
+    await expect(promotionApi.batchDelete(['a'])).rejects.toBe(axiosError)
+  })
+
+  it('does not touch other API methods on the promotionApi object (single-purpose addition)', () => {
+    expect(typeof promotionApi.batchDelete).toBe('function')
+    // The 5 existing methods MUST stay untouched.
+    expect(typeof promotionApi.getPaginated).toBe('function')
+    expect(typeof promotionApi.getById).toBe('function')
+    expect(typeof promotionApi.create).toBe('function')
+    expect(typeof promotionApi.update).toBe('function')
+    expect(typeof promotionApi.end).toBe('function')
+    expect(typeof promotionApi.remove).toBe('function')
+  })
+})
