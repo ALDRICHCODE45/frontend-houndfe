@@ -34,25 +34,25 @@ Chain strategy: size-exception
 
 ## Phase 2: Mutation + Bulk Action Wiring (WU-2, Commit 2)
 
-- [ ] 2.1 RED: in `src/features/POS/promotions/views/__tests__/PromotionsView.test.ts` add "Finalizar absent when `userCan('update','Promotion')` is false" (BE-REQ-001)
-- [ ] 2.2 GREEN: add `canBatchEnd` computed → `authStore.userCan('update','Promotion')` in `PromotionsView.vue`
-- [ ] 2.3 RED: test renders "Finalizar (N)" warning button enabled with 3 selected (BE-REQ-003); disabled at 0 and at 101 (BE-REQ-010)
-- [ ] 2.4 GREEN: extend `bulkActions` array with `id: 'batch-end'`, `variant: 'warning'`, gated by `canBatchEnd`, label "Finalizar (N)"
-- [ ] 2.5 RED: test ConfirmModal shows titles + status badges, `confirmColor: 'warning'`, label "Finalizar seleccionadas" (BE-REQ-004)
-- [ ] 2.6 GREEN: wire `openConfirm` closure capturing selected rows (mirror SDD-10)
-- [ ] 2.7 RED: test on `200 { ended: 3 }` → toast "3 promociones finalizadas", invalidate, clear selection, modal closes (BE-REQ-005)
-- [ ] 2.8 GREEN: add `batchEndMutation` with `onSuccess` (toast + `queryClient.invalidateQueries` + clear `rowSelection`)
-- [ ] 2.9 RED: test on `404 BATCH_DELETE_NOT_FOUND` → toast "N promocion(es) no encontrada(s)", invalidate, clear selection (BE-REQ-006)
-- [ ] 2.10 GREEN: handle 404 in `onError` dispatch (note: backend reuses `BATCH_DELETE_NOT_FOUND` literal for batch-end — flag with comment)
-- [ ] 2.11 RED: test on `403 INSUFFICIENT_PERMISSIONS` → toast, selection preserved (BE-REQ-007)
-- [ ] 2.12 GREEN: handle 403 in `onError` dispatch (no selection clear)
-- [ ] 2.13 RED: test `batchEndMutation.isPending` shows spinner + non-dismissible modal (BE-REQ-008)
-- [ ] 2.14 GREEN: extend `:loading="..."` binding on both bulk button and ConfirmModal to include `batchEndMutation.isPending.value`
+- [x] 2.1 RED: in `src/features/POS/promotions/views/__tests__/PromotionsView.test.ts` add "Finalizar absent when `userCan('update','Promotion')` is false" (BE-REQ-001)
+- [x] 2.2 GREEN: add `canBatchEnd` computed → `authStore.userCan('update','Promotion')` in `PromotionsView.vue`
+- [x] 2.3 RED: test renders "Finalizar (N)" warning button enabled with 3 selected (BE-REQ-003); disabled at 0 and at 101 (BE-REQ-010)
+- [x] 2.4 GREEN: extend `bulkActions` array with `id: 'batch-end'`, `variant: 'warning'`, gated by `canBatchEnd`, label "Finalizar (N)"
+- [x] 2.5 RED: test ConfirmModal shows titles + status badges, `confirmColor: 'warning'`, label "Finalizar seleccionadas" (BE-REQ-004)
+- [x] 2.6 GREEN: wire `openConfirm` closure capturing selected rows (mirror SDD-10)
+- [x] 2.7 RED: test on `200 { ended: 3 }` → toast "3 promociones finalizadas", invalidate, clear selection, modal closes (BE-REQ-005)
+- [x] 2.8 GREEN: add `batchEndMutation` with `onSuccess` (toast + `queryClient.invalidateQueries` + clear `rowSelection`)
+- [x] 2.9 RED: test on `404 BATCH_DELETE_NOT_FOUND` → toast "N promocion(es) no encontrada(s)", invalidate, clear selection (BE-REQ-006)
+- [x] 2.10 GREEN: handle 404 in `onError` dispatch (note: backend reuses `BATCH_DELETE_NOT_FOUND` literal for batch-end — flag with comment)
+- [x] 2.11 RED: test on `403 INSUFFICIENT_PERMISSIONS` → toast, selection preserved (BE-REQ-007)
+- [x] 2.12 GREEN: handle 403 in `onError` dispatch (no selection clear)
+- [x] 2.13 RED: test `batchEndMutation.isPending` shows spinner + non-dismissible modal (BE-REQ-008)
+- [x] 2.14 GREEN: extend `:loading="..."` binding on both bulk button and ConfirmModal to include `batchEndMutation.isPending.value`
 
 ## Phase 3: Selection Gate + Constants (WU-3, Commit 3)
 
 - [ ] 3.1 RED: test checkboxes visible when `canBatchDelete === false && canBatchEnd === true` (BE-REQ-009)
 - [ ] 3.2 GREEN: widen `:enable-row-selection` from `canBatchDelete` to `canBatchDelete || canBatchEnd`
-- [ ] 3.3 GREEN: add `const BATCH_END_CAP = 100` next to existing `BATCH_DELETE_CAP` in `PromotionsView.vue` (line 104); reuse in WU-2's `disabled` check
+- [x] 3.3 GREEN: add `const BATCH_END_CAP = 100` next to existing `BATCH_DELETE_CAP` in `PromotionsView.vue` (line 104); reuse in WU-2's `disabled` check
 - [ ] 3.4 VERIFY: run `pnpm test:unit` — all new + existing pass; run `pnpm build` — no type errors
 - [ ] 3.5 VERIFY: `git diff` against SDD-10 shows only documented deltas (no refactor leakage)
