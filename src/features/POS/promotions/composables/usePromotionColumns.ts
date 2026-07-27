@@ -33,6 +33,16 @@ function formatDate(isoString: string | null): string {
 
 export function usePromotionColumns() {
   const columns: TableColumn<PromotionResponse>[] = [
+    // ── Select checkbox ──────────────────────────────────────────────
+    // Header & cell rendered via #select-header / #select-cell slots
+    // in PromotionsView.vue (NuxtUI components need template context)
+    {
+      id: 'select',
+      header: '',
+      enableSorting: false,
+      enableHiding: false,
+    },
+
     // ── Título (sortable) ─────────────────────────────────────────────
     {
       accessorKey: 'title',
