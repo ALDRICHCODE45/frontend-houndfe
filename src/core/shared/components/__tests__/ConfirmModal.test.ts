@@ -33,7 +33,7 @@ vi.mock('@nuxt/ui/runtime/components/Button.vue', () => ({
 
 function mountModal(props: Record<string, unknown> = {}) {
   return mount(ConfirmModal, {
-    props: { open: true, ...props },
+    props: { open: true, description: 'Default description text', ...props },
   })
 }
 

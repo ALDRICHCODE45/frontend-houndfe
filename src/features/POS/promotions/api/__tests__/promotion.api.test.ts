@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import type { AxiosResponse } from 'axios'
 import { promotionApi } from '../promotion.api'
 import { http } from '@/core/shared/api/http'
 
@@ -14,6 +15,7 @@ vi.mock('@/core/shared/api/http', () => ({
 }))
 
 const httpMock = vi.mocked(http)
+const httpPostMock = vi.mocked(http.post)
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
@@ -27,7 +29,7 @@ describe('promotionApi.batchDelete (sdd-10 promotions-batch-delete)', () => {
   })
 
   it('POSTs to /promotions/batch-delete with { ids } body and returns { deleted: number }', async () => {
-    httpMock.post.mockResolvedValueOnce({ data: { deleted: 3 } } as never)
+    httpPostMock.mockResolvedValueOnce({ data: { deleted: 3 } } as never)
 
     const result = await promotionApi.batchDelete(['a', 'b', 'c'])
 
@@ -37,7 +39,7 @@ describe('promotionApi.batchDelete (sdd-10 promotions-batch-delete)', () => {
   })
 
   it('deduplicates ids before POST (same id twice → one network entry)', async () => {
-    httpMock.post.mockResolvedValueOnce({ data: { deleted: 2 } } as never)
+    httpPostMock.mockResolvedValueOnce({ data: { deleted: 2 } } as never)
 
     const result = await promotionApi.batchDelete(['a', 'b', 'a', 'b'])
 
@@ -59,7 +61,7 @@ describe('promotionApi.batchDelete (sdd-10 promotions-batch-delete)', () => {
 
   it('accepts arrays at exactly the 100-row cap', async () => {
     const exactly100 = Array.from({ length: 100 }, (_, i) => `id-${i}`)
-    httpMock.post.mockResolvedValueOnce({ data: { deleted: 100 } } as never)
+    httpPostMock.mockResolvedValueOnce({ data: { deleted: 100 } } as never)
 
     const result = await promotionApi.batchDelete(exactly100)
 
@@ -70,7 +72,7 @@ describe('promotionApi.batchDelete (sdd-10 promotions-batch-delete)', () => {
 
   it('propagates axios errors unchanged so callers can dispatch on response.data.error', async () => {
     const axiosError = new Error('Network Error') as Error & { response?: unknown }
-    httpMock.post.mockRejectedValueOnce(axiosError)
+    httpPostMock.mockRejectedValueOnce(axiosError as never)
 
     await expect(promotionApi.batchDelete(['a'])).rejects.toBe(axiosError)
   })

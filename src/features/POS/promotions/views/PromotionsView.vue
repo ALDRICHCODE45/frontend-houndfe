@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import type { AxiosError } from 'axios'
-import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
+import { AppDataTable, SelectColumn, SortableHeader } from '@/core/shared/components/DataTable'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { promotionQueryKeys } from '@/core/shared/constants/query-keys'
 import type { BulkAction } from '@/core/shared/types/table.types'
@@ -512,6 +512,15 @@ defineExpose({
           @add="handleAddPromotion"
           @refresh="refresh"
         >
+          <!-- ── Selection checkboxes ───────────────────────────────────── -->
+          <template #select-header="{ table }">
+            <SelectColumn mode="header" :table="table" />
+          </template>
+
+          <template #select-cell="{ row }">
+            <SelectColumn mode="cell" :row="row" />
+          </template>
+
           <!-- ── Sortable headers ───────────────────────────────────────── -->
           <template #title-header="{ column }">
             <SortableHeader :column="column" label="Título" />
