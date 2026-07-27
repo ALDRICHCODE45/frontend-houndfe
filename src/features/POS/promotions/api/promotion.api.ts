@@ -131,4 +131,23 @@ export const promotionApi = {
     })
     return data
   },
+
+  /**
+   * Bulk-end promotions. The backend is all-or-nothing atomic.
+   * Client-side guards mirror the batch-delete contract and server cap.
+   */
+  async batchEnd(ids: string[]): Promise<{ ended: number }> {
+    const uniqueIds = Array.from(new Set(ids))
+    if (uniqueIds.length === 0) {
+      throw new Error('batchEnd requires at least one id')
+    }
+    if (uniqueIds.length > 100) {
+      throw new Error('batchEnd is capped at 100 ids per request')
+    }
+
+    const { data } = await http.post<{ ended: number }>('/promotions/batch-end', {
+      ids: uniqueIds,
+    })
+    return data
+  },
 }

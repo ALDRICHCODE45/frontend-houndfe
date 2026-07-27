@@ -46,6 +46,7 @@ vi.mock('../../api/promotion.api', () => ({
     end: vi.fn().mockResolvedValue({}),
     remove: vi.fn().mockResolvedValue(undefined),
     batchDelete: vi.fn(),
+    batchEnd: vi.fn(),
   },
 }))
 
@@ -121,7 +122,7 @@ const STUBS = {
     props: ['columns', 'data', 'loading', 'empty', 'bulkActions', 'enableRowSelection'],
     emits: ['add', 'refresh'],
     template: `
-      <div data-testid="app-data-table" :data-bulk-count="String((bulkActions?.length) ?? 0)">
+      <div data-testid="app-data-table" :data-bulk-count="String((bulkActions?.length) ?? 0)" :data-enable-row-selection="String(enableRowSelection)">
         <slot name="empty-state" />
         <button data-testid="add-btn" @click="$emit('add')">Add</button>
         <div
@@ -151,6 +152,8 @@ const STUBS = {
         :data-open="String(open)"
         :data-description="description"
         :data-confirm-label="confirmLabel"
+        :data-confirm-color="confirmColor"
+        :data-loading="String(loading)"
       >
         <ul v-if="items && items.length > 0" data-testid="confirm-items-list">
           <li
@@ -555,7 +558,10 @@ describe('PromotionsView — batch delete (sdd-10)', () => {
   // ── BD-REQ-001: permission gating ─────────────────────────────────────────
   it('BD-REQ-001: canBatchDelete is false when user lacks batch_delete:Promotion → bulkActions is empty', () => {
     userCanMock.mockImplementation((action: string, subject: string) =>
-      !(action === 'batch_delete' && subject === 'Promotion'),
+      !(
+        subject === 'Promotion' &&
+        (action === 'batch_delete' || action === 'update')
+      ),
     )
 
     const wrapper = mountView()
@@ -801,3 +807,216 @@ describe('PromotionsView — batch delete (sdd-10)', () => {
     expect(vm.rowSelection.value).toEqual({})
   })
 })
+
+// ── promotions-batch-end ───────────────────────────────────────────────────────
+// RED tests are intentionally added before the corresponding view implementation.
+describe('PromotionsView — batch end', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    toastCalls.length = 0
+    userCanMock.mockReturnValue(true)
+  })
+
+  function mockUseServerTableWith(
+    promotions: PromotionResponse[],
+    selected: Record<string, boolean> = {},
+  ) {
+    return async () => {
+      const { useServerTable } = await import('@/core/shared/composables/useServerTable')
+      vi.mocked(useServerTable).mockReturnValueOnce({
+        pagination: { value: { pageIndex: 0, pageSize: 20 } },
+        sorting: { value: [] },
+        globalFilter: { value: '' },
+        rowSelection: { value: selected },
+        columnPinning: { value: { left: [], right: ['actions'] } },
+        columnVisibility: { value: {} },
+        data: { value: promotions },
+        totalCount: { value: promotions.length },
+        pageCount: { value: 1 },
+        isLoading: { value: false },
+        isFetching: { value: false },
+        refresh: vi.fn(),
+        pageSizeOptions: { value: [10, 20, 50] },
+        showingFrom: { value: 1 },
+        showingTo: { value: promotions.length },
+        selectedRows: {
+          value: promotions.filter((_, index) => selected[String(index)]),
+        },
+        clearSelection: vi.fn(),
+      } as unknown as ReturnType<typeof useServerTable>)
+    }
+  }
+
+  function triggerBatchEnd(wrapper: ReturnType<typeof mountView>) {
+    const vm = wrapper.vm as unknown as {
+      bulkActions: Array<{ id: string; onClick: () => void }>
+    }
+    const action = vm.bulkActions.find((item) => item.id === 'batch-end')
+    expect(action).toBeDefined()
+    action!.onClick()
+  }
+
+  it('BE-REQ-001: omits Finalizar when user lacks update:Promotion', () => {
+    userCanMock.mockImplementation((action: string, subject: string) =>
+      !(action === 'update' && subject === 'Promotion'),
+    )
+
+    const wrapper = mountView()
+    const vm = wrapper.vm as unknown as {
+      canBatchEnd: boolean
+      bulkActions: Array<{ id: string }>
+    }
+
+    expect(vm.canBatchEnd).toBe(false)
+    expect(vm.bulkActions.some((item) => item.id === 'batch-end')).toBe(false)
+  })
+
+  it('BE-REQ-009: shows row selection for update-only users', () => {
+    userCanMock.mockImplementation((action: string, subject: string) =>
+      action === 'update' && subject === 'Promotion',
+    )
+
+    const wrapper = mountView()
+
+    expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-enable-row-selection')).toBe('true')
+  })
+
+  it('BE-REQ-003: renders warning Finalizar (3) enabled with 3 selected rows', async () => {
+    const promotions = [
+      makePromotion('p1', 'Promo A'),
+      makePromotion('p2', 'Promo B'),
+      makePromotion('p3', 'Promo C'),
+    ]
+    await mockUseServerTableWith(promotions, { 0: true, 1: true, 2: true })()
+
+    const wrapper = mountView()
+    const vm = wrapper.vm as unknown as {
+      bulkActions: Array<{ id: string; label: string; variant: string; disabled?: boolean }>
+    }
+    const action = vm.bulkActions.find((item) => item.id === 'batch-end')
+
+    expect(action).toMatchObject({ id: 'batch-end', label: 'Finalizar (3)', variant: 'warning', disabled: false })
+  })
+
+  it('BE-REQ-003/010: disables Finalizar at zero and above the 100-row cap', async () => {
+    await mockUseServerTableWith([makePromotion('p1', 'Promo A')])()
+    let wrapper = mountView()
+    let vm = wrapper.vm as unknown as { bulkActions: Array<{ id: string; disabled?: boolean }> }
+    expect(vm.bulkActions.find((item) => item.id === 'batch-end')?.disabled).toBe(true)
+
+    const many = Array.from({ length: 101 }, (_, i) => makePromotion(`p${i}`, `Promo ${i}`))
+    const selected: Record<string, boolean> = {}
+    many.forEach((_, i) => (selected[String(i)] = true))
+    await mockUseServerTableWith(many, selected)()
+    wrapper = mountView()
+    vm = wrapper.vm as unknown as { bulkActions: Array<{ id: string; disabled?: boolean }> }
+    expect(vm.bulkActions.find((item) => item.id === 'batch-end')?.disabled).toBe(true)
+  })
+
+  it('BE-REQ-004: opens warning confirmation with selected titles and Finalizar label', async () => {
+    await mockUseServerTableWith(
+      [makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B')],
+      { 0: true, 1: true },
+    )()
+
+    const wrapper = mountView()
+    triggerBatchEnd(wrapper)
+    await wrapper.vm.$nextTick()
+
+    const modal = wrapper.find('[data-testid="confirm-modal"]')
+    expect(modal.attributes('data-open')).toBe('true')
+    expect(modal.attributes('data-confirm-label')).toBe('Finalizar seleccionadas')
+    expect(modal.attributes('data-confirm-color')).toBe('warning')
+    expect(wrapper.findAll('[data-testid="confirm-item"]').map((item) => item.text())).toEqual([
+      'Promo A',
+      'Promo B',
+    ])
+  })
+
+  it('BE-REQ-005: success shows toast, clears selection and closes modal', async () => {
+    await mockUseServerTableWith(
+      [makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B')],
+      { 0: true, 1: true },
+    )()
+    vi.mocked(promotionApi.batchEnd).mockResolvedValueOnce({ ended: 2 })
+
+    const wrapper = mountView()
+    triggerBatchEnd(wrapper)
+    await wrapper.vm.$nextTick()
+    await wrapper.find('[data-testid="confirm-btn"]').trigger('click')
+    await flushPromises()
+
+    expect(promotionApi.batchEnd).toHaveBeenCalledWith(['p1', 'p2'])
+    expect(toastCalls.find((toast) => toast.color === 'success')?.title).toContain(
+      '2 promociones finalizadas',
+    )
+    expect((wrapper.vm as unknown as { rowSelection: { value: Record<string, boolean> } }).rowSelection.value).toEqual({})
+    expect(wrapper.find('[data-testid="confirm-modal"]').attributes('data-open')).toBe('false')
+  })
+
+  it('BE-REQ-006: 404 BATCH_DELETE_NOT_FOUND shows count toast and clears selection', async () => {
+    await mockUseServerTableWith(
+      [makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B')],
+      { 0: true, 1: true },
+    )()
+    const axiosError = new AxiosError('not found')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(axiosError as any).response = {
+      status: 404,
+      data: { error: 'BATCH_DELETE_NOT_FOUND', offendingIds: ['p1', 'p2'] },
+    }
+    vi.mocked(promotionApi.batchEnd).mockRejectedValueOnce(axiosError)
+
+    const wrapper = mountView()
+    triggerBatchEnd(wrapper)
+    await wrapper.vm.$nextTick()
+    await wrapper.find('[data-testid="confirm-btn"]').trigger('click')
+    await flushPromises()
+
+    expect(toastCalls.find((toast) => toast.color === 'warning')?.title).toContain(
+      '2 promocion(es) no encontrada(s)',
+    )
+    expect((wrapper.vm as unknown as { rowSelection: { value: Record<string, boolean> } }).rowSelection.value).toEqual({})
+  })
+
+  it('BE-REQ-008: binds pending batch-end state to ConfirmModal loading', async () => {
+    await mockUseServerTableWith([makePromotion('p1', 'Promo A')], { 0: true })()
+    let resolveRequest!: (value: { ended: number }) => void
+    vi.mocked(promotionApi.batchEnd).mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveRequest = resolve
+      }),
+    )
+
+    const wrapper = mountView()
+    triggerBatchEnd(wrapper)
+    await wrapper.vm.$nextTick()
+    await wrapper.find('[data-testid="confirm-btn"]').trigger('click')
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('[data-testid="confirm-modal"]').attributes('data-loading')).toBe('true')
+    resolveRequest({ ended: 1 })
+    await flushPromises()
+  })
+
+  it('BE-REQ-007: 403 preserves selection and shows permission toast', async () => {
+    await mockUseServerTableWith([makePromotion('p1', 'Promo A')], { 0: true })()
+    const axiosError = new AxiosError('forbidden')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(axiosError as any).response = {
+      status: 403,
+      data: { error: 'INSUFFICIENT_PERMISSIONS' },
+    }
+    vi.mocked(promotionApi.batchEnd).mockRejectedValueOnce(axiosError)
+
+    const wrapper = mountView()
+    triggerBatchEnd(wrapper)
+    await wrapper.vm.$nextTick()
+    await wrapper.find('[data-testid="confirm-btn"]').trigger('click')
+    await flushPromises()
+
+    expect(toastCalls.find((toast) => toast.color === 'error')?.title).toContain('No tenés permisos')
+    expect((wrapper.vm as unknown as { rowSelection: { value: Record<string, boolean> } }).rowSelection.value).toEqual({ 0: true })
+  })
+})
+

@@ -55,7 +55,8 @@ export interface BulkAction<T> {
   id: string
   label: string
   icon?: string
-  variant?: 'default' | 'destructive'
+  variant?: 'default' | 'destructive' | 'warning'
+  disabled?: boolean
   onClick: (selectedRows: T[]) => void | Promise<void>
 }
 

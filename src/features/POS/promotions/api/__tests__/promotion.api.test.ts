@@ -88,3 +88,32 @@ describe('promotionApi.batchDelete (sdd-10 promotions-batch-delete)', () => {
     expect(typeof promotionApi.remove).toBe('function')
   })
 })
+
+// BE-REQ-002: `promotionApi.batchEnd(ids: string[])` MUST deduplicate ids,
+// enforce the 100-id cap, POST to `/promotions/batch-end`, and return `{ ended }`.
+describe('promotionApi.batchEnd (promotions-batch-end)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('deduplicates ids before POST and returns { ended: number }', async () => {
+    httpPostMock.mockResolvedValueOnce({ data: { ended: 2 } } as never)
+
+    const result = await promotionApi.batchEnd(['a', 'a', 'b'])
+
+    expect(httpPostMock).toHaveBeenCalledWith('/promotions/batch-end', { ids: ['a', 'b'] })
+    expect(result).toEqual({ ended: 2 })
+  })
+
+  it('rejects empty arrays client-side without a network call', async () => {
+    await expect(promotionApi.batchEnd([])).rejects.toThrow()
+    expect(httpPostMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects arrays longer than 100 client-side without a network call', async () => {
+    const tooMany = Array.from({ length: 101 }, (_, i) => `id-${i}`)
+
+    await expect(promotionApi.batchEnd(tooMany)).rejects.toThrow()
+    expect(httpPostMock).not.toHaveBeenCalled()
+  })
+})

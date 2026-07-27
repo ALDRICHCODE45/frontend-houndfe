@@ -48,6 +48,7 @@ const canCreate = computed(() => authStore.userCan('create', 'Promotion'))
 const canUpdate = computed(() => authStore.userCan('update', 'Promotion'))
 const canDelete = computed(() => authStore.userCan('delete', 'Promotion'))
 const canBatchDelete = computed(() => authStore.userCan('batch_delete', 'Promotion'))
+const canBatchEnd = computed(() => authStore.userCan('update', 'Promotion'))
 
 // ── Filter state ─────────────────────────────────────────────────────────────
 
@@ -102,6 +103,7 @@ const METHOD_OPTIONS = [
 // ── Server table ──────────────────────────────────────────────────────────────
 
 const BATCH_DELETE_CAP = 100
+const BATCH_END_CAP = 100
 
 const {
   pagination,
@@ -314,7 +316,48 @@ const batchDeleteMutation = useMutation({
   },
 })
 
-// ── Row actions ───────────────────────────────────────────────────────────────
+// ── Batch end mutation (promotions-batch-end) ──────────────────────────────────
+// The backend reuses the `BATCH_DELETE_NOT_FOUND` literal for batch-end 404s.
+type BatchEndErrorData = DomainApiError & { offendingIds?: string[] }
+
+const batchEndMutation = useMutation({
+  mutationFn: (ids: string[]) => promotionApi.batchEnd(ids),
+  onSuccess: async (result) => {
+    toast.add({
+      title: `${result.ended} promociones finalizadas`,
+      color: 'success',
+    })
+    await queryClient.invalidateQueries({ queryKey: promotionQueryKeys.paginated(tenantId.value) })
+    rowSelection.value = {}
+  },
+  onError: (error) => {
+    const axiosErr = error as AxiosError<BatchEndErrorData>
+    const code = axiosErr.response?.data?.error
+    const offendingCount = axiosErr.response?.data?.offendingIds?.length ?? 0
+
+    switch (code) {
+      // Backend naming quirk: batch-end 404s still emit BATCH_DELETE_NOT_FOUND.
+      case 'BATCH_DELETE_NOT_FOUND':
+        toast.add({
+          title: `${offendingCount} promocion(es) no encontrada(s)`,
+          color: 'warning',
+        })
+        void queryClient.invalidateQueries({ queryKey: promotionQueryKeys.paginated(tenantId.value) })
+        rowSelection.value = {}
+        break
+      case 'INSUFFICIENT_PERMISSIONS':
+        toast.add({
+          title: 'No tenés permisos para finalizar promociones en lote.',
+          color: 'error',
+        })
+        break
+      default: {
+        const normalized = normalizeApiError(error, 'No se pudieron finalizar las promociones.')
+        toast.add({ title: 'Error', description: normalized.message, color: 'error' })
+      }
+    }
+  },
+})
 
 function handleEdit(promotion: PromotionResponse) {
   void router.push(`/pos/promociones/${promotion.id}`)
@@ -366,22 +409,18 @@ function getRowItems(promotion: PromotionResponse) {
 // receives the actual row data. This sidesteps a known latent bug in the
 // bulk-actions component while keeping that component untouched.
 const bulkActions = computed<BulkAction<PromotionResponse>[]>(() => {
-  if (!canBatchDelete.value) return []
-
   const rows = selectedRows?.value ?? []
   const n = rows.length
-  const label = n > 0 ? `Eliminar (${n})` : 'Eliminar'
-  const disabled = n === 0 || n > BATCH_DELETE_CAP
+  const actions: BulkAction<PromotionResponse>[] = []
 
-  return [
-    {
+  if (canBatchDelete.value) {
+    const label = n > 0 ? `Eliminar (${n})` : 'Eliminar'
+    actions.push({
       id: 'batch-delete',
       label,
       variant: 'destructive',
-      disabled,
+      disabled: n === 0 || n > BATCH_DELETE_CAP,
       onClick: () => {
-        // Pass selectedRows directly to the modal so BD-REQ-004 renders the
-        // ordered list of promo titles.
         openConfirm(
           'Vas a eliminar las siguientes promociones. Esta acción no se puede deshacer.',
           'Eliminar seleccionadas',
@@ -396,8 +435,35 @@ const bulkActions = computed<BulkAction<PromotionResponse>[]>(() => {
           })),
         )
       },
-    },
-  ]
+    })
+  }
+
+  if (canBatchEnd.value) {
+    const label = n > 0 ? `Finalizar (${n})` : 'Finalizar'
+    actions.push({
+      id: 'batch-end',
+      label,
+      variant: 'warning',
+      disabled: n === 0 || n > BATCH_END_CAP,
+      onClick: () => {
+        openConfirm(
+          'Vas a finalizar las siguientes promociones. Esta acción no se puede deshacer.',
+          'Finalizar seleccionadas',
+          'warning',
+          () => {
+            void batchEndMutation.mutateAsync(rows.map((r) => r.id))
+          },
+          rows.map((r) => ({
+            id: r.id,
+            title: r.title,
+            status: r.status,
+          })),
+        )
+      },
+    })
+  }
+
+  return actions
 })
 
 const isEmpty = computed(() => !isLoading.value && data.value.length === 0)
@@ -409,6 +475,8 @@ defineExpose({
   getRowItems,
   bulkActions,
   canBatchDelete,
+  canBatchEnd,
+  batchEndMutation,
   offendingIds,
   rowSelection,
 })
@@ -428,7 +496,7 @@ defineExpose({
       :description="confirmState.description"
       :confirm-label="confirmState.label"
       :confirm-color="confirmState.color"
-      :loading="endMutation.isPending.value || deleteMutation.isPending.value || batchDeleteMutation.isPending.value"
+      :loading="endMutation.isPending.value || deleteMutation.isPending.value || batchDeleteMutation.isPending.value || batchEndMutation.isPending.value"
       :items="confirmState.items"
       @update:open="confirmState.open = $event"
       @confirm="handleConfirm"
@@ -502,7 +570,7 @@ defineExpose({
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
           :bulk-actions="bulkActions"
-          :enable-row-selection="canBatchDelete"
+          :enable-row-selection="canBatchDelete || canBatchEnd"
           :show-add-button="canCreate"
           search-placeholder="Buscar promociones..."
           add-button-text="Nueva Promoción"
