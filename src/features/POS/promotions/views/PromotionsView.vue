@@ -9,6 +9,7 @@ import type { BulkAction } from '@/core/shared/types/table.types'
 import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
+import { normalizeApiError } from '@/core/shared/utils/error.utils'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
 import { promotionApi } from '../api/promotion.api'
@@ -39,9 +40,14 @@ const tenantId = computed(() => authStore.currentTenantId)
 const { columns, getStatusConfig, getTypeConfig, getMethodConfig, formatDate } = usePromotionColumns()
 
 // ── Permission helpers ────────────────────────────────────────────────────────
+//
+// BD-REQ-001: batch_delete is an EXPLICIT action — NOT derived from `manage`
+// or `delete`. The UI gate is a dedicated computed; the CASL layer grants
+// `batch_delete:Promotion` independently.
 const canCreate = computed(() => authStore.userCan('create', 'Promotion'))
 const canUpdate = computed(() => authStore.userCan('update', 'Promotion'))
 const canDelete = computed(() => authStore.userCan('delete', 'Promotion'))
+const canBatchDelete = computed(() => authStore.userCan('batch_delete', 'Promotion'))
 
 // ── Filter state ─────────────────────────────────────────────────────────────
 
@@ -95,6 +101,8 @@ const METHOD_OPTIONS = [
 
 // ── Server table ──────────────────────────────────────────────────────────────
 
+const BATCH_DELETE_CAP = 100
+
 const {
   pagination,
   sorting,
@@ -111,6 +119,7 @@ const {
   pageSizeOptions,
   showingFrom,
   showingTo,
+  selectedRows,
 } = useServerTable<PromotionResponse>({
   queryKey: () => [
     ...promotionQueryKeys.paginated(tenantId.value),
@@ -129,22 +138,55 @@ const {
   defaultPinning: { left: [], right: ['actions'] },
 })
 
-// ── Reset pagination when filters change ─────────────────────────────────────
-
+// ── Reset pagination + clear selection when filters change ───────────────────
+//
+// BD-REQ-010: filter / search change MUST reset pagination to page 0 AND
+// clear the bulk selection — page-relative selection can't survive a filter
+// switch because the row indices map to different entities.
 watch([filterType, filterStatus, filterMethod], () => {
   pagination.value = { ...pagination.value, pageIndex: 0 }
+  rowSelection.value = {}
 })
+
+// ── Offending IDs (BD-REQ-006) ────────────────────────────────────────────────
+//
+// 409 PROMOTION_REFERENCED_BY_SALE returns `offendingIds: string[]` — the
+// subset that referenced existing sales. We store them as a Set for O(1)
+// lookups from the #title-cell template and clear the Set on every new
+// selection (so highlights don't bleed across batches).
+const offendingIds = ref<Set<string>>(new Set())
+
+watch(
+  () => rowSelection.value,
+  () => {
+    // Clear stale highlights whenever the user changes their selection —
+    // BD-REQ-006 only flags the LAST batch, not historical state.
+    if (offendingIds.value.size > 0) {
+      offendingIds.value = new Set()
+    }
+  },
+)
 
 // ── Local UI state ────────────────────────────────────────────────────────────
 
 const isTypeSelectorOpen = ref(false)
 
-const confirmState = ref({
+interface ConfirmStateShape {
+  open: boolean
+  description: string
+  loading: boolean
+  label: string
+  color: 'error' | 'warning' | 'primary'
+  items?: { id: string; title: string; status?: string }[]
+  onConfirm: () => void
+}
+
+const confirmState = ref<ConfirmStateShape>({
   open: false,
   description: '',
   loading: false,
   label: 'Confirmar',
-  color: 'error' as const,
+  color: 'error',
   onConfirm: () => {},
 })
 
@@ -159,6 +201,7 @@ function openConfirm(
   label: string,
   color: 'error' | 'warning' | 'primary',
   onConfirm: () => void,
+  items?: { id: string; title: string; status?: string }[],
 ) {
   confirmState.value = {
     open: true,
@@ -167,6 +210,7 @@ function openConfirm(
     label,
     color: color as 'error',
     onConfirm,
+    ...(items ? { items } : {}),
   }
 }
 
@@ -206,6 +250,67 @@ const deleteMutation = useMutation({
     const err = error as AxiosError<DomainApiError>
     const message = err.response?.data?.message ?? 'No se pudo eliminar la promoción'
     toast.add({ title: 'Error', description: message, color: 'error' })
+  },
+})
+
+// ── Batch delete mutation (sdd-10) ────────────────────────────────────────────
+//
+// Backend shape:
+//   200 → { deleted: number }
+//   409 PROMOTION_REFERENCED_BY_SALE → { error, offendingIds: string[] }
+//   409 BATCH_DELETE_NOT_FOUND       → { error, offendingIds: string[] }
+//   403 INSUFFICIENT_PERMISSIONS     → { error }
+//   400                              → Nest class-validator messages
+//
+// Error dispatch reads `err.response?.data.error` directly (NOT through
+// normalizeApiError) because offendingIds lives in `response.data` alongside
+// the code, and normalizeApiError doesn't surface it.
+type BatchDeleteErrorData = DomainApiError & { offendingIds?: string[] }
+
+const batchDeleteMutation = useMutation({
+  mutationFn: (ids: string[]) => promotionApi.batchDelete(ids),
+  onSuccess: async (result) => {
+    toast.add({
+      title: `${result.deleted} promociones eliminadas`,
+      color: 'success',
+    })
+    await queryClient.invalidateQueries({ queryKey: promotionQueryKeys.paginated(tenantId.value) })
+    rowSelection.value = {}
+    offendingIds.value = new Set()
+  },
+  onError: (error) => {
+    const axiosErr = error as AxiosError<BatchDeleteErrorData>
+    const code = axiosErr.response?.data?.error
+    const errOffendingIds = axiosErr.response?.data?.offendingIds ?? []
+
+    switch (code) {
+      case 'PROMOTION_REFERENCED_BY_SALE':
+        offendingIds.value = new Set(errOffendingIds)
+        toast.add({
+          title:
+            'No se pueden eliminar. Las promociones marcadas fueron utilizadas en ventas. Finalizalas en lugar de eliminarlas.',
+          color: 'error',
+        })
+        break
+      case 'BATCH_DELETE_NOT_FOUND':
+        toast.add({
+          title: 'Algunas promociones ya no existen. La lista se actualizó.',
+          color: 'warning',
+        })
+        void queryClient.invalidateQueries({ queryKey: promotionQueryKeys.paginated(tenantId.value) })
+        rowSelection.value = {}
+        break
+      case 'INSUFFICIENT_PERMISSIONS':
+        toast.add({
+          title: 'No tenés permisos para eliminar promociones en lote.',
+          color: 'error',
+        })
+        break
+      default: {
+        const normalized = normalizeApiError(error, 'No se pudieron eliminar las promociones.')
+        toast.add({ title: 'Error', description: normalized.message, color: 'error' })
+      }
+    }
   },
 })
 
@@ -254,11 +359,59 @@ function getRowItems(promotion: PromotionResponse) {
   return [mainActions, extraActions].filter((section) => section.length > 0)
 }
 
-const bulkActions = computed<BulkAction<PromotionResponse>[]>(() => [])
+// ── Bulk action (BD-REQ-003 / BD-REQ-004) ──────────────────────────────────────
+//
+// The onClick closure is wired against the view's `selectedRows` (NOT the
+// hardcoded `[]` inside DataTableBulkActions.vue:51) so the confirm modal
+// receives the actual row data. This sidesteps a known latent bug in the
+// bulk-actions component while keeping that component untouched.
+const bulkActions = computed<BulkAction<PromotionResponse>[]>(() => {
+  if (!canBatchDelete.value) return []
+
+  const rows = selectedRows?.value ?? []
+  const n = rows.length
+  const label = n > 0 ? `Eliminar (${n})` : 'Eliminar'
+  const disabled = n === 0 || n > BATCH_DELETE_CAP
+
+  return [
+    {
+      id: 'batch-delete',
+      label,
+      variant: 'destructive',
+      disabled,
+      onClick: () => {
+        // Pass selectedRows directly to the modal so BD-REQ-004 renders the
+        // ordered list of promo titles.
+        openConfirm(
+          'Vas a eliminar las siguientes promociones. Esta acción no se puede deshacer.',
+          'Eliminar seleccionadas',
+          'error',
+          () => {
+            void batchDeleteMutation.mutateAsync(rows.map((r) => r.id))
+          },
+          rows.map((r) => ({
+            id: r.id,
+            title: r.title,
+            status: r.status,
+          })),
+        )
+      },
+    },
+  ]
+})
 
 const isEmpty = computed(() => !isLoading.value && data.value.length === 0)
 
-defineExpose({ filterType, filterStatus, filterMethod, getRowItems })
+defineExpose({
+  filterType,
+  filterStatus,
+  filterMethod,
+  getRowItems,
+  bulkActions,
+  canBatchDelete,
+  offendingIds,
+  rowSelection,
+})
 </script>
 
 <template>
@@ -275,7 +428,8 @@ defineExpose({ filterType, filterStatus, filterMethod, getRowItems })
       :description="confirmState.description"
       :confirm-label="confirmState.label"
       :confirm-color="confirmState.color"
-      :loading="endMutation.isPending.value || deleteMutation.isPending.value"
+      :loading="endMutation.isPending.value || deleteMutation.isPending.value || batchDeleteMutation.isPending.value"
+      :items="confirmState.items"
       @update:open="confirmState.open = $event"
       @confirm="handleConfirm"
     />
@@ -348,11 +502,11 @@ defineExpose({ filterType, filterStatus, filterMethod, getRowItems })
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
           :bulk-actions="bulkActions"
+          :enable-row-selection="canBatchDelete"
           :show-add-button="canCreate"
           search-placeholder="Buscar promociones..."
           add-button-text="Nueva Promoción"
           add-button-icon="i-lucide-percent"
-          :enable-row-selection="false"
           enable-column-visibility
           empty="No hay promociones todavía"
           @add="handleAddPromotion"
@@ -373,7 +527,13 @@ defineExpose({ filterType, filterStatus, filterMethod, getRowItems })
 
           <!-- ── Cell renderers ────────────────────────────────────────── -->
           <template #title-cell="{ row }">
-            <span class="font-medium">{{ row.original.title }}</span>
+            <span
+              class="font-medium"
+              :class="offendingIds.has(row.original.id) ? 'rounded ring-2 ring-error/60 px-1' : ''"
+              :data-offending="offendingIds.has(row.original.id) ? 'true' : undefined"
+            >
+              {{ row.original.title }}
+            </span>
           </template>
 
           <template #status-cell="{ row }">
