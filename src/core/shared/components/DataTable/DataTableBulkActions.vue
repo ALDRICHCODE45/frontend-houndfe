@@ -12,6 +12,28 @@ defineProps<{
 const emit = defineEmits<{
   clearSelection: []
 }>()
+
+/**
+ * Map BulkAction.variant to a Nuxt UI `color`.
+ *
+ * - 'destructive' → 'error' (red, e.g. batch-delete)
+ * - 'warning'     → 'warning' (amber, e.g. batch-terminate)
+ * - 'primary'     → 'primary' (success-tone, e.g. batch-reactivate)
+ * - 'default'/undefined → 'neutral' (gray, generic)
+ */
+function resolveActionColor(variant: BulkAction<unknown>['variant']): string {
+  switch (variant) {
+    case 'destructive':
+      return 'error'
+    case 'warning':
+      return 'warning'
+    case 'primary':
+      return 'primary'
+    case 'default':
+    default:
+      return 'neutral'
+  }
+}
 </script>
 
 <template>
@@ -45,7 +67,7 @@ const emit = defineEmits<{
           :key="action.id"
           :label="action.label"
           :icon="action.icon"
-          :color="action.variant === 'destructive' ? 'error' : 'neutral'"
+          :color="resolveActionColor(action.variant)"
           variant="outline"
           size="sm"
           @click="action.onClick([])"

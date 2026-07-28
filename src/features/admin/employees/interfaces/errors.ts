@@ -16,6 +16,8 @@ export type EmployeeDomainErrorCode =
   | 'TIME_OFF_INVALID_DATE_RANGE'
   | 'EMPLOYEE_DOCUMENT_NOT_FOUND'
   | 'EMERGENCY_CONTACT_NOT_FOUND'
+  | 'BATCH_DELETE_NOT_FOUND'
+  | 'INSUFFICIENT_PERMISSIONS'
 
 export const EMPLOYEE_ERROR_MAP: Record<EmployeeDomainErrorCode, string> = {
   EMPLOYEE_NOT_FOUND: 'No se encontró el colaborador.',
@@ -29,4 +31,11 @@ export const EMPLOYEE_ERROR_MAP: Record<EmployeeDomainErrorCode, string> = {
   TIME_OFF_INVALID_DATE_RANGE: 'El rango de fechas no es válido. La fecha de fin debe ser posterior o igual a la de inicio.',
   EMPLOYEE_DOCUMENT_NOT_FOUND: 'No se encontró el documento del colaborador.',
   EMERGENCY_CONTACT_NOT_FOUND: 'No se encontró el contacto de emergencia.',
+  // ── Batch operation errors (WU-12 employees-batch-operations) ────────────
+  //
+  // Backend reuses the literal `BATCH_DELETE_NOT_FOUND` for ALL three batch
+  // endpoints (delete, terminate, reactivate). Mirror the same quirk that
+  // exists in PromotionsView.vue:339 (promotions-batch-end).
+  BATCH_DELETE_NOT_FOUND: 'Algunos colaboradores ya no existen. La lista se actualizó.',
+  INSUFFICIENT_PERMISSIONS: 'No tenés permisos para realizar esta acción en lote.',
 } as const
