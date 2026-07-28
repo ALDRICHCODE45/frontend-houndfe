@@ -2,6 +2,46 @@
 
 Branch: `sdd-12-employees-batch-operations`
 
+## Phase 2: Composables — ✅ COMPLETE
+
+### Tasks completed
+
+- [x] **2.1** RED composables spec — rowSelection/selectedEmployees/clearSelection
+- [x] **2.2** GREEN extended `useEmployeesList.ts` — added `rowSelection`, `selectedEmployees`, `clearSelection()`, `watch([statusTab, search])` reset
+- [x] **2.3** RED `useBatchDeleteEmployee` spec — 200/404/403 dispatch
+- [x] **2.4** GREEN created `useBatchDeleteEmployee.ts`
+- [x] **2.5** RED `useBatchTerminateEmployee` spec — same dispatch with reason
+- [x] **2.6** GREEN created `useBatchTerminateEmployee.ts`
+- [x] **2.7** RED `useBatchReactivateEmployee` spec
+- [x] **2.8** GREEN created `useBatchReactivateEmployee.ts`
+
+### Files changed
+
+- **added** `src/features/admin/employees/__tests__/wu12-batch-composables.spec.ts` (20 RED specs)
+- **added** `src/features/admin/employees/composables/useBatchDeleteEmployee.ts`
+- **added** `src/features/admin/employees/composables/useBatchTerminateEmployee.ts`
+- **added** `src/features/admin/employees/composables/useBatchReactivateEmployee.ts`
+- **modified** `src/features/admin/employees/composables/useEmployeesList.ts` (added rowSelection + selectedEmployees + clearSelection + watch)
+
+### Verification
+
+- `pnpm test:unit -- wu12-batch-composables.spec.ts` → 20/20 PASS
+- `pnpm test:unit` (full suite) → 3029/3029 PASS
+- `pnpm type-check` → zero errors
+- `pnpm build` → production bundle clean
+
+### Notes
+
+- Composables intentionally do NOT receive `rowSelection` from the caller —
+  the view layer calls `useEmployeesList.clearSelection()` after a successful
+  batch (see `wu12-batch-composables.spec.ts:119-127`). This keeps mutation
+  composables decoupled from the list composable.
+- Tested via TanStack Query mutationOptions capture pattern (mock useMutation
+  to capture options, invoke onSuccess/onError directly) — avoids standing
+  up a full Vue app while still proving the dispatch contract.
+- `INSUFFICIENT_PERMISSIONS` dispatch does NOT call `invalidateQueries` —
+  selection is preserved at the view layer (caller does NOT clear on 403).
+
 ## Phase 1: Types & API — ✅ COMPLETE
 
 ### Tasks completed
