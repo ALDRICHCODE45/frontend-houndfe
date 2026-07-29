@@ -440,6 +440,14 @@
       "sessions": 1,
       "memories": 8,
       "prompts": 12
+    },
+    {
+      "id": "e0895ca2",
+      "created_by": "aldrich_coder45",
+      "created_at": "2026-07-29T21:08:05Z",
+      "sessions": 2,
+      "memories": 13,
+      "prompts": 32
     }
   ]
 }
