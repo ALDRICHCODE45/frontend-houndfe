@@ -571,7 +571,7 @@ defineExpose({
       :description="confirmState.description"
       :confirm-label="confirmState.label"
       :confirm-color="confirmState.color"
-      :loading="endMutation.isPending.value || deleteMutation.isPending.value || batchDeleteMutation.isPending.value || batchEndMutation.isPending.value"
+      :loading="endMutation.isPending.value || deleteMutation.isPending.value || batchDeleteMutation.isPending.value || batchEndMutation.isPending.value || batchActivateMutation.isPending.value"
       :items="confirmState.items"
       @update:open="confirmState.open = $event"
       @confirm="handleConfirm"
