@@ -139,11 +139,14 @@ export function useEmployeesList(options: UseEmployeesListOptions = {}) {
   const rowSelection = ref<RowSelectionState>({})
 
   // selectedEmployees — derived: filter employees against rowSelection keys.
-  const selectedEmployees = computed<Employee[]>(() => {
-    const keys = Object.keys(rowSelection.value)
-    if (keys.length === 0) return []
-    return employees.value.filter((e) => keys.includes(e.id))
-  })
+  //
+  // TanStack vue-table (via Nuxt UI UTable) uses ROW INDICES as selection
+  // keys (String(index)), NOT entity IDs. Matching useServerTable.selectedRows
+  // (line ~177), we filter by index. Using e.id would never match because
+  // indices are "0","1","2"… while ids are UUIDs.
+  const selectedEmployees = computed<Employee[]>(() =>
+    employees.value.filter((_, index) => rowSelection.value[String(index)]),
+  )
 
   function clearSelection(): void {
     rowSelection.value = {}
