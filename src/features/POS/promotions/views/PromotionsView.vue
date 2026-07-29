@@ -49,6 +49,7 @@ const canUpdate = computed(() => authStore.userCan('update', 'Promotion'))
 const canDelete = computed(() => authStore.userCan('delete', 'Promotion'))
 const canBatchDelete = computed(() => authStore.userCan('batch_delete', 'Promotion'))
 const canBatchEnd = computed(() => authStore.userCan('update', 'Promotion'))
+const canBatchActivate = computed(() => authStore.userCan('update', 'Promotion'))
 
 // ── Filter state ─────────────────────────────────────────────────────────────
 
@@ -103,6 +104,8 @@ const METHOD_OPTIONS = [
 // ── Server table ──────────────────────────────────────────────────────────────
 
 const BATCH_DELETE_CAP = 100
+// BATCH_END_CAP is shared between batch-end and batch-activate (same 100-id
+// server-side cap; user explicitly directed reuse to avoid constant proliferation).
 const BATCH_END_CAP = 100
 
 const {
@@ -359,6 +362,51 @@ const batchEndMutation = useMutation({
   },
 })
 
+// ── Batch activate mutation (promotions-batch-activate) ───────────────────────
+// The backend reuses the `BATCH_DELETE_NOT_FOUND` literal for batch-activate
+// 404s (same naming quirk as batch-end). Reactivate is idempotent: reactivating
+// a non-ENDED promo is a server-side no-op success.
+type BatchActivateErrorData = DomainApiError & { offendingIds?: string[] }
+
+const batchActivateMutation = useMutation({
+  mutationFn: (ids: string[]) => promotionApi.batchActivate(ids),
+  onSuccess: async (result) => {
+    toast.add({
+      title: `${result.activated} promociones reactivadas`,
+      color: 'success',
+    })
+    await queryClient.invalidateQueries({ queryKey: promotionQueryKeys.paginated(tenantId.value) })
+    rowSelection.value = {}
+  },
+  onError: (error) => {
+    const axiosErr = error as AxiosError<BatchActivateErrorData>
+    const code = axiosErr.response?.data?.error
+    const offendingCount = axiosErr.response?.data?.offendingIds?.length ?? 0
+
+    switch (code) {
+      // Backend naming quirk: batch-activate 404s still emit BATCH_DELETE_NOT_FOUND.
+      case 'BATCH_DELETE_NOT_FOUND':
+        toast.add({
+          title: `${offendingCount} promocion(es) no encontrada(s)`,
+          color: 'warning',
+        })
+        void queryClient.invalidateQueries({ queryKey: promotionQueryKeys.paginated(tenantId.value) })
+        rowSelection.value = {}
+        break
+      case 'INSUFFICIENT_PERMISSIONS':
+        toast.add({
+          title: 'No tenés permisos para reactivar promociones en lote.',
+          color: 'error',
+        })
+        break
+      default: {
+        const normalized = normalizeApiError(error, 'No se pudieron reactivar las promociones.')
+        toast.add({ title: 'Error', description: normalized.message, color: 'error' })
+      }
+    }
+  },
+})
+
 function handleEdit(promotion: PromotionResponse) {
   void router.push(`/pos/promociones/${promotion.id}`)
 }
@@ -463,6 +511,31 @@ const bulkActions = computed<BulkAction<PromotionResponse>[]>(() => {
     })
   }
 
+  if (canBatchActivate.value) {
+    const label = n > 0 ? `Reactivar (${n})` : 'Reactivar'
+    actions.push({
+      id: 'batch-activate',
+      label,
+      variant: 'primary',
+      disabled: n === 0 || n > BATCH_END_CAP,
+      onClick: () => {
+        openConfirm(
+          'Vas a reactivar las siguientes promociones. Esta acción las devuelve a su estado activo.',
+          'Reactivar seleccionadas',
+          'primary',
+          () => {
+            void batchActivateMutation.mutateAsync(rows.map((r) => r.id))
+          },
+          rows.map((r) => ({
+            id: r.id,
+            title: r.title,
+            status: r.status,
+          })),
+        )
+      },
+    })
+  }
+
   return actions
 })
 
@@ -476,7 +549,9 @@ defineExpose({
   bulkActions,
   canBatchDelete,
   canBatchEnd,
+  canBatchActivate,
   batchEndMutation,
+  batchActivateMutation,
   offendingIds,
   rowSelection,
 })
@@ -496,7 +571,7 @@ defineExpose({
       :description="confirmState.description"
       :confirm-label="confirmState.label"
       :confirm-color="confirmState.color"
-      :loading="endMutation.isPending.value || deleteMutation.isPending.value || batchDeleteMutation.isPending.value || batchEndMutation.isPending.value"
+      :loading="endMutation.isPending.value || deleteMutation.isPending.value || batchDeleteMutation.isPending.value || batchEndMutation.isPending.value || batchActivateMutation.isPending.value"
       :items="confirmState.items"
       @update:open="confirmState.open = $event"
       @confirm="handleConfirm"
