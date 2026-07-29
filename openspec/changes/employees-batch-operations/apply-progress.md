@@ -76,3 +76,24 @@ Branch: `sdd-12-employees-batch-operations`
 - Backend reuses literal `BATCH_DELETE_NOT_FOUND` for all 3 batch endpoints — comment added in `employees.api.ts` + `errors.ts`.
 - `batchTerminate` API trims reason client-side before POST — guards against whitespace.
 - `BatchTerminateDtoSchema` validates only the `reason` field (form-level); `ids[]` is API-level.
+
+## Phase 3: BatchTerminateModal — ✅ COMPLETE
+
+### Tasks completed
+
+- [x] **3.1** RED `BatchTerminateModal.spec.ts` — reason validity, confirm/cancel emits, loading state, employee list
+- [x] **3.2** GREEN created `components/BatchTerminateModal.vue` with a scrollable employee list and Zod-backed reason form
+
+### Files changed
+
+- **added** `src/features/admin/employees/components/BatchTerminateModal.vue`
+- **added** `src/features/admin/employees/components/__tests__/BatchTerminateModal.spec.ts`
+
+### Verification
+
+- `pnpm exec vitest run src/features/admin/employees/components/__tests__/BatchTerminateModal.spec.ts` → 9/9 PASS
+- `pnpm type-check` → zero errors
+
+### Notes
+
+- Nuxt auto-imports UI components under resolved names (`Modal`, `Form`, `FormField`, `Textarea`, `Button`) in unit tests; stubs use those names so the modal remains isolated from router and teleport behavior.

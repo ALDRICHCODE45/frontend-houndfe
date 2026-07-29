@@ -9,30 +9,30 @@ Changed lines ~1100 (code ~700 + tests ~400). Files 11 (4 new + 7 mod). Commits 
 
 ## Phase 1: Types & API
 
-- [ ] 1.1 RED `wu12c-batch-types.spec.ts` — Zod rejects empty/whitespace, accepts `'Reorg'`
-- [ ] 1.2 GREEN add `BatchTerminateDto` + Zod schema in `employee.types.ts`
-- [ ] 1.3 RED API guard spec — `batchDelete`/`batchTerminate`/`batchReactivate` throw on empty or >100, dedup via `Set`, no HTTP
-- [ ] 1.4 GREEN add 3 batch methods to `employees.api.ts` (POST `/admin/employees/batch-{delete,terminate,reactivate}`)
-- [ ] 1.5 RED error-map spec — `BATCH_DELETE_NOT_FOUND` + `INSUFFICIENT_PERMISSIONS` resolve to Spanish
-- [ ] 1.6 GREEN extend `errors.ts` union + map with 2 codes
-- [ ] 1.7 RED `BulkAction.variant` accepts `'primary'`; `DataTableBulkActions` maps to Nuxt `'primary'` color
-- [ ] 1.8 GREEN extend `BulkAction.variant` union in `table.types.ts`; map `'primary' → 'primary'` in `DataTableBulkActions.vue`
+- [x] 1.1 RED `wu12c-batch-types.spec.ts` — Zod rejects empty/whitespace, accepts `'Reorg'`
+- [x] 1.2 GREEN add `BatchTerminateDto` + Zod schema in `employee.types.ts`
+- [x] 1.3 RED API guard spec — `batchDelete`/`batchTerminate`/`batchReactivate` throw on empty or >100, dedup via `Set`, no HTTP
+- [x] 1.4 GREEN add 3 batch methods to `employees.api.ts` (POST `/admin/employees/batch-{delete,terminate,reactivate}`)
+- [x] 1.5 RED error-map spec — `BATCH_DELETE_NOT_FOUND` + `INSUFFICIENT_PERMISSIONS` resolve to Spanish
+- [x] 1.6 GREEN extend `errors.ts` union + map with 2 codes
+- [x] 1.7 RED `BulkAction.variant` accepts `'primary'`; `DataTableBulkActions` maps to Nuxt `'primary'` color
+- [x] 1.8 GREEN extend `BulkAction.variant` union in `table.types.ts`; map `'primary' → 'primary'` in `DataTableBulkActions.vue`
 
 ## Phase 2: Composables
 
-- [ ] 2.1 RED `useEmployeesList` spec — `selectedEmployees` derives `rowSelection`×`employees`; `clearSelection()` empties; filter watch clears
-- [ ] 2.2 GREEN extend `useEmployeesList.ts` — add `rowSelection`, `selectedEmployees`, `clearSelection()`, `watch([statusTab, search])` reset (existing spec stays green)
-- [ ] 2.3 RED `useBatchDeleteEmployee` spec — 200 toast+invalidate; `BATCH_DELETE_NOT_FOUND` warn+invalidate+clear; `INSUFFICIENT_PERMISSIONS` error+preserve
-- [ ] 2.4 GREEN create `useBatchDeleteEmployee.ts` (reuse `extractDomainErrorCode`)
-- [ ] 2.5 RED `useBatchTerminateEmployee` spec — same dispatch with `reason`
-- [ ] 2.6 GREEN create `useBatchTerminateEmployee.ts`
-- [ ] 2.7 RED `useBatchReactivateEmployee` spec
-- [ ] 2.8 GREEN create `useBatchReactivateEmployee.ts`
+- [x] 2.1 RED `useEmployeesList` spec — `selectedEmployees` derives `rowSelection`×`employees`; `clearSelection()` empties; filter watch clears
+- [x] 2.2 GREEN extend `useEmployeesList.ts` — add `rowSelection`, `selectedEmployees`, `clearSelection()`, `watch([statusTab, search])` reset (existing spec stays green)
+- [x] 2.3 RED `useBatchDeleteEmployee` spec — 200 toast+invalidate; `BATCH_DELETE_NOT_FOUND` warn+invalidate+clear; `INSUFFICIENT_PERMISSIONS` error+preserve
+- [x] 2.4 GREEN create `useBatchDeleteEmployee.ts` (reuse `extractDomainErrorCode`)
+- [x] 2.5 RED `useBatchTerminateEmployee` spec — same dispatch with `reason`
+- [x] 2.6 GREEN create `useBatchTerminateEmployee.ts`
+- [x] 2.7 RED `useBatchReactivateEmployee` spec
+- [x] 2.8 GREEN create `useBatchReactivateEmployee.ts`
 
 ## Phase 3: BatchTerminateModal
 
-- [ ] 3.1 RED `BatchTerminateModal.spec.ts` — confirm disabled when `reason.trim()===''`; enabled when filled; emits `confirm(reason)`; Zod rejects whitespace; loading disables buttons
-- [ ] 3.2 GREEN create `components/BatchTerminateModal.vue` (`UModal` + scrollable list + `UTextarea` + Zod form)
+- [x] 3.1 RED `BatchTerminateModal.spec.ts` — confirm disabled when `reason.trim()===''`; enabled when filled; emits `confirm(reason)`; Zod rejects whitespace; loading disables buttons
+- [x] 3.2 GREEN create `components/BatchTerminateModal.vue` (`UModal` + scrollable list + `UTextarea` + Zod form)
 
 ## Phase 4: View Integration
 
