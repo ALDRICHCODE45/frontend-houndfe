@@ -117,3 +117,53 @@ describe('promotionApi.batchEnd (promotions-batch-end)', () => {
     expect(httpPostMock).not.toHaveBeenCalled()
   })
 })
+
+// BA-REQ-002: `promotionApi.batchActivate(ids: string[])` MUST deduplicate ids,
+// enforce the 100-id cap, POST to `/promotions/batch-activate`, and return
+// `{ activated }`. Mirror of `batchEnd` per the SDD-13 deltas.
+describe('promotionApi.batchActivate (promotions-batch-activate)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('deduplicates ids before POST and returns { activated: number }', async () => {
+    httpPostMock.mockResolvedValueOnce({ data: { activated: 2 } } as never)
+
+    const result = await promotionApi.batchActivate(['a', 'a', 'b'])
+
+    expect(httpPostMock).toHaveBeenCalledWith('/promotions/batch-activate', { ids: ['a', 'b'] })
+    expect(result).toEqual({ activated: 2 })
+  })
+
+  it('rejects empty arrays client-side without a network call', async () => {
+    await expect(promotionApi.batchActivate([])).rejects.toThrow()
+    expect(httpPostMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects arrays longer than 100 client-side without a network call', async () => {
+    const tooMany = Array.from({ length: 101 }, (_, i) => `id-${i}`)
+
+    await expect(promotionApi.batchActivate(tooMany)).rejects.toThrow()
+    expect(httpPostMock).not.toHaveBeenCalled()
+  })
+})
+
+// IA-REQ-001: `promotionApi.activate(id: string)` MUST PATCH
+// `/promotions/${id}/activate` and return the updated `PromotionResponse`.
+// Mirrors `promotionApi.end(id)` per the SDD-13 deltas.
+describe('promotionApi.activate (promotions-batch-activate)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('PATCHes /promotions/:id/activate and returns the updated promotion', async () => {
+    const updated = { id: 'promo-1', status: 'ACTIVE' }
+    const httpPatchMock = vi.mocked(http.patch)
+    httpPatchMock.mockResolvedValueOnce({ data: updated } as never)
+
+    const result = await promotionApi.activate('promo-1')
+
+    expect(httpPatchMock).toHaveBeenCalledWith('/promotions/promo-1/activate')
+    expect(result).toEqual(updated)
+  })
+})

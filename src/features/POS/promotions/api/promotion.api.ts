@@ -104,6 +104,11 @@ export const promotionApi = {
     return data
   },
 
+  async activate(promotionId: string): Promise<PromotionResponse> {
+    const { data } = await http.patch<PromotionResponse>(`/promotions/${promotionId}/activate`)
+    return data
+  },
+
   async remove(promotionId: string): Promise<void> {
     await http.delete(`/promotions/${promotionId}`)
   },
@@ -146,6 +151,27 @@ export const promotionApi = {
     }
 
     const { data } = await http.post<{ ended: number }>('/promotions/batch-end', {
+      ids: uniqueIds,
+    })
+    return data
+  },
+
+  /**
+   * Bulk-activate promotions. The backend is all-or-nothing atomic; backend
+   * treats reactivating a non-ENDED promo as a no-op (idempotent).
+   *
+   * Client-side guards mirror the batch-end contract and server cap.
+   */
+  async batchActivate(ids: string[]): Promise<{ activated: number }> {
+    const uniqueIds = Array.from(new Set(ids))
+    if (uniqueIds.length === 0) {
+      throw new Error('batchActivate requires at least one id')
+    }
+    if (uniqueIds.length > 100) {
+      throw new Error('batchActivate is capped at 100 ids per request')
+    }
+
+    const { data } = await http.post<{ activated: number }>('/promotions/batch-activate', {
       ids: uniqueIds,
     })
     return data
