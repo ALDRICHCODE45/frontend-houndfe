@@ -36,14 +36,14 @@ Changed lines ~1100 (code ~700 + tests ~400). Files 11 (4 new + 7 mod). Commits 
 
 ## Phase 4: View Integration
 
-- [ ] 4.1 RED view spec — `canBatchDelete` true only with `batch_delete:Employee`; checkboxes hidden when all gates false
-- [ ] 4.2 GREEN add 3 CASL gates
-- [ ] 4.3 RED view spec — `bulkActions` returns 3 entries (delete+destructive, terminate+warning, reactivate+primary); `[]` when `viewMode==='cards'`; disabled when `n===0||n>100`
-- [ ] 4.4 GREEN add `bulkActions` computed + `BATCH_OPS_CAP=100`
-- [ ] 4.5 RED view spec — `:enable-row-selection` true only when `viewMode==='table'`; selection cleared on filter/page/view change
-- [ ] 4.6 GREEN wire `AppDataTable` with `:enable-row-selection`, `v-model:row-selection`, `#select-header` + `#select-cell` slots via `SelectColumn`
-- [ ] 4.7 RED view spec — delete opens `ConfirmModal` (cascade, error); terminate opens `BatchTerminateModal`; reactivate opens `ConfirmModal` (success); `:loading` ORs 3 `isPending`
-- [ ] 4.8 GREEN import 3 mutations + `BatchTerminateModal` + 2 `ConfirmModal`s; wire open/confirm/close + OR-merge `isPending`
+- [x] 4.1 RED view spec — `canBatchDelete` true only with `batch_delete:Employee`; checkboxes hidden when all gates false
+- [x] 4.2 GREEN add 3 CASL gates
+- [x] 4.3 RED view spec — `bulkActions` returns 3 entries (delete+destructive, terminate+warning, reactivate+primary); `[]` when `viewMode==='cards'`; disabled when `n===0||n>100`
+- [x] 4.4 GREEN add `bulkActions` computed + `BATCH_OPS_CAP=100`
+- [x] 4.5 RED view spec — `:enable-row-selection` true only when `viewMode==='table'`; selection cleared on filter/page/view change
+- [x] 4.6 GREEN wire `AppDataTable` with `:enable-row-selection`, `v-model:row-selection`, `#select-header` + `#select-cell` slots via `SelectColumn`
+- [x] 4.7 RED view spec — delete opens `ConfirmModal` (cascade, error); terminate opens `BatchTerminateModal`; reactivate opens `ConfirmModal` (success); `:loading` ORs 3 `isPending`
+- [x] 4.8 GREEN import 3 mutations + `BatchTerminateModal` + 2 `ConfirmModal`s; wire open/confirm/close + OR-merge `isPending`
 
 ## Phase 5: Verification
 

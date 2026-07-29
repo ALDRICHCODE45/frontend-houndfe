@@ -97,3 +97,28 @@ Branch: `sdd-12-employees-batch-operations`
 ### Notes
 
 - Nuxt auto-imports UI components under resolved names (`Modal`, `Form`, `FormField`, `Textarea`, `Button`) in unit tests; stubs use those names so the modal remains isolated from router and teleport behavior.
+
+## Phase 4: View Integration — ✅ COMPLETE
+
+### Tasks completed
+
+- [x] **4.1–4.2** Added independent CASL gates for delete, terminate, and reactivate
+- [x] **4.3–4.4** Added permission-gated bulk actions with the 100-row cap and card-view guard
+- [x] **4.5–4.6** Wired row selection, select slots, and selection clearing on page/view/filter changes
+- [x] **4.7–4.8** Wired delete, terminate, and reactivate modals to their mutation composables with merged pending state
+
+### Files changed
+
+- **modified** `src/features/admin/employees/views/EmployeesListView.vue`
+- **added** `src/features/admin/employees/views/__tests__/EmployeesListView.batch.spec.ts`
+
+### Verification
+
+- `pnpm exec vitest run src/features/admin/employees/views/__tests__/EmployeesListView.batch.spec.ts src/features/admin/employees/components/__tests__/BatchTerminateModal.spec.ts` → 14/14 PASS
+- `pnpm type-check` → zero errors
+
+### Notes
+
+- The project view-mode contract uses `'card'` (singular), despite the SDD prose using `'cards'`; the integration follows the typed project contract.
+- Batch 404 responses clear selection and close the modal; permission and unknown failures preserve both so the user can retry.
+- Existing per-row terminate/reactivate dialogs remain unchanged and coexist with the batch modals.

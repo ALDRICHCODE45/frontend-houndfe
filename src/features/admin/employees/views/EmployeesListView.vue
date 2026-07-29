@@ -33,9 +33,13 @@
  * Edit/terminate/reactivate gated by update:Employee.
  */
 
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import type { AxiosError } from 'axios'
 import { useRouter } from 'vue-router'
 import { AppDataTable } from '@/core/shared/components/DataTable'
+import SelectColumn from '@/core/shared/components/DataTable/SelectColumn.vue'
+import ConfirmModal, { type ConfirmModalItem } from '@/core/shared/components/ConfirmModal.vue'
+import type { BulkAction } from '@/core/shared/types/table.types'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { EMPLOYEE_STATUS, WORK_MODALITY } from '../constants/employee.constants'
 import { WORK_MODALITY_LABELS } from '../interfaces/employee.types'
@@ -59,6 +63,10 @@ import CreateEmployeeSlideover from '../components/CreateEmployeeSlideover.vue'
 import EmployeeEditSlideover from '../components/EmployeeEditSlideover.vue'
 import TerminateEmployeeDialog from '../components/TerminateEmployeeDialog.vue'
 import ReactivateEmployeeDialog from '../components/ReactivateEmployeeDialog.vue'
+import BatchTerminateModal from '../components/BatchTerminateModal.vue'
+import { useBatchDeleteEmployee } from '../composables/useBatchDeleteEmployee'
+import { useBatchTerminateEmployee } from '../composables/useBatchTerminateEmployee'
+import { useBatchReactivateEmployee } from '../composables/useBatchReactivateEmployee'
 import type { Employee } from '../interfaces/employee.types'
 
 const authStore = useAuthStore()
@@ -73,6 +81,12 @@ function navigateToDetail(employee: Employee): void {
 // ── CASL guards ────────────────────────────────────────────────────────────────
 const canCreate = computed(() => authStore.userCan('create', 'Employee'))
 const canUpdate = computed(() => authStore.userCan('update', 'Employee'))
+const canBatchDelete = computed(() => authStore.userCan('batch_delete', 'Employee'))
+const canBatchTerminate = computed(() => authStore.userCan('update', 'Employee'))
+const canBatchReactivate = computed(() => authStore.userCan('update', 'Employee'))
+const canUseBatchActions = computed(
+  () => canBatchDelete.value || canBatchTerminate.value || canBatchReactivate.value,
+)
 
 // ── Create slideover ───────────────────────────────────────────────────────────
 const isCreateOpen = ref(false)
@@ -129,6 +143,9 @@ const {
   isFetching,
   page,
   pageSize,
+  rowSelection,
+  selectedEmployees,
+  clearSelection,
   setStatusTab,
   setSearch,
   setPage,
@@ -137,10 +154,126 @@ const {
 } = useEmployeesList({ defaultPageSize: 10 })
 
 // ── Column definitions ─────────────────────────────────────────────────────────
-const { columns } = useEmployeeColumns()
+const { columns: employeeColumns } = useEmployeeColumns()
+const columns = computed(() =>
+  canUseBatchActions.value
+    ? [{ id: 'select', enableSorting: false, enableHiding: false }, ...employeeColumns.value]
+    : employeeColumns.value,
+)
 
 // ── View mode (Tabla / Tarjetas) ───────────────────────────────────────────────
 const { viewMode, setMode } = useEmployeeViewMode()
+
+// ── Batch operations ───────────────────────────────────────────────────────────
+const BATCH_OPS_CAP = 100
+const isBatchDeleteOpen = ref(false)
+const isBatchTerminateOpen = ref(false)
+const isBatchReactivateOpen = ref(false)
+
+const batchDeleteMutation = useBatchDeleteEmployee()
+const batchTerminateMutation = useBatchTerminateEmployee()
+const batchReactivateMutation = useBatchReactivateEmployee()
+
+const isBatchPending = computed(
+  () =>
+    batchDeleteMutation.isPending.value ||
+    batchTerminateMutation.isPending.value ||
+    batchReactivateMutation.isPending.value,
+)
+
+const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
+  selectedEmployees.value.map((employee) => ({
+    id: employee.id,
+    title: employee.fullName,
+    status: employeeStatusConfig[employee.status].label,
+  })),
+)
+
+watch([viewMode, page], clearSelection)
+
+function shouldClearAfterBatchError(error: unknown): boolean {
+  return (error as AxiosError<{ error?: string }>)?.response?.data?.error === 'BATCH_DELETE_NOT_FOUND'
+}
+
+async function confirmBatchDelete(): Promise<void> {
+  try {
+    await batchDeleteMutation.mutateAsync(selectedEmployees.value.map((employee) => employee.id))
+    clearSelection()
+    isBatchDeleteOpen.value = false
+  } catch (error) {
+    if (shouldClearAfterBatchError(error)) {
+      clearSelection()
+      isBatchDeleteOpen.value = false
+    }
+  }
+}
+
+async function confirmBatchTerminate(reason: string): Promise<void> {
+  try {
+    await batchTerminateMutation.mutateAsync({
+      ids: selectedEmployees.value.map((employee) => employee.id),
+      reason,
+    })
+    clearSelection()
+    isBatchTerminateOpen.value = false
+  } catch (error) {
+    if (shouldClearAfterBatchError(error)) {
+      clearSelection()
+      isBatchTerminateOpen.value = false
+    }
+  }
+}
+
+async function confirmBatchReactivate(): Promise<void> {
+  try {
+    await batchReactivateMutation.mutateAsync(selectedEmployees.value.map((employee) => employee.id))
+    clearSelection()
+    isBatchReactivateOpen.value = false
+  } catch (error) {
+    if (shouldClearAfterBatchError(error)) {
+      clearSelection()
+      isBatchReactivateOpen.value = false
+    }
+  }
+}
+
+const bulkActions = computed<BulkAction<Employee>[]>(() => {
+  if (viewMode.value === 'card') return []
+
+  const count = selectedEmployees.value.length
+  const disabled = count === 0 || count > BATCH_OPS_CAP
+  const actions: BulkAction<Employee>[] = []
+
+  if (canBatchDelete.value) {
+    actions.push({
+      id: 'batch-delete',
+      label: count > 0 ? `Eliminar (${count})` : 'Eliminar',
+      variant: 'destructive',
+      disabled,
+      onClick: () => { isBatchDeleteOpen.value = true },
+    })
+  }
+  if (canBatchTerminate.value) {
+    actions.push({
+      id: 'batch-terminate',
+      label: count > 0 ? `Dar de baja (${count})` : 'Dar de baja',
+      variant: 'warning',
+      disabled,
+      onClick: () => { isBatchTerminateOpen.value = true },
+    })
+  }
+  if (canBatchReactivate.value) {
+    actions.push({
+      id: 'batch-reactivate',
+      label: count > 0 ? `Reactivar (${count})` : 'Reactivar',
+      variant: 'primary',
+      disabled,
+      onClick: () => { isBatchReactivateOpen.value = true },
+    })
+  }
+
+  return actions
+})
 
 // ── Manager name resolution (batch, no N+1) ───────────────────────────────────
 const { managerMap } = useManagerResolution(
@@ -305,8 +438,11 @@ const showingTo = computed(() => {
         <AppDataTable
           v-if="viewMode === 'table'"
           v-model:pagination="pagination"
+          v-model:row-selection="rowSelection"
           :columns="columns"
           :data="employees"
+          :enable-row-selection="canUseBatchActions && viewMode === 'table'"
+          :bulk-actions="bulkActions"
           :loading="isLoading"
           :fetching="isFetching"
           :page-count="pageCount"
@@ -324,6 +460,13 @@ const showingTo = computed(() => {
           @refresh="refresh"
           @add="openCreateSlideover"
         >
+          <template #select-header="{ table }">
+            <SelectColumn :table="table" mode="header" />
+          </template>
+          <template #select-cell="{ row }">
+            <SelectColumn :row="row" mode="cell" />
+          </template>
+
           <!-- Colaborador cell — avatar + name + email (click → detail view) -->
           <template #colaborador-cell="{ row }">
             <div
@@ -476,6 +619,38 @@ const showingTo = computed(() => {
     v-if="canCreate"
     v-model:open="isCreateOpen"
     @success="refresh"
+  />
+
+  <ConfirmModal
+    v-if="canBatchDelete"
+    v-model:open="isBatchDeleteOpen"
+    title="Eliminar colaboradores"
+    description="Esta acción es irreversible y eliminará salarios, cargos, documentos, ausencias y contactos de emergencia."
+    confirm-label="Eliminar permanentemente"
+    confirm-color="error"
+    :items="selectedEmployeeItems"
+    :loading="isBatchPending"
+    @confirm="confirmBatchDelete"
+  />
+
+  <BatchTerminateModal
+    v-if="canBatchTerminate"
+    v-model:open="isBatchTerminateOpen"
+    :employees="selectedEmployees"
+    :loading="isBatchPending"
+    @confirm="confirmBatchTerminate"
+  />
+
+  <ConfirmModal
+    v-if="canBatchReactivate"
+    v-model:open="isBatchReactivateOpen"
+    title="Reactivar colaboradores"
+    description="Los colaboradores seleccionados volverán al estado activo."
+    confirm-label="Reactivar seleccionados"
+    confirm-color="success"
+    :items="selectedEmployeeItems"
+    :loading="isBatchPending"
+    @confirm="confirmBatchReactivate"
   />
 
   <!-- Edit Employee Slideover — gated by canUpdate (update:Employee CASL) -->
