@@ -629,4 +629,109 @@ export const employeesApi = {
     )
   },
 
+  // ─── Batch operations — WU-12 ──────────────────────────────────────────────
+
+  /**
+   * POST /admin/employees/batch-delete — hard-delete N employees in a single
+   * atomic transaction. Backend cascade-deletes dependent tables (salary,
+   * position, documents, time-off, emergency contacts) — IRREVERSIBLE.
+   *
+   * Requires batch_delete:Employee permission.
+   *
+   * Client-side pre-flight guards (kept in lockstep with the server):
+   *  - rejects empty arrays (UI never lets the bulk button fire with 0 rows)
+   *  - rejects >100 ids (matches the server cap; the UI also disables the
+   *    button before the user can click into an invalid state)
+   *  - deduplicates ids before posting (server would 400 on dupes anyway)
+   *
+   * Possible domain errors:
+   * - BATCH_DELETE_NOT_FOUND (404): one or more ids no longer exist
+   * - INSUFFICIENT_PERMISSIONS (403)
+   */
+  async batchDelete(ids: string[]): Promise<{ deleted: number }> {
+    const uniqueIds = Array.from(new Set(ids))
+    if (uniqueIds.length === 0) {
+      throw new Error('batchDelete requires at least one id')
+    }
+    if (uniqueIds.length > 100) {
+      throw new Error('batchDelete is capped at 100 ids per request')
+    }
+
+    const { data } = await http.post<{ deleted: number }>(
+      '/admin/employees/batch-delete',
+      { ids: uniqueIds },
+    )
+    return data
+  },
+
+  /**
+   * POST /admin/employees/batch-terminate — soft-terminate N employees with
+   * a shared `reason` in a single atomic transaction.
+   *
+   * Requires update:Employee permission.
+   *
+   * Body: { ids: string[], reason: string } — both required.
+   * The reason is a SHARED string applied to ALL selected employees.
+   *
+   * Client-side pre-flight guards mirror batchDelete. Additionally:
+   *  - reason: must be non-empty AFTER trim() — whitespace-only is rejected.
+   *
+   * Possible domain errors:
+   * - BATCH_DELETE_NOT_FOUND (404): one or more ids no longer exist
+   * - INSUFFICIENT_PERMISSIONS (403)
+   *
+   * NOTE: backend reuses the literal `BATCH_DELETE_NOT_FOUND` for ALL three
+   * batch endpoints (delete, terminate, reactivate) — see
+   * `PromotionsView.vue:339` for the matching quirk in promotions-batch-end.
+   */
+  async batchTerminate(ids: string[], reason: string): Promise<{ updated: number }> {
+    const uniqueIds = Array.from(new Set(ids))
+    if (uniqueIds.length === 0) {
+      throw new Error('batchTerminate requires at least one id')
+    }
+    if (uniqueIds.length > 100) {
+      throw new Error('batchTerminate is capped at 100 ids per request')
+    }
+    if (typeof reason !== 'string' || reason.trim() === '') {
+      throw new Error('batchTerminate requires a non-empty reason')
+    }
+
+    const { data } = await http.post<{ updated: number }>(
+      '/admin/employees/batch-terminate',
+      { ids: uniqueIds, reason: reason.trim() },
+    )
+    return data
+  },
+
+  /**
+   * POST /admin/employees/batch-reactivate — bulk-reactivate N terminated
+   * employees in a single atomic transaction.
+   *
+   * Requires update:Employee permission. No request body other than ids.
+   *
+   * Client-side pre-flight guards mirror batchDelete.
+   *
+   * Possible domain errors:
+   * - BATCH_DELETE_NOT_FOUND (404): one or more ids no longer exist
+   * - INSUFFICIENT_PERMISSIONS (403)
+   *
+   * NOTE: backend reuses the literal `BATCH_DELETE_NOT_FOUND` for ALL three
+   * batch endpoints.
+   */
+  async batchReactivate(ids: string[]): Promise<{ updated: number }> {
+    const uniqueIds = Array.from(new Set(ids))
+    if (uniqueIds.length === 0) {
+      throw new Error('batchReactivate requires at least one id')
+    }
+    if (uniqueIds.length > 100) {
+      throw new Error('batchReactivate is capped at 100 ids per request')
+    }
+
+    const { data } = await http.post<{ updated: number }>(
+      '/admin/employees/batch-reactivate',
+      { ids: uniqueIds },
+    )
+    return data
+  },
+
 }

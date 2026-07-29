@@ -410,6 +410,32 @@ export const TerminateEmployeeDtoSchema = z.object({
 
 export type TerminateEmployeeDto = z.infer<typeof TerminateEmployeeDtoSchema>
 
+// ─── BatchTerminateDto ────────────────────────────────────────────────────────
+
+/**
+ * Zod schema for the form payload of BatchTerminateModal.
+ *
+ * Validates ONLY the `reason` field — the `ids[]` is part of the API call
+ * (employeesApi.batchTerminate) but the form-level schema only concerns
+ * user input. The `reason` is a SHARED string applied to ALL selected
+ * employees — backend is atomic, no per-employee reasons in v1.
+ *
+ * - reason: required, min 1 char (whitespace-only is rejected client-side
+ *   by employeesApi.batchTerminate via trim())
+ *
+ * The full HTTP body is `{ ids: string[], reason: string }`.
+ *
+ * Requires update:Employee permission. Backend errors on already-terminated
+ * employees surface as BATCH_DELETE_NOT_FOUND (404, generic) or
+ * INSUFFICIENT_PERMISSIONS (403) — see errors.ts EMPLOYEE_ERROR_MAP.
+ */
+export const BatchTerminateDtoSchema = z.object({
+  /** Free-text reason shared by all terminated employees */
+  reason: z.string().min(1, 'El motivo es requerido'),
+})
+
+export type BatchTerminateDto = z.infer<typeof BatchTerminateDtoSchema>
+
 // ─── AddSalaryChangeDto ───────────────────────────────────────────────────────
 
 /**
