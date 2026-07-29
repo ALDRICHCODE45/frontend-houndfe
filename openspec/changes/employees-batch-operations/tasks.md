@@ -47,9 +47,9 @@ Changed lines ~1100 (code ~700 + tests ~400). Files 11 (4 new + 7 mod). Commits 
 
 ## Phase 5: Verification
 
-- [ ] 5.1 `pnpm test:unit --run` — full green; WU-02..WU-12B employees specs unaffected
-- [ ] 5.2 `pnpm type-check` — zero errors; Customers/Products/Promotions views still pass
-- [ ] 5.3 `pnpm build` — production bundle clean
-- [ ] 5.4 Smoke success — 3 selected → cascade modal → toast "3 empleados eliminados"; repeat for terminate (reason "Reorg") + reactivate (all-terminated)
-- [ ] 5.5 Smoke card view — bar hidden, no checkboxes; back to table → selection cleared
-- [ ] 5.6 Smoke error dispatch — 404 (delete then re-batch) → warn + refresh + clear; 403 (no `batch_delete:Employee`) → error + selection preserved
+- [x] 5.1 `pnpm test:unit --run` — full green; WU-02..WU-12B employees specs unaffected
+- [x] 5.2 `pnpm type-check` — zero errors; Customers/Products/Promotions views still pass
+- [x] 5.3 `pnpm build` — production bundle clean
+- [x] 5.4 Smoke success — 3 selected → cascade modal → toast "3 empleados eliminados"; repeat for terminate (reason "Reorg") + reactivate (all-terminated)
+- [x] 5.5 Smoke card view — bar hidden, no checkboxes; back to table → selection cleared
+- [x] 5.6 Smoke error dispatch — 404 (delete then re-batch) → warn + refresh + clear; 403 (no `batch_delete:Employee`) → error + selection preserved
