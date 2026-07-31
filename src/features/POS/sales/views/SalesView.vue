@@ -132,6 +132,12 @@ const isChargeTemporarilyBlocked = computed(() => Date.now() < inFlightUntil.val
 const activeDraftId = computed(() => activeDraft.value?.id ?? '')
 const { unassignCustomer, clearShippingAddress, isPending: isCustomerMutationPending } = useDraftCustomerAssignment(activeDraftId)
 
+// 14a.1 (sales-screen-redesign — R6): template ref to ProductSearchPanel so
+// the global Ctrl+K / ⌘K shortcut can request focus on its UInput.
+const productSearchPanelRef = ref<{
+  searchInputRef?: { focus?: () => void } | HTMLInputElement | null
+} | null>(null)
+
 function mapCustomerAssignmentErrorMessage(error: unknown): string {
   const code = error instanceof DraftCustomerAssignmentError ? error.code : (error as { code?: string })?.code
 
@@ -491,12 +497,34 @@ function handleF8(event: KeyboardEvent) {
   openPaymentModal()
 }
 
+// 14a.1 (sales-screen-redesign — R6): global Ctrl+K / ⌘K keyboard shortcut
+// focuses the product search input. Accepts EITHER ctrlKey OR metaKey so
+// that the seller can use whichever modifier matches their platform;
+// isMac gates the visible `⌘` vs `Ctrl` label in ProductSearchPanel
+// (preserved as-is — see ProductSearchPanel.vue).
+function handleSearchShortcut(event: KeyboardEvent) {
+  if (event.key.toLowerCase() !== 'k') return
+  if (!event.ctrlKey && !event.metaKey) return
+  event.preventDefault()
+  // Production: defineExpose({ searchInputRef }) on a <script setup> child
+  // returns the Vue ref, so `.value` is the HTMLInputElement. Tests may
+  // expose a plain `{ focus }` object — handle both shapes uniformly.
+  const exposed = productSearchPanelRef.value?.searchInputRef
+  if (!exposed) return
+  const input = (exposed as { value?: unknown }).value ?? exposed
+  if (input && typeof (input as { focus?: () => void }).focus === 'function') {
+    (input as { focus: () => void }).focus()
+  }
+}
+
 onMounted(() => {
   window.addEventListener('keydown', handleF8)
+  window.addEventListener('keydown', handleSearchShortcut)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleF8)
+  window.removeEventListener('keydown', handleSearchShortcut)
 })
 
 function handleSwitchTab(saleId: string) {
@@ -623,13 +651,13 @@ async function handleChangePriceList(globalPriceListId: string | null) {
   <div class="h-full flex bg-default">
     <!-- Loading skeleton -->
     <div v-if="isLoadingList" class="h-full w-full flex flex-col lg:flex-row">
-      <!-- Left skeleton panel: full-width on mobile, 60% on lg+ -->
-      <div class="w-full lg:w-[60%] p-3 sm:p-4 space-y-4">
+      <!-- Left skeleton panel: full-width on mobile, 75% on lg+ (14a.1 R1) -->
+      <div class="w-full lg:w-[75%] p-3 sm:p-4 space-y-4">
         <USkeleton class="h-10 w-full rounded-lg" />
         <div class="flex gap-2">
           <USkeleton v-for="i in 4" :key="i" class="h-8 w-24 rounded-full" />
         </div>
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3 mt-3">
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-3 gap-4 mt-3">
           <div v-for="i in 8" :key="i" class="rounded-xl border border-default overflow-hidden">
             <USkeleton class="aspect-square w-full" />
             <div class="p-2.5 space-y-1.5">
@@ -642,8 +670,8 @@ async function handleChangePriceList(globalPriceListId: string | null) {
       </div>
 
       <!-- Right skeleton panel: hidden on mobile (cart lives in slideover),
-           40% on lg+ -->
-      <div class="hidden lg:block lg:w-[40%] shrink-0 p-3 lg:p-4">
+           25% on lg+ (14a.1 R1) -->
+      <div class="hidden lg:block lg:w-[25%] shrink-0 p-3 lg:p-4">
         <div class="h-full flex flex-col rounded-2xl border border-default bg-elevated/60 shadow-sm p-4 space-y-3">
           <USkeleton class="h-10 w-48" />
           <USkeleton class="h-10 w-full" />
@@ -660,7 +688,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
     </div>
 
     <!-- Main split view.
-         Desktop (lg+): horizontal split, catalog 60% / cart 40%.
+         Desktop (lg+): horizontal split, catalog 75% / cart 25% (14a.1 R1).
          Mobile/tablet (<lg): catalog full-width, cart lives in a bottom
          slideover triggered by a FAB pinned bottom-right.
 
@@ -682,16 +710,21 @@ async function handleChangePriceList(globalPriceListId: string | null) {
       />
 
       <div class="flex-1 flex flex-col lg:flex-row w-full min-h-0">
-      <!-- Left panel: Product catalog (60% on desktop, full-width on mobile) -->
-      <div class="lg:w-[60%] flex flex-col min-w-0 px-3 lg:px-4 pt-1.5 lg:pt-2 pb-3 lg:pb-4">
+      <!-- Left panel: Product catalog (75% on desktop, full-width on mobile).
+           14a.1 (sales-screen-redesign — R1): 75/25 split gives the
+           image-first product grid the visual weight it needs. -->
+      <div class="lg:w-[75%] flex flex-col min-w-0 px-3 lg:px-4 pt-1.5 lg:pt-2 pb-3 lg:pb-4">
         <div class="h-full rounded-2xl border border-default/50 overflow-hidden">
-          <ProductSearchPanel @add-product="handleAddProduct" />
+          <ProductSearchPanel ref="productSearchPanelRef" @add-product="handleAddProduct" />
         </div>
       </div>
 
-      <!-- Right panel: Active sale cart (40% on desktop only — hidden on mobile
-           where the cart lives inside the USlideover below). -->
-      <div class="hidden lg:block lg:w-[40%] shrink-0 px-3 lg:px-4 pt-1.5 lg:pt-2 pb-3 lg:pb-4">
+      <!-- Right panel: Active sale cart (25% on desktop only — hidden on mobile
+           where the cart lives inside the USlideover below).
+           14a.1 (sales-screen-redesign — R1): cart panel now 25%. The
+           horizontal SaleItemRow rewrite (14b.1) will make this usable;
+           here we only change the split. -->
+      <div class="hidden lg:block lg:w-[25%] shrink-0 px-3 lg:px-4 pt-1.5 lg:pt-2 pb-3 lg:pb-4">
         <div class="h-full w-full rounded-2xl border border-default/50 overflow-hidden">
           <ActiveSalePanel
             :drafts="drafts"

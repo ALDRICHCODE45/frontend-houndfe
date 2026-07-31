@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { computed, ref } from 'vue'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
@@ -116,8 +116,21 @@ vi.mock('../../composables/useDraftCustomerAssignment', () => ({
   }),
 }))
 
+const focusSearchSpy = vi.fn()
+// 14a.1: stub exposes a `searchInputRef` whose `focus()` calls the spy.
+// The production handler treats the value as either a Vue ref (with `.value`)
+// or a plain object with a `focus` method, so this mock contract matches.
 const globalStubs = {
-  ProductSearchPanel: { template: '<div />' },
+  ProductSearchPanel: {
+    name: 'ProductSearchPanel',
+    setup(_props: Record<string, unknown>, { expose }: { expose: (obj: Record<string, unknown>) => void }) {
+      expose({
+        searchInputRef: { focus: () => focusSearchSpy() },
+      })
+      return {}
+    },
+    template: '<div />',
+  },
   ActiveSalePanel: {
     name: 'ActiveSalePanel',
     props: ['activeDraft', 'applicablePromotions', 'isLoadingPromotions', 'appliedManualPromotionIds'],
@@ -804,5 +817,110 @@ describe('SalesView — setPriceList wiring (pos-price-list-tiers)', () => {
         description: 'No se pudo cambiar la lista de precios',
       }),
     )
+  })
+})
+
+// ─── 14a.1 — sales-screen-redesign: 75/25 split + Ctrl+K/⌘K shortcut ─────────
+//
+// Each test in this block captures the wrapper and unmounts it in afterEach
+// so the SalesView's `onMounted` keydown listener doesn't accumulate across
+// tests. Without unmount, every subsequent test sees N+1 invocations of the
+// focus handler because the previous test's listener is still attached to
+// `window`. This is project-wide behavior, not specific to 14a.1.
+
+describe('SalesView 14a.1 — layout proportion + keyboard shortcut', () => {
+  let mountedWrappers: Array<{ unmount: () => void }> = []
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    focusSearchSpy.mockReset()
+    drafts.value = [
+      {
+        id: 'sale-1',
+        userId: 'user-1',
+        status: 'DRAFT',
+        items: [{ id: 'item-1', productId: 'prod-1', variantId: null, productName: 'A', variantName: null, quantity: 1, unitPriceCents: 10000, unitPriceCurrency: 'MXN' }],
+        createdAt: 'x',
+        updatedAt: 'x',
+      },
+    ]
+    activeTabId.value = 'sale-1'
+    mountedWrappers = []
+  })
+
+  afterEach(() => {
+    // Unmount every wrapper this block mounted so the global keydown listener
+    // registered in `onMounted` is removed between tests.
+    for (const w of mountedWrappers) {
+      try {
+        w.unmount()
+      } catch {
+        // ignore — wrapper may already be unmounted
+      }
+    }
+    mountedWrappers = []
+  })
+
+  function mountWithCleanup() {
+    const wrapper = mountView()
+    mountedWrappers.push(wrapper as unknown as { unmount: () => void })
+    return wrapper
+  }
+
+  it('14a.1 — applies 75/25 split: product panel uses lg:w-[75%], cart panel uses lg:w-[25%]', () => {
+    // R1 — product/cart split MUST be 75/25 at desktop.
+    const wrapper = mountWithCleanup()
+    const html = wrapper.html()
+    expect(html).toContain('lg:w-[75%]')
+    expect(html).toContain('lg:w-[25%]')
+    // Old 60/40 must not remain.
+    expect(html).not.toContain('lg:w-[60%]')
+    expect(html).not.toContain('lg:w-[40%]')
+  })
+
+  it('14a.1 — Ctrl+K focuses the search input (R6 shortcut half)', () => {
+    // R6 — Ctrl+K MUST focus the search input. Other tests in this file
+    // mount a SalesView and don't unmount it, so prior keydown listeners
+    // also fire on `window.dispatchEvent` — we assert "called at least
+    // once" rather than counting, which is what the spec requires.
+    focusSearchSpy.mockReset()
+    mountWithCleanup()
+    const event = new KeyboardEvent('keydown', {
+      key: 'k',
+      ctrlKey: true,
+      cancelable: true,
+    })
+    window.dispatchEvent(event)
+    expect(focusSearchSpy).toHaveBeenCalled()
+    expect(event.defaultPrevented).toBe(true)
+  })
+
+  it('14a.1 — ⌘K (metaKey) focuses the search input on Mac (R6 shortcut half)', () => {
+    // R6 — ⌘K MUST also focus the search input (Mac users).
+    focusSearchSpy.mockReset()
+    mountWithCleanup()
+    const event = new KeyboardEvent('keydown', {
+      key: 'k',
+      metaKey: true,
+      cancelable: true,
+    })
+    window.dispatchEvent(event)
+    expect(focusSearchSpy).toHaveBeenCalled()
+    expect(event.defaultPrevented).toBe(true)
+  })
+
+  it('14a.1 — bare "k" does NOT focus the search input (no modifier ignored)', () => {
+    // Sanity guard: the handler must require a Ctrl/⌘ modifier.
+    // Other tests' SalesView listeners (still on window) ARE attached and
+    // would also be invoked, but ALL of them require a modifier, so the
+    // assertion that the spy was NOT called holds across leaked listeners.
+    focusSearchSpy.mockReset()
+    mountWithCleanup()
+    const event = new KeyboardEvent('keydown', {
+      key: 'k',
+      cancelable: true,
+    })
+    window.dispatchEvent(event)
+    expect(focusSearchSpy).not.toHaveBeenCalled()
   })
 })

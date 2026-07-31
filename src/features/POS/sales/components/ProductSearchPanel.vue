@@ -22,6 +22,11 @@ const isMac = computed(() =>
 const variantModalOpen = ref(false)
 const selectedItem = ref<PosCatalogItem | null>(null)
 
+// 14a.1 (sales-screen-redesign — R6): template ref + expose so SalesView's
+// global Ctrl+K / ⌘K handler can request focus on the search input.
+const searchInputRef = ref<HTMLInputElement | { focus: () => void } | null>(null)
+defineExpose({ searchInputRef })
+
 // ── Category filters ──────────────────────────────────────────────────────────
 
 const activeCategory = ref<string | null>(null)
@@ -69,6 +74,7 @@ function handleAddVariant(productId: string, variantId: string) {
         <!-- Search input (full width) -->
         <div class="flex items-center gap-3">
           <UInput
+            ref="searchInputRef"
             v-model="query"
             icon="i-lucide-search"
             placeholder="Buscar por nombre, SKU o código..."
