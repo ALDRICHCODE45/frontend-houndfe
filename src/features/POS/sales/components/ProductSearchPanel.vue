@@ -88,15 +88,23 @@ function handleAddVariant(productId: string, variantId: string) {
           </div>
         </div>
 
-        <!-- Category filter chips (derived from unfiltered catalog) -->
-        <div v-if="categories.length > 0" class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-0.5">
+        <!-- Category filter chips (derived from unfiltered catalog).
+             14a.3 (sales-screen-redesign — R6 panel half): chips live inside
+             a `bg-coco-neutral-900 rounded-xl p-2` dark container so they
+             read as one affordance group, distinct from the elevated
+             page surface around the panel. -->
+        <div
+          v-if="categories.length > 0"
+          class="bg-coco-neutral-900 dark:bg-coco-neutral-900 rounded-xl p-2 flex items-center gap-2 overflow-x-auto no-scrollbar"
+        >
           <button
             :class="[
-              'inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-150 whitespace-nowrap cursor-pointer border',
+              'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 whitespace-nowrap cursor-pointer border',
               !activeCategory
                 ? 'bg-primary text-white border-primary shadow-sm'
                 : 'bg-elevated/50 text-muted border-default hover:bg-elevated hover:text-highlighted',
             ]"
+            data-testid="category-chip-todo"
             @click="clearCategoryFilter"
           >
             Todo
@@ -114,11 +122,12 @@ function handleAddVariant(productId: string, variantId: string) {
             v-for="cat in categories"
             :key="cat.id"
             :class="[
-              'inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold transition-all duration-150 whitespace-nowrap cursor-pointer border',
+              'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-150 whitespace-nowrap cursor-pointer border',
               activeCategory === cat.id
                 ? 'bg-primary text-white border-primary shadow-sm'
                 : 'bg-elevated/50 text-muted border-default hover:bg-elevated hover:text-highlighted',
             ]"
+            :data-testid="`category-chip-${cat.id}`"
             @click="handleCategoryClick(cat.id)"
           >
             {{ cat.name }}

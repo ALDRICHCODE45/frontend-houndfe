@@ -19,11 +19,14 @@ export function useProductSearch() {
   const categoryId = ref<string | undefined>(undefined)
 
   // Main search query (filtered)
+  // 14a.3 (sales-screen-redesign): page sizes bumped from 24/30 → 36/42 so
+  // the fixed 3-col grid has enough rows to fill the panel without the
+  // seller hitting an empty-feeling state on initial mount.
   const { data, isLoading, isError } = useQuery({
     queryKey: computed(() =>
       saleQueryKeys.posCatalog(tenantId.value, {
         q: debouncedQuery.value || undefined,
-        limit: debouncedQuery.value ? 30 : 24,
+        limit: debouncedQuery.value ? 42 : 36,
         offset: 0,
         categoryId: categoryId.value,
       })
@@ -31,7 +34,7 @@ export function useProductSearch() {
     queryFn: async () => {
       return saleApi.searchPosCatalog({
         q: debouncedQuery.value || undefined,
-        limit: debouncedQuery.value ? 30 : 24,
+        limit: debouncedQuery.value ? 42 : 36,
         offset: 0,
         categoryId: categoryId.value,
       })

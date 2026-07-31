@@ -87,7 +87,7 @@ describe('useProductSearch', () => {
       await vi.waitFor(() => {
         expect(saleApi.searchPosCatalog).toHaveBeenCalledWith({
           q: undefined,
-          limit: 24,
+          limit: 36,
           offset: 0,
           categoryId: undefined,
         })
@@ -99,11 +99,13 @@ describe('useProductSearch', () => {
       })
     })
 
-    it('should fetch first page with limit 24 and offset 0 when query is empty', async () => {
+    it('should fetch first page with limit 36 and offset 0 when query is empty', async () => {
+      // 14a.3 (sales-screen-redesign): unqueried page size bumped 24 → 36
+      // to give the fixed 3-col grid room to fill before scrolling kicks in.
       const mockResponse: PosCatalogResponse = {
         items: [],
         total: 0,
-        limit: 24,
+        limit: 36,
         offset: 0,
       }
 
@@ -114,7 +116,7 @@ describe('useProductSearch', () => {
       await vi.waitFor(() => {
         expect(saleApi.searchPosCatalog).toHaveBeenCalledWith({
           q: undefined,
-          limit: 24,
+          limit: 36,
           offset: 0,
           categoryId: undefined,
         })
@@ -144,12 +146,12 @@ describe('useProductSearch', () => {
       // Should NOT fire immediately
       expect(saleApi.searchPosCatalog).not.toHaveBeenCalled()
 
-      // Wait for debounce (250ms)
+      // Wait for debounce (250ms). 14a.3: queried limit bumped 30 → 42.
       await vi.waitFor(
         () => {
           expect(saleApi.searchPosCatalog).toHaveBeenCalledWith({
             q: 'asp',
-            limit: 30,
+            limit: 42,
             offset: 0,
             categoryId: undefined,
           })
@@ -162,7 +164,7 @@ describe('useProductSearch', () => {
       const mockResponse: PosCatalogResponse = {
         items: [],
         total: 0,
-        limit: 30,
+        limit: 42,
         offset: 0,
       }
 
@@ -186,12 +188,61 @@ describe('useProductSearch', () => {
           expect(saleApi.searchPosCatalog).toHaveBeenCalledTimes(1)
           expect(saleApi.searchPosCatalog).toHaveBeenCalledWith({
             q: 'asp',
-            limit: 30,
+            limit: 42,
             offset: 0,
             categoryId: undefined,
           })
         },
         { timeout: 300 }
+      )
+    })
+  })
+
+  describe('14a.3 — page size tuning (36 unqueried / 42 queried)', () => {
+    // R-supp: page sizes were bumped as part of the sales-screen-redesign
+    // so the fixed 3-col grid has enough rows to fill the panel without
+    // scrolling immediately on mount.
+
+    it('14a.3.2 — uses limit 36 for unqueried initial load', async () => {
+      const mockResponse: PosCatalogResponse = {
+        items: [],
+        total: 0,
+        limit: 36,
+        offset: 0,
+      }
+      vi.mocked(saleApi.searchPosCatalog).mockResolvedValue(mockResponse)
+
+      mountComposable(() => useProductSearch())
+
+      await vi.waitFor(() => {
+        expect(saleApi.searchPosCatalog).toHaveBeenCalledWith(
+          expect.objectContaining({ q: undefined, limit: 36, offset: 0 }),
+        )
+      })
+    })
+
+    it('14a.3.2 — uses limit 42 once the user has typed a query', async () => {
+      const mockResponse: PosCatalogResponse = {
+        items: [],
+        total: 0,
+        limit: 42,
+        offset: 0,
+      }
+      vi.mocked(saleApi.searchPosCatalog).mockResolvedValue(mockResponse)
+
+      const { result } = mountComposable(() => useProductSearch())
+      vi.clearAllMocks()
+
+      result.query.value = 'aspirin'
+      await nextTick()
+
+      await vi.waitFor(
+        () => {
+          expect(saleApi.searchPosCatalog).toHaveBeenCalledWith(
+            expect.objectContaining({ q: 'aspirin', limit: 42, offset: 0 }),
+          )
+        },
+        { timeout: 300 },
       )
     })
   })
