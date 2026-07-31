@@ -20,10 +20,10 @@ const emit = defineEmits<{
 
 <template>
   <div class="overflow-y-auto flex-1 px-3 sm:px-5 py-3 sm:py-4">
-    <!-- Loading state (card grid skeleton) -->
+    <!-- Loading state (card grid skeleton) — 14a.2 R3: fixed 3 columns -->
     <div
       v-if="isLoading && items.length === 0"
-      class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3"
+      class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-3 gap-4"
     >
       <div v-for="i in 8" :key="i" class="rounded-2xl border border-default bg-default overflow-hidden shadow-sm">
         <USkeleton class="aspect-square w-full" />
@@ -51,10 +51,11 @@ const emit = defineEmits<{
       </p>
     </div>
 
-    <!-- Results card grid: 2 cols on mobile, 3 sm, 4 md, 5 xl -->
+    <!-- Results card grid — 14a.2 R3: fixed 3 columns at every breakpoint
+         ≥sm. The mobile column count stays at 2 to keep cards tappable. -->
     <div
       v-else
-      class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-2.5 sm:gap-3"
+      class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-3 gap-4"
     >
       <ProductSearchResultItem
         v-for="item in items"

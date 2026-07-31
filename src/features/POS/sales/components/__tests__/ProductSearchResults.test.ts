@@ -166,4 +166,49 @@ describe('ProductSearchResults.vue', () => {
 
     expect(wrapper.classes()).toContain('overflow-y-auto')
   })
+
+  describe('14a.2 — fixed 3-column grid (R3)', () => {
+    it('14a.2 — results grid uses sm:grid-cols-3 xl:grid-cols-3 (no md/4, no xl/4, no xl/5)', () => {
+      // R3 — grid MUST be 3 fixed columns at sm and xl breakpoints.
+      const wrapper = mount(ProductSearchResults, {
+        props: {
+          items: mockResults,
+          isLoading: false,
+          isEmpty: false,
+          hasQuery: true,
+        },
+        global: {
+          components: {
+            ProductSearchResultItem,
+          },
+        },
+      })
+
+      const html = wrapper.html()
+      // New 3-col at sm and xl.
+      expect(html).toContain('sm:grid-cols-3')
+      expect(html).toContain('xl:grid-cols-3')
+      // Old responsive breakpoints must not remain.
+      expect(html).not.toContain('md:grid-cols-4')
+      expect(html).not.toContain('xl:grid-cols-5')
+      expect(html).not.toContain('xl:grid-cols-4')
+    })
+
+    it('14a.2 — loading skeleton grid also uses sm:grid-cols-3', () => {
+      // Same R3 contract applies during loading so the perceived
+      // layout doesn't shift between empty-loading and populated states.
+      const wrapper = mount(ProductSearchResults, {
+        props: {
+          items: [],
+          isLoading: true,
+          isEmpty: false,
+          hasQuery: false,
+        },
+      })
+
+      const html = wrapper.html()
+      expect(html).toContain('sm:grid-cols-3')
+      expect(html).not.toContain('xl:grid-cols-5')
+    })
+  })
 })

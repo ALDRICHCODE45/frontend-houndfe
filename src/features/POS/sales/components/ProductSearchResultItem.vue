@@ -62,9 +62,12 @@ function isLowStock(item: PosCatalogItem): boolean {
         @error="handleImageError"
       />
 
-      <!-- Stock badge (top-right corner) -->
+      <!-- 14a.2 (sales-screen-redesign — R7): stock badge reads `#N` (e.g.
+           `#11`) and is gated on BOTH `useStock === true` AND `stock != null`.
+           Old `N u` format is replaced; the unit suffix is implied by the
+           #N convention used across the catalog UI. -->
       <span
-        v-if="item.stock != null"
+        v-if="item.useStock && item.stock != null"
         :class="[
           'absolute top-2 right-2 text-[10px] font-semibold px-1.5 py-0.5 rounded-md',
           isLowStock(item)
@@ -73,7 +76,7 @@ function isLowStock(item: PosCatalogItem): boolean {
         ]"
         data-testid="stock-badge"
       >
-        {{ item.stock.quantity }} u
+        #{{ item.stock.quantity }}
       </span>
     </div>
 

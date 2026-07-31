@@ -215,6 +215,48 @@ describe('ProductSearchResultItem.vue', () => {
     })
   })
 
+  describe('14a.2 — stock badge format (#N) and useStock gating', () => {
+    // R7 — stock badge MUST read `#{{ stock.quantity }}` (e.g. `#11`) and
+    // MUST be visible only when `useStock === true` AND `stock != null`.
+
+    it('14a.2 — renders stock badge as #N format (no "u" suffix)', () => {
+      const wrapper = mount(ProductSearchResultItem, {
+        props: { item: simpleProduct }, // quantity: 120, useStock: true
+      })
+      const stockBadge = wrapper.find('[data-testid="stock-badge"]')
+      expect(stockBadge.exists()).toBe(true)
+      expect(stockBadge.text()).toBe('#120')
+      // Old format must not remain.
+      expect(stockBadge.text()).not.toContain('u')
+      expect(stockBadge.text()).not.toMatch(/^\s*120\s*u\s*$/)
+    })
+
+    it('14a.2 — hides stock badge when useStock is false even if stock is present', () => {
+      const productNoStockFlag: PosCatalogItem = {
+        ...simpleProduct,
+        useStock: false,
+        stock: { quantity: 5, minQuantity: 1 },
+      }
+      const wrapper = mount(ProductSearchResultItem, {
+        props: { item: productNoStockFlag },
+      })
+      const stockBadge = wrapper.find('[data-testid="stock-badge"]')
+      expect(stockBadge.exists()).toBe(false)
+    })
+
+    it('14a.2 — renders single-digit quantity as #N (no leading zeros)', () => {
+      const productFew: PosCatalogItem = {
+        ...simpleProduct,
+        stock: { quantity: 11, minQuantity: 1 },
+      }
+      const wrapper = mount(ProductSearchResultItem, {
+        props: { item: productFew },
+      })
+      const stockBadge = wrapper.find('[data-testid="stock-badge"]')
+      expect(stockBadge.text()).toBe('#11')
+    })
+  })
+
   describe('price display', () => {
     it('should render price right-aligned for simple product', () => {
       const wrapper = mount(ProductSearchResultItem, {
