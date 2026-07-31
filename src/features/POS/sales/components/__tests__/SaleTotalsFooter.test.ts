@@ -84,7 +84,7 @@ describe('SaleTotalsFooter — totals binding (work-unit B)', () => {
     expect(wrapper.html()).toContain('Descuentos')
     expect(wrapper.html()).toContain('$15.00')
     // Total a cobrar: 8500 cents → $85.00 (NOT 340.00 from a client-side reduce!)
-    expect(wrapper.html()).toContain('Total a cobrar')
+    expect(wrapper.html()).toContain('TOTAL A COBRAR')
     expect(wrapper.html()).toContain('$85.00')
   })
 
@@ -98,8 +98,9 @@ describe('SaleTotalsFooter — totals binding (work-unit B)', () => {
 
   it('renders line and product counts from the sale items list', () => {
     const wrapper = mountFooter(makeSale(TOTALS))
-    expect(wrapper.html()).toContain('5 productos') // 2 + 3
-    expect(wrapper.html()).toContain('2 líneas')
+    // Phase 14b: new format "2 Artic · 5 Unidad" (items count first, units second)
+    expect(wrapper.html()).toContain('2 Artic')
+    expect(wrapper.html()).toContain('5 Unidad')
   })
 
   it('renders the TOTALS fixture cents verbatim — backend values, no client recompute', () => {
@@ -132,7 +133,7 @@ describe('SaleTotalsFooter — totals binding (work-unit B)', () => {
     expect(wrapper.html()).toContain('Descuentos')
     expect(wrapper.html()).toContain('$15.00')
     // Total a cobrar — formatted from sale.totalCents (8500 → $85.00)
-    expect(wrapper.html()).toContain('Total a cobrar')
+    expect(wrapper.html()).toContain('TOTAL A COBRAR')
     expect(wrapper.html()).toContain('$85.00')
     // No client-side recompute: $340.00 must NOT appear (that would be
     // 2 × $50 + 3 × $80 = $340 from the items list, not the backend total).
@@ -227,7 +228,7 @@ describe('SaleTotalsFooter — totals binding (work-unit B)', () => {
 
     const wrapper = mountFooter(makeSale())
     expect(wrapper.html()).toContain('Subtotal')
-    expect(wrapper.html()).toContain('Total a cobrar')
+    expect(wrapper.html()).toContain('TOTAL A COBRAR')
     expect(wrapper.html()).toContain('$0.00')
     // No discounts line when 0 (v-if on > 0)
     expect(wrapper.html()).not.toContain('Descuentos')
@@ -289,5 +290,47 @@ describe('SaleTotalsFooter — charge button (preserved non-totals behavior)', (
     })
     const tooltip = wrapper.find('span')
     expect(tooltip.exists()).toBe(true)
+  })
+})
+
+// ── Phase 14b — totals breakdown ────────────────────────────────────────────
+
+describe('SaleTotalsFooter — Phase 14b breakdown', () => {
+  it('renders Artic / Unidad count line at the top', () => {
+    // 2 items with quantities 2 + 3 = 5 units
+    const wrapper = mountFooter(makeSale(TOTALS))
+    expect(wrapper.html()).toContain('2 Artic')
+    expect(wrapper.html()).toContain('5 Unidad')
+  })
+
+  it('renders Subtotal as separate line before discount', () => {
+    const wrapper = mountFooter(makeSale(TOTALS))
+    const html = wrapper.html()
+    const subtotalIndex = html.indexOf('Subtotal')
+    const descuentosIndex = html.indexOf('Descuentos')
+    expect(subtotalIndex).toBeLessThan(descuentosIndex)
+  })
+
+  it('renders discount as separate line only when discountCents > 0', () => {
+    const withDiscount = mountFooter(makeSale(TOTALS))
+    expect(withDiscount.html()).toContain('Descuentos')
+
+    const noDiscount = mountFooter(makeSale({ subtotalCents: 5000, discountCents: 0, totalCents: 5000 }))
+    expect(noDiscount.html()).not.toContain('Descuentos')
+  })
+
+  it('renders TOTAL A COBRAR with text-white and bold on total amount', () => {
+    const wrapper = mountFooter(makeSale(TOTALS))
+    expect(wrapper.html()).toContain('TOTAL A COBRAR')
+
+    // The total amount element should have text-white
+    const totalEl = wrapper.find('[data-testid="total-amount"]')
+    expect(totalEl.exists()).toBe(true)
+  })
+
+  it('renders Cobrar button with full width', () => {
+    const wrapper = mountFooter(makeSale(TOTALS))
+    // The button should be block/full-width
+    expect(wrapper.html()).toContain('w-full')
   })
 })

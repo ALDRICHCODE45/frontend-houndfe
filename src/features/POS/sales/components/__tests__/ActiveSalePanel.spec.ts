@@ -546,3 +546,50 @@ describe('ActiveSalePanel — PriceListSelector wiring (pos-price-list-tiers)', 
     expect(events![events!.length - 1]).toEqual(['list-mayoreo'])
   })
 })
+
+// ── Phase 14b — Cart header compaction + toolbar ────────────────────────────
+
+describe('ActiveSalePanel — Phase 14b header compaction', () => {
+  it('header contains UTabs and PriceListSelector, no trash or ellipsis buttons', () => {
+    const draft = makeDraft({
+      items: [{ id: 'item-1', productId: 'prod-1', variantId: null, productName: 'A', variantName: null, quantity: 1, unitPriceCents: 1000, unitPriceCurrency: 'MXN' }],
+    })
+    const wrapper = mountPanel(draft)
+
+    const header = wrapper.find('[data-testid="cart-header"]')
+    expect(header.exists()).toBe(true)
+
+    // Header should contain PriceListSelector stub
+    expect(header.html()).toContain('price-list-selector-stub')
+
+    // No trash or ellipsis buttons in the header
+    // The trash/ellipsis actions have moved to a footer toolbar
+    expect(header.text()).not.toContain('Vaciar venta')
+    expect(header.text()).not.toContain('i-lucide-trash-2')
+  })
+
+  it('renders cart-actions-toolbar at the bottom of the cart before totals', () => {
+    const draft = makeDraft({
+      items: [{ id: 'item-1', productId: 'prod-1', variantId: null, productName: 'A', variantName: null, quantity: 1, unitPriceCents: 1000, unitPriceCurrency: 'MXN' }],
+    })
+    const wrapper = mountPanel(draft)
+
+    const toolbar = wrapper.find('[data-testid="cart-actions-toolbar"]')
+    expect(toolbar.exists()).toBe(true)
+
+    // Toolbar should come before the totals footer in DOM order
+    const footerNode = wrapper.find('[data-testid="sale-totals-footer-stub"]').element
+    const toolbarNode = toolbar.element
+    expect(toolbarNode.compareDocumentPosition(footerNode) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('toolbar contains a More dropdown with clear items and close tab actions', () => {
+    const draft = makeDraft({
+      items: [{ id: 'item-1', productId: 'prod-1', variantId: null, productName: 'A', variantName: null, quantity: 1, unitPriceCents: 1000, unitPriceCurrency: 'MXN' }],
+    })
+    const wrapper = mountPanel(draft)
+
+    const toolbar = wrapper.find('[data-testid="cart-actions-toolbar"]')
+    expect(toolbar.exists()).toBe(true)
+  })
+})

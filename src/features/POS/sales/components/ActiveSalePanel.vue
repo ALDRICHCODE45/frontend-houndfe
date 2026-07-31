@@ -204,9 +204,7 @@ function handleConfirmPriceListChange() {
          - Group 2: price-list selector (shrink-0 so the label + dropdown
            are never visually overlapped). -->
     <section data-testid="cart-header" class="shrink-0 flex flex-col md:flex-row md:items-center md:gap-3 md:px-4 md:py-3">
-      <!-- Group 1: type toggle + action buttons. `md:shrink-0` keeps the
-           group from collapsing onto the price-list selector; no internal
-           spacer so the action buttons stay glued to the toggle. -->
+      <!-- Group 1: type toggle only. Phase 14b: trash + ellipsis moved to footer toolbar. -->
       <div class="flex items-center gap-2 px-4 py-3 md:border-0 md:bg-transparent md:p-0 md:shrink-0">
         <UTabs
           :items="[
@@ -216,46 +214,12 @@ function handleConfirmPriceListChange() {
           :model-value="'venta'"
           class="w-auto"
         />
-
-        <!-- Action buttons grouped with the toggle -->
-        <div class="flex items-center gap-1">
-          <!-- Trash button -->
-          <UTooltip :text="activeDraft && activeDraft.items.length === 0 ? 'La venta no tiene productos' : 'Vaciar venta'">
-            <UButton
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-trash-2"
-              size="xs"
-              :disabled="!activeDraft || activeDraft.items.length === 0 || isMutating"
-              @click="handleTrashClick"
-            />
-          </UTooltip>
-
-          <!-- 3-dot menu -->
-          <UDropdownMenu :items="moreMenuItems">
-            <UButton
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-ellipsis"
-              size="xs"
-              :disabled="!activeDraft || activeDraft.items.length === 0 || isMutating"
-            />
-          </UDropdownMenu>
-        </div>
       </div>
 
-      <!-- Spacer: pushes the price-list selector to the far right on
-           desktop. Hidden on mobile because the section stacks vertically
-           there and no horizontal spacer is needed. -->
+      <!-- Spacer -->
       <div class="hidden md:block md:flex-1" aria-hidden="true"></div>
 
-      <!-- pos-price-list-tiers: tier selector lives between the type toggle
-           and the action buttons. Empty-state contract: PriceListSelector
-           shows a "Sin lista" placeholder when no list is assigned, and
-           routes the selection through `request-confirm` when the sale
-           has items (so the parent gets a chance to show a confirm modal
-           before the backend reprices everything). On mobile it occupies
-           its own row to avoid horizontal overflow at <360px widths. -->
+      <!-- Price list selector -->
       <div v-if="activeDraft" class="px-4 py-2 md:border-0 md:bg-transparent md:p-0 md:shrink-0">
         <PriceListSelector
           :active-draft="activeDraft"
@@ -375,6 +339,33 @@ function handleConfirmPriceListChange() {
         @apply="(promotionId) => emit('apply-manual-promo', promotionId)"
         @remove="(promotionId) => emit('remove-manual-promo', promotionId)"
       />
+
+      <!-- Phase 14b: Cart actions toolbar at bottom before totals -->
+      <div
+        v-if="activeDraft && activeDraft.items.length > 0"
+        data-testid="cart-actions-toolbar"
+        class="px-4 pb-2 flex items-center justify-end gap-1"
+      >
+        <UTooltip :text="'Vaciar venta'">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-trash-2"
+            size="xs"
+            :disabled="isMutating"
+            @click="handleTrashClick"
+          />
+        </UTooltip>
+        <UDropdownMenu :items="moreMenuItems">
+          <UButton
+            color="neutral"
+            variant="ghost"
+            icon="i-lucide-ellipsis"
+            size="xs"
+            :disabled="isMutating"
+          />
+        </UDropdownMenu>
+      </div>
 
       <!-- Totals footer (sticky bottom) — B.2 binds the full sale so the
            footer can read backend totals + appliedOrderPromotion directly. -->

@@ -5,8 +5,6 @@ import { formatCentsMXN } from '../utils/currency.utils'
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
-// promotions-in-sale B.1: read totals from the backend-owned Sale fields.
-// Pre-deploy drafts (missing totals) fall back to 0 via `?? 0` — no crash.
 const props = defineProps<{
   sale: Sale
   isChargePending?: boolean
@@ -14,9 +12,6 @@ const props = defineProps<{
 
 // ── Emits ─────────────────────────────────────────────────────────────────────
 
-// `remove-order-promo` (work-unit B) wires the order-promo remove control.
-// The orchestrator (SalesView) routes it through the veto confirmation flow
-// in work-unit C.5 — here we only forward the promotionId.
 const emit = defineEmits<{
   'charge-click': []
   'remove-order-promo': [promotionId: string]
@@ -32,8 +27,6 @@ const totalQuantity = computed(() =>
   items.value.reduce((sum, item) => sum + item.quantity, 0),
 )
 
-// Backend-owned totals — no client-side reduce on money. The pre-deploy
-// draft (totals fields undefined) renders `?? 0` and never crashes.
 const subtotalCents = computed(() => props.sale.subtotalCents ?? 0)
 const discountCents = computed(() => props.sale.discountCents ?? 0)
 const totalCents = computed(() => props.sale.totalCents ?? 0)
@@ -69,6 +62,11 @@ function handleRemoveOrderPromo() {
 
 <template>
   <div class="mt-auto px-5 py-4">
+    <!-- Phase 14b: items/units count line -->
+    <p class="text-xs text-muted mb-3">
+      {{ lineCount }} Artic · {{ totalQuantity }} Unidad
+    </p>
+
     <!-- Subtotal row -->
     <div class="flex items-center justify-between mb-1.5">
       <span class="text-sm text-muted">Subtotal</span>
@@ -86,19 +84,18 @@ function handleRemoveOrderPromo() {
 
     <USeparator class="my-3 opacity-70" />
 
-    <!-- Total row -->
+    <!-- Total row — Phase 14b: white, large, bold -->
     <div class="flex items-baseline justify-between mb-1">
-      <div>
-        <p class="text-xs font-semibold text-muted uppercase tracking-wider">Total a cobrar</p>
-        <p class="text-[11px] text-dimmed mt-0.5">
-          {{ totalQuantity }} {{ totalQuantity === 1 ? 'producto' : 'productos' }} · {{ lineCount }} {{ lineCount === 1 ? 'línea' : 'líneas' }}
-        </p>
-      </div>
-      <span class="text-[34px] leading-none font-extrabold text-highlighted tabular-nums">{{ totalFormatted }}</span>
+      <p class="text-xs font-semibold text-muted uppercase tracking-wider">
+        TOTAL A COBRAR
+      </p>
+      <span
+        data-testid="total-amount"
+        class="text-2xl font-extrabold text-white tabular-nums"
+      >{{ totalFormatted }}</span>
     </div>
 
-    <!-- Order promotion (BACKEND-PROVIDED). Render ONLY when appliedOrderPromotion != null.
-         Remove control emits `remove-order-promo` for SalesView to route through veto (work-unit C.5). -->
+    <!-- Order promotion (BACKEND-PROVIDED) -->
     <div
       v-if="hasOrderPromotion && orderPromotion"
       data-testid="order-promotion-row"
@@ -120,10 +117,18 @@ function handleRemoveOrderPromo() {
       />
     </div>
 
-    <!-- Cobrar button -->
+    <!-- Cobrar button — Phase 14b: w-full -->
     <div class="mt-4">
       <UTooltip :text="chargeTooltip" class="w-full">
-        <UButton color="primary" block size="xl" :loading="isChargePending" :disabled="isChargeDisabled" class="relative !bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm" @click="emit('charge-click')">
+        <UButton
+          color="primary"
+          block
+          size="xl"
+          :loading="isChargePending"
+          :disabled="isChargeDisabled"
+          class="relative !bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm w-full"
+          @click="emit('charge-click')"
+        >
           <template #leading>
             <UIcon name="i-lucide-hand-coins" class="h-5 w-5" />
           </template>
