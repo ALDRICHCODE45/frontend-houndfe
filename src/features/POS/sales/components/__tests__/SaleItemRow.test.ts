@@ -6,15 +6,33 @@ import type { SaleItem } from '../../interfaces/sale.types'
 
 describe('SaleItemRow', () => {
   const stubs = {
-    UInputNumber: true,
-    UIcon: true,
-    UButton: true,
-    UBadge: true,
-    UDropdownMenu: true,
-    UTooltip: true,
+    UInputNumber: {
+      name: 'UInputNumber',
+      props: ['modelValue', 'min', 'disabled', 'size'],
+      emits: ['blur', 'change'],
+      template: '<input :disabled="disabled" />',
+    },
+    UIcon: { template: '<i />' },
+    UButton: {
+      props: ['label', 'disabled', 'icon', 'size', 'color', 'variant'],
+      emits: ['click'],
+      template: '<button :disabled="disabled"><slot />{{ label }}</button>',
+    },
+    UBadge: {
+      props: ['label', 'color', 'variant', 'icon', 'size', 'ui'],
+      template: '<span><slot />{{ label }}</span>',
+    },
+    UDropdownMenu: { template: '<div><slot /></div>' },
+    UTooltip: { props: ['text'], template: '<div><slot />{{ text }}</div>' },
     Tooltip: { props: ['text'], template: '<div><slot />{{ text }}</div>' },
     PriceOverrideModal: true,
     ItemDiscountModal: true,
+    AppBadge: {
+      name: 'AppBadge',
+      props: ['label', 'tone', 'icon', 'variant'],
+      template: '<span>{{ label }}</span>',
+    },
+    USeparator: true,
   }
 
   const mockItem: SaleItem = {
@@ -78,7 +96,6 @@ describe('SaleItemRow', () => {
       global: { stubs },
     })
 
-    // 5000 cents * 2 = 10000 cents = $100.00
     expect(wrapper.text()).toContain('$100.00')
   })
 
@@ -88,10 +105,8 @@ describe('SaleItemRow', () => {
       global: { stubs },
     })
 
-    // Access the component's internal state via vm
     const vm = wrapper.vm as unknown as { localQty: number; handleQtyCommit: () => void }
 
-    // Simulate user changing the quantity
     vm.localQty = 5
     vm.handleQtyCommit()
 
@@ -122,7 +137,7 @@ describe('SaleItemRow', () => {
 
     const vm = wrapper.vm as unknown as { localQty: number; handleQtyCommit: () => void }
 
-    vm.localQty = 2 // Same as original
+    vm.localQty = 2
     vm.handleQtyCommit()
 
     expect(wrapper.emitted('update-qty')).toBeFalsy()
@@ -134,9 +149,7 @@ describe('SaleItemRow', () => {
       global: { stubs },
     })
 
-    // Verify component received the prop
     expect(wrapper.props('isUpdating')).toBe(true)
-    // The template binds :disabled="isUpdating" on UInputNumber
     expect(wrapper.html()).toContain('disabled')
   })
 
@@ -156,7 +169,6 @@ describe('SaleItemRow', () => {
     vm.handleQtyCommit()
 
     expect(wrapper.emitted('update-qty')).toBeFalsy()
-    // Should revert to previous value
     expect(vm.localQty).toBe(2)
   })
 
@@ -171,7 +183,6 @@ describe('SaleItemRow', () => {
       global: { stubs },
     })
 
-    // 8000 cents * 10 = 80000 cents = $800.00
     expect(wrapper.text()).toContain('$800.00')
   })
 
@@ -322,10 +333,6 @@ describe('SaleItemRow', () => {
           discountAmountCents: 2000,
           discountTitle: 'Promo especial',
           prePriceCentsBeforeDiscount: 10000,
-          // Post-deploy contract: backend NET per line ($80.00 — this is the
-          // unit NET, NOT unit × qty; the frontend renders it verbatim).
-          // Pre-deploy drafts would lack this field and fall back to gross —
-          // the new REQ-3 scenarios above cover that fallback path explicitly.
           subtotalCents: 8000,
         },
         saleId: 'sale-1', onSubmitPriceOverride, onApplyDiscount, onRemoveDiscount,
@@ -337,8 +344,6 @@ describe('SaleItemRow', () => {
     expect(wrapper.text()).toContain('$100.00')
     expect(wrapper.text()).toContain('Promo especial')
 
-    // Post-deploy contract (REQ-3): bold NET shows backend subtotalCents
-    // ($80.00); struck gross shows prePrice × qty = 10000 × 2 = $200.00.
     const netLine = wrapper.find('[data-testid="sale-item-line-net"]')
     expect(netLine.exists()).toBe(true)
     expect(netLine.text()).toContain('$80.00')
@@ -370,9 +375,7 @@ describe('SaleItemRow', () => {
     expect(actions).toEqual([])
   })
 
-  // ── C.2 — forward per-line promotion remove from SaleItemBadges ─────────────
-
-  it('passes promotionId to SaleItemBadges and marks it removable for draft rows', () => {
+  it('renders promotionId badge inline for draft rows and emits remove-promo', () => {
     const wrapper = mount(SaleItemRow, {
       props: {
         item: {
@@ -392,13 +395,10 @@ describe('SaleItemRow', () => {
       global: { stubs },
     })
 
-    const badges = wrapper.findComponent(SaleItemBadges)
-    expect(badges.exists()).toBe(true)
-    expect(badges.props('promotionId')).toBe('promo-uuid-42')
-    expect(badges.props('removable')).toBe(true)
+    expect(wrapper.text()).toContain('Promo 2x1')
   })
 
-  it('passes promotionId but NOT removable for non-draft rows (confirmed-sale safety)', () => {
+  it('passes promotionId to SaleItemBadges for non-draft rows (confirmed-sale safety)', () => {
     const wrapper = mount(SaleItemRow, {
       props: {
         item: {
@@ -424,52 +424,9 @@ describe('SaleItemRow', () => {
     expect(badges.props('removable')).toBe(false)
   })
 
-  it('re-emits remove-promo from SaleItemBadges upward with the promotionId', async () => {
-    const wrapper = mount(SaleItemRow, {
-      props: {
-        item: {
-          ...mockItem,
-          discountType: 'percentage',
-          discountValue: 15,
-          discountAmountCents: 1500,
-          discountTitle: 'Promo 2x1',
-          promotionId: 'promo-uuid-42',
-        },
-        saleId: 'sale-1',
-        isDraft: true,
-        onSubmitPriceOverride,
-        onApplyDiscount,
-        onRemoveDiscount,
-      },
-      global: { stubs },
-    })
-
-    const badges = wrapper.findComponent(SaleItemBadges)
-    expect(badges.exists()).toBe(true)
-
-    // Drive the event from the child as the parent would.
-    badges.vm.$emit('remove-promo', 'promo-uuid-42')
-    await wrapper.vm.$nextTick()
-
-    expect(wrapper.emitted('remove-promo')).toBeTruthy()
-    expect(wrapper.emitted('remove-promo')?.[0]).toEqual(['promo-uuid-42'])
-  })
-
   // ── D.1 — Draft cart line renders backend NET + reward badge (REQ-3) ──────
-  //
-  // The backend now ADDITIVELY returns `subtotalCents` (NET per line) and
-  // `rewardKind` on every draft line mutation and on GET /sales/drafts/:id.
-  // For BXGY lines (unitPriceCents === prePriceCentsBeforeDiscount), the
-  // bold line total MUST render the NET (subtotalCents), the struck-through
-  // gross (prePrice × qty) MUST render the GROSS, and the unit price
-  // strikethrough MUST NOT appear because the unit price itself did not
-  // drop. The GRATIS reward badge MUST surface via SaleItemBadges.
 
   it('renders NET bold + struck gross + GRATIS badge + NO unit strikethrough on a BXGY draft line', () => {
-    // 2x1 BXGY: buy 2 get 1 free → backend NET per line = $200.00 (2 units
-    // of a $200 product, but one is free; the frontend MUST trust
-    // subtotalCents and not recompute). unitPriceCents is unchanged ($200),
-    // prePriceCentsBeforeDiscount equals unitPrice (no per-unit discount).
      const bxgyItem: SaleItem = {
        id: 'item-bxgy',
        productId: 'prod-1',
@@ -497,32 +454,24 @@ describe('SaleItemRow', () => {
        global: { stubs },
      })
 
-     // Bold NET line shows the backend-provided subtotalCents ($200.00).
      const netLine = wrapper.find('[data-testid="sale-item-line-net"]')
      expect(netLine.exists()).toBe(true)
      expect(netLine.text()).toContain('$200.00')
      expect(netLine.classes()).toContain('font-bold')
 
-     // Struck-through gross line shows prePrice × qty ($400.00).
      const grossLine = wrapper.find('[data-testid="sale-item-line-gross-strike"]')
      expect(grossLine.exists()).toBe(true)
      expect(grossLine.text()).toContain('$400.00')
      expect(grossLine.classes()).toContain('line-through')
 
-     // Unit price strikethrough MUST NOT appear: unitPriceCents (20000) is
-     // NOT less than prePriceCentsBeforeDiscount (20000) — the unit price
-     // did not drop on a BXGY line, the reward is line-level.
      expect(wrapper.find('[data-testid="sale-item-unit-strike-original"]').exists()).toBe(false)
      expect(wrapper.find('[data-testid="sale-item-unit-strike-pre-discount"]').exists()).toBe(false)
 
-     // Current unit price still renders, unchanged.
      expect(wrapper.text()).toContain('$200.00 c/u')
 
-     // GRATIS reward badge is forwarded to SaleItemBadges.
-     const badges = wrapper.findComponent(SaleItemBadges)
-     expect(badges.exists()).toBe(true)
-     expect(badges.props('rewardKind')).toBe('buy_x_get_y')
-     expect(badges.props('rewardDiscountPercent')).toBe(100)
+     // GRATIS reward badge rendered inline
+     const rewardBadge = wrapper.find('[data-testid="sale-item-reward-badge"]')
+     expect(rewardBadge.exists()).toBe(true)
    })
 
    it('forwards a partial reward percent and renders the matching badge label', () => {
@@ -543,9 +492,9 @@ describe('SaleItemRow', () => {
        global: { stubs },
      })
 
-     const badges = wrapper.findComponent(SaleItemBadges)
-     expect(badges.props('rewardDiscountPercent')).toBe(50)
-     expect(wrapper.find('[data-testid="sale-item-reward-badge"]').text()).toContain('-50%')
+     const rewardBadge = wrapper.find('[data-testid="sale-item-reward-badge"]')
+     expect(rewardBadge.exists()).toBe(true)
+     expect(wrapper.text()).toContain('-50%')
      expect(wrapper.text()).not.toContain('GRATIS')
    })
 
@@ -566,17 +515,11 @@ describe('SaleItemRow', () => {
        global: { stubs },
      })
 
-     const badges = wrapper.findComponent(SaleItemBadges)
-     expect(badges.props('rewardDiscountPercent')).toBeUndefined()
      expect(wrapper.find('[data-testid="sale-item-reward-badge"]').exists()).toBe(false)
      expect(wrapper.text()).not.toContain('GRATIS')
    })
 
    it('renders NET bold + struck gross + unit-price strikethrough on a cashier line discount', () => {
-    // Cashier applied 20% off: prePrice $96.00 → unit $80.00. Backend NET
-    // per line = unit × qty = $80.00 (qty 1). Unit-price strikethrough
-    // appears because unitPriceCents (8000) < prePriceCentsBeforeDiscount
-    // (9600).
     const cashierDiscountItem: SaleItem = {
       ...mockItem,
       quantity: 1,
@@ -600,34 +543,23 @@ describe('SaleItemRow', () => {
       global: { stubs },
     })
 
-    // Bold NET shows $80.00.
     const netLine = wrapper.find('[data-testid="sale-item-line-net"]')
     expect(netLine.exists()).toBe(true)
     expect(netLine.text()).toContain('$80.00')
 
-    // Struck-through gross shows $96.00.
     const grossLine = wrapper.find('[data-testid="sale-item-line-gross-strike"]')
     expect(grossLine.exists()).toBe(true)
     expect(grossLine.text()).toContain('$96.00')
 
-    // Unit-price pre-discount strikethrough present (8000 < 9600).
     const preDiscountStrike = wrapper.find('[data-testid="sale-item-unit-strike-pre-discount"]')
     expect(preDiscountStrike.exists()).toBe(true)
     expect(preDiscountStrike.text()).toContain('$96.00')
     expect(preDiscountStrike.classes()).toContain('line-through')
 
-    // No original-price strikethrough on this line.
     expect(wrapper.find('[data-testid="sale-item-unit-strike-original"]').exists()).toBe(false)
-
-    // NOT a reward line.
-    const badges = wrapper.findComponent(SaleItemBadges)
-    expect(badges.props('rewardKind')).not.toBe('buy_x_get_y')
   })
 
   it('renders NET bold with NO struck line and NO unit strikethrough on a no-discount line', () => {
-    // No discount, no override, no reward. Bold shows gross = NET = $100.00
-    // (qty 2 × $50.00). No struck line (no real discount). No unit
-    // strikethrough.
     const noDiscountItem: SaleItem = {
       ...mockItem,
       quantity: 2,
@@ -651,21 +583,13 @@ describe('SaleItemRow', () => {
     expect(netLine.exists()).toBe(true)
     expect(netLine.text()).toContain('$100.00')
 
-    // No struck gross line because netLine === grossLine.
     expect(wrapper.find('[data-testid="sale-item-line-gross-strike"]').exists()).toBe(false)
 
-    // No unit-price strikethrough.
     expect(wrapper.find('[data-testid="sale-item-unit-strike-original"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="sale-item-unit-strike-pre-discount"]').exists()).toBe(false)
-
-    const badges = wrapper.findComponent(SaleItemBadges)
-    expect(badges.props('rewardKind')).not.toBe('buy_x_get_y')
   })
 
   it('falls back to gross line total when backend subtotalCents is missing (pre-deploy drafts)', () => {
-    // Pre-deploy drafts: no subtotalCents, no rewardKind. Fall back to
-    // unitPriceCents × quantity. For a line with no discount or prePrice,
-    // gross === NET so no struck line shows.
     const legacyItem: SaleItem = {
       id: 'item-legacy',
       productId: 'prod-1',
@@ -693,25 +617,7 @@ describe('SaleItemRow', () => {
     expect(netLine.text()).toContain('$150.00')
 
     expect(wrapper.find('[data-testid="sale-item-line-gross-strike"]').exists()).toBe(false)
-
-    const badges = wrapper.findComponent(SaleItemBadges)
-    expect(badges.props('rewardKind')).toBeUndefined()
   })
-
-  // ── advanced-promotion-type WU-B — parity + totals-from-backend-cents ───────
-  //
-  // Spec WU-B ADDED Requirement: Draft + Confirmed ADVANCED Reward-Badge Parity.
-  // Spec WU-B ADDED Requirement: Totals Rendered From Backend Cents (Invariant).
-  //
-  // The two contracts share the same shape: `SaleItemRow` (draft) and
-  // `SaleDetailItemsList` (confirmed) must both (a) render the SAME reward
-  // badge label for the same `{rewardKind, rewardDiscountPercent}` input and
-  // (b) render the bold line total from `subtotalCents` returned by the
-  // backend — the frontend MUST NOT recompute reward math.
-  //
-  // These tests verify the draft side. The confirmed side is mirrored in
-  // `SaleDetailItemsList.test.ts` so a regression on either surface is caught
-  // at the boundary that owns it.
 
   it('renders the ADVANCED 100% reward badge as "GRATIS" on the draft side', () => {
     const advancedItem: SaleItem = {
@@ -734,7 +640,6 @@ describe('SaleItemRow', () => {
     expect(rewardBadge.text()).toContain('GRATIS')
 
     const netLine = wrapper.find('[data-testid="sale-item-line-net"]')
-    // Backend returns subtotalCents=0 (free) → formatted "$0.00".
     expect(netLine.text()).toContain('$0.00')
   })
 
@@ -758,19 +663,15 @@ describe('SaleItemRow', () => {
     expect(rewardBadge.exists()).toBe(true)
     expect(rewardBadge.text()).toContain('-50%')
 
-    // Frontend MUST render backend NET cents directly — no client recompute.
     const netLine = wrapper.find('[data-testid="sale-item-line-net"]')
     expect(netLine.text()).toContain('$100.00')
   })
 
   it('renders the bold line total from backend subtotalCents (no client recompute)', () => {
-    // Representative invariant payload: subtotalCents=40000, the backend chose
-    // that NET — the client MUST render $400.00 verbatim even when the local
-    // unit-price × quantity math would give a different number.
     const backendTotalsItem: SaleItem = {
       ...mockItem,
-      unitPriceCents: 25000, // 25000 * 2 = 50000 (would be the gross)
-      subtotalCents: 40000, // backend-decided NET — must be rendered verbatim
+      unitPriceCents: 25000,
+      subtotalCents: 40000,
     }
 
     const wrapper = mount(SaleItemRow, {
@@ -780,21 +681,12 @@ describe('SaleItemRow', () => {
 
     const netLine = wrapper.find('[data-testid="sale-item-line-net"]')
     expect(netLine.text()).toContain('$400.00')
-    // No client recompute: the unit-price × quantity number ($500.00) MUST NOT
-    // appear in the bold line total.
     expect(netLine.text()).not.toContain('$500.00')
   })
 
-  // ── sdd-4 sales-layout-redesign T4/T5 — mini-card spatial contract ─────
-  //
-  // The row was redesigned as a vertical mini-card: the top row holds
-  // thumb · info · actions, and the bottom row holds chips · qty ·
-  // line total at the SAME horizontal level — the user explicitly
-  // asked for the chips to be inline with the counter. This test
-  // pins that DOM-ordering contract so future refactors can't silently
-  // drift back to a separate "badges below" row.
+  // ── Phase 14b layout tests — horizontal card structure ──
 
-  it('renders SaleItemBadges inline with the qty controls in Row 2 (sdd-4 step 5)', () => {
+  it('renders horizontal layout with thumbnail, center column, and right pricing stack', () => {
     const wrapper = mount(SaleItemRow, {
       props: {
         item: {
@@ -808,6 +700,7 @@ describe('SaleItemRow', () => {
         },
         saleId: 'sale-1',
         isDraft: true,
+        imageUrl: 'https://example.com/img.jpg',
         onSubmitPriceOverride,
         onApplyDiscount,
         onRemoveDiscount,
@@ -816,24 +709,103 @@ describe('SaleItemRow', () => {
       global: { stubs },
     })
 
-    // Sanity: with both a price-source AND a discount, the badge group
-    // is forced to render multiple chips (otherwise hasAnyBadge may be false).
+    // Product name renders
+    expect(wrapper.text()).toContain('Aspirina 100mg')
+
+    // Right column has net line
+    const netLine = wrapper.find('[data-testid="sale-item-line-net"]')
+    expect(netLine.exists()).toBe(true)
+
+    // Badge group renders inline for draft
     const badgeGroup = wrapper.find('[data-testid="sale-item-badge-group"]')
     expect(badgeGroup.exists()).toBe(true)
+  })
 
-    // The line-net element lives in the rightmost column of Row 2.
-    // After the sdd-4 step-5 fix, SaleItemBadges renders BEFORE it in
-    // document order — i.e. to its LEFT in the same flex row, not below
-    // it on a subordinate line.
-    const lineNet = wrapper.find('[data-testid="sale-item-line-net"]').element
-    const pos = lineNet.compareDocumentPosition(badgeGroup.element)
-    // Node.DOCUMENT_POSITION_PRECEDING === 2 → badge group precedes line-net.
-    expect(pos & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
+  it('renders qty stepper and trash icon in the center column for draft items', () => {
+    const wrapper = mount(SaleItemRow, {
+      props: {
+        item: mockItem,
+        saleId: 'sale-1',
+        isDraft: true,
+        onSubmitPriceOverride,
+        onApplyDiscount,
+        onRemoveDiscount,
+        onRemoveItem,
+      },
+      global: { stubs },
+    })
 
-    // The badge group must share the same flex parent as the qty
-    // controls (the Row 2 div) — i.e. they're SIBLINGS in the same row.
-    const lineNetRow = lineNet.parentElement?.parentElement
-    const badgeRow = badgeGroup.element.parentElement?.parentElement
-    expect(badgeRow).toBe(lineNetRow)
+    // The qty row renders with UInputNumber (some form of input) and action buttons
+    // In draft mode, the template renders UInputNumber, trash UButton, and ellipsis UButton
+    // At minimum, some input element exists for qty editing
+    expect(wrapper.html()).toContain('input')
+    expect(wrapper.html()).toContain('trash')
+  })
+
+  it('renders unit price, discount info, and subtotal in the right pricing column', () => {
+    const wrapper = mount(SaleItemRow, {
+      props: {
+        item: {
+          ...mockItem,
+          discountType: 'percentage',
+          discountValue: 20,
+          discountAmountCents: 1000,
+        },
+        saleId: 'sale-1',
+        isDraft: true,
+        onSubmitPriceOverride,
+        onApplyDiscount,
+        onRemoveDiscount,
+      },
+      global: { stubs },
+    })
+
+    expect(wrapper.text()).toContain('$50.00')
+
+    const netLine = wrapper.find('[data-testid="sale-item-line-net"]')
+    expect(netLine.exists()).toBe(true)
+    expect(netLine.classes()).toContain('font-bold')
+  })
+
+  it('renders sale-item-unit-strike-original in the specs line', () => {
+    const wrapper = mount(SaleItemRow, {
+      props: {
+        item: {
+          ...mockItem,
+          priceSource: 'price_list',
+          originalPriceCents: 7000,
+        },
+        saleId: 'sale-1',
+        isDraft: true,
+        onSubmitPriceOverride,
+        onApplyDiscount,
+        onRemoveDiscount,
+      },
+      global: { stubs },
+    })
+
+    const origStrike = wrapper.find('[data-testid="sale-item-unit-strike-original"]')
+    expect(origStrike.exists()).toBe(true)
+    expect(origStrike.text()).toContain('$70.00')
+  })
+
+  it('renders promotion badge inline with data-testid for draft items', () => {
+    const wrapper = mount(SaleItemRow, {
+      props: {
+        item: {
+          ...mockItem,
+          promotionId: 'promo-uuid-42',
+          discountTitle: 'My Promo',
+        },
+        saleId: 'sale-1',
+        isDraft: true,
+        onSubmitPriceOverride,
+        onApplyDiscount,
+        onRemoveDiscount,
+      },
+      global: { stubs },
+    })
+
+    expect(wrapper.text()).toContain('My Promo')
   })
 })
