@@ -191,10 +191,23 @@ function handleConfirmPriceListChange() {
   <div class="h-full flex flex-col min-w-0">
     <!-- cart-header (sdd-4 sales-layout-redesign T3) — type toggle + trash
          + ⋮ menu + price-list selector. NO bg-* classes: stays transparent
-         and inherits from UDashboardPanel body bg (SDD-3 doble-fondo rule). -->
+         and inherits from UDashboardPanel body bg (SDD-3 doble-fondo rule).
+
+         Layout (revised fix): three top-level groups so the header stays
+         readable on laptop widths where the previous `md:flex-1` on the
+         first child + internal spacer collapsed the action buttons into
+         the gap before the price-list selector.
+           [Group 1] [spacer → right] [Group 2]
+         - Group 1: type toggle + action buttons (kept together, shrink-0).
+         - Spacer: a dedicated `md:flex-1` div between groups pushes the
+           selector to the extreme right (only renders on md+).
+         - Group 2: price-list selector (shrink-0 so the label + dropdown
+           are never visually overlapped). -->
     <section data-testid="cart-header" class="shrink-0 flex flex-col md:flex-row md:items-center md:gap-3 md:px-4 md:py-3">
-      <!-- Type toggle using UTabs with icons -->
-      <div class="flex items-center gap-3 px-4 py-3 md:border-0 md:bg-transparent md:p-0 md:flex-1 md:min-w-0">
+      <!-- Group 1: type toggle + action buttons. `md:shrink-0` keeps the
+           group from collapsing onto the price-list selector; no internal
+           spacer so the action buttons stay glued to the toggle. -->
+      <div class="flex items-center gap-2 px-4 py-3 md:border-0 md:bg-transparent md:p-0 md:shrink-0">
         <UTabs
           :items="[
             { key: 'venta', label: 'Venta', icon: 'i-lucide-shopping-bag', content: false },
@@ -204,9 +217,7 @@ function handleConfirmPriceListChange() {
           class="w-auto"
         />
 
-        <div class="flex-1"></div>
-
-        <!-- Action buttons -->
+        <!-- Action buttons grouped with the toggle -->
         <div class="flex items-center gap-1">
           <!-- Trash button -->
           <UTooltip :text="activeDraft && activeDraft.items.length === 0 ? 'La venta no tiene productos' : 'Vaciar venta'">
@@ -233,6 +244,11 @@ function handleConfirmPriceListChange() {
         </div>
       </div>
 
+      <!-- Spacer: pushes the price-list selector to the far right on
+           desktop. Hidden on mobile because the section stacks vertically
+           there and no horizontal spacer is needed. -->
+      <div class="hidden md:block md:flex-1" aria-hidden="true"></div>
+
       <!-- pos-price-list-tiers: tier selector lives between the type toggle
            and the action buttons. Empty-state contract: PriceListSelector
            shows a "Sin lista" placeholder when no list is assigned, and
@@ -240,7 +256,7 @@ function handleConfirmPriceListChange() {
            has items (so the parent gets a chance to show a confirm modal
            before the backend reprices everything). On mobile it occupies
            its own row to avoid horizontal overflow at <360px widths. -->
-      <div v-if="activeDraft" class="px-4 py-2 md:border-0 md:bg-transparent md:p-0">
+      <div v-if="activeDraft" class="px-4 py-2 md:border-0 md:bg-transparent md:p-0 md:shrink-0">
         <PriceListSelector
           :active-draft="activeDraft"
           :is-mutating="isMutating"

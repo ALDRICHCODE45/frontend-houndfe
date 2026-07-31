@@ -130,7 +130,7 @@ defineExpose({ handleUpdate })
     -->
     <div
       data-testid="price-list-active-label"
-      class="flex items-center gap-1 text-xs text-muted"
+      class="flex items-center gap-1 text-xs text-muted shrink-0 whitespace-nowrap"
     >
       <UIcon name="i-lucide-tags" class="size-3.5" />
       <span>Lista: <strong class="font-semibold">{{ activeListName }}</strong></span>
