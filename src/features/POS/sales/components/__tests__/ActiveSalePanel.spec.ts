@@ -90,17 +90,17 @@ function mountPanel(
             + ':data-items-count="(activeDraft?.items ?? []).length" />',
         },
         // C.4: stub forwards apply/remove emits so tests can verify the
-        // accordion's event bubbling reaches ActiveSalePanel's parent emits.
-        PromocionesDisponiblesAccordion: {
-          name: 'PromocionesDisponiblesAccordion',
+        // flat list's event bubbling reaches ActiveSalePanel's parent emits.
+        PromocionesFlatList: {
+          name: 'PromocionesFlatList',
           emits: ['apply', 'remove'],
           props: ['promotions', 'loading', 'appliedIds'],
           template:
-            '<div data-testid="promociones-accordion-stub" '
+            '<div data-testid="promociones-flat-list-stub" '
             + ':data-loading="loading" '
             + ':data-applied-count="(appliedIds ?? []).length">'
-            + '<button data-testid="accordion-apply-btn" @click="$emit(\'apply\', \'promo-test-id\')">apply</button>'
-            + '<button data-testid="accordion-remove-btn" @click="$emit(\'remove\', \'promo-test-id\')">remove</button>'
+            + '<button data-testid="flatlist-apply-btn" @click="$emit(\'apply\', \'promo-test-id\')">apply</button>'
+            + '<button data-testid="flatlist-remove-btn" @click="$emit(\'remove\', \'promo-test-id\')">remove</button>'
             + '</div>',
         },
         UTabs: { template: '<div />' },
@@ -264,82 +264,82 @@ describe('ActiveSalePanel customer slot', () => {
   })
 })
 
-// ── C.4: PromocionesDisponiblesAccordion wiring ─────────────────────────────
+// ── C.4: PromocionesFlatList wiring ─────────────────────────────
 
-describe('ActiveSalePanel C.4 — PromocionesDisponiblesAccordion wiring', () => {
+describe('ActiveSalePanel C.4 — PromocionesFlatList wiring', () => {
   const samplePromotions: ApplicablePromotion[] = [
     { id: 'promo-a', title: '2x1 Aspirinas', type: 'PRODUCT_DISCOUNT' },
     { id: 'promo-b', title: '10% en subtotal', type: 'ORDER_DISCOUNT' },
   ]
 
-  it('does NOT mount the accordion when applicablePromotions is undefined or empty', () => {
-    const wrapperEmpty = mountPanel(makeDraft(), false, { applicablePromotions: [] })
-    expect(wrapperEmpty.find('[data-testid="promociones-accordion-stub"]').exists()).toBe(false)
+    it('does NOT mount the flat list when applicablePromotions is undefined or empty', () => {
+      const wrapperEmpty = mountPanel(makeDraft(), false, { applicablePromotions: [] })
+      expect(wrapperEmpty.find('[data-testid="promociones-flat-list-stub"]').exists()).toBe(false)
 
-    const wrapperUndef = mountPanel(makeDraft(), false, {})
-    expect(wrapperUndef.find('[data-testid="promociones-accordion-stub"]').exists()).toBe(false)
-  })
-
-  it('mounts the accordion ABOVE SaleTotalsFooter and passes the promotions, loading, and appliedIds props', () => {
-    const wrapper = mountPanel(makeDraft(), false, {
-      applicablePromotions: samplePromotions,
-      isLoadingPromotions: false,
-      appliedManualPromotionIds: ['promo-a'],
+      const wrapperUndef = mountPanel(makeDraft(), false, {})
+      expect(wrapperUndef.find('[data-testid="promociones-flat-list-stub"]').exists()).toBe(false)
     })
 
-    const accordion = wrapper.findComponent({ name: 'PromocionesDisponiblesAccordion' })
-    expect(accordion.exists()).toBe(true)
+    it('mounts the flat list ABOVE SaleTotalsFooter and passes the promotions, loading, and appliedIds props', () => {
+      const wrapper = mountPanel(makeDraft(), false, {
+        applicablePromotions: samplePromotions,
+        isLoadingPromotions: false,
+        appliedManualPromotionIds: ['promo-a'],
+      })
 
-    // Prop pass-through contract.
-    expect(accordion.props('promotions')).toEqual(samplePromotions)
-    expect(accordion.props('loading')).toBe(false)
-    expect(accordion.props('appliedIds')).toEqual(['promo-a'])
+      const flatList = wrapper.findComponent({ name: 'PromocionesFlatList' })
+      expect(flatList.exists()).toBe(true)
 
-    // Mount-order contract: accordion must come BEFORE the totals footer
-    // in the rendered DOM so the seller sees promos above the totals row.
-    const accordionNode = wrapper.find('[data-testid="promociones-accordion-stub"]').element
-    const footerNode = wrapper.find('[data-testid="sale-totals-footer-stub"]').element
-    const docOrder = accordionNode.compareDocumentPosition(footerNode)
-    // Node.DOCUMENT_POSITION_FOLLOWING === 4 → accordion precedes footer.
-    expect(docOrder & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-  })
+      // Prop pass-through contract.
+      expect(flatList.props('promotions')).toEqual(samplePromotions)
+      expect(flatList.props('loading')).toBe(false)
+      expect(flatList.props('appliedIds')).toEqual(['promo-a'])
 
-  it('passes isLoadingPromotions=true through to the accordion when the query is fetching', () => {
-    const wrapper = mountPanel(makeDraft(), false, {
-      applicablePromotions: samplePromotions,
-      isLoadingPromotions: true,
-      appliedManualPromotionIds: [],
+      // Mount-order contract: flat list must come BEFORE the totals footer
+      // in the rendered DOM so the seller sees promos above the totals row.
+      const flatListNode = wrapper.find('[data-testid="promociones-flat-list-stub"]').element
+      const footerNode = wrapper.find('[data-testid="sale-totals-footer-stub"]').element
+      const docOrder = flatListNode.compareDocumentPosition(footerNode)
+      // Node.DOCUMENT_POSITION_FOLLOWING === 4 → flat list precedes footer.
+      expect(docOrder & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     })
 
-    const accordion = wrapper.findComponent({ name: 'PromocionesDisponiblesAccordion' })
-    expect(accordion.props('loading')).toBe(true)
-  })
+    it('passes isLoadingPromotions=true through to the flat list when the query is fetching', () => {
+      const wrapper = mountPanel(makeDraft(), false, {
+        applicablePromotions: samplePromotions,
+        isLoadingPromotions: true,
+        appliedManualPromotionIds: [],
+      })
 
-  it('re-emits the accordion\'s `apply` event upward as `apply-manual-promo` with the promotionId', async () => {
-    const wrapper = mountPanel(makeDraft(), false, { applicablePromotions: samplePromotions })
+      const flatList = wrapper.findComponent({ name: 'PromocionesFlatList' })
+      expect(flatList.props('loading')).toBe(true)
+    })
 
-    const accordion = wrapper.findComponent({ name: 'PromocionesDisponiblesAccordion' })
-    accordion.vm.$emit('apply', 'promo-test-id')
-    await wrapper.vm.$nextTick()
+    it('re-emits the flat list\'s `apply` event upward as `apply-manual-promo` with the promotionId', async () => {
+      const wrapper = mountPanel(makeDraft(), false, { applicablePromotions: samplePromotions })
 
-    const events = wrapper.emitted('apply-manual-promo')
-    expect(events).toBeTruthy()
-    expect(events).toHaveLength(1)
-    expect(events![0]).toEqual(['promo-test-id'])
-  })
+      const flatList = wrapper.findComponent({ name: 'PromocionesFlatList' })
+      flatList.vm.$emit('apply', 'promo-test-id')
+      await wrapper.vm.$nextTick()
 
-  it('re-emits the accordion\'s `remove` event upward as `remove-manual-promo` with the promotionId', async () => {
-    const wrapper = mountPanel(makeDraft(), false, { applicablePromotions: samplePromotions })
+      const events = wrapper.emitted('apply-manual-promo')
+      expect(events).toBeTruthy()
+      expect(events).toHaveLength(1)
+      expect(events![0]).toEqual(['promo-test-id'])
+    })
 
-    const accordion = wrapper.findComponent({ name: 'PromocionesDisponiblesAccordion' })
-    accordion.vm.$emit('remove', 'promo-test-id')
-    await wrapper.vm.$nextTick()
+    it('re-emits the flat list\'s `remove` event upward as `remove-manual-promo` with the promotionId', async () => {
+      const wrapper = mountPanel(makeDraft(), false, { applicablePromotions: samplePromotions })
 
-    const events = wrapper.emitted('remove-manual-promo')
-    expect(events).toBeTruthy()
-    expect(events).toHaveLength(1)
-    expect(events![0]).toEqual(['promo-test-id'])
-  })
+      const flatList = wrapper.findComponent({ name: 'PromocionesFlatList' })
+      flatList.vm.$emit('remove', 'promo-test-id')
+      await wrapper.vm.$nextTick()
+
+      const events = wrapper.emitted('remove-manual-promo')
+      expect(events).toBeTruthy()
+      expect(events).toHaveLength(1)
+      expect(events![0]).toEqual(['promo-test-id'])
+    })
 })
 
 // ── C.5: SaleItemRow per-line `remove-promo` forwarding ─────────────────────
@@ -443,7 +443,7 @@ describe('ActiveSalePanel — PriceListSelector wiring (pos-price-list-tiers)', 
               + '<button data-testid="confirm-modal-cancel" @click="$emit(\'update:open\', false); $emit(\'cancel\')">cancel</button>'
               + '</div>',
           },
-          PromocionesDisponiblesAccordion: { template: '<div />' },
+          PromocionesFlatList: { template: '<div />' },
           UTabs: { template: '<div />' },
           UTooltip: { template: '<div><slot /></div>' },
           UDropdownMenu: { template: '<div><slot /></div>' },

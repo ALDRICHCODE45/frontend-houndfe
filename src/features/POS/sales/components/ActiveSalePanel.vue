@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import SaleItemRow from './SaleItemRow.vue'
 import SaleTotalsFooter from './SaleTotalsFooter.vue'
-import PromocionesDisponiblesAccordion from './PromocionesDisponiblesAccordion.vue'
+import PromocionesFlatList from './PromocionesFlatList.vue'
 import GlobalDiscountModal from './GlobalDiscountModal.vue'
 import PriceListSelector from './PriceListSelector.vue' // sdd/pos-price-list-tiers
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
@@ -367,7 +367,7 @@ function handleConfirmPriceListChange() {
            above the totals footer. The outer v-if ensures the section hides
            when there are no applicable promos; the inner component also
            guards with v-if on its own. -->
-      <PromocionesDisponiblesAccordion
+      <PromocionesFlatList
         v-if="(applicablePromotions?.length ?? 0) > 0"
         :promotions="applicablePromotions ?? []"
         :loading="isLoadingPromotions ?? false"
