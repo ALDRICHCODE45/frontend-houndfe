@@ -4,11 +4,15 @@ import { useRoute, useRouter } from 'vue-router'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
 import AssignCustomerSlideover from '@/features/POS/sales/components/AssignCustomerSlideover.vue'
 import PriceListSelector from '@/features/POS/sales/components/PriceListSelector.vue'
+import ProductSearchPanel from '@/features/POS/sales/components/ProductSearchPanel.vue'
+import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import {
   QUOTATION_STATUS_LABEL,
   QUOTATION_STATUS_TONE,
 } from '../constants/quotation.constants'
 import { useQuotationDetail } from '../composables/useQuotationDetail'
+import { useQuotationDraft } from '../composables/useQuotationDraft'
+import QuotationItemRow from '../components/QuotationItemRow.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -32,6 +36,11 @@ const {
   assignCustomer,
   changePriceList,
 } = useQuotationDetail(quotationId)
+
+// `useQuotationDraft` is only safe to instantiate when we have a real
+// quotation id. `createDraft` lives on `useQuotationDetail` because it
+// drives the route replace; the other 15 mutations live here (S5).
+const draft = useQuotationDraft(quotationId)
 
 const isDraft = computed(() => quotation.value?.status === 'DRAFT')
 const folio = computed(() => quotation.value?.id.slice(0, 8) ?? 'Nueva')
@@ -61,6 +70,60 @@ async function handleCustomerSelected(customerId: string): Promise<void> {
 
 async function handlePriceListChange(globalPriceListId: string | null): Promise<void> {
   await changePriceList(globalPriceListId)
+}
+
+// ── S5: item management ──────────────────────────────────────────────────────
+
+const items = computed(() => quotation.value?.items ?? [])
+
+const isProductSearchOpen = ref(false)
+
+async function handleAddProduct(
+  productId: string,
+  variantId: string | null,
+): Promise<void> {
+  await draft.addItem(productId, 1, variantId ?? undefined)
+}
+
+async function handleUpdateQuantity(
+  itemId: string,
+  quantity: number,
+): Promise<void> {
+  await draft.updateQuantity(itemId, quantity)
+}
+
+// ── Remove confirmation flow ─────────────────────────────────────────────────
+// The row never deletes state directly — it emits `request-remove`, we
+// pop the ConfirmModal, and only after the user confirms do we hit the
+// backend (`quotationApi.removeItem` returns the updated quotation; the
+// composable mutates the cache).
+
+const pendingRemoveItemId = ref<string | null>(null)
+const isRemoveConfirmOpen = computed(() => pendingRemoveItemId.value !== null)
+
+function handleRequestRemove(itemId: string): void {
+  pendingRemoveItemId.value = itemId
+}
+
+function handleRemoveCancel(): void {
+  pendingRemoveItemId.value = null
+}
+
+async function handleRemoveConfirm(): Promise<void> {
+  const itemId = pendingRemoveItemId.value
+  pendingRemoveItemId.value = null
+  if (!itemId) return
+  await draft.removeItem(itemId)
+}
+
+async function handleOverridePrice(
+  itemId: string,
+  unitPriceCents: number,
+): Promise<void> {
+  // Slice 5 commits the override value as-is (the row passes back the
+  // current unit price when the cashier clicks the pencil). Slice 8/9 can
+  // upgrade this to a dedicated modal without changing the public contract.
+  await draft.overridePrice(itemId, unitPriceCents)
 }
 
 onMounted(async () => {
@@ -182,19 +245,62 @@ onMounted(async () => {
         </section>
       </div>
 
+      <!-- S5 — items section. List + add-product affordance in DRAFT;
+           read-only list for every other status. -->
       <section
         v-if="isDraft"
-        class="rounded-xl border border-dashed border-default p-6"
+        class="flex flex-col gap-4"
         data-testid="draft-edit-controls"
       >
-        <h2 class="text-base font-semibold text-highlighted">Agregar productos</h2>
-        <p class="mt-1 text-sm text-muted">
-          La gestión de productos e ítems se habilita en el siguiente slice.
+        <div class="flex items-center justify-between">
+          <h2 class="text-base font-semibold text-highlighted">Agregar productos</h2>
+          <button
+            v-if="isDraft"
+            type="button"
+            class="inline-flex items-center gap-2 rounded-lg border border-default px-3 py-2 text-sm font-medium hover:bg-elevated"
+            data-testid="add-product-button"
+            @click="isProductSearchOpen = true"
+          >
+            <span aria-hidden="true">＋</span>
+            Agregar producto
+          </button>
+        </div>
+      </section>
+
+      <section class="flex flex-col gap-4" data-testid="items-section">
+        <p
+          v-if="items.length === 0"
+          class="rounded-lg border border-dashed border-default px-4 py-8 text-center text-sm text-muted"
+          data-testid="items-empty-state"
+        >
+          No hay productos en esta cotización.
         </p>
+
+        <ul
+          v-else
+          class="flex flex-col gap-2"
+          data-testid="items-list"
+        >
+          <li v-for="item in items" :key="item.id">
+            <QuotationItemRow
+              :item="item"
+              :readonly="!isDraft"
+              @update-quantity="handleUpdateQuantity"
+              @override-price="handleOverridePrice"
+              @request-remove="handleRequestRemove"
+            />
+          </li>
+        </ul>
+
+        <ProductSearchPanel
+          v-if="isProductSearchOpen && isDraft"
+          data-testid="product-search-panel"
+          @add-product="handleAddProduct"
+        />
       </section>
 
       <section
-        v-else
+        v-if="!isDraft"
         class="rounded-xl border border-default bg-elevated p-5 text-sm text-muted"
         data-testid="read-only-notice"
       >
@@ -204,6 +310,16 @@ onMounted(async () => {
       <AssignCustomerSlideover
         v-model:open="isAssignCustomerOpen"
         @customer-selected="handleCustomerSelected"
+      />
+
+      <ConfirmModal
+        :open="isRemoveConfirmOpen"
+        title="Quitar producto"
+        description="¿Quitar este producto de la cotización? Esta acción no se puede deshacer."
+        confirm-label="Quitar"
+        confirm-color="error"
+        @update:open="(value) => { if (!value) handleRemoveCancel() }"
+        @confirm="handleRemoveConfirm"
       />
     </template>
   </section>

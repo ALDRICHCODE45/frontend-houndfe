@@ -91,12 +91,12 @@ Numerical order. S1 unlocks all; S3/S4 fork list/detail; S5-S7 detail vertical; 
 
 ## Slice 5 — Item rows + mutations (REQs 005, 006, 013 partial) — ~380 lines
 
-- [ ] 5.1 Add `useQuotationDraft` mutations: `addItem`, `updateQuantity`, `removeItem`, `overridePrice` (each `setQueryData` on success) (MOD)
-- [ ] 5.2 TDD `components/QuotationItemRow.vue` — props (`item`, `readonly`); emits (`update-qty`, `override-price`, `remove`) (NEW + test)
-- [ ] 5.3 Reuse `ProductSearchPanel` + `VariantPickerModal` from `sales/`; wire callbacks to `addItem` (MOD view)
-- [ ] 5.4 `✏️ PRECIO MANUAL` `AppBadge` when `item.priceSource === 'CUSTOM'`
-- [ ] 5.5 Display name/SKU/variant/unit price/line subtotal via `formatCentsMXN` + `lineCents`
-- **Files**: 1 NEW + 2 MOD. **Verify**: `pnpm test:unit` + manual add/qty/remove/override on `/pos/cotizaciones/:id`.
+- [x] 5.1 Add `useQuotationDraft` mutations: `addItem`, `updateQuantity`, `removeItem`, `overridePrice` (each `setQueryData` on success) (MOD)
+- [x] 5.2 TDD `components/QuotationItemRow.vue` — props (`item`, `readonly`); emits (`update-qty`, `override-price`, `remove`) (NEW + test)
+- [x] 5.3 Reuse `ProductSearchPanel` + `VariantPickerModal` from `sales/`; wire callbacks to `addItem` (MOD view)
+- [x] 5.4 `✏️ PRECIO MANUAL` `AppBadge` when `item.priceSource === 'CUSTOM'`
+- [x] 5.5 Display name/SKU/variant/unit price/line subtotal via `formatCentsMXN` + `lineCents`
+- **Files**: 2 NEW + 2 MOD. **Verify**: `pnpm test:unit` + manual add/qty/remove/override on `/pos/cotizaciones/:id`.
 - **Commit**: `feat(quotations): add item rows with add, quantity, remove, and price override`
 
 ---
