@@ -852,9 +852,9 @@ async function handleChangePriceList(globalPriceListId: string | null) {
     </div>
 
     <AssignCustomerSlideover
-      v-if="activeDraft?.id"
+      v-if="false"
       v-model:open="assignCustomerSlideoverOpen"
-      :sale-id="activeDraft.id"
+      :sale-id="activeDraft?.id || ''"
     />
 
     <PaymentModal
