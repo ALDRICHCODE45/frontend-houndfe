@@ -657,7 +657,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
         <div class="flex gap-2">
           <USkeleton v-for="i in 4" :key="i" class="h-8 w-24 rounded-full" />
         </div>
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 xl:grid-cols-3 gap-4 mt-3">
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-4 gap-4 mt-3">
           <div v-for="i in 8" :key="i" class="rounded-xl border border-default overflow-hidden">
             <USkeleton class="aspect-square w-full" />
             <div class="p-2.5 space-y-1.5">
@@ -724,8 +724,8 @@ async function handleChangePriceList(globalPriceListId: string | null) {
            14a.1 (sales-screen-redesign — R1): cart panel now 25%. The
            horizontal SaleItemRow rewrite (14b.1) will make this usable;
            here we only change the split. -->
-      <div class="hidden lg:block lg:w-[25%] shrink-0 px-3 lg:px-4 pt-1.5 lg:pt-2 pb-3 lg:pb-4">
-        <div class="h-full w-full rounded-2xl border border-default/50 overflow-hidden">
+      <div class="hidden lg:block lg:w-[25%] shrink-0 pl-3 lg:pl-4 pr-0 pt-1.5 lg:pt-2 pb-3 lg:pb-4">
+        <div class="h-full w-full rounded-l-2xl border border-default/50 overflow-hidden border-r-0">
           <ActiveSalePanel
             :drafts="drafts"
             :active-draft="activeDraft"

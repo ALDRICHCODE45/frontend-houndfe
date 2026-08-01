@@ -85,7 +85,7 @@ describe('ProductSearchPanel — 14a.3 dark category panel (R6 panel half)', () 
     return w
   }
 
-  it('14a.3.1 — wraps the category chips in a dark bg-coco-neutral-900 panel (R6)', () => {
+  it('renders category chips as free-floating buttons (no dark panel wrapper)', () => {
     // Seed at least one category so the chips section renders.
     mockCategories.value = [{ id: 'cat-1', name: 'Medicamentos', count: 4 }]
     mockTotalUnfiltered.value = 12
@@ -93,14 +93,10 @@ describe('ProductSearchPanel — 14a.3 dark category panel (R6 panel half)', () 
     const wrapper = mountWithCleanup()
     const html = wrapper.html()
 
-    expect(html).toContain('bg-coco-neutral-900')
-    expect(html).toContain('rounded-xl')
-    // Chip label "Medicamentos" must still be present in the same wrapper,
-    // i.e. the dark panel contains the chips.
+    // Chips are direct buttons, not wrapped in a dark panel
     expect(html).toContain('Medicamentos')
-    // The chips should sit INSIDE the dark panel — the panel and the chip
-    // text appear together; we don't require a strict ancestor relation
-    // since vue-test-utils renders siblings flat in `wrapper.html()`.
+    expect(html).toContain('category-chip-todo')
+    expect(html).not.toContain('bg-coco-neutral-900')
   })
 
   it('14a.3.1 — exposes the Ctrl+K / ⌘K keyboard hint (preserves existing isMac pattern)', () => {

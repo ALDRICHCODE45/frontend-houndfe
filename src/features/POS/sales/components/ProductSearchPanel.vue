@@ -88,14 +88,10 @@ function handleAddVariant(productId: string, variantId: string) {
           </div>
         </div>
 
-        <!-- Category filter chips (derived from unfiltered catalog).
-             14a.3 (sales-screen-redesign — R6 panel half): chips live inside
-             a `bg-coco-neutral-900 rounded-xl p-2` dark container so they
-             read as one affordance group, distinct from the elevated
-             page surface around the panel. -->
+        <!-- Category filter chips (derived from unfiltered catalog) -->
         <div
           v-if="categories.length > 0"
-          class="bg-coco-neutral-900 dark:bg-coco-neutral-900 rounded-xl p-2 flex items-center gap-2 overflow-x-auto no-scrollbar"
+          class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-0.5"
         >
           <button
             :class="[

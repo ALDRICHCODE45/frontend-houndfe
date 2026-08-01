@@ -43,9 +43,9 @@ function isLowStock(item: PosCatalogItem): boolean {
     class="group rounded-2xl border border-default bg-elevated overflow-hidden cursor-pointer hover:border-primary/30 hover:shadow-md dark:hover:shadow-none transition-all duration-200 flex flex-col"
     @click="emit('select', item)"
   >
-    <!-- Image area (aspect-square, hero image fills the space) -->
+    <!-- Image area (4:3 aspect, capped height so cards stay compact) -->
     <div
-      class="relative aspect-square w-full flex items-center justify-center overflow-hidden bg-linear-to-br from-elevated to-default"
+      class="relative aspect-[4/3] w-full flex items-center justify-center overflow-hidden bg-muted/30"
     >
       <UIcon
         v-if="!item.mainImage || imageError"

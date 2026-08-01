@@ -203,9 +203,9 @@ function handleConfirmPriceListChange() {
            selector to the extreme right (only renders on md+).
          - Group 2: price-list selector (shrink-0 so the label + dropdown
            are never visually overlapped). -->
-    <section data-testid="cart-header" class="shrink-0 flex flex-col md:flex-row md:items-center md:gap-3 md:px-4 md:py-3">
-      <!-- Group 1: type toggle only. Phase 14b: trash + ellipsis moved to footer toolbar. -->
-      <div class="flex items-center gap-2 px-4 py-3 md:border-0 md:bg-transparent md:p-0 md:shrink-0">
+    <section data-testid="cart-header" class="shrink-0 flex flex-col md:flex-row md:items-center md:gap-2 md:px-2 md:py-2">
+      <!-- Group 1: type toggle only. -->
+      <div class="flex items-center gap-1 px-3 py-2 md:border-0 md:bg-transparent md:p-0 md:shrink-0">
         <UTabs
           :items="[
             { key: 'venta', label: 'Venta', icon: 'i-lucide-shopping-bag', content: false },
