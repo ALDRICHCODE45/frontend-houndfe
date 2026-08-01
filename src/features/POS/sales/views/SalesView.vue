@@ -790,7 +790,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
       </button>
 
       <USlideover
-        v-if="false"
+        v-if="isMobileViewport && cartDrawerOpen"
         :open="cartDrawerOpen"
         side="bottom"
         :ui="{ content: 'h-[90vh] max-h-[90vh] rounded-t-2xl' }"
@@ -852,9 +852,9 @@ async function handleChangePriceList(globalPriceListId: string | null) {
     </div>
 
     <AssignCustomerSlideover
-      v-if="false"
+      v-if="activeDraft?.id && assignCustomerSlideoverOpen"
       v-model:open="assignCustomerSlideoverOpen"
-      :sale-id="activeDraft?.id || ''"
+      :sale-id="activeDraft.id"
     />
 
     <PaymentModal
