@@ -790,7 +790,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
       </button>
 
       <USlideover
-        v-if="isMobileViewport && cartDrawerOpen"
+        v-if="false"
         :open="cartDrawerOpen"
         side="bottom"
         :ui="{ content: 'h-[90vh] max-h-[90vh] rounded-t-2xl' }"
