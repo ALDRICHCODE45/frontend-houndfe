@@ -66,12 +66,12 @@ Numerical order. S1 unlocks all; S3/S4 fork list/detail; S5-S7 detail vertical; 
 
 ## Slice 3 — List view (REQs 001 list, 002, 016) — ~340 lines
 
-- [ ] 3.1 TDD `composables/useQuotationsList.ts` — status tab, `refDebounced` search, pagination (mirrors `useEmployeesList`) (NEW + test)
-- [ ] 3.2 `views/QuotationsListView.vue`: header with `Nueva cotización` button gated by `create:Quotation` (NEW)
-- [ ] 3.3 Status tabs (Todos/Borradores/Enviadas/Expiradas/Canceladas)
-- [ ] 3.4 `AppDataTable` columns: Cliente (`EntityAvatar`), Total (`formatCentsMXN`), Estado (`StatusDotBadge`), Fecha, Vencimiento, Acciones
-- [ ] 3.5 Skeleton + empty state + error retry; toast on errors
-- **Files**: 3 NEW. **Verify**: `pnpm test:unit` + `pnpm build` + `/pos/cotizaciones` renders list.
+- [x] 3.1 TDD `composables/useQuotationsList.ts` — status tab, `refDebounced` search, pagination (mirrors `useEmployeesList`) (NEW + test)
+- [x] 3.2 `views/QuotationsListView.vue`: header with `Nueva cotización` button gated by `create:Quotation` (NEW)
+- [x] 3.3 Status tabs (Todos/Borradores/Enviadas/Expiradas/Canceladas)
+- [x] 3.4 `AppDataTable` columns: ID (truncated UUID), Cliente, Estado (`StatusDotBadge`), Total (`formatCentsMXN`), Expira, Fecha
+- [x] 3.5 Skeleton + empty state + error retry; toast on errors (handled by AppDataTable props)
+- **Files**: 3 NEW (composable + view + view test). **Verify**: `pnpm test:unit` 3277 pass; `pnpm type-check` clean; `pnpm build` green; `/pos/cotizaciones` renders list.
 - **Commit**: `feat(quotations): add list view with status tabs, search, pagination`
 
 ---
