@@ -651,8 +651,8 @@ async function handleChangePriceList(globalPriceListId: string | null) {
   <div class="h-full flex bg-default">
     <!-- Loading skeleton -->
     <div v-if="isLoadingList" class="h-full w-full flex flex-col lg:flex-row">
-      <!-- Left skeleton panel: full-width on mobile, 75% on lg+ (14a.1 R1) -->
-      <div class="w-full lg:w-[75%] p-3 sm:p-4 space-y-4">
+      <!-- Left skeleton panel: full-width on mobile, 67% lg / 75% xl -->
+      <div class="w-full lg:w-[67%] xl:w-[75%] p-3 sm:p-4 space-y-4">
         <USkeleton class="h-10 w-full rounded-lg" />
         <div class="flex gap-2">
           <USkeleton v-for="i in 4" :key="i" class="h-8 w-24 rounded-full" />
@@ -669,9 +669,8 @@ async function handleChangePriceList(globalPriceListId: string | null) {
         </div>
       </div>
 
-      <!-- Right skeleton panel: hidden on mobile (cart lives in slideover),
-           25% on lg+ (14a.1 R1) -->
-      <div class="hidden lg:block lg:w-[25%] shrink-0 p-3 lg:p-4">
+      <!-- Right skeleton panel: hidden on mobile, 33% lg / 25% xl -->
+      <div class="hidden lg:block lg:w-[33%] xl:w-[25%] shrink-0 p-3 lg:p-4">
         <div class="h-full flex flex-col rounded-2xl border border-default bg-elevated/60 shadow-sm p-4 space-y-3">
           <USkeleton class="h-10 w-48" />
           <USkeleton class="h-10 w-full" />
@@ -688,9 +687,12 @@ async function handleChangePriceList(globalPriceListId: string | null) {
     </div>
 
     <!-- Main split view.
-         Desktop (lg+): horizontal split, catalog 75% / cart 25% (14a.1 R1).
-         Mobile/tablet (<lg): catalog full-width, cart lives in a bottom
-         slideover triggered by a FAB pinned bottom-right.
+         Two-phase responsive split so the cart is usable on medium screens
+         (tablets / laptops) without being cramped:
+           lg (1024px+): catalog 67% / cart 33%  — wider cart for laptops
+           xl (1280px+): catalog 75% / cart 25%  — tighter split for monitors
+         Mobile/tablet (<lg): catalog full-width, cart in bottom slideover
+         triggered by a FAB pinned bottom-right.
 
          Tab strip is mounted here at view level (sibling of the split)
          so BOTH the desktop right-panel ActiveSalePanel instance AND the
@@ -710,22 +712,17 @@ async function handleChangePriceList(globalPriceListId: string | null) {
       />
 
       <div class="flex-1 flex flex-col lg:flex-row w-full min-h-0">
-      <!-- Left panel: Product catalog (75% on desktop, full-width on mobile).
-           14a.1 (sales-screen-redesign — R1): 75/25 split gives the
-           image-first product grid the visual weight it needs. -->
-      <div class="lg:w-[75%] flex flex-col min-w-0 px-3 lg:px-4 pt-1.5 lg:pt-2 pb-3 lg:pb-4">
+      <!-- Left panel: Product catalog (67% lg, 75% xl, full-width on mobile). -->
+      <div class="lg:w-[67%] xl:w-[75%] flex flex-col min-w-0 px-3 lg:px-4 pt-1.5 lg:pt-2 pb-3 lg:pb-4">
         <div class="h-full rounded-2xl border border-default/50 overflow-hidden">
           <ProductSearchPanel ref="productSearchPanelRef" @add-product="handleAddProduct" />
         </div>
       </div>
 
-      <!-- Right panel: Active sale cart (25% on desktop only — hidden on mobile
-           where the cart lives inside the USlideover below).
-           14a.1 (sales-screen-redesign — R1): cart panel now 25%. The
-           horizontal SaleItemRow rewrite (14b.1) will make this usable;
-           here we only change the split. -->
-      <div class="hidden lg:block lg:w-[25%] shrink-0 pl-3 lg:pl-4 pr-0 pt-1.5 lg:pt-2 pb-3 lg:pb-4">
-        <div class="h-full w-full rounded-l-2xl border border-default/50 overflow-hidden border-r-0">
+      <!-- Right panel: Active sale cart (33% lg, 25% xl. Hidden on mobile
+           where the cart lives inside the USlideover below). -->
+      <div class="hidden lg:block lg:w-[33%] xl:w-[25%] shrink-0 px-3 lg:px-4 pt-1.5 lg:pt-2 pb-3 lg:pb-4">
+        <div class="h-full w-full rounded-2xl border border-default/50 overflow-hidden">
           <ActiveSalePanel
             :drafts="drafts"
             :active-draft="activeDraft"
