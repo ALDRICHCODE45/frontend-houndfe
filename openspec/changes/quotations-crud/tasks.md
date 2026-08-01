@@ -56,9 +56,9 @@ Numerical order. S1 unlocks all; S3/S4 fork list/detail; S5-S7 detail vertical; 
 
 ## Slice 2 — API layer (REQs 003 partial, 015 partial) — ~290 lines
 
-- [ ] 2.1 TDD `api/quotation.api.ts` (mock `http`) — URL/method/payload for all 15 endpoints (NEW + test)
-- [ ] 2.2 Implement `quotationApi`: 17 methods (15 endpoints + `createDraft` + `getPdfBlob`) — `list`, `getById`, `createDraft`, `assignCustomer`, `setPriceList`, `addItem`, `updateQuantity`, `removeItem`, `overridePrice`, `applyManualPromotion`, `removeManualPromotion`, `vetoPromotion`, `unvetoPromotion`, `setExpiry`, `send`, `cancel`, `getPdfBlob`
-- [ ] 2.3 `getPdfBlob`: `responseType:'blob'`, `timeout:15_000`, `AbortSignal`, `format=quotation-a4`
+- [x] 2.1 TDD `api/quotation.api.ts` (mock `http`) — URL/method/payload for all 15 endpoints (NEW + test)
+- [x] 2.2 Implement `quotationApi`: 17 methods (15 endpoints + `createDraft` + `getPdfBlob`) — `list`, `getById`, `createDraft`, `assignCustomer`, `setPriceList`, `addItem`, `updateQuantity`, `removeItem`, `overridePrice`, `applyManualPromotion`, `removeManualPromotion`, `vetoPromotion`, `unvetoPromotion`, `setExpiry`, `send`, `cancel`, `getPdfBlob`
+- [x] 2.3 `getPdfBlob`: `responseType:'blob'`, `timeout:15_000`, `AbortSignal`, `format=quotation-a4`
 - **Files**: 2 NEW. **Verify**: `pnpm test:unit`.
 - **Commit**: `feat(quotations): add quotationApi with 15 endpoints`
 
