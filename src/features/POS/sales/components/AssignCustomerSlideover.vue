@@ -22,18 +22,21 @@ declare const useToast: () => {
 
 const props = defineProps<{
   open: boolean
-  saleId: string
+  /** Sale drafts use the built-in assignment/address flow. Other consumers can
+   * omit this and handle `customer-selected` themselves. */
+  saleId?: string
 }>()
 
 const emit = defineEmits<{
   'update:open': [open: boolean]
+  'customer-selected': [customerId: string]
 }>()
 
 const authStore = useAuthStore()
 const tenantId = useSafeTenantId()
 const queryClient = useQueryClient()
 const toast = useToast()
-const { assignCustomer, setShippingAddress } = useDraftCustomerAssignment(() => props.saleId)
+const { assignCustomer, setShippingAddress } = useDraftCustomerAssignment(() => props.saleId ?? '')
 
 const searchInput = ref('')
 const debouncedSearch = ref('')
@@ -118,6 +121,12 @@ function resolveErrorMessage(error: unknown): string {
 }
 
 async function handleSelectCustomer(customer: Customer) {
+  if (!props.saleId) {
+    emit('customer-selected', customer.id)
+    emit('update:open', false)
+    return
+  }
+
   try {
     await assignCustomer({ customerId: customer.id })
     selectedCustomer.value = await customerApi.getById(customer.id)
@@ -132,6 +141,12 @@ async function handleCreateCustomer(payload: CreateCustomerPayload) {
   try {
     const createdCustomer = await customerApi.create(payload)
     await queryClient.invalidateQueries({ queryKey: customerQueryKeys.paginated(tenantId.value) })
+    if (!props.saleId) {
+      emit('customer-selected', createdCustomer.id)
+      emit('update:open', false)
+      isCreateCustomerOpen.value = false
+      return
+    }
     await assignCustomer({ customerId: createdCustomer.id })
     selectedCustomer.value = createdCustomer
     isCreateCustomerOpen.value = false

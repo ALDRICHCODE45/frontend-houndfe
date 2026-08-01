@@ -187,7 +187,7 @@ const router = createRouter({
       component: QuotationDetailView,
       meta: {
         layout: 'dashboard',
-        permission: ['read', 'Quotation'] as RoutePermission,
+        permission: ['create', 'Quotation'] as RoutePermission,
       },
     },
     {

@@ -52,7 +52,7 @@ describe('quotations routes (sdd-quotations-crud S1, REQ-QTN-001)', () => {
     expect(createRoute).toBeDefined()
   })
 
-  it('gates every quotation route with read:Quotation (REQ-QTN-014)', () => {
+  it('gates list/detail with read and create with create:Quotation (REQ-QTN-014)', () => {
     const listMeta = routes.find((r) => r.path === '/pos/cotizaciones')?.meta as {
       permission?: [string, string]
     }
@@ -64,7 +64,7 @@ describe('quotations routes (sdd-quotations-crud S1, REQ-QTN-001)', () => {
     }
 
     expect(listMeta.permission).toEqual(['read', 'Quotation'])
-    expect(createMeta.permission).toEqual(['read', 'Quotation'])
+    expect(createMeta.permission).toEqual(['create', 'Quotation'])
     expect(detailMeta.permission).toEqual(['read', 'Quotation'])
   })
 

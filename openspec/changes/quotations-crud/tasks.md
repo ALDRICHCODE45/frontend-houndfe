@@ -78,12 +78,12 @@ Numerical order. S1 unlocks all; S3/S4 fork list/detail; S5-S7 detail vertical; 
 
 ## Slice 4 — Detail skeleton + createDraft (REQs 001 create+detail, 003, 015 detail) — ~360 lines
 
-- [ ] 4.1 TDD `useQuotationDetail(id)` — `useQuery` on `quotationQueryKeys.detail` (NEW + test)
-- [ ] 4.2 TDD `useQuotationDraft.createDraft(customerId?)` — replaces cache head on list (NEW + test)
-- [ ] 4.3 `QuotationDetailView.vue`: `/nueva` → `createDraft()` → `router.replace(/:id)`; `/:id` → load detail (NEW)
-- [ ] 4.4 Header: folio, `StatusDotBadge`, customer name, price list label, expiry slot
-- [ ] 4.5 Mode switch shell: `v-if status === 'DRAFT'` → edit; else → read-only
-- [ ] 4.6 Resolves lazy views from S1
+- [x] 4.1 TDD `useQuotationDetail(id)` — `useQuery` on `quotationQueryKeys.detail` (NEW + test)
+- [x] 4.2 TDD `useQuotationDraft.createDraft(customerId?)` — replaces cache head on list (NEW + test)
+- [x] 4.3 `QuotationDetailView.vue`: `/nueva` → `createDraft()` → `router.replace(/:id)`; `/:id` → load detail (NEW)
+- [x] 4.4 Header: folio, `StatusDotBadge`, customer name, price list label, expiry slot
+- [x] 4.5 Mode switch shell: `v-if status === 'DRAFT'` → edit; else → read-only
+- [x] 4.6 Resolves lazy views from S1
 - **Files**: 4 NEW. **Verify**: `pnpm test:unit` + `pnpm build` + `/nueva` creates draft and redirects.
 - **Commit**: `feat(quotations): add detail view with createDraft and status mode switch`
 

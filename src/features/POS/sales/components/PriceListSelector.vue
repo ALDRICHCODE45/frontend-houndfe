@@ -42,7 +42,11 @@ import { useQuery } from '@tanstack/vue-query'
 import { productApi } from '@/features/POS/products/api/product.api'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import type { GlobalPriceList } from '@/features/POS/products/interfaces/product.types'
-import type { Sale } from '../interfaces/sale.types'
+
+interface PriceListDraft {
+  globalPriceListId?: string | null
+  items: readonly unknown[]
+}
 
 // Sentinel for the PUBLICO menu entry. UInputMenu needs a non-null value to
 // bind the selected state, but the backend contract uses `null` for "default
@@ -51,7 +55,7 @@ const PUBLICO_SENTINEL = '__publico__'
 const PUBLICO_LABEL = 'PUBLICO'
 
 const props = defineProps<{
-  activeDraft: Sale | null
+  activeDraft: PriceListDraft | null
   isMutating: boolean
 }>()
 
