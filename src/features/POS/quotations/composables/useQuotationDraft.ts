@@ -29,6 +29,7 @@ import { quotationQueryKeys } from '@/core/shared/constants/query-keys'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { quotationApi } from '../api/quotation.api'
 import type {
+  CancelReason,
   PaginatedQuotations,
   QuotationResponseDto,
 } from '../interfaces/quotation.types'
@@ -81,12 +82,20 @@ function assertValidPrice(unitPriceCents: number): void {
 function userMessageForError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error)
   const status = extractStatus(error)
+  const innerCode = extractErrorCode(error)
 
   // Map known backend error messages to user-facing Spanish copy. Anything
   // unrecognized falls through to the raw message — keeps the surface
   // testable (every assertion reads exactly what the backend sent) while
   // letting us localize incrementally per backend doc §8.
   if (status === 409) return 'La cotización ya no admite cambios'
+  if (status === 502) return 'Error al enviar, reintentá'
+  if (status === 422 && innerCode === 'QUOTATION_HAS_NO_ITEMS') {
+    return 'La cotización no tiene productos'
+  }
+  if (status === 422 && innerCode === 'QUOTATION_CUSTOMER_HAS_NO_EMAIL') {
+    return 'El cliente no tiene email'
+  }
   if (message.toLowerCase().includes('invalid quantity')) {
     return 'La cantidad debe ser al menos 1'
   }
@@ -94,6 +103,17 @@ function userMessageForError(error: unknown): string {
     return 'El precio no puede ser negativo'
   }
   return message || 'No se pudo guardar el cambio'
+}
+
+/** Extract the `error` code from the backend's structured response body
+ *  (e.g. `QUOTATION_HAS_NO_ITEMS`). Returns undefined when the shape
+ *  doesn't match — used by 422 mapping for the send endpoint. */
+function extractErrorCode(error: unknown): string | undefined {
+  if (!error || typeof error !== 'object') return undefined
+  const data = (error as { response?: { data?: { error?: unknown } } }).response?.data
+  if (!data || typeof data !== 'object') return undefined
+  const code = (data as { error?: unknown }).error
+  return typeof code === 'string' ? code : undefined
 }
 
 // ─── Composable ───────────────────────────────────────────────────────────────
@@ -248,6 +268,36 @@ export function useQuotationDraft(
     onSuccess: (updated) => updateCaches(updated),
   })
 
+  // ─── sendQuotation (REQ-QTN-010 / backend §3.14) ──────────────────────────
+  // POST /quotations/drafts/:id/send?email=true|false. The backend's atomic:
+  // a Resend failure (502) keeps the quotation in DRAFT — the caller can
+  // retry without risking an inconsistent state. The success path transitions
+  // to SENT and replaces the cache. 422 (no items / no email) and 502 each
+  // map to a distinct, user-facing toast via `userMessageForError`.
+
+  const sendMutation = useMutation<
+    QuotationResponseDto,
+    Error,
+    boolean
+  >({
+    mutationFn: (email) => quotationApi.send(id.value, email),
+    onSuccess: (updated) => updateCaches(updated),
+  })
+
+  // ─── cancelQuotation (REQ-QTN-011 / backend §3.15) ───────────────────────
+  // POST /quotations/drafts/:id/cancel with a required `cancelReason`. The
+  // only business-level error the backend documents is 404 (already covered
+  // by the generic toast). Terminal — sets status=CANCELLED + reason.
+
+  const cancelMutation = useMutation<
+    QuotationResponseDto,
+    Error,
+    CancelReason
+  >({
+    mutationFn: (cancelReason) => quotationApi.cancel(id.value, cancelReason),
+    onSuccess: (updated) => updateCaches(updated),
+  })
+
   // ─── Public surface ───────────────────────────────────────────────────────
 
   if (!id.value) {
@@ -346,6 +396,38 @@ export function useQuotationDraft(
     return await setExpiry(null)
   }
 
+  async function sendQuotation(email: boolean = true): Promise<QuotationResponseDto> {
+    try {
+      const updated = await sendMutation.mutateAsync(email)
+      toast.add({
+        title: 'Cotización enviada',
+        description: email
+          ? 'Se envió el PDF al cliente'
+          : 'Marcada como enviada',
+        color: 'success',
+      })
+      return updated
+    } catch (error) {
+      toastError(toast, userMessageForError(error), error)
+      throw error
+    }
+  }
+
+  async function cancelQuotation(cancelReason: CancelReason): Promise<QuotationResponseDto> {
+    try {
+      const updated = await cancelMutation.mutateAsync(cancelReason)
+      toast.add({
+        title: 'Cotización cancelada',
+        description: 'La cotización pasó a estado cancelado',
+        color: 'success',
+      })
+      return updated
+    } catch (error) {
+      toastError(toast, userMessageForError(error), error)
+      throw error
+    }
+  }
+
   const isMutating = computed(
     () =>
       addItemMutation.isPending.value
@@ -356,7 +438,9 @@ export function useQuotationDraft(
       || removeManualPromotionMutation.isPending.value
       || vetoPromotionMutation.isPending.value
       || unvetoPromotionMutation.isPending.value
-      || setExpiryMutation.isPending.value,
+      || setExpiryMutation.isPending.value
+      || sendMutation.isPending.value
+      || cancelMutation.isPending.value,
   )
 
   return {
@@ -370,6 +454,8 @@ export function useQuotationDraft(
     unvetoPromotion,
     setExpiry,
     clearExpiry,
+    sendQuotation,
+    cancelQuotation,
     isMutating,
     detailKey,
   }

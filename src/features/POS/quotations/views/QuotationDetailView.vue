@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
 import AssignCustomerSlideover from '@/features/POS/sales/components/AssignCustomerSlideover.vue'
@@ -10,18 +10,33 @@ import {
   QUOTATION_STATUS_LABEL,
   QUOTATION_STATUS_TONE,
 } from '../constants/quotation.constants'
+import { quotationApi, QuotationPdfError } from '../api/quotation.api'
 import { useQuotationDetail } from '../composables/useQuotationDetail'
 import { useQuotationDraft } from '../composables/useQuotationDraft'
+import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import QuotationItemRow from '../components/QuotationItemRow.vue'
 import QuotationExpiryPicker from '../components/QuotationExpiryPicker.vue'
 import QuotationTotalsFooter from '../components/QuotationTotalsFooter.vue'
+import QuotationSendDialog from '../components/QuotationSendDialog.vue'
+import QuotationCancelDialog from '../components/QuotationCancelDialog.vue'
 import { formatCentsMXN } from '../utils/currency.utils'
+
+declare const useToast: () => {
+  add: (options: {
+    title: string
+    description?: string
+    color?: 'success' | 'error' | 'warning' | 'primary' | 'neutral'
+  }) => void
+}
 
 const route = useRoute()
 const router = useRouter()
+const authStore = useAuthStore()
 const isAssignCustomerOpen = ref(false)
 const isCreating = ref(false)
 const createError = ref<unknown>(null)
+
+const canUpdateQuotation = computed(() => authStore.userCan('update', 'Quotation'))
 
 const isCreateRoute = computed(() => route.path === '/pos/cotizaciones/nueva')
 const quotationId = computed(() => {
@@ -173,6 +188,122 @@ async function handleVetoAutoPromoSubmit(): Promise<void> {
   vetoAutoPromoInput.value = ''
 }
 
+// ── S7: PDF preview + send dialog + cancel dialog ────────────────────────────
+
+/** Tracks which fetch is currently in flight so the button can't be clicked
+ *  twice in parallel (R2 mirror of SaleDetailView's PDF download). */
+const isPdfLoading = ref(false)
+const pdfAbortController = ref<AbortController | null>(null)
+
+async function handlePreviewPdf(): Promise<void> {
+  if (!quotation.value || isPdfLoading.value) return
+  isPdfLoading.value = true
+  let objectUrl: string | null = null
+  const controller = new AbortController()
+  pdfAbortController.value = controller
+  try {
+    const blob = await quotationApi.getPdfBlob(quotation.value.id, {
+      signal: controller.signal,
+    })
+    objectUrl = URL.createObjectURL(blob)
+    const opened = window.open(objectUrl, '_blank')
+    if (!opened) {
+      // Popup blocked — fall back to a direct download via anchor click.
+      const link = document.createElement('a')
+      link.href = objectUrl
+      link.download = `cotizacion-${quotation.value.id}.pdf`
+      link.click()
+      useToast().add({
+        title: 'Cotización descargada',
+        description: 'Permití ventanas emergentes para previsualizar en el navegador.',
+        color: 'primary',
+      })
+    }
+  } catch (error) {
+    if ((error as { code?: string }).code === 'ERR_CANCELED') return
+    if (error instanceof QuotationPdfError) {
+      if (error.code === 'INVALID_FORMAT') {
+        useToast().add({ title: 'Formato no soportado', color: 'error' })
+        return
+      }
+      if (error.code === 'QUOTATION_NOT_FOUND') {
+        useToast().add({ title: 'Cotización no encontrada', color: 'error' })
+        return
+      }
+      if (error.code === 'PDF_GENERATION_FAILED') {
+        useToast().add({
+          title: 'Error al generar el PDF',
+          description: 'Intenta nuevamente',
+          color: 'error',
+        })
+        return
+      }
+    }
+    const status = (error as { response?: { status?: number } })?.response?.status
+    if (status === 401) {
+      useToast().add({ title: 'Sesión expirada. Iniciá sesión nuevamente', color: 'error' })
+      return
+    }
+    if (status === 403) {
+      useToast().add({ title: 'No tienes permiso para ver este PDF', color: 'error' })
+      return
+    }
+    if (status === 404) {
+      useToast().add({ title: 'Cotización no encontrada', color: 'error' })
+      return
+    }
+    if (!status) {
+      useToast().add({
+        title: 'Error de conexión',
+        description: 'Verifica tu red e intenta nuevamente',
+        color: 'error',
+      })
+      return
+    }
+    useToast().add({ title: 'No se pudo generar el PDF', color: 'error' })
+  } finally {
+    const urlToRevoke = objectUrl
+    if (urlToRevoke) {
+      setTimeout(() => URL.revokeObjectURL(urlToRevoke), 1_000)
+    }
+    isPdfLoading.value = false
+    if (pdfAbortController.value === controller) {
+      pdfAbortController.value = null
+    }
+  }
+}
+
+const isSendDialogOpen = ref(false)
+const isCancelDialogOpen = ref(false)
+
+function openSendDialog(): void {
+  isSendDialogOpen.value = true
+}
+
+function openCancelDialog(): void {
+  isCancelDialogOpen.value = true
+}
+
+function handleSendDialogClose(): void {
+  isSendDialogOpen.value = false
+}
+
+function handleCancelDialogClose(): void {
+  isCancelDialogOpen.value = false
+}
+
+async function handleSend(email: boolean): Promise<void> {
+  await draft.sendQuotation(email)
+}
+
+async function handleCancel(reason: Parameters<typeof draft.cancelQuotation>[0]): Promise<void> {
+  await draft.cancelQuotation(reason)
+}
+
+onUnmounted(() => {
+  pdfAbortController.value?.abort()
+})
+
 /** Tiny helper used by the applied-promotions list to render the discount
  *  next to the title. formatCentsMXN lives in `../utils/currency.utils` so
  *  we don't reach across to the core helper directly from the view. */
@@ -227,6 +358,40 @@ onMounted(async () => {
             <span v-else>Sin fecha de expiración</span>
             <span>Creada {{ formatDate(quotation.createdAt) }}</span>
           </div>
+        </div>
+
+        <!-- S7 — actions bar: PDF preview (always), send + cancel (DRAFT only) -->
+        <div class="flex flex-wrap items-center gap-2" data-testid="quotation-actions">
+          <button
+            type="button"
+            class="inline-flex items-center gap-1 rounded-lg border border-default px-3 py-2 text-sm font-medium hover:bg-elevated disabled:cursor-not-allowed disabled:opacity-50"
+            :disabled="isPdfLoading"
+            data-testid="preview-pdf-button"
+            @click="handlePreviewPdf"
+          >
+            <UIcon name="i-lucide-file-text" class="h-4 w-4" />
+            <span>{{ isPdfLoading ? 'Generando…' : 'Previsualizar PDF' }}</span>
+          </button>
+          <button
+            v-if="isDraft && canUpdateQuotation"
+            type="button"
+            class="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+            data-testid="send-button"
+            @click="openSendDialog"
+          >
+            <UIcon name="i-lucide-send" class="h-4 w-4" />
+            <span>Enviar</span>
+          </button>
+          <button
+            v-if="isDraft && canUpdateQuotation"
+            type="button"
+            class="inline-flex items-center gap-1 rounded-lg border border-default px-3 py-2 text-sm font-medium text-error hover:bg-elevated"
+            data-testid="cancel-button"
+            @click="openCancelDialog"
+          >
+            <UIcon name="i-lucide-ban" class="h-4 w-4" />
+            <span>Cancelar</span>
+          </button>
         </div>
       </div>
     </header>
@@ -529,6 +694,28 @@ onMounted(async () => {
         confirm-color="error"
         @update:open="(value) => { if (!value) handleRemoveCancel() }"
         @confirm="handleRemoveConfirm"
+      />
+
+      <!-- S7 — send dialog. Only mount in DRAFT (the button that opens it is
+           also gated, but mounting only-when-DRAFT keeps the modal far from
+           SENT/EXPIRED/CANCELLED render paths.) -->
+      <QuotationSendDialog
+        v-if="quotation"
+        :open="isSendDialogOpen"
+        :quotation="quotation"
+        :send="handleSend"
+        @close="handleSendDialogClose"
+        @sent="handleSendDialogClose"
+      />
+
+      <!-- S7 — cancel dialog. Same DRAFT-only mounting. -->
+      <QuotationCancelDialog
+        v-if="quotation"
+        :open="isCancelDialogOpen"
+        :quotation="quotation"
+        :cancel="handleCancel"
+        @close="handleCancelDialogClose"
+        @cancelled="handleCancelDialogClose"
       />
     </template>
   </section>

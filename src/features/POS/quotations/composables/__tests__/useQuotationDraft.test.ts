@@ -59,6 +59,8 @@ vi.mock('../../api/quotation.api', () => ({
     vetoPromotion: vi.fn(),
     unvetoPromotion: vi.fn(),
     setExpiry: vi.fn(),
+    send: vi.fn(),
+    cancel: vi.fn(),
   },
 }))
 
@@ -92,7 +94,8 @@ function makeQuotation(overrides: Partial<QuotationResponseDto> = {}): Quotation
 function findMutationConfig(
   name: 'addItem' | 'updateQuantity' | 'removeItem' | 'overridePrice'
   | 'applyManualPromotion' | 'removeManualPromotion'
-  | 'vetoPromotion' | 'unvetoPromotion' | 'setExpiry',
+  | 'vetoPromotion' | 'unvetoPromotion' | 'setExpiry'
+  | 'sendQuotation' | 'cancelQuotation',
 ): MutationConfigShape {
   // The composable registers mutations in fixed order in onMount — for test
   // simplicity we look them up by method invocation count via api mock.
@@ -101,6 +104,7 @@ function findMutationConfig(
     'addItem', 'updateQuantity', 'removeItem', 'overridePrice',
     'applyManualPromotion', 'removeManualPromotion',
     'vetoPromotion', 'unvetoPromotion', 'setExpiry',
+    'sendQuotation', 'cancelQuotation',
   ] as const
   const index = mutationOrder.indexOf(name as (typeof mutationOrder)[number])
   const config = mutationConfigs[index]
@@ -547,5 +551,175 @@ describe('useQuotationDraft — expiry mutation', () => {
     expect(toastAdd).toHaveBeenCalledWith(
       expect.objectContaining({ color: 'warning' }),
     )
+  })
+})
+
+// ─── S7: send + cancel mutations ──────────────────────────────────────────────
+// Both transitions are terminal-ish (SENT, CANCELLED). send can fail with 422
+// (no items / no email) or 502 (Resend email failure — backend keeps status
+// in DRAFT). cancel is simpler: terminal, no business errors beyond 404.
+
+describe('useQuotationDraft — send mutation (S7)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mutationConfigs.length = 0
+  })
+
+  it('sendQuotation calls quotationApi.send with email=true by default', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    const updated = makeQuotation({ status: 'SENT' })
+    vi.mocked(quotationApi.send).mockResolvedValueOnce(updated)
+    const draft = useQuotationDraft('quotation-1')
+
+    await draft.sendQuotation()
+
+    expect(quotationApi.send).toHaveBeenCalledWith('quotation-1', true)
+  })
+
+  it('sendQuotation forwards email=false to quotationApi.send', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    const updated = makeQuotation({ status: 'SENT' })
+    vi.mocked(quotationApi.send).mockResolvedValueOnce(updated)
+    const draft = useQuotationDraft('quotation-1')
+
+    await draft.sendQuotation(false)
+
+    expect(quotationApi.send).toHaveBeenCalledWith('quotation-1', false)
+  })
+
+  it('sendQuotation onSuccess replaces detail + list caches with SENT quotation', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    const updated = makeQuotation({ status: 'SENT' })
+    vi.mocked(quotationApi.send).mockResolvedValueOnce(updated)
+    const draft = useQuotationDraft('quotation-1')
+
+    await draft.sendQuotation()
+    await findMutationConfig('sendQuotation').onSuccess?.(updated, undefined as never)
+
+    expect(queryClientMock.setQueryData).toHaveBeenCalledWith(
+      quotationQueryKeys.detail('tenant-1', updated.id),
+      updated,
+    )
+    expect(queryClientMock.setQueriesData).toHaveBeenCalled()
+  })
+
+  it('sendQuotation surfaces 422 (QUOTATION_HAS_NO_ITEMS) with localized toast', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    type ApiError = Error & {
+      response?: { status: number; data?: { error?: string } }
+    }
+    const error = new Error('Cannot send empty quotation') as ApiError
+    error.response = { status: 422, data: { error: 'QUOTATION_HAS_NO_ITEMS' } }
+    vi.mocked(quotationApi.send).mockRejectedValueOnce(error)
+    const draft = useQuotationDraft('quotation-1')
+
+    await expect(draft.sendQuotation()).rejects.toBeDefined()
+    expect(toastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: expect.any(String),
+        description: expect.stringMatching(/productos/i),
+      }),
+    )
+  })
+
+  it('sendQuotation surfaces 422 (QUOTATION_CUSTOMER_HAS_NO_EMAIL) with localized toast', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    type ApiError = Error & {
+      response?: { status: number; data?: { error?: string } }
+    }
+    const error = new Error('Customer has no email') as ApiError
+    error.response = { status: 422, data: { error: 'QUOTATION_CUSTOMER_HAS_NO_EMAIL' } }
+    vi.mocked(quotationApi.send).mockRejectedValueOnce(error)
+    const draft = useQuotationDraft('quotation-1')
+
+    await expect(draft.sendQuotation()).rejects.toBeDefined()
+    expect(toastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: expect.stringMatching(/email/i),
+      }),
+    )
+  })
+
+  it('sendQuotation surfaces 502 (Resend fail) with retry toast', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    type ApiError = Error & { response?: { status: number } }
+    const error = new Error('Resend upstream failed') as ApiError
+    error.response = { status: 502 }
+    vi.mocked(quotationApi.send).mockRejectedValueOnce(error)
+    const draft = useQuotationDraft('quotation-1')
+
+    await expect(draft.sendQuotation()).rejects.toBeDefined()
+    expect(toastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: expect.stringMatching(/reintent/i),
+      }),
+    )
+  })
+
+  it('sendQuotation surfaces 409 (not DRAFT) with a warning toast', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    type ApiError = Error & { response?: { status: number } }
+    const error = new Error('Quotation is not DRAFT') as ApiError
+    error.response = { status: 409 }
+    vi.mocked(quotationApi.send).mockRejectedValueOnce(error)
+    const draft = useQuotationDraft('quotation-1')
+
+    await expect(draft.sendQuotation()).rejects.toThrow('Quotation is not DRAFT')
+    expect(toastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ color: 'warning' }),
+    )
+  })
+})
+
+describe('useQuotationDraft — cancel mutation (S7)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mutationConfigs.length = 0
+  })
+
+  it('cancelQuotation calls quotationApi.cancel with the reason', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    const updated = makeQuotation({
+      status: 'CANCELLED',
+      cancelReason: 'CUSTOMER_REQUEST',
+      canceledAt: '2026-08-01T01:00:00.000Z',
+    })
+    vi.mocked(quotationApi.cancel).mockResolvedValueOnce(updated)
+    const draft = useQuotationDraft('quotation-1')
+
+    await draft.cancelQuotation('CUSTOMER_REQUEST')
+
+    expect(quotationApi.cancel).toHaveBeenCalledWith('quotation-1', 'CUSTOMER_REQUEST')
+  })
+
+  it('cancelQuotation onSuccess replaces detail + list caches with CANCELLED quotation', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    const updated = makeQuotation({
+      status: 'CANCELLED',
+      cancelReason: 'PRICE_OBJECTION',
+    })
+    vi.mocked(quotationApi.cancel).mockResolvedValueOnce(updated)
+    const draft = useQuotationDraft('quotation-1')
+
+    await draft.cancelQuotation('PRICE_OBJECTION')
+    await findMutationConfig('cancelQuotation').onSuccess?.(updated, undefined as never)
+
+    expect(queryClientMock.setQueryData).toHaveBeenCalledWith(
+      quotationQueryKeys.detail('tenant-1', updated.id),
+      updated,
+    )
+    expect(queryClientMock.setQueriesData).toHaveBeenCalled()
+  })
+
+  it('cancelQuotation surfaces backend errors with a toast and rethrows', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    type ApiError = Error & { response?: { status: number } }
+    const error = new Error('Quotation not found') as ApiError
+    error.response = { status: 404 }
+    vi.mocked(quotationApi.cancel).mockRejectedValueOnce(error)
+    const draft = useQuotationDraft('quotation-1')
+
+    await expect(draft.cancelQuotation('OTHER')).rejects.toThrow('Quotation not found')
+    expect(toastAdd).toHaveBeenCalled()
   })
 })

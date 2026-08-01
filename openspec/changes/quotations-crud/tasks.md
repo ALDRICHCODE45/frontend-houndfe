@@ -114,10 +114,10 @@ Numerical order. S1 unlocks all; S3/S4 fork list/detail; S5-S7 detail vertical; 
 
 ## Slice 7 — PDF + Send + Cancel (REQs 009, 010, 011) — ~380 lines
 
-- [ ] 7.1 TDD `QuotationSendDialog.vue` — validates `items.length > 0` + `customer.email != null`; emits `confirm({email})`; empty email → capture input (NEW + test)
-- [ ] 7.2 TDD `QuotationCancelDialog.vue` — `CancelReason` selector; emits `confirm({cancelReason})` (NEW + test)
-- [ ] 7.3 Add `useQuotationDraft.send` + `.cancel` mutations: 422 no-email → capture; 502 → toast + stay DRAFT (MOD)
-- [ ] 7.4 PDF preview: mirror `SaleDetailView.vue:209-246` — blob → `URL.createObjectURL` → `window.open(_blank)` → anchor fallback → revoke after 1s; AbortController on unmount (MOD view)
+- [x] 7.1 TDD `QuotationSendDialog.vue` — validates `items.length > 0` + `customer.email != null`; emits `confirm({email})`; empty email → capture input (NEW + test)
+- [x] 7.2 TDD `QuotationCancelDialog.vue` — `CancelReason` selector; emits `confirm({cancelReason})` (NEW + test)
+- [x] 7.3 Add `useQuotationDraft.send` + `.cancel` mutations: 422 no-email → capture; 502 → toast + stay DRAFT (MOD)
+- [x] 7.4 PDF preview: mirror `SaleDetailView.vue:209-246` — blob → `URL.createObjectURL` → `window.open(_blank)` → anchor fallback → revoke after 1s; AbortController on unmount (MOD view)
 - **Files**: 2 NEW + 2 MOD + 2 tests. **Verify**: `pnpm test:unit` + manual preview/send/cancel across statuses.
 - **Commit**: `feat(quotations): add PDF preview, send, and cancel flows`
 

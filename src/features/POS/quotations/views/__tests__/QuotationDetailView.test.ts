@@ -26,7 +26,31 @@ const state = {
   unvetoPromotion: vi.fn(),
   setExpiry: vi.fn(),
   clearExpiry: vi.fn(),
+  sendQuotation: vi.fn(),
+  cancelQuotation: vi.fn(),
 }
+
+// quotation.api is mocked so the S7 PDF preview test can intercept the
+// getPdfBlob promise without spinning up the real http client. The mock
+// factory is hoisted to the top of the file — declare the references in
+// `vi.hoisted` so they're available inside the factory closure.
+const quotationApiMock = vi.hoisted(() => ({
+  getPdfBlob: vi.fn(),
+}))
+const quotationPdfErrorMock = vi.hoisted(() =>
+  class extends Error {
+    readonly code: string
+    constructor(code: string) {
+      super(code)
+      this.code = code
+      this.name = 'QuotationPdfError'
+    }
+  },
+)
+vi.mock('../../api/quotation.api', () => ({
+  quotationApi: quotationApiMock,
+  QuotationPdfError: quotationPdfErrorMock,
+}))
 
 vi.mock('../../composables/useQuotationDetail', () => ({
   useQuotationDetail: () => ({
@@ -52,6 +76,8 @@ vi.mock('../../composables/useQuotationDraft', () => ({
     unvetoPromotion: state.unvetoPromotion,
     setExpiry: state.setExpiry,
     clearExpiry: state.clearExpiry,
+    sendQuotation: state.sendQuotation,
+    cancelQuotation: state.cancelQuotation,
   }),
 }))
 
@@ -61,6 +87,15 @@ const route = {
   query: {} as Record<string, string>,
 }
 const routerPush = vi.fn()
+
+const authMock = {
+  userCan: vi.fn((_action: string, _subject: string) => true),
+  currentTenantId: 'tenant-1',
+}
+
+vi.mock('@/features/auth/stores/useAuthStore', () => ({
+  useAuthStore: () => authMock,
+}))
 
 vi.mock('vue-router', async (importOriginal) => {
   const actual = await importOriginal<typeof import('vue-router')>()
@@ -138,6 +173,18 @@ const stubs = {
     template:
       '<div data-testid="quotation-totals-footer"><span data-testid="subtotal-amount">subtotal-stub</span><span data-testid="total-amount">total-stub</span></div>',
   },
+  QuotationSendDialog: {
+    props: ['quotation', 'open', 'send'],
+    emits: ['close', 'sent'],
+    template:
+      '<div v-if="open" data-testid="quotation-send-dialog"><button data-testid="send-dialog-stub-confirm" type="button" @click="(async () => { await send(true); $emit(\'sent\') })()">stub-send</button><button data-testid="send-dialog-stub-close" type="button" @click="$emit(\'close\')">stub-close</button></div>',
+  },
+  QuotationCancelDialog: {
+    props: ['quotation', 'open', 'cancel'],
+    emits: ['close', 'cancelled'],
+    template:
+      '<div v-if="open" data-testid="quotation-cancel-dialog"><button data-testid="cancel-dialog-stub-confirm" type="button" @click="(async () => { await cancel(\'OTHER\'); $emit(\'cancelled\') })()">stub-cancel</button><button data-testid="cancel-dialog-stub-close" type="button" @click="$emit(\'close\')">stub-close</button></div>',
+  },
 }
 
 function mountView() {
@@ -146,6 +193,8 @@ function mountView() {
 
 beforeEach(() => {
   state.quotation.value = makeQuotation()
+  authMock.userCan.mockReset().mockReturnValue(true)
+  state.isLoading.value = false
   state.isLoading.value = false
   state.isError.value = false
   state.error.value = null
@@ -162,6 +211,9 @@ beforeEach(() => {
   state.unvetoPromotion.mockReset().mockResolvedValue(makeQuotation())
   state.setExpiry.mockReset().mockResolvedValue(makeQuotation())
   state.clearExpiry.mockReset().mockResolvedValue(makeQuotation())
+  state.sendQuotation.mockReset().mockResolvedValue(makeQuotation())
+  state.cancelQuotation.mockReset().mockResolvedValue(makeQuotation())
+  quotationApiMock.getPdfBlob.mockReset()
   route.path = '/pos/cotizaciones/quotation-12345678'
   route.params = { id: 'quotation-12345678' }
   route.query = {}
@@ -663,5 +715,140 @@ describe('QuotationDetailView promotions section (S6)', () => {
     await wrapper.get('[data-testid="veto-auto-promo-input"]').setValue('promo-auto-2')
     await wrapper.get('[data-testid="veto-auto-promo-button"]').trigger('click')
     expect(state.vetoPromotion).toHaveBeenCalledWith('promo-auto-2')
+  })
+})
+
+// ─── S7: PDF preview + send dialog + cancel dialog ───────────────────────────
+// The view integrates three new affordances in the actions bar:
+//   - "Previsualizar PDF" — always visible, mirrors SaleDetailView's blob →
+//     objectURL → window.open pattern.
+//   - "Enviar" — DRAFT only, gated by `update:Quotation`, opens the
+//     QuotationSendDialog.
+//   - "Cancelar" — DRAFT only, gated by `update:Quotation`, opens the
+//     QuotationCancelDialog.
+
+describe('QuotationDetailView — PDF preview (S7)', () => {
+  it('renders the "Previsualizar PDF" button', () => {
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="preview-pdf-button"]').exists()).toBe(true)
+  })
+
+  it('renders the PDF preview button for non-DRAFT quotations too', () => {
+    state.quotation.value = makeQuotation({ status: 'SENT' })
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="preview-pdf-button"]').exists()).toBe(true)
+  })
+
+  it('PDF preview is disabled while a fetch is already in-flight', async () => {
+    const originalCreateObjectURL = URL.createObjectURL
+    const originalRevokeObjectURL = URL.revokeObjectURL
+    const originalOpen = window.open
+    URL.createObjectURL = vi.fn().mockReturnValue('blob:fake')
+    URL.revokeObjectURL = vi.fn()
+    let resolveFetch!: (blob: Blob) => void
+    window.open = vi.fn().mockReturnValue(null) as unknown as typeof window.open
+    const { quotationApi } = await import('../../api/quotation.api')
+    vi.mocked(quotationApi.getPdfBlob).mockImplementationOnce(
+      () => new Promise<Blob>((resolve) => { resolveFetch = resolve }),
+    )
+
+    const wrapper = mountView()
+    await wrapper.get('[data-testid="preview-pdf-button"]').trigger('click')
+    await flushPromises()
+
+    expect(URL.createObjectURL).not.toHaveBeenCalled()
+
+    // Re-click while the first request is still in-flight — must be ignored.
+    await wrapper.get('[data-testid="preview-pdf-button"]').trigger('click')
+    expect(quotationApi.getPdfBlob).toHaveBeenCalledTimes(1)
+
+    resolveFetch(new Blob(['pdf']))
+    await flushPromises()
+
+    URL.createObjectURL = originalCreateObjectURL
+    URL.revokeObjectURL = originalRevokeObjectURL
+    window.open = originalOpen
+  })
+})
+
+describe('QuotationDetailView — send dialog (S7)', () => {
+  it('renders the "Enviar" button in DRAFT mode', () => {
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="send-button"]').exists()).toBe(true)
+  })
+
+  it('hides the "Enviar" button for non-DRAFT statuses', () => {
+    state.quotation.value = makeQuotation({ status: 'SENT' })
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="send-button"]').exists()).toBe(false)
+  })
+
+  it('hides the "Enviar" button when the user lacks update:Quotation', () => {
+    authMock.userCan.mockImplementation((action, subject) => {
+      if (action === 'update' && subject === 'Quotation') return false
+      return true
+    })
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="send-button"]').exists()).toBe(false)
+  })
+
+  it('opens the send dialog when "Enviar" is clicked', async () => {
+    const wrapper = mountView()
+
+    expect(wrapper.find('[data-testid="quotation-send-dialog"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="send-button"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="quotation-send-dialog"]').exists()).toBe(true)
+  })
+
+  it('closes the send dialog on the dialog "close" event', async () => {
+    const wrapper = mountView()
+    await wrapper.get('[data-testid="send-button"]').trigger('click')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="send-dialog-stub-close"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="quotation-send-dialog"]').exists()).toBe(false)
+  })
+})
+
+describe('QuotationDetailView — cancel dialog (S7)', () => {
+  it('renders the "Cancelar" button in DRAFT mode', () => {
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="cancel-button"]').exists()).toBe(true)
+  })
+
+  it('hides the "Cancelar" button for non-DRAFT statuses', () => {
+    state.quotation.value = makeQuotation({ status: 'CANCELLED' })
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="cancel-button"]').exists()).toBe(false)
+  })
+
+  it('hides the "Cancelar" button when the user lacks update:Quotation', () => {
+    authMock.userCan.mockImplementation((action, subject) => {
+      if (action === 'update' && subject === 'Quotation') return false
+      return true
+    })
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="cancel-button"]').exists()).toBe(false)
+  })
+
+  it('opens the cancel dialog when "Cancelar" is clicked', async () => {
+    const wrapper = mountView()
+
+    expect(wrapper.find('[data-testid="quotation-cancel-dialog"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="cancel-button"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="quotation-cancel-dialog"]').exists()).toBe(true)
+  })
+
+  it('closes the cancel dialog on the dialog "close" event', async () => {
+    const wrapper = mountView()
+    await wrapper.get('[data-testid="cancel-button"]').trigger('click')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="cancel-dialog-stub-close"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="quotation-cancel-dialog"]').exists()).toBe(false)
   })
 })
