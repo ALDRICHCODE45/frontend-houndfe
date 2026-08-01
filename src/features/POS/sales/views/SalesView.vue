@@ -760,92 +760,94 @@ async function handleChangePriceList(globalPriceListId: string | null) {
       <!-- Mobile-only: FAB + bottom slideover for the cart.
            Hidden on lg+ where the cart already sits in the split layout.
            Same ActiveSalePanel, same emits — only the surrounding chrome
-           changes. -->
-      <template v-if="isMobileViewport">
-        <!-- Floating action button: shows item count + running total,
-             stays out of the way until tapped. Tap opens the slideover. -->
-        <button
-          type="button"
-          class="fixed bottom-4 right-4 z-30 inline-flex items-center gap-2.5 rounded-full
-                 bg-primary text-primary-contrast shadow-lg shadow-primary/30
-                 px-4 py-3 font-semibold text-sm
-                 min-h-[48px] min-w-[48px]
-                 hover:bg-primary/90 active:scale-[0.98] transition-transform"
-          data-testid="mobile-cart-fab"
-          aria-label="Abrir carrito de venta"
-          @click="openCartDrawer"
+            changes. The USlideover is gated with v-if on BOTH
+            isMobileViewport AND cartDrawerOpen so Nuxt UI never
+            teleports a backdrop/content div to <body> when the
+            cart is closed. -->
+      <!-- Mobile FAB: visible whenever the viewport is below lg -->
+      <button
+        v-if="isMobileViewport"
+        type="button"
+        class="fixed bottom-4 right-4 z-30 inline-flex items-center gap-2.5 rounded-full
+               bg-primary text-primary-contrast shadow-lg shadow-primary/30
+               px-4 py-3 font-semibold text-sm
+               min-h-[48px] min-w-[48px]
+               hover:bg-primary/90 active:scale-[0.98] transition-transform"
+        data-testid="mobile-cart-fab"
+        aria-label="Abrir carrito de venta"
+        @click="openCartDrawer"
+      >
+        <UIcon name="i-lucide-shopping-bag" class="h-5 w-5" />
+        <span class="tabular-nums">{{ formatCents(activeDraftTotalCents) }}</span>
+        <span
+          v-if="activeDraftItemsCount > 0"
+          class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5
+                 rounded-full bg-primary-contrast/20 text-primary-contrast text-xs font-bold tabular-nums"
+          data-testid="mobile-cart-fab-count"
         >
-          <UIcon name="i-lucide-shopping-bag" class="h-5 w-5" />
-          <span class="tabular-nums">{{ formatCents(activeDraftTotalCents) }}</span>
-          <span
-            v-if="activeDraftItemsCount > 0"
-            class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5
-                   rounded-full bg-primary-contrast/20 text-primary-contrast text-xs font-bold tabular-nums"
-            data-testid="mobile-cart-fab-count"
-          >
-            {{ activeDraftItemsCount }}
-          </span>
-        </button>
+          {{ activeDraftItemsCount }}
+        </span>
+      </button>
 
-        <USlideover
-          :open="cartDrawerOpen"
-          side="bottom"
-          :ui="{ content: 'h-[90vh] max-h-[90vh] rounded-t-2xl' }"
-          @update:open="cartDrawerOpen = $event"
-        >
-          <template #content>
-            <div class="flex h-full flex-col" data-testid="mobile-cart-drawer">
-              <div class="flex items-center justify-between px-4 py-3 border-b border-default">
-                <div class="flex items-center gap-2">
-                  <UIcon name="i-lucide-shopping-bag" class="h-4 w-4 text-primary" />
-                  <span class="text-sm font-semibold">Carrito</span>
-                </div>
-                <UButton
-                  color="neutral"
-                  variant="ghost"
-                  icon="i-lucide-x"
-                  size="sm"
-                  aria-label="Cerrar carrito"
-                  @click="closeCartDrawer"
-                />
+      <USlideover
+        v-if="isMobileViewport && cartDrawerOpen"
+        :open="cartDrawerOpen"
+        side="bottom"
+        :ui="{ content: 'h-[90vh] max-h-[90vh] rounded-t-2xl' }"
+        @update:open="cartDrawerOpen = $event"
+      >
+        <template #content>
+          <div class="flex h-full flex-col" data-testid="mobile-cart-drawer">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-default">
+              <div class="flex items-center gap-2">
+                <UIcon name="i-lucide-shopping-bag" class="h-4 w-4 text-primary" />
+                <span class="text-sm font-semibold">Carrito</span>
               </div>
-              <div class="flex-1 min-h-0 overflow-hidden">
-                <ActiveSalePanel
-                  :drafts="drafts"
-                  :active-draft="activeDraft"
-                  :active-tab-id="activeTabId"
-                  :is-loading-list="isLoadingList"
-                  :is-mutating="isMutating"
-                  :is-customer-mutation-pending="isCustomerMutationPending"
-                  :item-image-map="itemImageMap"
-                  :applicable-promotions="applicablePromotions"
-                  :is-loading-promotions="isLoadingPromotions"
-                  :applied-manual-promotion-ids="[]"
-                  :on-submit-price-override="handleSubmitPriceOverride"
-                  :on-apply-discount="handleApplyDiscount"
-                  :on-remove-discount="handleRemoveDiscount"
-                  :on-remove-item="handleRemoveItem"
-                  :on-apply-global-discount="handleApplyGlobalDiscount"
-                  :on-remove-global-discount="handleRemoveGlobalDiscount"
-                  @charge-click="openPaymentModal"
-                  @open-customer-assignment="handleOpenCustomerAssignment"
-                  @unassign-customer="handleUnassignCustomer"
-                  @remove-order-promo="handleVetoRequest"
-                  @remove-promo="handleVetoRequest"
-                  @apply-manual-promo="handleApplyManualPromo"
-                  @remove-manual-promo="handleRemoveManualPromo"
-                  @change-price-list="handleChangePriceList"
-                  @switch-tab="handleSwitchTab"
-                  @close-tab="handleCloseTab"
-                  @create-tab="handleCreateTab"
-                  @update-qty="handleUpdateQty"
-                  @clear-items="handleClearItems"
-                />
-              </div>
+              <UButton
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-x"
+                size="sm"
+                aria-label="Cerrar carrito"
+                @click="closeCartDrawer"
+              />
             </div>
-          </template>
-        </USlideover>
-      </template>
+            <div class="flex-1 min-h-0 overflow-hidden">
+              <ActiveSalePanel
+                :drafts="drafts"
+                :active-draft="activeDraft"
+                :active-tab-id="activeTabId"
+                :is-loading-list="isLoadingList"
+                :is-mutating="isMutating"
+                :is-customer-mutation-pending="isCustomerMutationPending"
+                :item-image-map="itemImageMap"
+                :applicable-promotions="applicablePromotions"
+                :is-loading-promotions="isLoadingPromotions"
+                :applied-manual-promotion-ids="[]"
+                :on-submit-price-override="handleSubmitPriceOverride"
+                :on-apply-discount="handleApplyDiscount"
+                :on-remove-discount="handleRemoveDiscount"
+                :on-remove-item="handleRemoveItem"
+                :on-apply-global-discount="handleApplyGlobalDiscount"
+                :on-remove-global-discount="handleRemoveGlobalDiscount"
+                @charge-click="openPaymentModal"
+                @open-customer-assignment="handleOpenCustomerAssignment"
+                @unassign-customer="handleUnassignCustomer"
+                @remove-order-promo="handleVetoRequest"
+                @remove-promo="handleVetoRequest"
+                @apply-manual-promo="handleApplyManualPromo"
+                @remove-manual-promo="handleRemoveManualPromo"
+                @change-price-list="handleChangePriceList"
+                @switch-tab="handleSwitchTab"
+                @close-tab="handleCloseTab"
+                @create-tab="handleCreateTab"
+                @update-qty="handleUpdateQty"
+                @clear-items="handleClearItems"
+              />
+            </div>
+          </div>
+        </template>
+      </USlideover>
       </div>
     </div>
 
