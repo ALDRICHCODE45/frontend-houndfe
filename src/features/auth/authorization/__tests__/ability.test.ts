@@ -174,3 +174,121 @@ describe('ability with batch_delete:Promotion subject (sdd-10 promotions-batch-d
     expect(ability.can('batch_delete', 'Promotion')).toBe(false)
   })
 })
+
+// ── sdd-quotations-crud S1: CASL registration for the Quotation subject ──────
+//
+// REQ-QTN-014: APP_SUBJECTS MUST include 'Quotation'. Permissions arrive as
+// "action:Quotation" codes (e.g. 'read:Quotation', 'create:Quotation',
+// 'update:Quotation', 'delete:Quotation'). The CASL layer MUST:
+//   1. Parse each Quotation permission code and grant the action.
+//   2. Keep grants scoped to Quotation (no bleed to other subjects).
+//   3. Accept all four standard actions in isolation and together.
+//   4. Drop the grant when the code is removed from the list.
+//   5. Validate Quotation is a member of the AppSubject type union.
+//
+// If 'Quotation' were missing from APP_SUBJECTS, parsePermissionCode would
+// return null and the ability would never update — the sidebar entry and
+// the route guard would silently stay closed. These tests guard against
+// that silent-drop regression.
+
+describe('ability with Quotation subject (sdd-quotations-crud S1, REQ-QTN-014)', () => {
+  beforeEach(() => {
+    resetAbility()
+  })
+
+  it('parses read:Quotation and grants read on Quotation only', () => {
+    updateAbilityFromPermissionCodes(['read:Quotation'])
+
+    expect(ability.can('read', 'Quotation')).toBe(true)
+    expect(ability.can('create', 'Quotation')).toBe(false)
+    expect(ability.can('update', 'Quotation')).toBe(false)
+    expect(ability.can('delete', 'Quotation')).toBe(false)
+  })
+
+  it('parses create:Quotation and grants create on Quotation only', () => {
+    updateAbilityFromPermissionCodes(['create:Quotation'])
+
+    expect(ability.can('create', 'Quotation')).toBe(true)
+    expect(ability.can('read', 'Quotation')).toBe(false)
+  })
+
+  it('parses update:Quotation and grants update on Quotation only', () => {
+    updateAbilityFromPermissionCodes(['update:Quotation'])
+
+    expect(ability.can('update', 'Quotation')).toBe(true)
+    expect(ability.can('read', 'Quotation')).toBe(false)
+  })
+
+  it('parses delete:Quotation and grants delete on Quotation only', () => {
+    updateAbilityFromPermissionCodes(['delete:Quotation'])
+
+    expect(ability.can('delete', 'Quotation')).toBe(true)
+  })
+
+  it('parses all four Quotation actions together (full lifecycle role)', () => {
+    updateAbilityFromPermissionCodes([
+      'create:Quotation',
+      'read:Quotation',
+      'update:Quotation',
+      'delete:Quotation',
+    ])
+
+    expect(ability.can('create', 'Quotation')).toBe(true)
+    expect(ability.can('read', 'Quotation')).toBe(true)
+    expect(ability.can('update', 'Quotation')).toBe(true)
+    expect(ability.can('delete', 'Quotation')).toBe(true)
+  })
+
+  it('does NOT silently drop Quotation — guard against parsePermissionCode returning null', () => {
+    // If Quotation were missing from APP_SUBJECTS, parsePermissionCode would
+    // return null and the ability would never update, so can() stays false.
+    // Asserting true here guards against silent-drop during future edits.
+    updateAbilityFromPermissionCodes(['read:Quotation'])
+
+    expect(ability.can('read', 'Quotation')).toBe(true)
+  })
+
+  it('keeps Quotation scoped — no bleed to Sale/Customer/Product', () => {
+    updateAbilityFromPermissionCodes(['read:Quotation'])
+
+    expect(ability.can('read', 'Quotation')).toBe(true)
+    expect(ability.can('read', 'Sale')).toBe(false)
+    expect(ability.can('read', 'Customer')).toBe(false)
+    expect(ability.can('read', 'Product')).toBe(false)
+  })
+
+  it('coexists with other subjects without bleed (Quotation alongside Sale)', () => {
+    // The 'all' subject implies every action on every subject, so we stay
+    // away from that here — the test focuses on the explicit-grant path.
+    updateAbilityFromPermissionCodes(['read:Quotation', 'read:Sale', 'update:Customer'])
+
+    expect(ability.can('read', 'Quotation')).toBe(true)
+    expect(ability.can('read', 'Sale')).toBe(true)
+    expect(ability.can('update', 'Customer')).toBe(true)
+    expect(ability.can('update', 'Quotation')).toBe(false)
+    expect(ability.can('create', 'Sale')).toBe(false)
+  })
+
+  it('grant is revoked when the Quotation code is removed from the code list', () => {
+    updateAbilityFromPermissionCodes(['read:Quotation'])
+    expect(ability.can('read', 'Quotation')).toBe(true)
+
+    updateAbilityFromPermissionCodes([])
+    expect(ability.can('read', 'Quotation')).toBe(false)
+  })
+
+  it('rejects malformed Quotation permission codes (extra segments)', () => {
+    updateAbilityFromPermissionCodes(['read:Quotation:extra', 'read:Quotation'])
+
+    // Malformed code dropped; well-formed code still grants.
+    expect(ability.can('read', 'Quotation')).toBe(true)
+  })
+
+  it('validates Quotation is in the AppSubject type union', () => {
+    // Compile-time guarantee. If AppSubject no longer includes 'Quotation'
+    // (someone accidentally removed it from auth.types.ts), this assignment
+    // fails the build.
+    const subject: AppSubject = 'Quotation'
+    expect(subject).toBe('Quotation')
+  })
+})

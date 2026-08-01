@@ -5,6 +5,7 @@ import {
   adminTenantQueryKeys,
   adminTenantMembershipQueryKeys,
   notificationConfigQueryKeys,
+  quotationQueryKeys,
 } from '../query-keys'
 
 describe('promotionQueryKeys', () => {
@@ -326,5 +327,97 @@ describe('saleQueryKeys.applicablePromotions (promotions-in-sale A.3)', () => {
     const key = saleQueryKeys.applicablePromotions('tenant-1', 'sale-abc')
     const prefix = ['sales', 'tenant-1']
     expect(key.slice(0, 2)).toEqual(prefix)
+  })
+})
+
+// ── sdd-quotations-crud S1: quotationQueryKeys (REQ-QTN-015) ─────────────────
+//
+// Cache contract: `list(tenantId, params)` for the paginated list and
+// `detail(tenantId, id)` for the single quotation. Both are tenant-scoped so
+// switching tenants does not bleed the cache. params is the QuotationListParams
+// object (filter + pagination snapshot), so two calls with the same params
+// return the same key tuple.
+
+describe('quotationQueryKeys (sdd-quotations-crud S1, REQ-QTN-015)', () => {
+  describe('list', () => {
+    it('returns a tuple starting with "quotations" then tenantId then "list"', () => {
+      const key = quotationQueryKeys.list('tenant-1')
+      expect(key[0]).toBe('quotations')
+      expect(key[1]).toBe('tenant-1')
+      expect(key[2]).toBe('list')
+    })
+
+    it('uses empty params by default so the key stays stable for unfiltered lists', () => {
+      const key = quotationQueryKeys.list('tenant-1')
+      expect(key[3]).toEqual({})
+    })
+
+    it('encodes the filter snapshot as the last segment so distinct filter sets produce distinct keys', () => {
+      const paramsA = { page: 1, status: 'DRAFT' as const }
+      const paramsB = { page: 2, status: 'DRAFT' as const }
+
+      const keyA = quotationQueryKeys.list('tenant-1', paramsA)
+      const keyB = quotationQueryKeys.list('tenant-1', paramsB)
+
+      expect(keyA[3]).toEqual(paramsA)
+      expect(keyB[3]).toEqual(paramsB)
+      expect(keyA).not.toEqual(keyB)
+    })
+
+    it('produces different keys for different tenants (cache isolation)', () => {
+      const keyA = quotationQueryKeys.list('tenant-1')
+      const keyB = quotationQueryKeys.list('tenant-2')
+
+      expect(keyA).not.toEqual(keyB)
+    })
+
+    it('returns the same key tuple on repeated calls with identical args', () => {
+      const params = { page: 1, limit: 20 }
+      const key1 = quotationQueryKeys.list('tenant-1', params)
+      const key2 = quotationQueryKeys.list('tenant-1', params)
+
+      expect(key1).toEqual(key2)
+    })
+
+    it('invalidating by tenantId prefix catches list keys (TanStack pattern)', () => {
+      const key = quotationQueryKeys.list('tenant-1', { page: 1 })
+      const prefix = ['quotations', 'tenant-1']
+      expect(key.slice(0, 2)).toEqual(prefix)
+    })
+  })
+
+  describe('detail', () => {
+    it('returns the exact tuple shape ["quotations", tenantId, "detail", id]', () => {
+      const key = quotationQueryKeys.detail('tenant-abc', 'qtn-1')
+
+      expect(key).toEqual(['quotations', 'tenant-abc', 'detail', 'qtn-1'])
+    })
+
+    it('produces different keys for different quotation ids within the same tenant', () => {
+      const keyA = quotationQueryKeys.detail('tenant-1', 'qtn-1')
+      const keyB = quotationQueryKeys.detail('tenant-1', 'qtn-2')
+
+      expect(keyA).not.toEqual(keyB)
+    })
+
+    it('produces different keys for different tenants with the same quotation id', () => {
+      const keyA = quotationQueryKeys.detail('tenant-1', 'qtn-1')
+      const keyB = quotationQueryKeys.detail('tenant-2', 'qtn-1')
+
+      expect(keyA).not.toEqual(keyB)
+    })
+
+    it('returns the same key tuple on repeated calls with identical args', () => {
+      const key1 = quotationQueryKeys.detail('tenant-1', 'qtn-1')
+      const key2 = quotationQueryKeys.detail('tenant-1', 'qtn-1')
+
+      expect(key1).toEqual(key2)
+    })
+
+    it('invalidating by tenantId prefix catches detail keys (TanStack pattern)', () => {
+      const key = quotationQueryKeys.detail('tenant-1', 'qtn-1')
+      const prefix = ['quotations', 'tenant-1']
+      expect(key.slice(0, 2)).toEqual(prefix)
+    })
   })
 })

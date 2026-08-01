@@ -12,6 +12,7 @@ const APP_SUBJECTS: AppSubject[] = [
   'Promotion',
   'Customer',
   'Sale',
+  'Quotation',
   'TenantMembership',
   'Employee',
   'EmployeeSalary',

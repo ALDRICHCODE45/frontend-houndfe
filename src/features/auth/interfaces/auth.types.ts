@@ -54,6 +54,7 @@ export type AppSubject =
   | 'Promotion'
   | 'Customer'
   | 'Sale'
+  | 'Quotation'
   | 'TenantMembership'
   | 'Employee'
   | 'EmployeeSalary'

@@ -83,6 +83,23 @@ export const saleQueryKeys = {
     ['sales', tenantId, 'applicable-promotions', draftId] as const,
 }
 
+// ─── Quotations module query keys (sdd-quotations-crud S1, REQ-QTN-015) ──────
+//
+// Tenant-scoped per the convention used by every other POS module. The cache
+// contract: `useQuotationDetail` reads from `detail(tenantId, id)`; after every
+// mutation `useQuotationDraft` writes the backend's full QuotationResponseDto
+// back into that slot via `setQueryData`. The list cache uses `list(tenantId,
+// params)` — params is the QuotationListParams object, so TanStack Query
+// treats different filter combinations as distinct cache slots and auto-bumps
+// them as the user changes filters.
+
+export const quotationQueryKeys = {
+  list: (tenantId: string, params: Record<string, unknown> = {}) =>
+    ['quotations', tenantId, 'list', params] as const,
+  detail: (tenantId: string, quotationId: string) =>
+    ['quotations', tenantId, 'detail', quotationId] as const,
+}
+
 export const usersQueryKeys = {
   assignable: () => ['users', 'assignable'] as const,
 }

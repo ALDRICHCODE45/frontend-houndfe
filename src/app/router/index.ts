@@ -18,6 +18,18 @@ const SaleDetailView = () => import('@/features/POS/sales/views/SaleDetailView.v
 const PromotionsView = () => import('@/features/POS/promotions/views/PromotionsView.vue')
 const PromotionDetailView = () =>
   import('@/features/POS/promotions/views/PromotionDetailView.vue')
+// ─── Quotations module (sdd-quotations-crud S1, REQ-QTN-001) ──────────────────
+//
+// Three lazy routes, mirroring the sales convention:
+//   - list  /pos/cotizaciones       → QuotationsListView  (read:Quotation)
+//   - new   /pos/cotizaciones/nueva → QuotationDetailView (read:Quotation — the
+//                                        view itself fires createDraft() on
+//                                        mount in S4 and redirects to /:id)
+//   - id    /pos/cotizaciones/:id   → QuotationDetailView (read:Quotation)
+const QuotationsListView = () =>
+  import('@/features/POS/quotations/views/QuotationsListView.vue')
+const QuotationDetailView = () =>
+  import('@/features/POS/quotations/views/QuotationDetailView.vue')
 const AdminUsersView = () => import('@/features/admin/users/views/AdminUsersView.vue')
 const AdminRolesView = () => import('@/features/admin/roles/views/AdminRolesView.vue')
 // ─── Employees module (WU-02, WU-06A, WU-12B) ───────────────────────────────
@@ -157,6 +169,34 @@ const router = createRouter({
       meta: {
         layout: 'dashboard',
         permission: ['read', 'Promotion'] as RoutePermission,
+      },
+    },
+    // ─── Quotations routes (sdd-quotations-crud S1, REQ-QTN-001) ───────────────
+    {
+      path: '/pos/cotizaciones',
+      name: 'pos-quotations-list',
+      component: QuotationsListView,
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'Quotation'] as RoutePermission,
+      },
+    },
+    {
+      path: '/pos/cotizaciones/nueva',
+      name: 'pos-quotations-create',
+      component: QuotationDetailView,
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'Quotation'] as RoutePermission,
+      },
+    },
+    {
+      path: '/pos/cotizaciones/:id',
+      name: 'pos-quotation-detail',
+      component: QuotationDetailView,
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'Quotation'] as RoutePermission,
       },
     },
     // ─── Employees routes (WU-02, WU-06A) ──────────────────────────────────────

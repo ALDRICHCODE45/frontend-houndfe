@@ -1,0 +1,51 @@
+/**
+ * Quotation utility helpers — pure functions only, no Vue imports.
+ *
+ * Keep this module dependency-free so it stays trivially unit-testable and
+ * importable from any layer (composables, views, badge components).
+ */
+
+import type { QuotationResponseDto, QuotationStatus } from '../interfaces/quotation.types'
+import {
+  QUOTATION_STATUS_LABEL,
+  QUOTATION_STATUS_TONE,
+  type QuotationStatusTone,
+} from '../constants/quotation.constants'
+
+/**
+ * Lazy expiry check (client-side mirror of the backend's lazy SENT→EXPIRED
+ * transition — see backend §7.4). Returns true when `expiresAt` is set and
+ * strictly before now.
+ *
+ * The strict-less-than means an exact-now `expiresAt` is NOT expired; only
+ * past timestamps flip the boolean. This avoids a one-millisecond UI flicker
+ * on the expiry boundary.
+ */
+export function isExpired(quotation: Pick<QuotationResponseDto, 'expiresAt'>): boolean {
+  if (!quotation.expiresAt) return false
+  return new Date(quotation.expiresAt).getTime() < Date.now()
+}
+
+/** Map a status to its `AppBadge` tone. */
+export function statusToTone(status: QuotationStatus): QuotationStatusTone {
+  return QUOTATION_STATUS_TONE[status]
+}
+
+/** Map a status to its localized Spanish label. */
+export function statusToLabel(status: QuotationStatus): string {
+  return QUOTATION_STATUS_LABEL[status]
+}
+
+/** Editable-state predicate. Only DRAFT permits mutations. */
+export function isDraft(status: QuotationStatus): boolean {
+  return status === 'DRAFT'
+}
+
+/**
+ * Cancellable predicate. Only DRAFT can be cancelled — SENT/EXPIRED/CANCELLED
+ * are terminal (the backend enforces this with `409 Quotation is not DRAFT`,
+ * the UI gate keeps the button hidden).
+ */
+export function isCancellable(status: QuotationStatus): boolean {
+  return status === 'DRAFT'
+}

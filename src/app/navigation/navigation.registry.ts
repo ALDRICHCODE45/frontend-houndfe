@@ -20,6 +20,10 @@ export const navigationGroups: NavGroup[] = [
       { id: 'pos-orders', label: 'Órdenes', icon: 'i-lucide-receipt', to: '/pos/orders', permission: ['read', 'Order'] },
       { id: 'pos-customers', label: 'Clientes', icon: 'i-lucide-users', to: '/pos/customers', permission: ['read', 'Customer'] },
       { id: 'pos-promotions', label: 'Promociones', icon: 'i-lucide-tag', to: '/pos/promociones', permission: ['read', 'Promotion'] },
+      // sdd-quotations-crud S1 (REQ-QTN-001): sidebar entry gated by
+      // read:Quotation. Hidden for users without the permission; the route
+      // guard repeats the same check at /pos/cotizaciones.
+      { id: 'pos-quotations', label: 'Cotizaciones', icon: 'i-lucide-file-text', to: '/pos/cotizaciones', permission: ['read', 'Quotation'] },
     ],
   },
   {
