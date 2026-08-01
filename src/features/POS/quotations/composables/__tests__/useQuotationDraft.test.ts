@@ -54,6 +54,11 @@ vi.mock('../../api/quotation.api', () => ({
     updateQuantity: vi.fn(),
     removeItem: vi.fn(),
     overridePrice: vi.fn(),
+    applyManualPromotion: vi.fn(),
+    removeManualPromotion: vi.fn(),
+    vetoPromotion: vi.fn(),
+    unvetoPromotion: vi.fn(),
+    setExpiry: vi.fn(),
   },
 }))
 
@@ -84,11 +89,20 @@ function makeQuotation(overrides: Partial<QuotationResponseDto> = {}): Quotation
   }
 }
 
-function findMutationConfig(name: 'addItem' | 'updateQuantity' | 'removeItem' | 'overridePrice'): MutationConfigShape {
+function findMutationConfig(
+  name: 'addItem' | 'updateQuantity' | 'removeItem' | 'overridePrice'
+  | 'applyManualPromotion' | 'removeManualPromotion'
+  | 'vetoPromotion' | 'unvetoPromotion' | 'setExpiry',
+): MutationConfigShape {
   // The composable registers mutations in fixed order in onMount — for test
   // simplicity we look them up by method invocation count via api mock.
   // Each invocation of `addItem`/`updateQuantity`/etc. pushes one config.
-  const index = ['addItem', 'updateQuantity', 'removeItem', 'overridePrice'].indexOf(name)
+  const mutationOrder = [
+    'addItem', 'updateQuantity', 'removeItem', 'overridePrice',
+    'applyManualPromotion', 'removeManualPromotion',
+    'vetoPromotion', 'unvetoPromotion', 'setExpiry',
+  ] as const
+  const index = mutationOrder.indexOf(name as (typeof mutationOrder)[number])
   const config = mutationConfigs[index]
   if (!config) throw new Error(`Mutation ${name} not registered`)
   return config
@@ -314,5 +328,224 @@ describe('useQuotationDraft — item mutations', () => {
   it('exposes reactive isMutating aggregated flag', () => {
     const draft = useQuotationDraft('quotation-1')
     expect(computed(() => draft.isMutating.value)).toBeDefined()
+  })
+})
+
+// ─── S6: promotions + expiry mutations ────────────────────────────────────────
+// The mutations mirror the slice-5 item mutations: each calls its API method,
+// updates detail + list caches on success, and surfaces backend errors with
+// a localized toast. The 400/409 contracts are exercised explicitly because
+// they have user-facing copy distinct from generic errors.
+
+describe('useQuotationDraft — promotions mutations', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mutationConfigs.length = 0
+  })
+
+  it('applyManualPromotion calls quotationApi.applyManualPromotion with id + promoId', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    const updated = makeQuotation()
+    vi.mocked(quotationApi.applyManualPromotion).mockResolvedValueOnce(updated)
+    const draft = useQuotationDraft('quotation-1')
+
+    await draft.applyManualPromotion('promo-9')
+
+    expect(quotationApi.applyManualPromotion).toHaveBeenCalledWith('quotation-1', 'promo-9')
+  })
+
+  it('applyManualPromotion onSuccess replaces detail and list caches', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    const updated = makeQuotation({ totalCents: 800 })
+    vi.mocked(quotationApi.applyManualPromotion).mockResolvedValueOnce(updated)
+    const draft = useQuotationDraft('quotation-1')
+
+    await draft.applyManualPromotion('promo-9')
+    await findMutationConfig('applyManualPromotion').onSuccess?.(updated, undefined as never)
+
+    expect(queryClientMock.setQueryData).toHaveBeenCalledWith(
+      quotationQueryKeys.detail('tenant-1', updated.id),
+      updated,
+    )
+    expect(queryClientMock.setQueriesData).toHaveBeenCalled()
+  })
+
+  it('applyManualPromotion surfaces 400 (not MANUAL promo) with a user-facing toast', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    type ApiError = Error & { response?: { status: number; data?: { message?: string } } }
+    const error = new Error('Promotion is not MANUAL') as ApiError
+    error.response = { status: 400, data: { message: 'Promotion is not MANUAL' } }
+    vi.mocked(quotationApi.applyManualPromotion).mockRejectedValueOnce(error)
+    const draft = useQuotationDraft('quotation-1')
+
+    await expect(draft.applyManualPromotion('promo-9')).rejects.toThrow('Promotion is not MANUAL')
+    expect(toastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ title: expect.any(String), description: expect.any(String) }),
+    )
+  })
+
+  it('applyManualPromotion surfaces 409 (not DRAFT) with a warning toast', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    type ApiError = Error & { response?: { status: number } }
+    const error = new Error('Quotation is not DRAFT') as ApiError
+    error.response = { status: 409 }
+    vi.mocked(quotationApi.applyManualPromotion).mockRejectedValueOnce(error)
+    const draft = useQuotationDraft('quotation-1')
+
+    await expect(draft.applyManualPromotion('promo-9')).rejects.toThrow('Quotation is not DRAFT')
+    expect(toastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ color: 'warning' }),
+    )
+  })
+
+  it('removeManualPromotion calls quotationApi.removeManualPromotion', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    const updated = makeQuotation()
+    vi.mocked(quotationApi.removeManualPromotion).mockResolvedValueOnce(updated)
+    const draft = useQuotationDraft('quotation-1')
+
+    await draft.removeManualPromotion('promo-9')
+
+    expect(quotationApi.removeManualPromotion).toHaveBeenCalledWith('quotation-1', 'promo-9')
+  })
+
+  it('removeManualPromotion onSuccess replaces caches', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    const updated = makeQuotation()
+    vi.mocked(quotationApi.removeManualPromotion).mockResolvedValueOnce(updated)
+    const draft = useQuotationDraft('quotation-1')
+
+    await draft.removeManualPromotion('promo-9')
+    await findMutationConfig('removeManualPromotion').onSuccess?.(updated, undefined as never)
+
+    expect(queryClientMock.setQueryData).toHaveBeenCalledWith(
+      quotationQueryKeys.detail('tenant-1', updated.id),
+      updated,
+    )
+  })
+
+  it('vetoPromotion calls quotationApi.vetoPromotion', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    const updated = makeQuotation({ vetoedPromotionIds: ['promo-2'] })
+    vi.mocked(quotationApi.vetoPromotion).mockResolvedValueOnce(updated)
+    const draft = useQuotationDraft('quotation-1')
+
+    await draft.vetoPromotion('promo-2')
+
+    expect(quotationApi.vetoPromotion).toHaveBeenCalledWith('quotation-1', 'promo-2')
+  })
+
+  it('vetoPromotion onSuccess replaces caches', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    const updated = makeQuotation({ vetoedPromotionIds: ['promo-2'] })
+    vi.mocked(quotationApi.vetoPromotion).mockResolvedValueOnce(updated)
+    const draft = useQuotationDraft('quotation-1')
+
+    await draft.vetoPromotion('promo-2')
+    await findMutationConfig('vetoPromotion').onSuccess?.(updated, undefined as never)
+
+    expect(queryClientMock.setQueryData).toHaveBeenCalledWith(
+      quotationQueryKeys.detail('tenant-1', updated.id),
+      updated,
+    )
+  })
+
+  it('unvetoPromotion calls quotationApi.unvetoPromotion', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    const updated = makeQuotation({ vetoedPromotionIds: [] })
+    vi.mocked(quotationApi.unvetoPromotion).mockResolvedValueOnce(updated)
+    const draft = useQuotationDraft('quotation-1')
+
+    await draft.unvetoPromotion('promo-2')
+
+    expect(quotationApi.unvetoPromotion).toHaveBeenCalledWith('quotation-1', 'promo-2')
+  })
+
+  it('unvetoPromotion onSuccess replaces caches', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    const updated = makeQuotation({ vetoedPromotionIds: [] })
+    vi.mocked(quotationApi.unvetoPromotion).mockResolvedValueOnce(updated)
+    const draft = useQuotationDraft('quotation-1')
+
+    await draft.unvetoPromotion('promo-2')
+    await findMutationConfig('unvetoPromotion').onSuccess?.(updated, undefined as never)
+
+    expect(queryClientMock.setQueryData).toHaveBeenCalledWith(
+      quotationQueryKeys.detail('tenant-1', updated.id),
+      updated,
+    )
+  })
+})
+
+describe('useQuotationDraft — expiry mutation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mutationConfigs.length = 0
+  })
+
+  it('setExpiry calls quotationApi.setExpiry with ISO timestamp', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    const updated = makeQuotation({ expiresAt: '2026-09-01T00:00:00.000Z' })
+    vi.mocked(quotationApi.setExpiry).mockResolvedValueOnce(updated)
+    const draft = useQuotationDraft('quotation-1')
+
+    await draft.setExpiry('2026-09-01T00:00:00.000Z')
+
+    expect(quotationApi.setExpiry).toHaveBeenCalledWith(
+      'quotation-1',
+      '2026-09-01T00:00:00.000Z',
+    )
+  })
+
+  it('setExpiry accepts null to clear the expiration', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    const updated = makeQuotation({ expiresAt: null })
+    vi.mocked(quotationApi.setExpiry).mockResolvedValueOnce(updated)
+    const draft = useQuotationDraft('quotation-1')
+
+    await draft.setExpiry(null)
+
+    expect(quotationApi.setExpiry).toHaveBeenCalledWith('quotation-1', null)
+  })
+
+  it('clearExpiry is a convenience wrapper that calls setExpiry with null', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    const updated = makeQuotation({ expiresAt: null })
+    vi.mocked(quotationApi.setExpiry).mockResolvedValueOnce(updated)
+    const draft = useQuotationDraft('quotation-1')
+
+    await draft.clearExpiry()
+
+    expect(quotationApi.setExpiry).toHaveBeenCalledWith('quotation-1', null)
+  })
+
+  it('setExpiry onSuccess replaces detail and list caches', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    const updated = makeQuotation({ expiresAt: '2026-09-01T00:00:00.000Z' })
+    vi.mocked(quotationApi.setExpiry).mockResolvedValueOnce(updated)
+    const draft = useQuotationDraft('quotation-1')
+
+    await draft.setExpiry('2026-09-01T00:00:00.000Z')
+    await findMutationConfig('setExpiry').onSuccess?.(updated, undefined as never)
+
+    expect(queryClientMock.setQueryData).toHaveBeenCalledWith(
+      quotationQueryKeys.detail('tenant-1', updated.id),
+      updated,
+    )
+    expect(queryClientMock.setQueriesData).toHaveBeenCalled()
+  })
+
+  it('setExpiry surfaces 409 (not DRAFT) with a warning toast', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    type ApiError = Error & { response?: { status: number } }
+    const error = new Error('Quotation is not DRAFT') as ApiError
+    error.response = { status: 409 }
+    vi.mocked(quotationApi.setExpiry).mockRejectedValueOnce(error)
+    const draft = useQuotationDraft('quotation-1')
+
+    await expect(draft.setExpiry('2026-09-01T00:00:00.000Z')).rejects.toThrow('Quotation is not DRAFT')
+    expect(toastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ color: 'warning' }),
+    )
   })
 })

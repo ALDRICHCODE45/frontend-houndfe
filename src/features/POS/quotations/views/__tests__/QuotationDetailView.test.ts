@@ -3,6 +3,8 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { computed, ref } from 'vue'
 import QuotationDetailView from '../QuotationDetailView.vue'
 import QuotationItemRow from '../../components/QuotationItemRow.vue'
+import QuotationExpiryPicker from '../../components/QuotationExpiryPicker.vue'
+import QuotationTotalsFooter from '../../components/QuotationTotalsFooter.vue'
 import ProductSearchPanel from '@/features/POS/sales/components/ProductSearchPanel.vue'
 import type { QuotationResponseDto } from '../../interfaces/quotation.types'
 
@@ -18,6 +20,12 @@ const state = {
   updateQuantity: vi.fn(),
   removeItem: vi.fn(),
   overridePrice: vi.fn(),
+  applyManualPromotion: vi.fn(),
+  removeManualPromotion: vi.fn(),
+  vetoPromotion: vi.fn(),
+  unvetoPromotion: vi.fn(),
+  setExpiry: vi.fn(),
+  clearExpiry: vi.fn(),
 }
 
 vi.mock('../../composables/useQuotationDetail', () => ({
@@ -38,6 +46,12 @@ vi.mock('../../composables/useQuotationDraft', () => ({
     updateQuantity: state.updateQuantity,
     removeItem: state.removeItem,
     overridePrice: state.overridePrice,
+    applyManualPromotion: state.applyManualPromotion,
+    removeManualPromotion: state.removeManualPromotion,
+    vetoPromotion: state.vetoPromotion,
+    unvetoPromotion: state.unvetoPromotion,
+    setExpiry: state.setExpiry,
+    clearExpiry: state.clearExpiry,
   }),
 }))
 
@@ -113,6 +127,17 @@ const stubs = {
     template:
       '<div v-if="open" data-testid="confirm-modal"><button data-testid="confirm-modal-confirm" type="button" @click="$emit(\'confirm\')">{{ confirmLabel ?? "Confirmar" }}</button><button data-testid="confirm-modal-cancel" type="button" @click="$emit(\'update:open\', false)">Cancelar</button></div>',
   },
+  QuotationExpiryPicker: {
+    props: ['expiresAt', 'readonly'],
+    emits: ['update:expiresAt'],
+    template:
+      '<div data-testid="quotation-expiry-picker" :data-readonly="readonly"><span data-testid="expiry-display">{{ expiresAt ?? "Sin expiración" }}</span></div>',
+  },
+  QuotationTotalsFooter: {
+    props: ['quotation'],
+    template:
+      '<div data-testid="quotation-totals-footer"><span data-testid="subtotal-amount">subtotal-stub</span><span data-testid="total-amount">total-stub</span></div>',
+  },
 }
 
 function mountView() {
@@ -131,6 +156,12 @@ beforeEach(() => {
   state.updateQuantity.mockReset().mockResolvedValue(makeQuotation())
   state.removeItem.mockReset().mockResolvedValue(makeQuotation())
   state.overridePrice.mockReset().mockResolvedValue(makeQuotation())
+  state.applyManualPromotion.mockReset().mockResolvedValue(makeQuotation())
+  state.removeManualPromotion.mockReset().mockResolvedValue(makeQuotation())
+  state.vetoPromotion.mockReset().mockResolvedValue(makeQuotation())
+  state.unvetoPromotion.mockReset().mockResolvedValue(makeQuotation())
+  state.setExpiry.mockReset().mockResolvedValue(makeQuotation())
+  state.clearExpiry.mockReset().mockResolvedValue(makeQuotation())
   route.path = '/pos/cotizaciones/quotation-12345678'
   route.params = { id: 'quotation-12345678' }
   route.query = {}
@@ -475,5 +506,162 @@ describe('QuotationDetailView items section (S5)', () => {
     const row = wrapper.findComponent(QuotationItemRow)
     row.vm.$emit('override-price', 'item-1', 19900)
     expect(state.overridePrice).toHaveBeenCalledWith('item-1', 19900)
+  })
+})
+
+// ─── S6: promotions + expiry + totals footer ─────────────────────────────────
+// The detail view integrates three new pieces:
+//   - QuotationExpiryPicker (DRAFT only editable; readonly in SENT/EXPIRED/CANCELLED)
+//   - QuotationTotalsFooter (always rendered; reads from `quotation`)
+//   - A promotions section that lists applied promos (with Quitar) and
+//     vetoed promos (with Re-activar), plus a small input + button to
+//     apply / veto by ID.
+
+describe('QuotationDetailView expiry picker (S6)', () => {
+  it('renders the expiry picker in DRAFT mode (editable)', () => {
+    const wrapper = mountView()
+    const picker = wrapper.find('[data-testid="quotation-expiry-picker"]')
+    expect(picker.exists()).toBe(true)
+    expect(picker.attributes('data-readonly')).toBe('false')
+  })
+
+  it('renders the expiry picker in readonly mode for non-DRAFT statuses', () => {
+    state.quotation.value = makeQuotation({ status: 'SENT' })
+    const wrapper = mountView()
+    const picker = wrapper.find('[data-testid="quotation-expiry-picker"]')
+    expect(picker.exists()).toBe(true)
+    expect(picker.attributes('data-readonly')).toBe('true')
+  })
+
+  it('forwards the picker emit through setExpiry on the draft composable', async () => {
+    const wrapper = mountView()
+    const picker = wrapper.findComponent(QuotationExpiryPicker)
+    picker.vm.$emit('update:expiresAt', '2026-12-01T00:00:00.000Z')
+    await flushPromises()
+    expect(state.setExpiry).toHaveBeenCalledWith('2026-12-01T00:00:00.000Z')
+  })
+
+  it('forwards a null emit through clearExpiry', async () => {
+    const wrapper = mountView()
+    const picker = wrapper.findComponent(QuotationExpiryPicker)
+    picker.vm.$emit('update:expiresAt', null)
+    await flushPromises()
+    expect(state.clearExpiry).toHaveBeenCalledWith()
+  })
+})
+
+describe('QuotationDetailView totals footer (S6)', () => {
+  it('renders the totals footer at the bottom of the detail view', () => {
+    state.quotation.value = makeQuotation({
+      subtotalCents: 15000,
+      discountCents: 1500,
+      totalCents: 13500,
+    })
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="quotation-totals-footer"]').exists()).toBe(true)
+  })
+
+  it('renders the totals footer for non-DRAFT statuses too (read-only display)', () => {
+    state.quotation.value = makeQuotation({
+      status: 'SENT',
+      subtotalCents: 15000,
+      discountCents: 1500,
+      totalCents: 13500,
+    })
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="quotation-totals-footer"]').exists()).toBe(true)
+  })
+})
+
+describe('QuotationDetailView promotions section (S6)', () => {
+  it('renders the list of applied promotions from the quotation', () => {
+    state.quotation.value = makeQuotation({
+      appliedPromotions: [
+        { id: 'ap-1', promotionId: 'promo-1', title: 'Cupón 10%', discountCents: 500 },
+        { id: 'ap-2', promotionId: 'promo-2', title: 'Promo Verano', discountCents: 800 },
+      ],
+    })
+    const wrapper = mountView()
+
+    expect(wrapper.find('[data-testid="applied-promotions-list"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Cupón 10%')
+    expect(wrapper.text()).toContain('Promo Verano')
+  })
+
+  it('hides the applied-promotions section when there are no applied promos', () => {
+    state.quotation.value = makeQuotation({ appliedPromotions: [] })
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="applied-promotions-list"]').exists()).toBe(false)
+  })
+
+  it('calls removeManualPromotion when a "Quitar" button is clicked on an applied promo', async () => {
+    state.quotation.value = makeQuotation({
+      appliedPromotions: [
+        { id: 'ap-1', promotionId: 'promo-1', title: 'Cupón 10%', discountCents: 500 },
+      ],
+    })
+    const wrapper = mountView()
+
+    await wrapper.get('[data-testid="remove-manual-promo-promo-1"]').trigger('click')
+    expect(state.removeManualPromotion).toHaveBeenCalledWith('promo-1')
+  })
+
+  it('renders vetoed promotions list with "Re-activar" buttons', () => {
+    state.quotation.value = makeQuotation({
+      vetoedPromotionIds: ['promo-auto-1'],
+    })
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="vetoed-promotions-list"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('promo-auto-1')
+  })
+
+  it('calls unvetoPromotion when "Re-activar" is clicked', async () => {
+    state.quotation.value = makeQuotation({ vetoedPromotionIds: ['promo-auto-1'] })
+    const wrapper = mountView()
+
+    await wrapper.get('[data-testid="unveto-promo-promo-auto-1"]').trigger('click')
+    expect(state.unvetoPromotion).toHaveBeenCalledWith('promo-auto-1')
+  })
+
+  it('hides the entire promotions section for non-DRAFT statuses', () => {
+    state.quotation.value = makeQuotation({
+      status: 'SENT',
+      appliedPromotions: [
+        { id: 'ap-1', promotionId: 'promo-1', title: 'Cupón 10%', discountCents: 500 },
+      ],
+      vetoedPromotionIds: ['promo-auto-1'],
+    })
+    const wrapper = mountView()
+
+    expect(wrapper.find('[data-testid="applied-promotions-list"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="vetoed-promotions-list"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="apply-manual-promo-form"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="veto-auto-promo-form"]').exists()).toBe(false)
+  })
+
+  it('renders the "Aplicar promoción manual" form in DRAFT mode', () => {
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="apply-manual-promo-form"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="apply-manual-promo-button"]').exists()).toBe(true)
+  })
+
+  it('calls applyManualPromotion with the typed promotion id when "Aplicar" is clicked', async () => {
+    const wrapper = mountView()
+    await wrapper.get('[data-testid="apply-manual-promo-input"]').setValue('promo-new')
+    await wrapper.get('[data-testid="apply-manual-promo-button"]').trigger('click')
+    expect(state.applyManualPromotion).toHaveBeenCalledWith('promo-new')
+  })
+
+  it('renders the "Vetar promoción automática" form in DRAFT mode', () => {
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="veto-auto-promo-form"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="veto-auto-promo-button"]').exists()).toBe(true)
+  })
+
+  it('calls vetoPromotion with the typed promotion id when "Vetar" is clicked', async () => {
+    const wrapper = mountView()
+    await wrapper.get('[data-testid="veto-auto-promo-input"]').setValue('promo-auto-2')
+    await wrapper.get('[data-testid="veto-auto-promo-button"]').trigger('click')
+    expect(state.vetoPromotion).toHaveBeenCalledWith('promo-auto-2')
   })
 })

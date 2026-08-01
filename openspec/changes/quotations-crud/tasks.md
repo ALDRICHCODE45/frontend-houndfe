@@ -103,10 +103,10 @@ Numerical order. S1 unlocks all; S3/S4 fork list/detail; S5-S7 detail vertical; 
 
 ## Slice 6 — Promotions + expiry (REQs 007, 008) — ~340 lines
 
-- [ ] 6.1 TDD `QuotationExpiryPicker.vue` — emits `update:expiresAt` (ISO|null); "Nunca expira" toggle (NEW + test)
-- [ ] 6.2 TDD `QuotationTotalsFooter.vue` — props `subtotalCents`, `discountCents`, `totalCents` (NEW)
-- [ ] 6.3 Add `useQuotationDraft` mutations: `applyManualPromotion`, `removeManualPromotion`, `vetoPromotion`, `unvetoPromotion`, `setExpiry` (MOD)
-- [ ] 6.4 Applied promotions list with veto/unveto (AUTOMATIC) + opt-in/opt-out (MANUAL) (MOD view)
+- [x] 6.1 TDD `QuotationExpiryPicker.vue` — emits `update:expiresAt` (ISO|null); "Nunca expira" toggle (NEW + test)
+- [x] 6.2 TDD `QuotationTotalsFooter.vue` — props `subtotalCents`, `discountCents`, `totalCents` (NEW)
+- [x] 6.3 Add `useQuotationDraft` mutations: `applyManualPromotion`, `removeManualPromotion`, `vetoPromotion`, `unvetoPromotion`, `setExpiry` (MOD)
+- [x] 6.4 Applied promotions list with veto/unveto (AUTOMATIC) + opt-in/opt-out (MANUAL) (MOD view)
 - **Files**: 2 NEW + 2 MOD + 1 test. **Verify**: `pnpm test:unit` + manual apply/veto/expiry.
 - **Commit**: `feat(quotations): add manual promotions, automatic veto, and expiry picker`
 

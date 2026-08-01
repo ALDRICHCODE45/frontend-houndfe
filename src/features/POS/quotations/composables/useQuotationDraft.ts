@@ -190,6 +190,64 @@ export function useQuotationDraft(
     onSuccess: (updated) => updateCaches(updated),
   })
 
+  // ─── applyManualPromotion (REQ-QTN-007 / backend §3.11) ───────────────────
+
+  const applyManualPromotionMutation = useMutation<
+    QuotationResponseDto,
+    Error,
+    string
+  >({
+    mutationFn: (promotionId) =>
+      quotationApi.applyManualPromotion(id.value, promotionId),
+    onSuccess: (updated) => updateCaches(updated),
+  })
+
+  // ─── removeManualPromotion (REQ-QTN-007 / backend §3.11) ──────────────────
+
+  const removeManualPromotionMutation = useMutation<
+    QuotationResponseDto,
+    Error,
+    string
+  >({
+    mutationFn: (promotionId) =>
+      quotationApi.removeManualPromotion(id.value, promotionId),
+    onSuccess: (updated) => updateCaches(updated),
+  })
+
+  // ─── vetoPromotion (REQ-QTN-007 / backend §3.12) ─────────────────────────
+
+  const vetoPromotionMutation = useMutation<
+    QuotationResponseDto,
+    Error,
+    string
+  >({
+    mutationFn: (promotionId) => quotationApi.vetoPromotion(id.value, promotionId),
+    onSuccess: (updated) => updateCaches(updated),
+  })
+
+  // ─── unvetoPromotion (REQ-QTN-007 / backend §3.12) ───────────────────────
+
+  const unvetoPromotionMutation = useMutation<
+    QuotationResponseDto,
+    Error,
+    string
+  >({
+    mutationFn: (promotionId) => quotationApi.unvetoPromotion(id.value, promotionId),
+    onSuccess: (updated) => updateCaches(updated),
+  })
+
+  // ─── setExpiry (REQ-QTN-008 / backend §3.13) ─────────────────────────────
+  // `expiresAt` is ISO 8601 or `null` (= never expires, per backend §3.13).
+
+  const setExpiryMutation = useMutation<
+    QuotationResponseDto,
+    Error,
+    string | null
+  >({
+    mutationFn: (expiresAt) => quotationApi.setExpiry(id.value, expiresAt),
+    onSuccess: (updated) => updateCaches(updated),
+  })
+
   // ─── Public surface ───────────────────────────────────────────────────────
 
   if (!id.value) {
@@ -235,12 +293,70 @@ export function useQuotationDraft(
     }
   }
 
+  async function applyManualPromotion(promotionId: string): Promise<QuotationResponseDto> {
+    try {
+      return await applyManualPromotionMutation.mutateAsync(promotionId)
+    } catch (error) {
+      toastError(toast, userMessageForError(error), error)
+      throw error
+    }
+  }
+
+  async function removeManualPromotion(promotionId: string): Promise<QuotationResponseDto> {
+    try {
+      return await removeManualPromotionMutation.mutateAsync(promotionId)
+    } catch (error) {
+      toastError(toast, userMessageForError(error), error)
+      throw error
+    }
+  }
+
+  async function vetoPromotion(promotionId: string): Promise<QuotationResponseDto> {
+    try {
+      return await vetoPromotionMutation.mutateAsync(promotionId)
+    } catch (error) {
+      toastError(toast, userMessageForError(error), error)
+      throw error
+    }
+  }
+
+  async function unvetoPromotion(promotionId: string): Promise<QuotationResponseDto> {
+    try {
+      return await unvetoPromotionMutation.mutateAsync(promotionId)
+    } catch (error) {
+      toastError(toast, userMessageForError(error), error)
+      throw error
+    }
+  }
+
+  async function setExpiry(expiresAt: string | null): Promise<QuotationResponseDto> {
+    try {
+      return await setExpiryMutation.mutateAsync(expiresAt)
+    } catch (error) {
+      toastError(toast, userMessageForError(error), error)
+      throw error
+    }
+  }
+
+  /**
+   * Convenience wrapper around `setExpiry(null)` — the cashier-facing label
+   * "Quitar expiración" reads more naturally than "Set expiry to never".
+   */
+  async function clearExpiry(): Promise<QuotationResponseDto> {
+    return await setExpiry(null)
+  }
+
   const isMutating = computed(
     () =>
       addItemMutation.isPending.value
       || updateQuantityMutation.isPending.value
       || removeItemMutation.isPending.value
-      || overridePriceMutation.isPending.value,
+      || overridePriceMutation.isPending.value
+      || applyManualPromotionMutation.isPending.value
+      || removeManualPromotionMutation.isPending.value
+      || vetoPromotionMutation.isPending.value
+      || unvetoPromotionMutation.isPending.value
+      || setExpiryMutation.isPending.value,
   )
 
   return {
@@ -248,6 +364,12 @@ export function useQuotationDraft(
     updateQuantity,
     removeItem,
     overridePrice,
+    applyManualPromotion,
+    removeManualPromotion,
+    vetoPromotion,
+    unvetoPromotion,
+    setExpiry,
+    clearExpiry,
     isMutating,
     detailKey,
   }

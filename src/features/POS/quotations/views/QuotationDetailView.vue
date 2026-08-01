@@ -13,6 +13,9 @@ import {
 import { useQuotationDetail } from '../composables/useQuotationDetail'
 import { useQuotationDraft } from '../composables/useQuotationDraft'
 import QuotationItemRow from '../components/QuotationItemRow.vue'
+import QuotationExpiryPicker from '../components/QuotationExpiryPicker.vue'
+import QuotationTotalsFooter from '../components/QuotationTotalsFooter.vue'
+import { formatCentsMXN } from '../utils/currency.utils'
 
 const route = useRoute()
 const router = useRouter()
@@ -124,6 +127,57 @@ async function handleOverridePrice(
   // current unit price when the cashier clicks the pencil). Slice 8/9 can
   // upgrade this to a dedicated modal without changing the public contract.
   await draft.overridePrice(itemId, unitPriceCents)
+}
+
+// ── S6: promotions + expiry + totals footer ───────────────────────────────────
+
+const appliedPromotions = computed(() => quotation.value?.appliedPromotions ?? [])
+const vetoedPromotionIds = computed(() => quotation.value?.vetoedPromotionIds ?? [])
+
+/** Two-way binding shim for the expiry picker — the picker emits ISO/null,
+ *  the composable owns the cache invalidation + toast. */
+function handleExpiryUpdate(value: string | null): void {
+  if (value === null) {
+    void draft.clearExpiry()
+    return
+  }
+  void draft.setExpiry(value)
+}
+
+async function handleRemoveManualPromo(promotionId: string): Promise<void> {
+  await draft.removeManualPromotion(promotionId)
+}
+
+async function handleUnvetoPromotion(promotionId: string): Promise<void> {
+  await draft.unvetoPromotion(promotionId)
+}
+
+// Small inline forms for apply/veto. There is no "list of available MANUAL
+// promotions" endpoint for quotations in this slice — the cashier enters
+// the promotion ID by hand (typically copied from a separate promo admin
+// screen). The backend validates the ID exists + is the right type.
+const applyManualPromoInput = ref('')
+const vetoAutoPromoInput = ref('')
+
+async function handleApplyManualPromoSubmit(): Promise<void> {
+  const trimmed = applyManualPromoInput.value.trim()
+  if (!trimmed) return
+  await draft.applyManualPromotion(trimmed)
+  applyManualPromoInput.value = ''
+}
+
+async function handleVetoAutoPromoSubmit(): Promise<void> {
+  const trimmed = vetoAutoPromoInput.value.trim()
+  if (!trimmed) return
+  await draft.vetoPromotion(trimmed)
+  vetoAutoPromoInput.value = ''
+}
+
+/** Tiny helper used by the applied-promotions list to render the discount
+ *  next to the title. formatCentsMXN lives in `../utils/currency.utils` so
+ *  we don't reach across to the core helper directly from the view. */
+function formatDiscountCents(cents: number): string {
+  return formatCentsMXN(cents)
 }
 
 onMounted(async () => {
@@ -245,6 +299,20 @@ onMounted(async () => {
         </section>
       </div>
 
+      <!-- S6 — expiry picker. The picker itself owns the input + clear
+           button; the view just plumbs the value through setExpiry /
+           clearExpiry on the composable. -->
+      <section
+        class="rounded-xl border border-default bg-default p-5"
+        data-testid="expiry-section"
+      >
+        <QuotationExpiryPicker
+          :expires-at="quotation.expiresAt"
+          :readonly="!isDraft"
+          @update:expires-at="handleExpiryUpdate"
+        />
+      </section>
+
       <!-- S5 — items section. List + add-product affordance in DRAFT;
            read-only list for every other status. -->
       <section
@@ -298,6 +366,147 @@ onMounted(async () => {
           @add-product="handleAddProduct"
         />
       </section>
+
+      <!-- S6 — promotions section. Only visible in DRAFT (mutations are
+           blocked server-side for any other status). Three sub-blocks:
+             1. Applied promotions (manual + auto) with "Quitar".
+             2. Vetoed auto promotions with "Re-activar".
+             3. Two inline forms to apply a MANUAL promo by ID and to veto
+                an AUTO promo by ID. The backend validates the type. -->
+      <section
+        v-if="isDraft"
+        class="flex flex-col gap-4 rounded-xl border border-default bg-default p-5"
+        data-testid="promotions-section"
+      >
+        <h2 class="text-base font-semibold text-highlighted">Promociones</h2>
+
+        <div
+          v-if="appliedPromotions.length > 0"
+          class="flex flex-col gap-2"
+          data-testid="applied-promotions-list"
+        >
+          <p class="text-xs font-semibold uppercase tracking-wide text-muted">
+            Aplicadas
+          </p>
+          <ul class="flex flex-col gap-2">
+            <li
+              v-for="promo in appliedPromotions"
+              :key="promo.id"
+              class="flex items-center justify-between gap-2 rounded-lg border border-default px-3 py-2"
+              :data-testid="`applied-promo-${promo.promotionId}`"
+            >
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-highlighted truncate">{{ promo.title }}</p>
+                <p class="text-xs text-muted tabular-nums">
+                  −{{ formatDiscountCents(promo.discountCents) }}
+                </p>
+              </div>
+              <button
+                type="button"
+                class="inline-flex items-center gap-1 rounded-lg border border-default px-3 py-1.5 text-xs font-medium hover:bg-elevated"
+                :data-testid="`remove-manual-promo-${promo.promotionId}`"
+                @click="handleRemoveManualPromo(promo.promotionId)"
+              >
+                <UIcon name="i-lucide-x" class="h-3.5 w-3.5" />
+                Quitar
+              </button>
+            </li>
+          </ul>
+        </div>
+
+        <div
+          v-if="vetoedPromotionIds.length > 0"
+          class="flex flex-col gap-2"
+          data-testid="vetoed-promotions-list"
+        >
+          <p class="text-xs font-semibold uppercase tracking-wide text-muted">
+            Vetadas
+          </p>
+          <ul class="flex flex-col gap-2">
+            <li
+              v-for="promoId in vetoedPromotionIds"
+              :key="promoId"
+              class="flex items-center justify-between gap-2 rounded-lg border border-default px-3 py-2"
+              :data-testid="`vetoed-promo-${promoId}`"
+            >
+              <span class="font-mono text-xs text-muted">{{ promoId }}</span>
+              <button
+                type="button"
+                class="inline-flex items-center gap-1 rounded-lg border border-default px-3 py-1.5 text-xs font-medium hover:bg-elevated"
+                :data-testid="`unveto-promo-${promoId}`"
+                @click="handleUnvetoPromotion(promoId)"
+              >
+                Re-activar
+              </button>
+            </li>
+          </ul>
+        </div>
+
+        <form
+          class="flex flex-col gap-2"
+          data-testid="apply-manual-promo-form"
+          @submit.prevent="handleApplyManualPromoSubmit"
+        >
+          <label class="text-xs font-semibold uppercase tracking-wide text-muted" for="apply-manual-promo-input">
+            Aplicar promoción manual
+          </label>
+          <div class="flex flex-wrap items-center gap-2">
+            <input
+              id="apply-manual-promo-input"
+              v-model="applyManualPromoInput"
+              type="text"
+              placeholder="ID de la promoción"
+              class="flex-1 min-w-48 rounded-lg border border-default bg-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              data-testid="apply-manual-promo-input"
+              @keyup.enter="handleApplyManualPromoSubmit"
+            />
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 rounded-lg border border-default px-3 py-2 text-sm font-medium hover:bg-elevated disabled:cursor-not-allowed disabled:opacity-50"
+              :disabled="applyManualPromoInput.trim().length === 0"
+              data-testid="apply-manual-promo-button"
+              @click="handleApplyManualPromoSubmit"
+            >
+              Aplicar
+            </button>
+          </div>
+        </form>
+
+        <form
+          class="flex flex-col gap-2"
+          data-testid="veto-auto-promo-form"
+          @submit.prevent="handleVetoAutoPromoSubmit"
+        >
+          <label class="text-xs font-semibold uppercase tracking-wide text-muted" for="veto-auto-promo-input">
+            Vetar promoción automática
+          </label>
+          <div class="flex flex-wrap items-center gap-2">
+            <input
+              id="veto-auto-promo-input"
+              v-model="vetoAutoPromoInput"
+              type="text"
+              placeholder="ID de la promoción"
+              class="flex-1 min-w-48 rounded-lg border border-default bg-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              data-testid="veto-auto-promo-input"
+              @keyup.enter="handleVetoAutoPromoSubmit"
+            />
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 rounded-lg border border-default px-3 py-2 text-sm font-medium hover:bg-elevated disabled:cursor-not-allowed disabled:opacity-50"
+              :disabled="vetoAutoPromoInput.trim().length === 0"
+              data-testid="veto-auto-promo-button"
+              @click="handleVetoAutoPromoSubmit"
+            >
+              Vetar
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- S6 — totals footer. Always visible (it just reads from the
+           quotation response); the read-only branch already has the
+           "Solo lectura" notice above this for clarity. -->
+      <QuotationTotalsFooter :quotation="quotation" />
 
       <section
         v-if="!isDraft"
