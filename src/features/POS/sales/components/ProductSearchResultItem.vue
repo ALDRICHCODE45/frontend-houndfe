@@ -98,7 +98,7 @@ function isLowStock(item: PosCatalogItem): boolean {
       <!-- Price row + action -->
       <div class="flex items-center justify-between pt-1">
         <div>
-          <p v-if="item.price" class="text-sm font-bold text-(--brand-accent) tabular-nums">
+          <p v-if="item.price" class="text-sm font-bold text-primary tabular-nums">
             {{ formatPrice(item.price.priceDecimal) }}
           </p>
           <p v-else class="text-xs text-toned flex items-center gap-0.5">
