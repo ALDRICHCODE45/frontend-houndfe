@@ -140,6 +140,7 @@ async function handleAddProduct(
 ): Promise<void> {
   if (!isDraft.value) return // defense-in-depth
   await draft.addItem(productId, 1, variantId ?? undefined)
+  isProductSearchOpen.value = false
 }
 
 async function handleUpdateQuantity(
@@ -589,6 +590,7 @@ onMounted(async () => {
 
         <ProductSearchPanel
           v-if="isProductSearchOpen && isDraft"
+          class="max-h-[60vh] overflow-hidden rounded-xl border border-default"
           data-testid="product-search-panel"
           @add-product="handleAddProduct"
         />
