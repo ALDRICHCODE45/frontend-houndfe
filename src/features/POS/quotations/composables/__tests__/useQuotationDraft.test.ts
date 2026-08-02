@@ -325,14 +325,15 @@ describe('useQuotationDraft — item mutations', () => {
     expect(updater(undefined)).toBeUndefined()
   })
 
-  it('returns safe no-op stubs when created without an active quotation id', () => {
+  it('does not throw when instantiated without an id — mutations become live once id resolves', () => {
     const draft = useQuotationDraft(null)
-    // Should not throw — returns safe stubs for the `/nueva` create route.
+    // The composable always returns the same public surface. When id is
+    // empty the mutationFn closures still capture it reactively, so once
+    // the parent feeds a real id (after createDraft + router.replace),
+    // the mutations work without a re-mount.
     expect(draft).toBeDefined()
     expect(draft.isMutating.value).toBe(false)
-    // Calling any mutation on the stub should throw a descriptive error,
-    // not crash the view.
-    expect(draft.addItem('prod-1', 1)).rejects.toThrow(/No quotation id available/)
+    expect(typeof draft.addItem).toBe('function')
   })
 
   it('exposes reactive isMutating aggregated flag', () => {

@@ -437,7 +437,7 @@ onMounted(async () => {
           <button
             v-if="isDraft && canUpdateQuotation"
             type="button"
-            class="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+            class="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
             data-testid="send-button"
             @click="openSendDialog"
           >

@@ -300,32 +300,6 @@ export function useQuotationDraft(
 
   // ─── Public surface ───────────────────────────────────────────────────────
 
-  // When no quotation id is available (e.g. the `/nueva` create route
-  // before `createDraft` returns the new id), return safe no-op stubs so
-  // the view can mount without a crash. The template guards (`isDraft`,
-  // `v-if`) prevent the user from reaching these until the real id is ready.
-  if (!id.value) {
-    const noop = async (): Promise<QuotationResponseDto> => {
-      throw new Error('No quotation id available — the draft has not been created yet')
-    }
-    return {
-      addItem: noop,
-      updateQuantity: noop,
-      removeItem: noop,
-      overridePrice: noop,
-      applyManualPromotion: noop,
-      removeManualPromotion: noop,
-      vetoPromotion: noop,
-      unvetoPromotion: noop,
-      setExpiry: noop,
-      clearExpiry: noop,
-      sendQuotation: noop,
-      cancelQuotation: noop,
-      isMutating: computed(() => false),
-      detailKey,
-    }
-  }
-
   async function addItem(productId: string, quantity = 1, variantId?: string): Promise<QuotationResponseDto> {
     assertValidQuantity(quantity)
     try {
