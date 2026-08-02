@@ -318,7 +318,7 @@ describe('useQuotationDraft — item mutations', () => {
     ) => PaginatedQuotations | undefined
     const page: PaginatedQuotations = {
       data: [makeQuotation({ id: 'quotation-1' }), makeQuotation({ id: 'quotation-2' })],
-      meta: { page: 1, limit: 10, total: 2, totalPages: 1 },
+      pagination: { page: 1, limit: 10, total: 2, totalPages: 1 },
     }
 
     expect(updater(page)?.data[0]?.totalCents).toBe(900)
