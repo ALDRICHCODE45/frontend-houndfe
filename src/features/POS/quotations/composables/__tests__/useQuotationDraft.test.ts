@@ -325,8 +325,14 @@ describe('useQuotationDraft — item mutations', () => {
     expect(updater(undefined)).toBeUndefined()
   })
 
-  it('throws when called without an active quotation id', () => {
-    expect(() => useQuotationDraft(null)).toThrow(/quotation id/i)
+  it('returns safe no-op stubs when created without an active quotation id', () => {
+    const draft = useQuotationDraft(null)
+    // Should not throw — returns safe stubs for the `/nueva` create route.
+    expect(draft).toBeDefined()
+    expect(draft.isMutating.value).toBe(false)
+    // Calling any mutation on the stub should throw a descriptive error,
+    // not crash the view.
+    expect(draft.addItem('prod-1', 1)).rejects.toThrow(/No quotation id available/)
   })
 
   it('exposes reactive isMutating aggregated flag', () => {
