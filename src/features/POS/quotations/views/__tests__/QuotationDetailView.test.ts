@@ -852,3 +852,219 @@ describe('QuotationDetailView — cancel dialog (S7)', () => {
     expect(wrapper.find('[data-testid="quotation-cancel-dialog"]').exists()).toBe(false)
   })
 })
+
+// ─── S8: read-only hardening + lazy EXPIRED detection (REQ-QTN-012) ─────────
+// Per the spec: "SENT/EXPIRED/CANCELLED quotations MUST render without edit
+// controls". These tests pin every single control surface to make sure
+// nothing slips past QA in a future refactor.
+
+const ALL_EDIT_SELECTORS = [
+  '[data-testid="add-product-button"]',
+  '[data-testid="assign-customer-button"]',
+  '[data-testid="apply-manual-promo-button"]',
+  '[data-testid="veto-auto-promo-button"]',
+  '[data-testid="send-button"]',
+  '[data-testid="cancel-button"]',
+] as const
+
+describe('QuotationDetailView — read-only enforcement (REQ-QTN-012 / S8)', () => {
+  it.each([
+    ['SENT', 'SENT'],
+    ['EXPIRED', 'EXPIRED'],
+    ['CANCELLED', 'CANCELLED'],
+  ] as const)('hides every edit control when status is %s', (_label, status) => {
+    state.quotation.value = makeQuotation({ status })
+    const wrapper = mountView()
+
+    for (const selector of ALL_EDIT_SELECTORS) {
+      expect(wrapper.find(selector).exists(), `expected ${selector} to be hidden`).toBe(false)
+    }
+  })
+
+  it('hides the "Agregar producto" button for SENT', () => {
+    state.quotation.value = makeQuotation({ status: 'SENT' })
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="add-product-button"]').exists()).toBe(false)
+  })
+
+  it('hides the "Agregar producto" button for EXPIRED', () => {
+    state.quotation.value = makeQuotation({ status: 'EXPIRED' })
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="add-product-button"]').exists()).toBe(false)
+  })
+
+  it('hides the "Agregar producto" button for CANCELLED', () => {
+    state.quotation.value = makeQuotation({ status: 'CANCELLED' })
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="add-product-button"]').exists()).toBe(false)
+  })
+
+  it('forwards the readonly flag to QuotationItemRow when status is not DRAFT', () => {
+    state.quotation.value = makeQuotation({
+      status: 'SENT',
+      items: [
+        {
+          id: 'item-1',
+          productId: 'product-1',
+          variantId: null,
+          quantity: 1,
+          product: { id: 'product-1', name: 'Playera M', sku: 'SKU-1', imageUrl: null },
+          variant: null,
+          unitPriceCents: 15000,
+          priceSource: 'PRICE_LIST',
+          discountType: null,
+          discountValue: null,
+          discountAmountCents: 0,
+          discountTitle: null,
+          promotionId: null,
+          manuallyAdjusted: false,
+          overrideNote: null,
+          createdAt: '2026-08-01T00:00:00.000Z',
+          updatedAt: '2026-08-01T00:00:00.000Z',
+        },
+      ],
+    })
+    const wrapper = mountView()
+    const row = wrapper.get('[data-testid="quotation-item-row-item-1"]')
+    expect(row.attributes('data-readonly')).toBe('true')
+  })
+
+  it('shows the read-only notice for SENT', () => {
+    state.quotation.value = makeQuotation({ status: 'SENT' })
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="read-only-notice"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Solo lectura')
+  })
+
+  it('shows the read-only notice for EXPIRED', () => {
+    state.quotation.value = makeQuotation({ status: 'EXPIRED' })
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="read-only-notice"]').exists()).toBe(true)
+  })
+
+  it('shows the read-only notice for CANCELLED', () => {
+    state.quotation.value = makeQuotation({ status: 'CANCELLED' })
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="read-only-notice"]').exists()).toBe(true)
+  })
+
+  it('shows the cancel reason when status is CANCELLED (REQ-QTN-012)', () => {
+    state.quotation.value = makeQuotation({
+      status: 'CANCELLED',
+      cancelReason: 'PRICE_OBJECTION',
+      canceledAt: '2026-08-15T10:00:00.000Z',
+    })
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="cancel-reason-banner"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('El cliente rechazó por precio')
+  })
+
+  it('does not show the cancel reason banner for non-CANCELLED statuses', () => {
+    state.quotation.value = makeQuotation({ status: 'SENT' })
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="cancel-reason-banner"]').exists()).toBe(false)
+  })
+
+  it('shows the PDF preview button even in CANCELLED (PDF works for all statuses)', () => {
+    state.quotation.value = makeQuotation({ status: 'CANCELLED' })
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="preview-pdf-button"]').exists()).toBe(true)
+  })
+
+  it('lazy EXPIRED detection renders the EXPIRED badge when status is SENT but expiresAt is in the past', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-10T12:00:00.000Z'))
+    try {
+      state.quotation.value = makeQuotation({
+        status: 'SENT',
+        expiresAt: '2026-08-01T00:00:00.000Z',
+      })
+      const wrapper = mountView()
+      // The header status badge should now reflect the lazy-EXPIRED view,
+      // not the raw server SENT (REQ-QTN-008: client mirror of §7.4).
+      const badge = wrapper.find('[data-testid="status-badge"]')
+      expect(badge.attributes('data-tone')).toBe('warning')
+      expect(badge.text()).toContain('Expirada')
+      // Plus a dedicated notice banner so the cashier understands WHY the
+      // view flipped from SENT (server) to EXPIRED (client).
+      expect(wrapper.find('[data-testid="lazy-expired-notice"]').exists()).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does NOT lazy-EXPIRE SENT quotations with a future expiresAt', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-01T12:00:00.000Z'))
+    try {
+      state.quotation.value = makeQuotation({
+        status: 'SENT',
+        expiresAt: '2026-09-30T12:00:00.000Z',
+      })
+      const wrapper = mountView()
+      const badge = wrapper.find('[data-testid="status-badge"]')
+      expect(badge.text()).toContain('Enviada')
+      expect(wrapper.find('[data-testid="lazy-expired-notice"]').exists()).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does NOT lazy-EXPIRE DRAFT quotations even when expiresAt is past (DRAFT is still editable)', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-10T12:00:00.000Z'))
+    try {
+      state.quotation.value = makeQuotation({
+        status: 'DRAFT',
+        expiresAt: '2026-08-01T00:00:00.000Z',
+      })
+      const wrapper = mountView()
+      const badge = wrapper.find('[data-testid="status-badge"]')
+      expect(badge.text()).toContain('Borrador')
+      expect(wrapper.find('[data-testid="lazy-expired-notice"]').exists()).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('defensive check: skip addItem when the cached status is no longer DRAFT', async () => {
+    state.quotation.value = makeQuotation({ status: 'SENT' })
+
+    const wrapper = mountView()
+    // In SENT mode the "Agregar producto" button is gated out of the DOM
+    // entirely — that IS the first-line defense. As an extra layer, the
+    // handler itself early-returns on `!isDraft` so any race-driven
+    // invocation (e.g. Vue lifecycle on cache flip) doesn't fire a
+    // mutation. We verify the button is hidden + no mutation was ever
+    // called.
+    expect(wrapper.find('[data-testid="add-product-button"]').exists()).toBe(false)
+    await flushPromises()
+    expect(state.addItem).not.toHaveBeenCalled()
+  })
+
+  it('defensive check: do not call sendQuotation / cancelQuotation when status is not DRAFT', async () => {
+    state.quotation.value = makeQuotation({ status: 'CANCELLED' })
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="send-button"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="cancel-button"]').exists()).toBe(false)
+    expect(state.sendQuotation).not.toHaveBeenCalled()
+    expect(state.cancelQuotation).not.toHaveBeenCalled()
+  })
+
+  it('renders a NOT FOUND error surface when the detail query reports 404', async () => {
+    state.quotation.value = undefined
+    state.isError.value = true
+    state.error.value = { response: { status: 404 } }
+    state.createDraft.mockRejectedValueOnce(new Error('not found'))
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    // The view shows the standard "no se pudo cargar" surface. Future polish
+    // could differentiate 404 from generic error; the contract is that the
+    // user sees an actionable error, not a stack trace.
+    expect(wrapper.find('[data-testid="detail-error"]').exists()).toBe(true)
+  })
+})

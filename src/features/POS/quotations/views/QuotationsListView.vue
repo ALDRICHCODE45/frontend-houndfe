@@ -29,7 +29,7 @@ import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { QUOTATION_STATUS } from '../constants/quotation.constants'
 import type { QuotationStatus } from '../interfaces/quotation.types'
-import { statusToTone, statusToLabel } from '../utils/quotation.utils'
+import { isExpired, statusToTone, statusToLabel } from '../utils/quotation.utils'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { useQuotationsList, type QuotationStatusFilter } from '../composables/useQuotationsList'
 import type { QuotationResponseDto } from '../interfaces/quotation.types'
@@ -132,6 +132,26 @@ function customerName(quotation: QuotationResponseDto): string {
   if (!c) return 'Sin cliente'
   const full = `${c.firstName} ${c.lastName ?? ''}`.trim()
   return full || 'Sin cliente'
+}
+
+// ── S8: lazy EXPIRED detection (REQ-QTN-008 / backend §7.4) ────────────────
+// The backend flips SENT → EXPIRED on the next read, not on a cron. Until
+// the cache catches up, a SENT row whose `expiresAt` is in the past should
+// display as EXPIRED here too — otherwise the cashier would have to refresh
+// the page to find out. DRAFT never lazy-expires.
+function effectiveStatus(quotation: QuotationResponseDto): QuotationStatus {
+  if (quotation.status === 'SENT' && isExpired(quotation)) {
+    return 'EXPIRED'
+  }
+  return quotation.status
+}
+
+function rowStatusTone(quotation: QuotationResponseDto): ReturnType<typeof statusToTone> {
+  return statusToTone(effectiveStatus(quotation))
+}
+
+function rowStatusLabel(quotation: QuotationResponseDto): string {
+  return statusToLabel(effectiveStatus(quotation))
 }
 
 function formatExpiryDate(iso: string | null): string {
@@ -321,11 +341,14 @@ const errorMessage = computed(() => {
         </UButton>
       </template>
 
-      <!-- Estado cell: StatusDotBadge with QUOTATION_STATUS_TONE -->
+      <!-- Estado cell: StatusDotBadge with QUOTATION_STATUS_TONE.
+           S8: status is resolved through `effectiveStatus()` so a SENT row
+           whose cached expiresAt is past flips to EXPIRED locally — see
+           the comment above the helper for the rationale. -->
       <template #estado-cell="{ row }">
         <StatusDotBadge
-          :tone="statusToTone(row.original.status as QuotationStatus)"
-          :label="statusToLabel(row.original.status as QuotationStatus)"
+          :tone="rowStatusTone(row.original)"
+          :label="rowStatusLabel(row.original)"
           compact
         />
       </template>

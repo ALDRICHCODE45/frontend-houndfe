@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
- * `QuotationItemRow.vue` — S5 / REQ-QTN-005 / REQ-QTN-006.
+ * `QuotationItemRow.vue` — S5 / S8.
  *
- * Single horizontal item card rendered inside the quotation draft editor.
+ * Single horizontal item card rendered inside the quotation detail view.
  * Mirrors the "compact card" layout that `SaleItemRow.vue` standardized
  * for the POS sales module but adapted to the quotation DTO shape:
  *   - product image · product name + SKU · variant chip · unit price ·
@@ -12,16 +12,16 @@
  * Read-only: when `readonly=true` (SENT/EXPIRED/CANCELLED), all editing
  * affordances disappear; the card becomes a pure read-only row.
  *
- * Parent contract (props down / events up):
- *   - Props: `item` (QuotationItemResponseDto), `readonly` (bool).
- *   - Emits: `update-quantity`, `override-price`, `request-remove`. The
- *     view listens for `request-remove` and opens the ConfirmModal — the
- *     row itself never mutates state.
+ * S8: stock badge. `useQuotationItemStock(item.productId)` is invoked
+ * reactively here so each row hydrates its own stock chip; TanStack
+ * de-dupes concurrent fetches for the same productId via the shared
+ * `productQueryKeys.detail(tenantId, productId)` cache slot.
  *
- * Stock badges are owned by Slice 8 (S8.2). The component is set up to
- * accept them via slot if a future change lands early.
+ * The stock badge MUST stay purely informational — it never gates any
+ * action (REQ-QTN-013).
  */
-import { computed, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { useQuotationItemStock } from '../composables/useQuotationItemStock'
 import type { QuotationItemResponseDto } from '../interfaces/quotation.types'
 import { formatCentsMXN, lineCents } from '../utils/currency.utils'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
@@ -77,6 +77,41 @@ const discountLabel = computed(() => {
   return props.item.discountTitle ? `${props.item.discountTitle} −${cents}` : `−${cents}`
 })
 
+// ── S8: stock badge (REQ-QTN-013) ──────────────────────────────────────────
+// Each row calls `useQuotationItemStock(productId)` reactively — TanStack
+// de-dupes across rows via the shared `productQueryKeys.detail` slot, so a
+// 30-item list only fires one network call per distinct product. The
+// composable returns null when stock is unavailable so the row simply
+// doesn't render the badge — same surface as a non-stocked product.
+const { stock, isAvailable: isStockAvailable } = useQuotationItemStock(
+  () => props.item.productId,
+)
+
+/** Stock badge tone ladder:
+ *    isOut  → error   (zero quantity, "Agotado")
+ *    isLow  → warning (below minQuantity but > 0)
+ *    else   → neutral (informational, never gates actions)
+ * Mirrors the `ProductSearchResultItem` stock chip from sales. */
+const stockBadgeTone = computed<'error' | 'warning' | 'neutral'>(() => {
+  if (!stock.value) return 'neutral'
+  if (stock.value.isOut) return 'error'
+  if (stock.value.isLow) return 'warning'
+  return 'neutral'
+})
+
+const stockBadgeLabel = computed<string | null>(() => {
+  if (!stock.value) return null
+  if (stock.value.isOut) return 'Agotado'
+  return `Stock: ${stock.value.quantity}`
+})
+
+const stockBadgeIcon = computed<string | undefined>(() => {
+  if (!stock.value) return undefined
+  if (stock.value.isOut) return 'i-lucide-package-x'
+  if (stock.value.isLow) return 'i-lucide-package-minus'
+  return 'i-lucide-package'
+})
+
 // ── Quantity stepper handlers ────────────────────────────────────────────────
 
 function emitQuantity(next: number): void {
@@ -122,8 +157,6 @@ function syncFromProp() {
 
 // Vue 3 watch via effectScope: keep this simple — re-sync whenever the prop
 // changes (the parent's value is the source of truth).
-const stopSync = ref<(() => void) | null>(null)
-import { watch, onBeforeUnmount } from 'vue'
 const unwatch = watch(
   () => props.item.quantity,
   () => syncFromProp(),
@@ -280,6 +313,13 @@ function handleImageError(): void {
 
     <!-- Badge row (full-width, sits below the card) -->
     <div class="basis-full flex flex-wrap items-center gap-1 pt-1">
+      <AppBadge
+        v-if="isStockAvailable && stockBadgeLabel"
+        :tone="stockBadgeTone"
+        :icon="stockBadgeIcon"
+        :label="stockBadgeLabel"
+        data-testid="stock-badge"
+      />
       <AppBadge
         v-if="isCustomPrice"
         tone="warning"

@@ -478,3 +478,92 @@ describe('QuotationsListView — empty state (REQ-QTN-016)', () => {
     expect(table.attributes('data-empty')).toContain('No hay cotizaciones')
   })
 })
+
+// ─── S8: lazy EXPIRED detection (REQ-QTN-008 / backend §7.4) ────────────────
+// The backend lazily flips SENT → EXPIRED on the next read, not on a cron.
+// Until the cache catches up, the list view should display the row under the
+// "EXPIRED" state when its cached `status === 'SENT'` but its cached
+// `expiresAt` is already in the past. The status label is rendered inside
+// the `estado-cell` slot — we assert on that slice to avoid noise from the
+// static tab bar ("Expiradas") or other labels.
+
+describe('QuotationsListView — lazy EXPIRED detection (REQ-QTN-008 / S8.4)', () => {
+  function rowBadgeText(wrapper: ReturnType<typeof mount>, rowId: string): string {
+    const row = wrapper.find(`[data-testid="row-${rowId}"]`)
+    return row.text()
+  }
+
+  it('renders a SENT row whose expiresAt is in the past with the EXPIRED badge', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-10T12:00:00.000Z'))
+    try {
+      composableState.quotations.value = [
+        makeQuotation({
+          id: 'qtn-stale',
+          status: 'SENT',
+          expiresAt: '2026-08-01T00:00:00.000Z', // 9 days in the past
+        }),
+      ]
+
+      const wrapper = mount(QuotationsListView, { global: { stubs } })
+      expect(wrapper.find('[data-testid="row-qtn-stale"]').exists()).toBe(true)
+      expect(rowBadgeText(wrapper, 'qtn-stale')).toContain('Expirada')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('keeps a SENT row as SENT when expiresAt is still in the future', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-01T12:00:00.000Z'))
+    try {
+      composableState.quotations.value = [
+        makeQuotation({
+          id: 'qtn-future',
+          status: 'SENT',
+          expiresAt: '2026-09-30T12:00:00.000Z',
+        }),
+      ]
+
+      const wrapper = mount(QuotationsListView, { global: { stubs } })
+      expect(rowBadgeText(wrapper, 'qtn-future')).toContain('Enviada')
+      expect(rowBadgeText(wrapper, 'qtn-future')).not.toContain('Expirada')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not lazy-EXPIRE DRAFT rows (DRAFT never auto-transitions to EXPIRED)', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-10T12:00:00.000Z'))
+    try {
+      composableState.quotations.value = [
+        makeQuotation({
+          id: 'qtn-draft-stale',
+          status: 'DRAFT',
+          expiresAt: '2026-08-01T00:00:00.000Z',
+        }),
+      ]
+
+      const wrapper = mount(QuotationsListView, { global: { stubs } })
+      expect(rowBadgeText(wrapper, 'qtn-draft-stale')).toContain('Borrador')
+      expect(rowBadgeText(wrapper, 'qtn-draft-stale')).not.toContain('Expirada')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not lazy-EXPIRE SENT rows that have no expiresAt (never-expires)', () => {
+    composableState.quotations.value = [
+      makeQuotation({
+        id: 'qtn-never-expires',
+        status: 'SENT',
+        expiresAt: null,
+      }),
+    ]
+
+    const wrapper = mount(QuotationsListView, { global: { stubs } })
+    expect(rowBadgeText(wrapper, 'qtn-never-expires')).toContain('Enviada')
+    expect(rowBadgeText(wrapper, 'qtn-never-expires')).not.toContain('Expirada')
+  })
+})

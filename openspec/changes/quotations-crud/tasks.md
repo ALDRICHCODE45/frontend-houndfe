@@ -125,10 +125,10 @@ Numerical order. S1 unlocks all; S3/S4 fork list/detail; S5-S7 detail vertical; 
 
 ## Slice 8 — Stock + read-only + EXPIRED (REQs 012, 013 full) — ~280 lines
 
-- [ ] 8.1 TDD `useQuotationItemStock(productId)` — `useQuery`, `staleTime: 60_000`; advisory tone (warning for low/zero) (NEW)
-- [ ] 8.2 `QuotationItemRow` — render `AppBadge` stock badge (NEVER gates actions) (MOD)
-- [ ] 8.3 View: `status !== 'DRAFT'` → hide edit controls (qty, override, remove, send, cancel); keep PDF (MOD)
-- [ ] 8.4 `status === 'CANCELLED'` → show `cancelReason`; `status === 'SENT' && expiresAt < now` → EXPIRED badge (client check)
-- [ ] 8.5 Permission gates: `canRead` baseline; `canUpdate` gates edit; `canCreate` gates new button
+- [x] 8.1 TDD `useQuotationItemStock(productId)` — `useQuery`, `staleTime: 60_000`; advisory tone (warning for low/zero) (NEW)
+- [x] 8.2 `QuotationItemRow` — render `AppBadge` stock badge (NEVER gates actions) (MOD)
+- [x] 8.3 View: `status !== 'DRAFT'` → hide edit controls (qty, override, remove, send, cancel); keep PDF (MOD)
+- [x] 8.4 `status === 'CANCELLED'` → show `cancelReason`; `status === 'SENT' && expiresAt < now` → EXPIRED badge (client check)
+- [x] 8.5 Permission gates: `canRead` baseline; `canUpdate` gates edit; `canCreate` gates new button
 - **Files**: 1 NEW + 2 MOD. **Verify**: `pnpm test:unit` + `pnpm build` + full lifecycle (DRAFT→SENT→EXPIRED via lazy, DRAFT→CANCELLED with reason).
 - **Commit**: `feat(quotations): add stock badges, read-only mode, and lazy EXPIRED detection`

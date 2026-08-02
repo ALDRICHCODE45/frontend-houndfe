@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { computed } from 'vue'
 import QuotationItemRow from '../QuotationItemRow.vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
 import type { QuotationItemResponseDto } from '../../interfaces/quotation.types'
@@ -247,5 +248,117 @@ describe('QuotationItemRow price override', () => {
   it('hides the price override button when readonly is true', () => {
     const wrapper = mountRow(makeItem(), true)
     expect(wrapper.find('[data-testid="price-override-button"]').exists()).toBe(false)
+  })
+})
+
+// ─── S8: stock badges (REQ-QTN-013) ─────────────────────────────────────────
+// Stock data is fetched lazily via `useQuotationItemStock(item.productId)`.
+// The composable is mocked at the module level here so we can drive the
+// rendered badge from the composable's return shape. The composable itself
+// has its own dedicated test file.
+
+const stockApiMock = vi.hoisted(() => ({
+  // Mutable in each test via setStock()/clearStock().
+  current: { stock: null, isAvailable: false, isError: false } as {
+    stock: null | { quantity: number; minQuantity: number; isLow: boolean; isOut: boolean }
+    isAvailable: boolean
+    isError: boolean
+  },
+}))
+
+vi.mock('../../composables/useQuotationItemStock', () => ({
+  useQuotationItemStock: () => ({
+    stock: computed(() => stockApiMock.current.stock),
+    isAvailable: computed(() => stockApiMock.current.isAvailable),
+    isError: computed(() => stockApiMock.current.isError),
+  }),
+}))
+
+function setStock(quantity: number, minQuantity = 0): void {
+  stockApiMock.current = {
+    stock: { quantity, minQuantity, isLow: quantity <= minQuantity && quantity > 0, isOut: quantity <= 0 },
+    isAvailable: true,
+    isError: false,
+  }
+}
+
+function setUseStockFalse(): void {
+  stockApiMock.current = { stock: null, isAvailable: false, isError: false }
+}
+
+function setStockError(): void {
+  stockApiMock.current = { stock: null, isAvailable: false, isError: true }
+}
+
+describe('QuotationItemRow stock badge (REQ-QTN-013 / S8.2)', () => {
+  beforeEach(() => {
+    setStockError() // default: nothing on the wire yet → no badge
+  })
+
+  it('does not render a stock badge when no stock data is hydrated yet', () => {
+    const wrapper = mountRow(makeItem())
+    expect(wrapper.find('[data-testid="stock-badge"]').exists()).toBe(false)
+  })
+
+  it('does not render a stock badge when useStock is false (informational only)', () => {
+    setUseStockFalse()
+    const wrapper = mountRow(makeItem())
+    expect(wrapper.find('[data-testid="stock-badge"]').exists()).toBe(false)
+  })
+
+  it('renders a "Stock: 12" badge when stock data is available and quantity > 0', () => {
+    setStock(12, 3)
+    const wrapper = mountRow(makeItem())
+
+    const badge = wrapper.find('[data-testid="stock-badge"]')
+    expect(badge.exists()).toBe(true)
+    expect(badge.text()).toContain('Stock: 12')
+    // Neutral / muted tone — never blocks actions
+    expect(badge.attributes('data-tone')).not.toBe('error')
+    expect(badge.attributes('data-tone')).not.toBe('warning')
+  })
+
+  it('renders "Agotado" when stock quantity is zero', () => {
+    setStock(0, 0)
+    const wrapper = mountRow(makeItem())
+
+    const badge = wrapper.find('[data-testid="stock-badge"]')
+    expect(badge.exists()).toBe(true)
+    expect(badge.text()).toContain('Agotado')
+  })
+
+  it('renders the stock badge with warning tone when stock is low but not zero', () => {
+    setStock(2, 5)
+    const wrapper = mountRow(makeItem())
+
+    const badge = wrapper.find('[data-testid="stock-badge"]')
+    expect(badge.exists()).toBe(true)
+    expect(badge.text()).toContain('Stock: 2')
+    expect(badge.attributes('data-tone')).toBe('warning')
+  })
+
+  it('renders the stock badge with error tone when stock is zero', () => {
+    setStock(0, 1)
+    const wrapper = mountRow(makeItem())
+
+    const badge = wrapper.find('[data-testid="stock-badge"]')
+    expect(badge.exists()).toBe(true)
+    expect(badge.attributes('data-tone')).toBe('error')
+  })
+
+  it('renders the stock badge even in readonly mode (purely informational)', () => {
+    setStock(7, 1)
+    const wrapper = mountRow(makeItem(), true)
+    expect(wrapper.find('[data-testid="stock-badge"]').exists()).toBe(true)
+  })
+
+  it('does NOT disable any control when stock is zero (badge never gates actions)', () => {
+    setStock(0, 0)
+    const wrapper = mountRow(makeItem({ quantity: 2 }), false)
+
+    expect(wrapper.find('[data-testid="quantity-increase"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="quantity-decrease"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="remove-item-button"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="price-override-button"]').exists()).toBe(true)
   })
 })

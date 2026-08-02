@@ -7,6 +7,7 @@ import PriceListSelector from '@/features/POS/sales/components/PriceListSelector
 import ProductSearchPanel from '@/features/POS/sales/components/ProductSearchPanel.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import {
+  CANCEL_REASON_LABEL,
   QUOTATION_STATUS_LABEL,
   QUOTATION_STATUS_TONE,
 } from '../constants/quotation.constants'
@@ -20,6 +21,7 @@ import QuotationTotalsFooter from '../components/QuotationTotalsFooter.vue'
 import QuotationSendDialog from '../components/QuotationSendDialog.vue'
 import QuotationCancelDialog from '../components/QuotationCancelDialog.vue'
 import { formatCentsMXN } from '../utils/currency.utils'
+import { isExpired, statusToLabel, statusToTone } from '../utils/quotation.utils'
 
 declare const useToast: () => {
   add: (options: {
@@ -62,10 +64,44 @@ const draft = useQuotationDraft(quotationId)
 
 const isDraft = computed(() => quotation.value?.status === 'DRAFT')
 const folio = computed(() => quotation.value?.id.slice(0, 8) ?? 'Nueva')
+
+// ── S8: lazy EXPIRED detection (REQ-QTN-008 / backend §7.4) ────────────────
+// The backend only flips SENT → EXPIRED on the next read. Until the cache
+// catches up, the view can mirror that transition locally. DRAFT is never
+// lazy-expired (the cashier can still edit it). The transition is purely
+// visual — we never persist it.
+const isLazyExpired = computed(() => {
+  const q = quotation.value
+  if (!q || q.status !== 'SENT') return false
+  return isExpired(q)
+})
+
+/** Status badge tone/label: prefer the lazy-EXPIRED view when applicable. */
+const headerStatus = computed(() => {
+  const q = quotation.value
+  if (!q) return null
+  if (isLazyExpired.value) {
+    return { tone: QUOTATION_STATUS_TONE.EXPIRED, label: QUOTATION_STATUS_LABEL.EXPIRED }
+  }
+  return { tone: statusToTone(q.status), label: statusToLabel(q.status) }
+})
+
 const customerName = computed(() => {
   const customer = quotation.value?.customer
   if (!customer) return ''
   return [customer.firstName, customer.lastName].filter(Boolean).join(' ')
+})
+
+const cancelReasonLabel = computed<string | null>(() => {
+  const reason = quotation.value?.cancelReason
+  if (!reason) return null
+  return CANCEL_REASON_LABEL[reason] ?? null
+})
+
+const canceledAtFormatted = computed<string | null>(() => {
+  const at = quotation.value?.canceledAt
+  if (!at) return null
+  return formatDate(at)
 })
 
 const dateFormatter = new Intl.DateTimeFormat('es-MX', {
@@ -82,11 +118,13 @@ function goBack(): void {
 }
 
 async function handleCustomerSelected(customerId: string): Promise<void> {
+  if (!isDraft.value) return // defense-in-depth — UI also hides the button
   await assignCustomer(customerId)
   isAssignCustomerOpen.value = false
 }
 
 async function handlePriceListChange(globalPriceListId: string | null): Promise<void> {
+  if (!isDraft.value) return
   await changePriceList(globalPriceListId)
 }
 
@@ -100,6 +138,7 @@ async function handleAddProduct(
   productId: string,
   variantId: string | null,
 ): Promise<void> {
+  if (!isDraft.value) return // defense-in-depth
   await draft.addItem(productId, 1, variantId ?? undefined)
 }
 
@@ -107,6 +146,7 @@ async function handleUpdateQuantity(
   itemId: string,
   quantity: number,
 ): Promise<void> {
+  if (!isDraft.value) return
   await draft.updateQuantity(itemId, quantity)
 }
 
@@ -128,6 +168,10 @@ function handleRemoveCancel(): void {
 }
 
 async function handleRemoveConfirm(): Promise<void> {
+  if (!isDraft.value) {
+    pendingRemoveItemId.value = null
+    return
+  }
   const itemId = pendingRemoveItemId.value
   pendingRemoveItemId.value = null
   if (!itemId) return
@@ -138,6 +182,7 @@ async function handleOverridePrice(
   itemId: string,
   unitPriceCents: number,
 ): Promise<void> {
+  if (!isDraft.value) return
   // Slice 5 commits the override value as-is (the row passes back the
   // current unit price when the cashier clicks the pencil). Slice 8/9 can
   // upgrade this to a dedicated modal without changing the public contract.
@@ -152,6 +197,7 @@ const vetoedPromotionIds = computed(() => quotation.value?.vetoedPromotionIds ??
 /** Two-way binding shim for the expiry picker — the picker emits ISO/null,
  *  the composable owns the cache invalidation + toast. */
 function handleExpiryUpdate(value: string | null): void {
+  if (!isDraft.value) return
   if (value === null) {
     void draft.clearExpiry()
     return
@@ -160,10 +206,12 @@ function handleExpiryUpdate(value: string | null): void {
 }
 
 async function handleRemoveManualPromo(promotionId: string): Promise<void> {
+  if (!isDraft.value) return
   await draft.removeManualPromotion(promotionId)
 }
 
 async function handleUnvetoPromotion(promotionId: string): Promise<void> {
+  if (!isDraft.value) return
   await draft.unvetoPromotion(promotionId)
 }
 
@@ -175,6 +223,10 @@ const applyManualPromoInput = ref('')
 const vetoAutoPromoInput = ref('')
 
 async function handleApplyManualPromoSubmit(): Promise<void> {
+  if (!isDraft.value) {
+    applyManualPromoInput.value = ''
+    return
+  }
   const trimmed = applyManualPromoInput.value.trim()
   if (!trimmed) return
   await draft.applyManualPromotion(trimmed)
@@ -182,6 +234,10 @@ async function handleApplyManualPromoSubmit(): Promise<void> {
 }
 
 async function handleVetoAutoPromoSubmit(): Promise<void> {
+  if (!isDraft.value) {
+    vetoAutoPromoInput.value = ''
+    return
+  }
   const trimmed = vetoAutoPromoInput.value.trim()
   if (!trimmed) return
   await draft.vetoPromotion(trimmed)
@@ -277,10 +333,12 @@ const isSendDialogOpen = ref(false)
 const isCancelDialogOpen = ref(false)
 
 function openSendDialog(): void {
+  if (!isDraft.value) return
   isSendDialogOpen.value = true
 }
 
 function openCancelDialog(): void {
+  if (!isDraft.value) return
   isCancelDialogOpen.value = true
 }
 
@@ -293,10 +351,12 @@ function handleCancelDialogClose(): void {
 }
 
 async function handleSend(email: boolean): Promise<void> {
+  if (!isDraft.value) return
   await draft.sendQuotation(email)
 }
 
 async function handleCancel(reason: Parameters<typeof draft.cancelQuotation>[0]): Promise<void> {
+  if (!isDraft.value) return
   await draft.cancelQuotation(reason)
 }
 
@@ -350,9 +410,11 @@ onMounted(async () => {
           </h1>
           <div v-if="quotation" class="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted">
             <StatusDotBadge
-              :label="QUOTATION_STATUS_LABEL[quotation.status]"
-              :tone="QUOTATION_STATUS_TONE[quotation.status]"
+              v-if="headerStatus"
+              :label="headerStatus.label"
+              :tone="headerStatus.tone"
               compact
+              data-testid="status-badge"
             />
             <span v-if="quotation.expiresAt">Expira {{ formatDate(quotation.expiresAt) }}</span>
             <span v-else>Sin fecha de expiración</span>
@@ -673,6 +735,37 @@ onMounted(async () => {
            "Solo lectura" notice above this for clarity. -->
       <QuotationTotalsFooter :quotation="quotation" />
 
+      <!-- S8 — CANCELLED detail banner (REQ-QTN-012). The backend stamps the
+           cancel reason; we surface it as a permanent notice so any saved
+           PDF copy / later access makes the cancellation traceable. -->
+      <section
+        v-if="quotation?.status === 'CANCELLED' && cancelReasonLabel"
+        class="rounded-xl border border-error/40 bg-error/5 p-4 text-sm text-error"
+        data-testid="cancel-reason-banner"
+      >
+        <p class="font-semibold">Cotización cancelada</p>
+        <p class="mt-1 text-error/80">
+          {{ cancelReasonLabel }}<span v-if="canceledAtFormatted"> · {{ canceledAtFormatted }}</span>
+        </p>
+      </section>
+
+      <!-- S8 — lazy EXPIRED banner (REQ-QTN-008 / backend §7.4). Shown when
+           the cached status is still SENT but `expiresAt < now`. We never
+           persist this — the next GET will return status=EXPIRED for real. -->
+      <section
+        v-if="isLazyExpired"
+        class="rounded-xl border border-warning/40 bg-warning/5 p-4 text-sm text-warning"
+        data-testid="lazy-expired-notice"
+      >
+        <p class="font-semibold">Cotización expirada (vista)</p>
+        <p class="mt-1 text-warning/80">
+          El servidor aún la reporta como Enviada. Esta cotización pasó a Expirada al cruzar la fecha límite y se mostrará así la próxima vez que el sistema la recargue.
+        </p>
+      </section>
+
+      <!-- S8 — generic read-only banner. Placed BELOW the more specific
+           EXPIRED / CANCELLED banners so the cashier sees the *reason* the
+           view is read-only first, and the generic notice second. -->
       <section
         v-if="!isDraft"
         class="rounded-xl border border-default bg-elevated p-5 text-sm text-muted"
