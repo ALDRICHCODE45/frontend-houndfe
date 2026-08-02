@@ -85,7 +85,7 @@ describe('quotationApi', () => {
       }
       const response: PaginatedQuotations = {
         data: [mockQuotation({ id: 'q-1' })],
-        meta: { page: 1, limit: 20, total: 1, totalPages: 1 },
+        pagination: { page: 1, limit: 20, total: 1, totalPages: 1 },
       }
       vi.mocked(http.get).mockResolvedValue({ data: response })
 
@@ -93,13 +93,13 @@ describe('quotationApi', () => {
 
       expect(http.get).toHaveBeenCalledWith('/quotations', { params })
       expect(result.data).toHaveLength(1)
-      expect(result.meta.total).toBe(1)
+      expect(result.pagination.total).toBe(1)
     })
 
     it('passes an empty params object when no filters are provided', async () => {
       const response: PaginatedQuotations = {
         data: [],
-        meta: { page: 1, limit: 20, total: 0, totalPages: 0 },
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
       }
       vi.mocked(http.get).mockResolvedValue({ data: response })
 

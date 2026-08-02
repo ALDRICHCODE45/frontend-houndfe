@@ -138,8 +138,8 @@ export function useQuotationsList(options: UseQuotationsListOptions = {}) {
 
   // ── Derived data ───────────────────────────────────────────────────────────
   const quotations = computed<QuotationResponseDto[]>(() => queryData.value?.data ?? [])
-  const total = computed(() => queryData.value?.meta.total ?? 0)
-  const totalPages = computed(() => queryData.value?.meta.totalPages ?? 0)
+  const total = computed(() => queryData.value?.pagination.total ?? 0)
+  const totalPages = computed(() => queryData.value?.pagination.totalPages ?? 0)
 
   // ── Actions ────────────────────────────────────────────────────────────────
   function setStatus(next: QuotationStatusFilter): void {

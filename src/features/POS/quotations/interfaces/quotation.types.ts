@@ -124,7 +124,7 @@ export interface QuotationListParams {
 
 // ─── Paginated envelope ───────────────────────────────────────────────────────
 
-export interface PaginatedQuotationsMeta {
+export interface PaginatedQuotationsPagination {
   page: number
   limit: number
   total: number
@@ -133,5 +133,5 @@ export interface PaginatedQuotationsMeta {
 
 export interface PaginatedQuotations {
   data: QuotationResponseDto[]
-  meta: PaginatedQuotationsMeta
+  pagination: PaginatedQuotationsPagination
 }

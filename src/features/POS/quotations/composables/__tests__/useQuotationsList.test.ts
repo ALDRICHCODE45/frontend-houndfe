@@ -83,15 +83,15 @@ function makeQuotation(overrides: Partial<QuotationResponseDto> = {}): Quotation
 
 function makePageResponse(
   data: QuotationResponseDto[],
-  meta: { page?: number; limit?: number; total?: number; totalPages?: number } = {},
+  pagination: { page?: number; limit?: number; total?: number; totalPages?: number } = {},
 ): PaginatedQuotations {
   return {
     data,
-    meta: {
-      page: meta.page ?? 1,
-      limit: meta.limit ?? 10,
-      total: meta.total ?? data.length,
-      totalPages: meta.totalPages ?? 1,
+    pagination: {
+      page: pagination.page ?? 1,
+      limit: pagination.limit ?? 10,
+      total: pagination.total ?? data.length,
+      totalPages: pagination.totalPages ?? 1,
     },
   }
 }
@@ -292,7 +292,7 @@ describe('useQuotationsList — TanStack Query wiring (S3 / REQ-QTN-002)', () =>
     expect(quotations.value[0]?.id).toBe('a')
   })
 
-  it('exposes total and totalPages from the meta envelope', async () => {
+  it('exposes total and totalPages from the pagination envelope', async () => {
     await setupQueryReturn(makePageResponse([], { total: 47, totalPages: 5 }))
 
     const { total, totalPages } = useQuotationsList()

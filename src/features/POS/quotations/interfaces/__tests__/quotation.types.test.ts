@@ -305,24 +305,24 @@ describe('quotation.types', () => {
   })
 
   describe('PaginatedQuotations interface', () => {
-    it('constructs a paginated response with data + meta', () => {
+    it('constructs a paginated response with data + pagination', () => {
       const page: PaginatedQuotations = {
         data: [],
-        meta: { page: 1, limit: 20, total: 0, totalPages: 0 },
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
       }
 
       expect(page.data).toEqual([])
-      expect(page.meta.page).toBe(1)
-      expect(page.meta.total).toBe(0)
+      expect(page.pagination.page).toBe(1)
+      expect(page.pagination.total).toBe(0)
     })
 
     it('computes totalPages from total + limit', () => {
       const page: PaginatedQuotations = {
         data: [],
-        meta: { page: 1, limit: 20, total: 50, totalPages: 3 },
+        pagination: { page: 1, limit: 20, total: 50, totalPages: 3 },
       }
 
-      expect(page.meta.totalPages).toBe(Math.ceil(page.meta.total / page.meta.limit))
+      expect(page.pagination.totalPages).toBe(Math.ceil(page.pagination.total / page.pagination.limit))
     })
   })
 })

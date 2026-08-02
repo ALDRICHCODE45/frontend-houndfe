@@ -53,7 +53,7 @@ export function useQuotationDetail(
           return {
             ...page,
             data: [updated, ...page.data],
-            meta: { ...page.meta, total: page.meta.total + 1 },
+            pagination: { ...page.pagination, total: page.pagination.total + 1 },
           }
         }
         return {
