@@ -135,16 +135,20 @@ export function useQuotationDraft(
 
   /**
    * Replace the detail cache + every cached list page with the backend's
-   * response (REQ-QTN-015). After writing the cache, also invalidate the
+   * response (REQ-QTN-015). After writing the cache, force-refetch the
    * active detail query so `useQuotationDetail`'s `useQuery` picks up
-   * the new data even if the cache key resolution differs at runtime.
+   * the new data regardless of stale-time or cache-key resolution.
    */
-  function updateCaches(updated: QuotationResponseDto, addToList = false): void {
+  async function updateCaches(updated: QuotationResponseDto, addToList = false): Promise<void> {
     const detailKey = quotationQueryKeys.detail(tenantId.value, updated.id)
+    const listKeyPart = listKey.value
+
+    // 1. Write the optimistic cache so the UI snaps immediately if the key matches.
     queryClient.setQueryData(detailKey, updated)
-    queryClient.invalidateQueries({ queryKey: detailKey })
+
+    // 2. Update every cached list page.
     queryClient.setQueriesData<PaginatedQuotations>(
-      { queryKey: listKey.value },
+      { queryKey: listKeyPart },
       (page) => {
         if (!page) return page
         const exists = page.data.some((quotation) => quotation.id === updated.id)
@@ -163,6 +167,11 @@ export function useQuotationDraft(
         }
       },
     )
+
+    // 3. Force-refetch the active detail query so the UI receives the
+    //    authoritative data from the backend, even if the cache key
+    //    computed by useQuotationDetail differs at runtime.
+    await queryClient.refetchQueries({ queryKey: detailKey })
   }
 
   // ─── addItem (REQ-QTN-005 / backend §3.7) ──────────────────────────────────

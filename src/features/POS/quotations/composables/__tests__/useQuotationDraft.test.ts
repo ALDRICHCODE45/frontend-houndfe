@@ -7,6 +7,7 @@ const queryClientMock = {
   setQueryData: vi.fn(),
   setQueriesData: vi.fn(),
   invalidateQueries: vi.fn().mockResolvedValue(undefined),
+  refetchQueries: vi.fn().mockResolvedValue(undefined),
 }
 const routerReplace = vi.fn().mockResolvedValue(undefined)
 const toastAdd = vi.fn()
