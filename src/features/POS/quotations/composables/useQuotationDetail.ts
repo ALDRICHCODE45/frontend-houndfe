@@ -40,10 +40,9 @@ export function useQuotationDetail(
     updated: QuotationResponseDto,
     addToList = false,
   ): void {
-    queryClient.setQueryData(
-      quotationQueryKeys.detail(tenantId.value, updated.id),
-      updated,
-    )
+    const detailKey = quotationQueryKeys.detail(tenantId.value, updated.id)
+    queryClient.setQueryData(detailKey, updated)
+    queryClient.invalidateQueries({ queryKey: detailKey })
     queryClient.setQueriesData<PaginatedQuotations>(
       { queryKey: listKey.value },
       (page) => {

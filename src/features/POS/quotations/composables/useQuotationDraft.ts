@@ -135,12 +135,14 @@ export function useQuotationDraft(
 
   /**
    * Replace the detail cache + every cached list page with the backend's
-   * response (REQ-QTN-015). Mirrors `useQuotationDetail`'s helper exactly so
-   * a single helper would be a logical next refactor; kept private here so
-   * this slice stays self-contained.
+   * response (REQ-QTN-015). After writing the cache, also invalidate the
+   * active detail query so `useQuotationDetail`'s `useQuery` picks up
+   * the new data even if the cache key resolution differs at runtime.
    */
   function updateCaches(updated: QuotationResponseDto, addToList = false): void {
-    queryClient.setQueryData(quotationQueryKeys.detail(tenantId.value, updated.id), updated)
+    const detailKey = quotationQueryKeys.detail(tenantId.value, updated.id)
+    queryClient.setQueryData(detailKey, updated)
+    queryClient.invalidateQueries({ queryKey: detailKey })
     queryClient.setQueriesData<PaginatedQuotations>(
       { queryKey: listKey.value },
       (page) => {

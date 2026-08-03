@@ -820,12 +820,13 @@ onMounted(async () => {
         :open="isProductSearchOpen"
         side="right"
         inset
+        :ui="{ content: '!max-w-xl' }"
         @update:open="(value: boolean) => { if (!value) isProductSearchOpen = false }"
       >
         <template #title>Buscar productos</template>
         <template #body>
           <ProductSearchPanel
-            class="h-full"
+            class="h-full product-search-panel--two-cols"
             data-testid="product-search-panel"
             @add-product="handleAddProduct"
           />
@@ -834,3 +835,12 @@ onMounted(async () => {
     </template>
   </section>
 </template>
+
+<style scoped>
+/* Force 2-column grid inside the product search slideover so cards
+   don't crowd each other on the narrower panel (the base grid uses
+   4 cols on md+ which is too cramped). */
+.product-search-panel--two-cols :deep(.grid) {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+</style>
