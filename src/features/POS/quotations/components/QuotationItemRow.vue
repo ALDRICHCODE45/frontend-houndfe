@@ -64,7 +64,7 @@ const unitPriceText = computed(() => formatCentsMXN(props.item.unitPriceCents))
 const lineSubtotalText = computed(() => formatCentsMXN(lineSubtotalCents.value))
 
 /** Display label for the variant badge, if present. */
-const variantName = computed(() => props.item.variant?.name ?? null)
+const variantName = computed(() => props.item.variantName ?? props.item.variant?.name ?? null)
 
 const isCustomPrice = computed(() => props.item.priceSource === 'CUSTOM')
 
@@ -165,6 +165,10 @@ onBeforeUnmount(() => unwatch())
 
 // ── Override / remove handlers ───────────────────────────────────────────────
 
+function handleImageError(): void {
+  imageBroken.value = true
+}
+
 function handleOverride(): void {
   emit('override-price', props.item.id, props.item.unitPriceCents)
 }
@@ -173,9 +177,6 @@ function handleRemove(): void {
   emit('request-remove', props.item.id)
 }
 
-function handleImageError(): void {
-  imageBroken.value = true
-}
 </script>
 
 <template>
@@ -185,20 +186,22 @@ function handleImageError(): void {
     data-testid="quotation-item-row"
     :data-item-id="props.item.id"
   >
-    <!-- LEFT: thumbnail (48px square, mirrors SaleItemRow) -->
+    <!-- LEFT: thumbnail (48px square). Backend returns flat fields without
+         imageUrl; fallback icon is shown unless the test mock provides
+         product.imageUrl. -->
     <div
       class="h-12 w-12 shrink-0 rounded-lg flex items-center justify-center overflow-hidden bg-elevated border border-default"
     >
       <UIcon
-        v-if="!props.item.product.imageUrl || imageBroken"
+        v-if="!props.item.product?.imageUrl || imageBroken"
         name="i-lucide-package"
         class="h-6 w-6 text-muted"
         data-testid="product-fallback-icon"
       />
       <img
         v-else
-        :src="props.item.product.imageUrl ?? ''"
-        :alt="props.item.product.name"
+        :src="props.item.product!.imageUrl!"
+        :alt="props.item.productName || props.item.product!.name"
         class="h-full w-full object-cover"
         loading="lazy"
         data-testid="product-thumbnail"
@@ -209,7 +212,7 @@ function handleImageError(): void {
     <!-- CENTER: stacked info (name → variant · SKU · unit price → qty row → badges) -->
     <div class="flex-1 min-w-0 flex flex-col gap-1">
       <p class="text-sm font-medium text-highlighted truncate" data-testid="product-name">
-        {{ props.item.product.name }}
+        {{ props.item.productName }}
       </p>
 
       <p class="text-[11px] text-muted truncate" data-testid="product-meta">
@@ -217,9 +220,8 @@ function handleImageError(): void {
           v-if="variantName"
           class="uppercase tracking-wide mr-1"
           data-testid="variant-badge"
-        >{{ variantName }}</span>
-        <span class="font-mono">{{ props.item.product.sku }}</span>
-        ·
+        >{{ variantName }} · </span>
+        <span v-if="props.item.product?.sku" class="font-mono">{{ props.item.product.sku }} · </span>
         <span class="font-medium text-toned" data-testid="unit-price">
           {{ unitPriceText }} c/u
         </span>
