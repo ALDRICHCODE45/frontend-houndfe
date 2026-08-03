@@ -282,18 +282,19 @@ describe('QuotationDetailView price list and mode switch', () => {
     expect(wrapper.find('[data-testid="price-list-selector"]').exists()).toBe(true)
   })
 
-  it('shows draft editing controls', () => {
+  it('shows the products section with add-product button in DRAFT', () => {
     const wrapper = mountView()
 
-    expect(wrapper.find('[data-testid="draft-edit-controls"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Agregar productos')
+    expect(wrapper.find('[data-testid="items-section"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Productos')
+    expect(wrapper.find('[data-testid="add-product-button"]').exists()).toBe(true)
   })
 
-  it('hides all edit controls for non-DRAFT quotations', () => {
+  it('hides edit controls for non-DRAFT quotations', () => {
     state.quotation.value = makeQuotation({ status: 'CANCELLED' })
     const wrapper = mountView()
 
-    expect(wrapper.find('[data-testid="draft-edit-controls"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="add-product-button"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="price-list-selector"]').exists()).toBe(false)
     expect(wrapper.text()).toContain('Solo lectura')
   })
@@ -399,12 +400,15 @@ describe('QuotationDetailView items section (S5)', () => {
     expect(wrapper.find('[data-testid="add-product-button"]').exists()).toBe(false)
   })
 
-  it('opens the product search panel when "Agregar producto" is clicked', async () => {
+  it('opens the product search slideover when "Agregar producto" is clicked', async () => {
     const wrapper = mountView()
 
-    expect(wrapper.find('[data-testid="product-search-panel"]').exists()).toBe(false)
+    // ProductSearchPanel is gated behind v-if on the USlideover
+    expect(wrapper.findComponent(ProductSearchPanel).exists()).toBe(false)
     await wrapper.get('[data-testid="add-product-button"]').trigger('click')
-    expect(wrapper.find('[data-testid="product-search-panel"]').exists()).toBe(true)
+    // After click, the slideover mounts and the ProductSearchPanel inside it
+    // becomes findable via findComponent.
+    expect(wrapper.findComponent(ProductSearchPanel).exists()).toBe(true)
   })
 
   it('calls addItem when ProductSearchPanel emits add-product', async () => {

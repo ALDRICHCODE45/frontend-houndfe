@@ -541,35 +541,40 @@ onMounted(async () => {
         />
       </section>
 
-      <!-- S5 — items section. List + add-product affordance in DRAFT;
-           read-only list for every other status. -->
+      <!-- Items section — always visible. The list + add-product affordance
+           in DRAFT; read-only list for every other status. Product search
+           opens in a dedicated slideover (not inline) so the items list is
+           always visible and never hidden behind the search panel. -->
       <section
-        v-if="isDraft"
-        class="flex flex-col gap-4"
-        data-testid="draft-edit-controls"
+        class="flex flex-col gap-4 rounded-xl border border-default bg-default p-5"
+        data-testid="items-section"
       >
         <div class="flex items-center justify-between">
-          <h2 class="text-base font-semibold text-highlighted">Agregar productos</h2>
+          <div>
+            <h2 class="text-base font-semibold text-highlighted">Productos</h2>
+            <p class="mt-0.5 text-xs text-muted">
+              {{ items.length }} {{ items.length === 1 ? 'producto' : 'productos' }}
+            </p>
+          </div>
           <button
             v-if="isDraft"
             type="button"
-            class="inline-flex items-center gap-2 rounded-lg border border-default px-3 py-2 text-sm font-medium hover:bg-elevated"
+            class="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
             data-testid="add-product-button"
             @click="isProductSearchOpen = true"
           >
-            <span aria-hidden="true">＋</span>
+            <UIcon name="i-lucide-plus" class="h-4 w-4" />
             Agregar producto
           </button>
         </div>
-      </section>
 
-      <section class="flex flex-col gap-4" data-testid="items-section">
         <p
           v-if="items.length === 0"
-          class="rounded-lg border border-dashed border-default px-4 py-8 text-center text-sm text-muted"
+          class="rounded-lg border border-dashed border-default px-4 py-10 text-center text-sm text-muted"
           data-testid="items-empty-state"
         >
-          No hay productos en esta cotización.
+          No hay productos en esta cotización.<br />
+          <span v-if="isDraft" class="text-xs">Usá el botón "Agregar producto" para buscar y añadir productos.</span>
         </p>
 
         <ul
@@ -587,13 +592,6 @@ onMounted(async () => {
             />
           </li>
         </ul>
-
-        <ProductSearchPanel
-          v-if="isProductSearchOpen && isDraft"
-          class="max-h-[60vh] overflow-hidden rounded-xl border border-default"
-          data-testid="product-search-panel"
-          @add-product="handleAddProduct"
-        />
       </section>
 
       <!-- S6 — promotions section. Only visible in DRAFT (mutations are
@@ -812,6 +810,27 @@ onMounted(async () => {
         @close="handleCancelDialogClose"
         @cancelled="handleCancelDialogClose"
       />
+
+      <!-- Product search slideover — opens from the right, contains the
+           ProductSearchPanel so it never covers the items list. Gated with
+           v-if (not just :open) to prevent the backdrop from leaking when
+           the slideover is closed (known Nuxt UI 4 behavior). -->
+      <USlideover
+        v-if="isProductSearchOpen && isDraft"
+        :open="isProductSearchOpen"
+        side="right"
+        inset
+        @update:open="(value: boolean) => { if (!value) isProductSearchOpen = false }"
+      >
+        <template #title>Buscar productos</template>
+        <template #body>
+          <ProductSearchPanel
+            class="h-full"
+            data-testid="product-search-panel"
+            @add-product="handleAddProduct"
+          />
+        </template>
+      </USlideover>
     </template>
   </section>
 </template>
