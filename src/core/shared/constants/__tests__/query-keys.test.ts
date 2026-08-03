@@ -42,6 +42,37 @@ describe('promotionQueryKeys', () => {
     const key2 = promotionQueryKeys.paginated('tenant-2')
     expect(key1).not.toEqual(key2)
   })
+
+  describe('available', () => {
+    it('returns the exact tuple shape ["promotions", tenantId, "available", method]', () => {
+      const key = promotionQueryKeys.available('tenant-abc', 'MANUAL')
+      expect(key).toEqual(['promotions', 'tenant-abc', 'available', 'MANUAL'])
+    })
+
+    it('produces different keys for MANUAL vs AUTOMATIC within the same tenant', () => {
+      const manual = promotionQueryKeys.available('tenant-1', 'MANUAL')
+      const automatic = promotionQueryKeys.available('tenant-1', 'AUTOMATIC')
+      expect(manual).not.toEqual(automatic)
+    })
+
+    it('produces different keys for different tenants so cache is isolated', () => {
+      const key1 = promotionQueryKeys.available('tenant-1', 'MANUAL')
+      const key2 = promotionQueryKeys.available('tenant-2', 'MANUAL')
+      expect(key1).not.toEqual(key2)
+    })
+
+    it('returns the same key tuple on repeated calls with identical args', () => {
+      const key1 = promotionQueryKeys.available('tenant-1', 'MANUAL')
+      const key2 = promotionQueryKeys.available('tenant-1', 'MANUAL')
+      expect(key1).toEqual(key2)
+    })
+
+    it('invalidating by tenantId prefix catches available keys (TanStack pattern)', () => {
+      const key = promotionQueryKeys.available('tenant-1', 'AUTOMATIC')
+      const prefix = ['promotions', 'tenant-1']
+      expect(key.slice(0, 2)).toEqual(prefix)
+    })
+  })
 })
 
 describe('saleQueryKeys', () => {

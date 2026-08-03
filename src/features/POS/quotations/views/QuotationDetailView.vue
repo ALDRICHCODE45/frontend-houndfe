@@ -14,6 +14,8 @@ import {
 import { quotationApi, QuotationPdfError } from '../api/quotation.api'
 import { useQuotationDetail } from '../composables/useQuotationDetail'
 import { useQuotationDraft } from '../composables/useQuotationDraft'
+import { useAvailablePromotions } from '../composables/useAvailablePromotions'
+import { PROMOTION_TYPE_LABELS } from '@/features/POS/promotions/interfaces/promotion.types'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import QuotationItemRow from '../components/QuotationItemRow.vue'
 import QuotationPriceOverrideModal from '../components/QuotationPriceOverrideModal.vue'
@@ -35,6 +37,7 @@ declare const useToast: () => {
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const tenantId = computed(() => authStore.currentTenantId)
 const isAssignCustomerOpen = ref(false)
 const isCreating = ref(false)
 const createError = ref<unknown>(null)
@@ -244,33 +247,53 @@ async function handleUnvetoPromotion(promotionId: string): Promise<void> {
   await draft.unvetoPromotion(promotionId)
 }
 
-// Small inline forms for apply/veto. There is no "list of available MANUAL
-// promotions" endpoint for quotations in this slice — the cashier enters
-// the promotion ID by hand (typically copied from a separate promo admin
-// screen). The backend validates the ID exists + is the right type.
-const applyManualPromoInput = ref('')
-const vetoAutoPromoInput = ref('')
+// Apply/veto are now pickers (USelectMenu) over the ACTIVE promotions of each
+// method — the cashier never types a raw UUID. Options apply immediately on
+// selection (the backend still validates the ID + type server-side).
+const { promotions: manualPromotions, isLoading: isLoadingManualPromos } =
+  useAvailablePromotions(tenantId, 'MANUAL')
+const { promotions: automaticPromotions, isLoading: isLoadingAutomaticPromos } =
+  useAvailablePromotions(tenantId, 'AUTOMATIC')
 
-async function handleApplyManualPromoSubmit(): Promise<void> {
-  if (!isDraft.value) {
-    applyManualPromoInput.value = ''
-    return
-  }
-  const trimmed = applyManualPromoInput.value.trim()
-  if (!trimmed) return
-  await draft.applyManualPromotion(trimmed)
-  applyManualPromoInput.value = ''
+// Only show what is actionable: skip already-applied MANUAL promotions and
+// already-vetoed AUTOMATIC promotions.
+const availableManualPromotions = computed(() => {
+  const appliedIds = new Set(appliedPromotions.value.map((p) => p.promotionId))
+  return manualPromotions.value.filter((p) => !appliedIds.has(p.id))
+})
+const availableAutomaticPromotions = computed(() => {
+  const vetoed = new Set(vetoedPromotionIds.value)
+  return automaticPromotions.value.filter((p) => !vetoed.has(p.id))
+})
+
+const manualPromoItems = computed(() =>
+  availableManualPromotions.value.map((p) => ({
+    value: p.id,
+    label: p.title,
+    description: PROMOTION_TYPE_LABELS[p.type] ?? p.type,
+  })),
+)
+const automaticPromoItems = computed(() =>
+  availableAutomaticPromotions.value.map((p) => ({
+    value: p.id,
+    label: p.title,
+    description: PROMOTION_TYPE_LABELS[p.type] ?? p.type,
+  })),
+)
+
+const selectedManualPromotion = ref<{ value: string } | null>(null)
+const selectedAutoPromotion = ref<{ value: string } | null>(null)
+
+async function handleSelectManualPromotion(selected: { value: string } | null): Promise<void> {
+  if (!isDraft.value || !selected) return
+  await draft.applyManualPromotion(selected.value)
+  selectedManualPromotion.value = null
 }
 
-async function handleVetoAutoPromoSubmit(): Promise<void> {
-  if (!isDraft.value) {
-    vetoAutoPromoInput.value = ''
-    return
-  }
-  const trimmed = vetoAutoPromoInput.value.trim()
-  if (!trimmed) return
-  await draft.vetoPromotion(trimmed)
-  vetoAutoPromoInput.value = ''
+async function handleSelectAutoPromotion(selected: { value: string } | null): Promise<void> {
+  if (!isDraft.value || !selected) return
+  await draft.vetoPromotion(selected.value)
+  selectedAutoPromotion.value = null
 }
 
 // ── S7: PDF preview + send dialog + cancel dialog ────────────────────────────
@@ -626,8 +649,10 @@ onMounted(async () => {
            blocked server-side for any other status). Three sub-blocks:
              1. Applied promotions (manual + auto) with "Quitar".
              2. Vetoed auto promotions with "Re-activar".
-             3. Two inline forms to apply a MANUAL promo by ID and to veto
-                an AUTO promo by ID. The backend validates the type. -->
+             3. Two pickers (USelectMenu) over the ACTIVE promotions of each
+                method — the cashier picks a promotion instead of typing its
+                ID, and it applies/vetoes immediately on selection. The
+                backend validates the type. -->
       <section
         v-if="isDraft"
         class="flex flex-col gap-4 rounded-xl border border-default bg-default p-5"
@@ -697,65 +722,49 @@ onMounted(async () => {
           </ul>
         </div>
 
-        <form
-          class="flex flex-col gap-2"
-          data-testid="apply-manual-promo-form"
-          @submit.prevent="handleApplyManualPromoSubmit"
-        >
-          <label class="text-xs font-semibold uppercase tracking-wide text-muted" for="apply-manual-promo-input">
+        <div class="flex flex-col gap-2" data-testid="apply-manual-promo-select">
+          <label class="text-xs font-semibold uppercase tracking-wide text-muted">
             Aplicar promoción manual
           </label>
-          <div class="flex flex-wrap items-center gap-2">
-            <input
-              id="apply-manual-promo-input"
-              v-model="applyManualPromoInput"
-              type="text"
-              placeholder="ID de la promoción"
-              class="flex-1 min-w-48 rounded-lg border border-default bg-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-              data-testid="apply-manual-promo-input"
-              @keyup.enter="handleApplyManualPromoSubmit"
-            />
-            <button
-              type="button"
-              class="inline-flex items-center gap-1 rounded-lg border border-default px-3 py-2 text-sm font-medium hover:bg-elevated disabled:cursor-not-allowed disabled:opacity-50"
-              :disabled="applyManualPromoInput.trim().length === 0"
-              data-testid="apply-manual-promo-button"
-              @click="handleApplyManualPromoSubmit"
-            >
-              Aplicar
-            </button>
-          </div>
-        </form>
+          <USelectMenu
+            v-model="selectedManualPromotion"
+            value-key="value"
+            :items="manualPromoItems"
+            :loading="isLoadingManualPromos"
+            placeholder="Seleccioná una promoción…"
+            :search-input="{ icon: 'i-lucide-search' }"
+            class="w-full"
+            data-testid="manual-promo-select"
+            @update:model-value="handleSelectManualPromotion"
+          >
+            <template #empty>
+              <span v-if="isLoadingManualPromos">Cargando promociones…</span>
+              <span v-else>No hay promociones activas</span>
+            </template>
+          </USelectMenu>
+        </div>
 
-        <form
-          class="flex flex-col gap-2"
-          data-testid="veto-auto-promo-form"
-          @submit.prevent="handleVetoAutoPromoSubmit"
-        >
-          <label class="text-xs font-semibold uppercase tracking-wide text-muted" for="veto-auto-promo-input">
+        <div class="flex flex-col gap-2" data-testid="veto-auto-promo-select">
+          <label class="text-xs font-semibold uppercase tracking-wide text-muted">
             Vetar promoción automática
           </label>
-          <div class="flex flex-wrap items-center gap-2">
-            <input
-              id="veto-auto-promo-input"
-              v-model="vetoAutoPromoInput"
-              type="text"
-              placeholder="ID de la promoción"
-              class="flex-1 min-w-48 rounded-lg border border-default bg-default px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-              data-testid="veto-auto-promo-input"
-              @keyup.enter="handleVetoAutoPromoSubmit"
-            />
-            <button
-              type="button"
-              class="inline-flex items-center gap-1 rounded-lg border border-default px-3 py-2 text-sm font-medium hover:bg-elevated disabled:cursor-not-allowed disabled:opacity-50"
-              :disabled="vetoAutoPromoInput.trim().length === 0"
-              data-testid="veto-auto-promo-button"
-              @click="handleVetoAutoPromoSubmit"
-            >
-              Vetar
-            </button>
-          </div>
-        </form>
+          <USelectMenu
+            v-model="selectedAutoPromotion"
+            value-key="value"
+            :items="automaticPromoItems"
+            :loading="isLoadingAutomaticPromos"
+            placeholder="Seleccioná una promoción…"
+            :search-input="{ icon: 'i-lucide-search' }"
+            class="w-full"
+            data-testid="auto-promo-select"
+            @update:model-value="handleSelectAutoPromotion"
+          >
+            <template #empty>
+              <span v-if="isLoadingAutomaticPromos">Cargando promociones…</span>
+              <span v-else>No hay promociones activas</span>
+            </template>
+          </USelectMenu>
+        </div>
       </section>
 
       <!-- S6 — totals footer. Always visible (it just reads from the

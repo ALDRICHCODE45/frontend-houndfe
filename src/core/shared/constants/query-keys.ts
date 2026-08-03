@@ -57,6 +57,9 @@ export const customerQueryKeys = {
 export const promotionQueryKeys = {
   paginated: (tenantId: string) => ['promotions', tenantId, 'paginated'] as const,
   detail: (tenantId: string, promotionId: string) => ['promotions', tenantId, 'detail', promotionId] as const,
+  /** ACTIVE promotions of one method, for quotation detail pickers. */
+  available: (tenantId: string, method: 'MANUAL' | 'AUTOMATIC') =>
+    ['promotions', tenantId, 'available', method] as const,
 }
 
 export const saleQueryKeys = {

@@ -8,6 +8,7 @@ import QuotationExpiryPicker from '../../components/QuotationExpiryPicker.vue'
 import QuotationTotalsFooter from '../../components/QuotationTotalsFooter.vue'
 import ProductSearchPanel from '@/features/POS/sales/components/ProductSearchPanel.vue'
 import type { QuotationResponseDto } from '../../interfaces/quotation.types'
+import type { PromotionResponse } from '@/features/POS/promotions/interfaces/promotion.types'
 
 const state = {
   quotation: ref<QuotationResponseDto | undefined>(),
@@ -82,6 +83,26 @@ vi.mock('../../composables/useQuotationDraft', () => ({
   }),
 }))
 
+const availablePromotionsMock = vi.hoisted(() => ({
+  manual: { promotions: [] as PromotionResponse[], isLoading: false, isError: false },
+  automatic: { promotions: [] as PromotionResponse[], isLoading: false, isError: false },
+}))
+
+vi.mock('../../composables/useAvailablePromotions', () => ({
+  useAvailablePromotions: (_tenantId: unknown, method: 'MANUAL' | 'AUTOMATIC') =>
+    method === 'MANUAL'
+      ? {
+          promotions: computed(() => availablePromotionsMock.manual.promotions),
+          isLoading: computed(() => availablePromotionsMock.manual.isLoading),
+          isError: computed(() => availablePromotionsMock.manual.isError),
+        }
+      : {
+          promotions: computed(() => availablePromotionsMock.automatic.promotions),
+          isLoading: computed(() => availablePromotionsMock.automatic.isLoading),
+          isError: computed(() => availablePromotionsMock.automatic.isError),
+        },
+}))
+
 const route = {
   path: '/pos/cotizaciones/quotation-12345678',
   params: { id: 'quotation-12345678' } as Record<string, string>,
@@ -130,6 +151,43 @@ function makeQuotation(overrides: Partial<QuotationResponseDto> = {}): Quotation
     updatedAt: '2026-08-01T00:00:00.000Z',
     ...overrides,
   }
+}
+
+function makePromotion(overrides: Partial<PromotionResponse> = {}): PromotionResponse {
+  return {
+    id: 'promo-1',
+    title: 'Cupón 10%',
+    type: 'ORDER_DISCOUNT',
+    method: 'MANUAL',
+    status: 'ACTIVE',
+    startDate: null,
+    endDate: null,
+    customerScope: 'ALL',
+    discountType: 'PERCENTAGE',
+    discountValue: 10,
+    minPurchaseAmountCents: null,
+    appliesTo: null,
+    buyQuantity: null,
+    getQuantity: null,
+    getDiscountPercent: null,
+    buyTargetType: null,
+    getTargetType: null,
+    targetItems: [],
+    customers: [],
+    priceLists: [],
+    daysOfWeek: [],
+    createdAt: '2026-08-01T00:00:00.000Z',
+    updatedAt: '2026-08-01T00:00:00.000Z',
+    ...overrides,
+  }
+}
+
+const USelectMenuStub = {
+  name: 'USelectMenuStub',
+  props: ['modelValue', 'items', 'valueKey', 'loading'],
+  emits: ['update:modelValue'],
+  template:
+    '<div v-bind="$attrs" :data-loading="loading"><slot v-if="(items ?? []).length === 0" name="empty" /><span v-if="(items ?? []).length > 0">{{ items[0].label }}</span></div>',
 }
 
 const stubs = {
@@ -226,6 +284,12 @@ const stubs = {
   },
   UAlert: { props: ['description'], template: '<p>{{ description }}</p>' },
   Alert: { props: ['description'], template: '<p>{{ description }}</p>' },
+  // USelectMenu (and its non-prefixed alias SelectMenu — the real nuxt/ui
+  // component registers under the unprefixed name, so both keys are needed)
+  // renders the items count + the #empty slot so the pickers' empty/loading
+  // states can be asserted.
+  USelectMenu: USelectMenuStub,
+  SelectMenu: USelectMenuStub,
 }
 
 function mountView() {
@@ -255,6 +319,12 @@ beforeEach(() => {
   state.sendQuotation.mockReset().mockResolvedValue(makeQuotation())
   state.cancelQuotation.mockReset().mockResolvedValue(makeQuotation())
   quotationApiMock.getPdfBlob.mockReset()
+  availablePromotionsMock.manual.promotions = []
+  availablePromotionsMock.manual.isLoading = false
+  availablePromotionsMock.manual.isError = false
+  availablePromotionsMock.automatic.promotions = []
+  availablePromotionsMock.automatic.isLoading = false
+  availablePromotionsMock.automatic.isError = false
   route.path = '/pos/cotizaciones/quotation-12345678'
   route.params = { id: 'quotation-12345678' }
   route.query = {}
@@ -669,8 +739,9 @@ describe('QuotationDetailView items section (S5)', () => {
 //   - QuotationExpiryPicker (DRAFT only editable; readonly in SENT/EXPIRED/CANCELLED)
 //   - QuotationTotalsFooter (always rendered; reads from `quotation`)
 //   - A promotions section that lists applied promos (with Quitar) and
-//     vetoed promos (with Re-activar), plus a small input + button to
-//     apply / veto by ID.
+//     vetoed promos (with Re-activar), plus two USelectMenu pickers over the
+//     ACTIVE promotions of each method that apply/veto immediately on
+//     selection.
 
 describe('QuotationDetailView expiry picker (S6)', () => {
   it('renders the expiry picker in DRAFT mode (editable)', () => {
@@ -790,34 +861,111 @@ describe('QuotationDetailView promotions section (S6)', () => {
 
     expect(wrapper.find('[data-testid="applied-promotions-list"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="vetoed-promotions-list"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="apply-manual-promo-form"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="veto-auto-promo-form"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="apply-manual-promo-select"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="veto-auto-promo-select"]').exists()).toBe(false)
   })
 
-  it('renders the "Aplicar promoción manual" form in DRAFT mode', () => {
+  it('renders the "Aplicar promoción manual" picker in DRAFT mode', () => {
     const wrapper = mountView()
-    expect(wrapper.find('[data-testid="apply-manual-promo-form"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="apply-manual-promo-button"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="apply-manual-promo-select"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="manual-promo-select"]').exists()).toBe(true)
   })
 
-  it('calls applyManualPromotion with the typed promotion id when "Aplicar" is clicked', async () => {
+  it('applies a manual promotion immediately when selected from the dropdown', async () => {
+    availablePromotionsMock.manual.promotions = [
+      makePromotion({ id: 'promo-manual-1', title: 'Cupón 10%', type: 'ORDER_DISCOUNT' }),
+    ]
     const wrapper = mountView()
-    await wrapper.get('[data-testid="apply-manual-promo-input"]').setValue('promo-new')
-    await wrapper.get('[data-testid="apply-manual-promo-button"]').trigger('click')
-    expect(state.applyManualPromotion).toHaveBeenCalledWith('promo-new')
+
+    const manualSelect = wrapper.findAllComponents(USelectMenuStub)[0]!
+    manualSelect.vm.$emit('update:modelValue', {
+      value: 'promo-manual-1',
+      label: 'Cupón 10%',
+      description: 'Descuento en el pedido',
+    })
+    await flushPromises()
+
+    expect(state.applyManualPromotion).toHaveBeenCalledWith('promo-manual-1')
   })
 
-  it('renders the "Vetar promoción automática" form in DRAFT mode', () => {
+  it('renders the "Vetar promoción automática" picker in DRAFT mode', () => {
     const wrapper = mountView()
-    expect(wrapper.find('[data-testid="veto-auto-promo-form"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="veto-auto-promo-button"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="veto-auto-promo-select"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="auto-promo-select"]').exists()).toBe(true)
   })
 
-  it('calls vetoPromotion with the typed promotion id when "Vetar" is clicked', async () => {
+  it('vetoes an automatic promotion immediately when selected from the dropdown', async () => {
+    availablePromotionsMock.automatic.promotions = [
+      makePromotion({
+        id: 'promo-auto-1',
+        title: 'Promo Verano',
+        method: 'AUTOMATIC',
+        type: 'PRODUCT_DISCOUNT',
+      }),
+    ]
     const wrapper = mountView()
-    await wrapper.get('[data-testid="veto-auto-promo-input"]').setValue('promo-auto-2')
-    await wrapper.get('[data-testid="veto-auto-promo-button"]').trigger('click')
-    expect(state.vetoPromotion).toHaveBeenCalledWith('promo-auto-2')
+
+    const autoSelect = wrapper.findAllComponents(USelectMenuStub)[1]!
+    autoSelect.vm.$emit('update:modelValue', {
+      value: 'promo-auto-1',
+      label: 'Promo Verano',
+      description: 'Descuento en productos',
+    })
+    await flushPromises()
+
+    expect(state.vetoPromotion).toHaveBeenCalledWith('promo-auto-1')
+  })
+
+  it('shows only non-applied manual promotions in the manual picker', () => {
+    state.quotation.value = makeQuotation({
+      appliedPromotions: [
+        { id: 'ap-1', promotionId: 'promo-applied', title: 'Cupón 10%', discountCents: 500 },
+      ],
+    })
+    availablePromotionsMock.manual.promotions = [
+      makePromotion({ id: 'promo-applied', title: 'Cupón 10%', type: 'ORDER_DISCOUNT' }),
+      makePromotion({ id: 'promo-free', title: 'Promo Verano', type: 'ORDER_DISCOUNT' }),
+    ]
+    const wrapper = mountView()
+
+    const manualSelect = wrapper.findAllComponents(USelectMenuStub)[0]!
+    expect(manualSelect.props('items')).toEqual([
+      { value: 'promo-free', label: 'Promo Verano', description: 'Descuento en el pedido' },
+    ])
+  })
+
+  it('shows only non-vetoed automatic promotions in the automatic picker', () => {
+    state.quotation.value = makeQuotation({ vetoedPromotionIds: ['promo-vetoed'] })
+    availablePromotionsMock.automatic.promotions = [
+      makePromotion({ id: 'promo-vetoed', title: 'Vetada', method: 'AUTOMATIC', type: 'ADVANCED' }),
+      makePromotion({
+        id: 'promo-ok',
+        title: 'Disponible',
+        method: 'AUTOMATIC',
+        type: 'BUY_X_GET_Y',
+      }),
+    ]
+    const wrapper = mountView()
+
+    const autoSelect = wrapper.findAllComponents(USelectMenuStub)[1]!
+    expect(autoSelect.props('items')).toEqual([
+      {
+        value: 'promo-ok',
+        label: 'Disponible',
+        description: '2x1, 3x2 o similares',
+      },
+    ])
+  })
+
+  it('shows the empty message when there are no active promotions', () => {
+    const wrapper = mountView()
+    expect(wrapper.text()).toContain('No hay promociones activas')
+  })
+
+  it('shows the loading message while manual promotions are being fetched', () => {
+    availablePromotionsMock.manual.isLoading = true
+    const wrapper = mountView()
+    expect(wrapper.text()).toContain('Cargando promociones…')
   })
 })
 
@@ -964,8 +1112,8 @@ describe('QuotationDetailView — cancel dialog (S7)', () => {
 const ALL_EDIT_SELECTORS = [
   '[data-testid="add-product-button"]',
   '[data-testid="assign-customer-button"]',
-  '[data-testid="apply-manual-promo-button"]',
-  '[data-testid="veto-auto-promo-button"]',
+  '[data-testid="manual-promo-select"]',
+  '[data-testid="auto-promo-select"]',
   '[data-testid="send-button"]',
   '[data-testid="cancel-button"]',
 ] as const
