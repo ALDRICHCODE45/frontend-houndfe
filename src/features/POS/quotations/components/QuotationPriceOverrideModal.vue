@@ -106,6 +106,7 @@ watch(
             min="0.01"
             step="0.01"
             placeholder="Ej: 500"
+            class="w-full"
             data-testid="price-override-input"
             @keydown.enter.prevent="submit"
           />

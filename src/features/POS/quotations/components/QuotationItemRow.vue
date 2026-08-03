@@ -6,8 +6,9 @@
  * Mirrors the "compact card" layout that `SaleItemRow.vue` standardized
  * for the POS sales module but adapted to the quotation DTO shape:
  *   - product image · product name + SKU · variant chip · unit price ·
- *     line subtotal · status badges · qty stepper / remove / price
- *     override (DRAFT only).
+ *     line subtotal · status badges · qty stepper (DRAFT only).
+ *   - DRAFT-only actions (price override, remove) live in a single
+ *     `UDropdownMenu` at the end of the row.
  *
  * Read-only: when `readonly=true` (SENT/EXPIRED/CANCELLED), all editing
  * affordances disappear; the card becomes a pure read-only row.
@@ -21,6 +22,7 @@
  * action (REQ-QTN-013).
  */
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import type { DropdownMenuItem } from '@nuxt/ui'
 import { useQuotationItemStock } from '../composables/useQuotationItemStock'
 import type { QuotationItemResponseDto } from '../interfaces/quotation.types'
 import { formatCentsMXN, lineCents } from '../utils/currency.utils'
@@ -177,6 +179,30 @@ function handleRemove(): void {
   emit('request-remove', props.item.id)
 }
 
+/** Loose draft-only actions consolidated into a single dropdown menu.
+ *  Empty (no groups) when readonly so no trigger renders. Mirrors the
+ *  `SaleItemRow` grouped-items pattern. */
+const itemActions = computed<DropdownMenuItem[][]>(() => {
+  if (props.readonly) return []
+  return [
+    [
+      {
+        label: 'Cambiar precio',
+        icon: 'i-lucide-pencil',
+        onSelect: () => handleOverride(),
+      },
+    ],
+    [
+      {
+        label: 'Eliminar producto',
+        icon: 'i-lucide-trash-2',
+        color: 'error' as const,
+        onSelect: () => handleRemove(),
+      },
+    ],
+  ]
+})
+
 </script>
 
 <template>
@@ -270,20 +296,10 @@ function handleRemove(): void {
           data-testid="quantity-increase"
           @click="handleIncrease"
         />
-        <span class="text-sm tabular-nums ml-2" data-testid="line-subtotal">
+        <span class="text-sm tabular-nums ml-auto" data-testid="line-subtotal">
           <span class="text-muted">× {{ unitPriceText }} = </span>
           <span class="font-bold text-highlighted">{{ lineSubtotalText }}</span>
         </span>
-        <UButton
-          icon="i-lucide-trash-2"
-          size="sm"
-          color="neutral"
-          variant="ghost"
-          class="ml-auto"
-          aria-label="Eliminar producto"
-          data-testid="remove-item-button"
-          @click="handleRemove"
-        />
       </div>
 
       <!-- Badges row: stock, manual price, promotion -->
@@ -326,17 +342,22 @@ function handleRemove(): void {
       <p class="text-sm font-bold text-highlighted tabular-nums">{{ lineSubtotalText }}</p>
     </div>
 
-    <!-- Price override button (DRAFT only, right-aligned) -->
-    <UButton
+    <!-- Item actions dropdown (DRAFT only, right-aligned) -->
+    <UDropdownMenu
       v-if="!props.readonly"
-      size="xs"
-      color="neutral"
-      variant="ghost"
-      icon="i-lucide-pencil"
-      aria-label="Sobrescribir precio"
-      class="shrink-0"
-      data-testid="price-override-button"
-      @click="handleOverride"
-    />
+      :items="itemActions"
+      :content="{ align: 'end' }"
+      data-testid="item-actions-menu"
+    >
+      <UButton
+        size="xs"
+        color="neutral"
+        variant="ghost"
+        icon="i-lucide-ellipsis-vertical"
+        aria-label="Acciones del ítem"
+        class="shrink-0"
+        data-testid="item-actions-trigger"
+      />
+    </UDropdownMenu>
   </article>
 </template>

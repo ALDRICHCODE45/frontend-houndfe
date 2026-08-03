@@ -47,6 +47,9 @@ const stubs = {
     template:
       '<button class="u-btn" :data-icon="icon" :data-color="color" :data-variant="variant" :disabled="disabled" @click="$emit(\'click\', $event)"><slot /></button>',
   },
+  UDropdownMenu: {
+    template: '<div><slot /></div>',
+  },
 }
 
 function mountRow(item: QuotationItemResponseDto, readonly = false, emitStub = false) {
@@ -56,7 +59,7 @@ function mountRow(item: QuotationItemResponseDto, readonly = false, emitStub = f
       stubs,
       // Auto-imported globals (AppBadge, UButton) must be provided because
       // globalThis stubs don't override them in @vue/test-utils mount.
-      components: { AppBadge, UButton: stubs.UButton },
+      components: { AppBadge, UButton: stubs.UButton, UDropdownMenu: stubs.UDropdownMenu },
     },
   })
 }
@@ -220,36 +223,52 @@ describe('QuotationItemRow quantity controls', () => {
   })
 })
 
-describe('QuotationItemRow remove button', () => {
-  it('renders the remove button in DRAFT mode', () => {
+describe('QuotationItemRow actions dropdown', () => {
+  it('renders the actions dropdown trigger in DRAFT mode', () => {
     const wrapper = mountRow(makeItem(), false)
-    expect(wrapper.find('[data-testid="remove-item-button"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="item-actions-trigger"]').exists()).toBe(true)
   })
 
-  it('hides the remove button in readonly mode', () => {
+  it('hides the actions dropdown trigger in readonly mode', () => {
     const wrapper = mountRow(makeItem(), true)
-    expect(wrapper.find('[data-testid="remove-item-button"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="item-actions-trigger"]').exists()).toBe(false)
+    const vm = wrapper.vm as unknown as { itemActions: unknown[] }
+    expect(vm.itemActions).toEqual([])
   })
 
-  it('emits request-remove when clicked', async () => {
+  it('emits request-remove when the delete action is selected', () => {
     const wrapper = mountRow(makeItem(), false)
-
-    await wrapper.get('[data-testid="remove-item-button"]').trigger('click')
+    const vm = wrapper.vm as unknown as {
+      itemActions: Array<Array<{ label: string; onSelect: () => void }>>
+    }
+    const deleteAction = vm.itemActions[1]?.find(
+      (action) => action.label === 'Eliminar producto',
+    )
+    expect(deleteAction).toBeDefined()
+    deleteAction!.onSelect()
     expect(wrapper.emitted('request-remove')).toEqual([['item-1']])
   })
 })
 
 describe('QuotationItemRow price override', () => {
-  it('emits request-price-override with the item id when the pencil is clicked in DRAFT mode', async () => {
+  it('exposes a Cambiar precio action in the dropdown', () => {
     const wrapper = mountRow(makeItem({ unitPriceCents: 15000 }), false)
-
-    await wrapper.get('[data-testid="price-override-button"]').trigger('click')
+    const vm = wrapper.vm as unknown as {
+      itemActions: Array<Array<{ label: string; onSelect: () => void }>>
+    }
+    const priceAction = vm.itemActions[0]?.find(
+      (action) => action.label === 'Cambiar precio',
+    )
+    expect(priceAction).toBeDefined()
+    priceAction!.onSelect()
     expect(wrapper.emitted('request-price-override')).toEqual([['item-1']])
   })
 
-  it('hides the price override button when readonly is true', () => {
+  it('hides the price override action when readonly is true', () => {
     const wrapper = mountRow(makeItem(), true)
-    expect(wrapper.find('[data-testid="price-override-button"]').exists()).toBe(false)
+    const vm = wrapper.vm as unknown as { itemActions: unknown[] }
+    expect(vm.itemActions).toEqual([])
+    expect(wrapper.find('[data-testid="item-actions-trigger"]').exists()).toBe(false)
   })
 })
 
@@ -360,7 +379,6 @@ describe('QuotationItemRow stock badge (REQ-QTN-013 / S8.2)', () => {
 
     expect(wrapper.find('[data-testid="quantity-increase"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="quantity-decrease"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="remove-item-button"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="price-override-button"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="item-actions-trigger"]').exists()).toBe(true)
   })
 })
