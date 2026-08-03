@@ -237,9 +237,18 @@ function handleExpiryUpdate(value: string | null): void {
   void draft.setExpiry(value)
 }
 
-async function handleRemoveManualPromo(promotionId: string): Promise<void> {
+/** Remove an applied promotion from the quotation. MANUAL promotions are
+ *  removed via the manual opt-in endpoint; AUTOMATIC promotions are removed
+ *  by vetoing them (the backend re-evaluates totals and moves the promo to
+ *  the vetoed set). */
+async function handleRemoveAppliedPromotion(promotionId: string): Promise<void> {
   if (!isDraft.value) return
-  await draft.removeManualPromotion(promotionId)
+  const isManual = quotation.value?.optedInManualPromotionIds.includes(promotionId) ?? false
+  if (isManual) {
+    await draft.removeManualPromotion(promotionId)
+  } else {
+    await draft.vetoPromotion(promotionId)
+  }
 }
 
 async function handleUnvetoPromotion(promotionId: string): Promise<void> {
@@ -685,7 +694,7 @@ onMounted(async () => {
                 type="button"
                 class="inline-flex items-center gap-1 rounded-lg border border-default px-3 py-1.5 text-xs font-medium hover:bg-elevated"
                 :data-testid="`remove-manual-promo-${promo.promotionId}`"
-                @click="handleRemoveManualPromo(promo.promotionId)"
+                @click="handleRemoveAppliedPromotion(promo.promotionId)"
               >
                 <UIcon name="i-lucide-x" class="h-3.5 w-3.5" />
                 Quitar

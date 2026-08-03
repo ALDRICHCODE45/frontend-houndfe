@@ -820,16 +820,31 @@ describe('QuotationDetailView promotions section (S6)', () => {
     expect(wrapper.find('[data-testid="applied-promotions-list"]').exists()).toBe(false)
   })
 
-  it('calls removeManualPromotion when a "Quitar" button is clicked on an applied promo', async () => {
+  it('calls removeManualPromotion for an applied MANUAL promotion', async () => {
     state.quotation.value = makeQuotation({
       appliedPromotions: [
         { id: 'ap-1', promotionId: 'promo-1', title: 'Cupón 10%', discountCents: 500 },
       ],
+      optedInManualPromotionIds: ['promo-1'],
     })
     const wrapper = mountView()
 
     await wrapper.get('[data-testid="remove-manual-promo-promo-1"]').trigger('click')
     expect(state.removeManualPromotion).toHaveBeenCalledWith('promo-1')
+    expect(state.vetoPromotion).not.toHaveBeenCalled()
+  })
+
+  it('calls vetoPromotion for an applied AUTOMATIC promotion', async () => {
+    state.quotation.value = makeQuotation({
+      appliedPromotions: [
+        { id: 'ap-1', promotionId: 'promo-auto-1', title: 'Promo Auto', discountCents: 800 },
+      ],
+    })
+    const wrapper = mountView()
+
+    await wrapper.get('[data-testid="remove-manual-promo-promo-auto-1"]').trigger('click')
+    expect(state.vetoPromotion).toHaveBeenCalledWith('promo-auto-1')
+    expect(state.removeManualPromotion).not.toHaveBeenCalled()
   })
 
   it('renders vetoed promotions list with "Re-activar" buttons', () => {
