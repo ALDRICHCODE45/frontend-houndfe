@@ -36,7 +36,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   'update-quantity': [itemId: string, quantity: number]
-  'override-price': [itemId: string, unitPriceCents: number]
+  'request-price-override': [itemId: string]
   'request-remove': [itemId: string]
 }>()
 
@@ -170,7 +170,7 @@ function handleImageError(): void {
 }
 
 function handleOverride(): void {
-  emit('override-price', props.item.id, props.item.unitPriceCents)
+  emit('request-price-override', props.item.id)
 }
 
 function handleRemove(): void {

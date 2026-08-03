@@ -3,6 +3,7 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { computed, ref } from 'vue'
 import QuotationDetailView from '../QuotationDetailView.vue'
 import QuotationItemRow from '../../components/QuotationItemRow.vue'
+import QuotationPriceOverrideModal from '../../components/QuotationPriceOverrideModal.vue'
 import QuotationExpiryPicker from '../../components/QuotationExpiryPicker.vue'
 import QuotationTotalsFooter from '../../components/QuotationTotalsFooter.vue'
 import ProductSearchPanel from '@/features/POS/sales/components/ProductSearchPanel.vue'
@@ -185,6 +186,46 @@ const stubs = {
     template:
       '<div v-if="open" data-testid="quotation-cancel-dialog"><button data-testid="cancel-dialog-stub-confirm" type="button" @click="(async () => { await cancel(\'OTHER\'); $emit(\'cancelled\') })()">stub-cancel</button><button data-testid="cancel-dialog-stub-close" type="button" @click="$emit(\'close\')">stub-close</button></div>',
   },
+  // Nuxt UI primitives used by the real QuotationPriceOverrideModal (which is
+  // intentionally NOT stubbed — the modal tests drive its input + submit).
+  UModal: {
+    props: ['open', 'title', 'dismissible', 'close'],
+    emits: ['update:open'],
+    template: '<div data-testid="price-override-modal"><slot name="body" /><slot name="footer" /></div>',
+  },
+  Modal: {
+    props: ['open', 'title', 'dismissible', 'close'],
+    emits: ['update:open'],
+    template: '<div data-testid="price-override-modal"><slot name="body" /><slot name="footer" /></div>',
+  },
+  UButton: {
+    props: ['label', 'color', 'variant', 'loading', 'disabled'],
+    emits: ['click'],
+    template:
+      '<button :disabled="disabled" :data-loading="loading" @click="$emit(\'click\')">{{ label }}<slot /></button>',
+  },
+  Button: {
+    props: ['label', 'color', 'variant', 'loading', 'disabled'],
+    emits: ['click'],
+    template:
+      '<button :disabled="disabled" :data-loading="loading" @click="$emit(\'click\')">{{ label }}<slot /></button>',
+  },
+  UFormField: { template: '<div><slot /></div>' },
+  FormField: { template: '<div><slot /></div>' },
+  UInput: {
+    props: ['modelValue'],
+    emits: ['update:modelValue'],
+    template:
+      '<input type="number" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+  },
+  Input: {
+    props: ['modelValue'],
+    emits: ['update:modelValue'],
+    template:
+      '<input type="number" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+  },
+  UAlert: { props: ['description'], template: '<p>{{ description }}</p>' },
+  Alert: { props: ['description'], template: '<p>{{ description }}</p>' },
 }
 
 function mountView() {
@@ -543,7 +584,46 @@ describe('QuotationDetailView items section (S5)', () => {
     expect(state.removeItem).toHaveBeenCalledWith('item-1')
   })
 
-  it('forwards QuotationItemRow override-price events to overridePrice', async () => {
+  it('opens the price override modal when QuotationItemRow emits request-price-override', async () => {
+    state.quotation.value = makeQuotation({
+      items: [
+        {
+          id: 'item-1',
+          productId: 'product-1',
+          variantId: null,
+              productName: 'Test Product',
+        variantName: null,
+    quantity: 2,
+          product: { id: 'product-1', name: 'Playera M', sku: 'SKU-1', imageUrl: null },
+          variant: null,
+          unitPriceCents: 15000,
+          priceSource: 'PRICE_LIST',
+          discountType: null,
+          discountValue: null,
+          discountAmountCents: 0,
+          discountTitle: null,
+          promotionId: null,
+          manuallyAdjusted: false,
+          overrideNote: null,
+          createdAt: '2026-08-01T00:00:00.000Z',
+          updatedAt: '2026-08-01T00:00:00.000Z',
+        },
+      ],
+    })
+    const wrapper = mountView()
+
+    expect(wrapper.findComponent(QuotationPriceOverrideModal).exists()).toBe(false)
+    const row = wrapper.findComponent(QuotationItemRow)
+    row.vm.$emit('request-price-override', 'item-1')
+    await flushPromises()
+
+    const modal = wrapper.findComponent(QuotationPriceOverrideModal)
+    expect(modal.exists()).toBe(true)
+    expect(modal.props('open')).toBe(true)
+    expect(state.overridePrice).not.toHaveBeenCalled()
+  })
+
+  it('submits the typed price through the override modal to overridePrice', async () => {
     state.quotation.value = makeQuotation({
       items: [
         {
@@ -572,7 +652,14 @@ describe('QuotationDetailView items section (S5)', () => {
     const wrapper = mountView()
 
     const row = wrapper.findComponent(QuotationItemRow)
-    row.vm.$emit('override-price', 'item-1', 19900)
+    row.vm.$emit('request-price-override', 'item-1')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="price-override-input"]').setValue('199')
+    await flushPromises()
+    await wrapper.get('form#quotation-price-override-form').trigger('submit')
+    await flushPromises()
+
     expect(state.overridePrice).toHaveBeenCalledWith('item-1', 19900)
   })
 })

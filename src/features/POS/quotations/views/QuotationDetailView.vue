@@ -16,6 +16,7 @@ import { useQuotationDetail } from '../composables/useQuotationDetail'
 import { useQuotationDraft } from '../composables/useQuotationDraft'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import QuotationItemRow from '../components/QuotationItemRow.vue'
+import QuotationPriceOverrideModal from '../components/QuotationPriceOverrideModal.vue'
 import QuotationExpiryPicker from '../components/QuotationExpiryPicker.vue'
 import QuotationTotalsFooter from '../components/QuotationTotalsFooter.vue'
 import QuotationSendDialog from '../components/QuotationSendDialog.vue'
@@ -188,6 +189,33 @@ async function handleOverridePrice(
   // current unit price when the cashier clicks the pencil). Slice 8/9 can
   // upgrade this to a dedicated modal without changing the public contract.
   await draft.overridePrice(itemId, unitPriceCents)
+}
+
+// ── Price override flow ───────────────────────────────────────────────────────
+// The row never commits anything on its own — it emits `request-price-override`
+// with just the item id, we pop the QuotationPriceOverrideModal, and only after
+// the cashier types a value and confirms do we hit the backend
+// (`draft.overridePrice`).
+
+const pendingOverrideItemId = ref<string | null>(null)
+const isPriceOverrideOpen = computed(() => pendingOverrideItemId.value !== null)
+const pendingOverrideItem = computed(
+  () => items.value.find((i) => i.id === pendingOverrideItemId.value) ?? null,
+)
+
+function handleRequestPriceOverride(itemId: string): void {
+  if (!isDraft.value) return
+  pendingOverrideItemId.value = itemId
+}
+
+function handlePriceOverrideCancel(): void {
+  pendingOverrideItemId.value = null
+}
+
+async function handlePriceOverrideSubmit(itemId: string, unitPriceCents: number): Promise<void> {
+  if (!isDraft.value) return
+  await draft.overridePrice(itemId, unitPriceCents)
+  pendingOverrideItemId.value = null
 }
 
 // ── S6: promotions + expiry + totals footer ───────────────────────────────────
@@ -587,7 +615,7 @@ onMounted(async () => {
               :item="item"
               :readonly="!isDraft"
               @update-quantity="handleUpdateQuantity"
-              @override-price="handleOverridePrice"
+              @request-price-override="handleRequestPriceOverride"
               @request-remove="handleRequestRemove"
             />
           </li>
@@ -787,6 +815,14 @@ onMounted(async () => {
         confirm-color="error"
         @update:open="(value) => { if (!value) handleRemoveCancel() }"
         @confirm="handleRemoveConfirm"
+      />
+
+      <QuotationPriceOverrideModal
+        v-if="pendingOverrideItem"
+        :open="isPriceOverrideOpen"
+        :item="pendingOverrideItem"
+        :on-submit="handlePriceOverrideSubmit"
+        @update:open="(value: boolean) => { if (!value) handlePriceOverrideCancel() }"
       />
 
       <!-- S7 — send dialog. Only mount in DRAFT (the button that opens it is

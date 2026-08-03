@@ -240,11 +240,11 @@ describe('QuotationItemRow remove button', () => {
 })
 
 describe('QuotationItemRow price override', () => {
-  it('emits request-override with the current unit price when the price is clicked in DRAFT mode', async () => {
+  it('emits request-price-override with the item id when the pencil is clicked in DRAFT mode', async () => {
     const wrapper = mountRow(makeItem({ unitPriceCents: 15000 }), false)
 
     await wrapper.get('[data-testid="price-override-button"]').trigger('click')
-    expect(wrapper.emitted('override-price')).toEqual([['item-1', 15000]])
+    expect(wrapper.emitted('request-price-override')).toEqual([['item-1']])
   })
 
   it('hides the price override button when readonly is true', () => {
