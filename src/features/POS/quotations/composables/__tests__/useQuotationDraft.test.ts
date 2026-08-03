@@ -144,9 +144,7 @@ describe('useQuotationDraft — item mutations', () => {
     expect(quotationApi.addItem).toHaveBeenCalledWith('quotation-1', {
       productId: 'product-1',
       variantId: 'variant-7',
-          productName: 'Test Product',
-        variantName: null,
-    quantity: 1,
+      quantity: 1,
     })
   })
 
