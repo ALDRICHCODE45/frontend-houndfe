@@ -54,10 +54,10 @@ export interface QuotationItemResponseDto {
   variant?: QuotationItemVariant | null
   productId: string
   variantId: string | null
-  /** Backend flat field — the display name of the product. */
-  productName?: string
+  /** Backend flat field — REQUIRED by the API. */
+  productName: string
   /** Backend flat field — the display name of the variant, or null. */
-  variantName?: string | null
+  variantName: string | null
   quantity: number
   unitPriceCents: number
   priceSource: PriceSource

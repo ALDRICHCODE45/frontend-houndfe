@@ -10,6 +10,8 @@ function makeItem(overrides: Partial<QuotationItemResponseDto> = {}): QuotationI
     id: 'item-1',
     productId: 'product-1',
     variantId: null,
+    productName: 'Playera M',
+    variantName: null,
     quantity: 2,
     product: {
       id: 'product-1',
@@ -17,7 +19,6 @@ function makeItem(overrides: Partial<QuotationItemResponseDto> = {}): QuotationI
       sku: 'SKU-1',
       imageUrl: null,
     },
-    productName: 'Playera M',
     variant: null,
     unitPriceCents: 15000,
     priceSource: 'PRICE_LIST',

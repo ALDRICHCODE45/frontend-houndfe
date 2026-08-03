@@ -181,14 +181,12 @@ function handleRemove(): void {
 
 <template>
   <article
-    class="flex items-start gap-3 rounded-xl border border-default bg-default px-3 py-3 hover:border-default"
+    class="flex items-start gap-3 rounded-xl border border-default bg-default px-4 py-3 hover:border-default"
     :class="{ 'opacity-90': props.readonly }"
     data-testid="quotation-item-row"
     :data-item-id="props.item.id"
   >
-    <!-- LEFT: thumbnail (48px square). Backend returns flat fields without
-         imageUrl; fallback icon is shown unless the test mock provides
-         product.imageUrl. -->
+    <!-- LEFT: thumbnail (48px square, package icon fallback) -->
     <div
       class="h-12 w-12 shrink-0 rounded-lg flex items-center justify-center overflow-hidden bg-elevated border border-default"
     >
@@ -209,16 +207,18 @@ function handleRemove(): void {
       />
     </div>
 
-    <!-- CENTER: stacked info (name → variant · SKU · unit price → qty row → badges) -->
+    <!-- CENTER: product info + stepper + badges (all stacked) -->
     <div class="flex-1 min-w-0 flex flex-col gap-1">
-      <p class="text-sm font-medium text-highlighted truncate" data-testid="product-name">
+      <!-- Product name (bold, prominent) -->
+      <p class="text-sm font-semibold text-highlighted truncate" data-testid="product-name">
         {{ props.item.productName }}
       </p>
 
-      <p class="text-[11px] text-muted truncate" data-testid="product-meta">
+      <!-- Variant + unit price meta -->
+      <p class="text-xs text-muted truncate" data-testid="product-meta">
         <span
           v-if="variantName"
-          class="uppercase tracking-wide mr-1"
+          class="uppercase tracking-wide"
           data-testid="variant-badge"
         >{{ variantName }} · </span>
         <span v-if="props.item.product?.sku" class="font-mono">{{ props.item.product.sku }} · </span>
@@ -227,24 +227,24 @@ function handleRemove(): void {
         </span>
       </p>
 
-      <!-- Discount info (only when an actual discount was applied) -->
+      <!-- Discount info -->
       <p
         v-if="hasDiscount"
-        class="text-[11px] text-primary truncate"
+        class="text-xs text-primary truncate"
         data-testid="discount-info"
       >
         {{ discountLabel }}
       </p>
 
-      <!-- Qty stepper + remove (DRAFT only) -->
+      <!-- Stepper + subtotal (DRAFT only) -->
       <div
         v-if="!props.readonly"
-        class="flex items-center gap-1 mt-1"
+        class="flex items-center gap-1.5 mt-1"
         data-testid="quantity-row"
       >
         <UButton
           icon="i-lucide-minus"
-          size="xs"
+          size="sm"
           color="neutral"
           variant="ghost"
           aria-label="Disminuir cantidad"
@@ -253,89 +253,90 @@ function handleRemove(): void {
         />
         <UInput
           :model-value="String(localQty)"
-          size="xs"
+          size="sm"
           type="number"
           :min="1"
-          class="w-20"
+          class="w-14"
           data-testid="quantity-input"
           @update:model-value="handleQtyInput"
           @blur="handleQtyCommit"
         />
         <UButton
           icon="i-lucide-plus"
-          size="xs"
+          size="sm"
           color="neutral"
           variant="ghost"
           aria-label="Aumentar cantidad"
           data-testid="quantity-increase"
           @click="handleIncrease"
         />
+        <span class="text-sm tabular-nums ml-2" data-testid="line-subtotal">
+          <span class="text-muted">× {{ unitPriceText }} = </span>
+          <span class="font-bold text-highlighted">{{ lineSubtotalText }}</span>
+        </span>
         <UButton
           icon="i-lucide-trash-2"
-          size="xs"
+          size="sm"
           color="neutral"
           variant="ghost"
+          class="ml-auto"
           aria-label="Eliminar producto"
           data-testid="remove-item-button"
           @click="handleRemove"
         />
       </div>
-    </div>
 
-    <!-- RIGHT: pricing stack (unit price · discount · subtotal) -->
-    <div class="shrink-0 text-right flex flex-col items-end min-w-[64px]">
-      <p class="text-xs text-muted tabular-nums leading-tight">
-        {{ unitPriceText }}
-      </p>
-      <p
-        class="text-[10px] text-primary tabular-nums leading-tight"
-        v-if="hasDiscount"
+      <!-- Badges row: stock, manual price, promotion -->
+      <div
+        v-if="isStockAvailable || isCustomPrice || (isPromotionPriced && props.item.discountTitle)"
+        class="flex flex-wrap items-center gap-1 pt-0.5"
+        data-testid="badges-row"
       >
-        {{ discountLabel }}
-      </p>
-      <p
-        class="text-sm font-bold text-highlighted tabular-nums leading-tight"
-        data-testid="line-subtotal"
-      >
-        {{ lineSubtotalText }}
-      </p>
-
-      <!-- Price override affordance (DRAFT only) -->
-      <UButton
-        v-if="!props.readonly"
-        size="xs"
-        color="neutral"
-        variant="ghost"
-        icon="i-lucide-pencil-ruler"
-        aria-label="Sobrescribir precio"
-        data-testid="price-override-button"
-        @click="handleOverride"
-      />
+        <AppBadge
+          v-if="isStockAvailable && stockBadgeLabel"
+          :tone="stockBadgeTone"
+          :icon="stockBadgeIcon"
+          :label="stockBadgeLabel"
+          data-testid="stock-badge"
+        />
+        <AppBadge
+          v-if="isCustomPrice"
+          tone="warning"
+          icon="i-lucide-pencil-ruler"
+          label="PRECIO MANUAL"
+          data-testid="manual-price-badge"
+        />
+        <AppBadge
+          v-if="isPromotionPriced && props.item.discountTitle"
+          tone="info"
+          icon="i-lucide-tag"
+          :label="props.item.discountTitle"
+          data-testid="promotion-badge"
+        />
+      </div>
     </div>
 
-    <!-- Badge row (full-width, sits below the card) -->
-    <div class="basis-full flex flex-wrap items-center gap-1 pt-1">
-      <AppBadge
-        v-if="isStockAvailable && stockBadgeLabel"
-        :tone="stockBadgeTone"
-        :icon="stockBadgeIcon"
-        :label="stockBadgeLabel"
-        data-testid="stock-badge"
-      />
-      <AppBadge
-        v-if="isCustomPrice"
-        tone="warning"
-        icon="i-lucide-pencil-ruler"
-        label="PRECIO MANUAL"
-        data-testid="manual-price-badge"
-      />
-      <AppBadge
-        v-if="isPromotionPriced && props.item.discountTitle"
-        tone="info"
-        icon="i-lucide-tag"
-        :label="props.item.discountTitle"
-        data-testid="promotion-badge"
-      />
+    <!-- RIGHT: compact pricing (read-only or alongside stepper) -->
+    <div
+      v-if="props.readonly"
+      class="shrink-0 text-right flex flex-col items-end min-w-[80px]"
+    >
+      <p class="text-xs text-muted tabular-nums">{{ unitPriceText }} c/u</p>
+      <p v-if="hasDiscount" class="text-[10px] text-primary tabular-nums">{{ discountLabel }}</p>
+      <p class="text-sm font-bold text-highlighted tabular-nums">{{ lineSubtotalText }}</p>
     </div>
+
+    <!-- Price override button (DRAFT only, right-aligned) -->
+    <UButton
+      v-if="!props.readonly"
+      size="xs"
+      color="neutral"
+      variant="ghost"
+      icon="i-lucide-pencil"
+      aria-label="Sobrescribir precio"
+      class="shrink-0"
+      data-testid="price-override-button"
+      @click="handleOverride"
+    />
   </article>
 </template>
