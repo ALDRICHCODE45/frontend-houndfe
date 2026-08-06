@@ -49,3 +49,35 @@ export function isDraft(status: QuotationStatus): boolean {
 export function isCancellable(status: QuotationStatus): boolean {
   return status === 'DRAFT'
 }
+
+/**
+ * T-UI-08 — REQ-UI-003 status→step index mapping for the 3-state progress
+ * stepper (BORRADOR → ENVIADA → EXPIRADA/CANCELADA).
+ *
+ * Kept in this module on purpose: it's a pure data lookup with no Vue
+ * dependency, so it's directly unit-testable and reusable from any layer.
+ * The component (`QuotationProgressStepper.vue`) consumes the index to
+ * decide which node is "active" vs "completed" vs "future".
+ *
+ * Returns:
+ *   - 0 → DRAFT (BORRADOR active)
+ *   - 1 → SENT  (ENVIADA active)
+ *   - 2 → EXPIRED | CANCELLED (final step active)
+ *   - -1 → unknown status (forward-compat for ACEPTADA/PEDIDO; the
+ *          component treats -1 as "no step to highlight" and renders
+ *          all three as future). The helper NEVER throws so the
+ *          computed `currentIndex` in the component stays pure.
+ */
+export function stepperIndexFromStatus(status: QuotationStatus): number {
+  switch (status) {
+    case 'DRAFT':
+      return 0
+    case 'SENT':
+      return 1
+    case 'EXPIRED':
+    case 'CANCELLED':
+      return 2
+    default:
+      return -1
+  }
+}

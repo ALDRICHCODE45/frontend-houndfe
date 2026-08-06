@@ -5,6 +5,7 @@ import {
   statusToLabel,
   isDraft,
   isCancellable,
+  stepperIndexFromStatus,
 } from '../quotation.utils'
 import type { QuotationResponseDto } from '../../interfaces/quotation.types'
 
@@ -101,6 +102,46 @@ describe('quotation.utils', () => {
       expect(isCancellable('CANCELLED')).toBe(false)
     })
   })
+
+  // T-UI-07 — REQ-UI-003 status→step mapping. The 3-state stepper needs a
+  // pure, isolated helper so the active/completed/future visual logic stays
+  // in the component while the data mapping stays here in utils. The
+  // helper MUST be a plain function (no Vue imports) so it is trivially
+  // unit-testable.
+  describe('stepperIndexFromStatus', () => {
+    it('maps DRAFT to step 0 (BORRADOR)', () => {
+      expect(stepperIndexFromStatus('DRAFT')).toBe(0)
+    })
+
+    it('maps SENT to step 1 (ENVIADA)', () => {
+      expect(stepperIndexFromStatus('SENT')).toBe(1)
+    })
+
+    it('maps EXPIRED to step 2 (EXPIRADA/CANCELADA — terminal)', () => {
+      expect(stepperIndexFromStatus('EXPIRED')).toBe(2)
+    })
+
+    it('maps CANCELLED to step 2 (EXPIRADA/CANCELADA — terminal)', () => {
+      expect(stepperIndexFromStatus('CANCELLED')).toBe(2)
+    })
+
+    it('returns -1 for unknown statuses (forward-compat for ACEPTADA/PEDIDO)', () => {
+      // Cast through unknown so the test still compiles — the helper
+      // is the single source of truth and MUST be tolerant.
+      expect(stepperIndexFromStatus('ACEPTADA' as unknown as Parameters<typeof stepperIndexFromStatus>[0])).toBe(-1)
+      expect(stepperIndexFromStatus('PEDIDO' as unknown as Parameters<typeof stepperIndexFromStatus>[0])).toBe(-1)
+      expect(stepperIndexFromStatus('UNKNOWN' as unknown as Parameters<typeof stepperIndexFromStatus>[0])).toBe(-1)
+    })
+
+    it('always returns a number (pure, never throws)', () => {
+      // The component relies on this for computed currentIndex; it must
+      // be safe to call with any string. The unknown branch returns -1
+      // (sentinel for "no step") rather than throwing.
+      expect(() =>
+        stepperIndexFromStatus('WHATEVER' as unknown as Parameters<typeof stepperIndexFromStatus>[0]),
+      ).not.toThrow()
+    })
+  })
 })
 
 function makeQuotation(
@@ -124,6 +165,7 @@ function makeQuotation(
     appliedPromotions: [],
     vetoedPromotionIds: [],
     optedInManualPromotionIds: [],
+    effectiveStatus: overrides.status ?? 'DRAFT',
     createdAt: '2026-08-01T00:00:00.000Z',
     updatedAt: '2026-08-01T00:00:00.000Z',
   }
