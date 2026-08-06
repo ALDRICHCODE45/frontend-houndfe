@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 // REQ-UI-001 — Coco design tokens are scoped to `.quotation-detail-view`
 // via an `@layer coco-quotations` block. Importing the stylesheet here
@@ -145,10 +145,70 @@ const items = computed(() => quotation.value?.items ?? [])
 
 const isProductSearchOpen = ref(false)
 
-// T-UI-04 / REQ-UI-010 — customer notes (Phase 1 skeleton). Local-only
-// ref so the textarea is interactive; Phase 3 will wire a localStorage
-// draft cache and a "no implementado aún" hint is shown until then.
+// T-UI-21/22 / REQ-UI-010 — customer notes. The backend does not yet
+// expose a `notes` endpoint, so the textarea is local-state only. To
+// avoid losing in-flight notes when the cashier navigates away or
+// refreshes, the value is cached in `localStorage` under
+// `quotation-notes-${id}` with a 300ms debounce so storage isn't
+// thrashed on every keystroke. The "(no implementado aún)" hint stays
+// until the backend endpoint lands — the localStorage cache is purely
+// a non-persistent safety net (REQ-UI-010 spec).
+const NOTES_MAX_LENGTH = 280
+const NOTES_STORAGE_DEBOUNCE_MS = 300
+
 const customerNotes = ref('')
+
+function notesStorageKey(id: string | null): string | null {
+  return id ? `quotation-notes-${id}` : null
+}
+
+function loadNotesFromStorage(id: string | null): string {
+  const key = notesStorageKey(id)
+  if (!key) return ''
+  try {
+    const cached = window.localStorage.getItem(key)
+    return cached ?? ''
+  } catch {
+    return ''
+  }
+}
+
+let notesPersistTimer: ReturnType<typeof setTimeout> | null = null
+
+function persistNotesToStorage(id: string | null, value: string): void {
+  const key = notesStorageKey(id)
+  if (!key) return
+  if (notesPersistTimer !== null) {
+    clearTimeout(notesPersistTimer)
+  }
+  notesPersistTimer = setTimeout(() => {
+    try {
+      window.localStorage.setItem(key, value)
+    } catch {
+      // Storage may be full or disabled — silently no-op. The notes
+      // stay in the textarea so the cashier never loses work in the UI.
+    }
+  }, NOTES_STORAGE_DEBOUNCE_MS)
+}
+
+function handleNotesInput(value: string): void {
+  // Defensive clamp: the textarea already enforces `maxlength`, but a
+  // paste event with > 280 chars could land us at 281. Slice so the
+  // counter always reads "N / 280" where N ≤ 280.
+  const clamped = value.length > NOTES_MAX_LENGTH ? value.slice(0, NOTES_MAX_LENGTH) : value
+  customerNotes.value = clamped
+  persistNotesToStorage(quotationId.value, clamped)
+}
+
+// Sync the local notes ref whenever the route changes to a new
+// quotation id (so navigating between drafts doesn't leak notes).
+watch(
+  () => quotationId.value,
+  (nextId) => {
+    customerNotes.value = loadNotesFromStorage(nextId)
+  },
+  { immediate: true },
+)
 
 async function handleAddProduct(
   productId: string,
@@ -491,6 +551,20 @@ async function handleCancel(reason: Parameters<typeof draft.cancelQuotation>[0])
 
 onUnmounted(() => {
   pdfAbortController.value?.abort()
+  // Flush the debounced notes persist before teardown so the latest
+  // keystroke isn't dropped if the cashier navigates away.
+  if (notesPersistTimer !== null) {
+    clearTimeout(notesPersistTimer)
+    notesPersistTimer = null
+    const key = notesStorageKey(quotationId.value)
+    if (key && customerNotes.value) {
+      try {
+        window.localStorage.setItem(key, customerNotes.value)
+      } catch {
+        // No-op: storage may be full / disabled.
+      }
+    }
+  }
 })
 
 /** Tiny helper used by the applied-promotions list to render the discount
@@ -906,10 +980,12 @@ onMounted(async () => {
             @save-draft="handleSaveDraftFromSidebar"
           />
 
-          <!-- T-UI-04 / REQ-UI-010 — customer notes (skeleton). The textarea
-               is local-state only — Phase 3 will add a localStorage draft
-               cache and the (no implementado aún) hint already makes the
-               non-persistence explicit to the cashier. -->
+          <!-- T-UI-21/22 / REQ-UI-010 — customer notes (UI-only). The
+               textarea is local-state only — cached to localStorage
+               under `quotation-notes-${id}` (debounced 300ms) so the
+               cashier doesn't lose in-flight notes. The "(no
+               implementado aún)" hint stays until the backend endpoint
+               lands. -->
           <section
             class="flex flex-col gap-2 rounded-xl border border-default bg-default p-5"
             data-testid="customer-notes-section"
@@ -930,12 +1006,13 @@ onMounted(async () => {
             </div>
             <textarea
               id="customer-notes"
-              v-model="customerNotes"
+              :value="customerNotes"
               rows="4"
               maxlength="280"
               class="w-full resize-none rounded-lg border border-default bg-default p-2 text-sm text-highlighted focus:outline-none focus:ring-1 focus:ring-primary"
               placeholder="Condiciones de entrega, referencias de pago..."
               data-testid="customer-notes-textarea"
+              @input="handleNotesInput(($event.target as HTMLTextAreaElement).value)"
             />
             <p class="text-xs text-muted">
               (no implementado aún)

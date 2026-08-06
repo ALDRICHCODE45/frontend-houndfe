@@ -977,6 +977,84 @@ describe('QuotationDetailView — customer notes placeholder (T-UI-04)', () => {
   })
 })
 
+// T-UI-21/22 — REQ-UI-010 customer notes localStorage persistence.
+// The textarea is non-persistent (no backend endpoint yet). To avoid
+// losing in-flight notes when the cashier accidentally navigates away,
+// the view caches the draft in `localStorage` under
+// `quotation-notes-${id}`. The contract:
+//   - Load on mount (or when quotation id becomes available).
+//   - Save on input (debounced ~300ms) — never thrash storage.
+//   - Counter still clamps at 280.
+//   - The "(no implementado aún)" hint stays until the backend exists.
+describe('QuotationDetailView — customer notes localStorage persistence (T-UI-21/22)', () => {
+  beforeEach(() => {
+    // Wipe any cached draft from previous tests so each case starts clean.
+    window.localStorage.clear()
+  })
+
+  it('loads cached notes from localStorage on mount', async () => {
+    const id = 'quotation-12345678'
+    window.localStorage.setItem(`quotation-notes-${id}`, 'Pre-existing draft from local cache')
+    const wrapper = mountView()
+    await flushPromises()
+    const textarea = wrapper.find<HTMLTextAreaElement>('[data-testid="customer-notes-textarea"]')
+    expect((textarea.element as HTMLTextAreaElement).value).toBe('Pre-existing draft from local cache')
+    const counter = wrapper.find('[data-testid="notes-char-counter"]')
+    expect(counter.text()).toBe('35 / 280')
+  })
+
+  it('persists typed input to localStorage (debounced)', async () => {
+    vi.useFakeTimers()
+    try {
+      const id = 'quotation-12345678'
+      const wrapper = mountView()
+      await flushPromises()
+
+      const textarea = wrapper.find<HTMLTextAreaElement>('[data-testid="customer-notes-textarea"]')
+      await textarea.setValue('Hola mundo')
+      // Storage is debounced — nothing written yet
+      expect(window.localStorage.getItem(`quotation-notes-${id}`)).toBeNull()
+
+      // Advance past the debounce window
+      vi.advanceTimersByTime(400)
+      expect(window.localStorage.getItem(`quotation-notes-${id}`)).toBe('Hola mundo')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('updates the character counter as the user types and clamps at 280', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    const textarea = wrapper.find<HTMLTextAreaElement>('[data-testid="customer-notes-textarea"]')
+    await textarea.setValue('Hola')
+    const counter = wrapper.find('[data-testid="notes-char-counter"]')
+    expect(counter.text()).toBe('4 / 280')
+
+    // Past 280 chars → counter MUST stop at "280 / 280" (the textarea
+    // also enforces `maxlength` so we don't write beyond 280).
+    const longText = 'x'.repeat(500)
+    await textarea.setValue(longText)
+    const finalLength = (textarea.element as HTMLTextAreaElement).value.length
+    expect(finalLength).toBeLessThanOrEqual(280)
+    expect(counter.text()).toBe('280 / 280')
+  })
+
+  it('does not throw when localStorage has no draft cached for this quotation', async () => {
+    // Empty storage → start from scratch.
+    const wrapper = mountView()
+    await flushPromises()
+    const textarea = wrapper.find<HTMLTextAreaElement>('[data-testid="customer-notes-textarea"]')
+    expect((textarea.element as HTMLTextAreaElement).value).toBe('')
+  })
+
+  it('keeps the "(no implementado aún)" hint visible until the backend endpoint exists', () => {
+    const wrapper = mountView()
+    expect(wrapper.text()).toContain('(no implementado aún)')
+  })
+})
+
 // T-UI-05 — REQ-UI-002 card styling. Every section wrapper in the
 // detail view uses the same Coco card pattern (rounded-xl border
 // border-default bg-default p-5). This test pins the contract for the
