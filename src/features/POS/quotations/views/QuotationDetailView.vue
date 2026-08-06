@@ -296,6 +296,17 @@ async function handlePriceOverrideSubmit(itemId: string, unitPriceCents: number)
 // ── S6: promotions + expiry + totals footer ───────────────────────────────────
 
 const appliedPromotions = computed(() => quotation.value?.appliedPromotions ?? [])
+
+/** Applied promotions enriched with resolved titles. The backend may send
+ *  `title: null` when `discountTitle` on the item is null, so we resolve
+ *  via `promotionLookup` (active promotions API) before passing to the card. */
+const resolvedAppliedPromotions = computed(() =>
+  appliedPromotions.value.map((p) => ({
+    ...p,
+    title: resolvePromotionTitle(p.promotionId, p.title),
+  })),
+)
+
 const vetoedPromotionIds = computed(() => quotation.value?.vetoedPromotionIds ?? [])
 
 /** Two-way binding shim for the expiry picker — the picker emits ISO/null,
@@ -850,7 +861,7 @@ onMounted(async () => {
                      vetoPromotion — the card itself never calls the
                      API directly. -->
                 <li
-                  v-for="promo in appliedPromotions"
+                  v-for="promo in resolvedAppliedPromotions"
                   :key="promo.promotionId"
                 >
                   <QuotationPromotionCard
