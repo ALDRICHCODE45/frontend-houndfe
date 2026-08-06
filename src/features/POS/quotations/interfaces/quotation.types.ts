@@ -22,6 +22,10 @@ export interface QuotationCustomer {
   firstName: string
   lastName: string | null
   email: string | null
+  /** Optional phone for the customer card. The current backend payload
+   *  does NOT include phone, so the field is optional and the card
+   *  gracefully omits the phone row when null/missing. */
+  phone?: string | null
 }
 
 export interface QuotationItemProduct {
