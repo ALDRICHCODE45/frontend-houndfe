@@ -194,6 +194,20 @@ The CSV serializer strategy: the schema serializes multi-value fields (status, c
 1. ~~Consider adding `createdFrom`/`createdTo` to the `QuotationListParams` type definition beside `expiresFrom`/`expiresTo` for type completeness.~~ — **DONE** in remediation commit `9123d89`.
 2. The `useQuotationsListTable` composable could forward ALL `filters.value` entries generically (rather than hand-picking each field) to reduce the risk of future filter additions being silently dropped.
 
+### Backend confirmation (2026-08-06)
+
+The backend team delivered and confirmed the advanced-filter contract on `GET /quotations` (handoff message received by the orchestrator):
+
+- `search` — contains on customer firstName/lastName, case-insensitive, trimmed; quotations without a customer never match.
+- `status` — CSV multi-select, OR semantics (`?status=DRAFT,SENT`), invalid value → 400, single value still works.
+- `customerId` — CSV multi-select, OR semantics, invalid UUID → 400, single UUID still works.
+- `expiresFrom`/`expiresTo` — ISO 8601 inclusive range on expiresAt; one = >= / <=; both = BETWEEN; invalid date → 400; null expiresAt never matches.
+- `minTotalCents`/`maxTotalCents` — integers ≥ 0 inclusive range on totalCents; `min=0` valid; `min>max` → 400.
+- OR within a group, AND between groups; stable with page/limit/sortBy/sortOrder.
+- Response DTO and pagination envelope unchanged — no FE response-side adjustments needed.
+- **Correction to earlier finding**: previously the frontend `search` param did NOT get silently ignored — the backend rejected unknown params with 400. Either way the search feature was broken; it now works.
+- **Known behavior (pre-existing)**: `status` filters on the PERSISTED status, not the lazy-effective status. A SENT quotation past expiry renders as EXPIRED on the wire but matches `status=SENT` (not `status=EXPIRED`). If effective-status filtering is required, the backend offered to add it (potential follow-up, out of scope for this change).
+
 ### Verdict
 
-**PASS WITH NOTES** — The frontend implementation fully satisfies all 8 FE-owned requirements (REQ-QAF-009…016) with passing tests, clean build, and correct design alignment. The single functional WARNING (createdFrom/createdTo not forwarded) was remediated in commit `9123d89` with a regression test; the remaining notes are process-only (no apply-progress artifact) and the expected backend dependency (REQ-QAF-001…008 pending the backend team — the FE contract is serialized correctly for all forwarded params). Anti-requirements verified clean (zero shared-component, sales, PDF, or detail-view changes; legacy files deleted; no new deps). Module suite 573/573 green, type-check clean, full build green.
+**PASS WITH NOTES** — The frontend implementation fully satisfies all 8 FE-owned requirements (REQ-QAF-009…016) with passing tests, clean build, and correct design alignment. The single functional WARNING (createdFrom/createdTo not forwarded) was remediated in commit `9123d89` with a regression test; the remaining notes are process-only (no apply-progress artifact) and the backend dependency (REQ-QAF-001…008) is now CONFIRMED IMPLEMENTED by the backend team (handoff 2026-08-06). Anti-requirements verified clean (zero shared-component, sales, PDF, or detail-view changes; legacy files deleted; no new deps). Module suite 573/573 green, type-check clean, full build green.
