@@ -869,6 +869,25 @@ describe('QuotationDetailView — customer notes placeholder (T-UI-04)', () => {
   })
 })
 
+// T-UI-05 — REQ-UI-002 card styling. Every section wrapper in the
+// detail view uses the same Coco card pattern (rounded-xl border
+// border-default bg-default p-5). This test pins the contract for the
+// new customer notes section; the other sections already use the same
+// pattern and are covered by the existing selector tests.
+describe('QuotationDetailView — Coco card styling (T-UI-05)', () => {
+  it('applies the Coco card styling to the customer notes section', () => {
+    const wrapper = mountView()
+    const notes = wrapper.find('[data-testid="customer-notes-section"]')
+    expect(notes.exists()).toBe(true)
+    const classes = notes.classes()
+    expect(classes).toContain('rounded-xl')
+    expect(classes).toContain('border')
+    expect(classes).toContain('border-default')
+    expect(classes).toContain('bg-default')
+    expect(classes).toContain('p-5')
+  })
+})
+
 describe('QuotationDetailView promotions section (S6)', () => {
   it('renders the list of applied promotions from the quotation', () => {
     state.quotation.value = makeQuotation({
