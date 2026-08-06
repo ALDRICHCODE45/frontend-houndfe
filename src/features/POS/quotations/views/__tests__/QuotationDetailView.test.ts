@@ -39,6 +39,8 @@ const state = {
 // `vi.hoisted` so they're available inside the factory closure.
 const quotationApiMock = vi.hoisted(() => ({
   getPdfBlob: vi.fn(),
+  updateNotes: vi.fn(),
+  deleteQuotation: vi.fn(),
 }))
 const quotationPdfErrorMock = vi.hoisted(() =>
   class extends Error {
@@ -143,6 +145,9 @@ function makeQuotation(overrides: Partial<QuotationResponseDto> = {}): Quotation
     subtotalCents: 0,
     discountCents: 0,
     totalCents: 0,
+    taxRate: null,
+    taxCents: null,
+    customerNotes: null,
     manuallyEnded: false,
     items: [],
     appliedPromotions: [],
@@ -383,6 +388,8 @@ beforeEach(() => {
   state.sendQuotation.mockReset().mockResolvedValue(makeQuotation())
   state.cancelQuotation.mockReset().mockResolvedValue(makeQuotation())
   quotationApiMock.getPdfBlob.mockReset()
+  quotationApiMock.updateNotes.mockReset()
+  quotationApiMock.deleteQuotation.mockReset()
   availablePromotionsMock.manual.promotions = []
   availablePromotionsMock.manual.isLoading = false
   availablePromotionsMock.manual.isError = false
@@ -970,9 +977,10 @@ describe('QuotationDetailView — two-column layout (REQ-UI-002 / T-UI-03)', () 
 })
 
 // T-UI-04 — REQ-UI-010 (skeleton). The detail view owns a customer notes
-// textarea in the right sidebar. Phase 3 will wire persistence + counter
-// behavior; for Phase 1 we only pin the layout placement and the visible
-// "0 / 280" counter so the structure is in place.
+// textarea in the right sidebar. The textarea is now wired to the backend
+// (PATCH /quotations/drafts/:id/notes) — these tests pin the layout
+// placement, the visible "0 / 280" counter, and the basic shape of the
+// input control.
 describe('QuotationDetailView — customer notes placeholder (T-UI-04)', () => {
   it('renders a customer notes textarea with the spec placeholder', () => {
     const wrapper = mountView()
@@ -990,87 +998,117 @@ describe('QuotationDetailView — customer notes placeholder (T-UI-04)', () => {
     expect(counter.text()).toBe('0 / 280')
   })
 
-  it('shows the "(no implementado aún)" hint so the cashier knows the notes are not persisted yet', () => {
+  it('does NOT show the "(no implementado aún)" hint anymore (backend is live)', () => {
     const wrapper = mountView()
-    expect(wrapper.text()).toContain('(no implementado aún)')
+    expect(wrapper.text()).not.toContain('(no implementado aún)')
   })
 })
 
-// T-UI-21/22 — REQ-UI-010 customer notes localStorage persistence.
-// The textarea is non-persistent (no backend endpoint yet). To avoid
-// losing in-flight notes when the cashier accidentally navigates away,
-// the view caches the draft in `localStorage` under
-// `quotation-notes-${id}`. The contract:
-//   - Load on mount (or when quotation id becomes available).
-//   - Save on input (debounced ~300ms) — never thrash storage.
+// T-UI-21/22 — REQ-UI-010 customer notes backend persistence.
+// The textarea is backed by PATCH /quotations/drafts/:id/notes:
+//   - Load: seeded from quotation.customerNotes on mount / route change.
+//   - Edit: DRAFT only — non-DRAFT statuses render the textarea readonly.
+//   - Save: debounced 300ms after the last keystroke. The mutation returns
+//     the full updated quotation, which we splice into the detail cache.
 //   - Counter still clamps at 280.
-//   - The "(no implementado aún)" hint stays until the backend exists.
-describe('QuotationDetailView — customer notes localStorage persistence (T-UI-21/22)', () => {
-  beforeEach(() => {
-    // Wipe any cached draft from previous tests so each case starts clean.
-    window.localStorage.clear()
-  })
-
-  it('loads cached notes from localStorage on mount', async () => {
-    const id = 'quotation-12345678'
-    window.localStorage.setItem(`quotation-notes-${id}`, 'Pre-existing draft from local cache')
+describe('QuotationDetailView — customer notes backend persistence (T-UI-21/22)', () => {
+  it('hydrates the textarea from quotation.customerNotes on mount', async () => {
+    state.quotation.value = makeQuotation({
+      customerNotes: 'Entrega en domicilio, pago en efectivo',
+    })
     const wrapper = mountView()
     await flushPromises()
     const textarea = wrapper.find<HTMLTextAreaElement>('[data-testid="customer-notes-textarea"]')
-    expect((textarea.element as HTMLTextAreaElement).value).toBe('Pre-existing draft from local cache')
+    expect((textarea.element as HTMLTextAreaElement).value).toBe(
+      'Entrega en domicilio, pago en efectivo',
+    )
     const counter = wrapper.find('[data-testid="notes-char-counter"]')
-    expect(counter.text()).toBe('35 / 280')
+    expect(counter.text()).toBe('38 / 280')
   })
 
-  it('persists typed input to localStorage (debounced)', async () => {
-    vi.useFakeTimers()
-    try {
-      const id = 'quotation-12345678'
-      const wrapper = mountView()
-      await flushPromises()
-
-      const textarea = wrapper.find<HTMLTextAreaElement>('[data-testid="customer-notes-textarea"]')
-      await textarea.setValue('Hola mundo')
-      // Storage is debounced — nothing written yet
-      expect(window.localStorage.getItem(`quotation-notes-${id}`)).toBeNull()
-
-      // Advance past the debounce window
-      vi.advanceTimersByTime(400)
-      expect(window.localStorage.getItem(`quotation-notes-${id}`)).toBe('Hola mundo')
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('updates the character counter as the user types and clamps at 280', async () => {
-    const wrapper = mountView()
-    await flushPromises()
-
-    const textarea = wrapper.find<HTMLTextAreaElement>('[data-testid="customer-notes-textarea"]')
-    await textarea.setValue('Hola')
-    const counter = wrapper.find('[data-testid="notes-char-counter"]')
-    expect(counter.text()).toBe('4 / 280')
-
-    // Past 280 chars → counter MUST stop at "280 / 280" (the textarea
-    // also enforces `maxlength` so we don't write beyond 280).
-    const longText = 'x'.repeat(500)
-    await textarea.setValue(longText)
-    const finalLength = (textarea.element as HTMLTextAreaElement).value.length
-    expect(finalLength).toBeLessThanOrEqual(280)
-    expect(counter.text()).toBe('280 / 280')
-  })
-
-  it('does not throw when localStorage has no draft cached for this quotation', async () => {
-    // Empty storage → start from scratch.
+  it('hydrates to an empty string when quotation.customerNotes is null', async () => {
+    state.quotation.value = makeQuotation({ customerNotes: null })
     const wrapper = mountView()
     await flushPromises()
     const textarea = wrapper.find<HTMLTextAreaElement>('[data-testid="customer-notes-textarea"]')
     expect((textarea.element as HTMLTextAreaElement).value).toBe('')
   })
 
-  it('keeps the "(no implementado aún)" hint visible until the backend endpoint exists', () => {
+  it('calls quotationApi.updateNotes (debounced) when the user types in DRAFT', async () => {
+    vi.useFakeTimers()
+    try {
+      quotationApiMock.updateNotes.mockResolvedValue(makeQuotation({ customerNotes: 'Hola mundo' }))
+      const wrapper = mountView()
+      await flushPromises()
+
+      const textarea = wrapper.find<HTMLTextAreaElement>('[data-testid="customer-notes-textarea"]')
+      await textarea.setValue('Hola mundo')
+      // Debounced — mutation hasn't fired yet.
+      expect(quotationApiMock.updateNotes).not.toHaveBeenCalled()
+
+      vi.advanceTimersByTime(400)
+      await flushPromises()
+      expect(quotationApiMock.updateNotes).toHaveBeenCalledWith('quotation-12345678', 'Hola mundo')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('updates the character counter as the user types and clamps at 280', async () => {
+    vi.useFakeTimers()
+    try {
+      const wrapper = mountView()
+      await flushPromises()
+
+      const textarea = wrapper.find<HTMLTextAreaElement>('[data-testid="customer-notes-textarea"]')
+      await textarea.setValue('Hola')
+      const counter = wrapper.find('[data-testid="notes-char-counter"]')
+      expect(counter.text()).toBe('4 / 280')
+
+      // Past 280 chars → counter MUST stop at "280 / 280" (the textarea
+      // also enforces `maxlength` so we don't write beyond 280).
+      const longText = 'x'.repeat(500)
+      await textarea.setValue(longText)
+      const finalLength = (textarea.element as HTMLTextAreaElement).value.length
+      expect(finalLength).toBeLessThanOrEqual(280)
+      expect(counter.text()).toBe('280 / 280')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does NOT call updateNotes when the status is not DRAFT', async () => {
+    vi.useFakeTimers()
+    try {
+      state.quotation.value = makeQuotation({ status: 'SENT' })
+      const wrapper = mountView()
+      await flushPromises()
+
+      const textarea = wrapper.find<HTMLTextAreaElement>('[data-testid="customer-notes-textarea"]')
+      // The textarea is rendered readonly — DOM `setValue` still mutates the
+      // underlying value in jsdom, but the view's handler short-circuits on
+      // !isDraft so the mutation is never queued.
+      await textarea.setValue('attempted edit')
+      vi.advanceTimersByTime(400)
+      await flushPromises()
+      expect(quotationApiMock.updateNotes).not.toHaveBeenCalled()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('renders the textarea readonly when status is not DRAFT', () => {
+    state.quotation.value = makeQuotation({ status: 'SENT' })
     const wrapper = mountView()
-    expect(wrapper.text()).toContain('(no implementado aún)')
+    const textarea = wrapper.find('[data-testid="customer-notes-textarea"]')
+    expect(textarea.attributes('readonly')).toBeDefined()
+  })
+
+  it('renders the textarea editable when status is DRAFT', () => {
+    state.quotation.value = makeQuotation({ status: 'DRAFT' })
+    const wrapper = mountView()
+    const textarea = wrapper.find('[data-testid="customer-notes-textarea"]')
+    expect(textarea.attributes('readonly')).toBeUndefined()
   })
 })
 

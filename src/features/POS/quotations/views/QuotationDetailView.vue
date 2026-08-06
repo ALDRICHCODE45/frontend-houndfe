@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useMutation } from '@tanstack/vue-query'
+import { useMutation, useQueryClient } from '@tanstack/vue-query'
 // REQ-UI-001 — Coco design tokens are scoped to `.quotation-detail-view`
 // via an `@layer coco-quotations` block. Importing the stylesheet here
 // keeps the token lifecycle tied to the view that owns it.
@@ -20,6 +20,8 @@ import { quotationApi, QuotationPdfError } from '../api/quotation.api'
 import { useQuotationDetail } from '../composables/useQuotationDetail'
 import { useQuotationDraft } from '../composables/useQuotationDraft'
 import { useAvailablePromotions } from '../composables/useAvailablePromotions'
+import { quotationQueryKeys } from '@/core/shared/constants/query-keys'
+import type { QuotationResponseDto } from '../interfaces/quotation.types'
 import { PROMOTION_TYPE_LABELS } from '@/features/POS/promotions/interfaces/promotion.types'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import QuotationItemRow from '../components/QuotationItemRow.vue'
@@ -45,6 +47,7 @@ declare const useToast: () => {
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const queryClient = useQueryClient()
 const tenantId = computed(() => authStore.currentTenantId)
 const isAssignCustomerOpen = ref(false)
 const isCreating = ref(false)
@@ -147,50 +150,59 @@ const items = computed(() => quotation.value?.items ?? [])
 
 const isProductSearchOpen = ref(false)
 
-// T-UI-21/22 / REQ-UI-010 — customer notes. The backend does not yet
-// expose a `notes` endpoint, so the textarea is local-state only. To
-// avoid losing in-flight notes when the cashier navigates away or
-// refreshes, the value is cached in `localStorage` under
-// `quotation-notes-${id}` with a 300ms debounce so storage isn't
-// thrashed on every keystroke. The "(no implementado aún)" hint stays
-// until the backend endpoint lands — the localStorage cache is purely
-// a non-persistent safety net (REQ-UI-010 spec).
+// T-UI-21/22 / REQ-UI-010 — customer notes. The backend now exposes
+// `customerNotes` on the `QuotationResponseDto` and a PATCH
+// `/quotations/drafts/:id/notes` endpoint. The textarea bootstraps
+// from the cached quotation and saves back to the server on every
+// keystroke after a 300ms debounce so the cashier never loses work
+// mid-edit. The mutation returns the full updated quotation, which
+// we splice into the detail + list caches so the rest of the app
+// (totals, lists, exports) sees the latest value.
 const NOTES_MAX_LENGTH = 280
-const NOTES_STORAGE_DEBOUNCE_MS = 300
+const NOTES_SAVE_DEBOUNCE_MS = 300
 
 const customerNotes = ref('')
+const lastSavedNotes = ref('')
 
-function notesStorageKey(id: string | null): string | null {
-  return id ? `quotation-notes-${id}` : null
-}
+const updateNotesMutation = useMutation<
+  QuotationResponseDto,
+  Error,
+  string | null,
+  { previous: QuotationResponseDto | undefined }
+>({
+  mutationFn: (next) => {
+    const id = quotationId.value
+    if (!id) throw new Error('Cannot update notes on a non-existent quotation')
+    return quotationApi.updateNotes(id, next)
+  },
+  onSuccess: (updated) => {
+    // Replace the cached detail head with the server's full response so
+    // the rest of the UI (list, totals, etc.) sees the new notes too.
+    const detailKey = quotationQueryKeys.detail(tenantId.value, updated.id)
+    queryClient.setQueryData(detailKey, updated)
+    queryClient.invalidateQueries({ queryKey: detailKey })
+  },
+  onError: (error) => {
+    const err = error as { response?: { data?: { message?: string } }; message?: string }
+    const message = err.response?.data?.message ?? err.message ?? 'No se pudieron guardar las notas'
+    useToast().add({
+      title: 'Error al guardar las notas',
+      description: message,
+      color: 'error',
+    })
+  },
+})
 
-function loadNotesFromStorage(id: string | null): string {
-  const key = notesStorageKey(id)
-  if (!key) return ''
-  try {
-    const cached = window.localStorage.getItem(key)
-    return cached ?? ''
-  } catch {
-    return ''
-  }
-}
+let notesSaveTimer: ReturnType<typeof setTimeout> | null = null
 
-let notesPersistTimer: ReturnType<typeof setTimeout> | null = null
-
-function persistNotesToStorage(id: string | null, value: string): void {
-  const key = notesStorageKey(id)
-  if (!key) return
-  if (notesPersistTimer !== null) {
-    clearTimeout(notesPersistTimer)
-  }
-  notesPersistTimer = setTimeout(() => {
-    try {
-      window.localStorage.setItem(key, value)
-    } catch {
-      // Storage may be full or disabled — silently no-op. The notes
-      // stay in the textarea so the cashier never loses work in the UI.
-    }
-  }, NOTES_STORAGE_DEBOUNCE_MS)
+function scheduleNotesSave(value: string): void {
+  if (!isDraft.value) return
+  if (notesSaveTimer !== null) clearTimeout(notesSaveTimer)
+  notesSaveTimer = setTimeout(() => {
+    notesSaveTimer = null
+    if (value === lastSavedNotes.value) return
+    updateNotesMutation.mutate(value)
+  }, NOTES_SAVE_DEBOUNCE_MS)
 }
 
 function handleNotesInput(value: string): void {
@@ -199,17 +211,38 @@ function handleNotesInput(value: string): void {
   // counter always reads "N / 280" where N ≤ 280.
   const clamped = value.length > NOTES_MAX_LENGTH ? value.slice(0, NOTES_MAX_LENGTH) : value
   customerNotes.value = clamped
-  persistNotesToStorage(quotationId.value, clamped)
+  if (isDraft.value) scheduleNotesSave(clamped)
 }
 
-// Sync the local notes ref whenever the route changes to a new
-// quotation id (so navigating between drafts doesn't leak notes).
+// Seed the local ref whenever the quotation loads or route changes.
+// The backend's `customerNotes` is the authoritative source — local
+// state, debounced saves, and the textarea all derive from it.
+function syncNotesFromQuotation(): void {
+  const next = quotation.value?.customerNotes ?? ''
+  customerNotes.value = next
+  lastSavedNotes.value = next
+}
+
 watch(
   () => quotationId.value,
-  (nextId) => {
-    customerNotes.value = loadNotesFromStorage(nextId)
+  () => {
+    syncNotesFromQuotation()
   },
   { immediate: true },
+)
+
+watch(
+  () => quotation.value?.customerNotes,
+  (next) => {
+    if (next === null || next === undefined) return
+    // Only sync from the backend when the value actually differs from
+    // what we have on screen — skips feedback loops from our own
+    // mutation success and keeps the user's in-flight text intact.
+    if (next !== customerNotes.value) {
+      customerNotes.value = next
+      lastSavedNotes.value = next
+    }
+  },
 )
 
 async function handleAddProduct(
@@ -589,18 +622,13 @@ const deleteMutation = useMutation({
 
 onUnmounted(() => {
   pdfAbortController.value?.abort()
-  // Flush the debounced notes persist before teardown so the latest
+  // Flush the debounced notes save before teardown so the latest
   // keystroke isn't dropped if the cashier navigates away.
-  if (notesPersistTimer !== null) {
-    clearTimeout(notesPersistTimer)
-    notesPersistTimer = null
-    const key = notesStorageKey(quotationId.value)
-    if (key && customerNotes.value) {
-      try {
-        window.localStorage.setItem(key, customerNotes.value)
-      } catch {
-        // No-op: storage may be full / disabled.
-      }
+  if (notesSaveTimer !== null) {
+    clearTimeout(notesSaveTimer)
+    notesSaveTimer = null
+    if (isDraft.value && customerNotes.value !== lastSavedNotes.value) {
+      updateNotesMutation.mutate(customerNotes.value)
     }
   }
 })
@@ -1034,12 +1062,10 @@ onMounted(async () => {
             @save-draft="handleSaveDraftFromSidebar"
           />
 
-          <!-- T-UI-21/22 / REQ-UI-010 — customer notes (UI-only). The
-               textarea is local-state only — cached to localStorage
-               under `quotation-notes-${id}` (debounced 300ms) so the
-               cashier doesn't lose in-flight notes. The "(no
-               implementado aún)" hint stays until the backend endpoint
-               lands. -->
+          <!-- T-UI-21/22 / REQ-UI-010 — customer notes. The textarea is
+               seeded from `quotation.customerNotes` and saved back to the
+               backend via PATCH /quotations/drafts/:id/notes (debounced
+               300ms). Read-only when the quotation is not DRAFT. -->
           <section
             class="flex flex-col gap-2 rounded-xl border border-default bg-default p-5"
             data-testid="customer-notes-section"
@@ -1063,14 +1089,15 @@ onMounted(async () => {
               :value="customerNotes"
               rows="4"
               maxlength="280"
-              class="w-full resize-none rounded-lg border border-default bg-default p-2 text-sm text-highlighted focus:outline-none focus:ring-1 focus:ring-primary"
+              :readonly="!isDraft"
+              :class="[
+                'w-full resize-none rounded-lg border border-default bg-default p-2 text-sm text-highlighted focus:outline-none focus:ring-1 focus:ring-primary',
+                !isDraft && 'cursor-not-allowed bg-elevated text-muted',
+              ]"
               placeholder="Condiciones de entrega, referencias de pago..."
               data-testid="customer-notes-textarea"
               @input="handleNotesInput(($event.target as HTMLTextAreaElement).value)"
             />
-            <p class="text-xs text-muted">
-              (no implementado aún)
-            </p>
           </section>
         </div>
       </div>

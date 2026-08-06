@@ -31,6 +31,9 @@ const mockQuotation = (overrides: Partial<QuotationResponseDto> = {}): Quotation
   subtotalCents: 0,
   discountCents: 0,
   totalCents: 0,
+  taxRate: null,
+  taxCents: null,
+  customerNotes: null,
   manuallyEnded: false,
   items: [],
   appliedPromotions: [],
@@ -405,6 +408,63 @@ describe('quotationApi', () => {
         '/quotations/drafts/q-1/expiry',
         { expiresAt: null },
       )
+    })
+  })
+
+  // ─── 3.13b updateNotes ──────────────────────────────────────────────────────
+
+  describe('updateNotes', () => {
+    it('PATCHes /quotations/drafts/:id/notes with a non-null customerNotes string', async () => {
+      const response = mockQuotation({
+        id: 'q-1',
+        customerNotes: 'Entrega en domicilio, pago en efectivo',
+      })
+      vi.mocked(http.patch).mockResolvedValue({ data: response })
+
+      const result = await quotationApi.updateNotes('q-1', 'Entrega en domicilio, pago en efectivo')
+
+      expect(http.patch).toHaveBeenCalledWith(
+        '/quotations/drafts/q-1/notes',
+        { customerNotes: 'Entrega en domicilio, pago en efectivo' },
+      )
+      expect(result.customerNotes).toBe('Entrega en domicilio, pago en efectivo')
+    })
+
+    it('accepts null to clear the notes', async () => {
+      const response = mockQuotation({ id: 'q-1', customerNotes: null })
+      vi.mocked(http.patch).mockResolvedValue({ data: response })
+
+      const result = await quotationApi.updateNotes('q-1', null)
+
+      expect(http.patch).toHaveBeenCalledWith(
+        '/quotations/drafts/q-1/notes',
+        { customerNotes: null },
+      )
+      expect(result.customerNotes).toBeNull()
+    })
+
+    it('returns the full updated quotation (replace-cache-head pattern)', async () => {
+      const response = mockQuotation({
+        id: 'q-1',
+        customerNotes: 'X',
+        taxRate: 0.16,
+        taxCents: 1600,
+        totalCents: 10000,
+      })
+      vi.mocked(http.patch).mockResolvedValue({ data: response })
+
+      const result = await quotationApi.updateNotes('q-1', 'X')
+
+      expect(result.id).toBe('q-1')
+      expect(result.taxRate).toBe(0.16)
+      expect(result.taxCents).toBe(1600)
+    })
+
+    it('rejects with the original axios error on HTTP 409 (non-DRAFT)', async () => {
+      const apiError = { response: { status: 409, data: { message: 'QUOTATION_NOT_DRAFT' } } }
+      vi.mocked(http.patch).mockRejectedValue(apiError)
+
+      await expect(quotationApi.updateNotes('q-1', 'X')).rejects.toEqual(apiError)
     })
   })
 

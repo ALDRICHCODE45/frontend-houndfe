@@ -234,6 +234,9 @@ describe('quotation.types', () => {
         subtotalCents: 30000,
         discountCents: 0,
         totalCents: 30000,
+        taxRate: 0.16,
+        taxCents: 4800,
+        customerNotes: 'Entrega en domicilio',
         manuallyEnded: false,
         items: [],
         appliedPromotions: [],
@@ -250,6 +253,9 @@ describe('quotation.types', () => {
       expect(quotation.expiresAt).toBeNull()
       expect(quotation.subtotalCents).toBe(30000)
       expect(quotation.totalCents).toBe(30000)
+      expect(quotation.taxRate).toBe(0.16)
+      expect(quotation.taxCents).toBe(4800)
+      expect(quotation.customerNotes).toBe('Entrega en domicilio')
       expect(quotation.items).toEqual([])
     })
 
@@ -267,6 +273,9 @@ describe('quotation.types', () => {
         subtotalCents: 5000,
         discountCents: 0,
         totalCents: 5000,
+        taxRate: null,
+        taxCents: null,
+        customerNotes: null,
         manuallyEnded: false,
         items: [],
         appliedPromotions: [],
@@ -280,6 +289,9 @@ describe('quotation.types', () => {
       expect(quotation.status).toBe('CANCELLED')
       expect(quotation.cancelReason).toBe('CUSTOMER_REQUEST')
       expect(quotation.canceledAt).toBe('2026-08-02T10:00:00.000Z')
+      expect(quotation.taxRate).toBeNull()
+      expect(quotation.taxCents).toBeNull()
+      expect(quotation.customerNotes).toBeNull()
     })
   })
 

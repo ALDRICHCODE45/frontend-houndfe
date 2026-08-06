@@ -104,6 +104,11 @@ export interface SetExpiryPayload {
   expiresAt: string | null
 }
 
+/** Body of PATCH /quotations/drafts/:id/notes. */
+export interface UpdateNotesPayload {
+  customerNotes: string | null
+}
+
 /** Body of POST /quotations/drafts/:id/cancel. */
 export interface CancelQuotationPayload {
   cancelReason: CancelReason
@@ -287,6 +292,17 @@ export const quotationApi = {
     const { data } = await http.patch<QuotationResponseDto>(
       `/quotations/drafts/${id}/expiry`,
       { expiresAt } satisfies SetExpiryPayload,
+    )
+    return data
+  },
+
+  // ─── 3.13b updateNotes ────────────────────────────────────────────────────
+  /** PATCH /quotations/drafts/:id/notes — save customer notes (max 280 chars).
+   *  Only works on DRAFT status. Returns the full updated quotation. */
+  async updateNotes(id: string, customerNotes: string | null): Promise<QuotationResponseDto> {
+    const { data } = await http.patch<QuotationResponseDto>(
+      `/quotations/drafts/${id}/notes`,
+      { customerNotes } satisfies UpdateNotesPayload,
     )
     return data
   },

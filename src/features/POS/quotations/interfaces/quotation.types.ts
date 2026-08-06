@@ -103,6 +103,17 @@ export interface QuotationResponseDto {
   subtotalCents: number
   discountCents: number
   totalCents: number
+  /**
+   * Backend-computed IVA rate (e.g. `0.16` for 16%). `null` when the backend
+   * didn't stamp a tax (older payloads, tax-exempt line items, etc.).
+   * Pairs with `taxCents` — both must be non-null for the UI to render the
+   * IVA row in the RESUMEN sidebar.
+   */
+  taxRate: number | null
+  /** Backend-computed IVA amount in cents. See `taxRate` for the null contract. */
+  taxCents: number | null
+  /** Free-form customer notes (max 280 chars). Edited via PATCH …/drafts/:id/notes. */
+  customerNotes: string | null
   manuallyEnded: boolean
   items: QuotationItemResponseDto[]
   appliedPromotions: AppliedPromotion[]

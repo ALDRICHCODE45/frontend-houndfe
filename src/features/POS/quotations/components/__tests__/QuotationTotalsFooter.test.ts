@@ -17,6 +17,9 @@ function makeQuotation(overrides: Partial<QuotationResponseDto> = {}): Quotation
     subtotalCents: 15000,
     discountCents: 1500,
     totalCents: 13500,
+    taxRate: null,
+    taxCents: null,
+    customerNotes: null,
     manuallyEnded: false,
     items: [],
     appliedPromotions: [],
@@ -226,10 +229,18 @@ describe('QuotationTotalsFooter — RESUMEN sidebar (T-UI-22/23 / REQ-UI-009)', 
     expect(context.text()).not.toContain('lista')
   })
 
-  it('renders the IVA 16% row computed from totalCents × 0.16', () => {
-    // totalCents = 33500 → IVA = 5360 ($53.60) per REQ-UI-009 scenario
+  it('renders the IVA 16% row from backend taxCents + taxRate', () => {
+    // totalCents = 33500 → taxCents = 5360 ($53.60) per REQ-UI-009 scenario.
+    // The backend stamps the computed tax directly so the footer renders
+    // the value without any client-side math.
     const wrapper = mount(QuotationTotalsFooter, {
-      props: { quotation: makeQuotation({ totalCents: 33500 }) },
+      props: {
+        quotation: makeQuotation({
+          totalCents: 33500,
+          taxRate: 0.16,
+          taxCents: 5360,
+        }),
+      },
     })
     const iva = wrapper.find('[data-testid="summary-iva-row"]')
     expect(iva.exists()).toBe(true)
@@ -237,9 +248,50 @@ describe('QuotationTotalsFooter — RESUMEN sidebar (T-UI-22/23 / REQ-UI-009)', 
     expect(iva.text()).toContain('$53.60')
   })
 
-  it('renders IVA 16% as 0 when totalCents is 0', () => {
+  it('renders the IVA label dynamically from taxRate (e.g. 8% rate shows "IVA 8%")', () => {
     const wrapper = mount(QuotationTotalsFooter, {
-      props: { quotation: makeQuotation({ totalCents: 0 }) },
+      props: {
+        quotation: makeQuotation({
+          totalCents: 10000,
+          taxRate: 0.08,
+          taxCents: 800,
+        }),
+      },
+    })
+    const iva = wrapper.find('[data-testid="summary-iva-row"]')
+    expect(iva.exists()).toBe(true)
+    expect(iva.text()).toContain('IVA 8%')
+    expect(iva.text()).toContain('$8.00')
+  })
+
+  it('hides the IVA row when taxCents is null (no backend tax stamp)', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: { quotation: makeQuotation({ totalCents: 33500 }) },
+    })
+    expect(wrapper.find('[data-testid="summary-iva-row"]').exists()).toBe(false)
+  })
+
+  it('hides the IVA row when taxRate is null (no backend tax stamp)', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: {
+        quotation: makeQuotation({
+          totalCents: 33500,
+          taxCents: 5360,
+        }),
+      },
+    })
+    expect(wrapper.find('[data-testid="summary-iva-row"]').exists()).toBe(false)
+  })
+
+  it('renders IVA 16% as 0 when totalCents is 0 (and backend stamps taxCents=0)', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: {
+        quotation: makeQuotation({
+          totalCents: 0,
+          taxRate: 0.16,
+          taxCents: 0,
+        }),
+      },
     })
     const iva = wrapper.find('[data-testid="summary-iva-row"]')
     expect(iva.exists()).toBe(true)

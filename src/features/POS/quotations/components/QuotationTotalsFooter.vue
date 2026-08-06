@@ -42,7 +42,6 @@
 import { computed } from 'vue'
 import type { QuotationResponseDto } from '../interfaces/quotation.types'
 import { formatCentsMXN } from '../utils/currency.utils'
-import { computeIva16 } from '../utils/quotation.utils'
 
 const props = withDefaults(
   defineProps<{
@@ -85,10 +84,22 @@ const totalFormatted = computed(() =>
   formatCentsMXN(props.quotation.totalCents),
 )
 
-/** IVA 16% — client-side (the backend does not yet expose taxCents).
- *  Centralized via `computeIva16` so the swap to a backend field is
- *  a one-line change. */
-const ivaFormatted = computed(() => formatCentsMXN(computeIva16(props.quotation.totalCents)))
+/** IVA — read straight from the backend (`taxCents` + `taxRate`). The row
+ *  only renders when both fields are non-null; older payloads that don't
+ *  stamp the tax leave the row out entirely. The label is built from the
+ *  rate rounded to the nearest integer percentage so a `0.16` rate from
+ *  the backend renders as "IVA 16%" without any client-side math. */
+const ivaPercentLabel = computed<string | null>(() => {
+  const rate = props.quotation.taxRate
+  if (rate === null || rate === undefined) return null
+  return `IVA ${Math.round(rate * 100)}%`
+})
+
+const ivaFormatted = computed(() => formatCentsMXN(props.quotation.taxCents ?? 0))
+
+const hasIva = computed<boolean>(
+  () => props.quotation.taxCents !== null && props.quotation.taxRate !== null,
+)
 
 /** Effective expiresAt — explicit prop takes precedence over the
  *  embedded quotation value so the parent can decouple the validity
@@ -185,13 +196,16 @@ function handleSaveDraft(): void {
         >-{{ discountFormatted }}</span>
       </div>
 
-      <!-- T-UI-12/13 — IVA 16% row. Computed via `computeIva16(totalCents)`
-           so the formula lives in exactly one place. -->
+      <!-- T-UI-12/13 — IVA row. Rendered only when the backend stamps both
+           `taxRate` and `taxCents`; older payloads that don't expose the
+           tax leave the row out entirely. The label is dynamic — a 16%
+           rate renders as "IVA 16%", an 8% rate as "IVA 8%", etc. -->
       <div
+        v-if="hasIva"
         class="flex items-center justify-between"
         data-testid="summary-iva-row"
       >
-        <span class="text-sm text-muted">IVA 16%</span>
+        <span class="text-sm text-muted">{{ ivaPercentLabel }}</span>
         <span
           class="text-sm text-muted tabular-nums"
           data-testid="summary-iva-amount"
