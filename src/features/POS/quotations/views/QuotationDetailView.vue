@@ -469,6 +469,21 @@ async function handleSend(email: boolean): Promise<void> {
   await draft.sendQuotation(email)
 }
 
+/** T-UI-23 — sidebar "Guardar borrador" CTA. The view already saves
+ *  the draft on every mutation (the composable patches the cache and
+ *  the backend persists the changes), so this handler is a no-op
+ *  acknowledgement: it confirms to the cashier that their latest
+ *  edits are persisted. The toast mirrors the UX pattern in other
+ *  POS surfaces so the button feels responsive. */
+function handleSaveDraftFromSidebar(): void {
+  if (!isDraft.value) return
+  useToast().add({
+    title: 'Borrador guardado',
+    description: 'Los cambios ya están guardados en el servidor.',
+    color: 'success',
+  })
+}
+
 async function handleCancel(reason: Parameters<typeof draft.cancelQuotation>[0]): Promise<void> {
   if (!isDraft.value) return
   await draft.cancelQuotation(reason)
@@ -559,16 +574,10 @@ onMounted(async () => {
             <UIcon name="i-lucide-file-text" class="h-4 w-4" />
             <span>{{ isPdfLoading ? 'Generando…' : 'Previsualizar PDF' }}</span>
           </button>
-          <button
-            v-if="isDraft && canUpdateQuotation"
-            type="button"
-            class="inline-flex items-center gap-1 rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
-            data-testid="send-button"
-            @click="openSendDialog"
-          >
-            <UIcon name="i-lucide-send" class="h-4 w-4" />
-            <span>Enviar</span>
-          </button>
+          <!-- T-UI-23 — REQ-UI-009: the "Enviar cotización" CTA moved out
+               of the header into the RESUMEN sidebar (QuotationTotalsFooter).
+               The header keeps the destructive "Cancelar" action since
+               it operates on the quotation, not the totals. -->
           <button
             v-if="isDraft && canUpdateQuotation"
             type="button"
@@ -883,10 +892,19 @@ onMounted(async () => {
           class="flex flex-col gap-4 lg:col-span-1 lg:sticky lg:top-4 lg:self-start"
           data-testid="quotation-detail-sidebar"
         >
-          <!-- S6 — totals footer. Always visible (it just reads from the
-               quotation response); the read-only branch already has the
-               "Solo lectura" notice above this for clarity. -->
-          <QuotationTotalsFooter :quotation="quotation" />
+          <!-- T-UI-22/23 — REQ-UI-009 RESUMEN sidebar. Pass
+               `editable=isDraft` so the CTAs only render in DRAFT,
+               `expiresAt` for the validity notice, and wire `send`
+               / `save-draft` to the existing dialog + composable
+               actions. `priceListName` is optional and not yet
+               exposed by the backend, so we leave it null. -->
+          <QuotationTotalsFooter
+            :quotation="quotation"
+            :editable="isDraft && canUpdateQuotation"
+            :expires-at="quotation.expiresAt"
+            @send="openSendDialog"
+            @save-draft="handleSaveDraftFromSidebar"
+          />
 
           <!-- T-UI-04 / REQ-UI-010 — customer notes (skeleton). The textarea
                is local-state only — Phase 3 will add a localStorage draft

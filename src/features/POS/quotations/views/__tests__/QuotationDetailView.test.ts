@@ -229,9 +229,30 @@ const stubs = {
       '<div data-testid="quotation-expiry-picker" :data-readonly="readonly"><span data-testid="expiry-display">{{ expiresAt ?? "Sin expiración" }}</span></div>',
   },
   QuotationTotalsFooter: {
-    props: ['quotation'],
-    template:
-      '<div data-testid="quotation-totals-footer"><span data-testid="subtotal-amount">subtotal-stub</span><span data-testid="total-amount">total-stub</span></div>',
+    props: ['quotation', 'editable', 'expiresAt', 'priceListName'],
+    emits: ['send', 'save-draft'],
+    template: `
+      <div data-testid="quotation-totals-footer">
+        <span data-testid="subtotal-amount">subtotal-stub</span>
+        <span data-testid="total-amount">total-stub</span>
+        <span data-testid="summary-iva-row">IVA stub</span>
+        <span data-testid="items-count">{{ quotation.items.length }} productos</span>
+        <span data-testid="summary-title">RESUMEN</span>
+        <span data-testid="summary-context">{{ quotation.items.length }} productos</span>
+        <button
+          v-if="editable"
+          type="button"
+          data-testid="summary-send-btn"
+          @click="$emit('send')"
+        >Enviar cotización</button>
+        <button
+          v-if="editable"
+          type="button"
+          data-testid="summary-save-draft-btn"
+          @click="$emit('save-draft')"
+        >Guardar borrador</button>
+      </div>
+    `,
   },
   // T-UI-20 — REQ-UI-008 promotion cards. The view delegates each
   // applied promo to QuotationPromotionCard. The stub mirrors the
@@ -1246,38 +1267,42 @@ describe('QuotationDetailView — PDF preview (S7)', () => {
 })
 
 describe('QuotationDetailView — send dialog (S7)', () => {
-  it('renders the "Enviar" button in DRAFT mode', () => {
+  // T-UI-23 — REQ-UI-009: the "Enviar cotización" CTA moved out of the
+  // header into the RESUMEN sidebar (QuotationTotalsFooter). The dialog
+  // stays mounted in the view; the sidebar button just opens it.
+
+  it('renders the sidebar "Enviar cotización" CTA in DRAFT mode', () => {
     const wrapper = mountView()
-    expect(wrapper.find('[data-testid="send-button"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="summary-send-btn"]').exists()).toBe(true)
   })
 
-  it('hides the "Enviar" button for non-DRAFT statuses', () => {
+  it('hides the "Enviar cotización" CTA for non-DRAFT statuses', () => {
     state.quotation.value = makeQuotation({ status: 'SENT' })
     const wrapper = mountView()
-    expect(wrapper.find('[data-testid="send-button"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="summary-send-btn"]').exists()).toBe(false)
   })
 
-  it('hides the "Enviar" button when the user lacks update:Quotation', () => {
+  it('hides the "Enviar cotización" CTA when the user lacks update:Quotation', () => {
     authMock.userCan.mockImplementation((action, subject) => {
       if (action === 'update' && subject === 'Quotation') return false
       return true
     })
     const wrapper = mountView()
-    expect(wrapper.find('[data-testid="send-button"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="summary-send-btn"]').exists()).toBe(false)
   })
 
-  it('opens the send dialog when "Enviar" is clicked', async () => {
+  it('opens the send dialog when the sidebar CTA is clicked', async () => {
     const wrapper = mountView()
 
     expect(wrapper.find('[data-testid="quotation-send-dialog"]').exists()).toBe(false)
-    await wrapper.get('[data-testid="send-button"]').trigger('click')
+    await wrapper.get('[data-testid="summary-send-btn"]').trigger('click')
     await flushPromises()
     expect(wrapper.find('[data-testid="quotation-send-dialog"]').exists()).toBe(true)
   })
 
   it('closes the send dialog on the dialog "close" event', async () => {
     const wrapper = mountView()
-    await wrapper.get('[data-testid="send-button"]').trigger('click')
+    await wrapper.get('[data-testid="summary-send-btn"]').trigger('click')
     await flushPromises()
 
     await wrapper.get('[data-testid="send-dialog-stub-close"]').trigger('click')
@@ -1336,7 +1361,7 @@ const ALL_EDIT_SELECTORS = [
   '[data-testid="add-product-button"]',
   '[data-testid="change-customer-button"]',
   '[data-testid="manual-promo-select"]',
-  '[data-testid="send-button"]',
+  '[data-testid="summary-send-btn"]',
   '[data-testid="cancel-button"]',
 ] as const
 
@@ -1522,7 +1547,9 @@ describe('QuotationDetailView — read-only enforcement (REQ-QTN-012 / S8)', () 
     const wrapper = mountView()
     await flushPromises()
 
-    expect(wrapper.find('[data-testid="send-button"]').exists()).toBe(false)
+    // T-UI-23 — the send CTA moved to the sidebar; cancel stays in the
+    // header. Both must be hidden when the quotation is read-only.
+    expect(wrapper.find('[data-testid="summary-send-btn"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="cancel-button"]').exists()).toBe(false)
     expect(state.sendQuotation).not.toHaveBeenCalled()
     expect(state.cancelQuotation).not.toHaveBeenCalled()
