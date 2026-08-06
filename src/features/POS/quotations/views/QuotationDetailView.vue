@@ -27,6 +27,7 @@ import QuotationExpiryPicker from '../components/QuotationExpiryPicker.vue'
 import QuotationTotalsFooter from '../components/QuotationTotalsFooter.vue'
 import QuotationSendDialog from '../components/QuotationSendDialog.vue'
 import QuotationCancelDialog from '../components/QuotationCancelDialog.vue'
+import QuotationProgressStepper from '../components/QuotationProgressStepper.vue'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { isExpired, statusToLabel, statusToTone } from '../utils/quotation.utils'
 
@@ -503,6 +504,17 @@ onMounted(async () => {
 
 <template>
   <section class="quotation-detail-view flex flex-col gap-6 px-4 sm:px-8 lg:px-10" data-testid="quotation-detail-view">
+    <!-- T-UI-11 — REQ-UI-003: 3-state progress stepper (BORRADOR → ENVIADA →
+         EXPIRADA/CANCELADA). Sits above the header so the cashier reads the
+         lifecycle position before the title row, mirroring the design.md
+         component tree. Gated on `quotation` because the stepper reads
+         `quotation.status`; during loading/error states the rest of the
+         header gracefully degrades. -->
+    <QuotationProgressStepper
+      v-if="quotation"
+      :status="quotation.status"
+    />
+
     <header class="flex flex-col gap-4 border-b border-default pb-5">
       <button
         type="button"

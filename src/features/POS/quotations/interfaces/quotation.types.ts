@@ -77,7 +77,8 @@ export interface QuotationItemResponseDto {
 // ─── Promotions ───────────────────────────────────────────────────────────────
 
 export interface AppliedPromotion {
-  id: string
+  /** Backend-assigned id (may be omitted — use promotionId as the stable key). */
+  id?: string
   promotionId: string
   title: string
   discountCents: number
@@ -103,6 +104,8 @@ export interface QuotationResponseDto {
   appliedPromotions: AppliedPromotion[]
   vetoedPromotionIds: string[]
   optedInManualPromotionIds: string[]
+  /** Status with lazy EXPIRED applied server-side (DRAFT | SENT | EXPIRED | CANCELLED). */
+  effectiveStatus: QuotationStatus
   createdAt: string
   updatedAt: string
 }

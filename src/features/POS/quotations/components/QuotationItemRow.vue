@@ -80,13 +80,13 @@ const discountLabel = computed(() => {
 })
 
 // ── S8: stock badge (REQ-QTN-013) ──────────────────────────────────────────
-// Each row calls `useQuotationItemStock(productId)` reactively — TanStack
-// de-dupes across rows via the shared `productQueryKeys.detail` slot, so a
-// 30-item list only fires one network call per distinct product. The
-// composable returns null when stock is unavailable so the row simply
-// doesn't render the badge — same surface as a non-stocked product.
+// Each row calls `useQuotationItemStock(productId, variantId)` reactively.
+// When a variant is selected the composable fetches variant-level stock via
+// `GET /products/:id/variants` so the badge reflects the specific variant's
+// quantity, not the product-level aggregate.
 const { stock, isAvailable: isStockAvailable } = useQuotationItemStock(
   () => props.item.productId,
+  () => props.item.variantId,
 )
 
 /** Stock badge tone ladder:

@@ -200,18 +200,17 @@ describe('quotation.types', () => {
   })
 
   describe('AppliedPromotion interface', () => {
-    it('constructs an applied promotion snapshot', () => {
+    it('constructs an applied promotion snapshot (id is optional)', () => {
       const promo: AppliedPromotion = {
-        id: 'ap-1',
         promotionId: 'promo-1',
         title: 'Black Friday 10%',
         discountCents: 1500,
       }
 
-      expect(promo.id).toBe('ap-1')
       expect(promo.promotionId).toBe('promo-1')
       expect(promo.title).toBe('Black Friday 10%')
       expect(promo.discountCents).toBe(1500)
+      expect(promo.id).toBeUndefined()
     })
   })
 
@@ -240,6 +239,7 @@ describe('quotation.types', () => {
         appliedPromotions: [],
         vetoedPromotionIds: [],
         optedInManualPromotionIds: [],
+        effectiveStatus: 'DRAFT',
         createdAt: '2026-08-01T20:00:00.000Z',
         updatedAt: '2026-08-01T20:00:00.000Z',
       }
@@ -272,6 +272,7 @@ describe('quotation.types', () => {
         appliedPromotions: [],
         vetoedPromotionIds: [],
         optedInManualPromotionIds: [],
+        effectiveStatus: 'CANCELLED',
         createdAt: '2026-08-01T20:00:00.000Z',
         updatedAt: '2026-08-02T10:00:00.000Z',
       }

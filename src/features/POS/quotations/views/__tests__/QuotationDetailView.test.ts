@@ -350,6 +350,66 @@ describe('QuotationDetailView header', () => {
   })
 })
 
+// T-UI-11 — REQ-UI-003: the detail view wires QuotationProgressStepper into
+// the header area (above the title row). These tests pin the integration
+// contract so future refactors of the header layout cannot silently drop
+// the stepper or move it inside the wrong region.
+describe('QuotationDetailView — progress stepper (T-UI-11)', () => {
+  it('renders the QuotationProgressStepper when a quotation is loaded', () => {
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="quotation-stepper"]').exists()).toBe(true)
+  })
+
+  it('renders the stepper above the header title row (lifecycle before identity)', () => {
+    const wrapper = mountView()
+    // jsdom doesn't compute layout, so check DOM order instead: the stepper
+    // element must appear before the first h1 in the rendered HTML.
+    const html = wrapper.html()
+    const stepperIndex = html.indexOf('data-testid="quotation-stepper"')
+    const titleIndex = html.indexOf('<h1')
+    expect(stepperIndex).toBeGreaterThan(-1)
+    expect(titleIndex).toBeGreaterThan(-1)
+    expect(stepperIndex).toBeLessThan(titleIndex)
+  })
+
+  it('forwards the quotation status to the stepper (DRAFT first step active)', () => {
+    state.quotation.value = makeQuotation({ status: 'DRAFT' })
+    const wrapper = mountView()
+    expect(wrapper.get('[data-testid="stepper-step-0"]').attributes('data-state')).toBe('active')
+  })
+
+  it('forwards the quotation status to the stepper (CANCELLED final step active)', () => {
+    state.quotation.value = makeQuotation({ status: 'CANCELLED' })
+    const wrapper = mountView()
+    expect(wrapper.get('[data-testid="stepper-step-2"]').attributes('data-state')).toBe('active')
+  })
+
+  it('hides the stepper during the create-flow loading state', async () => {
+    route.path = '/pos/cotizaciones/nueva'
+    route.params = {}
+    route.query = {}
+    state.quotation.value = undefined
+    let resolveCreate!: (value: QuotationResponseDto) => void
+    state.createDraft.mockReturnValue(
+      new Promise<QuotationResponseDto>((resolve) => { resolveCreate = resolve }),
+    )
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    // While the create-draft promise is in-flight, `quotation.value` is
+    // undefined, so the stepper's v-if guard must keep it out of the DOM.
+    expect(wrapper.find('[data-testid="quotation-stepper"]').exists()).toBe(false)
+
+    // After the create resolves and quotation is populated, the stepper appears.
+    const created = makeQuotation({ id: 'created-stepper-1' })
+    resolveCreate(created)
+    state.quotation.value = created
+    await flushPromises()
+    expect(wrapper.find('[data-testid="quotation-stepper"]').exists()).toBe(true)
+  })
+})
+
 describe('QuotationDetailView customer section', () => {
   it('shows assigned customer name and email', () => {
     state.quotation.value = makeQuotation({

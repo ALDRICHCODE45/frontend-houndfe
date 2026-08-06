@@ -35,8 +35,9 @@ const mockQuotation = (overrides: Partial<QuotationResponseDto> = {}): Quotation
   items: [],
   appliedPromotions: [],
   vetoedPromotionIds: [],
-  optedInManualPromotionIds: [],
-  createdAt: '2026-08-01T20:00:00.000Z',
+    optedInManualPromotionIds: [],
+    effectiveStatus: 'DRAFT',
+    createdAt: '2026-08-01T20:00:00.000Z',
   updatedAt: '2026-08-01T20:00:00.000Z',
   ...overrides,
 })

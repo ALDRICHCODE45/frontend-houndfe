@@ -36,10 +36,14 @@ export interface QuotationItemStock {
   isOut: boolean
 }
 
-export function useQuotationItemStock(productId: MaybeRefOrGetter<string | null | undefined>) {
+export function useQuotationItemStock(
+  productId: MaybeRefOrGetter<string | null | undefined>,
+  variantId?: MaybeRefOrGetter<string | null | undefined>,
+) {
   const authStore = useAuthStore()
   // Re-keyed reactively so a row swapping productId triggers a refetch.
   const productIdRef = toRef(productId)
+  const variantIdRef = toRef(variantId)
   const tenantId = computed(() => authStore.currentTenantId)
   const trimmedId = computed(() => productIdRef.value?.trim() ?? '')
   const isEnabled = computed(() => trimmedId.value.length > 0)
@@ -54,6 +58,8 @@ export function useQuotationItemStock(productId: MaybeRefOrGetter<string | null 
         useStock: p.useStock,
         quantity: p.quantity,
         minQuantity: p.minQuantity,
+        hasVariants: p.hasVariants,
+        variantStockTotal: p.variantStockTotal,
       }
     }),
     enabled: isEnabled,
@@ -61,17 +67,61 @@ export function useQuotationItemStock(productId: MaybeRefOrGetter<string | null 
     refetchOnWindowFocus: false,
   })
 
+  // ── Variant-level stock (only when a variant is selected) ──────────────────
+  const variantTrimmedId = computed(() => variantIdRef.value?.trim() ?? '')
+  const isVariantEnabled = computed(
+    () => isEnabled.value && variantTrimmedId.value.length > 0 && data.value?.hasVariants === true,
+  )
+
+  const { data: variantStockData } = useQuery({
+    queryKey: computed(() =>
+      productQueryKeys.variants(tenantId.value, trimmedId.value),
+    ),
+    queryFn: () => productApi.getVariants(trimmedId.value),
+    enabled: isVariantEnabled,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+  })
+
   /** Hydrated stock record, or `null` when (a) no fetch ran, (b) the product
-   *  has `useStock === false`, or (c) the request failed. */
+   *  has `useStock === false`, or (c) the request failed.
+   *
+   *  Resolution order:
+   *    1. Specific variant's stock (when `variantId` is provided and variants
+   *       data is available) — the most accurate per-row number.
+   *    2. `variantStockTotal` (aggregate across all variants) for variant
+   *       products when no specific variant is selected.
+   *    3. `quantity` (product-level) for non-variant products. */
   const stock = computed<QuotationItemStock | null>(() => {
     const p = data.value
     if (!p) return null
     if (!p.useStock) return null
+
+    // Variant-specific stock takes precedence when available.
+    const variantId = variantTrimmedId.value
+    const variants = variantStockData.value
+    if (variantId && variants) {
+      const variant = variants.find((v) => v.id === variantId)
+      if (variant) {
+        return {
+          quantity: variant.quantity,
+          minQuantity: variant.minQuantity,
+          isOut: variant.quantity <= 0,
+          isLow: variant.quantity <= variant.minQuantity,
+        }
+      }
+    }
+
+    // Fall back to product-level aggregate.
+    const stockQty =
+      p.hasVariants && p.variantStockTotal != null
+        ? p.variantStockTotal
+        : p.quantity
     return {
-      quantity: p.quantity,
+      quantity: stockQty,
       minQuantity: p.minQuantity,
-      isOut: p.quantity <= 0,
-      isLow: p.quantity <= p.minQuantity,
+      isOut: stockQty <= 0,
+      isLow: stockQty <= p.minQuantity,
     }
   })
 
