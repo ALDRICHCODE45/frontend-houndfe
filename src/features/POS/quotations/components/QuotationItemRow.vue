@@ -207,7 +207,7 @@ const itemActions = computed<DropdownMenuItem[][]>(() => {
 
 <template>
   <article
-    class="flex items-start gap-3 rounded-xl border border-default bg-default px-4 py-3 hover:border-default"
+    class="flex items-start gap-3 rounded-xl border border-default bg-default p-4 hover:border-default"
     :class="{ 'opacity-90': props.readonly }"
     data-testid="quotation-item-row"
     :data-item-id="props.item.id"
