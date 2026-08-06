@@ -24,8 +24,9 @@
  *     editable?:     boolean            — show CTA + draft button (DRAFT only)
  *
  *   Events ↑
- *     send:        []
- *     save-draft:  []
+ *     send:            []
+ *     save-draft:      []
+ *     update:tax-rate: [taxRate: number]
  *
  * Testids:
  *   root:             quotation-totals-footer
@@ -34,12 +35,13 @@
  *   subtotal:         subtotal-amount
  *   discount row:     discount-row | discount-amount
  *   iva row:          summary-iva-row
+ *   iva select:       summary-iva-select (only when editable=true)
  *   total:            total-amount
  *   send button:      summary-send-btn
  *   draft button:     summary-save-draft-btn
  *   validity notice:  summary-validity-notice
  */
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import type { QuotationResponseDto } from '../interfaces/quotation.types'
 import { formatCentsMXN } from '../utils/currency.utils'
 
@@ -60,6 +62,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   send: []
   'save-draft': []
+  'update:tax-rate': [taxRate: number]
 }>()
 
 // ── Derived values ────────────────────────────────────────────────────────────
@@ -145,6 +148,46 @@ function handleSend(): void {
 function handleSaveDraft(): void {
   emit('save-draft')
 }
+
+// ── IVA rate selector (DRAFT only) ───────────────────────────────────────────
+// Backend accepts four tax rates per the spec (0, 0.08, 0.16, 0.21). The
+// select is mounted only when `editable=true` (DRAFT quotations); non-DRAFT
+// states render the plain-text label so the historic read-only display
+// stays untouched. The select's v-model is seeded from `quotation.taxRate`
+// so any change the parent makes via the backend (e.g. an applyDiscount
+// cascade) propagates back to the dropdown without a remount.
+
+interface TaxRateOption {
+  label: string
+  value: number
+}
+
+const TAX_RATE_OPTIONS: TaxRateOption[] = [
+  { label: '0% (Exento)', value: 0 },
+  { label: '8%', value: 0.08 },
+  { label: '16%', value: 0.16 },
+  { label: '21%', value: 0.21 },
+]
+
+const taxRateOptions = computed<TaxRateOption[]>(() => TAX_RATE_OPTIONS)
+
+/** Local mirror of `props.quotation.taxRate`. The parent owns the cache; we
+ *  only mirror so the v-model has a stable ref to bind. Synced on every
+ *  change of the upstream tax rate (initial mount + reactive updates). */
+const selectedTaxRate = ref<number>(props.quotation.taxRate ?? 0)
+
+watch(
+  () => props.quotation.taxRate,
+  (next) => {
+    if (next === null || next === undefined) return
+    selectedTaxRate.value = next
+  },
+)
+
+function handleTaxRateChange(value: number | null | undefined): void {
+  if (value === null || value === undefined) return
+  emit('update:tax-rate', value)
+}
 </script>
 
 <template>
@@ -199,13 +242,28 @@ function handleSaveDraft(): void {
       <!-- T-UI-12/13 — IVA row. Rendered only when the backend stamps both
            `taxRate` and `taxCents`; older payloads that don't expose the
            tax leave the row out entirely. The label is dynamic — a 16%
-           rate renders as "IVA 16%", an 8% rate as "IVA 8%", etc. -->
+           rate renders as "IVA 16%", an 8% rate as "IVA 8%", etc.
+           Editable mode (DRAFT only) swaps the label for a USelectMenu
+           that emits `update:tax-rate` so the parent can PATCH the
+           draft with the new rate. Non-DRAFT states keep the static
+           label so the historic read-only display is unaffected. -->
       <div
         v-if="hasIva"
-        class="flex items-center justify-between"
+        class="flex items-center justify-between gap-2"
         data-testid="summary-iva-row"
       >
-        <span class="text-sm text-muted">{{ ivaPercentLabel }}</span>
+        <USelectMenu
+          v-if="editable"
+          v-model="selectedTaxRate"
+          :items="taxRateOptions"
+          value-key="value"
+          label-key="label"
+          size="xs"
+          class="min-w-[140px]"
+          data-testid="summary-iva-select"
+          @update:model-value="handleTaxRateChange"
+        />
+        <span v-else class="text-sm text-muted">{{ ivaPercentLabel }}</span>
         <span
           class="text-sm text-muted tabular-nums"
           data-testid="summary-iva-amount"

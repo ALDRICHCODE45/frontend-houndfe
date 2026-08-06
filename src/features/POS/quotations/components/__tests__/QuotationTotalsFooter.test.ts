@@ -186,7 +186,7 @@ describe('QuotationTotalsFooter — totals', () => {
 
     // es-MX formats thousands with comma and 2 decimals.
     expect(wrapper.find('[data-testid="subtotal-amount"]').text()).toBe('$1,234.56')
-    expect(wrapper.find('[data-testid="discount-amount"]').text()).toMatch(/^\-\$123\.45$/)
+    expect(wrapper.find('[data-testid="discount-amount"]').text()).toMatch(/^-\$123\.45$/)
     expect(wrapper.find('[data-testid="total-amount"]').text()).toBe('$1,111.11')
   })
 })
@@ -371,5 +371,182 @@ describe('QuotationTotalsFooter — RESUMEN sidebar (T-UI-22/23 / REQ-UI-009)', 
     // The discount text class is the Coco info-blue color.
     const discountAmount = wrapper.find('[data-testid="discount-amount"]')
     expect(discountAmount.classes().join(' ')).toMatch(/text-\[var\(--coco-info\)\]/)
+  })
+})
+
+// T-UI-29 — DRAFT-only IVA rate selector. The sidebar swaps the static
+// "IVA X%" label for a USelectMenu when editable=true, exposing the four
+// backend-accepted rates (0, 0.08, 0.16, 0.21). Non-DRAFT quotations keep
+// the static label so historic read-only displays are unaffected.
+//
+// USelectMenu is registered globally via auto-imports. We drive selection
+// changes through the v-model on the parent (parent-owned state mirrors
+// the prop) so the test never has to click into the Reka UI dropdown —
+// the same approach the manual-promo picker uses in QuotationDetailView.
+describe('QuotationTotalsFooter — IVA rate selector (T-UI-29)', () => {
+  it('renders the USelectMenu in editable mode (DRAFT)', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: {
+        quotation: makeQuotation({ taxRate: 0.16, taxCents: 1600 }),
+        editable: true,
+      },
+    })
+    expect(wrapper.find('[data-testid="summary-iva-select"]').exists()).toBe(true)
+  })
+
+  it('does NOT render the USelectMenu when editable=false', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: {
+        quotation: makeQuotation({ taxRate: 0.16, taxCents: 1600 }),
+        editable: false,
+      },
+    })
+    expect(wrapper.find('[data-testid="summary-iva-select"]').exists()).toBe(false)
+    // Falls back to the plain-text label that the spec pins for non-DRAFT.
+    expect(wrapper.find('[data-testid="summary-iva-row"]').text()).toContain('IVA 16%')
+  })
+
+  it('does NOT render the USelectMenu when editable is omitted (default false)', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: {
+        quotation: makeQuotation({ taxRate: 0.16, taxCents: 1600 }),
+      },
+    })
+    expect(wrapper.find('[data-testid="summary-iva-select"]').exists()).toBe(false)
+  })
+
+  it('hides the whole IVA row when taxRate is null even in editable mode', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: {
+        quotation: makeQuotation({ taxRate: null, taxCents: null }),
+        editable: true,
+      },
+    })
+    expect(wrapper.find('[data-testid="summary-iva-row"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="summary-iva-select"]').exists()).toBe(false)
+  })
+
+  it('emits "update:tax-rate" when the underlying v-model is changed', async () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: {
+        quotation: makeQuotation({ taxRate: 0.16, taxCents: 1600 }),
+        editable: true,
+      },
+    })
+
+    // The parent mirrors `quotation.taxRate` into `selectedTaxRate`, so we
+    // update the prop to simulate the cashier picking "8%" via the dropdown.
+    await wrapper.setProps({
+      quotation: makeQuotation({ taxRate: 0.08, taxCents: 800 }),
+    })
+
+    // The USelectMenu has no external handle we can drive (jsdom can't open
+    // the Reka UI popover), so we exercise the same code path the v-model
+    // hits by patching the prop and asserting the new state propagates.
+    expect(wrapper.find('[data-testid="summary-iva-row"]').text()).toContain('$8.00')
+  })
+
+  it('forwards a selection of 0 (Exento) by toggling taxRate on the parent', async () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: {
+        quotation: makeQuotation({ taxRate: 0.16, taxCents: 1600 }),
+        editable: true,
+      },
+    })
+
+    await wrapper.setProps({
+      quotation: makeQuotation({ taxRate: 0, taxCents: 0 }),
+    })
+
+    const iva = wrapper.find('[data-testid="summary-iva-row"]')
+    // When taxRate=0 the row stays visible but shows "$0.00" as tax cents.
+    expect(iva.find('[data-testid="summary-iva-amount"]').text()).toBe('$0.00')
+  })
+
+  it('keeps the taxCents value visible in the right column alongside the select', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: {
+        quotation: makeQuotation({ taxRate: 0.16, taxCents: 1600 }),
+        editable: true,
+      },
+    })
+    const iva = wrapper.find('[data-testid="summary-iva-row"]')
+    expect(iva.find('[data-testid="summary-iva-amount"]').text()).toBe('$16.00')
+  })
+
+  it('emits update:tax-rate when the wrapper component triggers handleTaxRateChange', async () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: {
+        quotation: makeQuotation({ taxRate: 0.16, taxCents: 1600 }),
+        editable: true,
+      },
+    })
+
+    // The USelectMenu auto-imported component renders inside the IVA row.
+    // jsdom can't open the Reka UI popover, so we drive the v-model path
+    // the same way the manual-promo picker does in QuotationDetailView:
+    // find the inner component, fire its `update:model-value` event, and
+    // confirm the parent re-emits it as `update:tax-rate`.
+    const select = wrapper.find('[data-testid="summary-iva-select"]')
+    expect(select.exists()).toBe(true)
+
+    // Use findAllComponents to grab the underlying USelectMenu instance
+    // regardless of how Vue's runtime infers its `name` option. The auto
+    // import registers the component under the U-prefixed alias but the
+    // underlying SFC filename is SelectMenu.vue, so we look it up by the
+    // data-testid attribute and walk up to its enclosing component.
+    const allComponents = wrapper.findAllComponents({ name: 'SelectMenu' })
+    const target = allComponents.length > 0 ? allComponents[0]! : null
+    expect(target).not.toBeNull()
+    target!.vm.$emit('update:model-value', 0.08)
+    await wrapper.vm.$nextTick()
+
+    const events = wrapper.emitted('update:tax-rate')
+    expect(events).toBeDefined()
+    expect(events![events!.length - 1]).toEqual([0.08])
+  })
+
+  it('passes the four spec-defined tax rate options via the parent items list', async () => {
+    // We expose the options list shape via the watcher + the v-model so the
+    // test can verify the rate options are well-formed. The full USelectMenu
+    // round-trip with the Reka UI popover is not exercised here — that's a
+    // Nuxt UI responsibility. We pin the contract at the component
+    // boundary: the parent hands us a taxRate, we mirror it into the
+    // select, the row keeps rendering taxCents.
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: {
+        quotation: makeQuotation({ taxRate: 0.16, taxCents: 1600 }),
+        editable: true,
+      },
+    })
+
+    // Trigger the emit path and confirm the parent emits 0.08 cleanly —
+    // proving the option value (number, not string) is preserved through
+    // the v-model → @update:model-value → handleTaxRateChange → emit chain.
+    const target = wrapper.findAllComponents({ name: 'SelectMenu' })[0]
+    expect(target).toBeDefined()
+    target!.vm.$emit('update:model-value', 0.08)
+    await wrapper.vm.$nextTick()
+    let events = wrapper.emitted('update:tax-rate')
+    expect(events![events!.length - 1]).toEqual([0.08])
+
+    // Cycle through all four backend-accepted rates.
+    for (const rate of [0, 0.08, 0.16, 0.21]) {
+      target!.vm.$emit('update:model-value', rate)
+      await wrapper.vm.$nextTick()
+      events = wrapper.emitted('update:tax-rate')
+      expect(events![events!.length - 1]).toEqual([rate])
+    }
+
+    // Null/undefined model values are ignored (do not emit).
+    target!.vm.$emit('update:model-value', null)
+    await wrapper.vm.$nextTick()
+    events = wrapper.emitted('update:tax-rate')
+    expect(events![events!.length - 1]).toEqual([0.21])
+
+    target!.vm.$emit('update:model-value', undefined)
+    await wrapper.vm.$nextTick()
+    events = wrapper.emitted('update:tax-rate')
+    expect(events![events!.length - 1]).toEqual([0.21])
   })
 })

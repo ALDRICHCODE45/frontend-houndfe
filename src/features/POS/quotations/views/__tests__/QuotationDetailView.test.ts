@@ -40,8 +40,26 @@ const state = {
 const quotationApiMock = vi.hoisted(() => ({
   getPdfBlob: vi.fn(),
   updateNotes: vi.fn(),
+  setTaxRate: vi.fn(),
   deleteQuotation: vi.fn(),
 }))
+
+// Toast capture (sdd-quotations T-UI-29). Nuxt UI's useToast auto-import
+// pulls in `#imports.useState` which is unavailable in jsdom, so we stub
+// the composable. `toastCalls` accumulates every `add()` invocation
+// across the test; tests can assert on the full call log.
+const { toastCalls } = vi.hoisted(() => ({
+  toastCalls: [] as Array<Record<string, unknown>>,
+}))
+
+vi.mock('@nuxt/ui/runtime/composables/useToast', () => ({
+  useToast: () => ({
+    add: (opts: Record<string, unknown>) => {
+      toastCalls.push(opts)
+    },
+  }),
+}))
+
 const quotationPdfErrorMock = vi.hoisted(() =>
   class extends Error {
     readonly code: string
@@ -236,7 +254,7 @@ const stubs = {
   },
   QuotationTotalsFooter: {
     props: ['quotation', 'editable', 'expiresAt', 'priceListName'],
-    emits: ['send', 'save-draft'],
+    emits: ['send', 'save-draft', 'update:tax-rate'],
     template: `
       <div data-testid="quotation-totals-footer">
         <span data-testid="subtotal-amount">subtotal-stub</span>
@@ -245,6 +263,22 @@ const stubs = {
         <span data-testid="items-count">{{ quotation.items.length }} productos</span>
         <span data-testid="summary-title">RESUMEN</span>
         <span data-testid="summary-context">{{ quotation.items.length }} productos</span>
+        <!-- T-UI-29 — when editable, the footer renders a USelectMenu for
+             the IVA rate. The stub exposes a button so tests can drive
+             the selection path without rendering the full Reka UI
+             popover (which jsdom can't open). -->
+        <button
+          v-if="editable"
+          type="button"
+          data-testid="stub-summary-iva-set"
+          @click="$emit('update:tax-rate', 0.08)"
+        >stub-set-iva</button>
+        <button
+          v-if="editable"
+          type="button"
+          data-testid="stub-summary-iva-set-exento"
+          @click="$emit('update:tax-rate', 0)"
+        >stub-set-iva-exento</button>
         <!-- T-UI-28 — REQ-UI-011 testid migration: the sidebar CTAs
              live under the new "detail-sidebar-actions" wrapper. The
              stub mirrors the production root so tests can navigate
@@ -389,7 +423,9 @@ beforeEach(() => {
   state.cancelQuotation.mockReset().mockResolvedValue(makeQuotation())
   quotationApiMock.getPdfBlob.mockReset()
   quotationApiMock.updateNotes.mockReset()
+  quotationApiMock.setTaxRate.mockReset()
   quotationApiMock.deleteQuotation.mockReset()
+  toastCalls.length = 0
   availablePromotionsMock.manual.promotions = []
   availablePromotionsMock.manual.isLoading = false
   availablePromotionsMock.manual.isError = false
@@ -1109,6 +1145,102 @@ describe('QuotationDetailView — customer notes backend persistence (T-UI-21/22
     const wrapper = mountView()
     const textarea = wrapper.find('[data-testid="customer-notes-textarea"]')
     expect(textarea.attributes('readonly')).toBeUndefined()
+  })
+})
+
+// T-UI-29 — IVA rate override wiring. The QuotationTotalsFooter stub
+// exposes two buttons that simulate the cashier picking a new rate;
+// the view must call quotationApi.setTaxRate with the chosen number,
+// splice the response into the detail cache, and refuse to call the
+// API when the quotation is not DRAFT.
+describe('QuotationDetailView — tax rate override (T-UI-29)', () => {
+  it('calls quotationApi.setTaxRate when the footer emits update:tax-rate in DRAFT', async () => {
+    state.quotation.value = makeQuotation({ taxRate: 0.16, taxCents: 1600 })
+    quotationApiMock.setTaxRate.mockResolvedValue(
+      makeQuotation({ taxRate: 0.08, taxCents: 800 }),
+    )
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="stub-summary-iva-set"]').trigger('click')
+    await flushPromises()
+
+    expect(quotationApiMock.setTaxRate).toHaveBeenCalledTimes(1)
+    expect(quotationApiMock.setTaxRate).toHaveBeenCalledWith(
+      'quotation-12345678',
+      0.08,
+    )
+  })
+
+  it('forwards a 0 (Exento) selection to setTaxRate', async () => {
+    state.quotation.value = makeQuotation({ taxRate: 0.16, taxCents: 1600 })
+    quotationApiMock.setTaxRate.mockResolvedValue(
+      makeQuotation({ taxRate: 0, taxCents: 0 }),
+    )
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-testid="stub-summary-iva-set-exento"]').trigger('click')
+    await flushPromises()
+
+    expect(quotationApiMock.setTaxRate).toHaveBeenCalledWith(
+      'quotation-12345678',
+      0,
+    )
+  })
+
+  it('does NOT call setTaxRate when the status is not DRAFT', async () => {
+    state.quotation.value = makeQuotation({ status: 'SENT', taxRate: 0.16, taxCents: 1600 })
+    const wrapper = mountView()
+    await flushPromises()
+
+    // The footer stub gates the button on `editable`; in SENT the button
+    // doesn't exist, so we also assert that the view's handler short-
+    // circuits. Both layers must keep the SENT view immutable.
+    expect(wrapper.find('[data-testid="stub-summary-iva-set"]').exists()).toBe(false)
+    expect(quotationApiMock.setTaxRate).not.toHaveBeenCalled()
+  })
+
+  it('toasts an error message when setTaxRate rejects', async () => {
+    state.quotation.value = makeQuotation({ taxRate: 0.16, taxCents: 1600 })
+    quotationApiMock.setTaxRate.mockRejectedValueOnce({
+      response: { status: 409, data: { message: 'QUOTATION_NOT_DRAFT' } },
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.get('[data-testid="stub-summary-iva-set"]').trigger('click')
+    await flushPromises()
+
+    // The view's onError surfaces the backend's `message` field in the toast
+    // description so the cashier sees the real reason (e.g. QUOTATION_NOT_DRAFT).
+    expect(toastCalls).toContainEqual(
+      expect.objectContaining({
+        title: 'Error',
+        description: 'QUOTATION_NOT_DRAFT',
+        color: 'error',
+      }),
+    )
+  })
+
+  it('falls back to a generic message when the backend error has no message', async () => {
+    state.quotation.value = makeQuotation({ taxRate: 0.16, taxCents: 1600 })
+    quotationApiMock.setTaxRate.mockRejectedValueOnce(new Error('boom'))
+
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.get('[data-testid="stub-summary-iva-set"]').trigger('click')
+    await flushPromises()
+
+    expect(toastCalls).toContainEqual(
+      expect.objectContaining({
+        title: 'Error',
+        description: 'boom',
+        color: 'error',
+      }),
+    )
   })
 })
 

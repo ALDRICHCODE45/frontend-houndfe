@@ -158,6 +158,45 @@ const isProductSearchOpen = ref(false)
 // mid-edit. The mutation returns the full updated quotation, which
 // we splice into the detail + list caches so the rest of the app
 // (totals, lists, exports) sees the latest value.
+
+// T-UI-29 — IVA rate override. PATCH /quotations/drafts/:id/tax-rate
+// returns the full updated quotation with recalculated `taxRate` and
+// `taxCents`. We splice the response into the detail cache so the
+// sidebar (QuotationTotalsFooter) immediately reflects the new rate
+// and tax cents without a refetch.
+const setTaxRateMutation = useMutation<
+  QuotationResponseDto,
+  Error,
+  number,
+  { previous: QuotationResponseDto | undefined }
+>({
+  mutationFn: (taxRate) => {
+    const id = quotationId.value
+    if (!id) throw new Error('Cannot update tax rate on a non-existent quotation')
+    return quotationApi.setTaxRate(id, taxRate)
+  },
+  onSuccess: (updated) => {
+    const detailKey = quotationQueryKeys.detail(tenantId.value, updated.id)
+    queryClient.setQueryData(detailKey, updated)
+    queryClient.invalidateQueries({ queryKey: detailKey })
+  },
+  onError: (error) => {
+    const err = error as { response?: { data?: { message?: string } }; message?: string }
+    const message =
+      err.response?.data?.message ?? err.message ?? 'No se pudo actualizar el IVA'
+    useToast().add({ title: 'Error', description: message, color: 'error' })
+  },
+})
+
+/** Sidebar handler — wires QuotationTotalsFooter's `update:tax-rate`
+ *  emit to the mutation. Defence-in-depth: the parent already passes
+ *  `editable=isDraft`, but we double-check here so a stale UI can't
+ *  bypass the DRAFT gate. */
+function handleTaxRateChange(taxRate: number): void {
+  if (!isDraft.value) return
+  setTaxRateMutation.mutate(taxRate)
+}
+
 const NOTES_MAX_LENGTH = 280
 const NOTES_SAVE_DEBOUNCE_MS = 300
 
@@ -1053,13 +1092,18 @@ onMounted(async () => {
                `expiresAt` for the validity notice, and wire `send`
                / `save-draft` to the existing dialog + composable
                actions. `priceListName` is optional and not yet
-               exposed by the backend, so we leave it null. -->
+               exposed by the backend, so we leave it null.
+               T-UI-29 — the footer also accepts `update:tax-rate`
+               so the cashier can override the IVA rate from the
+               sidebar; we wire it to the dedicated
+               setTaxRateMutation that hits PATCH /tax-rate. -->
           <QuotationTotalsFooter
             :quotation="quotation"
             :editable="isDraft && canUpdateQuotation"
             :expires-at="quotation.expiresAt"
             @send="openSendDialog"
             @save-draft="handleSaveDraftFromSidebar"
+            @update:tax-rate="handleTaxRateChange"
           />
 
           <!-- T-UI-21/22 / REQ-UI-010 — customer notes. The textarea is
