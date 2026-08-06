@@ -427,11 +427,14 @@ describe('QuotationDetailView customer section', () => {
     expect(wrapper.text()).toContain('maria@example.com')
   })
 
-  it('shows the assign action for a DRAFT without customer', async () => {
+  it('shows the change-customer action for a DRAFT without customer', async () => {
+    // T-UI-16 — REQ-UI-005: the new QuotationCustomerCard emits
+    // `change-customer` from its outlined button, which the parent
+    // routes to the existing AssignCustomerSlideover.
     const wrapper = mountView()
-    const button = wrapper.get('[data-testid="assign-customer-button"]')
+    const button = wrapper.get('[data-testid="change-customer-button"]')
 
-    expect(button.text()).toContain('Asignar cliente')
+    expect(button.text()).toContain('Cambiar cliente')
     await button.trigger('click')
     expect(wrapper.find('[data-testid="customer-slideover"]').exists()).toBe(true)
   })
@@ -441,7 +444,7 @@ describe('QuotationDetailView customer section', () => {
     const wrapper = mountView()
 
     expect(wrapper.text()).toContain('Sin cliente')
-    expect(wrapper.find('[data-testid="assign-customer-button"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="change-customer-button"]').exists()).toBe(false)
   })
 })
 
@@ -1298,7 +1301,7 @@ describe('QuotationDetailView — cancel dialog (S7)', () => {
 
 const ALL_EDIT_SELECTORS = [
   '[data-testid="add-product-button"]',
-  '[data-testid="assign-customer-button"]',
+  '[data-testid="change-customer-button"]',
   '[data-testid="manual-promo-select"]',
   '[data-testid="send-button"]',
   '[data-testid="cancel-button"]',

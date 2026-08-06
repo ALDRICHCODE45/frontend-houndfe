@@ -28,6 +28,7 @@ import QuotationTotalsFooter from '../components/QuotationTotalsFooter.vue'
 import QuotationSendDialog from '../components/QuotationSendDialog.vue'
 import QuotationCancelDialog from '../components/QuotationCancelDialog.vue'
 import QuotationProgressStepper from '../components/QuotationProgressStepper.vue'
+import QuotationCustomerCard from '../components/QuotationCustomerCard.vue'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { isExpired, statusToLabel, statusToTone } from '../utils/quotation.utils'
 
@@ -622,27 +623,31 @@ onMounted(async () => {
           data-testid="quotation-detail-main"
         >
           <div class="grid gap-4 lg:grid-cols-2">
+            <!-- T-UI-16 — REQ-UI-005 customer card. Extracted into
+                 QuotationCustomerCard so the avatar / email / phone /
+                 "Cambiar cliente" affordance lives in one place. The card
+                 is editable only in DRAFT (read-only otherwise). The
+                 change-customer event opens the same AssignCustomerSlideover
+                 that handled the old "Asignar cliente" button. -->
             <section class="rounded-xl border border-default bg-default p-5" data-testid="customer-section">
-              <div class="flex items-start justify-between gap-4">
-                <div>
-                  <p class="text-xs font-semibold uppercase tracking-wide text-muted">Cliente</p>
-                  <template v-if="quotation.customer">
-                    <p class="mt-2 font-semibold text-highlighted">{{ customerName }}</p>
-                    <p class="mt-1 text-sm text-muted">{{ quotation.customer.email ?? 'Sin email' }}</p>
-                  </template>
-                  <p v-else-if="!isDraft" class="mt-2 text-sm text-muted">Sin cliente</p>
-                  <p v-else class="mt-2 text-sm text-muted">Todavía no hay un cliente asignado.</p>
-                </div>
-                <button
-                  v-if="isDraft && !quotation.customer"
-                  type="button"
-                  class="rounded-lg border border-default px-3 py-2 text-sm font-medium hover:bg-elevated"
-                  data-testid="assign-customer-button"
-                  @click="isAssignCustomerOpen = true"
-                >
-                  Asignar cliente
-                </button>
-              </div>
+              <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">Cliente</p>
+              <QuotationCustomerCard
+                v-if="quotation.customer"
+                :customer="quotation.customer"
+                :editable="isDraft"
+                @change-customer="isAssignCustomerOpen = true"
+              />
+              <p
+                v-else-if="!isDraft"
+                class="text-sm text-muted"
+                data-testid="customer-empty-readonly"
+              >Sin cliente</p>
+              <QuotationCustomerCard
+                v-else
+                :customer="null"
+                :editable="true"
+                @change-customer="isAssignCustomerOpen = true"
+              />
             </section>
 
             <section class="rounded-xl border border-default bg-default p-5" data-testid="price-list-section">
