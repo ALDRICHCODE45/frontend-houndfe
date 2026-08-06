@@ -893,11 +893,7 @@ describe('QuotationDetailView promotions section (S6)', () => {
     const wrapper = mountView()
 
     const manualSelect = wrapper.findAllComponents(USelectMenuStub)[0]!
-    manualSelect.vm.$emit('update:modelValue', {
-      value: 'promo-manual-1',
-      label: 'Cupón 10%',
-      description: 'Descuento en el pedido',
-    })
+    manualSelect.vm.$emit('update:modelValue', 'promo-manual-1')
     await flushPromises()
 
     expect(state.applyManualPromotion).toHaveBeenCalledWith('promo-manual-1')
@@ -921,11 +917,7 @@ describe('QuotationDetailView promotions section (S6)', () => {
     const wrapper = mountView()
 
     const autoSelect = wrapper.findAllComponents(USelectMenuStub)[1]!
-    autoSelect.vm.$emit('update:modelValue', {
-      value: 'promo-auto-1',
-      label: 'Promo Verano',
-      description: 'Descuento en productos',
-    })
+    autoSelect.vm.$emit('update:modelValue', 'promo-auto-1')
     await flushPromises()
 
     expect(state.vetoPromotion).toHaveBeenCalledWith('promo-auto-1')

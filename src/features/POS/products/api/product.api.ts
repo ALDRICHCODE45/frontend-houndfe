@@ -77,7 +77,7 @@ function mapProduct(item: ProductBackendResponse): Product {
     priceCents: getPriceCents(item),
     quantity: item.quantity ?? 0,
     minQuantity: item.minQuantity ?? 0,
-    useStock: item.useStock ?? true,
+    useStock: item.useStock ?? false,
     hasVariants: item.hasVariants ?? false,
     useLotsAndExpirations: item.useLotsAndExpirations ?? false,
     sellInPos: item.sellInPos ?? true,

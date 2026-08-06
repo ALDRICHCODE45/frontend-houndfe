@@ -290,18 +290,18 @@ const automaticPromoItems = computed(() =>
   })),
 )
 
-const selectedManualPromotion = ref<{ value: string } | null>(null)
-const selectedAutoPromotion = ref<{ value: string } | null>(null)
+const selectedManualPromotion = ref<string | null>(null)
+const selectedAutoPromotion = ref<string | null>(null)
 
-async function handleSelectManualPromotion(selected: { value: string } | null): Promise<void> {
+async function handleSelectManualPromotion(selected: string | null): Promise<void> {
   if (!isDraft.value || !selected) return
-  await draft.applyManualPromotion(selected.value)
+  await draft.applyManualPromotion(selected)
   selectedManualPromotion.value = null
 }
 
-async function handleSelectAutoPromotion(selected: { value: string } | null): Promise<void> {
+async function handleSelectAutoPromotion(selected: string | null): Promise<void> {
   if (!isDraft.value || !selected) return
-  await draft.vetoPromotion(selected.value)
+  await draft.vetoPromotion(selected)
   selectedAutoPromotion.value = null
 }
 
