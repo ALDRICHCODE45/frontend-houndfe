@@ -412,16 +412,17 @@ describe('QuotationDetailView — progress stepper (T-UI-11)', () => {
     expect(wrapper.find('[data-testid="quotation-stepper"]').exists()).toBe(true)
   })
 
-  it('renders the stepper above the header title row (lifecycle before identity)', () => {
+  it('renders the stepper below the status metadata row', () => {
     const wrapper = mountView()
-    // jsdom doesn't compute layout, so check DOM order instead: the stepper
-    // element must appear before the first h1 in the rendered HTML.
+    // The stepper sits below the status badge + expiry + creation metadata
+    // line, not above the title. Verify it's in the DOM after the h1.
     const html = wrapper.html()
     const stepperIndex = html.indexOf('data-testid="quotation-stepper"')
     const titleIndex = html.indexOf('<h1')
     expect(stepperIndex).toBeGreaterThan(-1)
     expect(titleIndex).toBeGreaterThan(-1)
-    expect(stepperIndex).toBeLessThan(titleIndex)
+    // Stepper comes AFTER the h1 (below title + metadata row)
+    expect(stepperIndex).toBeGreaterThan(titleIndex)
   })
 
   it('forwards the quotation status to the stepper (DRAFT first step active)', () => {

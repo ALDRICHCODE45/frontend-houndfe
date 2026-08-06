@@ -595,17 +595,6 @@ onMounted(async () => {
 
 <template>
   <section class="quotation-detail-view flex flex-col gap-6 px-4 sm:px-8 lg:px-10" data-testid="quotation-detail-view">
-    <!-- T-UI-11 — REQ-UI-003: 3-state progress stepper (BORRADOR → ENVIADA →
-         EXPIRADA/CANCELADA). Sits above the header so the cashier reads the
-         lifecycle position before the title row, mirroring the design.md
-         component tree. Gated on `quotation` because the stepper reads
-         `quotation.status`; during loading/error states the rest of the
-         header gracefully degrades. -->
-    <QuotationProgressStepper
-      v-if="quotation"
-      :status="quotation.status"
-    />
-
     <header class="flex flex-col gap-4 border-b border-default pb-5">
       <button
         type="button"
@@ -669,6 +658,15 @@ onMounted(async () => {
           </button>
         </div>
       </div>
+
+      <!-- REQ-UI-003: 3-state progress stepper placed below the status
+           metadata so it reads as a secondary detail, not the primary
+           visual anchor. Compact presentation — smaller nodes and text. -->
+      <QuotationProgressStepper
+        v-if="quotation"
+        :status="quotation.status"
+        compact
+      />
     </header>
 
     <div

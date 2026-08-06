@@ -20,6 +20,7 @@
  * to the table props. The view still owns the dedicated "Nueva cotización"
  * button placement in the header.
  */
+import '../styles/coco-tokens.css'
 
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'

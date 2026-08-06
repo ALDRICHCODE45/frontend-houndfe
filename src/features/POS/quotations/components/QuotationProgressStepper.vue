@@ -49,6 +49,8 @@ const STEPS: readonly StepDefinition[] = [
 
 const props = defineProps<{
   status: QuotationStatus
+  /** Render smaller nodes and text for use in tighter header layouts. */
+  compact?: boolean
 }>()
 
 /**
@@ -101,22 +103,28 @@ function connectorState(connectorIndex: number): ConnectorState {
       >
         <span
           aria-hidden="true"
-          class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold transition-colors"
-          :class="{
-            'border-[var(--coco-accent)] bg-[var(--coco-accent)] text-[var(--coco-card)] shadow-sm': stepState(step.index) === 'active',
-            'border-[var(--coco-accent)] bg-[var(--coco-accent-50)] text-[var(--coco-accent)]': stepState(step.index) === 'completed',
-            'border-[var(--coco-border)] bg-[var(--coco-card)] text-[var(--coco-text-tertiary)]': stepState(step.index) === 'future',
-          }"
+          class="flex shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold transition-colors"
+          :class="[
+            props.compact ? 'h-6 w-6 text-[10px]' : 'h-8 w-8',
+            {
+              'border-[var(--coco-accent)] bg-[var(--coco-accent)] text-[var(--coco-card)] shadow-sm': stepState(step.index) === 'active',
+              'border-[var(--coco-accent)] bg-[var(--coco-accent-50)] text-[var(--coco-accent)]': stepState(step.index) === 'completed',
+              'border-[var(--coco-border)] bg-[var(--coco-card)] text-[var(--coco-text-tertiary)]': stepState(step.index) === 'future',
+            },
+          ]"
         >
           {{ step.index + 1 }}
         </span>
         <span
-          class="whitespace-nowrap text-xs font-semibold tracking-wide uppercase"
-          :class="{
-            'text-[var(--coco-text)]': stepState(step.index) === 'active',
-            'text-[var(--coco-accent)]': stepState(step.index) === 'completed',
-            'text-[var(--coco-text-tertiary)]': stepState(step.index) === 'future',
-          }"
+          class="whitespace-nowrap font-semibold tracking-wide uppercase"
+          :class="[
+            props.compact ? 'text-[10px]' : 'text-xs',
+            {
+              'text-[var(--coco-text)]': stepState(step.index) === 'active',
+              'text-[var(--coco-accent)]': stepState(step.index) === 'completed',
+              'text-[var(--coco-text-tertiary)]': stepState(step.index) === 'future',
+            },
+          ]"
         >
           {{ step.label }}
         </span>
