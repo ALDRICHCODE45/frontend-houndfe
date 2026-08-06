@@ -187,3 +187,137 @@ describe('QuotationTotalsFooter — totals', () => {
     expect(wrapper.find('[data-testid="total-amount"]').text()).toBe('$1,111.11')
   })
 })
+
+// T-UI-22/23 — REQ-UI-009 RESUMEN sidebar refactor.
+// The footer grows from a compact 4-line strip into the full Coco RESUMEN
+// card: title, context subtitle, subtotal / descuentos / IVA 16% / TOTAL,
+// full-width send CTA, save-draft secondary, validity notice.
+//
+// These tests pin the spec-level additions so future tweaks can't silently
+// drop any of them.
+describe('QuotationTotalsFooter — RESUMEN sidebar (T-UI-22/23 / REQ-UI-009)', () => {
+  it('renders the "RESUMEN" title in the header', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: { quotation: makeQuotation() },
+    })
+    expect(wrapper.find('[data-testid="summary-title"]').text()).toBe('RESUMEN')
+  })
+
+  it('renders the context subtitle (N productos · M unidades · lista [name])', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: {
+        quotation: makeQuotation(),
+        priceListName: 'Mayoreo',
+      },
+    })
+    const context = wrapper.find('[data-testid="summary-context"]')
+    expect(context.exists()).toBe(true)
+    expect(context.text()).toContain('0 productos')
+    expect(context.text()).toContain('0 unidades')
+    expect(context.text()).toContain('lista Mayoreo')
+  })
+
+  it('omits the price-list segment when priceListName is not provided', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: { quotation: makeQuotation() },
+    })
+    const context = wrapper.find('[data-testid="summary-context"]')
+    expect(context.exists()).toBe(true)
+    expect(context.text()).not.toContain('lista')
+  })
+
+  it('renders the IVA 16% row computed from totalCents × 0.16', () => {
+    // totalCents = 33500 → IVA = 5360 ($53.60) per REQ-UI-009 scenario
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: { quotation: makeQuotation({ totalCents: 33500 }) },
+    })
+    const iva = wrapper.find('[data-testid="summary-iva-row"]')
+    expect(iva.exists()).toBe(true)
+    expect(iva.text()).toContain('IVA 16%')
+    expect(iva.text()).toContain('$53.60')
+  })
+
+  it('renders IVA 16% as 0 when totalCents is 0', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: { quotation: makeQuotation({ totalCents: 0 }) },
+    })
+    const iva = wrapper.find('[data-testid="summary-iva-row"]')
+    expect(iva.exists()).toBe(true)
+    expect(iva.text()).toContain('$0.00')
+  })
+
+  it('renders the full-width "Enviar cotización" CTA when editable', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: { quotation: makeQuotation(), editable: true },
+    })
+    const cta = wrapper.find('[data-testid="summary-send-btn"]')
+    expect(cta.exists()).toBe(true)
+    expect(cta.text()).toContain('Enviar cotización')
+    // The CTA must be full-width (w-full on the button itself).
+    expect(cta.classes()).toContain('w-full')
+  })
+
+  it('emits "send" when the CTA is clicked', async () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: { quotation: makeQuotation(), editable: true },
+    })
+    await wrapper.get('[data-testid="summary-send-btn"]').trigger('click')
+    expect(wrapper.emitted('send')).toBeDefined()
+    expect(wrapper.emitted('send')).toHaveLength(1)
+  })
+
+  it('renders the "Guardar borrador" outlined secondary button', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: { quotation: makeQuotation(), editable: true },
+    })
+    const secondary = wrapper.find('[data-testid="summary-save-draft-btn"]')
+    expect(secondary.exists()).toBe(true)
+    expect(secondary.text()).toContain('Guardar borrador')
+  })
+
+  it('emits "save-draft" when the secondary button is clicked', async () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: { quotation: makeQuotation(), editable: true },
+    })
+    await wrapper.get('[data-testid="summary-save-draft-btn"]').trigger('click')
+    expect(wrapper.emitted('save-draft')).toBeDefined()
+    expect(wrapper.emitted('save-draft')).toHaveLength(1)
+  })
+
+  it('hides both CTAs when editable=false (non-DRAFT quotation)', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: { quotation: makeQuotation(), editable: false },
+    })
+    expect(wrapper.find('[data-testid="summary-send-btn"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="summary-save-draft-btn"]').exists()).toBe(false)
+  })
+
+  it('renders the validity notice when expiresAt is set', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: {
+        quotation: makeQuotation({ expiresAt: '2026-09-15T00:00:00.000Z' }),
+        editable: true,
+      },
+    })
+    const validity = wrapper.find('[data-testid="summary-validity-notice"]')
+    expect(validity.exists()).toBe(true)
+    expect(validity.text()).toContain('Válida hasta')
+  })
+
+  it('omits the validity notice when expiresAt is null', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: { quotation: makeQuotation({ expiresAt: null }), editable: true },
+    })
+    expect(wrapper.find('[data-testid="summary-validity-notice"]').exists()).toBe(false)
+  })
+
+  it('renders the discount row with blue (info) accent color', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: { quotation: makeQuotation({ discountCents: 1500 }) },
+    })
+    const discountRow = wrapper.find('[data-testid="discount-row"]')
+    // The discount text class is the Coco info-blue color.
+    const discountAmount = wrapper.find('[data-testid="discount-amount"]')
+    expect(discountAmount.classes().join(' ')).toMatch(/text-\[var\(--coco-info\)\]/)
+  })
+})
