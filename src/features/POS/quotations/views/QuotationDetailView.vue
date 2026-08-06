@@ -29,6 +29,7 @@ import QuotationSendDialog from '../components/QuotationSendDialog.vue'
 import QuotationCancelDialog from '../components/QuotationCancelDialog.vue'
 import QuotationProgressStepper from '../components/QuotationProgressStepper.vue'
 import QuotationCustomerCard from '../components/QuotationCustomerCard.vue'
+import QuotationPromotionCard from '../components/QuotationPromotionCard.vue'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { isExpired, statusToLabel, statusToTone } from '../utils/quotation.utils'
 
@@ -756,33 +757,23 @@ onMounted(async () => {
                 Aplicadas
               </p>
               <ul class="flex flex-col gap-2">
+                <!-- T-UI-20 — REQ-UI-008 promotion cards. Extracted to
+                     QuotationPromotionCard so the border-l-4 accent
+                     treatment + outlined badge + blue discount live in
+                     one place. The parent routes MANUAL removes via
+                     removeManualPromotion and AUTOMATIC ones via
+                     vetoPromotion — the card itself never calls the
+                     API directly. -->
                 <li
                   v-for="promo in appliedPromotions"
                   :key="promo.promotionId"
-                  class="flex items-center justify-between gap-2 rounded-lg border border-default px-3 py-2"
-                  :data-testid="`applied-promo-${promo.promotionId}`"
                 >
-                  <div class="flex-1 min-w-0">
-                    <p class="text-sm font-medium text-highlighted truncate">{{ resolvePromotionTitle(promo.promotionId, promo.title) }}</p>
-                    <p class="text-xs text-muted tabular-nums">
-                      −{{ formatDiscountCents(promo.discountCents) }}
-                    </p>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <span
-                      class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
-                      :class="appliedMethod(promo.promotionId) === 'Manual' ? 'bg-primary/10 text-primary' : 'bg-blue-500/10 text-blue-500'"
-                    >{{ appliedMethod(promo.promotionId) }}</span>
-                    <button
-                      type="button"
-                      class="inline-flex items-center gap-1 rounded-lg border border-default px-3 py-1.5 text-xs font-medium hover:bg-elevated"
-                      :data-testid="`remove-manual-promo-${promo.promotionId}`"
-                      @click="handleRemoveAppliedPromotion(promo.promotionId)"
-                    >
-                      <UIcon name="i-lucide-x" class="h-3.5 w-3.5" />
-                      {{ appliedMethod(promo.promotionId) === 'Manual' ? 'Quitar' : 'Vetar' }}
-                    </button>
-                  </div>
+                  <QuotationPromotionCard
+                    :promotion="promo"
+                    :method="appliedMethod(promo.promotionId) === 'Manual' ? 'MANUAL' : 'AUTOMATIC'"
+                    @remove="handleRemoveAppliedPromotion"
+                    @veto="handleRemoveAppliedPromotion"
+                  />
                 </li>
               </ul>
             </div>

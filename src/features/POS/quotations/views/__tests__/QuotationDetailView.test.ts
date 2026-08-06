@@ -233,6 +233,30 @@ const stubs = {
     template:
       '<div data-testid="quotation-totals-footer"><span data-testid="subtotal-amount">subtotal-stub</span><span data-testid="total-amount">total-stub</span></div>',
   },
+  // T-UI-20 — REQ-UI-008 promotion cards. The view delegates each
+  // applied promo to QuotationPromotionCard. The stub mirrors the
+  // production testids (data-testid on the root + on the remove
+  // button) so the existing selectors continue to anchor on a stable
+  // point.
+  QuotationPromotionCard: {
+    props: ['promotion', 'method', 'readonly'],
+    emits: ['remove', 'veto'],
+    template: `
+      <div
+        :data-testid="'quotation-promotion-card'"
+        :data-promotion-id="promotion.promotionId"
+      >
+        <span data-testid="promo-title">{{ promotion.title }}</span>
+        <span data-testid="promo-discount">-{{ promotion.discountCents / 100 }}</span>
+        <span data-testid="promo-method-badge">{{ method === 'MANUAL' ? 'Manual' : 'Automática' }}</span>
+        <button
+          type="button"
+          data-testid="promo-remove-btn"
+          @click="method === 'MANUAL' ? $emit('remove', promotion.promotionId) : $emit('veto', promotion.promotionId)"
+        >{{ method === 'MANUAL' ? 'Quitar' : 'Vetar' }}</button>
+      </div>
+    `,
+  },
   QuotationSendDialog: {
     props: ['quotation', 'open', 'send'],
     emits: ['close', 'sent'],
@@ -981,7 +1005,11 @@ describe('QuotationDetailView promotions section (S6)', () => {
     })
     const wrapper = mountView()
 
-    await wrapper.get('[data-testid="remove-manual-promo-promo-1"]').trigger('click')
+    // T-UI-20 — REQ-UI-008: the view delegates to QuotationPromotionCard.
+    // The card carries `data-promotion-id` on the root + `promo-remove-btn`
+    // on the action button, so the selector anchors on the promo id first.
+    const card = wrapper.get('[data-promotion-id="promo-1"]')
+    await card.get('[data-testid="promo-remove-btn"]').trigger('click')
     expect(state.removeManualPromotion).toHaveBeenCalledWith('promo-1')
     expect(state.vetoPromotion).not.toHaveBeenCalled()
   })
@@ -994,7 +1022,8 @@ describe('QuotationDetailView promotions section (S6)', () => {
     })
     const wrapper = mountView()
 
-    await wrapper.get('[data-testid="remove-manual-promo-promo-auto-1"]').trigger('click')
+    const card = wrapper.get('[data-promotion-id="promo-auto-1"]')
+    await card.get('[data-testid="promo-remove-btn"]').trigger('click')
     expect(state.vetoPromotion).toHaveBeenCalledWith('promo-auto-1')
     expect(state.removeManualPromotion).not.toHaveBeenCalled()
   })
@@ -1081,8 +1110,12 @@ describe('QuotationDetailView promotions section (S6)', () => {
     const wrapper = mountView()
     expect(wrapper.text()).toContain('Manual')
     expect(wrapper.text()).toContain('Automática')
-    expect(wrapper.get('[data-testid="remove-manual-promo-promo-1"]').text()).toContain('Quitar')
-    expect(wrapper.get('[data-testid="remove-manual-promo-promo-2"]').text()).toContain('Vetar')
+    // T-UI-20 — the QuotationPromotionCard carries `data-promotion-id` on
+    // the root + `promo-remove-btn` on the action button. The view
+    // passes `method='MANUAL'` for opted-in promos and `method='AUTOMATIC'`
+    // for everything else, so the card renders "Quitar" / "Vetar".
+    expect(wrapper.get('[data-promotion-id="promo-1"]').get('[data-testid="promo-remove-btn"]').text()).toContain('Quitar')
+    expect(wrapper.get('[data-promotion-id="promo-2"]').get('[data-testid="promo-remove-btn"]').text()).toContain('Vetar')
   })
 
   it('shows all promotions in the unified picker with "(Aplicada)" prefix for applied ones', () => {
