@@ -142,6 +142,11 @@ const items = computed(() => quotation.value?.items ?? [])
 
 const isProductSearchOpen = ref(false)
 
+// T-UI-04 / REQ-UI-010 — customer notes (Phase 1 skeleton). Local-only
+// ref so the textarea is interactive; Phase 3 will wire a localStorage
+// draft cache and a "no implementado aún" hint is shown until then.
+const customerNotes = ref('')
+
 async function handleAddProduct(
   productId: string,
   variantId: string | null,
@@ -874,6 +879,42 @@ onMounted(async () => {
                quotation response); the read-only branch already has the
                "Solo lectura" notice above this for clarity. -->
           <QuotationTotalsFooter :quotation="quotation" />
+
+          <!-- T-UI-04 / REQ-UI-010 — customer notes (skeleton). The textarea
+               is local-state only — Phase 3 will add a localStorage draft
+               cache and the (no implementado aún) hint already makes the
+               non-persistence explicit to the cashier. -->
+          <section
+            class="flex flex-col gap-2 rounded-xl border border-default bg-default p-5"
+            data-testid="customer-notes-section"
+          >
+            <div class="flex items-center justify-between">
+              <label
+                for="customer-notes"
+                class="text-xs font-semibold uppercase tracking-wide text-muted"
+              >
+                Notas
+              </label>
+              <span
+                class="text-xs text-muted tabular-nums"
+                data-testid="notes-char-counter"
+              >
+                {{ customerNotes.length }} / 280
+              </span>
+            </div>
+            <textarea
+              id="customer-notes"
+              v-model="customerNotes"
+              rows="4"
+              maxlength="280"
+              class="w-full resize-none rounded-lg border border-default bg-default p-2 text-sm text-highlighted focus:outline-none focus:ring-1 focus:ring-primary"
+              placeholder="Condiciones de entrega, referencias de pago..."
+              data-testid="customer-notes-textarea"
+            />
+            <p class="text-xs text-muted">
+              (no implementado aún)
+            </p>
+          </section>
         </div>
       </div>
 

@@ -831,6 +831,42 @@ describe('QuotationDetailView — two-column layout (REQ-UI-002 / T-UI-03)', () 
     expect(main.find('[data-testid="items-section"]').exists()).toBe(true)
     expect(main.find('[data-testid="expiry-section"]').exists()).toBe(true)
   })
+
+  it('renders the customer notes section inside the sticky right column', () => {
+    const wrapper = mountView()
+    const sidebar = wrapper.find('[data-testid="quotation-detail-sidebar"]')
+    expect(sidebar.exists()).toBe(true)
+    // RESUMEN + customer notes share the sidebar (T-UI-04).
+    const notes = sidebar.find('[data-testid="customer-notes-section"]')
+    expect(notes.exists()).toBe(true)
+  })
+})
+
+// T-UI-04 — REQ-UI-010 (skeleton). The detail view owns a customer notes
+// textarea in the right sidebar. Phase 3 will wire persistence + counter
+// behavior; for Phase 1 we only pin the layout placement and the visible
+// "0 / 280" counter so the structure is in place.
+describe('QuotationDetailView — customer notes placeholder (T-UI-04)', () => {
+  it('renders a customer notes textarea with the spec placeholder', () => {
+    const wrapper = mountView()
+    const textarea = wrapper.find('[data-testid="customer-notes-textarea"]')
+    expect(textarea.exists()).toBe(true)
+    expect(textarea.attributes('placeholder')).toBe(
+      'Condiciones de entrega, referencias de pago...',
+    )
+  })
+
+  it('renders the spec character counter starting at "0 / 280"', () => {
+    const wrapper = mountView()
+    const counter = wrapper.find('[data-testid="notes-char-counter"]')
+    expect(counter.exists()).toBe(true)
+    expect(counter.text()).toBe('0 / 280')
+  })
+
+  it('shows the "(no implementado aún)" hint so the cashier knows the notes are not persisted yet', () => {
+    const wrapper = mountView()
+    expect(wrapper.text()).toContain('(no implementado aún)')
+  })
 })
 
 describe('QuotationDetailView promotions section (S6)', () => {
