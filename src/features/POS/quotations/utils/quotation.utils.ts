@@ -81,3 +81,27 @@ export function stepperIndexFromStatus(status: QuotationStatus): number {
       return -1
   }
 }
+
+/**
+ * T-UI-12/13 — REQ-UI-009 client-side IVA 16% computation.
+ *
+ * The backend does NOT yet expose a `taxCents` field on the quotation
+ * response, so the UI computes `totalCents * 0.16` locally and renders it
+ * in the RESUMEN sidebar. This util is the SINGLE source of truth for that
+ * formula — any caller MUST import it instead of inlining the
+ * multiplication so a future backend round-trip is a one-line swap.
+ *
+ * Rounding: `Math.round` follows standard half-away-from-zero semantics,
+ * which matches the es-MX currency convention (no fractional cents on
+ * invoices).
+ *
+ * Negative inputs: clamped at 0. A negative `totalCents` would be a
+ * backend bug; we keep the tax non-negative so the summary card never
+ * shows a "−$X.XX" tax line.
+ *
+ * // TODO: replace when backend exposes taxCents
+ */
+export function computeIva16(totalCents: number): number {
+  if (!Number.isFinite(totalCents) || totalCents <= 0) return 0
+  return Math.round(totalCents * 0.16)
+}

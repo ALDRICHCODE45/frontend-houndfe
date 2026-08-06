@@ -6,6 +6,7 @@ import {
   isDraft,
   isCancellable,
   stepperIndexFromStatus,
+  computeIva16,
 } from '../quotation.utils'
 import type { QuotationResponseDto } from '../../interfaces/quotation.types'
 
@@ -140,6 +141,48 @@ describe('quotation.utils', () => {
       expect(() =>
         stepperIndexFromStatus('WHATEVER' as unknown as Parameters<typeof stepperIndexFromStatus>[0]),
       ).not.toThrow()
+    })
+  })
+
+  // T-UI-12 — REQ-UI-009 client-side IVA 16% computation. The backend does
+  // NOT expose a `taxCents` field yet, so the UI computes `totalCents * 0.16`
+  // locally. This util is the SINGLE source of truth for that formula —
+  // any caller MUST import this instead of inlining the multiplication so a
+  // future backend round-trip is a one-line swap.
+  //
+  // Rounding contract: `Math.round` (banker's NOT required here — currency
+  // math follows standard round-half-away-from-zero semantics in es-MX).
+  describe('computeIva16', () => {
+    it('computes 16% of 10000 cents ($100.00 → $16.00 = 1600 cents)', () => {
+      expect(computeIva16(10000)).toBe(1600)
+    })
+
+    it('returns 0 when totalCents is 0 (zero-rated edge case)', () => {
+      expect(computeIva16(0)).toBe(0)
+    })
+
+    it('rounds the result to the nearest integer (no fractional cents)', () => {
+      // 1 × 0.16 = 0.16 → rounds to 0; 7 × 0.16 = 1.12 → rounds to 1
+      expect(computeIva16(1)).toBe(0)
+      expect(computeIva16(7)).toBe(1)
+    })
+
+    it('handles a typical quotation total (33500 → 5360 = $53.60)', () => {
+      // The spec example: totalCents = 33500 → IVA = 5360 ($53.60)
+      expect(computeIva16(33500)).toBe(5360)
+    })
+
+    it('is a pure function (same input → same output, no side effects)', () => {
+      expect(computeIva16(12345)).toBe(1975)
+      // Call twice in a row — no memoization, no state, no I/O.
+      expect(computeIva16(12345)).toBe(1975)
+    })
+
+    it('treats negative inputs as invalid money and returns 0', () => {
+      // Defensive: a negative totalCents would be a backend bug. We
+      // clamp at 0 rather than return a negative tax — totals stay
+      // non-negative on the summary card.
+      expect(computeIva16(-1000)).toBe(0)
     })
   })
 })
