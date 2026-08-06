@@ -314,4 +314,12 @@ export const quotationApi = {
     )
     return data
   },
+
+  // ─── 3.16 delete ───────────────────────────────────────────────────────────
+  /** DELETE /quotations/:id — permanently remove a DRAFT or CANCELLED quotation.
+   *  Returns 204 No Content on success. SENT/EXPIRED quotations cannot be
+   *  deleted (409 QUOTATION_CANNOT_DELETE). */
+  async deleteQuotation(id: string): Promise<void> {
+    await http.delete(`/quotations/${id}`)
+  },
 }

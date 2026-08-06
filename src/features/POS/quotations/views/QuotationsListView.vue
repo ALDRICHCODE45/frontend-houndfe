@@ -22,9 +22,10 @@
  */
 import '../styles/coco-tokens.css'
 
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { TableColumn } from '@nuxt/ui'
+import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { AppDataTable } from '@/core/shared/components/DataTable'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
@@ -34,13 +35,25 @@ import { isExpired, statusToTone, statusToLabel } from '../utils/quotation.utils
 import { formatCentsMXN } from '../utils/currency.utils'
 import { useQuotationsList, type QuotationStatusFilter } from '../composables/useQuotationsList'
 import type { QuotationResponseDto } from '../interfaces/quotation.types'
+import { quotationApi } from '../api/quotation.api'
+import { quotationQueryKeys } from '@/core/shared/constants/query-keys'
+import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import QuotationsSearchInput from '../components/QuotationsSearchInput.vue'
+
+declare const useToast: () => {
+  add: (options: {
+    title: string
+    description?: string
+    color?: 'success' | 'error' | 'warning' | 'primary' | 'neutral'
+  }) => void
+}
 
 // ─── State wiring ─────────────────────────────────────────────────────────────
 
 const router = useRouter()
 const authStore = useAuthStore()
 const canCreate = computed(() => authStore.userCan('create', 'Quotation'))
+const canDelete = computed(() => authStore.userCan('delete', 'Quotation'))
 
 const {
   status,
@@ -120,6 +133,52 @@ function goToCreate(): void {
 
 function goToDetail(quotation: QuotationResponseDto): void {
   void router.push(`/pos/cotizaciones/${quotation.id}`)
+}
+
+// ─── Delete flow (REQ-QTN-013 / backend §3.16) ──────────────────────────────
+// DELETE /quotations/:id is restricted to DRAFT or CANCELLED quotations
+// (409 QUOTATION_CANNOT_DELETE otherwise). The CASL `delete:Quotation`
+// gate runs in the dropdown builder below; the backend's status guard is
+// defense-in-depth for stale list caches.
+
+const queryClient = useQueryClient()
+const tenantId = computed(() => authStore.currentTenantId)
+
+const confirmState = ref({
+  open: false,
+  id: '',
+  folio: '',
+})
+
+const deleteMutation = useMutation({
+  mutationFn: (id: string) => quotationApi.deleteQuotation(id),
+  onSuccess: async () => {
+    confirmState.value = { open: false, id: '', folio: '' }
+    useToast().add({ title: 'Cotización eliminada', color: 'success' })
+    await queryClient.invalidateQueries({
+      queryKey: quotationQueryKeys.list(tenantId.value),
+    })
+  },
+  onError: (error) => {
+    const err = error as { response?: { data?: { message?: string } }; message?: string }
+    const message =
+      err.response?.data?.message ?? err.message ?? 'No se pudo eliminar la cotización'
+    useToast().add({ title: 'Error', description: message, color: 'error' })
+  },
+})
+
+function handleDelete(quotation: QuotationResponseDto): void {
+  confirmState.value = {
+    open: true,
+    id: quotation.id,
+    folio: quotation.id.slice(0, 8),
+  }
+}
+
+function handleConfirmDelete(): void {
+  const id = confirmState.value.id
+  if (!id) return
+  deleteMutation.mutate(id)
 }
 
 // ─── Column definitions ───────────────────────────────────────────────────────
@@ -216,7 +275,37 @@ const columns: TableColumn<QuotationResponseDto>[] = [
     enableSorting: false,
     meta: { class: { th: 'w-32' } },
   },
+  {
+    id: 'actions',
+    header: '',
+    enableSorting: false,
+    meta: { class: { th: 'w-12' } },
+  },
 ]
+
+// ─── Row actions (UDropdownMenu items per row) ────────────────────────────────
+// Two-group layout mirrors PromotionsView/CustomersView: the first group
+// holds navigation, the second holds the destructive delete (red) when
+// the row's status is one the backend will accept (DRAFT, CANCELLED).
+function getRowItems(quotation: QuotationResponseDto) {
+  const navigationActions = [
+    { label: 'Ver detalle', onSelect: () => goToDetail(quotation) },
+  ]
+
+  const isDeletableStatus =
+    quotation.status === QUOTATION_STATUS.DRAFT ||
+    quotation.status === QUOTATION_STATUS.CANCELLED
+
+  const destructiveActions = canDelete.value && isDeletableStatus
+    ? [{
+        label: 'Eliminar',
+        color: 'error' as const,
+        onSelect: () => handleDelete(quotation),
+      }]
+    : []
+
+  return [navigationActions, destructiveActions].filter((section) => section.length > 0)
+}
 
 // ─── Pagination display helpers ──────────────────────────────────────────────
 
@@ -382,7 +471,39 @@ const errorMessage = computed(() => {
         <template #fecha-cell="{ row }">
           <span class="text-sm text-muted">{{ formatCreatedAt(row.original.createdAt) }}</span>
         </template>
+
+        <!-- Actions cell: dropdown with view + delete (CASL + status-gated) -->
+        <template #actions-cell="{ row }">
+          <UDropdownMenu
+            :items="getRowItems(row.original)"
+            :content="{ align: 'end' }"
+          >
+            <UButton
+              icon="i-lucide-ellipsis-vertical"
+              color="neutral"
+              variant="ghost"
+              class="size-7 cursor-pointer"
+              :data-testid="`row-actions-${row.original.id}`"
+            />
+          </UDropdownMenu>
+        </template>
       </AppDataTable>
     </div>
+
+    <!-- REQ-QTN-013 — Delete confirmation. State holds the selected id +
+         folio so the description can reference the truncated UUID the
+         cashier sees in the table. Mutating the open flag inside
+         `update:open` keeps the modal wired to the same confirm-state
+         ref that the dropdown's `Eliminar` action populates. -->
+    <ConfirmModal
+      :open="confirmState.open"
+      title="Eliminar cotización"
+      :description="`¿Eliminar la cotización #${confirmState.folio}? Esta acción no se puede deshacer.`"
+      confirm-label="Eliminar"
+      confirm-color="error"
+      :loading="deleteMutation.isPending.value"
+      @update:open="(val) => { if (!val) confirmState.open = false }"
+      @confirm="handleConfirmDelete"
+    />
   </section>
 </template>

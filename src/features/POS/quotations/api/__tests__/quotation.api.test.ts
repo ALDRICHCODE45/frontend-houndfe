@@ -460,6 +460,27 @@ describe('quotationApi', () => {
     )
   })
 
+  // ─── 3.16 delete ────────────────────────────────────────────────────────────
+
+  describe('deleteQuotation', () => {
+    it('DELETEs /quotations/:id and resolves with void (204 No Content)', async () => {
+      vi.mocked(http.delete).mockResolvedValueOnce({ data: undefined })
+
+      await expect(quotationApi.deleteQuotation('q-1')).resolves.toBeUndefined()
+      expect(http.delete).toHaveBeenCalledWith('/quotations/q-1')
+    })
+
+    it.each([400, 404, 409, 422, 500])(
+      'rejects with the original axios error on HTTP %s',
+      async (status) => {
+        const apiError = { response: { status } }
+        vi.mocked(http.delete).mockRejectedValue(apiError)
+
+        await expect(quotationApi.deleteQuotation('q-1')).rejects.toEqual(apiError)
+      },
+    )
+  })
+
   // ─── error handling — all mutations bubble up axios errors ──────────────────
 
   describe('error handling', () => {

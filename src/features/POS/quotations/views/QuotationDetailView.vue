@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useMutation } from '@tanstack/vue-query'
 // REQ-UI-001 — Coco design tokens are scoped to `.quotation-detail-view`
 // via an `@layer coco-quotations` block. Importing the stylesheet here
 // keeps the token lifecycle tied to the view that owns it.
@@ -50,6 +51,7 @@ const isCreating = ref(false)
 const createError = ref<unknown>(null)
 
 const canUpdateQuotation = computed(() => authStore.userCan('update', 'Quotation'))
+const canDeleteQuotation = computed(() => authStore.userCan('delete', 'Quotation'))
 
 const isCreateRoute = computed(() => route.path === '/pos/cotizaciones/nueva')
 const quotationId = computed(() => {
@@ -560,6 +562,31 @@ async function handleCancel(reason: Parameters<typeof draft.cancelQuotation>[0])
   await draft.cancelQuotation(reason)
 }
 
+// ── Delete confirmation flow (REQ-QTN-013 / backend §3.16) ─────────────────
+// DELETE /quotations/:id only accepts DRAFT or CANCELLED quotations
+// (409 QUOTATION_CANNOT_DELETE otherwise), but the UI gate keeps it to
+// DRAFT to mirror the read-only invariant: a CANCELLED quotation in the
+// detail view is terminal, so the cashier can already see why it ended
+// via the cancel reason banner. Deletion is the "I never sent this,
+// just nuke it" affordance for abandoned drafts.
+
+const isDeleteConfirmOpen = ref(false)
+
+const deleteMutation = useMutation({
+  mutationFn: () => quotationApi.deleteQuotation(quotationId.value!),
+  onSuccess: async () => {
+    isDeleteConfirmOpen.value = false
+    useToast().add({ title: 'Cotización eliminada', color: 'success' })
+    await router.push('/pos/cotizaciones')
+  },
+  onError: (error) => {
+    const err = error as { response?: { data?: { message?: string } }; message?: string }
+    const message =
+      err.response?.data?.message ?? err.message ?? 'No se pudo eliminar la cotización'
+    useToast().add({ title: 'Error', description: message, color: 'error' })
+  },
+})
+
 onUnmounted(() => {
   pdfAbortController.value?.abort()
   // Flush the debounced notes persist before teardown so the latest
@@ -666,6 +693,20 @@ onMounted(async () => {
           >
             <UIcon name="i-lucide-ban" class="h-4 w-4" />
             <span>Cancelar</span>
+          </button>
+          <!-- REQ-QTN-013 — Delete (DRAFT only, gated by `delete:Quotation`).
+               Permanently removes the quotation via DELETE /quotations/:id.
+               SENT / EXPIRED / CANCELLED rows don't show this affordance —
+               the backend would reject the mutation with 409 anyway. -->
+          <button
+            v-if="isDraft && canDeleteQuotation"
+            type="button"
+            class="inline-flex items-center gap-1 rounded-lg border border-default px-3 py-2 text-sm font-medium text-error hover:bg-elevated"
+            data-testid="delete-button"
+            @click="isDeleteConfirmOpen = true"
+          >
+            <UIcon name="i-lucide-trash-2" class="h-4 w-4" />
+            <span>Eliminar</span>
           </button>
         </div>
       </div>
@@ -1047,6 +1088,21 @@ onMounted(async () => {
         confirm-color="error"
         @update:open="(value) => { if (!value) handleRemoveCancel() }"
         @confirm="handleRemoveConfirm"
+      />
+
+      <!-- REQ-QTN-013 — Delete quotation confirmation. Separate from the
+           remove-item modal so the two destructive flows don't share state.
+           `loading` is bound to the mutation's pending flag so the confirm
+           button stays disabled while DELETE /quotations/:id is in-flight. -->
+      <ConfirmModal
+        :open="isDeleteConfirmOpen"
+        title="Eliminar cotización"
+        :description="`¿Eliminar la cotización #${folio}? Esta acción no se puede deshacer.`"
+        confirm-label="Eliminar"
+        confirm-color="error"
+        :loading="deleteMutation.isPending.value"
+        @update:open="(val) => { if (!val) isDeleteConfirmOpen = false }"
+        @confirm="deleteMutation.mutate()"
       />
 
       <QuotationPriceOverrideModal

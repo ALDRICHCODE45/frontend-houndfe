@@ -23,6 +23,7 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, RouterLinkStub } from '@vue/test-utils'
+import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
 import { computed, ref } from 'vue'
 import QuotationsListView from '../QuotationsListView.vue'
 import type {
@@ -219,6 +220,38 @@ const quotationsSearchInputStub = {
 const stubs = {
   AppDataTable: appDataTableStub,
   QuotationsSearchInput: quotationsSearchInputStub,
+  // The delete flow (REQ-QTN-013) renders a top-level ConfirmModal +
+  // UDropdownMenu inside the `#actions-cell` slot. None of these are
+  // projected by the AppDataTable stub above, but they ARE referenced
+  // in the template so we stub them to avoid vue-test-utils warnings
+  // about unresolved components (Nuxt UI auto-imports don't run in
+  // jsdom). Mirrors the PromotionsView test harness.
+  ConfirmModal: {
+    props: ['open', 'title', 'description', 'confirmLabel', 'confirmColor', 'loading'],
+    emits: ['update:open', 'confirm'],
+    template: `
+      <div
+        v-if="open"
+        data-testid="confirm-modal"
+        :data-confirm-label="confirmLabel"
+        :data-confirm-color="confirmColor"
+        :data-loading="String(loading)"
+      >
+        <p data-testid="confirm-description">{{ description }}</p>
+        <button data-testid="confirm-modal-confirm" @click="$emit('confirm')">stub-confirm</button>
+        <button data-testid="confirm-modal-cancel" @click="$emit('update:open', false)">stub-cancel</button>
+      </div>
+    `,
+  },
+  UDropdownMenu: {
+    props: ['items'],
+    template: '<div data-testid="dropdown-stub"><slot /></div>',
+  },
+  UButton: {
+    props: ['label', 'color', 'variant', 'icon', 'loading', 'disabled'],
+    emits: ['click'],
+    template: '<button :disabled="disabled" @click="$emit(\'click\')"><slot>{{ label }}</slot></button>',
+  },
 }
 
 // ─── Test setup ──────────────────────────────────────────────────────────────
@@ -264,9 +297,25 @@ beforeEach(() => {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
+// REQ-QTN-013 — the view instantiates `useMutation` directly for the
+// delete flow. Vue Query requires a QueryClient in the app context;
+// without one, mount throws "No 'queryClient' found in Vue context".
+// We install a fresh QueryClient per mount so cached state never leaks
+// across tests, matching the QuotationDetailView / PromotionsView
+// test harnesses.
+function mountView(extraOpts: Parameters<typeof mount>[1] = {}) {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, enabled: false } },
+  })
+  return mount(QuotationsListView, {
+    global: { plugins: [[VueQueryPlugin, { queryClient }]], stubs },
+    ...extraOpts,
+  })
+}
+
 describe('QuotationsListView — page header (REQ-QTN-001 / REQ-QTN-002)', () => {
   it('renders the page title and description', () => {
-    const wrapper = mount(QuotationsListView, { global: { stubs } })
+    const wrapper = mountView()
 
     expect(wrapper.text()).toContain('Cotizaciones')
     expect(wrapper.text()).toContain('Listado de cotizaciones')
@@ -275,7 +324,7 @@ describe('QuotationsListView — page header (REQ-QTN-001 / REQ-QTN-002)', () =>
 
 describe('QuotationsListView — status tabs (REQ-QTN-002)', () => {
   it('renders all five status tabs in the canonical order', () => {
-    const wrapper = mount(QuotationsListView, { global: { stubs } })
+    const wrapper = mountView()
 
     const tabBar = wrapper.find('[data-testid="status-tabs"]')
     expect(tabBar.exists()).toBe(true)
@@ -284,7 +333,7 @@ describe('QuotationsListView — status tabs (REQ-QTN-002)', () => {
   })
 
   it('clicking "Borradores" calls setStatus("DRAFT")', async () => {
-    const wrapper = mount(QuotationsListView, { global: { stubs } })
+    const wrapper = mountView()
 
     const tabs = wrapper.findAll('[data-testid="status-tabs"] button')
     const draftTab = tabs.find((b) => b.text().trim() === 'Borradores')!
@@ -294,7 +343,7 @@ describe('QuotationsListView — status tabs (REQ-QTN-002)', () => {
   })
 
   it('clicking "Enviadas" calls setStatus("SENT")', async () => {
-    const wrapper = mount(QuotationsListView, { global: { stubs } })
+    const wrapper = mountView()
 
     const tabs = wrapper.findAll('[data-testid="status-tabs"] button')
     const sentTab = tabs.find((b) => b.text().trim() === 'Enviadas')!
@@ -304,7 +353,7 @@ describe('QuotationsListView — status tabs (REQ-QTN-002)', () => {
   })
 
   it('clicking "Expiradas" calls setStatus("EXPIRED")', async () => {
-    const wrapper = mount(QuotationsListView, { global: { stubs } })
+    const wrapper = mountView()
 
     const tabs = wrapper.findAll('[data-testid="status-tabs"] button')
     const expiredTab = tabs.find((b) => b.text().trim() === 'Expiradas')!
@@ -314,7 +363,7 @@ describe('QuotationsListView — status tabs (REQ-QTN-002)', () => {
   })
 
   it('clicking "Canceladas" calls setStatus("CANCELLED")', async () => {
-    const wrapper = mount(QuotationsListView, { global: { stubs } })
+    const wrapper = mountView()
 
     const tabs = wrapper.findAll('[data-testid="status-tabs"] button')
     const cancelledTab = tabs.find((b) => b.text().trim() === 'Canceladas')!
@@ -324,7 +373,7 @@ describe('QuotationsListView — status tabs (REQ-QTN-002)', () => {
   })
 
   it('clicking "Todos" calls setStatus("ALL") (the no-filter sentinel)', async () => {
-    const wrapper = mount(QuotationsListView, { global: { stubs } })
+    const wrapper = mountView()
 
     const tabs = wrapper.findAll('[data-testid="status-tabs"] button')
     const allTab = tabs.find((b) => b.text().trim() === 'Todos')!
@@ -335,7 +384,7 @@ describe('QuotationsListView — status tabs (REQ-QTN-002)', () => {
 
   it('marks the active tab with aria-current="page" for accessibility', () => {
     composableState.status.value = 'SENT'
-    const wrapper = mount(QuotationsListView, { global: { stubs } })
+    const wrapper = mountView()
 
     const sentTab = wrapper.findAll('[data-testid="status-tabs"] button').find(
       (b) => b.text().trim() === 'Enviadas',
@@ -346,7 +395,7 @@ describe('QuotationsListView — status tabs (REQ-QTN-002)', () => {
 
 describe('QuotationsListView — search input (REQ-QTN-002)', () => {
   it('renders a search input with the right placeholder', () => {
-    const wrapper = mount(QuotationsListView, { global: { stubs } })
+    const wrapper = mountView()
 
     const input = wrapper.find('[data-testid="quotation-search-input"]')
     expect(input.exists()).toBe(true)
@@ -354,7 +403,7 @@ describe('QuotationsListView — search input (REQ-QTN-002)', () => {
   })
 
   it('forwards user input to setSearch (debounce is composable-internal)', async () => {
-    const wrapper = mount(QuotationsListView, { global: { stubs } })
+    const wrapper = mountView()
 
     const input = wrapper.find('[data-testid="quotation-search-input"]')
     await input.setValue('María')
@@ -372,7 +421,7 @@ describe('QuotationsListView — AppDataTable wiring', () => {
     composableState.quotations.value = items
     composableState.total.value = 2
 
-    const wrapper = mount(QuotationsListView, { global: { stubs } })
+    const wrapper = mountView()
     const table = wrapper.find('[data-testid="app-data-table"]')
 
     expect(table.attributes('data-row-count')).toBe('2')
@@ -382,7 +431,7 @@ describe('QuotationsListView — AppDataTable wiring', () => {
   it('forwards loading state from the composable', () => {
     composableState.isLoading.value = true
 
-    const wrapper = mount(QuotationsListView, { global: { stubs } })
+    const wrapper = mountView()
     const table = wrapper.find('[data-testid="app-data-table"]')
 
     expect(table.attributes('data-loading')).toBe('true')
@@ -391,7 +440,7 @@ describe('QuotationsListView — AppDataTable wiring', () => {
   it('forwards fetching state from the composable', () => {
     composableState.isFetching.value = true
 
-    const wrapper = mount(QuotationsListView, { global: { stubs } })
+    const wrapper = mountView()
     const table = wrapper.find('[data-testid="app-data-table"]')
 
     expect(table.attributes('data-fetching')).toBe('true')
@@ -401,7 +450,7 @@ describe('QuotationsListView — AppDataTable wiring', () => {
     composableState.isError.value = true
     composableState.error.value = new Error('boom')
 
-    const wrapper = mount(QuotationsListView, { global: { stubs } })
+    const wrapper = mountView()
     const table = wrapper.find('[data-testid="app-data-table"]')
 
     expect(table.attributes('data-error')).toBe('true')
@@ -423,7 +472,7 @@ describe('QuotationsListView — AppDataTable wiring', () => {
 // CTA class list must literally contain `bg-[var(--coco-primary)]`.
 describe('QuotationsListView — Coco card wrapper + primary CTA (REQ-UI-011 / T-UI-26)', () => {
   it('wraps the entire surface in a rounded-2xl shadow-sm card', () => {
-    const wrapper = mount(QuotationsListView, { global: { stubs } })
+    const wrapper = mountView()
 
     // The `.quotations-list-view` root remains the token-scope anchor (so
     // `--coco-primary` still resolves from `@layer coco-quotations`). The
@@ -434,14 +483,14 @@ describe('QuotationsListView — Coco card wrapper + primary CTA (REQ-UI-011 / T
   })
 
   it('keeps the `.quotations-list-view` token-scope class so Coco tokens still resolve', () => {
-    const wrapper = mount(QuotationsListView, { global: { stubs } })
+    const wrapper = mountView()
     const root = wrapper.get('[data-testid="quotations-list-view"]')
     expect(root.classes()).toContain('quotations-list-view')
   })
 
   it('applies the Coco primary token (--coco-primary) to the "Nueva cotización" CTA', () => {
     authMock.userCan.mockReturnValue(true)
-    const wrapper = mount(QuotationsListView, { global: { stubs } })
+    const wrapper = mountView()
 
     const button = wrapper.get('[data-testid="new-quotation-button"]')
     // The token must be referenced via the Tailwind arbitrary value
@@ -456,7 +505,7 @@ describe('QuotationsListView — CASL gate for "Nueva cotización"', () => {
       action === 'create' && subject === 'Quotation',
     )
 
-    const wrapper = mount(QuotationsListView, { global: { stubs } })
+    const wrapper = mountView()
     const button = wrapper.find('[data-testid="new-quotation-button"]')
 
     expect(button.exists()).toBe(true)
@@ -465,7 +514,7 @@ describe('QuotationsListView — CASL gate for "Nueva cotización"', () => {
   it('hides the button when userCan("create", "Quotation") is false', () => {
     authMock.userCan.mockReturnValue(false)
 
-    const wrapper = mount(QuotationsListView, { global: { stubs } })
+    const wrapper = mountView()
     const button = wrapper.find('[data-testid="new-quotation-button"]')
 
     expect(button.exists()).toBe(false)
@@ -476,7 +525,7 @@ describe('QuotationsListView — navigation', () => {
   it('clicking "Nueva cotización" pushes /pos/cotizaciones/nueva', async () => {
     authMock.userCan.mockReturnValue(true)
 
-    const wrapper = mount(QuotationsListView, { global: { stubs } })
+    const wrapper = mountView()
     const button = wrapper.find('[data-testid="new-quotation-button"]')
     await button.trigger('click')
 
@@ -489,7 +538,7 @@ describe('QuotationsListView — navigation', () => {
   it('clicking a row cliente-cell navigates to /pos/cotizaciones/:id', async () => {
     composableState.quotations.value = [makeQuotation({ id: 'qtn-abc-123' })]
 
-    const wrapper = mount(QuotationsListView, { global: { stubs } })
+    const wrapper = mountView()
     const link = wrapper.find('[data-testid="quotation-link-qtn-abc-123"]')
     expect(link.exists()).toBe(true)
 
@@ -507,7 +556,7 @@ describe('QuotationsListView — empty state (REQ-QTN-016)', () => {
     composableState.quotations.value = []
     composableState.total.value = 0
 
-    const wrapper = mount(QuotationsListView, { global: { stubs } })
+    const wrapper = mountView()
     const table = wrapper.find('[data-testid="app-data-table"]')
 
     expect(table.attributes('data-empty')).toContain('No hay cotizaciones')
@@ -540,7 +589,7 @@ describe('QuotationsListView — lazy EXPIRED detection (REQ-QTN-008 / S8.4)', (
         }),
       ]
 
-      const wrapper = mount(QuotationsListView, { global: { stubs } })
+      const wrapper = mountView()
       expect(wrapper.find('[data-testid="row-qtn-stale"]').exists()).toBe(true)
       expect(rowBadgeText(wrapper, 'qtn-stale')).toContain('Expirada')
     } finally {
@@ -560,7 +609,7 @@ describe('QuotationsListView — lazy EXPIRED detection (REQ-QTN-008 / S8.4)', (
         }),
       ]
 
-      const wrapper = mount(QuotationsListView, { global: { stubs } })
+      const wrapper = mountView()
       expect(rowBadgeText(wrapper, 'qtn-future')).toContain('Enviada')
       expect(rowBadgeText(wrapper, 'qtn-future')).not.toContain('Expirada')
     } finally {
@@ -580,7 +629,7 @@ describe('QuotationsListView — lazy EXPIRED detection (REQ-QTN-008 / S8.4)', (
         }),
       ]
 
-      const wrapper = mount(QuotationsListView, { global: { stubs } })
+      const wrapper = mountView()
       expect(rowBadgeText(wrapper, 'qtn-draft-stale')).toContain('Borrador')
       expect(rowBadgeText(wrapper, 'qtn-draft-stale')).not.toContain('Expirada')
     } finally {
@@ -597,7 +646,7 @@ describe('QuotationsListView — lazy EXPIRED detection (REQ-QTN-008 / S8.4)', (
       }),
     ]
 
-    const wrapper = mount(QuotationsListView, { global: { stubs } })
+    const wrapper = mountView()
     expect(rowBadgeText(wrapper, 'qtn-never-expires')).toContain('Enviada')
     expect(rowBadgeText(wrapper, 'qtn-never-expires')).not.toContain('Expirada')
   })

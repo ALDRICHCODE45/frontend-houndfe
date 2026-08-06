@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
+import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
 import { computed, ref } from 'vue'
 import QuotationDetailView from '../QuotationDetailView.vue'
 import QuotationItemRow from '../../components/QuotationItemRow.vue'
@@ -346,7 +347,17 @@ const stubs = {
 }
 
 function mountView() {
-  return mount(QuotationDetailView, { global: { stubs } })
+  // The view instantiates `useMutation` directly for the delete flow
+  // (REQ-QTN-013). Vue Query requires a QueryClient in the app context;
+  // without one, mount throws "No 'queryClient' found in Vue context".
+  // We install a fresh QueryClient per mount so cached state never leaks
+  // across tests, matching the PromotionsView test harness.
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false, enabled: false } },
+  })
+  return mount(QuotationDetailView, {
+    global: { plugins: [[VueQueryPlugin, { queryClient }]], stubs },
+  })
 }
 
 beforeEach(() => {
