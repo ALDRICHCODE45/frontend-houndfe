@@ -242,10 +242,18 @@ const errorMessage = computed(() => {
 </script>
 
 <template>
-  <section class="quotations-list-view flex flex-col gap-4" data-testid="quotations-list-view">
+  <!-- T-UI-26 / REQ-UI-011 — align with system table patterns: a
+       rounded-2xl shadow-sm card wrapper that holds the entire surface
+       (EmployeesListView pattern). The `.quotations-list-view` class
+       stays on the root so the `@layer coco-quotations` token scope
+       still resolves `--coco-primary` for everything inside. -->
+  <section
+    class="quotations-list-view overflow-hidden rounded-2xl border border-default bg-default shadow-sm"
+    data-testid="quotations-list-view"
+  >
     <!-- Header -->
     <header
-      class="flex flex-col gap-3 border-b border-default px-1 pb-4 sm:flex-row sm:items-start sm:justify-between"
+      class="flex flex-col gap-3 border-b border-default px-5 py-4 sm:flex-row sm:items-start sm:justify-between"
     >
       <div>
         <h1 class="text-2xl font-semibold tracking-tight text-highlighted">Cotizaciones</h1>
@@ -255,12 +263,17 @@ const errorMessage = computed(() => {
       </div>
 
       <div v-if="canCreate" class="flex items-center gap-2">
+        <!-- REQ-UI-001 / REQ-UI-011: the CTA MUST consume the Coco
+             primary token via a Tailwind arbitrary value. Nuxt UI's
+             `color="primary"` resolves to the project brand primary
+             (#2442f6); we override with `bg-[var(--coco-primary)]`
+             (#2557D6) so the visual matches the spec. -->
         <UButton
           data-testid="new-quotation-button"
           icon="i-lucide-plus"
           color="primary"
           size="sm"
-          class="shadow-sm"
+          class="bg-[var(--coco-primary)] text-white shadow-sm hover:brightness-110"
           @click="goToCreate"
         >
           Nueva cotización
@@ -269,7 +282,7 @@ const errorMessage = computed(() => {
     </header>
 
     <!-- Filters: status tabs + search input -->
-    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+    <div class="flex flex-col gap-3 border-b border-default px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
       <div
         class="flex flex-wrap items-center gap-1"
         data-testid="status-tabs"
@@ -304,69 +317,71 @@ const errorMessage = computed(() => {
     </div>
 
     <!-- Table -->
-    <AppDataTable
-      v-model:pagination="pagination"
-      :columns="columns"
-      :data="quotations"
-      :loading="isLoading"
-      :fetching="isFetching"
-      :error="isError"
-      :error-message="errorMessage"
-      :page-count="totalPages"
-      :total-count="total"
-      :showing-from="showingFrom"
-      :showing-to="showingTo"
-      :page-size-options="[10, 20, 50]"
-      :show-toolbar="false"
-      :show-add-button="false"
-      :show-refresh="false"
-      empty="No hay cotizaciones"
-      @refresh="refresh"
-    >
-      <!-- ID cell: truncated UUID rendered as a monospace token -->
-      <template #id-cell="{ row }">
-        <span class="font-mono text-xs text-muted">{{ truncatedId(row.original.id) }}</span>
-      </template>
+    <div class="px-5 py-4">
+      <AppDataTable
+        v-model:pagination="pagination"
+        :columns="columns"
+        :data="quotations"
+        :loading="isLoading"
+        :fetching="isFetching"
+        :error="isError"
+        :error-message="errorMessage"
+        :page-count="totalPages"
+        :total-count="total"
+        :showing-from="showingFrom"
+        :showing-to="showingTo"
+        :page-size-options="[10, 20, 50]"
+        :show-toolbar="false"
+        :show-add-button="false"
+        :show-refresh="false"
+        empty="No hay cotizaciones"
+        @refresh="refresh"
+      >
+        <!-- ID cell: truncated UUID rendered as a monospace token -->
+        <template #id-cell="{ row }">
+          <span class="font-mono text-xs text-muted">{{ truncatedId(row.original.id) }}</span>
+        </template>
 
-      <!-- Cliente cell: full name or "Sin cliente"; clickable → detail -->
-      <template #cliente-cell="{ row }">
-        <UButton
-          variant="link"
-          color="primary"
-          class="!p-0 text-sm font-medium hover:underline"
-          :data-testid="`quotation-link-${row.original.id}`"
-          @click="goToDetail(row.original)"
-        >
-          {{ customerName(row.original) }}
-        </UButton>
-      </template>
+        <!-- Cliente cell: full name or "Sin cliente"; clickable → detail -->
+        <template #cliente-cell="{ row }">
+          <UButton
+            variant="link"
+            color="primary"
+            class="!p-0 text-sm font-medium hover:underline"
+            :data-testid="`quotation-link-${row.original.id}`"
+            @click="goToDetail(row.original)"
+          >
+            {{ customerName(row.original) }}
+          </UButton>
+        </template>
 
-      <!-- Estado cell: StatusDotBadge with QUOTATION_STATUS_TONE.
-           S8: status is resolved through `effectiveStatus()` so a SENT row
-           whose cached expiresAt is past flips to EXPIRED locally — see
-           the comment above the helper for the rationale. -->
-      <template #estado-cell="{ row }">
-        <StatusDotBadge
-          :tone="rowStatusTone(row.original)"
-          :label="rowStatusLabel(row.original)"
-          compact
-        />
-      </template>
+        <!-- Estado cell: StatusDotBadge with QUOTATION_STATUS_TONE.
+             S8: status is resolved through `effectiveStatus()` so a SENT row
+             whose cached expiresAt is past flips to EXPIRED locally — see
+             the comment above the helper for the rationale. -->
+        <template #estado-cell="{ row }">
+          <StatusDotBadge
+            :tone="rowStatusTone(row.original)"
+            :label="rowStatusLabel(row.original)"
+            compact
+          />
+        </template>
 
-      <!-- Total cell: formatCentsMXN -->
-      <template #total-cell="{ row }">
-        <span class="font-medium text-default">{{ formatCentsMXN(row.original.totalCents) }}</span>
-      </template>
+        <!-- Total cell: formatCentsMXN -->
+        <template #total-cell="{ row }">
+          <span class="font-medium text-default">{{ formatCentsMXN(row.original.totalCents) }}</span>
+        </template>
 
-      <!-- Expira cell: formatted date or em-dash -->
-      <template #expira-cell="{ row }">
-        <span class="text-sm text-muted">{{ formatExpiryDate(row.original.expiresAt) }}</span>
-      </template>
+        <!-- Expira cell: formatted date or em-dash -->
+        <template #expira-cell="{ row }">
+          <span class="text-sm text-muted">{{ formatExpiryDate(row.original.expiresAt) }}</span>
+        </template>
 
-      <!-- Fecha cell: createdAt formatted -->
-      <template #fecha-cell="{ row }">
-        <span class="text-sm text-muted">{{ formatCreatedAt(row.original.createdAt) }}</span>
-      </template>
-    </AppDataTable>
+        <!-- Fecha cell: createdAt formatted -->
+        <template #fecha-cell="{ row }">
+          <span class="text-sm text-muted">{{ formatCreatedAt(row.original.createdAt) }}</span>
+        </template>
+      </AppDataTable>
+    </div>
   </section>
 </template>

@@ -416,6 +416,40 @@ describe('QuotationsListView — AppDataTable wiring', () => {
   })
 })
 
+// T-UI-26 — REQ-UI-011: the list view MUST align with system patterns
+// (rounded-2xl shadow-sm card wrapper — EmployeesListView pattern) and the
+// "Nueva cotización" CTA MUST use the Coco primary token (--coco-primary).
+// Spec rule: tokens MUST be consumed via Tailwind arbitrary values, so the
+// CTA class list must literally contain `bg-[var(--coco-primary)]`.
+describe('QuotationsListView — Coco card wrapper + primary CTA (REQ-UI-011 / T-UI-26)', () => {
+  it('wraps the entire surface in a rounded-2xl shadow-sm card', () => {
+    const wrapper = mount(QuotationsListView, { global: { stubs } })
+
+    // The `.quotations-list-view` root remains the token-scope anchor (so
+    // `--coco-primary` still resolves from `@layer coco-quotations`). The
+    // new outer card sits one level above it inside the same root.
+    const root = wrapper.get('[data-testid="quotations-list-view"]')
+    expect(root.classes()).toContain('rounded-2xl')
+    expect(root.classes()).toContain('shadow-sm')
+  })
+
+  it('keeps the `.quotations-list-view` token-scope class so Coco tokens still resolve', () => {
+    const wrapper = mount(QuotationsListView, { global: { stubs } })
+    const root = wrapper.get('[data-testid="quotations-list-view"]')
+    expect(root.classes()).toContain('quotations-list-view')
+  })
+
+  it('applies the Coco primary token (--coco-primary) to the "Nueva cotización" CTA', () => {
+    authMock.userCan.mockReturnValue(true)
+    const wrapper = mount(QuotationsListView, { global: { stubs } })
+
+    const button = wrapper.get('[data-testid="new-quotation-button"]')
+    // The token must be referenced via the Tailwind arbitrary value
+    // syntax — matches REQ-UI-001 + REQ-UI-011.
+    expect(button.classes().join(' ')).toMatch(/bg-\[var\(--coco-primary\)\]/)
+  })
+})
+
 describe('QuotationsListView — CASL gate for "Nueva cotización"', () => {
   it('shows the button when userCan("create", "Quotation") is true', () => {
     authMock.userCan.mockImplementation((action: unknown, subject: unknown) =>
