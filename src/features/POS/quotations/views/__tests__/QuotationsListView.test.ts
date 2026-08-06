@@ -193,6 +193,7 @@ const appDataTableStub = {
       :data-empty="empty"
       :data-row-count="(data ?? []).length"
       :data-enable-column-visibility="enableColumnVisibility ? 'true' : 'false'"
+      :data-show-refresh="showRefresh ? 'true' : 'false'"
     >
       <slot name="filters" />
       <slot name="actions" />
@@ -428,6 +429,15 @@ describe('QuotationsListView — Filtros slideover + chips (REQ-QAF-010)', () =>
 
     expect(wrapper.find('[data-testid="filters-chips"]').exists()).toBe(true)
   })
+
+  it('renders the active-filter chips exactly once (no duplicate badges)', () => {
+    // Regression: the view used to render an extra <DataTableFiltersChips>
+    // below <DataTableFilters>, which already renders its chips slot
+    // internally — one active filter showed as two badges.
+    const wrapper = mountView()
+
+    expect(wrapper.findAll('[data-testid="filters-chips"]')).toHaveLength(1)
+  })
 })
 
 describe('QuotationsListView — AppDataTable wiring (REQ-QAF-011)', () => {
@@ -479,6 +489,16 @@ describe('QuotationsListView — AppDataTable wiring (REQ-QAF-011)', () => {
     const table = wrapper.find('[data-testid="app-data-table"]')
     const value = table.attributes('data-enable-column-visibility')
     expect(value).toBe('true')
+  })
+
+  it('disables the toolbar refresh (the row-level refresh button is the single source)', () => {
+    // Regression: AppDataTable's toolbar would render its own refresh icon
+    // next to the column picker, duplicating the row-level refresh button
+    // beside "Nueva cotización".
+    const wrapper = mountView()
+    const table = wrapper.find('[data-testid="app-data-table"]')
+
+    expect(table.attributes('data-show-refresh')).toBe('false')
   })
 })
 

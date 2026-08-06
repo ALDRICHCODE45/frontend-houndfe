@@ -29,7 +29,6 @@ import { AppDataTable } from '@/core/shared/components/DataTable'
 import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
 import {
   DataTableFilters,
-  DataTableFiltersChips,
   useDataTableFilters,
   useFiltersUrlAdapter,
 } from '@/core/shared/data-table-filters'
@@ -409,13 +408,6 @@ const errorMessage = computed(() => {
               </UButton>
             </div>
           </div>
-
-          <DataTableFiltersChips
-            :schema="quotationFiltersSchema"
-            :state="filtersState"
-            @clear="filtersCtl.clearFilter"
-            @clear-all="filtersCtl.clearAll"
-          />
         </div>
 
         <AppDataTable
@@ -439,6 +431,7 @@ const errorMessage = computed(() => {
           :enable-row-selection="false"
           mobile-render="cards"
           :enable-column-visibility="true"
+          :show-refresh="false"
           search-placeholder="Buscar cotizaciones…"
           empty="No hay cotizaciones"
           @refresh="refresh"
