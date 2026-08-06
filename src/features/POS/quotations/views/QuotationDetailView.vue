@@ -256,23 +256,48 @@ async function handleUnvetoPromotion(promotionId: string): Promise<void> {
   await draft.unvetoPromotion(promotionId)
 }
 
-// Apply/veto are now pickers (USelectMenu) over the ACTIVE promotions of each
-// method — the cashier never types a raw UUID. Options apply immediately on
-// selection (the backend still validates the ID + type server-side).
+// The manual apply picker (USelectMenu) over ACTIVE promotions — the cashier
+// never types a raw UUID. Options apply immediately on selection (the backend
+// still validates the ID + type server-side).
 const { promotions: manualPromotions, isLoading: isLoadingManualPromos } =
   useAvailablePromotions(tenantId, 'MANUAL')
-const { promotions: automaticPromotions, isLoading: isLoadingAutomaticPromos } =
+const { promotions: automaticPromotions } =
   useAvailablePromotions(tenantId, 'AUTOMATIC')
 
-// Only show what is actionable: skip already-applied MANUAL promotions and
-// already-vetoed AUTOMATIC promotions.
+const promotionLookup = computed(() => {
+  const map = new Map<string, { title: string; type: string; method: string }>()
+  for (const p of manualPromotions.value) {
+    map.set(p.id, { title: p.title, type: p.type, method: p.method })
+  }
+  for (const p of automaticPromotions.value) {
+    map.set(p.id, { title: p.title, type: p.type, method: p.method })
+  }
+  return map
+})
+
+const vetoedPromotions = computed(() =>
+  vetoedPromotionIds.value.map((id) => {
+    const info = promotionLookup.value.get(id)
+    return {
+      promotionId: id,
+      title: info?.title ?? 'Promoción desconocida',
+      type: info?.type ?? null,
+      method: info?.method ?? null,
+    }
+  }),
+)
+
+function appliedMethod(promotionId: string): string {
+  if (quotation.value?.optedInManualPromotionIds.includes(promotionId)) {
+    return 'Manual'
+  }
+  return 'Automática'
+}
+
+// Only show what is actionable: skip already-applied MANUAL promotions.
 const availableManualPromotions = computed(() => {
   const appliedIds = new Set(appliedPromotions.value.map((p) => p.promotionId))
   return manualPromotions.value.filter((p) => !appliedIds.has(p.id))
-})
-const availableAutomaticPromotions = computed(() => {
-  const vetoed = new Set(vetoedPromotionIds.value)
-  return automaticPromotions.value.filter((p) => !vetoed.has(p.id))
 })
 
 const manualPromoItems = computed(() =>
@@ -282,27 +307,13 @@ const manualPromoItems = computed(() =>
     description: PROMOTION_TYPE_LABELS[p.type] ?? p.type,
   })),
 )
-const automaticPromoItems = computed(() =>
-  availableAutomaticPromotions.value.map((p) => ({
-    value: p.id,
-    label: p.title,
-    description: PROMOTION_TYPE_LABELS[p.type] ?? p.type,
-  })),
-)
 
 const selectedManualPromotion = ref<string | null>(null)
-const selectedAutoPromotion = ref<string | null>(null)
 
 async function handleSelectManualPromotion(selected: string | null): Promise<void> {
   if (!isDraft.value || !selected) return
   await draft.applyManualPromotion(selected)
   selectedManualPromotion.value = null
-}
-
-async function handleSelectAutoPromotion(selected: string | null): Promise<void> {
-  if (!isDraft.value || !selected) return
-  await draft.vetoPromotion(selected)
-  selectedAutoPromotion.value = null
 }
 
 // ── S7: PDF preview + send dialog + cancel dialog ────────────────────────────
@@ -656,12 +667,11 @@ onMounted(async () => {
 
       <!-- S6 — promotions section. Only visible in DRAFT (mutations are
            blocked server-side for any other status). Three sub-blocks:
-             1. Applied promotions (manual + auto) with "Quitar".
+             1. Applied promotions (manual + auto) with "Quitar"/"Vetar".
              2. Vetoed auto promotions with "Re-activar".
-             3. Two pickers (USelectMenu) over the ACTIVE promotions of each
-                method — the cashier picks a promotion instead of typing its
-                ID, and it applies/vetoes immediately on selection. The
-                backend validates the type. -->
+             3. One picker (USelectMenu) over the ACTIVE manual promotions —
+                the cashier picks a promotion instead of typing its ID, and it
+                applies immediately on selection. The backend validates the type. -->
       <section
         v-if="isDraft"
         class="flex flex-col gap-4 rounded-xl border border-default bg-default p-5"
@@ -690,15 +700,21 @@ onMounted(async () => {
                   −{{ formatDiscountCents(promo.discountCents) }}
                 </p>
               </div>
-              <button
-                type="button"
-                class="inline-flex items-center gap-1 rounded-lg border border-default px-3 py-1.5 text-xs font-medium hover:bg-elevated"
-                :data-testid="`remove-manual-promo-${promo.promotionId}`"
-                @click="handleRemoveAppliedPromotion(promo.promotionId)"
-              >
-                <UIcon name="i-lucide-x" class="h-3.5 w-3.5" />
-                Quitar
-              </button>
+              <div class="flex items-center gap-2">
+                <span
+                  class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
+                  :class="appliedMethod(promo.promotionId) === 'Manual' ? 'bg-primary/10 text-primary' : 'bg-blue-500/10 text-blue-500'"
+                >{{ appliedMethod(promo.promotionId) }}</span>
+                <button
+                  type="button"
+                  class="inline-flex items-center gap-1 rounded-lg border border-default px-3 py-1.5 text-xs font-medium hover:bg-elevated"
+                  :data-testid="`remove-manual-promo-${promo.promotionId}`"
+                  @click="handleRemoveAppliedPromotion(promo.promotionId)"
+                >
+                  <UIcon name="i-lucide-x" class="h-3.5 w-3.5" />
+                  {{ appliedMethod(promo.promotionId) === 'Manual' ? 'Quitar' : 'Vetar' }}
+                </button>
+              </div>
             </li>
           </ul>
         </div>
@@ -713,18 +729,24 @@ onMounted(async () => {
           </p>
           <ul class="flex flex-col gap-2">
             <li
-              v-for="promoId in vetoedPromotionIds"
-              :key="promoId"
+              v-for="promo in vetoedPromotions"
+              :key="promo.promotionId"
               class="flex items-center justify-between gap-2 rounded-lg border border-default px-3 py-2"
-              :data-testid="`vetoed-promo-${promoId}`"
+              :data-testid="`vetoed-promo-${promo.promotionId}`"
             >
-              <span class="font-mono text-xs text-muted">{{ promoId }}</span>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-highlighted truncate">{{ promo.title }}</p>
+                <span
+                  class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-blue-500/10 text-blue-500 mt-1"
+                >Automática</span>
+              </div>
               <button
                 type="button"
                 class="inline-flex items-center gap-1 rounded-lg border border-default px-3 py-1.5 text-xs font-medium hover:bg-elevated"
-                :data-testid="`unveto-promo-${promoId}`"
-                @click="handleUnvetoPromotion(promoId)"
+                :data-testid="`unveto-promo-${promo.promotionId}`"
+                @click="handleUnvetoPromotion(promo.promotionId)"
               >
+                <UIcon name="i-lucide-rotate-ccw" class="h-3.5 w-3.5" />
                 Re-activar
               </button>
             </li>
@@ -733,14 +755,14 @@ onMounted(async () => {
 
         <div class="flex flex-col gap-2" data-testid="apply-manual-promo-select">
           <label class="text-xs font-semibold uppercase tracking-wide text-muted">
-            Aplicar promoción manual
+            Agregar promoción manual
           </label>
           <USelectMenu
             v-model="selectedManualPromotion"
             value-key="value"
             :items="manualPromoItems"
             :loading="isLoadingManualPromos"
-            placeholder="Seleccioná una promoción…"
+            placeholder="Seleccionar promoción manual…"
             :search-input="{ icon: 'i-lucide-search' }"
             class="w-full"
             data-testid="manual-promo-select"
@@ -748,28 +770,6 @@ onMounted(async () => {
           >
             <template #empty>
               <span v-if="isLoadingManualPromos">Cargando promociones…</span>
-              <span v-else>No hay promociones activas</span>
-            </template>
-          </USelectMenu>
-        </div>
-
-        <div class="flex flex-col gap-2" data-testid="veto-auto-promo-select">
-          <label class="text-xs font-semibold uppercase tracking-wide text-muted">
-            Vetar promoción automática
-          </label>
-          <USelectMenu
-            v-model="selectedAutoPromotion"
-            value-key="value"
-            :items="automaticPromoItems"
-            :loading="isLoadingAutomaticPromos"
-            placeholder="Seleccioná una promoción…"
-            :search-input="{ icon: 'i-lucide-search' }"
-            class="w-full"
-            data-testid="auto-promo-select"
-            @update:model-value="handleSelectAutoPromotion"
-          >
-            <template #empty>
-              <span v-if="isLoadingAutomaticPromos">Cargando promociones…</span>
               <span v-else>No hay promociones activas</span>
             </template>
           </USelectMenu>

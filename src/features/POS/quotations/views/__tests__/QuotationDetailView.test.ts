@@ -847,16 +847,21 @@ describe('QuotationDetailView promotions section (S6)', () => {
     expect(state.removeManualPromotion).not.toHaveBeenCalled()
   })
 
-  it('renders vetoed promotions list with "Re-activar" buttons', () => {
-    state.quotation.value = makeQuotation({
-      vetoedPromotionIds: ['promo-auto-1'],
-    })
+  it('renders vetoed promotion titles from the lookup', () => {
+    availablePromotionsMock.automatic.promotions = [
+      makePromotion({ id: 'promo-auto-1', title: 'Promo de envío', method: 'AUTOMATIC', type: 'ORDER_DISCOUNT' }),
+    ]
+    state.quotation.value = makeQuotation({ vetoedPromotionIds: ['promo-auto-1'] })
     const wrapper = mountView()
     expect(wrapper.find('[data-testid="vetoed-promotions-list"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('promo-auto-1')
+    expect(wrapper.text()).toContain('Promo de envío')
+    expect(wrapper.text()).toContain('Automática')
   })
 
-  it('calls unvetoPromotion when "Re-activar" is clicked', async () => {
+  it('calls unvetoPromotion when Re-activar is clicked', async () => {
+    availablePromotionsMock.automatic.promotions = [
+      makePromotion({ id: 'promo-auto-1', title: 'Promo de envío', method: 'AUTOMATIC', type: 'ORDER_DISCOUNT' }),
+    ]
     state.quotation.value = makeQuotation({ vetoedPromotionIds: ['promo-auto-1'] })
     const wrapper = mountView()
 
@@ -877,10 +882,9 @@ describe('QuotationDetailView promotions section (S6)', () => {
     expect(wrapper.find('[data-testid="applied-promotions-list"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="vetoed-promotions-list"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="apply-manual-promo-select"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="veto-auto-promo-select"]').exists()).toBe(false)
   })
 
-  it('renders the "Aplicar promoción manual" picker in DRAFT mode', () => {
+  it('renders the "Agregar promoción manual" picker in DRAFT mode', () => {
     const wrapper = mountView()
     expect(wrapper.find('[data-testid="apply-manual-promo-select"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="manual-promo-select"]').exists()).toBe(true)
@@ -899,28 +903,19 @@ describe('QuotationDetailView promotions section (S6)', () => {
     expect(state.applyManualPromotion).toHaveBeenCalledWith('promo-manual-1')
   })
 
-  it('renders the "Vetar promoción automática" picker in DRAFT mode', () => {
+  it('shows Manual badge for opted-in promotion and Automática badge for others', () => {
+    state.quotation.value = makeQuotation({
+      appliedPromotions: [
+        { id: 'ap-1', promotionId: 'promo-1', title: 'Cupón 10%', discountCents: 500 },
+        { id: 'ap-2', promotionId: 'promo-2', title: 'Promo Auto', discountCents: 800 },
+      ],
+      optedInManualPromotionIds: ['promo-1'],
+    })
     const wrapper = mountView()
-    expect(wrapper.find('[data-testid="veto-auto-promo-select"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="auto-promo-select"]').exists()).toBe(true)
-  })
-
-  it('vetoes an automatic promotion immediately when selected from the dropdown', async () => {
-    availablePromotionsMock.automatic.promotions = [
-      makePromotion({
-        id: 'promo-auto-1',
-        title: 'Promo Verano',
-        method: 'AUTOMATIC',
-        type: 'PRODUCT_DISCOUNT',
-      }),
-    ]
-    const wrapper = mountView()
-
-    const autoSelect = wrapper.findAllComponents(USelectMenuStub)[1]!
-    autoSelect.vm.$emit('update:modelValue', 'promo-auto-1')
-    await flushPromises()
-
-    expect(state.vetoPromotion).toHaveBeenCalledWith('promo-auto-1')
+    expect(wrapper.text()).toContain('Manual')
+    expect(wrapper.text()).toContain('Automática')
+    expect(wrapper.get('[data-testid="remove-manual-promo-promo-1"]').text()).toContain('Quitar')
+    expect(wrapper.get('[data-testid="remove-manual-promo-promo-2"]').text()).toContain('Vetar')
   })
 
   it('shows only non-applied manual promotions in the manual picker', () => {
@@ -938,29 +933,6 @@ describe('QuotationDetailView promotions section (S6)', () => {
     const manualSelect = wrapper.findAllComponents(USelectMenuStub)[0]!
     expect(manualSelect.props('items')).toEqual([
       { value: 'promo-free', label: 'Promo Verano', description: 'Descuento en el pedido' },
-    ])
-  })
-
-  it('shows only non-vetoed automatic promotions in the automatic picker', () => {
-    state.quotation.value = makeQuotation({ vetoedPromotionIds: ['promo-vetoed'] })
-    availablePromotionsMock.automatic.promotions = [
-      makePromotion({ id: 'promo-vetoed', title: 'Vetada', method: 'AUTOMATIC', type: 'ADVANCED' }),
-      makePromotion({
-        id: 'promo-ok',
-        title: 'Disponible',
-        method: 'AUTOMATIC',
-        type: 'BUY_X_GET_Y',
-      }),
-    ]
-    const wrapper = mountView()
-
-    const autoSelect = wrapper.findAllComponents(USelectMenuStub)[1]!
-    expect(autoSelect.props('items')).toEqual([
-      {
-        value: 'promo-ok',
-        label: 'Disponible',
-        description: '2x1, 3x2 o similares',
-      },
     ])
   })
 
@@ -1120,7 +1092,6 @@ const ALL_EDIT_SELECTORS = [
   '[data-testid="add-product-button"]',
   '[data-testid="assign-customer-button"]',
   '[data-testid="manual-promo-select"]',
-  '[data-testid="auto-promo-select"]',
   '[data-testid="send-button"]',
   '[data-testid="cancel-button"]',
 ] as const
