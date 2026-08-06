@@ -636,8 +636,13 @@ onMounted(async () => {
           </div>
         </div>
 
-        <!-- S7 — actions bar: PDF preview (always), send + cancel (DRAFT only) -->
-        <div class="flex flex-wrap items-center gap-2" data-testid="quotation-actions">
+        <!-- S7 — actions bar: PDF preview (always), cancel (DRAFT only).
+             T-UI-28 — REQ-UI-004 + design.md testid migration: the old
+             `quotation-actions` testid is renamed to `detail-header-actions`
+             (PDF/cancel) so it stays distinguishable from the new
+             `detail-sidebar-actions` wrapper (send/save) that owns the
+             RESUMEN sidebar CTAs. -->
+        <div class="flex flex-wrap items-center gap-2" data-testid="detail-header-actions">
           <button
             type="button"
             class="inline-flex items-center gap-1 rounded-lg border border-default px-3 py-2 text-sm font-medium hover:bg-elevated disabled:cursor-not-allowed disabled:opacity-50"
@@ -713,7 +718,7 @@ onMounted(async () => {
                  is editable only in DRAFT (read-only otherwise). The
                  change-customer event opens the same AssignCustomerSlideover
                  that handled the old "Asignar cliente" button. -->
-            <section class="rounded-xl border border-default bg-default p-5" data-testid="customer-section">
+            <section class="rounded-xl border border-default bg-default p-5">
               <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">Cliente</p>
               <QuotationCustomerCard
                 v-if="quotation.customer"
@@ -827,7 +832,6 @@ onMounted(async () => {
           <section
             v-if="isDraft"
             class="flex flex-col gap-4 rounded-xl border border-default bg-default p-5"
-            data-testid="promotions-section"
           >
             <h2 class="text-base font-semibold text-highlighted">Promociones</h2>
 

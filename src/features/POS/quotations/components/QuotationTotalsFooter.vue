@@ -214,11 +214,14 @@ function handleSaveDraft(): void {
 
     <!-- T-UI-23 — REQ-UI-009 sticky CTAs. Full-width primary "Enviar
          cotización" + outlined "Guardar borrador" below. Only rendered
-         when editable=true (DRAFT quotations only). -->
+         when editable=true (DRAFT quotations only). T-UI-28 testid
+         migration: `summary-actions` → `detail-sidebar-actions` per
+         design.md migration table (the header action wrapper is
+         `detail-header-actions`). -->
     <div
       v-if="editable"
       class="flex flex-col gap-2"
-      data-testid="summary-actions"
+      data-testid="detail-sidebar-actions"
     >
       <button
         type="button"

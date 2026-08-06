@@ -239,18 +239,25 @@ const stubs = {
         <span data-testid="items-count">{{ quotation.items.length }} productos</span>
         <span data-testid="summary-title">RESUMEN</span>
         <span data-testid="summary-context">{{ quotation.items.length }} productos</span>
-        <button
+        <!-- T-UI-28 — REQ-UI-011 testid migration: the sidebar CTAs
+             live under the new "detail-sidebar-actions" wrapper. The
+             stub mirrors the production root so tests can navigate
+             from the wrapper to its buttons without DOM traversal. -->
+        <div
           v-if="editable"
-          type="button"
-          data-testid="summary-send-btn"
-          @click="$emit('send')"
-        >Enviar cotización</button>
-        <button
-          v-if="editable"
-          type="button"
-          data-testid="summary-save-draft-btn"
-          @click="$emit('save-draft')"
-        >Guardar borrador</button>
+          data-testid="detail-sidebar-actions"
+        >
+          <button
+            type="button"
+            data-testid="summary-send-btn"
+            @click="$emit('send')"
+          >Enviar cotización</button>
+          <button
+            type="button"
+            data-testid="summary-save-draft-btn"
+            @click="$emit('save-draft')"
+          >Guardar borrador</button>
+        </div>
       </div>
     `,
   },
@@ -1079,6 +1086,75 @@ describe('QuotationDetailView — Coco card styling (T-UI-05)', () => {
 // and the stepper must NEVER render ACEPTADA/PEDIDO nodes (REQ-UI-012 +
 // REQ-UI-003). These tests fail loudly if a future refactor re-adds
 // either surface.
+// T-UI-28 — REQ-UI-011 + design.md testid migration. The header action
+// wrapper is `detail-header-actions` (PDF + cancel); the RESUMEN
+// sidebar CTAs live under `detail-sidebar-actions` (send + save-draft).
+// The `quotation-customer-card` and `quotation-promotion-card` root
+// testids already ship from their components — we assert the migrated
+// contract here so any future refactor can't drop it silently.
+describe('QuotationDetailView — testid migration (T-UI-28 / design.md)', () => {
+  it('renders the header action bar under testid "detail-header-actions"', () => {
+    const wrapper = mountView()
+    const headerActions = wrapper.find('[data-testid="detail-header-actions"]')
+    expect(headerActions.exists()).toBe(true)
+    // PDF preview lives in the header action bar.
+    expect(headerActions.find('[data-testid="preview-pdf-button"]').exists()).toBe(true)
+    // Cancel lives in the header action bar (DRAFT only).
+    expect(headerActions.find('[data-testid="cancel-button"]').exists()).toBe(true)
+  })
+
+  it('does NOT expose the old "quotation-actions" testid anymore (migrated)', () => {
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="quotation-actions"]').exists()).toBe(false)
+  })
+
+  it('renders the sidebar CTA wrapper under testid "detail-sidebar-actions" in DRAFT', () => {
+    const wrapper = mountView()
+    const sidebarActions = wrapper.find('[data-testid="detail-sidebar-actions"]')
+    expect(sidebarActions.exists()).toBe(true)
+    // The send + save-draft CTAs live inside the sidebar actions wrapper.
+    expect(sidebarActions.find('[data-testid="summary-send-btn"]').exists()).toBe(true)
+    expect(sidebarActions.find('[data-testid="summary-save-draft-btn"]').exists()).toBe(true)
+  })
+
+  it('hides the sidebar CTA wrapper when editable=false (non-DRAFT)', () => {
+    state.quotation.value = makeQuotation({ status: 'SENT' })
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="detail-sidebar-actions"]').exists()).toBe(false)
+  })
+
+  it('exposes the "quotation-customer-card" testid on the customer section', () => {
+    state.quotation.value = makeQuotation({
+      customerId: 'customer-1',
+      customer: { id: 'customer-1', firstName: 'María', lastName: 'Pérez', email: 'maria@example.com' },
+    })
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="quotation-customer-card"]').exists()).toBe(true)
+  })
+
+  it('exposes "quotation-promotion-card" testids on each applied promotion', () => {
+    state.quotation.value = makeQuotation({
+      appliedPromotions: [
+        { id: 'ap-1', promotionId: 'promo-1', title: 'Cupón 10%', discountCents: 500 },
+        { id: 'ap-2', promotionId: 'promo-2', title: 'Promo Verano', discountCents: 800 },
+      ],
+    })
+    const wrapper = mountView()
+    const cards = wrapper.findAll('[data-testid="quotation-promotion-card"]')
+    expect(cards).toHaveLength(2)
+  })
+
+  it('does NOT expose the legacy "customer-section" / "promotions-section" wrapper testids', () => {
+    const wrapper = mountView()
+    // Old wrapper testids are superseded by the per-component roots.
+    expect(wrapper.find('[data-testid="customer-section"]').exists()).toBe(false)
+    // promotions-section renders only in DRAFT — assert the absence too.
+    state.quotation.value = makeQuotation({ status: 'DRAFT' })
+    const draft = mountView()
+    expect(draft.find('[data-testid="promotions-section"]').exists()).toBe(false)
+  })
+})
+
 describe('QuotationDetailView — anti-requirements (T-UI-27 / REQ-UI-004 + REQ-UI-012)', () => {
   it('does NOT render any "Copiar" button in the header action list (REQ-UI-004)', () => {
     state.quotation.value = makeQuotation({ status: 'DRAFT' })
