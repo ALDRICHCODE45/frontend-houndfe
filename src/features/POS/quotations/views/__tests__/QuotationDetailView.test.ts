@@ -1074,6 +1074,57 @@ describe('QuotationDetailView — Coco card styling (T-UI-05)', () => {
   })
 })
 
+// T-UI-27 — REQ-UI-004 + REQ-UI-012 anti-requirements. The detail view
+// must NEVER render a duplicate/Copiar action in the header (REQ-UI-004)
+// and the stepper must NEVER render ACEPTADA/PEDIDO nodes (REQ-UI-012 +
+// REQ-UI-003). These tests fail loudly if a future refactor re-adds
+// either surface.
+describe('QuotationDetailView — anti-requirements (T-UI-27 / REQ-UI-004 + REQ-UI-012)', () => {
+  it('does NOT render any "Copiar" button in the header action list (REQ-UI-004)', () => {
+    state.quotation.value = makeQuotation({ status: 'DRAFT' })
+    const wrapper = mountView()
+
+    // Inspect every action surface — the header action wrapper, every
+    // status (DRAFT, SENT, EXPIRED, CANCELLED) — for any button whose
+    // accessible text starts with "Copiar" (case-insensitive). The
+    // header actions live under the testid the design.md migration
+    // plan introduced (`detail-header-actions`); we fall back to the
+    // header itself for resilience.
+    const header = wrapper.find('header')
+    expect(header.exists()).toBe(true)
+    const buttons = header.findAll('button')
+    const offending = buttons.filter((b) => /^copiar/i.test(b.text().trim()))
+    expect(offending).toHaveLength(0)
+  })
+
+  it('does NOT render "Copiar" anywhere in the rendered DOM (defense in depth)', () => {
+    state.quotation.value = makeQuotation({ status: 'SENT' })
+    const wrapper = mountView()
+    expect(wrapper.text().toLowerCase()).not.toContain('copiar')
+  })
+
+  it.each(['DRAFT', 'SENT', 'EXPIRED', 'CANCELLED'] as const)(
+    'stepper shows ONLY 3 states for %s (no ACEPTADA / PEDIDO leakage — REQ-UI-003 / REQ-UI-012)',
+    (status) => {
+      state.quotation.value = makeQuotation({ status })
+      const wrapper = mountView()
+
+      const text = wrapper.text().toLowerCase()
+      // The 3 spec-mandated labels must be present.
+      expect(text).toContain('borrador')
+      expect(text).toContain('enviada')
+      expect(text).toContain('expirada/cancelada')
+      // And the forbidden forward-compat labels must NOT appear.
+      expect(text).not.toContain('aceptada')
+      expect(text).not.toContain('pedido')
+
+      // The stepper must render exactly 3 step nodes regardless of status.
+      const steps = wrapper.findAll('[data-testid^="stepper-step-"]')
+      expect(steps).toHaveLength(3)
+    },
+  )
+})
+
 describe('QuotationDetailView promotions section (S6)', () => {
   it('renders the list of applied promotions from the quotation', () => {
     state.quotation.value = makeQuotation({
