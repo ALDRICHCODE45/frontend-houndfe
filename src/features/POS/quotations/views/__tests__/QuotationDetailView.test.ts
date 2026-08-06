@@ -920,7 +920,7 @@ describe('QuotationDetailView promotions section (S6)', () => {
     expect(wrapper.get('[data-testid="remove-manual-promo-promo-2"]').text()).toContain('Vetar')
   })
 
-  it('filters out already-applied promotions from the unified picker', () => {
+  it('shows all promotions in the unified picker with "(Aplicada)" prefix for applied ones', () => {
     state.quotation.value = makeQuotation({
       appliedPromotions: [
         { id: 'ap-1', promotionId: 'promo-applied', title: 'Cupón 10%', discountCents: 500 },
@@ -936,8 +936,50 @@ describe('QuotationDetailView promotions section (S6)', () => {
     const wrapper = mountView()
 
     const selector = wrapper.findAllComponents(USelectMenuStub)[0]!
-    const items = selector.props('items') as Array<{ value: string; label: string }>
-    expect(items.map((i) => i.value)).toEqual(['promo-free-manual', 'promo-auto-free'])
+    const items = selector.props('items') as Array<{ value: string; label: string; description: string }>
+    // All promos appear (no filtering), applied one has "(Aplicada)" prefix
+    expect(items.map((i) => i.value)).toEqual(['promo-applied', 'promo-free-manual', 'promo-auto-free'])
+    const appliedItem = items.find((i) => i.value === 'promo-applied')!
+    expect(appliedItem.description).toContain('(Aplicada)')
+    const freeItem = items.find((i) => i.value === 'promo-free-manual')!
+    expect(freeItem.description).not.toContain('(Aplicada)')
+  })
+
+  it('removes an already-applied manual promotion when re-selected (toggle off)', async () => {
+    state.quotation.value = makeQuotation({
+      appliedPromotions: [
+        { id: 'ap-1', promotionId: 'promo-1', title: 'Cupón 10%', discountCents: 500 },
+      ],
+      optedInManualPromotionIds: ['promo-1'],
+    })
+    availablePromotionsMock.manual.promotions = [
+      makePromotion({ id: 'promo-1', title: 'Cupón 10%', type: 'ORDER_DISCOUNT' }),
+    ]
+    const wrapper = mountView()
+
+    const selector = wrapper.findAllComponents(USelectMenuStub)[0]!
+    selector.vm.$emit('update:modelValue', 'promo-1')
+    await flushPromises()
+    expect(state.applyManualPromotion).not.toHaveBeenCalled()
+    expect(state.removeManualPromotion).toHaveBeenCalledWith('promo-1')
+  })
+
+  it('vetoes an already-applied automatic promotion when re-selected (toggle off)', async () => {
+    state.quotation.value = makeQuotation({
+      appliedPromotions: [
+        { id: 'ap-1', promotionId: 'promo-auto-1', title: 'Promo Auto', discountCents: 800 },
+      ],
+    })
+    availablePromotionsMock.automatic.promotions = [
+      makePromotion({ id: 'promo-auto-1', title: 'Promo Auto', method: 'AUTOMATIC', type: 'PRODUCT_DISCOUNT' }),
+    ]
+    const wrapper = mountView()
+
+    const selector = wrapper.findAllComponents(USelectMenuStub)[0]!
+    selector.vm.$emit('update:modelValue', 'promo-auto-1')
+    await flushPromises()
+    expect(state.applyManualPromotion).not.toHaveBeenCalled()
+    expect(state.vetoPromotion).toHaveBeenCalledWith('promo-auto-1')
   })
 
   it('shows the empty message when there are no active promotions', () => {

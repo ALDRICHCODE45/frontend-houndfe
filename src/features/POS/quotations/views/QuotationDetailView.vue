@@ -296,25 +296,34 @@ function appliedMethod(promotionId: string): string {
 
 const isLoadingAllPromos = computed(() => isLoadingManualPromos.value || isLoadingAutomaticPromos.value)
 
-const availableAllPromotions = computed(() => {
+const allPromoItems = computed(() => {
   const appliedIds = new Set(appliedPromotions.value.map((p) => p.promotionId))
   const all = [...manualPromotions.value, ...automaticPromotions.value]
-  return all.filter((p) => !appliedIds.has(p.id))
+  return all.map((p) => {
+    const isApplied = appliedIds.has(p.id)
+    const typeLabel = PROMOTION_TYPE_LABELS[p.type] ?? p.type
+    const methodLabel = p.method === 'MANUAL' ? 'Manual' : 'Automática'
+    return {
+      value: p.id,
+      label: p.title,
+      description: isApplied
+        ? `(Aplicada) · ${typeLabel} · ${methodLabel}`
+        : `${typeLabel} · ${methodLabel}`,
+    }
+  })
 })
-
-const allPromoItems = computed(() =>
-  availableAllPromotions.value.map((p) => ({
-    value: p.id,
-    label: p.title,
-    description: `${PROMOTION_TYPE_LABELS[p.type] ?? p.type} · ${p.method === 'MANUAL' ? 'Manual' : 'Automática'}`,
-  })),
-)
 
 const selectedPromotion = ref<string | null>(null)
 
+/** Select → apply. Re-select an already-applied promo → remove it (toggle). */
 async function handleSelectPromotion(selected: string | null): Promise<void> {
   if (!isDraft.value || !selected) return
-  await draft.applyManualPromotion(selected)
+  const isApplied = appliedPromotions.value.some((p) => p.promotionId === selected)
+  if (isApplied) {
+    await handleRemoveAppliedPromotion(selected)
+  } else {
+    await draft.applyManualPromotion(selected)
+  }
   selectedPromotion.value = null
 }
 
