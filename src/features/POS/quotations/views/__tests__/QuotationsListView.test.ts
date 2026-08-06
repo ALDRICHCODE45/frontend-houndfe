@@ -468,6 +468,28 @@ describe('QuotationsListView — AppDataTable wiring', () => {
   })
 })
 
+// System filter-row pattern (EmployeesListView): status tabs + search sit
+// together on the left and a refresh action on the right, inside the same
+// padded zone as the table.
+describe('QuotationsListView — refresh action', () => {
+  it('renders a refresh button wired to the composable refresh()', async () => {
+    const wrapper = mountView()
+    const button = wrapper.get('[data-testid="refresh-quotations-button"]')
+
+    expect(button.attributes('aria-label')).toBe('Actualizar cotizaciones')
+
+    await button.trigger('click')
+    expect(composableState.refresh).toHaveBeenCalled()
+  })
+
+  it('keeps the refresh button rendered while fetching (spinner is theme-driven)', () => {
+    composableState.isFetching.value = true
+
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="refresh-quotations-button"]').exists()).toBe(true)
+  })
+})
+
 // T-UI-26 — REQ-UI-011: the list view MUST align with system patterns
 // (rounded-2xl shadow-sm card wrapper — EmployeesListView pattern) and the
 // "Nueva cotización" CTA MUST use the Coco primary token (--coco-primary).
