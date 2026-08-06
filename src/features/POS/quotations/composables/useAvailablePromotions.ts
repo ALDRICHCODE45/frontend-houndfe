@@ -9,7 +9,7 @@
  * separate cache slots.
  *
  * The query is gated on a truthy tenantId (auth bootstrap not complete) — the
- * same `enabled` convention used by `useQuotationDetail` / `useQuotationsList`.
+ * same `enabled` convention used by `useQuotationDetail` / `useQuotationsListTable`.
  */
 import { computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useQuery } from '@tanstack/vue-query'

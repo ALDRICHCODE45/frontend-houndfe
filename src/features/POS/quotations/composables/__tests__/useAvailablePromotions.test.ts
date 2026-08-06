@@ -1,7 +1,7 @@
 /**
  * useAvailablePromotions — tests.
  *
- * Strategy: mirror `useQuotationsList.test.ts` — mock `@tanstack/vue-query`'s
+ * Strategy: mirror `useQuotationsListTable.test.ts` — mock `@tanstack/vue-query`'s
  * `useQuery` so we can assert the wiring (queryKey, queryFn, enabled) without
  * pulling the TanStack runtime in, and flip the data/loading/error return to
  * drive the composable's derived `promotions` / `isLoading` / `isError`.

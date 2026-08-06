@@ -1,44 +1,51 @@
 <script setup lang="ts">
 /**
- * QuotationsListView — S3 / REQ-QTN-002.
+ * QuotationsListView — REQ-QAF-009..014 / T-FE-10.
  *
- * Paginated list of quotations exposed at GET /quotations, behind the
- * `read:Quotation` route guard. The composition surface wires
- * `useQuotationsList` to:
+ * Brings the quotations list to feature parity with the Sales list:
+ *   - UCard with split body bg (REQ-QAF-009).
+ *   - TableHeaderDescription in the #header slot.
+ *   - Status tabs (Todos / Borradores / Enviadas / Expiradas / Canceladas).
+ *   - Slideover with the 5 first-slice filters (status, customerId, createdAt,
+ *     expiresAt, totalCents) + active chips (REQ-QAF-010).
+ *   - AppDataTable with toolbar global search, column visibility, page-size
+ *     options (REQ-QAF-011).
+ *   - URL persistence via useFiltersUrlAdapter (REQ-QAF-012).
+ *   - Delete flow preserved exactly (REQ-QAF-013).
+ *   - The legacy `QuotationsSearchInput` is gone (REQ-QAF-016).
  *
- *   - Status tabs (Todos / Borradores / Enviadas / Expiradas / Canceladas)
- *   - Debounced search input
- *   - `AppDataTable` with truncated UUID, customer, status badge, total,
- *     expiry, and creation date columns
- *   - Pagination driven by the table's `update:pagination` event
- *   - "Nueva cotización" CTA gated by `create:Quotation` CASL permission
- *   - Row navigation (cliente cell) → `/pos/cotizaciones/:id`
- *   - Empty / error / loading / fetching states via AppDataTable props
- *
- * Loading/empty/error states are handled by AppDataTable itself (REQ-QTN-016)
- * — this view just forwards `isLoading` / `isFetching` / `isError` / `data`
- * to the table props. The view still owns the dedicated "Nueva cotización"
- * button placement in the header.
+ * The token scope class `.quotations-list-view` stays on the surface root so
+ * `@layer coco-quotations` keeps resolving `--coco-primary` for the CTA.
  */
+
 import '../styles/coco-tokens.css'
 
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
+import { useMutation, useQueryClient } from '@tanstack/vue-query'
+import { useQuery } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
 import type { TableColumn } from '@nuxt/ui'
-import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { AppDataTable } from '@/core/shared/components/DataTable'
+import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
+import {
+  DataTableFilters,
+  DataTableFiltersChips,
+  useDataTableFilters,
+  useFiltersUrlAdapter,
+} from '@/core/shared/data-table-filters'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import { customerApi } from '@/features/POS/customers/api/customer.api'
+import { customerQueryKeys } from '@/core/shared/constants/query-keys'
 import { QUOTATION_STATUS } from '../constants/quotation.constants'
-import type { QuotationStatus } from '../interfaces/quotation.types'
+import type { QuotationStatus, QuotationResponseDto } from '../interfaces/quotation.types'
 import { isExpired, statusToTone, statusToLabel } from '../utils/quotation.utils'
 import { formatCentsMXN } from '../utils/currency.utils'
-import { useQuotationsList, type QuotationStatusFilter } from '../composables/useQuotationsList'
-import type { QuotationResponseDto } from '../interfaces/quotation.types'
+import { useQuotationsListTable } from '../composables/useQuotationsListTable'
 import { quotationApi } from '../api/quotation.api'
 import { quotationQueryKeys } from '@/core/shared/constants/query-keys'
+import { createQuotationFiltersSchema } from '../config/quotationFiltersSchema'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
-import QuotationsSearchInput from '../components/QuotationsSearchInput.vue'
 
 declare const useToast: () => {
   add: (options: {
@@ -54,31 +61,61 @@ const router = useRouter()
 const authStore = useAuthStore()
 const canCreate = computed(() => authStore.userCan('create', 'Quotation'))
 const canDelete = computed(() => authStore.userCan('delete', 'Quotation'))
+const tenantId = computed(() => authStore.currentTenantId || 'default')
+
+// ─── Customer options (loaded once for the slideover) ─────────────────────────
+
+const customersQuery = useQuery({
+  queryKey: computed(() => customerQueryKeys.paginated(tenantId.value)),
+  queryFn: () => customerApi.getPaginated({ pageIndex: 0, pageSize: 100, sorting: [], globalFilter: '' }),
+  staleTime: 30_000,
+})
+
+const customerOptions = computed(() =>
+  (customersQuery.data.value?.data ?? []).map((customer) => ({
+    value: customer.id,
+    label: customer.fullName || `${customer.firstName} ${customer.lastName ?? ''}`.trim(),
+  })),
+)
+
+const quotationFiltersSchema = computed(() => createQuotationFiltersSchema({
+  customerOptions: customerOptions.value,
+  customerLoading: customersQuery.isLoading.value,
+}))
+
+const filtersAdapter = useFiltersUrlAdapter(quotationFiltersSchema)
+const filtersCtl = useDataTableFilters(quotationFiltersSchema, filtersAdapter)
+const filtersState = computed({
+  get: () => filtersCtl.state.value,
+  set: (next) => { filtersCtl.state.value = next },
+})
 
 const {
-  status,
-  search,
-  page,
-  limit,
-  quotations,
-  total,
-  totalPages,
+  pagination,
+  sorting,
+  globalFilter,
+  rowSelection,
+  columnPinning,
+  columnVisibility,
+  data,
+  totalCount,
+  pageCount,
   isLoading,
   isFetching,
   isError,
   error,
-  setStatus,
-  setSearch,
-  setPage,
-  setLimit,
   refresh,
-} = useQuotationsList({ defaultLimit: 10, debounceMs: 300 })
+  pageSizeOptions,
+  showingFrom,
+  showingTo,
+  setStatusFilter,
+} = useQuotationsListTable(filtersCtl.backendParams)
 
 // ─── Status tabs definition ───────────────────────────────────────────────────
 
 interface StatusTab {
   label: string
-  value: QuotationStatusFilter
+  value: QuotationStatus | 'ALL'
 }
 
 const STATUS_TABS: StatusTab[] = [
@@ -89,40 +126,43 @@ const STATUS_TABS: StatusTab[] = [
   { label: 'Canceladas', value: QUOTATION_STATUS.CANCELLED },
 ]
 
-function onStatusTabClick(value: QuotationStatusFilter): void {
-  setStatus(value)
+/**
+ * Effective active status used for the tab's aria-current state.
+ * The slideover status (when set) takes precedence over the tab — we
+ * detect that by reading the slideover's serialized status field. When
+ * the user clicks a tab, we mirror the value into the slideover's status
+ * (single-element array) so the same source of truth drives both the
+ * visual indication and the filter.
+ */
+const activeStatusTab = computed<QuotationStatus | 'ALL'>(() => {
+  const slideover = filtersState.value.status
+  if (Array.isArray(slideover) && slideover.length > 0) {
+    return slideover[0] as QuotationStatus
+  }
+  if (typeof slideover === 'string' && slideover.length > 0) {
+    const first = slideover.split(',')[0]?.trim()
+    if (first) return first as QuotationStatus
+  }
+  return 'ALL'
+})
+
+function onStatusTabClick(value: QuotationStatus | 'ALL'): void {
+  // Tab → set the slideover status to a single element (keeps the
+  // single source of truth consistent with the composable's tab) and
+  // notify the composable. REQ-QAF-010: selecting a tab "clears" the
+  // slideover's prior status by overwriting it with a single value.
+  if (value === 'ALL') {
+    filtersCtl.clearFilter('status')
+    setStatusFilter(undefined)
+  } else {
+    filtersState.value = { ...filtersState.value, status: [value] }
+    setStatusFilter(value)
+  }
 }
 
-// ─── Search wiring ───────────────────────────────────────────────────────────
-
-function onSearchInput(value: string): void {
-  setSearch(value)
-}
-
-// ─── Pagination wiring (AppDataTable → composable) ────────────────────────────
-//
-// The table emits 0-indexed pageIndex and uses pageSize. The composable + the
-// backend use 1-indexed page and `limit`. Symmetric with EmployeesListView
-// (see EmployeesListView.vue:318-330).
-//
-// Order matters: when the size changes, the composable resets page to 1. If
-// we called setPage first with the NEW pageIndex (already 0-indexed against
-// the OLD pageSize), the page-1 reset from setLimit would clobber it and the
-// user would appear stuck on page 1 when navigating forward. So we detect
-// "size changed" first and only call setPage when the index actually changed.
-
-const pagination = computed({
-  get: () => ({ pageIndex: page.value - 1, pageSize: limit.value }),
-  set: (val: { pageIndex: number; pageSize: number }) => {
-    const nextSize = val.pageSize
-    const nextPage = val.pageIndex + 1
-    if (nextSize !== limit.value) {
-      setLimit(nextSize)
-    }
-    if (nextPage !== page.value) {
-      setPage(nextPage)
-    }
-  },
+// Reset pagination to page 0 whenever the slideover filter state changes.
+watch(() => filtersCtl.serializedState.value, () => {
+  pagination.value = { ...pagination.value, pageIndex: 0 }
 })
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
@@ -135,14 +175,9 @@ function goToDetail(quotation: QuotationResponseDto): void {
   void router.push(`/pos/cotizaciones/${quotation.id}`)
 }
 
-// ─── Delete flow (REQ-QTN-013 / backend §3.16) ──────────────────────────────
-// DELETE /quotations/:id is restricted to DRAFT or CANCELLED quotations
-// (409 QUOTATION_CANNOT_DELETE otherwise). The CASL `delete:Quotation`
-// gate runs in the dropdown builder below; the backend's status guard is
-// defense-in-depth for stale list caches.
+// ─── Delete flow (REQ-QAF-013) ────────────────────────────────────────────────
 
 const queryClient = useQueryClient()
-const tenantId = computed(() => authStore.currentTenantId)
 
 const confirmState = ref({
   open: false,
@@ -194,11 +229,6 @@ function customerName(quotation: QuotationResponseDto): string {
   return full || 'Sin cliente'
 }
 
-// ── S8: lazy EXPIRED detection (REQ-QTN-008 / backend §7.4) ────────────────
-// The backend flips SENT → EXPIRED on the next read, not on a cron. Until
-// the cache catches up, a SENT row whose `expiresAt` is in the past should
-// display as EXPIRED here too — otherwise the cashier would have to refresh
-// the page to find out. DRAFT never lazy-expires.
 function effectiveStatus(quotation: QuotationResponseDto): QuotationStatus {
   if (quotation.status === 'SENT' && isExpired(quotation)) {
     return 'EXPIRED'
@@ -284,9 +314,7 @@ const columns: TableColumn<QuotationResponseDto>[] = [
 ]
 
 // ─── Row actions (UDropdownMenu items per row) ────────────────────────────────
-// Two-group layout mirrors PromotionsView/CustomersView: the first group
-// holds navigation, the second holds the destructive delete (red) when
-// the row's status is one the backend will accept (DRAFT, CANCELLED).
+
 function getRowItems(quotation: QuotationResponseDto) {
   const navigationActions = [
     { label: 'Ver detalle', onSelect: () => goToDetail(quotation) },
@@ -307,18 +335,6 @@ function getRowItems(quotation: QuotationResponseDto) {
   return [navigationActions, destructiveActions].filter((section) => section.length > 0)
 }
 
-// ─── Pagination display helpers ──────────────────────────────────────────────
-
-const showingFrom = computed(() => {
-  if (total.value === 0) return 0
-  return (page.value - 1) * limit.value + 1
-})
-
-const showingTo = computed(() => {
-  if (total.value === 0) return 0
-  return Math.min(page.value * limit.value, total.value)
-})
-
 // ─── Error message ───────────────────────────────────────────────────────────
 
 const errorMessage = computed(() => {
@@ -326,133 +342,111 @@ const errorMessage = computed(() => {
   if (!err) return 'No se pudieron cargar las cotizaciones. Reintenta.'
   return err.response?.data?.message ?? err.message ?? 'No se pudieron cargar las cotizaciones. Reintenta.'
 })
-
-// Re-export UButton via the auto-import registry — Nuxt UI components are
-// resolved at template-compile time. No explicit resolveComponent needed.
 </script>
 
 <template>
-  <!-- System list-view chrome (Products/Sales pattern): a padded page
-       wrapper holds the rounded-2xl shadow-sm card. The
-       `.quotations-list-view` class stays on the card root so the
-       `@layer coco-quotations` token scope still resolves
-       `--coco-primary` for everything inside (REQ-UI-001 / REQ-UI-011). -->
   <div class="flex flex-col gap-6 px-10">
-    <section
-      class="quotations-list-view overflow-hidden rounded-2xl border border-default bg-default shadow-sm"
+    <UCard
+      :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }"
+      class="quotations-list-view overflow-hidden rounded-2xl border border-default shadow-sm"
       data-testid="quotations-list-view"
     >
-      <!-- Header -->
-      <header
-        class="flex flex-col gap-3 border-b border-default px-5 py-4 sm:flex-row sm:items-start sm:justify-between"
-      >
-        <div>
-          <h1 class="text-2xl font-semibold tracking-tight text-highlighted">Cotizaciones</h1>
-          <p class="mt-1 text-sm text-muted">
-            Listado de cotizaciones por cliente, con filtros por estado y búsqueda.
-          </p>
-        </div>
+      <template #header>
+        <TableHeaderDescription
+          title="Cotizaciones"
+          description="Listado de cotizaciones por cliente, con filtros por estado, fechas y montos."
+        />
+      </template>
 
-        <div v-if="canCreate" class="flex items-center gap-2">
-          <!-- REQ-UI-001 / REQ-UI-011: the CTA MUST consume the Coco
-               primary token via a Tailwind arbitrary value. Nuxt UI's
-               `color="primary"` resolves to the project brand primary
-               (#2442f6); we override with `bg-[var(--coco-primary)]`
-               (#2557D6) so the visual matches the spec. -->
-          <UButton
-            data-testid="new-quotation-button"
-            icon="i-lucide-plus"
-            color="primary"
-            size="sm"
-            class="bg-[var(--coco-primary)] text-white shadow-sm hover:brightness-110"
-            @click="goToCreate"
-          >
-            Nueva cotización
-          </UButton>
-        </div>
-      </header>
-
-      <!-- Filters + table (system pattern — EmployeesListView): status tabs +
-           search sit together on the left, refresh on the right, all inside a
-           single padded zone with the table. Collapsing the old two-row
-           header (filters border-b + table padding) removes ~72px of vertical
-           bulk so the pagination footer stays visible. -->
-      <div class="flex flex-col gap-4 px-5 py-4">
-        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
-            <div
-              class="flex flex-wrap items-center gap-1"
-              data-testid="status-tabs"
-              role="tablist"
-              aria-label="Filtrar cotizaciones por estado"
+      <div class="px-6 py-5 space-y-4">
+        <div class="space-y-4">
+          <div class="flex flex-wrap items-center gap-1" data-testid="status-tabs" role="tablist" aria-label="Filtrar cotizaciones por estado">
+            <button
+              v-for="tab in STATUS_TABS"
+              :key="tab.value"
+              type="button"
+              role="tab"
+              :aria-selected="activeStatusTab === tab.value"
+              :aria-current="activeStatusTab === tab.value ? 'page' : undefined"
+              class="rounded-lg px-3.5 py-2 text-sm font-medium transition-colors"
+              :class="
+                activeStatusTab === tab.value
+                  ? 'border border-default bg-elevated text-highlighted shadow-sm'
+                  : 'text-muted hover:bg-elevated/60 hover:text-default'
+              "
+              @click="onStatusTabClick(tab.value)"
             >
-              <button
-                v-for="tab in STATUS_TABS"
-                :key="tab.value"
-                type="button"
-                role="tab"
-                :aria-selected="status === tab.value"
-                :aria-current="status === tab.value ? 'page' : undefined"
-                class="rounded-lg px-3.5 py-2 text-sm font-medium transition-colors"
-                :class="
-                  status === tab.value
-                    ? 'border border-default bg-elevated text-highlighted shadow-sm'
-                    : 'text-muted hover:bg-elevated/60 hover:text-default'
-                "
-                @click="onStatusTabClick(tab.value)"
+              {{ tab.label }}
+            </button>
+          </div>
+
+          <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <DataTableFilters
+              v-model:state="filtersState"
+              :schema="quotationFiltersSchema"
+            />
+            <div class="flex items-center justify-end gap-2">
+              <UButton
+                icon="i-lucide-refresh-cw"
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                :loading="isFetching"
+                aria-label="Actualizar cotizaciones"
+                data-testid="refresh-quotations-button"
+                @click="refresh"
+              />
+              <UButton
+                v-if="canCreate"
+                data-testid="new-quotation-button"
+                icon="i-lucide-plus"
+                color="primary"
+                size="sm"
+                class="bg-[var(--coco-primary)] text-white shadow-sm hover:brightness-110"
+                @click="goToCreate"
               >
-                {{ tab.label }}
-              </button>
+                Nueva cotización
+              </UButton>
             </div>
-
-            <QuotationsSearchInput
-              :model-value="search"
-              :loading="isFetching"
-              placeholder="Buscar por cliente…"
-              @update:model-value="onSearchInput"
-            />
           </div>
 
-          <div class="flex items-center justify-end gap-2">
-            <UButton
-              icon="i-lucide-refresh-cw"
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              :loading="isFetching"
-              aria-label="Actualizar cotizaciones"
-              data-testid="refresh-quotations-button"
-              @click="refresh"
-            />
-          </div>
+          <DataTableFiltersChips
+            :schema="quotationFiltersSchema"
+            :state="filtersState"
+            @clear="filtersCtl.clearFilter"
+            @clear-all="filtersCtl.clearAll"
+          />
         </div>
 
-        <!-- Table -->
         <AppDataTable
+          v-model:sorting="sorting"
           v-model:pagination="pagination"
+          v-model:global-filter="globalFilter"
+          v-model:column-pinning="columnPinning"
+          v-model:column-visibility="columnVisibility"
+          v-model:row-selection="rowSelection"
           :columns="columns"
-          :data="quotations"
+          :data="data"
           :loading="isLoading"
           :fetching="isFetching"
           :error="isError"
           :error-message="errorMessage"
-          :page-count="totalPages"
-          :total-count="total"
+          :page-count="pageCount"
+          :total-count="totalCount"
           :showing-from="showingFrom"
           :showing-to="showingTo"
-          :page-size-options="[10, 20, 50]"
-          :show-toolbar="false"
-          :show-add-button="false"
-          :show-refresh="false"
+          :page-size-options="pageSizeOptions"
+          :enable-row-selection="false"
+          mobile-render="cards"
+          :enable-column-visibility="true"
+          search-placeholder="Buscar cotizaciones…"
           empty="No hay cotizaciones"
           @refresh="refresh"
         >
-          <!-- ID cell: truncated UUID rendered as a monospace token -->
           <template #id-cell="{ row }">
             <span class="font-mono text-xs text-muted">{{ truncatedId(row.original.id) }}</span>
           </template>
 
-          <!-- Cliente cell: full name or "Sin cliente"; clickable → detail -->
           <template #cliente-cell="{ row }">
             <UButton
               variant="link"
@@ -465,10 +459,6 @@ const errorMessage = computed(() => {
             </UButton>
           </template>
 
-          <!-- Estado cell: StatusDotBadge with QUOTATION_STATUS_TONE.
-               S8: status is resolved through `effectiveStatus()` so a SENT row
-               whose cached expiresAt is past flips to EXPIRED locally — see
-               the comment above the helper for the rationale. -->
           <template #estado-cell="{ row }">
             <StatusDotBadge
               :tone="rowStatusTone(row.original)"
@@ -477,22 +467,18 @@ const errorMessage = computed(() => {
             />
           </template>
 
-          <!-- Total cell: formatCentsMXN -->
           <template #total-cell="{ row }">
             <span class="font-medium text-default">{{ formatCentsMXN(row.original.totalCents) }}</span>
           </template>
 
-          <!-- Expira cell: formatted date or em-dash -->
           <template #expira-cell="{ row }">
             <span class="text-sm text-muted">{{ formatExpiryDate(row.original.expiresAt) }}</span>
           </template>
 
-          <!-- Fecha cell: createdAt formatted -->
           <template #fecha-cell="{ row }">
             <span class="text-sm text-muted">{{ formatCreatedAt(row.original.createdAt) }}</span>
           </template>
 
-          <!-- Actions cell: dropdown with view + delete (CASL + status-gated) -->
           <template #actions-cell="{ row }">
             <UDropdownMenu
               :items="getRowItems(row.original)"
@@ -510,11 +496,6 @@ const errorMessage = computed(() => {
         </AppDataTable>
       </div>
 
-      <!-- REQ-QTN-013 — Delete confirmation. State holds the selected id +
-           folio so the description can reference the truncated UUID the
-           cashier sees in the table. Mutating the open flag inside
-           `update:open` keeps the modal wired to the same confirm-state
-           ref that the dropdown's `Eliminar` action populates. -->
       <ConfirmModal
         :open="confirmState.open"
         title="Eliminar cotización"
@@ -525,6 +506,6 @@ const errorMessage = computed(() => {
         @update:open="(val) => { if (!val) confirmState.open = false }"
         @confirm="handleConfirmDelete"
       />
-    </section>
+    </UCard>
   </div>
 </template>

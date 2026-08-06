@@ -127,14 +127,34 @@ export interface QuotationResponseDto {
 
 // ─── List params ──────────────────────────────────────────────────────────────
 
+/**
+ * QuotationListParams — contract for `GET /quotations` query string.
+ *
+ * REQ-QAF-006 widening: multi-value filters (`status`, `customerId`) accept
+ * either a single value (legacy / single-select), a CSV string (server
+ * normalizes both), or an array (Axios + csvParamsSerializer join by comma).
+ * The backend's `@CsvEnum` / `@CsvUuid` decorators accept all three shapes.
+ *
+ * `expiresFrom` / `expiresTo` (ISO date strings) feed the expiry date-range.
+ * `minTotalCents` / `maxTotalCents` (non-negative integers) feed the total
+ * numeric-range; the FE multiplies by 100 in the UI to render currency.
+ */
 export interface QuotationListParams {
   page?: number
   limit?: number
-  status?: QuotationStatus
-  customerId?: string
+  status?: QuotationStatus | QuotationStatus[] | string
+  customerId?: string | string[]
   search?: string
   sortBy?: string
   sortOrder?: 'asc' | 'desc'
+  /** ISO date string (YYYY-MM-DD or full ISO). Inclusive `gte` on `expiresAt`. */
+  expiresFrom?: string
+  /** ISO date string. Inclusive `lte` on `expiresAt`. */
+  expiresTo?: string
+  /** Non-negative integer; inclusive `gte` on `totalCents`. */
+  minTotalCents?: number
+  /** Non-negative integer; inclusive `lte` on `totalCents`. */
+  maxTotalCents?: number
 }
 
 // ─── Paginated envelope ───────────────────────────────────────────────────────
