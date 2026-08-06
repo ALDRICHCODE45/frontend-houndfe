@@ -154,3 +154,117 @@ describe('QuotationExpiryPicker — readonly', () => {
     expect(wrapper.text()).toMatch(/sin expiraci[oó]n/i)
   })
 })
+
+// T-UI-17/18/19 — REQ-UI-006 expiry shortcut chips. The picker renders
+// four shortcut chips below the date input — "7 días", "15 días", "30 días",
+// "Sin expiración". Selecting a chip computes `expiresAt = now + N days`
+// and emits `update:expiresAt`. The chip whose value matches the current
+// `expiresAt` is highlighted as active; "Sin expiración" matches when
+// `expiresAt` is null. The chips are HIDDEN in readonly mode.
+describe('QuotationExpiryPicker — shortcut chips (T-UI-17/18/19 / REQ-UI-006)', () => {
+  it('renders the chip container with testid "expiry-chips"', () => {
+    const wrapper = mountPicker({ expiresAt: null, readonly: false })
+    expect(wrapper.find('[data-testid="expiry-chips"]').exists()).toBe(true)
+  })
+
+  it('renders the four shortcut chips (7 días, 15 días, 30 días, Sin expiración)', () => {
+    const wrapper = mountPicker({ expiresAt: null, readonly: false })
+    expect(wrapper.find('[data-testid="expiry-chip-7"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="expiry-chip-15"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="expiry-chip-30"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="expiry-chip-none"]').exists()).toBe(true)
+  })
+
+  it('hides the chips when readonly is true (SENT/EXPIRED/CANCELLED)', () => {
+    const wrapper = mountPicker({ expiresAt: null, readonly: true })
+    expect(wrapper.find('[data-testid="expiry-chips"]').exists()).toBe(false)
+  })
+
+  it('emits ISO timestamp at +7 days when the "7 días" chip is clicked', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-01T12:00:00.000Z'))
+    try {
+      const wrapper = mountPicker({ expiresAt: null, readonly: false })
+      await wrapper.get('[data-testid="expiry-chip-7"]').trigger('click')
+      const emitted = wrapper.emitted('update:expiresAt')
+      expect(emitted).toBeDefined()
+      // Anchor at midnight UTC of the same day so the result matches
+      // exactly (the chips normalize to T00:00:00.000Z like the picker).
+      const value = emitted![0]![0] as string
+      expect(new Date(value).toISOString()).toBe('2026-08-08T00:00:00.000Z')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('emits ISO timestamp at +15 days when the "15 días" chip is clicked', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-01T12:00:00.000Z'))
+    try {
+      const wrapper = mountPicker({ expiresAt: null, readonly: false })
+      await wrapper.get('[data-testid="expiry-chip-15"]').trigger('click')
+      const value = wrapper.emitted('update:expiresAt')![0]![0] as string
+      expect(new Date(value).toISOString()).toBe('2026-08-16T00:00:00.000Z')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('emits ISO timestamp at +30 days when the "30 días" chip is clicked', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-01T12:00:00.000Z'))
+    try {
+      const wrapper = mountPicker({ expiresAt: null, readonly: false })
+      await wrapper.get('[data-testid="expiry-chip-30"]').trigger('click')
+      const value = wrapper.emitted('update:expiresAt')![0]![0] as string
+      expect(new Date(value).toISOString()).toBe('2026-08-31T00:00:00.000Z')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('emits null when the "Sin expiración" chip is clicked', async () => {
+    const wrapper = mountPicker({
+      expiresAt: '2026-09-15T00:00:00.000Z',
+      readonly: false,
+    })
+    await wrapper.get('[data-testid="expiry-chip-none"]').trigger('click')
+    expect(wrapper.emitted('update:expiresAt')![0]![0]).toBeNull()
+  })
+
+  it('marks the active chip based on the current expiresAt value', () => {
+    // expiresAt is +15 days from anchor → the 15 chip is active.
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-01T12:00:00.000Z'))
+    try {
+      const wrapper = mountPicker({
+        expiresAt: '2026-08-16T00:00:00.000Z',
+        readonly: false,
+      })
+      expect(wrapper.get('[data-testid="expiry-chip-15"]').attributes('data-active')).toBe('true')
+      expect(wrapper.get('[data-testid="expiry-chip-7"]').attributes('data-active')).toBe('false')
+      expect(wrapper.get('[data-testid="expiry-chip-30"]').attributes('data-active')).toBe('false')
+      expect(wrapper.get('[data-testid="expiry-chip-none"]').attributes('data-active')).toBe('false')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('marks the "Sin expiración" chip as active when expiresAt is null', () => {
+    const wrapper = mountPicker({ expiresAt: null, readonly: false })
+    expect(wrapper.get('[data-testid="expiry-chip-none"]').attributes('data-active')).toBe('true')
+    expect(wrapper.get('[data-testid="expiry-chip-7"]').attributes('data-active')).toBe('false')
+  })
+
+  it('falls back to no active chip when expiresAt does not match any shortcut', () => {
+    // Random date that doesn't fall on day 7, 15, or 30 from "now"
+    const wrapper = mountPicker({
+      expiresAt: '2026-12-25T00:00:00.000Z',
+      readonly: false,
+    })
+    expect(wrapper.get('[data-testid="expiry-chip-7"]').attributes('data-active')).toBe('false')
+    expect(wrapper.get('[data-testid="expiry-chip-15"]').attributes('data-active')).toBe('false')
+    expect(wrapper.get('[data-testid="expiry-chip-30"]').attributes('data-active')).toBe('false')
+    expect(wrapper.get('[data-testid="expiry-chip-none"]').attributes('data-active')).toBe('false')
+  })
+})
