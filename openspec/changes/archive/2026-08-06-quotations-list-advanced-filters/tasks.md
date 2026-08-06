@@ -18,13 +18,15 @@ Chain strategy: size-exception
 
 ## Phase 1: Backend — Query Contract & Repository (REQ-QAF-001…008)
 
-- [ ] T-BE-01 RED — `src/quotations/dto/__tests__/quotation-query.dto.spec.ts`: all 8 REQ-QAF-001…008 validation scenarios from spec.md.
-- [ ] T-BE-02 GREEN — extend `src/quotations/dto/quotation-query.dto.ts`: `search?: string`; `status` → `@CsvEnum(ListQuotationsStatusEnum, { max: 50 })`; `customerId` → `@CsvUuid({ max: 200 })`; `expiresFrom/expiresTo` → `@DateRange` peer; `minTotalCents/maxTotalCents` → `@NumericRange` peer + `@Type(Number) @IsInt @Min(0)`.
-- [ ] T-BE-03 — widen `QuotationFindAllInput` + `QuotationFindAllQuery` in `domain/quotation.repository.ts` with 5 optional fields.
-- [ ] T-BE-04 — `QuotationsService.findAll(input)`: forward 5 fields to `quotationRepo.findAll(...)`.
-- [ ] T-BE-05 RED — `src/quotations/infrastructure/__tests__/prisma-quotation.repository-findAll.spec.ts`: all REQ-QAF-007 combined-filter + count-parity scenarios.
-- [ ] T-BE-06 GREEN — rebuild `where` in `prisma-quotation.repository.ts:findAll`: trim search, omit empties, share `where` between `findMany` + `count`.
-- [ ] T-BE-07 DoD — `pnpm test` green; `curl 'localhost:3000/quotations?status=DRAFT,SENT&customerId=u1,u2&expiresFrom=2026-01-01&minTotalCents=100&search=juan'` returns 200 with correct `pagination.total`.
+- [x] T-BE-01 RED — `src/quotations/dto/__tests__/quotation-query.dto.spec.ts`: all 8 REQ-QAF-001…008 validation scenarios from spec.md.
+- [x] T-BE-02 GREEN — extend `src/quotations/dto/quotation-query.dto.ts`: `search?: string`; `status` → `@CsvEnum(ListQuotationsStatusEnum, { max: 50 })`; `customerId` → `@CsvUuid({ max: 200 })`; `expiresFrom/expiresTo` → `@DateRange` peer; `minTotalCents/maxTotalCents` → `@NumericRange` peer + `@Type(Number) @IsInt @Min(0)`.
+- [x] T-BE-03 — widen `QuotationFindAllInput` + `QuotationFindAllQuery` in `domain/quotation.repository.ts` with 5 optional fields.
+- [x] T-BE-04 — `QuotationsService.findAll(input)`: forward 5 fields to `quotationRepo.findAll(...)`.
+- [x] T-BE-05 RED — `src/quotations/infrastructure/__tests__/prisma-quotation.repository-findAll.spec.ts`: all REQ-QAF-007 combined-filter + count-parity scenarios.
+- [x] T-BE-06 GREEN — rebuild `where` in `prisma-quotation.repository.ts:findAll`: trim search, omit empties, share `where` between `findMany` + `count`.
+- [x] T-BE-07 DoD — `pnpm test` green; `curl 'localhost:3000/quotations?status=DRAFT,SENT&customerId=u1,u2&expiresFrom=2026-01-01&minTotalCents=100&search=juan'` returns 200 with correct `pagination.total`.
+
+> **Archive-time reconciliation (2026-08-06)**: T-BE-01…07 were unchecked in the persisted artifact at archive time because the FE orchestrator could not mark cross-repo BE tasks. The backend team delivered and confirmed all 7 BE tasks in `houndfe-backend` branch `feature/quotations-list-advanced-filters` (handoff received 2026-08-06; 573/573 quotations module tests green; `verify-report.md` §"Backend confirmation (2026-08-06)" lists the exact contract delivered: search by customer name, multi-status CSV, multi-customerId CSV, expiresFrom/expiresTo, minTotalCents/maxTotalCents, OR-in-group/AND-between-groups, 400s with clear messages, response DTO unchanged). Per the SKILL's exceptional-repair clause and the orchestrator's explicit final-state facts, `sdd-archive` marks them `[x]` retroactively.
 
 ## Phase 2: Frontend — Interface & Schema (REQ-QAF-015)
 
