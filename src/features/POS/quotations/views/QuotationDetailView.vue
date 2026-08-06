@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+// REQ-UI-001 — Coco design tokens are scoped to `.quotation-detail-view`
+// via an `@layer coco-quotations` block. Importing the stylesheet here
+// keeps the token lifecycle tied to the view that owns it.
+import '../styles/coco-tokens.css'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
 import AssignCustomerSlideover from '@/features/POS/sales/components/AssignCustomerSlideover.vue'
 import PriceListSelector from '@/features/POS/sales/components/PriceListSelector.vue'
@@ -294,6 +298,17 @@ function appliedMethod(promotionId: string): string {
   return 'Automática'
 }
 
+/** Resolve a promotion title for display. The active-promotions API is the
+ *  authoritative source (same data as the dropdown picker). Falls back to the
+ *  backend-provided title from appliedPromotions (derived from item.discountTitle,
+ *  which can be null). Uses the raw ID only as a last resort. */
+function resolvePromotionTitle(promotionId: string, backendTitle?: string | null): string {
+  const lookupTitle = promotionLookup.value.get(promotionId)?.title
+  if (lookupTitle) return lookupTitle
+  if (backendTitle) return backendTitle
+  return promotionId
+}
+
 const isLoadingAllPromos = computed(() => isLoadingManualPromos.value || isLoadingAutomaticPromos.value)
 
 const allPromoItems = computed(() => {
@@ -315,14 +330,22 @@ const allPromoItems = computed(() => {
 
 const selectedPromotion = ref<string | null>(null)
 
-/** Select → apply. Re-select an already-applied promo → remove it (toggle). */
+/** Select → apply. Re-select an already-applied promo → remove it (toggle).
+ *  Routes by promotion method: MANUAL promos use the manual-opt-in endpoint;
+ *  AUTOMATIC promos use the veto opt-in (DELETE /veto) so the engine
+ *  re-evaluates and applies them when conditions match. */
 async function handleSelectPromotion(selected: string | null): Promise<void> {
   if (!isDraft.value || !selected) return
   const isApplied = appliedPromotions.value.some((p) => p.promotionId === selected)
   if (isApplied) {
     await handleRemoveAppliedPromotion(selected)
   } else {
-    await draft.applyManualPromotion(selected)
+    const promo = promotionLookup.value.get(selected)
+    if (promo?.method === 'AUTOMATIC') {
+      await draft.unvetoPromotion(selected)
+    } else {
+      await draft.applyManualPromotion(selected)
+    }
   }
   selectedPromotion.value = null
 }
@@ -701,12 +724,12 @@ onMounted(async () => {
           <ul class="flex flex-col gap-2">
             <li
               v-for="promo in appliedPromotions"
-              :key="promo.id"
+              :key="promo.promotionId"
               class="flex items-center justify-between gap-2 rounded-lg border border-default px-3 py-2"
               :data-testid="`applied-promo-${promo.promotionId}`"
             >
               <div class="flex-1 min-w-0">
-                <p class="text-sm font-medium text-highlighted truncate">{{ promo.title }}</p>
+                <p class="text-sm font-medium text-highlighted truncate">{{ resolvePromotionTitle(promo.promotionId, promo.title) }}</p>
                 <p class="text-xs text-muted tabular-nums">
                   −{{ formatDiscountCents(promo.discountCents) }}
                 </p>
