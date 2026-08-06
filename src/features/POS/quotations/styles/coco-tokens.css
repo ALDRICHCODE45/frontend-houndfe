@@ -1,0 +1,28 @@
+/*
+ * Coco design tokens — scoped to the quotations screens.
+ *
+ * REQ-UI-001: All Coco tokens MUST live in a dedicated `@layer coco-quotations`
+ * block and MUST NOT mutate `:root` or any other global selector. Components
+ * consume them via Tailwind arbitrary values (e.g. `bg-[var(--coco-primary)]`).
+ *
+ * Reference: docs/redesign/quotations-detail-comparison.md
+ * Spec: openspec/changes/quotations-ui-redesign/spec.md (REQ-UI-001)
+ */
+@layer coco-quotations {
+  :where(.quotation-detail-view, .quotations-list-view) {
+    --coco-primary: #2557D6;
+    --coco-primary-50: #EFF4FF;
+    --coco-accent: #E0A800;
+    --coco-accent-50: #FEF8E7;
+    --coco-bg: #F9FAFB;
+    --coco-card: #FFFFFF;
+    --coco-border: #E5E7EB;
+    --coco-text: #111827;
+    --coco-text-secondary: #6B7280;
+    --coco-text-tertiary: #9CA3AF;
+    --coco-success: #10B981;
+    --coco-warning: #F59E0B;
+    --coco-danger: #DC2626;
+    --coco-info: #3B5BFF;
+  }
+}
