@@ -592,267 +592,290 @@ onMounted(async () => {
     </div>
 
     <template v-else-if="quotation">
-      <div class="grid gap-4 lg:grid-cols-2">
-        <section class="rounded-xl border border-default bg-default p-5" data-testid="customer-section">
-          <div class="flex items-start justify-between gap-4">
-            <div>
-              <p class="text-xs font-semibold uppercase tracking-wide text-muted">Cliente</p>
-              <template v-if="quotation.customer">
-                <p class="mt-2 font-semibold text-highlighted">{{ customerName }}</p>
-                <p class="mt-1 text-sm text-muted">{{ quotation.customer.email ?? 'Sin email' }}</p>
-              </template>
-              <p v-else-if="!isDraft" class="mt-2 text-sm text-muted">Sin cliente</p>
-              <p v-else class="mt-2 text-sm text-muted">Todavía no hay un cliente asignado.</p>
-            </div>
-            <button
-              v-if="isDraft && !quotation.customer"
-              type="button"
-              class="rounded-lg border border-default px-3 py-2 text-sm font-medium hover:bg-elevated"
-              data-testid="assign-customer-button"
-              @click="isAssignCustomerOpen = true"
-            >
-              Asignar cliente
-            </button>
-          </div>
-        </section>
-
-        <section class="rounded-xl border border-default bg-default p-5" data-testid="price-list-section">
-          <p class="text-xs font-semibold uppercase tracking-wide text-muted">Lista de precios</p>
-          <PriceListSelector
-            v-if="isDraft"
-            class="mt-3"
-            :active-draft="quotation"
-            :is-mutating="false"
-            @change-price-list="handlePriceListChange"
-            @request-confirm="handlePriceListChange"
-          />
-          <p v-else class="mt-2 text-sm font-medium text-highlighted">
-            {{ quotation.globalPriceListId ?? 'PUBLICO' }}
-          </p>
-        </section>
-      </div>
-
-      <!-- S6 — expiry picker. The picker itself owns the input + clear
-           button; the view just plumbs the value through setExpiry /
-           clearExpiry on the composable. -->
-      <section
-        class="rounded-xl border border-default bg-default p-5"
-        data-testid="expiry-section"
+      <!-- T-UI-03 — REQ-UI-002: 2-column Coco layout. The grid splits at the
+           lg breakpoint into a left col-span-2 (main sections) and a right
+           col-span-1 sticky sidebar (RESUMEN). Below lg, everything stacks
+           into a single column and the sticky behavior is dropped. -->
+      <div
+        class="grid gap-4 lg:grid-cols-3"
+        data-testid="quotation-detail-layout"
       >
-        <QuotationExpiryPicker
-          :expires-at="quotation.expiresAt"
-          :readonly="!isDraft"
-          @update:expires-at="handleExpiryUpdate"
-        />
-      </section>
-
-      <!-- Items section — always visible. The list + add-product affordance
-           in DRAFT; read-only list for every other status. Product search
-           opens in a dedicated slideover (not inline) so the items list is
-           always visible and never hidden behind the search panel. -->
-      <section
-        class="flex flex-col gap-4 rounded-xl border border-default bg-default p-5"
-        data-testid="items-section"
-      >
-        <div class="flex items-center justify-between">
-          <div>
-            <h2 class="text-base font-semibold text-highlighted">Productos</h2>
-            <p class="mt-0.5 text-xs text-muted">
-              {{ items.length }} {{ items.length === 1 ? 'producto' : 'productos' }}
-            </p>
-          </div>
-          <button
-            v-if="isDraft"
-            type="button"
-            class="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
-            data-testid="add-product-button"
-            @click="isProductSearchOpen = true"
-          >
-            <UIcon name="i-lucide-plus" class="h-4 w-4" />
-            Agregar producto
-          </button>
-        </div>
-
-        <p
-          v-if="items.length === 0"
-          class="rounded-lg border border-dashed border-default px-4 py-10 text-center text-sm text-muted"
-          data-testid="items-empty-state"
-        >
-          No hay productos en esta cotización.<br />
-          <span v-if="isDraft" class="text-xs">Usá el botón "Agregar producto" para buscar y añadir productos.</span>
-        </p>
-
-        <ul
-          v-else
-          class="flex flex-col gap-2"
-          data-testid="items-list"
-        >
-          <li v-for="item in items" :key="item.id">
-            <QuotationItemRow
-              :item="item"
-              :readonly="!isDraft"
-              @update-quantity="handleUpdateQuantity"
-              @request-price-override="handleRequestPriceOverride"
-              @request-remove="handleRequestRemove"
-            />
-          </li>
-        </ul>
-      </section>
-
-      <!-- S6 — promotions section. Only visible in DRAFT (mutations are
-           blocked server-side for any other status). Three sub-blocks:
-             1. Applied promotions (manual + auto) with "Quitar"/"Vetar".
-             2. Vetoed auto promotions with "Re-activar".
-             3. One picker (USelectMenu) over the ACTIVE manual promotions —
-                the cashier picks a promotion instead of typing its ID, and it
-                applies immediately on selection. The backend validates the type. -->
-      <section
-        v-if="isDraft"
-        class="flex flex-col gap-4 rounded-xl border border-default bg-default p-5"
-        data-testid="promotions-section"
-      >
-        <h2 class="text-base font-semibold text-highlighted">Promociones</h2>
-
         <div
-          v-if="appliedPromotions.length > 0"
-          class="flex flex-col gap-2"
-          data-testid="applied-promotions-list"
+          class="flex flex-col gap-4 lg:col-span-2"
+          data-testid="quotation-detail-main"
         >
-          <p class="text-xs font-semibold uppercase tracking-wide text-muted">
-            Aplicadas
-          </p>
-          <ul class="flex flex-col gap-2">
-            <li
-              v-for="promo in appliedPromotions"
-              :key="promo.promotionId"
-              class="flex items-center justify-between gap-2 rounded-lg border border-default px-3 py-2"
-              :data-testid="`applied-promo-${promo.promotionId}`"
-            >
-              <div class="flex-1 min-w-0">
-                <p class="text-sm font-medium text-highlighted truncate">{{ resolvePromotionTitle(promo.promotionId, promo.title) }}</p>
-                <p class="text-xs text-muted tabular-nums">
-                  −{{ formatDiscountCents(promo.discountCents) }}
-                </p>
-              </div>
-              <div class="flex items-center gap-2">
-                <span
-                  class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
-                  :class="appliedMethod(promo.promotionId) === 'Manual' ? 'bg-primary/10 text-primary' : 'bg-blue-500/10 text-blue-500'"
-                >{{ appliedMethod(promo.promotionId) }}</span>
+          <div class="grid gap-4 lg:grid-cols-2">
+            <section class="rounded-xl border border-default bg-default p-5" data-testid="customer-section">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-wide text-muted">Cliente</p>
+                  <template v-if="quotation.customer">
+                    <p class="mt-2 font-semibold text-highlighted">{{ customerName }}</p>
+                    <p class="mt-1 text-sm text-muted">{{ quotation.customer.email ?? 'Sin email' }}</p>
+                  </template>
+                  <p v-else-if="!isDraft" class="mt-2 text-sm text-muted">Sin cliente</p>
+                  <p v-else class="mt-2 text-sm text-muted">Todavía no hay un cliente asignado.</p>
+                </div>
                 <button
+                  v-if="isDraft && !quotation.customer"
                   type="button"
-                  class="inline-flex items-center gap-1 rounded-lg border border-default px-3 py-1.5 text-xs font-medium hover:bg-elevated"
-                  :data-testid="`remove-manual-promo-${promo.promotionId}`"
-                  @click="handleRemoveAppliedPromotion(promo.promotionId)"
+                  class="rounded-lg border border-default px-3 py-2 text-sm font-medium hover:bg-elevated"
+                  data-testid="assign-customer-button"
+                  @click="isAssignCustomerOpen = true"
                 >
-                  <UIcon name="i-lucide-x" class="h-3.5 w-3.5" />
-                  {{ appliedMethod(promo.promotionId) === 'Manual' ? 'Quitar' : 'Vetar' }}
+                  Asignar cliente
                 </button>
               </div>
-            </li>
-          </ul>
-        </div>
+            </section>
 
-        <div
-          v-if="vetoedPromotionIds.length > 0"
-          class="flex flex-col gap-2"
-          data-testid="vetoed-promotions-list"
-        >
-          <p class="text-xs font-semibold uppercase tracking-wide text-muted">
-            Vetadas
-          </p>
-          <ul class="flex flex-col gap-2">
-            <li
-              v-for="promo in vetoedPromotions"
-              :key="promo.promotionId"
-              class="flex items-center justify-between gap-2 rounded-lg border border-default px-3 py-2"
-              :data-testid="`vetoed-promo-${promo.promotionId}`"
-            >
-              <div class="flex-1 min-w-0">
-                <p class="text-sm font-medium text-highlighted truncate">{{ promo.title }}</p>
-                <span
-                  class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-blue-500/10 text-blue-500 mt-1"
-                >Automática</span>
+            <section class="rounded-xl border border-default bg-default p-5" data-testid="price-list-section">
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted">Lista de precios</p>
+              <PriceListSelector
+                v-if="isDraft"
+                class="mt-3"
+                :active-draft="quotation"
+                :is-mutating="false"
+                @change-price-list="handlePriceListChange"
+                @request-confirm="handlePriceListChange"
+              />
+              <p v-else class="mt-2 text-sm font-medium text-highlighted">
+                {{ quotation.globalPriceListId ?? 'PUBLICO' }}
+              </p>
+            </section>
+          </div>
+
+          <!-- S6 — expiry picker. The picker itself owns the input + clear
+               button; the view just plumbs the value through setExpiry /
+               clearExpiry on the composable. -->
+          <section
+            class="rounded-xl border border-default bg-default p-5"
+            data-testid="expiry-section"
+          >
+            <QuotationExpiryPicker
+              :expires-at="quotation.expiresAt"
+              :readonly="!isDraft"
+              @update:expires-at="handleExpiryUpdate"
+            />
+          </section>
+
+          <!-- Items section — always visible. The list + add-product affordance
+               in DRAFT; read-only list for every other status. Product search
+               opens in a dedicated slideover (not inline) so the items list is
+               always visible and never hidden behind the search panel. -->
+          <section
+            class="flex flex-col gap-4 rounded-xl border border-default bg-default p-5"
+            data-testid="items-section"
+          >
+            <div class="flex items-center justify-between">
+              <div>
+                <h2 class="text-base font-semibold text-highlighted">Productos</h2>
+                <p class="mt-0.5 text-xs text-muted">
+                  {{ items.length }} {{ items.length === 1 ? 'producto' : 'productos' }}
+                </p>
               </div>
               <button
+                v-if="isDraft"
                 type="button"
-                class="inline-flex items-center gap-1 rounded-lg border border-default px-3 py-1.5 text-xs font-medium hover:bg-elevated"
-                :data-testid="`unveto-promo-${promo.promotionId}`"
-                @click="handleUnvetoPromotion(promo.promotionId)"
+                class="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                data-testid="add-product-button"
+                @click="isProductSearchOpen = true"
               >
-                <UIcon name="i-lucide-rotate-ccw" class="h-3.5 w-3.5" />
-                Re-activar
+                <UIcon name="i-lucide-plus" class="h-4 w-4" />
+                Agregar producto
               </button>
-            </li>
-          </ul>
-        </div>
+            </div>
 
-        <div class="flex flex-col gap-2" data-testid="apply-manual-promo-select">
-          <label class="text-xs font-semibold uppercase tracking-wide text-muted">
-            Agregar promoción
-          </label>
-          <USelectMenu
-            v-model="selectedPromotion"
-            value-key="value"
-            :items="allPromoItems"
-            :loading="isLoadingAllPromos"
-            placeholder="Seleccioná una promoción…"
-            :search-input="{ icon: 'i-lucide-search' }"
-            class="w-full"
-            data-testid="manual-promo-select"
-            @update:model-value="handleSelectPromotion"
+            <p
+              v-if="items.length === 0"
+              class="rounded-lg border border-dashed border-default px-4 py-10 text-center text-sm text-muted"
+              data-testid="items-empty-state"
+            >
+              No hay productos en esta cotización.<br />
+              <span v-if="isDraft" class="text-xs">Usá el botón "Agregar producto" para buscar y añadir productos.</span>
+            </p>
+
+            <ul
+              v-else
+              class="flex flex-col gap-2"
+              data-testid="items-list"
+            >
+              <li v-for="item in items" :key="item.id">
+                <QuotationItemRow
+                  :item="item"
+                  :readonly="!isDraft"
+                  @update-quantity="handleUpdateQuantity"
+                  @request-price-override="handleRequestPriceOverride"
+                  @request-remove="handleRequestRemove"
+                />
+              </li>
+            </ul>
+          </section>
+
+          <!-- S6 — promotions section. Only visible in DRAFT (mutations are
+               blocked server-side for any other status). Three sub-blocks:
+                 1. Applied promotions (manual + auto) with "Quitar"/"Vetar".
+                 2. Vetoed auto promotions with "Re-activar".
+                 3. One picker (USelectMenu) over the ACTIVE manual promotions —
+                    the cashier picks a promotion instead of typing its ID, and it
+                    applies immediately on selection. The backend validates the type. -->
+          <section
+            v-if="isDraft"
+            class="flex flex-col gap-4 rounded-xl border border-default bg-default p-5"
+            data-testid="promotions-section"
           >
-            <template #empty>
-              <span v-if="isLoadingAllPromos">Cargando promociones…</span>
-              <span v-else>No hay promociones activas</span>
-            </template>
-          </USelectMenu>
+            <h2 class="text-base font-semibold text-highlighted">Promociones</h2>
+
+            <div
+              v-if="appliedPromotions.length > 0"
+              class="flex flex-col gap-2"
+              data-testid="applied-promotions-list"
+            >
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted">
+                Aplicadas
+              </p>
+              <ul class="flex flex-col gap-2">
+                <li
+                  v-for="promo in appliedPromotions"
+                  :key="promo.promotionId"
+                  class="flex items-center justify-between gap-2 rounded-lg border border-default px-3 py-2"
+                  :data-testid="`applied-promo-${promo.promotionId}`"
+                >
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-highlighted truncate">{{ resolvePromotionTitle(promo.promotionId, promo.title) }}</p>
+                    <p class="text-xs text-muted tabular-nums">
+                      −{{ formatDiscountCents(promo.discountCents) }}
+                    </p>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span
+                      class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider"
+                      :class="appliedMethod(promo.promotionId) === 'Manual' ? 'bg-primary/10 text-primary' : 'bg-blue-500/10 text-blue-500'"
+                    >{{ appliedMethod(promo.promotionId) }}</span>
+                    <button
+                      type="button"
+                      class="inline-flex items-center gap-1 rounded-lg border border-default px-3 py-1.5 text-xs font-medium hover:bg-elevated"
+                      :data-testid="`remove-manual-promo-${promo.promotionId}`"
+                      @click="handleRemoveAppliedPromotion(promo.promotionId)"
+                    >
+                      <UIcon name="i-lucide-x" class="h-3.5 w-3.5" />
+                      {{ appliedMethod(promo.promotionId) === 'Manual' ? 'Quitar' : 'Vetar' }}
+                    </button>
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            <div
+              v-if="vetoedPromotionIds.length > 0"
+              class="flex flex-col gap-2"
+              data-testid="vetoed-promotions-list"
+            >
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted">
+                Vetadas
+              </p>
+              <ul class="flex flex-col gap-2">
+                <li
+                  v-for="promo in vetoedPromotions"
+                  :key="promo.promotionId"
+                  class="flex items-center justify-between gap-2 rounded-lg border border-default px-3 py-2"
+                  :data-testid="`vetoed-promo-${promo.promotionId}`"
+                >
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-highlighted truncate">{{ promo.title }}</p>
+                    <span
+                      class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-blue-500/10 text-blue-500 mt-1"
+                    >Automática</span>
+                  </div>
+                  <button
+                    type="button"
+                    class="inline-flex items-center gap-1 rounded-lg border border-default px-3 py-1.5 text-xs font-medium hover:bg-elevated"
+                    :data-testid="`unveto-promo-${promo.promotionId}`"
+                    @click="handleUnvetoPromotion(promo.promotionId)"
+                  >
+                    <UIcon name="i-lucide-rotate-ccw" class="h-3.5 w-3.5" />
+                    Re-activar
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            <div class="flex flex-col gap-2" data-testid="apply-manual-promo-select">
+              <label class="text-xs font-semibold uppercase tracking-wide text-muted">
+                Agregar promoción
+              </label>
+              <USelectMenu
+                v-model="selectedPromotion"
+                value-key="value"
+                :items="allPromoItems"
+                :loading="isLoadingAllPromos"
+                placeholder="Seleccioná una promoción…"
+                :search-input="{ icon: 'i-lucide-search' }"
+                class="w-full"
+                data-testid="manual-promo-select"
+                @update:model-value="handleSelectPromotion"
+              >
+                <template #empty>
+                  <span v-if="isLoadingAllPromos">Cargando promociones…</span>
+                  <span v-else>No hay promociones activas</span>
+                </template>
+              </USelectMenu>
+            </div>
+          </section>
+
+          <!-- S8 — CANCELLED detail banner (REQ-QTN-012). The backend stamps the
+               cancel reason; we surface it as a permanent notice so any saved
+               PDF copy / later access makes the cancellation traceable. -->
+          <section
+            v-if="quotation?.status === 'CANCELLED' && cancelReasonLabel"
+            class="rounded-xl border border-error/40 bg-error/5 p-4 text-sm text-error"
+            data-testid="cancel-reason-banner"
+          >
+            <p class="font-semibold">Cotización cancelada</p>
+            <p class="mt-1 text-error/80">
+              {{ cancelReasonLabel }}<span v-if="canceledAtFormatted"> · {{ canceledAtFormatted }}</span>
+            </p>
+          </section>
+
+          <!-- S8 — lazy EXPIRED banner (REQ-QTN-008 / backend §7.4). Shown when
+               the cached status is still SENT but `expiresAt < now`. We never
+               persist this — the next GET will return status=EXPIRED for real. -->
+          <section
+            v-if="isLazyExpired"
+            class="rounded-xl border border-warning/40 bg-warning/5 p-4 text-sm text-warning"
+            data-testid="lazy-expired-notice"
+          >
+            <p class="font-semibold">Cotización expirada (vista)</p>
+            <p class="mt-1 text-warning/80">
+              El servidor aún la reporta como Enviada. Esta cotización pasó a Expirada al cruzar la fecha límite y se mostrará así la próxima vez que el sistema la recargue.
+            </p>
+          </section>
+
+          <!-- S8 — generic read-only banner. Placed BELOW the more specific
+               EXPIRED / CANCELLED banners so the cashier sees the *reason* the
+               view is read-only first, and the generic notice second. -->
+          <section
+            v-if="!isDraft"
+            class="rounded-xl border border-default bg-elevated p-5 text-sm text-muted"
+            data-testid="read-only-notice"
+          >
+            Solo lectura. Esta cotización ya no admite cambios.
+          </section>
         </div>
-      </section>
 
-      <!-- S6 — totals footer. Always visible (it just reads from the
-           quotation response); the read-only branch already has the
-           "Solo lectura" notice above this for clarity. -->
-      <QuotationTotalsFooter :quotation="quotation" />
-
-      <!-- S8 — CANCELLED detail banner (REQ-QTN-012). The backend stamps the
-           cancel reason; we surface it as a permanent notice so any saved
-           PDF copy / later access makes the cancellation traceable. -->
-      <section
-        v-if="quotation?.status === 'CANCELLED' && cancelReasonLabel"
-        class="rounded-xl border border-error/40 bg-error/5 p-4 text-sm text-error"
-        data-testid="cancel-reason-banner"
-      >
-        <p class="font-semibold">Cotización cancelada</p>
-        <p class="mt-1 text-error/80">
-          {{ cancelReasonLabel }}<span v-if="canceledAtFormatted"> · {{ canceledAtFormatted }}</span>
-        </p>
-      </section>
-
-      <!-- S8 — lazy EXPIRED banner (REQ-QTN-008 / backend §7.4). Shown when
-           the cached status is still SENT but `expiresAt < now`. We never
-           persist this — the next GET will return status=EXPIRED for real. -->
-      <section
-        v-if="isLazyExpired"
-        class="rounded-xl border border-warning/40 bg-warning/5 p-4 text-sm text-warning"
-        data-testid="lazy-expired-notice"
-      >
-        <p class="font-semibold">Cotización expirada (vista)</p>
-        <p class="mt-1 text-warning/80">
-          El servidor aún la reporta como Enviada. Esta cotización pasó a Expirada al cruzar la fecha límite y se mostrará así la próxima vez que el sistema la recargue.
-        </p>
-      </section>
-
-      <!-- S8 — generic read-only banner. Placed BELOW the more specific
-           EXPIRED / CANCELLED banners so the cashier sees the *reason* the
-           view is read-only first, and the generic notice second. -->
-      <section
-        v-if="!isDraft"
-        class="rounded-xl border border-default bg-elevated p-5 text-sm text-muted"
-        data-testid="read-only-notice"
-      >
-        Solo lectura. Esta cotización ya no admite cambios.
-      </section>
+        <!-- T-UI-03 — right sticky sidebar. REQ-UI-002 reads the summary
+             MUST stay visible while the cashier scrolls the long product
+             list. `lg:sticky` is no-op below lg so the sidebar flows on
+             mobile. -->
+        <div
+          class="flex flex-col gap-4 lg:col-span-1 lg:sticky lg:top-4 lg:self-start"
+          data-testid="quotation-detail-sidebar"
+        >
+          <!-- S6 — totals footer. Always visible (it just reads from the
+               quotation response); the read-only branch already has the
+               "Solo lectura" notice above this for clarity. -->
+          <QuotationTotalsFooter :quotation="quotation" />
+        </div>
+      </div>
 
       <AssignCustomerSlideover
         v-model:open="isAssignCustomerOpen"

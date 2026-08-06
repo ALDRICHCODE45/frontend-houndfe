@@ -147,6 +147,7 @@ function makeQuotation(overrides: Partial<QuotationResponseDto> = {}): Quotation
     appliedPromotions: [],
     vetoedPromotionIds: [],
     optedInManualPromotionIds: [],
+    effectiveStatus: 'DRAFT',
     createdAt: '2026-08-01T00:00:00.000Z',
     updatedAt: '2026-08-01T00:00:00.000Z',
     ...overrides,
@@ -799,6 +800,39 @@ describe('QuotationDetailView totals footer (S6)', () => {
   })
 })
 
+// T-UI-03 — REQ-UI-002 (two-column layout). The view renders a 3-column
+// grid at the lg breakpoint with the totals footer in a sticky right
+// column. Below lg the grid collapses to a single stacked column.
+describe('QuotationDetailView — two-column layout (REQ-UI-002 / T-UI-03)', () => {
+  it('wraps the main content in a lg:grid-cols-3 grid container', () => {
+    const wrapper = mountView()
+    const layout = wrapper.find('[data-testid="quotation-detail-layout"]')
+    expect(layout.exists()).toBe(true)
+    expect(layout.classes()).toContain('lg:grid-cols-3')
+  })
+
+  it('renders the totals footer inside the sticky right column', () => {
+    const wrapper = mountView()
+    const sidebar = wrapper.find('[data-testid="quotation-detail-sidebar"]')
+    expect(sidebar.exists()).toBe(true)
+    expect(sidebar.classes()).toContain('lg:col-span-1')
+    expect(sidebar.classes()).toContain('lg:sticky')
+    expect(sidebar.classes()).toContain('lg:top-4')
+    // The RESUMEN footer MUST live in the sidebar — not below the items list.
+    expect(sidebar.find('[data-testid="quotation-totals-footer"]').exists()).toBe(true)
+  })
+
+  it('renders the main sections inside the left col-span-2 column', () => {
+    const wrapper = mountView()
+    const main = wrapper.find('[data-testid="quotation-detail-main"]')
+    expect(main.exists()).toBe(true)
+    expect(main.classes()).toContain('lg:col-span-2')
+    // Spot-check: the items list lives in the main column, not the sidebar.
+    expect(main.find('[data-testid="items-section"]').exists()).toBe(true)
+    expect(main.find('[data-testid="expiry-section"]').exists()).toBe(true)
+  })
+})
+
 describe('QuotationDetailView promotions section (S6)', () => {
   it('renders the list of applied promotions from the quotation', () => {
     state.quotation.value = makeQuotation({
@@ -890,7 +924,7 @@ describe('QuotationDetailView promotions section (S6)', () => {
     expect(wrapper.find('[data-testid="manual-promo-select"]').exists()).toBe(true)
   })
 
-  it('applies any selected promotion via applyManualPromotion', async () => {
+  it('routes AUTOMATIC promotion selection to unvetoPromotion (opt-in)', async () => {
     availablePromotionsMock.manual.promotions = [
       makePromotion({ id: 'promo-manual-1', title: 'Cupón 10%', type: 'ORDER_DISCOUNT' }),
     ]
@@ -902,7 +936,20 @@ describe('QuotationDetailView promotions section (S6)', () => {
     const selector = wrapper.findAllComponents(USelectMenuStub)[0]!
     selector.vm.$emit('update:modelValue', 'promo-auto-1')
     await flushPromises()
-    expect(state.applyManualPromotion).toHaveBeenCalledWith('promo-auto-1')
+    expect(state.unvetoPromotion).toHaveBeenCalledWith('promo-auto-1')
+  })
+
+  it('routes MANUAL promotion selection to applyManualPromotion', async () => {
+    availablePromotionsMock.manual.promotions = [
+      makePromotion({ id: 'promo-manual-1', title: 'Cupón 10%', type: 'ORDER_DISCOUNT' }),
+    ]
+    availablePromotionsMock.automatic.promotions = []
+    const wrapper = mountView()
+
+    const selector = wrapper.findAllComponents(USelectMenuStub)[0]!
+    selector.vm.$emit('update:modelValue', 'promo-manual-1')
+    await flushPromises()
+    expect(state.applyManualPromotion).toHaveBeenCalledWith('promo-manual-1')
   })
 
   it('shows Manual badge for opted-in promotion and Automática badge for others', () => {
