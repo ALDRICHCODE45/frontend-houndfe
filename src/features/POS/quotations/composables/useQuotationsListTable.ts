@@ -87,6 +87,8 @@ export function useQuotationsListTable(filters: Ref<Record<string, unknown>>) {
       const baseParams: Record<string, unknown> = {
         ...(status ? { status } : {}),
         ...(customerId ? { customerId } : {}),
+        ...(filters.value.createdFrom ? { createdFrom: filters.value.createdFrom } : {}),
+        ...(filters.value.createdTo ? { createdTo: filters.value.createdTo } : {}),
         ...(filters.value.expiresFrom ? { expiresFrom: filters.value.expiresFrom } : {}),
         ...(filters.value.expiresTo ? { expiresTo: filters.value.expiresTo } : {}),
         ...(typeof filters.value.minTotalCents === 'number' ? { minTotalCents: filters.value.minTotalCents } : {}),
@@ -102,6 +104,8 @@ export function useQuotationsListTable(filters: Ref<Record<string, unknown>>) {
         ...mapServerTableParamsToListQuotationsParams(params),
         ...(status ? { status } : {}),
         ...(customerId ? { customerId } : {}),
+        ...(filters.value.createdFrom ? { createdFrom: filters.value.createdFrom } : {}),
+        ...(filters.value.createdTo ? { createdTo: filters.value.createdTo } : {}),
         ...(filters.value.expiresFrom ? { expiresFrom: filters.value.expiresFrom } : {}),
         ...(filters.value.expiresTo ? { expiresTo: filters.value.expiresTo } : {}),
         ...(typeof filters.value.minTotalCents === 'number' ? { minTotalCents: filters.value.minTotalCents } : {}),

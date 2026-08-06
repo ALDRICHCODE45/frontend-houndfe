@@ -216,6 +216,27 @@ describe('useQuotationsListTable — query + filter wiring', () => {
     })
   })
 
+  it('forwards createdFrom / createdTo date-range filters verbatim', async () => {
+    // REQ-QAF-011: the "Fecha de creación" slideover filter must reach the
+    // backend — this guards the regression where the schema defined the
+    // field but the queryFn silently dropped it.
+    const filters = ref<Record<string, unknown>>({
+      createdFrom: '2026-03-01',
+      createdTo: '2026-03-31',
+    })
+
+    mountComposable(() => useQuotationsListTable(filters))
+
+    await vi.waitFor(() => {
+      expect(quotationApi.list).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          createdFrom: '2026-03-01',
+          createdTo: '2026-03-31',
+        }),
+      )
+    })
+  })
+
   it('forwards minTotalCents / maxTotalCents range filters verbatim', async () => {
     const filters = ref<Record<string, unknown>>({
       minTotalCents: 1000,
