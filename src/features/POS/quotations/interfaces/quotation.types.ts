@@ -151,6 +151,10 @@ export interface QuotationListParams {
   expiresFrom?: string
   /** ISO date string. Inclusive `lte` on `expiresAt`. */
   expiresTo?: string
+  /** ISO date string. Inclusive `gte` on `createdAt` (pre-existing backend param). */
+  createdFrom?: string
+  /** ISO date string. Inclusive `lte` on `createdAt` (pre-existing backend param). */
+  createdTo?: string
   /** Non-negative integer; inclusive `gte` on `totalCents`. */
   minTotalCents?: number
   /** Non-negative integer; inclusive `lte` on `totalCents`. */
