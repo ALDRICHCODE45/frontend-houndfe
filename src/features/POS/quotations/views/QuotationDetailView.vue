@@ -261,7 +261,7 @@ async function handleUnvetoPromotion(promotionId: string): Promise<void> {
 // still validates the ID + type server-side).
 const { promotions: manualPromotions, isLoading: isLoadingManualPromos } =
   useAvailablePromotions(tenantId, 'MANUAL')
-const { promotions: automaticPromotions } =
+const { promotions: automaticPromotions, isLoading: isLoadingAutomaticPromos } =
   useAvailablePromotions(tenantId, 'AUTOMATIC')
 
 const promotionLookup = computed(() => {
@@ -294,26 +294,28 @@ function appliedMethod(promotionId: string): string {
   return 'Automática'
 }
 
-// Only show what is actionable: skip already-applied MANUAL promotions.
-const availableManualPromotions = computed(() => {
+const isLoadingAllPromos = computed(() => isLoadingManualPromos.value || isLoadingAutomaticPromos.value)
+
+const availableAllPromotions = computed(() => {
   const appliedIds = new Set(appliedPromotions.value.map((p) => p.promotionId))
-  return manualPromotions.value.filter((p) => !appliedIds.has(p.id))
+  const all = [...manualPromotions.value, ...automaticPromotions.value]
+  return all.filter((p) => !appliedIds.has(p.id))
 })
 
-const manualPromoItems = computed(() =>
-  availableManualPromotions.value.map((p) => ({
+const allPromoItems = computed(() =>
+  availableAllPromotions.value.map((p) => ({
     value: p.id,
     label: p.title,
-    description: PROMOTION_TYPE_LABELS[p.type] ?? p.type,
+    description: `${PROMOTION_TYPE_LABELS[p.type] ?? p.type} · ${p.method === 'MANUAL' ? 'Manual' : 'Automática'}`,
   })),
 )
 
-const selectedManualPromotion = ref<string | null>(null)
+const selectedPromotion = ref<string | null>(null)
 
-async function handleSelectManualPromotion(selected: string | null): Promise<void> {
+async function handleSelectPromotion(selected: string | null): Promise<void> {
   if (!isDraft.value || !selected) return
   await draft.applyManualPromotion(selected)
-  selectedManualPromotion.value = null
+  selectedPromotion.value = null
 }
 
 // ── S7: PDF preview + send dialog + cancel dialog ────────────────────────────
@@ -755,21 +757,21 @@ onMounted(async () => {
 
         <div class="flex flex-col gap-2" data-testid="apply-manual-promo-select">
           <label class="text-xs font-semibold uppercase tracking-wide text-muted">
-            Agregar promoción manual
+            Agregar promoción
           </label>
           <USelectMenu
-            v-model="selectedManualPromotion"
+            v-model="selectedPromotion"
             value-key="value"
-            :items="manualPromoItems"
-            :loading="isLoadingManualPromos"
-            placeholder="Seleccionar promoción manual…"
+            :items="allPromoItems"
+            :loading="isLoadingAllPromos"
+            placeholder="Seleccioná una promoción…"
             :search-input="{ icon: 'i-lucide-search' }"
             class="w-full"
             data-testid="manual-promo-select"
-            @update:model-value="handleSelectManualPromotion"
+            @update:model-value="handleSelectPromotion"
           >
             <template #empty>
-              <span v-if="isLoadingManualPromos">Cargando promociones…</span>
+              <span v-if="isLoadingAllPromos">Cargando promociones…</span>
               <span v-else>No hay promociones activas</span>
             </template>
           </USelectMenu>

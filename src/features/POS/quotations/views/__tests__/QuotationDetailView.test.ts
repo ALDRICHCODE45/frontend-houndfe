@@ -884,23 +884,25 @@ describe('QuotationDetailView promotions section (S6)', () => {
     expect(wrapper.find('[data-testid="apply-manual-promo-select"]').exists()).toBe(false)
   })
 
-  it('renders the "Agregar promoción manual" picker in DRAFT mode', () => {
+  it('renders the unified promotion picker in DRAFT mode', () => {
     const wrapper = mountView()
     expect(wrapper.find('[data-testid="apply-manual-promo-select"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="manual-promo-select"]').exists()).toBe(true)
   })
 
-  it('applies a manual promotion immediately when selected from the dropdown', async () => {
+  it('applies any selected promotion via applyManualPromotion', async () => {
     availablePromotionsMock.manual.promotions = [
       makePromotion({ id: 'promo-manual-1', title: 'Cupón 10%', type: 'ORDER_DISCOUNT' }),
     ]
+    availablePromotionsMock.automatic.promotions = [
+      makePromotion({ id: 'promo-auto-1', title: 'Promo Verano', method: 'AUTOMATIC', type: 'BUY_X_GET_Y' }),
+    ]
     const wrapper = mountView()
 
-    const manualSelect = wrapper.findAllComponents(USelectMenuStub)[0]!
-    manualSelect.vm.$emit('update:modelValue', 'promo-manual-1')
+    const selector = wrapper.findAllComponents(USelectMenuStub)[0]!
+    selector.vm.$emit('update:modelValue', 'promo-auto-1')
     await flushPromises()
-
-    expect(state.applyManualPromotion).toHaveBeenCalledWith('promo-manual-1')
+    expect(state.applyManualPromotion).toHaveBeenCalledWith('promo-auto-1')
   })
 
   it('shows Manual badge for opted-in promotion and Automática badge for others', () => {
@@ -918,7 +920,7 @@ describe('QuotationDetailView promotions section (S6)', () => {
     expect(wrapper.get('[data-testid="remove-manual-promo-promo-2"]').text()).toContain('Vetar')
   })
 
-  it('shows only non-applied manual promotions in the manual picker', () => {
+  it('filters out already-applied promotions from the unified picker', () => {
     state.quotation.value = makeQuotation({
       appliedPromotions: [
         { id: 'ap-1', promotionId: 'promo-applied', title: 'Cupón 10%', discountCents: 500 },
@@ -926,14 +928,16 @@ describe('QuotationDetailView promotions section (S6)', () => {
     })
     availablePromotionsMock.manual.promotions = [
       makePromotion({ id: 'promo-applied', title: 'Cupón 10%', type: 'ORDER_DISCOUNT' }),
-      makePromotion({ id: 'promo-free', title: 'Promo Verano', type: 'ORDER_DISCOUNT' }),
+      makePromotion({ id: 'promo-free-manual', title: 'Promo Manual', type: 'PRODUCT_DISCOUNT' }),
+    ]
+    availablePromotionsMock.automatic.promotions = [
+      makePromotion({ id: 'promo-auto-free', title: 'Promo Auto', method: 'AUTOMATIC', type: 'ADVANCED' }),
     ]
     const wrapper = mountView()
 
-    const manualSelect = wrapper.findAllComponents(USelectMenuStub)[0]!
-    expect(manualSelect.props('items')).toEqual([
-      { value: 'promo-free', label: 'Promo Verano', description: 'Descuento en el pedido' },
-    ])
+    const selector = wrapper.findAllComponents(USelectMenuStub)[0]!
+    const items = selector.props('items') as Array<{ value: string; label: string }>
+    expect(items.map((i) => i.value)).toEqual(['promo-free-manual', 'promo-auto-free'])
   })
 
   it('shows the empty message when there are no active promotions', () => {
@@ -941,7 +945,7 @@ describe('QuotationDetailView promotions section (S6)', () => {
     expect(wrapper.text()).toContain('No hay promociones activas')
   })
 
-  it('shows the loading message while manual promotions are being fetched', () => {
+  it('shows the loading message while promotions are being fetched', () => {
     availablePromotionsMock.manual.isLoading = true
     const wrapper = mountView()
     expect(wrapper.text()).toContain('Cargando promociones…')
