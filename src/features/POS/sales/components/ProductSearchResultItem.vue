@@ -43,9 +43,11 @@ function isLowStock(item: PosCatalogItem): boolean {
     class="group rounded-2xl border border-default bg-elevated overflow-hidden cursor-pointer hover:border-primary/30 hover:shadow-md dark:hover:shadow-none transition-all duration-200 flex flex-col"
     @click="emit('select', item)"
   >
-    <!-- Image area (4:3 aspect, capped height so cards stay compact) -->
+    <!-- Image area — fixed height (not aspect-ratio) so cards stay uniform
+         with or without image; aspect-ratio + flex content let the no-image
+         branch collapse to the 40px icon height. -->
     <div
-      class="relative aspect-[4/3] w-full flex items-center justify-center overflow-hidden bg-muted/30"
+      class="relative h-32 w-full shrink-0 flex items-center justify-center overflow-hidden bg-muted/30"
     >
       <UIcon
         v-if="!item.mainImage || imageError"
@@ -57,7 +59,7 @@ function isLowStock(item: PosCatalogItem): boolean {
         v-else
         :src="item.mainImage"
         :alt="item.name"
-        class="h-full w-full object-cover"
+        class="absolute inset-0 h-full w-full object-cover"
         loading="lazy"
         @error="handleImageError"
       />

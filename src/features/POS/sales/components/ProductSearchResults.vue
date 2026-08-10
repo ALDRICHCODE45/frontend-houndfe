@@ -19,7 +19,11 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="overflow-y-auto flex-1 px-3 sm:px-5 py-3 sm:py-4">
+  <div class="overflow-y-auto flex-1 px-3 sm:px-5 py-3 sm:py-4 no-scrollbar">
+    <!-- Cards sit directly on the page surface (no intermediary tint layer).
+         no-scrollbar hides the native track that otherwise shows as an
+         always-visible bar at the panel's right edge. Scroll still works
+         via wheel/trackpad/keys. -->
     <!-- Loading state (card grid skeleton) -->
     <div
       v-if="isLoading && items.length === 0"
@@ -65,3 +69,18 @@ const emit = defineEmits<{
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Hide the native vertical scrollbar track — same convention as the
+   horizontal chip rows (ProductSearchPanel .no-scrollbar). The catalog
+   always overflows and the unstyled track shows as a white rectangle at
+   the panel's right edge, right next to the cart card. */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+</style>

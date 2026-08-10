@@ -63,9 +63,9 @@ function mountSelector(props: Record<string, unknown> = {}, options: { preSeedLi
 }
 
 describe('PriceListSelector (pos-price-list-tiers)', () => {
-  // ── (a) Active list name displayed with icon ────────────────────────────
+  // ── (a) Active list label shows "Lista:" without duplicating the name ──
 
-  it('displays "Lista: MAYOREO" with icon when activeDraft.globalPriceListId matches a list', () => {
+  it('displays "Lista:" label (without repeating the list name) when activeDraft.globalPriceListId matches a list', () => {
     const draft = makeDraft({
       items: [{ id: 'item-1', productId: 'prod-1', variantId: null, productName: 'A', variantName: null, quantity: 1, unitPriceCents: 1000, unitPriceCurrency: 'MXN' }],
       globalPriceListId: 'list-mayoreo',
@@ -74,17 +74,21 @@ describe('PriceListSelector (pos-price-list-tiers)', () => {
 
     const activeLabel = wrapper.find('[data-testid="price-list-active-label"]')
     expect(activeLabel.exists()).toBe(true)
-    expect(activeLabel.text()).toContain('MAYOREO')
+    // The name lives inside the dropdown (UInputMenu bound value), NOT in
+    // the label — repeating it would be redundant in the narrow cart header.
+    expect(activeLabel.text()).toContain('Lista:')
+    expect(activeLabel.text()).not.toContain('MAYOREO')
   })
 
-  // ── (b) PUBLICO shown when null (default list) ──────────────────────────
+  // ── (b) PUBLICO label when null (default list) ─────────────────────────
 
-  it('displays "Lista: PUBLICO" when activeDraft.globalPriceListId is null (system default)', () => {
+  it('displays "Lista:" label (PUBLICO only inside the dropdown) when globalPriceListId is null', () => {
     const wrapper = mountSelector({ activeDraft: makeDraft({ globalPriceListId: null }) }, { preSeedLists: sampleLists })
 
     const activeLabel = wrapper.find('[data-testid="price-list-active-label"]')
     expect(activeLabel.exists()).toBe(true)
-    expect(activeLabel.text()).toContain('PUBLICO')
+    expect(activeLabel.text()).toContain('Lista:')
+    expect(activeLabel.text()).not.toContain('PUBLICO')
   })
 
   // ── (c) Disabled state while mutating ────────────────────────────────────

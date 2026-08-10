@@ -867,17 +867,17 @@ describe('SalesView 14a.1 — layout proportion + keyboard shortcut', () => {
     return wrapper
   }
 
-  it('applies responsive two-phase split: 67/33 at lg, 75/25 at xl', () => {
-    // lg (1024px+): 67/33 for laptops; xl (1280px+): 75/25 for monitors.
+  it('applies responsive two-phase split: 60/40 at lg, 75/25 at xl', () => {
+    // lg (1024px+): 60/40 for laptops; xl (1280px+): 75/25 for monitors.
     const wrapper = mountWithCleanup()
     const html = wrapper.html()
-    expect(html).toContain('lg:w-[67%]')
-    expect(html).toContain('lg:w-[33%]')
+    expect(html).toContain('lg:w-[60%]')
+    expect(html).toContain('lg:w-[40%]')
     expect(html).toContain('xl:w-[75%]')
     expect(html).toContain('xl:w-[25%]')
-    // Old 60/40 must not remain.
-    expect(html).not.toContain('lg:w-[60%]')
-    expect(html).not.toContain('lg:w-[40%]')
+    // Old 67/33 must not remain.
+    expect(html).not.toContain('lg:w-[67%]')
+    expect(html).not.toContain('lg:w-[33%]')
   })
 
   it('14a.1 — Ctrl+K focuses the search input (R6 shortcut half)', () => {

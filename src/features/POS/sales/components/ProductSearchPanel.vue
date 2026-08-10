@@ -77,7 +77,7 @@ function handleAddVariant(productId: string, variantId: string) {
             ref="searchInputRef"
             v-model="query"
             icon="i-lucide-search"
-            placeholder="Buscar por nombre, SKU o código..."
+            placeholder="Buscar por nombre, SKU o código de barras..."
             size="lg"
             class="flex-1"
             :ui="{ base: 'rounded-xl' }"

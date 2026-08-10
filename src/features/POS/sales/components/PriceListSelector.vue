@@ -91,15 +91,6 @@ const modelValue = computed<string | null>(() =>
   props.activeDraft?.globalPriceListId ?? PUBLICO_SENTINEL,
 )
 
-// Always display the active list label — PUBLICO is always active.
-const activeListName = computed<string>(() => {
-  const id = props.activeDraft?.globalPriceListId
-  if (id) {
-    return priceLists.value.find((list) => list.id === id)?.name ?? id
-  }
-  return PUBLICO_LABEL
-})
-
 function mapValueToEmit(raw: unknown): string | null {
   // PUBLICO sentinel → null (backend default-list contract)
   if (raw === PUBLICO_SENTINEL) return null
@@ -128,16 +119,17 @@ defineExpose({ handleUpdate })
 <template>
   <div class="flex items-center gap-2" data-testid="price-list-selector">
     <!--
-      Active-list badge: ALWAYS shown because PUBLICO is always the active
-      default. When a custom list is assigned we resolve its name from the
-      query; otherwise we render "PUBLICO".
+      Active-list badge: the label shows only "Lista:" — the active list
+      NAME is rendered inside the dropdown itself (PUBLICO or custom list),
+      so repeating it here would be redundant and add unnecessary width to
+      the cart header.
     -->
     <div
       data-testid="price-list-active-label"
       class="flex items-center gap-1 text-xs text-muted shrink-0 whitespace-nowrap"
     >
       <UIcon name="i-lucide-tags" class="size-3.5" />
-      <span>Lista: <strong class="font-semibold">{{ activeListName }}</strong></span>
+      <span>Lista:</span>
     </div>
 
     <!--
@@ -152,6 +144,7 @@ defineExpose({ handleUpdate })
       :disabled="isMutating || priceListsQuery.isFetching.value || priceListsQuery.isError.value"
       :loading="priceListsQuery.isFetching.value"
       value-key="value"
+      class="w-[150px]"
       data-testid="price-list-menu"
       @update:model-value="handleUpdate"
     />

@@ -130,7 +130,7 @@ function handleRemoveOrderPromo() {
           @click="emit('charge-click')"
         >
           <template #leading>
-            <UIcon name="i-lucide-hand-coins" class="h-5 w-5" />
+            <UIcon name="i-lucide-credit-card" class="h-5 w-5" />
           </template>
           Cobrar
           <template #trailing>
