@@ -60,6 +60,7 @@ vi.mock('../../api/quotation.api', () => ({
     vetoPromotion: vi.fn(),
     unvetoPromotion: vi.fn(),
     setExpiry: vi.fn(),
+    setSeller: vi.fn(),
     send: vi.fn(),
     cancel: vi.fn(),
   },
@@ -90,6 +91,8 @@ function makeQuotation(overrides: Partial<QuotationResponseDto> = {}): Quotation
     vetoedPromotionIds: [],
     optedInManualPromotionIds: [],
     effectiveStatus: 'DRAFT',
+    sellerUserId: '',
+    seller: null,
     createdAt: '2026-08-01T00:00:00.000Z',
     updatedAt: '2026-08-01T00:00:00.000Z',
     ...overrides,
@@ -99,7 +102,7 @@ function makeQuotation(overrides: Partial<QuotationResponseDto> = {}): Quotation
 function findMutationConfig(
   name: 'addItem' | 'updateQuantity' | 'removeItem' | 'overridePrice'
   | 'applyManualPromotion' | 'removeManualPromotion'
-  | 'vetoPromotion' | 'unvetoPromotion' | 'setExpiry'
+  | 'vetoPromotion' | 'unvetoPromotion' | 'setExpiry' | 'setSeller'
   | 'sendQuotation' | 'cancelQuotation',
 ): MutationConfigShape {
   // The composable registers mutations in fixed order in onMount — for test
@@ -108,7 +111,7 @@ function findMutationConfig(
   const mutationOrder = [
     'addItem', 'updateQuantity', 'removeItem', 'overridePrice',
     'applyManualPromotion', 'removeManualPromotion',
-    'vetoPromotion', 'unvetoPromotion', 'setExpiry',
+    'vetoPromotion', 'unvetoPromotion', 'setExpiry', 'setSeller',
     'sendQuotation', 'cancelQuotation',
   ] as const
   const index = mutationOrder.indexOf(name as (typeof mutationOrder)[number])
@@ -732,6 +735,78 @@ describe('useQuotationDraft — cancel mutation (S7)', () => {
     const draft = useQuotationDraft('quotation-1')
 
     await expect(draft.cancelQuotation('OTHER')).rejects.toThrow('Quotation not found')
+    expect(toastAdd).toHaveBeenCalled()
+  })
+})
+
+// ─── REQ-QTN-016 / backend §3.13d: seller assignment ─────────────────────────
+// Mirrors the setExpiry test structure: the wrapper passes the user id
+// straight through to quotationApi.setSeller, and the mutation's onSuccess
+// replaces the cached detail + list via updateCaches. 409 (not DRAFT) and
+// 404 (SELLER_NOT_FOUND) surface as a localized toast + rethrow.
+
+describe('useQuotationDraft — setSeller mutation (REQ-QTN-016 / §3.13d)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mutationConfigs.length = 0
+  })
+
+  it('setSeller calls quotationApi.setSeller with id + sellerUserId', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    const updated = makeQuotation({
+      sellerUserId: 'user-7',
+      seller: { id: 'user-7', name: 'Juan Pérez' },
+    })
+    vi.mocked(quotationApi.setSeller).mockResolvedValueOnce(updated)
+    const draft = useQuotationDraft('quotation-1')
+
+    await draft.setSeller('user-7')
+
+    expect(quotationApi.setSeller).toHaveBeenCalledWith('quotation-1', 'user-7')
+  })
+
+  it('setSeller onSuccess replaces detail and list caches', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    const updated = makeQuotation({
+      sellerUserId: 'user-7',
+      seller: { id: 'user-7', name: 'Juan Pérez' },
+    })
+    vi.mocked(quotationApi.setSeller).mockResolvedValueOnce(updated)
+    const draft = useQuotationDraft('quotation-1')
+
+    await draft.setSeller('user-7')
+    await findMutationConfig('setSeller').onSuccess?.(updated, undefined as never)
+
+    expect(queryClientMock.setQueryData).toHaveBeenCalledWith(
+      quotationQueryKeys.detail('tenant-1', updated.id),
+      updated,
+    )
+    expect(queryClientMock.setQueriesData).toHaveBeenCalled()
+  })
+
+  it('setSeller surfaces 409 (not DRAFT) with a warning toast', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    type ApiError = Error & { response?: { status: number } }
+    const error = new Error('Quotation is not DRAFT') as ApiError
+    error.response = { status: 409 }
+    vi.mocked(quotationApi.setSeller).mockRejectedValueOnce(error)
+    const draft = useQuotationDraft('quotation-1')
+
+    await expect(draft.setSeller('user-7')).rejects.toThrow('Quotation is not DRAFT')
+    expect(toastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ color: 'warning' }),
+    )
+  })
+
+  it('setSeller surfaces 404 (SELLER_NOT_FOUND) with a toast', async () => {
+    const { quotationApi } = await import('../../api/quotation.api')
+    type ApiError = Error & { response?: { status: number; data?: { error?: string } } }
+    const error = new Error('Seller not found') as ApiError
+    error.response = { status: 404, data: { error: 'SELLER_NOT_FOUND' } }
+    vi.mocked(quotationApi.setSeller).mockRejectedValueOnce(error)
+    const draft = useQuotationDraft('quotation-1')
+
+    await expect(draft.setSeller('unknown-user')).rejects.toThrow('Seller not found')
     expect(toastAdd).toHaveBeenCalled()
   })
 })

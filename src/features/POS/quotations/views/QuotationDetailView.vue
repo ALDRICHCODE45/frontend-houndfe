@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useMutation, useQueryClient } from '@tanstack/vue-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 // REQ-UI-001 — Coco design tokens are scoped to `.quotation-detail-view`
 // via an `@layer coco-quotations` block. Importing the stylesheet here
 // keeps the token lifecycle tied to the view that owns it.
@@ -20,7 +20,10 @@ import { quotationApi, QuotationPdfError } from '../api/quotation.api'
 import { useQuotationDetail } from '../composables/useQuotationDetail'
 import { useQuotationDraft } from '../composables/useQuotationDraft'
 import { useAvailablePromotions } from '../composables/useAvailablePromotions'
-import { quotationQueryKeys } from '@/core/shared/constants/query-keys'
+import { quotationQueryKeys, usersQueryKeys } from '@/core/shared/constants/query-keys'
+import { productQueryKeys } from '@/core/shared/constants/query-keys'
+import { productApi } from '@/features/POS/products/api/product.api'
+import { usersApi } from '@/features/POS/users/api/user.api'
 import type { QuotationResponseDto } from '../interfaces/quotation.types'
 import { PROMOTION_TYPE_LABELS } from '@/features/POS/promotions/interfaces/promotion.types'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
@@ -80,6 +83,65 @@ const draft = useQuotationDraft(quotationId)
 
 const isDraft = computed(() => quotation.value?.status === 'DRAFT')
 const folio = computed(() => quotation.value?.id.slice(0, 8) ?? 'Nueva')
+
+// Read-only price-list display (SENT / EXPIRED / CANCELLED). Same query
+// key as PriceListSelector, so both surfaces share one TanStack cache
+// slot and the resolved names stay consistent. 5min staleTime avoids
+// refetching on every navigation into a sent quotation.
+const priceListsQuery = useQuery({
+  queryKey: productQueryKeys.globalPriceLists(),
+  queryFn: () => productApi.getGlobalPriceLists(),
+  staleTime: 5 * 60 * 1000,
+})
+
+/**
+ * Resolved name of the quotation's global price list, or 'PUBLICO' when no
+ * custom list is assigned (null). Mirrors PriceListSelector's resolution:
+ * look the id up in the global price lists, fall back to the raw id only
+ * while the query hasn't hydrated yet. REQ fix: non-DRAFT never shows the
+ * raw UUID.
+ */
+const priceListLabel = computed<string>(() => {
+  const id = quotation.value?.globalPriceListId
+  if (!id) return 'PUBLICO'
+  return priceListsQuery.data.value?.find((list) => list.id === id)?.name ?? id
+})
+
+// ── REQ-QTN-016: seller assignment (backend §3.13d) ───────────────────────────
+// The backend exposes `PUT /quotations/drafts/:id/seller` and the cache
+// already carries the resolved `seller` reference plus the raw `sellerUserId`.
+// Only DRAFT quotations allow assignment — SENT/EXPIRED/CANCELLED render
+// the resolved name as a read-only field. The query is gated on `isDraft`
+// so we never fetch assignable users for read-only surfaces.
+const assignableUsersQuery = useQuery({
+  queryKey: usersQueryKeys.assignable(),
+  queryFn: () => usersApi.listAssignable(),
+  enabled: computed(() => isDraft.value),
+  staleTime: 30_000,
+})
+
+/** USelectMenu items shape: `{ value, label }`. The view passes these as
+ *  the `items` prop and uses `value-key="value"` to drive the v-model. */
+const sellerOptions = computed(() => {
+  const users = assignableUsersQuery.data.value ?? []
+  return users.map((user) => ({ label: user.name, value: user.id }))
+})
+
+/** Wrapper around `draft.setSeller` that the USelectMenu's
+ *  `update:model-value` calls. Defense-in-depth: even though the
+ *  USelectMenu is gated on `isDraft` in the template, we re-check the
+ *  effectiveStatus here so a stale UI can't bypass the DRAFT guard. */
+async function handleSellerChange(value: string | null): Promise<void> {
+  if (!value || !quotation.value) return
+  if (quotation.value.effectiveStatus !== 'DRAFT') return
+  try {
+    await draft.setSeller(value)
+    useToast().add({ title: 'Vendedor asignado', color: 'success' })
+  } catch {
+    // Composable already toasted via toastError — swallow here so we
+    // don't double-toast the cashier.
+  }
+}
 
 // ── S8: lazy EXPIRED detection (REQ-QTN-008 / backend §7.4) ────────────────
 // The backend only flips SENT → EXPIRED on the next read. Until the cache
@@ -828,7 +890,7 @@ onMounted(async () => {
           class="flex flex-col gap-4 lg:col-span-2"
           data-testid="quotation-detail-main"
         >
-          <div class="grid gap-4 lg:grid-cols-2">
+          <div class="grid gap-4 lg:grid-cols-3">
             <!-- T-UI-16 — REQ-UI-005 customer card. Extracted into
                  QuotationCustomerCard so the avatar / email / phone /
                  "Cambiar cliente" affordance lives in one place. The card
@@ -866,8 +928,56 @@ onMounted(async () => {
                 @change-price-list="handlePriceListChange"
                 @request-confirm="handlePriceListChange"
               />
-              <p v-else class="mt-2 text-sm font-medium text-highlighted">
-                {{ quotation.globalPriceListId ?? 'PUBLICO' }}
+              <p v-else class="mt-2 text-sm font-medium text-highlighted" data-testid="price-list-name">
+                {{ priceListLabel }}
+              </p>
+            </section>
+
+            <!-- REQ-QTN-016 — seller assignment (backend §3.13d). Inline
+                 picker so the cashier never opens a slideover for a
+                 1-tap change. DRAFT: editable USelectMenu; any other
+                 status: read-only resolved name. Mirrors the visual
+                 language of the price-list-section above. Lives in the
+                 same 3-col grid as Cliente + Lista so the three settings
+                 share the row instead of stacking. -->
+            <section class="rounded-xl border border-default bg-default p-5" data-testid="seller-section">
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted">Vendedor</p>
+              <div v-if="isDraft" class="mt-3">
+                <div
+                  v-if="assignableUsersQuery.isLoading.value && !assignableUsersQuery.data.value"
+                  class="h-9 w-full animate-pulse rounded-md bg-elevated"
+                  data-testid="seller-loading"
+                />
+                <USelectMenu
+                  v-else
+                  :model-value="quotation.sellerUserId || null"
+                  :items="sellerOptions"
+                  value-key="value"
+                  label-key="label"
+                  :loading="assignableUsersQuery.isFetching.value"
+                  :disabled="draft.isMutating.value"
+                  placeholder="Buscar vendedor..."
+                  class="w-full"
+                  data-testid="seller-select"
+                  @update:model-value="handleSellerChange"
+                >
+                  <template #leading>
+                    <UIcon name="i-lucide-user" class="size-4 text-muted" />
+                  </template>
+                  <template #item-label="{ item }">
+                    <span class="truncate">{{ item.label }}</span>
+                  </template>
+                  <template #empty>
+                    <span class="text-sm text-muted">No hay vendedores disponibles</span>
+                  </template>
+                </USelectMenu>
+              </div>
+              <p
+                v-else
+                class="mt-2 text-sm font-medium text-highlighted"
+                data-testid="seller-readonly"
+              >
+                {{ quotation.seller?.name ?? 'Sin asignar' }}
               </p>
             </section>
           </div>

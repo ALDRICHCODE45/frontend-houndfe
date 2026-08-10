@@ -243,6 +243,8 @@ describe('quotation.types', () => {
         vetoedPromotionIds: [],
         optedInManualPromotionIds: [],
         effectiveStatus: 'DRAFT',
+        sellerUserId: '',
+        seller: null,
         createdAt: '2026-08-01T20:00:00.000Z',
         updatedAt: '2026-08-01T20:00:00.000Z',
       }
@@ -282,6 +284,8 @@ describe('quotation.types', () => {
         vetoedPromotionIds: [],
         optedInManualPromotionIds: [],
         effectiveStatus: 'CANCELLED',
+        sellerUserId: '',
+        seller: null,
         createdAt: '2026-08-01T20:00:00.000Z',
         updatedAt: '2026-08-02T10:00:00.000Z',
       }

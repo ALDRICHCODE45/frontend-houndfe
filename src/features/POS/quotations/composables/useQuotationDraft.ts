@@ -279,6 +279,20 @@ export function useQuotationDraft(
     onSuccess: (updated) => updateCaches(updated),
   })
 
+  // ─── setSeller (REQ-QTN-016 / backend §3.13d) ─────────────────────────────
+  // PUT /quotations/drafts/:id/seller. Backend rejects with 409 if the
+  // quotation is not DRAFT; we additionally gate on the FE side via the
+  // `isDraft` check in the view's handler.
+
+  const setSellerMutation = useMutation<
+    QuotationResponseDto,
+    Error,
+    string
+  >({
+    mutationFn: (sellerUserId) => quotationApi.setSeller(id.value, sellerUserId),
+    onSuccess: (updated) => updateCaches(updated),
+  })
+
   // ─── sendQuotation (REQ-QTN-010 / backend §3.14) ──────────────────────────
   // POST /quotations/drafts/:id/send?email=true|false. The backend's atomic:
   // a Resend failure (502) keeps the quotation in DRAFT — the caller can
@@ -403,6 +417,15 @@ export function useQuotationDraft(
     return await setExpiry(null)
   }
 
+  async function setSeller(sellerUserId: string): Promise<QuotationResponseDto> {
+    try {
+      return await setSellerMutation.mutateAsync(sellerUserId)
+    } catch (error) {
+      toastError(toast, userMessageForError(error), error)
+      throw error
+    }
+  }
+
   async function sendQuotation(email: boolean = true): Promise<QuotationResponseDto> {
     try {
       const updated = await sendMutation.mutateAsync(email)
@@ -446,6 +469,7 @@ export function useQuotationDraft(
       || vetoPromotionMutation.isPending.value
       || unvetoPromotionMutation.isPending.value
       || setExpiryMutation.isPending.value
+      || setSellerMutation.isPending.value
       || sendMutation.isPending.value
       || cancelMutation.isPending.value,
   )
@@ -461,6 +485,7 @@ export function useQuotationDraft(
     unvetoPromotion,
     setExpiry,
     clearExpiry,
+    setSeller,
     sendQuotation,
     cancelQuotation,
     isMutating,

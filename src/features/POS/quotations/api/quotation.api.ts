@@ -109,6 +109,11 @@ export interface UpdateNotesPayload {
   customerNotes: string | null
 }
 
+/** Body of PUT /quotations/drafts/:id/seller. */
+export interface SetSellerPayload {
+  sellerUserId: string
+}
+
 /** Body of POST /quotations/drafts/:id/cancel. */
 export interface CancelQuotationPayload {
   cancelReason: CancelReason
@@ -315,6 +320,18 @@ export const quotationApi = {
     const { data } = await http.patch<QuotationResponseDto>(
       `/quotations/drafts/${id}/tax-rate`,
       { taxRate } satisfies { taxRate: number },
+    )
+    return data
+  },
+
+  // ─── 3.13d setSeller ──────────────────────────────────────────────────────
+  /** PUT /quotations/drafts/:id/seller — assign (or replace) the seller.
+   *  Backend is DRAFT-only; returns 409 otherwise. Returns the full
+   *  `QuotationResponseDto` so callers can replace the cache. */
+  async setSeller(id: string, sellerUserId: string): Promise<QuotationResponseDto> {
+    const { data } = await http.put<QuotationResponseDto>(
+      `/quotations/drafts/${id}/seller`,
+      { sellerUserId } satisfies SetSellerPayload,
     )
     return data
   },

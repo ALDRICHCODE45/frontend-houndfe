@@ -90,6 +90,14 @@ export interface AppliedPromotion {
 
 // ─── Top-level DTO ────────────────────────────────────────────────────────────
 
+/** Compact seller reference embedded in the quotation response.
+ *  Mirrors `SaleActorRef` (POS sales module) — id + display name only,
+ *  no email/avatar in the wire. */
+export interface QuotationSellerDto {
+  id: string
+  name: string
+}
+
 export interface QuotationResponseDto {
   id: string
   customerId: string | null
@@ -121,6 +129,12 @@ export interface QuotationResponseDto {
   optedInManualPromotionIds: string[]
   /** Status with lazy EXPIRED applied server-side (DRAFT | SENT | EXPIRED | CANCELLED). */
   effectiveStatus: QuotationStatus
+  /** Raw UUID of the assigned seller. May be `''` in older payloads where
+   *  no seller was assigned (the backend keeps it as a string to match the
+   *  wire). Paired with `seller` (resolved name) for display. */
+  sellerUserId: string
+  /** Resolved seller reference. `null` when `sellerUserId` is empty. */
+  seller: QuotationSellerDto | null
   createdAt: string
   updatedAt: string
 }

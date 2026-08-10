@@ -40,6 +40,8 @@ const mockQuotation = (overrides: Partial<QuotationResponseDto> = {}): Quotation
   vetoedPromotionIds: [],
     optedInManualPromotionIds: [],
     effectiveStatus: 'DRAFT',
+    sellerUserId: '',
+    seller: null,
     createdAt: '2026-08-01T20:00:00.000Z',
   updatedAt: '2026-08-01T20:00:00.000Z',
   ...overrides,
@@ -465,6 +467,60 @@ describe('quotationApi', () => {
       vi.mocked(http.patch).mockRejectedValue(apiError)
 
       await expect(quotationApi.updateNotes('q-1', 'X')).rejects.toEqual(apiError)
+    })
+  })
+
+  // ─── 3.13d setSeller ──────────────────────────────────────────────────────
+
+  describe('setSeller', () => {
+    it('PUTs to /quotations/drafts/:id/seller with the sellerUserId', async () => {
+      const response = mockQuotation({
+        id: 'q-1',
+        sellerUserId: 'user-7',
+        seller: { id: 'user-7', name: 'Juan Pérez' },
+      })
+      vi.mocked(http.put).mockResolvedValue({ data: response })
+
+      const result = await quotationApi.setSeller('q-1', 'user-7')
+
+      expect(http.put).toHaveBeenCalledWith(
+        '/quotations/drafts/q-1/seller',
+        { sellerUserId: 'user-7' },
+      )
+      expect(result.sellerUserId).toBe('user-7')
+      expect(result.seller).toEqual({ id: 'user-7', name: 'Juan Pérez' })
+    })
+
+    it('returns the full updated quotation (replace-cache-head pattern)', async () => {
+      const response = mockQuotation({
+        id: 'q-1',
+        sellerUserId: 'user-7',
+        seller: { id: 'user-7', name: 'Juan Pérez' },
+        totalCents: 12_345,
+        taxRate: 0.16,
+        taxCents: 1_700,
+      })
+      vi.mocked(http.put).mockResolvedValue({ data: response })
+
+      const result = await quotationApi.setSeller('q-1', 'user-7')
+
+      expect(result.id).toBe('q-1')
+      expect(result.totalCents).toBe(12_345)
+      expect(result.taxRate).toBe(0.16)
+    })
+
+    it('rejects with the original axios error on HTTP 409 (non-DRAFT)', async () => {
+      const apiError = { response: { status: 409, data: { message: 'QUOTATION_NOT_DRAFT' } } }
+      vi.mocked(http.put).mockRejectedValue(apiError)
+
+      await expect(quotationApi.setSeller('q-1', 'user-7')).rejects.toEqual(apiError)
+    })
+
+    it('rejects with the original axios error on HTTP 404 (SELLER_NOT_FOUND)', async () => {
+      const apiError = { response: { status: 404, data: { error: 'SELLER_NOT_FOUND' } } }
+      vi.mocked(http.put).mockRejectedValue(apiError)
+
+      await expect(quotationApi.setSeller('q-1', 'unknown-user')).rejects.toEqual(apiError)
     })
   })
 
