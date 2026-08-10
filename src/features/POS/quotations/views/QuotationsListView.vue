@@ -41,6 +41,7 @@ import type { QuotationStatus, QuotationResponseDto } from '../interfaces/quotat
 import { isExpired, statusToTone, statusToLabel } from '../utils/quotation.utils'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { useQuotationsListTable } from '../composables/useQuotationsListTable'
+import QuotationCard from '../components/QuotationCard.vue'
 import { quotationApi } from '../api/quotation.api'
 import { quotationQueryKeys } from '@/core/shared/constants/query-keys'
 import { createQuotationFiltersSchema } from '../config/quotationFiltersSchema'
@@ -344,7 +345,7 @@ const errorMessage = computed(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 px-10">
+  <div class="flex flex-col gap-6 px-4 sm:px-10">
     <UCard
       :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }"
       class="quotations-list-view overflow-hidden rounded-2xl border border-default shadow-sm"
@@ -401,7 +402,7 @@ const errorMessage = computed(() => {
                 icon="i-lucide-plus"
                 color="primary"
                 size="sm"
-                class="bg-[var(--coco-primary)] text-white shadow-sm hover:brightness-110"
+                class="w-full justify-center bg-[var(--coco-primary)] text-white shadow-sm hover:brightness-110 sm:w-auto"
                 @click="goToCreate"
               >
                 Nueva cotización
@@ -485,6 +486,15 @@ const errorMessage = computed(() => {
                 :data-testid="`row-actions-${row.original.id}`"
               />
             </UDropdownMenu>
+          </template>
+
+          <template #mobile-card="{ row }">
+            <QuotationCard
+              :quotation="row"
+              :can-delete="canDelete"
+              @navigate="goToDetail(row)"
+              @delete="handleDelete(row)"
+            />
           </template>
         </AppDataTable>
       </div>

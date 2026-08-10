@@ -84,18 +84,20 @@ function handleCancel() {
     </template>
 
     <template #footer>
-      <div class="flex w-full justify-end gap-3">
+      <div class="flex w-full flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">
         <UButton
           :label="props.cancelLabel"
           color="neutral"
           variant="outline"
           :disabled="props.loading"
+          class="w-full sm:w-auto"
           @click="handleCancel"
         />
         <UButton
           :label="props.confirmLabel"
           :color="props.confirmColor"
           :loading="props.loading"
+          class="w-full sm:w-auto"
           @click="handleConfirm"
         />
       </div>

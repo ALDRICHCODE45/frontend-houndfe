@@ -141,6 +141,8 @@ function makeQuotation(overrides: Partial<QuotationResponseDto> = {}): Quotation
     vetoedPromotionIds: [],
     optedInManualPromotionIds: [],
     effectiveStatus: 'DRAFT',
+    sellerUserId: '',
+    seller: null,
     createdAt: '2026-08-01T00:00:00.000Z',
     updatedAt: '2026-08-01T00:00:00.000Z',
     ...overrides,
@@ -209,6 +211,8 @@ const appDataTableStub = {
         <slot name="total-cell" :row="{ original: row, index }" />
         <slot name="expira-cell" :row="{ original: row, index }" />
         <slot name="fecha-cell" :row="{ original: row, index }" />
+        <slot name="actions-cell" :row="{ original: row, index }" />
+        <slot name="mobile-card" :row="row" :index="index" />
       </div>
     </div>
   `,
@@ -239,6 +243,11 @@ const stubs = {
   AppDataTable: appDataTableStub,
   DataTableFilters: dataTableFiltersStub,
   DataTableFiltersChips: dataTableFiltersChipsStub,
+  QuotationCard: {
+    props: ['quotation', 'canDelete'],
+    emits: ['navigate', 'delete'],
+    template: '<div data-testid="quotation-card" :data-can-delete="String(canDelete)">{{ quotation.id }}</div>',
+  },
   TableHeaderDescription: {
     props: ['title', 'description'],
     template: '<div data-testid="table-header-description"><h1>{{ title }}</h1><p>{{ description }}</p></div>',
@@ -499,6 +508,41 @@ describe('QuotationsListView — AppDataTable wiring (REQ-QAF-011)', () => {
     const table = wrapper.find('[data-testid="app-data-table"]')
 
     expect(table.attributes('data-show-refresh')).toBe('false')
+  })
+})
+
+describe('QuotationsListView — mobile cards (REQ-QAF-011)', () => {
+  it('renders a QuotationCard per row via the #mobile-card slot', () => {
+    composableState.data.value = [
+      makeQuotation({ id: 'qtn-mobile-a' }),
+      makeQuotation({ id: 'qtn-mobile-b' }),
+    ]
+    composableState.totalCount.value = 2
+
+    const wrapper = mountView()
+    const cards = wrapper.findAll('[data-testid="quotation-card"]')
+
+    expect(cards).toHaveLength(2)
+    expect(cards[0]!.text()).toContain('qtn-mobile-a')
+    expect(cards[1]!.text()).toContain('qtn-mobile-b')
+  })
+
+  it('forwards the QuotationCard canDelete CASL gate', () => {
+    composableState.data.value = [makeQuotation({ id: 'qtn-mobile-c' })]
+    composableState.totalCount.value = 1
+
+    const wrapper = mountView()
+    const card = wrapper.get('[data-testid="quotation-card"]')
+
+    expect(card.attributes('data-can-delete')).toBe('true')
+  })
+
+  it('does not render mobile cards when the list is empty', () => {
+    composableState.data.value = []
+
+    const wrapper = mountView()
+
+    expect(wrapper.findAll('[data-testid="quotation-card"]')).toHaveLength(0)
   })
 })
 

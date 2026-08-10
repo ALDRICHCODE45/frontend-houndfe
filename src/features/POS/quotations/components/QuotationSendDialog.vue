@@ -147,12 +147,13 @@ function handleClose(): void {
     </template>
 
     <template #footer>
-      <div class="flex w-full justify-end gap-3">
+      <div class="flex w-full flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">
         <UButton
           label="Cancelar"
           color="neutral"
           variant="outline"
           :disabled="isSending"
+          class="w-full sm:w-auto"
           data-testid="send-dialog-cancel"
           @click="handleClose"
         />
@@ -162,6 +163,7 @@ function handleClose(): void {
           variant="soft"
           :loading="isSending"
           :disabled="!hasItems || isSending"
+          class="w-full sm:w-auto"
           data-testid="mark-as-sent-button"
           @click="handleSend(false)"
         />
@@ -170,6 +172,7 @@ function handleClose(): void {
           color="primary"
           :loading="isSending"
           :disabled="!hasItems || !hasEmail || isSending"
+          class="w-full sm:w-auto"
           data-testid="send-by-email-button"
           @click="handleSend(true)"
         />

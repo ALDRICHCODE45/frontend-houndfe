@@ -128,12 +128,13 @@ function handleClose(): void {
     </template>
 
     <template #footer>
-      <div class="flex w-full justify-end gap-3">
+      <div class="flex w-full flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">
         <UButton
           label="Volver"
           color="neutral"
           variant="outline"
           :disabled="isCancelling"
+          class="w-full sm:w-auto"
           data-testid="cancel-dialog-cancel"
           @click="handleClose"
         />
@@ -142,6 +143,7 @@ function handleClose(): void {
           color="error"
           :loading="isCancelling"
           :disabled="!canConfirm"
+          class="w-full sm:w-auto"
           data-testid="cancel-dialog-confirm"
           @click="handleConfirm"
         />

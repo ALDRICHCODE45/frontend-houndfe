@@ -128,26 +128,8 @@ function emitQuantity(next: number): void {
   emit('update-quantity', props.item.id, next)
 }
 
-function handleIncrease(): void {
-  emitQuantity(localQty.value + 1)
-}
-
-function handleDecrease(): void {
-  if (localQty.value <= 1) return
-  emitQuantity(localQty.value - 1)
-}
-
 function handleQtyCommit(): void {
   emitQuantity(localQty.value)
-}
-
-/** Mirror the typed value into local state during typing but DO NOT clamp
- *  to 1 silently — the parent's input is the source of truth; we keep
- *  the visible value exactly as typed so the user sees what they wrote,
- *  and let the commit handler decide whether to emit. */
-function handleQtyInput(value: string): void {
-  const parsed = Number(value)
-  localQty.value = Number.isFinite(parsed) ? parsed : localQty.value
 }
 
 // Sync local qty when the parent pushes a new value (e.g. after a successful
@@ -268,33 +250,13 @@ const itemActions = computed<DropdownMenuItem[][]>(() => {
         class="flex items-center gap-1.5 mt-1"
         data-testid="quantity-row"
       >
-        <UButton
-          icon="i-lucide-minus"
+        <UInputNumber
+          v-model="localQty"
           size="sm"
-          color="neutral"
-          variant="ghost"
-          aria-label="Disminuir cantidad"
-          data-testid="quantity-decrease"
-          @click="handleDecrease"
-        />
-        <UInput
-          :model-value="String(localQty)"
-          size="sm"
-          type="number"
           :min="1"
-          class="w-14"
           data-testid="quantity-input"
-          @update:model-value="handleQtyInput"
           @blur="handleQtyCommit"
-        />
-        <UButton
-          icon="i-lucide-plus"
-          size="sm"
-          color="neutral"
-          variant="ghost"
-          aria-label="Aumentar cantidad"
-          data-testid="quantity-increase"
-          @click="handleIncrease"
+          @change="handleQtyCommit"
         />
         <span class="text-sm tabular-nums ml-auto" data-testid="line-subtotal">
           <span class="text-muted">× {{ unitPriceText }} = </span>

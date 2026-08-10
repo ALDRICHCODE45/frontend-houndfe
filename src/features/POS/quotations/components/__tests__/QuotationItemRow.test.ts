@@ -35,6 +35,35 @@ function makeItem(overrides: Partial<QuotationItemResponseDto> = {}): QuotationI
   }
 }
 
+const UInputNumberStub = {
+  name: 'UInputNumber',
+  inheritAttrs: false,
+  props: ['modelValue', 'min', 'max', 'step', 'size', 'disabled', 'dataTestid'],
+  emits: ['update:modelValue', 'blur', 'change'],
+  template: `
+    <div class="u-input-number">
+      <button
+        class="u-input-number__dec"
+        data-testid="quantity-decrease"
+        @click="$emit('update:modelValue', Number(modelValue) - 1); $emit('change', $event)"
+      >-</button>
+      <input
+        :value="modelValue"
+        :min="min"
+        :data-testid="dataTestid"
+        @input="$emit('update:modelValue', Number($event.target.value))"
+        @blur="$emit('blur', $event)"
+        @change="$emit('change', $event)"
+      />
+      <button
+        class="u-input-number__inc"
+        data-testid="quantity-increase"
+        @click="$emit('update:modelValue', Number(modelValue) + 1); $emit('change', $event)"
+      >+</button>
+    </div>
+  `,
+}
+
 const stubs = {
   AppBadge: {
     props: ['label', 'tone', 'icon'],
@@ -47,6 +76,10 @@ const stubs = {
     template:
       '<button class="u-btn" :data-icon="icon" :data-color="color" :data-variant="variant" :disabled="disabled" @click="$emit(\'click\', $event)"><slot /></button>',
   },
+  // Nuxt UI registers the component under both names; stub each so the
+  // auto-imported InputNumber resolves to this deterministic stub.
+  UInputNumber: UInputNumberStub,
+  InputNumber: UInputNumberStub,
   UDropdownMenu: {
     template: '<div><slot /></div>',
   },
@@ -59,7 +92,13 @@ function mountRow(item: QuotationItemResponseDto, readonly = false, emitStub = f
       stubs,
       // Auto-imported globals (AppBadge, UButton) must be provided because
       // globalThis stubs don't override them in @vue/test-utils mount.
-      components: { AppBadge, UButton: stubs.UButton, UDropdownMenu: stubs.UDropdownMenu },
+      components: {
+        AppBadge,
+        UButton: stubs.UButton,
+        UInputNumber: stubs.UInputNumber,
+        InputNumber: stubs.InputNumber,
+        UDropdownMenu: stubs.UDropdownMenu,
+      },
     },
   })
 }
@@ -168,6 +207,8 @@ describe('QuotationItemRow quantity controls', () => {
     expect(wrapper.find('[data-testid="quantity-input"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="quantity-increase"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="quantity-decrease"]').exists()).toBe(true)
+    // UInputNumber enforces a floor of 1 so the decrement button stops there.
+    expect(wrapper.find('[data-testid="quantity-input"]').attributes('min')).toBe('1')
   })
 
   it('hides the quantity controls when readonly is true', () => {
