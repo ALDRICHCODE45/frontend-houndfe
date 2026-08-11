@@ -13,7 +13,7 @@ import { useConfirmedSales } from '../composables/useConfirmedSales'
 import { useSalesColumns } from '../composables/useSalesColumns'
 import { useSalesViewMode } from '../composables/useSalesViewMode'
 import SalesListTabs from '../components/SalesListTabs.vue'
-import SaleCard from '../components/SaleCard.vue'
+import SaleCardGrid from '../components/SaleCardGrid.vue'
 import PaymentMethodPills from '../components/PaymentMethodPills.vue'
 import { createSalesFiltersSchema } from '../config/salesFiltersSchema'
 import { formatSaleDate, formatSaleDueDate } from '../utils/saleDate.utils'
@@ -227,8 +227,13 @@ watch(() => filtersCtl.serializedState.value, () => {
             />
           </template>
 
-          <template #mobile-card="{ row }">
-            <SaleCard :sale="row" />
+          <template #cards="{ data, loading, empty }">
+            <SaleCardGrid
+              :sales="data"
+              :loading="loading"
+              :empty="empty"
+              @card-click="(sale) => goToSaleDetail(sale.id)"
+            />
           </template>
 
           <!-- Sortable headers — column ids match the backend sortBy field

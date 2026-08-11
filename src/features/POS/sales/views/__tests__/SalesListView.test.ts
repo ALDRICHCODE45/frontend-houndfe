@@ -229,7 +229,7 @@ const appDataTableStub = {
           <slot name="seller-cell" :row="{ original: row }" />
           <slot name="channel-cell" :row="{ original: row }" />
           <slot name="invoice-cell" :row="{ original: row }" />
-          <div data-testid="mobile-card-host"><slot name="mobile-card" :row="row" /></div>
+          <div data-testid="cards-host"><slot name="cards" :data="data ?? []" :loading="loading" :empty="empty" /></div>
         </div>
       </template>
       <!-- Header slot passthrough: UTable resolves #<id>-header per column, so
@@ -275,6 +275,17 @@ const stubs = {
   SaleCard: {
     props: ['sale'],
     template: '<div data-testid="sale-card-stub">{{ sale.id }}</div>',
+  },
+  SaleCardGrid: {
+    props: ['sales', 'loading', 'empty'],
+    emits: ['card-click'],
+    template: `
+      <div data-testid="sale-card-grid-stub">
+        <div v-for="sale in sales" :key="sale.id">
+          <div data-testid="sale-card-stub" @click="$emit('card-click', sale)">{{ sale.id }}</div>
+        </div>
+      </div>
+    `,
   },
   PaymentMethodPills: {
     props: ['methods'],
@@ -755,11 +766,20 @@ describe('SalesListView — preserved invariants (REQ-16)', () => {
     expect(wrapper.find('[data-testid="payment-method-pills"]').exists()).toBe(true)
   })
 
-  it('keeps SaleCard wired to the mobile-card slot', () => {
+  it('keeps SaleCardGrid wired to the cards slot', () => {
     const wrapper = mount(SalesListView, { global: { stubs } })
 
-    const card = wrapper.get('[data-testid="mobile-card-host"]')
-    expect(card.get('[data-testid="sale-card-stub"]').text()).toBe('sale-1')
+    const cards = wrapper.get('[data-testid="sale-card-grid-stub"]')
+    expect(cards.find('[data-testid="sale-card-stub"]').text()).toBe('sale-1')
+  })
+
+  it('navigates to sale detail when a card in the cards slot is clicked', async () => {
+    // REQ-12: card-click from SaleCardGrid drives the view's goToSaleDetail.
+    const wrapper = mount(SalesListView, { global: { stubs } })
+
+    await wrapper.get('[data-testid="sale-card-stub"]').trigger('click')
+
+    expect(push).toHaveBeenCalledWith('/pos/ventas/sale-1')
   })
 
   it('keeps SalesListTabs driving the delivery-status quick filter', async () => {
