@@ -4,6 +4,7 @@ import type { QuotationResponseDto, QuotationStatus } from '../interfaces/quotat
 import { QUOTATION_STATUS } from '../constants/quotation.constants'
 import { isExpired, statusToTone, statusToLabel } from '../utils/quotation.utils'
 import { formatCentsMXN } from '../utils/currency.utils'
+import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
 
 const props = withDefaults(
@@ -15,8 +16,9 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
+  click: [quotation: QuotationResponseDto]
   navigate: []
-  delete: []
+  delete: [quotation: QuotationResponseDto]
 }>()
 
 /** Truncated id — mirrors the list view's `truncatedId` helper. */
@@ -45,6 +47,12 @@ const effectiveStatus = computed<QuotationStatus>(() => {
 
 const statusTone = computed(() => statusToTone(effectiveStatus.value))
 const statusLabel = computed(() => statusToLabel(effectiveStatus.value))
+
+/** Avatar status dot is on for DRAFT and SENT (the active states). */
+const showAvatarDot = computed(() => {
+  const s = effectiveStatus.value
+  return s === QUOTATION_STATUS.DRAFT || s === QUOTATION_STATUS.SENT
+})
 
 /** Localized es-MX expiry date — same formatter as the list view. */
 function formatExpiryDate(iso: string | null): string {
@@ -75,7 +83,7 @@ const rowActions = computed(() => {
         label: 'Eliminar',
         color: 'error' as const,
         'data-testid': 'quotation-card-delete',
-        onSelect: () => emit('delete'),
+        onSelect: () => emit('delete', props.quotation),
       }]
     : []
 
@@ -84,38 +92,63 @@ const rowActions = computed(() => {
 </script>
 
 <template>
-  <UCard
-    class="rounded-xl border border-default"
-    :ui="{ body: 'p-4 bg-coco-neutral-50 dark:bg-coco-neutral-950' }"
+  <article
+    data-testid="quotation-card"
+    class="group relative flex min-h-[220px] cursor-pointer flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+    @click="emit('click', quotation)"
   >
-    <article class="space-y-3" data-testid="quotation-card">
-      <RouterLink
-        :to="`/pos/cotizaciones/${quotation.id}`"
-        class="block space-y-3 focus:outline-none"
-        data-testid="quotation-card-link"
+    <!-- Row action menu (top-right) — @click.stop so the dropdown does not
+         trigger card navigation (REQ-17). -->
+    <div v-if="rowActions.length > 0" class="absolute right-3 top-3 z-10" @click.stop>
+      <UDropdownMenu
+        :items="rowActions"
+        :content="{ align: 'end' }"
       >
-        <div class="flex items-center justify-between gap-2">
-          <p class="truncate font-mono text-xs text-muted">{{ truncatedId }}</p>
-          <StatusDotBadge :tone="statusTone" :label="statusLabel" compact />
-        </div>
+        <UButton
+          icon="i-lucide-ellipsis-vertical"
+          color="neutral"
+          variant="ghost"
+          class="size-7 opacity-60 transition-opacity hover:opacity-100"
+          aria-label="Acciones de la cotización"
+        />
+      </UDropdownMenu>
+    </div>
 
-        <p class="truncate text-sm font-semibold text-highlighted">{{ customerName }}</p>
+    <!-- Card header: avatar + customer + truncated id -->
+    <div class="flex flex-col items-start gap-3">
+      <EntityAvatar
+        :name="customerName"
+        :seed="quotation.id"
+        :show-dot="showAvatarDot"
+        size="lg"
+      />
 
-        <p class="text-xl font-semibold text-highlighted">{{ formatCentsMXN(quotation.totalCents) }}</p>
-      </RouterLink>
-
-      <div class="flex items-center justify-between">
-        <p class="text-sm text-muted">Expira: {{ expiryLabel }}</p>
-        <UDropdownMenu :items="rowActions" :content="{ align: 'end' }">
-          <UButton
-            icon="i-lucide-ellipsis-vertical"
-            color="neutral"
-            variant="ghost"
-            class="size-7"
-            aria-label="Acciones de la cotización"
-          />
-        </UDropdownMenu>
+      <div class="min-w-0 space-y-1 pr-7">
+        <p class="truncate text-sm font-semibold leading-tight text-highlighted">
+          {{ customerName }}
+        </p>
+        <p class="truncate font-mono text-xs text-muted">{{ truncatedId }}</p>
       </div>
-    </article>
-  </UCard>
+
+      <div class="flex min-h-6 flex-wrap items-center gap-1.5">
+        <StatusDotBadge :tone="statusTone" :label="statusLabel" compact />
+      </div>
+    </div>
+
+    <div class="my-3 border-t border-dashed border-default" />
+
+    <!-- 2-col body (Total / Expira) -->
+    <div class="grid grid-cols-2 gap-x-3 gap-y-2 text-xs">
+      <div class="min-w-0">
+        <p class="text-muted">Total</p>
+        <p class="mt-1 truncate font-semibold text-default">
+          {{ formatCentsMXN(quotation.totalCents) }}
+        </p>
+      </div>
+      <div class="min-w-0 text-right">
+        <p class="text-muted">Expira</p>
+        <p class="mt-1 truncate font-medium text-default">{{ expiryLabel }}</p>
+      </div>
+    </div>
+  </article>
 </template>

@@ -216,37 +216,42 @@ const appDataTableStub = {
       :data-display-mode="displayMode ?? 'auto'"
     >
       <slot name="filters" />
-      <slot name="actions" />
-      <!-- Render the refresh button (with its testid) so click tests work.
-           showRefresh defaults to true in AppDataTable; only false disables it. -->
-      <button
-        v-if="showRefresh !== false && refreshButtonTestId"
-        :data-testid="refreshButtonTestId"
-        :aria-label="'Actualizar cotizaciones'"
-        @click="$emit('refresh')"
-      />
-      <!-- Render the add button (with its testid) so click tests work. -->
-      <button
-        v-if="showAddButton && addButtonTestId"
-        :data-testid="addButtonTestId"
-        :data-label="addButtonText"
-        @click="$emit('add')"
-      />
-      <div
-        v-for="(row, index) in data"
-        :key="row.id"
-        :data-testid="'row-' + row.id"
-        :data-index="index"
-      >
-        <slot name="id-cell" :row="{ original: row, index }" />
-        <slot name="customer-cell" :row="{ original: row, index }" />
-        <slot name="status-cell" :row="{ original: row, index }" />
-        <slot name="totalCents-cell" :row="{ original: row, index }" />
-        <slot name="expiresAt-cell" :row="{ original: row, index }" />
-        <slot name="createdAt-cell" :row="{ original: row, index }" />
-        <slot name="actions-cell" :row="{ original: row, index }" />
-        <slot name="mobile-card" :row="row" :index="index" />
-      </div>
+        <slot name="actions" />
+        <!-- Render the refresh button (with its testid) so click tests work.
+             showRefresh defaults to true in AppDataTable; only false disables it. -->
+        <button
+          v-if="showRefresh !== false && refreshButtonTestId"
+          :data-testid="refreshButtonTestId"
+          :aria-label="'Actualizar cotizaciones'"
+          @click="$emit('refresh')"
+        />
+        <!-- Render the add button (with its testid) so click tests work. -->
+        <button
+          v-if="showAddButton && addButtonTestId"
+          :data-testid="addButtonTestId"
+          :data-label="addButtonText"
+          @click="$emit('add')"
+        />
+        <!-- The cards slot is rendered ONCE for the whole grid, mirroring
+             AppDataTable's real cards display-mode shape. -->
+        <div data-testid="cards-host">
+          <slot name="cards" :data="data ?? []" :loading="loading" :empty="empty" />
+        </div>
+        <div
+          v-for="(row, index) in data"
+          :key="row.id"
+          :data-testid="'row-' + row.id"
+          :data-index="index"
+        >
+          <slot name="id-cell" :row="{ original: row, index }" />
+          <slot name="customer-cell" :row="{ original: row, index }" />
+          <slot name="status-cell" :row="{ original: row, index }" />
+          <slot name="totalCents-cell" :row="{ original: row, index }" />
+          <slot name="expiresAt-cell" :row="{ original: row, index }" />
+          <slot name="createdAt-cell" :row="{ original: row, index }" />
+          <slot name="actions-cell" :row="{ original: row, index }" />
+          <slot name="mobile-card" :row="row" :index="index" />
+        </div>
       <!-- Header slot passthrough so column header tests can render them. -->
       <template v-for="col in columns" :key="col.id">
         <slot :name="col.id + '-header'" :column="col" />
@@ -292,8 +297,23 @@ const stubs = {
   },
   QuotationCard: {
     props: ['quotation', 'canDelete'],
-    emits: ['navigate', 'delete'],
-    template: '<div data-testid="quotation-card" :data-can-delete="String(canDelete)">{{ quotation.id }}</div>',
+    emits: ['navigate', 'delete', 'click'],
+    template: '<div data-testid="quotation-card" :data-can-delete="String(canDelete)" @click="$emit(\'click\', quotation)">{{ quotation.id }}</div>',
+  },
+  QuotationCardGrid: {
+    name: 'QuotationCardGrid',
+    props: ['quotations', 'loading', 'empty', 'canDelete'],
+    emits: ['card-click', 'delete', 'navigate'],
+    template: `
+      <div data-testid="quotation-card-grid-stub" :data-can-delete="String(canDelete)">
+        <div v-for="q in quotations" :key="q.id">
+          <div
+            data-testid="quotation-card-stub"
+            @click="$emit('card-click', q)"
+          >{{ q.id }}</div>
+        </div>
+      </div>
+    `,
   },
   TableHeaderDescription: {
     props: ['title', 'description'],
@@ -565,8 +585,8 @@ describe('QuotationsListView — AppDataTable wiring (REQ-QAF-011)', () => {
   })
 })
 
-describe('QuotationsListView — mobile cards (REQ-QAF-011)', () => {
-  it('renders a QuotationCard per row via the #mobile-card slot', () => {
+describe('QuotationsListView — cards slot (REQ-QAF-011 / REQ-17)', () => {
+  it('renders QuotationCardGrid per row via the #cards slot', () => {
     composableState.data.value = [
       makeQuotation({ id: 'qtn-mobile-a' }),
       makeQuotation({ id: 'qtn-mobile-b' }),
@@ -574,29 +594,53 @@ describe('QuotationsListView — mobile cards (REQ-QAF-011)', () => {
     composableState.totalCount.value = 2
 
     const wrapper = mountView()
-    const cards = wrapper.findAll('[data-testid="quotation-card"]')
-
+    const grid = wrapper.find('[data-testid="quotation-card-grid-stub"]')
+    expect(grid.exists()).toBe(true)
+    const cards = wrapper.findAll('[data-testid="quotation-card-stub"]')
     expect(cards).toHaveLength(2)
     expect(cards[0]!.text()).toContain('qtn-mobile-a')
     expect(cards[1]!.text()).toContain('qtn-mobile-b')
   })
 
-  it('forwards the QuotationCard canDelete CASL gate', () => {
+  it('forwards the canDelete CASL gate into QuotationCardGrid', () => {
     composableState.data.value = [makeQuotation({ id: 'qtn-mobile-c' })]
     composableState.totalCount.value = 1
 
     const wrapper = mountView()
-    const card = wrapper.get('[data-testid="quotation-card"]')
+    const grid = wrapper.get('[data-testid="quotation-card-grid-stub"]')
 
-    expect(card.attributes('data-can-delete')).toBe('true')
+    expect(grid.attributes('data-can-delete')).toBe('true')
   })
 
-  it('does not render mobile cards when the list is empty', () => {
+  it('navigates to /pos/cotizaciones/:id when a card is clicked', async () => {
+    composableState.data.value = [makeQuotation({ id: 'qtn-card-click' })]
+
+    const wrapper = mountView()
+    await wrapper.get('[data-testid="quotation-card-stub"]').trigger('click')
+
+    expect(routerPush).toHaveBeenCalled()
+    const arg = routerPush.mock.calls[routerPush.mock.calls.length - 1]?.[0]
+    const path = typeof arg === 'string' ? arg : (arg as { path?: string })?.path
+    expect(path).toBe('/pos/cotizaciones/qtn-card-click')
+  })
+
+  it('opens the delete confirmation when a card emits delete', async () => {
+    composableState.data.value = [makeQuotation({ id: 'qtn-card-del' })]
+
+    const wrapper = mountView()
+    const grid = wrapper.findComponent({ name: 'QuotationCardGrid' })
+    grid.vm.$emit('delete', composableState.data.value[0])
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('[data-testid="confirm-modal"]').exists()).toBe(true)
+  })
+
+  it('does not render cards when the list is empty', () => {
     composableState.data.value = []
 
     const wrapper = mountView()
 
-    expect(wrapper.findAll('[data-testid="quotation-card"]')).toHaveLength(0)
+    expect(wrapper.findAll('[data-testid="quotation-card-stub"]')).toHaveLength(0)
   })
 })
 

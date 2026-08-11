@@ -1,63 +1,47 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { shallowMount } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import QuotationCard from '../QuotationCard.vue'
 import type { QuotationResponseDto } from '../../interfaces/quotation.types'
 
 /**
- * QuotationCard — mobile card used by QuotationsListView's `#mobile-card`
- * slot. Contract (mirrors SaleCard):
- *   - renders truncated id, customer name, formatted total, expiry date
- *   - lazy EXPIRED status when SENT + past expiresAt (statusToTone/Label on
- *     the EFFECTIVE status)
- *   - "Eliminar" dropdown item only when canDelete && (DRAFT | CANCELLED)
- *   - emits `navigate` from "Ver detalle" and `delete` from "Eliminar"
- *   - main card area is a RouterLink to /pos/cotizaciones/:id
+ * Dropdown helper — UDropdownMenu is auto-registered by @nuxt/ui at the Vite
+ * level and can't be stubbed through vue-test-utils. Instead we mount the
+ * card into `document.body`, click the real trigger button, and read the
+ * rendered menu items out of the portal that Reka UI mounts to <body>.
  */
-
-const RouterLinkStub = {
-  props: ['to'],
-  template: '<a :href="to" data-testid="quotation-card-link"><slot /></a>',
+async function openDropdown(wrapper: ReturnType<typeof mount>): Promise<string[]> {
+  const trigger = wrapper.get('[id^="reka-dropdown-menu-trigger"]')
+  await trigger.trigger('click')
+  await wrapper.vm.$nextTick()
+  // Reka UI mounts the menu content asynchronously; a single tick isn't enough.
+  await new Promise((r) => setTimeout(r, 50))
+  const items = Array.from(document.querySelectorAll('[role="menuitem"]'))
+  return items.map((el) => (el.textContent ?? '').trim())
 }
+
+/**
+ * QuotationCard — REQ-18 (EmployeeCard layout + click emit).
+ *
+ * Contract:
+ *   - Renders an `<article data-testid="quotation-card">` styled like EmployeeCard
+ *     (`border-default` / `bg-default`).
+ *   - EntityAvatar (seed=quotation.id) shows the status dot when DRAFT/SENT.
+ *   - Customer + truncated id + status chip + dashed divider + 2-col body
+ *     (Total / Expira).
+ *   - Emits `click` with the quotation; keeps `navigate` and `delete` events.
+ *   - Dropdown gated on DRAFT/CANCELLED + canDelete. `@click.stop` on the
+ *     dropdown wrapper so it does NOT propagate into card navigation.
+ *   - The legacy `quotation-card-link` RouterLink wrapper is gone.
+ */
 
 const StatusDotBadgeStub = {
   props: ['label', 'tone', 'compact'],
   template: '<span :data-tone="tone">{{ label }}</span>',
 }
 
-const UDropdownMenuStub = {
-  name: 'UDropdownMenu',
-  props: ['items'],
-  template: `
-    <div data-testid="dropdown-stub">
-      <slot />
-      <div v-for="(group, gi) in items" :key="gi">
-        <button
-          v-for="(item, ii) in group"
-          :key="ii"
-          :data-testid="item['data-testid'] || ('dropdown-item-' + gi + '-' + ii)"
-          @click="item.onSelect && item.onSelect()"
-        >{{ item.label }}</button>
-      </div>
-    </div>
-  `,
-}
-
-const DropdownMenuStub = {
-  name: 'DropdownMenu',
-  props: ['items'],
-  template: `
-    <div data-testid="dropdown-stub">
-      <slot />
-      <div v-for="(group, gi) in items" :key="gi">
-        <button
-          v-for="(item, ii) in group"
-          :key="ii"
-          :data-testid="item['data-testid'] || ('dropdown-item-' + gi + '-' + ii)"
-          @click="item.onSelect && item.onSelect()"
-        >{{ item.label }}</button>
-      </div>
-    </div>
-  `,
+const EntityAvatarStub = {
+  props: ['name', 'seed', 'showDot', 'size'],
+  template: '<div data-testid="entity-avatar" :data-seed="seed" :data-show-dot="String(showDot)" :data-size="size" />',
 }
 
 function makeQuotation(overrides: Partial<QuotationResponseDto> = {}): QuotationResponseDto {
@@ -96,31 +80,84 @@ function makeQuotation(overrides: Partial<QuotationResponseDto> = {}): Quotation
   }
 }
 
-function mountCard(quotation: QuotationResponseDto, canDelete = false) {
-  return shallowMount(QuotationCard, {
+function mountCard(
+  quotation: QuotationResponseDto,
+  canDelete = false,
+  extraOpts: Record<string, unknown> = {},
+) {
+  return mount(QuotationCard, {
     props: { quotation, canDelete },
     global: {
       renderStubDefaultSlot: true,
       stubs: {
-        RouterLink: RouterLinkStub,
         StatusDotBadge: StatusDotBadgeStub,
-        UDropdownMenu: UDropdownMenuStub,
-        DropdownMenu: DropdownMenuStub,
-        UButton: { template: '<button><slot /></button>' },
-        Button: { template: '<button><slot /></button>' },
+        EntityAvatar: EntityAvatarStub,
+        UButton: { template: '<button @click.stop><slot /></button>' },
+        Button: { template: '<button @click.stop><slot /></button>' },
       },
     },
-  })
+    ...extraOpts,
+  } as Parameters<typeof mount>[1])
 }
 
 afterEach(() => {
   vi.useRealTimers()
 })
 
-describe('QuotationCard', () => {
-  it('renders the root testid', () => {
+describe('QuotationCard — EmployeeCard pattern (REQ-18)', () => {
+  it('renders the root testid on an article element', () => {
     const wrapper = mountCard(makeQuotation())
-    expect(wrapper.find('[data-testid="quotation-card"]').exists()).toBe(true)
+    const article = wrapper.find('article[data-testid="quotation-card"]')
+    expect(article.exists()).toBe(true)
+  })
+
+  it('renders the article root with border-default and bg-default surface', () => {
+    const wrapper = mountCard(makeQuotation())
+    const article = wrapper.get('article[data-testid="quotation-card"]')
+    expect(article.classes()).toEqual(
+      expect.arrayContaining(['border-default', 'bg-default']),
+    )
+  })
+
+  it('does NOT use bg-coco-neutral-* tokens on the article root', () => {
+    const wrapper = mountCard(makeQuotation())
+    const article = wrapper.get('article[data-testid="quotation-card"]')
+    const classList = article.classes().join(' ')
+    expect(classList).not.toContain('bg-coco-neutral')
+  })
+
+  it('does NOT render a RouterLink with the legacy quotation-card-link testid', () => {
+    const wrapper = mountCard(makeQuotation())
+    expect(wrapper.find('[data-testid="quotation-card-link"]').exists()).toBe(false)
+  })
+
+  it('emits click with the quotation when the card is clicked', async () => {
+    const q = makeQuotation()
+    const wrapper = mountCard(q)
+    await wrapper.get('article[data-testid="quotation-card"]').trigger('click')
+    const events = wrapper.emitted('click')
+    expect(events).toBeDefined()
+    expect(events).toHaveLength(1)
+    expect(events![0]).toEqual([q])
+  })
+
+  it('renders EntityAvatar seeded with the quotation id and shows the dot when DRAFT', () => {
+    const wrapper = mountCard(makeQuotation({ status: 'DRAFT' }))
+    const avatar = wrapper.get('[data-testid="entity-avatar"]')
+    expect(avatar.attributes('data-seed')).toBe('qtn-1')
+    expect(avatar.attributes('data-show-dot')).toBe('true')
+  })
+
+  it('shows the avatar dot when status is SENT', () => {
+    const wrapper = mountCard(makeQuotation({ status: 'SENT' }))
+    const avatar = wrapper.get('[data-testid="entity-avatar"]')
+    expect(avatar.attributes('data-show-dot')).toBe('true')
+  })
+
+  it('hides the avatar dot when status is EXPIRED', () => {
+    const wrapper = mountCard(makeQuotation({ status: 'EXPIRED' }))
+    const avatar = wrapper.get('[data-testid="entity-avatar"]')
+    expect(avatar.attributes('data-show-dot')).toBe('false')
   })
 
   it('renders customer name and formatted total', () => {
@@ -145,16 +182,10 @@ describe('QuotationCard', () => {
     expect(wrapper.text()).toContain('qtn-1')
   })
 
-  it('renders the expiry date row and an em dash when expiresAt is null', () => {
+  it('renders an em dash when expiresAt is null', () => {
     const wrapper = mountCard(makeQuotation({ expiresAt: null }))
-    expect(wrapper.text()).toContain('Expira:')
+    expect(wrapper.text()).toContain('Expira')
     expect(wrapper.text()).toContain('—')
-  })
-
-  it('links the card to the quotation detail route', () => {
-    const wrapper = mountCard(makeQuotation({ id: 'qtn-abc-123' }))
-    const link = wrapper.get('[data-testid="quotation-card-link"]')
-    expect(link.attributes('href')).toBe('/pos/cotizaciones/qtn-abc-123')
   })
 
   it('renders the DRAFT status label via StatusDotBadge', () => {
@@ -183,39 +214,127 @@ describe('QuotationCard', () => {
     expect(wrapper.text()).not.toContain('Expirada')
   })
 
-  it('renders the delete action when canDelete and status is DRAFT', () => {
+  it('does NOT emit click when the dropdown wrapper is interacted with (REQ-17 click.stop)', async () => {
+    // The dropdown wrapper has @click.stop, so a click inside it should NOT
+    // bubble to the article's click handler. This is the user-visible
+    // behavior: opening the dropdown does not navigate to the detail page.
     const wrapper = mountCard(makeQuotation({ status: 'DRAFT' }), true)
-    expect(wrapper.find('[data-testid="quotation-card-delete"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Eliminar')
+    // Click the absolute-positioned div that wraps the dropdown trigger.
+    const wrapperEl = wrapper.findAll('div').find((d) =>
+      d.classes().includes('absolute') && d.classes().includes('right-3'),
+    )
+    expect(wrapperEl).toBeDefined()
+    await wrapperEl!.trigger('click')
+    expect(wrapper.emitted('click')).toBeUndefined()
   })
 
-  it('does NOT render the delete action when status is SENT', () => {
-    const wrapper = mountCard(makeQuotation({ status: 'SENT' }), true)
-    expect(wrapper.find('[data-testid="quotation-card-delete"]').exists()).toBe(false)
-  })
-
-  it('does NOT render the delete action when canDelete is false', () => {
-    const wrapper = mountCard(makeQuotation({ status: 'DRAFT' }), false)
-    expect(wrapper.find('[data-testid="quotation-card-delete"]').exists()).toBe(false)
-  })
-
-  it('renders the delete action when canDelete and status is CANCELLED', () => {
-    const wrapper = mountCard(makeQuotation({ status: 'CANCELLED' }), true)
-    expect(wrapper.find('[data-testid="quotation-card-delete"]').exists()).toBe(true)
-  })
-
-  it('emits navigate when "Ver detalle" is selected', async () => {
+  it('renders the 2-col body labels (Total, Expira)', () => {
     const wrapper = mountCard(makeQuotation())
-    const detailButton = wrapper
-      .findAll('[data-testid="dropdown-stub"] button')
-      .find((b) => b.text() === 'Ver detalle')!
-    await detailButton.trigger('click')
-    expect(wrapper.emitted('navigate')).toHaveLength(1)
+    expect(wrapper.text()).toContain('Total')
+    expect(wrapper.text()).toContain('Expira')
   })
 
-  it('emits delete when "Eliminar" is selected', async () => {
+  it('always renders the actions wrapper (navigation "Ver detalle" is unconditional)', () => {
+    // The actions wrapper hosts the dropdown trigger — it carries the
+    // "Ver detalle" navigation item unconditionally, plus "Eliminar"
+    // only when status is DRAFT/CANCELLED AND canDelete is true.
     const wrapper = mountCard(makeQuotation({ status: 'DRAFT' }), true)
-    await wrapper.get('[data-testid="quotation-card-delete"]').trigger('click')
-    expect(wrapper.emitted('delete')).toHaveLength(1)
+    const actionsWrapper = wrapper.findAll('div').find((d) =>
+      d.classes().includes('absolute') && d.classes().includes('right-3'),
+    )
+    expect(actionsWrapper).toBeDefined()
+  })
+
+  it('renders the actions wrapper even when canDelete is false (Ver detalle only)', () => {
+    const wrapper = mountCard(makeQuotation({ status: 'DRAFT' }), false)
+    const actionsWrapper = wrapper.findAll('div').find((d) =>
+      d.classes().includes('absolute') && d.classes().includes('right-3'),
+    )
+    expect(actionsWrapper).toBeDefined()
+  })
+
+  it('exposes "Ver detalle" and "Eliminar" when status is DRAFT and canDelete is true', async () => {
+    const wrapper = mountCard(makeQuotation({ status: 'DRAFT' }), true, {
+      attachTo: document.body,
+    })
+    try {
+      const items = await openDropdown(wrapper)
+      expect(items).toContain('Ver detalle')
+      expect(items).toContain('Eliminar')
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('hides "Eliminar" when status is SENT even with canDelete=true (REQ-13 status gate)', async () => {
+    const wrapper = mountCard(makeQuotation({ status: 'SENT' }), true, {
+      attachTo: document.body,
+    })
+    try {
+      const items = await openDropdown(wrapper)
+      expect(items).toContain('Ver detalle')
+      expect(items).not.toContain('Eliminar')
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('hides "Eliminar" when canDelete is false on DRAFT (CASL gate)', async () => {
+    const wrapper = mountCard(makeQuotation({ status: 'DRAFT' }), false, {
+      attachTo: document.body,
+    })
+    try {
+      const items = await openDropdown(wrapper)
+      expect(items).toContain('Ver detalle')
+      expect(items).not.toContain('Eliminar')
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('exposes "Eliminar" again on CANCELLED + canDelete (REQ-13 status gate)', async () => {
+    const wrapper = mountCard(makeQuotation({ status: 'CANCELLED' }), true, {
+      attachTo: document.body,
+    })
+    try {
+      const items = await openDropdown(wrapper)
+      expect(items).toContain('Eliminar')
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('emits delete when "Eliminar" is clicked through the real dropdown (REQ-13)', async () => {
+    const q = makeQuotation({ status: 'DRAFT' })
+    const wrapper = mountCard(q, true, {
+      attachTo: document.body,
+    })
+    try {
+      await openDropdown(wrapper)
+      const items = Array.from(document.querySelectorAll('[role="menuitem"]'))
+      const eliminar = items.find((el) => el.textContent?.trim() === 'Eliminar')
+      expect(eliminar).toBeDefined()
+      ;(eliminar as HTMLElement).click()
+      await wrapper.vm.$nextTick()
+      expect(wrapper.emitted('delete')).toHaveLength(1)
+      expect(wrapper.emitted('delete')![0]).toEqual([q])
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('emits navigate when "Ver detalle" is clicked through the real dropdown', async () => {
+    const wrapper = mountCard(makeQuotation(), false, { attachTo: document.body })
+    try {
+      await openDropdown(wrapper)
+      const items = Array.from(document.querySelectorAll('[role="menuitem"]'))
+      const verDetalle = items.find((el) => el.textContent?.trim() === 'Ver detalle')
+      expect(verDetalle).toBeDefined()
+      ;(verDetalle as HTMLElement).click()
+      await wrapper.vm.$nextTick()
+      expect(wrapper.emitted('navigate')).toHaveLength(1)
+    } finally {
+      wrapper.unmount()
+    }
   })
 })

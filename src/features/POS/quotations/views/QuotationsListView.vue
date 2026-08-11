@@ -56,7 +56,7 @@ import { isExpired, statusToTone, statusToLabel } from '../utils/quotation.utils
 import { formatCentsMXN } from '../utils/currency.utils'
 import { useQuotationsListTable } from '../composables/useQuotationsListTable'
 import { useQuotationsViewMode } from '../composables/useQuotationsViewMode'
-import QuotationCard from '../components/QuotationCard.vue'
+import QuotationCardGrid from '../components/QuotationCardGrid.vue'
 import { quotationApi } from '../api/quotation.api'
 import { quotationQueryKeys } from '@/core/shared/constants/query-keys'
 import { createQuotationFiltersSchema } from '../config/quotationFiltersSchema'
@@ -524,12 +524,14 @@ const errorMessage = computed(() => {
               </UDropdownMenu>
             </template>
 
-            <template #mobile-card="{ row }">
-              <QuotationCard
-                :quotation="row"
+            <template #cards="{ data, loading, empty }">
+              <QuotationCardGrid
+                :quotations="data"
+                :loading="loading"
+                :empty="empty"
                 :can-delete="canDelete"
-                @navigate="goToDetail(row)"
-                @delete="handleDelete(row)"
+                @card-click="goToDetail"
+                @delete="handleDelete"
               />
             </template>
           </AppDataTable>
