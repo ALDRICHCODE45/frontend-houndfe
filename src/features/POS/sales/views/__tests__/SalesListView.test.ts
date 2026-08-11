@@ -134,11 +134,16 @@ vi.mock('../../composables/useSalesColumns', () => ({
   },
 }))
 
-vi.mock('@/features/auth/stores/useAuthStore', () => ({
-  useAuthStore: () => ({
-    userCan: vi.fn(() => true),
-    currentTenantId: 'tenant-1',
+const authMock = {
+  userCan: vi.fn((action: string, _subject: string) => {
+    void action
+    return true
   }),
+  currentTenantId: 'tenant-1',
+}
+
+vi.mock('@/features/auth/stores/useAuthStore', () => ({
+  useAuthStore: () => authMock,
 }))
 
 // Minimal TanStack Column double handed to the #<id>-header slots. Sorting
@@ -172,8 +177,13 @@ const appDataTableStub = {
     error: { default: false },
     errorMessage: { default: 'No se pudieron cargar los datos. Reintenta.' },
     empty: { default: 'No se encontraron resultados' },
+    showAddButton: { default: false },
+    addButtonText: { default: 'Agregar' },
+    addButtonTestId: { default: undefined },
+    displayMode: { default: 'auto' },
+    mobileRender: { default: 'table' },
   },
-  emits: ['update:columnVisibility', 'refresh'],
+  emits: ['update:columnVisibility', 'refresh', 'add'],
   methods: {
     headerColumn(id: string) {
       return makeHeaderColumn(id)
@@ -185,9 +195,20 @@ const appDataTableStub = {
       :data-column-visibility="JSON.stringify(columnVisibility)"
       :data-enable-column-visibility="enableColumnVisibility"
       :data-error="error ? 'true' : 'false'"
+      :data-display-mode="displayMode"
+      :data-mobile-render="mobileRender"
+      :data-show-add-button="showAddButton ? 'true' : 'false'"
+      :data-add-button-text="addButtonText"
     >
       <slot name="filters" />
       <slot name="actions" />
+      <!-- The add button lives in AppDataTable's own toolbar now; the stub
+           renders it so @add click flows can still be exercised. -->
+      <button
+        v-if="showAddButton"
+        :data-testid="addButtonTestId"
+        @click="$emit('add')"
+      >{{ addButtonText }}</button>
       <div v-if="error" data-testid="table-error-state" role="alert">
         <p>{{ errorMessage }}</p>
         <button data-testid="table-error-retry" @click="$emit('refresh')">Reintentar</button>
@@ -231,7 +252,18 @@ const stubs = {
   AppDataTable: appDataTableStub,
   DataTableFilters: {
     props: ['state', 'schema', 'errors'],
-    template: '<div data-testid="sales-filters" :data-errors="JSON.stringify(errors)" :data-schema="JSON.stringify(schema)" />',
+    emits: ['update:state'],
+    // The `set-status-filter` button lets a test drive real filter state
+    // through the real useDataTableFilters, so "Limpiar" can be verified by
+    // its observable effect rather than by spying on an internal method.
+    template: `
+      <div data-testid="sales-filters" :data-errors="JSON.stringify(errors)" :data-schema="JSON.stringify(schema)">
+        <button
+          data-testid="set-status-filter"
+          @click="$emit('update:state', { ...state, status: ['CONFIRMED'] })"
+        />
+      </div>
+    `,
   },
   SaleCard: {
     props: ['sale'],
@@ -247,10 +279,13 @@ const stubs = {
 describe('SalesListView', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    authMock.userCan.mockReturnValue(true)
     mockState.columnVisibility.value = {}
     mockState.data.value = [{ ...initialRow }]
     mockState.isError.value = false
     mockState.error.value = null
+    mockState.sorting.value = [{ id: 'confirmedAt', desc: true }]
+    mockState.globalFilter.value = ''
     customersQueryState.data.value = undefined
     customersQueryState.isLoading.value = false
     cashiersQueryState.data.value = undefined
@@ -426,18 +461,17 @@ describe('SalesListView', () => {
     expect(wrapper.find('[data-tone="error"]').exists()).toBe(true)
   })
 
-  // HST-REQ-002/003/004: Nueva Venta adopts the Cobrar precedent
-  // (gold action background) and the folio link uses coco-gold-800 for AA
-  // contrast at 14px inline text.
-  it('pins Cobrar precedent on Nueva Venta and coco-gold on the folio link', () => {
+  // HST-REQ-002/003/004: the folio link uses coco-gold-800 for AA contrast at
+  // 14px inline text. The "Nueva Venta" half of this case moved to the
+  // AppDataTable toolbar (REQ-15), which owns the CTA's styling now — so the
+  // assertion is on the toolbar contract instead of hand-applied classes.
+  it('drives Nueva Venta from the toolbar and keeps coco-gold on the folio link', () => {
     mockState.data.value = [{ ...initialRow }]
     const wrapper = mount(SalesListView, { global: { stubs } })
 
-    const nuevaVenta = wrapper.findAll('button').find(b => b.text().includes('Nueva Venta'))
-    expect(nuevaVenta).toBeDefined()
-    expect(nuevaVenta!.classes()).toEqual(
-      expect.arrayContaining(['!bg-(--brand-action)', '!text-black', 'rounded-xl', 'font-semibold', 'shadow-sm'])
-    )
+    const table = wrapper.get('[data-testid="app-data-table"]')
+    expect(table.attributes('data-add-button-text')).toBe('Nueva Venta')
+    expect(wrapper.get('[data-testid="toolbar-add-button"]').text()).toBe('Nueva Venta')
 
     const folioLink = wrapper.get('[data-testid="sale-link-sale-1"]')
     expect(folioLink.classes()).toEqual(expect.arrayContaining(['text-coco-gold-800', 'dark:text-coco-gold-400']))
@@ -569,5 +603,99 @@ describe('SalesListView — sortable column headers (REQ-13)', () => {
 
     expect(wrapper.find('select').exists()).toBe(true)
     expect(wrapper.text()).toContain('Más recientes')
+  })
+})
+
+// REQ-14 / REQ-15: one toolbar row assembled by AppDataTable — the add button
+// comes from show-add-button, the ViewToggle sits in #actions, and the
+// slideover filters move into #filters above the tabs.
+describe('SalesListView — consolidated toolbar (REQ-14, REQ-15)', () => {
+  it('drives "Nueva Venta" through AppDataTable instead of a slot button', () => {
+    authMock.userCan.mockReturnValue(true)
+    const wrapper = mount(SalesListView, { global: { stubs } })
+
+    const table = wrapper.get('[data-testid="app-data-table"]')
+    expect(table.attributes('data-show-add-button')).toBe('true')
+    expect(table.attributes('data-add-button-text')).toBe('Nueva Venta')
+    expect(wrapper.find('[data-testid="toolbar-add-button"]').exists()).toBe(true)
+  })
+
+  it('hides the add button when the user cannot create sales', () => {
+    authMock.userCan.mockImplementation((action) => action !== 'create')
+    const wrapper = mount(SalesListView, { global: { stubs } })
+
+    const table = wrapper.get('[data-testid="app-data-table"]')
+    expect(table.attributes('data-show-add-button')).toBe('false')
+    expect(wrapper.find('[data-testid="toolbar-add-button"]').exists()).toBe(false)
+  })
+
+  it('navigates to the new sale route when the toolbar add button is clicked', async () => {
+    authMock.userCan.mockReturnValue(true)
+    const wrapper = mount(SalesListView, { global: { stubs } })
+
+    await wrapper.get('[data-testid="toolbar-add-button"]').trigger('click')
+
+    expect(push).toHaveBeenCalledWith('/pos/ventas/nueva')
+  })
+
+  it('renders the ViewToggle in the actions slot with the sales aria-label', () => {
+    const wrapper = mount(SalesListView, { global: { stubs } })
+
+    const toggle = wrapper.get('[role="tablist"]')
+    expect(toggle.attributes('aria-label')).toBe('Seleccionar vista de ventas')
+    expect(toggle.findAll('[role="tab"]').map((t) => t.text())).toEqual(['Tabla', 'Tarjetas'])
+  })
+
+  it('switches AppDataTable to cards when Tarjetas is selected, and persists it', async () => {
+    const wrapper = mount(SalesListView, { global: { stubs } })
+
+    expect(wrapper.get('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe('table')
+
+    const tarjetas = wrapper.findAll('[role="tab"]').find((t) => t.text() === 'Tarjetas')
+    await tarjetas!.trigger('click')
+
+    expect(wrapper.get('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe('cards')
+    expect(localStorage.getItem('pos-sales-view-mode')).toBe('card')
+  })
+
+  it('lets the persisted mode win at every viewport instead of a mobile override', () => {
+    // Design decision #4: mobile-render="cards" forced cards on small screens
+    // regardless of the stored preference, so it must be gone.
+    localStorage.setItem('pos-sales-view-mode', 'card')
+    const wrapper = mount(SalesListView, { global: { stubs } })
+
+    const table = wrapper.get('[data-testid="app-data-table"]')
+    expect(table.attributes('data-display-mode')).toBe('cards')
+    expect(table.attributes('data-mobile-render')).toBe('table')
+  })
+
+  it('renders DataTableFilters inside the AppDataTable filters slot', () => {
+    const wrapper = mount(SalesListView, { global: { stubs } })
+
+    const table = wrapper.get('[data-testid="app-data-table"]')
+    expect(table.find('[data-testid="sales-filters"]').exists()).toBe(true)
+    // Nothing may remain outside the table — that was the second toolbar row.
+    const stray = Array.from(
+      (wrapper.element as HTMLElement).querySelectorAll('[data-testid="sales-filters"]'),
+    ).filter((el) => !el.closest('[data-testid="app-data-table"]'))
+    expect(stray).toHaveLength(0)
+  })
+
+  it('clears only the slideover filter state when Limpiar is clicked', async () => {
+    const wrapper = mount(SalesListView, { global: { stubs } })
+    mockState.sorting.value = [{ id: 'totalCents', desc: false }]
+    mockState.globalFilter.value = 'ada'
+
+    await wrapper.get('[data-testid="set-status-filter"]').trigger('click')
+    expect(wrapper.get('[data-testid="extended-filters-indicator"]').text()).toContain(
+      'Filtros activos: 1',
+    )
+
+    await wrapper.get('[data-testid="clear-extended-filters"]').trigger('click')
+
+    expect(wrapper.find('[data-testid="extended-filters-indicator"]').exists()).toBe(false)
+    // Sorting, search text, and view mode are deliberately untouched.
+    expect(mockState.sorting.value).toEqual([{ id: 'totalCents', desc: false }])
+    expect(mockState.globalFilter.value).toBe('ada')
   })
 })

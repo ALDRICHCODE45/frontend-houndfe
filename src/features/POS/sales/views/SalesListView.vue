@@ -6,10 +6,12 @@ import { AppDataTable } from '@/core/shared/components/DataTable'
 import { DataTableFilters, useDataTableFilters, useFiltersUrlAdapter } from '@/core/shared/data-table-filters'
 import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
 import SortableHeader from '@/core/shared/components/DataTable/SortableHeader.vue'
+import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { useConfirmedSales } from '../composables/useConfirmedSales'
 import { useSalesColumns } from '../composables/useSalesColumns'
+import { useSalesViewMode } from '../composables/useSalesViewMode'
 import SalesListTabs from '../components/SalesListTabs.vue'
 import SaleCard from '../components/SaleCard.vue'
 import PaymentMethodPills from '../components/PaymentMethodPills.vue'
@@ -25,6 +27,7 @@ import { customerQueryKeys, usersQueryKeys } from '@/core/shared/constants/query
 const router = useRouter()
 const authStore = useAuthStore()
 const canReadSales = computed(() => authStore.userCan('read', 'Sale'))
+const canCreateSale = computed(() => authStore.userCan('create', 'Sale'))
 const tenantId = computed(() => authStore.currentTenantId || 'default')
 
 const customersQuery = useQuery({
@@ -92,6 +95,10 @@ const {
 
 const { columns } = useSalesColumns()
 
+// View mode (table ↔ cards), persisted to localStorage. `displayMode` bridges
+// our singular 'card' to AppDataTable's plural 'cards'.
+const { viewMode, displayMode } = useSalesViewMode()
+
 /**
  * Prefer the backend's own message so cashiers see the real reason (expired
  * session, invalid filter, etc.) instead of a generic string. Falls back to a
@@ -143,17 +150,6 @@ watch(() => filtersCtl.serializedState.value, () => {
       </template>
 
       <div class="px-6 py-5 space-y-4">
-        <div class="overflow-x-auto">
-            <DataTableFilters
-              v-model:state="filtersState"
-              :schema="salesFiltersSchema"
-              :errors="filterErrors"
-            />
-        </div>
-        <div v-if="activeExtendedFiltersCount > 0" class="text-xs text-muted" data-testid="extended-filters-indicator">
-          Filtros activos: {{ activeExtendedFiltersCount }} · Limpiar
-        </div>
-
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"
@@ -173,14 +169,42 @@ watch(() => filtersCtl.serializedState.value, () => {
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
           :enable-row-selection="false"
-          mobile-render="cards"
+          :display-mode="displayMode"
+          :show-add-button="canCreateSale"
+          add-button-text="Nueva Venta"
+          add-button-test-id="toolbar-add-button"
           enable-column-visibility
           search-placeholder="Buscar ventas..."
           empty="No hay ventas todavía"
+          @add="goToNewSale"
           @refresh="refresh"
         >
           <template #filters>
             <div class="flex w-full flex-col gap-3">
+              <div class="overflow-x-auto">
+                <DataTableFilters
+                  v-model:state="filtersState"
+                  :schema="salesFiltersSchema"
+                  :errors="filterErrors"
+                />
+              </div>
+              <div
+                v-if="activeExtendedFiltersCount > 0"
+                class="flex items-center gap-1 text-xs text-muted"
+                data-testid="extended-filters-indicator"
+              >
+                Filtros activos: {{ activeExtendedFiltersCount }} ·
+                <UButton
+                  variant="link"
+                  color="neutral"
+                  size="xs"
+                  class="p-0"
+                  data-testid="clear-extended-filters"
+                  @click="filtersCtl.clearAll()"
+                >
+                  Limpiar
+                </UButton>
+              </div>
               <div class="overflow-x-auto">
                 <SalesListTabs :counts="counts" @change="setDeliveryStatusFilter" />
               </div>
@@ -197,14 +221,10 @@ watch(() => filtersCtl.serializedState.value, () => {
           </template>
 
           <template #actions>
-            <UButton
-              color="primary"
-              icon="i-lucide-plus"
-              class="w-full sm:w-auto !bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
-              @click="goToNewSale"
-            >
-              Nueva Venta
-            </UButton>
+            <ViewToggle
+              v-model="viewMode"
+              aria-label="Seleccionar vista de ventas"
+            />
           </template>
 
           <template #mobile-card="{ row }">
