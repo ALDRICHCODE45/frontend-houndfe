@@ -46,4 +46,53 @@ describe('useSalesColumns', () => {
     expect(channel?.enableSorting).toBe(false)
     expect(invoice?.enableSorting).toBe(false)
   })
+
+  // REQ-13: the 9 columns the backend can sort by declare enableSorting: true
+  // so UTable renders a live sort control; the other 4 declare it explicitly
+  // false so no dead control appears on a column the backend cannot order by.
+  it('enables sorting on exactly the nine backend-sortable columns', () => {
+    const { columns } = useSalesColumns()
+
+    const sortable = columns
+      .filter((column) => column.enableSorting === true)
+      .map((column) => keyOf(column))
+
+    expect(sortable).toEqual([
+      'venta',
+      'confirmedAt',
+      'customer',
+      'paymentStatus',
+      'totalCents',
+      'debtCents',
+      'deliveryStatus',
+      'cashier',
+      'seller',
+    ])
+  })
+
+  it('declares enableSorting explicitly on every column so none inherits the default', () => {
+    const { columns } = useSalesColumns()
+
+    const undeclared = columns
+      .filter((column) => typeof column.enableSorting !== 'boolean')
+      .map((column) => keyOf(column))
+
+    expect(undeclared).toEqual([])
+  })
+
+  it('marks the presentational columns as non-sortable', () => {
+    const { columns } = useSalesColumns()
+
+    const nonSortable = columns
+      .filter((column) => column.enableSorting === false)
+      .map((column) => keyOf(column))
+
+    expect(nonSortable).toEqual([
+      'select',
+      'paymentMethods',
+      'dueDate',
+      'channel',
+      'invoice',
+    ])
+  })
 })

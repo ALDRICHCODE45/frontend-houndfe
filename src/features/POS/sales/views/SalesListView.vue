@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router'
 import { AppDataTable } from '@/core/shared/components/DataTable'
 import { DataTableFilters, useDataTableFilters, useFiltersUrlAdapter } from '@/core/shared/data-table-filters'
 import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
+import SortableHeader from '@/core/shared/components/DataTable/SortableHeader.vue'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { useConfirmedSales } from '../composables/useConfirmedSales'
@@ -208,6 +209,37 @@ watch(() => filtersCtl.serializedState.value, () => {
 
           <template #mobile-card="{ row }">
             <SaleCard :sale="row" />
+          </template>
+
+          <!-- Sortable headers — column ids match the backend sortBy field
+               names, so a click lands on the right ordering with no mapping.
+               The USelect shortcut above writes into the same `sorting` ref. -->
+          <template #venta-header="{ column }">
+            <SortableHeader :column="column" label="Venta" />
+          </template>
+          <template #confirmedAt-header="{ column }">
+            <SortableHeader :column="column" label="Fecha" />
+          </template>
+          <template #customer-header="{ column }">
+            <SortableHeader :column="column" label="Cliente" />
+          </template>
+          <template #paymentStatus-header="{ column }">
+            <SortableHeader :column="column" label="Pago" />
+          </template>
+          <template #totalCents-header="{ column }">
+            <SortableHeader :column="column" label="Total" />
+          </template>
+          <template #debtCents-header="{ column }">
+            <SortableHeader :column="column" label="Deuda" />
+          </template>
+          <template #deliveryStatus-header="{ column }">
+            <SortableHeader :column="column" label="Productos" />
+          </template>
+          <template #cashier-header="{ column }">
+            <SortableHeader :column="column" label="Cajero" />
+          </template>
+          <template #seller-header="{ column }">
+            <SortableHeader :column="column" label="Vendedor" />
           </template>
 
           <template #venta-cell="{ row }">

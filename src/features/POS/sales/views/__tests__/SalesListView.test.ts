@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, RouterLinkStub } from '@vue/test-utils'
 import { computed, ref } from 'vue'
 import SalesListView from '../SalesListView.vue'
+import SortableHeader from '@/core/shared/components/DataTable/SortableHeader.vue'
 import type { ConfirmedSaleRow } from '../../interfaces/sale.types'
 
 const customersQueryState = {
@@ -105,11 +106,23 @@ vi.mock('../../composables/useConfirmedSales', () => ({
 
 vi.mock('../../composables/useSalesColumns', () => ({
   useSalesColumns: () => ({
+    // Mirrors the real column set (ids + enableSorting) so header-slot
+    // assertions exercise the same shape the view renders in production.
     columns: [
-      { id: 'venta', accessorKey: 'folio', header: 'Venta' },
-      { id: 'dueDate', accessorKey: 'dueDate', header: 'Vence' },
-      { id: 'cashier', accessorKey: 'cashier', header: 'Cajero' },
-      { id: 'seller', accessorKey: 'seller', header: 'Vendedor' },
+      { id: 'select', header: '', enableSorting: false },
+      { id: 'venta', accessorKey: 'folio', header: 'Venta', enableSorting: true },
+      { id: 'confirmedAt', accessorKey: 'confirmedAt', header: 'Fecha', enableSorting: true },
+      { id: 'customer', accessorKey: 'customer', header: 'Cliente', enableSorting: true },
+      { id: 'paymentStatus', accessorKey: 'paymentStatus', header: 'Pago', enableSorting: true },
+      { id: 'paymentMethods', accessorKey: 'paymentMethods', header: 'Método', enableSorting: false },
+      { id: 'totalCents', accessorKey: 'totalCents', header: 'Total', enableSorting: true },
+      { id: 'debtCents', accessorKey: 'debtCents', header: 'Deuda', enableSorting: true },
+      { id: 'dueDate', accessorKey: 'dueDate', header: 'Vence', enableSorting: false },
+      { id: 'deliveryStatus', accessorKey: 'deliveryStatus', header: 'Productos', enableSorting: true },
+      { id: 'cashier', accessorKey: 'cashier', header: 'Cajero', enableSorting: true },
+      { id: 'seller', accessorKey: 'seller', header: 'Vendedor', enableSorting: true },
+      { id: 'channel', header: 'Canal', enableSorting: false },
+      { id: 'invoice', header: 'Factura', enableSorting: false },
     ],
   }),
   defaultColumnVisibility: {
@@ -128,6 +141,24 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
   }),
 }))
 
+// Minimal TanStack Column double handed to the #<id>-header slots. Sorting
+// state is read from — and written back to — the same `sorting` ref the
+// USelect shortcut uses, so header clicks and the dropdown provably share one
+// source of truth (REQ-13).
+function makeHeaderColumn(id: string) {
+  return {
+    id,
+    getIsSorted: () => {
+      const entry = mockState.sorting.value.find((s) => s.id === id)
+      if (!entry) return false as const
+      return entry.desc ? ('desc' as const) : ('asc' as const)
+    },
+    toggleSorting: (desc: boolean) => {
+      mockState.sorting.value = [{ id, desc }]
+    },
+  }
+}
+
 // AppDataTable stub that exposes columnVisibility as a data-attribute for testing.
 // It mirrors AppDataTable's real error/empty precedence: when `error` is true the
 // error block replaces both the rows and the empty placeholder, so assertions on
@@ -143,6 +174,11 @@ const appDataTableStub = {
     empty: { default: 'No se encontraron resultados' },
   },
   emits: ['update:columnVisibility', 'refresh'],
+  methods: {
+    headerColumn(id: string) {
+      return makeHeaderColumn(id)
+    },
+  },
   template: `
     <div
       data-testid="app-data-table"
@@ -168,6 +204,14 @@ const appDataTableStub = {
           <slot name="deliveryStatus-cell" :row="{ original: row }" />
         </div>
       </template>
+      <!-- Header slot passthrough: UTable resolves #<id>-header per column, so
+           the stub does the same to let header assertions run. Each column is
+           handed a minimal TanStack Column double. -->
+      <div data-testid="table-headers">
+        <div v-for="col in columns" :key="col.id" :data-header-for="col.id">
+          <slot :name="col.id + '-header'" :column="headerColumn(col.id)" />
+        </div>
+      </div>
     </div>
   `,
 }
@@ -449,5 +493,81 @@ describe('SalesListView — confirmed sales request errors (REQ-12)', () => {
     await wrapper.get('[data-testid="table-error-retry"]').trigger('click')
 
     expect(mockState.refresh).toHaveBeenCalledTimes(1)
+  })
+})
+
+// REQ-13: every backend-sortable column gets a clickable SortableHeader, and
+// the columns the backend cannot order by get none. The USelect shortcut stays
+// as a second entry point onto the same `sorting` ref.
+describe('SalesListView — sortable column headers (REQ-13)', () => {
+  const SORTABLE_LABELS: Record<string, string> = {
+    venta: 'Venta',
+    confirmedAt: 'Fecha',
+    customer: 'Cliente',
+    paymentStatus: 'Pago',
+    totalCents: 'Total',
+    debtCents: 'Deuda',
+    deliveryStatus: 'Productos',
+    cashier: 'Cajero',
+    seller: 'Vendedor',
+  }
+
+  it('renders a SortableHeader for each of the nine sortable columns with its Spanish label', () => {
+    const wrapper = mount(SalesListView, { global: { stubs } })
+
+    const headers = wrapper.findAllComponents(SortableHeader)
+    expect(headers).toHaveLength(9)
+
+    const rendered = Object.fromEntries(
+      headers.map((h) => [h.props('column').id, h.props('label')]),
+    )
+    expect(rendered).toEqual(SORTABLE_LABELS)
+  })
+
+  it('renders no sort control on the columns the backend cannot order by', () => {
+    const wrapper = mount(SalesListView, { global: { stubs } })
+
+    for (const id of ['select', 'paymentMethods', 'dueDate', 'channel', 'invoice']) {
+      const slot = wrapper.get(`[data-header-for="${id}"]`)
+      expect(slot.findComponent(SortableHeader).exists()).toBe(false)
+      expect(slot.text()).toBe('')
+    }
+  })
+
+  it('updates sorting to totalCents when the Total header is clicked', async () => {
+    mockState.sorting.value = [{ id: 'confirmedAt', desc: true }]
+    const wrapper = mount(SalesListView, { global: { stubs } })
+
+    const totalHeader = wrapper
+      .findAllComponents(SortableHeader)
+      .find((h) => h.props('label') === 'Total')
+    expect(totalHeader).toBeDefined()
+
+    await totalHeader!.get('button').trigger('click')
+
+    expect(mockState.sorting.value).toEqual([{ id: 'totalCents', desc: false }])
+  })
+
+  it('reflects the shared sorting state on the matching header', () => {
+    // The USelect shortcut writes into the same `sorting` ref. A header must
+    // therefore report itself as sorted when that ref names its column, and
+    // report nothing when it names a different one.
+    mockState.sorting.value = [{ id: 'totalCents', desc: true }]
+    const wrapper = mount(SalesListView, { global: { stubs } })
+
+    const headers = wrapper.findAllComponents(SortableHeader)
+    const total = headers.find((h) => h.props('label') === 'Total')
+    const fecha = headers.find((h) => h.props('label') === 'Fecha')
+
+    expect(total!.props('column').getIsSorted()).toBe('desc')
+    expect(fecha!.props('column').getIsSorted()).toBe(false)
+  })
+
+  it('keeps the USelect sort shortcut alongside the headers', () => {
+    // Design decision #1: headers are additive; the dropdown shortcut stays.
+    const wrapper = mount(SalesListView, { global: { stubs } })
+
+    expect(wrapper.find('select').exists()).toBe(true)
+    expect(wrapper.text()).toContain('Más recientes')
   })
 })
