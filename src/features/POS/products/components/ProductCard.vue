@@ -60,7 +60,7 @@ function handleCardKeydown(event: KeyboardEvent): void {
 
 <template>
   <article
-    class="group relative flex min-h-[220px] flex-col rounded-xl border border-coco-neutral-200 dark:border-coco-neutral-800 bg-coco-neutral-50 dark:bg-coco-neutral-950 px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-coco-gold-500/30 hover:shadow-md"
+    class="group relative flex min-h-[220px] flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
     :class="canOpenDetails ? 'cursor-pointer' : 'cursor-default'"
     :role="canOpenDetails ? 'button' : undefined"
     :tabindex="canOpenDetails ? 0 : undefined"

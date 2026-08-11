@@ -64,12 +64,49 @@ describe('ProductCardGrid', () => {
     expect(wrapper.text()).toContain('Alpha')
   })
 
-  it('skeleton uses bg-coco-neutral-100 token (SDD-7)', () => {
+  it('uses Employee ladder grid classes (sm:2 lg:3 xl:5 2xl:7) on both skeleton and card states', () => {
+    // Card grid ladder — same breakpoint ladder as EmployeeCardGrid /
+    // SaleCardGrid / QuotationCardGrid.
+    const cardsWrapper = mountComponent({ products: [product], loading: false })
+    const cardsLadder = cardsWrapper.find('[data-testid="product-cards-grid"]')
+    expect(cardsLadder.exists()).toBe(true)
+    expect(cardsLadder.classes()).toEqual(
+      expect.arrayContaining([
+        'grid',
+        'gap-3',
+        'sm:grid-cols-2',
+        'lg:grid-cols-3',
+        'xl:grid-cols-5',
+        '2xl:grid-cols-7',
+      ]),
+    )
+
+    // Skeleton ladder mirrors the cards ladder so layout doesn't jump when
+    // the cards arrive.
+    const skeletonWrapper = mountComponent({ products: [], loading: true })
+    const skeletonLadder = skeletonWrapper.find('[data-testid="product-cards-skeleton"]')
+    expect(skeletonLadder.exists()).toBe(true)
+    expect(skeletonLadder.classes()).toEqual(
+      expect.arrayContaining([
+        'grid',
+        'gap-3',
+        'sm:grid-cols-2',
+        'lg:grid-cols-3',
+        'xl:grid-cols-5',
+        '2xl:grid-cols-7',
+      ]),
+    )
+  })
+
+  it('skeleton uses theme tokens (border-default + bg-elevated) for visual parity with EmployeeCardGrid', () => {
     const wrapper = mountComponent({ products: [], loading: true })
 
     const skeletons = wrapper.findAll('.animate-pulse')
     expect(skeletons.length).toBeGreaterThan(0)
-    // PRD-REQ-005 skeleton surface.
-    expect(skeletons[0]!.classes()).toContain('bg-coco-neutral-100')
+    expect(skeletons[0]!.classes()).toEqual(
+      expect.arrayContaining(['border-default', 'bg-elevated']),
+    )
+    // Legacy coco-neutral tokens are gone.
+    expect(skeletons[0]!.classes()).not.toContain('bg-coco-neutral-100')
   })
 })

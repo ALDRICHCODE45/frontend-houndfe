@@ -23,12 +23,13 @@ const emit = defineEmits<{
 <template>
   <div
     v-if="props.loading && !props.products.length"
-    class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
+    class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-7"
+    data-testid="product-cards-skeleton"
   >
     <div
       v-for="index in 8"
       :key="index"
-      class="h-56 animate-pulse rounded-xl border border-coco-neutral-200 dark:border-coco-neutral-800 bg-coco-neutral-100 dark:bg-coco-neutral-900"
+      class="h-56 animate-pulse rounded-xl border border-default bg-elevated"
     />
   </div>
 
@@ -40,7 +41,11 @@ const emit = defineEmits<{
     <p class="text-sm text-muted">{{ props.empty ?? 'No se encontraron productos' }}</p>
   </div>
 
-  <div v-else class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+  <div
+    v-else
+    data-testid="product-cards-grid"
+    class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-7"
+  >
     <ProductCard
       v-for="product in props.products"
       :key="product.id"
