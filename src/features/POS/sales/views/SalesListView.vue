@@ -78,6 +78,8 @@ const {
   pageCount,
   isLoading,
   isFetching,
+  isError,
+  error,
   refresh,
   pageSizeOptions,
   showingFrom,
@@ -88,6 +90,24 @@ const {
 } = useConfirmedSales(filtersCtl.backendParams)
 
 const { columns } = useSalesColumns()
+
+/**
+ * Prefer the backend's own message so cashiers see the real reason (expired
+ * session, invalid filter, etc.) instead of a generic string. Falls back to a
+ * sales-specific copy when the failure carries nothing useful — a network
+ * error, for instance.
+ */
+const salesErrorMessage = computed(() => {
+  const err = error.value as
+    | { response?: { data?: { message?: unknown } }; message?: string }
+    | null
+    | undefined
+  const backendMessage = err?.response?.data?.message
+  if (typeof backendMessage === 'string' && backendMessage.trim()) {
+    return backendMessage
+  }
+  return 'No se pudieron cargar las ventas. Reintenta.'
+})
 
 const sortValue = ref<'confirmedAt:desc' | 'totalCents:asc' | 'createdAt:desc'>('confirmedAt:desc')
 
@@ -144,6 +164,8 @@ watch(() => filtersCtl.serializedState.value, () => {
           :data="data"
           :loading="isLoading"
           :fetching="isFetching"
+          :error="isError"
+          :error-message="salesErrorMessage"
           :page-count="pageCount"
           :total-count="totalCount"
           :showing-from="showingFrom"

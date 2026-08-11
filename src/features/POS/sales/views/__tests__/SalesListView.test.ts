@@ -74,6 +74,8 @@ const mockState = {
   rowSelection: ref({}),
   isLoading: ref(false),
   isFetching: ref(false),
+  isError: ref(false),
+  error: ref<unknown>(null),
   pageCount: ref(3),
   totalCount: ref(50),
   showingFrom: ref(1),
@@ -95,6 +97,8 @@ vi.mock('../../composables/useConfirmedSales', () => ({
     showingTo: computed(() => mockState.showingTo.value),
     isLoading: computed(() => mockState.isLoading.value),
     isFetching: computed(() => mockState.isFetching.value),
+    isError: computed(() => mockState.isError.value),
+    error: computed(() => mockState.error.value),
     filterErrors: computed(() => mockState.filterErrors.value),
   }),
 }))
@@ -124,27 +128,46 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
   }),
 }))
 
-// AppDataTable stub that exposes columnVisibility as a data-attribute for testing
+// AppDataTable stub that exposes columnVisibility as a data-attribute for testing.
+// It mirrors AppDataTable's real error/empty precedence: when `error` is true the
+// error block replaces both the rows and the empty placeholder, so assertions on
+// "the empty state is absent" are meaningful rather than vacuously true.
 const appDataTableStub = {
-  props: ['data', 'columns', 'columnVisibility', 'enableColumnVisibility'],
-  emits: ['update:columnVisibility'],
+  props: {
+    data: { default: () => [] },
+    columns: { default: () => [] },
+    columnVisibility: { default: undefined },
+    enableColumnVisibility: { default: undefined },
+    error: { default: false },
+    errorMessage: { default: 'No se pudieron cargar los datos. Reintenta.' },
+    empty: { default: 'No se encontraron resultados' },
+  },
+  emits: ['update:columnVisibility', 'refresh'],
   template: `
     <div
       data-testid="app-data-table"
       :data-column-visibility="JSON.stringify(columnVisibility)"
       :data-enable-column-visibility="enableColumnVisibility"
+      :data-error="error ? 'true' : 'false'"
     >
       <slot name="filters" />
       <slot name="actions" />
-      <div v-for="row in data" :key="row.id">
-        <slot name="venta-cell" :row="{ original: row }" />
-        <slot name="customer-cell" :row="{ original: row }" />
-        <slot name="paymentStatus-cell" :row="{ original: row }" />
-        <slot name="paymentMethods-cell" :row="{ original: row }" />
-        <slot name="debtCents-cell" :row="{ original: row }" />
-        <slot name="dueDate-cell" :row="{ original: row }" />
-        <slot name="deliveryStatus-cell" :row="{ original: row }" />
+      <div v-if="error" data-testid="table-error-state" role="alert">
+        <p>{{ errorMessage }}</p>
+        <button data-testid="table-error-retry" @click="$emit('refresh')">Reintentar</button>
       </div>
+      <template v-else>
+        <div v-if="(data ?? []).length === 0" data-testid="table-empty-state">{{ empty }}</div>
+        <div v-for="row in data" :key="row.id">
+          <slot name="venta-cell" :row="{ original: row }" />
+          <slot name="customer-cell" :row="{ original: row }" />
+          <slot name="paymentStatus-cell" :row="{ original: row }" />
+          <slot name="paymentMethods-cell" :row="{ original: row }" />
+          <slot name="debtCents-cell" :row="{ original: row }" />
+          <slot name="dueDate-cell" :row="{ original: row }" />
+          <slot name="deliveryStatus-cell" :row="{ original: row }" />
+        </div>
+      </template>
     </div>
   `,
 }
@@ -182,6 +205,8 @@ describe('SalesListView', () => {
     vi.clearAllMocks()
     mockState.columnVisibility.value = {}
     mockState.data.value = [{ ...initialRow }]
+    mockState.isError.value = false
+    mockState.error.value = null
     customersQueryState.data.value = undefined
     customersQueryState.isLoading.value = false
     cashiersQueryState.data.value = undefined
@@ -373,5 +398,56 @@ describe('SalesListView', () => {
     const folioLink = wrapper.get('[data-testid="sale-link-sale-1"]')
     expect(folioLink.classes()).toEqual(expect.arrayContaining(['text-coco-gold-800', 'dark:text-coco-gold-400']))
     expect(folioLink.attributes('data-color')).not.toBe('primary')
+  })
+})
+
+// REQ-12: a failed /sales/confirmed request must surface as a real error block,
+// never as the "No hay ventas todavía" empty placeholder. The empty-state
+// assertions below are meaningful because the companion test proves the stub
+// DOES render that copy when the list is genuinely empty.
+describe('SalesListView — confirmed sales request errors (REQ-12)', () => {
+  it('renders the empty state when the list is genuinely empty and no error occurred', () => {
+    mockState.data.value = []
+    mockState.isError.value = false
+
+    const wrapper = mount(SalesListView, { global: { stubs } })
+
+    expect(wrapper.find('[data-testid="table-empty-state"]').text()).toBe('No hay ventas todavía')
+    expect(wrapper.find('[data-testid="table-error-state"]').exists()).toBe(false)
+  })
+
+  it('renders the error block instead of the empty state when the request failed', () => {
+    mockState.data.value = []
+    mockState.isError.value = true
+    mockState.error.value = { response: { data: { message: 'Las ventas no se pudieron consultar' } } }
+
+    const wrapper = mount(SalesListView, { global: { stubs } })
+
+    expect(wrapper.get('[data-testid="table-error-state"]').text()).toContain(
+      'Las ventas no se pudieron consultar',
+    )
+    expect(wrapper.text()).not.toContain('No hay ventas todavía')
+    expect(wrapper.find('[data-testid="table-empty-state"]').exists()).toBe(false)
+  })
+
+  it('falls back to the default table error copy when the failure carries no message', () => {
+    mockState.isError.value = true
+    mockState.error.value = new Error('Network Error')
+
+    const wrapper = mount(SalesListView, { global: { stubs } })
+
+    expect(wrapper.get('[data-testid="table-error-state"]').text()).toContain(
+      'No se pudieron cargar las ventas. Reintenta.',
+    )
+  })
+
+  it('refetches through the composable when the error retry is clicked', async () => {
+    mockState.isError.value = true
+    mockState.error.value = new Error('boom')
+
+    const wrapper = mount(SalesListView, { global: { stubs } })
+    await wrapper.get('[data-testid="table-error-retry"]').trigger('click')
+
+    expect(mockState.refresh).toHaveBeenCalledTimes(1)
   })
 })
