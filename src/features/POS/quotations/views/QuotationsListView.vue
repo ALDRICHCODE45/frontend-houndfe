@@ -14,6 +14,18 @@
  *   - Delete flow preserved exactly (REQ-QAF-013).
  *   - The legacy `QuotationsSearchInput` is gone (REQ-QAF-016).
  *
+ * After the standardize-quotations-table change the toolbar is a single
+ * DataTableToolbar row assembling: search, Filtros, refresh, Columnas,
+ * "Nueva cotización", and ViewToggle (in #actions). The external refresh +
+ * "Nueva cotización" UButtons are gone — the buttons now live inside
+ * AppDataTable's toolbar and carry the legacy `refresh-quotations-button` /
+ * `new-quotation-button` testids via the new optional
+ * `refreshButtonTestId` / `addButtonTestId` props (REQ-QAF-016 invariant).
+ * Columns are sorted by `enableSorting: true` + SortableHeader for
+ * customer, status, totalCents, expiresAt, createdAt; `customer` uses an
+ * `accessorFn` that resolves `firstName lastName` so sorting matches what
+ * the cashier sees.
+ *
  * The token scope class `.quotations-list-view` stays on the surface root so
  * `@layer coco-quotations` keeps resolving `--coco-primary` for the CTA.
  */
@@ -27,6 +39,8 @@ import { useRouter } from 'vue-router'
 import type { TableColumn } from '@nuxt/ui'
 import { AppDataTable } from '@/core/shared/components/DataTable'
 import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
+import SortableHeader from '@/core/shared/components/DataTable/SortableHeader.vue'
+import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import {
   DataTableFilters,
   useDataTableFilters,
@@ -41,6 +55,7 @@ import type { QuotationStatus, QuotationResponseDto } from '../interfaces/quotat
 import { isExpired, statusToTone, statusToLabel } from '../utils/quotation.utils'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { useQuotationsListTable } from '../composables/useQuotationsListTable'
+import { useQuotationsViewMode } from '../composables/useQuotationsViewMode'
 import QuotationCard from '../components/QuotationCard.vue'
 import { quotationApi } from '../api/quotation.api'
 import { quotationQueryKeys } from '@/core/shared/constants/query-keys'
@@ -110,6 +125,10 @@ const {
   showingTo,
   setStatusFilter,
 } = useQuotationsListTable(filtersCtl.backendParams)
+
+// ─── View mode (table ↔ cards), persisted to localStorage ────────────────────
+
+const { viewMode, displayMode } = useQuotationsViewMode()
 
 // ─── Status tabs definition ───────────────────────────────────────────────────
 
@@ -229,6 +248,16 @@ function customerName(quotation: QuotationResponseDto): string {
   return full || 'Sin cliente'
 }
 
+/**
+ * accessorFn for the `customer` column. Sorting by `customer` must use the
+ * resolved `firstName lastName` (what the cashier sees in the UI), not the
+ * raw nested object — otherwise sort order is undefined and the click feels
+ * broken.
+ */
+function customerAccessorFn(row: QuotationResponseDto): string {
+  return customerName(row)
+}
+
 function effectiveStatus(quotation: QuotationResponseDto): QuotationStatus {
   if (quotation.status === 'SENT' && isExpired(quotation)) {
     return 'EXPIRED'
@@ -272,37 +301,39 @@ const columns: TableColumn<QuotationResponseDto>[] = [
     meta: { class: { th: 'w-28', td: 'font-mono text-xs' } },
   },
   {
-    id: 'cliente',
-    accessorKey: 'customer',
+    // Column id matches the backend field name so `sorting[0].id` lands on
+    // the right `sortBy` without a mapping layer.
+    id: 'customer',
+    accessorFn: customerAccessorFn,
     header: 'Cliente',
-    enableSorting: false,
+    enableSorting: true,
   },
   {
-    id: 'estado',
+    id: 'status',
     accessorKey: 'status',
     header: 'Estado',
-    enableSorting: false,
+    enableSorting: true,
     meta: { class: { th: 'w-32' } },
   },
   {
-    id: 'total',
+    id: 'totalCents',
     accessorKey: 'totalCents',
     header: 'Total',
-    enableSorting: false,
+    enableSorting: true,
     meta: { class: { th: 'w-32 text-right', td: 'text-right tabular-nums' } },
   },
   {
-    id: 'expira',
+    id: 'expiresAt',
     accessorKey: 'expiresAt',
     header: 'Expira',
-    enableSorting: false,
+    enableSorting: true,
     meta: { class: { th: 'w-32' } },
   },
   {
-    id: 'fecha',
+    id: 'createdAt',
     accessorKey: 'createdAt',
     header: 'Fecha',
-    enableSorting: false,
+    enableSorting: true,
     meta: { class: { th: 'w-32' } },
   },
   {
@@ -380,123 +411,129 @@ const errorMessage = computed(() => {
             </button>
           </div>
 
-          <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <DataTableFilters
-              v-model:state="filtersState"
-              :schema="quotationFiltersSchema"
-            />
-            <div class="flex items-center justify-end gap-2">
-              <UButton
-                icon="i-lucide-refresh-cw"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                :loading="isFetching"
-                aria-label="Actualizar cotizaciones"
-                data-testid="refresh-quotations-button"
-                @click="refresh"
+          <AppDataTable
+            v-model:sorting="sorting"
+            v-model:pagination="pagination"
+            v-model:global-filter="globalFilter"
+            v-model:column-pinning="columnPinning"
+            v-model:column-visibility="columnVisibility"
+            v-model:row-selection="rowSelection"
+            :columns="columns"
+            :data="data"
+            :loading="isLoading"
+            :fetching="isFetching"
+            :error="isError"
+            :error-message="errorMessage"
+            :page-count="pageCount"
+            :total-count="totalCount"
+            :showing-from="showingFrom"
+            :showing-to="showingTo"
+            :page-size-options="pageSizeOptions"
+            :enable-row-selection="false"
+            mobile-render="cards"
+            :display-mode="displayMode"
+            :enable-column-visibility="true"
+            search-placeholder="Buscar cotizaciones…"
+            empty="No hay cotizaciones"
+            :show-add-button="canCreate"
+            add-button-text="Nueva cotización"
+            add-button-icon="i-lucide-file-plus"
+            add-button-test-id="new-quotation-button"
+            refresh-button-test-id="refresh-quotations-button"
+            @refresh="refresh"
+            @add="goToCreate"
+          >
+            <!-- Filtros moved inside AppDataTable's #filters slot — REQ-QAF-011. -->
+            <template #filters>
+              <DataTableFilters
+                v-model:state="filtersState"
+                :schema="quotationFiltersSchema"
               />
+            </template>
+
+            <!-- ViewToggle persisted via useQuotationsViewMode. -->
+            <template #actions>
+              <ViewToggle v-model="viewMode" />
+            </template>
+
+            <!-- Sortable header slots — column ids match backend field names. -->
+            <template #customer-header="{ column }">
+              <SortableHeader :column="column" label="Cliente" />
+            </template>
+            <template #status-header="{ column }">
+              <SortableHeader :column="column" label="Estado" />
+            </template>
+            <template #totalCents-header="{ column }">
+              <SortableHeader :column="column" label="Total" />
+            </template>
+            <template #expiresAt-header="{ column }">
+              <SortableHeader :column="column" label="Expira" />
+            </template>
+            <template #createdAt-header="{ column }">
+              <SortableHeader :column="column" label="Fecha" />
+            </template>
+
+            <template #id-cell="{ row }">
+              <span class="font-mono text-xs text-muted">{{ truncatedId(row.original.id) }}</span>
+            </template>
+
+            <template #customer-cell="{ row }">
               <UButton
-                v-if="canCreate"
-                data-testid="new-quotation-button"
-                icon="i-lucide-plus"
+                variant="link"
                 color="primary"
-                size="sm"
-                class="w-full justify-center bg-[var(--coco-primary)] text-white shadow-sm hover:brightness-110 sm:w-auto"
-                @click="goToCreate"
+                class="!p-0 text-sm font-medium hover:underline"
+                :data-testid="`quotation-link-${row.original.id}`"
+                @click="goToDetail(row.original)"
               >
-                Nueva cotización
+                {{ customerName(row.original) }}
               </UButton>
-            </div>
-          </div>
-        </div>
+            </template>
 
-        <AppDataTable
-          v-model:sorting="sorting"
-          v-model:pagination="pagination"
-          v-model:global-filter="globalFilter"
-          v-model:column-pinning="columnPinning"
-          v-model:column-visibility="columnVisibility"
-          v-model:row-selection="rowSelection"
-          :columns="columns"
-          :data="data"
-          :loading="isLoading"
-          :fetching="isFetching"
-          :error="isError"
-          :error-message="errorMessage"
-          :page-count="pageCount"
-          :total-count="totalCount"
-          :showing-from="showingFrom"
-          :showing-to="showingTo"
-          :page-size-options="pageSizeOptions"
-          :enable-row-selection="false"
-          mobile-render="cards"
-          :enable-column-visibility="true"
-          :show-refresh="false"
-          search-placeholder="Buscar cotizaciones…"
-          empty="No hay cotizaciones"
-          @refresh="refresh"
-        >
-          <template #id-cell="{ row }">
-            <span class="font-mono text-xs text-muted">{{ truncatedId(row.original.id) }}</span>
-          </template>
-
-          <template #cliente-cell="{ row }">
-            <UButton
-              variant="link"
-              color="primary"
-              class="!p-0 text-sm font-medium hover:underline"
-              :data-testid="`quotation-link-${row.original.id}`"
-              @click="goToDetail(row.original)"
-            >
-              {{ customerName(row.original) }}
-            </UButton>
-          </template>
-
-          <template #estado-cell="{ row }">
-            <StatusDotBadge
-              :tone="rowStatusTone(row.original)"
-              :label="rowStatusLabel(row.original)"
-              compact
-            />
-          </template>
-
-          <template #total-cell="{ row }">
-            <span class="font-medium text-default">{{ formatCentsMXN(row.original.totalCents) }}</span>
-          </template>
-
-          <template #expira-cell="{ row }">
-            <span class="text-sm text-muted">{{ formatExpiryDate(row.original.expiresAt) }}</span>
-          </template>
-
-          <template #fecha-cell="{ row }">
-            <span class="text-sm text-muted">{{ formatCreatedAt(row.original.createdAt) }}</span>
-          </template>
-
-          <template #actions-cell="{ row }">
-            <UDropdownMenu
-              :items="getRowItems(row.original)"
-              :content="{ align: 'end' }"
-            >
-              <UButton
-                icon="i-lucide-ellipsis-vertical"
-                color="neutral"
-                variant="ghost"
-                class="size-7 cursor-pointer"
-                :data-testid="`row-actions-${row.original.id}`"
+            <template #status-cell="{ row }">
+              <StatusDotBadge
+                :tone="rowStatusTone(row.original)"
+                :label="rowStatusLabel(row.original)"
+                compact
               />
-            </UDropdownMenu>
-          </template>
+            </template>
 
-          <template #mobile-card="{ row }">
-            <QuotationCard
-              :quotation="row"
-              :can-delete="canDelete"
-              @navigate="goToDetail(row)"
-              @delete="handleDelete(row)"
-            />
-          </template>
-        </AppDataTable>
+            <template #totalCents-cell="{ row }">
+              <span class="font-medium text-default">{{ formatCentsMXN(row.original.totalCents) }}</span>
+            </template>
+
+            <template #expiresAt-cell="{ row }">
+              <span class="text-sm text-muted">{{ formatExpiryDate(row.original.expiresAt) }}</span>
+            </template>
+
+            <template #createdAt-cell="{ row }">
+              <span class="text-sm text-muted">{{ formatCreatedAt(row.original.createdAt) }}</span>
+            </template>
+
+            <template #actions-cell="{ row }">
+              <UDropdownMenu
+                :items="getRowItems(row.original)"
+                :content="{ align: 'end' }"
+              >
+                <UButton
+                  icon="i-lucide-ellipsis-vertical"
+                  color="neutral"
+                  variant="ghost"
+                  class="size-7 cursor-pointer"
+                  :data-testid="`row-actions-${row.original.id}`"
+                />
+              </UDropdownMenu>
+            </template>
+
+            <template #mobile-card="{ row }">
+              <QuotationCard
+                :quotation="row"
+                :can-delete="canDelete"
+                @navigate="goToDetail(row)"
+                @delete="handleDelete(row)"
+              />
+            </template>
+          </AppDataTable>
+        </div>
       </div>
 
       <ConfirmModal

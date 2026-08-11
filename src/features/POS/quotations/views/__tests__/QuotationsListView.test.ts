@@ -10,10 +10,19 @@
  * The view was rewritten to mirror the Sales pattern end-to-end:
  *   - UCard with split body bg (REQ-QAF-009) and TableHeaderDescription.
  *   - Status tabs + slideover + chips (REQ-QAF-010).
- *   - Global toolbar search + column visibility + page-size options (REQ-QAF-011).
+ *   - Single toolbar row assembled inside AppDataTable's DataTableToolbar:
+ *     search + Filtros + refresh + Columnas + "Nueva cotización" + ViewToggle
+ *     (REQ-QAF-011 / standardize-quotations-table).
+ *   - Sortable headers via #<id>-header slots rendering SortableHeader on
+ *     customer / status / totalCents / expiresAt / createdAt.
+ *   - View mode persistence via useQuotationsViewMode → AppDataTable
+ *     `displayMode` bridge.
  *   - URL persistence via useFiltersUrlAdapter (REQ-QAF-012).
  *   - Delete flow remains intact (REQ-QAF-013).
- *   - The legacy `QuotationsSearchInput` testid is gone (REQ-QAF-016).
+ *   - The legacy `QuotationsSearchInput` testid is gone (REQ-QAF-016);
+ *     `refresh-quotations-button` + `new-quotation-button` testids now
+ *     resolve through AppDataTable's `refreshButtonTestId` /
+ *     `addButtonTestId` props instead of external buttons.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -170,8 +179,11 @@ const appDataTableStub = {
     'showAddButton',
     'addButtonText',
     'addButtonIcon',
+    'addButtonTestId',
+    'refreshButtonTestId',
     'showRefresh',
     'mobileRender',
+    'displayMode',
     'enableColumnVisibility',
   ],
   emits: [
@@ -195,10 +207,31 @@ const appDataTableStub = {
       :data-empty="empty"
       :data-row-count="(data ?? []).length"
       :data-enable-column-visibility="enableColumnVisibility ? 'true' : 'false'"
-      :data-show-refresh="showRefresh ? 'true' : 'false'"
+      :data-show-refresh="showRefresh === false ? 'false' : 'true'"
+      :data-show-add-button="showAddButton ? 'true' : 'false'"
+      :data-add-button-text="addButtonText ?? ''"
+      :data-add-button-icon="addButtonIcon ?? ''"
+      :data-add-button-test-id="addButtonTestId ?? ''"
+      :data-refresh-button-test-id="refreshButtonTestId ?? ''"
+      :data-display-mode="displayMode ?? 'auto'"
     >
       <slot name="filters" />
       <slot name="actions" />
+      <!-- Render the refresh button (with its testid) so click tests work.
+           showRefresh defaults to true in AppDataTable; only false disables it. -->
+      <button
+        v-if="showRefresh !== false && refreshButtonTestId"
+        :data-testid="refreshButtonTestId"
+        :aria-label="'Actualizar cotizaciones'"
+        @click="$emit('refresh')"
+      />
+      <!-- Render the add button (with its testid) so click tests work. -->
+      <button
+        v-if="showAddButton && addButtonTestId"
+        :data-testid="addButtonTestId"
+        :data-label="addButtonText"
+        @click="$emit('add')"
+      />
       <div
         v-for="(row, index) in data"
         :key="row.id"
@@ -206,14 +239,18 @@ const appDataTableStub = {
         :data-index="index"
       >
         <slot name="id-cell" :row="{ original: row, index }" />
-        <slot name="cliente-cell" :row="{ original: row, index }" />
-        <slot name="estado-cell" :row="{ original: row, index }" />
-        <slot name="total-cell" :row="{ original: row, index }" />
-        <slot name="expira-cell" :row="{ original: row, index }" />
-        <slot name="fecha-cell" :row="{ original: row, index }" />
+        <slot name="customer-cell" :row="{ original: row, index }" />
+        <slot name="status-cell" :row="{ original: row, index }" />
+        <slot name="totalCents-cell" :row="{ original: row, index }" />
+        <slot name="expiresAt-cell" :row="{ original: row, index }" />
+        <slot name="createdAt-cell" :row="{ original: row, index }" />
         <slot name="actions-cell" :row="{ original: row, index }" />
         <slot name="mobile-card" :row="row" :index="index" />
       </div>
+      <!-- Header slot passthrough so column header tests can render them. -->
+      <template v-for="col in columns" :key="col.id">
+        <slot :name="col.id + '-header'" :column="col" />
+      </template>
     </div>
   `,
 }
@@ -243,6 +280,16 @@ const stubs = {
   AppDataTable: appDataTableStub,
   DataTableFilters: dataTableFiltersStub,
   DataTableFiltersChips: dataTableFiltersChipsStub,
+  SortableHeader: true,
+  ViewToggle: {
+    props: ['modelValue'],
+    emits: ['update:modelValue'],
+    template: `
+      <div data-testid="view-toggle" :data-model-value="modelValue">
+        <slot />
+      </div>
+    `,
+  },
   QuotationCard: {
     props: ['quotation', 'canDelete'],
     emits: ['navigate', 'delete'],
@@ -338,12 +385,18 @@ describe('QuotationsListView — header chrome (REQ-QAF-009)', () => {
     expect(root.classes()).toContain('quotations-list-view')
   })
 
-  it('applies the Coco primary token (--coco-primary) to the "Nueva cotización" CTA', () => {
+  it('renders the "Nueva cotización" CTA via AppDataTable with addButtonTestId="new-quotation-button"', () => {
+    // After the toolbar standardization (REQ-QAF-016) the CTA lives inside
+    // AppDataTable's toolbar instead of an external UButton. We assert the
+    // testid is wired through the new `addButtonTestId` prop so the legacy
+    // `new-quotation-button` selector keeps working for e2e flows.
     authMock.userCan.mockReturnValue(true)
     const wrapper = mountView()
 
-    const button = wrapper.get('[data-testid="new-quotation-button"]')
-    expect(button.classes().join(' ')).toMatch(/bg-\[var\(--coco-primary\)\]/)
+    const table = wrapper.find('[data-testid="app-data-table"]')
+    expect(table.attributes('data-add-button-test-id')).toBe('new-quotation-button')
+    expect(table.attributes('data-add-button-text')).toBe('Nueva cotización')
+    expect(table.attributes('data-add-button-icon')).toBe('i-lucide-file-plus')
   })
 })
 
@@ -500,14 +553,15 @@ describe('QuotationsListView — AppDataTable wiring (REQ-QAF-011)', () => {
     expect(value).toBe('true')
   })
 
-  it('disables the toolbar refresh (the row-level refresh button is the single source)', () => {
-    // Regression: AppDataTable's toolbar would render its own refresh icon
-    // next to the column picker, duplicating the row-level refresh button
-    // beside "Nueva cotización".
+  it('enables the AppDataTable toolbar refresh so it carries refresh-quotations-button (REQ-QAF-016)', () => {
+    // After the toolbar standardization, the refresh icon lives in the
+    // AppDataTable toolbar (default `show-refresh=true`) carrying the
+    // `refresh-quotations-button` testid instead of a standalone UButton.
     const wrapper = mountView()
     const table = wrapper.find('[data-testid="app-data-table"]')
 
-    expect(table.attributes('data-show-refresh')).toBe('false')
+    expect(table.attributes('data-show-refresh')).toBe('true')
+    expect(table.attributes('data-refresh-button-test-id')).toBe('refresh-quotations-button')
   })
 })
 
@@ -549,7 +603,10 @@ describe('QuotationsListView — mobile cards (REQ-QAF-011)', () => {
 // ─── Refresh action (REQ-QAF-014) ─────────────────────────────────────────────
 
 describe('QuotationsListView — refresh action', () => {
-  it('renders a refresh button wired to the composable refresh()', async () => {
+  it('renders the refresh button wired to the composable refresh() inside AppDataTable', async () => {
+    // After the toolbar standardization the refresh button lives inside the
+    // AppDataTable stub (we render it there with the testid so the legacy
+    // selector keeps working). Clicking it still fires refresh().
     const wrapper = mountView()
     const button = wrapper.get('[data-testid="refresh-quotations-button"]')
 
@@ -603,7 +660,10 @@ describe('QuotationsListView — navigation', () => {
     expect(path).toBe('/pos/cotizaciones/nueva')
   })
 
-  it('clicking a row cliente-cell navigates to /pos/cotizaciones/:id', async () => {
+  it('clicking a row customer-cell link navigates to /pos/cotizaciones/:id', async () => {
+    // The cell slot was renamed from `cliente-cell` → `customer-cell` so the
+    // accessorFn can resolve `firstName lastName` and the backend sortBy can
+    // hit the new column id directly. The testid still embeds the row id.
     composableState.data.value = [makeQuotation({ id: 'qtn-abc-123' })]
 
     const wrapper = mountView()
@@ -616,6 +676,92 @@ describe('QuotationsListView — navigation', () => {
     const arg = routerPush.mock.calls[0]?.[0]
     const path = typeof arg === 'string' ? arg : (arg as { path?: string })?.path
     expect(path).toBe('/pos/cotizaciones/qtn-abc-123')
+  })
+})
+
+// ─── standardize-quotations-table: toolbar standardization ───────────────────
+// These tests cover the refactor that drops external refresh/add UButtons in
+// favor of the unified AppDataTable toolbar, plus the new sortable headers
+// and ViewToggle wiring.
+
+describe('QuotationsListView — standardized toolbar (standardize-quotations-table)', () => {
+  it('passes the canCreate gate to AppDataTable show-add-button', () => {
+    authMock.userCan.mockReturnValue(true)
+    const wrapper = mountView()
+
+    const table = wrapper.find('[data-testid="app-data-table"]')
+    expect(table.attributes('data-show-add-button')).toBe('true')
+  })
+
+  it('does NOT pass show-add-button when canCreate is false', () => {
+    authMock.userCan.mockReturnValue(false)
+    const wrapper = mountView()
+
+    const table = wrapper.find('[data-testid="app-data-table"]')
+    expect(table.attributes('data-show-add-button')).toBe('false')
+    expect(wrapper.find('[data-testid="new-quotation-button"]').exists()).toBe(false)
+  })
+
+  it('does not render a standalone refresh/add button pair outside AppDataTable', () => {
+    // Regression guard: pre-refactor, refresh + "Nueva cotización" lived
+    // beside DataTableFilters in a row above the toolbar. The unified
+    // toolbar must keep them inside AppDataTable only.
+    authMock.userCan.mockReturnValue(true)
+    const wrapper = mountView()
+
+    // The two testids still exist (they live inside the AppDataTable stub
+    // now), so we assert the AppDataTable attributes carry the testids and
+    // that no extra `<button data-testid="refresh-quotations-button">`
+    // exists outside the data-testid="app-data-table" container.
+    const table = wrapper.get('[data-testid="app-data-table"]')
+    expect(table.attributes('data-refresh-button-test-id')).toBe('refresh-quotations-button')
+    expect(table.attributes('data-add-button-test-id')).toBe('new-quotation-button')
+
+    const root = wrapper.element as HTMLElement
+    // Count buttons outside the table that carry either testid — must be 0.
+    const allButtons = Array.from(root.querySelectorAll('button'))
+    const strayRefresh = allButtons.filter(
+      (b) => b.getAttribute('data-testid') === 'refresh-quotations-button'
+        && !b.closest('[data-testid="app-data-table"]'),
+    )
+    const strayAdd = allButtons.filter(
+      (b) => b.getAttribute('data-testid') === 'new-quotation-button'
+        && !b.closest('[data-testid="app-data-table"]'),
+    )
+    expect(strayRefresh).toHaveLength(0)
+    expect(strayAdd).toHaveLength(0)
+  })
+
+  it('passes displayMode to AppDataTable from the useQuotationsViewMode bridge', () => {
+    const wrapper = mountView()
+
+    const table = wrapper.find('[data-testid="app-data-table"]')
+    // Default mode is `table` → AppDataTable displayMode `table`.
+    expect(table.attributes('data-display-mode')).toBe('table')
+  })
+
+  it('renders the ViewToggle inside the AppDataTable #actions slot', () => {
+    const wrapper = mountView()
+
+    const viewToggle = wrapper.find('[data-testid="view-toggle"]')
+    expect(viewToggle.exists()).toBe(true)
+    // viewMode defaults to `table` per useQuotationsViewMode.
+    expect(viewToggle.attributes('data-model-value')).toBe('table')
+  })
+
+  it('renders SortableHeader for the 5 sortable columns with Spanish labels', () => {
+    // The view defines SortableHeader slots for customer / status /
+    // totalCents / expiresAt / createdAt. The stub renders them as
+    // `<sortable-header-stub label="...">`. Verifying the labels keeps
+    // a regression from re-introducing the Spanish column ids.
+    const wrapper = mountView()
+    const table = wrapper.get('[data-testid="app-data-table"]')
+    const stubHeaders = table.findAll('sortable-header-stub')
+
+    // 5 sortable columns (id and actions are unsortable → no header slot).
+    expect(stubHeaders).toHaveLength(5)
+    const labels = stubHeaders.map((h) => h.attributes('label'))
+    expect(labels).toEqual(['Cliente', 'Estado', 'Total', 'Expira', 'Fecha'])
   })
 })
 
