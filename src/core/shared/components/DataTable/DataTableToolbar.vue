@@ -9,6 +9,18 @@ const props = withDefaults(
     showColumnVisibility?: boolean
     showRefresh?: boolean
     fetching?: boolean
+    /**
+     * Optional `data-testid` for the refresh button. Default `undefined` —
+     * no `data-testid` attribute is rendered. Forwarded by `AppDataTable`
+     * so feature consumers can preserve legacy testids (REQ-QAF-016).
+     */
+    refreshButtonTestId?: string
+    /**
+     * Optional `data-testid` for the add button. Default `undefined` —
+     * no `data-testid` attribute is rendered. Forwarded by `AppDataTable`
+     * so feature consumers can preserve legacy testids (REQ-QAF-016).
+     */
+    addButtonTestId?: string
   }>(),
   {
     searchPlaceholder: 'Buscar...',
@@ -17,6 +29,8 @@ const props = withDefaults(
     showColumnVisibility: false,
     showRefresh: false,
     fetching: false,
+    refreshButtonTestId: undefined,
+    addButtonTestId: undefined,
   },
 )
 
@@ -62,6 +76,7 @@ function capitalize(str: string): string {
           variant="ghost"
           icon="i-lucide-refresh-cw"
           :loading="fetching"
+          :data-testid="refreshButtonTestId"
           @click="emit('refresh')"
         />
       </UTooltip>
@@ -105,6 +120,7 @@ function capitalize(str: string): string {
         v-if="showAddButton"
         :label="addButtonText"
         :icon="addButtonIcon"
+        :data-testid="addButtonTestId"
         @click="emit('add')"
       />
 

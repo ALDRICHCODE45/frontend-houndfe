@@ -20,9 +20,34 @@ type Row = { id: number; name: string }
 const columns = [{ accessorKey: 'name', header: 'Name' }]
 const data: Row[] = [{ id: 1, name: 'Alpha' }, { id: 2, name: 'Beta' }]
 
+/**
+ * Stub that exposes the props it receives on a `data-*` attribute pair so tests
+ * can assert pass-through behavior without coupling to the toolbar template.
+ */
+function toolbarStubWithProps() {
+  return {
+    props: [
+      'refreshButtonTestId',
+      'addButtonTestId',
+      'showRefresh',
+      'showAddButton',
+    ],
+    template: `
+      <div
+        data-testid="toolbar"
+        :data-refresh-button-test-id="refreshButtonTestId ?? ''"
+        :data-add-button-test-id="addButtonTestId ?? ''"
+      >
+        <slot name="filters" />
+        <slot name="actions" />
+      </div>
+    `,
+  }
+}
+
 function mountComponent(
   overrideProps: Record<string, unknown> = {},
-  options: { includeCardsSlot?: boolean } = {},
+  options: { includeCardsSlot?: boolean, toolbarStub?: boolean } = {},
 ) {
   return mount(AppDataTable<Row>, {
     props: {
@@ -53,7 +78,9 @@ function mountComponent(
     },
     global: {
       stubs: {
-        DataTableToolbar: { template: '<div data-testid="toolbar"><slot name="filters" /><slot name="actions" /></div>' },
+        DataTableToolbar: options.toolbarStub
+          ? toolbarStubWithProps()
+          : { template: '<div data-testid="toolbar"><slot name="filters" /><slot name="actions" /></div>' },
         DataTablePagination: { template: '<div data-testid="pagination" />' },
         DataTableBulkActions: { template: '<div data-testid="bulk-actions" />' },
         UTable: { template: '<div data-testid="table" v-bind="$attrs"><slot name="cards" /><slot name="name-cell" /></div>' },
@@ -226,5 +253,43 @@ describe('AppDataTable error state', () => {
     const errorBlock = wrapper.find('[data-testid="table-error-state"]')
     expect(errorBlock.exists()).toBe(true)
     expect(errorBlock.text()).toContain('No se pudieron cargar los datos')
+  })
+})
+
+// ─── Toolbar testid pass-through (REQ-QAF-016 anti-requirements) ─────────────
+// REQ-QAF-016 keeps shared testids (`refresh-quotations-button`,
+// `new-quotation-button`) resolvable even though the buttons now live inside
+// AppDataTable's toolbar. AppDataTable forwards optional testid props so the
+// underlying buttons can carry the legacy testids without breaking other
+// callers — defaults remain `undefined`.
+
+describe('AppDataTable toolbar testid pass-through', () => {
+  beforeEach(() => {
+    isBelowBreakpoint.value = false
+  })
+
+  it('forwards refreshButtonTestId and addButtonTestId to DataTableToolbar when provided', () => {
+    const wrapper = mountComponent(
+      {
+        showRefresh: true,
+        showAddButton: true,
+        refreshButtonTestId: 'refresh-quotations-button',
+        addButtonTestId: 'new-quotation-button',
+      },
+      { toolbarStub: true },
+    )
+
+    const toolbar = wrapper.get('[data-testid="toolbar"]')
+    expect(toolbar.attributes('data-refresh-button-test-id')).toBe('refresh-quotations-button')
+    expect(toolbar.attributes('data-add-button-test-id')).toBe('new-quotation-button')
+  })
+
+  it('defaults refreshButtonTestId and addButtonTestId to undefined (no testid rendered)', () => {
+    const wrapper = mountComponent({}, { toolbarStub: true })
+
+    const toolbar = wrapper.get('[data-testid="toolbar"]')
+    // Empty string in the stub represents "no value provided".
+    expect(toolbar.attributes('data-refresh-button-test-id')).toBe('')
+    expect(toolbar.attributes('data-add-button-test-id')).toBe('')
   })
 })

@@ -42,6 +42,20 @@ const props = withDefaults(
     addButtonText?: string
     addButtonIcon?: string
     showRefresh?: boolean
+    /**
+     * Optional `data-testid` for the toolbar refresh button. Forwarded to
+     * DataTableToolbar. Default `undefined` → no testid rendered. Used by
+     * feature consumers that need to keep a stable testid (REQ-QAF-016) after
+     * migrating off an external refresh button.
+     */
+    refreshButtonTestId?: string
+    /**
+     * Optional `data-testid` for the toolbar add button. Forwarded to
+     * DataTableToolbar. Default `undefined` → no testid rendered. Used by
+     * feature consumers that need to keep a stable testid (REQ-QAF-016) after
+     * migrating off an external add button.
+     */
+    addButtonTestId?: string
     // Bulk actions
     bulkActions?: BulkAction<T>[]
     // Mobile rendering
@@ -68,6 +82,8 @@ const props = withDefaults(
     addButtonText: 'Agregar',
     addButtonIcon: 'i-lucide-plus',
     showRefresh: true,
+    refreshButtonTestId: undefined,
+    addButtonTestId: undefined,
     bulkActions: () => [],
     displayMode: 'auto',
     mobileRender: 'table',
@@ -161,6 +177,8 @@ function handleClearSelection() {
       :show-refresh="props.showRefresh"
       :fetching="props.fetching"
       :table-api="tableApi"
+      :refresh-button-test-id="props.refreshButtonTestId"
+      :add-button-test-id="props.addButtonTestId"
       @update:global-filter="globalFilter = $event"
       @add="emit('add')"
       @refresh="emit('refresh')"
