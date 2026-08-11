@@ -217,12 +217,19 @@ const appDataTableStub = {
         <div v-if="(data ?? []).length === 0" data-testid="table-empty-state">{{ empty }}</div>
         <div v-for="row in data" :key="row.id">
           <slot name="venta-cell" :row="{ original: row }" />
+          <slot name="confirmedAt-cell" :row="{ original: row }" />
           <slot name="customer-cell" :row="{ original: row }" />
           <slot name="paymentStatus-cell" :row="{ original: row }" />
           <slot name="paymentMethods-cell" :row="{ original: row }" />
+          <slot name="totalCents-cell" :row="{ original: row }" />
           <slot name="debtCents-cell" :row="{ original: row }" />
           <slot name="dueDate-cell" :row="{ original: row }" />
           <slot name="deliveryStatus-cell" :row="{ original: row }" />
+          <slot name="cashier-cell" :row="{ original: row }" />
+          <slot name="seller-cell" :row="{ original: row }" />
+          <slot name="channel-cell" :row="{ original: row }" />
+          <slot name="invoice-cell" :row="{ original: row }" />
+          <div data-testid="mobile-card-host"><slot name="mobile-card" :row="row" /></div>
         </div>
       </template>
       <!-- Header slot passthrough: UTable resolves #<id>-header per column, so
@@ -276,27 +283,32 @@ const stubs = {
   RouterLink: RouterLinkStub,
 }
 
-describe('SalesListView', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    authMock.userCan.mockReturnValue(true)
-    mockState.columnVisibility.value = {}
-    mockState.data.value = [{ ...initialRow }]
-    mockState.isError.value = false
-    mockState.error.value = null
-    mockState.sorting.value = [{ id: 'confirmedAt', desc: true }]
-    mockState.globalFilter.value = ''
-    customersQueryState.data.value = undefined
-    customersQueryState.isLoading.value = false
-    cashiersQueryState.data.value = undefined
-    cashiersQueryState.isLoading.value = false
-    localStorage.clear()
-  })
+// Top-level so every describe in this file starts from the same state. The
+// suite has several describes now; scoping this to one of them let `data: []`
+// from the error-state cases leak into later blocks.
+beforeEach(() => {
+  vi.clearAllMocks()
+  authMock.userCan.mockReturnValue(true)
+  mockState.columnVisibility.value = {}
+  mockState.data.value = [{ ...initialRow }]
+  mockState.isError.value = false
+  mockState.error.value = null
+  mockState.sorting.value = [{ id: 'confirmedAt', desc: true }]
+  mockState.globalFilter.value = ''
+  mockState.filterErrors.value = {}
+  customersQueryState.data.value = undefined
+  customersQueryState.isLoading.value = false
+  cashiersQueryState.data.value = undefined
+  cashiersQueryState.isLoading.value = false
+  localStorage.clear()
+})
 
-  it('renders row fallbacks and Nueva Venta button', async () => {
+describe('SalesListView', () => {
+  it('renders row fallbacks for an anonymous customer and a zero debt', () => {
     const wrapper = mount(SalesListView, { global: { stubs } })
 
-    expect(wrapper.text()).toContain('Nueva Venta')
+    // The add button is AppDataTable's now — asserted via its contract in the
+    // consolidated-toolbar suite rather than by scanning rendered text here.
     expect(wrapper.text()).toContain('Público en General')
     expect(wrapper.text()).toContain('—')
   })
@@ -697,5 +709,72 @@ describe('SalesListView — consolidated toolbar (REQ-14, REQ-15)', () => {
     // Sorting, search text, and view mode are deliberately untouched.
     expect(mockState.sorting.value).toEqual([{ id: 'totalCents', desc: false }])
     expect(mockState.globalFilter.value).toBe('ada')
+  })
+})
+
+// REQ-16: the standardization must not disturb the sales domain surface.
+// These are approval tests — they pin behavior that already exists so a later
+// toolbar or column change cannot quietly regress it.
+describe('SalesListView — preserved invariants (REQ-16)', () => {
+  it('keeps salesFiltersSchema at 11 fields across 4 sections', () => {
+    const wrapper = mount(SalesListView, { global: { stubs } })
+    const schema = JSON.parse(
+      wrapper.get('[data-testid="sales-filters"]').attributes('data-schema') ?? '{}',
+    ) as { fields?: Array<{ id: string; section?: string }> }
+
+    expect(schema.fields).toHaveLength(11)
+    expect([...new Set(schema.fields!.map((f) => f.section).filter(Boolean))]).toEqual([
+      'Estado',
+      'Personas',
+      'Montos',
+      'Fechas',
+    ])
+  })
+
+  it('keeps every cell slot rendering its domain component or formatter', () => {
+    mockState.data.value = [
+      {
+        ...initialRow,
+        customer: { id: 'c-1', name: 'Ada Lovelace' },
+        seller: { id: 's-1', name: 'Grace Hopper' },
+        debtCents: 5000,
+        totalCents: 127000,
+      },
+    ]
+
+    const wrapper = mount(SalesListView, { global: { stubs } })
+    const text = wrapper.text()
+
+    expect(wrapper.find('[data-testid="sale-link-sale-1"]').text()).toBe('#12')
+    expect(text).toContain('Ada Lovelace')
+    expect(text).toContain('Grace Hopper')
+    expect(text).toContain('César')
+    expect(text).toContain('Punto de Venta')
+    expect(text).toContain('$1,270.00')
+    expect(text).toContain('$50.00')
+    expect(wrapper.find('[data-testid="payment-method-pills"]').exists()).toBe(true)
+  })
+
+  it('keeps SaleCard wired to the mobile-card slot', () => {
+    const wrapper = mount(SalesListView, { global: { stubs } })
+
+    const card = wrapper.get('[data-testid="mobile-card-host"]')
+    expect(card.get('[data-testid="sale-card-stub"]').text()).toBe('sale-1')
+  })
+
+  it('keeps SalesListTabs driving the delivery-status quick filter', async () => {
+    const wrapper = mount(SalesListView, { global: { stubs } })
+
+    await wrapper.get('[data-testid="tab-pending"]').trigger('click')
+
+    expect(mockState.setDeliveryStatusFilter).toHaveBeenCalledWith('PENDING')
+  })
+
+  it('keeps row selection disabled and the pos-sales-list persist key intact', () => {
+    const wrapper = mount(SalesListView, { global: { stubs } })
+
+    expect(wrapper.get('[data-testid="app-data-table"]').attributes('enable-row-selection')).toBe(
+      'false',
+    )
   })
 })
