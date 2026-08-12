@@ -9,7 +9,6 @@ import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { adminRoleQueryKeys } from '@/core/shared/constants/query-keys'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { rolesApi } from '../api/roles.api'
-import { usersApi } from '@/features/admin/users/api/users.api'
 import { useRoleColumns } from '../composables/useRoleColumns'
 import { useRoleViewMode, isRoleViewMode } from '../composables/useRoleViewMode'
 import type { RoleFormValues } from '../composables/useRoleForm'
@@ -108,7 +107,6 @@ const createMutation = useMutation({
   mutationFn: rolesApi.create,
   onSuccess: async () => {
     isCreateOpen.value = false
-    usersApi.clearRolesCache()
     await queryClient.invalidateQueries({ queryKey: adminRoleQueryKeys.paginated(tenantId.value) })
   },
 })
@@ -119,7 +117,6 @@ const editMutation = useMutation({
   onSuccess: async () => {
     isEditOpen.value = false
     selectedRole.value = null
-    usersApi.clearRolesCache()
     await queryClient.invalidateQueries({ queryKey: adminRoleQueryKeys.paginated(tenantId.value) })
   },
 })
@@ -127,7 +124,6 @@ const editMutation = useMutation({
 const deleteMutation = useMutation({
   mutationFn: rolesApi.remove,
   onSuccess: async () => {
-    usersApi.clearRolesCache()
     await queryClient.invalidateQueries({ queryKey: adminRoleQueryKeys.paginated(tenantId.value) })
   },
 })
@@ -138,7 +134,6 @@ const permissionsMutation = useMutation({
   onSuccess: async () => {
     isPermissionsOpen.value = false
     selectedRole.value = null
-    usersApi.clearRolesCache()
     await queryClient.invalidateQueries({ queryKey: adminRoleQueryKeys.paginated(tenantId.value) })
   },
 })

@@ -4,8 +4,12 @@ import type {
   RoleSummary,
 } from '../../shared/interfaces/rbac.types'
 
+export interface UsersBackendListItem extends AdminUser {
+  roles: RoleSummary[]
+}
+
 export interface UsersBackendListResponse {
-  data: AdminUser[]
+  data: UsersBackendListItem[]
   meta: BackendPaginatedMeta
 }
 

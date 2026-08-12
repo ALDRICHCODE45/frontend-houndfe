@@ -104,7 +104,6 @@ const createMutation = useMutation({
   mutationFn: usersApi.create,
   onSuccess: async () => {
     isCreateOpen.value = false
-    usersApi.clearRolesCache()
     await queryClient.invalidateQueries({ queryKey: adminUserQueryKeys.paginated(tenantId.value) })
   },
 })
@@ -115,7 +114,6 @@ const editMutation = useMutation({
   onSuccess: async () => {
     isEditOpen.value = false
     selectedUser.value = null
-    usersApi.clearRolesCache()
     await queryClient.invalidateQueries({ queryKey: adminUserQueryKeys.paginated(tenantId.value) })
   },
 })
@@ -123,7 +121,6 @@ const editMutation = useMutation({
 const deleteMutation = useMutation({
   mutationFn: usersApi.remove,
   onSuccess: async () => {
-    usersApi.clearRolesCache()
     await queryClient.invalidateQueries({ queryKey: adminUserQueryKeys.paginated(tenantId.value) })
   },
 })
