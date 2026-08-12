@@ -51,5 +51,5 @@ Chain strategy: N/A
 
 ## Phase 4: Cleanup
 
-- [ ] 4.1 Reconcile REQ-3 kebab wording at archive (design = no-kebab)
-- [ ] 4.2 Verify mobile (`<sm`) toolbar layout for filters
+- [x] 4.1 Reconcile REQ-3 kebab wording at archive (design = no-kebab) — DONE at archive: REQ-3 main spec rewritten to "click-only card, no kebab, no checkbox; actions live on the table row kebab only" (consistent with CustomersView parity). Original delta wording ("the kebab SHALL stop propagation and be gated by `canManagePromotionActions`") removed.
+- [ ] 4.2 Verify mobile (`<sm`) toolbar layout for filters — DEFERRED (not a blocker): orchestrator explicitly approves as a follow-up manual QA check. Filter testids resolve at `lg+` per design §Open Questions and WU-B task 2.7. Archive proceeds; manual mobile QA recorded as follow-up in `archive-report.md`.
