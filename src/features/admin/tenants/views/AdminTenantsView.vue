@@ -6,15 +6,18 @@ import type { AxiosError } from 'axios'
 import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
+import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { adminTenantQueryKeys } from '@/core/shared/constants/query-keys'
 import { activityToBadgeTone } from '@/core/shared/utils/badge.utils'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { tenantsApi, mapTenantError } from '../api/tenants.api'
 import { useTenantColumns } from '../composables/useTenantColumns'
+import { useTenantViewMode, isTenantViewMode } from '../composables/useTenantViewMode'
 import type { TenantTableRow } from '../interfaces/tenant.types'
 import type { CreateTenantFormValues, EditTenantFormValues } from '../composables/useTenantForm'
 import TenantUpsertSlideover from '../components/TenantUpsertSlideover.vue'
+import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
 import { buildTenantRowActions } from '../utils/tenant-actions.utils'
 
 declare const useToast: () => {
@@ -31,6 +34,14 @@ const authStore = useAuthStore()
 const toast = useToast()
 const { columns } = useTenantColumns()
 
+// ── View mode (table ↔ card) ──────────────────────────────────────────────────
+const { viewMode, setMode: setViewMode, displayMode } = useTenantViewMode()
+
+function handleViewModeChange(mode: string) {
+  if (!isTenantViewMode(mode)) return
+  setViewMode(mode)
+}
+
 const includeInactive = ref(false)
 
 const {
@@ -44,6 +55,8 @@ const {
   pageCount,
   isLoading,
   isFetching,
+  isError,
+  error,
   refresh,
   pageSizeOptions,
   showingFrom,
@@ -56,6 +69,32 @@ const {
   defaultSorting: [{ id: 'name', desc: false }],
   defaultPinning: { left: [], right: ['actions'] },
 })
+
+// Human-readable error message for the admin tenants table. Mirrors
+// AdminRolesView: prefer backend `response.data.message`, then
+// `error.message`, then the Spanish fallback. The error block in
+// AppDataTable is rendered instead of "No se encontraron sucursales"
+// whenever `isError` is true.
+const tenantsErrorMessage = computed(() => {
+  const err = error.value as
+    | { response?: { data?: { message?: unknown } }; message?: string }
+    | null
+    | undefined
+  const backendMessage = err?.response?.data?.message
+  if (typeof backendMessage === 'string' && backendMessage.trim()) {
+    return backendMessage
+  }
+  if (Array.isArray(backendMessage) && backendMessage.length > 0) {
+    const first = backendMessage[0]
+    if (typeof first === 'string') return first
+  }
+  if (typeof err?.message === 'string' && err.message.trim()) {
+    return err.message
+  }
+  return 'No se pudieron cargar las sucursales. Reintenta.'
+})
+
+const headerDescription = 'Gestión global de sucursales (solo super-admin).'
 
 const isCreateOpen = ref(false)
 const isEditOpen = ref(false)
@@ -204,17 +243,10 @@ function getRowItems(tenant: TenantTableRow) {
 
     <UCard :ui="{ body: 'p-0 sm:p-0' }">
       <template #header>
-        <div>
-          <h2 class="text-2xl font-semibold">Admin · Sucursales</h2>
-          <p class="text-sm text-muted">Gestión global de sucursales (solo super-admin).</p>
-        </div>
+        <AdminPageHeader title="Gestión de sucursales" :description="headerDescription" />
       </template>
 
       <div class="px-6 py-5">
-        <div class="mb-4 flex items-center gap-2">
-          <UCheckbox v-model="includeInactive" label="Mostrar inactivos" />
-        </div>
-
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"
@@ -225,20 +257,28 @@ function getRowItems(tenant: TenantTableRow) {
           :data="data"
           :loading="isLoading"
           :fetching="isFetching"
+          :error="isError"
+          :error-message="tenantsErrorMessage"
           :page-count="pageCount"
           :total-count="totalCount"
           :showing-from="showingFrom"
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
+          :display-mode="displayMode"
           search-placeholder="Buscar sucursales..."
           :show-add-button="canCreateTenant"
           add-button-text="Crear sucursal"
           add-button-icon="i-lucide-building"
+          enable-column-visibility
           empty="No se encontraron sucursales"
           data-testid="create-tenant-button"
           @add="isCreateOpen = true"
           @refresh="refresh"
         >
+          <template #filters>
+            <UCheckbox v-model="includeInactive" label="Mostrar inactivos" />
+          </template>
+
           <template #name-header="{ column }">
             <SortableHeader :column="column" label="Nombre" />
           </template>
@@ -277,6 +317,14 @@ function getRowItems(tenant: TenantTableRow) {
                 class="size-7"
               />
             </UDropdownMenu>
+          </template>
+
+          <template #actions>
+            <ViewToggle
+              :model-value="viewMode"
+              aria-label="Seleccionar vista de sucursales"
+              @update:model-value="handleViewModeChange"
+            />
           </template>
         </AppDataTable>
       </div>
