@@ -200,8 +200,32 @@ function handleClearSelection() {
          - Special slots:      #expanded, #empty, #loading, #caption
          This allows the parent to use Vue template syntax instead of h() in column defs -->
     <template v-if="isCardsMode">
+      <!-- Error state: wins over BOTH the custom #cards slot and the mobile
+           fallback, so a failed request is never masked as an empty card grid.
+           (W3 fix — previously the error block lived only in the v-else branch
+           below, which is unreachable when a parent provides the #cards slot.) -->
+      <div
+        v-if="props.error"
+        class="flex min-h-32 flex-col items-center justify-center gap-3 rounded-lg border border-error/30 bg-error/5 px-4 py-8 text-sm"
+        data-testid="cards-error-state"
+        role="alert"
+      >
+        <UIcon name="i-lucide-alert-triangle" class="size-6 text-error" />
+        <p class="text-center text-error">{{ props.errorMessage }}</p>
+        <UButton
+          v-if="props.showRefresh"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          icon="i-lucide-rotate-cw"
+          label="Reintentar"
+          data-testid="cards-error-retry"
+          @click="emit('refresh')"
+        />
+      </div>
+
       <slot
-        v-if="slots.cards"
+        v-else-if="slots.cards"
         name="cards"
         :data="props.data"
         :loading="isLoading"
@@ -209,31 +233,8 @@ function handleClearSelection() {
       />
 
       <template v-else>
-        <!-- Error state: shown instead of skeleton/empty when the query failed.
-             Distinct from "no results" so users (and devs) see the real error
-             instead of a fake empty placeholder. -->
         <div
-          v-if="props.error"
-          class="flex min-h-32 flex-col items-center justify-center gap-3 rounded-lg border border-error/30 bg-error/5 px-4 py-8 text-sm"
-          data-testid="mobile-error-state"
-          role="alert"
-        >
-          <UIcon name="i-lucide-alert-triangle" class="size-6 text-error" />
-          <p class="text-center text-error">{{ props.errorMessage }}</p>
-          <UButton
-            v-if="props.showRefresh"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            icon="i-lucide-rotate-cw"
-            label="Reintentar"
-            data-testid="mobile-error-retry"
-            @click="emit('refresh')"
-          />
-        </div>
-
-        <div
-          v-else-if="isLoading"
+          v-if="isLoading"
           class="grid gap-3"
           data-testid="mobile-cards-loading"
         >

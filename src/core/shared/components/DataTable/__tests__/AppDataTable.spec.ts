@@ -212,11 +212,57 @@ describe('AppDataTable error state', () => {
       mobileRender: 'cards',
     })
 
-    expect(wrapper.find('[data-testid="mobile-error-state"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="mobile-error-state"]').text()).toContain(
+    expect(wrapper.find('[data-testid="cards-error-state"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="cards-error-state"]').text()).toContain(
       'No se pudieron cargar los datos. Reintenta.',
     )
     expect(wrapper.find('[data-testid="mobile-empty-state"]').exists()).toBe(false)
+  })
+
+  it('renders the error block (and NOT the cards slot) when displayMode=cards, #cards slot present, and error=true', () => {
+    const wrapper = mountComponent(
+      {
+        displayMode: 'cards',
+        error: true,
+        errorMessage: 'No se pudieron cargar los datos. Reintenta.',
+        data: [],
+        totalCount: 0,
+      },
+      { includeCardsSlot: true },
+    )
+
+    expect(wrapper.find('[data-testid="cards-error-state"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="cards-error-state"]').text()).toContain(
+      'No se pudieron cargar los datos. Reintenta.',
+    )
+    // The custom cards slot must NOT render when the request failed — a failed
+    // request is never masked as an empty (or stale) card grid.
+    expect(wrapper.find('[data-testid="cards-slot"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="table-view"]').exists()).toBe(false)
+  })
+
+  it('emits "refresh" when the cards-mode retry button is clicked', async () => {
+    const wrapper = mountComponent(
+      {
+        displayMode: 'cards',
+        error: true,
+        data: [],
+        totalCount: 0,
+      },
+      { includeCardsSlot: true },
+    )
+
+    await wrapper.get('[data-testid="cards-error-retry"]').trigger('click')
+
+    expect(wrapper.emitted('refresh')).toBeTruthy()
+    expect(wrapper.emitted('refresh')).toHaveLength(1)
+  })
+
+  it('renders the cards slot (and not the error block) when error=false and #cards slot present', () => {
+    const wrapper = mountComponent({ displayMode: 'cards' }, { includeCardsSlot: true })
+
+    expect(wrapper.find('[data-testid="cards-slot"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="cards-error-state"]').exists()).toBe(false)
   })
 
   it('emits "refresh" when the retry button is clicked in error state', async () => {
