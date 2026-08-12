@@ -13,6 +13,7 @@ import { useUserColumns } from '../composables/useUserColumns'
 import { useUserViewMode, isUserViewMode } from '../composables/useUserViewMode'
 import type { UserTableRow } from '../interfaces/user.types'
 import UserUpsertSlideover from '../components/UserUpsertSlideover.vue'
+import UserCardGrid from '../components/UserCardGrid.vue'
 import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
 
 const queryClient = useQueryClient()
@@ -155,6 +156,10 @@ function openEdit(user: UserTableRow) {
   if (!canUpdateUser.value) return
   selectedUser.value = user
   isEditOpen.value = true
+}
+
+function handleCardClick(user: UserTableRow) {
+  openEdit(user)
 }
 
 async function handleDelete(user: UserTableRow) {
@@ -310,6 +315,15 @@ function getRowItems(user: UserTableRow) {
               :model-value="viewMode"
               aria-label="Seleccionar vista de usuarios"
               @update:model-value="handleViewModeChange"
+            />
+          </template>
+
+          <template #cards>
+            <UserCardGrid
+              :users="data"
+              :loading="isLoading || isFetching"
+              :empty="'No se encontraron usuarios'"
+              @card-click="handleCardClick"
             />
           </template>
         </AppDataTable>
