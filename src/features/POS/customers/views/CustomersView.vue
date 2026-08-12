@@ -9,11 +9,14 @@ import type { BulkAction } from '@/core/shared/types/table.types'
 import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
+import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { productApi } from '@/features/POS/products/api/product.api'
 import { customerApi } from '../api/customer.api'
+import CustomerCardGrid from '../components/CustomerCardGrid.vue'
 import CustomerUpsertSlideover from '../components/CustomerUpsertSlideover.vue'
 import { useCustomerColumns } from '../composables/useCustomerColumns'
+import { useCustomerViewMode, isCustomerViewMode } from '../composables/useCustomerViewMode'
 import type {
   CreateCustomerAddressPayload,
   CreateCustomerPayload,
@@ -41,6 +44,17 @@ const { columns } = useCustomerColumns()
 const canCreate = computed(() => authStore.userCan('create', 'Customer'))
 const canUpdate = computed(() => authStore.userCan('update', 'Customer'))
 const canDelete = computed(() => authStore.userCan('delete', 'Customer'))
+const canManageCustomerActions = computed(
+  () => canUpdate.value || canDelete.value,
+)
+
+// ── View mode (table ↔ card) ──────────────────────────────────────────────────
+const { viewMode, setMode: setViewMode, displayMode } = useCustomerViewMode()
+
+function handleViewModeChange(mode: string) {
+  if (!isCustomerViewMode(mode)) return
+  setViewMode(mode)
+}
 
 const {
   pagination,
@@ -152,11 +166,38 @@ function mapDomainError(error: AxiosError<DomainApiError>): {
   return { message, fields }
 }
 
+function customerMatchesFilter(customer: Customer, filter: string): boolean {
+  const normalizedFilter = filter.toLowerCase().trim()
+  if (!normalizedFilter) return true
+
+  return [
+    customer.fullName,
+    customer.email ?? '',
+    customer.phone ?? '',
+    customer.globalPriceListName ?? '',
+  ]
+    .join(' ')
+    .toLowerCase()
+    .includes(normalizedFilter)
+}
+
+function resetVisibilityContextAfterCreate(created: Customer) {
+  if (pagination.value.pageIndex !== 0) {
+    pagination.value = { ...pagination.value, pageIndex: 0 }
+  }
+
+  const activeFilter = globalFilter.value.trim()
+  if (activeFilter && !customerMatchesFilter(created, activeFilter)) {
+    globalFilter.value = ''
+  }
+}
+
 const createMutation = useMutation({
   mutationFn: (payload: CreateCustomerPayload) => customerApi.create(payload),
-  onSuccess: async () => {
+  onSuccess: async (created: Customer) => {
     isCreateOpen.value = false
     clearFormContext()
+    resetVisibilityContextAfterCreate(created)
     toast.add({
       title: 'Cliente creado',
       description: 'El cliente se creó correctamente.',
@@ -363,6 +404,10 @@ function getRowItems(customer: Customer) {
   return [mainActions, destructiveActions].filter((section) => section.length > 0)
 }
 
+function handleCardClick(customer: Customer) {
+  void handleOpenEdit(customer)
+}
+
 const bulkActions = computed<BulkAction<Customer>[]>(() => [])
 </script>
 
@@ -428,6 +473,7 @@ const bulkActions = computed<BulkAction<Customer>[]>(() => [])
           :showing-from="showingFrom"
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
+          :display-mode="displayMode"
           :bulk-actions="bulkActions"
           :show-add-button="canCreate"
           search-placeholder="Buscar clientes..."
@@ -439,6 +485,27 @@ const bulkActions = computed<BulkAction<Customer>[]>(() => [])
           @add="handleAdd"
           @refresh="refresh"
         >
+          <template #actions>
+            <ViewToggle
+              :model-value="viewMode"
+              aria-label="Seleccionar vista de clientes"
+              @update:model-value="handleViewModeChange"
+            />
+          </template>
+
+          <template #cards>
+            <CustomerCardGrid
+              :customers="data"
+              :loading="isLoading || isFetching"
+              :empty="'No se encontraron clientes'"
+              :can-update="canUpdate"
+              :can-delete="canDelete"
+              @card-click="handleCardClick"
+              @edit="handleOpenEdit"
+              @delete="handleDelete"
+            />
+          </template>
+
           <template #select-header="{ table }">
             <SelectColumn mode="header" :table="table" />
           </template>
@@ -492,6 +559,7 @@ const bulkActions = computed<BulkAction<Customer>[]>(() => [])
 
           <template #actions-cell="{ row }">
             <UDropdownMenu
+              v-if="canManageCustomerActions"
               :items="getRowItems(row.original)"
               :content="{ align: 'end' }"
             >
