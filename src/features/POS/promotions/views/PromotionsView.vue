@@ -12,8 +12,10 @@ import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
+import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import { promotionApi } from '../api/promotion.api'
 import { usePromotionColumns } from '../composables/usePromotionColumns'
+import { usePromotionViewMode, isPromotionViewMode } from '../composables/usePromotionViewMode'
 import type { PromotionMethod, PromotionResponse, PromotionStatus, PromotionType } from '../interfaces/promotion.types'
 import PromotionTypeSelector from '../components/PromotionTypeSelector.vue'
 import { useRouter } from 'vue-router'
@@ -50,6 +52,17 @@ const canDelete = computed(() => authStore.userCan('delete', 'Promotion'))
 const canBatchDelete = computed(() => authStore.userCan('batch_delete', 'Promotion'))
 const canBatchEnd = computed(() => authStore.userCan('update', 'Promotion'))
 const canBatchActivate = computed(() => authStore.userCan('update', 'Promotion'))
+const canManagePromotionActions = computed(
+  () => canUpdate.value || canDelete.value,
+)
+
+// ── View mode (table ↔ card) ──────────────────────────────────────────────────
+const { viewMode, setMode: setViewMode, displayMode } = usePromotionViewMode()
+
+function handleViewModeChange(mode: string) {
+  if (!isPromotionViewMode(mode)) return
+  setViewMode(mode)
+}
 
 // ── Filter state ─────────────────────────────────────────────────────────────
 
@@ -120,6 +133,8 @@ const {
   pageCount,
   isLoading,
   isFetching,
+  isError,
+  error,
   refresh,
   pageSizeOptions,
   showingFrom,
@@ -141,6 +156,29 @@ const {
   persistKey: 'pos-promotions',
   defaultSorting: [{ id: 'createdAt', desc: true }],
   defaultPinning: { left: [], right: ['actions'] },
+})
+
+// Human-readable error message for the promotions table. Mirrors
+// CustomersView: prefer backend `response.data.message`, then `error.message`,
+// then the Spanish fallback. The error block in AppDataTable is rendered
+// instead of "No hay promociones todavía" whenever `isError` is true.
+const promotionsErrorMessage = computed(() => {
+  const err = error.value as
+    | { response?: { data?: { message?: unknown } }; message?: string }
+    | null
+    | undefined
+  const backendMessage = err?.response?.data?.message
+  if (typeof backendMessage === 'string' && backendMessage.trim()) {
+    return backendMessage
+  }
+  if (Array.isArray(backendMessage) && backendMessage.length > 0) {
+    const first = backendMessage[0]
+    if (typeof first === 'string') return first
+  }
+  if (typeof err?.message === 'string' && err.message.trim()) {
+    return err.message
+  }
+  return 'No se pudieron cargar las promociones. Reintenta.'
 })
 
 // ── Reset pagination + clear selection when filters change ───────────────────
@@ -639,6 +677,9 @@ defineExpose({
           :data="data"
           :loading="isLoading"
           :fetching="isFetching"
+          :error="isError"
+          :error-message="promotionsErrorMessage"
+          :display-mode="displayMode"
           :page-count="pageCount"
           :total-count="totalCount"
           :showing-from="showingFrom"
@@ -655,6 +696,13 @@ defineExpose({
           @add="handleAddPromotion"
           @refresh="refresh"
         >
+          <template #actions>
+            <ViewToggle
+              :model-value="viewMode"
+              aria-label="Seleccionar vista de promociones"
+              @update:model-value="handleViewModeChange"
+            />
+          </template>
           <!-- ── Selection checkboxes ───────────────────────────────────── -->
           <template #select-header="{ table }">
             <SelectColumn mode="header" :table="table" />
@@ -675,6 +723,10 @@ defineExpose({
 
           <template #startDate-header="{ column }">
             <SortableHeader :column="column" label="Inicio" />
+          </template>
+
+          <template #updatedAt-header="{ column }">
+            <SortableHeader :column="column" label="Actualizada" />
           </template>
 
           <!-- ── Cell renderers ────────────────────────────────────────── -->
@@ -761,6 +813,7 @@ defineExpose({
           <!-- ── Actions cell ───────────────────────────────────────────── -->
           <template #actions-cell="{ row }">
             <UDropdownMenu
+              v-if="canManagePromotionActions"
               :items="getRowItems(row.original)"
               :content="{ align: 'end' }"
             >
