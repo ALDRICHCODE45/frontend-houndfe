@@ -16,6 +16,7 @@ import type { RoleFormValues } from '../composables/useRoleForm'
 import type { RoleTableRow } from '../interfaces/role.types'
 import RoleUpsertSlideover from '../components/RoleUpsertSlideover.vue'
 import RolePermissionsSlideover from '../components/RolePermissionsSlideover.vue'
+import RoleCardGrid from '../components/RoleCardGrid.vue'
 import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
 
 const queryClient = useQueryClient()
@@ -165,6 +166,10 @@ function openEdit(role: RoleTableRow) {
   if (!canUpdateRole.value) return
   selectedRole.value = role
   isEditOpen.value = true
+}
+
+function handleCardClick(role: RoleTableRow) {
+  openEdit(role)
 }
 
 function openPermissions(role: RoleTableRow) {
@@ -336,6 +341,15 @@ function getRowItems(role: RoleTableRow) {
               :model-value="viewMode"
               aria-label="Seleccionar vista de roles"
               @update:model-value="handleViewModeChange"
+            />
+          </template>
+
+          <template #cards>
+            <RoleCardGrid
+              :roles="data"
+              :loading="isLoading || isFetching"
+              :empty="'No se encontraron roles'"
+              @card-click="handleCardClick"
             />
           </template>
         </AppDataTable>
