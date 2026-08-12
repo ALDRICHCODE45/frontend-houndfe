@@ -70,6 +70,7 @@ const avatarSeed = computed(() => props.member.userId || props.member.id)
             :tone="statusTone"
             :label="statusLabel"
             compact
+            data-testid="status-badge"
           />
         </div>
       </div>

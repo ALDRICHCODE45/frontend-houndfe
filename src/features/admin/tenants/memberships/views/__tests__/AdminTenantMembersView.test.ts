@@ -38,8 +38,8 @@ const mockState = {
   showingTo: ref(0),
 }
 
-vi.mock('@/core/shared/composables/useServerTable', () => ({
-  useServerTable: () => ({
+const { useServerTableMock } = vi.hoisted(() => ({
+  useServerTableMock: vi.fn(() => ({
     pagination: mockState.pagination,
     sorting: mockState.sorting,
     globalFilter: mockState.globalFilter,
@@ -57,7 +57,10 @@ vi.mock('@/core/shared/composables/useServerTable', () => ({
     pageSizeOptions: mockState.pageSizeOptions,
     showingFrom: computed(() => mockState.showingFrom.value),
     showingTo: computed(() => mockState.showingTo.value),
-  }),
+  })),
+}))
+vi.mock('@/core/shared/composables/useServerTable', () => ({
+  useServerTable: useServerTableMock,
 }))
 
 const authMock = {
@@ -75,16 +78,17 @@ vi.mock('@tanstack/vue-query', () => ({
   useQueryClient: () => ({ invalidateQueries: vi.fn(), refetchQueries: vi.fn() }),
 }))
 
+const routerPushMock = vi.fn()
 vi.mock('vue-router', () => ({
   useRoute: () => ({ params: { tenantId: 'tenant-123' } }),
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: routerPushMock }),
 }))
 
 vi.mock('../../components/MembershipUpsertSlideover.vue', () => ({
   default: {
     name: 'MembershipUpsertSlideover',
     template:
-      '<div :data-testid="`membership-upsert-slideover-${mode}`" :data-mode="mode" :data-membership-id="membership && membership.id"></div>',
+      '<div v-if="open" :data-testid="`membership-upsert-slideover-${mode}`" :data-mode="mode" :data-membership-id="membership && membership.id"></div>',
     props: ['open', 'mode', 'tenantId', 'membership', 'loading'],
     emits: ['create', 'edit', 'close'],
   },
@@ -111,6 +115,13 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
         :data-error="error ? 'true' : 'false'"
         :data-error-message="errorMessage"
       >
+        <div data-testid="app-data-table-toolbar">
+          <button
+            v-if="showAddButton"
+            data-testid="app-data-table-add-button"
+            @click="$emit('add')"
+          >{{ addButtonText }}</button>
+        </div>
         <slot name="actions" />
         <slot name="cards" />
         <div v-if="error" data-testid="table-error-state" role="alert">
@@ -139,8 +150,33 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
       error: { default: false },
       errorMessage: { default: 'No se pudieron cargar los datos. Reintenta.' },
       empty: { default: 'No se encontraron resultados' },
+      showAddButton: { type: Boolean, default: false },
+      addButtonText: { type: String, default: 'Agregar' },
+      addButtonIcon: { type: String, default: 'i-lucide-plus' },
     },
     emits: ['add', 'refresh'],
+  },
+}))
+
+vi.mock('../../components/MemberCardGrid.vue', () => ({
+  default: {
+    name: 'MemberCardGrid',
+    template: `
+      <div data-testid="member-card-grid" :data-loading="String(loading)">
+        <button
+          v-for="member in members"
+          :key="member.id"
+          :data-testid="'member-card-' + member.id"
+          :data-user-name="member.userName"
+          :data-user-is-active="member.userIsActive === undefined ? 'undefined' : String(member.userIsActive)"
+          @click="$emit('card-click', member)"
+        >
+          {{ member.userName }}
+        </button>
+      </div>
+    `,
+    props: ['members', 'loading', 'empty'],
+    emits: ['card-click'],
   },
 }))
 
@@ -199,6 +235,25 @@ vi.mock('@nuxt/ui', () => ({
   UCard: { name: 'UCard', template: '<div><slot name="header" /><slot /></div>' },
 }))
 
+// UDropdownMenu / UButton / UCard are auto-imported by Nuxt, not pulled
+// from the @nuxt/ui module path. Mount-time stubs ensure our kebab mock
+// is the one Vue resolves in the component tree.
+const nuxtStubs = {
+  UDropdownMenu: {
+    name: 'UDropdownMenu',
+    template:
+      '<div data-testid="kebab-menu" :data-items="JSON.stringify(items || [])"><slot /></div>',
+    props: ['items', 'content'],
+  },
+  UButton: {
+    name: 'UButton',
+    template:
+      '<button v-bind="$attrs" @click="$emit(\'click\')" :data-testid="$attrs[\'data-testid\']"><slot /></button>',
+    emits: ['click'],
+  },
+  UCard: { name: 'UCard', template: '<div><slot name="header" /><slot /></div>' },
+}
+
 vi.mock('@/features/admin/tenants/composables/useTenantSummary', () => ({
   useTenantSummary: () => ({
     tenantName: ref('Sucursal Centro'),
@@ -224,7 +279,9 @@ function makeMember(overrides: Partial<MembershipTableRow> = {}): MembershipTabl
 }
 
 function mountView() {
-  return mount(AdminTenantMembersView)
+  return mount(AdminTenantMembersView, {
+    global: { stubs: nuxtStubs },
+  })
 }
 
 // ── Reset mock state between tests ───────────────────────────────────────────
@@ -245,6 +302,8 @@ beforeEach(() => {
   mockState.isError.value = false
   mockState.error.value = null
   mockState.refresh.mockClear()
+  routerPushMock.mockClear()
+  useServerTableMock.mockClear()
   authMock.isSuperAdmin = false
   authMock.userCan.mockReset()
   authMock.userCan.mockReturnValue(true)
@@ -333,6 +392,166 @@ describe('AdminTenantMembersView — view mode wiring', () => {
     expect(
       wrapper.find('[data-testid="app-data-table"]').attributes('data-column-visibility'),
     ).toBe('true')
+  })
+
+  it('passes display-mode="cards" after toggling to card mode via localStorage', async () => {
+    localStorage.setItem('admin-tenant-members-view-mode', 'card')
+    const wrapper = mountView()
+    await flushPromises()
+    expect(
+      wrapper.find('[data-testid="app-data-table"]').attributes('data-display-mode'),
+    ).toBe('cards')
+  })
+
+  it('falls back to display-mode="table" when the stored value is invalid', async () => {
+    localStorage.setItem('admin-tenant-members-view-mode', 'bogus')
+    const wrapper = mountView()
+    await flushPromises()
+    expect(
+      wrapper.find('[data-testid="app-data-table"]').attributes('data-display-mode'),
+    ).toBe('table')
+  })
+
+  it('renders AdminPageHeader with the standardized title', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+    const header = wrapper.find('[data-testid="admin-page-header"]')
+    expect(header.exists()).toBe(true)
+    expect(header.attributes('data-title')).toBe('Miembros del tenant')
+  })
+})
+
+describe('AdminTenantMembersView — card click', () => {
+  it('opens the edit slideover when a card is clicked with update permission', async () => {
+    authMock.userCan.mockImplementation(
+      (_action: string, _subject: string) =>
+        _subject === 'TenantMembership' && (_action === 'read' || _action === 'update'),
+    )
+    mockState.data.value = [makeMember({ id: 'm-42', userName: 'Ada' })]
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.find('[data-testid="member-card-m-42"]').trigger('click')
+    await flushPromises()
+    const slideover = wrapper.find('[data-testid="membership-upsert-slideover-edit"]')
+    expect(slideover.exists()).toBe(true)
+    expect(slideover.attributes('data-mode')).toBe('edit')
+    expect(slideover.attributes('data-membership-id')).toBe('m-42')
+  })
+
+  it('does not call router.push when a card is clicked', async () => {
+    authMock.userCan.mockReturnValue(true)
+    mockState.data.value = [makeMember({ id: 'm-99' })]
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.find('[data-testid="member-card-m-99"]').trigger('click')
+    await flushPromises()
+    expect(routerPushMock).not.toHaveBeenCalled()
+  })
+
+  it('does not open the edit slideover when update permission is denied', async () => {
+    // Grant read so the table renders; deny update so the card click is a no-op.
+    authMock.userCan.mockImplementation(
+      (_action: string, _subject: string) =>
+        _subject === 'TenantMembership' && _action === 'read',
+    )
+    mockState.data.value = [makeMember({ id: 'm-deny' })]
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.find('[data-testid="member-card-m-deny"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="membership-upsert-slideover-edit"]').exists()).toBe(false)
+  })
+})
+
+describe('AdminTenantMembersView — defaultSorting', () => {
+  it('passes defaultSorting targeting userName — never userEmail', async () => {
+    mountView()
+    await flushPromises()
+    const lastCall = useServerTableMock.mock.calls.at(-1)?.[0] as Record<string, unknown>
+    const serialized = JSON.stringify(lastCall)
+    expect(serialized).toContain('"userName"')
+    expect(serialized).not.toContain('userEmail')
+    expect(mockState.sorting.value).toEqual([{ id: 'userName', desc: false }])
+  })
+})
+
+describe('AdminTenantMembersView — empty vs error precedence', () => {
+  it('suppresses the empty placeholder when isError is true', async () => {
+    mockState.isError.value = true
+    mockState.error.value = { message: 'Boom' }
+    mockState.data.value = []
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="table-error-state"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="table-empty-state"]').exists()).toBe(false)
+  })
+})
+
+describe('AdminTenantMembersView — kebab CASL gating', () => {
+  it('renders no kebab when both update and delete are denied', async () => {
+    authMock.userCan.mockImplementation(
+      (_action: string, _subject: string) =>
+        _subject === 'TenantMembership' && _action === 'read',
+    )
+    mockState.data.value = [makeMember({ id: 'm-1' })]
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('[id^="reka-dropdown-menu-trigger"]').exists()).toBe(false)
+  })
+
+  it('renders the kebab when both update and delete are allowed', async () => {
+    authMock.userCan.mockReturnValue(true)
+    mockState.data.value = [makeMember({ id: 'm-2' })]
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('[id^="reka-dropdown-menu-trigger"]').exists()).toBe(true)
+  })
+})
+
+describe('AdminTenantMembersView — add flow preserved', () => {
+  it('wires the "Agregar miembro" add button through AppDataTable', async () => {
+    authMock.userCan.mockImplementation(
+      (_action: string, _subject: string) =>
+        _subject === 'TenantMembership' && (_action === 'create' || _action === 'update' || _action === 'delete' || _action === 'read'),
+    )
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.html()).toContain('Agregar miembro')
+  })
+})
+
+describe('MemberCard — null-safe userIsActive chip', () => {
+  // Direct unit tests on MemberCard. Mounting the full view would render
+  // the chip inside the card-grid mock, but we want to assert the
+  // v-if on userIsActive !== undefined, which lives in MemberCard.
+  it('renders StatusDotBadge when userIsActive is defined (true → Activo)', async () => {
+    const MemberCard = (await import('../../components/MemberCard.vue')).default
+    const wrapper = mount(MemberCard, {
+      props: { member: makeMember({ userIsActive: true }) },
+    })
+    const chip = wrapper.find('[data-testid="status-badge"]')
+    expect(chip.exists()).toBe(true)
+    expect(chip.text()).toBe('Activo')
+  })
+
+  it('renders StatusDotBadge when userIsActive is false (Inactivo)', async () => {
+    const MemberCard = (await import('../../components/MemberCard.vue')).default
+    const wrapper = mount(MemberCard, {
+      props: { member: makeMember({ userIsActive: false }) },
+    })
+    const chip = wrapper.find('[data-testid="status-badge"]')
+    expect(chip.exists()).toBe(true)
+    expect(chip.text()).toBe('Inactivo')
+  })
+
+  it('omits StatusDotBadge entirely when userIsActive is undefined', async () => {
+    const MemberCard = (await import('../../components/MemberCard.vue')).default
+    const wrapper = mount(MemberCard, {
+      props: { member: makeMember({ userIsActive: undefined }) },
+    })
+    // StatusDotBadge renders with data-testid="status-badge" when
+    // defined. When undefined, the v-if prevents it entirely.
+    expect(wrapper.find('[data-testid="status-badge"]').exists()).toBe(false)
   })
 })
 
