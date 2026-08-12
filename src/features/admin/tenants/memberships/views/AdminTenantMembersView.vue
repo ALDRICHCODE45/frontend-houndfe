@@ -6,17 +6,20 @@ import type { AxiosError } from 'axios'
 import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
+import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { adminTenantMembershipQueryKeys } from '@/core/shared/constants/query-keys'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { membershipsApi, mapMembershipError } from '../api/memberships.api'
 import { useMembershipColumns } from '../composables/useMembershipColumns'
+import { useMembershipViewMode, isMembershipViewMode } from '../composables/useMembershipViewMode'
 import type { MembershipTableRow } from '../interfaces/membership.types'
 import type {
   CreateMembershipFormValues,
   UpdateMembershipFormValues,
 } from '../composables/useMembershipForm'
 import MembershipUpsertSlideover from '../components/MembershipUpsertSlideover.vue'
+import MemberCardGrid from '../components/MemberCardGrid.vue'
 import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
 import { useTenantSummary } from '@/features/admin/tenants/composables/useTenantSummary'
 
@@ -57,6 +60,14 @@ const headerDescription = computed(
   () => `Administrá los usuarios que pertenecen a ${tenantName.value} y sus roles.`,
 )
 
+// ── View mode (table ↔ card) ──────────────────────────────────────────────────
+const { viewMode, setMode: setViewMode, displayMode } = useMembershipViewMode()
+
+function handleViewModeChange(mode: string) {
+  if (!isMembershipViewMode(mode)) return
+  setViewMode(mode)
+}
+
 const {
   pagination,
   sorting,
@@ -68,6 +79,8 @@ const {
   pageCount,
   isLoading,
   isFetching,
+  isError,
+  error,
   refresh,
   pageSizeOptions,
   showingFrom,
@@ -77,8 +90,32 @@ const {
   queryFn: (params) => membershipsApi.getPaginated(tenantId.value, params),
   defaultPageSize: 10,
   persistKey: `admin-tenant-members-${tenantId.value}`,
-  defaultSorting: [{ id: 'userEmail', desc: false }],
+  defaultSorting: [{ id: 'userName', desc: false }],
   defaultPinning: { left: [], right: ['actions'] },
+})
+
+// Human-readable error message for the admin tenant members table.
+// Mirrors AdminTenantsView: prefer backend `response.data.message`, then
+// `error.message`, then the Spanish fallback. The error block in
+// AppDataTable is rendered instead of the empty placeholder whenever
+// `isError` is true.
+const membershipsErrorMessage = computed(() => {
+  const err = error.value as
+    | { response?: { data?: { message?: unknown } }; message?: string }
+    | null
+    | undefined
+  const backendMessage = err?.response?.data?.message
+  if (typeof backendMessage === 'string' && backendMessage.trim()) {
+    return backendMessage
+  }
+  if (Array.isArray(backendMessage) && backendMessage.length > 0) {
+    const first = backendMessage[0]
+    if (typeof first === 'string') return first
+  }
+  if (typeof err?.message === 'string' && err.message.trim()) {
+    return err.message
+  }
+  return 'No se pudieron cargar los miembros. Reintenta.'
 })
 
 const isCreateOpen = ref(false)
@@ -174,8 +211,16 @@ function handleEdit(data: UpdateMembershipFormValues) {
 }
 
 function openEdit(membership: MembershipTableRow) {
+  // Defense-in-depth: the table kebab already gates via getRowItems, but
+  // the card click path bypasses that helper — guard here so a card
+  // click without update permission is a no-op (no slideover, no nav).
+  if (!canUpdateMembership.value) return
   selectedMembership.value = membership
   isEditOpen.value = true
+}
+
+function handleCardClick(membership: MembershipTableRow) {
+  openEdit(membership)
 }
 
 function openRemoveConfirm(membership: MembershipTableRow) {
@@ -227,16 +272,20 @@ function getRowItems(membership: MembershipTableRow) {
           :data="data"
           :loading="isLoading"
           :fetching="isFetching"
+          :error="isError"
+          :error-message="membershipsErrorMessage"
           :page-count="pageCount"
           :total-count="totalCount"
           :showing-from="showingFrom"
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
+          :display-mode="displayMode"
           search-placeholder="Buscar por email, nombre o rol..."
           empty="No hay miembros en este tenant"
           :show-add-button="canCreateMembership"
           add-button-text="Agregar miembro"
           add-button-icon="i-lucide-user-plus"
+          enable-column-visibility
           @add="isCreateOpen = true"
           @refresh="refresh"
         >
@@ -278,6 +327,23 @@ function getRowItems(membership: MembershipTableRow) {
             >
               <UButton icon="i-lucide-ellipsis-vertical" color="neutral" variant="ghost" class="size-7" />
             </UDropdownMenu>
+          </template>
+
+          <template #actions>
+            <ViewToggle
+              :model-value="viewMode"
+              aria-label="Seleccionar vista de miembros"
+              @update:model-value="handleViewModeChange"
+            />
+          </template>
+
+          <template #cards>
+            <MemberCardGrid
+              :members="data"
+              :loading="isLoading || isFetching"
+              :empty="'No se encontraron miembros'"
+              @card-click="handleCardClick"
+            />
           </template>
         </AppDataTable>
       </div>

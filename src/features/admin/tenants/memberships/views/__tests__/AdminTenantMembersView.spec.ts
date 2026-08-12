@@ -6,17 +6,14 @@ import AdminTenantMembersView from '../AdminTenantMembersView.vue'
 import { adminTenantMembershipQueryKeys } from '@/core/shared/constants/query-keys'
 
 /**
- * Behavioral tests for AdminTenantMembersView
- * 
- * Tests cover:
- * - Route params reading (tenantId)
- * - Query key construction using adminTenantMembershipQueryKeys
- * - useServerTable integration with membership API
- * - Create/edit slideover orchestration
- * - Remove confirmation modal
- * - Toast messages for success/error scenarios
- * - Mutation invalidation after CRUD operations
- * - Loading/empty/error states
+ * Behavioral tests for AdminTenantMembersView (post-standardization).
+ *
+ * After WU-C, the heavy coverage lives in
+ * `AdminTenantMembersView.test.ts` (error precedence, view mode, card
+ * click, columns). This spec keeps the lower-cost unit + permission-
+ * guard assertions: query key construction, useServerTable args
+ * (pageSize, persistKey, pinning), mutation invalidation, and the
+ * `getRowItems` CASL gating matrix.
  */
 
 // Mock dependencies
@@ -57,6 +54,8 @@ vi.mock('@/core/shared/composables/useServerTable', () => ({
     pageCount: ref(0),
     isLoading: ref(false),
     isFetching: ref(false),
+    isError: ref(false),
+    error: ref(null),
     refresh: vi.fn(),
     pageSizeOptions: ref([10, 20, 50]),
     showingFrom: ref(0),
@@ -92,7 +91,7 @@ vi.mock('../../api/memberships.api', () => ({
 const mockToastAdd = vi.fn()
 ;(global as any).useToast = vi.fn(() => ({ add: mockToastAdd }))
 
-describe('AdminTenantMembersView - behavioral tests', () => {
+describe('AdminTenantMembersView - useServerTable wiring', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
@@ -102,25 +101,23 @@ describe('AdminTenantMembersView - behavioral tests', () => {
     const mockRoute = { params: { tenantId: 'tenant-456' } }
     vi.mocked(useRoute).mockReturnValue(mockRoute as any)
 
-    const wrapper = mount(AdminTenantMembersView, {
+    mount(AdminTenantMembersView, {
       global: {
         stubs: {
           AppDataTable: true,
           SortableHeader: true,
-          TenantUpsertSlideover: true,
+          MembershipUpsertSlideover: true,
           ConfirmModal: true,
         },
       },
     })
 
-    // Component should extract tenantId from route params
     expect(useRoute).toHaveBeenCalled()
-    expect(wrapper.vm).toBeDefined()
   })
 
   it('constructs query key using adminTenantMembershipQueryKeys.list(tenantId)', async () => {
     const { useServerTable } = await import('@/core/shared/composables/useServerTable')
-    
+
     mount(AdminTenantMembersView, {
       global: {
         stubs: {
@@ -136,13 +133,13 @@ describe('AdminTenantMembersView - behavioral tests', () => {
       expect.objectContaining({
         queryKey: expect.any(Function),
         queryFn: expect.any(Function),
-      })
+      }),
     )
   })
 
   it('uses membershipsApi.getPaginated as queryFn', async () => {
     const { useServerTable } = await import('@/core/shared/composables/useServerTable')
-    
+
     mount(AdminTenantMembersView, {
       global: {
         stubs: {
@@ -158,8 +155,10 @@ describe('AdminTenantMembersView - behavioral tests', () => {
     expect(callArgs).toHaveProperty('queryFn')
   })
 
-  it('opens create slideover when create action is triggered', async () => {
-    const wrapper = mount(AdminTenantMembersView, {
+  it('uses default page size of 10', async () => {
+    const { useServerTable } = await import('@/core/shared/composables/useServerTable')
+
+    mount(AdminTenantMembersView, {
       global: {
         stubs: {
           AppDataTable: true,
@@ -170,12 +169,14 @@ describe('AdminTenantMembersView - behavioral tests', () => {
       },
     })
 
-    // Component should expose method or state to open create slideover
-    expect(wrapper.vm).toBeDefined()
+    const callArgs = vi.mocked(useServerTable).mock.calls[0]![0]
+    expect(callArgs.defaultPageSize).toBe(10)
   })
 
-  it('opens edit slideover with prefilled data when edit action is triggered', async () => {
-    const wrapper = mount(AdminTenantMembersView, {
+  it('uses persist key "admin-tenant-members-{tenantId}"', async () => {
+    const { useServerTable } = await import('@/core/shared/composables/useServerTable')
+
+    mount(AdminTenantMembersView, {
       global: {
         stubs: {
           AppDataTable: true,
@@ -186,12 +187,14 @@ describe('AdminTenantMembersView - behavioral tests', () => {
       },
     })
 
-    // Component should handle edit action with tenant row data
-    expect(wrapper.vm).toBeDefined()
+    const callArgs = vi.mocked(useServerTable).mock.calls[0]![0]
+    expect(callArgs.persistKey).toContain('admin-tenant-members')
   })
 
-  it('shows confirmation modal when remove action is triggered', async () => {
-    const wrapper = mount(AdminTenantMembersView, {
+  it('pins actions column to the right by default', async () => {
+    const { useServerTable } = await import('@/core/shared/composables/useServerTable')
+
+    mount(AdminTenantMembersView, {
       global: {
         stubs: {
           AppDataTable: true,
@@ -202,56 +205,8 @@ describe('AdminTenantMembersView - behavioral tests', () => {
       },
     })
 
-    // Component should manage confirm modal state
-    expect(wrapper.vm).toBeDefined()
-  })
-
-  it('calls create mutation and shows success toast on successful create', async () => {
-    const wrapper = mount(AdminTenantMembersView, {
-      global: {
-        stubs: {
-          AppDataTable: true,
-          SortableHeader: true,
-          MembershipUpsertSlideover: true,
-          ConfirmModal: true,
-        },
-      },
-    })
-
-    // Component should use useMutation for create operation
-    expect(wrapper.vm).toBeDefined()
-  })
-
-  it('calls updateRole mutation and shows success toast on successful edit', async () => {
-    const wrapper = mount(AdminTenantMembersView, {
-      global: {
-        stubs: {
-          AppDataTable: true,
-          SortableHeader: true,
-          MembershipUpsertSlideover: true,
-          ConfirmModal: true,
-        },
-      },
-    })
-
-    // Component should use useMutation for update operation
-    expect(wrapper.vm).toBeDefined()
-  })
-
-  it('shows error toast with mapped message on create failure', async () => {
-    const wrapper = mount(AdminTenantMembersView, {
-      global: {
-        stubs: {
-          AppDataTable: true,
-          SortableHeader: true,
-          MembershipUpsertSlideover: true,
-          ConfirmModal: true,
-        },
-      },
-    })
-
-    // Component should handle errors and use mapMembershipError
-    expect(wrapper.vm).toBeDefined()
+    const callArgs = vi.mocked(useServerTable).mock.calls[0]![0]
+    expect(callArgs.defaultPinning).toEqual({ left: [], right: ['actions'] })
   })
 
   it('invalidates membership queries after successful create', async () => {
@@ -287,9 +242,9 @@ describe('AdminTenantMembersView - behavioral tests', () => {
     })
   })
 
-  it('invalidates membership queries after successful edit', async () => {
+  it('calls useQueryClient (mutation invalidation wiring)', async () => {
     const { useQueryClient } = await import('@tanstack/vue-query')
-    
+
     mount(AdminTenantMembersView, {
       global: {
         stubs: {
@@ -301,80 +256,7 @@ describe('AdminTenantMembersView - behavioral tests', () => {
       },
     })
 
-    // Component should invalidate queries on success
     expect(useQueryClient).toHaveBeenCalled()
-  })
-
-  it('invalidates membership queries after successful remove', async () => {
-    const { useQueryClient } = await import('@tanstack/vue-query')
-    
-    mount(AdminTenantMembersView, {
-      global: {
-        stubs: {
-          AppDataTable: true,
-          SortableHeader: true,
-          MembershipUpsertSlideover: true,
-          ConfirmModal: true,
-        },
-      },
-    })
-
-    // Component should invalidate queries on success
-    expect(useQueryClient).toHaveBeenCalled()
-  })
-
-  it('uses default page size of 10', async () => {
-    const { useServerTable } = await import('@/core/shared/composables/useServerTable')
-    
-    mount(AdminTenantMembersView, {
-      global: {
-        stubs: {
-          AppDataTable: true,
-          SortableHeader: true,
-          MembershipUpsertSlideover: true,
-          ConfirmModal: true,
-        },
-      },
-    })
-
-    const callArgs = vi.mocked(useServerTable).mock.calls[0]![0]
-    expect(callArgs.defaultPageSize).toBe(10)
-  })
-
-  it('uses persist key "admin-tenant-members-{tenantId}"', async () => {
-    const { useServerTable } = await import('@/core/shared/composables/useServerTable')
-    
-    mount(AdminTenantMembersView, {
-      global: {
-        stubs: {
-          AppDataTable: true,
-          SortableHeader: true,
-          MembershipUpsertSlideover: true,
-          ConfirmModal: true,
-        },
-      },
-    })
-
-    const callArgs = vi.mocked(useServerTable).mock.calls[0]![0]
-    expect(callArgs.persistKey).toContain('admin-tenant-members')
-  })
-
-  it('pins actions column to the right by default', async () => {
-    const { useServerTable } = await import('@/core/shared/composables/useServerTable')
-    
-    mount(AdminTenantMembersView, {
-      global: {
-        stubs: {
-          AppDataTable: true,
-          SortableHeader: true,
-          MembershipUpsertSlideover: true,
-          ConfirmModal: true,
-        },
-      },
-    })
-
-    const callArgs = vi.mocked(useServerTable).mock.calls[0]![0]
-    expect(callArgs.defaultPinning).toEqual({ left: [], right: ['actions'] })
   })
 
   it('renders only the table header section (no duplicated outer header)', async () => {
@@ -507,7 +389,6 @@ describe('AdminTenantMembersView - permission guards', () => {
       update: false,
       delete: false,
     })
-    // Access the exposed function via the component instance
     const vm = wrapper.vm as unknown as {
       getRowItems: (m: { id: string; userEmail: string }) => unknown[]
     }
