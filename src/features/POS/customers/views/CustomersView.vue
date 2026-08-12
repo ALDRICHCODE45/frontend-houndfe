@@ -54,6 +54,8 @@ const {
   pageCount,
   isLoading,
   isFetching,
+  isError,
+  error,
   refresh,
   pageSizeOptions,
   showingFrom,
@@ -65,6 +67,29 @@ const {
   persistKey: 'pos-customers',
   defaultSorting: [{ id: 'fullName', desc: false }],
   defaultPinning: { left: [], right: ['actions'] },
+})
+
+// Human-readable error message for the customers table. Mirrors
+// ProductsView: prefer backend `response.data.message`, then `error.message`,
+// then the Spanish fallback. The error block in AppDataTable is rendered
+// instead of "No se encontraron clientes" whenever `isError` is true.
+const customersErrorMessage = computed(() => {
+  const err = error.value as
+    | { response?: { data?: { message?: unknown } }; message?: string }
+    | null
+    | undefined
+  const backendMessage = err?.response?.data?.message
+  if (typeof backendMessage === 'string' && backendMessage.trim()) {
+    return backendMessage
+  }
+  if (Array.isArray(backendMessage) && backendMessage.length > 0) {
+    const first = backendMessage[0]
+    if (typeof first === 'string') return first
+  }
+  if (typeof err?.message === 'string' && err.message.trim()) {
+    return err.message
+  }
+  return 'No se pudieron cargar los clientes. Reintenta.'
 })
 
 // Reuse globalPriceLists from products endpoint (same endpoint)
@@ -396,6 +421,8 @@ const bulkActions = computed<BulkAction<Customer>[]>(() => [])
           :data="data"
           :loading="isLoading"
           :fetching="isFetching"
+          :error="isError"
+          :error-message="customersErrorMessage"
           :page-count="pageCount"
           :total-count="totalCount"
           :showing-from="showingFrom"
@@ -428,8 +455,16 @@ const bulkActions = computed<BulkAction<Customer>[]>(() => [])
             <span class="font-medium">{{ row.original.fullName }}</span>
           </template>
 
+          <template #email-header="{ column }">
+            <SortableHeader :column="column" label="Email" />
+          </template>
+
           <template #email-cell="{ row }">
             <span class="text-sm text-muted">{{ row.original.email ?? '—' }}</span>
+          </template>
+
+          <template #phone-header="{ column }">
+            <SortableHeader :column="column" label="Teléfono" />
           </template>
 
           <template #phone-cell="{ row }">
@@ -439,6 +474,10 @@ const bulkActions = computed<BulkAction<Customer>[]>(() => [])
               </template>
               <template v-else>—</template>
             </span>
+          </template>
+
+          <template #globalPriceListName-header="{ column }">
+            <SortableHeader :column="column" label="Lista de Precios" />
           </template>
 
           <template #globalPriceListName-cell="{ row }">

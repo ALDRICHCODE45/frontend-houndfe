@@ -21,21 +21,24 @@ export function useCustomerColumns() {
     },
 
     // ── Email ──────────────────────────────────────────────────────────
+    // header text comes from the #email-header slot (SortableHeader).
     {
       accessorKey: 'email',
       header: 'Email',
     },
 
     // ── Teléfono ───────────────────────────────────────────────────────
+    // header text comes from the #phone-header slot (SortableHeader).
     {
       accessorKey: 'phone',
-      header: createSimpleHeader('Teléfono'),
+      header: 'Teléfono',
     },
 
     // ── Lista de Precios ───────────────────────────────────────────────
+    // header text comes from the #globalPriceListName-header slot (SortableHeader).
     {
       accessorKey: 'globalPriceListName',
-      header: createSimpleHeader('Lista de Precios'),
+      header: 'Lista de Precios',
     },
 
     // ── Acciones ──────────────────────────────────────────────────────
