@@ -5,7 +5,7 @@ import { computed, ref } from 'vue'
 import AdminRolesView from '../AdminRolesView.vue'
 import type { RoleTableRow } from '../../interfaces/role.types'
 
-// ── Mock state for useServerTable ────────────────────────────────────────────
+// ── Mocks for composables that the view consumes ─────────────────────────────
 
 const mockState = {
   pagination: ref({ pageIndex: 0, pageSize: 10 }),
@@ -76,6 +76,26 @@ vi.mock('../../components/RoleUpsertSlideover.vue', () => ({
 
 vi.mock('../../components/RolePermissionsSlideover.vue', () => ({
   default: { name: 'RolePermissionsSlideover', template: '<div />', props: ['open', 'role', 'loading'], emits: ['save'] },
+}))
+
+vi.mock('../../components/RoleCardGrid.vue', () => ({
+  default: {
+    name: 'RoleCardGrid',
+    template: `
+      <div data-testid="role-card-grid">
+        <button
+          v-for="role in roles"
+          :key="role.id"
+          :data-testid="'card-' + role.id"
+          @click="$emit('card-click', role)"
+        >
+          {{ role.name }}
+        </button>
+      </div>
+    `,
+    props: ['roles', 'loading', 'empty'],
+    emits: ['card-click'],
+  },
 }))
 
 vi.mock('../../composables/useRoleColumns', () => ({
@@ -172,7 +192,8 @@ vi.mock('@/core/shared/components/ViewToggle.vue', () => ({
 vi.mock('@nuxt/ui', () => ({
   UDropdownMenu: {
     name: 'UDropdownMenu',
-    template: '<div data-testid="kebab-menu"><slot /></div>',
+    template:
+      '<div data-testid="kebab-menu" :data-items="JSON.stringify(items || [])"><slot /></div>',
     props: ['items', 'content'],
     emits: ['select'],
   },
@@ -188,7 +209,7 @@ vi.mock('@nuxt/ui', () => ({
   UCard: { name: 'UCard', template: '<div><slot name="header" /><slot /></div>' },
 }))
 
-// ── Sample data ─────────────────────────────────────────────────────────────
+// ── Sample data ──────────────────────────────────────────────────────────────
 
 function makeRole(overrides: Partial<RoleTableRow> = {}): RoleTableRow {
   return {
@@ -208,7 +229,7 @@ function mountView() {
   return mount(AdminRolesView)
 }
 
-// ── Reset mock state between tests ──────────────────────────────────────────
+// ── Reset mock state between tests ───────────────────────────────────────────
 
 beforeEach(() => {
   localStorage.clear()
@@ -230,17 +251,20 @@ beforeEach(() => {
   authMock.userCan.mockReturnValue(true)
 })
 
-describe('AdminRolesView — error message precedence (WU-A stub)', () => {
-  it('uses backend response.data.message when present', async () => {
+describe('AdminRolesView — error state', () => {
+  it('renders the error block with the backend-derived message when isError is true', async () => {
     mockState.isError.value = true
     mockState.error.value = {
       response: { data: { message: 'No se pudo conectar al servidor' } },
     }
     const wrapper = mountView()
     await flushPromises()
+    expect(wrapper.find('[data-testid="table-error-state"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="error-message"]').text()).toBe(
       'No se pudo conectar al servidor',
     )
+    // The empty placeholder must NOT render when there is an error.
+    expect(wrapper.find('[data-testid="table-empty-state"]').exists()).toBe(false)
   })
 
   it('falls back to error.message when the backend message is missing', async () => {
@@ -260,20 +284,179 @@ describe('AdminRolesView — error message precedence (WU-A stub)', () => {
       'No se pudieron cargar los roles. Reintenta.',
     )
   })
+
+  it('triggers refresh when the retry button is clicked', async () => {
+    mockState.isError.value = true
+    mockState.error.value = { response: { data: { message: 'Boom' } } }
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.find('[data-testid="table-error-retry"]').trigger('click')
+    expect(mockState.refresh).toHaveBeenCalled()
+  })
 })
 
-describe('useRoleColumns — order and flags (WU-A stub)', () => {
-  it('exposes columns in the standardized order', async () => {
+describe('AdminRolesView — view mode', () => {
+  it('renders ViewToggle in the toolbar actions slot', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="view-toggle"]').exists()).toBe(true)
+  })
+
+  it('passes display-mode="table" by default', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe('table')
+  })
+
+  it('passes display-mode="cards" after toggling to card mode via localStorage', async () => {
+    localStorage.setItem('admin-roles-view-mode', 'card')
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe('cards')
+  })
+
+  it('falls back to display-mode="table" when the stored value is invalid', async () => {
+    localStorage.setItem('admin-roles-view-mode', 'bogus')
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe('table')
+  })
+
+  it('wires enable-column-visibility on the AppDataTable', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+    expect(
+      wrapper.find('[data-testid="app-data-table"]').attributes('data-column-visibility'),
+    ).toBe('true')
+  })
+
+  it('renders AdminPageHeader with the standardized title', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+    const header = wrapper.find('[data-testid="admin-page-header"]')
+    expect(header.exists()).toBe(true)
+    expect(header.attributes('data-title')).toBe('Gestión de roles')
+  })
+})
+
+describe('AdminRolesView — permission gating', () => {
+  it('hides the kebab on the row when user lacks update AND delete', async () => {
+    authMock.userCan.mockImplementation(
+      (_action: string, subject: string) => subject !== 'Role' || false,
+    )
     mockState.data.value = [makeRole()]
     const wrapper = mountView()
     await flushPromises()
-    const table = wrapper.find('[data-testid="app-data-table"]')
-    expect(table.exists()).toBe(true)
-    // The stub slots verify the columns cover Description, Permisos, Usuarios.
-    expect(wrapper.find('[data-testid="sortable-name"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('Descripción')
-    expect(wrapper.find('[data-testid="sortable-permissionCount"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="sortable-userCount"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="sortable-createdAt"]').exists()).toBe(true)
+    const html = wrapper.html()
+    // When canManageRoleActions is false the UDropdownMenu is removed
+    // entirely (v-if in the view); the kebab trigger id is absent.
+    expect(html).not.toContain('reka-dropdown-menu-trigger')
+  })
+
+  it('shows the kebab on the row when the user has update permission', async () => {
+    authMock.userCan.mockImplementation(
+      (action: string, subject: string) =>
+        (action === 'update' && subject === 'Role') || action === 'read',
+    )
+    mockState.data.value = [makeRole()]
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.html()).toContain('reka-dropdown-menu-trigger')
+  })
+
+  it('shows the kebab on the row when the user has delete permission', async () => {
+    authMock.userCan.mockImplementation(
+      (action: string, subject: string) =>
+        (action === 'delete' && subject === 'Role') || action === 'read',
+    )
+    mockState.data.value = [makeRole()]
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.html()).toContain('reka-dropdown-menu-trigger')
+  })
+
+  it('system role rows hide the "Eliminar" entry even when delete permission is granted', async () => {
+    authMock.userCan.mockImplementation(
+      (action: string, subject: string) =>
+        (action === 'update' && subject === 'Role') ||
+        (action === 'delete' && subject === 'Role') ||
+        action === 'read',
+    )
+    mockState.data.value = [makeRole({ id: 'role-sys', isSystem: true })]
+    const wrapper = mountView()
+    await flushPromises()
+
+    // The real UDropdownMenu is rendered (Nuxt UI is not mocked at the
+    // virtual-module level). Open the popover by clicking the trigger and
+    // inspect the rendered menu items.
+    const trigger = wrapper.find('[id^="reka-dropdown-menu-trigger"]')
+    expect(trigger.exists()).toBe(true)
+    await trigger.trigger('click')
+    await flushPromises()
+
+    const html = document.body.innerHTML
+    expect(html).toContain('Editar')
+    expect(html).toContain('Permisos')
+    expect(html).not.toContain('Eliminar')
+  })
+
+  it('non-system roles show "Eliminar" when delete permission is granted', async () => {
+    authMock.userCan.mockImplementation(
+      (action: string, subject: string) =>
+        (action === 'update' && subject === 'Role') ||
+        (action === 'delete' && subject === 'Role') ||
+        action === 'read',
+    )
+    mockState.data.value = [makeRole({ isSystem: false })]
+    const wrapper = mountView()
+    await flushPromises()
+
+    const trigger = wrapper.find('[id^="reka-dropdown-menu-trigger"]')
+    expect(trigger.exists()).toBe(true)
+    await trigger.trigger('click')
+    await flushPromises()
+
+    const html = document.body.innerHTML
+    expect(html).toContain('Eliminar')
+  })
+})
+
+describe('AdminRolesView — card slot', () => {
+  it('renders RoleCardGrid inside the cards slot when in card mode', async () => {
+    mockState.data.value = [makeRole()]
+    localStorage.setItem('admin-roles-view-mode', 'card')
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="role-card-grid"]').exists()).toBe(true)
+  })
+
+  it('card click opens the edit slideover with the clicked role and does not push to router', async () => {
+    // No router push should occur — there is no detail route.
+    const routerPush = vi.fn()
+    // @ts-expect-error - intentional global to detect any router import.
+    globalThis.useRouter = () => ({ push: routerPush })
+
+    mockState.data.value = [makeRole({ id: 'role-42', name: 'Manager' })]
+    localStorage.setItem('admin-roles-view-mode', 'card')
+    const wrapper = mountView()
+    await flushPromises()
+
+    const card = wrapper.find('[data-testid="card-role-42"]')
+    expect(card.exists()).toBe(true)
+    await card.trigger('click')
+    await flushPromises()
+
+    // The edit slideover must be present and bound to the clicked role.
+    const slideover = wrapper.find('[data-testid="role-upsert-slideover-edit"]')
+    expect(slideover.exists()).toBe(true)
+    expect(slideover.attributes('data-role-id')).toBe('role-42')
+    expect(slideover.attributes('data-mode')).toBe('edit')
+
+    // No router navigation occurred — card click is slideover-only.
+    expect(routerPush).not.toHaveBeenCalled()
+
+    // Cleanup the global stub so it does not leak across tests.
+    // @ts-expect-error - intentional global to detect any router import.
+    delete globalThis.useRouter
   })
 })
