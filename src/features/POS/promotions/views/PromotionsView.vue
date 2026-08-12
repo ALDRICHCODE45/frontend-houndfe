@@ -18,6 +18,7 @@ import { usePromotionColumns } from '../composables/usePromotionColumns'
 import { usePromotionViewMode, isPromotionViewMode } from '../composables/usePromotionViewMode'
 import type { PromotionMethod, PromotionResponse, PromotionStatus, PromotionType } from '../interfaces/promotion.types'
 import PromotionTypeSelector from '../components/PromotionTypeSelector.vue'
+import PromotionCardGrid from '../components/PromotionCardGrid.vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import {
@@ -449,6 +450,10 @@ function handleEdit(promotion: PromotionResponse) {
   void router.push(`/pos/promociones/${promotion.id}`)
 }
 
+function handleCardClick(promotion: PromotionResponse) {
+  void router.push(`/pos/promociones/${promotion.id}`)
+}
+
 function handleEnd(promotion: PromotionResponse) {
   openConfirm(
     `¿Quieres finalizar la promoción "${promotion.title}"? Esta acción no se puede deshacer.`,
@@ -588,10 +593,12 @@ defineExpose({
   canBatchDelete,
   canBatchEnd,
   canBatchActivate,
+  canManagePromotionActions,
   batchEndMutation,
   batchActivateMutation,
   offendingIds,
   rowSelection,
+  promotionsErrorMessage,
 })
 </script>
 
@@ -625,47 +632,6 @@ defineExpose({
       </template>
 
       <div class="px-6 py-5">
-        <!-- ── Filter toolbar ─────────────────────────────────────────────── -->
-        <div class="mb-4 flex flex-wrap items-center gap-3" data-testid="filter-toolbar">
-          <USelect
-            v-model="filterTypeSelect"
-            :items="TYPE_OPTIONS"
-            value-key="value"
-            label-key="label"
-            placeholder="Tipo"
-            class="w-48"
-            data-testid="filter-type"
-          />
-          <USelect
-            v-model="filterStatusSelect"
-            :items="STATUS_OPTIONS"
-            value-key="value"
-            label-key="label"
-            placeholder="Estado"
-            class="w-44"
-            data-testid="filter-status"
-          />
-          <USelect
-            v-model="filterMethodSelect"
-            :items="METHOD_OPTIONS"
-            value-key="value"
-            label-key="label"
-            placeholder="Método"
-            class="w-40"
-            data-testid="filter-method"
-          />
-          <UButton
-            v-if="filterType || filterStatus || filterMethod"
-            label="Limpiar filtros"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            class="cursor-pointer"
-            data-testid="clear-filters-btn"
-            @click="filterType = ''; filterStatus = ''; filterMethod = ''"
-          />
-        </div>
-
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"
@@ -701,6 +667,55 @@ defineExpose({
               :model-value="viewMode"
               aria-label="Seleccionar vista de promociones"
               @update:model-value="handleViewModeChange"
+            />
+          </template>
+
+          <template #filters>
+            <USelect
+              v-model="filterTypeSelect"
+              :items="TYPE_OPTIONS"
+              value-key="value"
+              label-key="label"
+              placeholder="Tipo"
+              class="w-48"
+              data-testid="filter-type"
+            />
+            <USelect
+              v-model="filterStatusSelect"
+              :items="STATUS_OPTIONS"
+              value-key="value"
+              label-key="label"
+              placeholder="Estado"
+              class="w-44"
+              data-testid="filter-status"
+            />
+            <USelect
+              v-model="filterMethodSelect"
+              :items="METHOD_OPTIONS"
+              value-key="value"
+              label-key="label"
+              placeholder="Método"
+              class="w-40"
+              data-testid="filter-method"
+            />
+            <UButton
+              v-if="filterType || filterStatus || filterMethod"
+              label="Limpiar filtros"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              class="cursor-pointer"
+              data-testid="clear-filters-btn"
+              @click="filterType = ''; filterStatus = ''; filterMethod = ''"
+            />
+          </template>
+
+          <template #cards>
+            <PromotionCardGrid
+              :promotions="data"
+              :loading="isLoading || isFetching"
+              :empty="'No se encontraron promociones'"
+              @card-click="handleCardClick"
             />
           </template>
           <!-- ── Selection checkboxes ───────────────────────────────────── -->

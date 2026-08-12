@@ -127,6 +127,9 @@ const STUBS = {
     emits: ['add', 'refresh'],
     template: `
       <div data-testid="app-data-table" :data-bulk-count="String((bulkActions?.length) ?? 0)" :data-enable-row-selection="String(enableRowSelection)">
+        <slot name="filters" />
+        <slot name="actions" />
+        <slot name="cards" />
         <slot name="empty-state" />
         <button data-testid="add-btn" @click="$emit('add')">Add</button>
         <div
@@ -312,11 +315,6 @@ describe('PromotionsView', () => {
   })
 
   // ── Filter toolbar ────────────────────────────────────────────────────────
-  it('renders filter toolbar', () => {
-    const wrapper = mountView()
-    expect(wrapper.find('[data-testid="filter-toolbar"]').exists()).toBe(true)
-  })
-
   it('renders type filter select', () => {
     const wrapper = mountView()
     expect(wrapper.find('[data-testid="filter-type"]').exists()).toBe(true)
