@@ -7,14 +7,20 @@ export function useMembershipColumns() {
     {
       accessorKey: 'userName',
       header: 'Usuario',
+      enableSorting: true,
+      enableHiding: true,
     },
     {
       accessorKey: 'roleName',
       header: 'Rol',
+      enableSorting: true,
+      enableHiding: true,
     },
     {
       accessorKey: 'createdAt',
       header: 'Fecha de ingreso',
+      enableSorting: true,
+      enableHiding: true,
     },
     {
       id: 'actions',
