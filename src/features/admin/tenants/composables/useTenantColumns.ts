@@ -7,22 +7,38 @@ export function useTenantColumns() {
     {
       accessorKey: 'name',
       header: 'Nombre',
+      enableSorting: true,
+      enableHiding: true,
     },
     {
       accessorKey: 'slug',
       header: 'Slug',
-    },
-    {
-      id: 'isActive',
-      header: createSimpleHeader('Estado'),
+      enableSorting: true,
+      enableHiding: true,
     },
     {
       accessorKey: 'address',
       header: 'Dirección',
+      enableSorting: false,
+      enableHiding: true,
+    },
+    {
+      accessorKey: 'phone',
+      header: 'Teléfono',
+      enableSorting: false,
+      enableHiding: true,
+    },
+    {
+      id: 'isActive',
+      header: createSimpleHeader('Estado'),
+      enableSorting: false,
+      enableHiding: true,
     },
     {
       accessorKey: 'createdAt',
       header: 'Creación',
+      enableSorting: true,
+      enableHiding: true,
     },
     {
       id: 'actions',
