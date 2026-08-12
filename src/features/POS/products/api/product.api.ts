@@ -265,14 +265,12 @@ export const productApi = {
     const { data } = await http.get<ProductBackendListResponse | ProductBackendResponse[]>(
       '/products',
       {
-        params: {
-          ...(params.globalFilter
+        params: (params.globalFilter
             ? {
                 search: params.globalFilter,
                 q: params.globalFilter,
               }
             : {}),
-        },
       },
     )
 
