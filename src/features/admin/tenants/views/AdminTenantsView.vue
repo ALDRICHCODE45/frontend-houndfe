@@ -17,6 +17,7 @@ import { useTenantViewMode, isTenantViewMode } from '../composables/useTenantVie
 import type { TenantTableRow } from '../interfaces/tenant.types'
 import type { CreateTenantFormValues, EditTenantFormValues } from '../composables/useTenantForm'
 import TenantUpsertSlideover from '../components/TenantUpsertSlideover.vue'
+import TenantCardGrid from '../components/TenantCardGrid.vue'
 import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
 import { buildTenantRowActions } from '../utils/tenant-actions.utils'
 
@@ -188,6 +189,10 @@ function openEdit(tenant: TenantTableRow) {
   isEditOpen.value = true
 }
 
+function handleCardClick(tenant: TenantTableRow) {
+  openEdit(tenant)
+}
+
 async function handleDeactivate(tenant: TenantTableRow) {
   if (!canDeleteTenant.value) return
   openConfirm(`¿Quieres desactivar la sucursal ${tenant.name}?`, () => {
@@ -324,6 +329,15 @@ function getRowItems(tenant: TenantTableRow) {
               :model-value="viewMode"
               aria-label="Seleccionar vista de sucursales"
               @update:model-value="handleViewModeChange"
+            />
+          </template>
+
+          <template #cards>
+            <TenantCardGrid
+              :tenants="data"
+              :loading="isLoading || isFetching"
+              :empty="'No se encontraron sucursales'"
+              @card-click="handleCardClick"
             />
           </template>
         </AppDataTable>
