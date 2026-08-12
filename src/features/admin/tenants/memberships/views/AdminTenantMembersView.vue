@@ -19,6 +19,7 @@ import type {
   UpdateMembershipFormValues,
 } from '../composables/useMembershipForm'
 import MembershipUpsertSlideover from '../components/MembershipUpsertSlideover.vue'
+import MemberCardGrid from '../components/MemberCardGrid.vue'
 import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
 import { useTenantSummary } from '@/features/admin/tenants/composables/useTenantSummary'
 
@@ -210,8 +211,16 @@ function handleEdit(data: UpdateMembershipFormValues) {
 }
 
 function openEdit(membership: MembershipTableRow) {
+  // Defense-in-depth: the table kebab already gates via getRowItems, but
+  // the card click path bypasses that helper — guard here so a card
+  // click without update permission is a no-op (no slideover, no nav).
+  if (!canUpdateMembership.value) return
   selectedMembership.value = membership
   isEditOpen.value = true
+}
+
+function handleCardClick(membership: MembershipTableRow) {
+  openEdit(membership)
 }
 
 function openRemoveConfirm(membership: MembershipTableRow) {
@@ -325,6 +334,15 @@ function getRowItems(membership: MembershipTableRow) {
               :model-value="viewMode"
               aria-label="Seleccionar vista de miembros"
               @update:model-value="handleViewModeChange"
+            />
+          </template>
+
+          <template #cards>
+            <MemberCardGrid
+              :members="data"
+              :loading="isLoading || isFetching"
+              :empty="'No se encontraron miembros'"
+              @card-click="handleCardClick"
             />
           </template>
         </AppDataTable>
