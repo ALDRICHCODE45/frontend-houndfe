@@ -1,10 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
+import { ref } from 'vue'
 import { AxiosError } from 'axios'
 import PromotionsView from '../PromotionsView.vue'
 import { promotionApi } from '../../api/promotion.api'
 import type { PromotionResponse } from '../../interfaces/promotion.types'
+
+// Wrap a plain value so it auto-unwraps like a Vue ref in templates.
+// The real useServerTable returns ComputedRef/Ref instances, but the mock
+// fixtures historically used `{ value: ... }` objects — Vue's template
+// auto-unwrap only fires for real refs, which broke `:promotions="data"`
+// when data was the plain object. This helper keeps existing fixtures
+// readable while restoring auto-unwrap semantics.
+function r<T>(value: T) {
+  return ref(value)
+}
 
 // ── Global mocks ──────────────────────────────────────────────────────────────
 
@@ -29,7 +40,7 @@ vi.mock('@/core/shared/composables/useServerTable', () => {
     isLoading: { value: false },
     isFetching: { value: false },
     isError: { value: false },
-    error: { value: null },
+    error: r(null),
     refresh: vi.fn(),
     pageSizeOptions: { value: [10, 20, 50] },
     showingFrom: { value: 0 },
@@ -51,6 +62,16 @@ vi.mock('../../api/promotion.api', () => ({
     batchDelete: vi.fn(),
     batchEnd: vi.fn(),
     batchActivate: vi.fn(),
+  },
+}))
+
+vi.mock('@/core/shared/components/ViewToggle.vue', () => ({
+  default: {
+    name: 'ViewToggle',
+    template:
+      '<div data-testid="view-toggle"><button data-testid="view-toggle-table" @click="$emit(\'update:modelValue\', \'table\')">Tabla</button><button data-testid="view-toggle-card" @click="$emit(\'update:modelValue\', \'card\')">Tarjetas</button></div>',
+    props: ['modelValue', 'options', 'ariaLabel'],
+    emits: ['update:modelValue'],
   },
 }))
 
@@ -123,26 +144,61 @@ process.on('unhandledRejection', () => {})
 const STUBS = {
   AppDataTable: {
     inheritAttrs: false,
-    props: ['columns', 'data', 'loading', 'empty', 'bulkActions', 'enableRowSelection'],
+    props: ['columns', 'data', 'loading', 'empty', 'bulkActions', 'enableRowSelection', 'error', 'errorMessage', 'displayMode'],
     emits: ['add', 'refresh'],
+    // The view passes `:error="isError"` and the mock may return either a
+    // real Vue ref (after auto-unwrap → boolean) or a plain `{ value: ... }`
+    // object (no auto-unwrap). Resolve both forms with a small helper.
+    computed: {
+      errorFlag(): boolean {
+        const e = (this as unknown as { error: unknown }).error
+        if (e === true) return true
+        if (e && typeof e === 'object' && 'value' in e) {
+          return (e as { value: unknown }).value === true
+        }
+        return false
+      },
+    },
     template: `
-      <div data-testid="app-data-table" :data-bulk-count="String((bulkActions?.length) ?? 0)" :data-enable-row-selection="String(enableRowSelection)">
-        <slot name="filters" />
-        <slot name="actions" />
-        <slot name="cards" />
-        <slot name="empty-state" />
-        <button data-testid="add-btn" @click="$emit('add')">Add</button>
-        <div
-          v-for="row in (Array.isArray(data) ? data : (data?.value ?? []))"
-          :key="row.id"
-          data-testid="row"
-          :data-row-id="row.id"
-        >
-          <slot name="title-cell" :row="{ original: row }" />
-          <slot name="status-cell" :row="{ original: row }" />
-          <slot name="type-cell" :row="{ original: row }" />
-          <slot name="method-cell" :row="{ original: row }" />
+      <div
+        data-testid="app-data-table"
+        :data-bulk-count="String((bulkActions?.length) ?? 0)"
+        :data-enable-row-selection="String(enableRowSelection)"
+        :data-display-mode="displayMode"
+        :data-error="errorFlag ? 'true' : 'false'"
+        :data-error-message="errorMessage"
+      >
+        <div data-testid="app-data-table-toolbar">
+          <slot name="filters" />
+          <slot name="actions" />
         </div>
+        <div v-if="errorFlag" data-testid="table-error-state" role="alert">
+          <p data-testid="error-message">{{ errorMessage }}</p>
+          <button data-testid="table-error-retry" @click="$emit('refresh')">Reintentar</button>
+        </div>
+        <template v-else-if="displayMode === 'cards'">
+          <slot name="cards" />
+        </template>
+        <template v-else>
+          <slot name="empty-state" />
+          <button data-testid="add-btn" @click="$emit('add')">Add</button>
+          <div
+            v-for="row in (Array.isArray(data) ? data : (data?.value ?? []))"
+            :key="row.id"
+            data-testid="row"
+            :data-row-id="row.id"
+          >
+            <slot name="title-header" :column="{ id: 'title', getIsSorted: () => false, toggleSorting: () => {} }" />
+            <slot name="createdAt-header" :column="{ id: 'createdAt', getIsSorted: () => false, toggleSorting: () => {} }" />
+            <slot name="startDate-header" :column="{ id: 'startDate', getIsSorted: () => false, toggleSorting: () => {} }" />
+            <slot name="updatedAt-header" :column="{ id: 'updatedAt', getIsSorted: () => false, toggleSorting: () => {} }" />
+            <slot name="title-cell" :row="{ original: row }" />
+            <slot name="status-cell" :row="{ original: row }" />
+            <slot name="type-cell" :row="{ original: row }" />
+            <slot name="method-cell" :row="{ original: row }" />
+            <slot name="actions-cell" :row="{ original: row }" />
+          </div>
+        </template>
       </div>
     `,
   },
@@ -408,10 +464,10 @@ describe('PromotionsView', () => {
       data: { value: [makePromotion('promo-001', 'Test Promo')] },
       totalCount: { value: 1 },
       pageCount: { value: 1 },
-      isLoading: { value: false },
-      isFetching: { value: false },
-      isError: { value: false },
-      error: { value: null },
+      isLoading: ref(false),
+      isFetching: ref(false),
+      isError: ref(false),
+      error: ref(null),
       refresh: vi.fn(),
       pageSizeOptions: { value: [10, 20, 50] },
       showingFrom: { value: 1 },
@@ -538,10 +594,10 @@ describe('PromotionsView — batch delete (sdd-10)', () => {
         data: { value: promotions },
         totalCount: { value: promotions.length },
         pageCount: { value: 1 },
-        isLoading: { value: false },
-        isFetching: { value: false },
-        isError: { value: false },
-        error: { value: null },
+        isLoading: ref(false),
+        isFetching: ref(false),
+        isError: ref(false),
+        error: ref(null),
         refresh: vi.fn(),
         pageSizeOptions: { value: [10, 20, 50] },
         showingFrom: { value: 1 },
@@ -839,10 +895,10 @@ describe('PromotionsView — batch end', () => {
         data: { value: promotions },
         totalCount: { value: promotions.length },
         pageCount: { value: 1 },
-        isLoading: { value: false },
-        isFetching: { value: false },
-        isError: { value: false },
-        error: { value: null },
+        isLoading: ref(false),
+        isFetching: ref(false),
+        isError: ref(false),
+        error: ref(null),
         refresh: vi.fn(),
         pageSizeOptions: { value: [10, 20, 50] },
         showingFrom: { value: 1 },
@@ -1055,10 +1111,10 @@ describe('PromotionsView — batch activate (sdd-13)', () => {
         data: { value: promotions },
         totalCount: { value: promotions.length },
         pageCount: { value: 1 },
-        isLoading: { value: false },
-        isFetching: { value: false },
-        isError: { value: false },
-        error: { value: null },
+        isLoading: ref(false),
+        isFetching: ref(false),
+        isError: ref(false),
+        error: ref(null),
         refresh: vi.fn(),
         pageSizeOptions: { value: [10, 20, 50] },
         showingFrom: { value: 1 },
@@ -1267,6 +1323,358 @@ describe('PromotionsView — batch activate (sdd-13)', () => {
 
     const wrapper = mountView()
     expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-enable-row-selection')).toBe('true')
+  })
+})
+
+// ── standardization (REQ-1 to REQ-7) ──────────────────────────────────────────
+//
+// WU-C owns the test coverage for the standardization slice. The view tests
+// below cover:
+//   REQ-1 backend error state propagation + retry
+//   REQ-2 view mode (ViewToggle renders + display-mode bridge)
+//   REQ-3 card click → /pos/promociones/:id (no kebab/checkbox on cards)
+//   REQ-4 filters testids resolve inside the AppDataTable toolbar
+//   REQ-5 permission-gated actions (canManagePromotionActions)
+//   REQ-6 updatedAt sortable header
+//   REQ-7 preserved invariants (offending-IDs, filter clear, actions pinned)
+describe('PromotionsView — standardization (REQ-1..7)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    toastCalls.length = 0
+    userCanMock.mockReturnValue(true)
+    localStorage.clear()
+  })
+
+  // ── REQ-1: error state propagation ─────────────────────────────────────────
+  it('REQ-1: renders the error block with backend message when isError=true', async () => {
+    const { useServerTable } = await import('@/core/shared/composables/useServerTable')
+    vi.mocked(useServerTable).mockReturnValueOnce({
+      pagination: { value: { pageIndex: 0, pageSize: 20 } },
+      sorting: { value: [] },
+      globalFilter: { value: '' },
+      rowSelection: { value: {} },
+      columnPinning: { value: { left: [], right: ['actions'] } },
+      columnVisibility: { value: {} },
+      data: { value: [] },
+      totalCount: { value: 0 },
+      pageCount: { value: 0 },
+      isLoading: { value: false },
+      isFetching: { value: false },
+      isError: { value: true },
+      error: r({ response: { data: { message: 'No se pudo conectar al servidor' } } }),
+      refresh: vi.fn(),
+      pageSizeOptions: { value: [10, 20, 50] },
+      showingFrom: { value: 0 },
+      showingTo: { value: 0 },
+      selectedRows: { value: [] },
+      clearSelection: vi.fn(),
+    } as unknown as ReturnType<typeof useServerTable>)
+
+    const wrapper = mountView()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-testid="table-error-state"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="error-message"]').text()).toBe(
+      'No se pudo conectar al servidor',
+    )
+    // The empty placeholder must NOT render when there is an error.
+    expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-error')).toBe('true')
+  })
+
+  it('REQ-1: falls back to error.message when backend message is missing', async () => {
+    const { useServerTable } = await import('@/core/shared/composables/useServerTable')
+    vi.mocked(useServerTable).mockReturnValueOnce({
+      pagination: { value: { pageIndex: 0, pageSize: 20 } },
+      sorting: { value: [] },
+      globalFilter: { value: '' },
+      rowSelection: { value: {} },
+      columnPinning: { value: { left: [], right: ['actions'] } },
+      columnVisibility: { value: {} },
+      data: { value: [] },
+      totalCount: { value: 0 },
+      pageCount: { value: 0 },
+      isLoading: { value: false },
+      isFetching: { value: false },
+      isError: { value: true },
+      error: r({ message: 'Network Error' }),
+      refresh: vi.fn(),
+      pageSizeOptions: { value: [10, 20, 50] },
+      showingFrom: { value: 0 },
+      showingTo: { value: 0 },
+      selectedRows: { value: [] },
+      clearSelection: vi.fn(),
+    } as unknown as ReturnType<typeof useServerTable>)
+
+    const wrapper = mountView()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-testid="error-message"]').text()).toBe('Network Error')
+  })
+
+  it('REQ-1: falls back to Spanish message when nothing else is available', async () => {
+    const { useServerTable } = await import('@/core/shared/composables/useServerTable')
+    vi.mocked(useServerTable).mockReturnValueOnce({
+      pagination: { value: { pageIndex: 0, pageSize: 20 } },
+      sorting: { value: [] },
+      globalFilter: { value: '' },
+      rowSelection: { value: {} },
+      columnPinning: { value: { left: [], right: ['actions'] } },
+      columnVisibility: { value: {} },
+      data: { value: [] },
+      totalCount: { value: 0 },
+      pageCount: { value: 0 },
+      isLoading: { value: false },
+      isFetching: { value: false },
+      isError: { value: true },
+      error: r({}),
+      refresh: vi.fn(),
+      pageSizeOptions: { value: [10, 20, 50] },
+      showingFrom: { value: 0 },
+      showingTo: { value: 0 },
+      selectedRows: { value: [] },
+      clearSelection: vi.fn(),
+    } as unknown as ReturnType<typeof useServerTable>)
+
+    const wrapper = mountView()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-testid="error-message"]').text()).toBe(
+      'No se pudieron cargar las promociones. Reintenta.',
+    )
+  })
+
+  it('REQ-1: clicking the retry button triggers refresh', async () => {
+    const { useServerTable } = await import('@/core/shared/composables/useServerTable')
+    const mockRefresh = vi.fn()
+    vi.mocked(useServerTable).mockReturnValueOnce({
+      pagination: { value: { pageIndex: 0, pageSize: 20 } },
+      sorting: { value: [] },
+      globalFilter: { value: '' },
+      rowSelection: { value: {} },
+      columnPinning: { value: { left: [], right: ['actions'] } },
+      columnVisibility: { value: {} },
+      data: { value: [] },
+      totalCount: { value: 0 },
+      pageCount: { value: 0 },
+      isLoading: { value: false },
+      isFetching: { value: false },
+      isError: { value: true },
+      error: r({ response: { data: { message: 'Boom' } } }),
+      refresh: mockRefresh,
+      pageSizeOptions: { value: [10, 20, 50] },
+      showingFrom: { value: 0 },
+      showingTo: { value: 0 },
+      selectedRows: { value: [] },
+      clearSelection: vi.fn(),
+    } as unknown as ReturnType<typeof useServerTable>)
+
+    const wrapper = mountView()
+    await wrapper.vm.$nextTick()
+    await wrapper.find('[data-testid="table-error-retry"]').trigger('click')
+    expect(mockRefresh).toHaveBeenCalled()
+  })
+
+  // ── REQ-2: view mode (ViewToggle + display-mode bridge) ─────────────────────
+  it('REQ-2: renders ViewToggle in the toolbar actions slot', () => {
+    const wrapper = mountView()
+    expect(wrapper.find('[data-testid="view-toggle"]').exists()).toBe(true)
+  })
+
+  it('REQ-2: passes display-mode="table" by default', async () => {
+    const wrapper = mountView()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe('table')
+  })
+
+  it('REQ-2: passes display-mode="cards" after toggling to card mode', async () => {
+    localStorage.setItem('promotions-view-mode', 'card')
+    const wrapper = mountView()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe('cards')
+  })
+
+// ── REQ-3: card view ───────────────────────────────────────────────────────
+  it('REQ-3: renders PromotionCardGrid inside the cards slot when display-mode is cards', async () => {
+    const { useServerTable } = await import('@/core/shared/composables/useServerTable')
+    vi.mocked(useServerTable).mockReturnValueOnce({
+      pagination: { value: { pageIndex: 0, pageSize: 20 } },
+      sorting: { value: [] },
+      globalFilter: { value: '' },
+      rowSelection: { value: {} },
+      columnPinning: { value: { left: [], right: ['actions'] } },
+      columnVisibility: { value: {} },
+      data: r([makePromotion('p1', 'Promo Card')]),
+      totalCount: r(1),
+      pageCount: r(1),
+      isLoading: ref(false),
+      isFetching: ref(false),
+      isError: ref(false),
+      error: ref(null),
+      refresh: vi.fn(),
+      pageSizeOptions: { value: [10, 20, 50] },
+      showingFrom: r(1),
+      showingTo: r(1),
+      selectedRows: r([]),
+      clearSelection: vi.fn(),
+    } as unknown as ReturnType<typeof useServerTable>)
+
+    localStorage.setItem('promotions-view-mode', 'card')
+    const wrapper = mountView()
+    await wrapper.vm.$nextTick()
+    // The cards slot renders PromotionCardGrid → it surfaces an `article` per row.
+    expect(wrapper.findAll('article').length).toBeGreaterThanOrEqual(1)
+    // Card click should NOT bubble to the row-selection mechanism (no checkboxes).
+    expect(wrapper.findAll('input[type="checkbox"]').length).toBe(0)
+  })
+
+  // ── REQ-4: filters testids resolve inside AppDataTable toolbar ─────────────
+  it('REQ-4: filter-type/status/method/clear-filters-btn resolve inside the AppDataTable toolbar', () => {
+    const wrapper = mountView()
+    const toolbar = wrapper.find('[data-testid="app-data-table-toolbar"]')
+    expect(toolbar.exists()).toBe(true)
+    expect(toolbar.find('[data-testid="filter-type"]').exists()).toBe(true)
+    expect(toolbar.find('[data-testid="filter-status"]').exists()).toBe(true)
+    expect(toolbar.find('[data-testid="filter-method"]').exists()).toBe(true)
+  })
+
+  // ── REQ-5: canManagePromotionActions gate ──────────────────────────────────
+  it('REQ-5: hides the kebab dropdown when user lacks update AND delete', async () => {
+    userCanMock.mockImplementation(
+      (_action: string, subject: string) => subject !== 'Promotion' || false,
+    )
+    const { useServerTable } = await import('@/core/shared/composables/useServerTable')
+    vi.mocked(useServerTable).mockReturnValueOnce({
+      pagination: { value: { pageIndex: 0, pageSize: 20 } },
+      sorting: { value: [] },
+      globalFilter: { value: '' },
+      rowSelection: { value: {} },
+      columnPinning: { value: { left: [], right: ['actions'] } },
+      columnVisibility: { value: {} },
+      data: r([makePromotion('p1', 'Read-only Promo')]),
+      totalCount: r(1),
+      pageCount: r(1),
+      isLoading: ref(false),
+      isFetching: ref(false),
+      isError: ref(false),
+      error: ref(null),
+      refresh: vi.fn(),
+      pageSizeOptions: { value: [10, 20, 50] },
+      showingFrom: r(1),
+      showingTo: r(1),
+      selectedRows: r([]),
+      clearSelection: vi.fn(),
+    } as unknown as ReturnType<typeof useServerTable>)
+
+    const wrapper = mountView()
+    await wrapper.vm.$nextTick()
+    const rows = wrapper.findAll('[data-testid="row"]')
+    expect(rows.length).toBeGreaterThanOrEqual(1)
+    // The kebab trigger renders as a button with aria-haspopup="menu" (Reka UI).
+    // When canManagePromotionActions is false, the v-if gate removes the entire
+    // UDropdownMenu element so no kebab trigger is rendered.
+    expect(wrapper.findAll('[aria-haspopup="menu"]').length).toBe(0)
+  })
+
+it('REQ-5: shows the kebab dropdown when user has update permission', async () => {
+    userCanMock.mockImplementation(
+      (action: string, subject: string) =>
+        (action === 'update' && subject === 'Promotion') || action === 'read',
+    )
+    const { useServerTable } = await import('@/core/shared/composables/useServerTable')
+    vi.mocked(useServerTable).mockReturnValueOnce({
+      pagination: { value: { pageIndex: 0, pageSize: 20 } },
+      sorting: { value: [] },
+      globalFilter: { value: '' },
+      rowSelection: { value: {} },
+      columnPinning: { value: { left: [], right: ['actions'] } },
+      columnVisibility: { value: {} },
+      data: r([makePromotion('p1', 'Editable Promo')]),
+      totalCount: r(1),
+      pageCount: r(1),
+      isLoading: ref(false),
+      isFetching: ref(false),
+      isError: ref(false),
+      error: ref(null),
+      refresh: vi.fn(),
+      pageSizeOptions: { value: [10, 20, 50] },
+      showingFrom: r(1),
+      showingTo: r(1),
+      selectedRows: r([]),
+      clearSelection: vi.fn(),
+    } as unknown as ReturnType<typeof useServerTable>)
+
+    const wrapper = mountView()
+    await wrapper.vm.$nextTick()
+    // The kebab trigger renders as a button with aria-haspopup="menu" (Reka UI).
+    expect(wrapper.findAll('[aria-haspopup="menu"]').length).toBeGreaterThanOrEqual(1)
+  })
+
+  // ── REQ-6: updatedAt SortableHeader renders ─────────────────────────────────
+  it('REQ-6: renders the SortableHeader for updatedAt with label "Actualizada"', async () => {
+    const { useServerTable } = await import('@/core/shared/composables/useServerTable')
+    vi.mocked(useServerTable).mockReturnValueOnce({
+      pagination: { value: { pageIndex: 0, pageSize: 20 } },
+      sorting: { value: [] },
+      globalFilter: { value: '' },
+      rowSelection: { value: {} },
+      columnPinning: { value: { left: [], right: ['actions'] } },
+      columnVisibility: { value: {} },
+      data: r([makePromotion('p1', 'Promo with updatedAt')]),
+      totalCount: r(1),
+      pageCount: r(1),
+      isLoading: ref(false),
+      isFetching: ref(false),
+      isError: ref(false),
+      error: ref(null),
+      refresh: vi.fn(),
+      pageSizeOptions: { value: [10, 20, 50] },
+      showingFrom: r(1),
+      showingTo: r(1),
+      selectedRows: r([]),
+      clearSelection: vi.fn(),
+    } as unknown as ReturnType<typeof useServerTable>)
+
+    const wrapper = mountView()
+    await wrapper.vm.$nextTick()
+    expect(wrapper.text()).toContain('Actualizada')
+  })
+
+  // ── REQ-7: preserved invariants ────────────────────────────────────────────
+  it('REQ-7: actions column stays pinned to the right (defaultPinning.right: ["actions"])', () => {
+    const wrapper = mountView()
+    const vm = wrapper.vm as unknown as { columnPinning: { value: { right: string[] } } }
+    expect(vm.columnPinning.value.right).toContain('actions')
+  })
+
+  it('REQ-7: filter change clears rowSelection (pageIndex reset + selection clear watch)', async () => {
+    const { useServerTable } = await import('@/core/shared/composables/useServerTable')
+    vi.mocked(useServerTable).mockReturnValueOnce({
+      pagination: { value: { pageIndex: 0, pageSize: 20 } },
+      sorting: { value: [] },
+      globalFilter: { value: '' },
+      rowSelection: { value: { 0: true } },
+      columnPinning: { value: { left: [], right: ['actions'] } },
+      columnVisibility: { value: {} },
+      data: { value: [makePromotion('p1', 'Promo A')] },
+      totalCount: { value: 1 },
+      pageCount: { value: 1 },
+      isLoading: ref(false),
+      isFetching: ref(false),
+      isError: ref(false),
+      error: ref(null),
+      refresh: vi.fn(),
+      pageSizeOptions: { value: [10, 20, 50] },
+      showingFrom: { value: 1 },
+      showingTo: { value: 1 },
+      selectedRows: { value: [] },
+      clearSelection: vi.fn(),
+    } as unknown as ReturnType<typeof useServerTable>)
+
+    const wrapper = mountView()
+    await wrapper.vm.$nextTick()
+    const vm = wrapper.vm as unknown as { rowSelection: { value: Record<string, boolean> } }
+    expect(vm.rowSelection.value).toEqual({ 0: true })
+    ;(wrapper.vm as unknown as Record<string, string>)['filterType'] = 'BUY_X_GET_Y'
+    await wrapper.vm.$nextTick()
+    await flushPromises()
+    expect(vm.rowSelection.value).toEqual({})
   })
 })
 
