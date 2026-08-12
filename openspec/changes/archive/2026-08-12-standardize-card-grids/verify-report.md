@@ -134,11 +134,11 @@ No tautologies, ghost loops, smoke-test-only, or implementation-detail-only asse
 **CRITICAL**: None
 
 **WARNING**:
-1. **Pre-existing unhandled rejection** (`router.replace is not a function`) in `SalesListView.test.ts`. Originates in `useFiltersUrlAdapter.ts:64`, triggered by `activeExtendedFiltersCount` computed property during test teardown. Confirmed independent of this change — present in baseline commits. Does not affect test pass/fail counts.
+1. ~~Pre-existing unhandled rejection (`router.replace is not a function`) in `SalesListView.test.ts`.~~ **RESOLVED** — fixed in commit `e120c02` by adding `replace` to the vue-router mock. The suite now exits clean (code 0).
 2. **No apply-progress artifact** for TDD cycle evidence. Strict TDD mode is active but the implementation was delivered through direct Git commits rather than through the SDD apply phase. All test files exist and pass, but the formal TDD cycle evidence table (RED→GREEN→TRIANGULATE→SAFETY NET→REFACTOR) was not recorded.
 3. **No coverage tool configured** — unable to verify changed-file line/branch coverage thresholds.
 
 **SUGGESTION**: Consider adding vitest coverage configuration (`@vitest/coverage-v8`) to enable per-file coverage reporting in future verification phases.
 
 ### Verdict
-**FAIL** — test command exits with code 1 due to pre-existing unhandled rejection (`router.replace is not a function`) in SalesListView.test.ts. This is NOT caused by this change — confirmed present in baseline commits. All 3827 tests pass, all 6 requirements and 16 scenarios are COMPLIANT, build is clean. The functional implementation is complete and correct; the FAIL verdict reflects only the pre-existing infrastructure noise in the test suite.
+**PASS** — 3827 tests pass with exit code 0, all 6 requirements and 16 scenarios are COMPLIANT, build is clean. The pre-existing `router.replace is not a function` unhandled rejection (baseline noise, not caused by this change) was independently resolved in commit `e120c02` by adding `replace` to the vue-router mock in `SalesListView.test.ts`.
