@@ -39,8 +39,9 @@ vi.mock('@tanstack/vue-query', () => ({
 }))
 
 const push = vi.fn()
+const replace = vi.fn()
 vi.mock('vue-router', () => ({
-  useRouter: () => ({ push }),
+  useRouter: () => ({ push, replace }),
   useRoute: () => ({ query: {}, path: '/pos/ventas' }),
 }))
 
