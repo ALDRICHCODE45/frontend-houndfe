@@ -180,7 +180,7 @@ watch(() => filtersCtl.serializedState.value, () => {
           @refresh="refresh"
         >
           <template #filters>
-            <div class="flex w-full flex-col gap-3">
+            <div class="flex w-full flex-wrap items-center gap-2">
               <div class="overflow-x-auto">
                 <DataTableFilters
                   v-model:state="filtersState"
@@ -190,7 +190,7 @@ watch(() => filtersCtl.serializedState.value, () => {
               </div>
               <div
                 v-if="activeExtendedFiltersCount > 0"
-                class="flex items-center gap-1 text-xs text-muted"
+                class="flex items-center gap-1 text-xs text-muted whitespace-nowrap"
                 data-testid="extended-filters-indicator"
               >
                 Filtros activos: {{ activeExtendedFiltersCount }} ·
@@ -208,16 +208,16 @@ watch(() => filtersCtl.serializedState.value, () => {
               <div class="overflow-x-auto">
                 <SalesListTabs :counts="counts" @change="setDeliveryStatusFilter" />
               </div>
+              <USelect
+                v-model="sortValue"
+                :items="[
+                  { label: 'Más recientes', value: 'confirmedAt:desc' },
+                  { label: 'Total menor a mayor', value: 'totalCents:asc' },
+                  { label: 'Creación reciente', value: 'createdAt:desc' },
+                ]"
+                class="w-56"
+              />
             </div>
-            <USelect
-              v-model="sortValue"
-              :items="[
-                { label: 'Más recientes', value: 'confirmedAt:desc' },
-                { label: 'Total menor a mayor', value: 'totalCents:asc' },
-                { label: 'Creación reciente', value: 'createdAt:desc' },
-              ]"
-              class="w-56"
-            />
           </template>
 
           <template #actions>

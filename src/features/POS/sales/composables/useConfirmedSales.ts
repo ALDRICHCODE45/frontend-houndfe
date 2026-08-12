@@ -116,6 +116,7 @@ export function useConfirmedSales(filters: Ref<Record<string, unknown>> = ref({}
     persistKey: 'pos-sales-list',
     defaultSorting: [{ id: 'confirmedAt', desc: true }],
     defaultColumnVisibility,
+    defaultPinning: { left: [], right: ['actions'] },
     urlSync: false,
   })
 

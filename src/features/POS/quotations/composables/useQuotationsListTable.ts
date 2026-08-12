@@ -126,6 +126,7 @@ export function useQuotationsListTable(filters: Ref<Record<string, unknown>>) {
     },
     defaultPageSize: 10,
     defaultSorting: [{ id: 'createdAt', desc: true }],
+    defaultPinning: { left: [], right: ['actions'] },
     persistKey: 'pos-quotations-list',
     urlSync: false,
   })
