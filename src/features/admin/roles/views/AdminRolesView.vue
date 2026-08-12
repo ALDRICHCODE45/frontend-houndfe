@@ -4,21 +4,36 @@ import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
+import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { adminRoleQueryKeys } from '@/core/shared/constants/query-keys'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { rolesApi } from '../api/roles.api'
 import { usersApi } from '@/features/admin/users/api/users.api'
 import { useRoleColumns } from '../composables/useRoleColumns'
+import { useRoleViewMode, isRoleViewMode } from '../composables/useRoleViewMode'
 import type { RoleFormValues } from '../composables/useRoleForm'
 import type { RoleTableRow } from '../interfaces/role.types'
 import RoleUpsertSlideover from '../components/RoleUpsertSlideover.vue'
 import RolePermissionsSlideover from '../components/RolePermissionsSlideover.vue'
+import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
 
 const queryClient = useQueryClient()
 const authStore = useAuthStore()
 const tenantId = computed(() => authStore.currentTenantId)
+const headerDescription = computed(() => {
+  const name = authStore.currentTenant?.name ?? '(Global)'
+  return `Administrá los roles y permisos de ${name}`
+})
 const { columns } = useRoleColumns()
+
+// ── View mode (table ↔ card) ──────────────────────────────────────────────────
+const { viewMode, setMode: setViewMode, displayMode } = useRoleViewMode()
+
+function handleViewModeChange(mode: string) {
+  if (!isRoleViewMode(mode)) return
+  setViewMode(mode)
+}
 
 const {
   pagination,
@@ -31,6 +46,8 @@ const {
   pageCount,
   isLoading,
   isFetching,
+  isError,
+  error,
   refresh,
   pageSizeOptions,
   showingFrom,
@@ -42,6 +59,29 @@ const {
   persistKey: 'admin-roles',
   defaultSorting: [{ id: 'name', desc: false }],
   defaultPinning: { left: [], right: ['actions'] },
+})
+
+// Human-readable error message for the admin roles table. Mirrors
+// AdminUsersView: prefer backend `response.data.message`, then `error.message`,
+// then the Spanish fallback. The error block in AppDataTable is rendered
+// instead of "No se encontraron roles" whenever `isError` is true.
+const rolesErrorMessage = computed(() => {
+  const err = error.value as
+    | { response?: { data?: { message?: unknown } }; message?: string }
+    | null
+    | undefined
+  const backendMessage = err?.response?.data?.message
+  if (typeof backendMessage === 'string' && backendMessage.trim()) {
+    return backendMessage
+  }
+  if (Array.isArray(backendMessage) && backendMessage.length > 0) {
+    const first = backendMessage[0]
+    if (typeof first === 'string') return first
+  }
+  if (typeof err?.message === 'string' && err.message.trim()) {
+    return err.message
+  }
+  return 'No se pudieron cargar los roles. Reintenta.'
 })
 
 const isCreateOpen = ref(false)
@@ -154,15 +194,20 @@ function getRowItems(role: RoleTableRow) {
       ]
     : []
 
-  const destructiveActions = canDeleteRole.value
-    ? [
-        {
-          label: 'Eliminar',
-          color: 'error' as const,
-          onSelect: () => handleDelete(role),
-        },
-      ]
-    : []
+  // Defensive UX: hide the destructive "Eliminar" entry for system roles.
+  // The runtime window.alert block in handleDelete stays as a defensive
+  // last line of defense, but the menu no longer advertises an action the
+  // user can never perform.
+  const destructiveActions =
+    canDeleteRole.value && !role.isSystem
+      ? [
+          {
+            label: 'Eliminar',
+            color: 'error' as const,
+            onSelect: () => handleDelete(role),
+          },
+        ]
+      : []
 
   return [mainActions, destructiveActions].filter((section) => section.length > 0)
 }
@@ -204,10 +249,7 @@ function getRowItems(role: RoleTableRow) {
 
     <UCard :ui="{ body: 'p-0 sm:p-0' }">
       <template #header>
-        <div>
-          <h2 class="text-2xl font-semibold">Gestión de roles y permisos</h2>
-          <p class="text-sm text-muted">Administrá los roles y permisos de tu organización</p>
-        </div>
+        <AdminPageHeader title="Gestión de roles" :description="headerDescription" />
       </template>
 
       <div class="px-6 py-5">
@@ -221,15 +263,19 @@ function getRowItems(role: RoleTableRow) {
           :data="data"
           :loading="isLoading"
           :fetching="isFetching"
+          :error="isError"
+          :error-message="rolesErrorMessage"
           :page-count="pageCount"
           :total-count="totalCount"
           :showing-from="showingFrom"
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
+          :display-mode="displayMode"
           search-placeholder="Buscar rol..."
           :show-add-button="canCreateRole"
           add-button-text="Crear Rol"
           add-button-icon="i-lucide-user-plus"
+          enable-column-visibility
           empty="No se encontraron roles"
           @add="isCreateOpen = true"
           @refresh="refresh"
@@ -238,8 +284,24 @@ function getRowItems(role: RoleTableRow) {
             <SortableHeader :column="column" label="Nombre" />
           </template>
 
+          <template #description-header>
+            <span class="text-xs font-semibold">Descripción</span>
+          </template>
+
+          <template #permissionCount-header="{ column }">
+            <SortableHeader :column="column" label="Permisos" />
+          </template>
+
+          <template #userCount-header="{ column }">
+            <SortableHeader :column="column" label="Usuarios" />
+          </template>
+
           <template #createdAt-header="{ column }">
             <SortableHeader :column="column" label="Creación" />
+          </template>
+
+          <template #description-cell="{ row }">
+            <span class="text-sm text-muted">{{ row.original.description ?? '—' }}</span>
           </template>
 
           <template #permissionCount-cell="{ row }">
@@ -267,6 +329,14 @@ function getRowItems(role: RoleTableRow) {
                 class="size-7"
               />
             </UDropdownMenu>
+          </template>
+
+          <template #actions>
+            <ViewToggle
+              :model-value="viewMode"
+              aria-label="Seleccionar vista de roles"
+              @update:model-value="handleViewModeChange"
+            />
           </template>
         </AppDataTable>
       </div>

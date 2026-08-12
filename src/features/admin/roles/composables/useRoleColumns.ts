@@ -7,20 +7,34 @@ export function useRoleColumns() {
     {
       accessorKey: 'name',
       header: 'Nombre',
+      enableSorting: true,
+      enableHiding: true,
+    },
+    {
+      accessorKey: 'description',
+      header: 'Descripción',
+      enableSorting: false,
+      enableHiding: true,
     },
     {
       accessorKey: 'permissionCount',
       header: createSimpleHeader('Permisos'),
+      enableSorting: true,
+      enableHiding: true,
       meta: { class: { td: 'text-left' } },
     },
     {
       accessorKey: 'userCount',
       header: createSimpleHeader('Usuarios'),
+      enableSorting: true,
+      enableHiding: true,
       meta: { class: { td: 'text-left' } },
     },
     {
       accessorKey: 'createdAt',
       header: 'Creación',
+      enableSorting: true,
+      enableHiding: true,
     },
     {
       id: 'actions',
