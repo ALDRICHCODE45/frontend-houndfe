@@ -4,11 +4,13 @@ import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
+import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { adminUserQueryKeys } from '@/core/shared/constants/query-keys'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { usersApi } from '../api/users.api'
 import { useUserColumns } from '../composables/useUserColumns'
+import { useUserViewMode, isUserViewMode } from '../composables/useUserViewMode'
 import type { UserTableRow } from '../interfaces/user.types'
 import UserUpsertSlideover from '../components/UserUpsertSlideover.vue'
 import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
@@ -22,6 +24,14 @@ const headerDescription = computed(() => {
 })
 const { columns } = useUserColumns()
 
+// ── View mode (table ↔ card) ──────────────────────────────────────────────────
+const { viewMode, setMode: setViewMode, displayMode } = useUserViewMode()
+
+function handleViewModeChange(mode: string) {
+  if (!isUserViewMode(mode)) return
+  setViewMode(mode)
+}
+
 const {
   pagination,
   sorting,
@@ -33,6 +43,8 @@ const {
   pageCount,
   isLoading,
   isFetching,
+  isError,
+  error,
   refresh,
   pageSizeOptions,
   showingFrom,
@@ -44,6 +56,29 @@ const {
   persistKey: 'admin-users',
   defaultSorting: [{ id: 'name', desc: false }],
   defaultPinning: { left: [], right: ['actions'] },
+})
+
+// Human-readable error message for the admin users table. Mirrors
+// CustomersView: prefer backend `response.data.message`, then `error.message`,
+// then the Spanish fallback. The error block in AppDataTable is rendered
+// instead of "No se encontraron usuarios" whenever `isError` is true.
+const usersErrorMessage = computed(() => {
+  const err = error.value as
+    | { response?: { data?: { message?: unknown } }; message?: string }
+    | null
+    | undefined
+  const backendMessage = err?.response?.data?.message
+  if (typeof backendMessage === 'string' && backendMessage.trim()) {
+    return backendMessage
+  }
+  if (Array.isArray(backendMessage) && backendMessage.length > 0) {
+    const first = backendMessage[0]
+    if (typeof first === 'string') return first
+  }
+  if (typeof err?.message === 'string' && err.message.trim()) {
+    return err.message
+  }
+  return 'No se pudieron cargar los usuarios. Reintenta.'
 })
 
 const isCreateOpen = ref(false)
@@ -196,21 +231,29 @@ function getRowItems(user: UserTableRow) {
           :data="data"
           :loading="isLoading"
           :fetching="isFetching"
+          :error="isError"
+          :error-message="usersErrorMessage"
           :page-count="pageCount"
           :total-count="totalCount"
           :showing-from="showingFrom"
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
+          :display-mode="displayMode"
           search-placeholder="Buscar por email..."
           :show-add-button="canCreateUser"
           add-button-text="Crear Usuario"
           add-button-icon="i-lucide-user-plus"
+          enable-column-visibility
           empty="No se encontraron usuarios"
           @add="isCreateOpen = true"
           @refresh="refresh"
         >
           <template #name-header="{ column }">
             <SortableHeader :column="column" label="Usuario" />
+          </template>
+
+          <template #email-header="{ column }">
+            <SortableHeader :column="column" label="Email" />
           </template>
 
           <template #createdAt-header="{ column }">
@@ -220,11 +263,12 @@ function getRowItems(user: UserTableRow) {
           <template #name-cell="{ row }">
             <div class="flex items-center gap-3">
               <UAvatar :alt="row.original.name" :text="getInitials(row.original.name)" />
-              <div>
-                <p class="font-medium">{{ row.original.name }}</p>
-                <p class="text-sm text-muted">{{ row.original.email }}</p>
-              </div>
+              <p class="font-medium">{{ row.original.name }}</p>
             </div>
+          </template>
+
+          <template #email-cell="{ row }">
+            <span class="text-sm text-muted">{{ row.original.email }}</span>
           </template>
 
           <template #roles-cell="{ row }">
@@ -259,6 +303,14 @@ function getRowItems(user: UserTableRow) {
                 class="size-7"
               />
             </UDropdownMenu>
+          </template>
+
+          <template #actions>
+            <ViewToggle
+              :model-value="viewMode"
+              aria-label="Seleccionar vista de usuarios"
+              @update:model-value="handleViewModeChange"
+            />
           </template>
         </AppDataTable>
       </div>

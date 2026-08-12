@@ -7,14 +7,24 @@ export function useUserColumns() {
     {
       accessorKey: 'name',
       header: 'Usuario',
+      enableSorting: true,
+    },
+    {
+      accessorKey: 'email',
+      header: 'Email',
+      enableSorting: true,
+      enableHiding: true,
     },
     {
       id: 'roles',
       header: createSimpleHeader('Roles'),
+      enableSorting: false,
+      enableHiding: true,
     },
     {
       accessorKey: 'createdAt',
       header: 'Creación',
+      enableSorting: true,
     },
     {
       id: 'actions',
