@@ -1,13 +1,15 @@
 <script setup lang="ts">
 /**
  * EmployeesListView — WU-05B (action menu + edit/terminate/reactivate dialogs)
+ *                       + WU-A (useServerTable migration, error surfacing,
+ *                              AdminPageHeader, column visibility, dead-UI cleanup)
  *
  * Orchestrator view for the Colaboradores list page.
  * Composition surface: wires useEmployeesList + useEmployeeColumns +
  * useEmployeeViewMode + useManagerResolution + EmployeeFilters.
  *
  * WU-03 additions:
- * - Tabla / Tarjetas segmented toggle via shared ViewToggle
+ * - Tabla / Tarjetas segmented toggle via shared ViewToggle (with displayMode bridge)
  * - Card grid view via EmployeeCardGrid (delegates to EmployeeCard per item)
  * - Manager name resolution via useManagerResolution (batch, no N+1)
  * - View mode persisted in localStorage via useEmployeeViewMode
@@ -23,18 +25,29 @@
  * - ReactivateEmployeeDialog — simple confirm dialog
  * - All actions gated by update:Employee CASL permission
  *
+ * WU-A additions:
+ * - Migrate to useServerTable (shared composable) via Approach C (closure refs)
+ * - Surface isError/error → employeesErrorMessage → AppDataTable :error/:error-message
+ * - AdminPageHeader replaces the inline `<h1>Colaboradores</h1>`
+ * - enable-column-visibility + 7 data columns marked enableHiding: true
+ * - :display-mode bridge (card → cards) via useEmployeeViewMode.displayMode
+ * - v-model:sorting/global-filter/column-pinning/column-visibility wired
+ * - Dead UI removed: Importar / Exportar buttons, Filtros button, department select,
+ *   modality select, "Más recientes" sort select
+ * - viewMode → useEmployeeViewMode (with displayMode computed)
+ * - selection-clear watcher: [viewMode, () => pagination.value.pageIndex]
+ *
  * Design: Claude "Colaboradores" adapted to warm-orange Nuxt UI 4 tokens.
- * Status tabs: Todos / Activos / Bajas
+ * Status tabs: Todos / Activos / Bajas (rendered inside EmployeeFilters)
  * Table columns: Colaborador, Cargo, Departamento, Jefe directo, Fecha de ingreso, Modalidad, Estado
- * Salary: intentionally NOT shown in list or cards — belongs in Compensación detail tab (WU-06+)
+ * Salary: intentionally NOT shown in list or cards — belongs in Compensación detail tab
  *
  * Permission gate: route-level meta.permission ['read', 'Employee'].
- * Create button gated by create:Employee.
+ * Create button gated by create:Employee (passed to :show-add-button on AppDataTable).
  * Edit/terminate/reactivate gated by update:Employee.
  */
 
 import { computed, ref, watch } from 'vue'
-import type { AxiosError } from 'axios'
 import { useRouter } from 'vue-router'
 import { AppDataTable } from '@/core/shared/components/DataTable'
 import SelectColumn from '@/core/shared/components/DataTable/SelectColumn.vue'
@@ -48,17 +61,16 @@ import {
   useEmployeeColumns,
   formatHireDate,
 } from '../composables/useEmployeeColumns'
-import { useEmployeeViewMode } from '../composables/useEmployeeViewMode'
+import { useEmployeeViewMode, isEmployeeViewMode } from '../composables/useEmployeeViewMode'
 import { useManagerResolution, resolveManagerName, resolveManagerEmail } from '../composables/useManagerResolution'
 import { getEmployeeRowActions } from '../composables/useEmployeeActions'
 import { employeeStatusConfig, getDepartmentDotClass } from '../utils/employeeBadgeConfig.utils'
-import EmployeeFilters from '../components/EmployeeFilters.vue'
 import EmployeeCardGrid from '../components/EmployeeCardGrid.vue'
 import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import DotBadge from '@/core/shared/components/DotBadge.vue'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
-import type { EmployeeViewMode } from '../composables/useEmployeeViewMode'
+import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
 import CreateEmployeeSlideover from '../components/CreateEmployeeSlideover.vue'
 import EmployeeEditSlideover from '../components/EmployeeEditSlideover.vue'
 import TerminateEmployeeDialog from '../components/TerminateEmployeeDialog.vue'
@@ -132,25 +144,27 @@ function getTableRowItems(employee: Employee) {
   return actions.length > 0 ? [actions] : []
 }
 
-// ── List composable ────────────────────────────────────────────────────────────
+// ── List composable (useServerTable-backed) ───────────────────────────────────
 const {
-  statusTab,
-  search,
+  pagination,
+  sorting,
+  globalFilter,
+  rowSelection,
+  columnPinning,
+  columnVisibility,
   employees,
   totalCount,
   pageCount,
   isLoading,
   isFetching,
-  page,
-  pageSize,
-  rowSelection,
+  isError,
+  error,
+  refresh,
   selectedEmployees,
   clearSelection,
-  setStatusTab,
-  setSearch,
-  setPage,
-  setPageSize,
-  refresh,
+  pageSizeOptions,
+  showingFrom,
+  showingTo,
 } = useEmployeesList({ defaultPageSize: 10 })
 
 // ── Column definitions ─────────────────────────────────────────────────────────
@@ -161,8 +175,33 @@ const columns = computed(() =>
     : employeeColumns.value,
 )
 
-// ── View mode (Tabla / Tarjetas) ───────────────────────────────────────────────
-const { viewMode, setMode } = useEmployeeViewMode()
+// ── View mode (Tabla / Tarjetas) + displayMode bridge ──────────────────────────
+const { viewMode, setMode: setViewMode, displayMode } = useEmployeeViewMode()
+
+function handleViewModeChange(mode: string) {
+  if (!isEmployeeViewMode(mode)) return
+  setViewMode(mode)
+}
+
+// ── Error message (REQ-1: backend.message > error.message > Spanish fallback) ──
+const employeesErrorMessage = computed(() => {
+  const err = error.value as
+    | { response?: { data?: { message?: unknown } }; message?: string }
+    | null
+    | undefined
+  const backendMessage = err?.response?.data?.message
+  if (typeof backendMessage === 'string' && backendMessage.trim()) {
+    return backendMessage
+  }
+  if (Array.isArray(backendMessage) && backendMessage.length > 0) {
+    const first = backendMessage[0]
+    if (typeof first === 'string') return first
+  }
+  if (typeof err?.message === 'string' && err.message.trim()) {
+    return err.message
+  }
+  return 'No se pudieron cargar los colaboradores. Reintenta.'
+})
 
 // ── Batch operations ───────────────────────────────────────────────────────────
 const BATCH_OPS_CAP = 100
@@ -181,18 +220,16 @@ const isBatchPending = computed(
     batchReactivateMutation.isPending.value,
 )
 
-const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
-  selectedEmployees.value.map((employee) => ({
-    id: employee.id,
-    title: employee.fullName,
-    status: employeeStatusConfig[employee.status].label,
-  })),
+// Selection-clear when the user switches view mode OR changes page index.
+watch(
+  [viewMode, () => pagination.value.pageIndex],
+  () => {
+    clearSelection()
+  },
 )
 
-watch([viewMode, page], clearSelection)
-
 function shouldClearAfterBatchError(error: unknown): boolean {
-  return (error as AxiosError<{ error?: string }>)?.response?.data?.error === 'BATCH_DELETE_NOT_FOUND'
+  return (error as { response?: { data?: { error?: string } } })?.response?.data?.error === 'BATCH_DELETE_NOT_FOUND'
 }
 
 async function confirmBatchDelete(): Promise<void> {
@@ -310,156 +347,72 @@ function getManagerEmail(employee: Employee): string | null {
   return resolveManagerEmail(employee.managerId, managerMap.value)
 }
 
-// ── Pagination state forwarding ────────────────────────────────────────────────
-// IMPORTANT: setPageSize resets page to 1 by design (filter-change semantics),
-// so we must only invoke it when the size actually changes — otherwise the
-// page-index update is immediately overridden and the user appears stuck on
-// page 1 when clicking the next-page button.
-const pagination = computed({
-  get: () => ({ pageIndex: page.value - 1, pageSize: pageSize.value }),
-  set: (val: { pageIndex: number; pageSize: number }) => {
-    const nextPage = val.pageIndex + 1
-    const nextSize = val.pageSize
-    if (nextSize !== pageSize.value) {
-      setPageSize(nextSize)
-    }
-    if (nextPage !== page.value) {
-      setPage(nextPage)
-    }
-  },
-})
-
-// ── Showing from/to for pagination display ─────────────────────────────────────
-const showingFrom = computed(() => {
-  if (totalCount.value === 0) return 0
-  return (page.value - 1) * pageSize.value + 1
-})
-const showingTo = computed(() => {
-  const to = page.value * pageSize.value
-  return Math.min(to, totalCount.value)
-})
+// ── selectedEmployeeItems — used by ConfirmModal (bulk delete/reactivate) ──────
+const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
+  selectedEmployees.value.map((employee) => ({
+    id: employee.id,
+    title: employee.fullName,
+    status: employeeStatusConfig[employee.status].label,
+  })),
+)
 </script>
 
 <template>
   <div class="flex flex-col gap-4 px-4 py-3 sm:px-6 lg:px-8">
     <section class="overflow-hidden rounded-2xl border border-default bg-default shadow-sm">
-      <!-- Header: matches the dense Claude directory reference -->
+      <!-- WU-A: AdminPageHeader replaces the inline <h1> (REQ-3) -->
       <div class="flex flex-col gap-4 border-b border-default px-5 py-4 xl:flex-row xl:items-start xl:justify-between">
-        <div>
-          <h1 class="text-2xl font-semibold tracking-tight text-highlighted">Colaboradores</h1>
-          <p class="mt-1 text-sm text-muted">Equipo, lifecycle, organigrama y documentos del personal</p>
-        </div>
+        <AdminPageHeader
+          title="Colaboradores"
+          description="Equipo, lifecycle, organigrama y documentos del personal"
+        />
 
+        <!-- Toolbar actions slot — ViewToggle (card/table switch) -->
         <div class="flex flex-wrap items-center gap-2">
-          <UButton
-            icon="i-lucide-upload"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            disabled
-          >
-            Importar
-          </UButton>
-          <UButton
-            icon="i-lucide-download"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            disabled
-          >
-            Exportar
-          </UButton>
-          <UButton
-            v-if="canCreate"
-            icon="i-lucide-plus"
-            color="primary"
-            size="sm"
-            class="shadow-sm"
-            @click="openCreateSlideover"
-          >
-            Nuevo colaborador
-          </UButton>
+          <slot name="actions" />
         </div>
-      </div>
-
-      <div class="flex flex-wrap items-center gap-2 border-b border-default px-5 py-3">
-        <UButton icon="i-lucide-sliders-horizontal" color="neutral" variant="outline" size="sm" disabled>
-          Filtros
-        </UButton>
-        <UButton trailing-icon="i-lucide-chevron-down" color="neutral" variant="outline" size="sm" disabled>
-          Todos los departamentos
-        </UButton>
-        <UButton trailing-icon="i-lucide-chevron-down" color="neutral" variant="outline" size="sm" disabled>
-          Cualquier modalidad
-        </UButton>
       </div>
 
       <div class="flex flex-col gap-4 px-5 py-4">
-        <!-- Filters + view toggle row -->
-        <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-          <!-- Filters (search + status tabs) -->
-          <EmployeeFilters
-            :search="search"
-            :status-tab="statusTab"
-            :is-loading="isFetching"
-            @update:search="setSearch"
-            @update:status-tab="setStatusTab"
-          />
-
-          <div class="flex items-center justify-end gap-2">
-            <USelect
-              model-value="recent"
-              :items="[{ label: 'Más recientes', value: 'recent' }]"
-              value-key="value"
-              label-key="label"
-              size="sm"
-              class="w-40"
-              disabled
-            />
-            <UButton
-              icon="i-lucide-refresh-cw"
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              :loading="isFetching"
-              aria-label="Actualizar colaboradores"
-              @click="refresh"
-            />
-            <!-- Tabla / Tarjetas toggle -->
-            <ViewToggle
-              :model-value="viewMode"
-              aria-label="Vista de colaboradores"
-              @update:model-value="(v) => setMode(v as EmployeeViewMode)"
-            />
-          </div>
-        </div>
-
-        <!-- Table view -->
         <AppDataTable
-          v-if="viewMode === 'table'"
+          v-model:sorting="sorting"
           v-model:pagination="pagination"
+          v-model:global-filter="globalFilter"
           v-model:row-selection="rowSelection"
+          v-model:column-pinning="columnPinning"
+          v-model:column-visibility="columnVisibility"
           :columns="columns"
           :data="employees"
           :enable-row-selection="canUseBatchActions && viewMode === 'table'"
           :bulk-actions="bulkActions"
           :loading="isLoading"
           :fetching="isFetching"
+          :error="isError"
+          :error-message="employeesErrorMessage"
           :page-count="pageCount"
           :total-count="totalCount"
           :showing-from="showingFrom"
           :showing-to="showingTo"
-          :page-size-options="[10, 20, 50]"
-          :show-toolbar="false"
-          :show-add-button="false"
+          :page-size-options="pageSizeOptions"
+          :display-mode="displayMode"
+          :show-add-button="canCreate"
           :show-refresh="false"
           add-button-text="Nuevo colaborador"
           add-button-icon="i-lucide-user-plus"
           empty="No se encontraron colaboradores"
           search-placeholder="Buscar colaborador..."
+          enable-column-visibility
           @refresh="refresh"
           @add="openCreateSlideover"
         >
+          <template #actions>
+            <ViewToggle
+              :model-value="viewMode"
+              aria-label="Seleccionar vista de empleados"
+              @update:model-value="handleViewModeChange"
+            />
+          </template>
+
           <template #select-header="{ table }">
             <SelectColumn :table="table" mode="header" />
           </template>
@@ -567,49 +520,22 @@ const showingTo = computed(() => {
               />
             </UDropdownMenu>
           </template>
+
+          <!-- WU-A: Card view in #cards slot — preserves kebab + card-click navigation -->
+          <template #cards>
+            <EmployeeCardGrid
+              :employees="employees"
+              :manager-map="managerMap"
+              :loading="isLoading || isFetching"
+              :can-update="canUpdate"
+              empty="No se encontraron colaboradores"
+              @edit="openEditSlideover"
+              @terminate="openTerminateDialog"
+              @reactivate="openReactivateDialog"
+              @card-click="navigateToDetail"
+            />
+          </template>
         </AppDataTable>
-
-        <!-- Card view -->
-        <template v-else>
-          <EmployeeCardGrid
-            :employees="employees"
-            :manager-map="managerMap"
-            :loading="isLoading"
-            :can-update="canUpdate"
-            empty="No se encontraron colaboradores"
-            @edit="openEditSlideover"
-            @terminate="openTerminateDialog"
-            @reactivate="openReactivateDialog"
-            @card-click="navigateToDetail"
-          />
-
-          <!-- Card view pagination — simple row count info + page navigation -->
-          <div
-            v-if="totalCount > 0"
-            class="flex items-center justify-between border-t border-default pt-4 text-sm text-muted"
-          >
-            <span>Mostrando {{ showingFrom }}–{{ showingTo }} de {{ totalCount }}</span>
-            <div class="flex items-center gap-2">
-              <UButton
-                variant="ghost"
-                size="xs"
-                icon="i-lucide-chevron-left"
-                :disabled="page <= 1"
-                aria-label="Página anterior"
-                @click="setPage(page - 1)"
-              />
-              <span class="px-1">{{ page }} / {{ pageCount || 1 }}</span>
-              <UButton
-                variant="ghost"
-                size="xs"
-                icon="i-lucide-chevron-right"
-                :disabled="page >= pageCount"
-                aria-label="Página siguiente"
-                @click="setPage(page + 1)"
-              />
-            </div>
-          </div>
-        </template>
       </div>
     </section>
   </div>

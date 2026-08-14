@@ -1,5 +1,5 @@
 /**
- * useEmployeeViewMode — WU-03
+ * useEmployeeViewMode — WU-03 / WU-A (REQ-6)
  *
  * Composable + pure helpers for the Tabla / Tarjetas view mode toggle.
  *
@@ -8,14 +8,20 @@
  *   The storage key is separate from column preferences so they don't conflict.
  *
  * Exports:
- * - VIEW_MODE_STORAGE_KEY  — stable key for localStorage
- * - getViewMode()          — reads persisted mode (delegates to shared readViewMode)
- * - setViewMode(mode)      — writes persisted mode (delegates to shared writeViewMode)
- * - computeSeniority()     — pure; converts hireDate → "< 1 año" / "N año(s)" string
- * - buildCardData()        — pure; assembles EmployeeCardData from Employee (NO salary exposed)
- * - useEmployeeViewMode()  — reactive composable (delegates to shared useViewMode)
+ * - VIEW_MODE_STORAGE_KEY          — legacy stable key for localStorage (preserved)
+ * - EMPLOYEE_VIEW_MODE_STORAGE_KEY — canonical stable key for localStorage (alias)
+ * - EmployeeViewMode               — 'table' | 'card' union
+ * - isEmployeeViewMode             — type guard for EmployeeViewMode
+ * - getViewMode()                  — reads persisted mode (delegates to shared readViewMode)
+ * - setViewMode(mode)              — writes persisted mode (delegates to shared writeViewMode)
+ * - computeSeniority()             — pure; converts hireDate → "< 1 año" / "N año(s)" string
+ * - buildCardData()                — pure; assembles EmployeeCardData from Employee (NO salary exposed)
+ * - useEmployeeViewMode()          — reactive composable (delegates to shared useViewMode)
+ *                                    Returns: { viewMode, setMode, toggleViewMode, displayMode }
+ *                                    `displayMode` bridges 'card' → 'cards' for AppDataTable.
  */
 
+import { computed } from 'vue'
 import type { Employee } from '../interfaces/employee.types'
 import { useViewMode, readViewMode, writeViewMode } from '@/core/shared/composables/useViewMode'
 
@@ -52,10 +58,26 @@ export interface EmployeeCardData {
 /**
  * localStorage key for view mode preference.
  * Distinct from table-preferences-* keys to avoid conflicts.
+ * Alias kept as `VIEW_MODE_STORAGE_KEY` for the WU-03 tests that imported it.
  */
 export const VIEW_MODE_STORAGE_KEY = 'employee-view-mode'
 
+/**
+ * Canonical localStorage key for view mode preference (used by WU-A tests).
+ * Same value as VIEW_MODE_STORAGE_KEY — exported under a stable alias so
+ * downstream consumers can rename without breaking older test imports.
+ */
+export const EMPLOYEE_VIEW_MODE_STORAGE_KEY = VIEW_MODE_STORAGE_KEY
+
 const VALID_MODES = ['table', 'card'] as const
+
+/**
+ * Type guard so callers can validate untyped input instead of casting blindly.
+ * Accepts ONLY the internal 'table' | 'card' union — NOT 'cards' (AppDataTable shape).
+ */
+export function isEmployeeViewMode(value: string): value is EmployeeViewMode {
+  return (VALID_MODES as readonly string[]).includes(value)
+}
 
 // ─── Pure helpers (exported for unit testing) ─────────────────────────────────
 
@@ -147,6 +169,12 @@ export function buildCardData(employee: Employee, managerDisplay: string): Emplo
  * Thin wrapper around the generic useViewMode composable that binds
  * VIEW_MODE_STORAGE_KEY and the employee-specific mode union type.
  *
+ * Returns:
+ *  - viewMode         — reactive ref<'table' | 'card'>
+ *  - setMode          — write mode + persist
+ *  - toggleViewMode   — cycle table ↔ card
+ *  - displayMode      — bridge to AppDataTable ('table' | 'cards'); maps 'card' → 'cards'
+ *
  * Pure helper functions (getViewMode, setViewMode, computeSeniority, buildCardData)
  * remain in this file so existing tests and callers keep working without changes.
  */
@@ -157,9 +185,19 @@ export function useEmployeeViewMode() {
     'table',
   )
 
+  /**
+   * Bridge to AppDataTable's `displayMode` prop. AppDataTable expects
+   * `'table' | 'cards' | 'auto'` — we map our internal singular `card`
+   * to the plural `cards` form the table uses.
+   */
+  const displayMode = computed<'table' | 'cards'>(() =>
+    viewMode.value === 'card' ? 'cards' : 'table',
+  )
+
   return {
     viewMode,
     toggleViewMode: toggleMode,
     setMode,
+    displayMode,
   }
 }
