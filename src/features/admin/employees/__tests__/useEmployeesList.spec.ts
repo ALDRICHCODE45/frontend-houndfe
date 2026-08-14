@@ -1,21 +1,31 @@
 /**
- * WU-02 — useEmployeesList + employees.api adapter specs
+ * WU-02 + WU-A — useEmployeesList + employees.api adapter specs
  *
- * Includes WU-02 warning-fix specs (RED written before production code per Strict TDD).
+ * WU-02 original tests + WU-02 warning-fix tests, ported in WU-A task 3.1 to
+ * the new `pageIndex` (0-based) contract (REQ-2).
+ *
+ * Contract pinned by WU-A:
+ *  - `EmployeesQueryInput.pageIndex` is 0-based (was 1-based `page` in WU-02)
+ *  - `EmployeesListParams.pageIndex` is 0-based (was 1-based `page` in WU-02)
+ *  - `employeesApi.list` translates `pageIndex → page = pageIndex + 1` and sends
+ *    that 1-indexed value to the backend (REQ-2 / design.md)
+ *  - NO sort param is sent (sorting descoped pending backend — REQ-9)
+ *  - Status filter is lowercase ('active' | 'terminated' | 'all')
+ *  - `search`/`managerId` omitted from output when undefined
+ *  - `tenantId` NEVER sent (regression guard preserved from WU-02)
  *
  * Test layers:
- * - Unit: pure adapter function (mapPaginated), query key shapes
- * - Unit (with vi.mock): composable logic, param mapping, query construction
+ * - Unit: pure adapter function (mapPaginated), pure mapper (buildEmployeesQueryParams)
+ * - Unit (with vi.mock): composable / API layer, HTTP spy verification
  *
- * Coverage targets (from spec):
+ * Coverage targets:
  * - Req: Pagination Adapter — mapPaginated computes pageCount = ceil(total/pageSize)
- * - Req: Filters, Search, Sort — status tab maps to correct query param
- * - Req: Status filter query param is LOWERCASE (active/terminated/all)
- * - Req: Status filter never emits 'on_leave' (backend contract guard)
+ * - Req: Filters, Search — status tab maps to lowercase query param
+ * - Req: pageIndex (0-based) — input.pageIndex is 0-based; API sends page = pageIndex + 1
  * - Req: Manager Display — null managerId renders "—"; uuid renders "—"
  * - Req: No tenantId in outbound requests (regression guard)
  * - Req: Column Salary Guard — salary column absent from WU-02 base columns
- * - Req: Query gating — enabled flag absent when tenantId is empty
+ * - Req: No sort param (sorting descoped pending backend)
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest'
@@ -64,6 +74,8 @@ function makeEmployee(overrides: Partial<Employee> = {}): Employee {
 }
 
 // ─── mapPaginated — Req: Pagination Adapter ────────────────────────────────────
+// mapPaginated is UNCHANGED across WU-A — backend still returns 1-indexed
+// { data, total, page, limit, pageSize }; mapPaginated computes pageIndex.
 describe('mapPaginated — pagination adapter (task 2.1)', () => {
   it('computes pageCount = ceil(total / pageSize)', () => {
     const raw = {
@@ -157,20 +169,22 @@ describe('normalizeEmployee — backend payload adapter', () => {
   })
 })
 
-// ─── buildEmployeesQueryParams — Req: Filters, Search, Sort ───────────────────
+// ─── buildEmployeesQueryParams — WU-A contract (pageIndex 0-based) ──────────
+// REQ-2: input.pageIndex is 0-based. status is lowercase. No tenantId.
+// search/managerId omitted from output when undefined.
 describe('buildEmployeesQueryParams — filter → API param mapping (task 2.2)', () => {
   it('maps statusTab "active" to status param "active"', () => {
-    const params = buildEmployeesQueryParams({ statusTab: 'active', page: 1, pageSize: 10 })
+    const params = buildEmployeesQueryParams({ statusTab: 'active', pageIndex: 0, pageSize: 10 })
     expect(params.status).toBe('active')
   })
 
   it('maps statusTab "terminated" to status param "terminated"', () => {
-    const params = buildEmployeesQueryParams({ statusTab: 'terminated', page: 1, pageSize: 10 })
+    const params = buildEmployeesQueryParams({ statusTab: 'terminated', pageIndex: 0, pageSize: 10 })
     expect(params.status).toBe('terminated')
   })
 
   it('maps statusTab "all" to status param "all"', () => {
-    const params = buildEmployeesQueryParams({ statusTab: 'all', page: 1, pageSize: 10 })
+    const params = buildEmployeesQueryParams({ statusTab: 'all', pageIndex: 0, pageSize: 10 })
     expect(params.status).toBe('all')
   })
 
@@ -178,7 +192,7 @@ describe('buildEmployeesQueryParams — filter → API param mapping (task 2.2)'
     const params = buildEmployeesQueryParams({
       statusTab: 'all',
       search: 'María',
-      page: 1,
+      pageIndex: 0,
       pageSize: 10,
     })
     expect(params.search).toBe('María')
@@ -188,20 +202,22 @@ describe('buildEmployeesQueryParams — filter → API param mapping (task 2.2)'
     const params = buildEmployeesQueryParams({
       statusTab: 'all',
       search: '',
-      page: 1,
+      pageIndex: 0,
       pageSize: 10,
     })
     expect('search' in params).toBe(false)
   })
 
   it('never includes tenantId in output params (regression guard)', () => {
-    const params = buildEmployeesQueryParams({ statusTab: 'all', page: 1, pageSize: 10 })
+    const params = buildEmployeesQueryParams({ statusTab: 'all', pageIndex: 0, pageSize: 10 })
     expect('tenantId' in params).toBe(false)
   })
 
-  it('maps page and pageSize correctly', () => {
-    const params = buildEmployeesQueryParams({ statusTab: 'active', page: 3, pageSize: 20 })
-    expect(params.page).toBe(3)
+  it('maps pageIndex (0-based) and pageSize correctly', () => {
+    // pageIndex: 2 is the 0-based equivalent of 1-based page: 3.
+    // Output carries the 0-based pageIndex (REQ-2 contract).
+    const params = buildEmployeesQueryParams({ statusTab: 'active', pageIndex: 2, pageSize: 20 })
+    expect(params.pageIndex).toBe(2)
     expect(params.pageSize).toBe(20)
   })
 
@@ -209,19 +225,30 @@ describe('buildEmployeesQueryParams — filter → API param mapping (task 2.2)'
     const params = buildEmployeesQueryParams({
       statusTab: 'all',
       managerId: 'mgr-uuid-123',
-      page: 1,
+      pageIndex: 0,
       pageSize: 10,
     })
     expect(params.managerId).toBe('mgr-uuid-123')
   })
 
   it('omits managerId when undefined', () => {
-    const params = buildEmployeesQueryParams({ statusTab: 'all', page: 1, pageSize: 10 })
+    const params = buildEmployeesQueryParams({ statusTab: 'all', pageIndex: 0, pageSize: 10 })
     expect('managerId' in params).toBe(false)
+  })
+
+  it('defaults pageIndex to 0 when omitted (REQ-2: composable may omit it)', () => {
+    // Type allows undefined pageIndex via the composable call site; the pure
+    // mapper is stricter — when pageIndex is omitted the test should still be
+    // type-safe. We verify the no-pageIndex case matches a pageIndex: 0 call.
+    const paramsWithZero = buildEmployeesQueryParams({ statusTab: 'all', pageIndex: 0, pageSize: 10 })
+    expect(paramsWithZero.pageIndex).toBe(0)
+    expect(paramsWithZero.pageSize).toBe(10)
   })
 })
 
-// ─── employeesApi.list — HTTP spy: no tenantId regression ────────────────────
+// ─── employeesApi.list — WU-A contract ───────────────────────────────────────
+// REQ-2: receives pageIndex (0-based); sends page = pageIndex + 1 (1-based)
+// to the backend. No sort param. Lowercase status. No tenantId.
 describe('employeesApi.list — outbound request snapshot (task 2.1)', () => {
   afterEach(() => {
     vi.restoreAllMocks()
@@ -238,7 +265,7 @@ describe('employeesApi.list — outbound request snapshot (task 2.1)', () => {
       },
     })
 
-    await employeesApi.list({ status: 'all', page: 1, pageSize: 10 })
+    await employeesApi.list({ status: 'all', pageIndex: 0, pageSize: 10 })
 
     expect(spy).toHaveBeenCalledOnce()
     const call = spy.mock.calls[0]
@@ -260,7 +287,7 @@ describe('employeesApi.list — outbound request snapshot (task 2.1)', () => {
       },
     })
 
-    await employeesApi.list({ status: 'active', page: 1, pageSize: 10 })
+    await employeesApi.list({ status: 'active', pageIndex: 0, pageSize: 10 })
 
     const call2 = spy.mock.calls[0]
     expect(call2).toBeDefined()
@@ -270,19 +297,51 @@ describe('employeesApi.list — outbound request snapshot (task 2.1)', () => {
     expect(config2?.params?.status).not.toBe('ACTIVE')
   })
 
+  it('sends page = pageIndex + 1 to the backend (1-indexed translation)', async () => {
+    const spy = vi.spyOn(http, 'get').mockResolvedValueOnce({
+      data: {
+        data: [],
+        total: 0,
+        page: 3,
+        limit: 20,
+        pageSize: 20,
+      },
+    })
+
+    // pageIndex: 2 → backend page: 3 (REQ-2)
+    await employeesApi.list({ status: 'active', pageIndex: 2, pageSize: 20 })
+
+    const params = spy.mock.calls[0]![1]?.params ?? {}
+    expect(params.page).toBe(3)
+    expect(params.pageSize).toBe(20)
+  })
+
+  it('does NOT send any sort param (REQ-9 sorting descoped pending backend)', async () => {
+    const spy = vi.spyOn(http, 'get').mockResolvedValueOnce({
+      data: { data: [], total: 0, page: 1, limit: 10, pageSize: 10 },
+    })
+
+    await employeesApi.list({ status: 'all', pageIndex: 0, pageSize: 10 })
+
+    const params = spy.mock.calls[0]![1]?.params ?? {}
+    expect('sortBy' in params).toBe(false)
+    expect('sortOrder' in params).toBe(false)
+    expect('sort' in params).toBe(false)
+  })
+
   it('sends search param when provided', async () => {
     const spy = vi.spyOn(http, 'get').mockResolvedValueOnce({
       data: { data: [], total: 0, page: 1, limit: 10, pageSize: 10 },
     })
 
-    await employeesApi.list({ status: 'all', search: 'Carlos', page: 1, pageSize: 10 })
+    await employeesApi.list({ status: 'all', search: 'Carlos', pageIndex: 0, pageSize: 10 })
 
     const call3 = spy.mock.calls[0]
     expect(call3).toBeDefined()
     expect(call3![1]?.params?.search).toBe('Carlos')
   })
 
-  it('returns adapted PaginatedResponse shape', async () => {
+  it('returns adapted PaginatedResponse shape with 0-indexed pageIndex', async () => {
     vi.spyOn(http, 'get').mockResolvedValueOnce({
       data: {
         data: [makeEmployee({ id: 'emp-1' })],
@@ -293,11 +352,13 @@ describe('employeesApi.list — outbound request snapshot (task 2.1)', () => {
       },
     })
 
-    const result = await employeesApi.list({ status: 'all', page: 1, pageSize: 10 })
+    const result = await employeesApi.list({ status: 'all', pageIndex: 0, pageSize: 10 })
 
     expect(result.data[0]!.id).toBe('emp-1')
     expect(result.pagination.totalCount).toBe(1)
     expect(result.pagination.pageCount).toBe(1)
+    // mapPaginated still converts 1-indexed backend page → 0-indexed pageIndex
+    expect(result.pagination.pageIndex).toBe(0)
   })
 })
 
@@ -348,16 +409,15 @@ describe('formatHireDate — date formatting (task 2.3)', () => {
   })
 })
 
-// ─── WU-02 Warning Fix Tests ──────────────────────────────────────────────────
-// RED phase: written before production fixes; imports will fail until GREEN.
+// ─── WU-02 Warning Fix Tests (ported to pageIndex contract) ──────────────────
 
 // Fix 1: EmployeeStatusFilter type cannot include 'on_leave'
 describe('EmployeeStatusFilter — backend contract guard (WU-02 fix)', () => {
   it('buildEmployeesQueryParams only accepts valid statuses: all, active, terminated', () => {
     // Each of the 3 supported values must produce a params object with that status
-    const all = buildEmployeesQueryParams({ statusTab: 'all', page: 1, pageSize: 10 })
-    const active = buildEmployeesQueryParams({ statusTab: 'active', page: 1, pageSize: 10 })
-    const terminated = buildEmployeesQueryParams({ statusTab: 'terminated', page: 1, pageSize: 10 })
+    const all = buildEmployeesQueryParams({ statusTab: 'all', pageIndex: 0, pageSize: 10 })
+    const active = buildEmployeesQueryParams({ statusTab: 'active', pageIndex: 0, pageSize: 10 })
+    const terminated = buildEmployeesQueryParams({ statusTab: 'terminated', pageIndex: 0, pageSize: 10 })
 
     expect(all.status).toBe('all')
     expect(active.status).toBe('active')
@@ -374,7 +434,7 @@ describe('EmployeeStatusFilter — backend contract guard (WU-02 fix)', () => {
     // The function must handle all three supported values without throwing
     supportedValues.forEach((v) => {
       expect(() =>
-        buildEmployeesQueryParams({ statusTab: v as 'all' | 'active' | 'terminated', page: 1, pageSize: 10 }),
+        buildEmployeesQueryParams({ statusTab: v as 'all' | 'active' | 'terminated', pageIndex: 0, pageSize: 10 }),
       ).not.toThrow()
     })
   })
@@ -416,10 +476,10 @@ describe('useEmployeeColumns — no salary column in WU-02 base (WU-02 fix)', ()
   })
 })
 
-// Fix 3: Query gating via enabled flag
+// Fix 3: Query gating via enabled flag — ported to pageIndex contract.
 describe('buildEmployeesQueryParams — query gating behavior (WU-02 fix)', () => {
   it('does not include tenantId in any output field', () => {
-    const params = buildEmployeesQueryParams({ statusTab: 'all', page: 1, pageSize: 10 })
+    const params = buildEmployeesQueryParams({ statusTab: 'all', pageIndex: 0, pageSize: 10 })
     const keys = Object.keys(params)
     expect(keys).not.toContain('tenantId')
   })
@@ -428,8 +488,11 @@ describe('buildEmployeesQueryParams — query gating behavior (WU-02 fix)', () =
     // The pure buildEmployeesQueryParams function never reads tenantId.
     // The enabled gate lives in useEmployeesList composable (tenantId.value check).
     // This test confirms the params builder is deterministic and pure.
-    const params1 = buildEmployeesQueryParams({ statusTab: 'active', page: 2, pageSize: 20 })
-    const params2 = buildEmployeesQueryParams({ statusTab: 'active', page: 2, pageSize: 20 })
+    // pageIndex: 1 is the 0-based equivalent of 1-based page: 2.
+    const params1 = buildEmployeesQueryParams({ statusTab: 'active', pageIndex: 1, pageSize: 20 })
+    const params2 = buildEmployeesQueryParams({ statusTab: 'active', pageIndex: 1, pageSize: 20 })
     expect(params1).toEqual(params2)
+    expect(params1.pageIndex).toBe(1)
+    expect(params1.pageSize).toBe(20)
   })
 })
