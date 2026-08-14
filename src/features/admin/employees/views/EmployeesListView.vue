@@ -37,8 +37,16 @@
  * - viewMode → useEmployeeViewMode (with displayMode computed)
  * - selection-clear watcher: [viewMode, () => pagination.value.pageIndex]
  *
+ * WU-B additions:
+ * - EmployeeCardGrid rendered inside AppDataTable's #cards slot (kebab +
+ *   card-click → admin-employee-detail preserved); the sibling v-else card
+ *   branch and its duplicated prev/next pagination are gone — AppDataTable's
+ *   pagination now governs both views
+ * - EmployeeFilters (status tabs only) rendered inside AppDataTable's #filters
+ *   slot; the toolbar owns the search box via globalFilter
+ *
  * Design: Claude "Colaboradores" adapted to warm-orange Nuxt UI 4 tokens.
- * Status tabs: Todos / Activos / Bajas (rendered inside EmployeeFilters)
+ * Status tabs: Todos / Activos / Bajas (EmployeeFilters, in the #filters slot)
  * Table columns: Colaborador, Cargo, Departamento, Jefe directo, Fecha de ingreso, Modalidad, Estado
  * Salary: intentionally NOT shown in list or cards — belongs in Compensación detail tab
  *
@@ -66,6 +74,7 @@ import { useManagerResolution, resolveManagerName, resolveManagerEmail } from '.
 import { getEmployeeRowActions } from '../composables/useEmployeeActions'
 import { employeeStatusConfig, getDepartmentDotClass } from '../utils/employeeBadgeConfig.utils'
 import EmployeeCardGrid from '../components/EmployeeCardGrid.vue'
+import EmployeeFilters from '../components/EmployeeFilters.vue'
 import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import DotBadge from '@/core/shared/components/DotBadge.vue'
@@ -146,6 +155,8 @@ function getTableRowItems(employee: Employee) {
 
 // ── List composable (useServerTable-backed) ───────────────────────────────────
 const {
+  statusTab,
+  setStatusTab,
   pagination,
   sorting,
   globalFilter,
@@ -410,6 +421,14 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
               :model-value="viewMode"
               aria-label="Seleccionar vista de empleados"
               @update:model-value="handleViewModeChange"
+            />
+          </template>
+
+          <!-- WU-B: status tabs in #filters — toolbar keeps the globalFilter search box -->
+          <template #filters>
+            <EmployeeFilters
+              :status-tab="statusTab"
+              @update:status-tab="setStatusTab"
             />
           </template>
 
