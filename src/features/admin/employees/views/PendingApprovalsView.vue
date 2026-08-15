@@ -51,6 +51,7 @@ import { useQuery } from '@tanstack/vue-query'
 import type { ColumnPinningState } from '@tanstack/vue-table'
 import { AppDataTable } from '@/core/shared/components/DataTable'
 import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
+import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { employeeQueryKeys } from '@/core/shared/constants/query-keys'
 import {
@@ -60,7 +61,7 @@ import {
   FIRST_PAGE,
   DEFAULT_TABLE_PAGE_SIZE,
 } from '@/core/shared/utils/pagination.utils'
-import { TIME_OFF_TYPE, REVIEW_DECISION } from '../constants/employee.constants'
+import { REVIEW_DECISION } from '../constants/employee.constants'
 import type { ReviewDecisionValue } from '../constants/employee.constants'
 import { usePendingApprovals } from '../composables/useReviewTimeOff'
 import { useReviewTimeOff } from '../composables/useReviewTimeOff'
@@ -68,16 +69,15 @@ import { usePendingApprovalsViewMode } from '../composables/usePendingApprovalsV
 import { usePendingApprovalsColumns } from '../composables/usePendingApprovalsColumns'
 import {
   formatTimeOffType,
-  formatTimeOffStatus,
   computeTimeOffDays,
-  resolveSickReason,
   filterPendingBySearch,
 } from '../composables/useAusencias'
 import { buildManagerMap } from '../composables/useManagerResolution'
 import { formatTimeOffDateRange } from '../composables/useEmployeeColumns'
+import { buildPendingApprovalCardData } from '../composables/usePendingApprovalCard'
+import PendingApprovalCard from '../components/PendingApprovalCard.vue'
 import { employeesApi } from '../api/employees.api'
 import type { TimeOffRequest, ReviewTimeOffDto, Employee } from '../interfaces/employee.types'
-import { AVATAR_PALETTE } from '@/app/constants/avatarPalette'
 
 // ─── Auth ──────────────────────────────────────────────────────────────────────
 
@@ -111,33 +111,14 @@ const { data: employeesList } = useQuery<Employee[]>({
 
 const employeeMap = computed(() => buildManagerMap(employeesList.value ?? []))
 
-function getEmployeeName(employeeId: string): string {
-  // S5: missing name → "—" (per spec scenario "Employee absent from cache").
-  // The prior 'Colaborador' placeholder was generic and read as a real
-  // employee name; '—' is the canonical "not resolved" sentinel.
-  return employeeMap.value.get(employeeId)?.fullName ?? '—'
-}
-
-function getEmployeeInitials(employeeId: string): string {
-  const name = employeeMap.value.get(employeeId)?.fullName ?? '—'
-  const parts = name.trim().split(/\s+/).filter(Boolean)
-  return (
-    parts
-      .slice(0, 2)
-      .map((p) => p[0]?.toUpperCase() ?? '')
-      .join('') || '—'
-  )
-}
-
-function getAvatarClass(seedValue: string): string {
-  const seed = seedValue.split('').reduce((sum, c) => sum + c.charCodeAt(0), 0)
-  return AVATAR_PALETTE[seed % AVATAR_PALETTE.length] ?? AVATAR_PALETTE[0]!
-}
-
 // ─── View mode + table columns ────────────────────────────────────────────────
 
-const { displayMode } = usePendingApprovalsViewMode()
+const { viewMode, setMode: setViewMode, displayMode } = usePendingApprovalsViewMode()
 const { columns } = usePendingApprovalsColumns()
+
+function handleViewModeChange(mode: string): void {
+  setViewMode(mode as 'table' | 'card')
+}
 
 // ─── Client-side search by resolved name (S5) ────────────────────────────────
 
@@ -244,8 +225,20 @@ const pendingErrorMessage = computed<string>(() => {
 const reviewingRequest = ref<TimeOffRequest | null>(null)
 const reviewEmployeeId = computed(() => reviewingRequest.value?.employeeId ?? '')
 
-const { mutateAsync: submitReview, isPending: isReviewing } =
+const { mutateAsync: submitReview, isPending: isReviewingMutation } =
   useReviewTimeOff(reviewEmployeeId)
+
+/**
+ * Per-row "is reviewing" check. The mutation's `isPending` is shared
+ * (one POST /review at a time), but the in-flight target is the
+ * `reviewingRequest` set by `openReviewDialog`. Match the row id so
+ * only the row whose confirmation is in flight shows the busy state —
+ * other rows stay interactive (mirrors AusenciasPanel's
+ * `isReviewing && reviewingId === item.id` pattern).
+ */
+function isReviewing(id: string): boolean {
+  return isReviewingMutation.value && reviewingRequest.value?.id === id
+}
 
 const isReviewDialogOpen = ref(false)
 const reviewDecision = ref<ReviewDecisionValue | null>(null)
@@ -285,22 +278,9 @@ function cancelReview(): void {
 
 // ─── Display helpers ───────────────────────────────────────────────────────────
 
-function getTypeColor(type: string): 'primary' | 'warning' | 'error' | 'neutral' | 'success' {
-  switch (type) {
-    case TIME_OFF_TYPE.VACATION:
-      return 'primary'
-    case TIME_OFF_TYPE.SICK:
-      return 'error'
-    case TIME_OFF_TYPE.PERSONAL:
-      return 'warning'
-    case TIME_OFF_TYPE.UNPAID:
-      return 'neutral'
-    default:
-      return 'neutral'
-  }
-}
-
-// formatTimeOffDateRange is imported from useEmployeeColumns and shared with AusenciasPanel.
+// Type color is owned by `buildPendingApprovalCardData` (WU-B). The card
+// template renders the badge via `data.typeColor`. formatTimeOffDateRange
+// is imported from useEmployeeColumns and shared with AusenciasPanel.
 </script>
 
 <template>
@@ -337,12 +317,76 @@ function getTypeColor(type: string): 'primary' | 'warning' | 'error' | 'neutral'
           empty="Sin solicitudes pendientes"
           @refresh="() => refetch()"
         >
-          <!-- Card slot: keeps the existing card tray markup alive for WU-B to
-               extract; the toolbar/refresh/error block are now owned by
-               AppDataTable. -->
+          <!-- WU-B: Tabla / Tarjetas segmented toggle in the toolbar actions slot -->
+          <template #actions>
+            <ViewToggle
+              :model-value="viewMode"
+              aria-label="Seleccionar vista de validaciones pendientes"
+              @update:model-value="handleViewModeChange"
+            />
+          </template>
+
+          <!-- WU-B: "N solicitudes pendientes (de M en total)" summary lives
+               ABOVE the table (so it stays visible in BOTH view modes).
+               REQ-4: no search or summary on empty queue. -->
+          <template #above-table>
+            <p
+              v-if="queueNonEmpty && !isSearchActive"
+              class="text-sm text-muted"
+              data-testid="pending-approvals-summary"
+            >
+              {{ filteredRequests.length }}
+              {{
+                filteredRequests.length === 1
+                  ? 'solicitud pendiente'
+                  : 'solicitudes pendientes'
+              }}
+              <template v-if="(pendingRequests?.length ?? 0) !== filteredRequests.length">
+                <span class="text-muted-foreground">
+                  (de {{ pendingRequests?.length ?? 0 }} en total)
+                </span>
+              </template>
+            </p>
+          </template>
+
+          <!-- WU-B: per-row approve / reject in the table view (REQ-3).
+               Gated by canReview (CASL update:EmployeeTimeOff); disabled
+               while THIS row is being reviewed. -->
+          <template #acciones-cell="{ row }">
+            <div v-if="canReview" class="flex items-center justify-end gap-2">
+              <UButton
+                icon="i-lucide-x"
+                color="error"
+                variant="soft"
+                size="xs"
+                :disabled="isReviewing(row.original.id)"
+                data-testid="pending-approvals-row-reject"
+                @click="openReviewDialog(row.original, REVIEW_DECISION.REJECTED)"
+              >
+                Rechazar
+              </UButton>
+              <UButton
+                icon="i-lucide-check"
+                color="success"
+                variant="soft"
+                size="xs"
+                :disabled="isReviewing(row.original.id)"
+                data-testid="pending-approvals-row-approve"
+                @click="openReviewDialog(row.original, REVIEW_DECISION.APPROVED)"
+              >
+                Aprobar
+              </UButton>
+            </div>
+          </template>
+
+          <!-- WU-B: card tray inside the #cards slot (REQ-2, REQ-3, REQ-6).
+               Presentational PendingApprovalCard emits approve / reject
+               with the original request; this view owns the dialog +
+               mutation flow. No-match sub-state renders here when the
+               search empties the result set. -->
           <template #cards="{ data }">
             <div class="flex flex-col gap-3">
-              <!-- Summary count (after search) -->
+              <!-- Summary line (mirrors the table view's #above-table) -->
               <p v-if="queueNonEmpty" class="text-sm text-muted">
                 {{ filteredRequests.length }}
                 {{
@@ -361,10 +405,13 @@ function getTypeColor(type: string): 'primary' | 'warning' | 'error' | 'neutral'
                 </template>
               </p>
 
-              <!-- No-match sub-state when the search filters everything out -->
+              <!-- No-match sub-state: search empties the result set.
+                   Distinct from the queue-empty copy (which lives on
+                   AppDataTable's `:empty` prop, NOT here). -->
               <div
                 v-if="filteredRequests.length === 0 && isSearchActive"
                 class="flex flex-col items-center gap-2 rounded-lg border border-dashed border-default py-10 text-center"
+                data-testid="pending-approvals-no-match"
               >
                 <UIcon name="i-lucide-search-x" class="size-7 text-muted" />
                 <p class="text-sm text-muted">
@@ -372,108 +419,15 @@ function getTypeColor(type: string): 'primary' | 'warning' | 'error' | 'neutral'
                 </p>
               </div>
 
-              <div
+              <PendingApprovalCard
                 v-for="request in data"
                 :key="request.id"
-                class="rounded-lg border border-default bg-elevated/30 p-4 transition-colors hover:bg-elevated/50"
-              >
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <!-- Request info -->
-                  <div class="flex flex-col gap-2">
-                    <!-- Employee identity + type badge -->
-                    <div class="flex items-center gap-2">
-                      <div
-                        class="flex size-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold shadow-sm"
-                        :class="getAvatarClass(request.employeeId)"
-                        :aria-label="getEmployeeName(request.employeeId)"
-                      >
-                        {{ getEmployeeInitials(request.employeeId) }}
-                      </div>
-                      <span class="text-sm font-medium text-highlighted">
-                        {{ getEmployeeName(request.employeeId) }}
-                      </span>
-                      <UBadge :color="getTypeColor(request.type)" variant="subtle" size="sm">
-                        {{ formatTimeOffType(request.type) }}
-                      </UBadge>
-                    </div>
-
-                    <!-- Date range + days -->
-                    <div class="flex items-center gap-2 text-sm">
-                      <UIcon name="i-lucide-calendar" class="size-4 shrink-0 text-muted" />
-                      <span class="text-highlighted">
-                        {{ formatTimeOffDateRange(request.startDate, request.endDate) }}
-                      </span>
-                      <span class="text-muted">
-                        ({{ computeTimeOffDays(request.startDate, request.endDate) }}
-                        {{
-                          computeTimeOffDays(request.startDate, request.endDate) === 1
-                            ? 'día'
-                            : 'días'
-                        }})
-                      </span>
-                    </div>
-
-                    <!-- Reason (SICK guard: null = "Motivo médico reservado" per S5) -->
-                    <div
-                      v-if="resolveSickReason(request.type, request.reason) !== '—'"
-                      class="flex items-start gap-2 text-sm"
-                    >
-                      <UIcon
-                        name="i-lucide-message-square"
-                        class="mt-0.5 size-4 shrink-0 text-muted"
-                      />
-                      <span
-                        :class="[
-                          request.type === TIME_OFF_TYPE.SICK && request.reason === null
-                            ? 'italic text-muted'
-                            : 'text-highlighted',
-                        ]"
-                      >
-                        {{ resolveSickReason(request.type, request.reason) }}
-                      </span>
-                    </div>
-
-                    <!-- Status chip -->
-                    <div class="flex items-center gap-2">
-                      <UBadge color="warning" variant="soft" size="sm">
-                        {{ formatTimeOffStatus(request.status) }}
-                      </UBadge>
-                      <span class="text-xs text-muted">
-                        Solicitada el
-                        {{
-                          new Date(request.createdAt).toLocaleDateString('es-MX', {
-                            timeZone: 'UTC',
-                          })
-                        }}
-                      </span>
-                    </div>
-                  </div>
-
-                  <!-- Action buttons (gated by canReview) -->
-                  <div v-if="canReview" class="flex shrink-0 items-center gap-2">
-                    <UButton
-                      icon="i-lucide-x"
-                      color="error"
-                      variant="soft"
-                      size="sm"
-                      :disabled="isReviewing"
-                      @click="openReviewDialog(request, REVIEW_DECISION.REJECTED)"
-                    >
-                      Rechazar
-                    </UButton>
-                    <UButton
-                      icon="i-lucide-check"
-                      color="success"
-                      variant="soft"
-                      size="sm"
-                      :disabled="isReviewing"
-                      @click="openReviewDialog(request, REVIEW_DECISION.APPROVED)"
-                    >
-                      Aprobar
-                    </UButton>
-                  </div>
-                </div>
-              </div>
+                :data="buildPendingApprovalCardData(request, employeeMap)"
+                :can-review="canReview"
+                :is-reviewing="isReviewing(request.id)"
+                @approve="(req) => openReviewDialog(req, REVIEW_DECISION.APPROVED)"
+                @reject="(req) => openReviewDialog(req, REVIEW_DECISION.REJECTED)"
+              />
             </div>
           </template>
         </AppDataTable>
@@ -526,14 +480,14 @@ function getTypeColor(type: string): 'primary' | 'warning' | 'error' | 'neutral'
               <UButton
                 variant="ghost"
                 color="neutral"
-                :disabled="isReviewing"
+                :disabled="isReviewingMutation"
                 @click="cancelReview"
               >
                 Cancelar
               </UButton>
               <UButton
                 :color="reviewDecision === REVIEW_DECISION.APPROVED ? 'success' : 'error'"
-                :loading="isReviewing"
+                :loading="isReviewingMutation"
                 @click="confirmReview"
               >
                 {{
