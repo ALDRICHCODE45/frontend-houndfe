@@ -1,17 +1,16 @@
 <script setup lang="ts">
 /**
- * PendingApprovalsView — WU-12B + S5 (hr-validation-notifications)
+ * PendingApprovalsView — WU-12B + S5 + WU-A (standardize-pending-approvals)
  *
  * Tenant-wide "Validaciones pendientes" tray showing PENDING time-off approval
  * requests across the whole tenant. The manager→subordinates model was removed
  * backend-side; any user with read:EmployeeTimeOff sees the same queue.
  *
- * Layout (S5):
+ * Layout (WU-A — hybrid):
  *   - Page header: title "Validaciones pendientes", tenant-wide description
- *   - Search box (client-side) filtering by resolved employee name
- *   - Approval cards/rows: employee, type, dates, days, reason (SICK guard), actions
+ *   - AppDataTable (client-side) with ViewToggle and #cards slot
+ *   - Per-card Aprobar / Rechazar (CASL canReview + UModal confirmation)
  *   - Empty state: voseo, no "tu equipo" copy
- *   - Loading skeleton
  *
  * Permission gate: read:EmployeeTimeOff (enforced at route level).
  * Review action gated by update:EmployeeTimeOff.
@@ -35,11 +34,22 @@
  *   a tenant with >100 active employees may show "—" for some names.
  *   A future `/admin/employees?ids=` batch endpoint would lift this.
  *
- * Design: warm orange primary, Nuxt UI 4. Card-based list for easy scanning.
+ * REQ-8 invariants (preserved):
+ *   - `usePendingApprovals` keeps `refetchOnWindowFocus: true` +
+ *     `staleTime: 30_000` (approvals are time-sensitive).
+ *   - `usePendingApprovals` stays inside `useReviewTimeOff.ts` (NOT split).
+ *   - Client-side full-array pagination via paginateRows / clampPage /
+ *     pageAfterQueryChange.
+ *   - `pagination.utils.ts` header unchanged.
+ *
+ * Design: warm orange primary, Nuxt UI 4. Hybrid (table + cards) via
+ * AppDataTable + ViewToggle; the card tray remains the DEFAULT view.
  */
 
 import { computed, ref, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
+import type { ColumnPinningState } from '@tanstack/vue-table'
+import { AppDataTable } from '@/core/shared/components/DataTable'
 import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { employeeQueryKeys } from '@/core/shared/constants/query-keys'
@@ -54,6 +64,8 @@ import { TIME_OFF_TYPE, REVIEW_DECISION } from '../constants/employee.constants'
 import type { ReviewDecisionValue } from '../constants/employee.constants'
 import { usePendingApprovals } from '../composables/useReviewTimeOff'
 import { useReviewTimeOff } from '../composables/useReviewTimeOff'
+import { usePendingApprovalsViewMode } from '../composables/usePendingApprovalsViewMode'
+import { usePendingApprovalsColumns } from '../composables/usePendingApprovalsColumns'
 import {
   formatTimeOffType,
   formatTimeOffStatus,
@@ -76,7 +88,13 @@ const canReview = computed(() => authStore.userCan('update', 'EmployeeTimeOff'))
 
 // ─── Pending queue (tenant-wide) ─────────────────────────────────────────────
 
-const { data: pendingRequests, isLoading, isError, refetch } = usePendingApprovals()
+const {
+  data: pendingRequests,
+  isLoading,
+  isError,
+  error,
+  refetch,
+} = usePendingApprovals()
 
 // ─── Name resolution: ONE cached list → buildManagerMap ──────────────────────
 //
@@ -116,6 +134,11 @@ function getAvatarClass(seedValue: string): string {
   return AVATAR_PALETTE[seed % AVATAR_PALETTE.length] ?? AVATAR_PALETTE[0]!
 }
 
+// ─── View mode + table columns ────────────────────────────────────────────────
+
+const { displayMode } = usePendingApprovalsViewMode()
+const { columns } = usePendingApprovalsColumns()
+
 // ─── Client-side search by resolved name (S5) ────────────────────────────────
 
 const searchQuery = ref('')
@@ -125,6 +148,7 @@ const filteredRequests = computed(() =>
   filterPendingBySearch(pendingRequests.value ?? [], employeeMap.value, searchQuery.value),
 )
 
+const queueNonEmpty = computed(() => (pendingRequests.value ?? []).length > 0)
 const isSearchActive = computed(() => searchQuery.value.trim().length > 0)
 
 // ─── Client-side pagination ───────────────────────────────────────────────────
@@ -134,18 +158,18 @@ const isSearchActive = computed(() => searchQuery.value.trim().length > 0)
 // name search. Page size is shared with the "Documentos por vencer" table for a
 // consistent feel across the two tenant-wide list views.
 const page = ref(FIRST_PAGE)
-const pageSize = DEFAULT_TABLE_PAGE_SIZE
+const pageSize = ref(DEFAULT_TABLE_PAGE_SIZE)
 
 /** Current page slice of the searched queue — page clamped so it is always valid. */
 const paged = computed(() => {
-  const pageCount = Math.ceil(filteredRequests.value.length / pageSize)
-  return paginateRows(filteredRequests.value, clampPage(page.value, pageCount), pageSize)
+  const pageCount = Math.ceil(filteredRequests.value.length / pageSize.value)
+  return paginateRows(filteredRequests.value, clampPage(page.value, pageCount), pageSize.value)
 })
 
 const showingFrom = computed(() =>
-  paged.value.total === 0 ? 0 : (page.value - 1) * pageSize + 1,
+  paged.value.total === 0 ? 0 : (page.value - 1) * pageSize.value + 1,
 )
-const showingTo = computed(() => Math.min(page.value * pageSize, paged.value.total))
+const showingTo = computed(() => Math.min(page.value * pageSize.value, paged.value.total))
 
 // Reset to the first page whenever the search query changes (the result set,
 // and therefore the page range, changes).
@@ -162,6 +186,56 @@ watch(
     page.value = clampPage(page.value, count)
   },
 )
+
+// ─── AppDataTable pagination bridge (copy-pasted verbatim from
+//     ExpiringDocumentsView.vue — REQ-1, REQ-8 invariant).
+//
+// Bridge AppDataTable's 0-based PaginationState with our 1-based page ref.
+const pagination = computed({
+  get: () => ({ pageIndex: page.value - 1, pageSize: pageSize.value }),
+  set: (val: { pageIndex: number; pageSize: number }) => {
+    if (val.pageSize !== pageSize.value) {
+      pageSize.value = val.pageSize
+      page.value = FIRST_PAGE
+    } else {
+      page.value = val.pageIndex + 1
+    }
+  },
+})
+
+// ─── Column visibility + right-pinning (REQ-3) ────────────────────────────────
+
+const columnPinning = ref<ColumnPinningState>({ left: [], right: ['acciones'] })
+const columnVisibility = ref<Record<string, boolean>>({})
+
+// ─── Error message (REQ-5: backendMessage > error.message > fallback) ─────────
+
+const FALLBACK_PENDING_ERROR =
+  'No se pudieron cargar las solicitudes pendientes. Intenta de nuevo.'
+
+const pendingErrorMessage = computed<string>(() => {
+  const err = error.value as
+    | {
+        response?: { data?: { message?: string | string[] } }
+        message?: string
+      }
+    | null
+  if (!err) return FALLBACK_PENDING_ERROR
+
+  const backendMsg = err.response?.data?.message
+  if (typeof backendMsg === 'string' && backendMsg.length > 0) {
+    return backendMsg
+  }
+  if (Array.isArray(backendMsg) && typeof backendMsg[0] === 'string' && backendMsg[0].length > 0) {
+    return backendMsg[0]
+  }
+
+  if (typeof err.message === 'string' && err.message.length > 0) {
+    return err.message
+  }
+
+  return FALLBACK_PENDING_ERROR
+})
 
 // ─── Review mutation ───────────────────────────────────────────────────────────
 
@@ -238,195 +312,171 @@ function getTypeColor(type: string): 'primary' | 'warning' | 'error' | 'neutral'
             title="Validaciones pendientes"
             description="Solicitudes de ausencia de toda la organización que requieren validación."
           />
-          <UButton
-            icon="i-lucide-refresh-cw"
-            variant="ghost"
-            color="neutral"
-            size="sm"
-            :loading="isLoading"
-            @click="() => refetch()"
-          >
-            Actualizar
-          </UButton>
         </div>
       </template>
 
       <div class="px-6 py-5">
-        <!-- Loading state -->
-        <div v-if="isLoading" class="flex flex-col gap-3">
-          <USkeleton v-for="i in 3" :key="i" class="h-20 w-full rounded-lg" />
-        </div>
-
-        <!-- Error state -->
-        <div v-else-if="isError" class="flex flex-col items-center gap-3 py-12 text-center">
-          <UIcon name="i-lucide-alert-triangle" class="size-10 text-error" />
-          <p class="text-sm text-muted">
-            No se pudo cargar las solicitudes pendientes. Intenta de nuevo.
-          </p>
-        </div>
-
-        <!-- Empty state (no requests at all) -->
-        <div
-          v-else-if="!pendingRequests || pendingRequests.length === 0"
-          class="flex flex-col items-center gap-3 py-16 text-center"
+        <AppDataTable
+          v-model:pagination="pagination"
+          v-model:global-filter="searchQuery"
+          v-model:column-pinning="columnPinning"
+          v-model:column-visibility="columnVisibility"
+          :columns="columns"
+          :data="paged.pageRows"
+          :loading="isLoading"
+          :error="isError"
+          :error-message="pendingErrorMessage"
+          :display-mode="displayMode"
+          enable-column-visibility
+          :show-toolbar="queueNonEmpty"
+          :page-count="paged.pageCount"
+          :total-count="paged.total"
+          :showing-from="showingFrom"
+          :showing-to="showingTo"
+          :page-size-options="[10, 20, 50]"
+          empty="Sin solicitudes pendientes"
+          @refresh="() => refetch()"
         >
-          <div class="flex size-16 items-center justify-center rounded-full bg-success/10">
-            <UIcon name="i-lucide-check-circle-2" class="size-8 text-success" />
-          </div>
-          <div class="max-w-md space-y-1">
-            <p class="font-medium text-highlighted">Sin solicitudes pendientes</p>
-            <p class="text-sm text-muted">
-              No hay solicitudes de ausencia esperando validación en la organización.
-            </p>
-          </div>
-        </div>
-
-        <!-- Loaded: show search + filtered list (or no-match sub-state) -->
-        <div v-else class="flex flex-col gap-3">
-          <!-- Search by employee name (S5) -->
-          <UInput
-            v-model="searchQuery"
-            icon="i-lucide-search"
-            placeholder="Buscar por nombre del colaborador..."
-            size="sm"
-            class="w-full sm:max-w-sm"
-            data-testid="pending-search-input"
-          />
-
-          <!-- Summary count (after search) -->
-          <p class="text-sm text-muted">
-            {{ filteredRequests.length }}
-            {{
-              filteredRequests.length === 1
-                ? 'solicitud pendiente'
-                : 'solicitudes pendientes'
-            }}
-            <template v-if="isSearchActive && (pendingRequests?.length ?? 0) !== filteredRequests.length">
-              <span class="text-muted-foreground">
-                (de {{ pendingRequests?.length ?? 0 }} en total)
-              </span>
-            </template>
-          </p>
-
-          <!-- No-match sub-state when the search filters everything out -->
-          <div
-            v-if="filteredRequests.length === 0"
-            class="flex flex-col items-center gap-2 rounded-lg border border-dashed border-default py-10 text-center"
-          >
-            <UIcon name="i-lucide-search-x" class="size-7 text-muted" />
-            <p class="text-sm text-muted">
-              No hay coincidencias para «{{ searchQuery.trim() }}».
-            </p>
-          </div>
-
-          <div
-            v-for="request in paged.pageRows"
-            :key="request.id"
-            class="rounded-lg border border-default bg-elevated/30 p-4 transition-colors hover:bg-elevated/50"
-          >
-            <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-              <!-- Request info -->
-              <div class="flex flex-col gap-2">
-                <!-- Employee identity + type badge -->
-                <div class="flex items-center gap-2">
-                  <div
-                    class="flex size-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold shadow-sm"
-                    :class="getAvatarClass(request.employeeId)"
-                    :aria-label="getEmployeeName(request.employeeId)"
-                  >
-                    {{ getEmployeeInitials(request.employeeId) }}
-                  </div>
-                  <span class="text-sm font-medium text-highlighted">
-                    {{ getEmployeeName(request.employeeId) }}
-                  </span>
-                  <UBadge :color="getTypeColor(request.type)" variant="subtle" size="sm">
-                    {{ formatTimeOffType(request.type) }}
-                  </UBadge>
-                </div>
-
-                <!-- Date range + days -->
-                <div class="flex items-center gap-2 text-sm">
-                  <UIcon name="i-lucide-calendar" class="size-4 shrink-0 text-muted" />
-                  <span class="text-highlighted">
-                    {{ formatTimeOffDateRange(request.startDate, request.endDate) }}
-                  </span>
-                  <span class="text-muted">
-                    ({{ computeTimeOffDays(request.startDate, request.endDate) }}
-                    {{ computeTimeOffDays(request.startDate, request.endDate) === 1 ? 'día' : 'días' }})
-                  </span>
-                </div>
-
-                <!-- Reason (SICK guard: null = "Motivo médico reservado" per S5) -->
-                <div
-                  v-if="resolveSickReason(request.type, request.reason) !== '—'"
-                  class="flex items-start gap-2 text-sm"
+          <!-- Card slot: keeps the existing card tray markup alive for WU-B to
+               extract; the toolbar/refresh/error block are now owned by
+               AppDataTable. -->
+          <template #cards="{ data }">
+            <div class="flex flex-col gap-3">
+              <!-- Summary count (after search) -->
+              <p v-if="queueNonEmpty" class="text-sm text-muted">
+                {{ filteredRequests.length }}
+                {{
+                  filteredRequests.length === 1
+                    ? 'solicitud pendiente'
+                    : 'solicitudes pendientes'
+                }}
+                <template
+                  v-if="
+                    isSearchActive && (pendingRequests?.length ?? 0) !== filteredRequests.length
+                  "
                 >
-                  <UIcon name="i-lucide-message-square" class="mt-0.5 size-4 shrink-0 text-muted" />
-                  <span
-                    :class="[
-                      request.type === TIME_OFF_TYPE.SICK && request.reason === null
-                        ? 'italic text-muted'
-                        : 'text-highlighted',
-                    ]"
-                  >
-                    {{ resolveSickReason(request.type, request.reason) }}
+                  <span class="text-muted-foreground">
+                    (de {{ pendingRequests?.length ?? 0 }} en total)
                   </span>
-                </div>
+                </template>
+              </p>
 
-                <!-- Status chip -->
-                <div class="flex items-center gap-2">
-                  <UBadge color="warning" variant="soft" size="sm">
-                    {{ formatTimeOffStatus(request.status) }}
-                  </UBadge>
-                  <span class="text-xs text-muted">
-                    Solicitada el {{ new Date(request.createdAt).toLocaleDateString('es-MX', { timeZone: 'UTC' }) }}
-                  </span>
-                </div>
+              <!-- No-match sub-state when the search filters everything out -->
+              <div
+                v-if="filteredRequests.length === 0 && isSearchActive"
+                class="flex flex-col items-center gap-2 rounded-lg border border-dashed border-default py-10 text-center"
+              >
+                <UIcon name="i-lucide-search-x" class="size-7 text-muted" />
+                <p class="text-sm text-muted">
+                  No hay coincidencias para «{{ searchQuery.trim() }}».
+                </p>
               </div>
 
-              <!-- Action buttons (gated by canReview) -->
-              <div v-if="canReview" class="flex shrink-0 items-center gap-2">
-                <UButton
-                  icon="i-lucide-x"
-                  color="error"
-                  variant="soft"
-                  size="sm"
-                  :disabled="isReviewing"
-                  @click="openReviewDialog(request, REVIEW_DECISION.REJECTED)"
-                >
-                  Rechazar
-                </UButton>
-                <UButton
-                  icon="i-lucide-check"
-                  color="success"
-                  variant="soft"
-                  size="sm"
-                  :disabled="isReviewing"
-                  @click="openReviewDialog(request, REVIEW_DECISION.APPROVED)"
-                >
-                  Aprobar
-                </UButton>
+              <div
+                v-for="request in data"
+                :key="request.id"
+                class="rounded-lg border border-default bg-elevated/30 p-4 transition-colors hover:bg-elevated/50"
+              >
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <!-- Request info -->
+                  <div class="flex flex-col gap-2">
+                    <!-- Employee identity + type badge -->
+                    <div class="flex items-center gap-2">
+                      <div
+                        class="flex size-7 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold shadow-sm"
+                        :class="getAvatarClass(request.employeeId)"
+                        :aria-label="getEmployeeName(request.employeeId)"
+                      >
+                        {{ getEmployeeInitials(request.employeeId) }}
+                      </div>
+                      <span class="text-sm font-medium text-highlighted">
+                        {{ getEmployeeName(request.employeeId) }}
+                      </span>
+                      <UBadge :color="getTypeColor(request.type)" variant="subtle" size="sm">
+                        {{ formatTimeOffType(request.type) }}
+                      </UBadge>
+                    </div>
+
+                    <!-- Date range + days -->
+                    <div class="flex items-center gap-2 text-sm">
+                      <UIcon name="i-lucide-calendar" class="size-4 shrink-0 text-muted" />
+                      <span class="text-highlighted">
+                        {{ formatTimeOffDateRange(request.startDate, request.endDate) }}
+                      </span>
+                      <span class="text-muted">
+                        ({{ computeTimeOffDays(request.startDate, request.endDate) }}
+                        {{
+                          computeTimeOffDays(request.startDate, request.endDate) === 1
+                            ? 'día'
+                            : 'días'
+                        }})
+                      </span>
+                    </div>
+
+                    <!-- Reason (SICK guard: null = "Motivo médico reservado" per S5) -->
+                    <div
+                      v-if="resolveSickReason(request.type, request.reason) !== '—'"
+                      class="flex items-start gap-2 text-sm"
+                    >
+                      <UIcon
+                        name="i-lucide-message-square"
+                        class="mt-0.5 size-4 shrink-0 text-muted"
+                      />
+                      <span
+                        :class="[
+                          request.type === TIME_OFF_TYPE.SICK && request.reason === null
+                            ? 'italic text-muted'
+                            : 'text-highlighted',
+                        ]"
+                      >
+                        {{ resolveSickReason(request.type, request.reason) }}
+                      </span>
+                    </div>
+
+                    <!-- Status chip -->
+                    <div class="flex items-center gap-2">
+                      <UBadge color="warning" variant="soft" size="sm">
+                        {{ formatTimeOffStatus(request.status) }}
+                      </UBadge>
+                      <span class="text-xs text-muted">
+                        Solicitada el
+                        {{
+                          new Date(request.createdAt).toLocaleDateString('es-MX', {
+                            timeZone: 'UTC',
+                          })
+                        }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Action buttons (gated by canReview) -->
+                  <div v-if="canReview" class="flex shrink-0 items-center gap-2">
+                    <UButton
+                      icon="i-lucide-x"
+                      color="error"
+                      variant="soft"
+                      size="sm"
+                      :disabled="isReviewing"
+                      @click="openReviewDialog(request, REVIEW_DECISION.REJECTED)"
+                    >
+                      Rechazar
+                    </UButton>
+                    <UButton
+                      icon="i-lucide-check"
+                      color="success"
+                      variant="soft"
+                      size="sm"
+                      :disabled="isReviewing"
+                      @click="openReviewDialog(request, REVIEW_DECISION.APPROVED)"
+                    >
+                      Aprobar
+                    </UButton>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
-
-          <!-- Client-side pagination (hidden on a single page or empty list) -->
-          <div
-            v-if="paged.pageCount > 1"
-            class="flex flex-col gap-3 border-t border-default pt-4 sm:flex-row sm:items-center sm:justify-between"
-          >
-            <p class="text-sm text-muted">
-              Mostrando {{ showingFrom }}-{{ showingTo }} de {{ paged.total }}
-            </p>
-            <UPagination
-              v-model:page="page"
-              :items-per-page="pageSize"
-              :total="paged.total"
-              :sibling-count="1"
-              size="sm"
-            />
-          </div>
-        </div>
+          </template>
+        </AppDataTable>
       </div>
     </UCard>
 
@@ -460,11 +510,11 @@ function getTypeColor(type: string): 'primary' | 'warning' | 'error' | 'neutral'
             <UFormField label="Notas del revisor (opcional)">
               <UTextarea
                 v-model="reviewerNotes"
-                  :placeholder="
-                    reviewDecision === REVIEW_DECISION.REJECTED
-                      ? 'Motivo del rechazo...'
-                      : 'Comentarios adicionales...'
-                  "
+                :placeholder="
+                  reviewDecision === REVIEW_DECISION.REJECTED
+                    ? 'Motivo del rechazo...'
+                    : 'Comentarios adicionales...'
+                "
                 :rows="3"
                 class="w-full"
               />
@@ -487,7 +537,9 @@ function getTypeColor(type: string): 'primary' | 'warning' | 'error' | 'neutral'
                 @click="confirmReview"
               >
                 {{
-                  reviewDecision === REVIEW_DECISION.APPROVED ? 'Confirmar aprobación' : 'Confirmar rechazo'
+                  reviewDecision === REVIEW_DECISION.APPROVED
+                    ? 'Confirmar aprobación'
+                    : 'Confirmar rechazo'
                 }}
               </UButton>
             </div>
