@@ -1,35 +1,39 @@
 /**
- * useEmployeesList — WU-02
+ * useEmployeesList — WU-A (REQ-2 migration to useServerTable)
  *
- * Composable that wires TanStack Vue Query + useServerTable for the employee list.
- * Manages status tabs, search, modality filter, manager filter.
+ * Composable that wires `useServerTable` (the shared, UNTOUCHABLE composable)
+ * for pagination/search/error/selection. `statusTab` (Todos / Activos / Bajas)
+ * and `managerId` remain feature-local refs that close over `queryKey` and
+ * `queryFn` — Approach C from proposal.md.
  *
- * Rules:
- * - Query params use LOWERCASE status values: 'active' | 'terminated' | 'all'
- * - NEVER pass tenantId in API params
- * - Uses employeeQueryKeys.paginated for cache scoping
- * - staleTime: 30_000, placeholderData: keepPreviousData (via useServerTable)
+ * Rules (preserved from WU-02):
+ *  - Query params use LOWERCASE status values: 'active' | 'terminated' | 'all'
+ *  - NEVER pass tenantId in API params
+ *  - staleTime: 30_000, placeholderData: keepPreviousData (inside useServerTable)
+ *  - selectedRows is index-based (matches useServerTable.selectedRows semantics)
  *
- * WU-12 additions (employees-batch-operations):
- * - rowSelection: Ref<RowSelectionState> — v-model for AppDataTable
- * - selectedEmployees: ComputedRef<Employee[]> — derived from rowSelection × employees
- * - clearSelection(): void — empty rowSelection
- *
- * The selection is intentionally separate from useServerTable because the
- * existing EmployeesListView wires its own pagination via a local `page`
- * ref + AppDataTable forwarding — migrating to useServerTable is out of
- * scope for this SDD.
+ * WU-A additions (migration):
+ *  - Drop hand-rolled `page` / `pageSize` / `search` refs — useServerTable owns
+ *    `pagination.pageIndex` (0-based), `pagination.pageSize`, and `globalFilter`.
+ *  - EmployeesListParams.page renamed to `pageIndex` (0-based); `list` translates
+ *    to `page = pageIndex + 1`.
+ *  - No sort param sent (sorting descoped pending backend `sortBy`/`sortOrder`).
+ *  - Surface `isError`, `error`, `selectedRows`, `refresh` from useServerTable.
+ *  - `selectedRows` aliased to `selectedEmployees` (preserves bulk-action callers).
+ *  - `clearSelection` watcher: `[statusTab, globalFilter]`.
+ *  - Persist table prefs (column pinning/visibility) under `admin-employees`.
+ *  - `defaultPinning: { left: [], right: ['actions'] }` (REQ-10 invariant).
+ *  - `pageSizeOptions: [10, 20, 50]`.
  */
 
 import { computed, ref, watch } from 'vue'
-import { useQuery, keepPreviousData } from '@tanstack/vue-query'
-import { refDebounced } from '@vueuse/core'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { employeeQueryKeys } from '@/core/shared/constants/query-keys'
+import { useServerTable } from '@/core/shared/composables/useServerTable'
+import type { PaginatedResponse, ServerTableParams } from '@/core/shared/types/table.types'
 import { EMPLOYEE_STATUS_FILTER } from '../constants/employee.constants'
 import { employeesApi, type EmployeeStatusFilter, type EmployeesListParams } from '../api/employees.api'
 import type { Employee } from '../interfaces/employee.types'
-import type { PaginatedResponse, RowSelectionState } from '@/core/shared/types/table.types'
 
 // ─── Pure helper (exported for test access) ───────────────────────────────────
 
@@ -37,18 +41,19 @@ export interface EmployeesQueryInput {
   statusTab: EmployeeStatusFilter
   search?: string
   managerId?: string
-  page: number
+  /** 0-based page index — `list()` translates to backend's 1-indexed `page`. */
+  pageIndex: number
   pageSize: number
 }
 
 /**
  * Pure function: maps UI filter state → API query params.
- * No tenantId, no side effects — fully testable.
+ * No tenantId, no sort param, no side effects — fully testable.
  */
 export function buildEmployeesQueryParams(input: EmployeesQueryInput): EmployeesListParams {
   const params: EmployeesListParams = {
     status: input.statusTab,
-    page: input.page,
+    pageIndex: input.pageIndex,
     pageSize: input.pageSize,
   }
 
@@ -76,148 +81,93 @@ export function useEmployeesList(options: UseEmployeesListOptions = {}) {
   const authStore = useAuthStore()
   const tenantId = computed(() => authStore.currentTenantId)
 
-  // ── Filter state ──────────────────────────────────────────────────────────
+  // ── Feature-local filter state (close over queryKey/queryFn) ───────────────
   const statusTab = ref<EmployeeStatusFilter>(EMPLOYEE_STATUS_FILTER.ALL)
-  const search = ref('')
   const managerId = ref<string | undefined>(undefined)
-  const page = ref(1)
-  const pageSize = ref(defaultPageSize)
 
-  // Debounced search — avoids query storm on every keystroke
-  const debouncedSearch = refDebounced(search, debounceMs)
-
-  // ── Query params (derived from filter state) ───────────────────────────────
-  const queryParams = computed<EmployeesListParams>(() =>
-    buildEmployeesQueryParams({
-      statusTab: statusTab.value,
-      search: debouncedSearch.value,
-      managerId: managerId.value,
-      page: page.value,
-      pageSize: pageSize.value,
-    }),
-  )
-
-  // ── Query key — scoped to tenant ───────────────────────────────────────────
-  const queryKey = computed(() => [
-    ...employeeQueryKeys.paginated(tenantId.value),
-    queryParams.value,
-  ])
-
-  // ── Query gating — do not fire before auth/tenant context is ready ──────────
-  // tenantId comes from the JWT-derived authStore.currentTenantId.
-  // An empty string means the auth bootstrap has not completed yet.
-  // Symmetric with the pattern used in other admin feature composables.
-  const isReady = computed(() => !!tenantId.value)
-
-  // ── TanStack Query ─────────────────────────────────────────────────────────
-  const {
-    data: queryData,
-    isLoading,
-    isFetching,
-    refetch,
-  } = useQuery<PaginatedResponse<Employee>>({
-    queryKey,
-    queryFn: () => employeesApi.list(queryParams.value),
-    enabled: isReady,
-    placeholderData: keepPreviousData,
-    refetchOnWindowFocus: false,
-    staleTime: 30_000,
+  // ── Compose the shared useServerTable (untouched) ──────────────────────────
+  //
+  // `queryKey` carries statusTab + managerId so cache slots change when the
+  // user switches tabs or sets a managerId programmatically. `queryFn` reads
+  // `params.pageIndex` / `params.pageSize` from the table composable and
+  // maps the search text from `params.globalFilter`.
+  const t = useServerTable<Employee>({
+    queryKey: () => [
+      ...employeeQueryKeys.paginated(tenantId.value),
+      { statusTab: statusTab.value, managerId: managerId.value },
+    ],
+    queryFn: (params: ServerTableParams): Promise<PaginatedResponse<Employee>> =>
+      employeesApi.list(
+        buildEmployeesQueryParams({
+          statusTab: statusTab.value,
+          search: params.globalFilter,
+          managerId: managerId.value,
+          pageIndex: params.pageIndex,
+          pageSize: params.pageSize,
+        }),
+      ),
+    defaultPageSize,
+    debounceMs,
+    pageSizeOptions: [10, 20, 50],
+    defaultPinning: { left: [], right: ['actions'] },
+    persistKey: 'admin-employees',
+    urlSync: false,
   })
 
-  // ── Derived data ───────────────────────────────────────────────────────────
-  const employees = computed<Employee[]>(() => queryData.value?.data ?? [])
-  const totalCount = computed(() => queryData.value?.pagination?.totalCount ?? 0)
-  const pageCount = computed(() => queryData.value?.pagination?.pageCount ?? 0)
-
-  // ── Row selection — WU-12 employees-batch-operations ──────────────────────
-  //
-  // rowSelection keys are EMPLOYEE IDs (strings) — TanStack vue-table natively
-  // binds by row.id. When the underlying employees list refreshes, keys that
-  // no longer exist (offending 404s) will still appear in rowSelection until
-  // clearSelection() is called. The view layer clears on filter/page/view
-  // change and on mutation success/error.
-  const rowSelection = ref<RowSelectionState>({})
-
-  // selectedEmployees — derived: filter employees against rowSelection keys.
-  //
-  // TanStack vue-table (via Nuxt UI UTable) uses ROW INDICES as selection
-  // keys (String(index)), NOT entity IDs. Matching useServerTable.selectedRows
-  // (line ~177), we filter by index. Using e.id would never match because
-  // indices are "0","1","2"… while ids are UUIDs.
-  const selectedEmployees = computed<Employee[]>(() =>
-    employees.value.filter((_, index) => rowSelection.value[String(index)]),
-  )
-
-  function clearSelection(): void {
-    rowSelection.value = {}
-  }
-
-  // ── Filter-clear guard (WU-12) ────────────────────────────────────────────
-  //
-  // Mirrors PromotionsView.vue:148 — when the user changes the status tab or
-  // the search query, the underlying employees list will be re-fetched with
-  // new results. Page-relative row selection cannot survive a filter switch
-  // because the row indices map to different entities.
-  //
-  // We watch statusTab and search (NOT debouncedSearch) — the moment the user
-  // commits the change, the selection must clear. We do NOT reset page here
-  // because setStatusTab / setSearch already do that explicitly.
-  watch([statusTab, search], () => {
-    clearSelection()
+  // ── Selection-clear guard — runs when the user switches status tabs OR
+  //    when the debounced search filter changes the result list. We watch
+  //    `t.globalFilter` (the ref), not the debounced value, so the moment
+  //    useServerTable updates `pageIndex = 0` the selection clears too.
+  watch([statusTab, t.globalFilter], () => {
+    t.clearSelection()
   })
 
-  // ── Actions ────────────────────────────────────────────────────────────────
+  // ── Actions (kept for batch-action callers that mutate filters) ───────────
   function setStatusTab(tab: EmployeeStatusFilter) {
     statusTab.value = tab
-    page.value = 1 // reset pagination on filter change
-  }
-
-  function setSearch(value: string) {
-    search.value = value
-    page.value = 1
   }
 
   function setManagerId(id: string | undefined) {
     managerId.value = id
-    page.value = 1
-  }
-
-  function setPage(p: number) {
-    page.value = p
-  }
-
-  function setPageSize(size: number) {
-    pageSize.value = size
-    page.value = 1
   }
 
   function refresh() {
-    void refetch()
+    t.refresh()
   }
 
   return {
-    // Filter state (readable)
+    // Feature-local state
     statusTab,
-    search,
     managerId,
-    page,
-    pageSize,
-    // Derived data
-    employees,
-    totalCount,
-    pageCount,
-    isLoading,
-    isFetching,
-    // Row selection — WU-12
-    rowSelection,
-    selectedEmployees,
-    clearSelection,
-    // Actions
     setStatusTab,
-    setSearch,
     setManagerId,
-    setPage,
-    setPageSize,
+    // useServerTable surface — see src/core/shared/composables/useServerTable.ts
+    pagination: t.pagination,
+    sorting: t.sorting,
+    globalFilter: t.globalFilter,
+    rowSelection: t.rowSelection,
+    columnPinning: t.columnPinning,
+    columnVisibility: t.columnVisibility,
+    // Derived data — `data` is the alias for `employees` (consumed by view)
+    employees: t.data,
+    totalCount: t.totalCount,
+    pageCount: t.pageCount,
+    isLoading: t.isLoading,
+    isFetching: t.isFetching,
+    // Error state — surfaced from useServerTable so views can distinguish
+    // a failed request from an empty result set
+    isError: t.isError,
+    error: t.error,
+    // Actions
     refresh,
+    resetFilters: t.resetFilters,
+    // Row selection (WU-12 — preserved)
+    selectedRows: t.selectedRows,
+    selectedEmployees: t.selectedRows,
+    clearSelection: t.clearSelection,
+    // Pagination info
+    pageSizeOptions: t.pageSizeOptions,
+    showingFrom: t.showingFrom,
+    showingTo: t.showingTo,
   }
 }

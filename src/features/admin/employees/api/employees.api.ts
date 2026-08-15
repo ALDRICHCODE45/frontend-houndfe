@@ -67,8 +67,11 @@ export interface EmployeesListParams {
   search?: string
   /** Filter by manager UUID */
   managerId?: string
-  /** 1-indexed page number */
-  page?: number
+  /**
+   * 0-based page index (matches `useServerTable`'s `ServerTableParams.pageIndex`).
+   * `list()` translates this to the 1-indexed `page` query param the backend expects.
+   */
+  pageIndex?: number
   /** Number of items per page */
   pageSize?: number
 }
@@ -130,12 +133,16 @@ export const employeesApi = {
    * GET /admin/employees — paginated employee list with filters.
    *
    * Only sends params that have values (no undefined keys in the request).
-   * NEVER sends tenantId.
+   * NEVER sends tenantId. Never sends a sort param (sorting descoped pending
+   * backend `sortBy`/`sortOrder` support — see design.md Open Question #1).
+   *
+   * `pageIndex` is 0-based; this method translates to the 1-indexed `page`
+   * query param the backend expects.
    */
   async list(params: EmployeesListParams): Promise<PaginatedResponse<Employee>> {
     // Build clean params object — omit undefined/empty values
     const queryParams: Record<string, unknown> = {
-      page: params.page ?? 1,
+      page: (params.pageIndex ?? 0) + 1,
       pageSize: params.pageSize ?? 10,
     }
 

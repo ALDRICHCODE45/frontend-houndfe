@@ -1,9 +1,13 @@
 <script setup lang="ts">
 /**
- * EmployeeFilters — WU-02 (warning fixes applied)
+ * EmployeeFilters — WU-02 (WU-B: search stripped, status tabs only)
  *
- * Presentational component: search input + status tabs.
- * Emits filter changes up to the parent view (props down, events up).
+ * Presentational component: status tabs only. Rendered inside
+ * `AppDataTable`'s `#filters` slot.
+ *
+ * The search input was removed in WU-B (REQ-4): `AppDataTable`'s toolbar
+ * owns the search box and maps it to `useServerTable`'s `globalFilter`
+ * (300ms debounce). Keeping a second input here duplicated that contract.
  *
  * Status tabs use lowercase values matching the backend API contract:
  * 'all' | 'active' | 'terminated'
@@ -17,20 +21,12 @@
 import { EMPLOYEE_STATUS_FILTER } from '../constants/employee.constants'
 import type { EmployeeStatusFilter } from '../api/employees.api'
 
-const props = withDefaults(
-  defineProps<{
-    search: string
-    statusTab: EmployeeStatusFilter
-    isLoading?: boolean
-  }>(),
-  {
-    isLoading: false,
-  },
-)
+const props = defineProps<{
+  statusTab: EmployeeStatusFilter
+}>()
 
 const emit = defineEmits<{
-  'update:search': [value: string]
-  'update:statusTab': [value: EmployeeStatusFilter]
+  'update:status-tab': [value: EmployeeStatusFilter]
 }>()
 
 const STATUS_TABS: { label: string; value: EmployeeStatusFilter }[] = [
@@ -39,43 +35,26 @@ const STATUS_TABS: { label: string; value: EmployeeStatusFilter }[] = [
   { label: 'Bajas', value: EMPLOYEE_STATUS_FILTER.TERMINATED },
 ]
 
-function onSearchUpdate(value: string) {
-  emit('update:search', value)
-}
-
 function onTabSelect(value: EmployeeStatusFilter) {
-  emit('update:statusTab', value)
+  emit('update:status-tab', value)
 }
 </script>
 
 <template>
-  <div class="flex flex-col gap-3 lg:flex-row lg:items-center">
-    <!-- Search -->
-    <UInput
-      :model-value="props.search"
-      icon="i-lucide-search"
-      placeholder="Buscar colaborador..."
-      :loading="isLoading"
-      class="w-full lg:w-72"
-      size="lg"
-      @update:model-value="onSearchUpdate"
-    />
-
-    <!-- Status tabs -->
-    <div class="flex items-center gap-1 rounded-lg bg-transparent">
-      <button
-        v-for="tab in STATUS_TABS"
-        :key="tab.value"
-        class="rounded-lg px-3.5 py-2 text-sm font-medium transition-colors"
-        :class="
-          props.statusTab === tab.value
-            ? 'border border-default bg-elevated text-highlighted shadow-sm'
-            : 'text-muted hover:bg-elevated/60 hover:text-default'
-        "
-        @click="onTabSelect(tab.value)"
-      >
-        {{ tab.label }}
-      </button>
-    </div>
+  <div class="flex items-center gap-1 rounded-lg bg-transparent">
+    <button
+      v-for="tab in STATUS_TABS"
+      :key="tab.value"
+      type="button"
+      class="rounded-lg px-3.5 py-2 text-sm font-medium transition-colors"
+      :class="
+        props.statusTab === tab.value
+          ? 'border border-default bg-elevated text-highlighted shadow-sm'
+          : 'text-muted hover:bg-elevated/60 hover:text-default'
+      "
+      @click="onTabSelect(tab.value)"
+    >
+      {{ tab.label }}
+    </button>
   </div>
 </template>
