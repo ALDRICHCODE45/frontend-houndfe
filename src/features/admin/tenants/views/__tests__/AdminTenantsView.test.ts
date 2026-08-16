@@ -452,7 +452,7 @@ describe('AdminTenantsView — #filters slot and isActive cell', () => {
 
   // WU-4 / polish-filters-bottom-sheet: the includeInactive checkbox is
   // wrapped in a card section so the unified bottom-sheet gives it a title.
-  it('wraps the includeInactive checkbox in a card section with data-section-id=\"inactive\"', async () => {
+  it('wraps the includeInactive checkbox in a card section with data-section-id="inactive"', async () => {
     const wrapper = mountView()
     await flushPromises()
     expect(wrapper.find('[data-section-id="inactive"]').exists()).toBe(true)

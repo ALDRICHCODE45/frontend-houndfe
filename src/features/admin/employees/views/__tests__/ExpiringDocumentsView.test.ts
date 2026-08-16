@@ -342,7 +342,7 @@ describe('ExpiringDocumentsView — threshold selector in #filters (REQ-7)', () 
 
   // WU-4 / polish-filters-bottom-sheet: the threshold selector is wrapped
   // in a card section so the unified bottom-sheet gives it a title.
-  it('wraps the threshold selector in a card section with data-section-id=\"threshold\"', async () => {
+  it('wraps the threshold selector in a card section with data-section-id="threshold"', async () => {
     const wrapper = mountView()
     await flushPromises()
     chaiExpect(wrapper.find('[data-section-id="threshold"]').exists()).toBe(true)
