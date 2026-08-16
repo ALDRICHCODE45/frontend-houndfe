@@ -1,12 +1,12 @@
 /**
- * WU-A — ExpiringDocumentsView specs (REQ-3, REQ-4, REQ-5, REQ-7, REQ-8)
+ * WU-C — ExpiringDocumentsView specs (REQ-3, REQ-4, REQ-5, REQ-7, REQ-8)
  *
- * RED stubs written before the WU-A production change to ExpiringDocumentsView
- * (task 1.5). Mocks `useExpiringDocuments` (the composable surface), stubs
- * `AppDataTable` (data-error / data-error-message / data-column-visibility /
- * data-show-toolbar attrs, #filters / cell / header slots), keeps REAL
- * `SortableHeader`, and mocks the picker/name-resolution deps so the
- * un-migrated view still mounts (behavioral RED, not mount crash).
+ * Mocks `useExpiringDocuments` (the composable surface — view does not touch
+ * `useServerTable` directly, which stays UNTOUCHED), stubs `AppDataTable`
+ * (data-error / data-error-message / data-column-visibility / data-show-toolbar
+ * attrs, #filters / cell / header slots), keeps REAL `SortableHeader`, and
+ * stubs `AdminPageHeader` / `EntityAvatar` / `vue-router` only (migrated view
+ * no longer imports the picker/name-resolution query layer).
  *
  * Pinned contracts:
  *  - show-toolbar="true" (REQ-3)
@@ -14,7 +14,7 @@
  *  - documentsErrorMessage precedence: response.data.message (string|array[0])
  *    → error.message → "No se pudieron cargar los documentos. Intenta de nuevo."
  *  - retry → refresh; empty placeholder suppressed on error (REQ-5)
- *  - search → globalFilter (v-model) (REQ-3)
+ *  - search → globalFilter (v-model); no paginateRows slice runs (REQ-3/REQ-1)
  *  - 30/60/90 USelect lives in the #filters slot (NOT AdminPageHeader) and is
  *    bound to selectedThreshold (REQ-7)
  *  - colaborador renders server fullName; avatar seed stays employeeId (REQ-8)
@@ -29,10 +29,6 @@ import { employeesApi } from '@/features/admin/employees/api/employees.api'
 // ── Mock state for `useExpiringDocuments` (new composable surface) ────────────
 
 const mockComposable = {
-  // `data`/`refetch` are the OLD (pre-migration) surface — kept so the
-  // un-migrated view mounts and the RED is behavioral; dead keys once migrated.
-  data: ref<unknown[]>([]),
-  refetch: vi.fn(),
   selectedThreshold: ref(30),
   documents: ref<unknown[]>([]),
   pagination: ref({ pageIndex: 0, pageSize: 10 }),
@@ -51,37 +47,13 @@ const mockComposable = {
   showingTo: ref(0),
 }
 
+// Spy guard for the "no paginateRows slice runs in the view" invariant
+// (REQ-1) — the migrated view must never run client-side pagination slicing.
+const mockPaginateRows = vi.fn(() => ({ pageRows: [], total: 0, pageCount: 0 }))
+
 vi.mock('@/features/admin/employees/composables/useExpiringDocuments', () => ({
   useExpiringDocuments: () => mockComposable,
-  // Inert helpers so the un-migrated view (which still imports them) mounts.
-  // Once the view is migrated these are dead exports of the mock.
-  computeExpiringDocumentRow: () => ({
-    id: '', employeeId: '', fileId: '', title: '', categoryLabel: '',
-    expiresAt: null, expiresAtLabel: '', daysRemaining: 0, daysRemainingLabel: '', category: '',
-  }),
-  paginateRows: () => ({ pageRows: [], total: 0, pageCount: 0 }),
-}))
-
-vi.mock('@/features/admin/employees/composables/useManagerResolution', () => ({
-  buildManagerMap: () => new Map(),
-  resolveManagerName: () => '—',
-}))
-
-// Stub the query layer so the un-migrated view (which still calls useQuery for
-// the picker) mounts; harmless once the view no longer uses it directly.
-vi.mock('@tanstack/vue-query', () => ({
-  useQuery: () => ({ data: ref([]) }),
-  useMutation: () => ({ mutate: vi.fn(), isPending: ref(false) }),
-  useQueryClient: () => ({ invalidateQueries: vi.fn(), refetchQueries: vi.fn() }),
-}))
-
-const authMock = {
-  userCan: vi.fn(() => false),
-  currentTenantId: 'tenant-1',
-  currentTenant: { name: 'Acme' },
-}
-vi.mock('@/features/auth/stores/useAuthStore', () => ({
-  useAuthStore: () => authMock,
+  paginateRows: mockPaginateRows,
 }))
 
 vi.mock('@/features/admin/shared/components/AdminPageHeader.vue', () => ({
@@ -224,6 +196,7 @@ beforeEach(() => {
   mockComposable.isError.value = false
   mockComposable.error.value = null
   mockComposable.refresh.mockClear()
+  mockPaginateRows.mockClear()
 })
 
 // ── REQ-5: documentsErrorMessage precedence + retry + empty-vs-failed ────────
@@ -310,13 +283,14 @@ describe('ExpiringDocumentsView — toolbar, search, column visibility (REQ-3, R
     ).toBe('true')
   })
 
-  it('binds search through v-model:global-filter (REQ-3)', async () => {
+  it('binds search through v-model:global-filter and never runs a paginateRows slice (REQ-3/REQ-1)', async () => {
     const wrapper = mountView()
     await flushPromises()
     const table = wrapper.findComponent({ name: 'AppDataTable' })
     table.vm.$emit('update:global-filter', 'jo')
     await flushPromises()
     chaiExpect(mockComposable.globalFilter.value).toBe('jo')
+    chaiExpect(mockPaginateRows).not.toHaveBeenCalled()
   })
 
   it('marks the 4 data columns hideable and keeps documento non-hideable + non-sortable (REQ-4)', async () => {

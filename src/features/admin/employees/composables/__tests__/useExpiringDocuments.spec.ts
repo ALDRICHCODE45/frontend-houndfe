@@ -276,6 +276,10 @@ describe('useExpiringDocuments — useServerTable options (REQ-1)', () => {
       ) => Record<string, unknown>)
     | undefined
 
+  const okResponse = {
+    data: { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 0 } },
+  }
+
   beforeEach(async () => {
     capturedConfig = undefined
     mockTable.pagination.value = { pageIndex: 0, pageSize: 10 }
@@ -331,6 +335,56 @@ describe('useExpiringDocuments — useServerTable options (REQ-1)', () => {
     result.selectedThreshold.value = 60
     await nextTick()
     expect(mockTable.pagination.value.pageIndex).toBe(0)
+  })
+
+  it('sends selectedThreshold as daysUntilExpiry and translates page/limit via queryFn', async () => {
+    const result = useExpiringDocuments?.() as {
+      selectedThreshold: { value: 30 | 60 | 90 }
+    }
+    result.selectedThreshold.value = 90
+    const getSpy = vi.spyOn(http, 'get').mockResolvedValue(okResponse)
+    await capturedConfig?.queryFn({ pageIndex: 2, pageSize: 250 })
+    const params = getSpy.mock.calls[0]![1]?.params ?? {}
+    expect(params.daysUntilExpiry).toBe(90)
+    expect(params.page).toBe(3)
+    expect(params.limit).toBe(100)
+  })
+
+  it('omits search below 2 chars and passes it at 2+ chars through queryFn', async () => {
+    useExpiringDocuments?.()
+    const getSpy = vi.spyOn(http, 'get').mockResolvedValue(okResponse)
+    await capturedConfig?.queryFn({ pageIndex: 0, pageSize: 10, globalFilter: 'a' })
+    await capturedConfig?.queryFn({ pageIndex: 0, pageSize: 10, globalFilter: 'jo' })
+    expect('search' in (getSpy.mock.calls[0]![1]?.params ?? {})).toBe(false)
+    expect((getSpy.mock.calls[1]![1]?.params ?? {}).search).toBe('jo')
+  })
+
+  it('maps sorting through EXPIRING_DOCUMENTS_SORT_MAP and omits both on a whitelist miss via queryFn', async () => {
+    useExpiringDocuments?.()
+    const getSpy = vi.spyOn(http, 'get').mockResolvedValue(okResponse)
+    await capturedConfig?.queryFn({
+      pageIndex: 0,
+      pageSize: 10,
+      sorting: [{ id: 'vencimiento', desc: true }],
+    })
+    await capturedConfig?.queryFn({
+      pageIndex: 0,
+      pageSize: 10,
+      sorting: [{ id: 'documento', desc: true }],
+    })
+    const first = getSpy.mock.calls[0]![1]?.params ?? {}
+    const second = getSpy.mock.calls[1]![1]?.params ?? {}
+    expect(first.sortBy).toBe('expiresAt')
+    expect(first.sortOrder).toBe('desc')
+    expect('sortBy' in second).toBe(false)
+    expect('sortOrder' in second).toBe(false)
+  })
+
+  it('never sends tenantId when driven through the composable queryFn', async () => {
+    useExpiringDocuments?.()
+    const getSpy = vi.spyOn(http, 'get').mockResolvedValue(okResponse)
+    await capturedConfig?.queryFn({ pageIndex: 0, pageSize: 10 })
+    expect('tenantId' in (getSpy.mock.calls[0]![1]?.params ?? {})).toBe(false)
   })
 
   it('maps rows with fullName and employeeNumber (REQ-8)', () => {
