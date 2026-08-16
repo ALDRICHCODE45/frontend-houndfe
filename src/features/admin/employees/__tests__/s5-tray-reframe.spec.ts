@@ -27,10 +27,15 @@ import {
   resolveDomainErrorMessage,
 } from '../composables/useAusencias'
 import { buildManagerMap } from '../composables/useManagerResolution'
+import { buildPendingApprovalCardData } from '../composables/usePendingApprovalCard'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 import type { TimeOffRequest, Employee } from '../interfaces/employee.types'
 import type { ManagerInfo } from '../composables/useManagerResolution'
+import {
+  TIME_OFF_TYPE_LABELS,
+  TIME_OFF_STATUS_LABELS,
+} from '../interfaces/employee.types'
 
 // ─── Test fixtures ────────────────────────────────────────────────────────────
 
@@ -313,5 +318,95 @@ describe('resolveDomainErrorMessage — EMPLOYEE_ERROR_MAP lookup (S5.d)', () =>
   it('returns the fallback for empty string code', () => {
     const msg = resolveDomainErrorMessage('')
     expect(msg).toBe('No pudimos completar la operación. Reintenta.')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. buildPendingApprovalCardData — WU-B pure card-data builder (extended in
+//    WU-C). Covers the "—" name fallback, days plural, the date-range label
+//    via `formatTimeOffDateRange`, the SICK+null medical guard, and the
+//    type/status label forwarding. The builder is PURE — no DOM, no axios.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('buildPendingApprovalCardData — card-data builder (WU-B / WU-C)', () => {
+  const nameMap = buildManagerMap(EMP_FIXTURES)
+
+  it('resolves employeeName to "—" when employeeId is not in the picker map', () => {
+    // Unknown employeeId → picker has no entry → "—" sentinel. Mirrors the
+    // S5 name-resolution ceiling (>100 active employees).
+    const unknownReq: TimeOffRequest = {
+      ...REQ_FIXTURES[0]!,
+      id: 'to-unknown',
+      employeeId: 'emp-UNKNOWN',
+    }
+    const card = buildPendingApprovalCardData(unknownReq, nameMap)
+    expect(card.employeeName).toBe('—')
+  })
+
+  it('resolves employeeName to the fullName from the picker map when present', () => {
+    const card = buildPendingApprovalCardData(REQ_FIXTURES[0]!, nameMap)
+    expect(card.employeeName).toBe('María García')
+  })
+
+  it('SICK + null reason resolves to "Motivo médico reservado" (S5 Tier 3 guard)', () => {
+    // Builder routes through resolveSickReason — SICK+null → medical placeholder.
+    const card = buildPendingApprovalCardData(REQ_FIXTURES[1]!, nameMap)
+    expect(card.reasonLabel).toBe('Motivo médico reservado')
+    expect(card.isMedicalReserved).toBe(true)
+    expect(card.showReason).toBe(true)
+  })
+
+  it('plurals "día" vs "días" based on the day count (1 → singular, N → plural)', () => {
+    // 1-day request → singular "día". startDate === endDate so the inclusive
+    // day count (end - start + 1) collapses to 1.
+    const singleDay: TimeOffRequest = {
+      ...REQ_FIXTURES[1]!,
+      id: 'to-single',
+      startDate: '2026-08-05',
+      endDate: '2026-08-05',
+    }
+    const single = buildPendingApprovalCardData(singleDay, nameMap)
+    expect(single.days).toBe(1)
+    expect(single.daysLabel).toBe('1 día')
+
+    // Multi-day request → plural "días".
+    const multiDay: TimeOffRequest = {
+      ...REQ_FIXTURES[0]!, // startDate='2026-08-01', endDate='2026-08-10' → 10 days inclusive
+      id: 'to-multi',
+    }
+    const multi = buildPendingApprovalCardData(multiDay, nameMap)
+    expect(multi.days).toBe(10)
+    expect(multi.daysLabel).toBe('10 días')
+  })
+
+  it('renders the date-range label via formatTimeOffDateRange ("… – …")', () => {
+    const card = buildPendingApprovalCardData(REQ_FIXTURES[0]!, nameMap)
+    // formatTimeOffDateRange produces "<start> – <end>" using es-MX short format.
+    // We don't pin the exact localized day/month strings (Intl output can
+    // shift across ICU versions); we pin the structure and that both
+    // endpoints are present.
+    expect(card.dateRangeLabel).toContain(' – ')
+    expect(card.dateRangeLabel.length).toBeGreaterThan(' – '.length)
+  })
+
+  it('forwards type/status labels from TIME_OFF_TYPE_LABELS / TIME_OFF_STATUS_LABELS', () => {
+    const card = buildPendingApprovalCardData(REQ_FIXTURES[0]!, nameMap)
+    expect(card.typeLabel).toBe(TIME_OFF_TYPE_LABELS.VACATION)
+    expect(card.typeLabel).toBe('Vacaciones')
+    expect(card.statusLabel).toBe(TIME_OFF_STATUS_LABELS.PENDING)
+    expect(card.statusLabel).toBe('Pendiente')
+  })
+
+  it('marks showReason=false when the resolved reason is the "—" placeholder', () => {
+    // VACATION + null reason → resolveSickReason returns "—" → showReason false
+    // (the card suppresses the reason block entirely).
+    const vacationNoReason: TimeOffRequest = {
+      ...REQ_FIXTURES[0]!,
+      reason: null,
+    }
+    const card = buildPendingApprovalCardData(vacationNoReason, nameMap)
+    expect(card.reasonLabel).toBe('—')
+    expect(card.showReason).toBe(false)
+    expect(card.isMedicalReserved).toBe(false)
   })
 })
