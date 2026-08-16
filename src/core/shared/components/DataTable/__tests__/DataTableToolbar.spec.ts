@@ -142,9 +142,9 @@ describe('DataTableToolbar — mobile three-region layout', () => {
 
     const regions = wrapper.findAll('[data-testid^="toolbar-mobile-"]')
     expect(regions.length).toBe(3)
-    expect(regions[0].attributes('data-testid')).toBe('toolbar-mobile-search-row')
-    expect(regions[1].attributes('data-testid')).toBe('toolbar-mobile-actions-row')
-    expect(regions[2].attributes('data-testid')).toBe('toolbar-mobile-filters-row')
+    expect(regions[0]?.attributes('data-testid')).toBe('toolbar-mobile-search-row')
+    expect(regions[1]?.attributes('data-testid')).toBe('toolbar-mobile-actions-row')
+    expect(regions[2]?.attributes('data-testid')).toBe('toolbar-mobile-filters-row')
   })
 
   it('renders only the search row when there are no actions or filters on mobile', () => {
@@ -356,7 +356,7 @@ describe('DataTableToolbar — desktop layout invariance', () => {
     })
 
     expect(wrapper.exists()).toBe(true)
-    const refresh = wrapper.get('[data-testid="refresh-x"]')
+    const refresh = wrapper.find('[data-testid="refresh-x"]')
     expect(refresh.exists()).toBe(true)
   })
 })
