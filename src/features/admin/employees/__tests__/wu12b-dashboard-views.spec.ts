@@ -1,38 +1,40 @@
 /**
- * WU-12B: Dashboard views — Expiring Documents + Pending Approvals — Strict TDD
+ * WU-12B + Fase 3 #2: Dashboard views — Expiring Documents + Pending Approvals
  *
  * Tests cover:
  *   1. employeeDocumentQueryKeys.expiring key shape (already in query-keys, verify shape)
- *   2. employeesApi.getExpiringDocuments — spy tests (new method)
+ *   2. employeesApi.getExpiringDocumentsPaginated — spy tests (server-paginated adapter,
+ *      REQ-6 — the old full-array getExpiringDocuments was REPLACED by this method)
  *   3. Pure helpers: formatDaysRemaining, computeExpiringDocumentRow
  *   4. tenantId regression — a representative sample of API calls MUST NOT include
  *      tenantId in params, body, or headers (WARNING #4 from verify report)
+ *
+ * NOTE: the 6 `paginateRows` client-side slice cases moved out — that view is
+ * server-paginated now; the canonical paginateRows tests live in
+ * `pagination.utils.spec.ts`.
  *
  * No component mount tests for views — they rely on TanStack Query + router context.
  * Pure data-transformation helpers are extracted and tested directly (Extract-Before-Mock rule).
  *
  * Strategy: all composable logic is thin wrappers; views delegate to composables + components.
  * The critical correctness invariant is: API methods do not leak tenantId, and the
- * getExpiringDocuments method calls the correct endpoint with correct params.
+ * getExpiringDocumentsPaginated method calls the correct endpoint with correct params.
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 // ─── Query keys under test ─────────────────────────────────────────────────────
-import {
-  employeeDocumentQueryKeys,
-  employeeTimeOffQueryKeys,
-} from '@/core/shared/constants/query-keys'
+import { employeeDocumentQueryKeys } from '@/core/shared/constants/query-keys'
 
 // ─── API under test ────────────────────────────────────────────────────────────
 import { employeesApi } from '../api/employees.api'
+import type { ExpiringDocumentItem } from '../api/employees.api'
 import type { EmployeeDocument } from '../interfaces/employee.types'
 
 // ─── Pure helpers under test ───────────────────────────────────────────────────
 import {
   formatDaysRemaining,
   computeExpiringDocumentRow,
-  paginateRows,
 } from '../composables/useExpiringDocuments'
 import { formatTimeOffDate } from '../composables/useEmployeeColumns'
 
@@ -69,10 +71,10 @@ describe('employeeDocumentQueryKeys.expiring', () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 2. employeesApi.getExpiringDocuments spy tests
+// 2. employeesApi.getExpiringDocumentsPaginated spy tests (server-paginated)
 // ─────────────────────────────────────────────────────────────────────────────
 
-const MOCK_EXPIRING_DOC: EmployeeDocument = {
+const MOCK_EXPIRING_DOC: ExpiringDocumentItem = {
   id: 'doc-1',
   employeeId: 'emp-1',
   fileId: 'file-1',
@@ -80,40 +82,58 @@ const MOCK_EXPIRING_DOC: EmployeeDocument = {
   notes: 'Contrato temporal',
   expiresAt: '2026-06-15',
   createdAt: '2026-01-01T00:00:00Z',
+  fullName: 'Ana López',
+  employeeNumber: 'EMP-001',
 }
 
-describe('employeesApi — getExpiringDocuments', () => {
+const EMPTY_PAGE = {
+  data: [],
+  pagination: { pageIndex: 0, pageSize: 10, totalCount: 0, pageCount: 0 },
+}
+
+describe('employeesApi — getExpiringDocumentsPaginated', () => {
   beforeEach(() => {
-    vi.spyOn(employeesApi, 'getExpiringDocuments').mockResolvedValue([MOCK_EXPIRING_DOC])
+    vi.spyOn(employeesApi, 'getExpiringDocumentsPaginated').mockResolvedValue({
+      data: [MOCK_EXPIRING_DOC],
+      pagination: { pageIndex: 0, pageSize: 10, totalCount: 1, pageCount: 1 },
+    })
   })
 
-  it('returns an array of EmployeeDocument', async () => {
-    const result = await employeesApi.getExpiringDocuments(30)
-    expect(result).toHaveLength(1)
-    expect(result[0]!.id).toBe('doc-1')
-    expect(result[0]!.category).toBe('CONTRACT')
+  it('returns a PaginatedResponse of EmployeeDocument rows', async () => {
+    const result = await employeesApi.getExpiringDocumentsPaginated(
+      { pageIndex: 0, pageSize: 10 },
+      30,
+    )
+    expect(result.data).toHaveLength(1)
+    expect(result.data[0]!.id).toBe('doc-1')
+    expect(result.data[0]!.category).toBe('CONTRACT')
   })
 
-  it('can be called without arguments — returns empty array when no docs expiring', async () => {
-    vi.spyOn(employeesApi, 'getExpiringDocuments').mockResolvedValue([])
-    const result = await employeesApi.getExpiringDocuments()
-    // No args means backend uses server default (30 days). Returns empty array correctly.
-    expect(result).toEqual([])
-    expect(result).toHaveLength(0)
+  it('can be called with an empty result set — returns empty data when no docs expiring', async () => {
+    vi.spyOn(employeesApi, 'getExpiringDocumentsPaginated').mockResolvedValue(EMPTY_PAGE)
+    const result = await employeesApi.getExpiringDocumentsPaginated(
+      { pageIndex: 0, pageSize: 10 },
+      30,
+    )
+    expect(result.data).toEqual([])
+    expect(result.data).toHaveLength(0)
   })
 
-  it('calls getExpiringDocuments with explicit day count', async () => {
-    const spy = vi.spyOn(employeesApi, 'getExpiringDocuments').mockResolvedValue([])
-    await employeesApi.getExpiringDocuments(60)
-    expect(spy).toHaveBeenCalledWith(60)
+  it('calls getExpiringDocumentsPaginated with the params object and explicit day count', async () => {
+    const spy = vi.spyOn(employeesApi, 'getExpiringDocumentsPaginated').mockResolvedValue(EMPTY_PAGE)
+    const params = { pageIndex: 2, pageSize: 10 }
+    await employeesApi.getExpiringDocumentsPaginated(params, 60)
+    expect(spy).toHaveBeenCalledWith(params, 60)
   })
 
-  it('returns empty array when no documents expiring', async () => {
-    vi.spyOn(employeesApi, 'getExpiringDocuments').mockResolvedValue([])
-    const result = await employeesApi.getExpiringDocuments(90)
-    // Precondition: mock set up to return empty — empty is the specific expected value
-    expect(result).toEqual([])
-    expect(result).toHaveLength(0)
+  it('returns empty data when no documents expiring in the window', async () => {
+    vi.spyOn(employeesApi, 'getExpiringDocumentsPaginated').mockResolvedValue(EMPTY_PAGE)
+    const result = await employeesApi.getExpiringDocumentsPaginated(
+      { pageIndex: 0, pageSize: 10 },
+      90,
+    )
+    expect(result.data).toEqual([])
+    expect(result.data).toHaveLength(0)
   })
 })
 
@@ -202,66 +222,6 @@ describe('computeExpiringDocumentRow', () => {
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 3b. paginateRows — client-side pagination slice (the expiring endpoint returns
-//     the FULL array unpaginated, so the view slices it client-side).
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('paginateRows — client-side pagination slice', () => {
-  const makeRows = (n: number): { id: string }[] =>
-    Array.from({ length: n }, (_, i) => ({ id: `r${i + 1}` }))
-
-  it('returns an empty slice and zero counts for empty input', () => {
-    const result = paginateRows([], 1, 10)
-    expect(result.pageRows).toEqual([])
-    expect(result.total).toBe(0)
-    expect(result.pageCount).toBe(0)
-  })
-
-  it('returns all rows on a single page when total <= pageSize', () => {
-    const rows = makeRows(7)
-    const result = paginateRows(rows, 1, 10)
-    expect(result.pageRows).toHaveLength(7)
-    expect(result.total).toBe(7)
-    expect(result.pageCount).toBe(1)
-  })
-
-  it('slices the first page when total > pageSize', () => {
-    const rows = makeRows(25)
-    const result = paginateRows(rows, 1, 10)
-    expect(result.pageRows).toHaveLength(10)
-    expect(result.pageRows[0]).toEqual({ id: 'r1' })
-    expect(result.pageRows[9]).toEqual({ id: 'r10' })
-    expect(result.total).toBe(25)
-    expect(result.pageCount).toBe(3)
-  })
-
-  it('slices a middle page correctly', () => {
-    const rows = makeRows(25)
-    const result = paginateRows(rows, 2, 10)
-    expect(result.pageRows).toHaveLength(10)
-    expect(result.pageRows[0]).toEqual({ id: 'r11' })
-    expect(result.pageRows[9]).toEqual({ id: 'r20' })
-  })
-
-  it('returns the partial remainder on the last page', () => {
-    const rows = makeRows(25)
-    const result = paginateRows(rows, 3, 10)
-    expect(result.pageRows).toHaveLength(5)
-    expect(result.pageRows[0]).toEqual({ id: 'r21' })
-    expect(result.pageRows[4]).toEqual({ id: 'r25' })
-    expect(result.pageCount).toBe(3)
-  })
-
-  it('returns an empty slice when the page is beyond the range', () => {
-    const rows = makeRows(5)
-    const result = paginateRows(rows, 3, 10)
-    expect(result.pageRows).toEqual([])
-    expect(result.total).toBe(5)
-    expect(result.pageCount).toBe(1)
-  })
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
 // 4. tenantId regression — representative API calls must NOT send tenantId
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -270,14 +230,18 @@ describe('tenantId regression — no tenantId in outbound requests', () => {
     vi.restoreAllMocks()
   })
 
-  it('getExpiringDocuments does not send tenantId in params', async () => {
-    const getSpy = vi.spyOn(http, 'get').mockResolvedValue({ data: [] })
-    await employeesApi.getExpiringDocuments(30)
+  it('getExpiringDocumentsPaginated does not send tenantId in params', async () => {
+    const getSpy = vi.spyOn(http, 'get').mockResolvedValue({
+      data: { data: [], meta: { total: 0, page: 1, limit: 10, totalPages: 0 } },
+    })
+    await employeesApi.getExpiringDocumentsPaginated({ pageIndex: 0, pageSize: 10 }, 30)
     expect(getSpy).toHaveBeenCalledTimes(1)
     const callArgs = getSpy.mock.calls[0]!
     // callArgs[0] is the URL, callArgs[1] is the config
     const config = callArgs[1] as { params?: Record<string, unknown> } | undefined
     expect(config?.params).not.toHaveProperty('tenantId')
+    expect(config?.params?.daysUntilExpiry).toBe(30)
+    expect(config?.params?.page).toBe(1)
   })
 
   it('getPendingApprovals calls the endpoint without query params (backend reads JWT)', async () => {
