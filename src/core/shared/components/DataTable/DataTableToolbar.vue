@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import { computed, ref, useSlots } from 'vue'
+import type { VNode } from 'vue'
 
 const props = withDefaults(
   defineProps<{
@@ -26,9 +27,11 @@ const props = withDefaults(
     addButtonTestId?: string
     /**
      * Number of active filters the view applies. Rendered as a `UBadge` next
-     * to the "Filtros" trigger on mobile. Default `0` → no badge. Computed by
-     * the consuming view from its existing filter state (status-tab, threshold,
-     * includeInactive, etc.) — the toolbar itself does NOT derive the number.
+     * to the "Filtros" trigger on mobile and inside the sheet header so users
+     * see how many filters are applied without scrolling. Default `0` → no
+     * badge and no "Limpiar todo" action. Computed by the consuming view from
+     * its existing filter state (status-tab, threshold, includeInactive, etc.)
+     * — the toolbar itself does NOT derive the number (REQ-2 phase-1).
      */
     activeFilterCount?: number
   }>(),
@@ -87,6 +90,37 @@ function openFilters() {
 function closeFilters() {
   isFiltersOpen.value = false
 }
+
+// ─── Per-child section descriptors ──────────────────────────────────────────
+// REQ-3 / WU-2: the sheet body wraps every direct child of the `#filters`
+// slot in a section card. Each child may declare its own section id via a
+// `data-section-id` attribute on the root element — falling back to a
+// 1-indexed positional id so every card has a stable testid even without an
+// explicit name (e.g. SalesListView's mixed widgets).
+
+interface SectionDescriptor {
+  id: string
+  node: VNode
+}
+
+function readSectionId(vnode: VNode, fallback: number): string {
+  const attrs = (vnode.props ?? {}) as Record<string, unknown>
+  const raw = attrs['data-section-id']
+  return typeof raw === 'string' && raw.length > 0 ? raw : String(fallback)
+}
+
+const filtersSections = computed<SectionDescriptor[]>(() => {
+  const slotFn = slots.filters
+  if (!slotFn) return []
+  const vnodes = slotFn()
+  if (!Array.isArray(vnodes)) return []
+  return vnodes
+    .filter((vnode): vnode is VNode => Boolean(vnode) && typeof vnode === 'object')
+    .map((vnode, index) => ({
+      id: readSectionId(vnode, index + 1),
+      node: vnode,
+    }))
+})
 
 /** Capitalize first letter of a string (column-header fallback). */
 function capitalize(str: string): string {
@@ -282,8 +316,12 @@ function capitalize(str: string): string {
         </UButton>
       </div>
 
-      <!-- Filters bottom-sheet — scrollable ~85vh so landscape overflow
-           doesn't clip controls (REQ: Landscape overflow). -->
+      <!-- Filters bottom-sheet — three-region layout (REQ-2..4 / WU-2):
+           • sticky header (title + active-count badge + Limpiar todo)
+           • scrollable body (each #filters child wrapped in a card section)
+           • sticky footer (Cerrar button).
+           The body's `h-[85vh] max-h-[85vh] overflow-y-auto` keeps landscape
+           overflow from clipping controls. -->
       <USlideover
         v-if="hasFiltersSlot"
         v-model:open="isFiltersOpen"
@@ -291,11 +329,66 @@ function capitalize(str: string): string {
         :dismissible="true"
       >
         <template #content>
-          <div
-            class="h-[85vh] max-h-[85vh] space-y-4 overflow-y-auto p-4"
-            data-testid="toolbar-filters-content"
-          >
-            <slot name="filters" />
+          <div class="flex h-full flex-col">
+            <!-- Sticky header (Filtros title + badge + Limpiar todo) -->
+            <div
+              class="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-default bg-default px-4 py-4"
+              data-testid="toolbar-filters-header"
+            >
+              <div class="flex items-center gap-2">
+                <h2 class="text-lg font-semibold">
+                  <slot name="filters-title">Filtros</slot>
+                </h2>
+                <UBadge
+                  v-if="activeFilterCount > 0"
+                  :label="String(activeFilterCount)"
+                  color="primary"
+                  data-testid="toolbar-filtros-badge"
+                />
+              </div>
+              <UButton
+                v-if="activeFilterCount > 0"
+                variant="ghost"
+                color="neutral"
+                size="sm"
+                data-testid="toolbar-filters-clear-all"
+              >
+                Limpiar todo
+              </UButton>
+            </div>
+
+            <!-- Scrollable body — card sections per #filters child -->
+            <div
+              class="h-[85vh] max-h-[85vh] min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
+              data-testid="toolbar-filters-body"
+            >
+              <div
+                v-for="section in filtersSections"
+                :key="section.id"
+                class="rounded-lg border border-default bg-elevated/30 px-4 py-4"
+                :data-testid="`toolbar-filters-section-${section.id}`"
+              >
+                <p class="mb-4 text-sm font-semibold text-highlighted">
+                  <slot name="filters-title">Filtros</slot>
+                </p>
+                <component :is="() => section.node" />
+              </div>
+            </div>
+
+            <!-- Sticky footer (Cerrar button) -->
+            <div
+              class="sticky bottom-0 z-10 flex justify-end border-t border-default bg-default px-4 py-4"
+              data-testid="toolbar-filters-footer"
+            >
+              <UButton
+                variant="ghost"
+                color="neutral"
+                data-testid="toolbar-filters-close"
+                @click="closeFilters"
+              >
+                Cerrar
+              </UButton>
+            </div>
           </div>
         </template>
       </USlideover>
