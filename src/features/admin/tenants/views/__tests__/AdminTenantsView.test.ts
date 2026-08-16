@@ -450,6 +450,18 @@ describe('AdminTenantsView — #filters slot and isActive cell', () => {
     expect(wrapper.findAll('[role="checkbox"]').length).toBeGreaterThan(0)
   })
 
+  // WU-4 / polish-filters-bottom-sheet: the includeInactive checkbox is
+  // wrapped in a card section so the unified bottom-sheet gives it a title.
+  it('wraps the includeInactive checkbox in a card section with data-section-id=\"inactive\"', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('[data-section-id="inactive"]').exists()).toBe(true)
+    // The UCheckbox lives inside the wrapper so the card section is its
+    // first DOM ancestor with that testid.
+    const card = wrapper.find('[data-section-id="inactive"]')
+    expect(card.find('[role="checkbox"]').exists()).toBe(true)
+  })
+
   it('renders the includeInactive checkbox inside the filters slot in card mode', async () => {
     localStorage.setItem('admin-tenants-view-mode', 'card')
     const wrapper = mountView()

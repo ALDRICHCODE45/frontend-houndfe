@@ -340,6 +340,17 @@ describe('ExpiringDocumentsView — threshold selector in #filters (REQ-7)', () 
     ).toBe(false)
   })
 
+  // WU-4 / polish-filters-bottom-sheet: the threshold selector is wrapped
+  // in a card section so the unified bottom-sheet gives it a title.
+  it('wraps the threshold selector in a card section with data-section-id=\"threshold\"', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+    chaiExpect(wrapper.find('[data-section-id="threshold"]').exists()).toBe(true)
+    chaiExpect(
+      wrapper.find('[data-section-id="threshold"]').find('[data-testid="expiring-threshold-filters"]').exists(),
+    ).toBe(true)
+  })
+
   it('binds the selector to selectedThreshold — change updates the composable state', async () => {
     const wrapper = mountView()
     await flushPromises()

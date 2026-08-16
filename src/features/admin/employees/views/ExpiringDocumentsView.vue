@@ -174,19 +174,24 @@ function getCategoryLabel(category: string): string {
           :empty="emptyMessage"
           @refresh="refresh"
         >
-          <!-- Expiry-window selector (REQ-7 — lives in #filters, not the header) -->
+          <!-- Expiry-window selector (REQ-7 — lives in #filters, not the header).
+               WU-4 / polish-filters-bottom-sheet: the section wrapper carries
+               data-section-id="threshold" so the mobile sheet wraps it in a
+               card with a "Filtros" title (CreateEmployeeSlideover pattern). -->
           <template #filters>
-            <div class="flex shrink-0 items-center gap-2" data-testid="expiring-threshold-filters">
-              <span class="text-sm text-muted">Vencen en los próximos:</span>
-              <USelect
-                v-model="selectedThreshold"
-                :items="thresholdOptions"
-                value-key="value"
-                label-key="label"
-                size="sm"
-                class="w-32"
-                aria-label="Ventana de vencimiento"
-              />
+            <div data-section-id="threshold">
+              <div class="flex shrink-0 items-center gap-2" data-testid="expiring-threshold-filters">
+                <span class="text-sm text-muted">Vencen en los próximos:</span>
+                <USelect
+                  v-model="selectedThreshold"
+                  :items="thresholdOptions"
+                  value-key="value"
+                  label-key="label"
+                  size="sm"
+                  class="w-32"
+                  aria-label="Ventana de vencimiento"
+                />
+              </div>
             </div>
           </template>
 

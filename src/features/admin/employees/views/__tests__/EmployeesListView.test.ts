@@ -563,6 +563,18 @@ describe('EmployeesListView — status tabs in #filters (REQ-4)', () => {
     chaiExpect(wrapper.find('[data-testid="employee-filters"]').exists()).toBe(true)
   })
 
+  // WU-4 / polish-filters-bottom-sheet: EmployeeFilters is rendered inside
+  // a card section with id="status" so the unified bottom-sheet on mobile
+  // wraps it in a CreateEmployeeSlideover-style card with a title.
+  it('wraps EmployeeFilters in a card section with data-section-id=\"status\"', async () => {
+    const wrapper = mount(getView().default)
+    await flushPromises()
+    chaiExpect(wrapper.find('[data-section-id="status"]').exists()).toBe(true)
+    chaiExpect(
+      wrapper.find('[data-section-id="status"]').find('[data-testid="employee-filters"]').exists(),
+    ).toBe(true)
+  })
+
   it('defaults the status tab to "all" (Todos)', async () => {
     const wrapper = mount(getView().default)
     await flushPromises()

@@ -282,7 +282,12 @@ function getRowItems(tenant: TenantTableRow) {
           @refresh="refresh"
         >
           <template #filters>
-            <UCheckbox v-model="includeInactive" label="Mostrar inactivos" />
+            <!-- WU-4 / polish-filters-bottom-sheet: the section wrapper carries
+                 data-section-id="inactive" so the mobile sheet wraps it in a
+                 card with a "Filtros" title (CreateEmployeeSlideover pattern). -->
+            <div data-section-id="inactive">
+              <UCheckbox v-model="includeInactive" label="Mostrar inactivos" />
+            </div>
           </template>
 
           <template #name-header="{ column }">

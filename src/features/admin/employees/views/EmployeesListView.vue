@@ -425,12 +425,17 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
             />
           </template>
 
-          <!-- WU-B: status tabs in #filters — toolbar keeps the globalFilter search box -->
+          <!-- WU-B: status tabs in #filters — toolbar keeps the globalFilter search box.
+               WU-4 / polish-filters-bottom-sheet: the section wrapper carries
+               data-section-id="status" so the mobile sheet wraps it in a card
+               with a "Filtros" title (CreateEmployeeSlideover pattern). -->
           <template #filters>
-            <EmployeeFilters
-              :status-tab="statusTab"
-              @update:status-tab="setStatusTab"
-            />
+            <div data-section-id="status">
+              <EmployeeFilters
+                :status-tab="statusTab"
+                @update:status-tab="setStatusTab"
+              />
+            </div>
           </template>
 
           <template #select-header="{ table }">
