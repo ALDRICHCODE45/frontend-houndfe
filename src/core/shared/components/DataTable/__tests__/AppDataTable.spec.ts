@@ -31,12 +31,14 @@ function toolbarStubWithProps() {
       'addButtonTestId',
       'showRefresh',
       'showAddButton',
+      'activeFilterCount',
     ],
     template: `
       <div
         data-testid="toolbar"
         :data-refresh-button-test-id="refreshButtonTestId ?? ''"
         :data-add-button-test-id="addButtonTestId ?? ''"
+        :data-active-filter-count="activeFilterCount ?? 0"
       >
         <slot name="filters" />
         <slot name="actions" />
@@ -337,5 +339,47 @@ describe('AppDataTable toolbar testid pass-through', () => {
     // Empty string in the stub represents "no value provided".
     expect(toolbar.attributes('data-refresh-button-test-id')).toBe('')
     expect(toolbar.attributes('data-add-button-test-id')).toBe('')
+  })
+
+  it('forwards activeFilterCount to DataTableToolbar', () => {
+    const wrapper = mountComponent(
+      { activeFilterCount: 3 },
+      { toolbarStub: true },
+    )
+
+    const toolbar = wrapper.get('[data-testid="toolbar"]')
+    expect(toolbar.attributes('data-active-filter-count')).toBe('3')
+  })
+
+  it('defaults activeFilterCount to 0 when omitted', () => {
+    const wrapper = mountComponent({}, { toolbarStub: true })
+
+    const toolbar = wrapper.get('[data-testid="toolbar"]')
+    expect(toolbar.attributes('data-active-filter-count')).toBe('0')
+  })
+})
+
+// ─── Toolbar suppression (REQ: showToolbar=false) ────────────────────────────
+// PendingApprovalsView uses showToolbar=false in its empty-queue state; the
+// toolbar region must be entirely absent so the table body renders alone.
+
+describe('AppDataTable — showToolbar=false suppresses the toolbar region', () => {
+  beforeEach(() => {
+    isBelowBreakpoint.value = false
+  })
+
+  it('renders nothing for the toolbar when showToolbar=false (default stub)', () => {
+    const wrapper = mountComponent({ showToolbar: false })
+
+    expect(wrapper.find('[data-testid="toolbar"]').exists()).toBe(false)
+    // The table body still renders.
+    expect(wrapper.find('[data-testid="table-view"]').exists()).toBe(true)
+  })
+
+  it('renders nothing for the toolbar when showToolbar=false (props stub)', () => {
+    const wrapper = mountComponent({ showToolbar: false }, { toolbarStub: true })
+
+    expect(wrapper.find('[data-testid="toolbar"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="table-view"]').exists()).toBe(true)
   })
 })

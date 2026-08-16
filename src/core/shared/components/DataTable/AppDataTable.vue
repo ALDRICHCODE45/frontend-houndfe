@@ -56,6 +56,13 @@ const props = withDefaults(
      * migrating off an external add button.
      */
     addButtonTestId?: string
+    /**
+     * Number of active filters the view applies. Rendered as a `UBadge` next
+     * to the mobile "Filtros" trigger. Computed by the consuming view from
+     * its existing filter state (status-tab, threshold, includeInactive, ...)
+     * — the table itself does NOT derive the number. Default `0` → no badge.
+     */
+    activeFilterCount?: number
     // Bulk actions
     bulkActions?: BulkAction<T>[]
     // Mobile rendering
@@ -84,6 +91,7 @@ const props = withDefaults(
     showRefresh: true,
     refreshButtonTestId: undefined,
     addButtonTestId: undefined,
+    activeFilterCount: 0,
     bulkActions: () => [],
     displayMode: 'auto',
     mobileRender: 'table',
@@ -179,6 +187,7 @@ function handleClearSelection() {
       :table-api="tableApi"
       :refresh-button-test-id="props.refreshButtonTestId"
       :add-button-test-id="props.addButtonTestId"
+      :active-filter-count="props.activeFilterCount"
       @update:global-filter="globalFilter = $event"
       @add="emit('add')"
       @refresh="emit('refresh')"
