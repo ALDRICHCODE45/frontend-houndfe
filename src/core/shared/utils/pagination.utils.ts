@@ -2,9 +2,10 @@
 //
 // Single source of truth for slicing an in-memory array into pages. Some
 // tenant-wide endpoints return the FULL, server-sorted array with NO server
-// pagination (e.g. GET /admin/employees-documents/expiring and
-// GET /admin/employees-time-off/pending-approvals), so their views paginate
-// client-side. All such views import `paginateRows` from here.
+// pagination (e.g. GET /admin/employees-time-off/pending-approvals), so their
+// views paginate client-side. All such views import `paginateRows` from here.
+// NOTE: GET /admin/employees-documents/expiring is server-paginated since Fase
+// 3 #2 (standardize-expiring-documents-table) — do not re-add it here.
 
 /** 1-based index of the first page (UPagination is 1-indexed). */
 export const FIRST_PAGE = 1
@@ -12,8 +13,8 @@ export const FIRST_PAGE = 1
 /**
  * Default page size for list/table views that paginate client-side.
  *
- * Shared so the "Documentos por vencer" table and the "Validaciones
- * pendientes" tray stay visually consistent. Change it here to change both.
+ * Shared so the "Validaciones pendientes" tray stays visually consistent with
+ * other list views. Change it here to change the client-paginated views.
  */
 export const DEFAULT_TABLE_PAGE_SIZE = 10
 

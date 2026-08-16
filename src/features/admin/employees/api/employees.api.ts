@@ -10,7 +10,7 @@
  */
 
 import { http } from '@/core/shared/api/http'
-import type { PaginatedResponse } from '@/core/shared/types/table.types'
+import type { PaginatedResponse, ServerTableParams } from '@/core/shared/types/table.types'
 import { uploadMultipart } from '@/core/shared/api/multipart'
 import { EMPLOYEE_STATUS_FILTER } from '../constants/employee.constants'
 import type { EmployeeStatusFilterValue } from '../constants/employee.constants'
@@ -123,6 +123,58 @@ export function normalizeEmployee(raw: Employee & {
   return {
     ...raw,
     fullName: apiFullName || derivedFullName || raw.employeeNumber || 'Colaborador',
+  }
+}
+
+// ─── Expiring documents adapter (REQ-6) ────────────────────────────────────────
+
+/**
+ * Whitelist for server-side sorting on GET /admin/employees-documents/expiring.
+ * Spanish column id → backend sortBy. `restante` maps to `expiresAt` because
+ * days-remaining is client-derived and monotonic with `expiresAt` for a fixed
+ * "now" — sorting by the raw expiry is equivalent. `documento` has no mapping:
+ * a lookup miss omits sortBy/sortOrder entirely (also covers empty `sorting`).
+ */
+export const EXPIRING_DOCUMENTS_SORT_MAP: Record<string, string> = {
+  vencimiento: 'expiresAt',
+  restante: 'expiresAt',
+  categoria: 'category',
+  colaborador: 'employeeName',
+}
+
+/**
+ * Row type for the tenant-wide expiring documents endpoint: an EmployeeDocument
+ * with the employee name/number resolved server-side (removes the frontend
+ * `listForPicker` >100-cap name-resolution query).
+ */
+export type ExpiringDocumentItem = EmployeeDocument & {
+  fullName: string
+  employeeNumber: string
+}
+
+/** Backend shape for the paginated expiring documents endpoint. */
+export interface ExpiringDocumentsBackendPage {
+  data: ExpiringDocumentItem[]
+  meta: { total: number; page: number; limit: number; totalPages: number }
+}
+
+/**
+ * Adapt the backend `{ data, meta: { total, page, limit, totalPages } }` shape
+ * to PaginatedResponse<T> consumed by useServerTable. Backend page is 1-based;
+ * pageIndex is 0-based. Mirrors users.api.ts meta reader (not employees'
+ * flat mapPaginated).
+ */
+export function mapExpiringDocumentsPaginated(
+  raw: ExpiringDocumentsBackendPage,
+): PaginatedResponse<ExpiringDocumentItem> {
+  return {
+    data: raw.data,
+    pagination: {
+      pageIndex: raw.meta.page - 1,
+      pageSize: raw.meta.limit,
+      totalCount: raw.meta.total,
+      pageCount: raw.meta.totalPages,
+    },
   }
 }
 
@@ -421,19 +473,44 @@ export const employeesApi = {
    *
    * Requires read:EmployeeDocument permission.
    * Route uses HYPHEN (employees-documents) and is NOT under /:employeeId — tenant-wide view.
-   * Query param: daysUntilExpiry (parsed with parseInt server-side, default 30).
-   * Returns array of EmployeeDocument sorted by expiresAt asc (soonest first).
+   * SERVER-SIDE pagination/search/sort (backend contract evidence):
+   *   - `daysUntilExpiry` (parseInt server-side, default 30)
+   *   - `page` = params.pageIndex + 1 (0-based → 1-based)
+   *   - `limit` = min(params.pageSize, 100) — backend caps at 100
+   *   - `search` omitted when globalFilter < 2 chars (SEARCH_QUERY_TOO_SHORT guard)
+   *   - `sortBy`/`sortOrder` from EXPIRING_DOCUMENTS_SORT_MAP whitelist; miss → omitted
+   * Response shape: { data, meta: { total, page, limit, totalPages } } — see
+   * mapExpiringDocumentsPaginated. Items carry server-resolved fullName/employeeNumber.
    * NEVER send tenantId.
    */
-  async getExpiringDocuments(daysUntilExpiry?: number): Promise<EmployeeDocument[]> {
-    const queryParams: Record<string, unknown> = {}
-    if (daysUntilExpiry !== undefined) queryParams.daysUntilExpiry = daysUntilExpiry
+  async getExpiringDocumentsPaginated(
+    params: ServerTableParams,
+    daysUntilExpiry: number,
+  ): Promise<PaginatedResponse<ExpiringDocumentItem>> {
+    const queryParams: Record<string, unknown> = {
+      daysUntilExpiry,
+      page: params.pageIndex + 1,
+      limit: Math.min(params.pageSize, 100),
+    }
 
-    const { data } = await http.get<EmployeeDocument[]>(
+    // Server rejects searches shorter than 2 chars (SEARCH_QUERY_TOO_SHORT);
+    // omit `search` to keep the list unfiltered (mirrors users.api.ts).
+    if (params.globalFilter && params.globalFilter.length >= 2) {
+      queryParams.search = params.globalFilter
+    }
+
+    const sort = params.sorting?.[0]
+    const sortBy = sort ? EXPIRING_DOCUMENTS_SORT_MAP[sort.id] : undefined
+    if (sort && sortBy) {
+      queryParams.sortBy = sortBy
+      queryParams.sortOrder = sort.desc ? 'desc' : 'asc'
+    }
+
+    const { data } = await http.get<ExpiringDocumentsBackendPage>(
       '/admin/employees-documents/expiring',
       { params: queryParams },
     )
-    return data
+    return mapExpiringDocumentsPaginated(data)
   },
 
   // ─── Time-off — WU-10 ────────────────────────────────────────────────────
