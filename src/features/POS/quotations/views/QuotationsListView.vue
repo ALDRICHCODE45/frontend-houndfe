@@ -443,12 +443,20 @@ const errorMessage = computed(() => {
             @refresh="refresh"
             @add="goToCreate"
           >
-            <!-- Filtros moved inside AppDataTable's #filters slot — REQ-QAF-011. -->
+            <!-- Filtros moved inside AppDataTable's #filters slot — REQ-QAF-011.
+                 Embedded mode (WU-3 / polish-filters-bottom-sheet): the
+                 wrapper's USlideover owns the trigger, header and footer —
+                 DataTableFilters v2 renders only its sections + chips
+                 inside the unified bottom-sheet so users see ONE "Filtros"
+                 tap → ONE sheet (no nested slideover-in-slideover). -->
             <template #filters>
-              <DataTableFilters
-                v-model:state="filtersState"
-                :schema="quotationFiltersSchema"
-              />
+              <div data-section-id="quotations">
+                <DataTableFilters
+                  v-model:state="filtersState"
+                  :schema="quotationFiltersSchema"
+                  :embedded="true"
+                />
+              </div>
             </template>
 
             <!-- ViewToggle persisted via useQuotationsViewMode. -->

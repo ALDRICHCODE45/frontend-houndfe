@@ -259,13 +259,18 @@ const stubs = {
   },
   AppDataTable: appDataTableStub,
   DataTableFilters: {
-    props: ['state', 'schema', 'errors'],
+    props: ['state', 'schema', 'errors', 'embedded'],
     emits: ['update:state'],
     // The `set-status-filter` button lets a test drive real filter state
     // through the real useDataTableFilters, so "Limpiar" can be verified by
     // its observable effect rather than by spying on an internal method.
     template: `
-      <div data-testid="sales-filters" :data-errors="JSON.stringify(errors)" :data-schema="JSON.stringify(schema)">
+      <div
+        data-testid="sales-filters"
+        :data-errors="JSON.stringify(errors)"
+        :data-schema="JSON.stringify(schema)"
+        :data-embedded="String(!!embedded)"
+      >
         <button
           data-testid="set-status-filter"
           @click="$emit('update:state', { ...state, status: ['CONFIRMED'] })"
@@ -703,6 +708,21 @@ describe('SalesListView — consolidated toolbar (REQ-14, REQ-15)', () => {
       (wrapper.element as HTMLElement).querySelectorAll('[data-testid="sales-filters"]'),
     ).filter((el) => !el.closest('[data-testid="app-data-table"]'))
     expect(stray).toHaveLength(0)
+  })
+
+  // WU-3 / REQ-6: the embedded DataTableFilters lives in the same #filters
+  // slot as the SalesListTabs and sort select. The card-wrap must tolerate
+  // siblings without breaking them — every direct child of #filters gets its
+  // own card section in the wrapper's mobile sheet.
+  it('forwards embedded=true to DataTableFilters and lets the sales tabs + sort sibling survive the wrap', () => {
+    const wrapper = mount(SalesListView, { global: { stubs } })
+
+    const filters = wrapper.find('[data-testid="sales-filters"]')
+    expect(filters.exists()).toBe(true)
+    expect(filters.attributes('data-embedded')).toBe('true')
+    // Mixed siblings (tabs + sort select) MUST remain rendered.
+    expect(wrapper.find('[data-testid="tab-pending"]').exists()).toBe(true)
+    expect(wrapper.find('select').exists()).toBe(true)
   })
 
   it('clears only the slideover filter state when Limpiar is clicked', async () => {

@@ -261,10 +261,10 @@ const appDataTableStub = {
 }
 
 const dataTableFiltersStub = {
-  props: ['schema', 'state', 'errors'],
+  props: ['schema', 'state', 'errors', 'embedded'],
   emits: ['update:state'],
   template: `
-    <div data-testid="data-table-filters-stub">
+    <div data-testid="data-table-filters-stub" :data-embedded="String(!!embedded)">
       <button data-testid="filters-trigger" @click="$emit('update:state', state)">
         Filtros
       </button>
@@ -504,6 +504,19 @@ describe('QuotationsListView — Filtros slideover + chips (REQ-QAF-010)', () =>
     const wrapper = mountView()
 
     expect(wrapper.find('[data-testid="filters-trigger"]').exists()).toBe(true)
+  })
+
+  // WU-3 / REQ-6: DataTableFilters v2 must render in embedded mode inside
+  // the unified bottom-sheet so the wrapper's "Filtros" trigger is the ONLY
+  // one the user sees. The stub already exposes its raw `filters-trigger`
+  // for legacy assertions; the embedded marker is asserted via the new
+  // DataTableFilters "embedded" prop forwarding.
+  it('forwards embedded=true to DataTableFilters (no nested slideover trigger)', () => {
+    const wrapper = mountView()
+
+    const filters = wrapper.find('[data-testid="data-table-filters-stub"]')
+    expect(filters.exists()).toBe(true)
+    expect(filters.attributes('data-embedded')).toBe('true')
   })
 
   it('renders the filters-chips region', () => {
