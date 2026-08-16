@@ -408,6 +408,7 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
           :display-mode="displayMode"
           :show-add-button="canCreate"
           :show-refresh="false"
+          :active-filter-count="statusTab !== 'all' ? 1 : 0"
           add-button-text="Nuevo colaborador"
           add-button-icon="i-lucide-user-plus"
           empty="No se encontraron colaboradores"

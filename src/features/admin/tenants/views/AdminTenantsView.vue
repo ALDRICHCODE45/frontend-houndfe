@@ -272,6 +272,7 @@ function getRowItems(tenant: TenantTableRow) {
           :display-mode="displayMode"
           search-placeholder="Buscar sucursales..."
           :show-add-button="canCreateTenant"
+          :active-filter-count="includeInactive ? 1 : 0"
           add-button-text="Crear sucursal"
           add-button-icon="i-lucide-building"
           enable-column-visibility
