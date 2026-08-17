@@ -20,6 +20,7 @@ import type {
   ProductBackendListResponse,
   ProductBackendResponse,
   ProductDetail,
+  ProductType,
   ProductVariant,
   ProductVariantBackendResponse,
   ServiceDetail,
@@ -30,6 +31,14 @@ import type {
   UpsertVariantPricePayload,
   VariantPrice,
 } from '../interfaces/product.types'
+
+// ── List query params ─────────────────────────────────────────────────────────
+
+export interface ProductFilters {
+  type?: ProductType
+}
+
+export type ProductTableParams = ServerTableParams & ProductFilters
 
 interface ProductPaginationMeta {
   page: number
@@ -145,6 +154,17 @@ function applyLocalTextFilter(rows: Product[], globalFilter?: string): Product[]
       .toLowerCase()
       .includes(search)
   })
+}
+
+/**
+ * Local type filter — runs after `mapProduct` and ONLY when `params.type` is
+ * set. Idempotent: when the backend honors `?type=` it returns rows that all
+ * match, so the local pass is a no-op; when the backend ignores `?type=` and
+ * returns mixed rows, this is the safety net that keeps the toolbar honest.
+ */
+function applyLocalTypeFilter(rows: Product[], type?: ProductType): Product[] {
+  if (!type) return rows
+  return rows.filter((row) => row.type === type)
 }
 
 function applyLocalSort(rows: Product[], params: ServerTableParams): Product[] {
@@ -272,18 +292,22 @@ export const productApi = {
    *   and we don't double-filter the result locally when globalFilter is
    *   set (the server already filtered).
    */
-  async getPaginated(params: ServerTableParams): Promise<PaginatedResponse<Product>> {
+  async getPaginated(params: ProductTableParams): Promise<PaginatedResponse<Product>> {
     // `resolveSort` is intentionally NOT spread into the request params — see
     // the architectural note above.
     const { data } = await http.get<ProductBackendListResponse | ProductBackendResponse[]>(
       '/products',
       {
-        params: (params.globalFilter
+        params: {
+          ...(params.globalFilter
             ? {
                 search: params.globalFilter,
                 q: params.globalFilter,
               }
             : {}),
+          // type only when explicitly set; missing means both PRODUCT+SERVICE
+          ...(params.type ? { type: params.type } : {}),
+        },
       },
     )
 
@@ -313,6 +337,13 @@ export const productApi = {
     // filtered set; double-filtering would shrink it incorrectly.
     if (!params.globalFilter) {
       rows = applyLocalTextFilter(rows, params.globalFilter)
+    }
+
+    // Local type fallback — runs unconditionally when params.type is set so
+    // it acts as the safety net if the backend ignores ?type= (idempotent
+    // when the backend honors it because all returned rows already match).
+    if (params.type) {
+      rows = applyLocalTypeFilter(rows, params.type)
     }
 
     // Sort is ALWAYS client-side now (backend rejects sortBy/sortOrder).
