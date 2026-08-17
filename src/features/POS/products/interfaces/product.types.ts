@@ -1,5 +1,12 @@
 export type ProductStatus = 'active' | 'inactive' | 'out_of_stock'
 
+export type ProductType = 'PRODUCT' | 'SERVICE'
+
+export interface ServiceDetail {
+  capacity: number | null
+  notes: string | null
+}
+
 export interface CategoryOption {
   id: string
   name: string
@@ -21,6 +28,7 @@ export interface CreateBrandPayload {
 export interface Product {
   id: string
   name: string
+  type: ProductType
   sku: string | null
   barcode: string | null
   categoryId: string | null
@@ -48,13 +56,13 @@ export interface ProductDetail extends Product {
   description: string | null
   location: string | null
   satKey: string | null
-  type: 'PRODUCT' | 'SERVICE'
   unit: string
   ivaRate: string
   iepsRate: string
   purchaseCostMode: 'NET' | 'GROSS'
   purchaseNetCostCents: number
   purchaseGrossCostCents: number
+  serviceDetail: ServiceDetail | null
 }
 
 export interface VariantPriceMargin {
@@ -165,7 +173,7 @@ export interface ProductBackendResponse {
   description?: string | null
   location?: string | null
   satKey?: string | null
-  type?: 'PRODUCT' | 'SERVICE'
+  type?: ProductType
   unit?: string
   ivaRate?: string
   iepsRate?: string
@@ -173,6 +181,7 @@ export interface ProductBackendResponse {
   purchaseCostMode?: string
   purchaseNetCostCents?: number
   purchaseGrossCostCents?: number
+  serviceDetail?: ServiceDetail | null
   createdAt: string
   updatedAt: string
 }
@@ -222,7 +231,7 @@ export interface PurchaseCostPayload {
 
 export interface CreateProductPayload {
   name: string
-  type?: 'PRODUCT' | 'SERVICE'
+  type?: ProductType
   sku?: string
   barcode?: string
   categoryId?: string
@@ -248,6 +257,7 @@ export interface CreateProductPayload {
   lots?: CreateLotInline[]
   priceLists?: CreatePriceListInline[]
   images?: CreateImageInline[]
+  serviceDetail?: ServiceDetail
 }
 
 // ── Inline sub-resources for atomic product creation ─────────
@@ -371,7 +381,7 @@ export type UpdateProductPayload = Partial<CreateProductPayload>
 
 export interface ProductFormInput {
   name: string
-  type: 'PRODUCT' | 'SERVICE'
+  type: ProductType
   sku: string
   barcode: string
   categoryId: string
@@ -394,6 +404,7 @@ export interface ProductFormInput {
   iepsRate: string
   purchaseCostMode: 'NET' | 'GROSS'
   purchaseCost: string
+  serviceDetail: { capacity: number | null; notes: string }
 }
 
 // ── Global Price Lists ──────────────────────────────────────

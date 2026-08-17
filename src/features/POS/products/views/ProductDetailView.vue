@@ -102,6 +102,7 @@ function getDefaultFormState(): ProductFormInput {
     iepsRate: 'NO_APLICA',
     purchaseCostMode: 'NET',
     purchaseCost: centsToDecimalInput(0),
+    serviceDetail: { capacity: null, notes: '' },
   }
 }
 

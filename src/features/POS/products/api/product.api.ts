@@ -22,6 +22,7 @@ import type {
   ProductDetail,
   ProductVariant,
   ProductVariantBackendResponse,
+  ServiceDetail,
   UpdateLotPayload,
   UpdatePriceListPayload,
   UpdateProductPayload,
@@ -68,6 +69,7 @@ function mapProduct(item: ProductBackendResponse): Product {
   return {
     id: item.id,
     name: item.name,
+    type: item.type ?? 'PRODUCT',
     sku: item.sku ?? null,
     barcode: item.barcode ?? null,
     categoryId: item.categoryId ?? item.category?.id ?? null,
@@ -104,14 +106,25 @@ function mapProductDetail(item: ProductBackendResponse): ProductDetail {
     description: item.description ?? null,
     location: item.location ?? null,
     satKey: item.satKey ?? null,
-    type: item.type ?? 'PRODUCT',
     unit: item.unit ?? 'UNIDAD',
     ivaRate: item.ivaRate ?? 'IVA_16',
     iepsRate: item.iepsRate ?? 'NO_APLICA',
     purchaseCostMode: resolvePurchaseCostMode(item),
     purchaseNetCostCents: item.purchaseCost?.netCents ?? item.purchaseNetCostCents ?? 0,
     purchaseGrossCostCents: item.purchaseCost?.grossCents ?? item.purchaseGrossCostCents ?? 0,
+    serviceDetail: normalizeServiceDetail(item.serviceDetail),
   }
+}
+
+function normalizeServiceDetail(raw: ServiceDetail | null | undefined): ServiceDetail | null {
+  if (raw == null) return null
+  const capacity =
+    typeof raw.capacity === 'number' && Number.isInteger(raw.capacity) && raw.capacity >= 1
+      ? raw.capacity
+      : null
+  const notes = typeof raw.notes === 'string' && raw.notes.trim().length > 0 ? raw.notes.trim() : null
+  if (capacity == null && notes == null) return null
+  return { capacity, notes }
 }
 
 function mapPagination(meta: ProductPaginationMeta): PaginatedResponse<Product>['pagination'] {

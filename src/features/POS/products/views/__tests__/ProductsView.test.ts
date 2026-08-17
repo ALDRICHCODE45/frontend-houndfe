@@ -14,6 +14,7 @@ const serverData = [
   {
     id: 'prod-1',
     name: 'Alpha',
+    type: 'PRODUCT',
     sku: 'ALPHA',
     barcode: null,
     categoryId: 'cat-1',

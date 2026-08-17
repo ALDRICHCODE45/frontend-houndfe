@@ -6,6 +6,7 @@ import type { Product } from '../../interfaces/product.types'
 const product = {
   id: 'prod-1',
   name: 'Alpha',
+  type: 'PRODUCT',
   sku: 'ALPHA',
   barcode: null,
   categoryId: 'cat-1',
