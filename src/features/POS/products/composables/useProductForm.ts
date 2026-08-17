@@ -277,10 +277,44 @@ function buildBasePayload(values: ProductFormValues): CreateProductPayload {
   }
 }
 
-// SERVICE payload — implemented in WU-C.
+// SERVICE payload — backend rejects sku / barcode / brandId / purchaseCost /
+// lots. Forces stock/lots false, qty=0, minQty=0. serviceDetail included
+// only when populated. Constructed directly so forbidden keys can never
+// leak from the PRODUCT base builder.
 function buildServicePayload(values: ProductFormValues): CreateProductPayload {
-  // WU-A keeps PRODUCT behavior unchanged. The SERVICE branch lands in WU-C.
-  return buildBasePayload(values)
+  const description = values.description?.trim() || undefined
+  const location = values.location?.trim() || undefined
+  const satKey = values.satKey?.trim() || undefined
+  const categoryId = values.categoryId?.trim() || undefined
+
+  return {
+    name: values.name,
+    type: 'SERVICE',
+    ...(categoryId ? { categoryId } : {}),
+    ...(description ? { description } : {}),
+    ...(location ? { location } : {}),
+    ...(satKey ? { satKey } : {}),
+    unit: values.unit,
+    useStock: false,
+    useLotsAndExpirations: false,
+    hasVariants: values.hasVariants,
+    quantity: 0,
+    minQuantity: 0,
+    sellInPos: values.sellInPos,
+    includeInOnlineCatalog: values.includeInOnlineCatalog,
+    requiresPrescription: values.requiresPrescription,
+    chargeProductTaxes: values.chargeProductTaxes,
+    ...(values.chargeProductTaxes ? { ivaRate: values.ivaRate, iepsRate: values.iepsRate } : {}),
+    priceCents: decimalInputToCents(values.price),
+    ...(serviceDetailPopulated(values.serviceDetail)
+      ? {
+          serviceDetail: {
+            capacity: values.serviceDetail.capacity,
+            notes: values.serviceDetail.notes.trim() || null,
+          } satisfies ServiceDetail,
+        }
+      : {}),
+  }
 }
 
 export function toUpdatePayload(values: ProductFormValues): UpdateProductPayload {
