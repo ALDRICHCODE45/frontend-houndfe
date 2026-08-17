@@ -15,6 +15,16 @@ const cashiersQueryState = {
   isLoading: ref(false),
 }
 
+vi.mock('@vueuse/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@vueuse/core')>()
+  return {
+    ...actual,
+    useBreakpoints: () => ({
+      smaller: vi.fn(() => true), // mobile by default → DataTableFilters embedded=true
+    }),
+  }
+})
+
 vi.mock('@tanstack/vue-query', () => ({
   useQuery: vi.fn((options: { queryKey: unknown }) => {
     const rawKey = options.queryKey as { value?: unknown } | unknown[]

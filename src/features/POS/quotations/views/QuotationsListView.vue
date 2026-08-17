@@ -61,6 +61,7 @@ import { quotationApi } from '../api/quotation.api'
 import { quotationQueryKeys } from '@/core/shared/constants/query-keys'
 import { createQuotationFiltersSchema } from '../config/quotationFiltersSchema'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 
 declare const useToast: () => {
   add: (options: {
@@ -77,6 +78,13 @@ const authStore = useAuthStore()
 const canCreate = computed(() => authStore.userCan('create', 'Quotation'))
 const canDelete = computed(() => authStore.userCan('delete', 'Quotation'))
 const tenantId = computed(() => authStore.currentTenantId || 'default')
+
+// Mobile detection — below md, DataTableFilters runs embedded inside the
+// wrapper's bottom-sheet (single "Filtros" tap → one sheet). At md+ it runs
+// standalone so its own "Filtros" trigger + lateral slideover return to the
+// desktop toolbar (the embedded card sections must NEVER leak into desktop).
+const breakpoints = useBreakpoints(breakpointsTailwind)
+const isMobile = breakpoints.smaller('md')
 
 // ─── Customer options (loaded once for the slideover) ─────────────────────────
 
@@ -455,7 +463,7 @@ const errorMessage = computed(() => {
               <DataTableFilters
                 v-model:state="filtersState"
                 :schema="quotationFiltersSchema"
-                :embedded="true"
+                :embedded="isMobile"
               />
             </template>
 

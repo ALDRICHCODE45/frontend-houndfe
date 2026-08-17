@@ -58,6 +58,16 @@ const composableState = {
   setStatusFilter: vi.fn(),
 }
 
+vi.mock('@vueuse/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@vueuse/core')>()
+  return {
+    ...actual,
+    useBreakpoints: () => ({
+      smaller: vi.fn(() => true), // mobile by default → DataTableFilters embedded=true
+    }),
+  }
+})
+
 vi.mock('../../composables/useQuotationsListTable', () => ({
   useQuotationsListTable: () => ({
     pagination: composableState.pagination,
