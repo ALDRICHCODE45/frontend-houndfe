@@ -169,6 +169,7 @@ function getCategoryLabel(category: string): string {
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
           :show-toolbar="true"
+          :active-filter-count="selectedThreshold !== 30 ? 1 : 0"
           enable-column-visibility
           :empty="emptyMessage"
           @refresh="refresh"
