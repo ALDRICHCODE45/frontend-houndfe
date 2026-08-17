@@ -57,7 +57,7 @@
 
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { AppDataTable } from '@/core/shared/components/DataTable'
+import { AppDataTable, FilterSectionCard } from '@/core/shared/components/DataTable'
 import SelectColumn from '@/core/shared/components/DataTable/SelectColumn.vue'
 import ConfirmModal, { type ConfirmModalItem } from '@/core/shared/components/ConfirmModal.vue'
 import type { BulkAction } from '@/core/shared/types/table.types'
@@ -416,6 +416,7 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
           enable-column-visibility
           @refresh="refresh"
           @add="openCreateSlideover"
+          @clear-filters="setStatusTab('all')"
         >
           <template #actions>
             <ViewToggle
@@ -425,12 +426,17 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
             />
           </template>
 
-          <!-- WU-B: status tabs in #filters — toolbar keeps the globalFilter search box -->
+          <!-- WU-B: status tabs in #filters — toolbar keeps the globalFilter search box.
+               polish-filters-bottom-sheet: FilterSectionCard owns the card
+               chrome + "Estado" title so the mobile sheet renders the slot
+               directly (no vnode capture). -->
           <template #filters>
-            <EmployeeFilters
-              :status-tab="statusTab"
-              @update:status-tab="setStatusTab"
-            />
+            <FilterSectionCard title="Estado">
+              <EmployeeFilters
+                :status-tab="statusTab"
+                @update:status-tab="setStatusTab"
+              />
+            </FilterSectionCard>
           </template>
 
           <template #select-header="{ table }">

@@ -26,9 +26,11 @@ const props = withDefaults(
     addButtonTestId?: string
     /**
      * Number of active filters the view applies. Rendered as a `UBadge` next
-     * to the "Filtros" trigger on mobile. Default `0` → no badge. Computed by
-     * the consuming view from its existing filter state (status-tab, threshold,
-     * includeInactive, etc.) — the toolbar itself does NOT derive the number.
+     * to the "Filtros" trigger on mobile and inside the sheet header so users
+     * see how many filters are applied without scrolling. Default `0` → no
+     * badge and no "Limpiar todo" action. Computed by the consuming view from
+     * its existing filter state (status-tab, threshold, includeInactive, etc.)
+     * — the toolbar itself does NOT derive the number (REQ-2 phase-1).
      */
     activeFilterCount?: number
   }>(),
@@ -49,6 +51,7 @@ const emit = defineEmits<{
   'update:globalFilter': [value: string]
   add: []
   refresh: []
+  'clear-filters': []
 }>()
 
 // Table API injection for column visibility — provided by parent
@@ -282,20 +285,75 @@ function capitalize(str: string): string {
         </UButton>
       </div>
 
-      <!-- Filters bottom-sheet — scrollable ~85vh so landscape overflow
-           doesn't clip controls (REQ: Landscape overflow). -->
+      <!-- Filters bottom-sheet — three-region layout (REQ-2..4 / WU-2):
+           • sticky header (title + active-count badge + Limpiar todo)
+           • scrollable body (each #filters child wrapped in a card section)
+           • sticky footer (Cerrar button).
+           The body's `h-[85vh] max-h-[85vh] overflow-y-auto` keeps landscape
+           overflow from clipping controls. -->
       <USlideover
         v-if="hasFiltersSlot"
         v-model:open="isFiltersOpen"
         side="bottom"
+        inset
         :dismissible="true"
       >
         <template #content>
-          <div
-            class="h-[85vh] max-h-[85vh] space-y-4 overflow-y-auto p-4"
-            data-testid="toolbar-filters-content"
-          >
-            <slot name="filters" />
+          <div class="flex h-full flex-col">
+            <!-- Sticky header (Filtros title + badge + Limpiar todo) -->
+            <div
+              class="sticky top-0 z-10 flex items-center justify-between gap-2 border-b border-default bg-default px-4 py-4"
+              data-testid="toolbar-filters-header"
+            >
+              <div class="flex items-center gap-2">
+                <h2 class="text-lg font-semibold">
+                  <slot name="filters-title">Filtros</slot>
+                </h2>
+                <UBadge
+                  v-if="activeFilterCount > 0"
+                  :label="String(activeFilterCount)"
+                  color="primary"
+                  data-testid="toolbar-filtros-badge"
+                />
+              </div>
+              <UButton
+                v-if="activeFilterCount > 0"
+                variant="ghost"
+                color="neutral"
+                size="sm"
+                data-testid="toolbar-filters-clear-all"
+                @click="emit('clear-filters')"
+              >
+                Limpiar todo
+              </UButton>
+            </div>
+
+            <!-- Scrollable body — renders the #filters slot DIRECTLY so that
+                 leaf components relying on provide/inject + Teleport (e.g.
+                 USelect's Reka UI popover) keep their parentage and open
+                 correctly. Card sections are owned by the consuming views via
+                 FilterSectionCard, not captured/re-rendered here. -->
+            <div
+              class="h-[85vh] max-h-[85vh] min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
+              data-testid="toolbar-filters-body"
+            >
+              <slot name="filters" />
+            </div>
+
+            <!-- Sticky footer (Cerrar button) -->
+            <div
+              class="sticky bottom-0 z-10 flex justify-end border-t border-default bg-default px-4 py-4"
+              data-testid="toolbar-filters-footer"
+            >
+              <UButton
+                variant="ghost"
+                color="neutral"
+                data-testid="toolbar-filters-close"
+                @click="closeFilters"
+              >
+                Cerrar
+              </UButton>
+            </div>
           </div>
         </template>
       </USlideover>

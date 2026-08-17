@@ -12,8 +12,16 @@ import DataTableFiltersChips from './DataTableFiltersChips.vue'
 const props = withDefaults(defineProps<{
   schema: FiltersSchema
   errors?: Record<string, string>
+  /**
+   * Render the filter sections + chips WITHOUT the trigger button or own
+   * slideover. The parent (e.g. DataTableToolbar's unified bottom-sheet)
+   * owns the sheet. Default `false` preserves the original standalone
+   * "Filtros" trigger + slideover behaviour.
+   */
+  embedded?: boolean
 }>(), {
   errors: () => ({}),
+  embedded: false,
 })
 
 const state = defineModel<FilterState>('state', { default: () => ({}) })
@@ -89,10 +97,15 @@ function setIncludeNullValue(field: { includeNull?: { param: string } }, value: 
 }
 
 function open() {
+  // Embedded mode owns no sheet — exposed open() is intentionally a no-op so
+  // a stale caller cannot accidentally toggle a hidden slideover.
+  if (props.embedded) return
   isOpen.value = true
 }
 
 function close() {
+  // Same rationale as open() above.
+  if (props.embedded) return
   isOpen.value = false
 }
 
@@ -100,7 +113,110 @@ defineExpose({ open, close })
 </script>
 
 <template>
-  <div class="space-y-3" data-testid="data-table-filters-v2">
+  <!--
+    Two render paths:
+    • Standalone (embedded=false, default): root div renders chips slot AND
+      the trigger button + own USlideover (legacy behaviour preserved).
+    • Embedded (embedded=true): the trigger and the own USlideover are
+      suppressed. Only the chips + section list render inside the wrapper's
+      unified bottom-sheet — the parent owns the trigger, the header, the
+      footer, and the slideover.
+  -->
+  <div
+    v-if="embedded"
+    class="space-y-3"
+    data-testid="data-table-filters-embedded"
+  >
+    <slot name="chips" :chips="activeChips" :clear="clearField" :clear-all="clearAll">
+      <DataTableFiltersChips :schema="props.schema" :state="state" @clear="clearField" @clear-all="clearAll" />
+    </slot>
+
+    <div class="space-y-4">
+      <section
+        v-for="group in groupsWithActivity"
+        :key="group.key"
+        :data-testid="`section-group-${group.key}`"
+        class="rounded-lg border border-default bg-elevated/30 px-4 py-4"
+      >
+        <p
+          v-if="group.section"
+          class="mb-4 text-sm font-semibold text-highlighted"
+          :data-testid="`section-header-${group.key}`"
+        >
+          {{ group.section }}
+          <span
+            v-if="group.hasActive"
+            class="ml-2 inline-block h-1.5 w-1.5 rounded-full bg-primary"
+            :data-testid="`section-dot-${group.key}`"
+          />
+        </p>
+        <div class="space-y-4">
+          <template v-for="field in group.fields" :key="field.id">
+            <MultiSelectEnumFilter
+              v-if="field.kind === 'multi-enum'"
+              v-model="state[field.id] as string[]"
+              :include-null-value="getIncludeNullValue(field)"
+              :label="field.label"
+              :options="field.options"
+              :placeholder="field.placeholder"
+              :include-null-option="field.includeNull?.label"
+              :searchable="field.searchable"
+              :error="props.errors[field.id]"
+              @update:include-null-value="setIncludeNullValue(field, $event)"
+            />
+
+            <MultiSelectAsyncFilter
+              v-else-if="field.kind === 'multi-async'"
+              v-model="state[field.id] as string[]"
+              :include-null-value="getIncludeNullValue(field)"
+              :label="field.label"
+              :options="field.options"
+              :placeholder="field.placeholder"
+              :loading="field.loading"
+              :loading-label="field.loadingLabel"
+              :include-null-option="field.includeNull?.label"
+              :error="props.errors[field.id]"
+              @update:include-null-value="setIncludeNullValue(field, $event)"
+            />
+
+            <MultiTextInputFilter
+              v-else-if="field.kind === 'multi-text'"
+              v-model="state[field.id] as string[]"
+              :label="field.label"
+              :placeholder="field.placeholder"
+              :max="field.max"
+              :strip-prefix="field.parse?.stripPrefix"
+              :error="props.errors[field.id]"
+            />
+
+            <NumericRangeFilter
+              v-else-if="field.kind === 'numeric-range'"
+              v-model="state[field.id] as { min?: number, max?: number }"
+              :label="field.label"
+              :unit="field.unit"
+              :step="field.step"
+              :format-as="field.formatAs"
+              :display-divisor="getDisplayDivisor(field)"
+              :error="props.errors[field.id]"
+            />
+
+            <DateRangeFilter
+              v-else
+              v-model="state[field.id] as { from?: string, to?: string }"
+              :include-null-value="getIncludeNullValue(field)"
+              :label="field.label"
+              :include-null-option="field.includeNull?.label"
+              :presets="field.presets"
+              :error="props.errors[field.id]"
+              @update:include-null-value="setIncludeNullValue(field, $event)"
+            />
+          </template>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div v-else class="space-y-3" data-testid="data-table-filters-v2">
     <slot name="trigger" :open="open" :active-count="activeCount">
       <UButton variant="outline" color="neutral" data-testid="filters-trigger" @click="open">
         <UIcon name="i-lucide-sliders-horizontal" />
@@ -113,7 +229,7 @@ defineExpose({ open, close })
       <DataTableFiltersChips :schema="props.schema" :state="state" @clear="clearField" @clear-all="clearAll" />
     </slot>
 
-    <USlideover :open="isOpen" :side="slideoverSide" :ui="slideoverUi" @update:open="isOpen = $event">
+    <USlideover :open="isOpen" :side="slideoverSide" inset :ui="slideoverUi" @update:open="isOpen = $event">
       <template #content>
         <div class="flex h-full flex-col" data-testid="filters-slideover-layout">
           <div class="sticky top-0 z-10 space-y-3 border-b border-default bg-default px-6 py-5" data-testid="filters-header">

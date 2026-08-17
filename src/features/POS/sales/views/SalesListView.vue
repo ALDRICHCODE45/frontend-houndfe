@@ -23,12 +23,20 @@ import { getDeliveryStatusBadge, getPaymentStatusBadge } from '../utils/saleStat
 import { customerApi } from '@/features/POS/customers/api/customer.api'
 import { usersApi } from '@/features/POS/users/api/user.api'
 import { customerQueryKeys, usersQueryKeys } from '@/core/shared/constants/query-keys'
+import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const canReadSales = computed(() => authStore.userCan('read', 'Sale'))
 const canCreateSale = computed(() => authStore.userCan('create', 'Sale'))
 const tenantId = computed(() => authStore.currentTenantId || 'default')
+
+// Mobile detection — below md, DataTableFilters runs embedded inside the
+// wrapper's bottom-sheet (single "Filtros" tap → one sheet). At md+ it runs
+// standalone so its own "Filtros" trigger + lateral slideover return to the
+// desktop toolbar (the embedded card sections must NEVER leak into desktop).
+const breakpoints = useBreakpoints(breakpointsTailwind)
+const isMobile = breakpoints.smaller('md')
 
 const customersQuery = useQuery({
   queryKey: computed(() => customerQueryKeys.paginated(tenantId.value)),
@@ -178,14 +186,16 @@ watch(() => filtersCtl.serializedState.value, () => {
           empty="No hay ventas todavía"
           @add="goToNewSale"
           @refresh="refresh"
+          @clear-filters="filtersCtl.clearAll()"
         >
           <template #filters>
             <div class="flex w-full flex-wrap items-center gap-2">
-              <div class="overflow-x-auto">
+              <div class="w-full overflow-x-auto md:w-auto">
                 <DataTableFilters
                   v-model:state="filtersState"
                   :schema="salesFiltersSchema"
                   :errors="filterErrors"
+                  :embedded="isMobile"
                 />
               </div>
               <div

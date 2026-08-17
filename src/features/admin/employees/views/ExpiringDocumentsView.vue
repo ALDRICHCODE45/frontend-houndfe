@@ -34,7 +34,7 @@
 
 import { computed } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import { AppDataTable, SortableHeader, createSimpleHeader } from '@/core/shared/components/DataTable'
+import { AppDataTable, FilterSectionCard, SortableHeader, createSimpleHeader } from '@/core/shared/components/DataTable'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
 import { useExpiringDocuments } from '../composables/useExpiringDocuments'
@@ -173,21 +173,27 @@ function getCategoryLabel(category: string): string {
           enable-column-visibility
           :empty="emptyMessage"
           @refresh="refresh"
+          @clear-filters="selectedThreshold = 30"
         >
-          <!-- Expiry-window selector (REQ-7 — lives in #filters, not the header) -->
+          <!-- Expiry-window selector (REQ-7 — lives in #filters, not the header).
+               polish-filters-bottom-sheet: FilterSectionCard owns the card
+               chrome + "Vencimiento" title so the mobile sheet renders the
+               slot directly (no vnode capture). -->
           <template #filters>
-            <div class="flex shrink-0 items-center gap-2" data-testid="expiring-threshold-filters">
-              <span class="text-sm text-muted">Vencen en los próximos:</span>
-              <USelect
-                v-model="selectedThreshold"
-                :items="thresholdOptions"
-                value-key="value"
-                label-key="label"
-                size="sm"
-                class="w-32"
-                aria-label="Ventana de vencimiento"
-              />
-            </div>
+            <FilterSectionCard title="Vencimiento">
+              <div class="flex shrink-0 items-center gap-2" data-testid="expiring-threshold-filters">
+                <span class="text-sm text-muted">Vencen en los próximos:</span>
+                <USelect
+                  v-model="selectedThreshold"
+                  :items="thresholdOptions"
+                  value-key="value"
+                  label-key="label"
+                  size="sm"
+                  class="w-32"
+                  aria-label="Ventana de vencimiento"
+                />
+              </div>
+            </FilterSectionCard>
           </template>
 
           <!-- Sortable headers (REQ-2) -->

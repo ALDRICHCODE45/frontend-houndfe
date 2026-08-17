@@ -11,6 +11,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { computed, ref } from 'vue'
 import AdminTenantsView from '../AdminTenantsView.vue'
+import FilterSectionCard from '@/core/shared/components/DataTable/FilterSectionCard.vue'
 import type { TenantTableRow } from '../../interfaces/tenant.types'
 
 // ── Mocks for composables that the view consumes ─────────────────────────────
@@ -448,6 +449,18 @@ describe('AdminTenantsView — #filters slot and isActive cell', () => {
     // The UCheckbox (mocked or real) renders a checkbox role inside the
     // AppDataTable toolbar. Assert it exists in the rendered tree.
     expect(wrapper.findAll('[role="checkbox"]').length).toBeGreaterThan(0)
+  })
+
+  // polish-filters-bottom-sheet: the includeInactive checkbox is wrapped in a
+  // FilterSectionCard (title "Estado") — card chrome owned by the view, not
+  // captured/re-rendered by the toolbar.
+  it('wraps the includeInactive checkbox in a FilterSectionCard titled "Estado"', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+    const card = wrapper.findComponent(FilterSectionCard)
+    expect(card.exists()).toBe(true)
+    expect(card.props('title')).toBe('Estado')
+    expect(card.find('[role="checkbox"]').exists()).toBe(true)
   })
 
   it('renders the includeInactive checkbox inside the filters slot in card mode', async () => {

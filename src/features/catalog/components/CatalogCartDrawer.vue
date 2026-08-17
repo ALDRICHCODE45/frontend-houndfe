@@ -31,6 +31,7 @@ function openWhatsApp() {
   <USlideover
     :open="cart.isCartOpen"
     side="right"
+    inset
     :ui="{
       overlay: 'bg-black/60 backdrop-blur-sm !z-50',
       content: 'sm:max-w-md bg-white !z-50',

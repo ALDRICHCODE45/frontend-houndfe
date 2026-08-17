@@ -793,6 +793,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
         v-if="isMobileViewport && cartDrawerOpen"
         :open="cartDrawerOpen"
         side="bottom"
+        inset
         :ui="{ content: 'h-[90vh] max-h-[90vh] rounded-t-2xl' }"
         @update:open="cartDrawerOpen = $event"
       >

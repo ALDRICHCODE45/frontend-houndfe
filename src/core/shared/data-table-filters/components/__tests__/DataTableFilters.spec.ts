@@ -124,4 +124,54 @@ describe('DataTableFilters (v2)', () => {
     expect(wrapper.find('[data-testid="slideover"]').attributes('data-open')).toBe('false')
     expect(wrapper.emitted('update:state')).toBeUndefined()
   })
+
+  // ── embedded mode (REQ-5 / WU-1) ──────────────────────────────────────────
+  // When embedded, the wrapper DataTableToolbar owns the slideover; this
+  // component renders only its filter sections + chips inside that sheet.
+  // The trigger button and the own slideover MUST NOT render, and the
+  // exposed open()/close() controls MUST be no-ops so a stale caller cannot
+  // accidentally toggle a hidden sheet.
+
+  it('embedded=true renders only the embedded filter surface (no trigger, no slideover)', () => {
+    const state = { ...schema.defaults(), paymentMethod: ['CARD_DEBIT'] }
+    const wrapper = mount(DataTableFilters, {
+      props: { schema, state, embedded: true },
+      global: { stubs: baseStubs },
+    })
+
+    expect(wrapper.find('[data-testid="data-table-filters-embedded"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="filters-trigger"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="slideover"]').exists()).toBe(false)
+  })
+
+  it('embedded=true: exposed open()/close() are no-ops (slideover state stays closed)', async () => {
+    const wrapper = mount(DataTableFilters, {
+      props: { schema, state: schema.defaults(), embedded: true },
+      global: { stubs: baseStubs },
+    })
+
+    // Pre-condition: in embedded mode there is no slideover at all, so calling
+    // open()/close() must not throw or attempt to mount one.
+    expect(wrapper.find('[data-testid="slideover"]').exists()).toBe(false)
+
+    const vm = wrapper.vm as unknown as { open: () => void, close: () => void }
+    vm.open()
+    vm.close()
+    await wrapper.vm.$nextTick()
+
+    // Still no slideover — embedded mode owns nothing that should be toggled.
+    expect(wrapper.find('[data-testid="slideover"]').exists()).toBe(false)
+  })
+
+  it('embedded unset preserves current standalone trigger + slideover behaviour', () => {
+    const wrapper = mount(DataTableFilters, {
+      props: { schema, state: schema.defaults() },
+      global: { stubs: baseStubs },
+    })
+
+    expect(wrapper.find('[data-testid="filters-trigger"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="slideover"]').exists()).toBe(true)
+    // The embedded marker MUST NOT render when the prop is omitted/false.
+    expect(wrapper.find('[data-testid="data-table-filters-embedded"]').exists()).toBe(false)
+  })
 })

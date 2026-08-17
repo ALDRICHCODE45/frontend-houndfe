@@ -215,7 +215,7 @@ describe('DataTableToolbar — filters collapse to bottom-sheet on mobile', () =
     isBelowBreakpoint.value = true
   })
 
-  it('opens USlideover side="bottom" with a scrollable content region', () => {
+  it('opens USlideover side="bottom" with a scrollable body region', () => {
     const wrapper = mountToolbar(
       { activeFilterCount: 1 },
       { filters: '<span data-testid="fake-filter" />' },
@@ -228,8 +228,8 @@ describe('DataTableToolbar — filters collapse to bottom-sheet on mobile', () =
     expect(slideover.exists()).toBe(true)
     expect(slideover.attributes('data-side')).toBe('bottom')
 
-    // Scrollable height class is present on the content region (landscape overflow).
-    const scrollRegion = wrapper.find('[data-testid="toolbar-filters-content"]')
+    // Scrollable height class is present on the body region (landscape overflow).
+    const scrollRegion = wrapper.find('[data-testid="toolbar-filters-body"]')
     expect(scrollRegion.exists()).toBe(true)
     const scrollClasses = (scrollRegion.element.getAttribute('class') ?? '').split(/\s+/)
     expect(scrollClasses).toContain('overflow-y-auto')
@@ -249,7 +249,7 @@ describe('DataTableToolbar — filters collapse to bottom-sheet on mobile', () =
   })
 
   it('keeps the filters slot content mounted while the sheet is open', async () => {
-    // The slot is rendered inside the slideover content; Vue keeps the
+    // The slot is rendered inside the slideover body; Vue keeps the
     // underlying filter state intact across open/close cycles because the
     // `#filters` slot's vnodes are not torn down.
     const wrapper = mountToolbar(
@@ -264,6 +264,118 @@ describe('DataTableToolbar — filters collapse to bottom-sheet on mobile', () =
     expect(wrapper.find('[data-testid="slideover"]').attributes('data-open')).toBe('true')
     // The filter input is mounted inside the open sheet.
     expect(wrapper.find('[data-testid="persisted-filter-input"]').exists()).toBe(true)
+  })
+})
+
+// ─── Mobile filters bottom-sheet polish (REQ-2 / REQ-3 / REQ-4 / WU-2) ───────
+// The sheet is now three regions: a sticky header (Filtros + active-count
+// badge + Limpiar todo), a scrollable body (each #filters child wrapped in a
+// card section), and a sticky footer (Cerrar). The #filters-title slot
+// overrides the default "Filtros" label.
+
+describe('DataTableToolbar — mobile filters bottom-sheet polish (REQ-2..4 / WU-2)', () => {
+  beforeEach(() => {
+    isBelowBreakpoint.value = true
+  })
+
+  it('renders a sticky header with title "Filtros", badge, and "Limpiar todo" when activeFilterCount > 0', async () => {
+    const wrapper = mountToolbar(
+      { activeFilterCount: 2 },
+      { filters: '<span data-testid="fake-filter" />' },
+    )
+    await wrapper.get('[data-testid="toolbar-filtros-button"]').trigger('click')
+
+    const header = wrapper.get('[data-testid="toolbar-filters-header"]')
+    expect(header.text()).toContain('Filtros')
+    expect(header.text()).toContain('Limpiar todo')
+    // The badge with the count is rendered with the existing
+    // toolbar-filtros-badge testid (already used for the trigger button)
+    // — inside the header it carries the count as data-label.
+    const headerBadge = header.find('[data-testid="toolbar-filtros-badge"]')
+    expect(headerBadge.exists()).toBe(true)
+    expect(headerBadge.attributes('data-label')).toBe('2')
+  })
+
+  it('renders header without badge or "Limpiar todo" when activeFilterCount is 0', async () => {
+    const wrapper = mountToolbar(
+      { activeFilterCount: 0 },
+      { filters: '<span data-testid="fake-filter" />' },
+    )
+    await wrapper.get('[data-testid="toolbar-filtros-button"]').trigger('click')
+
+    const header = wrapper.get('[data-testid="toolbar-filters-header"]')
+    expect(header.text()).toContain('Filtros')
+    expect(header.find('[data-testid="toolbar-filtros-badge"]').exists()).toBe(false)
+    expect(header.text()).not.toContain('Limpiar todo')
+  })
+
+  it('renders the #filters slot directly inside the sheet body (no vnode capture/re-render)', async () => {
+    const wrapper = mountToolbar(
+      { activeFilterCount: 1 },
+      {
+        filters: `
+          <div data-testid="fake-filter">A</div>
+          <div data-testid="fake-filter">B</div>
+        `,
+        'filters-title': 'Filtros de ventas',
+      },
+    )
+    await wrapper.get('[data-testid="toolbar-filtros-button"]').trigger('click')
+
+    const body = wrapper.get('[data-testid="toolbar-filters-body"]')
+    // Card sections are owned by the views (FilterSectionCard), so the
+    // toolbar MUST NOT emit per-child section wrappers anymore — the slot
+    // children render as-is inside the body.
+    expect(body.findAll('[data-testid^="toolbar-filters-section-"]').length).toBe(0)
+    const filters = body.findAll('[data-testid="fake-filter"]')
+    expect(filters.length).toBe(2)
+  })
+
+  it('emits clear-filters when "Limpiar todo" is clicked', async () => {
+    const wrapper = mountToolbar(
+      { activeFilterCount: 2 },
+      { filters: '<span data-testid="fake-filter" />' },
+    )
+    await wrapper.get('[data-testid="toolbar-filtros-button"]').trigger('click')
+
+    const clearBtn = wrapper.find('[data-testid="toolbar-filters-clear-all"]')
+    expect(clearBtn.exists()).toBe(true)
+    await clearBtn.trigger('click')
+    expect(wrapper.emitted('clear-filters')).toHaveLength(1)
+  })
+
+  it('renders a sticky footer with "Cerrar" that closes the sheet', async () => {
+    const wrapper = mountToolbar(
+      { activeFilterCount: 1 },
+      { filters: '<span data-testid="fake-filter" />' },
+    )
+    await wrapper.get('[data-testid="toolbar-filtros-button"]').trigger('click')
+    expect(wrapper.find('[data-testid="slideover"]').attributes('data-open')).toBe('true')
+
+    const footer = wrapper.get('[data-testid="toolbar-filters-footer"]')
+    expect(footer.text()).toContain('Cerrar')
+
+    const closeBtn = footer.find('button')
+    expect(closeBtn.exists()).toBe(true)
+    await closeBtn.trigger('click')
+
+    expect(wrapper.find('[data-testid="slideover"]').attributes('data-open')).toBe('false')
+  })
+
+  it('#filters-title slot overrides the default "Filtros" header label', async () => {
+    const wrapper = mountToolbar(
+      { activeFilterCount: 0 },
+      {
+        filters: '<span data-testid="fake-filter" />',
+        'filters-title': 'Búsqueda avanzada',
+      },
+    )
+    await wrapper.get('[data-testid="toolbar-filtros-button"]').trigger('click')
+
+    const header = wrapper.get('[data-testid="toolbar-filters-header"]')
+    expect(header.text()).toContain('Búsqueda avanzada')
+    // The default "Filtros" label must NOT appear when the slot overrides it.
+    expect(header.text()).not.toContain('Filtros')
   })
 })
 
