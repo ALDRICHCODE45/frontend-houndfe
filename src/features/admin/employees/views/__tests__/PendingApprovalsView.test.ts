@@ -114,6 +114,13 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
             data-testid="table-row"
             :data-row-id="row.id"
           >
+            <slot name="colaborador-cell" :row="{ original: row }" />
+            <slot name="tipo-cell" :row="{ original: row }" />
+            <slot name="fechas-cell" :row="{ original: row }" />
+            <slot name="dias-cell" :row="{ original: row }" />
+            <slot name="motivo-cell" :row="{ original: row }" />
+            <slot name="estado-cell" :row="{ original: row }" />
+            <slot name="solicitada-cell" :row="{ original: row }" />
             <slot name="acciones-cell" :row="{ original: row }" />
           </div>
         </div>
@@ -882,5 +889,54 @@ describe('PendingApprovalsView — review dialog flow (REQ-3, REQ-6)', () => {
     // REQ-3 scenario "reject routes to dialog with reject copy": placeholder
     // for notes reads "Motivo del rechazo...".
     chaiExpect(html).toContain('Motivo del rechazo')
+  })
+})
+
+// ── Fix: table view renders the data columns (not only acciones) ──────────────
+//
+// Regression guard for the empty-table-cells bug: the 7 data columns
+// (colaborador, tipo, fechas, dias, motivo, estado, solicitada) previously had
+// no `#{id}-cell` slot, so every cell rendered empty while the cards view
+// worked. The stub forwards those slots so the fix is exercised in TABLE mode.
+
+describe('PendingApprovalsView — table data cells (fix)', () => {
+  const fixture = () => [
+    {
+      id: 'to-1',
+      employeeId: 'emp-unknown',
+      type: 'VACATION',
+      startDate: '2026-08-01',
+      endDate: '2026-08-10',
+      reason: 'Viaje',
+      status: 'PENDING',
+      createdAt: '2026-07-01T10:00:00Z',
+      requestedByUserId: null,
+      reviewerUserId: null,
+      reviewedAt: null,
+      reviewerNotes: null,
+      tenantId: 'tenant-1',
+      updatedAt: '2026-07-01T10:00:00Z',
+    },
+  ]
+
+  it('renders tipo, motivo, estado and días with their formatted values', async () => {
+    mockPending.data.value = fixture()
+    const wrapper = mount(getView().default)
+    await flushPromises()
+    const tableData = wrapper.find('[data-testid="table-data"]')
+    chaiExpect(tableData.exists()).toBe(true)
+    const text = tableData.text()
+    chaiExpect(text).toContain('Vacaciones')
+    chaiExpect(text).toContain('Viaje')
+    chaiExpect(text).toContain('Pendiente')
+    chaiExpect(text).toContain('días')
+  })
+
+  it('renders the colaborador cell with the "—" sentinel when the picker map is empty', async () => {
+    mockPending.data.value = fixture()
+    const wrapper = mount(getView().default)
+    await flushPromises()
+    // The picker query is stubbed to empty, so the name resolves to "—".
+    chaiExpect(wrapper.find('[data-testid="table-data"]').text()).toContain('—')
   })
 })

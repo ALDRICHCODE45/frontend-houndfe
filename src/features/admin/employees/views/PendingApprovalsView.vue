@@ -69,11 +69,13 @@ import { usePendingApprovalsViewMode } from '../composables/usePendingApprovalsV
 import { usePendingApprovalsColumns } from '../composables/usePendingApprovalsColumns'
 import {
   formatTimeOffType,
+  formatTimeOffStatus,
   computeTimeOffDays,
+  resolveSickReason,
   filterPendingBySearch,
 } from '../composables/useAusencias'
 import { buildManagerMap } from '../composables/useManagerResolution'
-import { formatTimeOffDateRange } from '../composables/useEmployeeColumns'
+import { formatTimeOffDate, formatTimeOffDateRange } from '../composables/useEmployeeColumns'
 import { buildPendingApprovalCardData } from '../composables/usePendingApprovalCard'
 import PendingApprovalCard from '../components/PendingApprovalCard.vue'
 import { employeesApi } from '../api/employees.api'
@@ -281,6 +283,11 @@ function cancelReview(): void {
 // Type color is owned by `buildPendingApprovalCardData` (WU-B). The card
 // template renders the badge via `data.typeColor`. formatTimeOffDateRange
 // is imported from useEmployeeColumns and shared with AusenciasPanel.
+
+/** Resolve the employee display name for a table row (mirrors the card's "—" sentinel). */
+function resolveEmployeeName(request: TimeOffRequest): string {
+  return employeeMap.value.get(request.employeeId)?.fullName ?? '—'
+}
 </script>
 
 <template>
@@ -347,6 +354,50 @@ function cancelReview(): void {
                 </span>
               </template>
             </p>
+          </template>
+
+          <!-- Fix: per-column cell renderers for the TABLE view. The 7 data
+               columns previously had no cell slot (only #acciones-cell), so
+               every data cell rendered empty while the cards view worked. -->
+          <template #colaborador-cell="{ row }">
+            <span class="text-sm font-medium text-default">
+              {{ resolveEmployeeName(row.original) }}
+            </span>
+          </template>
+
+          <template #tipo-cell="{ row }">
+            <span class="text-sm text-default">{{ formatTimeOffType(row.original.type) }}</span>
+          </template>
+
+          <template #fechas-cell="{ row }">
+            <span class="text-sm text-default">
+              {{ formatTimeOffDateRange(row.original.startDate, row.original.endDate) }}
+            </span>
+          </template>
+
+          <template #dias-cell="{ row }">
+            <span class="text-sm text-default">
+              {{ computeTimeOffDays(row.original.startDate, row.original.endDate) }}
+              {{
+                computeTimeOffDays(row.original.startDate, row.original.endDate) === 1
+                  ? 'día'
+                  : 'días'
+              }}
+            </span>
+          </template>
+
+          <template #motivo-cell="{ row }">
+            <span class="text-sm text-default">
+              {{ resolveSickReason(row.original.type, row.original.reason) }}
+            </span>
+          </template>
+
+          <template #estado-cell="{ row }">
+            <span class="text-sm text-default">{{ formatTimeOffStatus(row.original.status) }}</span>
+          </template>
+
+          <template #solicitada-cell="{ row }">
+            <span class="text-sm text-default">{{ formatTimeOffDate(row.original.createdAt) }}</span>
           </template>
 
           <!-- WU-B: per-row approve / reject in the table view (REQ-3).
