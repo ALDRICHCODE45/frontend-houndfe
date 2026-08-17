@@ -309,7 +309,7 @@ describe('DataTableToolbar — mobile filters bottom-sheet polish (REQ-2..4 / WU
     expect(header.text()).not.toContain('Limpiar todo')
   })
 
-  it('wraps each #filters child inside a card section with toolbar-filters-section-{id} title', async () => {
+  it('renders the #filters slot directly inside the sheet body (no vnode capture/re-render)', async () => {
     const wrapper = mountToolbar(
       { activeFilterCount: 1 },
       {
@@ -323,17 +323,25 @@ describe('DataTableToolbar — mobile filters bottom-sheet polish (REQ-2..4 / WU
     await wrapper.get('[data-testid="toolbar-filtros-button"]').trigger('click')
 
     const body = wrapper.get('[data-testid="toolbar-filters-body"]')
-    // The body contains the card section wrapping each slot child.
-    const sections = body.findAll('[data-testid^="toolbar-filters-section-"]')
-    expect(sections.length).toBeGreaterThan(0)
-    // Card classes — bg-elevated/30 per the CreateEmployeeSlideover pattern.
-    const firstSection = sections[0]!
-    const sectionClasses = (firstSection.element.getAttribute('class') ?? '').split(/\s+/)
-    expect(sectionClasses).toContain('rounded-lg')
-    expect(sectionClasses).toContain('border-default')
-    expect(sectionClasses.some(c => c.includes('bg-elevated'))).toBe(true)
-    // Card carries the slot content.
-    expect(body.find('[data-testid="fake-filter"]').exists()).toBe(true)
+    // Card sections are owned by the views (FilterSectionCard), so the
+    // toolbar MUST NOT emit per-child section wrappers anymore — the slot
+    // children render as-is inside the body.
+    expect(body.findAll('[data-testid^="toolbar-filters-section-"]').length).toBe(0)
+    const filters = body.findAll('[data-testid="fake-filter"]')
+    expect(filters.length).toBe(2)
+  })
+
+  it('emits clear-filters when "Limpiar todo" is clicked', async () => {
+    const wrapper = mountToolbar(
+      { activeFilterCount: 2 },
+      { filters: '<span data-testid="fake-filter" />' },
+    )
+    await wrapper.get('[data-testid="toolbar-filtros-button"]').trigger('click')
+
+    const clearBtn = wrapper.find('[data-testid="toolbar-filters-clear-all"]')
+    expect(clearBtn.exists()).toBe(true)
+    await clearBtn.trigger('click')
+    expect(wrapper.emitted('clear-filters')).toHaveLength(1)
   })
 
   it('renders a sticky footer with "Cerrar" that closes the sheet', async () => {

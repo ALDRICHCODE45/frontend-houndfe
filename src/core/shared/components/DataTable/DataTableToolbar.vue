@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
 import { computed, ref, useSlots } from 'vue'
-import type { VNode } from 'vue'
 
 const props = withDefaults(
   defineProps<{
@@ -52,6 +51,7 @@ const emit = defineEmits<{
   'update:globalFilter': [value: string]
   add: []
   refresh: []
+  'clear-filters': []
 }>()
 
 // Table API injection for column visibility — provided by parent
@@ -90,37 +90,6 @@ function openFilters() {
 function closeFilters() {
   isFiltersOpen.value = false
 }
-
-// ─── Per-child section descriptors ──────────────────────────────────────────
-// REQ-3 / WU-2: the sheet body wraps every direct child of the `#filters`
-// slot in a section card. Each child may declare its own section id via a
-// `data-section-id` attribute on the root element — falling back to a
-// 1-indexed positional id so every card has a stable testid even without an
-// explicit name (e.g. SalesListView's mixed widgets).
-
-interface SectionDescriptor {
-  id: string
-  node: VNode
-}
-
-function readSectionId(vnode: VNode, fallback: number): string {
-  const attrs = (vnode.props ?? {}) as Record<string, unknown>
-  const raw = attrs['data-section-id']
-  return typeof raw === 'string' && raw.length > 0 ? raw : String(fallback)
-}
-
-const filtersSections = computed<SectionDescriptor[]>(() => {
-  const slotFn = slots.filters
-  if (!slotFn) return []
-  const vnodes = slotFn()
-  if (!Array.isArray(vnodes)) return []
-  return vnodes
-    .filter((vnode): vnode is VNode => Boolean(vnode) && typeof vnode === 'object')
-    .map((vnode, index) => ({
-      id: readSectionId(vnode, index + 1),
-      node: vnode,
-    }))
-})
 
 /** Capitalize first letter of a string (column-header fallback). */
 function capitalize(str: string): string {
@@ -352,27 +321,22 @@ function capitalize(str: string): string {
                 color="neutral"
                 size="sm"
                 data-testid="toolbar-filters-clear-all"
+                @click="emit('clear-filters')"
               >
                 Limpiar todo
               </UButton>
             </div>
 
-            <!-- Scrollable body — card sections per #filters child -->
+            <!-- Scrollable body — renders the #filters slot DIRECTLY so that
+                 leaf components relying on provide/inject + Teleport (e.g.
+                 USelect's Reka UI popover) keep their parentage and open
+                 correctly. Card sections are owned by the consuming views via
+                 FilterSectionCard, not captured/re-rendered here. -->
             <div
               class="h-[85vh] max-h-[85vh] min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
               data-testid="toolbar-filters-body"
             >
-              <div
-                v-for="section in filtersSections"
-                :key="section.id"
-                class="rounded-lg border border-default bg-elevated/30 px-4 py-4"
-                :data-testid="`toolbar-filters-section-${section.id}`"
-              >
-                <p class="mb-4 text-sm font-semibold text-highlighted">
-                  <slot name="filters-title">Filtros</slot>
-                </p>
-                <component :is="() => section.node" />
-              </div>
+              <slot name="filters" />
             </div>
 
             <!-- Sticky footer (Cerrar button) -->

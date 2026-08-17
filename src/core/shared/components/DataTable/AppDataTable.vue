@@ -102,6 +102,7 @@ const props = withDefaults(
 const emit = defineEmits<{
   add: []
   refresh: []
+  'clear-filters': []
 }>()
 
 // v-model bindings for table state
@@ -191,6 +192,7 @@ function handleClearSelection() {
       @update:global-filter="globalFilter = $event"
       @add="emit('add')"
       @refresh="emit('refresh')"
+      @clear-filters="emit('clear-filters')"
     >
       <template #filters>
         <slot name="filters" />
