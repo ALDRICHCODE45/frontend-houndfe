@@ -34,7 +34,7 @@
 
 import { computed } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
-import { AppDataTable, SortableHeader, createSimpleHeader } from '@/core/shared/components/DataTable'
+import { AppDataTable, FilterSectionCard, SortableHeader, createSimpleHeader } from '@/core/shared/components/DataTable'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
 import { useExpiringDocuments } from '../composables/useExpiringDocuments'
@@ -173,13 +173,14 @@ function getCategoryLabel(category: string): string {
           enable-column-visibility
           :empty="emptyMessage"
           @refresh="refresh"
+          @clear-filters="selectedThreshold = 30"
         >
           <!-- Expiry-window selector (REQ-7 — lives in #filters, not the header).
-               WU-4 / polish-filters-bottom-sheet: the section wrapper carries
-               data-section-id="threshold" so the mobile sheet wraps it in a
-               card with a "Filtros" title (CreateEmployeeSlideover pattern). -->
+               polish-filters-bottom-sheet: FilterSectionCard owns the card
+               chrome + "Vencimiento" title so the mobile sheet renders the
+               slot directly (no vnode capture). -->
           <template #filters>
-            <div data-section-id="threshold">
+            <FilterSectionCard title="Vencimiento">
               <div class="flex shrink-0 items-center gap-2" data-testid="expiring-threshold-filters">
                 <span class="text-sm text-muted">Vencen en los próximos:</span>
                 <USelect
@@ -192,7 +193,7 @@ function getCategoryLabel(category: string): string {
                   aria-label="Ventana de vencimiento"
                 />
               </div>
-            </div>
+            </FilterSectionCard>
           </template>
 
           <!-- Sortable headers (REQ-2) -->

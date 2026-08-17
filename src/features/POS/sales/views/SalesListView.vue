@@ -178,13 +178,11 @@ watch(() => filtersCtl.serializedState.value, () => {
           empty="No hay ventas todavía"
           @add="goToNewSale"
           @refresh="refresh"
+          @clear-filters="filtersCtl.clearAll()"
         >
           <template #filters>
             <div class="flex w-full flex-wrap items-center gap-2">
-              <div
-                class="w-full overflow-x-auto"
-                data-section-id="sales-filters"
-              >
+              <div class="w-full overflow-x-auto">
                 <DataTableFilters
                   v-model:state="filtersState"
                   :schema="salesFiltersSchema"

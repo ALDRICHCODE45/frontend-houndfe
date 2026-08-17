@@ -27,6 +27,7 @@
 import { describe, it, expect as chaiExpect, vi, beforeEach, beforeAll } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { computed, ref } from 'vue'
+import FilterSectionCard from '@/core/shared/components/DataTable/FilterSectionCard.vue'
 
 // ── Mock state for the shared `useServerTable` composable ─────────────────────
 //
@@ -563,16 +564,16 @@ describe('EmployeesListView — status tabs in #filters (REQ-4)', () => {
     chaiExpect(wrapper.find('[data-testid="employee-filters"]').exists()).toBe(true)
   })
 
-  // WU-4 / polish-filters-bottom-sheet: EmployeeFilters is rendered inside
-  // a card section with id="status" so the unified bottom-sheet on mobile
-  // wraps it in a CreateEmployeeSlideover-style card with a title.
-  it('wraps EmployeeFilters in a card section with data-section-id="status"', async () => {
+  // polish-filters-bottom-sheet: EmployeeFilters is rendered inside a
+  // FilterSectionCard (title "Estado"). Card chrome is owned by the view —
+  // the toolbar renders the #filters slot directly (no vnode capture).
+  it('wraps EmployeeFilters in a FilterSectionCard titled "Estado"', async () => {
     const wrapper = mount(getView().default)
     await flushPromises()
-    chaiExpect(wrapper.find('[data-section-id="status"]').exists()).toBe(true)
-    chaiExpect(
-      wrapper.find('[data-section-id="status"]').find('[data-testid="employee-filters"]').exists(),
-    ).toBe(true)
+    const card = wrapper.findComponent(FilterSectionCard)
+    chaiExpect(card.exists()).toBe(true)
+    chaiExpect(card.props('title')).toBe('Estado')
+    chaiExpect(card.find('[data-testid="employee-filters"]').exists()).toBe(true)
   })
 
   it('defaults the status tab to "all" (Todos)', async () => {

@@ -442,21 +442,21 @@ const errorMessage = computed(() => {
             refresh-button-test-id="refresh-quotations-button"
             @refresh="refresh"
             @add="goToCreate"
+            @clear-filters="filtersCtl.clearAll()"
           >
             <!-- Filtros moved inside AppDataTable's #filters slot — REQ-QAF-011.
                  Embedded mode (WU-3 / polish-filters-bottom-sheet): the
                  wrapper's USlideover owns the trigger, header and footer —
                  DataTableFilters v2 renders only its sections + chips
                  inside the unified bottom-sheet so users see ONE "Filtros"
-                 tap → ONE sheet (no nested slideover-in-slideover). -->
+                 tap → ONE sheet (no nested slideover-in-slideover).
+                 Card sections are owned by DataTableFilters' embedded groups. -->
             <template #filters>
-              <div data-section-id="quotations">
-                <DataTableFilters
-                  v-model:state="filtersState"
-                  :schema="quotationFiltersSchema"
-                  :embedded="true"
-                />
-              </div>
+              <DataTableFilters
+                v-model:state="filtersState"
+                :schema="quotationFiltersSchema"
+                :embedded="true"
+              />
             </template>
 
             <!-- ViewToggle persisted via useQuotationsViewMode. -->

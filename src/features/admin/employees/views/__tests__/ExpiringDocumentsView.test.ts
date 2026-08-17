@@ -25,6 +25,7 @@ import { describe, it, expect as chaiExpect, vi, beforeEach, beforeAll } from 'v
 import { mount, flushPromises } from '@vue/test-utils'
 import { ref } from 'vue'
 import { employeesApi } from '@/features/admin/employees/api/employees.api'
+import FilterSectionCard from '@/core/shared/components/DataTable/FilterSectionCard.vue'
 
 // ── Mock state for `useExpiringDocuments` (new composable surface) ────────────
 
@@ -340,14 +341,17 @@ describe('ExpiringDocumentsView — threshold selector in #filters (REQ-7)', () 
     ).toBe(false)
   })
 
-  // WU-4 / polish-filters-bottom-sheet: the threshold selector is wrapped
-  // in a card section so the unified bottom-sheet gives it a title.
-  it('wraps the threshold selector in a card section with data-section-id="threshold"', async () => {
+  // polish-filters-bottom-sheet: the threshold selector is wrapped in a
+  // FilterSectionCard (title "Vencimiento") — card chrome owned by the view,
+  // not captured/re-rendered by the toolbar.
+  it('wraps the threshold selector in a FilterSectionCard titled "Vencimiento"', async () => {
     const wrapper = mountView()
     await flushPromises()
-    chaiExpect(wrapper.find('[data-section-id="threshold"]').exists()).toBe(true)
+    const card = wrapper.findComponent(FilterSectionCard)
+    chaiExpect(card.exists()).toBe(true)
+    chaiExpect(card.props('title')).toBe('Vencimiento')
     chaiExpect(
-      wrapper.find('[data-section-id="threshold"]').find('[data-testid="expiring-threshold-filters"]').exists(),
+      card.find('[data-testid="expiring-threshold-filters"]').exists(),
     ).toBe(true)
   })
 

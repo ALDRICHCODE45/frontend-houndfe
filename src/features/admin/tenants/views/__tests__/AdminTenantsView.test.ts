@@ -11,6 +11,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { computed, ref } from 'vue'
 import AdminTenantsView from '../AdminTenantsView.vue'
+import FilterSectionCard from '@/core/shared/components/DataTable/FilterSectionCard.vue'
 import type { TenantTableRow } from '../../interfaces/tenant.types'
 
 // ── Mocks for composables that the view consumes ─────────────────────────────
@@ -450,15 +451,15 @@ describe('AdminTenantsView — #filters slot and isActive cell', () => {
     expect(wrapper.findAll('[role="checkbox"]').length).toBeGreaterThan(0)
   })
 
-  // WU-4 / polish-filters-bottom-sheet: the includeInactive checkbox is
-  // wrapped in a card section so the unified bottom-sheet gives it a title.
-  it('wraps the includeInactive checkbox in a card section with data-section-id="inactive"', async () => {
+  // polish-filters-bottom-sheet: the includeInactive checkbox is wrapped in a
+  // FilterSectionCard (title "Estado") — card chrome owned by the view, not
+  // captured/re-rendered by the toolbar.
+  it('wraps the includeInactive checkbox in a FilterSectionCard titled "Estado"', async () => {
     const wrapper = mountView()
     await flushPromises()
-    expect(wrapper.find('[data-section-id="inactive"]').exists()).toBe(true)
-    // The UCheckbox lives inside the wrapper so the card section is its
-    // first DOM ancestor with that testid.
-    const card = wrapper.find('[data-section-id="inactive"]')
+    const card = wrapper.findComponent(FilterSectionCard)
+    expect(card.exists()).toBe(true)
+    expect(card.props('title')).toBe('Estado')
     expect(card.find('[role="checkbox"]').exists()).toBe(true)
   })
 

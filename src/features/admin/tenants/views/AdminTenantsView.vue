@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import type { AxiosError } from 'axios'
-import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
+import { AppDataTable, FilterSectionCard, SortableHeader } from '@/core/shared/components/DataTable'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
 import ViewToggle from '@/core/shared/components/ViewToggle.vue'
@@ -280,14 +280,15 @@ function getRowItems(tenant: TenantTableRow) {
           data-testid="create-tenant-button"
           @add="isCreateOpen = true"
           @refresh="refresh"
+          @clear-filters="includeInactive = false"
         >
           <template #filters>
-            <!-- WU-4 / polish-filters-bottom-sheet: the section wrapper carries
-                 data-section-id="inactive" so the mobile sheet wraps it in a
-                 card with a "Filtros" title (CreateEmployeeSlideover pattern). -->
-            <div data-section-id="inactive">
+            <!-- polish-filters-bottom-sheet: FilterSectionCard owns the card
+                 chrome + "Estado" title so the mobile sheet renders the slot
+                 directly (no vnode capture). -->
+            <FilterSectionCard title="Estado">
               <UCheckbox v-model="includeInactive" label="Mostrar inactivos" />
-            </div>
+            </FilterSectionCard>
           </template>
 
           <template #name-header="{ column }">

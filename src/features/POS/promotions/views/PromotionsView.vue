@@ -2,7 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import type { AxiosError } from 'axios'
-import { AppDataTable, SelectColumn, SortableHeader } from '@/core/shared/components/DataTable'
+import { AppDataTable, FilterSectionCard, SelectColumn, SortableHeader } from '@/core/shared/components/DataTable'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { promotionQueryKeys } from '@/core/shared/constants/query-keys'
 import type { BulkAction } from '@/core/shared/types/table.types'
@@ -114,6 +114,14 @@ const METHOD_OPTIONS = [
   { label: 'Automático', value: PROMOTION_METHOD.AUTOMATIC },
   { label: 'Manual', value: PROMOTION_METHOD.MANUAL },
 ]
+
+// Reset the three local filter refs (used by the inline "Limpiar filtros"
+// button and the toolbar's "Limpiar todo" clear-filters action).
+function resetFilters(): void {
+  filterType.value = ''
+  filterStatus.value = ''
+  filterMethod.value = ''
+}
 
 // ── Server table ──────────────────────────────────────────────────────────────
 
@@ -654,6 +662,7 @@ defineExpose({
           :bulk-actions="bulkActions"
           :enable-row-selection="canBatchDelete || canBatchEnd"
           :show-add-button="canCreate"
+          :active-filter-count="(filterType ? 1 : 0) + (filterStatus ? 1 : 0) + (filterMethod ? 1 : 0)"
           search-placeholder="Buscar promociones..."
           add-button-text="Nueva Promoción"
           add-button-icon="i-lucide-percent"
@@ -661,6 +670,7 @@ defineExpose({
           empty="No hay promociones todavía"
           @add="handleAddPromotion"
           @refresh="refresh"
+          @clear-filters="resetFilters"
         >
           <template #actions>
             <ViewToggle
@@ -671,43 +681,47 @@ defineExpose({
           </template>
 
           <template #filters>
-            <USelect
-              v-model="filterTypeSelect"
-              :items="TYPE_OPTIONS"
-              value-key="value"
-              label-key="label"
-              placeholder="Tipo"
-              class="w-48"
-              data-testid="filter-type"
-            />
-            <USelect
-              v-model="filterStatusSelect"
-              :items="STATUS_OPTIONS"
-              value-key="value"
-              label-key="label"
-              placeholder="Estado"
-              class="w-44"
-              data-testid="filter-status"
-            />
-            <USelect
-              v-model="filterMethodSelect"
-              :items="METHOD_OPTIONS"
-              value-key="value"
-              label-key="label"
-              placeholder="Método"
-              class="w-40"
-              data-testid="filter-method"
-            />
-            <UButton
-              v-if="filterType || filterStatus || filterMethod"
-              label="Limpiar filtros"
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              class="cursor-pointer"
-              data-testid="clear-filters-btn"
-              @click="filterType = ''; filterStatus = ''; filterMethod = ''"
-            />
+            <FilterSectionCard title="Filtros">
+              <div class="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-2">
+                <USelect
+                  v-model="filterTypeSelect"
+                  :items="TYPE_OPTIONS"
+                  value-key="value"
+                  label-key="label"
+                  placeholder="Tipo"
+                  class="w-full sm:w-48"
+                  data-testid="filter-type"
+                />
+                <USelect
+                  v-model="filterStatusSelect"
+                  :items="STATUS_OPTIONS"
+                  value-key="value"
+                  label-key="label"
+                  placeholder="Estado"
+                  class="w-full sm:w-44"
+                  data-testid="filter-status"
+                />
+                <USelect
+                  v-model="filterMethodSelect"
+                  :items="METHOD_OPTIONS"
+                  value-key="value"
+                  label-key="label"
+                  placeholder="Método"
+                  class="w-full sm:w-40"
+                  data-testid="filter-method"
+                />
+                <UButton
+                  v-if="filterType || filterStatus || filterMethod"
+                  label="Limpiar filtros"
+                  color="neutral"
+                  variant="ghost"
+                  size="sm"
+                  class="cursor-pointer"
+                  data-testid="clear-filters-btn"
+                  @click="resetFilters"
+                />
+              </div>
+            </FilterSectionCard>
           </template>
 
           <template #cards>
