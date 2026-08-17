@@ -139,4 +139,48 @@ describe('ProductDetailView - WU-D type watch + serviceDetail + transition map',
     // pendingLots IS cleared (only thing SERVICE loses)
     expect(vm.pendingLots).toHaveLength(0)
   })
+
+  it('renders the "Tiene variantes" switch for SERVICE (regression: variants were silently dropped on create)', async () => {
+    const wrapper = mountView()
+    await nextTick()
+
+    const vm = wrapper.vm as unknown as { formState: { type: 'PRODUCT' | 'SERVICE' } }
+    vm.formState.type = 'SERVICE'
+    await nextTick()
+
+    // The Inventario card (PRODUCT-only) hosts the switch for PRODUCT; SERVICE
+    // must expose it inside the Variantes card so pending variants actually
+    // attach to the create payload. The SERVICE-only description marks it.
+    expect(wrapper.html()).toContain('Tiene variantes')
+    expect(wrapper.html()).toContain('Opciones de tu servicio')
+  })
+
+  it('shows SERVICE variant options + a custom entry; PRODUCT keeps its own options', async () => {
+    const wrapper = mountView()
+    await nextTick()
+
+    const vm = wrapper.vm as unknown as {
+      formState: { type: 'PRODUCT' | 'SERVICE' }
+      variantOptionItems: { label: string; value: string }[]
+    }
+
+    vm.formState.type = 'SERVICE'
+    await nextTick()
+    expect(vm.variantOptionItems.map((i) => i.label)).toEqual([
+      'Duración',
+      'Horario',
+      'Frecuencia',
+      'Zona',
+      'Otra opción…',
+    ])
+
+    vm.formState.type = 'PRODUCT'
+    await nextTick()
+    expect(vm.variantOptionItems.map((i) => i.label)).toEqual([
+      'Tamaño',
+      'Color',
+      'Material',
+      'Estilo',
+    ])
+  })
 })

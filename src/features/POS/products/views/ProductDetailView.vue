@@ -66,11 +66,22 @@ const authStore = useAuthStore()
 const tenantId = computed(() => authStore.currentTenantId)
 const toast = useToast()
 
-const VARIANT_OPTION_CHOICES = ['Tamaño', 'Color', 'Material', 'Estilo'] as const
-const variantOptionItems = VARIANT_OPTION_CHOICES.map((option) => ({
-  label: option,
-  value: option,
-}))
+const PRODUCT_VARIANT_OPTIONS = ['Tamaño', 'Color', 'Material', 'Estilo'] as const
+const SERVICE_VARIANT_OPTIONS = ['Duración', 'Horario', 'Frecuencia', 'Zona'] as const
+// Sentinel for the SERVICE "Otra opción…" free-text entry.
+const CUSTOM_VARIANT_OPTION_VALUE = '__custom__'
+
+const variantOptionItems = computed<{ label: string; value: string }[]>(() => {
+  const options = isService(formState.type) ? SERVICE_VARIANT_OPTIONS : PRODUCT_VARIANT_OPTIONS
+  const items: { label: string; value: string }[] = options.map((option) => ({
+    label: option,
+    value: option,
+  }))
+  if (isService(formState.type)) {
+    items.push({ label: 'Otra opción…', value: CUSTOM_VARIANT_OPTION_VALUE })
+  }
+  return items
+})
 
 const productId = computed(() => {
   const id = route.params.id
@@ -142,6 +153,7 @@ const brandState = reactive<BrandFormState>({
 
 const variantSchema = z.object({
   option: z.string().trim().min(1, 'Selecciona una opción'),
+  customOption: z.string().trim().max(50).optional(),
   value: z.string().trim().min(1, 'El valor es obligatorio').max(100),
   sku: z.string().trim().max(100),
   barcode: z.string().trim().max(100),
@@ -195,6 +207,7 @@ function handleConfirm() {
 
 const variantState = reactive<VariantFormState>({
   option: '',
+  customOption: '',
   value: '',
   sku: '',
   barcode: '',
@@ -418,6 +431,10 @@ const showInventoryCard = computed(() => formState.type === 'PRODUCT')
 const showInventoryFields = computed(() => inventoryFieldsVisible(formState.type))
 const locationFieldLabel = computed(() => locationLabelFor(formState.type))
 const showServiceDetailCard = computed(() => isService(formState.type))
+const createModeTitle = computed(() => (isService(formState.type) ? 'Nuevo servicio' : 'Nuevo producto'))
+const createModeSubmitLabel = computed(() =>
+  isService(formState.type) ? 'Crear servicio' : 'Crear producto',
+)
 const showManualStockFields = computed(
   () => formState.useStock && !formState.useLotsAndExpirations && !formState.hasVariants,
 )
@@ -687,6 +704,7 @@ function resetBrandForm() {
 function resetVariantForm() {
   Object.assign(variantState, {
     option: '',
+    customOption: '',
     value: '',
     sku: '',
     barcode: '',
@@ -695,6 +713,25 @@ function resetVariantForm() {
     purchaseCost: '',
   })
   editingVariantId.value = null
+}
+
+/** Resolve the effective variant option on submit — maps the custom sentinel to
+ *  its free-text value. Returns an empty string when the custom field is empty. */
+function resolveVariantOption(option: string, customOption: string | undefined): string {
+  if (option === CUSTOM_VARIANT_OPTION_VALUE) return customOption?.trim() ?? ''
+  return option
+}
+
+/** Normalize an existing variant option for the form — non-catalog SERVICE values
+ *  map to the custom sentinel so editing a custom option round-trips. */
+function resolveOptionForForm(option: string): { option: string; customOption: string } {
+  const isCustom =
+    isService(formState.type) &&
+    option.length > 0 &&
+    !(SERVICE_VARIANT_OPTIONS as readonly string[]).includes(option)
+  return isCustom
+    ? { option: CUSTOM_VARIANT_OPTION_VALUE, customOption: option }
+    : { option, customOption: '' }
 }
 
 function resetLotForm() {
@@ -1092,8 +1129,10 @@ function openEditVariantModal(variantId: string) {
     if (!pending) return
 
     editingVariantId.value = pending._localId
+    const { option, customOption } = resolveOptionForForm(pending.option)
     Object.assign(variantState, {
-      option: pending.option,
+      option,
+      customOption,
       value: pending.value,
       sku: pending.sku,
       barcode: pending.barcode,
@@ -1112,8 +1151,10 @@ function openEditVariantModal(variantId: string) {
   if (!variant) return
 
   editingVariantId.value = variant.id
+  const { option, customOption } = resolveOptionForForm(variant.option ?? '')
   Object.assign(variantState, {
-    option: variant.option ?? '',
+    option,
+    customOption,
     value: variant.value ?? variant.name,
     sku: variant.sku ?? '',
     barcode: variant.barcode ?? '',
@@ -1481,6 +1522,15 @@ function handleCreateLot(event: FormSubmitEvent<LotFormState>) {
 
 function handleSubmitVariant(event: FormSubmitEvent<VariantFormState>) {
   const showInventory = inventoryFieldsVisible(formState.type)
+  const option = resolveVariantOption(event.data.option, event.data.customOption)
+  if (!option) {
+    toast.add({
+      title: 'Opción requerida',
+      description: 'Ingresá una opción personalizada.',
+      color: 'error',
+    })
+    return
+  }
 
   if (isCreateMode.value) {
     const costCents = event.data.purchaseCost
@@ -1493,7 +1543,7 @@ function handleSubmitVariant(event: FormSubmitEvent<VariantFormState>) {
       if (index !== -1) {
         pendingVariants.value[index] = {
           ...pendingVariants.value[index]!,
-          option: event.data.option,
+          option,
           value: event.data.value,
           // SERVICE drops inventory fields; mirror backend hygiene.
           ...(showInventory ? { sku: event.data.sku, barcode: event.data.barcode } : {}),
@@ -1505,7 +1555,7 @@ function handleSubmitVariant(event: FormSubmitEvent<VariantFormState>) {
     } else {
       pendingVariants.value.push({
         _localId: nextLocalId(),
-        option: event.data.option,
+        option,
         value: event.data.value,
         sku: showInventory ? event.data.sku : '',
         barcode: showInventory ? event.data.barcode : '',
@@ -1531,7 +1581,7 @@ function handleSubmitVariant(event: FormSubmitEvent<VariantFormState>) {
     : undefined
 
   const payload: CreateVariantPayload = {
-    option: event.data.option,
+    option,
     value: event.data.value,
     ...(showInventory && event.data.sku ? { sku: event.data.sku } : {}),
     ...(showInventory && event.data.barcode ? { barcode: event.data.barcode } : {}),
@@ -1694,7 +1744,7 @@ function handleEditLotPlaceholder() {
           />
           <div>
             <h1 class="text-xl font-semibold text-coco-neutral-950 dark:text-white">
-              {{ isCreateMode ? 'Nuevo producto' : formState.name || 'Producto' }}
+              {{ isCreateMode ? createModeTitle : formState.name || 'Producto' }}
             </h1>
             <p class="text-sm text-muted">
               {{ isCreateMode ? 'Completa la información del artículo para tu catálogo' : 'Editando producto' }}
@@ -1706,7 +1756,7 @@ function handleEditLotPlaceholder() {
           <UButton type="button" label="Cancelar" color="neutral" variant="outline" @click="handleBack" />
           <UButton
             v-if="!isFormReadonly"
-            :label="isCreateMode ? 'Crear producto' : 'Guardar cambios'"
+            :label="isCreateMode ? createModeSubmitLabel : 'Guardar cambios'"
             type="submit"
             form="product-detail-form"
             :loading="updateMutation.isPending.value || createMutation.isPending.value"
@@ -2046,6 +2096,19 @@ function handleEditLotPlaceholder() {
                 />
               </div>
             </template>
+
+            <!-- SERVICE: the "Tiene variantes" switch lives inside the
+                 PRODUCT-only Inventario card. For SERVICE (no inventory) it
+                 must be exposed here, otherwise pending variants are collected
+                 but never attached to the create payload (hasVariants stays
+                 false → buildFullCreatePayload skips base.variants). -->
+            <div v-if="isService(formState.type)" class="mb-4">
+              <USwitch
+                v-model="formState.hasVariants"
+                label="Tiene variantes"
+                description="Opciones de tu servicio"
+              />
+            </div>
 
             <div v-if="variantGroups.length > 0" class="mb-4 space-y-3">
               <div
@@ -3074,13 +3137,21 @@ function handleEditLotPlaceholder() {
           @submit="handleSubmitVariant"
         >
           <UFormField label="Opción" name="option">
-            <USelect
-              v-model="variantState.option"
-              :items="variantOptionItems"
-              placeholder="Selecciona una opción"
-              size="lg"
-              class="w-full"
-            />
+            <div class="space-y-2">
+              <USelect
+                v-model="variantState.option"
+                :items="variantOptionItems"
+                placeholder="Selecciona una opción"
+                size="lg"
+                class="w-full"
+              />
+              <UInput
+                v-if="variantState.option === CUSTOM_VARIANT_OPTION_VALUE"
+                v-model="variantState.customOption"
+                placeholder="Escribí la opción"
+                class="w-full"
+              />
+            </div>
           </UFormField>
 
           <UFormField label="Valor" name="value">
