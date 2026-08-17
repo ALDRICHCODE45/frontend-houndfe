@@ -190,7 +190,7 @@ watch(() => filtersCtl.serializedState.value, () => {
         >
           <template #filters>
             <div class="flex w-full flex-wrap items-center gap-2">
-              <div class="w-full overflow-x-auto">
+              <div class="w-full overflow-x-auto md:w-auto">
                 <DataTableFilters
                   v-model:state="filtersState"
                   :schema="salesFiltersSchema"
