@@ -136,11 +136,11 @@ defineExpose({ open, close })
         v-for="group in groupsWithActivity"
         :key="group.key"
         :data-testid="`section-group-${group.key}`"
-        class="space-y-4"
+        class="rounded-lg border border-default bg-elevated/30 px-4 py-4"
       >
         <p
           v-if="group.section"
-          class="text-[11px] font-semibold uppercase tracking-wider text-muted"
+          class="mb-4 text-sm font-semibold text-highlighted"
           :data-testid="`section-header-${group.key}`"
         >
           {{ group.section }}
