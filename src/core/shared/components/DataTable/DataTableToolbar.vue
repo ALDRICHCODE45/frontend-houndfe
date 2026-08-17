@@ -295,6 +295,7 @@ function capitalize(str: string): string {
         v-if="hasFiltersSlot"
         v-model:open="isFiltersOpen"
         side="bottom"
+        inset
         :dismissible="true"
       >
         <template #content>

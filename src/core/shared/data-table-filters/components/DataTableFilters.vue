@@ -229,7 +229,7 @@ defineExpose({ open, close })
       <DataTableFiltersChips :schema="props.schema" :state="state" @clear="clearField" @clear-all="clearAll" />
     </slot>
 
-    <USlideover :open="isOpen" :side="slideoverSide" :ui="slideoverUi" @update:open="isOpen = $event">
+    <USlideover :open="isOpen" :side="slideoverSide" inset :ui="slideoverUi" @update:open="isOpen = $event">
       <template #content>
         <div class="flex h-full flex-col" data-testid="filters-slideover-layout">
           <div class="sticky top-0 z-10 space-y-3 border-b border-default bg-default px-6 py-5" data-testid="filters-header">
