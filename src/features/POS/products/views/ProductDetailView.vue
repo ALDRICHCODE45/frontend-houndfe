@@ -25,7 +25,11 @@ import {
   productToFormInput,
   toCreatePayload,
   toUpdatePayload,
-  UNIT_OPTIONS,
+  inventoryFieldsVisible,
+  isService,
+  locationLabelFor,
+  serviceDetailPopulated,
+  unitOptionsFor,
   IVA_OPTIONS,
   IEPS_OPTIONS,
 } from '../composables/useProductForm'
@@ -102,6 +106,7 @@ function getDefaultFormState(): ProductFormInput {
     iepsRate: 'NO_APLICA',
     purchaseCostMode: 'NET',
     purchaseCost: centsToDecimalInput(0),
+    serviceDetail: { capacity: null, notes: '' },
   }
 }
 
@@ -410,6 +415,9 @@ const brandItems = computed(() => [
 const showLotsCheckbox = computed(() => formState.useStock && !formState.hasVariants)
 const showStockByVariantMessage = computed(() => formState.hasVariants)
 const showInventoryCard = computed(() => formState.type === 'PRODUCT')
+const showInventoryFields = computed(() => inventoryFieldsVisible(formState.type))
+const locationFieldLabel = computed(() => locationLabelFor(formState.type))
+const showServiceDetailCard = computed(() => isService(formState.type))
 const showManualStockFields = computed(
   () => formState.useStock && !formState.useLotsAndExpirations && !formState.hasVariants,
 )
@@ -566,19 +574,43 @@ watch(
 
 watch(
   () => formState.type,
-  (type) => {
+  (type, previousType) => {
+    // SERVICE: force inventory defaults (stock/lots off, qty 0) and clear
+    // pendingLots only. NEVER force hasVariants=false and NEVER clear
+    // pendingVariants / pendingPriceLists — services support variants
+    // (dog-walk durations, etc) per the backend handoff.
     if (type === 'SERVICE') {
       formState.useStock = false
       formState.useLotsAndExpirations = false
-      formState.hasVariants = false
       formState.quantity = 0
       formState.minQuantity = 0
-      if (isCreateMode.value) {
-        pendingVariants.value = []
-        pendingLots.value = []
-        pendingPriceLists.value = []
-        isAddPriceListPickerOpen.value = false
-        pendingPriceListSelection.value = ''
+      pendingLots.value = []
+    }
+
+    // In edit mode, switching types needs explicit warnings. The backend will
+    // also surface PRODUCT_TYPE_CHANGE_BLOCKED if a type change can't be
+    // honored (handled in mapDomainError below).
+    if (previousType && previousType !== type) {
+      if (type === 'PRODUCT' && previousType === 'SERVICE') {
+        toast.add({
+          title: 'Cambiaste a Producto',
+          description:
+            'Después de guardar, agrega existencias y costos nuevamente. La información de servicio no se traslada.',
+          color: 'warning',
+        })
+      } else if (type === 'SERVICE' && previousType === 'PRODUCT') {
+        const hadStock = !!(product as any)?.value?.useStock
+        const hadLots = !!(product as any)?.value?.useLotsAndExpirations
+        if (hadStock || hadLots) {
+          // SERVICE drops stock/lots on the wire; warn via openConfirm so the
+          // user can cancel the type change before save.
+          openConfirm(
+            'Al cambiar a Servicio se perderán las existencias y lotes actuales. ¿',
+            () => {
+              /* keep the change */
+            },
+          )
+        }
       }
     }
   },
@@ -628,6 +660,12 @@ function mapDomainError(error: AxiosError<DomainApiError>): string {
     satKeyError.value = response.message ?? 'Clave SAT inválida.'
   } else {
     satKeyError.value = ''
+  }
+  if (response.error === 'PRODUCT_TYPE_CHANGE_BLOCKED') {
+    return (
+      response.message ??
+      'No se puede cambiar el tipo de producto porque tiene ventas o movimientos asociados.'
+    )
   }
   return response.message ?? 'No pudimos completar la operación. Reintenta en unos segundos.'
 }
@@ -682,13 +720,14 @@ function buildFullCreatePayload(formValues: MainFormValues): CreateProductPayloa
 
   // Inline variants
   if (formValues.hasVariants && pendingVariants.value.length > 0) {
+    const showInventory = inventoryFieldsVisible(formValues.type)
     base.variants = pendingVariants.value.map((v) => ({
       option: v.option || undefined,
       value: v.value || undefined,
-      ...(v.sku ? { sku: v.sku } : {}),
-      ...(v.barcode ? { barcode: v.barcode } : {}),
-      quantity: v.quantity,
-      minQuantity: v.minQuantity,
+      ...(showInventory && v.sku ? { sku: v.sku } : {}),
+      ...(showInventory && v.barcode ? { barcode: v.barcode } : {}),
+      quantity: showInventory ? v.quantity : 0,
+      minQuantity: showInventory ? v.minQuantity : 0,
       ...(v.purchaseNetCostCents != null ? { purchaseNetCostCents: v.purchaseNetCostCents } : {}),
     }))
   }
@@ -1441,6 +1480,8 @@ function handleCreateLot(event: FormSubmitEvent<LotFormState>) {
 }
 
 function handleSubmitVariant(event: FormSubmitEvent<VariantFormState>) {
+  const showInventory = inventoryFieldsVisible(formState.type)
+
   if (isCreateMode.value) {
     const costCents = event.data.purchaseCost
       ? decimalInputToCents(event.data.purchaseCost)
@@ -1454,10 +1495,10 @@ function handleSubmitVariant(event: FormSubmitEvent<VariantFormState>) {
           ...pendingVariants.value[index]!,
           option: event.data.option,
           value: event.data.value,
-          sku: event.data.sku,
-          barcode: event.data.barcode,
-          quantity: event.data.quantity,
-          minQuantity: event.data.minQuantity,
+          // SERVICE drops inventory fields; mirror backend hygiene.
+          ...(showInventory ? { sku: event.data.sku, barcode: event.data.barcode } : {}),
+          quantity: showInventory ? event.data.quantity : 0,
+          minQuantity: showInventory ? event.data.minQuantity : 0,
           purchaseNetCostCents: costCents,
         }
       }
@@ -1466,10 +1507,10 @@ function handleSubmitVariant(event: FormSubmitEvent<VariantFormState>) {
         _localId: nextLocalId(),
         option: event.data.option,
         value: event.data.value,
-        sku: event.data.sku,
-        barcode: event.data.barcode,
-        quantity: event.data.quantity,
-        minQuantity: event.data.minQuantity,
+        sku: showInventory ? event.data.sku : '',
+        barcode: showInventory ? event.data.barcode : '',
+        quantity: showInventory ? event.data.quantity : 0,
+        minQuantity: showInventory ? event.data.minQuantity : 0,
         purchaseNetCostCents: costCents,
         publicPriceCents: 0,
         variantPrices: pendingPriceLists.value.map((pl) => ({
@@ -1492,10 +1533,10 @@ function handleSubmitVariant(event: FormSubmitEvent<VariantFormState>) {
   const payload: CreateVariantPayload = {
     option: event.data.option,
     value: event.data.value,
-    ...(event.data.sku ? { sku: event.data.sku } : {}),
-    ...(event.data.barcode ? { barcode: event.data.barcode } : {}),
-    quantity: event.data.quantity,
-    minQuantity: event.data.minQuantity,
+    ...(showInventory && event.data.sku ? { sku: event.data.sku } : {}),
+    ...(showInventory && event.data.barcode ? { barcode: event.data.barcode } : {}),
+    quantity: showInventory ? event.data.quantity : 0,
+    ...(showInventory ? { minQuantity: event.data.minQuantity } : {}),
     ...(costCentsEdit != null ? { purchaseNetCostCents: costCentsEdit } : {}),
   }
 
@@ -1737,11 +1778,11 @@ function handleEditLotPlaceholder() {
                   <UInput v-model="formState.name" class="w-full" placeholder="Ej: Jabón de mano" />
                 </UFormField>
 
-                <UFormField label="Código de barras" name="barcode">
+                <UFormField v-if="showInventoryFields" label="Código de barras" name="barcode">
                   <UInput v-model="formState.barcode" placeholder="Opcional" />
                 </UFormField>
 
-                <UFormField label="SKU" name="sku">
+                <UFormField v-if="showInventoryFields" label="SKU" name="sku">
                   <UInput v-model="formState.sku" placeholder="Opcional" />
                 </UFormField>
               </div>
@@ -1773,7 +1814,7 @@ function handleEditLotPlaceholder() {
                   <USelect
                     v-model="formState.unit"
                     :items="
-                      UNIT_OPTIONS.map((unit) => ({
+                      unitOptionsFor(formState.type).map((unit) => ({
                         label: unit.label.toUpperCase(),
                         value: unit.value,
                       }))
@@ -1794,7 +1835,7 @@ function handleEditLotPlaceholder() {
                   />
                 </UFormField>
 
-                <UFormField label="Marca" name="brandId">
+                <UFormField v-if="showInventoryFields" label="Marca" name="brandId">
                   <CategorySelect
                     :model-value="formState.brandId"
                     :items="brandItems"
@@ -1805,11 +1846,15 @@ function handleEditLotPlaceholder() {
                   />
                 </UFormField>
 
-                <UFormField label="Ubicación" name="location">
+                <UFormField :label="locationFieldLabel" name="location">
                   <UInput
                     v-model="formState.location"
                     class="w-full"
-                    placeholder="Ej: Estante 3B"
+                    :placeholder="
+                      formState.type === 'SERVICE'
+                        ? 'Ej: Zona de guardería'
+                        : 'Ej: Estante 3B'
+                    "
                   />
                 </UFormField>
 
@@ -1829,7 +1874,7 @@ function handleEditLotPlaceholder() {
             </div>
           </UCard>
 
-          <UCard>
+          <UCard v-if="showInventoryFields">
             <template #header>
               <h2 class="text-lg font-semibold">Precio de Compra</h2>
             </template>
@@ -1902,6 +1947,43 @@ function handleEditLotPlaceholder() {
                   />
                 </UFormField>
               </div>
+            </div>
+          </UCard>
+
+          <UCard v-if="showServiceDetailCard">
+            <template #header>
+              <h2 class="text-lg font-semibold">Detalles del servicio</h2>
+            </template>
+
+            <div class="space-y-4">
+              <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <UFormField
+                  label="Capacidad (informativo)"
+                  name="serviceDetail.capacity"
+                  description="Cantidad máxima de servicio simultáneo (referencia)."
+                >
+                  <UInputNumber
+                    v-model="formState.serviceDetail.capacity"
+                    :min="1"
+                    class="w-full md:max-w-xs"
+                    placeholder="Ej: 3"
+                  />
+                </UFormField>
+              </div>
+
+              <UFormField
+                label="Notas del servicio"
+                name="serviceDetail.notes"
+                description="Información adicional que verá el equipo (máx. 500 caracteres)."
+              >
+                <UTextarea
+                  v-model="formState.serviceDetail.notes"
+                  :rows="4"
+                  :maxlength="500"
+                  class="w-full"
+                  placeholder="Ej: Paseo de 60 minutos por parque..."
+                />
+              </UFormField>
             </div>
           </UCard>
 
@@ -2605,10 +2687,10 @@ function handleEditLotPlaceholder() {
               <h3 class="font-semibold">General</h3>
             </template>
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <UFormField label="SKU">
+              <UFormField v-if="inventoryFieldsVisible(formState.type)" label="SKU">
                 <UInput v-model="pendingVariantDetailState.sku" placeholder="SKU" />
               </UFormField>
-              <UFormField label="Código de barras / Barcode">
+              <UFormField v-if="inventoryFieldsVisible(formState.type)" label="Código de barras / Barcode">
                 <UInput v-model="pendingVariantDetailState.barcode" placeholder="Código de barras" />
               </UFormField>
               <UFormField label="Costo (del producto)" class="md:col-span-2">
@@ -2631,7 +2713,7 @@ function handleEditLotPlaceholder() {
             </div>
           </UCard>
 
-          <UCard>
+          <UCard v-if="inventoryFieldsVisible(formState.type)">
             <template #header>
               <h3 class="font-semibold">Existencias</h3>
             </template>
@@ -2807,6 +2889,7 @@ function handleEditLotPlaceholder() {
       :variant="variantDetailModalVariant"
       :use-stock="formState.useStock"
       :can-update="canUpdateProduct"
+      :product-type="formState.type"
       :product-purchase-net-cost-cents="product?.purchaseNetCostCents ?? 0"
       @update:open="handleVariantDetailModalOpenChange"
     />
@@ -3004,19 +3087,19 @@ function handleEditLotPlaceholder() {
             <UInput v-model="variantState.value" placeholder="Ej: Mediano" />
           </UFormField>
 
-          <UFormField label="SKU" name="sku">
+          <UFormField v-if="inventoryFieldsVisible(formState.type)" label="SKU" name="sku">
             <UInput v-model="variantState.sku" placeholder="Opcional" />
           </UFormField>
 
-          <UFormField label="Código de barras" name="barcode">
+          <UFormField v-if="inventoryFieldsVisible(formState.type)" label="Código de barras" name="barcode">
             <UInput v-model="variantState.barcode" placeholder="Opcional" />
           </UFormField>
 
-          <UFormField label="Existencias" name="quantity">
+          <UFormField v-if="inventoryFieldsVisible(formState.type)" label="Existencias" name="quantity">
             <UInputNumber v-model="variantState.quantity" :min="0" class="w-full" />
           </UFormField>
 
-          <UFormField label="Existencias mínimas" name="minQuantity">
+          <UFormField v-if="inventoryFieldsVisible(formState.type)" label="Existencias mínimas" name="minQuantity">
             <UInputNumber v-model="variantState.minQuantity" :min="0" class="w-full" />
           </UFormField>
 

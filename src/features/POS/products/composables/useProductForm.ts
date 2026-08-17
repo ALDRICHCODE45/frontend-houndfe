@@ -5,6 +5,8 @@ import type {
   Product,
   ProductDetail,
   ProductFormInput,
+  ProductType,
+  ServiceDetail,
   UpdateProductPayload,
 } from '../interfaces/product.types'
 
@@ -21,6 +23,20 @@ export const UNIT_OPTIONS = [
   { label: 'Kilogramo', value: 'KILOGRAMO' },
   { label: 'Gramo', value: 'GRAMO' },
   { label: 'Litro', value: 'LITRO' },
+] as const
+
+// ── Service units (subset of service-capable units) ─────────
+//
+// 6 of the 8 product units (the physical-measurement ones) are NOT valid
+// for services. Services accept: HORA, SESION, DIA, CONSULTA, CURSO, PAQUETE.
+// Source of truth for the matrix; consumed by `unitOptionsFor`.
+export const SERVICE_UNIT_OPTIONS = [
+  { label: 'Hora', value: 'HORA' },
+  { label: 'Sesión', value: 'SESION' },
+  { label: 'Día', value: 'DIA' },
+  { label: 'Consulta', value: 'CONSULTA' },
+  { label: 'Curso', value: 'CURSO' },
+  { label: 'Paquete', value: 'PAQUETE' },
 ] as const
 
 export const IVA_OPTIONS = [
@@ -47,6 +63,40 @@ export const IEPS_OPTIONS = [
   { label: '0%', value: 'IEPS_0' },
 ] as const
 
+// ── Helpers ────────────────────────────────────────────────
+//
+// Pure functions. Single source of truth for the SERVICE/PRODUCT visibility
+// matrix — both form surfaces AND all three variant render points consume
+// these helpers. Never duplicate the matrix inline.
+
+export function isService(type: ProductType): boolean {
+  return type === 'SERVICE'
+}
+
+export function unitOptionsFor(type: ProductType): readonly { label: string; value: string }[] {
+  if (isService(type)) return SERVICE_UNIT_OPTIONS
+  return UNIT_OPTIONS
+}
+
+export function locationLabelFor(type: ProductType): 'Zona de servicio' | 'Ubicación en almacén' {
+  return isService(type) ? 'Zona de servicio' : 'Ubicación en almacén'
+}
+
+/**
+ * Visibility gate for inventory-only fields (sku, barcode, quantity,
+ * minQuantity, useStock, useLotsAndExpirations, lots card, manual-stock
+ * fields). Shared by the 3 variant render points (VariantDetailModal,
+ * pending-variant detail modal 2608-2646, variant modal 3007-3021).
+ */
+export function inventoryFieldsVisible(type: ProductType): boolean {
+  return !isService(type)
+}
+
+export function serviceDetailPopulated(sd: { capacity: number | null; notes: string | null }): boolean {
+  if (sd.capacity != null) return true
+  return typeof sd.notes === 'string' && sd.notes.trim().length > 0
+}
+
 // ── Schema ─────────────────────────────────────────────────
 
 export const productFormSchema = z.object({
@@ -72,11 +122,11 @@ export const productFormSchema = z.object({
     .default('0.00'),
   quantity: z
     .number({ invalid_type_error: 'Ingresa un número válido' })
-    .int('Debe ser entero')
+    .int('Debbe')
     .min(0, 'No puede ser negativo'),
   minQuantity: z
     .number({ invalid_type_error: 'Ingresa un número válido' })
-    .int('Debe ser entero')
+    .int('Debbe')
     .min(0, 'No puede ser negativo'),
   useStock: z.boolean(),
   useLotsAndExpirations: z.boolean(),
@@ -93,11 +143,13 @@ export const productFormSchema = z.object({
     .trim()
     .regex(priceRegex, 'Ingresa un valor decimal válido')
     .or(z.literal('')),
+  serviceDetail: z.object({
+    capacity: z.number().int().min(1).nullable(),
+    notes: z.string().trim().max(500, 'Máximo 500 caracteres'),
+  }),
 })
 
 export type ProductFormValues = z.infer<typeof productFormSchema>
-
-// ── Helpers ────────────────────────────────────────────────
 
 function getInitialState(): ProductFormInput {
   return {
@@ -125,6 +177,7 @@ function getInitialState(): ProductFormInput {
     iepsRate: 'NO_APLICA',
     purchaseCostMode: 'NET',
     purchaseCost: '0.00',
+    serviceDetail: { capacity: null, notes: '' },
   }
 }
 
@@ -142,9 +195,12 @@ export function decimalInputToCents(value: string): number {
 export function productToFormInput(product: Product | ProductDetail): ProductFormInput {
   const isDetail = 'description' in product
 
+  const detailServiceDetail =
+    isDetail && 'serviceDetail' in product ? (product as ProductDetail).serviceDetail : null
+
   return {
     name: product.name,
-    type: isDetail ? (product as ProductDetail).type : 'PRODUCT',
+    type: isDetail && 'type' in product ? (product as ProductDetail).type : 'PRODUCT',
     sku: product.sku ?? '',
     barcode: product.barcode ?? '',
     categoryId: product.categoryId ?? '',
@@ -173,10 +229,23 @@ export function productToFormInput(product: Product | ProductDetail): ProductFor
             : (product as ProductDetail).purchaseGrossCostCents,
         )
       : '0.00',
+    serviceDetail: {
+      capacity: detailServiceDetail?.capacity ?? null,
+      notes: detailServiceDetail?.notes?.trim() ?? '',
+    },
   }
 }
 
 export function toCreatePayload(values: ProductFormValues): CreateProductPayload {
+  // SERVICE branch lands in WU-C; PRODUCT branch unchanged in WU-A.
+  if (isService(values.type)) {
+    return buildServicePayload(values)
+  }
+
+  return buildBasePayload(values)
+}
+
+function buildBasePayload(values: ProductFormValues): CreateProductPayload {
   const costCents = values.purchaseCost ? decimalInputToCents(values.purchaseCost) : 0
 
   return {
@@ -205,6 +274,46 @@ export function toCreatePayload(values: ProductFormValues): CreateProductPayload
       ? { purchaseCost: { mode: values.purchaseCostMode, valueCents: costCents } }
       : {}),
     priceCents: decimalInputToCents(values.price),
+  }
+}
+
+// SERVICE payload — backend rejects sku / barcode / brandId / purchaseCost /
+// lots. Forces stock/lots false, qty=0, minQty=0. serviceDetail included
+// only when populated. Constructed directly so forbidden keys can never
+// leak from the PRODUCT base builder.
+function buildServicePayload(values: ProductFormValues): CreateProductPayload {
+  const description = values.description?.trim() || undefined
+  const location = values.location?.trim() || undefined
+  const satKey = values.satKey?.trim() || undefined
+  const categoryId = values.categoryId?.trim() || undefined
+
+  return {
+    name: values.name,
+    type: 'SERVICE',
+    ...(categoryId ? { categoryId } : {}),
+    ...(description ? { description } : {}),
+    ...(location ? { location } : {}),
+    ...(satKey ? { satKey } : {}),
+    unit: values.unit,
+    useStock: false,
+    useLotsAndExpirations: false,
+    hasVariants: values.hasVariants,
+    quantity: 0,
+    minQuantity: 0,
+    sellInPos: values.sellInPos,
+    includeInOnlineCatalog: values.includeInOnlineCatalog,
+    requiresPrescription: values.requiresPrescription,
+    chargeProductTaxes: values.chargeProductTaxes,
+    ...(values.chargeProductTaxes ? { ivaRate: values.ivaRate, iepsRate: values.iepsRate } : {}),
+    priceCents: decimalInputToCents(values.price),
+    ...(serviceDetailPopulated(values.serviceDetail)
+      ? {
+          serviceDetail: {
+            capacity: values.serviceDetail.capacity,
+            notes: values.serviceDetail.notes.trim() || null,
+          } satisfies ServiceDetail,
+        }
+      : {}),
   }
 }
 

@@ -1,11 +1,28 @@
 import { toneToDotClass, type AppBadgeTone } from '@/core/shared/utils/badge.utils'
-import type { Product } from '../interfaces/product.types'
+import type { Product, ProductType as ProductTypeAlias } from '../interfaces/product.types'
 
 export const productStatusConfig = {
   active: { tone: 'active' as AppBadgeTone, label: 'Activo' },
   inactive: { tone: 'inactive' as AppBadgeTone, label: 'Inactivo' },
   out_of_stock: { tone: 'error' as AppBadgeTone, label: 'Sin Stock' },
 } as const
+
+/**
+ * Single source of truth for the products list type badge. Mirrors the
+ * promotions type-badge convention (`tone: 'type'` violet + icon), so a
+ * SERVICE renders as a violet "Servicio" pill with a clock icon and a PRODUCT
+ * as a violet "Producto" pill with a package icon — visually consistent with
+ * the rest of the system's customized type badges.
+ */
+export function getProductTypeBadge(type: ProductTypeAlias): {
+  tone: AppBadgeTone
+  label: string
+  icon: string
+} {
+  return type === 'SERVICE'
+    ? { tone: 'type', label: 'Servicio', icon: 'i-lucide-clock' }
+    : { tone: 'type', label: 'Producto', icon: 'i-lucide-package' }
+}
 
 export const getStockTone = (stock: number, minQuantity = 10): AppBadgeTone => {
   if (stock === 0) return 'error'

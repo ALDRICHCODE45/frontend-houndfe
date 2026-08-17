@@ -15,6 +15,17 @@ export function useProductColumns() {
       enableHiding: false,
     },
 
+    // ── Tipo (SERVICE/PRODUCT badge, R-201 9→10) ─────────────────────
+    // Hideable (visible by default) so the user can toggle it in the
+    // "Columnas" selector. Cell rendered via #type-cell slot (AppBadge
+    // tone + icon from getProductTypeBadge) in ProductsView.vue.
+    {
+      id: 'type',
+      header: createSimpleHeader('Tipo'),
+      enableSorting: false,
+      enableHiding: true,
+    },
+
     // ── Nombre (sortable) ─────────────────────────────────────────────
     // Header rendered via #name-header slot (SortableHeader component)
     {
