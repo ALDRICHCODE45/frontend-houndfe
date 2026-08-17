@@ -58,6 +58,15 @@ const { columns, currencyFormatter } = useProductColumns()
 const authStore = useAuthStore()
 const tenantId = computed(() => authStore.currentTenantId)
 
+// ── WU-F · PRODUCT/SERVICE toolbar toggle ────────────────────────────
+// filterType drives the queryKey (refetch) and queryFn (?type=) below, so it
+// MUST be declared before useServerTable — reading it here before its
+// declaration would throw a TDZ ReferenceError during setup.
+type ToolbarTypeFilter = 'ALL' | 'PRODUCT' | 'SERVICE'
+const ALL_FILTER_VALUE = 'ALL'
+const filterType = ref<ToolbarTypeFilter>(ALL_FILTER_VALUE)
+const queryTypeParam = computed(() => (filterType.value === 'ALL' ? undefined : filterType.value))
+
 const {
   pagination,
   sorting,
@@ -162,20 +171,6 @@ const canManageProductActions = computed(
   () => canReadProduct.value || canUpdateProduct.value || canDeleteProduct.value,
 )
 const { viewMode, setMode: setViewMode } = useProductViewMode()
-
-// ── WU-F · PRODUCT/SERVICE toolbar toggle ────────────────────────────
-//
-// Mirrors PromotionsView's filterType pattern: a single ref drives the
-// queryKey (triggers refetch) and the queryFn (spreads ?type=); a watch
-// resets pagination to page 0 AND clears row selection whenever the user
-// switches types — page-relative selection can't survive a filter switch
-// because row indices map to different entities.
-type ToolbarTypeFilter = 'ALL' | 'PRODUCT' | 'SERVICE'
-const ALL_FILTER_VALUE = 'ALL'
-
-const filterType = ref<ToolbarTypeFilter>(ALL_FILTER_VALUE)
-
-const queryTypeParam = computed(() => (filterType.value === 'ALL' ? undefined : filterType.value))
 
 // ── Reset pagination + clear selection when filterType changes ────────
 //
