@@ -1,11 +1,25 @@
 import { toneToDotClass, type AppBadgeTone } from '@/core/shared/utils/badge.utils'
-import type { Product } from '../interfaces/product.types'
+import type { Product, ProductType as ProductTypeAlias } from '../interfaces/product.types'
 
 export const productStatusConfig = {
   active: { tone: 'active' as AppBadgeTone, label: 'Activo' },
   inactive: { tone: 'inactive' as AppBadgeTone, label: 'Inactivo' },
   out_of_stock: { tone: 'error' as AppBadgeTone, label: 'Sin Stock' },
 } as const
+
+/**
+ * Single source of truth for the products list type badge (SERVICE = info
+ * "Servicio", PRODUCT = neutral "Producto"). Mirrors `productStatusConfig`
+ * so the table cell renders the same tone + label as the rest of the column.
+ */
+export function getProductTypeBadge(type: ProductTypeAlias): {
+  tone: AppBadgeTone
+  label: string
+} {
+  return type === 'SERVICE'
+    ? { tone: 'info', label: 'Servicio' }
+    : { tone: 'neutral', label: 'Producto' }
+}
 
 export const getStockTone = (stock: number, minQuantity = 10): AppBadgeTone => {
   if (stock === 0) return 'error'

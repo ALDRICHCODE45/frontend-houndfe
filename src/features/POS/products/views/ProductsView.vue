@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui'
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { AxiosError } from 'axios'
@@ -10,6 +10,7 @@ import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import type { BulkAction } from '@/core/shared/types/table.types'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import AppBadge from '@/core/shared/components/AppBadge.vue'
 import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import DotBadge from '@/core/shared/components/DotBadge.vue'
@@ -34,6 +35,7 @@ import type {
 import {
   getProductStockDisplay,
   getProductStockDotClass,
+  getProductTypeBadge,
   productStatusConfig,
 } from '../utils/productStatusConfig.utils'
 
@@ -75,8 +77,11 @@ const {
   showingFrom,
   showingTo,
 } = useServerTable<Product>({
-  queryKey: () => productQueryKeys.paginated(tenantId.value),
-  queryFn: (params) => productApi.getPaginated(params),
+  queryKey: () => [
+    ...productQueryKeys.paginated(tenantId.value),
+    { type: queryTypeParam.value ?? 'ALL' },
+  ],
+  queryFn: (params) => productApi.getPaginated({ ...params, type: queryTypeParam.value }),
   defaultPageSize: 10,
   persistKey: 'pos-products',
   defaultSorting: [{ id: 'name', desc: false }],
@@ -157,6 +162,30 @@ const canManageProductActions = computed(
   () => canReadProduct.value || canUpdateProduct.value || canDeleteProduct.value,
 )
 const { viewMode, setMode: setViewMode } = useProductViewMode()
+
+// ── WU-F · PRODUCT/SERVICE toolbar toggle ────────────────────────────
+//
+// Mirrors PromotionsView's filterType pattern: a single ref drives the
+// queryKey (triggers refetch) and the queryFn (spreads ?type=); a watch
+// resets pagination to page 0 AND clears row selection whenever the user
+// switches types — page-relative selection can't survive a filter switch
+// because row indices map to different entities.
+type ToolbarTypeFilter = 'ALL' | 'PRODUCT' | 'SERVICE'
+const ALL_FILTER_VALUE = 'ALL'
+
+const filterType = ref<ToolbarTypeFilter>(ALL_FILTER_VALUE)
+
+const queryTypeParam = computed(() => (filterType.value === 'ALL' ? undefined : filterType.value))
+
+// ── Reset pagination + clear selection when filterType changes ────────
+//
+// products-list REQ-3: switching PRODUCT/SERVICE/TODOS must reset to page 0
+// AND clear bulk selection. Done in a watcher so the toolbar toggle stays
+// declarative.
+watch(filterType, () => {
+  pagination.value = { ...pagination.value, pageIndex: 0 }
+  rowSelection.value = {}
+})
 
 // Bridge the products domain vocabulary ('card') to AppDataTable's ('cards').
 const tableDisplayMode = computed(() => (viewMode.value === 'card' ? 'cards' : 'table'))
@@ -667,6 +696,17 @@ const productsErrorMessage = computed(() => {
           @refresh="refresh"
         >
           <template #actions>
+            <USelect
+              v-model="filterType"
+              :items="[
+                { label: 'Todos', value: 'ALL' },
+                { label: 'Producto', value: 'PRODUCT' },
+                { label: 'Servicio', value: 'SERVICE' },
+              ]"
+              size="sm"
+              aria-label="Filtrar por tipo"
+              class="w-36"
+            />
             <ViewToggle
               :model-value="viewMode"
               aria-label="Seleccionar vista de productos"
@@ -696,6 +736,13 @@ const productsErrorMessage = computed(() => {
 
           <template #select-cell="{ row }">
             <SelectColumn mode="cell" :row="row" />
+          </template>
+
+          <template #type-cell="{ row }">
+            <AppBadge
+              :tone="getProductTypeBadge((row.original as Product).type).tone"
+              :label="getProductTypeBadge((row.original as Product).type).label"
+            />
           </template>
 
           <template #name-header="{ column }">

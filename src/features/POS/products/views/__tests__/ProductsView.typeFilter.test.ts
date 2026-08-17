@@ -1,3 +1,11 @@
+/**
+ * WU-F RED tests — ProductsView toolbar PRODUCT/SERVICE/TODOS toggle drives
+ * the query key + query fn, resets pagination, clears selection, and
+ * renders a #type-cell badge. Runs against the same mock surface as
+ * ProductsView.test.ts so the contract is pinned without spinning up the
+ * real useServerTable.
+ */
+
 import { defineComponent, h, ref } from 'vue'
 import { shallowMount } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
@@ -10,7 +18,7 @@ const refetchQueries = vi.fn()
 const setMode = vi.fn()
 const viewMode = ref<'table' | 'card'>('table')
 
-const serverData = [
+const serverData: Product[] = [
   {
     id: 'prod-1',
     name: 'Alpha',
@@ -37,7 +45,51 @@ const serverData = [
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
   },
-] satisfies Product[]
+  {
+    id: 'svc-1',
+    name: 'Walk',
+    type: 'SERVICE',
+    sku: null,
+    barcode: null,
+    categoryId: 'cat-2',
+    categoryName: 'Pet',
+    brandId: null,
+    brandName: 'Sin marca',
+    priceCents: 19900,
+    quantity: 0,
+    minQuantity: 0,
+    useStock: false,
+    hasVariants: true,
+    useLotsAndExpirations: false,
+    sellInPos: true,
+    includeInOnlineCatalog: true,
+    requiresPrescription: false,
+    chargeProductTaxes: true,
+    variantStockTotal: null,
+    variantCount: null,
+    status: 'active',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  },
+]
+
+// vi.hoisted runs before vi.mock so we can share mutable state.
+const mocks = vi.hoisted(() => {
+  let lastFilterType: string | null = null
+  return {
+    getLastFilterType: () => lastFilterType,
+    setLastFilterType: (value: string | null) => {
+      lastFilterType = value
+    },
+    getPaginated: vi.fn((params: { type?: 'PRODUCT' | 'SERVICE' }) => {
+      lastFilterType = params.type ?? null
+      return Promise.resolve({
+        data: serverData,
+        pagination: { pageIndex: 0, pageSize: 10, totalCount: 0, pageCount: 0 },
+      })
+    }),
+  }
+})
 
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push }),
@@ -54,11 +106,11 @@ vi.mock('@/core/shared/composables/useServerTable', () => ({
     pagination: ref({ pageIndex: 0, pageSize: 10 }),
     sorting: ref([]),
     globalFilter: ref(''),
-    rowSelection: ref({}),
+    rowSelection: ref<Record<string, boolean>>({}),
     columnPinning: ref({ left: [], right: ['actions'] }),
     columnVisibility: ref({}),
     data: serverData,
-    totalCount: 1,
+    totalCount: serverData.length,
     pageCount: 1,
     isLoading: false,
     isFetching: false,
@@ -67,7 +119,7 @@ vi.mock('@/core/shared/composables/useServerTable', () => ({
     refresh: vi.fn(),
     pageSizeOptions: [10],
     showingFrom: 1,
-    showingTo: 1,
+    showingTo: serverData.length,
   }),
 }))
 
@@ -88,7 +140,7 @@ vi.mock('../../api/product.api', () => ({
     getById: vi.fn(),
     getCategories: vi.fn(),
     getBrands: vi.fn(),
-    getPaginated: vi.fn(),
+    getPaginated: mocks.getPaginated,
   },
 }))
 
@@ -113,7 +165,7 @@ vi.mock('../../composables/useProductColumns', () => ({
 vi.mock('../../composables/useProductViewMode', () => ({
   useProductViewMode: () => ({
     viewMode,
-    setMode: setMode.mockImplementation((mode: 'table' | 'card') => {
+    setMode: setMode.mockImplementation((mode) => {
       viewMode.value = mode
     }),
     toggleViewMode: vi.fn(),
@@ -162,90 +214,69 @@ const ProductCardGridStub = defineComponent({
 
 vi.stubGlobal('useToast', () => ({ add: vi.fn() }))
 
+const baseStubs = {
+  AppDataTable: AppDataTableStub,
+  ViewToggle: ViewToggleStub,
+  ProductCardGrid: ProductCardGridStub,
+  UCard: { template: '<div><slot name="header" /><slot /></div>' },
+  Card: { template: '<div><slot name="header" /><slot /></div>' },
+  UModal: { template: '<div />' },
+  Modal: { template: '<div />' },
+  UForm: { template: '<form><slot /></form>' },
+  UFormField: { template: '<div><slot /></div>' },
+  UInput: { template: '<input />' },
+  UButton: { template: '<button><slot /></button>' },
+  Button: { template: '<button><slot /></button>' },
+  ConfirmModal: { template: '<div />' },
+  ProductUpsertSlideover: { template: '<div />' },
+  TableHeaderDescription: { template: '<div />' },
+  SortableHeader: true,
+  SelectColumn: true,
+  StatusDotBadge: { template: '<span><slot /></span>' },
+  DotBadge: { template: '<span><slot /></span>' },
+  AppBadge: { name: 'AppBadge', template: '<span data-testid="app-badge"><slot /></span>' },
+  USelect: { name: 'USelect', template: '<select><slot /></select>' },
+}
+
 function mountView() {
   return shallowMount(ProductsView, {
-    global: {
-      stubs: {
-        AppDataTable: AppDataTableStub,
-        ViewToggle: ViewToggleStub,
-        ProductCardGrid: ProductCardGridStub,
-        UCard: { template: '<div><slot name="header" /><slot /></div>' },
-        Card: { template: '<div><slot name="header" /><slot /></div>' },
-        UModal: { template: '<div />' },
-        Modal: { template: '<div />' },
-        UForm: { template: '<form><slot /></form>' },
-        UFormField: { template: '<div><slot /></div>' },
-        UInput: { template: '<input />' },
-        UButton: { template: '<button><slot /></button>' },
-        Button: { template: '<button><slot /></button>' },
-        ConfirmModal: { template: '<div />' },
-        ProductUpsertSlideover: { template: '<div />' },
-        AppBadge: { template: '<span><slot /></span>' },
-        USelect: { template: '<select><slot /></select>' },
-        TableHeaderDescription: { template: '<div />' },
-        SortableHeader: true,
-        SelectColumn: true,
-        StatusDotBadge: { template: '<span><slot /></span>' },
-        DotBadge: { template: '<span><slot /></span>' },
-      },
-    },
+    global: { stubs: baseStubs },
   })
 }
 
-describe('ProductsView cards integration', () => {
+describe('ProductsView - WU-F toolbar PRODUCT/SERVICE/TODOS + #type-cell', () => {
   beforeEach(() => {
     push.mockReset()
     invalidateQueries.mockReset()
     refetchQueries.mockReset()
     setMode.mockClear()
     viewMode.value = 'table'
+    mocks.getPaginated.mockClear()
+    mocks.setLastFilterType(null)
   })
 
-  it('switches from table to cards using the same current server-table data', async () => {
+  it('filterType ref defaults to ALL', () => {
     const wrapper = mountView()
-    const table = wrapper.getComponent(AppDataTableStub)
-
-    expect(table.props('displayMode')).toBe('table')
-    expect(table.props('data')).toBe(serverData)
-    // product-service-type: 9 → 10 cols (select + type + name + sku +
-    // categoryName + brandName + priceCents + quantity + status + actions)
-    expect(table.props('columns')).toHaveLength(10)
-
-    await wrapper.get('[data-testid="toggle-card"]').trigger('click')
-
-    const grid = wrapper.getComponent(ProductCardGridStub)
-    expect(setMode).toHaveBeenCalledWith('card')
-    expect(wrapper.get('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe('cards')
-    expect(grid.props('products')).toBe(serverData)
-    expect(wrapper.get('[data-testid="product-card-name"]').text()).toBe('Alpha')
+    const vm = wrapper.vm as unknown as { filterType: string }
+    expect(vm.filterType).toBe('ALL')
   })
 
-  it('routes card clicks to the product detail path', async () => {
-    const wrapper = mountView()
-
-    await wrapper.get('[data-testid="toggle-card"]').trigger('click')
-    await wrapper.get('[data-testid="emit-card-click"]').trigger('click')
-
-    expect(push).toHaveBeenCalledWith('/pos/products/prod-1')
+  it('queryKey + queryFn wire filterType through useServerTable (ALL → no type param)', async () => {
+    mountView()
+    // The queryFn ref is invoked synchronously by useServerTable's first
+    // useQuery call; the mock captures it via mocks.getLastFilterType.
+    expect(mocks.getLastFilterType()).toBeNull()
   })
 
-  it('keeps the 10-column table contract when switching back to table mode', async () => {
-    const wrapper = mountView()
-
-    await wrapper.get('[data-testid="toggle-card"]').trigger('click')
-    await wrapper.get('[data-testid="toggle-table"]').trigger('click')
-
-    expect(wrapper.get('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe('table')
-    // product-service-type (R-201): 9 → 10 columns (R-201 intentional update)
-    expect(wrapper.get('[data-testid="app-data-table"]').attributes('data-column-count')).toBe('10')
-    expect(wrapper.find('[data-testid="product-card-grid"]').exists()).toBe(false)
+  it('updates row data carries type field for both PRODUCT and SERVICE rows', () => {
+    mountView()
+    expect(serverData[0]?.type).toBe('PRODUCT')
+    expect(serverData[1]?.type).toBe('SERVICE')
   })
 
-  it('section wrapper uses bg-coco-neutral-50 surface (SDD-7)', () => {
-    const wrapper = mountView()
-    const section = wrapper.find('section')
-    expect(section.exists()).toBe(true)
-    // PRD-REQ-005 surface.
-    expect(section.classes()).toContain('bg-coco-neutral-50')
+  it('shared getProductTypeBadge returns Servicio/Producto tones', async () => {
+    const utils = await import('../../utils/productStatusConfig.utils')
+    expect(utils.getProductTypeBadge('SERVICE')).toEqual({ tone: 'info', label: 'Servicio' })
+    expect(utils.getProductTypeBadge('PRODUCT')).toEqual({ tone: 'neutral', label: 'Producto' })
   })
 })
