@@ -107,9 +107,6 @@ const description = computed(() =>
 
 // D1: editing SERVICE hides backend-rejected fields. Matrix comes from the
 // shared helper so it can never drift from ProductDetailView / variants.
-const isEditingService = computed(
-  () => props.mode === 'edit' && props.product?.type === 'SERVICE',
-)
 const showInventoryFields = computed(() => {
   if (props.mode !== 'edit') return true
   return inventoryFieldsVisible(props.product?.type ?? 'PRODUCT')
@@ -198,7 +195,7 @@ function handleCancel() {
           <UInput v-model="state.name" class="w-full" size="lg" placeholder="Ej: Jabón artesanal" />
         </UFormField>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div v-if="showInventoryFields" class="grid grid-cols-2 gap-4">
           <UFormField label="SKU" name="sku" :error="errors.sku">
             <UInput v-model="state.sku" class="w-full" size="lg" placeholder="Ej: JAB-001" />
           </UFormField>
@@ -219,7 +216,7 @@ function handleCancel() {
           />
         </UFormField>
 
-        <UFormField label="Marca" name="brandId" :error="errors.brandId">
+        <UFormField v-if="showInventoryFields" label="Marca" name="brandId" :error="errors.brandId">
           <CategorySelect
             :model-value="state.brandId"
             :items="brandItems"
@@ -241,7 +238,7 @@ function handleCancel() {
             />
           </UFormField>
 
-          <UFormField label="Stock" name="quantity" :error="errors.quantity">
+          <UFormField v-if="showInventoryFields" label="Stock" name="quantity" :error="errors.quantity">
             <UInputNumber
               v-model="state.quantity"
               class="w-full"
@@ -251,7 +248,7 @@ function handleCancel() {
           </UFormField>
         </div>
 
-        <UFormField label="Stock mínimo" name="minQuantity" :error="errors.minQuantity">
+        <UFormField v-if="showInventoryFields" label="Stock mínimo" name="minQuantity" :error="errors.minQuantity">
           <UInputNumber
             v-model="state.minQuantity"
             class="w-full"
@@ -265,7 +262,7 @@ function handleCancel() {
         </UFormField>
 
         <div class="grid grid-cols-2 gap-4">
-          <UFormField label="Ubicación" name="location" :error="errors.location">
+          <UFormField :label="locationLabel" name="location" :error="errors.location">
             <UInput v-model="state.location" class="w-full" placeholder="Opcional" />
           </UFormField>
 
@@ -275,7 +272,7 @@ function handleCancel() {
         </div>
 
         <div class="grid grid-cols-2 gap-4">
-          <UCheckbox v-model="state.useStock" label="Usar stock" />
+          <UCheckbox v-if="showInventoryFields" v-model="state.useStock" label="Usar stock" />
           <UCheckbox v-model="state.sellInPos" label="Vender en POS" />
           <UCheckbox v-model="state.includeInOnlineCatalog" label="Catálogo online" />
           <UCheckbox v-model="state.chargeProductTaxes" label="Cobrar impuestos" />
