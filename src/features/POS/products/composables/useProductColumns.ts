@@ -15,15 +15,15 @@ export function useProductColumns() {
       enableHiding: false,
     },
 
-    // ── Tipo (always-visible badge, R-201 9→10) ───────────────────────
-    // Non-hideable so every row carries its SERVICE/PRODUCT identity.
-    // Cell rendered via #type-cell slot (AppBadge tone from
-    // getProductTypeBadge) in ProductsView.vue.
+    // ── Tipo (SERVICE/PRODUCT badge, R-201 9→10) ─────────────────────
+    // Hideable (visible by default) so the user can toggle it in the
+    // "Columnas" selector. Cell rendered via #type-cell slot (AppBadge
+    // tone + icon from getProductTypeBadge) in ProductsView.vue.
     {
       id: 'type',
       header: createSimpleHeader('Tipo'),
       enableSorting: false,
-      enableHiding: false,
+      enableHiding: true,
     },
 
     // ── Nombre (sortable) ─────────────────────────────────────────────

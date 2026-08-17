@@ -8,12 +8,13 @@
  * Strategy: Option 2 (pure-function snapshot) — useProductColumns is a
  * side-effect-free factory; no mount needed, no network, no stubs.
  *
- * Intent (product-service-type change): the table gained a non-hideable
- * `type` column (SERVICE/PRODUCT badge) inserted after `select`, expanding
- * the contract from 9 → 10 columns. This is a deliberate, recorded change
- * tracked by R-201 — the 9-column guard was retired because the badge is
- * part of the type-aware list (products-list REQ-3/4). The same intent
- * lives in `ProductsView.test.ts` (`data-column-count`).
+ * Intent (product-service-type change): the table gained a `type` column
+ * (SERVICE/PRODUCT badge) inserted after `select`, expanding the contract
+ * from 9 → 10 columns. The type column is hideable (visible by default). This
+ * is a deliberate, recorded change tracked by R-201 — the 9-column guard was
+ * retired because the badge is part of the type-aware list (products-list
+ * REQ-3/4). The same intent lives in `ProductsView.test.ts`
+ * (`data-column-count`).
  */
 
 import { describe, it, expect } from 'vitest'
@@ -43,7 +44,7 @@ describe('useProductColumns – non-regression guard (R-201)', () => {
     ])
   })
 
-  it('select, type, and actions columns are non-hideable (enableHiding: false)', () => {
+  it('select and actions are non-hideable; type is hideable (enableHiding)', () => {
     const { columns } = useProductColumns()
 
     const select = columns.find(
@@ -54,10 +55,10 @@ describe('useProductColumns – non-regression guard (R-201)', () => {
       (col) => (col as { id?: string }).id === 'actions',
     )
 
-    // Non-hideable baseline (select + actions) plus the always-visible type
-    // badge added by product-service-type.
+    // Non-hideable baseline (select + actions). The type badge column is
+    // hideable so the user can toggle it in the "Columnas" selector.
     expect(select?.enableHiding).toBe(false)
-    expect(type?.enableHiding).toBe(false)
+    expect(type?.enableHiding).toBe(true)
     expect(actions?.enableHiding).toBe(false)
   })
 

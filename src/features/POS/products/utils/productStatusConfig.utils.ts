@@ -8,17 +8,20 @@ export const productStatusConfig = {
 } as const
 
 /**
- * Single source of truth for the products list type badge (SERVICE = info
- * "Servicio", PRODUCT = neutral "Producto"). Mirrors `productStatusConfig`
- * so the table cell renders the same tone + label as the rest of the column.
+ * Single source of truth for the products list type badge. Mirrors the
+ * promotions type-badge convention (`tone: 'type'` violet + icon), so a
+ * SERVICE renders as a violet "Servicio" pill with a clock icon and a PRODUCT
+ * as a violet "Producto" pill with a package icon — visually consistent with
+ * the rest of the system's customized type badges.
  */
 export function getProductTypeBadge(type: ProductTypeAlias): {
   tone: AppBadgeTone
   label: string
+  icon: string
 } {
   return type === 'SERVICE'
-    ? { tone: 'info', label: 'Servicio' }
-    : { tone: 'neutral', label: 'Producto' }
+    ? { tone: 'type', label: 'Servicio', icon: 'i-lucide-clock' }
+    : { tone: 'type', label: 'Producto', icon: 'i-lucide-package' }
 }
 
 export const getStockTone = (stock: number, minQuantity = 10): AppBadgeTone => {

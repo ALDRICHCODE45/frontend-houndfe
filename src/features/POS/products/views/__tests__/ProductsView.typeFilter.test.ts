@@ -274,9 +274,17 @@ describe('ProductsView - WU-F toolbar PRODUCT/SERVICE/TODOS + #type-cell', () =>
     expect(serverData[1]?.type).toBe('SERVICE')
   })
 
-  it('shared getProductTypeBadge returns Servicio/Producto tones', async () => {
+  it('shared getProductTypeBadge returns Servicio/Producto type badges with icons', async () => {
     const utils = await import('../../utils/productStatusConfig.utils')
-    expect(utils.getProductTypeBadge('SERVICE')).toEqual({ tone: 'info', label: 'Servicio' })
-    expect(utils.getProductTypeBadge('PRODUCT')).toEqual({ tone: 'neutral', label: 'Producto' })
+    expect(utils.getProductTypeBadge('SERVICE')).toEqual({
+      tone: 'type',
+      label: 'Servicio',
+      icon: 'i-lucide-clock',
+    })
+    expect(utils.getProductTypeBadge('PRODUCT')).toEqual({
+      tone: 'type',
+      label: 'Producto',
+      icon: 'i-lucide-package',
+    })
   })
 })

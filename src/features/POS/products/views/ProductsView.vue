@@ -736,6 +736,7 @@ const productsErrorMessage = computed(() => {
           <template #type-cell="{ row }">
             <AppBadge
               :tone="getProductTypeBadge((row.original as Product).type).tone"
+              :icon="getProductTypeBadge((row.original as Product).type).icon"
               :label="getProductTypeBadge((row.original as Product).type).label"
             />
           </template>
