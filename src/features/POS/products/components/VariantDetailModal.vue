@@ -8,7 +8,7 @@ import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import { centsToDecimalInput, decimalInputToCents } from '../composables/useProductForm'
 import VariantPricingTable from './VariantPricingTable.vue'
-import type { ProductVariant, UpdateVariantPayload } from '../interfaces/product.types'
+import type { ProductType, ProductVariant, UpdateVariantPayload } from '../interfaces/product.types'
 
 declare const useToast: () => {
   add: (options: {
@@ -26,6 +26,7 @@ const props = defineProps<{
   variant: ProductVariant | null
   useStock: boolean
   canUpdate: boolean
+  productType?: ProductType
 }>()
 
 const emit = defineEmits<{
@@ -65,6 +66,18 @@ const modalTitle = computed(() => {
 })
 
 const hasOwnCost = computed(() => props.variant?.purchaseNetCostCents != null)
+
+const isServiceProduct = computed(() => props.productType === 'SERVICE')
+const showInventoryCard = computed(() => props.useStock && !isServiceProduct.value)
+const showGeneralSkuBarcode = computed(() => !isServiceProduct.value)
+const saveChangeableKeys = computed<ChangeableField[]>(() =>
+  // SERVICE: backend rejects inventory keys; persist only cost.
+  isServiceProduct.value
+    ? ['purchaseCost']
+    : props.useStock
+      ? ['sku', 'barcode', 'quantity', 'minQuantity', 'purchaseCost']
+      : ['sku', 'barcode', 'purchaseCost'],
+)
 
 const costLabel = computed(() => {
   if (!props.variant) return 'Costo'
@@ -229,7 +242,7 @@ function handleCancel() {
           </template>
 
           <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <UFormField label="SKU">
+            <UFormField v-if="showGeneralSkuBarcode" label="SKU">
               <UInput
                 v-model="formState.sku"
                 placeholder="SKU"
@@ -239,7 +252,7 @@ function handleCancel() {
               />
             </UFormField>
 
-            <UFormField label="Código de barras / Barcode">
+            <UFormField v-if="showGeneralSkuBarcode" label="Código de barras / Barcode">
               <UInput
                 v-model="formState.barcode"
                 placeholder="Código de barras"
@@ -274,7 +287,7 @@ function handleCancel() {
           </div>
         </UCard>
 
-        <UCard v-if="useStock">
+        <UCard v-if="showInventoryCard">
           <template #header>
             <h3 class="font-semibold">Existencias</h3>
           </template>
@@ -329,15 +342,7 @@ function handleCancel() {
           label="Guardar"
           :disabled="!canUpdate"
           :loading="updateVariantMutation.isPending.value"
-          @click="
-            persistChanges(
-              useStock
-                ? ['sku', 'barcode', 'quantity', 'minQuantity', 'purchaseCost']
-                : ['sku', 'barcode', 'purchaseCost'],
-              'Variante actualizada',
-              true,
-            )
-          "
+          @click="persistChanges(saveChangeableKeys, 'Variante actualizada', true)"
         />
       </div>
     </template>
