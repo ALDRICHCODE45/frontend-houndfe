@@ -6,9 +6,9 @@
 
 import { describe, expect, it } from 'vitest'
 import { toCreatePayload, toUpdatePayload } from '../useProductForm'
-import type { ProductFormValues } from '../../interfaces/product.types'
+import type { ProductFormInput } from '../../interfaces/product.types'
 
-function makeFormValues(overrides: Partial<ProductFormValues> = {}): ProductFormValues {
+function makeFormValues(overrides: Partial<ProductFormInput> = {}): ProductFormInput {
   return {
     name: 'Walk',
     type: 'SERVICE',
@@ -36,13 +36,13 @@ function makeFormValues(overrides: Partial<ProductFormValues> = {}): ProductForm
     purchaseCost: '50.00',
     serviceDetail: { capacity: null, notes: '' },
     ...overrides,
-  } as ProductFormValues
+  }
 }
 
 describe('WU-C · toCreatePayload SERVICE branch', () => {
   it('omits sku, barcode, brandId and purchaseCost for SERVICE', () => {
     const values = makeFormValues({ type: 'SERVICE' })
-    const payload = toCreatePayload(values) as Record<string, unknown>
+    const payload = toCreatePayload(values) as unknown as Record<string, unknown>
 
     expect(payload).not.toHaveProperty('sku')
     expect(payload).not.toHaveProperty('barcode')
@@ -59,7 +59,7 @@ describe('WU-C · toCreatePayload SERVICE branch', () => {
       quantity: 99,
       minQuantity: 5,
     })
-    const payload = toCreatePayload(values) as Record<string, unknown>
+    const payload = toCreatePayload(values) as unknown as Record<string, unknown>
 
     expect(payload.useStock).toBe(false)
     expect(payload.useLotsAndExpirations).toBe(false)
@@ -70,19 +70,19 @@ describe('WU-C · toCreatePayload SERVICE branch', () => {
   it('includes serviceDetail only when populated for SERVICE', () => {
     const empty = toCreatePayload(
       makeFormValues({ type: 'SERVICE', serviceDetail: { capacity: null, notes: '' } }),
-    ) as Record<string, unknown>
+    ) as unknown as Record<string, unknown>
     expect(empty).not.toHaveProperty('serviceDetail')
 
     const populated = toCreatePayload(
       makeFormValues({ type: 'SERVICE', serviceDetail: { capacity: 5, notes: 'Walk' } }),
-    ) as Record<string, unknown>
+    ) as unknown as Record<string, unknown>
     expect(populated.serviceDetail).toEqual({ capacity: 5, notes: 'Walk' })
   })
 
   it('trims whitespace-only serviceDetail.notes to null', () => {
     const payload = toCreatePayload(
       makeFormValues({ type: 'SERVICE', serviceDetail: { capacity: null, notes: '   ' } }),
-    ) as Record<string, unknown>
+    ) as unknown as Record<string, unknown>
     expect(payload).not.toHaveProperty('serviceDetail')
   })
 
@@ -95,7 +95,7 @@ describe('WU-C · toCreatePayload SERVICE branch', () => {
       quantity: 12,
       minQuantity: 3,
     })
-    const payload = toCreatePayload(values) as Record<string, unknown>
+    const payload = toCreatePayload(values) as unknown as Record<string, unknown>
 
     expect(payload.useStock).toBe(true)
     expect(payload.useLotsAndExpirations).toBe(false)
@@ -105,8 +105,8 @@ describe('WU-C · toCreatePayload SERVICE branch', () => {
 
   it('toUpdatePayload delegates to toCreatePayload (same shape for SERVICE)', () => {
     const values = makeFormValues({ type: 'SERVICE' })
-    const updatePayload = toUpdatePayload(values) as Record<string, unknown>
-    const createPayload = toCreatePayload(values) as Record<string, unknown>
+    const updatePayload = toUpdatePayload(values) as unknown as Record<string, unknown>
+    const createPayload = toCreatePayload(values) as unknown as Record<string, unknown>
     expect(updatePayload).toEqual(createPayload)
   })
 })
