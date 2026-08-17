@@ -3,6 +3,8 @@ import type { FormSubmitEvent } from '@nuxt/ui'
 import { computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import {
+  inventoryFieldsVisible,
+  locationLabelFor,
   productToFormInput,
   toCreatePayload,
   toUpdatePayload,
@@ -101,6 +103,19 @@ const description = computed(() =>
   props.mode === 'create'
     ? 'Completa los datos básicos del producto para POS.'
     : 'Actualiza los datos base del producto.',
+)
+
+// D1: editing SERVICE hides backend-rejected fields. Matrix comes from the
+// shared helper so it can never drift from ProductDetailView / variants.
+const isEditingService = computed(
+  () => props.mode === 'edit' && props.product?.type === 'SERVICE',
+)
+const showInventoryFields = computed(() => {
+  if (props.mode !== 'edit') return true
+  return inventoryFieldsVisible(props.product?.type ?? 'PRODUCT')
+})
+const locationLabel = computed(() =>
+  locationLabelFor(props.product?.type ?? 'PRODUCT'),
 )
 
 watch(
