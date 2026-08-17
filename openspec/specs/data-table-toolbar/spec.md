@@ -42,7 +42,7 @@ The actions cluster SHALL use `flex-wrap` (`flex flex-wrap gap-2`) in fixed orde
 
 ### REQ-3: Filters collapse to bottom-sheet on mobile
 
-Below `md`, the `#filters` slot SHALL render inside `USlideover side="bottom"` with a scrollable region sized `h-[85vh] max-h-[85vh] overflow-y-auto` so nothing clips in landscape. At `md`+, the `#filters` slot SHALL render inline beside the search input, unchanged from the historical desktop layout.
+Below `md`, the `#filters` slot SHALL render inside a single `USlideover side="bottom"` with three regions: a sticky header (`data-testid="toolbar-filters-header"`) carrying the title (via `<slot name="filters-title">` defaulting to `"Filtros"`), an active-count badge when `activeFilterCount > 0`, and a `"Limpiar todo"` action that emits `clear-filters` (resolved by the consuming view); a scrollable body (`data-testid="toolbar-filters-body"`) sized `h-[85vh] max-h-[85vh] overflow-y-auto` so nothing clips in landscape; and a sticky footer (`data-testid="toolbar-filters-footer"`) with a `"Cerrar"` button that closes the sheet. The body SHALL render the `#filters` slot **directly** — the toolbar MUST NOT capture and re-render slot vnodes (vnode capture breaks leaf components that rely on provide/inject + Teleport, e.g. `USelect`'s Reka UI popover). Card sections are therefore owned by the consuming views, not by the toolbar: each view wraps its raw filter content in `FilterSectionCard` (`rounded-lg border border-default bg-elevated/30 px-4 py-4` with a `text-sm font-semibold text-highlighted` title), and `DataTableFilters` v2 in embedded mode styles each of its schema groups as a card with the same `bg-elevated/30` + section-title pattern. When the slot hosts `DataTableFilters` v2 in embedded mode, the sheet SHALL render its sections and chips directly and MUST NOT render a second trigger or slideover. At `md`+, the `#filters` slot SHALL render inline beside the search input, unchanged from the historical desktop layout.
 
 #### Scenario: Filters open in bottom-sheet
 
@@ -56,6 +56,24 @@ Below `md`, the `#filters` slot SHALL render inside `USlideover side="bottom"` w
 - GIVEN a landscape mobile viewport with many filters
 - WHEN the sheet opens
 - THEN it is scrollable and nothing is clipped
+
+#### Scenario: Structured sheet
+
+- GIVEN a mobile viewport with `#filters` content and `activeFilterCount` 2
+- WHEN the sheet opens
+- THEN sticky header (`"Filtros"` + badge `"2"` + `"Limpiar todo"`), card-section body, and sticky `"Cerrar"` footer render
+
+#### Scenario: View-owned cards, slot rendered directly
+
+- GIVEN a view that wraps raw filters in `FilterSectionCard` and `DataTableFilters` v2 in embedded mode
+- WHEN the sheet renders
+- THEN card titles and filter content render inside the body, no wrapper-rendered `toolbar-filters-section-*` markers exist, and leaf `USelect` / Reka controls keep their parentage and open correctly
+
+#### Scenario: Embedded filters, single sheet
+
+- GIVEN `#filters` hosting `DataTableFilters` v2 in embedded mode
+- WHEN the sheet opens
+- THEN its sections and chips render inside the sheet and no second trigger or slideover appears
 
 ### REQ-4: Active-filter-count contract
 
