@@ -631,7 +631,7 @@ defineExpose({
     />
 
     <!-- ── Main card ───────────────────────────────────────────────────────── -->
-    <UCard :ui="{ body: 'p-0 sm:p-0' }">
+    <UCard :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }">
       <template #header>
         <TableHeaderDescription
           title="Promociones"

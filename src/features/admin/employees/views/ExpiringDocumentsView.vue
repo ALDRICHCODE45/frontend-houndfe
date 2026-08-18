@@ -143,7 +143,7 @@ function getCategoryLabel(category: string): string {
 
 <template>
   <div class="flex flex-col gap-6 px-4 sm:px-6 lg:px-10">
-    <UCard :ui="{ body: 'p-0 sm:p-0' }">
+    <UCard :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }">
       <template #header>
         <AdminPageHeader
           title="Documentos por vencer"

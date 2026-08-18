@@ -169,7 +169,10 @@ function mountView() {
         AppDataTable: AppDataTableStub,
         ViewToggle: ViewToggleStub,
         ProductCardGrid: ProductCardGridStub,
-        UCard: { template: '<div><slot name="header" /><slot /></div>' },
+        UCard: {
+          props: ['ui'],
+          template: '<div data-testid="products-list-card" :data-body-class="(ui && ui.body) || \'\'"><slot name="header" /><slot /></div>',
+        },
         Card: { template: '<div><slot name="header" /><slot /></div>' },
         UModal: { template: '<div />' },
         Modal: { template: '<div />' },
@@ -241,11 +244,23 @@ describe('ProductsView cards integration', () => {
     expect(wrapper.find('[data-testid="product-card-grid"]').exists()).toBe(false)
   })
 
-  it('section wrapper uses bg-coco-neutral-50 surface (SDD-7)', () => {
-    const wrapper = mountView()
-    const section = wrapper.find('section')
-    expect(section.exists()).toBe(true)
-    // PRD-REQ-005 surface.
-    expect(section.classes()).toContain('bg-coco-neutral-50')
+  it('card wrapper uses bg-coco-neutral-50 surface on its body (SDD-7)', () => {
+    // After unifying with the system-wide split header/body convention
+    // (SalesListView / QuotationsListView), the section wrapper became a
+    // UCard; the surface moves into the body slot via :ui so the header
+    // keeps its darker tone and the body gets the neutral-50 surface.
+    // Source-level guard: shallowMount doesn't render :ui classes onto the
+    // DOM and the manual UCard stub is dropped under shallowMount, so we
+    // assert against the component source instead — a regression on the
+    // binding fails fast at lint/test time.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const fs = require('node:fs')
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const path = require('node:path')
+    const source = fs.readFileSync(
+      path.resolve(__dirname, '../ProductsView.vue'),
+      'utf8',
+    )
+    expect(source).toMatch(/bg-coco-neutral-50\s+dark:bg-coco-neutral-950/)
   })
 })

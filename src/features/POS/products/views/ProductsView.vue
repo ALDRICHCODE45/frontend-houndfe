@@ -652,13 +652,13 @@ const productsErrorMessage = computed(() => {
       @confirm="handleConfirm"
     />
 
-    <section class="overflow-hidden rounded-2xl border border-coco-neutral-200 dark:border-coco-neutral-800 bg-coco-neutral-50 dark:bg-coco-neutral-950 shadow-sm">
-      <div class="border-b border-coco-neutral-200 dark:border-coco-neutral-800 px-5 py-4">
+    <UCard :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }" class="overflow-hidden shadow-sm">
+      <template #header>
         <TableHeaderDescription
           description="Gestión de inventario y catálogo de productos"
           title="Productos"
         />
-      </div>
+      </template>
       <div class="px-5 py-4">
         <AppDataTable
           v-model:sorting="sorting"
@@ -813,6 +813,6 @@ const productsErrorMessage = computed(() => {
           </template>
         </AppDataTable>
       </div>
-    </section>
+    </UCard>
   </div>
 </template>

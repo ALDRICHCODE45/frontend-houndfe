@@ -370,19 +370,21 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
 
 <template>
   <div class="flex flex-col gap-4 px-4 py-3 sm:px-6 lg:px-8">
-    <section class="overflow-hidden rounded-2xl border border-default bg-default shadow-sm">
+    <UCard :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }" class="overflow-hidden shadow-sm">
       <!-- WU-A: AdminPageHeader replaces the inline <h1> (REQ-3) -->
-      <div class="flex flex-col gap-4 border-b border-default px-5 py-4 xl:flex-row xl:items-start xl:justify-between">
-        <AdminPageHeader
-          title="Colaboradores"
-          description="Equipo, lifecycle, organigrama y documentos del personal"
-        />
+      <template #header>
+        <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <AdminPageHeader
+            title="Colaboradores"
+            description="Equipo, lifecycle, organigrama y documentos del personal"
+          />
 
-        <!-- Toolbar actions slot — ViewToggle (card/table switch) -->
-        <div class="flex flex-wrap items-center gap-2">
-          <slot name="actions" />
+          <!-- Toolbar actions slot — ViewToggle (card/table switch) -->
+          <div class="flex flex-wrap items-center gap-2">
+            <slot name="actions" />
+          </div>
         </div>
-      </div>
+      </template>
 
       <div class="flex flex-col gap-4 px-5 py-4">
         <AppDataTable
@@ -563,7 +565,7 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
           </template>
         </AppDataTable>
       </div>
-    </section>
+    </UCard>
   </div>
 
   <!-- Create Employee Slideover — gated by canCreate (create:Employee CASL) -->
