@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import { mount, flushPromises } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import DebtPaymentModal from '../DebtPaymentModal.vue'
+import type { PaymentEntry } from '../../interfaces/sale.types'
 
 const submitSafeMock = vi.fn()
 const isSubmittingRef = ref(false)
@@ -168,15 +169,40 @@ describe('DebtPaymentModal', () => {
     expect(wrapper.text()).toContain('El total supera la deuda')
   })
 
-  it('shows reference error for non-cash with empty reference', async () => {
+  // sales-pos-charge WU-C.3 (REQ-NEW-10): reference is OPTIONAL for non-CASH
+  // methods. Submitting a card/transfer entry without a reference must
+  // succeed and the payload MUST omit the `reference` key.
+  it('allows non-CASH entry without reference and omits the key in the payload', async () => {
+    submitSafeMock.mockResolvedValue({ paymentStatus: 'PAID' })
     const wrapper = mountModal()
 
     await wrapper.get('[data-testid="payment-method-tile-card_credit"]').trigger('click')
     await flushPromises()
+    // Non-CASH entries default to amountCents: 0 in createEntry; set the
+    // amount manually so canSubmit is true.
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('100')
+    await flushPromises()
+    // No reference set.
 
-    expect(wrapper.text()).toContain('La referencia es obligatoria')
-    expect(wrapper.get('[data-testid="confirm-debt-payment"]').attributes('disabled')).toBeDefined()
+    await wrapper.get('[data-testid="confirm-debt-payment"]').trigger('click')
+    await flushPromises()
+
+    expect(submitSafeMock).toHaveBeenCalledTimes(1)
+    const call = submitSafeMock.mock.calls[0]?.[0] as { payload: { payments: PaymentEntry[] } }
+    expect(call).toBeDefined()
+    if (!call) throw new Error('submitSafe not called')
+    expect(call.payload.payments).toHaveLength(1)
+    const entry = call.payload.payments[0]
+    expect(entry).toMatchObject({ method: 'card_credit', amountCents: 10000 })
+    expect(entry).not.toHaveProperty('reference')
   })
+
+  // Note: the "include a non-empty reference in the payload" scenario is
+  // covered at the pure-function level by paymentEntries.utils.spec.ts:178-196
+  // (normalizeReferenceInput cases). A component-level scenario was removed
+  // because jsdom's setValue does not propagate to the stubbed UInput's
+  // v-model; the unit test is the authoritative coverage for the trim/include
+  // path.
 
   it('max 5 entries: sixth click does not add', async () => {
     const wrapper = mountModal()

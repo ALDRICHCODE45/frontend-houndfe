@@ -94,10 +94,26 @@ describe('paymentEntries.utils', () => {
       expect(errors.amountCents).toBe('El monto debe ser mayor a 0')
     })
 
-    it('requires non-empty reference for non-cash methods', () => {
-      const errors = validateEntry({ method: 'card_debit', amountCents: 100, reference: '   ' })
+    // sales-pos-charge WU-C.1 (REQ-NEW-9): reference is OPTIONAL for non-cash
+    // methods. The cashier can submit a card/transfer entry without typing a
+    // reference; the backend defaults it to null on save.
+    it('passes a non-cash entry without a reference (WU-C)', () => {
+      const errors = validateEntry({ method: 'card_debit', amountCents: 100 })
 
-      expect(errors.reference).toBe('La referencia es obligatoria')
+      expect(errors.reference).toBeUndefined()
+      expect(errors.amountCents).toBeUndefined()
+    })
+
+    it('passes a non-cash entry with an empty-string reference (WU-C)', () => {
+      const errors = validateEntry({ method: 'card_debit', amountCents: 100, reference: '' })
+
+      expect(errors.reference).toBeUndefined()
+    })
+
+    it('passes a non-cash entry with a whitespace-only reference (WU-C)', () => {
+      const errors = validateEntry({ method: 'transfer', amountCents: 100, reference: '   ' })
+
+      expect(errors.reference).toBeUndefined()
     })
 
     it('does not require reference for cash method', () => {

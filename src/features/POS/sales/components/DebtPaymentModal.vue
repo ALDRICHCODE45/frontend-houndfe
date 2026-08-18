@@ -8,6 +8,7 @@ import { PAYMENT_METHOD } from '../constants/sale.constants' // sdd/magic-string
 import {
   MAX_PAYMENT_ENTRIES,
   addEntry,
+  normalizeReferenceInput,
   paidSum,
   updateEntry,
   removeEntry,
@@ -124,8 +125,23 @@ function handleEntryRemove(index: number): void {
 async function handleSubmit() {
   if (!canSubmit.value) return
 
+  // sales-pos-charge WU-C.3 (REQ-NEW-10): normalize each entry's reference
+  // before crossing the wire — empty/whitespace becomes "omit the key" so
+  // the backend defaults to null instead of receiving `reference: ''`.
+  const normalizedPayments = entries.value.map((entry) => {
+    const normalized = normalizeReferenceInput(entry.reference ?? undefined)
+    // Treat null and undefined the same: omit the key entirely so the
+    // backend never receives `reference: null` (spec REQ-NEW-10).
+    if (normalized === null || normalized === undefined) {
+      const { reference: _omitted, ...rest } = entry
+      void _omitted
+      return rest
+    }
+    return { ...entry, reference: normalized }
+  })
+
   const result = await submitSafe({
-    payload: { payments: entries.value },
+    payload: { payments: normalizedPayments },
     idempotencyKey: idempotencyKey.value,
   })
 

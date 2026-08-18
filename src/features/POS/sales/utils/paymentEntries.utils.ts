@@ -56,17 +56,14 @@ export function updateEntry(entries: PaymentEntry[], index: number, patch: Payme
 }
 
 export function validateEntry(entry: PaymentEntry): PaymentEntryValidation {
+  // sales-pos-charge WU-C.1 (REQ-NEW-9, REQ-NEW-10): reference is OPTIONAL
+  // for non-CASH entries. The cashier can submit a card/transfer payment
+  // without typing a reference; the backend treats the missing reference
+  // as null. Only the amount still gates validation.
   const errors: PaymentEntryValidation = {}
 
   if (entry.amountCents < 1) {
     errors.amountCents = 'El monto debe ser mayor a 0'
-  }
-
-  if (entry.method !== PAYMENT_METHOD.CASH) {
-    const reference = entry.reference?.trim() ?? ''
-    if (!reference) {
-      errors.reference = 'La referencia es obligatoria'
-    }
   }
 
   return errors
