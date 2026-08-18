@@ -5,6 +5,7 @@ import {
   MAX_PAYMENT_ENTRIES,
   addEntry,
   createEntry,
+  normalizeReferenceInput,
   paidSum,
   remaining,
   removeEntry,
@@ -152,6 +153,31 @@ describe('paymentEntries.utils', () => {
       )
 
       expect(result).toBe(7000)
+    })
+  })
+
+  // sales-pos-charge WU-B.6 / WU-C.1 — reference is OPTIONAL for non-CASH
+  // methods going forward (REQ-NEW-9, REQ-NEW-10); the util normalizes the
+  // raw field input into the wire contract.
+  describe('normalizeReferenceInput', () => {
+    it('maps an empty string to undefined (omit the key)', () => {
+      expect(normalizeReferenceInput('')).toBeUndefined()
+    })
+
+    it('maps a whitespace-only string to undefined', () => {
+      expect(normalizeReferenceInput('   ')).toBeUndefined()
+    })
+
+    it('trims surrounding whitespace from a real reference', () => {
+      expect(normalizeReferenceInput('  TRF-001  ')).toBe('TRF-001')
+    })
+
+    it('passes through null unchanged (slideover clear signal)', () => {
+      expect(normalizeReferenceInput(null)).toBeNull()
+    })
+
+    it('passes through undefined unchanged', () => {
+      expect(normalizeReferenceInput(undefined)).toBeUndefined()
     })
   })
 })

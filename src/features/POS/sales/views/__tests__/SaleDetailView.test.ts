@@ -79,6 +79,28 @@ vi.mock('../../composables/useSaleComments', () => ({
   }),
 }))
 
+// sales-pos-charge WU-B.7: the view owns the reference-edit mutation. The
+// composable installs TanStack Query state; mocking it keeps the view tests
+// framework-light (no QueryClient setup needed) and isolates the view layer
+// from the mutation contract that has its own dedicated test file.
+const updateReferenceMock = vi.fn()
+const referencePendingRef = ref(false)
+vi.mock('../../composables/useUpdatePaymentReference', () => ({
+  useUpdatePaymentReference: () => ({
+    updateReference: updateReferenceMock,
+    isPending: computed(() => referencePendingRef.value),
+    lastError: computed(() => null),
+  }),
+}))
+
+vi.mock('../../components/PaymentsListSection.vue', () => ({
+  default: {
+    template: '<div data-testid="payments-list-section" />',
+    props: ['payments', 'loading'],
+    emits: ['submit'],
+  },
+}))
+
 vi.mock('@/features/auth/stores/useAuthStore', () => ({
   useAuthStore: () => ({ userCan: vi.fn(() => true) }),
 }))
