@@ -470,12 +470,186 @@ The list SHALL render one toolbar row (search, `Filtros`, refresh, `Columnas`, "
 
 ### REQ-19 Preserved Sales List Invariants
 
-`SalesListTabs` (Todas/No Entregadas), `SaleCard`, `PaymentMethodPills`, `salesFiltersSchema` (11 fields, 4 sections), and every `#<id>-cell` slot SHALL remain unchanged.
+`SalesListTabs` (Todas / Pagos Pendientes / No Entregadas), `SaleCard`, `PaymentMethodPills`, `salesFiltersSchema` (11 fields, 4 sections), and every `#<id>-cell` slot SHALL remain unchanged. "Pagos Pendientes" is an additive slot filtering `paymentStatus=PARTIAL,CREDIT` and surfacing `counts.pendingPayments` (badge per REQ-NEW-8).
 
 #### Scenario: domain pieces keep current behavior
 - GIVEN tabs, cards, and payment pills render
 - WHEN the schema, cell templates, and component testids are inspected
 - THEN `salesFiltersSchema` still defines 11 fields across 4 sections and all components and cell slots match current behavior
+
+#### Scenario: three tabs render in order
+- GIVEN the listing mounts
+- WHEN `SalesListTabs` renders
+- THEN three tabs render in order: Todas, Pagos Pendientes, No Entregadas
+- AND `SaleCard`, `PaymentMethodPills`, `salesFiltersSchema`, and every `#<id>-cell` slot match prior behavior (unchanged)
+
+### REQ-NEW-1: Reference-edit endpoint
+
+`saleApi.updatePaymentReference` SHALL expose `PATCH /sales/:saleId/payments/:paymentId/reference` with `{ reference: string | null }` and NO `Idempotency-Key`.
+
+#### Scenario: PATCH fires with body and no Idempotency-Key
+- GIVEN a `paymentId` and a non-empty reference
+- WHEN the mutation is invoked
+- THEN the PATCH fires with the body and no `Idempotency-Key` header
+
+#### Scenario: null reference persists
+- GIVEN `reference: null`
+- WHEN the PATCH fires
+- THEN the backend persists `null`
+
+### REQ-NEW-2: useUpdatePaymentReference composable
+
+On success invalidate `getById(saleId)`. On 404 `ENTITY_NOT_FOUND` toast "El pago ya no existe" AND re-fetch `getById`.
+
+#### Scenario: success invalidates detail
+- GIVEN a successful PATCH
+- WHEN the mutation resolves
+- THEN `getById(saleId)` is invalidated
+
+#### Scenario: 404 toasts and re-fetches
+- GIVEN a 404 response
+- WHEN the mutation rejects
+- THEN a toast shows "El pago ya no existe" AND `getById` re-fetches
+
+### REQ-NEW-3: PaymentsListSection component
+
+`PaymentsListSection.vue` SHALL render every `SaleDetail.payments[]` entry under the "Pagos y deuda" totals card in `SaleDetailView` (one row per payment).
+
+#### Scenario: one row per payment
+- GIVEN `payments.length === 3`
+- WHEN `SaleDetailView` renders
+- THEN exactly 3 rows render
+
+### REQ-NEW-4: Edit affordance on non-CASH non-CREDIT rows
+
+Rows with `method` in the whitelist `{CARD_DEBIT, CARD_CREDIT, TRANSFER}` AND `paymentId` present SHALL expose "Editar referencia" opening a slideover pre-filled with `reference`. Cash and credit sales have no per-payment reference by definition; the edit affordance would be misleading. The whitelist `{CARD_DEBIT, CARD_CREDIT, TRANSFER}` is intentional and matches the contract doc §3.2 which excludes `'credit'` from the `payments[]` array. Always render (backend RBAC enforces; FE toasts on 403).
+
+#### Scenario: non-CASH non-CREDIT row shows edit affordance
+- GIVEN `method: 'CARD_DEBIT'` or `'CARD_CREDIT'` or `'TRANSFER'`
+- WHEN the row renders
+- THEN "Editar referencia" is visible and the slideover opens pre-filled
+
+#### Scenario: CASH row hides edit affordance
+- GIVEN `method: 'CASH'`
+- WHEN the row renders
+- THEN no "Editar referencia" is visible
+
+#### Scenario: CREDIT row hides edit affordance (whitelist excludes CREDIT)
+- GIVEN `method: 'CREDIT'`
+- WHEN the row renders
+- THEN no "Editar referencia" is visible (whitelist excludes CREDIT by design — see contract §3.2)
+
+### REQ-NEW-5: Slideover submit semantics
+
+Accept string OR null/"". Empty normalized to null before transport.
+
+#### Scenario: clear submits null reference
+- GIVEN the slideover open with current reference pre-filled
+- WHEN the cashier clears the input and submits
+- THEN the PATCH fires with `reference: null`
+
+### REQ-NEW-6: SaleDetailPayment.paymentId required
+
+`SaleDetailPayment` SHALL include `paymentId: string` (required, non-null).
+
+#### Scenario: omitting paymentId is a type error
+- GIVEN a `SaleDetailPayment` literal
+- WHEN type-checked
+- THEN omitting `paymentId` is a type error
+
+### REQ-NEW-7: Reference-edit error handling
+
+404 → toast + re-fetch (REQ-NEW-2). 403 → permission toast. Network → backoff retry.
+
+#### Scenario: 403 toasts permission denial
+- GIVEN a 403 response
+- WHEN the mutation rejects
+- THEN a permission toast shows
+
+#### Scenario: transient network failure retries
+- GIVEN a transient network failure
+- WHEN the mutation rejects
+- THEN the composable retries with exponential backoff (TanStack default, retry: 3, skipping `ReferenceUpdateError`)
+
+### REQ-NEW-8: Pending-payments badge conditional
+
+The "Pagos Pendientes" tab SHALL show the badge only when `counts.pendingPayments > 0`; tab remains selectable at `0`.
+
+#### Scenario: count > 0 shows badge
+- GIVEN `counts.pendingPayments === 8`
+- WHEN the listing renders
+- THEN the badge shows `8`
+
+#### Scenario: count = 0 hides badge but tab selectable
+- GIVEN `counts.pendingPayments === 0`
+- WHEN the listing renders
+- THEN the tab renders without a badge AND clicking it shows the empty table
+
+### REQ-NEW-9: PaymentModal reference optional
+
+`PaymentModal.validate()` SHALL NOT require `reference` for non-CASH entries.
+
+#### Scenario: non-CASH entry without reference submits
+- GIVEN a non-CASH entry with no `reference`
+- WHEN submitted
+- THEN the payload omits `reference` and the backend returns 200 OK
+
+### REQ-NEW-10: DebtPaymentModal reference optional
+
+`DebtPaymentModal.validateEntry` SHALL NOT require `reference`.
+
+#### Scenario: non-CASH debt entry without reference submits
+- GIVEN a non-CASH debt entry with no `reference`
+- WHEN submitted
+- THEN the payload omits `reference` and the backend returns 200 OK
+
+### REQ-NEW-11: ChargeDomainErrorCode does NOT enumerate REFERENCE_REQUIRED
+
+`ChargeDomainErrorCode` SHALL NOT enumerate `REFERENCE_REQUIRED`.
+
+#### Scenario: REFERENCE_REQUIRED literal is a type error
+- GIVEN a `ChargeDomainErrorCode` literal
+- WHEN the value `'REFERENCE_REQUIRED'` is used
+- THEN it is a type error
+
+### REQ-NEW-12: ChargeDomainErrorCode includes PAYMENT_AMOUNT_INSUFFICIENT
+
+`ChargeDomainErrorCode` SHALL include `PAYMENT_AMOUNT_INSUFFICIENT` with action `"Agregá un pago en efectivo o ajustá los montos para cubrir el total"`.
+
+#### Scenario: PAYMENT_AMOUNT_INSUFFICIENT renders action text
+- GIVEN the backend returns `PAYMENT_AMOUNT_INSUFFICIENT`
+- WHEN a multi-method charge under-covers the total
+- THEN a toast displays the action text
+
+### REQ-NEW-13: SaleDueDateErrorCode enumerates SALE_FULLY_PAID (not SALE_ALREADY_PAID)
+
+`SaleDueDateErrorCode` SHALL enumerate `SALE_FULLY_PAID` (not `SALE_ALREADY_PAID`); `DueDateEditModal` mapping updated in lock-step.
+
+#### Scenario: SALE_FULLY_PAID rejects with mapped message
+- GIVEN a backend 4xx with `code: 'SALE_FULLY_PAID'`
+- WHEN `useSaleDueDate` rejects
+- THEN `DueDateEditModal` shows the "sale is already fully paid" message
+
+### REQ-NEW-14: SellerAssignmentErrorCode does NOT enumerate SELLER_NOT_ASSIGNABLE
+
+`SellerAssignmentErrorCode` SHALL NOT enumerate `SELLER_NOT_ASSIGNABLE` (backend only emits `SELLER_NOT_FOUND`).
+
+#### Scenario: AssignSellerSlideover does not branch on SELLER_NOT_ASSIGNABLE
+- GIVEN `AssignSellerSlideover` error mapping
+- WHEN inspected
+- THEN it does NOT branch on `SELLER_NOT_ASSIGNABLE`
+
+### REQ-NEW-15: Dead code MAY be removed
+
+MAY delete (WU-E): `SaleDetailHeader.vue`, `components/payments/PaymentEntryCard.vue`, `PaymentMethodTileGrid.vue`, `PaymentTotalsRow.vue`, `paymentMethod.config.ts` (+ `__tests__`) — zero non-test imports.
+
+#### Scenario: dead code removed with no broken imports
+- GIVEN the listed files are deleted
+- WHEN `pnpm build` runs
+- THEN the build succeeds with no broken imports
+
+---
+*Delta REQ-NEW-1..15 + REQ-19 MODIFIED applied from `sales-pos-charge` change (HEAD `fa62b450`).*
 
 ## UI Copy (neutral Spanish, examples)
 
