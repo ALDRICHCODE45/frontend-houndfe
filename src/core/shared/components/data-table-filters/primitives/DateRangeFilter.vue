@@ -8,8 +8,15 @@ const props = withDefaults(defineProps<{
   includeNullOption?: string
   error?: string
   presets?: boolean
+  /**
+   * Renders a primary ring around the trigger button when the parent schema
+   * reports this filter as active. Lets the user see which filter is on
+   * without keeping a parallel chips row above the slideover.
+   */
+  isActive?: boolean
 }>(), {
   presets: true,
+  isActive: false,
 })
 
 const modelValue = defineModel<{ from?: string; to?: string }>({ default: () => ({}) })
@@ -146,7 +153,7 @@ const rangeLabel = computed(() => {
         data-testid="date-range-trigger"
         variant="outline"
         color="neutral"
-        class="w-full justify-start"
+        :class="['w-full justify-start', props.isActive && 'ring-2 ring-primary ring-inset']"
       >
         {{ rangeLabel }}
       </UButton>

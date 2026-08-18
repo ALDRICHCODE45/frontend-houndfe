@@ -16,6 +16,12 @@ const props = withDefaults(defineProps<{
   step?: number
   displayDivisor?: number
   error?: string
+  /**
+   * Renders a primary ring around the inputs when the parent schema reports
+   * this filter as active. Lets the user see which filter is on without
+   * keeping a parallel chips row above the slideover.
+   */
+  isActive?: boolean
 }>(), {
   unit: '$',
   formatAs: 'currency',
@@ -23,6 +29,7 @@ const props = withDefaults(defineProps<{
   step: 1,
   displayDivisor: 1,
   error: undefined,
+  isActive: false,
 })
 
 const modelValue = defineModel<{ min?: number; max?: number }>({ default: () => ({}) })
@@ -83,7 +90,7 @@ function updateMax(value: unknown) {
 
 <template>
   <UFormField :label="props.label" :error="resolvedError" class="w-full" data-testid="numeric-range-filter">
-    <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+    <div :class="['grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded', props.isActive && 'ring-2 ring-primary ring-inset p-1']">
       <UInputNumber
         data-testid="numeric-min"
         class="w-full"

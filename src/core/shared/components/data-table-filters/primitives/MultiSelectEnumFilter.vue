@@ -13,11 +13,18 @@ const props = withDefaults(defineProps<{
   includeNullOption?: string
   error?: string
   searchable?: boolean
+  /**
+   * Renders a primary ring around the trigger when the parent schema reports
+   * this filter as active. Lets the user see which filter is on without
+   * keeping a parallel chips row above the slideover.
+   */
+  isActive?: boolean
 }>(), {
   placeholder: 'Seleccionar opciones',
   includeNullOption: undefined,
   error: undefined,
   searchable: false,
+  isActive: false,
 })
 
 const modelValue = defineModel<string[]>({ default: () => [] })
@@ -90,7 +97,7 @@ const selectedLabel = computed(() => {
   <UFormField :label="props.label" :error="props.error" class="w-full" data-testid="multi-select-enum-filter">
     <USelectMenu
       data-testid="enum-select"
-      class="w-full"
+      :class="['w-full', props.isActive && 'ring-2 ring-primary ring-inset rounded']"
       v-model="selectionWithSentinel"
       :items="displayItems"
       :placeholder="props.placeholder"

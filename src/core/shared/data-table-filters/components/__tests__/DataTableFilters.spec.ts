@@ -39,7 +39,7 @@ const baseStubs = {
   Badge: { template: '<span :data-testid="$attrs[\'data-testid\']">{{ label }}<slot /></span>', props: ['label'] },
   Button: { template: '<button :data-testid="$attrs[\'data-testid\']" @click="$emit(\'click\')"><slot /></button>' },
   Slideover: { props: ['open', 'side', 'ui'], template: '<div data-testid="slideover" :data-open="String(open)" :data-side="side" :data-ui="ui ? JSON.stringify(ui) : \'\'"><slot name="content" /></div>' },
-  MultiSelectEnumFilter: { name: 'MultiSelectEnumFilter', template: '<div data-testid="primitive-enum" />', props: ['error', 'displayDivisor'] },
+  MultiSelectEnumFilter: { name: 'MultiSelectEnumFilter', template: '<div data-testid="primitive-enum" :data-is-active="String(!!isActive)" />', props: ['error', 'displayDivisor', 'isActive'] },
   MultiSelectAsyncFilter: { name: 'MultiSelectAsyncFilter', template: '<div data-testid="primitive-async" />' },
   MultiTextInputFilter: { name: 'MultiTextInputFilter', template: '<div data-testid="primitive-text" />' },
   NumericRangeFilter: { name: 'NumericRangeFilter', template: '<div data-testid="primitive-numeric" />', props: ['displayDivisor', 'error'] },
@@ -80,7 +80,10 @@ describe('DataTableFilters (v2)', () => {
     expect(mobileUi).toContain('rounded-t-2xl')
   })
 
-  it('groups fields by section, no-section first, section dot active', () => {
+  it('groups fields by section, no-section first, marks active filters on the primitive', () => {
+    // The section dot was removed when the chips row left the header — active
+    // filters are now marked by `is-active=true` on the primitive itself, so
+    // it can render a primary ring around the input/select.
     const wrapper = mount(DataTableFilters, {
       props: { schema, state: { ...schema.defaults(), paymentMethod: ['CARD_DEBIT'] } },
       global: { stubs: baseStubs },
@@ -88,7 +91,11 @@ describe('DataTableFilters (v2)', () => {
 
     const groups = wrapper.findAll('[data-testid^="section-group-"]')
     expect(groups[0]?.attributes('data-testid')).toBe('section-group-__no_section__')
-    expect(wrapper.find('[data-testid="section-dot-Cobro"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="section-dot-Cobro"]').exists()).toBe(false)
+    // The "Cobro" group holds the paymentMethod enum filter; its primitive
+    // must receive isActive=true so the visual ring lands on it.
+    const cobroEnum = wrapper.find('[data-testid="primitive-enum"]')
+    expect(cobroEnum.attributes('data-is-active')).toBe('true')
   })
 
   it('renders correct primitive per kind, passes errors, clear all resets defaults', async () => {

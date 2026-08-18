@@ -7,7 +7,6 @@ import MultiSelectEnumFilter from '@/core/shared/components/data-table-filters/p
 import MultiTextInputFilter from '@/core/shared/components/data-table-filters/primitives/MultiTextInputFilter.vue'
 import NumericRangeFilter from '@/core/shared/components/data-table-filters/primitives/NumericRangeFilter.vue'
 import type { FilterDefinition, FilterState, FiltersSchema, NumericRangeFilterDefinition } from '../schema/types'
-import DataTableFiltersChips from './DataTableFiltersChips.vue'
 
 const props = withDefaults(defineProps<{
   schema: FiltersSchema
@@ -63,25 +62,6 @@ function getDisplayDivisor(field: NumericRangeFilterDefinition): number {
   return field.formatAs === 'currency' ? 100 : 1
 }
 
-function clearField(filterId: string) {
-  const field = props.schema.byId[filterId]
-  if (!field) return
-
-  if (field.kind === 'multi-enum' || field.kind === 'multi-async' || field.kind === 'multi-text') {
-    state.value[field.id] = []
-    if ('includeNull' in field && field.includeNull) state.value[field.includeNull.param] = false
-    return
-  }
-
-  if (field.kind === 'numeric-range') {
-    state.value[field.id] = { min: undefined, max: undefined }
-    return
-  }
-
-  state.value[field.id] = { from: undefined, to: undefined }
-  if (field.includeNull) state.value[field.includeNull.param] = false
-}
-
 function clearAll() {
   state.value = props.schema.defaults()
 }
@@ -115,22 +95,21 @@ defineExpose({ open, close })
 <template>
   <!--
     Two render paths:
-    • Standalone (embedded=false, default): root div renders chips slot AND
-      the trigger button + own USlideover (legacy behaviour preserved).
+    • Standalone (embedded=false, default): root div renders the trigger
+      button + own USlideover. The "Limpiar todo" lives in the slideover
+      header (no chips row in the toolbar so the header never piles up).
     • Embedded (embedded=true): the trigger and the own USlideover are
-      suppressed. Only the chips + section list render inside the wrapper's
+      suppressed. Only the section list renders inside the wrapper's
       unified bottom-sheet — the parent owns the trigger, the header, the
       footer, and the slideover.
+    In both paths the active filters are marked on the primitive itself
+    (is-active → ring), not as removable chips in the header.
   -->
   <div
     v-if="embedded"
     class="space-y-3"
     data-testid="data-table-filters-embedded"
   >
-    <slot name="chips" :chips="activeChips" :clear="clearField" :clear-all="clearAll">
-      <DataTableFiltersChips :schema="props.schema" :state="state" @clear="clearField" @clear-all="clearAll" />
-    </slot>
-
     <div class="space-y-4">
       <section
         v-for="group in groupsWithActivity"
@@ -144,11 +123,6 @@ defineExpose({ open, close })
           :data-testid="`section-header-${group.key}`"
         >
           {{ group.section }}
-          <span
-            v-if="group.hasActive"
-            class="ml-2 inline-block h-1.5 w-1.5 rounded-full bg-primary"
-            :data-testid="`section-dot-${group.key}`"
-          />
         </p>
         <div class="space-y-4">
           <template v-for="field in group.fields" :key="field.id">
@@ -162,6 +136,7 @@ defineExpose({ open, close })
               :include-null-option="field.includeNull?.label"
               :searchable="field.searchable"
               :error="props.errors[field.id]"
+              :is-active="schema.isActive(field.id, state)"
               @update:include-null-value="setIncludeNullValue(field, $event)"
             />
 
@@ -176,6 +151,7 @@ defineExpose({ open, close })
               :loading-label="field.loadingLabel"
               :include-null-option="field.includeNull?.label"
               :error="props.errors[field.id]"
+              :is-active="schema.isActive(field.id, state)"
               @update:include-null-value="setIncludeNullValue(field, $event)"
             />
 
@@ -187,6 +163,7 @@ defineExpose({ open, close })
               :max="field.max"
               :strip-prefix="field.parse?.stripPrefix"
               :error="props.errors[field.id]"
+              :is-active="schema.isActive(field.id, state)"
             />
 
             <NumericRangeFilter
@@ -198,6 +175,7 @@ defineExpose({ open, close })
               :format-as="field.formatAs"
               :display-divisor="getDisplayDivisor(field)"
               :error="props.errors[field.id]"
+              :is-active="schema.isActive(field.id, state)"
             />
 
             <DateRangeFilter
@@ -208,6 +186,7 @@ defineExpose({ open, close })
               :include-null-option="field.includeNull?.label"
               :presets="field.presets"
               :error="props.errors[field.id]"
+              :is-active="schema.isActive(field.id, state)"
               @update:include-null-value="setIncludeNullValue(field, $event)"
             />
           </template>
@@ -223,10 +202,6 @@ defineExpose({ open, close })
         Filtros
         <UBadge v-if="activeCount > 0" :label="String(activeCount)" color="primary" data-testid="filters-trigger-count" />
       </UButton>
-    </slot>
-
-    <slot name="chips" :chips="activeChips" :clear="clearField" :clear-all="clearAll">
-      <DataTableFiltersChips :schema="props.schema" :state="state" @clear="clearField" @clear-all="clearAll" />
     </slot>
 
     <USlideover :open="isOpen" :side="slideoverSide" inset :ui="slideoverUi" @update:open="isOpen = $event">
@@ -246,7 +221,6 @@ defineExpose({ open, close })
             <section v-for="group in groupsWithActivity" :key="group.key" :data-testid="`section-group-${group.key}`" :class="group.section ? 'space-y-4' : 'space-y-4 pb-2'">
               <p v-if="group.section" class="text-[11px] font-semibold uppercase tracking-wider text-muted" :data-testid="`section-header-${group.key}`">
                 {{ group.section }}
-                <span v-if="group.hasActive" class="ml-2 inline-block h-1.5 w-1.5 rounded-full bg-primary" :data-testid="`section-dot-${group.key}`" />
               </p>
               <div class="space-y-4">
                 <template v-for="field in group.fields" :key="field.id">
@@ -260,6 +234,7 @@ defineExpose({ open, close })
                     :include-null-option="field.includeNull?.label"
                     :searchable="field.searchable"
                     :error="props.errors[field.id]"
+                    :is-active="schema.isActive(field.id, state)"
                     @update:include-null-value="setIncludeNullValue(field, $event)"
                   />
 
@@ -274,6 +249,7 @@ defineExpose({ open, close })
                     :loading-label="field.loadingLabel"
                     :include-null-option="field.includeNull?.label"
                     :error="props.errors[field.id]"
+                    :is-active="schema.isActive(field.id, state)"
                     @update:include-null-value="setIncludeNullValue(field, $event)"
                   />
 
@@ -285,6 +261,7 @@ defineExpose({ open, close })
                     :max="field.max"
                     :strip-prefix="field.parse?.stripPrefix"
                     :error="props.errors[field.id]"
+                    :is-active="schema.isActive(field.id, state)"
                   />
 
                   <NumericRangeFilter
@@ -296,6 +273,7 @@ defineExpose({ open, close })
                     :format-as="field.formatAs"
                     :display-divisor="getDisplayDivisor(field)"
                     :error="props.errors[field.id]"
+                    :is-active="schema.isActive(field.id, state)"
                   />
 
                   <DateRangeFilter
@@ -306,6 +284,7 @@ defineExpose({ open, close })
                     :include-null-option="field.includeNull?.label"
                     :presets="field.presets"
                     :error="props.errors[field.id]"
+                    :is-active="schema.isActive(field.id, state)"
                     @update:include-null-value="setIncludeNullValue(field, $event)"
                   />
                 </template>

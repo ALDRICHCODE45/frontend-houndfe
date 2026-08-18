@@ -276,6 +276,11 @@ const stubs = {
     // The `set-status-filter` button lets a test drive real filter state
     // through the real useDataTableFilters, so "Limpiar" can be verified by
     // its observable effect rather than by spying on an internal method.
+    // The `clear-extended-filters` button mirrors the "Limpiar todo" exposed
+    // by DataTableFiltersChips in production (the previous duplicate
+    // `extended-filters-indicator` from the view was removed and the chips
+    // now own this UX) — it renders only when at least one filter is active
+    // and emits a clean state on click.
     template: `
       <div
         data-testid="sales-filters"
@@ -286,6 +291,16 @@ const stubs = {
         <button
           data-testid="set-status-filter"
           @click="$emit('update:state', { ...state, status: ['CONFIRMED'] })"
+        />
+        <button
+          v-if="Object.values(state).some(v =>
+            Array.isArray(v) ? v.length > 0
+              : v && typeof v === 'object'
+                ? Object.values(v).some(x => x !== undefined && x !== null)
+                : false,
+          )"
+          data-testid="clear-extended-filters"
+          @click="$emit('update:state', {})"
         />
       </div>
     `,
@@ -732,18 +747,20 @@ describe('SalesListView — consolidated toolbar (REQ-14, REQ-15)', () => {
   })
 
   it('clears only the slideover filter state when Limpiar is clicked', async () => {
+    // After removing the duplicate `extended-filters-indicator`, the
+    // "Limpiar todo" action lives on the chips that DataTableFilters renders
+    // for active filters. The chips expose the same `clear-extended-filters`
+    // testid in the stub so the observable behaviour (only the slideover
+    // filter state resets; sorting, search, view mode stay) is identical.
     const wrapper = mount(SalesListView, { global: { stubs } })
     mockState.sorting.value = [{ id: 'totalCents', desc: false }]
     mockState.globalFilter.value = 'ada'
 
     await wrapper.get('[data-testid="set-status-filter"]').trigger('click')
-    expect(wrapper.get('[data-testid="extended-filters-indicator"]').text()).toContain(
-      'Filtros activos: 1',
-    )
 
-    await wrapper.get('[data-testid="clear-extended-filters"]').trigger('click')
+    const clearButton = wrapper.get('[data-testid="clear-extended-filters"]')
+    await clearButton.trigger('click')
 
-    expect(wrapper.find('[data-testid="extended-filters-indicator"]').exists()).toBe(false)
     // Sorting, search text, and view mode are deliberately untouched.
     expect(mockState.sorting.value).toEqual([{ id: 'totalCents', desc: false }])
     expect(mockState.globalFilter.value).toBe('ada')

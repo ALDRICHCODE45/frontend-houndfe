@@ -7,11 +7,18 @@ const props = withDefaults(defineProps<{
   max?: number
   stripPrefix?: string
   error?: string
+  /**
+   * Renders a primary ring around the input when the parent schema reports
+   * this filter as active. Lets the user see which filter is on without
+   * keeping a parallel chips row above the slideover.
+   */
+  isActive?: boolean
 }>(), {
   placeholder: 'Ingresa valores separados por coma',
   max: 200,
   stripPrefix: undefined,
   error: undefined,
+  isActive: false,
 })
 
 const modelValue = defineModel<string[]>({ default: () => [] })
@@ -69,8 +76,8 @@ function onKeydown(event: KeyboardEvent) {
   <UFormField :label="props.label" :error="props.error" class="w-full" data-testid="multi-text-input-filter">
     <UInput
       v-model="inputValue"
-      class="w-full"
-      data-testid="multi-text-input"
+      :class="['w-full', props.isActive && 'ring-2 ring-primary ring-inset rounded']"
+      :data-testid="'multi-text-input'"
       :placeholder="props.placeholder"
       @blur="commit"
       @keydown="onKeydown"

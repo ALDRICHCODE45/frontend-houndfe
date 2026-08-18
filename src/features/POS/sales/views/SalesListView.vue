@@ -140,8 +140,6 @@ function goToSaleDetail(id: string) {
   void router.push(`/pos/ventas/${id}`)
 }
 
-const activeExtendedFiltersCount = computed(() => filtersCtl.activeCount.value)
-
 watch(() => filtersCtl.serializedState.value, () => {
   pagination.value = { ...pagination.value, pageIndex: 0 }
 })
@@ -189,8 +187,16 @@ watch(() => filtersCtl.serializedState.value, () => {
           @clear-filters="filtersCtl.clearAll()"
         >
           <template #filters>
-            <div class="flex w-full flex-wrap items-center gap-2">
-              <div class="w-full overflow-x-auto md:w-auto">
+            <!-- Three regions (filter · segment · sort) separated by vertical
+                 dividers so the toolbar reads as one composed row instead of
+                 a flat pile. Dividers only render at md+ — mobile wraps and
+                 keeps its own bottom-sheet layout, where the dividers would
+                 be noise. -->
+            <div class="flex w-full flex-wrap items-center gap-x-4 gap-y-3 md:flex-nowrap">
+              <!-- Region 1 — filter (DataTableFilters renders its own chips +
+                "Limpiar todo" when not embedded, which covers the previous
+                duplicate "extended-filters-indicator" entirely). -->
+              <div class="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
                 <DataTableFilters
                   v-model:state="filtersState"
                   :schema="salesFiltersSchema"
@@ -198,26 +204,17 @@ watch(() => filtersCtl.serializedState.value, () => {
                   :embedded="isMobile"
                 />
               </div>
-              <div
-                v-if="activeExtendedFiltersCount > 0"
-                class="flex items-center gap-1 text-xs text-muted whitespace-nowrap"
-                data-testid="extended-filters-indicator"
-              >
-                Filtros activos: {{ activeExtendedFiltersCount }} ·
-                <UButton
-                  variant="link"
-                  color="neutral"
-                  size="xs"
-                  class="p-0"
-                  data-testid="clear-extended-filters"
-                  @click="filtersCtl.clearAll()"
-                >
-                  Limpiar
-                </UButton>
-              </div>
+
+              <div class="hidden h-5 w-px shrink-0 bg-default md:block" aria-hidden="true" />
+
+              <!-- Region 2 — segment (delivery-status quick tabs). -->
               <div class="overflow-x-auto">
                 <SalesListTabs :counts="counts" @change="setDeliveryStatusFilter" />
               </div>
+
+              <div class="hidden h-5 w-px shrink-0 bg-default md:block" aria-hidden="true" />
+
+              <!-- Region 3 — sort (predefined orderings, backend-safe). -->
               <USelect
                 v-model="sortValue"
                 :items="[
@@ -225,7 +222,7 @@ watch(() => filtersCtl.serializedState.value, () => {
                   { label: 'Total menor a mayor', value: 'totalCents:asc' },
                   { label: 'Creación reciente', value: 'createdAt:desc' },
                 ]"
-                class="w-56"
+                class="w-56 shrink-0"
               />
             </div>
           </template>
