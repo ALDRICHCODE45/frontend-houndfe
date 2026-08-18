@@ -4,10 +4,11 @@ import { getSalePaymentErrorAction } from '../salePaymentErrors.utils'
 describe('getSalePaymentErrorAction', () => {
   it('maps inline validation errors', () => {
     const amount = getSalePaymentErrorAction('PAYMENT_AMOUNT_INVALID')
-    const reference = getSalePaymentErrorAction('REFERENCE_REQUIRED')
+    const insufficient = getSalePaymentErrorAction('PAYMENT_AMOUNT_INSUFFICIENT')
 
     expect(amount.type).toBe('inline')
-    expect(reference.type).toBe('inline')
+    expect(insufficient.type).toBe('inline')
+    expect(insufficient.message).toBe('Agregá un pago en efectivo o ajustá los montos para cubrir el total')
   })
 
   it('maps idempotency errors to retry/new-key actions', () => {

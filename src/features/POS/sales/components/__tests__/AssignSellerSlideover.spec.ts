@@ -145,7 +145,7 @@ describe('AssignSellerSlideover', () => {
   it('does NOT emit update:open false when assignSeller fails (keeps slideover open)', async () => {
     // Boundary assertion: failed assign should keep slideover open. Full toast
     // wiring depends on the global useToast harness which is brittle here.
-    assignSellerMock.mockRejectedValueOnce(new SellerAssignmentError('SELLER_NOT_ASSIGNABLE'))
+    assignSellerMock.mockRejectedValueOnce(new SellerAssignmentError('SELLER_NOT_FOUND'))
 
     const wrapper = mountSlideover()
     await flushPromises()

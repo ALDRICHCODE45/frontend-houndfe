@@ -93,7 +93,7 @@ describe('useSaleDueDate', () => {
 
   it('maps backend domain errors to typed lastError', async () => {
     const { composable } = mountComposable('sale-1')
-    const codes = ['INVALID_DUE_DATE', 'SALE_ALREADY_PAID', 'SALE_NOT_FOUND', 'SALE_UPDATE_FORBIDDEN'] as const
+    const codes = ['INVALID_DUE_DATE', 'SALE_FULLY_PAID', 'SALE_NOT_FOUND', 'SALE_UPDATE_FORBIDDEN'] as const
 
     for (const code of codes) {
       vi.mocked(saleApi.setDueDate).mockRejectedValueOnce({

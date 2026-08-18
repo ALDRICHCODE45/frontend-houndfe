@@ -14,7 +14,7 @@ interface DomainErrorResponse {
 
 const KNOWN_CODES: SaleDueDateErrorCode[] = [
   'INVALID_DUE_DATE',
-  'SALE_ALREADY_PAID',
+  'SALE_FULLY_PAID',
   'SALE_NOT_FOUND',
   'SALE_UPDATE_FORBIDDEN',
 ]

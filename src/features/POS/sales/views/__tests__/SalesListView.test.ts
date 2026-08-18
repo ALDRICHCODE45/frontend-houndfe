@@ -95,6 +95,7 @@ const mockState = {
   pageSizeOptions: [10, 20, 50],
   refresh: vi.fn(),
   setDeliveryStatusFilter: vi.fn(),
+  setTabFilter: vi.fn(),
   filterErrors: ref<Record<string, string>>({}),
 }
 
@@ -266,7 +267,7 @@ const stubs = {
     template: '<span :data-tone="tone">{{ label }}</span>',
   },
   SalesListTabs: {
-    template: `<button data-testid="tab-pending" @click="$emit('change', 'PENDING')">tab</button>`,
+    template: `<button data-testid="tab-pending" @click="$emit('change', { deliveryStatus: 'PENDING' })">tab</button>`,
     props: ['counts'],
   },
   AppDataTable: appDataTableStub,
@@ -366,7 +367,7 @@ describe('SalesListView', () => {
   it('updates delivery tab filter from tabs component', async () => {
     const wrapper = mount(SalesListView, { global: { stubs } })
     await wrapper.get('[data-testid="tab-pending"]').trigger('click')
-    expect(mockState.setDeliveryStatusFilter).toHaveBeenCalledWith('PENDING')
+    expect(mockState.setTabFilter).toHaveBeenCalledWith({ deliveryStatus: 'PENDING' })
   })
 
   it('passes enable-column-visibility to AppDataTable', () => {
@@ -831,7 +832,7 @@ describe('SalesListView — preserved invariants (REQ-16)', () => {
 
     await wrapper.get('[data-testid="tab-pending"]').trigger('click')
 
-    expect(mockState.setDeliveryStatusFilter).toHaveBeenCalledWith('PENDING')
+    expect(mockState.setTabFilter).toHaveBeenCalledWith({ deliveryStatus: 'PENDING' })
   })
 
   it('keeps row selection disabled and the pos-sales-list persist key intact', () => {

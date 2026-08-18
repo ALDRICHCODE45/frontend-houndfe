@@ -5,6 +5,7 @@ import {
   MAX_PAYMENT_ENTRIES,
   addEntry,
   createEntry,
+  normalizeReferenceInput,
   paidSum,
   remaining,
   removeEntry,
@@ -93,10 +94,26 @@ describe('paymentEntries.utils', () => {
       expect(errors.amountCents).toBe('El monto debe ser mayor a 0')
     })
 
-    it('requires non-empty reference for non-cash methods', () => {
-      const errors = validateEntry({ method: 'card_debit', amountCents: 100, reference: '   ' })
+    // sales-pos-charge WU-C.1 (REQ-NEW-9): reference is OPTIONAL for non-cash
+    // methods. The cashier can submit a card/transfer entry without typing a
+    // reference; the backend defaults it to null on save.
+    it('passes a non-cash entry without a reference (WU-C)', () => {
+      const errors = validateEntry({ method: 'card_debit', amountCents: 100 })
 
-      expect(errors.reference).toBe('La referencia es obligatoria')
+      expect(errors.reference).toBeUndefined()
+      expect(errors.amountCents).toBeUndefined()
+    })
+
+    it('passes a non-cash entry with an empty-string reference (WU-C)', () => {
+      const errors = validateEntry({ method: 'card_debit', amountCents: 100, reference: '' })
+
+      expect(errors.reference).toBeUndefined()
+    })
+
+    it('passes a non-cash entry with a whitespace-only reference (WU-C)', () => {
+      const errors = validateEntry({ method: 'transfer', amountCents: 100, reference: '   ' })
+
+      expect(errors.reference).toBeUndefined()
     })
 
     it('does not require reference for cash method', () => {
@@ -152,6 +169,31 @@ describe('paymentEntries.utils', () => {
       )
 
       expect(result).toBe(7000)
+    })
+  })
+
+  // sales-pos-charge WU-B.6 / WU-C.1 — reference is OPTIONAL for non-CASH
+  // methods going forward (REQ-NEW-9, REQ-NEW-10); the util normalizes the
+  // raw field input into the wire contract.
+  describe('normalizeReferenceInput', () => {
+    it('maps an empty string to undefined (omit the key)', () => {
+      expect(normalizeReferenceInput('')).toBeUndefined()
+    })
+
+    it('maps a whitespace-only string to undefined', () => {
+      expect(normalizeReferenceInput('   ')).toBeUndefined()
+    })
+
+    it('trims surrounding whitespace from a real reference', () => {
+      expect(normalizeReferenceInput('  TRF-001  ')).toBe('TRF-001')
+    })
+
+    it('passes through null unchanged (slideover clear signal)', () => {
+      expect(normalizeReferenceInput(null)).toBeNull()
+    })
+
+    it('passes through undefined unchanged', () => {
+      expect(normalizeReferenceInput(undefined)).toBeUndefined()
     })
   })
 })

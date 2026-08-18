@@ -97,7 +97,7 @@ const {
   showingFrom,
   showingTo,
   counts,
-  setDeliveryStatusFilter,
+  setTabFilter,
   filterErrors,
 } = useConfirmedSales(filtersCtl.backendParams)
 
@@ -209,7 +209,7 @@ watch(() => filtersCtl.serializedState.value, () => {
 
               <!-- Region 2 — segment (delivery-status quick tabs). -->
               <div class="overflow-x-auto">
-                <SalesListTabs :counts="counts" @change="setDeliveryStatusFilter" />
+                <SalesListTabs :counts="counts" @change="setTabFilter" />
               </div>
 
               <div class="hidden h-5 w-px shrink-0 bg-default md:block" aria-hidden="true" />

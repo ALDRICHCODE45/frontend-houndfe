@@ -56,17 +56,14 @@ export function updateEntry(entries: PaymentEntry[], index: number, patch: Payme
 }
 
 export function validateEntry(entry: PaymentEntry): PaymentEntryValidation {
+  // sales-pos-charge WU-C.1 (REQ-NEW-9, REQ-NEW-10): reference is OPTIONAL
+  // for non-CASH entries. The cashier can submit a card/transfer payment
+  // without typing a reference; the backend treats the missing reference
+  // as null. Only the amount still gates validation.
   const errors: PaymentEntryValidation = {}
 
   if (entry.amountCents < 1) {
     errors.amountCents = 'El monto debe ser mayor a 0'
-  }
-
-  if (entry.method !== PAYMENT_METHOD.CASH) {
-    const reference = entry.reference?.trim() ?? ''
-    if (!reference) {
-      errors.reference = 'La referencia es obligatoria'
-    }
   }
 
   return errors
@@ -90,4 +87,28 @@ export function paidSum(entries: PaymentEntry[]): number {
 
 export function remaining(entries: PaymentEntry[], debtCents: number): number {
   return debtCents - paidSum(entries)
+}
+
+/**
+ * sales-pos-charge WU-B.6 / design D8: normalize raw reference input from a
+ * text field before it crosses the wire.
+ *
+ * Contract:
+ *   - `null`  → `null`   (slideover uses this as the explicit "clear" signal)
+ *   - `undefined` → `undefined` (modal payload builders treat this as
+ *     "omit the key entirely" so the backend default kicks in)
+ *   - empty / whitespace-only string → `undefined` (same omit semantics)
+ *   - any other string → trimmed string
+ *
+ * Used by:
+ *   - `EditReferenceSlideover.submit` (WU-B.5) — sends `null` on clear, or
+ *     the trimmed value when set.
+ *   - `PaymentModal.buildPayload` (WU-C) — omits the `reference` key when
+ *     the user left the field blank.
+ */
+export function normalizeReferenceInput(raw: string | null | undefined): string | null | undefined {
+  if (raw === null) return null
+  if (raw === undefined) return undefined
+  const trimmed = raw.trim()
+  return trimmed.length === 0 ? undefined : trimmed
 }

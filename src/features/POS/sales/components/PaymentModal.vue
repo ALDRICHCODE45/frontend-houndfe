@@ -6,6 +6,7 @@ import DateFieldPopover from './DateFieldPopover.vue'
 import { newIdempotencyKey } from '../utils/idempotency.utils'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { formatPaymentMethod, getPaymentMethodColor } from '../utils/salePaymentMethod.utils'
+import { normalizeReferenceInput } from '../utils/paymentEntries.utils'
 
 const props = defineProps<{
   open: boolean
@@ -37,7 +38,6 @@ const MAX_ENTRIES = 5
 
 const entries = ref<PaymentEntryForm[]>([])
 const inlineError = ref<string | null>(null)
-const referenceErrorByIndex = ref<Record<number, string>>({})
 const idempotencyKey = ref<string>('')
 const dueDateInput = ref<string | null>(null)
 const isDueDateExpanded = ref(false)
@@ -86,9 +86,8 @@ const changeDueCents = computed(() => {
 })
 const canAddEntry = computed(() => entries.value.length < MAX_ENTRIES)
 const canSubmit = computed(
-  () => !props.isSubmitting && (entries.value.length === 0 ? hasCustomer.value : (!isPartial.value || canSubmitPartial.value)) && !inlineError.value && !hasReferenceErrors.value,
+  () => !props.isSubmitting && (entries.value.length === 0 ? hasCustomer.value : (!isPartial.value || canSubmitPartial.value)) && !inlineError.value,
 )
-const hasReferenceErrors = computed(() => Object.keys(referenceErrorByIndex.value).length > 0)
 const confirmButtonLabel = computed(() => {
   if (entries.value.length === 0 && hasCustomer.value) {
     return `Confirmar cobro · Deuda ${formatCentsMXN(debtToGenerateCents.value)}`
@@ -113,6 +112,11 @@ function entryNeedsReference(method: NonCreditPaymentMethod): boolean {
 }
 
 function normalizeEntries(): PaymentEntry[] {
+  // sales-pos-charge WU-C.2 (REQ-NEW-9): reference is optional for non-CASH
+  // entries. `normalizeReferenceInput` trims; an empty/whitespace input
+  // becomes `undefined`, which we treat as "omit the key" — the backend
+  // defaults the reference to null on save. A non-empty trimmed string is
+  // passed through verbatim.
   return entries.value
     .map((entry) => {
       const payment: PaymentEntry = {
@@ -121,7 +125,13 @@ function normalizeEntries(): PaymentEntry[] {
       }
 
       if (entryNeedsReference(entry.method)) {
-        payment.reference = entry.reference.trim()
+        // Treat null and undefined the same: omit the key entirely so the
+        // backend never receives `reference: null` (the spec requires
+        // omitting, REQ-NEW-9). Only forward non-empty trimmed strings.
+        const normalized = normalizeReferenceInput(entry.reference)
+        if (normalized !== null && normalized !== undefined) {
+          payment.reference = normalized
+        }
       }
 
       return payment
@@ -135,7 +145,6 @@ watch(
     if (!open) return
     entries.value = [] // Start with empty list, no preselected payment
     inlineError.value = null
-    referenceErrorByIndex.value = {}
     idempotencyKey.value = newIdempotencyKey()
     dueDateInput.value = null
     isDueDateExpanded.value = false
@@ -143,35 +152,10 @@ watch(
   { immediate: true },
 )
 
-watch(
-  entries,
-  () => {
-    if (!props.open) return
-    idempotencyKey.value = newIdempotencyKey()
-
-    // Clear reference errors for entries that now have a valid reference
-    const remaining: Record<number, string> = {}
-    for (const [key, msg] of Object.entries(referenceErrorByIndex.value)) {
-      const idx = Number(key)
-      const entry = entries.value[idx]
-      if (entry && entryNeedsReference(entry.method) && entry.reference.trim().length === 0) {
-        remaining[idx] = msg
-      }
-    }
-    referenceErrorByIndex.value = remaining
-
-    // Only clear the inline reference error if no reference errors remain
-    if (Object.keys(remaining).length === 0) {
-      inlineError.value = null
-    }
-  },
-  { deep: true },
-)
-
 // The "no customer + partial/empty payment" state is communicated by the UAlert
 // in the footer (with its CTA). Do NOT duplicate that message in inlineError —
 // it would render twice (yellow alert + red inline text). inlineError is kept
-// for orthogonal validation messages set elsewhere (reference required, etc.).
+// for orthogonal validation messages (due-date in the past, etc.).
 watch([isPartial, hasCustomer, entries], () => {
   if (!props.open) return
   inlineError.value = null
@@ -208,21 +192,11 @@ function removeEntry(index: number) {
 }
 
 function validate(): boolean {
-  referenceErrorByIndex.value = {}
-
-  entries.value.forEach((entry, index) => {
-    if (entryNeedsReference(entry.method) && entry.reference.trim().length === 0) {
-      referenceErrorByIndex.value[index] = 'Ingresa la referencia para tarjeta o transferencia'
-    }
-  })
-
-  if (Object.keys(referenceErrorByIndex.value).length > 0) {
-    inlineError.value = 'Ingresa la referencia para tarjeta o transferencia'
-    return false
-  }
-
-  // "no customer + partial" is communicated by the UAlert; just block submit
-  // without setting inlineError (we don't want two parallel messages).
+  // sales-pos-charge WU-C.2 (REQ-NEW-9): reference is OPTIONAL. We no
+  // longer block submit on missing reference. The remaining gates:
+  //   1. "no customer + partial/empty payment" — handled by the UAlert in
+  //      the footer; validate() just blocks submit silently (no inline msg).
+  //   2. due-date must be today or later, if specified.
   if (entries.value.length === 0 && !hasCustomer.value) {
     return false
   }
@@ -278,17 +252,23 @@ watch(
   },
 )
 
+// sales-pos-charge WU-C.2: keep idempotency-key regeneration on any entry
+// change (amount, method, reference) so the cashier can't replay a stale
+// charge request after editing fields. The previous reference-error
+// bookkeeping has been removed since REQ-NEW-9 made reference optional.
+watch(
+  entries,
+  () => {
+    if (!props.open) return
+    idempotencyKey.value = newIdempotencyKey()
+  },
+  { deep: true },
+)
+
 watch(entries, (next) => {
   if (!props.open || next.length === 0) return
   if (next.length <= MAX_ENTRIES) return
   entries.value = next.slice(0, MAX_ENTRIES)
-})
-
-watch(referenceErrorByIndex, () => {
-  if (!props.open) return
-  if (Object.keys(referenceErrorByIndex.value).length === 0 && inlineError.value === 'Ingresa la referencia para tarjeta o transferencia') {
-    inlineError.value = null
-  }
 })
 
 function getMethodCount(method: NonCreditPaymentMethod): number {
@@ -434,8 +414,7 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
 
               <UFormField
                 v-if="entryNeedsReference(entry.method)"
-                label="Referencia"
-                :error="referenceErrorByIndex[index]"
+                label="Referencia (opcional)"
               >
                 <UInput
                   :data-testid="`payment-reference-${index}`"

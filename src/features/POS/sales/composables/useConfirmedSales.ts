@@ -81,25 +81,66 @@ function resolveDeliveryStatus(
   return quickFilter ? [quickFilter] : undefined
 }
 
+/**
+ * Merge the slideover-supplied paymentStatus with the quick-filter tab value.
+ * The "Pagos Pendientes" quick tab (added in WU-D) sends a CSV literal
+ * (`PARTIAL,CREDIT`); the slideover schema can send either a string or an
+ * array. We normalize to an array to mirror `resolveDeliveryStatus`'s shape
+ * (axios serializes both `csv string` and `repeated param` to the same wire
+ * form per backend §6.1).
+ */
+function resolvePaymentStatus(
+  schemaValue: unknown,
+  quickFilter: string | undefined,
+): string[] | undefined {
+  if (Array.isArray(schemaValue) && schemaValue.length > 0) {
+    return schemaValue as string[]
+  }
+  if (typeof schemaValue === 'string' && schemaValue.length > 0) {
+    const parsed = schemaValue.split(',').map(s => s.trim()).filter(Boolean)
+    if (parsed.length > 0) return parsed
+  }
+  return quickFilter ? [quickFilter] : undefined
+}
+
+// Discriminated payload from SalesListTabs — a tab activates exactly one
+// filter dimension at a time. Adding new quick-tab dimensions means adding
+// an optional field here and a corresponding branch in `setTabFilter`.
+type SalesListTabChange = {
+  deliveryStatus?: SaleDeliveryStatus
+  paymentStatus?: string
+}
+
 export function useConfirmedSales(filters: Ref<Record<string, unknown>> = ref({})) {
   const authStore = useAuthStore()
   const counts = ref<SalesListCounts>(DEFAULT_COUNTS)
   const deliveryStatusFilter = ref<SaleDeliveryStatus | undefined>(undefined)
+  const paymentStatusFilter = ref<string | undefined>(undefined)
   const filterErrors = ref<Record<string, string>>({})
+
+  // Merge the two tab-state dimensions into the API-bound filters. The slideover
+  // schema (baseFilters) takes precedence over the quick-tab state when both
+  // are present, mirroring the same UX intent documented on `resolveDeliveryStatus`.
+  function resolveActiveFilters(baseFilters: Record<string, unknown>): Record<string, unknown> {
+    const ds = resolveDeliveryStatus(baseFilters.deliveryStatus, deliveryStatusFilter.value)
+    const ps = resolvePaymentStatus(baseFilters.paymentStatus, paymentStatusFilter.value)
+    return {
+      ...baseFilters,
+      ...(ds !== undefined ? { deliveryStatus: ds } : {}),
+      ...(ps !== undefined ? { paymentStatus: ps } : {}),
+    }
+  }
 
   const table = useServerTable({
     queryKey: () =>
-      saleQueryKeys.confirmed(authStore.currentTenantId, {
-        ...filters.value,
-        deliveryStatus: resolveDeliveryStatus(filters.value.deliveryStatus, deliveryStatusFilter.value),
-      }),
+      saleQueryKeys.confirmed(authStore.currentTenantId, resolveActiveFilters(filters.value)),
     queryFn: async (params) => {
       try {
         const transformedFilters = transformFolioParam(filters.value)
+        const activeFilters = resolveActiveFilters(transformedFilters)
         const response = await saleApi.listConfirmed({
           ...mapServerTableParamsToListSalesParams(params),
-          ...transformedFilters,
-          deliveryStatus: resolveDeliveryStatus(filters.value.deliveryStatus, deliveryStatusFilter.value),
+          ...activeFilters,
         })
 
         filterErrors.value = {}
@@ -131,15 +172,33 @@ export function useConfirmedSales(filters: Ref<Record<string, unknown>> = ref({}
     urlSync: false,
   })
 
-  function setDeliveryStatusFilter(status?: SaleDeliveryStatus) {
-    deliveryStatusFilter.value = status
+  // Generic tab-change handler (WU-D). Replaces the previous
+  // `setDeliveryStatusFilter` flow: a tab activates exactly one dimension;
+  // the other dimension is cleared so the activated one wins.
+  function setTabFilter(payload: SalesListTabChange): void {
+    if (payload.deliveryStatus !== undefined) {
+      deliveryStatusFilter.value = payload.deliveryStatus
+      paymentStatusFilter.value = undefined
+    } else if (payload.paymentStatus !== undefined) {
+      deliveryStatusFilter.value = undefined
+      paymentStatusFilter.value = payload.paymentStatus
+    } else {
+      deliveryStatusFilter.value = undefined
+      paymentStatusFilter.value = undefined
+    }
     table.pagination.value = { ...table.pagination.value, pageIndex: 0 }
+  }
+
+  // Backward-compatible alias so callers passing a raw delivery status still work.
+  function setDeliveryStatusFilter(status?: SaleDeliveryStatus): void {
+    setTabFilter({ deliveryStatus: status })
   }
 
   return {
     ...table,
     counts: computed(() => counts.value),
     filterErrors: computed(() => filterErrors.value),
+    setTabFilter,
     setDeliveryStatusFilter,
   }
 }

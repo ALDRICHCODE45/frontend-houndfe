@@ -13,6 +13,7 @@ import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { useSaleDetail } from '../composables/useSaleDetail'
 import { useDebtPayment } from '../composables/useDebtPayment'
 import { useSaleComments } from '../composables/useSaleComments'
+import { useUpdatePaymentReference } from '../composables/useUpdatePaymentReference'
 import { saleApi, SalePdfError, type SalePdfFormat } from '../api/sale.api'
 import { productApi } from '@/features/POS/products/api/product.api'
 import { formatCentsMXN } from '../utils/currency.utils'
@@ -26,6 +27,7 @@ import SaleDetailItemsList from '../components/SaleDetailItemsList.vue'
 import SaleDetailTotalsCard from '../components/SaleDetailTotalsCard.vue'
 import SaleDetailTimeline from '../components/SaleDetailTimeline.vue'
 import SaleCommentInput from '../components/SaleCommentInput.vue'
+import PaymentsListSection from '../components/PaymentsListSection.vue'
 import DebtPaymentModal from '../components/DebtPaymentModal.vue'
 import AssignSellerSlideover from '../components/AssignSellerSlideover.vue'
 
@@ -48,6 +50,23 @@ const { addComment, updateComment, deleteComment, isPending: commentsPending, la
 const debtModalOpen = ref(false)
 const sellerSlideoverOpen = ref(false)
 const { isSubmitting } = useDebtPayment(saleId.value)
+// sales-pos-charge WU-B.7: PaymentsListSection emits `submit`; the view owns
+// the mutation per design D6 so the section stays presentational and the
+// slideover can be tested in isolation. The composable handles its own
+// toast + cache invalidation, so this handler only needs to forward.
+const { updateReference: updatePaymentReference, isPending: referencePending } = useUpdatePaymentReference(() => saleId.value)
+
+async function handleReferenceSubmit(payload: { paymentId: string; reference: string | null }) {
+  try {
+    await updatePaymentReference({
+      paymentId: payload.paymentId,
+      payload: { reference: payload.reference },
+    })
+  } catch {
+    // Toast already dispatched by the composable; swallow rejection so the
+    // call site stays clean.
+  }
+}
 
 const canRegisterPayment = computed(
   () =>
@@ -396,7 +415,7 @@ watch(
           </template>
 
           <template #pagos>
-            <div class="pt-4">
+            <div class="space-y-6 pt-4">
               <SaleDetailTotalsCard
                 :subtotal-cents="sale.subtotalCents"
                 :discount-cents="sale.discountCents"
@@ -407,6 +426,12 @@ watch(
                 :can-register-payment="canRegisterPayment"
                 :is-payment-submitting="isSubmitting"
                 @register-payment="debtModalOpen = true"
+              />
+              <PaymentsListSection
+                :payments="sale.payments"
+                :loading="referencePending"
+                data-testid="sale-detail-payments-list"
+                @submit="handleReferenceSubmit"
               />
             </div>
           </template>

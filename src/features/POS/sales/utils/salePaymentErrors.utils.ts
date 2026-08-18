@@ -20,9 +20,9 @@ const ERROR_ACTIONS: Record<ChargeDomainErrorCode, SalePaymentUxAction> = {
     type: 'inline',
     message: 'Crédito no está permitido en pagos múltiples.',
   },
-  REFERENCE_REQUIRED: {
+  PAYMENT_AMOUNT_INSUFFICIENT: {
     type: 'inline',
-    message: 'Ingresa la referencia para tarjeta o transferencia.',
+    message: 'Agregá un pago en efectivo o ajustá los montos para cubrir el total',
   },
   PAYMENT_METHOD_NOT_SUPPORTED: {
     type: 'inline',

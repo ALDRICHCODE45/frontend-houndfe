@@ -102,7 +102,7 @@ describe('useSellerAssignment', () => {
 
   it('maps backend domain errors to typed lastError', async () => {
     const { composable } = mountComposable('sale-1')
-    const codes = ['SELLER_NOT_FOUND', 'SELLER_NOT_ASSIGNABLE', 'SALE_NOT_FOUND', 'SALE_UPDATE_FORBIDDEN'] as const
+    const codes = ['SELLER_NOT_FOUND', 'SALE_NOT_FOUND', 'SALE_UPDATE_FORBIDDEN'] as const
 
     for (const code of codes) {
       vi.mocked(saleApi.assignSeller).mockRejectedValueOnce({
