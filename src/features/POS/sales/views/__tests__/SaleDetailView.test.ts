@@ -20,6 +20,17 @@ vi.mock('../../api/sale.api', async (importOriginal) => {
   }
 })
 
+// sale-detail-redesign: the view mounts the real SaleDetailSalesDataCard
+// which owns the price-list fetch. Mock productApi so `priceListName`
+// stays at 'PUBLICO' (no id) and the fetch resolves to an empty list —
+// keeps the existing HST-REQ-002 reflow-card assertions deterministic
+// without stubbing the entire SalesDataCard component.
+vi.mock('@/features/POS/products/api/product.api', () => ({
+  productApi: {
+    getGlobalPriceLists: vi.fn().mockResolvedValue([]),
+  },
+}))
+
 // Intercept Nuxt UI's useToast. Nuxt UI's vite plugin auto-imports useToast
 // as a module import at compile time (not as a free variable), so
 // vi.stubGlobal cannot override it. Mocking the module replaces the import
@@ -181,10 +192,13 @@ describe('SaleDetailView', () => {
     })
   }
 
-  // sales-detail-redesign: workbench layout is a sticky header above a
-  // tabbed body. All four tab panels are mounted (unmount-on-hide=false)
-  // so items, totals, timeline, and comment-input coexist in the DOM.
-  it('renders tabbed workbench layout with header title', () => {
+  // sale-detail-redesign: layout is a sticky header above a flat two-column
+  // grid (1fr / 360px). Left column stacks PRODUCTOS (items) + DATOS
+  // (sidebar-data-reflow + 5 reflow cards) + HISTORIAL (timeline + composer);
+  // right column stacks TOTALES + PAGOS REGISTRADOS. All four body stubs
+  // (items, totals, timeline, comment-input) still coexist in the DOM, now
+  // mounted directly via the flat grid instead of inside UTabs panels.
+  it('renders flat two-column layout with header title', () => {
     const wrapper = mountWithUApp(SaleDetailView, {
       global: {
         stubs: {
@@ -696,6 +710,154 @@ describe('SaleDetailView', () => {
         'Error de conexión. Verifica tu red',
         'error',
       )
+    })
+  })
+
+  // sale-detail-redesign: the flat grid root carries
+  // [data-testid="sale-detail-layout-body"]; the right column root renders
+  // first in DOM order (mobile-first stacking) and the left column second,
+  // with order-* utility classes that swap at the lg breakpoint.
+  describe('flat two-column grid layout (sale-detail-redesign)', () => {
+    it('renders flat two-column grid with correct column order', () => {
+      const wrapper = mountWithUApp(SaleDetailView, {
+        global: {
+          stubs: {
+            AppBadge: { template: '<span><slot /></span>' },
+            UCard: { template: '<div><slot /></div>' },
+            UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
+            UDropdownMenu: { template: '<div data-testid="dropdown"><slot /></div>' },
+            SaleDetailItemsList: { template: '<div data-testid="items" />' },
+            SaleDetailTotalsCard: { template: '<div data-testid="totals" />' },
+            SaleDetailTimeline: { template: '<div data-testid="timeline" />' },
+            SaleCommentInput: { template: '<div data-testid="comment-input" />' },
+          },
+        },
+      })
+
+      const grid = wrapper.get('[data-testid="sale-detail-layout-body"]')
+      // .get() throws if missing; no .exists() needed.
+      void grid.text()
+
+      // Two direct child columns — DOM order: left first, right second.
+      // Mobile-first stacking uses Tailwind order-* utilities so the right
+      // column visually precedes the left column on small viewports even
+      // though it's second in the DOM.
+      expect(grid.element.children).toHaveLength(2)
+
+      const leftColEl = grid.element.children[0] as HTMLElement
+      const rightColEl = grid.element.children[1] as HTMLElement
+
+      // Left column: order-2 lg:order-1 (DOM-first, pushed below on mobile).
+      expect(leftColEl.className).toContain('order-2')
+      expect(leftColEl.className).toContain('lg:order-1')
+
+      // Right column: order-1 lg:order-2 (DOM-second, surfaces first on mobile).
+      expect(rightColEl.className).toContain('order-1')
+      expect(rightColEl.className).toContain('lg:order-2')
+
+      // Left column owns items + DATOS (reflow cards) + HISTORIAL.
+      expect(leftColEl.querySelector('[data-testid="items"]')).toBeTruthy()
+      expect(leftColEl.querySelector('[data-testid="sidebar-data-reflow"]')).toBeTruthy()
+      expect(leftColEl.querySelector('[data-testid="timeline"]')).toBeTruthy()
+      expect(leftColEl.querySelector('[data-testid="comment-input"]')).toBeTruthy()
+
+      // Right column owns TOTALES + PAGOS REGISTRADOS (totals stub).
+      expect(rightColEl.querySelector('[data-testid="totals"]')).toBeTruthy()
+    })
+
+    // REQ-LAYOUT-001 S2: UTabs workbench is removed; the four body stubs
+    // still coexist in the flat grid.
+    it('removes the UTabs workbench while keeping all four body stubs', () => {
+      const wrapper = mountWithUApp(SaleDetailView, {
+        global: {
+          stubs: {
+            UCard: { template: '<div><slot /></div>' },
+            UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
+            UDropdownMenu: { template: '<div data-testid="dropdown"><slot /></div>' },
+            SaleDetailItemsList: { template: '<div data-testid="items" />' },
+            SaleDetailTotalsCard: { template: '<div data-testid="totals" />' },
+            SaleDetailTimeline: { template: '<div data-testid="timeline" />' },
+            SaleCommentInput: { template: '<div data-testid="comment-input" />' },
+          },
+        },
+      })
+
+      // sale-detail-tabs testid is gone.
+      expect(wrapper.find('[data-testid="sale-detail-tabs"]').exists()).toBe(false)
+
+      // Four body stubs still coexist in the flat grid.
+      expect(wrapper.find('[data-testid="items"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="totals"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="timeline"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="comment-input"]').exists()).toBe(true)
+    })
+
+    // REQ-LAYOUT-003 S1: CONFIRMED sale renders the "Comprobante" label
+    // and the dropdown trigger is updated.
+    it('labels Comprobante trigger for CONFIRMED sale', async () => {
+      const wrapper = mountWithDropdown({ ...defaultSale, status: 'CONFIRMED' as TestSale['status'] })
+
+      // Visible "Comprobante" text in the trigger (CONFIRMED v-else branch).
+      expect(wrapper.text()).toContain('Comprobante')
+
+      // aria-label updated to "Comprobante" (per MODIFIED HST-REQ-008) —
+      // the real UDropdownMenu renders the trigger button with this attr.
+      const trigger = wrapper.find('[aria-label="Comprobante"]')
+      expect(trigger.exists()).toBe(true)
+
+      // The trigger is the dropdown menu trigger (aria-haspopup="menu").
+      expect(trigger.attributes('aria-haspopup')).toBe('menu')
+
+      // Clicking the trigger opens the dropdown.
+      await trigger.trigger('click')
+      expect(trigger.attributes('aria-expanded')).toBe('true')
+    })
+
+    // REQ-LAYOUT-003 S3: DRAFT sale keeps the disabled + tooltip affordance
+    // and does NOT show the visible "Comprobante" label.
+    it('keeps icon-only DRAFT trigger with tooltip and no visible Comprobante label', () => {
+      const wrapper = mountWithDropdown({ ...defaultSale, status: 'DRAFT' as TestSale['status'] })
+
+      // The DRAFT branch sets triggerTooltipText to the DRAFT-only tooltip
+      // message ("Solo disponible para ventas confirmadas"). The UTooltip's
+      // text is rendered into a portal popover that may not appear in HTML
+      // until hovered, so we verify the computed directly.
+      expect(wrapper.vm.triggerTooltipText).toBe('Solo disponible para ventas confirmadas')
+
+      // The trigger on the DRAFT branch is icon-only — no visible
+      // "Comprobante" text appears in the wrapper. The aria-label is still
+      // "Comprobante" (per MODIFIED HST-REQ-008 carve-out).
+      const trigger = wrapper.find('[aria-label="Comprobante"]')
+      expect(trigger.exists()).toBe(true)
+      // The trigger element on DRAFT is the icon-only button (no slot text).
+      expect(trigger.text()).not.toContain('Comprobante')
+    })
+
+    // REQ-LAYOUT-008: the sm:hidden mobile header total is removed. The
+    // right-column totals card owns TOTAL at all sizes.
+    it('renders no sm:hidden mobile header total', () => {
+      const wrapper = mountWithUApp(SaleDetailView, {
+        global: {
+          stubs: {
+            UCard: { template: '<div><slot /></div>' },
+            UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
+            UDropdownMenu: { template: '<div><slot /></div>' },
+            SaleDetailItemsList: { template: '<div data-testid="items" />' },
+            SaleDetailTotalsCard: { template: '<div data-testid="totals-total-value" />' },
+            SaleDetailTimeline: { template: '<div data-testid="timeline" />' },
+            SaleCommentInput: { template: '<div data-testid="comment-input" />' },
+          },
+        },
+      })
+
+      // No element renders with the sm:hidden utility class.
+      const smHidden = wrapper.findAll('.sm\\:hidden')
+      expect(smHidden).toHaveLength(0)
+
+      // The desktop header total (hidden sm:block) is allowed by the spec.
+      // We just confirm no sm:hidden duplicate exists.
+      const header = wrapper.find('[data-testid="sale-detail-header"]')
+      expect(header.exists()).toBe(true)
     })
   })
 })
