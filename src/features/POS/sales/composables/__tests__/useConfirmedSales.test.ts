@@ -85,6 +85,25 @@ describe('useConfirmedSales', () => {
     })
   })
 
+  it('falls back to confirmedAt when sortBy is not backend-supported', () => {
+    // The backend only accepts confirmedAt | totalCents | createdAt. A stale
+    // sortable column (e.g. "venta") must never reach the network — it would
+    // 400. The mapper silently falls back to the default instead.
+    expect(
+      mapServerTableParamsToListSalesParams({
+        pageIndex: 0,
+        pageSize: 20,
+        sorting: [{ id: 'venta', desc: true }],
+        globalFilter: '',
+      }),
+    ).toMatchObject({
+      page: 1,
+      limit: 20,
+      sortBy: 'confirmedAt',
+      sortOrder: 'desc',
+    })
+  })
+
   it('loads confirmed sales with default filters and exposes counts', async () => {
     const { result } = mountComposable(() => useConfirmedSales())
 

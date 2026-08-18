@@ -12,13 +12,24 @@ import { formatFolioForBackend } from '../utils/folio'
 
 const DEFAULT_COUNTS: SalesListCounts = { all: 0, pendingPayments: 0, notDelivered: 0 }
 
+/**
+ * The backend's confirmed-sales endpoint only accepts these values as
+ * `sortBy` (see list-sales-query.dto.ts). Any other column id — even one a
+ * consumer accidentally leaves sortable in the UI — falls back to the default
+ * instead of producing a 400.
+ */
+const ALLOWED_SALES_SORT_BY: ReadonlySet<string> = new Set(['confirmedAt', 'totalCents', 'createdAt'])
+
 export function mapServerTableParamsToListSalesParams(params: ServerTableParams): ListSalesParams {
   const firstSort = params.sorting?.[0]
+  const sortBy = firstSort && ALLOWED_SALES_SORT_BY.has(firstSort.id)
+    ? firstSort.id as ListSalesParams['sortBy']
+    : 'confirmedAt'
 
   return {
     page: params.pageIndex + 1,
     limit: params.pageSize,
-    sortBy: (firstSort?.id as ListSalesParams['sortBy']) ?? 'confirmedAt',
+    sortBy,
     sortOrder: firstSort?.desc ? 'desc' : 'asc',
     q: params.globalFilter,
   }

@@ -116,6 +116,23 @@ describe('useQuotationsListTable — 0↔1 page adapter', () => {
     })
   })
 
+  it('falls back to createdAt when sortBy is not backend-supported', () => {
+    // The backend only accepts createdAt | updatedAt | totalCents | expiresAt.
+    // A stale sortable column (e.g. "customer" or "status") must never reach
+    // the network — it would 400. The mapper silently falls back to the
+    // default instead.
+    expect(
+      mapServerTableParamsToListQuotationsParams({
+        pageIndex: 0,
+        pageSize: 10,
+        sorting: [{ id: 'customer', desc: true }],
+      }),
+    ).toMatchObject({
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
+    })
+  })
+
   it('omits search when globalFilter is empty', () => {
     const mapped = mapServerTableParamsToListQuotationsParams({
       pageIndex: 0,

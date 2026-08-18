@@ -21,10 +21,11 @@
  * AppDataTable's toolbar and carry the legacy `refresh-quotations-button` /
  * `new-quotation-button` testids via the new optional
  * `refreshButtonTestId` / `addButtonTestId` props (REQ-QAF-016 invariant).
- * Columns are sorted by `enableSorting: true` + SortableHeader for
- * customer, status, totalCents, expiresAt, createdAt; `customer` uses an
- * `accessorFn` that resolves `firstName lastName` so sorting matches what
- * the cashier sees.
+ * Columns are sorted by `enableSorting: true` + SortableHeader ONLY for
+ * totalCents, expiresAt, createdAt — the fields the backend accepts as
+ * `sortBy` (createdAt | updatedAt | totalCents | expiresAt). `customer`
+ * keeps its accessorFn that resolves `firstName lastName` for display but is
+ * NOT sortable, matching the backend contract; sorting it would 400.
  *
  * The token scope class `.quotations-list-view` stays on the surface root so
  * `@layer coco-quotations` keeps resolving `--coco-primary` for the CTA.
@@ -309,18 +310,20 @@ const columns: TableColumn<QuotationResponseDto>[] = [
     meta: { class: { th: 'w-28', td: 'font-mono text-xs' } },
   },
   {
-    // Column id matches the backend field name so `sorting[0].id` lands on
-    // the right `sortBy` without a mapping layer.
+    // Not backend-sortable (sortBy accepts only createdAt/updatedAt/
+    // totalCents/expiresAt) — kept unsortable so no click can fire an
+    // invalid sortBy. The accessorFn still resolves the display name.
     id: 'customer',
     accessorFn: customerAccessorFn,
     header: 'Cliente',
-    enableSorting: true,
+    enableSorting: false,
   },
   {
+    // Not backend-sortable (see customer above).
     id: 'status',
     accessorKey: 'status',
     header: 'Estado',
-    enableSorting: true,
+    enableSorting: false,
     meta: { class: { th: 'w-32' } },
   },
   {
@@ -472,13 +475,10 @@ const errorMessage = computed(() => {
               <ViewToggle v-model="viewMode" />
             </template>
 
-            <!-- Sortable header slots — column ids match backend field names. -->
-            <template #customer-header="{ column }">
-              <SortableHeader :column="column" label="Cliente" />
-            </template>
-            <template #status-header="{ column }">
-              <SortableHeader :column="column" label="Estado" />
-            </template>
+            <!-- Sortable header slots — only columns the backend accepts as
+                 sortBy (createdAt / updatedAt / totalCents / expiresAt) get a
+                 live sort control. Customer and status are unsortable so no
+                 click can fire an invalid sortBy. -->
             <template #totalCents-header="{ column }">
               <SortableHeader :column="column" label="Total" />
             </template>

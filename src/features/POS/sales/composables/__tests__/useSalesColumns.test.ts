@@ -47,10 +47,14 @@ describe('useSalesColumns', () => {
     expect(invoice?.enableSorting).toBe(false)
   })
 
-  // REQ-13: the 9 columns the backend can sort by declare enableSorting: true
-  // so UTable renders a live sort control; the other 4 declare it explicitly
-  // false so no dead control appears on a column the backend cannot order by.
-  it('enables sorting on exactly the nine backend-sortable columns', () => {
+  // The backend confirmed-sales endpoint only accepts sortBy values
+  // confirmedAt | totalCents | createdAt (see list-sales-query.dto.ts).
+  // createdAt is not a visible column (the USelect shortcut offers it), so
+  // exactly the two visible backend-sortable columns declare
+  // enableSorting: true and get a live sort control; every other column is
+  // explicitly false so no dead control appears on a column the backend
+  // cannot order by (sorting by them returns a 400).
+  it('enables sorting on exactly the two visible backend-sortable columns', () => {
     const { columns } = useSalesColumns()
 
     const sortable = columns
@@ -58,15 +62,8 @@ describe('useSalesColumns', () => {
       .map((column) => keyOf(column))
 
     expect(sortable).toEqual([
-      'venta',
       'confirmedAt',
-      'customer',
-      'paymentStatus',
       'totalCents',
-      'debtCents',
-      'deliveryStatus',
-      'cashier',
-      'seller',
     ])
   })
 
@@ -80,7 +77,7 @@ describe('useSalesColumns', () => {
     expect(undeclared).toEqual([])
   })
 
-  it('marks the presentational columns as non-sortable', () => {
+  it('marks the non-backend-sortable columns as non-sortable', () => {
     const { columns } = useSalesColumns()
 
     const nonSortable = columns
@@ -89,8 +86,15 @@ describe('useSalesColumns', () => {
 
     expect(nonSortable).toEqual([
       'select',
+      'venta',
+      'customer',
+      'paymentStatus',
       'paymentMethods',
+      'debtCents',
       'dueDate',
+      'deliveryStatus',
+      'cashier',
+      'seller',
       'channel',
       'invoice',
     ])

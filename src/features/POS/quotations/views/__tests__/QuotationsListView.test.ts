@@ -816,19 +816,23 @@ describe('QuotationsListView — standardized toolbar (standardize-quotations-ta
     expect(viewToggle.attributes('data-model-value')).toBe('table')
   })
 
-  it('renders SortableHeader for the 5 sortable columns with Spanish labels', () => {
-    // The view defines SortableHeader slots for customer / status /
-    // totalCents / expiresAt / createdAt. The stub renders them as
-    // `<sortable-header-stub label="...">`. Verifying the labels keeps
-    // a regression from re-introducing the Spanish column ids.
+  it('renders SortableHeader for the 3 backend-sortable columns with Spanish labels', () => {
+    // The view defines SortableHeader slots for totalCents / expiresAt /
+    // createdAt only — the fields the backend accepts as sortBy (createdAt |
+    // updatedAt | totalCents | expiresAt). customer / status are NOT sortable
+    // (the backend would 400), so they render the plain default header. The
+    // stub renders SortableHeader as `<sortable-header-stub label="...">`;
+    // verifying the labels keeps a regression from re-introducing the
+    // Spanish column ids.
     const wrapper = mountView()
     const table = wrapper.get('[data-testid="app-data-table"]')
     const stubHeaders = table.findAll('sortable-header-stub')
 
-    // 5 sortable columns (id and actions are unsortable → no header slot).
-    expect(stubHeaders).toHaveLength(5)
+    // 3 sortable columns (id, customer, status and actions are unsortable →
+    // no header slot).
+    expect(stubHeaders).toHaveLength(3)
     const labels = stubHeaders.map((h) => h.attributes('label'))
-    expect(labels).toEqual(['Cliente', 'Estado', 'Total', 'Expira', 'Fecha'])
+    expect(labels).toEqual(['Total', 'Expira', 'Fecha'])
   })
 })
 

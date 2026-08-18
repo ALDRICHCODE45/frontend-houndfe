@@ -246,35 +246,16 @@ watch(() => filtersCtl.serializedState.value, () => {
             />
           </template>
 
-          <!-- Sortable headers — column ids match the backend sortBy field
-               names, so a click lands on the right ordering with no mapping.
-               The USelect shortcut above writes into the same `sorting` ref. -->
-          <template #venta-header="{ column }">
-            <SortableHeader :column="column" label="Venta" />
-          </template>
+          <!-- Sortable headers — only the columns the backend accepts as
+               sortBy (confirmedAt / totalCents / createdAt) get a live sort
+               control; the USelect shortcut above writes into the same
+               `sorting` ref. Columns the backend cannot order by render the
+               plain default header so no click can fire an invalid sortBy. -->
           <template #confirmedAt-header="{ column }">
             <SortableHeader :column="column" label="Fecha" />
           </template>
-          <template #customer-header="{ column }">
-            <SortableHeader :column="column" label="Cliente" />
-          </template>
-          <template #paymentStatus-header="{ column }">
-            <SortableHeader :column="column" label="Pago" />
-          </template>
           <template #totalCents-header="{ column }">
             <SortableHeader :column="column" label="Total" />
-          </template>
-          <template #debtCents-header="{ column }">
-            <SortableHeader :column="column" label="Deuda" />
-          </template>
-          <template #deliveryStatus-header="{ column }">
-            <SortableHeader :column="column" label="Productos" />
-          </template>
-          <template #cashier-header="{ column }">
-            <SortableHeader :column="column" label="Cajero" />
-          </template>
-          <template #seller-header="{ column }">
-            <SortableHeader :column="column" label="Vendedor" />
           </template>
 
           <template #venta-cell="{ row }">

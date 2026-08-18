@@ -159,7 +159,7 @@ export interface QuotationListParams {
   status?: QuotationStatus | QuotationStatus[] | string
   customerId?: string | string[]
   search?: string
-  sortBy?: string
+  sortBy?: 'createdAt' | 'updatedAt' | 'totalCents' | 'expiresAt'
   sortOrder?: 'asc' | 'desc'
   /** ISO date string (YYYY-MM-DD or full ISO). Inclusive `gte` on `expiresAt`. */
   expiresFrom?: string

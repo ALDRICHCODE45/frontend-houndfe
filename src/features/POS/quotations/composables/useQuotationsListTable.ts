@@ -30,16 +30,27 @@ import type { QuotationListParams, QuotationResponseDto, QuotationStatus } from 
 import type { ServerTableParams } from '@/core/shared/types/table.types'
 
 /**
+ * The backend's quotations endpoint only accepts these values as `sortBy`
+ * (see quotation-query.dto.ts). Any other column id — even one a consumer
+ * accidentally leaves sortable in the UI — falls back to the default instead
+ * of producing a 400.
+ */
+const ALLOWED_QUOTATION_SORT_BY: ReadonlySet<string> = new Set(['createdAt', 'updatedAt', 'totalCents', 'expiresAt'])
+
+/**
  * Pure: ServerTableParams (0-indexed) → QuotationListParams (1-indexed).
  * Exported for unit testing.
  */
 export function mapServerTableParamsToListQuotationsParams(params: ServerTableParams): QuotationListParams {
   const firstSort = params.sorting?.[0]
+  const sortBy = firstSort && ALLOWED_QUOTATION_SORT_BY.has(firstSort.id)
+    ? firstSort.id as QuotationListParams['sortBy']
+    : 'createdAt'
 
   return {
     page: params.pageIndex + 1,
     limit: params.pageSize,
-    sortBy: (firstSort?.id as QuotationListParams['sortBy']) ?? 'createdAt',
+    sortBy,
     sortOrder: firstSort?.desc ? 'desc' : 'asc',
     ...(params.globalFilter ? { search: params.globalFilter } : {}),
   }

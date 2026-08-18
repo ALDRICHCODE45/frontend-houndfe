@@ -119,19 +119,21 @@ vi.mock('../../composables/useSalesColumns', () => ({
   useSalesColumns: () => ({
     // Mirrors the real column set (ids + enableSorting) so header-slot
     // assertions exercise the same shape the view renders in production.
+    // Only confirmedAt / totalCents are backend-sortable (createdAt is not a
+    // visible column); every other column is explicitly unsortable.
     columns: [
       { id: 'select', header: '', enableSorting: false },
-      { id: 'venta', accessorKey: 'folio', header: 'Venta', enableSorting: true },
+      { id: 'venta', accessorKey: 'folio', header: 'Venta', enableSorting: false },
       { id: 'confirmedAt', accessorKey: 'confirmedAt', header: 'Fecha', enableSorting: true },
-      { id: 'customer', accessorKey: 'customer', header: 'Cliente', enableSorting: true },
-      { id: 'paymentStatus', accessorKey: 'paymentStatus', header: 'Pago', enableSorting: true },
+      { id: 'customer', accessorKey: 'customer', header: 'Cliente', enableSorting: false },
+      { id: 'paymentStatus', accessorKey: 'paymentStatus', header: 'Pago', enableSorting: false },
       { id: 'paymentMethods', accessorKey: 'paymentMethods', header: 'Método', enableSorting: false },
       { id: 'totalCents', accessorKey: 'totalCents', header: 'Total', enableSorting: true },
-      { id: 'debtCents', accessorKey: 'debtCents', header: 'Deuda', enableSorting: true },
+      { id: 'debtCents', accessorKey: 'debtCents', header: 'Deuda', enableSorting: false },
       { id: 'dueDate', accessorKey: 'dueDate', header: 'Vence', enableSorting: false },
-      { id: 'deliveryStatus', accessorKey: 'deliveryStatus', header: 'Productos', enableSorting: true },
-      { id: 'cashier', accessorKey: 'cashier', header: 'Cajero', enableSorting: true },
-      { id: 'seller', accessorKey: 'seller', header: 'Vendedor', enableSorting: true },
+      { id: 'deliveryStatus', accessorKey: 'deliveryStatus', header: 'Productos', enableSorting: false },
+      { id: 'cashier', accessorKey: 'cashier', header: 'Cajero', enableSorting: false },
+      { id: 'seller', accessorKey: 'seller', header: 'Vendedor', enableSorting: false },
       { id: 'channel', header: 'Canal', enableSorting: false },
       { id: 'invoice', header: 'Factura', enableSorting: false },
     ],
@@ -571,25 +573,19 @@ describe('SalesListView — confirmed sales request errors (REQ-12)', () => {
 
 // REQ-13: every backend-sortable column gets a clickable SortableHeader, and
 // the columns the backend cannot order by get none. The USelect shortcut stays
-// as a second entry point onto the same `sorting` ref.
+// as a second entry point onto the same `sorting` ref. Only the visible
+// backend-sortable columns (confirmedAt, totalCents) carry a live control.
 describe('SalesListView — sortable column headers (REQ-13)', () => {
   const SORTABLE_LABELS: Record<string, string> = {
-    venta: 'Venta',
     confirmedAt: 'Fecha',
-    customer: 'Cliente',
-    paymentStatus: 'Pago',
     totalCents: 'Total',
-    debtCents: 'Deuda',
-    deliveryStatus: 'Productos',
-    cashier: 'Cajero',
-    seller: 'Vendedor',
   }
 
-  it('renders a SortableHeader for each of the nine sortable columns with its Spanish label', () => {
+  it('renders a SortableHeader for each backend-sortable column with its Spanish label', () => {
     const wrapper = mount(SalesListView, { global: { stubs } })
 
     const headers = wrapper.findAllComponents(SortableHeader)
-    expect(headers).toHaveLength(9)
+    expect(headers).toHaveLength(2)
 
     const rendered = Object.fromEntries(
       headers.map((h) => [h.props('column').id, h.props('label')]),
@@ -600,7 +596,7 @@ describe('SalesListView — sortable column headers (REQ-13)', () => {
   it('renders no sort control on the columns the backend cannot order by', () => {
     const wrapper = mount(SalesListView, { global: { stubs } })
 
-    for (const id of ['select', 'paymentMethods', 'dueDate', 'channel', 'invoice']) {
+    for (const id of ['select', 'venta', 'customer', 'paymentStatus', 'paymentMethods', 'debtCents', 'dueDate', 'deliveryStatus', 'cashier', 'seller', 'channel', 'invoice']) {
       const slot = wrapper.get(`[data-header-for="${id}"]`)
       expect(slot.findComponent(SortableHeader).exists()).toBe(false)
       expect(slot.text()).toBe('')
