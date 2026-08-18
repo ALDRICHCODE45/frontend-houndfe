@@ -14,7 +14,6 @@ interface DomainErrorResponse {
 
 const KNOWN_CODES: SellerAssignmentErrorCode[] = [
   'SELLER_NOT_FOUND',
-  'SELLER_NOT_ASSIGNABLE',
   'SALE_NOT_FOUND',
   'SALE_UPDATE_FORBIDDEN',
 ]

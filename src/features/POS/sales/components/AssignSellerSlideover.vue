@@ -68,8 +68,6 @@ function resolveErrorMessage(error: unknown): string {
   switch (code) {
     case 'SELLER_NOT_FOUND':
       return 'No se encontró el usuario. Recarga la lista.'
-    case 'SELLER_NOT_ASSIGNABLE':
-      return 'Ese usuario no se puede asignar como vendedor.'
     case 'SALE_NOT_FOUND':
       return 'La venta ya no existe.'
     case 'SALE_UPDATE_FORBIDDEN':

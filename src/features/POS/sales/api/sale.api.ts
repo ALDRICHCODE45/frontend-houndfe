@@ -26,6 +26,8 @@ import type {
   SaleComment,
   SaleCommentErrorCode,
   ListApplicablePromotionsResponse,
+  UpdatePaymentReferencePayload,
+  UpdatedPaymentReference,
 } from '../interfaces/sale.types'
 import { SaleCommentError } from '../interfaces/sale.types'
 
@@ -76,6 +78,34 @@ function parseCommentError(error: unknown): SaleCommentError | null {
   if (code && knownCodes.includes(code as SaleCommentErrorCode)) {
     return new SaleCommentError(code as SaleCommentErrorCode)
   }
+  return null
+}
+
+// sales-pos-charge WU-A: typed error for the payment-reference PATCH. Codes
+// mirror the backend `sale.errors.ts` shape; unknown codes (and any non-axios
+// error) are rethrown unchanged by the wrapper so the caller can fall back to
+// the generic toast path. NETWORK_ERROR is reserved for explicit re-throw
+// scenarios in the composable (WU-B.3); parseReferenceUpdateError only
+// classifies server-shaped codes.
+export type ReferenceUpdateErrorCode =
+  | 'ENTITY_NOT_FOUND'
+  | 'SALE_UPDATE_FORBIDDEN'
+  | 'NETWORK_ERROR'
+
+export class ReferenceUpdateError extends Error {
+  readonly code: ReferenceUpdateErrorCode
+  constructor(code: ReferenceUpdateErrorCode) {
+    super(code)
+    this.code = code
+    this.name = 'ReferenceUpdateError'
+  }
+}
+
+function parseReferenceUpdateError(error: unknown): ReferenceUpdateError | null {
+  if (error instanceof ReferenceUpdateError) return error
+  const code = (error as AxiosError<DomainErrorResponse>)?.response?.data?.error
+  if (code === 'ENTITY_NOT_FOUND') return new ReferenceUpdateError('ENTITY_NOT_FOUND')
+  if (code === 'SALE_UPDATE_FORBIDDEN') return new ReferenceUpdateError('SALE_UPDATE_FORBIDDEN')
   return null
 }
 
@@ -255,6 +285,27 @@ export const saleApi = {
       await http.delete(`/sales/${saleId}/comments/${commentId}`)
     } catch (error) {
       throw parseCommentError(error) ?? error
+    }
+  },
+
+  // sales-pos-charge: PATCH /sales/:saleId/payments/:paymentId/reference
+  // body { reference: string|null }. No `Idempotency-Key` header (mirrors the
+  // setDueDate / updateComment / deleteComment pattern at :170/:244/:253).
+  // Re-throws ReferenceUpdateError for known backend codes; raw axios errors
+  // bubble up unchanged so callers can fall back to the generic toast.
+  async updatePaymentReference(
+    saleId: string,
+    paymentId: string,
+    payload: UpdatePaymentReferencePayload,
+  ): Promise<UpdatedPaymentReference> {
+    try {
+      const { data } = await http.patch<UpdatedPaymentReference>(
+        `/sales/${saleId}/payments/${paymentId}/reference`,
+        payload,
+      )
+      return data
+    } catch (error) {
+      throw parseReferenceUpdateError(error) ?? error
     }
   },
 

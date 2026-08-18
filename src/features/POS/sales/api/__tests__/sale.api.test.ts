@@ -20,6 +20,7 @@ import type {
   DebtPaymentPayload,
   DebtPaymentResponse,
   ListApplicablePromotionsResponse,
+  UpdatedPaymentReference,
 } from '../../interfaces/sale.types'
 
 vi.mock('@/core/shared/api/http', () => ({
@@ -764,6 +765,7 @@ describe('saleApi', () => {
             changeCents: 0,
             reference: null,
             paidAt: '2026-05-07T14:43:00.000Z',
+            paymentId: 'pay-1',
           },
         ],
         timeline: [{ type: 'SALE_REGISTERED', at: '2026-05-07T14:43:00.000Z', actor: null, register: 'Principal' }],
@@ -1280,6 +1282,70 @@ describe('saleApi', () => {
       vi.mocked(http.get).mockRejectedValue(networkError)
 
       await expect(saleApi.getPdfBlob('sale-1', 'receipt-a4')).rejects.toBe(networkError)
+    })
+  })
+  // sales-pos-charge REQ-NEW-1 / REQ-NEW-7: PATCH reference-edit endpoint.
+  // No Idempotency-Key (consistent with setDueDate / updateComment /
+  // deleteComment PATCH/DELETE shape).
+  describe('updatePaymentReference (sales-pos-charge WU-B.1)', () => {
+    const updated: UpdatedPaymentReference = {
+      paymentId: 'pay-1',
+      method: 'CARD_DEBIT',
+      amountCents: 127000,
+      reference: 'AUTH-42',
+      paidAt: '2026-05-06T14:43:00.000Z',
+    }
+
+    it('PATCHes /sales/:saleId/payments/:paymentId/reference with the payload and no Idempotency-Key', async () => {
+      vi.mocked(http.patch).mockResolvedValue({ data: updated })
+
+      const result = await saleApi.updatePaymentReference('sale-1', 'pay-1', { reference: 'AUTH-42' })
+
+      expect(http.patch).toHaveBeenCalledWith(
+        '/sales/sale-1/payments/pay-1/reference',
+        { reference: 'AUTH-42' },
+      )
+      expect(result).toEqual(updated)
+    })
+
+    it('forwards a null reference to clear the stored value', async () => {
+      vi.mocked(http.patch).mockResolvedValue({ data: { ...updated, reference: null } })
+
+      await saleApi.updatePaymentReference('sale-1', 'pay-1', { reference: null })
+
+      expect(http.patch).toHaveBeenCalledWith(
+        '/sales/sale-1/payments/pay-1/reference',
+        { reference: null },
+      )
+    })
+
+    it('surfaces a 404 backend code as ReferenceUpdateError("ENTITY_NOT_FOUND")', async () => {
+      vi.mocked(http.patch).mockRejectedValueOnce({
+        response: { status: 404, data: { error: 'ENTITY_NOT_FOUND' } },
+      })
+
+      await expect(
+        saleApi.updatePaymentReference('sale-1', 'pay-1', { reference: 'AUTH-42' }),
+      ).rejects.toMatchObject({ code: 'ENTITY_NOT_FOUND' })
+    })
+
+    it('surfaces a 403 backend code as ReferenceUpdateError("SALE_UPDATE_FORBIDDEN")', async () => {
+      vi.mocked(http.patch).mockRejectedValueOnce({
+        response: { status: 403, data: { error: 'SALE_UPDATE_FORBIDDEN' } },
+      })
+
+      await expect(
+        saleApi.updatePaymentReference('sale-1', 'pay-1', { reference: 'AUTH-42' }),
+      ).rejects.toMatchObject({ code: 'SALE_UPDATE_FORBIDDEN' })
+    })
+
+    it('rethrows an unknown axios error unchanged so callers can fall back to generic copy', async () => {
+      const apiError = { response: { status: 500, data: { error: 'INTERNAL_SERVER_ERROR' } } }
+      vi.mocked(http.patch).mockRejectedValue(apiError)
+
+      await expect(
+        saleApi.updatePaymentReference('sale-1', 'pay-1', { reference: 'AUTH-42' }),
+      ).rejects.toBe(apiError)
     })
   })
 })

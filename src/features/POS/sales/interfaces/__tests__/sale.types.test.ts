@@ -113,11 +113,19 @@ describe('sale.types', () => {
       const codeB: ChargeDomainErrorCode = 'IDEMPOTENCY_KEY_CONFLICT'
       const codeC: ChargeDomainErrorCode = 'PRICE_OUT_OF_DATE'
       const codeD: ChargeDomainErrorCode = 'PAYMENT_EXCEEDS_DEBT'
+      const codeE: ChargeDomainErrorCode = 'PAYMENT_AMOUNT_INSUFFICIENT'
 
       expect(codeA).toBe('AMBIGUOUS_PAYMENT_SHAPE')
       expect(codeB).toBe('IDEMPOTENCY_KEY_CONFLICT')
       expect(codeC).toBe('PRICE_OUT_OF_DATE')
       expect(codeD).toBe('PAYMENT_EXCEEDS_DEBT')
+      expect(codeE).toBe('PAYMENT_AMOUNT_INSUFFICIENT')
+    })
+
+    it('rejects REFERENCE_REQUIRED as a ChargeDomainErrorCode literal (REQ-NEW-11)', () => {
+      // @ts-expect-error REFERENCE_REQUIRED was removed from ChargeDomainErrorCode (REQ-NEW-11)
+      const removed: ChargeDomainErrorCode = 'REFERENCE_REQUIRED'
+      expect(removed).toBe('REFERENCE_REQUIRED')
     })
 
     it('supports multi-payment payload shape', () => {
@@ -283,6 +291,7 @@ describe('sale.types', () => {
         changeCents: 0,
         reference: null,
         paidAt: '2026-05-06T14:43:00.000Z',
+        paymentId: 'pay-1',
       }
 
       const event: SaleTimelineEvent = {
@@ -298,6 +307,35 @@ describe('sale.types', () => {
       expect(item.imageUrl).toBeNull()
       expect(payment.method).toBe('CASH')
       expect(event.type).toBe('PAYMENT_RECEIVED')
+    })
+
+    it('requires SaleDetailPayment.paymentId (REQ-NEW-6)', () => {
+      // The paymentId field was added by REQ-NEW-6 so reference-edit PATCHes
+      // can target a single payment. Omitting it MUST be a type error.
+      // The @ts-expect-error directive is the assertion: if the field were
+      // ever made optional again, this test would fail compilation.
+      const valid: SaleDetailPayment = {
+        method: 'CARD_DEBIT',
+        amountCents: 127000,
+        tenderedCents: 127000,
+        changeCents: 0,
+        reference: 'V-1',
+        paidAt: '2026-05-06T14:43:00.000Z',
+        paymentId: 'pay-1',
+      }
+
+      // @ts-expect-error SaleDetailPayment requires paymentId (REQ-NEW-6)
+      const withoutPaymentId: SaleDetailPayment = {
+        method: 'CARD_DEBIT',
+        amountCents: 127000,
+        tenderedCents: 127000,
+        changeCents: 0,
+        reference: 'V-1',
+        paidAt: '2026-05-06T14:43:00.000Z',
+      }
+
+      expect(valid.paymentId).toBe('pay-1')
+      expect((withoutPaymentId as { paymentId?: string }).paymentId).toBeUndefined()
     })
 
     it('supports all discriminated timeline variants', () => {

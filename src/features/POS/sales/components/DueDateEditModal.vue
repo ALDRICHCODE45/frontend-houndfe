@@ -65,7 +65,7 @@ function resolveErrorMessage(error: unknown): string {
   switch (code) {
     case 'INVALID_DUE_DATE':
       return 'La fecha de vencimiento no es válida.'
-    case 'SALE_ALREADY_PAID':
+    case 'SALE_FULLY_PAID':
       return 'La venta ya está pagada, no se puede modificar el vencimiento.'
     case 'SALE_NOT_FOUND':
       return 'La venta ya no existe.'

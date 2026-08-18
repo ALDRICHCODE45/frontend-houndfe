@@ -132,6 +132,13 @@ export interface SaleDetailPayment {
   changeCents: number
   reference: string | null
   paidAt: string
+  /**
+   * Server-assigned identifier for the payment row, required so the cashier
+   * can edit the reference via `PATCH /sales/:saleId/payments/:paymentId/reference`
+   * (REQ-NEW-6, backend §7.4). The key is backend-owned and must never be
+   * derived or fabricated client-side.
+   */
+  paymentId: string
 }
 
 export type SaleTimelineEvent =
@@ -260,6 +267,29 @@ export type ChargeSalePayload =
   | (LegacyChargePayload & { payments?: never })
   | (MultiPaymentChargePayload & { method?: never; amountCents?: never })
 
+/**
+ * Body of `PATCH /sales/:saleId/payments/:paymentId/reference` (REQ-NEW-1).
+ * `null` clears the previously stored reference. An empty string is NOT
+ * a valid wire value — the slideover normalizes empty input to `null`
+ * before invoking the mutation (`normalizeReferenceInput`).
+ */
+export interface UpdatePaymentReferencePayload {
+  reference: string | null
+}
+
+/**
+ * Response shape of the reference-edit PATCH (REQ-NEW-1, backend §7.4).
+ * Mirrors the payment row that was updated so the detail cache can
+ * be reconciled without a separate GET.
+ */
+export interface UpdatedPaymentReference {
+  paymentId: string
+  method: SaleDetailPaymentMethod
+  amountCents: number
+  reference: string | null
+  paidAt: string
+}
+
 export interface DebtPaymentPayload {
   payments: PaymentEntry[]
 }
@@ -299,7 +329,7 @@ export type ChargeDomainErrorCode =
   | 'AMBIGUOUS_PAYMENT_SHAPE'
   | 'TOO_MANY_PAYMENTS'
   | 'CREDIT_METHOD_NOT_VALID_IN_MULTI'
-  | 'REFERENCE_REQUIRED'
+  | 'PAYMENT_AMOUNT_INSUFFICIENT'
   | 'PAYMENT_METHOD_NOT_SUPPORTED'
   | 'INVALID_CREDIT_CHARGE'
   | 'PAYMENT_AMOUNT_INVALID'
@@ -381,7 +411,6 @@ export interface AssignSellerPayload {
 
 export type SellerAssignmentErrorCode =
   | 'SELLER_NOT_FOUND'
-  | 'SELLER_NOT_ASSIGNABLE'
   | 'SALE_NOT_FOUND'
   | 'SALE_UPDATE_FORBIDDEN'
 
@@ -399,7 +428,7 @@ export interface SetDueDatePayload {
 
 export type SaleDueDateErrorCode =
   | 'INVALID_DUE_DATE'
-  | 'SALE_ALREADY_PAID'
+  | 'SALE_FULLY_PAID'
   | 'SALE_NOT_FOUND'
   | 'SALE_UPDATE_FORBIDDEN'
 
