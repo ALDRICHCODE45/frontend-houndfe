@@ -20,7 +20,10 @@ defineProps<{
 <template>
   <UCard>
     <template #header>
-      <h3 class="text-xs font-semibold uppercase tracking-wider text-muted">HISTORIAL</h3>
+      <h3 class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted">
+        <UIcon name="i-lucide-clock" class="size-4" />
+        HISTORIAL
+      </h3>
     </template>
 
     <SaleDetailTimeline

@@ -33,8 +33,13 @@ const showChangeRow = computed(() => props.changeDueCents > 0)
 </script>
 
 <template>
-  <section class="space-y-2">
-    <h3 class="text-xs font-semibold uppercase tracking-wider text-muted">Totales</h3>
+  <UCard>
+    <template #header>
+      <h3 class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted">
+        <UIcon name="i-lucide-receipt" class="size-4" />
+        Totales
+      </h3>
+    </template>
 
     <div class="space-y-2 text-right">
       <div class="flex items-center justify-between text-sm">
@@ -79,20 +84,20 @@ const showChangeRow = computed(() => props.changeDueCents > 0)
         <span class="text-muted">Cambio</span>
         <span>{{ formatCentsMXN(changeDueCents) }}</span>
       </div>
-
-      <div v-if="canRegisterPayment" class="pt-2">
-        <UButton
-          color="primary"
-          block
-          icon="i-lucide-credit-card"
-          data-testid="register-debt-payment"
-          class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
-          :disabled="isPaymentSubmitting"
-          @click="emit('register-payment')"
-        >
-          Registrar Pago
-        </UButton>
-      </div>
     </div>
-  </section>
+
+    <template v-if="canRegisterPayment" #footer>
+      <UButton
+        color="primary"
+        block
+        icon="i-lucide-credit-card"
+        data-testid="register-debt-payment"
+        class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+        :disabled="isPaymentSubmitting"
+        @click="emit('register-payment')"
+      >
+        Registrar Pago
+      </UButton>
+    </template>
+  </UCard>
 </template>

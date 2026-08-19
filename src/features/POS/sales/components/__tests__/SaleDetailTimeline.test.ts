@@ -147,16 +147,48 @@ describe('SaleDetailTimeline', () => {
 
     const editButton = wrapper.find('[data-testid="comment-edit-trigger"]')
     const deleteButton = wrapper.find('[data-testid="comment-delete-trigger"]')
-    
+
     expect(editButton.exists()).toBe(true)
     expect(deleteButton.exists()).toBe(true)
-    
+
     // Check that buttons have neutral link styling - these props should be passed to UButton
     expect(editButton.attributes()).toMatchObject({
       'data-testid': 'comment-edit-trigger'
     })
     expect(deleteButton.attributes()).toMatchObject({
       'data-testid': 'comment-delete-trigger'
+    })
+  })
+
+  // ── sale-detail-redesign WU-E — Timeline is just the inner content; the
+  // outer HISTORIAL card lives on the parent SaleDetailHistoryCard. Drop
+  // the internal UCard wrapper so the timeline events render directly.
+  describe('SaleDetailTimeline card wrapping (WU-E)', () => {
+    it('does NOT render a UCard wrapper or its own "Historial" header', () => {
+      const wrapper = mountWithUApp(SaleDetailTimeline, {
+        props: { timeline: mockTimeline },
+      })
+
+      // The wrapper component MUST NOT render a UCard. The real UCard
+      // exposes data-slot="root" on its root element — there should be
+      // exactly zero of these inside the Timeline's own DOM.
+      expect(wrapper.findAll('[data-slot="root"]')).toHaveLength(0)
+      expect(wrapper.findAll('[data-slot="header"]')).toHaveLength(0)
+
+      // "Historial" / "HISTORIAL" must NOT appear anywhere — the title
+      // belongs to the parent SaleDetailHistoryCard's header.
+      expect(wrapper.text()).not.toContain('Historial')
+      expect(wrapper.text()).not.toContain('HISTORIAL')
+    })
+
+    it('still preserves all timeline event testids after dropping the internal UCard', () => {
+      const wrapper = mountWithUApp(SaleDetailTimeline, {
+        props: { timeline: mockTimeline },
+      })
+
+      expect(wrapper.findAll('[data-testid="timeline-event"]')).toHaveLength(4)
+      expect(wrapper.find('[data-testid="timeline-event-icon-SALE_REGISTERED"]').exists()).toBe(true)
+      expect(wrapper.find('[data-testid="timeline-icon"]').exists()).toBe(true)
     })
   })
 })

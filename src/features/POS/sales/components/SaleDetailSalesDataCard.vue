@@ -49,10 +49,13 @@ function openAssignSeller() {
 </script>
 
 <template>
-  <section
-    class="space-y-3 rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 p-4"
-    data-testid="sidebar-data-reflow"
-  >
+  <UCard data-testid="sidebar-data-reflow">
+    <template #header>
+      <h3 class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted">
+        <UIcon name="i-lucide-clipboard-list" class="size-4" />
+        Datos de la venta
+      </h3>
+    </template>
     <div class="grid gap-3 sm:grid-cols-2">
       <div
         class="rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 border border-default p-3"
@@ -98,5 +101,5 @@ function openAssignSeller() {
         <p v-else class="font-medium">{{ uniquePaymentMethods.join(' · ') }}</p>
       </div>
     </div>
-  </section>
+  </UCard>
 </template>

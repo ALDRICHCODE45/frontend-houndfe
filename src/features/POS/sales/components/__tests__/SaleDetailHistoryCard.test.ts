@@ -98,4 +98,35 @@ describe('SaleDetailHistoryCard', () => {
     expect(wrapper.find('[data-testid="sale-comment-input"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="comment-open"]').exists()).toBe(true)
   })
+
+  // ── sale-detail-redesign WU-E — after dropping the internal UCard on
+  // SaleDetailTimeline, the HistoryCard wrapper is the ONLY UCard in the
+  // rendered DOM. Timeline body + composer footer both live inside it.
+  it('renders exactly one UCard wrapper with "HISTORIAL" header (no nested timeline card)', () => {
+    const wrapper = mountWithUApp(SaleDetailHistoryCard, {
+      props: {
+        timeline: baseTimeline,
+        currentUserId: 'u-1',
+        commentsPending: false,
+        onUpdateComment: vi.fn().mockResolvedValue(undefined),
+        onDeleteComment: vi.fn().mockResolvedValue(undefined),
+        onSubmitComment: vi.fn().mockResolvedValue(undefined),
+      },
+    })
+
+    // Exactly one UCard root (the wrapper).
+    const roots = wrapper.findAll('[data-slot="root"]')
+    expect(roots).toHaveLength(1)
+    // Exactly one header slot, carrying the "HISTORIAL" title.
+    const headers = wrapper.findAll('[data-slot="header"]')
+    expect(headers).toHaveLength(1)
+    expect(headers[0]?.text()).toBe('HISTORIAL')
+
+    // Body still mounts timeline events; footer still mounts the composer.
+    expect(wrapper.findAll('[data-testid="timeline-event"]')).toHaveLength(2)
+    // wrapper.get() throws if missing; binding the result is enough to
+    // assert the testid is present without a redundant .exists() call.
+    const _composer = wrapper.get('[data-testid="sale-comment-input"]')
+    void _composer
+  })
 })
