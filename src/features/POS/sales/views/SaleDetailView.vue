@@ -222,25 +222,18 @@ watch(
 </script>
 
 <template>
-  <div v-if="canReadSales" data-testid="sale-detail-layout" class="mx-auto w-full max-w-7xl">
-    <!-- Loading skeleton -->
-    <div
-      v-if="isLoading || !sale"
-      data-testid="sale-detail-skeleton"
-      class="space-y-4 p-6"
+  <div v-if="canReadSales">
+    <!-- Sticky compact header — identity + actions persist on scroll.
+         Lives OUTSIDE the centered mx-auto max-w-7xl wrapper so the sticky
+         containing block is the dashboard panel body (the scroll container)
+         rather than the centered inner div. z-50 wins over any UCard stacking
+         context inside the grid below. -->
+    <header
+      v-if="!isLoading && sale"
+      class="sticky top-0 z-50 w-full border-b border-default bg-coco-neutral-50/90 backdrop-blur-sm dark:bg-coco-neutral-950/90"
+      data-testid="sale-detail-header"
     >
-      <USkeleton class="h-14 w-full rounded-lg" />
-      <USkeleton class="h-10 w-full max-w-sm" />
-      <USkeleton class="h-64 w-full rounded-lg" />
-    </div>
-
-    <!-- Workbench -->
-    <template v-else>
-      <!-- Sticky compact header — identity + actions persist on scroll -->
-      <header
-        class="sticky top-0 z-30 border-b border-default bg-coco-neutral-50/90 backdrop-blur-sm dark:bg-coco-neutral-950/90"
-        data-testid="sale-detail-header"
-      >
+      <div class="mx-auto w-full max-w-7xl">
         <div class="flex items-center justify-between gap-4 px-6 py-3">
           <!-- Identity: back + folio + status badges + date -->
           <div class="flex min-w-0 items-center gap-3">
@@ -340,10 +333,25 @@ watch(
             </UButton>
           </div>
         </div>
-      </header>
+      </div>
+    </header>
+
+    <!-- Centered body container — the sticky header above owns the top
+         scroll position; this container is the layout's content well. -->
+    <div class="mx-auto w-full max-w-7xl" data-testid="sale-detail-layout">
+      <!-- Loading skeleton -->
+      <div
+        v-if="isLoading || !sale"
+        data-testid="sale-detail-skeleton"
+        class="space-y-4 p-6"
+      >
+        <USkeleton class="h-14 w-full rounded-lg" />
+        <USkeleton class="h-10 w-full max-w-sm" />
+        <USkeleton class="h-64 w-full rounded-lg" />
+      </div>
 
       <!-- Flat two-column body — replaces the previous UTabs workbench. -->
-      <div class="p-6">
+      <div v-else class="p-6">
         <div
           class="grid gap-6 lg:grid-cols-[1fr_360px]"
           data-testid="sale-detail-layout-body"
@@ -380,18 +388,18 @@ watch(
             />
           </div>
         </div>
-      </div>
 
-      <DebtPaymentModal
-        v-model:open="debtModalOpen"
-        :sale-id="sale.id"
-        :debt-cents="sale.debtCents"
-        @success="debtModalOpen = false"
-      />
-      <AssignSellerSlideover
-        v-model:open="sellerSlideoverOpen"
-        :sale-id="sale.id"
-      />
-    </template>
+        <DebtPaymentModal
+          v-model:open="debtModalOpen"
+          :sale-id="sale.id"
+          :debt-cents="sale.debtCents"
+          @success="debtModalOpen = false"
+        />
+        <AssignSellerSlideover
+          v-model:open="sellerSlideoverOpen"
+          :sale-id="sale.id"
+        />
+      </div>
+    </div>
   </div>
 </template>
