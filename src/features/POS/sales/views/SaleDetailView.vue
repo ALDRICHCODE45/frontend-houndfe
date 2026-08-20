@@ -222,15 +222,17 @@ watch(
 </script>
 
 <template>
-  <div v-if="canReadSales">
-    <!-- Sticky compact header — identity + actions persist on scroll.
-         Lives OUTSIDE the centered mx-auto max-w-7xl wrapper so the sticky
-         containing block is the dashboard panel body (the scroll container)
-         rather than the centered inner div. z-50 wins over any UCard stacking
-         context inside the grid below. -->
+  <div v-if="canReadSales" class="-m-4 flex h-[calc(100%+2rem)] flex-col sm:-m-6 sm:h-[calc(100%+3rem)]">
+    <!-- Fixed compact header — identity + actions persist on scroll.
+         The root consumes the dashboard panel body's padding (-m-4 sm:-m-6)
+         so this header spans the full panel width at the very top. The body
+         content scrolls BELOW it in its own flex-1 overflow-y-auto
+         container, so nothing ever passes behind the header (no
+         backdrop-blur bleed-through possible). shrink-0 keeps it pinned;
+         sticky top-0 z-50 retained for HST-REQ-002 semantics. -->
     <header
       v-if="!isLoading && sale"
-      class="sticky top-0 z-50 w-full border-b border-default bg-coco-neutral-50/90 backdrop-blur-sm dark:bg-coco-neutral-950/90"
+      class="sticky top-0 z-50 w-full shrink-0 border-b border-default bg-coco-neutral-50/90 backdrop-blur-sm dark:bg-coco-neutral-950/90"
       data-testid="sale-detail-header"
     >
       <div class="mx-auto w-full max-w-7xl">
@@ -336,14 +338,15 @@ watch(
       </div>
     </header>
 
-    <!-- Centered body container — the sticky header above owns the top
-         scroll position; this container is the layout's content well. -->
-    <div class="mx-auto w-full max-w-7xl" data-testid="sale-detail-layout">
+    <!-- Full-width scroll container — the scrollbar sits at the edge of the
+         panel body (full width, unlike the old promotions workaround that
+         constrained scroll to max-w-6xl); the content is centered below. -->
+    <div class="flex-1 overflow-y-auto" data-testid="sale-detail-layout">
       <!-- Loading skeleton -->
       <div
         v-if="isLoading || !sale"
         data-testid="sale-detail-skeleton"
-        class="space-y-4 p-6"
+        class="mx-auto w-full max-w-7xl space-y-4 p-6"
       >
         <USkeleton class="h-14 w-full rounded-lg" />
         <USkeleton class="h-10 w-full max-w-sm" />
@@ -351,7 +354,7 @@ watch(
       </div>
 
       <!-- Flat two-column body — replaces the previous UTabs workbench. -->
-      <div v-else class="p-6">
+      <div v-else class="mx-auto w-full max-w-7xl p-6">
         <div
           class="grid gap-6 lg:grid-cols-[1fr_360px]"
           data-testid="sale-detail-layout-body"
