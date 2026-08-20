@@ -346,7 +346,7 @@ watch(
       <div
         v-if="isLoading || !sale"
         data-testid="sale-detail-skeleton"
-        class="mx-auto w-full max-w-7xl space-y-4 p-6"
+        class="mx-auto w-full max-w-7xl space-y-4 px-6 pb-6 pt-8"
       >
         <USkeleton class="h-14 w-full rounded-lg" />
         <USkeleton class="h-10 w-full max-w-sm" />
@@ -354,7 +354,7 @@ watch(
       </div>
 
       <!-- Flat two-column body — replaces the previous UTabs workbench. -->
-      <div v-else class="mx-auto w-full max-w-7xl p-6">
+      <div v-else class="mx-auto w-full max-w-7xl px-6 pb-6 pt-8">
         <div
           class="grid gap-6 lg:grid-cols-[1fr_360px]"
           data-testid="sale-detail-layout-body"
