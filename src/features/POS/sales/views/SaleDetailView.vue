@@ -1,12 +1,12 @@
 <!--
-THESIS: Own the persistent-header workbench; refuse the generic single-column receipt stack.
-OWN-WORLD: amber/rose/zinc + Outfit + Nuxt UI 4; compact sticky header + tabbed workbench.
-STORY: Cashier opens sale, reads identity in the header instantly, works one task per tab.
-FIRST VIEWPORT: Sticky header (folio mono, status badge, total, actions) above tabbed body, Productos tab default.
-FORM: Workbench-con-tabs structure, position 4 of 7 ordered by resonance, staging assigned, seed key 9feea6bc.
+THESIS: Own the persistent-header detail; refuse the generic single-column receipt stack AND the tabbed workbench.
+OWN-WORLD: amber/rose/zinc + Outfit + Nuxt UI 4; compact sticky header + flat two-column body.
+STORY: Cashier opens sale, reads identity in the header instantly, scans PRODUCTOS / DATOS / HISTORIAL on the left and TOTALES / PAGOS on the right without tab friction.
+FIRST VIEWPORT: Sticky header above a flat 1fr/360px grid; right column renders first on mobile.
+FORM: Flat two-column structure, position 4 of 7 ordered by resonance, staging assigned, seed key 9feea6bc.
 -->
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { AxiosError } from 'axios'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
@@ -15,18 +15,15 @@ import { useDebtPayment } from '../composables/useDebtPayment'
 import { useSaleComments } from '../composables/useSaleComments'
 import { useUpdatePaymentReference } from '../composables/useUpdatePaymentReference'
 import { saleApi, SalePdfError, type SalePdfFormat } from '../api/sale.api'
-import { productApi } from '@/features/POS/products/api/product.api'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { formatSaleDate } from '../utils/saleDate.utils'
-import { formatPaymentMethod } from '../utils/salePaymentMethod.utils'
 import { getDeliveryStatusBadge, getPaymentStatusBadge } from '../utils/saleStatus.utils'
 import { extractFolioNumber } from '../utils/saleFolio.utils'
 import { SALE_PAYMENT_STATUS, SALE_STATUS } from '../constants/sale.constants'
-import type { GlobalPriceList } from '@/features/POS/products/interfaces/product.types'
 import SaleDetailItemsList from '../components/SaleDetailItemsList.vue'
 import SaleDetailTotalsCard from '../components/SaleDetailTotalsCard.vue'
-import SaleDetailTimeline from '../components/SaleDetailTimeline.vue'
-import SaleCommentInput from '../components/SaleCommentInput.vue'
+import SaleDetailSalesDataCard from '../components/SaleDetailSalesDataCard.vue'
+import SaleDetailHistoryCard from '../components/SaleDetailHistoryCard.vue'
 import PaymentsListSection from '../components/PaymentsListSection.vue'
 import DebtPaymentModal from '../components/DebtPaymentModal.vue'
 import AssignSellerSlideover from '../components/AssignSellerSlideover.vue'
@@ -80,42 +77,6 @@ const deliveryBadge = computed(() => getDeliveryStatusBadge(sale.value?.delivery
 const paymentBadge = computed(() =>
   sale.value?.paymentStatus ? getPaymentStatusBadge(sale.value.paymentStatus) : null,
 )
-
-// pos-price-list-tiers: resolve the active price list name. Mirrors the
-// pattern previously used by the deleted SaleDetailMetadataCard — fetch
-// once on mount so the inline label is decoupled from the network round
-// trip.
-const priceLists = ref<GlobalPriceList[]>([])
-const priceListsLoading = ref(true)
-onMounted(async () => {
-  try {
-    priceLists.value = await productApi.getGlobalPriceLists()
-  } catch {
-    // Silently degrade — the raw ID (or "PUBLICO") will be shown as fallback.
-  } finally {
-    priceListsLoading.value = false
-  }
-})
-
-const priceListName = computed<string>(() => {
-  const id = sale.value?.globalPriceListId
-  if (!id) return 'PUBLICO'
-  if (priceListsLoading.value) return '...'
-  return priceLists.value.find((l) => l.id === id)?.name ?? id
-})
-
-const uniquePaymentMethods = computed<string[]>(() => {
-  const methods = sale.value?.payments ?? []
-  const seen = new Set<string>()
-  const ordered: string[] = []
-  for (const p of methods) {
-    if (!seen.has(p.method)) {
-      seen.add(p.method)
-      ordered.push(formatPaymentMethod(p.method))
-    }
-  }
-  return ordered
-})
 
 // sales-pdf-download: tracks which PDF format is currently being fetched so
 // only that dropdown row shows the loading spinner (R5). null when idle.
@@ -171,23 +132,6 @@ const hasAnyAction = computed(() => actionItems.value.length > 0)
 const triggerTooltipText = computed(() =>
   sale.value?.status === SALE_STATUS.DRAFT ? 'Solo disponible para ventas confirmadas' : null,
 )
-
-// Tabbed workbench items — Productos is the default tab (index 0). The
-// Pagos y deuda tab carries a debt badge when there is an outstanding
-// balance so the cashier sees it without switching.
-const tabItems = computed(() => {
-  if (!sale.value) return []
-  const itemCount = sale.value.items.length
-  const debtBadge = sale.value.debtCents > 0
-    ? { label: 'Deuda', color: 'error' as const, variant: 'soft' as const }
-    : undefined
-  return [
-    { slot: 'productos', label: `Productos${itemCount ? ` · ${itemCount}` : ''}` },
-    { slot: 'pagos', label: 'Pagos y deuda', badge: debtBadge },
-    { slot: 'datos', label: 'Datos' },
-    { slot: 'comentarios', label: 'Comentarios' },
-  ]
-})
 
 function goBack() {
   void router.push('/pos/ventas')
@@ -278,25 +222,20 @@ watch(
 </script>
 
 <template>
-  <div v-if="canReadSales" data-testid="sale-detail-layout" class="mx-auto w-full max-w-7xl">
-    <!-- Loading skeleton -->
-    <div
-      v-if="isLoading || !sale"
-      data-testid="sale-detail-skeleton"
-      class="space-y-4 p-6"
+  <div v-if="canReadSales" class="-m-4 flex h-[calc(100%+2rem)] flex-col sm:-m-6 sm:h-[calc(100%+3rem)]">
+    <!-- Fixed compact header — identity + actions persist on scroll.
+         The root consumes the dashboard panel body's padding (-m-4 sm:-m-6)
+         so this header spans the full panel width at the very top. The body
+         content scrolls BELOW it in its own flex-1 overflow-y-auto
+         container, so nothing ever passes behind the header (no
+         backdrop-blur bleed-through possible). shrink-0 keeps it pinned;
+         sticky top-0 z-50 retained for HST-REQ-002 semantics. -->
+    <header
+      v-if="!isLoading && sale"
+      class="sticky top-0 z-50 w-full shrink-0 border-b border-default bg-coco-neutral-50/90 backdrop-blur-sm dark:bg-coco-neutral-950/90"
+      data-testid="sale-detail-header"
     >
-      <USkeleton class="h-14 w-full rounded-lg" />
-      <USkeleton class="h-10 w-full max-w-sm" />
-      <USkeleton class="h-64 w-full rounded-lg" />
-    </div>
-
-    <!-- Workbench -->
-    <template v-else>
-      <!-- Sticky compact header — identity + actions persist on scroll -->
-      <header
-        class="sticky top-0 z-30 border-b border-default bg-coco-neutral-50/90 backdrop-blur-sm dark:bg-coco-neutral-950/90"
-        data-testid="sale-detail-header"
-      >
+      <div class="mx-auto w-full max-w-7xl">
         <div class="flex items-center justify-between gap-4 px-6 py-3">
           <!-- Identity: back + folio + status badges + date -->
           <div class="flex min-w-0 items-center gap-3">
@@ -340,9 +279,6 @@ watch(
               >
                 {{ formatSaleDate(sale.confirmedAt) }}
               </p>
-              <p class="text-base font-bold tabular-nums text-highlighted sm:hidden">
-                {{ formatCentsMXN(sale.totalCents) }}
-              </p>
             </div>
           </div>
 
@@ -360,7 +296,7 @@ watch(
                   trailing-icon="i-lucide-chevron-down"
                   variant="outline"
                   size="sm"
-                  aria-label="Más acciones"
+                  aria-label="Comprobante"
                 />
               </UTooltip>
               <UButton
@@ -369,8 +305,10 @@ watch(
                 trailing-icon="i-lucide-chevron-down"
                 variant="outline"
                 size="sm"
-                aria-label="Más acciones"
-              />
+                aria-label="Comprobante"
+              >
+                Comprobante
+              </UButton>
             </UDropdownMenu>
 
             <UButton
@@ -397,108 +335,78 @@ watch(
             </UButton>
           </div>
         </div>
-      </header>
+      </div>
+    </header>
 
-      <!-- Tabbed body — one task per tab, Productos default -->
-      <div class="p-6">
-        <UTabs
-          :items="tabItems"
-          :unmount-on-hide="false"
-          default-value="0"
-          class="w-full"
-          data-testid="sale-detail-tabs"
-        >
-          <template #productos>
-            <div class="pt-4">
-              <SaleDetailItemsList :items="sale.items" />
-            </div>
-          </template>
-
-          <template #pagos>
-            <div class="space-y-6 pt-4">
-              <SaleDetailTotalsCard
-                :subtotal-cents="sale.subtotalCents"
-                :discount-cents="sale.discountCents"
-                :total-cents="sale.totalCents"
-                :paid-cents="sale.paidCents"
-                :debt-cents="sale.debtCents"
-                :change-due-cents="sale.changeDueCents"
-                :can-register-payment="canRegisterPayment"
-                :is-payment-submitting="isSubmitting"
-                @register-payment="debtModalOpen = true"
-              />
-              <PaymentsListSection
-                :payments="sale.payments"
-                :loading="referencePending"
-                data-testid="sale-detail-payments-list"
-                @submit="handleReferenceSubmit"
-              />
-            </div>
-          </template>
-
-          <template #datos>
-            <section class="space-y-3 pt-4" data-testid="sidebar-data-reflow">
-              <div class="grid gap-3 sm:grid-cols-2">
-                <div class="rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 border border-default p-3" data-testid="reflow-cajero">
-                  <p class="text-xs font-semibold uppercase tracking-wider text-muted">Cajero</p>
-                  <p class="font-medium">{{ sale.cashier.name }}</p>
-                </div>
-                 <div
-                   role="button"
-                   tabindex="0"
-                   class="cursor-pointer rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 border border-default p-3 transition-colors hover:bg-elevated/50"
-                   data-testid="reflow-vendedor"
-                   @click="sellerSlideoverOpen = true"
-                   @keydown.enter.prevent="sellerSlideoverOpen = true"
-                   @keydown.space.prevent="sellerSlideoverOpen = true"
-                 >
-                  <p class="text-xs font-semibold uppercase tracking-wider text-muted">Vendedor</p>
-                  <p class="font-medium" :class="{ 'text-muted': !sale.seller }">
-                    {{ sale.seller?.name ?? 'Sin asignar — click para asignar' }}
-                  </p>
-                </div>
-                <div class="rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 border border-default p-3" data-testid="reflow-cliente">
-                  <p class="text-xs font-semibold uppercase tracking-wider text-muted">Cliente</p>
-                  <p class="font-medium">{{ sale.customer?.name ?? 'Público en General' }}</p>
-                </div>
-                <div class="rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 border border-default p-3" data-testid="reflow-price-list">
-                  <p class="text-xs font-semibold uppercase tracking-wider text-muted">Lista de precios</p>
-                  <p class="font-medium">{{ priceListName }}</p>
-                </div>
-                <div class="rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 border border-default p-3 sm:col-span-2" data-testid="reflow-payment-methods">
-                  <p class="text-xs font-semibold uppercase tracking-wider text-muted">Métodos de pago</p>
-                  <p v-if="uniquePaymentMethods.length === 0" class="font-medium text-muted">—</p>
-                  <p v-else class="font-medium">{{ uniquePaymentMethods.join(' · ') }}</p>
-                </div>
-              </div>
-            </section>
-          </template>
-
-          <template #comentarios>
-            <div class="space-y-4 pt-4">
-              <SaleDetailTimeline
-                :timeline="sale.timeline"
-                :current-user-id="authStore.user?.id ?? null"
-                :is-pending="commentsPending"
-                :on-update-comment="updateComment"
-                :on-delete-comment="deleteComment"
-              />
-              <SaleCommentInput :is-pending="commentsPending" :on-submit="addComment" />
-            </div>
-          </template>
-        </UTabs>
+    <!-- Full-width scroll container — the scrollbar sits at the edge of the
+         panel body (full width, unlike the old promotions workaround that
+         constrained scroll to max-w-6xl); the content is centered below.
+         overflow-x-hidden: the negative-margin root (-m-4 sm:-m-6) extends
+         into the panel body's padding for the full-bleed header; without
+         clipping here the body's computed overflow-x:auto would expose a
+         horizontal scrollbar that slides the whole detail screen left. -->
+    <div class="flex-1 overflow-y-auto overflow-x-hidden" data-testid="sale-detail-layout">
+      <!-- Loading skeleton -->
+      <div
+        v-if="isLoading || !sale"
+        data-testid="sale-detail-skeleton"
+        class="mx-auto w-full max-w-7xl space-y-4 px-6 pb-6 pt-16"
+      >
+        <USkeleton class="h-14 w-full rounded-lg" />
+        <USkeleton class="h-10 w-full max-w-sm" />
+        <USkeleton class="h-64 w-full rounded-lg" />
       </div>
 
-      <DebtPaymentModal
-        v-model:open="debtModalOpen"
-        :sale-id="sale.id"
-        :debt-cents="sale.debtCents"
-        @success="debtModalOpen = false"
-      />
-      <AssignSellerSlideover
-        v-model:open="sellerSlideoverOpen"
-        :sale-id="sale.id"
-      />
-    </template>
+      <!-- Flat two-column body — replaces the previous UTabs workbench. -->
+      <div v-else class="mx-auto w-full max-w-7xl px-6 pb-6 pt-16">
+        <div
+          class="grid gap-6 lg:grid-cols-[1fr_360px]"
+          data-testid="sale-detail-layout-body"
+        >
+          <div class="space-y-6 order-2 lg:order-1">
+            <SaleDetailItemsList :items="sale.items" />
+            <SaleDetailSalesDataCard :sale="sale" @assign-seller="sellerSlideoverOpen = true" />
+            <SaleDetailHistoryCard
+              :timeline="sale.timeline"
+              :current-user-id="authStore.user?.id ?? null"
+              :comments-pending="commentsPending"
+              :on-update-comment="updateComment"
+              :on-delete-comment="deleteComment"
+              :on-submit-comment="addComment"
+            />
+          </div>
+          <div class="space-y-6 order-1 lg:order-2">
+            <SaleDetailTotalsCard
+              :subtotal-cents="sale.subtotalCents"
+              :discount-cents="sale.discountCents"
+              :total-cents="sale.totalCents"
+              :paid-cents="sale.paidCents"
+              :debt-cents="sale.debtCents"
+              :change-due-cents="sale.changeDueCents"
+              :can-register-payment="canRegisterPayment"
+              :is-payment-submitting="isSubmitting"
+              @register-payment="debtModalOpen = true"
+            />
+            <PaymentsListSection
+              :payments="sale.payments"
+              :loading="referencePending"
+              data-testid="sale-detail-payments-list"
+              @submit="handleReferenceSubmit"
+            />
+          </div>
+        </div>
+
+        <DebtPaymentModal
+          v-model:open="debtModalOpen"
+          :sale-id="sale.id"
+          :debt-cents="sale.debtCents"
+          @success="debtModalOpen = false"
+        />
+        <AssignSellerSlideover
+          v-model:open="sellerSlideoverOpen"
+          :sale-id="sale.id"
+        />
+      </div>
+    </div>
   </div>
 </template>

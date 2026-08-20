@@ -141,4 +141,37 @@ describe('PaymentsListSection', () => {
 
     expect(document.body.textContent).toContain('Sin referencia')
   })
+
+  // ── sale-detail-redesign WU-E — wrap payments in UCard with header
+  it('wraps the payments list in a UCard with "Pagos registrados" header (icon + title + count badge)', async () => {
+    mountSection({
+      payments: [
+        makePayment({ paymentId: 'pay-1', method: 'CARD_DEBIT' }),
+        makePayment({ paymentId: 'pay-2', method: 'CASH' }),
+      ],
+      loading: false,
+    })
+    await flushPromises()
+
+    // The section testid is preserved (now on the UCard wrapper)
+    expect(document.querySelector('[data-testid="payments-list-section"]')).not.toBeNull()
+    // The "Pagos registrados" title is rendered in the header
+    expect(document.body.textContent).toContain('Pagos registrados')
+
+    // The count badge testid is preserved (the new <UBadge> re-uses it
+    // instead of the inline <span>). With payments.length > 0 and not
+    // loading, the badge text must equal the payment count.
+    const countBadge = document.querySelector('[data-testid="payments-count"]')
+    expect(countBadge).not.toBeNull()
+    expect(countBadge?.textContent?.trim()).toBe('2')
+
+    // Strong structural assertion: the previous <header class="flex items-center
+    // justify-between"> wrapper is GONE. The header slot lives inside UCard now.
+    // We assert by checking that the count badge is no longer a direct child
+    // of an element that also contains the old "text-sm font-semibold uppercase"
+    // <h3> wrapper that the previous <header> used. After WU-E, the title is
+    // wrapped in the UCard #header slot.
+    const oldHeader = document.querySelector('header > h3.text-sm.font-semibold.uppercase')
+    expect(oldHeader).toBeNull()
+  })
 })

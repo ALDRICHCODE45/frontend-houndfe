@@ -76,15 +76,18 @@ function isReferenceTruncated(reference: string | null): boolean {
 </script>
 
 <template>
-  <section class="space-y-2" data-testid="payments-list-section">
-    <header class="flex items-center justify-between">
-      <h3 class="text-sm font-semibold uppercase tracking-wider text-muted">
-        Pagos registrados
-      </h3>
-      <span v-if="!loading" class="text-xs text-muted" data-testid="payments-count">
-        {{ payments.length }}
-      </span>
-    </header>
+  <UCard data-testid="payments-list-section">
+    <template #header>
+      <div class="flex items-center justify-between">
+        <h3 class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted">
+          <UIcon name="i-lucide-credit-card" class="size-4" />
+          Pagos registrados
+        </h3>
+        <UBadge v-if="!loading" variant="soft" color="neutral" :data-testid="`payments-count`">
+          {{ payments.length }}
+        </UBadge>
+      </div>
+    </template>
 
     <!-- Loading: one skeleton row per row we will render. The shape mirrors
          the real table so layout does not jump when data arrives. -->
@@ -165,5 +168,5 @@ function isReferenceTruncated(reference: string | null): boolean {
       @update:open="(open) => !open && closeEdit()"
       @submit="handleSubmit"
     />
-  </section>
+  </UCard>
 </template>

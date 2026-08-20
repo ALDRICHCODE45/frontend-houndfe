@@ -570,6 +570,42 @@ describe('SaleDetailItemsList', () => {
     expect(subtotal.text()).not.toContain('$500.00')
   })
 
+  // ── sale-detail-redesign WU-E — wrap items in a UCard with header + count badge
+  describe('SaleDetailItemsList card wrapping (WU-E)', () => {
+    it('renders "Productos" header and an items count badge alongside the table', () => {
+      const wrapper = mountWithUApp(SaleDetailItemsList, {
+        props: {
+          items: [
+            { productName: 'Jean Recto', imageUrl: null, unitPriceCents: 1000, quantity: 1, discountCents: 0, subtotalCents: 1000 },
+            { productName: 'Camisa', imageUrl: null, unitPriceCents: 2000, quantity: 2, discountCents: 0, subtotalCents: 4000 },
+          ],
+        },
+      })
+
+      // "Productos" title visible in the header slot
+      expect(wrapper.text()).toContain('Productos')
+      // Count badge present with "2 artículos" text
+      const badge = wrapper.get('[data-testid="items-count"]')
+      expect(badge.text()).toContain('2 artículos')
+      // Table still rendered with the existing testid
+      expect(wrapper.find('[data-testid="items-table"]').exists()).toBe(true)
+    })
+
+    it('uses singular "artículo" form for a single item', () => {
+      const wrapper = mountWithUApp(SaleDetailItemsList, {
+        props: {
+          items: [
+            { productName: 'Solo', imageUrl: null, unitPriceCents: 100, quantity: 1, discountCents: 0, subtotalCents: 100 },
+          ],
+        },
+      })
+
+      const badge = wrapper.get('[data-testid="items-count"]')
+      expect(badge.text()).toContain('1 artículo')
+      expect(badge.text()).not.toContain('1 artículos')
+    })
+  })
+
   it('forwards rewardKind to the SaleItemBadges child on the confirmed side', () => {
     // Belt-and-braces: ensure the prop widening reached the consumer end. If
     // the prop type ever regresses to the narrow 'buy_x_get_y' | null, this

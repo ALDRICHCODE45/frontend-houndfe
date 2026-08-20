@@ -147,7 +147,10 @@ watch(isSearchOpen, async (open) => {
     </UDashboardSidebar>
 
     <!-- Main Panel -->
-    <UDashboardPanel id="main-panel">
+    <UDashboardPanel
+      id="main-panel"
+      :ui="{ body: 'overflow-x-hidden' }"
+    >
       <template #header>
         <UDashboardNavbar
           title="Coco"
