@@ -340,13 +340,17 @@ watch(
 
     <!-- Full-width scroll container — the scrollbar sits at the edge of the
          panel body (full width, unlike the old promotions workaround that
-         constrained scroll to max-w-6xl); the content is centered below. -->
-    <div class="flex-1 overflow-y-auto" data-testid="sale-detail-layout">
+         constrained scroll to max-w-6xl); the content is centered below.
+         overflow-x-hidden: the negative-margin root (-m-4 sm:-m-6) extends
+         into the panel body's padding for the full-bleed header; without
+         clipping here the body's computed overflow-x:auto would expose a
+         horizontal scrollbar that slides the whole detail screen left. -->
+    <div class="flex-1 overflow-y-auto overflow-x-hidden" data-testid="sale-detail-layout">
       <!-- Loading skeleton -->
       <div
         v-if="isLoading || !sale"
         data-testid="sale-detail-skeleton"
-        class="mx-auto w-full max-w-7xl space-y-4 px-6 pb-6 pt-8"
+        class="mx-auto w-full max-w-7xl space-y-4 px-6 pb-6 pt-16"
       >
         <USkeleton class="h-14 w-full rounded-lg" />
         <USkeleton class="h-10 w-full max-w-sm" />
@@ -354,7 +358,7 @@ watch(
       </div>
 
       <!-- Flat two-column body — replaces the previous UTabs workbench. -->
-      <div v-else class="mx-auto w-full max-w-7xl px-6 pb-6 pt-8">
+      <div v-else class="mx-auto w-full max-w-7xl px-6 pb-6 pt-16">
         <div
           class="grid gap-6 lg:grid-cols-[1fr_360px]"
           data-testid="sale-detail-layout-body"
