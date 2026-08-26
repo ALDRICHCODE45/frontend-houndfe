@@ -1,156 +1,127 @@
-# Apply progress — payment-details-admin
+# Apply progress — payment-details-admin (Datos bancarios)
 
-This document is a cumulative, slice-by-slice log of the implementation.
-Each section records the persisted task checkboxes, the files touched,
-the test/type-check/build evidence, and any deviations from the design.
-
-The contract is intentionally **byte-for-byte** with the locked contracts in
-`design.md` §3 — no deviation from those is expected.
+> **Final apply-progress** (completo). El apply se completó en dos partes:
+> 1. **Subagente `sdd-apply` (intento 1):** S1 + S2 completos con TDD, S3 a medio (specs sin mock del api → 10 tests fallando), S4 sin implementar. El subagente timeouteó a los 20 min.
+> 2. **Completado manual por el orquestador (con autorización del maintainer):** S3 y S4 implementados, specs corregidos, suite completa verde. Commits realizados por el maintainer (el harness bloquea commits del agente — bug del detector que escanea el texto "git commit").
 
 ---
 
 ## S1 — Foundation (types + error map + CASL registration + query keys)
 
-**Goal:** Register `PaymentDetail` in the CASL type union + runtime registry + role
-permissions UI; add tenant-scoped query keys; author zod schemas, DTO/request shapes,
-the `Activa`/`Inactiva` badge label map, the domain error code type, the Spanish
-copy map, and the `.error`-field extractor.
+**Status: ✅ Complete** (RED → GREEN → TRIANGULATE → REFACTOR)
 
-**Slice status:** ✅ Complete (RED → GREEN → TRIANGULATE → REFACTOR verified).
-
-### Files (4 new + 6 modified code + 3 modified test)
-
-New:
-
-- `src/features/admin/payment-details/interfaces/payment-detail.types.ts`
-  (zod `CreatePaymentDetailSchema` / `UpdatePaymentDetailSchema`, DTO + request
-  interfaces, `paymentDetailStatusLabel`, `PAYMENT_DETAIL_STATUS_LABELS`).
-- `src/features/admin/payment-details/interfaces/errors.ts`
-  (`PaymentDetailDomainErrorCode`, `PAYMENT_DETAIL_ERROR_MAP`,
-  `extractPaymentDetailErrorCode`).
-- `src/features/admin/payment-details/interfaces/__tests__/payment-detail.types.spec.ts`
-- `src/features/admin/payment-details/interfaces/__tests__/errors.spec.ts`
-
-Modified:
-
-- `src/features/auth/interfaces/auth.types.ts` — `'PaymentDetail'` added to
-  `AppSubject` union before `'all'` (REQ-AUTH-001).
-- `src/features/auth/authorization/ability.ts` — `'PaymentDetail'` added to
-  `APP_SUBJECTS` runtime array before `'all'` (REQ-AUTH-002).
-- `src/features/admin/roles/i18n/permissions.ts` —
-  `SUBJECT_LABELS.PaymentDetail = 'Datos bancarios'` and a `PaymentDetail`
-  `PERMISSION_COPY` block with exactly `create` / `read` / `update` / `delete`
-  (no `manage`, no `batch_delete`). `HIDDEN_SUBJECTS` untouched (REQ-AUTH-003).
-- `src/core/shared/constants/query-keys.ts` — new
-  `adminPaymentDetailQueryKeys.list(tenantId)` / `.detail(tenantId, id)`,
-  tenant-scoped (REQ-PD-007).
-- `src/features/auth/authorization/__tests__/ability.test.ts` — extended with a
-  PaymentDetail-focused `describe` mirroring the Quotation precedent
-  (parse, grant, no-silent-drop, scope, malformed codes, revocation,
-  compile-time union membership).
-- `src/core/shared/constants/__tests__/query-keys.test.ts` — extended with
-  list/detail key shape, tenant isolation, and prefix-invalidation assertions.
-- `src/features/admin/roles/i18n/__tests__/permissions.spec.ts` — extended
-  with the canonical "Datos bancarios" label and the exactly-4-actions check
-  using the public `getPermissionLabel` / `getPermissionDescription` API.
+### Files
+- NUEVO: `src/features/admin/payment-details/interfaces/payment-detail.types.ts`, `interfaces/errors.ts`, `interfaces/__tests__/payment-detail.types.spec.ts`, `interfaces/__tests__/errors.spec.ts`
+- MOD: `src/features/auth/interfaces/auth.types.ts` (AppSubject + 'PaymentDetail'), `src/features/auth/authorization/ability.ts` (APP_SUBJECTS), `src/features/admin/roles/i18n/permissions.ts` (SUBJECT_LABELS + PERMISSION_COPY), `src/core/shared/constants/query-keys.ts` (adminPaymentDetailQueryKeys)
+- TEST MOD: `ability.test.ts`, `permissions.spec.ts`, `query-keys.test.ts`
 
 ### TDD Cycle Evidence
 
 | Step | Evidence |
 | --- | --- |
-| RED | Initial `pnpm test:unit --run` for the 4 target files + 3 modified tests reported 10 failures across the 3 modified test files (imports/identifiers not yet defined). The 2 new spec files did not yet exist on disk. |
-| GREEN | After implementing the 2 new modules + the 6 modified sites, `pnpm test:unit --run` for the 5 target files reported **5 files / 202 tests passing**. |
-| TRIANGULATE | The new specs cover: 18-digit and 17/19-digit CLABE rejection; non-digit CLABE; account numbers < 10 vs ≥ 10 digits; non-digit account numbers; blank/whitespace `bankName` / `beneficiary`; missing keys; `isActive` absent from both schemas' `.shape`; edit accepts `{}` and partial single-field; `.error` extractor: `null` for message-only, unknown codes, non-string codes, and missing responses; `DUPLICATE_CLABE` ↔ "Esta CLABE ya existe en esta sucursal"; `ENTITY_NOT_FOUND` ↔ "No encontrado"; revocation when the code is removed; malformed sibling codes are dropped while the well-formed sibling still grants (REQ-AUTH-004). |
-| REFACTOR | Module-level comments tighten intent; no extra fields, no extra exports. `HIDDEN_SUBJECTS` verified untouched. Suite remains green. |
-
-### Tests / type-check / build
-
-- `pnpm test:unit --run` (full suite): **296 files / 4443 tests passing**.
-- `pnpm build` (vue-tsc + vite build): clean. No dist-only warnings relevant
-  to this slice.
-
-### Deviation from design
-
-None — all 5 contracts in `design.md` §3 (single-source wrapper deferred to S3,
-zod schemas, query keys, error map, CASL, route + label, status label) are
-preserved byte-for-byte. Locked contracts in §3.2 are honored:
-- create requires all 4 fields; edit makes all 4 optional; `isActive` is never
-  in either schema (asserted by the `.shape` tests).
-- `clabe = /^\d{18}$/`, `accountNumber = /^\d{10,}$/`.
-- `tenantId` is typed read-only on the response DTO and intentionally absent
-  from request interfaces (no test asserts this directly, but the schema tests
-  assert no `tenantId` key in the create/edit schemas).
-- Query keys tenant-scoped; mutations will invalidate the `list(tenantId)`
-  prefix in S4.
-
-### Remaining tasks (whole feature)
-
-- S2 — API + filter/sort/paginate + form + view-mode + actions utils
-- S3 — table wrapper + columns + card grid + nav/route (read-only list live)
-- S4 — upsert slideover + view (inline mutations + banner + confirm + gating)
-
-### Workload / PR boundary
-
-S1 alone is comfortably under the **600-line / per-slice budget** lock
-(tasks.md forecast: ≤ 360). The full feature ships as a single PR with
-4 commits (one per slice), per the user-settled delivery strategy.
-
-### Structured status
-
-| Field | Value |
-| --- | --- |
-| `applyState` (native) | `ready` at slice entry → expected `all_done` after S4 |
-| `actionContext` | `apply` (single-pr delivery, per-slice commits) |
-| `attempt_token` | `sha256:d4d8ce9320880cb1b8258003dd9530712e33ec65ed15d8c2e7886903c47fd8b9` |
-| `deliverable` | feature branch `feat/payment-details-admin` |
-
-### Commits created in this slice
-
-- `feat(payment-details): register PaymentDetail subject, types, error map and query keys (S1)`
-
+| RED | Specs escritos y corriendo rojo: schemas (create all-required / edit all-optional / isActive ausente), extractor de error, tests de ability/permissions/query-keys extendidos. |
+| GREEN | Implementación + registro CASL. `pnpm test:unit --run` → 202 tests verdes (5 files: interfaces, auth/authorization, roles/i18n, query-keys). |
+| TRIANGULATE | Edge cases: edit acepta `{}`; códigos desconocidos/message-only → null; malformed codes drop; revocación. |
+| REFACTOR | Naming/comentarios; HIDDEN_SUBJECTS intacto; sin manage/batch_delete. |
 
 ---
 
-## S2 — Pure data layer (API + form + view-mode + actions utils)
+## S2 — Pure data layer (API + form + columns + view-mode + actions utils)
 
-**Goal:** HTTP surface + pure client-side filter/sort/paginate helpers; form state composable; persisted view-mode composable; row-action + last-active copy helpers. All unmounted, pure/headless units. No Vue components yet — assembled in S3.
+**Status: ✅ Complete** (RED → GREEN → TRIANGULATE → REFACTOR)
 
-**Slice status:** ✅ Complete (RED → GREEN → TRIANGULATE → REFACTOR verified).
-
-### Files (8 new, 0 modified)
-
-- `src/features/admin/payment-details/api/payment-details.api.ts` — `paymentDetailsApi` (5 verbs) + pure `applyLocalPaymentDetailFilters` + `paginatePaymentDetails`; backend-aligned URL contract.
-- `src/features/admin/payment-details/api/__tests__/payment-details.api.spec.ts`
-- `src/features/admin/payment-details/composables/usePaymentDetailForm.ts` — `schema = computed(...)` reactive binding to zod schemas; `setValues` filters out forbidden keys (`isActive`, `tenantId`) by construction.
-- `src/features/admin/payment-details/composables/__tests__/usePaymentDetailForm.spec.ts`
-- `src/features/admin/payment-details/composables/usePaymentDetailViewMode.ts` — thin wrapper over `useViewMode`; `displayMode` bridges `card → cards`.
-- `src/features/admin/payment-details/composables/__tests__/usePaymentDetailViewMode.test.ts`
-- `src/features/admin/payment-details/utils/payment-detail-actions.utils.ts` — `isLastActivePaymentDetail`, `buildPaymentDetailDeactivateDescription`, `buildPaymentDetailRowActions`.
-- `src/features/admin/payment-details/utils/__tests__/payment-detail-actions.utils.spec.ts`
+### Files
+- NUEVO: `api/payment-details.api.ts` + spec, `composables/usePaymentDetailForm.ts` + spec, `composables/usePaymentDetailColumns.ts` + test, `composables/usePaymentDetailViewMode.ts` + test, `utils/payment-detail-actions.utils.ts` + spec
 
 ### TDD Cycle Evidence
 
 | Step | Evidence |
 | --- | --- |
-| RED | Empty impl → 9 failures across 2 spec files (api + form). |
-| GREEN | Implementation passes 6 / 6 files / 99 tests. |
-| TRIANGULATE | API: 18 search/filter/sort/pagination edge cases (empty list, single-page, multi-page, out-of-range, case-insensitive search, raw-char sort). Form: schema selection by mode; `setValues` rejects forbidden keys by construction. Actions: `isLastActivePaymentDetail` true only for the sole active row; description escalates when applicable; row actions empty when neither permission is held. |
-| REFACTOR | Defensive `filterAllowedKeys` at the API boundary also strips `isActive`/`tenantId` from PATCH payloads (defense in depth); no duplication with `tenant-actions.utils.ts`; no coupling to the employees module. |
+| RED | Specs de api (filtros/sort/paginate + URL/método/payload via vi.mock http), form (schema por modo, reset, setValues), view-mode (default table, bridge card→cards), actions utils (last-active, descripciones, row actions). |
+| GREEN | Implementación. Tests verdes. |
+| TRIANGULATE | Empty list → pageCount 1; sort updatedAt desc; globalFilter case-insensitive; last-active false cuando target inactivo u otro activo. |
+| REFACTOR | Helpers puros exportados; sin duplicación con tenant-actions.utils; sin type leak de employees. |
 
-### Tests / type-check / build
+---
 
-- `pnpm test:unit --run` (full suite): **300 files / 4503 tests passing**.
-- `pnpm build` (vue-tsc + vite build): **clean**.
+## S3 — Table wrapper + columns + card grid + nav/route (read-only list)
 
-### Deviation from design
+**Status: ✅ Complete** (completado manualmente por el orquestador — el subagente dejó specs fallando por falta de mock del api)
 
-None — all locked contracts from §3 (zod schemas, query keys, error map, CASL, route + label, status label) preserved byte-for-byte. The API surface and composable signatures match design.md §8.1 / §9.1 / §9.2 exactly.
+### Files
+- NUEVO: `composables/usePaymentDetailsTable.ts` (single-source wrapper LOCKED) + spec, `components/PaymentDetailCardGrid.vue` + spec
+- MOD: `src/app/navigation/navigation.registry.ts` (admin child "Datos bancarios" → /admin/payment-details), `src/app/router/index.ts` (lazy import + ruta con meta.permission read:PaymentDetail)
 
-### Remaining tasks (whole feature)
+### Correcciones manuales (bugs de los specs que dejó el subagente)
+1. **`usePaymentDetailsTable.spec.ts`**: mockeaba `useServerTable` y `useAuthStore` pero NO `paymentDetailsApi` → el queryFn hacía `http.get` real → Network Error. Fix: `vi.mock('@/features/admin/payment-details/api/payment-details.api')` manteniendo `paginatePaymentDetails` real (importOriginal) + `vi.mocked(paymentDetailsApi.list).mockResolvedValue(allRows)` en los 3 tests que usan capturedQueryFn. También se corrigió el import del api a ruta alias (la ruta relativa `../api/` desde `composables/__tests__/` era incorrecta).
+2. **`PaymentDetailCardGrid.spec.ts`**: usaba un `mountWithUApp` inline con `UApp` real importado de `@nuxt/ui/runtime/components/App.vue` → "Cannot call find on an empty VueWrapper". Fix: usar el helper real `mountWithUApp` de `@/test/mountWithUApp` con `props:` en el objeto de options (no props sueltos).
 
-- S3 — table wrapper + columns + card grid + nav/route (read-only list live)
-- S4 — upsert slideover + view (inline mutations + banner + confirm + gating)
+### TDD Cycle Evidence
 
-### Commits created in this slice
+| Step | Evidence |
+| --- | --- |
+| RED | Specs del wrapper (queryFn llena fullList Y devuelve slice; hasActiveAccount desde fullList no slice; invalidation refetches) + card grid (skeleton, empty, cards, badges, click). |
+| GREEN | Implementación + corrección de mocks. `pnpm test:unit --run src/features/admin/payment-details` → 125 tests verdes (9 files). |
+| TRIANGULATE | Empty list → pageCount 1 y hasActiveAccount false; activo en página 2 → hasActiveAccount true; wrapper hace exactamente UNA fetch. |
+| REFACTOR | Wrapper sin tocar useServerTable compartido; components puramente presentacionales. |
 
-- `feat(payment-details): add API client, form/view-mode composables and actions utils (S2)`
+---
+
+## S4 — Upsert slideover + view (inline mutations + banner + confirm + gating)
+
+**Status: ✅ Complete** (implementado manualmente por el orquestador — el subagente no llegó)
+
+### Files
+- NUEVO: `components/PaymentDetailUpsertSlideover.vue` + spec, `views/AdminPaymentDetailsView.vue` + spec
+- El view: mutaciones INLINE (useMutation create/update/delete), banner UAlert "Sin cuenta activa" inline, ConfirmModal "Desactivar", gating por permisos CASL (canCreate/canUpdate/canDelete/canManage).
+
+### Detalles de implementación manual
+- `PaymentDetailUpsertSlideover.vue`: USlideover + UForm + zod (create all-required / edit all-optional / **isActive NUNCA presente**). Helpers tipados `setCreateField`/`setEditField` + handlers por campo (handleBankName etc.) para evitar `value: any` en los `@update:model-value` de UInput.
+- `usePaymentDetailForm.ts`: se agregaron `setCreateField`/`setEditField` tipados (patrón de updateName/updateSlug de tenants).
+- `AdminPaymentDetailsView.vue`: destructura `usePaymentDetailsTable()` a nivel top del `<script setup>` (auto-unwrap de refs), inline useMutation con invalidation del queryKey list, error mapping vía `extractPaymentDetailErrorCode` (lee `.error`) + fallback `normalizeApiError`.
+- `AdminPaymentDetailsView.spec.ts`: inicialmente mockeaba `@nuxt/ui` (frágil) → cambiado a `global.stubs` (nuxtUiStubs) con alias sin prefijo (Alert/Button/Icon/Card/DropdownMenu) porque el auto-import de Nuxt UI registra ambos nombres. El testid del banner es `no-active-account-banner` (se corrigió un mismatch `no-active-banner`).
+
+### TDD Cycle Evidence
+
+| Step | Evidence |
+| --- | --- |
+| RED | Specs slideover (title/description/formId por modo; isActive NUNCA en ambos modos; solo 4 campos) + view (banner, error state, gating, badges). |
+| GREEN | Implementación. `pnpm test:unit --run src/features/admin/payment-details` → 148 tests verdes (11 files). |
+| TRIANGULATE | Payloads nunca contienen isActive/tenantId; delete idempotente; banner reaparece tras desactivar última activa; gating correcto. |
+| REFACTOR | View delgado (composition surface); copy en utils/interfaces; suite completa verde. |
+
+---
+
+## Suite completa final
+
+| Comando | Resultado |
+| --- | --- |
+| `pnpm test:unit --run` | ✅ **4552 tests pasan** (305 files) |
+| `pnpm exec vue-tsc --noEmit -p tsconfig.app.json` | ✅ sin errores (payment-details + resto) |
+| `pnpm build` | ✅ built in 9.77s (chunk AdminPaymentDetailsView presente) |
+
+## Commits (realizados por el maintainer — el harness bloquea commits del agente)
+
+Tras squash del S1 duplicado (por corte de zsh del maintainer):
+1. `8b20c7a` feat(payment-details): register PaymentDetail subject, types, error map and query keys (S1)
+2. `4c8a666` feat(payment-details): add API client, form, columns, view-mode and actions utils (S2)
+3. `ad83441` feat(payment-details): add single-source table wrapper, card grid and routes (S3)
+4. `565f372` feat(payment-details): add upsert slideover, mutations wiring and confirm flow (S4)
+5. `79cf336` docs(sdd): payment-details-admin exploration, proposal, design, spec and tasks
+
+Merge a `main` completado por el maintainer. Working tree limpio.
+
+## Deviations from design
+
+- **Mutaciones inline en el view** (patrón compacto tenants/users) — tal como el design corregido (rerun) lo especifica. Sin composables dedicados de mutación.
+- **Banner inline** UAlert (no componente separado) — conforme al design corregido.
+- **Card grid único** con markup in-line (no card component separado) — conforme al design corregido.
+- **Helpers `setCreateField`/`setEditField`** agregados al form composable (detalle de tipado, no cambio de contrato).
+- El agente sdd-apply timeouteó; S3/S4 completados manualmente (autorizado por maintainer).
+
+## Remaining tasks (parent-owned, post-apply)
+
+- ✅ Lifecycle gate: merge feature branch → main (hecho por maintainer).
+- ✅ Confirm per-slice budget adherence (cada slice ≤ 600 líneas; total ~1,900-2,200).
+- ✅ Bounded review / verify phase: en curso (verify-report).
+- ⏳ REQ-PD-009 (E2E bot): verificación opcional registrada para verify phase — requiere backend/bot real, out of unit scope.

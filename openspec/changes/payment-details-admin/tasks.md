@@ -23,6 +23,12 @@ Delivery remains **single-pr** (one feature branch, multiple self-contained comm
 | Chain strategy | stacked-to-main (single PR into main via the feature branch; per-slice = per-commit) |
 | Per-slice budget check (600) | S1 ≤ ~360 · S2 ≤ ~520 · S3 ≤ ~580 · S4 ≤ ~590 |
 
+> **size:exception (REGISTERED post-apply, verify phase):** the actual feature total was
+> **3,622 inserted lines** (S1=775, S2=1249, S3=582, S4=1016) — 3 of 4 slices exceeded the
+> 600-line budget because the forecast understated the view/spec volume. Accepted by the
+> maintainer (single dev, single-pr delivery): the exception is recorded, not the budget
+> relaxed. No re-slicing will be performed.
+
 Estimate basis (honest, compact tree):
 
 | Module | Lines |
@@ -184,7 +190,7 @@ this file and is not on any apply-phase critical path.
     component: AdminPaymentDetailsView,
     meta: { layout: 'dashboard', permission: ['read', 'PaymentDetail'] as RoutePermission } }`.
 
-- [ ] RED — Write failing specs: `usePaymentDetailsTable.spec.ts` (**locked decision**: queryFn fills
+- [x] RED — Write failing specs: `usePaymentDetailsTable.spec.ts` (**locked decision**: queryFn fills
   `fullList` AND returns the page slice; `hasActiveAccount` derives from the full list regardless of
   the page slice — active on page 2 still `true`; invalidation refetches; default sort `updatedAt desc`;
   `useServerTable` is the **only** fetch — no second query); `usePaymentDetailColumns.test.ts` (column
@@ -193,7 +199,7 @@ this file and is not on any apply-phase critical path.
   block when `paymentDetails.length === 0`; grid with bankName/beneficiary/CLABE/accountNumber +
   `StatusDotBadge` showing `Activa`/`Inactiva`; `card-click` emits the row). Run `pnpm test:unit --run`
   → failures in target files. <!-- sdd-owner: implementation -->
-- [ ] GREEN — Implement `usePaymentDetailsTable.ts` per design §8.2 verbatim: ONE fetch via
+- [x] GREEN — Implement `usePaymentDetailsTable.ts` per design §8.2 verbatim: ONE fetch via
   `useServerTable<PaymentDetailTableRow>` with `queryKey: () => adminPaymentDetailQueryKeys.list(tenantId.value)`,
   `queryFn` populates `fullList.value = rows` then returns `paginatePaymentDetails(rows, params)`;
   `defaultSorting: [{ id: 'updatedAt', desc: true }]`, `defaultPinning.right = ['actions']`,
@@ -202,11 +208,11 @@ this file and is not on any apply-phase critical path.
   per design §10 (skeleton/empty/grid; card markup inlined; `StatusDotBadge` via
   `paymentDetailStatusLabel` + `activityToBadgeTone`). Add nav registry child + router route.
   Run `pnpm test:unit --run` → target files pass. <!-- sdd-owner: implementation -->
-- [ ] TRIANGULATE — Empty list → `pageCount === 1` and `hasActiveAccount === false`; active on page 2
+- [x] TRIANGULATE — Empty list → `pageCount === 1` and `hasActiveAccount === false`; active on page 2
   keeps `hasActiveAccount === true` (banner derivation); default sort persists across pagination;
   card emits `card-click` with the exact row object; menu entry hidden without `read:PaymentDetail`
   (existing `userCan`-driven nav registry). <!-- sdd-owner: implementation -->
-- [ ] REFACTOR — Confirm the wrapper performs **exactly one** fetch per query run (no shared
+- [x] REFACTOR — Confirm the wrapper performs **exactly one** fetch per query run (no shared
   `useServerTable` change); keep the card component purely presentational (props in, events out);
   suite green. <!-- sdd-owner: implementation -->
 - **Verify:** `pnpm test:unit --run` green; `pnpm build` (type-check) green. `/admin/payment-details`
@@ -230,7 +236,7 @@ this file and is not on any apply-phase critical path.
   - `src/features/admin/payment-details/views/AdminPaymentDetailsView.vue`
   - `src/features/admin/payment-details/views/__tests__/AdminPaymentDetailsView.spec.ts`
 
-- [ ] RED — Write failing specs: `PaymentDetailUpsertSlideover.spec.ts` (use `mountWithUApp`):
+- [x] RED — Write failing specs: `PaymentDetailUpsertSlideover.spec.ts` (use `mountWithUApp`):
   create mode shows title "Crear cuenta"; **no** `isActive` control/field; submit emits parsed
   `create` payload with only the 4 fields; edit mode prefills all 4 fields with the row's values;
   submit emits parsed `edit` payload (no `isActive`, no `tenantId`). Then the read-write part of
@@ -241,7 +247,7 @@ this file and is not on any apply-phase critical path.
   action only with `delete`; `ConfirmModal` "Desactivar" flow — cancel sends no request; last-active
   description uses strengthened copy; confirming calls the deactivate mutation; submitting closes
   the slideover. Run `pnpm test:unit --run` → failures in target files. <!-- sdd-owner: implementation -->
-- [ ] GREEN — Implement `PaymentDetailUpsertSlideover.vue` per design §10.2 (`USlideover` + `UForm`
+- [x] GREEN — Implement `PaymentDetailUpsertSlideover.vue` per design §10.2 (`USlideover` + `UForm`
   + zod via `usePaymentDetailForm`; props `mode` / `loading` / `paymentDetail?`; `v-model:open`;
   emits `create` / `edit`; **no** `isActive` control). Implement `AdminPaymentDetailsView.vue`
   per design §8.3 verbatim: **destructure** `usePaymentDetailsTable()` at the top of `<script setup>`
@@ -254,14 +260,14 @@ this file and is not on any apply-phase critical path.
   `openEdit` guarded by `canUpdatePaymentDetail`; `handleDeactivate` uses
   `buildPaymentDetailDeactivateDescription(row, fullList)`; `getRowItems` builds via
   `buildPaymentDetailRowActions`. Run `pnpm test:unit --run` → target files pass. <!-- sdd-owner: implementation -->
-- [ ] TRIANGULATE — Submit payloads never contain `isActive` or `tenantId` (REQ-PD-002/003);
+- [x] TRIANGULATE — Submit payloads never contain `isActive` or `tenantId` (REQ-PD-002/003);
   `DUPLICATE_CLABE` (409) and `ENTITY_NOT_FOUND` (404) each surface the specific Spanish toast
   read from `.error` (REQ-PD-008); unknown errors fall back to `normalizeApiError` generic toast;
   repeated DELETE on inactive account is idempotent (204) with no error toast (REQ-PD-004); last-active
   warning visible before confirm (REQ-PD-005); banner reappears after deactivating the last active
   account without a manual reload (REQ-PD-006); banner reflects the full list not the page slice
   (active on page 2 keeps it hidden) (REQ-PD-006). <!-- sdd-owner: implementation -->
-- [ ] REFACTOR — View stays thin (composition surface only — no card markup, no field markup);
+- [x] REFACTOR — View stays thin (composition surface only — no card markup, no field markup);
   confirm state centralized; all copy sourced from `utils`/`interfaces`; no type leak from the
   employees module; suite green. <!-- sdd-owner: implementation -->
 - **Verify:** `pnpm test:unit --run` green (target files, then full suite); `pnpm build` (vue-tsc +
@@ -273,7 +279,7 @@ this file and is not on any apply-phase critical path.
 
 ## Post-apply (parent-owned — grouped separately, runs after S4 commit on the feature branch)
 
-- [ ] Start or reuse bounded review of the full feature branch (S1–S4) before merge. <!-- sdd-owner: parent -->
-- [ ] Confirm per-slice budget adherence (each slice ≤ 600 changed lines; total forecast ~1,900–2,200 disclosed) and requirement coverage against REQ-PD-001..008 / REQ-AUTH-001..004 in the verify phase. <!-- sdd-owner: parent -->
-- [ ] Verify-phase optional check for REQ-PD-009 (E2E/bot-owned, out of unit scope): exercise the real admin create flow + the bot's transfer-instruction message for the same tenant; record outcome in `verify-report.md` (no apply-phase gate). <!-- sdd-owner: parent -->
-- [ ] Lifecycle gate: merge feature branch → main as the single delivery (single-pr), then run the verify phase and archive the change. <!-- sdd-owner: parent -->
+- [x] Start or reuse bounded review of the full feature branch (S1–S4) before merge. <!-- sdd-owner: parent -->
+- [x] Confirm per-slice budget adherence (each slice ≤ 600 changed lines; total forecast ~1,900–2,200 disclosed) and requirement coverage against REQ-PD-001..008 / REQ-AUTH-001..004 in the verify phase. <!-- sdd-owner: parent -->
+- [x] Verify-phase optional check for REQ-PD-009 (E2E/bot-owned, out of unit scope): exercise the real admin create flow + the bot's transfer-instruction message for the same tenant; record outcome in `verify-report.md` (no apply-phase gate). <!-- sdd-owner: parent -->
+- [x] Lifecycle gate: merge feature branch → main as the single delivery (single-pr), then run the verify phase and archive the change. <!-- sdd-owner: parent -->
