@@ -1,3 +1,19 @@
+```yaml
+schema: gentle-ai.verify-result/v1
+evidence_revision: sha256:9db6ffa613b73875a5f5141658c38085d948e578ccf018e88f41c262a39d0fe9
+verdict: pass_with_warnings
+blockers: 0
+critical_findings: 0
+requirements: 13/13
+scenarios: 37/37
+test_command: pnpm test:unit --run
+test_exit_code: 0
+test_output_hash: sha256:c1337f1c0b79c5b1ee3704017650a242646c0d25913d835a7d94e051e9a6621c
+build_command: pnpm build
+build_exit_code: 0
+build_output_hash: sha256:4a860630376e0844bd23a44df62d171c5521b91a257206391c65d81507d7d806
+```
+
 # Verify Report — payment-details-admin (Datos bancarios)
 
 - **Change:** payment-details-admin
