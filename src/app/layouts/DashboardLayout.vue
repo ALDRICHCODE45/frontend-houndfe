@@ -2,6 +2,7 @@
 import { nextTick, watch } from 'vue'
 import { useSidebar } from '@/app/composables/useSidebar'
 import { useDashboard } from '@/app/composables/useDashboard'
+    import { useBreadcrumb } from '@/app/composables/useBreadcrumb'
 import { defineShortcuts } from '@nuxt/ui/runtime/composables/defineShortcuts.js'
 
 const {
@@ -17,6 +18,7 @@ const {
 } = useSidebar()
 
 const { isSidebarOpen, isSidebarCollapsed, isSearchOpen, searchGroups, openSearch } = useDashboard()
+    const { breadcrumb } = useBreadcrumb()
 
 defineShortcuts({
   o: () => (isSidebarCollapsed.value = !isSidebarCollapsed.value),
@@ -152,16 +154,37 @@ watch(isSearchOpen, async (open) => {
       :ui="{ body: 'overflow-x-hidden' }"
     >
       <template #header>
-        <UDashboardNavbar
-          title="Coco"
-          icon="i-lucide-layout-dashboard"
-          :ui="{ title: 'text-coco-gold-500', leading: 'text-coco-gold-500' }"
-        >
-          <template #leading>
+        <UDashboardNavbar :toggle="false" :ui="{ left: 'gap-3' }">
+          <template #left>
             <UDashboardSidebarCollapse
               variant="ghost"
-              :ui="{ leadingIcon: 'text-coco-gold-500' }"
+              class="shrink-0"
+              :ui="{ leadingIcon: 'text-dimmed' }"
             />
+
+            <!-- First-level breadcrumb: Módulo / Sección, neutral tokens -->
+            <nav
+              aria-label="breadcrumb"
+              class="flex min-w-0 items-center gap-1 text-sm"
+            >
+              <template v-for="(item, index) in breadcrumb" :key="index">
+                <UIcon
+                  v-if="index > 0"
+                  name="i-lucide-chevron-right"
+                  class="size-3.5 shrink-0 text-dimmed"
+                />
+                <span
+                  :class="[
+                    'shrink-0 whitespace-nowrap',
+                    index === breadcrumb.length - 1
+                      ? 'font-medium text-primary'
+                      : 'text-dimmed',
+                  ]"
+                >
+                  {{ item.label }}
+                </span>
+              </template>
+            </nav>
           </template>
 
           <template #right>

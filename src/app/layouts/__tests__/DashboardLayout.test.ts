@@ -119,12 +119,18 @@ describe('DashboardLayout — Coco shell binding (DSC-REQ-013)', () => {
     expect(ui).toMatch(/body:\s*['"][^'"]*bg-coco-neutral-50[^'"]*dark:bg-coco-neutral-950/)
   })
 
-  // DSC-REQ-002: Navbar title + leading icon carry the gold token.
-  it('UDashboardNavbar :ui carries text-coco-gold-500 on title and leading slots', () => {
+  // DSC-REQ-013-R: Navbar header is neutral (no gold) and renders a
+  // first-level breadcrumb instead of the hardcoded "Coco" title.
+  it('UDashboardNavbar :ui is neutral (no coco-gold) and drops the hardcoded title', () => {
     const ui = extractUiBlock(sfc, 'UDashboardNavbar')
     expect(ui, 'UDashboardNavbar :ui block must exist in DashboardLayout.vue').toBeTruthy()
-    expect(ui).toMatch(/title:\s*['"][^'"]*text-coco-gold-500/)
-    expect(ui).toMatch(/leading:\s*['"][^'"]*text-coco-gold-500/)
+    // The header is now neutral - no gold on title/leading.
+    expect(ui).not.toMatch(/text-coco-gold-500/)
+    // The hardcoded brand title + dashboard icon are gone.
+    expect(sfc).not.toMatch(/title="Coco"/)
+    expect(sfc).not.toMatch(/icon="i-lucide-layout-dashboard"/)
+    // A nav[aria-label="breadcrumb"] renders in the #left slot.
+    expect(sfc).toMatch(/aria-label="breadcrumb"/)
   })
 
   // DSC-REQ-003: Sidebar collapse button gold icon
