@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { formatCentsMXN } from '../utils/currency.utils'
-import { formatPaymentMethod, getPaymentMethodColor } from '../utils/salePaymentMethod.utils'
+import { getPaymentMethodColor } from '../utils/salePaymentMethod.utils'
 import { useDebtPayment } from '../composables/useDebtPayment'
+import { useSalePaymentMethods } from '../composables/useSalePaymentMethods'
 import type { CollectionPaymentMethod, PaymentEntry } from '../interfaces/sale.types'
 import { PAYMENT_METHOD } from '../constants/sale.constants' // sdd/magic-string-constants slice 3 — lowercase contract.
 import {
@@ -16,11 +17,26 @@ import {
   validateEntry,
 } from '../utils/paymentEntries.utils'
 import { newIdempotencyKey } from '../utils/idempotency.utils'
+import {
+  buildMergedMethodOptions,
+  findEntryIndex,
+  getMethodCount,
+  paymentEntryKey,
+  paymentMethodTileKey,
+  resolveEntryDisplay,
+  type PaymentMethodTile,
+} from '../utils/paymentMethodTile.utils'
+import { PAYMENT_METHOD_CATEGORY_ICONS } from '@/core/shared/constants/payment-method-category'
 
 const props = defineProps<{
   open: boolean
   debtCents: number
   saleId: string
+  // sdd custom-payment-methods S4B (design §8.3 / REQ-CAT-007): the parent
+  // increments this counter when a debt charge resolves a catalog error; the
+  // modal then drops every entry carrying a `paymentMethodId` (custom tiles)
+  // and preserves fixed entries. The increment dispatch lands in S5A.
+  catalogClearSignal?: number
 }>()
 
 const emit = defineEmits<{
@@ -38,19 +54,18 @@ const CARD_METHODS: CollectionPaymentMethod[] = [
   PAYMENT_METHOD.TRANSFER,
 ]
 
-const methodOptions: ReadonlyArray<{ value: CollectionPaymentMethod; label: string; icon: string }> = [
-  { value: PAYMENT_METHOD.CASH, label: 'Efectivo', icon: 'i-lucide-banknote' },
-  { value: PAYMENT_METHOD.CARD_CREDIT, label: 'Tarjeta crédito', icon: 'i-lucide-credit-card' },
-  { value: PAYMENT_METHOD.CARD_DEBIT, label: 'Tarjeta débito', icon: 'i-lucide-wallet-cards' },
-  { value: PAYMENT_METHOD.TRANSFER, label: 'Transferencia', icon: 'i-lucide-arrow-right-left' },
-] as const
+// sdd custom-payment-methods S4B (REQ-PT-004): merged tile options — the 4
+// fixed tiles followed by every active custom method from the projection.
+// Empty / failed projection degrades to fixed-only (REQ-PT-005 / 006).
+const { data: projection } = useSalePaymentMethods()
+const methodOptions = computed<PaymentMethodTile[]>(() => buildMergedMethodOptions(projection.value ?? []))
 
-const methodIconMap: Readonly<Record<CollectionPaymentMethod, string>> = {
-  [PAYMENT_METHOD.CASH]: 'i-lucide-banknote',
-  [PAYMENT_METHOD.CARD_CREDIT]: 'i-lucide-credit-card',
-  [PAYMENT_METHOD.CARD_DEBIT]: 'i-lucide-wallet-cards',
-  [PAYMENT_METHOD.TRANSFER]: 'i-lucide-arrow-right-left',
-} as const
+function tileTestId(tile: PaymentMethodTile): string {
+  if (tile.kind === 'custom') return `payment-method-tile-custom-${tile.paymentMethodId}`
+  // Debt modal legacy testids: every fixed tile keeps
+  // `payment-method-tile-${value}` (design §1.4 — no testid drift).
+  return `payment-method-tile-${tile.value}`
+}
 
 const {
   submitSafe,
@@ -82,10 +97,6 @@ function entryNeedsReference(method: CollectionPaymentMethod): boolean {
   return CARD_METHODS.includes(method)
 }
 
-function getMethodCount(method: CollectionPaymentMethod): number {
-  return entries.value.filter((e) => e.method === method).length
-}
-
 function getMethodColor(method: CollectionPaymentMethod): string {
   return getPaymentMethodColor(method.toUpperCase())
 }
@@ -101,12 +112,17 @@ function close() {
   emit('update:open', false)
 }
 
-function handleMethodToggle(method: CollectionPaymentMethod): void {
-  const existingIndex = entries.value.findIndex((e) => e.method === method)
+// handleMethodToggle(tile) — tile-identity matcher (design §1.2/§1.4). The grid
+// passes the WHOLE tile; the matcher resolves the selection key as
+// `paymentMethodId ?? method` and addEntry threads the UUID for customs, so a
+// fixed tile never toggles a custom entry of the same category and two customs
+// of the same category never collide (REQ-PT-001).
+function handleMethodToggle(tile: PaymentMethodTile): void {
+  const existingIndex = findEntryIndex(entries.value, tile)
   if (existingIndex >= 0) {
     entries.value = removeEntry(entries.value, existingIndex)
   } else {
-    entries.value = addEntry(entries.value, method, props.debtCents)
+    entries.value = addEntry(entries.value, tile.value, props.debtCents, tile.paymentMethodId)
   }
 }
 
@@ -175,6 +191,19 @@ watch(externalErrorCode, (code) => {
     inlineAggregateError.value = 'El monto supera la deuda actual. Revisa el saldo.'
   }
 })
+
+// sdd custom-payment-methods S4B (design §8.3 / REQ-CAT-007): when the parent
+// increments `catalogClearSignal` (a debt charge resolved a catalog error),
+// drop EVERY entry carrying a `paymentMethodId` (custom tiles) and preserve
+// the fixed entries. The deep `entries` watcher above then regenerates the
+// idempotency key, so the follow-up submit is a fresh request.
+watch(
+  () => props.catalogClearSignal,
+  () => {
+    if (!props.open) return
+    entries.value = entries.value.filter((entry) => entry.paymentMethodId === undefined)
+  },
+)
 </script>
 
 <template>
@@ -220,29 +249,37 @@ watch(externalErrorCode, (code) => {
             <div class="grid grid-cols-2 gap-3">
               <button
                 v-for="option in methodOptions"
-                :key="option.value"
-                :data-testid="`payment-method-tile-${option.value}`"
+                :key="paymentMethodTileKey(option)"
+                :data-testid="tileTestId(option)"
                 type="button"
                 class="relative rounded-xl border px-3 py-4 text-left transition disabled:cursor-not-allowed disabled:opacity-50"
                 :class="
-                  getMethodCount(option.value) > 0
+                  getMethodCount(entries, option) > 0
                     ? 'border-coco-gold-500/40 bg-coco-gold-500/5'
                     : 'border-default bg-elevated hover:border-coco-gold-500/40 hover:bg-coco-gold-500/5'
                 "
-                :disabled="(getMethodCount(option.value) === 0 && !canAddEntry) || isSubmitting"
-                @click="handleMethodToggle(option.value)"
+                :disabled="(getMethodCount(entries, option) === 0 && !canAddEntry) || isSubmitting"
+                @click="handleMethodToggle(option)"
               >
                 <UBadge
-                  v-if="getMethodCount(option.value) > 0"
+                  v-if="getMethodCount(entries, option) > 0"
                   class="absolute right-2 top-2"
                   size="sm"
                   :color="getMethodColor(option.value)"
                   variant="soft"
                 >
-                  {{ getMethodCount(option.value) }}
+                  {{ getMethodCount(entries, option) }}
                 </UBadge>
                 <UIcon :name="option.icon" class="mb-2 size-6 text-coco-gold-700 dark:text-coco-gold-400" />
                 <p class="text-sm font-semibold text-highlighted">{{ option.label }}</p>
+                <!-- REQ-PT-007: custom tiles render the subtitle as a grey sub-line (trimmed, when present) -->
+                <p
+                  v-if="option.kind === 'custom' && (option.subtitle?.trim() ?? '') !== ''"
+                  :data-testid="`payment-method-tile-subtitle-${option.paymentMethodId}`"
+                  class="text-xs text-muted"
+                >
+                  {{ option.subtitle }}
+                </p>
               </button>
             </div>
             <p v-if="!canAddEntry" class="text-xs text-warning">Máximo {{ MAX_PAYMENT_ENTRIES }} pagos</p>
@@ -263,18 +300,18 @@ watch(externalErrorCode, (code) => {
 
             <div
               v-for="(entry, index) in entries"
-              :key="`entry-${index}`"
+              :key="paymentEntryKey(entry)"
               :data-testid="`payment-entry-${index}`"
               class="space-y-3 rounded-xl border border-default bg-default px-3 py-3"
             >
               <div class="flex items-center gap-3">
                 <UBadge :color="getMethodColor(entry.method)" variant="soft" size="lg" class="shrink-0">
-                  <UIcon :name="methodIconMap[entry.method]" class="size-4" />
+                  <UIcon :name="PAYMENT_METHOD_CATEGORY_ICONS[entry.method]" class="size-4" />
                 </UBadge>
 
                 <div class="min-w-0 flex-1">
                   <p class="text-sm font-semibold text-highlighted">
-                    {{ formatPaymentMethod(entry.method.toUpperCase()) }}
+                    {{ resolveEntryDisplay(entry, methodOptions).label }}
                   </p>
                 </div>
 

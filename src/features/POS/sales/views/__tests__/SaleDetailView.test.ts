@@ -80,6 +80,21 @@ vi.mock('../../composables/useDebtPayment', () => ({
   }),
 }))
 
+// custom-payment-methods S4B: DebtPaymentModal now consumes the POS
+// payment-methods projection (useSalePaymentMethods → useQuery). Mock it
+// to keep the view tests framework-light (same convention as the other
+// Query-client composables above) — no QueryClient setup needed.
+vi.mock('../../composables/useSalePaymentMethods', () => ({
+  useSalePaymentMethods: () => ({
+    data: computed(() => []),
+    isLoading: computed(() => false),
+    isFetching: computed(() => false),
+    isError: computed(() => false),
+    error: computed(() => null),
+    refetch: vi.fn(),
+  }),
+}))
+
 vi.mock('../../composables/useSaleComments', () => ({
   useSaleComments: () => ({
     addComment: vi.fn().mockResolvedValue(undefined),

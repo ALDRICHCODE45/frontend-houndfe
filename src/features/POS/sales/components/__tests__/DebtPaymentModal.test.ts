@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { mount, flushPromises } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import DebtPaymentModal from '../DebtPaymentModal.vue'
-import type { PaymentEntry } from '../../interfaces/sale.types'
+import type { ActivePaymentMethodProjection, PaymentEntry } from '../../interfaces/sale.types'
 
 const submitSafeMock = vi.fn()
 const isSubmittingRef = ref(false)
@@ -26,6 +26,21 @@ vi.mock('../../utils/idempotency.utils', () => ({
 
 vi.mock('../../utils/currency.utils', () => ({
   formatCentsMXN: (cents: number) => `$${(cents / 100).toFixed(2)}`,
+}))
+
+// sdd custom-payment-methods S4B: mock the projection composable so the debt
+// modal renders fixed + custom tiles deterministically. `data` is a computed
+// over a module-scoped ref that each test seeds before mounting.
+const projectionData = ref<ActivePaymentMethodProjection[]>([])
+vi.mock('../../composables/useSalePaymentMethods', () => ({
+  useSalePaymentMethods: () => ({
+    data: computed(() => projectionData.value),
+    isLoading: ref(false),
+    isFetching: ref(false),
+    isError: ref(false),
+    error: ref(null),
+    refetch: vi.fn(),
+  }),
 }))
 
 vi.mock('vue-router', () => ({
@@ -245,5 +260,133 @@ describe('DebtPaymentModal', () => {
     const confirmButton = wrapper.get('[data-testid="confirm-debt-payment"]')
     expect(confirmButton.classes()).toContain('!bg-(--brand-action)')
     expect(confirmButton.classes()).toContain('!text-black')
+  })
+})
+
+// ─── sdd custom-payment-methods S4B — merged tile grid + paymentMethodId threading ─
+//
+// REQ-PT-001/004/005/007 (pos-payment-method-tiles spec) and
+// REQ-CAT-001/007 (sales delta). `projectionData` seeds the custom tiles.
+
+describe('DebtPaymentModal S4B — custom payment method tiles (sdd custom-payment-methods)', () => {
+  const UUID_A = '11111111-1111-4111-8111-111111111111'
+  const UUID_B = '22222222-2222-4222-8222-222222222222'
+  const customTransfer: ActivePaymentMethodProjection = {
+    id: UUID_A,
+    name: 'Transferencia BBVA',
+    category: 'transfer',
+    subtitle: 'Cta 1234',
+  }
+
+  beforeEach(() => {
+    // Mirror the file's top-level beforeEach — the S4B describe is a separate
+    // top-level block, so the original resets do NOT apply here.
+    submitSafeMock.mockReset()
+    submitSafeMock.mockResolvedValue(undefined)
+    resetErrorMock.mockReset()
+    isSubmittingRef.value = false
+    externalErrorCodeRef.value = null
+    shouldCloseRef.value = false
+    projectionData.value = []
+  })
+
+  it('REQ-PT-004 — renders 4 fixed tiles followed by custom tiles from the projection', () => {
+    projectionData.value = [customTransfer]
+    const wrapper = mountModal()
+
+    expect(wrapper.get('[data-testid="payment-method-tile-cash"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="payment-method-tile-card_credit"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="payment-method-tile-card_debit"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="payment-method-tile-transfer"]').exists()).toBe(true)
+    expect(wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_A}"]`).text()).toContain('Transferencia BBVA')
+  })
+
+  it('REQ-PT-007 — custom tile shows the grey subtitle sub-line; null subtitle hides it', () => {
+    projectionData.value = [customTransfer]
+    const wrapper = mountModal()
+
+    const sub = wrapper.get(`[data-testid="payment-method-tile-subtitle-${UUID_A}"]`)
+    expect(sub.text()).toContain('Cta 1234')
+    expect(sub.classes()).toContain('text-muted')
+
+    projectionData.value = [{ id: UUID_B, name: 'Efectivo USD', category: 'cash', subtitle: null }]
+    const wrapper2 = mountModal()
+    expect(wrapper2.find('[data-testid^="payment-method-tile-subtitle-"]').exists()).toBe(false)
+  })
+
+  it('REQ-CAT-001 — toggling a custom tile adds an entry with paymentMethodId in normalizedPayments', async () => {
+    submitSafeMock.mockResolvedValue({ paymentStatus: 'PAID' })
+    projectionData.value = [customTransfer]
+    const wrapper = mountModal()
+
+    await wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_A}"]`).trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('100')
+    await flushPromises()
+    await wrapper.get('[data-testid="confirm-debt-payment"]').trigger('click')
+    await flushPromises()
+
+    expect(submitSafeMock).toHaveBeenCalledTimes(1)
+    const call = submitSafeMock.mock.calls[0]?.[0] as { payload: { payments: PaymentEntry[] } }
+    expect(call).toBeDefined()
+    if (!call) throw new Error('submitSafe not called')
+    expect(call.payload.payments[0]).toEqual({ method: 'transfer', amountCents: 10000, paymentMethodId: UUID_A })
+  })
+
+  it('REQ-CAT-001 — fixed tile entry omits paymentMethodId from normalizedPayments', async () => {
+    submitSafeMock.mockResolvedValue({ paymentStatus: 'PAID' })
+    projectionData.value = [customTransfer]
+    const wrapper = mountModal()
+
+    await wrapper.get('[data-testid="payment-method-tile-cash"]').trigger('click')
+    await flushPromises()
+    await wrapper.get('[data-testid="confirm-debt-payment"]').trigger('click')
+    await flushPromises()
+
+    const call = submitSafeMock.mock.calls[0]?.[0] as { payload: { payments: PaymentEntry[] } }
+    expect(call.payload.payments[0]).toEqual({ method: 'cash', amountCents: 80000 })
+    expect(call.payload.payments[0]).not.toHaveProperty('paymentMethodId')
+  })
+
+  it('REQ-PT-001 — two customs of the same category coexist; the fixed transfer tile does not collide with them', async () => {
+    projectionData.value = [
+      customTransfer,
+      { id: UUID_B, name: 'Transferencia AFIRME', category: 'transfer', subtitle: null },
+    ]
+    const wrapper = mountModal()
+
+    await wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_A}"]`).trigger('click')
+    await wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_B}"]`).trigger('click')
+    await wrapper.get('[data-testid="payment-method-tile-transfer"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(3)
+
+    // Toggling the FIXED transfer tile off removes ONLY the fixed entry
+    await wrapper.get('[data-testid="payment-method-tile-transfer"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(2)
+  })
+
+  it('REQ-CAT-007 — catalogClearSignal increment removes custom entries but preserves fixed entries', async () => {
+    projectionData.value = [customTransfer]
+    const wrapper = mountModal()
+
+    await wrapper.get('[data-testid="payment-method-tile-cash"]').trigger('click')
+    await wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_A}"]`).trigger('click')
+    await flushPromises()
+    expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(2)
+
+    await wrapper.setProps({ catalogClearSignal: 1 })
+    await flushPromises()
+
+    expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(1)
+  })
+
+  it('REQ-PT-005 — empty projection renders only the 4 fixed tiles, no warning', () => {
+    const wrapper = mountModal()
+
+    expect(wrapper.findAll('[data-testid^="payment-method-tile-custom-"]')).toHaveLength(0)
+    expect(wrapper.findAll('[data-testid^="payment-method-tile-"]')).toHaveLength(4)
+    expect(wrapper.text()).not.toContain('configura tu catálogo')
   })
 })

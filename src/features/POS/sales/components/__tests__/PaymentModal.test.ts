@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { computed, ref } from 'vue'
 import PaymentModal from '../PaymentModal.vue'
-import type { ChargeSalePayload } from '../../interfaces/sale.types'
+import type { ActivePaymentMethodProjection, ChargeSalePayload } from '../../interfaces/sale.types'
 
 type PaymentModalSubmitEvent = {
   saleId: string
@@ -74,6 +75,22 @@ const stubs = {
     template: '<div />',
   },
 }
+
+// sdd custom-payment-methods S4B: mock the projection composable so the modal
+// renders fixed + custom tiles deterministically. `data` is a computed over a
+// module-scoped ref that each test seeds before mounting (same convention as
+// DebtPaymentModal.test.ts mocking useDebtPayment).
+const projectionData = ref<ActivePaymentMethodProjection[]>([])
+vi.mock('../../composables/useSalePaymentMethods', () => ({
+  useSalePaymentMethods: () => ({
+    data: computed(() => projectionData.value),
+    isLoading: ref(false),
+    isFetching: ref(false),
+    isError: ref(false),
+    error: ref(null),
+    refetch: vi.fn(),
+  }),
+}))
 
 describe('PaymentModal', () => {
   it('opens with empty payments list (no method preselected)', () => {
@@ -541,5 +558,212 @@ describe('PaymentModal', () => {
 
     expect(cashTile.classes()).toContain('border-coco-gold-500/40')
     expect(cashTile.classes()).toContain('bg-coco-gold-500/5')
+  })
+})
+
+// ─── sdd custom-payment-methods S4B — merged tile grid + paymentMethodId threading ─
+//
+// REQ-PT-001/004/005/006/007 (pos-payment-method-tiles spec) and
+// REQ-CAT-001/002/007 (sales delta). The projection composable is mocked above;
+// `projectionData` seeds the custom tiles before each mount.
+
+describe('PaymentModal S4B — custom payment method tiles (sdd custom-payment-methods)', () => {
+  const UUID_A = '11111111-1111-4111-8111-111111111111'
+  const UUID_B = '22222222-2222-4222-8222-222222222222'
+  const customMercadoPago: ActivePaymentMethodProjection = {
+    id: UUID_A,
+    name: 'Mercado Pago',
+    category: 'transfer',
+    subtitle: 'Link',
+  }
+
+  beforeEach(() => {
+    projectionData.value = []
+  })
+
+  function mountWithProjection(projection: ActivePaymentMethodProjection[], props: Record<string, unknown> = {}) {
+    projectionData.value = projection
+    return mount(PaymentModal, {
+      props: { open: true, totalCents: 15000, saleId: 'sale-1', ...props },
+      global: { stubs },
+    })
+  }
+
+  it('REQ-PT-004 — renders 4 fixed tiles followed by custom tiles from the projection', () => {
+    const wrapper = mountWithProjection([customMercadoPago])
+
+    expect(wrapper.get('[data-testid="add-payment-entry"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="payment-method-tile-card_credit"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="payment-method-tile-card_debit"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="payment-method-tile-transfer"]').exists()).toBe(true)
+    expect(
+      wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_A}"]`).text(),
+    ).toContain('Mercado Pago')
+  })
+
+  it('REQ-PT-007 — custom tile renders the grey subtitle sub-line when present', () => {
+    const wrapper = mountWithProjection([customMercadoPago])
+
+    const sub = wrapper.get(`[data-testid="payment-method-tile-subtitle-${UUID_A}"]`)
+    expect(sub.text()).toContain('Link')
+    expect(sub.classes()).toContain('text-muted')
+  })
+
+  it('REQ-PT-007 — null subtitle hides the sub-line', () => {
+    const wrapper = mountWithProjection([{ id: UUID_B, name: 'Efectivo USD', category: 'cash', subtitle: null }])
+
+    expect(wrapper.find('[data-testid^="payment-method-tile-subtitle-"]').exists()).toBe(false)
+  })
+
+  it('REQ-PT-007 — whitespace-only subtitle is treated as absent', () => {
+    const wrapper = mountWithProjection([{ id: UUID_B, name: 'Foo', category: 'cash', subtitle: '   ' }])
+
+    expect(wrapper.find('[data-testid^="payment-method-tile-subtitle-"]').exists()).toBe(false)
+  })
+
+  it('REQ-PT-001/REQ-CAT-001 — toggling a custom tile creates an entry carrying paymentMethodId; single-entry payload flattens with the id (REQ-CAT-002)', async () => {
+    const wrapper = mountWithProjection([customMercadoPago])
+
+    await wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_A}"]`).trigger('click')
+    expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(1)
+
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+
+    const submitted = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
+    expect(submitted?.payload).toEqual({
+      method: 'transfer',
+      amountCents: 15000,
+      paymentMethodId: UUID_A,
+    })
+  })
+
+  it('REQ-CAT-001 — toggling a fixed tile keeps the legacy payload byte-identical (no paymentMethodId key)', async () => {
+    const wrapper = mountWithProjection([customMercadoPago])
+
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+
+    const submitted = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
+    expect(submitted?.payload).toEqual({ method: 'cash', amountCents: 15000 })
+    expect(submitted?.payload).not.toHaveProperty('paymentMethodId')
+  })
+
+  it('REQ-PT-001 — two customs of the same category coexist and toggle independently (distinct keys)', async () => {
+    const bbva: ActivePaymentMethodProjection = { id: UUID_A, name: 'Transferencia BBVA', category: 'transfer', subtitle: null }
+    const afirme: ActivePaymentMethodProjection = { id: UUID_B, name: 'Transferencia AFIRME', category: 'transfer', subtitle: null }
+    const wrapper = mountWithProjection([bbva, afirme])
+
+    await wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_A}"]`).trigger('click')
+    await wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_B}"]`).trigger('click')
+
+    expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(2)
+    expect(wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_A}"]`).text()).toContain('1')
+    expect(wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_B}"]`).text()).toContain('1')
+
+    // Toggling BBVA off removes ONLY BBVA's entry
+    await wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_A}"]`).trigger('click')
+    expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(1)
+  })
+
+  it('REQ-PT-001 — a fixed tile and a custom tile of the same category do NOT collide', async () => {
+    const custom = { id: UUID_A, name: 'Transferencia BBVA', category: 'transfer', subtitle: null }
+    const wrapper = mountWithProjection([custom])
+
+    // Fixed Transferencia tile
+    await wrapper.get('[data-testid="payment-method-tile-transfer"]').trigger('click')
+    expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(1)
+
+    // Custom transfer tile — coexists with the fixed one
+    await wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_A}"]`).trigger('click')
+    expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(2)
+
+    // Toggling the FIXED transfer tile off must NOT remove the custom entry
+    await wrapper.get('[data-testid="payment-method-tile-transfer"]').trigger('click')
+    expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(1)
+  })
+
+  it('REQ-PT-004 — entries list shows the catalog name for custom entries (tile-identity display)', async () => {
+    const wrapper = mountWithProjection([customMercadoPago])
+
+    await wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_A}"]`).trigger('click')
+
+    expect(wrapper.get('[data-testid="payment-method-0"]').text()).toBe('Mercado Pago')
+  })
+
+  it('REQ-CAT-007 — catalogClearSignal increment removes custom entries but preserves fixed entries', async () => {
+    const wrapper = mountWithProjection([customMercadoPago], { catalogClearSignal: 0 })
+
+    await wrapper.get('[data-testid="add-payment-entry"]').trigger('click') // fixed cash
+    await wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_A}"]`).trigger('click') // custom
+    expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(2)
+
+    await wrapper.setProps({ catalogClearSignal: 1 })
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(1)
+    expect(wrapper.get('[data-testid="payment-method-0"]').text()).toBe('Efectivo')
+  })
+
+  it('REQ-CAT-002 — multi-payment payload carries paymentMethodId on the custom entry row (and omits it on the fixed row)', async () => {
+    const wrapper = mountWithProjection([customMercadoPago])
+
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_A}"]`).trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('100')
+    await wrapper.get('[data-testid="payment-amount-1"]').setValue('50')
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+
+    const submitted = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
+    const payments = (submitted?.payload as { payments: Array<{ method: string; amountCents: number; paymentMethodId?: string }> }).payments
+    expect(payments).toHaveLength(2)
+    expect(payments[0]).toEqual({ method: 'cash', amountCents: 10000 })
+    expect(payments[1]).toEqual({ method: 'transfer', amountCents: 5000, paymentMethodId: UUID_A })
+  })
+
+  it('REQ-CAT-007 — catalogClearSignal filter regenerates the idempotency key (design §8.3)', async () => {
+    // totalCents 10000 so the fixed cash entry (prefilled to the full total)
+    // alone is a complete payment AFTER the custom entry is filtered — a
+    // partial leftover would (correctly) block the second submit.
+    const wrapper = mountWithProjection([customMercadoPago], { catalogClearSignal: 0, totalCents: 10000 })
+
+    await wrapper.get('[data-testid="add-payment-entry"]').trigger('click')
+    await wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_A}"]`).trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('100')
+    await wrapper.get('[data-testid="payment-amount-1"]').setValue('50')
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    const firstPayload = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
+
+    await wrapper.setProps({ catalogClearSignal: 1 })
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    const secondPayload = wrapper.emitted('submit')?.[1]?.[0] as PaymentModalSubmitEvent | undefined
+
+    expect(firstPayload).toBeDefined()
+    expect(secondPayload).toBeDefined()
+    if (!firstPayload || !secondPayload) throw new Error('Missing submit event payload')
+    expect(firstPayload.idempotencyKey).not.toBe(secondPayload.idempotencyKey)
+  })
+
+  it('REQ-PT-005 — empty projection renders exactly the 4 fixed tiles with no warning', () => {
+    const wrapper = mountWithProjection([])
+
+    expect(wrapper.findAll('[data-testid^="payment-method-tile-custom-"]')).toHaveLength(0)
+    expect(wrapper.findAll('[data-method]')).toHaveLength(4)
+    expect(wrapper.find('[data-testid="add-payment-entry"]').exists()).toBe(true)
+    expect(wrapper.text()).not.toContain('configura tu catálogo')
+  })
+
+  it('REQ-PT-006 — projection fetch failure (data undefined) degrades to fixed-only with no toast / no blocking alert', () => {
+    projectionData.value = undefined as unknown as ActivePaymentMethodProjection[]
+    const wrapper = mount(PaymentModal, {
+      props: { open: true, totalCents: 15000, saleId: 'sale-1' },
+      global: { stubs },
+    })
+
+    expect(wrapper.findAll('[data-method]')).toHaveLength(4)
+    expect(wrapper.find('[data-testid^="payment-method-tile-custom-"]').exists()).toBe(false)
+    expect(wrapper.findAll('[role="alert"]')).toHaveLength(0)
   })
 })

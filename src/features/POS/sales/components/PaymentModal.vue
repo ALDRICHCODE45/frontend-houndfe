@@ -1,12 +1,24 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { ChargeSalePayload, NonCreditPaymentMethod, PaymentEntry, SaleDraftCustomer } from '../interfaces/sale.types'
+import type { ChargeSalePayload, LegacyChargePayload, NonCreditPaymentMethod, PaymentEntry, SaleDraftCustomer } from '../interfaces/sale.types'
 import { PAYMENT_METHOD } from '../constants/sale.constants' // sdd/magic-string-constants slice 3 — lowercase contract.
 import DateFieldPopover from './DateFieldPopover.vue'
 import { newIdempotencyKey } from '../utils/idempotency.utils'
 import { formatCentsMXN } from '../utils/currency.utils'
-import { formatPaymentMethod, getPaymentMethodColor } from '../utils/salePaymentMethod.utils'
+import { getPaymentMethodColor } from '../utils/salePaymentMethod.utils'
 import { normalizeReferenceInput } from '../utils/paymentEntries.utils'
+import { useSalePaymentMethods } from '../composables/useSalePaymentMethods'
+import {
+  buildMergedMethodOptions,
+  findEntryIndex,
+  getMethodCount,
+  paymentEntryKey,
+  paymentMethodTileKey,
+  resolveEntryDisplay,
+  type EntryDisplay,
+  type PaymentMethodTile,
+} from '../utils/paymentMethodTile.utils'
+import { PAYMENT_METHOD_CATEGORY_ICONS } from '@/core/shared/constants/payment-method-category'
 
 const props = defineProps<{
   open: boolean
@@ -15,6 +27,11 @@ const props = defineProps<{
   customer?: SaleDraftCustomer | null
   isSubmitting?: boolean
   externalError?: string | null
+  // sdd custom-payment-methods S4B (design §8.3 / REQ-CAT-007): the parent
+  // increments this counter when a charge resolves a catalog error; the modal
+  // then drops every entry carrying a `paymentMethodId` (custom tiles) and
+  // preserves fixed entries. The increment dispatch lands in S5A.
+  catalogClearSignal?: number
 }>()
 
 const emit = defineEmits<{
@@ -27,6 +44,9 @@ type PaymentEntryForm = {
   method: NonCreditPaymentMethod
   amountPesos: number
   reference: string
+  // sdd custom-payment-methods S4B (REQ-CAT-001 / design §1.3): present ONLY
+  // for custom tiles; absent for fixed tiles (legacy byte-identical).
+  paymentMethodId?: string
 }
 
 const CARD_METHODS: NonCreditPaymentMethod[] = [
@@ -56,19 +76,19 @@ const isDueDateValid = computed(() => {
   return dueDateInput.value >= minDueDate.value
 })
 
-const methodOptions: ReadonlyArray<{ value: NonCreditPaymentMethod; label: string; icon: string }> = [
-  { value: PAYMENT_METHOD.CASH, label: 'Efectivo', icon: 'i-lucide-banknote' },
-  { value: PAYMENT_METHOD.CARD_CREDIT, label: 'Tarjeta crédito', icon: 'i-lucide-credit-card' },
-  { value: PAYMENT_METHOD.CARD_DEBIT, label: 'Tarjeta débito', icon: 'i-lucide-wallet-cards' },
-  { value: PAYMENT_METHOD.TRANSFER, label: 'Transferencia', icon: 'i-lucide-arrow-right-left' },
-] as const
+// sdd custom-payment-methods S4B (REQ-PT-004): merged tile options — the 4
+// fixed tiles followed by every active custom method from the projection.
+// Empty / failed projection degrades to fixed-only (REQ-PT-005 / 006).
+const { data: projection } = useSalePaymentMethods()
+const methodOptions = computed<PaymentMethodTile[]>(() => buildMergedMethodOptions(projection.value ?? []))
 
-const methodIconMap: Readonly<Record<NonCreditPaymentMethod, string>> = {
-  [PAYMENT_METHOD.CASH]: 'i-lucide-banknote',
-  [PAYMENT_METHOD.CARD_CREDIT]: 'i-lucide-credit-card',
-  [PAYMENT_METHOD.CARD_DEBIT]: 'i-lucide-wallet-cards',
-  [PAYMENT_METHOD.TRANSFER]: 'i-lucide-arrow-right-left',
-} as const
+function tileTestId(tile: PaymentMethodTile): string {
+  if (tile.kind === 'custom') return `payment-method-tile-custom-${tile.paymentMethodId}`
+  // Legacy testids: cash keeps `add-payment-entry`, the other fixed tiles
+  // keep `payment-method-tile-${value}` (design §1.4 — no testid drift).
+  if (tile.value === PAYMENT_METHOD.CASH) return 'add-payment-entry'
+  return `payment-method-tile-${tile.value}`
+}
 
 const totalFormatted = computed(() => formatCentsMXN(props.totalCents))
 const paidSumCents = computed(() => {
@@ -99,16 +119,51 @@ const confirmButtonLabel = computed(() => {
   return 'Confirmar cobro'
 })
 
-function createDefaultEntry(): PaymentEntryForm {
-  return {
-    method: PAYMENT_METHOD.CASH,
-    amountPesos: props.totalCents / 100,
-    reference: '',
-  }
-}
-
 function entryNeedsReference(method: NonCreditPaymentMethod): boolean {
   return CARD_METHODS.includes(method)
+}
+
+// ── sdd custom-payment-methods S4B — wire projection helpers ────────────────────
+//
+// `toWireEntry` is THE single normalization from a form row to the wire
+// `PaymentEntry` shape. It forwards `paymentMethodId` ONLY when present
+// (custom tiles), so fixed entries stay byte-identical (REQ-CAT-001 / §1.3).
+function toWireEntry(entry: PaymentEntryForm): PaymentEntry {
+  const payment: PaymentEntry = {
+    method: entry.method,
+    amountCents: Math.max(0, Math.round(entry.amountPesos * 100)),
+  }
+
+  if (entry.paymentMethodId !== undefined) {
+    payment.paymentMethodId = entry.paymentMethodId
+  }
+
+  return payment
+}
+
+// Wire projection of the current form rows — single source for tile matching
+// (toggle / count badge / entries-list key), 1:1 with `entries`.
+const wireEntries = computed<PaymentEntry[]>(() => entries.value.map(toWireEntry))
+
+// Entries-list display labels: catalog name for custom entries, base category
+// label for fixed entries (design §1.4 — resolveEntryDisplay, single source).
+const entryDisplays = computed<EntryDisplay[]>(() =>
+  entries.value.map((entry) => resolveEntryDisplay(toWireEntry(entry), methodOptions.value)),
+)
+
+function createDefaultEntry(tile: PaymentMethodTile): PaymentEntryForm {
+  const entry: PaymentEntryForm = {
+    method: tile.value,
+    amountPesos: tile.value === PAYMENT_METHOD.CASH ? props.totalCents / 100 : 0,
+    reference: '',
+  }
+
+  // paymentMethodId is set ONLY for custom tiles (REQ-CAT-001 / design §1.3).
+  if (tile.kind === 'custom') {
+    entry.paymentMethodId = tile.paymentMethodId
+  }
+
+  return entry
 }
 
 function normalizeEntries(): PaymentEntry[] {
@@ -119,10 +174,7 @@ function normalizeEntries(): PaymentEntry[] {
   // passed through verbatim.
   return entries.value
     .map((entry) => {
-      const payment: PaymentEntry = {
-        method: entry.method,
-        amountCents: Math.max(0, Math.round(entry.amountPesos * 100)),
-      }
+      const payment = toWireEntry(entry)
 
       if (entryNeedsReference(entry.method)) {
         // Treat null and undefined the same: omit the key entirely so the
@@ -161,27 +213,29 @@ watch([isPartial, hasCustomer, entries], () => {
   inlineError.value = null
 }, { deep: true })
 
-function addEntry() {
+// sdd custom-payment-methods S4B: entry construction is tile-aware so custom
+// tiles thread their UUID while fixed tiles stay byte-identical (REQ-CAT-001).
+// The no-arg `addEntry()` was dead code (nothing called it) and is replaced by
+// the tile-aware versions below.
+function addEntryWithMethod(tile: PaymentMethodTile) {
   if (!canAddEntry.value) return
-  entries.value.push({ method: PAYMENT_METHOD.CASH, amountPesos: 0, reference: '' })
+  entries.value.push(createDefaultEntry(tile))
 }
 
-function addEntryWithMethod(method: NonCreditPaymentMethod) {
-  if (!canAddEntry.value) return
-  entries.value.push({ method, amountPesos: 0, reference: '' })
-}
-
-function toggleMethod(method: NonCreditPaymentMethod) {
-  const existingIndex = entries.value.findIndex(entry => entry.method === method)
+// toggleMethod(tile) — tile-identity matcher (design §1.2/§1.4). The grid
+// passes the WHOLE tile; the matcher resolves the selection key as
+// `paymentMethodId ?? method`, so a fixed tile never toggles a custom entry of
+// the same category and two customs of the same category never collide.
+function toggleMethod(tile: PaymentMethodTile) {
+  const existingIndex = findEntryIndex(wireEntries.value, tile)
 
   if (existingIndex >= 0) {
-    // Remove the existing entry (toggle off)
-    entries.value = entries.value.filter(entry => entry.method !== method)
+    // Remove the matching entry (toggle off) — only the identity-matched row.
+    entries.value = entries.value.filter((_entry, index) => index !== existingIndex)
   } else {
     // Add new entry (toggle on)
     if (canAddEntry.value) {
-      const defaultAmount = method === PAYMENT_METHOD.CASH ? props.totalCents / 100 : 0
-      entries.value.push({ method, amountPesos: defaultAmount, reference: '' })
+      entries.value.push(createDefaultEntry(tile))
     }
   }
 }
@@ -223,9 +277,22 @@ function buildPayload(): ChargeSalePayload {
     if (!single) {
       return dueDate ? { payments, dueDate } : { payments }
     }
-    return dueDate
-      ? { method: single.method, amountCents: single.amountCents, dueDate }
-      : { method: single.method, amountCents: single.amountCents }
+
+    // sdd custom-payment-methods S4B (REQ-CAT-002 / design §1.3): flatten a
+    // single-entry charge into the legacy single-payment shape, forwarding
+    // `paymentMethodId` ONLY when the entry is a custom tile (fixed entries
+    // stay byte-identical).
+    const legacy: LegacyChargePayload = {
+      method: single.method,
+      amountCents: single.amountCents,
+    }
+    if (single.paymentMethodId !== undefined) {
+      legacy.paymentMethodId = single.paymentMethodId
+    }
+    if (dueDate) {
+      legacy.dueDate = dueDate
+    }
+    return legacy
   }
 
   return dueDate ? { payments, dueDate } : { payments }
@@ -271,9 +338,18 @@ watch(entries, (next) => {
   entries.value = next.slice(0, MAX_ENTRIES)
 })
 
-function getMethodCount(method: NonCreditPaymentMethod): number {
-  return entries.value.filter((entry) => entry.method === method).length
-}
+// sdd custom-payment-methods S4B (design §8.3 / REQ-CAT-007): when the parent
+// increments `catalogClearSignal` (a charge resolved a catalog error), drop
+// EVERY entry carrying a `paymentMethodId` (custom tiles) and preserve the
+// fixed entries. The deep `entries` watcher above then regenerates the
+// idempotency key, so the follow-up submit is a fresh request.
+watch(
+  () => props.catalogClearSignal,
+  () => {
+    if (!props.open) return
+    entries.value = entries.value.filter((entry) => entry.paymentMethodId === undefined)
+  },
+)
 
 function getMethodColor(method: NonCreditPaymentMethod): string {
   return getPaymentMethodColor(method.toUpperCase())
@@ -322,30 +398,38 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
             <div class="grid grid-cols-2 gap-3">
               <button
                 v-for="option in methodOptions"
-                :key="option.value"
-                :data-testid="option.value === PAYMENT_METHOD.CASH ? 'add-payment-entry' : undefined"
+                :key="paymentMethodTileKey(option)"
+                :data-testid="tileTestId(option)"
                 :data-method="option.value"
                 type="button"
                 class="relative rounded-xl border px-3 py-4 text-left transition disabled:cursor-not-allowed disabled:opacity-50"
                 :class="
-                  getMethodCount(option.value) > 0
+                  getMethodCount(wireEntries, option) > 0
                     ? 'border-coco-gold-500/40 bg-coco-gold-500/5'
                     : 'border-default bg-elevated hover:border-coco-gold-500/40 hover:bg-coco-gold-500/5'
                 "
-                :disabled="getMethodCount(option.value) === 0 && !canAddEntry || isSubmitting"
-                @click="toggleMethod(option.value)"
+                :disabled="getMethodCount(wireEntries, option) === 0 && !canAddEntry || isSubmitting"
+                @click="toggleMethod(option)"
               >
                 <UBadge
-                  v-if="getMethodCount(option.value) > 0"
+                  v-if="getMethodCount(wireEntries, option) > 0"
                   class="absolute right-2 top-2"
                   size="sm"
                   :color="getMethodColor(option.value)"
                   variant="soft"
                 >
-                  {{ getMethodCount(option.value) }}
+                  {{ getMethodCount(wireEntries, option) }}
                 </UBadge>
                 <UIcon :name="option.icon" class="mb-2 size-6 text-coco-gold-700 dark:text-coco-gold-400" />
                 <p class="text-sm font-semibold text-highlighted">{{ option.label }}</p>
+                <!-- REQ-PT-007: custom tiles render the subtitle as a grey sub-line (trimmed, when present) -->
+                <p
+                  v-if="option.kind === 'custom' && (option.subtitle?.trim() ?? '') !== ''"
+                  :data-testid="`payment-method-tile-subtitle-${option.paymentMethodId}`"
+                  class="text-xs text-muted"
+                >
+                  {{ option.subtitle }}
+                </p>
               </button>
             </div>
           </section>
@@ -365,18 +449,18 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
 
             <div
               v-for="(entry, index) in entries"
-              :key="`entry-${index}`"
+              :key="paymentEntryKey(wireEntries[index])"
               :data-testid="`payment-entry-${index}`"
               class="space-y-3 rounded-xl border border-default bg-default px-3 py-3"
             >
               <div class="flex items-center gap-3">
                 <UBadge :color="getMethodColor(entry.method)" variant="soft" size="lg" class="shrink-0">
-                  <UIcon :name="methodIconMap[entry.method]" class="size-4" />
+                  <UIcon :name="PAYMENT_METHOD_CATEGORY_ICONS[entry.method]" class="size-4" />
                 </UBadge>
 
                 <div class="min-w-0 flex-1">
                   <p :data-testid="`payment-method-${index}`" class="text-sm font-semibold text-highlighted">
-                    {{ formatPaymentMethod(entry.method.toUpperCase()) }}
+                    {{ entryDisplays[index]?.label }}
                   </p>
                 </div>
 

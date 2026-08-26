@@ -148,10 +148,10 @@ const globalStubs = {
       + '</div>',
   },
   PaymentModal: {
-    props: ['open', 'saleId', 'externalError', 'isSubmitting', 'customer', 'totalCents'],
+    props: ['open', 'saleId', 'externalError', 'isSubmitting', 'customer', 'totalCents', 'catalogClearSignal'],
     emits: ['submit', 'update:open', 'request-assign-customer'],
     template:
-      '<div><p data-testid="payment-modal-open">{{ open }}</p><p data-testid="payment-modal-total-cents">{{ totalCents }}</p><button data-testid="submit-charge" :disabled="isSubmitting" @click="$emit(\'submit\', { saleId, payload: { method: \'cash\', amountCents: totalCents }, idempotencyKey: \'idem-1\' })">submit</button><button data-testid="request-assign-customer" @click="$emit(\'request-assign-customer\')">assign</button><p data-testid="external-error">{{ externalError }}</p><p data-testid="modal-customer-id">{{ customer?.id }}</p></div>',
+      '<div><p data-testid="payment-modal-open">{{ open }}</p><p data-testid="payment-modal-total-cents">{{ totalCents }}</p><p data-testid="payment-modal-catalog-clear-signal">{{ catalogClearSignal }}</p><button data-testid="submit-charge" :disabled="isSubmitting" @click="$emit(\'submit\', { saleId, payload: { method: \'cash\', amountCents: totalCents }, idempotencyKey: \'idem-1\' })">submit</button><button data-testid="request-assign-customer" @click="$emit(\'request-assign-customer\')">assign</button><p data-testid="external-error">{{ externalError }}</p><p data-testid="modal-customer-id">{{ customer?.id }}</p></div>',
   },
   PaymentSuccessModal: {
     props: ['open', 'folio', 'debtCents', 'paymentStatus'],
@@ -361,6 +361,17 @@ describe('SalesView charge orchestration', () => {
     const f8Event = new KeyboardEvent('keydown', { key: 'F8', cancelable: true })
     window.dispatchEvent(f8Event)
     expect(wrapper.get('[data-testid="submit-charge"]').attributes('disabled')).toBeDefined()
+  })
+
+  // sdd custom-payment-methods S4B (design §8.3 / REQ-CAT-007): SalesView owns
+  // the catalogClearSignal counter and passes it to PaymentModal. The
+  // error → increment dispatch lands in S5A; this slice pins the prop wiring.
+  it('passes catalogClearSignal (starting at 0) to PaymentModal', async () => {
+    const wrapper = mountView()
+
+    await wrapper.get('[data-testid="charge-click"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="payment-modal-catalog-clear-signal"]').text()).toBe('0')
   })
 })
 

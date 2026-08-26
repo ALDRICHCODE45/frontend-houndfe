@@ -10,26 +10,44 @@ export const COLLECTION_PAYMENT_METHODS: CollectionPaymentMethod[] = [
 
 export const MAX_PAYMENT_ENTRIES = 5
 
-type PaymentEntryPatch = Partial<Pick<PaymentEntry, 'amountCents' | 'reference'>>
+type PaymentEntryPatch = Partial<Pick<PaymentEntry, 'amountCents' | 'reference' | 'paymentMethodId'>>
 type PaymentEntryValidation = Partial<Record<'amountCents' | 'reference', string>>
 
-export function createEntry(method: CollectionPaymentMethod, remainingCents: number): PaymentEntry {
-  return {
+/**
+ * createEntry — sdd custom-payment-methods S4B (REQ-CAT-001 / design §1.3).
+ *
+ * The optional `paymentMethodId` is threaded ONLY when provided (custom tiles).
+ * Fixed tiles omit it entirely so the legacy wire shape stays byte-identical
+ * (the idempotency hash must not change for fixed-only charges).
+ */
+export function createEntry(
+  method: CollectionPaymentMethod,
+  remainingCents: number,
+  paymentMethodId?: string,
+): PaymentEntry {
+  const entry: PaymentEntry = {
     method,
     amountCents: method === PAYMENT_METHOD.CASH ? remainingCents : 0,
   }
+
+  if (paymentMethodId !== undefined) {
+    entry.paymentMethodId = paymentMethodId
+  }
+
+  return entry
 }
 
 export function addEntry(
   entries: PaymentEntry[],
   method: CollectionPaymentMethod,
   debtCents: number,
+  paymentMethodId?: string,
 ): PaymentEntry[] {
   if (entries.length >= MAX_PAYMENT_ENTRIES) {
     return entries
   }
 
-  return [...entries, createEntry(method, remaining(entries, debtCents))]
+  return [...entries, createEntry(method, remaining(entries, debtCents), paymentMethodId)]
 }
 
 export function removeEntry(entries: PaymentEntry[], index: number): PaymentEntry[] {

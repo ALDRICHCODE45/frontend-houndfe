@@ -27,6 +27,26 @@ describe('paymentEntries.utils', () => {
 
       expect(entry).toEqual({ method: 'card_credit', amountCents: 0 })
     })
+
+    // sdd custom-payment-methods S4B (REQ-CAT-001 / design §1.3): the
+    // optional third arg threads the catalog UUID for CUSTOM tiles only.
+    // The key must be ABSENT for fixed tiles (legacy byte-identical).
+    it('threads an optional paymentMethodId onto the entry when provided (custom tiles)', () => {
+      const entry = createEntry('transfer', 12_500, '11111111-1111-4111-8111-111111111111')
+
+      expect(entry).toEqual({
+        method: 'transfer',
+        amountCents: 0,
+        paymentMethodId: '11111111-1111-4111-8111-111111111111',
+      })
+    })
+
+    it('omits paymentMethodId when not provided (fixed tiles stay byte-identical)', () => {
+      const entry = createEntry('cash', 12_500)
+
+      expect(Object.keys(entry).sort()).toEqual(['amountCents', 'method'])
+      expect(entry).not.toHaveProperty('paymentMethodId')
+    })
   })
 
   describe('addEntry', () => {
@@ -51,6 +71,37 @@ describe('paymentEntries.utils', () => {
 
       expect(next).toBe(entries)
       expect(next).toHaveLength(MAX_PAYMENT_ENTRIES)
+    })
+
+    // sdd custom-payment-methods S4B (REQ-CAT-001): addEntry forwards the
+    // optional paymentMethodId to the appended entry (custom tiles).
+    it('threads paymentMethodId to the appended entry when provided', () => {
+      const next = addEntry([], 'transfer', 10_000, '22222222-2222-4222-8222-222222222222')
+
+      expect(next).toHaveLength(1)
+      expect(next[0]).toEqual({
+        method: 'transfer',
+        amountCents: 0,
+        paymentMethodId: '22222222-2222-4222-8222-222222222222',
+      })
+    })
+
+    it('omits paymentMethodId from the appended entry when not provided', () => {
+      const next = addEntry([], 'cash', 10_000)
+
+      expect(next[0]).toEqual({ method: 'cash', amountCents: 10_000 })
+      expect(next[0]).not.toHaveProperty('paymentMethodId')
+    })
+
+    it('respects the max-entries guard before threading paymentMethodId', () => {
+      const entries: PaymentEntry[] = Array.from({ length: MAX_PAYMENT_ENTRIES }, (_, index) => ({
+        method: index % 2 === 0 ? 'cash' : 'transfer',
+        amountCents: 100,
+      }))
+
+      const next = addEntry(entries, 'transfer', 10_000, '44444444-4444-4444-8444-444444444444')
+
+      expect(next).toBe(entries)
     })
   })
 
@@ -84,6 +135,20 @@ describe('paymentEntries.utils', () => {
       const next = updateEntry(entries, 4, { amountCents: 2000 })
 
       expect(next).toBe(entries)
+    })
+
+    // sdd custom-payment-methods S4B: the patch accepts paymentMethodId so
+    // custom entries keep their UUID through updateEntry round-trips.
+    it('accepts paymentMethodId in the patch (custom entry threading)', () => {
+      const entries: PaymentEntry[] = [{ method: 'transfer', amountCents: 1000 }]
+
+      const next = updateEntry(entries, 0, { paymentMethodId: '33333333-3333-4333-8333-333333333333' })
+
+      expect(next[0]).toEqual({
+        method: 'transfer',
+        amountCents: 1000,
+        paymentMethodId: '33333333-3333-4333-8333-333333333333',
+      })
     })
   })
 

@@ -97,6 +97,12 @@ const latestChargeSuccess = ref<ChargeSaleResponse | null>(null)
 const inlineAmountError = ref<string | null>(null)
 const inFlightUntil = ref<number>(0)
 
+// sdd custom-payment-methods S4B (design §8.3 / REQ-CAT-007): the clear-
+// selection signal handed to PaymentModal. Incrementing it makes the modal
+// drop every entry carrying a `paymentMethodId` (custom tiles). The
+// error → increment dispatch lands in S5A; this slice only wires the prop.
+const catalogClearSignal = ref(0)
+
 // ── Mobile cart drawer (responsive UX, not functionality) ──────────────────
 // Below the lg breakpoint the cart panel moves out of the split layout and
 // into a bottom-anchored slideover triggered by a floating action button.
@@ -866,6 +872,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
       :total-cents="activeDraft.totalCents ?? 0"
       :is-submitting="isMutating || isChargeTemporarilyBlocked"
       :external-error="inlineAmountError"
+      :catalog-clear-signal="catalogClearSignal"
       @submit="({ saleId, payload, idempotencyKey }) => void handleChargeDraft(saleId, payload, idempotencyKey)"
       @request-assign-customer="handleRequestAssignCustomerFromPayment"
     />
