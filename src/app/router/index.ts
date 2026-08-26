@@ -49,6 +49,12 @@ const AdminTenantMembersView = () =>
 // fires; S3 ships the read-only list, S4 adds the inline mutations + banner.
 const AdminPaymentDetailsView = () =>
   import('@/features/admin/payment-details/views/AdminPaymentDetailsView.vue')
+// sdd custom-payment-methods S2B (REQ-PM-006) — route guarded by
+// `read:PaymentMethod`. Mirrors the PaymentDetails pattern: lazy-loaded on
+// navigation; the view is read-only at this slice (S2B) and gains the
+// mutation lifecycle + slideover in S3B.
+const AdminPaymentMethodsView = () =>
+  import('@/features/admin/payment-methods/views/AdminPaymentMethodsView.vue')
 const CatalogView = () => import('@/features/catalog/views/CatalogView.vue')
 // ─── Notification config (WU-11) ──────────────────────────────────────────
 const NotificationConfigView = () =>
@@ -290,6 +296,19 @@ const router = createRouter({
       meta: {
         layout: 'dashboard',
         permission: ['read', 'PaymentDetail'] as RoutePermission,
+      },
+    },
+    // ─── Payment-methods admin (sdd custom-payment-methods S2B, REQ-PM-006) ──
+    // Gated by `read:PaymentMethod` (CASL); mirrors PaymentDetails so the
+    // route guard + nav entry stay symmetric. S3B adds the inline mutations
+    // + slideover; S2B ships read-only.
+    {
+      path: '/admin/payment-methods',
+      name: 'admin-payment-methods',
+      component: AdminPaymentMethodsView,
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'PaymentMethod'] as RoutePermission,
       },
     },
     // ─── Notification config (WU-11) ──────────────────────────────────────────

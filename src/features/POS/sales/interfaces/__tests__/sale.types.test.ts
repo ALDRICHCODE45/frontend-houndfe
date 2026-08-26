@@ -1488,3 +1488,119 @@ describe('sale.types', () => {
     })
   })
 })
+
+// ─── sdd custom-payment-methods S4A: type extensions (REQ-CAT-001..004) ────────
+//
+// `PaymentEntry` accepts optional `paymentMethodId`. `LegacyChargePayload` does
+// the same (single-entry custom charge flattens to legacy with the id).
+// `SaleDetailPayment` and `PAYMENT_RECEIVED` gain three optional catalog
+// snapshot fields: `paymentMethodId`, `paymentMethodName`,
+// `paymentMethodSubtitle`. The pin tests below freeze the field shapes
+// against drift.
+
+import type {
+  PaymentEntry as S4PaymentEntry,
+  LegacyChargePayload as S4LegacyChargePayload,
+  SaleDetailPayment as S4SaleDetailPayment,
+  SaleTimelineEvent as S4SaleTimelineEvent,
+} from '../sale.types'
+
+describe('custom-payment-methods type extensions (sdd custom-payment-methods S4A, REQ-CAT-001..004)', () => {
+  describe('PaymentEntry.paymentMethodId? (REQ-CAT-001)', () => {
+    it('accepts a custom entry with paymentMethodId', () => {
+      const entry: S4PaymentEntry = {
+        method: 'transfer',
+        amountCents: 1000,
+        paymentMethodId: 'a4f1c2d3-1111-4111-8111-111111111111',
+      }
+      expect(entry.paymentMethodId).toBe('a4f1c2d3-1111-4111-8111-111111111111')
+    })
+
+    it('still accepts a legacy fixed entry without paymentMethodId (byte-identical to pre-change)', () => {
+      const entry: S4PaymentEntry = { method: 'cash', amountCents: 1000 }
+      expect(entry.paymentMethodId).toBeUndefined()
+    })
+  })
+
+  describe('LegacyChargePayload.paymentMethodId? (REQ-CAT-002)', () => {
+    it('accepts a custom legacy payload with paymentMethodId (single-entry custom flattens)', () => {
+      const payload: S4LegacyChargePayload = {
+        method: 'transfer',
+        amountCents: 5000,
+        paymentMethodId: 'a4f1c2d3-1111-4111-8111-111111111111',
+      }
+      expect(payload.paymentMethodId).toBe('a4f1c2d3-1111-4111-8111-111111111111')
+    })
+
+    it('still accepts a legacy payload without paymentMethodId (pre-deploy compat)', () => {
+      const payload: S4LegacyChargePayload = { method: 'cash', amountCents: 1000 }
+      expect(payload.paymentMethodId).toBeUndefined()
+    })
+  })
+
+  describe('SaleDetailPayment 3 optional fields (REQ-CAT-003)', () => {
+    it('accepts paymentMethodId / paymentMethodName / paymentMethodSubtitle together', () => {
+      const row: S4SaleDetailPayment = {
+        method: 'CASH',
+        amountCents: 5000,
+        tenderedCents: 5000,
+        changeCents: 0,
+        reference: null,
+        paidAt: '2026-05-06T14:43:00.000Z',
+        paymentId: 'pay-1',
+        paymentMethodId: 'a4f1c2d3-1111-4111-8111-111111111111',
+        paymentMethodName: 'Mercado Pago',
+        paymentMethodSubtitle: 'Link',
+      }
+      expect(row.paymentMethodName).toBe('Mercado Pago')
+      expect(row.paymentMethodSubtitle).toBe('Link')
+      expect(row.paymentMethodId).toBe('a4f1c2d3-1111-4111-8111-111111111111')
+    })
+
+    it('still accepts a legacy row without the 3 fields (pre-deploy compat)', () => {
+      const row: S4SaleDetailPayment = {
+        method: 'CASH',
+        amountCents: 5000,
+        tenderedCents: 5000,
+        changeCents: 0,
+        reference: null,
+        paidAt: '2026-05-06T14:43:00.000Z',
+        paymentId: 'pay-1',
+      }
+      expect(row.paymentMethodName).toBeUndefined()
+      expect(row.paymentMethodSubtitle).toBeUndefined()
+      expect(row.paymentMethodId).toBeUndefined()
+    })
+  })
+
+  describe('PAYMENT_RECEIVED timeline 3 optional fields (REQ-CAT-004)', () => {
+    it('accepts paymentMethodId / paymentMethodName / paymentMethodSubtitle together', () => {
+      const event: S4SaleTimelineEvent = {
+        type: 'PAYMENT_RECEIVED',
+        at: '2026-05-06T14:43:00.000Z',
+        actor: { id: 'user-1', name: 'Cashier' },
+        register: 'Principal',
+        method: 'CASH',
+        amountCents: 5000,
+        reference: null,
+        paymentMethodId: 'a4f1c2d3-1111-4111-8111-111111111111',
+        paymentMethodName: 'Mercado Pago',
+        paymentMethodSubtitle: 'Link',
+      }
+      expect(event.paymentMethodName).toBe('Mercado Pago')
+    })
+
+    it('legacy PAYMENT_RECEIVED event still type-checks without the 3 fields', () => {
+      const event: S4SaleTimelineEvent = {
+        type: 'PAYMENT_RECEIVED',
+        at: '2026-05-06T14:43:00.000Z',
+        actor: { id: 'user-1', name: 'Cashier' },
+        register: 'Principal',
+        method: 'CASH',
+        amountCents: 5000,
+        reference: null,
+      }
+      expect(event.paymentMethodName).toBeUndefined()
+    })
+  })
+})

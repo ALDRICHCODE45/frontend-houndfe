@@ -406,3 +406,147 @@ describe('ability with PaymentDetail subject (sdd payment-details-admin S1, REQ-
     expect(subject).toBe('PaymentDetail')
   })
 })
+
+// ── sdd custom-payment-methods S1: CASL registration for PaymentMethod ────
+//
+// REQ-PM-006 / design §5.1 — mirrors the PaymentDetail precedent with one
+// critical invariant (the silent-drop regression test):
+//   parsePermissionCode('create:PaymentMethod') returns ['create','PaymentMethod']
+//   ONLY when 'PaymentMethod' is registered in APP_SUBJECTS + AppSubject.
+// If somebody removed it from either, the ability would silently stay closed
+// (the route guard + create button + nav entry would all stay hidden) and
+// the tenant admin could never reach the new module. The "ALL four CRUD
+// actions" suite plus the AppSubject union assertion freeze this contract.
+
+describe('ability with PaymentMethod subject (sdd custom-payment-methods S1, REQ-PM-006)', () => {
+  beforeEach(() => {
+    resetAbility()
+  })
+
+  it('parses read:PaymentMethod and grants read on PaymentMethod only', () => {
+    updateAbilityFromPermissionCodes(['read:PaymentMethod'])
+
+    expect(ability.can('read', 'PaymentMethod')).toBe(true)
+    expect(ability.can('create', 'PaymentMethod')).toBe(false)
+    expect(ability.can('update', 'PaymentMethod')).toBe(false)
+    expect(ability.can('delete', 'PaymentMethod')).toBe(false)
+  })
+
+  it('parses create:PaymentMethod and grants create only', () => {
+    updateAbilityFromPermissionCodes(['create:PaymentMethod'])
+
+    expect(ability.can('create', 'PaymentMethod')).toBe(true)
+    expect(ability.can('read', 'PaymentMethod')).toBe(false)
+  })
+
+  it('parses update:PaymentMethod and grants update only', () => {
+    updateAbilityFromPermissionCodes(['update:PaymentMethod'])
+
+    expect(ability.can('update', 'PaymentMethod')).toBe(true)
+    expect(ability.can('read', 'PaymentMethod')).toBe(false)
+  })
+
+  it('parses delete:PaymentMethod and grants delete only', () => {
+    updateAbilityFromPermissionCodes(['delete:PaymentMethod'])
+
+    expect(ability.can('delete', 'PaymentMethod')).toBe(true)
+  })
+
+  it('parses all four PaymentMethod actions together (full CRUD role)', () => {
+    updateAbilityFromPermissionCodes([
+      'create:PaymentMethod',
+      'read:PaymentMethod',
+      'update:PaymentMethod',
+      'delete:PaymentMethod',
+    ])
+
+    expect(ability.can('create', 'PaymentMethod')).toBe(true)
+    expect(ability.can('read', 'PaymentMethod')).toBe(true)
+    expect(ability.can('update', 'PaymentMethod')).toBe(true)
+    expect(ability.can('delete', 'PaymentMethod')).toBe(true)
+  })
+
+  // The critical silent-drop regression test (REQ-PM-006). If 'PaymentMethod'
+  // were missing from APP_SUBJECTS, parsePermissionCode would return null and
+  // ability.can would stay false — the UI gate would never open and the
+  // sidebar/route would silently stay closed. Asserting true here guards
+  // against the silent-drop path during future APP_SUBJECTS edits.
+  it('does NOT silently drop PaymentMethod — parsePermissionCode returns the tuple when registered (REQ-PM-006)', () => {
+    updateAbilityFromPermissionCodes(['create:PaymentMethod'])
+
+    expect(ability.can('create', 'PaymentMethod')).toBe(true)
+  })
+
+  it('keeps PaymentMethod scoped — no bleed to Sale/Customer/Product/PaymentDetail', () => {
+    updateAbilityFromPermissionCodes(['read:PaymentMethod'])
+
+    expect(ability.can('read', 'PaymentMethod')).toBe(true)
+    expect(ability.can('read', 'Sale')).toBe(false)
+    expect(ability.can('read', 'Customer')).toBe(false)
+    expect(ability.can('read', 'Product')).toBe(false)
+    expect(ability.can('read', 'PaymentDetail')).toBe(false)
+  })
+
+  it('coexists with other subjects without bleed (PaymentMethod alongside PaymentDetail + Sale)', () => {
+    updateAbilityFromPermissionCodes([
+      'read:PaymentMethod',
+      'read:PaymentDetail',
+      'update:Sale',
+    ])
+
+    expect(ability.can('read', 'PaymentMethod')).toBe(true)
+    expect(ability.can('read', 'PaymentDetail')).toBe(true)
+    expect(ability.can('update', 'Sale')).toBe(true)
+    expect(ability.can('update', 'PaymentMethod')).toBe(false)
+    expect(ability.can('create', 'Sale')).toBe(false)
+  })
+
+  it('grant is revoked when the PaymentMethod code is removed from the code list', () => {
+    updateAbilityFromPermissionCodes(['read:PaymentMethod'])
+    expect(ability.can('read', 'PaymentMethod')).toBe(true)
+
+    updateAbilityFromPermissionCodes([])
+    expect(ability.can('read', 'PaymentMethod')).toBe(false)
+  })
+
+  it('rejects malformed PaymentMethod codes (extra segments / unknown action / unknown subject)', () => {
+    updateAbilityFromPermissionCodes([
+      'read:PaymentMethod:extra', // extra segment → dropped
+      'fly:PaymentMethod', // unknown action → dropped
+      'read:UnknownSubject', // unknown subject → dropped
+      'read:PaymentMethod', // well-formed → grants
+    ])
+
+    expect(ability.can('read', 'PaymentMethod')).toBe(true)
+  })
+
+  it('only the 4 CRUD actions grant their respective verbs — no implicit manage bleed-through', () => {
+    // Backend registry exposes only create / read / update / delete for
+    // PaymentMethod (REQ-PM-006). We do NOT seed `manage` or `batch_delete`
+    // in PERMISSION_COPY. Granting `batch_delete:PaymentMethod` alone MUST
+    // NOT open `read:PaymentMethod` (CASL does not infer from `manage`).
+    // `manage:PaymentMethod` does grant everything by CASL semantics, but
+    // the curated role UI never surfaces that code, so this is a
+    // belt-and-suspenders assertion.
+    updateAbilityFromPermissionCodes([
+      'batch_delete:PaymentMethod',
+    ])
+
+    expect(ability.can('read', 'PaymentMethod')).toBe(false)
+    expect(ability.can('create', 'PaymentMethod')).toBe(false)
+    expect(ability.can('update', 'PaymentMethod')).toBe(false)
+    expect(ability.can('delete', 'PaymentMethod')).toBe(false)
+    // batch_delete IS granted for the subject — proves the action itself is
+    // parseable (regression guard against future APP_ACTIONS edits that
+    // might silently drop `batch_delete`).
+    expect(ability.can('batch_delete', 'PaymentMethod')).toBe(true)
+  })
+
+  it('validates PaymentMethod is in the AppSubject type union (compile-time guarantee)', () => {
+    // If AppSubject no longer includes 'PaymentMethod' (someone
+    // accidentally removed it from auth.types.ts), this assignment fails
+    // the build.
+    const subject: AppSubject = 'PaymentMethod'
+    expect(subject).toBe('PaymentMethod')
+  })
+})

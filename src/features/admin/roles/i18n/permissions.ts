@@ -59,6 +59,10 @@ const SUBJECT_LABELS: Record<string, string> = {
   // the sidebar/menu AND the role permissions UI. Must stay in sync with
   // auth.types.ts AppSubject + ability.ts APP_SUBJECTS.
   PaymentDetail: 'Datos bancarios',
+  // sdd custom-payment-methods S1 — REQ-PM-006: subject label surfaced in
+  // the sidebar/menu AND the role permissions UI. Must stay in sync with
+  // auth.types.ts AppSubject + ability.ts APP_SUBJECTS.
+  PaymentMethod: 'Métodos de cobro',
 }
 
 export function getSubjectLabel(subject: string): string {
@@ -578,6 +582,34 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
       label: 'Desactivar datos bancarios',
       description:
         'Dar de baja una cuenta. El bot deja de mostrarla en el mensaje de transferencia.',
+    },
+  },
+
+  // sdd custom-payment-methods S1 — REQ-PM-006: PaymentMethod registers
+  // exactly the 4 CRUD actions (create / read / update / delete). NO
+  // `manage`, NO `batch_delete` — the backend RBAC registry exposes only
+  // these four; any other key would surface in the role UI as a
+  // permission the backend never seeds. Curated copy follows the same
+  // neutral-Spanish convention. Reactivation happens via the edit
+  // slideover's `isActive` toggle (REQ-PM-003), NOT as a separate kebab
+  // action; "delete" here is the logical baja.
+  PaymentMethod: {
+    create: {
+      label: 'Crear métodos de cobro',
+      description: 'Dar de alta métodos personalizados para recibir pagos (Mercado Pago, SPEI, etc.).',
+    },
+    read: {
+      label: 'Ver métodos de cobro',
+      description: 'Listar el catálogo de métodos de cobro activos e inactivos de la sucursal.',
+    },
+    update: {
+      label: 'Editar métodos de cobro',
+      description: 'Modificar el nombre, categoría o estado activo/inactivo de un método de cobro.',
+    },
+    delete: {
+      label: 'Desactivar métodos de cobro',
+      description:
+        'Dar de baja un método de cobro. El sistema deja de ofrecerlo al cobrar, pero los datos se conservan.',
     },
   },
 }

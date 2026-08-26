@@ -28,6 +28,7 @@ import type {
   ListApplicablePromotionsResponse,
   UpdatePaymentReferencePayload,
   UpdatedPaymentReference,
+  ActivePaymentMethodProjection,
 } from '../interfaces/sale.types'
 import { SaleCommentError } from '../interfaces/sale.types'
 
@@ -307,6 +308,14 @@ export const saleApi = {
     } catch (error) {
       throw parseReferenceUpdateError(error) ?? error
     }
+  },
+
+  // sdd custom-payment-methods S4A (REQ-PT-003): active catalog projection
+  // for the POS charge tile grid. Returns the active catalog ordered by
+  // name asc (backend contract). NO query params — tenant scope is implicit.
+  async getPaymentMethods(): Promise<ActivePaymentMethodProjection[]> {
+    const { data } = await http.get<ActivePaymentMethodProjection[]>('/sales/payment-methods')
+    return data
   },
 
   // promotions-in-sale: 4 promotion endpoints (per design §9 / backend contract §3).

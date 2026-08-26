@@ -1349,3 +1349,37 @@ describe('saleApi', () => {
     })
   })
 })
+
+// ─── sdd custom-payment-methods S4A: getPaymentMethods (REQ-PT-003) ─────────
+//
+// GET /sales/payment-methods returns the active catalog projection. The
+// tenant scope is implicit (the JWT carries it), so no query params. Pin:
+//   - URL is exactly `/sales/payment-methods` (no query params).
+//   - The response is unwrapped from `.data`.
+
+import type { ActivePaymentMethodProjection } from '../../interfaces/sale.types'
+
+describe('saleApi.getPaymentMethods (sdd custom-payment-methods S4A, REQ-PT-003)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('GETs /sales/payment-methods with no query params', async () => {
+    const sample: ActivePaymentMethodProjection[] = [
+      { id: 'a4f1c2d3-1111-4111-8111-111111111111', name: 'Mercado Pago', category: 'transfer', subtitle: 'Link' },
+    ]
+    vi.mocked(http.get).mockResolvedValue({ data: sample })
+
+    const result = await saleApi.getPaymentMethods()
+
+    expect(http.get).toHaveBeenCalledWith('/sales/payment-methods')
+    expect(vi.mocked(http.get).mock.calls[0]?.[1]).toBeUndefined()
+    expect(result).toEqual(sample)
+  })
+
+  it('returns the unwrapped projection list', async () => {
+    const sample: ActivePaymentMethodProjection[] = []
+    vi.mocked(http.get).mockResolvedValue({ data: sample })
+    expect(await saleApi.getPaymentMethods()).toEqual([])
+  })
+})

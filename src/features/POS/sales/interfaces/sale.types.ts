@@ -8,6 +8,7 @@ import type {
   SALE_STATUS,
   SALE_TIMELINE_EVENT_TYPE,
 } from '../constants/sale.constants'
+import type { PaymentMethodCategory } from '@/core/shared/constants/payment-method-category'
 
 // Union types below are derived from the matching `as const` object in
 // `constants/sale.constants.ts` (sdd/magic-string-constants slice 3). The
@@ -139,6 +140,12 @@ export interface SaleDetailPayment {
    * derived or fabricated client-side.
    */
   paymentId: string
+  // sdd custom-payment-methods S4A (REQ-CAT-003): 3 optional catalog snapshot
+  // fields. Absent in legacy rows; present when the backend wrote a
+  // `metadataJson.catalog` snapshot for the row at confirm time.
+  paymentMethodId?: string
+  paymentMethodName?: string
+  paymentMethodSubtitle?: string
 }
 
 export type SaleTimelineEvent =
@@ -156,6 +163,11 @@ export type SaleTimelineEvent =
     method: SaleDetailPaymentMethod
     amountCents: number
     reference: string | null
+    // sdd custom-payment-methods S4A (REQ-CAT-004): same 3 optional
+    // catalog snapshot fields as SaleDetailPayment.
+    paymentMethodId?: string
+    paymentMethodName?: string
+    paymentMethodSubtitle?: string
   }
   | {
     type: 'PRODUCTS_DELIVERED'
@@ -249,12 +261,21 @@ export interface LegacyChargePayload {
   /** Optional ISO date string for debt due date (per backend §8). Frontend
    *  validates `>= today` before sending. Omit to let backend apply default. */
   dueDate?: string
+  // sdd custom-payment-methods S4A (REQ-CAT-002): same field as PaymentEntry
+  // because PaymentModal.buildPayload() flattens a single-entry custom charge
+  // into the legacy single-payment shape (backend §7.1 accepts paymentMethodId
+  // in BOTH shapes).
+  paymentMethodId?: string
 }
 
 export interface PaymentEntry {
   method: CollectionPaymentMethod
   amountCents: number
   reference?: string
+  // sdd custom-payment-methods S4A (REQ-CAT-001): optional UUID of the
+  // catalog method. Present ONLY for custom tiles; omitted for legacy/fixed
+  // entries so the wire payload stays byte-identical. See design §1.3.
+  paymentMethodId?: string
 }
 
 export interface MultiPaymentChargePayload {
@@ -593,6 +614,18 @@ export interface PosCatalogResponse {
   total: number
   limit: number
   offset: number
+}
+
+// sdd custom-payment-methods S4A (REQ-PT-003 / design §2.3):
+// GET /sales/payment-methods returns the active catalog projection.
+// Each row carries the catalog id (UUID → becomes PaymentEntry.paymentMethodId),
+// the cashier-visible name, the base category (structurally identical to
+// CollectionPaymentMethod), and the optional grey sub-line.
+export interface ActivePaymentMethodProjection {
+  id: string
+  name: string
+  category: PaymentMethodCategory
+  subtitle: string | null
 }
 
 export interface PosCatalogSearchParams {

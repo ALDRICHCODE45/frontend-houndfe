@@ -26,6 +26,11 @@ const APP_SUBJECTS: AppSubject[] = [
   // parsePermissionCode path returns null for create/read/update/delete
   // and the ability silently drops — hence the explicit no-silent-drop test.
   'PaymentDetail',
+  // sdd custom-payment-methods S1 — REQ-PM-006: 'PaymentMethod' joins the
+  // APP_SUBJECTS runtime registry (before 'all'). Without this entry the
+  // parsePermissionCode path returns null for create/read/update/delete and
+  // the ability silently drops — hence the explicit no-silent-drop test.
+  'PaymentMethod',
   'all',
 ]
 

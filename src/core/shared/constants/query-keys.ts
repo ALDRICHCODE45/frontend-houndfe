@@ -84,6 +84,13 @@ export const saleQueryKeys = {
   // after EVERY draft mutation so auto promos never get stale.
   applicablePromotions: (tenantId: string, draftId: string) =>
     ['sales', tenantId, 'applicable-promotions', draftId] as const,
+  // sdd custom-payment-methods S4A (REQ-PT-003): POS catalog projection of
+  // active payment methods for the charge modal tile grid. Tenant-scoped.
+  // Invalidated by S5A dispatch on PAYMENT_METHOD_NOT_FOUND /
+  // INACTIVE_PAYMENT_METHOD so the cashier sees the updated tile set on
+  // the next open.
+  paymentMethods: (tenantId: string) =>
+    ['sales', tenantId, 'payment-methods'] as const,
 }
 
 // ─── Quotations module query keys (sdd-quotations-crud S1, REQ-QTN-015) ──────
@@ -202,3 +209,30 @@ export const adminPaymentDetailQueryKeys = {
   detail: (tenantId: string, id: string) =>
     ['admin', 'payment-details', tenantId, 'detail', id] as const,
 }
+
+// ─── Payment-methods admin module (sdd custom-payment-methods S1, REQ-PM-010) ─
+//
+// Tenant-scoped per the convention used by every other admin module. The `list`
+// key is the prefix used for invalidation on every successful mutation:
+// TanStack Query prefix-matches array keys, so
+//   invalidateQueries({ queryKey: adminPaymentMethodQueryKeys.list(tenantId) })
+// refetches all page/filter/sort cache slots in one call. `detail` is
+// registered for parity/future detail views; the current slice does not fetch
+// it (the list carries all DTO fields).
+
+export const adminPaymentMethodQueryKeys = {
+  list: (tenantId: string) =>
+    ['admin', 'payment-methods', tenantId, 'list'] as const,
+  detail: (tenantId: string, id: string) =>
+    ['admin', 'payment-methods', tenantId, 'detail', id] as const,
+}
+
+// ─── Payment-methods POS projection (sdd custom-payment-methods S4A) ──────────
+//
+// The POS catalog tile grid (`useSalePaymentMethods`) reads from this key. The
+// `sale` prefix colocates the cache slot with the rest of the sale lifecycle
+// (drafts / confirmed / detail). Tenant-scoped per the convention. The
+// `paymentMethods` slot is invalidated by S5A when the catalog surfaces a
+// `PAYMENT_METHOD_NOT_FOUND` or `INACTIVE_PAYMENT_METHOD` mid-charge so the
+// cashier sees the updated state on the next open.
+

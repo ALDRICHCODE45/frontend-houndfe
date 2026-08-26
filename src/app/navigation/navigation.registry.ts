@@ -52,6 +52,9 @@ export const navigationGroups: NavGroup[] = [
       // sdd payment-details-admin S3 (REQ-PD-007): sidebar entry gated by read:PaymentDetail.
       // Hidden for users without the permission; the route guard repeats the check at /admin/payment-details.
       { id: 'admin-payment-details', label: 'Datos bancarios', icon: 'i-lucide-credit-card', to: '/admin/payment-details', permission: ['read', 'PaymentDetail'] },
+      // sdd custom-payment-methods S2B (REQ-PM-006): sidebar entry gated by read:PaymentMethod.
+      // Hidden for users without the permission; the route guard repeats the check at /admin/payment-methods.
+      { id: 'admin-payment-methods', label: 'Métodos de cobro', icon: 'i-lucide-wallet', to: '/admin/payment-methods', permission: ['read', 'PaymentMethod'] },
     ],
   },
   {

@@ -68,6 +68,14 @@ export type AppSubject =
   // the single act that unlocks permission parsing + route guards + menu/button
   // gating for the Datos bancarios admin.
   | 'PaymentDetail'
+  // sdd custom-payment-methods S1 — REQ-PM-006: 'PaymentMethod' joins the
+  // AppSubject union before 'all'. Mirror of the PaymentDetail registration
+  // (same silent-drop risk if dropped: parsePermissionCode returns null and
+  // the ability never updates, the sidebar/route stays hidden). The pin-tests
+  // in ability.test.ts (sdd custom-payment-methods S1) assert all four CRUD
+  // codes grant the action and a malformed sibling does not revoke the
+  // well-formed grant.
+  | 'PaymentMethod'
   | 'all'
 
 export interface EffectivePermission {
