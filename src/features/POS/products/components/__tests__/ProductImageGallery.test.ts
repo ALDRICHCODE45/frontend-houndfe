@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import ProductImageGallery from '../ProductImageGallery.vue'
@@ -250,6 +252,19 @@ describe('ProductImageGallery - Dropzone-first refactor', () => {
       const wrapper = createWrapper()
       
       expect(wrapper.html()).toBeTruthy() // Placeholder
+    })
+  })
+
+  describe('Confirm z-index stacking fix (delete modal over lightbox)', () => {
+    it('renders the ConfirmModal with a z-[60]/z-[61] ui so it stacks above the image lightbox', () => {
+      const sfc = readFileSync(
+        join(__dirname, '..', 'ProductImageGallery.vue'),
+        'utf-8',
+      )
+      const confirmBlock = sfc.match(/<ConfirmModal[\s\S]*?\/>/)?.[0]
+      expect(confirmBlock, 'ConfirmModal must exist in the gallery SFC').toBeTruthy()
+      expect(confirmBlock).toMatch(/overlay:\s*'z-\[60\]'/)
+      expect(confirmBlock).toMatch(/content:\s*'z-\[61\]'/)
     })
   })
 })

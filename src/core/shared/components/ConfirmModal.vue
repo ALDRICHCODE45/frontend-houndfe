@@ -21,6 +21,11 @@ const props = withDefaults(
      * stays REQUIRED so the 26 existing callers stay green with ZERO changes.
      */
     items?: ConfirmModalItem[]
+    /**
+     * Optional theme overrides forwarded to the inner UModal (e.g.
+     * z-index when this modal is opened on top of another modal).
+     */
+    ui?: Record<string, unknown>
   }>(),
   {
     title: 'Confirmar acción',
@@ -54,6 +59,7 @@ function handleCancel() {
     :title="props.title"
     :dismissible="!props.loading"
     :close="!props.loading"
+    :ui="props.ui"
     @update:open="emit('update:open', $event)"
   >
     <template #body>

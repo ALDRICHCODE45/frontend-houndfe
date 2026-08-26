@@ -399,6 +399,7 @@ function isImageBroken(imageId: string): boolean {
     confirm-label="Eliminar"
     confirm-color="error"
     :loading="deleteMutation.isPending.value"
+    :ui="{ overlay: 'z-[60]', content: 'z-[61]' }"
     @update:open="confirmState.open = $event"
     @confirm="handleConfirm"
   />
