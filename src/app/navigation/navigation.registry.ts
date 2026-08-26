@@ -49,6 +49,9 @@ export const navigationGroups: NavGroup[] = [
       { id: 'admin-users', label: 'Usuarios', icon: 'i-lucide-users', to: '/admin/users', permission: ['read', 'User'] },
       { id: 'admin-roles', label: 'Roles', icon: 'i-lucide-user-cog', to: '/admin/roles', permission: ['read', 'Role'] },
       { id: 'admin-tenants', label: 'Sucursales', icon: 'i-lucide-building-2', to: '/admin/tenants', requiresSuperAdmin: true },
+      // sdd payment-details-admin S3 (REQ-PD-007): sidebar entry gated by read:PaymentDetail.
+      // Hidden for users without the permission; the route guard repeats the check at /admin/payment-details.
+      { id: 'admin-payment-details', label: 'Datos bancarios', icon: 'i-lucide-credit-card', to: '/admin/payment-details', permission: ['read', 'PaymentDetail'] },
     ],
   },
   {

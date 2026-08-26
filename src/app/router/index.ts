@@ -44,6 +44,11 @@ const PendingApprovalsView = () =>
 const AdminTenantsView = () => import('@/features/admin/tenants/views/AdminTenantsView.vue')
 const AdminTenantMembersView = () =>
   import('@/features/admin/tenants/memberships/views/AdminTenantMembersView.vue')
+// sdd payment-details-admin S3 (REQ-PD-007) — route guarded by
+// `read:PaymentDetail`. The view is lazy-loaded once the navigation entry
+// fires; S3 ships the read-only list, S4 adds the inline mutations + banner.
+const AdminPaymentDetailsView = () =>
+  import('@/features/admin/payment-details/views/AdminPaymentDetailsView.vue')
 const CatalogView = () => import('@/features/catalog/views/CatalogView.vue')
 // ─── Notification config (WU-11) ──────────────────────────────────────────
 const NotificationConfigView = () =>
@@ -275,6 +280,16 @@ const router = createRouter({
         requiresAuth: true,
         skipTenantCheck: true,
         requiresSuperAdmin: true,
+      },
+    },
+    // ─── Payment-details admin (sdd payment-details-admin S3, REQ-PD-007) ────
+    {
+      path: '/admin/payment-details',
+      name: 'admin-payment-details',
+      component: AdminPaymentDetailsView,
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'PaymentDetail'] as RoutePermission,
       },
     },
     // ─── Notification config (WU-11) ──────────────────────────────────────────
