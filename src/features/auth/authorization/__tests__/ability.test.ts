@@ -292,3 +292,117 @@ describe('ability with Quotation subject (sdd-quotations-crud S1, REQ-QTN-014)',
     expect(subject).toBe('Quotation')
   })
 })
+
+// ── sdd payment-details-admin S1: CASL registration for PaymentDetail ───────
+//
+// REQ-AUTH-001/002/004 — mirrors the Quotation/NotificationConfig precedent.
+// PaymentDetail is added to AppSubject + APP_SUBJECTS so:
+//   1. parsePermissionCode accepts the four CRUD codes.
+//   2. updateAbilityFromPermissionCodes grants the corresponding CASL actions.
+//   3. Malformed codes (extra `:` segments, unknown subjects) are dropped
+//      without affecting unrelated grants.
+//   4. Removing the code revokes the grant on the next updateAbility call.
+//   5. The AppSubject union admits 'PaymentDetail' (compile-time).
+
+describe('ability with PaymentDetail subject (sdd payment-details-admin S1, REQ-AUTH-001/002/004)', () => {
+  beforeEach(() => {
+    resetAbility()
+  })
+
+  it('parses read:PaymentDetail and grants read on PaymentDetail only', () => {
+    updateAbilityFromPermissionCodes(['read:PaymentDetail'])
+
+    expect(ability.can('read', 'PaymentDetail')).toBe(true)
+    expect(ability.can('create', 'PaymentDetail')).toBe(false)
+    expect(ability.can('update', 'PaymentDetail')).toBe(false)
+    expect(ability.can('delete', 'PaymentDetail')).toBe(false)
+  })
+
+  it('parses create:PaymentDetail and grants create only', () => {
+    updateAbilityFromPermissionCodes(['create:PaymentDetail'])
+
+    expect(ability.can('create', 'PaymentDetail')).toBe(true)
+    expect(ability.can('read', 'PaymentDetail')).toBe(false)
+  })
+
+  it('parses update:PaymentDetail and grants update only', () => {
+    updateAbilityFromPermissionCodes(['update:PaymentDetail'])
+
+    expect(ability.can('update', 'PaymentDetail')).toBe(true)
+    expect(ability.can('read', 'PaymentDetail')).toBe(false)
+  })
+
+  it('parses delete:PaymentDetail and grants delete only', () => {
+    updateAbilityFromPermissionCodes(['delete:PaymentDetail'])
+
+    expect(ability.can('delete', 'PaymentDetail')).toBe(true)
+  })
+
+  it('parses all four PaymentDetail actions together (full CRUD role)', () => {
+    updateAbilityFromPermissionCodes([
+      'create:PaymentDetail',
+      'read:PaymentDetail',
+      'update:PaymentDetail',
+      'delete:PaymentDetail',
+    ])
+
+    expect(ability.can('create', 'PaymentDetail')).toBe(true)
+    expect(ability.can('read', 'PaymentDetail')).toBe(true)
+    expect(ability.can('update', 'PaymentDetail')).toBe(true)
+    expect(ability.can('delete', 'PaymentDetail')).toBe(true)
+  })
+
+  it('does NOT silently drop PaymentDetail — guard against parsePermissionCode returning null', () => {
+    updateAbilityFromPermissionCodes(['read:PaymentDetail'])
+
+    expect(ability.can('read', 'PaymentDetail')).toBe(true)
+  })
+
+  it('keeps PaymentDetail scoped — no bleed to Quotation/Sale/Product', () => {
+    updateAbilityFromPermissionCodes(['read:PaymentDetail'])
+
+    expect(ability.can('read', 'PaymentDetail')).toBe(true)
+    expect(ability.can('read', 'Quotation')).toBe(false)
+    expect(ability.can('read', 'Sale')).toBe(false)
+    expect(ability.can('read', 'Product')).toBe(false)
+  })
+
+  it('coexists with other subjects without bleed (PaymentDetail alongside Quotation)', () => {
+    updateAbilityFromPermissionCodes([
+      'read:PaymentDetail',
+      'read:Quotation',
+      'update:Customer',
+    ])
+
+    expect(ability.can('read', 'PaymentDetail')).toBe(true)
+    expect(ability.can('read', 'Quotation')).toBe(true)
+    expect(ability.can('update', 'Customer')).toBe(true)
+    expect(ability.can('update', 'PaymentDetail')).toBe(false)
+  })
+
+  it('grant is revoked when the PaymentDetail code is removed from the code list', () => {
+    updateAbilityFromPermissionCodes(['read:PaymentDetail'])
+    expect(ability.can('read', 'PaymentDetail')).toBe(true)
+
+    updateAbilityFromPermissionCodes([])
+    expect(ability.can('read', 'PaymentDetail')).toBe(false)
+  })
+
+  it('rejects malformed PaymentDetail codes (REQ-AUTH-004)', () => {
+    updateAbilityFromPermissionCodes([
+      'read:PaymentDetail:extra', // extra segment → dropped
+      'fly:PaymentDetail', // unknown action → dropped
+      'read:UnknownSubject', // unknown subject → dropped
+      'read:PaymentDetail', // well-formed → grants
+    ])
+
+    // The well-formed code still grants even though three malformed
+    // siblings were dropped — guards against sibling-drop regressions.
+    expect(ability.can('read', 'PaymentDetail')).toBe(true)
+  })
+
+  it('validates PaymentDetail is in the AppSubject type union', () => {
+    const subject: AppSubject = 'PaymentDetail'
+    expect(subject).toBe('PaymentDetail')
+  })
+})

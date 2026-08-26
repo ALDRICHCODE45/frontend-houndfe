@@ -452,3 +452,79 @@ describe('quotationQueryKeys (sdd-quotations-crud S1, REQ-QTN-015)', () => {
     })
   })
 })
+
+// ── sdd payment-details-admin S1: adminPaymentDetailQueryKeys (REQ-PD-007) ──────
+//
+// Cache contract: tenant-scoped list + detail keys. Mutations invalidate the
+// list base prefix so all page/filter/sort cache slots refetch (TanStack
+// prefix-matches array keys).
+
+import { adminPaymentDetailQueryKeys } from '../query-keys'
+
+describe('adminPaymentDetailQueryKeys (sdd payment-details-admin S1, REQ-PD-007)', () => {
+  describe('list', () => {
+    it('returns a tuple starting with "admin" then "payment-details" then tenantId then "list"', () => {
+      const key = adminPaymentDetailQueryKeys.list('tenant-1')
+      expect(key[0]).toBe('admin')
+      expect(key[1]).toBe('payment-details')
+      expect(key[2]).toBe('tenant-1')
+      expect(key[3]).toBe('list')
+    })
+
+    it('returns the same key tuple on repeated calls with the same tenantId', () => {
+      const key1 = adminPaymentDetailQueryKeys.list('tenant-1')
+      const key2 = adminPaymentDetailQueryKeys.list('tenant-1')
+      expect(key1).toEqual(key2)
+    })
+
+    it('produces different keys for different tenants (cache isolation)', () => {
+      const key1 = adminPaymentDetailQueryKeys.list('tenant-1')
+      const key2 = adminPaymentDetailQueryKeys.list('tenant-2')
+      expect(key1).not.toEqual(key2)
+    })
+
+    it('exact tuple shape: ["admin", "payment-details", tenantId, "list"]', () => {
+      const key = adminPaymentDetailQueryKeys.list('tenant-abc')
+      expect(key).toEqual(['admin', 'payment-details', 'tenant-abc', 'list'])
+    })
+
+    it('list base prefix can invalidate all paginated cache slots (TanStack pattern)', () => {
+      const key = adminPaymentDetailQueryKeys.list('tenant-1')
+      // Mutations call: invalidateQueries({ queryKey: adminPaymentDetailQueryKeys.list(tenantId) })
+      // which prefix-matches all [...list, { ... }] variants in the cache.
+      expect(key.slice(0, 4)).toEqual(['admin', 'payment-details', 'tenant-1', 'list'])
+    })
+  })
+
+  describe('detail', () => {
+    it('returns the exact tuple shape ["admin", "payment-details", tenantId, "detail", id]', () => {
+      const key = adminPaymentDetailQueryKeys.detail('tenant-abc', 'pd-1')
+      expect(key).toEqual(['admin', 'payment-details', 'tenant-abc', 'detail', 'pd-1'])
+    })
+
+    it('produces different keys for different payment-detail ids within the same tenant', () => {
+      const key1 = adminPaymentDetailQueryKeys.detail('tenant-1', 'pd-1')
+      const key2 = adminPaymentDetailQueryKeys.detail('tenant-1', 'pd-2')
+      expect(key1).not.toEqual(key2)
+    })
+
+    it('produces different keys for different tenants with the same id', () => {
+      const key1 = adminPaymentDetailQueryKeys.detail('tenant-1', 'pd-1')
+      const key2 = adminPaymentDetailQueryKeys.detail('tenant-2', 'pd-1')
+      expect(key1).not.toEqual(key2)
+    })
+
+    it('returns the same key tuple on repeated calls with identical args', () => {
+      const key1 = adminPaymentDetailQueryKeys.detail('tenant-1', 'pd-1')
+      const key2 = adminPaymentDetailQueryKeys.detail('tenant-1', 'pd-1')
+      expect(key1).toEqual(key2)
+    })
+
+    it('list base prefix catches detail keys via TanStack prefix matching', () => {
+      // prefix match: ['admin','payment-details','tenant-1',...] — catches both list and detail.
+      const detailKey = adminPaymentDetailQueryKeys.detail('tenant-1', 'pd-1')
+      const listPrefix = ['admin', 'payment-details', 'tenant-1']
+      expect(detailKey.slice(0, 3)).toEqual(listPrefix)
+    })
+  })
+})

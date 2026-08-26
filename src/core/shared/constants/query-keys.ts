@@ -185,3 +185,20 @@ export const employeePositionQueryKeys = {
   history: (tenantId: string, employeeId: string) =>
     ['employees', tenantId, 'position-history', employeeId] as const,
 }
+
+// ─── Payment-details admin module (sdd payment-details-admin S1, REQ-PD-007) ──
+//
+// Tenant-scoped per the convention used by every other admin module. The
+// `list` key is the prefix used for invalidation on every successful mutation:
+// TanStack Query prefix-matches array keys, so
+//   invalidateQueries({ queryKey: adminPaymentDetailQueryKeys.list(tenantId) })
+// refetches all page/filter/sort cache slots in one call. `detail` is
+// registered for parity/future detail views; the current slice does not fetch
+// it (the list carries all DTO fields).
+
+export const adminPaymentDetailQueryKeys = {
+  list: (tenantId: string) =>
+    ['admin', 'payment-details', tenantId, 'list'] as const,
+  detail: (tenantId: string, id: string) =>
+    ['admin', 'payment-details', tenantId, 'detail', id] as const,
+}

@@ -265,3 +265,60 @@ describe('backend registry coverage — no English leaks in the role UI', () => 
     expect(gaps).toEqual([])
   })
 })
+
+// ─────────────────────────────────────────────────────────────────────────────
+// sdd payment-details-admin S1 — REQ-AUTH-003 + REQ-PD-007
+//
+// Sub-registro de PaymentDetail en SUBJECT_LABELS + PERMISSION_COPY.
+// El subject debe aparecer con la etiqueta "Datos bancarios" y EXACTAMENTE las
+// cuatro acciones create/read/update/delete (sin manage, sin batch_delete).
+// HIDDEN_SUBJECTS queda intacto para que el subject sea visible.
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('permissions i18n — PaymentDetail subject (sdd payment-details-admin S1, REQ-AUTH-003)', () => {
+  it('exposes PaymentDetail with the canonical "Datos bancarios" label', () => {
+    expect(getSubjectLabel('PaymentDetail')).toBe('Datos bancarios')
+    expect(getSubjectLabel('PaymentDetail')).not.toBe('PaymentDetail')
+  })
+
+  it('does NOT hide PaymentDetail (HIDDEN_SUBJECTS untouched)', () => {
+    expect(isSubjectHidden('PaymentDetail')).toBe(false)
+  })
+
+  it('exposes exactly the four CRUD actions for PaymentDetail (no manage, no batch_delete)', () => {
+    // The four standard actions must resolve to curated Spanish labels — they
+    // do NOT fall through to the "{actionLabel}: {subjectLabel}" default
+    // (which would yield "Crear: Datos bancarios", not the curated copy).
+    for (const action of ['create', 'read', 'update', 'delete'] as const) {
+      const label = getPermissionLabel('PaymentDetail', action)
+      const fallback = `${getPermissionLabel('Other', action).split(':')[0]?.trim()}: Datos bancarios`
+      expect(label).not.toBe(fallback)
+    }
+
+    // 'manage' and 'batch_delete' MUST fall back to the generic concatenation
+    // — proving the curated copy does NOT contain those action keys. This is
+    // the cheapest way to assert "no manage, no batch_delete" using the
+    // public API only.
+    const manageLabel = getPermissionLabel('PaymentDetail', 'manage')
+    expect(manageLabel).toContain('Datos bancarios')
+    expect(manageLabel.startsWith('Gestión')).toBe(true) // generic prefix from ACTION_FALLBACK_LABELS
+    const batchDeleteLabel = getPermissionLabel('PaymentDetail', 'batch_delete')
+    expect(batchDeleteLabel.startsWith('batch_delete:')).toBe(true)
+  })
+
+  it('resolves each PaymentDetail CRUD action to a neutral-Spanish label without leaking the raw subject', () => {
+    for (const action of ['create', 'read', 'update', 'delete'] as const) {
+      const label = getPermissionLabel('PaymentDetail', action)
+      expect(label).toBeTruthy()
+      expect(label).not.toBe('')
+      expect(label).not.toContain('PaymentDetail')
+    }
+  })
+
+  it('returns a non-empty Spanish description for every PaymentDetail CRUD action', () => {
+    for (const action of ['create', 'read', 'update', 'delete'] as const) {
+      const desc = getPermissionDescription('PaymentDetail', action)
+      expect(desc.length).toBeGreaterThan(20)
+    }
+  })
+})

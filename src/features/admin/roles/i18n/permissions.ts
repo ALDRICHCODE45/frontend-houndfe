@@ -55,6 +55,10 @@ const SUBJECT_LABELS: Record<string, string> = {
   SatKey: 'Claves del SAT',
   ReceiptEvidence: 'Comprobantes de pago',
   NotificationConfig: 'Configuración de notificaciones',
+  // sdd payment-details-admin S1 — REQ-AUTH-003: subject label surfaced in
+  // the sidebar/menu AND the role permissions UI. Must stay in sync with
+  // auth.types.ts AppSubject + ability.ts APP_SUBJECTS.
+  PaymentDetail: 'Datos bancarios',
 }
 
 export function getSubjectLabel(subject: string): string {
@@ -549,6 +553,31 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
       label: 'Editar configuración de notificaciones',
       description:
         'Modificar qué notificaciones y alertas se envían y quiénes las reciben en la sucursal.',
+    },
+  },
+
+  // sdd payment-details-admin S1 — REQ-AUTH-003: PaymentDetail registers
+  // exactly the 4 CRUD actions (create / read / update / delete). NO `manage`,
+  // NO `batch_delete` — the backend RBAC registry exposes only these four;
+  // any other key would surface in the role UI as a permission the backend never
+  // seeds. Curated copy follows the same neutral-Spanish convention.
+  PaymentDetail: {
+    create: {
+      label: 'Crear datos bancarios',
+      description: 'Dar de alta cuentas bancarias para recibir transferencias.',
+    },
+    read: {
+      label: 'Ver datos bancarios',
+      description: 'Listar las cuentas bancarias de la sucursal.',
+    },
+    update: {
+      label: 'Editar datos bancarios',
+      description: 'Modificar banco, beneficiario, CLABE o número de cuenta.',
+    },
+    delete: {
+      label: 'Desactivar datos bancarios',
+      description:
+        'Dar de baja una cuenta. El bot deja de mostrarla en el mensaje de transferencia.',
     },
   },
 }

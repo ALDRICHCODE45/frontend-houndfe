@@ -63,6 +63,11 @@ export type AppSubject =
   | 'EmployeeTimeOffMedical'
   | 'EmployeeEmergencyContact'
   | 'NotificationConfig'
+  // sdd payment-details-admin S1 — REQ-AUTH-001: 'PaymentDetail' joins the
+  // AppSubject union before 'all'. Registering the subject in the union is
+  // the single act that unlocks permission parsing + route guards + menu/button
+  // gating for the Datos bancarios admin.
+  | 'PaymentDetail'
   | 'all'
 
 export interface EffectivePermission {

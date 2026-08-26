@@ -21,6 +21,11 @@ const APP_SUBJECTS: AppSubject[] = [
   'EmployeeTimeOffMedical',
   'EmployeeEmergencyContact',
   'NotificationConfig',
+  // sdd payment-details-admin S1 — REQ-AUTH-002: 'PaymentDetail' joins the
+  // APP_SUBJECTS runtime registry (before 'all'). Without this entry the
+  // parsePermissionCode path returns null for create/read/update/delete
+  // and the ability silently drops — hence the explicit no-silent-drop test.
+  'PaymentDetail',
   'all',
 ]
 
