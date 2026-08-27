@@ -1,8 +1,25 @@
+```yaml
+schema: gentle-ai.verify-result/v1
+evidence_revision: sha256:57f97e5885d545d72903414eccee3df6d0e0a491d4c074ed3e7e1eb35e1bf5e7
+verdict: pass_with_warnings
+blockers: 0
+critical_findings: 0
+requirements: 30/31
+scenarios: 31/31
+test_command: pnpm test:unit --run
+test_exit_code: 0
+test_output_hash: sha256:6f344bf4bd605f2175c9c389b48f5090578ea6ee36e5502fc434a6cec0afd64b
+build_command: pnpm build
+build_exit_code: 0
+build_output_hash: sha256:055df782f7ec9ddfde69979c779ff544b60be790490b3bb337db4f4a349a4d04
+```
+
 # Verify Report — custom-payment-methods (Métodos de cobro)
 
 > Phase: `sdd-verify` · Store: `openspec` · Change id: `custom-payment-methods`
 > Branch: `feat/custom-payment-methods` @ `b629a0c`
 > Verdict: **PASS (with warnings)**
+
 
 ---
 

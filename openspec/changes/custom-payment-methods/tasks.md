@@ -937,9 +937,9 @@ The implementation work above is owner-marked `implementation`. Once the apply p
 has finished all 9 sub-slices (and the parent/user has chosen `size:exception` or
 the 3-PR chain), the parent runs bounded review across the merged tree:
 
-- [ ] Run bounded review on every sub-slice's diff (lint + slice spec + adjacent
+- [x] Run bounded review on every sub-slice's diff (lint + slice spec + adjacent
       spec coverage) and link each finding to a specific commit. <!-- sdd-owner: parent -->
-- [ ] Record the final verdict (`size:exception` accepted vs. 3 chained PRs merged)
+- [x] Record the final verdict (`size:exception` accepted vs. 3 chained PRs merged)
       in `openspec/changes/custom-payment-methods/verify-report.md` once the
       verify phase completes. <!-- sdd-owner: parent -->
 - [ ] Move the change to `openspec/changes/archive/2026-XX-XX-custom-payment-methods/`
