@@ -744,10 +744,10 @@ siblings that both depend on S1b + S4a only.
 
 **TDD steps**
 
-- [ ] **RED** — Write specs for the 4 mutation composables (URL/method/payload, invalidations, 409 toast text + refetch + no auto-retry, 422 transition toast, `removeQueries` on delete, `saleQueryKeys.confirmed` invalidation on append). <!-- sdd-owner: implementation -->
-- [ ] **GREEN** — Implement the 4 mutation composables. Reuse `surfaceDeliveryRouteError` from S5a (now also covers these 4). <!-- sdd-owner: implementation -->
-- [ ] **TRIANGULATE** — Add cases: 409 invalidation hits BOTH `detail` and `listPrefix` (assert two invalidate calls); `useAppendDeliveryRouteStop` invalidates `saleQueryKeys.confirmed` so the eligible picker refreshes; `useDeleteDeliveryRoute` calls `removeQueries(detail)` AND invalidates `listPrefix`; `useStartDeliveryRoute` does NOT auto-retry on 409 (assert mutation is called exactly once even when the resolver errors). <!-- sdd-owner: implementation -->
-- [ ] **REFACTOR** — All four share the same `surfaceDeliveryRouteError` + `extractDeliveryRouteErrorCode` path; tighten `defineProps`/return types; no `reactive()` where `ref()` suffices. <!-- sdd-owner: implementation -->
+- [x] **RED** — Write specs for the 4 mutation composables (URL/method/payload, invalidations, 409 toast text + refetch + no auto-retry, 422 transition toast, `removeQueries` on delete, `saleQueryKeys.confirmed` invalidation on append). <!-- sdd-owner: implementation -->
+- [x] **GREEN** — Implement the 4 mutation composables. Reuse `surfaceDeliveryRouteError` from S5a (now also covers these 4). <!-- sdd-owner: implementation -->
+- [x] **TRIANGULATE** — Add cases: 409 invalidation hits BOTH `detail` and `listPrefix` (assert two invalidate calls); `useAppendDeliveryRouteStop` invalidates `saleQueryKeys.confirmed` so the eligible picker refreshes; `useDeleteDeliveryRoute` calls `removeQueries(detail)` AND invalidates `listPrefix`; `useStartDeliveryRoute` does NOT auto-retry on 409 (assert mutation is called exactly once even when the resolver errors). <!-- sdd-owner: implementation -->
+- [x] **REFACTOR** — All four share the same `surfaceDeliveryRouteError` + `extractDeliveryRouteErrorCode` path; tighten `defineProps`/return types; no `reactive()` where `ref()` suffices. <!-- sdd-owner: implementation -->
 
 **Verify**
 

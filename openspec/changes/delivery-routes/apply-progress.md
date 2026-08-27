@@ -344,4 +344,54 @@ None. Notable implementation notes:
 
 ### Remaining tasks
 
-S5a implementation complete. Next is **S5b** (`useDeleteDeliveryRoute` + `useStartDeliveryRoute` (409 race) + `useCancelDeliveryRoute` + `useAppendDeliveryRouteStop`). All four mutations will route through the shared `surfaceDeliveryRouteError` helper added in S5a (REFACTOR target).
+S5a implementation complete.
+
+---
+
+## S5b — Delete + Start (409 Race) + Cancel + Append Mutations — COMPLETE (uncommitted per parent brief)
+
+### What landed
+
+4 NEW composables + 4 NEW co-located specs. No MOD files outside the new module (the shared `surfaceDeliveryRouteError` helper from S5a is reused as-is — the REFACTOR target).
+
+| File | Status |
+|------|--------|
+| `src/features/delivery-routes/composables/useDeleteDeliveryRoute.ts` | **NEW** — `useMutation<void, AxiosError, string>` over `deliveryRoutesApi.delete(id)`. Success: `removeQueries(detail)` + `invalidateQueries(listPrefix)` + toast `deleteSuccess`. Error: `surfaceDeliveryRouteError(error, 'toast', deps, 'No se pudo eliminar la ruta')`. |
+| `src/features/delivery-routes/composables/useStartDeliveryRoute.ts` | **NEW** — `useMutation` over `deliveryRoutesApi.start(id)`. Success: invalidate detail + listPrefix + toast `startSuccess`. 409 race: `extractDeliveryRouteErrorCode === 'DELIVERY_ROUTE_STOP_SALE_ALREADY_ON_ACTIVE_ROUTE'` → invalidate BOTH detail + listPrefix (resync stale DRAFT) then `surfaceDeliveryRouteError(error, 'toast')`. No auto-retry (TanStack mutation default `retry: 0`). |
+| `src/features/delivery-routes/composables/useCancelDeliveryRoute.ts` | **NEW** — `useMutation` over `deliveryRoutesApi.cancel(id)`. Success: invalidate detail + listPrefix + toast `cancelSuccess`. Error: `surfaceDeliveryRouteError(error, 'toast')` (422 transition surfaces verbatim). |
+| `src/features/delivery-routes/composables/useAppendDeliveryRouteStop.ts` | **NEW** — `useMutation` over `deliveryRoutesApi.appendStop(id, payload)` with input `{ id, payload: AppendDeliveryRouteStopRequest }`. Success: invalidate detail + listPrefix + `saleQueryKeys.confirmed(tenantId)` + toast `appendSuccess`. Error: `surfaceDeliveryRouteError(error, 'toast')` (422 `STOP_SALE_NOT_ELIGIBLE` / 409 conflict surface verbatim). |
+| 4 co-located specs | **NEW** — 34 tests total. |
+
+### TDD evidence
+
+- **RED** — 4 specs written first; all 4 failed on module-resolution (imports missing).
+- **GREEN** — 4 composables implemented; `pnpm test:unit --run <4 specs>` → **4 files / 34 tests passed**.
+- **TRIANGULATE** — 409 double-invalidation (detail + listPrefix, both asserted), `saleQueryKeys.confirmed(tenantId)` on append, `removeQueries(detail)` + `invalidateQueries(listPrefix)` on delete, and a QueryClient-boundary integration test pinning **no auto-retry on 409** (`deliveryRoutesApi.start` called exactly once).
+- **REFACTOR** — all four error paths share `surfaceDeliveryRouteError` (only `useStartDeliveryRoute` additionally calls `extractDeliveryRouteErrorCode` for the 409 special-case). No `reactive()` in any source file (all `ref`/`computed`).
+
+### Verify
+
+- `pnpm test:unit --run src/features/delivery-routes` → **20 files / 255 tests passed** (was 221 before S5b → +34 new tests).
+- `pnpm build-only` → clean (`✓ built`).
+- `pnpm type-check` → only the **1 expected** S6a missing-view error at `src/app/router/index.ts:336` (`DeliveryRouteDetailView` — intentionally lands in S6a). **No new errors from S5b.**
+
+### Workload / PR boundary
+
+- Sub-slice LOC: 4 NEW production files (~280 production LOC) + 4 NEW spec files (~620 spec LOC). Production code is within the 400 working target; the combined production+spec stays under the 600 hard cap.
+- Chain strategy: `n/a` (single-pr locked).
+- 400-line budget risk: **Low** for production; **Medium** for production+spec (spec-heavy per strict-TDD).
+- Parent commits land per `tasks.md` S5b commit message (the slice's commit message is preserved in `tasks.md` verbatim).
+
+### Deviation from instructions
+
+None. Notable implementation notes:
+
+1. **409 invalidation lives in `handleStartError`** (not in `surfaceDeliveryRouteError`). The shared helper owns the extract→map→fallback chain for the *copy*, but the 409 *refetch* is start-specific behavior (§10.1) — so `useStartDeliveryRoute` special-cases the code and invalidates detail + listPrefix before delegating to the helper. The other three mutations only delegate.
+2. **No-auto-retry is structural, not configured.** TanStack `useMutation` defaults to `retry: 0`; the integration test asserts `start` is called exactly once on a 409 rejection rather than relying on an explicit `retry: false` option.
+3. **Delete uses `removeQueries`, not `invalidateQueries`** for the detail slot — the route no longer exists server-side, so a refetch would 404; dropping the cache entry is the correct semantics (matches design §6.3).
+4. **`saleQueryKeys.confirmed(tenantId)`** is invalidated verbatim per the design contract, consistent with the existing `useDebtPayment` pattern in the repo.
+5. **No `console.log` / debug artifacts** in any of the 4 production files.
+
+### Remaining tasks
+
+S5b implementation complete. Next is **S6a** (`useDriverActiveRoutes` + `useDeliveryRouteDetail` + `DeliveryRouteDetailView` — manager branch wires S4c + S5a + S5b mutations; driver branch is a placeholder until S6b).
