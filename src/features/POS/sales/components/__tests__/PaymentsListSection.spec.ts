@@ -174,4 +174,115 @@ describe('PaymentsListSection', () => {
     const oldHeader = document.querySelector('header > h3.text-sm.font-semibold.uppercase')
     expect(oldHeader).toBeNull()
   })
+
+  // ── custom-payment-methods S5B — snapshot label preference (REQ-CAT-005/006)
+  describe('catalog snapshot label preference (REQ-CAT-005 / REQ-CAT-006)', () => {
+    it('renders paymentMethodName instead of the base method label when present', async () => {
+      mountSection({
+        payments: [
+          makePayment({
+            paymentId: 'pay-1',
+            method: 'TRANSFER',
+            paymentMethodName: 'Mercado Pago',
+            paymentMethodSubtitle: 'Link',
+          }),
+        ],
+        loading: false,
+      })
+      await flushPromises()
+
+      const label = document.querySelector('[data-testid="payment-label-pay-1"]')
+      expect(label?.textContent?.trim()).toBe('Mercado Pago')
+      expect(label?.textContent).not.toContain('Transferencia')
+    })
+
+    it('renders the grey subtitle sub-line under the name when present', async () => {
+      mountSection({
+        payments: [
+          makePayment({
+            paymentId: 'pay-1',
+            method: 'TRANSFER',
+            paymentMethodName: 'Mercado Pago',
+            paymentMethodSubtitle: 'Link',
+          }),
+        ],
+        loading: false,
+      })
+      await flushPromises()
+
+      const subtitle = document.querySelector('[data-testid="payment-subtitle-pay-1"]')
+      expect(subtitle).not.toBeNull()
+      expect(subtitle?.textContent?.trim()).toBe('Link')
+      expect(subtitle?.classList.contains('text-muted')).toBe(true)
+    })
+
+    it('legacy rows render the base method label with NO sub-line (byte-identical)', async () => {
+      mountSection({
+        payments: [makePayment({ paymentId: 'pay-1', method: 'CARD_DEBIT', reference: 'AUTH-1' })],
+        loading: false,
+      })
+      await flushPromises()
+
+      const label = document.querySelector('[data-testid="payment-label-pay-1"]')
+      expect(label?.textContent?.trim()).toBe('Débito')
+      expect(document.body.textContent).not.toContain('Mercado Pago')
+      expect(document.querySelector('[data-testid="payment-subtitle-pay-1"]')).toBeNull()
+      // The rest of the legacy row is untouched: reference still renders.
+      expect(document.querySelector('[data-testid="payment-reference-pay-1"]')?.textContent).toContain('AUTH-1')
+    })
+
+    it('renders NO sub-line when paymentMethodSubtitle is null', async () => {
+      mountSection({
+        payments: [
+          makePayment({ paymentId: 'pay-1', method: 'CASH', paymentMethodName: 'Efectivo USD', paymentMethodSubtitle: null }),
+        ],
+        loading: false,
+      })
+      await flushPromises()
+
+      expect(document.querySelector('[data-testid="payment-label-pay-1"]')?.textContent?.trim()).toBe('Efectivo USD')
+      expect(document.querySelector('[data-testid="payment-subtitle-pay-1"]')).toBeNull()
+    })
+
+    it('renders NO sub-line when paymentMethodSubtitle is whitespace-only', async () => {
+      mountSection({
+        payments: [
+          makePayment({ paymentId: 'pay-1', method: 'CASH', paymentMethodName: 'Efectivo USD', paymentMethodSubtitle: '   ' }),
+        ],
+        loading: false,
+      })
+      await flushPromises()
+
+      expect(document.querySelector('[data-testid="payment-subtitle-pay-1"]')).toBeNull()
+    })
+
+    it('trims surrounding whitespace from the subtitle before rendering', async () => {
+      mountSection({
+        payments: [
+          makePayment({ paymentId: 'pay-1', method: 'TRANSFER', paymentMethodName: 'Mercado Pago', paymentMethodSubtitle: '  Link  ' }),
+        ],
+        loading: false,
+      })
+      await flushPromises()
+
+      const subtitle = document.querySelector('[data-testid="payment-subtitle-pay-1"]')
+      expect(subtitle?.textContent).toBe('Link')
+    })
+
+    it('renders legacy and catalog rows together in one list', async () => {
+      mountSection({
+        payments: [
+          makePayment({ paymentId: 'pay-1', method: 'CASH', paymentMethodName: 'Efectivo USD', paymentMethodSubtitle: 'Dólares' }),
+          makePayment({ paymentId: 'pay-2', method: 'CARD_DEBIT', reference: null }),
+        ],
+        loading: false,
+      })
+      await flushPromises()
+
+      expect(document.querySelector('[data-testid="payment-label-pay-1"]')?.textContent?.trim()).toBe('Efectivo USD')
+      expect(document.querySelector('[data-testid="payment-subtitle-pay-1"]')?.textContent?.trim()).toBe('Dólares')
+      expect(document.querySelector('[data-testid="payment-label-pay-2"]')?.textContent?.trim()).toBe('Débito')
+      expect(document.querySelector('[data-testid="payment-subtitle-pay-2"]')).toBeNull()
+    })
+  })
 })

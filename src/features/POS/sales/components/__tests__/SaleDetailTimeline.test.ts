@@ -191,4 +191,133 @@ describe('SaleDetailTimeline', () => {
       expect(wrapper.find('[data-testid="timeline-icon"]').exists()).toBe(true)
     })
   })
+
+  // ── custom-payment-methods S5B — PAYMENT_RECEIVED snapshot preference (REQ-CAT-005/006)
+  describe('PAYMENT_RECEIVED catalog snapshot preference (REQ-CAT-005 / REQ-CAT-006)', () => {
+    it('renders paymentMethodName instead of the base method label', () => {
+      const wrapper = mountWithUApp(SaleDetailTimeline, {
+        props: {
+          timeline: [
+            {
+              type: 'PAYMENT_RECEIVED',
+              at: '2026-05-06T14:42:00.000Z',
+              actor: null,
+              register: 'Principal',
+              method: 'TRANSFER',
+              amountCents: 250000,
+              reference: null,
+              paymentMethodName: 'Mercado Pago',
+              paymentMethodSubtitle: 'Link',
+            },
+          ],
+        },
+      })
+
+      expect(wrapper.text()).toContain('Cobro de $2,500.00 en Mercado Pago')
+      expect(wrapper.text()).not.toContain('Transferencia')
+    })
+
+    it('renders the grey subtitle sub-line under the PAYMENT_RECEIVED label', () => {
+      const wrapper = mountWithUApp(SaleDetailTimeline, {
+        props: {
+          timeline: [
+            {
+              type: 'PAYMENT_RECEIVED',
+              at: '2026-05-06T14:42:00.000Z',
+              actor: null,
+              register: 'Principal',
+              method: 'TRANSFER',
+              amountCents: 250000,
+              reference: null,
+              paymentMethodName: 'Mercado Pago',
+              paymentMethodSubtitle: 'Link',
+            },
+          ],
+        },
+      })
+
+      const subtitle = wrapper.find('[data-testid="timeline-payment-subtitle"]')
+      expect(subtitle.exists()).toBe(true)
+      expect(subtitle.text()).toBe('Link')
+      expect(subtitle.classes()).toEqual(expect.arrayContaining(['text-muted']))
+    })
+
+    it('keeps the legacy PAYMENT_RECEIVED label and renders NO sub-line', () => {
+      const wrapper = mountWithUApp(SaleDetailTimeline, {
+        props: { timeline: mockTimeline },
+      })
+
+      expect(wrapper.text()).toContain('Cobro de $100.00 en Tarjeta de Débito')
+      expect(wrapper.find('[data-testid="timeline-payment-subtitle"]').exists()).toBe(false)
+    })
+
+    it('renders NO sub-line when paymentMethodSubtitle is null', () => {
+      const wrapper = mountWithUApp(SaleDetailTimeline, {
+        props: {
+          timeline: [
+            {
+              type: 'PAYMENT_RECEIVED',
+              at: '2026-05-06T14:42:00.000Z',
+              actor: null,
+              register: 'Principal',
+              method: 'CASH',
+              amountCents: 5000,
+              reference: null,
+              paymentMethodName: 'Efectivo USD',
+              paymentMethodSubtitle: null,
+            },
+          ],
+        },
+      })
+
+      expect(wrapper.text()).toContain('Efectivo USD')
+      expect(wrapper.find('[data-testid="timeline-payment-subtitle"]').exists()).toBe(false)
+    })
+
+    it('renders NO sub-line when paymentMethodSubtitle is whitespace-only', () => {
+      const wrapper = mountWithUApp(SaleDetailTimeline, {
+        props: {
+          timeline: [
+            {
+              type: 'PAYMENT_RECEIVED',
+              at: '2026-05-06T14:42:00.000Z',
+              actor: null,
+              register: 'Principal',
+              method: 'CASH',
+              amountCents: 5000,
+              reference: null,
+              paymentMethodName: 'Efectivo USD',
+              paymentMethodSubtitle: '   ',
+            },
+          ],
+        },
+      })
+
+      expect(wrapper.find('[data-testid="timeline-payment-subtitle"]').exists()).toBe(false)
+    })
+
+    it('trims surrounding whitespace from the subtitle before rendering', () => {
+      const wrapper = mountWithUApp(SaleDetailTimeline, {
+        props: {
+          timeline: [
+            {
+              type: 'PAYMENT_RECEIVED',
+              at: '2026-05-06T14:42:00.000Z',
+              actor: null,
+              register: 'Principal',
+              method: 'TRANSFER',
+              amountCents: 250000,
+              reference: null,
+              paymentMethodName: 'Mercado Pago',
+              paymentMethodSubtitle: '  Link  ',
+            },
+          ],
+        },
+      })
+
+      const subtitle = wrapper.find('[data-testid="timeline-payment-subtitle"]')
+      expect(subtitle.exists()).toBe(true)
+      expect(subtitle.text()).toBe('Link')
+    })
+  })
 })

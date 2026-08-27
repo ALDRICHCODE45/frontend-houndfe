@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import type { SaleTimelineEvent, SaleTimelineEventType } from '../interfaces/sale.types'
 import { SALE_TIMELINE_EVENT_TYPE } from '../constants/sale.constants'
 import { formatCentsMXN } from '../utils/currency.utils'
+import { paymentMethodDisplayLabel, paymentMethodSubtitleText } from '../utils/paymentMethodMeta'
 import { formatPaymentMethod } from '../utils/salePaymentMethod.utils'
 import { formatSaleDate } from '../utils/saleDate.utils'
 
@@ -47,7 +48,17 @@ function eventLabel(event: SaleTimelineEvent): string {
   if (event.type === SALE_TIMELINE_EVENT_TYPE.PRODUCTS_DELIVERED) return 'Entrega de Productos'
   if (event.type === SALE_TIMELINE_EVENT_TYPE.COMMENT) return 'Comentario'
 
-  return `Cobro de ${formatCentsMXN(event.amountCents)} en ${formatPaymentMethod(event.method)}`
+  // custom-payment-methods S5B (REQ-CAT-005): the PAYMENT_RECEIVED label
+  // prefers the catalog snapshot name; the legacy `formatPaymentMethod` label
+  // stays the fallback so legacy events render byte-identically.
+  return `Cobro de ${formatCentsMXN(event.amountCents)} en ${paymentMethodDisplayLabel(event, formatPaymentMethod(event.method)).label}`
+}
+
+// custom-payment-methods S5B (REQ-CAT-006): trimmed-or-null sub-line, only for
+// PAYMENT_RECEIVED events (the only variant that carries the snapshot fields).
+function paymentSubtitle(event: SaleTimelineEvent): string | null {
+  if (event.type !== SALE_TIMELINE_EVENT_TYPE.PAYMENT_RECEIVED) return null
+  return paymentMethodSubtitleText(event)
 }
 
 function actorLabel(event: SaleTimelineEvent): string | null {
@@ -140,6 +151,13 @@ async function deleteCommentForEvent(event: SaleTimelineEvent) {
 
       <div class="flex-1 min-w-0">
         <p class="font-medium">{{ eventLabel(event) }}</p>
+        <p
+          v-if="paymentSubtitle(event)"
+          class="text-sm text-muted"
+          data-testid="timeline-payment-subtitle"
+        >
+          {{ paymentSubtitle(event) }}
+        </p>
         <div class="flex items-center justify-between">
           <p v-if="actorLabel(event)" class="text-sm text-muted" data-testid="timeline-actor">
             {{ actorLabel(event) }}

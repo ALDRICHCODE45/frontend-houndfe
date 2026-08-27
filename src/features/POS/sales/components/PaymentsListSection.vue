@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import type { SaleDetailPayment } from '../interfaces/sale.types'
 import { formatCentsMXN } from '../utils/currency.utils'
 import { formatSaleDate } from '../utils/saleDate.utils'
-import { getMethodMeta } from '../utils/paymentMethodMeta'
+import { getMethodMeta, paymentMethodDisplayLabel } from '../utils/paymentMethodMeta'
 import { shouldShowEditReference } from '../utils/referenceEditAffordance'
 import EditReferenceSlideover from './EditReferenceSlideover.vue'
 
@@ -43,6 +43,18 @@ const editingPayment = computed(() =>
   editingPaymentId.value
     ? props.payments.find((payment) => payment.paymentId === editingPaymentId.value) ?? null
     : null,
+)
+
+// custom-payment-methods S5B (REQ-CAT-005/006): one resolved display per row
+// (label = paymentMethodName ?? base method label, subtitle = trimmed-or-null),
+// computed once per payments change instead of re-deriving in the template.
+const paymentDisplays = computed(() =>
+  new Map(
+    props.payments.map((payment) => [
+      payment.paymentId,
+      paymentMethodDisplayLabel(payment, getMethodMeta(payment.method).label),
+    ]),
+  ),
 )
 
 function startEdit(payment: SaleDetailPayment) {
@@ -116,10 +128,21 @@ function isReferenceTruncated(reference: string | null): boolean {
         <div class="min-w-0 flex-1">
           <div class="flex items-center gap-2">
             <UIcon :name="getMethodMeta(payment.method).icon" class="size-4 text-muted" />
-            <span class="font-semibold text-highlighted">
-              {{ getMethodMeta(payment.method).label }}
+            <span
+              class="font-semibold text-highlighted"
+              :data-testid="`payment-label-${payment.paymentId}`"
+            >
+              {{ paymentDisplays.get(payment.paymentId)?.label }}
             </span>
           </div>
+
+          <p
+            v-if="paymentDisplays.get(payment.paymentId)?.subtitle"
+            class="mt-0.5 text-xs text-muted"
+            :data-testid="`payment-subtitle-${payment.paymentId}`"
+          >
+            {{ paymentDisplays.get(payment.paymentId)?.subtitle }}
+          </p>
 
           <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted">
             <span class="tabular-nums">{{ formatSaleDate(payment.paidAt) }}</span>

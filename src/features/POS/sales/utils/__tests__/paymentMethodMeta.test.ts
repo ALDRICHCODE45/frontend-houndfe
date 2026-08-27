@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getMethodMeta } from '../paymentMethodMeta'
+import { getMethodMeta, paymentMethodDisplayLabel, paymentMethodSubtitleText } from '../paymentMethodMeta'
 
 describe('getMethodMeta', () => {
   it('returns success color and banknote icon for CASH', () => {
@@ -50,5 +50,44 @@ describe('getMethodMeta', () => {
     expect(typeof meta.label).toBe('string')
     expect(typeof meta.color).toBe('string')
     expect(typeof meta.icon).toBe('string')
+  })
+})
+
+describe('paymentMethodDisplayLabel (custom-payment-methods S5B, REQ-CAT-005)', () => {
+  it('prefers paymentMethodName over the base label when present', () => {
+    const display = paymentMethodDisplayLabel(
+      { paymentMethodName: 'Mercado Pago', paymentMethodSubtitle: 'Link' },
+      'Transferencia',
+    )
+    expect(display.label).toBe('Mercado Pago')
+    expect(display.subtitle).toBe('Link')
+  })
+
+  it('falls back to the base label when paymentMethodName is absent', () => {
+    expect(paymentMethodDisplayLabel({}, 'Débito').label).toBe('Débito')
+    expect(paymentMethodDisplayLabel({ paymentMethodName: undefined }, 'Débito').label).toBe('Débito')
+  })
+
+  it('falls back to the base label without throwing when both name and method are absent (defensive)', () => {
+    // REO-CAT-005 defensive fallback: the helper never throws on empty input;
+    // the surface's getMethodMeta fallback copy ('Otro') is supplied as baseLabel.
+    expect(paymentMethodDisplayLabel({}, 'Otro').label).toBe('Otro')
+  })
+})
+
+describe('paymentMethodSubtitleText (custom-payment-methods S5B, REQ-CAT-006)', () => {
+  it('returns the trimmed subtitle when present', () => {
+    expect(paymentMethodSubtitleText({ paymentMethodSubtitle: '  Link  ' })).toBe('Link')
+  })
+
+  it('returns null when subtitle is null, undefined, or missing', () => {
+    expect(paymentMethodSubtitleText({ paymentMethodSubtitle: null })).toBeNull()
+    expect(paymentMethodSubtitleText({ paymentMethodSubtitle: undefined })).toBeNull()
+    expect(paymentMethodSubtitleText({})).toBeNull()
+  })
+
+  it('returns null for whitespace-only subtitles (no placeholder, no empty sub-line)', () => {
+    expect(paymentMethodSubtitleText({ paymentMethodSubtitle: '   ' })).toBeNull()
+    expect(paymentMethodSubtitleText({ paymentMethodSubtitle: '\t\n' })).toBeNull()
   })
 })
