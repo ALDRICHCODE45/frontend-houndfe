@@ -9,6 +9,9 @@ const isSubmittingRef = ref(false)
 const externalErrorCodeRef = ref<string | null>(null)
 const shouldCloseRef = ref(false)
 const resetErrorMock = vi.fn()
+// sdd custom-payment-methods S5A: useDebtPayment now returns catalogClearSignal
+// (design §8.3) — the mock must provide it so the modal's new watch binds.
+const catalogClearSignalRef = ref(0)
 
 vi.mock('../../composables/useDebtPayment', () => ({
   useDebtPayment: () => ({
@@ -17,6 +20,7 @@ vi.mock('../../composables/useDebtPayment', () => ({
     externalErrorCode: externalErrorCodeRef,
     shouldClose: shouldCloseRef,
     resetError: resetErrorMock,
+    catalogClearSignal: catalogClearSignalRef,
   }),
 }))
 
@@ -118,6 +122,7 @@ describe('DebtPaymentModal', () => {
     isSubmittingRef.value = false
     externalErrorCodeRef.value = null
     shouldCloseRef.value = false
+    catalogClearSignalRef.value = 0
   })
 
   it('opens with empty entries and submit disabled', () => {
@@ -377,6 +382,23 @@ describe('DebtPaymentModal S4B — custom payment method tiles (sdd custom-payme
     expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(2)
 
     await wrapper.setProps({ catalogClearSignal: 1 })
+    await flushPromises()
+
+    expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(1)
+  })
+
+  it('S5A — composable catalogClearSignal increment removes custom entries but preserves fixed entries (design §8.3)', async () => {
+    projectionData.value = [customTransfer]
+    const wrapper = mountModal()
+
+    await wrapper.get('[data-testid="payment-method-tile-cash"]').trigger('click')
+    await wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_A}"]`).trigger('click')
+    await flushPromises()
+    expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(2)
+
+    // useDebtPayment.onError increments the signal it returns; the modal
+    // watches that signal and drops only custom entries.
+    catalogClearSignalRef.value += 1
     await flushPromises()
 
     expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(1)

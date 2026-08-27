@@ -218,3 +218,149 @@ describe('useDebtPayment', () => {
     expect(composable.shouldClose.value).toBe(false)
   })
 })
+
+// ─── sdd custom-payment-methods S5A — catalog charge error dispatch ────────
+// REQ-CAT-007..011: useDebtPayment.onError must resolve the four catalog
+// codes FIRST (clear/refetch/toast per design §8.2) and short-circuit BEFORE
+// the legacy getSalePaymentErrorAction path.
+describe('useDebtPayment S5A — catalog charge error dispatch (REQ-CAT-007..011)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    // vi.clearAllMocks() does not clear vi.hoisted-created mocks (addToast)
+    // nor mockReturnValueOnce queues in this vitest version — stale queued
+    // values from earlier tests would otherwise be consumed by these tests'
+    // getSalePaymentErrorAction calls and surface wrong toasts. Reset
+    // explicitly and re-establish the default implementation.
+    addToast.mockClear()
+    vi.mocked(getSalePaymentErrorAction).mockReset()
+    vi.mocked(getSalePaymentErrorAction).mockImplementation(() => ({ type: 'inline', message: 'Error de prueba' }))
+    vi.mocked(saleApi.registerDebtPayment).mockResolvedValue(SUCCESS_RESPONSE)
+  })
+
+  it('CATEGORY_MISMATCH → increments catalogClearSignal once, no toast, legacy dispatch NOT invoked', async () => {
+    vi.mocked(saleApi.registerDebtPayment).mockRejectedValueOnce({
+      response: { data: { error: 'PAYMENT_METHOD_CATEGORY_MISMATCH' } },
+    })
+
+    const composable = mountComposable()
+    await composable.submitSafe({ payload: MULTI_PAYLOAD, idempotencyKey: 'key-cat-1' })
+    await flushPromises()
+    await flushPromises()
+
+    expect(composable.catalogClearSignal.value).toBe(1)
+    expect(addToast).not.toHaveBeenCalled()
+    expect(getSalePaymentErrorAction).not.toHaveBeenCalled()
+    expect(invalidateQueries).not.toHaveBeenCalledWith({
+      queryKey: ['sales', 'tenant-1', 'payment-methods'],
+    })
+  })
+
+  it('NOT_FOUND → increments signal, invalidates the projection key once, toasts, legacy NOT invoked', async () => {
+    vi.mocked(saleApi.registerDebtPayment).mockRejectedValueOnce({
+      response: { data: { error: 'PAYMENT_METHOD_NOT_FOUND' } },
+    })
+
+    const composable = mountComposable()
+    await composable.submitSafe({ payload: MULTI_PAYLOAD, idempotencyKey: 'key-cat-2' })
+    await flushPromises()
+    await flushPromises()
+
+    expect(composable.catalogClearSignal.value).toBe(1)
+    expect(invalidateQueries).toHaveBeenCalledTimes(1)
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['sales', 'tenant-1', 'payment-methods'],
+    })
+    expect(addToast).toHaveBeenCalledTimes(1)
+    expect(addToast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Método de cobro no disponible.' }),
+    )
+    expect(getSalePaymentErrorAction).not.toHaveBeenCalled()
+  })
+
+  it('INACTIVE → increments signal, invalidates the projection key once, toasts, legacy NOT invoked', async () => {
+    vi.mocked(saleApi.registerDebtPayment).mockRejectedValueOnce({
+      response: { data: { error: 'INACTIVE_PAYMENT_METHOD' } },
+    })
+
+    const composable = mountComposable()
+    await composable.submitSafe({ payload: MULTI_PAYLOAD, idempotencyKey: 'key-cat-3' })
+    await flushPromises()
+    await flushPromises()
+
+    expect(composable.catalogClearSignal.value).toBe(1)
+    expect(invalidateQueries).toHaveBeenCalledTimes(1)
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['sales', 'tenant-1', 'payment-methods'],
+    })
+    expect(addToast).toHaveBeenCalledTimes(1)
+    expect(addToast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Este método fue desactivado.' }),
+    )
+    expect(getSalePaymentErrorAction).not.toHaveBeenCalled()
+  })
+
+  it('INVALID_PAYMENT_METHOD_ID → defensive toast only; no clear, no refetch, legacy NOT invoked', async () => {
+    vi.mocked(saleApi.registerDebtPayment).mockRejectedValueOnce({
+      response: { data: { error: 'INVALID_PAYMENT_METHOD_ID' } },
+    })
+
+    const composable = mountComposable()
+    await composable.submitSafe({ payload: MULTI_PAYLOAD, idempotencyKey: 'key-cat-4' })
+    await flushPromises()
+    await flushPromises()
+
+    expect(composable.catalogClearSignal.value).toBe(0)
+    expect(invalidateQueries).not.toHaveBeenCalledWith({
+      queryKey: ['sales', 'tenant-1', 'payment-methods'],
+    })
+    expect(addToast).toHaveBeenCalledTimes(1)
+    expect(addToast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Método de cobro inválido.' }),
+    )
+    expect(getSalePaymentErrorAction).not.toHaveBeenCalled()
+  })
+
+  it('legacy code (PAYMENT_AMOUNT_INSUFFICIENT) → legacy dispatch runs unchanged, signal NOT incremented', async () => {
+    vi.mocked(saleApi.registerDebtPayment).mockRejectedValueOnce({
+      response: { data: { error: 'PAYMENT_AMOUNT_INSUFFICIENT' } },
+    })
+    vi.mocked(getSalePaymentErrorAction).mockReturnValueOnce({
+      type: 'inline',
+      message: 'Agregá un pago en efectivo o ajustá los montos para cubrir el total',
+    })
+
+    const composable = mountComposable()
+    await composable.submitSafe({ payload: MULTI_PAYLOAD, idempotencyKey: 'key-cat-5' })
+    await flushPromises()
+    await flushPromises()
+
+    expect(getSalePaymentErrorAction).toHaveBeenCalledTimes(1)
+    expect(getSalePaymentErrorAction).toHaveBeenCalledWith('PAYMENT_AMOUNT_INSUFFICIENT')
+    expect(addToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Agregá un pago en efectivo o ajustá los montos para cubrir el total',
+        color: 'error',
+      }),
+    )
+    expect(composable.catalogClearSignal.value).toBe(0)
+  })
+
+  it('unknown code with null catalog action and undefined legacy action → generic fallback toast (no crash)', async () => {
+    vi.mocked(saleApi.registerDebtPayment).mockRejectedValueOnce({
+      response: { data: { error: 'SOME_FUTURE_CODE' } },
+    })
+    // Legacy map returns undefined for an unknown code — the guard must fall
+    // through to the generic toast instead of crashing on action.message.
+    vi.mocked(getSalePaymentErrorAction).mockReturnValueOnce(undefined as never)
+
+    const composable = mountComposable()
+    await composable.submitSafe({ payload: MULTI_PAYLOAD, idempotencyKey: 'key-cat-6' })
+    await flushPromises()
+    await flushPromises()
+
+    expect(addToast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'No pudimos registrar el pago' }),
+    )
+    expect(composable.catalogClearSignal.value).toBe(0)
+  })
+})

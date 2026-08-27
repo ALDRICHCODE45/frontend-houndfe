@@ -21,6 +21,25 @@ vi.mock('@/features/auth/composables/useSafeTenantId', () => ({
   useSafeTenantId: () => ref('tenant-1'),
 }))
 
+// sdd custom-payment-methods S5A (REQ-CAT-011): spy on the legacy
+// getSalePaymentErrorAction dispatch so tests can assert that catalog error
+// codes short-circuit BEFORE it, while known legacy codes still resolve
+// through the real mapping (delegating mock keeps existing tests green).
+const { legacyErrorDispatch } = vi.hoisted(() => ({ legacyErrorDispatch: vi.fn() }))
+
+vi.mock('../../utils/salePaymentErrors.utils', async (importOriginal) => {
+  const actual = await importOriginal<{
+    getSalePaymentErrorAction: (code: import('../../interfaces/sale.types').ChargeDomainErrorCode) => import('../../utils/salePaymentErrors.utils').SalePaymentUxAction
+  }>()
+  return {
+    ...actual,
+    getSalePaymentErrorAction: (code: import('../../interfaces/sale.types').ChargeDomainErrorCode) => {
+      legacyErrorDispatch(code)
+      return actual.getSalePaymentErrorAction(code)
+    },
+  }
+})
+
 const chargeDraft = vi.fn()
 const unassignCustomerMock = vi.fn()
 const clearShippingAddressMock = vi.fn()
@@ -935,5 +954,168 @@ describe('SalesView 14a.1 — layout proportion + keyboard shortcut', () => {
     })
     window.dispatchEvent(event)
     expect(focusSearchSpy).not.toHaveBeenCalled()
+  })
+})
+
+// ─── sdd custom-payment-methods S5A — catalog charge error dispatch ─────────
+// REQ-CAT-007..011: handleChargeDraft must resolve the four catalog codes
+// FIRST (clear/refetch/toast per design §8.2) and short-circuit BEFORE the
+// legacy getSalePaymentErrorAction dispatch.
+
+describe('SalesView S5A — catalog charge error dispatch (REQ-CAT-007..011)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    drafts.value = [
+      {
+        id: 'sale-1',
+        userId: 'user-1',
+        status: 'DRAFT',
+        items: [{ id: 'item-1', productId: 'prod-1', variantId: null, productName: 'A', variantName: null, quantity: 1, unitPriceCents: 10000, unitPriceCurrency: 'MXN' }],
+        createdAt: 'x',
+        updatedAt: 'x',
+      },
+    ]
+    activeTabId.value = 'sale-1'
+    isMutating.value = false
+    unassignCustomerMock.mockReset()
+    clearShippingAddressMock.mockReset()
+    vetoAutoPromotionMock.mockReset()
+    applyManualPromotionMock.mockReset()
+    removeManualPromotionMock.mockReset()
+    setPriceListMock.mockReset()
+    resetApplicablePromotionsMock()
+  })
+
+  // The real @nuxt/ui useToast is captured by SalesView setup (vi.stubGlobal
+  // only shadows the global lookup), so we wrap `wrapper.vm.toast.add` to spy
+  // on calls — the same pattern as the C.5 tests above.
+  function captureToast(wrapper: ReturnType<typeof mountView>) {
+    const toastRef = (wrapper.vm as unknown as { toast: { add: (opts: { title: string; color?: string; description?: string }) => unknown } }).toast
+    const realAdd = toastRef.add
+    const addCalls: Array<{ title: string; color?: string; description?: string }> = []
+    toastRef.add = (opts) => {
+      addCalls.push(opts)
+      return realAdd(opts)
+    }
+    return addCalls
+  }
+
+  async function submitCharge(wrapper: ReturnType<typeof mountView>) {
+    await wrapper.get('[data-testid="charge-click"]').trigger('click')
+    await wrapper.get('[data-testid="submit-charge"]').trigger('click')
+  }
+
+  it('PAYMENT_METHOD_CATEGORY_MISMATCH → increments the clear signal exactly once, shows NO toast, skips legacy dispatch', async () => {
+    chargeDraft.mockRejectedValueOnce({ response: { data: { error: 'PAYMENT_METHOD_CATEGORY_MISMATCH' } } })
+    const wrapper = mountView()
+    const addCalls = captureToast(wrapper)
+
+    await submitCharge(wrapper)
+
+    await vi.waitFor(() => {
+      expect(wrapper.get('[data-testid="payment-modal-catalog-clear-signal"]').text()).toBe('1')
+    })
+    expect(legacyErrorDispatch).not.toHaveBeenCalled()
+    expect(addCalls).toHaveLength(0)
+    expect(invalidateQueries).not.toHaveBeenCalledWith({
+      queryKey: ['sales', 'tenant-1', 'payment-methods'],
+    })
+  })
+
+  it('PAYMENT_METHOD_NOT_FOUND → increments signal, invalidates projection once, toasts, skips legacy dispatch', async () => {
+    chargeDraft.mockRejectedValueOnce({ response: { data: { error: 'PAYMENT_METHOD_NOT_FOUND' } } })
+    const wrapper = mountView()
+    const addCalls = captureToast(wrapper)
+
+    await submitCharge(wrapper)
+
+    await vi.waitFor(() => {
+      expect(wrapper.get('[data-testid="payment-modal-catalog-clear-signal"]').text()).toBe('1')
+    })
+    await vi.waitFor(() => {
+      expect(invalidateQueries).toHaveBeenCalledWith({
+        queryKey: ['sales', 'tenant-1', 'payment-methods'],
+      })
+    })
+    expect(
+      invalidateQueries.mock.calls.filter(
+        (call) => (call[0] as { queryKey?: unknown[] })?.queryKey?.[2] === 'payment-methods',
+      ),
+    ).toHaveLength(1)
+    await vi.waitFor(() => {
+      expect(addCalls.some((c) => c.title === 'Método de cobro no disponible.')).toBe(true)
+    })
+    expect(legacyErrorDispatch).not.toHaveBeenCalled()
+  })
+
+  it('INACTIVE_PAYMENT_METHOD → increments signal, invalidates projection once, toasts, skips legacy dispatch', async () => {
+    chargeDraft.mockRejectedValueOnce({ response: { data: { error: 'INACTIVE_PAYMENT_METHOD' } } })
+    const wrapper = mountView()
+    const addCalls = captureToast(wrapper)
+
+    await submitCharge(wrapper)
+
+    await vi.waitFor(() => {
+      expect(wrapper.get('[data-testid="payment-modal-catalog-clear-signal"]').text()).toBe('1')
+    })
+    await vi.waitFor(() => {
+      expect(invalidateQueries).toHaveBeenCalledWith({
+        queryKey: ['sales', 'tenant-1', 'payment-methods'],
+      })
+    })
+    expect(
+      invalidateQueries.mock.calls.filter(
+        (call) => (call[0] as { queryKey?: unknown[] })?.queryKey?.[2] === 'payment-methods',
+      ),
+    ).toHaveLength(1)
+    await vi.waitFor(() => {
+      expect(addCalls.some((c) => c.title === 'Este método fue desactivado.')).toBe(true)
+    })
+    expect(legacyErrorDispatch).not.toHaveBeenCalled()
+  })
+
+  it('INVALID_PAYMENT_METHOD_ID → defensive toast only: no clear, no refetch, skips legacy dispatch', async () => {
+    chargeDraft.mockRejectedValueOnce({ response: { data: { error: 'INVALID_PAYMENT_METHOD_ID' } } })
+    const wrapper = mountView()
+    const addCalls = captureToast(wrapper)
+
+    await submitCharge(wrapper)
+
+    await vi.waitFor(() => {
+      expect(addCalls.some((c) => c.title === 'Método de cobro inválido.')).toBe(true)
+    })
+    expect(wrapper.get('[data-testid="payment-modal-catalog-clear-signal"]').text()).toBe('0')
+    expect(invalidateQueries).not.toHaveBeenCalledWith({
+      queryKey: ['sales', 'tenant-1', 'payment-methods'],
+    })
+    expect(legacyErrorDispatch).not.toHaveBeenCalled()
+  })
+
+  it('legacy code (PAYMENT_AMOUNT_INSUFFICIENT) → legacy dispatch unchanged, signal NOT incremented', async () => {
+    chargeDraft.mockRejectedValueOnce({ response: { data: { error: 'PAYMENT_AMOUNT_INSUFFICIENT' } } })
+    const wrapper = mountView()
+
+    await submitCharge(wrapper)
+
+    await vi.waitFor(() => {
+      expect(wrapper.get('[data-testid="external-error"]').text()).toContain(
+        'Agregá un pago en efectivo o ajustá los montos para cubrir el total',
+      )
+    })
+    expect(legacyErrorDispatch).toHaveBeenCalledWith('PAYMENT_AMOUNT_INSUFFICIENT')
+    expect(wrapper.get('[data-testid="payment-modal-catalog-clear-signal"]').text()).toBe('0')
+  })
+
+  it('unknown code → generic error toast surfaces instead of crashing (catalog null + legacy undefined)', async () => {
+    chargeDraft.mockRejectedValueOnce({ response: { data: { error: 'SOME_FUTURE_CODE' } } })
+    const wrapper = mountView()
+    const addCalls = captureToast(wrapper)
+
+    await submitCharge(wrapper)
+
+    await vi.waitFor(() => {
+      expect(addCalls.some((c) => c.title === 'Error' && c.description === 'No se pudo cobrar la venta. Reintenta.')).toBe(true)
+    })
+    expect(wrapper.get('[data-testid="payment-modal-catalog-clear-signal"]').text()).toBe('0')
   })
 })

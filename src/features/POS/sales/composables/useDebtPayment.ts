@@ -11,6 +11,7 @@ import type {
 } from '../interfaces/sale.types'
 import { SALE_PAYMENT_STATUS } from '../constants/sale.constants' // sdd/magic-string-constants slice 3
 import { getSalePaymentErrorAction } from '../utils/salePaymentErrors.utils'
+import { applyCatalogChargeErrorAction } from '../utils/paymentMethodChargeErrors.utils' // sdd custom-payment-methods S5A
 
 // useToast is auto-imported by @nuxt/ui/vite plugin (unplugin-auto-import).
 // In tests, stub via vi.stubGlobal('useToast', () => ({ add: mockFn })).
@@ -53,6 +54,12 @@ export function useDebtPayment(saleId: string) {
   const queryClient = useQueryClient()
   const toast = useToast()
 
+  // sdd custom-payment-methods S5A (design §8.3 / REQ-CAT-007..009): the
+  // clear-selection signal handed to DebtPaymentModal. Incremented in the
+  // catalog-error branch of onError; the modal's watch drops every entry
+  // carrying a `paymentMethodId` (custom tiles).
+  const catalogClearSignal = ref(0)
+
   const externalErrorCode = ref<DebtPaymentDomainErrorCode | null>(null)
   const shouldClose = ref(false)
 
@@ -68,6 +75,13 @@ export function useDebtPayment(saleId: string) {
       toast.add({ title, color: 'success' })
     },
     onError: (error: AxiosError<DomainErrorResponse>) => {
+      // sdd custom-payment-methods S5A (REQ-CAT-011): catalog charge errors
+      // resolve FIRST — clear/refetch/toast per design §8.2 — and short-circuit
+      // BEFORE the legacy getSalePaymentErrorAction path.
+      if (applyCatalogChargeErrorAction(error, { queryClient, tenantId, toast, catalogClearSignal }).handled) {
+        return
+      }
+
       const code = error.response?.data?.error
 
       if (code && REFETCH_DETAIL_CODES.has(code)) {
@@ -90,8 +104,13 @@ export function useDebtPayment(saleId: string) {
 
       if (code) {
         const action = getSalePaymentErrorAction(code as Parameters<typeof getSalePaymentErrorAction>[0])
-        toast.add({ title: action.message, color: 'error' })
-        return
+        // S5A TRIANGULATE: an unknown code yields undefined here (the map is
+        // total over ChargeDomainErrorCode only) — fall through to the generic
+        // toast instead of crashing on action.message.
+        if (action) {
+          toast.add({ title: action.message, color: 'error' })
+          return
+        }
       }
 
       toast.add({
@@ -123,5 +142,8 @@ export function useDebtPayment(saleId: string) {
     externalErrorCode,
     shouldClose,
     resetError,
+    // sdd custom-payment-methods S5A (design §8.3): consumed by
+    // DebtPaymentModal's watch to drop custom entries after a catalog error.
+    catalogClearSignal,
   }
 }

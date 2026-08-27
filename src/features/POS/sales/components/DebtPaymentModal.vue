@@ -73,6 +73,10 @@ const {
   externalErrorCode,
   shouldClose,
   resetError,
+  // sdd custom-payment-methods S5A (design §8.3): the composable's own
+  // clear-selection signal — incremented by useDebtPayment.onError on
+  // catalog errors; the watch below drops custom entries.
+  catalogClearSignal,
 } = useDebtPayment(props.saleId)
 
 const receivedCents = computed(() => paidSum(entries.value))
@@ -204,6 +208,14 @@ watch(
     entries.value = entries.value.filter((entry) => entry.paymentMethodId === undefined)
   },
 )
+
+// sdd custom-payment-methods S5A (design §8.3): the composable's own signal
+// (incremented in useDebtPayment.onError's catalog branch) drives the same
+// custom-entry filter. Mirrors the S4B prop watch above.
+watch(catalogClearSignal, () => {
+  if (!props.open) return
+  entries.value = entries.value.filter((entry) => entry.paymentMethodId === undefined)
+})
 </script>
 
 <template>

@@ -27,6 +27,7 @@ import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { saleQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import { getSalePaymentErrorAction } from '../utils/salePaymentErrors.utils'
+import { applyCatalogChargeErrorAction } from '../utils/paymentMethodChargeErrors.utils' // sdd custom-payment-methods S5A
 import { POS_ACTIVE_TAB_STORAGE_KEY } from '../constants/sale.constants' // sdd/magic-string-constants slice 3: the ONLY raw localStorage key left in the project.
 
 declare const useToast: () => {
@@ -446,10 +447,27 @@ async function handleChargeDraft(saleId: string, payload: ChargeSalePayload, ide
     return
   } catch (error) {
     const err = error as AxiosError<DomainApiError & { error?: ChargeDomainErrorCode }>
+
+    // sdd custom-payment-methods S5A (REQ-CAT-011): catalog charge errors
+    // resolve FIRST — clear/refetch/toast per design §8.2 — and
+    // short-circuit BEFORE the legacy getSalePaymentErrorAction dispatch.
+    if (applyCatalogChargeErrorAction(err, { queryClient, tenantId, toast, catalogClearSignal }).handled) {
+      return
+    }
+
     const code = err.response?.data?.error
 
     if (code) {
       const action = getSalePaymentErrorAction(code)
+
+      // sdd custom-payment-methods S5A TRIANGULATE: a code outside the legacy
+      // map yields undefined here — surface the generic error toast instead of
+      // crashing on action.type.
+      if (!action) {
+        const message = err.response?.data?.message ?? 'No se pudo cobrar la venta. Reintenta.'
+        toast.add({ title: 'Error', description: message, color: 'error' })
+        return
+      }
 
       if (action.type === 'inline') {
         inlineAmountError.value = action.message
