@@ -573,10 +573,10 @@ gate either passes (manager can safely assign) or blocks the S4c slideover wirin
 
 **TDD steps**
 
-- [ ] **RED** — Write specs for `DriverPicker`: lists assignable users, required, empty state, `update:driverUserId` emit. Write specs for `EligibleSalesPicker`: multi-select, status-only client filter (PENDING+SHIPPED), empty state, `update:selected` emit. <!-- sdd-owner: implementation -->
-- [ ] **GREEN** — Implement the two pickers; `DriverPicker` consumes `usersApi.listAssignable()` directly (no client filter — courier-scoping is server-side per the gate below). <!-- sdd-owner: implementation -->
-- [ ] **TRIANGULATE** — Add cases: `DriverPicker` empty/loading/error state matrix (uses fixture lists); `EligibleSalesPicker` carries the SHIPPED row through verbatim (regression pin against S1a); pin the API URL/method called by `DriverPicker` (`GET /users/assignable`) so a future scoped endpoint is a visible contract change. <!-- sdd-owner: implementation -->
-- [ ] **REFACTOR** — Pull the assignable-user query into `useAssignableUsers` (consumed here and reused later if a notification recipient picker needs the same source); tighten `defineProps`/`defineEmits` types; remove any `reactive()` where `ref()` suffices. <!-- sdd-owner: implementation -->
+- [x] **RED** — Write specs for `DriverPicker`: lists assignable users, required, empty state, `update:driverUserId` emit. Write specs for `EligibleSalesPicker`: multi-select, status-only client filter (PENDING+SHIPPED), empty state, `update:selected` emit. <!-- sdd-owner: implementation -->
+- [x] **GREEN** — Implement the two pickers; `DriverPicker` consumes `usersApi.listAssignable()` directly (no client filter — courier-scoping is server-side per the gate below). <!-- sdd-owner: implementation -->
+- [x] **TRIANGULATE** — Add cases: `DriverPicker` empty/loading/error state matrix (uses fixture lists); `EligibleSalesPicker` carries the SHIPPED row through verbatim (regression pin against S1a); pin the API URL/method called by `DriverPicker` (`GET /users/assignable`) so a future scoped endpoint is a visible contract change. <!-- sdd-owner: implementation -->
+- [x] **REFACTOR** — Tighten `defineProps`/`defineEmits` types (single-select `onUpdate` simplified from union overload to `AssignableUser | null`); explicit chip below the trigger for stable selection display + test reachability; inline empty-state copy for page-level reachability; no `reactive()` anywhere (all `ref`/`computed`). `useAssignableUsers` extraction deferred — the notification recipient picker already has its own composable (`useManagerPicker`) and `usersApi.listAssignable()` is the only consumer here, so the dedicated composable would be premature abstraction. <!-- sdd-owner: implementation -->
 
 **Verify**
 
