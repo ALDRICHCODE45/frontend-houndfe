@@ -345,10 +345,10 @@ must be legal when this is the only enabled action. Standalone (sequenced after 
 
 **TDD steps**
 
-- [ ] **RED** — Write the `delivery` module spec and the refined `computeZeroRecipientViolation` cases (delivery-only zero recipients → `false`; mixed enabled + zero recipients → `true`; LOW_STOCK-only zero recipients → `true`; empty enabled actions + zero recipients → `false`). <!-- sdd-owner: implementation -->
-- [ ] **GREEN** — Add the registry module, widen `ActionKey`, add `requiresRecipients` to `ActionDescriptor`, refine `computeZeroRecipientViolation` to call `findActionDescriptor(key)?.requiresRecipients !== false`. <!-- sdd-owner: implementation -->
-- [ ] **TRIANGULATE** — Add a case where `enabledActions: []` and `recipientUserIds: []` returns `false` (no recipient-based action ⇒ no violation); add a case asserting `LOW_STOCK`/`TIME_OFF_REQUESTED` defaults are unchanged. <!-- sdd-owner: implementation -->
-- [ ] **REFACTOR** — Push the `findActionDescriptor` lookup behind a single per-action helper so the future registry extension point is one place (the registry already is, but verify no other switch/case grew). <!-- sdd-owner: implementation -->
+- [x] **RED** — Write the `delivery` module spec and the refined `computeZeroRecipientViolation` cases (delivery-only zero recipients → `false`; mixed enabled + zero recipients → `true`; LOW_STOCK-only zero recipients → `true`; empty enabled actions + zero recipients → `false`). <!-- sdd-owner: implementation -->
+- [x] **GREEN** — Add the registry module, widen `ActionKey`, add `requiresRecipients` to `ActionDescriptor`, refine `computeZeroRecipientViolation` to call `findActionDescriptor(key)?.requiresRecipients !== false`. <!-- sdd-owner: implementation -->
+- [x] **TRIANGULATE** — Add a case where `enabledActions: []` and `recipientUserIds: []` returns `false` (no recipient-based action ⇒ no violation); add a case asserting `LOW_STOCK`/`TIME_OFF_REQUESTED` defaults are unchanged. <!-- sdd-owner: implementation -->
+- [x] **REFACTOR** — Push the `findActionDescriptor` lookup behind a single per-action helper so the future registry extension point is one place (the registry already is, but verify no other switch/case grew). <!-- sdd-owner: implementation -->
 
 **Verify**
 
