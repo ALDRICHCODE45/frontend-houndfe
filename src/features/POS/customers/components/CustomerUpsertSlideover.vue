@@ -19,6 +19,7 @@ import type {
   UpdateCustomerPayload,
 } from '../interfaces/customer.types'
 import AddressModal from './AddressModal.vue'
+import { formatAddress } from '@/core/shared/utils/formatAddress'
 
 const props = withDefaults(
   defineProps<{
@@ -148,17 +149,6 @@ function removeExistingAddress(address: CustomerAddress) {
   if (props.customer) {
     emit('remove-address', props.customer.id, address.id)
   }
-}
-
-function formatAddress(addr: CreateCustomerAddressPayload | CustomerAddress): string {
-  const parts = [
-    addr.street,
-    'exteriorNumber' in addr && addr.exteriorNumber ? `#${addr.exteriorNumber}` : null,
-    addr.neighborhood ?? null,
-    addr.city ?? null,
-    addr.state ?? null,
-  ].filter(Boolean)
-  return parts.join(', ')
 }
 
 function onSubmit(event: FormSubmitEvent<CustomerFormValues>) {

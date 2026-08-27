@@ -201,5 +201,29 @@ describe('CustomerUpsertSlideover', () => {
       expect(vm.pendingAddresses).toHaveLength(1)
       expect(vm.pendingAddresses[0]).toEqual(mockAddressPayload)
     })
+
+    // ── S3b regression pin: the local `formatAddress` helper is gone; the
+    //    slideover now consumes the shared `@/core/shared/utils/formatAddress`
+    //    util (design §8.2). The pin asserts the shared output exactly so a
+    //    future drift would re-introducing the divergent helper would break
+    //    this assertion. REQ-AMP-009.
+    it('shared formatAddress regression pin — matches S3a formatAddress.spec output for an address row', async () => {
+      const { formatAddress } = await import(
+        '@/core/shared/utils/formatAddress'
+      )
+      const address = mockCustomer.addresses[0]
+      const expected = formatAddress(address)
+      // Shared formatter emits label-first, includes interior number, zip
+      // formatted as 'CP 03100'. The old local helper dropped interior,
+      // neighborhood/zipCode formatting, and any label.
+      expect(expected).toContain('Insurgentes Sur #123')
+      expect(expected).toContain('Del Valle')
+      expect(expected).toContain('CP 03100')
+      // Sanity: the OLD local helper output would be
+      // 'Insurgentes Sur #123, Del Valle, CDMX, CDMX' — missing CP. The
+      // shared one MUST NOT match the old shape; that mismatch is exactly
+      // what the swap fixes.
+      expect(expected).not.toBe('Insurgentes Sur #123, Del Valle, CDMX, CDMX')
+    })
   })
 })

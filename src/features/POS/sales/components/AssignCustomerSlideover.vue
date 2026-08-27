@@ -8,6 +8,7 @@ import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import { customerQueryKeys } from '@/core/shared/constants/query-keys'
 import { useDraftCustomerAssignment, DraftCustomerAssignmentError } from '../composables/useDraftCustomerAssignment'
+import { formatAddress } from '@/core/shared/utils/formatAddress'
 import type {
   CreateCustomerAddressPayload,
   CreateCustomerPayload,
@@ -191,12 +192,6 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
   } finally {
     isCreatingAddress.value = false
   }
-}
-
-function formatAddress(address: CustomerAddress): string {
-  return [address.street, address.exteriorNumber ? `#${address.exteriorNumber}` : null, address.city]
-    .filter(Boolean)
-    .join(', ')
 }
 </script>
 

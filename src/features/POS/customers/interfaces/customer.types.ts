@@ -39,6 +39,10 @@ export interface CustomerAddressBackendResponse {
   municipality?: string | null
   city?: string | null
   state?: string | null
+  // Optional map pin (design §5.3 / §8.1). The backend may omit these for
+  // legacy rows; `mapAddress` normalizes them to `null` on the entity.
+  latitude?: number | null
+  longitude?: number | null
   createdAt: string
   updatedAt: string
 }
@@ -87,6 +91,10 @@ export interface CustomerAddress {
   municipality: string | null
   city: string | null
   state: string | null
+  // Map pin. `null` is the canonical "no coordinates" value so the
+  // AddressMapPicker can v-model against the entity directly.
+  latitude?: number | null
+  longitude?: number | null
   createdAt: string
   updatedAt: string
 }
@@ -139,6 +147,9 @@ export interface CreateCustomerAddressPayload {
   municipality?: string
   city?: string
   state?: string
+  // Optional map pin; emitted only when both coordinates are present.
+  latitude?: number
+  longitude?: number
 }
 
 export type UpdateCustomerAddressPayload = Partial<CreateCustomerAddressPayload>
@@ -178,4 +189,8 @@ export interface AddressFormInput {
   municipality: string
   city: string
   state: string
+  // Map pin bound to AddressMapPicker. `null` (not undefined) keeps the v-model
+  // contract symmetric with the picker.
+  latitude?: number | null
+  longitude?: number | null
 }

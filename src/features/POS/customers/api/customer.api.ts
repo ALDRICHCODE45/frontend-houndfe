@@ -53,6 +53,11 @@ function mapAddress(item: CustomerAddressBackendResponse): CustomerAddress {
     municipality: item.municipality ?? null,
     city: item.city ?? null,
     state: item.state ?? null,
+    // The backend may omit latitude/longitude on legacy rows; normalize missing
+    // values to `null` so the AddressMapPicker can v-model against the entity
+    // directly (design §5.3).
+    latitude: item.latitude ?? null,
+    longitude: item.longitude ?? null,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   }

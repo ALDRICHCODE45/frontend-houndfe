@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui'
-import { reactive, watch } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import { z } from 'zod'
 import { MEXICO_STATE_OPTIONS } from '../composables/useCustomerForm'
+import AddressMapPicker, { pinToGeoPoint } from '@/core/shared/components/AddressMapPicker.vue'
+import type { GeoPoint } from '@/core/shared/maps/map-provider'
 import type { CustomerAddress, CreateCustomerAddressPayload } from '../interfaces/customer.types'
 
 const addressSchema = z.object({
@@ -18,6 +20,8 @@ const addressSchema = z.object({
   municipality: z.string().trim().max(100, 'Máximo 100 caracteres'),
   city: z.string().trim().max(100, 'Máximo 100 caracteres'),
   state: z.string().trim(),
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
 })
 
 type AddressFormValues = z.infer<typeof addressSchema>
@@ -49,6 +53,19 @@ const formState = reactive<AddressFormValues>({
   municipality: '',
   city: '',
   state: '',
+  latitude: null,
+  longitude: null,
+})
+
+// The picker's v-model contract is a `GeoPoint | null`. Map the form coords to
+// a point for the picker (and back on emit) so the picker never sees
+// `undefined`. `0,0` is a legal pin (design §4.3 REFACTOR).
+const pin = computed<GeoPoint | null>({
+  get: () => pinToGeoPoint(formState),
+  set: (point) => {
+    formState.latitude = point?.lat ?? null
+    formState.longitude = point?.lng ?? null
+  },
 })
 
 function resetState() {
@@ -61,6 +78,8 @@ function resetState() {
     municipality: '',
     city: '',
     state: '',
+    latitude: null,
+    longitude: null,
   })
 }
 
@@ -79,6 +98,8 @@ watch(
         municipality: address.municipality ?? '',
         city: address.city ?? '',
         state: address.state ?? '',
+        latitude: address.latitude,
+        longitude: address.longitude,
       })
       return
     }
@@ -89,6 +110,13 @@ watch(
 )
 
 function handleSubmit(event: FormSubmitEvent<AddressFormValues>) {
+  // Emit latitude/longitude ONLY when both coordinates are present. A half-pin
+  // (one coord set, the other missing) is silently dropped so the backend
+  // never receives an inconsistent pair (spec REQ-AMP-005).
+  const hasFullPin =
+    typeof event.data.latitude === 'number' &&
+    typeof event.data.longitude === 'number'
+
   const payload: CreateCustomerAddressPayload = {
     street: event.data.street,
     ...(event.data.exteriorNumber ? { exteriorNumber: event.data.exteriorNumber } : {}),
@@ -98,6 +126,9 @@ function handleSubmit(event: FormSubmitEvent<AddressFormValues>) {
     ...(event.data.municipality ? { municipality: event.data.municipality } : {}),
     ...(event.data.city ? { city: event.data.city } : {}),
     ...(event.data.state ? { state: event.data.state } : {}),
+    ...(hasFullPin
+      ? { latitude: event.data.latitude as number, longitude: event.data.longitude as number }
+      : {}),
   }
   emit('save', payload)
 }
@@ -208,6 +239,13 @@ function handleClose() {
               :disabled="loading"
             />
           </UFormField>
+        </div>
+
+        <!-- Map pin (optional). NEVER gates address validation; the address
+             is valid with or without coordinates (design §4.5 / REQ-AMP-005). -->
+        <div class="space-y-2">
+          <p class="text-sm font-medium">Ubicación en el mapa (opcional)</p>
+          <AddressMapPicker v-model="pin" mode="write" />
         </div>
       </UForm>
     </template>

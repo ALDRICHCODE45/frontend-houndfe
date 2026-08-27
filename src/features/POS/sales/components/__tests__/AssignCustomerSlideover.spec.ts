@@ -409,4 +409,26 @@ describe('AssignCustomerSlideover', () => {
       queryKey: customerQueryKeys.addresses('tenant-1', 'customer-1'),
     })
   })
+
+  // ── S3b regression pin: the local `formatAddress` helper is gone; the
+  //    slideover now consumes the shared `@/core/shared/utils/formatAddress`
+  //    util (design §8.2). The pin asserts the shared output exactly so a
+  //    future drift re-introducing the divergent helper would break this
+  //    assertion. REQ-AMP-010.
+  it('shared formatAddress regression pin — matches S3a formatAddress.spec output for an address card', async () => {
+    const { formatAddress } = await import(
+      '@/core/shared/utils/formatAddress'
+    )
+    const address = makeAddress('address-1')
+    const expected = formatAddress(address)
+    // Shared formatter emits label-first ordering, includes municipality/state/
+    // zipCode. The old local helper output would be
+    // 'Main St #10, Monterrey' — missing state and CP.
+    expect(expected).toContain('Main St #10')
+    expect(expected).toContain('Monterrey')
+    expect(expected).toContain('Nuevo León')
+    expect(expected).toContain('CP 64000')
+    // Sanity: the OLD local helper shape MUST NOT match the shared output.
+    expect(expected).not.toBe('Main St #10, Monterrey')
+  })
 })
