@@ -240,3 +240,35 @@ Criterion: users whose tenant role has **read+update on `DeliveryRoute`** and **
 ### Impact on remaining slices
 
 None negative — S4c wires the slideover against the corrected `DriverPicker` (single-select over `AssignableUser[]`, dedicated cache). No design.md edit required: §13.1's open question is now answered by the backend contract above.
+
+---
+
+## S4c — Manager Mutations + Slideover + List View (Manager Branch) — COMPLETE
+
+Commit `89c5dd1` (10 files, 1893 insertions). sdd-attempt ordinal 8 settled `passed` (harness `reused`).
+
+### Files landed
+- `composables/useCreateDeliveryRoute.ts` — POST, invalidates `listPrefix`, domain-error toast map + `normalizeApiError` fallback, no optimistic writes.
+- `composables/useUpdateDeliveryRoute.ts` — PATCH, invalidates `detail` + `listPrefix`; pure `handleUpdateSuccess`/`handleUpdateError` with `{ queryKey }`-forwarding deps (extract-before-mock).
+- `components/DeliveryRouteUpsertSlideover.vue` — create (sales multi-select + driver + notes≤280) / edit (driver + notes, sales hidden); zod inline errors; edit empty-driver blocks with `copy.validation.selectDriver`.
+- `views/DeliveryRoutesListView.vue` — manager branch (AppDataTable + create slideover gated by `canCreate`); driver branch `// TODO(S6b)` placeholder renders nothing.
+- `copy.ts` — added `validation.selectDriver`.
+- `app/router/index.ts` — added the missing `DeliveryRoutesListView` lazy const (resolves the S4c type-check error; `DeliveryRouteDetailView` intentionally left for S6a).
+- 4 co-located specs.
+
+### Gate §13.1 — RESOLVED upstream of S4c
+The courier-scoping gate was resolved in the S4b follow-up (commit `fa6660e`): backend exposes the dedicated `GET /users/assignable-drivers` endpoint. `DriverPicker` consumes it with its own cache slot. S4c wired the slideover against that resolved contract — no FAIL branch taken.
+
+### Recovery notes (two subagent stalls)
+1. `sdd-apply` timed out at 20 min mid-slice (left a slideover syntax error + missing view + missing router const + leftover `debug.spec.ts`).
+2. `gentle-ai-worker` stalled at ~4 min while finishing (left a `createSimpleHeader` mock gap in the view spec + a real `mutate`→`mutateAsync` bug + 2 spec type errors).
+Parent recovered inline: fixed the slideover duplicate block, implemented the `mutateAsync` wiring, added `createSimpleHeader` to the view-spec mock, typed the `resetRoleFlags` helper, and fixed the create-spec tuple-index cast. `debug.spec.ts` removed.
+
+### Verify
+- Targeted S4c specs: 39/39 green.
+- `pnpm test:unit --run src/features/delivery-routes`: 13 files / 169 tests green.
+- `pnpm build-only`: clean (only the pre-existing chunk-size warning).
+- `pnpm type-check`: only the expected `DeliveryRouteDetailView` (`router:331`, S6a) error remains — the S4c `DeliveryRoutesListView` error is gone.
+
+### Remaining tasks
+Next is **S5a** (`delivery-route-actions.utils` + `useReorderStops` + `DeliveryRouteReorderPanel`), then S5b, S6a, S6b, S7.
