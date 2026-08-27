@@ -200,3 +200,43 @@ S4b implementation complete. Next is **S4c — `useCreateDeliveryRoute` + `useUp
 
 - `actionContext`: not consumed in the prompt; no warning surfaced.
 - `applyState`: S4b implementation complete. Courier-scoping gate **pending parent confirmation** before S4c.
+
+---
+
+## S4b follow-up — courier-scoping gate RESOLVED (endpoint correction)
+
+**Gate outcome: RESOLVED (backend provided a dedicated endpoint).** Commit `fa6660e`.
+
+The backend did **not** keep `GET /users/assignable` courier-scoped. Instead it added a new dedicated endpoint:
+
+```
+GET /users/assignable-drivers  (JWT + tenant from token)
+  → [{ id, name }, ...]   // pure drivers only, sorted by name
+```
+
+Criterion: users whose tenant role has **read+update on `DeliveryRoute`** and **no create/delete** (exactly the ADR-5 manager-vs-driver discriminator). Excludes managers (create/delete), read-only users, `manage:all` superadmins, and inactive users. Backend filters on raw role permissions (not CASL abilities, because driver abilities carry `{ driverUserId }` conditions that a flat check would mishandle).
+
+### Change (commit fa6660e, 5 files)
+
+| File | Change |
+| --- | --- |
+| `src/features/POS/users/api/user.api.ts` | added `listAssignableDrivers()` → `GET /users/assignable-drivers` |
+| `src/core/shared/constants/query-keys.ts` | added `usersQueryKeys.assignableDrivers()` → `['users','assignable-drivers']` |
+| `.../components/DriverPicker.vue` | consumes dedicated method + dedicated cache slot |
+| `.../__tests__/DriverPicker.spec.ts` | all spies + URL pins → `listAssignableDrivers` |
+| `.../POS/users/api/__tests__/user.api.test.ts` | new describe block (URL pin + empty array) |
+
+### Latent bug fixed
+
+`DriverPicker` previously reused `usersApi.listAssignable()` AND shared the `['users','assignable']` TanStack cache slot with the notification recipients picker. Because that slot carries managers, the driver dropdown could leak non-drivers if the notification screen populated the cache first. The dedicated endpoint + dedicated cache slot fully decouple the two surfaces.
+
+### TDD evidence
+
+- RED: 12 failed / 2 passed (14) — `listAssignableDrivers is not a function` / `property not defined`.
+- GREEN: 14/14 passed (2 files).
+- Suite: `pnpm test:unit --run src/features/delivery-routes` → 130/130 green (9 files).
+- `pnpm build-only` clean. `pnpm type-check` still shows only the 2 pre-existing missing-view errors (`DeliveryRoutesListView` :322, `DeliveryRouteDetailView` :331), resolved by S4c and S6a respectively.
+
+### Impact on remaining slices
+
+None negative — S4c wires the slideover against the corrected `DriverPicker` (single-select over `AssignableUser[]`, dedicated cache). No design.md edit required: §13.1's open question is now answered by the backend contract above.
