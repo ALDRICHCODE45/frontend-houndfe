@@ -30,6 +30,13 @@ export type CollectionPaymentMethod = NonCreditPaymentMethod
 export type SalePaymentStatus =
   (typeof SALE_PAYMENT_STATUS)[keyof typeof SALE_PAYMENT_STATUS]
 export type SaleDeliveryStatus =
+  // sdd delivery-routes S1a — REQ-SALES-DR-001: derived from the matching
+  // `as const` object in `constants/sale.constants.ts` so adding `SHIPPED`
+  // to the const widens this type automatically. The literal `SaleDeliveryStatus`
+  // type now accepts `'PENDING' | 'SHIPPED' | 'DELIVERED' | 'NOT_APPLICABLE'`.
+  // The `as const` shape is the single source of truth — call sites that need
+  // the LITERAL value import the const; call sites that need the TYPE import
+  // this.
   (typeof SALE_DELIVERY_STATUS)[keyof typeof SALE_DELIVERY_STATUS] // 'NOT_APPLICABLE' = instant-delivery (e.g. take-away); NOT "unknown".
 
 /**

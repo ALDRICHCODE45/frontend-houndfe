@@ -227,6 +227,31 @@ export const adminPaymentMethodQueryKeys = {
     ['admin', 'payment-methods', tenantId, 'detail', id] as const,
 }
 
+
+// ─── Delivery-routes module query keys (sdd delivery-routes S1a, REQ-AUTH-DR-005) ──
+//
+// Tenant-scoped per the convention used by every other POS module. Three slots:
+//   - list(tenantId, params):     the fetch slot for `useServerTable` etc.
+//                                  params is the filter snapshot (status, etc.).
+//   - listPrefix(tenantId):       the cross-slot invalidation prefix — TanStack
+//                                  prefix-matches array keys, so
+//                                  invalidateQueries({queryKey:listPrefix(t)})
+//                                  refetches EVERY list(tenantId, {...params})
+//                                  slot in one call. Kept SEPARATE from
+//                                  list(tenantId, {}) because the latter's
+//                                  trailing `{}` suffix would NOT prefix-match
+//                                  a list(tenantId, {status:'ACTIVE'}) slot.
+//   - detail(tenantId, id):       the single route detail slot.
+
+export const deliveryRouteQueryKeys = {
+  list: (tenantId: string, params: Record<string, unknown> = {}) =>
+    ['delivery-routes', tenantId, 'list', params] as const,
+  listPrefix: (tenantId: string) =>
+    ['delivery-routes', tenantId, 'list'] as const,
+  detail: (tenantId: string, id: string) =>
+    ['delivery-routes', tenantId, 'detail', id] as const,
+}
+
 // ─── Payment-methods POS projection (sdd custom-payment-methods S4A) ──────────
 //
 // The POS catalog tile grid (`useSalePaymentMethods`) reads from this key. The

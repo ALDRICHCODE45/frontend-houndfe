@@ -76,6 +76,13 @@ export type AppSubject =
   // codes grant the action and a malformed sibling does not revoke the
   // well-formed grant.
   | 'PaymentMethod'
+  // sdd delivery-routes S1a — REQ-AUTH-DR-001: 'DeliveryRoute' joins the
+  // AppSubject union before 'all'. Mirrors the PaymentDetail/PaymentMethod
+  // pattern (silent-drop risk if dropped: parsePermissionCode returns null,
+  // the sidebar/route stays hidden). The pin-tests in ability.test.ts (sdd
+  // delivery-routes S1a) assert all four CRUD codes grant and the
+  // AppSubject union is locked-step.
+  | 'DeliveryRoute'
   | 'all'
 
 export interface EffectivePermission {

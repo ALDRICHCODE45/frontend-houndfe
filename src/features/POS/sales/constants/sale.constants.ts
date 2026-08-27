@@ -67,6 +67,12 @@ export const SALE_PAYMENT_STATUS = {
 
 export const SALE_DELIVERY_STATUS = {
   PENDING: 'PENDING',
+  // sdd delivery-routes S1a — REQ-SALES-DR-001: 'SHIPPED' joins the sales
+  // delivery-status union. The backend started returning this value for
+  // confirmed sales that belong to an active delivery route (in transit,
+  // assigned to a driver). Before this addition the frontend rendered
+  // "Desconocido" everywhere via the badge-map fallback.
+  SHIPPED: 'SHIPPED',
   DELIVERED: 'DELIVERED',
   NOT_APPLICABLE: 'NOT_APPLICABLE',
 } as const

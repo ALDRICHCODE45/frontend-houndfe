@@ -31,6 +31,12 @@ const APP_SUBJECTS: AppSubject[] = [
   // parsePermissionCode path returns null for create/read/update/delete and
   // the ability silently drops — hence the explicit no-silent-drop test.
   'PaymentMethod',
+  // sdd delivery-routes S1a — REQ-AUTH-DR-002: 'DeliveryRoute' joins the
+  // APP_SUBJECTS runtime registry (before 'all'). Without this entry the
+  // parsePermissionCode path returns null for the four CRUD codes and
+  // the ability silently drops — hence the explicit no-silent-drop test
+  // in ability.test.ts (sdd delivery-routes S1a).
+  'DeliveryRoute',
   'all',
 ]
 

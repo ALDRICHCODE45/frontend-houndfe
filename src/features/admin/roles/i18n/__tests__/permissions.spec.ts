@@ -315,10 +315,85 @@ describe('permissions i18n — PaymentDetail subject (sdd payment-details-admin 
     }
   })
 
-  it('returns a non-empty Spanish description for every PaymentDetail CRUD action', () => {
-    for (const action of ['create', 'read', 'update', 'delete'] as const) {
-      const desc = getPermissionDescription('PaymentDetail', action)
-      expect(desc.length).toBeGreaterThan(20)
-    }
-  })
+      it('returns a non-empty Spanish description for every PaymentDetail CRUD action', () => {
+        for (const action of ['create', 'read', 'update', 'delete'] as const) {
+          const desc = getPermissionDescription('PaymentDetail', action)
+          expect(desc.length).toBeGreaterThan(20)
+        }
+      })
+    })
+
+// ──────────────────────────────────────────────────────────────────────────
+// sdd delivery-routes S1a — REQ-AUTH-DR-002 + REQ-AUTH-DR-004
+//
+// Sub-registro de DeliveryRoute en SUBJECT_LABELS + PERMISSION_COPY.
+// El subject debe aparecer con la etiqueta "Rutas de entrega" y EXACTAMENTE
+// las cuatro acciones create/read/update/delete (sin manage, sin
+// batch_delete — backend registry expone solo CRUD).
+// HIDDEN_SUBJECTS queda intacto para que el subject sea visible.
+// ──────────────────────────────────────────────────────────────────────────
+
+describe('permissions i18n — DeliveryRoute subject (sdd delivery-routes S1a, REQ-AUTH-DR-002)', () => {
+it('exposes DeliveryRoute with the canonical "Rutas de entrega" label', () => {
+  expect(getSubjectLabel('DeliveryRoute')).toBe('Rutas de entrega')
+  expect(getSubjectLabel('DeliveryRoute')).not.toBe('DeliveryRoute')
+})
+
+it('does NOT hide DeliveryRoute (HIDDEN_SUBJECTS untouched, REQ-AUTH-DR-004)', () => {
+  // The role-permissions UI MUST render DeliveryRoute — otherwise the
+  // manager cannot assign the subject and the manager-only list view
+  // would never open. Asserting the negative here freezes the
+  // not-hidden invariant.
+  expect(isSubjectHidden('DeliveryRoute')).toBe(false)
+  expect(HIDDEN_SUBJECTS).not.toContain('DeliveryRoute')
+})
+
+it('exposes exactly the four CRUD actions for DeliveryRoute (no manage, no batch_delete)', () => {
+  // The four standard actions must resolve to curated Spanish labels —
+  // they do NOT fall through to the "{actionLabel}: {subjectLabel}"
+  // default (which would yield "Crear: Rutas de entrega", not the
+  // curated copy).
+  for (const action of ['create', 'read', 'update', 'delete'] as const) {
+    const label = getPermissionLabel('DeliveryRoute', action)
+    const fallback = `${getPermissionLabel('Other', action).split(':')[0]?.trim()}: Rutas de entrega`
+    expect(label).not.toBe(fallback)
+  }
+
+  // 'manage' and 'batch_delete' MUST fall back to the generic
+  // concatenation — proving the curated copy does NOT contain those
+  // action keys. This is the cheapest way to assert "no manage, no
+  // batch_delete" using the public API only.
+  const manageLabel = getPermissionLabel('DeliveryRoute', 'manage')
+  expect(manageLabel).toContain('Rutas de entrega')
+  expect(manageLabel.startsWith('Gestión')).toBe(true) // generic prefix from ACTION_FALLBACK_LABELS
+  const batchDeleteLabel = getPermissionLabel('DeliveryRoute', 'batch_delete')
+  expect(batchDeleteLabel.startsWith('batch_delete:')).toBe(true)
+})
+
+it('resolves each DeliveryRoute CRUD action to a neutral-Spanish label without leaking the raw subject', () => {
+  for (const action of ['create', 'read', 'update', 'delete'] as const) {
+    const label = getPermissionLabel('DeliveryRoute', action)
+    expect(label).toBeTruthy()
+    expect(label).not.toBe('')
+    expect(label).not.toContain('DeliveryRoute')
+  }
+})
+
+it('returns a non-empty Spanish description for every DeliveryRoute CRUD action', () => {
+  for (const action of ['create', 'read', 'update', 'delete'] as const) {
+    const desc = getPermissionDescription('DeliveryRoute', action)
+    expect(desc.length).toBeGreaterThan(20)
+  }
+})
+
+it('keeps DeliveryRoute alongside PaymentDetail/PaymentMethod without disturbing their copy', () => {
+  // Lock-step invariant: adding a new subject MUST NOT break the
+  // existing ones. A regression in SUBJECT_LABELS / PERMISSION_COPY
+  // shape would surface as PaymentDetail/PaymentMethod labels suddenly
+  // returning empty strings.
+  for (const action of ['create', 'read', 'update', 'delete'] as const) {
+    expect(getPermissionDescription('PaymentDetail', action).length).toBeGreaterThan(20)
+    expect(getPermissionDescription('PaymentMethod', action).length).toBeGreaterThan(20)
+  }
+})
 })

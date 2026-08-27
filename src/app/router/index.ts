@@ -311,6 +311,29 @@ const router = createRouter({
         permission: ['read', 'PaymentMethod'] as RoutePermission,
       },
     },
+    // ─── Delivery-routes (sdd delivery-routes S1a, REQ-AUTH-DR-005) ─────
+    // Two lazy routes on the same shared read guard. The view
+    // discriminates manager vs driver internally — see design §9.2. Views
+    // are not yet implemented (S4c / S6a). This slice is accepted to fail
+    // `pnpm build` ONLY on the two missing route components.
+    {
+      path: '/pos/rutas-de-entrega',
+      name: 'pos-delivery-routes-list',
+      component: DeliveryRoutesListView,
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'DeliveryRoute'] as RoutePermission,
+      },
+    },
+    {
+      path: '/pos/rutas-de-entrega/:id',
+      name: 'pos-delivery-route-detail',
+      component: DeliveryRouteDetailView,
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'DeliveryRoute'] as RoutePermission,
+      },
+    },
     // ─── Notification config (WU-11) ──────────────────────────────────────────
     {
       path: '/sistema/configuracion/notificaciones',

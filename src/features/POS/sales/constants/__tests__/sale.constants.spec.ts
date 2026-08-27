@@ -50,6 +50,11 @@ const groups: Array<[group: string, cases: PinRow[]]> = [
     'SALE_DELIVERY_STATUS',
     [
       [SALE_DELIVERY_STATUS.PENDING, 'PENDING'],
+      // sdd delivery-routes S1a — REQ-SALES-DR-001: SHIPPED joins the sales
+      // delivery-status union. Was rendering "Desconocido" before this
+      // addition; the backend already returns 'SHIPPED' for in-transit
+      // confirmed sales that belong to a delivery route.
+      [SALE_DELIVERY_STATUS.SHIPPED, 'SHIPPED'],
       [SALE_DELIVERY_STATUS.DELIVERED, 'DELIVERED'],
       [SALE_DELIVERY_STATUS.NOT_APPLICABLE, 'NOT_APPLICABLE'],
     ],
@@ -143,5 +148,44 @@ describe('POS_ACTIVE_TAB_STORAGE_KEY — storage key freeze', () => {
 
   it('contains the "pos:" namespace prefix (not "sale:" or "sales:")', () => {
     expect(POS_ACTIVE_TAB_STORAGE_KEY.startsWith('pos:')).toBe(true)
+  })
+})
+
+// ── SALE_DELIVERY_STATUS.SHIPPED — sdd delivery-routes S1a (REQ-SALES-DR-001) ────
+//
+// The backend started returning 'SHIPPED' for confirmed sales that belong to
+// an active delivery route. Before this addition the frontend rendered
+// "Desconocido" everywhere — the SHIPPED row in the value-pin table above
+// guards against drift in the literal string. These tests pin the contract
+// more aggressively (the object exposes a SHIPPED key, the literal is 'SHIPPED',
+// and the derived SaleDeliveryStatus type widens automatically).
+
+describe('SALE_DELIVERY_STATUS.SHIPPED — sdd delivery-routes S1a (REQ-SALES-DR-001)', () => {
+  it('exposes a SHIPPED key whose value is the literal string "SHIPPED"', () => {
+    expect(SALE_DELIVERY_STATUS.SHIPPED).toBe('SHIPPED')
+  })
+
+  it('membership: SHIPPED is a member of the SALE_DELIVERY_STATUS object', () => {
+    expect('SHIPPED' in SALE_DELIVERY_STATUS).toBe(true)
+    expect(Object.keys(SALE_DELIVERY_STATUS)).toContain('SHIPPED')
+  })
+
+  it('preserves the singular vs plural distinction: literal "SHIPPED" (uppercase), not "Enviada"', () => {
+    // The const is the LITERAL wire value; the label 'Enviada' lives in the
+    // filter schema (salesFiltersSchema) and the badge map (saleStatus.utils).
+    // Asserting this here freezes the separation between logic (UPPERCASE
+    // literal) and UI copy (Spanish label).
+    expect(SALE_DELIVERY_STATUS.SHIPPED).not.toBe('Enviada')
+    expect(SALE_DELIVERY_STATUS.SHIPPED).not.toBe('Enviado')
+  })
+
+  it('preserves the case sensitivity: lowercase "shipped" is NOT a valid value', () => {
+    expect(SALE_DELIVERY_STATUS.SHIPPED).not.toBe('shipped')
+  })
+
+  it('does NOT alter the existing PENDING / DELIVERED / NOT_APPLICABLE values', () => {
+    expect(SALE_DELIVERY_STATUS.PENDING).toBe('PENDING')
+    expect(SALE_DELIVERY_STATUS.DELIVERED).toBe('DELIVERED')
+    expect(SALE_DELIVERY_STATUS.NOT_APPLICABLE).toBe('NOT_APPLICABLE')
   })
 })

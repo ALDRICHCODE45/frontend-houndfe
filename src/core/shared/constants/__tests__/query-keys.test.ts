@@ -6,7 +6,9 @@ import {
   adminTenantMembershipQueryKeys,
   notificationConfigQueryKeys,
   quotationQueryKeys,
+  adminPaymentDetailQueryKeys,
 } from '../query-keys'
+import { deliveryRouteQueryKeys } from '../query-keys'
 
 describe('promotionQueryKeys', () => {
   it('paginated() returns a tuple starting with "promotions"', () => {
@@ -459,8 +461,6 @@ describe('quotationQueryKeys (sdd-quotations-crud S1, REQ-QTN-015)', () => {
 // list base prefix so all page/filter/sort cache slots refetch (TanStack
 // prefix-matches array keys).
 
-import { adminPaymentDetailQueryKeys } from '../query-keys'
-
 describe('adminPaymentDetailQueryKeys (sdd payment-details-admin S1, REQ-PD-007)', () => {
   describe('list', () => {
     it('returns a tuple starting with "admin" then "payment-details" then tenantId then "list"', () => {
@@ -525,6 +525,151 @@ describe('adminPaymentDetailQueryKeys (sdd payment-details-admin S1, REQ-PD-007)
       const detailKey = adminPaymentDetailQueryKeys.detail('tenant-1', 'pd-1')
       const listPrefix = ['admin', 'payment-details', 'tenant-1']
       expect(detailKey.slice(0, 3)).toEqual(listPrefix)
+    })
+  })
+})
+
+// ── sdd delivery-routes S1a: deliveryRouteQueryKeys (REQ-AUTH-DR-005) ──────
+//
+// Cache contract: `list(tenantId, params)` for the paginated list, `listPrefix(tenantId)`
+// as the cross-slot invalidation prefix (covers EVERY status/table-param slot in one
+// call, including a `{ status: 'ACTIVE' }` slot which `list(tenantId, {})` would NOT
+// prefix-match), and `detail(tenantId, id)` for the single route.
+//
+// The `listPrefix` separation is the critical invariant — S1b's API specs and S4a+
+// composables depend on it to invalidate the entire list cache (all status filters,
+// all table pagination) from a single mutation.
+
+describe('deliveryRouteQueryKeys (sdd delivery-routes S1a, REQ-AUTH-DR-005)', () => {
+  describe('list', () => {
+    it('returns a tuple starting with "delivery-routes" then tenantId then "list"', () => {
+      const key = deliveryRouteQueryKeys.list('tenant-1')
+      expect(key[0]).toBe('delivery-routes')
+      expect(key[1]).toBe('tenant-1')
+      expect(key[2]).toBe('list')
+    })
+
+    it('encodes the params snapshot as the last segment so distinct filter sets produce distinct keys', () => {
+      const keyActive = deliveryRouteQueryKeys.list('tenant-1', { status: 'ACTIVE' })
+      const keyDraft = deliveryRouteQueryKeys.list('tenant-1', { status: 'DRAFT' })
+
+      expect(keyActive[3]).toEqual({ status: 'ACTIVE' })
+      expect(keyDraft[3]).toEqual({ status: 'DRAFT' })
+      expect(keyActive).not.toEqual(keyDraft)
+    })
+
+    it('uses empty params by default so the key stays stable for unfiltered lists', () => {
+      const key = deliveryRouteQueryKeys.list('tenant-1')
+      expect(key[3]).toEqual({})
+    })
+
+    it('produces different keys for different tenants (cache isolation)', () => {
+      const keyA = deliveryRouteQueryKeys.list('tenant-1')
+      const keyB = deliveryRouteQueryKeys.list('tenant-2')
+
+      expect(keyA).not.toEqual(keyB)
+    })
+
+    it('returns the same key tuple on repeated calls with identical args', () => {
+      const params = { status: 'ACTIVE' as const }
+      const key1 = deliveryRouteQueryKeys.list('tenant-1', params)
+      const key2 = deliveryRouteQueryKeys.list('tenant-1', params)
+
+      expect(key1).toEqual(key2)
+    })
+  })
+
+  describe('listPrefix', () => {
+    it('returns a tuple starting with "delivery-routes" then tenantId then "list"', () => {
+      const key = deliveryRouteQueryKeys.listPrefix('tenant-1')
+      expect(key[0]).toBe('delivery-routes')
+      expect(key[1]).toBe('tenant-1')
+      expect(key[2]).toBe('list')
+      // No params suffix — the prefix is for invalidation only.
+      expect(key).toHaveLength(3)
+    })
+
+    it('listPrefix invalidates EVERY list cache slot (incl. { status: ACTIVE })', () => {
+      // The critical invariant (REQ-AUTH-DR-005): a single mutation must
+      // invalidate ALL list slots — including ones filtered by status or
+      // table params. TanStack Query prefix-matches array keys, so the
+      // prefix MUST be a strict prefix of any list(tenantId, params).
+      const listEmpty = deliveryRouteQueryKeys.list('tenant-1')
+      const listActive = deliveryRouteQueryKeys.list('tenant-1', { status: 'ACTIVE' })
+      const listDraft = deliveryRouteQueryKeys.list('tenant-1', { status: 'DRAFT' })
+      const prefix = deliveryRouteQueryKeys.listPrefix('tenant-1')
+
+      expect(listEmpty.slice(0, 3)).toEqual(prefix)
+      expect(listActive.slice(0, 3)).toEqual(prefix)
+      expect(listDraft.slice(0, 3)).toEqual(prefix)
+    })
+
+    it('listPrefix is a SEPARATE prefix slot (not list(tenantId, {})) — assertion guards against accidental merge', () => {
+      // If a future refactor "unifies" listPrefix with list(tenantId, {}),
+      // then `invalidateQueries({ queryKey: listPrefix(t) })` would NOT
+      // prefix-match `list(t, { status: 'ACTIVE' })` (TanStack requires
+      // strict prefix equality, and the slots diverge at index 3). The
+      // S1a → S1b invariant pins this contract by value-equality.
+      const prefix = deliveryRouteQueryKeys.listPrefix('tenant-1')
+      const listEmpty = deliveryRouteQueryKeys.list('tenant-1')
+      expect(prefix).toEqual(['delivery-routes', 'tenant-1', 'list'])
+      expect(listEmpty).toEqual(['delivery-routes', 'tenant-1', 'list', {}])
+      // Sanity: prefix is strictly shorter than the list(tenantId, {}) slot.
+      expect(prefix.length).toBeLessThan(listEmpty.length)
+    })
+
+    it('produces different prefixes for different tenants', () => {
+      const keyA = deliveryRouteQueryKeys.listPrefix('tenant-1')
+      const keyB = deliveryRouteQueryKeys.listPrefix('tenant-2')
+      expect(keyA).not.toEqual(keyB)
+    })
+  })
+
+  describe('detail', () => {
+    it('returns the exact tuple shape ["delivery-routes", tenantId, "detail", id]', () => {
+      const key = deliveryRouteQueryKeys.detail('tenant-abc', 'route-1')
+      expect(key).toEqual(['delivery-routes', 'tenant-abc', 'detail', 'route-1'])
+    })
+
+    it('produces different keys for different ids within the same tenant', () => {
+      const keyA = deliveryRouteQueryKeys.detail('tenant-1', 'route-1')
+      const keyB = deliveryRouteQueryKeys.detail('tenant-1', 'route-2')
+      expect(keyA).not.toEqual(keyB)
+    })
+
+    it('produces different keys for different tenants with the same id', () => {
+      const keyA = deliveryRouteQueryKeys.detail('tenant-1', 'route-1')
+      const keyB = deliveryRouteQueryKeys.detail('tenant-2', 'route-1')
+      expect(keyA).not.toEqual(keyB)
+    })
+
+    it('returns the same key tuple on repeated calls with identical args', () => {
+      const key1 = deliveryRouteQueryKeys.detail('tenant-1', 'route-1')
+      const key2 = deliveryRouteQueryKeys.detail('tenant-1', 'route-1')
+      expect(key1).toEqual(key2)
+    })
+
+    it('listPrefix invalidates only list slots (not detail)', () => {
+      // The contract is `listPrefix` invalidates LIST slots only. Detail
+      // keys are ['delivery-routes', tenantId, 'detail', id] — at index 2
+      // they diverge from listPrefix (which has 'list'). Mutations on a
+      // single route use a separate detail invalidation; only list-shape
+      // mutations go through listPrefix.
+      const detailKey = deliveryRouteQueryKeys.detail('tenant-1', 'route-1')
+      const prefix = deliveryRouteQueryKeys.listPrefix('tenant-1')
+      // Index 0,1 match; index 2 ('list' vs 'detail') diverges.
+      expect(detailKey.slice(0, 2)).toEqual(prefix.slice(0, 2))
+      expect(detailKey[2]).toBe('detail')
+      expect(prefix[2]).toBe('list')
+      expect(detailKey).not.toEqual(prefix)
+    })
+
+    it('list slots ARE caught by listPrefix (TanStack prefix match)', () => {
+      const listEmpty = deliveryRouteQueryKeys.list('tenant-1')
+      const listActive = deliveryRouteQueryKeys.list('tenant-1', { status: 'ACTIVE' })
+      const prefix = deliveryRouteQueryKeys.listPrefix('tenant-1')
+      expect(listEmpty.slice(0, 3)).toEqual(prefix)
+      expect(listActive.slice(0, 3)).toEqual(prefix)
     })
   })
 })

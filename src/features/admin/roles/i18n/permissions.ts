@@ -63,6 +63,10 @@ const SUBJECT_LABELS: Record<string, string> = {
   // the sidebar/menu AND the role permissions UI. Must stay in sync with
   // auth.types.ts AppSubject + ability.ts APP_SUBJECTS.
   PaymentMethod: 'Métodos de cobro',
+  // sdd delivery-routes S1a — REQ-AUTH-DR-002: subject label surfaced in
+  // the sidebar/menu AND the role permissions UI. Must stay in sync with
+  // auth.types.ts AppSubject + ability.ts APP_SUBJECTS.
+  DeliveryRoute: 'Rutas de entrega',
 }
 
 export function getSubjectLabel(subject: string): string {
@@ -610,6 +614,34 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
       label: 'Desactivar métodos de cobro',
       description:
         'Dar de baja un método de cobro. El sistema deja de ofrecerlo al cobrar, pero los datos se conservan.',
+    },
+  },
+
+  // sdd delivery-routes S1a — REQ-AUTH-DR-002 + REQ-AUTH-DR-004: DeliveryRoute
+  // registers exactly the 4 CRUD actions (create / read / update / delete).
+  // NO `manage`, NO `batch_delete` — the backend RBAC registry exposes only
+  // these four; any other key would surface in the role UI as a permission
+  // the backend never seeds. `create` and `delete` together are the
+  // manager-discriminator (§9.1); `read`-only callers are drivers.
+  DeliveryRoute: {
+    create: {
+      label: 'Crear rutas de entrega',
+      description:
+        'Agrupar ventas pendientes o enviadas en una ruta y asignar un repartidor.',
+    },
+    read: {
+      label: 'Ver rutas de entrega',
+      description:
+        'Listar y consultar rutas de entrega (propias para repartidores).',
+    },
+    update: {
+      label: 'Editar rutas de entrega',
+      description:
+        'Editar rutas en borrador, iniciarlas, cancelarlas y registrar entregas.',
+    },
+    delete: {
+      label: 'Eliminar rutas de entrega',
+      description: 'Eliminar rutas en borrador sin paradas.',
     },
   },
 }

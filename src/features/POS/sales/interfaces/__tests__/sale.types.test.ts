@@ -41,6 +41,7 @@ import type {
   ApplicablePromotion,
   ListApplicablePromotionsResponse,
   SaleRewardKind,
+  SaleDeliveryStatus,
 } from '../sale.types'
 import { SaleCommentError } from '../sale.types'
 
@@ -1604,3 +1605,65 @@ describe('custom-payment-methods type extensions (sdd custom-payment-methods S4A
     })
   })
 })
+
+
+  // ── sdd delivery-routes S1a: SaleDeliveryStatus widens with SHIPPED (REQ-SALES-DR-001) ─
+  //
+  // `SaleDeliveryStatus` is derived from `SALE_DELIVERY_STATUS`
+  // (`(typeof SALE_DELIVERY_STATUS)[keyof typeof SALE_DELIVERY_STATUS]`) so
+  // adding `SHIPPED: 'SHIPPED'` to the const widens the type automatically.
+  // These compile-time tests pin the widening invariant.
+
+  describe('SaleDeliveryStatus widening (sdd delivery-routes S1a, REQ-SALES-DR-001)', () => {
+    it('accepts the new SHIPPED literal as a valid SaleDeliveryStatus', () => {
+      // If the const doesn't include SHIPPED, this assignment fails the build.
+      const status: SaleDeliveryStatus = 'SHIPPED'
+      expect(status).toBe('SHIPPED')
+    })
+
+    it('still accepts the existing PENDING / DELIVERED / NOT_APPLICABLE literals', () => {
+      const pending: SaleDeliveryStatus = 'PENDING'
+      const delivered: SaleDeliveryStatus = 'DELIVERED'
+      const notApplicable: SaleDeliveryStatus = 'NOT_APPLICABLE'
+      expect(pending).toBe('PENDING')
+      expect(delivered).toBe('DELIVERED')
+      expect(notApplicable).toBe('NOT_APPLICABLE')
+    })
+
+    it('SHIPPED is rejected as a typo variant (lowercase "shipped" or "Shipped")', () => {
+      // @ts-expect-error SHIPPED must be uppercase; 'shipped' is not a member of SaleDeliveryStatus
+      const lower: SaleDeliveryStatus = 'shipped'
+      // @ts-expect-error SHIPPED must be uppercase; 'Shipped' is not a member of SaleDeliveryStatus
+      const mixed: SaleDeliveryStatus = 'Shipped'
+      expect(lower).toBe('shipped')
+      expect(mixed).toBe('Shipped')
+    })
+
+    it('SHIPPED shows up in ConfirmedSaleRow.deliveryStatus (round-trips through the wire type)', () => {
+      // The ConfirmedSaleRow carries SaleDeliveryStatus, so a SHIPPED row
+      // must type-check end-to-end without an explicit cast.
+      const row: ConfirmedSaleRow = {
+        id: 'sale-shipped',
+        folio: 'A-202608-000001',
+        status: 'CONFIRMED',
+        paymentStatus: 'PAID',
+        deliveryStatus: 'SHIPPED',
+        totalCents: 50000,
+        debtCents: 0,
+        confirmedAt: '2026-08-27T10:00:00.000Z',
+        dueDate: null,
+        customer: { id: 'customer-1', name: 'Cliente' },
+        cashier: { id: 'cashier-1', name: 'Cajero' },
+        seller: null,
+        paymentMethods: ['CASH'],
+      }
+      expect(row.deliveryStatus).toBe('SHIPPED')
+    })
+
+    it('ListSalesParams.deliveryStatus accepts the SHIPPED filter literal', () => {
+      const params: ListSalesParams = {
+        deliveryStatus: ['PENDING', 'SHIPPED'],
+      }
+      expect(params.deliveryStatus).toContain('SHIPPED')
+    })
+  })

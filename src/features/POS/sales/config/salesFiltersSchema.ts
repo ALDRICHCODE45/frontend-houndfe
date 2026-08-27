@@ -34,6 +34,11 @@ export function createSalesFiltersSchema(sources: SalesFilterSchemaSources) {
       ] }),
     filter.multiEnum({ id: 'deliveryStatus', section: 'Estado', label: 'Entrega', param: 'deliveryStatus', options: [
         { value: SALE_DELIVERY_STATUS.PENDING, label: 'Pendiente' },
+        // sdd delivery-routes S1a — REQ-SALES-DR-003: SHIPPED filter option.
+        // Singular-feminine 'Enviada' to match 'Pendiente' / 'Entregada'.
+        // The wire literal is the uppercase value (see SALE_DELIVERY_STATUS
+        // in sale.constants.ts); the label is the UI copy.
+        { value: SALE_DELIVERY_STATUS.SHIPPED, label: 'Enviada' },
         { value: SALE_DELIVERY_STATUS.DELIVERED, label: 'Entregada' },
       ] }),
     filter.multiAsync({ id: 'customerId', section: 'Personas', label: 'Cliente', param: 'customerId', includeNull: { param: 'customerIncludeNull', label: 'Incluir Público en General' }, options: sources.customerOptions, loading: sources.customerLoading, loadingLabel: 'Cargando clientes...', placeholder: 'Buscar cliente' }),

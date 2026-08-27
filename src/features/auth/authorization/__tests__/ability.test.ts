@@ -550,3 +550,150 @@ describe('ability with PaymentMethod subject (sdd custom-payment-methods S1, REQ
     expect(subject).toBe('PaymentMethod')
   })
 })
+
+    // ── sdd delivery-routes S1a: CASL registration for DeliveryRoute ───────────
+    //
+    // REQ-AUTH-DR-001..003 — mirrors the PaymentDetail/PaymentMethod precedent.
+    // DeliveryRoute is added to AppSubject + APP_SUBJECTS so:
+    //   1. parsePermissionCode accepts the four CRUD codes.
+    //   2. updateAbilityFromPermissionCodes grants the corresponding CASL actions.
+    //   3. NO manage, NO batch_delete — backend registry exposes only CRUD.
+    //   4. Adding the subject does NOT alter PaymentDetail/PaymentMethod grants.
+    //   5. Removing the code revokes the grant on the next updateAbility call.
+    //   6. AppSubject union admits 'DeliveryRoute' (compile-time guarantee).
+
+    describe('ability with DeliveryRoute subject (sdd delivery-routes S1a, REQ-AUTH-DR-001..003)', () => {
+      beforeEach(() => {
+        resetAbility()
+      })
+
+      it('parses read:DeliveryRoute and grants read on DeliveryRoute only', () => {
+        updateAbilityFromPermissionCodes(['read:DeliveryRoute'])
+
+        expect(ability.can('read', 'DeliveryRoute')).toBe(true)
+        expect(ability.can('create', 'DeliveryRoute')).toBe(false)
+        expect(ability.can('update', 'DeliveryRoute')).toBe(false)
+        expect(ability.can('delete', 'DeliveryRoute')).toBe(false)
+      })
+
+      it('parses create:DeliveryRoute and grants create only', () => {
+        updateAbilityFromPermissionCodes(['create:DeliveryRoute'])
+
+        expect(ability.can('create', 'DeliveryRoute')).toBe(true)
+        expect(ability.can('read', 'DeliveryRoute')).toBe(false)
+      })
+
+      it('parses update:DeliveryRoute and grants update only', () => {
+        updateAbilityFromPermissionCodes(['update:DeliveryRoute'])
+
+        expect(ability.can('update', 'DeliveryRoute')).toBe(true)
+        expect(ability.can('read', 'DeliveryRoute')).toBe(false)
+      })
+
+      it('parses delete:DeliveryRoute and grants delete only', () => {
+        updateAbilityFromPermissionCodes(['delete:DeliveryRoute'])
+
+        expect(ability.can('delete', 'DeliveryRoute')).toBe(true)
+      })
+
+      it('parses all four DeliveryRoute CRUD actions together (full lifecycle role)', () => {
+        updateAbilityFromPermissionCodes([
+          'create:DeliveryRoute',
+          'read:DeliveryRoute',
+          'update:DeliveryRoute',
+          'delete:DeliveryRoute',
+        ])
+
+        expect(ability.can('create', 'DeliveryRoute')).toBe(true)
+        expect(ability.can('read', 'DeliveryRoute')).toBe(true)
+        expect(ability.can('update', 'DeliveryRoute')).toBe(true)
+        expect(ability.can('delete', 'DeliveryRoute')).toBe(true)
+      })
+
+      it('does NOT silently drop DeliveryRoute — parsePermissionCode returns the tuple when registered (REQ-AUTH-DR-003)', () => {
+        // If 'DeliveryRoute' were missing from APP_SUBJECTS, parsePermissionCode
+        // would return null and ability.can would stay false. Asserting true here
+        // guards against the silent-drop path during future APP_SUBJECTS edits.
+        updateAbilityFromPermissionCodes(['read:DeliveryRoute'])
+
+        expect(ability.can('read', 'DeliveryRoute')).toBe(true)
+      })
+
+      it('keeps DeliveryRoute scoped — no bleed to PaymentDetail/PaymentMethod/Sale/Customer/Product', () => {
+        updateAbilityFromPermissionCodes(['read:DeliveryRoute'])
+
+        expect(ability.can('read', 'DeliveryRoute')).toBe(true)
+        expect(ability.can('read', 'PaymentDetail')).toBe(false)
+        expect(ability.can('read', 'PaymentMethod')).toBe(false)
+        expect(ability.can('read', 'Sale')).toBe(false)
+        expect(ability.can('read', 'Customer')).toBe(false)
+        expect(ability.can('read', 'Product')).toBe(false)
+      })
+
+      it('coexists with other subjects without bleed (DeliveryRoute alongside PaymentDetail + Sale)', () => {
+        updateAbilityFromPermissionCodes([
+          'read:DeliveryRoute',
+          'read:PaymentDetail',
+          'update:Sale',
+        ])
+
+        expect(ability.can('read', 'DeliveryRoute')).toBe(true)
+        expect(ability.can('read', 'PaymentDetail')).toBe(true)
+        expect(ability.can('update', 'Sale')).toBe(true)
+        expect(ability.can('update', 'DeliveryRoute')).toBe(false)
+        expect(ability.can('create', 'Sale')).toBe(false)
+      })
+
+      it('grant is revoked when the DeliveryRoute code is removed from the code list', () => {
+        updateAbilityFromPermissionCodes(['read:DeliveryRoute'])
+        expect(ability.can('read', 'DeliveryRoute')).toBe(true)
+
+        updateAbilityFromPermissionCodes([])
+        expect(ability.can('read', 'DeliveryRoute')).toBe(false)
+      })
+
+      it('rejects malformed DeliveryRoute codes (extra segments / unknown action / unknown subject)', () => {
+        updateAbilityFromPermissionCodes([
+          'read:DeliveryRoute:extra', // extra segment → dropped
+          'fly:DeliveryRoute', // unknown action → dropped
+          'read:UnknownSubject', // unknown subject → dropped
+          'read:DeliveryRoute', // well-formed → grants
+        ])
+
+        expect(ability.can('read', 'DeliveryRoute')).toBe(true)
+      })
+
+      it('adding DeliveryRoute does NOT alter PaymentDetail grants (lock-step invariant)', () => {
+        updateAbilityFromPermissionCodes(['read:PaymentDetail', 'read:DeliveryRoute'])
+
+        expect(ability.can('read', 'DeliveryRoute')).toBe(true)
+        expect(ability.can('read', 'PaymentDetail')).toBe(true)
+        expect(ability.can('update', 'PaymentDetail')).toBe(false)
+        expect(ability.can('update', 'DeliveryRoute')).toBe(false)
+      })
+
+      it('only the 4 CRUD actions grant their respective verbs — no implicit manage bleed-through', () => {
+        // Backend registry exposes only create / read / update / delete for
+        // DeliveryRoute (REQ-AUTH-DR-002). `manage` or `batch_delete` MUST NOT
+        // surface in the curated role UI for this subject; assert the CASL
+        // layer does not implicitly widen the action set.
+        updateAbilityFromPermissionCodes([
+          'batch_delete:DeliveryRoute',
+        ])
+
+        expect(ability.can('read', 'DeliveryRoute')).toBe(false)
+        expect(ability.can('create', 'DeliveryRoute')).toBe(false)
+        expect(ability.can('update', 'DeliveryRoute')).toBe(false)
+        expect(ability.can('delete', 'DeliveryRoute')).toBe(false)
+        // batch_delete IS parseable for the subject (regression guard).
+        expect(ability.can('batch_delete', 'DeliveryRoute')).toBe(true)
+      })
+
+      it('validates DeliveryRoute is in the AppSubject type union (compile-time guarantee)', () => {
+        // If AppSubject no longer includes 'DeliveryRoute' (someone
+        // accidentally removed it from auth.types.ts), this assignment fails
+        // the build.
+        const subject: AppSubject = 'DeliveryRoute'
+        expect(subject).toBe('DeliveryRoute')
+      })
+    })

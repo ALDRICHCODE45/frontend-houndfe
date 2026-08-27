@@ -24,6 +24,11 @@ export const navigationGroups: NavGroup[] = [
       // read:Quotation. Hidden for users without the permission; the route
       // guard repeats the same check at /pos/cotizaciones.
       { id: 'pos-quotations', label: 'Cotizaciones', icon: 'i-lucide-file-text', to: '/pos/cotizaciones', permission: ['read', 'Quotation'] },
+      // sdd delivery-routes S1a (REQ-AUTH-DR-005 + §9.2): sidebar entry
+      // gated by read:DeliveryRoute. The route guard repeats the same
+      // check at /pos/rutas-de-entrega. The view itself discriminates
+      // manager vs driver rendering from the role composable.
+      { id: 'pos-delivery-routes', label: 'Rutas de entrega', icon: 'i-lucide-truck', to: '/pos/rutas-de-entrega', permission: ['read', 'DeliveryRoute'] },
     ],
   },
   {
