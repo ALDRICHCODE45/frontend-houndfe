@@ -35,7 +35,7 @@ function makeRow(overrides: Partial<PaymentMethodTableRow> = {}): PaymentMethodT
   }
 }
 
-function mountGrid(props: Record<string, unknown>) {
+function mountGrid(props: { paymentMethods: PaymentMethodTableRow[]; loading?: boolean }) {
   return mount(PaymentMethodCardGrid, {
     props,
     global: { stubs },

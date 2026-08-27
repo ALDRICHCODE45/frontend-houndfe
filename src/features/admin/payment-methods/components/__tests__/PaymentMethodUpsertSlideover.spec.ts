@@ -4,6 +4,7 @@ import PaymentMethodUpsertSlideover from '../PaymentMethodUpsertSlideover.vue'
 import type {
   CreatePaymentMethodFormValues,
   UpdatePaymentMethodFormValues,
+  PaymentMethodTableRow,
 } from '../../interfaces/payment-method.types'
 
 const slideoverStub = {
@@ -63,7 +64,14 @@ const stubs = {
   Switch: switchStub,
 }
 
-function mountSlideover(props: Record<string, unknown>) {
+type SlideoverMountProps = {
+  mode: 'create' | 'edit'
+  open: boolean
+  loading?: boolean
+  paymentMethod?: PaymentMethodTableRow | null
+}
+
+function mountSlideover(props: SlideoverMountProps) {
   return mount(PaymentMethodUpsertSlideover, {
     props,
     global: { stubs },

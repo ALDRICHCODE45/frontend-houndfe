@@ -46,7 +46,7 @@ export interface PaymentMethodLabelDisplay {
  * empty sub-line.
  */
 export function paymentMethodSubtitleText(payment: {
-  paymentMethodSubtitle?: string
+  paymentMethodSubtitle?: string | null
 }): string | null {
   const subtitle = payment.paymentMethodSubtitle
   if (subtitle === undefined || subtitle === null) return null
@@ -60,7 +60,7 @@ export function paymentMethodSubtitleText(payment: {
  * legacy label (see header comment).
  */
 export function paymentMethodDisplayLabel(
-  payment: { paymentMethodName?: string; paymentMethodSubtitle?: string },
+  payment: { paymentMethodName?: string; paymentMethodSubtitle?: string | null },
   baseLabel: string,
 ): PaymentMethodLabelDisplay {
   return {

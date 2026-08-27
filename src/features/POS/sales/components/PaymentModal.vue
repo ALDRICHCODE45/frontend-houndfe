@@ -449,7 +449,7 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
 
             <div
               v-for="(entry, index) in entries"
-              :key="paymentEntryKey(wireEntries[index])"
+              :key="paymentEntryKey(wireEntries[index]!)"
               :data-testid="`payment-entry-${index}`"
               class="space-y-3 rounded-xl border border-default bg-default px-3 py-3"
             >

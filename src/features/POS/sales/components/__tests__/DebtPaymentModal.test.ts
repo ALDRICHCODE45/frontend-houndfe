@@ -299,10 +299,10 @@ describe('DebtPaymentModal S4B — custom payment method tiles (sdd custom-payme
     projectionData.value = [customTransfer]
     const wrapper = mountModal()
 
-    expect(wrapper.get('[data-testid="payment-method-tile-cash"]').exists()).toBe(true)
-    expect(wrapper.get('[data-testid="payment-method-tile-card_credit"]').exists()).toBe(true)
-    expect(wrapper.get('[data-testid="payment-method-tile-card_debit"]').exists()).toBe(true)
-    expect(wrapper.get('[data-testid="payment-method-tile-transfer"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="payment-method-tile-cash"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="payment-method-tile-card_credit"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="payment-method-tile-card_debit"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="payment-method-tile-transfer"]').exists()).toBe(true)
     expect(wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_A}"]`).text()).toContain('Transferencia BBVA')
   })
 

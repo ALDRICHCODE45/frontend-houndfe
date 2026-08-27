@@ -592,7 +592,7 @@ describe('PaymentModal S4B — custom payment method tiles (sdd custom-payment-m
   it('REQ-PT-004 — renders 4 fixed tiles followed by custom tiles from the projection', () => {
     const wrapper = mountWithProjection([customMercadoPago])
 
-    expect(wrapper.get('[data-testid="add-payment-entry"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="add-payment-entry"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="payment-method-tile-card_credit"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="payment-method-tile-card_debit"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="payment-method-tile-transfer"]').exists()).toBe(true)
@@ -668,7 +668,7 @@ describe('PaymentModal S4B — custom payment method tiles (sdd custom-payment-m
   })
 
   it('REQ-PT-001 — a fixed tile and a custom tile of the same category do NOT collide', async () => {
-    const custom = { id: UUID_A, name: 'Transferencia BBVA', category: 'transfer', subtitle: null }
+    const custom: ActivePaymentMethodProjection = { id: UUID_A, name: 'Transferencia BBVA', category: 'transfer', subtitle: null }
     const wrapper = mountWithProjection([custom])
 
     // Fixed Transferencia tile

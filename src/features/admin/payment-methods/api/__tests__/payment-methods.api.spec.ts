@@ -70,7 +70,7 @@ describe('paymentMethodsApi (sdd custom-payment-methods S2A, REQ-PM-001/002/003/
     it('POSTs to /admin/payment-methods with the exact payload', async () => {
       vi.mocked(http.post).mockResolvedValue({ data: makeRow() })
 
-      const payload = { name: 'Mercado Pago', category: 'transfer', subtitle: 'Link' }
+      const payload = { name: 'Mercado Pago', category: 'transfer', subtitle: 'Link' } as const
       await paymentMethodsApi.create(payload)
 
       expect(http.post).toHaveBeenCalledWith('/admin/payment-methods', payload)

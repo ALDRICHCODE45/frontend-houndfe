@@ -1,4 +1,5 @@
 import { computed, reactive } from 'vue'
+import type { PaymentMethodCategory } from '@/core/shared/constants/payment-method-category'
 import {
   CreatePaymentMethodSchema,
   UpdatePaymentMethodSchema,
@@ -33,7 +34,17 @@ export type { CreatePaymentMethodFormValues, UpdatePaymentMethodFormValues }
  * toggle, not via a separate kebab action.
  */
 
-function getCreateInitialState(): CreatePaymentMethodFormValues {
+/**
+ * Create-form edit state (internal): `category` is `undefined` until the user
+ * picks one (the USelect starts empty). The wire/schema contract
+ * (`CreatePaymentMethodSchema`) still REQUIRES category on submit — this type
+ * only models the intermediate editing values, not the validated payload.
+ */
+type CreatePaymentMethodFormState = Omit<CreatePaymentMethodFormValues, 'category'> & {
+  category: PaymentMethodCategory | undefined
+}
+
+function getCreateInitialState(): CreatePaymentMethodFormState {
   return {
     name: '',
     category: undefined,
@@ -53,7 +64,7 @@ function getEditInitialState(): UpdatePaymentMethodFormValues {
 }
 
 export function usePaymentMethodForm(mode: 'create' | 'edit') {
-  const createState = reactive<CreatePaymentMethodFormValues>(getCreateInitialState())
+  const createState = reactive<CreatePaymentMethodFormState>(getCreateInitialState())
   const editState = reactive<UpdatePaymentMethodFormValues>(getEditInitialState())
 
   const schema = computed(() =>

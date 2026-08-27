@@ -53,7 +53,7 @@ describe('paymentMethodTile.utils (sdd custom-payment-methods S4A, design §1)',
 
   describe('paymentMethodTileKey', () => {
     it('returns the base category for a fixed tile (no paymentMethodId)', () => {
-      const tile = FIXED_METHOD_OPTIONS[0]
+      const tile = FIXED_METHOD_OPTIONS[0]!
       expect(paymentMethodTileKey(tile)).toBe('cash')
     })
 
@@ -115,7 +115,7 @@ describe('paymentMethodTile.utils (sdd custom-payment-methods S4A, design §1)',
 
   describe('findEntryIndex / getMethodCount / findTileForEntry', () => {
     it('returns -1 when the entry set is empty', () => {
-      const tile = FIXED_METHOD_OPTIONS[0]
+      const tile = FIXED_METHOD_OPTIONS[0]!
       expect(findEntryIndex([], tile)).toBe(-1)
       expect(getMethodCount([], tile)).toBe(0)
     })

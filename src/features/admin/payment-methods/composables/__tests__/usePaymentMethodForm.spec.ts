@@ -22,7 +22,7 @@ describe('usePaymentMethodForm (sdd custom-payment-methods S3A, REQ-PM-002/003)'
     it('initializes createState with empty fields (name, category, subtitle)', () => {
       const { createState } = usePaymentMethodForm('create')
 
-      const expected: CreatePaymentMethodFormValues = {
+      const expected: Partial<CreatePaymentMethodFormValues> = {
         name: '',
         category: undefined,
         subtitle: '',

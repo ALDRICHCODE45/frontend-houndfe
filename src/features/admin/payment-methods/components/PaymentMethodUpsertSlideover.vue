@@ -92,9 +92,9 @@ watch(
 // reactive state immediately rather than waiting for the USlideover's
 // `after-leave` event (which the tests stub and cannot reliably emit).
 watch(
-  () => props.open,
-  (open) => {
-    if (!open) {
+  open,
+  (value) => {
+    if (!value) {
       resetForm()
     }
   },

@@ -145,7 +145,7 @@ export interface SaleDetailPayment {
   // `metadataJson.catalog` snapshot for the row at confirm time.
   paymentMethodId?: string
   paymentMethodName?: string
-  paymentMethodSubtitle?: string
+  paymentMethodSubtitle?: string | null
 }
 
 export type SaleTimelineEvent =
