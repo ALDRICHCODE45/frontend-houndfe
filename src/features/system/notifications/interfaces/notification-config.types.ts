@@ -10,7 +10,7 @@
  * Known notification action keys. Add here ONLY when the backend adds a new
  * action to the registry; the front-end action registry mirrors it.
  */
-export type ActionKey = 'LOW_STOCK' | 'TIME_OFF_REQUESTED'
+export type ActionKey = 'LOW_STOCK' | 'TIME_OFF_REQUESTED' | 'DELIVERY_NEXT_STOP'
 
 /**
  * GET /notification-config response.
@@ -52,11 +52,19 @@ export interface NotificationConfigForm {
  * optional — simple actions (a single switch) get a one-line muted
  * subtitle under the label; complex actions (a future config form) may
  * omit it and render their own richer UI instead.
+ *
+ * `requiresRecipients` defaults to `true` (omitted ⇔ true). The single
+ * opt-out today is `DELIVERY_NEXT_STOP` — the backend resolves the
+ * recipient to the next customer's email server-side, so empty
+ * `recipientUserIds` is legal when it is the only enabled action.
+ * See `computeZeroRecipientViolation` in
+ * `utils/notificationConfigMappers.ts`.
  */
 export interface ActionDescriptor {
   key: ActionKey
   label: string
   description?: string
+  requiresRecipients?: boolean
 }
 
 /**

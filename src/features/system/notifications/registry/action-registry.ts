@@ -48,6 +48,20 @@ export const ACTION_REGISTRY: readonly ModuleDescriptor[] = [
       },
     ],
   },
+  {
+    moduleKey: 'delivery',
+    moduleLabel: 'Entregas',
+    actions: [
+      {
+        key: 'DELIVERY_NEXT_STOP',
+        label: 'Próxima parada',
+        description: 'Avisa al siguiente cliente que su paquete está por llegar.',
+        // Server resolves the recipient to the next customer's email
+        // (design §10.3); recipientUserIds is not needed for this action.
+        requiresRecipients: false,
+      },
+    ],
+  },
 ] as const
 
 /**

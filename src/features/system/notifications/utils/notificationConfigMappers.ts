@@ -21,6 +21,7 @@ import type {
   NotificationConfigPutBody,
   NotificationConfigResponse,
 } from '../interfaces/notification-config.types'
+import { findActionDescriptor } from '../registry/action-registry'
 
 /**
  * Hydrate the form model from a GET response.
@@ -199,15 +200,24 @@ export function mapNotificationConfigError(
 // ─── Pure guards ─────────────────────────────────────────────────────────────
 
 /**
- * Zero-recipient violation per spec REQ-6: enabledActions > 0 AND
- * recipientUserIds === 0. Master OFF with no actions is intentional and
- * never a violation.
+ * Zero-recipient violation per spec REQ-6: AT LEAST ONE enabled action
+ * requires recipients AND recipientUserIds === 0. Master OFF with no
+ * actions is intentional and never a violation.
+ *
+ * S2 refines the predicate to honour `requiresRecipients: false` on
+ * action descriptors (e.g. `DELIVERY_NEXT_STOP` — backend resolves the
+ * recipient to the next customer's email server-side). The comparison
+ * uses `!== false` so an omitted flag stays equivalent to `true`, which
+ * keeps `LOW_STOCK` / `TIME_OFF_REQUESTED` semantics unchanged.
  */
 export function computeZeroRecipientViolation(form: {
   enabledActions: readonly string[]
   recipientUserIds: readonly string[]
 }): boolean {
-  return form.enabledActions.length > 0 && form.recipientUserIds.length === 0
+  const hasRecipientBasedAction = form.enabledActions.some(
+    (key) => findActionDescriptor(key as never)?.requiresRecipients !== false,
+  )
+  return hasRecipientBasedAction && form.recipientUserIds.length === 0
 }
 
 /**

@@ -180,3 +180,57 @@ describe('HR module entry (S2 — hr-validation-notifications)', () => {
     expect(key).toBe('TIME_OFF_REQUESTED')
   })
 })
+
+describe('Delivery module entry (S2 — delivery-next-stop-notification)', () => {
+  it('contains the "delivery" module with moduleLabel "Entregas"', () => {
+    const delivery = ACTION_REGISTRY.find((m) => m.moduleKey === 'delivery')
+    expect(delivery).toBeDefined()
+    // backend-specified string — keep EXACTLY
+    expect(delivery!.moduleLabel).toBe('Entregas')
+  })
+
+  it('contains the DELIVERY_NEXT_STOP action with the exact backend-specified label', () => {
+    const delivery = ACTION_REGISTRY.find((m) => m.moduleKey === 'delivery')
+    expect(delivery).toBeDefined()
+    const action = delivery!.actions.find((a) => a.key === 'DELIVERY_NEXT_STOP')
+    expect(action).toBeDefined()
+    // backend-specified string — keep EXACTLY
+    expect(action!.label).toBe('Próxima parada')
+  })
+
+  it('carries the exact Spanish description for DELIVERY_NEXT_STOP', () => {
+    const delivery = ACTION_REGISTRY.find((m) => m.moduleKey === 'delivery')
+    const action = delivery!.actions.find((a) => a.key === 'DELIVERY_NEXT_STOP')!
+    expect(action.description).toBe(
+      'Avisa al siguiente cliente que su paquete está por llegar.',
+    )
+  })
+
+  it('requiresRecipients is explicitly false for DELIVERY_NEXT_STOP (server resolves recipient)', () => {
+    const descriptor = findActionDescriptor('DELIVERY_NEXT_STOP')
+    expect(descriptor).toBeDefined()
+    expect(descriptor!.requiresRecipients).toBe(false)
+  })
+
+  it('LOW_STOCK / TIME_OFF_REQUESTED keep requiresRecipients undefined (default true)', () => {
+    // Defaults: only DELIVERY_NEXT_STOP opts out; the other two stay
+    // implicit (true) so computeZeroRecipientViolation keeps blocking
+    // when no recipients are present.
+    expect(findActionDescriptor('LOW_STOCK')!.requiresRecipients).toBeUndefined()
+    expect(findActionDescriptor('TIME_OFF_REQUESTED')!.requiresRecipients).toBeUndefined()
+  })
+
+  it('isRegisteredActionKey returns true for DELIVERY_NEXT_STOP (id ↔ enabledActions mapping)', () => {
+    expect(isRegisteredActionKey('DELIVERY_NEXT_STOP')).toBe(true)
+  })
+
+  it('getActionsByKeys returns the DELIVERY_NEXT_STOP descriptor in input order', () => {
+    const result = getActionsByKeys(['LOW_STOCK', 'DELIVERY_NEXT_STOP'])
+    expect(result.map((a) => a.key)).toEqual(['LOW_STOCK', 'DELIVERY_NEXT_STOP'])
+  })
+
+  it('ActionKey union accepts the literal "DELIVERY_NEXT_STOP" (compile-time contract)', () => {
+    const key: ActionKey = 'DELIVERY_NEXT_STOP'
+    expect(key).toBe('DELIVERY_NEXT_STOP')
+  })
+})

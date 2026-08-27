@@ -289,6 +289,64 @@ describe('computeZeroRecipientViolation', () => {
       }),
     ).toBe(false)
   })
+
+  it('DELIVERY_NEXT_STOP only + zero recipients → NOT a violation (server resolves recipient)', () => {
+    expect(
+      computeZeroRecipientViolation({
+        enabledActions: ['DELIVERY_NEXT_STOP'],
+        recipientUserIds: [],
+      }),
+    ).toBe(false)
+  })
+
+  it('mixed (DELIVERY_NEXT_STOP + LOW_STOCK) + zero recipients → STILL a violation', () => {
+    // One recipient-based action in the enabled set keeps the block,
+    // because LOW_STOCK still needs explicit recipients from the UI.
+    expect(
+      computeZeroRecipientViolation({
+        enabledActions: ['LOW_STOCK', 'DELIVERY_NEXT_STOP'],
+        recipientUserIds: [],
+      }),
+    ).toBe(true)
+  })
+
+  it('TIME_OFF_REQUESTED only + zero recipients → STILL a violation (defaults unchanged)', () => {
+    // Regression pin: TIME_OFF_REQUESTED keeps the implicit true default
+    // for requiresRecipients; S2 must not regress this behaviour.
+    expect(
+      computeZeroRecipientViolation({
+        enabledActions: ['TIME_OFF_REQUESTED'],
+        recipientUserIds: [],
+      }),
+    ).toBe(true)
+  })
+
+  it('LOW_STOCK only + zero recipients → STILL a violation (defaults unchanged)', () => {
+    expect(
+      computeZeroRecipientViolation({
+        enabledActions: ['LOW_STOCK'],
+        recipientUserIds: [],
+      }),
+    ).toBe(true)
+  })
+
+  it('empty enabledActions + zero recipients → NOT a violation (master off)', () => {
+    expect(
+      computeZeroRecipientViolation({
+        enabledActions: [],
+        recipientUserIds: [],
+      }),
+    ).toBe(false)
+  })
+
+  it('mixed enabled actions + recipients present → not a violation', () => {
+    expect(
+      computeZeroRecipientViolation({
+        enabledActions: ['LOW_STOCK', 'DELIVERY_NEXT_STOP'],
+        recipientUserIds: ['u1'],
+      }),
+    ).toBe(false)
+  })
 })
 
 describe('computeCanSave (pure, no auth-store coupling)', () => {
