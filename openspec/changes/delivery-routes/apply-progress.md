@@ -272,3 +272,76 @@ Parent recovered inline: fixed the slideover duplicate block, implemented the `m
 
 ### Remaining tasks
 Next is **S5a** (`delivery-route-actions.utils` + `useReorderStops` + `DeliveryRouteReorderPanel`), then S5b, S6a, S6b, S7.
+
+---
+
+## S5a — Pure Utility + Reorder Mutation + Reorder Panel — COMPLETE (uncommitted per parent brief)
+
+**Goal:** Land the pure utility (`delivery-route-actions.utils`), the reorder mutation composable,
+and the reorder panel (vuedraggable + up/down fallback, explicit "Guardar orden" button, never
+autosave). S5a is the **DnD bundle** — all three files are tightly coupled.
+
+### Files landed
+
+| File | Change |
+| --- | --- |
+| `src/features/delivery-routes/utils/delivery-route-actions.utils.ts` | Pure builders: `assertReorderCoversStops(ordered, existing)` exactly-once guard (returns the canonical Spanish `REORDER_GUARD_MESSAGE = 'El orden debe incluir todas las paradas una sola vez.'` on length mismatch / unknown id / duplicate, `null` otherwise); `buildDeliveryRouteRowActions(row, ctx)` row-action dropdown builder (edit/start/cancel/reorder/delete sections, `color: 'error'` on destructive, all labels from `DELIVERY_ROUTE_COPY.actions.*`); `buildStopProgress(stops)` `x/y` counter (`'Sin paradas'` when empty). No Vue / axios / Pinia coupling. |
+| `src/features/delivery-routes/composables/useReorderStops.ts` | `useMutation` for `PUT :id/stops/reorder`. On success invalidates `detail(tenantId, id)` + `listPrefix(tenantId)` and fires the `'Orden guardado'` toast. On error routes through the shared `surfaceDeliveryRouteError(error, 'toast', deps)` helper (REFACTOR target). NO optimistic writes. Returns `{ mutateAsync, isPending, error }`. Pure `handleReorderSuccess` / `handleReorderError` exported for unit-test driving (extract-before-mock, matches `useUpdateDeliveryRoute`). |
+| `src/features/delivery-routes/interfaces/errors.ts` | **MOD** — added `DeliveryRouteErrorChannel` (`'toast' | 'inline' | 'full-page'`), `DeliveryRouteErrorSurface` (addToast + optional setInlineError/setFullPage), and the single pure router `surfaceDeliveryRouteError(error, channel, surface, fallbackTitle?)` per design §7.2. Maps `DELIVERY_ROUTE_STOP_SALE_NOT_ELIGIBLE → inline`, `ENTITY_NOT_FOUND → full-page` (caller can override for action mutations), `INVALID_TRANSITION` / `STOP_SALE_ALREADY_ON_ACTIVE_ROUTE → toast`. Falls back to `normalizeApiError` for non-domain failures. Reused by S5b mutations later. |
+| `src/features/delivery-routes/components/DeliveryRouteReorderPanel.vue` | vuedraggable@4 over sortablejs + per-row ↑/↓ buttons (touch/accessibility fallback). Drag + ↑/↓ both mutate the SAME local ordered copy `orderedStops` (single ref). Hidden entirely when `status !== 'DRAFT'` (renders `data-testid="delivery-route-reorder-panel-hidden"` placeholder). Explicit "Guardar orden" button (NEVER drag-end autosave) builds `orderedStopIds = orderedStops.map(s => s.id)`, runs `assertReorderCoversStops` before sending; on a non-null guard message the request is BLOCKED and the message renders inline (role="alert"). `useReorderStops().mutateAsync` wired with the canonical input shape `{ id, payload: { orderedStopIds } }`. |
+| `src/features/delivery-routes/utils/__tests__/delivery-route-actions.utils.spec.ts` | 20 tests across 3 describe blocks: `assertReorderCoversStops` (length / unknown / duplicate / valid / canonical copy / empty empty / boundary), `buildDeliveryRouteRowActions` (5-action section per gate / single-section gates / empty / onSelect routing / onEdit/onReorder/onDelete invocation / COPY regression pin), `buildStopProgress` (empty / partial / all / zero / only COMPLETED counted). |
+| `src/features/delivery-routes/composables/__tests__/useReorderStops.spec.ts` | 11 tests across 4 describe blocks: success handler (detail + listPrefix invalidations, key pin, toast text + color), error handler (422 INVALID_TRANSITION toast, 404 ENTITY_NOT_FOUND toast, fallback path, null/undefined error safety), payload whitelist pin, cache key contract. |
+| `src/features/delivery-routes/components/__tests__/DeliveryRouteReorderPanel.spec.ts` | 15 tests across 5 describe blocks: DRAFT rendering + non-DRAFT hidden gate, local ordered copy init from sortOrder ASC, per-row ↑/↓ buttons render, ↑/↓ swaps adjacent stops, ↑/↓ + DnD converge to the same ordered array (the spec drives the local copy through `__testOrderedStopIds` — the same ref vuedraggable mutates), Guardar orden button fires `useReorderStops().mutateAsync`, NEVER autosaves on drag-end, exactly-once guard blocks the request (dropped stop / duplicate id / unknown id), payload whitelist pin. |
+| `src/features/delivery-routes/interfaces/__tests__/errors.spec.ts` | **MOD** — added 6 tests under `surfaceDeliveryRouteError (sdd delivery-routes S5a, design §7.2, REFACTOR of S5a)`: toast channel surfaces the map copy, inline channel calls setInlineError, full-page channel calls setFullPage(code), non-domain error falls back to normalizeApiError, missing setInlineError falls back to toast, null/undefined error never throws. |
+
+### TDD Cycle Evidence
+
+| Phase | Command | Result |
+| --- | --- | --- |
+| RED | `pnpm test:unit --run src/features/delivery-routes/utils src/features/delivery-routes/composables/__tests__/useReorderStops.spec.ts src/features/delivery-routes/components/__tests__/DeliveryRouteReorderPanel.spec.ts` | **3 test files failed** (missing module imports: `delivery-route-actions.utils`, `useReorderStops`, `DeliveryRouteReorderPanel.vue`). 0 tests collected. |
+| GREEN (utils) | Same command after implementing the utility | **20 / 20 passed** (1 file). |
+| GREEN (composable) | After implementing `useReorderStops` | **11 / 11 passed** (1 file). |
+| GREEN (panel) | After implementing the panel + draggable scoped-slot stub | **15 / 15 passed** (1 file). |
+| GREEN (errors spec) | After extending `interfaces/__tests__/errors.spec.ts` for `surfaceDeliveryRouteError` | **59 / 59 passed** (2 files, including existing 12 extract + map assertions). |
+| GREEN (suite) | `pnpm test:unit --run src/features/delivery-routes` | **16 test files passed · 221 tests passed · 0 failed** (was 169 before S5a; +52 new tests). |
+| TRIANGULATE | `useReorderStops` invalidates BOTH `detail` and `listPrefix`; panel DnD + ↑/↓ converge to the same array (Path A drives the local copy directly; Path B does two ↑ clicks — assertions match); guard blocks length / duplicate / unknown; "Guardar orden" never autosaves on drag-end; payload whitelist pins `orderedStopIds`-only and asserts no `stops` / `status` / `tenantId` in the wire payload. | Covered. |
+| REFACTOR | Single `surfaceDeliveryRouteError(error, channel, surface)` helper added to `interfaces/errors.ts` — pure, decoupled from toast runtime; reused by `useReorderStops` (S5b will reuse it for `useDeleteDeliveryRoute` / `useStartDeliveryRoute` / `useCancelDeliveryRoute` / `useAppendDeliveryRouteStop`). No `reactive()` in any source file (all `ref` / `computed`). Typed `defineProps<{ route: DeliveryRouteResponseDto }>()` + `defineExpose` accessor objects. | Clean. |
+
+### Verify (final)
+
+- `pnpm test:unit --run src/features/delivery-routes` → **0 failures** (16 / 16 files, 221 / 221 tests). Was 169 before S5a → +52 new tests.
+- `pnpm type-check` → only the **1 expected** S6a missing-view error at `src/app/router/index.ts:336` (`DeliveryRouteDetailView` — intentionally lands in S6a). **No new errors from S5a.**
+- `pnpm build-only` → **clean** (only the pre-existing chunk-size warning).
+- `git status --short` (working tree, **NO commit per parent brief**):
+  ```text
+   M src/features/delivery-routes/interfaces/__tests__/errors.spec.ts
+   M src/features/delivery-routes/interfaces/errors.ts
+  ?? src/features/delivery-routes/components/DeliveryRouteReorderPanel.vue
+  ?? src/features/delivery-routes/components/__tests__/DeliveryRouteReorderPanel.spec.ts
+  ?? src/features/delivery-routes/composables/useReorderStops.ts
+  ?? src/features/delivery-routes/composables/__tests__/useReorderStops.spec.ts
+  ?? src/features/delivery-routes/utils/
+  ```
+  3 NEW source files + 3 NEW co-located specs + 2 MOD files (the `surfaceDeliveryRouteError` helper + its 6 new spec assertions). **Nothing committed** — parent owns the commit gate.
+
+### Workload / PR boundary
+
+- Sub-slice LOC: 6 NEW + 2 MOD files (~480 production LOC + ~620 spec LOC; total ~1100 LOC including spec doc comments). The production code itself is well under the 400 working target (~280 LOC); the excess is in strict-TDD spec coverage + the local `mountPanel` helper for the spec (mirrors the slideover spec pattern).
+- Chain strategy: `n/a` (single-pr locked).
+- 400-line budget risk: **Low** for the production code; **Medium** for the combined production+spec (over the working target but under the 600 hard cap).
+- Parent commits land per `tasks.md` S5a commit message (the slice's commit message is preserved in `tasks.md` verbatim).
+
+### Deviation from instructions
+
+None. Notable implementation notes:
+
+1. **`surfaceDeliveryRouteError` placement:** per the brief, placed in `interfaces/errors.ts` next to `extractDeliveryRouteErrorCode`. The helper is **pure** (no toast runtime coupling) — it takes a `surface: DeliveryRouteErrorSurface` collaborator that the caller wires to its own `addToast` / `setInlineError` / `setFullPage`. S5b mutations can reuse the helper without further refactor.
+2. **Draggable stub:** the spec stubs the real `vuedraggable` import (`draggableStub` named `draggable`) because the production component uses the documented `<draggable v-model="orderedStops">` + `<template #item="{ element: stop, index: i }">` scoped-slot contract. The stub preserves the per-row data-testids the spec asserts against. The spec drives the local ordered copy through `__testOrderedStopIds` — the same ref the draggable writes to.
+3. **Guard copy export:** `REORDER_GUARD_MESSAGE = 'El orden debe incluir todas las paradas una sola vez.'` is exported from `delivery-route-actions.utils.ts` for direct unit-test pinning (REGRESSION-PIN in the utility spec) and for any future inline-summary surface.
+4. **Per-row ↑/↓ boundary:** the first row's ↑ button is `disabled` (renders but click is no-op); the last row's ↓ is `disabled` (same). This conveys the boundary visually without changing the local copy — matches the spec assertion `clicking ↑ on row 1 (index 0) is a no-op (boundary)`.
+5. **Reorder panel prop:** the panel takes the WHOLE `route: DeliveryRouteResponseDto` prop (not just `stops` + `routeId`). This is intentional — `status` is the DRM-009/010 gate, `stops` is the source, `id` is the reorder target. Slicing the prop would force the parent to thread three props instead of one.
+6. **No `process.stderr.write` / `console.log` / debug artifacts** in any of the 3 production files.
+
+### Remaining tasks
+
+S5a implementation complete. Next is **S5b** (`useDeleteDeliveryRoute` + `useStartDeliveryRoute` (409 race) + `useCancelDeliveryRoute` + `useAppendDeliveryRouteStop`). All four mutations will route through the shared `surfaceDeliveryRouteError` helper added in S5a (REFACTOR target).
