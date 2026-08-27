@@ -57,6 +57,7 @@ export const DELIVERY_ROUTE_COPY = {
   validation: {
     selectAtLeastOneSale: 'Selecciona al menos una venta',
     notesMaxLength: 'Máximo 280 caracteres',
+    selectDriver: 'Selecciona un repartidor',
   },
   empty: {
     manager: 'Aún no has creado rutas. Crea una ruta desde el botón superior.',

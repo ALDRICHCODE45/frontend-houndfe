@@ -55,6 +55,11 @@ const AdminPaymentDetailsView = () =>
 // mutation lifecycle + slideover in S3B.
 const AdminPaymentMethodsView = () =>
   import('@/features/admin/payment-methods/views/AdminPaymentMethodsView.vue')
+// sdd delivery-routes S4c (REQ-DRM-001..007) — manager list view. The detail
+// route's lazy const (DeliveryRouteDetailView) ships in S6a and is intentionally
+// NOT declared here; `pnpm build` is accepted to fail on it until S6a lands.
+const DeliveryRoutesListView = () =>
+  import('@/features/delivery-routes/views/DeliveryRoutesListView.vue')
 const CatalogView = () => import('@/features/catalog/views/CatalogView.vue')
 // ─── Notification config (WU-11) ──────────────────────────────────────────
 const NotificationConfigView = () =>
