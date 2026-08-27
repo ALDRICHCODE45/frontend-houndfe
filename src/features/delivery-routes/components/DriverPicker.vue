@@ -3,21 +3,24 @@
  * DriverPicker — Single-select driver picker for delivery-route create/edit.
  *
  * Contract (sdd delivery-routes, design.md §4.1, §13.1):
- *   - Single-select over `usersApi.listAssignable()` (returns AssignableUser[]).
+ *   - Single-select over `usersApi.listAssignableDrivers()` (returns AssignableUser[]).
  *   - Renders {id, name} verbatim from the API response — NO client-side filter
  *     (courier-scoping is server-side per the §13.1 gate).
  *   - v-model:driverUserId with a `string | null` value.
  *   - Empty state: "No hay repartidores disponibles".
  *   - Loading + error states are surfaced via dedicated elements
  *     (`[data-testid="driver-picker-loading"]` / `driver-picker-error`).
- *   - API URL pin: spec asserts `GET /users/assignable` is the only fetch
+ *   - API URL pin: spec asserts `GET /users/assignable-drivers` is the only fetch
  *     (so a future scoped endpoint is a visible contract change).
  *
- * The picker is a thin presentation layer over the existing
- * `usersApi.listAssignable()` source — same cache slot as the notification
- * recipients picker. Reusing the source here means a future scope change
- * (a `?role=courier` query param, a `role` field on AssignableUser) lands
- * in ONE place.
+ * The picker consumes the DEDICATED `usersApi.listAssignableDrivers()` source —
+ * pure drivers only (active users whose tenant role has read+update on
+ * DeliveryRoute, without create/delete), served by the dedicated
+ * `GET /users/assignable-drivers` endpoint. It has its OWN TanStack cache slot
+ * (`usersQueryKeys.assignableDrivers()` → ['users', 'assignable-drivers']), NO
+ * longer shared with the notification recipients picker (which stays on the
+ * broader ['users', 'assignable'] slot via `usersApi.listAssignable()` — that
+ * slot carries managers and must never leak into the driver dropdown).
  *
  * Selected driver is also surfaced as an explicit chip below the trigger
  * (with a clear button) so the slideover's create/edit mode can render a
@@ -28,6 +31,7 @@
 import { computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { usersApi } from '@/features/POS/users/api/user.api'
+import { usersQueryKeys } from '@/core/shared/constants/query-keys'
 import type { AssignableUser } from '@/features/POS/users/interfaces/user.types'
 
 const props = withDefaults(
@@ -56,13 +60,17 @@ const emit = defineEmits<{
 }>()
 
 /**
- * Single source of truth: GET /users/assignable — the spec pins this URL.
- * `staleTime` matches the existing recipient picker cache (60s) so repeated
- * opens within a slideover session don't re-fetch.
+ * Single source of truth: GET /users/assignable-drivers — the spec pins this
+ * URL. Uses its OWN dedicated cache slot (`usersQueryKeys.assignableDrivers()`
+ * → ['users', 'assignable-drivers']), isolated from the notification recipients
+ * picker's broader ['users', 'assignable'] slot (that slot carries managers
+ * and would leak them into the driver dropdown). `staleTime` matches the
+ * recipient picker cache (60s) so repeated opens within a slideover session
+ * don't re-fetch.
  */
 const assignableQuery = useQuery<AssignableUser[]>({
-  queryKey: ['users', 'assignable'] as const,
-  queryFn: () => usersApi.listAssignable(),
+  queryKey: usersQueryKeys.assignableDrivers(),
+  queryFn: () => usersApi.listAssignableDrivers(),
   staleTime: 60_000,
 })
 

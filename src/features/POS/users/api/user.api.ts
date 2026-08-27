@@ -6,4 +6,9 @@ export const usersApi = {
     const { data } = await http.get<AssignableUser[]>('/users/assignable')
     return data
   },
+
+  async listAssignableDrivers(): Promise<AssignableUser[]> {
+    const { data } = await http.get<AssignableUser[]>('/users/assignable-drivers')
+    return data
+  },
 }

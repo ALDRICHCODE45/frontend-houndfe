@@ -112,6 +112,7 @@ export const quotationQueryKeys = {
 
 export const usersQueryKeys = {
   assignable: () => ['users', 'assignable'] as const,
+  assignableDrivers: () => ['users', 'assignable-drivers'] as const,
 }
 
 /**

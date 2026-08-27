@@ -35,3 +35,30 @@ describe('usersApi.listAssignable', () => {
     expect(result).toEqual([])
   })
 })
+
+describe('usersApi.listAssignableDrivers', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('GETs /users/assignable-drivers and returns the array', async () => {
+    const mockUsers: AssignableUser[] = [
+      { id: 'u-1', name: 'Bruno Díaz' },
+      { id: 'u-2', name: 'Caro Meza' },
+    ]
+    vi.mocked(http.get).mockResolvedValue({ data: mockUsers })
+
+    const result = await usersApi.listAssignableDrivers()
+
+    expect(http.get).toHaveBeenCalledWith('/users/assignable-drivers')
+    expect(result).toEqual(mockUsers)
+  })
+
+  it('returns empty array when no drivers assignable', async () => {
+    vi.mocked(http.get).mockResolvedValue({ data: [] })
+
+    const result = await usersApi.listAssignableDrivers()
+
+    expect(result).toEqual([])
+  })
+})

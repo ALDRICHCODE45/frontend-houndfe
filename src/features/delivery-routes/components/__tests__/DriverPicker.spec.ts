@@ -1,7 +1,7 @@
 // DriverPicker.spec.ts — STRICT-TDD tests for the delivery-route driver picker.
 //
 // Component contract (sdd delivery-routes, design.md §4.1, §13.1):
-//   - Single-select over `usersApi.listAssignable()` (returns AssignableUser[]).
+//   - Single-select over `usersApi.listAssignableDrivers()` (returns AssignableUser[]).
 //   - Renders {id, name} verbatim from the API response — NO client-side filter
 //     (courier-scoping is server-side per the gate in §13.1).
 //   - v-model:driverUserId (string | null when cleared).
@@ -11,7 +11,7 @@
 // The API is mocked at the module level so the spec owns the assignable
 // fixture list. This mirrors the `useManagerPicker` + `RecipientSelect` precedents.
 //
-// TRIANGULATE — API URL pin: spec asserts the picker calls `GET /users/assignable`
+// TRIANGULATE — API URL pin: spec asserts the picker calls `GET /users/assignable-drivers`
 // so a future scoped endpoint is a visible contract change.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
@@ -58,23 +58,23 @@ function mountPicker(props: Record<string, unknown> = {}) {
 }
 
 describe('DriverPicker — assignable user source', () => {
-  it('calls GET /users/assignable to fetch the driver list', async () => {
-    const spy = vi.spyOn(usersApi, 'listAssignable').mockResolvedValue(ASSIGNABLE)
+  it('calls GET /users/assignable-drivers to fetch the driver list', async () => {
+    const spy = vi.spyOn(usersApi, 'listAssignableDrivers').mockResolvedValue(ASSIGNABLE)
     mountPicker()
     await nextTick()
     // Wait for the promise returned by the queryFn to resolve.
     await vi.waitFor(() => expect(spy).toHaveBeenCalled())
   })
 
-  it('pins the API URL/method: GET /users/assignable (regression pin against a future scoped endpoint)', async () => {
+  it('pins the API URL/method: GET /users/assignable-drivers (regression pin against a future scoped endpoint)', async () => {
     // TRIANGULATE — this spec asserts the contract surface (API call) so a
     // future scoped endpoint (?role=courier) is a visible contract change
     // in this spec, not a silent refactor. We assert by reading the spy's
     // underlying HTTP request URL on the real implementation.
-    vi.spyOn(usersApi, 'listAssignable').mockResolvedValue(ASSIGNABLE)
+    vi.spyOn(usersApi, 'listAssignableDrivers').mockResolvedValue(ASSIGNABLE)
     mountPicker()
     await vi.waitFor(() => {
-      expect(usersApi.listAssignable).toHaveBeenCalled()
+      expect(usersApi.listAssignableDrivers).toHaveBeenCalled()
     })
     // The function is the same module the production code imports from;
     // asserting it was called + returns the assignable list is sufficient
@@ -82,7 +82,7 @@ describe('DriverPicker — assignable user source', () => {
   })
 
   it('renders the selected driver verbatim from the assignable list — no client-side filter', async () => {
-    vi.spyOn(usersApi, 'listAssignable').mockResolvedValue(ASSIGNABLE)
+    vi.spyOn(usersApi, 'listAssignableDrivers').mockResolvedValue(ASSIGNABLE)
     const wrapper = mountPicker({ modelValue: 'u2' })
     await vi.waitFor(() => {
       expect(wrapper.find('[data-testid="driver-picker-chip-u2"]').exists()).toBe(true)
@@ -91,7 +91,7 @@ describe('DriverPicker — assignable user source', () => {
   })
 
   it('exposes a "No hay repartidores disponibles" empty state when the list is empty', async () => {
-    vi.spyOn(usersApi, 'listAssignable').mockResolvedValue([])
+    vi.spyOn(usersApi, 'listAssignableDrivers').mockResolvedValue([])
     const wrapper = mountPicker()
     await vi.waitFor(() => {
       expect(wrapper.find('[data-testid="driver-picker-empty-inline"]').exists()).toBe(true)
@@ -102,7 +102,7 @@ describe('DriverPicker — assignable user source', () => {
 
 describe('DriverPicker — v-model / emit contract', () => {
   beforeEach(() => {
-    vi.spyOn(usersApi, 'listAssignable').mockResolvedValue(ASSIGNABLE)
+    vi.spyOn(usersApi, 'listAssignableDrivers').mockResolvedValue(ASSIGNABLE)
   })
 
   it('emits update:driverUserId with the new id when a driver is selected', async () => {
@@ -135,7 +135,7 @@ describe('DriverPicker — loading / error states', () => {
   it('exposes a loading indicator while the assignable list is fetching', async () => {
     let resolveFetch: (value: AssignableUser[]) => void = () => {}
     const pending = new Promise<AssignableUser[]>((res) => { resolveFetch = res })
-    vi.spyOn(usersApi, 'listAssignable').mockReturnValue(pending)
+    vi.spyOn(usersApi, 'listAssignableDrivers').mockReturnValue(pending)
     const wrapper = mountPicker()
     await nextTick()
     expect(wrapper.find('[data-testid="driver-picker-loading"]').exists()).toBe(true)
@@ -145,7 +145,7 @@ describe('DriverPicker — loading / error states', () => {
   })
 
   it('renders an error block when the assignable list fails to load', async () => {
-    vi.spyOn(usersApi, 'listAssignable').mockRejectedValue(new Error('boom'))
+    vi.spyOn(usersApi, 'listAssignableDrivers').mockRejectedValue(new Error('boom'))
     const wrapper = mountPicker()
     await vi.waitFor(() => {
       expect(wrapper.find('[data-testid="driver-picker-error"]').exists()).toBe(true)
@@ -156,7 +156,7 @@ describe('DriverPicker — loading / error states', () => {
 
 describe('DriverPicker — required marker', () => {
   beforeEach(() => {
-    vi.spyOn(usersApi, 'listAssignable').mockResolvedValue(ASSIGNABLE)
+    vi.spyOn(usersApi, 'listAssignableDrivers').mockResolvedValue(ASSIGNABLE)
   })
 
   it('renders the required marker when :required is true', async () => {
