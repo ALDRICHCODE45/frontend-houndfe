@@ -88,8 +88,8 @@ describe('salesFiltersSchema', () => {
   })
 
   // ─── pos-sale-delivery S3 — CAP-DLV-3 (deliveryStatus filter completeness) ─────
-  describe('pos-sale-delivery S3', () => {
-    it('deliveryStatus exposes exactly four options with the backend-lifecycle order', () => {
+  describe('deliveryStatus filter options (delivery-routes S1a — 3 options)', () => {
+    it('deliveryStatus exposes exactly three options with the backend-lifecycle order', () => {
       const schema = createSalesFiltersSchema({
         customerOptions: [], customerLoading: false, cashierOptions: [], cashierLoading: false,
       })
@@ -98,11 +98,12 @@ describe('salesFiltersSchema', () => {
       if (deliveryStatus?.kind !== 'multi-enum') throw new Error('deliveryStatus must be a multi-enum field')
       if (deliveryStatus.param !== 'deliveryStatus') throw new Error('deliveryStatus param drift')
 
-      expect(deliveryStatus.options).toEqual([
+          // delivery-routes S1a: NOT_APPLICABLE (take-away / instant delivery) is
+          // intentionally excluded — it has nothing to do with route logistics.
+          expect(deliveryStatus.options).toEqual([
         { value: SALE_DELIVERY_STATUS.PENDING, label: 'Pendiente' },
-        { value: SALE_DELIVERY_STATUS.SHIPPED, label: 'En ruta' },
+            { value: SALE_DELIVERY_STATUS.SHIPPED, label: 'Enviada' },
         { value: SALE_DELIVERY_STATUS.DELIVERED, label: 'Entregada' },
-        { value: SALE_DELIVERY_STATUS.NOT_APPLICABLE, label: 'No aplica' },
       ])
     })
 
@@ -137,14 +138,14 @@ describe('salesFiltersSchema', () => {
       })
 
       const state = schema.defaults()
-      state.deliveryStatus = [SALE_DELIVERY_STATUS.SHIPPED, SALE_DELIVERY_STATUS.NOT_APPLICABLE]
+          state.deliveryStatus = [SALE_DELIVERY_STATUS.PENDING, SALE_DELIVERY_STATUS.SHIPPED]
       const query = schema.serialize(state)
 
       // The CSV is order-dependent — the implementation builds it via .join(',') on
       // the selected array, so we accept either valid permutation.
       expect(query.deliveryStatus).toBeOneOf([
-        `${SALE_DELIVERY_STATUS.SHIPPED},${SALE_DELIVERY_STATUS.NOT_APPLICABLE}`,
-        `${SALE_DELIVERY_STATUS.NOT_APPLICABLE},${SALE_DELIVERY_STATUS.SHIPPED}`,
+            `${SALE_DELIVERY_STATUS.PENDING},${SALE_DELIVERY_STATUS.SHIPPED}`,
+            `${SALE_DELIVERY_STATUS.SHIPPED},${SALE_DELIVERY_STATUS.PENDING}`,
       ])
     })
   })
