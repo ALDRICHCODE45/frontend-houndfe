@@ -56,10 +56,14 @@ const AdminPaymentDetailsView = () =>
 const AdminPaymentMethodsView = () =>
   import('@/features/admin/payment-methods/views/AdminPaymentMethodsView.vue')
 // sdd delivery-routes S4c (REQ-DRM-001..007) — manager list view. The detail
-// route's lazy const (DeliveryRouteDetailView) ships in S6a and is intentionally
-// NOT declared here; `pnpm build` is accepted to fail on it until S6a lands.
+// route's lazy const (DeliveryRouteDetailView) ships in S6a; `pnpm build` no
+// longer fails on the detail route.
 const DeliveryRoutesListView = () =>
   import('@/features/delivery-routes/views/DeliveryRoutesListView.vue')
+// sdd delivery-routes S6a — manager-branch detail view (driver branch is a
+// placeholder until S6b; the placeholder returns null in the view body).
+const DeliveryRouteDetailView = () =>
+  import('@/features/delivery-routes/views/DeliveryRouteDetailView.vue')
 const CatalogView = () => import('@/features/catalog/views/CatalogView.vue')
 // ─── Notification config (WU-11) ──────────────────────────────────────────
 const NotificationConfigView = () =>

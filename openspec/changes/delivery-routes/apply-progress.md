@@ -394,4 +394,42 @@ None. Notable implementation notes:
 
 ### Remaining tasks
 
-S5b implementation complete. Next is **S6a** (`useDriverActiveRoutes` + `useDeliveryRouteDetail` + `DeliveryRouteDetailView` — manager branch wires S4c + S5a + S5b mutations; driver branch is a placeholder until S6b).
+S5b implementation complete.
+
+---
+
+## S6a — Driver Composables + Detail View (Manager Branch Wired) — COMPLETE (delegated to sdd-apply, uncommitted per parent brief)
+
+### What landed
+
+3 NEW source files + 1 REFACTOR file + 3 co-located specs. MOD: `src/app/router/index.ts` (lazy `DeliveryRouteDetailView` const — resolves the long-standing type-check error at :336).
+
+| File | Status |
+|------|--------|
+| `src/features/delivery-routes/composables/useDriverActiveRoutes.ts` | **NEW** — `useQuery` over `deliveryRoutesApi.list('ACTIVE')` (server-scoped `?status=ACTIVE`, no `driverUserId` param, no client filter). |
+| `src/features/delivery-routes/composables/useDeliveryRouteDetail.ts` | **NEW** — `useQuery` over `deliveryRoutesApi.getById(id)`, `placeholderData: keepPreviousData`, key `deliveryRouteQueryKeys.detail(tenantId, id)`. |
+| `src/features/delivery-routes/composables/useDeliveryRoutePermissions.ts` | **NEW (REFACTOR target)** — thin wrapper over `useDeliveryRouteRole` exposing `{ canCreate, canDelete, canUpdate, canRead }` as `computed<boolean>`; no new query. |
+| `src/features/delivery-routes/views/DeliveryRouteDetailView.vue` | **NEW** — single `useDeliveryRouteRole` discriminator; manager branch wires S4c (create/update via slideover) + S5a (reorder panel) + S5b (delete/start/cancel/append); driver branch is a `// TODO(S6b)` placeholder. 404 `ENTITY_NOT_FOUND` AND driver 403 → same full-page "Ruta no encontrada" (no presence leak). Generic 5xx/network → generic error block. |
+| 3 co-located specs | **NEW** — 35 tests total (17 view + composables). |
+
+### TDD evidence
+
+- **RED** — 3 specs written first (sdd-apply).
+- **GREEN** — 2 composables + view + permissions wrapper implemented; slice specs green.
+- **TRIANGULATE** — driver 403 no leak (no banner/toast), delete gating (DRAFT + zero-stops + canDelete), driver branch placeholder, 409 start wiring. **Parent-added TRIANGULATE:** generic 5xx/network error → generic error block, NOT not-found (fixed a `notFoundCode` defect that mapped ANY error to not-found).
+- **REFACTOR** — `useDeliveryRoutePermissions()` extracted; view consumes a single `useDeliveryRouteRole` call for the discriminator. |
+
+### Verify
+
+- `pnpm test:unit --run <3 specs>` → **3 files / 35 tests passed** (34 initial + 1 parent TRIANGULATE).
+- `pnpm test:unit --run src/features/delivery-routes` → **23 files / 290 tests passed** (was 255 after S5b → +35).
+- `pnpm type-check` → **0 errors** (the `DeliveryRouteDetailView` error at `router/index.ts:336` is GONE).
+- `pnpm build-only` → clean.
+
+### Deviation from instructions
+
+One parent-owned correction (small, inline): the sdd-apply output mapped ANY detail-fetch error (including 5xx/network) to the full-page not-found state, leaving the generic error block unreachable. The parent fixed `notFoundCode` to only map `ENTITY_NOT_FOUND` + HTTP 403 to not-found (5xx/network fall through to the error block) and added one TRIANGULATE test pinning the generic-error path. This is a bounded correction, not a scope change.
+
+### Remaining tasks
+
+S6a implementation complete. Next is **S6b** (`DriverRouteCard` + `DriverStopDetail` + `DeliveryRouteTimeline` + `useCheckInStop` + replace the S4c list-view driver placeholder AND the S6a detail-view driver placeholder).

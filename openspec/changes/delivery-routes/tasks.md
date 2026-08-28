@@ -800,10 +800,10 @@ into the detail.**
 
 **TDD steps**
 
-- [ ] **RED** — Write specs for: `useDriverActiveRoutes` (single `?status=ACTIVE` fetch, NO `driverUserId` param, server-scoping implicit); `useDeliveryRouteDetail` (key shape, `placeholderData: keepPreviousData`, invalidation by mutations); `DeliveryRouteDetailView` (role-gated controls per DRM-013, 404/403 → not-found, 409 start flow, delete hidden unless DRAFT+zero-stop). <!-- sdd-owner: implementation -->
-- [ ] **GREEN** — Implement the 2 composables + the view. The detail view wires the S4c + S5a + S5b mutations into the manager branch (driver branch returns null placeholder). Driver 403 is mapped to the same full-page "Ruta no encontrada" state as `ENTITY_NOT_FOUND`. <!-- sdd-owner: implementation -->
-- [ ] **TRIANGULATE** — Add cases: start 409 surfaces the specific copy + refetches (assert no auto-retry); driver 403 never leaks presence (assert no banner / no toast); delete hidden unless DRAFT + zero stops + delete permission; assert the driver branch returns null (placeholder marker) until S6b. <!-- sdd-owner: implementation -->
-- [ ] **REFACTOR** — Extract a `useDeliveryRoutePermissions()` wrapper (already started in S4a/S5a) and have the detail view consume it; tighten the view's role-discriminator reads to a single `useDeliveryRouteRole` call. <!-- sdd-owner: implementation -->
+- [x] **RED** — Write specs for: `useDriverActiveRoutes` (single `?status=ACTIVE` fetch, NO `driverUserId` param, server-scoping implicit); `useDeliveryRouteDetail` (key shape, `placeholderData: keepPreviousData`, invalidation by mutations); `DeliveryRouteDetailView` (role-gated controls per DRM-013, 404/403 → not-found, 409 start flow, delete hidden unless DRAFT+zero-stop). <!-- sdd-owner: implementation -->
+- [x] **GREEN** — Implement the 2 composables + the view. The detail view wires the S4c + S5a + S5b mutations into the manager branch (driver branch returns null placeholder). Driver 403 is mapped to the same full-page "Ruta no encontrada" state as `ENTITY_NOT_FOUND`. <!-- sdd-owner: implementation -->
+- [x] **TRIANGULATE** — Add cases: start 409 surfaces the specific copy + refetches (assert no auto-retry); driver 403 never leaks presence (assert no banner / no toast); delete hidden unless DRAFT + zero stops + delete permission; assert the driver branch returns null (placeholder marker) until S6b. <!-- sdd-owner: implementation -->
+- [x] **REFACTOR** — Extract a `useDeliveryRoutePermissions()` wrapper (already started in S4a/S5a) and have the detail view consume it; tighten the view's role-discriminator reads to a single `useDeliveryRouteRole` call. <!-- sdd-owner: implementation -->
 
 **Verify**
 
