@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { ChargeSalePayload, LegacyChargePayload, NonCreditPaymentMethod, PaymentEntry, SaleDraftCustomer } from '../interfaces/sale.types'
+import type { CustomerAddress } from '@/features/POS/customers/interfaces/customer.types'
 import { PAYMENT_METHOD } from '../constants/sale.constants' // sdd/magic-string-constants slice 3 — lowercase contract.
 import DateFieldPopover from './DateFieldPopover.vue'
 import { newIdempotencyKey } from '../utils/idempotency.utils'
@@ -25,6 +26,14 @@ const props = defineProps<{
   totalCents: number
   saleId: string
   customer?: SaleDraftCustomer | null
+  // pos-sale-delivery S2 (CAP-DLV-1): reactive shipping address from the
+  // active draft. Gates the "Entrega a domicilio" USwitch — when null the
+  // toggle is disabled with an inline hint and a CTA that reuses the
+  // existing request-assign-customer emit (opens AssignCustomerSlideover).
+  // SalesView passes `activeDraft.shippingAddress ?? null` so prop changes
+  // follow backend-driven clears (e.g. customer reassign → backend
+  // shippingAddress: null → hasShippingAddress flips → toggle disables).
+  shippingAddress?: CustomerAddress | null
   isSubmitting?: boolean
   externalError?: string | null
   // sdd custom-payment-methods S4B (design §8.3 / REQ-CAT-007): the parent
@@ -61,6 +70,12 @@ const inlineError = ref<string | null>(null)
 const idempotencyKey = ref<string>('')
 const dueDateInput = ref<string | null>(null)
 const isDueDateExpanded = ref(false)
+// pos-sale-delivery S2 (CAP-DLV-1): the "Entrega a domicilio" toggle. Lives
+// only in the modal's local state — the backend does not own it. Reset on
+// every modal open (see watch(() => props.open, …)) and whenever the
+// shipping-address gate closes (see watch(shippingAddress, …)) so a stale
+// ON state cannot leak into a subsequent buildPayload().
+const delivery = ref(false)
 
 function todayISODate(): string {
   const t = new Date()
@@ -97,6 +112,11 @@ const paidSumCents = computed(() => {
 const hasCashPayment = computed(() => entries.value.some((entry) => entry.method === PAYMENT_METHOD.CASH))
 const remainingCents = computed(() => props.totalCents - paidSumCents.value)
 const hasCustomer = computed(() => props.customer != null)
+// pos-sale-delivery S2 (CAP-DLV-1): drives the USwitch `:disabled` and the
+// inline gating hint ("asigná cliente y dirección primero"). Recomputes
+// reactively whenever SalesView flips `shippingAddress` (e.g. customer
+// reassign → backend clears the address → prop goes null → gate closes).
+const hasShippingAddress = computed(() => props.shippingAddress != null)
 const isPartial = computed(() => paidSumCents.value < props.totalCents)
 const debtToGenerateCents = computed(() => Math.max(0, props.totalCents - paidSumCents.value))
 const canSubmitPartial = computed(() => hasCustomer.value && isPartial.value)
@@ -200,6 +220,10 @@ watch(
     idempotencyKey.value = newIdempotencyKey()
     dueDateInput.value = null
     isDueDateExpanded.value = false
+    // pos-sale-delivery S2 (CAP-DLV-1): reset the delivery toggle on
+    // every modal open so a stale ON state from a prior session cannot
+    // leak into the next charge.
+    delivery.value = false
   },
   { immediate: true },
 )
@@ -271,11 +295,16 @@ function validate(): boolean {
 function buildPayload(): ChargeSalePayload {
   const payments = normalizeEntries()
   const dueDate = dueDateInput.value || undefined
+  // pos-sale-delivery S2 (CAP-DLV-1, design §2/Q4): single source of truth
+  // for the delivery patch. `{}` when off → key absent → legacy charges
+  // stay byte-identical (no `delivery: false` ever emitted, per spec).
+  // `{ delivery: true }` when on → spread into BOTH branches below.
+  const deliveryPatch = delivery.value ? { delivery: true } : {}
 
   if (payments.length === 1) {
     const single = payments[0]
     if (!single) {
-      return dueDate ? { payments, dueDate } : { payments }
+      return dueDate ? { payments, dueDate, ...deliveryPatch } : { payments, ...deliveryPatch }
     }
 
     // sdd custom-payment-methods S4B (REQ-CAT-002 / design §1.3): flatten a
@@ -285,6 +314,7 @@ function buildPayload(): ChargeSalePayload {
     const legacy: LegacyChargePayload = {
       method: single.method,
       amountCents: single.amountCents,
+      ...deliveryPatch,
     }
     if (single.paymentMethodId !== undefined) {
       legacy.paymentMethodId = single.paymentMethodId
@@ -295,7 +325,7 @@ function buildPayload(): ChargeSalePayload {
     return legacy
   }
 
-  return dueDate ? { payments, dueDate } : { payments }
+  return dueDate ? { payments, dueDate, ...deliveryPatch } : { payments, ...deliveryPatch }
 }
 
 function handleSubmit() {
@@ -319,12 +349,16 @@ watch(
   },
 )
 
-// sales-pos-charge WU-C.2: keep idempotency-key regeneration on any entry
-// change (amount, method, reference) so the cashier can't replay a stale
-// charge request after editing fields. The previous reference-error
-// bookkeeping has been removed since REQ-NEW-9 made reference optional.
+// sales-pos-charge WU-C.2 + pos-sale-delivery S2 (CAP-DLV-1 idempotency):
+// regenerate the idempotency key on any entry change (amount, method,
+// reference) AND on every "Entrega a domicilio" toggle flip. The `delivery`
+// ref is added to the watch source tuple so a legitimate toggle edit never
+// reuses a key whose backend hash captured the prior `delivery` value
+// (would otherwise respond with `409 IDEMPOTENCY_KEY_CONFLICT`). `delivery`
+// is a primitive `ref<boolean>`, so the `{ deep: true }` flag is a no-op
+// for it and remains correct for the `entries` array source.
 watch(
-  entries,
+  [entries, delivery],
   () => {
     if (!props.open) return
     idempotencyKey.value = newIdempotencyKey()
@@ -336,6 +370,19 @@ watch(entries, (next) => {
   if (!props.open || next.length === 0) return
   if (next.length <= MAX_ENTRIES) return
   entries.value = next.slice(0, MAX_ENTRIES)
+})
+
+// pos-sale-delivery S2 (CAP-DLV-1, design §2/Q7): when the shipping address
+// is cleared reactively (e.g. customer reassign → backend clears it →
+// activeDraft.shippingAddress becomes null → prop goes null → gate closes),
+// reset the toggle to OFF so a stale ON state cannot leak into a subsequent
+// buildPayload(). buildPayload() is additionally gated by the
+// `delivery.value ? … : {}` patch, but this watch makes the user-visible
+// state honest too (the switch shows OFF the moment the gate closes).
+watch(() => props.shippingAddress, (addr) => {
+  if (addr == null) {
+    delivery.value = false
+  }
 })
 
 // sdd custom-payment-methods S4B (design §8.3 / REQ-CAT-007): when the parent
@@ -547,6 +594,45 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
                   :disabled="isSubmitting"
                   :min-iso="minDueDate"
                 />
+              </div>
+            </section>
+
+            <!-- pos-sale-delivery S2 (CAP-DLV-1): "Entrega a domicilio" toggle.
+                 Gates on `hasShippingAddress` (design §2/Q1, §2/Q7). When the
+                 gate is closed the switch is disabled and an inline hint
+                 explains why, plus a CTA that reuses the existing
+                 request-assign-customer emit to open AssignCustomerSlideover.
+                 Placed immediately after the due-date section per design
+                 §2/Q1 (due-date + delivery are the two optional charge
+                 modifiers that only make sense after a customer is assigned). -->
+            <section data-testid="delivery-section" class="space-y-2">
+              <USwitch
+                v-model="delivery"
+                :disabled="!hasShippingAddress || isSubmitting"
+                label="Entrega a domicilio"
+                description="Marca la venta para entrega a domicilio; el estado inicial será pendiente."
+                data-testid="delivery-toggle"
+              />
+
+              <p
+                v-if="!hasShippingAddress"
+                data-testid="delivery-hint"
+                class="text-xs text-warning"
+              >
+                asigná cliente y dirección primero
+              </p>
+
+              <div v-if="!hasShippingAddress">
+                <UButton
+                  data-testid="delivery-assign-cta"
+                  color="warning"
+                  variant="soft"
+                  size="sm"
+                  :disabled="isSubmitting"
+                  @click="emit('request-assign-customer')"
+                >
+                  Asignar cliente
+                </UButton>
               </div>
             </section>
           </div>

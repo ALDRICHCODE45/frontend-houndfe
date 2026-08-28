@@ -167,10 +167,10 @@ const globalStubs = {
       + '</div>',
   },
   PaymentModal: {
-    props: ['open', 'saleId', 'externalError', 'isSubmitting', 'customer', 'totalCents', 'catalogClearSignal'],
+    props: ['open', 'saleId', 'externalError', 'isSubmitting', 'customer', 'totalCents', 'catalogClearSignal', 'shippingAddress'],
     emits: ['submit', 'update:open', 'request-assign-customer'],
     template:
-      '<div><p data-testid="payment-modal-open">{{ open }}</p><p data-testid="payment-modal-total-cents">{{ totalCents }}</p><p data-testid="payment-modal-catalog-clear-signal">{{ catalogClearSignal }}</p><button data-testid="submit-charge" :disabled="isSubmitting" @click="$emit(\'submit\', { saleId, payload: { method: \'cash\', amountCents: totalCents }, idempotencyKey: \'idem-1\' })">submit</button><button data-testid="request-assign-customer" @click="$emit(\'request-assign-customer\')">assign</button><p data-testid="external-error">{{ externalError }}</p><p data-testid="modal-customer-id">{{ customer?.id }}</p></div>',
+      '<div><p data-testid="payment-modal-open">{{ open }}</p><p data-testid="payment-modal-total-cents">{{ totalCents }}</p><p data-testid="payment-modal-catalog-clear-signal">{{ catalogClearSignal }}</p><p data-testid="payment-modal-shipping-address-id">{{ shippingAddress?.id }}</p><button data-testid="submit-charge" :disabled="isSubmitting" @click="$emit(\'submit\', { saleId, payload: { method: \'cash\', amountCents: totalCents }, idempotencyKey: \'idem-1\' })">submit</button><button data-testid="request-assign-customer" @click="$emit(\'request-assign-customer\')">assign</button><p data-testid="external-error">{{ externalError }}</p><p data-testid="modal-customer-id">{{ customer?.id }}</p></div>',
   },
   PaymentSuccessModal: {
     props: ['open', 'folio', 'debtCents', 'paymentStatus'],
@@ -1117,5 +1117,74 @@ describe('SalesView S5A — catalog charge error dispatch (REQ-CAT-007..011)', (
       expect(addCalls.some((c) => c.title === 'Error' && c.description === 'No se pudo cobrar la venta. Reintenta.')).toBe(true)
     })
     expect(wrapper.get('[data-testid="payment-modal-catalog-clear-signal"]').text()).toBe('0')
+  })
+})
+
+// ─── pos-sale-delivery S2 — PaymentModal :shipping-address prop pass-through ──
+//
+// CAP-DLV-1: SalesView MUST pass `activeDraft.shippingAddress ?? null` to
+// PaymentModal so the toggle gating reactively follows backend-driven clears
+// (e.g. customer reassign → backend clears address → activeDraft updates →
+// prop changes → hasShippingAddress flips → toggle disables).
+
+describe('SalesView S2 — shippingAddress pass-through to PaymentModal (pos-sale-delivery)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    unassignCustomerMock.mockReset()
+    clearShippingAddressMock.mockReset()
+    vetoAutoPromotionMock.mockReset()
+    applyManualPromotionMock.mockReset()
+    removeManualPromotionMock.mockReset()
+    setPriceListMock.mockReset()
+    resetApplicablePromotionsMock()
+    drafts.value = [
+      {
+        id: 'sale-1',
+        userId: 'user-1',
+        status: 'DRAFT',
+        items: [{ id: 'item-1', productId: 'prod-1', variantId: null, productName: 'A', variantName: null, quantity: 1, unitPriceCents: 10000, unitPriceCurrency: 'MXN' }],
+        createdAt: 'x',
+        updatedAt: 'x',
+      },
+    ]
+    activeTabId.value = 'sale-1'
+  })
+
+  it('passes activeDraft.shippingAddress to PaymentModal when the address is present', async () => {
+    drafts.value = [
+      {
+        ...drafts.value[0]!,
+        shippingAddress: {
+          id: 'addr-1',
+          customerId: 'cust-1',
+          street: 'Av. Reforma 123',
+          exteriorNumber: '123',
+          interiorNumber: null,
+          zipCode: '06600',
+          neighborhood: 'Centro',
+          municipality: 'Cuauhtémoc',
+          city: 'CDMX',
+          state: 'CDMX',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      },
+    ]
+
+    const wrapper = mountView()
+    await wrapper.get('[data-testid="charge-click"]').trigger('click')
+
+    expect(wrapper.get('[data-testid="payment-modal-shipping-address-id"]').text()).toBe('addr-1')
+  })
+
+  // TRIANGULATE: `?? null` semantics — the prop MUST be explicitly null
+  // (NOT undefined) when the address is absent, locking the gate behavior
+  // on the PaymentModal side (`hasShippingAddress = computed(shippingAddress != null)`).
+  it('passes null to PaymentModal when activeDraft.shippingAddress is absent', async () => {
+    const wrapper = mountView()
+    await wrapper.get('[data-testid="charge-click"]').trigger('click')
+
+    // The stub template renders `{{ shippingAddress?.id }}`; null => empty string.
+    expect(wrapper.get('[data-testid="payment-modal-shipping-address-id"]').text()).toBe('')
   })
 })

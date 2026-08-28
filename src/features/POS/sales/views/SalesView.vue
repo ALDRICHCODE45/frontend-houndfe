@@ -887,6 +887,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
       v-model:open="paymentModalOpen"
       :sale-id="activeDraft.id"
       :customer="activeDraft.customer ?? null"
+      :shipping-address="activeDraft.shippingAddress ?? null"
       :total-cents="activeDraft.totalCents ?? 0"
       :is-submitting="isMutating || isChargeTemporarilyBlocked"
       :external-error="inlineAmountError"

@@ -74,6 +74,28 @@ const stubs = {
     emits: ['update:modelValue'],
     template: '<div />',
   },
+  // pos-sale-delivery S2 (design §6.1 / CAP-DLV-1): stub the Nuxt UI switch
+  // as a checkbox input. `$attrs` is forwarded so `data-testid="delivery-toggle"`
+  // (set on the real component) is queryable. The change event emits
+  // `update:modelValue` with the new checked state so v-model behaves
+  // identically to the production switch (boolean binding).
+  USwitch: {
+    props: ['modelValue', 'disabled', 'label', 'description'],
+    emits: ['update:modelValue'],
+    template: '<input type="checkbox" v-bind="$attrs" :checked="modelValue" :disabled="disabled" @change="$emit(\'update:modelValue\', $event.target.checked)" />',
+  },
+  // Both `USwitch` and `Switch` keys mirror the existing UButton/Button
+  // dual-stub pattern: the auto-imported form (`<USwitch>`) resolves to a
+  // component whose runtime name is `Switch`, so the stub key must match
+  // either form for Vue Test Utils to apply the override. Without `Switch`,
+  // the real Nuxt UI Switch (a `<button>` root via reka-ui's Primitive)
+  // renders and the `data-testid="delivery-toggle"` lands on that button,
+  // breaking `setValue()` on what should be an `<input>` element.
+  Switch: {
+    props: ['modelValue', 'disabled', 'label', 'description'],
+    emits: ['update:modelValue'],
+    template: '<input type="checkbox" v-bind="$attrs" :checked="modelValue" :disabled="disabled" @change="$emit(\'update:modelValue\', $event.target.checked)" />',
+  },
 }
 
 // sdd custom-payment-methods S4B: mock the projection composable so the modal
@@ -91,6 +113,33 @@ vi.mock('../../composables/useSalePaymentMethods', () => ({
     refetch: vi.fn(),
   }),
 }))
+
+// pos-sale-delivery S2 (design §3 / CAP-DLV-1 idempotency requirement):
+// mock the idempotency-key generator with a deterministic counter so we can
+// assert both "regenerates on toggle flip" (consecutive keys differ) AND
+// "stable entries keep the key stable" (consecutive keys equal). The
+// production implementation calls `crypto.randomUUID()`, which is
+// non-deterministic and would make the stable-key test flaky. The mock is
+// reset in the S2 describe block's `beforeEach` so each test starts at 0.
+let idempotencyCounter = 0
+vi.mock('../../utils/idempotency.utils', () => ({
+  newIdempotencyKey: () => `key-${++idempotencyCounter}`,
+}))
+
+const SHIPPING_ADDRESS_FIXTURE = {
+  id: 'addr-1',
+  customerId: 'cust-1',
+  street: 'Av. Reforma 123',
+  exteriorNumber: '123',
+  interiorNumber: null,
+  zipCode: '06600',
+  neighborhood: 'Centro',
+  municipality: 'Cuauhtémoc',
+  city: 'CDMX',
+  state: 'CDMX',
+  createdAt: '2026-01-01T00:00:00.000Z',
+  updatedAt: '2026-01-01T00:00:00.000Z',
+}
 
 describe('PaymentModal', () => {
   it('opens with empty payments list (no method preselected)', () => {
@@ -765,5 +814,400 @@ describe('PaymentModal S4B — custom payment method tiles (sdd custom-payment-m
     expect(wrapper.findAll('[data-method]')).toHaveLength(4)
     expect(wrapper.find('[data-testid^="payment-method-tile-custom-"]').exists()).toBe(false)
     expect(wrapper.findAll('[role="alert"]')).toHaveLength(0)
+  })
+})
+
+// ─── pos-sale-delivery S2 — PaymentModal delivery toggle + idempotency + gate ──
+//
+// CAP-DLV-1 (specs/sales/spec.md): the "Entrega a domicilio" toggle emits
+// `delivery: true` from buildPayload() when ON, omits the key when OFF, is
+// gated on `shippingAddress` being present, regenerates the idempotency key
+// on every flip, and resets to OFF on modal open AND on shippingAddress clear.
+// The test command in tasks.md is
+// `pnpm test:unit --run src/features/POS/sales/components/__tests__/PaymentModal.test.ts`.
+
+describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', () => {
+  beforeEach(() => {
+    projectionData.value = []
+    idempotencyCounter = 0
+  })
+
+  it('renders a delivery-toggle switch in a delivery-section after the due-date section', () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+        shippingAddress: SHIPPING_ADDRESS_FIXTURE,
+      },
+      global: { stubs },
+    })
+
+    // The delivery section is a sibling of the due-date section, both inside
+    // the scrollable body. We assert presence + label; the section ordering
+    // matches design §1/Q1 ("immediately after the due-date section").
+    expect(wrapper.find('[data-testid="delivery-section"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="delivery-toggle"]').exists()).toBe(true)
+  })
+
+  it('toggle is disabled and hint visible when shippingAddress is null', () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+        shippingAddress: null,
+      },
+      global: { stubs },
+    })
+
+    const toggle = wrapper.get('[data-testid="delivery-toggle"]')
+    expect(toggle.attributes('disabled')).toBeDefined()
+    expect(wrapper.html()).toContain('asigná cliente y dirección primero')
+  })
+
+  it('toggle is enabled and hint absent when shippingAddress is present', () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+        shippingAddress: SHIPPING_ADDRESS_FIXTURE,
+      },
+      global: { stubs },
+    })
+
+    const toggle = wrapper.get('[data-testid="delivery-toggle"]')
+    expect(toggle.attributes('disabled')).toBeUndefined()
+    expect(wrapper.html()).not.toContain('asigná cliente y dirección primero')
+  })
+
+  it('CTA emits request-assign-customer when toggle is gated (shippingAddress null)', async () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+        shippingAddress: null,
+      },
+      global: { stubs },
+    })
+
+    await wrapper.get('[data-testid="delivery-assign-cta"]').trigger('click')
+    expect(wrapper.emitted('request-assign-customer')).toBeTruthy()
+    expect(wrapper.emitted('request-assign-customer')!.length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('legacy branch payload carries delivery: true when toggle is ON', async () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+        customer: { id: 'c-1', firstName: 'Ada', lastName: null },
+        shippingAddress: SHIPPING_ADDRESS_FIXTURE,
+      },
+      global: { stubs },
+    })
+
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
+    // Flip the toggle ON
+    await wrapper.get('[data-testid="delivery-toggle"]').setValue(true)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+
+    const submitted = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
+    expect(submitted).toBeDefined()
+    const payload = submitted!.payload as unknown as Record<string, unknown>
+    expect(payload).toMatchObject({ method: 'cash', amountCents: 15000, delivery: true })
+    // Multi-payment discriminator MUST stay absent
+    expect(payload).not.toHaveProperty('payments')
+  })
+
+  it('multi-payment branch payload carries delivery: true when toggle is ON', async () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+        customer: { id: 'c-1', firstName: 'Ada', lastName: null },
+        shippingAddress: SHIPPING_ADDRESS_FIXTURE,
+      },
+      global: { stubs },
+    })
+
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-method="card_debit"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('100')
+    await wrapper.get('[data-testid="payment-amount-1"]').setValue('50')
+    await wrapper.get('[data-testid="payment-reference-1"]').setValue('AUTH-123')
+    await wrapper.get('[data-testid="delivery-toggle"]').setValue(true)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+
+    const submitted = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
+    expect(submitted).toBeDefined()
+    const payload = submitted!.payload as unknown as Record<string, unknown> & { payments: unknown[] }
+    expect(payload.delivery).toBe(true)
+    expect(payload.payments).toHaveLength(2)
+    // Legacy discriminants MUST stay absent
+    expect(payload).not.toHaveProperty('method')
+    expect(payload).not.toHaveProperty('amountCents')
+  })
+
+  it('payload omits the delivery key when toggle is OFF (legacy branch)', async () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+        customer: { id: 'c-1', firstName: 'Ada', lastName: null },
+        shippingAddress: SHIPPING_ADDRESS_FIXTURE,
+      },
+      global: { stubs },
+    })
+
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
+    // Toggle stays OFF (the default state)
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+
+    const submitted = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
+    const payload = submitted!.payload as unknown as Record<string, unknown>
+    // The key MUST be absent — not just falsy — to preserve byte-identical
+    // legacy charges (design §2/Q4, spec "Scenario: payload omits delivery when toggle is off").
+    expect('delivery' in payload).toBe(false)
+    expect(payload).toMatchObject({ method: 'cash', amountCents: 15000 })
+  })
+
+  it('payload omits the delivery key when toggle is OFF (multi-payment branch)', async () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+        customer: { id: 'c-1', firstName: 'Ada', lastName: null },
+        shippingAddress: SHIPPING_ADDRESS_FIXTURE,
+      },
+      global: { stubs },
+    })
+
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-method="card_debit"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('100')
+    await wrapper.get('[data-testid="payment-amount-1"]').setValue('50')
+    await wrapper.get('[data-testid="payment-reference-1"]').setValue('AUTH-123')
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+
+    const submitted = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
+    const payload = submitted!.payload as unknown as Record<string, unknown> & { payments: unknown[] }
+    expect('delivery' in payload).toBe(false)
+    expect(payload.payments).toHaveLength(2)
+  })
+
+  it('modal open resets delivery to OFF (toggle flipped ON before open is reverted on next open)', async () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: false,
+        totalCents: 15000,
+        saleId: 'sale-1',
+        shippingAddress: SHIPPING_ADDRESS_FIXTURE,
+        customer: { id: 'c-1', firstName: 'Ada', lastName: null },
+      },
+      global: { stubs },
+    })
+
+    const toggle = wrapper.get('[data-testid="delivery-toggle"]')
+    // Flip toggle ON before opening (a stale-ON state from a prior session)
+    await toggle.setValue(true)
+    await wrapper.vm.$nextTick()
+    expect((toggle.element as HTMLInputElement).checked).toBe(true)
+
+    // Open the modal — the reset-on-open watch MUST restore delivery to false
+    await wrapper.setProps({ open: true })
+    await wrapper.vm.$nextTick()
+
+    expect((toggle.element as HTMLInputElement).checked).toBe(false)
+
+    // The next submit MUST omit the delivery key (payload-level regression
+    // guard — locking the "fresh modal always emits legacy charges" contract).
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+
+    const submitted = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
+    const payload = submitted!.payload as unknown as Record<string, unknown>
+    expect('delivery' in payload).toBe(false)
+  })
+
+  it('toggling delivery regenerates the idempotency key (entries unchanged)', async () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+        customer: { id: 'c-1', firstName: 'Ada', lastName: null },
+        shippingAddress: SHIPPING_ADDRESS_FIXTURE,
+      },
+      global: { stubs },
+    })
+
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    const firstKey = (wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent).idempotencyKey
+
+    // Flip the toggle ON — the watch on [entries, delivery] MUST regenerate
+    await wrapper.get('[data-testid="delivery-toggle"]').setValue(true)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    const secondKey = (wrapper.emitted('submit')?.[1]?.[0] as PaymentModalSubmitEvent).idempotencyKey
+
+    expect(secondKey).not.toBe(firstKey)
+
+    // Flip back to OFF — the key MUST regenerate again (every flip counts)
+    await wrapper.get('[data-testid="delivery-toggle"]').setValue(false)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    const thirdKey = (wrapper.emitted('submit')?.[2]?.[0] as PaymentModalSubmitEvent).idempotencyKey
+
+    expect(thirdKey).not.toBe(secondKey)
+  })
+
+  it('stable entries + no toggle change keeps the idempotency key stable', async () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+        customer: { id: 'c-1', firstName: 'Ada', lastName: null },
+        shippingAddress: SHIPPING_ADDRESS_FIXTURE,
+      },
+      global: { stubs },
+    })
+
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    const firstKey = (wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent).idempotencyKey
+
+    // No state change (no entry edit, no toggle flip) — the key MUST stay stable.
+    // Asserting equality locks "no spurious regeneration on idle submits"
+    // (counterpart of the regen-on-flip test above).
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    const secondKey = (wrapper.emitted('submit')?.[1]?.[0] as PaymentModalSubmitEvent).idempotencyKey
+
+    expect(secondKey).toBe(firstKey)
+  })
+
+  it('clearing shippingAddress reactively resets the toggle and disables it', async () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+        customer: { id: 'c-1', firstName: 'Ada', lastName: null },
+        shippingAddress: SHIPPING_ADDRESS_FIXTURE,
+      },
+      global: { stubs },
+    })
+
+    // Flip toggle ON while the gate is open
+    const toggle = wrapper.get('[data-testid="delivery-toggle"]')
+    await toggle.setValue(true)
+    await wrapper.vm.$nextTick()
+    expect((toggle.element as HTMLInputElement).checked).toBe(true)
+    expect(toggle.attributes('disabled')).toBeUndefined()
+
+    // Backend-driven address clear (e.g. customer reassign) → gate closes
+    await wrapper.setProps({ shippingAddress: null })
+    await wrapper.vm.$nextTick()
+
+    // Gate-close watch MUST reset the toggle to OFF so a stale ON state
+    // cannot leak into a subsequent buildPayload().
+    expect((toggle.element as HTMLInputElement).checked).toBe(false)
+    expect(toggle.attributes('disabled')).toBeDefined()
+    expect(wrapper.html()).toContain('asigná cliente y dirección primero')
+
+    // Regression: a submit AFTER the address clears MUST omit the delivery key,
+    // even if the cashier never flipped the toggle back manually.
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    const submitted = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
+    const payload = submitted!.payload as unknown as Record<string, unknown>
+    expect('delivery' in payload).toBe(false)
+  })
+
+  // TRIANGULATE: isSubmitting also disables the toggle even when an address is present.
+  // The `:disabled` expression is `!hasShippingAddress || isSubmitting`; this test
+  // pins the OR semantics.
+  it('toggle is also disabled while isSubmitting is true even when an address is present', async () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+        shippingAddress: SHIPPING_ADDRESS_FIXTURE,
+        isSubmitting: true,
+      },
+      global: { stubs },
+    })
+
+    const toggle = wrapper.get('[data-testid="delivery-toggle"]')
+    expect(toggle.attributes('disabled')).toBeDefined()
+    // No hint when an address IS present (gate is open); only isSubmitting.
+    expect(wrapper.html()).not.toContain('asigná cliente y dirección primero')
+  })
+
+  // TRIANGULATE: when hasShippingAddress is true, the CTA MUST NOT render
+  // (the disabled-state CTA only makes sense while the gate is closed).
+  it('CTA is NOT rendered when shippingAddress is present', () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+        shippingAddress: SHIPPING_ADDRESS_FIXTURE,
+      },
+      global: { stubs },
+    })
+
+    expect(wrapper.find('[data-testid="delivery-assign-cta"]').exists()).toBe(false)
+  })
+
+  // TRIANGULATE: the legacy branch with toggle ON MUST still respect a dueDate
+  // when present — regression guard so `deliveryPatch` spread doesn't shadow
+  // `dueDate` on either branch.
+  it('legacy branch with toggle ON respects dueDate when present (deliveryPatch does not shadow)', async () => {
+    const dueDateStub = {
+      props: ['modelValue', 'placeholder', 'disabled', 'minIso', 'testid'],
+      emits: ['update:modelValue'],
+      template: '<input :data-testid="testid" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+    }
+
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+        customer: { id: 'c-1', firstName: 'Ada', lastName: null },
+        shippingAddress: SHIPPING_ADDRESS_FIXTURE,
+      },
+      global: {
+        stubs: { ...stubs, DateFieldPopover: dueDateStub },
+      },
+    })
+
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('100') // partial → debt + dueDate
+    await wrapper.get('[data-testid="expand-due-date"]').trigger('click')
+    await wrapper.get('[data-testid="due-date-input"]').setValue('2099-12-31')
+    await wrapper.get('[data-testid="delivery-toggle"]').setValue(true)
+    await wrapper.vm.$nextTick()
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+
+    const submitted = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
+    const payload = submitted!.payload as unknown as Record<string, unknown>
+    expect(payload).toMatchObject({ method: 'cash', amountCents: 10000, delivery: true, dueDate: '2099-12-31' })
   })
 })
