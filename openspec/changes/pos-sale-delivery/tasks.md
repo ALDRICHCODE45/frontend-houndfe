@@ -233,31 +233,31 @@ feat(pos-sale-delivery S2): PaymentModal USwitch gated on shippingAddress, idemp
 
 #### RED — write the failing tests first
 
-- [ ] Extend `src/features/POS/sales/config/__tests__/salesFiltersSchema.test.ts` with a test asserting that the `deliveryStatus` field exposes exactly four options with labels `Pendiente`, `En ruta`, `Entregada`, `No aplica` (in that or stable order), values matching `SALE_DELIVERY_STATUS.{PENDING, SHIPPED, DELIVERED, NOT_APPLICABLE}`. <!-- sdd-owner: implementation -->
-- [ ] In the same file, add a regression test asserting the schema still defines exactly 11 fields across 4 sections (REQ-19 invariant) — count fields by reading the schema's `.fields` / equivalent accessor. <!-- sdd-owner: implementation -->
-- [ ] Extend `src/features/POS/sales/utils/__tests__/saleStatus.utils.test.ts` with a test asserting `getDeliveryStatusBadge('SHIPPED')` deep-equals `{ label: 'En ruta', color: 'warning' }`. <!-- sdd-owner: implementation -->
-- [ ] In the same file, add a test asserting `getDeliveryStatusBadge('NOT_APPLICABLE')` deep-equals `{ label: 'No aplica', color: 'neutral' }`. <!-- sdd-owner: implementation -->
-- [ ] In the same file, add a parameterized test asserting every value of `Object.keys(SALE_DELIVERY_STATUS)` resolves via `getDeliveryStatusBadge` to a non-`Desconocido` config (locks "no fallback for valid values"). <!-- sdd-owner: implementation -->
-- [ ] In the same file, add a regression test asserting pre-existing entries are untouched: `getDeliveryStatusBadge('DELIVERED')` deep-equals `{ label: 'Entregados', color: 'success' }` and `getDeliveryStatusBadge('PENDING')` deep-equals `{ label: 'No Entregados', color: 'error' }`. <!-- sdd-owner: implementation -->
-- [ ] In the same file, add a test asserting unknown strings still return `unknownBadge` (label `"Desconocido"`) — locks the legitimate fallback path. <!-- sdd-owner: implementation -->
-- [ ] Run the two S3 test files and confirm at least the new tests fail (RED gate). <!-- sdd-owner: implementation -->
+- [x] Extend `src/features/POS/sales/config/__tests__/salesFiltersSchema.test.ts` with a test asserting that the `deliveryStatus` field exposes exactly four options with labels `Pendiente`, `En ruta`, `Entregada`, `No aplica` (in that or stable order), values matching `SALE_DELIVERY_STATUS.{PENDING, SHIPPED, DELIVERED, NOT_APPLICABLE}`. <!-- sdd-owner: implementation -->
+- [x] In the same file, add a regression test asserting the schema still defines exactly 11 fields across 4 sections (REQ-19 invariant) — count fields by reading the schema's `.fields` / equivalent accessor. <!-- sdd-owner: implementation -->
+- [x] Extend `src/features/POS/sales/utils/__tests__/saleStatus.utils.test.ts` with a test asserting `getDeliveryStatusBadge('SHIPPED')` deep-equals `{ label: 'En ruta', color: 'warning' }`. <!-- sdd-owner: implementation -->
+- [x] In the same file, add a test asserting `getDeliveryStatusBadge('NOT_APPLICABLE')` deep-equals `{ label: 'No aplica', color: 'neutral' }`. <!-- sdd-owner: implementation -->
+- [x] In the same file, add a parameterized test asserting every value of `Object.keys(SALE_DELIVERY_STATUS)` resolves via `getDeliveryStatusBadge` to a non-`Desconocido` config (locks "no fallback for valid values"). <!-- sdd-owner: implementation -->
+- [x] In the same file, add a regression test asserting pre-existing entries are untouched: `getDeliveryStatusBadge('DELIVERED')` deep-equals `{ label: 'Entregados', color: 'success' }` and `getDeliveryStatusBadge('PENDING')` deep-equals `{ label: 'No Entregados', color: 'error' }`. <!-- sdd-owner: implementation -->
+- [x] In the same file, add a test asserting unknown strings still return `unknownBadge` (label `"Desconocido"`) — locks the legitimate fallback path. <!-- sdd-owner: implementation -->
+- [x] Run the two S3 test files and confirm at least the new tests fail (RED gate). <!-- sdd-owner: implementation -->
 
 #### GREEN — minimum implementation
 
-- [ ] In `src/features/POS/sales/config/salesFiltersSchema.ts` (~line 35), insert two new option entries into the existing `deliveryStatus` `multiEnum` array (between `PENDING` and `DELIVERED`, order = backend enum order): `{ value: SALE_DELIVERY_STATUS.SHIPPED, label: 'En ruta' }` and `{ value: SALE_DELIVERY_STATUS.NOT_APPLICABLE, label: 'No aplica' }`. <!-- sdd-owner: implementation -->
-- [ ] In `src/features/POS/sales/utils/saleStatus.utils.ts` (~line 12), append two new entries to `deliveryStatusBadgeMap`: `SHIPPED: { label: 'En ruta', color: 'warning' }` and `NOT_APPLICABLE: { label: 'No aplica', color: 'neutral' }`. Do **not** touch the existing `DELIVERED` and `PENDING` entries. <!-- sdd-owner: implementation -->
-- [ ] Re-run the two S3 test files; confirm all green (GREEN gate). <!-- sdd-owner: implementation -->
+- [x] In `src/features/POS/sales/config/salesFiltersSchema.ts` (~line 35), insert two new option entries into the existing `deliveryStatus` `multiEnum` array (between `PENDING` and `DELIVERED`, order = backend enum order): `{ value: SALE_DELIVERY_STATUS.SHIPPED, label: 'En ruta' }` and `{ value: SALE_DELIVERY_STATUS.NOT_APPLICABLE, label: 'No aplica' }`. <!-- sdd-owner: implementation -->
+- [x] In `src/features/POS/sales/utils/saleStatus.utils.ts` (~line 12), append two new entries to `deliveryStatusBadgeMap`: `SHIPPED: { label: 'En ruta', color: 'warning' }` and `NOT_APPLICABLE: { label: 'No aplica', color: 'neutral' }`. Do **not** touch the existing `DELIVERED` and `PENDING` entries. <!-- sdd-owner: implementation -->
+- [x] Re-run the two S3 test files; confirm all green (GREEN gate). <!-- sdd-owner: implementation -->
 
 #### TRIANGULATE — adjacent inputs and edges
 
-- [ ] In `salesFiltersSchema.test.ts`, add a CSV-serialization regression test asserting `deliveryStatus` with `[SHIPPED, NOT_APPLICABLE]` selected serializes to `deliveryStatus=SHIPPED,NOT_APPLICABLE` (or the reverse) — preserves the existing `param: 'deliveryStatus'` CSV contract. <!-- sdd-owner: implementation -->
-- [ ] In `saleStatus.utils.test.ts`, add a pin test asserting `Object.keys(deliveryStatusBadgeMap)` is exactly `['DELIVERED', 'PENDING', 'SHIPPED', 'NOT_APPLICABLE']` (alphabetical order matches the existing declaration; guards against accidental key removal/rename). <!-- sdd-owner: implementation -->
-- [ ] Re-run the two S3 test files; confirm green; confirm the original RED tests still assert the same contract (TRIANGULATE gate). <!-- sdd-owner: implementation -->
+- [x] In `salesFiltersSchema.test.ts`, add a CSV-serialization regression test asserting `deliveryStatus` with `[SHIPPED, NOT_APPLICABLE]` selected serializes to `deliveryStatus=SHIPPED,NOT_APPLICABLE` (or the reverse) — preserves the existing `param: 'deliveryStatus'` CSV contract. <!-- sdd-owner: implementation -->
+- [x] In `saleStatus.utils.test.ts`, add a pin test asserting `Object.keys(deliveryStatusBadgeMap)` is exactly `['DELIVERED', 'PENDING', 'SHIPPED', 'NOT_APPLICABLE']` (alphabetical order matches the existing declaration; guards against accidental key removal/rename). <!-- sdd-owner: implementation -->
+- [x] Re-run the two S3 test files; confirm green; confirm the original RED tests still assert the same contract (TRIANGULATE gate). <!-- sdd-owner: implementation -->
 
 #### REFACTOR — tighten without behavior change
 
-- [ ] Verify the option-array and badge-map keys are sorted/ordered consistently across `salesFiltersSchema.ts` and `saleStatus.utils.ts` (existing project convention; do not reorder pre-existing entries). <!-- sdd-owner: implementation -->
-- [ ] Re-run the two S3 test files + `pnpm build`; confirm green and clean (REFACTOR gate). <!-- sdd-owner: implementation -->
+- [x] Verify the option-array and badge-map keys are sorted/ordered consistently across `salesFiltersSchema.ts` and `saleStatus.utils.ts` (existing project convention; do not reorder pre-existing entries). <!-- sdd-owner: implementation -->
+- [x] Re-run the two S3 test files + `pnpm build`; confirm green and clean (REFACTOR gate). <!-- sdd-owner: implementation -->
 
 ### Files
 

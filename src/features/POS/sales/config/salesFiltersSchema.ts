@@ -34,7 +34,13 @@ export function createSalesFiltersSchema(sources: SalesFilterSchemaSources) {
       ] }),
     filter.multiEnum({ id: 'deliveryStatus', section: 'Estado', label: 'Entrega', param: 'deliveryStatus', options: [
         { value: SALE_DELIVERY_STATUS.PENDING, label: 'Pendiente' },
+        // pos-sale-delivery S3 (CAP-DLV-3): in-transit sale status surfaced by
+        // the backend once the delivery handoff completes. Inserted between
+        // PENDING and DELIVERED to mirror the backend-enum lifecycle order
+        // (PENDING → SHIPPED → DELIVERED → NOT_APPLICABLE).
+        { value: SALE_DELIVERY_STATUS.SHIPPED, label: 'En ruta' },
         { value: SALE_DELIVERY_STATUS.DELIVERED, label: 'Entregada' },
+        { value: SALE_DELIVERY_STATUS.NOT_APPLICABLE, label: 'No aplica' },
       ] }),
     filter.multiAsync({ id: 'customerId', section: 'Personas', label: 'Cliente', param: 'customerId', includeNull: { param: 'customerIncludeNull', label: 'Incluir Público en General' }, options: sources.customerOptions, loading: sources.customerLoading, loadingLabel: 'Cargando clientes...', placeholder: 'Buscar cliente' }),
     filter.multiAsync({ id: 'cashierUserId', section: 'Personas', label: 'Cajero', param: 'cashierUserId', options: sources.cashierOptions, loading: sources.cashierLoading, loadingLabel: 'Cargando cajeros...', placeholder: 'Buscar cajero' }),
