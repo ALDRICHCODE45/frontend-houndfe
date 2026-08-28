@@ -195,13 +195,38 @@ describe('EligibleSalesPicker — empty / loading / error states', () => {
     expect(wrapper.find('[data-testid="eligible-sales-picker-loading"]').exists()).toBe(true)
   })
 
-  it('renders an error block when the eligible list fails to load', async () => {
+  // REGRESSION PIN — the picker must NEVER surface the raw AxiosError
+  // message (e.g. 'Request failed with status code 400') or a low-level
+  // Error.message. It must render a friendly fallback when the backend sends
+  // no usable envelope, and the backend message when it does.
+  it('renders a friendly fallback instead of the raw AxiosError message', async () => {
     mockStateRefs.isError.value = true
-    mockStateRefs.error.value = new Error('boom')
+    mockStateRefs.error.value = new Error('Request failed with status code 400')
     const wrapper = mountPicker()
     await nextTick()
     expect(wrapper.find('[data-testid="eligible-sales-picker-error"]').exists()).toBe(true)
-    expect(wrapper.text()).toContain('boom')
+    expect(wrapper.text()).toContain('No se pudieron cargar las ventas elegibles. Reintenta.')
+    // The raw low-level message must NOT leak to the user.
+    expect(wrapper.text()).not.toContain('Request failed with status code 400')
+  })
+
+  it('surfaces the backend message when the API error carries an envelope', async () => {
+    mockStateRefs.isError.value = true
+    mockStateRefs.error.value = {
+      response: { data: { message: 'deliveryStatus is invalid' } },
+    }
+    const wrapper = mountPicker()
+    await nextTick()
+    expect(wrapper.text()).toContain('deliveryStatus is invalid')
+  })
+
+  it('never shows a raw Error.message for a network-style failure', async () => {
+    mockStateRefs.isError.value = true
+    mockStateRefs.error.value = new Error('Network Error')
+    const wrapper = mountPicker()
+    await nextTick()
+    expect(wrapper.text()).not.toContain('Network Error')
+    expect(wrapper.text()).toContain('No se pudieron cargar las ventas elegibles. Reintenta.')
   })
 })
 

@@ -30,6 +30,7 @@
  */
 import { computed } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
+import { normalizeApiError } from '@/core/shared/utils/error.utils'
 import { usersApi } from '@/features/POS/users/api/user.api'
 import { usersQueryKeys } from '@/core/shared/constants/query-keys'
 import type { AssignableUser } from '@/features/POS/users/interfaces/user.types'
@@ -77,11 +78,14 @@ const assignableQuery = useQuery<AssignableUser[]>({
 const assignable = computed<AssignableUser[]>(() => assignableQuery.data.value ?? [])
 const isLoading = computed(() => assignableQuery.isLoading.value)
 const isError = computed(() => assignableQuery.isError.value)
-const errorMessage = computed(() => {
-  const err = assignableQuery.error.value
-  if (!err) return ''
-  return err instanceof Error ? err.message : String(err)
-})
+// Human-readable list error (block, not toast). NEVER surface the raw
+// AxiosError message ('Request failed with status code 400') — the user has
+// no way to act on it. `normalizeApiError` surfaces the backend envelope's own
+// `message` when present, else the friendly fallback. Mirrors the
+// EligibleSalesPicker + DeliveryRoutesListView (design §11).
+const errorMessage = computed(() =>
+  normalizeApiError(assignableQuery.error.value, 'No se pudieron cargar los repartidores. Reintenta.').message,
+)
 
 /**
  * Resolve the selected option by id against the latest assignable list. Emit

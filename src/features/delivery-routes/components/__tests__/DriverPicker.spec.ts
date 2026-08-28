@@ -144,13 +144,28 @@ describe('DriverPicker — loading / error states', () => {
     await nextTick()
   })
 
-  it('renders an error block when the assignable list fails to load', async () => {
-    vi.spyOn(usersApi, 'listAssignableDrivers').mockRejectedValue(new Error('boom'))
+  // REGRESSION PIN — the picker must NEVER surface the raw AxiosError /
+  // low-level Error.message. It must render a friendly fallback when the
+  // backend sends no usable envelope, and the backend message when it does.
+  it('renders a friendly fallback instead of the raw error message', async () => {
+    vi.spyOn(usersApi, 'listAssignableDrivers').mockRejectedValue(new Error('Request failed with status code 400'))
     const wrapper = mountPicker()
     await vi.waitFor(() => {
       expect(wrapper.find('[data-testid="driver-picker-error"]').exists()).toBe(true)
     })
-    expect(wrapper.text()).toContain('boom')
+    expect(wrapper.text()).toContain('No se pudieron cargar los repartidores. Reintenta.')
+    expect(wrapper.text()).not.toContain('Request failed with status code 400')
+  })
+
+  it('surfaces the backend message when the API error carries an envelope', async () => {
+    vi.spyOn(usersApi, 'listAssignableDrivers').mockRejectedValue({
+      response: { data: { message: 'driver lookup failed' } },
+    })
+    const wrapper = mountPicker()
+    await vi.waitFor(() => {
+      expect(wrapper.find('[data-testid="driver-picker-error"]').exists()).toBe(true)
+    })
+    expect(wrapper.text()).toContain('driver lookup failed')
   })
 })
 

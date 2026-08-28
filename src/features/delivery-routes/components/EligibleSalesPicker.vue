@@ -22,6 +22,7 @@
  * passthrough via the chip label without navigating the dropdown.
  */
 import { computed } from 'vue'
+import { normalizeApiError } from '@/core/shared/utils/error.utils'
 import { useEligibleSales } from '../composables/useEligibleSales'
 
 interface EligibleSaleRow {
@@ -57,7 +58,7 @@ const emit = defineEmits<{
   'update:selected': [value: string[]]
 }>()
 
-const { data, isLoading, isError, error } = useEligibleSales()
+const { data, isLoading, isError, error: fetchError } = useEligibleSales()
 
 const eligibleSales = computed<EligibleSaleRow[]>(() => (data.value ?? []) as EligibleSaleRow[])
 
@@ -75,11 +76,15 @@ const selectedRows = computed<EligibleSaleRow[]>(() => {
 })
 
 const isEmpty = computed(() => !isLoading.value && !isError.value && eligibleSales.value.length === 0)
-const errorMessage = computed(() => {
-  const err = error.value
-  if (!err) return ''
-  return err instanceof Error ? err.message : String(err)
-})
+
+// Human-readable list error (block, not toast). NEVER surface the raw
+// AxiosError message ('Request failed with status code 400') — the user has
+// no way to act on it. `normalizeApiError` surfaces the backend envelope's
+// own `message` when present (so real domain reasons are visible), else the
+// friendly fallback. Mirrors `DeliveryRoutesListView.vue` (design §11).
+const errorMessage = computed(() =>
+  normalizeApiError(fetchError.value, 'No se pudieron cargar las ventas elegibles. Reintenta.').message,
+)
 
 function deliveryStatusLabel(status: string): string {
   if (status === 'SHIPPED') return 'Enviada'
@@ -207,11 +212,11 @@ function removeSale(id: string) {
     </p>
 
     <p
-      v-if="error"
+      v-if="props.error"
       class="text-xs text-error"
       data-testid="eligible-sales-picker-error-inline"
     >
-      {{ error }}
+      {{ props.error }}
     </p>
   </div>
 </template>
