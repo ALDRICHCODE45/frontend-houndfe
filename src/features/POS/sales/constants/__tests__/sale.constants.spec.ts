@@ -14,6 +14,7 @@
 //     PAYMENT_METHOD and SALE_DETAIL_PAYMENT_METHOD respectively. Do NOT unify.
 
 import { describe, it, expect } from 'vitest'
+import type { SaleDeliveryStatus } from '../../interfaces/sale.types'
 import {
   SALE_STATUS,
   SALE_PAYMENT_STATUS,
@@ -49,7 +50,11 @@ const groups: Array<[group: string, cases: PinRow[]]> = [
   [
     'SALE_DELIVERY_STATUS',
     [
+      // pos-sale-delivery S1: SHIPPED is the backend deliveryStatus for
+      // in-transit sales. Pinned between PENDING and DELIVERED to preserve
+      // the backend-enum lifecycle order (PENDING → SHIPPED → DELIVERED).
       [SALE_DELIVERY_STATUS.PENDING, 'PENDING'],
+      [SALE_DELIVERY_STATUS.SHIPPED, 'SHIPPED'],
       [SALE_DELIVERY_STATUS.DELIVERED, 'DELIVERED'],
       [SALE_DELIVERY_STATUS.NOT_APPLICABLE, 'NOT_APPLICABLE'],
     ],
@@ -143,5 +148,51 @@ describe('POS_ACTIVE_TAB_STORAGE_KEY — storage key freeze', () => {
 
   it('contains the "pos:" namespace prefix (not "sale:" or "sales:")', () => {
     expect(POS_ACTIVE_TAB_STORAGE_KEY.startsWith('pos:')).toBe(true)
+  })
+})
+
+// ── pos-sale-delivery S1 — SALE_DELIVERY_STATUS counts ───────────────────────
+//    The backend delivers exactly four deliveryStatus values
+//    (PENDING | SHIPPED | DELIVERED | NOT_APPLICABLE). Pinning the object
+//    key count to 4 keeps the type derivation honest (removing or renaming
+//    a value would shrink the count and fail this test).
+
+describe('SALE_DELIVERY_STATUS — 4-value backend-enum coverage (pos-sale-delivery S1)', () => {
+  it('enumerates exactly four backend deliveryStatus values', () => {
+    expect(Object.keys(SALE_DELIVERY_STATUS).length).toBe(4)
+  })
+
+  it('enumerates every backend deliveryStatus value as a key', () => {
+    expect(Object.keys(SALE_DELIVERY_STATUS).sort()).toEqual(
+      ['DELIVERED', 'NOT_APPLICABLE', 'PENDING', 'SHIPPED'].sort(),
+    )
+  })
+
+  // TRIANGULATE: the derived `SaleDeliveryStatus` type picks up every
+  // constant value automatically. Pin every literal assignment so a
+  // removed/renamed const value would fail this test.
+  it('SaleDeliveryStatus derived type accepts every backend value', () => {
+    const pending: SaleDeliveryStatus = SALE_DELIVERY_STATUS.PENDING
+    const shipped: SaleDeliveryStatus = SALE_DELIVERY_STATUS.SHIPPED
+    const delivered: SaleDeliveryStatus = SALE_DELIVERY_STATUS.DELIVERED
+    const notApplicable: SaleDeliveryStatus = SALE_DELIVERY_STATUS.NOT_APPLICABLE
+
+    expect(pending).toBe('PENDING')
+    expect(shipped).toBe('SHIPPED')
+    expect(delivered).toBe('DELIVERED')
+    expect(notApplicable).toBe('NOT_APPLICABLE')
+  })
+
+  // TRIANGULATE: SHIPPED is the lifecycle middle-state — inserted between
+  // PENDING and DELIVERED in the const declaration order so the order in
+  // the source mirrors the order in which the backend moves a sale through
+  // the delivery lifecycle.
+  it('SALE_DELIVERY_STATUS declaration order is PENDING → SHIPPED → DELIVERED → NOT_APPLICABLE', () => {
+    expect(Object.keys(SALE_DELIVERY_STATUS)).toEqual([
+      'PENDING',
+      'SHIPPED',
+      'DELIVERED',
+      'NOT_APPLICABLE',
+    ])
   })
 })

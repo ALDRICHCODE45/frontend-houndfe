@@ -1604,3 +1604,131 @@ describe('custom-payment-methods type extensions (sdd custom-payment-methods S4A
     })
   })
 })
+
+// ── pos-sale-delivery S1 — type-level contract additions ───────────────────
+//
+// CAP-DLV-1: both charge-payload branches (LegacyChargePayload and
+// MultiPaymentChargePayload) accept an OPTIONAL `delivery?: boolean` so
+// toggling "Entrega a domicilio" emits `delivery: true` on either branch
+// (omitted entirely when the toggle is OFF — never explicit `false`).
+//
+// CAP-DLV-2: ChargeDomainErrorCode union enumerates the new
+// `SHIPPING_ADDRESS_REQUIRED_FOR_DELIVERY` code so TS exhaustiveness over
+// `Record<ChargeDomainErrorCode, ...>` forces the ERROR_ACTIONS entry.
+
+import type {
+  LegacyChargePayload as DLVLegacyChargePayload,
+  MultiPaymentChargePayload as DLVMultiPaymentChargePayload,
+  ChargeDomainErrorCode as DLVChargeDomainErrorCode,
+} from '../sale.types'
+
+describe('pos-sale-delivery S1 — delivery flag + shipping-address error code', () => {
+  describe('LegacyChargePayload.delivery? (CAP-DLV-1, legacy branch)', () => {
+    it('accepts delivery: true on the legacy single-payment payload', () => {
+      const payload: DLVLegacyChargePayload = {
+        method: 'cash',
+        amountCents: 100,
+        delivery: true,
+      }
+      expect(payload.delivery).toBe(true)
+    })
+
+    it('still accepts a legacy payload without delivery (byte-identical pre-change)', () => {
+      const payload: DLVLegacyChargePayload = { method: 'cash', amountCents: 100 }
+      expect(payload.delivery).toBeUndefined()
+    })
+
+    // TRIANGULATE: explicit `delivery: false` is also valid per the spec
+    // ("When the field is omitted OR explicitly `false`, the charge MUST
+    // behave exactly as it does today"). The production payload emitter
+    // (PaymentModal.buildPayload) omits the key entirely instead of emitting
+    // `false`, but the wire-shape contract accepts both.
+    it('accepts explicit delivery: false on the legacy payload (omit-or-false equivalence)', () => {
+      const payload: DLVLegacyChargePayload = {
+        method: 'cash',
+        amountCents: 100,
+        delivery: false,
+      }
+      expect(payload.delivery).toBe(false)
+    })
+
+    // TRIANGULATE: delivery must coexist with the existing optional fields
+    // (dueDate, paymentMethodId) without shadowing them.
+    it('delivery coexists with dueDate and paymentMethodId on the legacy payload', () => {
+      const payload: DLVLegacyChargePayload = {
+        method: 'transfer',
+        amountCents: 9999,
+        delivery: true,
+        dueDate: '2026-09-01',
+        paymentMethodId: 'a4f1c2d3-1111-4111-8111-111111111111',
+      }
+      expect(payload.delivery).toBe(true)
+      expect(payload.dueDate).toBe('2026-09-01')
+      expect(payload.paymentMethodId).toBe('a4f1c2d3-1111-4111-8111-111111111111')
+    })
+
+    // TRIANGULATE: optionality guard — an object literal that omits `delivery`
+    // still type-checks. The runtime access below reads the property directly
+    // (no cast), so if `delivery` were ever required, this test would fail at
+    // the literal assignment step before the runtime assertion ever runs.
+    it('legacy payload without delivery is the canonical pre-change shape', () => {
+      const payload: DLVLegacyChargePayload = { method: 'cash', amountCents: 100 }
+      expect(payload.delivery).toBeUndefined()
+    })
+  })
+
+  describe('MultiPaymentChargePayload.delivery? (CAP-DLV-1, multi-payment branch)', () => {
+    it('accepts delivery: true on the multi-payment payload', () => {
+      const payload: DLVMultiPaymentChargePayload = {
+        payments: [{ method: 'cash', amountCents: 100 }],
+        delivery: true,
+      }
+      expect(payload.delivery).toBe(true)
+    })
+
+    it('still accepts a multi-payment payload without delivery (pre-change compat)', () => {
+      const payload: DLVMultiPaymentChargePayload = {
+        payments: [{ method: 'cash', amountCents: 100 }],
+      }
+      expect(payload.delivery).toBeUndefined()
+    })
+
+    // TRIANGULATE: delivery must coexist with dueDate on the multi-payment branch.
+    it('delivery coexists with dueDate on the multi-payment payload', () => {
+      const payload: DLVMultiPaymentChargePayload = {
+        payments: [{ method: 'cash', amountCents: 100 }],
+        delivery: true,
+        dueDate: '2026-09-01',
+      }
+      expect(payload.delivery).toBe(true)
+      expect(payload.dueDate).toBe('2026-09-01')
+      expect(payload.payments).toHaveLength(1)
+    })
+
+    // TRIANGULATE: explicit `false` is valid per the omit-or-false spec.
+    it('accepts explicit delivery: false on the multi-payment payload', () => {
+      const payload: DLVMultiPaymentChargePayload = {
+        payments: [{ method: 'cash', amountCents: 100 }],
+        delivery: false,
+      }
+      expect(payload.delivery).toBe(false)
+    })
+  })
+
+  describe('ChargeDomainErrorCode — SHIPPING_ADDRESS_REQUIRED_FOR_DELIVERY (CAP-DLV-2)', () => {
+    it('accepts the new code as a valid ChargeDomainErrorCode literal', () => {
+      const code: DLVChargeDomainErrorCode = 'SHIPPING_ADDRESS_REQUIRED_FOR_DELIVERY'
+      expect(code).toBe('SHIPPING_ADDRESS_REQUIRED_FOR_DELIVERY')
+    })
+
+    it('keeps existing error-code members in the union (PAYMENT_AMOUNT_INSUFFICIENT)', () => {
+      const code: DLVChargeDomainErrorCode = 'PAYMENT_AMOUNT_INSUFFICIENT'
+      expect(code).toBe('PAYMENT_AMOUNT_INSUFFICIENT')
+    })
+
+    it('keeps existing error-code members in the union (IDEMPOTENCY_KEY_CONFLICT)', () => {
+      const code: DLVChargeDomainErrorCode = 'IDEMPOTENCY_KEY_CONFLICT'
+      expect(code).toBe('IDEMPOTENCY_KEY_CONFLICT')
+    })
+  })
+})

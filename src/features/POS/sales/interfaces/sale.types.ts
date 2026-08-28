@@ -266,6 +266,12 @@ export interface LegacyChargePayload {
   // into the legacy single-payment shape (backend §7.1 accepts paymentMethodId
   // in BOTH shapes).
   paymentMethodId?: string
+  /** Charge-time "para entrega" flag (pos-sale-delivery CAP-DLV-1). Omit
+   *  when off; `true` births the sale as `deliveryStatus: 'PENDING'`. The
+   *  legacy single-payment branch and the multi-payment branch both spread
+   *  this flag into the wire payload only when the toggle is ON. Omission
+   *  preserves byte-identical legacy charges (backend treats absent as `false`). */
+  delivery?: boolean
 }
 
 export interface PaymentEntry {
@@ -282,6 +288,10 @@ export interface MultiPaymentChargePayload {
   payments: PaymentEntry[]
   /** Optional ISO date string for debt due date (per backend §8). */
   dueDate?: string
+  /** Charge-time "para entrega" flag (pos-sale-delivery CAP-DLV-1). Same
+   *  contract as `LegacyChargePayload.delivery` — omit when off, `true`
+   *  when the toggle is ON. See that field for the full rationale. */
+  delivery?: boolean
 }
 
 export type ChargeSalePayload =
@@ -365,6 +375,13 @@ export type ChargeDomainErrorCode =
   | 'SALE_NOT_CONFIRMABLE_FOR_PAYMENT'
   | 'NO_OUTSTANDING_DEBT'
   | 'PAYMENT_EXCEEDS_DEBT'
+  // pos-sale-delivery S1 (CAP-DLV-2): 422 from `POST /sales/drafts/:id/charge`
+  // when the cashier submits a charge with `delivery: true` against a draft
+  // that has no shipping address assigned. The toggle gating (CAP-DLV-1)
+  // makes this a safety-net path; the friendly inline mapping lives in
+  // `salePaymentErrors.utils.ts`. TS exhaustiveness on
+  // `Record<ChargeDomainErrorCode, ...>` forces the ERROR_ACTIONS entry.
+  | 'SHIPPING_ADDRESS_REQUIRED_FOR_DELIVERY'
 
 export interface SaleItem {
   id: string

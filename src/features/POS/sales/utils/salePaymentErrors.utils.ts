@@ -80,6 +80,13 @@ const ERROR_ACTIONS: Record<ChargeDomainErrorCode, SalePaymentUxAction> = {
     type: 'inline',
     message: 'El monto supera la deuda actual. Revisa el saldo y reintentá.',
   },
+  // pos-sale-delivery S1 (CAP-DLV-2): 422 when `delivery:true` is sent
+  // without a shipping address. Inline copy is locked by the spec — do
+  // not reword without a spec change.
+  SHIPPING_ADDRESS_REQUIRED_FOR_DELIVERY: {
+    type: 'inline',
+    message: 'Para entrega a domicilio asigna una dirección de envío.',
+  },
 }
 
 export function getSalePaymentErrorAction(code: ChargeDomainErrorCode): SalePaymentUxAction {

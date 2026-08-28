@@ -67,6 +67,12 @@ export const SALE_PAYMENT_STATUS = {
 
 export const SALE_DELIVERY_STATUS = {
   PENDING: 'PENDING',
+  // pos-sale-delivery S1 (CAP-DLV-3): in-transit sale status surfaced by
+  // the backend once the delivery handoff completes. Inserted between
+  // PENDING and DELIVERED to preserve the backend-enum lifecycle order
+  // (PENDING → SHIPPED → DELIVERED). `SaleDeliveryStatus` (derived type)
+  // picks up the new member automatically.
+  SHIPPED: 'SHIPPED',
   DELIVERED: 'DELIVERED',
   NOT_APPLICABLE: 'NOT_APPLICABLE',
 } as const
