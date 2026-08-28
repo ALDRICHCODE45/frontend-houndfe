@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
- * DeliveryRouteDetailView — S6a (sdd delivery-routes, design.md §4.1, §4.2,
- * §6.4, §7.2, §10.1, §11, REQ-DRM-013..015).
+ * DeliveryRouteDetailView — S6a + S6b (sdd delivery-routes, design.md §4.1,
+ * §4.2, §6.4, §7.2, §10.1, §11, REQ-DRM-013..015, REQ-DRC-001..008).
  *
  * Route-level composition surface for `/pos/rutas-de-entrega/:id`. ONE route
  * serves both roles; the view discriminates manager vs driver via a SINGLE
@@ -16,8 +16,10 @@
  *     404 ENTITY_NOT_FOUND on detail fetch → full-page "Ruta no encontrada".
  *     Driver 403 → SAME full-page not-found state (no banner, no toast — no
  *     presence leak; design §7.2, §11).
- *   - Driver branch (`isDriver=true`): returns null placeholder (`// TODO(S6b)`).
- *     S6b replaces it with `DriverStopDetail` + `DeliveryRouteTimeline`.
+ *   - Driver branch (`isDriver=true`): renders the stop list (one
+ *     `DriverStopDetail` per stop) + the `DeliveryRouteTimeline` at the
+ *     bottom. The check-in mutation is wired INSIDE `DriverStopDetail` (the
+ *     component owns its action surface; same pattern as the reorder panel).
  *
  * Loading / error / not-found states follow design §11. The view is a composition
  * surface only — no card markup, no field markup. Mutation wiring is role-gated;
@@ -36,6 +38,8 @@ import { useStartDeliveryRoute } from '../composables/useStartDeliveryRoute'
 import { useCancelDeliveryRoute } from '../composables/useCancelDeliveryRoute'
 import DeliveryRouteUpsertSlideover from '../components/DeliveryRouteUpsertSlideover.vue'
 import DeliveryRouteReorderPanel from '../components/DeliveryRouteReorderPanel.vue'
+import DriverStopDetail from '../components/DriverStopDetail.vue'
+import DeliveryRouteTimeline from '../components/DeliveryRouteTimeline.vue'
 import { extractDeliveryRouteErrorCode } from '../interfaces/errors'
 import { buildStopProgress } from '../utils/delivery-route-actions.utils'
 import {
@@ -231,13 +235,60 @@ defineExpose({
     <p class="text-sm text-muted">{{ errorMessage }}</p>
   </div>
 
-  <!-- Driver branch (REQ-DRM-002 driver side, design §6.4): renders nothing in
-       S6a. S6b replaces this placeholder with DriverStopDetail +
-       DeliveryRouteTimeline. TODO(S6b). Evaluated AFTER not-found/error/loading
-       so a driver with a fetch failure still sees the failure state. -->
-  <template v-else-if="isDriver">
-    <div data-testid="detail-driver-placeholder" aria-hidden="true" />
-  </template>
+      <!-- Driver branch (REQ-DRC-001..008, design §4.2, §11): renders one
+           DriverStopDetail per stop + the DeliveryRouteTimeline. The check-in
+           mutation is wired inside DriverStopDetail (component owns its action
+           surface, design §4.2). The header still surfaces route metadata
+           (short id + status badge + x/y progress) so the driver sees where they
+           are in the route before scrolling into the stops list. -->
+      <div
+        v-else-if="isDriver && routeData && routeData.id === routeId"
+        data-testid="detail-driver-branch"
+        class="flex flex-col gap-6 px-4 py-6 sm:px-6 lg:px-10"
+      >
+        <header
+          class="flex flex-col gap-2 border-b border-default pb-4"
+          data-testid="detail-driver-summary"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-col gap-1">
+              <span class="text-xs uppercase tracking-wide text-muted">Ruta</span>
+              <span class="font-mono text-sm">{{ routeData.id.slice(0, 8) }}</span>
+            </div>
+            <StatusDotBadge
+              :tone="statusTone(routeData.status)"
+              :label="statusLabel(routeData.status)"
+            />
+          </div>
+          <div class="flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted">
+            <span>Repartidor: <strong class="text-default">{{ routeData.driver?.name ?? '—' }}</strong></span>
+            <span>Progreso: <strong class="text-default">{{ stopProgressLabel }}</strong></span>
+          </div>
+        </header>
+
+        <section
+          v-if="routeData.stops.length > 0"
+          data-testid="detail-driver-stops"
+          class="flex flex-col gap-3"
+        >
+          <h2 class="text-sm font-medium">Paradas</h2>
+          <DriverStopDetail
+            v-for="stop in routeData.stops"
+            :key="stop.id"
+            :stop="stop"
+            :route-id="routeData.id"
+          />
+        </section>
+        <p
+          v-else
+          data-testid="detail-driver-stops-empty"
+          class="text-sm text-muted"
+        >
+          Sin paradas
+        </p>
+
+        <DeliveryRouteTimeline :route="routeData" />
+      </div>
 
   <!-- Manager branch — route detail with mutation affordances. Only when the
        cached detail belongs to the CURRENT route id (keepPreviousData stale guard). -->

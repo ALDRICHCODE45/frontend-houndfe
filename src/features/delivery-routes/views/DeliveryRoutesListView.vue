@@ -1,21 +1,19 @@
 <script setup lang="ts">
 /**
- * DeliveryRoutesListView — S4c (sdd delivery-routes, design.md §4.1, §6.4, §9.2, §11).
+ * DeliveryRoutesListView — S4c + S6b (sdd delivery-routes, design.md §4.1, §4.2,
+ * §6.4, §9.2, §11).
  *
  * Route-level composition surface for `/pos/rutas-de-entrega`. ONE route serves
  * both roles; the view discriminates internally via `useDeliveryRouteRole`:
  *
  *   - Manager branch (`isManager`): `AppDataTable` over `useDeliveryRoutesTable`
  *     + the create `DeliveryRouteUpsertSlideover` (gated by `canCreate`).
- *   - Driver branch (`isDriver`): placeholder — `// TODO(S6b)` below. S6b
- *     replaces it with the `DriverRouteCard` list. Until then it renders
- *     nothing (REQ-DRM-002 driver side).
+ *   - Driver branch (`isDriver`): `DriverRouteCard` list over
+ *     `useDriverActiveRoutes`. Tapping a card navigates to the detail view.
  *
- * The view is a composition surface only (design §4.1): no card markup, no
- * field markup. Column definitions are INLINE (no columns composable exists for
- * this module — payment-details uses `usePaymentDetailColumns`, delivery-routes
- * does not); cell markup lives in this view's `#*-cell` slots, which AppDataTable
- * forwards to UTable underneath.
+ * The view is a composition surface only (design §4.1, §4.2): no card markup,
+ * no field markup. The driver's list lives behind `DriverRouteCard`; the
+ * manager's table renders inline `#*-cell` slots.
  *
  * Create flow (REQ-DRM-006): `@add` opens the slideover in create mode; the
  * slideover emits the zod-whitelisted payload → `useCreateDeliveryRoute().mutate`
@@ -24,14 +22,17 @@
  * S5a/S5b — the `actions` column is intentionally empty here.
  */
 import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import type { TableColumn } from '@nuxt/ui'
 import { AppDataTable, createSimpleHeader } from '@/core/shared/components/DataTable'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
 import { useDeliveryRouteRole } from '../composables/useDeliveryRouteRole'
 import { useDeliveryRoutesTable } from '../composables/useDeliveryRoutesTable'
+import { useDriverActiveRoutes } from '../composables/useDriverActiveRoutes'
 import { useCreateDeliveryRoute } from '../composables/useCreateDeliveryRoute'
 import DeliveryRouteUpsertSlideover from '../components/DeliveryRouteUpsertSlideover.vue'
+import DriverRouteCard from '../components/DriverRouteCard.vue'
 import { DELIVERY_ROUTE_COPY } from '../copy'
 import {
   DELIVERY_ROUTE_STATUS_LABELS,
@@ -43,7 +44,10 @@ import {
 
 // ─── Role discriminator (manager vs driver, design §6.4 / §9.3) ──────────────
 // Destructured at top level so the template auto-unwraps the refs.
-const { isManager, canCreate } = useDeliveryRouteRole()
+const { isManager, isDriver, canCreate } = useDeliveryRouteRole()
+
+// ─── Router (driver branch navigates to the detail view, manager stays in-place) ─
+const router = useRouter()
 
 // ─── Manager list — single-source wrapper (design §6.2, REQ-DRM-001) ──────────
 const {
@@ -65,10 +69,37 @@ const {
   showingTo,
 } = useDeliveryRoutesTable()
 
-// Human-readable list error (block, not toast — design §11, REQ-DRM-014).
-const routesErrorMessage = computed(() =>
-  normalizeApiError(error.value, 'No se pudieron cargar las rutas de entrega. Reintenta.').message,
+
+  // Human-readable list error (block, not toast — design §11, REQ-DRM-014).
+  const routesErrorMessage = computed(() =>
+    normalizeApiError(error.value, 'No se pudieron cargar las rutas de entrega. Reintenta.').message,
+  )
+
+// ─── Driver list — active routes scoped server-side via CASL (design §6.2) ─────
+const {
+  data: driverRoutes,
+  isLoading: driverIsLoading,
+  isError: driverIsError,
+  error: driverError,
+  refetch: driverRefetch,
+} = useDriverActiveRoutes()
+
+// Human-readable driver list error (block, not toast — design §11, REQ-DRM-014).
+const driverErrorMessage = computed(() =>
+  normalizeApiError(
+    driverError.value,
+    'No se pudieron cargar tus rutas activas. Reintenta.',
+  ).message,
 )
+
+/**
+ * onSelectRoute — driver taps a card → navigate to the detail view.
+ * The card owns the tap target; this view owns the route navigation (the card
+ * is decoupled from vue-router, design §4.2).
+ */
+function onSelectRoute(routeId: string): void {
+  void router.push(`/pos/rutas-de-entrega/${routeId}`)
+}
 
 // ─── Create slideover + mutation (REQ-DRM-006) ────────────────────────────────
 const isCreateOpen = ref(false)
@@ -153,11 +184,66 @@ function statusLabel(status: DeliveryRouteStatus) {
 
 <template>
   <!--
-    Driver branch (REQ-DRM-002 driver side, design §6.4): renders nothing in
-    S4c. S6b replaces this placeholder with the DriverRouteCard list.
-    TODO(S6b): render the driver branch (DriverRouteCard list) here.
+    Driver branch (REQ-DRM-002 driver side, §4.2, §11): renders the
+    `DriverRouteCard` list over `useDriverActiveRoutes`. Loading / empty /
+    error states follow design §11: skeletons during fetch, "No tienes rutas
+    activas" when the list is empty, error block + retry on failure.
   -->
-  <div v-if="isManager" class="flex flex-col gap-6 px-4 sm:px-6 lg:px-10">
+  <div v-if="isDriver" class="flex flex-col gap-4 px-4 py-6 sm:px-6 lg:px-10">
+    <header class="flex flex-col gap-1">
+      <h1 class="text-xl font-semibold">{{ DELIVERY_ROUTE_COPY.list.driverHeader }}</h1>
+    </header>
+
+    <!-- Loading skeleton (design §11). -->
+    <div
+      v-if="driverIsLoading"
+      data-testid="driver-list-loading"
+      class="flex flex-col gap-3"
+    >
+      <div class="h-24 animate-pulse rounded-lg bg-default" />
+      <div class="h-24 animate-pulse rounded-lg bg-default" />
+      <div class="h-24 animate-pulse rounded-lg bg-default" />
+    </div>
+
+    <!-- Error block (design §11, REQ-DRM-014). -->
+    <div
+      v-else-if="driverIsError"
+      data-testid="driver-list-error"
+      class="flex flex-col items-center gap-3 py-12 text-center"
+    >
+      <h2 class="text-base font-medium">No se pudieron cargar tus rutas</h2>
+      <p class="text-sm text-muted">{{ driverErrorMessage }}</p>
+      <button
+        type="button"
+        class="text-sm text-primary underline"
+        @click="() => driverRefetch()"
+      >
+        Reintentar
+      </button>
+    </div>
+
+    <!-- Empty state (design §11). -->
+    <p
+      v-else-if="!driverRoutes || driverRoutes.length === 0"
+      data-testid="driver-list-empty"
+      class="py-12 text-center text-sm text-muted"
+    >
+      {{ DELIVERY_ROUTE_COPY.empty.driver }}
+    </p>
+
+    <!-- Active routes list — mobile-first, one card per row (cols widen on md+). -->
+    <ul
+      v-else
+      class="grid grid-cols-1 gap-3 sm:grid-cols-2"
+      data-testid="driver-list-cards"
+    >
+      <li v-for="route in driverRoutes" :key="route.id">
+        <DriverRouteCard :route="route" @select="onSelectRoute" />
+      </li>
+    </ul>
+  </div>
+
+  <div v-else-if="isManager" class="flex flex-col gap-6 px-4 sm:px-6 lg:px-10">
     <DeliveryRouteUpsertSlideover
       v-model:open="isCreateOpen"
       mode="create"

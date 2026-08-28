@@ -62,6 +62,20 @@ vi.mock('../../composables/useDeliveryRoutesTable', () => ({
   useDeliveryRoutesTable: () => tableMock,
 }))
 
+// ─── Mock `useDriverActiveRoutes` so the spec controls the driver list ────────
+const driverRoutesMock = {
+  data: ref<unknown[]>([]),
+  isLoading: ref(false),
+  isFetching: ref(false),
+  isError: ref(false),
+  error: ref<unknown>(null),
+  refetch: vi.fn(),
+}
+
+vi.mock('../../composables/useDriverActiveRoutes', () => ({
+  useDriverActiveRoutes: () => driverRoutesMock,
+}))
+
 // ─── Stub the create/update mutation composables so emitting from the
 // slideover doesn't reach TanStack Query. We just record the emit.
 const createMutateMock = vi.fn()
@@ -80,6 +94,40 @@ vi.mock('../../composables/useUpdateDeliveryRoute', () => ({
     mutateAsync: updateMutateMock,
     isPending: ref(false),
     error: ref(null),
+  }),
+}))
+
+// ─── Stub the DriverRouteCard so the spec can assert the tap wiring ──────────
+const driverCardEmits: { select: string[] } = { select: [] }
+vi.mock('../../components/DriverRouteCard.vue', () => ({
+  default: defineComponent({
+    name: 'DriverRouteCard',
+    props: ['route'],
+    emits: ['select'],
+    setup(props, { emit }) {
+      function fireSelect() {
+        const route = props.route as { id: string }
+        driverCardEmits.select.push(route.id)
+        emit('select', route.id)
+      }
+      return () =>
+        h(
+          'div',
+          { 'data-testid': 'driver-route-card-stub' },
+          [
+            h(
+              'button',
+              {
+                type: 'button',
+                'data-testid': 'driver-route-card-stub-select',
+                'data-route-id': (props.route as { id: string }).id,
+                onClick: fireSelect,
+              },
+              'select',
+            ),
+          ],
+        )
+    },
   }),
 }))
 
@@ -192,6 +240,13 @@ vi.mock('@/core/shared/components/DataTable', () => ({
 // useToast stub.
 vi.stubGlobal('useToast', () => ({ add: vi.fn() }))
 
+// ─── Stub vue-router so the driver tap target can navigate without a router ──
+const routerPushMock = vi.fn()
+vi.mock('vue-router', () => ({
+  useRouter: () => ({ push: routerPushMock }),
+  useRoute: () => ({ params: {} }),
+}))
+
 import DeliveryRoutesListView from '../DeliveryRoutesListView.vue'
 
 function mountView() {
@@ -230,6 +285,18 @@ function resetTableState(overrides: Partial<{
   tableMock.isError.value = overrides.isError ?? false
   tableMock.error.value = overrides.error ?? null
   tableMock.totalCount.value = overrides.totalCount ?? 0
+}
+
+function resetDriverState(overrides: Partial<{
+  data: unknown[]
+  isLoading: boolean
+  isError: boolean
+  error: unknown
+}> = {}) {
+  driverRoutesMock.data.value = overrides.data ?? []
+  driverRoutesMock.isLoading.value = overrides.isLoading ?? false
+  driverRoutesMock.isError.value = overrides.isError ?? false
+  driverRoutesMock.error.value = overrides.error ?? null
 }
 
 beforeEach(() => {
@@ -337,18 +404,86 @@ describe('DeliveryRoutesListView — manager branch (design.md §6.4, §11, REQ-
   })
 })
 
-describe('DeliveryRoutesListView — driver branch placeholder (REQ-DRM-002 driver side)', () => {
-  it('returns null when isDriver=true (placeholder marker until S6b lands)', async () => {
-    resetRoleFlags({
-      isManager: { value: false },
-      isDriver: { value: true },
-      canRead: { value: true },
+    describe('DeliveryRoutesListView — driver branch (S6b, design §4.2, §11, REQ-DRC-001)', () => {
+      beforeEach(() => {
+        routerPushMock.mockClear()
+      })
+
+      it('renders the DriverRouteCard list when isDriver=true and the list has rows', async () => {
+        resetRoleFlags({
+          isManager: { value: false },
+          isDriver: { value: true },
+          canRead: { value: true },
+        })
+        resetTableState({ data: [], totalCount: 0 })
+        resetDriverState({
+          data: [
+            { id: 'route-1', status: 'ACTIVE', driver: { id: 'd1', name: 'Ana', email: 'a@x' }, stops: [] },
+            { id: 'route-2', status: 'ACTIVE', driver: { id: 'd1', name: 'Ana', email: 'a@x' }, stops: [] },
+          ],
+        })
+        const wrapper = mountView()
+        await flushPromises()
+        const cards = wrapper.findAll('[data-testid="driver-route-card-stub"]')
+        expect(cards.length).toBe(2)
+        expect(wrapper.find('[data-testid="app-data-table-stub"]').exists()).toBe(false)
+        expect(wrapper.find('[data-testid="slideover-stub"]').exists()).toBe(false)
+      })
+
+      it('navigates to /pos/rutas-de-entrega/:id when a card is tapped (driver tap target wiring)', async () => {
+        resetRoleFlags({
+          isManager: { value: false },
+          isDriver: { value: true },
+          canRead: { value: true },
+        })
+        resetTableState({ data: [], totalCount: 0 })
+        resetDriverState({
+          data: [{ id: 'route-xyz', status: 'ACTIVE', driver: null, stops: [] }],
+        })
+        const wrapper = mountView()
+        await flushPromises()
+        await wrapper.find('[data-testid="driver-route-card-stub-select"]').trigger('click')
+        await flushPromises()
+        expect(routerPushMock).toHaveBeenCalledTimes(1)
+        expect(routerPushMock.mock.calls[0]?.[0]).toBe('/pos/rutas-de-entrega/route-xyz')
+      })
+
+      it('renders the empty state when the driver has no active routes', async () => {
+        resetRoleFlags({ isManager: { value: false }, isDriver: { value: true }, canRead: { value: true } })
+        resetTableState({ data: [], totalCount: 0 })
+        resetDriverState({ data: [] })
+        const wrapper = mountView()
+        await flushPromises()
+        expect(wrapper.find('[data-testid="driver-list-empty"]').exists()).toBe(true)
+        expect(wrapper.text()).toContain(DELIVERY_ROUTE_COPY.empty.driver)
+      })
+
+      it('renders the loading skeleton when isLoading=true', async () => {
+        resetRoleFlags({ isManager: { value: false }, isDriver: { value: true }, canRead: { value: true } })
+        resetTableState({ data: [], totalCount: 0 })
+        resetDriverState({ isLoading: true })
+        const wrapper = mountView()
+        await flushPromises()
+        expect(wrapper.find('[data-testid="driver-list-loading"]').exists()).toBe(true)
+      })
+
+      it('renders the error block + retry button when the driver list fails', async () => {
+        resetRoleFlags({ isManager: { value: false }, isDriver: { value: true }, canRead: { value: true } })
+        resetTableState({ data: [], totalCount: 0 })
+        resetDriverState({ isError: true, error: { message: 'falló la red' } })
+        const wrapper = mountView()
+        await flushPromises()
+        expect(wrapper.find('[data-testid="driver-list-error"]').exists()).toBe(true)
+        expect(wrapper.text()).toMatch(/falló la red|operación|reintenta/i)
+      })
+
+      it('HIDES the manager surface (AppDataTable + slideover + add button) on the driver branch', async () => {
+        resetRoleFlags({ isManager: { value: false }, isDriver: { value: true }, canRead: { value: true } })
+        resetTableState({ data: [], totalCount: 0 })
+        resetDriverState({ data: [] })
+        const wrapper = mountView()
+        await flushPromises()
+        expect(wrapper.find('[data-testid="app-data-table-stub"]').exists()).toBe(false)
+        expect(wrapper.find('[data-testid="slideover-stub"]').exists()).toBe(false)
+      })
     })
-    resetTableState({ data: [], totalCount: 0 })
-    const wrapper = mountView()
-    await flushPromises()
-    // Driver branch returns null ⇒ no table mounted, no slideover, no add button.
-    expect(wrapper.find('[data-testid="app-data-table-stub"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="slideover-stub"]').exists()).toBe(false)
-  })
-})

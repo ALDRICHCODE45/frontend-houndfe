@@ -432,4 +432,45 @@ One parent-owned correction (small, inline): the sdd-apply output mapped ANY det
 
 ### Remaining tasks
 
-S6a implementation complete. Next is **S6b** (`DriverRouteCard` + `DriverStopDetail` + `DeliveryRouteTimeline` + `useCheckInStop` + replace the S4c list-view driver placeholder AND the S6a detail-view driver placeholder).
+S6a implementation complete.
+
+---
+
+## S6b — Driver Visual Components + Check-in + Driver Branches — COMPLETE (delegated to sdd-apply, uncommitted per parent brief)
+
+### What landed
+
+4 NEW files (1 composable + 3 components) + 4 NEW specs. MOD: 2 views (replace placeholders) + 2 view specs.
+
+| File | Status |
+|------|--------|
+| `composables/useCheckInStop.ts` | **NEW** — `useMutation` (POST `:id/stops/:stopId/check-in`), invalida detail + listPrefix, toast `checkInSuccess`, error vía `surfaceDeliveryRouteError`. |
+| `components/DriverRouteCard.vue` | **NEW** — card mobile-first (status badge, driver name, x/y o "Sin paradas", tap target). |
+| `components/DriverStopDetail.vue` | **NEW** — `customer.name` + `formatAddress` + `<AddressMapPicker mode="read">` solo con lat/lng + check-in (disabled non-PENDING, spinner). Self-contained: usa `useCheckInStop` directo (no emite check-in; pattern igual a `DeliveryRouteReorderPanel`). |
+| `components/DeliveryRouteTimeline.vue` | **NEW** — timeline vertical read-only, 5 eventos en orden `at` ASC, `STOP_CHECKED_IN` = `sortOrder + 1`, `ROUTE_CREATED` sin actor. |
+| `views/DeliveryRoutesListView.vue` | **MOD** — reemplaza placeholder driver S4c por lista `DriverRouteCard`. |
+| `views/DeliveryRouteDetailView.vue` | **MOD** — reemplaza placeholder driver S6a por `DriverStopDetail` + `DeliveryRouteTimeline`. |
+| 4 specs NEW + 2 view specs MOD | **NEW/MOD** — 59 nuevos tests. |
+
+### TDD evidence
+
+- **RED** — 6 specs escritos primero (sdd-apply).
+- **GREEN** — composable + 3 componentes + 2 views implementados.
+- **TRIANGULATE** — last-stop check-in → COMPLETED (server-driven), repeat check-in idempotente, `STOP_CHECKED_IN` = `sortOrder + 1`, driver 403 → not-found sin leak.
+- **REFACTOR** — props tipadas (`defineProps<{ stop: DeliveryRouteStop }>()`); no `reactive()` en ningún source file.
+
+### Verify
+
+- `pnpm test:unit --run <6 specs>` → 6 archivos / 91 tests (5 specs 64 + 1 spec 27).
+- `pnpm test:unit --run src/features/delivery-routes` → **27 archivos / 354 tests passed** (era 295 tras S6a → +59).
+- `pnpm type-check` → **0 errores**.
+- `pnpm build-only` → clean.
+
+### Deviation from instructions
+
+1. **DriverStopDetail es self-contained** (usa `useCheckInStop` directo, NO `defineEmits('check-in')` como pedía el brief REFACTOR). Decisión del subagente, razonable: el check-in es una mutación autocontenida, no necesita orquestación del parent (mismo patrón que `DeliveryRouteReorderPanel`). El spec del detail view usa un stub que emite `check-in` solo para pinchar el wiring del prop `:route-id` — no es el contrato real del componente.
+2. **Parent corrections** (tras el timeout del subagente): (a) removí un `</template>` sobrante que rompía el build (`Invalid end tag`); (b) corregí 2 tests del detail-view driver branch que usaban `id` distinto del `routeId` mockeado (`route-empty`/`route-driver-1` → `route-42`), porque el guard `routeData.id === routeId` (de S6a) lo exige.
+
+### Remaining tasks
+
+S6b implementation complete. Next is **S7** (mobile-first polish: touch targets ≥44px, single-column stop layout < `sm`; sin cambio de contrato).

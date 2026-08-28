@@ -182,6 +182,57 @@ vi.mock('../../components/DeliveryRouteReorderPanel.vue', () => ({
   }),
 }))
 
+// ─── Stub DriverStopDetail — renders a stable testid + a check-in button ────
+const driverStopEmits: { 'check-in': Array<{ id: string; stopId: string }> } = {
+  'check-in': [],
+}
+vi.mock('../../components/DriverStopDetail.vue', () => ({
+  default: defineComponent({
+    name: 'DriverStopDetail',
+    props: { stop: { type: Object, required: true }, routeId: { type: String, required: true } },
+    setup(props) {
+      const stop = props.stop as { id: string }
+      return () =>
+        h(
+          'div',
+          { 'data-testid': 'driver-stop-detail-stub', 'data-stop-id': stop.id },
+          [
+            h(
+              'button',
+              {
+                type: 'button',
+                'data-testid': `driver-stop-check-in-stub-${stop.id}`,
+                onClick: () => {
+                  driverStopEmits['check-in'].push({ id: props.routeId, stopId: stop.id })
+                },
+              },
+              'check-in',
+            ),
+          ],
+        )
+    },
+  }),
+}))
+
+// ─── Stub DeliveryRouteTimeline — renders a stable testid per row ─────────
+vi.mock('../../components/DeliveryRouteTimeline.vue', () => ({
+  default: defineComponent({
+    name: 'DeliveryRouteTimeline',
+    props: { route: { type: Object, required: true } },
+    setup(props) {
+      const route = props.route as { timeline?: Array<{ type: string }> }
+      return () =>
+        h(
+          'div',
+          { 'data-testid': 'delivery-route-timeline-stub' },
+          (route.timeline ?? []).map((e, i) =>
+            h('div', { 'data-testid': `timeline-stub-row-${i}`, key: i }, e.type),
+          ),
+        )
+    },
+  }),
+}))
+
 // ─── Stub `useRouter` — record `push` calls so we can assert detail→list navigation
 const routerPushMock = vi.fn()
 vi.mock('vue-router', () => ({
@@ -594,43 +645,84 @@ describe('DeliveryRouteDetailView — 404 ENTITY_NOT_FOUND / driver 403 → full
   })
 })
 
-describe('DeliveryRouteDetailView — driver branch placeholder (REQ-DRM-002 driver side)', () => {
-  it('returns null when isDriver=true (placeholder marker until S6b lands)', async () => {
-    resetRoleFlags({
-      isManager: { value: false },
-      isDriver: { value: true },
-      canRead: { value: true },
-    })
-    resetDetailState({ data: makeDraftRoute() })
-    const wrapper = mountView()
-    await flushPromises()
-    // Driver branch renders nothing — no toolbar, no slideover, no reorder
-    // panel, no append button. S6b replaces this with DriverStopDetail +
-    // DeliveryRouteTimeline.
-    expect(wrapper.find('[data-testid="detail-actions-toolbar"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="detail-upsert-slideover-stub"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="detail-reorder-panel-stub"]').exists()).toBe(false)
-    expect(wrapper.find('[data-testid="detail-route-summary"]').exists()).toBe(false)
-  })
+    describe('DeliveryRouteDetailView — driver branch (S6b, design §4.2, §11, REQ-DRC-001..008)', () => {
+      beforeEach(() => {
+        driverStopEmits['check-in'].length = 0
+      })
 
-  it('does NOT render the not-found full-page for the driver branch on 404 (driver 403 maps to not-found, but a true 404 with isDriver still maps to not-found)', async () => {
-    // Driver 403 and 404 both render the full-page not-found state. The
-    // DRIVER branch as a whole is a placeholder (returns null) until S6b
-    // ships; this spec pins the manager-side not-found path which is the
-    // one S6a owns.
-    resetRoleFlags({ isManager: { value: true } })
-    resetDetailState({
-      isError: true,
-      data: undefined,
-      error: {
-        response: { status: 404, data: { error: 'ENTITY_NOT_FOUND', message: 'x' } },
-      },
+      it('renders the driver branch with one DriverStopDetail per stop + the timeline (REQ-DRC-001)', async () => {
+        resetRoleFlags({
+          isManager: { value: false },
+          isDriver: { value: true },
+          canRead: { value: true },
+        })
+        const route = makeDraftRoute({ stopsLength: 3 })
+        resetDetailState({ data: route })
+        const wrapper = mountView()
+        await flushPromises()
+        expect(wrapper.find('[data-testid="detail-driver-branch"]').exists()).toBe(true)
+        const stops = wrapper.findAll('[data-testid="driver-stop-detail-stub"]')
+        expect(stops.length).toBe(3)
+        expect(wrapper.find('[data-testid="delivery-route-timeline-stub"]').exists()).toBe(true)
+      })
+
+      it('does NOT render the manager toolbar / slideover / reorder panel on the driver branch', async () => {
+        resetRoleFlags({ isManager: { value: false }, isDriver: { value: true }, canRead: { value: true } })
+        resetDetailState({ data: makeDraftRoute() })
+        const wrapper = mountView()
+        await flushPromises()
+        expect(wrapper.find('[data-testid="detail-actions-toolbar"]').exists()).toBe(false)
+        expect(wrapper.find('[data-testid="detail-upsert-slideover-stub"]').exists()).toBe(false)
+        expect(wrapper.find('[data-testid="detail-reorder-panel-stub"]').exists()).toBe(false)
+        expect(wrapper.find('[data-testid="detail-route-summary"]').exists()).toBe(false)
+        // The placeholder marker is GONE (S6b replaces it).
+        expect(wrapper.find('[data-testid="detail-driver-placeholder"]').exists()).toBe(false)
+      })
+
+      it('renders "Sin paradas" when the driver route has no stops (REQ-DRC-001)', async () => {
+        resetRoleFlags({ isManager: { value: false }, isDriver: { value: true }, canRead: { value: true } })
+        resetDetailState({ data: makeDraftRoute({ stopsLength: 0 }) })
+        const wrapper = mountView()
+        await flushPromises()
+        expect(wrapper.find('[data-testid="detail-driver-stops-empty"]').exists()).toBe(true)
+        expect(wrapper.text()).toContain('Sin paradas')
+      })
+
+      it('does NOT render the driver branch when routeData is stale (different route id, keepPreviousData guard)', async () => {
+        resetRoleFlags({ isManager: { value: false }, isDriver: { value: true }, canRead: { value: true } })
+        resetDetailState({ data: makeDraftRoute({ id: 'route-OTHER', stopsLength: 2 }) })
+        const wrapper = mountView()
+        await flushPromises()
+        expect(wrapper.find('[data-testid="detail-driver-branch"]').exists()).toBe(false)
+      })
+
+      it('passes the route id down to each DriverStopDetail so check-in is wired correctly', async () => {
+        resetRoleFlags({ isManager: { value: false }, isDriver: { value: true }, canRead: { value: true } })
+        resetDetailState({ data: makeDraftRoute({ stopsLength: 2 }) })
+        const wrapper = mountView()
+        await flushPromises()
+        const firstStopBtn = wrapper.find('[data-testid="driver-stop-check-in-stub-s1"]')
+        expect(firstStopBtn.exists()).toBe(true)
+        await firstStopBtn.trigger('click')
+        await flushPromises()
+        expect(driverStopEmits['check-in'].length).toBe(1)
+        expect(driverStopEmits['check-in'][0]).toEqual({ id: 'route-42', stopId: 's1' })
+      })
+
+      it('does NOT render the not-found full-page for the driver branch on 404 (driver 403 maps to not-found, but a true 404 with isDriver still maps to not-found)', async () => {
+        resetRoleFlags({ isManager: { value: true } })
+        resetDetailState({
+          isError: true,
+          data: undefined,
+          error: {
+            response: { status: 404, data: { error: 'ENTITY_NOT_FOUND', message: 'x' } },
+          },
+        })
+        const wrapper = mountView()
+        await flushPromises()
+        expect(wrapper.find('[data-testid="detail-not-found"]').exists()).toBe(true)
+      })
     })
-    const wrapper = mountView()
-    await flushPromises()
-    expect(wrapper.find('[data-testid="detail-not-found"]').exists()).toBe(true)
-  })
-})
 
 describe('DeliveryRouteDetailView — start 409 conflict flow (design §10.1, REQ-DRM-013)', () => {
   it('mutations are wired through their composables — the 409 handling lives in useStartDeliveryRoute', async () => {
