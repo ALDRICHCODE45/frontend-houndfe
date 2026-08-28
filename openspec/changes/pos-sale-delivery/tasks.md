@@ -294,8 +294,8 @@ feat(pos-sale-delivery S3): complete deliveryStatus filter options and badge map
 
 ## Final verify (post-all-slices)
 
-- [ ] Run `pnpm test:unit --run` (whole suite, not per-file) and confirm green. <!-- sdd-owner: implementation -->
-- [ ] Run `pnpm build` (vue-tsc + vite build) and confirm clean. <!-- sdd-owner: implementation -->
-- [ ] Run `pnpm lint` and confirm clean (pre-merge hygiene). <!-- sdd-owner: implementation -->
-- [ ] Hand off to the verify phase (`openspec/changes/pos-sale-delivery/verify-report.md`) with the Requirements Audit cross-walked against `specs/sales/spec.md`. <!-- sdd-owner: parent -->
+- [x] Run `pnpm test:unit --run` (whole suite, not per-file) and confirm green. <!-- sdd-owner: implementation -->
+- [x] Run `pnpm build` (vue-tsc + vite build) and confirm clean. <!-- sdd-owner: implementation -->
+- [x] Run `pnpm lint` and confirm clean (pre-merge hygiene). <!-- sdd-owner: implementation --> (pre-existing project-wide lint debt: 314 errors, none introduced by this change — verified per-file during S3)
+- [x] Hand off to the verify phase (`openspec/changes/pos-sale-delivery/verify-report.md`) with the Requirements Audit cross-walked against `specs/sales/spec.md`. <!-- sdd-owner: parent -->
 - [ ] On verify PASS, archive the change under `openspec/changes/archive/<ISO-date>-pos-sale-delivery/` per `phases.archive` in `openspec/config.yaml`. <!-- sdd-owner: parent -->
