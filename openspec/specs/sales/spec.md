@@ -811,6 +811,337 @@ The HISTORIAL card SHALL be implemented as `SaleDetailHistoryCard.vue`, a thin `
 ---
 *Delta REQ-NEW-1..15 + REQ-19 MODIFIED applied from `sales-pos-charge` change (HEAD `fa62b450`).*
 *Delta REQ-LAYOUT-001..008 applied from `sale-detail-redesign` change (HEAD `cf0e263`). MODIFIED HST-REQ-008 carve-out deferred until `sales-history-coco` archives (HST-REQ-001..008 not yet in canonical).*
+*Delta REQ-DLV-1..12 applied from `pos-sale-delivery` change (HEAD `08d1bd5`..`046932e`). ADDED-only — no MODIFIED/REMOVED/RENAMED; 12 requirements / 41 scenarios. NOTE: the requirement statement in REQ-DLV-12 parenthetically lists `PENDING` (warning) and `DELIVERED` ("Entregada", success) for visual semantics; the pre-existing badge map values (`PENDING` → 'No Entregados'/error, `DELIVERED` → 'Entregados'/success) are preserved per design §2/Q2 — scenario-level assertions still hold (every value resolves to a non-"Desconocido" config).*
+
+### REQ-DLV-1: Charge Payload Carries Optional `delivery` on Both Branches
+
+The charge request payload types (`LegacyChargePayload` and `MultiPaymentChargePayload`, the two branches of `ChargeSalePayload`) MUST accept an OPTIONAL field `delivery?: boolean`. When the field is omitted OR explicitly `false`, the charge MUST behave exactly as it does today (legacy charges stay byte-identical to pre-change behavior). When the field is `true`, the confirmed sale MUST be born with `deliveryStatus: 'PENDING'` (route-eligible). The `ChargeSalePayload` union shape itself MUST NOT change beyond this addition.
+
+#### Scenario: legacy branch accepts `delivery: true`
+
+- GIVEN a charge with the legacy single-payment shape (`{ method, amountCents, … }`)
+- WHEN the cashier submits the charge with `delivery: true`
+- THEN the request body sent to `POST /sales/drafts/:id/charge` includes the literal `delivery: true`
+- AND the legacy payload shape otherwise matches its existing contract
+
+#### Scenario: multi-payment branch accepts `delivery: true`
+
+- GIVEN a charge with the multi-payment shape (`{ payments: […] }`)
+- WHEN the cashier submits the charge with `delivery: true`
+- THEN the request body includes `delivery: true` alongside the `payments` array
+- AND no payment entry shape changes
+
+#### Scenario: payload omits `delivery` when toggle is off
+
+- GIVEN the "Entrega a domicilio" toggle is OFF
+- WHEN the cashier submits a charge
+- THEN the request body MUST NOT carry a `delivery` key (omission only — never an explicit `false`)
+- AND legacy charges stay byte-identical to pre-change behavior
+
+#### Scenario: confirmed sale shows `PENDING` after toggle-on charge
+
+- GIVEN the charge was submitted with `delivery: true` against a draft that has a shipping address
+- WHEN the cashier retrieves the confirmed sale from `GET /sales/:id` or `GET /sales`
+- THEN `deliveryStatus === 'PENDING'`
+
+### REQ-DLV-2: PaymentModal Toggle Emits `delivery` Only When On
+
+The charge step (`PaymentModal`) MUST expose an "Entrega a domicilio" toggle. When the toggle is ON, the built payload MUST spread `delivery: true` into BOTH the legacy branch and the multi-payment branch of the payload returned by `buildPayload()`. When the toggle is OFF, the payload MUST NOT contain a `delivery` key. The toggle MUST reset to OFF every time the modal opens (alongside the existing per-open reset behavior).
+
+#### Scenario: toggle ON emits `delivery: true` on the legacy branch
+
+- GIVEN the toggle is ON and the cashier uses the legacy single-payment shape
+- WHEN `buildPayload()` returns the legacy payload
+- THEN the returned object includes `delivery: true`
+- AND no other field of the legacy payload changes
+
+#### Scenario: toggle ON emits `delivery: true` on the multi-payment branch
+
+- GIVEN the toggle is ON and the cashier uses the multi-payment shape
+- WHEN `buildPayload()` returns the multi-payment payload
+- THEN the returned object includes `delivery: true` alongside `payments`
+- AND no payment entry shape changes
+
+#### Scenario: toggle OFF omits `delivery`
+
+- GIVEN the toggle is OFF
+- WHEN `buildPayload()` returns either branch
+- THEN the returned object MUST NOT carry a `delivery` key
+
+#### Scenario: modal open resets the toggle to OFF
+
+- GIVEN the toggle was ON at modal close
+- WHEN the cashier opens `PaymentModal` again
+- THEN the toggle MUST be OFF
+- AND the built payload MUST NOT carry a `delivery` key on first render
+
+### REQ-DLV-3: Toggle Gated on Shipping-Address Presence
+
+The "Entrega a domicilio" toggle MUST be DISABLED whenever the draft has no shipping address assigned (`shippingAddress == null`). When disabled, an inline hint MUST be visible with the copy "asigná cliente y dirección primero" so the cashier understands the constraint and is not left wondering why the toggle will not move. The toggle MUST be enabled (interactive) whenever `shippingAddress != null`. The disabled/enabled state MUST recompute reactively so that clearing the shipping address (e.g. when the customer is reassigned, since backend rules clear the address on customer change) immediately disables the toggle again without a manual refresh.
+
+#### Scenario: no address disables the toggle and shows the hint
+
+- GIVEN `shippingAddress == null`
+- WHEN the charge step renders
+- THEN the toggle MUST render in a disabled state
+- AND an inline hint with the literal text "asigná cliente y dirección primero" MUST be visible
+
+#### Scenario: address present enables the toggle without a hint
+
+- GIVEN `shippingAddress != null`
+- WHEN the charge step renders
+- THEN the toggle MUST be enabled (interactive)
+- AND no gating hint MUST be visible
+
+#### Scenario: clearing the address reactively disables the toggle
+
+- GIVEN the toggle is ON with an assigned address
+- WHEN the address is cleared (e.g. customer reassignment triggers backend address clear)
+- THEN the toggle MUST immediately become disabled again on the next render
+- AND the gating hint MUST be visible again
+- AND the built payload MUST NOT carry `delivery: true` while the gate is closed
+
+#### Scenario: gating alone prevents the 422 in normal flow
+
+- GIVEN a draft with no shipping address
+- WHEN the cashier submits the charge (with the toggle disabled)
+- THEN the request body MUST NOT carry `delivery: true`
+- AND the backend `422 SHIPPING_ADDRESS_REQUIRED_FOR_DELIVERY` MUST NOT be triggered by this flow
+
+### REQ-DLV-4: Toggle CTA Reuses Existing Customer/Address Assignment
+
+When the toggle is disabled because the draft has no shipping address, the charge step MUST surface an affordance (CTA) that reuses the existing customer/address assignment flow already triggered by `request-assign-customer` (the same emit the modal already uses for the same purpose from its other surfaces). Activating the CTA MUST open the existing `AssignCustomerSlideover` — no new slideover, no new route, no new picker MUST be introduced.
+
+#### Scenario: disabled toggle exposes a CTA to assign customer/address
+
+- GIVEN `shippingAddress == null`
+- WHEN the charge step renders
+- THEN a CTA MUST be visible alongside (or directly reachable from) the disabled toggle
+- AND activating it MUST emit `request-assign-customer` (the existing signal)
+
+#### Scenario: CTA opens the existing AssignCustomerSlideover
+
+- GIVEN the cashier activates the CTA
+- WHEN `SalesView` receives the `request-assign-customer` emit
+- THEN the existing `AssignCustomerSlideover` MUST open
+- AND no new slideover, route, or picker is rendered
+
+#### Scenario: customer/address assignment enables the toggle
+
+- GIVEN the cashier assigns a customer and a shipping address from the opened slideover
+- WHEN the address propagates back to the charge step (via the `shippingAddress` prop)
+- THEN the toggle MUST become enabled automatically on the next render
+- AND the gating hint MUST disappear
+
+### REQ-DLV-5: Idempotency Key Regenerates When Delivery Toggle Changes
+
+The idempotency key used on the charge request MUST be regenerated whenever the "Entrega a domicilio" toggle changes (ON → OFF or OFF → ON), in addition to the existing regen behavior driven by the payment entries. The toggle MUST be a source in the same key-regen effect that already watches the entries. A pin test MUST assert the key changes when the toggle flips while entries are otherwise unchanged. Without this regen, a legitimate toggle edit would reuse an `Idempotency-Key` whose backend hash captured the prior `delivery` value and would respond with `409 IDEMPOTENCY_KEY_CONFLICT`.
+
+#### Scenario: toggling delivery regenerates the idempotency key
+
+- GIVEN the charge modal is open with a stable `entries` value
+- WHEN the cashier flips the "Entrega a domicilio" toggle
+- THEN the displayed `Idempotency-Key` MUST change
+- AND the new key MUST be sent on the next charge request
+
+#### Scenario: stable entries + no toggle change keep the key stable
+
+- GIVEN `entries` is unchanged
+- WHEN the toggle is NOT flipped
+- THEN the idempotency key MUST NOT regenerate
+
+#### Scenario: toggle flip never produces IDEMPOTENCY_KEY_CONFLICT for legitimate edits
+
+- GIVEN the cashier flips the toggle
+- WHEN the cashier submits the charge with the newly-generated key
+- THEN the backend MUST NOT respond with `409 IDEMPOTENCY_KEY_CONFLICT`
+- AND the `IDEMPOTENCY_KEY_CONFLICT` mapping (`new-key` action) remains a backstop only
+
+### REQ-DLV-6: SalesView Passes Shipping Address Reactively to PaymentModal
+
+`SalesView` MUST pass the active draft's `shippingAddress` through to `PaymentModal` (alongside the existing `:customer` binding). The address passed MUST be reactive to `activeDraft.shippingAddress` so that backend-driven clears (the customer-change rule) propagate without manual wiring in the modal. The binding MUST use `activeDraft.shippingAddress ?? null` semantics (null when absent).
+
+#### Scenario: PaymentModal receives the active draft's shipping address
+
+- GIVEN `activeDraft.shippingAddress` is a `CustomerAddress`
+- WHEN `SalesView` renders `PaymentModal`
+- THEN `PaymentModal` MUST receive the address via its `shippingAddress` prop
+
+#### Scenario: missing address propagates as null
+
+- GIVEN `activeDraft.shippingAddress == null`
+- WHEN `SalesView` renders `PaymentModal`
+- THEN `PaymentModal`'s `shippingAddress` prop MUST be `null`
+
+#### Scenario: address clear on customer change propagates to the modal
+
+- GIVEN the cashier reassigns the customer and the backend clears `shippingAddress`
+- WHEN the active draft updates reactively
+- THEN `PaymentModal`'s `shippingAddress` prop MUST become `null` without a manual refresh
+- AND the toggle gating MUST recompute to disabled (per the gating requirement)
+
+### REQ-DLV-7: Charge Response, Success Modal, and Counts Are Unchanged
+
+The change MUST NOT alter the charge response contract, the success modal behavior, or the `counts` payload from `GET /sales`. The charge response still carries no `deliveryStatus` — the value is read from `GET /sales` / `GET /sales/:id` after the charge. `PaymentSuccessModal` MUST render exactly as it does today for a charge with `delivery: true` (no new fields, no new copy, no new totals). The KPI `counts` (`all`, `pendingPayments`, `notDelivered`) MUST NOT change because of this change — extended filters (including `deliveryStatus`) intentionally do not alter counts per the locked backend contract.
+
+#### Scenario: charge response carries no `deliveryStatus`
+
+- GIVEN the cashier submits a charge with `delivery: true`
+- WHEN the backend responds
+- THEN the response shape is identical to a charge without `delivery: true`
+- AND no `deliveryStatus` field appears on the response
+
+#### Scenario: success modal renders unchanged
+
+- GIVEN the charge succeeds with `delivery: true`
+- WHEN `PaymentSuccessModal` renders
+- THEN it MUST render exactly as it does today (no new fields, copy, or totals)
+- AND the cashier MUST be able to obtain `deliveryStatus` only via a follow-up `GET /sales` / `GET /sales/:id` request
+
+#### Scenario: counts are unaffected by this change
+
+- GIVEN the cashier applies a `deliveryStatus` filter on the sales list
+- WHEN `GET /sales` returns
+- THEN `counts.all`, `counts.pendingPayments`, and `counts.notDelivered` MUST behave identically to the pre-change baseline (extended filters do not alter counts)
+- AND the filter value MUST affect the listed `data` only
+
+### REQ-DLV-8: ChargeDomainErrorCode Enumerates SHIPPING_ADDRESS_REQUIRED_FOR_DELIVERY
+
+The `ChargeDomainErrorCode` union MUST include the literal `'SHIPPING_ADDRESS_REQUIRED_FOR_DELIVERY'` alongside its existing members. TS exhaustiveness on `Record<ChargeDomainErrorCode, …>` MUST force every consumer to handle the new code — adding the code without an `ERROR_ACTIONS` entry MUST be a type error. This requirement is additive: it MUST NOT remove any existing member of the union (no regression on `PAYMENT_AMOUNT_INSUFFICIENT`, `IDEMPOTENCY_KEY_CONFLICT`, etc.).
+
+#### Scenario: literal is accepted by the union
+
+- GIVEN the literal `'SHIPPING_ADDRESS_REQUIRED_FOR_DELIVERY'`
+- WHEN it is assigned to a `ChargeDomainErrorCode`-typed value
+- THEN the assignment MUST type-check
+
+#### Scenario: omitting an entry in ERROR_ACTIONS is a type error
+
+- GIVEN a `Record<ChargeDomainErrorCode, SalePaymentUxAction>` literal is being authored
+- WHEN the new key is not provided
+- THEN TypeScript MUST report an excess-property / missing-key error (exhaustiveness)
+
+#### Scenario: existing codes remain in the union
+
+- GIVEN the change is applied
+- WHEN the union is inspected
+- THEN every pre-existing member (including `PAYMENT_AMOUNT_INSUFFICIENT`, `IDEMPOTENCY_KEY_CONFLICT`) MUST still be a member
+
+### REQ-DLV-9: Friendly Inline Error for SHIPPING_ADDRESS_REQUIRED_FOR_DELIVERY
+
+The `ERROR_ACTIONS` map MUST carry an entry keyed by `'SHIPPING_ADDRESS_REQUIRED_FOR_DELIVERY'` with `type: 'inline'` and a Spanish-language `message` telling the cashier to assign a shipping address to use the delivery flow. The copy MUST be neutral and actionable (the proposal locks the wording to "Para entrega a domicilio asigna una dirección de envío."). The entry MUST be retrieved via the existing `getSalePaymentErrorAction(code)` dispatch path used by `SalesView.handleChargeDraft` — no new dispatch chain MAY be introduced.
+
+#### Scenario: 422 SHIPPING_ADDRESS_REQUIRED_FOR_DELIVERY surfaces inline
+
+- GIVEN the backend responds with `422` and `code: 'SHIPPING_ADDRESS_REQUIRED_FOR_DELIVERY'`
+- WHEN `SalesView.handleChargeDraft` runs the dispatch chain
+- THEN `getSalePaymentErrorAction('SHIPPING_ADDRESS_REQUIRED_FOR_DELIVERY')` MUST return a `SalePaymentUxAction`
+- AND the returned action MUST have `type: 'inline'`
+- AND the returned `message` MUST contain "Para entrega a domicilio" and reference "dirección de envío"
+
+#### Scenario: friendly action replaces the raw error toast
+
+- GIVEN the action is returned
+- WHEN the cashier sees the result
+- THEN a friendly inline message MUST render
+- AND no raw backend error toast MUST be shown for this specific code
+
+#### Scenario: gating is the primary path, 422 is the safety net
+
+- GIVEN the toggle gating requirement (disabled-with-hint when no address)
+- WHEN the cashier follows the gating flow normally
+- THEN the backend `422 SHIPPING_ADDRESS_REQUIRED_FOR_DELIVERY` MUST NOT be reached in normal flow
+- AND the friendly inline action exists only as a safety net for stale drafts or races
+
+### REQ-DLV-10: SALE_DELIVERY_STATUS Covers All Four Backend Values
+
+The `SALE_DELIVERY_STATUS` constant object MUST enumerate all four backend values in this exact set: `'PENDING'`, `'SHIPPED'`, `'DELIVERED'`, `'NOT_APPLICABLE'`. The corresponding `SaleDeliveryStatus` TS type MUST be derived from this constant (single source of truth) so that adding a backend value requires only the constant change. Pin tests MUST lock every value in the constant against accidental drift.
+
+#### Scenario: the constant enumerates all four values
+
+- GIVEN `SALE_DELIVERY_STATUS` is exported
+- WHEN its keys are enumerated
+- THEN it MUST contain `PENDING`, `SHIPPED`, `DELIVERED`, and `NOT_APPLICABLE` — no more, no less
+
+#### Scenario: the type derives from the constant
+
+- GIVEN `SaleDeliveryStatus` is the matching TS type
+- WHEN a literal of `'PENDING' | 'SHIPPED' | 'DELIVERED' | 'NOT_APPLICABLE'` is assigned
+- THEN the assignment MUST type-check
+
+#### Scenario: adding a new backend value requires only the constant change
+
+- GIVEN the constant is the single source of truth
+- WHEN a future value is appended to `SALE_DELIVERY_STATUS`
+- THEN the `SaleDeliveryStatus` type MUST pick up the new value automatically
+- AND no parallel string-union edits are required
+
+#### Scenario: pin tests freeze the value set
+
+- GIVEN the co-located pin tests
+- WHEN they run
+- THEN every value in `SALE_DELIVERY_STATUS` MUST be asserted verbatim
+- AND a renamed or removed value MUST fail a pin test
+
+### REQ-DLV-11: Delivery Status Filter Exposes All Four Backend Values
+
+`createSalesFiltersSchema` MUST extend the `deliveryStatus` `multiEnum` options to include all four backend values with neutral Spanish labels. The full set MUST be exactly: `PENDING` ("Pendiente"), `SHIPPED` ("En ruta"), `DELIVERED` ("Entregada"), `NOT_APPLICABLE` ("No aplica"). The field MUST continue to use `param: 'deliveryStatus'` so existing serialization to the CSV `deliveryStatus=PENDING,SHIPPED` query string is preserved. The total field count of the schema (11 fields across 4 sections) MUST NOT change — this is purely an option-array expansion on the existing `deliveryStatus` field.
+
+#### Scenario: filter exposes the four labeled options
+
+- GIVEN the sales list slideover
+- WHEN the cashier opens the "Entrega" filter
+- THEN the options MUST be "Pendiente", "En ruta", "Entregada", and "No aplica" (in that or stable order)
+- AND no other delivery-status option MUST appear
+
+#### Scenario: filter value serializes to the backend CSV param
+
+- GIVEN the cashier selects `SHIPPED` and `NOT_APPLICABLE`
+- WHEN the request is sent
+- THEN the query string MUST carry `deliveryStatus=SHIPPED,NOT_APPLICABLE` (or `deliveryStatus=NOT_APPLICABLE,SHIPPED`)
+- AND the backend CSV semantics (OR within the same filter) MUST be honored
+
+#### Scenario: schema field count and section layout are unchanged
+
+- GIVEN the option-array expansion
+- WHEN the schema is inspected
+- THEN it MUST still define exactly 11 fields across 4 sections (Estado / Personas / Montos / Fechas)
+- AND the existing `REQ-19` invariants MUST continue to hold
+
+### REQ-DLV-12: Delivery Status Badge Map Covers All Four Backend Values
+
+The `deliveryStatusBadgeMap` MUST carry a config entry for every one of the four backend values so that valid statuses never fall back to the generic "Desconocido" placeholder. Each entry MUST include a Spanish label and a tonal color (`success` | `warning` | `error` | `neutral`) consistent with the visual semantics: `PENDING` (warning), `SHIPPED` ("En ruta", warning), `DELIVERED` ("Entregada", success), `NOT_APPLICABLE` ("No aplica", neutral). The `getDeliveryStatusBadge` lookup MUST return the configured config for any of the four valid values; the `unknownBadge` fallback remains available only for genuinely unknown/legacy strings outside the four-value set.
+
+> **Spec-drift guard (preserved per design §2/Q2):** the parenthetical visuals above describe the *intent* of badge copy/colors per backend semantics; the canonical implementation preserves the **pre-existing** badge entries verbatim (`PENDING` → `'No Entregados'`/`error`, `DELIVERED` → `'Entregados'`/`success`) and *adds* only `SHIPPED` (`'En ruta'`/`warning`) and `NOT_APPLICABLE` (`'No aplica'`/`neutral`). Scenario-level assertions below remain satisfied because they check lookup → configured config (not exact labels).
+
+#### Scenario: every backend value resolves to a configured config
+
+- GIVEN `getDeliveryStatusBadge` is called with each of `PENDING`, `SHIPPED`, `DELIVERED`, `NOT_APPLICABLE`
+- WHEN the lookup runs
+- THEN every call MUST return a non-`unknownBadge` `SaleBadgeConfig`
+- AND no call MUST return the literal label `"Desconocido"`
+
+#### Scenario: badge copy and tone match the visual semantics
+
+- GIVEN the badge map
+- WHEN the entries are inspected
+- THEN `DELIVERED` MUST use `color: 'success'`
+- AND `SHIPPED` MUST use `color: 'warning'` with the label `"En ruta"`
+- AND `NOT_APPLICABLE` MUST use `color: 'neutral'` with the label `"No aplica"`
+
+#### Scenario: unknown strings still fall back to "Desconocido"
+
+- GIVEN `getDeliveryStatusBadge` is called with a string outside the four-value set (e.g. a pre-deploy backend response or a typo)
+- WHEN the lookup runs
+- THEN the function MUST return the `unknownBadge` ("Desconocido") config
+- AND no crash MAY occur
+
+#### Scenario: pin tests freeze the badge map
+
+- GIVEN the co-located badge-map pin tests
+- WHEN they run
+- THEN every key in `deliveryStatusBadgeMap` MUST be asserted verbatim
+- AND a renamed or removed value MUST fail a pin test
 
 ## UI Copy (neutral Spanish, examples)
 
