@@ -65,7 +65,7 @@ describe('handleCheckInSuccess (sdd delivery-routes S6b, design §6.3, §4.2)', 
     )
   })
 
-  it('fires the Spanish "Parada marcada como entregada" success toast (REQ-DRC-006)', () => {
+  it('fires the Spanish "Entrega registrada" success toast (REQ-DRC-006)', () => {
     const deps = makeDeps()
     handleCheckInSuccess('tenant-1', 'route-42', 'stop-7', deps)
     expect(deps.addToast).toHaveBeenCalledTimes(1)
@@ -75,7 +75,7 @@ describe('handleCheckInSuccess (sdd delivery-routes S6b, design §6.3, §4.2)', 
     }
     expect(toastCall.color).toBe('success')
     expect(toastCall.title.length).toBeGreaterThan(0)
-    expect(toastCall.title).toMatch(/entregada/i)
+    expect(toastCall.title).toBe('Entrega registrada')
   })
 
   it('TRIANGULATE — the stopId is irrelevant for the invalidations (server returns the canonical DTO)', () => {

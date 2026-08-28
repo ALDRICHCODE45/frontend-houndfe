@@ -26,6 +26,13 @@ export const deliveryStatusBadgeMap: Record<string, SaleBadgeConfig> = {
   // — in transit but not yet delivered.
   SHIPPED: { label: 'Enviados', color: 'warning' },
   PENDING: { label: 'No Entregados', color: 'error' },
+  // sdd delivery-routes S7 verify remediation — REQ-SALES-005: NOT_APPLICABLE
+  // parity. Before this addition, instant-delivery / take-away sales (whose
+  // `deliveryStatus` is `NOT_APPLICABLE`) fell through to the "Desconocido"
+  // default — the spec mandates an explicit 'N/A' (neutral) entry so no key
+  // in the union falls through. The label 'N/A' is intentionally short and
+  // locale-neutral (no translation needed; matches industry convention).
+  NOT_APPLICABLE: { label: 'N/A', color: 'neutral' },
 }
 
 const unknownBadge: SaleBadgeConfig = { label: 'Desconocido', color: 'neutral' }

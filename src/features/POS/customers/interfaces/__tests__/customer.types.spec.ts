@@ -140,6 +140,32 @@ describe('customer.address.types', () => {
       const payload = {} as CreateCustomerAddressPayload
       expect('label' in payload).toBe(false)
     })
+
+    // sdd delivery-routes S7 verify remediation — REQ-CA-003: the write payload
+    // widens latitude/longitude to `number | null` so callers can pass `null`
+    // to mean "no pin" without a ts complaint (the runtime still omits the
+    // keys at the API boundary).
+    it('accepts latitude/longitude as `number | null` on the write payload', () => {
+      const payload: CreateCustomerAddressPayload = {
+        street: 'Av. Reforma',
+        city: 'CDMX',
+        latitude: null,
+        longitude: null,
+      }
+      expect(payload.latitude).toBeNull()
+      expect(payload.longitude).toBeNull()
+    })
+
+    it('still accepts latitude/longitude as `number` on the write payload (back-compat)', () => {
+      const payload: CreateCustomerAddressPayload = {
+        street: 'Av. Reforma',
+        city: 'CDMX',
+        latitude: 19.4326,
+        longitude: -99.1332,
+      }
+      expect(payload.latitude).toBe(19.4326)
+      expect(payload.longitude).toBe(-99.1332)
+    })
   })
 
   describe('AddressFormInput (reactive form state)', () => {

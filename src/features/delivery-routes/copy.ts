@@ -28,7 +28,7 @@ export const DELIVERY_ROUTE_COPY = {
     driverTitle: 'Detalle de parada',
   },
   actions: {
-    create: 'Crear ruta',
+    create: 'Nueva ruta',
     edit: 'Editar',
     delete: 'Eliminar',
     start: 'Iniciar ruta',
@@ -45,7 +45,7 @@ export const DELIVERY_ROUTE_COPY = {
     cancelSuccess: 'Ruta cancelada',
     appendSuccess: 'Parada agregada',
     reorderSuccess: 'Orden guardado',
-    checkInSuccess: 'Parada marcada como entregada',
+    checkInSuccess: 'Entrega registrada',
     // Domain errors — surface verbatim from DELIVERY_ROUTE_ERROR_MAP when the
     // mutation composable routes through extractDeliveryRouteErrorCode.
     startConflict:
@@ -60,27 +60,27 @@ export const DELIVERY_ROUTE_COPY = {
     selectDriver: 'Selecciona un repartidor',
   },
   empty: {
-    manager: 'Aún no has creado rutas. Crea una ruta desde el botón superior.',
+    manager: 'No hay rutas de entrega',
     driver: 'No tienes rutas activas en este momento.',
     noEligibleSales:
       'No hay ventas pendientes o enviadas disponibles para asignar.',
   },
   confirm: {
     delete: {
-      title: '¿Eliminar esta ruta?',
-      body: 'Esta acción no se puede deshacer.',
+      title: 'Eliminar ruta',
+      body: 'Esta ruta está vacía y se eliminará permanentemente.',
       confirmLabel: 'Sí, eliminar',
       cancelLabel: 'Cancelar',
     },
     cancel: {
-      title: '¿Cancelar la ruta?',
+      title: 'Cancelar ruta',
       body: 'La ruta quedará en estado cancelada y no podrá iniciarse de nuevo.',
       confirmLabel: 'Sí, cancelar',
       cancelLabel: 'Volver',
     },
     start: {
       title: '¿Iniciar la ruta?',
-      body: 'Una vez iniciada, los clientes asignados serán notificados.',
+      body: 'La ruta pasará a Activa y no podrá editarse ni eliminar la composición de paradas.',
       confirmLabel: 'Sí, iniciar',
       cancelLabel: 'Volver',
     },

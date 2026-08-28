@@ -164,6 +164,43 @@ vi.mock('../../components/DeliveryRouteUpsertSlideover.vue', () => ({
   }),
 }))
 
+// ─── Stub EligibleSalesPicker — single-sale selector for the append-stop flow ─
+const eligiblePickerEmits: { 'update:selected': string[][] } = { 'update:selected': [] }
+vi.mock('../../components/EligibleSalesPicker.vue', () => ({
+  default: defineComponent({
+    name: 'EligibleSalesPicker',
+    props: {
+      modelValue: { type: Array, default: () => [] },
+      required: { type: Boolean, default: false },
+      disabled: { type: Boolean, default: false },
+      placeholder: { type: String, default: '' },
+      error: { type: String, default: '' },
+    },
+    emits: ['update:selected'],
+    setup(props, { emit }) {
+      const sales = (props.modelValue as string[])
+      return () =>
+        h('div', { 'data-testid': 'detail-eligible-sales-picker-stub' }, [
+          h('button', {
+            type: 'button',
+            'data-testid': 'detail-eligible-pick-sale-sale-1',
+            onClick: () => {
+              emit('update:selected', ['sale-1'])
+            },
+          }, 'pick-sale-1'),
+          h('button', {
+            type: 'button',
+            'data-testid': 'detail-eligible-pick-sale-sale-2',
+            onClick: () => {
+              emit('update:selected', ['sale-2'])
+            },
+          }, 'pick-sale-2'),
+          h('span', { 'data-testid': 'detail-eligible-current' }, JSON.stringify(sales)),
+        ])
+    },
+  }),
+}))
+
 // ─── Stub the reorder panel — renders a stable testid + a reorder save button ─
 let lastReorderProps: Record<string, unknown> = {}
 vi.mock('../../components/DeliveryRouteReorderPanel.vue', () => ({
@@ -229,6 +266,61 @@ vi.mock('../../components/DeliveryRouteTimeline.vue', () => ({
             h('div', { 'data-testid': `timeline-stub-row-${i}`, key: i }, e.type),
           ),
         )
+    },
+  }),
+}))
+
+// ─── Stub the shared ConfirmModal primitive — record open state + emits ─
+const confirmModalState: { open: boolean; title: string; confirmColor?: string; description: string; confirmLabel: string; cancelLabel: string } = { open: false, title: '', description: '', confirmColor: 'primary', confirmLabel: '', cancelLabel: '' }
+const confirmEmits: { confirm: number; cancel: number; updateOpen: number[] } = { confirm: 0, cancel: 0, updateOpen: [] }
+function resetConfirmModalState() {
+  confirmModalState.open = false
+  confirmModalState.title = ''
+  confirmModalState.description = ''
+  confirmModalState.confirmColor = 'primary'
+  confirmModalState.confirmLabel = ''
+  confirmModalState.cancelLabel = ''
+  confirmEmits.confirm = 0
+  confirmEmits.cancel = 0
+  confirmEmits.updateOpen = []
+}
+vi.mock('@/core/shared/components/ConfirmModal.vue', () => ({
+  default: defineComponent({
+    name: 'ConfirmModal',
+    props: {
+      open: { type: Boolean, default: false },
+      title: { type: String, default: '' },
+      description: { type: String, default: '' },
+      confirmLabel: { type: String, default: 'Confirmar' },
+      cancelLabel: { type: String, default: 'Cancelar' },
+      confirmColor: { type: String, default: 'primary' },
+      loading: { type: Boolean, default: false },
+    },
+    emits: ['update:open', 'confirm', 'cancel'],
+    setup(props, { emit }) {
+      return () => {
+        confirmModalState.open = props.open
+        confirmModalState.title = props.title ?? ''
+        confirmModalState.description = props.description ?? ''
+        confirmModalState.confirmColor = (props.confirmColor as typeof confirmModalState.confirmColor) ?? 'primary'
+        confirmModalState.confirmLabel = props.confirmLabel ?? ''
+        confirmModalState.cancelLabel = props.cancelLabel ?? ''
+        return h('div', { 'data-testid': 'detail-confirm-modal-stub' }, [
+          h('span', { 'data-testid': 'detail-confirm-modal-title' }, props.title ?? ''),
+          h('span', { 'data-testid': 'detail-confirm-modal-description' }, props.description ?? ''),
+          h('span', { 'data-testid': 'detail-confirm-modal-confirm-color' }, (props.confirmColor as string) ?? 'primary'),
+          h('button', {
+            type: 'button',
+            'data-testid': 'detail-confirm-modal-confirm',
+            onClick: () => { confirmEmits.confirm += 1; emit('confirm') },
+          }, 'confirm'),
+          h('button', {
+            type: 'button',
+            'data-testid': 'detail-confirm-modal-cancel',
+            onClick: () => { confirmEmits.cancel += 1; emit('update:open', false); emit('cancel') },
+          }, 'cancel'),
+        ])
+      }
     },
   }),
 }))
@@ -443,18 +535,25 @@ describe('DeliveryRouteDetailView — manager branch wiring (design §4.1, §6.4
     expect(wrapper.find('[data-testid="detail-delete-button"]').exists()).toBe(false)
   })
 
-  it('clicking the start button calls useStartDeliveryRoute.mutate (REQ-DRM-013)', async () => {
+  it('clicking the start button opens ConfirmModal; mutation fires only after confirm (REQ-DRM-010/013)', async () => {
+    // S7 verify remediation — the start button no longer fires the mutation
+    // directly; it opens the shared ConfirmModal first (REQ-DRM-010).
     resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
     resetDetailState({ data: makeDraftRoute() })
     const wrapper = mountView()
     await flushPromises()
     await wrapper.find('[data-testid="detail-start-button"]').trigger('click')
     await flushPromises()
+    expect(startMutateMock).not.toHaveBeenCalled()
+    await wrapper.find('[data-testid="detail-confirm-modal-confirm"]').trigger('click')
+    await flushPromises()
     expect(startMutateMock).toHaveBeenCalledTimes(1)
     expect(startMutateMock).toHaveBeenCalledWith('route-42')
   })
 
-  it('clicking the cancel button calls useCancelDeliveryRoute.mutate', async () => {
+  it('clicking the cancel button on ACTIVE opens ConfirmModal; mutation fires only after confirm (REQ-DRM-011)', async () => {
+    // S7 verify remediation — cancel is gated through the shared ConfirmModal
+    // (REQ-DRM-011).
     resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
     resetDetailState({
       data: { ...makeDraftRoute(), status: 'ACTIVE', startedAt: '2025-01-01T00:00:00Z' },
@@ -463,11 +562,16 @@ describe('DeliveryRouteDetailView — manager branch wiring (design §4.1, §6.4
     await flushPromises()
     await wrapper.find('[data-testid="detail-cancel-button"]').trigger('click')
     await flushPromises()
+    expect(cancelMutateMock).not.toHaveBeenCalled()
+    await wrapper.find('[data-testid="detail-confirm-modal-confirm"]').trigger('click')
+    await flushPromises()
     expect(cancelMutateMock).toHaveBeenCalledTimes(1)
     expect(cancelMutateMock).toHaveBeenCalledWith('route-42')
   })
 
-  it('clicking the delete button calls useDeleteDeliveryRoute.mutate on a DRAFT zero-stop route', async () => {
+  it('clicking the delete button opens ConfirmModal; mutation fires only after confirm (REQ-DRM-012)', async () => {
+    // S7 verify remediation — delete is gated through the shared ConfirmModal
+    // (REQ-DRM-012); on confirm, the route list navigation fires too.
     resetRoleFlags({
           isManager: { value: true },
           canUpdate: { value: true },
@@ -478,19 +582,76 @@ describe('DeliveryRouteDetailView — manager branch wiring (design §4.1, §6.4
     await flushPromises()
     await wrapper.find('[data-testid="detail-delete-button"]').trigger('click')
     await flushPromises()
+    expect(deleteMutateMock).not.toHaveBeenCalled()
+    await wrapper.find('[data-testid="detail-confirm-modal-confirm"]').trigger('click')
+    await flushPromises()
     expect(deleteMutateMock).toHaveBeenCalledTimes(1)
     expect(deleteMutateMock).toHaveBeenCalledWith('route-42')
+    expect(routerPushMock).toHaveBeenCalledWith('/pos/rutas-de-entrega')
   })
 
-  it('does NOT render an append-stop affordance (deferred — no single-sale selector yet)', async () => {
-    // design §4.2 lists edit/reorder/start/cancel/delete for the detail view, NOT
-    // append. Append-stop needs a single-sale selector that lands later; until
-    // then the button must NOT render (prevents sending a wrong saleId).
+  it('renders the append-stop affordance on DRAFT (REQ-DRM-008, REQ-DRM-013)', async () => {
+    // sdd delivery-routes S7 verify remediation — REQ-DRM-008: the append
+    // composable was implemented but the UI selector was deferred. The
+    // detail view now exposes the selector + "Agregar parada" button on
+    // DRAFT (gated by update AND status === 'DRAFT').
     resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
     resetDetailState({ data: makeDraftRoute() })
     const wrapper = mountView()
     await flushPromises()
+    expect(wrapper.find('[data-testid="detail-append-button"]').exists()).toBe(true)
+    // The picker is stubbed; the section testid is exposed by the view.
+    expect(wrapper.find('[data-testid="detail-append-section"]').exists()).toBe(true)
+  })
+
+  it('hides the append-stop affordance on non-DRAFT (REQ-DRM-008, REQ-DRM-013)', async () => {
+    resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+    resetDetailState({
+      data: { ...makeDraftRoute(), status: 'ACTIVE', startedAt: '2025-01-01T00:00:00Z' },
+    })
+    const wrapper = mountView()
+    await flushPromises()
     expect(wrapper.find('[data-testid="detail-append-button"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="detail-append-sales-picker"]').exists()).toBe(false)
+  })
+
+  it('hides the append-stop affordance when canUpdate is false (REQ-DRM-013)', async () => {
+    resetRoleFlags({ isManager: { value: true }, canUpdate: { value: false } })
+    resetDetailState({ data: makeDraftRoute() })
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="detail-append-button"]').exists()).toBe(false)
+  })
+
+  it('clicking the append button with a selected sale calls useAppendDeliveryRouteStop (REQ-DRM-008)', async () => {
+    resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+    resetDetailState({ data: makeDraftRoute() })
+    const wrapper = mountView()
+    await flushPromises()
+    // The picker is stubbed; the section testid is exposed by the view.
+    expect(wrapper.find('[data-testid="detail-append-section"]').exists()).toBe(true)
+    // Pick sale-1 via the stub's button (stub is a single root <div>).
+    await wrapper.find('[data-testid="detail-eligible-pick-sale-sale-1"]').trigger('click')
+    await nextTick()
+    await wrapper.find('[data-testid="detail-append-button"]').trigger('click')
+    await flushPromises()
+    expect(appendMutateMock).toHaveBeenCalledTimes(1)
+    expect(appendMutateMock).toHaveBeenCalledWith({
+      id: 'route-42',
+      payload: { saleId: 'sale-1' },
+    })
+  })
+
+  it('clicking the append button with no sale selected is a no-op (UI invariant)', async () => {
+    resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+    resetDetailState({ data: makeDraftRoute() })
+    const wrapper = mountView()
+    await flushPromises()
+    const btn = wrapper.find('[data-testid="detail-append-button"]')
+    expect((btn.element as HTMLButtonElement).disabled).toBe(true)
+    await btn.trigger('click')
+    await flushPromises()
+    expect(appendMutateMock).not.toHaveBeenCalled()
   })
 
   it('renders the loading skeleton on initial fetch', async () => {
@@ -724,18 +885,206 @@ describe('DeliveryRouteDetailView — 404 ENTITY_NOT_FOUND / driver 403 → full
       })
     })
 
-describe('DeliveryRouteDetailView — start 409 conflict flow (design §10.1, REQ-DRM-013)', () => {
+describe('DeliveryRouteDetailView — ConfirmModal for start/cancel/delete (REQ-DRM-010/011/012)', () => {
+    beforeEach(() => {
+      resetConfirmModalState()
+    })
+
+    it('opens a ConfirmModal when the start button is clicked (REQ-DRM-010)', async () => {
+      resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+      resetDetailState({ data: makeDraftRoute() })
+      const wrapper = mountView()
+      await flushPromises()
+      await wrapper.find('[data-testid="detail-start-button"]').trigger('click')
+      await nextTick()
+      expect(confirmModalState.open).toBe(true)
+      expect(confirmModalState.title).toMatch(/iniciar.*ruta/i)
+      expect(confirmModalState.description).toMatch(/pasar.*activa|composici/i)
+    })
+
+    it('does NOT fire useStartDeliveryRoute until the confirm modal is confirmed (REQ-DRM-010)', async () => {
+      resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+      resetDetailState({ data: makeDraftRoute() })
+      const wrapper = mountView()
+      await flushPromises()
+      await wrapper.find('[data-testid="detail-start-button"]').trigger('click')
+      await nextTick()
+      expect(startMutateMock).not.toHaveBeenCalled()
+      await wrapper.find('[data-testid="detail-confirm-modal-confirm"]').trigger('click')
+      await flushPromises()
+      expect(startMutateMock).toHaveBeenCalledTimes(1)
+      expect(startMutateMock).toHaveBeenCalledWith('route-42')
+    })
+
+    it('opens a ConfirmModal when the cancel button is clicked (REQ-DRM-011)', async () => {
+      resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+      resetDetailState({ data: { ...makeDraftRoute(), status: 'ACTIVE', startedAt: '2025-01-01T00:00:00Z' } })
+      const wrapper = mountView()
+      await flushPromises()
+      await wrapper.find('[data-testid="detail-cancel-button"]').trigger('click')
+      await nextTick()
+      expect(confirmModalState.open).toBe(true)
+      expect(confirmModalState.title).toMatch(/cancelar.*ruta/i)
+    })
+
+    it('does NOT fire useCancelDeliveryRoute until the confirm modal is confirmed (REQ-DRM-011)', async () => {
+      resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+      resetDetailState({ data: { ...makeDraftRoute(), status: 'ACTIVE', startedAt: '2025-01-01T00:00:00Z' } })
+      const wrapper = mountView()
+      await flushPromises()
+      await wrapper.find('[data-testid="detail-cancel-button"]').trigger('click')
+      await nextTick()
+      expect(cancelMutateMock).not.toHaveBeenCalled()
+      await wrapper.find('[data-testid="detail-confirm-modal-confirm"]').trigger('click')
+      await flushPromises()
+      expect(cancelMutateMock).toHaveBeenCalledTimes(1)
+      expect(cancelMutateMock).toHaveBeenCalledWith('route-42')
+    })
+
+    it('opens a ConfirmModal when the delete button is clicked (REQ-DRM-012)', async () => {
+      resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true }, canDelete: { value: true } })
+      resetDetailState({ data: makeDraftRoute({ stopsLength: 0 }) })
+      const wrapper = mountView()
+      await flushPromises()
+      await wrapper.find('[data-testid="detail-delete-button"]').trigger('click')
+      await nextTick()
+      expect(confirmModalState.open).toBe(true)
+      expect(confirmModalState.title).toMatch(/eliminar.*ruta/i)
+      expect(confirmModalState.description).toMatch(/vac[i/plantilla]|permanentemente/i)
+    })
+
+    it('does NOT fire useDeleteDeliveryRoute until the confirm modal is confirmed (REQ-DRM-012)', async () => {
+      resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true }, canDelete: { value: true } })
+      resetDetailState({ data: makeDraftRoute({ stopsLength: 0 }) })
+      const wrapper = mountView()
+      await flushPromises()
+      await wrapper.find('[data-testid="detail-delete-button"]').trigger('click')
+      await nextTick()
+      expect(deleteMutateMock).not.toHaveBeenCalled()
+      await wrapper.find('[data-testid="detail-confirm-modal-confirm"]').trigger('click')
+      await flushPromises()
+      expect(deleteMutateMock).toHaveBeenCalledTimes(1)
+      expect(deleteMutateMock).toHaveBeenCalledWith('route-42')
+    })
+
+    it('cancelling the start confirm modal closes it without firing the mutation (REQ-DRM-010)', async () => {
+      resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+      resetDetailState({ data: makeDraftRoute() })
+      const wrapper = mountView()
+      await flushPromises()
+      await wrapper.find('[data-testid="detail-start-button"]').trigger('click')
+      await nextTick()
+      expect(confirmModalState.open).toBe(true)
+      await wrapper.find('[data-testid="detail-confirm-modal-cancel"]').trigger('click')
+      await nextTick()
+      expect(startMutateMock).not.toHaveBeenCalled()
+    })
+  })
+
+  describe('DeliveryRouteDetailView — cancel gating expanded to DRAFT + ACTIVE (REQ-DRM-011, REQ-DRM-013)', () => {
+    it('cancel button is ENABLED on a DRAFT route (was ACTIVE-only before S7 remediation)', async () => {
+      resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+      resetDetailState({ data: makeDraftRoute() })
+      const wrapper = mountView()
+      await flushPromises()
+      const cancelBtn = wrapper.find('[data-testid="detail-cancel-button"]')
+      expect(cancelBtn.exists()).toBe(true)
+      expect((cancelBtn.element as HTMLButtonElement).disabled).toBe(false)
+    })
+
+    it('cancel button is ENABLED on an ACTIVE route (REQ-DRM-011 baseline)', async () => {
+      resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+      resetDetailState({ data: { ...makeDraftRoute(), status: 'ACTIVE', startedAt: '2025-01-01T00:00:00Z' } })
+      const wrapper = mountView()
+      await flushPromises()
+      const cancelBtn = wrapper.find('[data-testid="detail-cancel-button"]')
+      expect((cancelBtn.element as HTMLButtonElement).disabled).toBe(false)
+    })
+
+    it('cancel button is HIDDEN on COMPLETED / CANCELLED routes (REQ-DRM-011)', async () => {
+      // S7 verify remediation — the cancel button doesn't render at all on
+      // COMPLETED / CANCELLED (the spec restricts it to DRAFT + ACTIVE).
+      resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+      resetDetailState({
+        data: { ...makeDraftRoute(), status: 'COMPLETED', completedAt: '2025-01-01T00:00:00Z' },
+      })
+      const wrapper = mountView()
+      await flushPromises()
+      expect(wrapper.find('[data-testid="detail-cancel-button"]').exists()).toBe(false)
+    })
+
+    it('cancel button is HIDDEN on COMPLETED / CANCELLED routes (driver-bound case)', async () => {
+      // The button also stays hidden on CANCELLED (the route already finished).
+      resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+      resetDetailState({
+        data: { ...makeDraftRoute(), status: 'CANCELLED', cancelledAt: '2025-01-01T00:00:00Z' },
+      })
+      const wrapper = mountView()
+      await flushPromises()
+      expect(wrapper.find('[data-testid="detail-cancel-button"]').exists()).toBe(false)
+    })
+
+    it('clicking the cancel button on a DRAFT route fires the mutation after confirm (REQ-DRM-011)', async () => {
+      resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+      resetDetailState({ data: makeDraftRoute() })
+      const wrapper = mountView()
+      await flushPromises()
+      await wrapper.find('[data-testid="detail-cancel-button"]').trigger('click')
+      await nextTick()
+      await wrapper.find('[data-testid="detail-confirm-modal-confirm"]').trigger('click')
+      await flushPromises()
+      expect(cancelMutateMock).toHaveBeenCalledWith('route-42')
+    })
+  })
+
+  describe('DeliveryRouteDetailView — edit gated to DRAFT only (REQ-DRM-013)', () => {
+    it('edit button is ENABLED on a DRAFT route', async () => {
+      resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+      resetDetailState({ data: makeDraftRoute() })
+      const wrapper = mountView()
+      await flushPromises()
+      expect(wrapper.find('[data-testid="detail-edit-button"]').exists()).toBe(true)
+    })
+
+    it('edit button does NOT render on an ACTIVE route', async () => {
+      resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+      resetDetailState({ data: { ...makeDraftRoute(), status: 'ACTIVE', startedAt: '2025-01-01T00:00:00Z' } })
+      const wrapper = mountView()
+      await flushPromises()
+      expect(wrapper.find('[data-testid="detail-edit-button"]').exists()).toBe(false)
+    })
+
+    it('edit button does NOT render on a COMPLETED route', async () => {
+      resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+      resetDetailState({ data: { ...makeDraftRoute(), status: 'COMPLETED', completedAt: '2025-01-01T00:00:00Z' } })
+      const wrapper = mountView()
+      await flushPromises()
+      expect(wrapper.find('[data-testid="detail-edit-button"]').exists()).toBe(false)
+    })
+
+    it('edit button does NOT render on a CANCELLED route', async () => {
+      resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+      resetDetailState({ data: { ...makeDraftRoute(), status: 'CANCELLED', cancelledAt: '2025-01-01T00:00:00Z' } })
+      const wrapper = mountView()
+      await flushPromises()
+      expect(wrapper.find('[data-testid="detail-edit-button"]').exists()).toBe(false)
+    })
+  })
+
+  describe('DeliveryRouteDetailView — start 409 conflict flow (design §10.1, REQ-DRM-013)', () => {
   it('mutations are wired through their composables — the 409 handling lives in useStartDeliveryRoute', async () => {
     // The view itself does NOT special-case the 409 (the composable owns the
     // extract→refetch→toast chain per design §10.1). This spec pins that
-    // contract: clicking start calls useStartDeliveryRoute.mutate(id) and the
-    // composable handles the rejection. We assert by triggering the click and
-    // verifying the mutation was invoked with the correct id.
+    // contract: the start button → ConfirmModal → useStartDeliveryRoute.mutate
+    // (id). The composable handles the rejection. We assert by driving the
+    // button + modal and verifying the mutation was invoked with the correct id.
     resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
     resetDetailState({ data: makeDraftRoute() })
     const wrapper = mountView()
     await flushPromises()
     await wrapper.find('[data-testid="detail-start-button"]').trigger('click')
+    await flushPromises()
+    await wrapper.find('[data-testid="detail-confirm-modal-confirm"]').trigger('click')
     await flushPromises()
     expect(startMutateMock).toHaveBeenCalledWith('route-42')
   })

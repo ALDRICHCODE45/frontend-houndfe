@@ -1,7 +1,8 @@
 <script setup lang="ts">
 /**
- * DeliveryRouteDetailView — S6a + S6b (sdd delivery-routes, design.md §4.1,
- * §4.2, §6.4, §7.2, §10.1, §11, REQ-DRM-013..015, REQ-DRC-001..008).
+ * DeliveryRouteDetailView — S6a + S6b + S7 verify remediation (sdd delivery-routes,
+ * design.md §4.1, §4.2, §6.4, §7.2, §10.1, §11, REQ-DRM-008/010/011/012/013/015,
+ * REQ-DRC-001..008).
  *
  * Route-level composition surface for `/pos/rutas-de-entrega/:id`. ONE route
  * serves both roles; the view discriminates manager vs driver via a SINGLE
@@ -10,9 +11,13 @@
  * permission reads co-located at the call site.
  *
  *   - Manager branch (`isManager=true`): renders the route detail with the S4c
- *     + S5a + S5b mutation affordances:
- *       * Edit (DeliveryRouteUpsertSlideover in edit mode)
- *       * Start / Cancel / Delete / Reorder (panel only on DRAFT) / Append stop
+ *     + S5a + S5b + S7 mutation affordances:
+ *       * Edit (DeliveryRouteUpsertSlideover in edit mode; DRAFT-only per REQ-DRM-013)
+ *       * Start / Cancel (DRAFT + ACTIVE per REQ-DRM-011/013) — each gated by ConfirmModal
+ *       * Delete (DRAFT + zero stops + canDelete) — gated by ConfirmModal per REQ-DRM-012
+ *       * Reorder (panel only on DRAFT)
+ *       * Append stop (DRAFT + update) — wired through `EligibleSalesPicker` +
+ *         `useAppendDeliveryRouteStop` per REQ-DRM-008/013
  *     404 ENTITY_NOT_FOUND on detail fetch → full-page "Ruta no encontrada".
  *     Driver 403 → SAME full-page not-found state (no banner, no toast — no
  *     presence leak; design §7.2, §11).
@@ -29,6 +34,7 @@ import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { AxiosError } from 'axios'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
+import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
 import { useDeliveryRouteRole } from '../composables/useDeliveryRouteRole'
 import { useDeliveryRouteDetail } from '../composables/useDeliveryRouteDetail'
@@ -36,10 +42,12 @@ import { useUpdateDeliveryRoute } from '../composables/useUpdateDeliveryRoute'
 import { useDeleteDeliveryRoute } from '../composables/useDeleteDeliveryRoute'
 import { useStartDeliveryRoute } from '../composables/useStartDeliveryRoute'
 import { useCancelDeliveryRoute } from '../composables/useCancelDeliveryRoute'
+import { useAppendDeliveryRouteStop } from '../composables/useAppendDeliveryRouteStop'
 import DeliveryRouteUpsertSlideover from '../components/DeliveryRouteUpsertSlideover.vue'
 import DeliveryRouteReorderPanel from '../components/DeliveryRouteReorderPanel.vue'
 import DriverStopDetail from '../components/DriverStopDetail.vue'
 import DeliveryRouteTimeline from '../components/DeliveryRouteTimeline.vue'
+import EligibleSalesPicker from '../components/EligibleSalesPicker.vue'
 import { extractDeliveryRouteErrorCode } from '../interfaces/errors'
 import { buildStopProgress } from '../utils/delivery-route-actions.utils'
 import {
@@ -83,11 +91,12 @@ const notFoundCode = computed<string | null>(() => {
   return null
 })
 
-// ─── Mutations (S4c + S5a + S5b) ──────────────────────────────────────────────
+// ─── Mutations (S4c + S5a + S5b + S7 verify remediation) ──────────────────────
 const { mutateAsync: updateRoute, isPending: updateIsPending } = useUpdateDeliveryRoute()
 const { mutateAsync: deleteRoute, isPending: deleteIsPending } = useDeleteDeliveryRoute()
 const { mutateAsync: startRoute, isPending: startIsPending } = useStartDeliveryRoute()
 const { mutateAsync: cancelRoute, isPending: cancelIsPending } = useCancelDeliveryRoute()
+const { mutateAsync: appendStop, isPending: appendIsPending } = useAppendDeliveryRouteStop()
 
 // ─── Edit slideover ───────────────────────────────────────────────────────────
 const isEditOpen = ref(false)
@@ -103,31 +112,72 @@ async function onEdit(payload: UpdateDeliveryRouteRequest): Promise<void> {
   }
 }
 
-// ─── Delete / start / cancel / append handlers ────────────────────────────────
-async function onDelete(): Promise<void> {
-  try {
-    await deleteRoute(routeId.value)
-    // After delete, navigate back to the manager list (the route no longer
-    // exists server-side; staying on the detail page would render the
-    // not-found state immediately).
-    void router.push('/pos/rutas-de-entrega')
-  } catch {
-    // Error already surfaced via the composable's onError toast.
-  }
+// ─── ConfirmModal wiring (S7 verify remediation, REQ-DRM-010/011/012) ──────────
+// One ConfirmModal is reused for start / cancel / delete; the `kind` ref +
+// confirm handler pick which action fires. We could split into three modals
+// but the shared primitive is the simpler surface and matches the rest of
+// the app's pattern (admin payment-methods view).
+const confirmKind = ref<'start' | 'cancel' | 'delete' | null>(null)
+const isConfirmOpen = computed<boolean>(() => confirmKind.value !== null)
+
+function openConfirm(kind: 'start' | 'cancel' | 'delete'): void {
+  confirmKind.value = kind
 }
 
-async function onStart(): Promise<void> {
+function closeConfirm(): void {
+  confirmKind.value = null
+}
+
+async function onConfirm(): Promise<void> {
+  const kind = confirmKind.value
+  closeConfirm()
   try {
-    await startRoute(routeId.value)
+    if (kind === 'start') {
+      await startRoute(routeId.value)
+    } else if (kind === 'cancel') {
+      await cancelRoute(routeId.value)
+    } else if (kind === 'delete') {
+      await deleteRoute(routeId.value)
+      void router.push('/pos/rutas-de-entrega')
+    }
   } catch {
-    // Error already surfaced via the composable's onError toast (the 409
+    // Errors already surfaced via the composable's onError toast (the 409
     // conflict path owns its own refetch + toast per design §10.1).
   }
 }
 
-async function onCancel(): Promise<void> {
+// Wire each action button to openConfirm — the mutation only fires after the
+// user confirms inside the modal.
+function onStart(): void { openConfirm('start') }
+function onCancel(): void { openConfirm('cancel') }
+function onDelete(): void { openConfirm('delete') }
+
+// ─── Append-stop wiring (S7 verify remediation, REQ-DRM-008/013) ──────────────
+// Single-sale selector (EligibleSalesPicker) + "Agregar parada" button.
+// The picker is multi-select-capable, but we only ever submit ONE saleId per
+// call (the append mutation accepts a single saleId). We track the first
+// selected id and reset the picker after a successful submit. The picker is
+// hidden when the route is not DRAFT (mutation would 422 anyway).
+const appendSelectedSaleIds = ref<string[]>([])
+const appendSelectedSaleId = computed<string | null>(() =>
+  appendSelectedSaleIds.value.length > 0 ? appendSelectedSaleIds.value[0]! : null,
+)
+
+function onAppendSalePicked(next: string[]): void {
+  // Keep only the first selection — the append mutation accepts a single
+  // saleId and would 422 on a multi-id payload.
+  appendSelectedSaleIds.value = next.slice(0, 1)
+}
+
+async function onAppend(): Promise<void> {
+  const saleId = appendSelectedSaleId.value
+  if (!saleId) return
   try {
-    await cancelRoute(routeId.value)
+    await appendStop({ id: routeId.value, payload: { saleId } })
+    // Reset the selector on success so the user can immediately pick another
+    // sale. The composable's onSuccess already fired the "Parada agregada"
+    // toast + invalidated the eligible-sales cache.
+    appendSelectedSaleIds.value = []
   } catch {
     // Error already surfaced via the composable's onError toast.
   }
@@ -149,8 +199,49 @@ const canShowDelete = computed<boolean>(() => {
 })
 
 // Append-stop is manager-only on DRAFT (any non-DRAFT rejects at the backend).
-// Deferred: the detail view has no single-sale selector yet (design §4.2 lists
-// edit/reorder/start/cancel/delete, NOT append). Wire it when a selector lands.
+// Surfaced as an explicit affordance now (S7 verify remediation): the spec
+// mandates a single-sale selector + button (REQ-DRM-008/013).
+const canShowAppend = computed<boolean>(() => {
+  const r = routeData.value
+  if (!r) return false
+  if (r.id !== routeId.value) return false // keepPreviousData stale guard
+  if (r.status !== 'DRAFT') return false
+  return canUpdate.value
+})
+
+// Edit button is HIDDEN unless both rules pass (REQ-DRM-013, S7 verify
+// remediation — was previously rendered for any status when update was held).
+const canShowEdit = computed<boolean>(() => {
+  const r = routeData.value
+  if (!r) return false
+  if (r.id !== routeId.value) return false
+  if (r.status !== 'DRAFT') return false
+  return canUpdate.value
+})
+
+// Start button is HIDDEN unless ALL three rules pass (REQ-DRM-013).
+//   - DRAFT status
+//   - at least one stop (the backend rejects empty-route starts with
+//     422 DELIVERY_ROUTE_INVALID_TRANSITION)
+//   - update permission
+const canShowStart = computed<boolean>(() => {
+  const r = routeData.value
+  if (!r) return false
+  if (r.id !== routeId.value) return false
+  if (r.status !== 'DRAFT') return false
+  if (r.stops.length === 0) return false
+  return canUpdate.value
+})
+
+// Cancel button is ENABLED for routes in DRAFT or ACTIVE (REQ-DRM-011, S7
+// verify remediation — was previously ACTIVE-only). HIDDEN otherwise.
+const canShowCancel = computed<boolean>(() => {
+  const r = routeData.value
+  if (!r) return false
+  if (r.id !== routeId.value) return false
+  if (r.status !== 'DRAFT' && r.status !== 'ACTIVE') return false
+  return canUpdate.value
+})
 
 // ─── Status / progress helpers ────────────────────────────────────────────────
 function statusTone(status: DeliveryRouteStatus) {
@@ -164,6 +255,43 @@ const stopProgressLabel = computed<string>(() => {
   const r = routeData.value
   if (!r) return ''
   return buildStopProgress(r.stops)
+})
+
+// ─── ConfirmModal payload helpers ─────────────────────────────────────────────
+const confirmTitle = computed<string>(() => {
+  if (confirmKind.value === 'start') return DELIVERY_ROUTE_COPY.confirm.start.title
+  if (confirmKind.value === 'cancel') return DELIVERY_ROUTE_COPY.confirm.cancel.title
+  if (confirmKind.value === 'delete') return DELIVERY_ROUTE_COPY.confirm.delete.title
+  return ''
+})
+const confirmDescription = computed<string>(() => {
+  if (confirmKind.value === 'start') return DELIVERY_ROUTE_COPY.confirm.start.body
+  if (confirmKind.value === 'cancel') return DELIVERY_ROUTE_COPY.confirm.cancel.body
+  if (confirmKind.value === 'delete') return DELIVERY_ROUTE_COPY.confirm.delete.body
+  return ''
+})
+const confirmLabel = computed<string>(() => {
+  if (confirmKind.value === 'start') return DELIVERY_ROUTE_COPY.confirm.start.confirmLabel
+  if (confirmKind.value === 'cancel') return DELIVERY_ROUTE_COPY.confirm.cancel.confirmLabel
+  if (confirmKind.value === 'delete') return DELIVERY_ROUTE_COPY.confirm.delete.confirmLabel
+  return 'Confirmar'
+})
+const confirmCancelLabel = computed<string>(() => {
+  if (confirmKind.value === 'start') return DELIVERY_ROUTE_COPY.confirm.start.cancelLabel
+  if (confirmKind.value === 'cancel') return DELIVERY_ROUTE_COPY.confirm.cancel.cancelLabel
+  if (confirmKind.value === 'delete') return DELIVERY_ROUTE_COPY.confirm.delete.cancelLabel
+  return 'Cancelar'
+})
+const confirmColor = computed<'primary' | 'error' | 'warning'>(() => {
+  if (confirmKind.value === 'delete') return 'error'
+  if (confirmKind.value === 'cancel') return 'warning'
+  return 'primary'
+})
+const confirmLoading = computed<boolean>(() => {
+  if (confirmKind.value === 'start') return startIsPending.value
+  if (confirmKind.value === 'cancel') return cancelIsPending.value
+  if (confirmKind.value === 'delete') return deleteIsPending.value
+  return false
 })
 
 // ─── Error fallback copy ──────────────────────────────────────────────────────
@@ -186,10 +314,9 @@ defineExpose({
 
 <template>
   <!--
-    Driver branch (REQ-DRM-002 driver side, design §6.4): renders nothing in
-    S6a. S6b replaces this placeholder with DriverStopDetail +
-    DeliveryRouteTimeline.
-    TODO(S6b): render the driver branch (DriverStopDetail + timeline) here.
+    Driver branch (REQ-DRM-002 driver side, design §6.4): renders the stop list
+    (S6b) + timeline. The S6b implementation supersedes the S6a placeholder
+    marker that lived here.
   -->
   <!-- Full-page "Ruta no encontrada" state — 404 ENTITY_NOT_FOUND AND driver 403.
        Evaluated FIRST: a real driver whose detail fetch returns 403 must land
@@ -306,6 +433,22 @@ defineExpose({
       @edit="onEdit"
     />
 
+    <!-- Shared ConfirmModal for start/cancel/delete (S7 verify remediation,
+         REQ-DRM-010/011/012). One modal is reused; the confirmKind ref
+         picks the title/body/handler. -->
+    <ConfirmModal
+      :open="isConfirmOpen"
+      :title="confirmTitle"
+      :description="confirmDescription"
+      :confirm-label="confirmLabel"
+      :cancel-label="confirmCancelLabel"
+      :confirm-color="confirmColor"
+      :loading="confirmLoading"
+      data-testid="detail-confirm-modal"
+      @update:open="(value: boolean) => { if (!value) closeConfirm() }"
+      @confirm="onConfirm"
+    />
+
     <!-- Header / summary (REQ-DRM-014) -->
     <header
       data-testid="detail-route-summary"
@@ -327,13 +470,16 @@ defineExpose({
       </div>
     </header>
 
-    <!-- Manager actions toolbar (S4c + S5a + S5b wiring) -->
+    <!-- Manager actions toolbar (S4c + S5a + S5b + S7 verify wiring).
+         Each button click opens the shared ConfirmModal; the mutation only
+         fires after the user confirms. -->
     <div
-      v-if="canUpdate"
+      v-if="canUpdate || canShowDelete"
       data-testid="detail-actions-toolbar"
       class="flex flex-wrap items-center gap-2"
     >
       <UButton
+        v-if="canShowEdit"
         color="primary"
         variant="outline"
         :label="DELIVERY_ROUTE_COPY.actions.edit"
@@ -341,20 +487,20 @@ defineExpose({
         @click="isEditOpen = true"
       />
       <UButton
+        v-if="canShowStart"
         color="primary"
         variant="solid"
         :label="DELIVERY_ROUTE_COPY.actions.start"
         :loading="startIsPending"
-        :disabled="routeData.status !== 'DRAFT' || routeData.stops.length === 0"
         data-testid="detail-start-button"
         @click="onStart"
       />
       <UButton
+        v-if="canShowCancel"
         color="warning"
         variant="outline"
         :label="DELIVERY_ROUTE_COPY.actions.cancel"
         :loading="cancelIsPending"
-        :disabled="routeData.status !== 'ACTIVE'"
         data-testid="detail-cancel-button"
         @click="onCancel"
       />
@@ -368,6 +514,37 @@ defineExpose({
         @click="onDelete"
       />
     </div>
+
+    <!-- Append-stop affordance — single-sale selector + "Agregar parada" button.
+         DRAFT + canUpdate only (REQ-DRM-008/013). -->
+    <section
+      v-if="canShowAppend"
+      data-testid="detail-append-section"
+      class="flex flex-col gap-3 rounded-md border border-default bg-default p-4"
+    >
+      <header class="flex flex-col gap-1">
+        <h2 class="text-sm font-medium">{{ DELIVERY_ROUTE_COPY.actions.appendStop }}</h2>
+        <p class="text-xs text-muted">
+          Selecciona una venta pendiente o enviada para agregarla a la ruta.
+        </p>
+      </header>
+      <EligibleSalesPicker
+        :model-value="appendSelectedSaleIds"
+        data-testid="detail-append-sales-picker"
+        @update:selected="onAppendSalePicked"
+      />
+      <div class="flex justify-end">
+        <UButton
+          color="primary"
+          variant="solid"
+          :label="DELIVERY_ROUTE_COPY.actions.appendStop"
+          :loading="appendIsPending"
+          :disabled="appendSelectedSaleId === null"
+          data-testid="detail-append-button"
+          @click="onAppend"
+        />
+      </div>
+    </section>
 
     <!-- Reorder panel — only on DRAFT (DRM-009/010 gating). -->
     <DeliveryRouteReorderPanel

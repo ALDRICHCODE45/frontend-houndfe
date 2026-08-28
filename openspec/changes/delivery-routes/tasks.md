@@ -221,10 +221,10 @@ build on a registered CASL subject and `SHIPPED` filter. No views, no zod schema
 
 **TDD steps**
 
-- [ ] **RED** — Write co-located specs asserting: SHIPPED value + badge + filter, `AppSubject`/`APP_SUBJECTS` membership, `PERMISSION_COPY` 4-CRUD block, `deliveryRouteQueryKeys` shape (incl. `listPrefix` is a separate prefix slot, not `list(tenantId, {})`). <!-- sdd-owner: implementation -->
-- [ ] **GREEN** — Implement the minimum to make every spec pass: constant additions, three CASL touch points, router/nav stubs pointing at missing views, query keys. <!-- sdd-owner: implementation -->
-- [ ] **TRIANGULATE** — Add adjacent cases: SHIPPED plural label vs singular-feminine filter label distinction; `SaleDeliveryStatus` type widening via `pnpm build` (vue-tsc); permissions.ts not in `HIDDEN_SUBJECTS`; assert that adding `DeliveryRoute` to `AppSubject` does NOT alter the existing `PaymentDetail`/`PaymentMethod` subjects. <!-- sdd-owner: implementation -->
-- [ ] **REFACTOR** — Tighten: label/tone maps are typed against the inferred `Record<...>` (no string widening); no duplicated copy between the permissions spec assertions. <!-- sdd-owner: implementation -->
+- [x] **RED** — Write co-located specs asserting: SHIPPED value + badge + filter, `AppSubject`/`APP_SUBJECTS` membership, `PERMISSION_COPY` 4-CRUD block, `deliveryRouteQueryKeys` shape (incl. `listPrefix` is a separate prefix slot, not `list(tenantId, {})`). <!-- sdd-owner: implementation -->
+- [x] **GREEN** — Implement the minimum to make every spec pass: constant additions, three CASL touch points, router/nav stubs pointing at missing views, query keys. <!-- sdd-owner: implementation -->
+- [x] **TRIANGULATE** — Add adjacent cases: SHIPPED plural label vs singular-feminine filter label distinction; `SaleDeliveryStatus` type widening via `pnpm build` (vue-tsc); permissions.ts not in `HIDDEN_SUBJECTS`; assert that adding `DeliveryRoute` to `AppSubject` does NOT alter the existing `PaymentDetail`/`PaymentMethod` subjects. <!-- sdd-owner: implementation -->
+- [x] **REFACTOR** — Tighten: label/tone maps are typed against the inferred `Record<...>` (no string widening); no duplicated copy between the permissions spec assertions. <!-- sdd-owner: implementation -->
 
 **Verify**
 
@@ -281,10 +281,10 @@ S1a (uses `deliveryRouteQueryKeys`).
 
 **TDD steps**
 
-- [ ] **RED** — Write co-located specs asserting: 10 API method URLs/methods, zod schemas parse backend sample (5-event timeline + `ROUTE_CREATED.actor === null`), payload whitelist (reject `id`/`tenantId`/`timeline`/`activeRouteId`/`startedAt`/`completedAt`/`cancelledAt`/`createdAt`/`updatedAt`), `extractDeliveryRouteErrorCode` reads `.response.data.error` (never `.message`). <!-- sdd-owner: implementation -->
-- [ ] **GREEN** — Implement the minimum to make every spec pass: zod schemas, 10 API methods, error map + extractor. <!-- sdd-owner: implementation -->
-- [ ] **TRIANGULATE** — Add cases: `paginateDeliveryRoutes` slice/total/pageCount math; forbidden keys enumerated one-by-one; `DeliveryRouteStatus`/`StopStatus` enums reject unknown values; `extractDeliveryRouteErrorCode` returns `null` for `.message`-only errors; the 5-event timeline discriminated union rejects an unknown `type`. <!-- sdd-owner: implementation -->
-- [ ] **REFACTOR** — Extract a `paginateDeliveryRoutes` helper in the api spec (used later by `useDeliveryRoutesTable`); ensure label/tone maps are typed against the inferred `Record<DeliveryRouteStatus, …>` (no string widening); remove any duplicated copy between `errors.spec.ts` and the api spec. <!-- sdd-owner: implementation -->
+- [x] **RED** — Write co-located specs asserting: 10 API method URLs/methods, zod schemas parse backend sample (5-event timeline + `ROUTE_CREATED.actor === null`), payload whitelist (reject `id`/`tenantId`/`timeline`/`activeRouteId`/`startedAt`/`completedAt`/`cancelledAt`/`createdAt`/`updatedAt`), `extractDeliveryRouteErrorCode` reads `.response.data.error` (never `.message`). <!-- sdd-owner: implementation -->
+- [x] **GREEN** — Implement the minimum to make every spec pass: zod schemas, 10 API methods, error map + extractor. <!-- sdd-owner: implementation -->
+- [x] **TRIANGULATE** — Add cases: `paginateDeliveryRoutes` slice/total/pageCount math; forbidden keys enumerated one-by-one; `DeliveryRouteStatus`/`StopStatus` enums reject unknown values; `extractDeliveryRouteErrorCode` returns `null` for `.message`-only errors; the 5-event timeline discriminated union rejects an unknown `type`. <!-- sdd-owner: implementation -->
+- [x] **REFACTOR** — Extract a `paginateDeliveryRoutes` helper in the api spec (used later by `useDeliveryRoutesTable`); ensure label/tone maps are typed against the inferred `Record<DeliveryRouteStatus, …>` (no string widening); remove any duplicated copy between `errors.spec.ts` and the api spec. <!-- sdd-owner: implementation -->
 
 **Verify**
 
@@ -401,10 +401,10 @@ directly. Land the shared `formatAddress` util. No call-site swaps in this slice
 
 **TDD steps**
 
-- [ ] **RED** — Write the `formatAddress` spec asserting the label-first ordering + null/whitespace dropping + missing-everything → `''`; write the `AddressMapPicker` spec for write-mode debounce + draggable + clear-pin, read-mode static marker, null modelValue hides the map, no direct `leaflet` import. <!-- sdd-owner: implementation -->
-- [ ] **GREEN** — Implement the port + Leaflet provider + `AddressMapPicker` + `formatAddress`; add `leaflet` dep. <!-- sdd-owner: implementation -->
-- [ ] **TRIANGULATE** — Add tile-failure swallow test (provider swallows the error and the read view keeps the address text); add a regression spec for the formatters (covered in S3b swaps, but pin the shared output exactly here); add a Nominatim-cancel test (`AbortController.signal` honored). <!-- sdd-owner: implementation -->
-- [ ] **REFACTOR** — Extract a `pinToGeoPoint(formState)` helper from `AddressMapPicker`'s write mode so the emit shape is unit-testable; consolidate the `formatAddress` superset input type into a single `AddressFormatInput` exported from the same module (no cycle). <!-- sdd-owner: implementation -->
+- [x] **RED** — Write the `formatAddress` spec asserting the label-first ordering + null/whitespace dropping + missing-everything → `''`; write the `AddressMapPicker` spec for write-mode debounce + draggable + clear-pin, read-mode static marker, null modelValue hides the map, no direct `leaflet` import. <!-- sdd-owner: implementation -->
+- [x] **GREEN** — Implement the port + Leaflet provider + `AddressMapPicker` + `formatAddress`; add `leaflet` dep. <!-- sdd-owner: implementation -->
+- [x] **TRIANGULATE** — Add tile-failure swallow test (provider swallows the error and the read view keeps the address text); add a regression spec for the formatters (covered in S3b swaps, but pin the shared output exactly here); add a Nominatim-cancel test (`AbortController.signal` honored). <!-- sdd-owner: implementation -->
+- [x] **REFACTOR** — Extract a `pinToGeoPoint(formState)` helper from `AddressMapPicker`'s write mode so the emit shape is unit-testable; consolidate the `formatAddress` superset input type into a single `AddressFormatInput` exported from the same module (no cycle). <!-- sdd-owner: implementation -->
 
 **Verify**
 
@@ -459,10 +459,10 @@ formatters with the shared `formatAddress`. **Customer `label` decision is locke
 
 **TDD steps**
 
-- [ ] **RED** — Write the `customer.types` spec for lat/lng on all 4 interfaces; write `customer.api` spec for `mapAddress` lat/lng normalization; write `AddressModal` spec asserting the map mounts, emits lat/lng only when present, and never gates eligibility; assert `label` is **NOT** present on the customer address types. <!-- sdd-owner: implementation -->
-- [ ] **GREEN** — Add lat/lng to customer types; update `mapAddress`; mount the picker in `AddressModal`; swap the two formatter call sites. <!-- sdd-owner: implementation -->
-- [ ] **TRIANGULATE** — Add the legacy-omission test for `CustomerAddressBackendResponse` (lat/lng absent ⇒ normalized to `null`); add a regression spec for `CustomerUpsertSlideover` + `AssignCustomerSlideover` that pins the shared formatter output exactly (matches `formatAddress` spec from S3a). <!-- sdd-owner: implementation -->
-- [ ] **REFACTOR** — Extract a `pinToGeoPoint(formState)` helper inside `AddressModal` if it isn't already in S3a; ensure the emit shape is the only place that decides "include lat/lng on the payload" so adding a third call site later is a one-liner. <!-- sdd-owner: implementation -->
+- [x] **RED** — Write the `customer.types` spec for lat/lng on all 4 interfaces; write `customer.api` spec for `mapAddress` lat/lng normalization; write `AddressModal` spec asserting the map mounts, emits lat/lng only when present, and never gates eligibility; assert `label` is **NOT** present on the customer address types. <!-- sdd-owner: implementation -->
+- [x] **GREEN** — Add lat/lng to customer types; update `mapAddress`; mount the picker in `AddressModal`; swap the two formatter call sites. <!-- sdd-owner: implementation -->
+- [x] **TRIANGULATE** — Add the legacy-omission test for `CustomerAddressBackendResponse` (lat/lng absent ⇒ normalized to `null`); add a regression spec for `CustomerUpsertSlideover` + `AssignCustomerSlideover` that pins the shared formatter output exactly (matches `formatAddress` spec from S3a). <!-- sdd-owner: implementation -->
+- [x] **REFACTOR** — Extract a `pinToGeoPoint(formState)` helper inside `AddressModal` if it isn't already in S3a; ensure the emit shape is the only place that decides "include lat/lng on the payload" so adding a third call site later is a one-liner. <!-- sdd-owner: implementation -->
 
 **Verify**
 
@@ -517,10 +517,10 @@ and any view scaffolding.
 
 **TDD steps**
 
-- [ ] **RED** — Write specs for: `useDeliveryRouteRole` (create-or-delete ⇒ manager, read-only ⇒ driver, no new query); `useDeliveryRoutesTable` (one fetch → `fullList` + page slice, status param in key, invalidation refetches); `useEligibleSales` (filters to `{PENDING, SHIPPED}`); `copy.ts` exposes the expected keys (action labels, toasts, empty states). <!-- sdd-owner: implementation -->
-- [ ] **GREEN** — Implement the composables + copy. Wire `useDeliveryRoutesTable` to the existing `useServerTable` wrapper following the `usePaymentDetailsTable` precedent. <!-- sdd-owner: implementation -->
-- [ ] **TRIANGULATE** — Add cases: `useDeliveryRoutesTable` status param changes the cache slot (different `status` ⇒ different cache entry); `useEligibleSales` passes the SHIPPED filter explicitly (regression pin against the S1a SHIPPED addition); `useDeliveryRouteRole` returns `{ isManager: false, isDriver: true }` for a `read+update`-only permission set. <!-- sdd-owner: implementation -->
-- [ ] **REFACTOR** — Push the row action gating (`canCreate`/`canDelete`/`canUpdate`) into a single `useDeliveryRoutePermissions()` wrapper (added incrementally — `useDeliveryRouteRole` may export it directly or split it later); confirm no `reactive()` where `ref()` suffices. <!-- sdd-owner: implementation -->
+- [x] **RED** — Write specs for: `useDeliveryRouteRole` (create-or-delete ⇒ manager, read-only ⇒ driver, no new query); `useDeliveryRoutesTable` (one fetch → `fullList` + page slice, status param in key, invalidation refetches); `useEligibleSales` (filters to `{PENDING, SHIPPED}`); `copy.ts` exposes the expected keys (action labels, toasts, empty states). <!-- sdd-owner: implementation -->
+- [x] **GREEN** — Implement the composables + copy. Wire `useDeliveryRoutesTable` to the existing `useServerTable` wrapper following the `usePaymentDetailsTable` precedent. <!-- sdd-owner: implementation -->
+- [x] **TRIANGULATE** — Add cases: `useDeliveryRoutesTable` status param changes the cache slot (different `status` ⇒ different cache entry); `useEligibleSales` passes the SHIPPED filter explicitly (regression pin against the S1a SHIPPED addition); `useDeliveryRouteRole` returns `{ isManager: false, isDriver: true }` for a `read+update`-only permission set. <!-- sdd-owner: implementation -->
+- [x] **REFACTOR** — Push the row action gating (`canCreate`/`canDelete`/`canUpdate`) into a single `useDeliveryRoutePermissions()` wrapper (added incrementally — `useDeliveryRouteRole` may export it directly or split it later); confirm no `reactive()` where `ref()` suffices. <!-- sdd-owner: implementation -->
 
 **Verify**
 
@@ -631,10 +631,10 @@ owns the form. **Courier-scoping gate is re-asserted here before the slideover i
 
 **TDD steps**
 
-- [ ] **RED** — Write specs for: `useCreateDeliveryRoute` / `useUpdateDeliveryRoute` (mutationFn URL/method/payload whitelist; invalidations; domain error mapping; never optimistic); `DeliveryRouteUpsertSlideover` (create shows sales picker, edit hides, zod field errors); `DeliveryRoutesListView` manager branch (renders table + new-route button when `create` permitted, empty/loading/error states). <!-- sdd-owner: implementation -->
-- [ ] **GREEN** — Implement the 2 mutations, the slideover, the manager list view. Wire `DeliveryRoutesListView`'s manager branch to `useDeliveryRoutesTable` + the slideover. <!-- sdd-owner: implementation -->
-- [ ] **TRIANGULATE** — Add cases: "Nueva ruta" hidden when `create` absent (no disabled placeholder); inline zod errors for empty sales / empty driver / notes>280; create happy-path payload omits every forbidden key; edit hides the sales picker slot; edit on non-DRAFT surfaces `422` toast; empty/error/loading state matrix; `formatAddress` rendering is unchanged when called from picker (regression pin against S3a/S3b). <!-- sdd-owner: implementation -->
-- [ ] **REFACTOR** — Tighten `DeliveryRouteUpsertSlideover` props/emits contract (typed `defineProps`/`defineEmits` with `Sale[]`/`Assignee[]`); confirm no `reactive()` where `ref()` suffices. <!-- sdd-owner: implementation -->
+- [x] **RED** — Write specs for: `useCreateDeliveryRoute` / `useUpdateDeliveryRoute` (mutationFn URL/method/payload whitelist; invalidations; domain error mapping; never optimistic); `DeliveryRouteUpsertSlideover` (create shows sales picker, edit hides, zod field errors); `DeliveryRoutesListView` manager branch (renders table + new-route button when `create` permitted, empty/loading/error states). <!-- sdd-owner: implementation -->
+- [x] **GREEN** — Implement the 2 mutations, the slideover, the manager list view. Wire `DeliveryRoutesListView`'s manager branch to `useDeliveryRoutesTable` + the slideover. <!-- sdd-owner: implementation -->
+- [x] **TRIANGULATE** — Add cases: "Nueva ruta" hidden when `create` absent (no disabled placeholder); inline zod errors for empty sales / empty driver / notes>280; create happy-path payload omits every forbidden key; edit hides the sales picker slot; edit on non-DRAFT surfaces `422` toast; empty/error/loading state matrix; `formatAddress` rendering is unchanged when called from picker (regression pin against S3a/S3b). <!-- sdd-owner: implementation -->
+- [x] **REFACTOR** — Tighten `DeliveryRouteUpsertSlideover` props/emits contract (typed `defineProps`/`defineEmits` with `Sale[]`/`Assignee[]`); confirm no `reactive()` where `ref()` suffices. <!-- sdd-owner: implementation -->
 
 **Verify**
 
@@ -688,10 +688,10 @@ S5a is the **DnD bundle** — all three files are tightly coupled.
 
 **TDD steps**
 
-- [ ] **RED** — Write specs for: `assertReorderCoversStops` exactly-once (length mismatch, unknown id, duplicate, valid); `useReorderStops` (URL/method/payload, invalidations, 422 transition toast); `DeliveryRouteReorderPanel` (DnD reorder + ↑/↓ produce same array, guard blocks bad payload, hidden when not DRAFT, "Guardar orden" never autosaves on drag-end). <!-- sdd-owner: implementation -->
-- [ ] **GREEN** — Implement the pure util + the reorder mutation + the reorder panel using `vuedraggable@4` over the already-installed `sortablejs`. <!-- sdd-owner: implementation -->
-- [ ] **TRIANGULATE** — Add cases: `useReorderStops` invalidates BOTH `detail` and `listPrefix`; `DeliveryRouteReorderPanel` falls back to up/down when DnD is unavailable (assert the local ordered copy converges across both interactions); assert the panel does NOT autosave when only DnD drags happen (Guard returns null ⇒ mutationFn is not called until "Guardar orden"). <!-- sdd-owner: implementation -->
-- [ ] **REFACTOR** — Push the domain-error toast mapping into a single `surfaceDeliveryRouteError(error, channel)` helper reused by `useReorderStops` (and extended to the S5b mutations when they land). <!-- sdd-owner: implementation -->
+- [x] **RED** — Write specs for: `assertReorderCoversStops` exactly-once (length mismatch, unknown id, duplicate, valid); `useReorderStops` (URL/method/payload, invalidations, 422 transition toast); `DeliveryRouteReorderPanel` (DnD reorder + ↑/↓ produce same array, guard blocks bad payload, hidden when not DRAFT, "Guardar orden" never autosaves on drag-end). <!-- sdd-owner: implementation -->
+- [x] **GREEN** — Implement the pure util + the reorder mutation + the reorder panel using `vuedraggable@4` over the already-installed `sortablejs`. <!-- sdd-owner: implementation -->
+- [x] **TRIANGULATE** — Add cases: `useReorderStops` invalidates BOTH `detail` and `listPrefix`; `DeliveryRouteReorderPanel` falls back to up/down when DnD is unavailable (assert the local ordered copy converges across both interactions); assert the panel does NOT autosave when only DnD drags happen (Guard returns null ⇒ mutationFn is not called until "Guardar orden"). <!-- sdd-owner: implementation -->
+- [x] **REFACTOR** — Push the domain-error toast mapping into a single `surfaceDeliveryRouteError(error, channel)` helper reused by `useReorderStops` (and extended to the S5b mutations when they land). <!-- sdd-owner: implementation -->
 
 **Verify**
 
@@ -952,8 +952,8 @@ Refs: design §11 (mobile-first driver polish); spec DRC-008.
 These are the only checkboxes marked `<!-- sdd-owner: parent -->`. Apply executes every
 implementation checkbox above; the parent owns the gates between sub-slices.
 
-- [ ] **Courier-scoping confirm gate (blocks S4b wiring + S4c slideover + S6a mutation wiring)** — parent confirms whether `GET /users/assignable` returns ONLY couriers (read+update on `DeliveryRoute`). PASS/FAIL recorded; FAIL blocks the S4b `DriverPicker` (the picker spec still passes via fixtures; S4c slideover and S6a mutation wiring are parked until the gate clears). <!-- sdd-owner: parent -->
-- [ ] **Customer-label vs lat/lng gate (locks S3b decision)** — parent confirms whether `CustomerAddress` gains `label` or only `latitude`/`longitude`. PASS locks the S3b `lat/lng only` decision (already implemented); FAIL triggers a follow-up that threads `label` through `mapAddress` read-only + `AddressModal` display (the shared formatter already handles it). <!-- sdd-owner: parent -->
-- [ ] **Per-sub-slice bounded review (apply end-of-sub-slice gate)** — after each `feat(delivery-routes): …` commit, parent runs the sub-slice's test cmd + `pnpm build` (vue-tsc) + `git diff --stat` and records PASS/FAIL before the next sub-slice starts. <!-- sdd-owner: parent -->
-- [ ] **Apply → verify handoff** — once S7 lands, parent triggers `sdd-verify` against `specs/**/spec.md` (62 REQ audit, per-REQ status + evidence with file:line) and writes `verify-report.md`. <!-- sdd-owner: parent -->
+- [x] **Courier-scoping confirm gate (blocks S4b wiring + S4c slideover + S6a mutation wiring)** — parent confirms whether `GET /users/assignable` returns ONLY couriers (read+update on `DeliveryRoute`). PASS/FAIL recorded; FAIL blocks the S4b `DriverPicker` (the picker spec still passes via fixtures; S4c slideover and S6a mutation wiring are parked until the gate clears). <!-- sdd-owner: parent -->
+- [x] **Customer-label vs lat/lng gate (locks S3b decision)** — parent confirms whether `CustomerAddress` gains `label` or only `latitude`/`longitude`. PASS locks the S3b `lat/lng only` decision (already implemented); FAIL triggers a follow-up that threads `label` through `mapAddress` read-only + `AddressModal` display (the shared formatter already handles it). <!-- sdd-owner: parent -->
+- [x] **Per-sub-slice bounded review (apply end-of-sub-slice gate)** — after each `feat(delivery-routes): …` commit, parent runs the sub-slice's test cmd + `pnpm build` (vue-tsc) + `git diff --stat` and records PASS/FAIL before the next sub-slice starts. <!-- sdd-owner: parent -->
+- [x] **Apply → verify handoff** — once S7 lands, parent triggers `sdd-verify` against `specs/**/spec.md` (62 REQ audit, per-REQ status + evidence with file:line) and writes `verify-report.md`. <!-- sdd-owner: parent -->
 - [ ] **Verify → archive handoff** — on PASS verdict, parent triggers `sdd-archive` and moves the change to `openspec/changes/archive/<ISO-date>-delivery-routes/`. <!-- sdd-owner: parent -->

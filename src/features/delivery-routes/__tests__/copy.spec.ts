@@ -22,7 +22,7 @@ describe('copy.ts — single Spanish copy source (design.md §3)', () => {
 
   it('contains the action labels used by the slideover + reorder panel + detail view', () => {
     // REQ-DR-002 wording: action verbs in infinitive / noun phrases for table cells.
-    expect(DELIVERY_ROUTE_COPY.actions.create).toBe('Crear ruta')
+    expect(DELIVERY_ROUTE_COPY.actions.create).toBe('Nueva ruta')
     expect(DELIVERY_ROUTE_COPY.actions.edit).toBe('Editar')
     expect(DELIVERY_ROUTE_COPY.actions.delete).toBe('Eliminar')
     expect(DELIVERY_ROUTE_COPY.actions.start).toBe('Iniciar ruta')
@@ -40,7 +40,7 @@ describe('copy.ts — single Spanish copy source (design.md §3)', () => {
     expect(DELIVERY_ROUTE_COPY.toasts.cancelSuccess).toMatch(/cancelad/i)
     expect(DELIVERY_ROUTE_COPY.toasts.appendSuccess).toMatch(/parada agregada/i)
     expect(DELIVERY_ROUTE_COPY.toasts.reorderSuccess).toBe('Orden guardado')
-    expect(DELIVERY_ROUTE_COPY.toasts.checkInSuccess).toMatch(/entregada|marcad/i)
+    expect(DELIVERY_ROUTE_COPY.toasts.checkInSuccess).toBe('Entrega registrada')
     // Generic failure surfaces via normalizeApiError — copy only lists the domain ones.
     expect(DELIVERY_ROUTE_COPY.toasts.startConflict).toMatch(/otra ruta activa/i)
     expect(DELIVERY_ROUTE_COPY.toasts.notFound).toMatch(/encontrada/i)
@@ -55,17 +55,29 @@ describe('copy.ts — single Spanish copy source (design.md §3)', () => {
   })
 
   it('contains the empty states for the list view (manager + driver)', () => {
-    expect(DELIVERY_ROUTE_COPY.empty.manager).toMatch(/aún no has creado|crea una ruta/i)
+    expect(DELIVERY_ROUTE_COPY.empty.manager).toBe('No hay rutas de entrega')
     expect(DELIVERY_ROUTE_COPY.empty.driver).toMatch(/no tienes rutas activas/i)
   })
 
   it('contains the confirm copy (delete/cancel/start) per REQ-DR-007', () => {
     // Titles include a leading inverted question mark (Spanish convention).
-    expect(DELIVERY_ROUTE_COPY.confirm.delete.title).toMatch(/eliminar.*ruta/i)
-    expect(DELIVERY_ROUTE_COPY.confirm.cancel.title).toMatch(/cancelar.*ruta/i)
+    expect(DELIVERY_ROUTE_COPY.confirm.delete.title).toBe('Eliminar ruta')
+    expect(DELIVERY_ROUTE_COPY.confirm.cancel.title).toBe('Cancelar ruta')
     expect(DELIVERY_ROUTE_COPY.confirm.start.title).toMatch(/iniciar.*ruta/i)
     // Each confirm has a confirm/cancel label pair.
     expect(DELIVERY_ROUTE_COPY.confirm.delete.confirmLabel).toBeTruthy()
     expect(DELIVERY_ROUTE_COPY.confirm.delete.cancelLabel).toBeTruthy()
+  })
+
+  it('aligns confirm copy bodies with the spec verbatim (S7 verify remediation, REQ-DRM-010/011/012)', () => {
+    // sdd delivery-routes S7 verify remediation — the spec mandates verbatim
+    // strings for the destructive / transitional action confirmations. Drift
+    // from these strings fails the verify contract (UI Copy section).
+    expect(DELIVERY_ROUTE_COPY.confirm.delete.body).toBe(
+      'Esta ruta está vacía y se eliminará permanentemente.',
+    )
+    expect(DELIVERY_ROUTE_COPY.confirm.start.body).toBe(
+      'La ruta pasará a Activa y no podrá editarse ni eliminar la composición de paradas.',
+    )
   })
 })
