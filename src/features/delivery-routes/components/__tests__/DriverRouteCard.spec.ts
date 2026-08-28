@@ -232,6 +232,35 @@ describe('DriverRouteCard — status badge per status (REQ-DRC-001, design §11)
   })
 })
 
+describe('DriverRouteCard — mobile-first touch target (S7, REQ-DRC-008, design §11)', () => {
+  it('applies the 44px min-height class to the tap target (mobile-first touch target)', async () => {
+    // jsdom has no layout engine, so we assert on the PRESENT Tailwind class
+    // (`min-h-11` → `min-height: 2.75rem` = 44px in Tailwind v4) instead of
+    // computed style. The driver holds the phone in one hand and the entire
+    // card is the tap target — the 44px floor is the contract (REQ-DRC-008).
+    const route = makeRoute()
+    const wrapper = mountCard({ route })
+    await flushPromises()
+    const tapTarget = wrapper.find('[data-testid="driver-route-card"]')
+    expect(tapTarget.exists()).toBe(true)
+    expect(tapTarget.classes()).toContain('min-h-11')
+  })
+
+  it('keeps the existing layout classes alongside the new touch-target class (no contract drift)', async () => {
+    // Regression pin — S7 is a polish pass; we do not remove the existing
+    // `flex w-full flex-col` shell classes. The card's tap target identity
+    // (full-width column) survives the addition of `min-h-11`.
+    const route = makeRoute()
+    const wrapper = mountCard({ route })
+    await flushPromises()
+    const tapTarget = wrapper.find('[data-testid="driver-route-card"]')
+    expect(tapTarget.classes()).toContain('flex')
+    expect(tapTarget.classes()).toContain('w-full')
+    expect(tapTarget.classes()).toContain('flex-col')
+    expect(tapTarget.classes()).toContain('min-h-11')
+  })
+})
+
 describe('DriverRouteCard — prop contract', () => {
   it('defines a single typed `route` prop (DeliveryRouteResponseDto)', async () => {
     // The card never accepts multiple routes / a list — the parent renders one

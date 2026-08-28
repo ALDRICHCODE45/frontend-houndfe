@@ -104,7 +104,7 @@ const UButtonStub = defineComponent({
   props: ['label', 'icon', 'disabled', 'color', 'variant', 'size', 'block', 'loading'],
   emits: ['click'],
   template:
-    '<button :disabled="disabled || loading" :data-testid="$attrs[\'data-testid\']" :data-label="label" :data-loading="String(loading)" @click.prevent="$emit(\'click\')"><slot />{{ label }}</button>',
+    '<button :class="$attrs.class" :disabled="disabled || loading" :data-testid="$attrs[\'data-testid\']" :data-label="label" :data-loading="String(loading)" @click.prevent="$emit(\'click\')"><slot />{{ label }}</button>',
 })
 
 function mountStop(props: Record<string, unknown> = {}) {
@@ -315,6 +315,75 @@ describe('DriverStopDetail — check-in button (REQ-DRC-003, REQ-DRC-004, design
     await wrapper.find('[data-testid="driver-stop-check-in-button"]').trigger('click')
     await flushPromises()
     expect(checkInMutateMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('DriverStopDetail — mobile-first polish (S7, REQ-DRC-008, design §11)', () => {
+  it('stacks the stop rows in a single column (flex-col on the article root, below sm)', async () => {
+    // jsdom has no layout engine, so we assert on the PRESENT Tailwind class
+    // (`flex-col`) instead of computed style. Below the `sm` breakpoint the
+    // driver holds the phone in one hand and the stop card must stack
+    // name + address + map + check-in vertically (REQ-DRC-008 scenario:
+    // "stop rows stack vertically on mobile").
+    const wrapper = mountStop({ stop: makeStop() })
+    await flushPromises()
+    const article = wrapper.find('[data-testid="driver-stop-detail"]')
+    expect(article.exists()).toBe(true)
+    expect(article.classes()).toContain('flex-col')
+  })
+
+  it('applies the 44px min-height class to the check-in button (largest interactive element on the row)', async () => {
+    // The check-in button is the driver's primary affordance; on a phone the
+    // thumb zone demands at least 44px of vertical height. Vue's attr
+    // fallthrough forwards `class` onto the stub's root <button> (the
+    // UButtonStub does not declare `class` but the binding still surfaces
+    // via `.classes()`), so we assert the Tailwind class is present.
+    const wrapper = mountStop({ stop: makeStop({ status: 'PENDING' }) })
+    await flushPromises()
+    const btn = wrapper.find('[data-testid="driver-stop-check-in-button"]')
+    expect(btn.exists()).toBe(true)
+    expect(btn.classes()).toContain('min-h-11')
+  })
+
+  it('applies the 44px min-height class to the check-in button even when disabled (idempotency pin)', async () => {
+    // The button stays mounted and visible for non-PENDING stops so the
+    // driver sees the work was done — the touch target must still meet the
+    // 44px floor regardless of the disabled state.
+    const wrapper = mountStop({ stop: makeStop({ status: 'COMPLETED' }) })
+    await flushPromises()
+    const btn = wrapper.find('[data-testid="driver-stop-check-in-button"]')
+    expect(btn.exists()).toBe(true)
+    expect((btn.element as HTMLButtonElement).disabled).toBe(true)
+    expect(btn.classes()).toContain('min-h-11')
+  })
+
+  it('keeps the existing shell classes alongside the single-column + touch-target classes (no contract drift)', async () => {
+    // Regression pin — S7 is a polish pass; we add `flex-col` + `min-h-11`
+    // without removing the existing border/bg/padding shell. The driver
+    // stop card identity (rounded card with status gap) survives.
+    const wrapper = mountStop({ stop: makeStop() })
+    await flushPromises()
+    const article = wrapper.find('[data-testid="driver-stop-detail"]')
+    expect(article.classes()).toContain('flex')
+    expect(article.classes()).toContain('flex-col')
+    expect(article.classes()).toContain('rounded-lg')
+    expect(article.classes()).toContain('border')
+    const btn = wrapper.find('[data-testid="driver-stop-check-in-button"]')
+    expect(btn.classes()).toContain('min-h-11')
+  })
+
+  it('check-in is the only interactive <button> on the stop card (largest interactive element by elimination, REQ-DRC-008)', async () => {
+    // REQ-DRC-008: "the check-in button SHALL be the largest interactive
+    // element on the stop row." jsdom can't compute layout, so we triangulate
+    // by asserting the check-in is the ONLY interactive button on the card —
+    // by elimination it is therefore the largest. The driver's thumb zone
+    // has a single, unambiguous affordance to press.
+    const wrapper = mountStop({ stop: makeStop() })
+    await flushPromises()
+    const article = wrapper.find('[data-testid="driver-stop-detail"]')
+    const interactiveButtons = article.findAll('button')
+    expect(interactiveButtons.length).toBe(1)
+    expect(interactiveButtons[0]!.attributes('data-testid')).toBe('driver-stop-check-in-button')
   })
 })
 

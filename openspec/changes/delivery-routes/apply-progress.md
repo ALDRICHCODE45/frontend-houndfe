@@ -474,3 +474,73 @@ S6a implementation complete.
 ### Remaining tasks
 
 S6b implementation complete. Next is **S7** (mobile-first polish: touch targets ≥44px, single-column stop layout < `sm`; sin cambio de contrato).
+
+---
+
+## S7 — Mobile-First Driver Polish — COMPLETE (uncommitted per parent brief)
+
+**Goal:** Touch-sized check-in targets, single-column stop layout on mobile. NO contract change, NO new files, NO logic changes — pure Tailwind/CSS + test assertions.
+
+### Files modified
+
+MOD only (no NEW files, per brief):
+
+| File | Change |
+|------|--------|
+| `src/features/delivery-routes/components/DriverRouteCard.vue` | Added `min-h-11` Tailwind v4 class (= `min-height: 2.75rem` = 44px) to the tap-target `<button data-testid="driver-route-card">`. Added doc comment in the `<template>` header block explaining the 44px invariant and the REFACTOR fallback (extract to `constants/touch.ts` if a third surface grows). No logic, prop, emit, or copy changes. |
+| `src/features/delivery-routes/components/DriverStopDetail.vue` | Added `min-h-11` class to the `<UButton data-testid="driver-stop-check-in-button">`. Added doc comment above the UButton block explaining the 44px invariant + the REFACTOR fallback. No logic, prop, emit, or copy changes. The article root already had `flex flex-col` from S6b — REQ-DRC-008 "stops stack vertically on mobile" was already satisfied. |
+| `src/features/delivery-routes/components/__tests__/DriverRouteCard.spec.ts` | Added a new `describe('DriverRouteCard — mobile-first touch target (S7, REQ-DRC-008, design §11)')` block with 2 tests: tap target carries `min-h-11`; the existing `flex w-full flex-col` shell classes are preserved (regression pin). |
+| `src/features/delivery-routes/components/__tests__/DriverStopDetail.spec.ts` | Added a new `describe('DriverStopDetail — mobile-first polish (S7, REQ-DRC-008, design §11)')` block with 5 tests: article root carries `flex-col`; check-in button carries `min-h-11` (PENDING case); check-in button carries `min-h-11` even when DISABLED (idempotency pin for non-PENDING stops); shell classes preserved (regression pin); check-in is the only interactive `<button>` on the stop card ("largest interactive element" triangulated by elimination). Plus a minimal extension to the existing `UButtonStub` to forward `$attrs.class` onto the rendered `<button>` so jsdom-based `.classes()` assertions can see the `min-h-11` fallthrough. |
+
+4 MOD files. **No NEW files.** Net diffstat: **112 insertions / 2 deletions** (~114 LOC including spec doc comments). Production code itself is ~12 lines of CSS class additions + 2 doc comment blocks.
+
+### TDD Cycle Evidence
+
+| Phase | Command | Result |
+|-------|---------|--------|
+| Safety Net | `pnpm test:unit --run src/features/delivery-routes/components/__tests__/DriverRouteCard.spec.ts src/features/delivery-routes/components/__tests__/DriverStopDetail.spec.ts` | **2 files / 29 tests passed** (baseline before S7). |
+| RED | Same command after writing the new test blocks | **2 files / 35 tests, 5 failed**: (1) DriverRouteCard `min-h-11` on tap target (×2 tests); (2) DriverStopDetail `min-h-11` on check-in button (×3 tests; `expected [] to include 'min-h-11'` because the stub doesn't forward `$attrs.class`). The `flex-col` article test already passed (the S6b class was already `flex flex-col`). |
+| GREEN | Same command after adding `min-h-11` to both components + extending `UButtonStub` with `:class="$attrs.class"` | **2 files / 35 tests passed**. |
+| TRIANGULATE | Added the "check-in is the only interactive `<button>`" assertion (satisfies REQ-DRC-008 "largest interactive element on the stop row" by elimination since jsdom can't compute layout). | **2 files / 36 tests passed**. |
+| REFACTOR | Added doc comments in both SFC templates explaining the 44px invariant and the fallback path (`constants/touch.ts` if a third surface grows). Could not extract a shared constant because the brief explicitly says "Files — NEW: none" — applied the brief's "otherwise inline is fine" branch. | **2 files / 36 tests passed** (REFACTOR clean). |
+| Type-check | `pnpm type-check` | **0 errors**. |
+| Full delivery-routes suite | `pnpm test:unit --run src/features/delivery-routes` | **27 files / 361 tests passed** (was 354 before S7 → +7 new tests). |
+
+### Verify (final)
+
+- `pnpm test:unit --run src/features/delivery-routes/components/__tests__/DriverRouteCard.spec.ts src/features/delivery-routes/components/__tests__/DriverStopDetail.spec.ts` → **0 failures** (36 / 36).
+- `pnpm test:unit --run src/features/delivery-routes` → **0 failures** (361 / 361 across 27 files).
+- `pnpm type-check` → **0 errors**.
+- `git diff --stat` → 4 files, 112 insertions, 2 deletions. **Well within the 400-line working target.**
+- `git status --short`:
+  ```text
+   M openspec/changes/delivery-routes/tasks.md
+   M src/features/delivery-routes/components/DriverRouteCard.vue
+   M src/features/delivery-routes/components/DriverStopDetail.vue
+   M src/features/delivery-routes/components/__tests__/DriverRouteCard.spec.ts
+   M src/features/delivery-routes/components/__tests__/DriverStopDetail.spec.ts
+  M openspec/changes/delivery-routes/apply-progress.md
+  ```
+
+### Workload / PR boundary
+
+- Sub-slice LOC: 112 insertions / 2 deletions (≈114 net) — well within the 400-line working target.
+- Production code: ~12 lines of CSS class additions + 2 doc comment blocks (≈30 LOC including comments). The rest is strict-TDD spec coverage (mandatory under the project config).
+- Chain strategy: `n/a` (single-pr locked per the brief).
+- 400-line budget risk: **Low**.
+
+### Deviation from instructions
+
+1. **Stub extension (acknowledged in the brief).** `UButtonStub` in `DriverStopDetail.spec.ts` did not declare a `class` prop, and its template did not forward `$attrs.class` onto the rendered `<button>`, so the parent class binding (`min-h-11`) was dropped before jsdom could see it. The brief explicitly anticipated this: "If that proves false, extend the stub minimally — but do NOT weaken existing assertions." I extended the stub with `:class="$attrs.class"` as the single one-token addition; no existing assertion was weakened or removed.
+2. **TRIANGULATE substitute.** The brief asked for "a viewport test (`sm`/`md`) for the stop row's flex direction + check-in button visibility on a phone-holding thumb zone." jsdom has no layout engine — the brief's CRITICAL gotchas explicitly say "you CANNOT assert ... viewport-based flex direction." The pragmatic triangulation I applied was: assert that the check-in button is the ONLY `<button>` inside the stop card, satisfying REQ-DRC-008 "largest interactive element on the stop row" by elimination. This is the strongest contract assertion possible within jsdom's limits.
+3. **REFACTOR path.** The brief's REFACTOR says "Pull the touch-target constant into a small `constants/touch.ts` if a second surface grows; otherwise inline is fine." Two surfaces now use `min-h-11` (DriverRouteCard tap target + DriverStopDetail check-in button), so the threshold has been reached. However, the brief also says "**Files — NEW:** none." I applied the brief's "otherwise inline is fine" branch: kept `min-h-11` inline in both SFCs and added a doc comment next to each usage pointing at `constants/touch.ts` as the extraction target if a third surface grows.
+
+### Remaining tasks
+
+S7 implementation complete. **This is the LAST slice** (12 of 13 already landed; S7 was 12th per the brief — verify is the 13th and is parent-owned). Next is the parent-owned **Apply → verify handoff** per the tasks.md parent-actions list: parent triggers `sdd-verify` against `specs/**/spec.md` (62 REQ audit, per-REQ status + evidence with file:line) and writes `verify-report.md`.
+
+### Structured status
+
+- `actionContext`: not consumed in the prompt; no warning surfaced.
+- `applyState`: S7 implementation complete; the S7 implementation checkboxes are now all `[x]`. Parent-owned checkboxes (Courier-scoping confirm gate, Customer-label vs lat/lng gate, Per-sub-slice bounded review, Apply → verify handoff, Verify → archive handoff) remain `[ ]` for the parent to action.
+- `next_recommended`: `parent-lifecycle` — number of completed implementation checkboxes in `tasks.md` is now 24 / 57 (was 20). The 5 parent-owned checkboxes are NOT implementation work and are deferred to the parent's `sdd-verify` / `sdd-archive` phases.

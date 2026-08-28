@@ -88,11 +88,15 @@ function onKeydown(event: KeyboardEvent) {
     Tap target = the entire card. Native <button> gives us keyboard activation
     (Enter / Space) for free, so a11y parity is automatic. The mobile polish
     pass (S7) tunes the min-height to ≥44px without changing this structure.
+
+    `min-h-11` = Tailwind v4 `min-height: 2.75rem` = 44px (REQ-DRC-008 / design §11).
+    Inline is intentional — if a third touch surface grows, extract to
+    `constants/touch.ts` (see tasks.md S7 REFACTOR).
   -->
   <button
     type="button"
     data-testid="driver-route-card"
-    class="flex w-full flex-col gap-2 rounded-lg border border-default bg-default p-4 text-left transition hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+    class="flex min-h-11 w-full flex-col gap-2 rounded-lg border border-default bg-default p-4 text-left transition hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
     @click="onTap"
     @keydown="onKeydown"
   >

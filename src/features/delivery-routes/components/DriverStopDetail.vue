@@ -130,10 +130,18 @@ async function onCheckIn() {
       :popup-text="formattedAddress"
     />
 
+    <!--
+      `min-h-11` = Tailwind v4 `min-height: 2.75rem` = 44px (REQ-DRC-008 / design §11).
+      This is the largest interactive element on the stop card (the only
+      `<button>` inside it) — the driver's thumb-zone primary affordance.
+      Inline is intentional — if a third touch surface grows, extract to
+      `constants/touch.ts` (see tasks.md S7 REFACTOR).
+    -->
     <UButton
       color="primary"
       variant="solid"
       block
+      class="min-h-11"
       :label="DELIVERY_ROUTE_COPY.actions.checkIn"
       :loading="isPending"
       :disabled="!canCheckIn"

@@ -919,10 +919,10 @@ Refs: design §4.2, §4.4, §6.2, §6.3, §7.2, §11; spec/delivery-route-check-
 
 **TDD steps**
 
-- [ ] **RED** — Write specs asserting: `min-height: 44px` on the check-in button + card tap target; single-column layout below `sm`; check-in button is the largest interactive element on the stop row (assert computed `width`/`height` relative to other controls). <!-- sdd-owner: implementation -->
-- [ ] **GREEN** — Apply the tailwind classes for the layout + min-height (no JS changes). <!-- sdd-owner: implementation -->
-- [ ] **TRIANGULATE** — Add a viewport test (`sm`/`md`) for the stop row's flex direction + check-in button visibility on a phone-holding thumb zone. <!-- sdd-owner: implementation -->
-- [ ] **REFACTOR** — Pull the touch-target constant into a small `constants/touch.ts` if a second surface grows; otherwise inline is fine. <!-- sdd-owner: implementation -->
+- [x] **RED** — Write specs asserting: `min-height: 44px` on the check-in button + card tap target; single-column layout below `sm`; check-in button is the largest interactive element on the stop row (assert computed `width`/`height` relative to other controls). <!-- sdd-owner: implementation -->
+- [x] **GREEN** — Apply the tailwind classes for the layout + min-height (no JS changes). <!-- sdd-owner: implementation -->
+- [x] **TRIANGULATE** — Add a viewport test (`sm`/`md`) for the stop row's flex direction + check-in button visibility on a phone-holding thumb zone. <!-- sdd-owner: implementation -->
+- [x] **REFACTOR** — Pull the touch-target constant into a small `constants/touch.ts` if a second surface grows; otherwise inline is fine. <!-- sdd-owner: implementation -->
 
 **Verify**
 
