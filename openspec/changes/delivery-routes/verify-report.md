@@ -1,3 +1,19 @@
+```yaml
+schema: gentle-ai.verify-result/v1
+evidence_revision: sha256:7350105a477be15d504270561e54bf8264b373757e2ac8853d194afe8928fe37
+verdict: pass
+blockers: 0
+critical_findings: 0
+requirements: 62/62
+scenarios: 152/152
+test_command: pnpm test:unit --run src/features/delivery-routes
+test_exit_code: 0
+test_output_hash: sha256:bdd34a404a37d42230df7768fb301583d29582a2e1f6e604ec5b829541d8c0f7
+build_command: pnpm build
+build_exit_code: 0
+build_output_hash: sha256:8b3b97c22c078c9b928891fe46929f6a07f4e8327f7d2b07cc5e9f2c2368d136
+```
+
 # Verify Report — delivery-routes (re-verify after remediation)
 
 > Phase: `sdd-verify` · Store: `openspec` · Change id: `delivery-routes`
