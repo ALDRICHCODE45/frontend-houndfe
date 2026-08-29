@@ -47,17 +47,24 @@ const props = withDefaults(
     placeholder?: string
     /** Optional inline field error. */
     error?: string
+    /** Suppress the error ring (Nuxt UI validation highlight). */
+    highlight?: boolean
   }>(),
   {
     required: false,
     disabled: false,
     placeholder: 'Selecciona un repartidor',
     error: '',
+    highlight: true,
   },
 )
 
 const emit = defineEmits<{
   'update:driverUserId': [value: string | null]
+  // v-model alias (Nuxt UI UFormField binding): emit update:modelValue so the
+  // slideover can bind `v-model` over the reactive form state. Keeps the
+  // module's own update:driverUserId contract intact (co-located specs assert it).
+  'update:modelValue': [value: string | null]
 }>()
 
 /**
@@ -88,33 +95,44 @@ const errorMessage = computed(() =>
 )
 
 /**
- * Resolve the selected option by id against the latest assignable list. Emit
- * only the id on update so the parent owns the v-model.
+ * Resolve the selected option by id against the latest assignable list. This
+ * feeds ONLY the chip display below the trigger — USelectMenu itself is
+ * bound to the primitive id via value-key="id" (see template), never to the
+ * row object.
  */
 const selectedOption = computed<AssignableUser | null>(() => {
   if (!props.modelValue) return null
   return assignable.value.find((u) => u.id === props.modelValue) ?? null
 })
 
-function onUpdate(next: AssignableUser | null) {
-  emit('update:driverUserId', next?.id ?? null)
-}
+  function onUpdate(next: string | null) {
+    // With value-key="id" the USelectMenu binds AND emits the primitive
+    // driver id (string | null) — never the AssignableUser row object. Emit
+    // it through unchanged so BOTH compatibility events carry the id
+    // (previously `next?.id ?? null` on a primitive string collapsed every
+    // selection to null).
+    const id = next ?? null
+    emit('update:driverUserId', id)
+    emit('update:modelValue', id)
+  }
 
-function clearSelection() {
-  emit('update:driverUserId', null)
-}
+  function clearSelection() {
+    emit('update:driverUserId', null)
+    emit('update:modelValue', null)
+  }
 </script>
 
 <template>
   <div class="flex flex-col gap-2" data-testid="driver-picker">
     <USelectMenu
-      :model-value="selectedOption"
+      :model-value="props.modelValue"
       :items="assignable"
       value-key="id"
       label-key="name"
       :loading="isLoading"
       :disabled="disabled"
       :placeholder="placeholder"
+      :highlight="highlight"
       class="w-full"
       data-testid="driver-picker-trigger"
       @update:model-value="onUpdate"

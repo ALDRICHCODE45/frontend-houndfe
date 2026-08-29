@@ -31,7 +31,7 @@
  *   - `notes` (≤280 chars after trim). When empty, omitted from the payload
  *     (whitelist — never send an empty string).
  */
-import { computed, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { z } from 'zod'
 import EligibleSalesPicker from './EligibleSalesPicker.vue'
@@ -74,14 +74,24 @@ const formId = computed(() =>
 )
 
 // ─── Local reactive form state ───────────────────────────────────────────────
-const selectedSaleIds = ref<string[]>([])
-const selectedDriverUserId = ref<string | null>(props.initialDriverUserId ?? null)
-const notes = ref<string>(props.initialNotes ?? '')
+// Single reactive object drives BOTH the UForm :state (so Nuxt UI does NOT
+// mark the UFormField controls as invalid / red border just because the key
+// is missing from an empty state object) AND the picker/textarea `v-model`s.
+// This mirrors the project-wide pattern (e.g. useRoleForm's `reactive` state +
+// `v-model="state.x"`), which is what keeps Nuxt UI from flagging the fields.
+const formState = reactive({
+  saleIds: [] as string[],
+  driverUserId: (props.initialDriverUserId ?? null) as string | null,
+  notes: (props.initialNotes ?? '') as string,
+})
 
-// Field-level error messages (inline).
-const salesError = ref('')
-const driverError = ref('')
-const notesError = ref('')
+// Field-level error messages (inline). Clean state is `undefined` — NOT
+// `''` — so Nuxt UI's UFormField treats the field as error-free (an empty
+// string is still truthy for the `error` prop and paints an invalid ring on
+// a clean field). Real error strings are preserved unchanged.
+const salesError = ref<string | undefined>(undefined)
+const driverError = ref<string | undefined>(undefined)
+const notesError = ref<string | undefined>(undefined)
 
 // ─── Edit-mode prefill watcher ───────────────────────────────────────────────
 watch(
@@ -89,8 +99,8 @@ watch(
   ([mode, _routeId, isOpen]) => {
     if (mode !== 'edit') return
     if (!isOpen) return
-    selectedDriverUserId.value = props.initialDriverUserId ?? null
-    notes.value = props.initialNotes ?? ''
+    formState.driverUserId = props.initialDriverUserId ?? null
+    formState.notes = props.initialNotes ?? ''
   },
   { immediate: true },
 )
@@ -101,13 +111,13 @@ watch(
   ([mode, isOpen]) => {
     if (!isOpen) return
     if (mode === 'create') {
-      selectedSaleIds.value = []
-      selectedDriverUserId.value = null
-      notes.value = ''
+      formState.saleIds = []
+      formState.driverUserId = null
+      formState.notes = ''
     }
-    salesError.value = ''
-    driverError.value = ''
-    notesError.value = ''
+    salesError.value = undefined
+    driverError.value = undefined
+    notesError.value = undefined
   },
   { immediate: true },
 )
@@ -133,9 +143,9 @@ const description = computed(() =>
 // shape itself.
 
 function clearErrors() {
-  salesError.value = ''
-  driverError.value = ''
-  notesError.value = ''
+  salesError.value = undefined
+  driverError.value = undefined
+  notesError.value = undefined
 }
 
 function tryEmitCreate(payload: CreateDeliveryRouteRequest): boolean {
@@ -198,12 +208,12 @@ function applyZodErrors(err: z.ZodError): void {
 function onSubmit(_event: FormSubmitEvent<unknown>): void {
   // Normalize notes (trim) before validation; preserve the user's typed value
   // for edit-mode null-on-clear semantics.
-  const trimmedNotes = notes.value.trim()
+  const trimmedNotes = formState.notes.trim()
 
   if (props.mode === 'create') {
     const payload: CreateDeliveryRouteRequest = {
-      saleIds: selectedSaleIds.value,
-      driverUserId: selectedDriverUserId.value ?? '',
+      saleIds: formState.saleIds,
+      driverUserId: formState.driverUserId ?? '',
     }
     if (trimmedNotes.length > 0) {
       payload.notes = trimmedNotes
@@ -214,7 +224,7 @@ function onSubmit(_event: FormSubmitEvent<unknown>): void {
 
   // Edit: emit driver + notes only. For "notes cleared" → null (REQ-DRM-005).
   const payload: UpdateDeliveryRouteRequest = {
-    driverUserId: selectedDriverUserId.value ?? undefined,
+    driverUserId: formState.driverUserId ?? undefined,
     notes: trimmedNotes.length > 0 ? trimmedNotes : null,
   }
   tryEmitEdit(payload)
@@ -226,23 +236,23 @@ function handleClose() {
 }
 
 function onSalesChange(next: string[]) {
-  selectedSaleIds.value = Array.isArray(next) ? [...next] : []
-  if (selectedSaleIds.value.length > 0 && salesError.value) {
-    salesError.value = ''
+  formState.saleIds = Array.isArray(next) ? [...next] : []
+  if (formState.saleIds.length > 0 && salesError.value) {
+    salesError.value = undefined
   }
 }
 
 function onDriverChange(next: string | null) {
-  selectedDriverUserId.value = next
+  formState.driverUserId = next
   if (next && driverError.value) {
-    driverError.value = ''
+    driverError.value = undefined
   }
 }
 
 function onNotesChange(next: string | string[]) {
-  notes.value = typeof next === 'string' ? next : next.join('')
-  if (notesError.value && notes.value.trim().length <= 280) {
-    notesError.value = ''
+  formState.notes = typeof next === 'string' ? next : next.join('')
+  if (notesError.value && formState.notes.trim().length <= 280) {
+    notesError.value = undefined
   }
 }
 
@@ -263,26 +273,26 @@ void validation // used implicitly via the zod schema messages below.
 defineExpose({
   __testSelectedSaleIds: {
     get value() {
-      return selectedSaleIds.value
+      return formState.saleIds
     },
     set value(v: string[]) {
-      selectedSaleIds.value = v
+      formState.saleIds = v
     },
   },
   __testSelectedDriverUserId: {
     get value() {
-      return selectedDriverUserId.value
+      return formState.driverUserId
     },
     set value(v: string | null) {
-      selectedDriverUserId.value = v
+      formState.driverUserId = v
     },
   },
   __testNotes: {
     get value() {
-      return notes.value
+      return formState.notes
     },
     set value(v: string) {
-      notes.value = v
+      formState.notes = v
     },
   },
 })
@@ -300,7 +310,7 @@ defineExpose({
     <template #body>
       <UForm
         :id="formId"
-        :state="{}"
+        :state="formState"
         class="flex flex-col gap-4"
         @submit="onSubmit"
       >
@@ -308,27 +318,31 @@ defineExpose({
           v-if="isCreate"
           label="Ventas"
           name="saleIds"
-          :error="salesError"
+                :error="salesError"
           help="Selecciona una o más ventas pendientes o enviadas."
           required
         >
           <EligibleSalesPicker
-            :model-value="selectedSaleIds"
-            :error="salesError"
-            @update:selected="onSalesChange"
+                :model-value="formState.saleIds"
+                :error="salesError"
+                :highlight="false"
+                @update:selected="onSalesChange"
+                @update:model-value="onSalesChange"
           />
         </UFormField>
 
         <UFormField
           label="Repartidor"
           name="driverUserId"
-          :error="driverError"
+                :error="driverError"
           required
         >
           <DriverPicker
-            :model-value="selectedDriverUserId"
-            :error="driverError"
-            @update:driver-user-id="onDriverChange"
+                :model-value="formState.driverUserId"
+                :error="driverError"
+                :highlight="false"
+                @update:driver-user-id="onDriverChange"
+                @update:model-value="onDriverChange"
           />
         </UFormField>
 
@@ -339,7 +353,8 @@ defineExpose({
           help="Opcional. Máximo 280 caracteres."
         >
           <UTextarea
-            :model-value="notes"
+            :model-value="formState.notes"
+            :highlight="false"
             :rows="3"
             placeholder="Ej: Llevar cambio"
             @update:model-value="onNotesChange"

@@ -45,17 +45,24 @@ const props = withDefaults(
     placeholder?: string
     /** Optional inline field error. */
     error?: string
+    /** Suppress the error ring (Nuxt UI validation highlight). */
+    highlight?: boolean
   }>(),
   {
     required: false,
     disabled: false,
     placeholder: 'Selecciona ventas pendientes o enviadas',
     error: '',
+    highlight: true,
   },
 )
 
 const emit = defineEmits<{
   'update:selected': [value: string[]]
+  // v-model alias (Nuxt UI UFormField binding): emit update:modelValue so the
+  // slideover can bind `v-model` over the reactive form state. Keeps the
+  // module's own `update:selected` contract intact (co-located specs assert it).
+  'update:modelValue': [value: string[]]
 }>()
 
 const { data, isLoading, isError, error: fetchError } = useEligibleSales()
@@ -92,32 +99,38 @@ function deliveryStatusLabel(status: string): string {
   return status
 }
 
-function onUpdate(next: EligibleSaleRow[] | EligibleSaleRow | null) {
+function onUpdate(next: string[] | string | null) {
+  // With value-key="id" the USelectMenu emits the array of selected ids
+  // (strings), not the full row objects. Emit them through unchanged.
   if (Array.isArray(next)) {
-    emit('update:selected', next.map((row) => row.id))
+    emit('update:selected', next)
+    emit('update:modelValue', next)
     return
   }
-  emit('update:selected', next ? [next.id] : [])
+  const arr = next ? [next] : []
+  emit('update:selected', arr)
+  emit('update:modelValue', arr)
 }
 
 function removeSale(id: string) {
-  emit(
-    'update:selected',
-    props.modelValue.filter((existing) => existing !== id),
-  )
+  const remaining = props.modelValue.filter((existing) => existing !== id)
+  emit('update:selected', remaining)
+  emit('update:modelValue', remaining)
 }
+
 </script>
 
 <template>
   <div class="flex flex-col gap-2" data-testid="eligible-sales-picker">
     <USelectMenu
-      :model-value="selectedRows"
+      :model-value="[...props.modelValue]"
       :items="eligibleSales"
       value-key="id"
       label-key="folio"
       :loading="isLoading"
       :disabled="disabled"
       :placeholder="placeholder"
+      :highlight="highlight"
       multiple
       ignore-filter
       class="w-full"

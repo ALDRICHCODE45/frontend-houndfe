@@ -242,6 +242,45 @@ describe('DeliveryRouteUpsertSlideover — create mode (REQ-DRM-003..006)', () =
   })
 })
 
+describe('DeliveryRouteUpsertSlideover — clean field errors are undefined (not empty string)', () => {
+  it('starts with all field errors absent/undefined on first render', async () => {
+    const wrapper = mountSlideover({ mode: 'create' })
+    await flushPromises()
+    // Clean field state must be `undefined`, NOT `''` — an empty string is
+    // truthy for UFormField's `error` prop and paints an invalid ring on a
+    // clean field (the root cause of the original bug).
+    const fields = wrapper.findAll('[data-testid="uform-field-stub"]')
+    expect(fields.length).toBe(3)
+    for (const field of fields) {
+      expect(field.attributes('data-field-error')).toBeUndefined()
+    }
+    // Picker `error` props must not surface any message on clean state (the
+    // pickers' prop default is '', which is falsy and renders no error block).
+    expect(wrapper.find('[data-testid="eligible-sales-picker"]').attributes('data-error')).toBeFalsy()
+    expect(wrapper.find('[data-testid="driver-picker"]').attributes('data-error')).toBeFalsy()
+    // No inline error blocks rendered.
+    expect(wrapper.find('[data-testid="uform-field-error"]').exists()).toBe(false)
+  })
+
+  it('reverts inline errors to undefined when the slideover is reopened', async () => {
+    const wrapper = mountSlideover({ mode: 'create' })
+    await flushPromises()
+    // Empty submit → real inline errors on the sales + driver fields.
+    await wrapper.find('form#create-delivery-route-form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="uform-field-stub"][data-field-name="saleIds"]').attributes('data-field-error')).toBeTruthy()
+    expect(wrapper.find('[data-testid="uform-field-stub"][data-field-name="driverUserId"]').attributes('data-field-error')).toBeTruthy()
+    // Close + reopen → the open-reset watcher clears errors back to undefined.
+    await wrapper.setProps({ open: false })
+    await wrapper.setProps({ open: true })
+    await flushPromises()
+    const reopened = wrapper.findAll('[data-testid="uform-field-stub"]')
+    for (const field of reopened) {
+      expect(field.attributes('data-field-error')).toBeUndefined()
+    }
+  })
+})
+
 describe('DeliveryRouteUpsertSlideover — edit mode (REQ-DRM-007)', () => {
   it('renders the driver picker and notes when mode="edit"', async () => {
     const wrapper = mountSlideover({

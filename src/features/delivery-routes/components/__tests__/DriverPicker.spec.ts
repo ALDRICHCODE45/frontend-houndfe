@@ -105,17 +105,28 @@ describe('DriverPicker — v-model / emit contract', () => {
     vi.spyOn(usersApi, 'listAssignableDrivers').mockResolvedValue(ASSIGNABLE)
   })
 
-  it('emits update:driverUserId with the new id when a driver is selected', async () => {
+  it('emits update:driverUserId + update:modelValue with the primitive id on selection (regression: object→id)', async () => {
     const wrapper = mountPicker({ modelValue: null })
     await vi.waitFor(() => {
       expect(wrapper.find('[data-testid="driver-picker-loading"]').exists()).toBe(false)
     })
-    // Programmatic v-model swap exercises the prop-watch path; the picker
-    // mirrors modelValue → selectedOption → chip rendering. We assert the
-    // emit contract via the underlying chip + the spec-level invariant that
-    // the picker's update:driverUserId emits the chosen id (asserted in the
-    // chip-clear test below for the inverse direction).
-    expect(wrapper.emitted('update:driverUserId') ?? []).toBeDefined()
+    // USelectMenu is bound with value-key="id", so its update:model-value
+    // carries the PRIMITIVE driver id (string), never the AssignableUser row
+    // object. The picker must forward that primitive unchanged — previously
+    // `next?.id ?? null` on a primitive string collapsed every selection to
+    // null.
+    const selectMenu = wrapper.findComponent({ name: 'SelectMenu' })
+    expect(selectMenu.exists()).toBe(true)
+    selectMenu.vm.$emit('update:modelValue', 'u1')
+    await nextTick()
+
+    const driverEvents = wrapper.emitted('update:driverUserId')
+    expect(driverEvents).toBeTruthy()
+    expect(driverEvents![driverEvents!.length - 1]).toEqual(['u1'])
+
+    const modelEvents = wrapper.emitted('update:modelValue')
+    expect(modelEvents).toBeTruthy()
+    expect(modelEvents![modelEvents!.length - 1]).toEqual(['u1'])
   })
 
   it('emits update:driverUserId(null) when the selected chip is cleared', async () => {
