@@ -882,6 +882,16 @@ describe('DeliveryRouteDetailView — 404 ENTITY_NOT_FOUND / driver 403 → full
         // No view-level toast on success — the composable owns it.
         expect(toastCalls.length).toBe(0)
       })
+      it('request-check-in rejection is swallowed at the view; mutation still called exactly once with { id, stopId } (REQ-DRC-104)', async () => {
+        checkInMutateMock.mockRejectedValueOnce(new Error('boom'))
+        const wrapper = await mountDriver()
+        await wrapper.find('[data-testid="cockpit-stub-emit-check-in"]').trigger('click')
+        await flushPromises()
+        expect(checkInMutateMock).toHaveBeenCalledTimes(1)
+        expect(checkInMutateMock).toHaveBeenCalledWith({ id: 'route-42', stopId: 's1' })
+        // No view-level toast on rejection — the composable owns error surfacing.
+        expect(toastCalls.length).toBe(0)
+      })
 
       it('refresh event invokes the observer refetch exactly once; success → no toast (REQ-DRC-110, REQ-DCS-007)', async () => {
         detailMock.refetch.mockResolvedValue({ isError: false } as never)
@@ -896,23 +906,32 @@ describe('DeliveryRouteDetailView — 404 ENTITY_NOT_FOUND / driver 403 → full
         const cached = makeDraftRoute()
         detailMock.refetch.mockResolvedValue({ isError: true, error: { response: { status: 500 } } } as never)
         const wrapper = await mountDriver({ data: cached })
+        const mountsBeforeRefresh = cockpitPropsHistory.length
         await wrapper.find('[data-testid="cockpit-stub-emit-refresh"]').trigger('click')
         await flushPromises()
         expect(detailMock.refetch).toHaveBeenCalledTimes(1)
         const refreshToasts = toastCalls.filter((t) => t.title === DELIVERY_ROUTE_COPY.toasts.refreshFailed)
         expect(refreshToasts.length).toBe(1)
         expect(refreshToasts[0]?.color).toBe('error')
+        // Cached DTO identity + no cockpit remount (scroll-preservation proxy) + no navigation.
+        expect(cockpitPropsHistory[cockpitPropsHistory.length - 1]?.route).toBe(cached)
+        expect(routerPushMock).not.toHaveBeenCalled()
         expect(wrapper.find('[data-testid="detail-driver-branch"]').exists()).toBe(true)
+        expect(cockpitPropsHistory.length).toBe(mountsBeforeRefresh)
       })
 
       it('refresh rejection (thrown promise) also toasts refresh-failed once (REQ-DRC-110)', async () => {
         detailMock.refetch.mockRejectedValue(new Error('network'))
         const wrapper = await mountDriver()
+        const mountsBeforeRefresh = cockpitPropsHistory.length
         await wrapper.find('[data-testid="cockpit-stub-emit-refresh"]').trigger('click')
         await flushPromises()
         expect(detailMock.refetch).toHaveBeenCalledTimes(1)
         const refreshToasts = toastCalls.filter((t) => t.title === DELIVERY_ROUTE_COPY.toasts.refreshFailed)
         expect(refreshToasts.length).toBe(1)
+        // Thrown rejection keeps the driver branch mounted and the cockpit unremounted.
+        expect(wrapper.find('[data-testid="detail-driver-branch"]').exists()).toBe(true)
+        expect(cockpitPropsHistory.length).toBe(mountsBeforeRefresh)
       })
 
       it('isFetching=true forwards to the cockpit as the disabled-while-fetching prop (REQ-DCS-007)', async () => {
@@ -950,7 +969,7 @@ describe('DeliveryRouteDetailView — 404 ENTITY_NOT_FOUND / driver 403 → full
         expect(src).toMatch(/useCheckInStop\b/)
         expect(src).not.toMatch(/queryKey:\s*\[/)
         expect(src).not.toMatch(/invalidateQueries\(\s*\{\s*queryKey[\s\S]*?refetch/)
-        expect((src.match(/useCheckInStop\(/g) ?? []).length).toBeGreaterThanOrEqual(1)
+        expect((src.match(/useCheckInStop\(/g) ?? []).length).toBe(1)
         expect((src.match(/useDeliveryRouteDetail\(/g) ?? []).length).toBe(1)
         expect((src.match(/\brefetch\(\)/g) ?? []).length).toBe(1)
       })
