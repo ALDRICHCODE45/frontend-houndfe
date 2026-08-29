@@ -703,17 +703,17 @@ Refs: design §10, §12; specs/delivery-route-check-in (REQ-DRC-003 superseded).
 
 Bounded review runs after apply per slice (or grouped per chained PR); each gate checks the slice's TDD evidence, focused test result, and the review-budget ledger with its exact totals. Commit execution and chain strategy remain parent/user-authorized.
 
-- [ ] Start or reuse bounded review for S1 (derivation; size exception — exactly 600 at the hard cap, no apply expansion). <!-- sdd-owner: parent -->
-- [ ] Start or reuse bounded review for S2 (quick actions). <!-- sdd-owner: parent -->
-- [ ] Start or reuse bounded review for S3 (copy source). <!-- sdd-owner: parent -->
-- [ ] Start or reuse bounded review for S4 (header). <!-- sdd-owner: parent -->
-- [ ] Start or reuse bounded review for S5 (operational stops). <!-- sdd-owner: parent -->
-- [ ] Start or reuse bounded review for S6 (spine). <!-- sdd-owner: parent -->
-- [ ] Start or reuse bounded review for S7 (footer). <!-- sdd-owner: parent -->
-- [ ] Start or reuse bounded review for S8 (stop panel). <!-- sdd-owner: parent -->
-- [ ] Start or reuse bounded review for S9 (drawer; size exception — ~430 lines). <!-- sdd-owner: parent -->
-- [ ] Start or reuse bounded review for S10 (cockpit root; size exception — ~470 lines). <!-- sdd-owner: parent -->
-- [ ] Start or reuse bounded review for S11a (view wiring + branch swap; bounded — ~380 lines, no exception). <!-- sdd-owner: parent -->
-- [ ] Start or reuse bounded review for S11b (old-card deletion continuation; size exception — ~559 lines, REFACTOR/VERIFY/CLEANUP only, inherits S11a's RED/GREEN evidence; no slice-cap exception — within the 600 cap). <!-- sdd-owner: parent -->
+- [x] Start or reuse bounded review for S1 (derivation; size exception — exactly 600 at the hard cap, no apply expansion). <!-- sdd-owner: parent -->
+- [x] Start or reuse bounded review for S2 (quick actions). <!-- sdd-owner: parent -->
+- [x] Start or reuse bounded review for S3 (copy source). <!-- sdd-owner: parent -->
+- [x] Start or reuse bounded review for S4 (header). <!-- sdd-owner: parent -->
+- [x] Start or reuse bounded review for S5 (operational stops). <!-- sdd-owner: parent -->
+- [x] Start or reuse bounded review for S6 (spine). <!-- sdd-owner: parent -->
+- [x] Start or reuse bounded review for S7 (footer). <!-- sdd-owner: parent -->
+- [x] Start or reuse bounded review for S8 (stop panel). <!-- sdd-owner: parent -->
+- [x] Start or reuse bounded review for S9 (drawer; size exception — ~430 lines). <!-- sdd-owner: parent -->
+- [x] Start or reuse bounded review for S10 (cockpit root; size exception — ~470 lines). <!-- sdd-owner: parent -->
+- [x] Start or reuse bounded review for S11a (view wiring + branch swap; bounded — ~380 lines, no exception). <!-- sdd-owner: parent -->
+- [x] Start or reuse bounded review for S11b (old-card deletion continuation; size exception — ~559 lines, REFACTOR/VERIFY/CLEANUP only, inherits S11a's RED/GREEN evidence; no slice-cap exception — within the 600 cap). <!-- sdd-owner: parent -->
 
 Per-PR bounded review additionally runs for each merged PR grouping in the approved chain (A/B/C); the per-slice gates above remain the granular review ledger inside each PR.
