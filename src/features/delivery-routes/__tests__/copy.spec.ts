@@ -148,6 +148,50 @@ describe('copy.ts — single Spanish copy source (design.md §3)', () => {
     expect(DELIVERY_ROUTE_COPY.toasts.refreshFailed).toBe('No se pudo actualizar la ruta')
   })
 
+  // ─── B2 correction: central positionLabel template + spine aria templates ───
+  // Shell-review found hardcoded "Parada {N}" (operational) and
+  // "Recorrido de la ruta" / "Parada N: Estado — Cliente" (spine) literals.
+  // B2 routes both through `copy.ts` so drift fails immediately.
+
+  it('exposes cockpit operational.positionLabel template for the current stop header (B2 shell review)', () => {
+    // Single source for the 1-based "Parada {N}" label used by S5 (current
+    // section) and S6 (spine visible position). Must NOT include the
+    // "Siguiente · " prefix from `nextLabel` — that prefix is exclusive to
+    // the next-preview header.
+    expect(DELIVERY_ROUTE_COPY.cockpit.operational.positionLabel).toBe('Parada {N}')
+    // `nextLabel` is a different string with the "Siguiente · " prefix;
+    // both must coexist (different consumers, different semantics).
+    expect(DELIVERY_ROUTE_COPY.cockpit.operational.nextLabel).not.toBe(
+      DELIVERY_ROUTE_COPY.cockpit.operational.positionLabel,
+    )
+  })
+
+  it('exposes cockpit.spine subtree with root + node aria-label templates (B2 shell review)', () => {
+    expect(DELIVERY_ROUTE_COPY.cockpit.spine).toBeDefined()
+    // Root aria pinned verbatim by REQ-DCS-005 spine a11y narrative.
+    expect(DELIVERY_ROUTE_COPY.cockpit.spine.rootAriaLabel).toBe('Recorrido de la ruta')
+    // Node aria template must use the spec-pinned order
+    // "Parada {N}: {status} — {customer}" so it reads naturally in Spanish.
+    expect(DELIVERY_ROUTE_COPY.cockpit.spine.nodeAriaLabel).toBe(
+      'Parada {N}: {status} — {customer}',
+    )
+  })
+
+  it('spine node aria-label template preserves {N} / {status} / {customer} order + exactly those three placeholders (B2 shell review)', () => {
+    const value = DELIVERY_ROUTE_COPY.cockpit.spine.nodeAriaLabel
+    let lastIdx = -1
+    for (const placeholder of ['{N}', '{status}', '{customer}']) {
+      const idx = value.indexOf(placeholder)
+      expect(idx).toBeGreaterThan(lastIdx)
+      lastIdx = idx
+    }
+    const placeholderPattern = /\{([^}]+)\}/g
+    const found = Array.from(value.matchAll(placeholderPattern))
+      .map((m) => m[1])
+      .sort()
+    expect(found).toEqual(['N', 'customer', 'status'])
+  })
+
   it('keeps actions.checkIn as the single source for the "Marcar entregada" label (no duplicate key)', () => {
     // Defensive pin: S7 (footer) and S8 (stop panel) reuse actions.checkIn instead
     // of defining their own key under `cockpit.*`. Drift here would create two

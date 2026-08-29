@@ -12,6 +12,7 @@ import {
   type DeliveryRouteStop,
 } from '../../../interfaces/delivery-route.types'
 import type { CockpitSpineNode, StopTrigger } from '../../../composables/cockpit/useDriverRouteCockpit'
+import { DELIVERY_ROUTE_COPY } from '../../../copy'
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- node builtin
 const fs: typeof import('node:fs') = require('node:fs') as typeof import('node:fs')
@@ -97,6 +98,43 @@ describe('DriverRouteSpine — descriptive aria-label (REQ-DCS-005)', () => {
     nodes[0]!.stop.customer = null
     expect(mountSpine({ nodes }).find('[data-testid="cockpit-spine-node-only"]').attributes('aria-label'))
       .toBe('Parada 1: Pendiente — Cliente sin nombre')
+  })
+
+  // B2 shell review: per-node aria-label is built from the central
+  // `cockpit.spine.nodeAriaLabel` template so the screen-reader narrative is
+  // owned by `copy.ts`. The exact string the template produces MUST match the
+  // existing spec-pinned strings (preserved verbatim above); this test only
+  // pins that the renderer reads from copy.ts and never holds the literal.
+  it('per-node aria-label interpolates cockpit.spine.nodeAriaLabel template + DELIVERY_ROUTE_STOP_STATUS_LABELS', async () => {
+    const w = mountSpine({ nodes: [...FIVE] })
+    const labels = w.findAll('[data-testid^="cockpit-spine-node-"]').map((n) => n.attributes('aria-label') ?? '')
+    const tpl = DELIVERY_ROUTE_COPY.cockpit.spine.nodeAriaLabel
+    // Interpolation contract: 5 nodes in FIVE → 1..5; statuses in FIVE order
+    // map onto the spec-pinned labels.
+    const expected = FIVE.map((node, idx) =>
+      tpl
+        .replace('{N}', String(idx + 1))
+        .replace('{status}', DELIVERY_ROUTE_STOP_STATUS_LABELS[node.stop.status])
+        .replace('{customer}', node.stop.customer?.name ?? DELIVERY_ROUTE_COPY.cockpit.operational.customerFallback),
+    )
+    expect(labels).toEqual(expected)
+  })
+
+  it('spine root carries the central cockpit.spine.rootAriaLabel ("Recorrido de la ruta")', async () => {
+    const w = mountSpine({ nodes: [...FIVE] })
+    const root = w.find('[data-testid="cockpit-spine-root"]')
+    expect(root.exists()).toBe(true)
+    expect(root.attributes('aria-label')).toBe(DELIVERY_ROUTE_COPY.cockpit.spine.rootAriaLabel)
+    expect(root.attributes('aria-label')).toBe('Recorrido de la ruta')
+  })
+
+  it('every visible position span interpolates cockpit.operational.positionLabel verbatim', async () => {
+    const w = mountSpine({ nodes: [...FIVE] })
+    const spans = w.findAll('[data-testid="cockpit-spine-position"]')
+    const tpl = DELIVERY_ROUTE_COPY.cockpit.operational.positionLabel
+    const texts = spans.map((s) => s.text())
+    const expected = FIVE.map((node, idx) => tpl.replace('{N}', String(idx + 1)))
+    expect(texts).toEqual(expected)
   })
 })
 
@@ -209,8 +247,14 @@ describe('DriverRouteSpine — touch + a11y + mobile-first (REQ-DRC-111)', () =>
 
 describe('DriverRouteSpine — source-level invariants (REQ-DCS-005, design §6)', () => {
   function body(): string {
+    // Strip all top-of-file block comments + line comments so the source
+    // invariant never false-positives on JSDoc / inline notes. The strip is
+    // intentionally aggressive: hardcoded user-visible literals belong in
+    // copy.ts, not in the implementation body.
     return fs.readFileSync((DriverRouteSpine as unknown as { __file: string }).__file, 'utf8')
-      .replace(/\/\*[\s\S]*?\*\//, '')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/<!--[\s\S]*?-->/g, '')
+      .replace(/^\s*\/\/.*$/gm, '')
   }
   it('never re-sorts (no .sort() / .reverse()) and contains no server-state imports', () => {
     const b = body()
@@ -221,7 +265,21 @@ describe('DriverRouteSpine — source-level invariants (REQ-DCS-005, design §6)
     expect(b).not.toMatch(/useQuery|useMutation|useQueryClient|@tanstack\/vue-query/)
     expect(b).not.toMatch(/axios|fetch\(['"]/)
   })
-  it('never hardcodes "Sin paradas" (must bind from copy.ts)', () => {
-    expect(body()).not.toContain('Sin paradas')
+  // B2 shell review: every user-visible literal pinned by the spec must be
+  // sourced from `copy.ts`. Hardcoding any of these in the implementation
+  // body fails this assertion so future drift regresses immediately.
+  it.each([
+    ['Sin paradas'],
+    ['Recorrido de la ruta'],
+    ['Cliente sin nombre'],
+  ])('SFC implementation body never hardcodes "%s" (must bind from copy.ts)', (literal) => {
+    expect(body(), `forbidden inline literal: ${literal}`).not.toContain(literal)
+  })
+  // B2 shell review: the visible "Parada N" position text and the per-node
+  // aria-label must come from the central templates. The implementation body
+  // must never interpolate "Parada " directly — that literal lives in copy.ts.
+  it('SFC implementation body never hardcodes "Parada " (must bind from copy.ts templates)', () => {
+    const b = body()
+    expect(b, 'visible "Parada " literal leaked into implementation body').not.toContain('Parada ')
   })
 })

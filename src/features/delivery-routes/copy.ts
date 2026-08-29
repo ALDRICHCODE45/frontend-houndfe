@@ -112,11 +112,22 @@ export const DELIVERY_ROUTE_COPY = {
       currentFallback: 'Sin parada activa',
       customerFallback: 'Cliente sin nombre',
       notesLabel: 'Notas de la ruta',
+      // B2 shell review: shared 1-based position label used by S5 current
+      // header AND S6 spine visible text. Interpolated as `Parada {N}`.
+      positionLabel: 'Parada {N}',
       // `{N}` is the 1-based stop position; component interpolates inline.
       nextLabel: 'Siguiente · Parada {N}',
       nextLastStop: 'Última parada',
       nextNoMore: 'No hay más pendientes',
       emptySpine: 'Sin paradas',
+    },
+    // B2 shell review: REQ-DCS-005 spine a11y — root aria + per-node aria
+    // template. Both literals are pinned verbatim so screen-reader output
+    // never drifts. Placeholders {N} / {status} / {customer} are interpolated
+    // at render time from `DELIVERY_ROUTE_STOP_STATUS_LABELS` + stop fields.
+    spine: {
+      rootAriaLabel: 'Recorrido de la ruta',
+      nodeAriaLabel: 'Parada {N}: {status} — {customer}',
     },
     // REQ-DCK-002 — drawer titles + close label. `{N}`/`{customer}` interpolated.
     drawer: {

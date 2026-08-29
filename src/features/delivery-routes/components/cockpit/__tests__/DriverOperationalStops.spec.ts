@@ -5,6 +5,7 @@ import { defineComponent } from 'vue'
 import { mount, flushPromises } from '@vue/test-utils'
 import DriverOperationalStops from '../DriverOperationalStops.vue'
 import type { DeliveryRouteStop, DeliveryRouteShippingAddress } from '../../../interfaces/delivery-route.types'
+import { DELIVERY_ROUTE_COPY } from '../../../copy'
 // eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- node builtin
 const fs: typeof import('node:fs') = require('node:fs') as typeof import('node:fs')
 
@@ -43,10 +44,13 @@ function mountStops(props: Record<string, unknown> = {}) {
 }
 
 describe('DriverOperationalStops — current section (REQ-DCS-003)', () => {
+  // B2 shell review: token emphasis (coco-gold-500 / coco-navy-500) replaces the
+  // raw hex strings; textual status comes from `DELIVERY_ROUTE_STOP_STATUS_LABELS`
+  // so screen-reader + sighted users see the same canonical Spanish label.
   it.each([
-    ['PENDING', /(#f6bb13|f6bb13|gold|cockpit-pending)/i],
-    ['IN_PROGRESS', /(#173968|173968|navy|cockpit-in-progress)/i],
-  ] as const)('%s current carries the matching emphasis class (other triangulation fields render too)', (status, marker) => {
+    ['PENDING', 'coco-gold-500', 'Pendiente'],
+    ['IN_PROGRESS', 'coco-navy-500', 'En curso'],
+  ] as const)('%s current uses token emphasis + textual status label (other triangulation fields render too)', (status, tokenClass, statusText) => {
     const stop = makeStop({
       sortOrder: 4, saleFolio: 'F-099', status,
       customer: { id: 'c-i', name: 'Maria', email: 'm@x' },
@@ -54,8 +58,12 @@ describe('DriverOperationalStops — current section (REQ-DCS-003)', () => {
     })
     const w = mountStops({ currentStop: stop, hasStops: true, notes: 'Llamar antes de llegar' })
     const cls = w.find('[data-testid="cockpit-current-card"]').classes().join(' ')
-    expect(cls).toMatch(marker)
+    // No raw hex anywhere in the rendered class list — token names only.
+    expect(cls, `raw hex leaked into class list: ${cls}`).not.toMatch(/#[0-9a-fA-F]{3,6}/)
+    expect(cls).toContain(tokenClass)
+    // Triangulated fields still render in lock-step with the emphasis change.
     expect(w.text()).toContain('Parada 5')
+    expect(w.text()).toContain(statusText)
     expect(w.text()).toContain('F-099')
     expect(w.text()).toContain('Maria')
     expect(w.find('[data-testid="cockpit-current-avatar"]').exists()).toBe(true)
@@ -63,10 +71,46 @@ describe('DriverOperationalStops — current section (REQ-DCS-003)', () => {
     expect(w.find('[data-testid="cockpit-current-notes"]').exists()).toBe(true)
   })
 
+  it('current card exposes a dedicated status-text element bound from DELIVERY_ROUTE_STOP_STATUS_LABELS', () => {
+    const cases: ReadonlyArray<readonly [DeliveryRouteStop['status'], string]> = [
+      ['PENDING', 'Pendiente'],
+      ['IN_PROGRESS', 'En curso'],
+      ['COMPLETED', 'Entregada'],
+      ['SKIPPED', 'Omitida'],
+    ]
+    for (const [status, expected] of cases) {
+      const w = mountStops({ currentStop: makeStop({ status }), hasStops: true })
+      const statusEl = w.find('[data-testid="cockpit-current-status"]')
+      expect(statusEl.exists(), `cockpit-current-status missing for ${status}`).toBe(true)
+      expect(statusEl.text()).toBe(expected)
+    }
+  })
+
   it('"other" current states are muted (no gold/navy hue)', () => {
     const cls = mountStops({ currentStop: makeStop({ status: 'COMPLETED' }) })
       .find('[data-testid="cockpit-current-card"]').classes().join(' ')
+    // B2: no raw hex anywhere; muted path uses semantic tokens only.
+    expect(cls, `raw hex leaked into class list: ${cls}`).not.toMatch(/#[0-9a-fA-F]{3,6}/)
+    expect(cls).not.toContain('coco-gold-500')
+    expect(cls).not.toContain('coco-navy-500')
     expect(cls).not.toMatch(/(#f6bb13|f6bb13|gold|#173968|173968|navy)/i)
+  })
+
+  // B2: position text comes from DELIVERY_ROUTE_COPY.cockpit.operational.positionLabel
+  // so changing the template is a one-line edit and the SFC never holds the literal.
+  it('current position text reads from the central cockpit.operational.positionLabel template', () => {
+    const w = mountStops({ currentStop: makeStop({ id: 'pos-7', sortOrder: 7 }), hasStops: true })
+    const pos = w.find('[data-testid="cockpit-current-position"]')
+    expect(pos.exists()).toBe(true)
+    expect(pos.text()).toBe(
+      DELIVERY_ROUTE_COPY.cockpit.operational.positionLabel.replace('{N}', '8'),
+    )
+    expect(pos.text()).not.toMatch(/Siguiente/)
+  })
+
+  it('current position interpolates the 1-based sortOrder + 1 verbatim', () => {
+    const w = mountStops({ currentStop: makeStop({ sortOrder: 0 }), hasStops: true })
+    expect(w.find('[data-testid="cockpit-current-position"]').text()).toBe('Parada 1')
   })
 
   it('null current renders the fallback copy with NO customer/address/avatar/card decoration', () => {
@@ -115,6 +159,42 @@ describe('DriverOperationalStops — current section (REQ-DCS-003)', () => {
 })
 
 describe('DriverOperationalStops — next section (REQ-DCS-004)', () => {
+  // B2 shell review: long next customer/address rows must not overflow at 320px.
+  // The flex parent must carry `min-w-0` (or equivalent) so child `truncate`
+  // can clip text instead of pushing the card past the viewport edge.
+  it('next customer + address rows carry flex-shrink + width constraints (320px safe)', () => {
+    const longName = 'Concepción Hernández del Río Montejo y Sánchez'
+    const longStreet = 'Avenida Insurgentes Sur número mil cuatrocientos cincuenta y dos'
+    const w = mountStops({
+      currentStop: makeStop({ sortOrder: 0 }),
+      nextStop: makeStop({
+        id: 'n-long',
+        sortOrder: 1,
+        customer: { id: 'c-long', name: longName, email: 'l@x' },
+        shippingAddress: makeAddress({ street: longStreet, exteriorNumber: '1452' }),
+      }),
+      hasStops: true,
+    })
+    const customerEl = w.find('[data-testid="cockpit-next-customer"]')
+    const addressEl = w.find('[data-testid="cockpit-next-address"]')
+    const cardEl = w.find('[data-testid="cockpit-next-card"]')
+    // The card must be the width-constrained flex root; the rows inside must
+    // allow truncation (min-w-0 + w-full / max-w-full or equivalent).
+    expect(cardEl.classes().join(' ')).toMatch(/w-full/)
+    expect(cardEl.classes().join(' ')).toMatch(/min-w-0/)
+    // Either the rows themselves carry min-w-0 (cleanest), OR the inner
+    // wrapper does — both keep `truncate` from overflowing the viewport.
+    const customerHasShrink = /min-w-0/.test(customerEl.classes().join(' '))
+    const addressHasShrink = /min-w-0/.test(addressEl.classes().join(' '))
+    expect(customerHasShrink || addressHasShrink).toBe(true)
+    // Truncation classes must still be in place (clip + nowrap = no overflow).
+    expect(customerEl.classes().join(' ')).toMatch(/truncate/)
+    expect(addressEl.classes().join(' ')).toMatch(/truncate/)
+    // The rendered text is intact even when it would overflow visually.
+    expect(w.text()).toContain(longName)
+    expect(w.text()).toContain(longStreet)
+  })
+
   it('next preview shows position/customer/address and NO ETA / distance / map / avatar (low emphasis)', () => {
     const w = mountStops({
       currentStop: makeStop({ sortOrder: 0 }),

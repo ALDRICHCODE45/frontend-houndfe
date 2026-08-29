@@ -11,7 +11,10 @@
 import { computed } from 'vue'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import { formatAddress } from '@/core/shared/utils/formatAddress'
-import type { DeliveryRouteStop } from '../../interfaces/delivery-route.types'
+import {
+  DELIVERY_ROUTE_STOP_STATUS_LABELS,
+  type DeliveryRouteStop,
+} from '../../interfaces/delivery-route.types'
 import { DELIVERY_ROUTE_COPY } from '../../copy'
 import type { StopTrigger } from '../../composables/cockpit/useDriverRouteCockpit'
 
@@ -27,7 +30,12 @@ const emit = defineEmits<{ 'open-stop': [payload: StopTrigger] }>()
 
 // Current derivations.
 const currentPositionLabel = computed<string | null>(() =>
-  props.currentStop ? `Parada ${props.currentStop.sortOrder + 1}` : null,
+  props.currentStop
+    ? DELIVERY_ROUTE_COPY.cockpit.operational.positionLabel.replace('{N}', String(props.currentStop.sortOrder + 1))
+    : null,
+)
+const currentStatusLabel = computed<string>(() =>
+  props.currentStop ? DELIVERY_ROUTE_STOP_STATUS_LABELS[props.currentStop.status] : '',
 )
 const currentFolio = computed<string | null>(
   () => props.currentStop?.saleFolio || null,
@@ -43,12 +51,14 @@ const currentAvatarSeed = computed<string>(
 const currentFormattedAddress = computed<string>(() =>
   props.currentStop?.shippingAddress ? formatAddress(props.currentStop.shippingAddress) : '',
 )
-// PENDING gold · IN_PROGRESS navy · other muted. Hue markers pinned by spec.
+// PENDING gold · IN_PROGRESS navy · other muted. Uses Coco design tokens
+// (coco-gold-500 / coco-navy-500) so the emphasis color follows the global
+// brand palette and dark/light themes are inherited automatically.
 const currentEmphasisClass = computed<string>(() => {
   if (!props.currentStop) return ''
   switch (props.currentStop.status) {
-    case 'PENDING': return 'border-l-4 border-[#f6bb13] bg-[#f6bb13]/10'
-    case 'IN_PROGRESS': return 'border-l-4 border-[#173968] bg-[#173968]/10'
+    case 'PENDING': return 'border-l-4 border-coco-gold-500 bg-coco-gold-500/10'
+    case 'IN_PROGRESS': return 'border-l-4 border-coco-navy-500 bg-coco-navy-500/10'
     default: return 'border-l-4 border-default bg-default/60'
   }
 })
@@ -105,6 +115,7 @@ function openStop(stopId: string, event: MouseEvent) {
       >
         <header class="flex w-full flex-wrap items-center gap-x-2 gap-y-1 text-xs uppercase tracking-wide text-muted">
           <span data-testid="cockpit-current-position">{{ currentPositionLabel }}</span>
+          <span data-testid="cockpit-current-status">{{ currentStatusLabel }}</span>
           <span v-if="currentFolio" class="font-mono normal-case" data-testid="cockpit-current-folio">· {{ currentFolio }}</span>
         </header>
         <div class="flex w-full items-center gap-3">
@@ -125,16 +136,16 @@ function openStop(stopId: string, event: MouseEvent) {
       <button
         v-if="nextStop"
         type="button"
-        class="flex w-full flex-col items-start gap-1 rounded-md border border-default bg-default/60 px-3 py-3 text-left min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        class="flex w-full min-w-0 max-w-full flex-col items-start gap-1 rounded-md border border-default bg-default/60 px-3 py-3 text-left min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         data-testid="cockpit-next-card"
         @click="openStop(nextStop.id, $event)"
       >
-        <header class="flex w-full flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-muted">
+        <header class="flex w-full min-w-0 max-w-full flex-wrap items-center gap-x-2 gap-y-1 text-xs font-medium text-muted">
           <span data-testid="cockpit-next-label">{{ nextLabel }}</span>
           <span v-if="nextFolio" class="font-mono normal-case" data-testid="cockpit-next-folio">· {{ nextFolio }}</span>
         </header>
-        <span class="truncate text-sm text-default" data-testid="cockpit-next-customer">{{ nextCustomerName }}</span>
-        <span v-if="nextFormattedAddress" class="truncate text-xs text-muted" data-testid="cockpit-next-address">{{ nextFormattedAddress }}</span>
+        <span class="w-full min-w-0 max-w-full truncate text-sm text-default" data-testid="cockpit-next-customer">{{ nextCustomerName }}</span>
+        <span v-if="nextFormattedAddress" class="w-full min-w-0 max-w-full truncate text-xs text-muted" data-testid="cockpit-next-address">{{ nextFormattedAddress }}</span>
       </button>
       <p v-else-if="nextEmptyLabel.variant === 'no-more'" class="text-xs text-muted" data-testid="cockpit-next-empty-no-more">{{ nextEmptyLabel.text }}</p>
       <p v-else class="text-xs text-muted" data-testid="cockpit-next-empty-last">{{ nextEmptyLabel.text }}</p>

@@ -4,7 +4,8 @@
  * REQ-DRC-111 spine a11y). Mobile-first accessible ordered sequence. Strict
  * no-re-sort: input `nodes` are rendered in input order verbatim. No server
  * state, router, query, mutation, HTTP. Typed props { nodes }, typed emit
- * 'select-stop' [StopTrigger].
+ * 'select-stop' [StopTrigger]. B2: every user-visible literal (root aria,
+ * per-node aria template, visible "Parada N") is bound from `copy.ts`.
  */
 import { computed } from 'vue'
 import { DELIVERY_ROUTE_STOP_STATUS_LABELS } from '../../interfaces/delivery-route.types'
@@ -16,6 +17,7 @@ const emit = defineEmits<{ 'select-stop': [payload: StopTrigger] }>()
 
 const emptySpineCopy = computed<string>(() => DELIVERY_ROUTE_COPY.cockpit.operational.emptySpine)
 const customerFallback = computed<string>(() => DELIVERY_ROUTE_COPY.cockpit.operational.customerFallback)
+const rootAriaLabel = computed<string>(() => DELIVERY_ROUTE_COPY.cockpit.spine.rootAriaLabel)
 
 function statusLabel(s: CockpitSpineNode['stop']['status']): string {
   return DELIVERY_ROUTE_STOP_STATUS_LABELS[s]
@@ -23,8 +25,14 @@ function statusLabel(s: CockpitSpineNode['stop']['status']): string {
 function customerName(node: CockpitSpineNode): string {
   return node.stop.customer?.name ?? customerFallback.value
 }
+function positionLabel(sortOrder: number): string {
+  return DELIVERY_ROUTE_COPY.cockpit.operational.positionLabel.replace('{N}', String(sortOrder + 1))
+}
 function nodeAriaLabel(node: CockpitSpineNode): string {
-  return `Parada ${node.stop.sortOrder + 1}: ${statusLabel(node.stop.status)} — ${customerName(node)}`
+  return DELIVERY_ROUTE_COPY.cockpit.spine.nodeAriaLabel
+    .replace('{N}', String(node.stop.sortOrder + 1))
+    .replace('{status}', statusLabel(node.stop.status))
+    .replace('{customer}', customerName(node))
 }
 function onSelect(node: CockpitSpineNode, event: MouseEvent): void {
   // Native <button> collapses Enter/Space into a single click activation.
@@ -41,7 +49,7 @@ function onSelect(node: CockpitSpineNode, event: MouseEvent): void {
   <ol
     v-else
     data-testid="cockpit-spine-root"
-    aria-label="Recorrido de la ruta"
+    :aria-label="rootAriaLabel"
     class="flex flex-col gap-0 border-l border-default pl-0 min-w-0"
   >
     <li v-for="(node, index) in nodes" :key="node.stop.id" class="relative pl-6 py-1">
@@ -69,7 +77,7 @@ function onSelect(node: CockpitSpineNode, event: MouseEvent): void {
           aria-hidden="true"
           class="inline-flex h-5 w-5 flex-none items-center justify-center rounded-full bg-primary text-xs text-primary-contrast"
         >→</span>
-        <span class="flex-none font-mono text-xs text-muted" data-testid="cockpit-spine-position">Parada {{ node.stop.sortOrder + 1 }}</span>
+        <span class="flex-none font-mono text-xs text-muted" data-testid="cockpit-spine-position">{{ positionLabel(node.stop.sortOrder) }}</span>
         <span class="min-w-0 flex-1 truncate text-sm text-default" data-testid="cockpit-spine-customer">{{ customerName(node) }}</span>
         <span class="flex-none text-xs text-muted" data-testid="cockpit-spine-status-label">{{ statusLabel(node.stop.status) }}</span>
       </button>
