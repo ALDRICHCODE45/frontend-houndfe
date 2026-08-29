@@ -213,10 +213,10 @@ Refs: design §3-§4, §10-§11; specs/driver-cockpit-derivation (REQ-DCD-001..0
 
 **TDD steps**
 
-- [ ] RED — Write the spec asserting the exact predicate matrix from REQ-DCK-005 scenarios: address-only map input true; finite pair + address true (coordinates preferred in query); both-finite without address true; one/non-finite coordinate false; non-empty trimmed address gates copy; non-empty trimmed email gates email. <!-- sdd-owner: implementation -->
-- [ ] GREEN — Implement predicates and helpers minimally: `canOpenExternalMap`, `canCopyAddress`, `canOpenEmail`, then `openExternalMap`/`copyAddressToClipboard`/`openEmail` returning typed results with blocked/unsupported/runtime failure paths. <!-- sdd-owner: implementation -->
-- [ ] TRIANGULATE — Add edge cases: whitespace-only strings fail trimmed checks; `undefined`/`null` inputs never throw; coordinate `0,0` is legal (finite); `window.open` returning null → blocked failure result; clipboard rejection → `{ ok: false }` with canonical failure copy; SSR absence of `navigator`/`window` → typed failure, no throw. <!-- sdd-owner: implementation -->
-- [ ] REFACTOR — Tighten: shared `encodeQuery`/`encodedMailto` helpers, no duplicated URL building, pure functions exported for direct unit testing (no Vue refs, no toast runtime in the util). <!-- sdd-owner: implementation -->
+- [x] RED — Write the spec asserting the exact predicate matrix from REQ-DCK-005 scenarios: address-only map input true; finite pair + address true (coordinates preferred in query); both-finite without address true; one/non-finite coordinate false; non-empty trimmed address gates copy; non-empty trimmed email gates email. <!-- sdd-owner: implementation -->
+- [x] GREEN — Implement predicates and helpers minimally: `canOpenExternalMap`, `canCopyAddress`, `canOpenEmail`, then `openExternalMap`/`copyAddressToClipboard`/`openEmail` returning typed results with blocked/unsupported/runtime failure paths. <!-- sdd-owner: implementation -->
+- [x] TRIANGULATE — Add edge cases: whitespace-only strings fail trimmed checks; `undefined`/`null` inputs never throw; coordinate `0,0` is legal (finite); `window.open` returning null → blocked failure result; clipboard rejection → `{ ok: false }` with canonical failure copy; SSR absence of `navigator`/`window` → typed failure, no throw. <!-- sdd-owner: implementation -->
+- [x] REFACTOR — Tighten: shared `encodeQuery`/`encodedMailto` helpers, no duplicated URL building, pure functions exported for direct unit testing (no Vue refs, no toast runtime in the util). <!-- sdd-owner: implementation -->
 
 **Verify**
 
