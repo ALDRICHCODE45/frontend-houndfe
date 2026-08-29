@@ -18,7 +18,10 @@
  *     and route the 404 / driver 403 to the same full-page "Ruta no
  *     encontrada" state (no presence leak).
  *   - `refetchOnWindowFocus: false` — no surprise refetches while the manager
- *     is mid-edit.
+ *     is mid-edit; the window-focus path stays inert (no focus listener).
+ *   - Freshness sources (REQ-DRC-110): mutation invalidation on success and the
+ *     cockpit manual refresh — the view calls observer `refetch()` once per
+ *     header refresh and toasts failures itself; no polling/push/new key.
  *   - `id` is typed as `MaybeRefOrGetter<string>` so the view can pass
  *     `route.params.id` directly OR a computed. The composable normalises
  *     reactive and non-reactive inputs the same way (`toValue`).

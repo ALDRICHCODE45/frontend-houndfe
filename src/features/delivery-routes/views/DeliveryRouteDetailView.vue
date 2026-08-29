@@ -1,8 +1,8 @@
 <script setup lang="ts">
 /**
- * DeliveryRouteDetailView — S6a + S6b + S7 verify remediation (sdd delivery-routes,
- * design.md §4.1, §4.2, §6.4, §7.2, §10.1, §11, REQ-DRM-008/010/011/012/013/015,
- * REQ-DRC-001..008).
+ * DeliveryRouteDetailView — S6a + S7 verify remediation + S11a view wiring (sdd
+ * delivery-routes, design.md §4.1, §4.2, §6.4, §7.2, §10.1, §11, REQ-DRM-008/
+ * 010/011/012/013/015, REQ-DRC-103/104/107/108/109/110/112, REQ-DCS-007/009/010).
  *
  * Route-level composition surface for `/pos/rutas-de-entrega/:id`. ONE route
  * serves both roles; the view discriminates manager vs driver via a SINGLE
@@ -21,10 +21,12 @@
  *     404 ENTITY_NOT_FOUND on detail fetch → full-page "Ruta no encontrada".
  *     Driver 403 → SAME full-page not-found state (no banner, no toast — no
  *     presence leak; design §7.2, §11).
- *   - Driver branch (`isDriver=true`): renders the stop list (one
- *     `DriverStopDetail` per stop) + the `DeliveryRouteTimeline` at the
- *     bottom. The check-in mutation is wired INSIDE `DriverStopDetail` (the
- *     component owns its action surface; same pattern as the reorder panel).
+ *   - Driver branch (`isDriver=true`, S11a): mounts `DriverRouteCockpit` with
+ *     typed props `{ route, isFetching, canCheckIn=canUpdate, checkInPending }`
+ *     and events back (list push) / refresh (single observer refetch; failure →
+ *     toast) / request-check-in(stopId) (single view-owned useCheckInStop,
+ *     REQ-DRC-104). The old DriverStopDetail stack + inline timeline are gone;
+ *     the timeline mounts only inside the cockpit's history-mode drawer.
  *
  * Loading / error / not-found states follow design §11. The view is a composition
  * surface only — no card markup, no field markup. Mutation wiring is role-gated;
@@ -32,7 +34,6 @@
  */
 import { computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import type { AxiosError } from 'axios'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
@@ -43,10 +44,10 @@ import { useDeleteDeliveryRoute } from '../composables/useDeleteDeliveryRoute'
 import { useStartDeliveryRoute } from '../composables/useStartDeliveryRoute'
 import { useCancelDeliveryRoute } from '../composables/useCancelDeliveryRoute'
 import { useAppendDeliveryRouteStop } from '../composables/useAppendDeliveryRouteStop'
+import { useCheckInStop } from '../composables/useCheckInStop'
 import DeliveryRouteUpsertSlideover from '../components/DeliveryRouteUpsertSlideover.vue'
 import DeliveryRouteReorderPanel from '../components/DeliveryRouteReorderPanel.vue'
-import DriverStopDetail from '../components/DriverStopDetail.vue'
-import DeliveryRouteTimeline from '../components/DeliveryRouteTimeline.vue'
+import DriverRouteCockpit from '../components/cockpit/DriverRouteCockpit.vue'
 import EligibleSalesPicker from '../components/EligibleSalesPicker.vue'
 import { extractDeliveryRouteErrorCode } from '../interfaces/errors'
 import { buildStopProgress } from '../utils/delivery-route-actions.utils'
@@ -70,11 +71,40 @@ const { isManager, isDriver, canUpdate, canDelete } = useDeliveryRouteRole()
 const {
   data: routeData,
   isLoading,
+  isFetching,
   isError,
   error,
+  refetch,
 } = useDeliveryRouteDetail(routeId)
 
+// ─── View-owned check-in mutation (REQ-DRC-104) ────────────────────────────────
+// Single view-owned `useCheckInStop`; the cockpit never instantiates it and the
+// composable owns toasts + invalidation (the view does not re-toast/re-invalidate).
+const { mutateAsync: checkInStop, isPending: checkInPending } = useCheckInStop()
+
+// Refresh-failure toast only (REQ-DRC-110); other toasts are composable-owned.
+declare const useToast: () => { add: (o: { title: string; color?: 'error' }) => void }
+const toast = useToast()
+
+// ─── Driver cockpit wiring (S11a, REQ-DRC-104/107/109/110, REQ-DCS-007) ───────
+// Refresh: one observer refetch; failure toasts refresh-failed once (cached DTO
+// + scroll stay put). Check-in: single view-owned mutation forward.
+async function handleRefresh(): Promise<void> {
+  try {
+    if ((await refetch()).isError) toast.add({ title: DELIVERY_ROUTE_COPY.toasts.refreshFailed, color: 'error' })
+  } catch {
+    toast.add({ title: DELIVERY_ROUTE_COPY.toasts.refreshFailed, color: 'error' })
+  }
+}
+
+async function handleCheckIn(stopId: string): Promise<void> {
+  try { await checkInStop({ id: routeId.value, stopId }) } catch { /* composable owns the error toast */ }
+}
+function handleBack(): void { void router.push('/pos/rutas-de-entrega') }
+
 // ─── Not-found / forbidden detection ──────────────────────────────────────────
+// Type-only observer-error shape — keeps the HTTP client import out of the view.
+type DetailFetchError = { response?: { status?: number } }
 // Driver 403 → same full-page "Ruta no encontrada" state as 404 ENTITY_NOT_FOUND.
 // The view NEVER surfaces a 403 banner / toast (no presence leak; design §7.2,
 // §11). The composable just propagates the rejection — we map both 404 and 403
@@ -86,7 +116,7 @@ const notFoundCode = computed<string | null>(() => {
   // Driver 403 → same full-page not-found state (no presence leak; design §7.2,
   // §11). Any OTHER error (5xx, network, unknown) falls through to the generic
   // error block below — it is NOT a not-found state.
-  const status = (error.value as AxiosError | null | undefined)?.response?.status
+  const status = (error.value as DetailFetchError | null | undefined)?.response?.status
   if (status === 403 && isDriver.value) return 'ENTITY_NOT_FOUND'
   return null
 })
@@ -299,7 +329,7 @@ const confirmLoading = computed<boolean>(() => {
 // of the error routing via the toast). The full-page error block mirrors the
 // list-view pattern (design §11).
 const errorMessage = computed<string>(() => {
-  const e = error.value as AxiosError | null | undefined
+  const e = error.value as DetailFetchError | null | undefined
   return normalizeApiError(e, 'No se pudo cargar la ruta de entrega.').message
 })
 
@@ -362,59 +392,22 @@ defineExpose({
     <p class="text-sm text-muted">{{ errorMessage }}</p>
   </div>
 
-      <!-- Driver branch (REQ-DRC-001..008, design §4.2, §11): renders one
-           DriverStopDetail per stop + the DeliveryRouteTimeline. The check-in
-           mutation is wired inside DriverStopDetail (component owns its action
-           surface, design §4.2). The header still surfaces route metadata
-           (short id + status badge + x/y progress) so the driver sees where they
-           are in the route before scrolling into the stops list. -->
+      <!-- Driver branch (S11a): DriverRouteCockpit with typed props; the old
+           DriverStopDetail stack + inline timeline are gone (drawer-owned now). -->
       <div
         v-else-if="isDriver && routeData && routeData.id === routeId"
         data-testid="detail-driver-branch"
         class="flex flex-col gap-6 px-4 py-6 sm:px-6 lg:px-10"
       >
-        <header
-          class="flex flex-col gap-2 border-b border-default pb-4"
-          data-testid="detail-driver-summary"
-        >
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div class="flex flex-col gap-1">
-              <span class="text-xs uppercase tracking-wide text-muted">Ruta</span>
-              <span class="font-mono text-sm">{{ routeData.id.slice(0, 8) }}</span>
-            </div>
-            <StatusDotBadge
-              :tone="statusTone(routeData.status)"
-              :label="statusLabel(routeData.status)"
-            />
-          </div>
-          <div class="flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted">
-            <span>Repartidor: <strong class="text-default">{{ routeData.driver?.name ?? '—' }}</strong></span>
-            <span>Progreso: <strong class="text-default">{{ stopProgressLabel }}</strong></span>
-          </div>
-        </header>
-
-        <section
-          v-if="routeData.stops.length > 0"
-          data-testid="detail-driver-stops"
-          class="flex flex-col gap-3"
-        >
-          <h2 class="text-sm font-medium">Paradas</h2>
-          <DriverStopDetail
-            v-for="stop in routeData.stops"
-            :key="stop.id"
-            :stop="stop"
-            :route-id="routeData.id"
-          />
-        </section>
-        <p
-          v-else
-          data-testid="detail-driver-stops-empty"
-          class="text-sm text-muted"
-        >
-          Sin paradas
-        </p>
-
-        <DeliveryRouteTimeline :route="routeData" />
+        <DriverRouteCockpit
+          :route="routeData"
+          :is-fetching="isFetching"
+          :can-check-in="canUpdate"
+          :check-in-pending="checkInPending"
+          @back="handleBack"
+          @refresh="handleRefresh"
+          @request-check-in="handleCheckIn"
+        />
       </div>
 
   <!-- Manager branch — route detail with mutation affordances. Only when the

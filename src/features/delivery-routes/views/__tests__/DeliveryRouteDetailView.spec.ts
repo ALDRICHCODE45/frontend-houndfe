@@ -28,7 +28,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { nextTick } from 'vue'
 import { mount, flushPromises } from '@vue/test-utils'
-import { defineComponent, h, ref } from 'vue'
+import { defineComponent, h, ref, shallowRef } from 'vue'
 import { DELIVERY_ROUTE_COPY } from '../../copy'
 
 // ─── Mock `useDeliveryRouteRole` — drives isManager / isDriver / per-action perms ─
@@ -47,7 +47,7 @@ vi.mock('../../composables/useDeliveryRouteRole', () => ({
 
 // ─── Mock `useDeliveryRouteDetail` — controls detail loading / data / error ────
 const detailMock = {
-  data: ref<unknown>(undefined),
+  data: shallowRef<unknown>(undefined),
   isLoading: ref(false),
   isFetching: ref(false),
   isError: ref(false),
@@ -115,13 +115,17 @@ vi.mock('../../composables/useReorderStops', () => ({
     error: ref(null),
   }),
 }))
+// ─── Mock `useCheckInStop` — view-owned single instance (REQ-DRC-104) ──────────
+const checkInMutateMock = vi.fn().mockResolvedValue({})
+const checkInPendingRef = ref(false)
+vi.mock('../../composables/useCheckInStop', () => ({
+  useCheckInStop: () => ({ mutateAsync: checkInMutateMock, isPending: checkInPendingRef, error: ref(null) }),
+}))
 
-// ─── Toast recorder so we can assert the 409 conflict toast + absence of leak ──
+// ─── Toast recorder — SFC's auto-imported `useToast` mocked at its module path ──
 const toastCalls: Array<{ title: string; color?: string; description?: string }> = []
-vi.stubGlobal('useToast', () => ({
-  add: (t: { title: string; color?: string; description?: string }) => {
-    toastCalls.push(t)
-  },
+vi.mock('@nuxt/ui/runtime/composables/useToast', () => ({
+  useToast: () => ({ add: (t: { title: string; color?: string; description?: string }) => { toastCalls.push(t) } }),
 }))
 
 // ─── Stub the slideover to record emits + render a stable test surface ─────────
@@ -219,34 +223,20 @@ vi.mock('../../components/DeliveryRouteReorderPanel.vue', () => ({
   }),
 }))
 
-// ─── Stub DriverStopDetail — renders a stable testid + a check-in button ────
-const driverStopEmits: { 'check-in': Array<{ id: string; stopId: string }> } = {
-  'check-in': [],
-}
-vi.mock('../../components/DriverStopDetail.vue', () => ({
+// ─── Stub DriverRouteCockpit — typed props + event buttons (S11a) ──────────
+const cockpitPropsHistory: Array<{ route: unknown; isFetching: boolean; canCheckIn: boolean; checkInPending: boolean }> = []
+const resetCockpit = () => { cockpitPropsHistory.length = 0 }
+vi.mock('../../components/cockpit/DriverRouteCockpit.vue', () => ({
   default: defineComponent({
-    name: 'DriverStopDetail',
-    props: { stop: { type: Object, required: true }, routeId: { type: String, required: true } },
-    setup(props) {
-      const stop = props.stop as { id: string }
-      return () =>
-        h(
-          'div',
-          { 'data-testid': 'driver-stop-detail-stub', 'data-stop-id': stop.id },
-          [
-            h(
-              'button',
-              {
-                type: 'button',
-                'data-testid': `driver-stop-check-in-stub-${stop.id}`,
-                onClick: () => {
-                  driverStopEmits['check-in'].push({ id: props.routeId, stopId: stop.id })
-                },
-              },
-              'check-in',
-            ),
-          ],
-        )
+    name: 'DriverRouteCockpit',
+    props: { route: { type: Object, required: true }, isFetching: { type: Boolean, required: true }, canCheckIn: { type: Boolean, required: true }, checkInPending: { type: Boolean, required: true } },
+    setup(props, { emit }) {
+      cockpitPropsHistory.push({ route: props.route, isFetching: props.isFetching, canCheckIn: props.canCheckIn, checkInPending: props.checkInPending })
+      return () => h('div', { 'data-testid': 'driver-route-cockpit-stub', 'data-can-check-in': String(props.canCheckIn), 'data-check-in-pending': String(props.checkInPending) }, [
+        h('button', { type: 'button', 'data-testid': 'cockpit-stub-emit-check-in', onClick: () => emit('request-check-in', 's1') }, 'check-in'),
+        h('button', { type: 'button', 'data-testid': 'cockpit-stub-emit-back', onClick: () => emit('back') }, 'back'),
+        h('button', { type: 'button', 'data-testid': 'cockpit-stub-emit-refresh', onClick: () => emit('refresh') }, 'refresh'),
+      ])
     },
   }),
 }))
@@ -407,12 +397,23 @@ function makeDraftRoute(overrides: Partial<{ id: string; stopsLength: number }> 
   }
 }
 
+// Driver-branch fixture: driver+read role, detail state, mounted + settled.
+async function mountDriver(detail: Parameters<typeof resetDetailState>[0] = { data: makeDraftRoute() }, flags: RoleFlagOverrides = {}) {
+  resetRoleFlags({ isManager: { value: false }, isDriver: { value: true }, canRead: { value: true }, ...flags })
+  resetDetailState(detail)
+  const wrapper = mountView()
+  await flushPromises()
+  return wrapper
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   slideoverEmits.edit.length = 0
   slideoverEmits.create.length = 0
   toastCalls.length = 0
   lastReorderProps = {}
+  resetCockpit()
+  checkInPendingRef.value = false
   // Default: manager with all perms — individual specs override.
   resetRoleFlags({
     isManager: { value: true },
@@ -806,82 +807,152 @@ describe('DeliveryRouteDetailView — 404 ENTITY_NOT_FOUND / driver 403 → full
   })
 })
 
-    describe('DeliveryRouteDetailView — driver branch (S6b, design §4.2, §11, REQ-DRC-001..008)', () => {
-      beforeEach(() => {
-        driverStopEmits['check-in'].length = 0
-      })
-
-      it('renders the driver branch with one DriverStopDetail per stop + the timeline (REQ-DRC-001)', async () => {
-        resetRoleFlags({
-          isManager: { value: false },
-          isDriver: { value: true },
-          canRead: { value: true },
-        })
+    describe('DeliveryRouteDetailView — driver branch + cockpit wiring (S11a, design §4.2, §11, REQ-DRC-103/104/107/108/109/110/112, REQ-DCS-007/009/010)', () => {
+      it('renders the driver branch with DriverRouteCockpit + four typed props (REQ-DCS-001, REQ-DRC-104, REQ-DRC-112)', async () => {
         const route = makeDraftRoute({ stopsLength: 3 })
-        resetDetailState({ data: route })
-        const wrapper = mountView()
-        await flushPromises()
+        const wrapper = await mountDriver({ data: route, isFetching: false }, { canUpdate: { value: true } })
         expect(wrapper.find('[data-testid="detail-driver-branch"]').exists()).toBe(true)
-        const stops = wrapper.findAll('[data-testid="driver-stop-detail-stub"]')
-        expect(stops.length).toBe(3)
-        expect(wrapper.find('[data-testid="delivery-route-timeline-stub"]').exists()).toBe(true)
+        const cockpit = wrapper.find('[data-testid="driver-route-cockpit-stub"]')
+        expect(cockpit.exists()).toBe(true)
+        expect(cockpitPropsHistory.length).toBeGreaterThan(0)
+        const last = cockpitPropsHistory[cockpitPropsHistory.length - 1]!
+        expect(last.route).toBe(route)
+        expect(last.isFetching).toBe(false)
+        expect(last.canCheckIn).toBe(true)
+        expect(last.checkInPending).toBe(false)
+        // Old card stack is gone (S11b precondition — DriverStopDetail.vue still exists at this boundary).
+        expect(wrapper.find('[data-testid="driver-stop-detail-stub"]').exists()).toBe(false)
       })
 
-      it('does NOT render the manager toolbar / slideover / reorder panel on the driver branch', async () => {
-        resetRoleFlags({ isManager: { value: false }, isDriver: { value: true }, canRead: { value: true } })
-        resetDetailState({ data: makeDraftRoute() })
-        const wrapper = mountView()
-        await flushPromises()
+      it('does NOT render the manager toolbar / slideover / reorder panel / route summary on the driver branch', async () => {
+        const wrapper = await mountDriver()
         expect(wrapper.find('[data-testid="detail-actions-toolbar"]').exists()).toBe(false)
         expect(wrapper.find('[data-testid="detail-upsert-slideover-stub"]').exists()).toBe(false)
         expect(wrapper.find('[data-testid="detail-reorder-panel-stub"]').exists()).toBe(false)
         expect(wrapper.find('[data-testid="detail-route-summary"]').exists()).toBe(false)
-        // The placeholder marker is GONE (S6b replaces it).
         expect(wrapper.find('[data-testid="detail-driver-placeholder"]').exists()).toBe(false)
+        expect(wrapper.find('[data-testid="detail-driver-stops-empty"]').exists()).toBe(false)
       })
 
-      it('renders "Sin paradas" when the driver route has no stops (REQ-DRC-001)', async () => {
-        resetRoleFlags({ isManager: { value: false }, isDriver: { value: true }, canRead: { value: true } })
-        resetDetailState({ data: makeDraftRoute({ stopsLength: 0 }) })
-        const wrapper = mountView()
-        await flushPromises()
-        expect(wrapper.find('[data-testid="detail-driver-stops-empty"]').exists()).toBe(true)
-        expect(wrapper.text()).toContain('Sin paradas')
+      it('mounts the cockpit even when the route has zero stops (REQ-DRC-112)', async () => {
+        const wrapper = await mountDriver({ data: makeDraftRoute({ stopsLength: 0 }) })
+        expect(wrapper.find('[data-testid="detail-driver-branch"]').exists()).toBe(true)
+        expect(wrapper.find('[data-testid="driver-route-cockpit-stub"]').exists()).toBe(true)
+        expect(wrapper.find('[data-testid="detail-driver-stops-empty"]').exists()).toBe(false)
       })
 
-      it('does NOT render the driver branch when routeData is stale (different route id, keepPreviousData guard)', async () => {
-        resetRoleFlags({ isManager: { value: false }, isDriver: { value: true }, canRead: { value: true } })
-        resetDetailState({ data: makeDraftRoute({ id: 'route-OTHER', stopsLength: 2 }) })
-        const wrapper = mountView()
-        await flushPromises()
+      it('does NOT render the driver branch when routeData is stale (different route id, keepPreviousData guard, REQ-DRC-107)', async () => {
+        const wrapper = await mountDriver({ data: makeDraftRoute({ id: 'route-OTHER', stopsLength: 2 }) })
         expect(wrapper.find('[data-testid="detail-driver-branch"]').exists()).toBe(false)
+        expect(wrapper.find('[data-testid="driver-route-cockpit-stub"]').exists()).toBe(false)
       })
 
-      it('passes the route id down to each DriverStopDetail so check-in is wired correctly', async () => {
-        resetRoleFlags({ isManager: { value: false }, isDriver: { value: true }, canRead: { value: true } })
-        resetDetailState({ data: makeDraftRoute({ stopsLength: 2 }) })
+      it('does NOT mount the cockpit on a generic 5xx / network error (REQ-DRC-112)', async () => {
+        const wrapper = await mountDriver({ isError: true, data: undefined, error: { response: { status: 500, data: { message: 'boom' } } } })
+        expect(wrapper.find('[data-testid="detail-error-block"]').exists()).toBe(true)
+        expect(wrapper.find('[data-testid="driver-route-cockpit-stub"]').exists()).toBe(false)
+      })
+
+      it('does NOT mount the cockpit while isLoading=true (REQ-DRC-112)', async () => {
+        const wrapper = await mountDriver({ isLoading: true, data: undefined })
+        expect(wrapper.find('[data-testid="detail-loading-skeleton"]').exists()).toBe(true)
+        expect(wrapper.find('[data-testid="driver-route-cockpit-stub"]').exists()).toBe(false)
+      })
+
+      it('canCheckIn prop equals canUpdate at the call site — read-only driver sees no delivery actions (REQ-DRC-104, REQ-DCS-007/009)', async () => {
+        const wrapper = await mountDriver(undefined, { canUpdate: { value: false } })
+        const cockpit = wrapper.find('[data-testid="driver-route-cockpit-stub"]')
+        expect(cockpit.exists()).toBe(true)
+        expect(cockpit.attributes('data-can-check-in')).toBe('false')
+      })
+
+      it('checkInPending prop propagates to the cockpit (REQ-DRC-104, REQ-DCS-009/010)', async () => {
+        checkInPendingRef.value = true
+        const wrapper = await mountDriver()
+        const cockpit = wrapper.find('[data-testid="driver-route-cockpit-stub"]')
+        expect(cockpit.attributes('data-check-in-pending')).toBe('true')
+      })
+
+      it('request-check-in event fires the view-owned useCheckInStop instance exactly once with { id, stopId } (REQ-DRC-104)', async () => {
+        const wrapper = await mountDriver()
+        await wrapper.find('[data-testid="cockpit-stub-emit-check-in"]').trigger('click')
+        await flushPromises()
+        expect(checkInMutateMock).toHaveBeenCalledTimes(1)
+        expect(checkInMutateMock).toHaveBeenCalledWith({ id: 'route-42', stopId: 's1' })
+        // No view-level toast on success — the composable owns it.
+        expect(toastCalls.length).toBe(0)
+      })
+
+      it('refresh event invokes the observer refetch exactly once; success → no toast (REQ-DRC-110, REQ-DCS-007)', async () => {
+        detailMock.refetch.mockResolvedValue({ isError: false } as never)
+        const wrapper = await mountDriver()
+        await wrapper.find('[data-testid="cockpit-stub-emit-refresh"]').trigger('click')
+        await flushPromises()
+        expect(detailMock.refetch).toHaveBeenCalledTimes(1)
+        expect(toastCalls.length).toBe(0)
+      })
+
+      it('refresh failure (result.isError=true) toasts the canonical refresh-failed copy once + keeps cached DTO (REQ-DRC-110)', async () => {
+        const cached = makeDraftRoute()
+        detailMock.refetch.mockResolvedValue({ isError: true, error: { response: { status: 500 } } } as never)
+        const wrapper = await mountDriver({ data: cached })
+        await wrapper.find('[data-testid="cockpit-stub-emit-refresh"]').trigger('click')
+        await flushPromises()
+        expect(detailMock.refetch).toHaveBeenCalledTimes(1)
+        const refreshToasts = toastCalls.filter((t) => t.title === DELIVERY_ROUTE_COPY.toasts.refreshFailed)
+        expect(refreshToasts.length).toBe(1)
+        expect(refreshToasts[0]?.color).toBe('error')
+        expect(wrapper.find('[data-testid="detail-driver-branch"]').exists()).toBe(true)
+      })
+
+      it('refresh rejection (thrown promise) also toasts refresh-failed once (REQ-DRC-110)', async () => {
+        detailMock.refetch.mockRejectedValue(new Error('network'))
+        const wrapper = await mountDriver()
+        await wrapper.find('[data-testid="cockpit-stub-emit-refresh"]').trigger('click')
+        await flushPromises()
+        expect(detailMock.refetch).toHaveBeenCalledTimes(1)
+        const refreshToasts = toastCalls.filter((t) => t.title === DELIVERY_ROUTE_COPY.toasts.refreshFailed)
+        expect(refreshToasts.length).toBe(1)
+      })
+
+      it('isFetching=true forwards to the cockpit as the disabled-while-fetching prop (REQ-DCS-007)', async () => {
+        await mountDriver({ data: makeDraftRoute(), isFetching: true })
+        const last = cockpitPropsHistory[cockpitPropsHistory.length - 1]!
+        expect(last.isFetching).toBe(true)
+      })
+
+      it('manager branch byte-equivalence — cockpit NEVER mounts when isManager=true (REQ-DRC-108)', async () => {
+        resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+        resetDetailState({ data: makeDraftRoute() })
         const wrapper = mountView()
         await flushPromises()
-        const firstStopBtn = wrapper.find('[data-testid="driver-stop-check-in-stub-s1"]')
-        expect(firstStopBtn.exists()).toBe(true)
-        await firstStopBtn.trigger('click')
-        await flushPromises()
-        expect(driverStopEmits['check-in'].length).toBe(1)
-        expect(driverStopEmits['check-in'][0]).toEqual({ id: 'route-42', stopId: 's1' })
+        expect(wrapper.find('[data-testid="driver-route-cockpit-stub"]').exists()).toBe(false)
+        expect(wrapper.find('[data-testid="detail-actions-toolbar"]').exists()).toBe(true)
       })
 
-      it('does NOT render the not-found full-page for the driver branch on 404 (driver 403 maps to not-found, but a true 404 with isDriver still maps to not-found)', async () => {
+      it('does NOT mount the not-found full-page for the driver branch on 404 (driver 403 + true 404 map to not-found, REQ-DRC-103)', async () => {
         resetRoleFlags({ isManager: { value: true } })
-        resetDetailState({
-          isError: true,
-          data: undefined,
-          error: {
-            response: { status: 404, data: { error: 'ENTITY_NOT_FOUND', message: 'x' } },
-          },
-        })
+        resetDetailState({ isError: true, data: undefined, error: { response: { status: 404, data: { error: 'ENTITY_NOT_FOUND', message: 'x' } } } })
         const wrapper = mountView()
         await flushPromises()
         expect(wrapper.find('[data-testid="detail-not-found"]').exists()).toBe(true)
+        expect(wrapper.find('[data-testid="driver-route-cockpit-stub"]').exists()).toBe(false)
+      })
+    })
+
+    describe('DeliveryRouteDetailView — TRIANGULATE: view SFC source invariants (S11a, REQ-DRC-103/104/107/108/109/110/112, REQ-DCS-007/009/010)', () => {
+      it('view source invariants: no query-client/axios/fetch, single observer + single check-in instance + exactly one refetch (REQ-DRC-103/104/107/108/109/110/112)', () => {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef
+        const fs = require('node:fs') as typeof import('node:fs')
+        const src = fs.readFileSync((DeliveryRouteDetailView as unknown as { __file: string }).__file, 'utf8').replace(/\/\*\*[\s\S]*?\*\//g, '')
+        for (const re of [/\buseQueryClient\b/, /\brefetchQueries\b/, /\baxios\b/, /\bfetch\(['"`]/, /\binvalidateQueries\b/, /\bnew\s+QueryClient\b/]) expect(src).not.toMatch(re)
+        expect(src).toMatch(/useDeliveryRouteDetail/)
+        expect(src).toMatch(/useCheckInStop\b/)
+        expect(src).not.toMatch(/queryKey:\s*\[/)
+        expect(src).not.toMatch(/invalidateQueries\(\s*\{\s*queryKey[\s\S]*?refetch/)
+        expect((src.match(/useCheckInStop\(/g) ?? []).length).toBeGreaterThanOrEqual(1)
+        expect((src.match(/useDeliveryRouteDetail\(/g) ?? []).length).toBe(1)
+        expect((src.match(/\brefetch\(\)/g) ?? []).length).toBe(1)
       })
     })
 

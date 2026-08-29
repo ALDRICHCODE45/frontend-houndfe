@@ -149,3 +149,11 @@ B3 review of the S8–S10 overlay stack found drift between the SFC bodies and `
 **Verify**: focused `pnpm test:unit --run .../__tests__/copy.spec.ts` 23/23 (+1) · `.../DriverStopPanel.spec.ts` 41/41 (+2 net) · `.../DriverCockpitDrawer.spec.ts` 27/27 (+5) · `.../DriverRouteCockpit.spec.ts` 47/47 (+4) · `.../components/cockpit` 7 files / **215 tests** (+11 from S10 baseline of 204) · full `pnpm test:unit --run` 364 files / **5757** tests green (+12 from S10 baseline of 5745, including copy.spec) · `pnpm type-check` (vue-tsc --build) clean · `pnpm build` succeeds.
 
 **Budget vs `7f09b24`** (this correction commit, additions+deletions): apply-progress 22+/1- · copy spec 12+/0- · drawer 43+/18- · stop panel 27+/15- · drawer spec 55+/0- · cockpit-root spec 46+/0- · stop-panel spec 47+/9- · copy 6+/2- · **`TOTAL = 303 lines all-inclusive`** (258 insertions, 45 deletions), ≤360 aim ✓, ≤400 cap ✓. **Rollback**: `git revert <B3-commit>` removes the correction across these 8 files; S4–S10 baseline stays green, while the corrected B3 baseline is 5757 tests. **Branch unchanged; no push.**
+
+## S11a — View wiring and driver branch swap (GREEN)
+
+**TDD**: RED replaced the driver-card stub with `DriverRouteCockpit` and failed on missing props/events, single mutation, manual refresh, stale/privacy/error and zero-stop contracts · GREEN/TRIANGULATE **57/57** · REFACTOR kept `useDeliveryRouteDetail` behavior unchanged and documented mutation invalidation + cockpit manual refresh.
+
+**Verify**: view 57/57 · legacy `DriverStopDetail` 21/21 · driver list/card/composable 44/44 · full 364 files / **5767 tests** · `pnpm type-check` and `pnpm build` green. One detail observer/refetch and one `useCheckInStop`/`mutateAsync`; manager/privacy/list branches preserved; S11b deletion precondition proven.
+
+**Budget vs `c627e7e`**: view/composable/spec 359 · tasks 8 · progress 8 = **375 all-inclusive**, ≤380 aim and ≤400 cap. Rollback: `git revert <S11a-commit>` restores the old driver branch because legacy files remain. No push; S11b not started.
