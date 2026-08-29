@@ -6,7 +6,7 @@ import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
 import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
-import { adminRoleQueryKeys } from '@/core/shared/constants/query-keys'
+import { adminRoleQueryKeys, usersQueryKeys } from '@/core/shared/constants/query-keys'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { rolesApi } from '../api/roles.api'
 import { useRoleColumns } from '../composables/useRoleColumns'
@@ -135,6 +135,12 @@ const permissionsMutation = useMutation({
     isPermissionsOpen.value = false
     selectedRole.value = null
     await queryClient.invalidateQueries({ queryKey: adminRoleQueryKeys.paginated(tenantId.value) })
+    // Role permission changes alter who is an assignable driver (ADR-5) and who
+    // is an assignable notification recipient. Invalidate both user slots so the
+    // delivery-route DriverPicker and RecipientSelect pick up the new permissions
+    // immediately (no page refresh needed).
+    await queryClient.invalidateQueries({ queryKey: usersQueryKeys.assignableDrivers() })
+    await queryClient.invalidateQueries({ queryKey: usersQueryKeys.assignable() })
   },
 })
 
