@@ -19,3 +19,13 @@ Co-located `driverCockpitQuickActions.ts` + spec. Predicates (`canOpenExternalMa
 **Verify**: `pnpm test:unit --run .../utils/cockpit` 41/41 · `pnpm test:unit --run` (full) green · `pnpm type-check` clean.
 
 **Budget vs `4bd68a2`**: impl 108+/0-, spec 266+/0-, tasks.md 4+/0- (checkbox toggles), apply-progress.md 10+/0- ⇒ **TOTAL ≤390** (under 400 cap, under 370 aim + slack). Branch unchanged; no push. S3 not started.
+## S3 — Cockpit/drawer/confirmation/refresh copy source (GREEN)
+
+Additive `cockpit.*` subtree on `copy.ts` (header / operational / drawer / quickActions / confirm / footer) + `toasts.refreshFailed` for the manual-refresh path. `actions.checkIn` reused verbatim (no duplicate `Marcar entregada` key); `QUICK_ACTION_FAILURE_MESSAGES` cross-imported so any drift in either file fails the spec immediately.
+
+**TDD**: RED 9 cockpit assertions fail on `cockpit`/`refreshFailed` undefined · GREEN 17/17 · TRIANGULATE live-import cross-pin of `QUICK_ACTION_FAILURE_MESSAGES` + `it.each` over `{customer}`/`{N}`/`{folio}` + `{completed}`/`{total}` template order · REFACTOR consolidated two quick-action failure tests into one cross-import test; tightened copy.ts S3 comments to single-line REQ annotations.
+
+**Verify**: `pnpm test:unit --run .../__tests__/copy.spec.ts` 19/19 (8 existing + 11 new) · `pnpm test:unit --run` (full) 357 files / 5538 tests green · `pnpm type-check` clean.
+
+**Budget vs `196848f`**: impl 59+/0-, spec 107+/0-, tasks.md 4+/4- (S3 checkboxes), apply-progress.md ~12+/0- ⇒ **TOTAL ≈ 190** (under 200 cap, slightly over 170 aim by ~20 lines from the cross-import + REQ comments). Branch unchanged; no push. S4 not started.
+

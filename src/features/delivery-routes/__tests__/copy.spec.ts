@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { DELIVERY_ROUTE_COPY } from '../copy'
+import { QUICK_ACTION_FAILURE_MESSAGES } from '../utils/cockpit/driverCockpitQuickActions'
 
 /**
  * copy.ts is the single Spanish copy source for the entire feature (S4b/S4c/S5/S6
@@ -79,5 +80,111 @@ describe('copy.ts — single Spanish copy source (design.md §3)', () => {
     expect(DELIVERY_ROUTE_COPY.confirm.start.body).toBe(
       'La ruta pasará a Activa y no podrá editarse ni eliminar la composición de paradas.',
     )
+  })
+
+  // ─── S3: additive cockpit/drawer/confirmation/refresh copy source ───
+  // REQ-DCS-002/003/004/006/008 + REQ-DCK-002/003/005/006 + REQ-DRC-104/110/112
+  // The cockpit subtree is additive — every existing assertion above MUST stay
+  // green. No key is renamed; actions.checkIn remains the source for the
+  // "Marcar entregada" label so S4–S10 share one vocabulary.
+
+  it('exposes a cockpit header subtree with identity fallback + refresh aria-label (REQ-DCS-002, REQ-DCS-007)', () => {
+    expect(DELIVERY_ROUTE_COPY.cockpit.header.identityFallback).toBe('Ruta')
+    expect(DELIVERY_ROUTE_COPY.cockpit.header.refreshAriaLabel).toBe('Actualizar ruta')
+  })
+
+  it('exposes cockpit operational copy for current/next/customer/notes/empty (REQ-DCS-003, REQ-DCS-004, REQ-DRC-112)', () => {
+    expect(DELIVERY_ROUTE_COPY.cockpit.operational.currentFallback).toBe('Sin parada activa')
+    expect(DELIVERY_ROUTE_COPY.cockpit.operational.customerFallback).toBe('Cliente sin nombre')
+    expect(DELIVERY_ROUTE_COPY.cockpit.operational.notesLabel).toBe('Notas de la ruta')
+    expect(DELIVERY_ROUTE_COPY.cockpit.operational.nextLabel).toBe('Siguiente · Parada {N}')
+    expect(DELIVERY_ROUTE_COPY.cockpit.operational.nextLastStop).toBe('Última parada')
+    expect(DELIVERY_ROUTE_COPY.cockpit.operational.nextNoMore).toBe('No hay más pendientes')
+    expect(DELIVERY_ROUTE_COPY.cockpit.operational.emptySpine).toBe('Sin paradas')
+  })
+
+  it('exposes drawer titles + close label verbatim (REQ-DCK-002)', () => {
+    expect(DELIVERY_ROUTE_COPY.cockpit.drawer.stopTitle).toBe('Parada {N} — {customer}')
+    expect(DELIVERY_ROUTE_COPY.cockpit.drawer.historyTitle).toBe('Historial de la ruta')
+    expect(DELIVERY_ROUTE_COPY.cockpit.drawer.close).toBe('Cerrar')
+  })
+
+  it('exposes quick-action labels in map/copy/email order (REQ-DCK-005)', () => {
+    expect(DELIVERY_ROUTE_COPY.cockpit.quickActions.map).toBe('Ver en mapa')
+    expect(DELIVERY_ROUTE_COPY.cockpit.quickActions.copyAddress).toBe('Copiar dirección')
+    expect(DELIVERY_ROUTE_COPY.cockpit.quickActions.email).toBe('Email')
+  })
+
+  it('quick-action failure messages mirror S2 QUICK_ACTION_FAILURE_MESSAGES byte-for-byte (REQ-DCK-005)', () => {
+    // Live cross-import pins both sides against the same source of truth —
+    // drift in either file fails this assertion immediately.
+    expect(DELIVERY_ROUTE_COPY.cockpit.quickActions.failureMap).toBe(QUICK_ACTION_FAILURE_MESSAGES.map)
+    expect(DELIVERY_ROUTE_COPY.cockpit.quickActions.failureCopy).toBe(QUICK_ACTION_FAILURE_MESSAGES.copy)
+    expect(DELIVERY_ROUTE_COPY.cockpit.quickActions.failureEmail).toBe(QUICK_ACTION_FAILURE_MESSAGES.email)
+  })
+
+  it('exposes confirmation modal copy with all required placeholders (REQ-DCK-006, REQ-DRC-104)', () => {
+    expect(DELIVERY_ROUTE_COPY.cockpit.confirm.title).toBe('Confirmar entrega')
+    expect(DELIVERY_ROUTE_COPY.cockpit.confirm.confirmLabel).toBe('Confirmar entrega')
+    expect(DELIVERY_ROUTE_COPY.cockpit.confirm.cancelLabel).toBe('Cancelar')
+    // Body template pins {customer}, {N}, {folio} in order, with the
+    // irreversible statement verbatim (delivery-route-check-in UI Copy).
+    expect(DELIVERY_ROUTE_COPY.cockpit.confirm.body).toBe(
+      'Entrega para {customer} — Parada {N} ({folio}). Esta acción registra la entrega y no se puede deshacer.',
+    )
+  })
+
+  it('exposes terminal footer copy with {completed}/{total} summary (REQ-DCS-008)', () => {
+    expect(DELIVERY_ROUTE_COPY.cockpit.footer.completedTitle).toBe('Ruta completada')
+    expect(DELIVERY_ROUTE_COPY.cockpit.footer.completedSummary).toBe(
+      'Entregaste {completed} de {total} paradas.',
+    )
+    expect(DELIVERY_ROUTE_COPY.cockpit.footer.cancelledTitle).toBe('Ruta cancelada')
+    expect(DELIVERY_ROUTE_COPY.cockpit.footer.cancelledSummary).toBe('Esta ruta fue cancelada.')
+    expect(DELIVERY_ROUTE_COPY.cockpit.footer.viewHistory).toBe('Ver historial')
+  })
+
+  it('exposes the refresh-failure toast for the manual-refresh path (REQ-DCS-007, REQ-DRC-110)', () => {
+    expect(DELIVERY_ROUTE_COPY.toasts.refreshFailed).toBe('No se pudo actualizar la ruta')
+  })
+
+  it('keeps actions.checkIn as the single source for the "Marcar entregada" label (no duplicate key)', () => {
+    // Defensive pin: S7 (footer) and S8 (stop panel) reuse actions.checkIn instead
+    // of defining their own key under `cockpit.*`. Drift here would create two
+    // sources of truth for the same UI label.
+    expect(DELIVERY_ROUTE_COPY.actions.checkIn).toBe('Marcar entregada')
+    expect((DELIVERY_ROUTE_COPY.cockpit as Record<string, unknown>).checkIn).toBeUndefined()
+    expect(
+      (DELIVERY_ROUTE_COPY.cockpit as Record<string, unknown>).marcarEntregada,
+    ).toBeUndefined()
+  })
+
+  // ─── S3 triangulation: template placeholder structure (order + presence) ───
+  // Template strings are interpolated at runtime by the cockpit children; the
+  // placeholder order, presence, and exact set MUST stay stable so the rendered
+  // output reads naturally in Spanish ("Entrega para Ana — Parada 3 (FOLIO-7)…").
+
+  it.each([
+    {
+      label: 'confirm body lists {customer}, {N}, {folio} in spec order',
+      value: DELIVERY_ROUTE_COPY.cockpit.confirm.body,
+      ordered: ['{customer}', '{N}', '{folio}'],
+      forbidden: ['{completed}', '{total}', '{stopId}'],
+    },
+    {
+      label: 'completed summary lists {completed} before {total} and nothing else',
+      value: DELIVERY_ROUTE_COPY.cockpit.footer.completedSummary,
+      ordered: ['{completed}', '{total}'],
+      forbidden: ['{customer}', '{N}', '{folio}'],
+    },
+  ])('$label', ({ value, ordered, forbidden }) => {
+    let lastIdx = -1
+    for (const placeholder of ordered) {
+      const idx = value.indexOf(placeholder)
+      expect(idx).toBeGreaterThan(lastIdx)
+      lastIdx = idx
+    }
+    const forbiddenPattern = new RegExp(`\\{(${forbidden.map((p) => p.slice(1, -1)).join('|')})\\}`)
+    expect(value).not.toMatch(forbiddenPattern)
   })
 })

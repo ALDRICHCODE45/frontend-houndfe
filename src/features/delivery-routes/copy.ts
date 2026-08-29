@@ -11,6 +11,12 @@
  *     ("Ruta creada", "Cambios guardados", "Orden guardado" …). Error toasts
  *     are short, one-line, and either domain-stamped (startConflict /
  *     notFound / invalidTransition) or fallback via normalizeApiError.
+ *
+ * S3 additions (driver-route-cockpit-redesign, design §6-§8/§11): additive
+ * `cockpit.*` subtree (header / operational / drawer / quickActions / confirm
+ * / footer) + `toasts.refreshFailed`. Tree shape unchanged; actions.checkIn
+ * remains the source for "Marcar entregada" so S7 (footer) and S8 (stop panel)
+ * share one vocabulary.
  */
 
 /* eslint-disable max-lines */ // Spanish copy is intentionally co-located so consumers import it.
@@ -35,6 +41,7 @@ export const DELIVERY_ROUTE_COPY = {
     cancel: 'Cancelar ruta',
     appendStop: 'Agregar parada',
     reorderStops: 'Reordenar paradas',
+    // S3 contract: S7 + S8 read this key verbatim. Do NOT duplicate under `cockpit.*`.
     checkIn: 'Marcar entregada',
   },
   toasts: {
@@ -53,6 +60,8 @@ export const DELIVERY_ROUTE_COPY = {
     notFound: 'Ruta no encontrada.',
     invalidTransition:
       'La ruta no permite esta acción en su estado actual.',
+    // REQ-DCS-007 / REQ-DRC-110 — manual refresh failure toast.
+    refreshFailed: 'No se pudo actualizar la ruta',
   },
   validation: {
     selectAtLeastOneSale: 'Selecciona al menos una venta',
@@ -91,6 +100,56 @@ export const DELIVERY_ROUTE_COPY = {
     stopCheckedIn: 'Parada entregada',
     routeCompleted: 'Ruta completada',
     routeCancelled: 'Ruta cancelada',
+  },
+  cockpit: {
+    // REQ-DCS-002 / REQ-DCS-007 — sticky identity + refresh controls.
+    header: {
+      identityFallback: 'Ruta',
+      refreshAriaLabel: 'Actualizar ruta',
+    },
+    // REQ-DCS-003 / REQ-DCS-004 / REQ-DRC-112 — current + next + empty copy.
+    operational: {
+      currentFallback: 'Sin parada activa',
+      customerFallback: 'Cliente sin nombre',
+      notesLabel: 'Notas de la ruta',
+      // `{N}` is the 1-based stop position; component interpolates inline.
+      nextLabel: 'Siguiente · Parada {N}',
+      nextLastStop: 'Última parada',
+      nextNoMore: 'No hay más pendientes',
+      emptySpine: 'Sin paradas',
+    },
+    // REQ-DCK-002 — drawer titles + close label. `{N}`/`{customer}` interpolated.
+    drawer: {
+      stopTitle: 'Parada {N} — {customer}',
+      historyTitle: 'Historial de la ruta',
+      close: 'Cerrar',
+    },
+    // REQ-DCK-005 — ordered map/copy/email labels + failure messages that mirror
+    // driverCockpitQuickActions.QUICK_ACTION_FAILURE_MESSAGES byte-for-byte.
+    quickActions: {
+      map: 'Ver en mapa',
+      copyAddress: 'Copiar dirección',
+      email: 'Email',
+      failureMap: 'No se pudo abrir el mapa',
+      failureCopy: 'No se pudo copiar la dirección',
+      failureEmail: 'No se pudo abrir el correo',
+    },
+    // REQ-DCK-006 / REQ-DRC-104 — confirmation modal copy. `{customer}`/`{N}`/`{folio}`
+    // interpolated at confirmation time; irreversible statement pinned verbatim.
+    confirm: {
+      title: 'Confirmar entrega',
+      body: 'Entrega para {customer} — Parada {N} ({folio}). Esta acción registra la entrega y no se puede deshacer.',
+      confirmLabel: 'Confirmar entrega',
+      cancelLabel: 'Cancelar',
+    },
+    // REQ-DCS-008 — four-mode footer terminal copy. `{completed}`/`{total}` interpolated.
+    footer: {
+      completedTitle: 'Ruta completada',
+      completedSummary: 'Entregaste {completed} de {total} paradas.',
+      cancelledTitle: 'Ruta cancelada',
+      cancelledSummary: 'Esta ruta fue cancelada.',
+      viewHistory: 'Ver historial',
+    },
   },
 } as const
 

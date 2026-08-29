@@ -260,10 +260,10 @@ Refs: design §8; specs/driver-cockpit-drawer (REQ-DCK-005).
 
 **TDD steps**
 
-- [ ] RED — Add spec assertions (additive) pinning each new string verbatim against the spec copy sections; existing assertions must keep passing untouched. <!-- sdd-owner: implementation -->
-- [ ] GREEN — Add the `cockpit.*` subtree + `toasts.refreshFailed` key to `copy.ts` minimally; no renames of existing keys. <!-- sdd-owner: implementation -->
-- [ ] TRIANGULATE — Pin the exact terminal body templates (`{completed}`/`{total}` placeholders present and ordered), the confirmation body template (`{customer}`, `{N}`, `{folio}` placeholders), and that `actions.checkIn` remains `Marcar entregada` (no duplicate key). <!-- sdd-owner: implementation -->
-- [ ] REFACTOR — Group the new keys under a `cockpit` namespace with `header/operational/footer/drawer/quickActions/confirm` sub-groups; no dead keys. <!-- sdd-owner: implementation -->
+- [x] RED — Add spec assertions (additive) pinning each new string verbatim against the spec copy sections; existing assertions must keep passing untouched. <!-- sdd-owner: implementation -->
+- [x] GREEN — Add the `cockpit.*` subtree + `toasts.refreshFailed` key to `copy.ts` minimally; no renames of existing keys. <!-- sdd-owner: implementation -->
+- [x] TRIANGULATE — Pin the exact terminal body templates (`{completed}`/`{total}` placeholders present and ordered), the confirmation body template (`{customer}`, `{N}`, `{folio}` placeholders), and that `actions.checkIn` remains `Marcar entregada` (no duplicate key). <!-- sdd-owner: implementation -->
+- [x] REFACTOR — Group the new keys under a `cockpit` namespace with `header/operational/footer/drawer/quickActions/confirm` sub-groups; no dead keys. <!-- sdd-owner: implementation -->
 
 **Verify**
 
