@@ -303,10 +303,10 @@ Refs: design §6-§8, §11; specs driver-cockpit-shell/drawer copy matrices.
 
 **TDD steps**
 
-- [ ] RED — Write the spec (mount + component stubs): null driver name renders `Ruta` with no empty line; `{ completed: 2, total: 5 }` renders `2/5`; back emits once without router import; refresh button present with aria-label `Actualizar ruta` and disabled while `isFetching`; history button emits `open-history` with its element. <!-- sdd-owner: implementation -->
-- [ ] GREEN — Implement the header SFC: typed props `{ route; progress; isFetching }`, typed emits `{ back; refresh; 'open-history' }`, identity/badge/progress copy from `copy.ts`, 44px touch classes, sticky panel-contained classes. No router, no query imports. <!-- sdd-owner: implementation -->
-- [ ] TRIANGULATE — Add cases: `isFetching=true` renders refresh disabled and a click emits nothing; all interactive controls carry visible focus classes and min 44×44 classes; header does not include an ETA/distance/next section (scope pin); history emit carries the originating `HTMLElement`. <!-- sdd-owner: implementation -->
-- [ ] REFACTOR — Tighten: extract `progressLabel` computed; ensure no inline Spanish strings (all from `copy.ts`); script/template/style order. <!-- sdd-owner: implementation -->
+- [x] RED — Write the spec (mount + component stubs): null driver name renders `Ruta` with no empty line; `{ completed: 2, total: 5 }` renders `2/5`; back emits once without router import; refresh button present with aria-label `Actualizar ruta` and disabled while `isFetching`; history button emits `open-history` with its element. <!-- sdd-owner: implementation -->
+- [x] GREEN — Implement the header SFC: typed props `{ route; progress; isFetching }`, typed emits `{ back; refresh; 'open-history' }`, identity/badge/progress copy from `copy.ts`, 44px touch classes, sticky panel-contained classes. No router, no query imports. <!-- sdd-owner: implementation -->
+- [x] TRIANGULATE — Add cases: `isFetching=true` renders refresh disabled and a click emits nothing; all interactive controls carry visible focus classes and min 44×44 classes; header does not include an ETA/distance/next section (scope pin); history emit carries the originating `HTMLElement`. <!-- sdd-owner: implementation -->
+- [x] REFACTOR — Tighten: extract `progressLabel` computed; ensure no inline Spanish strings (all from `copy.ts`); script/template/style order. <!-- sdd-owner: implementation -->
 
 **Verify**
 

@@ -29,3 +29,13 @@ Additive `cockpit.*` subtree on `copy.ts` (header / operational / drawer / quick
 
 **Budget vs `196848f`**: impl 59+/0-, spec 107+/0-, tasks.md 4+/4- (S3 checkboxes), apply-progress.md ~12+/0- ⇒ **TOTAL ≈ 190** (under 200 cap, slightly over 170 aim by ~20 lines from the cross-import + REQ comments). Branch unchanged; no push. S4 not started.
 
+## S4 — Sticky cockpit header `DriverCockpitHeader` (GREEN)
+
+Presentational sticky panel-contained header: back, identity (`route.driver?.name ?? 'Ruta'`), lifecycle `StatusDotBadge` (tone/label from `DELIVERY_ROUTE_STATUS_*`), `{completed}/{total}` progress, history, refresh. Typed props `{ route; progress; isFetching }` · typed emits `{ back: []; refresh: []; 'open-history': [{ trigger: HTMLElement }] }`. Native `<button>` for back/history/refresh (no `UButton` shell drift) + `<UIcon>` for the icon glyphs; ≥44×44 (`min-h-11 min-w-11`) on every control + `focus-visible:ring-2 focus-visible:ring-primary`; `sticky top-0 z-10` + `min-w-0 truncate` so 320px never horizontally overflows; semantic dark/light tokens (`bg-default`, `border-default`, `text-muted`); refresh disabled while `isFetching` AND its handler early-returns (REQ-DCS-007); history emit carries `event.currentTarget` for focus-return (REQ-DCK-008). No `vue-router` / `useQuery` / `useMutation` / `useQueryClient` / `axios` / `fetch(` imports anywhere in the SFC body (static source assertion in the spec, doc comment intentionally names the forbidden identifiers).
+
+**TDD**: RED module-resolution fail → 1 failed suite · GREEN 16/16 · TRIANGULATE `it.each` over the four route statuses with tone/label shared maps + one reactivity test (isFetching true→false re-enables refresh) + one scope-pin test (no ETA / distance / Siguiente / km / min / map) + one source-invariant test (`fs.readFileSync` scan against `vue-router` / `useQuery` / `axios` / `fetch(` with the JSDoc header stripped) · REFACTOR trimmed the redundant UButton stub + the four per-status badge tests into one `it.each`; tightened fixtures to one `makeRoute` helper.
+
+**Verify**: `pnpm test:unit --run .../components/cockpit` 16/16 · `pnpm test:unit --run` (full) 358 files / 5554 tests green (+1 file, +16 tests vs S3 baseline) · `pnpm type-check` clean · `DriverCockpitHeader` SFC never imported anywhere yet (S10 will mount it) — `vue-tsc --build` stays green per the S4 verify note.
+
+**Budget vs `12e5d8e`**: impl 141+/0- (DriverCockpitHeader.vue), spec 186+/0- (DriverCockpitHeader.spec.ts incl. stubs/fixtures/source-scan), tasks.md 4+/4- (S4 checkbox toggles), apply-progress.md 10+/0- ⇒ **TOTAL 345 (additions+deletions, ≤340 aim + 5 lines slack, well under ≤400 cap)**. Branch unchanged; no push. S5 not started.
+
