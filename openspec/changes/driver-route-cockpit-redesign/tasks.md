@@ -345,10 +345,10 @@ Refs: design §3, §6, §9.3; specs/driver-cockpit-shell (REQ-DCS-002, 007).
 
 **TDD steps**
 
-- [ ] RED — Spec (stub `EntityAvatar`): PENDING current renders gold emphasis class and IN_PROGRESS renders navy; null current renders `Sin parada activa` with no customer/address decoration; null customer uses stop-id avatar seed + `Cliente sin nombre`; null address/notes omit rows without stray punctuation. <!-- sdd-owner: implementation -->
-- [ ] GREEN — Implement both sections with typed props `{ currentStop; nextStop; notes; hasStops; isTerminal }` and emit `open-stop`; all copy from `copy.ts`; `formatAddress` for address rows. <!-- sdd-owner: implementation -->
-- [ ] TRIANGULATE — Add: next preview shows position/customer/address and no ETA/distance/map element; `Última parada` for null-next non-terminal; `No hay más pendientes` for terminal; empty route renders no fabricated next; both section triggers emit `{ stopId, trigger }` from the originating element. <!-- sdd-owner: implementation -->
-- [ ] REFACTOR — Tighten: share one `openStop(trigger)` handler; ensure `hasStops && !isTerminal` guards the `Última parada` branch exactly. <!-- sdd-owner: implementation -->
+- [x] RED — Spec (stub `EntityAvatar`): PENDING current renders gold emphasis class and IN_PROGRESS renders navy; null current renders `Sin parada activa` with no customer/address decoration; null customer uses stop-id avatar seed + `Cliente sin nombre`; null address/notes omit rows without stray punctuation. <!-- sdd-owner: implementation -->
+- [x] GREEN — Implement both sections with typed props `{ currentStop; nextStop; notes; hasStops; isTerminal }` and emit `open-stop`; all copy from `copy.ts`; `formatAddress` for address rows. <!-- sdd-owner: implementation -->
+- [x] TRIANGULATE — Add: next preview shows position/customer/address and no ETA/distance/map element; `Última parada` for null-next non-terminal; `No hay más pendientes` for terminal; empty route renders no fabricated next; both section triggers emit `{ stopId, trigger }` from the originating element. <!-- sdd-owner: implementation -->
+- [x] REFACTOR — Tighten: share one `openStop(trigger)` handler; ensure `hasStops && !isTerminal` guards the `Última parada` branch exactly. <!-- sdd-owner: implementation -->
 
 **Verify**
 

@@ -39,3 +39,13 @@ Presentational sticky panel-contained header: back, identity (`route.driver?.nam
 
 **Budget vs `12e5d8e`**: impl 141+/0- (DriverCockpitHeader.vue), spec 186+/0- (DriverCockpitHeader.spec.ts incl. stubs/fixtures/source-scan), tasks.md 4+/4- (S4 checkbox toggles), apply-progress.md 10+/0- ⇒ **TOTAL 345 (additions+deletions, ≤340 aim + 5 lines slack, well under ≤400 cap)**. Branch unchanged; no push. S5 not started.
 
+## S5 — Operational current/next stop hierarchy `DriverOperationalStops` (GREEN)
+
+Mobile-first current + next hierarchy as one DOM region. Typed props `{ currentStop; nextStop; notes; hasStops; isTerminal }`; typed emit `'open-stop': [payload: StopTrigger { stopId, trigger }]` (StopTrigger re-used from S1). Current (REQ-DCS-003): position + optional folio; `EntityAvatar` with stop-id seed; customer fallback; `formatAddress`; notes only when non-empty after trim. Emphasis: PENDING gold, IN_PROGRESS navy, other muted. Null current → fallback copy only, no card/customer/address/avatar decoration. Next (REQ-DCS-004): low emphasis, no avatar / map / ETA / distance. Precedence (terminal beats non-terminal, `hasStops` gates): null next + hasStops + !isTerminal → last-stop copy; null next + hasStops + isTerminal → no-more-pending copy; hasStops=false → not rendered.
+
+**TDD**: RED module-resolution fail → 1 failed suite · GREEN 19/19 (after fixing fixture `?? null` quirk) · TRIANGULATE added 6: PENDING/IN_PROGRESS emphasis + every-field-rendered (consolidated `it.each`), other muted, label placeholder interpolation, empty-branch `it.each` over 4 combos, terminal-beats-non-terminal pin, empty+terminal still suppressed · REFACTOR consolidated emphasis + triangulation into one `it.each`, deduplicated source-invariants into one `it.each` per literal, trimmed JSDoc headers to fit ≤400 cap. Final 25/25.
+
+**Verify**: `pnpm test:unit --run .../components/cockpit/__tests__/DriverOperationalStops.spec.ts` 25/25 · `pnpm test:unit --run` (full) 359 files / 5581 tests green (+1 file, +27 tests vs S4 358/5554) · `pnpm type-check` clean.
+
+**Budget vs `42e2134`**: impl 143+/0-, spec 238+/0-, tasks.md 4+/4-, apply-progress.md 10+/0- ⇒ **TOTAL 399 (additions+deletions, 1 under the ≤400 cap; ≤390 aim exceeded by 9 lines)**. Branch unchanged; no push. S6 not started. **Compaction**: trimmed impl JSDoc 12→6 lines (kept contract shape: props/emit/REQ-DCS-003/004); inlined `currentAvatarName` computed alias to reuse `currentCustomerName` in the `<EntityAvatar :name="...">` binding (rendered attribute identical, no spec assertion weakened). All 25/25 DriverOperationalStops tests still green; full unit + type-check re-run below.
+
