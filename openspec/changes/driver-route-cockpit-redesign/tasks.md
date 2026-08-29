@@ -386,10 +386,10 @@ Refs: design §3, §4; specs/driver-cockpit-shell (REQ-DCS-003, 004).
 
 **TDD steps**
 
-- [ ] RED — Spec: five input nodes render five nodes in identical order with textual status; `Parada 3: Pendiente — Ana` accessible label for the third PENDING node; Enter/Space on a focused node emits exactly once with the originating element. <!-- sdd-owner: implementation -->
-- [ ] GREEN — Implement ordered-list spine with buttons, `aria-label` builder, connector element, textual labels from `DELIVERY_ROUTE_STOP_STATUS_LABELS`, and `select-stop` emit. <!-- sdd-owner: implementation -->
-- [ ] TRIANGULATE — Add: SKIPPED and later PENDING nodes visible/selectable with no locked/disabled attribute; visible focus-ring class on every button; min 44×44 classes; `isCurrent` node carries the current-state marker without relying on color alone. <!-- sdd-owner: implementation -->
-- [ ] REFACTOR — Tighten: `nodeAriaLabel(node)` helper, no inline labels, no re-sort anywhere (defensive assertion via tests). <!-- sdd-owner: implementation -->
+- [x] RED — Spec: five input nodes render five nodes in identical order with textual status; `Parada 3: Pendiente — Ana` accessible label for the third PENDING node; Enter/Space on a focused node emits exactly once with the originating element. <!-- sdd-owner: implementation -->
+- [x] GREEN — Implement ordered-list spine with buttons, `aria-label` builder, connector element, textual labels from `DELIVERY_ROUTE_STOP_STATUS_LABELS`, and `select-stop` emit. <!-- sdd-owner: implementation -->
+- [x] TRIANGULATE — Add: SKIPPED and later PENDING nodes visible/selectable with no locked/disabled attribute; visible focus-ring class on every button; min 44×44 classes; `isCurrent` node carries the current-state marker without relying on color alone. <!-- sdd-owner: implementation -->
+- [x] REFACTOR — Tighten: `nodeAriaLabel(node)` helper, no inline labels, no re-sort anywhere (defensive assertion via tests). <!-- sdd-owner: implementation -->
 
 **Verify**
 
