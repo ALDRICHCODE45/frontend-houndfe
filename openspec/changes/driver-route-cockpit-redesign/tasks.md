@@ -428,10 +428,10 @@ Refs: design §3, §4; specs/driver-cockpit-shell (REQ-DCS-005).
 
 **TDD steps**
 
-- [ ] RED — Spec: PENDING + `canCheckIn` + not pending renders enabled ≥44px `Marcar entregada` and emits the current id; `checkInPending` disables it and repeated clicks emit nothing; `canCheckIn=false` renders no delivery action; IN_PROGRESS renders one disabled mode and emits nothing; null/non-actionable current renders empty mode. <!-- sdd-owner: implementation -->
-- [ ] GREEN — Implement the four mutually exclusive modes with typed props `{ routeStatus; currentStop; progress; hasStops; canCheckIn; checkInPending }` and emits `request-confirm` / `open-history`; terminal copy from `copy.ts` with `{completed}/{total}` interpolation. <!-- sdd-owner: implementation -->
-- [ ] TRIANGULATE — Add: COMPLETED terminal renders completion summary and no delivery control; CANCELLED renders cancellation summary; `Ver historial` emits with its trigger; safe-area bottom padding class + body-clearance counterpart documented in the spec; all text state pairs (color + label). <!-- sdd-owner: implementation -->
-- [ ] REFACTOR — Tighten: one `mode` computed resolving the four exclusive branches; no duplicated button markup; all copy from `copy.ts`. <!-- sdd-owner: implementation -->
+- [x] RED — Spec: PENDING + `canCheckIn` + not pending renders enabled ≥44px `Marcar entregada` and emits the current id; `checkInPending` disables it and repeated clicks emit nothing; `canCheckIn=false` renders no delivery action; IN_PROGRESS renders one disabled mode and emits nothing; null/non-actionable current renders empty mode. <!-- sdd-owner: implementation -->
+- [x] GREEN — Implement the four mutually exclusive modes with typed props `{ routeStatus; currentStop; progress; hasStops; canCheckIn; checkInPending }` and emits `request-confirm` / `open-history`; terminal copy from `copy.ts` with `{completed}/{total}` interpolation. <!-- sdd-owner: implementation -->
+- [x] TRIANGULATE — Add: COMPLETED terminal renders completion summary and no delivery control; CANCELLED renders cancellation summary; `Ver historial` emits with its trigger; safe-area bottom padding class + body-clearance counterpart documented in the spec; all text state pairs (color + label). <!-- sdd-owner: implementation -->
+- [x] REFACTOR — Tighten: one `mode` computed resolving the four exclusive branches; no duplicated button markup; all copy from `copy.ts`. <!-- sdd-owner: implementation -->
 
 **Verify**
 

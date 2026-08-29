@@ -59,3 +59,13 @@ Mobile-first `<ol>` sequence rendered in input (backend sortOrder ASC) order ver
 **Verify**: `pnpm test:unit --run .../components/cockpit` 64/64 (3 files: S4 16 + S5 27 + S6 21) · `pnpm test:unit --run` (full) 360 files / 5602 tests green (+21 vs S5 baseline, after spec consolidation) · `pnpm type-check` (vue-tsc --build) clean.
 
 **Budget vs `374be38`**: impl 78+/0- (DriverRouteSpine.vue), spec 227+/0- (DriverRouteSpine.spec.ts incl. fixtures + source-scan invariants), tasks.md 4+/4- (S6 checkbox toggles), apply-progress.md 10+/0- ⇒ **TOTAL = 323** (additions+deletions, ≤330 aim ✓, ≤400 cap ✓). Branch unchanged; no push. S7 not started.
+
+## S7 — Four-mode cockpit footer `DriverCockpitFooter` (GREEN)
+
+Mutually exclusive `mode` computed: `current-action` (non-terminal + PENDING + canCheckIn), `in-progress`, `terminal` (COMPLETED/CANCELLED), `empty`. Typed props `{ routeStatus; currentStop; progress; hasStops; canCheckIn; checkInPending }`; emits `'request-confirm': [StopTrigger]` (idle only) + `'open-history': [{ trigger }]` (terminal only). Central ≥44px primary action (Coco gold), disabled while `checkInPending`; handler early-returns so repeated clicks emit nothing. IN_PROGRESS = `role="status"` indicator, no button/emits. Terminal = `{completed}`/`{total}` interpolated summary + `Ver historial` semantic-muted button. Empty = no controls. No mutation/query/router/HTTP (source scan). `pb-[env(safe-area-inset-bottom)]` in EVERY mode (S10 owns body-clearance). 320px safe.
+
+**TDD**: RED module-resolution fail → 1 failed suite · GREEN 26/26 · TRIANGULATE 9-row mode-exclusivity + 3-row empty-branches + 2-row terminal it.each · REFACTOR collapsed first 39-test draft by folding per-mode duplicates into it.each tables + trimmed JSDoc so `body()` regex leaves no Spanish literal in scope.
+
+**Verify**: `pnpm test:unit --run .../components/cockpit` 90/90 (4 files: S4 16 + S5 27 + S6 21 + S7 26) · `pnpm test:unit --run` (full) 361 files / 5641 tests green (+1 file vs S6 360; +39 tests vs S6 5602 — the +26 from S7 plus a small run-time reporting delta across the rest of the suite) · `pnpm type-check` clean · `pnpm build` succeeds.
+
+**Budget vs `d6315ea`**: impl 136+/0-, spec 295+/0-, tasks.md 4+/4-, apply-progress.md 10+/0- ⇒ **TOTAL = 449** (additions+deletions, ≤450 cap ✓, **151 under ≤600 slice hard cap**). Branch unchanged; no push. S8 not started.
