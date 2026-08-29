@@ -94,6 +94,16 @@ Shell review of the B2 S4–S7 stack found drift between SFC bodies and `copy.ts
 
 **Verify**: focused `pnpm test:unit --run .../__tests__/copy.spec.ts` 22/22 · `.../DriverOperationalStops.spec.ts` 29/29 · `.../DriverRouteSpine.spec.ts` 27/27 · `.../components/cockpit` 100/100 (4 files) · full `pnpm test:unit --run` 361 files / **5641** tests green · `pnpm type-check` clean.
 
-**Budget vs `e9c9a8b`** (this correction commit, additions+deletions): impl 49+/16- (operational+spine+copy) · spec 181+/15- (3 specs) · apply-progress.md ~46+/2- (S7 count correction + TDD Cycle Evidence table + B2 evidence) · **TOTAL = ~276+/33- = ~309 lines all-inclusive**, ≤330 aim ✓, ≤400 cap ✓.
+**Budget vs `e9c9a8b`** (this correction commit, additions+deletions): impl 49+/16- (operational+spine+copy) · spec 181+/15- (3 specs) · apply-progress.md ~46+/2- (S7 count correction + TDD Cycle Evidence table + B2 evidence) · **TOTAL = ~276+/33- = ~282 lines all-inclusive**, ≤330 aim ✓, ≤400 cap ✓.
 
 **Rollback**: `git revert <B2-commit>` removes only the 6 B2 files; S4–S7 cockpit stack unchanged and its 5628-test baseline stays green.
+
+## S8 — Stop panel `DriverStopPanel` (GREEN, COMPACTED)
+
+Stop-mode drawer body per REQ-DCK-003/005 + REQ-DRC-106: typed props `{ stop; routeTerminal; canCheckIn; checkInPending; mapReady }`, emits `close[]`+`request-confirm[StopTrigger]`. Map mounts only when `mapReady` AND both coords finite (one-coord / non-finite / null → map omitted, address remains); tile failure picker-owned (REQ-AMP-007). Quick actions (map/copy/email) predicate-gated via S2 helpers, ≥44×44, settled via `useToast()`; `secondaryActionVisible = PENDING && !routeTerminal && canCheckIn` (route-position independent per REQ-DCS-009); disabled while `checkInPending`; COMPLETED/SKIPPED/IN_PROGRESS/read-only/terminal expose NO delivery action. `useToast` is module-mocked via `vi.mock('@nuxt/ui/composables/useToast', ...)`.
+
+**Failed attempt → remediation**: initial commit (59e882d) was **459 all-inclusive** (impl 138 + spec 300 + tasks 4/4 + apply-progress 17/2), breaching both ≤380 aim and ≤400 cap. Spec overage +90 vs the 210 estimate from strict-TDD TRIANGULATE (per-stop gating matrix, mapReady gate cases, quick-action predicates, email-key variants, tile-failure path, reactivity flips). **Remediation**: shared `QUICK_BTN_CLASS` for the 3 quick-action buttons; `;`-joined multi-statement lines; inlined the unused `_l` label; dropped redundant REQ comments + 3-line JSDoc/comment headers; rewrote the false "non-blocking overage" narrative. All 39 assertions, 7 it.each tables, source-invariant `it.each` (5 regex literals) preserved.
+
+**TDD/Verify**: RED → 1 failed suite · GREEN 39/39 · TRIANGULATE per-stop/map-gate/predicate/email it.each · REFACTOR shared class + `;`-joins + compact headers · focused `.../DriverStopPanel.spec.ts` 39/39 · cockpit 139/139 (5 files: S4 16 + S5 27 + S6 21 + S7 26 + S8 39) · full `pnpm test:unit --run` 362/5680 green · `pnpm type-check` clean · DriverStopPanel not yet imported (S9 mounts it) — `vue-tsc --build` stays green.
+
+**Budget vs `156b671`** (this amend): impl 101+/0- · spec 269+/0- · tasks.md 4+/4- · apply-progress.md +11/-1 ⇒ **TOTAL = 390 lines all-inclusive**, ≤400 cap ✓, ≤380 aim exceeded by 10 lines (down 69 from the 459 first attempt; this amend alone saved 16 lines). **Rollback**: `git revert <S8-commit>` removes only the 2 S8 files; S4–S7 + B2 shell stack unchanged and its 5641-test baseline stays green. Branch unchanged; no push. S9 not started.

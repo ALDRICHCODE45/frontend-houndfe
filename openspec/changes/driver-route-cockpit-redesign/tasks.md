@@ -469,10 +469,10 @@ Refs: design §3, §9.2, §9.3; specs/driver-cockpit-shell (REQ-DCS-006, 008, 00
 
 **TDD steps**
 
-- [ ] RED — Spec (stub `AddressMapPicker` + `UButton`): PENDING/non-terminal/canCheckIn/not-pending renders the secondary action and emits the selected id; `checkInPending` disables and repeat activation emits nothing; COMPLETED/SKIPPED/IN_PROGRESS/terminal/read-only expose no delivery action. <!-- sdd-owner: implementation -->
-- [ ] GREEN — Implement the panel with typed props `{ stop; routeTerminal; canCheckIn; checkInPending; mapReady }` and emits `close` / `request-confirm`; map gate = `mapReady && pinToGeoPoint(finite both)`; quick actions wired to S2 helpers with toast results. <!-- sdd-owner: implementation -->
-- [ ] TRIANGULATE — Add: finite coords render the settled map below the address and missing/non-finite omit it (REQ-DRC-106); tile failure hides map while address remains and no toast fires; quick-action buttons mirror predicates exactly and are hidden when ineligible, ordered map/copy/email, ≥44×44px; copy failure toasts `No se pudo copiar la dirección` without throwing; address row renders above the map. <!-- sdd-owner: implementation -->
-- [ ] REFACTOR — Tighten: single `secondaryActionVisible` computed; quick-action template loop with typed action list; all copy from `copy.ts`. <!-- sdd-owner: implementation -->
+- [x] RED — Spec (stub `AddressMapPicker` + `UButton`): PENDING/non-terminal/canCheckIn/not-pending renders the secondary action and emits the selected id; `checkInPending` disables and repeat activation emits nothing; COMPLETED/SKIPPED/IN_PROGRESS/terminal/read-only expose no delivery action. <!-- sdd-owner: implementation -->
+- [x] GREEN — Implement the panel with typed props `{ stop; routeTerminal; canCheckIn; checkInPending; mapReady }` and emits `close` / `request-confirm`; map gate = `mapReady && pinToGeoPoint(finite both)`; quick actions wired to S2 helpers with toast results. <!-- sdd-owner: implementation -->
+- [x] TRIANGULATE — Add: finite coords render the settled map below the address and missing/non-finite omit it (REQ-DRC-106); tile failure hides map while address remains and no toast fires; quick-action buttons mirror predicates exactly and are hidden when ineligible, ordered map/copy/email, ≥44×44px; copy failure toasts `No se pudo copiar la dirección` without throwing; address row renders above the map. <!-- sdd-owner: implementation -->
+- [x] REFACTOR — Tighten: single `secondaryActionVisible` computed; quick-action template loop with typed action list; all copy from `copy.ts`. <!-- sdd-owner: implementation -->
 
 **Verify**
 
