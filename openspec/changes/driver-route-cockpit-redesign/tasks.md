@@ -663,10 +663,10 @@ Refs: design §5-§6, §9-§10; specs/delivery-route-check-in (REQ-DRC-103, 104,
 
 **REFACTOR / VERIFY / CLEANUP steps** — bounded continuation of S11a's TDD cycle; inherits S11a's RED/GREEN evidence; no new behavior.
 
-- [ ] REFACTOR — Precondition check: confirm S11a is green (focused view spec + full suite) and the obsolete old-card tests still pass, then delete `src/features/delivery-routes/components/DriverStopDetail.vue` and `src/features/delivery-routes/components/__tests__/DriverStopDetail.spec.ts` as one atomic unit (no component-without-spec or spec-without-component intermediate state). <!-- sdd-owner: implementation -->
-- [ ] VERIFY — Full `pnpm test:unit --run` stays green after the deletion; `vue-tsc --build` clean (no dangling `DriverStopDetail` type/import references); `pnpm build` succeeds. <!-- sdd-owner: implementation -->
-- [ ] VERIFY — Narrow zero-runtime-reference proof: `grep -rn "DriverStopDetail" src/` returns no imports, component usage/templates, `vi.mock` stubs, or test assertions; the only permissible matches are the pre-existing documentation-only prose comments in `src/core/shared/components/AddressMapPicker.vue`, `src/core/shared/components/__tests__/AddressMapPicker.spec.ts`, and `src/core/shared/maps/map-provider.ts` (out of scope; they are not runtime references). <!-- sdd-owner: implementation -->
-- [ ] CLEANUP — Confirm no dead copy key remains for the old card surface and no obsolete comment references the removed component. <!-- sdd-owner: implementation -->
+- [x] REFACTOR — Precondition check: confirm S11a is green (focused view spec + full suite) and the obsolete old-card tests still pass, then delete `src/features/delivery-routes/components/DriverStopDetail.vue` and `src/features/delivery-routes/components/__tests__/DriverStopDetail.spec.ts` as one atomic unit (no component-without-spec or spec-without-component intermediate state). <!-- sdd-owner: implementation -->
+- [x] VERIFY — Full `pnpm test:unit --run` stays green after the deletion; `vue-tsc --build` clean (no dangling `DriverStopDetail` type/import references); `pnpm build` succeeds. <!-- sdd-owner: implementation -->
+- [x] VERIFY — Narrow zero-runtime-reference proof: `grep -rn "DriverStopDetail" src/` returns no imports, component usage/templates, `vi.mock` stubs, or test assertions; the only permissible matches are the pre-existing documentation-only prose comments in `src/core/shared/components/AddressMapPicker.vue`, `src/core/shared/components/__tests__/AddressMapPicker.spec.ts`, and `src/core/shared/maps/map-provider.ts` (out of scope; they are not runtime references). <!-- sdd-owner: implementation -->
+- [x] CLEANUP — Confirm no dead copy key remains for the old card surface and no obsolete comment references the removed component. <!-- sdd-owner: implementation -->
 
 **Verify**
 

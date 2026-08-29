@@ -820,7 +820,7 @@ describe('DeliveryRouteDetailView — 404 ENTITY_NOT_FOUND / driver 403 → full
         expect(last.isFetching).toBe(false)
         expect(last.canCheckIn).toBe(true)
         expect(last.checkInPending).toBe(false)
-        // Old card stack is gone (S11b precondition — DriverStopDetail.vue still exists at this boundary).
+        // Old card stack is gone (S11b — superseded by the cockpit).
         expect(wrapper.find('[data-testid="driver-stop-detail-stub"]').exists()).toBe(false)
       })
 

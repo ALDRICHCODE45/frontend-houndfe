@@ -25,7 +25,7 @@
  *     typed props `{ route, isFetching, canCheckIn=canUpdate, checkInPending }`
  *     and events back (list push) / refresh (single observer refetch; failure →
  *     toast) / request-check-in(stopId) (single view-owned useCheckInStop,
- *     REQ-DRC-104). The old DriverStopDetail stack + inline timeline are gone;
+ *     REQ-DRC-104). The superseded old-card stack and inline timeline are gone;
  *     the timeline mounts only inside the cockpit's history-mode drawer.
  *
  * Loading / error / not-found states follow design §11. The view is a composition
@@ -393,7 +393,7 @@ defineExpose({
   </div>
 
       <!-- Driver branch (S11a): DriverRouteCockpit with typed props; the old
-           DriverStopDetail stack + inline timeline are gone (drawer-owned now). -->
+           card stack + inline timeline are gone (drawer-owned now). -->
       <div
         v-else-if="isDriver && routeData && routeData.id === routeId"
         data-testid="detail-driver-branch"

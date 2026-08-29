@@ -157,3 +157,11 @@ B3 review of the S8–S10 overlay stack found drift between the SFC bodies and `
 **Verify**: view 57/57 · legacy `DriverStopDetail` 21/21 · driver list/card/composable 44/44 · full 364 files / **5767 tests** · `pnpm type-check` and `pnpm build` green. One detail observer/refetch and one `useCheckInStop`/`mutateAsync`; manager/privacy/list branches preserved; S11b deletion precondition proven.
 
 **Budget vs `c627e7e`**: view/composable/spec 359 · tasks 8 · progress 8 = **375 all-inclusive**, ≤380 aim and ≤400 cap. Rollback: `git revert <S11a-commit>` restores the old driver branch because legacy files remain. No push; S11b not started.
+
+## S11b — Old-card deletion continuation (REFACTOR/VERIFY/CLEANUP, GREEN)
+
+Inherits S11a's RED/GREEN/TRIANGULATE evidence — no fresh cycle, no new behavior or tests. Precondition verified at the S11a boundary: focused view + old-card specs 79/79 green. Deleted `DriverStopDetail.vue` (152) + `DriverStopDetail.spec.ts` (407) as one atomic unit; rewrote the 3 obsolete prose `DriverStopDetail` comments in the view (2) + view spec (1), preserving the surrounding contract comments.
+
+**Verify**: full `pnpm test:unit --run` 363 files / **5747** tests green (−1 file −20 tests = the deleted 21-test spec) · `vue-tsc --build` clean · `pnpm build` succeeds · zero-runtime-reference grep → only the 3 allowed shared-map prose comments (`map-provider.ts:4` / `AddressMapPicker.spec.ts:109` / `AddressMapPicker.vue:33`) · `components.d.ts` regeneration reverted · no dead copy key (`actions.checkIn` still consumed by footer/panel) · tasks.md S11b 4 checkboxes → `[x]`.
+
+**Budget vs `79b1186`**: src 3+/562- (view 2/2 · view-spec 1/1) · tasks.md 4+/4- · apply-progress 12+/0- ⇒ **TOTAL = 585 all-inclusive ≤600 ✓** (S11b size exception ~559 accepted in the approved B5 chain). Branch `feat/driver-route-cockpit-redesign-b5-old-card-deletion`; no push.
