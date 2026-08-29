@@ -1,0 +1,246 @@
+// DriverCockpitDrawer.spec.ts — STRICT-TDD S9 (REQ-DCK-001/002/004/006/007/008 + REQ-DRC-105).
+// Contract: one Nuxt UI v4 UDrawer; stop mode mounts DriverStopPanel; history mode mounts
+// DeliveryRouteTimeline DIRECTLY. Custom closed synthesized ONLY from native animationEnd(false);
+// animationEnd(true) sets mapReady and never emits closed. Sticky central-copy header >=44 close;
+// 85dvh scrollable body; reduced-motion class while event semantics unchanged.
+// Teleport note: UDrawer uses Vue <Teleport> -> document.body; tests query `document.body`
+// and drive native events through the exposed `drawerRef` template ref.
+
+import { describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
+import { defineComponent, h } from 'vue'
+import UApp from '@nuxt/ui/runtime/components/App.vue'
+import DriverCockpitDrawer, { adaptDrawerAnimationEnd } from '../DriverCockpitDrawer.vue'
+import type { DeliveryRouteResponseDto, DeliveryRouteStop, DeliveryRouteTimelineEvent } from '../../../interfaces/delivery-route.types'
+import { DELIVERY_ROUTE_COPY } from '../../../copy'
+
+const fs: typeof import('node:fs') = require('node:fs') as typeof import('node:fs')
+
+const ADDR = { id: 'a', street: 'Reforma', exteriorNumber: '1', interiorNumber: null, zipCode: '06600', neighborhood: 'C', municipality: 'C', city: 'CDMX', state: 'CMX', label: null, latitude: 19.4326, longitude: -99.1332 }
+function mkStop(id: string, sortOrder: number, status: DeliveryRouteStop['status'], name = 'Ana'): DeliveryRouteStop {
+  return { id, saleId: `s-${id}`, saleFolio: `F-${sortOrder + 1}`, sortOrder, status, checkedInAt: null, completedAt: null, customer: { id: `c-${id}`, name, email: 'a@x' }, shippingAddress: { ...ADDR, id: `a-${id}` } }
+}
+function mkRoute(timeline: DeliveryRouteTimelineEvent[] = [], stops: DeliveryRouteStop[] = [], status: DeliveryRouteResponseDto['status'] = 'ACTIVE'): DeliveryRouteResponseDto {
+  return { id: 'route-1', status, driver: { id: 'd1', name: 'Ana', email: 'a@x' }, startedAt: null, completedAt: null, cancelledAt: null, notes: null, stops, timeline }
+}
+const STOP_NULL_CUSTOMER = { ...mkStop('s0', 0, 'PENDING'), id: 's0n', customer: null }
+const STOP = mkStop('s0', 0, 'PENDING')
+const ROUTE = mkRoute([], [STOP])
+
+interface DrawerHarness { inner: VueWrapper<InstanceType<typeof DriverCockpitDrawer>>; outer: VueWrapper }
+function mountDrawer(p: Partial<{ open: boolean; mode: 'stop' | 'history'; route: DeliveryRouteResponseDto; stop: DeliveryRouteStop | null; routeTerminal: boolean; canCheckIn: boolean; checkInPending: boolean }> = {}): DrawerHarness {
+  const props = { open: false, mode: 'stop' as const, route: ROUTE, stop: STOP, routeTerminal: false, canCheckIn: true, checkInPending: false, ...p }
+  const Wrapper = defineComponent({
+    components: { UApp },
+    props: { open: { type: Boolean, required: true }, mode: { type: String, required: true }, route: { type: Object as () => DeliveryRouteResponseDto, required: true }, stop: { type: Object as () => DeliveryRouteStop | null, default: null }, routeTerminal: { type: Boolean, required: true }, canCheckIn: { type: Boolean, required: true }, checkInPending: { type: Boolean, required: true } },
+    setup(p) { return () => h(UApp, null, { default: () => h(DriverCockpitDrawer as never, p) }) },
+  })
+  const outer = mount(Wrapper, {
+    props, attachTo: document.body,
+    global: { stubs: { AddressMapPicker: { template: '<div data-testid="address-map-picker-stub" />' }, UIcon: { props: ['name'], template: '<i :data-icon="$attrs.name" />' } } },
+  })
+  return { inner: outer.findComponent(DriverCockpitDrawer) as VueWrapper<InstanceType<typeof DriverCockpitDrawer>>, outer }
+}
+type DrawerVm = { drawerRef: { $emit: (e: string, ...a: unknown[]) => Promise<void> } | null }
+const sfcBody = () => fs.readFileSync((DriverCockpitDrawer as unknown as { __file: string }).__file, 'utf8').replace(/\/\*\*[\s\S]*?\*\//g, '')
+beforeEach(() => { /* no mocks to reset */ })
+afterEach(() => { document.body.innerHTML = '' })
+
+// ─── RED: one portal, native-event synthesis (REQ-DCK-001) ──────────────────────
+
+describe('DriverCockpitDrawer — RED: one portal, native-event synthesis (REQ-DCK-001)', () => {
+  it('mounts exactly one UDrawer (via drawerRef) and no nested slideover', async () => {
+    const { inner } = mountDrawer({ open: true })
+    await flushPromises()
+    const vm = inner.vm as unknown as DrawerVm
+    expect(vm.drawerRef).not.toBeNull()
+    const body = sfcBody()
+    expect((body.match(/<UDrawer\b/g) ?? []).length).toBe(1)
+    expect(body).not.toMatch(/<USlideover\b/)
+  })
+
+  it('stop mode mounts DriverStopPanel; history mode mounts DeliveryRouteTimeline DIRECTLY (REQ-DRC-105)', async () => {
+    mountDrawer({ open: true, mode: 'stop', stop: STOP })
+    await flushPromises()
+    expect(document.querySelector('[data-testid="stop-panel-root"]')).not.toBeNull()
+    expect(document.querySelector('[data-testid="delivery-route-timeline"]')).toBeNull()
+    document.body.innerHTML = ''
+    mountDrawer({ open: true, mode: 'history' })
+    await flushPromises()
+    expect(document.querySelector('[data-testid="delivery-route-timeline"]')).not.toBeNull()
+    expect(document.querySelector('[data-testid="stop-panel-root"]')).toBeNull()
+    expect(document.querySelector('[data-testid="driver-history-sheet"]')).toBeNull()
+  })
+
+  it('native close alone does NOT emit custom closed; animationEnd(false) emits closed once; animationEnd(true) does not', async () => {
+    const { inner } = mountDrawer({ open: true })
+    await flushPromises()
+    const vm = inner.vm as unknown as DrawerVm
+    await vm.drawerRef?.$emit('close')
+    expect(inner.emitted('closed') ?? []).toHaveLength(0)
+    await vm.drawerRef?.$emit('animationEnd', true)
+    expect(inner.emitted('closed') ?? []).toHaveLength(0)
+    await vm.drawerRef?.$emit('update:open', false)
+    await vm.drawerRef?.$emit('animationEnd', false)
+    expect(inner.emitted('closed') ?? []).toHaveLength(1)
+    await vm.drawerRef?.$emit('animationEnd', false)
+    expect(inner.emitted('closed') ?? []).toHaveLength(1)
+  })
+})
+
+// ─── TRIANGULATE: mode switch + dismiss paths (REQ-DCK-001/006) ──────────────────
+
+describe('DriverCockpitDrawer — TRIANGULATE: mode switch + dismiss paths (REQ-DCK-001/006)', () => {
+  it('stop -> history: closes, awaits animationEnd(false), reopens with direct timeline (no hot-swap)', async () => {
+    const { inner, outer } = mountDrawer({ open: true, mode: 'stop', stop: STOP })
+    await flushPromises()
+    const vm = inner.vm as unknown as DrawerVm
+    await vm.drawerRef?.$emit('animationEnd', true)
+    expect(document.querySelector('[data-testid="stop-panel-root"]')).not.toBeNull()
+    await outer.setProps({ open: false })
+    await vm.drawerRef?.$emit('animationEnd', false)
+    expect(inner.emitted('closed') ?? []).toHaveLength(1)
+    await outer.setProps({ open: true, mode: 'history' })
+    await vm.drawerRef?.$emit('animationEnd', true)
+    expect(document.querySelector('[data-testid="delivery-route-timeline"]')).not.toBeNull()
+    expect(document.querySelector('[data-testid="stop-panel-root"]')).toBeNull()
+  })
+
+  it.each([
+    ['escape/overlay (native close)', 'close', undefined],
+    ['drag dismissal (native update:open false)', 'update:open', false],
+    ['release after drag (native release false)', 'release', false],
+  ] as const)('%s yields update:open(false) so parent begins closure', async (_l, event, arg) => {
+    const { inner } = mountDrawer({ open: true })
+    await flushPromises()
+    const vm = inner.vm as unknown as DrawerVm
+    if (arg === undefined) await vm.drawerRef?.$emit(event) ; else await vm.drawerRef?.$emit(event, arg)
+    expect(inner.emitted('update:open') ?? []).toEqual([[false]])
+  })
+
+  it('close button click + parent close (open prop false) both yield the closed sequence', async () => {
+    const { inner } = mountDrawer({ open: true })
+    await flushPromises()
+    const close = document.querySelector('[data-testid="driver-cockpit-drawer-close"]') as HTMLButtonElement
+    close.click()
+    await flushPromises()
+    expect(inner.emitted('update:open') ?? []).toEqual([[false]])
+  })
+
+  it('parent close (open prop false) still synthesizes closed once via animationEnd(false)', async () => {
+    const { inner, outer } = mountDrawer({ open: true })
+    await flushPromises()
+    const vm = inner.vm as unknown as DrawerVm
+    await outer.setProps({ open: false })
+    await vm.drawerRef?.$emit('animationEnd', false)
+    expect(inner.emitted('closed') ?? []).toHaveLength(1)
+  })
+})
+
+// ─── TRIANGULATE: a11y + scrollable body + reduced motion (REQ-DCK-002/007) ──────
+
+describe('DriverCockpitDrawer — TRIANGULATE: a11y + scrollable body + reduced motion (REQ-DCK-002/007)', () => {
+  it('sticky central-copy header + >=44 close + 85dvh scrollable body', async () => {
+    mountDrawer({ open: true })
+    await flushPromises()
+    const header = document.querySelector('[data-testid="driver-cockpit-drawer-header"]') as HTMLElement
+    expect(header.className).toMatch(/sticky\s+top-0/)
+    const close = document.querySelector('[data-testid="driver-cockpit-drawer-close"]') as HTMLElement
+    expect(close.className).toContain('min-h-11') ; expect(close.className).toContain('min-w-11')
+    expect(close.getAttribute('aria-label')).toBe(DELIVERY_ROUTE_COPY.cockpit.drawer.close)
+    const body = document.querySelector('[data-testid="driver-cockpit-drawer-body"]') as HTMLElement
+    expect(body.className).toMatch(/max-h-\[85dvh\]/) ; expect(body.className).toContain('overflow-y-auto')
+    expect(header.className).toContain('min-w-0')
+  })
+
+  it('reduced-motion class is present on header + body while event semantics stay identical', async () => {
+    const { inner } = mountDrawer({ open: true })
+    await flushPromises()
+    expect((document.querySelector('[data-testid="driver-cockpit-drawer-header"]') as HTMLElement).className).toMatch(/motion-reduce:transition-none/)
+    expect((document.querySelector('[data-testid="driver-cockpit-drawer-body"]') as HTMLElement).className).toMatch(/motion-reduce:transition-none/)
+    const vm = inner.vm as unknown as DrawerVm
+    await vm.drawerRef?.$emit('update:open', false)
+    await vm.drawerRef?.$emit('animationEnd', false)
+    expect(inner.emitted('closed') ?? []).toHaveLength(1)
+  })
+})
+
+// ─── TRIANGULATE: history timeline direct reuse (REQ-DRC-105) ──────────────────
+
+describe('DriverCockpitDrawer — TRIANGULATE: history timeline direct reuse (REQ-DRC-105)', () => {
+  it('history mode preserves timeline rows incl. STOP_CHECKED_IN separate Parada N element', async () => {
+    const timeline: DeliveryRouteTimelineEvent[] = [
+      { type: 'ROUTE_CREATED', at: '2025-01-01T08:00:00Z', actor: null },
+      { type: 'ROUTE_STARTED', at: '2025-01-01T09:00:00Z', actor: { id: 'd1', name: 'Ana' } },
+      { type: 'STOP_CHECKED_IN', at: '2025-01-01T09:30:00Z', stopId: 's0', sortOrder: 0, actor: { id: 'd1', name: 'Ana' } },
+      { type: 'ROUTE_COMPLETED', at: '2025-01-01T10:00:00Z', actor: { id: 'd1', name: 'Ana' } },
+    ]
+    mountDrawer({ open: true, mode: 'history', route: mkRoute(timeline, [STOP]) })
+    await flushPromises()
+    const rows = Array.from(document.querySelectorAll('[data-testid^="timeline-row-"]'))
+      .filter((n) => n.tagName === 'LI').map((n) => n.getAttribute('data-testid'))
+    expect(rows).toEqual(['timeline-row-ROUTE_CREATED', 'timeline-row-ROUTE_STARTED', 'timeline-row-STOP_CHECKED_IN-s0', 'timeline-row-ROUTE_COMPLETED'])
+    const posSpan = document.querySelector('[data-testid="timeline-row-STOP_CHECKED_IN-s0"] [data-testid="timeline-row-stop-position"]')
+    expect(posSpan).not.toBeNull() ; expect(posSpan?.textContent?.trim()).toBe('Parada 1')
+  })
+
+  it('history empty renders `Sin eventos registrados`', async () => {
+    mountDrawer({ open: true, mode: 'history', route: mkRoute([], [STOP]) })
+    await flushPromises()
+    expect(document.querySelector('[data-testid="delivery-route-timeline-empty"]')).not.toBeNull()
+    expect(document.body.textContent).toContain('Sin eventos registrados')
+  })
+})
+
+// ─── TRIANGULATE: stop mode wiring (REQ-DCK-003, REQ-DRC-106) ──────────────────
+
+describe('DriverCockpitDrawer — TRIANGULATE: stop mode wiring (REQ-DCK-003, REQ-DRC-106)', () => {
+  it('forwards stop props + request-confirm; checkInPending disables + suppresses repeat', async () => {
+    const { inner } = mountDrawer({ open: true, mode: 'stop', stop: STOP, canCheckIn: true, checkInPending: false, routeTerminal: false })
+    await flushPromises()
+    const btn = document.querySelector('[data-testid="stop-panel-secondary-action"]') as HTMLButtonElement
+    expect(btn).not.toBeNull() ; btn.click() ; await flushPromises()
+    const events = (inner.emitted('request-confirm') as unknown[][] | undefined) ?? []
+    expect(events).toHaveLength(1) ; expect(events[0]?.[0]).toMatchObject({ stopId: STOP.id })
+  })
+
+  it('checkInPending propagates: secondary disabled, repeat emits nothing', async () => {
+    const { inner } = mountDrawer({ open: true, mode: 'stop', stop: STOP, checkInPending: true })
+    await flushPromises()
+    const btn = document.querySelector('[data-testid="stop-panel-secondary-action"]') as HTMLButtonElement
+    expect(btn.disabled).toBe(true) ; btn.click() ; btn.click()
+    expect(inner.emitted('request-confirm') ?? []).toHaveLength(0)
+  })
+
+  it('null stop in stop mode renders nothing; null customer falls back to `Cliente sin nombre`', async () => {
+    mountDrawer({ open: true, mode: 'stop', stop: null })
+    await flushPromises()
+    expect(document.querySelector('[data-testid="stop-panel-root"]')).toBeNull()
+    document.body.innerHTML = ''
+    mountDrawer({ open: true, mode: 'stop', stop: STOP_NULL_CUSTOMER })
+    await flushPromises()
+    const title = document.querySelector('[data-testid="driver-cockpit-drawer-title"]') as HTMLElement
+    expect(title.textContent).toContain(DELIVERY_ROUTE_COPY.cockpit.operational.customerFallback)
+  })
+})
+
+// ─── REFACTOR: adapter unit + source invariants (REQ-DCK-001/008) ───────────────
+
+describe('DriverCockpitDrawer — REFACTOR: adapter unit coverage + source invariants', () => {
+  it.each([
+    ['true: settled opening', { openAfter: true, previousMapReady: false, previousClosedEmitted: false }, { mapReady: true, emitClosed: false }],
+    ['true: re-settle after re-open', { openAfter: true, previousMapReady: true, previousClosedEmitted: true }, { mapReady: true, emitClosed: false }],
+    ['false: first close emits closed', { openAfter: false, previousMapReady: true, previousClosedEmitted: false }, { mapReady: true, emitClosed: true }],
+    ['false: second animationEnd(false) does NOT re-emit closed', { openAfter: false, previousMapReady: true, previousClosedEmitted: true }, { mapReady: true, emitClosed: false }],
+  ] as const)('adaptDrawerAnimationEnd: %s', (_l, input, expected) => { expect(adaptDrawerAnimationEnd(input)).toEqual(expected) })
+
+  it('SFC never imports server-state, mutation, router, HTTP, or nested slideover', () => {
+    const b = sfcBody()
+    for (const re of [/from\s+['"]vue-router['"]|useRouter|useRoute\b/, /useQuery\b|useMutation\b|useQueryClient|@tanstack\/vue-query/, /axios|fetch\(['"]/, /useCheckInStop\b|invalidate|refetchQueries|mutateAsync|mutate\(/, /<USlideover\b/]) expect(b).not.toMatch(re)
+  })
+
+  it('SFC never hardcodes the drawer copy literals (single source = copy.ts)', () => {
+    const b = sfcBody()
+    for (const re of [/["']Historial de la ruta["']/, /["']Cerrar["']/, /["']Parada \{N\}["']/, /["']Cliente sin nombre["']/]) expect(b).not.toMatch(re)
+  })
+})
