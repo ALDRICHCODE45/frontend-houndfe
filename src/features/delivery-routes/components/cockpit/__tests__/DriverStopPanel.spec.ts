@@ -151,21 +151,23 @@ describe('DriverStopPanel — quick actions: ordering, ≥44×44, predicates (RE
     for (const tid of hidden) expect(w.find(`[data-testid="stop-panel-quick-${tid}"]`).exists()).toBe(false)
   })
 
-  it('copy click success writes the trimmed address; copy failure toasts canonical copy verbatim', async () => {
+  it('copy click success writes the trimmed address AND toasts "Dirección copiada" (B3 unified handler)', async () => {
     const writeText = vi.fn(async () => undefined)
     const clickCopy = () => mountPanel().find('[data-testid="stop-panel-quick-copy"]').trigger('click')
     vi.stubGlobal('navigator', { clipboard: { writeText } })
     await clickCopy() ; await flushPromises()
     expect(writeText).toHaveBeenCalledWith(expect.stringContaining('Av. Reforma'))
-    expect(toastCalls).toHaveLength(0)
+    expect(toastCalls).toHaveLength(1)
+    expect(toastCalls[0]?.title).toBe(DELIVERY_ROUTE_COPY.cockpit.quickActions.successCopy)
+    expect(toastCalls[0]?.color).toBe('success')
     vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn(async () => { throw new Error('denied') }) } })
     await clickCopy() ; await flushPromises()
-    expect(toastCalls).toHaveLength(1)
-    expect(toastCalls[0]?.title).toBe('No se pudo copiar la dirección')
-    expect(toastCalls[0]?.color).toBe('error')
+    expect(toastCalls).toHaveLength(2)
+    expect(toastCalls[1]?.title).toBe('No se pudo copiar la dirección')
+    expect(toastCalls[1]?.color).toBe('error')
   })
 
-  it('map action opens window.open with encoded coords; failure toasts canonical copy', async () => {
+  it('map action opens window.open with encoded coords AND toasts "Mapa abierto" (B3 unified handler)', async () => {
     const clickMap = () => mountPanel({ stop: makeStop({ address: FULL }) })
       .find('[data-testid="stop-panel-quick-map"]').trigger('click')
     vi.spyOn(window, 'open').mockImplementation(vi.fn(() => ({} as unknown as Window)))
@@ -173,18 +175,54 @@ describe('DriverStopPanel — quick actions: ordering, ≥44×44, predicates (RE
     const [url, target, features] = (vi.mocked(window.open).mock.calls[0] ?? []) as [string, string, string]
     expect(url).toContain('google.com/maps') ; expect(target).toBe('_blank')
     expect(features).toBe('noopener,noreferrer') ; expect(url).toContain('19.4326%2C-99.1332')
+    expect(toastCalls).toHaveLength(1)
+    expect(toastCalls[0]?.title).toBe(DELIVERY_ROUTE_COPY.cockpit.quickActions.successMap)
+    expect(toastCalls[0]?.color).toBe('success')
     vi.spyOn(window, 'open').mockReturnValue(null)
     await clickMap() ; await flushPromises()
-    expect(toastCalls.some((t) => t.title === 'No se pudo abrir el mapa')).toBe(true)
+    expect(toastCalls.some((t) => t.title === 'No se pudo abrir el mapa' && t.color === 'error')).toBe(true)
   })
 
-  it('email click wires to S2 openEmail helper (no throw, no toast)', async () => {
+  it('email click wires to S2 openEmail helper AND toasts "Enviando correo" (B3 unified handler)', async () => {
     vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn(async () => undefined) } })
     vi.spyOn(window, 'open').mockReturnValue({} as unknown as Window)
     await mountPanel({ stop: makeStop({ email: 'a@x', address: FULL }) })
       .find('[data-testid="stop-panel-quick-email"]').trigger('click')
     await flushPromises()
-    expect(toastCalls).toHaveLength(0)
+    expect(toastCalls).toHaveLength(1)
+    expect(toastCalls[0]?.title).toBe(DELIVERY_ROUTE_COPY.cockpit.quickActions.successEmail)
+    expect(toastCalls[0]?.color).toBe('success')
+  })
+
+  it('all three failures route through the SAME unified handler with error color + canonical copy (B3 review)', async () => {
+    // Force map + copy helpers to fail; each emits ONE error toast with the canonical
+    // failure copy. The third failure (email) is covered separately by the email-failure
+    // source-invariant below since the helper short-circuits when the email is empty.
+    vi.spyOn(window, 'open').mockReturnValue(null)
+    await mountPanel({ stop: makeStop({ address: FULL }) }).find('[data-testid="stop-panel-quick-map"]').trigger('click') ; await flushPromises()
+    vi.stubGlobal('navigator', { clipboard: { writeText: vi.fn(async () => { throw new Error('denied') }) } })
+    await mountPanel().find('[data-testid="stop-panel-quick-copy"]').trigger('click') ; await flushPromises()
+    const errors = toastCalls.filter((t) => t.color === 'error')
+    expect(errors.map((t) => t.title).sort()).toEqual([
+      'No se pudo abrir el mapa',
+      'No se pudo copiar la dirección',
+    ].sort())
+    // Source invariant: exactly ONE function calls useToast().add — the unified handler.
+    // Three separate handlers would each call useToast directly.
+    const source = sfcBody()
+    const directUseToastCalls = (source.match(/useToast\(\)\.add\(|\.add\(\s*\{\s*title:/g) ?? []).length
+    expect(directUseToastCalls).toBe(1)
+  })
+
+  it('quick actions render via ONE template loop, ordered map → copy → email (B3 review)', async () => {
+    const w = mountPanel({ stop: makeStop({ email: 'a@x', address: FULL }) })
+    await flushPromises()
+    const btns = w.findAll('button[data-testid^="stop-panel-quick-"]')
+    expect(btns.map((b) => b.attributes('data-testid'))).toEqual(['stop-panel-quick-map', 'stop-panel-quick-copy', 'stop-panel-quick-email'])
+    // Source invariant: only one explicit button tag in the template (template loop), not three.
+    const source = sfcBody()
+    const explicitBlocks = (source.match(/<button[^>]*data-testid="stop-panel-quick-(map|copy|email)"/g) ?? []).length
+    expect(explicitBlocks).toBeLessThanOrEqual(1)
   })
 })
 

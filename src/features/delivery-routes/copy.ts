@@ -135,12 +135,16 @@ export const DELIVERY_ROUTE_COPY = {
       historyTitle: 'Historial de la ruta',
       close: 'Cerrar',
     },
-    // REQ-DCK-005 — ordered map/copy/email labels + failure messages that mirror
-    // driverCockpitQuickActions.QUICK_ACTION_FAILURE_MESSAGES byte-for-byte.
+    // REQ-DCK-005 — ordered map/copy/email labels + unified settled-result copy:
+    //   - success*: one unified handler toasts these on QuickActionResult.ok
+    //   - failure*: byte-for-byte mirror of driverCockpitQuickActions.QUICK_ACTION_FAILURE_MESSAGES
     quickActions: {
       map: 'Ver en mapa',
       copyAddress: 'Copiar dirección',
       email: 'Email',
+      successMap: 'Mapa abierto',
+      successCopy: 'Dirección copiada',
+      successEmail: 'Enviando correo',
       failureMap: 'No se pudo abrir el mapa',
       failureCopy: 'No se pudo copiar la dirección',
       failureEmail: 'No se pudo abrir el correo',

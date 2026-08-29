@@ -72,6 +72,28 @@ describe('DriverCockpitDrawer — RED: one portal, native-event synthesis (REQ-D
     expect(document.querySelector('[data-testid="driver-history-sheet"]')).toBeNull()
   })
 
+  // ─── B3 correction: typed mode → content mapping via single `<component>` (REFACTOR) ───
+  it('mode → content mapping renders via single `<component :is>` (B3 review, no v-if/v-else-if branches)', async () => {
+    const source = sfcBody()
+    // Single dynamic <component :is="..."> render instead of explicit v-if/v-else-if branches.
+    expect(source).toMatch(/<component\s+:is=/)
+    // No explicit mode-conditional branches for stop / history in the body template.
+    expect(source).not.toMatch(/v-if=["']mode === ['"]stop['"]/)
+    expect(source).not.toMatch(/v-else-if=["']mode === ['"]history['"]/)
+    // A typed modeContent map exists in the script body.
+    expect(source).toMatch(/modeContent/)
+  })
+
+  it('modeContent renders the right component for each mode at runtime (B3 review)', async () => {
+    mountDrawer({ open: true, mode: 'stop', stop: STOP })
+    await flushPromises()
+    expect(document.querySelector('[data-testid="stop-panel-root"]')).not.toBeNull()
+    document.body.innerHTML = ''
+    mountDrawer({ open: true, mode: 'history' })
+    await flushPromises()
+    expect(document.querySelector('[data-testid="delivery-route-timeline"]')).not.toBeNull()
+  })
+
   it('native close alone does NOT emit custom closed; animationEnd(false) emits closed once; animationEnd(true) does not', async () => {
     const { inner } = mountDrawer({ open: true })
     await flushPromises()
@@ -162,6 +184,39 @@ describe('DriverCockpitDrawer — TRIANGULATE: a11y + scrollable body + reduced 
     await vm.drawerRef?.$emit('update:open', false)
     await vm.drawerRef?.$emit('animationEnd', false)
     expect(inner.emitted('closed') ?? []).toHaveLength(1)
+  })
+
+  // ─── B3 correction: motion-reduce on actual UDrawer overlay + content slots ───
+  // The S9 overlay/content are the elements that animate; inner header/body have no
+  // transition. The reduced-motion override MUST be applied via the UDrawer `ui` prop
+  // so vaul-vue's DrawerOverlay + DrawerContent honor it (not just our inner header).
+  it('reduced-motion override reaches the actual UDrawer `ui` prop for content + overlay (B3 review)', async () => {
+    mountDrawer({ open: true })
+    await flushPromises()
+    const source = sfcBody()
+    expect(source).toMatch(/drawerUi/)
+    expect(source).toMatch(/content:\s*['"][^'"]*motion-reduce:[^'"]*['"]/)
+    expect(source).toMatch(/overlay:\s*['"][^'"]*motion-reduce:[^'"]*['"]/)
+  })
+
+  it('runtime portal contains EXACTLY ONE [data-slot="content"] + ONE [data-slot="overlay"] (B3 review)', async () => {
+    mountDrawer({ open: true })
+    await flushPromises()
+    const contents = document.querySelectorAll('[data-slot="content"]')
+    const overlays = document.querySelectorAll('[data-slot="overlay"]')
+    expect(contents).toHaveLength(1)
+    expect(overlays).toHaveLength(1)
+  })
+
+  it('actual UDrawer content + overlay carry motion-reduce classes at runtime (B3 review)', async () => {
+    mountDrawer({ open: true })
+    await flushPromises()
+    const content = document.querySelector('[data-slot="content"]') as HTMLElement | null
+    const overlay = document.querySelector('[data-slot="overlay"]') as HTMLElement | null
+    expect(content).not.toBeNull()
+    expect(overlay).not.toBeNull()
+    expect(content!.className).toMatch(/motion-reduce:transition-none|motion-reduce:duration-0/)
+    expect(overlay!.className).toMatch(/motion-reduce:transition-none|motion-reduce:duration-0/)
   })
 })
 

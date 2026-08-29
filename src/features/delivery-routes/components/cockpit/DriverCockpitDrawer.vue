@@ -43,20 +43,23 @@ export function adaptDrawerAnimationEnd(
  * native animationEnd(false); native close / update:open(false) begin closure
  * but never complete it; animationEnd(true) marks opening settled
  * (mapReady=true) and never emits closed. Sticky central-copy header >=44px
- * close + 85dvh scrollable body. Reduced motion = no-op / instant cross-fade
- * via Tailwind motion-reduce variants; native event sequence unchanged.
+ * close + 85dvh scrollable body. Reduced-motion override reaches the actual
+ * UDrawer overlay + content slots via the `ui` prop so vaul-vue's
+ * DrawerOverlay / DrawerContent honor it (not just our inner header).
  *
  * Typed props: { open; mode: 'stop'|'history'; route; stop; routeTerminal;
  *   canCheckIn; checkInPending }.
  * Typed emits: 'update:open':[boolean] / 'closed':[] /
  *   'request-confirm':[StopTrigger].
+ * B3 REFACTOR: mode → content mapping (`modeContent`) drives a single
+ * dynamic `<component :is>` render instead of v-if/v-else-if branches.
  *
  * Source invariants (REQ-DCK-001/008; design section 6): NEVER imports
  * vue-router, useQuery, useMutation, useQueryClient, useCheckInStop, axios, or
  * fetch(. The drawer is fully controlled by `open`; the parent owns the
  * close -> animationEnd(false) -> reopen orchestration for mode switches.
  */
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, type Component } from 'vue'
 import DriverStopPanel from './DriverStopPanel.vue'
 import DeliveryRouteTimeline from '../DeliveryRouteTimeline.vue'
 import type {
@@ -107,6 +110,33 @@ const title = computed<string>(() => {
     .replace('{customer}', customer)
 })
 
+// ─── Typed mode → content mapping (B3 REFACTOR; REQ-DRC-105) ─────────────────────
+// One mapping drives a single dynamic <component :is> render. History still
+// directly uses DeliveryRouteTimeline; stop uses DriverStopPanel; no wrapper SFC.
+interface StopModeContentProps { stop: DeliveryRouteStop; routeTerminal: boolean; canCheckIn: boolean; checkInPending: boolean; mapReady: boolean }
+interface HistoryModeContentProps { route: DeliveryRouteResponseDto }
+type ModeContent =
+  | { component: typeof DriverStopPanel; props: StopModeContentProps }
+  | { component: typeof DeliveryRouteTimeline; props: HistoryModeContentProps }
+  | null
+
+const modeContent = computed<ModeContent>(() => {
+  if (props.mode === 'history') return { component: DeliveryRouteTimeline, props: { route: props.route } }
+  if (props.mode === 'stop' && props.stop) return {
+    component: DriverStopPanel,
+    props: { stop: props.stop, routeTerminal: props.routeTerminal, canCheckIn: props.canCheckIn, checkInPending: props.checkInPending, mapReady: mapReady.value },
+  }
+  return null
+})
+
+// ─── B3: motion-reduce override on actual UDrawer overlay + content slots ───────
+// vaul-vue's DrawerOverlay + DrawerContent animate via CSS; the override must
+// reach them via UDrawer's `ui` prop (NOT just our inner header/body).
+const drawerUi = {
+  content: 'motion-reduce:transition-none motion-reduce:duration-0',
+  overlay: 'motion-reduce:transition-none motion-reduce:duration-0',
+}
+
 // ─── Native-event handlers ──────────────────────────────────────────────────────
 function onUpdateOpen(value: boolean) {
   if (value === false) emit('update:open', false)
@@ -128,7 +158,8 @@ function onAnimationEnd(openAfter: boolean) {
   }
 }
 function onPanelClose() { emit('update:open', false) }
-function onPanelRequestConfirm(payload: StopTrigger) { emit('request-confirm', payload) }
+function onModeContentClose() { emit('update:open', false) }
+function onModeContentRequestConfirm(payload: StopTrigger) { emit('request-confirm', payload) }
 </script>
 
 <template>
@@ -142,6 +173,7 @@ function onPanelRequestConfirm(payload: StopTrigger) { emit('request-confirm', p
     :portal="true"
     :handle="false"
     :overlay="true"
+    :ui="drawerUi"
     data-testid="driver-cockpit-drawer-root"
     @update:open="onUpdateOpen"
     @close="onClose"
@@ -174,19 +206,12 @@ function onPanelRequestConfirm(payload: StopTrigger) { emit('request-confirm', p
         data-testid="driver-cockpit-drawer-body"
         class="max-h-[85dvh] overflow-y-auto motion-reduce:transition-none"
       >
-        <DriverStopPanel
-          v-if="mode === 'stop' && stop"
-          :stop="stop"
-          :route-terminal="routeTerminal"
-          :can-check-in="canCheckIn"
-          :check-in-pending="checkInPending"
-          :map-ready="mapReady"
-          @close="onPanelClose"
-          @request-confirm="onPanelRequestConfirm"
-        />
-        <DeliveryRouteTimeline
-          v-else-if="mode === 'history'"
-          :route="route"
+        <component
+          :is="modeContent.component as Component"
+          v-if="modeContent"
+          v-bind="modeContent.props"
+          @close="onModeContentClose"
+          @request-confirm="onModeContentRequestConfirm"
         />
       </div>
     </template>

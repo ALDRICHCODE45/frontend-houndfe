@@ -328,3 +328,49 @@ describe('DriverRouteCockpit — REFACTOR: focus return + invariants (REQ-DCK-00
     expect(source).toMatch(/shallowRef/) ; expect(source).toMatch(/focusReturnEl\.value\s*=\s*null/)
   })
 })
+
+    // ─── B3 correction: compact S10 behavioral assertions ────────────────────────
+    // REQ-DRC-112 (zero-stop copy), REQ-DCS-008 (footer-empty), REQ-DCK-008
+    // (focus return). Compact additions; the detached-fallback test above is
+    // preserved verbatim and pins the origin-is-detached → rootRef fallback path.
+
+    describe('DriverRouteCockpit — B3 compact: zero-stop visible copy + footer-empty + connected-origin focus (REQ-DRC-112, REQ-DCS-008, REQ-DCK-008)', () => {
+      it('zero-stop: currentStop/nextStop=null + hasStops=false propagate to operational + footer (REQ-DRC-112, REQ-DCS-008)', async () => {
+        const { inner } = mountCockpit({ route: mkRoute({ stops: [] }) }) ; await flushPromises()
+        const op = inner.findComponent(OpsStub) ; const footer = inner.findComponent(FooterStub)
+        expect(op.props('currentStop')).toBeNull() ; expect(op.props('nextStop')).toBeNull() ; expect(op.props('hasStops')).toBe(false)
+        // footer-empty: hasStops=false + currentStop=null ⇒ footer mode is 'empty' (no action button).
+        expect(footer.props('hasStops')).toBe(false) ; expect(footer.props('currentStop')).toBeNull()
+        expect(footer.props('routeStatus')).toBe('ACTIVE') ; expect((footer.props('progress') as CockpitProgress).total).toBe(0)
+      })
+
+      it('terminal ACTIVE→COMPLETED: footer terminal props propagate verbatim (REQ-DCS-008)', async () => {
+        const { inner } = mountCockpit({ route: mkRoute({ status: 'COMPLETED', stops: [mkStop('s0', 0, 'COMPLETED')] }) }) ; await flushPromises()
+        const footer = inner.findComponent(FooterStub)
+        // routeTerminal=true ⇒ footer mode is 'terminal' (completedTitle/summary/viewHistory, no action button).
+        expect(footer.props('routeStatus')).toBe('COMPLETED') ; expect(footer.props('hasStops')).toBe(true)
+        // selectCurrentStop returns null when isTerminal=true, so footer receives currentStop=null
+        // while still carrying the progress total (footer-empty ≠ terminal).
+        expect(footer.props('currentStop')).toBeNull() ; expect((footer.props('progress') as CockpitProgress).total).toBe(1)
+      })
+
+      it('connected-origin settle (checkInPending true→false): focus returns to the originating button when still in DOM (REQ-DCK-008)', async () => {
+        const { inner, outer } = mountCockpit({ checkInPending: false }) ; await flushPromises()
+        const triggerBtn = inner.findComponent(FooterStub).find('[data-testid="cockpit-footer-action-stub"]').element as HTMLButtonElement
+        await inner.findComponent(FooterStub).find('[data-testid="cockpit-footer-action-stub"]').trigger('click') ; await flushPromises()
+        clickById('cockpit-confirm-confirm-stub') ; await flushPromises()
+        await outer.setProps({ checkInPending: true }) ; await flushPromises()
+        await outer.setProps({ checkInPending: false }) ; await flushPromises()
+        expect(triggerBtn.isConnected).toBe(true) ; expect(document.activeElement).toBe(triggerBtn)
+      })
+
+      it('detached-origin settle preserved: when the originating button is removed, rootRef fallback fires (REQ-DCK-008)', async () => {
+        const { inner, outer } = mountCockpit({ checkInPending: false }) ; await flushPromises()
+        await inner.findComponent(FooterStub).find('[data-testid="cockpit-footer-action-stub"]').trigger('click') ; await flushPromises()
+        clickById('cockpit-confirm-confirm-stub') ; await flushPromises()
+        ;(document.querySelector('[data-testid="cockpit-footer-action-stub"]') as HTMLElement | null)?.remove()
+        await outer.setProps({ checkInPending: true }) ; await flushPromises()
+        await outer.setProps({ checkInPending: false }) ; await flushPromises()
+        expect(document.activeElement).toBe(inner.find('[data-testid="cockpit-root"]').element)
+      })
+    })

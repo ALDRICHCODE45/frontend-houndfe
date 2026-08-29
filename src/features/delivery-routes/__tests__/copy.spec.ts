@@ -115,6 +115,18 @@ describe('copy.ts — single Spanish copy source (design.md §3)', () => {
     expect(DELIVERY_ROUTE_COPY.cockpit.quickActions.email).toBe('Email')
   })
 
+  // ─── B3 correction: centralized success copy for the unified settled handler ───
+  // B3 review found three independent onQuick{Map,Copy,Email} handlers each toasting
+  // only on failure. S8 must route BOTH ok and failure through one unified handler,
+  // with success keys centralized here so any drift between the copy and the panel
+  // template fails the spec immediately.
+
+  it('exposes cockpit quick-action success copy for the unified settled handler (B3 review)', () => {
+    expect(DELIVERY_ROUTE_COPY.cockpit.quickActions.successMap).toBe('Mapa abierto')
+    expect(DELIVERY_ROUTE_COPY.cockpit.quickActions.successCopy).toBe('Dirección copiada')
+    expect(DELIVERY_ROUTE_COPY.cockpit.quickActions.successEmail).toBe('Enviando correo')
+  })
+
   it('quick-action failure messages mirror S2 QUICK_ACTION_FAILURE_MESSAGES byte-for-byte (REQ-DCK-005)', () => {
     // Live cross-import pins both sides against the same source of truth —
     // drift in either file fails this assertion immediately.
