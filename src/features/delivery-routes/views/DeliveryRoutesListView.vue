@@ -18,22 +18,29 @@
  * Create flow (REQ-DRM-006): `@add` opens the slideover in create mode; the
  * slideover emits the zod-whitelisted payload → `useCreateDeliveryRoute().mutate`
  * (its onSuccess toast + list invalidation fire from the composable). The
- * slideover closes on emit. Row actions (edit/start/cancel/delete) land in
- * S5a/S5b — the `actions` column is intentionally empty here.
+ * slideover closes on emit. The START row action (S5b) is wired through the
+ * three-dot kebab + shared ConfirmModal (REQ-DRM-010/011/013); edit/cancel/delete
+ * row actions land in later S5a/S5b work.
  */
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import type { TableColumn } from '@nuxt/ui'
 import { AppDataTable, createSimpleHeader } from '@/core/shared/components/DataTable'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
+import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
 import { useDeliveryRouteRole } from '../composables/useDeliveryRouteRole'
 import { useDeliveryRoutesTable } from '../composables/useDeliveryRoutesTable'
 import { useDriverActiveRoutes } from '../composables/useDriverActiveRoutes'
 import { useCreateDeliveryRoute } from '../composables/useCreateDeliveryRoute'
+import { useStartDeliveryRoute } from '../composables/useStartDeliveryRoute'
 import DeliveryRouteUpsertSlideover from '../components/DeliveryRouteUpsertSlideover.vue'
 import DriverRouteCard from '../components/DriverRouteCard.vue'
 import { DELIVERY_ROUTE_COPY } from '../copy'
+import {
+  buildDeliveryRouteStartActions,
+  type DeliveryRouteRowActionItem,
+} from '../utils/delivery-route-actions.utils'
 import {
   DELIVERY_ROUTE_STATUS_LABELS,
   DELIVERY_ROUTE_STATUS_TONES,
@@ -44,7 +51,7 @@ import {
 
 // ─── Role discriminator (manager vs driver, design §6.4 / §9.3) ──────────────
 // Destructured at top level so the template auto-unwraps the refs.
-const { isManager, isDriver, canCreate } = useDeliveryRouteRole()
+const { isManager, isDriver, canCreate, canUpdate } = useDeliveryRouteRole()
 
 // ─── Router (driver branch navigates to the detail view, manager stays in-place) ─
 const router = useRouter()
@@ -116,11 +123,49 @@ async function onCreate(payload: CreateDeliveryRouteRequest): Promise<void> {
   }
 }
 
+// ─── Start-action kebab + shared ConfirmModal (S5b, REQ-DRM-010/011/013) ──────
+// The kebab exposes ONLY the start action, gated per the detail-view
+// `canShowStart` rules (DRAFT + canUpdate + at least one stop). Selecting it
+// opens the shared ConfirmModal; the mutation fires only after the user
+// confirms — the composable owns pending state, toast, invalidation, and error.
+const { mutateAsync: startRoute, isPending: startIsPending } = useStartDeliveryRoute()
+
+const confirmRoute = ref<DeliveryRouteResponseDto | null>(null)
+const isStartConfirmOpen = computed<boolean>(() => confirmRoute.value !== null)
+
+function openStartConfirm(row: DeliveryRouteResponseDto): void {
+  confirmRoute.value = row
+}
+
+function closeStartConfirm(): void {
+  confirmRoute.value = null
+}
+
+/** Per-row kebab items — the pure gate lives in `buildDeliveryRouteStartActions`. */
+function rowStartItems(row: DeliveryRouteResponseDto): DeliveryRouteRowActionItem[][] {
+  return buildDeliveryRouteStartActions(row, {
+    canUpdate: canUpdate.value,
+    onStart: openStartConfirm,
+  })
+}
+
+async function onConfirmStart(): Promise<void> {
+  const route = confirmRoute.value
+  closeStartConfirm()
+  if (!route) return
+  try {
+    await startRoute(route.id)
+  } catch {
+    // Errors already surfaced via the composable's onError toast (the 409
+    // conflict path owns its own refetch + toast per design §10.1).
+  }
+}
+
 // ─── INLINE columns (no columns composable exists for this module) ────────────
 // Structural definitions only — cell markup lives in the `#*-cell` slots below.
 // REQ-DRM-001: status badge + driver name (or '—') + x/y progress; the `actions`
-// column is right-pinned by `useDeliveryRoutesTable`'s defaultPinning and stays
-// empty in S4c (row actions land in S5a/S5b).
+// column is right-pinned by `useDeliveryRoutesTable`'s defaultPinning and hosts
+// the START-only kebab (S5b) — gated per row via `buildDeliveryRouteStartActions`.
 const columns: TableColumn<DeliveryRouteResponseDto>[] = [
   {
     accessorKey: 'id',
@@ -251,6 +296,22 @@ function statusLabel(status: DeliveryRouteStatus) {
       @create="onCreate"
     />
 
+    <!-- Shared ConfirmModal for the START action (REQ-DRM-010/011/013).
+         Selecting "Iniciar ruta" in the kebab opens it; the mutation fires
+         only after the user confirms. -->
+    <ConfirmModal
+      :open="isStartConfirmOpen"
+      :title="DELIVERY_ROUTE_COPY.confirm.start.title"
+      :description="DELIVERY_ROUTE_COPY.confirm.start.body"
+      :confirm-label="DELIVERY_ROUTE_COPY.confirm.start.confirmLabel"
+      :cancel-label="DELIVERY_ROUTE_COPY.confirm.start.cancelLabel"
+      confirm-color="primary"
+      :loading="startIsPending"
+      data-testid="list-start-confirm-modal"
+      @update:open="(value: boolean) => { if (!value) closeStartConfirm() }"
+      @confirm="onConfirmStart"
+    />
+
     <AppDataTable
       v-model:sorting="sorting"
       v-model:pagination="pagination"
@@ -293,9 +354,21 @@ function statusLabel(status: DeliveryRouteStatus) {
         />
       </template>
 
-      <template #actions-cell>
-        <!-- Row actions land in S5a/S5b — intentionally empty in S4c. -->
-        <span class="sr-only">acciones</span>
+      <template #actions-cell="{ row }">
+        <!-- START-only kebab (S5b, REQ-DRM-011/013): hidden when the pure gate
+             returns no items (non-DRAFT / no stops / no update permission). -->
+        <UDropdownMenu
+          v-if="rowStartItems(row.original).length > 0"
+          :items="rowStartItems(row.original)"
+          :content="{ align: 'end' }"
+        >
+          <UButton
+            icon="i-lucide-ellipsis-vertical"
+            color="neutral"
+            variant="ghost"
+            class="size-7"
+          />
+        </UDropdownMenu>
       </template>
     </AppDataTable>
   </div>

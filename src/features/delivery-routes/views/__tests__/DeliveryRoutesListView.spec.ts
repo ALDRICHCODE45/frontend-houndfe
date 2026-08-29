@@ -80,6 +80,7 @@ vi.mock('../../composables/useDriverActiveRoutes', () => ({
 // slideover doesn't reach TanStack Query. We just record the emit.
 const createMutateMock = vi.fn()
 const updateMutateMock = vi.fn()
+const startMutateMock = vi.fn()
 vi.mock('../../composables/useCreateDeliveryRoute', () => ({
   useCreateDeliveryRoute: () => ({
     mutate: createMutateMock,
@@ -92,6 +93,14 @@ vi.mock('../../composables/useUpdateDeliveryRoute', () => ({
   useUpdateDeliveryRoute: () => ({
     mutate: updateMutateMock,
     mutateAsync: updateMutateMock,
+    isPending: ref(false),
+    error: ref(null),
+  }),
+}))
+vi.mock('../../composables/useStartDeliveryRoute', () => ({
+  useStartDeliveryRoute: () => ({
+    mutate: startMutateMock,
+    mutateAsync: startMutateMock,
     isPending: ref(false),
     error: ref(null),
   }),
@@ -202,7 +211,7 @@ vi.mock('@/core/shared/components/DataTable', () => ({
       'empty',
     ],
     emits: ['add', 'refresh'],
-    setup(props, { emit }) {
+    setup(props, { emit, slots }) {
       dataTableProps.push({ ...props })
       function fireAdd() {
         emit('add')
@@ -210,8 +219,18 @@ vi.mock('@/core/shared/components/DataTable', () => ({
       function fireRefresh() {
         emit('refresh')
       }
-      return () =>
-        h(
+      return () => {
+        // Render the `actions-cell` slot once per row so the view's kebab wiring
+        // is exercised (the slot receives the TanStack-style `{ row }` shape).
+        const rows = Array.isArray(props.data) ? (props.data as Array<Record<string, unknown>>) : []
+        const rowNodes = rows.map((item, index) =>
+          h(
+            'div',
+            { 'data-testid': 'app-data-table-row', key: String((item as { id?: unknown }).id ?? index) },
+            [slots['actions-cell']?.({ row: { original: item }, index })],
+          ),
+        )
+        return h(
           'div',
           { 'data-testid': 'app-data-table-stub' },
           [
@@ -229,12 +248,79 @@ vi.mock('@/core/shared/components/DataTable', () => ({
               { type: 'button', 'data-testid': 'app-data-table-stub-refresh', onClick: fireRefresh },
               'refresh',
             ),
+            ...rowNodes,
           ],
         )
+      }
     },
   }),
   SortableHeader: defineComponent({ name: 'SortableHeader', render: () => null }),
   createSimpleHeader: (label: string) => () => label,
+}))
+
+// ─── Stub the shared ConfirmModal primitive — record open state + emits ─
+const confirmModalState: {
+  open: boolean
+  title: string
+  description: string
+  confirmLabel: string
+  cancelLabel: string
+  confirmColor: string
+  loading: boolean
+} = { open: false, title: '', description: '', confirmLabel: '', cancelLabel: '', confirmColor: 'primary', loading: false }
+const confirmEmits = { confirm: 0, cancel: 0 }
+function resetConfirmModalState() {
+  confirmModalState.open = false
+  confirmModalState.title = ''
+  confirmModalState.description = ''
+  confirmModalState.confirmLabel = ''
+  confirmModalState.cancelLabel = ''
+  confirmModalState.confirmColor = 'primary'
+  confirmModalState.loading = false
+  confirmEmits.confirm = 0
+  confirmEmits.cancel = 0
+}
+vi.mock('@/core/shared/components/ConfirmModal.vue', () => ({
+  default: defineComponent({
+    name: 'ConfirmModal',
+    props: {
+      open: { type: Boolean, default: false },
+      title: { type: String, default: '' },
+      description: { type: String, default: '' },
+      confirmLabel: { type: String, default: 'Confirmar' },
+      cancelLabel: { type: String, default: 'Cancelar' },
+      confirmColor: { type: String, default: 'primary' },
+      loading: { type: Boolean, default: false },
+    },
+    emits: ['update:open', 'confirm', 'cancel'],
+    setup(props, { emit }) {
+      return () => {
+        confirmModalState.open = props.open
+        confirmModalState.title = props.title ?? ''
+        confirmModalState.description = props.description ?? ''
+        confirmModalState.confirmLabel = props.confirmLabel ?? ''
+        confirmModalState.cancelLabel = props.cancelLabel ?? ''
+        confirmModalState.confirmColor = (props.confirmColor as string) ?? 'primary'
+        confirmModalState.loading = props.loading
+        return h('div', { 'data-testid': 'list-confirm-modal-stub' }, [
+          h('span', { 'data-testid': 'list-confirm-modal-title' }, props.title ?? ''),
+          h('span', { 'data-testid': 'list-confirm-modal-description' }, props.description ?? ''),
+          h('span', { 'data-testid': 'list-confirm-modal-confirm-color' }, (props.confirmColor as string) ?? 'primary'),
+          h('span', { 'data-testid': 'list-confirm-modal-loading' }, String(props.loading)),
+          h(
+            'button',
+            { type: 'button', 'data-testid': 'list-confirm-modal-confirm', onClick: () => emit('confirm') },
+            'confirm',
+          ),
+          h(
+            'button',
+            { type: 'button', 'data-testid': 'list-confirm-modal-cancel', onClick: () => emit('update:open', false) },
+            'cancel',
+          ),
+        ])
+      }
+    },
+  }),
 }))
 
 // useToast stub.
@@ -249,12 +335,48 @@ vi.mock('vue-router', () => ({
 
 import DeliveryRoutesListView from '../DeliveryRoutesListView.vue'
 
+// ─── Stub the Nuxt UI dropdown + button so the actions-cell kebab is testable
+// without the Nuxt UI runtime. The UDropdownMenu stub renders every section
+// item as a plain button that fires the item's `onSelect` directly.
+const UDropdownMenuStub = defineComponent({
+  name: 'UDropdownMenu',
+  props: ['items', 'content'],
+  setup(props) {
+    return () => {
+      const items = ((props.items as unknown[][]) ?? []).flat() as Array<{ label: string; onSelect: () => void }>
+      return h('div', { 'data-testid': 'row-actions-menu' }, [
+        h('button', { type: 'button', 'data-testid': 'row-actions-trigger' }, '⋯'),
+        ...items.map((item) =>
+          h(
+            'button',
+            { type: 'button', 'data-testid': 'row-action-item', key: item.label, onClick: () => item.onSelect() },
+            item.label,
+          ),
+        ),
+      ])
+    }
+  },
+})
+
+const UButtonStub = defineComponent({
+  name: 'UButton',
+  props: ['icon', 'color', 'variant', 'label', 'loading'],
+  setup(props) {
+    return () => h('span', { 'data-testid': 'row-actions-button-stub' }, props.label ?? '⋯')
+  },
+})
+
 function mountView() {
   return mount(DeliveryRoutesListView, {
     global: {
       stubs: {
-        // Avoid pulling in the Nuxt UI runtime; the AppDataTable + slideover
-        // are already mocked above.
+        // Nuxt UI auto-imports register under BOTH the U* name and the
+        // unprefixed alias (see AdminPaymentDetailsView.spec.ts) — stub both
+        // so the actions-cell kebab resolves to the test stub.
+        UDropdownMenu: UDropdownMenuStub,
+        DropdownMenu: UDropdownMenuStub,
+        UButton: UButtonStub,
+        Button: UButtonStub,
       },
     },
   })
@@ -299,11 +421,28 @@ function resetDriverState(overrides: Partial<{
   driverRoutesMock.error.value = overrides.error ?? null
 }
 
+/** Minimal DeliveryRouteResponseDto-shaped fixture for the manager table. */
+function makeRoute(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: 'route-42',
+    status: 'DRAFT',
+    driver: null,
+    startedAt: null,
+    completedAt: null,
+    cancelledAt: null,
+    notes: null,
+    stops: [],
+    timeline: [],
+    ...overrides,
+  }
+}
+
 beforeEach(() => {
   vi.clearAllMocks()
   dataTableProps.length = 0
   slideoverState.emits.create.length = 0
   slideoverState.emits.edit.length = 0
+  resetConfirmModalState()
   resetRoleFlags({ isManager: { value: true }, canCreate: { value: true } })
   resetTableState()
 })
@@ -403,6 +542,91 @@ describe('DeliveryRoutesListView — manager branch (design.md §6.4, §11, REQ-
     expect(String(lastProps.errorMessage)).toMatch(/red rota|operación|reintenta/i)
   })
 })
+
+    describe('DeliveryRoutesListView — manager actions column: START kebab (S5b, REQ-DRM-011/013)', () => {
+      beforeEach(() => {
+        resetConfirmModalState()
+        resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+        resetTableState({ data: [makeRoute({ stops: [{ id: 's1' }] })] })
+      })
+
+      it('renders the three-dot kebab with the canonical "Iniciar ruta" item for a DRAFT route with stops + update permission', async () => {
+        const wrapper = mountView()
+        await flushPromises()
+        expect(wrapper.find('[data-testid="row-actions-menu"]').exists()).toBe(true)
+        const items = wrapper.findAll('[data-testid="row-action-item"]')
+        expect(items.length).toBe(1)
+        expect(items[0]!.text()).toBe(DELIVERY_ROUTE_COPY.actions.start)
+        expect(items[0]!.text()).toBe('Iniciar ruta')
+      })
+
+      it('hides the kebab when the route is NOT DRAFT (status gate)', async () => {
+        resetTableState({
+          data: [makeRoute({ status: 'ACTIVE', startedAt: '2025-01-01T00:00:00Z' })],
+        })
+        const wrapper = mountView()
+        await flushPromises()
+        expect(wrapper.find('[data-testid="row-actions-menu"]').exists()).toBe(false)
+      })
+
+      it('hides the kebab when the route has no stops (stop gate)', async () => {
+        resetTableState({ data: [makeRoute()] }) // stops: []
+        const wrapper = mountView()
+        await flushPromises()
+        expect(wrapper.find('[data-testid="row-actions-menu"]').exists()).toBe(false)
+      })
+
+      it('hides the kebab when the user cannot update DeliveryRoute (permission gate)', async () => {
+        resetRoleFlags({ isManager: { value: true }, canUpdate: { value: false } })
+        resetTableState({ data: [makeRoute({ stops: [{ id: 's1' }] })] })
+        const wrapper = mountView()
+        await flushPromises()
+        expect(wrapper.find('[data-testid="row-actions-menu"]').exists()).toBe(false)
+      })
+
+      it('opens ConfirmModal with the confirm.start copy when "Iniciar ruta" is selected; the mutation fires only after confirm', async () => {
+        const wrapper = mountView()
+        await flushPromises()
+        await wrapper.find('[data-testid="row-action-item"]').trigger('click')
+        await flushPromises()
+        expect(confirmModalState.open).toBe(true)
+        expect(confirmModalState.title).toBe(DELIVERY_ROUTE_COPY.confirm.start.title)
+        expect(confirmModalState.description).toBe(DELIVERY_ROUTE_COPY.confirm.start.body)
+        expect(confirmModalState.confirmLabel).toBe(DELIVERY_ROUTE_COPY.confirm.start.confirmLabel)
+        expect(confirmModalState.cancelLabel).toBe(DELIVERY_ROUTE_COPY.confirm.start.cancelLabel)
+        expect(confirmModalState.confirmColor).toBe('primary')
+        // Selecting the menu item must NOT fire the mutation by itself.
+        expect(startMutateMock).not.toHaveBeenCalled()
+        await wrapper.find('[data-testid="list-confirm-modal-confirm"]').trigger('click')
+        await flushPromises()
+        expect(startMutateMock).toHaveBeenCalledTimes(1)
+        expect(startMutateMock).toHaveBeenCalledWith('route-42')
+      })
+
+      it('closing the modal without confirming does NOT fire the start mutation (TRIANGULATE)', async () => {
+        const wrapper = mountView()
+        await flushPromises()
+        await wrapper.find('[data-testid="row-action-item"]').trigger('click')
+        await flushPromises()
+        expect(startMutateMock).not.toHaveBeenCalled()
+        await wrapper.find('[data-testid="list-confirm-modal-cancel"]').trigger('click')
+        await flushPromises()
+        expect(startMutateMock).not.toHaveBeenCalled()
+        expect(confirmModalState.open).toBe(false)
+      })
+
+      it('never renders the kebab on the driver branch (manager-only surface)', async () => {
+        resetRoleFlags({
+          isManager: { value: false },
+          isDriver: { value: true },
+          canRead: { value: true },
+        })
+        resetTableState({ data: [makeRoute({ stops: [{ id: 's1' }] })] })
+        const wrapper = mountView()
+        await flushPromises()
+        expect(wrapper.find('[data-testid="row-actions-menu"]').exists()).toBe(false)
+      })
+    })
 
     describe('DeliveryRoutesListView — driver branch (S6b, design §4.2, §11, REQ-DRC-001)', () => {
       beforeEach(() => {

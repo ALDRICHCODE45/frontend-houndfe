@@ -11,6 +11,9 @@
  *       (length mismatch | unknown id | duplicate), else `null`.
  *   - `buildDeliveryRouteRowActions(row, ctx)` — dropdown sections per the
  *       manager gate contract (edit / start / cancel / delete / reorderStops).
+ *   - `buildDeliveryRouteStartActions(row, ctx)` — the START-only kebab
+ *       section for the manager list (DRAFT + canUpdate + ≥1 stop gate,
+ *       mirroring the detail-view `canShowStart` rules).
  *   - `buildStopProgress(stops)` — the `x/y` delivered-stops counter
  *       (`"Sin paradas"` when empty, `"{completed}/{total}"` otherwise).
  *
@@ -129,6 +132,47 @@ export function buildDeliveryRouteRowActions(
       ]
     : []
   return [main, destructive].filter((section) => section.length > 0)
+}
+
+// ─── START-only row-action builder (manager list kebab) ───────────────────────
+
+export interface DeliveryRouteStartActionContext {
+  /** `update:DeliveryRoute` — gates the start action. */
+  canUpdate: boolean
+  /** Invoked with the row when "Iniciar ruta" is selected. */
+  onStart: (row: DeliveryRouteResponseDto) => void
+}
+
+/**
+ * buildDeliveryRouteStartActions — Build the manager-list kebab content for the
+ * START action only (S5b start wiring).
+ *
+ * Gating mirrors the detail-view `canShowStart` rules EXACTLY (REQ-DRM-013):
+ *   - `row.status === 'DRAFT'`
+ *   - `row.stops.length > 0` (the backend rejects empty-route starts with
+ *     422 DELIVERY_ROUTE_INVALID_TRANSITION)
+ *   - `canUpdate` (CASL `update:DeliveryRoute`)
+ *
+ * Returns a single section `[[{ label: 'Iniciar ruta', onSelect }]]` when ALL
+ * rules pass, else `[]` — the parent hides the kebab on `[]`, the same
+ * contract as `buildDeliveryRouteRowActions`. The label is sourced verbatim
+ * from `DELIVERY_ROUTE_COPY.actions.start` (never hardcoded Spanish).
+ */
+export function buildDeliveryRouteStartActions(
+  row: DeliveryRouteResponseDto,
+  ctx: DeliveryRouteStartActionContext,
+): DeliveryRouteRowActionItem[][] {
+  if (row.status !== 'DRAFT') return []
+  if (row.stops.length === 0) return []
+  if (!ctx.canUpdate) return []
+  return [
+    [
+      {
+        label: DELIVERY_ROUTE_COPY.actions.start,
+        onSelect: () => ctx.onStart(row),
+      },
+    ],
+  ]
 }
 
 // ─── Stop-progress builder ──────────────────────────────────────────────────

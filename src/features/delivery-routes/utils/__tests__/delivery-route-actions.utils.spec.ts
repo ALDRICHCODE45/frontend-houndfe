@@ -13,6 +13,11 @@
 //       • sections with zero items are filtered out (so the parent can pass
 //         the result verbatim to UDropdownMenu).
 //       • never includes keys the caller didn't ask for (no `disabled` items).
+//   - `buildDeliveryRouteStartActions(row, ctx)`:
+//       • START-only kebab content for the manager list; returns a single
+//         section with `DELIVERY_ROUTE_COPY.actions.start` when the row is
+//         DRAFT + canUpdate + has at least one stop (REQ-DRM-011/013), else `[]`.
+//       • the parent hides the kebab on `[]` (same contract as the full builder).
 //   - `buildStopProgress(stops)`:
 //       • `"Sin paradas"` when stops is empty.
 //       • `"{completed}/{total}"` when stops is non-empty.
@@ -26,6 +31,7 @@ import { describe, it, expect, vi } from 'vitest'
 import {
   assertReorderCoversStops,
   buildDeliveryRouteRowActions,
+  buildDeliveryRouteStartActions,
   buildStopProgress,
 } from '../delivery-route-actions.utils'
 import { DELIVERY_ROUTE_COPY } from '../../copy'
@@ -261,6 +267,64 @@ describe('buildDeliveryRouteRowActions (sdd delivery-routes S5a, design §4.1)',
       DELIVERY_ROUTE_COPY.actions.delete,
     ]
     expect(allLabels).toEqual(expected)
+  })
+})
+
+describe('buildDeliveryRouteStartActions (START-only kebab gate, REQ-DRM-011/013)', () => {
+  // DRAFT + one stop — the happy path every gate test starts from.
+  const startableRow = makeRoute({ id: 'route-1', stops: [makeStop('s1')] })
+
+  it('returns a single section with the canonical start label when DRAFT + canUpdate + has stops', () => {
+    const sections = buildDeliveryRouteStartActions(startableRow, {
+      canUpdate: true,
+      onStart: () => {},
+    })
+    expect(sections).toHaveLength(1)
+    expect(sections[0]).toHaveLength(1)
+    expect(sections[0]![0]!.label).toBe(DELIVERY_ROUTE_COPY.actions.start)
+  })
+
+  it('returns an empty array for every non-DRAFT status (status gate)', () => {
+    for (const status of ['ACTIVE', 'COMPLETED', 'CANCELLED'] as const) {
+      const sections = buildDeliveryRouteStartActions(
+        { ...startableRow, status },
+        { canUpdate: true, onStart: () => {} },
+      )
+      expect(sections).toEqual([])
+    }
+  })
+
+  it('returns an empty array when the route has no stops (stop gate — backend 422)', () => {
+    const sections = buildDeliveryRouteStartActions(
+      makeRoute({ id: 'route-1' }), // stops: []
+      { canUpdate: true, onStart: () => {} },
+    )
+    expect(sections).toEqual([])
+  })
+
+  it('returns an empty array when the user cannot update DeliveryRoute (permission gate)', () => {
+    const sections = buildDeliveryRouteStartActions(startableRow, {
+      canUpdate: false,
+      onStart: () => {},
+    })
+    expect(sections).toEqual([])
+  })
+
+  it('invokes the supplied onStart callback with the row when "Iniciar ruta" is selected', () => {
+    const onStart = vi.fn()
+    const sections = buildDeliveryRouteStartActions(startableRow, { canUpdate: true, onStart })
+    sections[0]![0]!.onSelect()
+    expect(onStart).toHaveBeenCalledTimes(1)
+    expect(onStart).toHaveBeenCalledWith(startableRow)
+  })
+
+  it('sources the label verbatim from DELIVERY_ROUTE_COPY.actions.start (no inline copy)', () => {
+    const sections = buildDeliveryRouteStartActions(startableRow, {
+      canUpdate: true,
+      onStart: () => {},
+    })
+    expect(sections[0]![0]!.label).toBe(DELIVERY_ROUTE_COPY.actions.start)
+    expect(sections[0]![0]!.label).toBe('Iniciar ruta')
   })
 })
 
