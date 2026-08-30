@@ -50,8 +50,8 @@ const FooterStub = defineComponent({ props: { routeStatus: String, currentStop: 
     <button data-testid="cockpit-footer-history-stub" @click="$emit('open-history', { trigger: $event.currentTarget })">hist</button>
   </footer>` })
 // Drawer stub: fully controlled by `open`; exposes the four events + mirror props for the spec.
-const DrawerStub = defineComponent({ props: ['open', 'mode', 'route', 'stop', 'routeTerminal', 'canCheckIn', 'checkInPending'], emits: ['update:open', 'closed', 'request-confirm'], template: `
-  <div data-testid="cockpit-drawer-stub" :data-open="String(open)" :data-mode="mode" :data-stop-id="stop?.id || ''">
+const DrawerStub = defineComponent({ props: ['open', 'mode', 'route', 'stop', 'routeTerminal', 'canCheckIn', 'checkInPending', 'isDesktop'], emits: ['update:open', 'closed', 'request-confirm'], template: `
+  <div data-testid="cockpit-drawer-stub" :data-open="String(open)" :data-mode="mode" :data-stop-id="stop?.id || ''" :data-is-desktop="String(isDesktop)">
     <button data-testid="cockpit-drawer-update-false-stub" @click="$emit('update:open', false)">upd</button>
     <button data-testid="cockpit-drawer-closed-stub" @click="$emit('closed')">closed</button>
     <button data-testid="cockpit-drawer-request-confirm-stub-s1" @click="$emit('request-confirm', { stopId: 's1', trigger: $event.currentTarget })">cf1</button>
@@ -124,6 +124,47 @@ describe('DriverRouteCockpit — RED: non-null composition surface (REQ-DCS-001)
 })
 
 // ─── GREEN: forward + exactly-once (REQ-DCS-007 / REQ-DRC-104) ─────────────────
+    // ─── S2 — single breakpoint authority (REQ-DCK-009) ────────────────────────────────────────────────────────────
+
+    describe('DriverRouteCockpit — S2: single breakpoint authority (REQ-DCK-009)', () => {
+      it('source: SFC calls useCockpitBreakpoint() exactly once and passes :is-desktop to the overlay', () => {
+        const source = docStripped()
+        // Single call to the composable (one owner = the cockpit).
+        const callMatches = source.match(/useCockpitBreakpoint\(\)/g) ?? []
+        expect(callMatches).toHaveLength(1)
+        // The returned `isDesktop` is wired to the drawer via a kebab-case attribute.
+        expect(source).toMatch(/:is-desktop=/)
+      })
+
+      it('source: SFC MUST NOT import useMediaQuery directly (composable owns the media query)', () => {
+        const source = docStripped()
+        expect(source).not.toMatch(/useMediaQuery\b/)
+        // Single import of useCockpitBreakpoint only.
+        const importMatches = source.match(/from\s+['"]\.\.\/\.\.\/composables\/cockpit\/useCockpitBreakpoint['"]/g) ?? []
+        expect(importMatches.length).toBeGreaterThanOrEqual(1)
+      })
+
+      it('passes parent-owned isDesktop to the DrawerStub on mobile (lg-)', async () => {
+        const { inner } = mountCockpit() ; await flushPromises()
+        const drawer = inner.findComponent(DrawerStub)
+        // Default breakpoint in jsdom: matches=false (mobile).
+        expect(drawer.props('isDesktop')).toBe(false)
+      })
+
+      it('isDesktop flip updates the DrawerStub in the same render cycle (parent-owned single source)', async () => {
+        const { inner, outer } = mountCockpit() ; await flushPromises()
+        expect(inner.findComponent(DrawerStub).props('isDesktop')).toBe(false)
+        // Open a stop so the overlay's v-bind receives the prop.
+        await inner.findComponent(SpineStub).find('[data-testid="cockpit-spine-stub-s0"]').trigger('click')
+        await flushPromises()
+        const drawer = inner.findComponent(DrawerStub)
+        expect(drawer.props('isDesktop')).toBe(false)
+        const drawerRoot = document.querySelector('[data-testid="cockpit-drawer-stub"]') as HTMLElement | null
+        expect(drawerRoot?.getAttribute('data-is-desktop')).toBe('false')
+      })
+    })
+
+
 
 describe('DriverRouteCockpit — GREEN: forwarded actions + exactly-once emission', () => {
   it('header back / refresh forward verbatim; no router import', async () => {

@@ -102,6 +102,7 @@ import DriverCockpitFooter from './DriverCockpitFooter.vue'
 import DriverCockpitDrawer from './DriverCockpitDrawer.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import { useDriverRouteCockpit } from '../../composables/cockpit/useDriverRouteCockpit'
+import { useCockpitBreakpoint } from '../../composables/cockpit/useCockpitBreakpoint'
 import type { CockpitProgress, StopTrigger, DrawerMode } from '../../composables/cockpit/useDriverRouteCockpit'
 import type { DeliveryRouteResponseDto, DeliveryRouteStop } from '../../interfaces/delivery-route.types'
 import { DELIVERY_ROUTE_COPY } from '../../copy'
@@ -109,6 +110,11 @@ import { DELIVERY_ROUTE_COPY } from '../../copy'
 // Props + emits (REQ-DCS-001 / REQ-DRC-104).
 const props = defineProps<{ route: DeliveryRouteResponseDto; isFetching: boolean; canCheckIn: boolean; checkInPending: boolean }>()
 const emit = defineEmits<{ back: []; refresh: []; 'request-check-in': [stopId: string] }>()
+
+// Single breakpoint authority (S2 of `driver-cockpit-responsive-polish`; REQ-DCK-009).
+// The cockpit owns the ONE invocation; the overlay receives `isDesktop` as a
+// REQUIRED prop. Children MUST NOT call `useCockpitBreakpoint` themselves.
+const { isDesktop } = useCockpitBreakpoint()
 
 // Derived state (one selector pass per route change).
 const derived = useDriverRouteCockpit(() => props.route)
@@ -190,7 +196,7 @@ watch(() => props.checkInPending, (next, prev) => { if (prev && !next && state.v
     </div>
     <DriverCockpitFooter :route-status="props.route.status" :current-stop="currentStop" :progress="progress" :has-stops="hasStops" :can-check-in="props.canCheckIn" :check-in-pending="props.checkInPending" @request-confirm="onFooterRequestConfirm" @open-history="onHeaderOpenHistory" />
     <!-- Overlay surface: one drawer + sibling ConfirmModal (never an overlap). -->
-    <DriverCockpitDrawer :open="drawerOpen" :mode="drawerMode" :route="props.route" :stop="drawerStop" :route-terminal="routeTerminal" :can-check-in="props.canCheckIn" :check-in-pending="props.checkInPending" @update:open="onDrawerUpdateOpen" @closed="onDrawerClosed" @request-confirm="onDrawerRequestConfirm" />
+    <DriverCockpitDrawer :open="drawerOpen" :mode="drawerMode" :route="props.route" :stop="drawerStop" :route-terminal="routeTerminal" :can-check-in="props.canCheckIn" :check-in-pending="props.checkInPending" :is-desktop="isDesktop" @update:open="onDrawerUpdateOpen" @closed="onDrawerClosed" @request-confirm="onDrawerRequestConfirm" />
     <ConfirmModal :open="isConfirmOpen" :title="confirmTitle" :description="confirmBody" :confirm-label="DELIVERY_ROUTE_COPY.cockpit.confirm.confirmLabel" :cancel-label="DELIVERY_ROUTE_COPY.cockpit.confirm.cancelLabel" confirm-color="primary" @update:open="onConfirmUpdateOpen" @confirm="onConfirm" @cancel="onConfirmCancel" />
   </section>
 </template>

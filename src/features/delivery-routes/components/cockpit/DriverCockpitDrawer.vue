@@ -73,6 +73,10 @@ import type {
 import { DELIVERY_ROUTE_COPY } from '../../copy'
 
 // ─── Props / emits ──────────────────────────────────────────────────────────────
+// S2a (REQ-DCK-009) adds the required `isDesktop: boolean` prop so the overlay
+// can eventually pick its container without owning the breakpoint. The template,
+// lifecycle, and container choice remain unchanged in S2a — the value is consumed
+// by S2b. Required (no default) so the cockpit MUST pass the parent-owned flag.
 const props = defineProps<{
   open: boolean
   mode: DrawerMode
@@ -81,6 +85,7 @@ const props = defineProps<{
   routeTerminal: boolean
   canCheckIn: boolean
   checkInPending: boolean
+  isDesktop: boolean
 }>()
 const emit = defineEmits<{
   'update:open': [value: boolean]

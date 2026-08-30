@@ -134,7 +134,7 @@ Only the tracker branch ultimately integrates to main.
 Implementation checklist consumed by native SDD status/apply:
 
 - [x] S1 — Restore the app-shell mobile sidebar trigger with focused tests green.
-- [ ] S2a — Land the single parent-owned breakpoint foundation and root wiring with focused tests green.
+- [x] S2a — Land the single parent-owned breakpoint foundation and root wiring with focused tests green.
 - [ ] S2b — Complete the adaptive overlay container/lifecycle using the required parent prop with focused tests green.
 - [ ] S3 — Remove duplicate stop-panel chrome and compose exactly one viewport-specific delivery action with focused tests green.
 - [ ] S4 — Complete evidence-backed responsive header/gutter/spine/footer/available-height polish, including required viewport screenshots, with focused tests green.
