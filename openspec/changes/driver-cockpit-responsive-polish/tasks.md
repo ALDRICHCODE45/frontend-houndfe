@@ -12,10 +12,11 @@ Scope: corrective responsive composition for the driver cockpit and the applicat
 | 400-line budget risk | High (total review scope exceeds 400 even though each slice is bounded) |
 | Per-slice 600-line hard cap | Within budget on every slice (worst slice ≈ 225 lines) |
 | Chained PRs recommended | Yes |
-| Suggested grouping | Three review units (B1, B2, B3), each < 400 changed lines, preserving five atomic slice commits |
+| Suggested grouping | Four review units (B1, B2, B3, B4), each < 400 changed lines, preserving five atomic slice commits |
 | B1 — Shell trigger + breakpoint foundation | S1 + S2a ≈ 335 lines all-inclusive |
 | B2 — Adaptive overlay lifecycle/container | S2b ≈ 370 lines all-inclusive |
-| B3 — Stop-panel chrome + viewport polish | S3 + S4 ≈ 265 lines all-inclusive |
+| B3 — Stop-panel chrome + action composition | S3 actual 298 lines all-inclusive |
+| B4 — Viewport polish | S4 forecast ≈ 110 lines all-inclusive |
 | Delivery strategy | ask-on-risk |
 | Chain strategy | feature-branch-chain (user selected) |
 
@@ -29,7 +30,7 @@ Per-slice all-inclusive forecast (implementation + co-located tests + progress/a
 | S3 — Stop-panel chrome removal + single-action composition | MOD `DriverStopPanel.vue` + spec (props `{ stop, mapReady }`, no emits); MOD `DriverCockpitDrawer.vue` + spec (slideover `#footer` slot); MOD `DriverCockpitFooter.vue` + spec (REQUIRED `isDesktop` prop, gate current-action on `!isDesktop`); MOD `DriverRouteCockpit.vue` + spec | ~155 lines | Low | OK |
 | S4 — Header / gutter / spine / safe-area / viewport polish | MOD `DriverCockpitHeader.vue` + spec (no destructive truncate removal); MOD `DriverOperationalStops.vue` + spec; MOD `DriverRouteSpine.vue` + spec (preserve existing `min-w-0 flex-1 truncate` overflow safety); MOD `DriverCockpitFooter.vue` + spec (additive safe-area); MOD `DriverRouteCockpit.vue` (containing-panel-aware viewport composition — NEVER raw `min-h-[100dvh]`) | ~110 lines | Low | OK |
 
-No slice exceeds 600 changed lines. Recovery evidence split the underestimated S2 into S2a (~165) and S2b (~370), producing three review units below 400: B1 = S1+S2a, B2 = S2b, B3 = S3+S4. The user explicitly authorized the split and `feature-branch-chain`; no size exception applies. S4 additionally requires manual screenshot verification at 373×807 and a desktop viewport (≥1024px) for the containing-panel-aware viewport composition (no jsdom pixel assertions).
+No slice exceeds 600 changed lines. Recovery evidence split the underestimated S2 into S2a (~165) and S2b (~370). After S3 settled at 298 changed lines, its B3 branch retained only 102 lines under the 400-line review budget, less than S4's ~110-line forecast. The user therefore authorized a fourth review unit: B1 = S1+S2a, B2 = S2b, B3 = S3, B4 = S4. The `feature-branch-chain` strategy remains; no size exception applies. S4 additionally requires manual screenshot verification at 373×807 and a desktop viewport (≥1024px) for the containing-panel-aware viewport composition (no jsdom pixel assertions).
 
 ```text
 Decision needed before apply: No (resolved: split selected)
@@ -127,7 +128,8 @@ Resolved delivery topology:
 tracker: feat/driver-cockpit-responsive-polish (from main)
 B1: feat/driver-cockpit-responsive-polish-b1-shell-overlay (S1 + S2a; targets tracker)
 B2: feat/driver-cockpit-responsive-polish-b2-adaptive-overlay (S2b; targets B1)
-B3: feat/driver-cockpit-responsive-polish-b3-action-polish (S3 + S4; targets B2)
+B3: feat/driver-cockpit-responsive-polish-b3-action-polish (S3; targets B2)
+B4: feat/driver-cockpit-responsive-polish-b4-viewport-polish (S4; targets B3)
 Only the tracker branch ultimately integrates to main.
 ```
 
