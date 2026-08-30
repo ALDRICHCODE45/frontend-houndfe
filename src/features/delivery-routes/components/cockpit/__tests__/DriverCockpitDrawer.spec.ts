@@ -185,6 +185,37 @@ describe('DriverCockpitDrawer — RED: one portal, native-event synthesis (REQ-D
   })
 
 
+describe('DriverCockpitDrawer — S3: overlay footer slot action (REQ-DCK-002/003, REQ-DCS-006)', () => {
+  it('desktop slideover + PENDING + canCheckIn: gated action in #footer; click emits request-confirm once with { stopId, trigger }; panel body has NO delivery action', async () => {
+    const { inner } = mountDrawer({ open: true, mode: 'stop', stop: mkStop('s7', 6, 'PENDING'), canCheckIn: true, checkInPending: false, routeTerminal: false, isDesktop: true })
+    await flushPromises()
+    const btn = document.querySelector('[data-testid="overlay-footer-action"]') as HTMLButtonElement
+    expect(btn).not.toBeNull() ; expect(btn.disabled).toBe(false)
+    expect(btn.textContent).toContain(DELIVERY_ROUTE_COPY.actions.checkIn)
+    btn.click() ; await flushPromises()
+    const events = (inner.emitted('request-confirm') as unknown[][] | undefined) ?? []
+    expect(events).toHaveLength(1)
+    expect(events[0]?.[0]).toMatchObject({ stopId: 's7' })
+    expect((events[0]?.[0] as { trigger: HTMLElement }).trigger).toBe(btn)
+    expect(document.querySelector('[data-testid="stop-panel-secondary-action"]')).toBeNull()
+  })
+
+  it('mobile drawer: NO overlay footer action rendered (page footer owns it)', async () => {
+    mountDrawer({ open: true, mode: 'stop', stop: STOP, canCheckIn: true, checkInPending: false, routeTerminal: false, isDesktop: false })
+    await flushPromises()
+    expect(document.querySelector('[data-testid="overlay-footer-action"]')).toBeNull()
+    expect(document.querySelector('[data-testid="stop-panel-root"]')).not.toBeNull()
+  })
+
+  it('source: slideover carries <template #footer> with overlay-footer-action; drawer branch has NO #footer', () => {
+    const b = sfcBody()
+    expect(b).toMatch(/<template\s+#footer>[\s\S]*?data-testid="overlay-footer-action"[\s\S]*?<\/template>/)
+    const drawerBlock = b.match(/<UDrawer[\s\S]*?<\/UDrawer>/)?.[0] ?? ''
+    expect(drawerBlock).not.toMatch(/<template\s+#footer>/)
+    expect(drawerBlock).not.toMatch(/data-testid="overlay-footer-action"/)
+  })
+})
+
 describe('DriverCockpitDrawer — TRIANGULATE: mode switch + dismiss paths (REQ-DCK-001/006)', () => {
   it('stop -> history: closes, awaits animationEnd(false), reopens with direct timeline (no hot-swap)', async () => {
     const { inner, outer } = mountDrawer({ open: true, mode: 'stop', stop: STOP })
@@ -323,23 +354,6 @@ describe('DriverCockpitDrawer — TRIANGULATE: history timeline direct reuse (RE
 // ─── TRIANGULATE: stop mode wiring (REQ-DCK-003, REQ-DRC-106) ──────────────────
 
 describe('DriverCockpitDrawer — TRIANGULATE: stop mode wiring (REQ-DCK-003, REQ-DRC-106)', () => {
-  it('forwards stop props + request-confirm; checkInPending disables + suppresses repeat', async () => {
-    const { inner } = mountDrawer({ open: true, mode: 'stop', stop: STOP, canCheckIn: true, checkInPending: false, routeTerminal: false })
-    await flushPromises()
-    const btn = document.querySelector('[data-testid="stop-panel-secondary-action"]') as HTMLButtonElement
-    expect(btn).not.toBeNull() ; btn.click() ; await flushPromises()
-    const events = (inner.emitted('request-confirm') as unknown[][] | undefined) ?? []
-    expect(events).toHaveLength(1) ; expect(events[0]?.[0]).toMatchObject({ stopId: STOP.id })
-  })
-
-  it('checkInPending propagates: secondary disabled, repeat emits nothing', async () => {
-    const { inner } = mountDrawer({ open: true, mode: 'stop', stop: STOP, checkInPending: true })
-    await flushPromises()
-    const btn = document.querySelector('[data-testid="stop-panel-secondary-action"]') as HTMLButtonElement
-    expect(btn.disabled).toBe(true) ; btn.click() ; btn.click()
-    expect(inner.emitted('request-confirm') ?? []).toHaveLength(0)
-  })
-
   it('null stop in stop mode renders nothing; null customer falls back to `Cliente sin nombre`', async () => {
     mountDrawer({ open: true, mode: 'stop', stop: null })
     await flushPromises()

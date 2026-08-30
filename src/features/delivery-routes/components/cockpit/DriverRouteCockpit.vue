@@ -194,7 +194,7 @@ watch(() => props.checkInPending, (next, prev) => { if (prev && !next && state.v
       <DriverOperationalStops :current-stop="currentStop" :next-stop="nextStop" :notes="notes" :has-stops="hasStops" :is-terminal="isTerminal" @open-stop="onOpenStop" />
       <DriverRouteSpine :nodes="spineNodes" @select-stop="onOpenStop" />
     </div>
-    <DriverCockpitFooter :route-status="props.route.status" :current-stop="currentStop" :progress="progress" :has-stops="hasStops" :can-check-in="props.canCheckIn" :check-in-pending="props.checkInPending" @request-confirm="onFooterRequestConfirm" @open-history="onHeaderOpenHistory" />
+    <DriverCockpitFooter :route-status="props.route.status" :current-stop="currentStop" :progress="progress" :has-stops="hasStops" :can-check-in="props.canCheckIn" :check-in-pending="props.checkInPending" :is-desktop="isDesktop" @request-confirm="onFooterRequestConfirm" @open-history="onHeaderOpenHistory" />
     <!-- Overlay surface: one drawer + sibling ConfirmModal (never an overlap). -->
     <DriverCockpitDrawer :open="drawerOpen" :mode="drawerMode" :route="props.route" :stop="drawerStop" :route-terminal="routeTerminal" :can-check-in="props.canCheckIn" :check-in-pending="props.checkInPending" :is-desktop="isDesktop" @update:open="onDrawerUpdateOpen" @closed="onDrawerClosed" @request-confirm="onDrawerRequestConfirm" />
     <ConfirmModal :open="isConfirmOpen" :title="confirmTitle" :description="confirmBody" :confirm-label="DELIVERY_ROUTE_COPY.cockpit.confirm.confirmLabel" :cancel-label="DELIVERY_ROUTE_COPY.cockpit.confirm.cancelLabel" confirm-color="primary" @update:open="onConfirmUpdateOpen" @confirm="onConfirm" @cancel="onConfirmCancel" />

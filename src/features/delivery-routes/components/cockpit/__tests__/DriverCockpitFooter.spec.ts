@@ -56,6 +56,7 @@ interface FooterProps {
   hasStops?: boolean
   canCheckIn?: boolean
   checkInPending?: boolean
+  isDesktop?: boolean
 }
 
 function mountFooter(p: FooterProps = {}) {
@@ -64,7 +65,7 @@ function mountFooter(p: FooterProps = {}) {
       routeStatus: 'ACTIVE',
       currentStop: mkStop('s0', 0, 'PENDING'),
       progress: { completed: 0, total: 5 } as CockpitProgress,
-      hasStops: true, canCheckIn: true, checkInPending: false, ...p,
+      hasStops: true, canCheckIn: true, checkInPending: false, isDesktop: false, ...p,
     },
   })
 }
@@ -116,6 +117,15 @@ describe('DriverCockpitFooter — current-action mode (REQ-DCS-006)', () => {
     expect(w.find('[data-testid="cockpit-footer-action"]').exists()).toBe(false)
     expect(w.find('[data-testid="cockpit-footer-history"]').exists()).toBe(false)
     expect(w.text()).not.toContain('Marcar entregada')
+  })
+})
+
+describe('DriverCockpitFooter — S3: viewport-composed action placement (REQ-DCS-006)', () => {
+  it.each([
+    ['desktop suppresses primary action', { isDesktop: true, currentStop: mkStop('s2', 2, 'PENDING'), canCheckIn: true }, 0],
+    ['mobile renders primary action', { isDesktop: false, currentStop: mkStop('s2', 2, 'PENDING'), canCheckIn: true }, 1],
+  ] as const)('%s', async (_l, props, buttons) => {
+    expect(mountFooter(props).findAll('button')).toHaveLength(buttons)
   })
 })
 
@@ -291,5 +301,9 @@ describe('DriverCockpitFooter — source-level invariants (REQ-DCS-006/008/009, 
     expect(b).not.toMatch(/["']Esta ruta fue cancelada\.["']/)
     expect(b).not.toMatch(/Entregaste\b[^.]*paradas/)
     expect(b).not.toMatch(/["']En curso["']/)
+  })
+  it('SFC has isDesktop prop as REQUIRED (no `default:` in defineProps entry, REQ-DCS-006)', () => {
+    const m = body().match(/isDesktop[^{]*\{[^}]*\}/)
+    expect(m).not.toBeNull() ; expect(m![0]).toMatch(/isDesktop/) ; expect(m![0]).not.toMatch(/default:/)
   })
 })

@@ -1,18 +1,21 @@
 <script setup lang="ts">
 /**
- * DriverCockpitFooter — S7 of `driver-route-cockpit-redesign` (design.md §3,
- * §9.2-§9.3; specs/driver-cockpit-shell REQ-DCS-006/008/009; REQ-DRC-111).
+ * DriverCockpitFooter — S7 of `driver-route-cockpit-redesign` + S3 of
+ * `driver-cockpit-responsive-polish` (design.md §3, §9.2-§9.3; specs/driver-cockpit-shell
+ * REQ-DCS-006/008/009; REQ-DRC-111).
  *
  * Presentational four-mode footer. NEVER owns server state; never imports
  * vue-router / useQuery / useMutation / useQueryClient / HTTP (design §6).
  * NEVER mutates: no useCheckInStop / invalidate / refetch / mutateAsync —
  * the parent view owns the single check-in composable instance.
  *
+ * Required parent-owned `isDesktop: boolean` (REQ-DCS-006 S3) suppresses `current-action` at lg+ (slideover owns the action there); terminal / in-progress / empty remain coherent regardless of viewport.
+ *
  * Modes (exactly one per render; `mode` computed is the single source):
- *   - 'current-action' : non-terminal + current PENDING + canCheckIn. Central
- *       ≥44px primary delivery action (Coco gold), enabled while !checkInPending
- *       (handler early-returns so disabled clicks emit nothing). Emits
- *       'request-confirm' { stopId, trigger }.
+ *   - 'current-action' : non-terminal + current PENDING + canCheckIn + !isDesktop.
+ *       Central ≥44px primary delivery action (Coco gold), enabled while
+ *       !checkInPending (handler early-returns so disabled clicks emit nothing).
+ *       Emits 'request-confirm' { stopId, trigger }.
  *   - 'in-progress'    : current IN_PROGRESS. One disabled indicator. No emit.
  *   - 'terminal'       : COMPLETED or CANCELLED. Summary copy + history action
  *       (≥44px, semantic muted). Emits 'open-history' { trigger }.
@@ -38,6 +41,7 @@ const props = defineProps<{
   hasStops: boolean
   canCheckIn: boolean
   checkInPending: boolean
+  isDesktop: boolean
 }>()
 
 const emit = defineEmits<{
@@ -51,7 +55,7 @@ const mode = computed(() => {
   if (!props.hasStops) return 'empty'
   if (!props.currentStop) return 'empty'
   if (props.currentStop.status === 'IN_PROGRESS') return 'in-progress'
-  if (props.currentStop.status === 'PENDING') return props.canCheckIn ? 'current-action' : 'empty'
+  if (props.currentStop.status === 'PENDING') return props.canCheckIn && !props.isDesktop ? 'current-action' : 'empty'
   return 'empty' // SKIPPED / COMPLETED current → no actionable surface.
 })
 
@@ -90,7 +94,7 @@ function onHistory(event: MouseEvent) {
     data-testid="cockpit-footer-root"
     class="sticky bottom-0 z-10 flex w-full flex-col items-stretch gap-2 border-t border-default bg-default px-4 py-3 min-w-0 pb-[env(safe-area-inset-bottom)]"
   >
-    <!-- current-action: primary delivery action (central, gold accent). -->
+    <!-- current-action: primary delivery action (central, gold accent) — mobile only (REQ-DCS-006). -->
     <button
       v-if="mode === 'current-action'"
       type="button"

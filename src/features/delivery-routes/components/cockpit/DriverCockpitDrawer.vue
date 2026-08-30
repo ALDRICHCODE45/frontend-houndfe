@@ -54,11 +54,12 @@ export function adaptSlideoverLifecycle(input: SlideoverLifecycleAdapterInput): 
  *
  * Viewport-adaptive cockpit overlay: exactly one Nuxt UI container mounted at a
  * time. On lg+ (Tailwind 1024px, aligned with the app shell) the active
- * surface is `USlideover side="right" inset`. Below lg it is the existing
- * `UDrawer direction="bottom"`. Container selection reads the REQUIRED
- * `isDesktop: boolean` prop owned by DriverRouteCockpit (the single caller of
- * `useCockpitBreakpoint`); this SFC MUST NOT import or call the composable and
- * MUST NOT provide an optional fallback.
+ * surface is `USlideover side="right" inset` (slideover `#footer` slot owns the gated
+ * `Marcar entregada` per REQ-DCK-002/003, REQ-DCS-006) or, below lg, `UDrawer direction="bottom"`
+ * (body-only — page footer owns the mobile action). Container selection reads the REQUIRED
+ * `isDesktop: boolean` prop owned by DriverRouteCockpit (single caller of
+ * `useCockpitBreakpoint`); this SFC MUST NOT import the composable and MUST NOT provide an
+ * optional fallback.
  *
  * `closed` is synthesized ONLY from each container's settled native lifecycle
  * (UDrawer `animationEnd(false)` / USlideover `@after:leave`). Intent-to-close
@@ -144,8 +145,12 @@ const title = computed<string>(() => {
     .replace('{customer}', customer)
 })
 
+const secondaryActionVisible = computed(() => props.mode === 'stop' && props.stop?.status === 'PENDING' && !props.routeTerminal && props.canCheckIn)
+const overlayFooterActionAriaLabel = computed(() => `${props.stop?.customer?.name ?? DELIVERY_ROUTE_COPY.cockpit.operational.customerFallback} — ${DELIVERY_ROUTE_COPY.actions.checkIn}`)
+function onOverlayFooterAction(event: MouseEvent) { if (props.checkInPending || !props.stop) return ; emit('request-confirm', { stopId: props.stop.id, trigger: event.currentTarget as HTMLElement }) }
+
 // Typed mode → content mapping (REQ-DRC-105): one `<component :is>` render, no wrapper SFC.
-interface StopModeContentProps { stop: DeliveryRouteStop; routeTerminal: boolean; canCheckIn: boolean; checkInPending: boolean; mapReady: boolean }
+interface StopModeContentProps { stop: DeliveryRouteStop; mapReady: boolean }
 interface HistoryModeContentProps { route: DeliveryRouteResponseDto }
 type ModeContent =
   | { component: typeof DriverStopPanel; props: StopModeContentProps }
@@ -156,7 +161,7 @@ const modeContent = computed<ModeContent>(() => {
   if (props.mode === 'history') return { component: DeliveryRouteTimeline, props: { route: props.route } }
   if (props.mode === 'stop' && props.stop) return {
     component: DriverStopPanel,
-    props: { stop: props.stop, routeTerminal: props.routeTerminal, canCheckIn: props.canCheckIn, checkInPending: props.checkInPending, mapReady: mapReady.value },
+    props: { stop: props.stop, mapReady: mapReady.value },
   }
   return null
 })
@@ -197,10 +202,9 @@ function onSlideoverAfterLeave() {
   if (result.emitClosed) { closingAnnounced.value = true ; emit('closed') }
 }
 
-// Panel-internal actions (stop panel close request / request-confirm).
+// Panel-internal close actions (S3 panel no longer emits; close-only path lives in the overlay's header button).
 function onPanelClose() { emit('update:open', false) }
 function onModeContentClose() { emit('update:open', false) }
-function onModeContentRequestConfirm(payload: StopTrigger) { emit('request-confirm', payload) }
 </script>
 
 <template>
@@ -227,7 +231,7 @@ function onModeContentRequestConfirm(payload: StopTrigger) { emit('request-confi
     </template>
     <template #body>
       <div data-testid="driver-cockpit-drawer-body" class="max-h-[85dvh] overflow-y-auto motion-reduce:transition-none">
-        <component :is="modeContent.component as Component" v-if="modeContent" v-bind="modeContent.props" @close="onModeContentClose" @request-confirm="onModeContentRequestConfirm" />
+        <component :is="modeContent.component as Component" v-if="modeContent" v-bind="modeContent.props" @close="onModeContentClose" />
       </div>
     </template>
   </UDrawer>
@@ -250,7 +254,14 @@ function onModeContentRequestConfirm(payload: StopTrigger) { emit('request-confi
     </template>
     <template #body>
       <div data-testid="driver-cockpit-slideover-body" class="flex-1 overflow-y-auto motion-reduce:transition-none">
-        <component :is="modeContent.component as Component" v-if="modeContent" v-bind="modeContent.props" @close="onModeContentClose" @request-confirm="onModeContentRequestConfirm" />
+        <component :is="modeContent.component as Component" v-if="modeContent" v-bind="modeContent.props" @close="onModeContentClose" />
+      </div>
+    </template>
+    <template #footer>
+      <div v-if="secondaryActionVisible" data-testid="driver-cockpit-slideover-footer" class="border-t border-default bg-default p-4 motion-reduce:transition-none">
+        <button type="button" data-testid="overlay-footer-action" :aria-label="overlayFooterActionAriaLabel" :disabled="props.checkInPending" class="mx-auto inline-flex min-h-11 min-w-11 w-full items-center justify-center gap-2 rounded-md bg-coco-gold-500 px-6 py-3 text-sm font-semibold text-coco-neutral-950 shadow-sm transition hover:bg-coco-gold-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:bg-coco-gold-500/60" @click="onOverlayFooterAction">
+          <UIcon name="i-lucide-check" class="size-5" aria-hidden="true" />{{ DELIVERY_ROUTE_COPY.actions.checkIn }}
+        </button>
       </div>
     </template>
   </USlideover>

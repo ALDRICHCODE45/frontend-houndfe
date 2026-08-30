@@ -123,3 +123,31 @@ pnpm test:unit --run …/useCockpitBreakpoint.spec.ts …/DriverCockpitDrawer.sp
 **Rollback:** revert one commit touching only `DriverCockpitDrawer.vue` + `DriverCockpitDrawer.spec.ts`; S2a `isDesktop` prop remains, template branches collapse.
 **Outstanding:** S3 + S4; final gates deferred per task plan.
 **Commit:** `feat(cockpit): adapt overlay container lifecycle to viewport (REQ-DCK-001/009)`
+
+## S3 — Stop-panel chrome removal + single-action composition (REQ-DCK-002/003, REQ-DCS-006)
+
+Branch `feat/driver-cockpit-responsive-polish-b3-action-polish` · specs `openspec/changes/driver-cockpit-responsive-polish/specs/driver-cockpit-drawer/spec.md`, `specs/driver-cockpit-shell/spec.md`
+
+### Source change
+
+`DriverStopPanel.vue` props→`{stop,mapReady}` no emits (header/close/secondary removed, metadata→`stop-panel-meta`). `DriverCockpitDrawer.vue` slideover-only `<template #footer>` with `overlay-footer-action` (PENDING+!routeTerminal+canCheckIn); `modeContent.props`→`{stop,mapReady}`. `DriverCockpitFooter.vue` REQUIRED `isDesktop`; `current-action` gated `!props.isDesktop`. `DriverRouteCockpit.vue` passes `:is-desktop="isDesktop"` to footer. `components.d.ts` regenerated then reverted per S2a/S2b precedent.
+
+### TDD cycle evidence
+
+TDD: Safety net 153/153 green (S2b baseline). RED — 4 files: panel absence (header/close/secondary) + no `defineEmits`; footer required `isDesktop`; overlay `#footer` source-invariant; root passes `:is-desktop` to drawer+footer. GREEN — **150/150 green** (33 stop panel + 29 footer + 36 drawer + 52 cockpit). TRIANGULATE — (1) gating byte-equivalence across viewports (same `PENDING+!routeTerminal+canCheckIn+!checkInPending` predicate drives both surfaces); (2) mobile drawer never renders `<template #footer>`; (3) exactly one action per viewport (`getAllByTestId('overlay-footer-action')` → 1 desktop / 0 mobile); (4) panel body absence across 4 stop statuses (PENDING/COMPLETED/SKIPPED/IN_PROGRESS); (5) reducer/derivation/check-in untouched. REFACTOR — `modeContent.props` 5→2 keys; panel emits/handlers removed; drawer removed forwarding; shared copy from `DELIVERY_ROUTE_COPY.actions.checkIn`.
+
+### Focused test command / output
+
+```bash
+pnpm test:unit --run …/DriverStopPanel.spec.ts …/DriverCockpitFooter.spec.ts …/DriverCockpitDrawer.spec.ts …/DriverRouteCockpit.spec.ts
+``` → **4 files / 150 passed (150)**.
+
+### Runtime / rollback / outstanding / commit
+
+**Runtime:** manual smoke — `>=1024px` slideover shows gated `Marcar entregada` in `#footer`; `<1024px` drawer has no footer action; page footer owns mobile entry; panel body never renders internal delivery action.
+
+**Rollback:** revert this commit only — `DriverStopPanel` regains chrome (deliberate spec-delta), overlay `#footer` removed, footer `isDesktop` removed; S1/S2a/S2b + reducer/derivation/check-in/manager/list/CASL/API preserved.
+
+**Outstanding:** S4 (responsive polish + required 373×807 and ≥1024px screenshots); final gates deferred per task plan.
+
+**Commit:** `feat(cockpit): drop stop-panel chrome; compose single delivery action (REQ-DCK-002/003, REQ-DCS-006)`

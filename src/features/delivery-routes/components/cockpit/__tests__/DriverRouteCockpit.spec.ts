@@ -44,9 +44,9 @@ const SpineStub = defineComponent({ props: ['nodes'], emits: ['select-stop'], te
     <button data-testid="cockpit-spine-stub-s1" @click="$emit('select-stop', { stopId: 's1', trigger: $event.currentTarget })">sp1</button>
     <button data-testid="cockpit-spine-stub-s0" @click="$emit('select-stop', { stopId: 's0', trigger: $event.currentTarget })">sp0</button>
   </ol>` })
-const FooterStub = defineComponent({ props: { routeStatus: String, currentStop: {}, progress: {}, hasStops: Boolean, canCheckIn: Boolean, checkInPending: Boolean }, emits: ['request-confirm', 'open-history'], template: `
-  <footer data-testid="cockpit-footer-stub">
-    <button data-testid="cockpit-footer-action-stub" :disabled="checkInPending" @click="$emit('request-confirm', { stopId: 's0', trigger: $event.currentTarget })">action</button>
+const FooterStub = defineComponent({ props: { routeStatus: String, currentStop: {}, progress: {}, hasStops: Boolean, canCheckIn: Boolean, checkInPending: Boolean, isDesktop: Boolean }, emits: ['request-confirm', 'open-history'], template: `
+  <footer data-testid="cockpit-footer-stub" :data-is-desktop="String(isDesktop)">
+    <button v-if="!isDesktop" data-testid="cockpit-footer-action-stub" :disabled="checkInPending" @click="$emit('request-confirm', { stopId: 's0', trigger: $event.currentTarget })">action</button>
     <button data-testid="cockpit-footer-history-stub" @click="$emit('open-history', { trigger: $event.currentTarget })">hist</button>
   </footer>` })
 // Drawer stub: fully controlled by `open`; exposes the four events + mirror props for the spec.
@@ -165,6 +165,14 @@ describe('DriverRouteCockpit — RED: non-null composition surface (REQ-DCS-001)
     })
 
 
+
+describe('DriverRouteCockpit — S3: viewport-composed footer suppression (REQ-DCS-006)', () => {
+  it('source: SFC passes parent-owned :is-desktop to BOTH the drawer AND the footer (single source)', () => {
+    const source = docStripped()
+    const matches = source.match(/:is-desktop="isDesktop"/g) ?? []
+    expect(matches.length).toBeGreaterThanOrEqual(2) // DriverCockpitDrawer + DriverCockpitFooter
+  })
+})
 
 describe('DriverRouteCockpit — GREEN: forwarded actions + exactly-once emission', () => {
   it('header back / refresh forward verbatim; no router import', async () => {

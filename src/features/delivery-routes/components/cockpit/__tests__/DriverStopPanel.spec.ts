@@ -5,7 +5,6 @@ import { defineComponent } from 'vue'
 import { mount, flushPromises } from '@vue/test-utils'
 import DriverStopPanel from '../DriverStopPanel.vue'
 import type { DeliveryRouteStop, DeliveryRouteShippingAddress } from '../../../interfaces/delivery-route.types'
-import type { StopTrigger } from '../../../composables/cockpit/useDriverRouteCockpit'
 import { DELIVERY_ROUTE_COPY } from '../../../copy'
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- node builtin
@@ -45,12 +44,10 @@ function makeStop(o: Partial<{
   }
 }
 function mountPanel(p: Partial<{
-  stop: DeliveryRouteStop; routeTerminal: boolean; canCheckIn: boolean
-  checkInPending: boolean; mapReady: boolean
+  stop: DeliveryRouteStop; mapReady: boolean
 }> = {}) {
   return mount(DriverStopPanel, {
-    props: { stop: makeStop(), routeTerminal: false, canCheckIn: true,
-      checkInPending: false, mapReady: true, ...p },
+    props: { stop: makeStop(), mapReady: true, ...p },
     global: { stubs: { AddressMapPicker: AddressMapPickerStub } },
   })
 }
@@ -59,21 +56,19 @@ const sfcBody = () => fs.readFileSync((DriverStopPanel as unknown as { __file: s
 beforeEach(() => { toastCalls.length = 0 })
 afterEach(() => { vi.restoreAllMocks() ; vi.unstubAllGlobals() })
 
-describe('DriverStopPanel — header surface (REQ-DCK-003)', () => {
-  it('renders position + folio + customer fallback + null folio; close emits []', async () => {
+describe('DriverStopPanel — minimal body-only contract (REQ-DCK-002/003)', () => {
+  it('body renders position + folio + customer fallback + null folio; NO header / close / secondary action across stop statuses; no emits', async () => {
     const w = mountPanel({ stop: makeStop({ sortOrder: 4, saleFolio: 'F-099' }) })
     await flushPromises()
     expect(w.text()).toContain('Parada 5') ; expect(w.text()).toContain('F-099')
     expect(mountPanel({ stop: makeStop({ customer: null }) }).text()).toContain('Cliente sin nombre')
-    const w2 = mountPanel({ stop: makeStop({ saleFolio: null }) })
-    await flushPromises()
-    expect(w2.text()).not.toMatch(/·\s/)
-    const close = w.find('[data-testid="stop-panel-close"]')
-    expect(close.exists()).toBe(true)
-    expect(close.attributes('aria-label')).toBe(DELIVERY_ROUTE_COPY.cockpit.drawer.close)
-    expect(close.classes()).toContain('min-h-11') ; expect(close.classes()).toContain('min-w-11')
-    await close.trigger('click')
-    expect(w.emitted('close')).toEqual([[]])
+    expect(mountPanel({ stop: makeStop({ saleFolio: null }) }).text()).not.toMatch(/·\s/)
+    expect(w.find('[data-testid="stop-panel-header"]').exists()).toBe(false)
+    expect(w.find('[data-testid="stop-panel-close"]').exists()).toBe(false)
+    expect(Object.keys(w.emitted())).toEqual([])
+    for (const status of ['PENDING', 'COMPLETED', 'SKIPPED', 'IN_PROGRESS'] as const) {
+      expect(mountPanel({ stop: makeStop({ status }) }).find('[data-testid="stop-panel-secondary-action"]').exists()).toBe(false)
+    }
   })
 })
 
@@ -226,69 +221,18 @@ describe('DriverStopPanel — quick actions: ordering, ≥44×44, predicates (RE
   })
 })
 
-describe('DriverStopPanel — secondary delivery action (REQ-DCK-003/006, REQ-DCS-009)', () => {
-  it('PENDING + non-terminal + canCheckIn + not-pending → emits { stopId, trigger }', async () => {
-    const w = mountPanel({ stop: makeStop({ id: 's7', sortOrder: 6, status: 'PENDING' }) })
-    await flushPromises()
-    const btn = w.find('[data-testid="stop-panel-secondary-action"]')
-    expect(btn.exists()).toBe(true) ; expect(btn.text()).toContain('Marcar entregada')
-    expect((btn.element as HTMLButtonElement).disabled).toBe(false)
-    await btn.trigger('click')
-    const events = w.emitted('request-confirm') ?? []
-    expect(events).toHaveLength(1)
-    const payload = events[0]?.[0] as StopTrigger
-    expect(payload.stopId).toBe('s7') ; expect(payload.trigger).toBe(btn.element)
-  })
-
-  it.each([0, 7] as const)('secondary action visible for PENDING sortOrder=%i (route-position independent)', async (sortOrder) => {
-    expect(mountPanel({ stop: makeStop({ status: 'PENDING', sortOrder }) })
-      .find('[data-testid="stop-panel-secondary-action"]').exists()).toBe(true)
-  })
-
-  it('checkInPending=true: disabled; repeated clicks emit nothing', async () => {
-    const w = mountPanel({ stop: makeStop({ status: 'PENDING' }), checkInPending: true })
-    await flushPromises()
-    const btn = w.find('[data-testid="stop-panel-secondary-action"]')
-    expect((btn.element as HTMLButtonElement).disabled).toBe(true)
-    await btn.trigger('click') ; await btn.trigger('click') ; await btn.trigger('click')
-    expect(w.emitted('request-confirm') ?? []).toHaveLength(0)
-  })
-
-  it.each([
-    ['COMPLETED stop', { status: 'COMPLETED' as const }],
-    ['SKIPPED stop', { status: 'SKIPPED' as const }],
-    ['IN_PROGRESS stop', { status: 'IN_PROGRESS' as const }],
-  ] as const)('%s → NO secondary action', async (_l, stopOv) => {
-    const w = mountPanel({ stop: makeStop(stopOv) })
-    await flushPromises()
-    expect(w.find('[data-testid="stop-panel-secondary-action"]').exists()).toBe(false)
-  })
-
-  it.each([
-    ['terminal route', { routeTerminal: true }],
-    ['read-only driver', { canCheckIn: false }],
-  ] as const)('%s → NO secondary action', async (_l, ov) => {
-    const w = mountPanel({ stop: makeStop({ status: 'PENDING' }), ...ov })
-    await flushPromises()
-    expect(w.find('[data-testid="stop-panel-secondary-action"]').exists()).toBe(false)
-  })
-})
-
 describe('DriverStopPanel — central copy + source invariants', () => {
   it('every user-visible literal comes from DELIVERY_ROUTE_COPY', async () => {
     const w = mountPanel({ stop: makeStop({ status: 'PENDING', email: 'a@x', address: makeAddress({ latitude: 19.4326, longitude: -99.1332 }) }) })
     await flushPromises()
     const qa = DELIVERY_ROUTE_COPY.cockpit.quickActions
-    expect(w.find('[data-testid="stop-panel-close"]').attributes('aria-label')).toBe(DELIVERY_ROUTE_COPY.cockpit.drawer.close)
     const text = w.text()
     expect(text).toContain(qa.map) ; expect(text).toContain(qa.copyAddress) ; expect(text).toContain(qa.email)
-    expect(text).toContain(DELIVERY_ROUTE_COPY.actions.checkIn)
   })
 
-  it('header uses semantic tokens + min-w-0 + sticky; 320px safe', async () => {
-    const cls = mountPanel().find('[data-testid="stop-panel-header"]').classes().join(' ')
-    expect(cls).toMatch(/bg-(default|elevated)/) ; expect(cls).toMatch(/border-default/)
-    expect(cls).toMatch(/min-w-0/) ; expect(cls).toMatch(/sticky/)
+  it('SFC body uses semantic tokens + min-w-0 + no fixed widths (320px safe)', async () => {
+    const cls = mountPanel().find('[data-testid="stop-panel-root"]').classes().join(' ')
+    expect(cls).toMatch(/min-w-0/)
     expect(cls).not.toMatch(/\bw-\[|\bmin-w-\[/) ; expect(cls).not.toMatch(/\bfixed\b|\babsolute\b/)
   })
 
@@ -298,6 +242,11 @@ describe('DriverStopPanel — central copy + source invariants', () => {
       /useQuery|useMutation|useQueryClient|@tanstack\/vue-query/,
       /axios|fetch\(['"]/, /useCheckInStop|invalidate|refetch|mutateAsync|mutate\(/,
       /<UDrawer|<UModal|<ConfirmModal/]) expect(b).not.toMatch(re)
+  })
+
+  it('SFC has no defineEmits; no close / secondary / header elements (REQ-DCK-002/003)', () => {
+    const b = sfcBody()
+    for (const re of [/defineEmits/, /data-testid="stop-panel-close"/, /data-testid="stop-panel-secondary-action"/, /data-testid="stop-panel-header"/]) expect(b).not.toMatch(re)
   })
 
   it.each([
