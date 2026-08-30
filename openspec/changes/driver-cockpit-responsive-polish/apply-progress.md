@@ -88,3 +88,38 @@ pnpm test:unit --run src/features/delivery-routes/composables/cockpit/__tests__/
 **Rollback:** Revert one commit touching only the five S2a files. The overlay returns to bottom-drawer-on-all-viewports behavior, `useCockpitBreakpoint` disappears, `isDesktop` prop vanishes. Reducer, drawer adapter, derivation, check-in, and shell contracts are unchanged.
 
 **Outstanding:** S2b (adaptive container + lifecycle), S3 (chrome removal + single-action composition), S4 (layout polish + viewport screenshots) still unchecked. Final full gates (`pnpm test:unit --run`, `pnpm build`, `pnpm lint`) deferred to after all four slices land per the task plan.
+
+## S2b — Adaptive overlay container + lifecycle (REQ-DCK-001/009)
+
+**Branch:** `feat/driver-cockpit-responsive-polish-b2-adaptive-overlay`
+**Capability:** `driver-cockpit-drawer` REQ-DCK-001/009 (adaptive container + lifecycle)
+**Spec:** `openspec/changes/driver-cockpit-responsive-polish/specs/driver-cockpit-drawer/spec.md`
+
+### Source change
+- MOD `DriverCockpitDrawer.vue`: adds required `isDesktop: boolean` (no default); `surface`/`pendingSurface`/`activeSurface` refs; `isDesktop` watcher mounts new surface while open, queues deferred swap during in-flight close, resets `mapReady`; distinct `adaptSlideoverLifecycle` adapter for reka-ui `@after:enter`/`@after:leave`; `<USlideover side="right" inset>` as `v-else-if`. Drawer adapter unchanged. No `useCockpitBreakpoint` / `@vueuse/core` import.
+- MOD `DriverCockpitDrawer.spec.ts`: new 8-test `describe` block — mobile/desktop ref presence, source invariants (one `<USlideover>` + one `<UDrawer>`, no breakpoint composable, `isDesktop` required), slideover `closed` synthesis, drawer regression, mid-open breakpoint swap, mid-close freeze + adopt.
+- `components.d.ts` regenerated (`@nuxt/ui/vite`); `pnpm build-only` clean.
+
+### Strict-TDD evidence (recovery-inherited RED + proven GREEN/TRIANGULATE/REFACTOR)
+| Step | Verification | Result |
+|------|--------------|--------|
+| Safety net | Focused three-file gate before edit | **85/85 green** (S2a baseline) |
+| RED (inherited) | Pre-existing S2b describe block from interrupted attempt; not re-run per orchestrator authorization | Inherited RED acknowledged |
+| GREEN | After `isDesktop` prop + surface state + watcher + slideover branch + adapter + tests | **93/93 green** (8 new + 85 inherited) |
+| TRIANGULATE | 8 tests cover branch selection, source invariants, slideover `closed` synthesis, drawer regression, mid-open swap, mid-close freeze + adopt | TRIANGULATE confirmed |
+| REFACTOR | Distinct per-surface adapters; `surface`/`pendingSurface`/`activeSurface` split preserves intent; no SFC contract regressions | **93/93 green** |
+
+### Focused test command / output
+```bash
+pnpm test:unit --run …/useCockpitBreakpoint.spec.ts …/DriverCockpitDrawer.spec.ts …/DriverRouteCockpit.spec.ts
+```
+```
+ Test Files  3 passed (3)
+      Tests  93 passed (93)
+```
+
+### Rollback / runtime / outstanding / commit
+**Runtime:** post-S3 smoke — `>=1024px` → right `USlideover`; `<1024px` → bottom `UDrawer`; resize across 1024px → one active container; mid-close resize → current surface settles first, latest breakpoint adopted on reopen.
+**Rollback:** revert one commit touching only `DriverCockpitDrawer.vue` + `DriverCockpitDrawer.spec.ts`; S2a `isDesktop` prop remains, template branches collapse.
+**Outstanding:** S3 + S4; final gates deferred per task plan.
+**Commit:** `feat(cockpit): adapt overlay container lifecycle to viewport (REQ-DCK-001/009)`

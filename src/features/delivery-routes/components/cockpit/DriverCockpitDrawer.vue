@@ -1,15 +1,18 @@
 <script lang="ts">
 /**
- * driverCockpitDrawerAdapter — S9 of `driver-route-cockpit-redesign`
- * (REQ-DCK-001). Pure helper translating one native
- * `animationEnd(open: boolean)` from Nuxt UI v4 UDrawer into the drawer's
- * custom `closed` synthesis contract: animationEnd(true) only marks opening
- * settled (`mapReady=true`); animationEnd(false) emits `closed` exactly once
- * per close (mapReady does not reset — drawer is already hidden).
+ * driverCockpitAdapters — S9 + S2 (REQ-DCK-001/009). Pure helpers translating
+ * each container's settled native lifecycle into the drawer's custom `closed`
+ * synthesis contract. `update:open(false)` (intent-to-close) is NEVER accepted
+ * by either adapter — both react ONLY to settled lifecycle events.
  *
- * Co-located inside the SFC (alongside <script setup>) and exported as named
- * bindings so the spec can import `adaptDrawerAnimationEnd` directly; the
- * SFC consumes it locally without an import (same module scope).
+ *  - `adaptDrawerAnimationEnd` (S9): UDrawer `animationEnd(open)`.
+ *      true  → mapReady=true; never emits closed.
+ *      false → emits closed exactly once per settled close; mapReady stays.
+ *
+ *  - `adaptSlideoverLifecycle` (S2): USlideover colon-named `@after:enter` /
+ *      `@after:leave` (reka-ui DialogContent).
+ *      'enter' → mapReady=true; never emits closed.
+ *      'leave' → emits closed exactly once per settled close; mapReady stays.
  */
 
 export interface DrawerAnimationAdapterInput {
@@ -23,60 +26,64 @@ export interface DrawerAnimationAdapterOutput {
   emitClosed: boolean
 }
 
-export function adaptDrawerAnimationEnd(
-  input: DrawerAnimationAdapterInput,
-): DrawerAnimationAdapterOutput {
+export function adaptDrawerAnimationEnd(input: DrawerAnimationAdapterInput): DrawerAnimationAdapterOutput {
   if (input.openAfter) return { mapReady: true, emitClosed: false }
+  return { mapReady: input.previousMapReady, emitClosed: !input.previousClosedEmitted }
+}
+
+export interface SlideoverLifecycleAdapterInput {
+  phase: 'enter' | 'leave'
+  previousMapReady: boolean
+  previousClosedEmitted: boolean
+}
+
+export interface SlideoverLifecycleAdapterOutput {
+  mapReady: boolean
+  emitClosed: boolean
+}
+
+export function adaptSlideoverLifecycle(input: SlideoverLifecycleAdapterInput): SlideoverLifecycleAdapterOutput {
+  if (input.phase === 'enter') return { mapReady: true, emitClosed: false }
   return { mapReady: input.previousMapReady, emitClosed: !input.previousClosedEmitted }
 }
 </script>
 
 <script setup lang="ts">
 /**
- * DriverCockpitDrawer — S9 of `driver-route-cockpit-redesign` (design.md §3, §7;
- *  specs/driver-cockpit-drawer REQ-DCK-001/002/004/006/007/008;
- *  specs/delivery-route-check-in REQ-DRC-105).
+ * DriverCockpitDrawer — S9 + S2 (REQ-DCK-001/002/004/006/007/008/009; REQ-DRC-105).
  *
- * Exactly one Nuxt UI v4 UDrawer (portal modal) — stop mode mounts
- * DriverStopPanel; history mode mounts DeliveryRouteTimeline DIRECTLY (no
- * wrapper SFC, no modification). Custom `closed` event synthesized ONLY from
- * native animationEnd(false); native close / update:open(false) begin closure
- * but never complete it; animationEnd(true) marks opening settled
- * (mapReady=true) and never emits closed. Sticky central-copy header >=44px
- * close + 85dvh scrollable body. Reduced-motion override reaches the actual
- * UDrawer overlay + content slots via the `ui` prop so vaul-vue's
- * DrawerOverlay / DrawerContent honor it (not just our inner header).
+ * Viewport-adaptive cockpit overlay: exactly one Nuxt UI container mounted at a
+ * time. On lg+ (Tailwind 1024px, aligned with the app shell) the active
+ * surface is `USlideover side="right" inset`. Below lg it is the existing
+ * `UDrawer direction="bottom"`. Container selection reads the REQUIRED
+ * `isDesktop: boolean` prop owned by DriverRouteCockpit (the single caller of
+ * `useCockpitBreakpoint`); this SFC MUST NOT import or call the composable and
+ * MUST NOT provide an optional fallback.
  *
- * Typed props: { open; mode: 'stop'|'history'; route; stop; routeTerminal;
- *   canCheckIn; checkInPending }.
- * Typed emits: 'update:open':[boolean] / 'closed':[] /
- *   'request-confirm':[StopTrigger].
- * B3 REFACTOR: mode → content mapping (`modeContent`) drives a single
- * dynamic `<component :is>` render instead of v-if/v-else-if branches.
+ * `closed` is synthesized ONLY from each container's settled native lifecycle
+ * (UDrawer `animationEnd(false)` / USlideover `@after:leave`). Intent-to-close
+ * (`update:open(false)`) begins closure but never completes it. Opening
+ * signals (`animationEnd(true)` / `@after:enter`) mark opening settled and
+ * never emit closed.
  *
- * Source invariants (REQ-DCK-001/008; design section 6): NEVER imports
- * vue-router, useQuery, useMutation, useQueryClient, useCheckInStop, axios, or
- * fetch(. The drawer is fully controlled by `open`; the parent owns the
- * close -> animationEnd(false) -> reopen orchestration for mode switches.
+ * Breakpoint swap (REQ-DCK-009): the parent owns `open` / `mode` / selected
+ * stop. Crossing 1024px while open unmounts the previous container WITHOUT
+ * emitting closed and resets `mapReady`. If a close transition is in flight
+ * (open=false but `closingAnnounced` not yet true) when the breakpoint flips,
+ * the active surface is FROZEN until its settled close fires; the latest
+ * breakpoint is then adopted before any reducer-driven reopen.
+ *
+ * Source invariants: NEVER imports vue-router, useQuery, useMutation,
+ * useQueryClient, useCheckInStop, axios, fetch(, @vueuse/core, or
+ * useCockpitBreakpoint. The drawer is fully controlled by `open`.
  */
 import { computed, ref, watch, type Component } from 'vue'
 import DriverStopPanel from './DriverStopPanel.vue'
 import DeliveryRouteTimeline from '../DeliveryRouteTimeline.vue'
-import type {
-  DeliveryRouteResponseDto,
-  DeliveryRouteStop,
-} from '../../interfaces/delivery-route.types'
-import type {
-  DrawerMode,
-  StopTrigger,
-} from '../../composables/cockpit/useDriverRouteCockpit'
+import type { DeliveryRouteResponseDto, DeliveryRouteStop } from '../../interfaces/delivery-route.types'
+import type { DrawerMode, StopTrigger } from '../../composables/cockpit/useDriverRouteCockpit'
 import { DELIVERY_ROUTE_COPY } from '../../copy'
 
-// ─── Props / emits ──────────────────────────────────────────────────────────────
-// S2a (REQ-DCK-009) adds the required `isDesktop: boolean` prop so the overlay
-// can eventually pick its container without owning the breakpoint. The template,
-// lifecycle, and container choice remain unchanged in S2a — the value is consumed
-// by S2b. Required (no default) so the cockpit MUST pass the parent-owned flag.
 const props = defineProps<{
   open: boolean
   mode: DrawerMode
@@ -93,18 +100,40 @@ const emit = defineEmits<{
   'request-confirm': [payload: StopTrigger]
 }>()
 
-// ─── Local UI state (mapReady + closed-synthesis guard) ─────────────────────────
+// Surface state: `surface` = desired branch; `pendingSurface` = deferred swap mid-close;
+// `activeSurface` = what's mounted (null while settled-closed).
+type Surface = 'drawer' | 'slideover'
+const surface = ref<Surface>(props.isDesktop ? 'slideover' : 'drawer')
+const pendingSurface = ref<Surface | null>(null)
+const activeSurface = ref<Surface | null>(props.open ? surface.value : null)
+
+// Local UI state + per-surface template refs for integration tests.
 const mapReady = ref(false)
 const closingAnnounced = ref(false)
-// Template ref to the inner UDrawer — accessed by integration tests via
-// `wrapper.vm.drawerRef.$emit(...)` to drive the native event sequence.
 const drawerRef = ref<unknown>(null)
+const slideoverRef = ref<unknown>(null)
 
+// Breakpoint swap (REQ-DCK-009): mount new surface immediately only while open=true;
+// queue a deferred swap when a close is in flight; resolved on the next reducer reopen.
+watch(() => props.isDesktop, (next) => {
+  const target: Surface = next ? 'slideover' : 'drawer'
+  surface.value = target
+  if (props.open) {
+    activeSurface.value = target ; mapReady.value = false ; pendingSurface.value = null
+  } else if (!closingAnnounced.value) {
+    pendingSurface.value = target
+  }
+})
 watch(() => props.open, (next) => {
-  if (next) { mapReady.value = false ; closingAnnounced.value = false }
+  if (next) {
+    mapReady.value = false ; closingAnnounced.value = false
+    activeSurface.value = surface.value ; pendingSurface.value = null
+  }
 }, { immediate: true })
+watch(closingAnnounced, (announced) => {
+  if (announced && !props.open) activeSurface.value = null
+})
 
-// ─── Derived title (central copy, REQ-DCK-002) ───────────────────────────────────
 const title = computed<string>(() => {
   if (props.mode === 'history') return DELIVERY_ROUTE_COPY.cockpit.drawer.historyTitle
   const s = props.stop
@@ -115,9 +144,7 @@ const title = computed<string>(() => {
     .replace('{customer}', customer)
 })
 
-// ─── Typed mode → content mapping (B3 REFACTOR; REQ-DRC-105) ─────────────────────
-// One mapping drives a single dynamic <component :is> render. History still
-// directly uses DeliveryRouteTimeline; stop uses DriverStopPanel; no wrapper SFC.
+// Typed mode → content mapping (REQ-DRC-105): one `<component :is>` render, no wrapper SFC.
 interface StopModeContentProps { stop: DeliveryRouteStop; routeTerminal: boolean; canCheckIn: boolean; checkInPending: boolean; mapReady: boolean }
 interface HistoryModeContentProps { route: DeliveryRouteResponseDto }
 type ModeContent =
@@ -134,91 +161,97 @@ const modeContent = computed<ModeContent>(() => {
   return null
 })
 
-// ─── B3: motion-reduce override on actual UDrawer overlay + content slots ───────
-// vaul-vue's DrawerOverlay + DrawerContent animate via CSS; the override must
-// reach them via UDrawer's `ui` prop (NOT just our inner header/body).
+// Motion-reduce override on each container's overlay + content slots (via `ui` prop).
 const drawerUi = {
   content: 'motion-reduce:transition-none motion-reduce:duration-0',
   overlay: 'motion-reduce:transition-none motion-reduce:duration-0',
 }
+const slideoverUi = {
+  content: 'motion-reduce:transition-none motion-reduce:duration-0',
+  overlay: 'motion-reduce:transition-none motion-reduce:duration-0',
+}
 
-// ─── Native-event handlers ──────────────────────────────────────────────────────
-function onUpdateOpen(value: boolean) {
+// Native-event handlers. Drawer (UDrawer) adapter unchanged from S9; slideover is new in S2.
+function onDrawerUpdateOpen(value: boolean) {
   if (value === false) emit('update:open', false)
 }
-function onClose() { emit('update:open', false) }
-function onRelease(openAfter: boolean) {
+function onDrawerClose() { emit('update:open', false) }
+function onDrawerRelease(openAfter: boolean) {
   if (openAfter === false) emit('update:open', false)
 }
-function onAnimationEnd(openAfter: boolean) {
-  const result = adaptDrawerAnimationEnd({
-    openAfter,
-    previousMapReady: mapReady.value,
-    previousClosedEmitted: closingAnnounced.value,
-  })
+function onDrawerAnimationEnd(openAfter: boolean) {
+  const result = adaptDrawerAnimationEnd({ openAfter, previousMapReady: mapReady.value, previousClosedEmitted: closingAnnounced.value })
   mapReady.value = result.mapReady
-  if (result.emitClosed) {
-    closingAnnounced.value = true
-    emit('closed')
-  }
+  if (result.emitClosed) { closingAnnounced.value = true ; emit('closed') }
 }
+// Slideover (USlideover) — colon-named `@after:enter` / `@after:leave` (reka-ui DialogContent).
+function onSlideoverUpdateOpen(value: boolean) {
+  if (value === false) emit('update:open', false)
+}
+function onSlideoverAfterEnter() {
+  mapReady.value = adaptSlideoverLifecycle({ phase: 'enter', previousMapReady: mapReady.value, previousClosedEmitted: closingAnnounced.value }).mapReady
+}
+function onSlideoverAfterLeave() {
+  const result = adaptSlideoverLifecycle({ phase: 'leave', previousMapReady: mapReady.value, previousClosedEmitted: closingAnnounced.value })
+  mapReady.value = result.mapReady
+  if (result.emitClosed) { closingAnnounced.value = true ; emit('closed') }
+}
+
+// Panel-internal actions (stop panel close request / request-confirm).
 function onPanelClose() { emit('update:open', false) }
 function onModeContentClose() { emit('update:open', false) }
 function onModeContentRequestConfirm(payload: StopTrigger) { emit('request-confirm', payload) }
 </script>
 
 <template>
+  <!-- One active surface at a time (REQ-DCK-001/009). `activeSurface === null`
+       means settled-closed; the next reducer-driven reopen mounts the desired surface. -->
   <UDrawer
+    v-if="activeSurface === 'drawer'"
     ref="drawerRef"
-    :open="open"
-    :title="title"
-    direction="bottom"
-    :dismissible="true"
-    :modal="true"
-    :portal="true"
-    :handle="false"
-    :overlay="true"
-    :ui="drawerUi"
+    :open="open" :title="title" direction="bottom"
+    :dismissible="true" :modal="true" :portal="true"
+    :handle="false" :overlay="true" :ui="drawerUi"
     data-testid="driver-cockpit-drawer-root"
-    @update:open="onUpdateOpen"
-    @close="onClose"
-    @release="onRelease"
-    @drag="() => { /* drag completion is handled by vaul via update:open / release */ }"
-    @animationEnd="onAnimationEnd"
+    @update:open="onDrawerUpdateOpen" @close="onDrawerClose"
+    @release="onDrawerRelease" @drag="() => {}"
+    @animationEnd="onDrawerAnimationEnd"
   >
     <template #header>
-      <header
-        data-testid="driver-cockpit-drawer-header"
-        class="sticky top-0 z-10 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-default bg-default px-4 py-3 min-w-0 motion-reduce:transition-none"
-      >
-        <span
-          class="flex min-w-0 flex-1 items-center justify-center text-center text-base font-medium text-default"
-          data-testid="driver-cockpit-drawer-title"
-        >{{ title }}</span>
-        <button
-          type="button"
-          data-testid="driver-cockpit-drawer-close"
-          :aria-label="DELIVERY_ROUTE_COPY.cockpit.drawer.close"
-          class="flex-none inline-flex items-center justify-center min-h-11 min-w-11 rounded-md bg-default text-default hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-          @click="onPanelClose"
-        >
+      <header data-testid="driver-cockpit-drawer-header" class="sticky top-0 z-10 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-default bg-default px-4 py-3 min-w-0 motion-reduce:transition-none">
+        <span class="flex min-w-0 flex-1 items-center justify-center text-center text-base font-medium text-default" data-testid="driver-cockpit-drawer-title">{{ title }}</span>
+        <button type="button" data-testid="driver-cockpit-drawer-close" :aria-label="DELIVERY_ROUTE_COPY.cockpit.drawer.close" class="flex-none inline-flex items-center justify-center min-h-11 min-w-11 rounded-md bg-default text-default hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" @click="onPanelClose">
           <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
         </button>
       </header>
     </template>
     <template #body>
-      <div
-        data-testid="driver-cockpit-drawer-body"
-        class="max-h-[85dvh] overflow-y-auto motion-reduce:transition-none"
-      >
-        <component
-          :is="modeContent.component as Component"
-          v-if="modeContent"
-          v-bind="modeContent.props"
-          @close="onModeContentClose"
-          @request-confirm="onModeContentRequestConfirm"
-        />
+      <div data-testid="driver-cockpit-drawer-body" class="max-h-[85dvh] overflow-y-auto motion-reduce:transition-none">
+        <component :is="modeContent.component as Component" v-if="modeContent" v-bind="modeContent.props" @close="onModeContentClose" @request-confirm="onModeContentRequestConfirm" />
       </div>
     </template>
   </UDrawer>
+  <USlideover
+    v-else-if="activeSurface === 'slideover'"
+    ref="slideoverRef"
+    :open="open" :title="title" side="right" inset
+    :dismissible="true" :modal="true" :portal="true" :ui="slideoverUi"
+    data-testid="driver-cockpit-slideover-root"
+    @update:open="onSlideoverUpdateOpen"
+    @after:enter="onSlideoverAfterEnter" @after:leave="onSlideoverAfterLeave"
+  >
+    <template #header>
+      <header data-testid="driver-cockpit-slideover-header" class="sticky top-0 z-10 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-default bg-default px-4 py-3 min-w-0 motion-reduce:transition-none">
+        <span class="flex min-w-0 flex-1 items-center justify-center text-center text-base font-medium text-default" data-testid="driver-cockpit-slideover-title">{{ title }}</span>
+        <button type="button" data-testid="driver-cockpit-slideover-close" :aria-label="DELIVERY_ROUTE_COPY.cockpit.drawer.close" class="flex-none inline-flex items-center justify-center min-h-11 min-w-11 rounded-md bg-default text-default hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" @click="onPanelClose">
+          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
+        </button>
+      </header>
+    </template>
+    <template #body>
+      <div data-testid="driver-cockpit-slideover-body" class="flex-1 overflow-y-auto motion-reduce:transition-none">
+        <component :is="modeContent.component as Component" v-if="modeContent" v-bind="modeContent.props" @close="onModeContentClose" @request-confirm="onModeContentRequestConfirm" />
+      </div>
+    </template>
+  </USlideover>
 </template>

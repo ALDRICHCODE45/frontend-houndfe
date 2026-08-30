@@ -10,7 +10,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
 import UApp from '@nuxt/ui/runtime/components/App.vue'
-import DriverCockpitDrawer, { adaptDrawerAnimationEnd } from '../DriverCockpitDrawer.vue'
+import DriverCockpitDrawer, { adaptDrawerAnimationEnd, adaptSlideoverLifecycle } from '../DriverCockpitDrawer.vue'
 import type { DeliveryRouteResponseDto, DeliveryRouteStop, DeliveryRouteTimelineEvent } from '../../../interfaces/delivery-route.types'
 import { DELIVERY_ROUTE_COPY } from '../../../copy'
 
@@ -28,11 +28,11 @@ const STOP = mkStop('s0', 0, 'PENDING')
 const ROUTE = mkRoute([], [STOP])
 
 interface DrawerHarness { inner: VueWrapper<InstanceType<typeof DriverCockpitDrawer>>; outer: VueWrapper }
-function mountDrawer(p: Partial<{ open: boolean; mode: 'stop' | 'history'; route: DeliveryRouteResponseDto; stop: DeliveryRouteStop | null; routeTerminal: boolean; canCheckIn: boolean; checkInPending: boolean }> = {}): DrawerHarness {
-  const props = { open: false, mode: 'stop' as const, route: ROUTE, stop: STOP, routeTerminal: false, canCheckIn: true, checkInPending: false, ...p }
+function mountDrawer(p: Partial<{ open: boolean; mode: 'stop' | 'history'; route: DeliveryRouteResponseDto; stop: DeliveryRouteStop | null; routeTerminal: boolean; canCheckIn: boolean; checkInPending: boolean; isDesktop: boolean }> = {}): DrawerHarness {
+  const props = { open: false, mode: 'stop' as const, route: ROUTE, stop: STOP, routeTerminal: false, canCheckIn: true, checkInPending: false, isDesktop: false, ...p }
   const Wrapper = defineComponent({
     components: { UApp },
-    props: { open: { type: Boolean, required: true }, mode: { type: String, required: true }, route: { type: Object as () => DeliveryRouteResponseDto, required: true }, stop: { type: Object as () => DeliveryRouteStop | null, default: null }, routeTerminal: { type: Boolean, required: true }, canCheckIn: { type: Boolean, required: true }, checkInPending: { type: Boolean, required: true } },
+    props: { open: { type: Boolean, required: true }, mode: { type: String, required: true }, route: { type: Object as () => DeliveryRouteResponseDto, required: true }, stop: { type: Object as () => DeliveryRouteStop | null, default: null }, routeTerminal: { type: Boolean, required: true }, canCheckIn: { type: Boolean, required: true }, checkInPending: { type: Boolean, required: true }, isDesktop: { type: Boolean, required: true } },
     setup(p) { return () => h(UApp, null, { default: () => h(DriverCockpitDrawer as never, p) }) },
   })
   const outer = mount(Wrapper, {
@@ -41,7 +41,8 @@ function mountDrawer(p: Partial<{ open: boolean; mode: 'stop' | 'history'; route
   })
   return { inner: outer.findComponent(DriverCockpitDrawer) as VueWrapper<InstanceType<typeof DriverCockpitDrawer>>, outer }
 }
-type DrawerVm = { drawerRef: { $emit: (e: string, ...a: unknown[]) => Promise<void> } | null }
+type SurfaceVm = { $emit: (e: string, ...a: unknown[]) => Promise<void> }
+    type DrawerVm = { drawerRef: SurfaceVm | null; slideoverRef: SurfaceVm | null }
 const sfcBody = () => fs.readFileSync((DriverCockpitDrawer as unknown as { __file: string }).__file, 'utf8').replace(/\/\*\*[\s\S]*?\*\//g, '')
 beforeEach(() => { /* no mocks to reset */ })
 afterEach(() => { document.body.innerHTML = '' })
@@ -49,14 +50,15 @@ afterEach(() => { document.body.innerHTML = '' })
 // ─── RED: one portal, native-event synthesis (REQ-DCK-001) ──────────────────────
 
 describe('DriverCockpitDrawer — RED: one portal, native-event synthesis (REQ-DCK-001)', () => {
-  it('mounts exactly one UDrawer (via drawerRef) and no nested slideover', async () => {
-    const { inner } = mountDrawer({ open: true })
+  it('mounts exactly one UDrawer (via drawerRef) on mobile; no nested slideover (REQ-DCK-001)', async () => {
+    const { inner } = mountDrawer({ open: true, isDesktop: false })
     await flushPromises()
     const vm = inner.vm as unknown as DrawerVm
     expect(vm.drawerRef).not.toBeNull()
+    expect(vm.slideoverRef).toBeNull()
     const body = sfcBody()
     expect((body.match(/<UDrawer\b/g) ?? []).length).toBe(1)
-    expect(body).not.toMatch(/<USlideover\b/)
+    expect(body).not.toMatch(/<UDrawer\b(?:(?!<\/UDrawer>).)*<USlideover\b/s)
   })
 
   it('stop mode mounts DriverStopPanel; history mode mounts DeliveryRouteTimeline DIRECTLY (REQ-DRC-105)', async () => {
@@ -111,6 +113,77 @@ describe('DriverCockpitDrawer — RED: one portal, native-event synthesis (REQ-D
 })
 
 // ─── TRIANGULATE: mode switch + dismiss paths (REQ-DCK-001/006) ──────────────────
+
+  // ─── S2 — adaptive container (REQ-DCK-001/009) ─────────────────────────────────
+
+  describe('DriverCockpitDrawer — S2: adaptive container (REQ-DCK-001/009)', () => {
+    it('mobile: drawerRef is live, slideoverRef is null', async () => {
+      const { inner } = mountDrawer({ open: true, isDesktop: false }) ; await flushPromises()
+      const vm = inner.vm as unknown as DrawerVm
+      expect(vm.drawerRef).not.toBeNull() ; expect(vm.slideoverRef).toBeNull()
+    })
+    it('desktop: slideoverRef is live, drawerRef is null', async () => {
+      const { inner } = mountDrawer({ open: true, isDesktop: true }) ; await flushPromises()
+      const vm = inner.vm as unknown as DrawerVm
+      expect(vm.slideoverRef).not.toBeNull() ; expect(vm.drawerRef).toBeNull()
+    })
+    it('source: exactly one <USlideover> + one <UDrawer> sibling branches; drawer MUST NOT import useCockpitBreakpoint / @vueuse/core', () => {
+      const body = sfcBody()
+      expect((body.match(/<USlideover\b/g) ?? []).length).toBe(1)
+      expect((body.match(/<UDrawer\b/g) ?? []).length).toBe(1)
+      expect(body).not.toMatch(/useCockpitBreakpoint/)
+      expect(body).not.toMatch(/from\s+['"]@vueuse\/core['"]/)
+    })
+    it('source: isDesktop prop is required (no `default:` in defineProps entry)', () => {
+      const m = sfcBody().match(/isDesktop[^{]*\{[^}]*\}/)
+      expect(m).not.toBeNull() ; expect(m![0]).toMatch(/isDesktop/) ; expect(m![0]).not.toMatch(/default:/)
+    })
+    it('slideover lifecycle: update:open(false) + duplicate @after:enter NEVER emit closed; @after:leave emits closed exactly once', async () => {
+      const { inner } = mountDrawer({ open: true, isDesktop: true }) ; await flushPromises()
+      const vm = inner.vm as unknown as DrawerVm
+      await vm.slideoverRef?.$emit('update:open', false)
+      await vm.slideoverRef?.$emit('after:enter') ; await vm.slideoverRef?.$emit('after:enter')
+      expect(inner.emitted('closed') ?? []).toHaveLength(0)
+      await vm.slideoverRef?.$emit('after:leave') ; await vm.slideoverRef?.$emit('after:leave')
+      expect(inner.emitted('closed') ?? []).toHaveLength(1)
+    })
+    it('drawer lifecycle (regression): animationEnd(true) → mapReady; animationEnd(false) → closed once; update:open(false) NEVER emits closed', async () => {
+      const { inner } = mountDrawer({ open: true, isDesktop: false }) ; await flushPromises()
+      const vm = inner.vm as unknown as DrawerVm
+      await vm.drawerRef?.$emit('update:open', false)
+      expect(inner.emitted('closed') ?? []).toHaveLength(0)
+      await vm.drawerRef?.$emit('animationEnd', true)
+      expect(inner.emitted('closed') ?? []).toHaveLength(0)
+      await vm.drawerRef?.$emit('animationEnd', false)
+      expect(inner.emitted('closed') ?? []).toHaveLength(1)
+    })
+    it('mid-open breakpoint swap (REQ-DCK-009): closed NOT emitted; one portal; mode content preserved', async () => {
+      const { inner, outer } = mountDrawer({ open: true, isDesktop: false }) ; await flushPromises()
+      await (inner.vm as unknown as DrawerVm).drawerRef?.$emit('animationEnd', true)
+      await outer.setProps({ isDesktop: true }) ; await flushPromises()
+      expect(inner.emitted('closed') ?? []).toHaveLength(0)
+      const v = inner.vm as unknown as DrawerVm
+      expect(v.slideoverRef).not.toBeNull() ; expect(v.drawerRef).toBeNull()
+      expect(outer.props('open')).toBe(true)
+      expect(document.querySelector('[data-testid="stop-panel-root"]')).not.toBeNull()
+      expect(document.querySelectorAll('[data-slot="overlay"]')).toHaveLength(1)
+    })
+    it('mid-close breakpoint swap (REQ-DCK-009): surface freezes until settled close, then adopts latest breakpoint on reopen', async () => {
+      const { inner, outer } = mountDrawer({ open: true, isDesktop: false }) ; await flushPromises()
+      await (inner.vm as unknown as DrawerVm).drawerRef?.$emit('animationEnd', true)
+      await outer.setProps({ open: false }) ; await outer.setProps({ isDesktop: true }) ; await flushPromises()
+      const v1 = inner.vm as unknown as DrawerVm
+      expect(v1.drawerRef).not.toBeNull() ; expect(v1.slideoverRef).toBeNull()
+      await v1.drawerRef?.$emit('animationEnd', false)
+      expect(inner.emitted('closed') ?? []).toHaveLength(1)
+      const v2 = inner.vm as unknown as DrawerVm
+      expect(v2.drawerRef).toBeNull() ; expect(v2.slideoverRef).toBeNull()
+      await outer.setProps({ open: true }) ; await flushPromises()
+      const v3 = inner.vm as unknown as DrawerVm
+      expect(v3.slideoverRef).not.toBeNull() ; expect(v3.drawerRef).toBeNull()
+    })
+  })
+
 
 describe('DriverCockpitDrawer — TRIANGULATE: mode switch + dismiss paths (REQ-DCK-001/006)', () => {
   it('stop -> history: closes, awaits animationEnd(false), reopens with direct timeline (no hot-swap)', async () => {
@@ -289,9 +362,9 @@ describe('DriverCockpitDrawer — REFACTOR: adapter unit coverage + source invar
     ['false: second animationEnd(false) does NOT re-emit closed', { openAfter: false, previousMapReady: true, previousClosedEmitted: true }, { mapReady: true, emitClosed: false }],
   ] as const)('adaptDrawerAnimationEnd: %s', (_l, input, expected) => { expect(adaptDrawerAnimationEnd(input)).toEqual(expected) })
 
-  it('SFC never imports server-state, mutation, router, HTTP, or nested slideover', () => {
+  it('SFC never imports server-state, mutation, router, or HTTP', () => {
     const b = sfcBody()
-    for (const re of [/from\s+['"]vue-router['"]|useRouter|useRoute\b/, /useQuery\b|useMutation\b|useQueryClient|@tanstack\/vue-query/, /axios|fetch\(['"]/, /useCheckInStop\b|invalidate|refetchQueries|mutateAsync|mutate\(/, /<USlideover\b/]) expect(b).not.toMatch(re)
+    for (const re of [/from\s+['"]vue-router['"]|useRouter|useRoute\b/, /useQuery\b|useMutation\b|useQueryClient|@tanstack\/vue-query/, /axios|fetch\(['"]/, /useCheckInStop\b|invalidate|refetchQueries|mutateAsync|mutate\(/]) expect(b).not.toMatch(re)
   })
 
   it('SFC never hardcodes the drawer copy literals (single source = copy.ts)', () => {
