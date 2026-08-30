@@ -154,7 +154,15 @@ watch(isSearchOpen, async (open) => {
       :ui="{ body: 'overflow-x-hidden' }"
     >
       <template #header>
-        <UDashboardNavbar :toggle="false" :ui="{ left: 'gap-3' }">
+        <!--
+          ASNT-REQ-001 (driver-cockpit-responsive-polish / S1): the leading
+          `:toggle="false"` suppression is intentionally removed so the
+          installed @nuxt/ui native UDashboardSidebarToggle returns to the
+          navbar leading slot below `lg`. The existing
+          UDashboardSidebarCollapse in the `#left` slot below stays in place
+          as the separate desktop collapse control at `lg+`.
+        -->
+        <UDashboardNavbar :ui="{ left: 'gap-3' }">
           <template #left>
             <UDashboardSidebarCollapse
               variant="ghost"
