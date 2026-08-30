@@ -8,13 +8,14 @@ Scope: corrective responsive composition for the driver cockpit and the applicat
 
 | Field | Value |
 |-------|-------|
-| Estimated changed lines (all-inclusive, all 4 slices) | ~540 (`+475` / `-65` rough) |
+| Estimated changed lines (all-inclusive, recovered 5-slice plan) | ~930 (S1 actual 168; S2 partial measured ~505 before evidence compression; S3/S4 forecast ~265) |
 | 400-line budget risk | High (total review scope exceeds 400 even though each slice is bounded) |
 | Per-slice 600-line hard cap | Within budget on every slice (worst slice ≈ 225 lines) |
 | Chained PRs recommended | Yes |
-| Suggested grouping | Two review units (B1, B2), each < 400 changed lines, preserving four atomic slice commits |
-| B1 — Shell trigger + adaptive overlay | S1 + S2 ≈ 275 lines all-inclusive |
-| B2 — Stop-panel chrome + viewport polish | S3 + S4 ≈ 265 lines all-inclusive |
+| Suggested grouping | Three review units (B1, B2, B3), each < 400 changed lines, preserving five atomic slice commits |
+| B1 — Shell trigger + breakpoint foundation | S1 + S2a ≈ 335 lines all-inclusive |
+| B2 — Adaptive overlay lifecycle/container | S2b ≈ 370 lines all-inclusive |
+| B3 — Stop-panel chrome + viewport polish | S3 + S4 ≈ 265 lines all-inclusive |
 | Delivery strategy | ask-on-risk |
 | Chain strategy | feature-branch-chain (user selected) |
 
@@ -23,11 +24,12 @@ Per-slice all-inclusive forecast (implementation + co-located tests + progress/a
 | Slice | Files touched | Forecast (all-inclusive) | 400 risk | 600 cap |
 |-------|---------------|--------------------------|----------|---------|
 | S1 — App-shell mobile sidebar trigger | `src/app/layouts/DashboardLayout.vue`, `src/app/layouts/__tests__/DashboardLayout.test.ts` | ~50 lines | Low | OK |
-| S2 — Single breakpoint authority + adaptive overlay container | NEW `useCockpitBreakpoint.ts` (+ spec); MOD `DriverCockpitDrawer.vue` + spec (REQUIRED `isDesktop` prop, NO `useCockpitBreakpoint` import); MOD `DriverRouteCockpit.vue` + spec (owns the SINGLE `useCockpitBreakpoint()` call and passes `:is-desktop` to the drawer; S3 extends the same value to the footer) | ~225 lines | Low | OK |
+| S2a — Parent-owned breakpoint foundation | NEW `useCockpitBreakpoint.ts` + spec; MOD `DriverRouteCockpit.vue` + spec; minimal required `isDesktop` prop declaration in `DriverCockpitDrawer.vue` | ~165 lines | Low | OK |
+| S2b — Adaptive overlay lifecycle/container | MOD `DriverCockpitDrawer.vue` + spec only; uses required parent prop and distinct native lifecycle adapters | ~370 lines | Medium | OK |
 | S3 — Stop-panel chrome removal + single-action composition | MOD `DriverStopPanel.vue` + spec (props `{ stop, mapReady }`, no emits); MOD `DriverCockpitDrawer.vue` + spec (slideover `#footer` slot); MOD `DriverCockpitFooter.vue` + spec (REQUIRED `isDesktop` prop, gate current-action on `!isDesktop`); MOD `DriverRouteCockpit.vue` + spec | ~155 lines | Low | OK |
 | S4 — Header / gutter / spine / safe-area / viewport polish | MOD `DriverCockpitHeader.vue` + spec (no destructive truncate removal); MOD `DriverOperationalStops.vue` + spec; MOD `DriverRouteSpine.vue` + spec (preserve existing `min-w-0 flex-1 truncate` overflow safety); MOD `DriverCockpitFooter.vue` + spec (additive safe-area); MOD `DriverRouteCockpit.vue` (containing-panel-aware viewport composition — NEVER raw `min-h-[100dvh]`) | ~110 lines | Low | OK |
 
-No slice exceeds 600 changed lines; the largest is ~225. Two review units (B1 = S1+S2 ≈ 275 lines, B2 = S3+S4 ≈ 265 lines) each stay under the 400-line budget and preserve four atomic slice commits. The user resolved `ask-on-risk` by selecting `feature-branch-chain`; no size exception applies. S4 additionally requires manual screenshot verification at 373×807 and a desktop viewport (≥1024px) for the containing-panel-aware viewport composition (no jsdom pixel assertions).
+No slice exceeds 600 changed lines. Recovery evidence split the underestimated S2 into S2a (~165) and S2b (~370), producing three review units below 400: B1 = S1+S2a, B2 = S2b, B3 = S3+S4. The user explicitly authorized the split and `feature-branch-chain`; no size exception applies. S4 additionally requires manual screenshot verification at 373×807 and a desktop viewport (≥1024px) for the containing-panel-aware viewport composition (no jsdom pixel assertions).
 
 ```text
 Decision needed before apply: No (resolved: split selected)
@@ -43,7 +45,8 @@ Chain strategy: feature-branch-chain
 | # | Goal | Files (NEW + MOD) | Strict-TDD verify command | Runtime path | Rollback |
 |---|------|-------------------|---------------------------|--------------|----------|
 | S1 | Restore an accessible mobile sidebar trigger below `lg` in `DashboardLayout.vue`; preserve desktop collapse. | MOD `src/app/layouts/DashboardLayout.vue`; MOD `src/app/layouts/__tests__/DashboardLayout.test.ts` | `pnpm test:unit --run src/app/layouts/__tests__/DashboardLayout.test.ts` | Manual: open any view in a <1024px window, tap navbar trigger, sidebar opens. | Revert one commit (`DashboardLayout.vue` + its test) — shell returns to pre-change state with no cockpit coupling. |
-| S2 | Single breakpoint authority: `DriverRouteCockpit.vue` owns the ONE `useCockpitBreakpoint()` call and passes a REQUIRED `isDesktop` prop to `DriverCockpitDrawer`; S3 passes that same value to `DriverCockpitFooter`. Replace unconditional `UDrawer` with a viewport-adaptive overlay (`USlideover side="right" inset` on `lg+`, `UDrawer direction="bottom"` below `lg`), synthesizing `closed` from native `@after:leave` (slideover) or `animationEnd(false)` (drawer). The drawer MUST NOT instantiate `useCockpitBreakpoint` itself and MUST NOT make `isDesktop` optional. | NEW `src/features/delivery-routes/composables/cockpit/useCockpitBreakpoint.ts`; NEW `src/features/delivery-routes/composables/cockpit/__tests__/useCockpitBreakpoint.spec.ts`; MOD `src/features/delivery-routes/components/cockpit/DriverCockpitDrawer.vue` (REQUIRED `isDesktop` prop, NO `useCockpitBreakpoint` import); MOD `src/features/delivery-routes/components/cockpit/__tests__/DriverCockpitDrawer.spec.ts` (USlideover/UDrawer stubs, lifecycle assertions, breakpoint swap); MOD `src/features/delivery-routes/components/cockpit/DriverRouteCockpit.vue` (owns the SINGLE `useCockpitBreakpoint()` call; passes `:is-desktop` to drawer + footer); MOD `src/features/delivery-routes/components/cockpit/__tests__/DriverRouteCockpit.spec.ts` (extend DrawerStub/FooterStub to accept `isDesktop`, assert single source) | `pnpm test:unit --run src/features/delivery-routes/composables/cockpit/__tests__/useCockpitBreakpoint.spec.ts src/features/delivery-routes/components/cockpit/__tests__/DriverCockpitDrawer.spec.ts src/features/delivery-routes/components/cockpit/__tests__/DriverRouteCockpit.spec.ts` | Manual: open stop detail on a desktop viewport → right slideover; open on a mobile viewport → bottom drawer. Resize across 1024px: one active container, no duplicate portal. | Revert one commit touching only the files listed above — overlay returns to unconditional bottom drawer; `useCockpitBreakpoint` disappears; `isDesktop` prop vanishes. Reducer, derivation, check-in contracts unchanged. |
+| S2a | Land the single parent-owned breakpoint foundation: composable + focused spec + root wiring/route spec + minimal required drawer prop. No adaptive template/lifecycle commit yet. | NEW breakpoint composable/spec; MOD root/spec; minimal MOD drawer prop | focused composable + route tests | Manual: root supplies desktop/mobile boolean deterministically. | Revert S2a commit only. |
+| S2b | Complete adaptive `USlideover`/`UDrawer` container and lifecycle behavior using the required parent prop; no breakpoint import in drawer. | MOD drawer + drawer spec only | focused drawer + route + composable tests | Manual: one active container across breakpoint, settled lifecycle correct. | Revert S2b commit only; S2a foundation remains. | | NEW `src/features/delivery-routes/composables/cockpit/useCockpitBreakpoint.ts`; NEW `src/features/delivery-routes/composables/cockpit/__tests__/useCockpitBreakpoint.spec.ts`; MOD `src/features/delivery-routes/components/cockpit/DriverCockpitDrawer.vue` (REQUIRED `isDesktop` prop, NO `useCockpitBreakpoint` import); MOD `src/features/delivery-routes/components/cockpit/__tests__/DriverCockpitDrawer.spec.ts` (USlideover/UDrawer stubs, lifecycle assertions, breakpoint swap); MOD `src/features/delivery-routes/components/cockpit/DriverRouteCockpit.vue` (owns the SINGLE `useCockpitBreakpoint()` call; passes `:is-desktop` to drawer + footer); MOD `src/features/delivery-routes/components/cockpit/__tests__/DriverRouteCockpit.spec.ts` (extend DrawerStub/FooterStub to accept `isDesktop`, assert single source) | `pnpm test:unit --run src/features/delivery-routes/composables/cockpit/__tests__/useCockpitBreakpoint.spec.ts src/features/delivery-routes/components/cockpit/__tests__/DriverCockpitDrawer.spec.ts src/features/delivery-routes/components/cockpit/__tests__/DriverRouteCockpit.spec.ts` | Manual: open stop detail on a desktop viewport → right slideover; open on a mobile viewport → bottom drawer. Resize across 1024px: one active container, no duplicate portal. | Revert one commit touching only the files listed above — overlay returns to unconditional bottom drawer; `useCockpitBreakpoint` disappears; `isDesktop` prop vanishes. Reducer, derivation, check-in contracts unchanged. |
 | S3 | Remove `DriverStopPanel`'s internal header/close/secondary action (props reduce to `{ stop, mapReady }`, no emits); route the single delivery action through the overlay's `#footer` slot on desktop and through the cockpit's bottom page footer on mobile. `DriverCockpitFooter` gains a REQUIRED `isDesktop` prop (wired from S2's single source) and gates `current-action` on `!isDesktop` while preserving `terminal` / `in-progress` / `empty` rendering. | MOD `src/features/delivery-routes/components/cockpit/DriverStopPanel.vue` (drop header/close/secondary; props `{ stop, mapReady }`; no emits); MOD `src/features/delivery-routes/components/cockpit/__tests__/DriverStopPanel.spec.ts` (absence assertions); MOD `src/features/delivery-routes/components/cockpit/DriverCockpitDrawer.vue` (slideover `#footer` slot with gated action); MOD `src/features/delivery-routes/components/cockpit/__tests__/DriverCockpitDrawer.spec.ts` (overlay footer-action describe); MOD `src/features/delivery-routes/components/cockpit/DriverCockpitFooter.vue` (REQUIRED `isDesktop` prop, gate current-action on `!isDesktop`); MOD `src/features/delivery-routes/components/cockpit/__tests__/DriverCockpitFooter.spec.ts` (viewport-composed describe); MOD `src/features/delivery-routes/components/cockpit/DriverRouteCockpit.vue` (passes `:is-desktop` to footer from the same source); MOD `src/features/delivery-routes/components/cockpit/__tests__/DriverRouteCockpit.spec.ts` (extend FooterStub `isDesktop`, suppression triangulation) | `pnpm test:unit --run src/features/delivery-routes/components/cockpit/__tests__/DriverStopPanel.spec.ts src/features/delivery-routes/components/cockpit/__tests__/DriverCockpitFooter.spec.ts src/features/delivery-routes/components/cockpit/__tests__/DriverCockpitDrawer.spec.ts src/features/delivery-routes/components/cockpit/__tests__/DriverRouteCockpit.spec.ts` | Manual: on mobile, tap `Marcar entregada` in page footer only; on desktop, open stop slideover and tap `Marcar entregada` in slideover footer only — never both, never in panel body. | Revert one commit — `DriverStopPanel` regains its internal chrome (intentional spec-delta replacement); overlay `#footer` slot removed; footer `isDesktop` prop removed. S2's adaptive container + single breakpoint authority preserved. |
 | S4 | Polish header regrouping for 320–373px (preserve existing overflow-safe `truncate` on header identity AND spine customer span; NO destructive `truncate` removal); unify cockpit body gutter authority (drop nested `px-4` from `DriverOperationalStops`); keep spine truncation firing only at actual overflow; switch footer padding to additive `pb-[calc(0.75rem+env(safe-area-inset-bottom))]` + `pt-3`; apply a CONTAINING-PANEL-AWARE viewport composition (`h-full min-h-0` chain OR navbar-offset `calc`) — NEVER raw `min-h-[100dvh]` which can create vertical overshoot below the global navbar. Footer remains non-fixed (sticky) and bottom-aligned. | MOD `src/features/delivery-routes/components/cockpit/DriverCockpitHeader.vue` (narrow-width regrouping only if tests reveal overflow; preserve existing `truncate`); MOD `src/features/delivery-routes/components/cockpit/__tests__/DriverCockpitHeader.spec.ts` (DOM/content/a11y contract pins — NOT pixel measurements); MOD `src/features/delivery-routes/components/cockpit/DriverOperationalStops.vue` (drop nested `px-4`); MOD `src/features/delivery-routes/components/cockpit/__tests__/DriverOperationalStops.spec.ts` (body-gutter describe); MOD `src/features/delivery-routes/components/cockpit/DriverRouteSpine.vue` (NO source change unless tests reveal a real defect; preserve `min-w-0 flex-1 truncate` overflow safety); MOD `src/features/delivery-routes/components/cockpit/__tests__/DriverRouteSpine.spec.ts` (meaningful DOM/content/a11y contract pins — NOT jsdom pixel assertions); MOD `src/features/delivery-routes/components/cockpit/DriverCockpitFooter.vue` (additive `pb-[calc(0.75rem+env(safe-area-inset-bottom))]`; `py-3` → `pt-3`); MOD `src/features/delivery-routes/components/cockpit/__tests__/DriverCockpitFooter.spec.ts` (safe-area regex update); MOD `src/features/delivery-routes/components/cockpit/DriverRouteCockpit.vue` (containing-panel-aware viewport composition — `h-full min-h-0` chain OR navbar-offset `calc`; NO raw `min-h-[100dvh]`) | `pnpm test:unit --run src/features/delivery-routes/components/cockpit/__tests__/DriverCockpitHeader.spec.ts src/features/delivery-routes/components/cockpit/__tests__/DriverOperationalStops.spec.ts src/features/delivery-routes/components/cockpit/__tests__/DriverRouteSpine.spec.ts src/features/delivery-routes/components/cockpit/__tests__/DriverCockpitFooter.spec.ts src/features/delivery-routes/components/cockpit/__tests__/DriverRouteCockpit.spec.ts` | **Manual screenshot verification (REQUIRED):** at 373×807 (mobile) AND a desktop viewport (≥1024px), capture the cockpit and verify (a) header identity readable (no `Re`-style fragment), (b) no horizontal page scroll, (c) footer action bottom-aligned with safe-area padding, (d) no vertical overshoot below the global navbar, (e) spine status label + position + customer all render without premature truncation. | Revert one commit — layout polish undone; functionality from S1/S2/S3 preserved. |
 
@@ -112,24 +115,27 @@ S1 is intentionally isolated: it de-risks the Nuxt UI shell trigger without touc
 ## Implementation Order
 
 1. **Slice 1 — App-shell mobile sidebar trigger** (independent foundation).
-2. **Slice 2 — Breakpoint authority + adaptive overlay container** (sets the single-breakpoint contract for every later slice).
-3. **Slice 3 — Stop-panel chrome removal + single-action composition** (depends on the slideover from S2; updates tests whose old all-drawer / panel-close assumptions are deliberately changed).
-4. **Slice 4 — Header/gutter/spine/footer/safe-area polish** (depends on S2 + S3; visual-only polish layered on the now-correct composition).
-5. **Final full gates** after Slice 4 lands.
+2. **Slice 2a — Parent-owned breakpoint foundation** (lands the single authority without the high-churn overlay rewrite).
+3. **Slice 2b — Adaptive overlay container/lifecycle** (depends on S2a and completes the drawer/slideover behavior).
+4. **Slice 3 — Stop-panel chrome removal + single-action composition** (depends on the slideover from S2; updates tests whose old all-drawer / panel-close assumptions are deliberately changed).
+5. **Slice 4 — Header/gutter/spine/footer/safe-area polish** (depends on S2 + S3; visual-only polish layered on the now-correct composition).
+6. **Final full gates** after Slice 4 lands.
 
 Resolved delivery topology:
 
 ```text
 tracker: feat/driver-cockpit-responsive-polish (from main)
-B1: feat/driver-cockpit-responsive-polish-b1-shell-overlay (S1 + S2; targets tracker)
-B2: feat/driver-cockpit-responsive-polish-b2-action-polish (S3 + S4; targets B1)
+B1: feat/driver-cockpit-responsive-polish-b1-shell-overlay (S1 + S2a; targets tracker)
+B2: feat/driver-cockpit-responsive-polish-b2-adaptive-overlay (S2b; targets B1)
+B3: feat/driver-cockpit-responsive-polish-b3-action-polish (S3 + S4; targets B2)
 Only the tracker branch ultimately integrates to main.
 ```
 
 Implementation checklist consumed by native SDD status/apply:
 
 - [x] S1 — Restore the app-shell mobile sidebar trigger with focused tests green.
-- [ ] S2 — Add the single parent-owned breakpoint authority and adaptive overlay with focused tests green.
+- [ ] S2a — Land the single parent-owned breakpoint foundation and root wiring with focused tests green.
+- [ ] S2b — Complete the adaptive overlay container/lifecycle using the required parent prop with focused tests green.
 - [ ] S3 — Remove duplicate stop-panel chrome and compose exactly one viewport-specific delivery action with focused tests green.
 - [ ] S4 — Complete evidence-backed responsive header/gutter/spine/footer/available-height polish, including required viewport screenshots, with focused tests green.
 - [ ] Final gates — Run the full unit suite, build/type-check, and lint successfully.
@@ -197,95 +203,45 @@ Verify:      pnpm test:unit --run src/app/layouts/__tests__/DashboardLayout.test
 
 ---
 
-### Slice 2 — Breakpoint authority + adaptive overlay container
+### Slice 2a — Parent-owned breakpoint foundation (recovery split)
 
-**Scope (capabilities: `driver-cockpit-drawer` REQ-DCK-001 / 002 / 009; preserved: 004 / 005 / 006 / 007 / 008):**
+**Scope:** land only the single breakpoint authority and parent wiring while preserving green behavior. This slice is extracted from the reusable interrupted S2 work.
 
-- Introduce a tiny `useCockpitBreakpoint()` composable wrapping `@vueuse/core`'s `useMediaQuery('(min-width: 1024px)')`. `DriverRouteCockpit.vue` invokes it exactly once and owns the resulting `isDesktop` value, aligned with the app shell sidebar; children receive that value through required typed props.
-- The overlay (`DriverCockpitDrawer.vue`) becomes viewport-adaptive: exactly one Nuxt UI container mounted at a time via `v-if/v-else`. On `lg+` it renders `USlideover side="right" inset` with `#body` + `#footer` + `#header` slots (precedent: `src/features/delivery-routes/components/DeliveryRouteUpsertSlideover.vue`). Below `lg` it renders the existing `UDrawer direction="bottom"`.
-- Two distinct adapters replace the previous drawer-only adapter. Both are pure, exported, and unit-tested.
-  - **Drawer adapter (unchanged contract):** `adaptDrawerAnimationEnd({ openAfter, previousMapReady, previousClosedEmitted })` — preserved verbatim. `animationEnd(true) → mapReady=true`, `animationEnd(false) → emit 'closed'` exactly once per close.
-  - **Slideover adapter (NEW):** `adaptSlideoverLifecycle({ phase: 'enter'|'leave', previousMapReady, previousClosedEmitted })`. `enter → mapReady=true` (opening settled). `leave → emit 'closed'` exactly once per close; never before the slideover's native leave transition settles.
-- Container swap behavior (REQ-DCK-009):
-  - State (`open`, `mode`, selected stop) lives in the cockpit, not the container. Resize crossing 1024px unmounts the old container, resets `mapReady`, then mounts the new container with the same parent-owned `open`/`mode`/selected stop.
-  - If a close transition is in flight at the moment of resize, the active surface is frozen until its settled-close event fires; the new breakpoint is then adopted before any reducer-driven reopen.
-- The cockpit's reducer (`reduceCockpit`) is NOT modified. The overlay still emits only `update:open`, `closed`, and `request-confirm`. `DriverRouteCockpit.vue` owns the single breakpoint composable invocation and passes required `isDesktop` to the overlay; it does not duplicate breakpoint state.
+**TDD / files:**
 
-**TDD Steps:**
+1. RED/GREEN `useCockpitBreakpoint.spec.ts` + `useCockpitBreakpoint.ts`: one reactive `useMediaQuery('(min-width: 1024px)')` threshold.
+2. RED/GREEN `DriverRouteCockpit.spec.ts` + `DriverRouteCockpit.vue`: the root calls the composable exactly once and passes required `isDesktop` to the overlay stub; reducer tests remain unchanged.
+3. Add only the minimal required `isDesktop: boolean` prop declaration to `DriverCockpitDrawer.vue`; do not land adaptive template/lifecycle changes in S2a. Existing drawer behavior remains mobile/bottom-drawer behavior.
+4. TRIANGULATE desktop/mobile composable flips and required prop wiring. REFACTOR generated declarations away.
 
-1. **RED** — `src/features/delivery-routes/composables/cockpit/__tests__/useDriverRouteCockpit.spec.ts` (existing file) gets a NEW sibling test or a fresh colocated spec for the breakpoint composable. Either:
-   - Add `src/features/delivery-routes/composables/cockpit/__tests__/useCockpitBreakpoint.spec.ts` (NEW; preferred for isolation), and stub `useMediaQuery` to flip `isDesktop`. Pin:
-     - At width `<1024px` → `isDesktop === false`.
-     - At width `>=1024px` → `isDesktop === true`.
-     - Reactive resize in both directions updates `isDesktop` synchronously after the stub fires.
-   - The new test must fail before the composable exists (file missing → collection error counts as RED).
-2. **GREEN** — `src/features/delivery-routes/composables/cockpit/useCockpitBreakpoint.ts`:
-   - `import { useMediaQuery } from '@vueuse/core'`.
-   - `export function useCockpitBreakpoint(): { isDesktop: ComputedRef<boolean> }`.
-   - One threshold, no second value.
-3. **RED** — `src/features/delivery-routes/components/cockpit/__tests__/DriverCockpitDrawer.spec.ts`:
-   - Add new `describe('DriverCockpitDrawer — adaptive container (REQ-DCK-001/009)', () => { ... })`. Stub `USlideover` and `UDrawer` so each emits the relevant native lifecycle (`@after:enter`, `@after:leave` for slideover; `animationEnd(open)` for drawer). Pin:
-     - With `isDesktop=true`, only the slideover stub is mounted; `UDrawer` portal absent.
-     - With `isDesktop=false`, only the drawer stub is mounted; `USlideover` portal absent.
-     - Slideover `@after:enter` → `mapReady`; `@after:leave` → exactly one `closed` emission (per `closedEmitted` guard).
-     - Drawer `animationEnd(true)` → `mapReady`; `animationEnd(false)` → exactly one `closed`.
-     - Crossing the breakpoint with `open=true` unmounts the old container without emitting `closed`, resets `mapReady`, mounts the new one, and keeps the parent's `open`/`mode`/selected stop intact.
-     - Crossing mid-close: the active surface freezes until its settled-close fires, then adopts the latest breakpoint before any reducer reopen.
-   - The new tests fail before the SFC is updated; the existing drawer tests will fail because the SFC now mounts a slideover by default.
-4. **GREEN** — breakpoint owner plus adaptive overlay:
-   - In `DriverRouteCockpit.vue`, import and call `useCockpitBreakpoint()` exactly once; pass the resulting required `:is-desktop` prop to `DriverCockpitDrawer`.
-   - In `DriverCockpitDrawer.vue`, declare required `isDesktop: boolean`; do NOT import or invoke `useCockpitBreakpoint` and do NOT provide an optional fallback.
-   - Co-locate a `<script lang="ts">` block exporting `adaptSlideoverLifecycle(input)` next to `adaptDrawerAnimationEnd`.
-   - Refactor the template: top-level `v-if="props.isDesktop"` mounts the slideover branch; `v-else` mounts the drawer branch. Each branch owns one title/close control via shared header content.
-   - Re-run: all new container-selection tests pass; existing drawer tests explicitly pass `isDesktop: false` and remain green.
-5. **TRIANGULATE** — same describe block: add
-   - Mode switch (stop → history) closes-then-reopens in the active container; settled-close fires once per full close.
-   - `closed` is never emitted prematurely (slideover `update:open(false)` alone must not emit `closed`).
-   - Duplicate settled events (e.g. `after:leave` twice) emit `closed` exactly once.
-   - `reduced-motion` class still reaches the active container's overlay/content slots (drawer path) and the slideover's content slot (slideover path).
-6. **REFACTOR** — confirm `adaptDrawerAnimationEnd` and `adaptSlideoverLifecycle` are exported as named bindings so future slices can unit-test them directly. Tighten adapter names if duplication emerges. No new state outside the overlay; no behavior change.
+**Allowed commit surfaces:** breakpoint composable/spec, root/spec, and the minimal drawer prop hunk. Mark only S2a complete and append <=30 concise evidence lines.
 
-**Files (NEW + MOD):**
-
-- NEW `src/features/delivery-routes/composables/cockpit/useCockpitBreakpoint.ts` (~15 lines).
-- NEW `src/features/delivery-routes/composables/cockpit/__tests__/useCockpitBreakpoint.spec.ts` (~35 lines).
-- MOD `src/features/delivery-routes/components/cockpit/DriverCockpitDrawer.vue` (`<script lang="ts">` adds `adaptSlideoverLifecycle`; required `isDesktop` prop; `#footer` slot skeleton + `v-if/v-else` container swap; no breakpoint composable import; ~+80/-15 lines).
-- MOD `src/features/delivery-routes/components/cockpit/__tests__/DriverCockpitDrawer.spec.ts` (new adaptive-container tests; explicit required `isDesktop`; USlideover/UDrawer stubs; lifecycle assertions; ~+100/-10 lines).
-- MOD `src/features/delivery-routes/components/cockpit/DriverRouteCockpit.vue` (owns the one `useCockpitBreakpoint()` call and passes `is-desktop` into the overlay; ~+6 lines).
-- MOD `src/features/delivery-routes/components/cockpit/__tests__/DriverRouteCockpit.spec.ts` (mock the composable once, extend `DrawerStub` to require `isDesktop`, and assert wiring without changing reducer behavior; ~+24/-2 lines).
-
-**Verify block:**
+**Verify:**
 
 ```bash
-pnpm test:unit --run src/features/delivery-routes/components/cockpit/__tests__/DriverCockpitDrawer.spec.ts \
+pnpm test:unit --run src/features/delivery-routes/composables/cockpit/__tests__/useCockpitBreakpoint.spec.ts \
                  src/features/delivery-routes/components/cockpit/__tests__/DriverRouteCockpit.spec.ts \
-                 src/features/delivery-routes/composables/cockpit/__tests__/useCockpitBreakpoint.spec.ts
+                 src/features/delivery-routes/components/cockpit/__tests__/DriverCockpitDrawer.spec.ts
 ```
 
-Expect: every test green; `adaptDrawerAnimationEnd` and `adaptSlideoverLifecycle` unit tests both pass; existing drawer-only assertions still pass under `<lg`.
+**Commit:** `feat(cockpit): add parent-owned responsive breakpoint foundation (REQ-DCK-009)`
 
-**Rollback boundary:**
+---
 
-Revert one commit touching only the files listed above. Overlay returns to unconditional bottom drawer; `useCockpitBreakpoint` disappears. Reducer, derivation, check-in, manager branch, and route list untouched.
+### Slice 2b — Adaptive overlay container and lifecycle (recovery split)
 
-**Commit message:**
+**Scope:** using S2a's required `isDesktop` prop, complete the one-active-container overlay: desktop `USlideover side="right" inset`, mobile `UDrawer direction="bottom"`; drawer `animationEnd(true/false)`, slideover `@after:enter`/`@after:leave`; no breakpoint composable import inside the drawer. Preserve open/mode/selected-stop and reducer behavior.
 
-```
-feat(cockpit): adapt overlay container to viewport (REQ-DCK-001/009)
+**TDD / files:**
 
-Introduce useCockpitBreakpoint (lg boundary via @vueuse/core useMediaQuery)
-and refactor DriverCockpitDrawer into a viewport-adaptive overlay:
-USlideover side="right" inset on lg+, UDrawer direction="bottom" below.
-The two containers use distinct native-event adapters; closed is emitted
-exactly once per settled close (animationEnd(false) for the drawer,
-@after:leave for the slideover). open/mode state remains parent-owned,
-so a breakpoint swap preserves mode while unmounting the previous
-container. Reducer, derivation, and check-in wiring are unchanged.
+1. RED/GREEN/TRIANGULATE only `DriverCockpitDrawer.spec.ts` and `DriverCockpitDrawer.vue` for container selection, map readiness, exactly-once settled close, direct open-state swap without `closed`, close-in-flight freeze, reduced motion, and no duplicate portal.
+2. Re-run S2a composable/root tests as preservation gates; do not edit them in S2b unless a proven integration failure requires it.
+3. Keep S2b all-inclusive <=390 lines by compressing duplicated test setup and apply-progress evidence without weakening behavior. Restore `components.d.ts`.
+4. Mark only S2b complete after focused green.
 
-Capability: driver-cockpit-drawer
-Spec:        openspec/changes/driver-cockpit-responsive-polish/specs/driver-cockpit-drawer/spec.md
-Verify:      pnpm test:unit --run src/features/delivery-routes/components/cockpit/__tests__/DriverCockpitDrawer.spec.ts
-```
+**Verify:** same focused three-file command as S2a.
+
+**Commit:** `feat(cockpit): adapt overlay container lifecycle to viewport (REQ-DCK-001/009)`
 
 ---
 
