@@ -222,13 +222,13 @@ The cockpit overlay SHALL derive its container choice from one reactive breakpoi
 
 ## State and copy matrix
 
-| Mode/state | Behavior |
-| --- | --- |
-| Stop without selected stop | Cockpit does not open this state; drawer stop prop may be null only while closed |
-| Null optional stop fields | Customer fallback; absent address/map/action rows omitted |
-| History empty | Existing `Sin eventos registrados` |
-| Quick-action runtime failure | Existing toast; drawer remains usable |
-| Drawer mount/runtime failure | No new cockpit error boundary/report-up/retry surface is introduced |
-| Check-in pending | Stop-panel secondary delivery action disabled |
+| Mode/state                   | Behavior                                                                         |
+| ---------------------------- | -------------------------------------------------------------------------------- |
+| Stop without selected stop   | Cockpit does not open this state; drawer stop prop may be null only while closed |
+| Null optional stop fields    | Customer fallback; absent address/map/action rows omitted                        |
+| History empty                | Existing `Sin eventos registrados`                                               |
+| Quick-action runtime failure | Existing toast; drawer remains usable                                            |
+| Drawer mount/runtime failure | No new cockpit error boundary/report-up/retry surface is introduced              |
+| Check-in pending             | Stop-panel secondary delivery action disabled                                    |
 
 Canonical copy: `Parada N — {customer}`, `Historial de la ruta`, `Cerrar`, `Ver en mapa`, `Copiar dirección`, `Email`, existing quick-action result copy, `Confirmar entrega`, `Cancelar`, irreversible statement above, and `Sin eventos registrados`.

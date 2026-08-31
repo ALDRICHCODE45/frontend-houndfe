@@ -212,15 +212,15 @@ The driver branch's detail-view wrapper (`DeliveryRouteDetailView`) is the singl
 
 ## State and copy matrix
 
-| State | Owner / behavior |
-| --- | --- |
-| Initial loading | Existing view skeleton; cockpit absent |
-| Stale id | Existing id guard; stale cockpit absent |
-| 403/404 driver | Existing `Ruta no encontrada`; cockpit absent |
-| Generic query error | Existing detail error block only; cockpit absent |
-| Zero stops | `0/0`, `Sin parada activa`, `Sin paradas`, footer empty mode |
-| Check-in pending | Footer and stop-panel delivery actions disabled |
+| State               | Owner / behavior                                                       |
+| ------------------- | ---------------------------------------------------------------------- |
+| Initial loading     | Existing view skeleton; cockpit absent                                 |
+| Stale id            | Existing id guard; stale cockpit absent                                |
+| 403/404 driver      | Existing `Ruta no encontrada`; cockpit absent                          |
+| Generic query error | Existing detail error block only; cockpit absent                       |
+| Zero stops          | `0/0`, `Sin parada activa`, `Sin paradas`, footer empty mode           |
+| Check-in pending    | Footer and stop-panel delivery actions disabled                        |
 | Check-in settlement | Existing mutation composable owns success/error toast and invalidation |
-| Refresh failure | View toast `No se pudo actualizar la ruta`; cached DTO/scroll retained |
+| Refresh failure     | View toast `No se pudo actualizar la ruta`; cached DTO/scroll retained |
 
 Canonical shell copy remains: `Ruta`, `Actualizar ruta`, `Notas de la ruta`, `Sin parada activa`, `Cliente sin nombre`, `Siguiente · Parada N`, `Última parada`, `No hay más pendientes`, existing stop labels, `Marcar entregada`, terminal copy above, and `Ver historial`.

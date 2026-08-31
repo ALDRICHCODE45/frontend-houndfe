@@ -258,7 +258,15 @@ describe('SaleDetailTotalsCard', () => {
     })
 
     const button = wrapper.get('[data-testid="register-debt-payment"]')
-    expect(button.classes()).toEqual(expect.arrayContaining(['!bg-(--brand-action)', '!text-black', 'rounded-xl', 'font-semibold', 'shadow-sm']))
+    expect(button.classes()).toEqual(
+      expect.arrayContaining([
+        '!bg-(--brand-action)',
+        '!text-black',
+        'rounded-xl',
+        'font-semibold',
+        'shadow-sm',
+      ]),
+    )
   })
 
   // ── sale-detail-redesign WU-E — wrap totals in UCard with header
