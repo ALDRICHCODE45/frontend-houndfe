@@ -1,9 +1,13 @@
 # Delta for Driver Cockpit Shell
 
 Delta spec against canonical `openspec/specs/driver-cockpit-shell/spec.md`.
-REQ-DCS-001, REQ-DCS-003, REQ-DCS-004, REQ-DCS-005, REQ-DCS-007, REQ-DCS-008, REQ-DCS-009, and REQ-DCS-010 are preserved verbatim. No REMOVED requirements.
+REQ-DCS-003, REQ-DCS-004, REQ-DCS-005, REQ-DCS-007, REQ-DCS-008, REQ-DCS-009, and REQ-DCS-010 are preserved verbatim. REQ-DCS-001 server-state ownership scenarios are preserved; the canonical full-bleed layout scenario is superseded per S4 design (see REQ-DCS-001 note below). No REMOVED requirements.
 
 ## MODIFIED Requirements
+
+> **REQ-DCS-001 note (reconciliation):** The canonical REQ-DCS-001 scenario *"GIVEN the cockpit is inside the dashboard panel, THEN its root uses the existing full-bleed offset"* is superseded by the S4 design decision. The approved S4 design removed the negative full-bleed offset (`-m-4 sm:-m-6`) and its compensating nested horizontal padding. The cockpit now composes inside the parent detail-view wrapper's gutter (`px-4 sm:px-6 lg:px-10` from `DeliveryRouteDetailView`), consistent with the single-gutter authority clarified in REQ-DCS-011. Server-state ownership and all non-layout REQ-DCS-001 scenarios remain preserved verbatim.
+
+
 
 ### REQ-DCS-002: Sticky header renders identity, lifecycle, progress, history, refresh, and back with safe narrow-width composition
 
@@ -79,20 +83,20 @@ The footer's bottom padding SHALL be additive with respect to the safe-area inse
 
 ### REQ-DCS-011: One horizontal gutter authority across cockpit sections
 
-The cockpit body SHALL own a single horizontal gutter authority: `DriverOperationalStops`, `DriverRouteSpine`, and other cockpit body sections SHALL present consistent horizontal padding derived from that authority across 320–1024px. Nested sections MUST NOT add divergent horizontal padding that produces visibly misaligned edges between the operational-stops card and the spine at the same viewport width.
+The driver branch's detail-view wrapper (`DeliveryRouteDetailView`) is the single horizontal gutter authority for the cockpit composition. `cockpit-body` and child sections (`DriverOperationalStops`, `DriverRouteSpine`, and other cockpit body sections) MUST NOT add competing horizontal padding. Nested sections SHALL present consistent horizontal padding derived from the wrapper's gutter across 320–1024px. Nested sections MUST NOT add divergent horizontal padding that produces visibly misaligned edges between the operational-stops card and the spine at the same viewport width.
 
 #### Scenario: Operational stops and spine share aligned edges
 
 - GIVEN the cockpit renders on a 320px, 373px, or 768px viewport
 - WHEN the left and right edges of the operational-stops content and the spine content are compared
-- THEN they align within the shared gutter with no mismatched nested padding
+- THEN they align within the wrapper gutter with no mismatched nested padding
 - AND no horizontal overflow is introduced by either section
 
 #### Scenario: Gutter authority is single-sourced
 
 - GIVEN the cockpit body composition is inspected
 - WHEN horizontal padding for `DriverOperationalStops` and `DriverRouteSpine` is traced
-- THEN both derive from the cockpit body's single gutter rather than each declaring independent, divergent values
+- THEN both derive from the driver branch detail-view wrapper's single gutter, not from `cockpit-body` or any child section declaring independent padding values
 
 ### REQ-DCS-012: Spine and header content avoid premature truncation at narrow widths
 

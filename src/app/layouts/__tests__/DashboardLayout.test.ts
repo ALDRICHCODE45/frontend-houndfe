@@ -298,52 +298,37 @@ describe('DashboardLayout — mobile sidebar trigger (ASNT-REQ-001/002/003)', ()
     expect(
       navbarTag![0],
       'UDashboardNavbar :ui override for the left slot must remain',
-    ).toMatch(/:ui="\{\s*left:\s*['"]gap-3['"]\s*\}/)
+    ).toMatch(/:ui="\{ left: 'gap-3', toggle: 'size-11' \}"/)
 
     expect(sfc, 'breadcrumbs must remain in the navbar').toMatch(/aria-label="breadcrumb"/)
     expect(sfc, 'search trigger must remain in the navbar right slot').toMatch(/<template #right>/)
     expect(sfc, 'color-mode button must remain in the navbar right slot').toMatch(/UColorModeButton/)
   })
 
-  // ASNT-REQ-001 (mount seam): with the layout mounted under the existing
-  // mountWithUApp seam, the installed @nuxt/ui native UDashboardSidebarToggle
-  // MUST be present in the rendered navbar output. The toggle renders as a
-  // <button> with the i18n-resolved aria-label "Open sidebar" (verified at
-  // node_modules/@nuxt/ui/dist/runtime/locale/en.js: dashboardSidebarToggle.open
-  // -> "Open sidebar") and is the leading control in the navbar #left slot,
-  // placed before the separate desktop UDashboardSidebarCollapse control.
-  //
-  // Before this fix, the suppression `:toggle="false"` causes the navbar to
-  // emit only a `<!--v-if-->` placeholder where the toggle would be; after
-  // the fix, the toggle button is the first interactive element in the
-  // navbar #left slot. The collapse control remains separately so the
-  // desktop behavior is unchanged (ASNT-REQ-002).
-  it('renders the installed native UDashboardSidebarToggle in the navbar (ASNT-REQ-001)', () => {
+  // ASNT-REQ-001 (mount seam / WCAG 2.5.5): with the layout mounted under
+  // the existing mountWithUApp seam, the installed @nuxt/ui native
+  // UDashboardSidebarToggle MUST be present in the rendered navbar output.
+  // The toggle renders as a <button> with the i18n-resolved aria-label
+  // "Open sidebar" (verified at node_modules/@nuxt/ui/dist/runtime/locale/
+  // en.js: dashboardSidebarToggle.open -> "Open sidebar") and is the leading
+  // control in the navbar #left slot, placed before the separate desktop
+  // UDashboardSidebarCollapse control. jsdom does not compute styles, so
+  // this test pins the rendered DOM: the toggle button MUST carry the exact
+  // `size-11` Tailwind class (44x44 px, WCAG 2.5.5 compliant).
+  it('native sidebar toggle renders with 44x44 target (ASNT-REQ-001 / WCAG 2.5.5)', () => {
     const wrapper = mountLayout()
     const nativeToggle = wrapper.find('button[aria-label="Open sidebar"]')
-    expect(
-      nativeToggle.exists(),
-      'native UDashboardSidebarToggle MUST render as a leading button in the navbar once :toggle="false" is removed',
-    ).toBe(true)
+    expect(nativeToggle.exists()).toBe(true)
+    expect(nativeToggle.classes()).toContain('size-11')
     // The toggle must precede the breadcrumb (it is the leading control).
     const breadcrumb = wrapper.find('nav[aria-label="breadcrumb"]')
-    expect(
-      breadcrumb.exists(),
-      'breadcrumb must remain present in the navbar (no unrelated shell restructure)',
-    ).toBe(true)
-    // DOCUMENT_POSITION_FOLLOWING (4) means toggleEl is before breadcrumbEl.
+    expect(breadcrumb.exists()).toBe(true)
     const position = nativeToggle.element.compareDocumentPosition(breadcrumb.element)
-    expect(
-      Boolean(position & Node.DOCUMENT_POSITION_FOLLOWING),
-      'native UDashboardSidebarToggle MUST precede the breadcrumb in the navbar leading slot',
-    ).toBe(true)
+    expect(Boolean(position & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true)
     // The desktop collapse control must remain in the same #left slot,
     // distinct from the mobile toggle (ASNT-REQ-002).
     const collapse = wrapper.find('button[aria-label="Collapse sidebar"]')
-    expect(
-      collapse.exists(),
-      'UDashboardSidebarCollapse (desktop) MUST remain in the navbar #left slot (ASNT-REQ-002)',
-    ).toBe(true)
+    expect(collapse.exists()).toBe(true)
   })
 })
 

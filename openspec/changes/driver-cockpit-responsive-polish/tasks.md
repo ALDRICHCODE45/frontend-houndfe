@@ -425,15 +425,15 @@ pnpm lint                     # oxlint + eslint + prettier
 
 Success criteria (mirrors the proposal's checklist):
 
-- [ ] On `lg+`, opening stop detail or history shows a right-side `USlideover` (`side="right"`, inset); below `lg`, the bottom `UDrawer` remains.
-- [ ] Exactly one primary `Marcar entregada` action visible per active viewport/context: slideover footer on desktop, page bottom footer on mobile.
-- [ ] Each open overlay has exactly one title and one close control; no duplicate header chrome inside `DriverStopPanel`.
-- [ ] Below 1024px, `DashboardLayout` exposes an accessible sidebar trigger that opens the sidebar; desktop collapse behavior is unchanged.
-- [ ] Header identity does not truncate to fragments at 373px; controls wrap without horizontal scroll at 320px.
-- [ ] Operational-stops and spine share consistent gutters (single authority).
-- [ ] Footer bottom padding survives a zero safe-area inset (additive `calc`).
-- [ ] `pnpm test:unit --run` green; reducer/derivation/check-in tests pass unchanged; `vue-tsc --build` clean.
-- [ ] All preserved contracts verified: manager branch, route list, permissions, API, close-before-confirm, focus trap, reduced motion, quick-action predicates.
+- [x] On `lg+`, opening stop detail or history shows a right-side `USlideover` (`side="right"`, inset); below `lg`, the bottom `UDrawer` remains.
+- [x] Exactly one primary `Marcar entregada` action visible per active viewport/context: slideover footer on desktop, page bottom footer on mobile.
+- [x] Each open overlay has exactly one title and one close control; no duplicate header chrome inside `DriverStopPanel`.
+- [x] Below 1024px, `DashboardLayout` exposes an accessible sidebar trigger that opens the sidebar; desktop collapse behavior is unchanged.
+- [x] Header identity does not truncate to fragments at 373px; controls wrap without horizontal scroll at 320px.
+- [x] Operational-stops and spine share consistent gutters (single authority).
+- [x] Footer bottom padding survives a zero safe-area inset (additive `calc`).
+- [x] `pnpm test:unit --run` green; reducer/derivation/check-in tests pass unchanged; `vue-tsc --build` clean.
+- [x] All preserved contracts verified: manager branch, route list, permissions, API, close-before-confirm, focus trap, reduced motion, quick-action predicates.
 
 ---
 

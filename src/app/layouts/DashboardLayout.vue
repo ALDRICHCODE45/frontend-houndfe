@@ -162,7 +162,7 @@ watch(isSearchOpen, async (open) => {
           UDashboardSidebarCollapse in the `#left` slot below stays in place
           as the separate desktop collapse control at `lg+`.
         -->
-        <UDashboardNavbar :ui="{ left: 'gap-3' }">
+        <UDashboardNavbar :ui="{ left: 'gap-3', toggle: 'size-11' }">
           <template #left>
             <UDashboardSidebarCollapse
               variant="ghost"
