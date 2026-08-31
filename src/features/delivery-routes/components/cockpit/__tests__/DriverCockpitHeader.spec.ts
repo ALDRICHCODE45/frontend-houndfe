@@ -175,7 +175,110 @@ describe('DriverCockpitHeader — touch + a11y + sticky layout (REQ-DRC-111, des
   })
 })
 
-describe('DriverCockpitHeader — source-level invariant (REQ-DCS-002, design §6)', () => {
+        describe('DriverCockpitHeader — S4 grid layout (exact SFC plan, orchestrator \u00a71\u2013\u00a75)', () => {
+      // Compact toolbar: three-column grid [back | summary | actions].
+      // Root: grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-3.
+      // No flex-wrap, no root px-*, no pl-14, no basis-full, no ml-auto.
+
+      it('root uses grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-3', () => {
+        const root = mountHeader().find('[data-testid="cockpit-header-root"]')
+        const cls = root.classes().join(' ')
+        expect(cls).toMatch(/grid/)                       ; expect(cls).toMatch(/grid-cols-\[2\.75rem_minmax\(0,1fr\)_auto\]/)
+        expect(cls).toMatch(/items-center/)                ; expect(cls).toMatch(/\bgap-3\b/)
+        expect(cls).not.toMatch(/flex-wrap/)               ; expect(cls).not.toMatch(/flex-col/)
+        expect(cls).not.toMatch(/\bpx-/)
+      })
+
+      it('cockpit-header-summary exists with min-w-0 (identity col safe at 320px)', () => {
+        const w = mountHeader()
+        const summary = w.find('[data-testid="cockpit-header-summary"]')
+        expect(summary.exists()).toBe(true)
+        expect(summary.classes().join(' ')).toMatch(/\bmin-w-0\b/)
+      })
+
+      it('identity span: truncate text-sm font-medium text-default; full text renders verbatim', () => {
+        const w = mountHeader({ route: makeRoute({ driver: { id: 'd-x', name: 'Concepci\u00f3n Hern\u00e1ndez del R\u00edo Montejo y S\u00e1nchez', email: 'x@x' } }) })
+        const identity = w.find('[data-testid="cockpit-header-identity"]')
+        const cls = identity.classes().join(' ')
+        expect(cls).toMatch(/\btruncate\b/)              ; expect(cls).toMatch(/\btext-sm\b/)
+        expect(cls).toMatch(/\bfont-medium\b/)            ; expect(cls).toMatch(/\btext-default\b/)
+        expect(identity.text()).toBe('Concepci\u00f3n Hern\u00e1ndez del R\u00edo Montejo y S\u00e1nchez')
+      })
+
+      it('cockpit-header-meta: mt-1 flex items-center gap-2; contains status badge then progress', () => {
+        const w = mountHeader()
+        const meta = w.find('[data-testid="cockpit-header-meta"]')
+        expect(meta.exists()).toBe(true)
+        const cls = meta.classes().join(' ')
+        expect(cls).toMatch(/\bmt-1\b/)                 ; expect(cls).toMatch(/\bflex\b/)
+        expect(cls).toMatch(/\bitems-center\b/)          ; expect(cls).toMatch(/\bgap-2\b/)
+        const children = Array.from(meta.element.children) as HTMLElement[]
+        expect(children.length).toBeGreaterThanOrEqual(2)
+        expect(children[0]!.getAttribute('data-testid')).toMatch(/status-dot|badge/)
+        expect(children[1]!.getAttribute('data-testid')).toBe('cockpit-header-progress')
+      })
+
+      it('progress in metadata row: font-mono text-xs text-muted; no ml-auto / basis / pl offset', () => {
+        const w = mountHeader()
+        const meta = w.find('[data-testid="cockpit-header-meta"]')
+        const progress = meta.find('[data-testid="cockpit-header-progress"]')
+        const cls = progress.classes().join(' ')
+        expect(cls).toMatch(/\bfont-mono\b/)              ; expect(cls).toMatch(/\btext-xs\b/)
+        expect(cls).toMatch(/\btext-muted\b/)
+        expect(cls).not.toMatch(/\bml-auto\b/)            ; expect(cls).not.toMatch(/\bbasis-/)
+        expect(cls).not.toMatch(/\bpl-/)
+      })
+
+      it('cockpit-header-actions: flex items-center gap-2; contains ONLY history + refresh (no progress)', () => {
+        const w = mountHeader()
+        const actions = w.find('[data-testid="cockpit-header-actions"]')
+        expect(actions.exists()).toBe(true)
+        const cls = actions.classes().join(' ')
+        expect(cls).toMatch(/\bflex\b/)                  ; expect(cls).toMatch(/\bitems-center\b/)
+        expect(cls).toMatch(/\bgap-2\b/)
+        expect(actions.find('[data-testid="cockpit-header-progress"]').exists()).toBe(false)
+        expect(actions.find('[data-testid="cockpit-header-history"]').exists()).toBe(true)
+        expect(actions.find('[data-testid="cockpit-header-refresh"]').exists()).toBe(true)
+      })
+
+      it('history and refresh both have border border-default (matching treatment)', () => {
+        const w = mountHeader()
+        for (const tid of ['cockpit-header-history', 'cockpit-header-refresh']) {
+          const cls = w.find(`[data-testid="${tid}"]`).classes().join(' ')
+          expect(cls).toMatch(/\bborder\b/)             ; expect(cls).toMatch(/\bborder-default\b/)
+        }
+      })
+
+      it('back button unchanged in column 1; >=44x44 with focus-visible', () => {
+        const w = mountHeader()
+        const back = w.find('[data-testid="cockpit-header-back"]')
+        const cls = back.classes().join(' ')
+        expect(cls).toMatch(/\bmin-h-11\b/)            ; expect(cls).toMatch(/\bmin-w-11\b/)
+        expect(cls).toMatch(/focus-visible/)
+      })
+
+      it('root has no px-* and no horizontal overflow classes', () => {
+        const root = mountHeader().find('[data-testid="cockpit-header-root"]')
+        const cls = root.classes().join(' ')
+        expect(cls).not.toMatch(/\bpx-4\b/)             ; expect(cls).not.toMatch(/\bpx-2\b/)
+        expect(cls).not.toMatch(/\bpx-3\b/)             ; expect(cls).not.toMatch(/\boverflow-x/)
+      })
+
+      it('source: root grid classes; no basis-full/pl-14/ml-auto flex-wrapping; all three testids present', () => {
+        const p = (DriverCockpitHeader as unknown as { __file: string }).__file
+        const src = fs.readFileSync(p, 'utf8').replace(/\/\*\*[\s\S]*?\*\//, '')
+        expect(src).toMatch(/grid-cols-\[2\.75rem_minmax\(0,1fr\)_auto\]/)
+        expect(src).not.toMatch(/basis-full/)
+        expect(src).not.toMatch(/\bpl-14\b/)
+        expect(src).not.toMatch(/\bml-auto\b/)
+        expect(src).not.toMatch(/flex-wrap/)
+        expect(src).toMatch(/cockpit-header-summary/)
+        expect(src).toMatch(/cockpit-header-meta/)
+        expect(src).toMatch(/cockpit-header-actions/)
+      })
+    })
+
+    describe('DriverCockpitHeader — source-level invariant (REQ-DCS-002, design §6)', () => {
   it('the SFC source contains no vue-router / useQuery / useMutation / fetch( import', () => {
     const path = (DriverCockpitHeader as unknown as { __file: string }).__file
     const source = fs.readFileSync(path, 'utf8')

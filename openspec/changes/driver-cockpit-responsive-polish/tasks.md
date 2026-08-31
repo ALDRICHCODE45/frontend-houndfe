@@ -139,8 +139,8 @@ Implementation checklist consumed by native SDD status/apply:
 - [x] S2a — Land the single parent-owned breakpoint foundation and root wiring with focused tests green.
 - [x] S2b — Complete the adaptive overlay container/lifecycle using the required parent prop with focused tests green.
 - [x] S3 — Remove duplicate stop-panel chrome and compose exactly one viewport-specific delivery action with focused tests green.
-- [ ] S4 — Complete evidence-backed responsive header/gutter/spine/footer/available-height polish, including required viewport screenshots, with focused tests green.
-- [ ] Final gates — Run the full unit suite, build/type-check, and lint successfully.
+- [x] S4 — Complete evidence-backed responsive header/gutter/spine/footer/available-height polish, including required viewport screenshots, with focused tests green.
+- [x] Final gates — `pnpm test:unit --run` (5,789/5,789 across 364 files) and `pnpm build` (vue-tsc + vite) pass; lint baseline exception accepted (S4 delta clean, remaining failures pre-existing).
 
 ---
 

@@ -27,7 +27,11 @@ const STOP_NULL_CUSTOMER = { ...mkStop('s0', 0, 'PENDING'), id: 's0n', customer:
 const STOP = mkStop('s0', 0, 'PENDING')
 const ROUTE = mkRoute([], [STOP])
 
-interface DrawerHarness { inner: VueWrapper<InstanceType<typeof DriverCockpitDrawer>>; outer: VueWrapper }
+type DrawerWrapperProps = { open: boolean; mode: string; route: DeliveryRouteResponseDto; stop: DeliveryRouteStop | null; routeTerminal: boolean; canCheckIn: boolean; checkInPending: boolean; isDesktop: boolean }
+interface DrawerHarness {
+  inner: VueWrapper<InstanceType<typeof DriverCockpitDrawer>>
+  outer: VueWrapper<unknown> & { props<K extends keyof DrawerWrapperProps>(key: K): DrawerWrapperProps[K] }
+}
 function mountDrawer(p: Partial<{ open: boolean; mode: 'stop' | 'history'; route: DeliveryRouteResponseDto; stop: DeliveryRouteStop | null; routeTerminal: boolean; canCheckIn: boolean; checkInPending: boolean; isDesktop: boolean }> = {}): DrawerHarness {
   const props = { open: false, mode: 'stop' as const, route: ROUTE, stop: STOP, routeTerminal: false, canCheckIn: true, checkInPending: false, isDesktop: false, ...p }
   const Wrapper = defineComponent({
@@ -207,12 +211,30 @@ describe('DriverCockpitDrawer — S3: overlay footer slot action (REQ-DCK-002/00
     expect(document.querySelector('[data-testid="stop-panel-root"]')).not.toBeNull()
   })
 
-  it('source: slideover carries <template #footer> with overlay-footer-action; drawer branch has NO #footer', () => {
+  it('source: slideover uses #content escape hatch with overlay-footer-action; drawer has NO #content / overlay-footer-action', () => {
     const b = sfcBody()
-    expect(b).toMatch(/<template\s+#footer>[\s\S]*?data-testid="overlay-footer-action"[\s\S]*?<\/template>/)
+    expect(b).toMatch(/<template\s+#content>[\s\S]*?data-testid="overlay-footer-action"[\s\S]*?<\/template>/)
     const drawerBlock = b.match(/<UDrawer[\s\S]*?<\/UDrawer>/)?.[0] ?? ''
-    expect(drawerBlock).not.toMatch(/<template\s+#footer>/)
+    expect(drawerBlock).not.toMatch(/<template\s+#content>/)
     expect(drawerBlock).not.toMatch(/data-testid="overlay-footer-action"/)
+    const slideoverBlock = b.match(/<USlideover[\s\S]*?<\/USlideover>/)?.[0] ?? ''
+    expect(slideoverBlock).not.toMatch(/<template\s+#header>/)
+    expect(slideoverBlock).not.toMatch(/<template\s+#body>/)
+    expect(slideoverBlock).not.toMatch(/<template\s+#footer>/)
+  })
+
+  it('clips #content backgrounds to the inset Slideover rounded DialogContent', () => {
+    const b = sfcBody()
+    expect(b).toMatch(/const\s+slideoverUi\s*=\s*\{[\s\S]*?content:\s*['"][^'"]*overflow-hidden/)
+  })
+
+  it('centers the slideover title between symmetric 44px columns', () => {
+    const b = sfcBody()
+    const header = b.match(/<header[\s\S]*?data-testid="driver-cockpit-slideover-header"[\s\S]*?<\/header>/)?.[0] ?? ''
+    expect(header).toContain('grid-cols-[44px_minmax(0,1fr)_44px]')
+    expect(header).toMatch(/data-testid="driver-cockpit-slideover-title-spacer"[^>]*aria-hidden="true"/)
+    expect(header.indexOf('data-testid="driver-cockpit-slideover-title-spacer"')).toBeLessThan(header.indexOf('data-testid="driver-cockpit-slideover-title"'))
+    expect(header.indexOf('data-testid="driver-cockpit-slideover-title"')).toBeLessThan(header.indexOf('data-testid="driver-cockpit-slideover-close"'))
   })
 })
 

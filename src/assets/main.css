@@ -2,6 +2,11 @@
 @import 'tailwindcss';
 @import '@nuxt/ui';
 
+    @source not "../../openspec/**";
+    @source not "**/__tests__/**";
+    @source not "**/*.spec.ts";
+    @source not "**/*.test.ts";
+
 /* ── Coco Design Token Foundation ── */
 @theme static {
   /* ── Coco primary shade scale (blue #2442f6 → 50–950) ── */

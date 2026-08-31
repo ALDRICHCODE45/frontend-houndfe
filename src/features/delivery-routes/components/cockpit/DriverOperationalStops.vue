@@ -95,7 +95,7 @@ function openStop(stopId: string, event: MouseEvent) {
 </script>
 
 <template>
-  <section data-testid="cockpit-operational-stops" class="flex flex-col gap-4 px-4 py-4">
+  <section data-testid="cockpit-operational-stops" class="flex flex-col gap-4 py-4">
     <section data-testid="cockpit-current-section" class="flex flex-col gap-2">
       <p
         v-if="!currentStop"

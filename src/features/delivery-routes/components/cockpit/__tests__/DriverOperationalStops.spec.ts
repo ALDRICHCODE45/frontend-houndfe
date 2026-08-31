@@ -293,6 +293,23 @@ describe('DriverOperationalStops — open-stop emit + touch + a11y', () => {
   })
 })
 
+describe('DriverOperationalStops — S4: single detail-wrapper gutter authority (REQ-DCS-011)', () => {
+  // The detail-view wrapper is the single horizontal gutter authority.
+  // This section MUST NOT add nested px-4 (or any horizontal padding).
+  it.each([
+    ['both', { currentStop: makeStop(), nextStop: makeStop({ id: 'n-1', sortOrder: 1 }), hasStops: true }],
+    ['current only', { currentStop: makeStop(), nextStop: null, hasStops: true }],
+    ['next only', { currentStop: null, nextStop: makeStop({ id: 'n-2', sortOrder: 1 }), hasStops: true }],
+    ['empty', { currentStop: null, nextStop: null, hasStops: false }],
+  ] as const)('%s: outer section has no px-*; cards retain internal px- when present', (_l, overrides) => {
+    const w = mountStops(overrides)
+    const sectionCls = w.find('[data-testid="cockpit-operational-stops"]').classes().join(' ')
+    expect(sectionCls).not.toMatch(/\b(px-[\w-]+|sm:px-[\w-]+)\b/)
+    const currentCard = w.find('[data-testid="cockpit-current-card"]')
+    expect(!currentCard.exists() || /\bpx-[\w-]+\b/.test(currentCard.classes().join(' '))).toBe(true)
+  })
+})
+
 describe('DriverOperationalStops — source-level invariants', () => {
   function body(): string {
     const path = (DriverOperationalStops as unknown as { __file: string }).__file

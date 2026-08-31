@@ -184,13 +184,20 @@ watch(() => props.checkInPending, (next, prev) => { if (prev && !next && state.v
 </script>
 
 <template>
-  <!-- Full-bleed cockpit root inside the existing panel: -m-4 sm:-m-6 cancels the panel padding exactly
-       like the rest of the feature surface; never a fixed/absolute element. tabindex="-1" gives the
-       focus fallback when the originating element is no longer connected. Body padding-bottom mirrors
-       the footer's safe-area inset so the sticky footer never overlaps tail content. -->
-  <section ref="rootRef" tabindex="-1" data-testid="cockpit-root" class="-m-4 sm:-m-6 flex w-full min-w-0 flex-col gap-0 outline-none">
+  <!-- S4 of `driver-cockpit-responsive-polish` (REQ-DCS-011/012): the parent
+       detail-view wrapper (`px-4 sm:px-6 lg:px-10`) IS the single horizontal
+       gutter authority — the cockpit MUST NOT cancel it with `-m-4 sm:-m-6`
+       and MUST NOT add a nested `px-4 sm:px-6` on the body or header/footer.
+       The root uses a containing-panel-aware height chain (`h-full` + justified
+       `min-h-[calc(100dvh-4rem)]`); raw `min-h-[100dvh]` / `min-h-[100svh]`
+       are forbidden (overshoot the global navbar). Body retains `flex-1 min-h-0`
+       so it grows and the sticky footer reaches the visible bottom. Body
+       padding-bottom (`pb-20`) mirrors the footer's safe-area inset so the
+       sticky footer never overlaps tail content. tabindex="-1" gives the
+       focus fallback when the originating element is no longer connected. -->
+  <section ref="rootRef" tabindex="-1" data-testid="cockpit-root" class="flex h-full min-h-[calc(100dvh-4rem)] w-full min-w-0 flex-col gap-0 outline-none">
     <DriverCockpitHeader :route="props.route" :progress="progress" :is-fetching="props.isFetching" @back="onHeaderBack" @refresh="onHeaderRefresh" @open-history="onHeaderOpenHistory" />
-    <div data-testid="cockpit-body" class="flex w-full min-w-0 flex-col gap-4 px-4 py-4 pb-20 sm:px-6">
+    <div data-testid="cockpit-body" class="flex w-full min-w-0 flex-1 min-h-0 flex-col gap-4 py-4 pb-20">
       <DriverOperationalStops :current-stop="currentStop" :next-stop="nextStop" :notes="notes" :has-stops="hasStops" :is-terminal="isTerminal" @open-stop="onOpenStop" />
       <DriverRouteSpine :nodes="spineNodes" @select-stop="onOpenStop" />
     </div>

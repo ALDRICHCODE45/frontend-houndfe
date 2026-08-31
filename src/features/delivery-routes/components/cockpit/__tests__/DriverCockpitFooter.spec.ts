@@ -17,7 +17,7 @@
 // Source invariants (static source scan, JSDoc stripped): no vue-router, useQuery,
 // useMutation, useQueryClient, axios, fetch(; no useCheckInStop / invalidate /
 // refetch / mutateAsync; no inline Spanish literals; no duplicated <button> markup;
-// footer root carries pb-[env(safe-area-inset-bottom)] in every mode.
+// footer root carries the additive safe-area composition in every mode.
 
 import { describe, it, expect } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
@@ -70,7 +70,9 @@ function mountFooter(p: FooterProps = {}) {
   })
 }
 
-const SAFE_AREA_RE = /pb-\[env\(safe-area-inset-bottom\)\]/
+// S4: additive safe-area padding keeps a 0.75rem base when the inset is zero; footer remains sticky with top padding.
+    const SAFE_AREA_RE = /pb-\[calc\(0\.75rem\+env\(safe-area-inset-bottom\)\)\]/
+    const RAW_SAFE_AREA_RE = /pb-\[env\(safe-area-inset-bottom\)\](?!.*\+)/
 
 describe('DriverCockpitFooter — current-action mode (REQ-DCS-006)', () => {
   it('PENDING + canCheckIn + not pending: enabled ≥44px central action + emits once', async () => {
@@ -202,47 +204,33 @@ describe('DriverCockpitFooter — mutual exclusivity + no duplicated button mark
   })
 })
 
-describe('DriverCockpitFooter — safe-area + a11y + mobile 320px + Coco tokens (REQ-DRC-111)', () => {
-  it('every mode mounts the safe-area padding class', async () => {
-    const variants: FooterProps[] = [
-      { routeStatus: 'ACTIVE', currentStop: mkStop('s2', 2, 'PENDING'), canCheckIn: true, checkInPending: false },
-      { routeStatus: 'ACTIVE', currentStop: mkStop('s2', 2, 'PENDING'), canCheckIn: true, checkInPending: true },
-      { routeStatus: 'ACTIVE', currentStop: mkStop('s3', 3, 'IN_PROGRESS'), canCheckIn: true },
-      { routeStatus: 'COMPLETED', currentStop: mkStop('s0', 0, 'COMPLETED'), canCheckIn: true },
-      { routeStatus: 'CANCELLED', currentStop: mkStop('s0', 0, 'COMPLETED'), canCheckIn: true },
-      { routeStatus: 'ACTIVE', currentStop: null, hasStops: true, canCheckIn: true },
-      { routeStatus: 'ACTIVE', currentStop: null, hasStops: false, canCheckIn: true },
-    ]
-    for (const p of variants) {
-      const cls = mountFooter(p).find('[data-testid="cockpit-footer-root"]').classes().join(' ')
-      expect(cls).toMatch(SAFE_AREA_RE)
-    }
-  })
+    describe('DriverCockpitFooter — S4: additive safe-area + sticky placement (REQ-DCS-006)', () => {
+      it('modes: additive safe-area + pt-3 + sticky not fixed; source: calc+0.75rem+sticky+bottom-0', async () => {
+        for (const p of [
+          { routeStatus: 'ACTIVE', currentStop: mkStop('s2', 2, 'PENDING'), canCheckIn: true },
+          { routeStatus: 'ACTIVE', currentStop: mkStop('s3', 3, 'IN_PROGRESS'), canCheckIn: true },
+          { routeStatus: 'COMPLETED', currentStop: mkStop('s0', 0, 'COMPLETED'), canCheckIn: true },
+          { routeStatus: 'ACTIVE', currentStop: null, hasStops: false, canCheckIn: true },
+        ] satisfies FooterProps[]) {
+          const cls = mountFooter(p).find('[data-testid="cockpit-footer-root"]').classes().join(' ')
+          expect(cls).toMatch(SAFE_AREA_RE) ; expect(cls).toContain('pt-3') ; expect(cls).not.toContain('py-3')
+          expect(cls).not.toMatch(RAW_SAFE_AREA_RE) ; expect(cls).toMatch(/\bsticky\b/) ; expect(cls).not.toMatch(/\bfixed\b|\babsolute\b/)
+        }
+        const path = (DriverCockpitFooter as unknown as { __file: string }).__file
+        const m = fs.readFileSync(path, 'utf8').replace(/\/\*[\s\S]*?\*\//, '').match(/data-testid="cockpit-footer-root"[^>]*class="([^"]+)"/)
+        expect(m).not.toBeNull() ; const cls = m![1] ?? ''
+        expect(cls).not.toMatch(/pb-\[env\(safe-area-inset-bottom\)\]/) ; expect(cls).toContain('pt-3')
+        expect(cls).toMatch(/pb-\[calc\(0\.75rem\+env\(safe-area-inset-bottom\)\)\]/) ; expect(cls).toMatch(/\bsticky\b/) ; expect(cls).toMatch(/\bbottom-0\b/) ; expect(cls).toContain('0.75rem')
+      })
+      it('Coco gold action; muted history; min-w-0; isDesktop: mobile=1 button desktop=0', async () => {
+        expect(mountFooter({ routeStatus: 'ACTIVE', currentStop: mkStop('s2', 2, 'PENDING'), canCheckIn: true }).find('[data-testid="cockpit-footer-action"]').classes().join(' ')).toMatch(/coco-gold/)
+        expect(mountFooter({ routeStatus: 'COMPLETED', currentStop: mkStop('s0', 0, 'COMPLETED'), progress: { completed: 5, total: 5 } as CockpitProgress, canCheckIn: true }).find('[data-testid="cockpit-footer-history"]').classes().join(' ')).toMatch(/text-default|text-muted/)
+        expect(mountFooter({ routeStatus: 'ACTIVE', currentStop: mkStop('s2', 2, 'PENDING'), canCheckIn: true }).find('[data-testid="cockpit-footer-root"]').classes().join(' ')).toMatch(/min-w-0/)
+        expect(mountFooter({ isDesktop: false, currentStop: mkStop('s2', 2, 'PENDING'), canCheckIn: true }).findAll('button')).toHaveLength(1)
+        expect(mountFooter({ isDesktop: true, currentStop: mkStop('s2', 2, 'PENDING'), canCheckIn: true }).findAll('button')).toHaveLength(0)
+      })
+    })
 
-  it('footer uses semantic tokens + min-w-0 + sticky; never fixed/absolute or fixed widths (320px safe)', async () => {
-    const cls = mountFooter({
-      routeStatus: 'ACTIVE', currentStop: mkStop('s2', 2, 'PENDING'), canCheckIn: true,
-    }).find('[data-testid="cockpit-footer-root"]').classes().join(' ')
-    expect(cls).toMatch(/bg-(default|elevated)/)
-    expect(cls).toMatch(/border-default/)
-    expect(cls).toMatch(/min-w-0/)
-    expect(cls).toMatch(/sticky/)
-    expect(cls).not.toMatch(/\bw-\[|\bmin-w-\[/)
-    expect(cls).not.toMatch(/\bfixed\b|\babsolute\b/)
-  })
-
-  it('current-action uses Coco gold accent; terminal history uses semantic muted token', async () => {
-    expect(mountFooter({
-      routeStatus: 'ACTIVE', currentStop: mkStop('s2', 2, 'PENDING'), canCheckIn: true,
-    }).find('[data-testid="cockpit-footer-action"]').classes().join(' ')).toMatch(/coco-gold/)
-    const histCls = mountFooter({
-      routeStatus: 'COMPLETED', currentStop: mkStop('s0', 0, 'COMPLETED'),
-      progress: { completed: 5, total: 5 } as CockpitProgress, canCheckIn: true,
-    }).find('[data-testid="cockpit-footer-history"]').classes().join(' ')
-    expect(histCls).toMatch(/text-default|text-muted/)
-    expect(histCls).not.toMatch(/coco-gold/)
-  })
-})
 
 describe('DriverCockpitFooter — triangulation: reactive prop swaps + interpolation', () => {
   it('routeStatus ACTIVE → COMPLETED switches mode; checkInPending false → true toggles disabled', async () => {

@@ -94,11 +94,12 @@ function onOpenHistory(event: MouseEvent) {
 </script>
 
 <template>
-  <!-- Sticky within the panel; `min-w-0` lets flex children shrink so 320px never overflows. -->
+  <!-- Sticky within the panel; three-column grid [back | summary | actions]. -->
   <header
     data-testid="cockpit-header-root"
-    class="sticky top-0 z-10 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-default bg-default px-4 py-3 min-w-0"
+    class="sticky top-0 z-10 grid grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-3 border-b border-default bg-default py-3 min-w-0"
   >
+    <!-- Column 1: back -->
     <button
       type="button"
       data-testid="cockpit-header-back"
@@ -109,40 +110,45 @@ function onOpenHistory(event: MouseEvent) {
       <UIcon name="i-lucide-arrow-left" class="size-5" />
     </button>
 
-    <div class="flex min-w-0 flex-1 items-center gap-2">
+    <!-- Column 2: identity + metadata row -->
+    <div class="min-w-0" data-testid="cockpit-header-summary">
       <span class="truncate text-sm font-medium text-default" data-testid="cockpit-header-identity">
         {{ identity }}
       </span>
-      <StatusDotBadge
-        :tone="statusTone"
-        :label="statusLabel"
-        :aria-label="`${DELIVERY_ROUTE_COPY.cockpit.header.identityFallback}: ${statusLabel}`"
-      />
+      <div class="mt-1 flex items-center gap-2" data-testid="cockpit-header-meta">
+        <StatusDotBadge
+          :tone="statusTone"
+          :label="statusLabel"
+          :aria-label="`${DELIVERY_ROUTE_COPY.cockpit.header.identityFallback}: ${statusLabel}`"
+        />
+        <span class="font-mono text-xs text-muted" data-testid="cockpit-header-progress">
+          {{ progressLabel }}
+        </span>
+      </div>
     </div>
 
-    <span class="flex-none font-mono text-sm text-muted" data-testid="cockpit-header-progress">
-      {{ progressLabel }}
-    </span>
+    <!-- Column 3: right actions -->
+    <div class="flex items-center gap-2" data-testid="cockpit-header-actions">
+      <button
+        type="button"
+        data-testid="cockpit-header-history"
+        :aria-label="DELIVERY_ROUTE_COPY.cockpit.drawer.historyTitle"
+        class="flex-none inline-flex items-center justify-center min-h-11 min-w-11 rounded-md border border-default bg-default text-default hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        @click="onOpenHistory"
+      >
+        <UIcon name="i-lucide-history" class="size-5" />
+      </button>
 
-    <button
-      type="button"
-      data-testid="cockpit-header-history"
-      :aria-label="DELIVERY_ROUTE_COPY.cockpit.drawer.historyTitle"
-      class="flex-none inline-flex items-center justify-center min-h-11 min-w-11 rounded-md bg-default text-default hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-      @click="onOpenHistory"
-    >
-      <UIcon name="i-lucide-history" class="size-5" />
-    </button>
-
-    <button
-      type="button"
-      data-testid="cockpit-header-refresh"
-      :aria-label="refreshAriaLabel"
-      :disabled="isFetching"
-      class="flex-none inline-flex items-center justify-center min-h-11 min-w-11 rounded-md border border-default bg-default text-default hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60"
-      @click="onRefresh"
-    >
-      <UIcon name="i-lucide-refresh-cw" class="size-5" />
-    </button>
+      <button
+        type="button"
+        data-testid="cockpit-header-refresh"
+        :aria-label="refreshAriaLabel"
+        :disabled="isFetching"
+        class="flex-none inline-flex items-center justify-center min-h-11 min-w-11 rounded-md border border-default bg-default text-default hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60"
+        @click="onRefresh"
+      >
+        <UIcon name="i-lucide-refresh-cw" class="size-5" />
+      </button>
+    </div>
   </header>
 </template>

@@ -151,3 +151,77 @@ pnpm test:unit --run …/DriverStopPanel.spec.ts …/DriverCockpitFooter.spec.ts
 **Outstanding:** S4 (responsive polish + required 373×807 and ≥1024px screenshots); final gates deferred per task plan.
 
 **Commit:** `feat(cockpit): drop stop-panel chrome; compose single delivery action (REQ-DCK-002/003, REQ-DCS-006)`
+
+## S4 — Responsive header / gutter / spine / safe-area / viewport polish (REQ-DCS-002/006/011/012)
+
+**Branch/capability:** `feat/driver-cockpit-responsive-polish-b4-viewport-polish` · `driver-cockpit-shell` REQ-DCS-002/006/011/012 · spec `specs/driver-cockpit-shell/spec.md`
+
+**Baseline:** 177 focused tests across 5 cockpit specs (Drawer, Header, Footer, OperationalStops, RouteSpine). Final: **213 focused tests across 6 cockpit specs** (incl. RouteSpine S4 describe). Build/type-check green; zero CSS-optimizer warnings after `main.css` `@source not`; only the pre-existing >500 kB chunk-size warning.
+
+### Final source state (refined after real-app screenshots + review feedback)
+
+1. **Mobile cockpit header — two-row composition (`DriverCockpitHeader.vue`)**: root header is now a three-column grid `grid-cols-[2.75rem_minmax(0,1fr)_auto]`: column 1 = back button; column 2 = summary (`cockpit-header-summary`) stacking identity (truncate, `cockpit-header-identity`) above a meta row (`cockpit-header-meta`) with `StatusDotBadge` + mono progress (`cockpit-header-progress`); column 3 = action cluster (`cockpit-header-actions`) with history + refresh buttons, both consistently bordered (`border-default`), ≥44×44. Desktop layout unaffected (`sm+` keeps the same 3-column grid).
+2. **Desktop slideover — one shell, one divider (`DriverCockpitDrawer.vue`)**: migrated from themed `#header`/`#body`/`#footer` slots to the documented `#content` escape hatch — the cockpit owns ONE flex-column shell (`driver-cockpit-slideover-shell`) with header (`grid-cols-[44px_minmax(0,1fr)_44px]`: aria-hidden left spacer + centered title + 44px close) / scrollable body / footer action, exactly ONE `border-b` divider between header and body, and ONE conditional `border-t` divider between body and footer (only when the footer renders). `:title` preserved so the VisuallyHidden DialogTitle (a11y) still resolves. `slideoverUi.content` carries `overflow-hidden` so the custom header/body/footer backgrounds clip to the DialogContent radius (Nuxt UI `inset` already supplies `rounded-lg`).
+3. **Single horizontal gutter authority (`DriverRouteCockpit.vue`)**: removed `-m-4 sm:-m-6` (no longer cancels the detail-view wrapper padding) and all nested `px-4 sm:px-6` (body/header/footer). The detail-view wrapper (`px-4 sm:px-6 lg:px-10`) is the ONLY gutter.
+4. **Containing-panel-aware height chain (`DriverRouteCockpit.vue`)**: root `h-full min-h-[calc(100dvh-4rem)]` (4rem = `--ui-header-height`); raw `min-h-[100dvh]/[100svh]` forbidden. Body `flex-1 min-h-0 pb-20` grows so the sticky footer reaches the visible bottom.
+5. **Additive safe-area footer (`DriverCockpitFooter.vue`)**: `py-3` → `pt-3` + `pb-[calc(0.75rem+env(safe-area-inset-bottom))]`.
+6. **Body gutter de-duplication (`DriverOperationalStops.vue`)**: dropped nested `px-4` (gutter authority centralized).
+7. **Spine row compaction (`DriverRouteSpine.vue`, NEW — real-app evidence)**: 360×780 @110% zoom (~327px effective) truncated `Cliente Centro` → `Cliente Ce...` on the CURRENT row (marker + wider labels consumed the row). Mobile-only compaction yields ~27px to the customer: `max-sm:gap-1.5`, `max-sm:px-2.5`, marker `max-sm:h-4 max-sm:w-4`, position/status `max-sm:text-[11px]`, list indent `max-sm:pl-5`. `min-w-0 flex-1 truncate` on the customer span preserved VERBATIM (truncate fires only at REAL overflow); desktop classes and 44×44 touch targets untouched.
+8. **Build-warning fix (`src/assets/main.css`)**: Tailwind v4 `@source not` excludes `openspec/**`, `__tests__/**`, `*.spec.ts`, `*.test.ts` so optimizer stops extracting fake utilities from prose/co-located tests (zero CSS-optimizer warnings).
+
+### Strict-TDD evidence
+
+| Step | Verification | Result |
+|------|--------------|--------|
+| Safety net | Focused 5-spec gate before S4 edits | **177/177 green** (Drawer 36, Header 19, Footer 12, OperationalStops 15, RouteSpine 27, RouteCockpit 68) |
+| GREEN (header/drawer/gutter/safe-area) | After grid header, `#content` slideover, gutter authority, safe-area, height chain + spec updates | **180/180 green** (5 specs) |
+| Build | `pnpm build` (vue-tsc + vite) | Clean vue-tsc + vite; zero CSS-optimizer warnings after `main.css` `@source not`; only the pre-existing >500 kB chunk-size warning |
+| RED (spine, real-app evidence) | New `DriverRouteSpine — S4 viewport polish` describe pins `max-sm` compaction contract; 3 tests fail pre-fix | **3 failed / 28 passed** |
+| GREEN (spine) | Applied mobile-only compaction; preservation pin (`min-w-0 flex-1 truncate`) green from start | **31/31 green** |
+| Final focused gate (pre-remediation) | 6 cockpit specs | **211/211 green** |
+| RED (clipping + symmetric centering, screenshot evidence) | New pins for `slideoverUi.content overflow-hidden` (clip header/body/footer backgrounds to DialogContent radius) and symmetric `[44px_minmax(0,1fr)_44px]` header grid (aria-hidden left spacer + centered title + 44px close) | **2 failed / 38 passed** |
+| GREEN (clipping + symmetric centering) | Added `overflow-hidden` to `slideoverUi.content`; switched header grid from `[1fr_44px]` to `[44px_minmax(0,1fr)_44px]` with aria-hidden left spacer | **38/38** |
+| Final focused gate | 6 cockpit specs | **213/213 green** |
+
+### Focused test command / output
+
+```bash
+pnpm test:unit --run …/DriverCockpitHeader.spec.ts …/DriverCockpitDrawer.spec.ts …/DriverCockpitFooter.spec.ts …/DriverOperationalStops.spec.ts …/DriverRouteSpine.spec.ts …/DriverRouteCockpit.spec.ts
+```
+```
+ Test Files  6 passed (6)
+      Tests  213 passed (213)
+```
+
+### Visual evidence (manual, authenticated real app — S4 REQUIREMENT)
+
+- **Mobile 360×780 (Galaxy S25 emulation, DPR 3, 110% zoom) — final**: header identity `Repartidor.` readable with `Activa` + `1 / 2` stacked below; no horizontal scroll; gold `Marcar entregada` footer action bottom-aligned with safe-area; no vertical overshoot below the global navbar. Spine rows: BOTH selected (marker + highlighted ring) and non-selected display full `Cliente Centro` — no premature truncation. PASS (a)–(e).
+- **Desktop ≥1024px with slideover open — final**: header carries exactly ONE `border-b` divider; body and footer carry ONE conditional `border-t` divider only when the footer renders; 44px close control present in the header; footer action present; wide-layout gutters balanced; no horizontal scroll. The screenshot revealed TWO visual defects after the `#content` migration: the outer corners looked pointed/visually square (custom header/body/footer backgrounds were escaping the DialogContent radius) and the title was rendered slightly off-center (because the original `1fr_44px` grid gave `1fr` only to the title column while the close button consumed the trailing track). Both fixed by final remediation — see next bullet and the Strict-TDD table.
+- **Final remediation (driven by the desktop screenshot)**: Nuxt UI `inset` already supplies `rounded-lg` on the slideover surface; added `overflow-hidden` to `slideoverUi.content` so the custom header/body/footer backgrounds clip to the DialogContent radius (rounded corners restored). Changed the slideover header grid from `[1fr_44px]` to symmetric `[44px_minmax(0,1fr)_44px]` with an aria-hidden left spacer (mirrors the 44px close button on the right), a centered title in `minmax(0,1fr)`, and the 44px close control on the right (geometric symmetry restored).
+- **User approval:** the user manually inspected the final appearance on both viewports and explicitly said no additional screenshot is needed.
+
+**Rollback:** revert one commit touching only the S4 files (header, drawer, footer, operational stops, spine, cockpit root, `main.css`, their specs, apply-progress) — S1/S2/S3 functionality preserved.
+
+### Final full gates (closure evidence)
+
+| Gate | Command | Result |
+|------|---------|--------|
+| Full unit suite | `pnpm test:unit --run` | **364 files / 5,789 tests passed**; six non-fatal jsdom navigation messages. |
+| Build + type-check | `pnpm build` | Passed vue-tsc + vite; **2,420 modules** transformed; only the pre-existing **887.36 kB** chunk-size warning. |
+| Lint (attempted) | `pnpm lint` | Attempted; failed on the repository baseline with **386 errors / 0 warnings across 813 files**; first failure outside S4 at `src/features/POS/sales/composables/__tests__/useSalePaymentMethods.spec.ts:4`. See lint baseline exception below. |
+| Scoped no-fix oxlint | oxlint scoped to the 12 S4 Vue/TS files | After correcting the two S4-introduced test diagnostics, **zero current-diff / category-A findings remain**; all 6 production Vue files are lint-clean. 14 diagnostics remain on unchanged HEAD-identical test lines only. |
+| Working-tree sanity | `git diff --check` | Passes (no whitespace-only conflict markers). |
+
+#### Lint baseline exception (user-authorized)
+
+The final lint gate is accepted as complete on the basis that full `pnpm lint` was attempted, all new S4 lines are lint-clean, and every remaining failure has been traced to the repository baseline (not introduced by S4). Repository-wide lint itself did **not** pass — this records an explicit user-authorized baseline exception, not a claim that the global lint gate is green.
+
+#### `size:exception` for B4 (user-authorized)
+
+Final B4 authored additions + deletions: **554 lines** (including closure evidence). That is above the 400-line review target but below the 600-line hard cap. The user explicitly chose to keep the change as **one cohesive S4 commit** rather than split it into a fifth review unit; this `size:exception` is recorded per the work-unit-commits / SDD `exception-ok` rule. No slice exceeded the 600 changed-line hard cap; no additional chained-PR split was added.
+
+#### Accidental fix-up revert
+
+A scoped `oxlint --fix` pass accidentally rewrote two unrelated files (`components.d.ts`, regenerated by the `@nuxt/ui/vite` plugin, and `SaleDetailTotalsCard.test.ts`, a repository baseline test). Both edits were reverted before closure evidence was captured; `git diff --check` passes and no unrelated diff remains in the working tree.
+
+**Outstanding:** No implementation blockers. One cohesive S4 commit is explicitly authorized; do not claim a commit or hash exists yet.

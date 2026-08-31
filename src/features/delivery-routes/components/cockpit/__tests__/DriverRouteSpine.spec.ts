@@ -245,6 +245,49 @@ describe('DriverRouteSpine — touch + a11y + mobile-first (REQ-DRC-111)', () =>
   })
 })
 
+// S4 viewport polish (REQ-DCS-011/012): real-app evidence at 360×780 CSS px
+// with 110% browser zoom (~327px effective) showed the CURRENT row truncating
+// "Cliente Centro" to "Cliente Ce..." because the fixed chrome (marker,
+// position, status) consumed the row before the customer got its share. The
+// compaction below is mobile-only (`max-sm:*`): the overflow-safety
+// `min-w-0 flex-1 truncate` on the customer span is preserved VERBATIM so
+// `truncate` fires only at REAL overflow, and desktop classes stay untouched.
+describe('DriverRouteSpine — S4 viewport polish: row chrome yields to customer width (REQ-DCS-011/012)', () => {
+  it('customer span keeps min-w-0 flex-1 truncate (overflow-safety preserved under compaction)', async () => {
+    const w = mountSpine({ nodes: [...FIVE] })
+    const cls = w.find('[data-testid="cockpit-spine-customer"]').classes().join(' ')
+    expect(cls).toMatch(/\bmin-w-0\b/)
+    expect(cls).toMatch(/\bflex-1\b/)
+    expect(cls).toMatch(/\btruncate\b/)
+  })
+
+  it('node button carries max-sm compaction (gap-1.5, px-2.5) while keeping desktop gap-2/px-3', async () => {
+    const btn = mountSpine({ nodes: [...FIVE] }).find('[data-testid="cockpit-spine-node-s2"]')
+    const cls = btn.classes().join(' ')
+    expect(cls).toMatch(/\bgap-2\b/) // desktop baseline unchanged
+    expect(cls).toMatch(/max-sm:gap-1\.5/) // mobile compaction
+    expect(cls).toMatch(/\bpx-3\b/) // desktop baseline unchanged
+    expect(cls).toMatch(/max-sm:px-2\.5/) // mobile compaction
+  })
+
+  it('current-row marker and secondary labels compact under max-sm without losing desktop size', async () => {
+    const w = mountSpine({ nodes: [...FIVE] })
+    const marker = w.find('[data-testid="cockpit-spine-current-marker"]')
+    expect(marker.classes().join(' ')).toMatch(/\bh-5\b/)
+    expect(marker.classes().join(' ')).toMatch(/max-sm:h-4/)
+    expect(marker.classes().join(' ')).toMatch(/max-sm:w-4/)
+    expect(w.find('[data-testid="cockpit-spine-position"]').classes().join(' ')).toMatch(/max-sm:text-\[11px\]/)
+    expect(w.find('[data-testid="cockpit-spine-status-label"]').classes().join(' ')).toMatch(/max-sm:text-\[11px\]/)
+  })
+
+  it('spine list item indents max-sm:pl-5 (timeline indent yields 4px to the row)', async () => {
+    const w = mountSpine({ nodes: [...FIVE] })
+    const li = w.find('[data-testid="cockpit-spine-node-s2"]').element.parentElement
+    expect(li).not.toBeNull()
+    expect(li!.className).toMatch(/max-sm:pl-5/)
+  })
+})
+
 describe('DriverRouteSpine — source-level invariants (REQ-DCS-005, design §6)', () => {
   function body(): string {
     // Strip all top-of-file block comments + line comments so the source

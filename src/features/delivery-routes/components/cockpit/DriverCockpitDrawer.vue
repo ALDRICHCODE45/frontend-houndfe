@@ -172,7 +172,7 @@ const drawerUi = {
   overlay: 'motion-reduce:transition-none motion-reduce:duration-0',
 }
 const slideoverUi = {
-  content: 'motion-reduce:transition-none motion-reduce:duration-0',
+  content: 'overflow-hidden motion-reduce:transition-none motion-reduce:duration-0',
   overlay: 'motion-reduce:transition-none motion-reduce:duration-0',
 }
 
@@ -244,24 +244,47 @@ function onModeContentClose() { emit('update:open', false) }
     @update:open="onSlideoverUpdateOpen"
     @after:enter="onSlideoverAfterEnter" @after:leave="onSlideoverAfterLeave"
   >
-    <template #header>
-      <header data-testid="driver-cockpit-slideover-header" class="sticky top-0 z-10 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-default bg-default px-4 py-3 min-w-0 motion-reduce:transition-none">
-        <span class="flex min-w-0 flex-1 items-center justify-center text-center text-base font-medium text-default" data-testid="driver-cockpit-slideover-title">{{ title }}</span>
-        <button type="button" data-testid="driver-cockpit-slideover-close" :aria-label="DELIVERY_ROUTE_COPY.cockpit.drawer.close" class="flex-none inline-flex items-center justify-center min-h-11 min-w-11 rounded-md bg-default text-default hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary" @click="onPanelClose">
-          <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
-        </button>
-      </header>
-    </template>
-    <template #body>
-      <div data-testid="driver-cockpit-slideover-body" class="flex-1 overflow-y-auto motion-reduce:transition-none">
-        <component :is="modeContent.component as Component" v-if="modeContent" v-bind="modeContent.props" @close="onModeContentClose" />
-      </div>
-    </template>
-    <template #footer>
-      <div v-if="secondaryActionVisible" data-testid="driver-cockpit-slideover-footer" class="border-t border-default bg-default p-4 motion-reduce:transition-none">
-        <button type="button" data-testid="overlay-footer-action" :aria-label="overlayFooterActionAriaLabel" :disabled="props.checkInPending" class="mx-auto inline-flex min-h-11 min-w-11 w-full items-center justify-center gap-2 rounded-md bg-coco-gold-500 px-6 py-3 text-sm font-semibold text-coco-neutral-950 shadow-sm transition hover:bg-coco-gold-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:bg-coco-gold-500/60" @click="onOverlayFooterAction">
-          <UIcon name="i-lucide-check" class="size-5" aria-hidden="true" />{{ DELIVERY_ROUTE_COPY.actions.checkIn }}
-        </button>
+    <!-- S4 review (REQ-DCK-002): migrate the desktop slideover to the
+         documented `#content` escape hatch so the cockpit owns ONE
+         flex-column shell with ONE divider. Nuxt UI's themed default
+         renders `divide-y divide-default` plus its own padded header/body/footer;
+         when `#content` is provided the default slots are bypassed and the
+         component renders the slot content directly inside the DialogContent.
+         `:title` is preserved on the element so the VisuallyHidden DialogTitle
+         (a11y wiring in Slideover.vue line 71-77) still resolves. -->
+    <template #content>
+      <div data-testid="driver-cockpit-slideover-shell" class="flex h-full min-h-0 w-full flex-col min-w-0">
+        <header
+          data-testid="driver-cockpit-slideover-header"
+          class="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-3 border-b border-default bg-default px-4 py-3 min-w-0 motion-reduce:transition-none"
+        >
+          <span data-testid="driver-cockpit-slideover-title-spacer" aria-hidden="true" class="h-11 w-11" />
+          <span class="flex min-w-0 items-center justify-center text-center text-base font-medium text-default" data-testid="driver-cockpit-slideover-title">{{ title }}</span>
+          <button
+            type="button"
+            data-testid="driver-cockpit-slideover-close"
+            :aria-label="DELIVERY_ROUTE_COPY.cockpit.drawer.close"
+            class="inline-flex h-11 w-11 items-center justify-center self-center justify-self-end rounded-md bg-default text-default hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            @click="onPanelClose"
+          >
+            <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
+          </button>
+        </header>
+        <div data-testid="driver-cockpit-slideover-body" class="flex-1 overflow-y-auto motion-reduce:transition-none">
+          <component :is="modeContent.component as Component" v-if="modeContent" v-bind="modeContent.props" @close="onModeContentClose" />
+        </div>
+        <div v-if="secondaryActionVisible" data-testid="driver-cockpit-slideover-footer" class="border-t border-default bg-default p-4 motion-reduce:transition-none">
+          <button
+            type="button"
+            data-testid="overlay-footer-action"
+            :aria-label="overlayFooterActionAriaLabel"
+            :disabled="props.checkInPending"
+            class="mx-auto inline-flex min-h-11 min-w-11 w-full items-center justify-center gap-2 rounded-md bg-coco-gold-500 px-6 py-3 text-sm font-semibold text-coco-neutral-950 shadow-sm transition hover:bg-coco-gold-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:bg-coco-gold-500/60"
+            @click="onOverlayFooterAction"
+          >
+            <UIcon name="i-lucide-check" class="size-5" aria-hidden="true" />{{ DELIVERY_ROUTE_COPY.actions.checkIn }}
+          </button>
+        </div>
       </div>
     </template>
   </USlideover>

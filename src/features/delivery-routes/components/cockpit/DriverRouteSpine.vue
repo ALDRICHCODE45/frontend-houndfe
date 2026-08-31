@@ -52,7 +52,7 @@ function onSelect(node: CockpitSpineNode, event: MouseEvent): void {
     :aria-label="rootAriaLabel"
     class="flex flex-col gap-0 border-l border-default pl-0 min-w-0"
   >
-    <li v-for="(node, index) in nodes" :key="node.stop.id" class="relative pl-6 py-1">
+    <li v-for="(node, index) in nodes" :key="node.stop.id" class="relative pl-6 max-sm:pl-5 py-1">
       <span
         v-if="index < nodes.length - 1"
         data-testid="cockpit-spine-connector"
@@ -65,7 +65,7 @@ function onSelect(node: CockpitSpineNode, event: MouseEvent): void {
         :data-stop-id="node.stop.id"
         :aria-label="nodeAriaLabel(node)"
         :class="[
-          'flex w-full items-center gap-2 rounded-md border bg-default px-3 py-2 text-left min-h-11 min-w-11',
+          'flex w-full items-center gap-2 max-sm:gap-1.5 rounded-md border bg-default px-3 max-sm:px-2.5 py-2 text-left min-h-11 min-w-11',
           node.isCurrent ? 'border-primary border-l-4' : 'border-default',
           'hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
         ]"
@@ -75,11 +75,11 @@ function onSelect(node: CockpitSpineNode, event: MouseEvent): void {
           v-if="node.isCurrent"
           data-testid="cockpit-spine-current-marker"
           aria-hidden="true"
-          class="inline-flex h-5 w-5 flex-none items-center justify-center rounded-full bg-primary text-xs text-primary-contrast"
+          class="inline-flex h-5 w-5 max-sm:h-4 max-sm:w-4 flex-none items-center justify-center rounded-full bg-primary text-xs text-primary-contrast"
         >→</span>
-        <span class="flex-none font-mono text-xs text-muted" data-testid="cockpit-spine-position">{{ positionLabel(node.stop.sortOrder) }}</span>
+        <span class="flex-none font-mono text-xs max-sm:text-[11px] text-muted" data-testid="cockpit-spine-position">{{ positionLabel(node.stop.sortOrder) }}</span>
         <span class="min-w-0 flex-1 truncate text-sm text-default" data-testid="cockpit-spine-customer">{{ customerName(node) }}</span>
-        <span class="flex-none text-xs text-muted" data-testid="cockpit-spine-status-label">{{ statusLabel(node.stop.status) }}</span>
+        <span class="flex-none text-xs max-sm:text-[11px] text-muted" data-testid="cockpit-spine-status-label">{{ statusLabel(node.stop.status) }}</span>
       </button>
     </li>
   </ol>

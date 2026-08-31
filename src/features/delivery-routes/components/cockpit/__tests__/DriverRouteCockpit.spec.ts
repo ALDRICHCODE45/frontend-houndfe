@@ -13,6 +13,11 @@ import DriverRouteCockpit, {
   reduceCockpit, initialCockpitState,
   type CockpitAction, type CockpitState,
 } from '../DriverRouteCockpit.vue'
+// Imported only for the S4 triangulation source-level assertion on the
+// production footer's class list. The cockpit suite stubs the footer for
+// behavioral assertions; this import lets us read the real SFC for the
+// sticky/fixed invariant without changing any cockpit behavior.
+import DriverCockpitFooterSource from '../DriverCockpitFooter.vue'
 import type { DeliveryRouteResponseDto, DeliveryRouteStop } from '../../../interfaces/delivery-route.types'
 import type { CockpitProgress } from '../../../composables/cockpit/useDriverRouteCockpit'
 import { DELIVERY_ROUTE_COPY } from '../../../copy'
@@ -83,7 +88,7 @@ function mountCockpit(p: Partial<{ route: DeliveryRouteResponseDto; isFetching: 
 }
 const clickById = (id: string) => (document.querySelector(`[data-testid="${id}"]`) as HTMLButtonElement).click()
 const sfcBody = () => fs.readFileSync((DriverRouteCockpit as unknown as { __file: string }).__file, 'utf8')
-const docStripped = () => sfcBody().replace(/\/\*\*[\s\S]*?\*\//g, '')
+const docStripped = () => sfcBody().replace(/\/\*\*[\s\S]*?\*\//g, '').replace(/<!--[\s\S]*?-->/g, '')
 
 beforeEach(() => { resetConfirm() })
 afterEach(() => { document.body.innerHTML = '' ; confirmState.open = false })// ─── RED: non-null composition surface (REQ-DCS-001) ───────────────────────────
@@ -274,7 +279,38 @@ describe('DriverRouteCockpit — TRIANGULATE: drawer→confirm + focus return', 
 
 // ─── TRIANGULATE: confirmation copy + layout + body clearance ──────────────────
 
-describe('DriverRouteCockpit — TRIANGULATE: confirmation copy + panel root + body clearance', () => {
+    describe('DriverRouteCockpit — S4: height chain + navbar-offset min-h (REQ-DCS-012)', () => {
+      // TRIANGULATE real mobile screenshots: h-full alone leaves footer mid-viewport.
+      // Fix: cockpit root carries justified navbar-offset min-h (100dvh-4rem) in
+      // addition to h-full; body flex-1 min-h-0; footer sticky bottom-0 (not fixed).
+      // Raw min-h-[100dvh]/min-h-[100svh] are forbidden (overshoot below navbar).
+      it('cockpit root has h-full + navbar-offset min-h-[calc(100dvh-4rem)]; no raw 100dvh/100svh', () => {
+        const cls = mountCockpit().outer.find('[data-testid="cockpit-root"]').classes().join(' ')
+        expect(cls).not.toMatch(/\bmin-h-\[\s*100dvh\s*\]/) ; expect(cls).not.toMatch(/\bmin-h-\[\s*100svh\s*\]/)
+        expect(cls).toMatch(/\bh-full\b|\bmin-h-full\b/)
+        expect(cls).toMatch(/\bmin-h-\[\s*calc\s*\(\s*100dvh\s*-\s*4rem\s*\)\s*\]/)
+      })
+      it('cockpit body has flex-1 + min-h-0 + pb-*; footer sticky bottom-0 not fixed/absolute (source-level)', async () => {
+        const { outer } = mountCockpit() ; await flushPromises()
+        const bodyCls = outer.find('[data-testid="cockpit-body"]').classes().join(' ')
+        expect(bodyCls).toMatch(/\bflex-1\b/) ; expect(bodyCls).toMatch(/\bmin-h-0\b/) ; expect(bodyCls).toMatch(/\bpb-[\w-]+\b/)
+        const footerSource = fs.readFileSync((DriverCockpitFooterSource as unknown as { __file: string }).__file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
+        const m = footerSource.match(/data-testid="cockpit-footer-root"[^>]*class="([^"]+)"/)
+        expect(m).not.toBeNull() ; const cls = m![1] ?? ''
+        expect(cls).toMatch(/\bsticky\b/) ; expect(cls).toMatch(/\bbottom-0\b/) ; expect(cls).not.toMatch(/\bfixed\b|\babsolute\b/)
+      })
+      it('SFC source-level: root h-full + calc(100dvh-4rem); body flex-1 min-h-0; no raw 100dvh', () => {
+        const source = docStripped()
+        expect(source).not.toMatch(/min-h-\[\s*100dvh\s*\]/) ; expect(source).not.toMatch(/min-h-\[\s*100svh\s*\]/)
+        const rootEl = source.match(/data-testid="cockpit-root"[^>]*class="([^"]+)"/)
+        expect(rootEl).not.toBeNull() ; expect(rootEl![1] ?? '').toMatch(/\bh-full\b|\bmin-h-full\b/)
+        expect(rootEl![1] ?? '').toMatch(/\bmin-h-\[\s*calc\s*\(\s*100dvh\s*-\s*4rem\s*\)\s*\]/)
+        const bodyEl = source.match(/data-testid="cockpit-body"[^>]*class="([^"]+)"/)
+        expect(bodyEl).not.toBeNull() ; expect(bodyEl![1] ?? '').toMatch(/\bflex-1\b/) ; expect(bodyEl![1] ?? '').toMatch(/\bmin-h-0\b/)
+      })
+    })
+
+    describe('DriverRouteCockpit — TRIANGULATE: confirmation copy + panel root + body clearance', () => {
   it('confirmation title/body/buttons come from copy.ts with customer + position + folio + irreversible statement', async () => {
     const { inner } = mountCockpit({ route: mkRoute({ stops: [mkStop('s0', 0, 'PENDING', 'F-099')] }) }) ; await flushPromises()
     await inner.findComponent(FooterStub).find('[data-testid="cockpit-footer-action-stub"]').trigger('click') ; await flushPromises()

@@ -21,7 +21,7 @@
  *       (≥44px, semantic muted). Emits 'open-history' { trigger }.
  *   - 'empty'          : null current / non-actionable current / !hasStops.
  *
- * Safe-area (REQ-DRC-111): footer root carries pb-[env(safe-area-inset-bottom)]
+ * Safe-area (REQ-DRC-111): footer root carries an additive safe-area composition
  * in EVERY mode. S10 root owns matching body padding-bottom clearance.
  * Touch + a11y: every interactive button ≥44×44 + focus-visible.
  */
@@ -92,7 +92,7 @@ function onHistory(event: MouseEvent) {
 <template>
   <footer
     data-testid="cockpit-footer-root"
-    class="sticky bottom-0 z-10 flex w-full flex-col items-stretch gap-2 border-t border-default bg-default px-4 py-3 min-w-0 pb-[env(safe-area-inset-bottom)]"
+    class="sticky bottom-0 z-10 flex w-full flex-col items-stretch gap-2 border-t border-default bg-default pt-3 min-w-0 pb-[calc(0.75rem+env(safe-area-inset-bottom))]"
   >
     <!-- current-action: primary delivery action (central, gold accent) — mobile only (REQ-DCS-006). -->
     <button
