@@ -1,0 +1,14 @@
+4baae7e7a18c92ca6ff549abafaf8f5ed8999237e6523cdede64ced99a8a160f  openspec/changes/driver-cockpit-responsive-polish/verify-evidence/focused-responsive-tests-rerun.log
+9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  openspec/changes/driver-cockpit-responsive-polish/verify-evidence/focused-responsive-tests-rerun.exit
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  openspec/changes/driver-cockpit-responsive-polish/verify-evidence/vue-tsc-noemit.log
+9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  openspec/changes/driver-cockpit-responsive-polish/verify-evidence/vue-tsc-noemit.exit
+3889befd2a83167672bc0357753cc78e5933c78263c815428e436220e989b973  openspec/changes/driver-cockpit-responsive-polish/verify-evidence/build.log
+9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  openspec/changes/driver-cockpit-responsive-polish/verify-evidence/build.exit
+e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  openspec/changes/driver-cockpit-responsive-polish/verify-evidence/git-diff-check.log
+9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  openspec/changes/driver-cockpit-responsive-polish/verify-evidence/git-diff-check.exit
+d61492ad0195994fa3d4f8a1f0f798a7e4a6d9f0bd2a624ed006c54495338ec1  openspec/changes/driver-cockpit-responsive-polish/verify-evidence/full-unit-tests.log
+4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865  openspec/changes/driver-cockpit-responsive-polish/verify-evidence/full-unit-tests.exit
+d267d0a97579626db1584c46f8675e5eec811f0623afa8ca700ddbab236de283  openspec/changes/driver-cockpit-responsive-polish/verify-evidence/product-detail-service-type-isolated.log
+9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa  openspec/changes/driver-cockpit-responsive-polish/verify-evidence/product-detail-service-type-isolated.exit
+d3f6650d537189362794315ca4a3e4e530b26671f45e7eb28914c6025ccedecd  openspec/changes/driver-cockpit-responsive-polish/verify-evidence/lint.log
+4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865  openspec/changes/driver-cockpit-responsive-polish/verify-evidence/lint.exit
