@@ -57,7 +57,7 @@ function makeQuotation(overrides: Partial<QuotationResponseDto> = {}): Quotation
     globalPriceListId: null,
     priceListExplicitlySet: false,
     status: 'DRAFT',
-    expiresAt: '2026-09-01T00:00:00.000Z',
+    expiresAt: '2099-09-01T00:00:00.000Z',
     cancelReason: null,
     canceledAt: null,
     subtotalCents: 10000,
