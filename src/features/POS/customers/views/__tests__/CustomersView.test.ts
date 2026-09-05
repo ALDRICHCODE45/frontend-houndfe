@@ -382,6 +382,10 @@ describe('CustomersView — permission gating', () => {
     expect(both.groups[1]?.[0]?.color).toBe('error')
   })
 
+  it('omits the row kebab when no permission is granted (none)', async () => {
+    const { flat } = await rowKebabFor(() => false)
+    expect(flat).toHaveLength(0)
+  })
 })
 
 describe('CustomersView — card slot', () => {
@@ -435,6 +439,55 @@ describe('CustomersView — sales history entry (S4)', () => {
     const slideover = wrapper.findComponent({ name: 'CustomerSalesHistorySlideover' })
     expect(slideover.props('open')).toBe(true)
     expect(slideover.props('customer')).toEqual(customerB)
+  })
+
+  it('closes history via update:open without opening edit/detail and preserves selected-customer identity across reopen', async () => {
+    customerAuthMock.userCan.mockImplementation((action, subject) =>
+      action === 'read' && subject === 'Sale',
+    )
+    const customerA = makeCustomer({ id: 'cust-A', fullName: 'Ana Álvarez' })
+    const customerB = makeCustomer({ id: 'cust-B', fullName: 'Bruno Beto' })
+    mockState.data.value = [customerA, customerB]
+
+    const wrapper = mount(CustomersView)
+    await flushPromises()
+
+    const upsertSlideoverWrappers = wrapper.findAllComponents({ name: 'CustomerUpsertSlideover' })
+    expect(upsertSlideoverWrappers).toHaveLength(2)
+    const createSlideover = upsertSlideoverWrappers[0]!
+    const editSlideover = upsertSlideoverWrappers[1]!
+    const historySlideover = () => wrapper.findComponent({ name: 'CustomerSalesHistorySlideover' })
+
+    const historyA = rowKebabForIndex(wrapper, 0).find(
+      (item) => item.label === 'Ver historial de ventas',
+    )
+    expect(historyA).toBeDefined()
+    historyA?.onSelect?.()
+    await flushPromises()
+
+    expect(historySlideover().props('open')).toBe(true)
+    expect(historySlideover().props('customer')).toEqual(customerA)
+    expect(editSlideover.props('open')).toBe(false)
+    expect(createSlideover.props('open')).toBe(false)
+
+    historySlideover().vm.$emit('update:open', false)
+    await flushPromises()
+
+    expect(historySlideover().props('open')).toBe(false)
+    expect(editSlideover.props('open')).toBe(false)
+    expect(createSlideover.props('open')).toBe(false)
+
+    const historyB = rowKebabForIndex(wrapper, 1).find(
+      (item) => item.label === 'Ver historial de ventas',
+    )
+    expect(historyB).toBeDefined()
+    historyB?.onSelect?.()
+    await flushPromises()
+
+    expect(historySlideover().props('open')).toBe(true)
+    expect(historySlideover().props('customer')).toEqual(customerB)
+    expect(editSlideover.props('open')).toBe(false)
+    expect(createSlideover.props('open')).toBe(false)
   })
 
   it('grid view-history forwards the card identity unchanged', async () => {
