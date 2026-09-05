@@ -60,15 +60,19 @@ function makeClient() {
 
 const wrappers: VueWrapper[] = []
 type RunOpts = {
-  customerId?: string | null | undefined
-  page?: number
-  open?: boolean
+  customerId?: string | null | Ref<string | null | undefined>
+  page?: number | Ref<number>
+  open?: boolean | Ref<boolean>
   queryClient?: QueryClient
 }
 function run(opts: RunOpts = {}) {
-  const customerId = ref(opts.customerId !== undefined ? opts.customerId : CUSTOMER)
-  const page = ref(opts.page ?? 1)
-  const open = ref(opts.open ?? true)
+  // Distinguish "not provided" (use CUSTOMER default) from "explicitly
+  // undefined/null" (must disable the query).
+  const customerId = isRef(opts.customerId)
+    ? opts.customerId
+    : ref('customerId' in opts ? (opts.customerId as string | null | undefined) : CUSTOMER)
+  const page = isRef(opts.page) ? opts.page : ref(opts.page ?? 1)
+  const open = isRef(opts.open) ? opts.open : ref(opts.open ?? true)
   const queryClient = opts.queryClient ?? makeClient()
   let result!: ReturnType<typeof useCustomerSalesHistory>
   const Test = defineComponent({
