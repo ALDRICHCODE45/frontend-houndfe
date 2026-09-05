@@ -145,4 +145,53 @@ describe('CustomerSalesHistorySlideover', () => {
     buttonWithText('Reintentar').dispatchEvent(new MouseEvent('click', { bubbles: true }))
     expect(history.refetch).toHaveBeenCalledOnce()
   })
+
+  it('keeps the backend summary during page transitions and routes selected rows by name', async () => {
+    history.response.value = response({
+      data: [sale('sale-42')],
+      pagination: { page: 1, limit: 10, total: 23, totalPages: 3 },
+      summary: { salesCount: 23, totalSoldCents: 999_999, outstandingDebtCents: 500 },
+    })
+    history.isFetching.value = true
+    history.isPageTransition.value = true
+    mountSlideover()
+    await flushPromises()
+
+    expect(element('dl').textContent).toContain('23')
+    expect(element('[aria-busy="true"]').className).toContain('opacity-50')
+    expect(element('[data-testid="history-pagination"]').dataset.disabled).toBe('true')
+    element('button[aria-label^="Venta folio"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))
+    expect(routerPush).toHaveBeenCalledWith({ name: 'pos-sale-detail', params: { id: 'sale-42' } })
+  })
+
+  it('resets the 1-based page synchronously when the customer changes', async () => {
+    history.response.value = response({ summary: { salesCount: 2, totalSoldCents: 1, outstandingDebtCents: 0 } })
+    const mounted = mountSlideover()
+    await flushPromises()
+    historyPage!.value = 3
+
+    mounted.vm.$.props.customer = customer('customer-2')
+    await nextTick()
+    expect(historyPage!.value).toBe(1)
+  })
+
+  it('toasts and closes once for the same defensive 403 error object', async () => {
+    const forbidden = Object.assign(new Error('Forbidden'), {
+      response: { status: 403, data: { message: 'No tienes permiso.' } },
+    })
+    history.isError.value = true
+    history.error.value = forbidden
+    const mounted = mountSlideover()
+    await flushPromises()
+
+    expect(document.body.textContent).toContain('Sin permiso para ver ventas')
+    expect(document.body.textContent).toContain('No tienes permiso.')
+    expect(mounted.emitted('update:open')).toHaveLength(1)
+
+    mounted.vm.$forceUpdate()
+    await nextTick()
+    const toasts = document.body.querySelectorAll('[data-slot="base"][data-orientation="vertical"]')
+    expect(toasts).toHaveLength(1)
+    expect(mounted.emitted('update:open')).toHaveLength(1)
+  })
 })
