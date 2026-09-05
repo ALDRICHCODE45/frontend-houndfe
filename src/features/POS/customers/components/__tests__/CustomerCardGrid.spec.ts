@@ -1,7 +1,8 @@
-// @ts-nocheck
 import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { defineComponent } from 'vue'
 import CustomerCardGrid from '../CustomerCardGrid.vue'
+import CustomerCard from '../CustomerCard.vue'
 import type { Customer } from '../../interfaces/customer.types'
 
 vi.mock('@/core/shared/components/EntityAvatar.vue', () => ({
@@ -9,6 +10,20 @@ vi.mock('@/core/shared/components/EntityAvatar.vue', () => ({
     name: 'EntityAvatar',
     template: '<div data-testid="entity-avatar" />',
     props: ['name', 'seed', 'showDot', 'dotClass', 'size'],
+  },
+}))
+
+const UIconStub = defineComponent({
+  name: 'UIcon',
+  props: ['name'],
+  template: '<span aria-hidden="true" />',
+})
+
+vi.mock('@nuxt/ui/components/Icon.vue', () => ({
+  default: {
+    name: 'UIcon',
+    template: '<span aria-hidden="true" />',
+    props: ['name'],
   },
 }))
 
@@ -36,6 +51,7 @@ describe('CustomerCardGrid', () => {
       props: {
         customers: [makeCustomer({ id: 'a' }), makeCustomer({ id: 'b' })],
       },
+      global: { stubs: { UIcon: UIconStub } },
     })
     expect(wrapper.findAll('article').length).toBe(2)
   })
@@ -46,6 +62,7 @@ describe('CustomerCardGrid', () => {
         customers: [],
         loading: true,
       },
+      global: { stubs: { UIcon: UIconStub } },
     })
     // 8 placeholder divs are rendered as the skeleton state.
     const grid = wrapper.find('[data-testid="card-grid"]')
@@ -63,6 +80,7 @@ describe('CustomerCardGrid', () => {
         customers: [],
         empty: 'No se encontraron clientes',
       },
+      global: { stubs: { UIcon: UIconStub } },
     })
     expect(wrapper.text()).toContain('No se encontraron clientes')
     expect(wrapper.find('[data-testid="card-grid-empty"]').exists()).toBe(true)
@@ -71,6 +89,7 @@ describe('CustomerCardGrid', () => {
   it('falls back to the default empty message when none is provided', () => {
     const wrapper = mount(CustomerCardGrid, {
       props: { customers: [] },
+      global: { stubs: { UIcon: UIconStub } },
     })
     expect(wrapper.text()).toContain('No se encontraron clientes')
   })
@@ -79,6 +98,7 @@ describe('CustomerCardGrid', () => {
     const customer = makeCustomer({ id: 'a' })
     const wrapper = mount(CustomerCardGrid, {
       props: { customers: [customer] },
+      global: { stubs: { UIcon: UIconStub } },
     })
     await wrapper.find('article').trigger('click')
     expect(wrapper.emitted('card-click')?.[0]?.[0]).toEqual(customer)
@@ -88,6 +108,7 @@ describe('CustomerCardGrid', () => {
     const customer = makeCustomer({ id: 'a' })
     const wrapper = mount(CustomerCardGrid, {
       props: { customers: [customer], canUpdate: true, canDelete: true },
+      global: { stubs: { UIcon: UIconStub } },
     })
     // Simulate edit/delete emissions from the inner card.
     const inner = wrapper.findComponent({ name: 'CustomerCard' })
@@ -102,5 +123,29 @@ describe('CustomerCardGrid', () => {
       // The kebab stops propagation; verify the article was NOT clicked.
       expect(wrapper.emitted('card-click')).toBeUndefined()
     }
+  })
+
+  // ── S4: grid forwarding parity ─────────────────────────────────────────────
+
+  it('forwards canReadSales to the inner CustomerCard', () => {
+    const customer = makeCustomer({ id: 'a' })
+    const wrapper = mount(CustomerCardGrid, {
+      props: { customers: [customer], canReadSales: true },
+      global: { stubs: { UIcon: UIconStub } },
+    })
+    const card = wrapper.getComponent(CustomerCard)
+    expect(card.props('canReadSales')).toBe(true)
+  })
+
+  it('emits view-history exactly once with the customer from the card', async () => {
+    const customer = makeCustomer({ id: 'a' })
+    const wrapper = mount(CustomerCardGrid, {
+      props: { customers: [customer], canReadSales: true },
+      global: { stubs: { UIcon: UIconStub } },
+    })
+    const card = wrapper.getComponent(CustomerCard)
+    card.vm.$emit('view-history', customer)
+    expect(wrapper.emitted('view-history')?.length).toBe(1)
+    expect(wrapper.emitted('view-history')?.[0]?.[0]).toEqual(customer)
   })
 })

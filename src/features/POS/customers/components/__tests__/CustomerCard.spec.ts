@@ -1,27 +1,27 @@
-// @ts-nocheck
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import CustomerCard from '../CustomerCard.vue'
 import type { Customer } from '../../interfaces/customer.types'
 
-// Mock the @nuxt/ui components used by CustomerCard. The kebab uses
-// UDropdownMenu with action items; tests trigger menu actions directly
-// instead of navigating the popover.
-vi.mock('@nuxt/ui', () => ({
-  UDropdownMenu: {
-    name: 'UDropdownMenu',
-    template: '<div data-testid="kebab-menu"><slot /></div>',
-    props: ['items', 'content'],
-    emits: ['select'],
-  },
-  UButton: {
-    name: 'UButton',
-    template:
-      '<button v-bind="$attrs" @click="$emit(\'click\')" :data-testid="$attrs[\'data-testid\']"><slot /></button>',
-    emits: ['click'],
-  },
-  UIcon: { template: '<span />' },
+// Typed helper: the kebab exposes its action list as the UDropdownMenu PUBLIC
+// `items` prop. Stubs are routed through @nuxt/ui/components/* (the auto-import
+// path used by the template) so we never inspect Reka UI internals or closed-
+// dropdown text.
+interface KebabItem {
+  label: string
+  color?: string
+  onSelect?: () => void
+}
+
+vi.mock('@nuxt/ui/components/DropdownMenu.vue', () => ({
+  default: { name: 'UDropdownMenu', template: '<div data-testid="kebab-menu-stub"><slot /></div>', props: ['items', 'content'], emits: ['select'] },
+}))
+vi.mock('@nuxt/ui/components/Button.vue', () => ({
+  default: { name: 'UButton', template: '<button v-bind="$attrs"><slot /></button>', props: ['icon', 'color', 'variant'], emits: ['click'] },
+}))
+vi.mock('@nuxt/ui/components/Icon.vue', () => ({
+  default: { name: 'UIcon', template: '<span aria-hidden="true" />', props: ['name'] },
 }))
 
 vi.mock('@/core/shared/components/EntityAvatar.vue', () => ({
@@ -121,7 +121,7 @@ describe('CustomerCard', () => {
         canDelete: false,
       },
     })
-    expect(wrapper.find('[data-testid="kebab-menu"]').exists()).toBe(false)
+    expect(wrapper.findComponent({ name: 'UDropdownMenu' }).exists()).toBe(false)
   })
 
   it('shows the kebab when canUpdate is true', () => {
@@ -132,7 +132,7 @@ describe('CustomerCard', () => {
         canDelete: false,
       },
     })
-    expect(wrapper.find('[data-testid="kebab-menu"]').exists()).toBe(true)
+    expect(wrapper.findComponent({ name: 'UDropdownMenu' }).exists()).toBe(true)
   })
 
   it('shows the kebab when canDelete is true', () => {
@@ -143,7 +143,7 @@ describe('CustomerCard', () => {
         canDelete: true,
       },
     })
-    expect(wrapper.find('[data-testid="kebab-menu"]').exists()).toBe(true)
+    expect(wrapper.findComponent({ name: 'UDropdownMenu' }).exists()).toBe(true)
   })
 
   it('emits edit/delete from the kebab menu actions and stops propagation', async () => {
@@ -159,7 +159,30 @@ describe('CustomerCard', () => {
     // NOT bubble to the article click handler.
     const articleClick = vi.fn()
     wrapper.find('article').element.addEventListener('click', articleClick)
-    await wrapper.find('[data-testid="kebab-menu"]').trigger('click')
+    await wrapper.find('[data-testid="kebab-wrapper"]').trigger('click')
     expect(articleClick).not.toHaveBeenCalled()
+  })
+
+  // ── S4: kebab items contract via typed helper ─────────────────────────────
+
+  function getKebabItems(wrapper: ReturnType<typeof mount>): KebabItem[] {
+    const dropdown = wrapper.findComponent({ name: 'UDropdownMenu' })
+    return ((dropdown.props('items') as KebabItem[] | undefined) ?? []).flat()
+  }
+
+  it('read-sales-only: items contain only the history action', () => {
+    const wrapper = mount(CustomerCard, { props: { customer: makeCustomer(), canReadSales: true } })
+    const items = getKebabItems(wrapper)
+    expect(items.map((i) => i.label)).toEqual(['Ver historial de ventas'])
+  })
+
+  it('invoking the history onSelect emits view-history exactly with [[customer]]', async () => {
+    const customer = makeCustomer()
+    const wrapper = mount(CustomerCard, { props: { customer, canReadSales: true } })
+    const history = getKebabItems(wrapper).find((i) => i.label === 'Ver historial de ventas')
+    expect(history?.onSelect).toBeDefined()
+    history!.onSelect!()
+    await nextTick()
+    expect(wrapper.emitted('view-history')).toEqual([[customer]])
   })
 })
