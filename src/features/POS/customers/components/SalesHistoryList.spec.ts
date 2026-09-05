@@ -83,7 +83,8 @@ describe('SalesHistoryList', () => {
     buttons[2]!.trigger('click')
     const emitted = w.emitted('select')
     expect(emitted).toHaveLength(3)
-    emitted!.forEach((args, i) => expect(args).toEqual([sales[[0, 2, 2][i]]]))
+    const clickedOrder = [0, 2, 2] as const
+    emitted!.forEach((args, i) => expect(args).toEqual([sales[clickedOrder[i]!]]))
   })
 
   it('maps payment statuses to existing badge labels and tones', () => {
@@ -93,10 +94,12 @@ describe('SalesHistoryList', () => {
       makeSale({ id: 'a', paymentStatus: 'PAID' }),
     ])
     const badges = w.findAll('[data-testid="status-badge"]')
-    expect(badges[0].attributes('data-label')).toContain('Impaga')
-    expect(badges[0].attributes('data-tone')).toBe('warning')
-    expect(badges[1].attributes('data-label')).toContain('Deuda')
-    expect(badges[1].attributes('data-tone')).toBe('error')
-    expect(badges[2].attributes('data-label')).toContain('Pagada')
-    expect(badges[2].attributes('data-tone')).toBe('success')
+    const labels = badges.map(b => b.attributes('data-label'))
+    const tones = badges.map(b => b.attributes('data-tone'))
+    expect(labels[0]).toContain('Impaga')
+    expect(tones[0]).toBe('warning')
+    expect(labels[1]).toContain('Deuda')
+    expect(tones[1]).toBe('error')
+    expect(labels[2]).toContain('Pagada')
+    expect(tones[2]).toBe('success')
   })
