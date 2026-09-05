@@ -262,6 +262,34 @@ describe('saleQueryKeys', () => {
       expect(key1).toEqual(key2)
     })
 
+    it('structurally equal params objects with different identity produce equal keys', () => {
+      const key1 = saleQueryKeys.customerHistory('tenant-1', 'customer-1', {
+        page: 1,
+        limit: 10,
+        sortBy: 'confirmedAt',
+        sortOrder: 'desc',
+      })
+      const key2 = saleQueryKeys.customerHistory('tenant-1', 'customer-1', {
+        page: 1,
+        limit: 10,
+        sortBy: 'confirmedAt',
+        sortOrder: 'desc',
+      })
+      expect(key1).toEqual(key2)
+    })
+
+    it('limit is part of the key identity', () => {
+      const key1 = saleQueryKeys.customerHistory('tenant-1', 'customer-1', {
+        ...defaultParams,
+        limit: 10,
+      })
+      const key2 = saleQueryKeys.customerHistory('tenant-1', 'customer-1', {
+        ...defaultParams,
+        limit: 20,
+      })
+      expect(key1).not.toEqual(key2)
+    })
+
     it('keys are isolated from saleQueryKeys.confirmed (different third segment)', () => {
       const historyKey = saleQueryKeys.customerHistory('tenant-1', 'customer-1', defaultParams)
       const confirmedKey = saleQueryKeys.confirmed('tenant-1', {

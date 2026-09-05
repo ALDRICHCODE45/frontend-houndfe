@@ -268,6 +268,7 @@ describe('sale.types', () => {
         data: [],
         pagination,
         counts,
+        summary: { salesCount: 50, totalSoldCents: 5000000, outstandingDebtCents: 150000 },
       }
 
       expect(response.pagination.totalPages).toBe(3)
@@ -1698,6 +1699,14 @@ describe('customer-sales-history S1 contracts (sdd customer-sales-history S1)', 
       ).toBe(false)
     })
 
+    it.each([
+      ['float salesCount', { salesCount: 2.5, totalSoldCents: 1234500, outstandingDebtCents: 78000 }],
+      ['float outstandingDebtCents', { salesCount: 23, totalSoldCents: 1234500, outstandingDebtCents: 78000.5 }],
+      ['missing summary entirely', {}],
+    ])('SaleListSummarySchema rejects %s', (_case, data) => {
+      expect(SaleListSummarySchema.safeParse(data).success).toBe(false)
+    })
+
     it('SaleListSummary type infers all three fields as numbers', () => {
       const summary: SaleListSummary = {
         salesCount: 10,
@@ -1764,7 +1773,7 @@ describe('customer-sales-history S1 contracts (sdd customer-sales-history S1)', 
         },
         'all three null',
       ],
-    ] as const)('accepts ConfirmedSaleRow with null %s', (overrides) => {
+    ] as const)('accepts ConfirmedSaleRow with null %s', (overrides, _fieldName) => {
       const row = { ...baseRow, ...overrides } as ConfirmedSaleRow
       if (overrides.folio === null) expect(row.folio).toBeNull()
       if (overrides.paymentStatus === null) expect(row.paymentStatus).toBeNull()
