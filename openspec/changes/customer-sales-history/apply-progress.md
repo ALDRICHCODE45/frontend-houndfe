@@ -76,3 +76,26 @@ Focused command throughout: `pnpm test:unit --run src/features/POS/customers/com
 - Declaration drift observed after test runs (`auto-imports.d.ts`, `components.d.ts`, +55/−55): proven validation-generated worktree-relative path churn (`./node_modules/...` → `../../frontend-houndfe/node_modules/...`), unrelated to S3a; restored via `git checkout --`. Post-restore `npx vue-tsc --build` exit 0; tree clean.
 - Intentional deltas vs reference `027b93c` (compaction, no contract loss): specs compacted from 211→168 lines via table-driven factories/`mountMetrics`/`mountList` helpers; metrics zero-debt `Al corriente`/badge cases triangulated rather than in RED; `<ul role="list">` rendered as plain `<ul>` (list semantics retained); row separator dot span and `divide-y` on `sm` only dropped (cosmetic). Reference's accessible-name pattern, fallbacks, tones, emits, and summary authority are preserved.
 - Work-unit diff from `01dfe87` (additions+deletions, excluding restored generated files): **+271/−0 = 271 ≤ 400** (Metrics.vue 47, List.vue 56, Metrics.spec 63, List.spec 105). With this evidence section (21 lines): +292/−0 = 292 ≤ 400.
+
+## S3b — Slideover integration (work unit `tdd-rebuild-s3b-slideover`)
+
+Same worktree/branch; S3a baseline `ec9ae36` (clean, S3b files absent). Source reference (final-content only, NOT cherry-picked): `4dd5428`.
+Focused command throughout: `pnpm test:unit --run src/features/POS/customers/components/CustomerSalesHistorySlideover.spec.ts`.
+
+### TDD Cycle Evidence (strict TDD)
+
+| Step | When (local) | Commit | Tree | Command | Exit | Result |
+| --- | --- | --- | --- | --- | --- | --- |
+| Baseline | 05:20 | `ec9ae36` (base) | `ec9ae36` | — | — | tree clean; both S3b files absent |
+| RED | 05:20–05:21 | `25782fe` `test(customers): define sales history slideover contract` | `a35ad05` | focused | 1 | 1 file failed: `Error: Failed to resolve import "./CustomerSalesHistorySlideover.vue" from "src/features/POS/customers/components/CustomerSalesHistorySlideover.spec.ts". Does the file exist?` (component absent). Contract (5 tests): real named `[role="dialog"]` with customer identity header, `sm:!max-w-[520px]` content + `p-0` body, close control → exactly one `update:open [false]`, closed → no dialog rendered, 3 metric + 5 row skeletons under `aria-busy`, exact `role="status"` empty copy with `role="alert"` absent on 200-zero, `role="alert"` + `Reintentar` → one `refetch` |
+| GREEN | 05:21–05:22 | `0cc5317` `feat(customers): add sales history slideover` | `b1bd6fc` | identical | 0 | 1 file / 5 tests passed. Minimal typed `open`/`customer` + `update:open` shell consuming the S2 composable and S3a `SalesHistoryMetrics`/`SalesHistoryList`; guarded state priority; `UPagination` at 10; sync page reset; no routes/adapters/invalidation added |
+| TRIANGULATE | 05:22 | `e4dadaa` `test(customers): triangulate sales history slideover` | `d0612c1` | identical | 0 | 1 file / 8 tests passed on first run — no production correction driven. Held-back: page-transition summary stability (backend 23 stays, `opacity-50`, pagination `data-disabled=true`) + named-route navigation `{ name: 'pos-sale-detail', params: { id: 'sale-42' } }`, sync 1-based page reset on customer identity change, deduplicated 403 (one real Nuxt UI toast `Sin permiso para ver ventas`, one close across `$forceUpdate` rerender) |
+| REFACTOR | 05:23 | (no commit) | `d0612c1` | identical + `npx vue-tsc --build` | 0 / 0 | 8 passed; type-check clean. `no refactor warranted`: state priority already explicit (403 watch → error → initial loading → response/empty/list); 403 dedup isolated in one watch keyed by error identity; page reset isolated in one `flush: 'sync'` watch; portal DOM cleaned in `afterEach` |
+| Full suite | 05:23 | `e4dadaa` (candidate) | `d0612c1` | `pnpm test:unit --run` (full) | 0 | 368 files / 5857 tests passed (+1 file, +8 S3b tests vs S3a's 367/5849) |
+
+### Notes
+
+- Close/reopen cache behavior is scoped out of this unit by design: it is owned by the S2 composable (`staleTime: 30_000`, no invalidation, `keepPreviousData`) and covered by its tests; this spec mocks the composable at the unit boundary, so re-asserting cache behavior here would be vacuous.
+- Remaining unchecked S3b tasks: RED/GREEN/TRIANGULATE/REFACTOR checkboxes in `tasks.md` (owned by parent gate; this unit's allowed surface excludes `tasks.md`).
+- Source-reference comparison: identical two paths as `4dd5428`; content matches the reference's final intent (same contracts, state priority, width classes, exact empty copy, toast title) with compacted one-line factories/stubs and two brief comments; accents preserved; no scope growth.
+- Work-unit diff from `ec9ae36` (additions+deletions): source **+359/−0** (spec 197, slideover 162); with this evidence section: **+384/−0 = 384 ≤ 400**.
