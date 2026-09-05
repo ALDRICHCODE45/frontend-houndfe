@@ -54,3 +54,49 @@ describe('SalesHistoryList', () => {
     expect(w.emitted('select')![0]).toEqual([sale])
   })
 })
+
+  it('renders all-nullable sale fields with fallbacks in text and accessible name', () => {
+    const w = mountList([makeSale({ folio: null, confirmedAt: null, paymentStatus: null })])
+    expect(w.text()).toContain('Sin folio')
+    expect(w.text()).toContain('Fecha no disponible')
+    expect(w.find('[data-testid="status-badge"]').attributes('data-label')).toContain('Sin estado')
+    const label = w.find('button').attributes('aria-label')
+    expect(label).toContain('sin folio')
+    expect(label).toContain('fecha no disponible')
+    expect(label).toContain('saldo de $0.00')
+  })
+
+  it('generates the bound-handoff accessible name for a complete sale', () => {
+    const w = mountList([makeSale({ folio: 'A-202608-000042', totalCents: 180_000, debtCents: 50_000 })])
+    const label = w.find('button').attributes('aria-label')
+    expect(label).toContain('Venta folio A-202608-000042')
+    expect(label).toContain('$1,800.00')
+    expect(label).toContain('saldo de $500.00')
+  })
+
+  it('emits select exactly once per click, in row order, with the original DTOs', () => {
+    const sales = [makeSale({ id: 's1' }), makeSale({ id: 's2' }), makeSale({ id: 's3' })]
+    const w = mountList(sales)
+    const buttons = w.findAll('button')
+    buttons[0]!.trigger('click')
+    buttons[2]!.trigger('click')
+    buttons[2]!.trigger('click')
+    const emitted = w.emitted('select')
+    expect(emitted).toHaveLength(3)
+    emitted!.forEach((args, i) => expect(args).toEqual([sales[[0, 2, 2][i]]]))
+  })
+
+  it('maps payment statuses to existing badge labels and tones', () => {
+    const w = mountList([
+      makeSale({ id: 'p', paymentStatus: 'PARTIAL' }),
+      makeSale({ id: 'c', paymentStatus: 'CREDIT' }),
+      makeSale({ id: 'a', paymentStatus: 'PAID' }),
+    ])
+    const badges = w.findAll('[data-testid="status-badge"]')
+    expect(badges[0].attributes('data-label')).toContain('Impaga')
+    expect(badges[0].attributes('data-tone')).toBe('warning')
+    expect(badges[1].attributes('data-label')).toContain('Deuda')
+    expect(badges[1].attributes('data-tone')).toBe('error')
+    expect(badges[2].attributes('data-label')).toContain('Pagada')
+    expect(badges[2].attributes('data-tone')).toBe('success')
+  })
