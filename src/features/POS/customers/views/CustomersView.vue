@@ -1,20 +1,19 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef } from 'vue'
+import { computed, ref } from 'vue'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import type { AxiosError } from 'axios'
 import { AppDataTable, SortableHeader, SelectColumn } from '@/core/shared/components/DataTable'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { customerQueryKeys, productQueryKeys } from '@/core/shared/constants/query-keys'
+import type { BulkAction } from '@/core/shared/types/table.types'
 import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
 import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
-import type { BulkAction } from '@/core/shared/types/table.types'
 import { productApi } from '@/features/POS/products/api/product.api'
 import { customerApi } from '../api/customer.api'
 import CustomerCardGrid from '../components/CustomerCardGrid.vue'
-import CustomerSalesHistorySlideover from '../components/CustomerSalesHistorySlideover.vue'
 import CustomerUpsertSlideover from '../components/CustomerUpsertSlideover.vue'
 import { useCustomerColumns } from '../composables/useCustomerColumns'
 import { useCustomerViewMode, isCustomerViewMode } from '../composables/useCustomerViewMode'
@@ -45,9 +44,8 @@ const { columns } = useCustomerColumns()
 const canCreate = computed(() => authStore.userCan('create', 'Customer'))
 const canUpdate = computed(() => authStore.userCan('update', 'Customer'))
 const canDelete = computed(() => authStore.userCan('delete', 'Customer'))
-const canReadSales = computed(() => authStore.userCan('read', 'Sale'))
-const canShowCustomerActions = computed(
-  () => canUpdate.value || canDelete.value || canReadSales.value,
+const canManageCustomerActions = computed(
+  () => canUpdate.value || canDelete.value,
 )
 
 // ── View mode (table ↔ card) ──────────────────────────────────────────────────
@@ -390,22 +388,9 @@ function handleRemoveAddress(customerId: string, addressId: string) {
   removeAddressMutation.mutate({ customerId, addressId })
 }
 
-// ── S4: Sales history entry ──────────────────────────────────────────────────
-const historyCustomer = shallowRef<Customer | null>(null)
-const isHistoryOpen = shallowRef(false)
-
-function handleOpenHistory(customer: Customer) {
-  historyCustomer.value = customer
-  isHistoryOpen.value = true
-}
-
-// ── Table kebab: main group includes history action ──────────────────────────
 function getRowItems(customer: Customer) {
-  const mainActions = (canUpdate.value || canReadSales.value
-      ? [
-          ...(canUpdate.value ? [{ label: 'Editar', onSelect: () => handleOpenEdit(customer) }] : []),
-          ...(canReadSales.value ? [{ label: 'Ver historial de ventas', onSelect: () => handleOpenHistory(customer) }] : []),
-        ]
+  const mainActions = (canUpdate.value
+      ? [{ label: 'Editar', onSelect: () => handleOpenEdit(customer) }]
       : [])
 
   const destructiveActions = (canDelete.value
@@ -462,11 +447,6 @@ const bulkActions = computed<BulkAction<Customer>[]>(() => [])
       @confirm="handleConfirm"
     />
 
-    <CustomerSalesHistorySlideover
-      v-model:open="isHistoryOpen"
-      :customer="historyCustomer"
-    />
-
     <UCard :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }">
       <template #header>
         <TableHeaderDescription
@@ -520,11 +500,9 @@ const bulkActions = computed<BulkAction<Customer>[]>(() => [])
               :empty="'No se encontraron clientes'"
               :can-update="canUpdate"
               :can-delete="canDelete"
-              :can-read-sales="canReadSales"
               @card-click="handleCardClick"
               @edit="handleOpenEdit"
               @delete="handleDelete"
-              @view-history="handleOpenHistory"
             />
           </template>
 
@@ -581,7 +559,7 @@ const bulkActions = computed<BulkAction<Customer>[]>(() => [])
 
           <template #actions-cell="{ row }">
             <UDropdownMenu
-              v-if="canShowCustomerActions"
+              v-if="canManageCustomerActions"
               :items="getRowItems(row.original)"
               :content="{ align: 'end' }"
             >
