@@ -26,6 +26,7 @@ vi.mock('../../api/sale.api', () => ({
       data: [],
       pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
       counts: { all: 0, pendingPayments: 0, notDelivered: 0 },
+      summary: { salesCount: 0, totalSoldCents: 0, outstandingDebtCents: 0 },
     }),
   },
 }))

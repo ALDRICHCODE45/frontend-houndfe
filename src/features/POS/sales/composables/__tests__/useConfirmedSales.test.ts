@@ -65,6 +65,7 @@ describe('useConfirmedSales', () => {
       ],
       pagination: { page: 1, limit: 20, total: 50, totalPages: 3 },
       counts: { all: 50, pendingPayments: 3, notDelivered: 1 },
+      summary: { salesCount: 50, totalSoldCents: 6350000, outstandingDebtCents: 0 },
     })
   })
 

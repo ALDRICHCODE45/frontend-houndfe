@@ -608,6 +608,7 @@ describe('saleApi', () => {
         ],
         pagination: { page: 1, limit: 20, total: 50, totalPages: 3 },
         counts: { all: 50, pendingPayments: 3, notDelivered: 1 },
+        summary: { salesCount: 50, totalSoldCents: 6350000, outstandingDebtCents: 0 },
       }
 
       vi.mocked(http.get).mockResolvedValue({ data: response })
@@ -625,6 +626,7 @@ describe('saleApi', () => {
         data: [],
         pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
         counts: { all: 0, pendingPayments: 0, notDelivered: 0 },
+        summary: { salesCount: 0, totalSoldCents: 0, outstandingDebtCents: 0 },
       }
       vi.mocked(http.get).mockResolvedValue({ data: response })
 
@@ -645,6 +647,7 @@ describe('saleApi', () => {
         data: [],
         pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
         counts: { all: 0, pendingPayments: 0, notDelivered: 0 },
+        summary: { salesCount: 0, totalSoldCents: 0, outstandingDebtCents: 0 },
       }
       vi.mocked(http.get).mockResolvedValue({ data: response })
 
@@ -664,6 +667,7 @@ describe('saleApi', () => {
         data: [],
         pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
         counts: { all: 0, pendingPayments: 0, notDelivered: 0 },
+        summary: { salesCount: 0, totalSoldCents: 0, outstandingDebtCents: 0 },
       }
       vi.mocked(http.get).mockResolvedValue({ data: response })
 
@@ -682,6 +686,7 @@ describe('saleApi', () => {
         data: [],
         pagination: { page: 1, limit: 20, total: 0, totalPages: 0 },
         counts: { all: 0, pendingPayments: 0, notDelivered: 0 },
+        summary: { salesCount: 0, totalSoldCents: 0, outstandingDebtCents: 0 },
       }
       vi.mocked(http.get).mockResolvedValue({ data: response })
 

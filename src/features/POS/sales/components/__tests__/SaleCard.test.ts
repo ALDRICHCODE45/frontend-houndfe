@@ -154,4 +154,23 @@ describe('SaleCard — EmployeeCard pattern (REQ-13)', () => {
     const wrapper = mountCard({ dueDate: '2026-06-01T10:00:00.000Z' })
     expect(wrapper.text()).toContain('01/06/2026')
   })
+
+  // sdd customer-sales-history S1: null-fallback coverage for SaleCard
+  describe('null-fallback coverage (sdd customer-sales-history S1, handoff §2.5)', () => {
+    it('shows "Sin folio" when folio is null', () => {
+const wrapper = mountCard({ folio: null })
+expect(wrapper.text()).toContain('Sin folio')
+    })
+
+    it('shows "Fecha no disponible" when confirmedAt is null', () => {
+const wrapper = mountCard({ confirmedAt: null })
+expect(wrapper.text()).toContain('Fecha no disponible')
+    })
+
+    it('shows both fallbacks simultaneously when folio and confirmedAt are null', () => {
+const wrapper = mountCard({ folio: null, confirmedAt: null })
+expect(wrapper.text()).toContain('Sin folio')
+expect(wrapper.text()).toContain('Fecha no disponible')
+    })
+  })
 })
