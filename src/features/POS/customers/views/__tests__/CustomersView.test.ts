@@ -1,9 +1,16 @@
-// @ts-nocheck
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { computed, ref } from 'vue'
 import CustomersView from '../CustomersView.vue'
 import type { Customer } from '../../interfaces/customer.types'
+
+// Typed helper: rows use the dropdown `items` prop contract as the public
+// surface for kebab assertions (no Reka UI internals).
+type KebabItem = {
+  label: string
+  color?: string
+  onSelect?: () => void
+}
 
 // ── Mocks for composables that the view consumes ─────────────────────────────
 
@@ -66,6 +73,15 @@ vi.mock('@tanstack/vue-query', () => ({
   useQueryClient: () => ({ invalidateQueries: vi.fn(), refetchQueries: vi.fn() }),
 }))
 
+vi.mock('../../components/CustomerSalesHistorySlideover.vue', () => ({
+  default: {
+    name: 'CustomerSalesHistorySlideover',
+    template: '<div data-testid="history-slideover" :data-open="String(open)" :data-customer="customer?.id ?? \'null\'" @click="$emit(\'update:open\', false)" />',
+    props: ['open', 'customer'],
+    emits: ['update:open'],
+  },
+}))
+
 vi.mock('../../components/CustomerUpsertSlideover.vue', () => ({
   default: {
     name: 'CustomerUpsertSlideover',
@@ -80,8 +96,8 @@ vi.mock('../../components/CustomerCardGrid.vue', () => ({
     name: 'CustomerCardGrid',
     template:
       '<div data-testid="customer-card-grid"><slot /></div>',
-    props: ['customers', 'loading', 'empty', 'canUpdate', 'canDelete'],
-    emits: ['card-click', 'edit', 'delete'],
+    props: ['customers', 'loading', 'empty', 'canUpdate', 'canDelete', 'canReadSales'],
+    emits: ['card-click', 'edit', 'delete', 'view-history'],
   },
 }))
 
@@ -177,6 +193,22 @@ vi.mock('@nuxt/ui', () => ({
   },
   UIcon: { name: 'UIcon', template: '<span />', props: ['name'] },
   UModal: { name: 'UModal', template: '<div><slot name="body" /><slot name="footer" /></div>', props: ['open', 'title', 'content'] },
+}))
+
+// The template auto-imports UDropdownMenu/UButton from the package subpaths;
+// mock those so the kebab `items` are assertable via findAllComponents
+// without Reka UI internals.
+vi.mock('@nuxt/ui/components/DropdownMenu.vue', () => ({
+  default: { name: 'UDropdownMenu', template: '<div data-testid="kebab-menu"><slot /></div>', props: ['items', 'content'], emits: ['select'] },
+}))
+vi.mock('@nuxt/ui/components/Button.vue', () => ({
+  default: { name: 'UButton', template: '<button v-bind="$attrs"><slot /></button>', props: ['icon', 'color', 'variant'], emits: ['click'] },
+}))
+vi.mock('@nuxt/ui/runtime/components/DropdownMenu.vue', () => ({
+  default: { name: 'UDropdownMenu', template: '<div data-testid="kebab-menu"><slot /></div>', props: ['items', 'content'], emits: ['select'] },
+}))
+vi.mock('@nuxt/ui/runtime/components/Button.vue', () => ({
+  default: { name: 'UButton', template: '<button v-bind="$attrs"><slot /></button>', props: ['icon', 'color', 'variant'], emits: ['click'] },
 }))
 
 // ── Sample data ──────────────────────────────────────────────────────────────
@@ -299,33 +331,57 @@ describe('CustomersView — view mode', () => {
   })
 })
 
+function rowKebabGroups(wrapper: ReturnType<typeof mount>): Array<Array<KebabItem>> {
+  const kebabs = wrapper.findAllComponents({ name: 'UDropdownMenu' })
+  if (kebabs.length === 0) return []
+  return (kebabs[0]!.props('items') as Array<Array<KebabItem>> | undefined) ?? []
+}
+
+function rowKebabForIndex(wrapper: ReturnType<typeof mount>, rowIndex: number): KebabItem[] {
+  const dropdowns = wrapper.findAllComponents({ name: 'UDropdownMenu' })
+  const items = dropdowns[rowIndex]?.props('items') as Array<Array<KebabItem>> | undefined
+  return (items ?? []).flat()
+}
+
+function flatRowKebabItems(wrapper: ReturnType<typeof mount>): KebabItem[] {
+  return rowKebabGroups(wrapper).flat()
+}
+
 describe('CustomersView — permission gating', () => {
-  it('hides the kebab on the row when user lacks update AND delete', async () => {
-    customerAuthMock.userCan.mockImplementation(
-      (_action: string, subject: string) => subject !== 'Customer' || false,
-    )
+  // The kebab PUBLIC `items` prop contract is the only surface we assert
+  // against; Reka UI internals (reka-dropdown-menu-trigger) are not checked.
+  async function rowKebabFor(
+    perm: (action: string, subject: string) => boolean,
+  ): Promise<{ flat: KebabItem[]; groups: Array<Array<KebabItem>> }> {
+    customerAuthMock.userCan.mockImplementation(perm)
     mockState.data.value = [makeCustomer()]
     const wrapper = mount(CustomersView)
     await flushPromises()
-    const html = wrapper.html()
-    // The kebab trigger (Reka UI / UDropdownMenu) renders the
-    // `reka-dropdown-menu-trigger` element. When canManageCustomerActions is
-    // false the UDropdownMenu is removed entirely; the kebab trigger id is
-    // absent.
-    expect(html).not.toContain('reka-dropdown-menu-trigger')
+    return { flat: flatRowKebabItems(wrapper), groups: rowKebabGroups(wrapper) }
+  }
+
+  it('compact union: none / update / delete / read:Sale / update+delete', async () => {
+    const none = await rowKebabFor(() => false)
+    const upd = await rowKebabFor((a, s) => a === 'update' && s === 'Customer')
+    const del = await rowKebabFor((a, s) => a === 'delete' && s === 'Customer')
+    const sales = await rowKebabFor((a, s) => a === 'read' && s === 'Sale')
+    const both = await rowKebabFor((a, s) =>
+      (a === 'update' && s === 'Customer') || (a === 'delete' && s === 'Customer'),
+    )
+
+    expect(none.flat).toHaveLength(0)
+    expect(upd.flat.map((i) => i.label)).toEqual(['Editar'])
+    expect(upd.flat.some((i) => i.color === 'error')).toBe(false)
+    expect(del.flat.map((i) => i.label)).toEqual(['Eliminar'])
+    expect(del.flat[0]?.color).toBe('error')
+    // read:Sale alone must surface exactly the history action (S4 contract).
+    expect(sales.flat.map((i) => i.label)).toEqual(['Ver historial de ventas'])
+    expect(both.groups).toHaveLength(2)
+    expect(both.groups[0]?.map((i) => i.label)).toEqual(['Editar'])
+    expect(both.groups[1]?.map((i) => i.label)).toEqual(['Eliminar'])
+    expect(both.groups[1]?.[0]?.color).toBe('error')
   })
 
-  it('shows the kebab when the user has update permission', async () => {
-    customerAuthMock.userCan.mockImplementation(
-      (action: string, subject: string) =>
-        (action === 'update' && subject === 'Customer') ||
-        action === 'read',
-    )
-    mockState.data.value = [makeCustomer()]
-    const wrapper = mount(CustomersView)
-    await flushPromises()
-    expect(wrapper.html()).toContain('reka-dropdown-menu-trigger')
-  })
 })
 
 describe('CustomersView — card slot', () => {
@@ -337,5 +393,64 @@ describe('CustomersView — card slot', () => {
     // When display-mode="cards" the AppDataTable renders the #cards slot
     // which mounts CustomerCardGrid.
     expect(wrapper.find('[data-testid="customer-card-grid"]').exists()).toBe(true)
+  })
+})
+
+// ── S4: sales history entry ──────────────────────────────────────────────────
+describe('CustomersView — sales history entry (S4)', () => {
+  it('passes canReadSales to CustomerCardGrid', async () => {
+    customerAuthMock.userCan.mockImplementation(
+      (action: string, subject: string) => action === 'read' && subject === 'Sale',
+    )
+    mockState.data.value = [makeCustomer()]
+    localStorage.setItem('customers-view-mode', 'card')
+    const wrapper = mount(CustomersView)
+    await flushPromises()
+    const grid = wrapper.findComponent({ name: 'CustomerCardGrid' })
+    expect(grid.exists()).toBe(true)
+    expect(grid.props('canReadSales')).toBe(true)
+  })
+
+  it('history slideover is closed by default', async () => {
+    const wrapper = mount(CustomersView)
+    await flushPromises()
+    const slideover = wrapper.findComponent({ name: 'CustomerSalesHistorySlideover' })
+    expect(slideover.exists()).toBe(true)
+    expect(slideover.props('open')).toBe(false)
+    expect(slideover.props('customer')).toBeNull()
+  })
+
+  it('table history action opens the slideover with the selected customer (identity preserved)', async () => {
+    customerAuthMock.userCan.mockImplementation(
+      (action: string, subject: string) => action === 'read' && subject === 'Sale',
+    )
+    const customerB = makeCustomer({ id: 'cust-B', fullName: 'Bea B' })
+    mockState.data.value = [customerB]
+    const wrapper = mount(CustomersView)
+    await flushPromises()
+    const history = flatRowKebabItems(wrapper).find((i) => i.label === 'Ver historial de ventas')
+    expect(history).toBeDefined()
+    history!.onSelect!()
+    await flushPromises()
+    const slideover = wrapper.findComponent({ name: 'CustomerSalesHistorySlideover' })
+    expect(slideover.props('open')).toBe(true)
+    expect(slideover.props('customer')).toEqual(customerB)
+  })
+
+  it('grid view-history forwards the card identity unchanged', async () => {
+    customerAuthMock.userCan.mockImplementation(
+      (action: string, subject: string) => action === 'read' && subject === 'Sale',
+    )
+    const customerB = makeCustomer({ id: 'cust-B', fullName: 'Bea B' })
+    mockState.data.value = [customerB]
+    localStorage.setItem('customers-view-mode', 'card')
+    const wrapper = mount(CustomersView)
+    await flushPromises()
+    const grid = wrapper.findComponent({ name: 'CustomerCardGrid' })
+    grid.vm.$emit('view-history', customerB)
+    await flushPromises()
+    const slideover = wrapper.findComponent({ name: 'CustomerSalesHistorySlideover' })
+    expect(slideover.props('open')).toBe(true)
+    expect(slideover.props('customer')).toEqual(customerB)
   })
 })
