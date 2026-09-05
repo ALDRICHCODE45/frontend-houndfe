@@ -125,6 +125,19 @@ const salesErrorMessage = computed(() => {
   return 'No se pudieron cargar las ventas. Reintenta.'
 })
 
+// sdd customer-sales-history S1: folio/confirmedAt/paymentStatus may be null
+// per handoff §2.5. Helpers keep the template expressions clean.
+function folioDisplay(folio: string | null) {
+  return folio != null ? extractFolioNumber(folio) : 'Sin folio'
+}
+function confirmedAtDisplay(confirmedAt: string | null) {
+  return confirmedAt != null ? formatSaleDate(confirmedAt) : 'Fecha no disponible'
+}
+function paymentStatusBadgeCell(paymentStatus: string | null) {
+  if (paymentStatus == null) return { label: 'Sin estado', color: 'neutral' as const }
+  return getPaymentStatusBadge(paymentStatus)
+}
+
 const sortValue = ref<'confirmedAt:desc' | 'totalCents:asc' | 'createdAt:desc'>('confirmedAt:desc')
 
 watch(sortValue, (value) => {
@@ -263,12 +276,12 @@ watch(() => filtersCtl.serializedState.value, () => {
               class="text-coco-gold-800 dark:text-coco-gold-400 font-medium hover:underline"
               @click="goToSaleDetail(row.original.id)"
             >
-              {{ extractFolioNumber(row.original.folio) }}
+              {{ folioDisplay(row.original.folio) }}
             </UButton>
           </template>
 
           <template #confirmedAt-cell="{ row }">
-            {{ formatSaleDate(row.original.confirmedAt) }}
+            {{ confirmedAtDisplay(row.original.confirmedAt) }}
           </template>
 
           <template #customer-cell="{ row }">
@@ -277,8 +290,8 @@ watch(() => filtersCtl.serializedState.value, () => {
 
           <template #paymentStatus-cell="{ row }">
             <StatusDotBadge
-              :tone="getPaymentStatusBadge(row.original.paymentStatus).color"
-              :label="getPaymentStatusBadge(row.original.paymentStatus).label"
+              :tone="paymentStatusBadgeCell(row.original.paymentStatus).color"
+              :label="paymentStatusBadgeCell(row.original.paymentStatus).label"
             />
           </template>
 

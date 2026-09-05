@@ -9,6 +9,7 @@ import type {
   SALE_TIMELINE_EVENT_TYPE,
 } from '../constants/sale.constants'
 import type { PaymentMethodCategory } from '@/core/shared/constants/payment-method-category'
+import { z } from 'zod'
 
 // Union types below are derived from the matching `as const` object in
 // `constants/sale.constants.ts` (sdd/magic-string-constants slice 3). The
@@ -74,13 +75,13 @@ export interface SalesListPagination {
 
 export interface ConfirmedSaleRow {
   id: string
-  folio: string
+  folio: string | null
   status: SaleStatus
-  paymentStatus: SalePaymentStatus
+  paymentStatus: SalePaymentStatus | null
   deliveryStatus: SaleDeliveryStatus
   totalCents: number
   debtCents: number
-  confirmedAt: string
+  confirmedAt: string | null
   dueDate: string | null
   customer: SaleActorRef | null
   cashier: SaleActorRef
@@ -88,11 +89,36 @@ export interface ConfirmedSaleRow {
   paymentMethods: SaleDetailPaymentMethod[]
 }
 
+// sdd customer-sales-history S1 (handoff §2.5): folio/paymentStatus/confirmedAt
+// may be null in production ConfirmedSaleRow rows. Callers guard nulls before
+// passing to shared formatters; formatters keep their non-null/string contracts.
+
+// sdd customer-sales-history S1: SaleListSummarySchema is the runtime validation
+// boundary for the newly deployed mandatory summary block. All three fields are
+// required and must be integers per backend contract §2.6. The Zod schema is
+// consumed by the S2 composable; this file keeps the type as the shared wire contract.
+export const SaleListSummarySchema = z.object({
+  salesCount: z.number().int(),
+  totalSoldCents: z.number().int(),
+  outstandingDebtCents: z.number().int(),
+})
+
+export type SaleListSummary = z.infer<typeof SaleListSummarySchema>
+
+// sdd customer-sales-history S1 (design §3.1): required summary from the backend.
 export interface ConfirmedSalesListResponse {
   data: ConfirmedSaleRow[]
   pagination: SalesListPagination
   counts: SalesListCounts
+  summary: SaleListSummary
 }
+
+// sdd customer-sales-history S1: the typed subset of ListSalesParams used for the
+// customer-history query. Always sends page, limit, sortBy, sortOrder; never sends
+// status or customerIncludeNull.
+export type CustomerSalesHistoryParams = Required<
+  Pick<ListSalesParams, 'page' | 'limit' | 'sortBy' | 'sortOrder'>
+>
 
 export type SaleDetailPaymentMethod =
   (typeof SALE_DETAIL_PAYMENT_METHOD)[keyof typeof SALE_DETAIL_PAYMENT_METHOD] // UPPERCASE — distinct from PaymentMethod (LOWERCASE). Two different backend contracts.

@@ -28,6 +28,18 @@ function statusColor(status: ConfirmedSaleRow['status']) {
 
 const deliveryBadge = computed(() => getDeliveryStatusBadge(props.sale.deliveryStatus))
 const showStatusDot = computed(() => props.sale.status === SALE_STATUS.CONFIRMED)
+
+// sdd customer-sales-history S1: folio may be null per handoff §2.5.
+// Guard before calling the non-null formatter; render "Sin folio" fallback.
+const folioDisplay = computed(() =>
+  props.sale.folio != null ? `#${extractFolioNumber(props.sale.folio)}` : 'Sin folio',
+)
+
+// sdd customer-sales-history S1: confirmedAt may be null per handoff §2.5.
+// Guard before calling the non-null formatter; render "Fecha no disponible" fallback.
+const confirmedAtDisplay = computed(() =>
+  props.sale.confirmedAt != null ? formatSaleDate(props.sale.confirmedAt) : 'Fecha no disponible',
+)
 </script>
 
 <template>
@@ -48,7 +60,7 @@ const showStatusDot = computed(() => props.sale.status === SALE_STATUS.CONFIRMED
           {{ customerName }}
         </p>
         <p class="line-clamp-1 text-xs text-muted">
-          Folio #{{ extractFolioNumber(sale.folio) }}
+          Folio {{ folioDisplay }}
         </p>
       </div>
 
@@ -75,7 +87,7 @@ const showStatusDot = computed(() => props.sale.status === SALE_STATUS.CONFIRMED
       </div>
       <div class="min-w-0 text-right">
         <p class="text-muted">Fecha</p>
-        <p class="mt-1 truncate font-medium text-default">{{ formatSaleDate(sale.confirmedAt) }}</p>
+        <p class="mt-1 truncate font-medium text-default">{{ confirmedAtDisplay }}</p>
       </div>
       <div class="min-w-0">
         <p class="text-muted">Cliente</p>

@@ -1,7 +1,11 @@
 // Centralized query keys — ALL module query keys defined here
 // NEVER define query keys locally in hooks/composables
 
-import type { PosCatalogSearchParams, ListSalesParams } from '@/features/POS/sales/interfaces/sale.types'
+import type {
+  PosCatalogSearchParams,
+  ListSalesParams,
+  CustomerSalesHistoryParams,
+} from '@/features/POS/sales/interfaces/sale.types'
 
 export const productQueryKeys = {
   paginated: (tenantId: string) => ['products', tenantId, 'paginated'] as const,
@@ -91,6 +95,16 @@ export const saleQueryKeys = {
   // the next open.
   paymentMethods: (tenantId: string) =>
     ['sales', tenantId, 'payment-methods'] as const,
+  // sdd customer-sales-history S1: prefix for invalidating all customer-history
+  // slots for a given tenant/customer pair. Never sends status or customerIncludeNull.
+  // The prefix omits params so page changes (different keys) are invalidated together.
+  customerHistoryPrefix: (tenantId: string, customerId: string) =>
+    ['sales', tenantId, 'customer-history', customerId] as const,
+  customerHistory: (
+    tenantId: string,
+    customerId: string,
+    params: CustomerSalesHistoryParams,
+  ) => ['sales', tenantId, 'customer-history', customerId, params] as const,
 }
 
 // ─── Quotations module query keys (sdd-quotations-crud S1, REQ-QTN-015) ──────
