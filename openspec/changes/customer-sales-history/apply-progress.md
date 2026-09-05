@@ -55,3 +55,24 @@ Focused command throughout: `pnpm test:unit --run src/features/POS/sales/composa
 - Held-back cases that passed without production change: exact centralized key/parameter identity (cache key deep-equals `['sales',tenant,'customer-history',customer,params]`), close/reopen cache reuse within `staleTime` (no extra fetch, no invalidation).
 - Intentional test deltas vs reference `a9507a6` (no scope growth): "distinct cache key per page" case replaced by the stronger exact-key-identity test (page-key identity also covered at factory level in S1); no-retry cases run under an explicitly retry-enabled client, making the 400/401/403 exclusion observable rather than masked by `retry:false`; two explanatory comments dropped; import style inlined.
 - Work-unit diff from S1 HEAD `aae622f` (additions+deletions, excluding generated files which were restored): **+349/−0 = 349 ≤ 400** (test 254, composable 95). With this evidence section (24 lines): +373/−0 = 373 ≤ 400.
+## S3a — Surface presentation (work unit `tdd-rebuild-s3a-presentation`)
+
+Same worktree/branch; S2 baseline `01dfe87` (clean, S3a files absent). Source reference (final-content only, NOT cherry-picked): `027b93c`.
+Focused command throughout: `pnpm test:unit --run src/features/POS/customers/components/SalesHistoryMetrics.spec.ts src/features/POS/customers/components/SalesHistoryList.spec.ts`.
+
+### TDD Cycle Evidence (strict TDD)
+
+| Step | When (local) | Commit | Tree | Command | Exit | Result |
+| --- | --- | --- | --- | --- | --- | --- |
+| Baseline | 05:07 | `01dfe87` (base) | `01dfe87` | focused | — | clean tree; no `SalesHistory*` files present |
+| RED | 05:07 | `4fc5795` `test(customers): define sales history presentation contract` | `811ea11` | focused | 1 | 2 files failed: `Failed to resolve import "./SalesHistoryMetrics.vue"` / `./SalesHistoryList.vue` (components absent). Contract: one `<dl>` with exact summary values (`salesCount`, MXN totals/debt), semantic `<ul>` of native `button[type=button]`, `formatCentsMXN` values, `Sin folio`/`Fecha no disponible`/`Sin estado` fallbacks, one typed `select` per activation |
+| GREEN | 05:08 | `87b26b1` `feat(customers): add sales history presentation` | `7545db8` | identical | 0 | 2 files / 5 tests passed. Minimal typed `<script setup lang="ts">` components: metrics `<dl>` with debt/`Al corriente` treatment + `aria-live="polite"`; list `<ul>` with null-safe labels, accessible names, `defineEmits<{ select: [sale] }>`; no query/router/pagination logic |
+| TRIANGULATE | 05:09 | `9017ebc` `test(customers): triangulate sales history presentation` | `fbe9180` | identical | 0 | 2 files / 13 tests passed on first run — **no production correction driven**. Held-back cases: positive vs zero debt (+`aria-live`), zero sales (no badge), integer-cent currency ($1,250,000.01 / $0.01), all-nullable sale fields, accessible-name fallbacks, exactly-one emit across 3 rows/clicks, status→badge/tone mapping |
+| REFACTOR | 05:10–05:11 | `17d9233` `test(customers): satisfy strict index access in triangulation specs` | `792dde9` | identical + `npx vue-tsc --build` | 0 | 13 passed; type-check clean. `no production refactor warranted`: derivations already centralized (metrics computeds `hasDebt`/`showAlCorriente`/`formattedTotal`/`formattedDebt`; list helpers `dateLabel`/`statusBadge`/`accessibleName`). Considered and rejected a `v-bind` dedupe of the twice-called `statusBadge(sale)` — the alternative is less explicit for two props. `17d9233` is test-only: `noUncheckedIndexedAccess` fixes (mapped-array access, `clickedOrder[i]!`) |
+| Full suite | 05:12 | `17d9233` (candidate) | `792dde9` | `pnpm test:unit --run` (full) | 0 | 367 files / 5849 tests passed (+2 files, +13 S3a tests vs S2's 365/5836) |
+
+### Notes
+
+- Declaration drift observed after test runs (`auto-imports.d.ts`, `components.d.ts`, +55/−55): proven validation-generated worktree-relative path churn (`./node_modules/...` → `../../frontend-houndfe/node_modules/...`), unrelated to S3a; restored via `git checkout --`. Post-restore `npx vue-tsc --build` exit 0; tree clean.
+- Intentional deltas vs reference `027b93c` (compaction, no contract loss): specs compacted from 211→168 lines via table-driven factories/`mountMetrics`/`mountList` helpers; metrics zero-debt `Al corriente`/badge cases triangulated rather than in RED; `<ul role="list">` rendered as plain `<ul>` (list semantics retained); row separator dot span and `divide-y` on `sm` only dropped (cosmetic). Reference's accessible-name pattern, fallbacks, tones, emits, and summary authority are preserved.
+- Work-unit diff from `01dfe87` (additions+deletions, excluding restored generated files): **+271/−0 = 271 ≤ 400** (Metrics.vue 47, List.vue 56, Metrics.spec 63, List.spec 105). With this evidence section (26 lines): +297/−0 = 297 ≤ 400.
