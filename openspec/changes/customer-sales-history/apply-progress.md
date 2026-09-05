@@ -31,3 +31,27 @@ REFACTOR disposition: **no refactor warranted at GREEN** — guards are single-u
 Independent verification flagged one blocking S1 triangulation defect: a compressed `it.each` row in `query-keys.test.ts` cast numeric pairs (`[1,10]`/`[2,10]` as `[string,string]`) while `historyParams.page` stayed 1, so the differing-tenant/customer/page requirement (`tasks.md:68`) covered tenant/customer but not page variation. Correction commit `a12bd66 test(sales): cover customer history page key identity` (+6/−1) removed the bogus numeric-pair row and added an explicit `page is part of the key identity` test: identical tenant/customer, `{ ...historyParams, page: 1 }` vs `{ ...historyParams, page: 2 }`, keys proven different. All tenant/customer/limit/stability/prefix/confirmed-isolation assertions and all schema/nullability cases preserved. Re-run: focused 7 files 358/358 passed (−1 bogus row, +1 page test); `npx vue-tsc --build` exit 0; full `pnpm test:unit --run` 364 files / 5821 tests passed, exit 0 (first full run reported one transient unhandled jsdom "Not implemented: navigation" error; clean on rerun). Validation-generated `auto-imports.d.ts`/`components.d.ts` drift was restored after git confirmed those were the only generated changes; parent worktree untouched.
 
 - Remaining unchecked S1 tasks: RED/GREEN/TRIANGULATE/REFACTOR checkboxes in `tasks.md` (owned by parent gate).
+
+## S2 — Query (work unit `tdd-rebuild-s2-query`)
+
+Same worktree/branch as S1; S1 baseline `aae622f` (clean). Source reference (final-content only, NOT cherry-picked): `a9507a6`.
+Focused command throughout: `pnpm test:unit --run src/features/POS/sales/composables/__tests__/useCustomerSalesHistory.test.ts`.
+
+### TDD Cycle Evidence (strict TDD)
+
+| Step | When (local) | Commit | Tree | Command | Exit | Result |
+| --- | --- | --- | --- | --- | --- | --- |
+| Baseline | 04:54 | `aae622f` (base) | — | focused | 1 | `No test files found` (S2 test file absent); tree clean |
+| RED | 04:55 | `6e9fe48` `test(sales): define customer sales history query contract` | `5c45417` | focused | 1 | 1 file failed: `Failed to resolve import "../useCustomerSalesHistory"` (module absent). Contract: disabled open/null/undefined/empty-tenant inputs, exact request `{customerId:[id],page,limit:10,sortBy:'confirmedAt',sortOrder:'desc'}` w/o `status`/`customerIncludeNull`, authoritative summary exposure, absent+malformed summary → error |
+| GREEN | 04:57 | `c7bc581` `feat(sales): add customer history query` | `435130b` | identical | 0 | 1 file / 8 tests passed. Minimal composable: options object, centralized `customerHistory` key, `enabled`, `staleTime:30_000`, `keepPreviousData`, `SaleListSummarySchema.parse`, no owner guard/retry/isPageTransition (held back) |
+| TRIANGULATE | 04:58 | `6e9ced2` `test(sales): triangulate customer history query` | `edcf1f6` | identical | 0 | 1 file / 15 tests passed. First run after adding held-back cases: exit 1, 5 genuine failures (A→B data leak; `isPageTransition` missing; retry ×3 under a deliberately retry-enabled client `retry:3, retryDelay:0`) |
+| REFACTOR | 04:59 | (no commit) | `edcf1f6` | identical + `npx vue-tsc --build` | 0 / 0 | 15 passed; type-check clean. `no refactor warranted`: params built once in one `params` computed, owner projection in one computed, request literal kept explicit to pin the exact wire shape (matches reference) |
+| Full suite | 05:01 | `6e9ced2` (candidate) | `edcf1f6` | `pnpm test:unit --run` (full) | 0 | 365 files / 5836 tests passed (+1 file, +15 S2 tests vs S1's 364/5821) |
+
+### Notes
+
+- Production correction during TRIANGULATE (driven solely by failing held-back tests): owner-stamped `CustomerHistoryCacheEntry` + `ownerCustomerId === customerId` render guard, `isPageTransition`, and 400/401/403 retry exclusion. Final composable is byte-identical to reference `a9507a6`'s file.
+- RED-harness fix inside GREEN commit: the `run()` helper originally conflated explicit `customerId: undefined` with "not provided", making that row vacuous (it mounted with the default customer); switched to `'customerId' in opts` + ref support so the contract case is real. No assertion weakened; enabled-guard production behavior confirmed.
+- Held-back cases that passed without production change: exact centralized key/parameter identity (cache key deep-equals `['sales',tenant,'customer-history',customer,params]`), close/reopen cache reuse within `staleTime` (no extra fetch, no invalidation).
+- Intentional test deltas vs reference `a9507a6` (no scope growth): "distinct cache key per page" case replaced by the stronger exact-key-identity test (page-key identity also covered at factory level in S1); no-retry cases run under an explicitly retry-enabled client, making the 400/401/403 exclusion observable rather than masked by `retry:false`; two explanatory comments dropped; import style inlined.
+- Work-unit diff from S1 HEAD `aae622f` (additions+deletions, excluding generated files which were restored): **+349/−0 = 349 ≤ 400** (test 254, composable 95). With this evidence section (24 lines): +373/−0 = 373 ≤ 400.
