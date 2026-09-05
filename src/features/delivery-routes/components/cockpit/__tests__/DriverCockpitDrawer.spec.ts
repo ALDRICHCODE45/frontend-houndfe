@@ -14,6 +14,7 @@ import DriverCockpitDrawer, { adaptDrawerAnimationEnd, adaptSlideoverLifecycle }
 import type { DeliveryRouteResponseDto, DeliveryRouteStop, DeliveryRouteTimelineEvent } from '../../../interfaces/delivery-route.types'
 import { DELIVERY_ROUTE_COPY } from '../../../copy'
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- node builtin
 const fs: typeof import('node:fs') = require('node:fs') as typeof import('node:fs')
 
 const ADDR = { id: 'a', street: 'Reforma', exteriorNumber: '1', interiorNumber: null, zipCode: '06600', neighborhood: 'C', municipality: 'C', city: 'CDMX', state: 'CMX', label: null, latitude: 19.4326, longitude: -99.1332 }
@@ -204,19 +205,38 @@ describe('DriverCockpitDrawer — S3: overlay footer slot action (REQ-DCK-002/00
     expect(document.querySelector('[data-testid="stop-panel-secondary-action"]')).toBeNull()
   })
 
-  it('mobile drawer: NO overlay footer action rendered (page footer owns it)', async () => {
-    mountDrawer({ open: true, mode: 'stop', stop: STOP, canCheckIn: true, checkInPending: false, routeTerminal: false, isDesktop: false })
+  it('mobile drawer + PENDING + canCheckIn: gated action in #footer; click emits request-confirm once with { stopId, trigger } (one interactive CTA per layer)', async () => {
+    const { inner } = mountDrawer({ open: true, mode: 'stop', stop: mkStop('s7', 6, 'PENDING'), canCheckIn: true, checkInPending: false, routeTerminal: false, isDesktop: false })
+    await flushPromises()
+    const btn = document.querySelector('[data-testid="overlay-footer-action"]') as HTMLButtonElement
+    expect(btn).not.toBeNull() ; expect(btn.disabled).toBe(false)
+    expect(btn.textContent).toContain(DELIVERY_ROUTE_COPY.actions.checkIn)
+    btn.click() ; await flushPromises()
+    const events = (inner.emitted('request-confirm') as unknown[][] | undefined) ?? []
+    expect(events).toHaveLength(1)
+    expect(events[0]?.[0]).toMatchObject({ stopId: 's7' })
+    expect((events[0]?.[0] as { trigger: HTMLElement }).trigger).toBe(btn)
+    expect(document.querySelector('[data-testid="stop-panel-secondary-action"]')).toBeNull()
+  })
+
+  it.each([
+    ['no permission', { canCheckIn: false }],
+    ['non-PENDING stop', { stop: mkStop('s8', 7, 'COMPLETED') }],
+    ['terminal route', { routeTerminal: true }],
+  ])('mobile drawer: NO gated action when %s (base page still owns the CTA)', async (_l, p) => {
+    mountDrawer({ open: true, mode: 'stop', stop: STOP, canCheckIn: true, checkInPending: false, routeTerminal: false, isDesktop: false, ...p })
     await flushPromises()
     expect(document.querySelector('[data-testid="overlay-footer-action"]')).toBeNull()
     expect(document.querySelector('[data-testid="stop-panel-root"]')).not.toBeNull()
   })
 
-  it('source: slideover uses #content escape hatch with overlay-footer-action; drawer has NO #content / overlay-footer-action', () => {
+  it('source: slideover uses #content escape hatch with overlay-footer-action; drawer renders the SAME gated action via #footer (no #content)', () => {
     const b = sfcBody()
     expect(b).toMatch(/<template\s+#content>[\s\S]*?data-testid="overlay-footer-action"[\s\S]*?<\/template>/)
     const drawerBlock = b.match(/<UDrawer[\s\S]*?<\/UDrawer>/)?.[0] ?? ''
     expect(drawerBlock).not.toMatch(/<template\s+#content>/)
-    expect(drawerBlock).not.toMatch(/data-testid="overlay-footer-action"/)
+    expect(drawerBlock).toMatch(/<template[\s\S]*?#footer>/)
+    expect(drawerBlock).toMatch(/data-testid="overlay-footer-action"/)
     const slideoverBlock = b.match(/<USlideover[\s\S]*?<\/USlideover>/)?.[0] ?? ''
     expect(slideoverBlock).not.toMatch(/<template\s+#header>/)
     expect(slideoverBlock).not.toMatch(/<template\s+#body>/)

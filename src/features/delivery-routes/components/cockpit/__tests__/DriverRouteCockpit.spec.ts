@@ -13,48 +13,42 @@ import DriverRouteCockpit, {
   reduceCockpit, initialCockpitState,
   type CockpitAction, type CockpitState,
 } from '../DriverRouteCockpit.vue'
-// Imported only for the S4 triangulation source-level assertion on the
-// production footer's class list. The cockpit suite stubs the footer for
-// behavioral assertions; this import lets us read the real SFC for the
-// sticky/fixed invariant without changing any cockpit behavior.
-import DriverCockpitFooterSource from '../DriverCockpitFooter.vue'
 import type { DeliveryRouteResponseDto, DeliveryRouteStop } from '../../../interfaces/delivery-route.types'
-import type { CockpitProgress } from '../../../composables/cockpit/useDriverRouteCockpit'
 import { DELIVERY_ROUTE_COPY } from '../../../copy'
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- node builtin
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- node builtin
 const fs: typeof import('node:fs') = require('node:fs') as typeof import('node:fs')// ─── Fixtures ──────────────────────────────────────────────────────────────────
 const ADDR = { id: 'a', street: 'Reforma', exteriorNumber: '1', interiorNumber: null, zipCode: '06600', neighborhood: 'C', municipality: 'C', city: 'CDMX', state: 'CMX', label: null, latitude: 19.4326, longitude: -99.1332 }
 function mkStop(id: string, sortOrder: number, status: DeliveryRouteStop['status'], folio: string | null = `F-${sortOrder + 1}`, name: string | null = 'Ana'): DeliveryRouteStop {
   return { id, saleId: `s-${id}`, saleFolio: folio, sortOrder, status, checkedInAt: null, completedAt: null, customer: name === null ? null : { id: `c-${id}`, name, email: 'a@x' }, shippingAddress: { ...ADDR, id: `a-${id}` } }
 }
-function mkRoute(overrides: Partial<{ status: DeliveryRouteResponseDto['status']; stops: DeliveryRouteStop[] }> = {}): DeliveryRouteResponseDto {
-  return { id: 'route-1', status: overrides.status ?? 'ACTIVE', driver: { id: 'd1', name: 'Ana', email: 'a@x' }, startedAt: null, completedAt: null, cancelledAt: null, notes: null, stops: overrides.stops ?? [mkStop('s0', 0, 'PENDING'), mkStop('s1', 1, 'PENDING')], timeline: [] }
+function mkRoute(overrides: Partial<{ status: DeliveryRouteResponseDto['status']; stops: DeliveryRouteStop[]; timeline: DeliveryRouteResponseDto['timeline']; notes: string | null }> = {}): DeliveryRouteResponseDto {
+  return { id: 'route-1', status: overrides.status ?? 'ACTIVE', driver: { id: 'd1', name: 'Ana', email: 'a@x' }, startedAt: null, completedAt: null, cancelledAt: null, notes: overrides.notes ?? null, stops: overrides.stops ?? [mkStop('s0', 0, 'PENDING'), mkStop('s1', 1, 'PENDING')], timeline: overrides.timeline ?? [] }
 }
 
 // ─── Stubs (template-string drives every event the cockpit listens to) ──────────
-const HeaderStub = defineComponent({ props: ['route', 'progress', 'isFetching'], emits: ['back', 'refresh', 'open-history'], template: `
+const HeaderStub = defineComponent({ props: ['route', 'isFetching'], emits: ['back', 'refresh', 'open-history'], template: `
   <header data-testid="cockpit-header-stub">
     <button data-testid="cockpit-header-back-stub" @click="$emit('back')">back</button>
     <button data-testid="cockpit-header-refresh-stub" @click="$emit('refresh')">refresh</button>
     <button data-testid="cockpit-header-history-stub" @click="$emit('open-history', { trigger: $event.currentTarget })">history</button>
   </header>` })
-const OpsStub = defineComponent({ props: ['currentStop', 'nextStop', 'notes', 'hasStops', 'isTerminal'], emits: ['open-stop'], template: `
-  <section data-testid="cockpit-operational-stub">
-    <button data-testid="cockpit-operational-current-stub" @click="$emit('open-stop', { stopId: 's0', trigger: $event.currentTarget })">cur</button>
-    <button data-testid="cockpit-operational-next-stub" @click="$emit('open-stop', { stopId: 's1', trigger: $event.currentTarget })">next</button>
-  </section>` })
-const SpineStub = defineComponent({ props: ['nodes'], emits: ['select-stop'], template: `
-  <ol data-testid="cockpit-spine-stub">
-    <button data-testid="cockpit-spine-stub-s1" @click="$emit('select-stop', { stopId: 's1', trigger: $event.currentTarget })">sp1</button>
-    <button data-testid="cockpit-spine-stub-s0" @click="$emit('select-stop', { stopId: 's0', trigger: $event.currentTarget })">sp0</button>
+// Route-page evolution: the spine hosts rich stop cards and forwards
+// 'open-details' / 'check-in' [StopTrigger] — the cockpit owns drawer + confirm.
+const SpineStub = defineComponent({ props: ['nodes', 'showCheckInStopId', 'checkInPending'], emits: ['open-details', 'check-in'], template: `
+  <ol data-testid="cockpit-spine-stub" :data-show-check-in-stop-id="showCheckInStopId || ''">
+    <button data-testid="cockpit-spine-stub-s1" @click="$emit('open-details', { stopId: 's1', trigger: $event.currentTarget })">sp1</button>
+    <button data-testid="cockpit-spine-stub-s0" @click="$emit('open-details', { stopId: 's0', trigger: $event.currentTarget })">sp0</button>
+    <button data-testid="cockpit-spine-stub-check-in-s0" @click="$emit('check-in', { stopId: 's0', trigger: $event.currentTarget })">ci0</button>
   </ol>` })
-const FooterStub = defineComponent({ props: { routeStatus: String, currentStop: {}, progress: {}, hasStops: Boolean, canCheckIn: Boolean, checkInPending: Boolean, isDesktop: Boolean }, emits: ['request-confirm', 'open-history'], template: `
-  <footer data-testid="cockpit-footer-stub" :data-is-desktop="String(isDesktop)">
-    <button v-if="!isDesktop" data-testid="cockpit-footer-action-stub" :disabled="checkInPending" @click="$emit('request-confirm', { stopId: 's0', trigger: $event.currentTarget })">action</button>
-    <button data-testid="cockpit-footer-history-stub" @click="$emit('open-history', { trigger: $event.currentTarget })">hist</button>
-  </footer>` })
+// Route-page evolution stubs: truthful summary + bounded recent timeline.
+const SummaryStub = defineComponent({ props: ['progress', 'counts'], template: `
+  <section data-testid="cockpit-summary-stub" :data-total="String(counts?.total ?? -1)" :data-completed="String(progress?.completed ?? -1)" />` })
+const TimelineStub = defineComponent({ props: ['route', 'events', 'heading'], template: `
+  <div data-testid="cockpit-recent-timeline-stub" :data-heading="heading" :data-count="String((events ?? []).length)" />` })
 // Drawer stub: fully controlled by `open`; exposes the four events + mirror props for the spec.
+// (The legacy operational/footer stubs were removed with the legacy composition; the
+// direct card CTA on the spine stub is the single base-page check-in entry point.)
 const DrawerStub = defineComponent({ props: ['open', 'mode', 'route', 'stop', 'routeTerminal', 'canCheckIn', 'checkInPending', 'isDesktop'], emits: ['update:open', 'closed', 'request-confirm'], template: `
   <div data-testid="cockpit-drawer-stub" :data-open="String(open)" :data-mode="mode" :data-stop-id="stop?.id || ''" :data-is-desktop="String(isDesktop)">
     <button data-testid="cockpit-drawer-update-false-stub" @click="$emit('update:open', false)">upd</button>
@@ -81,7 +75,7 @@ function mountCockpit(p: Partial<{ route: DeliveryRouteResponseDto; isFetching: 
     setup(pp) { return () => h(DriverRouteCockpit as unknown as Component, pp) },
   })
   const outer = mount(Outer, { props: { route, isFetching: p.isFetching ?? false, canCheckIn: p.canCheckIn ?? true, checkInPending: p.checkInPending ?? false },
-    global: { stubs: { DriverCockpitHeader: HeaderStub, DriverOperationalStops: OpsStub, DriverRouteSpine: SpineStub, DriverCockpitFooter: FooterStub, DriverCockpitDrawer: DrawerStub, ConfirmModal: ConfirmStub } },
+    global: { stubs: { DriverCockpitHeader: HeaderStub, DriverRouteSpine: SpineStub, DriverCockpitDrawer: DrawerStub, ConfirmModal: ConfirmStub, DriverRouteSummary: SummaryStub, DeliveryRouteTimeline: TimelineStub } },
     attachTo: document.body,
   })
   return { inner: outer.findComponent(DriverRouteCockpit), outer }
@@ -94,21 +88,21 @@ beforeEach(() => { resetConfirm() })
 afterEach(() => { document.body.innerHTML = '' ; confirmState.open = false })// ─── RED: non-null composition surface (REQ-DCS-001) ───────────────────────────
 
 describe('DriverRouteCockpit — RED: non-null composition surface (REQ-DCS-001)', () => {
-  it('mounts SFCs in DOM order header → operational → spine → footer', async () => {
+  it('mounts SFCs in DOM order header → summary → spine → recent (legacy operational/footer composition removed)', async () => {
     const { inner } = mountCockpit() ; await flushPromises()
     const h = inner.html()
-    const ih = h.indexOf('cockpit-header-stub') ; const io = h.indexOf('cockpit-operational-stub')
-    const is = h.indexOf('cockpit-spine-stub') ; const if_ = h.indexOf('cockpit-footer-stub')
-    expect(ih).toBeGreaterThanOrEqual(0) ; expect(ih).toBeLessThan(io) ; expect(io).toBeLessThan(is) ; expect(is).toBeLessThan(if_)
+    const ih = h.indexOf('cockpit-header-stub') ; const is = h.indexOf('cockpit-summary-stub')
+    const isp = h.indexOf('cockpit-spine-stub') ; const ir = h.indexOf('cockpit-recent')
+    expect(ih).toBeGreaterThanOrEqual(0) ; expect(ih).toBeLessThan(is) ; expect(is).toBeLessThan(isp) ; expect(isp).toBeLessThan(ir)
   })
 
-  it('passes typed props (header/operational/footer) and derives once via useDriverRouteCockpit', async () => {
+  it('passes typed props (header, NO progress — the summary owns it) and derives once via useDriverRouteCockpit', async () => {
     const route = mkRoute() ; const { inner } = mountCockpit({ route }) ; await flushPromises()
-    const header = inner.findComponent(HeaderStub) ; const op = inner.findComponent(OpsStub) ; const footer = inner.findComponent(FooterStub)
+    const header = inner.findComponent(HeaderStub)
     expect(header.props('route')).toStrictEqual(route)
-    expect((header.props('progress') as CockpitProgress).total).toBe(2)
-    expect(op.props('currentStop')?.id).toBe('s0') ; expect(op.props('nextStop')?.id).toBe('s1')
-    expect(footer.props('routeStatus')).toBe('ACTIVE')
+    // Header refinement: the completed/total fraction was removed from the
+    // header — the cockpit must no longer pass `progress` down to it.
+    expect(Object.keys(header.props())).not.toContain('progress')
   })
 
   it.each([
@@ -116,8 +110,8 @@ describe('DriverRouteCockpit — RED: non-null composition surface (REQ-DCS-001)
     ['terminal ACTIVE→COMPLETED', mkRoute({ status: 'COMPLETED', stops: [mkStop('s0', 0, 'COMPLETED')] })],
   ])('edge %s still mounts (REQ-DRC-112)', async (_l, route) => {
     const { inner } = mountCockpit({ route }) ; await flushPromises()
-    expect((inner.findComponent(HeaderStub).props('progress') as CockpitProgress).total).toBe(route.stops.length)
-    if (route.stops.length === 0) expect(inner.findComponent(OpsStub).props('currentStop')).toBeNull()
+    expect((inner.findComponent(SummaryStub).props('counts') as { total: number }).total).toBe(route.stops.length)
+    if (route.stops.length === 0) expect(inner.findComponent(SummaryStub).props('counts').total).toBe(0)
   })
 
   it('SFC source: no server-state, props.route composition, drawerOpen derived from reducer phase (no duplicate ref)', () => {
@@ -171,11 +165,11 @@ describe('DriverRouteCockpit — RED: non-null composition surface (REQ-DCS-001)
 
 
 
-describe('DriverRouteCockpit — S3: viewport-composed footer suppression (REQ-DCS-006)', () => {
-  it('source: SFC passes parent-owned :is-desktop to BOTH the drawer AND the footer (single source)', () => {
+describe('DriverRouteCockpit — S3: single breakpoint authority wiring (REQ-DCS-006/009)', () => {
+  it('source: SFC passes parent-owned :is-desktop to the drawer (single overlay consumer; legacy footer removed)', () => {
     const source = docStripped()
     const matches = source.match(/:is-desktop="isDesktop"/g) ?? []
-    expect(matches.length).toBeGreaterThanOrEqual(2) // DriverCockpitDrawer + DriverCockpitFooter
+    expect(matches.length).toBe(1) // DriverCockpitDrawer only
   })
 })
 
@@ -189,21 +183,21 @@ describe('DriverRouteCockpit — GREEN: forwarded actions + exactly-once emissio
     expect(docStripped()).not.toMatch(/from\s+['"]vue-router['"]|useRouter|useRoute\b/)
   })
 
-  it('accept: closes modal + emits request-check-in exactly once + enters MUTATING (REQ-DRC-104)', async () => {
+  it('accept: closes modal + emits request-check-in exactly once + enters MUTATING (REQ-DRC-104, direct card CTA)', async () => {
     const { inner } = mountCockpit() ; await flushPromises()
-    const footer = inner.findComponent(FooterStub)
-    await footer.find('[data-testid="cockpit-footer-action-stub"]').trigger('click') ; await flushPromises()
+    const spine = inner.findComponent(SpineStub)
+    await spine.find('[data-testid="cockpit-spine-stub-check-in-s0"]').trigger('click') ; await flushPromises()
     expect(confirmState.open).toBe(true) ; expect(confirmState.title).toBe(DELIVERY_ROUTE_COPY.cockpit.confirm.title)
     clickById('cockpit-confirm-confirm-stub') ; await flushPromises()
     expect(inner.emitted('request-check-in')).toEqual([['s0']]) ; expect(confirmState.open).toBe(false)
     // Re-trigger while MUTATING → no new emit, no modal opens (phase=MUTATING blocks new requests).
-    await footer.find('[data-testid="cockpit-footer-action-stub"]').trigger('click') ; await flushPromises()
+    await spine.find('[data-testid="cockpit-spine-stub-check-in-s0"]').trigger('click') ; await flushPromises()
     expect(inner.emitted('request-check-in')?.length ?? 0).toBe(1) ; expect(confirmState.open).toBe(false)
   })
 
   it('mutation settles (checkInPending true→false): phase becomes CLOSED (REQ-DCK-008)', async () => {
     const { inner, outer } = mountCockpit({ checkInPending: false }) ; await flushPromises()
-    await inner.findComponent(FooterStub).find('[data-testid="cockpit-footer-action-stub"]').trigger('click') ; await flushPromises()
+    await inner.findComponent(SpineStub).find('[data-testid="cockpit-spine-stub-check-in-s0"]').trigger('click') ; await flushPromises()
     clickById('cockpit-confirm-confirm-stub') ; await flushPromises()
     expect(inner.emitted('request-check-in')?.length ?? 0).toBe(1)
     await outer.setProps({ checkInPending: true }) ; await flushPromises()
@@ -237,18 +231,18 @@ describe('DriverRouteCockpit — TRIANGULATE: drawer→confirm + focus return', 
 
   it('cancel emits NO request-check-in and NO toast; phase goes CONFIRM → CLOSED', async () => {
     const { inner } = mountCockpit() ; await flushPromises()
-    await inner.findComponent(FooterStub).find('[data-testid="cockpit-footer-action-stub"]').trigger('click') ; await flushPromises()
+    await inner.findComponent(SpineStub).find('[data-testid="cockpit-spine-stub-check-in-s0"]').trigger('click') ; await flushPromises()
     expect(confirmState.open).toBe(true)
     clickById('cockpit-confirm-cancel-stub') ; await flushPromises()
     expect(inner.emitted('request-check-in') ?? []).toHaveLength(0) ; expect(confirmState.open).toBe(false)
   })
 
-  it('checkInPending=true: header refresh, footer confirm, drawer confirm all emit nothing', async () => {
+  it('checkInPending=true: header refresh, card CTA confirm, drawer confirm all emit nothing', async () => {
     const { inner } = mountCockpit({ checkInPending: true }) ; await flushPromises()
     await inner.findComponent(HeaderStub).find('[data-testid="cockpit-header-refresh-stub"]').trigger('click')
     expect(inner.emitted('refresh') ?? []).toHaveLength(0)
-    await inner.findComponent(FooterStub).find('[data-testid="cockpit-footer-action-stub"]').trigger('click') ; await flushPromises()
-    expect(confirmState.open).toBe(false)
+    await inner.findComponent(SpineStub).find('[data-testid="cockpit-spine-stub-check-in-s0"]').trigger('click') ; await flushPromises()
+    expect(confirmState.open).toBe(false) ; expect(inner.emitted('request-check-in') ?? []).toHaveLength(0)
     await inner.findComponent(SpineStub).find('[data-testid="cockpit-spine-stub-s1"]').trigger('click') ; await flushPromises()
     clickById('cockpit-drawer-request-confirm-stub-s1') ; await flushPromises() ; clickById('cockpit-drawer-closed-stub') ; await flushPromises()
     expect(confirmState.open).toBe(false) ; expect(inner.emitted('request-check-in') ?? []).toHaveLength(0)
@@ -290,14 +284,12 @@ describe('DriverRouteCockpit — TRIANGULATE: drawer→confirm + focus return', 
         expect(cls).toMatch(/\bh-full\b|\bmin-h-full\b/)
         expect(cls).toMatch(/\bmin-h-\[\s*calc\s*\(\s*100dvh\s*-\s*4rem\s*\)\s*\]/)
       })
-      it('cockpit body has flex-1 + min-h-0 + pb-*; footer sticky bottom-0 not fixed/absolute (source-level)', async () => {
+      it('cockpit body has flex-1 + min-h-0 + normal bottom spacing (no legacy pb-20 fixed-footer clearance); footer source unchanged (source-level)', async () => {
         const { outer } = mountCockpit() ; await flushPromises()
         const bodyCls = outer.find('[data-testid="cockpit-body"]').classes().join(' ')
-        expect(bodyCls).toMatch(/\bflex-1\b/) ; expect(bodyCls).toMatch(/\bmin-h-0\b/) ; expect(bodyCls).toMatch(/\bpb-[\w-]+\b/)
-        const footerSource = fs.readFileSync((DriverCockpitFooterSource as unknown as { __file: string }).__file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
-        const m = footerSource.match(/data-testid="cockpit-footer-root"[^>]*class="([^"]+)"/)
-        expect(m).not.toBeNull() ; const cls = m![1] ?? ''
-        expect(cls).toMatch(/\bsticky\b/) ; expect(cls).toMatch(/\bbottom-0\b/) ; expect(cls).not.toMatch(/\bfixed\b|\babsolute\b/)
+        expect(bodyCls).toMatch(/\bflex-1\b/) ; expect(bodyCls).toMatch(/\bmin-h-0\b/)
+        expect(bodyCls).not.toMatch(/\bpb-20\b/)
+        expect(bodyCls).toMatch(/\bpy-4\b/)
       })
       it('SFC source-level: root h-full + calc(100dvh-4rem); body flex-1 min-h-0; no raw 100dvh', () => {
         const source = docStripped()
@@ -311,9 +303,9 @@ describe('DriverRouteCockpit — TRIANGULATE: drawer→confirm + focus return', 
     })
 
     describe('DriverRouteCockpit — TRIANGULATE: confirmation copy + panel root + body clearance', () => {
-  it('confirmation title/body/buttons come from copy.ts with customer + position + folio + irreversible statement', async () => {
+  it('confirmation title/body/buttons come from copy.ts with customer + position + folio + irreversible statement (direct card CTA path)', async () => {
     const { inner } = mountCockpit({ route: mkRoute({ stops: [mkStop('s0', 0, 'PENDING', 'F-099')] }) }) ; await flushPromises()
-    await inner.findComponent(FooterStub).find('[data-testid="cockpit-footer-action-stub"]').trigger('click') ; await flushPromises()
+    await inner.findComponent(SpineStub).find('[data-testid="cockpit-spine-stub-check-in-s0"]').trigger('click') ; await flushPromises()
     expect(confirmState.title).toBe(DELIVERY_ROUTE_COPY.cockpit.confirm.title)
     expect(confirmState.confirmLabel).toBe(DELIVERY_ROUTE_COPY.cockpit.confirm.confirmLabel)
     expect(confirmState.cancelLabel).toBe(DELIVERY_ROUTE_COPY.cockpit.confirm.cancelLabel)
@@ -323,22 +315,23 @@ describe('DriverRouteCockpit — TRIANGULATE: drawer→confirm + focus return', 
 
   it('null customer falls back to `Cliente sin nombre` in confirmation body', async () => {
     const { inner } = mountCockpit({ route: mkRoute({ stops: [mkStop('s0n', 0, 'PENDING', 'F-099', null)] }) }) ; await flushPromises()
-    await inner.findComponent(FooterStub).find('[data-testid="cockpit-footer-action-stub"]').trigger('click') ; await flushPromises()
+    await inner.findComponent(SpineStub).find('[data-testid="cockpit-spine-stub-check-in-s0"]').trigger('click') ; await flushPromises()
     expect(confirmState.description).toContain(DELIVERY_ROUTE_COPY.cockpit.operational.customerFallback)
   })
   it.each([['null', null], ['empty', ''], ['whitespace', '   ']])('blank %s saleFolio: body names customer + Parada N, omits ` ({folio})` segment verbatim, never substitutes customer fallback for folio', async (_l, folio) => {
     const { inner } = mountCockpit({ route: mkRoute({ stops: [mkStop('s0', 0, 'PENDING', folio, 'Ana')] }) }) ; await flushPromises()
-    await inner.findComponent(FooterStub).find('[data-testid="cockpit-footer-action-stub"]').trigger('click') ; await flushPromises()
+    await inner.findComponent(SpineStub).find('[data-testid="cockpit-spine-stub-check-in-s0"]').trigger('click') ; await flushPromises()
     const desc = confirmState.description
     expect(desc).toContain('Ana') ; expect(desc).toContain('Parada 1') ; expect(desc).toContain('Esta acción registra la entrega y no se puede deshacer.') ; expect(desc).not.toContain('()') ; expect(desc).not.toContain('({folio})') ; expect(desc).not.toContain(DELIVERY_ROUTE_COPY.cockpit.operational.customerFallback)
   })
 
-  it('cockpit root is full-bleed (no fixed/absolute/w-[...]); tabindex=-1; body has bottom clearance', async () => {
+  it('cockpit root is full-bleed (no fixed/absolute/w-[...]); tabindex=-1; body keeps normal bottom spacing without pb-20', async () => {
     const { inner } = mountCockpit() ; await flushPromises()
     const root = inner.find('[data-testid="cockpit-root"]')
     const cls = root.classes().join(' ')
     expect(cls).not.toMatch(/\bfixed\b|\babsolute\b/) ; expect(cls).not.toMatch(/\bw-\[/) ; expect(root.attributes('tabindex')).toBe('-1')
-    expect(inner.find('[data-testid="cockpit-body"]').classes().join(' ')).toMatch(/pb-|padding-bottom/)
+    const bodyCls = inner.find('[data-testid="cockpit-body"]').classes().join(' ')
+    expect(bodyCls).not.toMatch(/\bpb-20\b/) ; expect(bodyCls).toMatch(/\bpy-4\b/)
   })
 
   it('SFC never hardcodes confirmation copy literals (single source = copy.ts)', () => {
@@ -394,7 +387,7 @@ describe('DriverRouteCockpit — REFACTOR: focus return + invariants (REQ-DCK-00
   it('settle path lands CLOSED without throwing on a detached origin (root fallback used)', async () => {
     const { inner, outer } = mountCockpit() ; await flushPromises()
     expect(inner.find('[data-testid="cockpit-root"]').attributes('tabindex')).toBe('-1')
-    await inner.findComponent(FooterStub).find('[data-testid="cockpit-footer-action-stub"]').trigger('click') ; await flushPromises()
+    await inner.findComponent(SpineStub).find('[data-testid="cockpit-spine-stub-check-in-s0"]').trigger('click') ; await flushPromises()
     clickById('cockpit-confirm-confirm-stub') ; await flushPromises()
     await outer.setProps({ checkInPending: true }) ; await flushPromises()
     await outer.setProps({ checkInPending: false }) ; await flushPromises()
@@ -420,29 +413,24 @@ describe('DriverRouteCockpit — REFACTOR: focus return + invariants (REQ-DCK-00
     // preserved verbatim and pins the origin-is-detached → rootRef fallback path.
 
     describe('DriverRouteCockpit — B3 compact: zero-stop visible copy + footer-empty + connected-origin focus (REQ-DRC-112, REQ-DCS-008, REQ-DCK-008)', () => {
-      it('zero-stop: currentStop/nextStop=null + hasStops=false propagate to operational + footer (REQ-DRC-112, REQ-DCS-008)', async () => {
+      it('zero-stop: summary receives zero counts + no direct CTA (REQ-DRC-112, REQ-DCS-008)', async () => {
         const { inner } = mountCockpit({ route: mkRoute({ stops: [] }) }) ; await flushPromises()
-        const op = inner.findComponent(OpsStub) ; const footer = inner.findComponent(FooterStub)
-        expect(op.props('currentStop')).toBeNull() ; expect(op.props('nextStop')).toBeNull() ; expect(op.props('hasStops')).toBe(false)
-        // footer-empty: hasStops=false + currentStop=null ⇒ footer mode is 'empty' (no action button).
-        expect(footer.props('hasStops')).toBe(false) ; expect(footer.props('currentStop')).toBeNull()
-        expect(footer.props('routeStatus')).toBe('ACTIVE') ; expect((footer.props('progress') as CockpitProgress).total).toBe(0)
+        const summary = inner.findComponent(SummaryStub)
+        expect(summary.props('counts')).toEqual({ delivered: 0, pending: 0, inProgress: 0, skipped: 0, total: 0 })
+        // No current PENDING stop ⇒ the single direct card CTA is absent.
+        expect(inner.findComponent(SpineStub).props('showCheckInStopId')).toBeNull()
       })
 
-      it('terminal ACTIVE→COMPLETED: footer terminal props propagate verbatim (REQ-DCS-008)', async () => {
+      it('terminal ACTIVE→COMPLETED: no direct CTA on terminal routes (REQ-DCS-008)', async () => {
         const { inner } = mountCockpit({ route: mkRoute({ status: 'COMPLETED', stops: [mkStop('s0', 0, 'COMPLETED')] }) }) ; await flushPromises()
-        const footer = inner.findComponent(FooterStub)
-        // routeTerminal=true ⇒ footer mode is 'terminal' (completedTitle/summary/viewHistory, no action button).
-        expect(footer.props('routeStatus')).toBe('COMPLETED') ; expect(footer.props('hasStops')).toBe(true)
-        // selectCurrentStop returns null when isTerminal=true, so footer receives currentStop=null
-        // while still carrying the progress total (footer-empty ≠ terminal).
-        expect(footer.props('currentStop')).toBeNull() ; expect((footer.props('progress') as CockpitProgress).total).toBe(1)
+        // selectCurrentStop returns null when isTerminal=true ⇒ showCheckInStopId is null.
+        expect(inner.findComponent(SpineStub).props('showCheckInStopId')).toBeNull()
       })
 
-      it('connected-origin settle (checkInPending true→false): focus returns to the originating button when still in DOM (REQ-DCK-008)', async () => {
+      it('connected-origin settle (checkInPending true→false): focus returns to the originating card CTA when still in DOM (REQ-DCK-008)', async () => {
         const { inner, outer } = mountCockpit({ checkInPending: false }) ; await flushPromises()
-        const triggerBtn = inner.findComponent(FooterStub).find('[data-testid="cockpit-footer-action-stub"]').element as HTMLButtonElement
-        await inner.findComponent(FooterStub).find('[data-testid="cockpit-footer-action-stub"]').trigger('click') ; await flushPromises()
+        const triggerBtn = inner.findComponent(SpineStub).find('[data-testid="cockpit-spine-stub-check-in-s0"]').element as HTMLButtonElement
+        await inner.findComponent(SpineStub).find('[data-testid="cockpit-spine-stub-check-in-s0"]').trigger('click') ; await flushPromises()
         clickById('cockpit-confirm-confirm-stub') ; await flushPromises()
         await outer.setProps({ checkInPending: true }) ; await flushPromises()
         await outer.setProps({ checkInPending: false }) ; await flushPromises()
@@ -451,11 +439,154 @@ describe('DriverRouteCockpit — REFACTOR: focus return + invariants (REQ-DCK-00
 
       it('detached-origin settle preserved: when the originating button is removed, rootRef fallback fires (REQ-DCK-008)', async () => {
         const { inner, outer } = mountCockpit({ checkInPending: false }) ; await flushPromises()
-        await inner.findComponent(FooterStub).find('[data-testid="cockpit-footer-action-stub"]').trigger('click') ; await flushPromises()
+        await inner.findComponent(SpineStub).find('[data-testid="cockpit-spine-stub-check-in-s0"]').trigger('click') ; await flushPromises()
         clickById('cockpit-confirm-confirm-stub') ; await flushPromises()
-        ;(document.querySelector('[data-testid="cockpit-footer-action-stub"]') as HTMLElement | null)?.remove()
+        ;(document.querySelector('[data-testid="cockpit-spine-stub-check-in-s0"]') as HTMLElement | null)?.remove()
         await outer.setProps({ checkInPending: true }) ; await flushPromises()
         await outer.setProps({ checkInPending: false }) ; await flushPromises()
         expect(document.activeElement).toBe(inner.find('[data-testid="cockpit-root"]').element)
       })
     })
+
+// ─── Route-page evolution: truthful summary + rich stop cards + recent activity ─
+
+describe('DriverRouteCockpit — route-page evolution: summary / spine cards / recent activity', () => {
+      it('renders summary → stop-list heading → spine → recent activity in single-column page order (legacy operational/footer removed)', async () => {
+        const { inner } = mountCockpit() ; await flushPromises()
+        const h = inner.html()
+        const is = h.indexOf('cockpit-summary-stub') ; const ihd = h.indexOf('cockpit-stop-list-heading')
+        const isp = h.indexOf('cockpit-spine-stub') ; const ir = h.indexOf('cockpit-recent')
+        expect(is).toBeGreaterThanOrEqual(0) ; expect(is).toBeLessThan(ihd) ; expect(ihd).toBeLessThan(isp)
+        expect(isp).toBeLessThan(ir)
+      })
+
+      it('renders the visible stop-list heading + supporting line from copy.ts above the ordered rich cards', async () => {
+        const { inner } = mountCockpit() ; await flushPromises()
+        const heading = inner.find('[data-testid="cockpit-stop-list-heading"]')
+        expect(heading.exists()).toBe(true)
+        expect(heading.text()).toContain(DELIVERY_ROUTE_COPY.cockpit.stops.listHeading)
+        expect(heading.text()).toContain(DELIVERY_ROUTE_COPY.cockpit.stops.listSubheading)
+        const h = inner.html()
+        expect(h.indexOf('cockpit-stop-list-heading')).toBeLessThan(h.indexOf('cockpit-spine-stub'))
+      })
+
+      it.each([
+        ['blank (null)', null, false],
+        ['blank (empty string)', '', false],
+        ['blank (whitespace)', '   ', false],
+        ['nonblank', 'Deja el paquete con el portero.', true],
+      ])('route-notes panel: %s notes → rendered=%s, labeled from copy.ts, between summary and stop list', async (_l, notes, shouldRender) => {
+        const { inner } = mountCockpit({ route: mkRoute({ notes: notes as string | null }) }) ; await flushPromises()
+        const panel = inner.find('[data-testid="cockpit-route-notes"]')
+        expect(panel.exists()).toBe(shouldRender)
+        if (shouldRender) {
+          expect(panel.text()).toContain(DELIVERY_ROUTE_COPY.cockpit.operational.notesLabel)
+          expect(panel.text()).toContain(notes as string)
+          const h = inner.html()
+          expect(h.indexOf('cockpit-summary-stub')).toBeLessThan(h.indexOf('cockpit-route-notes'))
+          expect(h.indexOf('cockpit-route-notes')).toBeLessThan(h.indexOf('cockpit-stop-list-heading'))
+        }
+      })
+
+      it('SFC source: legacy composition removed (no DriverOperationalStops / DriverCockpitFooter rendering or import)', () => {
+        const b = docStripped()
+        expect(b).not.toMatch(/<DriverOperationalStops/)
+        expect(b).not.toMatch(/<DriverCockpitFooter/)
+        expect(b).not.toMatch(/from\s+['"]\.\/DriverOperationalStops\.vue['"]/)
+        expect(b).not.toMatch(/from\s+['"]\.\/DriverCockpitFooter\.vue['"]/)
+      })
+
+  it('passes the single-derivation progress + counts to the summary (truthful existing data only)', async () => {
+    const route = mkRoute({ stops: [mkStop('s0', 0, 'COMPLETED'), mkStop('s1', 1, 'PENDING')] })
+    const { inner } = mountCockpit({ route }) ; await flushPromises()
+    const summary = inner.findComponent(SummaryStub)
+    expect(summary.props('progress')).toEqual({ completed: 1, total: 2 })
+    expect(summary.props('counts')).toEqual({ delivered: 1, pending: 1, inProgress: 0, skipped: 0, total: 2 })
+  })
+
+  it('zero-stop route: summary receives zero counts (no progressbar misuse upstream)', async () => {
+    const { inner } = mountCockpit({ route: mkRoute({ stops: [] }) }) ; await flushPromises()
+    const summary = inner.findComponent(SummaryStub)
+    expect(summary.props('counts')).toEqual({ delivered: 0, pending: 0, inProgress: 0, skipped: 0, total: 0 })
+  })
+
+  it('recent activity receives the recent heading + the BOUNDED backend-ordered slice (last 3, verbatim order)', async () => {
+    const timeline = [
+      { type: 'ROUTE_CREATED', at: '2025-01-01T08:00:00Z', actor: null },
+      { type: 'ROUTE_STARTED', at: '2025-01-01T09:00:00Z', actor: { id: 'd1', name: 'Ana' } },
+      { type: 'STOP_CHECKED_IN', at: '2025-01-01T09:30:00Z', stopId: 's0', sortOrder: 0, actor: null },
+      { type: 'STOP_CHECKED_IN', at: '2025-01-01T10:00:00Z', stopId: 's1', sortOrder: 1, actor: null },
+      { type: 'ROUTE_COMPLETED', at: '2025-01-01T11:00:00Z', actor: null },
+    ] as DeliveryRouteResponseDto['timeline']
+    const { inner } = mountCockpit({ route: mkRoute({ timeline }) }) ; await flushPromises()
+    const tl = inner.findComponent(TimelineStub)
+    expect(tl.props('heading')).toBe(DELIVERY_ROUTE_COPY.cockpit.recent.heading)
+    expect(tl.props('events')).toEqual(timeline.slice(-3)) // backend order preserved; caller slices
+  })
+
+  it('short timelines render in full (slice never fabricates or drops within the bound)', async () => {
+    const timeline = [
+      { type: 'ROUTE_CREATED', at: '2025-01-01T08:00:00Z', actor: null },
+      { type: 'ROUTE_STARTED', at: '2025-01-01T09:00:00Z', actor: null },
+    ] as DeliveryRouteResponseDto['timeline']
+    const { inner } = mountCockpit({ route: mkRoute({ timeline }) }) ; await flushPromises()
+    expect(inner.findComponent(TimelineStub).props('events')).toEqual(timeline)
+  })
+
+  it('the recent full-history control opens the EXISTING history overlay (no new overlay path)', async () => {
+    const { inner } = mountCockpit() ; await flushPromises()
+    await inner.find('[data-testid="cockpit-recent-history"]').trigger('click') ; await flushPromises()
+    const drawer = (document.querySelector('[data-testid="cockpit-drawer-stub"]') as HTMLElement)
+    expect(drawer.getAttribute('data-open')).toBe('true') ; expect(drawer.getAttribute('data-mode')).toBe('history')
+    expect(confirmState.open).toBe(false)
+  })
+
+  it('SFC source: summary + spine + recent are wired; recent slice is a bounded constant (no full re-render of history)', () => {
+    const b = docStripped()
+    expect(b).toMatch(/<DriverRouteSummary/) ; expect(b).toMatch(/<DriverRouteSpine/) ; expect(b).toMatch(/<DeliveryRouteTimeline/)
+    expect(b).toMatch(/cockpit\.recent\.heading/)
+    // The bounded slice must be a literal bound on route.timeline (backend-ordered, caller slices).
+    expect(b).toMatch(/route\.timeline\.slice\(-\d+\)/)
+  })
+})
+
+describe('DriverRouteCockpit — route-page evolution: single direct check-in CTA on stop cards', () => {
+  it('derives showCheckInStopId = current PENDING stop on an ACTIVE route with permission', async () => {
+    const { inner } = mountCockpit() ; await flushPromises()
+    expect(inner.findComponent(SpineStub).props('showCheckInStopId')).toBe('s0')
+  })
+
+  it.each([
+    ['terminal route', mkRoute({ status: 'COMPLETED', stops: [mkStop('s0', 0, 'COMPLETED')] }), true],
+    ['no permission', mkRoute(), false],
+    ['current IN_PROGRESS', mkRoute({ stops: [mkStop('s0', 0, 'IN_PROGRESS')] }), true],
+  ])('no direct CTA when %s', async (_l, route, canCheckIn) => {
+    const { inner } = mountCockpit({ route, canCheckIn }) ; await flushPromises()
+    expect(inner.findComponent(SpineStub).props('showCheckInStopId')).toBeNull()
+  })
+
+  it('card check-in routes through the SAME confirm modal → request-check-in exactly once (semantics preserved)', async () => {
+    const { inner, outer } = mountCockpit() ; await flushPromises()
+    await inner.findComponent(SpineStub).find('[data-testid="cockpit-spine-stub-check-in-s0"]').trigger('click') ; await flushPromises()
+    expect(confirmState.open).toBe(true) ; expect(confirmState.title).toBe(DELIVERY_ROUTE_COPY.cockpit.confirm.title)
+    clickById('cockpit-confirm-confirm-stub') ; await flushPromises()
+    expect(inner.emitted('request-check-in')).toEqual([['s0']])
+    await outer.setProps({ checkInPending: true }) ; await flushPromises()
+    await outer.setProps({ checkInPending: false }) ; await flushPromises()
+    expect(confirmState.open).toBe(false)
+  })
+
+  it('card check-in emits NOTHING while checkInPending (guard mirrors the disabled CTA)', async () => {
+    const { inner } = mountCockpit({ checkInPending: true }) ; await flushPromises()
+    await inner.findComponent(SpineStub).find('[data-testid="cockpit-spine-stub-check-in-s0"]').trigger('click') ; await flushPromises()
+    expect(confirmState.open).toBe(false) ; expect(inner.emitted('request-check-in') ?? []).toHaveLength(0)
+  })
+
+  it('card details opens the stop drawer — every stop stays inspectable without a primary CTA', async () => {
+    const { inner } = mountCockpit() ; await flushPromises()
+    await inner.findComponent(SpineStub).find('[data-testid="cockpit-spine-stub-s1"]').trigger('click') ; await flushPromises()
+    const drawer = (document.querySelector('[data-testid="cockpit-drawer-stub"]') as HTMLElement)
+    expect(drawer.getAttribute('data-open')).toBe('true') ; expect(drawer.getAttribute('data-mode')).toBe('stop')
+    expect(inner.findComponent(DrawerStub).props('stop')?.id).toBe('s1')
+  })
+})

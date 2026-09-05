@@ -54,9 +54,11 @@ export function adaptSlideoverLifecycle(input: SlideoverLifecycleAdapterInput): 
  *
  * Viewport-adaptive cockpit overlay: exactly one Nuxt UI container mounted at a
  * time. On lg+ (Tailwind 1024px, aligned with the app shell) the active
- * surface is `USlideover side="right" inset` (slideover `#footer` slot owns the gated
+ * surface is `USlideover side="right" inset` (slideover `#content` shell owns the gated
  * `Marcar entregada` per REQ-DCK-002/003, REQ-DCS-006) or, below lg, `UDrawer direction="bottom"`
- * (body-only — page footer owns the mobile action). Container selection reads the REQUIRED
+ * (`#footer` slot owns the SAME gated action — the modal overlay makes the base page
+ * inert, so each layer carries exactly one interactive CTA and mobile drivers can
+ * complete from the drawer). Container selection reads the REQUIRED
  * `isDesktop: boolean` prop owned by DriverRouteCockpit (single caller of
  * `useCockpitBreakpoint`); this SFC MUST NOT import the composable and MUST NOT provide an
  * optional fallback.
@@ -229,12 +231,29 @@ function onModeContentClose() { emit('update:open', false) }
         </button>
       </header>
     </template>
-    <template #body>
-      <div data-testid="driver-cockpit-drawer-body" class="max-h-[85dvh] overflow-y-auto motion-reduce:transition-none">
-        <component :is="modeContent.component as Component" v-if="modeContent" v-bind="modeContent.props" @close="onModeContentClose" />
-      </div>
-    </template>
-  </UDrawer>
+        <template #body>
+          <div data-testid="driver-cockpit-drawer-body" class="max-h-[85dvh] overflow-y-auto motion-reduce:transition-none">
+            <component :is="modeContent.component as Component" v-if="modeContent" v-bind="modeContent.props" @close="onModeContentClose" />
+          </div>
+        </template>
+        <!-- One interactive CTA per layer: the modal overlay makes the base page
+             inert, so the open drawer carries the SAME gated action as the
+             slideover (mobile drivers can complete without closing). -->
+        <template v-if="secondaryActionVisible" #footer>
+          <div data-testid="driver-cockpit-drawer-footer" class="border-t border-default bg-default p-4 motion-reduce:transition-none">
+            <button
+              type="button"
+              data-testid="overlay-footer-action"
+              :aria-label="overlayFooterActionAriaLabel"
+              :disabled="props.checkInPending"
+              class="mx-auto inline-flex min-h-11 min-w-11 w-full items-center justify-center gap-2 rounded-md bg-coco-gold-500 px-6 py-3 text-sm font-semibold text-coco-neutral-950 shadow-sm transition hover:bg-coco-gold-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:bg-coco-gold-500/60 motion-reduce:transition-none"
+              @click="onOverlayFooterAction"
+            >
+              <UIcon name="i-lucide-check" class="size-5" aria-hidden="true" />{{ DELIVERY_ROUTE_COPY.actions.checkIn }}
+            </button>
+          </div>
+        </template>
+      </UDrawer>
   <USlideover
     v-else-if="activeSurface === 'slideover'"
     ref="slideoverRef"

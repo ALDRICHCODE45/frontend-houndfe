@@ -89,17 +89,20 @@ export function reduceCockpit(state: CockpitState, action: CockpitAction): Cockp
  * Non-null { route, isFetching, canCheckIn, checkInPending } composition surface; emits back / refresh /
  * request-check-in(stopId) exactly once. Owns ONLY local UI state (selected stop id, drawer mode/phase,
  * pending confirmation stop id, focus-return element). NEVER imports vue-router, useQuery, useMutation,
- * useQueryClient, axios, fetch(). DOM order: header → operational (current then next) → spine → footer;
- * one drawer + sibling ConfirmModal as overlays (no portal overlap; modal opens only after synthesized
- * closed for drawer-origin confirm; full-bleed root inside the panel, no fixed/absolute, tabindex="-1"
- * focus fallback, body has matching bottom clearance).
+ * useQueryClient, axios, fetch(). DOM order: header → summary → route notes (nonblank only) →
+ * "Tus paradas" heading → ordered stop-card spine → recent activity; one drawer + sibling ConfirmModal
+ * as overlays (no portal overlap; modal opens only after synthesized closed for drawer-origin confirm;
+ * full-bleed root inside the panel, no fixed/absolute, tabindex="-1" focus fallback). The legacy
+ * DriverOperationalStops + DriverCockpitFooter composition was removed: the ordered rich cards are the
+ * ONE canonical stop presentation and the direct card CTA is the only base-page "Marcar entregada"
+ * action (the drawer/slideover carries the gated action inside its own overlay layer).
  */
 import { computed, nextTick, ref, shallowRef, watch } from 'vue'
 import DriverCockpitHeader from './DriverCockpitHeader.vue'
-import DriverOperationalStops from './DriverOperationalStops.vue'
 import DriverRouteSpine from './DriverRouteSpine.vue'
-import DriverCockpitFooter from './DriverCockpitFooter.vue'
 import DriverCockpitDrawer from './DriverCockpitDrawer.vue'
+import DriverRouteSummary from './DriverRouteSummary.vue'
+import DeliveryRouteTimeline from '../DeliveryRouteTimeline.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import { useDriverRouteCockpit } from '../../composables/cockpit/useDriverRouteCockpit'
 import { useCockpitBreakpoint } from '../../composables/cockpit/useCockpitBreakpoint'
@@ -119,13 +122,13 @@ const { isDesktop } = useCockpitBreakpoint()
 // Derived state (one selector pass per route change).
 const derived = useDriverRouteCockpit(() => props.route)
 const currentStop = computed(() => derived.value.currentStop)
-const nextStop = computed(() => derived.value.nextStop)
 const spineNodes = computed(() => derived.value.spine)
 const progress = computed<CockpitProgress>(() => derived.value.progress)
-const hasStops = computed(() => derived.value.hasStops)
-const isTerminal = computed(() => derived.value.isTerminal)
+const counts = computed(() => derived.value.counts)
 const notes = computed(() => derived.value.notes)
 const routeTerminal = computed(() => derived.value.isTerminal)
+// Route-level note panel renders ONLY for a nonblank route note (REQ route-page evolution).
+const hasRouteNotes = computed<boolean>(() => (notes.value ?? '').trim().length > 0)
 const findStop = (id: string | null): DeliveryRouteStop | null => (id ? (props.route.stops.find((s) => s.id === id) ?? null) : null)
 const drawerStop = computed<DeliveryRouteStop | null>(() => findStop(state.value.selectedStopId))
 
@@ -168,7 +171,11 @@ function onHeaderBack(): void { emit('back') }
 function onHeaderRefresh(): void { if (!props.checkInPending) emit('refresh') }
 function onHeaderOpenHistory(p: { trigger: HTMLElement | null }): void { captureFocus(p.trigger) ; applyAction({ type: 'OPEN_HISTORY' }) }
 function onOpenStop(p: StopTrigger): void { if (!props.checkInPending) { captureFocus(p.trigger) ; applyAction({ type: 'OPEN_STOP', stopId: p.stopId }) } }
-function onFooterRequestConfirm(p: StopTrigger): void { if (!props.checkInPending) { captureFocus(p.trigger) ; applyAction({ type: 'REQUEST_CONFIRM', stopId: p.stopId }) } }
+function onRequestConfirm(p: StopTrigger): void { if (!props.checkInPending) { captureFocus(p.trigger) ; applyAction({ type: 'REQUEST_CONFIRM', stopId: p.stopId }) } }
+// Route-page evolution: the single direct card CTA routes through the SAME
+// confirm path as the drawer overlay action (one reducer entry → ConfirmModal
+// → request-check-in exactly once). Shared with the drawer by design.
+const onCardCheckIn = onRequestConfirm
 function onDrawerUpdateOpen(v: boolean): void { if (v === false) applyAction({ type: 'DRAWER_UPDATE_OPEN_FALSE' }) }
 function onDrawerClosed(): void { applyAction({ type: 'DRAWER_CLOSED' }, { restoreFocus: true }) }
 function onDrawerRequestConfirm(p: StopTrigger): void { if (!props.checkInPending) { captureFocus(p.trigger) ; applyAction({ type: 'REQUEST_CONFIRM', stopId: p.stopId }) } }
@@ -179,31 +186,75 @@ function onConfirm(): void {
 function onConfirmCancel(): void { if (state.value.phase === 'CONFIRM') applyAction({ type: 'CANCEL_CONFIRM' }, { restoreFocus: true }) }
 function onConfirmUpdateOpen(v: boolean): void { if (!v) onConfirmCancel() }
 
+// ─── Route-page evolution derivations (existing data only) ──────────────────
+// Single direct check-in CTA: ONLY the derived current PENDING stop, on an
+// ACTIVE route, with permission. The CTA is rendered-disabled while a check-in
+// is pending (and the handler guard above blocks re-entry) — exactly-once.
+const checkInStopId = computed<string | null>(() =>
+  props.route.status === 'ACTIVE' && props.canCheckIn && currentStop.value?.status === 'PENDING'
+    ? currentStop.value.id
+    : null,
+)
+// Compact recent activity: a BOUNDED slice of the backend-ordered timeline
+// (sorted `at` ASC upstream — the last events are the most recent). The bound
+// is pinned as a literal (last 3) so the compact section can never grow into a
+// full history re-render; the FULL history stays in the drawer.
+const recentEvents = computed(() => props.route.timeline.slice(-3))
+function onRecentHistory(event: MouseEvent): void { onHeaderOpenHistory({ trigger: event.currentTarget as HTMLElement }) }
+
 // Mutation settles when checkInPending flips true → false (REQ-DCK-008).
 watch(() => props.checkInPending, (next, prev) => { if (prev && !next && state.value.phase === 'MUTATING') applyAction({ type: 'MUTATION_SETTLED' }, { restoreFocus: true }) })
 </script>
 
 <template>
-  <!-- S4 of `driver-cockpit-responsive-polish` (REQ-DCS-011/012): the parent
-       detail-view wrapper (`px-4 sm:px-6 lg:px-10`) IS the single horizontal
-       gutter authority — the cockpit MUST NOT cancel it with `-m-4 sm:-m-6`
-       and MUST NOT add a nested `px-4 sm:px-6` on the body or header/footer.
-       The root uses a containing-panel-aware height chain (`h-full` + justified
-       `min-h-[calc(100dvh-4rem)]`); raw `min-h-[100dvh]` / `min-h-[100svh]`
-       are forbidden (overshoot the global navbar). Body retains `flex-1 min-h-0`
-       so it grows and the sticky footer reaches the visible bottom. Body
-       padding-bottom (`pb-20`) mirrors the footer's safe-area inset so the
-       sticky footer never overlaps tail content. tabindex="-1" gives the
-       focus fallback when the originating element is no longer connected. -->
-  <section ref="rootRef" tabindex="-1" data-testid="cockpit-root" class="flex h-full min-h-[calc(100dvh-4rem)] w-full min-w-0 flex-col gap-0 outline-none">
-    <DriverCockpitHeader :route="props.route" :progress="progress" :is-fetching="props.isFetching" @back="onHeaderBack" @refresh="onHeaderRefresh" @open-history="onHeaderOpenHistory" />
-    <div data-testid="cockpit-body" class="flex w-full min-w-0 flex-1 min-h-0 flex-col gap-4 py-4 pb-20">
-      <DriverOperationalStops :current-stop="currentStop" :next-stop="nextStop" :notes="notes" :has-stops="hasStops" :is-terminal="isTerminal" @open-stop="onOpenStop" />
-      <DriverRouteSpine :nodes="spineNodes" @select-stop="onOpenStop" />
-    </div>
-    <DriverCockpitFooter :route-status="props.route.status" :current-stop="currentStop" :progress="progress" :has-stops="hasStops" :can-check-in="props.canCheckIn" :check-in-pending="props.checkInPending" :is-desktop="isDesktop" @request-confirm="onFooterRequestConfirm" @open-history="onHeaderOpenHistory" />
-    <!-- Overlay surface: one drawer + sibling ConfirmModal (never an overlap). -->
-    <DriverCockpitDrawer :open="drawerOpen" :mode="drawerMode" :route="props.route" :stop="drawerStop" :route-terminal="routeTerminal" :can-check-in="props.canCheckIn" :check-in-pending="props.checkInPending" :is-desktop="isDesktop" @update:open="onDrawerUpdateOpen" @closed="onDrawerClosed" @request-confirm="onDrawerRequestConfirm" />
-    <ConfirmModal :open="isConfirmOpen" :title="confirmTitle" :description="confirmBody" :confirm-label="DELIVERY_ROUTE_COPY.cockpit.confirm.confirmLabel" :cancel-label="DELIVERY_ROUTE_COPY.cockpit.confirm.cancelLabel" confirm-color="primary" @update:open="onConfirmUpdateOpen" @confirm="onConfirm" @cancel="onConfirmCancel" />
-  </section>
+      <!-- S4 of `driver-cockpit-responsive-polish` (REQ-DCS-011/012): the parent
+           detail-view wrapper (`px-4 sm:px-6 lg:px-10`) IS the single horizontal
+           gutter authority — the cockpit MUST NOT cancel it with `-m-4 sm:-m-6`
+           and MUST NOT add a nested `px-4 sm:px-6` on the body or header. The
+           root uses a containing-panel-aware height chain (`h-full` + justified
+           `min-h-[calc(100dvh-4rem)]`); raw `min-h-[100dvh]` / `min-h-[100svh]`
+           are forbidden (overshoot the global navbar). Body retains `flex-1
+           min-h-0` so it grows, and normal bottom spacing (`py-4`) — no legacy
+           `pb-20` fixed-footer clearance (the fixed footer was removed).
+           tabindex="-1" gives the focus fallback when the originating element is
+           no longer connected. -->
+      <section ref="rootRef" tabindex="-1" data-testid="cockpit-root" class="flex h-full min-h-[calc(100dvh-4rem)] w-full min-w-0 flex-col gap-0 outline-none">
+        <DriverCockpitHeader :route="props.route" :is-fetching="props.isFetching" @back="onHeaderBack" @refresh="onHeaderRefresh" @open-history="onHeaderOpenHistory" />
+        <div data-testid="cockpit-body" class="flex w-full min-w-0 flex-1 min-h-0 flex-col gap-4 py-4">
+          <DriverRouteSummary :progress="progress" :counts="counts" />
+          <!-- Route-level note panel: separate + clearly labeled, only when nonblank. -->
+          <section
+            v-if="hasRouteNotes"
+            data-testid="cockpit-route-notes"
+            class="flex w-full min-w-0 flex-col gap-1 rounded-lg border border-default bg-default p-3"
+          >
+            <h2 class="text-xs font-semibold uppercase tracking-wide text-muted">{{ DELIVERY_ROUTE_COPY.cockpit.operational.notesLabel }}</h2>
+            <p class="min-w-0 whitespace-pre-line text-sm text-default">{{ notes }}</p>
+          </section>
+          <!-- Visible stop-list heading: the ordered rich cards below remain the
+               ONE canonical stop presentation (no duplicate operational section). -->
+          <section data-testid="cockpit-stop-list-heading" class="flex w-full min-w-0 flex-col gap-0.5">
+            <h2 class="text-base font-semibold text-default">{{ DELIVERY_ROUTE_COPY.cockpit.stops.listHeading }}</h2>
+            <p class="text-sm text-muted">{{ DELIVERY_ROUTE_COPY.cockpit.stops.listSubheading }}</p>
+          </section>
+          <DriverRouteSpine :nodes="spineNodes" :show-check-in-stop-id="checkInStopId" :check-in-pending="props.checkInPending" @open-details="onOpenStop" @check-in="onCardCheckIn" />
+          <!-- Route-page evolution: compact recent activity below the stop list;
+               the full history remains available through the existing overlay. -->
+          <section data-testid="cockpit-recent" class="flex w-full min-w-0 flex-col gap-2">
+            <DeliveryRouteTimeline :route="props.route" :events="recentEvents" :heading="DELIVERY_ROUTE_COPY.cockpit.recent.heading" />
+            <button
+              type="button"
+              data-testid="cockpit-recent-history"
+              class="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 self-start rounded-md border border-default bg-default px-4 py-2 text-sm font-medium text-default hover:bg-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              @click="onRecentHistory"
+            >
+              <UIcon name="i-lucide-history" class="size-4" aria-hidden="true" />
+              {{ DELIVERY_ROUTE_COPY.cockpit.footer.viewHistory }}
+            </button>
+          </section>
+        </div>
+            <!-- Overlay surface: one drawer + sibling ConfirmModal (never an overlap). -->
+            <DriverCockpitDrawer :open="drawerOpen" :mode="drawerMode" :route="props.route" :stop="drawerStop" :route-terminal="routeTerminal" :can-check-in="props.canCheckIn" :check-in-pending="props.checkInPending" :is-desktop="isDesktop" @update:open="onDrawerUpdateOpen" @closed="onDrawerClosed" @request-confirm="onDrawerRequestConfirm" />
+            <ConfirmModal :open="isConfirmOpen" :title="confirmTitle" :description="confirmBody" :confirm-label="DELIVERY_ROUTE_COPY.cockpit.confirm.confirmLabel" :cancel-label="DELIVERY_ROUTE_COPY.cockpit.confirm.cancelLabel" confirm-color="primary" @update:open="onConfirmUpdateOpen" @confirm="onConfirm" @cancel="onConfirmCancel" />
+          </section>
 </template>

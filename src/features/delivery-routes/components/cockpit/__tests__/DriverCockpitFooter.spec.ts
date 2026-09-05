@@ -31,7 +31,7 @@ import type {
   StopTrigger,
 } from '../../../composables/cockpit/useDriverRouteCockpit'
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- node builtin
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- node builtin
 const fs: typeof import('node:fs') = require('node:fs') as typeof import('node:fs')
 
 const ADDR = {

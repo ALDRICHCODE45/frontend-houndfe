@@ -1,12 +1,17 @@
-// DriverRouteSpine.spec.ts — STRICT-TDD S6 (REQ-DCS-005, REQ-DRC-111 spine a11y).
-// Presentational only; typed props { nodes }, typed emit 'select-stop' [StopTrigger].
-// Backend order preserved verbatim; real <button> per node with textual status,
-// aria-label "Parada N: Estado — Cliente", focus ring, 44×44, connector, no
-// disabled on any node incl SKIPPED/non-current PENDING; Enter/Space emits once.
+// DriverRouteSpine.spec.ts — STRICT-TDD route-page evolution (REQ-DCS-005,
+// REQ-DRC-111). The spine is the ordered rich stop-card list of the route page:
+// one DriverStopCard per node in IDENTICAL backend order (never re-sorted),
+// inside the same accessible <ol> ("Recorrido de la ruta") with the same
+// "Sin paradas" empty state. Presentational only; typed props { nodes,
+// showCheckInStopId, checkInPending }; typed emits 'open-details' + 'check-in'
+// [StopTrigger] forwarded from the cards. The single direct "Marcar entregada"
+// CTA renders only on the stop whose id equals `showCheckInStopId` — every
+// other stop stays inspectable via "Ver detalles" WITHOUT a primary CTA.
 
 import { describe, it, expect } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import DriverRouteSpine from '../DriverRouteSpine.vue'
+import DriverStopCard from '../DriverStopCard.vue'
 import {
   DELIVERY_ROUTE_STOP_STATUS_LABELS,
   type DeliveryRouteStop,
@@ -14,7 +19,7 @@ import {
 import type { CockpitSpineNode, StopTrigger } from '../../../composables/cockpit/useDriverRouteCockpit'
 import { DELIVERY_ROUTE_COPY } from '../../../copy'
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- node builtin
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- node builtin
 const fs: typeof import('node:fs') = require('node:fs') as typeof import('node:fs')
 
 const ADDR = {
@@ -31,186 +36,164 @@ function mkStop(id: string, sortOrder: number, status: DeliveryRouteStop['status
     shippingAddress: { ...ADDR, id: `a-${id}` },
   }
 }
-function mkNode(id: string, sortOrder: number, status: DeliveryRouteStop['status'], name: string,
-  nodeState: CockpitSpineNode['nodeState'], isCurrent: boolean): CockpitSpineNode {
-  return { stop: mkStop(id, sortOrder, status, name), nodeState, isCurrent, isSelectable: true }
+function mkNode(
+  id: string, sortOrder: number, status: DeliveryRouteStop['status'], name: string,
+  nodeState: CockpitSpineNode['nodeState'], isCurrent: boolean, isNext = false,
+): CockpitSpineNode {
+  return { stop: mkStop(id, sortOrder, status, name), nodeState, isCurrent, isNext, isSelectable: true }
 }
-function mountSpine(p: { nodes: CockpitSpineNode[] } = { nodes: [] }) {
-  return mount(DriverRouteSpine, { props: p })
+function mountSpine(p: {
+  nodes?: CockpitSpineNode[]
+  showCheckInStopId?: string | null
+  checkInPending?: boolean
+} = {}) {
+  return mount(DriverRouteSpine, {
+    props: {
+      nodes: p.nodes ?? [],
+      showCheckInStopId: p.showCheckInStopId ?? null,
+      checkInPending: p.checkInPending ?? false,
+    },
+  })
 }
 
 const FIVE = [
   mkNode('s0', 0, 'COMPLETED', 'Ana', 'completed', false),
   mkNode('s1', 1, 'COMPLETED', 'Bea', 'completed', false),
   mkNode('s2', 2, 'PENDING', 'Carlos', 'current', true),
-  mkNode('s3', 3, 'PENDING', 'Dario', 'upcoming', false),
+  mkNode('s3', 3, 'PENDING', 'Dario', 'upcoming', false, true),
   mkNode('s4', 4, 'SKIPPED', 'Eli', 'skipped', false),
 ] as const
 
-describe('DriverRouteSpine — ordered sequence + textual status (REQ-DCS-005)', () => {
-  it('renders a real <ol> with one <button> per node in identical backend order', async () => {
+describe('DriverRouteSpine — ordered rich stop-card sequence (REQ-DCS-005)', () => {
+  it('renders a real <ol> with exactly one stop card per node in identical backend order', async () => {
     const w = mountSpine({ nodes: [...FIVE] })
     await flushPromises()
     expect(w.find('[data-testid="cockpit-spine-root"]').element.tagName.toLowerCase()).toBe('ol')
-    const items = w.findAll('[data-testid^="cockpit-spine-node-"]')
-    expect(items).toHaveLength(FIVE.length)
-    expect(items.map((i) => i.attributes('data-stop-id'))).toEqual(['s0', 's1', 's2', 's3', 's4'])
+    const cards = w.findAll('article[data-testid^="driver-stop-card-"]')
+    expect(cards).toHaveLength(FIVE.length)
+    expect(cards.map((c) => c.attributes('data-stop-id'))).toEqual(['s0', 's1', 's2', 's3', 's4'])
   })
 
-  it('every node renders the textual stop-status label from the shared map', async () => {
-    const labels = mountSpine({ nodes: [...FIVE] }).findAll('[data-testid="cockpit-spine-status-label"]')
-    expect(labels.map((l) => l.text())).toEqual([
+  it('each node renders through DriverStopCard (rich card: status, folio, customer, address)', async () => {
+    const w = mountSpine({ nodes: [...FIVE] })
+    await flushPromises()
+    const cards = w.findAllComponents(DriverStopCard)
+    expect(cards).toHaveLength(FIVE.length)
+    // Status label from the shared map, per card, in backend order.
+    expect(cards.map((c) => c.find('[data-testid="driver-stop-card-status"]').text())).toEqual([
       DELIVERY_ROUTE_STOP_STATUS_LABELS.COMPLETED,
       DELIVERY_ROUTE_STOP_STATUS_LABELS.COMPLETED,
       DELIVERY_ROUTE_STOP_STATUS_LABELS.PENDING,
       DELIVERY_ROUTE_STOP_STATUS_LABELS.PENDING,
       DELIVERY_ROUTE_STOP_STATUS_LABELS.SKIPPED,
     ])
+    // Rich content flows through (folio + customer are card-owned renderings).
+    expect(w.text()).toContain('F-1')
+    expect(w.text()).toContain('Carlos')
   })
 
-  it('renders a connector between nodes', async () => {
-    const w = mountSpine({ nodes: [...FIVE] })
-    expect(w.findAll('[data-testid="cockpit-spine-connector"]')).toHaveLength(FIVE.length - 1)
-  })
-
-  it('empty nodes array renders "Sin paradas" central copy and no <ol>', async () => {
-    const w = mountSpine({ nodes: [] })
-    expect(w.text()).toContain('Sin paradas')
-    expect(w.find('[data-testid="cockpit-spine-root"]').exists()).toBe(false)
-    expect(w.findAll('[data-testid^="cockpit-spine-node-"]')).toHaveLength(0)
-  })
-})
-
-describe('DriverRouteSpine — descriptive aria-label (REQ-DCS-005)', () => {
-  it('every aria-label carries "Parada N" 1-based + status + em-dash + customer', async () => {
-    const w = mountSpine({ nodes: [...FIVE] })
-    expect(w.findAll('[data-testid^="cockpit-spine-node-"]').map((i) => i.attributes('aria-label'))).toEqual([
-      'Parada 1: Entregada — Ana',
-      'Parada 2: Entregada — Bea',
-      'Parada 3: Pendiente — Carlos',
-      'Parada 4: Pendiente — Dario',
-      'Parada 5: Omitida — Eli',
-    ])
-  })
-
-  it('null customer falls back to "Cliente sin nombre" in the aria-label', async () => {
-    const nodes: CockpitSpineNode[] = [mkNode('only', 0, 'PENDING', 'X', 'current', true)]
-    nodes[0]!.stop.customer = null
-    expect(mountSpine({ nodes }).find('[data-testid="cockpit-spine-node-only"]').attributes('aria-label'))
-      .toBe('Parada 1: Pendiente — Cliente sin nombre')
-  })
-
-  // B2 shell review: per-node aria-label is built from the central
-  // `cockpit.spine.nodeAriaLabel` template so the screen-reader narrative is
-  // owned by `copy.ts`. The exact string the template produces MUST match the
-  // existing spec-pinned strings (preserved verbatim above); this test only
-  // pins that the renderer reads from copy.ts and never holds the literal.
-  it('per-node aria-label interpolates cockpit.spine.nodeAriaLabel template + DELIVERY_ROUTE_STOP_STATUS_LABELS', async () => {
-    const w = mountSpine({ nodes: [...FIVE] })
-    const labels = w.findAll('[data-testid^="cockpit-spine-node-"]').map((n) => n.attributes('aria-label') ?? '')
-    const tpl = DELIVERY_ROUTE_COPY.cockpit.spine.nodeAriaLabel
-    // Interpolation contract: 5 nodes in FIVE → 1..5; statuses in FIVE order
-    // map onto the spec-pinned labels.
-    const expected = FIVE.map((node, idx) =>
-      tpl
-        .replace('{N}', String(idx + 1))
-        .replace('{status}', DELIVERY_ROUTE_STOP_STATUS_LABELS[node.stop.status])
-        .replace('{customer}', node.stop.customer?.name ?? DELIVERY_ROUTE_COPY.cockpit.operational.customerFallback),
-    )
-    expect(labels).toEqual(expected)
-  })
-
-  it('spine root carries the central cockpit.spine.rootAriaLabel ("Recorrido de la ruta")', async () => {
-    const w = mountSpine({ nodes: [...FIVE] })
-    const root = w.find('[data-testid="cockpit-spine-root"]')
+  it('spine root carries the central cockpit.spine.rootAriaLabel ("Recorrido de la ruta")', () => {
+    const root = mountSpine({ nodes: [...FIVE] }).find('[data-testid="cockpit-spine-root"]')
     expect(root.exists()).toBe(true)
     expect(root.attributes('aria-label')).toBe(DELIVERY_ROUTE_COPY.cockpit.spine.rootAriaLabel)
     expect(root.attributes('aria-label')).toBe('Recorrido de la ruta')
   })
 
-  it('every visible position span interpolates cockpit.operational.positionLabel verbatim', async () => {
+  it('empty nodes array renders "Sin paradas" central copy and no <ol>', () => {
+    const w = mountSpine({ nodes: [] })
+    expect(w.text()).toContain('Sin paradas')
+    expect(w.find('[data-testid="cockpit-spine-root"]').exists()).toBe(false)
+    expect(w.findAllComponents(DriverStopCard)).toHaveLength(0)
+  })
+
+  it('current/next emphasis flows from the node derivation into the cards', () => {
     const w = mountSpine({ nodes: [...FIVE] })
-    const spans = w.findAll('[data-testid="cockpit-spine-position"]')
-    const tpl = DELIVERY_ROUTE_COPY.cockpit.operational.positionLabel
-    const texts = spans.map((s) => s.text())
-    const expected = FIVE.map((node, idx) => tpl.replace('{N}', String(idx + 1)))
-    expect(texts).toEqual(expected)
+    expect(w.find('[data-testid="driver-stop-card-s2"]').attributes('data-current')).toBe('true')
+    expect(w.find('[data-testid="driver-stop-card-s0"]').attributes('data-current')).toBe('false')
+    expect(w.find('[data-testid="driver-stop-card-s3"]').find('[data-testid="driver-stop-card-next-badge"]').exists()).toBe(true)
+    expect(w.find('[data-testid="driver-stop-card-s2"]').find('[data-testid="driver-stop-card-next-badge"]').exists()).toBe(false)
   })
 })
 
-describe('DriverRouteSpine — select-stop activation (REQ-DCS-005, REQ-DRC-111)', () => {
-  it.each([
-    ['completed', 's0'], ['current', 's2'], ['upcoming', 's3'], ['skipped', 's4'],
-  ] as const)('Enter on %s node emits select-stop once with the originating element', async (_state, stopId) => {
-    const w = mountSpine({ nodes: [...FIVE] })
-    const btn = w.find(`[data-testid="cockpit-spine-node-${stopId}"]`)
-    await btn.trigger('keydown', { key: 'Enter' })
+describe('DriverRouteSpine — single direct check-in CTA (route-page evolution)', () => {
+  it('renders "Marcar entregada" ONLY on the card whose id equals showCheckInStopId', () => {
+    const w = mountSpine({ nodes: [...FIVE], showCheckInStopId: 's2' })
+    const withCta = w.findAll('[data-testid="driver-stop-card-check-in"]')
+    expect(withCta).toHaveLength(1)
+    expect(w.find('[data-testid="driver-stop-card-s2"]').find('[data-testid="driver-stop-card-check-in"]').exists()).toBe(true)
+    // Every other stop stays inspectable WITHOUT a repeated primary CTA…
+    for (const id of ['s0', 's1', 's3', 's4']) {
+      expect(w.find(`[data-testid="driver-stop-card-${id}"]`).find('[data-testid="driver-stop-card-check-in"]').exists()).toBe(false)
+    }
+    // …but always keeps its "Ver detalles" control.
+    for (const id of ['s0', 's1', 's2', 's3', 's4']) {
+      expect(w.find(`[data-testid="driver-stop-card-${id}"]`).find('[data-testid="driver-stop-card-details"]').exists()).toBe(true)
+    }
+  })
+
+  it('showCheckInStopId=null renders NO check-in button anywhere (e.g. terminal / no permission)', () => {
+    const w = mountSpine({ nodes: [...FIVE], showCheckInStopId: null })
+    expect(w.findAll('[data-testid="driver-stop-card-check-in"]')).toHaveLength(0)
+  })
+
+  it('check-in CTA is disabled while checkInPending (exactly-once discipline)', () => {
+    const w = mountSpine({ nodes: [...FIVE], showCheckInStopId: 's2', checkInPending: true })
+    const btn = w.find('[data-testid="driver-stop-card-check-in"]')
+    expect((btn.element as HTMLButtonElement).disabled).toBe(true)
+  })
+})
+
+describe('DriverRouteSpine — forwarded emits (REQ-DRC-111 focus-origin contract)', () => {
+  it('details activation forwards open-details once with { stopId, trigger = originating element }', async () => {
+    const w = mountSpine({ nodes: [...FIVE], showCheckInStopId: 's2' })
+    const btn = w.find('[data-testid="driver-stop-card-s3"]').find('[data-testid="driver-stop-card-details"]')
     await btn.trigger('click')
-    const events = w.emitted('select-stop')
+    const events = w.emitted('open-details')
     expect(events).toHaveLength(1)
     const payload = events![0]?.[0] as StopTrigger
-    expect(payload.stopId).toBe(stopId)
+    expect(payload.stopId).toBe('s3')
     expect(payload.trigger).toBe(btn.element)
   })
 
-  it('Space on a focused node emits select-stop once (native button keyboard semantics)', async () => {
-    const w = mountSpine({ nodes: [...FIVE] })
-    const btn = w.find('[data-testid="cockpit-spine-node-s3"]')
-    await btn.trigger('keydown', { key: ' ' })
+  it('check-in activation forwards check-in once with { stopId, trigger }', async () => {
+    const w = mountSpine({ nodes: [...FIVE], showCheckInStopId: 's2' })
+    const btn = w.find('[data-testid="driver-stop-card-s2"]').find('[data-testid="driver-stop-card-check-in"]')
     await btn.trigger('click')
-    expect(w.emitted('select-stop')).toHaveLength(1)
+    const events = w.emitted('check-in')
+    expect(events).toHaveLength(1)
+    const payload = events![0]?.[0] as StopTrigger
+    expect(payload.stopId).toBe('s2')
+    expect(payload.trigger).toBe(btn.element)
   })
 
-  it('SKIPPED and later (non-current) PENDING nodes carry NO disabled/locked attribute', async () => {
+  it('details activation works on EVERY node state (completed/upcoming/skipped remain inspectable)', async () => {
     const w = mountSpine({ nodes: [...FIVE] })
-    for (const id of ['s3', 's4']) {
-      const btn = w.find(`[data-testid="cockpit-spine-node-${id}"]`)
-      expect(btn.attributes('disabled')).toBeUndefined()
-      expect(btn.attributes('aria-disabled')).toBeUndefined()
-      expect(btn.attributes('aria-readonly')).toBeUndefined()
-      expect(btn.classes().join(' ')).not.toMatch(/opacity-40|cursor-not-allowed/)
+    for (const stopId of ['s0', 's1', 's3', 's4']) {
+      await w.find(`[data-testid="driver-stop-card-${stopId}"]`).find('[data-testid="driver-stop-card-details"]').trigger('click')
     }
+    const ids = (w.emitted('open-details') ?? []).map((e) => (e[0] as StopTrigger).stopId)
+    expect(ids).toEqual(['s0', 's1', 's3', 's4'])
   })
 
-  it('click on SKIPPED and later PENDING nodes emits select-stop', async () => {
-    const w = mountSpine({ nodes: [...FIVE] })
-    for (const stopId of ['s3', 's4']) {
-      await w.find(`[data-testid="cockpit-spine-node-${stopId}"]`).trigger('click')
-    }
-    const ids = (w.emitted('select-stop') ?? []).map((e) => (e[0] as StopTrigger).stopId)
-    expect(ids).toEqual(['s3', 's4'])
-  })
-})
-
-describe('DriverRouteSpine — current marker without color-only (REQ-DCS-005)', () => {
-  it('current carries a visible marker + non-color emphasis; non-current do not', async () => {
-    const w = mountSpine({ nodes: [...FIVE] })
-    const cur = w.find('[data-testid="cockpit-spine-node-s2"]')
-    const marker = cur.find('[data-testid="cockpit-spine-current-marker"]')
-    expect(marker.exists()).toBe(true)
-    expect(marker.element.textContent?.trim().length ?? 0).toBeGreaterThan(0)
-    expect(cur.text()).toContain(DELIVERY_ROUTE_STOP_STATUS_LABELS.PENDING)
-    expect(w.find('[data-testid="cockpit-spine-node-s0"]').find('[data-testid="cockpit-spine-current-marker"]').exists()).toBe(false)
+  it('no nested interactive controls inside a card (separate native buttons only)', () => {
+    const w = mountSpine({ nodes: [...FIVE], showCheckInStopId: 's2' })
+    expect(w.find('button button').exists()).toBe(false)
+    expect(w.find('a button').exists()).toBe(false)
+    expect(w.find('button a').exists()).toBe(false)
   })
 })
 
 describe('DriverRouteSpine — triangulation (adjacent inputs)', () => {
-  it('IN_PROGRESS renders "En curso" label and aria-label verbatim', async () => {
-    const nodes: CockpitSpineNode[] = [mkNode('ip', 0, 'IN_PROGRESS', 'Fer', 'current', true)]
-    const w = mountSpine({ nodes })
+  it('IN_PROGRESS current card renders "En curso" and stays inspectable', () => {
+    const w = mountSpine({ nodes: [mkNode('ip', 0, 'IN_PROGRESS', 'Fer', 'current', true)] })
     expect(w.text()).toContain('En curso')
-    expect(w.find('[data-testid="cockpit-spine-node-ip"]').attributes('aria-label')).toBe('Parada 1: En curso — Fer')
+    expect(w.find('[data-testid="driver-stop-card-ip"]').find('[data-testid="driver-stop-card-details"]').exists()).toBe(true)
   })
 
-  it('all-COMPLETED spine renders NO current marker AND preserves order', async () => {
-    const nodes: CockpitSpineNode[] = [
-      mkNode('a', 0, 'COMPLETED', 'A', 'completed', false),
-      mkNode('b', 1, 'COMPLETED', 'B', 'completed', false),
-    ]
-    const w = mountSpine({ nodes })
-    expect(w.findAll('[data-testid="cockpit-spine-current-marker"]')).toHaveLength(0)
-    expect(w.findAll('[data-testid^="cockpit-spine-node-"]').map((i) => i.attributes('data-stop-id')))
-      .toEqual(['a', 'b'])
+  it('all-COMPLETED spine preserves order and renders no current emphasis', () => {
+    const w = mountSpine({ nodes: [mkNode('a', 0, 'COMPLETED', 'A', 'completed', false), mkNode('b', 1, 'COMPLETED', 'B', 'completed', false)] })
+    expect(w.findAll('article[data-testid^="driver-stop-card-"]').map((i) => i.attributes('data-stop-id'))).toEqual(['a', 'b'])
+    expect(w.findAll('[data-current="true"]')).toHaveLength(0)
   })
 
   it('reactive prop update: replacing nodes re-renders in the new backend order', async () => {
@@ -220,80 +203,23 @@ describe('DriverRouteSpine — triangulation (adjacent inputs)', () => {
       mkNode('s3', 3, 'PENDING', 'Dario', 'current', true),
     ]
     await w.setProps({ nodes: swapped })
-    const ids = w.findAll('[data-testid^="cockpit-spine-node-"]').map((i) => i.attributes('data-stop-id'))
-    expect(ids).toEqual(['s4', 's3'])
-    expect(w.find('[data-testid="cockpit-spine-current-marker"]').exists()).toBe(true)
-  })
-})
-
-describe('DriverRouteSpine — touch + a11y + mobile-first (REQ-DRC-111)', () => {
-  it('every node button carries ≥44×44 classes and a visible focus ring', async () => {
-    const w = mountSpine({ nodes: [...FIVE] })
-    for (const id of ['s0', 's1', 's2', 's3', 's4']) {
-      const cls = w.find(`[data-testid="cockpit-spine-node-${id}"]`).classes().join(' ')
-      expect(cls).toMatch(/min-h-11/)
-      expect(cls).toMatch(/min-w-11/)
-      expect(cls).toMatch(/focus-visible/)
-    }
+    expect(w.findAll('article[data-testid^="driver-stop-card-"]').map((i) => i.attributes('data-stop-id'))).toEqual(['s4', 's3'])
+    expect(w.find('[data-testid="driver-stop-card-s3"]').attributes('data-current')).toBe('true')
   })
 
-  it('spine root uses semantic tokens, min-w-0, and no fixed width (320px safe)', async () => {
-    const cls = mountSpine({ nodes: [...FIVE] }).find('[data-testid="cockpit-spine-root"]').classes().join(' ')
-    expect(cls).toContain('min-w-0')
-    expect(cls).toMatch(/border-default|bg-(default|elevated)/)
-    expect(cls).not.toMatch(/w-\[|min-w-\[/)
-  })
-})
-
-// S4 viewport polish (REQ-DCS-011/012): real-app evidence at 360×780 CSS px
-// with 110% browser zoom (~327px effective) showed the CURRENT row truncating
-// "Cliente Centro" to "Cliente Ce..." because the fixed chrome (marker,
-// position, status) consumed the row before the customer got its share. The
-// compaction below is mobile-only (`max-sm:*`): the overflow-safety
-// `min-w-0 flex-1 truncate` on the customer span is preserved VERBATIM so
-// `truncate` fires only at REAL overflow, and desktop classes stay untouched.
-describe('DriverRouteSpine — S4 viewport polish: row chrome yields to customer width (REQ-DCS-011/012)', () => {
-  it('customer span keeps min-w-0 flex-1 truncate (overflow-safety preserved under compaction)', async () => {
-    const w = mountSpine({ nodes: [...FIVE] })
-    const cls = w.find('[data-testid="cockpit-spine-customer"]').classes().join(' ')
-    expect(cls).toMatch(/\bmin-w-0\b/)
-    expect(cls).toMatch(/\bflex-1\b/)
-    expect(cls).toMatch(/\btruncate\b/)
-  })
-
-  it('node button carries max-sm compaction (gap-1.5, px-2.5) while keeping desktop gap-2/px-3', async () => {
-    const btn = mountSpine({ nodes: [...FIVE] }).find('[data-testid="cockpit-spine-node-s2"]')
-    const cls = btn.classes().join(' ')
-    expect(cls).toMatch(/\bgap-2\b/) // desktop baseline unchanged
-    expect(cls).toMatch(/max-sm:gap-1\.5/) // mobile compaction
-    expect(cls).toMatch(/\bpx-3\b/) // desktop baseline unchanged
-    expect(cls).toMatch(/max-sm:px-2\.5/) // mobile compaction
-  })
-
-  it('current-row marker and secondary labels compact under max-sm without losing desktop size', async () => {
-    const w = mountSpine({ nodes: [...FIVE] })
-    const marker = w.find('[data-testid="cockpit-spine-current-marker"]')
-    expect(marker.classes().join(' ')).toMatch(/\bh-5\b/)
-    expect(marker.classes().join(' ')).toMatch(/max-sm:h-4/)
-    expect(marker.classes().join(' ')).toMatch(/max-sm:w-4/)
-    expect(w.find('[data-testid="cockpit-spine-position"]').classes().join(' ')).toMatch(/max-sm:text-\[11px\]/)
-    expect(w.find('[data-testid="cockpit-spine-status-label"]').classes().join(' ')).toMatch(/max-sm:text-\[11px\]/)
-  })
-
-  it('spine list item indents max-sm:pl-5 (timeline indent yields 4px to the row)', async () => {
-    const w = mountSpine({ nodes: [...FIVE] })
-    const li = w.find('[data-testid="cockpit-spine-node-s2"]').element.parentElement
-    expect(li).not.toBeNull()
-    expect(li!.className).toMatch(/max-sm:pl-5/)
+  it('CTA moves when showCheckInStopId changes (derived single current stop)', async () => {
+    const w = mountSpine({ nodes: [...FIVE], showCheckInStopId: 's2' })
+    expect(w.findAll('[data-testid="driver-stop-card-check-in"]')).toHaveLength(1)
+    await w.setProps({ showCheckInStopId: null })
+    expect(w.findAll('[data-testid="driver-stop-card-check-in"]')).toHaveLength(0)
   })
 })
 
 describe('DriverRouteSpine — source-level invariants (REQ-DCS-005, design §6)', () => {
   function body(): string {
     // Strip all top-of-file block comments + line comments so the source
-    // invariant never false-positives on JSDoc / inline notes. The strip is
-    // intentionally aggressive: hardcoded user-visible literals belong in
-    // copy.ts, not in the implementation body.
+    // invariant never false-positives on JSDoc / inline notes. Hardcoded
+    // user-visible literals belong in copy.ts, not in the implementation body.
     return fs.readFileSync((DriverRouteSpine as unknown as { __file: string }).__file, 'utf8')
       .replace(/\/\*[\s\S]*?\*\//g, '')
       .replace(/<!--[\s\S]*?-->/g, '')
@@ -308,19 +234,15 @@ describe('DriverRouteSpine — source-level invariants (REQ-DCS-005, design §6)
     expect(b).not.toMatch(/useQuery|useMutation|useQueryClient|@tanstack\/vue-query/)
     expect(b).not.toMatch(/axios|fetch\(['"]/)
   })
-  // B2 shell review: every user-visible literal pinned by the spec must be
-  // sourced from `copy.ts`. Hardcoding any of these in the implementation
-  // body fails this assertion so future drift regresses immediately.
   it.each([
     ['Sin paradas'],
     ['Recorrido de la ruta'],
     ['Cliente sin nombre'],
-  ])('SFC implementation body never hardcodes "%s" (must bind from copy.ts)', (literal) => {
+    ['Ver detalles'],
+    ['Marcar entregada'],
+  ])('SFC implementation body never hardcodes "%s" (must bind from copy.ts / child cards)', (literal) => {
     expect(body(), `forbidden inline literal: ${literal}`).not.toContain(literal)
   })
-  // B2 shell review: the visible "Parada N" position text and the per-node
-  // aria-label must come from the central templates. The implementation body
-  // must never interpolate "Parada " directly — that literal lives in copy.ts.
   it('SFC implementation body never hardcodes "Parada " (must bind from copy.ts templates)', () => {
     const b = body()
     expect(b, 'visible "Parada " literal leaked into implementation body').not.toContain('Parada ')
