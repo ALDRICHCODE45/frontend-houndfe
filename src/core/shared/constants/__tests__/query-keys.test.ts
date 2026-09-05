@@ -195,12 +195,17 @@ describe('saleQueryKeys', () => {
     })
 
     it.each([
-      [[1, 10] as unknown as [string, string], [2, 10] as unknown as [string, string]],
       [pair('tenant-1', 'customer-1'), pair('tenant-2', 'customer-1')],
       [pair('tenant-1', 'customer-1'), pair('tenant-1', 'customer-2')],
     ])('produces different keys for different %p', (first, second) => {
       const key1 = saleQueryKeys.customerHistory(first[0], first[1], historyParams)
       const key2 = saleQueryKeys.customerHistory(second[0], second[1], historyParams)
+      expect(key1).not.toEqual(key2)
+    })
+
+    it('page is part of the key identity', () => {
+      const key1 = saleQueryKeys.customerHistory('tenant-1', 'customer-1', { ...historyParams, page: 1 })
+      const key2 = saleQueryKeys.customerHistory('tenant-1', 'customer-1', { ...historyParams, page: 2 })
       expect(key1).not.toEqual(key2)
     })
 
