@@ -99,3 +99,25 @@ Focused command throughout: `pnpm test:unit --run src/features/POS/customers/com
 - Remaining unchecked S3b tasks: RED/GREEN/TRIANGULATE/REFACTOR checkboxes in `tasks.md` (owned by parent gate; this unit's allowed surface excludes `tasks.md`).
 - Source-reference comparison: identical two paths as `4dd5428`; content matches the reference's final intent (same contracts, state priority, width classes, exact empty copy, toast title) with compacted one-line factories/stubs and two brief comments; accents preserved; no scope growth.
 - Work-unit diff from `ec9ae36` (additions+deletions): source **+359/−0** (spec 197, slideover 162); with this evidence section incl. this correction: **+383/−1 = 384 ≤ 400**.
+
+## S4a — Card + grid history entry actions (work unit `tdd-rebuild-s4a-card-grid-entry`)
+
+Same worktree/branch; S3b base `14a12d8` (clean tree, pre-S4a production). Source reference (final-content only, NOT cherry-picked): `16b6b9f`. Focused command throughout: `pnpm test:unit --run src/features/POS/customers/components/__tests__/CustomerCard.spec.ts src/features/POS/customers/components/__tests__/CustomerCardGrid.spec.ts`.
+
+### TDD Cycle Evidence (strict TDD)
+
+| Step | When (local) | Commit | Tree | Command | Exit | Result |
+| --- | --- | --- | --- | --- | --- | --- |
+| Baseline | 05:35 | `14a12d8` (base) | `14a12d8` | focused | 0 | 2 files / 15 tests passed; tree clean |
+| RED | 05:36 | `9e75d42` `test(customers): define sales history card actions` | `8f8ef53` | focused | 1 | 2 files failed / 4 new tests failed, 15 pre-existing passed. Card: `read-sales-only` + `history onSelect → view-history` both `Error: Cannot call props on an empty VueWrapper` (kebab absent pre-S4a, no items contract). Grid: `forwards canReadSales` → `expected undefined to be true` (prop not declared); `emits view-history exactly once` → `expected undefined to be 1` (no relay). Specs moved to typed `KebabItem` + component-path `@nuxt/ui/components/*` stubs so the PUBLIC `items` prop is assertable; pre-existing assertions kept (findComponent kebab visibility is equivalent-strength) |
+| GREEN | 05:38 | `c3876fc` `feat(customers): add sales history card actions` | `8d52a21` | identical | 0 | 2 files / 19 tests passed. Minimal typed additions only: `canReadSales?: boolean` prop, `'view-history': [customer]` emit, `canManage` extended with `canReadSales`, menu action `Ver historial de ventas` between Editar and destructive Eliminar; grid forwards `:can-read-sales` + `@view-history`. No unrelated click/update/delete changes; production diff byte-identical to reference `16b6b9f` |
+| TRIANGULATE | 05:39 | `3f42b9d` `test(customers): triangulate sales history card actions` | `eaa2d05` | identical | 0 | 2 files / 26 tests passed on first run — **no production correction driven**. Held-back: update-only (`['Editar']`, no error color), delete-only (`['Eliminar']` with `error`), update+delete+read-sales ordering (`['Editar','Ver historial de ventas','Eliminar']`, error only on Eliminar), no-permission kebab absent (DOM + findComponent), card-body click still emits `click`, kebab-wrapper click-stop no card `click`; grid card-click forwarding unchanged with `canReadSales`, edit/delete relayed exactly once each, skeleton wrapper tightened to `card-grid-skeleton` + 8 placeholders |
+| REFACTOR | 05:39–05:40 | (no commit) | `eaa2d05` | identical + `npx vue-tsc --build` | 0 / 0 | 26 passed; type-check clean. `no refactor warranted`: production already byte-identical to the completed reference; normal/destructive grouping and `@click.stop` kebab behavior preserved verbatim |
+| Full suite | 05:39:46–05:41 | `3f42b9d` (candidate) | `eaa2d05` | `pnpm test:unit --run` (full) | 0 | 368 files / 5868 tests passed (+11 S4a tests vs S3b's 368/5857) |
+
+### Notes
+
+- Remaining unchecked S4 RED/GREEN/TRIANGULATE/REFACTOR checkboxes in `tasks.md` cover the whole S4 unit including `CustomersView` wiring (S4b); this unit's allowed surface excludes `tasks.md`, so they stay with the parent gate.
+- Intentional deltas vs reference `16b6b9f` (no contract loss, no scope growth): spec test ordering (grid S4 block kept separate after pre-existing tests), kept the existing multi-line `props:` object style in two grid tests, fixed one flush-left `it(` indent in the card spec, and added one held-back combination-ordering test (`update+delete+read-sales`) required by this work unit. Production files are byte-identical to the reference.
+- Known generated drift seen after every test/type run (`auto-imports.d.ts`, `components.d.ts`, worktree-relative `node_modules` path churn) — proven validation-generated; restored via `git checkout --` after each step, never committed.
+- Work-unit diff from `14a12d8` (additions+deletions, excluding restored generated files): source **+170/−48 = 218** (CustomerCard.vue +12/−3, CustomerCardGrid.vue +4/−0, CustomerCard.spec.ts +87/−22, CustomerCardGrid.spec.ts +67/−23). With this evidence section (22 lines): **+192/−48 = 240 ≤ 400**.
