@@ -17,12 +17,14 @@ defineProps<{
   empty?: string
   canUpdate?: boolean
   canDelete?: boolean
+  canReadSales?: boolean
 }>()
 
 const emit = defineEmits<{
   'card-click': [customer: Customer]
   edit: [customer: Customer]
   delete: [customer: Customer]
+  'view-history': [customer: Customer]
 }>()
 </script>
 
@@ -63,9 +65,11 @@ const emit = defineEmits<{
       :customer="customer"
       :can-update="canUpdate"
       :can-delete="canDelete"
+      :can-read-sales="canReadSales"
       @click="emit('card-click', $event)"
       @edit="emit('edit', $event)"
       @delete="emit('delete', $event)"
+      @view-history="emit('view-history', $event)"
     />
   </div>
 </template>

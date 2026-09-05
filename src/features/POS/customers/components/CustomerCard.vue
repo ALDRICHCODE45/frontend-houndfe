@@ -8,8 +8,8 @@
  * globalPriceListName, createdAt. RFC / fiscal data lives on
  * CustomerDetail (out of scope for the list card).
  *
- * The kebab is gated by `canUpdate || canDelete` so read-only users never
- * see an empty menu. Clicks on the kebab stop propagation so they do not
+ * The kebab is gated by `canUpdate || canDelete || canReadSales` so users
+ * without any of those permissions never see an empty menu. Clicks on the kebab stop propagation so they do not
  * bubble to the card-level `click` handler.
  */
 
@@ -22,15 +22,19 @@ const props = defineProps<{
   customer: Customer
   canUpdate?: boolean
   canDelete?: boolean
+  canReadSales?: boolean
 }>()
 
 const emit = defineEmits<{
   edit: [customer: Customer]
   delete: [customer: Customer]
   click: [customer: Customer]
+  'view-history': [customer: Customer]
 }>()
 
-const canManage = computed(() => Boolean(props.canUpdate || props.canDelete))
+const canManage = computed(
+  () => Boolean(props.canUpdate || props.canDelete || props.canReadSales),
+)
 
 const phoneDisplay = computed(() => {
   if (!props.customer.phone) return '—'
@@ -44,6 +48,10 @@ function handleEdit(): void {
 
 function handleDelete(): void {
   emit('delete', props.customer)
+}
+
+function handleViewHistory(): void {
+  emit('view-history', props.customer)
 }
 </script>
 
@@ -62,6 +70,7 @@ function handleDelete(): void {
       <UDropdownMenu
         :items="[
           ...(canUpdate ? [{ label: 'Editar', onSelect: handleEdit }] : []),
+          ...(canReadSales ? [{ label: 'Ver historial de ventas', onSelect: handleViewHistory }] : []),
           ...(canDelete
             ? [{ label: 'Eliminar', color: 'error' as const, onSelect: handleDelete }]
             : []),
