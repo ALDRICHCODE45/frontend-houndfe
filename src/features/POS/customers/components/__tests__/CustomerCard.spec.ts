@@ -185,4 +185,46 @@ describe('CustomerCard', () => {
     await nextTick()
     expect(wrapper.emitted('view-history')).toEqual([[customer]])
   })
+
+  it('update-only: items contain only Edit, no destructive color', () => {
+    const wrapper = mount(CustomerCard, { props: { customer: makeCustomer(), canUpdate: true } })
+    const items = getKebabItems(wrapper)
+    expect(items.map((i) => i.label)).toEqual(['Editar'])
+    expect(items.some((i) => i.color === 'error')).toBe(false)
+  })
+
+  it('delete-only: items contain only Delete with destructive color', () => {
+    const wrapper = mount(CustomerCard, { props: { customer: makeCustomer(), canDelete: true } })
+    const items = getKebabItems(wrapper)
+    expect(items.map((i) => i.label)).toEqual(['Eliminar'])
+    expect(items[0]?.color).toBe('error')
+  })
+
+  it('update+delete+read-sales: ordered normal group with destructive delete last', () => {
+    const wrapper = mount(CustomerCard, {
+      props: { customer: makeCustomer(), canUpdate: true, canDelete: true, canReadSales: true },
+    })
+    const items = getKebabItems(wrapper)
+    expect(items.map((i) => i.label)).toEqual(['Editar', 'Ver historial de ventas', 'Eliminar'])
+    expect(items.filter((i) => i.color === 'error').map((i) => i.label)).toEqual(['Eliminar'])
+  })
+
+  it('no permissions: kebab is absent and the dropdown items are empty', () => {
+    const wrapper = mount(CustomerCard, { props: { customer: makeCustomer() } })
+    expect(wrapper.find('[data-testid="kebab-menu"]').exists()).toBe(false)
+    expect(wrapper.findComponent({ name: 'UDropdownMenu' }).exists()).toBe(false)
+  })
+
+  it('card body click still emits click with the customer (no closed-menu text inspection)', async () => {
+    const customer = makeCustomer()
+    const wrapper = mount(CustomerCard, { props: { customer } })
+    await wrapper.find('article').trigger('click')
+    expect(wrapper.emitted('click')?.[0]?.[0]).toEqual(customer)
+  })
+
+  it('clicking the kebab wrapper stops propagation and does not emit card click', async () => {
+    const wrapper = mount(CustomerCard, { props: { customer: makeCustomer(), canUpdate: true } })
+    await wrapper.find('[data-testid="kebab-wrapper"]').trigger('click')
+    expect(wrapper.emitted('click')).toBeUndefined()
+  })
 })

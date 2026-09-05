@@ -64,14 +64,9 @@ describe('CustomerCardGrid', () => {
       },
       global: { stubs: { UIcon: UIconStub } },
     })
-    // 8 placeholder divs are rendered as the skeleton state.
-    const grid = wrapper.find('[data-testid="card-grid"]')
-    if (grid.exists()) {
-      expect(grid.findAll('[data-testid="card-skeleton"]').length).toBe(8)
-    } else {
-      // Fallback: at least 8 elements with animate-pulse class.
-      expect(wrapper.findAll('.animate-pulse').length).toBe(8)
-    }
+    const skeleton = wrapper.find('[data-testid="card-grid-skeleton"]')
+    expect(skeleton.exists()).toBe(true)
+    expect(skeleton.findAll('[data-testid="card-skeleton"]').length).toBe(8)
   })
 
   it('shows the empty state with an icon and message when there are no customers', () => {
@@ -104,25 +99,19 @@ describe('CustomerCardGrid', () => {
     expect(wrapper.emitted('card-click')?.[0]?.[0]).toEqual(customer)
   })
 
-  it('forwards edit and delete events from a card', async () => {
+  it('forwards edit and delete from a card exactly once each', () => {
     const customer = makeCustomer({ id: 'a' })
     const wrapper = mount(CustomerCardGrid, {
       props: { customers: [customer], canUpdate: true, canDelete: true },
       global: { stubs: { UIcon: UIconStub } },
     })
-    // Simulate edit/delete emissions from the inner card.
-    const inner = wrapper.findComponent({ name: 'CustomerCard' })
-    if (inner.exists()) {
-      inner.vm.$emit('edit', customer)
-      inner.vm.$emit('delete', customer)
-      expect(wrapper.emitted('edit')?.[0]?.[0]).toEqual(customer)
-      expect(wrapper.emitted('delete')?.[0]?.[0]).toEqual(customer)
-    } else {
-      // Component not exposed by name; assert via DOM kebab click instead.
-      await wrapper.find('[data-testid="kebab-menu"]').trigger('click')
-      // The kebab stops propagation; verify the article was NOT clicked.
-      expect(wrapper.emitted('card-click')).toBeUndefined()
-    }
+    const card = wrapper.getComponent(CustomerCard)
+    card.vm.$emit('edit', customer)
+    card.vm.$emit('delete', customer)
+    expect(wrapper.emitted('edit')?.length).toBe(1)
+    expect(wrapper.emitted('delete')?.length).toBe(1)
+    expect(wrapper.emitted('edit')?.[0]?.[0]).toEqual(customer)
+    expect(wrapper.emitted('delete')?.[0]?.[0]).toEqual(customer)
   })
 
   // ── S4: grid forwarding parity ─────────────────────────────────────────────
@@ -147,5 +136,15 @@ describe('CustomerCardGrid', () => {
     card.vm.$emit('view-history', customer)
     expect(wrapper.emitted('view-history')?.length).toBe(1)
     expect(wrapper.emitted('view-history')?.[0]?.[0]).toEqual(customer)
+  })
+
+  it('forwards card-click unchanged when canReadSales is true', async () => {
+    const customer = makeCustomer({ id: 'a' })
+    const wrapper = mount(CustomerCardGrid, {
+      props: { customers: [customer], canReadSales: true },
+      global: { stubs: { UIcon: UIconStub } },
+    })
+    await wrapper.find('article').trigger('click')
+    expect(wrapper.emitted('card-click')?.[0]?.[0]).toEqual(customer)
   })
 })
