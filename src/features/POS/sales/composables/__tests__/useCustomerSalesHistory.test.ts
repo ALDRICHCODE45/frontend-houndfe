@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { Ref } from 'vue'
-import { isRef, ref, defineComponent, h } from 'vue'
+import { isRef, ref, defineComponent, h, nextTick } from 'vue'
 import { mount, type VueWrapper } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { useCustomerSalesHistory } from '../useCustomerSalesHistory'
@@ -88,6 +88,17 @@ function run(opts: RunOpts = {}) {
   return { result, queryClient, customerId, page, open }
 }
 
+function axiosError(status: number) {
+  return {
+    response: { status, data: { error: 'x' } },
+    isAxiosError: true,
+    name: 'AxiosError',
+    message: 'x',
+    config: {},
+    toJSON: () => ({}),
+  }
+}
+
 describe('useCustomerSalesHistory', () => {
   beforeEach(() => {
     listConfirmedMock.mockReset()
@@ -157,5 +168,87 @@ describe('useCustomerSalesHistory', () => {
     listConfirmedMock.mockResolvedValue(payload as ConfirmedSalesListResponse)
     const { result } = run()
     await vi.waitFor(() => expect(result.isError.value).toBe(true))
+  })
+
+  it('uses the exact centralized key and parameter identity', async () => {
+    const { result, queryClient } = run({ page: 2 })
+    await vi.waitFor(() => expect(result.response.value).toBeDefined())
+    expect(queryClient.getQueryCache().findAll().map((q) => q.queryKey)).toEqual([
+      ['sales', TENANT, 'customer-history', CUSTOMER, {
+        page: 2, limit: 10, sortBy: 'confirmedAt', sortOrder: 'desc',
+      }],
+    ])
+  })
+
+  it('hides customer A data while customer B is pending', async () => {
+    let resolveB!: (v: ConfirmedSalesListResponse) => void
+    listConfirmedMock.mockReset()
+    listConfirmedMock
+      .mockResolvedValueOnce(responseWith({ summary: { salesCount: 11, totalSoldCents: 0, outstandingDebtCents: 0 } }))
+      .mockImplementationOnce(() => new Promise(r => { resolveB = r }))
+
+    const customerId = ref('customer-A')
+    const queryClient = makeClient()
+    const { result } = run({ customerId, queryClient })
+    await vi.waitFor(() => expect(result.response.value?.summary.salesCount).toBe(11))
+
+    customerId.value = 'customer-B'
+    await nextTick()
+    await vi.waitFor(() => expect(result.isFetching.value).toBe(true))
+    expect(result.response.value).toBeUndefined()
+
+    resolveB(responseWith({ summary: { salesCount: 22, totalSoldCents: 0, outstandingDebtCents: 0 } }))
+    await vi.waitFor(() => expect(result.response.value?.summary.salesCount).toBe(22))
+  })
+
+  it('keeps prior page response and toggles isPageTransition during same-customer page change', async () => {
+    let hold!: (v: ConfirmedSalesListResponse) => void
+    listConfirmedMock.mockReset()
+    listConfirmedMock
+      .mockResolvedValueOnce(responseWith({ pagination: { page: 1, limit: 10, total: 30, totalPages: 3 } }))
+      .mockImplementationOnce(() => new Promise(r => { hold = r }))
+
+    const page = ref(1)
+    const queryClient = makeClient()
+    const { result } = run({ page, queryClient })
+    await vi.waitFor(() => expect(result.response.value?.pagination.page).toBe(1))
+
+    page.value = 2
+    await nextTick()
+    await vi.waitFor(() => expect(result.isFetching.value).toBe(true))
+    expect(result.response.value?.pagination.page).toBe(1)
+    expect(result.isPageTransition.value).toBe(true)
+
+    hold(responseWith({ pagination: { page: 2, limit: 10, total: 30, totalPages: 3 } }))
+    await vi.waitFor(() => expect(result.response.value?.pagination.page).toBe(2))
+    expect(result.isPageTransition.value).toBe(false)
+  })
+
+  it('reuses the cached response across close / reopen within staleTime', async () => {
+    const open = ref(true)
+    const queryClient = makeClient()
+    const { result } = run({ open, queryClient })
+    await vi.waitFor(() => expect(result.response.value).toBeDefined())
+    const initialCalls = listConfirmedMock.mock.calls.length
+
+    open.value = false
+    await nextTick()
+    open.value = true
+    await nextTick()
+    expect(listConfirmedMock.mock.calls.length).toBe(initialCalls)
+    expect(result.response.value).toBeDefined()
+  })
+
+  it.each([400, 401, 403])('does not retry on HTTP %i', async (status) => {
+    listConfirmedMock.mockReset()
+    listConfirmedMock.mockRejectedValue(axiosError(status))
+    // Retry-enabled client: only a composable-level 400/401/403 exclusion can
+    // keep this to a single call.
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: 3, gcTime: 0, retryDelay: 0 } },
+    })
+    const { result } = run({ queryClient })
+    await vi.waitFor(() => expect(result.isError.value).toBe(true))
+    expect(listConfirmedMock).toHaveBeenCalledTimes(1)
   })
 })
