@@ -98,4 +98,4 @@ Focused command throughout: `pnpm test:unit --run src/features/POS/customers/com
 - Close/reopen cache behavior is scoped out of this unit by design: it is owned by the S2 composable (`staleTime: 30_000`, no invalidation, `keepPreviousData`) and covered by its tests; this spec mocks the composable at the unit boundary, so re-asserting cache behavior here would be vacuous.
 - Remaining unchecked S3b tasks: RED/GREEN/TRIANGULATE/REFACTOR checkboxes in `tasks.md` (owned by parent gate; this unit's allowed surface excludes `tasks.md`).
 - Source-reference comparison: identical two paths as `4dd5428`; content matches the reference's final intent (same contracts, state priority, width classes, exact empty copy, toast title) with compacted one-line factories/stubs and two brief comments; accents preserved; no scope growth.
-- Work-unit diff from `ec9ae36` (additions+deletions): source **+359/−0** (spec 197, slideover 162); with this evidence section: **+384/−0 = 384 ≤ 400**.
+- Work-unit diff from `ec9ae36` (additions+deletions): source **+359/−0** (spec 197, slideover 162); with this evidence section incl. this correction: **+383/−1 = 384 ≤ 400**.
