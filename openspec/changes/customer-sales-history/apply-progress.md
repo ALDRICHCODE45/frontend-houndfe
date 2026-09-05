@@ -146,3 +146,14 @@ Same worktree/branch; S4a base `31fc74e` (clean tree, pre-S4b production; focuse
 - Generated drift (`auto-imports.d.ts`, `components.d.ts`) seen after test runs — proven validation-generated; restored via `git checkout --` after every step, never committed.
 - Remaining unchecked S4 RED/GREEN/TRIANGULATE/REFACTOR checkboxes in `tasks.md` stay with the parent gate (this unit's allowed surface excludes `tasks.md`).
 - Work-unit diff from `31fc74e` (additions+deletions, excluding restored generated files): **+220/−30 = 250** (`CustomersView.vue` +29/−7, `CustomersView.test.ts` +191/−23). With this evidence section (24 lines): **+244/−30 = 274 ≤ 400**.
+
+## Reconciliation — rebuilt apply state checked into tasks (work unit `reconcile-rebuilt-apply-state`)
+
+All 20 terminal `sdd-owner: implementation` TDD-step rows in `tasks.md` were flipped to `[x]` based on the existing strict-TDD evidence recorded above; no source or test commands were re-run. Mapping of work units to slices:
+
+- **S1** ← `tdd-rebuild-s1-contract` (evidence through candidate `28cb5c0` + correction `a12bd66`; focused 358/358, full 364 files / 5821 tests)
+- **S2** ← `tdd-rebuild-s2-query` (evidence through candidate `6e9ced2`; focused 15/15, full 365 files / 5836 tests)
+- **S3a** ← `tdd-rebuild-s3a-presentation` (evidence through candidate `17d9233`; focused 13/13, full 367 files / 5849 tests)
+- **S3b** ← `tdd-rebuild-s3b-slideover` (evidence through candidate `e4dadaa`; focused 8/8, full 368 files / 5857 tests)
+- **S4** ← combined evidence from `tdd-rebuild-s4a-card-grid-entry` (candidate `3f42b9d`; card/grid 26/26, full 368 files / 5868 tests) **and** `tdd-rebuild-s4b-view-wiring` (candidate `83d57c3`; view wiring 16/16, full 368 files / 5873 tests). The four S4 rows in `tasks.md` describe the whole S4 unit (card/grid entries + `CustomersView` wiring), so they map to S4a + S4b jointly; both sub-units carry complete RED/GREEN/TRIANGULATE/REFACTOR evidence and a green full suite.
+- The two terminal `sdd-owner: parent` lifecycle rows remain intentionally unchecked (chain-strategy decision and per-slice review are parent-owned).

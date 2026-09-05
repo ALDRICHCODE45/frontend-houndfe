@@ -63,10 +63,10 @@ S1 Contract
 
 **TDD steps**
 
-- [ ] **RED:** Extend contract/key and existing response-fixture tests to require integer `summary`, reject missing/malformed summaries, accept nullable `folio`/`paymentStatus`/`confirmedAt`, and assert the tenant/customer/page history-key shape; add failing SaleCard/SalesListView null-display tests. <!-- sdd-owner: implementation -->
-- [ ] **GREEN:** Add `SaleListSummarySchema`, inferred `SaleListSummary`, required `ConfirmedSalesListResponse.summary`, nullable row fields, and `CustomerSalesHistoryParams`; add `saleQueryKeys.customerHistoryPrefix` and `customerHistory`; update exactly the identified fixtures and add only null guards/fallbacks (`Sin folio`, `Fecha no disponible`, `Sin estado`) in existing sales UIs. <!-- sdd-owner: implementation -->
-- [ ] **TRIANGULATE:** Cover differing tenant/customer/page keys and null combinations without changing shared formatter utility contracts. <!-- sdd-owner: implementation -->
-- [ ] **REFACTOR:** Remove repeated fixture builders where local test conventions support one, retain strict DTO typing, and confirm no existing sales-list behavior changes beyond null safety. <!-- sdd-owner: implementation -->
+- [x] **RED:** Extend contract/key and existing response-fixture tests to require integer `summary`, reject missing/malformed summaries, accept nullable `folio`/`paymentStatus`/`confirmedAt`, and assert the tenant/customer/page history-key shape; add failing SaleCard/SalesListView null-display tests. <!-- sdd-owner: implementation -->
+- [x] **GREEN:** Add `SaleListSummarySchema`, inferred `SaleListSummary`, required `ConfirmedSalesListResponse.summary`, nullable row fields, and `CustomerSalesHistoryParams`; add `saleQueryKeys.customerHistoryPrefix` and `customerHistory`; update exactly the identified fixtures and add only null guards/fallbacks (`Sin folio`, `Fecha no disponible`, `Sin estado`) in existing sales UIs. <!-- sdd-owner: implementation -->
+- [x] **TRIANGULATE:** Cover differing tenant/customer/page keys and null combinations without changing shared formatter utility contracts. <!-- sdd-owner: implementation -->
+- [x] **REFACTOR:** Remove repeated fixture builders where local test conventions support one, retain strict DTO typing, and confirm no existing sales-list behavior changes beyond null safety. <!-- sdd-owner: implementation -->
 
 **Verify**
 
@@ -91,10 +91,10 @@ feat(sales): add customer history summary contract
 
 **TDD steps**
 
-- [ ] **RED:** Write query tests for disabled closed/missing-customer/missing-tenant inputs, the exact key `['sales', tenantId, 'customer-history', customerId, params]`, and the exact API object `{ customerId: [id], page, limit: 10, sortBy: 'confirmedAt', sortOrder: 'desc' }` with neither `status` nor `customerIncludeNull`. <!-- sdd-owner: implementation -->
-- [ ] **GREEN:** Implement the options-object composable over unmodified `saleApi.listConfirmed`, centralized keys, `enabled`, `staleTime: 30_000`, `placeholderData: keepPreviousData`, summary parsing via `SaleListSummarySchema`, and owner-customer cache entries/render guard. <!-- sdd-owner: implementation -->
-- [ ] **TRIANGULATE:** Test malformed/absent `summary` fails to query error; same-customer page placeholder is exposed; A→B suppresses A; close/reopen uses fresh cache without invalidation. <!-- sdd-owner: implementation -->
-- [ ] **REFACTOR:** Keep the returned computed query state focused and readonly, deduplicate parameter construction, and retain retry exclusion for 400/401/403. <!-- sdd-owner: implementation -->
+- [x] **RED:** Write query tests for disabled closed/missing-customer/missing-tenant inputs, the exact key `['sales', tenantId, 'customer-history', customerId, params]`, and the exact API object `{ customerId: [id], page, limit: 10, sortBy: 'confirmedAt', sortOrder: 'desc' }` with neither `status` nor `customerIncludeNull`. <!-- sdd-owner: implementation -->
+- [x] **GREEN:** Implement the options-object composable over unmodified `saleApi.listConfirmed`, centralized keys, `enabled`, `staleTime: 30_000`, `placeholderData: keepPreviousData`, summary parsing via `SaleListSummarySchema`, and owner-customer cache entries/render guard. <!-- sdd-owner: implementation -->
+- [x] **TRIANGULATE:** Test malformed/absent `summary` fails to query error; same-customer page placeholder is exposed; A→B suppresses A; close/reopen uses fresh cache without invalidation. <!-- sdd-owner: implementation -->
+- [x] **REFACTOR:** Keep the returned computed query state focused and readonly, deduplicate parameter construction, and retain retry exclusion for 400/401/403. <!-- sdd-owner: implementation -->
 
 **Verify**
 
@@ -120,10 +120,10 @@ feat(sales): add customer sales history query
 
 **TDD steps**
 
-- [ ] **RED:** Using plain `mount`, add failing metrics tests proving values come only from `summary` despite contradictory rows, plus failing list tests for formatting, `sin folio`/`fecha no disponible`/`sin estado`, the required accessible-name pattern, and `select` emission. <!-- sdd-owner: implementation -->
-- [ ] **GREEN:** Implement typed pure props/emits: one semantic metrics `<dl>` with MXN formatting and debt/`Al corriente` treatment, and a semantic `<ul>` of native row buttons using existing format/status utilities and explicit null fallbacks. <!-- sdd-owner: implementation -->
-- [ ] **TRIANGULATE:** Test positive versus zero debt, integer currency values, nullable combinations, and exactly one emitted selected sale. <!-- sdd-owner: implementation -->
-- [ ] **REFACTOR:** Centralize local display-label derivations in computed values without query, router, pagination, or row aggregation logic. <!-- sdd-owner: implementation -->
+- [x] **RED:** Using plain `mount`, add failing metrics tests proving values come only from `summary` despite contradictory rows, plus failing list tests for formatting, `sin folio`/`fecha no disponible`/`sin estado`, the required accessible-name pattern, and `select` emission. <!-- sdd-owner: implementation -->
+- [x] **GREEN:** Implement typed pure props/emits: one semantic metrics `<dl>` with MXN formatting and debt/`Al corriente` treatment, and a semantic `<ul>` of native row buttons using existing format/status utilities and explicit null fallbacks. <!-- sdd-owner: implementation -->
+- [x] **TRIANGULATE:** Test positive versus zero debt, integer currency values, nullable combinations, and exactly one emitted selected sale. <!-- sdd-owner: implementation -->
+- [x] **REFACTOR:** Centralize local display-label derivations in computed values without query, router, pagination, or row aggregation logic. <!-- sdd-owner: implementation -->
 
 **Verify**
 
@@ -148,10 +148,10 @@ feat(customers): add sales history presentation
 
 **TDD steps**
 
-- [ ] **RED:** With `mountWithUApp`, `VueQueryPlugin`, retries disabled, and `attachTo: document.body`, write failing real-overlay tests for width/body classes, named dialog/header/close control, three-plus-five initial skeletons, exact empty `role=status` copy, error `role=alert` plus retry, page transition stability, named-route selection, and deduplicated 403 toast/close. <!-- sdd-owner: implementation -->
-- [ ] **GREEN:** Implement the typed `open`/`customer` and `update:open` shell using S2 and S3a; reset page on customer change; render guarded query states; use `UPagination` at 10 items, route with `{ name: 'pos-sale-detail', params: { id } }`, and apply `content: 'w-full !max-w-none sm:!max-w-[520px]'` plus `body: 'p-0'`. <!-- sdd-owner: implementation -->
-- [ ] **TRIANGULATE:** Assert 200-zero is empty rather than error, page changes retain same-customer summary without row summation, retry refetches current inputs, and rerenders do not duplicate the exact toast `Sin permiso para ver ventas`. <!-- sdd-owner: implementation -->
-- [ ] **REFACTOR:** Keep shell orchestration separate from S3a presentation, make state priority explicit, clean portal DOM after each test, and add no routes, API adapters, or mutation/invalidation code. <!-- sdd-owner: implementation -->
+- [x] **RED:** With `mountWithUApp`, `VueQueryPlugin`, retries disabled, and `attachTo: document.body`, write failing real-overlay tests for width/body classes, named dialog/header/close control, three-plus-five initial skeletons, exact empty `role=status` copy, error `role=alert` plus retry, page transition stability, named-route selection, and deduplicated 403 toast/close. <!-- sdd-owner: implementation -->
+- [x] **GREEN:** Implement the typed `open`/`customer` and `update:open` shell using S2 and S3a; reset page on customer change; render guarded query states; use `UPagination` at 10 items, route with `{ name: 'pos-sale-detail', params: { id } }`, and apply `content: 'w-full !max-w-none sm:!max-w-[520px]'` plus `body: 'p-0'`. <!-- sdd-owner: implementation -->
+- [x] **TRIANGULATE:** Assert 200-zero is empty rather than error, page changes retain same-customer summary without row summation, retry refetches current inputs, and rerenders do not duplicate the exact toast `Sin permiso para ver ventas`. <!-- sdd-owner: implementation -->
+- [x] **REFACTOR:** Keep shell orchestration separate from S3a presentation, make state priority explicit, clean portal DOM after each test, and add no routes, API adapters, or mutation/invalidation code. <!-- sdd-owner: implementation -->
 
 **Verify**
 
@@ -178,10 +178,10 @@ feat(customers): add sales history slideover
 
 **TDD steps**
 
-- [ ] **RED:** Add failing permission/event tests for table and card history actions, read-sales-only kebab visibility, update/delete-only history absence, no-permission kebab absence, one-time grid forwarding, and unchanged card-body click behavior. <!-- sdd-owner: implementation -->
-- [ ] **GREEN:** Add `canReadSales` and `canShowCustomerActions` in `CustomersView`, independent `historyCustomer`/`isHistoryOpen` state, history menu item and slideover composition; pass `canReadSales` grid-to-card and relay typed `view-history`. <!-- sdd-owner: implementation -->
-- [ ] **TRIANGULATE:** Exercise each permission union (`canUpdate || canDelete || canReadSales`), table/card parity, close/reopen isolation from edit/detail state, and selected-customer identity preservation. <!-- sdd-owner: implementation -->
-- [ ] **REFACTOR:** Preserve existing normal/destructive action grouping and click-stop behavior, remove duplicated open handlers where possible, and confirm no router/sidebar/CASL-registry changes entered the diff. <!-- sdd-owner: implementation -->
+- [x] **RED:** Add failing permission/event tests for table and card history actions, read-sales-only kebab visibility, update/delete-only history absence, no-permission kebab absence, one-time grid forwarding, and unchanged card-body click behavior. <!-- sdd-owner: implementation -->
+- [x] **GREEN:** Add `canReadSales` and `canShowCustomerActions` in `CustomersView`, independent `historyCustomer`/`isHistoryOpen` state, history menu item and slideover composition; pass `canReadSales` grid-to-card and relay typed `view-history`. <!-- sdd-owner: implementation -->
+- [x] **TRIANGULATE:** Exercise each permission union (`canUpdate || canDelete || canReadSales`), table/card parity, close/reopen isolation from edit/detail state, and selected-customer identity preservation. <!-- sdd-owner: implementation -->
+- [x] **REFACTOR:** Preserve existing normal/destructive action grouping and click-stop behavior, remove duplicated open handlers where possible, and confirm no router/sidebar/CASL-registry changes entered the diff. <!-- sdd-owner: implementation -->
 
 **Verify**
 
