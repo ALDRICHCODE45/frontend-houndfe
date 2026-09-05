@@ -61,6 +61,7 @@ describe('shape and exports', () => {
     expect(deriveDriverRouteCockpit(null)).toEqual({
       currentStop: null, nextStop: null, spine: [],
       progress: { completed: 0, total: 0 },
+      counts: { delivered: 0, pending: 0, inProgress: 0, skipped: 0, total: 0 },
       isTerminal: false, hasStops: false, notes: null,
     })
   })
@@ -328,6 +329,77 @@ describe('REQ-DCD-008 no order enforcement', () => {
     }
   })
 })
+// ─── Route-page evolution: per-status counts + next flag on spine nodes ──────────
+
+describe('counts — truthful per-status stop counts', () => {
+  it.each([
+    ['mixed statuses', ['COMPLETED', 'PENDING', 'IN_PROGRESS', 'SKIPPED', 'PENDING'],
+      { delivered: 1, pending: 2, inProgress: 1, skipped: 1, total: 5 }],
+    ['zero stops', [], { delivered: 0, pending: 0, inProgress: 0, skipped: 0, total: 0 }],
+    ['all delivered (terminal)', ['COMPLETED', 'COMPLETED'],
+      { delivered: 2, pending: 0, inProgress: 0, skipped: 0, total: 2 }],
+    ['skipped-only route', ['SKIPPED', 'SKIPPED'],
+      { delivered: 0, pending: 0, inProgress: 0, skipped: 2, total: 2 }],
+  ] as const)('%s', (_label, statuses, expected) => {
+    const stops = statuses.map((s, i) => makeStop(`s${i}`, i, s as DeliveryRouteStopStatus))
+    const { counts } = deriveDriverRouteCockpit(makeRoute('ACTIVE', stops))
+    expect(counts).toEqual(expected)
+  })
+
+  it('progress and counts agree on delivered/total (single derivation, no drift)', () => {
+    const stops = [makeStop('s0', 0, 'COMPLETED'), makeStop('s1', 1, 'SKIPPED'), makeStop('s2', 2, 'PENDING')]
+    const state = deriveDriverRouteCockpit(makeRoute('ACTIVE', stops))
+    expect(state.progress).toEqual({ completed: state.counts.delivered, total: state.counts.total })
+  })
+})
+
+describe('spine isNext flag — derived next emphasis', () => {
+  it('marks exactly the derived nextStop; current is not next', () => {
+    const { spine, nextStop } = deriveDriverRouteCockpit(makeRoute('ACTIVE', [
+      makeStop('s0', 0, 'IN_PROGRESS'),
+      makeStop('s1', 1, 'PENDING'),
+      makeStop('s2', 2, 'PENDING'),
+    ]))
+    expect(nextStop?.id).toBe('s1') // first OTHER PENDING per REQ-DCD-002
+    expect(spine.map((n) => n.isNext)).toEqual([false, true, false])
+  })
+
+  it('PENDING current marks the later PENDING as next', () => {
+    const { spine, nextStop } = deriveDriverRouteCockpit(makeRoute('ACTIVE', [
+      makeStop('s0', 0, 'PENDING'),
+      makeStop('s1', 1, 'PENDING'),
+    ]))
+    expect(nextStop?.id).toBe('s1')
+    expect(spine.map((n) => n.isNext)).toEqual([false, true])
+  })
+
+  it('terminal route: no node is next; skipped node never next', () => {
+    const { spine } = deriveDriverRouteCockpit(makeRoute('COMPLETED', [
+      makeStop('s0', 0, 'COMPLETED'),
+      makeStop('s1', 1, 'SKIPPED'),
+    ]))
+    expect(spine.every((n) => n.isNext === false)).toBe(true)
+    // SKIPPED + single PENDING: the PENDING is CURRENT, so there is no next.
+    const active = deriveDriverRouteCockpit(makeRoute('ACTIVE', [
+      makeStop('s0', 0, 'SKIPPED'),
+      makeStop('s1', 1, 'PENDING'),
+    ]))
+    expect(active.spine.map((n) => n.isNext)).toEqual([false, false])
+    // SKIPPED + two PENDING: the second PENDING is next.
+    const withNext = deriveDriverRouteCockpit(makeRoute('ACTIVE', [
+      makeStop('s0', 0, 'SKIPPED'),
+      makeStop('s1', 1, 'PENDING'),
+      makeStop('s2', 2, 'PENDING'),
+    ]))
+    expect(withNext.spine.map((n) => n.isNext)).toEqual([false, false, true])
+  })
+
+  it('zero stops: empty spine, no next', () => {
+    const state = deriveDriverRouteCockpit(makeRoute('ACTIVE', []))
+    expect(state.spine).toEqual([])
+  })
+})
+
 // useDriverRouteCockpit — computed adapter for Vue consumers.
 describe('useDriverRouteCockpit computed adapter', () => {
   it('returns a ComputedRef<DriverCockpitState> reactive to a plain ref', () => {

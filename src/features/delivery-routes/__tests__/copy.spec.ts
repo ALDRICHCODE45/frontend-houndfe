@@ -220,6 +220,72 @@ describe('copy.ts — single Spanish copy source (design.md §3)', () => {
   // placeholder order, presence, and exact set MUST stay stable so the rendered
   // output reads naturally in Spanish ("Entrega para Ana — Parada 3 (FOLIO-7)…").
 
+  // ─── Cockpit route-page evolution: summary / stop cards / recent / header ───
+  // Additive copy keys for the coherent route page: summary metrics, stop-card
+  // labels, recent-activity heading, header identity, and lifecycle templates.
+  // All keys live under cockpit.* (or timeline.*) — no renames, no removals.
+
+  it('exposes the header route-page identity title (Ruta de entrega)', () => {
+    expect(DELIVERY_ROUTE_COPY.cockpit.header.title).toBe('Ruta de entrega')
+  })
+
+  it('exposes summary metric labels + accessible progress template (truthful counts only)', () => {
+    expect(DELIVERY_ROUTE_COPY.cockpit.summary.deliveredLabel).toBe('Entregadas')
+    expect(DELIVERY_ROUTE_COPY.cockpit.summary.pendingLabel).toBe('Pendientes')
+    expect(DELIVERY_ROUTE_COPY.cockpit.summary.skippedLabel).toBe('Omitidas')
+    expect(DELIVERY_ROUTE_COPY.cockpit.summary.totalLabel).toBe('Total')
+    expect(DELIVERY_ROUTE_COPY.cockpit.summary.emptyLabel).toBe('Sin paradas en esta ruta')
+    // {completed} precedes {total}; no fabricated metrics (no ETA/distance/updated-now).
+    const aria = DELIVERY_ROUTE_COPY.cockpit.summary.progressAriaLabel
+    expect(aria.indexOf('{completed}')).toBeGreaterThanOrEqual(0)
+    expect(aria.indexOf('{total}')).toBeGreaterThan(aria.indexOf('{completed}'))
+    expect(aria).toMatch(/^\{completed\} de \{total\} paradas entregadas$/)
+  })
+
+  it('exposes stop-card labels (details + next badge) without duplicating checkIn', () => {
+    expect(DELIVERY_ROUTE_COPY.cockpit.stops.detailsLabel).toBe('Ver detalles')
+    expect(DELIVERY_ROUTE_COPY.cockpit.stops.nextBadge).toBe('Siguiente')
+    // checkIn label stays single-sourced in actions.checkIn.
+    expect((DELIVERY_ROUTE_COPY.cockpit.stops as Record<string, unknown>).checkIn).toBeUndefined()
+  })
+
+  it('exposes the stop-list heading + supporting line above the ordered rich cards (route-page evolution)', () => {
+    expect(DELIVERY_ROUTE_COPY.cockpit.stops.listHeading).toBe('Tus paradas')
+    expect(DELIVERY_ROUTE_COPY.cockpit.stops.listSubheading).toBe('Sigue el orden recomendado')
+  })
+
+  it('exposes the recent-activity heading (compact timeline section)', () => {
+    expect(DELIVERY_ROUTE_COPY.cockpit.recent.heading).toBe('Actividad reciente')
+  })
+
+  // ─── Header refinement: compact card + single overflow menu ──────────────
+  // The header keeps ONE overflow trigger whose accessible name is sourced
+  // here; the two menu items REUSE existing copy keys ('Ver historial' from
+  // footer.viewHistory, 'Actualizar ruta' from header.refreshAriaLabel) so
+  // the header menu can never drift from the rest of the cockpit vocabulary.
+  it('exposes the header overflow-menu accessible label (header refinement)', () => {
+    expect(DELIVERY_ROUTE_COPY.cockpit.header.actionsLabel).toBe('Acciones de la ruta')
+  })
+
+  it('header menu items reuse existing copy keys (no duplicated menu literals)', () => {
+    expect(DELIVERY_ROUTE_COPY.cockpit.footer.viewHistory).toBe('Ver historial')
+    expect(DELIVERY_ROUTE_COPY.cockpit.header.refreshAriaLabel).toBe('Actualizar ruta')
+  })
+
+      it('exposes lifecycle templates keyed to existing route timestamps only', () => {
+    expect(DELIVERY_ROUTE_COPY.cockpit.lifecycle.started).toBe('Iniciada {date}')
+    expect(DELIVERY_ROUTE_COPY.cockpit.lifecycle.completed).toBe('Completada {date}')
+    expect(DELIVERY_ROUTE_COPY.cockpit.lifecycle.cancelled).toBe('Cancelada {date}')
+    // No fabricated lifecycle context (no zone / scheduled date keys).
+    expect((DELIVERY_ROUTE_COPY.cockpit.lifecycle as Record<string, unknown>).scheduled).toBeUndefined()
+    expect((DELIVERY_ROUTE_COPY.cockpit.lifecycle as Record<string, unknown>).zone).toBeUndefined()
+  })
+
+  it('exposes the timeline invalid-timestamp fallback + history heading', () => {
+    expect(DELIVERY_ROUTE_COPY.timeline.timestampFallback).toBe('Fecha no disponible')
+    expect(DELIVERY_ROUTE_COPY.timeline.historyHeading).toBe('Historial')
+  })
+
   it.each([
     {
       label: 'confirm body lists {customer}, {N}, {folio} in spec order',
@@ -240,7 +306,8 @@ describe('copy.ts — single Spanish copy source (design.md §3)', () => {
       expect(idx).toBeGreaterThan(lastIdx)
       lastIdx = idx
     }
-    const forbiddenPattern = new RegExp(`\\{(${forbidden.map((p) => p.slice(1, -1)).join('|')})\\}`)
-    expect(value).not.toMatch(forbiddenPattern)
+        for (const placeholder of forbidden) {
+          expect(value).not.toContain(placeholder)
+        }
   })
 })

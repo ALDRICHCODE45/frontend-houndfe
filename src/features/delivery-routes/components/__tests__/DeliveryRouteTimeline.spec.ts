@@ -263,3 +263,98 @@ describe('DeliveryRouteTimeline — prop contract', () => {
     expect(wrapper.exists()).toBe(true)
   })
 })
+
+// ─── Route-page evolution: timestamp formatting + bounded recent subset ─────────
+// DeliveryRouteTimeline owns accessible timeline rows AND timestamp formatting.
+
+import { formatTimelineTimestamp } from '../DeliveryRouteTimeline.vue'
+import { format } from 'date-fns'
+import { es } from 'date-fns/locale'
+
+describe('formatTimelineTimestamp — human-readable timestamps (exported helper)', () => {
+  it('formats a valid ISO instant in Spanish (day month year · time)', () => {
+    const out = formatTimelineTimestamp('2025-01-01T09:30:00Z')
+    // Format is locale-dependent; pin the structure against the same date-fns call.
+    expect(out).toBe(format(new Date('2025-01-01T09:30:00Z'), 'd MMM yyyy · HH:mm', { locale: es }))
+  })
+
+  it.each([
+    ['not a date', 'sin-fecha'],
+    ['empty string', ''],
+    ['nonsense numbers', '99999999999999999999999-99'],
+  ])('returns the empty sentinel for an invalid instant (%s)', (_label, iso) => {
+    expect(formatTimelineTimestamp(iso)).toBe('')
+  })
+})
+
+describe('DeliveryRouteTimeline — per-row timestamps (invalid-date fallback)', () => {
+  it('renders a <time> element with datetime + human-readable text per row', async () => {
+    const timeline: DeliveryRouteTimelineEvent[] = [
+      { type: 'ROUTE_STARTED', at: '2025-01-01T09:00:00Z', actor: null },
+    ]
+    const w = mountTimeline({ route: makeRoute(timeline) })
+    await flushPromises()
+    const t = w.find('[data-testid="timeline-row-timestamp"]')
+    expect(t.exists()).toBe(true)
+    expect(t.attributes('datetime')).toBe('2025-01-01T09:00:00Z')
+    expect(t.text()).toBe(formatTimelineTimestamp('2025-01-01T09:00:00Z'))
+  })
+
+  it('invalid event timestamps render the copy.ts fallback with NO datetime attribute', async () => {
+    const timeline: DeliveryRouteTimelineEvent[] = [
+      { type: 'ROUTE_STARTED', at: 'sin-fecha', actor: null },
+    ]
+    const w = mountTimeline({ route: makeRoute(timeline) })
+    await flushPromises()
+    const t = w.find('[data-testid="timeline-row-timestamp"]')
+    expect(t.exists()).toBe(true)
+    expect(t.attributes('datetime')).toBeUndefined()
+    expect(t.text()).toBe(DELIVERY_ROUTE_COPY.timeline.timestampFallback)
+  })
+})
+
+describe('DeliveryRouteTimeline — bounded recent subset (events prop)', () => {
+  const FULL: DeliveryRouteTimelineEvent[] = [
+    { type: 'ROUTE_CREATED', at: '2025-01-01T08:00:00Z', actor: null },
+    { type: 'ROUTE_STARTED', at: '2025-01-01T09:00:00Z', actor: { id: 'd1', name: 'Ana' } },
+    { type: 'STOP_CHECKED_IN', at: '2025-01-01T09:30:00Z', stopId: 's1', sortOrder: 0, actor: null },
+    { type: 'STOP_CHECKED_IN', at: '2025-01-01T10:00:00Z', stopId: 's2', sortOrder: 1, actor: null },
+    { type: 'ROUTE_COMPLETED', at: '2025-01-01T11:00:00Z', actor: null },
+  ]
+
+  it('renders EXACTLY the provided events subset in the given order (no re-sorting, no refill)', async () => {
+    const w = mountTimeline({ route: makeRoute(FULL), events: FULL.slice(-2) })
+    await flushPromises()
+    const rows = w.findAll('[data-testid^="timeline-row-"]').filter((n) => n.element.tagName === 'LI')
+    expect(rows.map((r) => r.attributes('data-testid'))).toEqual([
+      'timeline-row-STOP_CHECKED_IN-s2',
+      'timeline-row-ROUTE_COMPLETED',
+    ])
+  })
+
+  it('falls back to route.timeline when events is omitted (full history overlay unchanged)', async () => {
+    const w = mountTimeline({ route: makeRoute(FULL) })
+    await flushPromises()
+    const rows = w.findAll('[data-testid^="timeline-row-"]').filter((n) => n.element.tagName === 'LI')
+    expect(rows).toHaveLength(5)
+  })
+
+  it('renders an empty subset as the empty state (not a crash)', async () => {
+    const w = mountTimeline({ route: makeRoute(FULL), events: [] })
+    await flushPromises()
+    expect(w.find('[data-testid="delivery-route-timeline-empty"]').exists()).toBe(true)
+  })
+})
+
+describe('DeliveryRouteTimeline — heading prop (compact recent section vs full history)', () => {
+  it('defaults to the copy.ts history heading', async () => {
+    const w = mountTimeline({ route: makeRoute([]) })
+    expect(w.text()).toContain(DELIVERY_ROUTE_COPY.timeline.historyHeading)
+  })
+
+  it('renders a custom heading (e.g. the recent-activity heading) from the prop', async () => {
+    const w = mountTimeline({ route: makeRoute([]), heading: DELIVERY_ROUTE_COPY.cockpit.recent.heading })
+    expect(w.text()).toContain(DELIVERY_ROUTE_COPY.cockpit.recent.heading)
+    expect(w.text()).not.toContain(DELIVERY_ROUTE_COPY.timeline.historyHeading)
+  })
+})
