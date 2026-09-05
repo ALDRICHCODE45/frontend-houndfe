@@ -17,13 +17,13 @@ Source reference (final-content only, NOT cherry-picked): `57fbf02`.
 | REFACTOR | 04:03 | (no separate commit; test-only type hygiene amended into `28cb5c0`) | `bc8561d` | identical focused command + `npx vue-tsc --build` | 0 / 0 | 358 passed; type-check clean |
 | Full suite | 04:03 | `28cb5c0` (candidate) | `bc8561d` | `pnpm test:unit --run` (full) | 0 | 364 files / 5821 tests passed (+32 S1 tests) |
 
-REFACTOR disposition: **no refactor warranted** — guards are single-use computeds/helpers, no duplication introduced; RED-time indentation noise was normalized before the GREEN commit. Two test-only type fixes (it.each callback arity; missing `summary` in the line-267 response fixture literal) were amended into the TRIANGULATE commit.
+REFACTOR disposition: **no refactor warranted at GREEN** — guards are single-use computeds/helpers; RED-time indentation noise was normalized before the GREEN commit. Two test-only type fixes (it.each callback arity; missing `summary` in the line-267 response fixture literal) were amended into the TRIANGULATE commit. A later budget-driven compaction commit `refactor(tests): compact S1 contract evidence` applied semantic compression only (shared `historyParams`/typed `pair` helper, merged rejects table, tuple-typed it.each rows, base-indentation restore in `SalesListView.test.ts`, notes compaction). RED/GREEN/TRIANGULATE facts, all 358 assertions, and the S1 contract are unchanged: focused suite still 358/358, full suite 364 files / 5821 tests, `npx vue-tsc --build` exit 0.
 
 ### Notes
 
 - RED run had 3 collateral failures in pre-existing `SalesListView.test.ts` cases (unhandled render-throw fallout from the unguarded mounts); all pass at GREEN without touching those tests. Verified by stash run: 42/42 pass at base without RED tests.
 - Files (all within allowed surface): `query-keys.ts` + tests, `sale.types.ts` + tests, `SaleCard.vue` + test, `SalesListView.vue` + 2 tests, `sale.api.test.ts`, `useConfirmedSales.test.ts`, `SalesListView.persistence.test.ts`.
 - Pre-existing quirk preserved (behavior-identical to source reference): `extractFolioNumber` already returns `#15`, so SaleCard shows `##15` before and after this slice; changing it would exceed the null-safety scope.
-- Net work-unit diff from `d06d67b`: +386/−16 (net +370 lines; 402 churn) — within the 400-line net budget.
 - Source-reference comparison: same paths/content intent; RED and TRIANGULATE are split into separate commits vs the single `57fbf02` commit, and new describes use clean top-level nesting instead of the reference's mid-file deep indentation. Final behavior/content matches without scope growth.
+- Work-unit diff from `d06d67b` (authoritative budget = additions + deletions, not net): **+311/−11 = 322 ≤ 400** (pre-compaction was +415/−16 = 431; corrected accounting by the parent review gate).
 - Remaining unchecked S1 tasks: RED/GREEN/TRIANGULATE/REFACTOR checkboxes in `tasks.md` (owned by parent gate).

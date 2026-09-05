@@ -185,122 +185,72 @@ describe('saleQueryKeys', () => {
   })
 
   // sdd customer-sales-history S1: customerHistoryPrefix and customerHistory keys
-  describe('customerHistoryPrefix (sdd customer-sales-history S1)', () => {
-    const params = { page: 1, limit: 10, sortBy: 'confirmedAt' as const, sortOrder: 'desc' as const }
-
-    it.each([
-      ['tenant-abc', 'customer-xyz', ['sales', 'tenant-abc', 'customer-history', 'customer-xyz']],
-    ])('returns exact shape for %s/%s', (tenantId, customerId, expected) => {
-      expect(saleQueryKeys.customerHistoryPrefix(tenantId, customerId)).toEqual(expected)
-    })
-
-    it.each([
-      [
-        ['tenant-1', 'customer-1'] as [string, string],
-        ['tenant-2', 'customer-1'] as [string, string],
-      ],
-      [
-        ['tenant-1', 'customer-1'] as [string, string],
-        ['tenant-1', 'customer-2'] as [string, string],
-      ],
-    ])('produces different keys for different %p', (pair1, pair2) => {
-      const key1 = saleQueryKeys.customerHistoryPrefix(pair1[0], pair1[1])
-      const key2 = saleQueryKeys.customerHistoryPrefix(pair2[0], pair2[1])
-      expect(key1).not.toEqual(key2)
-    })
-
-    it('customerHistoryPrefix is a prefix of customerHistory keys (TanStack invalidation)', () => {
-      const historyKey = saleQueryKeys.customerHistory('tenant-1', 'customer-1', params)
-      const prefix = saleQueryKeys.customerHistoryPrefix('tenant-1', 'customer-1')
-      expect(historyKey.slice(0, 4)).toEqual(prefix)
-    })
-  })
+  const historyParams = { page: 1, limit: 10, sortBy: 'confirmedAt' as const, sortOrder: 'desc' as const }
+  const pair = (a: string, b: string): [string, string] => [a, b]
 
   describe('customerHistory (sdd customer-sales-history S1)', () => {
-    const defaultParams = {
-      page: 1,
-      limit: 10,
-      sortBy: 'confirmedAt' as const,
-      sortOrder: 'desc' as const,
-    }
-
     it('returns the exact tuple shape with params', () => {
-      const key = saleQueryKeys.customerHistory('tenant-abc', 'customer-xyz', defaultParams)
-      expect(key).toEqual(['sales', 'tenant-abc', 'customer-history', 'customer-xyz', defaultParams])
+      const key = saleQueryKeys.customerHistory('tenant-abc', 'customer-xyz', historyParams)
+      expect(key).toEqual(['sales', 'tenant-abc', 'customer-history', 'customer-xyz', historyParams])
     })
 
     it.each([
-      [
-        [1, 10] as [number, number],
-        [2, 10] as [number, number],
-      ],
-      [
-        ['tenant-1', 'customer-1'] as [string, string],
-        ['tenant-2', 'customer-1'] as [string, string],
-      ],
-      [
-        ['tenant-1', 'customer-1'] as [string, string],
-        ['tenant-1', 'customer-2'] as [string, string],
-      ],
+      [[1, 10] as unknown as [string, string], [2, 10] as unknown as [string, string]],
+      [pair('tenant-1', 'customer-1'), pair('tenant-2', 'customer-1')],
+      [pair('tenant-1', 'customer-1'), pair('tenant-1', 'customer-2')],
     ])('produces different keys for different %p', (first, second) => {
-      const key1 = saleQueryKeys.customerHistory(
-        first[0] as string,
-        first[1] as string,
-        defaultParams,
-      )
-      const key2 = saleQueryKeys.customerHistory(
-        second[0] as string,
-        second[1] as string,
-        defaultParams,
-      )
+      const key1 = saleQueryKeys.customerHistory(first[0], first[1], historyParams)
+      const key2 = saleQueryKeys.customerHistory(second[0], second[1], historyParams)
       expect(key1).not.toEqual(key2)
     })
 
     it('returns stable key tuple on repeated calls with identical args', () => {
-      const key1 = saleQueryKeys.customerHistory('tenant-1', 'customer-1', defaultParams)
-      const key2 = saleQueryKeys.customerHistory('tenant-1', 'customer-1', defaultParams)
-      expect(key1).toEqual(key2)
+      expect(saleQueryKeys.customerHistory('tenant-1', 'customer-1', historyParams)).toEqual(
+        saleQueryKeys.customerHistory('tenant-1', 'customer-1', historyParams),
+      )
     })
 
     it('structurally equal params objects with different identity produce equal keys', () => {
-      const key1 = saleQueryKeys.customerHistory('tenant-1', 'customer-1', {
-        page: 1,
-        limit: 10,
-        sortBy: 'confirmedAt',
-        sortOrder: 'desc',
-      })
-      const key2 = saleQueryKeys.customerHistory('tenant-1', 'customer-1', {
-        page: 1,
-        limit: 10,
-        sortBy: 'confirmedAt',
-        sortOrder: 'desc',
-      })
+      const key1 = saleQueryKeys.customerHistory('tenant-1', 'customer-1', historyParams)
+      const key2 = saleQueryKeys.customerHistory('tenant-1', 'customer-1', { ...historyParams })
       expect(key1).toEqual(key2)
     })
 
     it('limit is part of the key identity', () => {
-      const key1 = saleQueryKeys.customerHistory('tenant-1', 'customer-1', {
-        ...defaultParams,
-        limit: 10,
-      })
-      const key2 = saleQueryKeys.customerHistory('tenant-1', 'customer-1', {
-        ...defaultParams,
-        limit: 20,
-      })
+      const key1 = saleQueryKeys.customerHistory('tenant-1', 'customer-1', { ...historyParams, limit: 10 })
+      const key2 = saleQueryKeys.customerHistory('tenant-1', 'customer-1', { ...historyParams, limit: 20 })
       expect(key1).not.toEqual(key2)
     })
 
     it('keys are isolated from saleQueryKeys.confirmed (different third segment)', () => {
-      const historyKey = saleQueryKeys.customerHistory('tenant-1', 'customer-1', defaultParams)
-      const confirmedKey = saleQueryKeys.confirmed('tenant-1', {
-        page: 1,
-        limit: 10,
-        sortBy: 'confirmedAt',
-        sortOrder: 'desc',
-      })
+      const historyKey = saleQueryKeys.customerHistory('tenant-1', 'customer-1', historyParams)
+      const confirmedKey = saleQueryKeys.confirmed('tenant-1', historyParams)
       expect(historyKey[2]).toBe('customer-history')
       expect(confirmedKey[2]).toBe('confirmed')
       expect(historyKey).not.toEqual(confirmedKey)
+    })
+  })
+
+  describe('customerHistoryPrefix (sdd customer-sales-history S1)', () => {
+    it('returns the exact 4-segment prefix shape', () => {
+      expect(saleQueryKeys.customerHistoryPrefix('tenant-abc', 'customer-xyz')).toEqual([
+        'sales', 'tenant-abc', 'customer-history', 'customer-xyz',
+      ])
+    })
+
+    it.each([
+      [pair('tenant-1', 'customer-1'), pair('tenant-2', 'customer-1')],
+      [pair('tenant-1', 'customer-1'), pair('tenant-1', 'customer-2')],
+    ])('produces different keys for different %p', (first, second) => {
+      expect(saleQueryKeys.customerHistoryPrefix(first[0], first[1])).not.toEqual(
+        saleQueryKeys.customerHistoryPrefix(second[0], second[1]),
+      )
+    })
+
+    it('customerHistoryPrefix is a prefix of customerHistory keys (TanStack invalidation)', () => {
+      const historyKey = saleQueryKeys.customerHistory('tenant-1', 'customer-1', historyParams)
+      const prefix = saleQueryKeys.customerHistoryPrefix('tenant-1', 'customer-1')
+      expect(historyKey.slice(0, 4)).toEqual(prefix)
     })
   })
 })

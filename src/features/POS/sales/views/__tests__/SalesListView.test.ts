@@ -530,41 +530,38 @@ describe('SalesListView', () => {
     expect(table.attributes('data-add-button-text')).toBe('Nueva Venta')
     expect(wrapper.get('[data-testid="toolbar-add-button"]').text()).toBe('Nueva Venta')
 
-        const folioLink = wrapper.get('[data-testid="sale-link-sale-1"]')
-        expect(folioLink.classes()).toEqual(expect.arrayContaining(['text-coco-gold-800', 'dark:text-coco-gold-400']))
-        expect(folioLink.attributes('data-color')).not.toBe('primary')
-      })
+    const folioLink = wrapper.get('[data-testid="sale-link-sale-1"]')
+    expect(folioLink.classes()).toEqual(expect.arrayContaining(['text-coco-gold-800', 'dark:text-coco-gold-400']))
+    expect(folioLink.attributes('data-color')).not.toBe('primary')
+  })
 
-      // sdd customer-sales-history S1: null-fallback coverage for SalesListView
-      describe('null-fallback coverage (sdd customer-sales-history S1, handoff §2.5)', () => {
-        it('shows "Sin folio" when folio is null in the row', () => {
-          mockState.data.value = [{ ...initialRow, folio: null }]
-          const wrapper = mount(SalesListView, { global: { stubs } })
-          expect(wrapper.text()).toContain('Sin folio')
-        })
-
-        it('shows "Fecha no disponible" when confirmedAt is null in the row', () => {
-          mockState.data.value = [{ ...initialRow, confirmedAt: null }]
-          const wrapper = mount(SalesListView, { global: { stubs } })
-          expect(wrapper.text()).toContain('Fecha no disponible')
-        })
-
-        it('shows "Sin estado" when paymentStatus is null in the row', () => {
-          mockState.data.value = [{ ...initialRow, paymentStatus: null }]
-          const wrapper = mount(SalesListView, { global: { stubs } })
-          expect(wrapper.text()).toContain('Sin estado')
-          expect(wrapper.find('[data-tone="neutral"]').exists()).toBe(true)
-        })
-
-        it('shows all three fallbacks simultaneously when all are null', () => {
-          mockState.data.value = [{ ...initialRow, folio: null, confirmedAt: null, paymentStatus: null }]
-          const wrapper = mount(SalesListView, { global: { stubs } })
-          expect(wrapper.text()).toContain('Sin folio')
-          expect(wrapper.text()).toContain('Fecha no disponible')
-          expect(wrapper.text()).toContain('Sin estado')
-        })
-      })
+  // sdd customer-sales-history S1: null-fallback coverage for SalesListView
+  describe('null-fallback coverage (sdd customer-sales-history S1, handoff §2.5)', () => {
+    it('shows "Sin folio" when folio is null in the row', () => {
+      mockState.data.value = [{ ...initialRow, folio: null }]
+      const wrapper = mount(SalesListView, { global: { stubs } })
+      expect(wrapper.text()).toContain('Sin folio')
     })
+    it('shows "Fecha no disponible" when confirmedAt is null in the row', () => {
+      mockState.data.value = [{ ...initialRow, confirmedAt: null }]
+      const wrapper = mount(SalesListView, { global: { stubs } })
+      expect(wrapper.text()).toContain('Fecha no disponible')
+    })
+    it('shows "Sin estado" when paymentStatus is null in the row', () => {
+      mockState.data.value = [{ ...initialRow, paymentStatus: null }]
+      const wrapper = mount(SalesListView, { global: { stubs } })
+      expect(wrapper.text()).toContain('Sin estado')
+      expect(wrapper.find('[data-tone="neutral"]').exists()).toBe(true)
+    })
+    it('shows all three fallbacks simultaneously when all are null', () => {
+      mockState.data.value = [{ ...initialRow, folio: null, confirmedAt: null, paymentStatus: null }]
+      const wrapper = mount(SalesListView, { global: { stubs } })
+      expect(wrapper.text()).toContain('Sin folio')
+      expect(wrapper.text()).toContain('Fecha no disponible')
+      expect(wrapper.text()).toContain('Sin estado')
+    })
+  })
+})
 
 // REQ-12: a failed /sales/confirmed request must surface as a real error block,
 // never as the "No hay ventas todavía" empty placeholder. The empty-state

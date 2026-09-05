@@ -1674,45 +1674,25 @@ describe('custom-payment-methods type extensions (sdd custom-payment-methods S4A
 // ── sdd customer-sales-history S1: SaleListSummary + nullable row fields ──────
 describe('customer-sales-history S1 contracts (sdd customer-sales-history S1)', () => {
   describe('SaleListSummary', () => {
-    const validCases = [
+    it.each([
       { salesCount: 23, totalSoldCents: 1234500, outstandingDebtCents: 78000 },
       { salesCount: 0, totalSoldCents: 0, outstandingDebtCents: 0 },
-    ]
-    it.each(validCases)('SaleListSummarySchema parses valid summary %p', (data) => {
+    ])('SaleListSummarySchema parses valid summary %p', (data) => {
       expect(SaleListSummarySchema.safeParse(data).success).toBe(true)
-    })
-
-    it('SaleListSummarySchema rejects a missing salesCount', () => {
-      expect(
-        SaleListSummarySchema.safeParse({ totalSoldCents: 1234500, outstandingDebtCents: 78000 })
-          .success,
-      ).toBe(false)
-    })
-
-    it('SaleListSummarySchema rejects float cents (non-integer totalSoldCents)', () => {
-      expect(
-        SaleListSummarySchema.safeParse({
-          salesCount: 23,
-          totalSoldCents: 12345.5,
-          outstandingDebtCents: 78000,
-        }).success,
-      ).toBe(false)
     })
 
     it.each([
       ['float salesCount', { salesCount: 2.5, totalSoldCents: 1234500, outstandingDebtCents: 78000 }],
+      ['float totalSoldCents', { salesCount: 23, totalSoldCents: 12345.5, outstandingDebtCents: 78000 }],
       ['float outstandingDebtCents', { salesCount: 23, totalSoldCents: 1234500, outstandingDebtCents: 78000.5 }],
+      ['missing salesCount', { totalSoldCents: 1234500, outstandingDebtCents: 78000 }],
       ['missing summary entirely', {}],
     ])('SaleListSummarySchema rejects %s', (_case, data) => {
       expect(SaleListSummarySchema.safeParse(data).success).toBe(false)
     })
 
     it('SaleListSummary type infers all three fields as numbers', () => {
-      const summary: SaleListSummary = {
-        salesCount: 10,
-        totalSoldCents: 500000,
-        outstandingDebtCents: 50000,
-      }
+      const summary: SaleListSummary = { salesCount: 10, totalSoldCents: 500000, outstandingDebtCents: 50000 }
       expect(typeof summary.salesCount).toBe('number')
       expect(typeof summary.totalSoldCents).toBe('number')
       expect(typeof summary.outstandingDebtCents).toBe('number')
@@ -1734,43 +1714,22 @@ describe('customer-sales-history S1 contracts (sdd customer-sales-history S1)', 
     // Table-driven: each nullable field individually plus the combined-null boundary
     it.each([
       [
-        {
-          id: 'sale-folio',
-          folio: null,
-          paymentStatus: 'PAID',
-          confirmedAt: '2026-08-30T18:42:11.000Z',
-          paymentMethods: ['CASH'] as string[],
-        },
+        { id: 'sale-folio', folio: null, paymentStatus: 'PAID', confirmedAt: '2026-08-30T18:42:11.000Z',
+          paymentMethods: ['CASH'] as string[] },
         'folio',
       ],
       [
-        {
-          id: 'sale-pmt',
-          folio: 'A-202608-000042',
-          paymentStatus: null,
-          confirmedAt: '2026-08-30T18:42:11.000Z',
-          paymentMethods: [] as string[],
-        },
+        { id: 'sale-pmt', folio: 'A-202608-000042', paymentStatus: null, confirmedAt: '2026-08-30T18:42:11.000Z',
+          paymentMethods: [] as string[] },
         'paymentStatus',
       ],
       [
-        {
-          id: 'sale-conf',
-          folio: 'A-202608-000042',
-          paymentStatus: 'PAID',
-          confirmedAt: null,
-          paymentMethods: ['CASH'] as string[],
-        },
+        { id: 'sale-conf', folio: 'A-202608-000042', paymentStatus: 'PAID', confirmedAt: null,
+          paymentMethods: ['CASH'] as string[] },
         'confirmedAt',
       ],
       [
-        {
-          id: 'sale-all',
-          folio: null,
-          paymentStatus: null,
-          confirmedAt: null,
-          paymentMethods: [] as string[],
-        },
+        { id: 'sale-all', folio: null, paymentStatus: null, confirmedAt: null, paymentMethods: [] as string[] },
         'all three null',
       ],
     ] as const)('accepts ConfirmedSaleRow with null %s', (overrides, _fieldName) => {
@@ -1783,12 +1742,7 @@ describe('customer-sales-history S1 contracts (sdd customer-sales-history S1)', 
 
   describe('CustomerSalesHistoryParams', () => {
     it('requires page, limit, sortBy, sortOrder fields', () => {
-      const params: CustomerSalesHistoryParams = {
-        page: 1,
-        limit: 10,
-        sortBy: 'confirmedAt',
-        sortOrder: 'desc',
-      }
+      const params: CustomerSalesHistoryParams = { page: 1, limit: 10, sortBy: 'confirmedAt', sortOrder: 'desc' }
       expect(params.page).toBe(1)
       expect(params.limit).toBe(10)
       expect(params.sortBy).toBe('confirmedAt')
