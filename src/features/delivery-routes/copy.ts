@@ -19,7 +19,7 @@
  * share one vocabulary.
  */
 
-/* eslint-disable max-lines */ // Spanish copy is intentionally co-located so consumers import it.
+// Spanish copy is intentionally co-located so consumers import it.
 
 export const DELIVERY_ROUTE_COPY = {
   list: {
@@ -100,12 +100,21 @@ export const DELIVERY_ROUTE_COPY = {
     stopCheckedIn: 'Parada entregada',
     routeCompleted: 'Ruta completada',
     routeCancelled: 'Ruta cancelada',
+    // Route-page evolution: per-row human timestamp + invalid-date fallback.
+    timestampFallback: 'Fecha no disponible',
+    // Default heading of the full-history rendering (the recent section
+    // passes `cockpit.recent.heading` instead).
+    historyHeading: 'Historial',
   },
   cockpit: {
     // REQ-DCS-002 / REQ-DCS-007 — sticky identity + refresh controls.
     header: {
       identityFallback: 'Ruta',
       refreshAriaLabel: 'Actualizar ruta',
+      // Route-page evolution: clear route-page identity title.
+      title: 'Ruta de entrega',
+      // Header refinement: single overflow trigger's accessible name.
+      actionsLabel: 'Acciones de la ruta',
     },
     // REQ-DCS-003 / REQ-DCS-004 / REQ-DRC-112 — current + next + empty copy.
     operational: {
@@ -128,6 +137,39 @@ export const DELIVERY_ROUTE_COPY = {
     spine: {
       rootAriaLabel: 'Recorrido de la ruta',
       nodeAriaLabel: 'Parada {N}: {status} — {customer}',
+    },
+    // Route-page evolution: truthful summary metrics (existing data only —
+    // NO package counts / ETA / duration / distance / updated-now).
+    summary: {
+      deliveredLabel: 'Entregadas',
+      pendingLabel: 'Pendientes',
+      skippedLabel: 'Omitidas',
+      totalLabel: 'Total',
+      progressAriaLabel: '{completed} de {total} paradas entregadas',
+      emptyLabel: 'Sin paradas en esta ruta',
+    },
+    // Route-page evolution: per-stop-card labels. checkIn stays single-sourced
+    // in actions.checkIn — do NOT duplicate it here.
+    stops: {
+      detailsLabel: 'Ver detalles',
+      nextBadge: 'Siguiente',
+      // Route-page evolution: visible stop-list heading + supporting line
+      // above the ordered rich cards (the ONE canonical stop presentation).
+      listHeading: 'Tus paradas',
+      listSubheading: 'Sigue el orden recomendado',
+    },
+    // Route-page evolution: compact recent-activity section heading (the
+    // timeline component renders it via its `heading` prop).
+    recent: {
+      heading: 'Actividad reciente',
+    },
+    // Route-page evolution: lifecycle context built ONLY from existing route
+    // timestamps (startedAt / completedAt / cancelledAt). No zone, no
+    // scheduled date — the backend does not supply them.
+    lifecycle: {
+      started: 'Iniciada {date}',
+      completed: 'Completada {date}',
+      cancelled: 'Cancelada {date}',
     },
     // REQ-DCK-002 — drawer titles + close label. `{N}`/`{customer}` interpolated.
     drawer: {

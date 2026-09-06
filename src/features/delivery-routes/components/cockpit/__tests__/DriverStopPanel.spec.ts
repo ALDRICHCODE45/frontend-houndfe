@@ -7,7 +7,7 @@ import DriverStopPanel from '../DriverStopPanel.vue'
 import type { DeliveryRouteStop, DeliveryRouteShippingAddress } from '../../../interfaces/delivery-route.types'
 import { DELIVERY_ROUTE_COPY } from '../../../copy'
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports, no-undef -- node builtin
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- node builtin
 const fs: typeof import('node:fs') = require('node:fs') as typeof import('node:fs')
 
 const toastCalls: Array<{ title: string; color?: string }> = []

@@ -26,12 +26,23 @@ export interface CockpitProgress {
   total: number
 }
 
+/** Truthful per-status stop counts for the route summary (existing data only). */
+export interface CockpitStopCounts {
+  delivered: number
+  pending: number
+  inProgress: number
+  skipped: number
+  total: number
+}
+
 export type CockpitNodeState = 'completed' | 'current' | 'upcoming' | 'skipped'
 
 export interface CockpitSpineNode {
   stop: DeliveryRouteStop
   nodeState: CockpitNodeState
   isCurrent: boolean
+  /** True for the single derived next stop (REQ-DCD-002) — next-stop emphasis. */
+  isNext: boolean
   isSelectable: true
 }
 
@@ -40,6 +51,7 @@ export interface DriverCockpitState {
   nextStop: DeliveryRouteStop | null
   spine: CockpitSpineNode[]
   progress: CockpitProgress
+  counts: CockpitStopCounts
   isTerminal: boolean
   hasStops: boolean
   notes: string | null
@@ -86,16 +98,35 @@ function selectNextStop(
 function buildSpine(
   stops: readonly DeliveryRouteStop[],
   currentStop: DeliveryRouteStop | null,
+  nextStop: DeliveryRouteStop | null,
 ): CockpitSpineNode[] {
   const currentId = currentStop?.id ?? null
+  const nextId = nextStop?.id ?? null
   return stops.map((stop): CockpitSpineNode => {
     let nodeState: CockpitNodeState
     if (stop.status === 'COMPLETED') nodeState = 'completed'
     else if (stop.status === 'SKIPPED') nodeState = 'skipped'
     else if (currentId !== null && stop.id === currentId) nodeState = 'current'
     else nodeState = 'upcoming'
-    return { stop, nodeState, isCurrent: nodeState === 'current', isSelectable: true }
+    return {
+      stop,
+      nodeState,
+      isCurrent: nodeState === 'current',
+      isNext: nextId !== null && stop.id === nextId,
+      isSelectable: true,
+    }
   })
+}
+
+function buildCounts(stops: readonly DeliveryRouteStop[]): CockpitStopCounts {
+  const counts: CockpitStopCounts = { delivered: 0, pending: 0, inProgress: 0, skipped: 0, total: stops.length }
+  for (const stop of stops) {
+    if (stop.status === 'COMPLETED') counts.delivered += 1
+    else if (stop.status === 'PENDING') counts.pending += 1
+    else if (stop.status === 'IN_PROGRESS') counts.inProgress += 1
+    else if (stop.status === 'SKIPPED') counts.skipped += 1
+  }
+  return counts
 }
 
 // ─── Public API ─────────────────────────────────────────────────────────────
@@ -110,6 +141,7 @@ export function deriveDriverRouteCockpit(
       nextStop: null,
       spine: [],
       progress: { completed: 0, total: 0 },
+      counts: { delivered: 0, pending: 0, inProgress: 0, skipped: 0, total: 0 },
       isTerminal: false,
       hasStops: false,
       notes: null,
@@ -125,8 +157,9 @@ export function deriveDriverRouteCockpit(
   return {
     currentStop,
     nextStop,
-    spine: buildSpine(route.stops, currentStop),
+    spine: buildSpine(route.stops, currentStop, nextStop),
     progress: { completed: completedCount, total: route.stops.length },
+    counts: buildCounts(route.stops),
     isTerminal,
     hasStops: route.stops.length > 0,
     notes: route.notes ?? null,
