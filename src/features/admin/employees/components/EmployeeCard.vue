@@ -68,11 +68,11 @@ const rowActions = computed(() =>
 
 <template>
   <article
-    class="group relative flex min-h-[220px] cursor-pointer flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+    class="group relative flex min-h-[220px] w-full min-w-0 max-w-full cursor-pointer flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
     @click="emit('click', employee)"
   >
     <!-- Row action menu (top-right corner) -->
-    <div v-if="rowActions.length > 0" class="absolute right-3 top-3 z-10" @click.stop>
+    <div v-if="rowActions.length > 0" data-testid="kebab-wrapper" class="absolute right-3 top-3 z-10" @click.stop>
       <UDropdownMenu
         :items="rowActions"
         :content="{ align: 'end' }"
@@ -105,7 +105,7 @@ const rowActions = computed(() =>
         <p class="line-clamp-1 text-xs text-muted">{{ employee.currentPosition ?? employee.employeeNumber }}</p>
       </div>
 
-      <div class="flex min-h-6 flex-wrap items-center gap-1.5">
+      <div data-testid="card-chip-row" class="flex min-h-6 min-w-0 max-w-full flex-wrap items-center gap-1.5">
         <!-- DotBadge handles the neutral-outlined + colored-dot department pattern -->
         <DotBadge
           v-if="employee.currentDepartment"
@@ -138,11 +138,11 @@ const rowActions = computed(() =>
       </div>
       <div class="min-w-0">
         <p class="text-muted">Modalidad</p>
-        <p class="mt-1 font-medium text-default">{{ modalityLabel }}</p>
+        <p class="mt-1 truncate font-medium text-default">{{ modalityLabel }}</p>
       </div>
       <div class="min-w-0 text-right">
         <p class="text-muted">Antigüedad</p>
-        <p class="mt-1 font-semibold text-default">{{ seniority }}</p>
+        <p class="mt-1 truncate font-semibold text-default">{{ seniority }}</p>
       </div>
     </div>
   </article>
