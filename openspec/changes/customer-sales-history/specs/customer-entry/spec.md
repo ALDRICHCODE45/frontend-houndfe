@@ -6,7 +6,7 @@ Define consistent, permission-gated entry points for opening customer sales hist
 
 ## Requirements
 
-### REQ-CSH-ENT-001 — Table history action and permission gate
+### REQ-CSH-ENT-001: Table history action and permission gate
 
 `CustomersView` SHALL expose a `Ver historial de ventas` row-dropdown action only when `authStore.userCan('read', 'Sale')` is true. Without that permission, the action SHALL be hidden entirely. Its visibility SHALL be independent of customer edit and delete permissions, and existing customer actions SHALL retain their current behavior.
 
@@ -39,7 +39,7 @@ Define consistent, permission-gated entry points for opening customer sales hist
 - The history action is absent, not merely disabled or hidden after activation.
 - Edit/delete visibility is evaluated independently.
 
-### REQ-CSH-ENT-002 — Card and grid forwarding parity
+### REQ-CSH-ENT-002: Card and grid forwarding parity
 
 `CustomerCard` SHALL expose the same gated history action through its kebab menu, and `CustomerCardGrid` SHALL explicitly forward the permission prop and history-open event to preserve parity with the table entry. The card's existing click behavior SHALL remain unchanged.
 
@@ -72,7 +72,7 @@ Define consistent, permission-gated entry points for opening customer sales hist
 
 - The grid forwards the event without changing the customer identity or swallowing the selection.
 
-### REQ-CSH-ENT-003 — Kebab visibility and independent state
+### REQ-CSH-ENT-003: Kebab visibility and independent state
 
 The customer-card kebab SHALL be visible when any of update, delete, or read-sale actions is available. History open state SHALL be independent from the customer edit form and `CustomerDetail` fetch state; opening or closing history SHALL not open, submit, reset, or refetch the edit/detail surface.
 
@@ -105,7 +105,7 @@ The customer-card kebab SHALL be visible when any of update, delete, or read-sal
 - The edit form state and detail-fetch state are unchanged.
 - Reopening history uses its own selected-customer/open state and query lifecycle.
 
-### REQ-CSH-ENT-004 — Defensive authorization error handling
+### REQ-CSH-ENT-004: Defensive authorization error handling
 
 Entry-point permission checks SHALL provide the normal UX gate, while the history surface SHALL still handle a backend 403 defensively: show a single toast, close the panel, and never expose fabricated customer data or a retry affordance for an authorization failure.
 

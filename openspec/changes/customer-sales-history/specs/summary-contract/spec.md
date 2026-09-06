@@ -6,7 +6,7 @@ Define the frontend contract for customer-specific confirmed-sales history so th
 
 ## Requirements
 
-### REQ-CSH-CON-001 — Confirmed history response contract
+### REQ-CSH-CON-001: Confirmed history response contract
 
 The frontend SHALL model `ConfirmedSalesListResponse` with `summary: SaleListSummary`, where `summary` contains `salesCount`, `totalSoldCents`, and `outstandingDebtCents` as integer values. The frontend SHALL model `folio`, `paymentStatus`, and `confirmedAt` as nullable wherever the backend permits null, leaving null handling to the consuming UI.
 
@@ -39,7 +39,7 @@ The frontend SHALL model `ConfirmedSalesListResponse` with `summary: SaleListSum
 
 - The response remains valid and consumers can provide an explicit display fallback.
 
-### REQ-CSH-CON-002 — Customer history request parameters
+### REQ-CSH-CON-002: Customer history request parameters
 
 The `useCustomerSalesHistory` query SHALL call the unmodified confirmed-sales API with `customerId`, the requested `page`, `limit: 10`, `sortBy: confirmedAt`, and `sortOrder: desc`. It SHALL omit `status` and SHALL never send `customerIncludeNull: true` for a specific customer history request.
 
@@ -73,7 +73,7 @@ The `useCustomerSalesHistory` query SHALL call the unmodified confirmed-sales AP
 - `customerIncludeNull` is not present and is never `true`.
 - Anonymous sales cannot be mixed into the customer history.
 
-### REQ-CSH-CON-003 — Tenant-safe query identity and cache behavior
+### REQ-CSH-CON-003: Tenant-safe query identity and cache behavior
 
 The frontend SHALL centralize `saleQueryKeys.customerHistory(tenantId, customerId, params)` with JSON-serializable parameters including the tenant and customer identity. The query SHALL use a 30-second stale time, preserve prior data while changing pages, and be disabled while the history surface is closed. Closing and reopening SHALL not invalidate the customer-history query.
 

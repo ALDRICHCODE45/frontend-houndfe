@@ -6,7 +6,7 @@ Define the accessible, read-only lateral customer sales-history slideover and it
 
 ## Requirements
 
-### REQ-CSH-SUR-001 — Authoritative summary metrics
+### REQ-CSH-SUR-001: Authoritative summary metrics
 
 The history surface SHALL render confirmed-sales count, total sold, and outstanding debt exclusively from the active response `summary`. It SHALL never sum paginated rows, recompute `outstandingDebtCents` or `debtCents`, or infer metrics from row values. Currency SHALL use MXN `es-MX` formatting.
 
@@ -41,7 +41,7 @@ The history surface SHALL render confirmed-sales count, total sold, and outstand
 - No metric is derived by reducing, summing, or recalculating the rows.
 - The displayed debt is exactly the response `summary.outstandingDebtCents`.
 
-### REQ-CSH-SUR-002 — Compact list and navigation
+### REQ-CSH-SUR-002: Compact list and navigation
 
 The surface SHALL render a compact semantic sale list with folio fallback, `formatSaleDate` for confirmation date, `formatCentsMXN` for monetary values, and the existing payment-status badge utility. Each selectable row SHALL have an accessible name and SHALL navigate to the named `pos-sale-detail` route with the sale ID; the surface SHALL remain read-only.
 
@@ -75,7 +75,7 @@ The surface SHALL render a compact semantic sale list with folio fallback, `form
 - The UI shows explicit non-breaking fallbacks rather than blank, invalid, or crashing content.
 - The row remains keyboard and screen-reader operable when it has a valid sale ID.
 
-### REQ-CSH-SUR-003 — Stable pagination and states
+### REQ-CSH-SUR-003: Stable pagination and states
 
 The surface SHALL provide traditional pagination for available pages while keeping the active response summary stable as pages change. It SHALL distinguish loading, non-error empty, and error states. A 200 response with zero summary values and empty data SHALL render the empty state, never an error. Errors SHALL use normalized messaging and provide retry behavior, except a defensive 403 which SHALL show one toast, close the panel, and offer no retry.
 
@@ -125,7 +125,7 @@ The surface SHALL provide traditional pagination for available pages while keepi
 - A 403 is shown as one toast `Sin permiso para ver ventas`, the panel closes, and no retry is offered.
 - No fabricated metrics are rendered for the authorization failure.
 
-### REQ-CSH-SUR-004 — Accessible slideover structure
+### REQ-CSH-SUR-004: Accessible slideover structure
 
 The history surface SHALL be a right-side lateral slideover approximately 520px wide on desktop, with an accessible dialog name identifying the customer and accessible names for close, retry, pagination, and sale-row controls. The customer identity header SHALL be present when the surface is open.
 
