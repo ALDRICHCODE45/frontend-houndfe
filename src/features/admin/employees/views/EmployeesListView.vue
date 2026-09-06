@@ -369,8 +369,8 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
 </script>
 
 <template>
-  <div class="flex flex-col gap-4 px-4 py-3 sm:px-6 lg:px-8">
-    <UCard :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }" class="overflow-hidden shadow-sm">
+  <div class="flex w-full min-w-0 flex-col gap-4 py-3 md:px-6 lg:px-8">
+    <UCard :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }" class="w-full min-w-0 max-w-full overflow-hidden shadow-sm">
       <!-- WU-A: AdminPageHeader replaces the inline <h1> (REQ-3) -->
       <template #header>
         <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -386,7 +386,7 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
         </div>
       </template>
 
-      <div class="flex flex-col gap-4 px-5 py-4">
+      <div class="flex w-full min-w-0 flex-col gap-4 px-3 py-3 sm:px-4 sm:py-4">
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"

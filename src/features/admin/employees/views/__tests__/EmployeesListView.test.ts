@@ -793,3 +793,93 @@ describe('EmployeesListView — canCreate gating on add button (REQ-3)', () => {
     chaiExpect(html).not.toContain('CreateEmployeeSlideover-stub-stub')
   })
 })
+
+// ── S4: mobile density containment ─────────────────────────────────────────
+
+describe('EmployeesListView — mobile density containment (S4)', () => {
+  it('route root removes the duplicate mobile horizontal gutter while retaining py-3 and desktop padding', async () => {
+    const wrapper = mount(getView().default)
+    await flushPromises()
+
+    // The view is a multi-root fragment (slidovers/dialogs are siblings), so
+    // traverse from the stable table testid: app-data-table -> inner body ->
+    // UCard body -> UCard root -> route root div.
+    const tableEl = wrapper.get('[data-testid="app-data-table"]').element as HTMLElement
+    const routeRoot = tableEl.parentElement!.parentElement!.parentElement!
+      .parentElement as HTMLElement
+    const rootClasses = Array.from(routeRoot.classList)
+
+    // Design §1: Colaboradores retains `py-3`, removes horizontal padding
+    // below `md`, and restores the desktop progression `md:px-6 lg:px-8`.
+    // The dashboard body stays the sole mobile outer gutter. Class-level
+    // contract only — jsdom never proves rendered geometry.
+    chaiExpect(rootClasses).toEqual(
+      chaiExpect.arrayContaining(['w-full', 'min-w-0', 'py-3', 'md:px-6', 'lg:px-8']),
+    )
+    chaiExpect(rootClasses).not.toContain('px-4')
+    chaiExpect(rootClasses).not.toContain('sm:px-6')
+  })
+
+  it('contains the list surface and inner body to the available width', async () => {
+    const wrapper = mount(getView().default)
+    await flushPromises()
+
+    const tableEl = wrapper.get('[data-testid="app-data-table"]').element as HTMLElement
+    const body = tableEl.parentElement as HTMLElement
+    // Traversal: app-data-table -> inner body div -> UCard internal body
+    // (ui.body classes) -> UCard root, which carries the surface classes.
+    const surface = body.parentElement?.parentElement as HTMLElement
+
+    chaiExpect(Array.from(surface.classList)).toEqual(
+      chaiExpect.arrayContaining(['w-full', 'min-w-0', 'max-w-full', 'overflow-hidden', 'shadow-sm']),
+    )
+
+    const bodyClasses = Array.from(body.classList)
+    chaiExpect(bodyClasses).toEqual(
+      chaiExpect.arrayContaining(['w-full', 'min-w-0', 'px-3', 'py-3', 'sm:px-4', 'sm:py-4']),
+    )
+    chaiExpect(bodyClasses).not.toContain('px-5')
+  })
+
+  it('keeps the table-mode pinned actions contract and the status filter sheet intact', async () => {
+    mockState.columnPinning.value = { left: [], right: ['actions'] }
+    const wrapper = mount(getView().default)
+    await flushPromises()
+    const table = wrapper.get('[data-testid="app-data-table"]')
+
+    const pinning = JSON.parse(table.attributes('data-column-pinning')!) as {
+      left: string[]
+      right: string[]
+    }
+    chaiExpect(pinning.right).toContain('actions')
+
+    // Status filter sheet: EmployeeFilters stays inside a FilterSectionCard
+    // titled "Estado" in the #filters slot.
+    const filterCard = wrapper.findComponent(FilterSectionCard)
+    chaiExpect(filterCard.exists()).toBe(true)
+    chaiExpect(filterCard.props('title')).toBe('Estado')
+    chaiExpect(filterCard.find('[data-testid="employee-filters"]').exists()).toBe(true)
+  })
+
+  it('renders the persisted card mode immediately and keeps the route root free of scroll classes', async () => {
+    localStorage.setItem('employee-view-mode', 'card')
+    const wrapper = mount(getView().default)
+    await flushPromises()
+
+    chaiExpect(wrapper.get('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe('cards')
+    chaiExpect(wrapper.find('[data-testid="employee-card-grid"]').exists()).toBe(true)
+    chaiExpect(wrapper.element.classList.contains('overflow-x-auto')).toBe(false)
+  })
+
+  it('forwards loading and permission flags to EmployeeCardGrid', async () => {
+    mockState.isLoading.value = true
+    mockState.isFetching.value = true
+    authMock.userCan.mockImplementation(() => true)
+    const wrapper = mount(getView().default)
+    await flushPromises()
+
+    const grid = wrapper.find('[data-testid="employee-card-grid"]')
+    chaiExpect(grid.exists()).toBe(true)
+    chaiExpect(grid.attributes('data-can-update')).toBe('true')
+  })
+})
