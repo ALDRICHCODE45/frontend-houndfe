@@ -153,7 +153,20 @@ Canonical specs are unchanged and remain byte-identical to the archived delta sp
 - Parent worktree (`frontend-houndfe`) is unchanged.
 - No push performed.
 
+## Follow-up archive metadata correction
+
+- **Follow-up commit `2d812fc` (`docs(openspec): include archived verification evidence`).** Added the previously untracked `verify-report.md` to the archive, completing the **11/11 tracked archive** (8 prior renames plus the embedded `specs/` tree and `verify-report.md`/`sync-report.md` additions, now totalling 11 tracked files). All 11 paths are tracked after `2d812fc`; source `openspec/changes/customer-sales-history/` remains absent.
+- **Additive whitespace normalization in this corrective commit.** The archived `verify-report.md` had three intentional Markdown hard-break trailing-whitespace lines (lines 18-20: **Branch** / **HEAD** / **Baseline**). They were replaced with a no-trailing-whitespace three-item list form, preserving readable separation and identical prose content; no other content (verdict, evidence data, requirements/scenarios, commands, or downstream sections) was altered.
+- **Verify-report raw SHA-256 (after normalization):** `6937597f11b829c08384765a120ffb45e7514623bfa6133bb46fc3af796e3de3` (was `842e42966b51c9f3c1c8f0e2c7afd45ebcc8fc7e0b7fc4b8d59e2fcd2b79e0b6` at archive time; see §Verify verdict and evidence for the original-capture record, which remains preserved as the historical fact).
+- **Re-validation:** `gentle-ai sdd-verify-validate --input openspec/changes/archive/2026-09-06-customer-sales-history/verify-report.md --requirements 11 --scenarios 22` returned `valid: true, verdict: pass_with_warnings, evidence_revision: sha256:c86b5ef41cc00e54c11c5aa4eed57aed0384bcfde71d20c7dfb14127bd471261`. The evidence revision is unchanged because the YAML envelope was not modified; only the three Markdown prose lines were normalized.
+- **Canonical spec hashes and byte equality re-confirmed unchanged** (post this corrective commit):
+  - `openspec/specs/customer-entry/spec.md` → `14208838d023a1b95702fde70fb6e17eb42c2a018eb6cecece055f0f208a1439` (byte-equal to archived delta spec).
+  - `openspec/specs/history-surface/spec.md` → `85be72e9f96938cf7f8ad3b271219c8c9fae2b65a1dd2992a03957178cc3a15d` (byte-equal to archived delta spec).
+  - `openspec/specs/summary-contract/spec.md` → `40d8e542613f3a72dc2ced2a1eeb25df7855bfa17ba7e16793e67794a07e014a` (byte-equal to archived delta spec).
+- **Inventory audit:** 11/11 archive files tracked; source root absent; canonical specs unchanged; no destructive merge; no active same-domain collision.
+- **`git diff --check` and `git diff --check main...HEAD`:** both clean (exit 0, empty output SHA-256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`) after this corrective commit. The full branch `git diff --check main...HEAD` is **clean**, removing the prior delivery-blocking diff-check issue on the three hard-break lines.
+
 ## Final archive status
 
-- **PASS.** Source `openspec/changes/customer-sales-history/` is **absent**. Archive `openspec/changes/archive/2026-09-06-customer-sales-history/` is complete, hashed, and tracked. Canonical specs are unchanged and remain byte-identical to archived delta specs. Verify report is preserved unchanged (raw SHA-256 `842e4296…79e0b6`).
-- Delivery is **not** authorized by this archive phase. No push performed.
+- **PASS.** Source `openspec/changes/customer-sales-history/` is **absent**. Archive `openspec/changes/archive/2026-09-06-customer-sales-history/` is complete, hashed, and tracked. Canonical specs are unchanged and remain byte-identical to archived delta specs. Verify report is preserved unchanged (raw SHA-256 `842e4296…79e0b6`) at archive time; see §Follow-up archive metadata correction for the additive whitespace normalization commit.
+- Delivery is **not** authorized by this archive phase. No push performed. Follow-up commit `2d812fc` (added `verify-report.md`) plus this corrective commit finalize the archive metadata; no push performed.

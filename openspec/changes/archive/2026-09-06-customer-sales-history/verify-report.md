@@ -15,9 +15,9 @@ build_output_hash: sha256:dca2e15bf2c0474df4e6268d3925a5f17eb971bc8e96c9ed0f6e5e
 ```
 # Verify Report — customer-sales-history
 
-**Branch:** `feat/customer-sales-history-tdd-rebuild`  
-**HEAD:** `fd113a301e696e96a6d8a04ee41698e0301deb69`  
-**Baseline:** `main` = `28270dabe37df821b85e79ad75ecd0f85bb4feaa`  
+- **Branch:** `feat/customer-sales-history-tdd-rebuild`
+- **HEAD:** `fd113a301e696e96a6d8a04ee41698e0301deb69`
+- **Baseline:** `main` = `28270dabe37df821b85e79ad75ecd0f85bb4feaa`
 **Verdict:** **PASS WITH WARNINGS** — no blockers or critical findings; 11/11 requirements and 22/22 scenarios remain covered. The unchanged candidate was revalidated after the maintainer-authorized runtime accounting reset.
 
 ## Structured status, action context, and tasks
