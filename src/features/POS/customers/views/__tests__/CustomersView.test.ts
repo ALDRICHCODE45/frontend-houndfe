@@ -18,7 +18,7 @@ const mockState = {
   pagination: ref({ pageIndex: 0, pageSize: 10 }),
   sorting: ref<Array<{ id: string; desc: boolean }>>([{ id: 'fullName', desc: false }]),
   globalFilter: ref(''),
-  columnPinning: ref({ left: [], right: [] }),
+  columnPinning: ref<{ left: string[]; right: string[] }>({ left: [], right: [] }),
   columnVisibility: ref<Record<string, boolean>>({}),
   rowSelection: ref({}),
   data: ref<Customer[]>([]),
@@ -129,6 +129,8 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
         :data-display-mode="displayMode"
         :data-error="error ? 'true' : 'false'"
         :data-error-message="errorMessage"
+        :data-column-pinning-right="((columnPinning ?? {}).right ?? []).join(',')"
+        :data-slots="Object.keys($slots).join(',')"
       >
         <slot name="actions" />
         <slot name="cards" />
@@ -155,6 +157,7 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
       error: { default: false },
       errorMessage: { default: 'No se pudieron cargar los datos. Reintenta.' },
       empty: { default: 'No se encontraron resultados' },
+      columnPinning: { default: undefined },
     },
     emits: ['add', 'refresh'],
   },
@@ -252,6 +255,86 @@ beforeEach(() => {
   customerAuthMock.userCan.mockReset()
   customerAuthMock.userCan.mockReturnValue(true)
   toastMock.add.mockClear()
+})
+
+// ── S3: mobile density containment ─────────────────────────────────────────
+describe('CustomersView — mobile density containment (S3)', () => {
+  it('route root removes the duplicate mobile outer gutter while retaining desktop padding', () => {
+    const wrapper = mount(CustomersView)
+    const rootClasses = Array.from(wrapper.element.classList)
+
+    // Design §1: Customers replaces unconditional `px-10` with
+    // `w-full min-w-0 md:px-10`; the dashboard body stays the sole
+    // mobile outer gutter. Class-level contract only — jsdom never
+    // proves rendered geometry.
+    expect(rootClasses).toEqual(expect.arrayContaining(['w-full', 'min-w-0', 'md:px-10']))
+    expect(rootClasses).not.toContain('px-10')
+  })
+
+  it('contains the list surface and inner body to the available width', () => {
+    const wrapper = mount(CustomersView)
+
+    const tableEl = wrapper.get('[data-testid="app-data-table"]').element as HTMLElement
+    const body = tableEl.parentElement as HTMLElement
+    // Traversal: app-data-table -> inner body div -> UCard internal body
+    // (ui.body classes) -> UCard root, which receives fallthrough classes.
+    const surface = body.parentElement?.parentElement as HTMLElement
+
+    expect(Array.from(surface.classList)).toEqual(
+      expect.arrayContaining(['w-full', 'min-w-0', 'max-w-full', 'overflow-hidden', 'shadow-sm']),
+    )
+
+    const bodyClasses = Array.from(body.classList)
+    expect(bodyClasses).toEqual(
+      expect.arrayContaining(['w-full', 'min-w-0', 'px-3', 'py-3', 'sm:px-4', 'sm:py-4']),
+    )
+    expect(bodyClasses).not.toContain('px-6')
+  })
+
+  it('keeps the table-mode pinned actions contract and the no-filter-slot semantics intact', () => {
+    mockState.columnPinning.value = { left: [], right: ['actions'] }
+    const wrapper = mount(CustomersView)
+    const table = wrapper.get('[data-testid="app-data-table"]')
+
+    expect(table.attributes('data-column-pinning-right')).toBe('actions')
+    // Customers intentionally has no Filters slot; one must not be invented.
+    expect((table.attributes('data-slots') ?? '').split(',')).not.toContain('filters')
+  })
+
+  it('renders the persisted card mode immediately and keeps the route root free of scroll classes', () => {
+    localStorage.setItem('customers-view-mode', 'card')
+    const wrapper = mount(CustomersView)
+
+    expect(wrapper.get('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe('cards')
+    expect(wrapper.find('[data-testid="customer-card-grid"]').exists()).toBe(true)
+    expect(wrapper.element.classList.contains('overflow-x-auto')).toBe(false)
+  })
+
+  it('switches to card mode through the toolbar ViewToggle and persists the choice', async () => {
+    const wrapper = mount(CustomersView)
+    await flushPromises()
+
+    await wrapper.get('[data-testid="view-toggle-card"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe('cards')
+    expect(localStorage.getItem('customers-view-mode')).toBe('card')
+  })
+
+  it('forwards loading and permission flags to CustomerCardGrid', async () => {
+    mockState.isLoading.value = true
+    mockState.isFetching.value = true
+    customerAuthMock.userCan.mockReturnValue(true)
+    const wrapper = mount(CustomersView)
+    await flushPromises()
+
+    const grid = wrapper.findComponent({ name: 'CustomerCardGrid' })
+    expect(grid.exists()).toBe(true)
+    expect(grid.props('loading')).toBe(true)
+    expect(grid.props('canUpdate')).toBe(true)
+    expect(grid.props('canDelete')).toBe(true)
+    expect(grid.props('canReadSales')).toBe(true)
+  })
 })
 
 describe('CustomersView — error state', () => {

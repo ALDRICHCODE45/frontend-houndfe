@@ -57,7 +57,7 @@ function handleViewHistory(): void {
 
 <template>
   <article
-    class="group relative flex cursor-pointer flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+    class="group relative flex w-full min-w-0 max-w-full cursor-pointer flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
     @click="emit('click', customer)"
   >
     <!-- Top-right kebab (gated by canManage) -->
@@ -103,13 +103,14 @@ function handleViewHistory(): void {
         <p class="line-clamp-1 text-xs text-muted">{{ customer.email ?? '—' }}</p>
       </div>
 
-      <!-- Chip row: globalPriceListName -->
-      <div class="flex min-h-6 flex-wrap items-center gap-1.5">
+      <!-- Chip row: globalPriceListName (constrained to the card) -->
+      <div class="flex min-h-6 min-w-0 max-w-full flex-wrap items-center gap-1.5">
         <AppBadge
           v-if="customer.globalPriceListName"
           tone="neutral"
+          class="min-w-0 max-w-full"
         >
-          {{ customer.globalPriceListName }}
+          <span class="block max-w-full truncate">{{ customer.globalPriceListName }}</span>
         </AppBadge>
       </div>
     </div>

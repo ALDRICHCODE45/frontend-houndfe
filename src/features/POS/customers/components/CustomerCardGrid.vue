@@ -1,11 +1,11 @@
 <script setup lang="ts">
 /**
- * CustomerCardGrid — responsive grid of CustomerCard components.
+ * CustomerCardGrid — available-width grid of CustomerCard components.
  *
- * Mirrors EmployeeCardGrid: ladder layout (1/2/3/5/7), 8 skeleton
- * placeholders while loading, an empty-state block when there are no
- * customers. Pure presentational: receives `customers` as a prop and
- * forwards card events back to the parent.
+ * Uses the S3 pilot available-width convention (auto-fit/minmax tracks):
+ * 8 skeleton placeholders while loading, an empty-state block when there
+ * are no customers. Pure presentational: receives `customers` as a prop
+ * and forwards card events back to the parent.
  */
 
 import CustomerCard from './CustomerCard.vue'
@@ -24,8 +24,14 @@ const emit = defineEmits<{
   'card-click': [customer: Customer]
   edit: [customer: Customer]
   delete: [customer: Customer]
-  'view-history': [customer: Customer]
+    'view-history': [customer: Customer]
 }>()
+
+// S3 pilot available-width grid convention (design §4): the nested list
+// width, not the viewport, decides the column count. Duplicated by design
+// across the three pilot grids — no shared wrapper.
+const gridClasses =
+  'grid w-full min-w-0 max-w-full grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-3'
 </script>
 
 <template>
@@ -33,7 +39,7 @@ const emit = defineEmits<{
   <div
     v-if="loading"
     data-testid="card-grid-skeleton"
-    class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-7"
+    :class="gridClasses"
   >
     <div
       v-for="i in 8"
@@ -47,7 +53,7 @@ const emit = defineEmits<{
   <div
     v-else-if="!customers.length"
     data-testid="card-grid-empty"
-    class="flex flex-col items-center justify-center gap-3 py-16 text-center"
+    class="flex w-full min-w-0 max-w-full flex-col items-center justify-center gap-3 py-16 text-center"
   >
     <UIcon name="i-lucide-users" class="size-12 text-muted opacity-50" />
     <p class="text-sm text-muted">{{ empty ?? 'No se encontraron clientes' }}</p>
@@ -57,7 +63,7 @@ const emit = defineEmits<{
   <div
     v-else
     data-testid="card-grid"
-    class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-7"
+    :class="gridClasses"
   >
     <CustomerCard
       v-for="customer in customers"
