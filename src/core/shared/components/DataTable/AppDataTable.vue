@@ -173,7 +173,7 @@ function handleClearSelection() {
 </script>
 
 <template>
-  <div class="flex flex-col gap-4">
+  <div class="flex w-full min-w-0 max-w-full flex-col gap-4">
     <!-- Toolbar -->
     <DataTableToolbar
       v-if="props.showToolbar"
@@ -217,7 +217,7 @@ function handleClearSelection() {
            below, which is unreachable when a parent provides the #cards slot.) -->
       <div
         v-if="props.error"
-        class="flex min-h-32 flex-col items-center justify-center gap-3 rounded-lg border border-error/30 bg-error/5 px-4 py-8 text-sm"
+        class="flex min-h-32 w-full min-w-0 max-w-full flex-col items-center justify-center gap-3 rounded-lg border border-error/30 bg-error/5 px-4 py-8 text-sm"
         data-testid="cards-error-state"
         role="alert"
       >
@@ -246,7 +246,7 @@ function handleClearSelection() {
       <template v-else>
         <div
           v-if="isLoading"
-          class="grid gap-3"
+          class="grid w-full min-w-0 max-w-full gap-3"
           data-testid="mobile-cards-loading"
         >
           <div
@@ -259,7 +259,7 @@ function handleClearSelection() {
 
         <div
           v-else-if="props.data.length === 0 || !slots['mobile-card']"
-          class="flex min-h-32 items-center justify-center rounded-lg border border-dashed border-default px-4 py-8 text-sm text-muted"
+          class="flex min-h-32 w-full min-w-0 max-w-full items-center justify-center rounded-lg border border-dashed border-default px-4 py-8 text-sm text-muted"
           data-testid="mobile-empty-state"
         >
           {{ props.empty }}
@@ -267,7 +267,7 @@ function handleClearSelection() {
 
         <div
           v-else
-          class="grid gap-3"
+          class="grid w-full min-w-0 max-w-full gap-3"
           data-testid="mobile-cards-list"
         >
           <slot
@@ -287,7 +287,7 @@ function handleClearSelection() {
            empty row inside UTable. -->
       <div
         v-if="props.error"
-        class="flex min-h-32 flex-col items-center justify-center gap-3 rounded-lg border border-error/30 bg-error/5 px-4 py-10 text-sm"
+        class="flex min-h-32 w-full min-w-0 max-w-full flex-col items-center justify-center gap-3 rounded-lg border border-error/30 bg-error/5 px-4 py-10 text-sm"
         data-testid="table-error-state"
         role="alert"
       >
@@ -323,7 +323,7 @@ function handleClearSelection() {
         :sorting-options="{
           manualSorting: true,
         }"
-        class="flex-1"
+        class="w-full min-w-0 max-w-full flex-1"
         data-testid="table-view"
       >
         <template v-for="name in forwardedTableSlots" #[name]="slotProps">

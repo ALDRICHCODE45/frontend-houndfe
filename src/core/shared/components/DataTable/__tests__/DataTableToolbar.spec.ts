@@ -56,6 +56,13 @@ const baseStubs = {
 
 type ToolbarProps = Record<string, unknown>
 
+/** S1 containment class contract shared by root and region wrappers. */
+function expectRegionContainment(classes: string[]) {
+  expect(classes).toContain('w-full')
+  expect(classes).toContain('min-w-0')
+  expect(classes).toContain('max-w-full')
+}
+
 function mountToolbar(
   propsOverride: ToolbarProps = {},
   slots: Record<string, string> = {},
@@ -207,6 +214,92 @@ describe('DataTableToolbar — mobile three-region layout', () => {
     expect(html).not.toContain('data-testid="toolbar-mobile-columns-button"')
   })
 })
+
+// ─── Mobile containment + breakpoint alignment (S1) ─────────────────────────
+// The CSS breakpoint must match the JavaScript mobile branch: the root stays a
+// column through < md (including the 640–767 px band the old `sm:flex-row`
+// wrongly row-ified) and only becomes the historical row at `md`. Root and
+// region wrappers gain shrink containment. jsdom asserts class contracts only.
+
+describe('DataTableToolbar — mobile containment and breakpoint alignment (S1)', () => {
+  beforeEach(() => {
+    isBelowBreakpoint.value = true
+  })
+
+  it('keeps the root a column through <md (incl. 640–767) and rows only at md, contained', () => {
+    const wrapper = mountToolbar(
+      { showAddButton: true, showRefresh: true, activeFilterCount: 1 },
+      { filters: '<span data-testid="fake-filter">F</span>' },
+    )
+
+    const classes = wrapper.element.className.split(/\s+/)
+    expect(classes).toEqual(
+      expect.arrayContaining(['flex-col', 'md:flex-row', 'w-full', 'min-w-0', 'max-w-full']),
+    )
+    // The old sm:flex-row row-ified the still-mobile 640–767 px markup.
+    expect(classes).not.toContain('sm:flex-row')
+    // Three canonical mobile regions, ordered, wrapped, and contained.
+    const regions = wrapper.findAll('[data-testid^="toolbar-mobile-"]')
+    expect(regions.map(r => r.attributes('data-testid'))).toEqual([
+      'toolbar-mobile-search-row',
+      'toolbar-mobile-actions-row',
+      'toolbar-mobile-filters-row',
+    ])
+    for (const region of regions) {
+      expectRegionContainment(region.classes())
+    }
+    expect(regions[1]!.classes()).toContain('flex-wrap')
+  })
+
+  it('constrains the two regions that exist when filters are absent', () => {
+    const regions = mountToolbar({ showAddButton: true, showRefresh: true }).findAll(
+      '[data-testid^="toolbar-mobile-"]',
+    )
+    expect(regions.length).toBe(2)
+    for (const region of regions) {
+      expectRegionContainment(region.classes())
+    }
+  })
+
+  it('retains the fixed add → refresh → actions-slot order on the wrapping region', () => {
+    const wrapper = mountToolbar(
+      {
+        showAddButton: true,
+        addButtonTestId: 'add-btn',
+        showRefresh: true,
+        refreshButtonTestId: 'refresh-btn',
+        showColumnVisibility: true,
+      },
+      { actions: '<span data-testid="fake-action">A</span>' },
+    )
+
+    const html = wrapper.html()
+    const addIdx = html.indexOf('data-testid="add-btn"')
+    const refreshIdx = html.indexOf('data-testid="refresh-btn"')
+    const slotIdx = html.indexOf('data-testid="fake-action"')
+    expect(addIdx).toBeGreaterThan(-1)
+    expect(refreshIdx).toBeGreaterThan(addIdx)
+    expect(slotIdx).toBeGreaterThan(refreshIdx)
+  })
+
+  it('preserves desktop row semantics and the unchanged filter sheet contract', () => {
+    isBelowBreakpoint.value = false
+    const desktop = mountToolbar({ showRefresh: true })
+    expect(desktop.element.className.split(/\s+/)).toContain('md:flex-row')
+    expect(desktop.find('input').exists()).toBe(true)
+
+    isBelowBreakpoint.value = true
+    const sheet = mountToolbar(
+      { activeFilterCount: 1 },
+      { filters: '<span data-testid="fake-filter">F</span>' },
+    )
+    expect(sheet.get('[data-testid="slideover"]').attributes('data-side')).toBe('bottom')
+    expect(sheet.get('[data-testid="toolbar-filters-body"]').classes()).toContain('overflow-y-auto')
+    // Root containment must not leak into the sheet regions.
+    expect(sheet.get('[data-testid="toolbar-filters-header"]').classes()).not.toContain('max-w-full')
+  })
+})
+
 
 // ─── Filters collapse to bottom-sheet ────────────────────────────────────────
 
