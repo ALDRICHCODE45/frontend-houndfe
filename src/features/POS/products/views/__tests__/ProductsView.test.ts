@@ -8,6 +8,7 @@ const push = vi.fn()
 const invalidateQueries = vi.fn()
 const refetchQueries = vi.fn()
 const setMode = vi.fn()
+const userCan = vi.fn(() => true)
 const viewMode = ref<'table' | 'card'>('table')
 
 const serverData = [
@@ -74,7 +75,7 @@ vi.mock('@/core/shared/composables/useServerTable', () => ({
 vi.mock('@/features/auth/stores/useAuthStore', () => ({
   useAuthStore: () => ({
     currentTenantId: 'tenant-1',
-    userCan: () => true,
+    userCan,
   }),
 }))
 
@@ -121,16 +122,18 @@ vi.mock('../../composables/useProductViewMode', () => ({
   isProductViewMode: (value: string) => value === 'table' || value === 'card',
 }))
 
-const AppDataTableStub = defineComponent({
-  name: 'AppDataTable',
-  props: ['columns', 'data', 'displayMode'],
-  setup(props, { slots }) {
-    return () =>
-      h('div', {
-        'data-testid': 'app-data-table',
-        'data-display-mode': props.displayMode,
-        'data-column-count': String((props.columns as unknown[]).length),
-      }, [
+    const AppDataTableStub = defineComponent({
+      name: 'AppDataTable',
+      props: ['columns', 'data', 'displayMode', 'columnPinning'],
+      setup(props, { slots }) {
+        return () =>
+          h('div', {
+            'data-testid': 'app-data-table',
+            'data-display-mode': props.displayMode,
+            'data-column-count': String((props.columns as unknown[]).length),
+            'data-column-pinning-right':
+              ((props.columnPinning as { right?: string[] } | undefined)?.right ?? []).join(','),
+          }, [
         slots.actions?.(),
         props.displayMode === 'cards' ? slots.cards?.() : null,
       ])
@@ -195,12 +198,98 @@ function mountView() {
   })
 }
 
-describe('ProductsView cards integration', () => {
+    describe('ProductsView mobile density containment (S2)', () => {
+      it('route root removes the duplicate mobile outer gutter while retaining desktop padding', () => {
+        const wrapper = mountView()
+        const rootClasses = Array.from(wrapper.element.classList)
+
+        // Design §1: Products replaces unconditional `px-10` with
+        // `w-full min-w-0 md:px-10`; the dashboard body stays the sole
+        // mobile outer gutter. Class-level contract only — jsdom never
+        // proves rendered geometry.
+        expect(rootClasses).toEqual(expect.arrayContaining(['w-full', 'min-w-0', 'md:px-10']))
+        expect(rootClasses).not.toContain('px-10')
+      })
+
+      it('contains the list surface and inner body to the available width', () => {
+        const wrapper = mountView()
+
+        // The manual UCard stub is dropped under shallowMount (same
+        // constraint as the legacy surface test below), so the surface is
+        // reached by traversing from the table stub: table -> inner body ->
+        // UCard stub root (fallthrough classes land on it).
+        const tableEl = wrapper.get('[data-testid="app-data-table"]').element as HTMLElement
+        const body = tableEl.parentElement as HTMLElement
+        const surface = body.parentElement as HTMLElement
+
+        expect(Array.from(surface.classList)).toEqual(
+          expect.arrayContaining(['w-full', 'min-w-0', 'max-w-full', 'overflow-hidden', 'shadow-sm']),
+        )
+
+        const bodyClasses = Array.from(body.classList)
+        expect(bodyClasses).toEqual(
+          expect.arrayContaining(['w-full', 'min-w-0', 'px-3', 'py-3', 'sm:px-4', 'sm:py-4']),
+        )
+        expect(bodyClasses).not.toContain('px-5')
+      })
+
+      it('keeps the product type selector and table-mode pinned actions contract intact', () => {
+        const wrapper = mountView()
+
+        expect(wrapper.find('[aria-label="Filtrar por tipo"]').exists()).toBe(true)
+        expect(
+          wrapper.get('[data-testid="app-data-table"]').attributes('data-column-pinning-right'),
+        ).toBe('actions')
+      })
+
+      it('renders the persisted card mode immediately without user interaction', () => {
+        viewMode.value = 'card'
+        const wrapper = mountView()
+
+        expect(
+          wrapper.get('[data-testid="app-data-table"]').attributes('data-display-mode'),
+        ).toBe('cards')
+        expect(wrapper.find('[data-testid="product-card-grid"]').exists()).toBe(true)
+      })
+
+      it('keeps both display modes on the same pinned-actions and column contract', async () => {
+        const wrapper = mountView()
+        const table = wrapper.get('[data-testid="app-data-table"]')
+
+        await wrapper.get('[data-testid="toggle-card"]').trigger('click')
+        await wrapper.get('[data-testid="toggle-table"]').trigger('click')
+
+        expect(table.attributes('data-column-pinning-right')).toBe('actions')
+        expect(table.attributes('data-column-count')).toBe('10')
+      })
+
+      it('hides the add action for a restricted user while keeping filters and pinned actions', () => {
+        userCan.mockReturnValue(false)
+        const wrapper = mountView()
+        const table = wrapper.get('[data-testid="app-data-table"]')
+
+        expect(table.attributes('show-add-button')).toBe('false')
+        expect(wrapper.find('[aria-label="Filtrar por tipo"]').exists()).toBe(true)
+        expect(table.attributes('data-column-pinning-right')).toBe('actions')
+      })
+
+      it('keeps the route root free of horizontal-scroll classes in card mode', async () => {
+        const wrapper = mountView()
+
+        await wrapper.get('[data-testid="toggle-card"]').trigger('click')
+
+        expect(wrapper.element.classList.contains('overflow-x-auto')).toBe(false)
+      })
+    })
+
+    describe('ProductsView cards integration', () => {
   beforeEach(() => {
     push.mockReset()
     invalidateQueries.mockReset()
     refetchQueries.mockReset()
     setMode.mockClear()
+    userCan.mockReset()
+    userCan.mockReturnValue(true)
     viewMode.value = 'table'
   })
 

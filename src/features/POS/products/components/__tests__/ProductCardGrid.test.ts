@@ -65,38 +65,72 @@ describe('ProductCardGrid', () => {
     expect(wrapper.text()).toContain('Alpha')
   })
 
-  it('uses Employee ladder grid classes (sm:2 lg:3 xl:5 2xl:7) on both skeleton and card states', () => {
-    // Card grid ladder — same breakpoint ladder as EmployeeCardGrid /
-    // SaleCardGrid / QuotationCardGrid.
-    const cardsWrapper = mountComponent({ products: [product], loading: false })
-    const cardsLadder = cardsWrapper.find('[data-testid="product-cards-grid"]')
-    expect(cardsLadder.exists()).toBe(true)
-    expect(cardsLadder.classes()).toEqual(
-      expect.arrayContaining([
-        'grid',
-        'gap-3',
-        'sm:grid-cols-2',
-        'lg:grid-cols-3',
-        'xl:grid-cols-5',
-        '2xl:grid-cols-7',
-      ]),
-    )
+  it('uses the available-width auto-fit grid contract on both skeleton and card states', () => {
+    // S2 pilot convention (design §4): the nested list width — not the
+    // viewport — decides the column count. The exact sm/lg/xl/2xl ladder
+    // is intentionally retired for this grid.
+    const availableWidthClasses = [
+      'grid',
+      'gap-3',
+      'w-full',
+      'min-w-0',
+      'max-w-full',
+      'grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))]',
+    ]
 
-    // Skeleton ladder mirrors the cards ladder so layout doesn't jump when
-    // the cards arrive.
+    const cardsWrapper = mountComponent({ products: [product], loading: false })
+    const cardsGrid = cardsWrapper.find('[data-testid="product-cards-grid"]')
+    expect(cardsGrid.exists()).toBe(true)
+    expect(cardsGrid.classes()).toEqual(expect.arrayContaining(availableWidthClasses))
+    expect(cardsGrid.classes()).not.toContain('sm:grid-cols-2')
+    expect(cardsGrid.classes()).not.toContain('2xl:grid-cols-7')
+
+    // Skeleton ladder mirrors the cards contract so layout doesn't jump
+    // when the cards arrive.
     const skeletonWrapper = mountComponent({ products: [], loading: true })
-    const skeletonLadder = skeletonWrapper.find('[data-testid="product-cards-skeleton"]')
-    expect(skeletonLadder.exists()).toBe(true)
-    expect(skeletonLadder.classes()).toEqual(
-      expect.arrayContaining([
-        'grid',
-        'gap-3',
-        'sm:grid-cols-2',
-        'lg:grid-cols-3',
-        'xl:grid-cols-5',
-        '2xl:grid-cols-7',
-      ]),
+    const skeletonGrid = skeletonWrapper.find('[data-testid="product-cards-skeleton"]')
+    expect(skeletonGrid.exists()).toBe(true)
+    expect(skeletonGrid.classes()).toEqual(expect.arrayContaining(availableWidthClasses))
+    expect(skeletonGrid.classes()).not.toContain('xl:grid-cols-5')
+  })
+
+  it('contains the empty state to the available width without a horizontal scroll class', () => {
+    const wrapper = mountComponent({ products: [], loading: false })
+
+    const emptyRoot = wrapper.get('[data-testid="product-cards-empty"]')
+    expect(emptyRoot.classes()).toEqual(
+      expect.arrayContaining(['w-full', 'min-w-0', 'max-w-full']),
     )
+    expect(emptyRoot.classes()).not.toContain('overflow-x-auto')
+  })
+
+  it('renders the custom empty message within the contained empty root', () => {
+    const wrapper = mountComponent({ products: [], loading: false, empty: 'Catálogo vacío' })
+
+    const emptyRoot = wrapper.get('[data-testid="product-cards-empty"]')
+    expect(emptyRoot.text()).toContain('Catálogo vacío')
+  })
+
+  it('keeps long product names inside the available-width grid without scroll classes', () => {
+    const longProduct = {
+      ...product,
+      name: 'Tinta para plotter de gran formato eco-solvente serie X black 1L',
+    } satisfies Product
+    const wrapper = mountComponent({ products: [longProduct], loading: false })
+
+    const grid = wrapper.get('[data-testid="product-cards-grid"]')
+    expect(grid.text()).toContain(longProduct.name)
+    expect(grid.classes()).not.toContain('overflow-x-auto')
+  })
+
+  it('keeps visible cards contained during background fetching', () => {
+    const wrapper = mountComponent({ loading: true })
+
+    const grid = wrapper.get('[data-testid="product-cards-grid"]')
+    expect(grid.classes()).toEqual(
+      expect.arrayContaining(['w-full', 'min-w-0', 'max-w-full']),
+    )
+    expect(grid.classes()).not.toContain('overflow-x-auto')
   })
 
   it('skeleton uses theme tokens (border-default + bg-elevated) for visual parity with EmployeeCardGrid', () => {

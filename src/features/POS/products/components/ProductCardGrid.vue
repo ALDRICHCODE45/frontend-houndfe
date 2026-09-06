@@ -18,14 +18,20 @@ const emit = defineEmits<{
   delete: [product: Product]
   'card-click': [product: Product]
 }>()
+
+// S2 pilot available-width grid convention (design §4): the nested list
+// width, not the viewport, decides the column count. Duplicated by design
+// across the three pilot grids — no shared wrapper.
+const gridClasses =
+  'grid w-full min-w-0 max-w-full grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-3'
 </script>
 
 <template>
   <div
     v-if="props.loading && !props.products.length"
-    class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-7"
-    data-testid="product-cards-skeleton"
-  >
+        :class="gridClasses"
+        data-testid="product-cards-skeleton"
+      >
     <div
       v-for="index in 8"
       :key="index"
@@ -35,7 +41,8 @@ const emit = defineEmits<{
 
   <div
     v-else-if="!props.products.length"
-    class="flex flex-col items-center justify-center gap-3 py-16 text-center"
+    class="flex w-full min-w-0 max-w-full flex-col items-center justify-center gap-3 py-16 text-center"
+    data-testid="product-cards-empty"
   >
     <UIcon name="i-lucide-package-search" class="size-12 text-muted opacity-50" />
     <p class="text-sm text-muted">{{ props.empty ?? 'No se encontraron productos' }}</p>
@@ -44,7 +51,7 @@ const emit = defineEmits<{
   <div
     v-else
     data-testid="product-cards-grid"
-    class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-7"
+    :class="gridClasses"
   >
     <ProductCard
       v-for="product in props.products"
