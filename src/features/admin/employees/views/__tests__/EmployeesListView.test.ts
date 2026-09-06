@@ -621,7 +621,7 @@ describe('EmployeesListView — status tabs in #filters (REQ-4)', () => {
 
 describe('EmployeesListView — search input drives globalFilter (REQ-4)', () => {
   it('passes empty globalFilter to AppDataTable by default', async () => {
-    const wrapper = mount(getView().default)
+    mount(getView().default)
     await flushPromises()
     chaiExpect(mockState.globalFilter.value).toBe('')
   })

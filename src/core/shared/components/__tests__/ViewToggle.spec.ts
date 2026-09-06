@@ -76,7 +76,9 @@ describe('ViewToggle — accessibility, touch targets, and containment (S1)', ()
   it('keeps every tab a native 44px keyboard-activatable labeled target with visible focus', () => {
     for (const options of [undefined, CUSTOM_OPTIONS]) {
       const wrapper = mountToggle(options ? { options } : {})
-      for (const tab of wrapper.findAll('[role="tab"]')) {
+      const tabs = wrapper.findAll('[role="tab"]')
+      expect(tabs).toHaveLength(2)
+      for (const tab of tabs) {
         expectTabTargetContract(tab)
       }
     }
