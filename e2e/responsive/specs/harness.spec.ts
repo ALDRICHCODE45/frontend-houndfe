@@ -53,7 +53,7 @@ import {
 } from '../assertions/accessibility'
 import { assertSurfaceState } from '../assertions/states'
 import { AUTH_STORAGE_KEYS, LIMITED_PERMISSION_CODES, buildAuthSeed, seedAuthSession } from '../fixtures/auth'
-import { EXCEEDED_REQUEST_COUNT, EXTERNAL_REQUEST, UNDECLARED_REQUEST, installStrictNetwork } from '../fixtures/network'
+import { EXPECTED_BLOCKED_STARTUP_EXTERNALS, EXCEEDED_REQUEST_COUNT, EXTERNAL_REQUEST, UNDECLARED_REQUEST, installStrictNetwork } from '../fixtures/network'
 import { SCENARIO_CATALOG, SCENARIO_STATES, parseScenarioSelection, scenarioRoute } from '../fixtures/scenarios'
 import { STRESS_ROWS, STRESS_TOKENS } from '../fixtures/stress-data'
 import { RESPONSIVE_ORIGIN } from '../fixtures/test'
@@ -510,7 +510,23 @@ test.describe('@responsive-harness deterministic fixtures', () => {
     expect(violations.every((violation) => violation.startsWith(EXTERNAL_REQUEST) || induced.includes(violation))).toBe(true); expect(controller.requests()).toHaveLength(2)
   })
 
-  test('holds deferred loading and fetching responses until the release gate fulfills them', async ({ page }) => {
+      test('logs only declared startup externals separately and keeps other external requests as violations', async ({ page }) => {
+        const controller = await installStrictNetwork(page, RESPONSIVE_ORIGIN, [], EXPECTED_BLOCKED_STARTUP_EXTERNALS)
+        await page.goto(HARNESS_ORIGIN_PATH)
+        expect(await outcome(page, 'https://fonts.googleapis.com/css2?family=Roboto')).toBe('rejected')
+        expect(await outcome(page, 'https://fonts.googleapis.com/unexpected.css')).toBe('rejected')
+        const expected = controller.expectedBlockedExternals()
+        expect(expected).toEqual(expect.arrayContaining([
+          'GET https://fonts.googleapis.com/css2?family=Roboto',
+          'GET https://api.iconify.design/lucide.json?icons=bell%2Cchevrons-up-down%2Clayout-dashboard%2Cmenu%2Cmoon%2Cpanel-left-close%2Csearch%2Csun',
+          'GET https://api.unisvg.com/lucide.json?icons=bell%2Cchevrons-up-down%2Clayout-dashboard%2Cmenu%2Cmoon%2Cpanel-left-close%2Csearch%2Csun',
+          'GET https://api.simplesvg.com/lucide.json?icons=bell%2Cchevrons-up-down%2Clayout-dashboard%2Cmenu%2Cmoon%2Cpanel-left-close%2Csearch%2Csun',
+        ]))
+        expect(expected).toHaveLength(5)
+        expect(controller.violations()).toEqual([`${EXTERNAL_REQUEST} GET https://fonts.googleapis.com/unexpected.css`])
+      })
+
+      test('holds deferred loading and fetching responses until the release gate fulfills them', async ({ page }) => {
     const controller = await installStrictNetwork(page, RESPONSIVE_ORIGIN, [
       scenarioRoute('/products', 'loading'), scenarioRoute('/products', 'fetching', { query: { page: '1', refresh: 'true' } }),
     ])
@@ -626,7 +642,7 @@ test.describe('@responsive-harness evidence aggregation', () => {
       })
 
       test.describe('@responsive-harness representative target adapters', () => {
-        const productSurface = (mode: 'table' | 'cards' = 'table') => PAGE_WRAP(`<main id="main-panel"><h1>Productos</h1><div role="tablist" aria-label="Seleccionar vista de productos"></div>${mode === 'table' ? '<div data-testid="table-view"><table><tbody><tr><td>SKU-01</td><td data-pinned="right"><button aria-label="Acciones del producto">acciones</button></td></tr></tbody></table><button data-testid="table-error-retry">Reintentar</button><div data-testid="mobile-cards-loading"></div></div>' : '<ul data-testid="product-cards-grid"><li>Producto</li></ul>'}</main>`)
+        const productSurface = (mode: 'table' | 'cards' = 'table') => PAGE_WRAP(`<main id="hound-dashboard-panel-main-panel"><h1>Productos</h1><div role="tablist" aria-label="Seleccionar vista de productos"></div>${mode === 'table' ? '<div data-testid="table-view"><table><tbody><tr><td>SKU-01</td><td data-pinned="right"><button aria-label="Acciones del producto">acciones</button></td></tr></tbody></table><button data-testid="table-error-retry">Reintentar</button><div data-testid="mobile-cards-loading"></div></div>' : '<ul data-testid="product-cards-grid"><li>Producto</li></ul>'}</main>`)
         const notificationSurface = () => PAGE_WRAP('<section data-testid="notifications-card-actions"><div data-testid="actions-accordion"><div data-testid="action-row-order-created"><button data-testid="master-toggle">Notificaciones</button></div></div></section><section data-testid="notifications-card-recipients"><button data-testid="recipient-select-trigger">Destinatarios</button><div data-testid="recipient-chips"><span data-testid="recipient-chip-u1"><button data-testid="recipient-chip-remove-u1">Quitar</button></span></div></section><footer data-testid="notifications-footer"><button data-testid="save-button">Guardar</button></footer>')
 
         test('resolves declared DT-01/HY-04 anchors with target-specific actions, state drivers, preferences, and exclusions', async ({ page }) => {
@@ -644,15 +660,21 @@ test.describe('@responsive-harness evidence aggregation', () => {
         })
 
         test('rejects missing, ambiguous, duplicate, and wrong in-memory adapter stamps without selector fallbacks', async ({ page }) => {
-          await page.setContent(PAGE_WRAP('<main id="main-panel"><h1>Productos</h1></main>'))
+          await page.setContent(PAGE_WRAP('<main id="hound-dashboard-panel-main-panel"><h1>Productos</h1></main>'))
           await expect(DT01_PRODUCTS.resolve(page)).rejects.toThrow('DT-01 table or cards anchor')
-          await page.setContent(PAGE_WRAP('<main id="main-panel"><h1>Productos</h1><div data-testid="table-view"></div><div data-testid="table-view"></div></main>'))
+          await page.setContent(PAGE_WRAP('<main id="hound-dashboard-panel-main-panel"><h1>Productos</h1><div data-testid="table-view"></div><div data-testid="table-view"></div></main>'))
           await expect(DT01_PRODUCTS.resolve(page)).rejects.toThrow('must resolve exactly once')
           await page.setContent(productSurface())
           await DT01_PRODUCTS.resolve(page)
           await expect(DT01_PRODUCTS.resolve(page)).rejects.toThrow('duplicate evidence stamp')
           await page.setContent(notificationSurface().replace('notifications-card-actions"', 'notifications-card-actions" data-evidence-surface-id="DT-01"'))
           await expect(HY04_NOTIFICATIONS.resolve(page)).rejects.toThrow('wrong evidence stamp')
+        })
+
+        test('waits for target content inside the uniquely rendered dashboard panel', async ({ page }) => {
+          await page.setContent(PAGE_WRAP('<main id="hound-dashboard-panel-main-panel"></main>'))
+          await page.evaluate(() => setTimeout(() => { document.querySelector('main')!.innerHTML = '<h1>Productos</h1><div role="tablist" aria-label="Seleccionar vista de productos"></div><div data-testid="table-view"><button aria-label="Acciones del producto"></button></div>' }, 20))
+          expect(await DT01_PRODUCTS.resolve(page)).toMatchObject({ mode: 'table' })
         })
 
         test('triangulates DT-01 card mode and HY-04 exact declared owner stamping', async ({ page }) => {

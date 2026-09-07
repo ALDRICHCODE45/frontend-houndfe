@@ -2,7 +2,7 @@ import { expect, test as base } from '@playwright/test'
 import { resolveRunId } from '../../../playwright.responsive.config'
 import { EVIDENCE_ATTACHMENT_NAME } from '../evidence/schema'
 import { EvidenceSession } from '../evidence/session'
-import { installStrictNetwork, type DeclaredRoute, type StrictNetworkController } from './network'
+import { EXPECTED_BLOCKED_STARTUP_EXTERNALS, installStrictNetwork, type DeclaredRoute, type StrictNetworkController } from './network'
 import { RESPONSIVE_WEB_SERVER_PORT } from '../../../playwright.responsive.config'
 
 /** Fixed same-origin base for strict `/__e2e-api/**` interception. */
@@ -27,7 +27,7 @@ export const test = base.extend<ResponsiveFixtures>({
     if (errors.length > 0) throw new Error(`responsive evidence session rejected records:\n${errors.join('\n')}`)
   },
   strictNetwork: async ({ page, declaredRoutes }, use) => {
-    const controller = await installStrictNetwork(page, RESPONSIVE_ORIGIN, declaredRoutes)
+    const controller = await installStrictNetwork(page, RESPONSIVE_ORIGIN, declaredRoutes, EXPECTED_BLOCKED_STARTUP_EXTERNALS)
     await use(controller)
     await controller.releaseDeferred() // teardown release: deferred gates never leak past a test
   },

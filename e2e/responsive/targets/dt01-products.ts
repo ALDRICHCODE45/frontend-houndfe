@@ -25,8 +25,10 @@ export const DT01_PRODUCTS: ResponsiveTargetAdapter<ProductActions, ProductState
     paginated: { scenario: 'paginated', status: 'ready' },
   },
   async resolve(page: Page) {
-    const owner = await uniqueAnchor(page.locator('#main-panel'), 'DT-01 dashboard owner')
-    await uniqueAnchor(owner.getByRole('heading', { name: 'Productos' }), 'DT-01 Products heading')
+    const owner = await uniqueAnchor(page.locator('#hound-dashboard-panel-main-panel'), 'DT-01 dashboard owner')
+    const heading = owner.getByRole('heading', { name: 'Productos' })
+    await heading.waitFor()
+    await uniqueAnchor(heading, 'DT-01 Products heading')
     const table = owner.getByTestId('table-view'), cards = owner.getByTestId('product-cards-grid')
     const total = await table.count() + await cards.count()
     if (total !== 1) throw new Error(`DT-01 table or cards anchor must resolve exactly once; found ${total}`)

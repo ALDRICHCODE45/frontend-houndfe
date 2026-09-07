@@ -23,10 +23,19 @@ export interface DeclaredRoute {
 }
 
 export interface RouteRequestLog { readonly method: string; readonly path: string; readonly query: Readonly<Record<string, string>>; readonly body: unknown }
+/** An external startup request that remains blocked, but is expected and audited separately. */
+export interface ExpectedBlockedExternal { readonly origin: string; readonly pathPrefix: string }
+export const EXPECTED_BLOCKED_STARTUP_EXTERNALS: readonly ExpectedBlockedExternal[] = [
+  { origin: 'https://fonts.googleapis.com', pathPrefix: '/css2' },
+  { origin: 'https://api.iconify.design', pathPrefix: '/lucide.json' },
+  { origin: 'https://api.unisvg.com', pathPrefix: '/lucide.json' },
+  { origin: 'https://api.simplesvg.com', pathPrefix: '/lucide.json' },
+]
 
 export interface StrictNetworkController {
   requests(): readonly RouteRequestLog[]
   violations(): readonly string[]
+  expectedBlockedExternals(): readonly string[]
   /** Fulfills every held deferred response; idempotent, used by the fixture teardown. */
   releaseDeferred(): Promise<void>
 }
@@ -34,16 +43,22 @@ export interface StrictNetworkController {
 const canonicalQuery = (query: Readonly<Record<string, string>>): string => Object.keys(query).sort().map((key) => `${key}=${query[key]}`).join('&')
 const jsonResponse = (route: DeclaredRoute): { status: number; contentType: string; body: string } => ({ status: route.status ?? 200, contentType: 'application/json', body: JSON.stringify(route.json ?? null) })
 
-export async function installStrictNetwork(page: Page, origin: string, declared: readonly DeclaredRoute[]): Promise<StrictNetworkController> {
+export async function installStrictNetwork(page: Page, origin: string, declared: readonly DeclaredRoute[], expectedBlocked: readonly ExpectedBlockedExternal[] = []): Promise<StrictNetworkController> {
   const requests: RouteRequestLog[] = []
   const violations: string[] = []
+  const expectedBlockedExternals: string[] = []
   const pending: Array<{ route: DeclaredRoute; route0: Route; resolve: () => void }> = []
   const counts = new Map<DeclaredRoute, number>()
 
   // Registered first so the later `/__e2e-api/**` handler wins for API paths; same-origin non-API traffic passes through.
   await page.route('**/*', (route0) => {
     const url = new URL(route0.request().url())
-    if (url.origin !== origin) { violations.push(`${EXTERNAL_REQUEST} ${route0.request().method()} ${url.origin}${url.pathname}`); return route0.abort() }
+    if (url.origin !== origin) {
+      const request = route0.request(), external = expectedBlocked.find((rule) => rule.origin === url.origin && url.pathname.startsWith(rule.pathPrefix))
+      const entry = `${request.method()} ${url.origin}${url.pathname}${url.search}`
+      if (external) { expectedBlockedExternals.push(entry); return route0.abort() }
+      violations.push(`${EXTERNAL_REQUEST} ${entry}`); return route0.abort()
+    }
     return route0.fallback()
   })
 
@@ -68,7 +83,7 @@ export async function installStrictNetwork(page: Page, origin: string, declared:
   })
 
   return {
-    requests: () => [...requests], violations: () => [...violations],
+    requests: () => [...requests], violations: () => [...violations], expectedBlockedExternals: () => [...expectedBlockedExternals],
     releaseDeferred: async () => {
       const batch = pending.splice(0)
       for (const entry of batch) { await entry.route0.fulfill(jsonResponse(entry.route)); entry.resolve() }
