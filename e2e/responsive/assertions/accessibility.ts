@@ -118,6 +118,14 @@ export async function assertKeyboardActivation(locator: Locator, outcome: Activa
     return fail('keyboard', 'keyboard-activation', `${outcome.key} activation did not produce the declared outcome`, true, false, { key: outcome.key, indicator })
   return pass('keyboard', { key: outcome.key, indicator })
 }
+/** Activates a control after the focus assertion has independently recorded its visual state. */
+export async function assertKeyboardAction(locator: Locator, outcome: ActivationOutcome): Promise<InteractionResult> {
+  await locator.focus()
+  await locator.press(ACTIVATION_KEYS[outcome.key])
+  if (!(await outcome.verify(locator.page())))
+    return fail('keyboard', 'keyboard-activation', `${outcome.key} activation did not produce the declared outcome`, true, false, { key: outcome.key })
+  return pass('keyboard', { key: outcome.key })
+}
 export async function assertFocusNotObscured(focused: Locator, stickyRegions: readonly Locator[]): Promise<InteractionResult> {
   const box = await focused.boundingBox()
   if (!box) return fail('focus', 'focus-obscured', 'focused control box is missing', 'non-null box', box, {})

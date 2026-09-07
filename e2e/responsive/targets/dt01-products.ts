@@ -5,7 +5,7 @@ import {
   type ResponsiveTargetAdapter,
 } from './types'
 
-type ProductActions = { viewToggle: Locator; rowMenu: Locator; pinnedActions: Locator }
+type ProductActions = { viewToggle: Locator; rowMenu: Locator; pinnedActions: Locator; search: Locator; typeFilter: Locator; pageSize: Locator }
 type ProductStates = { error: Locator; errorRetry: Locator; loading: Locator; empty: Locator }
 
 export const DT01_PRODUCTS: ResponsiveTargetAdapter<ProductActions, ProductStates> = {
@@ -35,12 +35,20 @@ export const DT01_PRODUCTS: ResponsiveTargetAdapter<ProductActions, ProductState
     const mode = await table.count() === 1 ? 'table' as const : 'cards' as const
     const anchor = await uniqueAnchor(mode === 'table' ? table : cards, `DT-01 ${mode} anchor`)
     await stampEvidenceSurface(owner, 'DT-01')
-    return {
-      target: DT01_PRODUCTS, anchor: owner, mode, preferences: DT01_PRODUCTS.preferenceKeys,
-      actions: {
-        viewToggle: await uniqueAnchor(owner.getByRole('tablist', { name: 'Seleccionar vista de productos' }), 'DT-01 view toggle'),
-        rowMenu: anchor.getByRole('button', { name: 'Acciones del producto' }), pinnedActions: anchor.locator('[data-pinned="right"]'),
-      },
+        return {
+          target: DT01_PRODUCTS, anchor: owner, mode, preferences: DT01_PRODUCTS.preferenceKeys,
+          // Toolbar controls resolve lazily: the spec enforces uniqueness and visibility when it consumes them,
+          // because representative slices (card mode, minimal fixtures) legitimately do not render the toolbar.
+          actions: {
+            viewToggle: await uniqueAnchor(owner.getByRole('tablist', { name: 'Seleccionar vista de productos' }), 'DT-01 view toggle'),
+            rowMenu: mode === 'table'
+              ? anchor.locator('tbody tr').first().locator('td').last().getByRole('button')
+              : anchor.locator('article').first().getByRole('button', { name: 'Acciones del producto' }),
+            pinnedActions: anchor.locator('[data-pinned="right"]'),
+            search: owner.getByPlaceholder('Buscar productos...'),
+            typeFilter: owner.getByRole('combobox', { name: 'Filtrar por tipo' }),
+            pageSize: owner.getByRole('button', { name: /por página/ }),
+          },
       states: { error: anchor.getByTestId('table-error-state'), errorRetry: anchor.getByTestId('table-error-retry'), loading: anchor.getByTestId('mobile-cards-loading'), empty: anchor.getByTestId('mobile-empty-state') },
     }
   },

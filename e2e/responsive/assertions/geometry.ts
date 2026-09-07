@@ -98,7 +98,8 @@ export async function assertOverflowContract(input: OverflowContractInput): Prom
       return fail('overflow-contract', 'surface-outside-owner', 'local scroll region escapes its declared owner', { left: ownerBox.x, right: ownerBox.x + ownerBox.width }, { left: regionBox.x, right: regionBox.x + regionBox.width }, { region: metrics, regionBox: toBox(regionBox) })
     const secondOwner = await scrollRegion.evaluate((el) => {
       for (let node = el.parentElement; node && node !== document.documentElement; node = node.parentElement) {
-        if (node.scrollWidth > node.clientWidth + 1 && isScrollable(getComputedStyle(node).overflowX)) return true
+        const overflowX = getComputedStyle(node).overflowX
+        if (node.scrollWidth > node.clientWidth + 1 && (overflowX === 'auto' || overflowX === 'scroll')) return true
       }
       return false
     })
@@ -134,10 +135,13 @@ export async function assertLongDataContract(tokens: readonly LongDataToken[]): 
         whiteSpace: style.whiteSpace, overflowX: style.overflowX, textOverflow: style.textOverflow, overflowWrap: style.overflowWrap, text: (el.textContent ?? '').trim(),
       }
     })
+    const rendered = metrics.clientWidth > 0 && metrics.clientHeight > 0 && metrics.text.length > 0
     const clipped = metrics.scrollWidth > metrics.clientWidth + TOL
     const disclosureVisible = token.disclosure ? await token.disclosure.isVisible() : false
     const reachable = isScrollable(metrics.overflowX) || disclosureVisible
-    tokenMeasurements[token.label] = { ...metrics, clipped, reachable, disclosureVisible }
+    tokenMeasurements[token.label] = { ...metrics, rendered, clipped, reachable, disclosureVisible }
+    if (token.critical && !rendered)
+      return fail('long-data', 'long-data-clipping', `critical token ${token.label} is not rendered with measurable content`, 'positive geometry and non-empty text', metrics, { tokens: tokenMeasurements, tolerancePx: TOL })
     if (clipped && !reachable && token.critical)
       return fail('long-data', 'long-data-clipping', `critical token ${token.label} is clipped without scroll reachability or disclosure`, 'reachable or disclosed text', metrics, { tokens: tokenMeasurements, tolerancePx: TOL })
   }
@@ -179,18 +183,25 @@ export async function assertStickyAndPinnedAlignment(region: Locator, input: Sti
     await measureScrollExtreme(region, pair.side)
     const headerBox = await pair.header.boundingBox()
     const bodyBox = await pair.body.boundingBox()
-    if (!headerBox || !bodyBox) return fail('sticky-pinned-alignment', 'pinned-column-misalignment', 'pinned header or body cell box is missing', 'non-null boxes', { header: headerBox, body: bodyBox }, { alignments })
+        if (!headerBox || !bodyBox || headerBox.width <= 0 || headerBox.height <= 0 || bodyBox.width <= 0 || bodyBox.height <= 0)
+          return fail('sticky-pinned-alignment', 'pinned-column-misalignment', 'pinned header or body cell box is missing or zero-sized', 'non-null positive boxes', { header: headerBox, body: bodyBox }, { alignments })
     const delta = Math.abs(headerBox.x - bodyBox.x) + Math.abs(headerBox.x + headerBox.width - (bodyBox.x + bodyBox.width))
     alignments.push({ side: pair.side, header: toBox(headerBox), body: toBox(bodyBox), edgeDelta: delta })
     if (delta > TOL) return fail('sticky-pinned-alignment', 'pinned-column-misalignment', 'pinned header and body cells diverge beyond the 1px tolerance', 0, delta, { alignments, tolerancePx: TOL })
   }
-  if (input.stickyHeader) {
-    const regionBox = await region.boundingBox()
+      if (input.stickyHeader) {
+        const regionBox = await region.boundingBox()
+        const header = await input.stickyHeader.elementHandle()
+        const sticky = header ? await region.evaluate((region, header) => {
+          for (let node: Element | null = header; node && node !== region; node = node.parentElement)
+            if (getComputedStyle(node).position === 'sticky') return true
+          return false
+        }, header) : false
     await region.evaluate((el) => { el.scrollTop = el.scrollHeight })
     const headerBox = await input.stickyHeader.boundingBox()
-    if (!regionBox || !headerBox) return fail('sticky-pinned-alignment', 'sticky-header-misalignment', 'sticky header or scroll region box is missing', 'non-null boxes', { region: regionBox, header: headerBox }, {})
+    if (!regionBox || !headerBox || headerBox.width <= 0 || headerBox.height <= 0) return fail('sticky-pinned-alignment', 'sticky-header-misalignment', 'sticky header or scroll region box is missing or zero-sized', 'non-null positive boxes', { region: regionBox, header: headerBox }, {})
     const drift = Math.abs(headerBox.y - regionBox.y)
-    if (drift > TOL) return fail('sticky-pinned-alignment', 'sticky-header-misalignment', 'sticky header does not stay at its region top boundary after vertical scroll', regionBox.y, headerBox.y, { regionTop: regionBox.y, headerTop: headerBox.y, drift, tolerancePx: TOL })
+    if (!sticky || drift > TOL) return fail('sticky-pinned-alignment', 'sticky-header-misalignment', 'sticky header must use sticky positioning and stay at its region top boundary after vertical scroll', { position: 'sticky', top: regionBox.y }, { sticky, top: headerBox.y }, { regionTop: regionBox.y, headerTop: headerBox.y, drift, sticky, tolerancePx: TOL })
   }
   return pass('sticky-pinned-alignment', { alignments, stickyChecked: Boolean(input.stickyHeader), tolerancePx: TOL })
 }
