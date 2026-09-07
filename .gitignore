@@ -40,3 +40,6 @@ __screenshots__/
 
 # Vite
 *.timestamp-*-*.mjs
+
+# Playwright responsive evidence artifacts
+artifacts/responsive/
