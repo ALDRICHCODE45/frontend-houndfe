@@ -6,11 +6,13 @@ import responsiveConfig, {
   resolveRunId,
 } from '../../../playwright.responsive.config'
 import { expect, test } from '../fixtures/test'
+import type { Page } from '@playwright/test'
 import {
   findViewportCase,
   isMatrixWidth,
   parseResponsiveTarget,
   RESPONSIVE_VIEWPORTS,
+  SURFACE_STATES,
   type ResponsiveTarget,
 } from '../targets/types'
 import {
@@ -30,6 +32,19 @@ import {
   assertStickyAndPinnedAlignment,
   measureScrollExtreme,
 } from '../assertions/geometry'
+import {
+  assertCollectionSemantics,
+  assertFocusNotObscured,
+  assertKeyboardActivation,
+  assertKeyboardSequence,
+  assertMinimumTargets,
+  assertNamedControls,
+  assertNativeTableSemantics,
+  assertOverlayLifecycle,
+  type KeyboardStep,
+  type TargetSizeInput,
+} from '../assertions/accessibility'
+import { assertSurfaceState } from '../assertions/states'
 
 const repoRoot = fileURLToPath(new URL('../../..', import.meta.url))
 const ARTIFACT_ROOT_PATTERN = /^artifacts\/responsive\/.+/
@@ -346,5 +361,101 @@ test.describe('@responsive-harness geometry assertions', () => {
     expect((await check()).failure).toMatchObject({ taxonomy: 'sticky-header-misalignment' })
     await page.setContent(tablePage(true, false))
     expect(await check()).toMatchObject({ status: 'fail', failure: { taxonomy: 'pinned-column-misalignment' }, measurements: { alignments: expect.any(Array) } })
+  })
+})
+const SEMANTIC_PAGE = PAGE_WRAP('<style>button{box-sizing:border-box;margin:0}button:focus-visible{outline:2px solid #fff}</style><div style="padding:8px;display:flex;flex-direction:column;gap:4px"><button data-testid="k1" aria-label="Primero">Primero</button><button data-testid="k2">Segundo</button><button data-testid="k3">Tercero</button><button data-testid="icon-only" style="width:28px;height:28px"><svg width="12" height="12"></svg></button></div>')
+const TABLE_OK = PAGE_WRAP('<table data-testid="native-table" aria-label="Productos"><thead><tr><th>Nombre</th><th>SKU</th></tr></thead><tbody><tr><td>Café</td><td>SKU-1</td></tr><tr><td>Té</td><td>SKU-2</td></tr></tbody></table>')
+const TABLE_NO_NAME = PAGE_WRAP('<table data-testid="native-table"><thead><tr><th>Nombre</th></tr></thead><tbody><tr><td>Café</td></tr></tbody></table>')
+const CARDS_PAGE = PAGE_WRAP('<script>window.addEventListener("click", () => { window.acted = true })</script><ul data-testid="cards"><li data-testid="card-a">Café<button data-testid="card-action" aria-label="Ver café" style="box-sizing:border-box">Ver</button></li></ul>')
+const BAD_CARDS_PAGE = PAGE_WRAP('<div data-testid="cards"><div>Café<button data-testid="card-action"></button></div></div>')
+const TARGETS_PAGE = PAGE_WRAP('<style>button{box-sizing:border-box;margin:0;padding:0}button:focus-visible{outline:2px solid #fff}</style><div style="padding:4px"><button data-testid="t44" style="width:44px;height:44px">A</button><button data-testid="t43" style="width:43px;height:43px">B</button><button data-testid="t-wide" style="width:44px;height:20px">C</button><button data-testid="t-dis" disabled style="width:28px;height:28px">D</button><button data-testid="t-hit" style="width:44px;height:44px"><svg width="12" height="12"></svg></button></div>')
+const ACTIVATION_PAGE = PAGE_WRAP('<style>button,a{box-sizing:border-box;margin:0}button:focus-visible,a:focus-visible{outline:2px solid #fff}</style><div style="padding:8px;display:flex;flex-direction:column;gap:4px"><button data-testid="act-btn" onclick="window.activated = true" style="width:88px;height:44px">Activar</button><a data-testid="act-link" href="#" onclick="event.preventDefault(); window.linkActivated = true" style="min-height:44px;display:inline-block">Enlace</a></div>')
+const PLAIN_FOCUS_PAGE = PAGE_WRAP('<button data-testid="plain" style="outline:none;box-shadow:none">Sin indicador</button>')
+const OBSCURED_PAGE = PAGE_WRAP('<div data-testid="sticky-footer" style="position:fixed;bottom:0;height:60px;background:#111">pie fijo</div><button data-testid="obscured-btn" style="position:fixed;bottom:20px;left:8px;box-sizing:border-box">Acción tapada</button>')
+const OVERLAY_BODY = '<button data-testid="trigger" style="box-sizing:border-box;width:120px;height:44px">Abrir filtros</button><div data-testid="overlay" role="dialog" aria-label="Filtros de productos" hidden style="padding:8px"><input data-testid="ov-input" aria-label="Buscar producto" style="height:24px"><button data-testid="ov-close" style="box-sizing:border-box;width:44px;height:44px">Cerrar</button></div>'
+const OVERLAY_JS = (restore: boolean, remove = false) => `<script>(() => {
+  const overlay = document.querySelector('[data-testid="overlay"]')
+  const trigger = document.querySelector('[data-testid="trigger"]')
+  const closeOverlay = () => { overlay.hidden = true; if (${remove}) trigger.remove(); else if (${restore}) trigger.focus() }
+  document.querySelector('[data-testid="ov-close"]').addEventListener('click', closeOverlay)
+  document.addEventListener('keydown', (event) => { if (event.key === 'Escape') closeOverlay() })
+  trigger.addEventListener('click', () => { overlay.hidden = false; document.querySelector('[data-testid="ov-input"]').focus() })
+})()</script>`
+const overlayPage = (restore: boolean, remove = false) => PAGE_WRAP(`<style>button{box-sizing:border-box;margin:0}button:focus-visible{outline:2px solid #fff}</style>${OVERLAY_BODY}${OVERLAY_JS(restore, remove)}`)
+const statePage = (text: string, extra = '') => PAGE_WRAP(`<div data-testid="feedback" style="padding:8px">${text}</div>${extra}<button data-testid="page-next" style="box-sizing:border-box;width:44px;height:44px">Siguiente página</button>`)
+const windowFlag = (flag: string) => (page: Page) => page.evaluate((name) => Boolean((window as unknown as Record<string, unknown>)[name]), flag)
+
+test.describe('@responsive-harness semantic and interaction assertions', () => {
+  test('requires named controls and native-table versus collection semantics', async ({ page }) => {
+    await page.setContent(SEMANTIC_PAGE)
+    expect(await assertNamedControls([{ id: 'k2', locator: page.getByTestId('k2'), role: 'button', name: 'Segundo' }])).toMatchObject({ status: 'pass' })
+    expect((await assertNamedControls([{ id: 'icon-only', locator: page.getByTestId('icon-only'), role: 'button', name: 'Cerrar' }])).failure).toMatchObject({ taxonomy: 'semantic-or-name' })
+    await page.setContent(TABLE_OK)
+    expect(await assertNativeTableSemantics(page.getByTestId('native-table'), { name: 'Productos', columns: ['Nombre', 'SKU'], minRows: 2 })).toMatchObject({ status: 'pass' })
+    expect((await assertNativeTableSemantics(page.getByTestId('native-table'), { name: 'Productos', columns: ['Precio'], minRows: 2 })).failure).toMatchObject({ taxonomy: 'semantic-or-name' })
+    await page.setContent(TABLE_NO_NAME)
+    expect((await assertNativeTableSemantics(page.getByTestId('native-table'), { name: 'Productos', columns: ['Nombre'], minRows: 1 })).failure).toMatchObject({ taxonomy: 'semantic-or-name' })
+    await page.setContent(CARDS_PAGE)
+    expect(await assertCollectionSemantics({ list: page.getByTestId('cards'), items: [{ identity: 'Café', item: page.getByTestId('card-a'), action: { locator: page.getByTestId('card-action'), name: 'Ver café', verify: windowFlag('acted') } }] })).toMatchObject({ status: 'pass' })
+    await page.setContent(BAD_CARDS_PAGE)
+    expect((await assertCollectionSemantics({ list: page.getByTestId('cards'), items: [{ identity: 'Café', item: page.getByTestId('card-a') }] })).failure).toMatchObject({ taxonomy: 'semantic-or-name' })
+  })
+  test('enforces the exact 44x44 hit-area floor with disabled and applicability exclusions', async ({ page }) => {
+    await page.setContent(TARGETS_PAGE)
+    const target = (id: string, extra?: Partial<TargetSizeInput>): TargetSizeInput => ({ id, locator: page.getByTestId(id), ...extra })
+    expect(await assertMinimumTargets([target('t44'), target('t-hit')])).toMatchObject({ status: 'pass', measurements: { t44: { width: 44, height: 44 } } })
+    for (const id of ['t43', 't-wide']) expect((await assertMinimumTargets([target(id)])).failure).toMatchObject({ taxonomy: 'target-size' })
+    expect(await assertMinimumTargets([target('t-dis', { disabled: true })])).toMatchObject({ status: 'pass', measurements: { 't-dis': { enforcement: 'record-only-disabled' } } })
+    expect(validateEvidenceRecord({ ...baseRecord, authority: 'browser-interaction', assertionId: 'minimum-targets', status: 'excluded', exclusion: { reason: 'purely unavailable action for the current role', followUp: 'Batch B row actions' } }).ok).toBe(true)
+  })
+})
+
+test.describe('@responsive-harness keyboard and focus assertions', () => {
+  const step = (id: string, name: string): KeyboardStep => ({ id, role: 'button', name })
+  test('proves keyboard order, Enter versus Space activation, and visible unobscured focus', async ({ page }) => {
+    await page.setContent(SEMANTIC_PAGE)
+    const forward = [step('k2', 'Segundo'), step('k3', 'Tercero')]
+    expect(await assertKeyboardSequence(page, page.getByTestId('k1'), forward)).toMatchObject({ status: 'pass' })
+    expect(await assertKeyboardSequence(page, page.getByTestId('k3'), [step('k1', 'Primero'), step('k2', 'Segundo')], 'reverse')).toMatchObject({ status: 'pass' })
+    expect((await assertKeyboardSequence(page, page.getByTestId('k1'), [forward[1], forward[0]])).failure).toMatchObject({ taxonomy: 'focus-order' })
+    await page.setContent(ACTIVATION_PAGE)
+    expect(await assertKeyboardActivation(page.getByTestId('act-btn'), { key: 'Enter', verify: windowFlag('activated') })).toMatchObject({ status: 'pass', measurements: { key: 'Enter' } })
+    await page.evaluate(() => { delete (window as unknown as Record<string, unknown>).activated })
+    expect(await assertKeyboardActivation(page.getByTestId('act-btn'), { key: 'Space', verify: windowFlag('activated') })).toMatchObject({ status: 'pass' })
+    expect((await assertKeyboardActivation(page.getByTestId('act-btn'), { key: 'Enter', verify: async () => false })).failure).toMatchObject({ taxonomy: 'keyboard-activation' })
+    expect(await assertKeyboardActivation(page.getByTestId('act-link'), { key: 'Enter', verify: windowFlag('linkActivated') })).toMatchObject({ status: 'pass' })
+    await page.evaluate(() => { delete (window as unknown as Record<string, unknown>).linkActivated })
+    expect((await assertKeyboardActivation(page.getByTestId('act-link'), { key: 'Space', verify: windowFlag('linkActivated') })).failure).toMatchObject({ taxonomy: 'keyboard-activation' })
+    await page.setContent(PLAIN_FOCUS_PAGE); expect((await assertKeyboardActivation(page.getByTestId('plain'), { key: 'Enter', verify: async () => true })).failure).toMatchObject({ taxonomy: 'focus-obscured' })
+    await page.setContent(OBSCURED_PAGE); expect((await assertFocusNotObscured(page.getByTestId('obscured-btn'), [page.getByTestId('sticky-footer')])).failure).toMatchObject({ taxonomy: 'focus-obscured' })
+    await page.setContent(SEMANTIC_PAGE); await page.getByTestId('k1').focus()
+    expect((await assertFocusNotObscured(page.getByTestId('k1'), [])).status).toBe('pass')
+  })
+})
+
+test.describe('@responsive-harness overlay and state assertions', () => {
+  const overlayContract = (page: Page, extra: Record<string, unknown> = {}) => ({ trigger: page.getByTestId('trigger'), overlay: page.getByTestId('overlay'), role: 'dialog', name: 'Filtros de productos', controls: [{ id: 'close', role: 'button', name: 'Cerrar' }], ...extra })
+  test('proves overlay lifecycle, restoration, and surviving-invoker removal', async ({ page }) => {
+    await page.setContent(overlayPage(true))
+    expect(await assertOverlayLifecycle(page, overlayContract(page, { escape: true, restoreFocusTo: page.getByTestId('trigger') }))).toMatchObject({ status: 'pass', measurements: { focusRestored: true } })
+    await page.setContent(overlayPage(false))
+    expect((await assertOverlayLifecycle(page, overlayContract(page, { close: page.getByTestId('ov-close'), restoreFocusTo: page.getByTestId('trigger') }))).failure).toMatchObject({ taxonomy: 'focus-restoration' })
+    await page.setContent(overlayPage(false, true))
+    expect(await assertOverlayLifecycle(page, overlayContract(page, { close: page.getByTestId('ov-close'), invokerRemoved: true }))).toMatchObject({ status: 'pass', measurements: { invokerRemoved: true } })
+  })
+  test('distinguishes loading, fetching, empty, no-match, and error state usability', async ({ page }) => {
+    expect(SURFACE_STATES).toEqual(expect.arrayContaining(['loading', 'fetching', 'empty', 'no-match', 'error']))
+    const contract = (state: 'loading' | 'fetching' | 'empty' | 'no-match' | 'error', text: string, extra: Record<string, unknown> = {}) => ({ state, feedback: page.getByTestId('feedback'), feedbackText: text, ...extra })
+    await page.setContent(statePage('Cargando productos…')); expect(await assertSurfaceState(contract('loading', 'Cargando productos…', { usableControls: [{ id: 'page-next', locator: page.getByTestId('page-next') }] }))).toMatchObject({ status: 'pass' })
+    await page.setContent(statePage('Actualizando…'))
+    expect(await assertSurfaceState(contract('fetching', 'Actualizando…'))).toMatchObject({ status: 'pass' })
+    await page.setContent(statePage('Sin resultados para "café xyz"'))
+    expect(await assertSurfaceState(contract('no-match', 'Sin resultados para "café xyz"'))).toMatchObject({ status: 'pass' })
+    await page.setContent(statePage('Sin productos', '<div data-testid="success-row" style="height:20px">Café SKU-1</div>'))
+    expect((await assertSurfaceState(contract('empty', 'Sin productos', { prohibited: [page.getByTestId('success-row')] }))).failure).toMatchObject({ taxonomy: 'state-usability' })
+    expect((await assertSurfaceState(contract('loading', 'Éxito'))).failure).toMatchObject({ taxonomy: 'state-usability' })
+    await page.setContent(statePage('No se pudo cargar', '<button data-testid="retry" style="box-sizing:border-box;width:44px;height:44px" onclick="window.retried = true">Reintentar</button>'))
+    expect(await assertSurfaceState(contract('error', 'No se pudo cargar', { recovery: { locator: page.getByTestId('retry'), name: 'Reintentar', verify: windowFlag('retried') } }))).toMatchObject({ status: 'pass' })
+    expect(validateEvidenceRecord({ ...baseRecord, authority: 'browser-interaction', assertionId: 'surface-state', stateId: 'selection-bulk', status: 'excluded', exclusion: { reason: 'DT-01 has empty bulkActions and row selection disabled', followUp: 'Batch B bulk actions' } }).ok).toBe(true)
   })
 })

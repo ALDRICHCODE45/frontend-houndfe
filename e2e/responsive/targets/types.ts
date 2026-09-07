@@ -53,6 +53,10 @@ export type OverflowPolicy = (typeof OVERFLOW_POLICIES)[number]
 
 export type ContainerOwner = 'dashboard-panel' | 'card' | 'modal' | 'slideover' | (string & {})
 
+/** Catalogued surface states consumed by target-independent state usability assertions. */
+export const SURFACE_STATES = ['loading', 'fetching', 'success', 'empty', 'no-match', 'error', 'selection-bulk', 'filtered', 'paginated', 'overlay-open'] as const
+export type SurfaceStateName = (typeof SURFACE_STATES)[number]
+
 export const RISK_IDS = ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R8'] as const
 export type RiskId = (typeof RISK_IDS)[number]
 
