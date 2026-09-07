@@ -17,6 +17,8 @@ export const DT01_PRODUCTS: ResponsiveTargetAdapter<ProductActions, ProductState
   exclusions: [
     { assertionId: 'overlay-lifecycle', reason: 'DT-01 adapter does not open product overlays in this representative slice', followUp: 'WU-4d strict surface specs' },
     { assertionId: 'surface-state', stateId: 'selection-bulk', reason: 'Product rows disable selection and expose no bulk action', followUp: 'Batch B bulk-action evidence' },
+    { assertionId: 'scroll-extremes', stateId: 'cards', reason: 'DT-01 card strategy renders a no-horizontal-scroll grid with no local scroll region, so left/right scroll extremes do not apply', followUp: 'Batch C card scroll targets' },
+    { assertionId: 'sticky-pinned-alignment', stateId: 'cards', reason: 'DT-01 card strategy renders no sticky header and no pinned columns, so sticky/pinned alignment does not apply', followUp: 'Batch C card sticky targets' },
   ],
   stateDrivers: {
     success: { scenario: 'success', status: 'ready' }, loading: { scenario: 'loading', status: 'ready' },

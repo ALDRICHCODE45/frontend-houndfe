@@ -49,7 +49,9 @@ export async function assertNativeTableSemantics(table: Locator, contract: Nativ
   return pass('semantics', { table: metrics })
 }
 export interface CollectionAction { locator: Locator; name: string; verify?: (page: Page) => Promise<boolean> }
-export interface CollectionItem { identity: string; item: Locator; action?: CollectionAction }
+/** One table-equivalent field an item must show: an optional label and/or a value text, measured inside the item. */
+export interface CollectionField { label?: string; value?: string }
+export interface CollectionItem { identity: string; item: Locator; action?: CollectionAction; fields?: readonly CollectionField[] }
 export interface CollectionContract { list: Locator; items: readonly CollectionItem[] }
 const LIST_ROLES = ['ul', 'ol', 'list'], ITEM_ROLES = ['li', 'listitem', 'article']
 export async function assertCollectionSemantics(contract: CollectionContract): Promise<InteractionResult> {
@@ -57,22 +59,40 @@ export async function assertCollectionSemantics(contract: CollectionContract): P
     role: el.getAttribute('role') ?? el.tagName.toLowerCase(),
     items: Array.from(el.children).map((child) => (child as HTMLElement).getAttribute('role') ?? (child as HTMLElement).tagName.toLowerCase()),
   }))
-  if (!LIST_ROLES.includes(list.role) || !contract.items.every((_, index) => ITEM_ROLES.includes(list.items[index] ?? '')))
-    return fail('semantics', 'semantic-or-name', 'collection lacks list/listitem/article semantics', { list: 'ul|ol|list', items: 'li|listitem|article' }, list, {})
   const measured: Record<string, unknown> = { list }
-  for (const [index, entry] of contract.items.entries()) {
-    const identity = await entry.item.evaluate((el) => (el.textContent ?? '').trim())
+  // Role defects never short-circuit: every declared item/field/action is still measured,
+  // and exactly one genuine semantic fail is returned afterwards with the full evidence.
+  let failure: InteractionResult | null = !LIST_ROLES.includes(list.role) || !contract.items.every((_, index) => ITEM_ROLES.includes(list.items[index] ?? ''))
+    ? fail('semantics', 'semantic-or-name', 'collection lacks list/listitem/article semantics', { list: 'ul|ol|list', items: 'li|listitem|article' }, list, measured)
+    : null
+      for (const [index, entry] of contract.items.entries()) {
+        // A declared item locator must resolve exactly once without waiting; otherwise record the
+        // genuine semantic fail immediately so a missing locator can never stall the measurement.
+        if ((await entry.item.count()) !== 1) {
+          measured[`items[${index}]`] = { identity: null, resolved: false }
+          failure ??= fail('semantics', 'semantic-or-name', `collection item ${index} locator did not resolve exactly once for identity measurement`, { identity: entry.identity }, measured[`items[${index}]`], measured)
+          continue
+        }
+        const identity = await entry.item.evaluate((el) => (el.textContent ?? '').trim())
     const actionName = entry.action ? await accessibleNameOf(entry.action.locator) : ''
-    measured[`items[${index}]`] = { identity, action: actionName }
+    const fields: Record<string, unknown> = {}
+    for (const [fieldIndex, field] of (entry.fields ?? []).entries()) {
+      const labelVisible = field.label ? await entry.item.getByText(field.label, { exact: true }).isVisible() : true
+      const valueVisible = field.value ? await entry.item.getByText(field.value, { exact: false }).first().isVisible() : true
+      fields[`fields[${fieldIndex}]`] = { ...field, labelVisible, valueVisible }
+      if (!labelVisible || !valueVisible)
+        failure ??= fail('semantics', 'semantic-or-name', `collection item ${index} lacks table-equivalent field evidence`, field, fields[`fields[${fieldIndex}]`], measured)
+    }
+    measured[`items[${index}]`] = { identity, action: actionName, fields }
     if (!identity.includes(entry.identity) || (entry.action && actionName !== entry.action.name))
-      return fail('semantics', 'semantic-or-name', `collection item ${index} lacks its declared identity or named primary action`, entry, measured[`items[${index}]`], measured)
-    if (entry.action?.verify) {
+      failure ??= fail('semantics', 'semantic-or-name', `collection item ${index} lacks its declared identity or named primary action`, entry, measured[`items[${index}]`], measured)
+    if (entry.action?.verify && !failure) {
       await entry.action.locator.press('Enter')
       if (!(await entry.action.verify(entry.action.locator.page())))
-        return fail('keyboard', 'keyboard-activation', `collection item ${index} primary action did not produce the table-equivalent outcome`, true, false, measured)
+        failure = fail('keyboard', 'keyboard-activation', `collection item ${index} primary action did not produce the table-equivalent outcome`, true, false, measured)
     }
   }
-  return pass('semantics', measured)
+  return failure ?? pass('semantics', measured)
 }
 /** Policy hit-area floor in CSS px; measured on the actionable element or its declared hit area, never the visual icon. */
 export const TARGET_FLOOR_PX = 44; export interface TargetSizeInput { id: string; locator: Locator; hitArea?: Locator; disabled?: boolean }
