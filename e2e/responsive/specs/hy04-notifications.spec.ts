@@ -1,7 +1,7 @@
 import { test, expect, RESPONSIVE_ORIGIN } from '../fixtures/test'
 import { seedAuthSession } from '../fixtures/auth'
 import { HY04_NOTIFICATIONS } from '../targets/hy04-notifications'
-import { RESPONSIVE_VIEWPORTS, type ViewportCase } from '../targets/types'
+import { ASSERTION_EVIDENCE_RULES, RESPONSIVE_VIEWPORTS, type ViewportCase } from '../targets/types'
 import { assertBoxesWithinOwner, assertDocumentNoHorizontalOverflow, assertExactViewport, assertOverflowContract } from '../assertions/geometry'
 import { assertMinimumTargets, assertNamedControls } from '../assertions/accessibility'
 import type { ResponsiveEvidenceRecord } from '../evidence/schema'
@@ -11,7 +11,8 @@ const config = { enabled: true, recipients: ['e2e-user-1'], enabledActions: ['LO
 const routes = (state: (typeof HY_STATES)[number]) => [{ method: 'GET' as const, path: '/notification-config', status: state === 'error-5xx' ? 503 : 200, json: state === 'error-5xx' ? { message: 'Servicio no disponible (e2e)' } : config, deferred: state === 'loading' }, { method: 'GET' as const, path: '/users/assignable', json: [{ id: 'e2e-user-1', name: 'Usuario E2E' }] }]
 
 function record(viewport: ViewportCase, stateId: string, result: { assertionId: ResponsiveEvidenceRecord['assertionId']; status: ResponsiveEvidenceRecord['status']; measurements: Record<string, unknown>; failure?: ResponsiveEvidenceRecord['failure']; exclusion?: ResponsiveEvidenceRecord['exclusion'] }): ResponsiveEvidenceRecord {
-  return { schemaVersion: 1, runId: process.env.RESPONSIVE_RUN_ID?.trim() || 'local-run', authority: result.assertionId === 'minimum-targets' || result.assertionId === 'semantics' ? 'browser-interaction' : 'browser-geometry', surfaceId: 'HY-04', archetype: 'HY', route: HY04_NOTIFICATIONS.route, fixtureId: HY04_NOTIFICATIONS.fixtureId, stateId, viewport, strategy: HY04_NOTIFICATIONS.strategy, effectiveMode: 'stacked', containerOwner: HY04_NOTIFICATIONS.containerOwner, assertionId: result.assertionId, riskIds: HY04_NOTIFICATIONS.risks, status: result.status, measurements: result.measurements, ...(result.failure ? { failure: result.failure } : {}), ...(result.exclusion ? { exclusion: result.exclusion } : {}) }
+  const rule = ASSERTION_EVIDENCE_RULES[result.assertionId]
+  return { schemaVersion: 1, runId: process.env.RESPONSIVE_RUN_ID?.trim() || 'local-run', authority: rule.authority, surfaceId: 'HY-04', archetype: 'HY', route: HY04_NOTIFICATIONS.route, fixtureId: HY04_NOTIFICATIONS.fixtureId, stateId, viewport, strategy: HY04_NOTIFICATIONS.strategy, effectiveMode: 'stacked', containerOwner: HY04_NOTIFICATIONS.containerOwner, assertionId: result.assertionId, riskIds: rule.riskIds, regions: { owner: { locator: '[data-testid="notifications-card-actions"]' }, surface: { locator: '[data-testid="actions-accordion"]' }, related: [{ label: 'save footer', locator: '[data-testid="notifications-footer"]' }] }, status: result.status, measurements: result.measurements, ...(result.failure ? { failure: result.failure } : {}), ...(result.exclusion ? { exclusion: result.exclusion } : {}) }
 }
 
 async function openNotifications(page: Parameters<typeof HY04_NOTIFICATIONS.resolve>[0], viewport: ViewportCase, state: (typeof HY_STATES)[number]) {

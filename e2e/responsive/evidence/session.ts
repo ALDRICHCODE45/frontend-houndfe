@@ -24,6 +24,7 @@ export class EvidenceSession {
       const candidate = input !== null && typeof input === 'object' && !('runId' in input) ? { runId: this.runId, ...input } : input
       const result = validateEvidenceRecord(candidate)
       if (!result.ok) errors.push(...result.errors.map((error) => `records[${index}]: ${error}`))
+      else if (result.record.runId !== this.runId) errors.push(`records[${index}]: runId must match this evidence session`)
       else {
         const identity = evidenceIdentity(result.record)
         if (seen.has(identity)) errors.push(`records[${index}]: duplicate evidence identity ${identity}`)

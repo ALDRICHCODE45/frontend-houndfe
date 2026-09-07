@@ -191,7 +191,7 @@ const baseRecord = {
   route: '/pos/products', fixtureId: 'products-stress', stateId: 'success', effectiveMode: 'table',
   viewport: { key: 'phone-320', width: 320, height: 568 },
   strategy: 'contained-table-scroll', containerOwner: 'dashboard-panel', assertionId: 'document-overflow',
-  riskIds: ['R1'], status: 'pass',
+  riskIds: ['R2', 'R4', 'R7'], regions: { owner: { locator: '#owner' }, surface: { locator: '[data-testid="surface"]' }, related: [{ label: 'footer', locator: '[data-testid="footer"]' }] }, status: 'pass',
 }
 
 function invalid(result: { ok: boolean; errors?: readonly string[] }, fragment: string): void {
@@ -271,21 +271,58 @@ test.describe('@responsive-harness evidence schema contracts', () => {
 
   test('rejects duplicate evidence identity and separates representative authorities', () => {
     invalid(validateEvidenceSession([baseRecord, { ...baseRecord }]), 'duplicate')
-    expect(validateEvidenceRecord({ ...baseRecord, authority: 'browser-interaction', assertionId: 'minimum-targets' }).ok).toBe(true)
+    expect(validateEvidenceRecord({ ...baseRecord, authority: 'browser-geometry', assertionId: 'minimum-targets', riskIds: ['R3'] }).ok).toBe(true)
     expect(
       validateEvidenceSession([
         baseRecord,
         {
           ...baseRecord,
-          authority: 'browser-interaction',
+          authority: 'browser-geometry',
           assertionId: 'minimum-targets',
+          riskIds: ['R3'],
           status: 'fail',
           failure: { taxonomy: 'target-size', message: '28px row menu' },
         },
       ]).ok,
     ).toBe(true)
   })
-})
+
+  test('C1 rejects incomplete identity, blanket risks, invalid authority pairs, and manifest drift', async () => {
+    const regions = {
+      owner: { locator: '#owner' },
+      surface: { locator: '[data-testid="surface"]' },
+      related: [{ label: 'footer', locator: '[data-testid="footer"]' }],
+    }
+    invalid(validateEvidenceRecord({ ...baseRecord, regions: undefined }), 'regions')
+    invalid(validateEvidenceRecord({ ...baseRecord, regions: { ...regions, surface: regions.owner } }), 'distinct')
+    invalid(validateEvidenceRecord({ ...baseRecord, regions: { ...regions, related: [{ label: 'owner', locator: '#owner' }] } }), 'distinct')
+    invalid(validateEvidenceRecord({ ...baseRecord, regions, riskIds: [...RISK_IDS] }), 'assertion-specific')
+    invalid(validateEvidenceRecord({ ...baseRecord, regions, authority: 'browser-interaction' }), 'authority')
+    invalid(validateEvidenceRecord({ ...baseRecord, regions, assertionId: 'surface-state', authority: 'browser-geometry', riskIds: ['R5'] }), 'authority')
+
+    const targets = await import('../targets/types') as typeof import('../targets/types') & {
+      deriveResponsiveCaseManifest?: (cases: readonly { surfaceId: string; stateId: string; viewport: number }[]) => { ids: readonly string[] }
+      validateDiscoveredCaseManifest?: (manifest: { ids: readonly string[] }, discovered: readonly { surfaceId: string; stateId: string; viewport: number }[]) => { ok: boolean; errors?: readonly string[] }
+    }
+    expect(targets.deriveResponsiveCaseManifest).toBeDefined()
+    const manifest = targets.deriveResponsiveCaseManifest!([{ surfaceId: 'DT-01', stateId: 'success', viewport: 320 }])
+    expect(manifest.ids).toEqual(['DT-01|success|320'])
+        expect(targets.validateDiscoveredCaseManifest!(manifest, [{ surfaceId: 'DT-01', stateId: 'success', viewport: 375 }])).toMatchObject({ ok: false, errors: expect.arrayContaining([expect.stringContaining('drift')]) })
+      })
+
+      test('C1 accepts only matching-run, assertion-specific evidence and order-independent discovery', async () => {
+        const targets = await import('../targets/types') as typeof import('../targets/types') & {
+          deriveResponsiveCaseManifest: (cases: readonly { surfaceId: string; stateId: string; viewport: number }[]) => { ids: readonly string[] }
+          validateDiscoveredCaseManifest: (manifest: { ids: readonly string[] }, discovered: readonly { surfaceId: string; stateId: string; viewport: number }[]) => { ok: boolean }
+        }
+        const session = new EvidenceSession('c1-run')
+        session.attach({ ...baseRecord, runId: 'c1-run', assertionId: 'minimum-targets', authority: 'browser-geometry', riskIds: ['R3'] })
+        session.attach({ ...baseRecord, runId: 'foreign-run' })
+        expect(session.finalize()).toMatchObject({ records: [expect.objectContaining({ assertionId: 'minimum-targets', riskIds: ['R3'] })], errors: [expect.stringContaining('runId must match')] })
+        const cases = [{ surfaceId: 'DT-01', stateId: 'success', viewport: 320 }, { surfaceId: 'HY-04', stateId: 'loading', viewport: 375 }]
+        expect(targets.validateDiscoveredCaseManifest(targets.deriveResponsiveCaseManifest(cases), [...cases].reverse())).toEqual({ ok: true, value: { ids: ['DT-01|success|320', 'HY-04|loading|375'] } })
+      })
+    })
 
 const PAGE_WRAP = (body: string) => `<!doctype html><html><body style="margin:0">${body}</body></html>`
 
@@ -328,7 +365,7 @@ test.describe('@responsive-harness geometry assertions', () => {
   })
 
   test('requires owner containment, honors the 1px tolerance, and never lets ancestor clipping fake a pass', async ({ page }) => {
-    expect(validateEvidenceRecord({ ...baseRecord, assertionId: 'scroll-extremes', status: 'excluded', exclusion: { reason: 'cards never scroll horizontally', followUp: 'HY-04 stacked rows' } }).ok).toBe(true)
+    expect(validateEvidenceRecord({ ...baseRecord, assertionId: 'scroll-extremes', riskIds: ['R2', 'R7'], status: 'excluded', exclusion: { reason: 'cards never scroll horizontally', followUp: 'HY-04 stacked rows' } }).ok).toBe(true)
     await page.setContent(WIDE_PAGE)
     expect((await assertBoxesWithinOwner(page.getByTestId('owner'), { region: page.getByTestId('region') })).status).toBe('pass')
     for (const [width, expected] of [[376, 'pass'], [377, 'fail']] as const) {
@@ -437,7 +474,7 @@ test.describe('@responsive-harness semantic and interaction assertions', () => {
     expect(await assertMinimumTargets([target('t44'), target('t-hit')])).toMatchObject({ status: 'pass', measurements: { t44: { width: 44, height: 44 } } })
     for (const id of ['t43', 't-wide']) expect((await assertMinimumTargets([target(id)])).failure).toMatchObject({ taxonomy: 'target-size' })
     expect(await assertMinimumTargets([target('t-dis', { disabled: true })])).toMatchObject({ status: 'pass', measurements: { 't-dis': { enforcement: 'record-only-disabled' } } })
-    expect(validateEvidenceRecord({ ...baseRecord, authority: 'browser-interaction', assertionId: 'minimum-targets', status: 'excluded', exclusion: { reason: 'purely unavailable action for the current role', followUp: 'Batch B row actions' } }).ok).toBe(true)
+    expect(validateEvidenceRecord({ ...baseRecord, authority: 'browser-geometry', assertionId: 'minimum-targets', riskIds: ['R3'], status: 'excluded', exclusion: { reason: 'purely unavailable action for the current role', followUp: 'Batch B row actions' } }).ok).toBe(true)
   })
 })
 
@@ -487,7 +524,7 @@ test.describe('@responsive-harness overlay and state assertions', () => {
     expect((await assertSurfaceState(contract('loading', 'Éxito'))).failure).toMatchObject({ taxonomy: 'state-usability' })
     await page.setContent(statePage('No se pudo cargar', '<button data-testid="retry" style="box-sizing:border-box;width:44px;height:44px" onclick="window.retried = true">Reintentar</button>'))
     expect(await assertSurfaceState(contract('error', 'No se pudo cargar', { recovery: { locator: page.getByTestId('retry'), name: 'Reintentar', verify: windowFlag('retried') } }))).toMatchObject({ status: 'pass' })
-    expect(validateEvidenceRecord({ ...baseRecord, authority: 'browser-interaction', assertionId: 'surface-state', stateId: 'selection-bulk', status: 'excluded', exclusion: { reason: 'DT-01 has empty bulkActions and row selection disabled', followUp: 'Batch B bulk actions' } }).ok).toBe(true)
+    expect(validateEvidenceRecord({ ...baseRecord, authority: 'browser-interaction', assertionId: 'surface-state', riskIds: ['R5'], stateId: 'selection-bulk', status: 'excluded', exclusion: { reason: 'DT-01 has empty bulkActions and row selection disabled', followUp: 'Batch B bulk actions' } }).ok).toBe(true)
   })
 })
     
@@ -604,14 +641,14 @@ test.describe('@responsive-harness evidence aggregation', () => {
 
   test('reports all 27 surfaces and R1-R8 as exercised, excluded, or unverified', () => {
     const session = new EvidenceSession('wu4b-run')
-    session.attach(wu4bRecord()); session.attach(wu4bRecord({ viewport: { key: 'phone-375', width: 375, height: 667 }, riskIds: ['R2'] })); session.attach(wu4bRecord({ surfaceId: 'HY-04', archetype: 'HY', status: 'excluded', exclusion: { reason: 'stacked rows never scroll horizontally', followUp: 'HY-04 stacked rows' } }))
+    session.attach(wu4bRecord()); session.attach(wu4bRecord({ viewport: { key: 'phone-375', width: 375, height: 667 } })); session.attach(wu4bRecord({ surfaceId: 'HY-04', archetype: 'HY', status: 'excluded', exclusion: { reason: 'stacked rows never scroll horizontally', followUp: 'HY-04 stacked rows' } }))
     const { records } = session.finalize(); expect(records).toHaveLength(3)
     const coverage = buildCoverage(records)
     expect(coverage.schemaVersion).toBe(SCHEMA_VERSION)
     expect(Object.keys(coverage.surfaces).sort()).toEqual([...INVENTORY_SURFACE_IDS].sort())
     expect(Object.keys(coverage.risks).sort()).toEqual([...RISK_IDS].sort())
     expect(coverage.surfaces['DT-01']).toBe('exercised'); expect(coverage.surfaces['HY-04']).toBe('excluded'); expect(coverage.surfaces['DT-02']).toBe('unverified')
-    expect(coverage.risks.R1).toBe('exercised'); expect(coverage.risks.R2).toBe('exercised'); expect(coverage.risks.R8).toBe('unverified')
+    expect(coverage.risks.R1).toBe('unverified'); expect(coverage.risks.R2).toBe('exercised'); expect(coverage.risks.R8).toBe('unverified')
   })
 
   test('rejects invalid exclusions and leaves the surface unverified', () => {

@@ -67,6 +67,42 @@ export const ASSERTION_IDS = [
   'focus', 'overlay-lifecycle', 'surface-state', 'preference-compatibility',
 ] as const
 export type AssertionId = (typeof ASSERTION_IDS)[number]
+export type AssertionEvidenceAuthority = 'browser-geometry' | 'browser-interaction'
+
+/** The only authority and root-cause families an assertion can substantively exercise. */
+export const ASSERTION_EVIDENCE_RULES: Readonly<Record<AssertionId, { authority: AssertionEvidenceAuthority; riskIds: readonly RiskId[] }>> = {
+  'exact-viewport': { authority: 'browser-geometry', riskIds: ['R8'] },
+  'document-overflow': { authority: 'browser-geometry', riskIds: ['R2', 'R4', 'R7'] },
+  'owner-containment': { authority: 'browser-geometry', riskIds: ['R2', 'R4', 'R7'] },
+  'overflow-contract': { authority: 'browser-geometry', riskIds: ['R2', 'R4', 'R7'] },
+  'long-data': { authority: 'browser-geometry', riskIds: ['R6'] },
+  'scroll-extremes': { authority: 'browser-geometry', riskIds: ['R2', 'R7'] },
+  'sticky-pinned-alignment': { authority: 'browser-geometry', riskIds: ['R7'] },
+  'minimum-targets': { authority: 'browser-geometry', riskIds: ['R3'] },
+  semantics: { authority: 'browser-interaction', riskIds: ['R3', 'R7'] },
+  keyboard: { authority: 'browser-interaction', riskIds: ['R3', 'R7'] },
+  focus: { authority: 'browser-interaction', riskIds: ['R7'] },
+  'overlay-lifecycle': { authority: 'browser-interaction', riskIds: ['R7'] },
+  'surface-state': { authority: 'browser-interaction', riskIds: ['R5'] },
+  'preference-compatibility': { authority: 'browser-interaction', riskIds: ['R1'] },
+}
+
+export interface ResponsiveCaseManifest { readonly ids: readonly string[] }
+export interface ResponsiveCase { readonly surfaceId: string; readonly stateId: string; readonly viewport: number }
+
+const caseIdentity = ({ surfaceId, stateId, viewport }: ResponsiveCase): string => `${surfaceId}|${stateId}|${viewport}`
+
+/** Derives the expected case set from declared cases rather than arithmetic literals. */
+export function deriveResponsiveCaseManifest(cases: readonly ResponsiveCase[]): ResponsiveCaseManifest {
+  return { ids: [...new Set(cases.map(caseIdentity))].sort() }
+}
+
+/** Rejects discovery that omits or invents a declared responsive case. */
+export function validateDiscoveredCaseManifest(manifest: ResponsiveCaseManifest, discovered: readonly ResponsiveCase[]): ParseResult<ResponsiveCaseManifest> {
+  const ids = deriveResponsiveCaseManifest(discovered).ids
+  const expected = manifest.ids.join(',')
+  return ids.join(',') === expected ? { ok: true, value: { ids } } : { ok: false, errors: [`responsive case manifest drift: expected ${expected}; discovered ${ids.join(',')}`] }
+}
 
 export interface AssertionExclusion {
   assertionId: AssertionId

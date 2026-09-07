@@ -1,8 +1,8 @@
 /** Versioned evidence records and target-independent validation for browser responsive runs. */
 
 import {
-  ASSERTION_IDS, findViewportCase, isSurfaceId, RESPONSIVE_STRATEGIES, RISK_IDS, surfaceArchetype,
-  type Archetype, type AssertionId, type ResponsiveStrategy, type SurfaceId, type ViewportWidth,
+  ASSERTION_EVIDENCE_RULES, ASSERTION_IDS, findViewportCase, isSurfaceId, RESPONSIVE_STRATEGIES, surfaceArchetype,
+  type Archetype, type AssertionEvidenceAuthority, type AssertionId, type ResponsiveStrategy, type RiskId, type SurfaceId, type ViewportWidth,
 } from '../targets/types'
 
 export const SCHEMA_VERSION = 1
@@ -10,8 +10,8 @@ export const SCHEMA_VERSION = 1
 /** Sub-pixel CSS-px rounding tolerance recorded with every geometry measurement. */
 export const MEASUREMENT_TOLERANCE_PX = 1
 
-export const EVIDENCE_AUTHORITIES = ['browser-geometry', 'browser-interaction'] as const
-export type EvidenceAuthority = (typeof EVIDENCE_AUTHORITIES)[number]
+export const EVIDENCE_AUTHORITIES = ['browser-geometry', 'browser-interaction'] as const satisfies readonly AssertionEvidenceAuthority[]
+export type EvidenceAuthority = AssertionEvidenceAuthority
 
 export const EVIDENCE_STATUSES = ['pass', 'fail', 'excluded'] as const
 export type EvidenceStatus = (typeof EVIDENCE_STATUSES)[number]
@@ -39,6 +39,13 @@ export interface EvidenceViewport {
   height: number
 }
 
+/** Named targets prevent a containment assertion from comparing an element with itself. */
+export interface EvidenceRegions {
+  owner: { locator: string }
+  surface: { locator: string }
+  related: readonly { label: string; locator: string }[]
+}
+
 export interface ResponsiveEvidenceRecord {
   schemaVersion: typeof SCHEMA_VERSION
   runId: string
@@ -53,7 +60,8 @@ export interface ResponsiveEvidenceRecord {
   effectiveMode: string
   containerOwner: string
   assertionId: AssertionId
-  riskIds: readonly string[]
+  riskIds: readonly RiskId[]
+  regions: EvidenceRegions
   status: EvidenceStatus
   scrollExtreme?: ScrollExtreme
   overlayContext?: string
@@ -113,11 +121,23 @@ export function validateEvidenceRecord(input: unknown): EvidenceValidationResult
 
   if (!(RESPONSIVE_STRATEGIES as readonly string[]).includes(candidate.strategy as string)) fail('strategy must be one of the declared responsive strategies')
   if (!nonEmpty(candidate.effectiveMode)) fail('effectiveMode must be a non-empty string')
-  if (!nonEmpty(candidate.containerOwner)) fail('containerOwner must be a non-empty string')
-  if (!(ASSERTION_IDS as readonly string[]).includes(candidate.assertionId as string)) fail('assertionId must be a known assertion identifier')
-  if (!Array.isArray(candidate.riskIds) || candidate.riskIds.length === 0 || !candidate.riskIds.every((risk) => (RISK_IDS as readonly string[]).includes(risk))) fail('riskIds must be a non-empty subset of the root-cause families R1-R8')
+      if (!nonEmpty(candidate.containerOwner)) fail('containerOwner must be a non-empty string')
+      if (!(ASSERTION_IDS as readonly string[]).includes(candidate.assertionId as string)) fail('assertionId must be a known assertion identifier')
+      const rule = ASSERTION_EVIDENCE_RULES[candidate.assertionId as AssertionId]
+      if (rule && candidate.authority !== rule.authority) fail(`authority must be ${rule.authority} for ${candidate.assertionId}`)
+      if (!Array.isArray(candidate.riskIds) || !rule || candidate.riskIds.length !== rule.riskIds.length || candidate.riskIds.some((risk, index) => risk !== rule.riskIds[index])) fail('riskIds must match the assertion-specific exercised risks')
 
-  if (!(EVIDENCE_STATUSES as readonly string[]).includes(candidate.status as string)) fail('status must be pass, fail, or excluded')
+      const regions = candidate.regions as Record<string, unknown> | undefined
+      const owner = regions?.owner as Record<string, unknown> | undefined
+      const surface = regions?.surface as Record<string, unknown> | undefined
+      const related = regions?.related
+      if (!regions || !nonEmpty(owner?.locator) || !nonEmpty(surface?.locator) || !Array.isArray(related) || related.length === 0) fail('regions must identify an owner, surface, and at least one related region')
+      else {
+        const locators = [owner.locator, surface.locator, ...related.map((region) => typeof region === 'object' && region !== null ? (region as Record<string, unknown>).locator : undefined)]
+        if (locators.some((locator) => !nonEmpty(locator)) || new Set(locators).size !== locators.length) fail('regions must use distinct non-empty owner, surface, and related locators')
+      }
+
+      if (!(EVIDENCE_STATUSES as readonly string[]).includes(candidate.status as string)) fail('status must be pass, fail, or excluded')
   else if (candidate.status === 'fail') {
     const failure = candidate.failure as Record<string, unknown> | undefined
     if (!failure) fail('a failed record must carry a failure object')

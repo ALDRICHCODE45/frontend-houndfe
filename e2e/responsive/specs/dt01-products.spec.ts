@@ -3,7 +3,7 @@ import { seedAuthSession } from '../fixtures/auth'
 import { scenarioRoute, type ScenarioState } from '../fixtures/scenarios'
 import { STRESS_ROWS, STRESS_TOKENS } from '../fixtures/stress-data'
 import { DT01_PRODUCTS } from '../targets/dt01-products'
-import { RESPONSIVE_VIEWPORTS, type ViewportCase } from '../targets/types'
+import { ASSERTION_EVIDENCE_RULES, RESPONSIVE_VIEWPORTS, type ViewportCase } from '../targets/types'
 import { assertBoxesWithinOwner, assertDocumentNoHorizontalOverflow, assertEssentialReachabilityAtExtremes, assertExactViewport, assertLongDataContract, assertOverflowContract, assertStickyAndPinnedAlignment } from '../assertions/geometry'
 import { assertMinimumTargets, assertNamedControls } from '../assertions/accessibility'
 import type { ResponsiveEvidenceRecord } from '../evidence/schema'
@@ -13,7 +13,8 @@ const rows = STRESS_ROWS.map((row) => ({ ...row, type: 'PRODUCT', categoryName: 
 const routes = (state: ScenarioState) => [scenarioRoute('/products', state, { query: undefined, json: state.startsWith('error') ? { message: 'Servicio no disponible (e2e)' } : rows }), { method: 'GET' as const, path: '/categories', json: [] }, { method: 'GET' as const, path: '/brands', json: [] }]
 
 function record(viewport: ViewportCase, stateId: string, result: { assertionId: ResponsiveEvidenceRecord['assertionId']; status: ResponsiveEvidenceRecord['status']; measurements: Record<string, unknown>; failure?: ResponsiveEvidenceRecord['failure']; exclusion?: ResponsiveEvidenceRecord['exclusion'] }): ResponsiveEvidenceRecord {
-  return { schemaVersion: 1, runId: process.env.RESPONSIVE_RUN_ID?.trim() || 'local-run', authority: result.assertionId === 'minimum-targets' || result.assertionId === 'semantics' ? 'browser-interaction' : 'browser-geometry', surfaceId: 'DT-01', archetype: 'DT', route: DT01_PRODUCTS.route, fixtureId: DT01_PRODUCTS.fixtureId, stateId, viewport, strategy: DT01_PRODUCTS.strategy, effectiveMode: 'table', containerOwner: DT01_PRODUCTS.containerOwner, assertionId: result.assertionId, riskIds: DT01_PRODUCTS.risks, status: result.status, measurements: result.measurements, ...(result.failure ? { failure: result.failure } : {}), ...(result.exclusion ? { exclusion: result.exclusion } : {}) }
+  const rule = ASSERTION_EVIDENCE_RULES[result.assertionId]
+  return { schemaVersion: 1, runId: process.env.RESPONSIVE_RUN_ID?.trim() || 'local-run', authority: rule.authority, surfaceId: 'DT-01', archetype: 'DT', route: DT01_PRODUCTS.route, fixtureId: DT01_PRODUCTS.fixtureId, stateId, viewport, strategy: DT01_PRODUCTS.strategy, effectiveMode: 'table', containerOwner: DT01_PRODUCTS.containerOwner, assertionId: result.assertionId, riskIds: rule.riskIds, regions: { owner: { locator: '#hound-dashboard-panel-main-panel' }, surface: { locator: '[data-testid="table-view"], [data-testid="product-cards-grid"]' }, related: [{ label: 'view toggle', locator: '[role="tablist"][aria-label="Seleccionar vista de productos"]' }] }, status: result.status, measurements: result.measurements, ...(result.failure ? { failure: result.failure } : {}), ...(result.exclusion ? { exclusion: result.exclusion } : {}) }
 }
 
 async function openProducts(page: Parameters<typeof DT01_PRODUCTS.resolve>[0], viewport: ViewportCase) {
