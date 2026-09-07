@@ -32,7 +32,8 @@ test.describe('DT-01 strict responsive conformance', () => {
       await openProducts(page, viewport)
         const resolved = state === 'error-5xx' ? undefined : await DT01_PRODUCTS.resolve(page)
       if (!resolved) { await owner.getByRole('heading', { name: 'Productos' }).waitFor(); await owner.getByTestId('table-error-state').waitFor() }
-      const results = [await assertExactViewport(page, viewport), await assertDocumentNoHorizontalOverflow(page), await assertBoxesWithinOwner(owner, { surface: resolved?.anchor ?? owner }), ...(resolved ? [] : [{ assertionId: 'surface-state' as const, status: await owner.getByTestId('table-error-state').isVisible() ? 'pass' as const : 'fail' as const, measurements: { error: await owner.getByTestId('table-error-state').count() }, failure: undefined }])]
+      const surface = resolved ? owner.getByTestId(resolved.mode === 'table' ? 'table-view' : 'product-cards-grid') : owner.getByTestId('table-error-state')
+      const results = [await assertExactViewport(page, viewport), await assertDocumentNoHorizontalOverflow(page), await assertBoxesWithinOwner(owner, { surface }), ...(resolved ? [] : [{ assertionId: 'surface-state' as const, status: await owner.getByTestId('table-error-state').isVisible() ? 'pass' as const : 'fail' as const, measurements: { error: await owner.getByTestId('table-error-state').count() }, failure: undefined }])]
       for (const result of results) evidenceSession.attach(record(viewport, state, result))
       if (state === 'success') for (const exclusion of DT01_PRODUCTS.exclusions) evidenceSession.attach(record(viewport, exclusion.stateId ?? 'excluded', { assertionId: exclusion.assertionId, status: 'excluded', measurements: {}, exclusion: { reason: exclusion.reason, followUp: exclusion.followUp } }))
       expect(strictNetwork.violations()).toEqual([])

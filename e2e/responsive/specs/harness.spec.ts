@@ -697,7 +697,7 @@ test.describe('@responsive-harness evidence aggregation', () => {
 
       test.describe('@responsive-harness representative target adapters', () => {
         const productSurface = (mode: 'table' | 'cards' = 'table') => PAGE_WRAP(`<main id="hound-dashboard-panel-main-panel"><h1>Productos</h1><div role="tablist" aria-label="Seleccionar vista de productos"></div>${mode === 'table' ? '<div data-testid="table-view"><table><tbody><tr><td>SKU-01</td><td data-pinned="right"><button aria-label="Acciones del producto">acciones</button></td></tr></tbody></table><button data-testid="table-error-retry">Reintentar</button><div data-testid="mobile-cards-loading"></div></div>' : '<ul data-testid="product-cards-grid"><li>Producto</li></ul>'}</main>`)
-        const notificationSurface = () => PAGE_WRAP('<section data-testid="notifications-card-actions"><div data-testid="actions-accordion"><div data-testid="action-row-order-created"><button data-testid="master-toggle">Notificaciones</button></div></div></section><section data-testid="notifications-card-recipients"><button data-testid="recipient-select-trigger">Destinatarios</button><div data-testid="recipient-chips"><span data-testid="recipient-chip-u1"><button data-testid="recipient-chip-remove-u1">Quitar</button></span></div></section><footer data-testid="notifications-footer"><button data-testid="save-button">Guardar</button></footer>')
+        const notificationSurface = () => PAGE_WRAP('<main data-testid="notifications-shell"><section data-testid="notifications-card-actions"><div data-testid="actions-accordion"><div data-testid="action-row-order-created"><button data-testid="master-toggle">Notificaciones</button></div></div></section><section data-testid="notifications-card-recipients"><button data-testid="recipient-select-trigger">Destinatarios</button><div data-testid="recipient-chips"><span data-testid="recipient-chip-u1"><button data-testid="recipient-chip-remove-u1">Quitar</button></span></div></section><footer data-testid="notifications-footer"><button data-testid="save-button">Guardar</button></footer></main>')
 
         test('resolves declared DT-01/HY-04 anchors with target-specific actions, state drivers, preferences, and exclusions', async ({ page }) => {
           await page.setContent(productSurface())
@@ -729,6 +729,21 @@ test.describe('@responsive-harness evidence aggregation', () => {
           await page.setContent(PAGE_WRAP('<main id="hound-dashboard-panel-main-panel"></main>'))
           await page.evaluate(() => setTimeout(() => { document.querySelector('main')!.innerHTML = '<h1>Productos</h1><div role="tablist" aria-label="Seleccionar vista de productos"></div><div data-testid="table-view"><button aria-label="Acciones del producto"></button></div>' }, 20))
           expect(await DT01_PRODUCTS.resolve(page)).toMatchObject({ mode: 'table' })
+        })
+
+        test('binds containment to runtime-distinct rendered owner and surface nodes', async ({ page }) => {
+          const specs = ['dt01-products.spec.ts', 'hy04-notifications.spec.ts'].map((file) => readFileSync(`${repoRoot}e2e/responsive/specs/${file}`, 'utf8'))
+          for (const spec of specs) expect(spec).toContain('assertBoxesWithinOwner(owner, { surface })')
+          expect(specs[0]).toContain("owner.getByTestId('table-error-state')")
+          expect(specs[1]).toContain("owner.getByTestId('notifications-query-error')")
+          await page.setContent(productSurface())
+          expect(await page.locator('#hound-dashboard-panel-main-panel').evaluate((owner) => owner === owner.querySelector('[data-testid="table-view"]'))).toBe(false)
+          await page.setContent(PAGE_WRAP('<main id="hound-dashboard-panel-main-panel"><div data-testid="table-error-state"></div></main>'))
+          expect(await page.locator('#hound-dashboard-panel-main-panel').evaluate((owner) => owner === owner.querySelector('[data-testid="table-error-state"]'))).toBe(false)
+          await page.setContent(notificationSurface())
+          expect(await page.getByTestId('notifications-shell').evaluate((owner) => owner === owner.querySelector('[data-testid="notifications-card-actions"]'))).toBe(false)
+          await page.setContent(PAGE_WRAP('<main data-testid="notifications-shell"><div data-testid="notifications-query-error"></div></main>'))
+          expect(await page.getByTestId('notifications-shell').evaluate((owner) => owner === owner.querySelector('[data-testid="notifications-query-error"]'))).toBe(false)
         })
 
         test('triangulates DT-01 card mode and HY-04 exact declared owner stamping', async ({ page }) => {

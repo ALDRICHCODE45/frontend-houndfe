@@ -30,9 +30,10 @@ test.describe('HY-04 strict responsive conformance', () => {
         evidenceSession.attach(record(viewport, state, { assertionId: 'surface-state', status: visible ? 'pass' : 'fail', measurements: { visible }, ...(visible ? {} : { failure: { taxonomy: 'state-usability', message: 'loading state lacks visible feedback' } }) }))
         expect(visible).toBe(true); return
       }
-      const anchor = page.getByTestId('notifications-card-actions')
+      const owner = page.getByRole('main')
       const resolved = state === 'error-5xx' ? undefined : await HY04_NOTIFICATIONS.resolve(page)
-      const results: Array<{ assertionId: ResponsiveEvidenceRecord['assertionId']; status: 'pass' | 'fail'; measurements: Record<string, unknown>; failure?: ResponsiveEvidenceRecord['failure'] }> = [await assertExactViewport(page, viewport), await assertDocumentNoHorizontalOverflow(page), await assertBoxesWithinOwner(anchor, { surface: resolved?.anchor ?? anchor })]
+      const surface = resolved?.anchor ?? owner.getByTestId('notifications-query-error')
+      const results: Array<{ assertionId: ResponsiveEvidenceRecord['assertionId']; status: 'pass' | 'fail'; measurements: Record<string, unknown>; failure?: ResponsiveEvidenceRecord['failure'] }> = [await assertExactViewport(page, viewport), await assertDocumentNoHorizontalOverflow(page), await assertBoxesWithinOwner(owner, { surface })]
       if (!resolved) { const queryError = await page.getByTestId('notifications-query-error').count(); results.push({ assertionId: 'surface-state', status: queryError === 1 ? 'pass' : 'fail', measurements: { queryError }, ...(queryError === 1 ? {} : { failure: { taxonomy: 'state-usability', message: 'HY-04 query error lacks a distinct recovery surface' } }) }) }
       else results.push(await assertOverflowContract({ policy: 'no-horizontal-scroll', owner: resolved.anchor, recordRegions: Array.from({ length: await resolved.states.actionRows.count() }, (_, index) => resolved.states.actionRows.nth(index)) }), await assertMinimumTargets([{ id: 'master-switch', locator: page.getByRole('switch', { name: 'Notificaciones' }) }, { id: 'save', locator: resolved.actions.save }]), await assertNamedControls([{ id: 'master-switch', locator: page.getByRole('switch', { name: 'Notificaciones' }), role: 'switch', name: 'Notificaciones' }]))
       for (const result of results) evidenceSession.attach(record(viewport, state, result))
