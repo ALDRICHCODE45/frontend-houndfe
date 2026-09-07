@@ -13,6 +13,13 @@ import {
   RESPONSIVE_VIEWPORTS,
   type ResponsiveTarget,
 } from '../targets/types'
+import {
+  EVIDENCE_AUTHORITIES,
+  MEASUREMENT_TOLERANCE_PX,
+  SCHEMA_VERSION,
+  validateEvidenceRecord,
+  validateEvidenceSession,
+} from '../evidence/schema'
 
 const repoRoot = fileURLToPath(new URL('../../..', import.meta.url))
 const ARTIFACT_ROOT_PATTERN = /^artifacts\/responsive\/.+/
@@ -123,6 +130,14 @@ const baseTarget: ResponsiveTarget = {
   risks: ['R1', 'R2', 'R3'], exclusions: [],
 }
 
+const baseRecord = {
+  schemaVersion: 1, runId: 'wu1b-run', authority: 'browser-geometry', surfaceId: 'DT-01', archetype: 'DT',
+  route: '/pos/products', fixtureId: 'products-stress', stateId: 'success', effectiveMode: 'table',
+  viewport: { key: 'phone-320', width: 320, height: 568 },
+  strategy: 'contained-table-scroll', containerOwner: 'dashboard-panel', assertionId: 'document-overflow',
+  riskIds: ['R1'], status: 'pass',
+}
+
 function invalid(result: { ok: boolean; errors?: readonly string[] }, fragment: string): void {
   expect(result.ok).toBe(false)
   expect(result.errors?.join(' ')).toContain(fragment)
@@ -159,3 +174,59 @@ test.describe('@responsive-harness typed policy contracts', () => {
   })
 })
 
+test.describe('@responsive-harness evidence schema contracts', () => {
+  const bad = (patch: object, fragment: string) => invalid(validateEvidenceRecord({ ...baseRecord, ...patch }), fragment)
+
+  test('accepts a schema-versioned record at every exact width and rejects schema drift', () => {
+    expect(SCHEMA_VERSION).toBe(1)
+    expect(MEASUREMENT_TOLERANCE_PX).toBe(1)
+    for (const viewport of RESPONSIVE_VIEWPORTS) {
+      const result = validateEvidenceRecord({
+        ...baseRecord,
+        viewport: { key: viewport.key, width: viewport.width, height: viewport.height },
+      })
+      expect(result.ok).toBe(true)
+      expect(result.ok && result.record.schemaVersion).toBe(1)
+    }
+    bad({ schemaVersion: 2 }, 'schemaVersion')
+  })
+
+  test('rejects non-exact viewport widths and mismatched viewport keys', () => {
+    bad({ viewport: { key: 'phone-320', width: 360, height: 568 } }, 'exact matrix width')
+    bad({ viewport: { key: 'phone-375', width: 320, height: 568 } }, 'viewport.key')
+  })
+
+  test('rejects invalid authority, status, and malformed records', () => {
+    expect(EVIDENCE_AUTHORITIES).toEqual(['browser-geometry', 'browser-interaction'])
+    bad({ authority: 'jsdom' }, 'authority')
+    bad({ status: 'warn' }, 'status')
+    bad({ fixtureId: '' }, 'fixtureId')
+    bad({ stateId: '' }, 'stateId')
+    bad({ surfaceId: 'DT-99' }, 'inventory')
+    bad({ status: 'fail' }, 'failure')
+    bad({ status: 'fail', failure: { taxonomy: 'unknown', message: 'broken' } }, 'taxonomy')
+  })
+
+  test('requires complete exclusion records and rejects a passing failure', () => {
+    bad({ status: 'excluded' }, 'exclusion')
+    bad({ status: 'excluded', exclusion: { reason: ' ', followUp: 'Batch C native targets' } }, 'reason')
+    bad({ failure: { taxonomy: 'document-overflow', message: 'should not exist on pass' } }, 'pass')
+  })
+
+  test('rejects duplicate evidence identity and separates representative authorities', () => {
+    invalid(validateEvidenceSession([baseRecord, { ...baseRecord }]), 'duplicate')
+    expect(validateEvidenceRecord({ ...baseRecord, authority: 'browser-interaction', assertionId: 'minimum-targets' }).ok).toBe(true)
+    expect(
+      validateEvidenceSession([
+        baseRecord,
+        {
+          ...baseRecord,
+          authority: 'browser-interaction',
+          assertionId: 'minimum-targets',
+          status: 'fail',
+          failure: { taxonomy: 'target-size', message: '28px row menu' },
+        },
+      ]).ok,
+    ).toBe(true)
+  })
+})
