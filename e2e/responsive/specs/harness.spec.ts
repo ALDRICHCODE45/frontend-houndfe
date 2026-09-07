@@ -1,4 +1,6 @@
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import responsiveConfig, {
   DEFAULT_RUN_ID,
@@ -9,19 +11,24 @@ import { expect, test } from '../fixtures/test'
 import type { Page } from '@playwright/test'
 import {
   findViewportCase,
+  INVENTORY_SURFACE_IDS,
   isMatrixWidth,
   parseResponsiveTarget,
   RESPONSIVE_VIEWPORTS,
+  RISK_IDS,
   SURFACE_STATES,
   type ResponsiveTarget,
 } from '../targets/types'
 import {
+  EVIDENCE_ATTACHMENT_NAME,
   EVIDENCE_AUTHORITIES,
   MEASUREMENT_TOLERANCE_PX,
   SCHEMA_VERSION,
   validateEvidenceRecord,
   validateEvidenceSession,
 } from '../evidence/schema'
+import { EvidenceSession } from '../evidence/session'
+import { buildCoverage, ResponsiveEvidenceReporter } from '../evidence/reporter'
 import {
   assertBoxesWithinOwner,
   assertDocumentNoHorizontalOverflow,
@@ -534,5 +541,106 @@ test.describe('@responsive-harness deterministic fixtures', () => {
     expect(Number.isInteger(STRESS_TOKENS.cents) && STRESS_TOKENS.cents > 0).toBe(true); expect(Number.isNaN(Date.parse(STRESS_TOKENS.isoDate))).toBe(false)
     expect(STRESS_TOKENS.badges.length).toBeGreaterThan(2); expect(STRESS_ROWS).toHaveLength(12)
     expect(new Set(STRESS_ROWS.map((row) => row.id)).size).toBe(STRESS_ROWS.length); expect(JSON.stringify(STRESS_ROWS[0])).toContain(STRESS_TOKENS.longName)
+  })
+})
+
+const wu4bRecord = (patch: object = {}) => {
+  const { runId: _stamped, ...rest } = baseRecord
+  return { ...rest, ...patch }
+}
+type ReporterTest = Parameters<ResponsiveEvidenceReporter['onTestEnd']>[0]; type ReporterResult = Parameters<ResponsiveEvidenceReporter['onTestEnd']>[1]
+const fakeTest = (id: string) => ({ id, title: `case-${id}` }) as unknown as ReporterTest
+const attemptOf = (status: string, retry: number, records: unknown[], attached = true): ReporterResult => ({
+  status, retry, errors: [], steps: [],
+  attachments: attached ? [{ name: EVIDENCE_ATTACHMENT_NAME, contentType: 'application/json', body: Buffer.from(JSON.stringify(records)) }] : [],
+}) as unknown as ReporterResult
+const runAttempt = (reporter: ResponsiveEvidenceReporter, id: string, status: string, retry: number, records: unknown[], attached = true) =>
+  reporter.onTestEnd(fakeTest(id), attemptOf(status, retry, records, attached))
+
+test.describe('@responsive-harness evidence aggregation', () => {
+  test('attaches valid evidence before the aggregate error and rejects malformed and duplicate records', () => {
+    const session = new EvidenceSession('wu4b-run')
+    session.attach(wu4bRecord()); session.attach(wu4bRecord()); session.attach({ ...wu4bRecord(), viewport: { key: 'phone-320', width: 360, height: 568 } })
+    const { records, errors } = session.finalize()
+    expect(errors.join(' ')).toContain('duplicate evidence identity'); expect(errors.join(' ')).toContain('exact matrix width')
+    expect(records).toHaveLength(1)
+    expect(records[0]).toMatchObject({ surfaceId: 'DT-01', runId: 'wu4b-run' })
+  })
+
+  test('reports all 27 surfaces and R1-R8 as exercised, excluded, or unverified', () => {
+    const session = new EvidenceSession('wu4b-run')
+    session.attach(wu4bRecord()); session.attach(wu4bRecord({ viewport: { key: 'phone-375', width: 375, height: 667 }, riskIds: ['R2'] })); session.attach(wu4bRecord({ surfaceId: 'HY-04', archetype: 'HY', status: 'excluded', exclusion: { reason: 'stacked rows never scroll horizontally', followUp: 'HY-04 stacked rows' } }))
+    const { records } = session.finalize(); expect(records).toHaveLength(3)
+    const coverage = buildCoverage(records)
+    expect(coverage.schemaVersion).toBe(SCHEMA_VERSION)
+    expect(Object.keys(coverage.surfaces).sort()).toEqual([...INVENTORY_SURFACE_IDS].sort())
+    expect(Object.keys(coverage.risks).sort()).toEqual([...RISK_IDS].sort())
+    expect(coverage.surfaces['DT-01']).toBe('exercised'); expect(coverage.surfaces['HY-04']).toBe('excluded'); expect(coverage.surfaces['DT-02']).toBe('unverified')
+    expect(coverage.risks.R1).toBe('exercised'); expect(coverage.risks.R2).toBe('exercised'); expect(coverage.risks.R8).toBe('unverified')
+  })
+
+  test('rejects invalid exclusions and leaves the surface unverified', () => {
+    const session = new EvidenceSession('wu4b-run'); session.attach({ ...wu4bRecord(), surfaceId: 'HY-04', archetype: 'HY', status: 'excluded' })
+    const { records, errors } = session.finalize()
+    expect(errors.join(' ')).toContain('excluded record must carry an exclusion object')
+    expect(records).toHaveLength(0); expect(buildCoverage([]).surfaces['HY-04']).toBe('unverified')
+  })
+
+  test('retains only the final retry attempt and never upgrades a final failure', () => {
+    const passing = new ResponsiveEvidenceReporter({ runId: 'wu4b-run' })
+    runAttempt(passing, 't1', 'failed', 0, [wu4bRecord()])
+    runAttempt(passing, 't1', 'passed', 1, [wu4bRecord({ assertionId: 'owner-containment' })])
+    const retried = passing.collect()
+    expect(retried.records.map((record) => record.assertionId)).toEqual(['owner-containment'])
+    expect(retried.summary.tests[0]).toMatchObject({ id: 't1', attempt: 1, status: 'passed', records: 1 }); expect(retried.summary.aggregate).toBe('pass')
+
+    const failing = new ResponsiveEvidenceReporter({ runId: 'wu4b-run' })
+    runAttempt(failing, 't2', 'passed', 0, [wu4bRecord()])
+    runAttempt(failing, 't2', 'failed', 1, [wu4bRecord({ assertionId: 'overflow-contract', status: 'fail', failure: { taxonomy: 'document-overflow', message: 'wide' } })])
+        const final = failing.collect()
+        expect(final.summary.aggregate).toBe('fail')
+        expect(final.summary.failures[0]).toMatchObject({ testId: 't2', taxonomy: 'document-overflow', setupFailure: false })
+
+        const duplicated = new ResponsiveEvidenceReporter({ runId: 'wu4b-run' })
+        runAttempt(duplicated, 't7', 'passed', 0, [wu4bRecord()]); runAttempt(duplicated, 't8', 'passed', 0, [wu4bRecord()])
+        const cross = duplicated.collect()
+        expect(cross.summary.errors.join(' ')).toContain('duplicate evidence identity')
+        expect(cross.summary.aggregate).toBe('fail')
+      })
+
+      test('classifies a failed test without evidence records as a harness-or-fixture setup failure', () => {
+        const reporter = new ResponsiveEvidenceReporter({ runId: 'wu4b-run' })
+        reporter.onTestEnd(fakeTest('t3'), {
+          status: 'failed', retry: 0, steps: [], errors: [{ message: 'fixture setup failed' }],
+          attachments: [
+            { name: 'trace', contentType: 'application/zip', path: 'artifacts/responsive/x/trace.zip' },
+            { name: 'screenshot', contentType: 'image/png', path: 'artifacts/responsive/x/failure.png' },
+          ],
+        } as unknown as ReporterResult)
+        const { summary } = reporter.collect()
+        expect(summary.failures[0]).toMatchObject({ testId: 't3', taxonomy: 'harness-or-fixture', setupFailure: true, message: 'fixture setup failed' })
+        expect(summary.totals.setupFailures).toBe(1); expect(summary.aggregate).toBe('fail')
+        expect(summary.tests[0].diagnostics).toEqual(['artifacts/responsive/x/trace.zip', 'artifacts/responsive/x/failure.png'])
+      })
+
+  test('writes deterministic sorted overwrite JSONL, summary, and coverage artifacts', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'responsive-wu4b-'))
+    try {
+      const run = (reverse: boolean) => {
+const reporter = new ResponsiveEvidenceReporter({ runId: 'wu4b-run', outputRoot: dir })
+const attempts = [() => runAttempt(reporter, 't4', 'passed', 0, [wu4bRecord()]), () => runAttempt(reporter, 't5', 'passed', 0, [wu4bRecord({ assertionId: 'owner-containment' })])]
+for (const attempt of reverse ? [...attempts].reverse() : attempts) attempt()
+reporter.finalize()
+      }
+      run(false)
+      const [jsonl, summary, coverage] = ['evidence.jsonl', 'summary.json', 'coverage.json'].map((file) => readFileSync(join(dir, file), 'utf8'))
+      run(true)
+      expect(['evidence.jsonl', 'summary.json', 'coverage.json'].map((file) => readFileSync(join(dir, file), 'utf8'))).toEqual([jsonl, summary, coverage])
+      const lines = jsonl.split('\n'); expect(lines).toHaveLength(3)
+      expect(JSON.parse(lines[0]).assertionId).toBe('document-overflow')
+      expect(JSON.parse(lines[1]).assertionId).toBe('owner-containment')
+      expect(JSON.parse(coverage).surfaces['DT-01']).toBe('exercised')
+      expect(JSON.parse(summary).totals.records).toBe(2)
+    } finally { rmSync(dir, { recursive: true, force: true }) }
   })
 })

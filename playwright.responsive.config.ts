@@ -22,6 +22,7 @@ export default defineConfig({
   reporter: [
     ['line'],
     ['html', { outputFolder: `${runArtifactRoot}/html`, open: 'never' }],
+    ['./e2e/responsive/evidence/reporter.ts', { runId: resolveRunId(process.env), outputRoot: `${runArtifactRoot}/evidence` }],
   ],
   use: {
     locale: 'es-MX',

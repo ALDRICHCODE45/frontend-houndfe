@@ -70,10 +70,24 @@ export type SessionValidationResult =
   | { ok: true; records: readonly ResponsiveEvidenceRecord[] }
   | { ok: false; errors: readonly string[] }
 
+/** Aggregation output statuses for the all-27/R1–R8 coverage report. */
+export const COVERAGE_STATUSES = ['exercised', 'excluded', 'unverified'] as const
+export type CoverageStatus = (typeof COVERAGE_STATUSES)[number]
+
+/** Per-test evidence attachment name shared by the session fixture and the reporter. */
+export const EVIDENCE_ATTACHMENT_NAME = 'responsive-evidence'
+
+/** Taxonomy applied when a test fails without classified evidence records (fixture or setup failure). */
+export const SETUP_FAILURE_TAXONOMY: FailureTaxonomy = 'harness-or-fixture'
+
 const nonEmpty = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0
 
-const identityOf = (record: ResponsiveEvidenceRecord): string =>
-  [record.surfaceId, record.stateId, record.viewport.key, record.assertionId, record.scrollExtreme ?? '-', record.overlayContext ?? '-'].join('|')
+const identityOf = (record: ResponsiveEvidenceRecord): string => evidenceIdentity(record)
+
+/** Deterministic identity of one evidence record within a session (used for duplicate rejection and stable sorting). */
+export function evidenceIdentity(record: ResponsiveEvidenceRecord): string {
+  return [record.surfaceId, record.stateId, record.viewport.key, record.assertionId, record.scrollExtreme ?? '-', record.overlayContext ?? '-'].join('|')
+}
 
 export function validateEvidenceRecord(input: unknown): EvidenceValidationResult {
   if (typeof input !== 'object' || input === null) return { ok: false, errors: ['evidence record must be an object'] }
