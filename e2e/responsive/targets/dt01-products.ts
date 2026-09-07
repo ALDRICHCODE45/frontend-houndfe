@@ -1,0 +1,45 @@
+import type { Locator, Page } from '@playwright/test'
+import {
+  stampEvidenceSurface,
+  uniqueAnchor,
+  type ResponsiveTargetAdapter,
+} from './types'
+
+type ProductActions = { viewToggle: Locator; rowMenu: Locator; pinnedActions: Locator }
+type ProductStates = { error: Locator; errorRetry: Locator; loading: Locator; empty: Locator }
+
+export const DT01_PRODUCTS: ResponsiveTargetAdapter<ProductActions, ProductStates> = {
+  surfaceId: 'DT-01', archetype: 'DT', route: '/pos/products', containerOwner: 'dashboard-panel',
+  strategy: 'contained-table-scroll', fixtureId: 'products-stress',
+  essentialFields: ['product identity/SKU', 'price/stock/status', 'product actions'],
+  supportedStates: ['loading', 'fetching', 'success', 'empty', 'no-match', 'error', 'paginated'],
+  preferenceKeys: ['products-view-mode', 'table-preferences-pos-products'], risks: ['R1', 'R2', 'R3', 'R5', 'R6', 'R7', 'R8'],
+  exclusions: [
+    { assertionId: 'overlay-lifecycle', reason: 'DT-01 adapter does not open product overlays in this representative slice', followUp: 'WU-4d strict surface specs' },
+    { assertionId: 'surface-state', stateId: 'selection-bulk', reason: 'Product rows disable selection and expose no bulk action', followUp: 'Batch B bulk-action evidence' },
+  ],
+  stateDrivers: {
+    success: { scenario: 'success', status: 'ready' }, loading: { scenario: 'loading', status: 'ready' },
+    fetching: { scenario: 'fetching', status: 'ready' }, empty: { scenario: 'empty', status: 'ready' },
+    noMatch: { scenario: 'no-match', status: 'ready' }, error: { scenario: 'error-5xx', status: 'ready' },
+    paginated: { scenario: 'paginated', status: 'ready' },
+  },
+  async resolve(page: Page) {
+    const owner = await uniqueAnchor(page.locator('#main-panel'), 'DT-01 dashboard owner')
+    await uniqueAnchor(owner.getByRole('heading', { name: 'Productos' }), 'DT-01 Products heading')
+    const table = owner.getByTestId('table-view'), cards = owner.getByTestId('product-cards-grid')
+    const total = await table.count() + await cards.count()
+    if (total !== 1) throw new Error(`DT-01 table or cards anchor must resolve exactly once; found ${total}`)
+    const mode = await table.count() === 1 ? 'table' as const : 'cards' as const
+    const anchor = await uniqueAnchor(mode === 'table' ? table : cards, `DT-01 ${mode} anchor`)
+    await stampEvidenceSurface(owner, 'DT-01')
+    return {
+      target: DT01_PRODUCTS, anchor: owner, mode, preferences: DT01_PRODUCTS.preferenceKeys,
+      actions: {
+        viewToggle: await uniqueAnchor(owner.getByRole('tablist', { name: 'Seleccionar vista de productos' }), 'DT-01 view toggle'),
+        rowMenu: anchor.getByRole('button', { name: 'Acciones del producto' }), pinnedActions: anchor.locator('[data-pinned="right"]'),
+      },
+      states: { error: anchor.getByTestId('table-error-state'), errorRetry: anchor.getByTestId('table-error-retry'), loading: anchor.getByTestId('mobile-cards-loading'), empty: anchor.getByTestId('mobile-empty-state') },
+    }
+  },
+}

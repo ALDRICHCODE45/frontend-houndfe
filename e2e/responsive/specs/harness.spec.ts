@@ -57,6 +57,8 @@ import { EXCEEDED_REQUEST_COUNT, EXTERNAL_REQUEST, UNDECLARED_REQUEST, installSt
 import { SCENARIO_CATALOG, SCENARIO_STATES, parseScenarioSelection, scenarioRoute } from '../fixtures/scenarios'
 import { STRESS_ROWS, STRESS_TOKENS } from '../fixtures/stress-data'
 import { RESPONSIVE_ORIGIN } from '../fixtures/test'
+import { DT01_PRODUCTS } from '../targets/dt01-products'
+import { HY04_NOTIFICATIONS } from '../targets/hy04-notifications'
 
 const repoRoot = fileURLToPath(new URL('../../..', import.meta.url))
 const ARTIFACT_ROOT_PATTERN = /^artifacts\/responsive\/.+/
@@ -623,7 +625,53 @@ test.describe('@responsive-harness evidence aggregation', () => {
         expect(summary.tests[0].diagnostics).toEqual(['artifacts/responsive/x/trace.zip', 'artifacts/responsive/x/failure.png'])
       })
 
-  test('writes deterministic sorted overwrite JSONL, summary, and coverage artifacts', () => {
+      test.describe('@responsive-harness representative target adapters', () => {
+        const productSurface = (mode: 'table' | 'cards' = 'table') => PAGE_WRAP(`<main id="main-panel"><h1>Productos</h1><div role="tablist" aria-label="Seleccionar vista de productos"></div>${mode === 'table' ? '<div data-testid="table-view"><table><tbody><tr><td>SKU-01</td><td data-pinned="right"><button aria-label="Acciones del producto">acciones</button></td></tr></tbody></table><button data-testid="table-error-retry">Reintentar</button><div data-testid="mobile-cards-loading"></div></div>' : '<ul data-testid="product-cards-grid"><li>Producto</li></ul>'}</main>`)
+        const notificationSurface = () => PAGE_WRAP('<section data-testid="notifications-card-actions"><div data-testid="actions-accordion"><div data-testid="action-row-order-created"><button data-testid="master-toggle">Notificaciones</button></div></div></section><section data-testid="notifications-card-recipients"><button data-testid="recipient-select-trigger">Destinatarios</button><div data-testid="recipient-chips"><span data-testid="recipient-chip-u1"><button data-testid="recipient-chip-remove-u1">Quitar</button></span></div></section><footer data-testid="notifications-footer"><button data-testid="save-button">Guardar</button></footer>')
+
+        test('resolves declared DT-01/HY-04 anchors with target-specific actions, state drivers, preferences, and exclusions', async ({ page }) => {
+          await page.setContent(productSurface())
+          const products = await DT01_PRODUCTS.resolve(page)
+          expect(await products.anchor.getAttribute('data-evidence-surface-id')).toBe('DT-01')
+          expect(products).toMatchObject({ mode: 'table', preferences: ['products-view-mode', 'table-preferences-pos-products'] })
+          expect(await products.actions.rowMenu.count()).toBe(1); expect(await products.states.errorRetry.count()).toBe(1)
+          expect(DT01_PRODUCTS.exclusions.some(({ assertionId }) => assertionId === 'overlay-lifecycle')).toBe(true)
+          await page.setContent(notificationSurface())
+          const notifications = await HY04_NOTIFICATIONS.resolve(page)
+          expect(await notifications.anchor.getAttribute('data-evidence-surface-id')).toBe('HY-04')
+          expect(notifications.target.strategy).toBe('stacked-list'); expect(await notifications.actions.save.count()).toBe(1)
+          expect(await notifications.states.recipients.count()).toBe(1); expect(HY04_NOTIFICATIONS.stateDrivers.error).toMatchObject({ scenario: 'error-5xx', status: 'strict-red' })
+        })
+
+        test('rejects missing, ambiguous, duplicate, and wrong in-memory adapter stamps without selector fallbacks', async ({ page }) => {
+          await page.setContent(PAGE_WRAP('<main id="main-panel"><h1>Productos</h1></main>'))
+          await expect(DT01_PRODUCTS.resolve(page)).rejects.toThrow('DT-01 table or cards anchor')
+          await page.setContent(PAGE_WRAP('<main id="main-panel"><h1>Productos</h1><div data-testid="table-view"></div><div data-testid="table-view"></div></main>'))
+          await expect(DT01_PRODUCTS.resolve(page)).rejects.toThrow('must resolve exactly once')
+          await page.setContent(productSurface())
+          await DT01_PRODUCTS.resolve(page)
+          await expect(DT01_PRODUCTS.resolve(page)).rejects.toThrow('duplicate evidence stamp')
+          await page.setContent(notificationSurface().replace('notifications-card-actions"', 'notifications-card-actions" data-evidence-surface-id="DT-01"'))
+          await expect(HY04_NOTIFICATIONS.resolve(page)).rejects.toThrow('wrong evidence stamp')
+        })
+
+        test('triangulates DT-01 card mode and HY-04 exact declared owner stamping', async ({ page }) => {
+          await page.setContent(productSurface('cards'))
+          expect((await DT01_PRODUCTS.resolve(page)).mode).toBe('cards')
+          await page.setContent(notificationSurface())
+          const notifications = await HY04_NOTIFICATIONS.resolve(page)
+          expect(await notifications.anchor.getAttribute('data-testid')).toBe('notifications-card-actions')
+        })
+      })
+
+      test('keeps adapter declarations parseable and their preference/overlay applicability explicit', () => {
+        expect(parseResponsiveTarget(DT01_PRODUCTS).ok).toBe(true)
+        expect(parseResponsiveTarget(HY04_NOTIFICATIONS).ok).toBe(true)
+        expect(DT01_PRODUCTS.preferenceKeys).toEqual(['products-view-mode', 'table-preferences-pos-products'])
+        expect(HY04_NOTIFICATIONS.exclusions.find(({ assertionId }) => assertionId === 'overlay-lifecycle')).toMatchObject({ followUp: 'WU-4d overlay coverage' })
+      })
+
+      test('writes deterministic sorted overwrite JSONL, summary, and coverage artifacts', () => {
     const dir = mkdtempSync(join(tmpdir(), 'responsive-wu4b-'))
     try {
       const run = (reverse: boolean) => {

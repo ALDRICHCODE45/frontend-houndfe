@@ -1,4 +1,5 @@
 /** Target-independent responsive policy contracts: exact viewport matrix, strategy/archetype unions, accepted inventory identities, and the exclusion shape. */
+import type { Locator, Page } from '@playwright/test'
 
 export const INVENTORY_SURFACE_IDS = [
   'DT-01', 'DT-02', 'DT-03', 'DT-04', 'DT-05', 'DT-06', 'DT-07', 'DT-08', 'DT-09', 'DT-10',
@@ -86,6 +87,32 @@ export interface ResponsiveTarget {
   preferenceKeys: readonly string[]
   risks: readonly RiskId[]
   exclusions: readonly AssertionExclusion[]
+}
+
+export type TargetMode = 'table' | 'cards' | 'stacked'
+export interface TargetStateDriver { scenario: string; status: 'ready' | 'strict-red' | 'excluded'; note?: string }
+export interface ResolvedTarget<A extends Record<string, Locator>, S extends Record<string, Locator>> {
+  target: ResponsiveTarget; anchor: Locator; mode: TargetMode; preferences: readonly string[]; actions: A; states: S
+}
+export interface ResponsiveTargetAdapter<A extends Record<string, Locator>, S extends Record<string, Locator>> extends ResponsiveTarget {
+  fixtureId: string; stateDrivers: Readonly<Record<string, TargetStateDriver>>
+  resolve(page: Page): Promise<ResolvedTarget<A, S>>
+}
+
+/** Reject ambiguity before an in-memory evidence stamp; adapters never recover with classes or row indexes. */
+export async function uniqueAnchor(locator: Locator, label: string): Promise<Locator> {
+  const count = await locator.count()
+  if (count !== 1) throw new Error(`${label} must resolve exactly once; found ${count}`)
+  return locator
+}
+
+/** Stamp only the unique declared owner, and reject both same-ID duplication and foreign ownership. */
+export async function stampEvidenceSurface(anchor: Locator, surfaceId: SurfaceId): Promise<void> {
+  const existing = await anchor.getAttribute('data-evidence-surface-id')
+  if (existing && existing !== surfaceId) throw new Error(`${surfaceId} wrong evidence stamp: ${existing}`)
+  if (existing === surfaceId || await anchor.page().locator(`[data-evidence-surface-id="${surfaceId}"]`).count() > 0)
+    throw new Error(`${surfaceId} duplicate evidence stamp`)
+  await anchor.evaluate((element, id) => element.setAttribute('data-evidence-surface-id', id), surfaceId)
 }
 
 export type ParseResult<T> = { ok: true; value: T } | { ok: false; errors: readonly string[] }
