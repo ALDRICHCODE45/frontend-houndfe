@@ -6,6 +6,13 @@ import responsiveConfig, {
   resolveRunId,
 } from '../../../playwright.responsive.config'
 import { expect, test } from '../fixtures/test'
+import {
+  findViewportCase,
+  isMatrixWidth,
+  parseResponsiveTarget,
+  RESPONSIVE_VIEWPORTS,
+  type ResponsiveTarget,
+} from '../targets/types'
 
 const repoRoot = fileURLToPath(new URL('../../..', import.meta.url))
 const ARTIFACT_ROOT_PATTERN = /^artifacts\/responsive\/.+/
@@ -107,3 +114,48 @@ test.describe('@responsive-harness deterministic browser context', () => {
     expect(context.timezone).toBe('America/Mexico_City')
   })
 })
+
+const baseTarget: ResponsiveTarget = {
+  surfaceId: 'DT-01', archetype: 'DT', route: '/pos/products', containerOwner: 'dashboard-panel',
+  strategy: 'contained-table-scroll', essentialFields: ['name', 'sku', 'price', 'status'],
+  supportedStates: ['loading', 'success', 'empty', 'no-match', 'error'],
+  preferenceKeys: ['products-view-mode', 'table-preferences-pos-products'],
+  risks: ['R1', 'R2', 'R3'], exclusions: [],
+}
+
+function invalid(result: { ok: boolean; errors?: readonly string[] }, fragment: string): void {
+  expect(result.ok).toBe(false)
+  expect(result.errors?.join(' ')).toContain(fragment)
+}
+
+test.describe('@responsive-harness typed policy contracts', () => {
+  const bad = (patch: object, fragment: string) => invalid(parseResponsiveTarget({ ...baseTarget, ...patch }), fragment)
+
+  test('accepts exactly the 320/375/768/1024 matrix and rejects approximate widths', () => {
+    expect(RESPONSIVE_VIEWPORTS.map((viewport) => viewport.width)).toEqual([320, 375, 768, 1024])
+    expect(RESPONSIVE_VIEWPORTS.map((viewport) => viewport.height)).toEqual([568, 667, 1024, 768])
+    expect(parseResponsiveTarget(baseTarget).ok).toBe(true)
+    for (const width of [360, 412, 419, 320.5]) {
+      expect(isMatrixWidth(width)).toBe(false)
+      expect(findViewportCase(width)).toBeUndefined()
+    }
+  })
+
+  test('rejects unsupported strategies and archetype drift', () => {
+    bad({ strategy: 'free-scroll' }, 'strategy')
+    bad({ archetype: 'NT' }, 'archetype')
+  })
+
+  test('rejects missing surface, route, and state identity', () => {
+    bad({ surfaceId: 'DT-99' }, 'inventory')
+    bad({ route: ' ' }, 'route')
+    bad({ supportedStates: [] }, 'supportedStates')
+    bad({ risks: ['R9'] }, 'R1-R8')
+  })
+
+  test('rejects incomplete exclusions', () => {
+    bad({ exclusions: [{ assertionId: 'scroll-extremes', reason: 'cards never scroll' }] }, 'followUp')
+    bad({ exclusions: [{ assertionId: 'scroll-extremes', reason: '', followUp: 'HY-04' }] }, 'reason')
+  })
+})
+
