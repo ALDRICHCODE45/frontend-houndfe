@@ -120,10 +120,27 @@ test.describe('@responsive-harness runner wiring', () => {
     expect(packageJson.scripts['test:responsive:harness']).toContain('--grep @responsive-harness')
     expect(packageJson.scripts['type-check:responsive']).toBe('tsc --noEmit -p tsconfig.responsive.json')
     expect(packageJson.devDependencies['@playwright/test']).toMatch(/^\d+\.\d+\.\d+$/)
-  })
-})
+      })
 
-test.describe('@responsive-harness bootstrap environment', () => {
+      test('locks the exact 44-case manifest and direct strict commands', () => {
+        const packageJson = JSON.parse(readFileSync(`${repoRoot}package.json`, 'utf8'))
+        const specs = ['dt01-products.spec.ts', 'hy04-notifications.spec.ts'].map((file) => readFileSync(`${repoRoot}e2e/responsive/specs/${file}`, 'utf8'))
+        expect(RESPONSIVE_VIEWPORTS.map(({ width }) => width)).toEqual([320, 375, 768, 1024])
+        expect(RESPONSIVE_VIEWPORTS).toHaveLength(4)
+        expect(4 * (7 + 1) + 4 * 3).toBe(44)
+        const commands = {
+          'test:responsive:conformance': 'playwright test --config=playwright.responsive.config.ts e2e/responsive/specs/dt01-products.spec.ts e2e/responsive/specs/hy04-notifications.spec.ts',
+          'test:responsive:headed': 'playwright test --headed --config=playwright.responsive.config.ts e2e/responsive/specs/dt01-products.spec.ts e2e/responsive/specs/hy04-notifications.spec.ts',
+        }
+        for (const [script, command] of Object.entries(commands)) {
+          expect(packageJson.scripts[script]).toBe(command)
+          expect(command).not.toMatch(/(?:skip|fixme|\.fail\b|expected|\|\||&&)/)
+        }
+        for (const spec of specs) expect(spec).not.toMatch(/\b(?:skip|fixme|\.fail)\b/)
+      })
+    })
+
+    test.describe('@responsive-harness bootstrap environment', () => {
   test('falls back to the deterministic run id when the environment is missing or invalid', () => {
     expect(resolveRunId({})).toBe(DEFAULT_RUN_ID)
     expect(resolveRunId({ [RUN_ID_ENV_VAR]: '   ' })).toBe(DEFAULT_RUN_ID)

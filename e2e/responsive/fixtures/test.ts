@@ -10,7 +10,7 @@ export const RESPONSIVE_ORIGIN = `http://127.0.0.1:${RESPONSIVE_WEB_SERVER_PORT}
 
 export interface ResponsiveFixtures {
   /** Declared `/__e2e-api` routes consumed by the `strictNetwork` fixture. */
-  declaredRoutes: readonly DeclaredRoute[]
+  declaredRoutes: readonly DeclaredRoute[] | { readonly routes: readonly DeclaredRoute[] }
   /** Per-test evidence session; finalizes and attaches records after the test, then rejects invalid aggregates. */
   evidenceSession: EvidenceSession
   strictNetwork: StrictNetworkController
@@ -27,7 +27,7 @@ export const test = base.extend<ResponsiveFixtures>({
     if (errors.length > 0) throw new Error(`responsive evidence session rejected records:\n${errors.join('\n')}`)
   },
   strictNetwork: async ({ page, declaredRoutes }, use) => {
-    const controller = await installStrictNetwork(page, RESPONSIVE_ORIGIN, declaredRoutes, EXPECTED_BLOCKED_STARTUP_EXTERNALS)
+    const controller = await installStrictNetwork(page, RESPONSIVE_ORIGIN, 'routes' in declaredRoutes ? declaredRoutes.routes : declaredRoutes, EXPECTED_BLOCKED_STARTUP_EXTERNALS)
     await use(controller)
     await controller.releaseDeferred() // teardown release: deferred gates never leak past a test
   },

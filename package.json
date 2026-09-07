@@ -9,6 +9,8 @@
     "preview": "vite preview",
     "test:unit": "vitest",
     "test:responsive:harness": "playwright test --config=playwright.responsive.config.ts --grep @responsive-harness",
+    "test:responsive:conformance": "playwright test --config=playwright.responsive.config.ts e2e/responsive/specs/dt01-products.spec.ts e2e/responsive/specs/hy04-notifications.spec.ts",
+    "test:responsive:headed": "playwright test --headed --config=playwright.responsive.config.ts e2e/responsive/specs/dt01-products.spec.ts e2e/responsive/specs/hy04-notifications.spec.ts",
     "type-check:responsive": "tsc --noEmit -p tsconfig.responsive.json",
     "build-only": "vite build",
     "type-check": "vue-tsc --build",
