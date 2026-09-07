@@ -27,6 +27,12 @@ export type FailureTaxonomy = (typeof FAILURE_TAXONOMY)[number]
 
 export type ScrollExtreme = 'left' | 'right'
 
+/** CSS-pixel box with derived edges, recorded with every containment measurement. */
+export interface GeometryBox { x: number; y: number; width: number; height: number; top: number; right: number; bottom: number; left: number }
+
+/** Requested versus settled scroll position at one horizontal extreme. */
+export interface ScrollExtremeMeasurement { extreme: ScrollExtreme; requested: number; actual: number; max: number }
+
 export interface EvidenceViewport {
   key: string
   width: ViewportWidth

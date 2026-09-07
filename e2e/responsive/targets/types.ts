@@ -47,6 +47,10 @@ export const RESPONSIVE_STRATEGIES = [
 ] as const
 export type ResponsiveStrategy = (typeof RESPONSIVE_STRATEGIES)[number]
 
+/** Geometry overflow policy consumed by target-independent overflow assertions. */
+export const OVERFLOW_POLICIES = ['local-scroll', 'no-horizontal-scroll'] as const
+export type OverflowPolicy = (typeof OVERFLOW_POLICIES)[number]
+
 export type ContainerOwner = 'dashboard-panel' | 'card' | 'modal' | 'slideover' | (string & {})
 
 export const RISK_IDS = ['R1', 'R2', 'R3', 'R4', 'R5', 'R6', 'R7', 'R8'] as const

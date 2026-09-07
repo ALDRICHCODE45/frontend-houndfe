@@ -20,6 +20,16 @@ import {
   validateEvidenceRecord,
   validateEvidenceSession,
 } from '../evidence/schema'
+import {
+  assertBoxesWithinOwner,
+  assertDocumentNoHorizontalOverflow,
+  assertEssentialReachabilityAtExtremes,
+  assertExactViewport,
+  assertLongDataContract,
+  assertOverflowContract,
+  assertStickyAndPinnedAlignment,
+  measureScrollExtreme,
+} from '../assertions/geometry'
 
 const repoRoot = fileURLToPath(new URL('../../..', import.meta.url))
 const ARTIFACT_ROOT_PATTERN = /^artifacts\/responsive\/.+/
@@ -228,5 +238,113 @@ test.describe('@responsive-harness evidence schema contracts', () => {
         },
       ]).ok,
     ).toBe(true)
+  })
+})
+
+const PAGE_WRAP = (body: string) => `<!doctype html><html><body style="margin:0">${body}</body></html>`
+
+const CLEAN_PAGE = PAGE_WRAP('<div data-testid="owner" style="width:375px"><div data-testid="stacked-region" style="padding:8px"><div style="height:20px">row one</div><div style="height:20px">row two</div></div></div>')
+
+const WIDE_PAGE = PAGE_WRAP('<div data-testid="owner" style="width:375px"><div data-testid="region" style="overflow-x:auto"><div data-testid="content" style="width:650px;height:40px;white-space:nowrap">'
+  + '<span data-testid="cell-a" style="display:inline-block;width:190px;height:32px">identity</span><span data-testid="cell-b" style="display:inline-block;width:190px;height:32px">value</span><span data-testid="cell-c" style="display:inline-block;width:190px;height:32px">status</span><span data-testid="pin-action" style="display:inline-block;width:80px;height:32px;position:sticky;right:0">action</span></div></div><p data-testid="cue">Scroll sideways to reach every column</p></div>')
+
+const UNOWNED_PAGE = PAGE_WRAP('<div data-testid="owner" style="width:375px"><div data-testid="region" style="width:600px;height:40px">wide content</div></div>')
+
+const CLIPPED_PAGE = PAGE_WRAP('<div data-testid="owner" style="width:375px;overflow-x:hidden"><div data-testid="region" style="width:600px;height:40px">clipped content</div></div>')
+
+const LONG_TOKEN = 'PRODUCT-SKU-0000000000000000000000000099'
+
+const longPage = (overflow: string) => PAGE_WRAP(`<div data-testid="token" style="width:300px;white-space:nowrap;overflow:${overflow};font-size:20px">${LONG_TOKEN}</div>`)
+
+const tablePage = (headerSticky: boolean, bodyPinSticky: boolean) => {
+  const stickyTop = headerSticky ? 'position:sticky;top:0;' : ''
+  const bodyRow = bodyPinSticky
+    ? '<span style="display:inline-block;width:260px;height:28px">A</span><span style="display:inline-block;width:240px;height:28px">filler</span><span data-testid="body-pin" style="display:inline-block;width:100px;height:28px;position:sticky;right:0">Pin</span>'
+    : '<span style="display:inline-block;width:260px;height:28px">A</span><span data-testid="body-pin" style="display:inline-block;width:100px;height:28px">Pin</span><span style="display:inline-block;width:240px;height:28px">filler</span>'
+  return PAGE_WRAP(`<div data-testid="region" style="width:375px;height:90px;overflow:auto"><div style="width:600px">
+    <div style="height:28px;white-space:nowrap;${stickyTop}"><span data-testid="head-a" style="display:inline-block;width:500px;height:28px">A</span><span data-testid="head-pin" style="display:inline-block;width:100px;height:28px;position:sticky;right:0">Pin</span></div>
+    <div style="height:28px;white-space:nowrap">${bodyRow}</div>
+    <div style="height:28px"><span style="display:inline-block;width:500px">A</span></div>
+    <div style="height:28px"><span style="display:inline-block;width:500px">A</span></div>
+  </div></div>`)
+}
+
+test.describe('@responsive-harness geometry assertions', () => {
+  test('measures exact viewport and document geometry with structured failures', async ({ page }) => {
+    await page.setContent(CLEAN_PAGE)
+    expect(await assertExactViewport(page, findViewportCase(375)!)).toMatchObject({ status: 'pass', measurements: { innerWidth: 375, innerHeight: 667 } })
+    expect((await assertDocumentNoHorizontalOverflow(page)).status).toBe('pass')
+    await page.setViewportSize({ width: 360, height: 600 })
+    expect((await assertExactViewport(page, findViewportCase(375)!)).failure).toMatchObject({ taxonomy: 'harness-or-fixture' })
+    await page.setViewportSize({ width: 375, height: 667 })
+    await page.setContent(PAGE_WRAP('<div style="width:500px;height:20px"></div>'))
+    expect(await assertDocumentNoHorizontalOverflow(page)).toMatchObject({ status: 'fail', failure: { taxonomy: 'document-overflow' }, measurements: { html: { scrollWidth: 500, clientWidth: 375 } } })
+  })
+
+  test('requires owner containment, honors the 1px tolerance, and never lets ancestor clipping fake a pass', async ({ page }) => {
+    expect(validateEvidenceRecord({ ...baseRecord, assertionId: 'scroll-extremes', status: 'excluded', exclusion: { reason: 'cards never scroll horizontally', followUp: 'HY-04 stacked rows' } }).ok).toBe(true)
+    await page.setContent(WIDE_PAGE)
+    expect((await assertBoxesWithinOwner(page.getByTestId('owner'), { region: page.getByTestId('region') })).status).toBe('pass')
+    for (const [width, expected] of [[376, 'pass'], [377, 'fail']] as const) {
+      await page.setContent(PAGE_WRAP(`<div data-testid="owner" style="width:375px"><div data-testid="edge" style="width:${width}px;height:10px"></div></div>`))
+      expect((await assertBoxesWithinOwner(page.getByTestId('owner'), { edge: page.getByTestId('edge') })).status).toBe(expected)
+    }
+    await page.setContent(CLIPPED_PAGE)
+    expect((await assertDocumentNoHorizontalOverflow(page)).status).toBe('pass')
+    expect(await assertBoxesWithinOwner(page.getByTestId('owner'), { region: page.getByTestId('region') }))
+      .toMatchObject({ status: 'fail', failure: { taxonomy: 'surface-outside-owner', actual: { right: 600 } } })
+  })
+
+  test('permits exactly one owned local scroll with discoverability', async ({ page }) => {
+    await page.setContent(WIDE_PAGE)
+    const owner = page.getByTestId('owner')
+    const region = page.getByTestId('region')
+    expect(await assertOverflowContract({ policy: 'local-scroll', owner, scrollRegion: region, cue: page.getByTestId('cue') })).toMatchObject({ status: 'pass', measurements: { region: { overflowAmount: 275, overflowX: 'auto' } } })
+    expect((await assertOverflowContract({ policy: 'local-scroll', owner, scrollRegion: region })).failure).toMatchObject({ taxonomy: 'missing-scroll-discoverability' })
+    await page.setContent(UNOWNED_PAGE)
+    expect((await assertOverflowContract({ policy: 'local-scroll', owner, scrollRegion: page.getByTestId('region') })).failure).toMatchObject({ taxonomy: 'uncontained-local-overflow' })
+    await page.setContent(CLEAN_PAGE)
+    expect((await assertOverflowContract({ policy: 'no-horizontal-scroll', owner, recordRegions: [page.getByTestId('stacked-region')] })).status).toBe('pass')
+    await page.setContent(CLIPPED_PAGE)
+    const clipped = await assertOverflowContract({ policy: 'no-horizontal-scroll', owner, recordRegions: [page.getByTestId('region')] })
+    expect(clipped.failure).toMatchObject({ taxonomy: 'unexpected-local-overflow' })
+    expect(clipped.failure?.actual).toBe(600)
+  })
+
+  test('keeps long identifiers reachable and fails clipped critical tokens', async ({ page }) => {
+    await page.setContent(longPage('auto'))
+    expect(await assertLongDataContract([{ label: 'sku', locator: page.getByTestId('token') }])).toMatchObject({ status: 'pass', measurements: { tokens: { sku: { clipped: true, reachable: true } } } })
+    await page.setContent(longPage('hidden'))
+    expect(await assertLongDataContract([{ label: 'sku', locator: page.getByTestId('token'), critical: true }]))
+      .toMatchObject({ status: 'fail', failure: { taxonomy: 'long-data-clipping', actual: { scrollWidth: expect.any(Number), text: LONG_TOKEN } } })
+  })
+
+  test('reaches both scroll extremes and verifies essential reachability', async ({ page }) => {
+    await page.setContent(WIDE_PAGE)
+    const region = page.getByTestId('region')
+    const extremes = { left: await measureScrollExtreme(region, 'left'), right: await measureScrollExtreme(region, 'right') }
+    expect(extremes.left).toMatchObject({ requested: 0, actual: 0 })
+    expect(extremes.right.actual).toBe(extremes.right.max)
+    expect(extremes.right.max).toBeGreaterThan(0)
+    const essentials = {
+      identity: { locator: page.getByTestId('cell-a'), expectedExtreme: 'left' as const },
+      action: { locator: page.getByTestId('pin-action'), expectedExtreme: 'both' as const },
+    }
+    expect((await assertEssentialReachabilityAtExtremes(region, essentials)).status).toBe('pass')
+    expect((await assertEssentialReachabilityAtExtremes(region, { status: { locator: page.getByTestId('cell-a'), expectedExtreme: 'right' } })).failure)
+      .toMatchObject({ taxonomy: 'essential-content-loss' })
+    await page.setContent(CLEAN_PAGE)
+    expect(await measureScrollExtreme(page.getByTestId('stacked-region'), 'right')).toMatchObject({ requested: 0, actual: 0, max: 0 })
+  })
+
+  test('validates conditional sticky and pinned alignment', async ({ page }) => {
+    const pinned = [{ side: 'right' as const, header: page.getByTestId('head-pin'), body: page.getByTestId('body-pin') }]
+    const check = () => assertStickyAndPinnedAlignment(page.getByTestId('region'), { pinned, stickyHeader: page.getByTestId('head-a') })
+    await page.setContent(tablePage(true, true))
+    expect((await check()).status).toBe('pass')
+    await page.setContent(tablePage(false, true))
+    expect((await check()).failure).toMatchObject({ taxonomy: 'sticky-header-misalignment' })
+    await page.setContent(tablePage(true, false))
+    expect(await check()).toMatchObject({ status: 'fail', failure: { taxonomy: 'pinned-column-misalignment' }, measurements: { alignments: expect.any(Array) } })
   })
 })
