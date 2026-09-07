@@ -45,6 +45,11 @@ import {
   type TargetSizeInput,
 } from '../assertions/accessibility'
 import { assertSurfaceState } from '../assertions/states'
+import { AUTH_STORAGE_KEYS, LIMITED_PERMISSION_CODES, buildAuthSeed, seedAuthSession } from '../fixtures/auth'
+import { EXCEEDED_REQUEST_COUNT, EXTERNAL_REQUEST, UNDECLARED_REQUEST, installStrictNetwork } from '../fixtures/network'
+import { SCENARIO_CATALOG, SCENARIO_STATES, parseScenarioSelection, scenarioRoute } from '../fixtures/scenarios'
+import { STRESS_ROWS, STRESS_TOKENS } from '../fixtures/stress-data'
+import { RESPONSIVE_ORIGIN } from '../fixtures/test'
 
 const repoRoot = fileURLToPath(new URL('../../..', import.meta.url))
 const ARTIFACT_ROOT_PATTERN = /^artifacts\/responsive\/.+/
@@ -457,5 +462,77 @@ test.describe('@responsive-harness overlay and state assertions', () => {
     await page.setContent(statePage('No se pudo cargar', '<button data-testid="retry" style="box-sizing:border-box;width:44px;height:44px" onclick="window.retried = true">Reintentar</button>'))
     expect(await assertSurfaceState(contract('error', 'No se pudo cargar', { recovery: { locator: page.getByTestId('retry'), name: 'Reintentar', verify: windowFlag('retried') } }))).toMatchObject({ status: 'pass' })
     expect(validateEvidenceRecord({ ...baseRecord, authority: 'browser-interaction', assertionId: 'surface-state', stateId: 'selection-bulk', status: 'excluded', exclusion: { reason: 'DT-01 has empty bulkActions and row selection disabled', followUp: 'Batch B bulk actions' } }).ok).toBe(true)
+  })
+})
+    
+test.describe('@responsive-harness deterministic fixtures', () => {
+  const HARNESS_ORIGIN_PATH = `${RESPONSIVE_ORIGIN}/403`
+  const outcome = (page: Page, url: string, init?: RequestInit) =>
+    page.evaluate(async ({ url, init }) => { try { await fetch(url, init); return 'resolved' } catch { return 'rejected' } }, { url, init })
+
+  test('seeds the exact full auth localStorage contract before app startup', async ({ page }) => {
+    await seedAuthSession(page)
+    await page.goto(HARNESS_ORIGIN_PATH)
+    const stored = await page.evaluate((keys) => Object.fromEntries(keys.map((key) => [key, window.localStorage.getItem(key)])), Object.values(AUTH_STORAGE_KEYS))
+    for (const { key, value } of buildAuthSeed()) expect(stored[key]).toBe(value)
+    expect(stored[AUTH_STORAGE_KEYS.tempToken]).toBeNull(); expect(Object.keys(AUTH_STORAGE_KEYS).sort()).toEqual(['accessToken', 'currentTenant', 'isSuperAdmin', 'memberships', 'permissionCodes', 'refreshToken', 'tempToken', 'user'])
+    const limited = buildAuthSeed({ permissions: LIMITED_PERMISSION_CODES })
+    expect(JSON.parse(limited.find(({ key }) => key === AUTH_STORAGE_KEYS.permissionCodes)!.value)).toEqual([...LIMITED_PERMISSION_CODES])
+  })
+
+  test('serves declared routes and fails undeclared, mismatched, over-count, and external requests', async ({ page }) => {
+    const controller = await installStrictNetwork(page, RESPONSIVE_ORIGIN, [
+      { method: 'GET', path: '/products', query: { page: '1' }, json: { items: [STRESS_ROWS[0]] }, count: 1 },
+      { method: 'GET', path: '/audit', status: 503, json: { message: 'down' } },
+      { method: 'POST', path: '/products/search', body: { query: 'café' }, json: { items: [] } },
+    ])
+    await page.goto(HARNESS_ORIGIN_PATH)
+    expect(await page.evaluate(async () => (await fetch('/__e2e-api/products?page=1')).json())).toEqual({ items: [STRESS_ROWS[0]] })
+    expect(await page.evaluate(async () => (await fetch('/__e2e-api/audit')).status)).toBe(503)
+    const rejections = [['/__e2e-api/orders?page=1'], ['/__e2e-api/products?page=1', { method: 'POST' }], ['/__e2e-api/products?page=2'],
+      ['/__e2e-api/products/search', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ query: 'otro' }) }],
+      ['https://external.invalid/hound'], ['/__e2e-api/products?page=1']] as const
+    for (const [url, init] of rejections) expect(await outcome(page, url, init)).toBe('rejected')
+    const violations = controller.violations()
+    const induced = violations.filter((violation) => !violation.startsWith(EXTERNAL_REQUEST) || violation.includes('external.invalid'))
+    expect(induced).toHaveLength(6)
+    for (const [index, fragment] of [[0, `${UNDECLARED_REQUEST} GET /orders?page=1`], [1, `${UNDECLARED_REQUEST} POST /products?page=1`], [2, 'page=2'],
+      [3, '/products/search'], [4, EXTERNAL_REQUEST], [5, EXCEEDED_REQUEST_COUNT]] as const) expect(induced[index]).toContain(fragment)
+    expect(violations.every((violation) => violation.startsWith(EXTERNAL_REQUEST) || induced.includes(violation))).toBe(true); expect(controller.requests()).toHaveLength(2)
+  })
+
+  test('holds deferred loading and fetching responses until the release gate fulfills them', async ({ page }) => {
+    const controller = await installStrictNetwork(page, RESPONSIVE_ORIGIN, [
+      scenarioRoute('/products', 'loading'), scenarioRoute('/products', 'fetching', { query: { page: '1', refresh: 'true' } }),
+    ])
+    await page.goto(HARNESS_ORIGIN_PATH)
+    const first = page.evaluate(async () => (await fetch('/__e2e-api/products?page=1')).json())
+    const second = page.evaluate(async () => (await fetch('/__e2e-api/products?page=1&refresh=true')).json())
+    const probe = { settled: false }; first.then(() => { probe.settled = true })
+    await page.waitForTimeout(300)
+    expect(probe.settled).toBe(false)
+    expect(controller.violations().filter((violation) => !violation.startsWith(EXTERNAL_REQUEST))).toHaveLength(0)
+    await controller.releaseDeferred()
+    expect(await first).toEqual(SCENARIO_CATALOG.loading.json); expect(await second).toEqual(SCENARIO_CATALOG.fetching.json)
+    await controller.releaseDeferred(); expect(controller.requests()).toHaveLength(2)
+  })
+
+  test('exposes a fixed scenario catalog and immutable deterministic stress tokens', () => {
+    expect([...SCENARIO_STATES]).toEqual(['success', 'loading', 'fetching', 'empty', 'no-match', 'error-4xx', 'error-5xx', 'paginated'])
+    for (const state of SCENARIO_STATES) {
+      const scenario = SCENARIO_CATALOG[state]
+      expect(scenario.state).toBe(state)
+      expect(scenario.status).toBeGreaterThanOrEqual(200)
+      expect(scenario.deferred).toBe(state === 'loading' || state === 'fetching')
+      expect(parseScenarioSelection([state, 'desconocido']).ok).toBe(false)
+    }
+    expect(parseScenarioSelection(['success']).ok).toBe(true); expect(parseScenarioSelection([]).ok).toBe(false)
+    expect(scenarioRoute('/products', 'error-5xx')).toMatchObject({ method: 'GET', path: '/products', status: 503, deferred: false })
+    expect(scenarioRoute('/products', 'paginated').query).toEqual({ page: '2' })
+    expect(Object.isFrozen(STRESS_TOKENS) && Object.isFrozen(STRESS_TOKENS.badges)).toBe(true)
+    expect(STRESS_TOKENS.clabe).toMatch(/^\d{18}$/); expect(STRESS_TOKENS.accountNumber).toMatch(/^\d{10,18}$/); expect(STRESS_TOKENS.longEmail).toMatch(/.+@.+\..+/)
+    expect(Number.isInteger(STRESS_TOKENS.cents) && STRESS_TOKENS.cents > 0).toBe(true); expect(Number.isNaN(Date.parse(STRESS_TOKENS.isoDate))).toBe(false)
+    expect(STRESS_TOKENS.badges.length).toBeGreaterThan(2); expect(STRESS_ROWS).toHaveLength(12)
+    expect(new Set(STRESS_ROWS.map((row) => row.id)).size).toBe(STRESS_ROWS.length); expect(JSON.stringify(STRESS_ROWS[0])).toContain(STRESS_TOKENS.longName)
   })
 })
