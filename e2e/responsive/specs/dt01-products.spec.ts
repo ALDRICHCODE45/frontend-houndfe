@@ -80,7 +80,7 @@ async function cellForHeader(region: Parameters<typeof assertEssentialReachabili
 }
 
 /** Resolves a toolbar control only when it renders exactly once and becomes visible; otherwise the caller records an honest fail. */
-const renderedControl = async (control: Locator, label: string): Promise<Locator | null> => {
+const renderedControl = async (control: Locator): Promise<Locator | null> => {
   try { await control.waitFor({ state: 'visible', timeout: 5_000 }) } catch { return null }
   return (await control.count()) === 1 ? control : null
 }
@@ -169,7 +169,6 @@ test.describe('DT-01 strict responsive conformance', () => {
       const region = resolved.anchor.getByTestId('table-view')
       const action = await uniqueAnchor(resolved.actions.rowMenu, 'DT-01 table product action')
       const overflow = await assertOverflowContract({ policy: 'local-scroll', owner: resolved.anchor, scrollRegion: region, cue: resolved.anchor.getByText(/desplaz|scroll/i) })
-          const row = region.locator('tbody tr').first()
           const name = await cellForHeader(region, 'Nombre')
           const sku = await cellForHeader(region, 'SKU')
           const price = await cellForHeader(region, 'Precio')
@@ -186,14 +185,14 @@ test.describe('DT-01 strict responsive conformance', () => {
           const interactions = activation.assertionId === 'focus' ? [keyboard, activation] : [activation]
           const tableTab = resolved.actions.viewToggle.getByRole('tab', { name: 'Tabla' })
           const cardsTab = resolved.actions.viewToggle.getByRole('tab', { name: 'Tarjetas' })
-          const viewToggleControl = await exerciseControl(await renderedControl(cardsTab, 'products-view-toggle cards tab'), 'products-view-toggle', [stickyHeader], async (current) => current.getByTestId('product-cards-grid').isVisible())
+          const viewToggleControl = await exerciseControl(await renderedControl(cardsTab), 'products-view-toggle', [stickyHeader], async (current) => current.getByTestId('product-cards-grid').isVisible())
           await tableTab.press('Enter')
           await region.waitFor()
           const controls = [
             ...viewToggleControl,
-            ...await exerciseControl(await renderedControl(resolved.actions.search, 'products-search'), 'products-search', [stickyHeader], async (current) => current.getByPlaceholder('Buscar productos...').inputValue().then((value) => value === '')),
-            ...await exerciseControl(await renderedControl(resolved.actions.typeFilter, 'products-type-filter'), 'products-type-filter', [stickyHeader], async (current) => current.getByRole('listbox').isVisible()),
-            ...await exerciseControl(await renderedControl(resolved.actions.pageSize, 'products-page-size'), 'products-page-size', [stickyHeader], async (current) => current.getByRole('menu').isVisible()),
+            ...await exerciseControl(await renderedControl(resolved.actions.search), 'products-search', [stickyHeader], async (current) => current.getByPlaceholder('Buscar productos...').inputValue().then((value) => value === '')),
+            ...await exerciseControl(await renderedControl(resolved.actions.typeFilter), 'products-type-filter', [stickyHeader], async (current) => current.getByRole('listbox').isVisible()),
+            ...await exerciseControl(await renderedControl(resolved.actions.pageSize), 'products-page-size', [stickyHeader], async (current) => current.getByRole('menu').isVisible()),
           ]
           await page.keyboard.press('Escape')
           const focusOrder = await assertKeyboardSequence(page, tableTab, [{ id: 'cards-tab', role: 'tab', name: 'Tarjetas' }])

@@ -17,7 +17,11 @@ import {
   RESPONSIVE_VIEWPORTS,
   RISK_IDS,
   SURFACE_STATES,
+  deriveResponsiveCaseManifest,
+  validateDiscoveredCaseManifest,
+  type ResponsiveCase,
   type ResponsiveTarget,
+  type SurfaceId,
 } from '../targets/types'
 import {
   EVIDENCE_ATTACHMENT_NAME,
@@ -62,6 +66,21 @@ import { HY04_NOTIFICATIONS } from '../targets/hy04-notifications'
 
 const repoRoot = fileURLToPath(new URL('../../..', import.meta.url))
 const ARTIFACT_ROOT_PATTERN = /^artifacts\/responsive\/.+/
+
+/** Discovers a strict spec's declared conformance cases from its source: the state-driven suite contributes one case per declared state, and every other per-viewport suite contributes its literal describe suffix. */
+function discoverConformanceCases(surfaceId: SurfaceId, source: string): ResponsiveCase[] {
+  const stateLoop = /for \(const viewport of RESPONSIVE_VIEWPORTS\) for \(const state of (\w+)\)/.exec(source)?.[1]
+  const states = stateLoop
+    ? new RegExp(`const ${stateLoop}[^=\\n]*= \\[([^\\]]+)\\]`).exec(source)?.[1]?.match(/'([^']+)'/g)?.map((token) => token.slice(1, -1)) ?? []
+    : []
+  const suiteSuffixes = [...source.matchAll(/test\.describe\(`\$\{viewport\.key\} ([^`]+)`/g)]
+    .map((match) => match[1])
+    .filter((suffix) => suffix !== '${state}')
+  return RESPONSIVE_VIEWPORTS.flatMap(({ width }) => [
+    ...states.map((stateId) => ({ surfaceId, stateId, viewport: width })),
+    ...suiteSuffixes.map((stateId) => ({ surfaceId, stateId, viewport: width })),
+  ])
+}
 
 test.use({ viewport: { width: 375, height: 667 } })
 
@@ -122,12 +141,25 @@ test.describe('@responsive-harness runner wiring', () => {
     expect(packageJson.devDependencies['@playwright/test']).toMatch(/^\d+\.\d+\.\d+$/)
       })
 
-      test('locks the exact 44-case manifest and direct strict commands', () => {
+      test('locks the discovered conformance manifest and direct strict commands', () => {
         const packageJson = JSON.parse(readFileSync(`${repoRoot}package.json`, 'utf8'))
-        const specs = ['dt01-products.spec.ts', 'hy04-notifications.spec.ts'].map((file) => readFileSync(`${repoRoot}e2e/responsive/specs/${file}`, 'utf8'))
+        const specSources = {
+          'DT-01': readFileSync(`${repoRoot}e2e/responsive/specs/dt01-products.spec.ts`, 'utf8'),
+          'HY-04': readFileSync(`${repoRoot}e2e/responsive/specs/hy04-notifications.spec.ts`, 'utf8'),
+        } as const
         expect(RESPONSIVE_VIEWPORTS.map(({ width }) => width)).toEqual([320, 375, 768, 1024])
         expect(RESPONSIVE_VIEWPORTS).toHaveLength(4)
-        expect(4 * (7 + 1) + 4 * 3).toBe(44)
+        // GREEN: counts are derived from discovered cases — the declared contract below is validated against
+        // real spec discovery, and any future state/suite/viewport addition fails this drift guard.
+        const declaredCases: ResponsiveCase[] = RESPONSIVE_VIEWPORTS.flatMap(({ width }) => [
+          ...['success', 'loading', 'fetching', 'empty', 'no-match', 'error-5xx', 'paginated', 'table and cards', 'fetching cards', 'long dense'].map((stateId) => ({ surfaceId: 'DT-01', stateId, viewport: width })),
+          ...['loading', 'success', 'error-4xx', 'error-5xx', 'interaction', 'save recovery'].map((stateId) => ({ surfaceId: 'HY-04', stateId, viewport: width })),
+        ])
+        const discoveredCases = (Object.entries(specSources) as ['DT-01' | 'HY-04', string][]).flatMap(([surfaceId, source]) => discoverConformanceCases(surfaceId, source))
+        const manifest = deriveResponsiveCaseManifest(declaredCases)
+        expect(validateDiscoveredCaseManifest(manifest, discoveredCases)).toEqual({ ok: true, value: { ids: manifest.ids } })
+        expect(manifest.ids).toHaveLength(discoveredCases.length)
+        expect(validateDiscoveredCaseManifest(manifest, [...discoveredCases, { surfaceId: 'DT-01', stateId: 'invented', viewport: 320 }])).toMatchObject({ ok: false })
         const commands = {
           'test:responsive:conformance': 'playwright test --config=playwright.responsive.config.ts e2e/responsive/specs/dt01-products.spec.ts e2e/responsive/specs/hy04-notifications.spec.ts',
           'test:responsive:headed': 'playwright test --headed --config=playwright.responsive.config.ts e2e/responsive/specs/dt01-products.spec.ts e2e/responsive/specs/hy04-notifications.spec.ts',
@@ -136,7 +168,7 @@ test.describe('@responsive-harness runner wiring', () => {
           expect(packageJson.scripts[script]).toBe(command)
           expect(command).not.toMatch(/(?:skip|fixme|\.fail\b|expected|\|\||&&)/)
         }
-        for (const spec of specs) expect(spec).not.toMatch(/\b(?:skip|fixme|\.fail)\b/)
+        for (const spec of Object.values(specSources)) expect(spec).not.toMatch(/\b(?:skip|fixme|\.fail)\b/)
       })
     })
 
@@ -265,7 +297,7 @@ test.describe('@responsive-harness evidence schema contracts', () => {
 
   test('requires complete exclusion records and rejects a passing failure', () => {
     bad({ status: 'excluded' }, 'exclusion')
-    bad({ status: 'excluded', exclusion: { reason: ' ', followUp: 'Batch C native targets' } }, 'reason')
+    bad({ status: 'excluded', exclusion: { reason: ' ', followUp: 'NT-01..NT-07 strict conformance specs pending a future unit' } }, 'reason')
     bad({ failure: { taxonomy: 'document-overflow', message: 'should not exist on pass' } }, 'pass')
   })
 
@@ -474,7 +506,7 @@ test.describe('@responsive-harness semantic and interaction assertions', () => {
     expect(await assertMinimumTargets([target('t44'), target('t-hit')])).toMatchObject({ status: 'pass', measurements: { t44: { width: 44, height: 44 } } })
     for (const id of ['t43', 't-wide']) expect((await assertMinimumTargets([target(id)])).failure).toMatchObject({ taxonomy: 'target-size' })
     expect(await assertMinimumTargets([target('t-dis', { disabled: true })])).toMatchObject({ status: 'pass', measurements: { 't-dis': { enforcement: 'record-only-disabled' } } })
-    expect(validateEvidenceRecord({ ...baseRecord, authority: 'browser-geometry', assertionId: 'minimum-targets', riskIds: ['R3'], status: 'excluded', exclusion: { reason: 'purely unavailable action for the current role', followUp: 'Batch B row actions' } }).ok).toBe(true)
+    expect(validateEvidenceRecord({ ...baseRecord, authority: 'browser-geometry', assertionId: 'minimum-targets', riskIds: ['R3'], status: 'excluded', exclusion: { reason: 'purely unavailable action for the current role', followUp: 're-run conformance when role-specific row actions ship' } }).ok).toBe(true)
   })
 })
 
@@ -524,7 +556,7 @@ test.describe('@responsive-harness overlay and state assertions', () => {
     expect((await assertSurfaceState(contract('loading', 'Éxito'))).failure).toMatchObject({ taxonomy: 'state-usability' })
     await page.setContent(statePage('No se pudo cargar', '<button data-testid="retry" style="box-sizing:border-box;width:44px;height:44px" onclick="window.retried = true">Reintentar</button>'))
     expect(await assertSurfaceState(contract('error', 'No se pudo cargar', { recovery: { locator: page.getByTestId('retry'), name: 'Reintentar', verify: windowFlag('retried') } }))).toMatchObject({ status: 'pass' })
-    expect(validateEvidenceRecord({ ...baseRecord, authority: 'browser-interaction', assertionId: 'surface-state', riskIds: ['R5'], stateId: 'selection-bulk', status: 'excluded', exclusion: { reason: 'DT-01 has empty bulkActions and row selection disabled', followUp: 'Batch B bulk actions' } }).ok).toBe(true)
+    expect(validateEvidenceRecord({ ...baseRecord, authority: 'browser-interaction', assertionId: 'surface-state', riskIds: ['R5'], stateId: 'selection-bulk', status: 'excluded', exclusion: { reason: 'DT-01 has empty bulkActions and row selection disabled', followUp: 're-run conformance when DT-01 bulk actions ship' } }).ok).toBe(true)
   })
 })
     
@@ -548,20 +580,21 @@ test.describe('@responsive-harness deterministic fixtures', () => {
       { method: 'GET', path: '/products', query: { page: '1' }, json: { items: [STRESS_ROWS[0]] }, count: 1 },
       { method: 'GET', path: '/audit', status: 503, json: { message: 'down' } },
       { method: 'POST', path: '/products/search', body: { query: 'café' }, json: { items: [] } },
-    ])
+    ], EXPECTED_BLOCKED_STARTUP_EXTERNALS)
     await page.goto(HARNESS_ORIGIN_PATH)
     expect(await page.evaluate(async () => (await fetch('/__e2e-api/products?page=1')).json())).toEqual({ items: [STRESS_ROWS[0]] })
     expect(await page.evaluate(async () => (await fetch('/__e2e-api/audit')).status)).toBe(503)
     const rejections = [['/__e2e-api/orders?page=1'], ['/__e2e-api/products?page=1', { method: 'POST' }], ['/__e2e-api/products?page=2'],
       ['/__e2e-api/products/search', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ query: 'otro' }) }],
-      ['https://external.invalid/hound'], ['/__e2e-api/products?page=1']] as const
+      ['https://external.invalid/hound'], ['https://tracker.invalid/pixel'], ['/__e2e-api/products?page=1']] as const
     for (const [url, init] of rejections) expect(await outcome(page, url, init)).toBe('rejected')
     const violations = controller.violations()
-    const induced = violations.filter((violation) => !violation.startsWith(EXTERNAL_REQUEST) || violation.includes('external.invalid'))
-    expect(induced).toHaveLength(6)
+    // No host-substring filtering and no swallowed failures: startup externals are declared as expected-blocked,
+    // so every remaining violation is asserted exactly, including both induced external hosts.
+    expect(violations).toHaveLength(7)
     for (const [index, fragment] of [[0, `${UNDECLARED_REQUEST} GET /orders?page=1`], [1, `${UNDECLARED_REQUEST} POST /products?page=1`], [2, 'page=2'],
-      [3, '/products/search'], [4, EXTERNAL_REQUEST], [5, EXCEEDED_REQUEST_COUNT]] as const) expect(induced[index]).toContain(fragment)
-    expect(violations.every((violation) => violation.startsWith(EXTERNAL_REQUEST) || induced.includes(violation))).toBe(true); expect(controller.requests()).toHaveLength(2)
+      [3, '/products/search'], [4, 'external.invalid'], [5, 'tracker.invalid'], [6, EXCEEDED_REQUEST_COUNT]] as const) expect(violations[index]).toContain(fragment)
+    expect(controller.requests()).toHaveLength(2)
   })
 
       test('logs only declared startup externals separately and keeps other external requests as violations', async ({ page }) => {
@@ -583,14 +616,16 @@ test.describe('@responsive-harness deterministic fixtures', () => {
       test('holds deferred loading and fetching responses until the release gate fulfills them', async ({ page }) => {
     const controller = await installStrictNetwork(page, RESPONSIVE_ORIGIN, [
       scenarioRoute('/products', 'loading'), scenarioRoute('/products', 'fetching', { query: { page: '1', refresh: 'true' } }),
-    ])
+    ], EXPECTED_BLOCKED_STARTUP_EXTERNALS)
     await page.goto(HARNESS_ORIGIN_PATH)
     const first = page.evaluate(async () => (await fetch('/__e2e-api/products?page=1')).json())
     const second = page.evaluate(async () => (await fetch('/__e2e-api/products?page=1&refresh=true')).json())
     const probe = { settled: false }; first.then(() => { probe.settled = true })
     await page.waitForTimeout(300)
     expect(probe.settled).toBe(false)
-    expect(controller.violations().filter((violation) => !violation.startsWith(EXTERNAL_REQUEST))).toHaveLength(0)
+    // Startup externals are declared expected-blocked, so the deferred gate must hold with zero violations —
+    // no external-prefix filtering that could swallow an unexpected host.
+    expect(controller.violations()).toEqual([])
     await controller.releaseDeferred()
     expect(await first).toEqual(SCENARIO_CATALOG.loading.json); expect(await second).toEqual(SCENARIO_CATALOG.fetching.json)
     await controller.releaseDeferred(); expect(controller.requests()).toHaveLength(2)

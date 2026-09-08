@@ -18,6 +18,7 @@ export interface ResponsiveFixtures {
 
 export const test = base.extend<ResponsiveFixtures>({
   declaredRoutes: [[], { option: true }],
+  // oxlint-disable-next-line no-empty-pattern -- Playwright fixture signatures require a destructuring pattern; the evidence session intentionally uses no fixtures.
   evidenceSession: async ({ }, use, testInfo) => {
     const session = new EvidenceSession(resolveRunId(process.env))
     await use(session)
