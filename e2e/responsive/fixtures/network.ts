@@ -84,9 +84,14 @@ export async function installStrictNetwork(page: Page, origin: string, declared:
 
   return {
     requests: () => [...requests], violations: () => [...violations], expectedBlockedExternals: () => [...expectedBlockedExternals],
-    releaseDeferred: async () => {
-      const batch = pending.splice(0)
-      for (const entry of batch) { await entry.route0.fulfill(jsonResponse(entry.route)); entry.resolve() }
-    },
+      releaseDeferred: async () => {
+        const batch = pending.splice(0)
+        // Resolve every held gate even when one fulfill rejects; retain the first error and rethrow after the loop.
+        let firstError: unknown
+        for (const entry of batch) {
+          try { await entry.route0.fulfill(jsonResponse(entry.route)) } catch (error) { firstError ??= error } finally { entry.resolve() }
+        }
+        if (firstError !== undefined) throw firstError
+      },
   }
 }

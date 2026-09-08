@@ -9,11 +9,18 @@ export interface InteractionResult { assertionId: SemanticAssertionId; status: '
 const pass = (assertionId: SemanticAssertionId, measurements: Record<string, unknown>): InteractionResult => ({ assertionId, status: 'pass', measurements })
 const fail = (assertionId: SemanticAssertionId, taxonomy: FailureTaxonomy, message: string, expected: unknown, actual: unknown, measurements: Record<string, unknown>): InteractionResult =>
   ({ assertionId, status: 'fail', measurements, failure: { taxonomy, message, expected, actual } })
-/** Accessible name of an element: aria-labelledby chain, aria-label, then trimmed text content. */
+/** Accessible name of an element: aria-labelledby chain, aria-label, trimmed text content, then the `<label for>` of a labelable control. */
 export const accessibleNameOf = (locator: Locator): Promise<string> =>
   locator.evaluate((el) => {
     const labelledby = el.getAttribute('aria-labelledby')
-    return labelledby ? labelledby.split(/\s+/).map((id) => document.getElementById(id)?.textContent ?? '').join(' ').trim() : el.getAttribute('aria-label') ?? (el.textContent ?? '').trim()
+    if (labelledby) return labelledby.split(/\s+/).map((id) => document.getElementById(id)?.textContent ?? '').join(' ').trim()
+    const ariaLabel = el.getAttribute('aria-label')
+    if (ariaLabel) return ariaLabel
+    const direct = (el.textContent ?? '').trim()
+    if (direct.length > 0) return direct
+    const id = el.getAttribute('id')
+    const label = id ? document.querySelector(`label[for="${CSS.escape(id)}"]`) : null
+    return (label?.textContent ?? '').trim()
   })
 /** Role (explicit attribute or tag name) and accessible name of the focused element, null when focus sits on body. */
 const describeFocused = (page: Page) =>
@@ -126,6 +133,14 @@ const focusIndicator = (locator: Locator) =>
     const style = getComputedStyle(el)
     return { focusVisible: el.matches(':focus-visible'), indicator: (style.outlineStyle !== 'none' && style.outlineWidth !== '0px') || style.boxShadow !== 'none', outline: `${style.outlineStyle} ${style.outlineWidth}`, boxShadow: style.boxShadow }
   })
+/** Bounded post-activation outcome poll: absorbs the render race after a keypress without hiding a persistent product failure. */
+const BOUNDED_VERIFY_MS = 1_000
+const verifyOutcome = async (page: Page, verify: (page: Page) => Promise<boolean>): Promise<boolean> => {
+  const deadline = Date.now() + BOUNDED_VERIFY_MS
+  if (await verify(page)) return true
+  while (Date.now() < deadline) { await page.waitForTimeout(50); if (await verify(page)) return true }
+  return false
+}
 export type ActivationKey = 'Enter' | 'Space'
 const ACTIVATION_KEYS: Record<ActivationKey, string> = { Enter: 'Enter', Space: ' ' }; export interface ActivationOutcome { key: ActivationKey; verify: (page: Page) => Promise<boolean> }
 export async function assertKeyboardActivation(locator: Locator, outcome: ActivationOutcome): Promise<InteractionResult> {
@@ -134,7 +149,7 @@ export async function assertKeyboardActivation(locator: Locator, outcome: Activa
   if (!indicator.focusVisible || !indicator.indicator)
     return fail('focus', 'focus-obscured', 'focused control lacks :focus-visible with a visible outline or box-shadow indicator', 'focus-visible indicator', indicator, {})
   await locator.press(ACTIVATION_KEYS[outcome.key])
-  if (!(await outcome.verify(locator.page())))
+  if (!(await verifyOutcome(locator.page(), outcome.verify)))
     return fail('keyboard', 'keyboard-activation', `${outcome.key} activation did not produce the declared outcome`, true, false, { key: outcome.key, indicator })
   return pass('keyboard', { key: outcome.key, indicator })
 }
@@ -142,7 +157,7 @@ export async function assertKeyboardActivation(locator: Locator, outcome: Activa
 export async function assertKeyboardAction(locator: Locator, outcome: ActivationOutcome): Promise<InteractionResult> {
   await locator.focus()
   await locator.press(ACTIVATION_KEYS[outcome.key])
-  if (!(await outcome.verify(locator.page())))
+  if (!(await verifyOutcome(locator.page(), outcome.verify)))
     return fail('keyboard', 'keyboard-activation', `${outcome.key} activation did not produce the declared outcome`, true, false, { key: outcome.key })
   return pass('keyboard', { key: outcome.key })
 }

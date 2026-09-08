@@ -26,6 +26,7 @@ coverage
 .atl/
 .opencode/
 .codegraph/
+/.pi/
 
 *.tsbuildinfo
 

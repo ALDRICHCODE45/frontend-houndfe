@@ -9,20 +9,21 @@ type NotificationActions = { masterToggle: Locator; recipientTrigger: Locator; r
 type NotificationStates = { accordion: Locator; actionRows: Locator; recipients: Locator; footer: Locator }
 
 export const HY04_NOTIFICATIONS: ResponsiveTargetAdapter<NotificationActions, NotificationStates> = {
-  surfaceId: 'HY-04', archetype: 'HY', route: '/sistema/configuracion/notificaciones', containerOwner: 'card',
+  surfaceId: 'HY-04', archetype: 'HY', route: '/sistema/configuracion/notificaciones', containerOwner: 'dashboard-panel',
   strategy: 'stacked-list', fixtureId: 'notifications-config',
   essentialFields: ['notification action', 'enabled state', 'assigned recipients', 'save action'],
-  supportedStates: ['loading', 'success', 'overlay-open'], preferenceKeys: [], risks: ['R3', 'R5', 'R6', 'R7', 'R8'],
+  supportedStates: ['loading', 'success', 'error-4xx', 'error-5xx', 'overlay-open'], preferenceKeys: [], risks: ['R3', 'R5', 'R6', 'R7', 'R8'],
   exclusions: [
-    { assertionId: 'scroll-extremes', reason: 'HY-04 is a stacked no-horizontal-scroll settings matrix', followUp: 'Keep no-scroll geometry in WU-4d' },
+    { assertionId: 'scroll-extremes', reason: 'HY-04 is a stacked no-horizontal-scroll settings matrix', followUp: 'Keep no-horizontal-scroll geometry monitored in future responsive passes' },
     { assertionId: 'sticky-pinned-alignment', reason: 'HY-04 has no table header or pinned column', followUp: 'No follow-up unless presentation changes' },
     { assertionId: 'preference-compatibility', reason: 'HY-04 stores no table/card preference', followUp: 'No follow-up unless a preference is introduced' },
-    { assertionId: 'overlay-lifecycle', reason: 'Recipient overlay is excluded from the initial representative adapter', followUp: 'WU-4d overlay coverage' },
+    { assertionId: 'overlay-lifecycle', reason: 'Recipient popup open/close is exercised through keyboard interactions in the interaction unit; focus-trap and containment evidence is deferred', followUp: 'WU-4d overlay coverage' },
   ],
   stateDrivers: {
     loading: { scenario: 'loading', status: 'ready' }, success: { scenario: 'success', status: 'ready' },
-    error: { scenario: 'error-5xx', status: 'strict-red', note: 'No distinct query-error surface is currently declared; strict conformance must preserve this RED.' },
-    recipientOverlay: { scenario: 'overlay-open', status: 'excluded', note: 'Overlay lifecycle is explicitly deferred.' },
+    error: { scenario: 'error-5xx', status: 'strict-red', note: 'Error page renders no query-error or retry DOM; strict conformance preserves this product RED.' },
+    'error-4xx': { scenario: 'error-4xx', status: 'strict-red', note: 'Same missing recovery surface as error-5xx; strict conformance preserves this product RED.' },
+    recipientOverlay: { scenario: 'overlay-open', status: 'excluded', note: 'Popup open/close is exercised through keyboard interactions; focus-trap and containment evidence is deferred.' },
   },
   async resolve(page: Page) {
     const anchor = await uniqueAnchor(page.getByTestId('notifications-card-actions'), 'HY-04 actions card owner')
