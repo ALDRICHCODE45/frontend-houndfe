@@ -60,7 +60,7 @@ function handleCardKeydown(event: KeyboardEvent): void {
 
 <template>
   <article
-    class="group relative flex min-h-[220px] flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+    class="group relative flex min-h-[220px] w-full min-w-0 max-w-full flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
     :class="canOpenDetails ? 'cursor-pointer' : 'cursor-default'"
     :role="canOpenDetails ? 'button' : undefined"
     :tabindex="canOpenDetails ? 0 : undefined"
@@ -91,7 +91,7 @@ function handleCardKeydown(event: KeyboardEvent): void {
         <p class="line-clamp-2 text-sm font-semibold leading-tight text-highlighted">
           {{ product.name }}
         </p>
-        <p class="font-mono text-xs text-muted">
+        <p class="truncate font-mono text-xs text-muted">
           {{ product.sku ?? 'Sin SKU' }}
         </p>
       </div>

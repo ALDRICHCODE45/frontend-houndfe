@@ -51,7 +51,7 @@ function onSelect(value: string): void {
 
 <template>
   <div
-    class="flex items-center gap-1 rounded-lg border border-default bg-elevated/70 p-1 shadow-sm"
+    class="flex w-full min-w-0 max-w-full items-center gap-1 rounded-lg border border-default bg-elevated/70 p-1 shadow-sm"
     role="tablist"
     :aria-label="ariaLabel"
   >
@@ -59,8 +59,9 @@ function onSelect(value: string): void {
       v-for="option in props.options"
       :key="option.value"
       role="tab"
+      type="button"
       :aria-selected="props.modelValue === option.value"
-      class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors"
+      class="flex min-h-11 min-w-11 items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
       :class="
         props.modelValue === option.value
           ? 'bg-default text-highlighted shadow-sm'

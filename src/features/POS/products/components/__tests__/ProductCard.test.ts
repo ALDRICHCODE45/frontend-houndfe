@@ -73,7 +73,65 @@ function mountComponent(overrideProps: Record<string, unknown> = {}) {
   })
 }
 
-describe('ProductCard', () => {
+    describe('ProductCard shrink containment (S2)', () => {
+      it('keeps the card root shrinkable within its grid track', () => {
+        const wrapper = mountComponent({ canRead: true })
+        const card = wrapper.get('article')
+
+        expect(card.classes()).toEqual(
+          expect.arrayContaining(['w-full', 'min-w-0', 'max-w-full']),
+        )
+      })
+
+      it('truncates long SKU/brand fields and keeps the name line-clamped without a scroll container', () => {
+        const longProduct = {
+          ...product,
+          name: 'Tinta para plotter de gran formato eco-solvente serie X edition',
+          sku: 'SKU-PLT-XG-ECO-SOLVENT-2026-BLACK-1L-REFILL',
+          brandName: 'Distribuidora Internacional de Insumos de Impresión',
+        } satisfies Product
+        const wrapper = mountComponent({ product: longProduct, canRead: true })
+        const card = wrapper.get('article')
+
+        // Long values render (readability) inside field-specific truncation
+        // contracts — never asserted as jsdom geometry.
+        expect(card.text()).toContain(longProduct.sku)
+        expect(card.text()).toContain(longProduct.brandName)
+
+        const paragraphs = card.findAll('p')
+        expect(paragraphs.some((p) => p.classes().includes('line-clamp-2'))).toBe(true)
+        expect(
+          paragraphs.some((p) => p.classes().includes('truncate') && p.classes().includes('font-mono')),
+        ).toBe(true)
+
+        // Card mode must never become its own horizontal scroll container.
+        expect(card.classes()).not.toContain('overflow-x-auto')
+      })
+
+      it('keeps the kebab absolutely pinned and propagation-guarded beside long content', async () => {
+        const longProduct = { ...product, name: 'N'.repeat(120) } satisfies Product
+        const wrapper = mountComponent({ product: longProduct, canRead: true, canUpdate: true })
+        const actionsWrapper = wrapper.get('[class*="absolute"]')
+
+        expect(Array.from(actionsWrapper.classes())).toEqual(
+          expect.arrayContaining(['absolute', 'right-3', 'top-3', 'z-10']),
+        )
+
+        await actionsWrapper.trigger('click')
+        expect(wrapper.emitted('click')).toBeUndefined()
+      })
+
+      it('retains field-specific truncation on SKU, brand, price, and date cells', () => {
+        const wrapper = mountComponent({ canRead: true })
+
+        const truncateParagraphs = wrapper
+          .findAll('p')
+          .filter((p) => p.classes().includes('truncate'))
+        expect(truncateParagraphs.length).toBeGreaterThanOrEqual(4)
+      })
+    })
+
+    describe('ProductCard', () => {
   it('is keyboard accessible when card details are allowed', async () => {
     const wrapper = mountComponent({ canRead: true })
     const card = wrapper.get('article')

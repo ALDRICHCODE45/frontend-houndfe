@@ -98,7 +98,7 @@ function capitalize(str: string): string {
 </script>
 
 <template>
-  <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+  <div class="flex w-full min-w-0 max-w-full flex-col gap-3 md:flex-row md:items-center md:justify-between">
     <!-- ─── Desktop layout (md+) — historical horizontal layout ───────── -->
     <template v-if="!isMobile">
       <div class="flex flex-1 flex-col items-stretch gap-2 sm:flex-row sm:items-center">
@@ -182,7 +182,7 @@ function capitalize(str: string): string {
     <template v-else>
       <!-- Row 1 — search full-width -->
       <div
-        class="flex w-full flex-col gap-2"
+        class="flex w-full min-w-0 max-w-full flex-col gap-2"
         data-testid="toolbar-mobile-search-row"
       >
         <UInput
@@ -197,7 +197,7 @@ function capitalize(str: string): string {
       <!-- Row 2 — actions cluster (flex-wrap, fixed order) -->
       <div
         v-if="showAddButton || showRefresh || showColumnVisibility || !!slots.actions"
-        class="flex w-full flex-wrap items-center gap-2"
+        class="flex w-full min-w-0 max-w-full flex-wrap items-center gap-2"
         data-testid="toolbar-mobile-actions-row"
       >
         <!-- Mobile order: add → refresh → Columnas → actions slot -->
@@ -263,7 +263,7 @@ function capitalize(str: string): string {
       <!-- Row 3 — Filtros button + (optional) active-count badge -->
       <div
         v-if="hasFiltersSlot"
-        class="flex w-full items-center gap-2"
+        class="flex w-full min-w-0 max-w-full items-center gap-2"
         data-testid="toolbar-mobile-filters-row"
       >
         <UButton

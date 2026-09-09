@@ -58,6 +58,93 @@ function makeCustomer(overrides: Partial<Customer> = {}): Customer {
   }
 }
 
+// ── S3: card shrink containment ─────────────────────────────────────────────
+describe('CustomerCard shrink containment (S3)', () => {
+  it('keeps the card root shrinkable within its grid track', () => {
+    const wrapper = mount(CustomerCard, { props: { customer: makeCustomer() } })
+    const card = wrapper.get('article')
+
+    expect(card.classes()).toEqual(expect.arrayContaining(['w-full', 'min-w-0', 'max-w-full']))
+    // Card mode must never become its own horizontal scroll container.
+    expect(card.classes()).not.toContain('overflow-x-auto')
+  })
+
+  it('constrains the price-list chip row to the card and truncates the badge label', () => {
+    const wrapper = mount(CustomerCard, {
+      props: {
+        customer: makeCustomer({
+          globalPriceListName: 'Lista de precios mayoristas preferentes extendida 2026',
+        }),
+      },
+    })
+
+    // The chip row stays within the shrinkable card; the badge label
+    // truncates rather than widening the badge shell.
+    const badge = wrapper.get('[data-testid="app-badge"]')
+    expect(badge.classes()).toEqual(expect.arrayContaining(['min-w-0', 'max-w-full']))
+    expect(badge.findAll('span').some((span) => span.classes().includes('truncate'))).toBe(true)
+    expect(wrapper.get('article').text()).toContain(
+      'Lista de precios mayoristas preferentes extendida 2026',
+    )
+  })
+
+  it('keeps name/email/phone/date truncation contracts beside a pinned propagation-guarded kebab', () => {
+    const wrapper = mount(CustomerCard, {
+      props: { customer: makeCustomer(), canUpdate: true },
+    })
+    const card = wrapper.get('article')
+    const paragraphs = card.findAll('p')
+
+    // Field-specific truncation contracts (design §5): name truncates,
+    // email is single-line clamped, phone and date truncate in their cells.
+    expect(paragraphs.some((p) => p.classes().includes('truncate') && p.classes().includes('font-semibold'))).toBe(true)
+    expect(paragraphs.some((p) => p.classes().includes('line-clamp-1'))).toBe(true)
+    expect(paragraphs.filter((p) => p.classes().includes('truncate')).length).toBeGreaterThanOrEqual(3)
+
+    const kebab = wrapper.get('[data-testid="kebab-wrapper"]')
+    expect(Array.from(kebab.classes())).toEqual(
+      expect.arrayContaining(['absolute', 'right-3', 'top-3', 'z-10']),
+    )
+  })
+})
+
+// ── S3: long-content triangulation ─────────────────────────────────────────
+describe('CustomerCard long-content rendering (S3 triangulate)', () => {
+  it('renders long name/email/phone/date values inside the shrinkable card without scroll classes', () => {
+    const wrapper = mount(CustomerCard, {
+      props: {
+        customer: makeCustomer({
+          fullName: 'José Eduardo de Jesús Ramírez-Salazar de la Torre y Fuentes',
+          email: 'jose.eduardo.ramirez.salazar@distribuidora-internacional-larga.com.mx',
+          phoneCountryCode: '+52',
+          phone: '55123456789012345678',
+          createdAt: '2024-01-15T10:30:00.000Z',
+        }),
+        canUpdate: true,
+        canDelete: true,
+        canReadSales: true,
+      },
+    })
+    const card = wrapper.get('article')
+
+    // Long values remain readable inside field-specific truncation —
+    // never asserted as jsdom geometry.
+    expect(card.text()).toContain('jose.eduardo.ramirez')
+    expect(card.text()).toContain('55123456789012345678')
+    expect(card.text()).toContain('Creado')
+    expect(card.classes()).not.toContain('overflow-x-auto')
+
+    // The kebab stays absolutely pinned and actionable beside long content.
+    const kebab = wrapper.get('[data-testid="kebab-wrapper"]')
+    expect(kebab.classes()).toContain('absolute')
+
+    // Kebab propagation guard still holds beside long content.
+    return wrapper.get('[data-testid="kebab-wrapper"]').trigger('click').then(() => {
+      expect(wrapper.emitted('click')).toBeUndefined()
+    })
+  })
+})
+
 describe('CustomerCard', () => {
   beforeEach(() => {
     vi.useRealTimers()

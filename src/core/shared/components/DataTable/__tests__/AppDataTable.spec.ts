@@ -17,6 +17,13 @@ vi.mock('@vueuse/core', async importOriginal => {
 
 type Row = { id: number; name: string }
 
+/** S1 shrink-containment class contract shared by every contained region. */
+function expectShrinkContainment(classes: string[]) {
+  expect(classes).toContain('w-full')
+  expect(classes).toContain('min-w-0')
+  expect(classes).toContain('max-w-full')
+}
+
 const columns = [{ accessorKey: 'name', header: 'Name' }]
 const data: Row[] = [{ id: 1, name: 'Alpha' }, { id: 2, name: 'Beta' }]
 
@@ -356,6 +363,70 @@ describe('AppDataTable toolbar testid pass-through', () => {
 
     const toolbar = wrapper.get('[data-testid="toolbar"]')
     expect(toolbar.attributes('data-active-filter-count')).toBe('0')
+  })
+})
+
+// ─── Mobile density containment (S1 — mobile-dashboard-list-density) ─────────
+// Backward-compatible shrink containment: the shared wrapper must honor its
+// parent's available width without owning horizontal scrolling. The real Nuxt
+// UI UTable root (existing `overflow-auto`) remains the SOLE table scroller;
+// card-mode regions must never introduce their own horizontal-scroll class.
+// jsdom asserts class contracts only — rendered geometry belongs to verify.
+
+describe('AppDataTable — mobile density containment (S1)', () => {
+  beforeEach(() => {
+    isBelowBreakpoint.value = false
+  })
+
+  it('contains the root and the real UTable boundary (sole scroller) in both table paths', () => {
+    for (const props of [{}, { displayMode: 'table', mobileRender: 'cards' }]) {
+      isBelowBreakpoint.value = true
+      const wrapper = mountComponent(props)
+      expectShrinkContainment(wrapper.element.className.split(/\s+/))
+      expect(wrapper.get('[data-testid="table-view"]').classes()).toEqual(
+        expect.arrayContaining(['w-full', 'min-w-0', 'max-w-full', 'flex-1']),
+      )
+    }
+  })
+
+  it('keeps root containment across every display mode', () => {
+    for (const mode of [
+      { displayMode: 'table' },
+      { displayMode: 'cards' },
+      { displayMode: 'auto', mobileRender: 'cards' },
+    ] as const) {
+      expectShrinkContainment(mountComponent({ ...mode }).element.className.split(/\s+/))
+    }
+  })
+
+  it('contains every card-mode region and never adds a horizontal-scroll class', () => {
+    isBelowBreakpoint.value = true
+    const loading = mountComponent({ mobileRender: 'cards', loading: true, data: [] })
+    const list = mountComponent({ mobileRender: 'cards' })
+    const empty = mountComponent({ mobileRender: 'cards', data: [], totalCount: 0 })
+
+    for (const [wrapper, testid] of [
+      [loading, 'mobile-cards-loading'],
+      [list, 'mobile-cards-list'],
+      [empty, 'mobile-empty-state'],
+    ] as const) {
+      const region = wrapper.get(`[data-testid="${testid}"]`)
+      expectShrinkContainment(region.classes())
+      expect(region.classes()).not.toContain('overflow-x-auto')
+      expect(region.classes()).not.toContain('overflow-auto')
+    }
+  })
+
+  it('constrains both error-state regions while keeping the retry emission', async () => {
+    const tableError = mountComponent({ error: true, data: [], totalCount: 0 })
+    expectShrinkContainment(tableError.get('[data-testid="table-error-state"]').classes())
+
+    isBelowBreakpoint.value = true
+    const cardsError = mountComponent({ mobileRender: 'cards', error: true, data: [], totalCount: 0 })
+    const errorBlock = cardsError.get('[data-testid="cards-error-state"]')
+    expectShrinkContainment(errorBlock.classes())
+    await errorBlock.get('[data-testid="cards-error-retry"]').trigger('click')
+    expect(cardsError.emitted('refresh')).toHaveLength(1)
   })
 })
 

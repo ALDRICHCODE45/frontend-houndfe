@@ -45,6 +45,66 @@ function makeCustomer(overrides: Partial<Customer> = {}): Customer {
   }
 }
 
+// ── S3: available-width grid containment ───────────────────────────────────
+describe('CustomerCardGrid available-width containment (S3)', () => {
+  // S3 pilot convention (design §4): the nested list width — not the
+  // viewport — decides the column count. The exact sm/lg/xl/2xl ladder is
+  // intentionally retired for this grid.
+  const availableWidthClasses = [
+    'grid',
+    'gap-3',
+    'w-full',
+    'min-w-0',
+    'max-w-full',
+    'grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))]',
+  ]
+
+  function mountGrid(overrides: Record<string, unknown> = {}) {
+    return mount(CustomerCardGrid, {
+      props: { customers: [] as Customer[], ...overrides },
+      global: { stubs: { UIcon: UIconStub } },
+    })
+  }
+
+  it('uses the available-width auto-fit grid contract on both skeleton and card states', () => {
+    const cardsGrid = mountGrid({ customers: [makeCustomer({ id: 'a' })] }).get(
+      '[data-testid="card-grid"]',
+    )
+    expect(cardsGrid.classes()).toEqual(expect.arrayContaining(availableWidthClasses))
+    expect(cardsGrid.classes()).not.toContain('sm:grid-cols-2')
+    expect(cardsGrid.classes()).not.toContain('2xl:grid-cols-7')
+
+    // Skeleton mirrors the cards contract so layout doesn't jump when the
+    // cards arrive.
+    const skeletonGrid = mountGrid({ customers: [], loading: true }).get(
+      '[data-testid="card-grid-skeleton"]',
+    )
+    expect(skeletonGrid.classes()).toEqual(expect.arrayContaining(availableWidthClasses))
+    expect(skeletonGrid.classes()).not.toContain('xl:grid-cols-5')
+  })
+
+  it('contains the empty state to the available width without a horizontal scroll class', () => {
+    const emptyRoot = mountGrid({ customers: [], empty: 'Sin clientes' }).get(
+      '[data-testid="card-grid-empty"]',
+    )
+
+    expect(emptyRoot.classes()).toEqual(expect.arrayContaining(['w-full', 'min-w-0', 'max-w-full']))
+    expect(emptyRoot.classes()).not.toContain('overflow-x-auto')
+    expect(emptyRoot.text()).toContain('Sin clientes')
+  })
+
+  it('keeps long customer names inside the available-width grid without scroll classes', () => {
+    const longCustomer = makeCustomer({
+      id: 'long',
+      fullName: 'María Fernanda de los Ángeles Guadalupe Contreras-Montenegro',
+    })
+    const grid = mountGrid({ customers: [longCustomer] }).get('[data-testid="card-grid"]')
+
+    expect(grid.text()).toContain(longCustomer.fullName)
+    expect(grid.classes()).not.toContain('overflow-x-auto')
+  })
+})
+
 describe('CustomerCardGrid', () => {
   it('renders one card per customer', () => {
     const wrapper = mount(CustomerCardGrid, {

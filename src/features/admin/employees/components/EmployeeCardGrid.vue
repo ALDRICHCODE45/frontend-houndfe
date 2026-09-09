@@ -17,6 +17,12 @@ import EmployeeCard from './EmployeeCard.vue'
 import { resolveManagerName, type ManagerInfo } from '../composables/useManagerResolution'
 import type { Employee } from '../interfaces/employee.types'
 
+// S4 pilot available-width grid convention (design §4): the nested list
+// width, not the viewport, decides the column count. Duplicated by design
+// across the three pilot grids — no shared wrapper.
+const gridClasses =
+  'grid w-full min-w-0 max-w-full grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-3'
+
 const props = defineProps<{
   employees: Employee[]
   managerMap: Map<string, ManagerInfo>
@@ -41,11 +47,13 @@ function getManagerDisplay(employee: Employee): string {
   <!-- Loading skeleton -->
   <div
     v-if="props.loading"
-    class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-7"
+    data-testid="card-grid-skeleton"
+    :class="gridClasses"
   >
     <div
       v-for="i in 8"
       :key="i"
+      data-testid="card-skeleton"
       class="h-56 animate-pulse rounded-xl border border-default bg-elevated"
     />
   </div>
@@ -53,7 +61,8 @@ function getManagerDisplay(employee: Employee): string {
   <!-- Empty state -->
   <div
     v-else-if="!props.employees.length"
-    class="flex flex-col items-center justify-center gap-3 py-16 text-center"
+    data-testid="card-grid-empty"
+    class="flex w-full min-w-0 max-w-full flex-col items-center justify-center gap-3 py-16 text-center"
   >
     <UIcon name="i-lucide-users" class="size-12 text-muted opacity-50" />
     <p class="text-sm text-muted">{{ props.empty ?? 'No se encontraron colaboradores' }}</p>
@@ -62,7 +71,8 @@ function getManagerDisplay(employee: Employee): string {
   <!-- Card grid -->
   <div
     v-else
-    class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-7"
+    data-testid="card-grid"
+    :class="gridClasses"
   >
     <EmployeeCard
       v-for="employee in props.employees"

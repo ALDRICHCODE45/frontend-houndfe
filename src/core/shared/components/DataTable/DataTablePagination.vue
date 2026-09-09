@@ -42,7 +42,7 @@ const pageSizeItems = computed(() =>
 
 <template>
   <div
-    class="flex flex-col gap-3 border-default pt-4 sm:flex-row sm:items-center sm:justify-between border-t"
+    class="flex w-full min-w-0 max-w-full flex-col gap-3 border-default pt-4 sm:flex-row sm:items-center sm:justify-between border-t"
   >
     <!-- Showing info -->
     <div class="text-sm text-muted">
@@ -52,7 +52,10 @@ const pageSizeItems = computed(() =>
       <template v-else> Sin resultados </template>
     </div>
 
-    <div class="flex items-center gap-4">
+    <div
+      class="flex w-full min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+      data-testid="pagination-controls"
+    >
       <!-- Page Size Selector -->
       <UDropdownMenu :items="pageSizeItems" :content="{ align: 'end' as const }">
         <UButton
@@ -72,6 +75,7 @@ const pageSizeItems = computed(() =>
         :disabled="fetching"
         show-edges
         :sibling-count="1"
+        class="min-w-0 max-w-full"
       />
     </div>
   </div>
