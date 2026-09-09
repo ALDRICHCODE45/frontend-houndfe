@@ -188,7 +188,7 @@ function getRowItems(user: UserTableRow) {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 px-4 sm:px-6 lg:px-10">
+  <div class="flex flex-col gap-6 md:px-6 lg:px-10">
     <UserUpsertSlideover
       v-model:open="isCreateOpen"
       mode="create"
@@ -222,7 +222,7 @@ function getRowItems(user: UserTableRow) {
         <AdminPageHeader title="Gestión de usuarios" :description="headerDescription" />
       </template>
 
-      <div class="px-6 py-5">
+      <div class="w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"

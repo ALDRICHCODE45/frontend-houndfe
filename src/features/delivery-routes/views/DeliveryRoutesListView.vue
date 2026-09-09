@@ -288,7 +288,7 @@ function statusLabel(status: DeliveryRouteStatus) {
     </ul>
   </div>
 
-  <div v-else-if="isManager" class="flex flex-col gap-6 px-4 sm:px-6 lg:px-10">
+  <div v-else-if="isManager" class="flex flex-col gap-6 md:px-6 lg:px-10">
     <DeliveryRouteUpsertSlideover
       v-model:open="isCreateOpen"
       mode="create"

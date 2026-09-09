@@ -387,7 +387,7 @@ const errorMessage = computed(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 px-4 sm:px-10">
+  <div class="flex flex-col gap-6 md:px-10">
     <UCard
       :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }"
       class="quotations-list-view overflow-hidden rounded-2xl border border-default shadow-sm"
@@ -400,7 +400,7 @@ const errorMessage = computed(() => {
         />
       </template>
 
-      <div class="px-6 py-5 space-y-4">
+      <div class="w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4 space-y-4">
         <div class="space-y-4">
           <div class="flex flex-wrap items-center gap-1" data-testid="status-tabs" role="tablist" aria-label="Filtrar cotizaciones por estado">
             <button
