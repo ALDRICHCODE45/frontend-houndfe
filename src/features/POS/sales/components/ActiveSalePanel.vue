@@ -36,6 +36,8 @@ const props = defineProps<{
   applicablePromotions?: ApplicablePromotion[]
   isLoadingPromotions?: boolean
   appliedManualPromotionIds?: string[]
+  /** Presentation-only density flag for the mobile bottom-sheet instance. */
+  mobileSheet?: boolean
 }>()
 
 // ── Emits ─────────────────────────────────────────────────────────────────────
@@ -204,8 +206,12 @@ function handleConfirmPriceListChange() {
          - Group 2: price-list selector (shrink-0 so the label + dropdown
            are never visually overlapped). -->
     <section data-testid="cart-header" class="shrink-0 flex flex-col md:flex-row md:flex-wrap md:items-center md:gap-2 md:px-2 md:py-2">
-      <!-- Group 1: type toggle only. -->
-      <div class="flex items-center gap-1 px-3 py-2 md:border-0 md:bg-transparent md:p-0 md:shrink-0">
+      <!-- Group 1: type toggle only; redundant inside the mobile sheet. -->
+      <div
+        v-if="!mobileSheet"
+        data-testid="cart-type-toggle"
+        class="flex items-center gap-1 px-3 py-2 md:border-0 md:bg-transparent md:p-0 md:shrink-0"
+      >
         <UTabs
           :items="[
             { key: 'venta', label: 'Venta', content: false },
@@ -260,6 +266,7 @@ function handleConfirmPriceListChange() {
           :item="item"
           :image-url="itemImageMap?.[item.variantId ? `${item.productId}:${item.variantId}` : item.productId] ?? null"
           :is-updating="isMutating"
+          :mobile-sheet="mobileSheet"
           :on-submit-price-override="onSubmitPriceOverride"
           :on-apply-discount="onApplyDiscount"
           :on-remove-discount="onRemoveDiscount"

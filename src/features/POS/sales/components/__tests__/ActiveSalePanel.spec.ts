@@ -27,6 +27,7 @@ function mountPanel(
     isLoadingPromotions?: boolean
     appliedManualPromotionIds?: string[]
   } = {},
+  mobileSheet = false,
 ) {
   // pos-price-list-tiers: PriceListSelector uses useQuery for its price-
   // lists fetch. The shared QueryClient here exists only to satisfy that
@@ -54,6 +55,7 @@ function mountPanel(
       applicablePromotions: promoOverrides.applicablePromotions,
       isLoadingPromotions: promoOverrides.isLoadingPromotions ?? false,
       appliedManualPromotionIds: promoOverrides.appliedManualPromotionIds ?? [],
+      mobileSheet,
     },
     global: {
       plugins: [[VueQueryPlugin, { queryClient }]],
@@ -63,6 +65,7 @@ function mountPanel(
         // drive the per-line auto-promo veto event forwarding contract.
         SaleItemRow: {
           name: 'SaleItemRow',
+          props: ['mobileSheet'],
           emits: ['update-qty', 'remove-promo'],
           template:
             '<div>'
@@ -591,5 +594,52 @@ describe('ActiveSalePanel — Phase 14b header compaction', () => {
 
     const toolbar = wrapper.find('[data-testid="cart-actions-toolbar"]')
     expect(toolbar.exists()).toBe(true)
+  })
+})
+
+// ── Work unit C — mobileSheet presentation prop ───────────────────────
+
+describe('ActiveSalePanel — mobileSheet presentation (work unit C)', () => {
+  const oneItemDraft = () =>
+    makeDraft({
+      items: [
+        {
+          id: 'item-1',
+          productId: 'prod-1',
+          variantId: null,
+          productName: 'A',
+          variantName: null,
+          quantity: 1,
+          unitPriceCents: 1000,
+          unitPriceCurrency: 'MXN',
+        },
+      ],
+    })
+
+  it('hides the redundant Venta/Pedido type toggle in the mobile sheet but keeps the price-list selector', () => {
+    const wrapper = mountPanel(oneItemDraft(), false, {}, true)
+
+    expect(wrapper.find('[data-testid="cart-type-toggle"]').exists()).toBe(false)
+    // Price-list selection stays visible/readable inside the sheet.
+    expect(wrapper.find('[data-testid="price-list-selector-stub"]').exists()).toBe(true)
+  })
+
+  it('keeps the type toggle and price-list selector with desktop defaults (no mobileSheet)', () => {
+    const wrapper = mountPanel(oneItemDraft())
+
+    expect(wrapper.find('[data-testid="cart-type-toggle"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="price-list-selector-stub"]').exists()).toBe(true)
+  })
+
+  it('forwards mobileSheet down to SaleItemRow rows (and stays falsy on desktop)', () => {
+    const sheetWrapper = mountPanel(oneItemDraft(), false, {}, true)
+    const sheetRow = sheetWrapper.findComponent({ name: 'SaleItemRow' })
+    expect(sheetRow.exists()).toBe(true)
+    expect(sheetRow.props('mobileSheet')).toBe(true)
+
+    const desktopWrapper = mountPanel(oneItemDraft())
+    const desktopRow = desktopWrapper.findComponent({ name: 'SaleItemRow' })
+    expect(desktopRow.exists()).toBe(true)
+    expect(desktopRow.props('mobileSheet')).toBeFalsy()
   })
 })

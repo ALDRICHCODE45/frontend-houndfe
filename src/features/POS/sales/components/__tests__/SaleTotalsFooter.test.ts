@@ -319,13 +319,14 @@ describe('SaleTotalsFooter — Phase 14b breakdown', () => {
     expect(noDiscount.html()).not.toContain('Descuentos')
   })
 
-  it('renders TOTAL A COBRAR with text-white and bold on total amount', () => {
+  it('renders TOTAL A COBRAR with an adaptive foreground', () => {
     const wrapper = mountFooter(makeSale(TOTALS))
     expect(wrapper.html()).toContain('TOTAL A COBRAR')
 
-    // The total amount element should have text-white
     const totalEl = wrapper.find('[data-testid="total-amount"]')
     expect(totalEl.exists()).toBe(true)
+    expect(totalEl.classes()).toContain('text-highlighted')
+    expect(totalEl.classes()).not.toContain('text-white')
   })
 
   it('renders Cobrar button with full width', () => {

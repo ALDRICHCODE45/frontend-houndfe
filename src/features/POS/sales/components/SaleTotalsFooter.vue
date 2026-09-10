@@ -84,14 +84,14 @@ function handleRemoveOrderPromo() {
 
     <USeparator class="my-3 opacity-70" />
 
-    <!-- Total row — Phase 14b: white, large, bold -->
+    <!-- Total row — Phase 14b: large, bold, adaptive to surface -->
     <div class="flex items-baseline justify-between mb-1">
       <p class="text-xs font-semibold text-muted uppercase tracking-wider">
         TOTAL A COBRAR
       </p>
       <span
         data-testid="total-amount"
-        class="text-2xl font-extrabold text-white tabular-nums"
+        class="text-2xl font-extrabold text-highlighted tabular-nums"
       >{{ totalFormatted }}</span>
     </div>
 

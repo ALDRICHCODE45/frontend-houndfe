@@ -23,11 +23,14 @@ const props = withDefaults(
       onApplyDiscount: (itemId: string, payload: ApplyItemDiscountPayload) => Promise<unknown>
       onRemoveDiscount: (itemId: string) => Promise<unknown>
       onRemoveItem?: (itemId: string) => Promise<unknown>
+      /** Presentation-only density flag for the mobile cart sheet. */
+      mobileSheet?: boolean
      }>(),
   {
     imageUrl: null,
     isUpdating: false,
     isDraft: true,
+    mobileSheet: false,
     onSubmitPriceOverride: async () => undefined,
     onApplyDiscount: async () => undefined,
     onRemoveDiscount: async () => undefined,
@@ -202,13 +205,21 @@ function handleQtyCommit() {
        Left: thumbnail · Center: name/specs/qty · Right: pricing stack.
        All props, emits, computed, and data-testid attrs preserved. -->
   <div
-    class="mx-3 mb-2 rounded-xl border border-default hover:bg-elevated/40 hover:border-default transition-all duration-150 px-3 py-2"
+    data-testid="sale-item-card"
+    class="mx-3 border border-default transition-all duration-150"
+    :class="mobileSheet
+      ? 'mb-3 rounded-2xl px-3.5 py-3'
+      : 'mb-2 rounded-xl hover:bg-elevated/40 hover:border-default px-3 py-2'"
   >
     <div class="flex items-start gap-3">
       <!-- LEFT — Thumbnail (48px square) -->
       <div
-        class="h-12 w-12 shrink-0 rounded-lg flex items-center justify-center overflow-hidden"
-        :class="!imageUrl || imageBroken ? 'bg-primary/8 border border-primary/15' : 'bg-elevated border border-default'"
+        data-testid="sale-item-thumbnail"
+        class="shrink-0 rounded-lg flex items-center justify-center overflow-hidden"
+        :class="[
+          mobileSheet ? 'h-14 w-14' : 'h-12 w-12',
+          !imageUrl || imageBroken ? 'bg-primary/8 border border-primary/15' : 'bg-elevated border border-default',
+        ]"
       >
         <UIcon
           v-if="!imageUrl || imageBroken"
@@ -226,8 +237,12 @@ function handleQtyCommit() {
       </div>
 
       <!-- CENTER — stacked info (name → specs → qty row → inline badges) -->
-      <div class="flex-1 min-w-0 flex flex-col gap-0.5">
-        <p class="text-sm font-medium text-highlighted truncate">
+      <div class="flex-1 min-w-0 flex flex-col" :class="mobileSheet ? 'gap-1' : 'gap-0.5'">
+        <p
+          data-testid="sale-item-name"
+          class="font-medium text-highlighted truncate"
+          :class="mobileSheet ? 'text-base' : 'text-sm'"
+        >
           {{ item.productName }}
         </p>
 
@@ -249,24 +264,32 @@ function handleQtyCommit() {
         </p>
 
         <!-- Qty row: stepper + trash + actions dropdown (draft only) -->
-        <div v-if="isDraft" class="flex items-center gap-1 mt-0.5">
+        <div v-if="isDraft" class="flex items-center" :class="mobileSheet ? 'gap-1.5 mt-1.5' : 'gap-1 mt-0.5'">
           <UInputNumber
             v-model="localQty"
-            size="xs"
+            :size="mobileSheet ? 'sm' : 'xs'"
             :min="1"
             :disabled="isUpdating"
+            :class="mobileSheet ? 'w-24 shrink-0' : undefined"
             @blur="handleQtyCommit"
             @change="handleQtyCommit"
           />
           <UButton
             icon="i-lucide-trash-2"
-            size="xs"
+            :size="mobileSheet ? 'sm' : 'xs'"
+            :class="mobileSheet ? 'min-h-[44px] min-w-[44px]' : undefined"
             color="neutral"
             variant="ghost"
             @click="void props.onRemoveItem?.(props.item.id)"
           />
           <UDropdownMenu :items="itemActions">
-            <UButton size="xs" color="neutral" variant="ghost" icon="i-lucide-ellipsis-vertical" />
+            <UButton
+              :size="mobileSheet ? 'sm' : 'xs'"
+              :class="mobileSheet ? 'min-h-[44px] min-w-[44px]' : undefined"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-ellipsis-vertical"
+            />
           </UDropdownMenu>
         </div>
 
@@ -333,7 +356,8 @@ function handleQtyCommit() {
         </p>
         <p
           data-testid="sale-item-line-net"
-          class="text-sm font-bold text-highlighted tabular-nums leading-tight"
+          class="font-bold text-highlighted tabular-nums leading-tight"
+          :class="mobileSheet ? 'text-base' : 'text-sm'"
         >
           {{ formatCentsMXN(lineDisplay.netLine) }}
         </p>

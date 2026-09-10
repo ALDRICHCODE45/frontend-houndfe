@@ -808,4 +808,87 @@ describe('SaleItemRow', () => {
 
     expect(wrapper.text()).toContain('My Promo')
   })
+
+  // ── Work unit C — mobile sheet presentation ────────────────────
+
+  describe('mobile sheet presentation (work unit C)', () => {
+    const baseMobileProps = {
+      item: mockItem,
+      saleId: 'sale-1',
+      isDraft: true,
+      mobileSheet: true,
+      onSubmitPriceOverride,
+      onApplyDiscount,
+      onRemoveDiscount,
+      onRemoveItem,
+    }
+
+    const baseDesktopProps = {
+      item: mockItem,
+      saleId: 'sale-1',
+      isDraft: true,
+      onSubmitPriceOverride,
+      onApplyDiscount,
+      onRemoveDiscount,
+      onRemoveItem,
+    }
+
+    it('reserves quantity space only in the mobile sheet', () => {
+      const mobile = mount(SaleItemRow, {
+        props: baseMobileProps,
+        global: { stubs },
+      })
+      const desktop = mount(SaleItemRow, {
+        props: baseDesktopProps,
+        global: { stubs },
+      })
+
+      expect(mobile.findComponent({ name: 'InputNumber' }).classes()).toEqual(
+        expect.arrayContaining(['w-24', 'shrink-0']),
+      )
+      const desktopClasses = desktop.findComponent({ name: 'InputNumber' }).classes()
+      expect(desktopClasses).not.toContain('w-24')
+      expect(desktopClasses).not.toContain('shrink-0')
+    })
+
+    it('mobile sheet: roomier card, larger thumbnail, readable name, 44px action targets', () => {
+      const wrapper = mount(SaleItemRow, {
+        props: baseMobileProps,
+        global: { stubs },
+      })
+
+      // Roomier card (vs compact rounded-xl/py-2 desktop card).
+      const card = wrapper.get('[data-testid="sale-item-card"]')
+      expect(card.classes()).toContain('rounded-2xl')
+      expect(card.classes()).toContain('py-3')
+
+      // Comfortably sized thumbnail.
+      expect(wrapper.get('[data-testid="sale-item-thumbnail"]').classes()).toContain('h-14')
+
+      // Readable product name.
+      expect(wrapper.get('[data-testid="sale-item-name"]').classes()).toContain('text-base')
+
+      // 44px tap targets on the qty-row primary controls (trash + more).
+      const oversized = wrapper
+        .findAll('button')
+        .filter((b) => b.classes().includes('min-h-[44px]'))
+      expect(oversized.length).toBeGreaterThanOrEqual(2)
+      expect(oversized.length).toBeLessThanOrEqual(3)
+    })
+
+    it('desktop defaults preserved: compact card, 48px thumbnail, small name, no 44px overrides', () => {
+      const wrapper = mount(SaleItemRow, {
+        props: baseDesktopProps,
+        global: { stubs },
+      })
+
+      const card = wrapper.get('[data-testid="sale-item-card"]')
+      expect(card.classes()).toContain('rounded-xl')
+      expect(card.classes()).toContain('py-2')
+
+      expect(wrapper.get('[data-testid="sale-item-thumbnail"]').classes()).toContain('h-12')
+      expect(wrapper.get('[data-testid="sale-item-name"]').classes()).toContain('text-sm')
+      expect(wrapper.html()).not.toContain('min-h-[44px]')
+    })
+  })
 })
