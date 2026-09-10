@@ -169,7 +169,7 @@ describe('ProductSearchResults.vue', () => {
 
   describe('grid columns — responsive breakpoints', () => {
     it('results grid uses correct responsive column counts', () => {
-      // Mobile 2 cols, sm 3 cols, md+ 4 cols.
+      // Mobile 1 col (horizontal cards), sm 3 cols, md+ 4 cols.
       const wrapper = mount(ProductSearchResults, {
         props: {
           items: mockResults,
@@ -185,6 +185,8 @@ describe('ProductSearchResults.vue', () => {
       })
 
       const html = wrapper.html()
+      expect(html).toContain('grid-cols-1')
+      expect(html).not.toContain('grid-cols-2')
       expect(html).toContain('sm:grid-cols-3')
       expect(html).toContain('md:grid-cols-4')
       expect(html).toContain('xl:grid-cols-4')
@@ -202,8 +204,21 @@ describe('ProductSearchResults.vue', () => {
       })
 
       const html = wrapper.html()
+      expect(html).toContain('grid-cols-1')
+      expect(html).not.toContain('grid-cols-2')
       expect(html).toContain('sm:grid-cols-3')
       expect(html).toContain('md:grid-cols-4')
+    })
+
+    it('loading skeleton cards mirror the horizontal mobile layout', () => {
+      const wrapper = mount(ProductSearchResults, {
+        props: { items: [], isLoading: true, isEmpty: false, hasQuery: false },
+      })
+
+      const html = wrapper.html()
+      expect(html).toContain('sm:flex-col')
+      expect(html).toContain('w-28')
+      expect(html).toContain('sm:w-full')
     })
   })
 })

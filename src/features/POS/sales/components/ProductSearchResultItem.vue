@@ -40,14 +40,16 @@ function isLowStock(item: PosCatalogItem): boolean {
 
 <template>
   <div
-    class="group rounded-2xl border border-default bg-elevated overflow-hidden cursor-pointer hover:border-primary/30 hover:shadow-md dark:hover:shadow-none transition-all duration-200 flex flex-col"
+    data-testid="result-card"
+    class="group rounded-2xl border border-default bg-elevated overflow-hidden cursor-pointer hover:border-primary/30 hover:shadow-md dark:hover:shadow-none transition-all duration-200 flex sm:flex-col"
     @click="emit('select', item)"
   >
     <!-- Image area — fixed height (not aspect-ratio) so cards stay uniform
          with or without image; aspect-ratio + flex content let the no-image
          branch collapse to the 40px icon height. -->
     <div
-      class="relative h-32 w-full shrink-0 flex items-center justify-center overflow-hidden bg-muted/30"
+      data-testid="image-area"
+      class="relative w-[43%] min-h-28 sm:h-32 sm:w-full shrink-0 flex items-center justify-center overflow-hidden bg-muted/30"
     >
       <UIcon
         v-if="!item.mainImage || imageError"
@@ -82,8 +84,8 @@ function isLowStock(item: PosCatalogItem): boolean {
       </span>
     </div>
 
-    <!-- Card body -->
-    <div class="px-3 py-3 space-y-1.5 border-t border-default/50">
+    <!-- Card body: right column on mobile, bottom band from sm. -->
+    <div class="flex-1 min-w-0 flex flex-col px-3 py-3 space-y-1.5 sm:border-t sm:border-default/50">
       <!-- Brand -->
       <p v-if="item.brand" class="text-[10px] text-dimmed uppercase tracking-wider font-medium truncate">
         {{ item.brand.name }}
@@ -100,7 +102,7 @@ function isLowStock(item: PosCatalogItem): boolean {
       <!-- Price row + action -->
       <div class="flex items-center justify-between pt-1">
         <div>
-          <p v-if="item.price" class="text-sm font-bold text-primary tabular-nums">
+          <p v-if="item.price" class="text-sm font-bold text-primary dark:text-(--brand-accent) tabular-nums">
             {{ formatPrice(item.price.priceDecimal) }}
           </p>
           <p v-else class="text-xs text-toned flex items-center gap-0.5">
@@ -109,10 +111,11 @@ function isLowStock(item: PosCatalogItem): boolean {
           </p>
         </div>
 
-        <!-- "Agregar" badge: visible by default on touch, hover-revealed on pointer devices -->
+        <!-- Compact hover affordance from sm; mobile uses the full-width action below. -->
         <span
-          class="text-xs font-semibold text-primary flex items-center gap-0.5
-                 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150"
+          data-testid="add-hint"
+          class="text-xs font-semibold text-primary hidden sm:flex items-center gap-0.5
+                 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-150"
         >
           <UIcon name="i-lucide-plus" class="h-3 w-3" />
           Agregar
@@ -120,9 +123,19 @@ function isLowStock(item: PosCatalogItem): boolean {
       </div>
 
       <!-- Variant count badge -->
-      <p v-if="item.hasVariants && item.variants.length > 0" class="text-[11px] text-(--brand-primary) font-medium">
+      <p v-if="item.hasVariants && item.variants.length > 0" class="text-[11px] text-(--brand-primary) dark:text-(--brand-accent) font-medium">
         {{ item.variants.length }} variantes
       </p>
+
+      <button
+        type="button"
+        data-testid="add-action"
+        class="mt-1 w-full flex items-center justify-center gap-1 rounded-xl bg-primary/10 text-primary text-xs font-semibold py-2 hover:bg-primary/20 active:bg-primary/20 transition-colors duration-150 sm:hidden dark:bg-primary dark:text-white dark:hover:bg-primary/90 dark:active:bg-primary/90"
+        @click.stop="emit('select', item)"
+      >
+        <UIcon name="i-lucide-plus" class="h-3.5 w-3.5" />
+        Agregar
+      </button>
     </div>
   </div>
 </template>

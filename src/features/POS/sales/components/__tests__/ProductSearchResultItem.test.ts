@@ -263,8 +263,9 @@ describe('ProductSearchResultItem.vue', () => {
         props: { item: simpleProduct },
       })
 
-      // Price should appear in the right column as prominent text
-      expect(wrapper.text()).toContain('$49.98')
+      const price = wrapper.get('.tabular-nums')
+      expect(price.text()).toContain('$49.98')
+      expect(price.classes()).toContain('dark:text-(--brand-accent)')
     })
 
     it('should show variant count for products with variants', () => {
@@ -272,7 +273,71 @@ describe('ProductSearchResultItem.vue', () => {
         props: { item: variantProduct },
       })
 
-      expect(wrapper.text()).toContain('2 variantes')
+      const variantCount = wrapper.findAll('p').find((node) => node.text() === '2 variantes')
+      expect(variantCount).toBeDefined()
+      expect(variantCount?.classes()).toContain('dark:text-(--brand-accent)')
+    })
+  })
+
+  describe('mobile reflow — horizontal card below sm', () => {
+    it('stacks image left and content right on mobile (vertical only from sm up)', () => {
+      const wrapper = mount(ProductSearchResultItem, {
+        props: { item: simpleProduct },
+      })
+
+      const root = wrapper.find('[data-testid="result-card"]')
+      expect(root.exists()).toBe(true)
+      expect(root.classes()).toContain('flex')
+      expect(root.classes()).toContain('sm:flex-col')
+    })
+
+    it('fills a proportional full-height image panel on mobile', () => {
+      const wrapper = mount(ProductSearchResultItem, {
+        props: { item: simpleProduct },
+      })
+
+      const imageArea = wrapper.get('[data-testid="image-area"]')
+      expect(imageArea.classes()).toEqual(
+        expect.arrayContaining(['w-[43%]', 'min-h-28', 'sm:h-32', 'sm:w-full']),
+      )
+      expect(imageArea.classes()).not.toContain('h-28')
+      expect(wrapper.get('img').classes()).toContain('object-cover')
+    })
+
+    it('renders a full-width mobile-only Agregar action inside content', () => {
+      const wrapper = mount(ProductSearchResultItem, {
+        props: { item: simpleProduct },
+      })
+
+      const addAction = wrapper.find('[data-testid="add-action"]')
+      expect(addAction.exists()).toBe(true)
+      expect(addAction.text()).toContain('Agregar')
+      expect(addAction.classes()).toContain('w-full')
+      expect(addAction.classes()).toContain('sm:hidden')
+      expect(addAction.classes()).toContain('dark:bg-primary')
+      expect(addAction.classes()).toContain('dark:text-white')
+    })
+
+    it('hides the hover-revealed Agregar badge on mobile (sm+ only)', () => {
+      const wrapper = mount(ProductSearchResultItem, {
+        props: { item: simpleProduct },
+      })
+
+      const badge = wrapper.find('[data-testid="add-hint"]')
+      expect(badge.exists()).toBe(true)
+      expect(badge.classes()).toContain('hidden')
+      expect(badge.classes()).toContain('sm:flex')
+    })
+
+    it('emits select exactly once when the mobile Agregar action is clicked', async () => {
+      const wrapper = mount(ProductSearchResultItem, {
+        props: { item: simpleProduct },
+      })
+
+      await wrapper.find('[data-testid="add-action"]').trigger('click')
+
+      expect(wrapper.emitted('select')).toHaveLength(1)
+      expect(wrapper.emitted('select')?.[0]).toEqual([simpleProduct])
     })
   })
 

@@ -24,17 +24,18 @@ const emit = defineEmits<{
          no-scrollbar hides the native track that otherwise shows as an
          always-visible bar at the panel's right edge. Scroll still works
          via wheel/trackpad/keys. -->
-    <!-- Loading state (card grid skeleton) -->
+    <!-- Loading skeleton mirrors horizontal cards on mobile and vertical cards from sm. -->
     <div
       v-if="isLoading && items.length === 0"
-      class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-4 gap-4"
+      class="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-4 gap-4"
     >
-      <div v-for="i in 8" :key="i" class="rounded-2xl border border-default bg-default overflow-hidden shadow-sm">
-        <USkeleton class="aspect-square w-full" />
-        <div class="px-3 py-2.5 space-y-1.5 border-t border-default/50">
+      <div v-for="i in 8" :key="i" class="rounded-2xl border border-default bg-default overflow-hidden shadow-sm flex sm:flex-col">
+        <USkeleton class="h-28 w-28 sm:h-32 sm:w-full shrink-0" />
+        <div class="flex-1 min-w-0 px-3 py-2.5 space-y-1.5 sm:border-t sm:border-default/50">
           <USkeleton class="h-2.5 w-16" />
           <USkeleton class="h-3 w-full" />
           <USkeleton class="h-3.5 w-20 mt-1" />
+          <USkeleton class="h-8 w-full mt-2 rounded-xl sm:hidden" />
         </div>
       </div>
     </div>
@@ -55,10 +56,10 @@ const emit = defineEmits<{
       </p>
     </div>
 
-    <!-- Results card grid — 2 cols mobile, 3 sm, 4 on md+ -->
+    <!-- Results card grid — horizontal single-column cards on mobile. -->
     <div
       v-else
-      class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-4 gap-4"
+      class="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-4 gap-4"
     >
       <ProductSearchResultItem
         v-for="item in items"
