@@ -11,6 +11,7 @@ import {
   getActiveDraftId,
   getNextActiveIdAfterClose,
   removeChargedDraftFromCache,
+  reconcileDraftMutationInCache,
   useSalesDrafts,
 } from '../useSalesDrafts'
 import type { Sale, ChargeSaleResponse } from '../../interfaces/sale.types'
@@ -265,6 +266,59 @@ describe('useSalesDrafts - pure cache update functions', () => {
 
       expect(result[0]?.items).toHaveLength(1)
       expect(result[0]?.items[0]?.productName).toBe('New Product')
+    })
+  })
+
+  describe('reconcileDraftMutationInCache', () => {
+    const cachedDrafts: Sale[] = [
+      { ...mockSales[0]!, customer: { id: 'cust-1', firstName: 'Ana', lastName: null } },
+      mockSales[1]!,
+    ]
+
+    it('should preserve cached customer when the mutation response omits it', () => {
+      const response: Sale = { ...mockSales[0]!, updatedAt: 'y' }
+
+      const result = reconcileDraftMutationInCache(cachedDrafts, response)
+
+      expect(result[0]?.customer).toEqual({ id: 'cust-1', firstName: 'Ana', lastName: null })
+    })
+
+    it('should clear customer and shippingAddress when the mutation response explicitly returns null', () => {
+      const response: Sale = { ...mockSales[0]!, customer: null, shippingAddress: null }
+
+      const result = reconcileDraftMutationInCache(cachedDrafts, response)
+
+      expect(result[0]?.customer).toBeNull()
+      expect(result[0]?.shippingAddress).toBeNull()
+    })
+
+    it('should keep the response authoritative when it includes the nested customer', () => {
+      const response: Sale = {
+        ...mockSales[0]!,
+        customer: { id: 'cust-2', firstName: 'Beto', lastName: null },
+      }
+
+      const result = reconcileDraftMutationInCache(cachedDrafts, response)
+
+      expect(result[0]?.customer).toEqual({ id: 'cust-2', firstName: 'Beto', lastName: null })
+    })
+
+    it('should preserve array order and replace the matching draft in place', () => {
+      const response: Sale = { ...mockSales[1]!, updatedAt: 'y' }
+
+      const result = reconcileDraftMutationInCache(cachedDrafts, response)
+
+      expect(result.map((sale) => sale.id)).toEqual(['sale-1', 'sale-2'])
+      expect(result[0]?.updatedAt).toBe('2026-04-21T10:00:00Z')
+      expect(result[1]?.updatedAt).toBe('y')
+    })
+
+    it('should return the array unchanged when the draft id is not found', () => {
+      const response: Sale = { ...mockSales[0]!, id: 'sale-999' }
+
+      const result = reconcileDraftMutationInCache(cachedDrafts, response)
+
+      expect(result).toEqual(cachedDrafts)
     })
   })
 
@@ -802,6 +856,171 @@ describe('useSalesDrafts - pure cache update functions', () => {
       )
 
       expect(saleApi.vetoAutoPromotion).toHaveBeenCalledWith('sale-1', 'promo-c')
+    })
+  })
+
+  // Preserve assignment metadata when cart responses omit nested relations.
+  describe('cart mutation customer preservation (draft-mutation reconciliation)', () => {
+    const assignedCustomer: NonNullable<Sale['customer']> = {
+      id: 'cust-1',
+      firstName: 'Ana',
+      lastName: 'García',
+    }
+    const enrichedCustomer: NonNullable<Sale['customer']> = {
+      id: 'cust-2',
+      firstName: 'Beto',
+      lastName: 'López',
+    }
+    const baseAddress = {
+      customerId: 'cust-1',
+      street: 'Calle Falsa',
+      exteriorNumber: '123',
+      interiorNumber: null,
+      zipCode: '01234',
+      neighborhood: null,
+      municipality: null,
+      city: 'CDMX',
+      state: 'CDMX',
+      createdAt: '2026-04-21T09:00:00Z',
+      updatedAt: '2026-04-21T09:00:00Z',
+    }
+    const assignedAddress: NonNullable<Sale['shippingAddress']> = { ...baseAddress, id: 'addr-1' }
+    const enrichedAddress: NonNullable<Sale['shippingAddress']> = { ...baseAddress, id: 'addr-2' }
+
+    const assignedDraft: Sale = {
+      id: 'sale-1',
+      userId: 'user-1',
+      status: 'DRAFT',
+      createdAt: '2026-04-21T10:00:00Z',
+      updatedAt: '2026-04-21T10:00:00Z',
+      customer: assignedCustomer,
+      shippingAddress: assignedAddress,
+      items: [
+        {
+          id: 'item-1',
+          productId: 'prod-1',
+          variantId: null,
+          productName: 'Aspirina',
+          variantName: null,
+          quantity: 1,
+          unitPriceCents: 10000,
+          unitPriceCurrency: 'MXN',
+        },
+      ],
+    }
+    const nullAddressDraft: Sale = { ...assignedDraft, shippingAddress: null }
+
+    // Sale.toResponse()-shaped cart mutation result: the nested
+    // customer/shippingAddress properties are absent (omitted, not null).
+    function toIdsOnlyResponse(base: Sale, overrides: Partial<Sale> = {}): Sale {
+      const { customer: _customer, shippingAddress: _shippingAddress, ...rest } = base
+      return { ...rest, updatedAt: '2026-04-21T10:01:00Z', ...overrides }
+    }
+
+    async function setupWithCache(cache: Sale[]) {
+      vi.mocked(saleApi.listDrafts).mockResolvedValue(cache)
+      const { result, queryClient } = mountComposable(() => useSalesDrafts())
+      await vi.waitFor(() =>
+        expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual(cache),
+      )
+      result.activeTabId.value = 'sale-1'
+      return { result, queryClient }
+    }
+
+    it('preserves cached customer and shippingAddress when an addItem response omits them', async () => {
+      vi.mocked(saleApi.addItem).mockResolvedValue(toIdsOnlyResponse(assignedDraft))
+      const { result, queryClient } = await setupWithCache([assignedDraft])
+
+      await result.addItem('prod-2', null, 1)
+
+      const cached = queryClient.getQueryData<Sale[]>(tenantDraftsKey)?.[0]
+      expect(cached?.customer).toEqual(assignedCustomer)
+      expect(cached?.shippingAddress).toEqual(assignedAddress)
+    })
+
+    it('keeps customer with address across addItem, updateQty and manual-price responses that omit them', async () => {
+      vi.mocked(saleApi.addItem).mockResolvedValue(toIdsOnlyResponse(assignedDraft))
+      vi.mocked(saleApi.updateItemQty).mockResolvedValue(
+        toIdsOnlyResponse(assignedDraft, {
+          updatedAt: '2026-04-21T10:02:00Z',
+          items: [{ ...assignedDraft.items[0]!, quantity: 3 }],
+        }),
+      )
+      vi.mocked(saleApi.updateItemPrice).mockResolvedValue(
+        toIdsOnlyResponse(assignedDraft, {
+          updatedAt: '2026-04-21T10:03:00Z',
+          items: [{ ...assignedDraft.items[0]!, quantity: 3, unitPriceCents: 250 }],
+        }),
+      )
+      const { result, queryClient } = await setupWithCache([assignedDraft])
+
+      await result.addItem('prod-2', null, 1)
+      await result.updateQty('item-1', 3)
+      await result.updateItemPrice('item-1', { customPriceCents: 250 })
+
+      const cached = queryClient.getQueryData<Sale[]>(tenantDraftsKey)?.[0]
+      expect(cached?.customer).toEqual(assignedCustomer)
+      expect(cached?.shippingAddress).toEqual(assignedAddress)
+      expect(cached?.items[0]?.quantity).toBe(3)
+      expect(cached?.items[0]?.unitPriceCents).toBe(250)
+    })
+
+    it('keeps an explicitly null shippingAddress null while preserving the customer on omitted-field responses', async () => {
+      vi.mocked(saleApi.addItem).mockResolvedValue(toIdsOnlyResponse(nullAddressDraft))
+      const { result, queryClient } = await setupWithCache([nullAddressDraft])
+
+      await result.addItem('prod-2', null, 1)
+
+      const cached = queryClient.getQueryData<Sale[]>(tenantDraftsKey)?.[0]
+      expect(cached?.customer).toEqual(assignedCustomer)
+      expect(cached?.shippingAddress).toBeNull()
+    })
+
+    it('clears customer and shippingAddress when a mutation response explicitly returns null for both', async () => {
+      vi.mocked(saleApi.addItem).mockResolvedValue(
+        toIdsOnlyResponse(assignedDraft, { customer: null, shippingAddress: null }),
+      )
+      const { result, queryClient } = await setupWithCache([assignedDraft])
+
+      await result.addItem('prod-2', null, 1)
+
+      const cached = queryClient.getQueryData<Sale[]>(tenantDraftsKey)?.[0]
+      expect(cached?.customer).toBeNull()
+      expect(cached?.shippingAddress).toBeNull()
+    })
+
+    it('lets an enriched response override cached customer and shippingAddress', async () => {
+      vi.mocked(saleApi.addItem).mockResolvedValue(
+        toIdsOnlyResponse(assignedDraft, {
+          customer: enrichedCustomer,
+          shippingAddress: enrichedAddress,
+        }),
+      )
+      const { result, queryClient } = await setupWithCache([assignedDraft])
+
+      await result.addItem('prod-2', null, 1)
+
+      const cached = queryClient.getQueryData<Sale[]>(tenantDraftsKey)?.[0]
+      expect(cached?.customer).toEqual(enrichedCustomer)
+      expect(cached?.shippingAddress).toEqual(enrichedAddress)
+    })
+
+    it('keeps the price-list enriched response authoritative over cached customer and address', async () => {
+      vi.mocked(saleApi.setPriceList).mockResolvedValue(
+        toIdsOnlyResponse(assignedDraft, {
+          globalPriceListId: 'list-mayoreo',
+          customer: enrichedCustomer,
+          shippingAddress: enrichedAddress,
+        }),
+      )
+      const { result, queryClient } = await setupWithCache([assignedDraft])
+
+      await result.setPriceList('sale-1', 'list-mayoreo')
+
+      const cached = queryClient.getQueryData<Sale[]>(tenantDraftsKey)?.[0]
+      expect(cached?.globalPriceListId).toBe('list-mayoreo')
+      expect(cached?.customer).toEqual(enrichedCustomer)
+      expect(cached?.shippingAddress).toEqual(enrichedAddress)
     })
   })
 

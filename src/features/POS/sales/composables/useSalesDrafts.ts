@@ -34,6 +34,37 @@ export function replaceSaleInCache(currentSales: Sale[], updatedSale: Sale): Sal
   return newSales
 }
 
+// Draft-mutation cache reconciliation. Backend cart mutations return
+// `Sale.toResponse()` (scalar ids, nested `customer`/`shippingAddress`
+// omitted), while customer-assignment writes an enriched Sale with the
+// nested objects. Replacing the full cached draft with such a response
+// drops the assignment the seller just made. This helper replaces the
+// response's authoritative fields/items but carries over the cached
+// `customer`/`shippingAddress` ONLY when the response omits the property
+// (undefined); an explicit `null` is honored as a clear. Responses that DO
+// include the nested objects (e.g. the price-list route) stay fully
+// authoritative. Used exclusively by useSalesDrafts mutation onSuccess
+// handlers; customer-assignment keeps using replaceSaleInCache because it
+// relies on explicit assignment responses (including null clears).
+export function reconcileDraftMutationInCache(currentSales: Sale[], updatedSale: Sale): Sale[] {
+  const index = currentSales.findIndex((sale) => sale.id === updatedSale.id)
+  const cachedSale = currentSales[index]
+  if (index === -1 || !cachedSale) return currentSales
+
+  const reconciled: Sale = { ...updatedSale }
+
+  if (reconciled.customer === undefined) {
+    reconciled.customer = cachedSale.customer
+  }
+  if (reconciled.shippingAddress === undefined) {
+    reconciled.shippingAddress = cachedSale.shippingAddress
+  }
+
+  const newSales = [...currentSales]
+  newSales[index] = reconciled
+  return newSales
+}
+
 export function getActiveDraftId(
   drafts: Sale[],
   localStorageId: string | null,
@@ -134,7 +165,7 @@ export function useSalesDrafts() {
       saleApi.addItem(saleId, payload),
     onSuccess: (updatedSale) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
-      queryClient.setQueryData(draftsKey.value, replaceSaleInCache(currentDrafts, updatedSale))
+      queryClient.setQueryData(draftsKey.value, reconcileDraftMutationInCache(currentDrafts, updatedSale))
       invalidateApplicablePromotions(updatedSale.id)
     },
   })
@@ -151,7 +182,7 @@ export function useSalesDrafts() {
     }) => saleApi.updateItemQty(saleId, itemId, payload),
     onSuccess: (updatedSale) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
-      queryClient.setQueryData(draftsKey.value, replaceSaleInCache(currentDrafts, updatedSale))
+      queryClient.setQueryData(draftsKey.value, reconcileDraftMutationInCache(currentDrafts, updatedSale))
       invalidateApplicablePromotions(updatedSale.id)
     },
   })
@@ -160,7 +191,7 @@ export function useSalesDrafts() {
     mutationFn: saleApi.clearItems,
     onSuccess: (updatedSale) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
-      queryClient.setQueryData(draftsKey.value, replaceSaleInCache(currentDrafts, updatedSale))
+      queryClient.setQueryData(draftsKey.value, reconcileDraftMutationInCache(currentDrafts, updatedSale))
       invalidateApplicablePromotions(updatedSale.id)
     },
   })
@@ -177,7 +208,7 @@ export function useSalesDrafts() {
     }) => saleApi.updateItemPrice(saleId, itemId, payload),
     onSuccess: (updatedSale) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
-      queryClient.setQueryData(draftsKey.value, replaceSaleInCache(currentDrafts, updatedSale))
+      queryClient.setQueryData(draftsKey.value, reconcileDraftMutationInCache(currentDrafts, updatedSale))
       invalidateApplicablePromotions(updatedSale.id)
     },
   })
@@ -187,7 +218,7 @@ export function useSalesDrafts() {
       saleApi.applyItemDiscount(saleId, itemId, payload),
     onSuccess: (updatedSale) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
-      queryClient.setQueryData(draftsKey.value, replaceSaleInCache(currentDrafts, updatedSale))
+      queryClient.setQueryData(draftsKey.value, reconcileDraftMutationInCache(currentDrafts, updatedSale))
       invalidateApplicablePromotions(updatedSale.id)
     },
   })
@@ -197,7 +228,7 @@ export function useSalesDrafts() {
       saleApi.removeItemDiscount(saleId, itemId),
     onSuccess: (updatedSale) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
-      queryClient.setQueryData(draftsKey.value, replaceSaleInCache(currentDrafts, updatedSale))
+      queryClient.setQueryData(draftsKey.value, reconcileDraftMutationInCache(currentDrafts, updatedSale))
       invalidateApplicablePromotions(updatedSale.id)
     },
   })
@@ -207,7 +238,7 @@ export function useSalesDrafts() {
       saleApi.removeItem(saleId, itemId),
     onSuccess: (updatedSale) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
-      queryClient.setQueryData(draftsKey.value, replaceSaleInCache(currentDrafts, updatedSale))
+      queryClient.setQueryData(draftsKey.value, reconcileDraftMutationInCache(currentDrafts, updatedSale))
       invalidateApplicablePromotions(updatedSale.id)
     },
   })
@@ -217,7 +248,7 @@ export function useSalesDrafts() {
       saleApi.applyGlobalDiscount(saleId, payload),
     onSuccess: (response: GlobalDiscountResponse) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
-      queryClient.setQueryData(draftsKey.value, replaceSaleInCache(currentDrafts, response.sale))
+      queryClient.setQueryData(draftsKey.value, reconcileDraftMutationInCache(currentDrafts, response.sale))
       invalidateApplicablePromotions(response.sale.id)
     },
   })
@@ -226,7 +257,7 @@ export function useSalesDrafts() {
     mutationFn: saleApi.removeGlobalDiscount,
     onSuccess: (updatedSale) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
-      queryClient.setQueryData(draftsKey.value, replaceSaleInCache(currentDrafts, updatedSale))
+      queryClient.setQueryData(draftsKey.value, reconcileDraftMutationInCache(currentDrafts, updatedSale))
       invalidateApplicablePromotions(updatedSale.id)
     },
   })
@@ -244,14 +275,14 @@ export function useSalesDrafts() {
   })
 
   // promotions-in-sale A.4: 3 new mutations mirror the existing pattern.
-  // Each does setQueryData(draftsKey, replaceSaleInCache(...)) AND
+  // Each does setQueryData(draftsKey, reconcileDraftMutationInCache(...)) AND
   // invalidateQueries({ queryKey: applicablePromotionsKey }).
   const applyManualPromotionMutation = useMutation({
     mutationFn: ({ saleId, promotionId }: PromotionMutationInput) =>
       saleApi.applyManualPromotion(saleId, promotionId),
     onSuccess: (updatedSale) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
-      queryClient.setQueryData(draftsKey.value, replaceSaleInCache(currentDrafts, updatedSale))
+      queryClient.setQueryData(draftsKey.value, reconcileDraftMutationInCache(currentDrafts, updatedSale))
       invalidateApplicablePromotions(updatedSale.id)
     },
   })
@@ -261,7 +292,7 @@ export function useSalesDrafts() {
       saleApi.removeManualPromotion(saleId, promotionId),
     onSuccess: (updatedSale) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
-      queryClient.setQueryData(draftsKey.value, replaceSaleInCache(currentDrafts, updatedSale))
+      queryClient.setQueryData(draftsKey.value, reconcileDraftMutationInCache(currentDrafts, updatedSale))
       invalidateApplicablePromotions(updatedSale.id)
     },
   })
@@ -271,7 +302,7 @@ export function useSalesDrafts() {
       saleApi.vetoAutoPromotion(saleId, promotionId),
     onSuccess: (updatedSale) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
-      queryClient.setQueryData(draftsKey.value, replaceSaleInCache(currentDrafts, updatedSale))
+      queryClient.setQueryData(draftsKey.value, reconcileDraftMutationInCache(currentDrafts, updatedSale))
       invalidateApplicablePromotions(updatedSale.id)
     },
   })
@@ -289,7 +320,7 @@ export function useSalesDrafts() {
     }) => saleApi.setPriceList(saleId, { globalPriceListId }),
     onSuccess: (updatedSale) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
-      queryClient.setQueryData(draftsKey.value, replaceSaleInCache(currentDrafts, updatedSale))
+      queryClient.setQueryData(draftsKey.value, reconcileDraftMutationInCache(currentDrafts, updatedSale))
       invalidateApplicablePromotions(updatedSale.id)
     },
   })
