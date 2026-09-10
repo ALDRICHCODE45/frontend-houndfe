@@ -11,6 +11,8 @@ type PaymentModalSubmitEvent = {
 }
 
 const modalStub = {
+  name: 'Slideover',
+  props: ['ui'],
   template: '<div><slot /><slot name="content" /><slot name="body" /><slot name="footer" /></div>',
 }
 
@@ -1209,5 +1211,23 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
     const submitted = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
     const payload = submitted!.payload as unknown as Record<string, unknown>
     expect(payload).toMatchObject({ method: 'cash', amountCents: 10000, delivery: true, dueDate: '2099-12-31' })
+  })
+
+  it('clips inset corners and stacks full-width actions on mobile', () => {
+    const wrapper = mount(PaymentModal, {
+      props: { open: true, totalCents: 15000, saleId: 'sale-1' },
+      global: { stubs },
+    })
+
+    const slideover = wrapper.findComponent({ name: 'Slideover' })
+    expect((slideover.props('ui') as { content?: string }).content).toContain('overflow-hidden')
+
+    const actions = wrapper.get('[data-testid="payment-actions"]')
+    expect(actions.classes()).toEqual(
+      expect.arrayContaining(['flex-col', 'sm:flex-row', 'sm:justify-end']),
+    )
+    for (const button of actions.findAll('button')) {
+      expect(button.classes()).toEqual(expect.arrayContaining(['w-full', 'sm:w-auto']))
+    }
   })
 })

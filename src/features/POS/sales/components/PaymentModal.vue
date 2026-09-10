@@ -408,7 +408,7 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
     :open="open"
     inset
     :ui="{
-      content: 'sm:max-w-lg',
+      content: 'sm:max-w-lg overflow-hidden',
       body: 'p-0 flex flex-col h-full',
     }"
     @update:open="emit('update:open', $event)"
@@ -679,8 +679,8 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
 
           <p v-if="inlineError || externalError" class="text-sm text-error">{{ inlineError ?? externalError }}</p>
 
-          <div class="flex justify-end gap-2">
-            <UButton color="neutral" variant="soft" :disabled="isSubmitting" @click="emit('update:open', false)">
+          <div data-testid="payment-actions" class="flex flex-col gap-2 sm:flex-row sm:justify-end">
+            <UButton color="neutral" variant="soft" class="w-full justify-center sm:w-auto" :disabled="isSubmitting" @click="emit('update:open', false)">
               Cancelar
             </UButton>
             <UButton
@@ -688,7 +688,7 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
               color="primary"
               :loading="isSubmitting"
               :disabled="!canSubmit"
-              class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+              class="w-full justify-center sm:w-auto !bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
               @click="handleSubmit"
             >
               {{ confirmButtonLabel }}
