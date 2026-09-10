@@ -158,6 +158,39 @@ describe('CustomerSalesHistorySlideover', () => {
     expect(document.body.querySelector('[role="alert"]')).toBeNull()
   })
 
+  it('contains history content and keeps a padded, wrapping multi-page footer', async () => {
+    history.response.value = response({
+      data: [sale()],
+      pagination: { page: 1, limit: 10, total: 23, totalPages: 3 },
+      summary: { salesCount: 23, totalSoldCents: 999_999, outstandingDebtCents: 0 },
+    })
+    mountSlideover()
+    await flushPromises()
+
+    const contentClasses = element('[data-testid="history-content"]').className
+    expect(contentClasses).toEqual(expect.stringContaining('min-w-0'))
+    expect(contentClasses).toEqual(expect.stringContaining('max-w-full'))
+    expect(contentClasses).toEqual(expect.stringContaining('overflow-x-hidden'))
+
+    const footerClasses = element('[data-testid="history-pagination"]').className
+    for (const className of ['min-h-14', 'px-4', 'py-3', 'lg:min-h-0', 'lg:p-0', 'flex-wrap', 'gap-3']) {
+      expect(footerClasses).toEqual(expect.stringContaining(className))
+    }
+    expect(element('[data-testid="history-pagination-controls"]')).toBeTruthy()
+  })
+
+  it('hides pagination controls for a single page while retaining the count', async () => {
+    history.response.value = response({
+      pagination: { page: 1, limit: 10, total: 7, totalPages: 1 },
+      summary: { salesCount: 7, totalSoldCents: 0, outstandingDebtCents: 0 },
+    })
+    mountSlideover()
+    await flushPromises()
+
+    expect(element('[data-testid="history-pagination"]').textContent).toContain('7 ventas')
+    expect(document.body.querySelector('[data-testid="history-pagination-controls"]')).toBeNull()
+  })
+
   it('renders normalized errors and retries the current query', async () => {
     history.isError.value = true
     history.error.value = Object.assign(new Error('Server error'), { response: { status: 500 } })

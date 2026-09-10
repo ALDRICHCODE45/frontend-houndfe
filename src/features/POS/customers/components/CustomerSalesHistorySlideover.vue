@@ -123,7 +123,11 @@ function selectSale(sale: ConfirmedSaleRow) {
     </template>
 
     <template #body>
-      <div :aria-busy="initialLoading || undefined">
+      <div
+        data-testid="history-content"
+        :aria-busy="initialLoading || undefined"
+        class="min-w-0 max-w-full overflow-x-hidden"
+      >
         <div v-if="initialLoading" aria-hidden="true">
           <div class="grid grid-cols-2 gap-2 p-4">
             <div
@@ -210,23 +214,25 @@ function selectSale(sale: ConfirmedSaleRow) {
     <template #footer>
       <div
         v-if="response && response.pagination.total > 0"
-        class="flex min-w-0 items-center justify-between gap-4"
+        class="flex min-h-14 min-w-0 flex-wrap items-center justify-between gap-3 px-4 py-3 lg:min-h-0 lg:flex-nowrap lg:gap-4 lg:p-0"
         data-testid="history-pagination"
         :data-disabled="String(isFetching)"
       >
-        <span class="min-w-0 shrink-0 text-sm text-muted">
+        <span class="min-w-0 shrink-0 text-sm font-semibold text-muted">
           <template v-if="response.pagination.total === 1">1 venta</template>
           <template v-else>{{ response.pagination.total }} ventas</template>
         </span>
-        <UPagination
-          v-model:page="page"
-          :items-per-page="10"
-          :total="response.pagination.total"
-          :disabled="isFetching"
-          show-edges
-          :sibling-count="1"
-          size="sm"
-        />
+        <div v-if="response.pagination.totalPages > 1" data-testid="history-pagination-controls">
+          <UPagination
+            v-model:page="page"
+            :items-per-page="10"
+            :total="response.pagination.total"
+            :disabled="isFetching"
+            show-edges
+            :sibling-count="0"
+            size="sm"
+          />
+        </div>
       </div>
     </template>
   </AppResponsiveDrawer>

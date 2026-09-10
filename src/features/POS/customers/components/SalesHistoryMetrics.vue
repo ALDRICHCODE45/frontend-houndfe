@@ -12,28 +12,32 @@ const formattedDebt = computed(() => formatCentsMXN(props.summary.outstandingDeb
 </script>
 
 <template>
-  <dl class="grid grid-cols-2 gap-2 p-4">
-    <div class="flex items-center gap-3 rounded-xl border border-default bg-elevated/50 p-3">
-      <div class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary-50 dark:bg-primary-900/30">
+  <dl class="grid min-w-0 grid-cols-2 gap-2 p-3 lg:p-4">
+    <div class="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)] items-center gap-x-2 rounded-xl border border-default bg-elevated/50 p-3 lg:grid-cols-[2.25rem_minmax(0,1fr)] lg:gap-x-3">
+      <div class="col-start-1 row-start-1 flex size-8 items-center justify-center rounded-lg bg-primary-50 dark:bg-primary-900/30 lg:row-span-2 lg:size-9">
         <UIcon name="i-lucide-shopping-cart" class="size-5 text-primary-600 dark:text-primary-400" aria-hidden="true" />
       </div>
-      <div class="min-w-0 flex-1">
-        <dt class="text-xs font-medium uppercase tracking-wide text-muted">Ventas confirmadas</dt>
-        <dd class="text-xl font-semibold tabular-nums text-highlighted">{{ summary.salesCount }}</dd>
-      </div>
+      <dt class="col-start-2 row-start-1 text-[11px] font-medium uppercase leading-tight tracking-wide text-muted lg:text-xs">Ventas confirmadas</dt>
+      <dd class="col-span-2 mt-2 min-w-0 whitespace-nowrap text-lg font-semibold leading-tight tabular-nums text-highlighted lg:col-span-1 lg:col-start-2 lg:row-start-2 lg:mt-0 lg:text-xl">
+        {{ summary.salesCount }}
+      </dd>
     </div>
-    <div class="flex items-center gap-3 rounded-xl border border-default bg-elevated/50 p-3">
-      <div class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-success-50 dark:bg-success-900/30">
+
+    <div class="grid min-w-0 grid-cols-[2rem_minmax(0,1fr)] items-center gap-x-2 rounded-xl border border-default bg-elevated/50 p-3 lg:grid-cols-[2.25rem_minmax(0,1fr)] lg:gap-x-3">
+      <div class="col-start-1 row-start-1 flex size-8 items-center justify-center rounded-lg bg-success-50 dark:bg-success-900/30 lg:row-span-2 lg:size-9">
         <UIcon name="i-lucide-wallet-cards" class="size-5 text-success-600 dark:text-success-400" aria-hidden="true" />
       </div>
-      <div class="min-w-0 flex-1">
-        <dt class="text-xs font-medium uppercase tracking-wide text-muted">Total vendido</dt>
-        <dd class="text-xl font-semibold tabular-nums text-highlighted">{{ formattedTotal }}</dd>
-      </div>
+      <dt class="col-start-2 row-start-1 text-[11px] font-medium uppercase leading-tight tracking-wide text-muted lg:text-xs">Total vendido</dt>
+      <dd class="col-span-2 mt-2 min-w-0 whitespace-nowrap text-lg font-semibold leading-tight tabular-nums text-highlighted lg:col-span-1 lg:col-start-2 lg:row-start-2 lg:mt-0 lg:text-xl">
+        {{ formattedTotal }}
+      </dd>
     </div>
-    <div class="col-span-2 flex flex-wrap items-center gap-3 rounded-xl border border-default bg-elevated/50 p-3"
-      :class="hasDebt ? 'border-error/30 bg-error-50/30 dark:bg-error-900/10' : ''">
-      <div class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-warning-50 dark:bg-warning-900/30">
+
+    <div
+      class="col-span-2 grid min-w-0 grid-cols-[2rem_minmax(0,1fr)] items-center gap-x-2 rounded-xl border border-default bg-elevated/50 p-3 lg:grid-cols-[2.25rem_minmax(0,1fr)] lg:gap-x-3"
+      :class="hasDebt ? 'border-error/30 bg-error-50/30 dark:bg-error-900/10' : ''"
+    >
+      <div class="col-start-1 row-start-1 flex size-8 items-center justify-center rounded-lg bg-warning-50 dark:bg-warning-900/30 lg:row-span-2 lg:size-9">
         <UIcon
           :name="hasDebt ? 'i-lucide-alert-circle' : 'i-lucide-circle-check'"
           class="size-5"
@@ -41,17 +45,22 @@ const formattedDebt = computed(() => formatCentsMXN(props.summary.outstandingDeb
           aria-hidden="true"
         />
       </div>
-      <div class="min-w-0 flex-1">
-        <dt class="text-xs font-medium uppercase tracking-wide text-muted">Saldo pendiente</dt>
-        <dd v-if="hasDebt" aria-live="polite" class="flex flex-wrap items-center gap-2">
-          <span class="text-xl font-semibold tabular-nums text-error">{{ formattedDebt }}</span>
-          <AppBadge tone="error" label="Con saldo pendiente" />
-        </dd>
-        <dd v-else class="flex flex-wrap items-center gap-2">
-          <span class="text-xl font-semibold tabular-nums text-muted">{{ formattedDebt }}</span>
-          <AppBadge v-if="showAlCorriente" tone="success" label="Al corriente" />
-        </dd>
-      </div>
+      <dt class="col-start-2 row-start-1 text-[11px] font-medium uppercase leading-tight tracking-wide text-muted lg:text-xs">Saldo pendiente</dt>
+      <dd
+        v-if="hasDebt"
+        aria-live="polite"
+        class="col-span-2 mt-2 flex min-w-0 flex-wrap items-center gap-2 lg:col-span-1 lg:col-start-2 lg:row-start-2 lg:mt-0"
+      >
+        <span class="whitespace-nowrap text-lg font-semibold leading-tight tabular-nums text-error lg:text-xl">{{ formattedDebt }}</span>
+        <AppBadge tone="error" label="Con saldo pendiente" />
+      </dd>
+      <dd
+        v-else
+        class="col-span-2 mt-2 flex min-w-0 flex-wrap items-center gap-2 lg:col-span-1 lg:col-start-2 lg:row-start-2 lg:mt-0"
+      >
+        <span class="whitespace-nowrap text-lg font-semibold leading-tight tabular-nums text-muted lg:text-xl">{{ formattedDebt }}</span>
+        <AppBadge v-if="showAlCorriente" tone="success" label="Al corriente" />
+      </dd>
     </div>
   </dl>
 </template>

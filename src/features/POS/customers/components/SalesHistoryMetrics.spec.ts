@@ -71,17 +71,33 @@ describe('SalesHistoryMetrics', () => {
     expect(cells[2]!.classes()).toContain('col-span-2')
   })
 
-  it('renders three card-style metric cells with icon containers and rounded borders', () => {
+  it('uses width-safe compact mobile metric cards while restoring desktop sizing', () => {
     const w = mountMetrics({ salesCount: 3, totalSoldCents: 50_000, outstandingDebtCents: 0 })
     const dl = w.find('dl')
     const cells = dl.findAll(':scope > div')
+
+    expect(dl.classes()).toEqual(expect.arrayContaining(['min-w-0', 'p-3', 'lg:p-4']))
     expect(cells).toHaveLength(3)
     for (const cell of cells) {
-      expect(cell.classes()).toContain('rounded-xl')
-      expect(cell.classes()).toContain('border')
-      expect(cell.classes()).toContain('p-3')
+      expect(cell.classes()).toEqual(expect.arrayContaining([
+        'grid', 'min-w-0', 'grid-cols-[2rem_minmax(0,1fr)]',
+        'gap-x-2', 'lg:grid-cols-[2.25rem_minmax(0,1fr)]', 'lg:gap-x-3',
+        'rounded-xl', 'border', 'p-3',
+      ]))
+      expect(cell.classes()).not.toContain('overflow-hidden')
     }
-    const iconContainers = w.findAll('.size-9')
-    expect(iconContainers).toHaveLength(3)
+    expect(cells[2]!.classes()).toContain('col-span-2')
+
+    expect(w.findAll('.size-8.lg\\:size-9')).toHaveLength(3)
+    for (const label of w.findAll('dt')) {
+      expect(label.classes()).toEqual(expect.arrayContaining(['text-[11px]', 'leading-tight', 'lg:text-xs']))
+    }
+    for (const valueCell of w.findAll('dd')) {
+      expect(valueCell.classes()).toEqual(expect.arrayContaining([
+        'col-span-2', 'lg:col-span-1', 'lg:col-start-2',
+      ]))
+      expect(valueCell.classes()).not.toContain('truncate')
+    }
+    expect(w.findAll('.text-lg.leading-tight.lg\\:text-xl.tabular-nums.whitespace-nowrap')).toHaveLength(3)
   })
 })
