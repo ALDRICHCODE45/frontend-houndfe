@@ -111,6 +111,7 @@ const catalogClearSignal = ref(0)
 // layouts, only the surrounding chrome changes. No emits, no state, no
 // callbacks differ from the desktop split — this is purely UX.
 const cartDrawerOpen = ref(false)
+const pendingCartCharge = ref(false)
 const isMobileViewport = useBreakpoints(breakpointsTailwind).smaller('lg')
 
 const activeDraftItemsCount = computed(() => activeDraft.value?.items.length ?? 0)
@@ -128,11 +129,19 @@ function formatCents(cents: number): string {
 }
 
 function openCartDrawer() {
+  pendingCartCharge.value = false
   cartDrawerOpen.value = true
 }
 
 function closeCartDrawer() {
+  pendingCartCharge.value = false
   cartDrawerOpen.value = false
+}
+
+function handleCartAfterLeave() {
+  if (!pendingCartCharge.value) return
+  pendingCartCharge.value = false
+  paymentModalOpen.value = true
 }
 
 const isChargeTemporarilyBlocked = computed(() => Date.now() < inFlightUntil.value)
@@ -512,6 +521,12 @@ async function handleChargeDraft(saleId: string, payload: ChargeSalePayload, ide
 function openPaymentModal() {
   if (!activeDraft.value || activeDraft.value.items.length === 0) return
   if (isMutating.value || isChargeTemporarilyBlocked.value) return
+  if (cartDrawerOpen.value) {
+    pendingCartCharge.value = true
+    cartDrawerOpen.value = false
+    return
+  }
+  pendingCartCharge.value = false
   paymentModalOpen.value = true
 }
 
@@ -781,59 +796,67 @@ async function handleChangePriceList(globalPriceListId: string | null) {
         </div>
       </div>
 
-      <!-- Mobile-only: FAB + bottom slideover for the cart.
-           Hidden on lg+ where the cart already sits in the split layout.
-           Same ActiveSalePanel, same emits — only the surrounding chrome
-            changes. The USlideover is gated with v-if on BOTH
-            isMobileViewport AND cartDrawerOpen so Nuxt UI never
-            teleports a backdrop/content div to <body> when the
-            cart is closed. -->
-      <!-- Mobile FAB: visible whenever the viewport is below lg -->
+      <!-- Mobile-only cart CTA and bottom slideover. The slideover stays
+           mounted below lg so its after:leave event can sequence payment. -->
       <button
         v-if="isMobileViewport"
         type="button"
-        class="fixed bottom-4 right-4 z-30 inline-flex items-center gap-2.5 rounded-full
-               bg-primary text-primary-contrast shadow-lg shadow-primary/30
-               px-4 py-3 font-semibold text-sm
-               min-h-[48px] min-w-[48px]
-               hover:bg-primary/90 active:scale-[0.98] transition-transform"
+        class="fixed z-30 left-3 right-3 bottom-0 flex items-center justify-between gap-3
+               bg-primary text-white shadow-lg shadow-primary/30 rounded-t-2xl
+               px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]
+               min-h-[48px] font-semibold text-sm
+               active:scale-[0.99] transition-transform"
         data-testid="mobile-cart-fab"
         aria-label="Abrir carrito de venta"
         @click="openCartDrawer"
       >
-        <UIcon name="i-lucide-shopping-bag" class="h-5 w-5" />
-        <span class="tabular-nums">{{ formatCents(activeDraftTotalCents) }}</span>
-        <span
-          v-if="activeDraftItemsCount > 0"
-          class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5
-                 rounded-full bg-primary-contrast/20 text-primary-contrast text-xs font-bold tabular-nums"
-          data-testid="mobile-cart-fab-count"
-        >
-          {{ activeDraftItemsCount }}
+        <span class="flex items-center gap-2 min-w-0">
+          <UIcon name="i-lucide-shopping-bag" class="h-5 w-5 shrink-0" />
+          <span class="tabular-nums">{{ formatCents(activeDraftTotalCents) }}</span>
+          <span
+            v-if="activeDraftItemsCount > 0"
+            class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5
+                   rounded-full bg-white/20 text-white text-xs font-bold tabular-nums"
+            data-testid="mobile-cart-fab-count"
+          >
+            {{ activeDraftItemsCount }}
+          </span>
+        </span>
+        <span class="flex items-center gap-1 shrink-0">
+          Ver carrito
+          <UIcon name="i-lucide-chevron-right" class="h-4 w-4" data-testid="mobile-cart-chevron" />
         </span>
       </button>
 
       <USlideover
-        v-if="isMobileViewport && cartDrawerOpen"
+        v-if="isMobileViewport"
         :open="cartDrawerOpen"
         side="bottom"
         inset
         :ui="{ content: 'h-[90vh] max-h-[90vh] rounded-t-2xl' }"
         @update:open="cartDrawerOpen = $event"
+        @after:leave="handleCartAfterLeave"
       >
         <template #content>
           <div class="flex h-full flex-col" data-testid="mobile-cart-drawer">
-            <div class="flex items-center justify-between px-4 py-3 border-b border-default">
-              <div class="flex items-center gap-2">
-                <UIcon name="i-lucide-shopping-bag" class="h-4 w-4 text-primary" />
-                <span class="text-sm font-semibold">Carrito</span>
+            <div class="shrink-0 pt-2 pb-1 flex" aria-hidden="true">
+              <span data-testid="mobile-cart-drag-handle" class="mx-auto block h-1.5 w-12 rounded-full bg-muted"></span>
+            </div>
+            <div class="shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-default">
+              <div class="flex flex-col min-w-0">
+                <span class="text-base font-bold text-highlighted leading-tight">Carrito</span>
+                <span class="text-xs text-muted tabular-nums">
+                  {{ activeDraftItemsCount }} {{ activeDraftItemsCount === 1 ? 'artículo' : 'artículos' }} ·
+                  {{ formatCents(activeDraftTotalCents) }}
+                </span>
               </div>
               <UButton
                 color="neutral"
                 variant="ghost"
                 icon="i-lucide-x"
-                size="sm"
+                size="md"
                 aria-label="Cerrar carrito"
+                class="min-h-[44px] min-w-[44px] shrink-0"
                 @click="closeCartDrawer"
               />
             </div>
@@ -849,6 +872,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
                 :applicable-promotions="applicablePromotions"
                 :is-loading-promotions="isLoadingPromotions"
                 :applied-manual-promotion-ids="[]"
+                :mobile-sheet="true"
                 :on-submit-price-override="handleSubmitPriceOverride"
                 :on-apply-discount="handleApplyDiscount"
                 :on-remove-discount="handleRemoveDiscount"

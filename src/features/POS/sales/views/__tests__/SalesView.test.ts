@@ -21,6 +21,18 @@ vi.mock('@/features/auth/composables/useSafeTenantId', () => ({
   useSafeTenantId: () => ref('tenant-1'),
 }))
 
+const { mobileViewport } = vi.hoisted(() => ({ mobileViewport: { value: false } }))
+vi.mock('@vueuse/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@vueuse/core')>()
+  const { computed } = await import('vue')
+  return {
+    ...actual,
+    useBreakpoints: () => ({
+      smaller: () => computed(() => mobileViewport.value),
+    }),
+  }
+})
+
 // sdd custom-payment-methods S5A (REQ-CAT-011): spy on the legacy
 // getSalePaymentErrorAction dispatch so tests can assert that catalog error
 // codes short-circuit BEFORE it, while known legacy codes still resolve
@@ -152,7 +164,7 @@ const globalStubs = {
   },
   ActiveSalePanel: {
     name: 'ActiveSalePanel',
-    props: ['activeDraft', 'applicablePromotions', 'isLoadingPromotions', 'appliedManualPromotionIds'],
+    props: ['activeDraft', 'applicablePromotions', 'isLoadingPromotions', 'appliedManualPromotionIds', 'mobileSheet'],
     // C.5: `remove-promo` (per-line) is now forwarded from ActiveSalePanel
     // alongside the existing `remove-order-promo` (order-level).
     emits: ['charge-click', 'unassign-customer', 'remove-order-promo', 'remove-promo', 'apply-manual-promo', 'remove-manual-promo'],
@@ -196,6 +208,12 @@ const globalStubs = {
   AssignCustomerSlideover: {
     props: ['open'],
     template: '<div data-testid="assign-slideover-open">{{ open }}</div>',
+  },
+  Slideover: {
+    name: 'USlideoverStub',
+    props: ['open', 'side'],
+    emits: ['after:leave', 'update:open'],
+    template: '<div data-testid="cart-slideover"><slot name="content" /></div>',
   },
 }
 
@@ -1186,5 +1204,182 @@ describe('SalesView S2 — shippingAddress pass-through to PaymentModal (pos-sal
 
     // The stub template renders `{{ shippingAddress?.id }}`; null => empty string.
     expect(wrapper.get('[data-testid="payment-modal-shipping-address-id"]').text()).toBe('')
+  })
+})
+
+// ─── Work units B+C — mobile cart CTA, payment sequencing, sheet chrome ─────
+//
+// 1. Below lg the cart CTA is a near-full-width, safe-area-aware bottom bar
+//    (≥48px, white on primary): total + count left, `Ver carrito` + chevron
+//    right. A charge requested with the cart open parks until the
+//    USlideover's `after:leave` (no stacked overlay); closed cart opens
+//    payment immediately; reopening the cart cancels a stale pending charge.
+// 2. The sheet gets a centered drag handle, a stronger title/summary header
+//    with an accessible ≥44px close, and only the sheet ActiveSalePanel
+//    instance receives `mobileSheet` (desktop stays default).
+
+describe('SalesView work units B+C — mobile cart CTA, payment sequencing, sheet chrome', () => {
+  let mountedWrappers: Array<{ unmount: () => void }> = []
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mobileViewport.value = false
+    isMutating.value = false
+    activeTabId.value = 'sale-1'
+    drafts.value = [
+      {
+        id: 'sale-1',
+        userId: 'user-1',
+        status: 'DRAFT',
+        items: [
+          {
+            id: 'item-1',
+            productId: 'prod-1',
+            variantId: null,
+            productName: 'A',
+            variantName: null,
+            quantity: 1,
+            unitPriceCents: 10000,
+            unitPriceCurrency: 'MXN',
+          },
+        ],
+        totalCents: 12500,
+        createdAt: 'x',
+        updatedAt: 'x',
+      },
+    ]
+  })
+
+  afterEach(() => {
+    // Same unmount hygiene as the 14a.1 block: window keydown listeners
+    // must not leak across tests. (afterEach also resets mountedWrappers.)
+    for (const w of mountedWrappers) {
+      try {
+        w.unmount()
+      } catch {
+        /* wrapper may already be unmounted */
+      }
+    }
+    mountedWrappers = []
+  })
+
+  function mountWithCleanup() {
+    const wrapper = mountView()
+    mountedWrappers.push(wrapper as unknown as { unmount: () => void })
+    return wrapper
+  }
+
+  it('renders a near-full-width safe-area bottom bar with total, count and Ver carrito (mobile only)', () => {
+    mobileViewport.value = true
+    const wrapper = mountWithCleanup()
+
+    const fab = wrapper.get('[data-testid="mobile-cart-fab"]')
+    const classes = fab.classes()
+    // Touch target + explicit white-on-primary + near-full-width + safe area.
+    expect(classes).toContain('min-h-[48px]')
+    expect(classes).toContain('bg-primary')
+    expect(classes).toContain('text-white')
+    expect(classes).not.toContain('text-primary-contrast')
+    expect(classes).toContain('left-3')
+    expect(classes).toContain('right-3')
+    expect(classes.join(' ')).toContain('env(safe-area-inset-bottom)')
+    expect(fab.attributes('aria-label')).toBe('Abrir carrito de venta')
+    // Left group: total + item count. Right group: Ver carrito + chevron.
+    expect(fab.text()).toContain('$125.00')
+    expect(wrapper.get('[data-testid="mobile-cart-fab-count"]').text()).toBe('1')
+    expect(fab.text()).toContain('Ver carrito')
+    expect(fab.find('[data-testid="mobile-cart-chevron"]').exists()).toBe(true)
+
+    // Mobile-only: the bar disappears at lg+.
+    mobileViewport.value = false
+    const desktopWrapper = mountWithCleanup()
+    expect(desktopWrapper.find('[data-testid="mobile-cart-fab"]').exists()).toBe(false)
+  })
+
+  it('defers PaymentModal until the cart slideover after:leave when charge is requested with the cart open', async () => {
+    mobileViewport.value = true
+    const wrapper = mountWithCleanup()
+
+    // Open the mobile cart drawer.
+    await wrapper.get('[data-testid="mobile-cart-fab"]').trigger('click')
+    const slideover = wrapper.findComponent({ name: 'USlideoverStub' })
+    expect(slideover.props('open')).toBe(true)
+
+    // Charge requested inside the open drawer: cart closes, no payment yet.
+    await wrapper
+      .get('[data-testid="mobile-cart-drawer"]')
+      .get('[data-testid="charge-click"]')
+      .trigger('click')
+    expect(slideover.props('open')).toBe(false)
+    expect(wrapper.get('[data-testid="payment-modal-open"]').text()).toBe('false')
+    // Leave transition finishes → NOW the payment modal opens.
+    slideover.vm.$emit('after:leave')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.get('[data-testid="payment-modal-open"]').text()).toBe('true')
+  })
+
+  it('opens PaymentModal immediately when the cart drawer is closed (mobile parity with desktop/F8)', async () => {
+    mobileViewport.value = true
+    const wrapper = mountWithCleanup()
+
+    // No drawer opened — the charge request goes through directly.
+    await wrapper.get('[data-testid="charge-click"]').trigger('click')
+    expect(wrapper.get('[data-testid="payment-modal-open"]').text()).toBe('true')
+  })
+
+  it('cancels a pending charge when the cart is reopened before the leave transition finishes', async () => {
+    mobileViewport.value = true
+    const wrapper = mountWithCleanup()
+
+    await wrapper.get('[data-testid="mobile-cart-fab"]').trigger('click')
+    const slideover = wrapper.findComponent({ name: 'USlideoverStub' })
+    await wrapper
+      .get('[data-testid="mobile-cart-drawer"]')
+      .get('[data-testid="charge-click"]')
+      .trigger('click')
+    expect(wrapper.get('[data-testid="payment-modal-open"]').text()).toBe('false')
+
+    // Reopening the cart while the leave transition runs drops the pending
+    // charge; after:leave must not open payment behind the user's back.
+    await wrapper.get('[data-testid="mobile-cart-fab"]').trigger('click')
+    expect(slideover.props('open')).toBe(true)
+
+    slideover.vm.$emit('after:leave')
+    await wrapper.vm.$nextTick()
+    expect(wrapper.get('[data-testid="payment-modal-open"]').text()).toBe('false')
+  })
+
+  it('renders a centered drag handle and an enriched header with accessible close in the sheet', async () => {
+    mobileViewport.value = true
+    const wrapper = mountWithCleanup()
+
+    await wrapper.get('[data-testid="mobile-cart-fab"]').trigger('click')
+    const drawer = wrapper.get('[data-testid="mobile-cart-drawer"]')
+
+    // Centered drag handle + stronger header (title + count/total summary).
+    expect(drawer.get('[data-testid="mobile-cart-drag-handle"]').classes()).toContain('mx-auto')
+    expect(drawer.text()).toContain('Carrito')
+    expect(drawer.text()).toContain('1 artículo')
+    expect(drawer.text()).toContain('$125.00')
+
+    // Close accessibility preserved (≥44px touch target).
+    const close = drawer.get('[aria-label="Cerrar carrito"]')
+    expect(close.classes().join(' ')).toContain('min-h-[44px]')
+  })
+
+  it('passes mobileSheet only to the sheet ActiveSalePanel (desktop panel unchanged)', async () => {
+    mobileViewport.value = true
+    const wrapper = mountWithCleanup()
+
+    await wrapper.get('[data-testid="mobile-cart-fab"]').trigger('click')
+
+    const drawer = wrapper.get('[data-testid="mobile-cart-drawer"]')
+    const sheetPanel = drawer.findComponent({ name: 'ActiveSalePanel' })
+    expect(sheetPanel.props('mobileSheet')).toBe(true)
+    // Desktop instance keeps the default: mobileSheet falsy.
+    const desktopPanel = wrapper
+      .findAllComponents({ name: 'ActiveSalePanel' })
+      .find((p) => p.props('mobileSheet') !== true)
+    expect(desktopPanel).toBeDefined()
   })
 })
