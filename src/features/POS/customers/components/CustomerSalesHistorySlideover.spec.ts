@@ -25,12 +25,21 @@ const history = {
   refetch: vi.fn(),
 }
 let historyPage: { value: number } | undefined
+let historyQ: unknown
+
 vi.mock('@/features/POS/sales/composables/useCustomerSalesHistory', () => ({
-  useCustomerSalesHistory: (options: { page: { value: number } }) => {
+  useCustomerSalesHistory: (options: { page: { value: number }; q?: unknown }) => {
     historyPage = options.page
+    historyQ = options.q
     return history
   },
 }))
+
+function resolveQ(): string | undefined {
+  if (historyQ == null) return undefined
+  if (typeof historyQ === 'function') return (historyQ as () => string | undefined)()
+  return (historyQ as { value: string | undefined }).value
+}
 
 function customer(id = 'customer-1'): Customer {
   return { id, firstName: 'Ana', lastName: 'López', fullName: 'Ana López', phoneCountryCode: null, phone: null, email: null, globalPriceListId: null, globalPriceListName: null, comments: null, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' }
@@ -84,10 +93,12 @@ describe('CustomerSalesHistorySlideover', () => {
     history.refetch.mockClear()
     routerPush.mockClear()
     historyPage = undefined
+    historyQ = undefined
     document.body.innerHTML = ''
   })
 
   afterEach(() => {
+    vi.useRealTimers()
     wrapper?.vm.$root?.$?.appContext.app.unmount()
     wrapper = undefined
     document.body.innerHTML = ''
@@ -122,6 +133,7 @@ describe('CustomerSalesHistorySlideover', () => {
     expect(element('[aria-busy="true"]')).toBeTruthy()
     expect(document.body.querySelectorAll('[data-testid="metric-skeleton"]')).toHaveLength(3)
     expect(document.body.querySelectorAll('[data-testid="row-skeleton"]')).toHaveLength(5)
+    expect(element('input[type="search"]')).toBeTruthy()
   })
 
   it('renders authoritative zero metrics and the exact empty status', async () => {
@@ -160,6 +172,7 @@ describe('CustomerSalesHistorySlideover', () => {
     expect(element('dl').textContent).toContain('23')
     expect(element('[aria-busy="true"]').className).toContain('opacity-50')
     expect(element('[data-testid="history-pagination"]').dataset.disabled).toBe('true')
+    expect(element('[data-testid="history-pagination"]').textContent).toContain('23 ventas')
     element('button[aria-label^="Venta folio"]').dispatchEvent(new MouseEvent('click', { bubbles: true }))
     expect(routerPush).toHaveBeenCalledWith({ name: 'pos-sale-detail', params: { id: 'sale-42' } })
   })
@@ -173,6 +186,56 @@ describe('CustomerSalesHistorySlideover', () => {
     mounted.vm.$.props.customer = customer('customer-2')
     await nextTick()
     expect(historyPage!.value).toBe(1)
+  })
+
+  it('renders the no-matches empty state when a search returns no rows', async () => {
+    vi.useFakeTimers()
+    history.response.value = response({ summary: { salesCount: 4, totalSoldCents: 180_000, outstandingDebtCents: 0 } })
+    mountSlideover()
+    await flushPromises()
+
+    const input = element('input[type="search"]') as HTMLInputElement
+    input.value = 'nonexistent'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await vi.runAllTimersAsync()
+    await flushPromises()
+
+    expect(element('[role="status"]').textContent).toContain('No se encontraron ventas que coincidan')
+  })
+
+  it('forwards the trimmed debounced search to the composable', async () => {
+    vi.useFakeTimers()
+    history.response.value = response()
+    mountSlideover()
+    await flushPromises()
+
+    const input = element('input[type="search"]') as HTMLInputElement
+    input.value = '  A-202609  '
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await vi.runAllTimersAsync()
+
+    expect(resolveQ()).toBe('A-202609')
+  })
+
+  it('resets page and search when customer identity changes', async () => {
+    vi.useFakeTimers()
+    history.response.value = response({ summary: { salesCount: 5, totalSoldCents: 1, outstandingDebtCents: 0 } })
+    const mounted = mountSlideover()
+    await nextTick()
+
+    const input = document.body.querySelector('input[type="search"]') as HTMLInputElement
+    input.value = 'A-202609'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await flushPromises()
+    await vi.runAllTimersAsync()
+
+    expect(resolveQ()).toBe('A-202609')
+
+    mounted.vm.$.props.customer = customer('customer-2')
+
+    expect(historyPage!.value).toBe(1)
+    expect(resolveQ()).toBeUndefined()
+    vi.useRealTimers()
   })
 
   it('toasts and closes once for the same defensive 403 error object', async () => {

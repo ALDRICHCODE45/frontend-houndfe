@@ -35,21 +35,48 @@ function accessibleName(sale: ConfirmedSaleRow): string {
       <button
         type="button"
         :aria-label="accessibleName(sale)"
-        class="w-full px-4 py-3 text-left transition-colors duration-100 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500 dark:hover:bg-gray-800/50"
+        class="grid w-full min-w-0 grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 px-4 py-3 text-left transition-colors duration-100 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500 dark:hover:bg-gray-800/50"
         @click="emit('select', sale)"
       >
-        <div class="flex items-center justify-between gap-2">
-          <span class="truncate text-sm font-medium text-gray-900 dark:text-gray-100">{{ sale.folio ?? 'Sin folio' }}</span>
-          <span class="flex shrink-0 items-center gap-2">
-            <span class="text-xs text-gray-500 dark:text-gray-400">{{ dateLabel(sale.confirmedAt) }}</span>
-            <UIcon name="i-lucide-chevron-right" class="size-4 text-gray-400" aria-hidden="true" />
+        <div
+          class="col-start-1 row-span-2 row-start-1 flex size-10 items-center justify-center rounded-xl border border-default bg-elevated/70"
+          data-testid="sale-history-row-icon"
+          aria-hidden="true"
+        >
+          <UIcon name="i-lucide-receipt-text" class="size-5 text-muted" />
+        </div>
+
+        <span class="col-start-2 row-start-1 min-w-0 truncate text-sm font-semibold text-highlighted">
+          {{ sale.folio ?? 'Sin folio' }}
+        </span>
+
+        <span
+          data-testid="sale-history-row-total"
+          class="col-start-3 row-start-1 shrink-0 justify-self-end text-sm font-semibold tabular-nums text-highlighted"
+        >
+          {{ formatCentsMXN(sale.totalCents) }}
+        </span>
+
+        <span class="col-start-2 row-start-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+          <span class="flex min-w-0 items-center gap-1">
+            <UIcon name="i-lucide-clock-3" class="size-3 shrink-0" aria-hidden="true" />
+            <span class="truncate">{{ dateLabel(sale.confirmedAt) }}</span>
           </span>
-        </div>
-        <div class="mt-1 flex flex-wrap items-center gap-3">
-          <span class="text-sm tabular-nums text-gray-700 dark:text-gray-300">{{ formatCentsMXN(sale.totalCents) }}</span>
-          <span v-if="sale.debtCents > 0" class="text-sm tabular-nums text-error">{{ formatCentsMXN(sale.debtCents) }}</span>
-          <StatusDotBadge :label="statusBadge(sale).label" :tone="statusBadge(sale).tone" compact />
-        </div>
+          <StatusDotBadge
+            :label="statusBadge(sale).label"
+            :tone="statusBadge(sale).tone"
+            compact
+          />
+          <span v-if="sale.debtCents > 0" class="font-medium tabular-nums text-error">
+            {{ formatCentsMXN(sale.debtCents) }} pendiente
+          </span>
+        </span>
+
+        <UIcon
+          name="i-lucide-chevron-right"
+          class="col-start-3 row-start-2 size-4 justify-self-end text-dimmed"
+          aria-hidden="true"
+        />
       </button>
     </li>
   </ul>

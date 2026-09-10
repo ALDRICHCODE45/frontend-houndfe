@@ -63,6 +63,7 @@ type RunOpts = {
   customerId?: string | null | Ref<string | null | undefined>
   page?: number | Ref<number>
   open?: boolean | Ref<boolean>
+  q?: string | Ref<string | undefined>
   queryClient?: QueryClient
 }
 function run(opts: RunOpts = {}) {
@@ -73,11 +74,12 @@ function run(opts: RunOpts = {}) {
     : ref('customerId' in opts ? (opts.customerId as string | null | undefined) : CUSTOMER)
   const page = isRef(opts.page) ? opts.page : ref(opts.page ?? 1)
   const open = isRef(opts.open) ? opts.open : ref(opts.open ?? true)
+  const q = isRef(opts.q) ? opts.q : ref(opts.q)
   const queryClient = opts.queryClient ?? makeClient()
   let result!: ReturnType<typeof useCustomerSalesHistory>
   const Test = defineComponent({
     setup() {
-      result = useCustomerSalesHistory({ customerId, page, open })
+      result = useCustomerSalesHistory({ customerId, page, open, q })
       return () => h('div')
     },
   })
@@ -85,7 +87,7 @@ function run(opts: RunOpts = {}) {
     global: { plugins: [[VueQueryPlugin, { queryClient }]] },
   })
   wrappers.push(wrapper)
-  return { result, queryClient, customerId, page, open }
+  return { result, queryClient, customerId, page, open, q }
 }
 
 function axiosError(status: number) {
@@ -250,5 +252,29 @@ describe('useCustomerSalesHistory', () => {
     const { result } = run({ queryClient })
     await vi.waitFor(() => expect(result.isError.value).toBe(true))
     expect(listConfirmedMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('trims q and forwards it to the API when non-empty', async () => {
+    run({ q: '  A-202609  ' })
+    await vi.waitFor(() => expect(listConfirmedMock).toHaveBeenCalled())
+    expect((listConfirmedMock.mock.calls[0]?.[0] as Record<string, unknown>).q).toBe('A-202609')
+  })
+
+  it.each([undefined, '', '   '])('omits q from the API call when blank (%s)', async (qVal) => {
+    run({ q: qVal as string })
+    await vi.waitFor(() => expect(listConfirmedMock).toHaveBeenCalled())
+    expect(listConfirmedMock.mock.calls[0]?.[0]).not.toHaveProperty('q')
+  })
+
+  it('reactive q triggers a new request', async () => {
+    const q = ref<string | undefined>(undefined)
+    run({ q })
+    await vi.waitFor(() => expect(listConfirmedMock).toHaveBeenCalled())
+    const before = listConfirmedMock.mock.calls.length
+
+    q.value = 'A-42'
+    await nextTick()
+    await vi.waitFor(() => expect(listConfirmedMock).toHaveBeenCalledTimes(before + 1))
+    expect((listConfirmedMock.mock.calls[before]?.[0] as Record<string, unknown>).q).toBe('A-42')
   })
 })

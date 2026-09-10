@@ -118,7 +118,7 @@ export interface ConfirmedSalesListResponse {
 // status or customerIncludeNull.
 export type CustomerSalesHistoryParams = Required<
   Pick<ListSalesParams, 'page' | 'limit' | 'sortBy' | 'sortOrder'>
->
+> & { q?: string }
 
 export type SaleDetailPaymentMethod =
   (typeof SALE_DETAIL_PAYMENT_METHOD)[keyof typeof SALE_DETAIL_PAYMENT_METHOD] // UPPERCASE — distinct from PaymentMethod (LOWERCASE). Two different backend contracts.

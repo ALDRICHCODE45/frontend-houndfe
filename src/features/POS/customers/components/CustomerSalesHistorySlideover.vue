@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, shallowRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { watchDebounced } from '@vueuse/core'
 import type { Customer } from '../interfaces/customer.types'
 import type { ConfirmedSaleRow } from '@/features/POS/sales/interfaces/sale.types'
 import { useCustomerSalesHistory } from '@/features/POS/sales/composables/useCustomerSalesHistory'
@@ -14,12 +15,29 @@ const props = defineProps<{ open: boolean; customer: Customer | null }>()
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 
 const page = shallowRef(1)
-watch(() => props.customer?.id, () => { page.value = 1 }, { flush: 'sync' })
+const searchQuery = shallowRef('')
+const debouncedSearch = shallowRef<string | undefined>(undefined)
+
+watch(() => props.customer?.id, () => {
+  page.value = 1
+  searchQuery.value = ''
+  debouncedSearch.value = undefined
+}, { flush: 'sync' })
+
+watchDebounced(
+  searchQuery,
+  (val) => {
+    page.value = 1
+    debouncedSearch.value = val.trim() || undefined
+  },
+  { debounce: 300, maxWait: 600 },
+)
 
 const history = useCustomerSalesHistory({
   customerId: () => props.customer?.id,
   page,
   open: () => props.open,
+  q: () => debouncedSearch.value,
 })
 const { response, isLoading, isFetching, isPageTransition, isError, error, refetch } = history
 
@@ -33,6 +51,8 @@ const initialLoading = computed(() =>
   !response.value && !isError.value && (isLoading.value || isFetching.value),
 )
 
+const hasSearchQuery = computed(() => Boolean(searchQuery.value.trim()))
+
 function httpStatus(value: unknown): number | undefined {
   const candidate = value as {
     response?: { status?: number }; status?: number; statusCode?: number
@@ -40,7 +60,6 @@ function httpStatus(value: unknown): number | undefined {
   return candidate?.response?.status ?? candidate?.status ?? candidate?.statusCode
 }
 
-// Defensive 403: one toast, close, no retry. Deduplicated per error object.
 watch(error, (currentError) => {
   if (!currentError) {
     lastForbiddenError.value = null
@@ -79,6 +98,8 @@ function selectSale(sale: ConfirmedSaleRow) {
     :ui="{
       content: 'w-full !max-w-none sm:!max-w-[520px]',
       body: 'p-0',
+      header: 'border-b border-default px-4 py-4',
+      footer: 'border-t border-default px-4 pb-4 pt-3',
     }"
     @update:open="emit('update:open', $event)"
   >
@@ -88,7 +109,7 @@ function selectSale(sale: ConfirmedSaleRow) {
           v-if="customer"
           :name="customer.fullName"
           :seed="customer.id"
-          size="md"
+          size="lg"
           aria-hidden="true"
         />
         <div class="min-w-0">
@@ -105,16 +126,43 @@ function selectSale(sale: ConfirmedSaleRow) {
     <template #body>
       <div :aria-busy="initialLoading || undefined">
         <div v-if="initialLoading" aria-hidden="true">
-          <div class="grid grid-cols-1 divide-y divide-default sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-            <div v-for="index in 3" :key="index" data-testid="metric-skeleton" class="space-y-2 px-4 py-3">
-              <USkeleton class="h-3 w-24" />
-              <USkeleton class="h-7 w-20" />
+          <div class="grid grid-cols-2 gap-2 p-4">
+            <div
+              v-for="index in 3"
+              :key="index"
+              data-testid="metric-skeleton"
+              class="flex items-center gap-3 rounded-xl border border-default bg-elevated/50 p-3"
+              :class="{ 'col-span-2': index === 3 }"
+            >
+              <USkeleton class="size-9 shrink-0 !rounded-lg" />
+              <div class="flex-1 space-y-1.5">
+                <USkeleton class="h-3 w-20 !rounded" />
+                <USkeleton class="h-5 w-12 !rounded" />
+              </div>
             </div>
           </div>
+          <div class="border-t border-default px-4 py-3">
+            <UInput
+              type="search"
+              icon="i-lucide-search"
+              size="lg"
+              placeholder="Buscar por folio..."
+              aria-label="Buscar ventas por folio"
+              disabled
+              class="w-full"
+            />
+          </div>
           <div class="divide-y divide-default">
-            <div v-for="index in 5" :key="index" data-testid="row-skeleton" class="space-y-2 px-4 py-3">
-              <USkeleton class="h-4 w-full" />
-              <USkeleton class="h-3 w-2/3" />
+            <div v-for="index in 5" :key="index" data-testid="row-skeleton" class="flex items-center gap-3 px-4 py-3">
+              <USkeleton class="size-10 shrink-0 !rounded-lg" />
+              <div class="flex min-w-0 flex-1 items-center gap-2">
+                <USkeleton class="h-3.5 w-24 !rounded" />
+                <USkeleton class="h-3 w-16 !rounded" />
+              </div>
+              <div class="flex shrink-0 items-center gap-1.5">
+                <USkeleton class="h-4 w-14 !rounded" />
+                <USkeleton class="h-4 w-12 !rounded" />
+              </div>
             </div>
           </div>
         </div>
@@ -127,9 +175,27 @@ function selectSale(sale: ConfirmedSaleRow) {
 
         <template v-else-if="response">
           <SalesHistoryMetrics :summary="response.summary" />
-          <div v-if="response.summary.salesCount === 0" role="status" class="flex flex-col items-center gap-3 px-6 py-16 text-center">
+          <div class="border-t border-default px-4 py-3">
+            <UInput
+              v-model="searchQuery"
+              type="search"
+              icon="i-lucide-search"
+              size="lg"
+              placeholder="Buscar por folio..."
+              aria-label="Buscar ventas por folio"
+              class="w-full"
+            />
+          </div>
+          <div
+            v-if="response.data.length === 0"
+            role="status"
+            class="flex flex-col items-center gap-3 px-6 py-16 text-center"
+          >
             <UIcon name="i-lucide-inbox" class="size-10 text-dimmed" aria-hidden="true" />
-            <p class="text-sm text-muted">Este cliente aún no tiene ventas confirmadas.</p>
+            <p class="text-sm text-muted">
+              <template v-if="hasSearchQuery">No se encontraron ventas que coincidan con la búsqueda.</template>
+              <template v-else>Este cliente aún no tiene ventas confirmadas.</template>
+            </p>
           </div>
           <div
             v-else
@@ -144,10 +210,15 @@ function selectSale(sale: ConfirmedSaleRow) {
 
     <template #footer>
       <div
-        v-if="response && response.summary.salesCount > 0"
+        v-if="response && response.pagination.total > 0"
+        class="flex min-w-0 items-center justify-between gap-4"
         data-testid="history-pagination"
         :data-disabled="String(isFetching)"
       >
+        <span class="min-w-0 shrink-0 text-sm text-muted">
+          <template v-if="response.pagination.total === 1">1 venta</template>
+          <template v-else>{{ response.pagination.total }} ventas</template>
+        </span>
         <UPagination
           v-model:page="page"
           :items-per-page="10"
@@ -155,6 +226,7 @@ function selectSale(sale: ConfirmedSaleRow) {
           :disabled="isFetching"
           show-edges
           :sibling-count="1"
+          size="sm"
         />
       </div>
     </template>

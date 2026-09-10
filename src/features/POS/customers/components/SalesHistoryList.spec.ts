@@ -4,9 +4,13 @@ import type { ConfirmedSaleRow } from '@/features/POS/sales/interfaces/sale.type
 import SalesHistoryList from './SalesHistoryList.vue'
 
 const stubs = {
-  StatusDotBadge: { props: ['label', 'tone'], template: '<span data-testid="status-badge" :data-label="label" :data-tone="tone" />' },
+  StatusDotBadge: {
+    props: ['label', 'tone'],
+    template: '<span data-testid="status-badge" :data-label="label" :data-tone="tone" />',
+  },
   UIcon: { template: '<span data-testid="icon" />' },
 }
+
 const makeSale = (over: Partial<ConfirmedSaleRow> = {}): ConfirmedSaleRow => ({
   id: 'sale-1',
   folio: 'A-202608-000042',
@@ -23,8 +27,9 @@ const makeSale = (over: Partial<ConfirmedSaleRow> = {}): ConfirmedSaleRow => ({
   paymentMethods: [],
   ...over,
 })
+
 const mountList = (sales: ConfirmedSaleRow[]) =>
-  mount(SalesHistoryList, { props: { sales }, global: { components: stubs } })
+  mount(SalesHistoryList, { props: { sales }, global: { stubs } })
 
 describe('SalesHistoryList', () => {
   it('renders one semantic native button per sale inside a <ul>', () => {
@@ -53,7 +58,6 @@ describe('SalesHistoryList', () => {
     expect(w.emitted('select')).toHaveLength(1)
     expect(w.emitted('select')![0]).toEqual([sale])
   })
-})
 
   it('renders all-nullable sale fields with fallbacks in text and accessible name', () => {
     const w = mountList([makeSale({ folio: null, confirmedAt: null, paymentStatus: null })])
@@ -103,3 +107,23 @@ describe('SalesHistoryList', () => {
     expect(labels[2]).toContain('Pagada')
     expect(tones[2]).toBe('success')
   })
+
+  it('renders the leading receipt icon and right-aligned total', () => {
+    const w = mountList([makeSale({ totalCents: 99_999 })])
+    const icon = w.find('[data-testid="sale-history-row-icon"]')
+    expect(icon.classes()).toContain('size-10')
+    expect(w.find('[data-testid="sale-history-row-total"]').text()).toContain('$999.99')
+  })
+
+  it('preserves StatusDotBadge and conditional debt rendering', () => {
+    const w = mountList([
+      makeSale({ id: 'paid', paymentStatus: 'PAID', debtCents: 0 }),
+      makeSale({ id: 'partial', paymentStatus: 'PARTIAL', debtCents: 25_000 }),
+    ])
+    expect(w.findAll('[data-testid="status-badge"]')).toHaveLength(2)
+    const badges = w.findAll('[data-testid="status-badge"]')
+    expect(badges[0]!.attributes('data-label')).toContain('Pagada')
+    expect(badges[1]!.attributes('data-label')).toContain('Impaga')
+    expect(w.text()).toContain('$250.00')
+  })
+})

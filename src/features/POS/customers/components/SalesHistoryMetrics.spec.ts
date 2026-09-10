@@ -14,7 +14,7 @@ const makeSummary = (over: Partial<SaleListSummary> = {}): SaleListSummary => ({
   ...over,
 })
 const mountMetrics = (summary: SaleListSummary) =>
-  mount(SalesHistoryMetrics, { props: { summary }, global: { components: stubs } })
+  mount(SalesHistoryMetrics, { props: { summary }, global: { stubs } })
 
 describe('SalesHistoryMetrics', () => {
   it('renders one accessible <dl> with the authoritative summary values', () => {
@@ -32,7 +32,6 @@ describe('SalesHistoryMetrics', () => {
     expect(w.text()).toContain('$1,800.00')
     expect(w.text()).toContain('$500.00')
   })
-})
 
   it('positive debt renders alert badge and aria-live debt cell', () => {
     const w = mountMetrics(makeSummary({ salesCount: 1, outstandingDebtCents: 1 }))
@@ -61,3 +60,28 @@ describe('SalesHistoryMetrics', () => {
     expect(w.text()).toContain('$1,250,000.01')
     expect(w.text()).toContain('$0.01')
   })
+
+  it('uses grid-cols-2 and places exactly three cells with third spanning full width', () => {
+    const w = mountMetrics({ salesCount: 5, totalSoldCents: 99_000, outstandingDebtCents: 0 })
+    const dl = w.find('dl')
+    expect(dl.classes()).toContain('grid-cols-2')
+    expect(dl.classes()).not.toContain('grid-cols-3')
+    const cells = dl.findAll(':scope > div')
+    expect(cells).toHaveLength(3)
+    expect(cells[2]!.classes()).toContain('col-span-2')
+  })
+
+  it('renders three card-style metric cells with icon containers and rounded borders', () => {
+    const w = mountMetrics({ salesCount: 3, totalSoldCents: 50_000, outstandingDebtCents: 0 })
+    const dl = w.find('dl')
+    const cells = dl.findAll(':scope > div')
+    expect(cells).toHaveLength(3)
+    for (const cell of cells) {
+      expect(cell.classes()).toContain('rounded-xl')
+      expect(cell.classes()).toContain('border')
+      expect(cell.classes()).toContain('p-3')
+    }
+    const iconContainers = w.findAll('.size-9')
+    expect(iconContainers).toHaveLength(3)
+  })
+})

@@ -14,6 +14,7 @@ export interface UseCustomerSalesHistoryOptions {
   customerId: MaybeRefOrGetter<string | null | undefined>
   page: MaybeRefOrGetter<number>
   open: MaybeRefOrGetter<boolean>
+  q?: MaybeRefOrGetter<string | undefined>
 }
 
 // Cache entries stamp the requesting customer so cross-customer placeholder
@@ -34,17 +35,22 @@ export function useCustomerSalesHistory(options: UseCustomerSalesHistoryOptions)
   const customerId = computed(() => toValue(options.customerId))
   const page = computed(() => toValue(options.page))
   const open = computed(() => toValue(options.open))
+  const q = computed(() => toValue(options.q))
   const tenantId = computed(() => authStore.currentTenantId)
   const enabled = computed(
     () => open.value && Boolean(tenantId.value) && Boolean(customerId.value),
   )
 
-  const params = computed<CustomerSalesHistoryParams>(() => ({
-    page: toValue(page),
-    limit: 10,
-    sortBy: 'confirmedAt',
-    sortOrder: 'desc',
-  }))
+  const params = computed<CustomerSalesHistoryParams>(() => {
+    const normalizedQ = q.value?.trim() || undefined
+    return {
+      page: toValue(page),
+      limit: 10,
+      sortBy: 'confirmedAt',
+      sortOrder: 'desc',
+      ...(normalizedQ && { q: normalizedQ }),
+    }
+  })
 
   const queryKey = computed(() =>
     saleQueryKeys.customerHistory(tenantId.value, customerId.value as string, params.value),
@@ -62,13 +68,18 @@ export function useCustomerSalesHistory(options: UseCustomerSalesHistoryOptions)
     },
     queryFn: async () => {
       const id = customerId.value as string
-      const response = await saleApi.listConfirmed({
+      const normalizedQ = q.value?.trim() || undefined
+      const apiParams: Parameters<typeof saleApi.listConfirmed>[0] = {
         customerId: [id],
         page: toValue(page),
         limit: 10,
         sortBy: 'confirmedAt',
         sortOrder: 'desc',
-      })
+      }
+      if (normalizedQ) {
+        apiParams.q = normalizedQ
+      }
+      const response = await saleApi.listConfirmed(apiParams)
       SaleListSummarySchema.parse(response.summary)
       return { ownerCustomerId: id, response }
     },
