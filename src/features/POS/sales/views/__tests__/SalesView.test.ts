@@ -215,6 +215,23 @@ const globalStubs = {
     emits: ['after:leave', 'update:open'],
     template: '<div data-testid="cart-slideover"><slot name="content" /></div>',
   },
+  AppResponsiveDrawer: {
+    name: 'AppResponsiveDrawerStub',
+    inheritAttrs: false,
+    props: ['open', 'title', 'description', 'closeAriaLabel', 'mobileBodyClass'],
+    emits: ['after:leave', 'update:open'],
+    template: `
+      <div v-if="open" v-bind="$attrs">
+        <span data-testid="mobile-drawer-handle" class="mx-auto" />
+        <slot name="title" />
+        <button
+          :aria-label="closeAriaLabel"
+          class="min-h-[44px] min-w-[44px]"
+          @click="$emit('update:open', false)"
+        />
+        <slot name="body" />
+      </div>`,
+  },
 }
 
 function mountView() {
@@ -1302,7 +1319,7 @@ describe('SalesView work units B+C — mobile cart CTA, payment sequencing, shee
 
     // Open the mobile cart drawer.
     await wrapper.get('[data-testid="mobile-cart-fab"]').trigger('click')
-    const slideover = wrapper.findComponent({ name: 'USlideoverStub' })
+    const slideover = wrapper.findComponent({ name: 'AppResponsiveDrawerStub' })
     expect(slideover.props('open')).toBe(true)
 
     // Charge requested inside the open drawer: cart closes, no payment yet.
@@ -1332,7 +1349,7 @@ describe('SalesView work units B+C — mobile cart CTA, payment sequencing, shee
     const wrapper = mountWithCleanup()
 
     await wrapper.get('[data-testid="mobile-cart-fab"]').trigger('click')
-    const slideover = wrapper.findComponent({ name: 'USlideoverStub' })
+    const slideover = wrapper.findComponent({ name: 'AppResponsiveDrawerStub' })
     await wrapper
       .get('[data-testid="mobile-cart-drawer"]')
       .get('[data-testid="charge-click"]')
@@ -1357,7 +1374,7 @@ describe('SalesView work units B+C — mobile cart CTA, payment sequencing, shee
     const drawer = wrapper.get('[data-testid="mobile-cart-drawer"]')
 
     // Centered drag handle + stronger header (title + count/total summary).
-    expect(drawer.get('[data-testid="mobile-cart-drag-handle"]').classes()).toContain('mx-auto')
+    expect(drawer.get('[data-testid="mobile-drawer-handle"]').classes()).toContain('mx-auto')
     expect(drawer.text()).toContain('Carrito')
     expect(drawer.text()).toContain('1 artículo')
     expect(drawer.text()).toContain('$125.00')

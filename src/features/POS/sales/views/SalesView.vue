@@ -13,6 +13,7 @@ import PaymentModal from '../components/PaymentModal.vue'
 import PaymentSuccessModal from '../components/PaymentSuccessModal.vue'
 import AssignCustomerSlideover from '../components/AssignCustomerSlideover.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
+import AppResponsiveDrawer from '@/core/shared/components/AppResponsiveDrawer.vue'
 import type {
   ApplyItemDiscountPayload,
   ApplyGlobalDiscountPayload,
@@ -131,11 +132,6 @@ function formatCents(cents: number): string {
 function openCartDrawer() {
   pendingCartCharge.value = false
   cartDrawerOpen.value = true
-}
-
-function closeCartDrawer() {
-  pendingCartCharge.value = false
-  cartDrawerOpen.value = false
 }
 
 function handleCartAfterLeave() {
@@ -828,75 +824,61 @@ async function handleChangePriceList(globalPriceListId: string | null) {
         </span>
       </button>
 
-      <USlideover
+      <AppResponsiveDrawer
         v-if="isMobileViewport"
         :open="cartDrawerOpen"
-        side="bottom"
-        inset
-        :ui="{ content: 'h-[90vh] max-h-[90vh] rounded-t-2xl' }"
+        title="Carrito"
+        :description="`${activeDraftItemsCount} ${activeDraftItemsCount === 1 ? 'artículo' : 'artículos'} · ${formatCents(activeDraftTotalCents)}`"
+        close-aria-label="Cerrar carrito"
+        mobile-body-class="overflow-hidden"
+        data-testid="mobile-cart-drawer"
         @update:open="cartDrawerOpen = $event"
         @after:leave="handleCartAfterLeave"
       >
-        <template #content>
-          <div class="flex h-full flex-col" data-testid="mobile-cart-drawer">
-            <div class="shrink-0 pt-2 pb-1 flex" aria-hidden="true">
-              <span data-testid="mobile-cart-drag-handle" class="mx-auto block h-1.5 w-12 rounded-full bg-muted"></span>
-            </div>
-            <div class="shrink-0 flex items-center justify-between px-4 py-2.5 border-b border-default">
-              <div class="flex flex-col min-w-0">
-                <span class="text-base font-bold text-highlighted leading-tight">Carrito</span>
-                <span class="text-xs text-muted tabular-nums">
-                  {{ activeDraftItemsCount }} {{ activeDraftItemsCount === 1 ? 'artículo' : 'artículos' }} ·
-                  {{ formatCents(activeDraftTotalCents) }}
-                </span>
-              </div>
-              <UButton
-                color="neutral"
-                variant="ghost"
-                icon="i-lucide-x"
-                size="md"
-                aria-label="Cerrar carrito"
-                class="min-h-[44px] min-w-[44px] shrink-0"
-                @click="closeCartDrawer"
-              />
-            </div>
-            <div class="flex-1 min-h-0 overflow-hidden">
-              <ActiveSalePanel
-                :drafts="drafts"
-                :active-draft="activeDraft"
-                :active-tab-id="activeTabId"
-                :is-loading-list="isLoadingList"
-                :is-mutating="isMutating"
-                :is-customer-mutation-pending="isCustomerMutationPending"
-                :item-image-map="itemImageMap"
-                :applicable-promotions="applicablePromotions"
-                :is-loading-promotions="isLoadingPromotions"
-                :applied-manual-promotion-ids="[]"
-                :mobile-sheet="true"
-                :on-submit-price-override="handleSubmitPriceOverride"
-                :on-apply-discount="handleApplyDiscount"
-                :on-remove-discount="handleRemoveDiscount"
-                :on-remove-item="handleRemoveItem"
-                :on-apply-global-discount="handleApplyGlobalDiscount"
-                :on-remove-global-discount="handleRemoveGlobalDiscount"
-                @charge-click="openPaymentModal"
-                @open-customer-assignment="handleOpenCustomerAssignment"
-                @unassign-customer="handleUnassignCustomer"
-                @remove-order-promo="handleVetoRequest"
-                @remove-promo="handleVetoRequest"
-                @apply-manual-promo="handleApplyManualPromo"
-                @remove-manual-promo="handleRemoveManualPromo"
-                @change-price-list="handleChangePriceList"
-                @switch-tab="handleSwitchTab"
-                @close-tab="handleCloseTab"
-                @create-tab="handleCreateTab"
-                @update-qty="handleUpdateQty"
-                @clear-items="handleClearItems"
-              />
-            </div>
+        <template #title>
+          <div class="flex min-w-0 flex-col">
+            <span class="text-base font-bold leading-tight text-highlighted">Carrito</span>
+            <span class="text-xs tabular-nums text-muted">
+              {{ activeDraftItemsCount }} {{ activeDraftItemsCount === 1 ? 'artículo' : 'artículos' }} ·
+              {{ formatCents(activeDraftTotalCents) }}
+            </span>
           </div>
         </template>
-      </USlideover>
+        <template #body>
+          <ActiveSalePanel
+            :drafts="drafts"
+            :active-draft="activeDraft"
+            :active-tab-id="activeTabId"
+            :is-loading-list="isLoadingList"
+            :is-mutating="isMutating"
+            :is-customer-mutation-pending="isCustomerMutationPending"
+            :item-image-map="itemImageMap"
+            :applicable-promotions="applicablePromotions"
+            :is-loading-promotions="isLoadingPromotions"
+            :applied-manual-promotion-ids="[]"
+            :mobile-sheet="true"
+            :on-submit-price-override="handleSubmitPriceOverride"
+            :on-apply-discount="handleApplyDiscount"
+            :on-remove-discount="handleRemoveDiscount"
+            :on-remove-item="handleRemoveItem"
+            :on-apply-global-discount="handleApplyGlobalDiscount"
+            :on-remove-global-discount="handleRemoveGlobalDiscount"
+            @charge-click="openPaymentModal"
+            @open-customer-assignment="handleOpenCustomerAssignment"
+            @unassign-customer="handleUnassignCustomer"
+            @remove-order-promo="handleVetoRequest"
+            @remove-promo="handleVetoRequest"
+            @apply-manual-promo="handleApplyManualPromo"
+            @remove-manual-promo="handleRemoveManualPromo"
+            @change-price-list="handleChangePriceList"
+            @switch-tab="handleSwitchTab"
+            @close-tab="handleCloseTab"
+            @create-tab="handleCreateTab"
+            @update-qty="handleUpdateQty"
+            @clear-items="handleClearItems"
+          />
+        </template>
+      </AppResponsiveDrawer>
       </div>
     </div>
 

@@ -57,6 +57,17 @@ const stubs = {
   EntityAvatar: { template: '<span data-testid="customer-avatar" />' },
   AppBadge: { props: ['label'], template: '<span>{{ label }}</span>' },
   StatusDotBadge: { props: ['label'], template: '<span>{{ label }}</span>' },
+  AppResponsiveDrawer: {
+    props: ['open', 'closeAriaLabel', 'desktopUi'],
+    emits: ['update:open'],
+    template: `
+      <section v-if="open" role="dialog" :class="desktopUi.content">
+        <button :aria-label="closeAriaLabel" @click="$emit('update:open', false)" />
+        <slot name="title" />
+        <div data-slot="body" :class="desktopUi.body"><slot name="body" /></div>
+        <slot name="footer" />
+      </section>`,
+  },
 }
 
 let wrapper: VueWrapper | undefined
@@ -104,7 +115,7 @@ describe('CustomerSalesHistorySlideover', () => {
     document.body.innerHTML = ''
   })
 
-  it('renders the real named dialog with responsive classes and closes through update:open', async () => {
+  it('forwards the approved desktop shell and close behavior', async () => {
     const mounted = mountSlideover()
     await flushPromises()
 

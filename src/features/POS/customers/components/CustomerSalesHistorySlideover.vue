@@ -6,6 +6,7 @@ import type { Customer } from '../interfaces/customer.types'
 import type { ConfirmedSaleRow } from '@/features/POS/sales/interfaces/sale.types'
 import { useCustomerSalesHistory } from '@/features/POS/sales/composables/useCustomerSalesHistory'
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
+import AppResponsiveDrawer from '@/core/shared/components/AppResponsiveDrawer.vue'
 import SalesHistoryList from './SalesHistoryList.vue'
 import SalesHistoryMetrics from './SalesHistoryMetrics.vue'
 
@@ -88,14 +89,12 @@ function selectSale(sale: ConfirmedSaleRow) {
 </script>
 
 <template>
-  <USlideover
+  <AppResponsiveDrawer
     :open="open"
     title="Historial de ventas"
     :description="description"
-    side="right"
-    inset
-    :close="{ 'aria-label': 'Cerrar historial de ventas' }"
-    :ui="{
+    close-aria-label="Cerrar historial de ventas"
+    :desktop-ui="{
       content: 'w-full !max-w-none sm:!max-w-[520px]',
       body: 'p-0',
       header: 'border-b border-default px-4 py-4',
@@ -230,5 +229,5 @@ function selectSale(sale: ConfirmedSaleRow) {
         />
       </div>
     </template>
-  </USlideover>
+  </AppResponsiveDrawer>
 </template>
