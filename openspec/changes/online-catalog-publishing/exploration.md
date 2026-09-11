@@ -314,3 +314,54 @@ Slices 2–4 depend on backend delivery and contract evidence. Slice 1 can proce
 - Variant-level and custom-stock UI cannot be correct until list/detail/cart share backend-defined effective semantics.
 - `GlobalPriceList` appears globally named while product price rows are tenant-scoped; tenant ownership/eligibility of selectable lists needs explicit confirmation.
 - Current public search matches product/brand/variant fields, while facet search behavior is narrower; counts may not align for variant-only searches and should be verified with backend.
+
+---
+
+## Current reconciliation — 2026-09 (backend-completion re-exploration)
+
+### Outcome
+
+The historical exploration above is retained as pre-backend context. The backend is now documented as complete, so the frontend can be planned as small, user-visible deliveries rather than waiting for new backend model work. This reconciliation does **not** approve implementation, mutate the proposal, or supersede the human review gate.
+
+The corrected roadmap is recorded in [delivery-map.md](./delivery-map.md). Its first delivery is deliberately limited to anonymous branch discovery, selection, and an honest selected-branch landing state; it makes **no** product-list request and excludes browse, detail, cart, backoffice changes, and all phone/order flows.
+
+### Reconciled contract facts
+
+| Topic | Current planning rule | Evidence / authority |
+| --- | --- | --- |
+| Public context | Send no initial `priceListId`; retain the response-resolved ID and use it for subsequent list/detail/cart calls. There is no customer-facing price-list selector. | Backend guide `:37-39`, `:47`, `:54`; explicit backend clarification overrides the historical proposal.
+| Price and sorting | Format public amounts as MXN. Do **not** expose or send price sorting: backend clarification says price ordering is post-pagination base-price ordering, so it is not a sound catalog sort. | Existing MXN formatter is already used in catalog cards/cart (`src/features/catalog/components/CatalogProductCard.vue:2`, `CatalogCartDrawer.vue:2`); guide sort text at `:248-251`, `:782-800` is superseded for this frontend plan.
+| Stock presentation | Treat browse `availability` as nullable and render `HIDDEN` neutrally. A nullable `CUSTOM_QUANTITY` status, including custom quantity `0`, is not out-of-stock; only cart validation decides sellability from operational stock. | Backend guide `:52-57`, `:733-763`; explicit backend clarification.
+| Cart boundary | The public cart endpoint only reconciles a local cart; it creates neither an order nor WhatsApp/telephone handoff. There is no temporary phone flow. | Backend guide `:539-541`, `:638`; explicit backend clarification.
+| Settings and permissions | Tenant catalog settings are authenticated `GET/PATCH /tenants/:tenantId/catalog-settings`, gated by confirmed `read:TenantCatalogSettings` and `update:TenantCatalogSettings`, distinct from `Product`. Product catalog fields use product mutation; variant catalog configuration uses the existing variant `PATCH` boundary. | Backend guide `:86-159`; existing variant patch boundary at `src/features/POS/products/api/product.api.ts:436-446`; parent-provided permission authority and explicit backend clarification.
+| Existing UI | Preserve the catalog’s layout/component topology and responsive shell, but remove or suppress mock-only claims/controls until their backing behavior ships. Do not represent hardcoded Coco identity, price sorting, detail, cart, or WhatsApp as live backend capability. | Public route `src/app/router/index.ts:358-361`; demo API/mock import `src/features/catalog/api/catalog.api.ts:1-16`; hardcoded phone `src/features/catalog/composables/useCatalogCart.ts:9,104-122`.
+
+### Fresh frontend evidence
+
+1. The public route remains `/catalogo/:branchSlug?` and bypasses authenticated tenant checks (`src/app/router/index.ts:358-361`, `:378-417`). `CatalogView` only initializes once on mount, so branch/route changes need an explicit synchronization design (`src/features/catalog/views/CatalogView.vue:17-22`).
+2. The catalog API is entirely mock-backed and currently implements local category/search/sort/pagination (`src/features/catalog/api/catalog.api.ts:16-108`). The store also defaults to `centro`, hardcodes mock categories, has no request state, and exposes price sorts (`src/features/catalog/composables/useCatalogStore.ts:5-7`, `:31-64`, `:70-133`).
+3. The authenticated `http` client injects a bearer token and disables GET caching (`src/core/shared/api/http.ts:18-39`), whereas the public contract has cache/rate-limit semantics. A dedicated anonymous public client starts with D1’s branch-discovery behavior and is extended by D2’s browse behavior, not shipped as a standalone infrastructure delivery.
+4. Current cards/modal assume non-null availability and fabricate a zero price fallback (`src/features/catalog/components/CatalogProductCard.vue:14-20`, `:34`, `:93-111`); the modal turns missing availability into out-of-stock and includes add-to-cart behavior (`CatalogProductModal.vue:37-49`, `:377`). These assumptions must be removed before real F3 responses are rendered.
+5. Product configuration currently only round-trips `includeInOnlineCatalog` (`src/features/POS/products/interfaces/product.types.ts:28-46`, `:154-165`; `composables/useProductForm.ts:124-137`, `:257-273`) and exposes it in the product editor (`views/ProductDetailView.vue:1846-1854`). Variant configuration currently saves through `PATCH /products/:productId/variants/:variantId` (`api/product.api.ts:436-446`; `components/VariantDetailModal.vue:129-202`).
+6. There is no catalog-settings frontend surface. Existing tenant administration is a super-admin `/admin/tenants` surface (`src/features/admin/tenants/api/tenants.api.ts:68-109`; `views/AdminTenantsView.vue:175-178`), while the current permission union has no catalog-settings subject (`src/features/auth/interfaces/auth.types.ts:49-86`). The exact permissions are confirmed as `read:TenantCatalogSettings` and `update:TenantCatalogSettings`; only the authenticated navigation owner/placement remains a frontend design choice.
+7. Tests can be added using Vitest/jsdom (`vitest.config.ts:7-13`) and the existing Playwright responsive harness (`package.json:10-13`, `playwright.responsive.config.ts:24-43`). There are no catalog tests today; the existing branch/list/store hotspots are `catalog.api.ts:1-111`, `catalog.types.ts:1-157`, and `useCatalogStore.ts:1-168`, while visible changes concentrate in `CatalogHeader.vue:1-109`, `CatalogProductGrid.vue:1-37`, and `CatalogView.vue:1-41`. These sizes justify splitting discovery from browse and keeping every estimate provisional. No catalog tests, builds, or runtime harnesses were run in this exploration.
+
+### Stale proposal assumptions deliberately not carried forward
+
+- The proposal’s visitor-controlled global price-list selector and multi-list browse filtering are obsolete; the resolved default context is retained internally without a selector.
+- The proposal’s price-sort capability is excluded despite the guide’s historical sort enumeration; backend clarification is authoritative because sorting after pagination is not globally valid.
+- The proposal’s blanket pause predates the completed backend guide. It is replaced only by this **planning** recommendation: implementation remains paused until the user reviews and explicitly authorizes a delivery.
+- The proposal’s no-temporary-phone/no-order boundary remains valid and is strengthened: cart validation must never be portrayed as checkout.
+
+### Evidence classifications and open risks
+
+**Confirmed backend behavior:** published-tenant discovery; resolved default price context; authenticated settings/product/variant fields; nullable public price and stock projections; stateless cart validation; no order/WhatsApp endpoint; and the stock presentation invariants above. These are contract evidence, not a claim that a target environment is deployed (guide `:1-7`, `:1015-1019`).
+
+**Frontend fixture assumptions:** unit and responsive fixtures should model documented 200/201, empty, generic 404, 400, 429, and 5xx payloads. They must not use a real tenant, assume a deployed backend, infer a phone/branding value, or treat fixture data as production availability.
+
+**Unresolved risks requiring review before a later slice:**
+
+1. The catalog-settings permission code/actions are confirmed as `read:TenantCatalogSettings` and `update:TenantCatalogSettings`; the intended authenticated navigation owner/placement is not present in this frontend repository. Do not reuse `Product` permission by convenience.
+2. The public contract guide still advertises price sort strings, while the supplied backend clarification forbids frontend price sorting; a contract-guide correction should be requested separately, not implemented around.
+3. Responsive harness coverage currently targets other features, so each catalog delivery needs an explicit mocked public-API scenario and screenshots/assertions at narrow and wide breakpoints.
+4. Price/context response parsing and unknown error-body mapping need a design decision in the implementation phase; `zod` is installed (`package.json:40`) but no parser choice is approved here.
