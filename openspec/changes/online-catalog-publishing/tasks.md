@@ -1,6 +1,6 @@
-# P0 catalog demo deactivation — proposed, implementation not authorized
+# P0 catalog demo deactivation — candidate; local P0 checks passed
 
-> **Planning-only maintenance.** P0 is one proposed preparatory runtime unit, not anonymous D1 and not permission to apply, test, commit, or deploy. It is credible only if this planning package is first accepted and delivered as its own baseline.
+> **Preparatory maintenance boundary.** P0 is not anonymous D1; this bounded correction authorizes neither broader apply nor commit/deploy and remains credible only with its recorded evidence.
 
 ## Accepted boundary
 
@@ -11,11 +11,19 @@
 
 ## Proposed implementation checklist — do not execute
 
-- [ ] RED: add `src/features/catalog/views/__tests__/CatalogView.spec.ts`, mounting the five real catalog SFCs with Nuxt UI primitive stubs only; observe the current demo initialization/reachable overlay behavior before P0 changes it.
-- [ ] GREEN: adapt only the five SFCs so the static disabled entry shell has no catalog store/cart initialization or product-card/modal/drawer runtime path; verify the theme toggle changes the observed color-mode value.
-- [ ] TRIANGULATE: assert every retained branch/search/category/sort/cart control is disabled and named, the neutral message is present, no Coco/mock product/price/cart/contact content is rendered, and static mock data is not mistaken for HTTP evidence.
-- [ ] RED/GREEN responsive: add `e2e/responsive/specs/catalog-entry-disabled.spec.ts`; at 375×667 and 1280×800 attach screenshots, check document overflow and keyboard focus/activation for the theme control, and verify disabled controls cannot activate product/contact behavior.
-- [ ] REFACTOR: keep the view as composition only; do not introduce a replacement inline shell, a new composable, or new test/evidence infrastructure.
+- [x] RED: add `src/features/catalog/views/__tests__/CatalogView.spec.ts`, mounting the five real catalog SFCs with Nuxt UI primitive stubs only; observe the current demo initialization/reachable overlay behavior before P0 changes it.
+- [x] GREEN: adapt only the five SFCs so the static disabled entry shell has no catalog store/cart initialization or product-card/modal/drawer runtime path; verify the theme toggle changes the observed color-mode value.
+- [x] TRIANGULATE: assert every retained branch/search/category/sort/cart control is disabled and named, the neutral message is present, no Coco/mock product/price/cart/contact content is rendered, and static mock data is not mistaken for HTTP evidence.
+- [x] RED/GREEN responsive: `catalog-entry-disabled.spec.ts` covers 375×667/1280×800, screenshots, overflow, keyboard theme and inert controls; focused checks pass.
+- [x] REFACTOR: keep the view as composition only; do not introduce a replacement inline shell, a new composable, or new test/evidence infrastructure.
+
+## Execution evidence
+
+- Historical dependency RED: the old mount crashed at Pinia initialization; it was not a corrected behavioral RED and was not rerun against base.
+- GREEN/TRIANGULATE/REFACTOR: focused unit now passes 3/3, including a throwing catalog-store sentinel and dark→light color-mode handler assertion.
+- PASS: `pnpm type-check:responsive`; focused Playwright passes 2/2 and attaches 375×667/1280×800 screenshots.
+- Prior `pnpm build` passes; generated evidence is local-only and does not claim conformance-manifest coverage.
+- Exact authored count, including `apply-progress.md`: **154 additions + 235 deletions = 389 changed lines**.
 
 ## Evidence and forecast
 
@@ -35,12 +43,11 @@
 
 **All-in future unit:** runtime 267–313 + execution documentation 19 = **286–332 changed lines**. The 330 planning target is not a guaranteed stop: its upper estimate exceeds it by 2 lines. The hard 400 stop admits no exception and leaves 68 lines at the upper estimate; no code compression, omitted evidence, or uncounted documentation may create headroom.
 
-## Future commands — audited from `package.json`, not run
+## Correction commands
 
-- `pnpm test:unit --run src/features/catalog/views/__tests__/CatalogView.spec.ts`
-- `pnpm exec playwright test --config=playwright.responsive.config.ts e2e/responsive/specs/catalog-entry-disabled.spec.ts`
-
-The first command uses the existing `test:unit` Vitest script. The second is the existing Playwright runner invoked with a new focused spec; neither command has been run in this documentation-only task.
+- `pnpm test:unit --run src/features/catalog/views/__tests__/CatalogView.spec.ts` passed (3/3); `pnpm build` passed.
+- PASS: `pnpm type-check:responsive`; `pnpm exec playwright test --config=playwright.responsive.config.ts e2e/responsive/specs/catalog-entry-disabled.spec.ts` (2/2).
+- PASS: authorized `CI=true pnpm install --frozen-lockfile` rebuilt `node_modules`; package and lockfile remain byte-identical.
 
 ## Rollback if P0 is later delivered
 
