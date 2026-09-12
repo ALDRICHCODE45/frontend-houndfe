@@ -17,6 +17,8 @@
 - [x] RED/GREEN responsive: `catalog-entry-disabled.spec.ts` covers 375×667/1280×800, screenshots, overflow, keyboard theme and inert controls; focused checks pass.
 - [x] REFACTOR: keep the view as composition only; do not introduce a replacement inline shell, a new composable, or new test/evidence infrastructure.
 
+> **P0.1 transfer:** Planning and execution ownership now reside in [`public-catalog-anonymous-bootstrap`](../public-catalog-anonymous-bootstrap/).
+
 ## Execution evidence
 
 - Historical dependency RED: the old mount crashed at Pinia initialization; it was not a corrected behavioral RED and was not rerun against base.

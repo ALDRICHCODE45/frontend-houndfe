@@ -20,3 +20,5 @@
 - PASS: `git diff --check`; exact authored accounting including this file: **154 additions + 235 deletions = 389 changed lines** (generated evidence and `.gentle-ai-instance` excluded).
 - **Remaining P0 checklist:** none. This is local P0 evidence only; final verification, D1, delivery, commit and push remain out of scope.
 - **Workload/PR:** single P0 boundary, under the 400-line hard cap; no commit or push.
+
+> **P0.1 transfer:** Planning and execution ownership now reside in [`public-catalog-anonymous-bootstrap`](../public-catalog-anonymous-bootstrap/); this broad change makes no delivery or verification claim.
