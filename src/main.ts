@@ -30,19 +30,22 @@ app.use(ui)
 app.use(VueQueryPlugin, { queryClient })
 
 const authStore = useAuthStore(pinia)
-authStore.hydrateFromStorage()
 
 onSessionExpired(() => {
-  const isOnLogin = router.currentRoute.value.path === '/login'
-  const redirectTarget = isOnLogin ? undefined : router.currentRoute.value.fullPath
+  const currentRoute = router.currentRoute.value
+  const isOnLogin = currentRoute.path === '/login'
+  const isOnPublicCatalog = currentRoute.name === 'public-catalog'
+  const redirectTarget = isOnLogin ? undefined : currentRoute.fullPath
 
   authStore.clearSession()
 
-  if (!isOnLogin) {
+  if (!isOnLogin && !isOnPublicCatalog) {
     void router.replace(
       redirectTarget ? { path: '/login', query: { redirect: redirectTarget } } : { path: '/login' },
     )
   }
 })
 
-app.mount('#app')
+void router.isReady().then(() => {
+  app.mount('#app')
+})

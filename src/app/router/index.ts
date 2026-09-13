@@ -376,6 +376,8 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
+  if (to.name === 'public-catalog') return true
+
   const authStore = useAuthStore()
 
   if (!authStore.accessToken) {

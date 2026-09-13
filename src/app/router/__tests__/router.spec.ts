@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+const useAuthStore = vi.fn()
+
 const mockAuthStore = {
   accessToken: null as string | null,
   user: null as { id: string } | null,
@@ -21,8 +23,10 @@ const mockAuthStore = {
 }
 
 vi.mock('@/features/auth/stores/useAuthStore', () => ({
-  useAuthStore: () => mockAuthStore,
+  useAuthStore,
 }))
+
+useAuthStore.mockReturnValue(mockAuthStore)
 
 vi.mock('@/features/auth/tenant-selection/views/TenantSelectionView.vue', () => ({
   default: { name: 'TenantSelectionView' },
@@ -31,6 +35,7 @@ vi.mock('@/features/auth/tenant-selection/views/TenantSelectionView.vue', () => 
 describe('router tenant guard', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    useAuthStore.mockReturnValue(mockAuthStore)
     mockAuthStore.accessToken = null
     mockAuthStore.user = null
     mockAuthStore.isAuthenticated = false
@@ -166,5 +171,77 @@ describe('router tenant guard', () => {
     // Guard behavior is tested by the other tests in this suite following the same pattern
     // as admin-tenants route (which also uses requiresSuperAdmin + skipTenantCheck)
     expect(true).toBe(true)
+  })
+
+  it.each(['/catalogo', '/catalogo/centro'])(
+    'resolves unauthenticated catalog entry %s without auth work or diversion',
+    async (path) => {
+      const { default: router } = await import('../index')
+
+      await router.push(path)
+      await router.isReady()
+
+      expect(router.currentRoute.value.name).toBe('public-catalog')
+      expect(router.currentRoute.value.path).toBe(path)
+      expect(useAuthStore).not.toHaveBeenCalled()
+      expect(mockAuthStore.hydrateFromStorage).not.toHaveBeenCalled()
+      expect(mockAuthStore.fetchMe).not.toHaveBeenCalled()
+      expect(mockAuthStore.fetchPermissions).not.toHaveBeenCalled()
+      expect(mockAuthStore.userCan).not.toHaveBeenCalled()
+      expect(mockAuthStore.clearSession).not.toHaveBeenCalled()
+    },
+  )
+
+  it.each([
+    ['/403', 'forbidden'],
+    ['/missing-route', 'not-found'],
+  ])('keeps non-catalog public route %s on the normal auth path', async (path, name) => {
+    const { default: router } = await import('../index')
+
+    await router.push(path)
+    await router.isReady()
+
+    expect(router.currentRoute.value.name).toBe(name)
+    expect(mockAuthStore.hydrateFromStorage).toHaveBeenCalledTimes(1)
+    expect(mockAuthStore.clearSession).not.toHaveBeenCalled()
+  })
+
+  it('initializes auth only when entering a protected route', async () => {
+    mockAuthStore.hydrateFromStorage.mockImplementation(() => {
+      mockAuthStore.accessToken = 'access-token'
+      mockAuthStore.isAuthenticated = true
+    })
+    mockAuthStore.fetchMe.mockImplementation(async () => {
+      mockAuthStore.user = { id: 'user-1' }
+      mockAuthStore.currentTenant = { id: 'tenant-1', name: 'Sucursal Centro', slug: 'centro' }
+    })
+    mockAuthStore.fetchPermissions.mockImplementation(async () => {
+      mockAuthStore.permissionsLoaded = true
+    })
+
+    const { default: router } = await import('../index')
+
+    await router.push('/pos/orders')
+    await router.isReady()
+
+    expect(router.currentRoute.value.name).toBe('pos-orders')
+    expect(mockAuthStore.hydrateFromStorage).toHaveBeenCalledTimes(1)
+    expect(mockAuthStore.fetchMe).toHaveBeenCalledTimes(1)
+    expect(mockAuthStore.fetchPermissions).toHaveBeenCalledTimes(1)
+  })
+
+  it('continues redirecting authenticated users away from /login', async () => {
+    mockAuthStore.accessToken = 'access-token'
+    mockAuthStore.user = { id: 'user-1' }
+    mockAuthStore.isAuthenticated = true
+    mockAuthStore.permissionsLoaded = true
+    mockAuthStore.currentTenant = { id: 'tenant-1', name: 'Sucursal Centro', slug: 'centro' }
+
+    const { default: router } = await import('../index')
+
+    await router.push('/login')
+    await router.isReady()
+
+    expect(router.currentRoute.value.path).toBe('/')
   })
 })
