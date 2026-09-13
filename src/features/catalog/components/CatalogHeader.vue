@@ -1,9 +1,14 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useColorMode } from '@vueuse/core'
+import type { PublicBranchDto } from '../interfaces/catalog.types'
+import type { CatalogBranchesState } from '../composables/useCatalogBranches'
 
+const props = defineProps<{ branches: PublicBranchDto[]; state: CatalogBranchesState }>()
+const emit = defineEmits<{ retry: [] }>()
 const colorMode = useColorMode()
 const isDark = computed(() => colorMode.value === 'dark')
+const isChooserOpen = ref(true)
 
 function toggleDarkMode() {
   colorMode.value = isDark.value ? 'light' : 'dark'
@@ -21,7 +26,7 @@ function toggleDarkMode() {
           <span class="hidden text-lg font-bold tracking-tight text-highlighted sm:block">Catálogo</span>
         </div>
 
-        <UButton color="neutral" variant="outline" size="sm" class="shrink-0" disabled aria-label="Seleccionar sucursal">
+        <UButton color="neutral" variant="outline" size="sm" class="shrink-0" aria-controls="catalog-branch-chooser" :aria-expanded="isChooserOpen" aria-label="Explorar sucursales" @click="isChooserOpen = !isChooserOpen">
           <template #leading><UIcon name="i-lucide-map-pin" class="size-3.5 text-orange-500" /></template>
           <span class="hidden text-xs font-medium uppercase tracking-wide sm:inline">Sucursal</span>
           <span class="text-xs font-medium uppercase tracking-wide sm:hidden">...</span>
@@ -39,6 +44,27 @@ function toggleDarkMode() {
           <template #leading><UIcon name="i-lucide-shopping-bag" class="size-5" /></template>
         </UButton>
       </div>
+
+      <section v-if="isChooserOpen" id="catalog-branch-chooser" class="mt-3 max-h-56 overflow-y-auto rounded-lg border border-default bg-default p-3" aria-live="polite">
+        <p v-if="props.state === 'loading'" role="status" aria-busy="true" class="text-sm text-muted">Cargando sucursales…</p>
+        <template v-else-if="props.state === 'populated'">
+          <h2 class="text-sm font-semibold text-highlighted">Sucursales disponibles</h2>
+          <p class="mt-1 text-xs text-muted">La selección de sucursal todavía no está disponible.</p>
+          <ul class="mt-2 space-y-2" aria-label="Sucursales disponibles">
+            <li v-for="branch in props.branches" :key="branch.id">
+              <button class="w-full rounded-md border border-default px-3 py-2 text-left text-sm text-highlighted" type="button" :aria-label="branch.name" disabled>{{ branch.name }}</button>
+            </li>
+          </ul>
+        </template>
+        <template v-else-if="props.state === 'empty'">
+          <p class="text-sm text-muted">No hay sucursales publicadas</p>
+          <button class="mt-2 text-sm font-medium text-primary" type="button" aria-label="Reintentar" @click="emit('retry')">Reintentar</button>
+        </template>
+        <template v-else>
+          <p class="text-sm text-muted">No pudimos cargar las sucursales.</p>
+          <button class="mt-2 text-sm font-medium text-primary" type="button" aria-label="Reintentar" @click="emit('retry')">Reintentar</button>
+        </template>
+      </section>
     </div>
   </header>
 </template>

@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { defineComponent, h, shallowRef } from 'vue'
+import { flushPromises } from '@vue/test-utils'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import CatalogView from '@/features/catalog/views/CatalogView.vue'
 
@@ -23,11 +25,14 @@ const UInput = defineComponent({
   setup: (props, { attrs }) => () => h('input', { ...attrs, value: props.modelValue, disabled: props.disabled }),
 })
 const stubs = { UButton, UInput, UIcon: defineComponent({ setup: () => () => h('span') }) }
-const mountCatalog = () => mountWithUApp(CatalogView, { global: { stubs } })
+const mountCatalog = () => {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+  return mountWithUApp(CatalogView, { global: { plugins: [[VueQueryPlugin, { queryClient }]], stubs } })
+}
 const control = (wrapper: ReturnType<typeof mountCatalog>, name: string) =>
   wrapper.findAll(name === 'Buscar en el catálogo' ? 'input' : 'button').find((element) => element.attributes('aria-label') === name)
 
-const disabledShellControls = ['Seleccionar sucursal', 'Buscar en el catálogo', 'Todas las categorías', 'Ordenar catálogo', 'Ver carrito']
+const disabledShellControls = ['Buscar en el catálogo', 'Todas las categorías', 'Ordenar catálogo', 'Ver carrito']
 
 describe('CatalogView P0 demo deactivation', () => {
   beforeEach(() => {
@@ -43,6 +48,38 @@ describe('CatalogView P0 demo deactivation', () => {
     expect(useCatalogStore).not.toHaveBeenCalled()
     expect(wrapper.findAll('[role="dialog"], a[href^="tel:"], a[href*="whatsapp"]').length).toBe(0)
     expect(wrapper.text()).not.toMatch(/Coco|WhatsApp|Adult Medium Breed|precio|contacto/i)
+  })
+
+  it('renders a returned branch as an explicit unselected choice without product requests', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify([{ id: 'b-1', name: 'Sucursal Centro', slug: 'centro', address: null, phone: null }]), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+    const wrapper = mountCatalog()
+
+    await flushPromises()
+    expect(wrapper.get('button[aria-label="Sucursal Centro"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('Sucursales disponibles')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock.mock.calls[0]?.[0]).toContain('/public/catalog/branches')
+  })
+
+  it('renders many published branches in response order and the zero-branch empty state', async () => {
+    const branches = [{ id: 'b-1', name: 'Sucursal Centro', slug: 'centro', address: null, phone: null }, { id: 'b-2', name: 'Sucursal Norte', slug: 'norte', address: null, phone: null }]
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(branches), { status: 200 })))
+    const wrapper = mountCatalog()
+
+    await flushPromises()
+    const names = wrapper.findAll('button[aria-label]').map((element) => element.attributes('aria-label')).filter((name) => name?.startsWith('Sucursal '))
+    expect(names).toEqual(['Sucursal Centro', 'Sucursal Norte'])
+    expect(names.every((name) => control(wrapper, name!)?.attributes('disabled') !== undefined)).toBe(true)
+  })
+
+  it('renders the empty state when no branches are published', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response('[]', { status: 200 })))
+    const wrapper = mountCatalog()
+
+    await flushPromises()
+    expect(wrapper.text()).toContain('No hay sucursales publicadas')
+    expect(wrapper.findAll('button[aria-label="Reintentar"]').length).toBe(1)
   })
 
   it.each([['dark', 'light'], ['light', 'dark']] as const)('toggles the mocked color mode from %s to %s', async (initial, expected) => {

@@ -45,12 +45,12 @@ Completed during planning: `delivery-map.md` now marks P0.1 delivered at `aa2b20
 
 ### WU-1 — Discovery core (forecast 180–230, target <300 with margin)
 
-- [ ] RED: failing tests for isolated GET, DTO validation, loading, populated/empty/one rendering, no auto-select, generic server failure+manual retry, no product request. <!-- sdd-owner: implementation -->
-- [ ] GREEN: `fetchCatalogBranches`, `useCatalogBranches` (basic), `CatalogView`/`CatalogHeader` wiring minimum; isolated anonymous boundary. <!-- sdd-owner: implementation -->
-- [ ] TRIANGULATE: response-order preservation, single-result explicit choice, no-router-push/no-product assertions, narrow/wide populated/empty/loading/generic-error evidence. <!-- sdd-owner: implementation -->
-- [ ] REFACTOR: typed error baseline (server only at this stage), narrow query options, typed props/emits; defer distinct 429/5xx/network copy to WU-2. <!-- sdd-owner: implementation -->
-- [ ] Run focused unit, type-check, and responsive evidence; record results. <!-- sdd-owner: implementation -->
-- [ ] Recount WU-1 additions+deletions against the accepted planning-baseline parent; abort and re-plan if ≥ 380. <!-- sdd-owner: implementation -->
+- [x] RED: failing tests for isolated GET, DTO validation, loading, populated/empty/one rendering, no auto-select, generic server failure+manual retry, no product request. <!-- sdd-owner: implementation -->
+- [x] GREEN: `fetchCatalogBranches`, `useCatalogBranches` (basic), `CatalogView`/`CatalogHeader` wiring minimum; isolated anonymous boundary. <!-- sdd-owner: implementation -->
+- [x] TRIANGULATE: response-order preservation, single-result explicit choice, no-router-push/no-product assertions, narrow/wide populated/empty/loading/generic-error evidence. <!-- sdd-owner: implementation -->
+- [x] REFACTOR: typed error baseline (server only at this stage), narrow query options, typed props/emits; defer distinct 429/5xx/network copy to WU-2. <!-- sdd-owner: implementation -->
+- [x] Run focused unit, type-check, and responsive evidence; record results. <!-- sdd-owner: implementation -->
+- [x] Recount WU-1 additions+deletions against the accepted planning-baseline parent; abort and re-plan if ≥ 380. <!-- sdd-owner: implementation -->
 
 ### WU-2 — Error taxonomy, retry-pending, slug regression (forecast 150–200, target <250 with margin)
 
