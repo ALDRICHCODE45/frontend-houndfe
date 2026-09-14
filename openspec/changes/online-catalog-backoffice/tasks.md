@@ -82,7 +82,7 @@ A slice is done when its focused command exits 0 and `pnpm build` (vue-tsc + vit
 - Router / navigation / query / view import; any route or sidebar edit; any edit under `src/features/system/catalog-settings/**` or `src/features/POS/**`; entry in `HIDDEN_SUBJECTS`.
 
 ### Build verification
-- [ ] Implement and verify the behavior. <!-- sdd-owner: implementation -->
+- [x] Implement and verify the behavior. <!-- sdd-owner: implementation -->
 
 ### Commit
 ```text

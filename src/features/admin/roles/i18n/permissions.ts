@@ -55,6 +55,7 @@ const SUBJECT_LABELS: Record<string, string> = {
   SatKey: 'Claves del SAT',
   ReceiptEvidence: 'Comprobantes de pago',
   NotificationConfig: 'Configuración de notificaciones',
+  TenantCatalogSettings: 'Catálogo online del tenant',
   // sdd payment-details-admin S1 — REQ-AUTH-003: subject label surfaced in
   // the sidebar/menu AND the role permissions UI. Must stay in sync with
   // auth.types.ts AppSubject + ability.ts APP_SUBJECTS.
@@ -551,6 +552,17 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
 
   // NotificationConfig — configuración de notificaciones por sucursal
   // (alertas de bajo stock). Backend solo expone read + update.
+  TenantCatalogSettings: {
+    read: {
+      label: 'Ver configuración del catálogo online',
+      description: 'Consultar la publicación y los contextos públicos del catálogo del tenant.',
+    },
+    update: {
+      label: 'Editar configuración del catálogo online',
+      description: 'Modificar la publicación, los contextos públicos y la presentación de stock del catálogo.',
+    },
+  },
+
   NotificationConfig: {
     read: {
       label: 'Ver configuración de notificaciones',

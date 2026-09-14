@@ -62,6 +62,49 @@ describe('ability with Sale subject', () => {
   })
 })
 
+describe('ability with catalog authorization subjects (online-catalog-backoffice WU1)', () => {
+      beforeEach(() => {
+        resetAbility()
+      })
+
+      it('parses TenantCatalogSettings read/update independently and keeps subjects scoped', () => {
+        updateAbilityFromPermissionCodes(['read:TenantCatalogSettings', 'read:GlobalPriceList'])
+
+        expect(ability.can('read', 'TenantCatalogSettings')).toBe(true)
+        expect(ability.can('update', 'TenantCatalogSettings')).toBe(false)
+        expect(ability.can('read', 'GlobalPriceList')).toBe(true)
+        expect(ability.can('update', 'GlobalPriceList')).toBe(false)
+      })
+
+      it('rejects malformed catalog subject codes without dropping valid siblings', () => {
+        updateAbilityFromPermissionCodes([
+          'read:TenantCatalogSettings:extra',
+          'tenant_catalog_settings:read',
+          'read:TenantCatalogSettings',
+        ])
+
+        expect(ability.can('read', 'TenantCatalogSettings')).toBe(true)
+      })
+
+      it('revokes omitted catalog subjects on the next permission update', () => {
+        updateAbilityFromPermissionCodes(['read:TenantCatalogSettings', 'read:GlobalPriceList'])
+        updateAbilityFromPermissionCodes(['read:TenantCatalogSettings'])
+
+        expect(ability.can('read', 'TenantCatalogSettings')).toBe(true)
+        expect(ability.can('read', 'GlobalPriceList')).toBe(false)
+      })
+
+      it('accepts TenantCatalogSettings in the AppSubject union', () => {
+        const subject: AppSubject = 'TenantCatalogSettings'
+        expect(subject).toBe('TenantCatalogSettings')
+      })
+
+      it('accepts GlobalPriceList in the AppSubject union', () => {
+        const subject: AppSubject = 'GlobalPriceList'
+        expect(subject).toBe('GlobalPriceList')
+      })
+    })
+
 describe('ability with NotificationConfig subject (notification-config WU-1)', () => {
   beforeEach(() => {
     resetAbility()

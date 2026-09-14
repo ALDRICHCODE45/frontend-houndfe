@@ -10,6 +10,24 @@ import {
 } from '../permissions'
 
 describe('permissions i18n', () => {
+  describe('catalog authorization copy', () => {
+    it('exposes TenantCatalogSettings with exactly read and update copy', () => {
+      expect(getSubjectLabel('TenantCatalogSettings')).toBe('Catálogo online del tenant')
+      expect(isSubjectHidden('TenantCatalogSettings')).toBe(false)
+      for (const action of ['read', 'update'] as const) {
+        expect(getPermissionLabel('TenantCatalogSettings', action)).not.toContain('TenantCatalogSettings')
+        expect(getPermissionDescription('TenantCatalogSettings', action).length).toBeGreaterThan(20)
+      }
+      expect(getPermissionLabel('TenantCatalogSettings', 'create')).toContain('Catálogo online del tenant')
+    })
+
+    it('keeps GlobalPriceList visible with backend action copy', () => {
+      expect(getSubjectLabel('GlobalPriceList')).toBe('Listas de precios globales')
+      expect(isSubjectHidden('GlobalPriceList')).toBe(false)
+      expect(getPermissionDescription('GlobalPriceList', 'read').length).toBeGreaterThan(20)
+    })
+  })
+
   describe('HIDDEN_SUBJECTS', () => {
     it('includes "all" (super-admin wildcard, not meant for role composition)', () => {
       expect(HIDDEN_SUBJECTS).toContain('all')
@@ -241,6 +259,7 @@ const BACKEND_PERMISSION_REGISTRY: Record<string, readonly string[]> = {
   EmployeeTimeOffMedical: ['read'],
   EmployeeEmergencyContact: ['create', 'read', 'update', 'delete', 'manage'],
   NotificationConfig: ['read', 'update'],
+  TenantCatalogSettings: ['read', 'update'],
 }
 
 describe('backend registry coverage — no English leaks in the role UI', () => {

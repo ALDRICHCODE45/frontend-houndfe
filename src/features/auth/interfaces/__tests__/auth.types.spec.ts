@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import type {
+  AppSubject,
   AuthJwtClaims,
   AuthMeResponse,
   AuthPhase,
@@ -8,6 +9,11 @@ import type {
 } from '../auth.types'
 
 describe('auth.types', () => {
+  it('includes catalog authorization subjects in AppSubject', () => {
+    const subjects: AppSubject[] = ['TenantCatalogSettings', 'GlobalPriceList']
+
+    expect(subjects).toEqual(['TenantCatalogSettings', 'GlobalPriceList'])
+  })
   it('defines TenantSummary shape', () => {
     const tenant: TenantSummary = {
       id: 'tenant-1',

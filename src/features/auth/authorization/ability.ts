@@ -21,6 +21,8 @@ const APP_SUBJECTS: AppSubject[] = [
   'EmployeeTimeOffMedical',
   'EmployeeEmergencyContact',
   'NotificationConfig',
+  'TenantCatalogSettings',
+  'GlobalPriceList',
   // sdd payment-details-admin S1 — REQ-AUTH-002: 'PaymentDetail' joins the
   // APP_SUBJECTS runtime registry (before 'all'). Without this entry the
   // parsePermissionCode path returns null for create/read/update/delete
@@ -50,6 +52,7 @@ function isAppSubject(value: string): value is AppSubject {
   return APP_SUBJECTS.includes(value as AppSubject)
 }
 
+// WU1 TDD: parse remains pure after registry and copy registration.
 function parsePermissionCode(code: string): [AppAction, AppSubject] | null {
   const [actionRaw, subjectRaw, ...rest] = code.split(':')
   if (!actionRaw || !subjectRaw || rest.length > 0) return null
