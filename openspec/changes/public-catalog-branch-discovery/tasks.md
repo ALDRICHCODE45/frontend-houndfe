@@ -54,12 +54,12 @@ Completed during planning: `delivery-map.md` now marks P0.1 delivered at `aa2b20
 
 ### WU-2 — Error taxonomy, retry-pending, slug regression (forecast 150–200, target <250 with margin)
 
-- [ ] RED: failing tests for distinct 429/5xx/network copy, retry-pending/guard, cancellation/remount, supplied-slug/no-navigation regression. <!-- sdd-owner: implementation -->
-- [ ] GREEN: split error taxonomy into `rate-limit | server | network`, add `retry-pending` state with `retryRequested` guard, forward AbortSignal to fetch, capture/preserve supplied `:branchSlug` without redirect. <!-- sdd-owner: implementation -->
-- [ ] TRIANGULATE: rapid-click guard, late completion discarded on unmount, supplied matching/nonmatching slug preserved at narrow/wide, narrow/wide error screenshots, no-router-push after expansion/branch interaction/retry. <!-- sdd-owner: implementation -->
-- [ ] REFACTOR: state precedence, dedupe retry wiring, finalize error copy strings. <!-- sdd-owner: implementation -->
-- [ ] Run focused unit, type-check, and responsive evidence; record results. <!-- sdd-owner: implementation -->
-- [ ] Recount WU-2 additions+deletions against the WU-1 parent; abort and re-plan if ≥ 380. <!-- sdd-owner: implementation -->
+- [x] RED: failing tests for distinct 429/5xx/network copy, retry-pending/guard, cancellation/remount, supplied-slug/no-navigation regression. <!-- sdd-owner: implementation -->
+- [x] GREEN: split error taxonomy into `rate-limit | server | network`, add `retry-pending` state with `retryRequested` guard, forward AbortSignal to fetch, capture/preserve supplied `:branchSlug` without redirect. <!-- sdd-owner: implementation -->
+- [x] TRIANGULATE: rapid-click guard, late completion discarded on unmount, supplied matching/nonmatching slug preserved at narrow/wide, narrow/wide error screenshots, no-router-push after expansion/branch interaction/retry. <!-- sdd-owner: implementation -->
+- [x] REFACTOR: state precedence, dedupe retry wiring, finalize error copy strings. <!-- sdd-owner: implementation -->
+- [x] Run focused unit, type-check, and responsive evidence; record results. <!-- sdd-owner: implementation -->
+- [x] Recount WU-2 additions+deletions against the WU-1 parent; abort and re-plan if ≥ 380. <!-- sdd-owner: implementation -->
 
 ## Exact Candidate Files
 

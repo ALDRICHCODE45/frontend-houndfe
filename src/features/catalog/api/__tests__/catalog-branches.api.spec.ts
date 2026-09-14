@@ -31,4 +31,30 @@ describe('fetchCatalogBranches', () => {
 
     await expect(fetchCatalogBranches()).rejects.toMatchObject({ kind: 'server' })
   })
+
+  it.each([[429, 'rate-limit'], [503, 'server'], [500, 'server'], [401, 'server'], [201, 'server']])('classifies HTTP %i as %s', async (status, kind) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([branch]), { status })))
+
+    await expect(fetchCatalogBranches()).rejects.toMatchObject({ kind })
+  })
+
+  it('classifies a transport rejection as a network failure', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
+
+    await expect(fetchCatalogBranches()).rejects.toMatchObject({ kind: 'network' })
+  })
+
+  it('classifies an in-flight abort as network and forwards the exact signal', async () => {
+    const controller = new AbortController()
+    const fetchMock = vi.fn((_url: string, init?: { signal?: AbortSignal }) => new Promise<Response>((_, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(init.signal?.reason), { once: true })
+    }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const request = fetchCatalogBranches(controller.signal)
+    expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/public/catalog/branches', { method: 'GET', credentials: 'omit', signal: controller.signal })
+    controller.abort()
+    expect(controller.signal.aborted).toBe(true)
+    await expect(request).rejects.toMatchObject({ kind: 'network' })
+  })
 })

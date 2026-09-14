@@ -10,6 +10,14 @@ const colorMode = useColorMode()
 const isDark = computed(() => colorMode.value === 'dark')
 const isChooserOpen = ref(true)
 
+const errorCopy: Record<'empty' | 'rate-limit' | 'server' | 'network', string> = {
+  empty: 'No hay sucursales publicadas',
+  'rate-limit': 'Demasiadas solicitudes. Intenta de nuevo más tarde.',
+  server: 'No pudimos cargar las sucursales.',
+  network: 'No se pudo conectar. Revisa tu conexión.',
+}
+const retryMessage = computed(() => (props.state === 'empty' || props.state === 'rate-limit' || props.state === 'server' || props.state === 'network' ? errorCopy[props.state] : ''))
+
 function toggleDarkMode() {
   colorMode.value = isDark.value ? 'light' : 'dark'
 }
@@ -47,6 +55,7 @@ function toggleDarkMode() {
 
       <section v-if="isChooserOpen" id="catalog-branch-chooser" class="mt-3 max-h-56 overflow-y-auto rounded-lg border border-default bg-default p-3" aria-live="polite">
         <p v-if="props.state === 'loading'" role="status" aria-busy="true" class="text-sm text-muted">Cargando sucursales…</p>
+        <p v-else-if="props.state === 'retry-pending'" role="status" aria-busy="true" class="text-sm text-muted">Reintentando…</p>
         <template v-else-if="props.state === 'populated'">
           <h2 class="text-sm font-semibold text-highlighted">Sucursales disponibles</h2>
           <p class="mt-1 text-xs text-muted">La selección de sucursal todavía no está disponible.</p>
@@ -56,8 +65,8 @@ function toggleDarkMode() {
             </li>
           </ul>
         </template>
-        <template v-else-if="props.state === 'empty'">
-          <p class="text-sm text-muted">No hay sucursales publicadas</p>
+        <template v-else-if="props.state === 'empty' || props.state === 'rate-limit' || props.state === 'server' || props.state === 'network'">
+          <p class="text-sm text-muted">{{ retryMessage }}</p>
           <button class="mt-2 text-sm font-medium text-primary" type="button" aria-label="Reintentar" @click="emit('retry')">Reintentar</button>
         </template>
         <template v-else>

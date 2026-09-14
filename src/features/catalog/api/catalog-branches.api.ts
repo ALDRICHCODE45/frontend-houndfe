@@ -1,7 +1,17 @@
 import type { PublicBranchDto } from '../interfaces/catalog.types'
 
+export type CatalogBranchesErrorKind = 'rate-limit' | 'server' | 'network'
+
 export class CatalogBranchesError extends Error {
-  readonly kind = 'server'
+  readonly kind: CatalogBranchesErrorKind
+  readonly status?: number
+
+  constructor(kind: CatalogBranchesErrorKind = 'server', status?: number) {
+    super(kind === 'rate-limit' ? 'Too many requests' : kind === 'network' ? 'Network failure' : 'Server failure')
+    this.name = 'CatalogBranchesError'
+    this.kind = kind
+    if (status !== undefined) this.status = status
+  }
 }
 
 const apiBase = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000').replace(/\/$/, '')
@@ -16,15 +26,21 @@ function isPublicBranch(value: unknown): value is PublicBranchDto {
     && (branch.phone === null || typeof branch.phone === 'string')
 }
 
-export async function fetchCatalogBranches(): Promise<PublicBranchDto[]> {
+export async function fetchCatalogBranches(signal?: AbortSignal): Promise<PublicBranchDto[]> {
+  let response: Response
   try {
-    const response = await fetch(`${apiBase}/public/catalog/branches`, { method: 'GET', credentials: 'omit' })
-    if (!response.ok || response.status !== 200) throw new CatalogBranchesError()
+    response = await fetch(`${apiBase}/public/catalog/branches`, { method: 'GET', credentials: 'omit', signal })
+  } catch {
+    throw new CatalogBranchesError('network')
+  }
+  try {
+    if (response.status === 429) throw new CatalogBranchesError('rate-limit', 429)
+    if (response.status !== 200) throw new CatalogBranchesError('server', response.status)
     const body: unknown = await response.json()
-    if (!Array.isArray(body) || !body.every(isPublicBranch)) throw new CatalogBranchesError()
+    if (!Array.isArray(body) || !body.every(isPublicBranch)) throw new CatalogBranchesError('server', response.status)
     return body
   } catch (error) {
     if (error instanceof CatalogBranchesError) throw error
-    throw new CatalogBranchesError()
+    throw new CatalogBranchesError('server', response.status)
   }
 }

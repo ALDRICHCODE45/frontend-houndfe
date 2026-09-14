@@ -52,7 +52,23 @@ for (const viewport of viewports) {
     })
   })
 
-  test.describe(`${viewport.name} error retry`, () => {
+      test.describe(`${viewport.name} rate-limit retry`, () => {
+        test.use({ declaredRoutes: branchRoutes({ status: 429, json: { message: 'rate limited (e2e)' } }) })
+        test('renders the distinct rate-limit copy and reissues the request on manual retry', async ({ page, strictNetwork }, testInfo) => {
+          await page.setViewportSize(viewport)
+          await page.goto(`${RESPONSIVE_ORIGIN}/catalogo`)
+
+          await expect(page.getByText('Demasiadas solicitudes. Intenta de nuevo más tarde.')).toBeVisible()
+          await page.getByRole('button', { name: 'Reintentar' }).click()
+          await expect.poll(() => strictNetwork.requests().filter((request) => request.path === '/public/catalog/branches').length, { timeout: 5_000 }).toBe(2)
+          await expect(page.getByText('Demasiadas solicitudes. Intenta de nuevo más tarde.')).toBeVisible()
+          await testInfo.attach(`${viewport.name}-branch-discovery-rate-limit`, { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' })
+          expect(page.url()).toBe(`${RESPONSIVE_ORIGIN}/catalogo`)
+          expectOnlyBranchRequests(strictNetwork)
+        })
+      })
+
+      test.describe(`${viewport.name} error retry`, () => {
     test.use({ declaredRoutes: branchRoutes({ status: 500, json: { message: 'Servicio no disponible (e2e)' } }) })
     test('renders the generic recoverable error and reissues the request on manual retry', async ({ page, strictNetwork }, testInfo) => {
       await page.setViewportSize(viewport)
