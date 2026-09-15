@@ -71,7 +71,7 @@ A slice is done when its focused command exits 0 and `pnpm build` (vue-tsc + vit
 
 **Forbidden**: router / navigation / query / view import; any route or sidebar edit; any edit under `src/features/system/catalog-settings/**` or `src/features/POS/**`; entry in `HIDDEN_SUBJECTS`.
 
-**Build verification**: [x] Implement and verify the behavior. <!-- sdd-owner: implementation -->
+- [x] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
 
 **Commit**:
 ```text
@@ -97,7 +97,7 @@ grant.
 
 **Forbidden**: any reference to `router/**`, `navigation/**`, or `views/**`; the candidate composable (WU2C / WU3B own it); any edit to `src/features/catalog/**`; any new external dependency; mapper / compose logic (WU2B / WU2C own those).
 
-**Build verification**: [x] Implement and verify the behavior. <!-- sdd-owner: implementation -->
+- [x] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
 
 **Commit**:
 ```text
@@ -123,7 +123,7 @@ catalogSettingsQueryKeys.detail in the centralized query-keys module.
 
 **Forbidden**: any reference to `router/**`, `navigation/**`, or `views/**`; the candidate composable (WU3B owns it); any edit to `src/features/catalog/**`; any new external dependency; HTTP / query-key composition (WU2A / WU2C own those).
 
-**Build verification**: [ ] Implement and verify the behavior. <!-- sdd-owner: implementation -->
+- [x] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
 
 **Commit**:
 ```text
@@ -151,7 +151,7 @@ default; unknown warning codes map to null.
 
 **Forbidden**: any reference to `router/**`, `navigation/**`, or `views/**`; the candidate composable (WU3B owns it); any edit to `src/features/catalog/**`; any new external dependency; any broader invalidation key (`productQueryKeys.globalPriceLists()`, public-catalog keys, POS price-list keys).
 
-**Build verification**: [ ] Implement and verify the behavior. <!-- sdd-owner: implementation -->
+- [ ] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
 
 **Commit**:
 ```text
@@ -176,7 +176,7 @@ optimistic publication update; no setQueryData before response).
 
 **Forbidden**: editable form components; PATCH mutation wiring; `ConfirmModal`; any code path issuing `PATCH`; candidate enumeration (WU3B); any edit under `src/features/catalog/**` or `src/features/admin/tenants/**`.
 
-**Build verification**: [ ] Implement and verify the behavior. <!-- sdd-owner: implementation -->
+- [ ] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
 
 **Commit**:
 ```text
@@ -204,7 +204,7 @@ unknown warning codes dropped silently.
 
 **Forbidden**: any router / navigation / product / variant edit; any request against `src/features/catalog/**`; any other confirmation strategy than the proposal-locked rising-edge two-button modal.
 
-**Build verification**: [ ] Implement and verify the behavior. <!-- sdd-owner: implementation -->
+- [ ] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
 
 **Commit**:
 ```text
@@ -236,7 +236,7 @@ explicit null pair clears an existing stock default.
 
 **Forbidden**: any view edit (`ProductDetailView.vue`, `ProductUpsertSlideover.vue`, `VariantDetailModal.vue`); any edit to `src/features/catalog/**`; candidate enumeration.
 
-**Build verification**: [ ] Implement and verify the behavior. <!-- sdd-owner: implementation -->
+- [ ] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
 
 **Commit**:
 ```text
@@ -266,7 +266,7 @@ hydrated advanced snapshot and does not emit advanced keys.
 
 **Forbidden**: modify `VariantDetailModal.vue` (WU6 territory); modify `src/features/catalog/**`; modify `useProductForm` mapping or Zod (WU4 territory); auto-grant `read:TenantCatalogSettings`.
 
-**Build verification**: [ ] Implement and verify the behavior. <!-- sdd-owner: implementation -->
+- [ ] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
 
 **Commit**:
 ```text
@@ -294,7 +294,7 @@ Product PATCH itself is not gated on settings-read.
 
 **Forbidden**: any product section edit outside the persisted-variant branch; mutating create / inline variant builders; any mutation invalidating POS price lists or any public-catalog key; any new copy of `OnlineStockOverrideFields.vue` (reuse WU5's).
 
-**Build verification**: [ ] Implement and verify the behavior. <!-- sdd-owner: implementation -->
+- [ ] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
 
 **Commit**:
 ```text
@@ -313,7 +313,7 @@ invalidates only productQueryKeys.variants. No broad invalidation.
 
 ## Cross-Slice Verification & Isolation
 
-- [ ] Implement and verify the behavior. <!-- sdd-owner: implementation -->
+- [ ] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
 
 `pnpm test:unit --run` across the full suite. The known unrelated POS / reka-ui teardown process-exit blocker, if it persists, is recorded with passing assertions and the environmental non-clean exit. This change does **not** modify, hide, or repair that issue. `pnpm build`: type-check + Vite build; record both exits. Audit every REQ in `specs/online-catalog-backoffice/spec.md` with status + evidence `file:line`. Add focused mocked authenticated-browser evidence at narrow and wide widths for `TenantCatalogSettingsView` (≥ 375×667 and ≥ 1280×800). `src/features/catalog/**` and `openspec/changes/online-catalog-publishing/**` remain untouched.
 

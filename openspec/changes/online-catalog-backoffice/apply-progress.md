@@ -102,3 +102,20 @@ WU2B (mappers), WU2C (composables), WU3A (routed read-only view + route + sideba
 - Verifier fix #1: 4 new tests (response field stripping, invalid payload rejection, forged `tenantId` stripping, forged full response-only-key bag stripping); `deliveryRouteQueryKeys` describe block restored to prior structure.
 - Verifier fix #2: 1 new test (forged ARBITRARY unknown PATCH keys stripped by true whitelist). Previous denylist REPLACED — Zod parse is the single source of truth; `FORBIDDEN_PATCH_KEYS` + `stripForgedPatchKeys` REMOVED (NOT preserved as belt-and-suspenders because a second denylist would be misleading documentation). `deliveryRouteQueryKeys` describe block untouched by fix #2 (no churn). No comments / blank lines / docs / tests deleted, compressed, or restyled.
 - No commit / merge / push / dependency / backend / route / nav / view / query / mapper / composable / candidate enumeration / confirmation / public-catalog mutation. Stash `stash@{0}` and historical untracked preserved verbatim.
+
+# Apply Progress — WU2B Pure Catalog-Settings Mappers (table-driven)
+- Change: `online-catalog-backoffice`; WU: `wu2b-settings-mappers`; `applyState: ready`; workspace = repo root.
+- Scope: NEW `utils/catalogSettingsMappers.ts` (165) + `__tests__/catalogSettingsMappers.spec.ts` (191) = 356 source+test; WU2A types/API/key, WU2C composables, views/routes/navigation, candidates, `src/features/catalog/**` untouched.
+- Completed task: [x] Implement and verify WU2B. Persisted checkbox updated.
+- RED: source deleted; `Failed to resolve import "../catalogSettingsMappers"` (module resolution fail).
+- GREEN: reimplemented tight table-driven source; focused 1 file / 39 tests passed.
+- TRIANGULATE: empty priceContexts → []+null; non-CUSTOM quantity null; CUSTOM 0 preserved; atomic-clear triple; ordinary unpublish only `{catalogPublished:false}`; rising edge `false→true`; WARNING unknown→null; `mapCatalogSettingsError` TENANT_NOT_ACTIVE/403/unknown/null. 1 file / 39 tests passed.
+- REFACTOR: deduplicated test into `it.each` behavior-first table cases; per-describe describe blocks; closed-set `ERROR_COPY`/`WARNING_COPY` maps.
+- Focused Vitest: PASS — `pnpm test:unit --run src/features/system/catalog-settings/utils/__tests__/catalogSettingsMappers.spec.ts` — 1 file / 39 tests passed.
+- Build: PASS — `pnpm build` (`vue-tsc --build` + `vite build` exit 0).
+- Runtime: N/A — pure mapper; runtime ships with WU3A.
+- Stash `stash@{0}` + untracked + literal `{__tests__}` directory preserved verbatim; no pop/drop/clean.
+- Accounting: 356 source+test + 36 task/progress bookkeeping = **392** candidate lines; <399 budget met after compact tasks.md checkbox repair.
+- `tasks.md`: 10 implementation checkboxes total; WU1/WU2A/WU2B `[x]`, WU2C/WU3A/WU3B/WU4/WU5/WU6/Cross-Slice `[ ]`.
+- REMEDIATION: replaced non-null assertion at `mapCatalogSettingsError` line 35 (`ERROR_COPY[input.code]!`) with explicit safe logic — capture into local `codeCopy`, truthy-check, then return. No behavior change; 39 tests still green; mapper grew 165→168 lines.
+- No commit / merge / push / dependency / backend / route / nav / view / query / composable / candidate enumeration / confirmation / public-catalog mutation.
