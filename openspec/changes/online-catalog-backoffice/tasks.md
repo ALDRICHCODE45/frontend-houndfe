@@ -1,15 +1,15 @@
 # Tasks — Online Catalog Backoffice
 
-No-PR workflow; sequential local reviewable Conventional Commits; no `size:exception`. Each unit gates on its focused Vitest files plus `pnpm build`. `ask-on-risk` is the stop rule only when a measured slice approaches or exceeds 400 lines. WU2 was split into WU2A / WU2B / WU2C per the user's `ask-on-risk` decision rather than invoking `size:exception`.
+No-PR workflow; sequential local reviewable Conventional Commits; no `size:exception`. Each unit gates on its focused Vitest files plus `pnpm build`. `ask-on-risk` is the stop rule only when a measured slice approaches or exceeds 400 lines. WU2 was split into WU2A / WU2B / WU2C per the user's `ask-on-risk` decision rather than invoking `size:exception`. WU3B was likewise split into WU3B-A…F after its oversized verified-green 1505-line candidate settled `failed` (maintainer decision `split_wu3b`; no `size:exception`).
 
 ## Workload Forecast
 
 | Field | Value |
 |-------|-------|
-| Per-slice maxima | WU1 ≤ 150; WU2A ≤ 320; WU2B ≤ 380; WU2C ≤ 360; WU3A ≤ 360; **WU3B ≤ 380**; WU4 ≤ 320; **WU5 ≤ 380**; WU6 ≤ 360. Every slice strictly under 380. |
+| Per-slice maxima | WU1 ≤ 150; WU2A ≤ 320; WU2B ≤ 380; WU2C ≤ 360; WU3A ≤ 360; **WU3B-A…F each ≤ 380**; WU4 ≤ 320; **WU5 ≤ 380**; WU6 ≤ 360. Every slice strictly under 380. |
 | 400-line risk | Low per slice. Stop rule: any measured slice approaching / exceeding 400 pauses for a delivery decision. |
 | Chained PRs | No — user does not use PRs. |
-| Split | WU1 → WU2A → WU2B → WU2C → WU3A → WU3B; WU4 → WU5 → WU6. |
+| Split | WU1 → WU2A → WU2B → WU2C → WU3A → WU3B-A → WU3B-B → WU3B-C → WU3B-D → WU3B-E → WU3B-F; WU4 → WU5 → WU6. |
 | Delivery | `ask-on-risk` (stop rule only). |
 | Chain | N/A (sequential local reviewable commits). |
 
@@ -23,11 +23,11 @@ Chain strategy: N/A (sequential local reviewable commits)
 ## Dependency Graph
 
 ```text
-WU1 -> WU2A -> WU2B -> WU2C -> WU3A -> WU3B
+WU1 -> WU2A -> WU2B -> WU2C -> WU3A -> WU3B-A -> WU3B-B -> WU3B-C -> WU3B-D -> WU3B-E -> WU3B-F
 WU4 -> WU5 -> WU6
 ```
 
-WU1 locks typed subject names. WU2A ships DTOs, whitelisted-body GET/PATCH API, and the centralized tenant-scoped query key. WU2B ships pure catalog-settings mappers — table-driven during apply to fit ≤ 380 without dropping normative coverage. WU2C ships read / mutation composables with surgical invalidation and no optimistic publication update. WU3A creates the routed read-only view and registers route + sidebar. WU3B layers the editable form, publish-confirmation modal, mutation lifecycle, and `useCatalogPriceListCandidatesQuery`. WU5 introduces `OnlineStockOverrideFields.vue`; WU6 reuses it strictly after WU5.
+WU1 locks typed subject names. WU2A ships DTOs, whitelisted-body GET/PATCH API, and the centralized tenant-scoped query key. WU2B ships pure catalog-settings mappers — table-driven during apply to fit ≤ 380 without dropping normative coverage. WU2C ships read / mutation composables with surgical invalidation and no optimistic publication update. WU3A creates the routed read-only view and registers route + sidebar. WU3B ships as the sequential split A–F below: the candidate composable + stock field, the contexts field, the form lifecycle composable, the editable form composition, the editable view + notice, and the rising-edge confirmation + save routing. WU5 introduces `OnlineStockOverrideFields.vue`; WU6 reuses it strictly after WU5.
 
 ## Work Units
 
@@ -38,7 +38,12 @@ WU1 locks typed subject names. WU2A ships DTOs, whitelisted-body GET/PATCH API, 
 | WU2B | Pure catalog-settings mappers (table-driven) | ≤380 | N/A — pure mapper; runtime ships with WU3A. | Remove the mapper file + its test. |
 | WU2C | Settings query + mutation composables | ≤360 | N/A — transport composables; runtime ships with WU3B. | Remove the two composable files + their tests. |
 | WU3A | Routed read-only view + route + sidebar entry | ≤360 | Dev tenant with `read:TenantCatalogSettings`: skeleton → accepted read-only; revoked ⇒ `/403`. | `git revert` view, read view, route, sidebar, tests. WU2 chain stays inert. |
-| WU3B | Editable form + confirmation + mutation + candidate composable | ≤380 | Dev tenant with both perms: `false → true` save opens `ConfirmModal`; Accept rehydrates from `priceContexts`; descending edge saves without modal; missing `read:GlobalPriceList` disables only the contexts field. | `git revert` editable components, candidate composable, mutation wiring, confirmation, tests. WU3A remains routed read-only. |
+| WU3B-A | Candidate enumeration composable + stock presentation field | ≤380 | N/A — runtime ships with WU3B-E/F. | `git revert` the 4 A files; no view consumer yet. |
+| WU3B-B | Tenant price-contexts field | ≤380 | N/A — runtime ships with WU3B-E/F. | `git revert` the field + its test; no consumer yet. |
+| WU3B-C | Settings form lifecycle composable | ≤380 | N/A — runtime ships with WU3B-E/F. | `git revert` the composable + its test. |
+| WU3B-D | Editable settings form composition | ≤380 | N/A — runtime ships with WU3B-E/F. | `git revert` the form + its test; WU3B-E/F not landed. |
+| WU3B-E | Editable view composition + read-only notice | ≤380 | Dev tenant with read+update ⇒ editable composition; update missing ⇒ read-only notice; missing `read:GlobalPriceList` gates only context editing. | `git revert` view/read-view MODs + specs to the WU3A state; A–D components stay inert. WU3A remains routed read-only. |
+| WU3B-F | Rising-edge confirmation + surgical save routing | ≤380 | Full WU3B scenario: `false → true` save opens `ConfirmModal`; Accept rehydrates from `priceContexts`; descending edge saves without modal; missing `read:GlobalPriceList` disables only the contexts field. | `git revert` restores the WU3B-E view/spec; A–D remain. |
 | WU4 | Product / variant typed flat-field round-trip (no view changes) | ≤320 | N/A — pure mapping; runtime ships with WU5 / WU6. | `git revert` new product / variant flat-field types, mapping, form schema additions. `includeInOnlineCatalog` preserved. |
 | WU5 | Advanced "Catálogo online" section in `ProductDetailView` + `OnlineStockOverrideFields.vue` | ≤380 | Open `ProductDetailView`: toggle hide-price + save; PATCH body lacks `supportsAllCatalogPriceLists`; only `productQueryKeys.detail` invalidated. | `git revert` advanced section, `ProductDetailView` change, `OnlineStockOverrideFields`, tests. WU6 cannot run until WU5 lands. |
 | WU6 | Persisted-variant catalog publication + stock override (reuses `OnlineStockOverrideFields.vue` from WU5) | ≤360 | Open `VariantDetailModal` on persisted variant: toggle publication mode → save → PATCH body only contains the changed flat key; variants key is the only invalidation. | `git revert` modal changes and tests. Create / inline variants untouched. |
@@ -194,34 +199,150 @@ unknown warning codes dropped silently.
 
 ---
 
-## WU3B — Editable Form, Confirmation, Mutation, Candidate Enumeration
+## WU3B — Editable Form, Confirmation, Mutation, Candidate Enumeration (split A–F per maintainer decision `split_wu3b`)
 
-**Outcome**: WU3A's read-only surface gains the editable form, publish-confirmation modal, mutation, and candidate composable. Read-only behavior stays intact when only `read:TenantCatalogSettings` is held. **Dependency**: WU3A. **Max**: ≤380. **Runtime / focused cmd**: dev tenant with both perms: `false → true` save opens `ConfirmModal`; Accept rehydrates from `priceContexts`; descending edge saves without modal; missing `read:GlobalPriceList` disables only the contexts field. `pnpm test:unit --run src/features/system/catalog-settings/composables/__tests__/useCatalogSettingsForm.spec.ts src/features/system/catalog-settings/composables/__tests__/useCatalogPriceListCandidatesQuery.spec.ts src/features/system/catalog-settings/components/__tests__/CatalogSettingsForm.spec.ts src/features/system/catalog-settings/components/__tests__/CatalogPriceContextsField.spec.ts src/features/system/catalog-settings/components/__tests__/CatalogStockPresentationField.spec.ts src/features/system/catalog-settings/components/__tests__/CatalogSettingsReadView.spec.ts src/features/system/catalog-settings/views/__tests__/TenantCatalogSettingsView.spec.ts`.
+The original single WU3B attempt produced a verified-green 1505-line complete candidate (focused 7 files / 64 tests, `pnpm build` exit 0) that exceeded its explicit 380-line bound; it settled truthfully `failed` (native finish candidate identity `sha256:26f3e0d3dcfe4b9ac0aa4e89e3f96991879e6019a538326fb079fa197d2b9c33`, evidence revision `sha256:73a890245586ad7b202b3d056b89950753508e4011dfbac2744d5eededcf4de6`). The user rejected `size:exception` and authorized the six-slice split below. The full candidate is preserved byte-exact at `/tmp/wu3b-candidate-input-20260915-113735` (16 files, manifest `45c08c6f4c8e6afac044d8910f803b39fe791473f0c7ee30b796799999222260`, tracked patch `98f2d224d81ee5540ef3a98d33b8c1413ee2e53f7201bf39146855713811e479`) and each slice re-lands preserved content under strict TDD — no new authoring from scratch, no deletion of tests/comments.
 
-**Files (all NEW unless noted)**: `composables/useCatalogSettingsForm.ts` (owns `draft` / `pristine` / `accepted`; actions `acceptResponse`, `requestSave`, `confirmPublish`, `cancelPublish`; hydrates from `priceContexts` only at controlled boundaries; suppresses refetch overwrite while dirty or pending; rebuilds draft from accepted PATCH; tenant-id change clears snapshots); `composables/useCatalogPriceListCandidatesQuery.ts` (reuses `productApi.getGlobalPriceLists()` and `productQueryKeys.globalPriceLists()`; fires **only** when both `update:TenantCatalogSettings` and `read:GlobalPriceList` are granted) plus their co-located `*.spec.ts`; `components/CatalogSettingsForm.vue`, `CatalogPriceContextsField.vue`, `CatalogStockPresentationField.vue` (publish toggle / stock field / contexts field / validation summary / save footer; `canEditContexts = canUpdate && canReadGlobalPriceLists`; least-privilege explanation; preserves missing candidate IDs) plus their co-located `*.spec.ts`; `components/__tests__/CatalogSettingsReadView.spec.ts` (NEW); **MOD** `components/CatalogSettingsReadView.vue` (add the `"No tienes permisos para guardar cambios"` notice when `canUpdate === false`; no other behavior change); **MOD** `views/TenantCatalogSettingsView.vue` (read-only when `canUpdate === false`; otherwise compose with the form; success toast; error toast via `userMessageForError`; wire `ConfirmModal` for rising edge; Cancel ⇒ no PATCH, dirty draft preserved); **MOD** `views/__tests__/TenantCatalogSettingsView.spec.ts`.
+**Shared WU3B constraints (apply to every subunit)**: max ≤ 380 complete changed lines including OpenSpec bookkeeping; stop rule `ask-on-risk`; never touch `src/features/catalog/**`, router, navigation, product/variant surfaces, or any broader invalidation key; settings PATCH invalidates only `catalogSettingsQueryKeys.detail(tenantId)`; no optimistic publication write; Spanish copy per the locked set; every slice gates on its focused Vitest command plus `pnpm build`; rollback = the slice's file list only, leaving later slices inert and WU3A routed read-only.
 
-**TDD**: RED — form / fields / candidate tests fail: rising-edge detection, atomic triple, default-missing blocks publish, candidate composable fires when permissions missing. GREEN — implement `useCatalogSettingsForm`, fields, candidate composable, `ConfirmModal` only on rising edge. TRIANGULATE — `Mostrar 0`; non-custom `null` quantity; Cancel keeps dirty draft editable; descending edge sends only `{catalogPublished: false}`; tenant-id change clears snapshots; missing `read:GlobalPriceList` keeps publication / stock available. REFACTOR — `ConfirmModal` opens once per rising-edge attempt; no `setQueryData` before response.
+### WU3B-A — Candidate Enumeration + Stock Presentation Field
 
-**Forbidden**: any router / navigation / product / variant edit; any request against `src/features/catalog/**`; any other confirmation strategy than the proposal-locked rising-edge two-button modal.
+**Outcome**: permission-gated candidate composable and the tenant stock-default field, no view coupling. **Dependency**: WU2C (≤360, done). **Max**: ≤380 (projected ≈258 incl. bookkeeping). **Runtime**: N/A — runtime ships with WU3B-E/F. **Focused cmd**: `pnpm test:unit --run src/features/system/catalog-settings/composables/__tests__/useCatalogPriceListCandidatesQuery.spec.ts src/features/system/catalog-settings/components/__tests__/CatalogStockPresentationField.spec.ts`.
+
+**Files (NEW)**: `composables/useCatalogPriceListCandidatesQuery.ts` (reuses `productApi.getGlobalPriceLists()` + `productQueryKeys.globalPriceLists()`; fires **only** when both `update:TenantCatalogSettings` and `read:GlobalPriceList` hold — real QueryClient/VueQueryPlugin harness in the spec, http/product-api mocked at module boundary) + co-located spec; `components/CatalogStockPresentationField.vue` (closed 4-mode select; non-custom ⇒ `customQuantity: null`; CUSTOM_QUANTITY preserves `0` literally, labeled "Mostrar 0") + co-located spec.
+
+**TDD**: RED — both specs fail on module resolution from the clean baseline before any source exists. GREEN — implement composable + field from the preserved candidate. TRIANGULATE — mode matrix incl. `Mostrar 0` pin; gate matrix (each missing grant ⇒ no request). REFACTOR — oxlint 0/0, `git diff --check` clean.
 
 - [ ] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
 
 **Commit**:
 ```text
-feat(catalog-settings): editable settings, publish confirm, mutation, candidates
+feat(catalog-settings): permission-gated candidates and stock default field
 
-Adds useCatalogSettingsForm (draft / pristine / accepted snapshots;
-rising-edge detection; dirty-while-pending suppression) and
-useCatalogPriceListCandidatesQuery (enabled only when both
-update:TenantCatalogSettings and read:GlobalPriceList are granted).
-Adds the editable settings form, the contexts field with
-least-privilege gating, and the stock default field. ConfirmModal opens
-only on the rising edge of catalogPublished (false -> true); descending
-edge and the atomic-clear triple save without confirmation. Cancel keeps
-the dirty draft editable. Settings PATCH invalidates only the
-catalog-settings key on success; no optimistic cache write. Stock '0'
-renders as 'Mostrar 0'; non-custom modes serialize null quantity;
-explicit null pair clears an existing stock default.
+Adds useCatalogPriceListCandidatesQuery reusing productApi.getGlobalPriceLists
+under the existing global price-lists key, enabled only with both
+update:TenantCatalogSettings and read:GlobalPriceList (real QueryClient
+harness proves no request without the grants). Adds the tenant stock
+presentation field: closed mode set, non-custom modes serialize null
+quantity, CUSTOM_QUANTITY preserves 0 as 'Mostrar 0'.
+```
+
+---
+
+### WU3B-B — Tenant Price-Contexts Field
+
+**Outcome**: accepted-membership contexts editor; candidates add-only; least-privilege disabled mode. **Dependency**: WU3B-A. **Max**: ≤380 (projected ≈230). **Runtime**: N/A. **Focused cmd**: `pnpm test:unit --run src/features/system/catalog-settings/components/__tests__/CatalogPriceContextsField.spec.ts`.
+
+**Files (NEW)**: `components/CatalogPriceContextsField.vue` + spec — rows follow the draft allowlist in order with the default badge; names resolve from accepted `priceContexts`, then candidates, else raw id (missing ids preserved); `remove`/`setDefault`/`add` emissions; add options exclude current members; disabled mode shows `Se requiere permiso de lectura de listas de precios globales…` while keeping rows visible.
+
+**TDD**: RED — module-resolution + membership failures from baseline. GREEN — implement from the preserved candidate. TRIANGULATE — only the non-default row renders a set-default action; preserved `pl_ghost`-style id renders by raw id; disabled add options absent. REFACTOR — oxlint 0/0.
+
+- [ ] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
+
+**Commit**:
+```text
+feat(catalog-settings): tenant price-contexts editing field
+
+Renders accepted public contexts in draft order with the default badge,
+offers only non-member candidates as additions, and never redefines
+membership from candidate data. Without global-list read the editing
+controls disable with the locked Spanish explanation while accepted rows
+stay visible and missing draft ids render by raw id.
+```
+
+---
+
+### WU3B-C — Settings Form Lifecycle Composable
+
+**Outcome**: `useCatalogSettingsForm` owns draft/pristine/accepted with the REQ-6 lifecycle and REQ-7/9/10 save routing. **Dependency**: WU2B mappers. **Max**: ≤380 (projected ≈363). **Runtime**: N/A. **Focused cmd**: `pnpm test:unit --run src/features/system/catalog-settings/composables/__tests__/useCatalogSettingsForm.spec.ts`.
+
+**Files (NEW)**: `composables/useCatalogSettingsForm.ts` + spec — hydration derives from `priceContexts` only at controlled boundaries; refetch overwrite suppressed while dirty or mutation-pending; `acceptPatch` rebuilds from the PATCH response; tenant-id change clears all snapshots; `requestSave()` gates invalid/pristine/pending and routes rising edge → `confirm` (opens `confirmationOpen`), else `save`; `cancelPublish()` keeps the dirty draft; atomic-clear triple via the WU2B mapper.
+
+**TDD**: RED — lifecycle pins fail from baseline. GREEN — implement from the preserved candidate. TRIANGULATE — atomic-clear triple without confirmation; descending edge `{catalogPublished:false}` only; dirty refetch suppression; newer-refetch acceptance only without local edits; tenant-clear. REFACTOR — oxlint 0/0.
+
+- [ ] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
+
+**Commit**:
+```text
+feat(catalog-settings): settings form lifecycle composable
+
+Adds useCatalogSettingsForm owning draft / pristine / accepted snapshots:
+priceContexts-derived hydration at controlled boundaries, dirty/pending
+refetch suppression, PATCH-response acceptance (never the submitted
+body), tenant-change clearing, and requestSave gating that routes the
+publish rising edge to confirmation while everything else saves directly.
+Cancel keeps the dirty draft editable.
+```
+
+---
+
+### WU3B-D — Editable Settings Form Composition
+
+**Outcome**: `CatalogSettingsForm.vue` composes publication intent, contexts field, stock field, validation summary, and gated Save; emits granular intents (no prop mutation). **Dependency**: WU3B-A, WU3B-B, WU3B-C. **Max**: ≤380 (projected ≈211). **Runtime**: N/A. **Focused cmd**: `pnpm test:unit --run src/features/system/catalog-settings/components/__tests__/CatalogSettingsForm.spec.ts`.
+
+**Files (NEW)**: `components/CatalogSettingsForm.vue` + spec — Save disabled unless `canSave && !saving`; validation summary; forwards `canEditContexts`; publication/stock remain available when context editing is gated (REQ-6A).
+
+**TDD**: RED — composition pins fail from baseline. GREEN — implement from the preserved candidate. TRIANGULATE — REQ-6A availability pin; disabled-while-pending Save. REFACTOR — oxlint 0/0.
+
+- [ ] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
+
+**Commit**:
+```text
+feat(catalog-settings): editable settings form composition
+
+Adds CatalogSettingsForm composing the publication intent switch, the
+contexts field with least-privilege gating, the stock default field, the
+validation summary, and a Save footer gated by canSave and mutation
+pending. Draft intents emit as granular events; the owning view applies
+them, keeping the component free of prop mutation.
+```
+
+---
+
+### WU3B-E — Editable View Composition and Read-Only Notice
+
+**Outcome**: the routed view composes the form when `update:TenantCatalogSettings` holds and keeps WU3A's read-only surface (with the new notice) otherwise; context gating wired. **Dependency**: WU3B-A…D. **Max**: ≤380 (projected ≈252). **Runtime**: dev tenant with read+update ⇒ editable composition; update missing ⇒ read-only notice; missing `read:GlobalPriceList` ⇒ only context editing gated. **Focused cmd**: `pnpm test:unit --run src/features/system/catalog-settings/views/__tests__/TenantCatalogSettingsView.spec.ts src/features/system/catalog-settings/components/__tests__/CatalogSettingsReadView.spec.ts`.
+
+**Files (MOD)**: `components/CatalogSettingsReadView.vue` (+ `canUpdate` prop with the `No tienes permisos para guardar cambios` notice; no other change) + spec (notice cases); `views/TenantCatalogSettingsView.vue` to the E-state (form/candidates/mutation composition, `canEditContexts`, read-only branch, direct-save routing; **no** ConfirmModal and no toasts yet) + view spec E-state (editable-gating describe + updated WU3A read-only pin).
+
+**TDD**: RED — E-spec additions fail against the HEAD view. GREEN — E-state view transplanted from the preserved candidate. TRIANGULATE — gating props assertions. REFACTOR — oxlint 0/0.
+
+- [ ] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
+
+**Commit**:
+```text
+feat(catalog-settings): editable settings view composition and notice
+
+Composes the editable form, candidates, and the PATCH mutation into the
+routed view when update:TenantCatalogSettings is held, and keeps the
+read-only surface with the locked save-permission notice otherwise.
+Context editing is gated by read:GlobalPriceList while publication and
+stock remain independently available. Direct-save routing only; the
+rising-edge confirmation and toasts land with WU3B-F.
+```
+
+---
+
+### WU3B-F — Rising-Edge Confirmation and Surgical Save Routing
+
+**Outcome**: ConfirmModal opens ONLY on the publish rising edge; Confirm PATCHes once and accepts the response; Cancel keeps the dirty draft; descending edge and the atomic-clear triple save without modal; success/error toasts. **Dependency**: WU3B-E. **Max**: ≤380 (projected ≈214). **Runtime**: full WU3B scenario — `false → true` save opens `ConfirmModal` (`Publicar catálogo online` / `El catálogo será visible para clientes públicos. ¿Continuar?`); Accept rehydrates from `priceContexts`; descending edge saves without modal; missing `read:GlobalPriceList` disables only the contexts field. **Focused cmd**: `pnpm test:unit --run src/features/system/catalog-settings/views/__tests__/TenantCatalogSettingsView.spec.ts`.
+
+**Files (MOD)**: `views/TenantCatalogSettingsView.vue` to the recorded final content byte-for-byte (ConfirmModal block, `onSave` confirm/save routing, `submit()` with `beginMutation`/`acceptPatch`/`endMutation`, success toast `Configuración de catálogo guardada`, error toast via `mapCatalogSettingsError`); `views/__tests__/TenantCatalogSettingsView.spec.ts` restored to the recorded full content (rising-edge describe, 5 tests).
+
+**TDD**: RED — the 5 restored rising-edge tests fail against the E-state view. GREEN — transplant the F-state content from the verified snapshot. TRIANGULATE — cancel/no-PATCH, descending/no-modal, failure keeps dirty draft + mapped error toast. REFACTOR — confirm opens once per rising-edge attempt; no `setQueryData` before response.
+
+- [ ] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
+
+**Commit**:
+```text
+feat(catalog-settings): rising-edge publish confirmation and save routing
+
+Opens the ConfirmModal only on the catalogPublished rising edge; Confirm
+sends one whitelisted PATCH, accepts the response into the form, and
+shows 'Configuracion de catalogo guardada'; Cancel keeps the dirty draft
+editable with no PATCH; the descending edge and the atomic-clear triple
+save without confirmation; failures surface the mapped Spanish error
+toast and keep the draft. No optimistic publication write anywhere.
 ```
 
 ---
