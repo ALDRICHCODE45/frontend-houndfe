@@ -151,7 +151,7 @@ default; unknown warning codes map to null.
 
 **Forbidden**: any reference to `router/**`, `navigation/**`, or `views/**`; the candidate composable (WU3B owns it); any edit to `src/features/catalog/**`; any new external dependency; any broader invalidation key (`productQueryKeys.globalPriceLists()`, public-catalog keys, POS price-list keys).
 
-- [ ] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
+- [x] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
 
 **Commit**:
 ```text
