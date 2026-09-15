@@ -7,6 +7,13 @@
 - Structured status consumed: `gentle-ai.sdd-status` v2, `applyState: ready`, `actionContext.mode: repo-local`; authorized workspace is the repository root.
 - Scope guard: only WU1 authorization files and its three focused test files were changed. WU2+ surfaces, routes, navigation, catalog feature files, and unrelated untracked files were not touched.
 
+## Superseded WU2 attempt
+
+- The original `wu2-catalog-settings-transport` implementation produced 1128 source/test lines, exceeding the 400-line review budget.
+- Its native settle covered only 128 tracked lines because the new catalog-settings files were excluded as untracked; it is not valid completion evidence for the full implementation.
+- The user rejected a size exception and approved replacement by `WU2A -> WU2B -> WU2C`. Those units remain unchecked and require independent bounded evidence and review.
+- The existing worktree files are retained only as implementation input for the split; this record does not claim WU2 completion.
+
 ## Completed task
 
 - [x] WU1 authorization subject registration and regression coverage. Persisted checkbox updated in `tasks.md`.
