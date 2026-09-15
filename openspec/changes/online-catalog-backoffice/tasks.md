@@ -284,7 +284,7 @@ Cancel keeps the dirty draft editable.
 
 **TDD**: RED — composition pins fail from baseline. GREEN — implement from the preserved candidate. TRIANGULATE — REQ-6A availability pin; disabled-while-pending Save. REFACTOR — oxlint 0/0.
 
-- [ ] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
+- [x] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
 
 **Commit**:
 ```text
