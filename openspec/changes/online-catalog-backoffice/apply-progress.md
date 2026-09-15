@@ -64,3 +64,41 @@ All later implementation tasks remain unchecked, including the exact WU2 line:
 - No design deviation.
 - Prettier check reported pre-existing style differences in large legacy test files; no broad formatter rewrite was applied. The targeted additions are syntactically valid and build/test clean.
 - No commit, merge, push, dependency, backend, route, navigation, view, query, or public-catalog changes performed.
+
+# Apply Progress — WU2A Settings Contract (Types + API + Query Key)
+## Status
+- Change: `online-catalog-backoffice`; WU: `wu2a-settings-contract-api-key`; `gentle-ai.sdd-status` v2, `applyState: ready`, `actionContext.mode: repo-local`; authorized workspace = repo root.
+- Scope: NEW types / API / API test under `src/features/system/catalog-settings/`; MOD `query-keys.ts` (+8: `catalogSettingsQueryKeys` export + 2-line comment) and `query-keys.test.ts` (+34: import + 4-case describe block). WU2B mappers, WU2C composables, view / route / navigation, candidate enumeration, `src/features/catalog/**`, and `openspec/changes/online-catalog-publishing/**` untouched.
+## Superseded WU2
+- `wu2-catalog-settings-transport` produced 1128 source/test lines; native settle covered only 128 tracked lines because new catalog-settings files were untracked — not valid completion evidence.
+- User rejected `size:exception`; approved `WU2A -> WU2B -> WU2C` split per `tasks.md`. Those units remain unchecked.
+## Completed task
+- [x] Implement and verify the WU2A behavior. Persisted checkbox updated in `tasks.md`.
+## TDD Cycle Evidence
+- RED: `catalogSettings.api.spec.ts` module-resolution fail; 4 `catalogSettingsQueryKeys` cases failed (registry export absent — `Cannot read properties of undefined (reading 'detail')`).
+- GREEN: Zod response / patch-body / stock-default / price-context schemas; `catalogSettingsApi.get` / `patch` over `@/core/shared/api/http`; `catalogSettingsQueryKeys.detail(tenantId)`. Focused: 2 files / 108 tests passed.
+- VERIFIER-FIX-1 RED: 4 cases failed — (a) forged `tenantId` via `as unknown as CatalogSettingsPatchBody` smuggle reached `http.patch`; (b) full forged response-only bag (`effectivePublication` / `priceContexts` / `warnings` / `updatedAt`) reached `http.patch`; (c) `get()` returned unknown response fields verbatim; (d) `get()` returned invalid payloads (e.g. unknown stock mode) without throwing.
+- VERIFIER-FIX-1 GREEN: Added `FORBIDDEN_PATCH_KEYS` denylist + `stripForgedPatchKeys` helper at `patch` boundary; called `catalogSettingsResponseDtoSchema.parse(data)` at both `get` and `patch` boundaries (REQ-5 / REQ-7 / REQ-18 pin). 2 files / 112 tests passed.
+- VERIFIER-FIX-2 RED: Forged `arbitraryUnknownField` (plus `anotherUnknownKey`, `yetAnotherForged`) reached `http.patch` — denylist only knows the five KNOWN response-only keys. Captured: 1 new case failed (assertion `expect(keys).not.toContain('arbitraryUnknownField')`).
+- VERIFIER-FIX-2 GREEN: Replaced denylist with TRUE runtime whitelist — `catalogSettingsPatchBodySchema.parse(body)` at `patch` boundary (Zod default object behavior strips unknown fields). Body reaching `http.patch` contains ONLY the 4 documented whitelisted keys (`catalogPublished` / `publicPriceListIds` / `catalogDefaultPriceListId` / `stockPresentationDefault`). Response parsing at both `get` and `patch` boundaries preserved. 2 files / 113 tests passed.
+- TRIANGULATE: Whitelist-body verbatim (4 keys, exact order); single-key partial (`stockPresentationDefault` only, no implicit keys injected); forged `tenantId` stripped; forged full response-only bag stripped; forged ARBITRARY unknown keys stripped by true whitelist; Zod response strips unknown fields; Zod response rejects invalid stock mode. 2 files / 113 tests passed.
+- REFACTOR: Type module pure (no Vue / Nuxt UI imports); API reuses typed client + Zod schemas; single `catalogSettingsPatchBodySchema.parse(body)` call is the source of truth (no denylist set / strip helper). Co-located spec under `api/__tests__/`. The `deliveryRouteQueryKeys` describe block in `query-keys.test.ts` was restored to its prior structure so the diff contains only catalog-settings query-key additions (no unrelated churn, no test deletion).
+## Verification
+- Focused Vitest: PASS — `pnpm test:unit --run src/features/system/catalog-settings/api/__tests__/catalogSettings.api.spec.ts src/core/shared/constants/__tests__/query-keys.test.ts` — 2 files / 113 tests passed.
+- Build: PASS — `pnpm build` (`vue-tsc --build` + `vite build`).
+- Runtime: N/A — transport-boundary slice; runtime UI ships with WU3A.
+- Token: `sha256:34e418f80d804316bb68a6293e19798ced914d50a625436afcb9c3e7dc73f627` (continuation of `wu2a-runtime-whitelist-fix`; re-acquire returned `proceed`, token retained).
+## Files changed
+- NEW (3 intended untracked): `src/features/system/catalog-settings/interfaces/catalog-settings.types.ts` (83) + `api/catalogSettings.api.ts` (52) + `api/__tests__/catalogSettings.api.spec.ts` (221) = 356 lines.
+- MOD: `src/core/shared/constants/query-keys.ts` (+8) + `src/core/shared/constants/__tests__/query-keys.test.ts` (+34) + `openspec/changes/online-catalog-backoffice/tasks.md` (WU2A checkbox swap) + `apply-progress.md` (this section).
+- Accounting: 356 NEW + 42 query-key + 38 progress + 2 task-checkbox = **≤438** (user-authorized one-time `size:exception` after fixes; slice is ABOVE the 399-line bound; no comments / blank lines / docs / tests deleted, compressed, or restyled).
+## Rollback / preserved state
+- Rollback: `git restore` the 3 NEW files + `query-keys.ts` + `query-keys.test.ts`; revert `tasks.md` + `apply-progress.md` bookkeeping. No consumer exists yet, so no other module is affected.
+- Stash `stash@{0}` (oversized WU2 input) and historical untracked files (`.gentle-ai-instance`, `verify-report.md`, stale literal-`{__tests__}` directories) preserved verbatim (no pop / drop / clean).
+## Remaining tasks
+WU2B (mappers), WU2C (composables), WU3A (routed read-only view + route + sidebar), WU3B (editable form + confirmation + mutation + candidates), WU4–WU6 (product / variant advanced fields and modal) remain unchecked per `tasks.md`.
+## Deviations and warnings
+- No design deviation. PATCH-body whitelist pins at THREE levels: (1) TYPE `CatalogSettingsPatchBody` (only 4 whitelisted keys); (2) runtime `catalogSettingsPatchBodySchema.parse(body)` at `patch` API boundary (TRUE runtime whitelist — Zod default strips arbitrary forged keys the API has never seen, catches `as unknown as ...` smuggle); (3) backend `forbidNonWhitelisted` DTO. GET / PATCH responses parse via `catalogSettingsResponseDtoSchema.parse(...)` (REQ-5 / REQ-7 pin).
+- Verifier fix #1: 4 new tests (response field stripping, invalid payload rejection, forged `tenantId` stripping, forged full response-only-key bag stripping); `deliveryRouteQueryKeys` describe block restored to prior structure.
+- Verifier fix #2: 1 new test (forged ARBITRARY unknown PATCH keys stripped by true whitelist). Previous denylist REPLACED — Zod parse is the single source of truth; `FORBIDDEN_PATCH_KEYS` + `stripForgedPatchKeys` REMOVED (NOT preserved as belt-and-suspenders because a second denylist would be misleading documentation). `deliveryRouteQueryKeys` describe block untouched by fix #2 (no churn). No comments / blank lines / docs / tests deleted, compressed, or restyled.
+- No commit / merge / push / dependency / backend / route / nav / view / query / mapper / composable / candidate enumeration / confirmation / public-catalog mutation. Stash `stash@{0}` and historical untracked preserved verbatim.

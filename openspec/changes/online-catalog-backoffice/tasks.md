@@ -97,7 +97,7 @@ grant.
 
 **Forbidden**: any reference to `router/**`, `navigation/**`, or `views/**`; the candidate composable (WU2C / WU3B own it); any edit to `src/features/catalog/**`; any new external dependency; mapper / compose logic (WU2B / WU2C own those).
 
-**Build verification**: [ ] Implement and verify the behavior. <!-- sdd-owner: implementation -->
+**Build verification**: [x] Implement and verify the behavior. <!-- sdd-owner: implementation -->
 
 **Commit**:
 ```text

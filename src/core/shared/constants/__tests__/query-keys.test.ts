@@ -5,6 +5,7 @@ import {
   adminTenantQueryKeys,
   adminTenantMembershipQueryKeys,
   notificationConfigQueryKeys,
+  catalogSettingsQueryKeys,
   quotationQueryKeys,
   adminPaymentDetailQueryKeys,
 } from '../query-keys'
@@ -745,6 +746,39 @@ describe('deliveryRouteQueryKeys (sdd delivery-routes S1a, REQ-AUTH-DR-005)', ()
       const prefix = deliveryRouteQueryKeys.listPrefix('tenant-1')
       expect(listEmpty.slice(0, 3)).toEqual(prefix)
       expect(listActive.slice(0, 3)).toEqual(prefix)
+    })
+  })
+})
+
+// ── sdd online-catalog-backoffice WU2A: catalogSettingsQueryKeys ────
+//
+// Single tenant-scoped detail key. The mutation invalidates ONLY this key
+// (REQ-7, REQ-18); no broad POS price-list or public-catalog invalidation.
+
+describe('catalogSettingsQueryKeys (sdd online-catalog-backoffice WU2A)', () => {
+  describe('detail', () => {
+    it('returns the exact shape ["catalog-settings", tenantId]', () => {
+      expect(catalogSettingsQueryKeys.detail('tenant-abc')).toEqual([
+        'catalog-settings',
+        'tenant-abc',
+      ])
+    })
+
+    it('produces different keys for different tenants (cache isolation)', () => {
+      const key1 = catalogSettingsQueryKeys.detail('tenant-1')
+      const key2 = catalogSettingsQueryKeys.detail('tenant-2')
+      expect(key1).not.toEqual(key2)
+    })
+
+    it('returns the same tuple on repeated calls with identical args', () => {
+      expect(catalogSettingsQueryKeys.detail('tenant-1')).toEqual(
+        catalogSettingsQueryKeys.detail('tenant-1'),
+      )
+    })
+
+    it('isolates from productQueryKeys.detail (different first segment)', () => {
+      const csKey = catalogSettingsQueryKeys.detail('tenant-1')
+      expect(csKey[0]).toBe('catalog-settings')
     })
   })
 })

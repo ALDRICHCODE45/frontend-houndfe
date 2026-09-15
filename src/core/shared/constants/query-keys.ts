@@ -138,6 +138,14 @@ export const notificationConfigQueryKeys = {
   config: (tenantId: string) => ['notification-config', tenantId] as const,
 }
 
+// sdd online-catalog-backoffice WU2A — tenant-scoped key for
+// GET / PATCH /tenants/:tenantId/catalog-settings. The single 'detail' slot is
+// the ONLY invalidation target after a successful settings PATCH (REQ-7,
+// REQ-18). No broad invalidation of POS price lists or any public-catalog key.
+export const catalogSettingsQueryKeys = {
+  detail: (tenantId: string) => ['catalog-settings', tenantId] as const,
+}
+
 export const adminTenantQueryKeys = {
   list: (includeInactive: boolean) => ['admin', 'tenants', { includeInactive }] as const,
   detail: (tenantId: string) => ['admin', 'tenants', 'detail', tenantId] as const,
