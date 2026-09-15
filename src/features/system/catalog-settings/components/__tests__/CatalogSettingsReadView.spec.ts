@@ -170,3 +170,19 @@ describe('CatalogSettingsReadView — warnings + timestamp (REQ-11)', () => {
     expect(wrapper.find('[data-testid="updated-at"]').text()).toContain('2026')
   })
 })
+
+describe('CatalogSettingsReadView — update-permission notice (REQ-12, WU3B)', () => {
+  it('shows no save-permission notice when update is granted', () => {
+    const wrapper = mountWithUApp(CatalogSettingsReadView, {
+      props: { settings: makeResponse(), canUpdate: true },
+    })
+    expect(wrapper.text()).not.toContain('No tienes permisos para guardar cambios')
+  })
+
+  it('shows the locked Spanish notice when update:TenantCatalogSettings is missing', () => {
+    const wrapper = mountWithUApp(CatalogSettingsReadView, {
+      props: { settings: makeResponse(), canUpdate: false },
+    })
+    expect(wrapper.text()).toContain('No tienes permisos para guardar cambios')
+  })
+})

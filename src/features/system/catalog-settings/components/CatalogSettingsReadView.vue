@@ -5,8 +5,9 @@
  *
  * Pure presentational: receives the response DTO and renders publication /
  * effective badges, contexts + default, stock default, warnings, timestamp,
- * and the empty-contexts state. No mutation UI lives here — WU3B layers the
- * editable form and confirmation on top in the routed view.
+ * and the empty-contexts state. WU3B adds the `canUpdate` notice: when the
+ * user lacks update:TenantCatalogSettings the locked Spanish save-permission
+ * notice renders here and the routed view keeps the surface read-only.
  *
  * Warnings are mapped through the WU2B closed-set mapper: known codes render
  * the locked Spanish copy; unknown codes are dropped silently. The stock
@@ -21,9 +22,13 @@ import {
   serializeStockPresentationDefault,
 } from '../utils/catalogSettingsMappers'
 
-const props = defineProps<{
-  settings: CatalogSettingsResponseDto
-}>()
+const props = withDefaults(
+  defineProps<{
+    settings: CatalogSettingsResponseDto
+    canUpdate?: boolean
+  }>(),
+  { canUpdate: true },
+)
 
 const STOCK_MODE_LABELS: Record<string, string> = {
   SYSTEM_STATUS: 'Según estado del sistema',
@@ -82,6 +87,15 @@ const stockQuantityLabel = computed(() =>
     </div>
     <p v-if="!settings.effectivePublication" class="text-sm text-muted">
       La publicación efectiva también depende del estado del tenant.
+    </p>
+
+    <!-- WU3B / REQ-12: read-only notice when update:TenantCatalogSettings is missing. -->
+    <p
+      v-if="!props.canUpdate"
+      class="text-sm text-warning"
+      data-testid="readonly-notice"
+    >
+      No tienes permisos para guardar cambios
     </p>
 
     <!-- Public contexts + default (REQ-5/REQ-6: server order, isCatalogDefault). -->

@@ -307,7 +307,7 @@ them, keeping the component free of prop mutation.
 
 **TDD**: RED — E-spec additions fail against the HEAD view. GREEN — E-state view transplanted from the preserved candidate. TRIANGULATE — gating props assertions. REFACTOR — oxlint 0/0.
 
-- [ ] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
+- [x] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
 
 **Commit**:
 ```text
