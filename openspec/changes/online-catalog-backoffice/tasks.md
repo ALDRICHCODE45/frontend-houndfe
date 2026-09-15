@@ -260,7 +260,7 @@ stay visible and missing draft ids render by raw id.
 
 **TDD**: RED — lifecycle pins fail from baseline. GREEN — implement from the preserved candidate. TRIANGULATE — atomic-clear triple without confirmation; descending edge `{catalogPublished:false}` only; dirty refetch suppression; newer-refetch acceptance only without local edits; tenant-clear. REFACTOR — oxlint 0/0.
 
-- [ ] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
+- [x] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
 
 **Commit**:
 ```text
