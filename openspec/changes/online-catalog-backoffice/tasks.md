@@ -237,7 +237,7 @@ quantity, CUSTOM_QUANTITY preserves 0 as 'Mostrar 0'.
 
 **TDD**: RED — module-resolution + membership failures from baseline. GREEN — implement from the preserved candidate. TRIANGULATE — only the non-default row renders a set-default action; preserved `pl_ghost`-style id renders by raw id; disabled add options absent. REFACTOR — oxlint 0/0.
 
-- [ ] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
+- [x] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
 
 **Commit**:
 ```text

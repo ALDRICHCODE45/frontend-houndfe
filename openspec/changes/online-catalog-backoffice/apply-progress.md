@@ -215,3 +215,15 @@ WU2B (mappers), WU2C (composables), WU3A (routed read-only view + route + sideba
 - Verification: focused Vitest PASS — `pnpm test:unit --run src/features/system/catalog-settings/composables/__tests__/useCatalogPriceListCandidatesQuery.spec.ts src/features/system/catalog-settings/components/__tests__/CatalogStockPresentationField.spec.ts` — 2 files / 7 tests passed. Build: PASS — `pnpm build` (vue-tsc + vite) exit 0. Runtime: N/A — runtime ships with WU3B-E/F.
 - Accounting: 246 source/test + 1 checkbox swap + this section (~12) ≈ 259 complete candidate lines ≤ 380.
 - Preserved: `stash@{0}` and both historical untracked files verbatim; B–F sources NOT restored; no commit/merge/push/dependency/backend change.
+
+# Apply Progress — WU3B-B Tenant Price-Contexts Field
+
+- Change: `online-catalog-backoffice`; WU: `wu3b-b-price-contexts-field`; attempt token `sha256:ebcb60322e6b59addac6361fffa350ad249eff786a5e1c72fc5ed7d8b4e65a0f` (ordinal 19, continued after the cancelled launch produced zero mutation; branch `feat/online-catalog-backoffice` at `ebb0452`).
+- Scope: NEW 2 files only — `components/CatalogPriceContextsField.vue` (130) + `components/__tests__/CatalogPriceContextsField.spec.ts` (88) = 218 lines, each byte-identical (`cmp`) to the verified backup `/tmp/wu3b-candidate-input-20260915-113735` (patch `98f2d224…e479`, manifest `45c08c6f…2260` re-verified 16/16); plus tasks.md checkbox and this section. C–F paths absent; no out-of-surface edits.
+- RED: spec transplanted first from the verified snapshot with sources absent; focused command failed — `Failed to resolve import "../CatalogPriceContextsField.vue"` (1 file failed, no tests ran).
+- GREEN: transplanted the source byte-identically; focused command passed — 1 file / 6 tests.
+- TRIANGULATE (pinned in the transplanted spec): rows in draft order with `Predeterminada` badge; only the NON-default row renders a set-default action; add options exclude current members (`Lista C` only); `pl_ghost`-style missing id preserved and rendered by raw id; disabled mode keeps both rows visible, disables remove, and hides add options entirely.
+- REFACTOR: oxlint on both files 0 warnings / 0 errors; `git diff --check` clean; no behavior drift (source stayed byte-identical).
+- Verification: focused Vitest PASS — `pnpm test:unit --run src/features/system/catalog-settings/components/__tests__/CatalogPriceContextsField.spec.ts` — 1 file / 6 tests passed. Build: PASS — `pnpm build` (vue-tsc + vite) exit 0 (pre-existing chunk-size warning only). Runtime: N/A — runtime ships with WU3B-E/F.
+- Accounting: 218 source/test + 1 checkbox swap + this section (~14) ≈ 233 complete candidate lines ≤ 380.
+- Preserved: `stash@{0}` and both historical untracked files verbatim; no commit/merge/push/dependency/backend change.
