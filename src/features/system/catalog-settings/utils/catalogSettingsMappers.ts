@@ -93,22 +93,23 @@ export function toPatchCatalogSettingsBody(
   draft: CatalogSettingsDraft,
   pristine: CatalogSettingsDraft,
 ): CatalogSettingsPatchBody {
-  if (
+  const clearsLastPriceContext =
     pristine.catalogPublished === true &&
     draft.publicPriceListIds.length === 0 &&
     pristine.publicPriceListIds.length > 0
-  ) {
-    return { catalogPublished: false, publicPriceListIds: [], catalogDefaultPriceListId: null }
-  }
-  const body: CatalogSettingsPatchBody = {}
-  if (draft.catalogPublished !== pristine.catalogPublished) {
-    body.catalogPublished = draft.catalogPublished
-  }
-  if (!sameArr(draft.publicPriceListIds, pristine.publicPriceListIds)) {
-    body.publicPriceListIds = [...draft.publicPriceListIds]
-  }
-  if (draft.catalogDefaultPriceListId !== pristine.catalogDefaultPriceListId) {
-    body.catalogDefaultPriceListId = draft.catalogDefaultPriceListId
+  const body: CatalogSettingsPatchBody = clearsLastPriceContext
+    ? { catalogPublished: false, publicPriceListIds: [], catalogDefaultPriceListId: null }
+    : {}
+  if (!clearsLastPriceContext) {
+    if (draft.catalogPublished !== pristine.catalogPublished) {
+      body.catalogPublished = draft.catalogPublished
+    }
+    if (!sameArr(draft.publicPriceListIds, pristine.publicPriceListIds)) {
+      body.publicPriceListIds = [...draft.publicPriceListIds]
+    }
+    if (draft.catalogDefaultPriceListId !== pristine.catalogDefaultPriceListId) {
+      body.catalogDefaultPriceListId = draft.catalogDefaultPriceListId
+    }
   }
   if (!sameStock(draft.stockPresentationDefault, pristine.stockPresentationDefault)) {
     body.stockPresentationDefault = serializeStockPresentationDefault(

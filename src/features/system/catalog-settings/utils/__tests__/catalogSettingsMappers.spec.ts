@@ -37,7 +37,9 @@ describe('parseCatalogSettingsResponse', () => {
     ['keeps DEFAULT_CONTEXT_HAS_NO_VALID_PRICES',
       R({ warnings: ['DEFAULT_CONTEXT_HAS_NO_VALID_PRICES'] }),
       (o: CatalogSettingsResponseDto) => o.warnings[0] === 'DEFAULT_CONTEXT_HAS_NO_VALID_PRICES'],
-  ])('%s', (_n, input, check) => { check(parseCatalogSettingsResponse(input)) })
+  ])('%s', (_n, input, check) => {
+    expect(check(parseCatalogSettingsResponse(input))).toBe(true)
+  })
   it('throws on a malformed payload', () => {
     expect(() => parseCatalogSettingsResponse({ catalogPublished: true })).toThrow()
   })
@@ -65,7 +67,9 @@ describe('fromCatalogSettingsResponse', () => {
         d.catalogPublished === false &&
         d.stockPresentationDefault.mode === 'CUSTOM_QUANTITY' &&
         d.stockPresentationDefault.customQuantity === 0],
-  ])('%s', (_n, input, check) => { check(fromCatalogSettingsResponse(input)) })
+  ])('%s', (_n, input, check) => {
+    expect(check(fromCatalogSettingsResponse(input))).toBe(true)
+  })
 })
 
 describe('toPatchCatalogSettingsBody', () => {
@@ -80,6 +84,12 @@ describe('toPatchCatalogSettingsBody', () => {
       D({ catalogPublished: true, publicPriceListIds: ['pl_a'], catalogDefaultPriceListId: 'pl_a' }),
       D({ catalogPublished: true, publicPriceListIds: [], catalogDefaultPriceListId: null }),
       { catalogPublished: false, publicPriceListIds: [], catalogDefaultPriceListId: null }, []],
+    ['atomic clear preserves a simultaneous stock presentation change',
+      D({ catalogPublished: true, publicPriceListIds: ['pl_a'], catalogDefaultPriceListId: 'pl_a' }),
+      D({ publicPriceListIds: [], catalogDefaultPriceListId: null,
+        stockPresentationDefault: { mode: 'CUSTOM_QUANTITY', customQuantity: 0 } }),
+      { catalogPublished: false, publicPriceListIds: [], catalogDefaultPriceListId: null,
+        stockPresentationDefault: { mode: 'CUSTOM_QUANTITY', customQuantity: 0 } }, []],
     ['ordinary unpublish (allowlist intact) → only {catalogPublished:false}',
       D({ catalogPublished: true, publicPriceListIds: ['pl_a', 'pl_b'], catalogDefaultPriceListId: 'pl_a' }),
       D({ catalogPublished: false, publicPriceListIds: ['pl_a', 'pl_b'], catalogDefaultPriceListId: 'pl_a' }),

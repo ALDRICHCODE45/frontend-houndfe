@@ -119,3 +119,9 @@ WU2B (mappers), WU2C (composables), WU3A (routed read-only view + route + sideba
 - `tasks.md`: 10 implementation checkboxes total; WU1/WU2A/WU2B `[x]`, WU2C/WU3A/WU3B/WU4/WU5/WU6/Cross-Slice `[ ]`.
 - REMEDIATION: replaced non-null assertion at `mapCatalogSettingsError` line 35 (`ERROR_COPY[input.code]!`) with explicit safe logic — capture into local `codeCopy`, truthy-check, then return. No behavior change; 39 tests still green; mapper grew 165→168 lines.
 - No commit / merge / push / dependency / backend / route / nav / view / query / composable / candidate enumeration / confirmation / public-catalog mutation.
+
+## WU2B.1 Review-Advisory Follow-up
+- RED: simultaneous last-context removal + stock change lost `stockPresentationDefault`; 1/40 failed.
+- GREEN: atomic clear now forces false/[]/null without returning before independent stock serialization; 40/40 passed.
+- RELIABILITY: response-table predicates are explicit assertions; WU2B checkbox state is unchanged.
+- Scope: mapper + mapper spec + this evidence only; no composable/view/route/navigation/storefront changes.
