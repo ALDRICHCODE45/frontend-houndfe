@@ -69,6 +69,10 @@ export const navigationGroups: NavGroup[] = [
     defaultOpen: true,
     children: [
       { id: 'sistema-notificaciones', label: 'Notificaciones', icon: 'i-lucide-bell', to: '/sistema/configuracion/notificaciones', permission: ['read', 'NotificationConfig'] },
+      // sdd online-catalog-backoffice WU3A (REQ-3): Sistema entry gated by
+      // read:TenantCatalogSettings; the route guard repeats the same check
+      // at /system/catalog-settings.
+      { id: 'sistema-catalog-settings', label: 'Catálogo online', icon: 'i-lucide-globe', to: '/system/catalog-settings', permission: ['read', 'TenantCatalogSettings'] },
     ],
   },
 ]

@@ -147,3 +147,50 @@ WU2B (mappers), WU2C (composables), WU3A (routed read-only view + route + sideba
 - REFACTOR: removed an unused binding flagged by oxlint; lint clean (0 warnings / 0 errors, oxlint + eslint); `pnpm build` (vue-tsc + vite) exit 0; `git diff --check` clean.
 - Accounting (corrected): final candidate 40 `useCatalogSettingsQuery.ts` + 48 `useUpdateCatalogSettingsMutation.ts` + 119 `useCatalogSettingsQuery.spec.ts` + 95 `useUpdateCatalogSettingsMutation.spec.ts` = **302 authored lines** (mock scaffolding replaced, no parallel coverage added; no placeholderData/initialData, no optimistic hooks); native settle recorded **passed, changed_lines 322** (finish candidate identity `sha256:a1094134ea61f4719192b58a8402acff70a888f5b486147544fdb37cdbfeadc9`, evidence revision `sha256:b886778b7a82b02fb662311484590529b756f261f4113814912954caf84554a0`) — inside the ≤360 objective bound and the 400 review budget.
 - Scope: only the four WU2C composable files + this progress + tasks.md; no route/nav/view/candidate/storefront/dependency/backend edits; no commit/merge/push; stash@{0} and historical untracked preserved verbatim.
+
+# Apply Progress — WU3A Routed Read-Only View, Route, Sidebar Entry
+
+- Change: `online-catalog-backoffice`; WU: `wu3a-routed-readonly-view`; `gentle-ai.sdd-status` v2, `applyState: ready`, `actionContext.mode: repo-local`; repo-local workspace.
+- Attempt: continued active attempt `sha256:bbc4050e7671ab79253298f7d0358f321b189c92197f89424a943f489e044ed2` (acquire returned `proceed`; settled exactly once as `passed` after the user-authorized size:exception below). Previous launch timed out before any model turn/tool call; no mutation had occurred.
+
+## Completed task
+
+- [x] WU3A build verification. Persisted checkbox updated in `tasks.md`.
+- NEW `views/TenantCatalogSettingsView.vue` — thin composition: `useSafeTenantId` + WU2C `useCatalogSettingsQuery`; loading skeletons / GET error with `Reintentar` (no synthetic defaults, no auto-toast) / accepted read-only surface delegated to the read view.
+- NEW `components/CatalogSettingsReadView.vue` — read-only accepted surface: publication + effective badges (rendered as-is, never recomputed), contexts in server order with `Predeterminada` badge, empty-contexts copy, stock default via WU2B serializer with `Mostrar 0`/`Mostrar n`, closed-set warnings via `mapCatalogSettingsWarning` (unknown codes dropped silently), `updatedAt` timestamp.
+- MOD `src/app/router/index.ts` (+16): lazy `TenantCatalogSettingsView` const + route `path:'/system/catalog-settings'`, `name:'system-catalog-settings'`, `layout:'dashboard'`, `meta.permission:['read','TenantCatalogSettings']`; NO `skipTenantCheck`, NO `requiresSuperAdmin`.
+- MOD `src/app/navigation/navigation.registry.ts` (+4): Sistema entry `sistema-catalog-settings` / `Catálogo online` / `i-lucide-globe` / `/system/catalog-settings` gated `['read','TenantCatalogSettings']`.
+
+## TDD Cycle Evidence
+
+| Stage | Evidence |
+|---|---|
+| RED | 4 focused spec files written first; exact focused command failed: 4 files, 6 tests failed (route absent → 403-flow resolve, nav entry absent, both SFC modules unresolvable). |
+| GREEN | Implemented read view + routed view + route + nav entry; focused command: 4 files / 24 tests passed. |
+| TRIANGULATE | Added cross-subject-grant route denial, filter keeps-only-accessible Sistema children, effective-helper hidden when effective=true, `Mostrar 2` positive quantity, `it.each` mode matrix (ABSTRACT_STATUS/HIDDEN). Focused: 4 files / 30 tests passed. |
+| REFACTOR | Restructured the lazy-resolve test to unconditional expects (oxlint `no-conditional-expect`); oxlint on all 8 WU3A files: 0 warnings / 0 errors. |
+
+## Verification
+
+- Focused Vitest (exact task command): PASS — `pnpm test:unit --run src/features/system/catalog-settings/views/__tests__/TenantCatalogSettingsView.spec.ts src/features/system/catalog-settings/components/__tests__/CatalogSettingsReadView.spec.ts src/app/router/__tests__/router.catalogBackoffice.spec.ts src/app/navigation/__tests__/navigation.catalogBackoffice.spec.ts` — 4 files / 30 tests passed.
+- Build: PASS — `pnpm build` (`vue-tsc --build` + `vite build`, exit 0; pre-existing chunk-size warning only).
+- Runtime scenario: view state coverage verified via focused mocks (loading skeleton → accepted read-only; revoked ⇒ `/403` proven by router guard test). No real dev-tenant browser run was performed (verify phase owns the REQ-20 responsive evidence).
+
+## Files changed
+
+- NEW: `src/features/system/catalog-settings/views/TenantCatalogSettingsView.vue` (58), `src/features/system/catalog-settings/components/CatalogSettingsReadView.vue` (141), `src/features/system/catalog-settings/views/__tests__/TenantCatalogSettingsView.spec.ts` (123), `src/features/system/catalog-settings/components/__tests__/CatalogSettingsReadView.spec.ts` (172), `src/app/router/__tests__/router.catalogBackoffice.spec.ts` (139), `src/app/navigation/__tests__/navigation.catalogBackoffice.spec.ts` (75) = 708 lines.
+- MOD: `src/app/router/index.ts` (+16), `src/app/navigation/navigation.registry.ts` (+4), `openspec/changes/online-catalog-backoffice/tasks.md` (WU3A checkbox), `apply-progress.md` (this section).
+
+## Accounting — user-authorized one-time size:exception (777 lines)
+
+- Complete candidate: **777 changed lines** = 708 NEW source+test + 20 route/navigation additions + 49 OpenSpec task/progress diff lines. The maintainer explicitly authorized a one-time exact-777-line WU3A `size:exception` after correcting my initial 728 figure, which had excluded the OpenSpec bookkeeping.
+- Verified physically: the six new files measure 708 via `wc -l`; `git diff --numstat` shows `router/index.ts` +16 and `navigation.registry.ts` +4, `tasks.md` +1/−1 (WU3A checkbox), and this progress section +47 — 708 + 20 + 49 = 777 exactly.
+- The implementation is verified green (30/30 focused + build exit 0) and cohesive (one route + nav + view + read view); the exception covers this complete candidate only and sets no precedent for later work units.
+- Attempt `sha256:bbc4050e7671ab79253298f7d0358f321b189c92197f89424a943f489e044ed2` settled exactly once as `passed` with the complete-candidate evidence revision (see token line above).
+
+## Scope guard / preserved state
+
+- Only WU3A files + tasks.md + apply-progress.md were changed. WU3B surfaces, editable form, ConfirmModal, PATCH wiring, candidate composable, `src/features/catalog/**`, `src/features/admin/tenants/**`, and `openspec/changes/online-catalog-publishing/**` untouched.
+- Stash `stash@{0}` and historical untracked files preserved verbatim (no pop/drop/clean). No commit/merge/push/dependency/backend change.
+- Out-of-scope deferred: `src/features/POS/sales/components/__tests__/SaleDetailTotalsCard.test.ts` was restored to HEAD by the user's explicit authorization; it carries zero diff in this candidate, and its pre-existing committed diagnostics are session-deferred outside WU3A.
+- No commit / merge / push / dependency / backend / WU3B mutation.

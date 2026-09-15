@@ -176,7 +176,7 @@ optimistic publication update; no setQueryData before response).
 
 **Forbidden**: editable form components; PATCH mutation wiring; `ConfirmModal`; any code path issuing `PATCH`; candidate enumeration (WU3B); any edit under `src/features/catalog/**` or `src/features/admin/tenants/**`.
 
-- [ ] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
+- [x] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
 
 **Commit**:
 ```text

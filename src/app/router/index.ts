@@ -68,6 +68,12 @@ const CatalogView = () => import('@/features/catalog/views/CatalogView.vue')
 // ─── Notification config (WU-11) ──────────────────────────────────────────
 const NotificationConfigView = () =>
   import('@/features/system/notifications/views/NotificationConfigView.vue')
+    // ─── Online catalog backoffice (WU3A, REQ-3/REQ-4) ───────────────────────
+    // Tenant-scoped Sistema route guarded by read:TenantCatalogSettings;
+    // no skipTenantCheck / requiresSuperAdmin. Read-only at WU3A; WU3B
+    // layers the editable form + confirmation modal on the same route.
+    const TenantCatalogSettingsView = () =>
+      import('@/features/system/catalog-settings/views/TenantCatalogSettingsView.vue')
 const ForbiddenView = () => import('@/features/errors/views/ForbiddenView.vue')
 const NotFoundView = () => import('@/features/errors/views/NotFoundView.vue')
 
@@ -351,6 +357,16 @@ const router = createRouter({
       meta: {
         layout: 'dashboard',
         permission: ['read', 'NotificationConfig'] as RoutePermission,
+      },
+    },
+    // ─── Online catalog backoffice (WU3A, REQ-4) ────────────────────────────
+    {
+      path: '/system/catalog-settings',
+      name: 'system-catalog-settings',
+      component: TenantCatalogSettingsView,
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'TenantCatalogSettings'] as RoutePermission,
       },
     },
     // ─── Public catalog ─────────────────────────────────────────────────────────
