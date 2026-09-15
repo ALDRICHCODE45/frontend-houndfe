@@ -213,7 +213,7 @@ The original single WU3B attempt produced a verified-green 1505-line complete ca
 
 **TDD**: RED — both specs fail on module resolution from the clean baseline before any source exists. GREEN — implement composable + field from the preserved candidate. TRIANGULATE — mode matrix incl. `Mostrar 0` pin; gate matrix (each missing grant ⇒ no request). REFACTOR — oxlint 0/0, `git diff --check` clean.
 
-- [ ] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
+- [x] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
 
 **Commit**:
 ```text
