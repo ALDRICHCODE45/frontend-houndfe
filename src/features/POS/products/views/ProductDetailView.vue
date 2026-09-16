@@ -6,6 +6,9 @@ import { useRoute, useRouter } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { z } from 'zod'
 import { productApi } from '../api/product.api'
+import ProductCatalogSettingsSection from '../components/ProductCatalogSettingsSection.vue'
+import { useCatalogSettingsQuery } from '@/features/system/catalog-settings/composables/useCatalogSettingsQuery'
+import type { OnlineStockPresentationMode } from '@/features/system/catalog-settings/interfaces/catalog-settings.types'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
@@ -28,7 +31,6 @@ import {
   inventoryFieldsVisible,
   isService,
   locationLabelFor,
-  serviceDetailPopulated,
   unitOptionsFor,
   IVA_OPTIONS,
   IEPS_OPTIONS,
@@ -263,6 +265,13 @@ const pendingVariantTierRows = ref<Array<{ key: number; minQuantity: number | st
 const canCreateProduct = computed(() => authStore.userCan('create', 'Product'))
 const canUpdateProduct = computed(() => authStore.userCan('update', 'Product'))
 const canDeleteProduct = computed(() => authStore.userCan('delete', 'Product'))
+// WU5 (REQ-14/REQ-15): the advanced section and the PATCH need update:Product
+// only; the per-product support selector + settings GET additionally require
+// read:TenantCatalogSettings (frontend data-access gate, never auto-granted).
+const canReadSettings = computed(() => authStore.userCan('read', 'TenantCatalogSettings'))
+const { settings: catalogSettings, isLoading: settingsLoading, isError: settingsError } = useCatalogSettingsQuery(tenantId, { enabled: canReadSettings })
+const tenantPublicContexts = computed(() => catalogSettings.value?.priceContexts ?? [])
+const lastSaveCatalogOnly = ref(false)
 const canSubmitMainForm = computed(() =>
   isCreateMode.value ? canCreateProduct.value : canUpdateProduct.value,
 )
@@ -324,10 +333,23 @@ const { data: lots, isFetching: isFetchingLots } = useQuery({
   queryFn: () => productApi.getLots(productIdOrEmpty.value),
   enabled: computed(() => !isCreateMode.value),
   refetchOnWindowFocus: false,
-})
+    })
 
 const variantsList = computed(() => variants.value ?? [])
 const lotsList = computed(() => lots.value ?? [])
+
+// WU4/WU5: pristine advanced snapshot from the authoritative server response.
+const pristineAdvanced = computed(() => {
+  const pristine = product.value
+  if (!pristine) return null
+  return {
+    hidePriceInOnlineCatalog: pristine.hidePriceInOnlineCatalog ?? false,
+    supportedCatalogPriceListIds: pristine.supportedCatalogPriceListIds ?? [],
+    supportsAllCatalogPriceLists: pristine.supportsAllCatalogPriceLists ?? false,
+    onlineStockPresentation: pristine.onlineStockPresentation ?? null,
+    onlineStockPresentationCustomQty: pristine.onlineStockPresentationCustomQty ?? null,
+  }
+})
 const categoriesList = computed(() => categories.value ?? [])
 const brandsList = computed(() => brands.value ?? [])
 const globalPriceListOptions = computed(() => globalPriceLists.value ?? [])
@@ -616,8 +638,8 @@ watch(
           color: 'warning',
         })
       } else if (type === 'SERVICE' && previousType === 'PRODUCT') {
-        const hadStock = !!(product as any)?.value?.useStock
-        const hadLots = !!(product as any)?.value?.useLotsAndExpirations
+        const hadStock = !!product.value?.useStock
+        const hadLots = !!product.value?.useLotsAndExpirations
         if (hadStock || hadLots) {
           // SERVICE drops stock/lots on the wire; warn via openConfirm so the
           // user can cancel the type change before save.
@@ -905,12 +927,17 @@ const updateMutation = useMutation({
 
     if (!productId.value) return
 
-    await Promise.all([
-      queryClient.invalidateQueries({ queryKey: productQueryKeys.paginated(tenantId.value) }),
-      queryClient.invalidateQueries({ queryKey: productQueryKeys.detail(tenantId.value, productId.value) }),
-      queryClient.invalidateQueries({ queryKey: productQueryKeys.priceLists(tenantId.value, productId.value) }),
-      queryClient.invalidateQueries({ queryKey: productQueryKeys.variants(tenantId.value, productId.value) }),
-    ])
+    // WU5 REQ-18: catalog-only product PATCH invalidates ONLY detail; mixed
+    // changes retain the pre-existing invalidation set — catalog adds none.
+    const invalidateKeys = lastSaveCatalogOnly.value
+      ? [productQueryKeys.detail(tenantId.value, productId.value)]
+      : [
+          productQueryKeys.paginated(tenantId.value),
+          productQueryKeys.detail(tenantId.value, productId.value),
+          productQueryKeys.priceLists(tenantId.value, productId.value),
+          productQueryKeys.variants(tenantId.value, productId.value),
+        ]
+    await Promise.all(invalidateKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })))
   },
   onError: (error) => {
     const message = mapDomainError(error as AxiosError<DomainApiError>)
@@ -1483,9 +1510,60 @@ function handleSubmitMainForm(event: FormSubmitEvent<MainFormValues>) {
     return
   }
 
-  const payload = toUpdatePayload(event.data)
+  const payload = toUpdatePayload(event.data, pristineAdvanced.value ?? undefined)
   delete payload.priceCents
+  // WU5 REQ-18: drives the surgical invalidation branch in updateMutation.
+  lastSaveCatalogOnly.value = isCatalogOnlySave(event.data)
   updateMutation.mutate(payload)
+}
+
+// WU5 (REQ-15): granular supported-contexts intent from the advanced section.
+function toggleSupportedContext(priceListId: string) {
+  const ids = formState.supportedCatalogPriceListIds ?? []
+  formState.supportedCatalogPriceListIds = ids.includes(priceListId)
+    ? ids.filter((id) => id !== priceListId)
+    : [...ids, priceListId]
+}
+
+function applyStockChange(value: {
+  mode: OnlineStockPresentationMode | null
+  customQuantity: number | null
+}) {
+  formState.onlineStockPresentation = value.mode
+  formState.onlineStockPresentationCustomQty = value.customQuantity
+}
+
+// WU5 REQ-18: catalog-only PATCH invalidates ONLY productQueryKeys.detail;
+// mixed changes keep the pre-existing invalidation set — catalog adds none.
+const ADVANCED_CATALOG_KEYS = [
+  'hidePriceInOnlineCatalog',
+  'supportedCatalogPriceListIds',
+  'onlineStockPresentation',
+  'onlineStockPresentationCustomQty',
+] as const
+
+function isCatalogOnlySave(values: MainFormValues): boolean {
+  const pristineProduct = product.value
+  const pristineAdvancedSnapshot = pristineAdvanced.value
+  if (!pristineProduct || !pristineAdvancedSnapshot) return false
+  const pristineForm = productToFormInput(pristineProduct)
+  const pristineRecord = pristineForm as unknown as Record<string, unknown>
+  const ids = values.supportedCatalogPriceListIds ?? []
+  const pristineIds = pristineAdvancedSnapshot.supportedCatalogPriceListIds
+  const advancedChanged =
+    (values.hidePriceInOnlineCatalog ?? false) !== pristineAdvancedSnapshot.hidePriceInOnlineCatalog ||
+    (values.onlineStockPresentation ?? null) !== pristineAdvancedSnapshot.onlineStockPresentation ||
+    (values.onlineStockPresentationCustomQty ?? null) !== pristineAdvancedSnapshot.onlineStockPresentationCustomQty ||
+    ids.length !== pristineIds.length ||
+    ids.some((id, index) => id !== pristineIds[index])
+  if (!advancedChanged) return false
+  return !Object.entries(values).some(([key, value]) => {
+    if ((ADVANCED_CATALOG_KEYS as readonly string[]).includes(key)) return false
+    if (key === 'serviceDetail') {
+      return JSON.stringify(value) !== JSON.stringify(pristineForm.serviceDetail)
+    }
+    return value !== pristineRecord[key]
+  })
 }
 
 function handleCreateCategory(event: FormSubmitEvent<CategoryFormState>) {
@@ -2084,7 +2162,26 @@ function handleEditLotPlaceholder() {
             </div>
           </UCard>
 
-          <UCard v-if="showVariantsSection">
+              <!-- WU5 REQ-14: advanced catalog section, rendered only with
+                   update:Product (never with settings-read substituting it). -->
+              <ProductCatalogSettingsSection
+                v-if="!isCreateMode && canUpdateProduct"
+                data-testid="product-catalog-settings"
+                :hide-price-in-online-catalog="formState.hidePriceInOnlineCatalog ?? false"
+                :supported-catalog-price-list-ids="formState.supportedCatalogPriceListIds ?? []"
+                :supports-all-catalog-price-lists="product?.supportsAllCatalogPriceLists ?? false"
+                :online-stock-presentation="formState.onlineStockPresentation ?? null"
+                :online-stock-presentation-custom-qty="formState.onlineStockPresentationCustomQty ?? null"
+                :contexts="tenantPublicContexts"
+                :can-read-settings="canReadSettings"
+                :settings-loading="settingsLoading"
+                :settings-error="settingsError"
+                @toggle-hide-price="formState.hidePriceInOnlineCatalog = $event"
+                @stock-change="applyStockChange"
+                @toggle-context="toggleSupportedContext"
+              />
+
+              <UCard v-if="showVariantsSection">
             <template #header>
               <div class="flex items-center justify-between gap-3">
                 <h2 class="text-lg font-semibold">Variantes</h2>
