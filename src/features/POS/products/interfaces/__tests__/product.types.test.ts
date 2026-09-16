@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import type { ProductImage } from '../product.types'
+import type { ProductImage, ProductPatchAdvancedCatalogPayload, VariantPatchCatalogPayload } from '../product.types'
 import { ALLOWED_IMAGE_MIME_TYPES, MAX_IMAGE_SIZE_BYTES } from '../product.types'
 
 describe('product.types - Image Upload Types', () => {
@@ -56,5 +56,14 @@ describe('product.types - Image Upload Types', () => {
       expect(MAX_IMAGE_SIZE_BYTES).toBe(10 * 1024 * 1024)
       expect(MAX_IMAGE_SIZE_BYTES).toBe(10485760)
     })
+  })
+})
+
+describe('product.types - advanced catalog flat fields (WU4)', () => {
+  it('patch subsets never carry the response-only supportsAllCatalogPriceLists key', () => {
+    const productPatch: ProductPatchAdvancedCatalogPayload = { hidePriceInOnlineCatalog: true }
+    const variantPatch: VariantPatchCatalogPayload = { catalogPublishMode: 'OFF' }
+    expect(Object.keys(productPatch)).not.toContain('supportsAllCatalogPriceLists')
+    expect(Object.keys(variantPatch)).not.toContain('supportsAllCatalogPriceLists')
   })
 })

@@ -3,12 +3,14 @@ import { z } from 'zod'
 import type {
   CreateProductPayload,
   Product,
+  ProductAdvancedCatalogForm,
   ProductDetail,
   ProductFormInput,
   ProductType,
   ServiceDetail,
   UpdateProductPayload,
 } from '../interfaces/product.types'
+import { toProductPatchAdvancedCatalogPayload } from '../api/product.api'
 
 const priceRegex = /^\d+(?:[.,]\d{1,2})?$/
 
@@ -131,11 +133,16 @@ export const productFormSchema = z.object({
   useStock: z.boolean(),
   useLotsAndExpirations: z.boolean(),
   hasVariants: z.boolean(),
-  sellInPos: z.boolean(),
-  includeInOnlineCatalog: z.boolean(),
-  requiresPrescription: z.boolean(),
-  chargeProductTaxes: z.boolean(),
-  ivaRate: z.string().trim(),
+      sellInPos: z.boolean(),
+      includeInOnlineCatalog: z.boolean(),
+      // WU4 advanced catalog: explicit `null` allowlist invalid (Spanish copy); `[]` valid (all contexts).
+      hidePriceInOnlineCatalog: z.boolean().optional(),
+      supportedCatalogPriceListIds: z.array(z.string(), { invalid_type_error: 'Las listas de precios del catálogo no pueden ser nulas' }).optional(),
+      onlineStockPresentation: z.enum(['SYSTEM_STATUS', 'ABSTRACT_STATUS', 'CUSTOM_QUANTITY', 'HIDDEN']).nullable().optional(),
+      onlineStockPresentationCustomQty: z.number({ invalid_type_error: 'Ingresa un número válido' }).int('Debe ser un número entero').min(0, 'No puede ser negativo').nullable().optional(),
+      requiresPrescription: z.boolean(),
+      chargeProductTaxes: z.boolean(),
+      ivaRate: z.string().trim(),
   iepsRate: z.string().trim(),
   purchaseCostMode: z.enum(['NET', 'GROSS']),
   purchaseCost: z
@@ -171,6 +178,10 @@ function getInitialState(): ProductFormInput {
     hasVariants: false,
     sellInPos: true,
     includeInOnlineCatalog: true,
+    hidePriceInOnlineCatalog: false,
+    supportedCatalogPriceListIds: [],
+    onlineStockPresentation: null,
+    onlineStockPresentationCustomQty: null,
     requiresPrescription: false,
     chargeProductTaxes: true,
     ivaRate: 'IVA_16',
@@ -217,6 +228,10 @@ export function productToFormInput(product: Product | ProductDetail): ProductFor
     hasVariants: product.hasVariants,
     sellInPos: product.sellInPos,
     includeInOnlineCatalog: product.includeInOnlineCatalog,
+    hidePriceInOnlineCatalog: product.hidePriceInOnlineCatalog ?? false,
+    supportedCatalogPriceListIds: product.supportedCatalogPriceListIds ?? [],
+    onlineStockPresentation: product.onlineStockPresentation ?? null,
+    onlineStockPresentationCustomQty: product.onlineStockPresentationCustomQty ?? null,
     requiresPrescription: product.requiresPrescription ?? false,
     chargeProductTaxes: product.chargeProductTaxes,
     ivaRate: isDetail ? (product as ProductDetail).ivaRate : 'IVA_16',
@@ -317,9 +332,31 @@ function buildServicePayload(values: ProductFormValues): CreateProductPayload {
   }
 }
 
-export function toUpdatePayload(values: ProductFormValues): UpdateProductPayload {
-  return toCreatePayload(values)
-}
+      export function toUpdatePayload(
+        values: ProductFormValues,
+        pristineAdvanced?: ProductAdvancedCatalogForm,
+      ): UpdateProductPayload {
+        // WU4 changed-only flat diff vs. the pristine advanced snapshot; without
+        // one (compact slideover) no advanced key is emitted and the hydrated
+        // snapshot survives untouched. supportsAllCatalogPriceLists is never sent.
+        const payload = toCreatePayload(values)
+
+        if (!pristineAdvanced) return payload
+
+        return {
+          ...payload,
+          ...toProductPatchAdvancedCatalogPayload(
+            {
+              hidePriceInOnlineCatalog: values.hidePriceInOnlineCatalog ?? false,
+              supportedCatalogPriceListIds: values.supportedCatalogPriceListIds ?? [],
+              supportsAllCatalogPriceLists: pristineAdvanced.supportsAllCatalogPriceLists,
+              onlineStockPresentation: values.onlineStockPresentation ?? null,
+              onlineStockPresentationCustomQty: values.onlineStockPresentationCustomQty ?? null,
+            },
+            pristineAdvanced,
+          ),
+        }
+      }
 
 export function useProductForm() {
   const state = reactive<ProductFormInput>(getInitialState())

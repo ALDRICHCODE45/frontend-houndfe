@@ -357,7 +357,7 @@ toast and keep the draft. No optimistic publication write anywhere.
 
 **Forbidden**: any view edit (`ProductDetailView.vue`, `ProductUpsertSlideover.vue`, `VariantDetailModal.vue`); any edit to `src/features/catalog/**`; candidate enumeration.
 
-- [ ] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
+- [x] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
 
 **Commit**:
 ```text

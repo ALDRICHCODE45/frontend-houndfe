@@ -161,3 +161,18 @@ describe('WU-A · productToFormInput maps serviceDetail', () => {
     expect(formInput.serviceDetail).toEqual({ capacity: null, notes: '' })
   })
 })
+describe('WU4 · productToFormInput hydrates the advanced catalog snapshot', () => {
+  const baseProduct = { id: 'p1', name: 'Collar', priceCents: 0, quantity: 0, includeInOnlineCatalog: true } as unknown as ProductDetail
+
+  it('hydrates the advanced snapshot (custom 0 literal); absent fields default', () => {
+    expect(productToFormInput({
+      ...baseProduct,
+      hidePriceInOnlineCatalog: true,
+      supportedCatalogPriceListIds: ['pl_a'],
+      supportsAllCatalogPriceLists: false,
+      onlineStockPresentation: 'CUSTOM_QUANTITY',
+      onlineStockPresentationCustomQty: 0,
+    })).toMatchObject({ hidePriceInOnlineCatalog: true, supportedCatalogPriceListIds: ['pl_a'], onlineStockPresentation: 'CUSTOM_QUANTITY', onlineStockPresentationCustomQty: 0 })
+    expect(productToFormInput(baseProduct)).toMatchObject({ hidePriceInOnlineCatalog: false, supportedCatalogPriceListIds: [], onlineStockPresentation: null, onlineStockPresentationCustomQty: null })
+  })
+})

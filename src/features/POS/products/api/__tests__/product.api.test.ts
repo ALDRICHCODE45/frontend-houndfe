@@ -1,11 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import type { OnlineStockPresentationMode } from '@/features/system/catalog-settings/interfaces/catalog-settings.types'
 import { productApi } from '../product.api'
 import { http } from '@/core/shared/api/http'
-import type {
-  ProductImage,
-  ProductBackendResponse,
-  ProductBackendListResponse,
-} from '../../interfaces/product.types'
+import type { ProductImage, ProductAdvancedCatalogForm, ProductBackendResponse, VariantCatalogForm } from '../../interfaces/product.types'
+import { toProductPatchAdvancedCatalogPayload, toVariantPatchCatalogPayload } from '../product.api'
 
 vi.mock('@/core/shared/api/http', () => ({
   http: {
@@ -231,5 +229,40 @@ describe('productApi.getPaginated', () => {
     expect(result.data.map((r) => r.name)).toEqual(['Apple', 'Banana'])
     expect(result.pagination.totalCount).toBe(3)
     expect(result.pagination.pageCount).toBe(2)
+  })
+})
+
+// ─── advanced catalog flat-field round-trip (WU4) ────────────────────────────
+
+const advancedRaw = {
+  hidePriceInOnlineCatalog: true, supportedCatalogPriceListIds: ['pl_a'] as string[],
+  supportsAllCatalogPriceLists: false, onlineStockPresentation: 'CUSTOM_QUANTITY' as OnlineStockPresentationMode,
+  onlineStockPresentationCustomQty: 0,
+}
+
+const pristineAdvanced: ProductAdvancedCatalogForm = { ...advancedRaw, hidePriceInOnlineCatalog: false, supportsAllCatalogPriceLists: true }
+const pristineVariantCatalog: VariantCatalogForm = { catalogPublishMode: 'INHERIT', onlineStockPresentation: null, onlineStockPresentationCustomQty: null }
+
+describe('productApi advanced catalog round-trip (WU4)', () => {
+  beforeEach(() => { vi.clearAllMocks() })
+
+  it('getById / getVariants map the advanced flat fields (custom 0 preserved literally)', async () => {
+    vi.mocked(http.get).mockResolvedValueOnce({ data: buildProductBackendRow(advancedRaw) })
+    vi.mocked(http.get).mockResolvedValueOnce({ data: [{ id: 'v1', name: 'Rojo', createdAt: '', updatedAt: '', catalogPublishMode: 'ON', onlineStockPresentation: 'HIDDEN', onlineStockPresentationCustomQty: null }] })
+    await expect(productApi.getById('p1')).resolves.toMatchObject(advancedRaw)
+    await expect(productApi.getVariants('p1')).resolves.toMatchObject([{ catalogPublishMode: 'ON', onlineStockPresentation: 'HIDDEN', onlineStockPresentationCustomQty: null }])
+  })
+
+  it('payloads emit changed flat keys only; clear emits both nulls; create path stays clean', async () => {
+    expect(Object.keys(toProductPatchAdvancedCatalogPayload({ ...pristineAdvanced, hidePriceInOnlineCatalog: true }, pristineAdvanced)).sort())
+      .toEqual(['hidePriceInOnlineCatalog'])
+    expect(toProductPatchAdvancedCatalogPayload(pristineAdvanced, pristineAdvanced)).toEqual({})
+    expect(toVariantPatchCatalogPayload({ ...pristineVariantCatalog, onlineStockPresentation: null, onlineStockPresentationCustomQty: null }, { ...pristineVariantCatalog, onlineStockPresentation: 'CUSTOM_QUANTITY', onlineStockPresentationCustomQty: 5 }))
+      .toEqual({ onlineStockPresentation: null, onlineStockPresentationCustomQty: null })
+    expect(toVariantPatchCatalogPayload({ ...pristineVariantCatalog, catalogPublishMode: 'ON' }, pristineVariantCatalog))
+      .toEqual({ catalogPublishMode: 'ON' })
+    vi.mocked(http.post).mockResolvedValue({ data: { id: 'v1', name: 'x', createdAt: '', updatedAt: '' } })
+    await productApi.createVariant('p1', { quantity: 3 })
+    expect(Object.keys(vi.mocked(http.post).mock.calls[0]?.[1] as Record<string, unknown>)).toEqual(['quantity'])
   })
 })

@@ -17,9 +17,11 @@ import type {
   ProductLot,
   ProductLotBackendResponse,
   Product,
+  ProductAdvancedCatalogForm,
   ProductBackendListResponse,
   ProductBackendResponse,
   ProductDetail,
+  ProductPatchAdvancedCatalogPayload,
   ProductType,
   ProductVariant,
   ProductVariantBackendResponse,
@@ -29,6 +31,8 @@ import type {
   UpdateProductPayload,
   UpdateVariantPayload,
   UpsertVariantPricePayload,
+  VariantCatalogForm,
+  VariantPatchCatalogPayload,
   VariantPrice,
 } from '../interfaces/product.types'
 
@@ -97,6 +101,7 @@ function mapProduct(item: ProductBackendResponse): Product {
     chargeProductTaxes: item.chargeProductTaxes ?? true,
     variantStockTotal: item.variantStockTotal ?? null,
     variantCount: item.variantCount ?? null,
+    ...fromProductRawAdvancedCatalog(item),
     status: mapStatus(item),
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
@@ -199,7 +204,7 @@ function applyLocalSort(rows: Product[], params: ServerTableParams): Product[] {
  * New code should call {@link applyLocalTextFilter} and {@link applyLocalSort}
  * separately so server-side search results are not double-filtered.
  */
-function applyLocalProductFilters(rows: Product[], params: ServerTableParams): Product[] {
+function _applyLocalProductFilters(rows: Product[], params: ServerTableParams): Product[] {
   const filtered = applyLocalTextFilter(rows, params.globalFilter)
   return applyLocalSort(filtered, params)
 }
@@ -221,9 +226,70 @@ function mapVariant(productId: string, item: ProductVariantBackendResponse): Pro
       item.purchaseNetCostDecimal ??
       (item.purchaseNetCostCents != null ? item.purchaseNetCostCents / 100 : null),
     variantPrices: item.variantPrices ?? [],
+    ...fromVariantRawCatalog(item),
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   }
+}
+
+// ── Product / variant advanced catalog mappers (WU4) ──────
+
+export function fromProductRawAdvancedCatalog(raw: ProductBackendResponse): ProductAdvancedCatalogForm {
+  return {
+    hidePriceInOnlineCatalog: raw.hidePriceInOnlineCatalog ?? false,
+    supportedCatalogPriceListIds: raw.supportedCatalogPriceListIds ?? [],
+    supportsAllCatalogPriceLists: raw.supportsAllCatalogPriceLists ?? false,
+    onlineStockPresentation: raw.onlineStockPresentation ?? null,
+    onlineStockPresentationCustomQty: raw.onlineStockPresentationCustomQty ?? null,
+  }
+}
+
+export function fromVariantRawCatalog(raw: ProductVariantBackendResponse): VariantCatalogForm {
+  return {
+    catalogPublishMode: raw.catalogPublishMode ?? 'INHERIT',
+    onlineStockPresentation: raw.onlineStockPresentation ?? null,
+    onlineStockPresentationCustomQty: raw.onlineStockPresentationCustomQty ?? null,
+  }
+}
+
+// The stock pair is one unit: clearing emits BOTH nulls; non-custom modes carry null; CUSTOM_QUANTITY keeps `0`.
+function stockOverrideDiff(
+  current: Pick<ProductAdvancedCatalogForm, 'onlineStockPresentation' | 'onlineStockPresentationCustomQty'>,
+  pristine: Pick<ProductAdvancedCatalogForm, 'onlineStockPresentation' | 'onlineStockPresentationCustomQty'>,
+): Pick<VariantPatchCatalogPayload, 'onlineStockPresentation' | 'onlineStockPresentationCustomQty'> {
+  const qty = current.onlineStockPresentation != null && current.onlineStockPresentation !== 'CUSTOM_QUANTITY' ? null : current.onlineStockPresentationCustomQty
+  if (current.onlineStockPresentation !== pristine.onlineStockPresentation) {
+    const diff: Pick<VariantPatchCatalogPayload, 'onlineStockPresentation' | 'onlineStockPresentationCustomQty'> = { onlineStockPresentation: current.onlineStockPresentation }
+    if (current.onlineStockPresentation === null || qty !== pristine.onlineStockPresentationCustomQty) diff.onlineStockPresentationCustomQty = qty
+    return diff
+  }
+  return qty === pristine.onlineStockPresentationCustomQty ? {} : { onlineStockPresentationCustomQty: qty }
+}
+
+export function toProductPatchAdvancedCatalogPayload(
+  current: ProductAdvancedCatalogForm,
+  pristine: ProductAdvancedCatalogForm,
+): ProductPatchAdvancedCatalogPayload {
+  const body: ProductPatchAdvancedCatalogPayload = { ...stockOverrideDiff(current, pristine) }
+  if (current.hidePriceInOnlineCatalog !== pristine.hidePriceInOnlineCatalog) {
+    body.hidePriceInOnlineCatalog = current.hidePriceInOnlineCatalog
+  }
+  const ids = current.supportedCatalogPriceListIds
+  if (ids.length !== pristine.supportedCatalogPriceListIds.length || ids.some((id, i) => id !== pristine.supportedCatalogPriceListIds[i])) {
+    body.supportedCatalogPriceListIds = ids
+  }
+  return body
+}
+
+export function toVariantPatchCatalogPayload(
+  current: VariantCatalogForm,
+  pristine: VariantCatalogForm,
+): VariantPatchCatalogPayload {
+  const body: VariantPatchCatalogPayload = { ...stockOverrideDiff(current, pristine) }
+  if (current.catalogPublishMode !== pristine.catalogPublishMode) {
+    body.catalogPublishMode = current.catalogPublishMode
+  }
+  return body
 }
 
 function mapLot(productId: string, item: ProductLotBackendResponse): ProductLot {
@@ -253,7 +319,7 @@ function mapArrayResponse<T>(response: T[] | { data: T[] }): T[] {
  * it by spreading the result into the request params. For now, the
  * composable intentionally does NOT spread `sort` into the request.
  */
-function resolveSort(params: ServerTableParams) {
+    export function _resolveSort(params: ServerTableParams) {
   const firstSort = params.sorting?.[0]
   if (!firstSort) return undefined
 
@@ -285,7 +351,7 @@ export const productApi = {
    *        the FULL filtered list), and we sort + paginate locally so the
    *        sort column in the UI works as users expect.
    *     2. When the backend does support server-side sort, re-enable it by
-   *        spreading `resolveSort(params)` into the request params and
+   *        spreading `_resolveSort(params)` into the request params and
    *        skipping the local sort step below.
    *
    *   search / q are still server-side because they ARE in the whitelist,
@@ -293,7 +359,7 @@ export const productApi = {
    *   set (the server already filtered).
    */
   async getPaginated(params: ProductTableParams): Promise<PaginatedResponse<Product>> {
-    // `resolveSort` is intentionally NOT spread into the request params — see
+    // `_resolveSort` is intentionally NOT spread into the request params — see
     // the architectural note above.
     const { data } = await http.get<ProductBackendListResponse | ProductBackendResponse[]>(
       '/products',
@@ -386,6 +452,8 @@ export const productApi = {
     const { data } = await http.post<ProductBackendResponse>('/products', payload)
     const mapped = mapProductDetail(data)
     // Preserve raw response for post-creation variant price updates
+    // SAFETY: the raw POST body is intentionally surfaced verbatim for
+    // post-creation variant price updates; no member access is performed.
     return Object.assign(mapped, { _raw: data as unknown as Record<string, unknown> })
   },
 

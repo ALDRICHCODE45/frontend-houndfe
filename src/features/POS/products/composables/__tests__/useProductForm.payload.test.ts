@@ -5,7 +5,12 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import { toCreatePayload, toUpdatePayload } from '../useProductForm'
+import {
+  productFormSchema,
+  toCreatePayload,
+  toUpdatePayload,
+} from '../useProductForm'
+import type { ProductAdvancedCatalogForm } from '../../interfaces/product.types'
 import type { ProductFormInput } from '../../interfaces/product.types'
 
 function makeFormValues(overrides: Partial<ProductFormInput> = {}): ProductFormInput {
@@ -34,6 +39,10 @@ function makeFormValues(overrides: Partial<ProductFormInput> = {}): ProductFormI
     iepsRate: 'NO_APLICA',
     purchaseCostMode: 'NET',
     purchaseCost: '50.00',
+    hidePriceInOnlineCatalog: false,
+    supportedCatalogPriceListIds: [],
+    onlineStockPresentation: null,
+    onlineStockPresentationCustomQty: null,
     serviceDetail: { capacity: null, notes: '' },
     ...overrides,
   }
@@ -108,5 +117,50 @@ describe('WU-C · toCreatePayload SERVICE branch', () => {
     const updatePayload = toUpdatePayload(values) as unknown as Record<string, unknown>
     const createPayload = toCreatePayload(values) as unknown as Record<string, unknown>
     expect(updatePayload).toEqual(createPayload)
+  })
+})
+describe('WU4 · toUpdatePayload advanced catalog diff', () => {
+  const pristine: ProductAdvancedCatalogForm = {
+    hidePriceInOnlineCatalog: false, supportedCatalogPriceListIds: [], supportsAllCatalogPriceLists: true,
+    onlineStockPresentation: null, onlineStockPresentationCustomQty: null,
+  }
+  const advancedKeysOf = (payload: unknown) => Object.keys(payload as Record<string, unknown>).filter((key) => /^(hidePriceInOnlineCatalog|supportedCatalogPriceListIds|onlineStockPresentation)/.test(key))
+
+  it('emits changed keys only, never supportsAll, independent of field order; no pristine snapshot emits none', () => {
+    // Reordered declaration: the emitted key set must stay identical and inside the whitelist.
+    const reordered = {
+      onlineStockPresentationCustomQty: 0, onlineStockPresentation: 'CUSTOM_QUANTITY',
+      supportsAllCatalogPriceLists: true, supportedCatalogPriceListIds: [], hidePriceInOnlineCatalog: true,
+    } satisfies ProductAdvancedCatalogForm
+    const payload = toUpdatePayload({ ...makeFormValues({ type: 'PRODUCT' }), ...reordered }, pristine)
+    expect(advancedKeysOf(payload).sort()).toEqual(['hidePriceInOnlineCatalog', 'onlineStockPresentation', 'onlineStockPresentationCustomQty'])
+    expect(payload).toMatchObject({ hidePriceInOnlineCatalog: true, onlineStockPresentationCustomQty: 0 })
+    expect(payload).not.toHaveProperty('supportsAllCatalogPriceLists')
+    expect(payload).not.toHaveProperty('supportedCatalogPriceListIds')
+    expect(advancedKeysOf(toUpdatePayload(makeFormValues({ type: 'PRODUCT', hidePriceInOnlineCatalog: true })))).toEqual([])
+  })
+
+  it('preserves custom 0, nulls non-custom quantity, and clears with both stock nulls', () => {
+    const customZero = toUpdatePayload(
+      makeFormValues({ type: 'PRODUCT', onlineStockPresentation: 'CUSTOM_QUANTITY', onlineStockPresentationCustomQty: 0 }), pristine)
+    expect(customZero.onlineStockPresentation).toBe('CUSTOM_QUANTITY')
+    expect(customZero.onlineStockPresentationCustomQty).toBe(0)
+    const cleared = toUpdatePayload(
+      makeFormValues({ type: 'PRODUCT', onlineStockPresentation: null, onlineStockPresentationCustomQty: null }),
+      { ...pristine, onlineStockPresentation: 'CUSTOM_QUANTITY', onlineStockPresentationCustomQty: 5 })
+    expect(cleared).toHaveProperty('onlineStockPresentation', null)
+    expect(cleared).toHaveProperty('onlineStockPresentationCustomQty', null)
+    const nonCustom = toUpdatePayload(
+      makeFormValues({ type: 'PRODUCT', onlineStockPresentation: 'HIDDEN', onlineStockPresentationCustomQty: null }), pristine)
+    expect(nonCustom).toMatchObject({ onlineStockPresentation: 'HIDDEN' })
+    expect(nonCustom).not.toHaveProperty('onlineStockPresentationCustomQty')
+  })
+
+  it('blocks a null allowlist with Spanish validation while [] stays valid', () => {
+    const rejected = productFormSchema.safeParse(
+      makeFormValues({ type: 'PRODUCT', supportedCatalogPriceListIds: null as unknown as string[] }))
+    expect(rejected.success).toBe(false)
+    expect(rejected.error?.issues[0]?.message).toBe('Las listas de precios del catálogo no pueden ser nulas')
+    expect(productFormSchema.safeParse(makeFormValues({ type: 'PRODUCT', supportedCatalogPriceListIds: [] })).success).toBe(true)
   })
 })

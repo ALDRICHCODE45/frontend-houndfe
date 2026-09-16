@@ -1,5 +1,8 @@
 export type ProductStatus = 'active' | 'inactive' | 'out_of_stock'
 
+// WU4: the advanced catalog vocabulary is owned by the WU2 catalog-settings module.
+import type { CatalogPublishMode, OnlineStockPresentationMode } from '@/features/system/catalog-settings/interfaces/catalog-settings.types'
+
 export type ProductType = 'PRODUCT' | 'SERVICE'
 
 export interface ServiceDetail {
@@ -43,6 +46,13 @@ export interface Product {
   useLotsAndExpirations: boolean
   sellInPos: boolean
   includeInOnlineCatalog: boolean
+  // WU4 advanced catalog flat fields — optional so view-side default-state
+  // literals and cached pre-WU4 rows stay valid; hydration/Zod backfill them.
+  hidePriceInOnlineCatalog?: boolean
+  supportedCatalogPriceListIds?: string[]
+  supportsAllCatalogPriceLists?: boolean
+  onlineStockPresentation?: OnlineStockPresentationMode | null
+  onlineStockPresentationCustomQty?: number | null
   requiresPrescription: boolean
   chargeProductTaxes: boolean
   variantStockTotal: number | null
@@ -104,6 +114,10 @@ export interface ProductVariant {
   purchaseNetCostCents: number | null
   purchaseNetCostDecimal: number | null
   variantPrices: VariantPrice[]
+  // WU4 persisted-variant catalog fields (PATCH-only; absent on new/inline).
+  catalogPublishMode?: CatalogPublishMode
+  onlineStockPresentation?: OnlineStockPresentationMode | null
+  onlineStockPresentationCustomQty?: number | null
   createdAt: string
   updatedAt: string
 }
@@ -161,6 +175,12 @@ export interface ProductBackendResponse {
   hasVariants?: boolean
   sellInPos?: boolean
   includeInOnlineCatalog?: boolean
+  // WU4 advanced catalog flat fields (raw response surface).
+  hidePriceInOnlineCatalog?: boolean
+  supportedCatalogPriceListIds?: string[] | null
+  supportsAllCatalogPriceLists?: boolean
+  onlineStockPresentation?: OnlineStockPresentationMode | null
+  onlineStockPresentationCustomQty?: number | null
   requiresPrescription?: boolean
   chargeProductTaxes?: boolean
   variantStockTotal?: number | null
@@ -203,6 +223,10 @@ export interface ProductVariantBackendResponse {
   purchaseNetCostCents?: number | null
   purchaseNetCostDecimal?: number | null
   variantPrices?: VariantPrice[]
+  // WU4 persisted-variant catalog fields (raw response surface).
+  catalogPublishMode?: CatalogPublishMode
+  onlineStockPresentation?: OnlineStockPresentationMode | null
+  onlineStockPresentationCustomQty?: number | null
   createdAt: string
   updatedAt: string
 }
@@ -377,7 +401,25 @@ export interface CreateLotPayload {
 
 export type UpdateLotPayload = Partial<CreateLotPayload>
 
-export type UpdateProductPayload = Partial<CreateProductPayload>
+export type UpdateProductPayload = Partial<CreateProductPayload> & ProductPatchAdvancedCatalogPayload
+
+// ── Online catalog advanced flat fields (WU4) ────────────────
+// supportsAllCatalogPriceLists is backend-derived: response-only, never sent.
+
+export interface ProductAdvancedCatalogForm {
+  hidePriceInOnlineCatalog: boolean
+  supportedCatalogPriceListIds: string[]
+  supportsAllCatalogPriceLists: boolean
+  onlineStockPresentation: OnlineStockPresentationMode | null
+  onlineStockPresentationCustomQty: number | null
+}
+export type ProductPatchAdvancedCatalogPayload = Partial<Omit<ProductAdvancedCatalogForm, 'supportsAllCatalogPriceLists'>>
+export interface VariantCatalogForm {
+  catalogPublishMode: CatalogPublishMode
+  onlineStockPresentation: OnlineStockPresentationMode | null
+  onlineStockPresentationCustomQty: number | null
+}
+export type VariantPatchCatalogPayload = Partial<VariantCatalogForm>
 
 export interface ProductFormInput {
   name: string
@@ -398,6 +440,12 @@ export interface ProductFormInput {
   hasVariants: boolean
   sellInPos: boolean
   includeInOnlineCatalog: boolean
+  // WU4 advanced catalog flat fields on the editable form state. Optional so
+  // view-side default-state literals stay valid; hydration + Zod backfill them.
+  hidePriceInOnlineCatalog?: boolean
+  supportedCatalogPriceListIds?: string[]
+  onlineStockPresentation?: OnlineStockPresentationMode | null
+  onlineStockPresentationCustomQty?: number | null
   requiresPrescription: boolean
   chargeProductTaxes: boolean
   ivaRate: string
