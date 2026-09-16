@@ -415,7 +415,7 @@ Product PATCH itself is not gated on settings-read.
 
 **Forbidden**: any product section edit outside the persisted-variant branch; mutating create / inline variant builders; any mutation invalidating POS price lists or any public-catalog key; any new copy of `OnlineStockOverrideFields.vue` (reuse WU5's).
 
-- [ ] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
+- [x] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
 
 **Commit**:
 ```text

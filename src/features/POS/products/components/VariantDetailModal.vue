@@ -2,13 +2,14 @@
 import type { AxiosError } from 'axios'
 import { computed, reactive, watch } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
-import { productApi } from '../api/product.api'
+import { productApi, fromVariantRawCatalog, toVariantPatchCatalogPayload } from '../api/product.api'
 import { mapDomainError, type DomainApiError } from '@/core/shared/utils/error.utils'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import { centsToDecimalInput, decimalInputToCents } from '../composables/useProductForm'
 import VariantPricingTable from './VariantPricingTable.vue'
-import type { ProductType, ProductVariant, UpdateVariantPayload } from '../interfaces/product.types'
+import type { ProductType, ProductVariant, UpdateVariantPayload, VariantCatalogForm, VariantPatchCatalogPayload } from '../interfaces/product.types'
+import OnlineStockOverrideFields from './OnlineStockOverrideFields.vue'
 
 declare const useToast: () => {
   add: (options: {
@@ -68,6 +69,31 @@ const modalTitle = computed(() => {
 const hasOwnCost = computed(() => props.variant?.purchaseNetCostCents != null)
 
 const isServiceProduct = computed(() => props.productType === 'SERVICE')
+
+// WU6 (REQ-16): catalog controls exist only for persisted variants. A variant
+// mapped by fromVariantRawCatalog always carries catalogPublishMode; inline /
+// new-variant objects do not, so the section stays absent for them.
+const persistedCatalog = computed<VariantCatalogForm | null>(() =>
+  props.variant?.catalogPublishMode != null ? fromVariantRawCatalog(props.variant) : null,
+)
+
+const catalogForm = reactive<VariantCatalogForm>({
+  catalogPublishMode: 'INHERIT',
+  onlineStockPresentation: null,
+  onlineStockPresentationCustomQty: null,
+})
+
+const catalogPristine = reactive<VariantCatalogForm>({
+  catalogPublishMode: 'INHERIT',
+  onlineStockPresentation: null,
+  onlineStockPresentationCustomQty: null,
+})
+
+function onCatalogStockChange(value: { mode: VariantCatalogForm['onlineStockPresentation']; customQuantity: number | null }) {
+  catalogForm.onlineStockPresentation = value.mode
+  catalogForm.onlineStockPresentationCustomQty = value.customQuantity
+}
+
 const showInventoryCard = computed(() => props.useStock && !isServiceProduct.value)
 const showGeneralSkuBarcode = computed(() => !isServiceProduct.value)
 const saveChangeableKeys = computed<ChangeableField[]>(() =>
@@ -115,6 +141,15 @@ function syncFormFromVariant(variant: ProductVariant | null) {
   formState.quantity = initialState.quantity
   formState.minQuantity = initialState.minQuantity
   formState.purchaseCost = initialState.purchaseCost
+
+  const persisted = persistedCatalog.value
+    const nextCatalog = persisted ?? {
+      catalogPublishMode: 'INHERIT' as const,
+      onlineStockPresentation: null,
+      onlineStockPresentationCustomQty: null,
+    }
+  Object.assign(catalogForm, nextCatalog)
+  Object.assign(catalogPristine, nextCatalog)
 }
 
 watch(
@@ -127,7 +162,7 @@ watch(
 )
 
 const updateVariantMutation = useMutation({
-  mutationFn: (params: { variantId: string; values: UpdateVariantPayload }) =>
+  mutationFn: (params: { variantId: string; values: UpdateVariantPayload & VariantPatchCatalogPayload }) =>
     productApi.updateVariant(props.productId, params.variantId, params.values),
 })
 
@@ -181,17 +216,25 @@ async function persistChanges(
   keys: ChangeableField[],
   successMessage: string,
   closeAfterSave = false,
+  // WU6: catalog flat keys ride only on the explicit Save (Guardar) flow.
+  includeCatalog = false,
 ) {
   if (!props.canUpdate || !props.variant) {
     if (closeAfterSave) modalOpen.value = false
     return
   }
 
-  const changes = getChanges(keys)
-  if (Object.keys(changes).length === 0) {
-    if (closeAfterSave) modalOpen.value = false
-    return
-  }
+    const changes: UpdateVariantPayload & VariantPatchCatalogPayload = getChanges(keys)
+    // Only an explicit-Save PATCH on a persisted variant carries catalog keys;
+    // blur autosaves must not swallow an unsent catalog draft.
+    const includeCatalogKeys = includeCatalog && persistedCatalog.value != null
+    if (includeCatalogKeys) {
+      Object.assign(changes, toVariantPatchCatalogPayload({ ...catalogForm }, { ...catalogPristine }))
+    }
+    if (Object.keys(changes).length === 0) {
+      if (closeAfterSave) modalOpen.value = false
+      return
+    }
 
   try {
     await updateVariantMutation.mutateAsync({
@@ -207,6 +250,11 @@ async function persistChanges(
     initialState.minQuantity = normalizeQuantity(changes.minQuantity ?? initialState.minQuantity)
     if (changes.purchaseNetCostCents != null) {
       initialState.purchaseCost = centsToDecimalInput(changes.purchaseNetCostCents)
+    }
+    // Only a PATCH that actually carried catalog keys may re-pristine the
+    // draft; autosaves keep pending unsent catalog edits intact.
+    if (includeCatalogKeys) {
+      Object.assign(catalogPristine, { ...catalogForm })
     }
 
     toast.add({
@@ -317,6 +365,37 @@ function handleCancel() {
           </div>
         </UCard>
 
+        <UCard v-if="persistedCatalog">
+          <template #header>
+            <h3 class="font-semibold">Catálogo online</h3>
+          </template>
+
+          <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <UFormField label="Publicación en catálogo">
+              <select
+                id="catalog-publish-mode"
+                data-testid="catalog-publish-mode"
+                class="rounded-lg border border-default px-2 py-1 text-sm"
+                :disabled="!canUpdate"
+                v-model="catalogForm.catalogPublishMode"
+              >
+                <option value="INHERIT">Heredar</option>
+                <option value="ON">Publicado</option>
+                <option value="OFF">Oculto</option>
+              </select>
+            </UFormField>
+
+            <OnlineStockOverrideFields
+              :value="{
+                mode: catalogForm.onlineStockPresentation,
+                customQuantity: catalogForm.onlineStockPresentationCustomQty,
+              }"
+              :disabled="!canUpdate"
+              @change="onCatalogStockChange"
+            />
+          </div>
+        </UCard>
+
         <UCard>
           <template #header>
             <h3 class="font-semibold">Precios</h3>
@@ -342,7 +421,7 @@ function handleCancel() {
           label="Guardar"
           :disabled="!canUpdate"
           :loading="updateVariantMutation.isPending.value"
-          @click="persistChanges(saveChangeableKeys, 'Variante actualizada', true)"
+          @click="persistChanges(saveChangeableKeys, 'Variante actualizada', true, true)"
         />
       </div>
     </template>
