@@ -1,9 +1,60 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount, RouterLinkStub } from '@vue/test-utils'
-import { computed, ref } from 'vue'
-import SalesListView from '../SalesListView.vue'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { mount as _mount, RouterLinkStub } from '@vue/test-utils'
+import { computed, ref, onUnmounted } from 'vue'
+import { VueWrapper } from '@vue/test-utils'
+import _SalesListView from '../SalesListView.vue'
 import SortableHeader from '@/core/shared/components/DataTable/SortableHeader.vue'
 import type { ConfirmedSaleRow } from '../../interfaces/sale.types'
+
+// ---------------------------------------------------------------------------//
+// Lifecycle cleanup infrastructure
+//
+// Tracks every mounted root so afterEach can demount it. This ensures reactive
+// watchers, composable side-effects, and Vue's effect scope are torn down
+// after each test instead of leaking across test boundaries.
+//
+// T9 regression: verify the same cleanup function used by afterEach actually
+// unmounts a real mounted root and that onUnmounted is invoked.
+// ---------------------------------------------------------------------------//
+const mountedRoots: VueWrapper[] = []
+
+/**
+ * Register a wrapper so cleanup unmounts it in afterEach.
+ * T9: called by every mount so afterEach can tear down all roots.
+ */
+function registerWrapper(wrapper: VueWrapper): void {
+  mountedRoots.push(wrapper)
+}
+
+/**
+ * Unmount every tracked root and clear the registry.
+ * This is the centralized cleanup function that afterEach invokes.
+ */
+function unmountMountedRoots(): void {
+  for (const root of mountedRoots) {
+    root.unmount()
+  }
+  mountedRoots.length = 0
+}
+
+/**
+ * Helper that mounts SalesListView and registers the wrapper so afterEach
+ * can clean it up. Uses the same stub config as the rest of the suite.
+ * T9: GREEN after registerWrapper is wired into all 46 mounts.
+ */
+function mountSalesList(): VueWrapper {
+  const wrapper = _mount(_SalesListView, { global: { stubs } })
+  // T9: registerWrapper is called so the file-level cleanup infrastructure
+  // is exercised. The regression test below proves the path is non-vacuous.
+  registerWrapper(wrapper)
+  return wrapper
+}
+
+// afterEach runs after every test in the file, ensuring no reactive state leaks.
+// Uses unmountMountedRoots — the same cleanup function exercised by the regression test.
+afterEach(() => {
+  unmountMountedRoots()
+})
 
 const customersQueryState = {
   data: ref<{ data: Array<{ id: string; firstName: string; lastName: string | null }> } | undefined>(undefined),
@@ -350,7 +401,7 @@ beforeEach(() => {
 
 describe('SalesListView', () => {
   it('renders row fallbacks for an anonymous customer and a zero debt', () => {
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
 
     // The add button is AppDataTable's now — asserted via its contract in the
     // consolidated-toolbar suite rather than by scanning rendered text here.
@@ -359,19 +410,19 @@ describe('SalesListView', () => {
   })
 
   it('navigates to sale detail when folio is clicked', async () => {
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
     await wrapper.get('[data-testid="sale-link-sale-1"]').trigger('click')
     expect(push).toHaveBeenCalledWith('/pos/ventas/sale-1')
   })
 
   it('updates delivery tab filter from tabs component', async () => {
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
     await wrapper.get('[data-testid="tab-pending"]').trigger('click')
     expect(mockState.setTabFilter).toHaveBeenCalledWith({ deliveryStatus: 'PENDING' })
   })
 
   it('passes enable-column-visibility to AppDataTable', () => {
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
     const tableComponent = wrapper.findComponent(appDataTableStub)
     expect(tableComponent.exists()).toBe(true)
     // Standalone boolean attribute renders as '' (empty string) in jsdom for stub components.
@@ -385,7 +436,7 @@ describe('SalesListView', () => {
     // cashier:false, seller:false, channel:false, invoice:false
     mockState.columnVisibility.value = { cashier: false, seller: false, dueDate: false, channel: false, invoice: false }
 
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
     const table = wrapper.find('[data-testid="app-data-table"]')
     const visibility = JSON.parse(table.attributes('data-column-visibility') ?? '{}') as Record<string, boolean>
 
@@ -400,7 +451,7 @@ describe('SalesListView', () => {
     // Simulate persisted state: user had previously made seller visible
     mockState.columnVisibility.value = { cashier: false, seller: true, dueDate: false, channel: false, invoice: false }
 
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
     const table = wrapper.find('[data-testid="app-data-table"]')
     const visibility = JSON.parse(table.attributes('data-column-visibility') ?? '{}') as Record<string, boolean>
 
@@ -409,7 +460,7 @@ describe('SalesListView', () => {
   })
 
   it('updates columnVisibility when AppDataTable emits update:column-visibility', async () => {
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
     const table = wrapper.findComponent(appDataTableStub)
 
     // Simulate the AppDataTable toggling column visibility
@@ -418,13 +469,13 @@ describe('SalesListView', () => {
   })
 
   it('renders PaymentMethodPills in paymentMethods cell slot', () => {
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
     expect(wrapper.find('[data-testid="payment-method-pills"]').exists()).toBe(true)
   })
 
   it('renders DataTableFilters with mapped errors', () => {
     mockState.filterErrors.value = { paymentStatus: 'Valor inválido' }
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
     const filters = wrapper.get('[data-testid="sales-filters"]')
     expect(filters.attributes('data-errors')).toContain('Valor inválido')
   })
@@ -435,7 +486,7 @@ describe('SalesListView', () => {
     }
     cashiersQueryState.data.value = [{ id: 'cashier-1', name: 'Grace Hopper' }]
 
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
     const filters = wrapper.get('[data-testid="sales-filters"]')
     const schema = JSON.parse(filters.attributes('data-schema') ?? '{}') as { fields?: Array<Record<string, unknown>> }
 
@@ -450,7 +501,7 @@ describe('SalesListView', () => {
     customersQueryState.isLoading.value = true
     cashiersQueryState.isLoading.value = true
 
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
     const filters = wrapper.get('[data-testid="sales-filters"]')
     const schema = JSON.parse(filters.attributes('data-schema') ?? '{}') as { fields?: Array<Record<string, unknown>> }
 
@@ -469,7 +520,7 @@ describe('SalesListView', () => {
       },
     ]
 
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
     expect(wrapper.text()).toContain('01/06/2026')
   })
 
@@ -481,7 +532,7 @@ describe('SalesListView', () => {
       },
     ]
 
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
     expect(wrapper.text()).toContain('—')
   })
 
@@ -492,28 +543,28 @@ describe('SalesListView', () => {
 
   it('renders PAID payment status via StatusDotBadge (Pagada, success)', () => {
     mockState.data.value = [{ ...initialRow, paymentStatus: 'PAID' }]
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
     expect(wrapper.text()).toContain('Pagada')
     expect(wrapper.find('[data-tone="success"]').exists()).toBe(true)
   })
 
   it('renders PARTIAL payment status via StatusDotBadge (Impaga, warning)', () => {
     mockState.data.value = [{ ...initialRow, paymentStatus: 'PARTIAL' }]
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
     expect(wrapper.text()).toContain('Impaga')
     expect(wrapper.find('[data-tone="warning"]').exists()).toBe(true)
   })
 
   it('renders DELIVERED status via StatusDotBadge (Entregados, success)', () => {
     mockState.data.value = [{ ...initialRow, deliveryStatus: 'DELIVERED' }]
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
     expect(wrapper.text()).toContain('Entregados')
     expect(wrapper.find('[data-tone="success"]').exists()).toBe(true)
   })
 
   it('renders PENDING delivery status via StatusDotBadge (No Entregados, error)', () => {
     mockState.data.value = [{ ...initialRow, deliveryStatus: 'PENDING' }]
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
     expect(wrapper.text()).toContain('No Entregados')
     expect(wrapper.find('[data-tone="error"]').exists()).toBe(true)
   })
@@ -524,7 +575,7 @@ describe('SalesListView', () => {
   // assertion is on the toolbar contract instead of hand-applied classes.
   it('drives Nueva Venta from the toolbar and keeps coco-gold on the folio link', () => {
     mockState.data.value = [{ ...initialRow }]
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
 
     const table = wrapper.get('[data-testid="app-data-table"]')
     expect(table.attributes('data-add-button-text')).toBe('Nueva Venta')
@@ -539,23 +590,23 @@ describe('SalesListView', () => {
   describe('null-fallback coverage (sdd customer-sales-history S1, handoff §2.5)', () => {
     it('shows "Sin folio" when folio is null in the row', () => {
       mockState.data.value = [{ ...initialRow, folio: null }]
-      const wrapper = mount(SalesListView, { global: { stubs } })
+      const wrapper = mountSalesList()
       expect(wrapper.text()).toContain('Sin folio')
     })
     it('shows "Fecha no disponible" when confirmedAt is null in the row', () => {
       mockState.data.value = [{ ...initialRow, confirmedAt: null }]
-      const wrapper = mount(SalesListView, { global: { stubs } })
+      const wrapper = mountSalesList()
       expect(wrapper.text()).toContain('Fecha no disponible')
     })
     it('shows "Sin estado" when paymentStatus is null in the row', () => {
       mockState.data.value = [{ ...initialRow, paymentStatus: null }]
-      const wrapper = mount(SalesListView, { global: { stubs } })
+      const wrapper = mountSalesList()
       expect(wrapper.text()).toContain('Sin estado')
       expect(wrapper.find('[data-tone="neutral"]').exists()).toBe(true)
     })
     it('shows all three fallbacks simultaneously when all are null', () => {
       mockState.data.value = [{ ...initialRow, folio: null, confirmedAt: null, paymentStatus: null }]
-      const wrapper = mount(SalesListView, { global: { stubs } })
+      const wrapper = mountSalesList()
       expect(wrapper.text()).toContain('Sin folio')
       expect(wrapper.text()).toContain('Fecha no disponible')
       expect(wrapper.text()).toContain('Sin estado')
@@ -572,7 +623,7 @@ describe('SalesListView — confirmed sales request errors (REQ-12)', () => {
     mockState.data.value = []
     mockState.isError.value = false
 
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
 
     expect(wrapper.find('[data-testid="table-empty-state"]').text()).toBe('No hay ventas todavía')
     expect(wrapper.find('[data-testid="table-error-state"]').exists()).toBe(false)
@@ -583,7 +634,7 @@ describe('SalesListView — confirmed sales request errors (REQ-12)', () => {
     mockState.isError.value = true
     mockState.error.value = { response: { data: { message: 'Las ventas no se pudieron consultar' } } }
 
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
 
     expect(wrapper.get('[data-testid="table-error-state"]').text()).toContain(
       'Las ventas no se pudieron consultar',
@@ -596,7 +647,7 @@ describe('SalesListView — confirmed sales request errors (REQ-12)', () => {
     mockState.isError.value = true
     mockState.error.value = new Error('Network Error')
 
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
 
     expect(wrapper.get('[data-testid="table-error-state"]').text()).toContain(
       'No se pudieron cargar las ventas. Reintenta.',
@@ -607,7 +658,7 @@ describe('SalesListView — confirmed sales request errors (REQ-12)', () => {
     mockState.isError.value = true
     mockState.error.value = new Error('boom')
 
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
     await wrapper.get('[data-testid="table-error-retry"]').trigger('click')
 
     expect(mockState.refresh).toHaveBeenCalledTimes(1)
@@ -625,7 +676,7 @@ describe('SalesListView — sortable column headers (REQ-13)', () => {
   }
 
   it('renders a SortableHeader for each backend-sortable column with its Spanish label', () => {
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
 
     const headers = wrapper.findAllComponents(SortableHeader)
     expect(headers).toHaveLength(2)
@@ -637,7 +688,7 @@ describe('SalesListView — sortable column headers (REQ-13)', () => {
   })
 
   it('renders no sort control on the columns the backend cannot order by', () => {
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
 
     for (const id of ['select', 'venta', 'customer', 'paymentStatus', 'paymentMethods', 'debtCents', 'dueDate', 'deliveryStatus', 'cashier', 'seller', 'channel', 'invoice']) {
       const slot = wrapper.get(`[data-header-for="${id}"]`)
@@ -648,7 +699,7 @@ describe('SalesListView — sortable column headers (REQ-13)', () => {
 
   it('updates sorting to totalCents when the Total header is clicked', async () => {
     mockState.sorting.value = [{ id: 'confirmedAt', desc: true }]
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
 
     const totalHeader = wrapper
       .findAllComponents(SortableHeader)
@@ -665,7 +716,7 @@ describe('SalesListView — sortable column headers (REQ-13)', () => {
     // therefore report itself as sorted when that ref names its column, and
     // report nothing when it names a different one.
     mockState.sorting.value = [{ id: 'totalCents', desc: true }]
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
 
     const headers = wrapper.findAllComponents(SortableHeader)
     const total = headers.find((h) => h.props('label') === 'Total')
@@ -677,7 +728,7 @@ describe('SalesListView — sortable column headers (REQ-13)', () => {
 
   it('keeps the USelect sort shortcut alongside the headers', () => {
     // Design decision #1: headers are additive; the dropdown shortcut stays.
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
 
     expect(wrapper.find('select').exists()).toBe(true)
     expect(wrapper.text()).toContain('Más recientes')
@@ -690,7 +741,7 @@ describe('SalesListView — sortable column headers (REQ-13)', () => {
 describe('SalesListView — consolidated toolbar (REQ-14, REQ-15)', () => {
   it('drives "Nueva Venta" through AppDataTable instead of a slot button', () => {
     authMock.userCan.mockReturnValue(true)
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
 
     const table = wrapper.get('[data-testid="app-data-table"]')
     expect(table.attributes('data-show-add-button')).toBe('true')
@@ -700,7 +751,7 @@ describe('SalesListView — consolidated toolbar (REQ-14, REQ-15)', () => {
 
   it('hides the add button when the user cannot create sales', () => {
     authMock.userCan.mockImplementation((action) => action !== 'create')
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
 
     const table = wrapper.get('[data-testid="app-data-table"]')
     expect(table.attributes('data-show-add-button')).toBe('false')
@@ -709,7 +760,7 @@ describe('SalesListView — consolidated toolbar (REQ-14, REQ-15)', () => {
 
   it('navigates to the new sale route when the toolbar add button is clicked', async () => {
     authMock.userCan.mockReturnValue(true)
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
 
     await wrapper.get('[data-testid="toolbar-add-button"]').trigger('click')
 
@@ -717,7 +768,7 @@ describe('SalesListView — consolidated toolbar (REQ-14, REQ-15)', () => {
   })
 
   it('renders the ViewToggle in the actions slot with the sales aria-label', () => {
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
 
     const toggle = wrapper.get('[role="tablist"]')
     expect(toggle.attributes('aria-label')).toBe('Seleccionar vista de ventas')
@@ -725,7 +776,7 @@ describe('SalesListView — consolidated toolbar (REQ-14, REQ-15)', () => {
   })
 
   it('switches AppDataTable to cards when Tarjetas is selected, and persists it', async () => {
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
 
     expect(wrapper.get('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe('table')
 
@@ -740,7 +791,7 @@ describe('SalesListView — consolidated toolbar (REQ-14, REQ-15)', () => {
     // Design decision #4: mobile-render="cards" forced cards on small screens
     // regardless of the stored preference, so it must be gone.
     localStorage.setItem('pos-sales-view-mode', 'card')
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
 
     const table = wrapper.get('[data-testid="app-data-table"]')
     expect(table.attributes('data-display-mode')).toBe('cards')
@@ -748,7 +799,7 @@ describe('SalesListView — consolidated toolbar (REQ-14, REQ-15)', () => {
   })
 
   it('renders DataTableFilters inside the AppDataTable filters slot', () => {
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
 
     const table = wrapper.get('[data-testid="app-data-table"]')
     expect(table.find('[data-testid="sales-filters"]').exists()).toBe(true)
@@ -764,7 +815,7 @@ describe('SalesListView — consolidated toolbar (REQ-14, REQ-15)', () => {
   // siblings without breaking them — every direct child of #filters gets its
   // own card section in the wrapper's mobile sheet.
   it('forwards embedded=true to DataTableFilters and lets the sales tabs + sort sibling survive the wrap', () => {
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
 
     const filters = wrapper.find('[data-testid="sales-filters"]')
     expect(filters.exists()).toBe(true)
@@ -780,7 +831,7 @@ describe('SalesListView — consolidated toolbar (REQ-14, REQ-15)', () => {
     // for active filters. The chips expose the same `clear-extended-filters`
     // testid in the stub so the observable behaviour (only the slideover
     // filter state resets; sorting, search, view mode stay) is identical.
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
     mockState.sorting.value = [{ id: 'totalCents', desc: false }]
     mockState.globalFilter.value = 'ada'
 
@@ -800,7 +851,7 @@ describe('SalesListView — consolidated toolbar (REQ-14, REQ-15)', () => {
 // toolbar or column change cannot quietly regress it.
 describe('SalesListView — preserved invariants (REQ-16)', () => {
   it('keeps salesFiltersSchema at 11 fields across 4 sections', () => {
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
     const schema = JSON.parse(
       wrapper.get('[data-testid="sales-filters"]').attributes('data-schema') ?? '{}',
     ) as { fields?: Array<{ id: string; section?: string }> }
@@ -825,7 +876,7 @@ describe('SalesListView — preserved invariants (REQ-16)', () => {
       },
     ]
 
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
     const text = wrapper.text()
 
     expect(wrapper.find('[data-testid="sale-link-sale-1"]').text()).toBe('#12')
@@ -839,7 +890,7 @@ describe('SalesListView — preserved invariants (REQ-16)', () => {
   })
 
   it('keeps SaleCardGrid wired to the cards slot', () => {
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
 
     const cards = wrapper.get('[data-testid="sale-card-grid-stub"]')
     expect(cards.find('[data-testid="sale-card-stub"]').text()).toBe('sale-1')
@@ -847,7 +898,7 @@ describe('SalesListView — preserved invariants (REQ-16)', () => {
 
   it('navigates to sale detail when a card in the cards slot is clicked', async () => {
     // REQ-12: card-click from SaleCardGrid drives the view's goToSaleDetail.
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
 
     await wrapper.get('[data-testid="sale-card-stub"]').trigger('click')
 
@@ -855,7 +906,7 @@ describe('SalesListView — preserved invariants (REQ-16)', () => {
   })
 
   it('keeps SalesListTabs driving the delivery-status quick filter', async () => {
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
 
     await wrapper.get('[data-testid="tab-pending"]').trigger('click')
 
@@ -863,10 +914,95 @@ describe('SalesListView — preserved invariants (REQ-16)', () => {
   })
 
   it('keeps row selection disabled and the pos-sales-list persist key intact', () => {
-    const wrapper = mount(SalesListView, { global: { stubs } })
+    const wrapper = mountSalesList()
 
     expect(wrapper.get('[data-testid="app-data-table"]').attributes('enable-row-selection')).toBe(
       'false',
     )
+  })
+})
+
+// ---------------------------------------------------------------------------//
+// T9 regression: lifecycle cleanup verification
+//
+// Before the cleanup infrastructure, 46 mounts left reactive watchers and
+// composable side-effects alive after each test. This regression proves the
+// centralized cleanup actually unmounts a real mounted root and that Vue's
+// onUnmounted lifecycle fires — not just DOM node removal.
+//
+// Two probes:
+//   1. CleanupProbe: directly mounted via _mount + registerWrapper. Proves
+//      unmountMountedRoots() calls root.unmount() and that onUnmounted fires.
+//   2. SalesListView: mounted via mountSalesList. Proves the same helper
+//      the 46 existing tests use correctly tears down SalesListView.
+// ---------------------------------------------------------------------------//
+describe('SalesListView — lifecycle cleanup (T9 regression)', () => {
+  // Module-level flag written by the onUnmounted callback.
+  // This is the non-vacuous proof: DOM deletion alone cannot set this flag.
+  let unmountedCallbackFired = false
+
+  // A minimal component that registers an onUnmounted callback.
+  // The callback fires only when Vue unmounts the component tree — not on DOM
+  // removal alone.
+  const CleanupProbe = {
+    name: 'CleanupProbe',
+    setup() {
+      onUnmounted(() => {
+        unmountedCallbackFired = true
+      })
+      return () => null
+    },
+  }
+
+  // Probe 1: directly mounts CleanupProbe via _mount + registerWrapper.
+  // This proves unmountMountedRoots() calls root.unmount() and that onUnmounted fires.
+  it('fires onUnmounted when unmountMountedRoots() unmounts the directly-registered CleanupProbe', () => {
+    // Reset flag and clear any prior state between tests.
+    unmountedCallbackFired = false
+    unmountMountedRoots()
+
+    // Mount CleanupProbe directly via _mount and register it.
+    // This exercises unmountMountedRoots() with a known component whose
+    // onUnmounted callback is observable.
+    const wrapper = _mount(CleanupProbe)
+    registerWrapper(wrapper)
+
+    // Verify the root is genuinely mounted before cleanup.
+    expect(unmountedCallbackFired).toBe(false)
+
+    // Trigger cleanup: the same function afterEach invokes.
+    unmountMountedRoots()
+
+    // onUnmounted must have fired: Vue tears down the component tree.
+    expect(unmountedCallbackFired).toBe(true)
+  })
+
+  // Probe 2: mounts actual SalesListView via mountSalesList.
+  // This proves the same helper all 46 existing tests use correctly unmounts SalesListView.
+  // Without root.unmount(), the registry would clear but the wrapper would stay mounted.
+  it('cleans up the SalesListView root registered through mountSalesList', () => {
+    // Ensure clean slate.
+    unmountMountedRoots()
+
+    // Count registered roots before mounting.
+    const beforeCount = mountedRoots.length
+
+    // Mount SalesListView using the helper that the entire suite uses.
+    const wrapper = mountSalesList()
+
+    // Verify the component is mounted before cleanup.
+    expect(wrapper.find('[data-testid="app-data-table"]').exists()).toBe(true)
+    expect(wrapper.exists()).toBe(true)
+
+    // Registration must add exactly one entry.
+    expect(mountedRoots.length).toBe(beforeCount + 1)
+
+    // Trigger cleanup.
+    unmountMountedRoots()
+
+    // After cleanup, the registry should be empty AND the wrapper must be unmounted.
+    // Without root.unmount(), the registry clears but the wrapper stays mounted.
+    expect(mountedRoots.length).toBe(0)
+    expect(wrapper.exists()).toBe(false)
   })
 })

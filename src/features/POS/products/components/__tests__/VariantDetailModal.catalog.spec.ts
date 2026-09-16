@@ -8,9 +8,10 @@
 // persisted-variant modal caller at 3044-3055).
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { DOMWrapper, flushPromises, type VueWrapper } from '@vue/test-utils'
+import { DOMWrapper, flushPromises, mount, type VueWrapper } from '@vue/test-utils'
+import { defineComponent, h, onUnmounted, type Component } from 'vue'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
-import { mountWithUApp } from '@/test/mountWithUApp'
+import UApp from '@nuxt/ui/runtime/components/App.vue'
 import VariantDetailModal from '../VariantDetailModal.vue'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import type { ProductVariant } from '../../interfaces/product.types'
@@ -61,7 +62,36 @@ const q = (selector: string) => new DOMWrapper(document.querySelector(selector)!
 
 let queryClient: QueryClient
 let invalidateSpy: ReturnType<typeof vi.spyOn>
-let mounted: VueWrapper | undefined
+
+// Retain the real UApp host so cleanup disposes Vue effects, not just DOM.
+const rootUnmounted = vi.fn()
+let capturedRoot: VueWrapper | undefined
+const mountModalRoot = async (variant: ProductVariant | null): Promise<VueWrapper> => {
+  const RootCatcher = defineComponent({
+    components: { UApp },
+    setup() {
+      onUnmounted(rootUnmounted)
+      return () => h(UApp, null, {
+        default: () => h(VariantDetailModal as Component, {
+          open: true,
+          productId: 'p1',
+          productName: 'Test',
+          productPurchaseNetCostCents: 0,
+          useStock: false,
+          canUpdate: true,
+          variant,
+        }),
+      })
+    },
+  })
+  const rootWrapper = mount(RootCatcher, {
+    global: { plugins: [[VueQueryPlugin, { queryClient }]] },
+    attachTo: document.body,
+  })
+  capturedRoot = rootWrapper
+  await flushPromises()
+  return rootWrapper.findComponent(VariantDetailModal as Component) as VueWrapper
+}
 
 beforeEach(() => {
   queryClient = new QueryClient({
@@ -71,32 +101,25 @@ beforeEach(() => {
   productApiMocks.updateVariant.mockReset()
   productApiMocks.updateVariant.mockResolvedValue({ id: 'v1' })
   mockToast.add.mockClear()
+  rootUnmounted.mockClear()
+  capturedRoot = undefined
 })
 
-afterEach(() => {
-  // mountWithUApp returns a findComponent wrapper (not unmountable); clear the
-  // attached body (including the teleported portal) between tests instead.
-  mounted = undefined
-  document.body.innerHTML = ''
-})
+const cleanupModal = () => {
+  try {
+    capturedRoot?.unmount()
+  } finally {
+    capturedRoot = undefined
+    document.body.innerHTML = ''
+    queryClient.clear()
+    invalidateSpy.mockRestore()
+  }
+}
+
+afterEach(cleanupModal)
 
 const mountModal = async (variant: ProductVariant | null): Promise<VueWrapper> => {
-  mounted = mountWithUApp(VariantDetailModal, {
-    props: {
-      open: true,
-      productId: 'p1',
-      productName: 'Test',
-      productPurchaseNetCostCents: 0,
-      useStock: false,
-      canUpdate: true,
-      variant,
-    },
-    global: { plugins: [[VueQueryPlugin, { queryClient }]] },
-    attachTo: document.body,
-  })
-  // The teleported UModal portal settles asynchronously.
-  await flushPromises()
-  return mounted
+  return mountModalRoot(variant)
 }
 
 const clickSave = async () => {
@@ -109,6 +132,22 @@ const clickSave = async () => {
 }
 
 const patchBody = (call = 0) => productApiMocks.updateVariant.mock.calls[call]![2]
+
+describe('VariantDetailModal — root cleanup', () => {
+  it('unmounts Vue effects as well as restoring the pre-mount dialog baseline', async () => {
+    const dialogCount = () => document.querySelectorAll('[role="dialog"]').length
+    const baseline = dialogCount()
+    await mountModal(makeVariant())
+    expect(dialogCount()).toBeGreaterThan(baseline)
+    expect(rootUnmounted).not.toHaveBeenCalled()
+
+    cleanupModal()
+
+    // Clearing innerHTML alone removes the dialog but never runs Vue teardown.
+    expect(dialogCount()).toBe(baseline)
+    expect(rootUnmounted).toHaveBeenCalledTimes(1)
+  })
+})
 
 describe('VariantDetailModal — persisted-variant catalog controls (REQ-16)', () => {
   it('renders the publication mode select with Spanish labels and the stock override for persisted variants only', async () => {

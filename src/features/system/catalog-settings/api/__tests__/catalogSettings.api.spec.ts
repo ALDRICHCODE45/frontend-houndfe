@@ -88,7 +88,107 @@ describe('catalogSettingsApi.get — Zod response parsing (REQ-5 / REQ-7 pin)', 
   })
 })
 
-describe('catalogSettingsApi.patch (sdd online-catalog-backoffice WU2A)', () => {
+describe('catalogSettingsApi.get — warning boundary (mapper-driven filter)', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('retains DEFAULT_CONTEXT_HAS_NO_VALID_PRICES and strips unknown string codes', async () => {
+    vi.mocked(http.get).mockResolvedValue({
+      data: {
+        ...sampleResponse,
+        warnings: ['DEFAULT_CONTEXT_HAS_NO_VALID_PRICES', 'SOME_FUTURE_CODE', 'ANOTHER_UNKNOWN'],
+      },
+    })
+
+    const result = await catalogSettingsApi.get('tenant-1')
+
+    expect(result.warnings).toEqual(['DEFAULT_CONTEXT_HAS_NO_VALID_PRICES'])
+  })
+
+  it('rejects a warnings array containing an object member', async () => {
+    vi.mocked(http.get).mockResolvedValue({
+      data: {
+        ...sampleResponse,
+        warnings: [{ code: 'DEFAULT_CONTEXT_HAS_NO_VALID_PRICES' }],
+      },
+    })
+
+    await expect(catalogSettingsApi.get('tenant-1')).rejects.toBeDefined()
+  })
+
+  it('rejects a warnings array containing a numeric member', async () => {
+    vi.mocked(http.get).mockResolvedValue({
+      data: {
+        ...sampleResponse,
+        warnings: [42],
+      },
+    })
+
+    await expect(catalogSettingsApi.get('tenant-1')).rejects.toBeDefined()
+  })
+
+  it('rejects a warnings array containing a null member', async () => {
+    vi.mocked(http.get).mockResolvedValue({
+      data: {
+        ...sampleResponse,
+        warnings: [null],
+      },
+    })
+
+    await expect(catalogSettingsApi.get('tenant-1')).rejects.toBeDefined()
+  })
+})
+
+    describe('catalogSettingsApi.patch — warning boundary (mapper-driven filter)', () => {
+      beforeEach(() => vi.clearAllMocks())
+
+      it('retains DEFAULT_CONTEXT_HAS_NO_VALID_PRICES and strips unknown string codes', async () => {
+        vi.mocked(http.patch).mockResolvedValue({
+          data: {
+            ...sampleResponse,
+            warnings: ['DEFAULT_CONTEXT_HAS_NO_VALID_PRICES', 'SOME_FUTURE_CODE', 'ANOTHER_UNKNOWN'],
+          },
+        })
+
+        const result = await catalogSettingsApi.patch('tenant-1', { catalogPublished: true })
+
+        expect(result.warnings).toEqual(['DEFAULT_CONTEXT_HAS_NO_VALID_PRICES'])
+      })
+
+      it('rejects a warnings array containing an object member', async () => {
+        vi.mocked(http.patch).mockResolvedValue({
+          data: {
+            ...sampleResponse,
+            warnings: [{ code: 'DEFAULT_CONTEXT_HAS_NO_VALID_PRICES' }],
+          },
+        })
+
+        await expect(catalogSettingsApi.patch('tenant-1', { catalogPublished: true })).rejects.toBeDefined()
+      })
+
+      it('rejects a warnings array containing a numeric member', async () => {
+        vi.mocked(http.patch).mockResolvedValue({
+          data: {
+            ...sampleResponse,
+            warnings: [42],
+          },
+        })
+
+        await expect(catalogSettingsApi.patch('tenant-1', { catalogPublished: true })).rejects.toBeDefined()
+      })
+
+      it('rejects a warnings array containing a null member', async () => {
+        vi.mocked(http.patch).mockResolvedValue({
+          data: {
+            ...sampleResponse,
+            warnings: [null],
+          },
+        })
+
+        await expect(catalogSettingsApi.patch('tenant-1', { catalogPublished: true })).rejects.toBeDefined()
+      })
+    })
+
+    describe('catalogSettingsApi.patch (sdd online-catalog-backoffice WU2A)', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('calls PATCH /tenants/:tenantId/catalog-settings with the body forwarded verbatim', async () => {

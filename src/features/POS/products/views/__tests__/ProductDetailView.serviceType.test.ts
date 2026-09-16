@@ -29,6 +29,7 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
   useAuthStore: vi.fn(() => ({
     user: { id: 'user-1', email: 'test@test.com' },
     userCan: vi.fn(() => true),
+    currentTenantId: 'tenant-1',
   })),
 }))
 

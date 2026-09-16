@@ -4,21 +4,21 @@
 // mapper (`toPatchCatalogSettingsBody`) — the backend DTO uses
 // `forbidNonWhitelisted`, so any extra key would be rejected with 400.
 //
-// The API boundary (a) parses GET/PATCH responses with the Zod response schema
-// so unknown fields are stripped and invalid payloads throw, and (b) parses
-// the PATCH body through the Zod patch schema so the body that reaches
-// http.patch contains ONLY the four documented whitelisted keys
-// (`catalogPublished`, `publicPriceListIds`, `catalogDefaultPriceListId`,
+// The API boundary (a) parses GET/PATCH responses with the existing
+// `parseCatalogSettingsResponse` mapper which applies the Zod response schema
+// AND the closed-set warning filter, so unknown string codes are silently
+// dropped and non-string warning members throw, and (b) parses the PATCH body
+// through the Zod patch schema so the body that reaches http.patch contains
+// ONLY the four documented whitelisted keys (`catalogPublished`,
+// `publicPriceListIds`, `catalogDefaultPriceListId`,
 // `stockPresentationDefault`). Zod's default object behavior strips unknown
 // fields, so this catches every forged arbitrary key — not only the previously
 // known response-only keys — even when callers bypass the TypeScript type with
 // `as unknown as CatalogSettingsPatchBody`.
 
 import { http } from '@/core/shared/api/http'
-import {
-  catalogSettingsPatchBodySchema,
-  catalogSettingsResponseDtoSchema,
-} from '../interfaces/catalog-settings.types'
+import { catalogSettingsPatchBodySchema } from '../interfaces/catalog-settings.types'
+import { parseCatalogSettingsResponse } from '../utils/catalogSettingsMappers'
 import type {
   CatalogSettingsPatchBody,
   CatalogSettingsResponseDto,
@@ -27,7 +27,7 @@ import type {
 /** GET /tenants/:tenantId/catalog-settings. No 404-as-default fallback. */
 async function get(tenantId: string): Promise<CatalogSettingsResponseDto> {
   const { data } = await http.get(`/tenants/${tenantId}/catalog-settings`)
-  return catalogSettingsResponseDtoSchema.parse(data)
+  return parseCatalogSettingsResponse(data)
 }
 
 /**
@@ -47,7 +47,7 @@ async function patch(
 ): Promise<CatalogSettingsResponseDto> {
   const whitelisted = catalogSettingsPatchBodySchema.parse(body)
   const { data } = await http.patch(`/tenants/${tenantId}/catalog-settings`, whitelisted)
-  return catalogSettingsResponseDtoSchema.parse(data)
+  return parseCatalogSettingsResponse(data)
 }
 
 export const catalogSettingsApi = { get, patch }

@@ -13,15 +13,18 @@ import { createPinia, setActivePinia } from 'pinia'
 // We use vi.hoisted so the auth-mock factory is available BEFORE the
 // module under test is imported. We expose the `userCanReturn` flag so
 // individual tests can flip it.
-const { setUserCanReturn } = vi.hoisted(() => {
+const { setUserCanReturn, setTenantCatalogReturn } = vi.hoisted(() => {
   return {
     setUserCanReturn: (value: boolean) => {
       state.userCanReturn = value
     },
+    setTenantCatalogReturn: (value: boolean) => {
+      state.tenantCatalogReturn = value
+    },
   }
 })
 
-const state = { userCanReturn: true as boolean }
+const state = { userCanReturn: true as boolean, tenantCatalogReturn: true as boolean }
 
 vi.mock('@/features/auth/stores/useAuthStore', () => ({
   useAuthStore: () => ({
@@ -30,8 +33,12 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
       if (action === 'read' && subject === 'NotificationConfig') {
         return state.userCanReturn
       }
+      if (action === 'read' && subject === 'TenantCatalogSettings') {
+        return state.tenantCatalogReturn
+      }
       return true
     }),
+    currentTenantId: 'tenant-1',
     logout: vi.fn().mockResolvedValue(undefined),
   }),
 }))
@@ -54,6 +61,7 @@ describe('useSidebar — Notificaciones nav item', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     setUserCanReturn(true)
+    setTenantCatalogReturn(true)
   })
 
   it('exposes a Sistema group with a Notificaciones child', () => {
@@ -77,6 +85,10 @@ describe('useSidebar — Notificaciones nav item', () => {
 
   it('hides the Sistema group when the user lacks read:NotificationConfig', () => {
     setUserCanReturn(false)
+    // TenantCatalogSettings is also false so the group has no children
+    // when NotificationConfig is the only child — the absence assertion
+    // (sistema undefined) is the contract, not the mock implementation detail.
+    setTenantCatalogReturn(false)
     const { getNavigationItems } = useSidebar()
     const items = getNavigationItems(false)
     const sistema = items.find((item) => item.label === 'Sistema')
