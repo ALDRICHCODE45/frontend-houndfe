@@ -7,6 +7,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
+import { flushPromises } from '@vue/test-utils'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import TenantCatalogSettingsView from '../TenantCatalogSettingsView.vue'
 import type {
@@ -283,5 +284,89 @@ describe('TenantCatalogSettingsView — editable form gating (REQ-6A / REQ-12)',
     const wrapper = mountWithUApp(TenantCatalogSettingsView)
     const form = wrapper.find('[data-testid="catalog-settings-form"]')
     expect(form.attributes('data-can-edit-contexts')).toBe('true')
+  })
+})
+
+describe('TenantCatalogSettingsView — rising-edge confirmation (REQ-10)', () => {
+  beforeEach(() => {
+    queryMock.settings.value = makeResponse({ catalogPublished: false })
+    formMock.draft.value = {
+      catalogPublished: false,
+      publicPriceListIds: ['pl_a'],
+      catalogDefaultPriceListId: 'pl_a',
+      stockPresentationDefault: { mode: 'SYSTEM_STATUS', customQuantity: null },
+    }
+    grant(
+      'read:TenantCatalogSettings',
+      'update:TenantCatalogSettings',
+      'read:GlobalPriceList',
+    )
+  })
+
+  it('opens the confirm modal and sends NO PATCH before confirmation', async () => {
+    formMock.requestSave.mockReturnValue('confirm')
+    formMock.confirmationOpen.value = true
+    const wrapper = mountWithUApp(TenantCatalogSettingsView)
+    wrapper.findComponent({ name: 'CatalogSettingsForm' }).vm.$emit('save')
+    await nextTick()
+    expect(formMock.requestSave).toHaveBeenCalledTimes(1)
+    expect(mutateAsyncMock).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('El catálogo será visible para clientes públicos. ¿Continuar?')
+  })
+
+  it('confirms the publish: one whitelisted PATCH, PATCH-response acceptance, success toast', async () => {
+    formMock.requestSave.mockReturnValue('confirm')
+    formMock.confirmationOpen.value = true
+    formMock.buildSaveBody.mockReturnValue({ catalogPublished: true })
+    mutateAsyncMock.mockResolvedValue(makeResponse({ catalogPublished: true }))
+    const wrapper = mountWithUApp(TenantCatalogSettingsView)
+    await flushPromises()
+    await wrapper.find('[data-testid="confirm-accept"]').trigger('click')
+    expect(formMock.confirmPublish).toHaveBeenCalledTimes(1)
+    expect(mutateAsyncMock).toHaveBeenCalledWith({
+      tenantId: 'tenant-1',
+      body: { catalogPublished: true },
+    })
+    expect(formMock.acceptPatch).toHaveBeenCalledWith(makeResponse({ catalogPublished: true }))
+    expect(toastMock.add).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Configuración de catálogo guardada' }),
+    )
+  })
+
+  it('cancel closes the modal, sends no PATCH, and keeps the dirty draft editable', async () => {
+    formMock.requestSave.mockReturnValue('confirm')
+    formMock.confirmationOpen.value = true
+    formMock.draft.value!.catalogPublished = true
+    const wrapper = mountWithUApp(TenantCatalogSettingsView)
+    await wrapper.find('[data-testid="confirm-cancel"]').trigger('click')
+    expect(formMock.cancelPublish).toHaveBeenCalledTimes(1)
+    expect(mutateAsyncMock).not.toHaveBeenCalled()
+    expect(formMock.draft.value!.catalogPublished).toBe(true)
+  })
+
+  it('descending edge saves directly without opening the modal', async () => {
+    formMock.requestSave.mockReturnValue('save')
+    formMock.buildSaveBody.mockReturnValue({ catalogPublished: false })
+    mutateAsyncMock.mockResolvedValue(makeResponse())
+    queryMock.settings.value = makeResponse({ catalogPublished: true })
+    const wrapper = mountWithUApp(TenantCatalogSettingsView)
+    wrapper.findComponent({ name: 'CatalogSettingsForm' }).vm.$emit('save')
+    await nextTick()
+    expect(formMock.confirmationOpen.value).toBe(false)
+    expect(mutateAsyncMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('failure keeps the draft dirty and surfaces the mapped Spanish error toast', async () => {
+    formMock.requestSave.mockReturnValue('save')
+    formMock.buildSaveBody.mockReturnValue({ catalogPublished: true })
+    mutateAsyncMock.mockRejectedValue({ response: { status: 403 } })
+    const wrapper = mountWithUApp(TenantCatalogSettingsView)
+    wrapper.findComponent({ name: 'CatalogSettingsForm' }).vm.$emit('save')
+    await flushPromises()
+    expect(formMock.acceptPatch).not.toHaveBeenCalled()
+    expect(toastMock.add).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'No tienes permisos para guardar cambios' }),
+    )
+    expect(formMock.endMutation).toHaveBeenCalled()
   })
 })

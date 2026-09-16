@@ -8,8 +8,9 @@
  * States — loading skeleton, GET error with Reintentar (no synthetic
  * defaults), editable form when update:TenantCatalogSettings is held, and the
  * accepted read-only surface (with the locked save-permission notice)
- * otherwise. Direct-save routing only; the rising-edge confirmation and
- * toasts land with WU3B-F. No optimistic publication update ever happens.
+ * otherwise. The ConfirmModal opens ONLY on the publish rising edge; Cancel
+ * keeps the dirty draft editable. Toasts: success copy and the WU2B error
+ * mapper; no optimistic publication update ever happens.
  */
 import { computed } from 'vue'
 import { useCatalogSettingsQuery } from '../composables/useCatalogSettingsQuery'
@@ -18,10 +19,20 @@ import { useCatalogPriceListCandidatesQuery } from '../composables/useCatalogPri
 import { useUpdateCatalogSettingsMutation } from '../composables/useUpdateCatalogSettingsMutation'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import CatalogSettingsReadView from '../components/CatalogSettingsReadView.vue'
 import CatalogSettingsForm from '../components/CatalogSettingsForm.vue'
+import { mapCatalogSettingsError } from '../utils/catalogSettingsMappers'
 import type { CatalogSettingsResponseDto } from '../interfaces/catalog-settings.types'
 import type { CatalogStockPresentationDefaultDto } from '../interfaces/catalog-settings.types'
+
+declare const useToast: () => {
+  add: (options: {
+    title: string
+    description?: string
+    color?: 'success' | 'error' | 'warning' | 'primary' | 'neutral'
+  }) => void
+}
 
 const tenantId = useSafeTenantId()
 const authStore = useAuthStore()
@@ -32,6 +43,7 @@ const query = useCatalogSettingsQuery(tenantId)
 const form = useCatalogSettingsForm(tenantId, query.settings)
 const candidatesQuery = useCatalogPriceListCandidatesQuery(canUpdate, canReadGlobalPriceLists)
 const mutation = useUpdateCatalogSettingsMutation()
+const toast = useToast()
 
 // REQ-6A: contexts editing requires settings-update PLUS global-list read;
 // publication and stock remain independently available when otherwise valid.
@@ -76,12 +88,18 @@ function onStockChange(value: CatalogStockPresentationDefaultDto) {
   if (form.draft.value) form.draft.value.stockPresentationDefault = value
 }
 
-/** Direct-save routing at the WU3B-E stage; confirmation lands with WU3B-F. */
+/** Save routing: rising edge opens the confirmation; everything else saves directly. */
 function onSave() {
+  const route = form.requestSave()
+  if (route === 'save') void submit()
+}
+
+function onConfirm() {
+  form.confirmPublish()
   void submit()
 }
 
-/** One whitelisted PATCH; accept the response into the form. */
+/** One whitelisted PATCH; accept the response; surgical success/error toasts. */
 async function submit() {
   const body = form.buildSaveBody()
   if (!body) return
@@ -92,6 +110,10 @@ async function submit() {
       body,
     }) as CatalogSettingsResponseDto
     form.acceptPatch(response)
+    toast.add({ title: 'Configuración de catálogo guardada', color: 'success' })
+  } catch (error) {
+    const status = (error as { response?: { status?: number } })?.response?.status
+    toast.add({ title: mapCatalogSettingsError({ status }).toast, color: 'error' })
   } finally {
     form.endMutation()
   }
@@ -151,5 +173,18 @@ async function submit() {
         :can-update="canUpdate"
       />
     </template>
+
+    <!-- REQ-10: rising-edge confirmation only; Cancel keeps the dirty draft. -->
+    <ConfirmModal
+      v-model:open="form.confirmationOpen.value"
+      title="Publicar catálogo online"
+      description="El catálogo será visible para clientes públicos. ¿Continuar?"
+      confirm-label="Confirmar"
+      cancel-label="Cancelar"
+      :loading="saving"
+      @confirm="onConfirm"
+      @cancel="form.cancelPublish()"
+      @update:open="(open: boolean) => { if (!open) form.cancelPublish() }"
+    />
   </div>
 </template>

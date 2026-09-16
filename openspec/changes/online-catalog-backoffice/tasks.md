@@ -331,7 +331,7 @@ rising-edge confirmation and toasts land with WU3B-F.
 
 **TDD**: RED — the 5 restored rising-edge tests fail against the E-state view. GREEN — transplant the F-state content from the verified snapshot. TRIANGULATE — cancel/no-PATCH, descending/no-modal, failure keeps dirty draft + mapped error toast. REFACTOR — confirm opens once per rising-edge attempt; no `setQueryData` before response.
 
-- [ ] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
+- [x] **Build verification**: Implement and verify the behavior. <!-- sdd-owner: implementation -->
 
 **Commit**:
 ```text
