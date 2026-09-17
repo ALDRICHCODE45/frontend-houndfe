@@ -1,14 +1,15 @@
 <script setup lang="ts">
 /**
- * OnlineStockOverrideFields — WU5 shared nullable product/variant stock
+ * OnlineStockOverrideFields — WU6 redesigned nullable product/variant stock
  * override pair (REQ-13/REQ-16; reused by WU6). A null mode clears the
  * override: BOTH flat stock fields emit null (keys not omitted). Non-custom
  * modes serialize a null quantity; CUSTOM_QUANTITY keeps the non-negative
  * integer with 0 preserved and labeled "Mostrar 0".
+ *
+ * UI redesign: UFormField + USelectMenu (value-key) replace the native select;
+ * UInput replaces the native number input. All props/emits contracts preserved.
  */
-import type {
-  OnlineStockPresentationMode,
-} from '@/features/system/catalog-settings/interfaces/catalog-settings.types'
+import type { OnlineStockPresentationMode } from '@/features/system/catalog-settings/interfaces/catalog-settings.types'
 
 interface StockOverrideValue {
   mode: OnlineStockPresentationMode | null
@@ -22,70 +23,72 @@ const props = defineProps<{
 
 const emit = defineEmits<{ (event: 'change', value: StockOverrideValue): void }>()
 
-const MODE_OPTIONS: Array<{ label: string; value: OnlineStockPresentationMode }> = [
+const MODE_OPTIONS: Array<{ label: string; value: OnlineStockPresentationMode | null }> = [
+  { label: 'Predeterminado del tenant', value: null },
   { label: 'Según estado del sistema', value: 'SYSTEM_STATUS' },
   { label: 'Según estado abstracto', value: 'ABSTRACT_STATUS' },
   { label: 'Cantidad personalizada', value: 'CUSTOM_QUANTITY' },
   { label: 'Oculto', value: 'HIDDEN' },
 ]
 
-function onModeChange(event: Event) {
-  const mode = (event.target as HTMLSelectElement).value
-  if (mode === '') {
+function onModeChange(next: OnlineStockPresentationMode | null) {
+  if (next === null) {
     // Clear: emit BOTH nulls — flat keys, not omitted (REQ-16).
     emit('change', { mode: null, customQuantity: null })
     return
   }
   // Only CUSTOM_QUANTITY carries a quantity; others serialize null (REQ-8).
   emit('change', {
-    mode: mode as OnlineStockPresentationMode,
-    customQuantity:
-      mode === 'CUSTOM_QUANTITY' ? (props.value.customQuantity ?? 0) : null,
+    mode: next,
+    customQuantity: next === 'CUSTOM_QUANTITY' ? (props.value.customQuantity ?? 0) : null,
   })
 }
 
-function onQuantityInput(event: Event) {
-  const parsed = Number.parseInt((event.target as HTMLInputElement).value, 10)
+// UInput emits the raw value via update:model-value, not an Event object.
+function onQuantityInput(raw: string | number) {
+  const parsed = Number.parseInt(String(raw), 10)
   // Non-negative integer; 0 preserved literally (REQ-8).
-  emit('change', {
-    mode: 'CUSTOM_QUANTITY',
-    customQuantity: Number.isNaN(parsed) || parsed < 0 ? 0 : parsed,
-  })
+  const customQuantity = Number.isNaN(parsed) || parsed < 0 ? 0 : parsed
+  emit('change', { mode: 'CUSTOM_QUANTITY', customQuantity })
 }
 </script>
 
 <template>
-  <div class="flex flex-col gap-2">
-    <label class="text-sm font-semibold text-default" for="stock-override-mode">
-      Stock en catálogo
-    </label>
-    <select
-      id="stock-override-mode"
+  <UFormField
+    label="Stock en catálogo"
+    :help="
+      props.value.mode === 'CUSTOM_QUANTITY' && props.value.customQuantity === 0
+        ? 'Mostrar 0'
+        : undefined
+    "
+    :disabled="props.disabled"
+  >
+    <USelectMenu
+      :model-value="props.value.mode"
+      :items="MODE_OPTIONS"
+      value-key="value"
+      label-key="label"
       data-testid="stock-override-mode"
-      class="rounded-lg border border-default px-2 py-1 text-sm"
+      class="w-full sm:max-w-xs"
       :disabled="props.disabled"
-      :value="props.value.mode ?? ''"
-      @change="onModeChange"
+      @update:model-value="onModeChange"
+    />
+    <UFormField
+      v-if="props.value.mode === 'CUSTOM_QUANTITY'"
+      label="Cantidad a mostrar"
+      :description="props.value.customQuantity === 0 ? 'Mostrar 0' : undefined"
+      class="mt-2"
     >
-      <option value="">Predeterminado del tenant</option>
-      <option v-for="option in MODE_OPTIONS" :key="option.value" :value="option.value">
-        {{ option.label }}
-      </option>
-    </select>
-    <template v-if="props.value.mode === 'CUSTOM_QUANTITY'">
-      <input
+      <UInput
         type="number"
         min="0"
         step="1"
         data-testid="stock-override-qty"
-        class="rounded-lg border border-default px-2 py-1 text-sm"
-        :value="props.value.customQuantity ?? 0"
+        class="w-32"
+        :model-value="String(props.value.customQuantity ?? 0)"
         :disabled="props.disabled"
-        @input="onQuantityInput"
+        @update:model-value="onQuantityInput"
       />
-      <p v-if="props.value.customQuantity === 0" class="text-sm text-muted">
-        Mostrar 0
-      </p>
-    </template>
-  </div>
+    </UFormField>
+  </UFormField>
 </template>

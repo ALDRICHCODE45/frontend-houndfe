@@ -6,9 +6,9 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { flushPromises } from '@vue/test-utils'
 import { mountWithUApp } from '@/test/mountWithUApp'
-import ProductDetailView from '../ProductDetailView.vue'
-import VariantImagePickerModal from '../../components/VariantImagePickerModal.vue'
-import ProductCatalogSettingsSection from '../../components/ProductCatalogSettingsSection.vue'
+import ProductDetailView from '@/features/POS/products/views/ProductDetailView.vue'
+import VariantImagePickerModal from '@/features/POS/products/components/VariantImagePickerModal.vue'
+import ProductCatalogSettingsSection from '@/features/POS/products/components/ProductCatalogSettingsSection.vue'
 
 // Mock router
 vi.mock('vue-router', () => ({
@@ -43,9 +43,11 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
 // WU5: module-boundary mock for the tenant catalog-settings GET (REQ-15 gate).
 // Default empty contexts keeps pre-existing tests valid when read is granted.
 const settingsApi = vi.hoisted(() => ({
-  get: vi.fn<() => Promise<{ priceContexts: Array<{ priceListId: string; name: string; isCatalogDefault: boolean }> }>>(
-    () => Promise.resolve({ priceContexts: [] }),
-  ),
+  get: vi.fn<
+    () => Promise<{
+      priceContexts: Array<{ priceListId: string; name: string; isCatalogDefault: boolean }>
+    }>
+  >(() => Promise.resolve({ priceContexts: [] })),
 }))
 const productApiMocks = vi.hoisted(() => ({ update: vi.fn() }))
 
@@ -60,75 +62,75 @@ vi.mock('../../api/product.api', async (importOriginal) => {
   return {
     ...actual,
     productApi: {
-    getById: vi.fn(() =>
-      Promise.resolve({
-        id: 'test-product-id',
-        name: 'Test Product',
-        type: 'PRODUCT',
-        sku: 'TEST-SKU',
-        barcode: '',
-        categoryId: '',
-        brandId: '',
-        description: '',
-        location: '',
-        satKey: '',
-        unit: 'UNIDAD',
-        priceCents: 0,
-        quantity: 0,
-        minQuantity: 0,
-        useStock: true,
-        useLotsAndExpirations: false,
-        hasVariants: true,
-        sellInPos: true,
-        includeInOnlineCatalog: true,
-        requiresPrescription: false,
-        chargeProductTaxes: true,
-        ivaRate: 'IVA_16',
-        iepsRate: 'NO_APLICA',
-        purchaseCostMode: 'NET',
-        purchaseNetCostCents: 0,
-        createdAt: '2026-04-23T00:00:00.000Z',
-        updatedAt: '2026-04-23T00:00:00.000Z',
-      })
-    ),
-    getCategories: vi.fn(() => Promise.resolve([])),
-    getBrands: vi.fn(() => Promise.resolve([])),
-    getGlobalPriceLists: vi.fn(() => Promise.resolve([])),
-    getVariants: vi.fn(() =>
-      Promise.resolve([
-        {
-          id: 'variant-1',
-          productId: 'test-product-id',
-          option: 'Tamaño',
-          value: 'Grande',
-          name: 'Grande',
-          sku: 'VAR-1',
+      getById: vi.fn(() =>
+        Promise.resolve({
+          id: 'test-product-id',
+          name: 'Test Product',
+          type: 'PRODUCT',
+          sku: 'TEST-SKU',
           barcode: '',
-          quantity: 10,
-          minQuantity: 5,
-          purchaseNetCostCents: null,
-          variantPrices: [],
-        },
-        {
-          id: 'variant-2',
-          productId: 'test-product-id',
-          option: 'Tamaño',
-          value: 'Pequeño',
-          name: 'Pequeño',
-          sku: 'VAR-2',
-          barcode: '',
-          quantity: 20,
-          minQuantity: 10,
-          purchaseNetCostCents: null,
-          variantPrices: [],
-        },
-      ])
-    ),
-        getLots: vi.fn(() => Promise.resolve([])),
-        update: productApiMocks.update,
-      },
-    }
-  })
+          categoryId: '',
+          brandId: '',
+          description: '',
+          location: '',
+          satKey: '',
+          unit: 'UNIDAD',
+          priceCents: 0,
+          quantity: 0,
+          minQuantity: 0,
+          useStock: true,
+          useLotsAndExpirations: false,
+          hasVariants: true,
+          sellInPos: true,
+          includeInOnlineCatalog: true,
+          requiresPrescription: false,
+          chargeProductTaxes: true,
+          ivaRate: 'IVA_16',
+          iepsRate: 'NO_APLICA',
+          purchaseCostMode: 'NET',
+          purchaseNetCostCents: 0,
+          createdAt: '2026-04-23T00:00:00.000Z',
+          updatedAt: '2026-04-23T00:00:00.000Z',
+        }),
+      ),
+      getCategories: vi.fn(() => Promise.resolve([])),
+      getBrands: vi.fn(() => Promise.resolve([])),
+      getGlobalPriceLists: vi.fn(() => Promise.resolve([])),
+      getVariants: vi.fn(() =>
+        Promise.resolve([
+          {
+            id: 'variant-1',
+            productId: 'test-product-id',
+            option: 'Tamaño',
+            value: 'Grande',
+            name: 'Grande',
+            sku: 'VAR-1',
+            barcode: '',
+            quantity: 10,
+            minQuantity: 5,
+            purchaseNetCostCents: null,
+            variantPrices: [],
+          },
+          {
+            id: 'variant-2',
+            productId: 'test-product-id',
+            option: 'Tamaño',
+            value: 'Pequeño',
+            name: 'Pequeño',
+            sku: 'VAR-2',
+            barcode: '',
+            quantity: 20,
+            minQuantity: 10,
+            purchaseNetCostCents: null,
+            variantPrices: [],
+          },
+        ]),
+      ),
+      getLots: vi.fn(() => Promise.resolve([])),
+      update: productApiMocks.update,
+    },
+  }
+})
 
 // NOTE: UTooltip provider context is now provided via mountWithUApp helper
 describe('ProductDetailView - Variant Image Modal Integration', () => {
@@ -152,12 +154,19 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     plugins: [[VueQueryPlugin, { queryClient }]] as any,
     stubs: {
-      UButton: { template: '<button @click="$emit(\'click\')" :data-testid="$attrs[\'data-testid\']"><slot /></button>' },
+      UButton: {
+        template:
+          '<button @click="$emit(\'click\')" :data-testid="$attrs[\'data-testid\']"><slot /></button>',
+      },
       UCard: { template: '<div><slot name="header" /><slot /></div>' },
-          UForm: { template: '<form><slot /></form>' },
+      UForm: { template: '<form><slot /></form>' },
       UFormField: { template: '<div><slot /></div>' },
-          UInput: { template: '<input />' },
+      UInput: { template: '<input />' },
       USelect: { template: '<select />' },
+      USelectMenu: {
+        template: '<button v-bind="$attrs" :disabled="disabled"><slot /></button>',
+        props: ['modelValue', 'items', 'placeholder', 'disabled'],
+      },
       URadioGroup: { template: '<div />' },
       USwitch: { template: '<input type="checkbox" />' },
       UTextarea: { template: '<textarea />' },
@@ -165,7 +174,10 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
       USeparator: { template: '<hr />' },
       UBadge: { template: '<span><slot /></span>' },
       UIcon: { template: '<i />' },
-      UModal: { template: '<div v-if="open"><slot name="header" /><slot name="body" /><slot /></div>', props: ['open'] },
+      UModal: {
+        template: '<div v-if="open"><slot name="header" /><slot name="body" /><slot /></div>',
+        props: ['open'],
+      },
 
       UProgress: { template: '<div />' },
       UCollapsible: { template: '<div><slot name="trigger" /><slot /></div>' },
@@ -217,7 +229,7 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
     // Click the first variant image button
     const imageButton = wrapper.find('[data-testid="variant-image-button"]')
     expect(imageButton.exists()).toBe(true)
-    
+
     await imageButton.trigger('click')
     await wrapper.vm.$nextTick()
 
@@ -238,7 +250,7 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
     // Click to open modal
     const imageButton = wrapper.find('[data-testid="variant-image-button"]')
     expect(imageButton.exists()).toBe(true)
-    
+
     await imageButton.trigger('click')
     await wrapper.vm.$nextTick()
 
@@ -278,144 +290,187 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
     expect(wrapper.html()).toContain('!text-black')
   })
 
-
-// ── WU5: advanced 'Catálogo online' section (REQ-14 / REQ-15 / REQ-18) ──────
-describe('ProductDetailView - Advanced Catálogo online section (WU5)', () => {
-  beforeEach(() => {
-    settingsApi.get.mockClear()
-  })
-
-  /** Mount the routed view in edit mode and wait for the product query. */
-  async function mountLoadedView() {
-    const wrapper = mountWithUApp(ProductDetailView, {
-      global: getGlobalConfig(),
-      attachTo: document.body,
+  // ── WU5: advanced 'Catálogo online' section (REQ-14 / REQ-15 / REQ-18) ──────
+  describe('ProductDetailView - Advanced Catálogo online section (WU5)', () => {
+    beforeEach(() => {
+      settingsApi.get.mockClear()
     })
-    await wrapper.vm.$nextTick()
-    await flushPromises()
-    await new Promise((resolve) => setTimeout(resolve, 50))
-    return wrapper
-  }
 
-  it('issues NO catalog-settings GET when read:TenantCatalogSettings is missing (REQ-15)', async () => {
-    authState.userCan.mockImplementation((action: string, subject: string) => {
-      if (action === 'read' && subject === 'TenantCatalogSettings') return false
-      return true
-    })
-    const wrapper = await mountLoadedView()
-    // The frontend data-access gate never fires the settings query on its own.
-    expect(settingsApi.get).not.toHaveBeenCalled()
-
-    // REQ-15: the selector is rendered but disabled even without accepted
-    // contexts, while hide-price/stock stay independently usable.
-    const section = wrapper.findComponent(ProductCatalogSettingsSection)
-    const selector = section.find('[data-testid="contexts-select"]')
-    expect(selector.exists()).toBe(true)
-    expect((selector.element as HTMLSelectElement).disabled).toBe(true)
-    expect(section.find('[data-testid="contexts-gated-note"]').text()).toContain(
-      'Configura los contextos públicos del tenant en Sistema > Catálogo online para habilitar esta selección',
-    )
-    expect((section.find('[data-testid="hide-price-switch"]').element as HTMLButtonElement).disabled).toBe(false)
-  })
-
-  it('does not render the advanced section without update:Product (REQ-14)', async () => {
-    authState.userCan.mockImplementation((action: string, subject: string) => {
-      if (action === 'update' && subject === 'Product') return false
-      return true
-    })
-    const wrapper = await mountLoadedView()
-    expect(wrapper.findComponent(ProductCatalogSettingsSection).exists()).toBe(false)
-  })
-
-      it('authorized pending settings query: distinct loading selector without context options (design: state affects only the selector)', async () => {
-        settingsApi.get.mockImplementationOnce(() => new Promise(() => {}))
-        const wrapper = await mountLoadedView()
-        const section = wrapper.findComponent(ProductCatalogSettingsSection)
-        expect(section.props('settingsLoading')).toBe(true)
-        expect(section.find('[data-testid="settings-loading-note"]').text()).toContain('Cargando contextos públicos del tenant')
-        expect(section.find('[data-testid="context-toggle"]').exists()).toBe(false)
-        expect((section.find('[data-testid="contexts-select"]').element as HTMLSelectElement).disabled).toBe(true)
-        expect((section.find('[data-testid="hide-price-switch"]').element as HTMLButtonElement).disabled).toBe(false)
+    /** Mount the routed view in edit mode and wait for the product query. */
+    async function mountLoadedView() {
+      const wrapper = mountWithUApp(ProductDetailView, {
+        global: getGlobalConfig(),
+        attachTo: document.body,
       })
+      await wrapper.vm.$nextTick()
+      await flushPromises()
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      return wrapper
+    }
 
-      it('authorized failed settings query renders the error state distinct from accepted-empty (design: state affects only the selector)', async () => {
-        settingsApi.get.mockRejectedValueOnce(new Error('catalog settings unavailable'))
-        const wrapper = await mountLoadedView()
-        const section = wrapper.findComponent(ProductCatalogSettingsSection)
-        expect(section.find('[data-testid="settings-error-note"]').text()).toContain('No se pudieron cargar los contextos públicos del tenant')
-        expect(section.find('[data-testid="context-toggle"]').exists()).toBe(false)
-        expect((section.find('[data-testid="contexts-select"]').element as HTMLSelectElement).disabled).toBe(true)
-        expect((section.find('[data-testid="hide-price-switch"]').element as HTMLButtonElement).disabled).toBe(false)
+    it('issues NO catalog-settings GET when read:TenantCatalogSettings is missing (REQ-15)', async () => {
+      authState.userCan.mockImplementation((action: string, subject: string) => {
+        if (action === 'read' && subject === 'TenantCatalogSettings') return false
+        return true
       })
+      const wrapper = await mountLoadedView()
+      // The frontend data-access gate never fires the settings query on its own.
+      expect(settingsApi.get).not.toHaveBeenCalled()
 
-      it('authorized accepted-empty settings response states the tenant fact without context options (integration)', async () => {
-        const wrapper = await mountLoadedView()
-        const section = wrapper.findComponent(ProductCatalogSettingsSection)
-        expect(section.find('[data-testid="contexts-empty-note"]').text()).toContain('El tenant no tiene contextos públicos configurados')
-        expect(section.find('[data-testid="context-toggle"]').exists()).toBe(false)
-        expect((section.find('[data-testid="contexts-select"]').element as HTMLSelectElement).disabled).toBe(true)
-      })
-
-      it('renders the advanced section and queries tenant settings with read granted (REQ-14/15)', async () => {
-    settingsApi.get.mockResolvedValue({
-      priceContexts: [{ priceListId: 'pl_pub', name: 'Pública', isCatalogDefault: true }],
+      // REQ-15: USelectMenu rendered but disabled; hide-price/stock stay independently usable.
+      const section = wrapper.findComponent(ProductCatalogSettingsSection)
+      const selector = section.find('[data-testid="contexts-select"]')
+      expect(selector.exists()).toBe(true)
+      expect(selector.attributes('disabled')).toBeDefined()
+      expect(section.find('[data-testid="contexts-gated-note"]').text()).toContain(
+        'Configura los contextos públicos del tenant en Sistema > Catálogo online para habilitar esta selección',
+      )
+      expect(
+        section.find('[data-testid="hide-price-switch"]').attributes('disabled'),
+      ).toBeUndefined()
     })
-    const wrapper = await mountLoadedView()
 
-    const section = wrapper.findComponent(ProductCatalogSettingsSection)
-    expect(section.exists()).toBe(true)
-    expect(settingsApi.get).toHaveBeenCalled()
+    it('does not render the advanced section without update:Product (REQ-14)', async () => {
+      authState.userCan.mockImplementation((action: string, subject: string) => {
+        if (action === 'update' && subject === 'Product') return false
+        return true
+      })
+      const wrapper = await mountLoadedView()
+      expect(wrapper.findComponent(ProductCatalogSettingsSection).exists()).toBe(false)
+    })
 
-    const row = section.find('[data-testid="context-toggle"]')
-    expect(row.exists()).toBe(true)
-    expect(section.text()).toContain('Pública')
+    it('authorized pending settings query: distinct loading USelectMenu disabled, no rows; hide-price usable', async () => {
+      settingsApi.get.mockImplementationOnce(() => new Promise(() => {}))
+      const wrapper = await mountLoadedView()
+      const section = wrapper.findComponent(ProductCatalogSettingsSection)
+      expect(section.props('settingsLoading')).toBe(true)
+      expect(section.find('[data-testid="settings-loading-note"]').text()).toContain(
+        'Cargando contextos públicos del tenant',
+      )
+      expect(section.find('[data-testid="context-toggle"]').exists()).toBe(false)
+      expect(section.find('[data-testid="contexts-select"]').attributes('disabled')).toBeDefined()
+      expect(
+        section.find('[data-testid="hide-price-switch"]').attributes('disabled'),
+      ).toBeUndefined()
+    })
+
+    it('authorized failed settings query: distinct error USelectMenu disabled, no rows; hide-price usable', async () => {
+      settingsApi.get.mockRejectedValueOnce(new Error('catalog settings unavailable'))
+      const wrapper = await mountLoadedView()
+      const section = wrapper.findComponent(ProductCatalogSettingsSection)
+      expect(section.find('[data-testid="settings-error-note"]').text()).toContain(
+        'No se pudieron cargar los contextos públicos del tenant',
+      )
+      expect(section.find('[data-testid="context-toggle"]').exists()).toBe(false)
+      expect(section.find('[data-testid="contexts-select"]').attributes('disabled')).toBeDefined()
+      expect(
+        section.find('[data-testid="hide-price-switch"]').attributes('disabled'),
+      ).toBeUndefined()
+    })
+
+    it('authorized accepted-empty settings: USelectMenu disabled, no rows, accepted-empty note', async () => {
+      const wrapper = await mountLoadedView()
+      const section = wrapper.findComponent(ProductCatalogSettingsSection)
+      expect(section.find('[data-testid="contexts-empty-note"]').text()).toContain(
+        'El tenant no tiene contextos públicos configurados',
+      )
+      expect(section.find('[data-testid="context-toggle"]').exists()).toBe(false)
+      expect(section.find('[data-testid="contexts-select"]').attributes('disabled')).toBeDefined()
+    })
+
+    it('renders the advanced section and queries tenant settings with read granted (REQ-14/15)', async () => {
+      settingsApi.get.mockResolvedValue({
+        priceContexts: [{ priceListId: 'pl_pub', name: 'Pública', isCatalogDefault: true }],
+      })
+      const wrapper = await mountLoadedView()
+
+      const section = wrapper.findComponent(ProductCatalogSettingsSection)
+      expect(section.exists()).toBe(true)
+      expect(settingsApi.get).toHaveBeenCalled()
+
+      const row = section.find('[data-testid="context-toggle"]')
+      expect(row.exists()).toBe(true)
+      expect(section.text()).toContain('Pública')
+    })
+
+    it('places the product catalog card between Inventario and Variantes in the rendered card stack', async () => {
+      const wrapper = await mountLoadedView()
+      const inventoryHeading = wrapper
+        .findAll('h2')
+        .find((heading) => heading.text() === 'Inventario')
+      const catalogHeading = wrapper
+        .findAll('h2')
+        .find((heading) => heading.text() === 'Catálogo online')
+      const variantsHeading = wrapper
+        .findAll('h2')
+        .find((heading) => heading.text() === 'Variantes')
+
+      expect(inventoryHeading).toBeDefined()
+      expect(catalogHeading).toBeDefined()
+      expect(variantsHeading).toBeDefined()
+
+      const inventoryCard = inventoryHeading!.element.closest('[data-slot="root"]')
+      const catalogCard = catalogHeading!.element.closest('[data-slot="root"]')
+      const variantsCard = variantsHeading!.element.closest('[data-slot="root"]')
+
+      expect(inventoryCard).toBeTruthy()
+      expect(catalogCard).toBeTruthy()
+      expect(variantsCard).toBeTruthy()
+      const cardStack = inventoryCard!.parentElement
+      expect(cardStack).toBeTruthy()
+      expect(catalogCard!.parentElement).toBe(cardStack)
+      expect(variantsCard!.parentElement).toBe(cardStack)
+      expect(catalogCard!.previousElementSibling).toBe(inventoryCard)
+      expect(catalogCard!.nextElementSibling).toBe(variantsCard)
+    })
+
+    it('catalog-only save: PATCH body carries only changed flat keys and invalidates ONLY detail (REQ-13/18)', async () => {
+      const wrapper = await mountLoadedView()
+      const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+
+      const section = wrapper.findComponent(ProductCatalogSettingsSection)
+      await section.find('[data-testid="hide-price-switch"]').trigger('click')
+      await wrapper.find('form').trigger('submit')
+      await flushPromises()
+
+      // Changed-only diff vs the pristine advanced snapshot.
+      const patchBody = productApiMocks.update.mock.calls[0]?.[1] as Record<string, unknown>
+      expect(patchBody.hidePriceInOnlineCatalog).toBe(true)
+      // Response-only + unchanged keys never travel.
+      expect(patchBody).not.toHaveProperty('supportsAllCatalogPriceLists')
+      expect(patchBody).not.toHaveProperty('supportedCatalogPriceListIds')
+      expect(patchBody).not.toHaveProperty('onlineStockPresentation')
+      expect(patchBody).not.toHaveProperty('onlineStockPresentationCustomQty')
+
+      // Surgical invalidation: exactly the detail key, nothing broader.
+      expect(
+        invalidateSpy.mock.calls.map((call) => (call[0] as { queryKey?: unknown }).queryKey),
+      ).toEqual([['products', 'tenant-1', 'detail', 'test-product-id']])
+    })
+
+    it('mixed save retains the pre-existing invalidation set (REQ-18 triangulation)', async () => {
+      const wrapper = await mountLoadedView()
+      const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+
+      // Non-catalog change: the real UInput name field (stable placeholder selector).
+      const nameInput = wrapper
+        .findAll('input')
+        .find((input) => input.attributes('placeholder') === 'Ej: Jabón de mano')!
+      await nameInput.setValue('Nombre cambiado')
+      const section = wrapper.findComponent(ProductCatalogSettingsSection)
+      await section.find('[data-testid="hide-price-switch"]').trigger('click')
+      await wrapper.find('form').trigger('submit')
+      await flushPromises()
+
+      const keys = invalidateSpy.mock.calls.map(
+        (call) => (call[0] as { queryKey?: unknown }).queryKey,
+      )
+      expect(keys).toEqual([
+        ['products', 'tenant-1', 'paginated'],
+        ['products', 'tenant-1', 'detail', 'test-product-id'],
+        ['products', 'tenant-1', 'price-lists', 'test-product-id'],
+        ['products', 'tenant-1', 'variants', 'test-product-id'],
+      ])
+    })
   })
-
-  it('catalog-only save: PATCH body carries only changed flat keys and invalidates ONLY detail (REQ-13/18)', async () => {
-    const wrapper = await mountLoadedView()
-    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
-
-    const section = wrapper.findComponent(ProductCatalogSettingsSection)
-    await section.find('[data-testid="hide-price-switch"]').trigger('click')
-    await wrapper.find('form').trigger('submit')
-    await flushPromises()
-
-    // Changed-only diff vs the pristine advanced snapshot.
-    const patchBody = productApiMocks.update.mock.calls[0]?.[1] as Record<string, unknown>
-    expect(patchBody.hidePriceInOnlineCatalog).toBe(true)
-    // Response-only + unchanged keys never travel.
-    expect(patchBody).not.toHaveProperty('supportsAllCatalogPriceLists')
-    expect(patchBody).not.toHaveProperty('supportedCatalogPriceListIds')
-    expect(patchBody).not.toHaveProperty('onlineStockPresentation')
-    expect(patchBody).not.toHaveProperty('onlineStockPresentationCustomQty')
-
-    // Surgical invalidation: exactly the detail key, nothing broader.
-    expect(invalidateSpy.mock.calls.map((call) => (call[0] as { queryKey?: unknown }).queryKey)).toEqual([
-      ['products', 'tenant-1', 'detail', 'test-product-id'],
-    ])
-  })
-
-  it('mixed save retains the pre-existing invalidation set (REQ-18 triangulation)', async () => {
-    const wrapper = await mountLoadedView()
-    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
-
-    // Non-catalog change: the real UInput name field (stable placeholder selector).
-    const nameInput = wrapper
-      .findAll('input')
-      .find((input) => input.attributes('placeholder') === 'Ej: Jabón de mano')!
-    await nameInput.setValue('Nombre cambiado')
-    const section = wrapper.findComponent(ProductCatalogSettingsSection)
-    await section.find('[data-testid="hide-price-switch"]').trigger('click')
-    await wrapper.find('form').trigger('submit')
-    await flushPromises()
-
-    const keys = invalidateSpy.mock.calls.map((call) => (call[0] as { queryKey?: unknown }).queryKey)
-    expect(keys).toEqual([
-      ['products', 'tenant-1', 'paginated'],
-      ['products', 'tenant-1', 'detail', 'test-product-id'],
-      ['products', 'tenant-1', 'price-lists', 'test-product-id'],
-      ['products', 'tenant-1', 'variants', 'test-product-id'],
-    ])
-  })
-})
 })

@@ -1,12 +1,17 @@
 <script setup lang="ts">
 /**
- * ProductCatalogSettingsSection — WU5 advanced "Catálogo online" composition
+ * ProductCatalogSettingsSection — WU6 redesigned "Catálogo online" composition
  * surface for the full product editor (REQ-14/REQ-15). The view renders it only
  * with update:Product. Hide-price and the stock override stay editable
  * regardless of settings-read, while the per-product public-context support
  * selector additionally requires read:TenantCatalogSettings and otherwise
  * disables with the locked Spanish note (the frontend never auto-grants it).
  * supportsAllCatalogPriceLists is response-only and never sent.
+ *
+ * UI redesign (U6): USwitch with label+description replaces the manual button-role
+ * switch; UCheckbox replaces native checkboxes in a responsive list; OnlineStockOverrideFields
+ * uses UFormField + USelectMenu + UInput; internal sections use spacing and dividers.
+ * One UCard sibling of Inventario/Variantes with no nested cards.
  */
 import { computed } from 'vue'
 import OnlineStockOverrideFields from './OnlineStockOverrideFields.vue'
@@ -45,47 +50,65 @@ const stockValue = computed<StockOverrideValue>(() => ({
   customQuantity: props.onlineStockPresentationCustomQty,
 }))
 
-    const contextRows = computed(() =>
-      props.settingsLoading || props.settingsError
-        ? []
-        : props.contexts.map((context) => ({
-            ...context,
-            supported: props.supportedCatalogPriceListIds.includes(context.priceListId),
-          })),
-    )
+const contextRows = computed(() =>
+  !props.canReadSettings || props.settingsLoading || props.settingsError
+    ? []
+    : props.contexts.map((context) => ({
+        ...context,
+        supported: props.supportedCatalogPriceListIds.includes(context.priceListId),
+      })),
+)
 </script>
 
 <template>
   <UCard :ui="{ root: 'overflow-visible' }" data-testid="catalog-settings-section">
     <template #header>
-      <h2 class="text-lg font-semibold">Catálogo online</h2>
+      <div class="flex flex-col gap-1">
+        <h2 class="text-lg font-semibold">Catálogo online</h2>
+        <p class="text-sm text-muted">
+          Controla la visibilidad de precios y stock de este producto en el catálogo público
+        </p>
+      </div>
     </template>
 
-    <div class="space-y-4">
-      <div class="flex items-center gap-3">
-        <button
-          type="button"
-          role="switch"
-          :aria-checked="props.hidePriceInOnlineCatalog"
+    <div class="flex flex-col gap-6">
+      <!-- ① Publication / price visibility -->
+      <div class="flex items-start gap-4">
+        <USwitch
+          :model-value="props.hidePriceInOnlineCatalog"
+          label="Ocultar precios"
+          description="Los precios no serán visibles en el catálogo en línea"
           data-testid="hide-price-switch"
-          class="rounded-full border border-default px-3 py-1 text-sm"
-          :class="props.hidePriceInOnlineCatalog ? 'bg-primary text-white' : 'bg-neutral'"
           :disabled="props.disabled"
-          @click="emit('toggle-hide-price', !props.hidePriceInOnlineCatalog)"
-        >
-          {{ props.hidePriceInOnlineCatalog ? 'Precios ocultos' : 'Precios visibles' }}
-        </button>
-        <span class="text-sm text-default">Ocultar precios en catálogo</span>
+          @update:model-value="emit('toggle-hide-price', $event)"
+        />
       </div>
 
-      <OnlineStockOverrideFields
-        :value="stockValue"
-        :disabled="props.disabled"
-        @change="emit('stock-change', $event)"
-      />
+      <!-- Subtle divider -->
+      <div class="border-t border-default" />
 
-      <div class="space-y-2" data-testid="supported-contexts">
-        <h4 class="text-sm font-semibold text-default">Contextos públicos soportados</h4>
+      <!-- ② Stock override -->
+      <div class="flex flex-col gap-1">
+        <OnlineStockOverrideFields
+          :value="stockValue"
+          :disabled="props.disabled"
+          @change="emit('stock-change', $event)"
+        />
+      </div>
+
+      <!-- Subtle divider -->
+      <div class="border-t border-default" />
+
+      <!-- ③ Public contexts -->
+      <div class="flex flex-col gap-3" data-testid="supported-contexts">
+        <div class="flex flex-col gap-1">
+          <h3 class="text-sm font-semibold text-default">Contextos públicos soportados</h3>
+          <p class="text-xs text-muted">
+            Listas de precios visibles para clientes públicos de este producto
+          </p>
+        </div>
+
+        <!-- supportsAll indicator (response-only, never sent) -->
         <p
           v-if="props.supportsAllCatalogPriceLists"
           data-testid="supports-all-note"
@@ -93,45 +116,67 @@ const stockValue = computed<StockOverrideValue>(() => ({
         >
           Soporta todos los contextos públicos del tenant
         </p>
-            <label v-for="row in contextRows" :key="row.priceListId" class="flex items-center gap-2">
-              <input
-                type="checkbox"
-                data-testid="context-toggle"
-                class="size-4"
-                :checked="row.supported"
-                :disabled="props.disabled || !props.canReadSettings"
-                @change="emit('toggle-context', row.priceListId)"
-              />
-              <span class="text-sm text-default">{{ row.name }}</span>
-            </label>
-            <!-- The settings query state affects only this selector: when no row
-                 controls exist (unavailable, pending, failed, or accepted-empty)
-                 the selector stays visibly present but disabled, without
-                 synthesizing context options or backend defaults. -->
-            <select
-              v-if="contextRows.length === 0"
-              data-testid="contexts-select"
-              class="rounded-lg border border-default px-2 py-1 text-sm"
-              disabled
-            >
-              <option value="">—</option>
-            </select>
-            <!-- Frontend data-access gate — never auto-granted; pending and
-                 failed query states surface their own note so they are never
-                 conflated with an accepted-empty configuration. -->
-            <p v-if="!props.canReadSettings" data-testid="contexts-gated-note" class="text-sm text-muted">
-              Configura los contextos públicos del tenant en Sistema &gt; Catálogo online para habilitar esta selección
-            </p>
-            <p v-else-if="props.settingsLoading" data-testid="settings-loading-note" class="text-sm text-muted">
-              Cargando contextos públicos del tenant…
-            </p>
-            <p v-else-if="props.settingsError" data-testid="settings-error-note" class="text-sm text-muted">
-              No se pudieron cargar los contextos públicos del tenant
-            </p>
-            <p v-else-if="contextRows.length === 0" data-testid="contexts-empty-note" class="text-xs text-muted">
-              El tenant no tiene contextos públicos configurados
-            </p>
-          </div>
+
+        <!-- Context toggle list: one column on mobile, two columns when space permits. -->
+        <ul
+          v-if="contextRows.length > 0"
+          class="grid grid-cols-1 gap-2 sm:grid-cols-2"
+          data-testid="context-list"
+        >
+          <li v-for="row in contextRows" :key="row.priceListId" class="min-w-0">
+            <UCheckbox
+              :model-value="row.supported"
+              :label="row.name"
+              data-testid="context-toggle"
+              :disabled="props.disabled || !props.canReadSettings"
+              @update:model-value="emit('toggle-context', row.priceListId)"
+            />
+          </li>
+        </ul>
+
+        <!-- Unavailable contexts state: all unavailable cases keep a labeled disabled control. -->
+        <USelectMenu
+          v-if="contextRows.length === 0"
+          data-testid="contexts-select"
+          aria-label="Contextos públicos no disponibles"
+          :model-value="null"
+          :items="[]"
+          placeholder="—"
+          disabled
+          class="w-full sm:max-w-xs"
+        />
+
+        <!-- Settings query state: affects only this selector context -->
+        <p
+          v-if="!props.canReadSettings"
+          data-testid="contexts-gated-note"
+          class="text-sm text-muted"
+        >
+          Configura los contextos públicos del tenant en Sistema &gt; Catálogo online para habilitar
+          esta selección
+        </p>
+        <p
+          v-else-if="props.settingsLoading"
+          data-testid="settings-loading-note"
+          class="text-sm text-muted"
+        >
+          Cargando contextos públicos del tenant…
+        </p>
+        <p
+          v-else-if="props.settingsError"
+          data-testid="settings-error-note"
+          class="text-sm text-muted"
+        >
+          No se pudieron cargar los contextos públicos del tenant
+        </p>
+        <p
+          v-else-if="contextRows.length === 0"
+          data-testid="contexts-empty-note"
+          class="text-xs text-muted"
+        >
+          El tenant no tiene contextos públicos configurados
+        </p>
+      </div>
     </div>
   </UCard>
 </template>
