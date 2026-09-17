@@ -251,13 +251,23 @@ export function productToFormInput(product: Product | ProductDetail): ProductFor
   }
 }
 
-export function toCreatePayload(values: ProductFormValues): CreateProductPayload {
-  // SERVICE branch lands in WU-C; PRODUCT branch unchanged in WU-A.
-  if (isService(values.type)) {
-    return buildServicePayload(values)
+// REQ-13: create-only advanced catalog fields merged into toCreatePayload.
+// Literal 0 survives via ??; [] is always present.
+// Never emits supportsAllCatalogPriceLists.
+function buildAdvancedCatalogPayload(values: ProductFormValues) {
+  return {
+    hidePriceInOnlineCatalog: values.hidePriceInOnlineCatalog ?? false,
+    supportedCatalogPriceListIds: values.supportedCatalogPriceListIds ?? [],
+    onlineStockPresentation: values.onlineStockPresentation ?? null,
+    onlineStockPresentationCustomQty: values.onlineStockPresentationCustomQty ?? null,
   }
+}
 
-  return buildBasePayload(values)
+export function toCreatePayload(values: ProductFormValues): CreateProductPayload {
+  if (isService(values.type)) {
+    return { ...buildServicePayload(values), ...buildAdvancedCatalogPayload(values) }
+  }
+  return { ...buildBasePayload(values), ...buildAdvancedCatalogPayload(values) }
 }
 
 function buildBasePayload(values: ProductFormValues): CreateProductPayload {
@@ -336,15 +346,18 @@ function buildServicePayload(values: ProductFormValues): CreateProductPayload {
         values: ProductFormValues,
         pristineAdvanced?: ProductAdvancedCatalogForm,
       ): UpdateProductPayload {
-        // WU4 changed-only flat diff vs. the pristine advanced snapshot; without
-        // one (compact slideover) no advanced key is emitted and the hydrated
-        // snapshot survives untouched. supportsAllCatalogPriceLists is never sent.
-        const payload = toCreatePayload(values)
+        // REQ-13: base payload built WITHOUT create-only advanced fields so that
+        // update emits only changed fields. toProductPatchAdvancedCatalogPayload
+        // applies changed-only diff when pristineAdvanced snapshot exists; without
+        // one (compact slideover) no advanced key is emitted.
+        const basePayload = isService(values.type)
+          ? buildServicePayload(values)
+          : buildBasePayload(values)
 
-        if (!pristineAdvanced) return payload
+        if (!pristineAdvanced) return basePayload
 
         return {
-          ...payload,
+          ...basePayload,
           ...toProductPatchAdvancedCatalogPayload(
             {
               hidePriceInOnlineCatalog: values.hidePriceInOnlineCatalog ?? false,

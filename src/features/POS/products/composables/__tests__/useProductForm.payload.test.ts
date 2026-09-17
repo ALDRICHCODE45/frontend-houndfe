@@ -1,7 +1,8 @@
 /**
  * WU-C RED tests — type-aware create/update payloads. SERVICE branch lands
- * here; PRODUCT branch unchanged from WU-A. `toUpdatePayload` delegates to
- * `toCreatePayload`, so updating a SERVICE follows the same hygiene.
+ * here; PRODUCT branch unchanged from WU-A. `toUpdatePayload` builds the base
+ * SERVICE/PRODUCT payload directly (no create-only advanced fields) and
+ * applies changed-only diff via toProductPatchAdvancedCatalogPayload.
  */
 
 import { describe, expect, it } from 'vitest'
@@ -112,11 +113,21 @@ describe('WU-C · toCreatePayload SERVICE branch', () => {
     expect(payload.minQuantity).toBe(3)
   })
 
-  it('toUpdatePayload delegates to toCreatePayload (same shape for SERVICE)', () => {
+  // REQ-13: without pristineAdvanced, update emits no advanced keys but preserves
+  // SERVICE hygiene/core fields exactly.
+  it('toUpdatePayload without pristineAdvanced preserves SERVICE hygiene and omits advanced keys', () => {
     const values = makeFormValues({ type: 'SERVICE' })
-    const updatePayload = toUpdatePayload(values) as unknown as Record<string, unknown>
-    const createPayload = toCreatePayload(values) as unknown as Record<string, unknown>
-    expect(updatePayload).toEqual(createPayload)
+    const payload = toUpdatePayload(values) as unknown as Record<string, unknown>
+
+    expect(payload).not.toHaveProperty('sku')
+    expect(payload).not.toHaveProperty('barcode')
+    expect(payload).not.toHaveProperty('brandId')
+    expect(payload).not.toHaveProperty('purchaseCost')
+    expect(payload).not.toHaveProperty('supportsAllCatalogPriceLists')
+    expect(payload).not.toHaveProperty('hidePriceInOnlineCatalog')
+    expect(payload).not.toHaveProperty('supportedCatalogPriceListIds')
+    expect(payload).not.toHaveProperty('onlineStockPresentation')
+    expect(payload).not.toHaveProperty('onlineStockPresentationCustomQty')
   })
 })
 describe('WU4 · toUpdatePayload advanced catalog diff', () => {
@@ -162,5 +173,134 @@ describe('WU4 · toUpdatePayload advanced catalog diff', () => {
     expect(rejected.success).toBe(false)
     expect(rejected.error?.issues[0]?.message).toBe('Las listas de precios del catálogo no pueden ser nulas')
     expect(productFormSchema.safeParse(makeFormValues({ type: 'PRODUCT', supportedCatalogPriceListIds: [] })).success).toBe(true)
+  })
+})
+
+/**
+ * REQ-13 acceptance: product create/update advanced catalog fields must round-trip.
+ * These tests exercise `toCreatePayload` directly with real PRODUCT/SERVICE form values.
+ * Expected RED: current buildBasePayload and buildServicePayload omit all four advanced
+ * catalog keys (hidePriceInOnlineCatalog, supportedCatalogPriceListIds,
+ * onlineStockPresentation, onlineStockPresentationCustomQty).
+ */
+describe('REQ-13 · toCreatePayload advanced catalog fields — PRODUCT matrix', () => {
+  const makeProductForm = (overrides: Partial<ProductFormInput> = {}): ProductFormInput =>
+    makeFormValues({ type: 'PRODUCT', hasVariants: false, useStock: true, ...overrides })
+
+  it('REQUIRES hidePriceInOnlineCatalog in PRODUCT create payload', () => {
+    const values = makeProductForm({ hidePriceInOnlineCatalog: true })
+    const payload = toCreatePayload(values) as unknown as Record<string, unknown>
+    expect(payload).toHaveProperty('hidePriceInOnlineCatalog')
+    expect(payload.hidePriceInOnlineCatalog).toBe(true)
+  })
+
+  it('REQUIRES supportedCatalogPriceListIds (non-empty) in PRODUCT create payload', () => {
+    const values = makeProductForm({ supportedCatalogPriceListIds: ['pl-1', 'pl-2'] })
+    const payload = toCreatePayload(values) as unknown as Record<string, unknown>
+    expect(payload).toHaveProperty('supportedCatalogPriceListIds')
+    expect(payload.supportedCatalogPriceListIds).toEqual(['pl-1', 'pl-2'])
+  })
+
+  it('REQUIRES supportedCatalogPriceListIds ([]) in PRODUCT create payload', () => {
+    const values = makeProductForm({ supportedCatalogPriceListIds: [] })
+    const payload = toCreatePayload(values) as unknown as Record<string, unknown>
+    expect(payload).toHaveProperty('supportedCatalogPriceListIds')
+    expect(payload.supportedCatalogPriceListIds).toEqual([])
+  })
+
+  it('REQUIRES onlineStockPresentation in PRODUCT create payload', () => {
+    const values = makeProductForm({ onlineStockPresentation: 'SYSTEM_STATUS' })
+    const payload = toCreatePayload(values) as unknown as Record<string, unknown>
+    expect(payload).toHaveProperty('onlineStockPresentation')
+    expect(payload.onlineStockPresentation).toBe('SYSTEM_STATUS')
+  })
+
+  it('REQUIRES onlineStockPresentationCustomQty literal 0 in PRODUCT create payload', () => {
+    const values = makeProductForm({
+      onlineStockPresentation: 'CUSTOM_QUANTITY',
+      onlineStockPresentationCustomQty: 0,
+    })
+    const payload = toCreatePayload(values) as unknown as Record<string, unknown>
+    expect(payload).toHaveProperty('onlineStockPresentationCustomQty')
+    // Must preserve literal 0, not coerce to null
+    expect(payload.onlineStockPresentationCustomQty).toBe(0)
+  })
+
+  it('NEVER sends supportsAllCatalogPriceLists in PRODUCT create payload', () => {
+    const values = makeProductForm({
+      supportedCatalogPriceListIds: [],
+    })
+    const payload = toCreatePayload(values) as unknown as Record<string, unknown>
+    expect(payload).not.toHaveProperty('supportsAllCatalogPriceLists')
+  })
+})
+
+describe('REQ-13 · toCreatePayload advanced catalog fields — SERVICE matrix', () => {
+  const makeServiceForm = (overrides: Partial<ProductFormInput> = {}): ProductFormInput =>
+    makeFormValues({ type: 'SERVICE', hasVariants: true, ...overrides })
+
+  it('REQUIRES hidePriceInOnlineCatalog in SERVICE create payload', () => {
+    const values = makeServiceForm({ hidePriceInOnlineCatalog: true })
+    const payload = toCreatePayload(values) as unknown as Record<string, unknown>
+    expect(payload).toHaveProperty('hidePriceInOnlineCatalog')
+    expect(payload.hidePriceInOnlineCatalog).toBe(true)
+  })
+
+  it('REQUIRES supportedCatalogPriceListIds (non-empty) in SERVICE create payload', () => {
+    const values = makeServiceForm({ supportedCatalogPriceListIds: ['pl-1'] })
+    const payload = toCreatePayload(values) as unknown as Record<string, unknown>
+    expect(payload).toHaveProperty('supportedCatalogPriceListIds')
+    expect(payload.supportedCatalogPriceListIds).toEqual(['pl-1'])
+  })
+
+  it('REQUIRES supportedCatalogPriceListIds ([]) in SERVICE create payload', () => {
+    const values = makeServiceForm({ supportedCatalogPriceListIds: [] })
+    const payload = toCreatePayload(values) as unknown as Record<string, unknown>
+    expect(payload).toHaveProperty('supportedCatalogPriceListIds')
+    expect(payload.supportedCatalogPriceListIds).toEqual([])
+  })
+
+  it('REQUIRES onlineStockPresentation in SERVICE create payload', () => {
+    const values = makeServiceForm({ onlineStockPresentation: 'ABSTRACT_STATUS' })
+    const payload = toCreatePayload(values) as unknown as Record<string, unknown>
+    expect(payload).toHaveProperty('onlineStockPresentation')
+    expect(payload.onlineStockPresentation).toBe('ABSTRACT_STATUS')
+  })
+
+  it('REQUIRES onlineStockPresentationCustomQty literal 0 in SERVICE create payload', () => {
+    const values = makeServiceForm({
+      onlineStockPresentation: 'CUSTOM_QUANTITY',
+      onlineStockPresentationCustomQty: 0,
+    })
+    const payload = toCreatePayload(values) as unknown as Record<string, unknown>
+    expect(payload).toHaveProperty('onlineStockPresentationCustomQty')
+    expect(payload.onlineStockPresentationCustomQty).toBe(0)
+  })
+
+  it('NEVER sends supportsAllCatalogPriceLists in SERVICE create payload', () => {
+    const values = makeServiceForm({ supportedCatalogPriceListIds: [] })
+    const payload = toCreatePayload(values) as unknown as Record<string, unknown>
+    expect(payload).not.toHaveProperty('supportsAllCatalogPriceLists')
+  })
+})
+
+/**
+ * Derived-field omission checks: these pass independently of the REQ-13 RED above.
+ * They verify that the derived `supportsAllCatalogPriceLists` key is never emitted
+ * in create payloads, regardless of the advanced-field round-trip status.
+ */
+describe('Derived-field omission · create payloads never emit supportsAllCatalogPriceLists', () => {
+  it('PRODUCT toCreatePayload omits supportsAllCatalogPriceLists', () => {
+    const payload = toCreatePayload(
+      makeFormValues({ type: 'PRODUCT', hasVariants: false, supportedCatalogPriceListIds: [] }),
+    ) as unknown as Record<string, unknown>
+    expect(payload).not.toHaveProperty('supportsAllCatalogPriceLists')
+  })
+
+  it('SERVICE toCreatePayload omits supportsAllCatalogPriceLists', () => {
+    const payload = toCreatePayload(
+      makeFormValues({ type: 'SERVICE', hasVariants: true, supportedCatalogPriceListIds: ['pl-1'] }),
+    ) as unknown as Record<string, unknown>
+    expect(payload).not.toHaveProperty('supportsAllCatalogPriceLists')
   })
 })

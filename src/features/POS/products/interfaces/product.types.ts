@@ -282,6 +282,11 @@ export interface CreateProductPayload {
   priceLists?: CreatePriceListInline[]
   images?: CreateImageInline[]
   serviceDetail?: ServiceDetail
+  // REQ-13: create-only advanced catalog fields (never send supportsAllCatalogPriceLists).
+  hidePriceInOnlineCatalog?: boolean
+  supportedCatalogPriceListIds?: string[]
+  onlineStockPresentation?: OnlineStockPresentationMode | null
+  onlineStockPresentationCustomQty?: number | null
 }
 
 // ── Inline sub-resources for atomic product creation ─────────
