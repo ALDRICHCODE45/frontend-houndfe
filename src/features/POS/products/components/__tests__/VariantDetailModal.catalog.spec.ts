@@ -9,7 +9,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { DOMWrapper, flushPromises, mount, type VueWrapper } from '@vue/test-utils'
-import { defineComponent, h, onUnmounted, type Component } from 'vue'
+import { defineComponent, h, nextTick, onUnmounted, type Component } from 'vue'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import UApp from '@nuxt/ui/runtime/components/App.vue'
 import VariantDetailModal from '../VariantDetailModal.vue'
@@ -71,17 +71,19 @@ const mountModalRoot = async (variant: ProductVariant | null): Promise<VueWrappe
     components: { UApp },
     setup() {
       onUnmounted(rootUnmounted)
-      return () => h(UApp, null, {
-        default: () => h(VariantDetailModal as Component, {
-          open: true,
-          productId: 'p1',
-          productName: 'Test',
-          productPurchaseNetCostCents: 0,
-          useStock: false,
-          canUpdate: true,
-          variant,
-        }),
-      })
+      return () =>
+        h(UApp, null, {
+          default: () =>
+            h(VariantDetailModal as Component, {
+              open: true,
+              productId: 'p1',
+              productName: 'Test',
+              productPurchaseNetCostCents: 0,
+              useStock: false,
+              canUpdate: true,
+              variant,
+            }),
+        })
     },
   })
   const rootWrapper = mount(RootCatcher, {
@@ -133,6 +135,37 @@ const clickSave = async () => {
 
 const patchBody = (call = 0) => productApiMocks.updateVariant.mock.calls[call]![2]
 
+// The redesigned shared field renders a USelectMenu button (not a native
+// <select>), so the stock override mode is chosen through the rendered popup:
+// open the selector, click the option by its visible Spanish label, and await
+// Vue updates. scrollIntoView is stubbed only for the Nuxt UI popup lifetime.
+async function selectStockOverrideMode(label: string) {
+  const originalScrollIntoView = HTMLElement.prototype.scrollIntoView
+  Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+    configurable: true,
+    value: () => {},
+  })
+
+  try {
+    await q('[data-testid="stock-override-mode"]').trigger('click')
+    await nextTick()
+    const options = [...document.body.querySelectorAll<HTMLElement>('[role="option"]')]
+    const option = options.reverse().find((element) => element.textContent?.trim() === label)
+    expect(option).toBeDefined()
+    await new DOMWrapper(option!).trigger('click')
+    await nextTick()
+  } finally {
+    if (originalScrollIntoView) {
+      Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+        configurable: true,
+        value: originalScrollIntoView,
+      })
+    } else {
+      Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView')
+    }
+  }
+}
+
 describe('VariantDetailModal — root cleanup', () => {
   it('unmounts Vue effects as well as restoring the pre-mount dialog baseline', async () => {
     const dialogCount = () => document.querySelectorAll('[role="dialog"]').length
@@ -178,16 +211,19 @@ describe('VariantDetailModal — persisted-variant catalog controls (REQ-16)', (
     ['ON', 'INHERIT'],
     ['OFF', 'INHERIT'],
     ['INHERIT', 'ON'],
-  ] as const)('saves a %s mode change from pristine %s as the only PATCH key', async (mode, pristineMode) => {
-    await mountModal(makeVariant({ catalogPublishMode: pristineMode }))
-    await q('[data-testid="catalog-publish-mode"]').setValue(mode)
-    await clickSave()
-    expect(patchBody()).toEqual({ catalogPublishMode: mode })
-  })
+  ] as const)(
+    'saves a %s mode change from pristine %s as the only PATCH key',
+    async (mode, pristineMode) => {
+      await mountModal(makeVariant({ catalogPublishMode: pristineMode }))
+      await q('[data-testid="catalog-publish-mode"]').setValue(mode)
+      await clickSave()
+      expect(patchBody()).toEqual({ catalogPublishMode: mode })
+    },
+  )
 
   it('round-trips the stock override pair and emits no stock keys when only the mode changed', async () => {
     await mountModal(makeVariant())
-    await q('[data-testid="stock-override-mode"]').setValue('CUSTOM_QUANTITY')
+    await selectStockOverrideMode('Cantidad personalizada')
     await q('[data-testid="stock-override-qty"]').setValue('5')
     await clickSave()
     expect(patchBody()).toEqual({
@@ -198,7 +234,7 @@ describe('VariantDetailModal — persisted-variant catalog controls (REQ-16)', (
 
   it('preserves customQuantity 0 literally with the "Mostrar 0" label', async () => {
     await mountModal(makeVariant())
-    await q('[data-testid="stock-override-mode"]').setValue('CUSTOM_QUANTITY')
+    await selectStockOverrideMode('Cantidad personalizada')
     expect(document.body.textContent).toContain('Mostrar 0')
     await clickSave()
     expect(patchBody()).toEqual({
@@ -211,7 +247,7 @@ describe('VariantDetailModal — persisted-variant catalog controls (REQ-16)', (
     await mountModal(
       makeVariant({ onlineStockPresentation: 'HIDDEN', onlineStockPresentationCustomQty: null }),
     )
-    await q('[data-testid="stock-override-mode"]').setValue('')
+    await selectStockOverrideMode('Predeterminado del tenant')
     await clickSave()
     expect(patchBody()).toEqual({
       onlineStockPresentation: null,
@@ -267,7 +303,9 @@ describe('VariantDetailModal — persisted-variant catalog controls (REQ-16)', (
       await clickSave()
       // resolved: cost pristine advanced; rejected: cost draft stays pending too.
       expect(patchBody(1)).toEqual(
-        outcome === 'resolved' ? { catalogPublishMode: 'OFF' } : { purchaseNetCostCents: 1250, catalogPublishMode: 'OFF' },
+        outcome === 'resolved'
+          ? { catalogPublishMode: 'OFF' }
+          : { purchaseNetCostCents: 1250, catalogPublishMode: 'OFF' },
       )
     },
   )
