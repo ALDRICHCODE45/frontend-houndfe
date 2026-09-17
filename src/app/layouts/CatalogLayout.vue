@@ -4,7 +4,8 @@ import { useColorMode } from '@vueuse/core'
 
 const colorMode = useColorMode()
 
-const LIGHT_BG = '#FFF8F0'
+/** Cool near-white page base. The catalog identity is cobalt, never a warm cream. */
+const LIGHT_BG = '#F4F6FB'
 const DARK_BG = '#18181b' // zinc-900
 
 function applyBg() {
@@ -26,7 +27,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-[#FFF8F0] dark:bg-zinc-900">
+  <div class="min-h-dvh bg-[#F4F6FB] dark:bg-zinc-900">
     <slot />
   </div>
 </template>

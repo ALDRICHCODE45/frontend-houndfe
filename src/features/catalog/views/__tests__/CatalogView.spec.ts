@@ -420,6 +420,181 @@ describe('CatalogView public browse', () => {
     expect(fetchMock).toHaveBeenCalledTimes(4)
   })
 
+  it('renders the branch hero with a real address, a neutral address fallback and the selected branch state', async () => {
+    const publishedBranches = [
+      {
+        id: 'b-1',
+        name: 'Sucursal Centro',
+        slug: 'centro',
+        address: 'Av. Juárez 120, Centro',
+        phone: null,
+      },
+      { id: 'b-2', name: 'Sucursal Norte', slug: 'norte', address: null, phone: null },
+    ]
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(publishedBranches))
+      .mockResolvedValueOnce(jsonResponse(productsResponse()))
+    vi.stubGlobal('fetch', fetchMock)
+    const { wrapper } = await mountAt('/catalogo/centro')
+
+    await flushPromises()
+    const hero = wrapper.get('[data-testid="catalog-branch-hero"]')
+    expect(hero.text()).toContain('Sucursales disponibles')
+    expect(hero.get('h2').text()).toBe('Elige una sucursal para ver sus productos')
+
+    const selected = hero.get('button[aria-label="Sucursal Centro"]')
+    const unselected = hero.get('button[aria-label="Sucursal Norte"]')
+    expect(selected.attributes('aria-current')).toBe('page')
+    expect(unselected.attributes('aria-current')).toBeUndefined()
+    expect(selected.text()).toContain('Av. Juárez 120, Centro')
+    expect(unselected.text()).toContain('Dirección no publicada')
+  })
+
+  it('threads the real category facets and the result total into the informational category bar', async () => {
+    const categories = [
+      { id: 'coffee', name: 'Café', count: 3 },
+      { id: 'tea', name: 'Té', count: 1 },
+    ]
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(branches))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          ...productsResponse(),
+          meta: { page: 1, limit: 20, total: 4, totalPages: 1 },
+          facets: { categories },
+        }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    const { wrapper } = await mountAt('/catalogo/centro')
+
+    await flushPromises()
+    const bar = wrapper.get('[data-testid="catalog-category-bar"]')
+    expect(bar.get('[data-testid="catalog-result-total"]').text()).toContain('4 productos')
+    expect(
+      bar.get('button[aria-label="Todas las categorías"]').attributes('disabled'),
+    ).toBeDefined()
+    expect(bar.get('button[aria-label="Ordenar catálogo"]').attributes('disabled')).toBeDefined()
+    for (const category of categories) {
+      const chip = bar.get(`button[aria-label="${category.name}"]`)
+      expect(chip.attributes('disabled')).toBeDefined()
+      expect(chip.text()).toContain(category.name)
+      expect(chip.text()).toContain(String(category.count))
+    }
+  })
+
+  it('exposes only branch selection and the theme switch as enabled shell controls', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(branches))
+    vi.stubGlobal('fetch', fetchMock)
+    const { wrapper } = await mountAt('/catalogo')
+
+    await flushPromises()
+    const enabled = wrapper
+      .findAll('button')
+      .filter((button) => button.attributes('disabled') === undefined)
+      .map((button) => button.attributes('aria-label'))
+
+    expect(enabled.sort()).toEqual(
+      ['Cambiar tema', 'Explorar sucursales', 'Sucursal Centro', 'Sucursal Norte'].sort(),
+    )
+  })
+
+  it('withholds the result total copy before a product response exists and preserves a real zero afterwards', async () => {
+    const discoveryFetch = vi.fn().mockResolvedValueOnce(jsonResponse(branches))
+    vi.stubGlobal('fetch', discoveryFetch)
+    const discovery = await mountAt('/catalogo')
+
+    await flushPromises()
+    expect(discovery.wrapper.find('[data-testid="catalog-result-total"]').exists()).toBe(false)
+    expect(discovery.wrapper.text()).not.toContain('0 productos')
+    expect(discoveryFetch).toHaveBeenCalledTimes(1)
+
+    const emptyFetch = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(branches))
+      .mockResolvedValueOnce(jsonResponse(productsResponse([])))
+    vi.stubGlobal('fetch', emptyFetch)
+    const selected = await mountAt('/catalogo/centro')
+
+    await flushPromises()
+    expect(selected.wrapper.get('[data-testid="catalog-result-total"]').text()).toBe('0 productos')
+  })
+
+  it('announces in-progress branch discovery inside the polite chooser region', async () => {
+    let resolveBranches!: (value: Response) => void
+    const fetchMock = vi.fn().mockReturnValueOnce(
+      new Promise<Response>((resolve) => {
+        resolveBranches = resolve
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const { wrapper } = await mountAt('/catalogo')
+
+    await flushPromises()
+    const chooser = wrapper.get('#catalog-branch-chooser')
+    expect(chooser.attributes('aria-live')).toBe('polite')
+    const announcement = chooser.get('[role="status"]')
+    expect(announcement.attributes('aria-busy')).toBeDefined()
+    expect(announcement.text()).toBe('Cargando sucursales…')
+
+    resolveBranches(jsonResponse(branches))
+    await flushPromises()
+  })
+
+  it('announces the terminal branch error inside the polite chooser region without changing its labels', async () => {
+    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse({ message: 'boom' }, 500))
+    vi.stubGlobal('fetch', fetchMock)
+    const { wrapper } = await mountAt('/catalogo')
+
+    await flushPromises()
+    const chooser = wrapper.get('#catalog-branch-chooser')
+    expect(chooser.attributes('aria-live')).toBe('polite')
+    expect(chooser.text()).toContain('No pudimos cargar las sucursales.')
+    expect(chooser.get('button[aria-label="Reintentar sucursales"]').text()).toBe('Reintentar')
+    expect(wrapper.find('button[aria-label="Explorar sucursales"]').exists()).toBe(true)
+  })
+
+  it('keeps every branch hero supporting and address class at a contrast-safe white opacity', async () => {
+    const publishedBranches = [
+      {
+        id: 'b-1',
+        name: 'Sucursal Centro',
+        slug: 'centro',
+        address: 'Av. Juárez 120, Centro',
+        phone: null,
+      },
+      { id: 'b-2', name: 'Sucursal Norte', slug: 'norte', address: null, phone: null },
+    ]
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(publishedBranches))
+      .mockResolvedValueOnce(jsonResponse(productsResponse()))
+    vi.stubGlobal('fetch', fetchMock)
+    const { wrapper } = await mountAt('/catalogo/centro')
+
+    await flushPromises()
+    const hero = wrapper.get('[data-testid="catalog-branch-hero"]')
+    expect(hero.get('p').classes()).toContain('text-white/85')
+
+    // The unselected address composites over bg-white/10 on cobalt, so it needs a stronger white.
+    const unselected = hero.get('button[aria-label="Sucursal Norte"]')
+    const unselectedAddress = unselected.get('span.text-xs')
+    expect(unselectedAddress.classes()).toContain('text-white/95')
+    expect(unselectedAddress.text()).toBe('Dirección no publicada')
+
+    const translucentText = hero.findAll('[class*="text-white/"]')
+    expect(translucentText.length).toBeGreaterThanOrEqual(2)
+    for (const element of translucentText) {
+      const opacities = element
+        .classes()
+        .filter((className) => /^text-white\/\d+$/.test(className))
+        .map((className) => Number(className.split('/')[1]))
+      expect(opacities.length).toBeGreaterThan(0)
+      for (const opacity of opacities) expect(opacity).toBeGreaterThanOrEqual(85)
+    }
+  })
+
   it('passes detail error state and retry events through the modal boundary', async () => {
     const fetchMock = vi
       .fn()

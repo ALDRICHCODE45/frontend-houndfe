@@ -117,15 +117,18 @@ async function selectBranch(slug: string) {
 </script>
 
 <template>
-  <div class="flex min-h-screen flex-col">
+  <div class="flex min-h-dvh flex-col">
     <CatalogHeader
       :branches="branches"
       :state="branchesState"
-      :selected-slug="selectedBranch?.slug ?? null"
+      :selected-branch="selectedBranch"
       @retry="retryBranches"
       @select="selectBranch"
     />
-    <CatalogCategoryBar />
+    <CatalogCategoryBar
+      :categories="response?.facets.categories ?? []"
+      :total="response?.meta.total ?? null"
+    />
 
     <main class="flex-1">
       <CatalogProductGrid

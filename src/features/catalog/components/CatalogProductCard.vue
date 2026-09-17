@@ -18,9 +18,21 @@ const formattedPrice = computed(() => {
   return !props.product.price.hidden && cents !== null ? formatCentsMXN(cents) : null
 })
 const availabilityConfig = {
-  available: { label: 'Disponible', dot: 'bg-emerald-400', text: 'text-emerald-600' },
-  low_stock: { label: 'Pocas piezas', dot: 'bg-amber-400', text: 'text-amber-600' },
-  out_of_stock: { label: 'Agotado', dot: 'bg-red-400', text: 'text-red-600' },
+  available: {
+    label: 'Disponible',
+    dot: 'bg-emerald-500',
+    text: 'text-emerald-700 dark:text-emerald-400',
+  },
+  low_stock: {
+    label: 'Pocas piezas',
+    dot: 'bg-amber-500',
+    text: 'text-amber-700 dark:text-amber-400',
+  },
+  out_of_stock: {
+    label: 'Agotado',
+    dot: 'bg-red-500',
+    text: 'text-red-700 dark:text-red-400',
+  },
 } as const
 const availability = computed(() => {
   const presentation = props.product.stockPresentation
@@ -45,12 +57,13 @@ function openDetail(event: MouseEvent) {
     <button
       :aria-label="`Ver detalles de ${product.name}`"
       :data-catalog-product-id="product.id"
-      class="group flex w-full min-w-0 flex-col overflow-hidden rounded-2xl bg-white text-left shadow-sm ring-1 ring-gray-100 transition-[box-shadow,transform] duration-150 hover:-translate-y-0.5 hover:shadow-md hover:ring-gray-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-[0.96] dark:bg-zinc-800 dark:ring-zinc-700 dark:hover:ring-zinc-600"
+      class="group flex w-full min-w-0 flex-col overflow-hidden rounded-[20px] border border-default bg-default text-left shadow-sm transition-[transform,box-shadow,border-color] duration-150 ease-out hover:-translate-y-0.5 hover:border-coco-300 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-default active:scale-[0.98] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 dark:hover:border-coco-700"
       type="button"
       @click="openDetail"
     >
       <div
-        class="relative flex aspect-square items-center justify-center overflow-hidden bg-gray-100 dark:bg-zinc-700"
+        data-testid="catalog-product-media"
+        class="relative aspect-square overflow-hidden bg-coco-neutral-100 dark:bg-coco-neutral-800"
       >
         <img
           v-if="product.image && !imageFailed"
@@ -66,43 +79,64 @@ function openDetail(event: MouseEvent) {
           :aria-label="`Imagen no disponible para ${product.name}`"
           role="img"
         >
-          <UIcon name="i-lucide-package" class="size-12 text-gray-400/50" />
+          <UIcon name="i-lucide-package" class="size-12 text-coco-neutral-400/50" />
         </div>
+
+        <span
+          v-if="availability"
+          data-testid="catalog-product-availability"
+          class="absolute top-3 left-3 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 shadow-sm ring-1 ring-black/5 dark:bg-coco-neutral-900/90 dark:ring-white/10"
+        >
+          <span class="size-1.5 rounded-full" :class="availability.dot" />
+          <span class="text-[11px] font-semibold" :class="availability.text">
+            {{ availability.label }}
+          </span>
+        </span>
       </div>
 
-      <div class="flex flex-1 flex-col gap-1.5 p-4">
+      <div data-testid="catalog-product-body" class="flex flex-1 flex-col gap-1 p-4">
         <p
           v-if="product.brand"
-          class="break-words text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500"
+          data-testid="catalog-product-brand"
+          class="break-words text-[11px] font-semibold tracking-[0.14em] text-primary uppercase"
         >
           {{ product.brand.name }}
         </p>
-        <h2 class="break-words text-sm font-semibold leading-snug text-gray-900 dark:text-gray-100">
+        <h2 class="break-words text-sm leading-snug font-semibold text-highlighted">
           {{ product.name }}
         </h2>
-        <p v-if="product.category" class="break-words text-xs text-gray-500 dark:text-gray-400">
+        <p
+          v-if="product.category"
+          data-testid="catalog-product-category"
+          class="break-words text-xs text-muted"
+        >
           {{ product.category.name }}
         </p>
 
         <div class="flex-1" />
 
-        <div class="mt-1 flex min-w-0 items-end justify-between gap-3">
-          <p v-if="formattedPrice" class="text-base font-bold text-gray-900 dark:text-gray-100">
+        <div class="mt-3 flex min-w-0 flex-wrap items-end justify-between gap-x-3 gap-y-1">
+          <p
+            v-if="formattedPrice"
+            data-testid="catalog-product-price"
+            class="min-w-0 break-words text-lg font-bold tracking-tight text-highlighted tabular-nums"
+          >
             {{ formattedPrice }}
           </p>
-          <p v-else class="text-sm font-medium italic text-gray-500">Consultar precio</p>
-
-          <div class="flex shrink-0 flex-col items-end gap-1">
-            <span v-if="presentationQuantity" class="text-[10px] font-medium text-gray-500">
-              {{ presentationQuantity }}
-            </span>
-            <div v-if="availability" class="flex items-center gap-1">
-              <span class="size-1.5 rounded-full" :class="availability.dot" />
-              <span class="text-[10px] font-medium" :class="availability.text">
-                {{ availability.label }}
-              </span>
-            </div>
-          </div>
+          <p
+            v-else
+            data-testid="catalog-product-price"
+            class="min-w-0 break-words text-sm font-medium text-muted"
+          >
+            Consultar precio
+          </p>
+          <span
+            v-if="presentationQuantity"
+            data-testid="catalog-product-quantity"
+            class="min-w-0 break-words text-[11px] font-medium text-muted tabular-nums"
+          >
+            {{ presentationQuantity }}
+          </span>
         </div>
       </div>
     </button>

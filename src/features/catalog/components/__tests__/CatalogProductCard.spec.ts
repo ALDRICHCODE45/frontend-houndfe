@@ -96,6 +96,67 @@ describe('CatalogProductCard', () => {
     expect(wrapper.text()).not.toMatch(/Disponible|Pocas piezas|Agotado/)
   })
 
+  it('leads with the media region and keeps the availability pill inside it', () => {
+    const wrapper = mountCard()
+
+    const control = wrapper.get(`button[aria-label="Ver detalles de ${product.name}"]`)
+    const media = wrapper.get('[data-testid="catalog-product-media"]')
+    expect(control.element.firstElementChild).toBe(media.element)
+    expect(media.find('img').exists()).toBe(true)
+
+    const availability = media.get('[data-testid="catalog-product-availability"]')
+    expect(availability.text()).toContain('Disponible')
+  })
+
+  it('orders the card body as brand, name, category and price', () => {
+    const wrapper = mountCard()
+
+    const body = wrapper.get('[data-testid="catalog-product-body"]')
+    const sequence = Array.from(body.element.querySelectorAll('[data-testid], h2')).map(
+      (element) => element.getAttribute('data-testid') ?? element.tagName.toLowerCase(),
+    )
+
+    expect(sequence).toEqual([
+      'catalog-product-brand',
+      'h2',
+      'catalog-product-category',
+      'catalog-product-price',
+    ])
+    expect(body.get('h2').text()).toBe(product.name)
+    expect(body.get('[data-testid="catalog-product-brand"]').text()).toBe(product.brand.name)
+    expect(body.get('[data-testid="catalog-product-category"]').text()).toBe(product.category.name)
+    expect(body.get('[data-testid="catalog-product-price"]').text()).toBe(
+      formatCentsMXN(product.price.priceCents),
+    )
+  })
+
+  it('lets a long formatted price and a custom quantity wrap without truncating either value', () => {
+    const wrapper = mountCard({
+      price: { fromPriceCents: 123456789, priceCents: 123456789, hidden: false },
+      stockPresentation: { mode: 'CUSTOM_QUANTITY', status: null, customQuantity: 1234 },
+    })
+
+    const price = wrapper.get('[data-testid="catalog-product-price"]')
+    const quantity = wrapper.get('[data-testid="catalog-product-quantity"]')
+    const row = price.element.parentElement
+
+    expect(row?.className).toContain('flex-wrap')
+    for (const value of [price, quantity]) {
+      expect(value.classes()).toEqual(expect.arrayContaining(['min-w-0', 'break-words']))
+      expect(value.classes()).not.toContain('truncate')
+      expect(value.classes()).not.toContain('overflow-hidden')
+    }
+    expect(price.text()).toBe(formatCentsMXN(123456789))
+    expect(quantity.text()).toBe('1234 unidades')
+  })
+
+  it('renders no rating or featured surface even when the DTO carries one', () => {
+    const wrapper = mountCard({ rating: 4.8, featuredLabel: 'Nuevo' })
+
+    expect(wrapper.text()).not.toContain('4.8')
+    expect(wrapper.text()).not.toContain('Nuevo')
+  })
+
   it('renders an aggregate CUSTOM_QUANTITY variant status when its quantity is null', () => {
     const wrapper = mountCard({
       availability: 'low_stock',
