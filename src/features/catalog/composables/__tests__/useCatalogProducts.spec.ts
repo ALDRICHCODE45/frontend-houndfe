@@ -90,6 +90,16 @@ describe('useCatalogProducts', () => {
     expect(fetchCatalogProductsMock).toHaveBeenCalledWith('centro', expect.any(AbortSignal))
   })
 
+  it('keeps the resolved API base as an identity segment of the query key', () => {
+    // 'http://localhost:3000' is the resolved base when VITE_API_BASE_URL is unset in unit tests.
+    expect(catalogProductsQueryKey('centro')).toEqual([
+      'public-catalog',
+      'products',
+      'http://localhost:3000',
+      'centro',
+    ])
+  })
+
   it('shows empty, rate-limit, server, and network states without automatic retries', async () => {
     fetchCatalogProductsMock
       .mockResolvedValueOnce(page([]))

@@ -265,13 +265,15 @@ describe('fetchCatalogProducts', () => {
     [
       'a fractional custom quantity',
       withProduct({
-        stockPresentation: { mode: 'SYSTEM_STATUS', status: 'available', customQuantity: 1.5 },
+        availability: null,
+        stockPresentation: { mode: 'CUSTOM_QUANTITY', status: null, customQuantity: 1.5 },
       }),
     ],
     [
       'a negative custom quantity',
       withProduct({
-        stockPresentation: { mode: 'SYSTEM_STATUS', status: 'available', customQuantity: -1 },
+        availability: null,
+        stockPresentation: { mode: 'CUSTOM_QUANTITY', status: null, customQuantity: -1 },
       }),
     ],
   ])('rejects %s as a recoverable server failure', async (_, body) => {
