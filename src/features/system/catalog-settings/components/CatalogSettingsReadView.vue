@@ -5,30 +5,28 @@
  *
  * Pure presentational: receives the response DTO and renders publication /
  * effective badges, contexts + default, stock default, warnings, timestamp,
- * and the empty-contexts state. WU3B adds the `canUpdate` notice: when the
- * user lacks update:TenantCatalogSettings the locked Spanish save-permission
- * notice renders here and the routed view keeps the surface read-only.
+ * and the empty-contexts state.
  *
  * Warnings are mapped through the WU2B closed-set mapper: known codes render
  * the locked Spanish copy; unknown codes are dropped silently. The stock
  * default is serialized via the WU2B mapper and labeled per REQ-8
  * ("Mostrar 0" for CUSTOM_QUANTITY 0).
+ *
+ * UI redesign: semantic internal sections (publication status, lists, stock
+ * default) are separated by responsive spacing and dividers inside the routed
+ * view's single outer card. UBadge replaces AppBadge for tone-consistent Nuxt
+ * UI styling. All data-testid, props, and rendering contracts are preserved.
  */
 import { computed } from 'vue'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
 import type { CatalogSettingsResponseDto } from '../interfaces/catalog-settings.types'
 import {
   mapCatalogSettingsWarning,
   serializeStockPresentationDefault,
 } from '../utils/catalogSettingsMappers'
 
-const props = withDefaults(
-  defineProps<{
-    settings: CatalogSettingsResponseDto
-    canUpdate?: boolean
-  }>(),
-  { canUpdate: true },
-)
+const { settings } = defineProps<{
+  settings: CatalogSettingsResponseDto
+}>()
 
 const STOCK_MODE_LABELS: Record<string, string> = {
   SYSTEM_STATUS: 'Según estado del sistema',
@@ -37,28 +35,20 @@ const STOCK_MODE_LABELS: Record<string, string> = {
   HIDDEN: 'Oculto',
 }
 
-const publicationLabel = computed(() =>
-  props.settings.catalogPublished ? 'Publicado' : 'No publicado',
-)
-const publicationTone = computed(() =>
-  props.settings.catalogPublished ? 'success' : 'neutral',
-)
-const effectiveLabel = computed(() =>
-  props.settings.effectivePublication ? 'Activa' : 'Inactiva',
-)
-const effectiveTone = computed(() =>
-  props.settings.effectivePublication ? 'success' : 'warning',
-)
+const publicationLabel = computed(() => (settings.catalogPublished ? 'Publicado' : 'No publicado'))
+const publicationColor = computed(() => (settings.catalogPublished ? 'success' : 'neutral'))
+const effectiveLabel = computed(() => (settings.effectivePublication ? 'Activa' : 'Inactiva'))
+const effectiveColor = computed(() => (settings.effectivePublication ? 'success' : 'warning'))
 
 /** Closed-set warnings: known codes → Spanish copy; unknown dropped silently. */
 const visibleWarnings = computed(() =>
-  props.settings.warnings
+  settings.warnings
     .map((code) => mapCatalogSettingsWarning(code))
     .filter((copy): copy is string => copy !== null),
 )
 
 const stockDefault = computed(() =>
-  serializeStockPresentationDefault(props.settings.stockPresentationDefault),
+  serializeStockPresentationDefault(settings.stockPresentationDefault),
 )
 const stockModeLabel = computed(
   () => STOCK_MODE_LABELS[stockDefault.value.mode] ?? stockDefault.value.mode,
@@ -71,76 +61,75 @@ const stockQuantityLabel = computed(() =>
 </script>
 
 <template>
-  <section class="flex flex-col gap-6" data-testid="catalog-settings-read">
+  <section class="flex flex-col gap-6 sm:gap-8" data-testid="catalog-settings-read">
     <!-- Publication + effective status (REQ-11: read-as-is, never recomputed). -->
-    <div class="flex flex-wrap items-center gap-3">
-      <AppBadge
-        data-testid="publication-badge"
-        :label="`Catálogo: ${publicationLabel}`"
-        :tone="publicationTone"
-      />
-      <AppBadge
-        data-testid="effective-badge"
-        :label="`Publicación efectiva: ${effectiveLabel}`"
-        :tone="effectiveTone"
-      />
-    </div>
-    <p v-if="!settings.effectivePublication" class="text-sm text-muted">
-      La publicación efectiva también depende del estado del tenant.
-    </p>
-
-    <!-- WU3B / REQ-12: read-only notice when update:TenantCatalogSettings is missing. -->
-    <p
-      v-if="!props.canUpdate"
-      class="text-sm text-warning"
-      data-testid="readonly-notice"
-    >
-      No tienes permisos para guardar cambios
-    </p>
+    <section data-testid="publication-card">
+      <div class="flex flex-wrap items-center gap-3">
+        <UBadge
+          data-testid="publication-badge"
+          :label="`Catálogo: ${publicationLabel}`"
+          :color="publicationColor"
+          variant="subtle"
+          size="md"
+        />
+        <UBadge
+          data-testid="effective-badge"
+          :label="`Publicación efectiva: ${effectiveLabel}`"
+          :color="effectiveColor"
+          variant="subtle"
+          size="md"
+        />
+      </div>
+      <p v-if="!settings.effectivePublication" class="mt-2 text-sm text-muted">
+        La publicación efectiva también depende del estado del tenant.
+      </p>
+    </section>
 
     <!-- Public contexts + default (REQ-5/REQ-6: server order, isCatalogDefault). -->
-    <div>
-      <h3 class="mb-2 text-sm font-semibold text-default">Listas públicas</h3>
+    <section class="border-t border-default pt-6 sm:pt-8" data-testid="contexts-card">
+      <h2 class="text-sm font-semibold text-default">Listas públicas</h2>
+      <p class="mt-0.5 text-xs text-muted">Listas de precios visibles para clientes públicos</p>
       <p
         v-if="settings.priceContexts.length === 0"
-        class="text-sm text-muted"
+        class="mt-4 text-sm text-muted"
         data-testid="contexts-empty"
       >
         Sin listas públicas: la configuración no se mostrará públicamente
       </p>
-      <ul v-else class="flex flex-col gap-2">
+      <ul v-else class="mt-4 flex flex-col gap-2" data-testid="contexts-list">
         <li
           v-for="context in settings.priceContexts"
           :key="context.priceListId"
-          class="flex items-center justify-between rounded-lg border border-default px-3 py-2"
+          class="flex flex-col gap-2 rounded-lg border border-default bg-default px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-0"
           data-testid="context-row"
         >
-          <span class="text-sm text-default">{{ context.name }}</span>
-          <AppBadge
+          <span class="min-w-0 break-words text-sm text-default">{{ context.name }}</span>
+          <UBadge
             v-if="context.isCatalogDefault"
             label="Predeterminada"
-            tone="info"
+            color="primary"
+            variant="subtle"
+            size="sm"
           />
         </li>
       </ul>
-    </div>
+    </section>
 
     <!-- Stock presentation default (REQ-8). -->
-    <div
-      class="rounded-lg border border-default px-3 py-2"
-      data-testid="stock-default"
-    >
-      <span class="text-sm font-semibold text-default">Stock en catálogo:</span>
-      <span class="text-sm text-muted">{{ stockModeLabel }}</span>
-      <span v-if="stockQuantityLabel" class="text-sm text-muted">
-        ({{ stockQuantityLabel }})
-      </span>
-    </div>
+    <section class="border-t border-default pt-6 sm:pt-8" data-testid="stock-card">
+      <h2 class="text-sm font-semibold text-default">Stock en catálogo</h2>
+      <div class="mt-3 flex items-center gap-2" data-testid="stock-default">
+        <span class="text-sm text-muted">{{ stockModeLabel }}</span>
+        <span v-if="stockQuantityLabel" class="text-sm text-muted">
+          ({{ stockQuantityLabel }})
+        </span>
+      </div>
+    </section>
 
     <!-- Closed-set warnings, read-only and warn-only (REQ-11). -->
     <p
-      v-for="warning in visibleWarnings"
-      :key="warning"
+      v-for="(warning, idx) in visibleWarnings"
+      :key="idx"
       class="text-sm text-warning"
       data-testid="settings-warning"
     >

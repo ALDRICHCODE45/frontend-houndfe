@@ -3,13 +3,21 @@
 //
 // The view wires useSafeTenantId + useCatalogSettingsQuery and renders:
 // loading skeleton → accepted read-only surface via CatalogSettingsReadView,
-// GET error with Reintentar. WU3B later adds the editable form + toasts.
+// GET error with Reintentar. WU3B adds the editable form + toasts.
+//
+// WU3B refactor: save/notice moved from form to the page-level sticky footer;
+// canSave/saving/save emit removed from CatalogSettingsForm; canUpdate removed
+// from CatalogSettingsReadView.
+//
+// U5 refactor: unified large-card shell — one UCard with #header, card body,
+// and #footer; footer is no longer viewport-sticky. All data-testid contracts
+// and responsive class behavior are preserved.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
 import { flushPromises } from '@vue/test-utils'
 import { mountWithUApp } from '@/test/mountWithUApp'
-import TenantCatalogSettingsView from '../TenantCatalogSettingsView.vue'
+import TenantCatalogSettingsView from '@/features/system/catalog-settings/views/TenantCatalogSettingsView.vue'
 import type {
   CatalogSettingsDraft,
   CatalogSettingsResponseDto,
@@ -43,16 +51,13 @@ function makeResponse(
   return {
     catalogPublished: true,
     effectivePublication: true,
-    priceContexts: [
-      { priceListId: 'pl_a', name: 'Lista A', isCatalogDefault: true },
-    ],
+    priceContexts: [{ priceListId: 'pl_a', name: 'Lista A', isCatalogDefault: true }],
     stockPresentationDefault: { mode: 'SYSTEM_STATUS', customQuantity: null },
     warnings: [],
     updatedAt: '2026-02-14T10:00:00.000Z',
     ...overrides,
   }
 }
-
 
 // ── WU3B mocks: permissions, editable form, candidates, mutation, toast ──────
 
@@ -107,21 +112,23 @@ vi.mock('../../composables/useUpdateCatalogSettingsMutation', () => ({
   }),
 }))
 
+// Render the form boundary with semantic sections and controls so parent intent
+// handlers are exercised through the DOM rather than component-instance emits.
 vi.mock('../../components/CatalogSettingsForm.vue', () => ({
   default: {
     name: 'CatalogSettingsForm',
-    props: [
-      'draft',
-      'acceptedContexts',
-      'candidates',
-      'validationErrors',
-      'canSave',
-      'saving',
-      'canEditContexts',
-    ],
-    emits: ['save'],
-    template:
-      '<div data-testid="catalog-settings-form" :data-can-edit-contexts="String(canEditContexts)"></div>',
+    props: ['draft', 'acceptedContexts', 'candidates', 'validationErrors', 'canEditContexts'],
+    emits: ['toggle-publish', 'add-context', 'remove-context', 'set-default', 'stock-change'],
+    template: `
+      <div data-testid="catalog-settings-form" :data-can-edit-contexts="String(canEditContexts)">
+        <section data-testid="publication-card"></section>
+        <section data-testid="contexts-card">
+          <button type="button" data-testid="remove-context-pl-a" @click="$emit('remove-context', 'pl_a')">Remove Lista A</button>
+          <button type="button" data-testid="remove-context-pl-b" @click="$emit('remove-context', 'pl_b')">Remove Lista B</button>
+        </section>
+        <section data-testid="stock-card"></section>
+      </div>
+    `,
   },
 }))
 
@@ -137,8 +144,6 @@ vi.mock('@/core/shared/components/ConfirmModal.vue', () => ({
 
 const toastMock = { add: vi.fn() }
 
-// useToast is auto-imported from Nuxt UI by the vite plugin — partially mock
-// its module (UApp's Toaster also imports injection keys from it).
 vi.mock('@nuxt/ui/runtime/composables/useToast', async (importOriginal) => {
   const actual = await importOriginal<Record<string, unknown>>()
   return { ...actual, useToast: () => toastMock }
@@ -276,14 +281,141 @@ describe('TenantCatalogSettingsView — editable form gating (REQ-6A / REQ-12)',
       catalogDefaultPriceListId: 'pl_a',
       stockPresentationDefault: { mode: 'SYSTEM_STATUS', customQuantity: null },
     }
-    grant(
-      'read:TenantCatalogSettings',
-      'update:TenantCatalogSettings',
-      'read:GlobalPriceList',
-    )
+    grant('read:TenantCatalogSettings', 'update:TenantCatalogSettings', 'read:GlobalPriceList')
     const wrapper = mountWithUApp(TenantCatalogSettingsView)
     const form = wrapper.find('[data-testid="catalog-settings-form"]')
     expect(form.attributes('data-can-edit-contexts')).toBe('true')
+  })
+})
+
+describe('TenantCatalogSettingsView — card shell (U5)', () => {
+  beforeEach(() => {
+    queryMock.settings.value = makeResponse({ catalogPublished: false })
+    formMock.draft.value = {
+      catalogPublished: false,
+      publicPriceListIds: ['pl_a'],
+      catalogDefaultPriceListId: 'pl_a',
+      stockPresentationDefault: { mode: 'SYSTEM_STATUS', customQuantity: null },
+    }
+    grant('read:TenantCatalogSettings', 'update:TenantCatalogSettings', 'read:GlobalPriceList')
+  })
+
+  // ── Card shell ─────────────────────────────────────────────────────────────
+
+  it('renders one enclosing card root', () => {
+    const wrapper = mountWithUApp(TenantCatalogSettingsView)
+    expect(wrapper.findAll('[data-testid="settings-card"]').length).toBe(1)
+  })
+
+  // ── Header is inside the card ─────────────────────────────────────────────
+
+  it('header title and description are descendants of the card', () => {
+    const wrapper = mountWithUApp(TenantCatalogSettingsView)
+    const card = wrapper.find('[data-testid="settings-card"]')
+    expect(card.text()).toContain('Configuración del catálogo online')
+    expect(card.text()).toContain('Controla la visibilidad')
+  })
+
+  // ── Body states are descendants of the card ──────────────────────────────
+
+  it('loading skeleton is a descendant of the card', () => {
+    queryMock.settings.value = undefined
+    queryMock.isLoading.value = true
+    const wrapper = mountWithUApp(TenantCatalogSettingsView)
+    const card = wrapper.find('[data-testid="settings-card"]')
+    // At least one animate-pulse skeleton inside the card body
+    expect(card.findAll('.animate-pulse').length).toBeGreaterThan(0)
+  })
+
+  it('GET error state is a descendant of the card', () => {
+    queryMock.settings.value = undefined
+    queryMock.isLoading.value = false
+    queryMock.isError.value = true
+    const wrapper = mountWithUApp(TenantCatalogSettingsView)
+    const card = wrapper.find('[data-testid="settings-card"]')
+    expect(card.find('[data-testid="settings-error"]').exists()).toBe(true)
+    expect(card.text()).toContain('Reintentar')
+  })
+
+  it('keeps all editable sections inside the outer card without nested cards', () => {
+    const wrapper = mountWithUApp(TenantCatalogSettingsView)
+    const card = wrapper.find('[data-testid="settings-card"]')
+
+    expect(wrapper.findAllComponents({ name: 'Card' })).toHaveLength(1)
+    expect(card.find('[data-testid="catalog-settings-form"]').exists()).toBe(true)
+    for (const testId of ['publication-card', 'contexts-card', 'stock-card']) {
+      expect(card.find(`[data-testid="${testId}"]`).exists()).toBe(true)
+    }
+  })
+
+  it('keeps all read-only sections inside the outer card without nested cards', () => {
+    permissionCodes.value = new Set(['read:TenantCatalogSettings'])
+    queryMock.settings.value = makeResponse()
+    const wrapper = mountWithUApp(TenantCatalogSettingsView)
+    const card = wrapper.find('[data-testid="settings-card"]')
+
+    expect(wrapper.findAllComponents({ name: 'Card' })).toHaveLength(1)
+    expect(card.find('[data-testid="catalog-settings-read"]').exists()).toBe(true)
+    for (const testId of ['publication-card', 'contexts-card', 'stock-card']) {
+      expect(card.find(`[data-testid="${testId}"]`).exists()).toBe(true)
+    }
+  })
+
+  // ── Footer is inside the card, NOT viewport-sticky ────────────────────────
+
+  it('footer is a descendant of the card', () => {
+    const wrapper = mountWithUApp(TenantCatalogSettingsView)
+    const card = wrapper.find('[data-testid="settings-card"]')
+    expect(card.find('[data-testid="settings-footer"]').exists()).toBe(true)
+  })
+
+  it('footer has no sticky or bottom-0 class', () => {
+    const wrapper = mountWithUApp(TenantCatalogSettingsView)
+    const footer = wrapper.find('[data-testid="settings-footer"]')
+    expect(footer.classes()).not.toContain('sticky')
+    expect(footer.classes()).not.toContain('bottom-0')
+  })
+
+  it('disables the footer save CTA when the draft cannot save and enables it when it can', () => {
+    const cannotSave = mountWithUApp(TenantCatalogSettingsView)
+    expect(
+      cannotSave.find('[data-testid="footer-save-button"]').attributes('disabled'),
+    ).toBeDefined()
+
+    formMock.canSave.value = true
+    const canSave = mountWithUApp(TenantCatalogSettingsView)
+    expect(
+      canSave.find('[data-testid="footer-save-button"]').attributes('disabled'),
+    ).toBeUndefined()
+  })
+
+  it('read-only notice is a descendant of the card footer when no update permission', () => {
+    permissionCodes.value = new Set(['read:TenantCatalogSettings'])
+    const wrapper = mountWithUApp(TenantCatalogSettingsView)
+    const card = wrapper.find('[data-testid="settings-card"]')
+    expect(card.findAll('[data-testid="readonly-notice"]').length).toBe(1)
+    expect(card.findAll('[data-testid="footer-save-button"]').length).toBe(0)
+  })
+
+  it('footer responsive class: stacks on mobile, horizontal at sm', () => {
+    formMock.canSave.value = true
+    const wrapper = mountWithUApp(TenantCatalogSettingsView)
+    const footer = wrapper.find('[data-testid="settings-footer"]')
+    expect(footer.classes()).toContain('flex')
+    expect(footer.classes()).toContain('flex-col')
+    expect(footer.classes()).toContain('items-stretch')
+    expect(footer.classes()).toContain('sm:flex-row')
+    expect(footer.classes()).toContain('sm:items-center')
+    expect(footer.classes()).toContain('sm:justify-end')
+  })
+
+  it('save button is full-width on mobile and auto-width at sm breakpoint', () => {
+    formMock.canSave.value = true
+    const wrapper = mountWithUApp(TenantCatalogSettingsView)
+    const button = wrapper.find('[data-testid="footer-save-button"]')
+    expect(button.classes()).toContain('w-full')
+    expect(button.classes()).toContain('justify-center')
+    expect(button.classes()).toContain('sm:w-auto')
   })
 })
 
@@ -296,19 +428,17 @@ describe('TenantCatalogSettingsView — rising-edge confirmation (REQ-10)', () =
       catalogDefaultPriceListId: 'pl_a',
       stockPresentationDefault: { mode: 'SYSTEM_STATUS', customQuantity: null },
     }
-    grant(
-      'read:TenantCatalogSettings',
-      'update:TenantCatalogSettings',
-      'read:GlobalPriceList',
-    )
+    grant('read:TenantCatalogSettings', 'update:TenantCatalogSettings', 'read:GlobalPriceList')
   })
 
   it('opens the confirm modal and sends NO PATCH before confirmation', async () => {
+    formMock.canSave.value = true
     formMock.requestSave.mockReturnValue('confirm')
     formMock.confirmationOpen.value = true
     const wrapper = mountWithUApp(TenantCatalogSettingsView)
-    wrapper.findComponent({ name: 'CatalogSettingsForm' }).vm.$emit('save')
-    await nextTick()
+    // Trigger the page footer CTA instead of a form emit.
+    await wrapper.find('[data-testid="footer-save-button"]').trigger('click')
+    await flushPromises()
     expect(formMock.requestSave).toHaveBeenCalledTimes(1)
     expect(mutateAsyncMock).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('El catálogo será visible para clientes públicos. ¿Continuar?')
@@ -345,28 +475,69 @@ describe('TenantCatalogSettingsView — rising-edge confirmation (REQ-10)', () =
   })
 
   it('descending edge saves directly without opening the modal', async () => {
+    formMock.canSave.value = true
     formMock.requestSave.mockReturnValue('save')
     formMock.buildSaveBody.mockReturnValue({ catalogPublished: false })
     mutateAsyncMock.mockResolvedValue(makeResponse())
     queryMock.settings.value = makeResponse({ catalogPublished: true })
     const wrapper = mountWithUApp(TenantCatalogSettingsView)
-    wrapper.findComponent({ name: 'CatalogSettingsForm' }).vm.$emit('save')
-    await nextTick()
+    await wrapper.find('[data-testid="footer-save-button"]').trigger('click')
+    await flushPromises()
     expect(formMock.confirmationOpen.value).toBe(false)
     expect(mutateAsyncMock).toHaveBeenCalledTimes(1)
   })
 
   it('failure keeps the draft dirty and surfaces the mapped Spanish error toast', async () => {
+    formMock.canSave.value = true
     formMock.requestSave.mockReturnValue('save')
     formMock.buildSaveBody.mockReturnValue({ catalogPublished: true })
     mutateAsyncMock.mockRejectedValue({ response: { status: 403 } })
     const wrapper = mountWithUApp(TenantCatalogSettingsView)
-    wrapper.findComponent({ name: 'CatalogSettingsForm' }).vm.$emit('save')
+    await wrapper.find('[data-testid="footer-save-button"]').trigger('click')
     await flushPromises()
     expect(formMock.acceptPatch).not.toHaveBeenCalled()
     expect(toastMock.add).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'No tienes permisos para guardar cambios' }),
     )
     expect(formMock.endMutation).toHaveBeenCalled()
+  })
+})
+
+describe('TenantCatalogSettingsView — context removal atomic triple (REQ-9 / WU3B)', () => {
+  beforeEach(() => {
+    queryMock.settings.value = makeResponse({ catalogPublished: true })
+    grant('read:TenantCatalogSettings', 'update:TenantCatalogSettings', 'read:GlobalPriceList')
+  })
+
+  it('removing the only context from the form mock clears draft IDs to [], default to null, and publication to false', async () => {
+    formMock.draft.value = {
+      catalogPublished: true,
+      publicPriceListIds: ['pl_a'],
+      catalogDefaultPriceListId: 'pl_a',
+      stockPresentationDefault: { mode: 'SYSTEM_STATUS', customQuantity: null },
+    }
+    const wrapper = mountWithUApp(TenantCatalogSettingsView)
+    await wrapper.find('[data-testid="remove-context-pl-a"]').trigger('click')
+    await nextTick()
+    // The parent handler removes pl_a from publicPriceListIds, clears the default,
+    // and clears publication because no contexts remain.
+    expect(formMock.draft.value!.publicPriceListIds).toEqual([])
+    expect(formMock.draft.value!.catalogDefaultPriceListId).toBe(null)
+    expect(formMock.draft.value!.catalogPublished).toBe(false)
+  })
+
+  it('removing a non-default context only removes it from IDs without clearing default', async () => {
+    formMock.draft.value = {
+      catalogPublished: true,
+      publicPriceListIds: ['pl_a', 'pl_b'],
+      catalogDefaultPriceListId: 'pl_a',
+      stockPresentationDefault: { mode: 'SYSTEM_STATUS', customQuantity: null },
+    }
+    const wrapper = mountWithUApp(TenantCatalogSettingsView)
+    await wrapper.find('[data-testid="remove-context-pl-b"]').trigger('click')
+    await nextTick()
+    expect(formMock.draft.value!.publicPriceListIds).toEqual(['pl_a'])
+    expect(formMock.draft.value!.catalogDefaultPriceListId).toBe('pl_a')
+    expect(formMock.draft.value!.catalogPublished).toBe(true)
   })
 })

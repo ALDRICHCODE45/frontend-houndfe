@@ -6,16 +6,26 @@
  * membership. Without global-list read, editing is disabled with a Spanish
  * explanation while accepted rows stay visible; a draft id missing from
  * accepted contexts/candidates is preserved and shown by id.
+ *
+ * UI redesign: UBadge for default markers, UButton variant="ghost" with icon
+ * for contextual actions (set-default, remove, clear-default, add options).
+ * All data-testid, props, emits, and row-rendering contracts are preserved.
  */
 import { computed } from 'vue'
-import type { CatalogSettingsDraft, CatalogPriceContextDto } from '../interfaces/catalog-settings.types'
+import type {
+  CatalogSettingsDraft,
+  CatalogPriceContextDto,
+} from '../interfaces/catalog-settings.types'
 
-const props = defineProps<{
-  draft: CatalogSettingsDraft
-  acceptedContexts: Array<CatalogPriceContextDto>
-  candidates: Array<{ id: string; name: string }>
-  disabled?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    draft: CatalogSettingsDraft
+    acceptedContexts: Array<CatalogPriceContextDto>
+    candidates: Array<{ id: string; name: string }>
+    disabled?: boolean
+  }>(),
+  { disabled: false },
+)
 
 const emit = defineEmits<{
   (event: 'add', priceListId: string): void
@@ -46,85 +56,87 @@ const addable = computed(() =>
 </script>
 
 <template>
-  <div class="flex flex-col gap-3" data-testid="contexts-field">
+  <fieldset class="contents" data-testid="contexts-field">
+    <legend class="sr-only">Listas de precios públicas</legend>
     <div class="flex flex-col gap-1">
-      <h4 class="text-sm font-semibold text-default">Listas de precios públicas</h4>
-      <p class="text-xs text-muted">
-        Listas de precios visibles para clientes públicos
-      </p>
+      <h2 class="text-sm font-semibold text-default">Listas de precios públicas</h2>
+      <p class="text-xs text-muted">Listas de precios visibles para clientes públicos</p>
     </div>
 
     <p v-if="rows.length === 0" class="text-sm text-muted" data-testid="contexts-empty">
       Sin listas públicas: la configuración no se mostrará públicamente
     </p>
 
-    <ul v-else class="flex flex-col gap-2">
+    <ul v-else class="flex flex-col gap-2" data-testid="contexts-list">
       <li
         v-for="row in rows"
         :key="row.priceListId"
-        class="flex items-center justify-between rounded-lg border border-default px-3 py-2"
+        class="flex flex-col gap-2 rounded-lg border border-default bg-default px-3 py-2 sm:flex-row sm:items-center sm:justify-between sm:gap-0"
         data-testid="context-row"
       >
-        <span class="text-sm text-default">{{ row.name }}</span>
-        <span class="flex items-center gap-2">
-          <span
-            v-if="row.isDefault"
-            class="rounded bg-primary-50 px-2 py-0.5 text-xs text-primary"
-            data-testid="default-badge"
-          >
-            Predeterminada
-          </span>
-          <button
-            v-else
+        <span class="min-w-0 break-words text-sm text-default">{{ row.name }}</span>
+        <div class="flex flex-wrap items-center gap-1.5">
+          <template v-if="row.isDefault">
+            <UBadge label="Predeterminada" color="primary" variant="subtle" size="sm" />
+          </template>
+          <template v-else>
+            <UButton
+              type="button"
+              label="Predeterminada"
+              variant="ghost"
+              size="xs"
+              data-testid="set-default"
+              :disabled="props.disabled"
+              @click="emit('setDefault', row.priceListId)"
+            />
+          </template>
+          <UButton
             type="button"
-            data-testid="set-default"
-            class="text-xs text-primary underline"
-            :disabled="props.disabled"
-            @click="emit('setDefault', row.priceListId)"
-          >
-            Predeterminada
-          </button>
-          <button
-            type="button"
-            data-testid="remove-context"
-            class="text-xs text-error underline"
+            icon="i-lucide-trash-2"
+            variant="ghost"
+            size="xs"
+            color="error"
+            :data-testid="row.isDefault ? 'remove-default-context' : 'remove-context'"
+            :aria-label="`Eliminar ${row.name} del catálogo`"
             :disabled="props.disabled"
             @click="emit('remove', row.priceListId)"
-          >
-            Quitar
-          </button>
-        </span>
+          />
+        </div>
       </li>
     </ul>
 
     <template v-if="!props.disabled">
-      <div v-if="addable.length > 0" class="flex flex-col gap-1">
+      <div v-if="addable.length > 0" class="flex flex-col gap-1.5">
         <span class="text-xs text-muted">Agregar lista</span>
-        <button
-          v-for="candidate in addable"
-          :key="candidate.id"
-          type="button"
-          data-testid="add-candidate-option"
-          class="text-left text-sm text-primary underline"
-          @click="emit('add', candidate.id)"
-        >
-          {{ candidate.name }}
-        </button>
+        <div class="flex flex-wrap gap-2">
+          <UButton
+            v-for="candidate in addable"
+            :key="candidate.id"
+            type="button"
+            :label="candidate.name"
+            variant="outline"
+            size="xs"
+            data-testid="add-candidate-option"
+            @click="emit('add', candidate.id)"
+          />
+        </div>
       </div>
-      <button
+      <UButton
         v-if="props.draft.catalogDefaultPriceListId !== null"
         type="button"
+        label="Quitar predeterminada"
+        variant="ghost"
+        size="xs"
+        color="neutral"
+        aria-label="Quitar lista predeterminada del catálogo"
         data-testid="clear-default"
-        class="self-start text-xs text-muted underline"
         @click="emit('setDefault', null)"
-      >
-        Quitar predeterminada
-      </button>
+      />
     </template>
 
     <!-- REQ-6A: least-privilege explanation while accepted rows stay visible. -->
     <p v-if="props.disabled" class="text-sm text-muted" data-testid="contexts-disabled-note">
       Se requiere permiso de lectura de listas de precios globales para editar los contextos
     </p>
-  </div>
+  </fieldset>
 </template>

@@ -2,12 +2,13 @@
 // settings form (REQ-7 / REQ-8 / REQ-10 / REQ-12 composition pins).
 //
 // The form composes the publication switch, the contexts field, the stock
-// field, the validation summary, and the Save footer; it delegates editing to
-// the passed draft and surfaces save gating from the parent view.
+// field, the validation summary; save routing lives in the page footer.
+// canSave, saving, and the save emit were removed as obsolete UI plumbing
+// (WU3B refactor: save/notice moved to the page-level sticky footer).
 
 import { describe, expect, it } from 'vitest'
 import { mountWithUApp } from '@/test/mountWithUApp'
-import CatalogSettingsForm from '../CatalogSettingsForm.vue'
+import CatalogSettingsForm from '@/features/system/catalog-settings/components/CatalogSettingsForm.vue'
 import type { CatalogSettingsDraft } from '../../interfaces/catalog-settings.types'
 
 function makeDraft(overrides: Partial<CatalogSettingsDraft> = {}): CatalogSettingsDraft {
@@ -20,22 +21,15 @@ function makeDraft(overrides: Partial<CatalogSettingsDraft> = {}): CatalogSettin
   }
 }
 
-const acceptedContexts = [
-  { priceListId: 'pl_a', name: 'Lista A', isCatalogDefault: true },
-]
+const acceptedContexts = [{ priceListId: 'pl_a', name: 'Lista A', isCatalogDefault: true }]
 
-function mountForm(
-  draft = makeDraft(),
-  props: Record<string, unknown> = {},
-) {
+function mountForm(draft = makeDraft(), props: Record<string, unknown> = {}) {
   return mountWithUApp(CatalogSettingsForm, {
     props: {
       draft,
       acceptedContexts,
       candidates: [],
       validationErrors: [],
-      canSave: true,
-      saving: false,
       canEditContexts: true,
       ...props,
     },
@@ -43,12 +37,26 @@ function mountForm(
 }
 
 describe('CatalogSettingsForm — composition (REQ-12)', () => {
-  it('renders the publication switch, contexts field, stock field, and Save', () => {
+  it('renders the publication switch, contexts field, and stock field (save is in the page footer)', () => {
     const wrapper = mountForm()
     expect(wrapper.find('[data-testid="publish-switch"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="contexts-field"]').exists()).toBe(true)
+    // contexts-field is now on the fieldset root.
+    expect(wrapper.find('fieldset[data-testid="contexts-field"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="stock-mode-select"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="save-button"]').exists()).toBe(true)
+    // No form-level save button — single save surface is the page sticky footer.
+    expect(wrapper.find('[data-testid="save-button"]').exists()).toBe(false)
+  })
+
+  it('keeps the three semantic sections card-free for the routed outer card', () => {
+    const wrapper = mountForm()
+
+    expect(wrapper.findAllComponents({ name: 'Card' })).toHaveLength(0)
+    for (const testId of ['publication-card', 'contexts-card', 'stock-card']) {
+      expect(wrapper.find(`[data-testid="${testId}"]`).element.tagName).toBe('SECTION')
+    }
+    expect(wrapper.find('[data-testid="catalog-settings-form"]').classes()).toContain('sm:gap-8')
+    expect(wrapper.find('[data-testid="contexts-card"]').classes()).toContain('border-t')
+    expect(wrapper.find('[data-testid="stock-card"]').classes()).toContain('sm:pt-8')
   })
 
   it('emits granular draft intents instead of mutating props', async () => {
@@ -66,21 +74,6 @@ describe('CatalogSettingsForm — composition (REQ-12)', () => {
     expect(wrapper.text()).toContain('requiere una lista de precios predeterminada')
   })
 
-  it('Save is disabled unless canSave holds and emits save on click', async () => {
-    const wrapper = mountForm(makeDraft(), { canSave: false })
-    expect(wrapper.find('[data-testid="save-button"]').attributes('disabled')).toBeDefined()
-    expect(wrapper.emitted('save')).toBeUndefined()
-
-    const enabled = mountForm(makeDraft(), { canSave: true })
-    await enabled.find('[data-testid="save-button"]').trigger('click')
-    expect(enabled.emitted('save')).toHaveLength(1)
-  })
-
-  it('disables the Save control while a mutation is pending', () => {
-    const wrapper = mountForm(makeDraft(), { canSave: true, saving: true })
-    expect(wrapper.find('[data-testid="save-button"]').attributes('disabled')).toBeDefined()
-  })
-
   it('forwards canEditContexts to the contexts field', () => {
     const wrapper = mountForm(makeDraft(), { canEditContexts: false })
     expect(wrapper.text()).toContain(
@@ -94,6 +87,23 @@ describe('CatalogSettingsForm — composition (REQ-12)', () => {
     expect(publishSwitch.exists()).toBe(true)
     expect(publishSwitch.attributes('disabled')).toBeUndefined()
     expect(wrapper.find('[data-testid="stock-mode-select"]').attributes('disabled')).toBeUndefined()
-    expect(wrapper.find('[data-testid="save-button"]').exists()).toBe(true)
+  })
+})
+
+describe('CatalogSettingsForm — removed obsolete plumbing (WU3B refactor)', () => {
+  it('does not accept canSave prop — save gating lives in the page footer', () => {
+    const wrapper = mountForm()
+    // The form should mount cleanly without canSave (removed from defineProps).
+    expect(wrapper.find('[data-testid="catalog-settings-form"]').exists()).toBe(true)
+  })
+
+  it('does not accept saving prop — loading state lives in the page footer', () => {
+    const wrapper = mountForm()
+    expect(wrapper.find('[data-testid="catalog-settings-form"]').exists()).toBe(true)
+  })
+
+  it('does not emit save — routing lives in the page footer via requestSave', () => {
+    const wrapper = mountForm()
+    expect(wrapper.emitted('save')).toBeUndefined()
   })
 })

@@ -1,59 +1,136 @@
-// CatalogStockPresentationField.spec.ts — STRICT-TDD tests for the WU3B tenant
-// stock-presentation default field (REQ-8).
-//
-// Renders the closed mode set; non-CUSTOM modes force a null quantity;
-// CUSTOM_QUANTITY keeps the integer with 0 preserved and labeled "Mostrar 0".
+// CatalogStockPresentationField.spec.ts — DOM interaction tests for the WU3B
+// stock-presentation default field (REQ-8). The closed four-mode set emits a
+// null quantity outside CUSTOM_QUANTITY; CUSTOM_QUANTITY preserves literal 0.
 
 import { describe, expect, it } from 'vitest'
+import { DOMWrapper } from '@vue/test-utils'
+import { nextTick } from 'vue'
 import { mountWithUApp } from '@/test/mountWithUApp'
-import CatalogStockPresentationField from '../CatalogStockPresentationField.vue'
+import CatalogStockPresentationField from '@/features/system/catalog-settings/components/CatalogStockPresentationField.vue'
 import type { CatalogStockPresentationDefaultDto } from '../../interfaces/catalog-settings.types'
 
 function mountField(
-  stockDefault: CatalogStockPresentationDefaultDto = { mode: 'SYSTEM_STATUS', customQuantity: null },
+  stockDefault: CatalogStockPresentationDefaultDto = {
+    mode: 'SYSTEM_STATUS',
+    customQuantity: null,
+  },
   disabled = false,
 ) {
   return mountWithUApp(CatalogStockPresentationField, {
+    attachTo: document.body,
     props: { stockDefault, disabled },
   })
 }
 
+async function selectRenderedMode(wrapper: ReturnType<typeof mountField>, label: string) {
+  const originalScrollIntoView = HTMLElement.prototype.scrollIntoView
+  Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+    configurable: true,
+    value: () => {},
+  })
+
+  try {
+    await wrapper.find('[data-testid="stock-mode-select"]').trigger('click')
+    await nextTick()
+    const options = [...document.body.querySelectorAll<HTMLElement>('[role="option"]')]
+    const option = options.reverse().find((element) => element.textContent?.trim() === label)
+    expect(option).toBeDefined()
+    await new DOMWrapper(option!).trigger('click')
+    await nextTick()
+  } finally {
+    if (originalScrollIntoView) {
+      Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+        configurable: true,
+        value: originalScrollIntoView,
+      })
+    } else {
+      Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView')
+    }
+  }
+}
+
 describe('CatalogStockPresentationField — closed mode set (REQ-8)', () => {
-  it('renders the four documented modes with Spanish labels', () => {
+  it('renders the four documented modes with Spanish labels in the opened menu', async () => {
     const wrapper = mountField()
-    const text = wrapper.text()
-    expect(text).toContain('Según estado del sistema')
-    expect(text).toContain('Cantidad personalizada')
-    expect(text).toContain('Oculto')
+    const originalScrollIntoView = HTMLElement.prototype.scrollIntoView
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: () => {},
+    })
+
+    try {
+      await wrapper.find('[data-testid="stock-mode-select"]').trigger('click')
+      await nextTick()
+      expect(
+        [...document.body.querySelectorAll<HTMLElement>('[role="option"]')].map((option) =>
+          option.textContent?.trim(),
+        ),
+      ).toEqual([
+        'Según estado del sistema',
+        'Según estado abstracto',
+        'Cantidad personalizada',
+        'Oculto',
+      ])
+    } finally {
+      if (originalScrollIntoView) {
+        Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+          configurable: true,
+          value: originalScrollIntoView,
+        })
+      } else {
+        Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView')
+      }
+    }
   })
 
   it('changing to a non-custom mode emits that mode with a null quantity', async () => {
     const wrapper = mountField()
-    await wrapper.find('[data-testid="stock-mode-select"]').setValue('ABSTRACT_STATUS')
-    const events = wrapper.emitted('change') ?? []
-    const emitted = events[events.length - 1]?.[0]
-    expect(emitted).toEqual({ mode: 'ABSTRACT_STATUS', customQuantity: null })
+
+    try {
+      await selectRenderedMode(wrapper, 'Según estado abstracto')
+      expect(wrapper.emitted('change')).toEqual([
+        [{ mode: 'ABSTRACT_STATUS', customQuantity: null }],
+      ])
+    } finally {
+      // mountWithUApp returns a child wrapper; the UApp root owns cleanup.
+    }
   })
 
-  it('preserves custom 0 literally and labels it "Mostrar 0"', async () => {
+  it('preserves custom 0 literally and changes quantity through the rendered input', async () => {
     const wrapper = mountField({ mode: 'CUSTOM_QUANTITY', customQuantity: 0 })
-    expect(wrapper.text()).toContain('Mostrar 0')
-    await wrapper.find('[data-testid="stock-quantity-input"]').setValue('5')
-    const events = wrapper.emitted('change') ?? []
-    const emitted = events[events.length - 1]?.[0]
-    expect(emitted).toEqual({ mode: 'CUSTOM_QUANTITY', customQuantity: 5 })
+
+    try {
+      expect(wrapper.text()).toContain('Mostrar 0')
+      expect(wrapper.text()).toContain('Cantidad a mostrar')
+      const input = wrapper.find('[data-testid="stock-quantity-input"]')
+      await input.setValue('5')
+      expect(wrapper.emitted('change')).toEqual([[{ mode: 'CUSTOM_QUANTITY', customQuantity: 5 }]])
+    } finally {
+      // mountWithUApp returns a child wrapper; the UApp root owns cleanup.
+    }
   })
 
-  it('keeps mode selection when the quantity changes under CUSTOM_QUANTITY', async () => {
+  it('keeps CUSTOM_QUANTITY when the rendered quantity input changes to 0', async () => {
     const wrapper = mountField({ mode: 'CUSTOM_QUANTITY', customQuantity: 2 })
-    await wrapper.find('[data-testid="stock-quantity-input"]').setValue('0')
-    const events = wrapper.emitted('change') ?? []
-    const emitted = events[events.length - 1]?.[0]
-    expect(emitted).toEqual({ mode: 'CUSTOM_QUANTITY', customQuantity: 0 })
+
+    try {
+      await wrapper.find('[data-testid="stock-quantity-input"]').setValue('0')
+      expect(wrapper.emitted('change')).toEqual([[{ mode: 'CUSTOM_QUANTITY', customQuantity: 0 }]])
+    } finally {
+      // mountWithUApp returns a child wrapper; the UApp root owns cleanup.
+    }
   })
 
-  it('disables every control when disabled is passed', () => {
-    const wrapper = mountField({ mode: 'HIDDEN', customQuantity: null }, true)
-    expect(wrapper.find('[data-testid="stock-mode-select"]').attributes('disabled')).toBeDefined()
+  it('disables every rendered control when disabled is passed', () => {
+    const wrapper = mountField({ mode: 'CUSTOM_QUANTITY', customQuantity: 0 }, true)
+
+    try {
+      expect(wrapper.find('[data-testid="stock-mode-select"]').attributes('disabled')).toBeDefined()
+      expect(
+        wrapper.find('[data-testid="stock-quantity-input"]').attributes('disabled'),
+      ).toBeDefined()
+    } finally {
+      // mountWithUApp returns a child wrapper; the UApp root owns cleanup.
+    }
   })
 })
