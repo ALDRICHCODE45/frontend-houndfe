@@ -26,18 +26,29 @@ const displayImage = computed(() => {
 const isLoading = computed(() => props.state === 'loading' || props.state === 'retry-pending')
 const canRetry = computed(() => ['rate-limit', 'network', 'server'].includes(props.state))
 
+/**
+ * Availability is a semantic status, never a commerce affordance: the tinted pill only repeats the
+ * strict DTO status, and the dot always travels with the written label.
+ */
 const availabilityConfig = {
   available: {
     label: 'Disponible',
-    dot: 'bg-emerald-400',
+    dot: 'bg-emerald-500',
     text: 'text-emerald-700 dark:text-emerald-300',
+    pill: 'bg-emerald-50 ring-emerald-200/80 dark:bg-emerald-950/40 dark:ring-emerald-900',
   },
   low_stock: {
     label: 'Pocas piezas',
-    dot: 'bg-amber-400',
+    dot: 'bg-amber-500',
     text: 'text-amber-700 dark:text-amber-300',
+    pill: 'bg-amber-50 ring-amber-200/80 dark:bg-amber-950/40 dark:ring-amber-900',
   },
-  out_of_stock: { label: 'Agotado', dot: 'bg-red-400', text: 'text-red-700 dark:text-red-300' },
+  out_of_stock: {
+    label: 'Agotado',
+    dot: 'bg-red-500',
+    text: 'text-red-700 dark:text-red-300',
+    pill: 'bg-red-50 ring-red-200/80 dark:bg-red-950/40 dark:ring-red-900',
+  },
 } as const
 
 function displayAvailability(
@@ -58,9 +69,35 @@ function displayPrice(price: { priceCents: number | null; hidden: boolean }) {
   return !price.hidden && price.priceCents !== null ? formatCentsMXN(price.priceCents) : null
 }
 
-function selectedVariantAvailability(variant: PublicCatalogProductDetailDto['variants'][number]) {
-  return variant.availabilityByBranch.find((availability) => availability.isSelected) ?? null
-}
+const detailPrice = computed(() =>
+  props.detail ? displayPrice(props.detail.price) : (null as string | null),
+)
+const detailQuantity = computed(() =>
+  props.detail ? displayQuantity(props.detail.stockPresentation) : (null as string | null),
+)
+const detailAvailability = computed(() =>
+  props.detail
+    ? displayAvailability(props.detail.stockPresentation, props.detail.availability)
+    : null,
+)
+
+/** Read-only variant cards. Only the branch selected by the route resolution is reported. */
+const variants = computed(() =>
+  (props.detail?.variants ?? []).map((variant) => {
+    const selectedBranch = variant.availabilityByBranch.find((entry) => entry.isSelected) ?? null
+    return {
+      id: variant.id,
+      name: variant.name,
+      optionValue: [variant.option, variant.value].filter(Boolean).join(': '),
+      price: displayPrice(variant.price),
+      quantity: displayQuantity(variant.stockPresentation),
+      availability: displayAvailability(
+        variant.stockPresentation,
+        selectedBranch?.availability ?? null,
+      ),
+    }
+  }),
+)
 
 function errorCopy(state: CatalogProductDetailState) {
   switch (state) {
@@ -96,240 +133,264 @@ watch(
     :open="open"
     title="Detalle del producto"
     description="Información del producto seleccionado"
-    :content="{ class: 'w-[calc(100%-2rem)] max-w-4xl overflow-hidden rounded-2xl' }"
+    :close="false"
+    :ui="{
+      overlay: 'bg-coco-950/45 backdrop-blur-sm',
+      content: 'max-w-4xl rounded-2xl shadow-xl',
+      header: 'sr-only',
+      body: 'p-0 sm:p-0 overscroll-contain',
+    }"
     @update:open="handleModalOpen"
   >
     <template #body>
-      <div class="max-h-[calc(100dvh-6rem)] overflow-y-auto overscroll-contain p-1">
-        <div class="flex items-start justify-between gap-4 pb-4">
-          <div>
-            <p class="text-sm font-medium text-muted">Detalle del producto</p>
-            <p class="text-xs text-muted">Consulta información y disponibilidad.</p>
+      <button
+        class="absolute end-4 top-4 z-10 inline-flex size-11 items-center justify-center rounded-full bg-white text-highlighted shadow-sm ring-1 ring-black/5 transition-[background-color,color,transform] duration-150 ease-out hover:bg-coco-50 focus-visible:ring-2 focus-visible:ring-coco-500 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100 dark:bg-coco-neutral-900 dark:ring-white/10 dark:hover:bg-coco-neutral-800"
+        type="button"
+        aria-label="Cerrar detalle del producto"
+        @click="close"
+      >
+        <UIcon name="i-lucide-x" class="size-5" />
+      </button>
+
+      <div
+        v-if="isLoading"
+        data-testid="catalog-detail-loading"
+        class="grid min-w-0 grid-cols-1 md:grid-cols-[minmax(0,46fr)_minmax(0,54fr)]"
+        aria-busy="true"
+        role="status"
+      >
+        <div
+          data-testid="catalog-detail-media-skeleton"
+          class="flex min-w-0 flex-col items-center justify-center gap-4 bg-coco-50 px-6 py-8 dark:bg-coco-950/40"
+        >
+          <USkeleton class="h-6 w-24 rounded-full" />
+          <USkeleton class="aspect-square w-full max-w-[15rem] rounded-2xl md:max-w-[17rem]" />
+        </div>
+        <div
+          data-testid="catalog-detail-details-skeleton"
+          class="flex min-w-0 flex-col gap-5 p-6 md:p-8 md:pt-16"
+        >
+          <div class="flex flex-wrap items-center gap-2">
+            <USkeleton class="h-6 w-20 rounded-full" />
+            <USkeleton class="h-6 w-24 rounded-full" />
           </div>
-          <button
-            class="flex size-10 shrink-0 items-center justify-center rounded-xl text-muted transition-[background-color,color,transform] duration-150 hover:bg-elevated hover:text-highlighted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-[0.96]"
-            type="button"
-            aria-label="Cerrar detalle del producto"
-            @click="close"
+          <USkeleton class="h-8 w-3/4 rounded-lg" />
+          <USkeleton class="h-9 w-32 rounded-lg" />
+          <USkeleton class="h-4 w-full rounded" />
+          <USkeleton class="h-4 w-5/6 rounded" />
+          <div class="flex flex-col gap-2 pt-1">
+            <USkeleton class="h-16 rounded-xl" />
+            <USkeleton class="h-16 rounded-xl" />
+          </div>
+        </div>
+        <p class="sr-only">
+          {{
+            state === 'retry-pending'
+              ? 'Reintentando detalle del producto'
+              : 'Cargando detalle del producto'
+          }}
+        </p>
+      </div>
+
+      <div
+        v-else-if="detail"
+        data-testid="catalog-detail-split"
+        class="grid min-w-0 grid-cols-1 md:grid-cols-[minmax(0,46fr)_minmax(0,54fr)]"
+      >
+        <div
+          data-testid="catalog-detail-media-panel"
+          class="flex min-w-0 flex-col items-center justify-center gap-4 bg-coco-50 px-6 py-8 dark:bg-coco-950/40"
+        >
+          <!--
+            Below md the absolute close control overlays the panel's top-right corner, so the badge
+            starts at the safe cross-start edge and caps its width by that 44px control plus its 16px
+            inset. The real brand always wraps instead of being truncated.
+          -->
+          <p
+            v-if="detail.brand"
+            data-testid="catalog-detail-brand"
+            class="max-w-[calc(100%_-_3.75rem)] min-w-0 self-start break-words rounded-full bg-white/80 px-3 py-1 text-center text-[11px] font-semibold tracking-[0.14em] text-coco-700 uppercase ring-1 ring-coco-200 md:max-w-full md:self-center dark:bg-coco-900/70 dark:text-coco-100 dark:ring-coco-800"
           >
-            <UIcon name="i-lucide-x" class="size-5" />
-          </button>
-        </div>
-
-        <div
-          v-if="isLoading"
-          class="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"
-          aria-busy="true"
-          role="status"
-        >
-          <USkeleton class="aspect-square w-full rounded-2xl" />
-          <div class="space-y-4 py-1">
-            <USkeleton class="h-3 w-24" />
-            <USkeleton class="h-8 w-3/4" />
-            <USkeleton class="h-4 w-full" />
-            <USkeleton class="h-4 w-5/6" />
-            <div class="grid grid-cols-2 gap-3 pt-3">
-              <USkeleton class="h-20 rounded-xl" />
-              <USkeleton class="h-20 rounded-xl" />
-            </div>
-          </div>
-          <p class="sr-only">
-            {{
-              state === 'retry-pending'
-                ? 'Reintentando detalle del producto'
-                : 'Cargando detalle del producto'
-            }}
+            {{ detail.brand.name }}
           </p>
+          <div
+            data-testid="catalog-detail-image-frame"
+            class="flex aspect-square w-full max-w-[15rem] items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5 md:max-w-[17rem] dark:bg-coco-neutral-900 dark:ring-white/10"
+          >
+            <img
+              v-if="displayImage && !imageFailed"
+              class="size-full object-cover"
+              :src="displayImage.url"
+              :alt="`Imagen de ${detail.name}`"
+              @error="imageFailed = true"
+            />
+            <div
+              v-else
+              data-testid="catalog-detail-image-fallback"
+              class="flex size-full items-center justify-center"
+              :aria-label="`Imagen no disponible para ${detail.name}`"
+              role="img"
+            >
+              <UIcon name="i-lucide-package" class="size-14 text-coco-neutral-400/60" />
+            </div>
+          </div>
         </div>
 
         <div
-          v-else-if="detail"
-          class="grid min-w-0 grid-cols-1 gap-6 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"
+          data-testid="catalog-detail-details-panel"
+          class="flex min-w-0 flex-col gap-5 p-6 md:p-8"
         >
-          <div class="min-w-0">
-            <div
-              class="flex aspect-square items-center justify-center overflow-hidden rounded-2xl bg-gray-100 ring-1 ring-black/10 dark:bg-zinc-800 dark:ring-white/10"
+          <div class="flex min-w-0 flex-wrap items-center gap-2 pr-16">
+            <span
+              v-if="detail.category"
+              data-testid="catalog-detail-category"
+              class="rounded-full bg-coco-50 px-3 py-1 text-xs font-medium text-coco-700 ring-1 ring-coco-200 dark:bg-coco-950/60 dark:text-coco-200 dark:ring-coco-900"
             >
-              <img
-                v-if="displayImage && !imageFailed"
-                class="size-full object-cover"
-                :src="displayImage.url"
-                :alt="`Imagen de ${detail.name}`"
-                @error="imageFailed = true"
-              />
-              <div
-                v-else
-                data-testid="catalog-detail-image-fallback"
-                class="flex size-full items-center justify-center"
-                :aria-label="`Imagen no disponible para ${detail.name}`"
-                role="img"
-              >
-                <UIcon name="i-lucide-package" class="size-16 text-gray-400/50" />
-              </div>
-            </div>
+              {{ detail.category.name }}
+            </span>
+            <span
+              v-if="detailAvailability"
+              data-testid="catalog-detail-availability"
+              class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 ring-1"
+              :class="detailAvailability.pill"
+            >
+              <span class="size-1.5 rounded-full" :class="detailAvailability.dot" />
+              <span class="text-xs font-semibold" :class="detailAvailability.text">
+                {{ detailAvailability.label }}
+              </span>
+            </span>
           </div>
 
-          <div class="flex min-w-0 flex-col gap-5">
-            <div>
-              <div class="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted">
-                <span v-if="detail.brand">{{ detail.brand.name }}</span>
-                <span v-if="detail.category">{{ detail.category.name }}</span>
-              </div>
-              <h2 class="mt-1 break-words text-2xl font-bold leading-tight text-highlighted">
-                {{ detail.name }}
-              </h2>
-              <p
-                v-if="detail.description"
-                class="mt-3 whitespace-pre-line break-words text-sm leading-relaxed text-muted"
-              >
-                {{ detail.description }}
-              </p>
-            </div>
+          <h2
+            data-testid="catalog-detail-name"
+            class="break-words text-2xl leading-tight font-bold tracking-tight text-highlighted sm:text-3xl"
+          >
+            {{ detail.name }}
+          </h2>
 
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div class="rounded-xl bg-elevated/60 p-4 ring-1 ring-default">
-                <p class="text-xs font-medium text-muted">Precio</p>
-                <p
-                  v-if="displayPrice(detail.price)"
-                  class="mt-1 text-xl font-bold tabular-nums text-highlighted"
-                >
-                  {{ displayPrice(detail.price) }}
-                </p>
-                <p v-else class="mt-1 text-sm font-medium italic text-muted">Consultar precio</p>
-              </div>
-              <div class="rounded-xl bg-elevated/60 p-4 ring-1 ring-default">
-                <p class="text-xs font-medium text-muted">Disponibilidad</p>
-                <p
-                  v-if="displayQuantity(detail.stockPresentation)"
-                  class="mt-1 text-sm font-semibold text-highlighted"
-                >
-                  {{ displayQuantity(detail.stockPresentation) }}
-                </p>
-                <div
-                  v-if="displayAvailability(detail.stockPresentation, detail.availability)"
-                  class="mt-1 flex items-center gap-1.5"
-                >
-                  <span
-                    class="size-2 rounded-full"
-                    :class="displayAvailability(detail.stockPresentation, detail.availability)?.dot"
-                  />
-                  <span
-                    class="text-sm font-medium"
-                    :class="
-                      displayAvailability(detail.stockPresentation, detail.availability)?.text
-                    "
+          <div class="flex min-w-0 flex-col gap-1.5">
+            <p
+              v-if="detailPrice"
+              data-testid="catalog-detail-price"
+              class="break-words text-3xl font-bold tracking-tight text-highlighted tabular-nums"
+            >
+              {{ detailPrice }}
+            </p>
+            <p
+              v-else
+              data-testid="catalog-detail-price"
+              class="break-words text-lg font-medium text-muted"
+            >
+              Consultar precio
+            </p>
+            <p
+              v-if="detailQuantity"
+              data-testid="catalog-detail-quantity"
+              class="break-words text-sm font-medium text-muted tabular-nums"
+            >
+              {{ detailQuantity }}
+            </p>
+            <p v-else-if="!detailAvailability" class="text-sm text-muted">
+              Información no disponible
+            </p>
+          </div>
+
+          <p
+            v-if="detail.description"
+            data-testid="catalog-detail-description"
+            class="max-w-prose break-words whitespace-pre-line text-sm leading-relaxed text-muted"
+          >
+            {{ detail.description }}
+          </p>
+
+          <section
+            v-if="detail.variants.length > 0"
+            aria-labelledby="catalog-detail-variants"
+            class="flex min-w-0 flex-col gap-3"
+          >
+            <h3 id="catalog-detail-variants" class="text-sm font-semibold text-highlighted">
+              Variantes disponibles
+            </h3>
+            <ul class="flex min-w-0 flex-col gap-2">
+              <li
+                v-for="variant in variants"
+                :key="variant.id"
+                data-testid="catalog-detail-variant"
+                class="min-w-0 rounded-xl bg-elevated/40 p-3 ring-1 ring-default"
+              >
+                <div class="flex min-w-0 flex-wrap items-start justify-between gap-x-3 gap-y-1">
+                  <div class="min-w-0">
+                    <p class="break-words text-sm font-semibold text-highlighted">
+                      {{ variant.name }}
+                    </p>
+                    <p v-if="variant.optionValue" class="break-words text-xs text-muted">
+                      {{ variant.optionValue }}
+                    </p>
+                  </div>
+                  <p
+                    v-if="variant.price"
+                    data-testid="catalog-detail-variant-price"
+                    class="min-w-0 max-w-full break-words text-sm font-semibold text-highlighted tabular-nums"
                   >
-                    {{ displayAvailability(detail.stockPresentation, detail.availability)?.label }}
+                    {{ variant.price }}
+                  </p>
+                  <p
+                    v-else
+                    data-testid="catalog-detail-variant-price"
+                    class="min-w-0 max-w-full break-words text-xs font-medium text-muted"
+                  >
+                    Consultar precio
+                  </p>
+                </div>
+                <div
+                  v-if="variant.quantity || variant.availability"
+                  class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs"
+                >
+                  <span
+                    v-if="variant.quantity"
+                    data-testid="catalog-detail-variant-quantity"
+                    class="min-w-0 max-w-full break-words font-medium text-muted tabular-nums"
+                  >
+                    {{ variant.quantity }}
+                  </span>
+                  <span
+                    v-if="variant.availability"
+                    data-testid="catalog-detail-variant-availability"
+                    class="inline-flex items-center gap-1.5"
+                  >
+                    <span class="size-1.5 rounded-full" :class="variant.availability.dot" />
+                    <span class="font-medium" :class="variant.availability.text">
+                      {{ variant.availability.label }}
+                    </span>
                   </span>
                 </div>
-                <p
-                  v-else-if="!displayQuantity(detail.stockPresentation)"
-                  class="mt-1 text-sm text-muted"
-                >
-                  Información no disponible
-                </p>
-              </div>
-            </div>
-
-            <section v-if="detail.variants.length > 0" aria-labelledby="catalog-detail-variants">
-              <h3 id="catalog-detail-variants" class="text-sm font-semibold text-highlighted">
-                Variantes disponibles
-              </h3>
-              <div class="mt-3 space-y-2">
-                <div
-                  v-for="variant in detail.variants"
-                  :key="variant.id"
-                  class="min-w-0 rounded-xl bg-elevated/40 p-3 ring-1 ring-default"
-                >
-                  <div class="flex min-w-0 flex-wrap items-start justify-between gap-3">
-                    <div class="min-w-0">
-                      <p class="break-words text-sm font-semibold text-highlighted">
-                        {{ variant.name }}
-                      </p>
-                      <p
-                        v-if="variant.option || variant.value"
-                        class="break-words text-xs text-muted"
-                      >
-                        {{ [variant.option, variant.value].filter(Boolean).join(': ') }}
-                      </p>
-                    </div>
-                    <p
-                      v-if="displayPrice(variant.price)"
-                      class="shrink-0 text-sm font-semibold tabular-nums text-highlighted"
-                    >
-                      {{ displayPrice(variant.price) }}
-                    </p>
-                    <p v-else class="shrink-0 text-xs italic text-muted">Consultar precio</p>
-                  </div>
-                  <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                    <span
-                      v-if="displayQuantity(variant.stockPresentation)"
-                      class="font-medium text-muted"
-                    >
-                      {{ displayQuantity(variant.stockPresentation) }}
-                    </span>
-                    <template
-                      v-if="
-                        selectedVariantAvailability(variant) &&
-                        displayAvailability(
-                          variant.stockPresentation,
-                          selectedVariantAvailability(variant)?.availability ?? null,
-                        )
-                      "
-                    >
-                      <span
-                        class="size-1.5 rounded-full"
-                        :class="
-                          displayAvailability(
-                            variant.stockPresentation,
-                            selectedVariantAvailability(variant)?.availability ?? null,
-                          )?.dot
-                        "
-                      />
-                      <span
-                        class="font-medium"
-                        :class="
-                          displayAvailability(
-                            variant.stockPresentation,
-                            selectedVariantAvailability(variant)?.availability ?? null,
-                          )?.text
-                        "
-                      >
-                        {{
-                          displayAvailability(
-                            variant.stockPresentation,
-                            selectedVariantAvailability(variant)?.availability ?? null,
-                          )?.label
-                        }}
-                      </span>
-                    </template>
-                  </div>
-                </div>
-              </div>
-            </section>
-          </div>
+              </li>
+            </ul>
+          </section>
         </div>
+      </div>
 
-        <div
-          v-else
-          class="flex min-h-56 flex-col items-center justify-center gap-3 px-4 py-8 text-center"
-          role="status"
+      <div
+        v-else
+        data-testid="catalog-detail-error"
+        class="flex min-h-72 flex-col items-center justify-center gap-3 px-6 py-12 text-center"
+        role="status"
+      >
+        <UIcon
+          :name="state === 'not-found' ? 'i-lucide-package-x' : 'i-lucide-circle-alert'"
+          class="size-10 text-coco-500"
+        />
+        <h2 class="text-lg font-semibold text-highlighted">No pudimos mostrar este producto</h2>
+        <p class="max-w-sm text-sm text-muted">{{ errorCopy(state) }}</p>
+        <button
+          v-if="canRetry"
+          data-testid="catalog-detail-retry"
+          class="mt-2 inline-flex min-h-11 items-center justify-center rounded-xl bg-coco-600 px-4 text-sm font-semibold text-white transition-[background-color,transform] duration-150 ease-out hover:bg-coco-700 focus-visible:ring-2 focus-visible:ring-coco-500 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100"
+          type="button"
+          @click="emit('retry')"
         >
-          <UIcon
-            :name="state === 'not-found' ? 'i-lucide-package-x' : 'i-lucide-circle-alert'"
-            class="size-10 text-orange-400"
-          />
-          <h2 class="text-lg font-semibold text-highlighted">No pudimos mostrar este producto</h2>
-          <p class="max-w-sm text-sm text-muted">{{ errorCopy(state) }}</p>
-          <button
-            v-if="canRetry"
-            class="mt-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-inverted transition-[background-color,transform] duration-150 hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-[0.96]"
-            type="button"
-            @click="emit('retry')"
-          >
-            Reintentar
-          </button>
-        </div>
+          Reintentar
+        </button>
       </div>
     </template>
   </UModal>
