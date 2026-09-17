@@ -16,10 +16,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick, defineComponent, h, onUnmounted, type Component } from 'vue'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
-// @ts-expect-error Vitest resolves Vue SFCs through Vite's transform pipeline.
 import UApp from '@nuxt/ui/runtime/components/App.vue'
 import { mountWithUApp } from '@/test/mountWithUApp'
-// @ts-expect-error Vitest resolves Vue SFCs through Vite's transform pipeline.
 import ProductDetailView from '../ProductDetailView.vue'
 
 const mockToast = { add: vi.fn() }
