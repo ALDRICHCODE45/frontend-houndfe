@@ -542,6 +542,58 @@ describe('CatalogView public browse', () => {
     }
   })
 
+  it('contains the informational category controls in one centered rounded toolbar with no full-bleed divider', async () => {
+    const categories = [{ id: 'coffee', name: 'Café', count: 3 }]
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(branches))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          ...productsResponse(),
+          meta: { page: 1, limit: 20, total: 4, totalPages: 1 },
+          facets: { categories },
+        }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    const { wrapper } = await mountAt('/catalogo/centro')
+
+    await flushPromises()
+    const bar = wrapper.get('[data-testid="catalog-category-bar"]')
+
+    // The page band stays transparent and borderless: the old full-width rule is gone.
+    expect(bar.classes()).toContain('bg-transparent')
+    expect(bar.classes()).not.toContain('border-b')
+    expect(bar.classes()).not.toContain('border-default')
+    expect(bar.classes().some((className) => className.startsWith('border-'))).toBe(false)
+
+    // Exactly one contained toolbar renders inside that band.
+    expect(bar.element.children).toHaveLength(1)
+    const toolbar = bar.get('[data-testid="catalog-category-toolbar"]')
+    expect(bar.element.firstElementChild).toBe(toolbar.element)
+    expect(toolbar.classes()).toEqual(
+      expect.arrayContaining([
+        'mx-auto',
+        'w-full',
+        'max-w-6xl',
+        'rounded-2xl',
+        'ring-1',
+        'shadow-sm',
+      ]),
+    )
+    expect(toolbar.classes().some((className) => className.startsWith('border-'))).toBe(false)
+
+    // Every informational control belongs to that one surface, never to the page band.
+    const chips = [
+      toolbar.get('button[aria-label="Todas las categorías"]'),
+      toolbar.get(`button[aria-label="${categories[0]?.name}"]`),
+      toolbar.get('button[aria-label="Ordenar catálogo"]'),
+    ]
+    for (const chip of chips) {
+      expect(chip.attributes('disabled')).toBeDefined()
+    }
+    expect(toolbar.get('[data-testid="catalog-result-total"]').text()).toContain('4 productos')
+  })
+
   it('keeps the enabled control inventory exact while the branch selector is closed and adds only its own controls once it opens', async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(branches))
     vi.stubGlobal('fetch', fetchMock)

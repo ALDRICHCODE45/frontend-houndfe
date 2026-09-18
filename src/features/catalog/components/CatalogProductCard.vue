@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import type { PublicCatalogProductDto } from '../interfaces/public-catalog-products.types'
 
@@ -7,7 +7,27 @@ const props = defineProps<{ product: PublicCatalogProductDto }>()
 const emit = defineEmits<{
   'open-detail': [productId: string, invoker: HTMLButtonElement]
 }>()
-const imageFailed = ref(false)
+/**
+ * The failure is keyed to the exact URL that failed, so a new URL on the same mounted card is always
+ * attempted instead of staying suppressed by a stale failure.
+ */
+const failedImageUrl = ref<string | null>(null)
+const productImageUrl = computed(() => props.product.image?.url ?? null)
+const showImage = computed(
+  () => productImageUrl.value !== null && failedImageUrl.value !== productImageUrl.value,
+)
+
+watch(
+  () => props.product.id,
+  () => {
+    // A different product is a different media set: a stale failure must never suppress its image.
+    failedImageUrl.value = null
+  },
+)
+
+function markImageFailed() {
+  failedImageUrl.value = productImageUrl.value
+}
 
 const priceCents = computed(() => {
   const value = props.product.price.fromPriceCents ?? props.product.price.priceCents
@@ -66,20 +86,31 @@ function openDetail(event: MouseEvent) {
         class="relative aspect-square overflow-hidden bg-coco-neutral-100 dark:bg-coco-neutral-800"
       >
         <img
-          v-if="product.image && !imageFailed"
+          v-if="showImage && productImageUrl"
           class="size-full object-cover"
-          :src="product.image.url"
+          :src="productImageUrl"
           :alt="`Imagen de ${product.name}`"
-          @error="imageFailed = true"
+          @error="markImageFailed"
         />
         <div
           v-else
           data-testid="catalog-product-image-fallback"
-          class="flex size-full items-center justify-center"
+          class="flex size-full flex-col items-center justify-center gap-2.5 bg-coco-50 px-4 text-center dark:bg-coco-950/40"
           :aria-label="`Imagen no disponible para ${product.name}`"
           role="img"
         >
-          <UIcon name="i-lucide-package" class="size-12 text-coco-neutral-400/50" />
+          <!--
+            Honest media absence: a calm cobalt surface, one contained glyph and the written state.
+            It never substitutes an invented URL, and the visible copy is never icon-only.
+          -->
+          <span
+            class="flex size-14 items-center justify-center rounded-2xl bg-white/80 text-coco-500 ring-1 ring-coco-200/80 dark:bg-coco-900/50 dark:text-coco-300 dark:ring-coco-800/60"
+          >
+            <UIcon name="i-lucide-image-off" class="size-6" />
+          </span>
+          <span class="text-xs font-medium text-coco-700 dark:text-coco-200">
+            Imagen no disponible
+          </span>
         </div>
 
         <span

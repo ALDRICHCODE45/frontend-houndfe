@@ -475,6 +475,178 @@ describe('CatalogProductDetailModal', () => {
     expect(getRendered('img').attributes('src')).toBe('https://example.test/main.jpg')
   })
 
+  it('re-attempts the product image when the display URL changes under the same detail identity', async () => {
+    const wrapper = mountModal()
+    await nextTick()
+
+    await getRendered('img').trigger('error')
+    expect(document.body.querySelector('img')).toBeNull()
+    expect(
+      document.body.querySelector('[data-testid="catalog-detail-image-fallback"]'),
+    ).not.toBeNull()
+
+    // Same detail identity, different main image URL: the failure is re-keyed and attempted again.
+    await wrapper.setProps({
+      detail: {
+        ...detail,
+        images: [{ id: 'main-2', url: 'https://example.test/main-v2.jpg', isMain: true }],
+      },
+    })
+    await nextTick()
+
+    expect(getRendered('img').attributes('src')).toBe('https://example.test/main-v2.jpg')
+    expect(document.body.querySelector('[data-testid="catalog-detail-image-fallback"]')).toBeNull()
+  })
+
+  it('fills the detail frame with a written no-image state that keeps its testid, role and product label', async () => {
+    mountModal({ detail: { ...detail, images: [] } })
+    await nextTick()
+
+    const frame = getRendered('[data-testid="catalog-detail-image-frame"]')
+    const fallback = getRendered('[data-testid="catalog-detail-image-fallback"]')
+
+    // The state owns the whole reserved frame instead of leaving a mostly blank white square.
+    expect(frame.element.firstElementChild).toBe(fallback.element)
+    expect(fallback.classes()).toEqual(
+      expect.arrayContaining(['size-full', 'flex', 'flex-col', 'items-center', 'justify-center']),
+    )
+    expect(fallback.attributes('role')).toBe('img')
+    expect(fallback.attributes('aria-label')).toBe(`Imagen no disponible para ${detail.name}`)
+    expect(fallback.text()).toContain('Imagen no disponible')
+    expect(fallback.find('span').exists()).toBe(true)
+
+    // No gradient placeholder and no invented media URL.
+    expect(fallback.classes().some((className) => className.startsWith('bg-gradient'))).toBe(false)
+    expect(document.body.querySelector('img')).toBeNull()
+    expect(document.body.innerHTML).not.toMatch(/gradient|placeholder|picsum|dicebear/i)
+  })
+
+  it('renders a real variant thumbnail with variant-scoped alt text inside a read-only row', async () => {
+    mountModal({
+      detail: {
+        ...detail,
+        variants: [
+          { ...detail.variants[0], image: { url: 'https://example.test/variant-grande.jpg' } },
+        ],
+      },
+    })
+    await nextTick()
+
+    const card = getRendered('[data-testid="catalog-detail-variant"]')
+    expect(card.get('img').attributes()).toMatchObject({
+      src: 'https://example.test/variant-grande.jpg',
+      alt: 'Imagen de la variante Bolsa mediana',
+    })
+    expect(card.find('[data-testid="catalog-detail-variant-image-fallback"]').exists()).toBe(false)
+
+    // A thumbnail never turns its read-only list row into a control.
+    expect(card.element.tagName).toBe('LI')
+    expect(card.attributes('role')).toBeUndefined()
+    expect(card.attributes('tabindex')).toBeUndefined()
+    expect(card.attributes('aria-selected')).toBeUndefined()
+    expect(card.findAll('button, input, select, a').length).toBe(0)
+  })
+
+  it('renders a compact honest variant fallback with a variant-scoped label when the variant has no image', async () => {
+    mountModal()
+    await nextTick()
+
+    const card = getRendered('[data-testid="catalog-detail-variant"]')
+    expect(card.element.querySelectorAll('img').length).toBe(0)
+
+    const fallback = card.get('[data-testid="catalog-detail-variant-image-fallback"]')
+    expect(fallback.attributes('role')).toBe('img')
+    expect(fallback.attributes('aria-label')).toBe(
+      'Imagen no disponible para la variante Bolsa mediana',
+    )
+    expect(fallback.classes()).toContain('size-full')
+    expect(fallback.classes().some((className) => className.startsWith('bg-gradient'))).toBe(false)
+    expect(card.html()).not.toMatch(/gradient|placeholder|picsum|dicebear/i)
+    expect(card.findAll('button, input, select, a').length).toBe(0)
+  })
+
+  it('degrades only the variant whose real thumbnail fails, never the product media', async () => {
+    mountModal({
+      detail: {
+        ...detail,
+        variants: [
+          { ...detail.variants[0], image: { url: 'https://example.test/variant-broken.jpg' } },
+        ],
+      },
+    })
+    await nextTick()
+
+    const card = getRendered('[data-testid="catalog-detail-variant"]')
+    await card.get('img').trigger('error')
+    await nextTick()
+
+    expect(card.element.querySelectorAll('img').length).toBe(0)
+    expect(
+      card.get('[data-testid="catalog-detail-variant-image-fallback"]').attributes('aria-label'),
+    ).toBe('Imagen no disponible para la variante Bolsa mediana')
+
+    // The product-level media slot keeps its own failure state.
+    expect(getRendered('[data-testid="catalog-detail-image-frame"]').find('img').exists()).toBe(
+      true,
+    )
+    expect(document.body.querySelector('[data-testid="catalog-detail-image-fallback"]')).toBeNull()
+  })
+
+  it('isolates variant image failures per variant and clears them when the detail identity changes', async () => {
+    const baseVariant = detail.variants[0]
+    if (baseVariant === undefined) throw new Error('fixture variant missing')
+    const variants = [
+      {
+        ...baseVariant,
+        id: 'variant-rojo',
+        name: 'Rojo',
+        image: { url: 'https://example.test/rojo.jpg' },
+      },
+      {
+        ...baseVariant,
+        id: 'variant-grande',
+        name: 'Grande',
+        image: { url: 'https://example.test/grande.jpg' },
+      },
+    ]
+    const wrapper = mountModal({ detail: { ...detail, variants } })
+    await nextTick()
+
+    const cards = getAllRendered('[data-testid="catalog-detail-variant"]')
+    expect(cards).toHaveLength(2)
+    const failing = getNthRendered('[data-testid="catalog-detail-variant"]', 0)
+    const healthy = getNthRendered('[data-testid="catalog-detail-variant"]', 1)
+    await failing.get('img').trigger('error')
+    await nextTick()
+
+    // Only the failing variant degrades; its sibling keeps its real thumbnail.
+    expect(failing.element.querySelectorAll('img').length).toBe(0)
+    expect(failing.find('[data-testid="catalog-detail-variant-image-fallback"]').exists()).toBe(
+      true,
+    )
+    expect(
+      failing.get('[data-testid="catalog-detail-variant-image-fallback"]').attributes('aria-label'),
+    ).toBe('Imagen no disponible para la variante Rojo')
+    expect(healthy.get('img').attributes('src')).toBe('https://example.test/grande.jpg')
+    expect(healthy.find('[data-testid="catalog-detail-variant-image-fallback"]').exists()).toBe(
+      false,
+    )
+
+    // A new detail identity is a new media set: the stale per-variant failure is cleared.
+    await wrapper.setProps({ detail: { ...detail, id: 'product-2', variants } })
+    await nextTick()
+
+    expect(
+      getNthRendered('[data-testid="catalog-detail-variant"]', 0).get('img').attributes('src'),
+    ).toBe('https://example.test/rojo.jpg')
+    expect(
+      getNthRendered('[data-testid="catalog-detail-variant"]', 1).get('img').attributes('src'),
+    ).toBe('https://example.test/grande.jpg')
+    expect(
+      document.body.querySelector('[data-testid="catalog-detail-variant-image-fallback"]'),
+    ).toBeNull()
+  })
+
   it.each([
     [{ price: { priceCents: null, hidden: true } }, 'Consultar precio', false],
     [

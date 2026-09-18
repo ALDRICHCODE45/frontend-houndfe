@@ -18,9 +18,14 @@ const resultTotalLabel = computed(() =>
 </script>
 
 <template>
-  <div data-testid="catalog-category-bar" class="border-b border-default bg-default/60">
+  <!--
+    The band stays transparent so the page has no full-bleed divider. The informational controls
+    live on one contained, ringed surface instead of a page-wide rule.
+  -->
+  <div data-testid="catalog-category-bar" class="bg-transparent px-4 py-3 sm:px-6">
     <div
-      class="mx-auto flex w-full max-w-6xl flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6"
+      data-testid="catalog-category-toolbar"
+      class="mx-auto flex w-full max-w-6xl flex-col gap-3 rounded-2xl bg-elevated px-3 py-3 shadow-sm ring-1 ring-default sm:flex-row sm:items-center sm:justify-between sm:px-4"
     >
       <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
         <UButton

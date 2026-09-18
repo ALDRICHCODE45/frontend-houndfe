@@ -1,5 +1,5 @@
 import { mount } from '@vue/test-utils'
-import { defineComponent, h } from 'vue'
+import { defineComponent, h, nextTick } from 'vue'
 import { describe, expect, it } from 'vitest'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import CatalogProductCard from '@/features/catalog/components/CatalogProductCard.vue'
@@ -75,6 +75,79 @@ describe('CatalogProductCard', () => {
     ).toBe(`Imagen no disponible para ${product.name}`)
     expect(wrapper.text()).toContain('Consultar precio')
     expect(wrapper.text()).not.toContain('$0')
+  })
+
+  it('fills the media region with a designed honest no-image state that keeps its testid, role and label', () => {
+    const wrapper = mountCard({ image: null })
+    const media = wrapper.get('[data-testid="catalog-product-media"]')
+    const fallback = wrapper.get('[data-testid="catalog-product-image-fallback"]')
+
+    // The state owns the whole reserved media region instead of floating inside it.
+    expect(media.element.firstElementChild).toBe(fallback.element)
+    expect(fallback.classes()).toEqual(
+      expect.arrayContaining(['size-full', 'flex', 'flex-col', 'items-center', 'justify-center']),
+    )
+    expect(fallback.attributes('role')).toBe('img')
+    expect(fallback.attributes('aria-label')).toBe(`Imagen no disponible para ${product.name}`)
+
+    // The absence is written, never implied by a lone glyph.
+    expect(fallback.text()).toContain('Imagen no disponible')
+    expect(fallback.find('span').exists()).toBe(true)
+
+    // No gradient placeholder and no invented media URL.
+    expect(fallback.classes().some((className) => className.startsWith('bg-gradient'))).toBe(false)
+    expect(fallback.element.querySelector('img')).toBeNull()
+    expect(wrapper.html()).not.toMatch(/gradient|placeholder|picsum|dicebear/i)
+  })
+
+  it('lets the real product image win over the no-image state', () => {
+    const wrapper = mountCard()
+
+    expect(wrapper.get('img').attributes()).toMatchObject({
+      src: product.image.url,
+      alt: `Imagen de ${product.name}`,
+    })
+    expect(wrapper.find('[data-testid="catalog-product-image-fallback"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Imagen no disponible')
+  })
+
+  it('swaps a failed real image for the same written no-image state inside the media region', async () => {
+    const wrapper = mountCard()
+    await wrapper.get('img').trigger('error')
+
+    expect(wrapper.find('img').exists()).toBe(false)
+    const fallback = wrapper.get('[data-testid="catalog-product-image-fallback"]')
+    expect(wrapper.get('[data-testid="catalog-product-media"]').element.firstElementChild).toBe(
+      fallback.element,
+    )
+    expect(fallback.attributes('aria-label')).toBe(`Imagen no disponible para ${product.name}`)
+    expect(fallback.text()).toContain('Imagen no disponible')
+  })
+
+  it('re-attempts the media after a failure when the URL changes and keeps identity changes covered', async () => {
+    const wrapper = mountCard()
+    await wrapper.get('img').trigger('error')
+    expect(wrapper.find('img').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="catalog-product-image-fallback"]').exists()).toBe(true)
+
+    // Same URL, different product: a stale failure must never suppress the new product's media.
+    await wrapper.setProps({ product: { ...product, id: 'product-2' } })
+    await nextTick()
+    expect(wrapper.get('img').attributes('src')).toBe(product.image.url)
+    expect(wrapper.find('[data-testid="catalog-product-image-fallback"]').exists()).toBe(false)
+
+    // Same product identity, new URL: the failure is re-keyed and the new URL is attempted.
+    await wrapper.get('img').trigger('error')
+    expect(wrapper.find('img').exists()).toBe(false)
+
+    await wrapper.setProps({
+      product: { ...product, id: 'product-2', image: { url: 'https://example.test/cafe-v2.jpg' } },
+    })
+    await nextTick()
+
+    expect(wrapper.get('img').attributes('src')).toBe('https://example.test/cafe-v2.jpg')
+    expect(wrapper.find('[data-testid="catalog-product-image-fallback"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Imagen no disponible')
   })
 
   it('keeps valid nullable availability with HIDDEN presentation neutral', () => {

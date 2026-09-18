@@ -18,11 +18,31 @@ const emit = defineEmits<{
   retry: []
 }>()
 
-const imageFailed = ref(false)
+/** Variant media failures are tracked per variant and keyed by the exact URL that failed. */
+const failedVariantImageUrls = ref<Record<string, string>>({})
+
+function markVariantImageFailed(variantId: string, url: string | null) {
+  if (url === null) return
+  failedVariantImageUrls.value = { ...failedVariantImageUrls.value, [variantId]: url }
+}
+
 const displayImage = computed(() => {
   if (!props.detail) return null
   return props.detail.images.find((image) => image.isMain) ?? props.detail.images[0] ?? null
 })
+/**
+ * The main image failure is keyed to the exact URL that failed, so a different display image under the
+ * same detail identity is attempted instead of staying suppressed by a stale failure.
+ */
+const failedMainImageUrl = ref<string | null>(null)
+const displayImageUrl = computed(() => displayImage.value?.url ?? null)
+const mainImageFailed = computed(
+  () => displayImageUrl.value !== null && failedMainImageUrl.value === displayImageUrl.value,
+)
+
+function markMainImageFailed() {
+  failedMainImageUrl.value = displayImageUrl.value
+}
 const isLoading = computed(() => props.state === 'loading' || props.state === 'retry-pending')
 const canRetry = computed(() => ['rate-limit', 'network', 'server'].includes(props.state))
 
@@ -85,10 +105,14 @@ const detailAvailability = computed(() =>
 const variants = computed(() =>
   (props.detail?.variants ?? []).map((variant) => {
     const selectedBranch = variant.availabilityByBranch.find((entry) => entry.isSelected) ?? null
+    const imageUrl = variant.image?.url ?? null
     return {
       id: variant.id,
       name: variant.name,
       optionValue: [variant.option, variant.value].filter(Boolean).join(': '),
+      imageUrl,
+      imageAlt: `Imagen de la variante ${variant.name}`,
+      imageFailed: imageUrl !== null && failedVariantImageUrls.value[variant.id] === imageUrl,
       price: displayPrice(variant.price),
       quantity: displayQuantity(variant.stockPresentation),
       availability: displayAvailability(
@@ -123,7 +147,9 @@ function handleModalOpen(value: boolean) {
 watch(
   () => props.detail?.id,
   () => {
-    imageFailed.value = false
+    // A new detail identity is a new media set: stale failures never suppress the next product's media.
+    failedMainImageUrl.value = null
+    failedVariantImageUrls.value = {}
   },
 )
 </script>
@@ -218,20 +244,31 @@ watch(
             class="flex aspect-square w-full max-w-[15rem] items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5 md:max-w-[17rem] dark:bg-coco-neutral-900 dark:ring-white/10"
           >
             <img
-              v-if="displayImage && !imageFailed"
+              v-if="displayImageUrl && !mainImageFailed"
               class="size-full object-cover"
-              :src="displayImage.url"
+              :src="displayImageUrl"
               :alt="`Imagen de ${detail.name}`"
-              @error="imageFailed = true"
+              @error="markMainImageFailed"
             />
             <div
               v-else
               data-testid="catalog-detail-image-fallback"
-              class="flex size-full items-center justify-center"
+              class="flex size-full flex-col items-center justify-center gap-3 bg-coco-50 px-6 text-center dark:bg-coco-950/40"
               :aria-label="`Imagen no disponible para ${detail.name}`"
               role="img"
             >
-              <UIcon name="i-lucide-package" class="size-14 text-coco-neutral-400/60" />
+              <!--
+                The same honest media absence as the listing cards, scaled to the detail composition:
+                a cobalt-tinted surface, one contained glyph and the written state. No invented URL.
+              -->
+              <span
+                class="flex size-20 items-center justify-center rounded-3xl bg-white/80 text-coco-500 ring-1 ring-coco-200/80 dark:bg-coco-900/50 dark:text-coco-300 dark:ring-coco-800/60"
+              >
+                <UIcon name="i-lucide-image-off" class="size-9" />
+              </span>
+              <span class="text-sm font-medium text-coco-700 dark:text-coco-200">
+                Imagen no disponible
+              </span>
             </div>
           </div>
         </div>
@@ -316,53 +353,80 @@ watch(
                 v-for="variant in variants"
                 :key="variant.id"
                 data-testid="catalog-detail-variant"
-                class="min-w-0 rounded-xl bg-elevated/40 p-3 ring-1 ring-default"
+                class="flex min-w-0 items-start gap-3 rounded-xl bg-elevated/40 p-3 ring-1 ring-default"
               >
-                <div class="flex min-w-0 flex-wrap items-start justify-between gap-x-3 gap-y-1">
-                  <div class="min-w-0">
-                    <p class="break-words text-sm font-semibold text-highlighted">
-                      {{ variant.name }}
+                <!--
+                  Read-only media thumbnail inside a read-only row: a real variant image when the
+                  strict DTO carries one, the honest compact no-image state otherwise.
+                -->
+                <div
+                  class="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white ring-1 ring-default dark:bg-coco-neutral-900 dark:ring-white/10"
+                >
+                  <img
+                    v-if="variant.imageUrl && !variant.imageFailed"
+                    class="size-full object-cover"
+                    :src="variant.imageUrl"
+                    :alt="variant.imageAlt"
+                    @error="markVariantImageFailed(variant.id, variant.imageUrl)"
+                  />
+                  <div
+                    v-else
+                    data-testid="catalog-detail-variant-image-fallback"
+                    class="flex size-full items-center justify-center bg-coco-50 text-coco-500 dark:bg-coco-950/40 dark:text-coco-300"
+                    :aria-label="`Imagen no disponible para la variante ${variant.name}`"
+                    role="img"
+                  >
+                    <UIcon name="i-lucide-image-off" class="size-5" />
+                  </div>
+                </div>
+
+                <div class="flex min-w-0 flex-1 flex-col">
+                  <div class="flex min-w-0 flex-wrap items-start justify-between gap-x-3 gap-y-1">
+                    <div class="min-w-0">
+                      <p class="break-words text-sm font-semibold text-highlighted">
+                        {{ variant.name }}
+                      </p>
+                      <p v-if="variant.optionValue" class="break-words text-xs text-muted">
+                        {{ variant.optionValue }}
+                      </p>
+                    </div>
+                    <p
+                      v-if="variant.price"
+                      data-testid="catalog-detail-variant-price"
+                      class="min-w-0 max-w-full break-words text-sm font-semibold text-highlighted tabular-nums"
+                    >
+                      {{ variant.price }}
                     </p>
-                    <p v-if="variant.optionValue" class="break-words text-xs text-muted">
-                      {{ variant.optionValue }}
+                    <p
+                      v-else
+                      data-testid="catalog-detail-variant-price"
+                      class="min-w-0 max-w-full break-words text-xs font-medium text-muted"
+                    >
+                      Consultar precio
                     </p>
                   </div>
-                  <p
-                    v-if="variant.price"
-                    data-testid="catalog-detail-variant-price"
-                    class="min-w-0 max-w-full break-words text-sm font-semibold text-highlighted tabular-nums"
+                  <div
+                    v-if="variant.quantity || variant.availability"
+                    class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs"
                   >
-                    {{ variant.price }}
-                  </p>
-                  <p
-                    v-else
-                    data-testid="catalog-detail-variant-price"
-                    class="min-w-0 max-w-full break-words text-xs font-medium text-muted"
-                  >
-                    Consultar precio
-                  </p>
-                </div>
-                <div
-                  v-if="variant.quantity || variant.availability"
-                  class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs"
-                >
-                  <span
-                    v-if="variant.quantity"
-                    data-testid="catalog-detail-variant-quantity"
-                    class="min-w-0 max-w-full break-words font-medium text-muted tabular-nums"
-                  >
-                    {{ variant.quantity }}
-                  </span>
-                  <span
-                    v-if="variant.availability"
-                    data-testid="catalog-detail-variant-availability"
-                    class="inline-flex items-center gap-1.5"
-                  >
-                    <span class="size-1.5 rounded-full" :class="variant.availability.dot" />
-                    <span class="font-medium" :class="variant.availability.text">
-                      {{ variant.availability.label }}
+                    <span
+                      v-if="variant.quantity"
+                      data-testid="catalog-detail-variant-quantity"
+                      class="min-w-0 max-w-full break-words font-medium text-muted tabular-nums"
+                    >
+                      {{ variant.quantity }}
                     </span>
-                  </span>
+                    <span
+                      v-if="variant.availability"
+                      data-testid="catalog-detail-variant-availability"
+                      class="inline-flex items-center gap-1.5"
+                    >
+                      <span class="size-1.5 rounded-full" :class="variant.availability.dot" />
+                      <span class="font-medium" :class="variant.availability.text">
+                        {{ variant.availability.label }}
+                      </span>
+                    </span>
+                  </div>
                 </div>
               </li>
             </ul>
