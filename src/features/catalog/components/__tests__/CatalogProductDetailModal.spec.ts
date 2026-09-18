@@ -1,6 +1,6 @@
 import { DOMWrapper, mount } from '@vue/test-utils'
 import { defineComponent, h, nextTick } from 'vue'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import CatalogProductDetailModal from '@/features/catalog/components/CatalogProductDetailModal.vue'
 
 /**
@@ -140,9 +140,41 @@ function getNthRendered(selector: string, index: number) {
 
 const renderedText = () => document.body.textContent ?? ''
 
+/** The read-only image preview is a distinct dialog, so it is addressed by its own modal title. */
+const previewTitle = 'Vista ampliada de imagen'
+const mainPreviewTrigger = '[data-testid="catalog-detail-image-preview-trigger"]'
+const variantPreviewTrigger = '[data-testid="catalog-detail-variant-image-preview-trigger"]'
+const previewSurface = '[data-testid="catalog-detail-image-preview"]'
+const previewImage = '[data-testid="catalog-detail-image-preview-img"]'
+const previewFallback = '[data-testid="catalog-detail-image-preview-fallback"]'
+const previewClose = '[data-testid="catalog-detail-image-preview-close"]'
+
+function findDialogByTitle(wrapper: ReturnType<typeof mountModal>, title: string) {
+  /**
+   * The dialog is teleported, so a DOM path cannot reach its instance, and VTU v2 matches components
+   * only by name or DOM selector. Its declared `title` prop is therefore the semantic selector and
+   * the component name is only the bridge to the instance.
+   */
+  const dialog = wrapper
+    .findAllComponents({ name: 'Modal' })
+    .find((candidate) => candidate.props('title') === title)
+  if (!dialog) throw new Error(`Missing rendered dialog: ${title}`)
+  return dialog
+}
+
+/**
+ * The read-only preview is dismissed by reka-ui on a later frame, so its `after:leave` event is
+ * driven directly: the tests observe this component's own leave contract, not a timer.
+ */
+const leavePreview = async (wrapper: ReturnType<typeof mountModal>) => {
+  findDialogByTitle(wrapper, previewTitle).vm.$emit('after:leave')
+  await nextTick()
+}
+
 describe('CatalogProductDetailModal', () => {
   afterEach(() => {
     document.body.replaceChildren()
+    vi.unstubAllGlobals()
   })
 
   it('renders a real dialog whose semantic header is visually hidden without duplicating it in the body', async () => {
@@ -214,10 +246,12 @@ describe('CatalogProductDetailModal', () => {
     expect(split.element.children[0]).toBe(media.element)
     expect(split.element.children[1]).toBe(details.element)
 
-    // An explicit 44px close target is the only dialog action in a populated read-only detail.
-    expect(getAllRendered('button')).toHaveLength(1)
+    // The only controls in a populated read-only detail are the 44px close target and media previews.
+    expect(getAllRendered('button').map((button) => button.attributes('aria-label'))).toEqual([
+      'Cerrar detalle del producto',
+      `Ampliar imagen de ${detail.name}`,
+    ])
     const close = getNthRendered('button', 0)
-    expect(close.attributes('aria-label')).toBe('Cerrar detalle del producto')
     expect(close.attributes('type')).toBe('button')
     expect(close.classes()).toContain('size-11')
   })
@@ -245,7 +279,11 @@ describe('CatalogProductDetailModal', () => {
 
     // `section[aria-labelledby]` is what exposes the variants region to assistive technology.
     const variantRegion = getRendered('section[aria-labelledby="catalog-detail-variants"]')
-    expect(variantRegion.findAll('button, input, select').length).toBe(0)
+    expect(variantRegion.findAll('input, select').length).toBe(0)
+    for (const button of variantRegion.findAll('button')) {
+      // Read-only media preview is the only control a variant row may expose.
+      expect(button.attributes('aria-label') ?? '').toMatch(/^Ampliar imagen de la variante /)
+    }
     expect(renderedText()).toContain('Variantes disponibles')
     expect(renderedText()).toContain('Tamaño: 500 g')
     expect(renderedText()).toContain('$29.99')
@@ -343,7 +381,13 @@ describe('CatalogProductDetailModal', () => {
       expect(card.attributes('tabindex')).toBeUndefined()
       expect(card.attributes('aria-selected')).toBeUndefined()
       expect(card.attributes('aria-pressed')).toBeUndefined()
-      expect(card.findAll('button, input, select, a').length).toBe(0)
+      expect(card.findAll('input, select, a').length).toBe(0)
+      for (const button of card.findAll('button')) {
+        // A media preview is a media control: never selection, never pressed state, never commerce.
+        expect(button.attributes('aria-label') ?? '').toMatch(/^Ampliar imagen de la variante /)
+        expect(button.attributes('aria-pressed')).toBeUndefined()
+        expect(button.attributes('aria-selected')).toBeUndefined()
+      }
       expect(card.text()).not.toMatch(/seleccionad|elegido|selected/i)
     }
   })
@@ -539,12 +583,16 @@ describe('CatalogProductDetailModal', () => {
     })
     expect(card.find('[data-testid="catalog-detail-variant-image-fallback"]').exists()).toBe(false)
 
-    // A thumbnail never turns its read-only list row into a control.
+    // A thumbnail only opens the media preview: its read-only list row never becomes selectable.
     expect(card.element.tagName).toBe('LI')
     expect(card.attributes('role')).toBeUndefined()
     expect(card.attributes('tabindex')).toBeUndefined()
     expect(card.attributes('aria-selected')).toBeUndefined()
-    expect(card.findAll('button, input, select, a').length).toBe(0)
+    expect(card.findAll('input, select, a').length).toBe(0)
+    const trigger = card.get(variantPreviewTrigger)
+    expect(trigger.attributes('type')).toBe('button')
+    expect(trigger.attributes('aria-label')).toBe('Ampliar imagen de la variante Bolsa mediana')
+    expect(trigger.classes()).toContain('size-full')
   })
 
   it('renders a compact honest variant fallback with a variant-scoped label when the variant has no image', async () => {
@@ -584,6 +632,8 @@ describe('CatalogProductDetailModal', () => {
     expect(
       card.get('[data-testid="catalog-detail-variant-image-fallback"]').attributes('aria-label'),
     ).toBe('Imagen no disponible para la variante Bolsa mediana')
+    // A failed thumbnail is not interactive: no preview control survives the failure.
+    expect(card.findAll('button')).toHaveLength(0)
 
     // The product-level media slot keeps its own failure state.
     expect(getRendered('[data-testid="catalog-detail-image-frame"]').find('img').exists()).toBe(
@@ -631,6 +681,8 @@ describe('CatalogProductDetailModal', () => {
     expect(healthy.find('[data-testid="catalog-detail-variant-image-fallback"]').exists()).toBe(
       false,
     )
+    expect(healthy.find(variantPreviewTrigger).exists()).toBe(true)
+    expect(failing.find(variantPreviewTrigger).exists()).toBe(false)
 
     // A new detail identity is a new media set: the stale per-variant failure is cleared.
     await wrapper.setProps({ detail: { ...detail, id: 'product-2', variants } })
@@ -645,6 +697,330 @@ describe('CatalogProductDetailModal', () => {
     expect(
       document.body.querySelector('[data-testid="catalog-detail-variant-image-fallback"]'),
     ).toBeNull()
+  })
+
+  it('opens a distinct labelled read-only preview of the real main image from its full-frame button', async () => {
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+    const wrapper = mountModal()
+    await nextTick()
+
+    const trigger = getRendered(mainPreviewTrigger)
+    expect(trigger.element.tagName).toBe('BUTTON')
+    expect(trigger.attributes('type')).toBe('button')
+    expect(trigger.attributes('aria-label')).toBe(`Ampliar imagen de ${detail.name}`)
+    expect(trigger.classes()).toContain('size-full')
+    expect(trigger.get('img').attributes()).toMatchObject({
+      src: 'https://example.test/main.jpg',
+      alt: `Imagen de ${detail.name}`,
+    })
+
+    await trigger.trigger('click')
+    await nextTick()
+
+    const surface = getRendered(previewSurface)
+    expect(surface.element.closest('[role="dialog"]')).not.toBeNull()
+    expect(findDialogByTitle(wrapper, previewTitle).props('title')).toBe(previewTitle)
+    expect(
+      getRendered('[data-testid="catalog-detail-split"]').element.closest('[role="dialog"]'),
+    ).not.toBe(surface.element.closest('[role="dialog"]'))
+
+    expect(getRendered(previewImage).attributes()).toMatchObject({
+      src: 'https://example.test/main.jpg',
+      alt: `Imagen de ${detail.name}`,
+    })
+    expect(getRendered(previewImage).classes()).toContain('object-contain')
+
+    // The preview reuses the URL the detail already delivered: it issues no request of its own.
+    expect(fetchSpy).not.toHaveBeenCalled()
+    // Opening the preview is not closing the detail.
+    expect(wrapper.emitted('close')).toBeUndefined()
+  })
+
+  it('opens the real variant preview with the variant URL and its own alt', async () => {
+    mountModal({
+      detail: {
+        ...detail,
+        variants: [
+          { ...detail.variants[0], image: { url: 'https://example.test/variant-grande.jpg' } },
+        ],
+      },
+    })
+    await nextTick()
+
+    const card = getRendered('[data-testid="catalog-detail-variant"]')
+    const trigger = card.get(variantPreviewTrigger)
+    expect(trigger.attributes('type')).toBe('button')
+    expect(trigger.attributes('aria-label')).toBe('Ampliar imagen de la variante Bolsa mediana')
+
+    await trigger.trigger('click')
+    await nextTick()
+
+    const image = getRendered(previewImage)
+    expect(image.attributes()).toMatchObject({
+      src: 'https://example.test/variant-grande.jpg',
+      alt: 'Imagen de la variante Bolsa mediana',
+    })
+    // Variant media never downgrades to the product-level image.
+    expect(image.attributes('src')).not.toBe('https://example.test/main.jpg')
+  })
+
+  it('keeps null or failed media noninteractive with no preview control at all', async () => {
+    // A variant without media keeps its honest fallback and exposes nothing to activate.
+    const variantWrapper = mountModal()
+    await nextTick()
+    const card = getRendered('[data-testid="catalog-detail-variant"]')
+    expect(card.find('[data-testid="catalog-detail-variant-image-fallback"]').exists()).toBe(true)
+    expect(card.find(variantPreviewTrigger).exists()).toBe(false)
+    expect(card.findAll('button')).toHaveLength(0)
+    variantWrapper.unmount()
+
+    // A product without media keeps its frame fallback and exposes no preview control.
+    const emptyWrapper = mountModal({ detail: { ...detail, images: [] } })
+    await nextTick()
+    expect(document.body.querySelector(mainPreviewTrigger)).toBeNull()
+    expect(
+      document.body.querySelector('[data-testid="catalog-detail-image-fallback"]'),
+    ).not.toBeNull()
+    emptyWrapper.unmount()
+
+    // A failed main image loses the preview control instead of opening a broken preview.
+    const failingWrapper = mountModal()
+    await nextTick()
+    await getRendered('img').trigger('error')
+    await nextTick()
+    expect(document.body.querySelector(mainPreviewTrigger)).toBeNull()
+    expect(
+      document.body.querySelector('[data-testid="catalog-detail-image-fallback"]'),
+    ).not.toBeNull()
+    failingWrapper.unmount()
+
+    // A failed variant thumbnail loses the preview control too.
+    const brokenThumbWrapper = mountModal({
+      detail: {
+        ...detail,
+        variants: [
+          { ...detail.variants[0], image: { url: 'https://example.test/variant-broken.jpg' } },
+        ],
+      },
+    })
+    await nextTick()
+    const brokenCard = getRendered('[data-testid="catalog-detail-variant"]')
+    await brokenCard.get('img').trigger('error')
+    await nextTick()
+    expect(brokenCard.find(variantPreviewTrigger).exists()).toBe(false)
+    expect(brokenCard.findAll('button')).toHaveLength(0)
+    brokenThumbWrapper.unmount()
+  })
+
+  it('closes the preview from its custom 44px control and restores focus only once it has left', async () => {
+    const wrapper = mountModal()
+    await nextTick()
+
+    const triggerElement = getRendered(mainPreviewTrigger).element as HTMLButtonElement
+    await getRendered(mainPreviewTrigger).trigger('click')
+    await nextTick()
+    expect(getRendered(previewSurface)).toBeDefined()
+
+    const close = getRendered(previewClose)
+    expect(close.element.tagName).toBe('BUTTON')
+    expect(close.attributes('type')).toBe('button')
+    expect(close.attributes('aria-label')).toBe('Cerrar vista de imagen')
+    expect(close.classes()).toContain('size-11')
+    expect(close.classes()).toContain('items-center')
+    expect(close.classes()).toContain('justify-center')
+
+    const dialog = findDialogByTitle(wrapper, previewTitle)
+    const focusSpy = vi.spyOn(triggerElement, 'focus')
+
+    await close.trigger('click')
+    await nextTick()
+
+    // Only the preview closes: the detail stays open and keeps its own close contract.
+    expect(dialog.props('open')).toBe(false)
+    expect(findDialogByTitle(wrapper, 'Detalle del producto').props('open')).toBe(true)
+    expect(wrapper.emitted('close')).toBeUndefined()
+    // The dismissed dialog releases its restore target on the way out, back to the image button.
+    expect(document.activeElement).toBe(triggerElement)
+
+    // The restore is consumed once: repeated leave callbacks for this dismissal move nothing.
+    const focusCallsAfterRestore = focusSpy.mock.calls.length
+    await leavePreview(wrapper)
+    await leavePreview(wrapper)
+    expect(focusSpy.mock.calls.length).toBe(focusCallsAfterRestore)
+    expect(document.activeElement).toBe(triggerElement)
+  })
+
+  it('closes only the preview when the preview dialog dismisses through update:open', async () => {
+    const wrapper = mountModal()
+    await nextTick()
+
+    await getRendered(mainPreviewTrigger).trigger('click')
+    await nextTick()
+
+    const dialog = findDialogByTitle(wrapper, previewTitle)
+
+    dialog.vm.$emit('update:open', false)
+    await nextTick()
+
+    // The dismissal contract is the same one the explicit control uses: preview only, never the detail.
+    expect(dialog.props('open')).toBe(false)
+    expect(findDialogByTitle(wrapper, 'Detalle del producto').props('open')).toBe(true)
+    expect(wrapper.emitted('close')).toBeUndefined()
+
+    // Repeated leave callbacks for this dismissal never reach the detail's close event either.
+    await leavePreview(wrapper)
+    await leavePreview(wrapper)
+    expect(wrapper.emitted('close')).toBeUndefined()
+    expect(findDialogByTitle(wrapper, 'Detalle del producto').props('open')).toBe(true)
+  })
+
+  it('never restores focus for a preview that is still open', async () => {
+    const wrapper = mountModal()
+    await nextTick()
+
+    const triggerElement = getRendered(mainPreviewTrigger).element as HTMLButtonElement
+    await getRendered(mainPreviewTrigger).trigger('click')
+    await nextTick()
+
+    const focusSpy = vi.spyOn(triggerElement, 'focus')
+
+    // An early or duplicated leave callback while the preview is open has no dismissed trigger to
+    // consume, and it never falls back to the trigger the preview still owns.
+    await leavePreview(wrapper)
+    await leavePreview(wrapper)
+
+    expect(focusSpy).not.toHaveBeenCalled()
+    expect(findDialogByTitle(wrapper, previewTitle).props('open')).toBe(true)
+    expect(document.body.querySelector(previewSurface)).not.toBeNull()
+  })
+
+  it('never lets a leave callback from an older preview steal focus from a newer one', async () => {
+    const wrapper = mountModal({
+      detail: {
+        ...detail,
+        variants: [
+          { ...detail.variants[0], image: { url: 'https://example.test/variant-grande.jpg' } },
+        ],
+      },
+    })
+    await nextTick()
+
+    const mainTrigger = getRendered(mainPreviewTrigger).element as HTMLButtonElement
+    const variantTrigger = getRendered(variantPreviewTrigger).element as HTMLButtonElement
+
+    await getRendered(mainPreviewTrigger).trigger('click')
+    await nextTick()
+    await getRendered(previewClose).trigger('click')
+    await nextTick()
+
+    // A newer preview opens before the dismissed dialog's leave callback arrives.
+    await getRendered(variantPreviewTrigger).trigger('click')
+    await nextTick()
+    const focusSpy = vi.spyOn(variantTrigger, 'focus')
+    const focusedAfterReopen = document.activeElement
+    expect(focusedAfterReopen).not.toBe(mainTrigger)
+
+    // The stale callback moves nothing and does not consume the newer preview's own restore.
+    await leavePreview(wrapper)
+    expect(document.activeElement).toBe(focusedAfterReopen)
+    expect(focusSpy).not.toHaveBeenCalled()
+
+    await getRendered(previewClose).trigger('click')
+    await nextTick()
+    await leavePreview(wrapper)
+    expect(document.activeElement).toBe(variantTrigger)
+  })
+
+  it('never forwards a preview open or dismissal to the outer detail close event', async () => {
+    const wrapper = mountModal()
+    await nextTick()
+
+    await getRendered(mainPreviewTrigger).trigger('click')
+    await nextTick()
+    expect(wrapper.emitted('close')).toBeUndefined()
+
+    await getRendered(previewClose).trigger('click')
+    await nextTick()
+    expect(wrapper.emitted('close')).toBeUndefined()
+
+    // The detail's own close contract still fires exactly once, from its own control.
+    await getRendered('button[aria-label="Cerrar detalle del producto"]').trigger('click')
+    expect(wrapper.emitted('close')).toEqual([[]])
+  })
+
+  it('renders a visible and accessible preview fallback when the preview URL fails', async () => {
+    mountModal()
+    await nextTick()
+
+    await getRendered(mainPreviewTrigger).trigger('click')
+    await nextTick()
+    await getRendered(previewImage).trigger('error')
+    await nextTick()
+
+    expect(document.body.querySelector(previewImage)).toBeNull()
+    const fallback = getRendered(previewFallback)
+    expect(fallback.attributes('role')).toBe('img')
+    expect(fallback.attributes('aria-label')).toBe(
+      `Imagen no disponible en la vista ampliada de ${detail.name}`,
+    )
+    expect(fallback.text()).toContain('Imagen no disponible')
+    expect(fallback.classes().some((className) => className.startsWith('bg-gradient'))).toBe(false)
+
+    // The preview failure never degrades the detail's own media slot.
+    expect(
+      getRendered('[data-testid="catalog-detail-image-preview-trigger"]').find('img').exists(),
+    ).toBe(true)
+    expect(document.body.querySelector('[data-testid="catalog-detail-image-fallback"]')).toBeNull()
+  })
+
+  it('retries a changed preview URL after a keyed preview failure', async () => {
+    const wrapper = mountModal()
+    await nextTick()
+
+    await getRendered(mainPreviewTrigger).trigger('click')
+    await nextTick()
+    await getRendered(previewImage).trigger('error')
+    await nextTick()
+    expect(document.body.querySelector(previewImage)).toBeNull()
+
+    await getRendered(previewClose).trigger('click')
+    await wrapper.setProps({
+      detail: {
+        ...detail,
+        images: [{ id: 'main-2', url: 'https://example.test/main-v2.jpg', isMain: true }],
+      },
+    })
+    await nextTick()
+
+    // Same identity, different URL: the failure is re-keyed and the new URL is attempted.
+    await getRendered(mainPreviewTrigger).trigger('click')
+    await nextTick()
+    expect(getRendered(previewImage).attributes('src')).toBe('https://example.test/main-v2.jpg')
+    expect(document.body.querySelector(previewFallback)).toBeNull()
+  })
+
+  it('clears the open preview and its keyed failure when the detail identity changes', async () => {
+    const wrapper = mountModal()
+    await nextTick()
+
+    const dialog = findDialogByTitle(wrapper, previewTitle)
+    await getRendered(mainPreviewTrigger).trigger('click')
+    await nextTick()
+    await getRendered(previewImage).trigger('error')
+    await nextTick()
+    expect(getRendered(previewFallback).text()).toContain('Imagen no disponible')
+
+    await wrapper.setProps({ detail: { ...detail, id: 'product-2' } })
+    await nextTick()
+
+    // A new identity never keeps the previous preview open nor its keyed failure.
+    expect(dialog.props('open')).toBe(false)
+
+    await getRendered(mainPreviewTrigger).trigger('click')
+    await nextTick()
+    expect(getRendered(previewImage).attributes('src')).toBe('https://example.test/main.jpg')
+    expect(document.body.querySelector(previewFallback)).toBeNull()
   })
 
   it.each([
@@ -764,10 +1140,7 @@ describe('CatalogProductDetailModal', () => {
     const wrapper = mountModal()
     await nextTick()
 
-    const modal = wrapper.findComponent({ name: 'Modal' })
-    expect(modal.exists(), 'the real UModal must render for this contract to be observable').toBe(
-      true,
-    )
+    const modal = findDialogByTitle(wrapper, 'Detalle del producto')
     expect(wrapper.emitted('close')).toBeUndefined()
 
     modal.vm.$emit('update:open', false)

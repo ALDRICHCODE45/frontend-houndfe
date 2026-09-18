@@ -123,6 +123,100 @@ const variants = computed(() =>
   }),
 )
 
+/**
+ * Read-only image preview. It is a sibling dialog that reuses the URL the detail already delivered:
+ * opening it issues no request, and it never participates in the detail's own close lifecycle.
+ */
+interface PreviewImage {
+  url: string
+  alt: string
+  /** Identity phrase used by the preview fallback label, so the failure names what failed. */
+  subject: string
+}
+
+const previewImage = ref<PreviewImage | null>(null)
+const previewImageUrl = computed(() => previewImage.value?.url ?? null)
+const previewAlt = computed(() => previewImage.value?.alt ?? '')
+
+/** The preview failure is keyed to the exact URL that failed, so another URL is still attempted. */
+const failedPreviewImageUrl = ref<string | null>(null)
+const previewImageFailed = computed(
+  () => previewImageUrl.value !== null && failedPreviewImageUrl.value === previewImageUrl.value,
+)
+const previewFallbackLabel = computed(() =>
+  previewImage.value === null
+    ? 'Imagen no disponible en la vista ampliada'
+    : `Imagen no disponible en la vista ampliada de ${previewImage.value.subject}`,
+)
+
+/** The invoking control that owns the focus restore for the preview currently on screen. */
+let previewTrigger: HTMLButtonElement | null = null
+/**
+ * The exact trigger dismissed by the last close: only that element may take focus once the preview
+ * it belongs to actually leaves the layout.
+ */
+let dismissedPreviewTrigger: HTMLButtonElement | null = null
+
+function openPreview(trigger: EventTarget | null, preview: PreviewImage) {
+  previewTrigger = trigger instanceof HTMLButtonElement ? trigger : null
+  // A newer preview owns its own focus restore: an in-flight leave callback from an older preview
+  // never focuses this one and never clears this one's dismissed trigger.
+  dismissedPreviewTrigger = null
+  // A real click focuses the invoking button, and that anchor is what the dialog's own focus scope
+  // returns to while the preview owns the surface.
+  previewTrigger?.focus()
+  previewImage.value = preview
+}
+
+function closePreview() {
+  if (previewImage.value === null) return
+  previewImage.value = null
+  // The dismissed dialog is still on screen: focus moves only after it has actually left, never before.
+  dismissedPreviewTrigger = previewTrigger
+  previewTrigger = null
+}
+
+/**
+ * Restores focus exactly once, and only to the control that opened the preview which just left: a
+ * leave callback arriving after a newer preview opened finds nothing to consume.
+ */
+function restorePreviewFocus() {
+  const trigger = dismissedPreviewTrigger
+  dismissedPreviewTrigger = null
+  trigger?.focus()
+}
+
+function handlePreviewOpen(value: boolean) {
+  if (!value) closePreview()
+}
+
+function markPreviewImageFailed() {
+  failedPreviewImageUrl.value = previewImageUrl.value
+}
+
+function openMainPreview(event: MouseEvent) {
+  const url = displayImageUrl.value
+  if (url === null || props.detail === null) return
+  openPreview(event.currentTarget, {
+    url,
+    alt: `Imagen de ${props.detail.name}`,
+    subject: props.detail.name,
+  })
+}
+
+function openVariantPreview(
+  variant: { name: string; imageUrl: string | null; imageAlt: string },
+  event: MouseEvent,
+) {
+  const url = variant.imageUrl
+  if (url === null) return
+  openPreview(event.currentTarget, {
+    url,
+    alt: variant.imageAlt,
+    subject: `la variante ${variant.name}`,
+  })
+}
+
 function errorCopy(state: CatalogProductDetailState) {
   switch (state) {
     case 'not-found':
@@ -150,6 +244,12 @@ watch(
     // A new detail identity is a new media set: stale failures never suppress the next product's media.
     failedMainImageUrl.value = null
     failedVariantImageUrls.value = {}
+    // The preview belongs to the previous identity: its open state, keyed failure and both trigger
+    // references are dropped, so no stale leave callback can move focus onto the new media.
+    previewImage.value = null
+    failedPreviewImageUrl.value = null
+    previewTrigger = null
+    dismissedPreviewTrigger = null
   },
 )
 </script>
@@ -243,13 +343,25 @@ watch(
             data-testid="catalog-detail-image-frame"
             class="flex aspect-square w-full max-w-[15rem] items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5 md:max-w-[17rem] dark:bg-coco-neutral-900 dark:ring-white/10"
           >
-            <img
+            <!--
+              The real main image is one full-frame media control: it opens the read-only preview and
+              never selects, buys or mutates anything. Without real media the frame stays inert.
+            -->
+            <button
               v-if="displayImageUrl && !mainImageFailed"
-              class="size-full object-cover"
-              :src="displayImageUrl"
-              :alt="`Imagen de ${detail.name}`"
-              @error="markMainImageFailed"
-            />
+              data-testid="catalog-detail-image-preview-trigger"
+              class="group size-full cursor-zoom-in transition-transform duration-200 ease-out focus-visible:ring-2 focus-visible:ring-coco-500 focus-visible:ring-inset focus-visible:outline-none active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100"
+              type="button"
+              :aria-label="`Ampliar imagen de ${detail.name}`"
+              @click="openMainPreview"
+            >
+              <img
+                class="size-full object-cover transition-transform duration-200 ease-out group-hover:scale-[1.02] motion-reduce:transition-none"
+                :src="displayImageUrl"
+                :alt="`Imagen de ${detail.name}`"
+                @error="markMainImageFailed"
+              />
+            </button>
             <div
               v-else
               data-testid="catalog-detail-image-fallback"
@@ -356,19 +468,27 @@ watch(
                 class="flex min-w-0 items-start gap-3 rounded-xl bg-elevated/40 p-3 ring-1 ring-default"
               >
                 <!--
-                  Read-only media thumbnail inside a read-only row: a real variant image when the
-                  strict DTO carries one, the honest compact no-image state otherwise.
+                  Read-only media thumbnail inside a read-only row: a real variant image opens the
+                  preview, the honest compact no-image state stays inert otherwise.
                 -->
                 <div
                   class="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white ring-1 ring-default dark:bg-coco-neutral-900 dark:ring-white/10"
                 >
-                  <img
+                  <button
                     v-if="variant.imageUrl && !variant.imageFailed"
-                    class="size-full object-cover"
-                    :src="variant.imageUrl"
-                    :alt="variant.imageAlt"
-                    @error="markVariantImageFailed(variant.id, variant.imageUrl)"
-                  />
+                    data-testid="catalog-detail-variant-image-preview-trigger"
+                    class="group size-full cursor-zoom-in transition-transform duration-200 ease-out focus-visible:ring-2 focus-visible:ring-coco-500 focus-visible:ring-inset focus-visible:outline-none active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100"
+                    type="button"
+                    :aria-label="`Ampliar imagen de la variante ${variant.name}`"
+                    @click="openVariantPreview(variant, $event)"
+                  >
+                    <img
+                      class="size-full object-cover transition-transform duration-200 ease-out group-hover:scale-[1.04] motion-reduce:transition-none"
+                      :src="variant.imageUrl"
+                      :alt="variant.imageAlt"
+                      @error="markVariantImageFailed(variant.id, variant.imageUrl)"
+                    />
+                  </button>
                   <div
                     v-else
                     data-testid="catalog-detail-variant-image-fallback"
@@ -454,6 +574,69 @@ watch(
           @click="emit('retry')"
         >
           Reintentar
+        </button>
+      </div>
+    </template>
+  </UModal>
+
+  <!--
+    The read-only preview is a sibling dialog, never a nested DOM modal: it reuses the URL the detail
+    already delivered, issues no request of its own, and dismisses without closing the detail behind it.
+  -->
+  <UModal
+    :open="previewImage !== null"
+    title="Vista ampliada de imagen"
+    description="Imagen del producto en tamaño completo"
+    :close="false"
+    :ui="{
+      overlay: 'z-[60] bg-coco-950/70 backdrop-blur-sm',
+      content: 'z-[61] max-w-3xl overflow-hidden rounded-2xl bg-coco-950/95 ring-1 ring-white/10',
+      header: 'sr-only',
+      body: 'p-0 sm:p-0',
+    }"
+    @update:open="handlePreviewOpen"
+    @after:leave="restorePreviewFocus"
+  >
+    <template #body>
+      <div
+        data-testid="catalog-detail-image-preview"
+        class="relative flex min-h-[40svh] w-full items-center justify-center p-4 pt-16 sm:min-h-[45svh]"
+      >
+        <img
+          v-if="previewImageUrl && !previewImageFailed"
+          data-testid="catalog-detail-image-preview-img"
+          class="max-h-[60svh] w-full max-w-full object-contain sm:max-h-[75svh]"
+          :src="previewImageUrl"
+          :alt="previewAlt"
+          @error="markPreviewImageFailed"
+        />
+        <!--
+          The honest absence, keyed to the exact URL that failed: no gradient placeholder, no invented
+          media, and the label names the enlarged view so it is never confused with the detail frame.
+        -->
+        <div
+          v-else
+          data-testid="catalog-detail-image-preview-fallback"
+          class="flex w-full flex-col items-center justify-center gap-3 py-12 text-center"
+          :aria-label="previewFallbackLabel"
+          role="img"
+        >
+          <span
+            class="flex size-20 items-center justify-center rounded-3xl bg-white/10 text-coco-200 ring-1 ring-white/15"
+          >
+            <UIcon name="i-lucide-image-off" class="size-9" />
+          </span>
+          <span class="text-sm font-medium text-white">Imagen no disponible</span>
+        </div>
+
+        <button
+          data-testid="catalog-detail-image-preview-close"
+          class="absolute end-4 top-4 inline-flex size-11 items-center justify-center rounded-full bg-white text-highlighted shadow-sm ring-1 ring-black/5 transition-[background-color,transform] duration-200 ease-out hover:bg-coco-50 focus-visible:ring-2 focus-visible:ring-coco-500 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100 dark:bg-coco-neutral-900 dark:ring-white/10 dark:hover:bg-coco-neutral-800"
+          type="button"
+          aria-label="Cerrar vista de imagen"
+          @click="closePreview"
+        >
+          <UIcon name="i-lucide-x" class="size-5" />
         </button>
       </div>
     </template>
