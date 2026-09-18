@@ -28,6 +28,8 @@ const decoyProductId = '2b3c4d5e-6f70-4a8b-9c0d-1e2f3a4b5c6d'
 const hiddenProductId = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d'
 const detailImageUrl =
   'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="8" height="8"/%3E'
+/** The second variant of the same product carries no media, so it must stay an icon-only fallback. */
+const nullImageVariantName = 'Termo 1 L azul'
 
 const viewports = [
   { key: 'desktop', width: 1280, height: 800 },
@@ -113,6 +115,25 @@ const targetDetail = {
         },
       ],
       stockPresentation: { mode: 'SYSTEM_STATUS', status: 'available', customQuantity: null },
+    },
+    {
+      id: 'd2c3b4a5-f6e7-4b8c-9d0e-1f2a3b4c5d6e',
+      name: nullImageVariantName,
+      option: 'Color',
+      value: 'Azul',
+      // A declared null variant image must never produce an `<img>`: the compact thumbnail is icon-only.
+      image: null,
+      price: { priceCents: 2799, hidden: false },
+      availabilityByBranch: [
+        {
+          branchId: 'b-1',
+          branchName: branch.name,
+          branchSlug,
+          availability: 'low_stock',
+          isSelected: true,
+        },
+      ],
+      stockPresentation: { mode: 'SYSTEM_STATUS', status: 'low_stock', customQuantity: null },
     },
   ],
   rating: null,
@@ -578,15 +599,66 @@ for (const viewport of viewports) {
         ).toBe(0)
       }
       expect(await dialog.getByText(/\d+\s*unidades/).count()).toBe(0)
+
+      // Product-level media renders the real declared image under its product-scoped alt.
+      const mainImage = dialog.getByRole('img', {
+        name: `Imagen de ${targetDetail.name}`,
+        exact: true,
+      })
+      await expect(mainImage).toBeVisible()
+      await expect(mainImage).toHaveAttribute('src', detailImageUrl)
+
       const variantRegion = dialog.getByRole('region', {
         name: 'Variantes disponibles',
         exact: true,
       })
+      const variantRows = variantRegion.locator('[data-testid="catalog-detail-variant"]')
+      await expect(variantRows).toHaveCount(targetDetail.variants.length)
       await expect(
         variantRegion.getByText(targetDetail.variants[0].name, { exact: true }),
       ).toBeVisible()
       expect(await variantRegion.getByRole('button').count()).toBe(0)
 
+      // The real variant renders its declared data-URI thumbnail with the variant-scoped alt.
+      const realVariantRow = variantRows.filter({ hasText: targetDetail.variants[0].name })
+      const realThumbnail = realVariantRow.getByRole('img', {
+        name: `Imagen de la variante ${targetDetail.variants[0].name}`,
+        exact: true,
+      })
+      await expect(realThumbnail).toBeVisible()
+      await expect(realThumbnail).toHaveAttribute('src', detailImageUrl)
+
+      // The null-media variant stays icon-only: exact testid and variant-scoped aria-label, no `<img>`
+      // and deliberately no visible copy inside the compact 56px thumbnail.
+      const nullImageVariantRow = variantRows.filter({ hasText: nullImageVariantName })
+      await expect(
+        nullImageVariantRow.getByTestId('catalog-detail-variant-image-fallback'),
+      ).toBeVisible()
+      await expect(
+        nullImageVariantRow.getByRole('img', {
+          name: `Imagen no disponible para la variante ${nullImageVariantName}`,
+          exact: true,
+        }),
+      ).toBeVisible()
+      await expect(nullImageVariantRow.locator('img')).toHaveCount(0)
+
+      // Every variant row stays a read-only list item: no interactive control and no selected state.
+      for (const index of targetDetail.variants.keys()) {
+        const row = variantRows.nth(index)
+        expect(await row.evaluate((element) => element.tagName), 'rows stay list items').toBe('LI')
+        expect(
+          await row.locator('button, input, select, textarea, a[href]').count(),
+          'a variant row must expose no interactive control',
+        ).toBe(0)
+        expect(await row.getAttribute('aria-selected')).toBeNull()
+        expect(await row.getAttribute('aria-current')).toBeNull()
+      }
+
+      const variantRegionBox = await measurableBox(variantRegion, 'the variant region')
+      expect(variantRegionBox.x).toBeGreaterThanOrEqual(0)
+      expect(variantRegionBox.x + variantRegionBox.width).toBeLessThanOrEqual(
+        viewport.width + OVERFLOW_TOLERANCE_PX,
+      )
       await expect(page.locator('html')).toHaveJSProperty('scrollWidth', viewport.width)
       await testInfo.attach(`${viewport.key}-product-detail-populated`, {
         body: await page.screenshot(),
@@ -646,14 +718,22 @@ for (const viewport of viewports) {
       await expect(dialog.getByText('Consultar precio', { exact: true })).toBeVisible()
       await expect(dialog.getByText('Información no disponible', { exact: true })).toBeVisible()
 
-      // No media was invented: the reserved detail slot falls back safely.
-      await expect(dialog.getByTestId('catalog-detail-image-fallback')).toBeVisible()
+      // No media was invented: the reserved detail slot falls back safely and says so visibly.
+      const filteredImageFallback = dialog.getByTestId('catalog-detail-image-fallback')
+      await expect(filteredImageFallback).toBeVisible()
       await expect(
         dialog.getByRole('img', {
           name: `Imagen no disponible para ${hiddenDetail.name}`,
           exact: true,
         }),
       ).toBeVisible()
+      await expect(
+        filteredImageFallback.getByText('Imagen no disponible', { exact: true }),
+      ).toBeVisible()
+      expect(
+        await dialog.locator('[data-testid="catalog-detail-image-frame"] img').count(),
+        'the product-level no-image frame must never render an `<img>`',
+      ).toBe(0)
 
       // Hidden price never becomes "$0" and hidden stock never becomes a quantity or a stock claim.
       expect(await dialog.getByText(/\$/).count()).toBe(0)

@@ -64,6 +64,15 @@ function expectOnlyCatalogRequests(
   expect(strictNetwork.violations()).toEqual([])
 }
 
+/** Sub-pixel CSS-px rounding tolerance for the horizontal containment measurements below. */
+const OVERFLOW_TOLERANCE_PX = 1
+
+async function measurableBox(locator: Locator, label: string) {
+  const box = await locator.boundingBox()
+  if (box === null) throw new Error(`${label} rendered without a measurable box`)
+  return box
+}
+
 const branchTrigger = (page: Page): Locator =>
   page.getByRole('button', { name: 'Explorar sucursales', exact: true })
 
@@ -157,7 +166,19 @@ test.describe('public catalog direct URL presentation', () => {
 
     await expect(page.getByRole('heading', { name: hiddenProduct.name })).toBeVisible()
     await expect(page.getByText('Consultar precio')).toBeVisible()
-    await expect(page.getByTestId('catalog-product-image-fallback')).toBeVisible()
+
+    // A null list image renders the honest fallback and never invents an `<img>` for that card.
+    const card = page.locator(`[data-catalog-product-id="${hiddenProduct.id}"]`)
+    const fallback = card.getByTestId('catalog-product-image-fallback')
+    await expect(fallback).toBeVisible()
+    await expect(
+      card.getByRole('img', {
+        name: `Imagen no disponible para ${hiddenProduct.name}`,
+        exact: true,
+      }),
+    ).toBeVisible()
+    await expect(fallback.getByText('Imagen no disponible', { exact: true })).toBeVisible()
+    await expect(card.locator('img')).toHaveCount(0)
     await expect(page.getByText(/\$0/)).toHaveCount(0)
     await expect(page.getByText(/Disponible|Pocas piezas|Agotado|unidades/)).toHaveCount(0)
     await expect(page.locator('html')).toHaveJSProperty('scrollWidth', 375)
@@ -374,6 +395,161 @@ test.describe('public catalog network recovery', () => {
     await page.getByRole('button', { name: 'Reintentar productos' }).click()
     await expect(page.getByRole('heading', { name: visibleProduct.name })).toBeVisible()
     expect(productAttempts).toBe(2)
+    expectOnlyCatalogRequests(strictNetwork, [
+      '/public/catalog/branches',
+      '/public/catalog/centro/products',
+    ])
+  })
+})
+
+/**
+ * Structural media and category-surface evidence at the three responsive widths the catalog owns.
+ *
+ * The category band must stay a transparent full-bleed container: no rendered bottom border, no
+ * divider shadow, exactly one contained toolbar child, and a toolbar that is strictly inset from both
+ * viewport edges so no page-wide rule can reappear. Every measurement below is a rendered box or a
+ * computed style, never a class string.
+ */
+for (const viewport of [
+  { key: 'compact', width: 320, height: 568 },
+  { key: 'mobile', width: 375, height: 667 },
+  { key: 'desktop', width: 1280, height: 800 },
+] as const) {
+  test.describe(`public catalog category surface at ${viewport.key}`, () => {
+    test.use({
+      declaredRoutes: {
+        routes: [branchRoute(), productRoute('centro', { json: productPage(), count: 1 })],
+      },
+    })
+
+    test('renders the real card image and one strictly inset toolbar without a full-width divider', async ({
+      page,
+      strictNetwork,
+    }, testInfo) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height })
+      await page.goto(`${RESPONSIVE_ORIGIN}/catalogo/centro`)
+
+      // The real list image renders from the exact declared URL under its product-scoped alt, so the
+      // fallback branch is provably not the rendered one.
+      const card = page.locator(`[data-catalog-product-id="${visibleProduct.id}"]`)
+      await expect(card).toBeVisible()
+      const image = card.getByRole('img', {
+        name: `Imagen de ${visibleProduct.name}`,
+        exact: true,
+      })
+      await expect(image).toBeVisible()
+      await expect(image).toHaveAttribute('src', visibleProduct.image.url)
+      await expect(card.getByTestId('catalog-product-image-fallback')).toHaveCount(0)
+
+      const bar = page.getByTestId('catalog-category-bar')
+      await expect(bar).toHaveCount(1)
+      const band = await bar.evaluate((element) => {
+        const style = getComputedStyle(element)
+        const bandWidth = element.getBoundingClientRect().width
+        // Tailwind preflight makes `border-style: solid` and `border-width: 0` the global default, so
+        // the rendered width is the only honest signal: a re-added `border-b` or a bordered divider
+        // child would show up here as a non-zero, near-full-band bottom border.
+        const fullWidthBottomBorders = [element, ...Array.from(element.querySelectorAll('*'))]
+          .filter(
+            (node) =>
+              Number.parseFloat(getComputedStyle(node).borderBottomWidth) > 0 &&
+              node.getBoundingClientRect().width >= bandWidth * 0.9,
+          )
+          .map((node) => node.getAttribute('data-testid') ?? node.tagName)
+        return {
+          children: Array.from(element.children).map((child) => child.getAttribute('data-testid')),
+          bottomBorderWidthPx: Number.parseFloat(style.borderBottomWidth),
+          boxShadow: style.boxShadow,
+          fullWidthBottomBorders,
+        }
+      })
+      expect(band.children, 'the band must own exactly its contained toolbar child').toEqual([
+        'catalog-category-toolbar',
+      ])
+      expect(band.bottomBorderWidthPx, 'the band itself must render no bottom border').toBe(0)
+      expect(
+        band.fullWidthBottomBorders,
+        'no full-width divider may render inside the band',
+      ).toEqual([])
+      expect(band.boxShadow, 'the band must render no divider shadow').toBe('none')
+
+      const toolbar = page.getByTestId('catalog-category-toolbar')
+      await expect(toolbar).toHaveCount(1)
+      await expect(bar.getByTestId('catalog-category-toolbar')).toHaveCount(1)
+
+      const toolbarBox = await measurableBox(toolbar, 'the category toolbar')
+      expect(
+        toolbarBox.x,
+        'the toolbar must be strictly inset from the left viewport edge',
+      ).toBeGreaterThan(0)
+      expect(
+        toolbarBox.x + toolbarBox.width,
+        'the toolbar must be strictly inset from the right viewport edge',
+      ).toBeLessThan(viewport.width)
+      expect(toolbarBox.x, 'the toolbar must stay inside the viewport').toBeGreaterThanOrEqual(0)
+      expect(
+        toolbarBox.x + toolbarBox.width,
+        'the toolbar must stay inside the viewport',
+      ).toBeLessThanOrEqual(viewport.width + OVERFLOW_TOLERANCE_PX)
+      await expect(page.locator('html')).toHaveJSProperty('scrollWidth', viewport.width)
+
+      await testInfo.attach(`catalog-category-surface-${viewport.key}`, {
+        body: await page.screenshot({ fullPage: true }),
+        contentType: 'image/png',
+      })
+      expectOnlyCatalogRequests(strictNetwork, [
+        '/public/catalog/branches',
+        '/public/catalog/centro/products',
+      ])
+    })
+  })
+}
+
+/**
+ * Media failure transition owned by the browser: the declared card image is an undecodable `data:`
+ * payload, so the load fails locally and the honest fallback replaces the broken `<img>` with no wire
+ * request at all. A same-origin 404 would exercise the same branch, but it would depend on the dev
+ * server response for image paths; the local decode failure keeps the strict ledger provably identical.
+ */
+test.describe('public catalog card media failure', () => {
+  const undecodableImageProduct = {
+    ...visibleProduct,
+    id: 'product-undecodable-image',
+    name: 'Producto con imagen ilegible',
+    image: { url: 'data:image/png;base64,AAAA' },
+  }
+  test.use({
+    declaredRoutes: {
+      routes: [
+        branchRoute(),
+        productRoute('centro', { json: productPage([undecodableImageProduct]), count: 1 }),
+      ],
+    },
+  })
+
+  test('replaces an undecodable image with the honest fallback and no extra network traffic', async ({
+    page,
+    strictNetwork,
+  }, testInfo) => {
+    await page.setViewportSize({ width: 375, height: 667 })
+    await page.goto(`${RESPONSIVE_ORIGIN}/catalogo/centro`)
+
+    const card = page.locator(`[data-catalog-product-id="${undecodableImageProduct.id}"]`)
+    const fallback = card.getByTestId('catalog-product-image-fallback')
+    await expect(fallback).toBeVisible()
+    await expect(
+      card.getByRole('img', {
+        name: `Imagen no disponible para ${undecodableImageProduct.name}`,
+        exact: true,
+      }),
+    ).toBeVisible()
+    await expect(fallback.getByText('Imagen no disponible', { exact: true })).toBeVisible()
+    await expect(card.locator('img')).toHaveCount(0)
+
+    await testInfo.attach('catalog-products-undecodable-image', {
+      body: await page.screenshot({ fullPage: true }),
+      contentType: 'image/png',
+    })
     expectOnlyCatalogRequests(strictNetwork, [
       '/public/catalog/branches',
       '/public/catalog/centro/products',
