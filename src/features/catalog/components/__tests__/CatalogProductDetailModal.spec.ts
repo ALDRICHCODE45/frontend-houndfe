@@ -177,6 +177,58 @@ const leavePreview = async (wrapper: ReturnType<typeof mountModal>) => {
   await nextTick()
 }
 
+/**
+ * A real temporary application root. The enlarged view isolates `#app` for its whole lifecycle, so
+ * these tests observe the real attributes instead of a component-internal flag.
+ */
+function mountAppRoot(attributes: Record<string, string> = {}) {
+  const root = document.createElement('div')
+  root.id = 'app'
+  for (const [name, value] of Object.entries(attributes)) root.setAttribute(name, value)
+  document.body.appendChild(root)
+  return root
+}
+
+const expectAppRootIsolated = (root: HTMLElement) => {
+  expect(root.hasAttribute('inert')).toBe(true)
+  expect(root.getAttribute('aria-hidden')).toBe('true')
+}
+
+const expectAppRootUntouched = (root: HTMLElement) => {
+  expect(root.hasAttribute('inert')).toBe(false)
+  expect(root.getAttribute('aria-hidden')).toBeNull()
+}
+
+/**
+ * Pins the exact state an outer owner holds on the application root. The real modal stack hides that
+ * root too, so every test owns the prior state explicitly instead of inheriting it from the dialog
+ * lifecycle it is not proving.
+ */
+function pinAppRootState(root: HTMLElement, state: { inert?: string; ariaHidden?: string }) {
+  if (state.inert === undefined) root.removeAttribute('inert')
+  else root.setAttribute('inert', state.inert)
+  if (state.ariaHidden === undefined) root.removeAttribute('aria-hidden')
+  else root.setAttribute('aria-hidden', state.ariaHidden)
+}
+
+/** The enlarged dialog's own content node: the element its leave transition animates. */
+function previewContentElement(): HTMLElement {
+  const surface = document.body.querySelector('[data-testid="catalog-detail-image-preview"]')
+  const content = surface?.closest<HTMLElement>('[data-slot="content"]')
+  if (!content) throw new Error('Missing rendered enlarged-view content element')
+  return content
+}
+
+/**
+ * Holds the enlarged dialog's leave open. A browser keeps a dialog in `unmountSuspended` while its
+ * leave animation runs, so jsdom — which has no animation — never has a leave really in flight. Giving
+ * the content an animation name that only appears when the leave starts is exactly what a transition
+ * does, so reka waits for an end that this component's own leave test then delivers.
+ */
+function holdPreviewLeave() {
+  previewContentElement().style.animationName = 'preview-leave-hold'
+}
+
 describe('CatalogProductDetailModal', () => {
   afterEach(() => {
     document.body.replaceChildren()
@@ -1200,7 +1252,8 @@ describe('CatalogProductDetailModal', () => {
     expect(document.body.querySelector(previewSurface)).not.toBeNull()
   })
 
-  it('never lets a leave callback from an older preview steal focus from a newer one', async () => {
+  it('refuses to open a second preview while the dismissed one is still leaving, then hands the transition over', async () => {
+    const appRoot = mountAppRoot()
     const wrapper = mountModal({
       detail: {
         ...detail,
@@ -1210,31 +1263,303 @@ describe('CatalogProductDetailModal', () => {
       },
     })
     await nextTick()
+    pinAppRootState(appRoot, {})
 
     const mainTrigger = getRendered(mainPreviewTrigger).element as HTMLButtonElement
     const variantTrigger = getRendered(variantPreviewTrigger).element as HTMLButtonElement
 
+    // A opens normally and owns the isolation.
     await getRendered(mainPreviewTrigger).trigger('click')
     await nextTick()
-    await getRendered(previewClose).trigger('click')
-    await nextTick()
+    expectAppRootIsolated(appRoot)
 
-    // A newer preview opens before the dismissed dialog's leave callback arrives.
+    // A is dismissed and B is attempted inside A's leave window. Both activations are raw, so B lands
+    // in the same turn in which the transition is still closed.
+    getRendered(previewClose).element.click()
+    getRendered(variantPreviewTrigger).element.click()
+
+    // B never opened, never took the trigger reference and never took over the transition.
+    expect(document.activeElement).not.toBe(variantTrigger)
+    expectAppRootIsolated(appRoot)
+
+    // A's leave ends the only pending dismissal: it releases the lock and returns focus to A's own
+    // control, while B stays closed.
+    await nextTick()
+    await leavePreview(wrapper)
+    expect(findDialogByTitle(wrapper, previewTitle).props('open')).toBe(false)
+    expectAppRootUntouched(appRoot)
+    expect(document.activeElement).toBe(mainTrigger)
+
+    // Only now does the transition reopen, and B runs its own complete lifecycle.
     await getRendered(variantPreviewTrigger).trigger('click')
     await nextTick()
-    const focusSpy = vi.spyOn(variantTrigger, 'focus')
-    const focusedAfterReopen = document.activeElement
-    expect(focusedAfterReopen).not.toBe(mainTrigger)
-
-    // The stale callback moves nothing and does not consume the newer preview's own restore.
-    await leavePreview(wrapper)
-    expect(document.activeElement).toBe(focusedAfterReopen)
-    expect(focusSpy).not.toHaveBeenCalled()
+    expectAppRootIsolated(appRoot)
+    expect(getRendered(previewImage).attributes('src')).toBe(
+      'https://example.test/variant-grande.jpg',
+    )
 
     await getRendered(previewClose).trigger('click')
     await nextTick()
     await leavePreview(wrapper)
+    expectAppRootUntouched(appRoot)
     expect(document.activeElement).toBe(variantTrigger)
+  })
+
+  it('keeps the transition closed when a detail identity reset starts a leave, and only that leave reopens it', async () => {
+    const appRoot = mountAppRoot()
+    const wrapper = mountModal()
+    await nextTick()
+    pinAppRootState(appRoot, {})
+
+    // A is open, rendered and owns the isolation.
+    await getRendered(mainPreviewTrigger).trigger('click')
+    await nextTick()
+    expectAppRootIsolated(appRoot)
+    const aTrigger = getRendered(mainPreviewTrigger).element as HTMLButtonElement
+
+    // The identity reset drops A's preview, and A's leave really is still in flight.
+    holdPreviewLeave()
+    await wrapper.setProps({
+      detail: {
+        ...detail,
+        id: 'product-2',
+        images: [{ id: 'main-2', url: 'https://example.test/main-v2.jpg', isMain: true }],
+      },
+    })
+
+    // B is refused while A leaves: it takes neither the transition nor the isolation.
+    getRendered(mainPreviewTrigger).element.click()
+    expect(document.activeElement).not.toBe(aTrigger)
+    expectAppRootUntouched(appRoot)
+    expect(findDialogByTitle(wrapper, previewTitle).props('open')).toBe(false)
+
+    // A's leave ends the only dismissal it belongs to and never hands focus to the old identity.
+    await leavePreview(wrapper)
+    expectAppRootUntouched(appRoot)
+    expect(aTrigger.isConnected).toBe(true)
+    expect(document.activeElement).not.toBe(aTrigger)
+
+    // Only now can B open on the new detail, with its own media and its own focus restore.
+    await getRendered(mainPreviewTrigger).trigger('click')
+    await nextTick()
+    expectAppRootIsolated(appRoot)
+    expect(getRendered(previewImage).attributes('src')).toBe('https://example.test/main-v2.jpg')
+    const bTrigger = getRendered(mainPreviewTrigger).element as HTMLButtonElement
+
+    await getRendered(previewClose).trigger('click')
+    await nextTick()
+    await leavePreview(wrapper)
+    expectAppRootUntouched(appRoot)
+    expect(document.activeElement).toBe(bTrigger)
+  })
+
+  it('keeps the transition closed across a programmatic outer close and reopen, and only the leave reopens it', async () => {
+    const appRoot = mountAppRoot()
+    const wrapper = mountModal()
+    await nextTick()
+    pinAppRootState(appRoot, {})
+
+    // A is open, rendered and owns the isolation.
+    await getRendered(mainPreviewTrigger).trigger('click')
+    await nextTick()
+    expectAppRootIsolated(appRoot)
+    const aTrigger = getRendered(mainPreviewTrigger).element as HTMLButtonElement
+
+    // The detail closes and reopens programmatically while A's leave is still in flight.
+    holdPreviewLeave()
+    await wrapper.setProps({ open: false })
+    await wrapper.setProps({ open: true })
+
+    // B is refused until A has really left, and the reset already released the isolation.
+    getRendered(mainPreviewTrigger).element.click()
+    expect(document.activeElement).not.toBe(aTrigger)
+    expectAppRootUntouched(appRoot)
+    expect(findDialogByTitle(wrapper, previewTitle).props('open')).toBe(false)
+
+    // Only A's leave reopens the transition, and it hands over no stale focus.
+    await leavePreview(wrapper)
+    expectAppRootUntouched(appRoot)
+    expect(document.activeElement).not.toBe(aTrigger)
+
+    // Only now can B open and close on its own lifecycle.
+    await getRendered(mainPreviewTrigger).trigger('click')
+    await nextTick()
+    expectAppRootIsolated(appRoot)
+    const bTrigger = getRendered(mainPreviewTrigger).element as HTMLButtonElement
+
+    await getRendered(previewClose).trigger('click')
+    await nextTick()
+    await leavePreview(wrapper)
+    expectAppRootUntouched(appRoot)
+    expect(document.activeElement).toBe(bTrigger)
+  })
+
+  it('never wedges the transition when an activation is reset before the enlarged view ever mounts', async () => {
+    const appRoot = mountAppRoot()
+    const wrapper = mountModal()
+    await nextTick()
+    pinAppRootState(appRoot, {})
+
+    // The reset is queued before the activation, so both land in one flush: the activation isolates the
+    // root and the reset drops it again before the enlarged surface ever renders, so no leave can follow.
+    const outerClose = wrapper.setProps({ open: false })
+    getRendered(mainPreviewTrigger).element.click()
+    expectAppRootIsolated(appRoot)
+
+    await outerClose
+
+    // The isolation is released, the surface never mounted and no dismissal was left pending.
+    expect(document.body.querySelector(previewSurface)).toBeNull()
+    expectAppRootUntouched(appRoot)
+
+    // Reopening the detail opens another preview immediately: the transition was never wedged closed.
+    await wrapper.setProps({ open: true })
+    await nextTick()
+    pinAppRootState(appRoot, {})
+    await getRendered(mainPreviewTrigger).trigger('click')
+    await nextTick()
+    expect(document.body.querySelector(previewSurface)).not.toBeNull()
+    expectAppRootIsolated(appRoot)
+
+    await getRendered(previewClose).trigger('click')
+    await nextTick()
+    await leavePreview(wrapper)
+    expectAppRootUntouched(appRoot)
+  })
+
+  it('isolates the application root for the whole preview lifecycle and never before it', async () => {
+    const appRoot = mountAppRoot()
+    const wrapper = mountModal()
+    await nextTick()
+    pinAppRootState(appRoot, {})
+
+    // The detail alone never claims the application root: only the enlarged view isolates it.
+    expectAppRootUntouched(appRoot)
+
+    // The isolation is already in place in the same turn the preview opens, before its dialog mounts.
+    getRendered(mainPreviewTrigger).element.click()
+    expectAppRootIsolated(appRoot)
+    await nextTick()
+    expectAppRootIsolated(appRoot)
+
+    // Closing never releases the isolation: only the completed leave does. The activation is raw so
+    // the state is observed inside the close turn, before any leave can arrive.
+    getRendered(previewClose).element.click()
+    expectAppRootIsolated(appRoot)
+
+    await nextTick()
+    await leavePreview(wrapper)
+    expectAppRootUntouched(appRoot)
+  })
+
+  it('restores the exact prior inert and aria-hidden state of the application root after the leave', async () => {
+    const appRoot = mountAppRoot()
+    const wrapper = mountModal()
+    await nextTick()
+    // A root that already carried both attributes keeps their presence and their exact values.
+    pinAppRootState(appRoot, { inert: '', ariaHidden: 'false' })
+
+    await getRendered(mainPreviewTrigger).trigger('click')
+    await nextTick()
+    expect(appRoot.getAttribute('inert')).toBe('')
+    expect(appRoot.getAttribute('aria-hidden')).toBe('true')
+
+    await getRendered(previewClose).trigger('click')
+    await nextTick()
+    await leavePreview(wrapper)
+
+    expect(appRoot.hasAttribute('inert')).toBe(true)
+    expect(appRoot.getAttribute('inert')).toBe('')
+    expect(appRoot.getAttribute('aria-hidden')).toBe('false')
+  })
+
+  it('releases the application root isolation when the detail identity changes', async () => {
+    const appRoot = mountAppRoot()
+    const wrapper = mountModal()
+    await nextTick()
+    pinAppRootState(appRoot, {})
+
+    await getRendered(mainPreviewTrigger).trigger('click')
+    await nextTick()
+    expectAppRootIsolated(appRoot)
+
+    await wrapper.setProps({ detail: { ...detail, id: 'product-2' } })
+    await nextTick()
+
+    // The previous identity owns no lock over the new product, and no later leave can restore one.
+    expectAppRootUntouched(appRoot)
+    await leavePreview(wrapper)
+    expectAppRootUntouched(appRoot)
+  })
+
+  it('releases the application root isolation when the outer detail closes programmatically', async () => {
+    const appRoot = mountAppRoot()
+    const wrapper = mountModal()
+    await nextTick()
+    pinAppRootState(appRoot, {})
+
+    await getRendered(mainPreviewTrigger).trigger('click')
+    await nextTick()
+    expectAppRootIsolated(appRoot)
+
+    await wrapper.setProps({ open: false })
+    await nextTick()
+
+    // The enlarged view never outlives the detail that owns it, and neither does its isolation.
+    expect(findDialogByTitle(wrapper, previewTitle).props('open')).toBe(false)
+    expectAppRootUntouched(appRoot)
+  })
+
+  it('keeps a pre-existing application root isolation when it unmounts', async () => {
+    const appRoot = mountAppRoot()
+    const wrapper = mountModal()
+    await nextTick()
+    // A non-empty outer value proves the unmount restores the recorded state instead of clearing it.
+    pinAppRootState(appRoot, { inert: 'true' })
+
+    await getRendered(mainPreviewTrigger).trigger('click')
+    await nextTick()
+    expect(appRoot.getAttribute('inert')).toBe('')
+    expect(appRoot.getAttribute('aria-hidden')).toBe('true')
+
+    wrapper.unmount()
+
+    // Unmounting releases only the lock this component owns: the outer state comes back verbatim.
+    expect(appRoot.hasAttribute('inert')).toBe(true)
+    expect(appRoot.getAttribute('inert')).toBe('true')
+    expect(appRoot.getAttribute('aria-hidden')).not.toBe('true')
+  })
+
+  it('removes exactly the application root isolation it added when it unmounts', async () => {
+    const appRoot = mountAppRoot()
+    const wrapper = mountModal()
+    await nextTick()
+    pinAppRootState(appRoot, {})
+
+    await getRendered(mainPreviewTrigger).trigger('click')
+    await nextTick()
+    expectAppRootIsolated(appRoot)
+
+    wrapper.unmount()
+
+    expectAppRootUntouched(appRoot)
+  })
+
+  it('re-asserts the application root isolation when the modal manager rewrites it', async () => {
+    const appRoot = mountAppRoot()
+    mountModal()
+    await nextTick()
+    pinAppRootState(appRoot, {})
+
+    await getRendered(mainPreviewTrigger).trigger('click')
+    await nextTick()
+    expectAppRootIsolated(appRoot)
+
+    // The modal stack rewrites the root while the enlarged dialog is still on screen.
+    appRoot.removeAttribute('inert')
+    appRoot.removeAttribute('aria-hidden')
+    await nextTick()
+    expectAppRootIsolated(appRoot)
   })
 
   it('never forwards a preview open or dismissal to the outer detail close event', async () => {

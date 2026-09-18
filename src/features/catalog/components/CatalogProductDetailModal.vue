@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import type { CatalogProductDetailState } from '../composables/useCatalogProductDetail'
 import type {
@@ -147,6 +147,12 @@ interface PreviewImage {
 const previewImage = ref<PreviewImage | null>(null)
 const previewImageUrl = computed(() => previewImage.value?.url ?? null)
 const previewAlt = computed(() => previewImage.value?.alt ?? '')
+/**
+ * The enlarged surface itself. It is the only proof that a preview really reached the screen, so a reset
+ * can tell a dismissal that will produce its own `after:leave` from an activation that never mounted and
+ * therefore never leaves.
+ */
+const previewSurfaceElement = ref<HTMLElement | null>(null)
 
 /** The preview failure is keyed to the exact URL that failed, so another URL is still attempted. */
 const failedPreviewImageUrl = ref<string | null>(null)
@@ -167,33 +173,146 @@ let previewTrigger: HTMLButtonElement | null = null
  */
 let dismissedPreviewTrigger: HTMLButtonElement | null = null
 
+/**
+ * The application root the enlarged view isolates. The portal that paints the preview lives outside
+ * it, so the storefront shell, the product grid and the detail dialog behind the preview all leave the
+ * accessibility tree together while the preview owns the surface.
+ */
+const APP_ROOT_ID = 'app'
+
+/**
+ * The exact attribute state of `#app` before this component isolated it. Both attributes come back
+ * verbatim when the isolation ends, so an outer owner that already carried `inert` or an explicit
+ * `aria-hidden` value keeps it.
+ */
+interface BackgroundIsolationSnapshot {
+  readonly inert: string | null
+  readonly ariaHidden: string | null
+}
+
+let backgroundIsolation: BackgroundIsolationSnapshot | null = null
+/** Guards `#app` while this component owns the isolation: the modal stack may rewrite it at any time. */
+let backgroundIsolationObserver: MutationObserver | null = null
+
+function appRootElement(): HTMLElement | null {
+  // Isolation is a browser-only concern: server rendering owns no document to isolate.
+  if (typeof document === 'undefined') return null
+  return document.getElementById(APP_ROOT_ID)
+}
+
+/** Writes the isolation without queuing a redundant mutation for the observer below. */
+function applyBackgroundIsolation(root: HTMLElement) {
+  if (root.getAttribute('inert') !== '') root.setAttribute('inert', '')
+  if (root.getAttribute('aria-hidden') !== 'true') root.setAttribute('aria-hidden', 'true')
+}
+
+function acquireBackgroundIsolation() {
+  const root = appRootElement()
+  if (root === null || backgroundIsolation !== null) return
+  backgroundIsolation = {
+    inert: root.getAttribute('inert'),
+    ariaHidden: root.getAttribute('aria-hidden'),
+  }
+  applyBackgroundIsolation(root)
+  // The modal stack rewrites `#app` while the enlarged dialog mounts, leaves, or hands over to
+  // another dialog, so the isolation is re-applied for as long as this component owns it.
+  if (typeof MutationObserver !== 'undefined') {
+    backgroundIsolationObserver = new MutationObserver(() => reassertBackgroundIsolation())
+    backgroundIsolationObserver.observe(root, {
+      attributes: true,
+      attributeFilter: ['inert', 'aria-hidden'],
+    })
+  }
+}
+
+/** Re-assertion never invents a lock: without an owned snapshot it does nothing. */
+function reassertBackgroundIsolation() {
+  if (backgroundIsolation === null) return
+  const root = appRootElement()
+  if (root === null) return
+  applyBackgroundIsolation(root)
+}
+
+/**
+ * Releases exactly the isolation this component owns, restoring the recorded presence and value of
+ * both attributes. Anything an outer owner had in place survives untouched.
+ */
+function releaseBackgroundIsolation() {
+  const snapshot = backgroundIsolation
+  if (snapshot === null) return
+  backgroundIsolation = null
+  backgroundIsolationObserver?.disconnect()
+  backgroundIsolationObserver = null
+  const root = appRootElement()
+  if (root === null) return
+  if (snapshot.inert === null) root.removeAttribute('inert')
+  else root.setAttribute('inert', snapshot.inert)
+  if (snapshot.ariaHidden === null) root.removeAttribute('aria-hidden')
+  else root.setAttribute('aria-hidden', snapshot.ariaHidden)
+}
+
+/**
+ * The preview transition is strictly serial: one dismissal has to complete before another preview may
+ * open. While a leave is pending the surface is isolated and inert, so no open attempt is honoured.
+ */
+let previewLeavePending = false
+
 function openPreview(trigger: EventTarget | null, preview: PreviewImage) {
+  // A pending dismissal still owns the surface: the attempt is refused, and both the pending leave and
+  // the trigger that owns its focus restore stay untouched.
+  if (previewLeavePending) return
   previewTrigger = trigger instanceof HTMLButtonElement ? trigger : null
-  // A newer preview owns its own focus restore: an in-flight leave callback from an older preview
-  // never focuses this one and never clears this one's dismissed trigger.
-  dismissedPreviewTrigger = null
-  // A real click focuses the invoking button, and that anchor is what the dialog's own focus scope
-  // returns to while the preview owns the surface.
+  // A real click focuses the invoking button first: that anchor is what the dialog's own focus scope
+  // returns to, and the button has to own focus while its application root is still interactive.
   previewTrigger?.focus()
+  acquireBackgroundIsolation()
   previewImage.value = preview
 }
 
 function closePreview() {
   if (previewImage.value === null) return
   previewImage.value = null
-  // The dismissed dialog is still on screen: focus moves only after it has actually left, never before.
+  // The dismissed dialog is still on screen: the transition stays closed until it leaves, and only its
+  // own trigger is captured, for the focus restore that this dismissal alone may perform.
+  previewLeavePending = true
   dismissedPreviewTrigger = previewTrigger
   previewTrigger = null
 }
 
 /**
- * Restores focus exactly once, and only to the control that opened the preview which just left: a
- * leave callback arriving after a newer preview opened finds nothing to consume.
+ * Restores focus exactly once, and only to the control that opened the dismissal which just left: a
+ * leave that ends a reset finds no dismissed trigger to consume.
  */
 function restorePreviewFocus() {
   const trigger = dismissedPreviewTrigger
   dismissedPreviewTrigger = null
   trigger?.focus()
+}
+
+/**
+ * The single end-of-preview path, and the only way the transition reopens. It clears the pending gate
+ * and restores the state this component owns, while a leave that ends a reset never moves stale focus.
+ */
+function handlePreviewLeave() {
+  if (!previewLeavePending) return
+  previewLeavePending = false
+  releaseBackgroundIsolation()
+  restorePreviewFocus()
+}
+
+/**
+ * Drops the whole preview lifecycle at once: used when the detail identity changes and when the outer
+ * detail closes programmatically. The preview, both trigger references and the focus ownership are
+ * dropped and the isolation this component owns is released immediately. A dismissal that still owns a
+ * mounted surface keeps the transition closed until its own leave really ends, while an activation that
+ * was reset before it ever mounted produced no leave at all and must not wedge the transition closed.
+ */
+function resetPreview() {
+  previewLeavePending = previewLeavePending || previewSurfaceElement.value !== null
+  previewImage.value = null
+  previewTrigger = null
+  dismissedPreviewTrigger = null
+  releaseBackgroundIsolation()
 }
 
 function handlePreviewOpen(value: boolean) {
@@ -254,14 +373,31 @@ watch(
     // A new detail identity is a new media set: stale failures never suppress the next product's media.
     failedMainImageUrl.value = null
     failedVariantImageUrls.value = {}
-    // The preview belongs to the previous identity: its open state, keyed failure and both trigger
-    // references are dropped, so no stale leave callback can move focus onto the new media.
-    previewImage.value = null
+    // The preview belongs to the previous identity: its open state, keyed failure, both trigger
+    // references and the isolation it owned are dropped at once, so no stale leave callback can move
+    // focus onto the new media or keep the storefront isolated.
     failedPreviewImageUrl.value = null
-    previewTrigger = null
-    dismissedPreviewTrigger = null
+    resetPreview()
   },
+  // Teardown may not wait for a render: a preview that was open has to keep the transition closed from
+  // the very turn its identity is replaced, before anything can attempt to open another one.
+  { flush: 'sync' },
 )
+
+watch(
+  () => props.open,
+  (open) => {
+    // A programmatic close of the detail never leaves the enlarged view or its isolation behind.
+    if (!open) resetPreview()
+  },
+  // Closing the detail programmatically drops the preview in the same turn, never after a render.
+  { flush: 'sync' },
+)
+
+onBeforeUnmount(() => {
+  // An unmount releases exactly the lock this component owns and restores the state it recorded.
+  releaseBackgroundIsolation()
+})
 </script>
 
 <template>
@@ -661,10 +797,11 @@ watch(
       body: 'p-0 sm:p-0',
     }"
     @update:open="handlePreviewOpen"
-    @after:leave="restorePreviewFocus"
+    @after:leave="handlePreviewLeave"
   >
     <template #body>
       <div
+        ref="previewSurfaceElement"
         data-testid="catalog-detail-image-preview"
         class="relative flex min-h-[40svh] w-full items-center justify-center p-4 pt-16 sm:min-h-[45svh]"
       >
