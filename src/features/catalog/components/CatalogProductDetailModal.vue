@@ -101,6 +101,16 @@ const detailAvailability = computed(() =>
     : null,
 )
 
+/**
+ * A published product may carry no description and no variants at all. Those two fields are the only
+ * density the panel can offer, so the panel states the absence instead of leaving a blank region.
+ */
+const hasDescription = computed(() => Boolean(props.detail?.description?.trim()))
+const hasVariants = computed(() => (props.detail?.variants.length ?? 0) > 0)
+const showEmptyDetailNote = computed(
+  () => props.detail !== null && !hasDescription.value && !hasVariants.value,
+)
+
 /** Read-only variant cards. Only the branch selected by the route resolution is reported. */
 const variants = computed(() =>
   (props.detail?.variants ?? []).map((variant) => {
@@ -350,7 +360,7 @@ watch(
             <button
               v-if="displayImageUrl && !mainImageFailed"
               data-testid="catalog-detail-image-preview-trigger"
-              class="group size-full cursor-zoom-in transition-transform duration-200 ease-out focus-visible:ring-2 focus-visible:ring-coco-500 focus-visible:ring-inset focus-visible:outline-none active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100"
+              class="group relative size-full cursor-zoom-in transition-transform duration-200 ease-out focus-visible:ring-2 focus-visible:ring-coco-500 focus-visible:ring-inset focus-visible:outline-none active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100"
               type="button"
               :aria-label="`Ampliar imagen de ${detail.name}`"
               @click="openMainPreview"
@@ -361,6 +371,19 @@ watch(
                 :alt="`Imagen de ${detail.name}`"
                 @error="markMainImageFailed"
               />
+              <!--
+                The always-visible zoom affordance is presentation inside the already-labelled media
+                button, never a second control: `aria-hidden` keeps it out of the accessible name and
+                no gradient is involved. Only real media renders it.
+              -->
+              <span
+                aria-hidden="true"
+                data-testid="catalog-detail-image-zoom-affordance"
+                class="pointer-events-none absolute bottom-3 end-3 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-coco-700 shadow-sm ring-1 ring-black/5 dark:bg-coco-950/85 dark:text-coco-100 dark:ring-white/10"
+              >
+                <UIcon name="i-lucide-zoom-in" class="size-3.5" />
+                Ampliar
+              </span>
             </button>
             <div
               v-else
@@ -445,7 +468,7 @@ watch(
           </div>
 
           <p
-            v-if="detail.description"
+            v-if="hasDescription"
             data-testid="catalog-detail-description"
             class="max-w-prose break-words whitespace-pre-line text-sm leading-relaxed text-muted"
           >
@@ -453,7 +476,7 @@ watch(
           </p>
 
           <section
-            v-if="detail.variants.length > 0"
+            v-if="hasVariants"
             aria-labelledby="catalog-detail-variants"
             class="flex min-w-0 flex-col gap-3"
           >
@@ -471,13 +494,19 @@ watch(
                   Read-only media thumbnail inside a read-only row: a real variant image opens the
                   preview, the honest compact no-image state stays inert otherwise.
                 -->
+                <!--
+                  The frame is a square 72px (4.5rem) box with a modest radius — never a circle or a
+                  pill — and it never shrinks, so long variant copy wraps beside it instead of
+                  squeezing the media at 320px.
+                -->
                 <div
-                  class="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white ring-1 ring-default dark:bg-coco-neutral-900 dark:ring-white/10"
+                  data-testid="catalog-detail-variant-image-frame"
+                  class="flex size-[4.5rem] shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white ring-1 ring-default dark:bg-coco-neutral-900 dark:ring-white/10"
                 >
                   <button
                     v-if="variant.imageUrl && !variant.imageFailed"
                     data-testid="catalog-detail-variant-image-preview-trigger"
-                    class="group size-full cursor-zoom-in transition-transform duration-200 ease-out focus-visible:ring-2 focus-visible:ring-coco-500 focus-visible:ring-inset focus-visible:outline-none active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100"
+                    class="group relative size-full cursor-zoom-in transition-transform duration-200 ease-out focus-visible:ring-2 focus-visible:ring-coco-500 focus-visible:ring-inset focus-visible:outline-none active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100"
                     type="button"
                     :aria-label="`Ampliar imagen de la variante ${variant.name}`"
                     @click="openVariantPreview(variant, $event)"
@@ -488,6 +517,17 @@ watch(
                       :alt="variant.imageAlt"
                       @error="markVariantImageFailed(variant.id, variant.imageUrl)"
                     />
+                    <!--
+                      A real thumbnail carries the same promise as the main image, so it repeats the
+                      affordance at thumbnail scale: presentation only, labelled by the button itself.
+                    -->
+                    <span
+                      aria-hidden="true"
+                      data-testid="catalog-detail-variant-image-zoom-affordance"
+                      class="pointer-events-none absolute end-0.5 bottom-0.5 inline-flex size-5 items-center justify-center rounded-full bg-white/95 text-coco-700 shadow-sm ring-1 ring-black/5 dark:bg-coco-950/85 dark:text-coco-100 dark:ring-white/10"
+                    >
+                      <UIcon name="i-lucide-zoom-in" class="size-3" />
+                    </span>
                   </button>
                   <div
                     v-else
@@ -551,6 +591,32 @@ watch(
               </li>
             </ul>
           </section>
+
+          <!--
+            A product published with neither description nor variants leaves this column nearly
+            empty. The note states that real absence in the interface's own voice: contained, calm,
+            never an error and never a commerce prompt. `mt-auto` settles it at the bottom of the
+            sparse column instead of leaving an unexplained blank area.
+          -->
+          <div
+            v-if="showEmptyDetailNote"
+            data-testid="catalog-detail-empty-note"
+            role="note"
+            class="mt-auto flex min-h-48 flex-col items-center justify-center gap-3 rounded-xl bg-elevated/40 px-6 py-8 text-center ring-1 ring-default"
+          >
+            <span
+              aria-hidden="true"
+              class="flex size-12 items-center justify-center rounded-2xl bg-coco-50 text-coco-500 ring-1 ring-coco-200/80 dark:bg-coco-950/50 dark:text-coco-300 dark:ring-coco-800/60"
+            >
+              <UIcon name="i-lucide-info" class="size-6" />
+            </span>
+            <h3 class="text-balance break-words text-sm font-semibold text-highlighted">
+              Sin información adicional
+            </h3>
+            <p class="max-w-xs text-pretty break-words text-sm leading-relaxed text-muted">
+              Por ahora no hay descripción ni variantes publicadas para este producto.
+            </p>
+          </div>
         </div>
       </div>
 

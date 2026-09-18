@@ -148,6 +148,12 @@ const previewSurface = '[data-testid="catalog-detail-image-preview"]'
 const previewImage = '[data-testid="catalog-detail-image-preview-img"]'
 const previewFallback = '[data-testid="catalog-detail-image-preview-fallback"]'
 const previewClose = '[data-testid="catalog-detail-image-preview-close"]'
+const mainZoomAffordance = '[data-testid="catalog-detail-image-zoom-affordance"]'
+const variantZoomAffordance = '[data-testid="catalog-detail-variant-image-zoom-affordance"]'
+const variantImageFrame = '[data-testid="catalog-detail-variant-image-frame"]'
+const emptyDetailNote = '[data-testid="catalog-detail-empty-note"]'
+/** `size-[4.5rem]` is the exact 72px square the variant media contract asks for. */
+const VARIANT_FRAME_SIZE_CLASS = 'size-[4.5rem]'
 
 function findDialogByTitle(wrapper: ReturnType<typeof mountModal>, title: string) {
   /**
@@ -697,6 +703,305 @@ describe('CatalogProductDetailModal', () => {
     expect(
       document.body.querySelector('[data-testid="catalog-detail-variant-image-fallback"]'),
     ).toBeNull()
+  })
+
+  it('renders variant media in a square 72px frame with a modest radius instead of a shrunken circle', async () => {
+    mountModal({
+      detail: {
+        ...detail,
+        variants: [
+          { ...detail.variants[0], image: { url: 'https://example.test/variant-grande.jpg' } },
+        ],
+      },
+    })
+    await nextTick()
+
+    const card = getRendered('[data-testid="catalog-detail-variant"]')
+    const frame = getRendered(variantImageFrame)
+
+    // The frame is the variant row's own media box, not a detached wrapper.
+    expect(frame.element.parentElement).toBe(card.element)
+    expect(frame.element.tagName).toBe('DIV')
+    expect(frame.classes()).toContain(VARIANT_FRAME_SIZE_CLASS)
+    expect(frame.classes()).toContain('shrink-0')
+    expect(frame.classes()).toContain('overflow-hidden')
+
+    // A modest radius reads as a rounded square. Anything farther from it is a regression, and a
+    // circular or pill-like frame would misread variant media as an avatar.
+    expect(frame.classes()).toContain('rounded-lg')
+    for (const forbidden of [
+      'rounded-full',
+      'rounded-3xl',
+      'rounded-2xl',
+      'rounded-xl',
+      'size-14',
+    ]) {
+      expect(frame.classes(), `the variant media frame must not carry ${forbidden}`).not.toContain(
+        forbidden,
+      )
+    }
+    // One square class fixes both edges: no separate width or height utility can disagree with it.
+    const sizingClasses = frame.classes().filter((className) => /^(w|h|size)-/.test(className))
+    expect(sizingClasses).toEqual([VARIANT_FRAME_SIZE_CLASS])
+
+    // The real media fills the whole frame and is the frame's own control.
+    const trigger = card.get(variantPreviewTrigger)
+    expect(trigger.classes()).toContain('size-full')
+    expect(trigger.classes()).toContain('relative')
+    expect(trigger.get('img').classes()).toContain('object-cover')
+    expect(frame.element.firstElementChild).toBe(trigger.element)
+  })
+
+  it('overlays an always-visible zoom affordance on real media without adding a second control', async () => {
+    mountModal({
+      detail: {
+        ...detail,
+        variants: [
+          {
+            ...detail.variants[0],
+            id: 'variant-real',
+            name: 'Bolsa mediana',
+            image: { url: 'https://example.test/variant-grande.jpg' },
+          },
+          { ...detail.variants[0], id: 'variant-null', name: 'Bolsa grande', image: null },
+        ],
+      },
+    })
+    await nextTick()
+
+    const mainTrigger = getRendered(mainPreviewTrigger)
+    const mainBadge = getRendered(mainZoomAffordance)
+
+    // The main image names the affordance in words, inside the already-labelled media button.
+    expect(mainBadge.element.tagName).toBe('SPAN')
+    expect(mainBadge.attributes('aria-hidden')).toBe('true')
+    expect(mainBadge.attributes('role')).toBeUndefined()
+    expect(mainBadge.attributes('aria-label')).toBeUndefined()
+    expect(mainBadge.attributes('type')).toBeUndefined()
+    expect(mainBadge.text()).toBe('Ampliar')
+    expect(mainTrigger.element.contains(mainBadge.element)).toBe(true)
+    expect(mainTrigger.attributes('aria-label')).toBe(`Ampliar imagen de ${detail.name}`)
+
+    // Always visible, overlaid on the media, and never a gradient placeholder.
+    expect(mainBadge.classes()).toContain('absolute')
+    expect(mainBadge.classes()).not.toContain('hidden')
+    expect(mainBadge.classes()).not.toContain('sr-only')
+    expect(mainBadge.classes().some((className) => className.startsWith('opacity-0'))).toBe(false)
+    expect(mainBadge.html()).not.toMatch(/gradient|placeholder|picsum|dicebear/i)
+
+    const realCard = getNthRendered('[data-testid="catalog-detail-variant"]', 0)
+    const nullCard = getNthRendered('[data-testid="catalog-detail-variant"]', 1)
+    const variantBadge = realCard.get(variantZoomAffordance)
+
+    // A real thumbnail repeats the same promise at thumbnail scale, still as presentation only.
+    expect(variantBadge.element.tagName).toBe('SPAN')
+    expect(variantBadge.attributes('aria-hidden')).toBe('true')
+    expect(variantBadge.attributes('aria-label')).toBeUndefined()
+    expect(variantBadge.classes()).toContain('absolute')
+    expect(variantBadge.classes()).not.toContain('hidden')
+    expect(variantBadge.text()).toBe('')
+    expect(realCard.get(variantPreviewTrigger).element.contains(variantBadge.element)).toBe(true)
+    expect(realCard.get(variantPreviewTrigger).attributes('aria-label')).toBe(
+      'Ampliar imagen de la variante Bolsa mediana',
+    )
+    expect(realCard.findAll('button')).toHaveLength(1)
+    expect(realCard.findAll('a, input, select, [role="button"]').length).toBe(0)
+
+    // Only real media is decorated: the null thumbnail keeps its plain honest fallback.
+    expect(nullCard.find(variantZoomAffordance).exists()).toBe(false)
+    expect(nullCard.findAll('button, a, input, select').length).toBe(0)
+
+    // The affordances are decorations: the whole detail still exposes exactly the media controls.
+    expect(getAllRendered('button').map((button) => button.attributes('aria-label'))).toEqual([
+      'Cerrar detalle del producto',
+      `Ampliar imagen de ${detail.name}`,
+      'Ampliar imagen de la variante Bolsa mediana',
+    ])
+    expect(document.body.querySelectorAll('[data-testid$="zoom-affordance"]').length).toBe(2)
+    expect(document.body.querySelectorAll('a[href]').length).toBe(0)
+    expect(document.body.querySelectorAll('input, select, textarea').length).toBe(0)
+    expect(document.body.querySelectorAll('[role="button"]').length).toBe(0)
+  })
+
+  it('keeps every zoom affordance off absent and failed media', async () => {
+    // No product media at all: no frame badge and no media control for it to decorate.
+    const emptyWrapper = mountModal({ detail: { ...detail, images: [], variants: [] } })
+    await nextTick()
+    expect(document.body.querySelector(mainZoomAffordance)).toBeNull()
+    expect(document.body.querySelector(mainPreviewTrigger)).toBeNull()
+    expect(getAllRendered('button').map((button) => button.attributes('aria-label'))).toEqual([
+      'Cerrar detalle del producto',
+    ])
+    emptyWrapper.unmount()
+
+    // A product image that fails loses the affordance together with the control that owned it.
+    const failingWrapper = mountModal()
+    await nextTick()
+    expect(getRendered(mainZoomAffordance)).toBeDefined()
+    await getRendered('img').trigger('error')
+    await nextTick()
+    expect(document.body.querySelector(mainZoomAffordance)).toBeNull()
+    expect(
+      document.body.querySelector('[data-testid="catalog-detail-image-fallback"]'),
+    ).not.toBeNull()
+    failingWrapper.unmount()
+
+    // The base fixture variant carries null media: its fallback fills the same square, undecorated.
+    const nullMediaWrapper = mountModal()
+    await nextTick()
+    const nullFrame = getRendered(variantImageFrame)
+    expect(nullFrame.classes()).toContain(VARIANT_FRAME_SIZE_CLASS)
+    expect(nullFrame.classes()).toContain('rounded-lg')
+    expect(nullFrame.find(variantZoomAffordance).exists()).toBe(false)
+    const nullFallback = getRendered('[data-testid="catalog-detail-variant-image-fallback"]')
+    expect(nullFallback.attributes('role')).toBe('img')
+    expect(nullFallback.attributes('aria-label')).toBe(
+      'Imagen no disponible para la variante Bolsa mediana',
+    )
+    expect(nullFallback.classes()).toContain('size-full')
+    nullMediaWrapper.unmount()
+
+    // A failed thumbnail degrades to the same inert fallback, without a surviving badge.
+    const brokenWrapper = mountModal({
+      detail: {
+        ...detail,
+        variants: [
+          { ...detail.variants[0], image: { url: 'https://example.test/variant-broken.jpg' } },
+        ],
+      },
+    })
+    await nextTick()
+    const brokenCard = getRendered('[data-testid="catalog-detail-variant"]')
+    expect(brokenCard.find(variantZoomAffordance).exists()).toBe(true)
+    await brokenCard.get('img').trigger('error')
+    await nextTick()
+    expect(brokenCard.find(variantZoomAffordance).exists()).toBe(false)
+    expect(brokenCard.findAll('button, a, input, select').length).toBe(0)
+    brokenWrapper.unmount()
+  })
+
+  it('keeps the square variant frame intact beside long variant copy and prices', async () => {
+    mountModal({
+      detail: {
+        ...detail,
+        description: null,
+        variants: [
+          {
+            ...detail.variants[0],
+            name: 'Bolsa mediana de café de altura con empaque compostable y sello de origen',
+            option: 'Presentación',
+            value: 'Dos kilogramos seleccionados a mano',
+            image: { url: 'https://example.test/variant-grande.jpg' },
+            price: { priceCents: 123456789, hidden: false },
+            stockPresentation: {
+              mode: 'CUSTOM_QUANTITY' as const,
+              status: null,
+              customQuantity: 987654,
+            },
+          },
+        ],
+      },
+    })
+    await nextTick()
+
+    const card = getRendered('[data-testid="catalog-detail-variant"]')
+    const frame = getRendered(variantImageFrame)
+
+    // The media never absorbs the long copy: its exact square is held by its own non-shrinking box.
+    expect(frame.classes()).toContain(VARIANT_FRAME_SIZE_CLASS)
+    expect(frame.classes()).toContain('shrink-0')
+    expect(frame.element.parentElement).toBe(card.element)
+
+    // The text column is the only side that flexes, so the row wraps instead of overflowing at 320px.
+    expect(card.classes()).toContain('min-w-0')
+    expect(card.classes()).toContain('items-start')
+    const textColumn = card.element.children[1]
+    if (!textColumn) throw new Error('missing variant text column')
+    expect(textColumn.className).toContain('flex-1')
+    expect(textColumn.className).toContain('min-w-0')
+
+    // Authoritative copy is never clipped: no ellipsis, no nowrap, and wrapping values only.
+    expect(card.html()).not.toContain('truncate')
+    expect(card.html()).not.toContain('whitespace-nowrap')
+    const price = card.get('[data-testid="catalog-detail-variant-price"]')
+    expect(price.text()).toBe('$1,234,567.89')
+    expect(price.classes()).toContain('break-words')
+    expect(card.get('[data-testid="catalog-detail-variant-quantity"]').text()).toBe(
+      '987654 unidades',
+    )
+
+    // The thumbnail overlay stays a small decoration inside the frame it belongs to.
+    const badge = card.get(variantZoomAffordance)
+    expect(badge.classes()).toContain('absolute')
+    expect(badge.classes()).toContain('size-5')
+  })
+
+  it('explains the absence of description and variants with a calm contained note', async () => {
+    mountModal({ detail: { ...detail, description: null, hasVariants: false, variants: [] } })
+    await nextTick()
+
+    // The honest empty state replaces the two content blocks instead of sitting next to them.
+    expect(document.body.querySelector('[data-testid="catalog-detail-description"]')).toBeNull()
+    expect(
+      document.body.querySelector('section[aria-labelledby="catalog-detail-variants"]'),
+    ).toBeNull()
+
+    const note = getRendered(emptyDetailNote)
+    expect(note.attributes('role')).toBe('note')
+    expect(note.get('h3').text()).toBe('Sin información adicional')
+    expect(note.get('p').text()).toBe(
+      'Por ahora no hay descripción ni variantes publicadas para este producto.',
+    )
+    expect(note.find('span[aria-hidden="true"]').exists()).toBe(true)
+
+    // A deliberately sized, contained surface that settles at the bottom of the sparse column.
+    expect(note.classes()).toContain('mt-auto')
+    expect(note.classes()).toContain('min-h-48')
+    expect(note.classes()).toContain('items-center')
+    expect(note.classes()).toContain('justify-center')
+    expect(note.classes()).toContain('ring-1')
+    expect(note.classes()).not.toContain('truncate')
+    expect(note.get('p').classes()).toContain('break-words')
+
+    const detailsPanel = getRendered('[data-testid="catalog-detail-details-panel"]')
+    expect(detailsPanel.element.lastElementChild).toBe(note.element)
+
+    // The note is information, not a failure and not a commerce prompt.
+    expect(note.text()).not.toMatch(
+      /error|no pudimos|intenta de nuevo|carrito|agregar|comprar|whatsapp|precio/i,
+    )
+    expect(note.findAll('button, a, input, select').length).toBe(0)
+    expect(getAllRendered('button').map((button) => button.attributes('aria-label'))).toEqual([
+      'Cerrar detalle del producto',
+      `Ampliar imagen de ${detail.name}`,
+    ])
+  })
+
+  it('never shows the empty note once a real description or real variants are published', async () => {
+    // A real description alone already fills the panel.
+    const described = mountModal({
+      detail: { ...detail, description: 'Notas de cata.', variants: [] },
+    })
+    await nextTick()
+    expect(getRendered('[data-testid="catalog-detail-description"]').text()).toBe('Notas de cata.')
+    expect(document.body.querySelector(emptyDetailNote)).toBeNull()
+    described.unmount()
+
+    // Real variants alone already fill the panel.
+    const varied = mountModal({
+      detail: { ...detail, description: null, variants: detail.variants },
+    })
+    await nextTick()
+    expect(getRendered('[data-testid="catalog-detail-variant"]')).toBeDefined()
+    expect(document.body.querySelector(emptyDetailNote)).toBeNull()
+    varied.unmount()
+
+    // Neither a blank nor a whitespace-only string counts as a published description.
+    const blank = mountModal({ detail: { ...detail, description: '   ', variants: [] } })
+    await nextTick()
+    expect(document.body.querySelector('[data-testid="catalog-detail-description"]')).toBeNull()
+    expect(getRendered(emptyDetailNote)).toBeDefined()
+    blank.unmount()
   })
 
   it('opens a distinct labelled read-only preview of the real main image from its full-frame button', async () => {
