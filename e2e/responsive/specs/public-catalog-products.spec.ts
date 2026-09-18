@@ -1,3 +1,4 @@
+import type { Locator, Page } from '@playwright/test'
 import { expect, test, RESPONSIVE_ORIGIN } from '../fixtures/test'
 import type { DeclaredRoute } from '../fixtures/network'
 
@@ -63,6 +64,18 @@ function expectOnlyCatalogRequests(
   expect(strictNetwork.violations()).toEqual([])
 }
 
+const branchTrigger = (page: Page): Locator =>
+  page.getByRole('button', { name: 'Explorar sucursales', exact: true })
+
+/** Branch choices only exist inside the closed-by-default `Seleccionar sucursal` dialog. */
+async function selectBranch(page: Page, name: string): Promise<void> {
+  await branchTrigger(page).click()
+  await page
+    .getByRole('dialog', { name: 'Seleccionar sucursal', exact: true })
+    .getByRole('button', { name, exact: true })
+    .click()
+}
+
 test.describe('public catalog product selection', () => {
   test.use({
     declaredRoutes: {
@@ -90,13 +103,11 @@ test.describe('public catalog product selection', () => {
     })
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto(`${RESPONSIVE_ORIGIN}/catalogo?source=responsive#products`)
-    await page.getByRole('button', { name: centro.name }).click()
+    await selectBranch(page, centro.name)
 
     await expect(page).toHaveURL(`${RESPONSIVE_ORIGIN}/catalogo/centro?source=responsive#products`)
-    await expect(page.getByRole('button', { name: centro.name })).toHaveAttribute(
-      'aria-current',
-      'page',
-    )
+    await expect(page.getByRole('dialog')).toHaveCount(0)
+    await expect(branchTrigger(page)).toContainText(centro.name)
     await expect(page.getByRole('heading', { name: visibleProduct.name })).toBeVisible()
     await expect(page.getByText('$25.99')).toBeVisible()
     await testInfo.attach('catalog-products-desktop', {
@@ -390,19 +401,13 @@ test.describe('public catalog browser history', () => {
     await page.setViewportSize({ width: 1280, height: 800 })
     await page.goto(`${RESPONSIVE_ORIGIN}/catalogo/centro`)
     await expect(page.getByRole('heading', { name: centroProduct.name })).toBeVisible()
-    await page.getByRole('button', { name: norte.name }).click()
+    await selectBranch(page, norte.name)
     await expect(page.getByRole('heading', { name: norteProduct.name })).toBeVisible()
     await page.goBack()
-    await expect(page.getByRole('button', { name: centro.name })).toHaveAttribute(
-      'aria-current',
-      'page',
-    )
+    await expect(branchTrigger(page)).toContainText(centro.name)
     await expect(page.getByRole('heading', { name: centroProduct.name })).toBeVisible()
     await page.goForward()
-    await expect(page.getByRole('button', { name: norte.name })).toHaveAttribute(
-      'aria-current',
-      'page',
-    )
+    await expect(branchTrigger(page)).toContainText(norte.name)
     await expect(page.getByRole('heading', { name: norteProduct.name })).toBeVisible()
     expectOnlyCatalogRequests(strictNetwork, [
       '/public/catalog/branches',

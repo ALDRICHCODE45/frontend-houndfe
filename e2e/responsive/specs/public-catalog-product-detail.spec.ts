@@ -372,8 +372,11 @@ interface ControlSnapshot {
 
 const controlKey = (control: ControlSnapshot): string => `${control.role} "${control.name}"`
 
-/** The inert storefront shell plus one detail invoker per rendered product card. */
-const SHELL_CONTROL_NAMES = ['Explorar sucursales', 'Cambiar tema', branch.name] as const
+/**
+ * The inert storefront shell plus one detail invoker per rendered product card. Branch choices live
+ * inside the closed-by-default `Seleccionar sucursal` dialog, so they are never shell controls.
+ */
+const SHELL_CONTROL_NAMES = ['Explorar sucursales', 'Cambiar tema'] as const
 const invokerControlName = (productName: string): string => `Ver detalles de ${productName}`
 
 const shellControls = (productNames: readonly string[]): ControlSnapshot[] => [

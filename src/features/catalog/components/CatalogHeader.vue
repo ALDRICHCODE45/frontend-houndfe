@@ -13,8 +13,13 @@ const emit = defineEmits<{ retry: []; select: [slug: string] }>()
 
 const colorMode = useColorMode()
 const isDark = computed(() => colorMode.value === 'dark')
-const isChooserOpen = ref(true)
+/**
+ * Branch selection is a discreet, closed-by-default dialog owned by the header trigger.
+ * `/catalogo` never opens it on its own, and the catalog keeps no permanent hero space for it.
+ */
+const isChooserOpen = ref(false)
 const selectedSlug = computed(() => props.selectedBranch?.slug ?? null)
+const isLoading = computed(() => props.state === 'loading' || props.state === 'retry-pending')
 
 /** Neutral absence copy. The catalog never invents an address for a branch that has none. */
 const addressFallback = 'Dirección no publicada'
@@ -32,6 +37,12 @@ const retryMessage = computed(() =>
     ? errorCopy[props.state]
     : '',
 )
+
+/** The dialog closes first, then the route change stays the only visible selection outcome. */
+function selectBranch(slug: string) {
+  isChooserOpen.value = false
+  emit('select', slug)
+}
 
 function toggleDarkMode() {
   colorMode.value = isDark.value ? 'light' : 'dark'
@@ -54,30 +65,127 @@ function toggleDarkMode() {
         >
       </div>
 
-      <UButton
-        color="neutral"
-        variant="outline"
-        size="sm"
-        class="min-w-0 shrink rounded-full"
-        aria-controls="catalog-branch-chooser"
-        :aria-expanded="isChooserOpen"
-        aria-label="Explorar sucursales"
-        @click="isChooserOpen = !isChooserOpen"
+      <UModal
+        v-model:open="isChooserOpen"
+        title="Seleccionar sucursal"
+        description="Elige la sucursal para ver sus productos."
+        :close="false"
+        :ui="{
+          overlay: 'bg-coco-950/45 backdrop-blur-sm',
+          content: 'max-w-md rounded-2xl shadow-xl',
+          header: 'items-start',
+          body: 'flex-1 p-4 overscroll-contain sm:p-5',
+        }"
       >
-        <template #leading>
-          <UIcon name="i-lucide-map-pin" class="size-3.5 shrink-0 text-primary" />
+        <UButton
+          color="neutral"
+          variant="outline"
+          size="sm"
+          class="min-h-11 min-w-0 shrink rounded-full"
+          aria-label="Explorar sucursales"
+        >
+          <template #leading>
+            <UIcon name="i-lucide-map-pin" class="size-3.5 shrink-0 text-primary" />
+          </template>
+          <span class="max-w-[6.5rem] truncate sm:max-w-[12rem]">{{
+            selectedBranch?.name ?? 'Elegir sucursal'
+          }}</span>
+          <template #trailing>
+            <UIcon
+              name="i-lucide-chevron-down"
+              class="size-3.5 shrink-0 text-muted transition-transform duration-150 motion-reduce:transition-none"
+              :class="isChooserOpen ? 'rotate-180' : ''"
+            />
+          </template>
+        </UButton>
+
+        <template #close>
+          <button
+            type="button"
+            aria-label="Cerrar selección de sucursal"
+            class="ms-auto inline-flex size-11 shrink-0 items-center justify-center rounded-full text-muted transition-[background-color,color,transform] duration-150 ease-out hover:bg-elevated/70 hover:text-highlighted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100"
+          >
+            <UIcon name="i-lucide-x" class="size-5" />
+          </button>
         </template>
-        <span class="max-w-[6.5rem] truncate sm:max-w-[12rem]">{{
-          selectedBranch?.name ?? 'Elegir sucursal'
-        }}</span>
-        <template #trailing>
-          <UIcon
-            name="i-lucide-chevron-down"
-            class="size-3.5 shrink-0 text-muted transition-transform duration-150 motion-reduce:transition-none"
-            :class="isChooserOpen ? 'rotate-180' : ''"
-          />
+
+        <template #body>
+          <!-- Every dynamic branch surface lives in this single polite region. -->
+          <div
+            data-testid="catalog-branch-choices"
+            aria-live="polite"
+            class="flex min-w-0 flex-col gap-3"
+          >
+            <template v-if="isLoading">
+              <p role="status" aria-busy="true" class="text-sm font-medium text-toned">
+                {{ state === 'retry-pending' ? 'Reintentando…' : 'Cargando sucursales…' }}
+              </p>
+              <div aria-hidden="true" class="flex flex-col gap-2">
+                <div
+                  v-for="row in 2"
+                  :key="row"
+                  class="h-14 animate-pulse rounded-xl bg-elevated/70 motion-reduce:animate-none"
+                />
+              </div>
+            </template>
+
+            <template v-else-if="state === 'populated'">
+              <ul
+                aria-label="Sucursales disponibles"
+                class="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2"
+              >
+                <li v-for="branch in branches" :key="branch.id" class="min-w-0">
+                  <button
+                    type="button"
+                    :aria-label="branch.name"
+                    :aria-current="branch.slug === selectedSlug ? 'page' : undefined"
+                    class="flex min-h-11 w-full min-w-0 items-center gap-3 rounded-xl px-3 py-2.5 text-left ring-1 transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
+                    :class="
+                      branch.slug === selectedSlug
+                        ? 'bg-primary/5 ring-primary/40 dark:bg-primary/15'
+                        : 'ring-default hover:bg-elevated/60'
+                    "
+                    @click="selectBranch(branch.slug)"
+                  >
+                    <UIcon
+                      :name="
+                        branch.slug === selectedSlug ? 'i-lucide-circle-check' : 'i-lucide-map-pin'
+                      "
+                      class="size-4 shrink-0"
+                      :class="branch.slug === selectedSlug ? 'text-primary' : 'text-dimmed'"
+                    />
+                    <span class="min-w-0 flex-1">
+                      <span
+                        class="block break-words text-sm leading-snug font-semibold text-highlighted"
+                      >
+                        {{ branch.name }}
+                      </span>
+                      <span class="mt-0.5 block break-words text-xs leading-snug text-toned">
+                        {{ branch.address ?? addressFallback }}
+                      </span>
+                    </span>
+                  </button>
+                </li>
+              </ul>
+            </template>
+
+            <template v-else>
+              <p role="status" class="text-sm text-toned">{{ retryMessage }}</p>
+              <UButton
+                color="primary"
+                variant="solid"
+                size="md"
+                icon="i-lucide-refresh-cw"
+                aria-label="Reintentar sucursales"
+                class="min-h-11 self-start"
+                @click="emit('retry')"
+              >
+                Reintentar
+              </UButton>
+            </template>
+          </div>
         </template>
-      </UButton>
+      </UModal>
 
       <div class="order-last w-full min-w-0 sm:order-none sm:w-auto sm:flex-1">
         <UInput
@@ -114,93 +222,4 @@ function toggleDarkMode() {
       </UButton>
     </div>
   </header>
-
-  <section
-    v-show="isChooserOpen"
-    id="catalog-branch-chooser"
-    data-testid="catalog-branch-hero"
-    aria-live="polite"
-    class="mx-auto w-full max-w-6xl px-4 pt-4 sm:px-6 sm:pt-6"
-  >
-    <div
-      class="rounded-[28px] bg-coco-500 p-4 text-white shadow-xl shadow-coco-900/20 sm:p-6 dark:bg-coco-600 dark:shadow-black/40"
-    >
-      <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/85">
-        Sucursales disponibles
-      </p>
-      <h2 class="mt-1.5 max-w-lg text-xl font-semibold leading-tight tracking-tight sm:text-2xl">
-        Elige una sucursal para ver sus productos
-      </h2>
-
-      <p
-        v-if="state === 'loading'"
-        role="status"
-        aria-busy="true"
-        class="mt-4 text-sm text-white/85"
-      >
-        Cargando sucursales…
-      </p>
-      <p
-        v-else-if="state === 'retry-pending'"
-        role="status"
-        aria-busy="true"
-        class="mt-4 text-sm text-white/85"
-      >
-        Reintentando…
-      </p>
-      <template v-else-if="state === 'populated'">
-        <ul
-          aria-label="Sucursales disponibles"
-          class="mt-4 grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-3"
-        >
-          <li v-for="branch in branches" :key="branch.id" class="min-w-0">
-            <button
-              type="button"
-              :aria-label="branch.name"
-              :aria-current="branch.slug === selectedSlug ? 'page' : undefined"
-              class="flex w-full min-w-0 items-start gap-3 rounded-2xl px-3.5 py-3 text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none"
-              :class="
-                branch.slug === selectedSlug
-                  ? 'bg-white text-coco-950 shadow-sm dark:bg-coco-50'
-                  : 'bg-white/10 text-white ring-1 ring-white/20 ring-inset hover:bg-white/20'
-              "
-              @click="emit('select', branch.slug)"
-            >
-              <span
-                class="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border-2"
-                :class="branch.slug === selectedSlug ? 'border-coco-500' : 'border-white/50'"
-              >
-                <span
-                  v-if="branch.slug === selectedSlug"
-                  class="size-1.5 rounded-full bg-coco-500"
-                />
-              </span>
-              <span class="min-w-0 flex-1">
-                <span class="block break-words text-sm font-semibold leading-snug">
-                  {{ branch.name }}
-                </span>
-                <span
-                  class="mt-0.5 block break-words text-xs"
-                  :class="branch.slug === selectedSlug ? 'text-coco-950/70' : 'text-white/95'"
-                >
-                  {{ branch.address ?? addressFallback }}
-                </span>
-              </span>
-            </button>
-          </li>
-        </ul>
-      </template>
-      <template v-else>
-        <p class="mt-4 text-sm text-white/85">{{ retryMessage }}</p>
-        <button
-          type="button"
-          class="mt-3 rounded-full bg-white/15 px-3.5 py-1.5 text-sm font-semibold text-white transition-colors duration-150 hover:bg-white/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white motion-reduce:transition-none"
-          aria-label="Reintentar sucursales"
-          @click="emit('retry')"
-        >
-          Reintentar
-        </button>
-      </template>
-    </div>
-  </section>
 </template>

@@ -13,7 +13,7 @@ const routes: readonly DeclaredRoute[] = [
 
 for (const viewport of viewports) {
   test.describe(`catalog entry guardrails at ${viewport.name}`, () => {
-    test.use({ declaredRoutes: routes })
+    test.use({ declaredRoutes: { routes } })
 
     test('keeps commerce and deferred controls disabled while branch discovery remains explicit', async ({
       page,
@@ -22,7 +22,14 @@ for (const viewport of viewports) {
       await page.setViewportSize(viewport)
       await page.goto(`${RESPONSIVE_ORIGIN}/catalogo`)
 
-      await expect(page.getByRole('button', { name: branch.name })).toBeEnabled()
+      // The selector is closed by default: only its trigger is reachable, never a branch choice.
+      await expect(
+        page.getByRole('button', { name: 'Explorar sucursales', exact: true }),
+      ).toBeEnabled()
+      await expect(
+        page.getByRole('button', { name: branch.name, exact: true }),
+        'the closed shell must not expose a branch choice',
+      ).toHaveCount(0)
       for (const [role, name] of [
         ['textbox', 'Buscar en el catálogo'],
         ['button', 'Todas las categorías'],

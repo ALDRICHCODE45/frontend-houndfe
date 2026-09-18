@@ -1,8 +1,8 @@
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
-import { flushPromises } from '@vue/test-utils'
+import { DOMWrapper, flushPromises, type VueWrapper } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { defineComponent, h, ref, shallowRef } from 'vue'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import CatalogView from '@/features/catalog/views/CatalogView.vue'
 
@@ -142,6 +142,39 @@ async function mountAt(path: string) {
   return { wrapper, router }
 }
 
+/** Teleported branch dialogs never leak into the next test's document queries. */
+afterEach(() => {
+  document.body.innerHTML = ''
+})
+
+const branchTrigger = (wrapper: VueWrapper) =>
+  wrapper.get('button[aria-label="Explorar sucursales"]')
+
+async function openBranchSelector(wrapper: VueWrapper) {
+  await branchTrigger(wrapper).trigger('click')
+  await flushPromises()
+}
+
+/** The open dialog is reached through the trigger's native `aria-controls`, never a global query. */
+function branchDialogElement(wrapper: VueWrapper) {
+  const controls = branchTrigger(wrapper).element.getAttribute('aria-controls')
+  return controls === null ? null : document.getElementById(controls)
+}
+
+function branchDialog(wrapper: VueWrapper) {
+  const element = branchDialogElement(wrapper)
+  expect(element, 'the branch selector dialog must be open').not.toBeNull()
+  return new DOMWrapper(element!)
+}
+
+/** Every enabled control anywhere on the page, keyed by its accessible label. */
+function enabledControlLabels() {
+  return [...document.querySelectorAll('button')]
+    .filter((button) => !button.disabled)
+    .map((button) => button.getAttribute('aria-label') ?? (button.textContent ?? '').trim())
+    .sort()
+}
+
 function waitForNavigation(router: ReturnType<typeof createRouter>) {
   return new Promise<void>((resolve) => {
     const remove = router.afterEach(() => {
@@ -167,13 +200,20 @@ describe('CatalogView public browse', () => {
     const { wrapper, router } = await mountAt('/catalogo?source=home#top')
 
     await flushPromises()
-    await wrapper.get('button[aria-label="Sucursal Centro"]').trigger('click')
+    expect(branchTrigger(wrapper).attributes('aria-haspopup')).toBe('dialog')
+    expect(branchTrigger(wrapper).attributes('aria-expanded')).toBe('false')
+    expect(branchTrigger(wrapper).text()).toContain('Elegir sucursal')
+    expect(branchDialogElement(wrapper)).toBeNull()
+    expect(wrapper.find('button[aria-label="Sucursal Centro"]').exists()).toBe(false)
+
+    await openBranchSelector(wrapper)
+    await branchDialog(wrapper).get('button[aria-label="Sucursal Centro"]').trigger('click')
     await flushPromises()
 
     expect(router.currentRoute.value.fullPath).toBe('/catalogo/centro?source=home#top')
-    expect(wrapper.get('button[aria-label="Sucursal Centro"]').attributes('aria-current')).toBe(
-      'page',
-    )
+    expect(branchTrigger(wrapper).attributes('aria-expanded')).toBe('false')
+    expect(wrapper.find('button[aria-label="Sucursal Centro"]').exists()).toBe(false)
+    expect(branchTrigger(wrapper).text()).toContain('Sucursal Centro')
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
       'http://localhost:3000/public/catalog/branches',
       'http://localhost:3000/public/catalog/centro/products',
@@ -205,34 +245,39 @@ describe('CatalogView public browse', () => {
     const { wrapper, router } = await mountAt('/catalogo/centro')
 
     await flushPromises()
-    expect(wrapper.get('button[aria-label="Sucursal Centro"]').attributes('aria-current')).toBe(
+    expect(branchTrigger(wrapper).text()).toContain('Sucursal Centro')
+    expect(wrapper.get('main h2').text()).toBe('Producto Centro')
+
+    await openBranchSelector(wrapper)
+    const dialog = branchDialog(wrapper)
+    expect(dialog.get('button[aria-label="Sucursal Centro"]').attributes('aria-current')).toBe(
       'page',
     )
-    expect(wrapper.get('main h2').text()).toBe('Producto Centro')
+    expect(
+      dialog.get('button[aria-label="Sucursal Norte"]').attributes('aria-current'),
+    ).toBeUndefined()
+    await dialog.get('button[aria-label="Cerrar selección de sucursal"]').trigger('click')
+    await flushPromises()
+    expect(branchDialogElement(wrapper)).toBeNull()
+    expect(branchTrigger(wrapper).element).toBe(document.activeElement)
 
     await router.push('/catalogo/norte')
     await flushPromises()
-    expect(wrapper.get('button[aria-label="Sucursal Norte"]').attributes('aria-current')).toBe(
-      'page',
-    )
+    expect(branchTrigger(wrapper).text()).toContain('Sucursal Norte')
     expect(wrapper.get('main h2').text()).toBe('Producto Norte')
 
     const back = waitForNavigation(router)
     router.back()
     await back
     await flushPromises()
-    expect(wrapper.get('button[aria-label="Sucursal Centro"]').attributes('aria-current')).toBe(
-      'page',
-    )
+    expect(branchTrigger(wrapper).text()).toContain('Sucursal Centro')
     expect(wrapper.get('main h2').text()).toBe('Producto Centro')
 
     const forward = waitForNavigation(router)
     router.forward()
     await forward
     await flushPromises()
-    expect(wrapper.get('button[aria-label="Sucursal Norte"]').attributes('aria-current')).toBe(
-      'page',
-    )
+    expect(branchTrigger(wrapper).text()).toContain('Sucursal Norte')
     expect(wrapper.get('main h2').text()).toBe('Producto Norte')
   })
 
@@ -257,13 +302,17 @@ describe('CatalogView public browse', () => {
     const push = vi.spyOn(router, 'push').mockRejectedValueOnce(new Error('navigation blocked'))
 
     await flushPromises()
-    await wrapper.get('button[aria-label="Sucursal Norte"]').trigger('click')
+    await openBranchSelector(wrapper)
+    await branchDialog(wrapper).get('button[aria-label="Sucursal Norte"]').trigger('click')
     await flushPromises()
 
     expect(push).toHaveBeenCalled()
     expect(router.currentRoute.value.fullPath).toBe('/catalogo')
+    expect(branchTrigger(wrapper).text()).toContain('Elegir sucursal')
+
+    await openBranchSelector(wrapper)
     expect(
-      wrapper.get('button[aria-label="Sucursal Norte"]').attributes('aria-current'),
+      branchDialog(wrapper).get('button[aria-label="Sucursal Norte"]').attributes('aria-current'),
     ).toBeUndefined()
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })
@@ -420,7 +469,7 @@ describe('CatalogView public browse', () => {
     expect(fetchMock).toHaveBeenCalledTimes(4)
   })
 
-  it('renders the branch hero with a real address, a neutral address fallback and the selected branch state', async () => {
+  it('renders the branch selector dialog with a real address, a neutral address fallback and the current branch state', async () => {
     const publishedBranches = [
       {
         id: 'b-1',
@@ -439,12 +488,21 @@ describe('CatalogView public browse', () => {
     const { wrapper } = await mountAt('/catalogo/centro')
 
     await flushPromises()
-    const hero = wrapper.get('[data-testid="catalog-branch-hero"]')
-    expect(hero.text()).toContain('Sucursales disponibles')
-    expect(hero.get('h2').text()).toBe('Elige una sucursal para ver sus productos')
+    expect(branchDialogElement(wrapper)).toBeNull()
 
-    const selected = hero.get('button[aria-label="Sucursal Centro"]')
-    const unselected = hero.get('button[aria-label="Sucursal Norte"]')
+    await openBranchSelector(wrapper)
+    expect(branchTrigger(wrapper).attributes('aria-expanded')).toBe('true')
+    expect(document.querySelectorAll('[role="dialog"]').length).toBe(1)
+
+    const dialog = branchDialog(wrapper)
+    expect(dialog.get('[data-slot="title"]').text()).toBe('Seleccionar sucursal')
+    expect(dialog.get('[data-slot="description"]').text()).toBe(
+      'Elige la sucursal para ver sus productos.',
+    )
+
+    const list = dialog.get('ul[aria-label="Sucursales disponibles"]')
+    const selected = list.get('button[aria-label="Sucursal Centro"]')
+    const unselected = list.get('button[aria-label="Sucursal Norte"]')
     expect(selected.attributes('aria-current')).toBe('page')
     expect(unselected.attributes('aria-current')).toBeUndefined()
     expect(selected.text()).toContain('Av. Juárez 120, Centro')
@@ -484,19 +542,23 @@ describe('CatalogView public browse', () => {
     }
   })
 
-  it('exposes only branch selection and the theme switch as enabled shell controls', async () => {
+  it('keeps the enabled control inventory exact while the branch selector is closed and adds only its own controls once it opens', async () => {
     const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(branches))
     vi.stubGlobal('fetch', fetchMock)
     const { wrapper } = await mountAt('/catalogo')
 
     await flushPromises()
-    const enabled = wrapper
-      .findAll('button')
-      .filter((button) => button.attributes('disabled') === undefined)
-      .map((button) => button.attributes('aria-label'))
+    expect(enabledControlLabels()).toEqual(['Cambiar tema', 'Explorar sucursales'])
 
-    expect(enabled.sort()).toEqual(
-      ['Cambiar tema', 'Explorar sucursales', 'Sucursal Centro', 'Sucursal Norte'].sort(),
+    await openBranchSelector(wrapper)
+    expect(enabledControlLabels()).toEqual(
+      [
+        'Cambiar tema',
+        'Explorar sucursales',
+        'Cerrar selección de sucursal',
+        'Sucursal Centro',
+        'Sucursal Norte',
+      ].sort(),
     )
   })
 
@@ -521,7 +583,7 @@ describe('CatalogView public browse', () => {
     expect(selected.wrapper.get('[data-testid="catalog-result-total"]').text()).toBe('0 productos')
   })
 
-  it('announces in-progress branch discovery inside the polite chooser region', async () => {
+  it('announces in-progress branch discovery inside the polite chooser region once the selector is open', async () => {
     let resolveBranches!: (value: Response) => void
     const fetchMock = vi.fn().mockReturnValueOnce(
       new Promise<Response>((resolve) => {
@@ -532,7 +594,8 @@ describe('CatalogView public browse', () => {
     const { wrapper } = await mountAt('/catalogo')
 
     await flushPromises()
-    const chooser = wrapper.get('#catalog-branch-chooser')
+    await openBranchSelector(wrapper)
+    const chooser = branchDialog(wrapper).get('[data-testid="catalog-branch-choices"]')
     expect(chooser.attributes('aria-live')).toBe('polite')
     const announcement = chooser.get('[role="status"]')
     expect(announcement.attributes('aria-busy')).toBeDefined()
@@ -540,60 +603,48 @@ describe('CatalogView public browse', () => {
 
     resolveBranches(jsonResponse(branches))
     await flushPromises()
+    expect(branchDialog(wrapper).find('button[aria-label="Sucursal Centro"]').exists()).toBe(true)
   })
 
-  it('announces the terminal branch error inside the polite chooser region without changing its labels', async () => {
-    const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse({ message: 'boom' }, 500))
-    vi.stubGlobal('fetch', fetchMock)
-    const { wrapper } = await mountAt('/catalogo')
+  it.each([
+    ['empty', () => jsonResponse([]), 'No hay sucursales publicadas'],
+    [
+      'rate-limit',
+      () => jsonResponse({ message: 'throttled' }, 429),
+      'Demasiadas solicitudes. Intenta de nuevo más tarde.',
+    ],
+    ['server', () => jsonResponse({ message: 'boom' }, 500), 'No pudimos cargar las sucursales.'],
+    [
+      'network',
+      () => Promise.reject(new TypeError('Failed to fetch')),
+      'No se pudo conectar. Revisa tu conexión.',
+    ],
+  ])(
+    'keeps the %s branch state and its retry reachable inside the polite chooser region',
+    async (_state, firstResponse, copy) => {
+      const fetchMock = vi
+        .fn()
+        .mockImplementationOnce(firstResponse)
+        .mockResolvedValue(jsonResponse(branches))
+      vi.stubGlobal('fetch', fetchMock)
+      const { wrapper } = await mountAt('/catalogo')
 
-    await flushPromises()
-    const chooser = wrapper.get('#catalog-branch-chooser')
-    expect(chooser.attributes('aria-live')).toBe('polite')
-    expect(chooser.text()).toContain('No pudimos cargar las sucursales.')
-    expect(chooser.get('button[aria-label="Reintentar sucursales"]').text()).toBe('Reintentar')
-    expect(wrapper.find('button[aria-label="Explorar sucursales"]').exists()).toBe(true)
-  })
+      await flushPromises()
+      await openBranchSelector(wrapper)
+      const chooser = branchDialog(wrapper).get('[data-testid="catalog-branch-choices"]')
+      expect(chooser.attributes('aria-live')).toBe('polite')
+      expect(chooser.text()).toContain(copy)
 
-  it('keeps every branch hero supporting and address class at a contrast-safe white opacity', async () => {
-    const publishedBranches = [
-      {
-        id: 'b-1',
-        name: 'Sucursal Centro',
-        slug: 'centro',
-        address: 'Av. Juárez 120, Centro',
-        phone: null,
-      },
-      { id: 'b-2', name: 'Sucursal Norte', slug: 'norte', address: null, phone: null },
-    ]
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(jsonResponse(publishedBranches))
-      .mockResolvedValueOnce(jsonResponse(productsResponse()))
-    vi.stubGlobal('fetch', fetchMock)
-    const { wrapper } = await mountAt('/catalogo/centro')
+      const retry = chooser.get('button[aria-label="Reintentar sucursales"]')
+      expect(retry.text()).toBe('Reintentar')
+      await retry.trigger('click')
+      await flushPromises()
 
-    await flushPromises()
-    const hero = wrapper.get('[data-testid="catalog-branch-hero"]')
-    expect(hero.get('p').classes()).toContain('text-white/85')
-
-    // The unselected address composites over bg-white/10 on cobalt, so it needs a stronger white.
-    const unselected = hero.get('button[aria-label="Sucursal Norte"]')
-    const unselectedAddress = unselected.get('span.text-xs')
-    expect(unselectedAddress.classes()).toContain('text-white/95')
-    expect(unselectedAddress.text()).toBe('Dirección no publicada')
-
-    const translucentText = hero.findAll('[class*="text-white/"]')
-    expect(translucentText.length).toBeGreaterThanOrEqual(2)
-    for (const element of translucentText) {
-      const opacities = element
-        .classes()
-        .filter((className) => /^text-white\/\d+$/.test(className))
-        .map((className) => Number(className.split('/')[1]))
-      expect(opacities.length).toBeGreaterThan(0)
-      for (const opacity of opacities) expect(opacity).toBeGreaterThanOrEqual(85)
-    }
-  })
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      expect(branchDialog(wrapper).find('button[aria-label="Sucursal Centro"]').exists()).toBe(true)
+      expect(wrapper.find('button[aria-label="Explorar sucursales"]').exists()).toBe(true)
+    },
+  )
 
   it('passes detail error state and retry events through the modal boundary', async () => {
     const fetchMock = vi
