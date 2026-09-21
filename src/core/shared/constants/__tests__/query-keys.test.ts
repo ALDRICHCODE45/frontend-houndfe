@@ -10,6 +10,7 @@ import {
   adminPaymentDetailQueryKeys,
 } from '../query-keys'
 import { deliveryRouteQueryKeys } from '../query-keys'
+import { analyticsQueryKeys } from '../query-keys'
 
 describe('promotionQueryKeys', () => {
   it('paginated() returns a tuple starting with "promotions"', () => {
@@ -780,5 +781,57 @@ describe('catalogSettingsQueryKeys (sdd online-catalog-backoffice WU2A)', () => 
       const csKey = catalogSettingsQueryKeys.detail('tenant-1')
       expect(csKey[0]).toBe('catalog-settings')
     })
+  })
+})
+
+// ODD branch-sales-summary A1: tenant-scoped analytics summary keys. The exact-array
+// assertions also prove every key part is a plain, serializable string.
+describe('analyticsQueryKeys (ODD branch-sales-summary A1)', () => {
+  const TENANT = 'tenant-abc'
+  const FROM = '2025-01-01'
+  const TO = '2025-02-01'
+
+  it('returns the exact stable summary prefix for the tenant', () => {
+    expect(analyticsQueryKeys.salesSummaryPrefix(TENANT)).toEqual([
+      'analytics',
+      TENANT,
+      'sales-summary',
+    ])
+    expect(analyticsQueryKeys.salesSummaryPrefix(TENANT)).toEqual(
+      analyticsQueryKeys.salesSummaryPrefix(TENANT),
+    )
+  })
+
+  it('includes tenant, from and to in the exact summary key', () => {
+    expect(analyticsQueryKeys.salesSummary(TENANT, { from: FROM, to: TO })).toEqual([
+      'analytics',
+      TENANT,
+      'sales-summary',
+      FROM,
+      TO,
+    ])
+  })
+
+  it('does not collide across tenant, from or to', () => {
+    const base = analyticsQueryKeys.salesSummary(TENANT, { from: FROM, to: TO })
+
+    expect(analyticsQueryKeys.salesSummary('other', { from: FROM, to: TO })).not.toEqual(base)
+    expect(analyticsQueryKeys.salesSummary(TENANT, { from: '2025-01-02', to: TO })).not.toEqual(
+      base,
+    )
+    expect(analyticsQueryKeys.salesSummary(TENANT, { from: FROM, to: '2025-02-02' })).not.toEqual(
+      base,
+    )
+  })
+
+  it('prefix-matches every date range for the tenant (invalidation contract)', () => {
+    const prefix = analyticsQueryKeys.salesSummaryPrefix(TENANT)
+
+    expect(analyticsQueryKeys.salesSummary(TENANT, { from: FROM, to: TO }).slice(0, 3)).toEqual(
+      prefix,
+    )
+    expect(
+      analyticsQueryKeys.salesSummary(TENANT, { from: TO, to: '2025-03-01' }).slice(0, 3),
+    ).toEqual(prefix)
   })
 })

@@ -85,6 +85,15 @@ export type AppSubject =
   // delivery-routes S1a) assert all four CRUD codes grant and the
   // AppSubject union is locked-step.
   | 'DeliveryRoute'
+  // ODD branch-sales-summary A1: 'Analytics' joins the AppSubject union before
+  // 'all'. Backend endpoint GET /analytics/sales/summary requires the exact
+  // permission `read:Analytics`; registering the subject in the union is half of
+  // the single act that unlocks permission parsing + route guards + navigation
+  // gating (the runtime half is APP_SUBJECTS in authorization/ability.ts).
+  // Silent-drop risk if dropped: parsePermissionCode returns null, the ability
+  // never updates, and the analytics entry/route stay hidden — hence the
+  // explicit no-silent-drop pin-tests in ability.test.ts.
+  | 'Analytics'
   | 'all'
 
 export interface EffectivePermission {

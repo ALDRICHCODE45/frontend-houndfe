@@ -740,3 +740,35 @@ describe('ability with PaymentMethod subject (sdd custom-payment-methods S1, REQ
         expect(subject).toBe('DeliveryRoute')
       })
     })
+
+// ODD branch-sales-summary A1: `read:Analytics` is the exact permission required by
+// GET /analytics/sales/summary. 'Analytics' must be registered in BOTH the compile-time
+// AppSubject union and the runtime APP_SUBJECTS registry; otherwise parsePermissionCode
+// returns null, the ability never updates, and the grant silently disappears.
+describe('ability with Analytics subject (ODD branch-sales-summary A1)', () => {
+  beforeEach(() => {
+    resetAbility()
+  })
+
+  it('grants read on Analytics from read:Analytics', () => {
+    updateAbilityFromPermissionCodes(['read:Analytics'])
+
+    expect(ability.can('read', 'Analytics')).toBe(true)
+  })
+
+  it('malformed sibling permissions do not drop or revoke the valid read:Analytics grant', () => {
+    updateAbilityFromPermissionCodes([
+      'read:Analytics:extra', // extra segment → dropped
+      'fly:Analytics', // unknown action → dropped
+      'read:UnknownSubject', // unknown subject → dropped
+      'read:Analytics', // well-formed → grants
+    ])
+
+    expect(ability.can('read', 'Analytics')).toBe(true)
+  })
+
+  it('validates Analytics is in the AppSubject type union (compile-time guarantee)', () => {
+    const subject: AppSubject = 'Analytics'
+    expect(subject).toBe('Analytics')
+  })
+})

@@ -6,6 +6,7 @@ import type {
   ListSalesParams,
   CustomerSalesHistoryParams,
 } from '@/features/POS/sales/interfaces/sale.types'
+import type { BranchSalesSummaryQuery } from '@/features/analytics/interfaces/branch-sales-summary.types'
 
 export const productQueryKeys = {
   paginated: (tenantId: string) => ['products', tenantId, 'paginated'] as const,
@@ -273,6 +274,18 @@ export const deliveryRouteQueryKeys = {
     ['delivery-routes', tenantId, 'list'] as const,
   detail: (tenantId: string, id: string) =>
     ['delivery-routes', tenantId, 'detail', id] as const,
+}
+
+// ─── Analytics module query keys (ODD branch-sales-summary A1) ───────────────
+//
+// Tenant-scoped. `salesSummaryPrefix` is the stable invalidation prefix that
+// strict-prefix-matches EVERY date range for the active tenant; `salesSummary`
+// is the exact fetch slot, keyed on both calendar boundaries so two ranges can
+// never share a cached payload.
+export const analyticsQueryKeys = {
+  salesSummaryPrefix: (tenantId: string) => ['analytics', tenantId, 'sales-summary'] as const,
+  salesSummary: (tenantId: string, params: BranchSalesSummaryQuery) =>
+    ['analytics', tenantId, 'sales-summary', params.from, params.to] as const,
 }
 
 // ─── Payment-methods POS projection (sdd custom-payment-methods S4A) ──────────

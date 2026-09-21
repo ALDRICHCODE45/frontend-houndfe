@@ -39,6 +39,13 @@ const APP_SUBJECTS: AppSubject[] = [
   // the ability silently drops — hence the explicit no-silent-drop test
   // in ability.test.ts (sdd delivery-routes S1a).
   'DeliveryRoute',
+  // ODD branch-sales-summary A1: 'Analytics' joins the APP_SUBJECTS runtime
+  // registry (before 'all'). Without this entry parsePermissionCode returns null
+  // for every analytics code (`read:Analytics` included) and the ability
+  // silently drops — the sidebar entry and the route guard would stay closed.
+  // The pin-tests in ability.test.ts assert the grant AND that a malformed
+  // sibling permission cannot revoke or drop the well-formed rule.
+  'Analytics',
   'all',
 ]
 
