@@ -184,3 +184,109 @@ describe('BranchSalesSummaryMetrics — accessibility and structure', () => {
     expect(terms[terms.length - 1]!.text()).toBe('Obligaciones de reembolso pendientes')
   })
 })
+
+describe('BranchSalesSummaryMetrics — reference-inspired dashboard hierarchy', () => {
+  it('renders net sales as the dedicated dominant hero of the sales section', () => {
+    const w = mountMetrics(makeSummary({ netSalesCents: 100_000, grossSalesCents: 123_456 }))
+    const salesSection = w.find('[data-testid="branch-summary-sales-section"]')
+    const hero = salesSection.find('[data-testid="branch-summary-net-sales-hero"]')
+
+    expect(hero.exists()).toBe(true)
+    // The hero is the first metric, so it reads as the dominant card.
+    expect(salesSection.findAll('dt')[0]!.text()).toBe('Ventas netas')
+    expect(hero.text()).toContain('Ventas netas')
+    expect(hero.text()).toContain('$1,000.00')
+    // The hero is not duplicated as a secondary grid card.
+    expect(hero.find('[data-testid="branch-summary-kpi-card"]').exists()).toBe(false)
+  })
+
+  it('groups six sales KPIs and two refund KPIs into their own sections', () => {
+    const w = mountMetrics(makeSummary())
+    const salesSection = w.find('[data-testid="branch-summary-sales-section"]')
+    const refundsSection = w.find('[data-testid="branch-summary-refunds-section"]')
+
+    // Six sales aggregates: the net-sales hero plus five secondary KPI cards.
+    expect(salesSection.findAll('dt')).toHaveLength(6)
+    expect(salesSection.findAll('[data-testid="branch-summary-kpi-card"]')).toHaveLength(5)
+    // Two refund aggregates, isolated from the sales flow.
+    expect(refundsSection.findAll('dt')).toHaveLength(2)
+    expect(refundsSection.findAll('[data-testid="branch-summary-refund-card"]')).toHaveLength(2)
+  })
+
+  it('gives every KPI card a restrained decorative icon, never color alone', () => {
+    const w = mountMetrics(makeSummary())
+    const cards = w.findAll(
+      '[data-testid="branch-summary-kpi-card"], [data-testid="branch-summary-refund-card"]',
+    )
+
+    expect(cards).toHaveLength(7)
+    for (const card of cards) {
+      expect(card.find('svg[aria-hidden="true"]').exists()).toBe(true)
+    }
+  })
+
+  it('invents no trend, comparison, target, delta or progress visualization', () => {
+    const w = mountMetrics(
+      makeSummary({
+        netSalesCents: 100_000,
+        grossSalesCents: 123_456,
+        settledRefundsCents: 12_300,
+      }),
+    )
+    const root = w.find('[data-testid="branch-summary-metrics"]')
+
+    expect(root.text()).not.toMatch(
+      /%|\bvs\b|anterior|tendencia|proyecci|comparaci|delta|crecimiento|meta de|promedio diario/i,
+    )
+    expect(root.find('canvas').exists()).toBe(false)
+    expect(root.find('[role="progressbar"]').exists()).toBe(false)
+    expect(root.find('[data-testid*="trend"]').exists()).toBe(false)
+    expect(root.find('[data-testid*="comparison"]').exists()).toBe(false)
+    expect(root.find('[data-testid*="delta"]').exists()).toBe(false)
+    expect(root.find('[data-testid*="sparkline"]').exists()).toBe(false)
+  })
+})
+
+describe('BranchSalesSummaryMetrics — valid description-list content model', () => {
+  it('keeps dt/dd as the only direct children of every dl grouping', () => {
+    const w = mountMetrics(
+      makeSummary({ outstandingDebtCents: 25_500, pendingRefundObligationsCents: 7_700 }),
+    )
+    const lists = w.findAll('dl')
+
+    expect(lists).toHaveLength(2)
+    for (const dl of lists) {
+      const directTags = Array.from(dl.element.children).map((node) => node.tagName.toLowerCase())
+      // A dl may only contain bare dt/dd pairs or <div> groupings.
+      expect(directTags.every((tag) => tag === 'dt' || tag === 'dd' || tag === 'div')).toBe(true)
+
+      const groups = Array.from(dl.element.children).filter(
+        (node) => node.tagName.toLowerCase() === 'div',
+      )
+      expect(groups.length).toBeGreaterThan(0)
+      for (const group of groups) {
+        const groupTags = Array.from(group.children).map((node) => node.tagName.toLowerCase())
+        // A grouping <div> may contain nothing but its own dt/dd, terms first.
+        expect(groupTags.length).toBeGreaterThan(0)
+        expect(groupTags.every((tag) => tag === 'dt' || tag === 'dd')).toBe(true)
+        expect(groupTags).toContain('dt')
+        expect(groupTags).toContain('dd')
+        expect(groupTags.indexOf('dt')).toBeLessThan(groupTags.indexOf('dd'))
+      }
+    }
+  })
+
+  it('nests each decorative icon inside its dt term, never beside it', () => {
+    const w = mountMetrics(makeSummary({ outstandingDebtCents: 1 }))
+    const groups = w.findAll('dl > div')
+
+    expect(groups).toHaveLength(8)
+    for (const group of groups) {
+      const term = group.find('dt')
+      expect(term.exists()).toBe(true)
+      // The icon well lives inside the term, so the grouping div's direct
+      // children stay limited to dt/dd.
+      expect(term.find('svg[aria-hidden="true"]').exists()).toBe(true)
+    }
+  })
+})
