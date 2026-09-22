@@ -109,26 +109,54 @@ const refundsHeadingId = `${uid}-refunds-heading`
     >
       <h2 :id="salesHeadingId" class="text-sm font-semibold text-highlighted">Ventas</h2>
 
-      <dl class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        <!-- Dominant net-sales hero: the highest-signal aggregate leads the layout. -->
+      <!--
+        Top overview row. The caller `controls` slot is first in DOM so narrow
+        widths read the controls above the hero; at `lg` the hero's one-metric
+        `dl` is explicitly placed left and the slotted controls explicitly
+        placed right so they share one adjacent row. The grid only becomes
+        two-column when a controls slot is provided, so the default hero stays
+        full width. The five secondary sales KPIs and the two refunds render in
+        their own full-width responsive grids below this overview.
+      -->
+      <div
+        data-testid="branch-summary-sales-overview"
+        class="grid min-w-0 grid-cols-1 gap-3"
+        :class="$slots.controls ? 'lg:grid-cols-2 lg:items-start' : undefined"
+      >
         <div
-          data-testid="branch-summary-net-sales-hero"
-          class="flex min-w-0 flex-col gap-3 rounded-2xl bg-gradient-to-br from-coco-500 via-coco-600 to-coco-700 p-5 text-white shadow-md ring-1 ring-inset ring-white/15 sm:col-span-2 xl:col-span-3"
+          v-if="$slots.controls"
+          data-testid="branch-summary-controls"
+          class="min-w-0 lg:col-start-2 lg:row-start-1"
         >
-          <dt class="flex min-w-0 flex-col gap-3">
-            <span
-              class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white"
-            >
-              <UIcon name="i-lucide-wallet" aria-hidden="true" class="size-5" />
-            </span>
-            <span class="text-sm font-medium text-coco-100">Ventas netas</span>
-          </dt>
-          <dd class="break-words tabular-nums text-3xl font-semibold leading-tight sm:text-4xl">
-            {{ formatCentsMXN(props.summary.netSalesCents) }}
-          </dd>
+          <slot name="controls" />
         </div>
 
-        <!-- Five secondary sales KPIs complete the six-aggregate sales section. -->
+        <dl class="grid min-w-0 grid-cols-1 gap-3 lg:col-start-1 lg:row-start-1">
+          <!-- Dominant net-sales hero: the highest-signal aggregate leads the layout. -->
+          <div
+            data-testid="branch-summary-net-sales-hero"
+            class="flex min-w-0 flex-col gap-3 rounded-2xl bg-gradient-to-br from-coco-500 via-coco-600 to-coco-700 p-5 text-white shadow-md ring-1 ring-inset ring-white/15"
+          >
+            <dt class="flex min-w-0 flex-col gap-3">
+              <span
+                class="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white"
+              >
+                <UIcon name="i-lucide-wallet" aria-hidden="true" class="size-5" />
+              </span>
+              <span class="text-sm font-medium text-coco-100">Ventas netas</span>
+            </dt>
+            <dd class="break-words tabular-nums text-3xl font-semibold leading-tight sm:text-4xl">
+              {{ formatCentsMXN(props.summary.netSalesCents) }}
+            </dd>
+          </div>
+        </dl>
+      </div>
+
+      <!-- Five secondary sales KPIs complete the six-aggregate sales section. -->
+      <dl
+        data-testid="branch-summary-sales-kpis"
+        class="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3"
+      >
         <div
           v-for="kpi in salesKpis"
           :key="kpi.key"

@@ -15,7 +15,6 @@
  */
 import { computed, ref } from 'vue'
 import {
-  MEXICO_CITY_TIME_ZONE,
   getMexicoCityRangePreset,
   isValidMexicoCityDateRange,
   type MexicoCityRangePresetId,
@@ -46,6 +45,22 @@ const summaryState = useBranchSalesSummary({ tenantId, from, to })
 const hasLocalRangeError = computed(() => !isValidMexicoCityDateRange(from.value, to.value))
 const validationMessage = computed(() =>
   hasLocalRangeError.value ? RANGE_VALIDATION_MESSAGE : undefined,
+)
+
+/**
+ * A summary is on screen for every loaded render (empty included), but only a
+ * loaded, non-empty summary owns the metric hierarchy. Initial loading, local
+ * invalid range, no-data error and idle all fall back to a standalone filters
+ * panel plus their state panel.
+ */
+const hasLoadedSummary = computed(
+  () =>
+    Boolean(summaryState.summary.value) &&
+    !summaryState.isInitialLoading.value &&
+    !hasLocalRangeError.value,
+)
+const metricsSummary = computed(() =>
+  hasLoadedSummary.value && !summaryState.isEmpty.value ? summaryState.summary.value : undefined,
 )
 
 /** HTTP status is the ONLY error signal consumed for presentation copy. */
@@ -84,7 +99,7 @@ function onRetry() {
 <template>
   <div
     data-testid="branch-sales-summary-view"
-    class="flex w-full min-w-0 max-w-full flex-col gap-4 px-3 py-3 sm:px-4 sm:py-4 lg:px-6 lg:py-6"
+    class="mx-auto flex w-full min-w-0 max-w-full flex-col gap-4 px-3 py-3 sm:px-4 sm:py-4 lg:max-w-7xl lg:px-6 lg:py-6"
   >
     <UCard
       data-testid="branch-summary-card"
@@ -97,11 +112,7 @@ function onRetry() {
           </div>
           <div class="min-w-0">
             <h1 class="text-lg font-semibold text-highlighted">Resumen de ventas</h1>
-            <p class="mt-0.5 text-sm text-muted">
-              Periodo acotado al calendario de Ciudad de México ({{ MEXICO_CITY_TIME_ZONE }}):
-              incluye el día «Desde» y excluye el día «Hasta».
-            </p>
-            <p data-testid="branch-summary-range" class="mt-1 text-xs text-muted">
+            <p data-testid="branch-summary-range" class="mt-0.5 text-xs text-muted">
               {{ from }} → {{ to }}
             </p>
           </div>
@@ -109,63 +120,11 @@ function onRetry() {
       </template>
 
       <div class="flex min-w-0 flex-col gap-4">
-        <BranchSalesSummaryFilters
-          :from="from"
-          :to="to"
-          :loading="summaryState.isInitialLoading.value"
-          :validation-message="validationMessage"
-          @update:from="onFromChange"
-          @update:to="onToChange"
-          @preset="onPreset"
-        />
-
-        <!-- Initial load: accessible skeleton, never synthetic metric values. -->
-        <div
-          v-if="summaryState.isInitialLoading.value"
-          data-testid="branch-summary-loading"
-          role="status"
-          aria-busy="true"
-          class="flex min-w-0 flex-col gap-3"
-        >
-          <span class="sr-only">Cargando el resumen de ventas…</span>
-          <USkeleton class="h-5 w-1/3" />
-          <div class="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-            <USkeleton v-for="i in 6" :key="i" class="h-16 w-full" />
-          </div>
-        </div>
-
-        <!-- Local invalid range: the filters own the alert; no new-range claim. -->
-        <p
-          v-else-if="hasLocalRangeError"
-          data-testid="branch-summary-invalid"
-          role="status"
-          class="text-sm text-muted"
-        >
-          Ajusta el periodo para volver a consultar el resumen de ventas.
-        </p>
-
-        <!-- Error with no data: status-aware copy and one guarded retry. -->
-        <div
-          v-else-if="summaryState.isError.value && !summaryState.summary.value"
-          data-testid="branch-summary-error"
-          role="alert"
-          class="flex min-w-0 flex-col items-start gap-3 rounded-lg border border-error/30 bg-error/5 p-4"
-        >
-          <p data-testid="branch-summary-error-message" class="text-sm text-error">
-            {{ errorMessage }}
-          </p>
-          <UButton
-            color="primary"
-            data-testid="branch-summary-retry"
-            class="min-h-11"
-            @click="onRetry"
-          >
-            Reintentar
-          </UButton>
-        </div>
-
-        <template v-else-if="summaryState.summary.value">
-          <!-- Retained-data refresh: metrics stay visible and announced politely. -->
+        <!--
+          Retained-data indicators only exist while a summary is already on
+          screen, so the empty result and the live metrics both keep them.
+        -->
+        <template v-if="hasLoadedSummary">
           <div
             v-if="summaryState.isRefetching.value"
             data-testid="branch-summary-refreshing"
@@ -200,11 +159,94 @@ function onRetry() {
               Reintentar
             </UButton>
           </div>
+        </template>
+
+        <!--
+          Loaded non-empty metrics own the single filters instance through the
+          metrics `controls` slot. That places the controls adjacent to the
+          net-sales hero at `lg` while the secondary KPI and refund grids span
+          the full dashboard width below the overview.
+        -->
+        <BranchSalesSummaryMetrics v-if="metricsSummary" :summary="metricsSummary">
+          <template #controls>
+            <BranchSalesSummaryFilters
+              :from="from"
+              :to="to"
+              :loading="summaryState.isInitialLoading.value"
+              :validation-message="validationMessage"
+              @update:from="onFromChange"
+              @update:to="onToChange"
+              @preset="onPreset"
+            />
+          </template>
+        </BranchSalesSummaryMetrics>
+
+        <!--
+          Every non-metric state (loading, invalid, no-data error, empty, idle)
+          keeps exactly one standalone filters panel above its state panel. This
+          branch and the metrics slot above are mutually exclusive, so two
+          filters panels never render at once.
+        -->
+        <template v-else>
+          <BranchSalesSummaryFilters
+            :from="from"
+            :to="to"
+            :loading="summaryState.isInitialLoading.value"
+            :validation-message="validationMessage"
+            @update:from="onFromChange"
+            @update:to="onToChange"
+            @preset="onPreset"
+          />
+
+          <!-- Initial load: accessible skeleton, never synthetic metric values. -->
+          <div
+            v-if="summaryState.isInitialLoading.value"
+            data-testid="branch-summary-loading"
+            role="status"
+            aria-busy="true"
+            class="flex min-w-0 flex-col gap-3"
+          >
+            <span class="sr-only">Cargando el resumen de ventas…</span>
+            <USkeleton class="h-5 w-1/3" />
+            <div class="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+              <USkeleton v-for="i in 6" :key="i" class="h-16 w-full" />
+            </div>
+          </div>
+
+          <!-- Local invalid range: the filters own the alert; no new-range claim. -->
+          <p
+            v-else-if="hasLocalRangeError"
+            data-testid="branch-summary-invalid"
+            role="status"
+            class="text-sm text-muted"
+          >
+            Ajusta el periodo para volver a consultar el resumen de ventas.
+          </p>
+
+          <!-- Error with no data: status-aware copy and one guarded retry. -->
+          <div
+            v-else-if="summaryState.isError.value && !summaryState.summary.value"
+            data-testid="branch-summary-error"
+            role="alert"
+            class="flex min-w-0 flex-col items-start gap-3 rounded-lg border border-error/30 bg-error/5 p-4"
+          >
+            <p data-testid="branch-summary-error-message" class="text-sm text-error">
+              {{ errorMessage }}
+            </p>
+            <UButton
+              color="primary"
+              data-testid="branch-summary-retry"
+              class="min-h-11"
+              @click="onRetry"
+            >
+              Reintentar
+            </UButton>
+          </div>
 
           <!-- Global empty keys off the composable `isEmpty` only, so refund-only
                activity (non-zero refunds, zero sales) still reaches metrics. -->
           <div
-            v-if="summaryState.isEmpty.value"
+            v-else-if="summaryState.summary.value"
             data-testid="branch-summary-empty"
             role="status"
             class="rounded-lg border border-default bg-elevated/40 p-6 text-center"
@@ -215,13 +257,11 @@ function onRetry() {
             </p>
           </div>
 
-          <BranchSalesSummaryMetrics v-else :summary="summaryState.summary.value" />
+          <!-- No active query (for example, no tenant context yet). -->
+          <p v-else data-testid="branch-summary-idle" role="status" class="text-sm text-muted">
+            No hay una consulta activa. Inicia sesión con una sucursal para consultar el resumen.
+          </p>
         </template>
-
-        <!-- No active query (for example, no tenant context yet). -->
-        <p v-else data-testid="branch-summary-idle" role="status" class="text-sm text-muted">
-          No hay una consulta activa. Inicia sesión con una sucursal para consultar el resumen.
-        </p>
       </div>
     </UCard>
   </div>

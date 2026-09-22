@@ -238,23 +238,119 @@ describe('BranchSalesSummaryView — filter operability', () => {
   })
 })
 
-describe('BranchSalesSummaryView — responsive shell and headings', () => {
-  it('pins a flex/min-w-0/max-w-full shell with one accessible heading', () => {
+describe('BranchSalesSummaryView — centered two-column composition', () => {
+  it('centers and constrains the page shell without losing overflow safety', () => {
     summaryRef.value = NON_EMPTY_PAYLOAD
     const view = mountView()
 
     const root = view.find('[data-testid="branch-sales-summary-view"]')
     expect(root.classes()).toEqual(
-      expect.arrayContaining(['flex', 'flex-col', 'w-full', 'min-w-0']),
+      expect.arrayContaining(['mx-auto', 'flex', 'flex-col', 'w-full', 'min-w-0']),
     )
     expect(root.classes()).toEqual(expect.arrayContaining(['max-w-full', 'sm:px-4', 'lg:px-6']))
+    expect(root.classes().some((token) => /^lg:max-w-/.test(token))).toBe(true)
     const card = view.find('[data-testid="branch-summary-card"]')
     expect(card.classes()).toEqual(
       expect.arrayContaining(['w-full', 'min-w-0', 'max-w-full', 'overflow-hidden']),
     )
+  })
+
+  it('keeps one compact heading line and drops the duplicated timezone prose', () => {
+    summaryRef.value = NON_EMPTY_PAYLOAD
+    const view = mountView()
+
     const headings = view.findAll('h1')
     expect(headings).toHaveLength(1)
     expect(headings[0]!.text()).toBe('Resumen de ventas')
-    expect(card.text()).toContain('America/Mexico_City')
+    expect(view.find('[data-testid="branch-summary-range"]').exists()).toBe(true)
+
+    const cardText = view.find('[data-testid="branch-summary-card"]').text()
+    expect(cardText).not.toContain('Periodo acotado al calendario')
+    expect(cardText).not.toContain('America/Mexico_City')
+  })
+
+  it('routes the single filters panel through the metrics overview as the adjacent right column at lg', () => {
+    summaryRef.value = NON_EMPTY_PAYLOAD
+    const view = mountView()
+
+    expect(view.findAll('[data-testid="branch-summary-filters"]')).toHaveLength(1)
+
+    const overview = view.find('[data-testid="branch-summary-sales-overview"]')
+    expect(overview.exists()).toBe(true)
+    expect(overview.classes()).toContain('lg:grid-cols-2')
+
+    const controls = overview.find('[data-testid="branch-summary-controls"]')
+    const hero = overview.find('[data-testid="branch-summary-net-sales-hero"]')
+    expect(controls.exists()).toBe(true)
+    expect(hero.exists()).toBe(true)
+    expect(controls.find('[data-testid="branch-summary-filters"]').exists()).toBe(true)
+    expect(controls.classes()).toContain('lg:col-start-2')
+    expect(hero.element.closest('dl')!.classList.contains('lg:col-start-1')).toBe(true)
+
+    // Controls are first in DOM so narrow viewports read them above the hero.
+    expect(Array.from(overview.element.children)[0]!.getAttribute('data-testid')).toBe(
+      'branch-summary-controls',
+    )
+  })
+
+  it('keeps secondary sales KPIs and refunds outside the two-column overview, full width below', () => {
+    summaryRef.value = NON_EMPTY_PAYLOAD
+    const view = mountView()
+
+    const overview = view.find('[data-testid="branch-summary-sales-overview"]')
+    const kpis = view.find('[data-testid="branch-summary-sales-kpis"]')
+    const refunds = view.find('[data-testid="branch-summary-refunds-section"]')
+
+    // The prior half-width regression clamped these into the overview grid.
+    expect(overview.element.contains(kpis.element)).toBe(false)
+    expect(overview.element.contains(refunds.element)).toBe(false)
+    expect(kpis.classes()).toEqual(
+      expect.arrayContaining(['grid-cols-1', 'sm:grid-cols-2', 'xl:grid-cols-3']),
+    )
+    expect(kpis.findAll('[data-testid="branch-summary-kpi-card"]')).toHaveLength(5)
+    expect(refunds.findAll('[data-testid="branch-summary-refund-card"]')).toHaveLength(2)
+    // Six sales metric groups stay discoverable across the whole sales section.
+    expect(
+      view.find('[data-testid="branch-summary-sales-section"]').findAll('dl > div'),
+    ).toHaveLength(6)
+  })
+
+  it('keeps the only filters control available across loading, error, empty, idle and loaded states', () => {
+    state.isInitialLoading.value = true
+    const loading = mountView()
+    expect(loading.findAll('[data-testid="branch-summary-filters"]')).toHaveLength(1)
+    expect(filterInput(loading, 'branch-summary-from').exists()).toBe(true)
+    // No loaded metrics/controls exist while the initial skeleton shows.
+    expect(loading.find('[data-testid="branch-summary-controls"]').exists()).toBe(false)
+    expect(loading.find('[data-testid="branch-summary-sales-overview"]').exists()).toBe(false)
+
+    resetMocks()
+    state.isError.value = true
+    state.error.value = { response: { status: 400 } }
+    const errored = mountView()
+    expect(errored.findAll('[data-testid="branch-summary-filters"]')).toHaveLength(1)
+    expect(errored.find('[data-testid="branch-summary-controls"]').exists()).toBe(false)
+
+    resetMocks()
+    summaryRef.value = makePayload()
+    const empty = mountView()
+    expect(empty.findAll('[data-testid="branch-summary-filters"]')).toHaveLength(1)
+    expect(empty.find('[data-testid="branch-summary-empty"]').exists()).toBe(true)
+    expect(empty.find('[data-testid="branch-summary-controls"]').exists()).toBe(false)
+
+    resetMocks()
+    const idle = mountView()
+    expect(idle.findAll('[data-testid="branch-summary-filters"]')).toHaveLength(1)
+    expect(idle.find('[data-testid="branch-summary-idle"]').exists()).toBe(true)
+    expect(idle.find('[data-testid="branch-summary-controls"]').exists()).toBe(false)
+
+    resetMocks()
+    summaryRef.value = NON_EMPTY_PAYLOAD
+    state.isRefetching.value = true
+    const loaded = mountView()
+    expect(loaded.findAll('[data-testid="branch-summary-filters"]')).toHaveLength(1)
+    expect(loaded.find('[data-testid="branch-summary-controls"]').exists()).toBe(true)
+    expect(loaded.find('[data-testid="branch-summary-metrics"]').exists()).toBe(true)
+    expect(loaded.find('[data-testid="branch-summary-refreshing"]').exists()).toBe(true)
   })
 })

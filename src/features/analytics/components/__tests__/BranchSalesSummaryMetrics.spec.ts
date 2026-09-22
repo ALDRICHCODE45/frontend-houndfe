@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { h } from 'vue'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import type { BranchSalesSummaryResponse } from '../../interfaces/branch-sales-summary.types'
 import BranchSalesSummaryMetrics from '../BranchSalesSummaryMetrics.vue'
@@ -155,7 +156,7 @@ describe('BranchSalesSummaryMetrics — accessibility and structure', () => {
 
     expect(w.findAll('h2').map((heading) => heading.text())).toEqual(['Ventas', 'Reembolsos'])
     expect(w.findAll('section')).toHaveLength(2)
-    expect(w.findAll('dl')).toHaveLength(2)
+    expect(w.findAll('dl')).toHaveLength(3)
 
     for (const section of w.findAll('section')) {
       const headingId = section.find('h2').attributes('id')
@@ -254,7 +255,7 @@ describe('BranchSalesSummaryMetrics — valid description-list content model', (
     )
     const lists = w.findAll('dl')
 
-    expect(lists).toHaveLength(2)
+    expect(lists).toHaveLength(3)
     for (const dl of lists) {
       const directTags = Array.from(dl.element.children).map((node) => node.tagName.toLowerCase())
       // A dl may only contain bare dt/dd pairs or <div> groupings.
@@ -288,5 +289,66 @@ describe('BranchSalesSummaryMetrics — valid description-list content model', (
       // children stay limited to dt/dd.
       expect(term.find('svg[aria-hidden="true"]').exists()).toBe(true)
     }
+  })
+})
+
+describe('BranchSalesSummaryMetrics — adjacent overview and full-width lower grids', () => {
+  function mountWithControls(summary: BranchSalesSummaryResponse) {
+    return mount(BranchSalesSummaryMetrics, {
+      props: { summary },
+      slots: { controls: () => h('div', { 'data-testid': 'slot-controls' }, 'controls') },
+    })
+  }
+
+  it('shares one top overview grid between the controls slot and the hero, hero left / controls right at lg', () => {
+    const w = mountWithControls(makeSummary({ netSalesCents: 100_000 }))
+    const overview = w.find('[data-testid="branch-summary-sales-overview"]')
+
+    expect(overview.exists()).toBe(true)
+    expect(overview.classes()).toEqual(
+      expect.arrayContaining(['grid', 'grid-cols-1', 'lg:grid-cols-2']),
+    )
+    expect(overview.findAll('[data-testid="slot-controls"]')).toHaveLength(1)
+
+    const controls = overview.find('[data-testid="branch-summary-controls"]')
+    const hero = overview.find('[data-testid="branch-summary-net-sales-hero"]')
+    expect(controls.exists()).toBe(true)
+    expect(hero.exists()).toBe(true)
+    expect(controls.classes()).toContain('lg:col-start-2')
+    // The hero's own one-metric dl is placed left at lg.
+    expect(overview.find('dl').classes()).toContain('lg:col-start-1')
+
+    // Controls come first in DOM so narrow widths read them above the hero.
+    expect(Array.from(overview.element.children)[0]!.getAttribute('data-testid')).toBe(
+      'branch-summary-controls',
+    )
+  })
+
+  it('keeps the five secondary sales and two refunds outside the two-column overview', () => {
+    const w = mountWithControls(makeSummary({ settledRefundsCents: 12_300 }))
+    const overview = w.find('[data-testid="branch-summary-sales-overview"]')
+    const salesKpis = w.find('[data-testid="branch-summary-sales-kpis"]')
+    const refunds = w.find('[data-testid="branch-summary-refunds-section"]')
+
+    expect(overview.element.contains(salesKpis.element)).toBe(false)
+    expect(overview.element.contains(refunds.element)).toBe(false)
+    expect(salesKpis.classes()).toEqual(
+      expect.arrayContaining(['grid-cols-1', 'sm:grid-cols-2', 'xl:grid-cols-3']),
+    )
+    expect(salesKpis.findAll('[data-testid="branch-summary-kpi-card"]')).toHaveLength(5)
+    expect(refunds.findAll('[data-testid="branch-summary-refund-card"]')).toHaveLength(2)
+    // Six sales metric groups stay discoverable across the whole sales section.
+    expect(w.find('[data-testid="branch-summary-sales-section"]').findAll('dl > div')).toHaveLength(
+      6,
+    )
+  })
+
+  it('keeps the default hero full width when no controls slot is provided', () => {
+    const w = mountMetrics(makeSummary())
+    const overview = w.find('[data-testid="branch-summary-sales-overview"]')
+
+    expect(w.find('[data-testid="branch-summary-controls"]').exists()).toBe(false)
+    expect(overview.classes()).not.toContain('lg:grid-cols-2')
+    expect(overview.find('[data-testid="branch-summary-net-sales-hero"]').exists()).toBe(true)
   })
 })
