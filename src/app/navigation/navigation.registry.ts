@@ -31,24 +31,11 @@ export const navigationGroups: NavGroup[] = [
       { id: 'pos-delivery-routes', label: 'Rutas de entrega', icon: 'i-lucide-truck', to: '/pos/rutas-de-entrega', permission: ['read', 'DeliveryRoute'] },
     ],
   },
-  {
-    id: 'analytics',
-    label: 'Analítica',
-    icon: 'i-lucide-chart-column',
-    defaultOpen: true,
-    children: [
-      // ODD branch-sales-summary A3d: sidebar entry gated by read:Analytics.
-      // Hidden for users without the permission; the route guard repeats the
-      // same check at /analytics/resumen-ventas.
-      {
-        id: 'analytics-sales-summary',
-        label: 'Resumen de ventas',
-        icon: 'i-lucide-chart-line',
-        to: '/analytics/resumen-ventas',
-        permission: ['read', 'Analytics'],
-      },
-    ],
-  },
+  // ODD dashboard-analytics D1: the "Analítica" navigation group and the
+  // "/analytics/resumen-ventas" entry were removed. The Dashboard nav item
+  // is exported from `navigation.landing.ts` as a top-level extra consumed by
+  // the sidebar and the command palette. See resolveLandingDestination() for
+  // the canonical first-accessible destination contract.
   {
     id: 'rrhh',
     label: 'RR.HH.',

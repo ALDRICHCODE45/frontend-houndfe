@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import { resolveLandingDestinationForAuth } from '@/app/navigation/navigation.landing'
 
 const INVALID_AUTH_STATE_MESSAGE = 'Estado de autenticación inválido para seleccionar sucursal'
 
@@ -63,7 +64,9 @@ export function useTenantSelection() {
         return
       }
 
-      await router.push('/')
+      // ODD dashboard-analytics D1: tenant-selection success routes to the
+      // shared resolver's first permitted destination — never hardcoded "/".
+      await router.push(resolveLandingDestinationForAuth(authStore))
     } catch (e: unknown) {
       if (isHttpErrorPayload(e) && e.response?.status === 401) {
         await router.push({ path: '/login', query: { expired: 'tenant' } })

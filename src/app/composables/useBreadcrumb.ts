@@ -1,6 +1,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { navigationGroups } from '@/app/navigation/navigation.registry'
+import { DASHBOARD_PATH } from '@/app/navigation/navigation.landing'
 
 /**
  * Minimal first-level breadcrumb item. Compatible with Nuxt UI `<UBreadcrumb>`.
@@ -21,13 +22,15 @@ export interface BreadcrumbItem {
  * label map.
  *
  * Matching rules:
- * - `/` (or empty) → single item `Dashboard`.
+ * - `/dashboard` (or empty) → single item `Dashboard` targeting `/dashboard`.
+ *   The previous home route "/" was removed (ODD D1) so it is no longer a
+ *   breadcrumb target.
  * - A child whose `to` is an exact match or a path-prefix of the current route
  *   (covers sub-routes like `/:id`, `/nueva`, `/crear/:type`). When several
  *   children match, the most specific (longest `to`) wins, so e.g.
  *   `/admin/colaboradores/documentos-vencer` resolves to `RR.HH. / Vencimientos`
  *   and not to the shorter `RR.HH. / Colaboradores`.
- * - No match → fallback to `Dashboard`.
+ * - No match → fallback to `Dashboard` targeting `/dashboard`.
  */
 export const useBreadcrumb = () => {
   const route = useRoute()
@@ -35,8 +38,8 @@ export const useBreadcrumb = () => {
   const breadcrumb = computed<BreadcrumbItem[]>(() => {
     const path = route.path
 
-    if (path === '/' || path === '') {
-      return [{ label: 'Dashboard', to: '/' }]
+    if (path === DASHBOARD_PATH || path === '') {
+      return [{ label: 'Dashboard', to: DASHBOARD_PATH }]
     }
 
     let best: { groupLabel: string; childLabel: string; childTo: string } | null = null
@@ -60,13 +63,10 @@ export const useBreadcrumb = () => {
     }
 
     if (best) {
-      return [
-        { label: best.groupLabel },
-        { label: best.childLabel, to: best.childTo },
-      ]
+      return [{ label: best.groupLabel }, { label: best.childLabel, to: best.childTo }]
     }
 
-    return [{ label: 'Dashboard', to: '/' }]
+    return [{ label: 'Dashboard', to: DASHBOARD_PATH }]
   })
 
   return { breadcrumb }

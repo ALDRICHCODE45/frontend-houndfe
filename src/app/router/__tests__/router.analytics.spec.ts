@@ -1,15 +1,17 @@
-// router.analytics.spec.ts — STRICT-TDD tests for the branch sales summary
-// route (ODD branch-sales-summary A3d).
+// router.analytics.spec.ts — STRICT-TDD tests for the sole Dashboard route at
+// /dashboard (ODD dashboard-analytics D1).
 //
 // Mirrors router.catalogBackoffice.spec.ts: mock the auth store at the
-// boundary, import the router, push to the route, assert meta + redirects.
+// boundary, import the router, push to the route, assert meta + redirects +
+// not-found fall-throughs, and (for the lazy-resolver case) actually invoke
+// the lazy component loader and assert the resolved module/default is the
+// BranchSalesSummaryView component.
 //
-// The route:
-//   path: /analytics/resumen-ventas
-//   name: analytics-sales-summary
-//   meta.layout: 'dashboard'
-//   meta.permission: ['read', 'Analytics']
-//   NO skipTenantCheck, NO requiresSuperAdmin, NO public.
+// Drift this suite must fail on: wrong path/name/layout/permission, a return
+// of /analytics/resumen-ventas, a return of "/" as an application route, a
+// super-admin gate, a public flag, a /dashboard open redirect for a denied
+// user, or a substitution of the route component with anything other than the
+// BranchSalesSummaryView module.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -38,10 +40,9 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
   useAuthStore: () => mockAuthStore,
 }))
 
-const ANALYTICS_PATH = '/analytics/resumen-ventas'
-const ANALYTICS_NAME = 'analytics-sales-summary'
+const DASHBOARD_PATH = '/dashboard'
+const DASHBOARD_NAME = 'dashboard'
 
-/** Authenticate with an authenticated, tenant-scoped session. */
 function authenticate() {
   mockAuthStore.accessToken = 'access-token'
   mockAuthStore.user = { id: 'user-1' }
@@ -51,14 +52,13 @@ function authenticate() {
   mockAuthStore.currentTenant = { id: 'tenant-1', name: 'Centro', slug: 'centro' }
 }
 
-/** Grant exactly `read:Analytics`; no other subject. */
 function grantAnalyticsRead() {
   mockAuthStore.userCan.mockImplementation(
     (action: string, subject: string) => action === 'read' && subject === 'Analytics',
   )
 }
 
-describe('router — /analytics/resumen-ventas (ODD branch-sales-summary A3d)', () => {
+describe('router — /dashboard (ODD dashboard-analytics D1)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockAuthStore.accessToken = null
@@ -72,87 +72,79 @@ describe('router — /analytics/resumen-ventas (ODD branch-sales-summary A3d)', 
     mockAuthStore.userCan.mockReturnValue(false)
   })
 
-  it('resolves the exact path, name and meta when read:Analytics is granted', async () => {
+  it('resolves exact path, name, layout and permission; no super-admin, skipTenant or public', async () => {
     authenticate()
     grantAnalyticsRead()
 
     const { default: router } = await import('../index')
 
-    await router.push(ANALYTICS_PATH)
+    await router.push(DASHBOARD_PATH)
     await router.isReady()
 
-    expect(router.currentRoute.value.path).toBe(ANALYTICS_PATH)
-    expect(router.currentRoute.value.name).toBe(ANALYTICS_NAME)
+    expect(router.currentRoute.value.path).toBe(DASHBOARD_PATH)
+    expect(router.currentRoute.value.name).toBe(DASHBOARD_NAME)
     expect(router.currentRoute.value.meta.layout).toBe('dashboard')
     expect(router.currentRoute.value.meta.permission).toEqual(['read', 'Analytics'])
-  })
-
-  it('does not gate the route behind super-admin or tenant skip', async () => {
-    authenticate()
-    grantAnalyticsRead()
-
-    const { default: router } = await import('../index')
-
-    await router.push(ANALYTICS_PATH)
-    await router.isReady()
-
     expect(router.currentRoute.value.meta.requiresSuperAdmin).toBeUndefined()
     expect(router.currentRoute.value.meta.skipTenantCheck).toBeUndefined()
     expect(router.currentRoute.value.meta.public).toBeUndefined()
   })
 
-  it('lazy-resolves to the committed BranchSalesSummaryView', async () => {
+  it('lazy loader resolves to the BranchSalesSummaryView component (module identity)', async () => {
     authenticate()
     grantAnalyticsRead()
 
     const { default: router } = await import('../index')
-
-    await router.push(ANALYTICS_PATH)
+    await router.push(DASHBOARD_PATH)
     await router.isReady()
 
     const matched = router.currentRoute.value.matched[0]
     expect(matched).toBeDefined()
-
-    // Lazy routes store `() => Promise<module>`; vue-router may already have
-    // resolved it to the loaded component object after navigation. Normalize
-    // both shapes so the expect stays unconditional (no-conditional-expect).
     const raw = matched!.components!.default as unknown
-    const resolved =
-      typeof raw === 'function' ? await (raw as () => Promise<{ default?: unknown }>)() : raw
+    // vue-router may leave the loader function in place or have already
+    // resolved it to the loaded module. Handle both shapes unconditionally.
+    const resolved = typeof raw === 'function' ? await (raw as () => Promise<unknown>)() : raw
     const component = (resolved as { default?: unknown }).default ?? resolved
-
     const expected = (await import('@/features/analytics/views/BranchSalesSummaryView.vue')).default
     expect(component).toBe(expected)
   })
 
-  it('redirects to /403 when read:Analytics is absent', async () => {
+  it.each([
+    {
+      label: 'redirects to /403 when read:Analytics is absent',
+      userCan: () => false,
+      expected: '/403',
+    },
+    {
+      label: 'does not treat an unrelated read grant as route access',
+      userCan: (action: string, subject: string) =>
+        action === 'read' && subject === 'NotificationConfig',
+      expected: '/403',
+    },
+  ])('$label', async ({ userCan, expected }) => {
     authenticate()
-    mockAuthStore.userCan.mockReturnValue(false)
+    mockAuthStore.userCan.mockImplementation(userCan)
 
     const { default: router } = await import('../index')
-
-    // Reach a permitted route first so the guard re-evaluates on the push.
     await router.push('/login')
     await router.isReady()
-    await router.push(ANALYTICS_PATH)
+    await router.push(DASHBOARD_PATH)
     await router.isReady()
 
-    expect(router.currentRoute.value.path).toBe('/403')
+    expect(router.currentRoute.value.path).toBe(expected)
   })
 
-  it('does not treat an unrelated read grant as route access', async () => {
-    authenticate()
-    mockAuthStore.userCan.mockImplementation(
-      (action: string, subject: string) => action === 'read' && subject === 'NotificationConfig',
-    )
-
-    const { default: router } = await import('../index')
-
-    await router.push('/login')
-    await router.isReady()
-    await router.push(ANALYTICS_PATH)
-    await router.isReady()
-
-    expect(router.currentRoute.value.path).toBe('/403')
-  })
+  it.each([
+    { path: '/', name: 'not-found' },
+    { path: '/analytics/resumen-ventas', name: 'not-found' },
+  ])(
+    '"$path" is not an application route and falls through to NotFoundView',
+    async ({ path, name }) => {
+      const { default: router } = await import('../index')
+      await router.push(path)
+      await router.isReady()
+      expect(router.currentRoute.value.path).toBe(path)
+      expect(router.currentRoute.value.name).toBe(name)
+    },
+  )
 })

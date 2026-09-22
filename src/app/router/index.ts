@@ -1,13 +1,14 @@
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import type { AppAction, AppSubject } from '@/features/auth/interfaces/auth.types'
 import { createRouter, createWebHistory } from 'vue-router'
+import { resolveLandingDestination } from '@/app/navigation/navigation.landing'
+import { buildCanAccess } from '@/app/navigation/navigation.access'
 
 type RoutePermission = [AppAction, AppSubject]
 
 const LoginView = () => import('@/features/auth/login/views/LoginView.vue')
 const TenantSelectionView = () =>
   import('@/features/auth/tenant-selection/views/TenantSelectionView.vue')
-const DashboardHomeView = () => import('@/features/dashboard/home/views/DashboardHomeView.vue')
 const ProductsView = () => import('@/features/POS/products/views/ProductsView.vue')
 const ProductDetailView = () => import('@/features/POS/products/views/ProductDetailView.vue')
 const OrdersView = () => import('@/features/POS/orders/views/OrdersView.vue')
@@ -97,12 +98,9 @@ const router = createRouter({
       component: TenantSelectionView,
       meta: { layout: 'auth', requiresAuth: true, skipTenantCheck: true },
     },
-    {
-      path: '/',
-      name: 'home',
-      component: DashboardHomeView,
-      meta: { layout: 'dashboard' },
-    },
+    // ODD dashboard-analytics D1: the "/" route was removed entirely; it is
+    // neither an application route nor an alias for /dashboard. Direct
+    // navigation to "/" now falls through to the catch-all NotFoundView.
     {
       path: '/pos/products',
       name: 'pos-products',
@@ -374,10 +372,14 @@ const router = createRouter({
         permission: ['read', 'TenantCatalogSettings'] as RoutePermission,
       },
     },
-    // ─── Branch sales summary (ODD branch-sales-summary A3d) ───────────────
+    // ─── Dashboard (ODD dashboard-analytics D1) ─────────────────────────────
+    // Sole Dashboard/Analytics destination. Until D2 composes the visual
+    // dashboard home, /dashboard renders the committed BranchSalesSummaryView
+    // so the route already exposes real backend-backed content. The exact
+    // read:Analytics gate repeats in nav and resolver.
     {
-      path: '/analytics/resumen-ventas',
-      name: 'analytics-sales-summary',
+      path: '/dashboard',
+      name: 'dashboard',
       component: BranchSalesSummaryView,
       meta: {
         layout: 'dashboard',
@@ -456,7 +458,10 @@ router.beforeEach(async (to) => {
   }
 
   if (to.path === '/login' && authStore.isAuthenticated) {
-    return '/'
+    // ODD dashboard-analytics D1: authenticated /login redirect now resolves
+    // the first permitted application destination via the shared resolver
+    // instead of hardcoding "/". Permissions are guaranteed loaded above.
+    return resolveLandingDestination(buildCanAccess(authStore))
   }
 
   if (to.meta.requiresSuperAdmin === true && !authStore.isSuperAdmin) {
