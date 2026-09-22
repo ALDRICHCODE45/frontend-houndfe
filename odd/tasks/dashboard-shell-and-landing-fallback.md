@@ -33,7 +33,7 @@ Reference evidence:
 ## Tasks
 
 - [x] **S1 — Adopt the wide Products page shell.** Removed the centered `lg:max-w-7xl` Dashboard wrapper and adopted the Products full-width `md:px-10` page-card geometry, zero-padding Coco neutral card body, explicit responsive inner padding, and shared title/subtitle header while preserving the exact range separately. All Analytics data/state composition remains unchanged. Independent verifier `mud2f849-1o-q27d` passed 30/30 view/error tests, 29/29 metric/filter tests, type-check, scoped Prettier, whitespace, and exact two-file scope. Native medium-risk review `review-12f0d627fa5c888c` approved and was acknowledged; committed as `134544f feat(dashboard): widen analytics page shell`. Route: delegated bounded writer.
-- [ ] **S2 — Make explicit post-auth redirects permission-aware.** Add a pure route-access decision around resolved route metadata and use it in login so a real but unauthorized redirect falls back through the shared landing resolver. Preserve valid authorized redirects, removed-route fallback, tenant selection, direct forbidden-route `/403`, and first-permitted ordering. Add mutation-sensitive tests. Route: delegated bounded writer.
+- [x] **S2 — Make explicit post-auth redirects permission-aware.** Added a router-agnostic access-metadata helper and changed login to honor a saved redirect only when the authenticated identity satisfies the resolved route's permission and super-admin metadata. A non-Analytics user returning through `?redirect=/dashboard` now falls back to the first permitted registry route while direct forbidden access remains `/403`. Independent verifier `mud2y6yh-1q-jhdb` passed 55/55 navigation, login, and router tests, type-check, scoped Prettier, whitespace, and exact four-file scope. Native high-risk review `review-862567eb2883ee2e` approved and was acknowledged with one informational readability suggestion about duplicated test metadata typing; committed as `9b23de5 fix(auth): fall back from forbidden login redirects`. Route: delegated bounded writer.
 - [ ] **S3 — Verify and close.** Run focused Analytics/auth/navigation/router tests, type-check, build, scoped formatting, whitespace, and responsive browser evidence; run native review and record commits. Route: independent verifier.
 
 ## Acceptance contract
@@ -88,4 +88,4 @@ pnpm exec playwright test --config=playwright.responsive.config.ts e2e/responsiv
 
 ## Current status
 
-Exploration is complete. S1 is committed after independent verification and acknowledged native review. S2 is ready for implementation.
+Exploration is complete. S1 and S2 are committed after independent verification and acknowledged native review. S3 final verification and closure remain.
