@@ -3,7 +3,7 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { mount } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
 import { saleApi } from '../../api/sale.api'
-import { saleQueryKeys } from '@/core/shared/constants/query-keys'
+import { analyticsQueryKeys, saleQueryKeys } from '@/core/shared/constants/query-keys'
 import {
   appendSaleToCache,
   removeSaleFromCache,
@@ -397,6 +397,8 @@ describe('useSalesDrafts - pure cache update functions', () => {
   })
 
   describe('chargeDraft mutation skeleton', () => {
+    const expectedAnalyticsPrefix = analyticsQueryKeys.salesSummaryPrefix('tenant-1')
+
     it('evicts charged draft from cache after successful charge', async () => {
       vi.mocked(saleApi.listDrafts).mockResolvedValue(mockSales)
       vi.mocked(saleApi.chargeDraft).mockResolvedValue({
@@ -417,6 +419,10 @@ describe('useSalesDrafts - pure cache update functions', () => {
         expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual(mockSales)
       })
 
+      // ODD branch-sales-summary A4: spy AFTER the initial list query settles
+      // so only the charge mutation's invalidations are recorded.
+      const spy = vi.spyOn(queryClient, 'invalidateQueries')
+
       await result.chargeDraft('sale-2', { method: 'card_credit', amountCents: 10000 }, 'idem-key-2')
 
       const cachedDrafts = queryClient.getQueryData<Sale[]>(tenantDraftsKey)
@@ -427,6 +433,15 @@ describe('useSalesDrafts - pure cache update functions', () => {
         { method: 'card_credit', amountCents: 10000 },
         'idem-key-2',
       )
+
+      // A4: exactly one analytics invalidation and it is the exact
+      // active-tenant prefix — no broad ['analytics'], no date-specific key,
+      // no other tenant, no duplicate.
+      expect(
+        spy.mock.calls
+          .map(([filters]) => filters?.queryKey)
+          .filter((key) => Array.isArray(key) && key[0] === 'analytics'),
+      ).toEqual([expectedAnalyticsPrefix])
     })
 
     it('exposes pending state while charge mutation is in flight', async () => {
@@ -480,12 +495,18 @@ describe('useSalesDrafts - pure cache update functions', () => {
         expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual(mockSales)
       })
 
+      const spy = vi.spyOn(queryClient, 'invalidateQueries')
+
       await expect(
         result.chargeDraft('sale-2', { method: 'cash', amountCents: 10000 }, 'idem-key-fail'),
       ).rejects.toThrow('network')
 
       expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual(mockSales)
       expect(result.isMutating.value).toBe(false)
+      // A4: the failure path invalidates nothing at all — the tenant analytics
+      // summary prefix must never be refreshed for a charge that did not land.
+      expect(spy).not.toHaveBeenCalled()
+      expect(spy).not.toHaveBeenCalledWith({ queryKey: expectedAnalyticsPrefix })
     })
   })
 
