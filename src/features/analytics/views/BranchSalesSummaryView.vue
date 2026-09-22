@@ -20,6 +20,7 @@ import {
   type MexicoCityRangePresetId,
 } from '@/core/shared/utils/mexicoCityCalendar'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
+import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
 import { useBranchSalesSummary } from '../composables/useBranchSalesSummary'
 import BranchSalesSummaryFilters from '../components/BranchSalesSummaryFilters.vue'
 import BranchSalesSummaryMetrics from '../components/BranchSalesSummaryMetrics.vue'
@@ -97,29 +98,23 @@ function onRetry() {
 </script>
 
 <template>
-  <div
-    data-testid="branch-sales-summary-view"
-    class="mx-auto flex w-full min-w-0 max-w-full flex-col gap-4 px-3 py-3 sm:px-4 sm:py-4 lg:max-w-7xl lg:px-6 lg:py-6"
-  >
+  <div data-testid="branch-sales-summary-view" class="flex w-full min-w-0 flex-col gap-6 md:px-10">
     <UCard
       data-testid="branch-summary-card"
+      :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }"
       class="w-full min-w-0 max-w-full overflow-hidden shadow-sm"
     >
       <template #header>
-        <div class="flex min-w-0 items-start gap-3">
-          <div class="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-            <UIcon name="i-lucide-trending-up" class="size-5 text-primary" aria-hidden="true" />
-          </div>
-          <div class="min-w-0">
-            <h1 class="text-lg font-semibold text-highlighted">Resumen de ventas</h1>
-            <p data-testid="branch-summary-range" class="mt-0.5 text-xs text-muted">
-              {{ from }} → {{ to }}
-            </p>
-          </div>
-        </div>
+        <TableHeaderDescription
+          description="Ventas, cobros y reembolsos de la sucursal en el periodo seleccionado."
+          title="Resumen de ventas"
+        />
+        <p data-testid="branch-summary-range" class="text-muted mt-1 text-xs">
+          {{ from }} → {{ to }}
+        </p>
       </template>
 
-      <div class="flex min-w-0 flex-col gap-4">
+      <div class="flex w-full min-w-0 flex-col gap-4 px-3 py-3 sm:px-4 sm:py-4">
         <!--
           Retained-data indicators only exist while a summary is already on
           screen, so the empty result and the live metrics both keep them.

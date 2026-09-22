@@ -11,8 +11,8 @@
 // Mutation-sensitive: reading a backend body or error code instead of the HTTP
 // status, collapsing the 400/403/unexpected copy, exposing more than one retry
 // path, calling `refetch` instead of the guarded `retry`, disabling the filters
-// during a background refetch, or dropping the overflow-safe shell classes
-// fails these tests.
+// during a background refetch, or regressing to the centered capped shell
+// instead of the wide Products page-card shell fails these tests.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed, nextTick, ref } from 'vue'
@@ -238,31 +238,61 @@ describe('BranchSalesSummaryView — filter operability', () => {
   })
 })
 
-describe('BranchSalesSummaryView — centered two-column composition', () => {
-  it('centers and constrains the page shell without losing overflow safety', () => {
+describe('BranchSalesSummaryView — wide page-card shell and composition', () => {
+  it('adopts the full-width Products page shell instead of the centered capped layout', () => {
     summaryRef.value = NON_EMPTY_PAYLOAD
     const view = mountView()
 
     const root = view.find('[data-testid="branch-sales-summary-view"]')
     expect(root.classes()).toEqual(
-      expect.arrayContaining(['mx-auto', 'flex', 'flex-col', 'w-full', 'min-w-0']),
+      expect.arrayContaining(['flex', 'w-full', 'min-w-0', 'flex-col', 'gap-6', 'md:px-10']),
     )
-    expect(root.classes()).toEqual(expect.arrayContaining(['max-w-full', 'sm:px-4', 'lg:px-6']))
-    expect(root.classes().some((token) => /^lg:max-w-/.test(token))).toBe(true)
+    expect(root.classes()).not.toContain('mx-auto')
+    expect(root.classes()).not.toContain('max-w-full')
+    expect(root.classes().some((token) => /^lg:max-w-/.test(token))).toBe(false)
+    expect(root.classes().some((token) => /^lg:px-/.test(token))).toBe(false)
+  })
+
+  it('renders the full-width card body with the Coco zero-padding shell and inner responsive wrapper', () => {
+    summaryRef.value = NON_EMPTY_PAYLOAD
+    const view = mountView()
+
     const card = view.find('[data-testid="branch-summary-card"]')
     expect(card.classes()).toEqual(
       expect.arrayContaining(['w-full', 'min-w-0', 'max-w-full', 'overflow-hidden']),
     )
+
+    const body = card.find('[data-slot="body"]')
+    expect(body.exists()).toBe(true)
+    expect(body.classes()).toEqual(
+      expect.arrayContaining(['p-0', 'sm:p-0', 'bg-coco-neutral-50', 'dark:bg-coco-neutral-950']),
+    )
+
+    const wrapper = body.element.children[0] as HTMLElement
+    expect(wrapper).toBeDefined()
+    for (const token of ['w-full', 'min-w-0', 'px-3', 'py-3', 'sm:px-4', 'sm:py-4']) {
+      expect(wrapper.classList.contains(token), token).toBe(true)
+    }
   })
 
-  it('keeps one compact heading line and drops the duplicated timezone prose', () => {
+  it('renders one H1 with a descriptive subtitle and the exact range as its own element', () => {
     summaryRef.value = NON_EMPTY_PAYLOAD
     const view = mountView()
 
     const headings = view.findAll('h1')
     expect(headings).toHaveLength(1)
     expect(headings[0]!.text()).toBe('Resumen de ventas')
-    expect(view.find('[data-testid="branch-summary-range"]').exists()).toBe(true)
+
+    const header = view.find('[data-testid="branch-summary-card"] [data-slot="header"]')
+    const subtitle = header.find('p')
+    expect(subtitle.text().trim().length).toBeGreaterThan(0)
+    expect(subtitle.text()).toMatch(/ventas|reembolsos/i)
+
+    const range = view.find('[data-testid="branch-summary-range"]')
+    expect(range.exists()).toBe(true)
+    expect(range.text()).toMatch(/^\d{4}-\d{2}-\d{2} → \d{4}-\d{2}-\d{2}$/)
+    expect(range.element).not.toBe(subtitle.element)
+    expect(headings[0]!.element.contains(range.element)).toBe(false)
 
     const cardText = view.find('[data-testid="branch-summary-card"]').text()
     expect(cardText).not.toContain('Periodo acotado al calendario')
