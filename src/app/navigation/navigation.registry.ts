@@ -32,6 +32,24 @@ export const navigationGroups: NavGroup[] = [
     ],
   },
   {
+    id: 'analytics',
+    label: 'Analítica',
+    icon: 'i-lucide-chart-column',
+    defaultOpen: true,
+    children: [
+      // ODD branch-sales-summary A3d: sidebar entry gated by read:Analytics.
+      // Hidden for users without the permission; the route guard repeats the
+      // same check at /analytics/resumen-ventas.
+      {
+        id: 'analytics-sales-summary',
+        label: 'Resumen de ventas',
+        icon: 'i-lucide-chart-line',
+        to: '/analytics/resumen-ventas',
+        permission: ['read', 'Analytics'],
+      },
+    ],
+  },
+  {
     id: 'rrhh',
     label: 'RR.HH.',
     icon: 'i-lucide-users-round',

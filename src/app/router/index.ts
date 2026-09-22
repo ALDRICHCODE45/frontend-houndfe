@@ -74,6 +74,11 @@ const NotificationConfigView = () =>
     // layers the editable form + confirmation modal on the same route.
     const TenantCatalogSettingsView = () =>
       import('@/features/system/catalog-settings/views/TenantCatalogSettingsView.vue')
+// ─── Branch sales summary (ODD branch-sales-summary A3d) ─────────────────
+// Analytics route guarded by read:Analytics; no skipTenantCheck /
+// requiresSuperAdmin. The view is lazy-loaded on navigation.
+const BranchSalesSummaryView = () =>
+  import('@/features/analytics/views/BranchSalesSummaryView.vue')
 const ForbiddenView = () => import('@/features/errors/views/ForbiddenView.vue')
 const NotFoundView = () => import('@/features/errors/views/NotFoundView.vue')
 
@@ -367,6 +372,16 @@ const router = createRouter({
       meta: {
         layout: 'dashboard',
         permission: ['read', 'TenantCatalogSettings'] as RoutePermission,
+      },
+    },
+    // ─── Branch sales summary (ODD branch-sales-summary A3d) ───────────────
+    {
+      path: '/analytics/resumen-ventas',
+      name: 'analytics-sales-summary',
+      component: BranchSalesSummaryView,
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'Analytics'] as RoutePermission,
       },
     },
     // ─── Public catalog ─────────────────────────────────────────────────────────
