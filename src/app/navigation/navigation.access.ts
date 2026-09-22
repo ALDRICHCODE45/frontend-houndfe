@@ -33,6 +33,17 @@ export function buildCanAccess(authStore: AccessAuthStore): CanAccess {
   }
 }
 
+/**
+ * Resolve whether an identity may enter a route carrying the given access
+ * metadata. Delegates to a {@link CanAccess} predicate so route-level and
+ * registry-level checks stay consistent (super-admin gate, then permission).
+ * Deliberately router-agnostic: it accepts any {@link AccessMeta}-shaped
+ * object, never a Vue Router `RouteRecord`.
+ */
+export function canAccessMeta(meta: AccessMeta, canAccess: CanAccess): boolean {
+  return canAccess(meta.permission, meta.requiresSuperAdmin)
+}
+
 /** Drop permission/requiresSuperAdmin metadata from a returned nav entry. */
 export function stripMeta<T extends AccessMeta>(item: T): T {
   const { permission: _permission, requiresSuperAdmin: _requiresSuperAdmin, ...rest } = item

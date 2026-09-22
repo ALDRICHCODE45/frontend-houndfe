@@ -5,7 +5,9 @@ import { useMutation } from '@tanstack/vue-query'
 import LoginForm from '@/features/auth/login/components/LoginForm.vue'
 import LoginHero from '@/features/auth/login/components/LoginHero.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import { buildCanAccess, canAccessMeta } from '@/app/navigation/navigation.access'
 import { resolveLandingDestinationForAuth } from '@/app/navigation/navigation.landing'
+import type { AccessMeta } from '@/app/navigation/navigation.types'
 import type { LoginFormValues } from '../composables/useLoginForm'
 
 const isLoading = ref(false)
@@ -31,16 +33,21 @@ async function handleLogin(values: LoginFormValues) {
     }
 
     // ODD dashboard-analytics D1: explicit safe ?redirect= remains supported
-    // — but only when the target resolves to a real application route. After
-    // "/" and "/analytics/resumen-ventas" were removed, those paths now fall
-    // through to the catch-all NotFoundView; we filter them here so the
-    // permission-aware resolver is used instead. The router's beforeEach
-    // guard still enforces route-level permissions on whatever we push.
+    // — but only when the target resolves to a real application route the
+    // authenticated identity may actually enter. Removed paths fall through to
+    // the catch-all NotFoundView (name "not-found"); a real-but-forbidden route
+    // would be bounced to /403 by the router's beforeEach guard, so we drop it
+    // here and let the permission-aware resolver pick the landing destination.
     const explicitRedirect = typeof route.query.redirect === 'string' ? route.query.redirect : null
-    const isAppRoute =
-      explicitRedirect !== null && router.resolve(explicitRedirect).name !== 'not-found'
+    const canAccess = buildCanAccess(authStore)
+    const explicitTarget = explicitRedirect !== null ? router.resolve(explicitRedirect) : null
+    const isAuthorizedExplicitRedirect =
+      explicitTarget !== null &&
+      explicitTarget.name !== 'not-found' &&
+      canAccessMeta(explicitTarget.meta as AccessMeta, canAccess)
     const redirectTo =
-      (isAppRoute ? explicitRedirect : null) ?? resolveLandingDestinationForAuth(authStore)
+      (isAuthorizedExplicitRedirect ? explicitRedirect : null) ??
+      resolveLandingDestinationForAuth(authStore)
     await router.push(redirectTo)
   } catch {
     // Prefer store-level authError (e.g. 403 no active tenants) over generic message
