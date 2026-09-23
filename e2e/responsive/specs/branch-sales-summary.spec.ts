@@ -20,10 +20,22 @@
  * `/dashboard` is the only authorized route under test. `/` and
  * `/analytics/resumen-ventas` are not application routes any more; the focused
  * router unit suite (not this spec) owns that negative proof.
+ *
+ * OI-5B2 S4 additions: the three committed operational modules (recent confirmed
+ * sales, confirmed sales with debt, pending refund obligations) are exercised as
+ * real intercepted surfaces. A spec-local RAW request recorder re-proves the exact
+ * browser wire independently of the interception result — the single
+ * comma-joined `paymentStatus=PARTIAL,CREDIT` value, the absence of bracketed
+ * array keys and of any tenant/branch identity, and the fact that each operational
+ * request happens exactly once (aborted requests included) — alongside the panel
+ * headings, authoritative per-kind amounts, plain-text folio/refund sale id, the
+ * after-the-trend full-width three-column grid and its one-column reading order
+ * below `lg`. A separate permission-denied case proves an Analytics-only identity
+ * renders no operational module and issues no operational request at all.
  */
 import { expect, test, RESPONSIVE_ORIGIN } from '../fixtures/test'
 import { seedAuthSession } from '../fixtures/auth'
-import type { DeclaredRoute } from '../fixtures/network'
+import { API_PREFIX, type DeclaredRoute } from '../fixtures/network'
 import type { Locator, Page } from '@playwright/test'
 import { RESPONSIVE_VIEWPORTS } from '../targets/types'
 import { assertDocumentNoHorizontalOverflow, assertExactViewport } from '../assertions/geometry'
@@ -39,6 +51,29 @@ const SALES_HEADING = 'Ventas'
 const REFUNDS_HEADING = 'Reembolsos'
 const DEBT_CUE = 'Con deuda pendiente'
 const PENDING_REFUND_CUE = 'Reembolsos pendientes'
+
+// ── OI-5B2 S4: operational wire surfaces ──────────────────────────────────────
+const SALES_PATH = '/sales'
+const PENDING_REFUNDS_PATH = '/sales/refunds/pending'
+const OPERATIONAL_GRID_TESTID = 'branch-summary-operational-grid'
+const OPERATIONAL_PANEL_TESTID = 'dashboard-operational-panel'
+const OPERATIONAL_LIST_TESTID = 'dashboard-operational-list'
+const OPERATIONAL_SALE_ROW_TESTID = 'dashboard-sale-row'
+const OPERATIONAL_REFUND_ROW_TESTID = 'dashboard-refund-row'
+
+/**
+ * The exact permission set the three committed operational modules require:
+ * the analytics summary/trend plus the two granted sales modules. A narrowed set
+ * is a separate case, never a silent edit of this one.
+ */
+const OPERATIONAL_PERMISSIONS: readonly string[] = [
+  'read:Analytics',
+  'read:Sale',
+  'read:SaleRefund',
+]
+
+/** Analytics-only identity: every operational module must disappear entirely. */
+const ANALYTICS_ONLY_PERMISSIONS: readonly string[] = ['read:Analytics']
 
 /** Fixed absolute instant (12:30 in Mexico City) so "today" cannot drift across midnight. */
 const FIXED_NOW_MS = Date.parse('2025-06-15T18:30:00.000Z')
@@ -336,7 +371,229 @@ const THEMES: readonly ThemeCase[] = [
   { mode: 'dark', expectsDarkRoot: true },
 ]
 
-const ROUTES: readonly DeclaredRoute[] = [
+// ── OI-5B2 S4: operational wire fixtures ──────────────────────────────────────
+
+/**
+ * Exact browser query of each fixed operational request, as the committed
+ * `csvParamsSerializer` (`src/core/shared/api/paramsSerializer.ts`) emits it:
+ * array parameters are joined into ONE comma-separated value under the plain key
+ * (`paymentStatus=PARTIAL,CREDIT`), never as bracketed or repeated entries. These
+ * shapes are the interception contract; the spec-local raw recorder re-proves the
+ * exact wire independently of the interception result.
+ */
+const RECENT_SALES_QUERY: Readonly<Record<string, string>> = {
+  page: '1',
+  limit: '5',
+  status: 'CONFIRMED',
+  sortBy: 'confirmedAt',
+  sortOrder: 'desc',
+}
+
+const DEBT_SALES_QUERY: Readonly<Record<string, string>> = {
+  page: '1',
+  limit: '5',
+  status: 'CONFIRMED',
+  paymentStatus: 'PARTIAL,CREDIT',
+  debtMin: '1',
+  sortBy: 'confirmedAt',
+  sortOrder: 'desc',
+}
+
+const PENDING_REFUNDS_QUERY: Readonly<Record<string, string>> = { page: '1', limit: '5' }
+
+/**
+ * Raw operational wire multiset, one entry per request, with the exact decoded
+ * query entries the browser sent. Each key is `METHOD path?` plus that request's
+ * `key=value` entries sorted and joined, so the assertion is independent of
+ * request arrival order and of query-parameter order while still pinning the
+ * single comma-joined `paymentStatus=PARTIAL,CREDIT` value exactly.
+ */
+const EXPECTED_OPERATIONAL_RAW_KEYS: readonly string[] = [
+  `GET ${SALES_PATH}?limit=5&page=1&sortBy=confirmedAt&sortOrder=desc&status=CONFIRMED`,
+  `GET ${SALES_PATH}?debtMin=1&limit=5&page=1&paymentStatus=PARTIAL,CREDIT&sortBy=confirmedAt&sortOrder=desc&status=CONFIRMED`,
+  `GET ${PENDING_REFUNDS_PATH}?limit=5&page=1`,
+]
+
+interface SaleActorRefWire {
+  readonly id: string
+  readonly name: string
+}
+
+/** One `ConfirmedSaleRow` exactly as `GET /sales` serializes it. */
+interface ConfirmedSaleRowWire {
+  readonly id: string
+  readonly folio: string | null
+  readonly status: 'DRAFT' | 'CONFIRMED' | 'CANCELED'
+  readonly paymentStatus: 'PAID' | 'PARTIAL' | 'CREDIT' | null
+  readonly deliveryStatus: 'PENDING' | 'SHIPPED' | 'DELIVERED' | 'NOT_APPLICABLE'
+  readonly totalCents: number
+  readonly debtCents: number
+  readonly confirmedAt: string | null
+  readonly dueDate: string | null
+  readonly customer: SaleActorRefWire | null
+  readonly cashier: SaleActorRefWire
+  readonly seller: SaleActorRefWire | null
+  readonly paymentMethods: readonly (
+    | 'CASH'
+    | 'CARD_CREDIT'
+    | 'CARD_DEBIT'
+    | 'TRANSFER'
+    | 'CREDIT'
+  )[]
+}
+
+interface ConfirmedSalesListResponseWire {
+  readonly data: readonly ConfirmedSaleRowWire[]
+  readonly pagination: {
+    readonly page: number
+    readonly limit: number
+    readonly total: number
+    readonly totalPages: number
+  }
+  readonly counts: {
+    readonly all: number
+    readonly pendingPayments: number
+    readonly notDelivered: number
+  }
+  readonly summary: {
+    readonly salesCount: number
+    readonly totalSoldCents: number
+    readonly outstandingDebtCents: number
+  }
+}
+
+const RECENT_SALE_ROW: ConfirmedSaleRowWire = {
+  id: 'sale-recent-0001',
+  folio: 'V-0001',
+  status: 'CONFIRMED',
+  paymentStatus: 'PAID',
+  deliveryStatus: 'NOT_APPLICABLE',
+  totalCents: 129_900,
+  debtCents: 0,
+  confirmedAt: '2025-06-14T21:05:00.000Z',
+  dueDate: null,
+  customer: { id: 'customer-0001', name: 'Ana Torres' },
+  cashier: { id: 'user-0001', name: 'Luis P?' },
+  seller: null,
+  paymentMethods: ['CASH'],
+}
+
+const DEBT_SALE_ROW: ConfirmedSaleRowWire = {
+  id: 'sale-debt-0001',
+  folio: 'V-0002',
+  status: 'CONFIRMED',
+  paymentStatus: 'PARTIAL',
+  deliveryStatus: 'PENDING',
+  totalCents: 120_000,
+  debtCents: 45_000,
+  confirmedAt: '2025-06-13T17:40:00.000Z',
+  dueDate: '2025-06-30T00:00:00.000Z',
+  customer: { id: 'customer-0002', name: 'Marta Ruiz' },
+  cashier: { id: 'user-0001', name: 'Luis P?' },
+  seller: { id: 'user-0002', name: 'Iv?n Soto' },
+  paymentMethods: ['CASH', 'CREDIT'],
+}
+
+/** Envelope counts/summary stay consistent with the single authoritative row. */
+const RECENT_SALES_RESPONSE = {
+  data: [RECENT_SALE_ROW],
+  pagination: { page: 1, limit: 5, total: 1, totalPages: 1 },
+  counts: { all: 1, pendingPayments: 0, notDelivered: 0 },
+  summary: { salesCount: 1, totalSoldCents: RECENT_SALE_ROW.totalCents, outstandingDebtCents: 0 },
+} satisfies ConfirmedSalesListResponseWire
+
+const DEBT_SALES_RESPONSE = {
+  data: [DEBT_SALE_ROW],
+  pagination: { page: 1, limit: 5, total: 1, totalPages: 1 },
+  counts: { all: 1, pendingPayments: 1, notDelivered: 1 },
+  summary: {
+    salesCount: 1,
+    totalSoldCents: DEBT_SALE_ROW.totalCents,
+    outstandingDebtCents: DEBT_SALE_ROW.debtCents,
+  },
+} satisfies ConfirmedSalesListResponseWire
+
+/** One `PendingRefundRow` obligation, honouring `outstanding = amount - settled`. */
+interface PendingRefundRowWire {
+  readonly id: string
+  readonly saleId: string
+  readonly method: 'cash' | 'card_credit' | 'card_debit' | 'transfer' | 'credit'
+  readonly amountCents: number
+  readonly settledCents: number
+  readonly outstandingCents: number
+  readonly reason: 'CUSTOMER_REQUEST' | 'ORDER_ERROR' | 'OUT_OF_STOCK' | 'DUPLICATE_SALE' | 'OTHER'
+  readonly status: 'PENDING'
+  readonly createdAt: string
+}
+
+interface PendingRefundsResponseWire {
+  readonly data: readonly PendingRefundRowWire[]
+  readonly pagination: {
+    readonly page: number
+    readonly limit: number
+    readonly total: number
+    readonly totalPages: number
+  }
+}
+
+const PENDING_REFUND_ROW: PendingRefundRowWire = {
+  id: 'refund-pending-0001',
+  saleId: 'sale-refund-0001',
+  method: 'cash',
+  amountCents: 90_000,
+  settledCents: 25_000,
+  outstandingCents: 65_000,
+  reason: 'CUSTOMER_REQUEST',
+  status: 'PENDING',
+  createdAt: '2025-06-13T16:20:00.000Z',
+}
+
+const PENDING_REFUNDS_RESPONSE = {
+  data: [PENDING_REFUND_ROW],
+  pagination: { page: 1, limit: 5, total: 1, totalPages: 1 },
+} satisfies PendingRefundsResponseWire
+
+/** The three committed operational modules, in their DOM/reading order. */
+const OPERATIONAL_PANELS = [
+  { id: 'dashboard-recent-sales', title: 'Ventas recientes' },
+  { id: 'dashboard-debt-sales', title: 'Ventas con deuda' },
+  { id: 'dashboard-pending-refunds', title: 'Reembolsos pendientes' },
+] as const
+
+/** Operational module states that must not survive a fulfilled response. */
+const ABSENT_OPERATIONAL_STATES = [
+  'dashboard-operational-loading',
+  'dashboard-operational-error',
+  'dashboard-operational-empty',
+  'dashboard-operational-refresh-error',
+  'dashboard-operational-refreshing',
+] as const
+
+/**
+ * Local matrix case. The shared `ViewportCase` type pins the four committed
+ * policy viewports, so the additional wide reference is declared here and its
+ * geometry asserted directly instead of widening a shared target type.
+ */
+interface LocalViewportCase {
+  readonly key: string
+  readonly width: number
+  readonly height: number
+}
+
+const WIDE_REFERENCE_VIEWPORT: LocalViewportCase = {
+  key: 'wide-5360',
+  width: 5360,
+  height: 2520,
+}
+
+/** The committed matrix plus the local wide reference; both themes each. */
+const MATRIX_VIEWPORTS: readonly LocalViewportCase[] = [
+  ...RESPONSIVE_VIEWPORTS,
+  WIDE_REFERENCE_VIEWPORT,
+]
+
+/** The analytics queries the summary surface owns: initial and custom window. */
+const ANALYTICS_ROUTES: readonly DeclaredRoute[] = [
   {
     method: 'GET',
     path: SUMMARY_PATH,
@@ -368,11 +625,46 @@ const ROUTES: readonly DeclaredRoute[] = [
 ]
 
 /**
+ * The three fixed operational requests, each declared exactly once. The array
+ * parameter travels as the committed serializer's single comma-joined
+ * `paymentStatus` value; the spec-local raw recorder re-proves that exact wire.
+ */
+const OPERATIONAL_ROUTES: readonly DeclaredRoute[] = [
+  {
+    method: 'GET',
+    path: SALES_PATH,
+    query: RECENT_SALES_QUERY,
+    json: RECENT_SALES_RESPONSE,
+    count: 1,
+  },
+  {
+    method: 'GET',
+    path: SALES_PATH,
+    query: DEBT_SALES_QUERY,
+    json: DEBT_SALES_RESPONSE,
+    count: 1,
+  },
+  {
+    method: 'GET',
+    path: PENDING_REFUNDS_PATH,
+    query: PENDING_REFUNDS_QUERY,
+    json: PENDING_REFUNDS_RESPONSE,
+    count: 1,
+  },
+]
+
+/** Full authorized matrix surface: analytics plus the three operational modules. */
+const ROUTES: readonly DeclaredRoute[] = [...ANALYTICS_ROUTES, ...OPERATIONAL_ROUTES]
+
+/**
  * Wrapped in the fixture's object form on purpose: Playwright reads a plain
  * two-element array option value as a `[fixtureFn, options]` tuple, so a second
  * route entry would otherwise replace the option with the first route object.
  */
 const DECLARED_ROUTES = { routes: ROUTES } as const
+
+/** Analytics-only surface for the permission-denied case: no operational route exists. */
+const ANALYTICS_ONLY_ROUTES = { routes: ANALYTICS_ROUTES } as const
 
 interface RequestRecord {
   readonly method: string
@@ -403,27 +695,44 @@ function expectExactRequests(
   expect(actual).toHaveLength(expected.length)
 }
 
-/** The complete documented query surface of each analytics endpoint. */
-const ALLOWED_QUERY_KEYS: Readonly<Record<string, readonly string[]>> = {
-  [SUMMARY_PATH]: ['from', 'to'],
-  [TIMESERIES_PATH]: ['from', 'interval', 'to'],
+/**
+ * The complete documented query surface of every endpoint the surface may call.
+ * A path may accept more than one documented shape (the recent and the debt sales
+ * slots are deliberately different filters), and a request must match exactly one
+ * of them: no undocumented key may ever cross the wire.
+ */
+const ALLOWED_QUERY_KEYS: Readonly<Record<string, readonly (readonly string[])[]>> = {
+  [SUMMARY_PATH]: [['from', 'to']],
+  [TIMESERIES_PATH]: [['from', 'interval', 'to']],
+  [SALES_PATH]: [
+    ['limit', 'page', 'sortBy', 'sortOrder', 'status'],
+    ['debtMin', 'limit', 'page', 'paymentStatus', 'sortBy', 'sortOrder', 'status'],
+  ],
+  [PENDING_REFUNDS_PATH]: [['limit', 'page']],
 }
 
 /**
  * No tenant/branch identity — or any other undocumented key — may ever cross the
- * wire: both analytics endpoints resolve identity from the JWT.
+ * wire: every endpoint resolves identity from the JWT. Each request's exact key
+ * set must match one documented shape of its endpoint; the raw recorder proves
+ * the repeated entries on top of this collapsed view.
  */
 function expectDocumentedQuerySurface(requests: readonly RequestRecord[]): void {
   for (const request of requests) {
-    const allowed = ALLOWED_QUERY_KEYS[request.path]
-    expect(allowed, `undeclared analytics path ${request.path}`).toBeDefined()
-    expect(Object.keys(request.query).sort(), `${request.method} ${request.path}`).toEqual(allowed)
+    const allowed = ALLOWED_QUERY_KEYS[request.path] ?? []
+    expect(allowed.length, `undeclared endpoint path ${request.path}`).toBeGreaterThan(0)
+    const keys = Object.keys(request.query).sort()
+    expect(
+      allowed.some((candidate) => candidate.join(',') === keys.join(',')),
+      `${request.method} ${request.path}?${canonicalQuery(request.query)}`,
+    ).toBe(true)
     expect(request.query).not.toHaveProperty('tenantId')
     expect(request.query).not.toHaveProperty('branchId')
   }
 }
 
-const INITIAL_REQUESTS: readonly RequestRecord[] = [
+/** The two analytics queries of the initial current-month window. */
+const INITIAL_ANALYTICS_REQUESTS: readonly RequestRecord[] = [
   { method: 'GET', path: SUMMARY_PATH, query: { from: EXPECTED_FROM, to: EXPECTED_TO } },
   {
     method: 'GET',
@@ -432,6 +741,26 @@ const INITIAL_REQUESTS: readonly RequestRecord[] = [
   },
 ]
 
+/** The three fixed operational requests, each observed exactly once at mount. */
+const INITIAL_OPERATIONAL_REQUESTS: readonly RequestRecord[] = [
+  { method: 'GET', path: SALES_PATH, query: RECENT_SALES_QUERY },
+  { method: 'GET', path: SALES_PATH, query: DEBT_SALES_QUERY },
+  { method: 'GET', path: PENDING_REFUNDS_PATH, query: PENDING_REFUNDS_QUERY },
+]
+
+/**
+ * Exact expected initial request multiset (order-free): the two analytics queries
+ * plus one request per operational module, which never repeat afterwards.
+ */
+const INITIAL_REQUESTS: readonly RequestRecord[] = [
+  ...INITIAL_ANALYTICS_REQUESTS,
+  ...INITIAL_OPERATIONAL_REQUESTS,
+]
+
+/**
+ * After the manual window edit ONLY the two analytics queries are added: the
+ * operational modules keep their single initial request each.
+ */
 const CUSTOM_REQUESTS: readonly RequestRecord[] = [
   ...INITIAL_REQUESTS,
   { method: 'GET', path: SUMMARY_PATH, query: { from: CUSTOM_FROM, to: EXPECTED_TO } },
@@ -450,6 +779,195 @@ async function expectMetricCard(
   const card = section.locator('dl > div').filter({ hasText: label })
   await expect(card).toHaveCount(1)
   await expect(card.locator('dd').first()).toContainText(value)
+}
+
+// ── OI-5B2 S4: operational panel and raw-wire helpers ────────────────────────
+
+/** Exactly one panel, addressed by its committed `aria-labelledby` heading id. */
+const operationalPanel = (page: Page, id: string): Locator =>
+  page.locator(`[data-testid="${OPERATIONAL_PANEL_TESTID}"][aria-labelledby="${id}-heading"]`)
+
+const mexicoCityInstantFormatter = new Intl.DateTimeFormat('es-MX', {
+  timeZone: MEXICO_CITY_TIME_ZONE,
+  day: '2-digit',
+  month: '2-digit',
+  year: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+})
+
+/** Committed `America/Mexico_City` event label a loaded row must render. */
+const instant = (iso: string): string => mexicoCityInstantFormatter.format(new Date(iso))
+
+/** Committed UTC-midnight due-date label (`dd/mm/yyyy`), never shifted by the browser zone. */
+const dueDateLabel = (iso: string): string => {
+  const date = new Date(iso)
+  const day = String(date.getUTCDate()).padStart(2, '0')
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+  return `${day}/${month}/${date.getUTCFullYear()}`
+}
+
+/**
+ * RAW same-origin API request log, independent of the interception outcome. The
+ * shared strict fixture reads `URLSearchParams` through `Object.fromEntries`, so a
+ * page-level recorder is the surface that pins the exact DECODED wire — including
+ * the single comma-joined `paymentStatus=PARTIAL,CREDIT` value — and, because it
+ * records requests the browser issued even when they were aborted, it is also the
+ * only instrument that can prove "zero operational requests" and "exactly one
+ * operational request per module" without relying on the interception result.
+ */
+interface RawRequestEntry {
+  readonly method: string
+  readonly path: string
+  readonly entries: readonly (readonly [string, string])[]
+}
+
+function recordRawRequests(page: Page): RawRequestEntry[] {
+  const recorded: RawRequestEntry[] = []
+  page.on('request', (request) => {
+    const url = new URL(request.url())
+    if (url.origin !== RESPONSIVE_ORIGIN || !url.pathname.startsWith(API_PREFIX)) return
+    recorded.push({
+      method: request.method(),
+      path: url.pathname.slice(API_PREFIX.length) || '/',
+      entries: [...url.searchParams.entries()],
+    })
+  })
+  return recorded
+}
+
+const OPERATIONAL_RAW_PATHS: readonly string[] = [SALES_PATH, PENDING_REFUNDS_PATH]
+
+/** Order-free identity of one raw request, with every repeated entry retained. */
+const rawRequestKey = (entry: RawRequestEntry): string =>
+  `${entry.method} ${entry.path}?${entry.entries
+    .map(([key, value]) => `${key}=${value}`)
+    .sort()
+    .join('&')}`
+
+/**
+ * Exact raw operational wire multiset: three requests, one per fixed module. A
+ * repeated operational request fails here even though the shared fixture would
+ * also reject it, so "operational requests never repeat" is proven twice, from
+ * two independent instruments.
+ */
+function expectExactOperationalRawRequests(recorded: readonly RawRequestEntry[]): void {
+  const operational = recorded.filter((entry) => OPERATIONAL_RAW_PATHS.includes(entry.path))
+  expect(operational.map(rawRequestKey).sort()).toEqual([...EXPECTED_OPERATIONAL_RAW_KEYS].sort())
+  expect(operational, JSON.stringify(operational)).toHaveLength(
+    EXPECTED_OPERATIONAL_RAW_KEYS.length,
+  )
+}
+
+/**
+ * The committed serializer joins the debt array into exactly ONE
+ * `paymentStatus` value, so BOTH statuses must be present inside that single
+ * value. Asserting the exact joined value is the faithful wire proof for the
+ * array parameter (no bracketed or repeated entries exist to retain).
+ */
+function expectDebtPaymentStatusValues(recorded: readonly RawRequestEntry[]): void {
+  const debtRequest = recorded.find(
+    (entry) => entry.path === SALES_PATH && entry.entries.some(([key]) => key === 'paymentStatus'),
+  )
+  if (!debtRequest) throw new Error(`the debt ${SALES_PATH} request never reached the browser`)
+  expect(
+    debtRequest.entries.filter(([key]) => key === 'paymentStatus').map(([, value]) => value),
+  ).toEqual(['PARTIAL,CREDIT'])
+}
+
+/**
+ * No bracketed array key and no tenant/branch identity may ever reach the wire:
+ * every endpoint resolves identity from the JWT and arrays are comma-joined under
+ * their plain key. Checked on the RAW entries so a bracketed key cannot hide
+ * behind the collapsed interception view.
+ */
+function expectNoBracketedOrIdentityKeys(recorded: readonly RawRequestEntry[]): void {
+  for (const entry of recorded) {
+    const keys = entry.entries.map(([key]) => key)
+    const label = `${entry.method} ${entry.path} ${JSON.stringify(entry.entries)}`
+    expect(keys, label).not.toContain('tenantId')
+    expect(keys, label).not.toContain('branchId')
+    expect(
+      keys.filter((key) => key.includes('[') || key.includes(']')),
+      `bracketed array key on the wire: ${label}`,
+    ).toEqual([])
+  }
+}
+
+/** Every committed panel renders its own level-2 heading exactly once. */
+async function expectOperationalHeadings(page: Page): Promise<void> {
+  for (const { id, title } of OPERATIONAL_PANELS) {
+    await expect(
+      operationalPanel(page, id).getByRole('heading', { level: 2, name: title }),
+    ).toHaveCount(1)
+  }
+}
+
+/**
+ * One loaded sales panel: settled state, exactly one row, the amount that slot
+ * owns (`debtCents` for debt, `totalCents` for recent), plain-text folio identity
+ * and no link/button inside the row.
+ */
+async function expectLoadedSalePanel(
+  page: Page,
+  id: string,
+  kind: 'recent' | 'debt',
+  row: ConfirmedSaleRowWire,
+): Promise<void> {
+  const panel = operationalPanel(page, id)
+  await expect(panel).toHaveCount(1)
+  await expect(panel).toBeVisible()
+  await expect(panel).toHaveAttribute('aria-busy', 'false')
+
+  const rows = panel.getByTestId(OPERATIONAL_LIST_TESTID).getByTestId(OPERATIONAL_SALE_ROW_TESTID)
+  await expect(rows).toHaveCount(1)
+  const rendered = rows.first()
+  await expect(rendered).toContainText(`Folio ${row.folio}`)
+  await expect(rendered).toContainText(row.customer?.name ?? 'Público en General')
+
+  const amountCell = rendered.getByTestId('dashboard-sale-row-amount')
+  const authoritative = kind === 'debt' ? row.debtCents : row.totalCents
+  const otherAmount = kind === 'debt' ? row.totalCents : row.debtCents
+  await expect(amountCell).toContainText(kind === 'debt' ? 'Deuda pendiente' : 'Venta confirmada')
+  await expect(amountCell).toContainText(amount(authoritative))
+  await expect(amountCell).not.toContainText(amount(otherAmount))
+
+  if (kind === 'recent' && row.confirmedAt) {
+    const confirmedAt = row.confirmedAt
+    await expect(rendered.locator('time')).toHaveAttribute('datetime', confirmedAt)
+    await expect(rendered.locator('time')).toHaveText(instant(confirmedAt))
+  }
+  if (kind === 'debt' && row.dueDate) {
+    await expect(rendered).toContainText(`Vence ${dueDateLabel(row.dueDate)}`)
+  }
+
+  // Folio/customer identity stays plain text: no link or button inside a loaded row.
+  await expect(rendered.locator('a, button, [role="link"], [role="button"]')).toHaveCount(0)
+}
+
+/**
+ * The loaded pending-refund panel: one obligation rendered with the backend-owned
+ * `outstandingCents` (never `amountCents`), its refund sale id as plain text and
+ * no link/button inside the row.
+ */
+async function expectLoadedRefundPanel(page: Page, row: PendingRefundRowWire): Promise<void> {
+  const panel = operationalPanel(page, 'dashboard-pending-refunds')
+  await expect(panel).toHaveCount(1)
+  await expect(panel).toBeVisible()
+  await expect(panel).toHaveAttribute('aria-busy', 'false')
+
+  const rows = panel.getByTestId(OPERATIONAL_LIST_TESTID).getByTestId(OPERATIONAL_REFUND_ROW_TESTID)
+  await expect(rows).toHaveCount(1)
+  const rendered = rows.first()
+  await expect(rendered).toContainText(`Venta ${row.saleId}`)
+  await expect(rendered.locator('time')).toHaveAttribute('datetime', row.createdAt)
+  await expect(rendered.locator('time')).toHaveText(instant(row.createdAt))
+  await expect(rendered).toContainText(amount(row.outstandingCents))
+  await expect(rendered).not.toContainText(amount(row.amountCents))
+  await expect(rendered).toContainText('Efectivo')
+  await expect(rendered).toContainText('Solicitud del cliente')
+  await expect(rendered.locator('a, button, [role="link"], [role="button"]')).toHaveCount(0)
 }
 
 /** Seeds the committed color-mode preference before any app script runs on the page. */
@@ -768,7 +1286,7 @@ function numericAxisLabels(texts: readonly string[]): number[] {
     .filter((value) => Number.isFinite(value))
 }
 
-for (const viewport of RESPONSIVE_VIEWPORTS) {
+for (const viewport of MATRIX_VIEWPORTS) {
   for (const theme of THEMES) {
     test.describe(`branch sales summary ${viewport.key} ${viewport.width}x${viewport.height} ${theme.mode}`, () => {
       test.use({ declaredRoutes: DECLARED_ROUTES, colorScheme: theme.mode })
@@ -780,8 +1298,10 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
         await page.setViewportSize(viewport)
         // Fixed clock before any app script: the view resolves one stable preset window.
         await page.clock.setFixedTime(FIXED_NOW_MS)
-        await seedAuthSession(page, { permissions: ['read:Analytics'] })
+        await seedAuthSession(page, { permissions: [...OPERATIONAL_PERMISSIONS] })
         await seedColorMode(page, theme.mode)
+        // RAW recorder attached before navigation so no wire entry can be missed.
+        const rawRequests = recordRawRequests(page)
 
         await page.goto(`${RESPONSIVE_ORIGIN}${VIEW_PATH}`)
 
@@ -820,7 +1340,39 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
           await expect(page.getByTestId(testid)).toHaveCount(0)
         }
 
-        // Both endpoints were called with their exact documented query surface and
+        // ── OI-5B2 S4: the three committed operational panels ────────────────
+        const operationalGrid = page.getByTestId(OPERATIONAL_GRID_TESTID)
+        await expect(operationalGrid).toHaveCount(1)
+        await expect(operationalGrid).toBeVisible()
+        await expect(operationalGrid.getByTestId(OPERATIONAL_SALE_ROW_TESTID)).toHaveCount(2, {
+          timeout: INITIAL_RENDER_TIMEOUT_MS,
+        })
+        await expectOperationalHeadings(page)
+        await expectLoadedSalePanel(page, 'dashboard-recent-sales', 'recent', RECENT_SALE_ROW)
+        await expectLoadedSalePanel(page, 'dashboard-debt-sales', 'debt', DEBT_SALE_ROW)
+        await expectLoadedRefundPanel(page, PENDING_REFUND_ROW)
+        // The obligation amount is exactly the backend-derived difference; the UI
+        // never recomputes it.
+        expect(PENDING_REFUND_ROW.outstandingCents).toBe(
+          PENDING_REFUND_ROW.amountCents - PENDING_REFUND_ROW.settledCents,
+        )
+        // One panel per module, one authoritative row per fixture, no aggregate.
+        await expect(operationalGrid.getByTestId(OPERATIONAL_PANEL_TESTID)).toHaveCount(
+          OPERATIONAL_PANELS.length,
+        )
+        await expect(operationalGrid.getByTestId(OPERATIONAL_SALE_ROW_TESTID)).toHaveCount(2)
+        await expect(operationalGrid.getByTestId(OPERATIONAL_REFUND_ROW_TESTID)).toHaveCount(1)
+        for (const testid of ABSENT_OPERATIONAL_STATES) {
+          await expect(operationalGrid.getByTestId(testid)).toHaveCount(0)
+        }
+        // Committed DOM order: recent -> debt -> refund.
+        expect(
+          await operationalGrid
+            .getByTestId(OPERATIONAL_PANEL_TESTID)
+            .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-labelledby'))),
+        ).toEqual(OPERATIONAL_PANELS.map(({ id }) => `${id}-heading`))
+
+        // Every endpoint was called with its exact documented query surface and
         // nothing else, in either arrival order.
         expect(windowDayCount(EXPECTED_FROM, EXPECTED_TO)).toBe(15)
         expect(TIMESERIES.points).toHaveLength(15)
@@ -828,6 +1380,12 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
         const requests = strictNetwork.requests()
         expectExactRequests(requests, INITIAL_REQUESTS)
         expectDocumentedQuerySurface(requests)
+        // RAW wire proof, independent of the interception result: the exact
+        // comma-joined debt value, no bracketed/identity keys, and each operational
+        // request observed exactly once.
+        expectExactOperationalRawRequests(rawRequests)
+        expectDebtPaymentStatusValues(rawRequests)
+        expectNoBracketedOrIdentityKeys(rawRequests)
 
         // Both labelled sections, the complete card inventory, and every formatted value.
         const sales = page.getByTestId('branch-summary-sales-section')
@@ -1066,12 +1624,73 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
         expectAbove(refundsSection, trendBox, `${viewport.key} trend below refunds`)
         expectFullWidth(trendBox, salesSection, `${viewport.key} trend width`)
 
-        // Explicit geometry evidence for this configured project viewport.
-        const viewportEvidence = await assertExactViewport(page, viewport)
+        // ── OI-5B2 S4: operational grid after the trend, full width, 1 or 3 cols ─
+        const gridBox = await requireBox(operationalGrid, 'operational grid')
+        const recentPanelBox = await requireBox(
+          operationalPanel(page, 'dashboard-recent-sales'),
+          'recent sales panel',
+        )
+        const debtPanelBox = await requireBox(
+          operationalPanel(page, 'dashboard-debt-sales'),
+          'debt sales panel',
+        )
+        const refundPanelBox = await requireBox(
+          operationalPanel(page, 'dashboard-pending-refunds'),
+          'pending refunds panel',
+        )
+        expectAbove(trendBox, gridBox, `${viewport.key} operational grid below the trend`)
+        expectFullWidth(gridBox, salesSection, `${viewport.key} operational grid width`)
+        if (viewport.width >= LAYOUT_WIDE_MIN_WIDTH_PX) {
+          // Three equal columns on one row at `lg` and above.
+          expectSingleRow(recentPanelBox, debtPanelBox, `${viewport.key} operational row`)
+          expectSingleRow(debtPanelBox, refundPanelBox, `${viewport.key} operational row`)
+          expect(
+            rounded(Math.abs(recentPanelBox.width - debtPanelBox.width)),
+            `${viewport.key}: a three-column row keeps equal panel widths`,
+          ).toBeLessThanOrEqual(LAYOUT_TOLERANCE_PX)
+          expect(
+            rounded(Math.abs(debtPanelBox.width - refundPanelBox.width)),
+            `${viewport.key}: a three-column row keeps equal panel widths`,
+          ).toBeLessThanOrEqual(LAYOUT_TOLERANCE_PX)
+          expect(
+            recentPanelBox.width,
+            `${viewport.key}: each panel of a three-column row stays narrower than the grid`,
+          ).toBeLessThan(gridBox.width - LAYOUT_TOLERANCE_PX)
+        } else {
+          // One ordered column below `lg`: recent -> debt -> refund, same edge.
+          expectAbove(recentPanelBox, debtPanelBox, `${viewport.key} operational order 1`)
+          expectAbove(debtPanelBox, refundPanelBox, `${viewport.key} operational order 2`)
+          expect(
+            rounded(Math.abs(recentPanelBox.x - debtPanelBox.x)),
+            `${viewport.key}: stacked operational panels share one column edge`,
+          ).toBeLessThanOrEqual(LAYOUT_TOLERANCE_PX)
+          expect(
+            rounded(Math.abs(recentPanelBox.width - debtPanelBox.width)),
+            `${viewport.key}: stacked operational panels share one column width`,
+          ).toBeLessThanOrEqual(LAYOUT_TOLERANCE_PX)
+        }
+
+        // Explicit geometry evidence for this configured project viewport. The
+        // shared `ViewportCase` type pins the four committed policy widths, so the
+        // local wide reference asserts the same direct inner measurements rather
+        // than widening a shared target type.
+        const sharedViewport = RESPONSIVE_VIEWPORTS.find((entry) => entry.key === viewport.key)
+        if (sharedViewport) {
+          const viewportEvidence = await assertExactViewport(page, sharedViewport)
+          expect(viewportEvidence.measurements.innerWidth).toBe(viewport.width)
+          expect(viewportEvidence.measurements.innerHeight).toBe(viewport.height)
+          expect(viewportEvidence.status, JSON.stringify(viewportEvidence.measurements)).toBe(
+            'pass',
+          )
+        } else {
+          const measured = await page.evaluate(() => ({
+            innerWidth: window.innerWidth,
+            innerHeight: window.innerHeight,
+          }))
+          expect(measured.innerWidth, JSON.stringify(measured)).toBe(viewport.width)
+          expect(measured.innerHeight, JSON.stringify(measured)).toBe(viewport.height)
+        }
         const overflowEvidence = await assertDocumentNoHorizontalOverflow(page)
-        expect(viewportEvidence.measurements.innerWidth).toBe(viewport.width)
-        expect(viewportEvidence.measurements.innerHeight).toBe(viewport.height)
-        expect(viewportEvidence.status, JSON.stringify(viewportEvidence.measurements)).toBe('pass')
         expect(overflowEvidence.status, JSON.stringify(overflowEvidence.measurements)).toBe('pass')
 
         // ── Selected/unselected appearance: rendered values, not class tokens ──
@@ -1150,9 +1769,74 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
         const editedRequests = strictNetwork.requests()
         expectExactRequests(editedRequests, CUSTOM_REQUESTS)
         expectDocumentedQuerySurface(editedRequests)
+        // The window edit adds ONLY the two analytics queries: the operational
+        // modules never re-query, proven from the raw browser log.
+        expectExactOperationalRawRequests(rawRequests)
+        expectDebtPaymentStatusValues(rawRequests)
+        expectNoBracketedOrIdentityKeys(rawRequests)
 
         expect(strictNetwork.violations()).toEqual([])
       })
     })
   }
 }
+
+// ── OI-5B2 S4: permission-denied operational modules ─────────────────────────
+
+/**
+ * Analytics-only identity: the shared analytics routes are declared and the two
+ * operational modules are NOT. Any operational request would therefore be aborted
+ * as undeclared AND captured by the raw recorder, so "zero operational requests"
+ * is proven from both instruments independently.
+ */
+test.describe('branch sales summary permission denied 1024x768 light', () => {
+  test.use({ declaredRoutes: ANALYTICS_ONLY_ROUTES, colorScheme: 'light' })
+
+  test('renders no operational module and issues no operational request without read:Sale and read:SaleRefund', async ({
+    page,
+    strictNetwork,
+  }) => {
+    await page.setViewportSize({
+      width: 1024,
+      height: 768,
+    })
+    await page.clock.setFixedTime(FIXED_NOW_MS)
+    await seedAuthSession(page, { permissions: [...ANALYTICS_ONLY_PERMISSIONS] })
+    await seedColorMode(page, 'light')
+    const rawRequests = recordRawRequests(page)
+
+    await page.goto(`${RESPONSIVE_ORIGIN}${VIEW_PATH}`)
+
+    // The analytics surface itself is fully loaded: the negative proof is not a
+    // page that simply failed to render.
+    const heading = page.getByRole('heading', { level: 1, name: SUMMARY_H1 })
+    await expect(heading).toHaveCount(1, { timeout: INITIAL_RENDER_TIMEOUT_MS })
+    await expect(page.getByTestId('branch-summary-metrics')).toBeVisible()
+    await expect(page.getByTestId(TREND_TESTID)).toBeVisible({ timeout: INITIAL_RENDER_TIMEOUT_MS })
+    expect((await readRootTheme(page)).rootDarkClass).toBe(false)
+
+    // Zero operational DOM: no grid, no panel, no heading, no row of either kind.
+    await expect(page.getByTestId(OPERATIONAL_GRID_TESTID)).toHaveCount(0)
+    await expect(page.getByTestId(OPERATIONAL_PANEL_TESTID)).toHaveCount(0)
+    await expect(page.getByTestId(OPERATIONAL_LIST_TESTID)).toHaveCount(0)
+    await expect(page.getByTestId(OPERATIONAL_SALE_ROW_TESTID)).toHaveCount(0)
+    await expect(page.getByTestId(OPERATIONAL_REFUND_ROW_TESTID)).toHaveCount(0)
+    for (const { id, title } of OPERATIONAL_PANELS) {
+      await expect(operationalPanel(page, id)).toHaveCount(0)
+      await expect(page.getByRole('heading', { level: 2, name: title })).toHaveCount(0)
+    }
+
+    // Zero operational requests, proven from the RAW browser log rather than from
+    // the interception outcome alone.
+    expect(
+      rawRequests.filter((entry) => OPERATIONAL_RAW_PATHS.includes(entry.path)),
+      JSON.stringify(rawRequests),
+    ).toEqual([])
+
+    // Exactly the two analytics queries, with their documented surface only.
+    const requests = strictNetwork.requests()
+    expectExactRequests(requests, INITIAL_ANALYTICS_REQUESTS)
+    expectDocumentedQuerySurface(requests)
+    expect(strictNetwork.violations()).toEqual([])
+  })
+})
