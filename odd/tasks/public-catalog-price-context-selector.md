@@ -6,7 +6,7 @@ Let anonymous catalog visitors choose one tenant-published price context, such a
 
 This task is the **semantic port onto `main`**. The capability was implemented and verified on the visual-redesign branch in commit `f7b418d` (`feat(catalog): add public price contexts`). `main` (`f44bbda`) intentionally lacks 11 visual-redesign commits (`be46443..bb29560`), so the redesign UI must not travel with the capability. The port keeps `main`'s existing catalog design exactly — inline/open branch chooser and the `selectedSlug` contract, `min-h-screen`, the current category bar, product card, detail modal and media behavior — and hand-ports only the price-context semantics.
 
-The user explicitly authorized local `main` integration only. No commit, stage, merge, branch switch, push, deploy, worktree deletion, OpenSpec edit, or import of visual-redesign behavior is authorized from this port. Backend `main` already carries the discovery contract at `a69d852b12fb83dc445311ef3f2f47eeb003c3e9`.
+The user explicitly authorized local `main` integration only. Commit `726f2d0` (`feat(catalog): add public price contexts`) records the verified semantic port. Push, deploy, OpenSpec edits, other worktree deletion, and importing visual-redesign behavior remain unauthorized. Backend `main` already carries the discovery contract at `a69d852b12fb83dc445311ef3f2f47eeb003c3e9`.
 
 ## Product contract
 
@@ -58,7 +58,7 @@ The user explicitly authorized local `main` integration only. No commit, stage, 
 - [x] **PC2 — Port strict context-keyed list transport.** Added the optional explicit `priceListId` parameter with exactly one encoded query, `unavailable` 404 classification, response-context identity enforcement (an explicit id can never adopt a default response), and tenant/context-disjoint TanStack query keys that keep malformed explicit strings distinct from the caller default.
 - [x] **PC3 — Port the responsive selector and URL authority.** Added the controlled, accessible, Spanish `USelectMenu` selector and wired it into `main`'s existing header without touching branch selection. Absent query means the discovered default; blank/array/unknown/padded proposals request nothing and select nothing; selecting preserves unrelated query/hash; branch changes delete only `priceListId`; the list response context owns detail identity and selector display; context/branch changes close stale detail.
 - [x] **PC4 — Port the distinct catalog states.** Added discovery loading, empty, unavailable, no-default, invalid and discovery-error states that never read as a product failure, plus the products-state `unavailable` presentation, kept separate from populated/empty/rate-limit/server/network, with the cart/search/category/sort surfaces still disabled.
-- [x] **PC5 — Adapt tests and record the port.** Adapted the seven focused unit specs and the four public-catalog Playwright specs to `main`'s inline branch chooser, added the dedicated price-contexts browser matrix (direct URL, so no branch dialog dependency), and recorded this tracker. No commit, stage, push, deploy, or OpenSpec edit was performed.
+- [x] **PC5 — Adapt tests and record the port.** Adapted the seven focused unit specs and the four public-catalog Playwright specs to `main`'s inline branch chooser, added the dedicated price-contexts browser matrix (direct URL, so no branch dialog dependency), and recorded this tracker. The scoped port is commit `726f2d0`; no push, deploy, or OpenSpec edit occurred.
 
 ## Verification contract
 
@@ -79,7 +79,7 @@ pnpm exec prettier --check <the 22 allowed paths>
 git diff --check
 ```
 
-Full Playwright execution (`playwright.responsive.config.ts`, `workers: 1`, `retries: 0`) and final delivery remain owned by the parent orchestrator. Strict TDD was active: each surface captured a pre-implementation RED and a post-implementation GREEN.
+Final evidence: 181/181 focused unit tests, both type-checks, production build, all 29 public-catalog Playwright cases in one serialized no-retry run, Prettier, and `git diff --check` passed. The popup-layering correction was test-driven and preserves the inline branch chooser. Strict TDD captured pre-implementation RED and post-implementation GREEN evidence.
 
 ## Review workload guard
 
