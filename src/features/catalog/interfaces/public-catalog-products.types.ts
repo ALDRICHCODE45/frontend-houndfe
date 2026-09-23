@@ -1,3 +1,5 @@
+import type { PublicCatalogPriceContextDto } from './public-catalog-price-context.types'
+
 /** Public response contract for GET /public/catalog/:tenantSlug/products. */
 export type PublicCatalogProductAvailability = 'available' | 'low_stock' | 'out_of_stock' | null
 export type PublicCatalogStockPresentationMode =
@@ -60,11 +62,7 @@ export interface PublicCatalogProductsCategoryFacetDto {
   count: number
 }
 
-export interface PublicCatalogPriceContextDto {
-  priceListId: string
-  name: string
-  isCatalogDefault: boolean
-}
+export type { PublicCatalogPriceContextDto }
 
 export interface PublicCatalogProductsResponseDto {
   items: PublicCatalogProductDto[]

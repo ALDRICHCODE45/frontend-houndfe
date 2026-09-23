@@ -1,15 +1,26 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useColorMode } from '@vueuse/core'
+import CatalogPriceContextSelector from './CatalogPriceContextSelector.vue'
 import type { PublicBranchDto } from '../interfaces/catalog.types'
+import type { PublicCatalogPriceContextDto } from '../interfaces/public-catalog-price-context.types'
 import type { CatalogBranchesState } from '../composables/useCatalogBranches'
+import type { CatalogPriceContextsState } from '../composables/useCatalogPriceContexts'
 
 const props = defineProps<{
   branches: PublicBranchDto[]
   state: CatalogBranchesState
   selectedSlug: string | null
+  priceContextOptions: PublicCatalogPriceContextDto[]
+  priceContextsState: CatalogPriceContextsState
+  selectedPriceListId: string | null
 }>()
-const emit = defineEmits<{ retry: []; select: [slug: string] }>()
+const emit = defineEmits<{
+  retry: []
+  select: [slug: string]
+  'select-price-context': [priceListId: string]
+  'retry-price-contexts': []
+}>()
 const colorMode = useColorMode()
 const isDark = computed(() => colorMode.value === 'dark')
 const isChooserOpen = ref(true)
@@ -37,7 +48,7 @@ function toggleDarkMode() {
 <template>
   <header class="sticky top-0 z-40 border-b border-default bg-default/80 backdrop-blur-xl">
     <div class="mx-auto max-w-7xl px-4 py-3 sm:px-6">
-      <div class="flex items-center gap-3 sm:gap-4">
+      <div class="flex flex-wrap items-center gap-3 sm:flex-nowrap sm:gap-4">
         <div class="flex shrink-0 items-center gap-2">
           <div
             class="flex size-9 items-center justify-center rounded-xl bg-orange-500 text-white shadow-sm"
@@ -66,15 +77,29 @@ function toggleDarkMode() {
           <span class="text-xs font-medium uppercase tracking-wide sm:hidden">...</span>
         </UButton>
 
-        <div class="relative min-w-0 flex-1">
-          <UInput
-            placeholder="Buscar en el catálogo"
-            icon="i-lucide-search"
-            size="sm"
-            class="w-full"
-            :ui="{ root: 'w-full' }"
-            disabled
-            aria-label="Buscar en el catálogo"
+        <div
+          data-testid="catalog-header-controls"
+          class="order-last flex w-full min-w-0 flex-col gap-2 sm:order-none sm:w-auto sm:flex-1 sm:flex-row sm:items-center sm:gap-3"
+        >
+          <div class="relative min-w-0 flex-1">
+            <UInput
+              placeholder="Buscar en el catálogo"
+              icon="i-lucide-search"
+              size="sm"
+              class="w-full min-w-0 sm:flex-1"
+              :ui="{ root: 'w-full' }"
+              disabled
+              aria-label="Buscar en el catálogo"
+            />
+          </div>
+
+          <CatalogPriceContextSelector
+            :options="props.priceContextOptions"
+            :state="props.priceContextsState"
+            :model-value="props.selectedPriceListId"
+            class="w-full min-w-0 sm:w-56"
+            @select="emit('select-price-context', $event)"
+            @retry="emit('retry-price-contexts')"
           />
         </div>
 

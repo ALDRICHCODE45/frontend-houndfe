@@ -1,10 +1,11 @@
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
-import { flushPromises } from '@vue/test-utils'
+import { flushPromises, type VueWrapper } from '@vue/test-utils'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import { defineComponent, h, ref, shallowRef } from 'vue'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mountWithUApp } from '@/test/mountWithUApp'
-import CatalogView from '@/features/catalog/views/CatalogView.vue'
+import CatalogView from '../CatalogView.vue'
+import type { PublicCatalogPriceContextDto } from '../../interfaces/public-catalog-price-context.types'
 
 const colorMode = shallowRef<'light' | 'dark'>('light')
 const catalogProductsOverride = vi.hoisted(() => ({
@@ -83,7 +84,11 @@ const branches = [
   { id: 'b-1', name: 'Sucursal Centro', slug: 'centro', address: null, phone: null },
   { id: 'b-2', name: 'Sucursal Norte', slug: 'norte', address: null, phone: null },
 ]
-const priceContext = { priceListId: 'list-1', name: 'Lista pública', isCatalogDefault: true }
+const priceContexts: PublicCatalogPriceContextDto[] = [
+  { priceListId: 'list-1', name: 'Público', isCatalogDefault: true },
+  { priceListId: 'list-mayoreo', name: 'Mayoreo', isCatalogDefault: false },
+]
+const priceContext = priceContexts[0]!
 const product = {
   id: 'product-1',
   name: 'Café molido',
@@ -106,6 +111,13 @@ const productsResponse = (items = [product]) => ({
   excludedCount: 0,
   priceContext,
 })
+const productsResponseFor = (priceListId: string, items = [product]) => {
+  const context = priceContexts.find((entry) => entry.priceListId === priceListId)
+  return {
+    ...productsResponse(items),
+    priceContext: context ?? { priceListId, name: priceListId, isCatalogDefault: false },
+  }
+}
 const detailResponse = (overrides = {}) => ({
   id: product.id,
   name: product.name,
@@ -126,6 +138,46 @@ const detailResponse = (overrides = {}) => ({
   ...overrides,
 })
 const jsonResponse = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status })
+const productsUrl = (slug: string) => `http://localhost:3000/public/catalog/${slug}/products`
+
+type CatalogFetchOverrides = {
+  contexts?: (slug: string) => Response | Promise<Response>
+  products?: (slug: string, priceListId: string | null) => Response | Promise<Response>
+  detail?: () => Response | Promise<Response>
+}
+
+/** URL-routed fetch double: branches, then per-slug discovery, then products/detail. */
+function createCatalogFetch(overrides: CatalogFetchOverrides = {}) {
+  return vi.fn((input: RequestInfo | URL) => {
+    const url = String(input)
+    if (url.endsWith('/public/catalog/branches')) return Promise.resolve(jsonResponse(branches))
+
+    const contextsMatch = url.match(/\/public\/catalog\/([^/]+)\/price-contexts$/)
+    if (contextsMatch) {
+      return Promise.resolve(
+        overrides.contexts ? overrides.contexts(contextsMatch[1]!) : jsonResponse(priceContexts),
+      )
+    }
+
+    const detailMatch = url.match(/\/public\/catalog\/([^/]+)\/products\/([^/?]+)/)
+    if (detailMatch) {
+      return Promise.resolve(overrides.detail ? overrides.detail() : jsonResponse(detailResponse()))
+    }
+
+    const productsMatch = url.match(/\/public\/catalog\/([^/]+)\/products/)
+    if (productsMatch) {
+      const slug = productsMatch[1]!
+      const priceListId = new URL(url).searchParams.get('priceListId')
+      return Promise.resolve(
+        overrides.products
+          ? overrides.products(slug, priceListId)
+          : jsonResponse(productsResponseFor(priceListId ?? 'list-1')),
+      )
+    }
+
+    return Promise.reject(new Error(`Unexpected fetch: ${url}`))
+  })
+}
 
 async function mountAt(path: string) {
   const router = createRouter({
@@ -142,6 +194,15 @@ async function mountAt(path: string) {
   return { wrapper, router }
 }
 
+function findSelectMenu(wrapper: VueWrapper) {
+  return wrapper.getComponent({ name: 'SelectMenu' })
+}
+
+/** Teleported surfaces never leak into the next test's document queries. */
+afterEach(() => {
+  document.body.innerHTML = ''
+})
+
 function waitForNavigation(router: ReturnType<typeof createRouter>) {
   return new Promise<void>((resolve) => {
     const remove = router.afterEach(() => {
@@ -149,6 +210,15 @@ function waitForNavigation(router: ReturnType<typeof createRouter>) {
       resolve()
     })
   })
+}
+
+const requestUrls = (fetchMock: ReturnType<typeof vi.fn>) =>
+  fetchMock.mock.calls.map(([url]) => String(url))
+const productRequestUrls = (fetchMock: ReturnType<typeof vi.fn>) =>
+  requestUrls(fetchMock).filter((url) => url.includes('/products'))
+const lastProductRequestUrl = (fetchMock: ReturnType<typeof vi.fn>) => {
+  const urls = productRequestUrls(fetchMock)
+  return urls[urls.length - 1]
 }
 
 describe('CatalogView public browse', () => {
@@ -159,14 +229,17 @@ describe('CatalogView public browse', () => {
   })
 
   it('selects a discovered branch through the URL, preserves query/hash, and renders its first real product page', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(jsonResponse(branches))
-      .mockResolvedValueOnce(jsonResponse(productsResponse()))
+    const fetchMock = createCatalogFetch()
     vi.stubGlobal('fetch', fetchMock)
     const { wrapper, router } = await mountAt('/catalogo?source=home#top')
 
     await flushPromises()
+    expect(wrapper.find('button[aria-label="Sucursal Centro"]').exists()).toBe(true)
+    expect(
+      wrapper.find('button[aria-label="Sucursal Centro"]').attributes('aria-current'),
+    ).toBeUndefined()
+    expect(wrapper.find('[data-testid="catalog-price-context-selector"]').exists()).toBe(false)
+
     await wrapper.get('button[aria-label="Sucursal Centro"]').trigger('click')
     await flushPromises()
 
@@ -174,10 +247,12 @@ describe('CatalogView public browse', () => {
     expect(wrapper.get('button[aria-label="Sucursal Centro"]').attributes('aria-current')).toBe(
       'page',
     )
-    expect(fetchMock.mock.calls.map(([url]) => url)).toEqual([
+    expect(requestUrls(fetchMock)).toEqual([
       'http://localhost:3000/public/catalog/branches',
-      'http://localhost:3000/public/catalog/centro/products',
+      'http://localhost:3000/public/catalog/centro/price-contexts',
+      productsUrl('centro'),
     ])
+    expect(findSelectMenu(wrapper).props('modelValue')).toBe('list-1')
     expect(wrapper.get('main h2').text()).toBe('Café molido')
     expect(
       wrapper.get('input[aria-label="Buscar en el catálogo"]').attributes('disabled'),
@@ -195,11 +270,11 @@ describe('CatalogView public browse', () => {
   it('loads a direct valid slug and keeps branch selection synchronized through back and forward navigation', async () => {
     const centroProduct = { ...product, id: 'centro-product', name: 'Producto Centro' }
     const norteProduct = { ...product, id: 'norte-product', name: 'Producto Norte' }
-    const fetchMock = vi.fn((url: string) => {
-      if (url.endsWith('/branches')) return Promise.resolve(jsonResponse(branches))
-      if (url.endsWith('/centro/products'))
-        return Promise.resolve(jsonResponse(productsResponse([centroProduct])))
-      return Promise.resolve(jsonResponse(productsResponse([norteProduct])))
+    const fetchMock = createCatalogFetch({
+      products: (slug) =>
+        jsonResponse(
+          productsResponseFor('list-1', [slug === 'centro' ? centroProduct : norteProduct]),
+        ),
     })
     vi.stubGlobal('fetch', fetchMock)
     const { wrapper, router } = await mountAt('/catalogo/centro')
@@ -276,6 +351,7 @@ describe('CatalogView public browse', () => {
     'renders the %s product failure state and retries through the DOM',
     async (failure, expectedCopy) => {
       const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(branches))
+      fetchMock.mockResolvedValueOnce(jsonResponse(priceContexts))
       if (failure === 'network') fetchMock.mockRejectedValueOnce(new TypeError('Failed to fetch'))
       else fetchMock.mockResolvedValueOnce(jsonResponse(productsResponse(), failure as number))
       fetchMock.mockResolvedValueOnce(jsonResponse(productsResponse([])))
@@ -287,7 +363,7 @@ describe('CatalogView public browse', () => {
       await wrapper.get('button[aria-label="Reintentar productos"]').trigger('click')
       await flushPromises()
       expect(wrapper.text()).toContain('Esta sucursal todavía no tiene productos publicados')
-      expect(fetchMock).toHaveBeenCalledTimes(3)
+      expect(fetchMock).toHaveBeenCalledTimes(4)
     },
   )
 
@@ -297,6 +373,7 @@ describe('CatalogView public browse', () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse(branches))
+      .mockResolvedValueOnce(jsonResponse(priceContexts))
       .mockReturnValueOnce(
         new Promise<Response>((resolve) => {
           resolveInitial = resolve
@@ -323,7 +400,7 @@ describe('CatalogView public browse', () => {
     resolveRetry(jsonResponse(productsResponse()))
     await flushPromises()
     expect(wrapper.get('main h2').text()).toBe('Café molido')
-    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(fetchMock).toHaveBeenCalledTimes(4)
   })
 
   it('does not request detail before a real card activation and threads only the list price context into the detail identity', async () => {
@@ -335,18 +412,19 @@ describe('CatalogView public browse', () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse(branches))
+      .mockResolvedValueOnce(jsonResponse(priceContexts))
       .mockResolvedValueOnce(jsonResponse({ ...productsResponse(), priceContext: listContext }))
       .mockResolvedValueOnce(jsonResponse(detailResponse({ priceContext: listContext })))
     vi.stubGlobal('fetch', fetchMock)
     const { wrapper } = await mountAt('/catalogo/centro')
 
     await flushPromises()
-    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
     const card = wrapper.get('button[aria-label="Ver detalles de Café molido"]')
     await card.trigger('click')
     await flushPromises()
 
-    expect(fetchMock.mock.calls[2]?.[0]).toBe(
+    expect(fetchMock.mock.calls[3]?.[0]).toBe(
       'http://localhost:3000/public/catalog/centro/products/product-1?priceListId=list-from-response',
     )
     expect(wrapper.get('[role="dialog"] [data-testid="detail-id"]').text()).toBe(product.id)
@@ -359,7 +437,7 @@ describe('CatalogView public browse', () => {
       state: ref('populated'),
       retry: vi.fn(),
     })
-    const fetchMock = vi.fn().mockResolvedValue(jsonResponse(branches))
+    const fetchMock = createCatalogFetch()
     vi.stubGlobal('fetch', fetchMock)
     const { wrapper } = await mountAt('/catalogo/centro')
 
@@ -368,15 +446,11 @@ describe('CatalogView public browse', () => {
     await flushPromises()
 
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
-    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
   })
 
   it('clears selected detail and safely restores the clicked card focus when the user closes it', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(jsonResponse(branches))
-      .mockResolvedValueOnce(jsonResponse(productsResponse()))
-      .mockResolvedValueOnce(jsonResponse(detailResponse()))
+    const fetchMock = createCatalogFetch()
     vi.stubGlobal('fetch', fetchMock)
     const { wrapper } = await mountAt('/catalogo/centro')
 
@@ -393,16 +467,18 @@ describe('CatalogView public browse', () => {
 
   it('clears selection on branch changes and never reopens stale detail when the old request resolves', async () => {
     let resolveDetail!: (response: Response) => void
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(jsonResponse(branches))
-      .mockResolvedValueOnce(jsonResponse(productsResponse()))
-      .mockReturnValueOnce(
+    const fetchMock = createCatalogFetch({
+      products: (slug) =>
+        jsonResponse(
+          slug === 'norte'
+            ? productsResponseFor('list-1', [{ ...product, id: 'norte-product' }])
+            : productsResponseFor('list-1'),
+        ),
+      detail: () =>
         new Promise<Response>((resolve) => {
           resolveDetail = resolve
         }),
-      )
-      .mockResolvedValueOnce(jsonResponse(productsResponse([{ ...product, id: 'norte-product' }])))
+    })
     vi.stubGlobal('fetch', fetchMock)
     const { wrapper, router } = await mountAt('/catalogo/centro')
 
@@ -417,13 +493,273 @@ describe('CatalogView public browse', () => {
     await flushPromises()
 
     expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
-    expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(requestUrls(fetchMock).filter((url) => url.includes('/products/'))).toHaveLength(1)
+    expect(requestUrls(fetchMock)).toEqual([
+      'http://localhost:3000/public/catalog/branches',
+      'http://localhost:3000/public/catalog/centro/price-contexts',
+      productsUrl('centro'),
+      'http://localhost:3000/public/catalog/centro/products/product-1?priceListId=list-1',
+      'http://localhost:3000/public/catalog/norte/price-contexts',
+      productsUrl('norte'),
+    ])
+  })
+
+  it('closes stale detail and refetches under the explicit context when the visitor switches price list', async () => {
+    const fetchMock = createCatalogFetch()
+    vi.stubGlobal('fetch', fetchMock)
+    const { wrapper, router } = await mountAt('/catalogo/centro')
+
+    await flushPromises()
+    await wrapper.get('button[aria-label="Ver detalles de Café molido"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(true)
+
+    await router.push('/catalogo/centro?priceListId=list-mayoreo')
+    await flushPromises()
+
+    expect(wrapper.find('[role="dialog"]').exists()).toBe(false)
+    expect(lastProductRequestUrl(fetchMock)).toBe(
+      `${productsUrl('centro')}?priceListId=list-mayoreo`,
+    )
+    expect(findSelectMenu(wrapper).props('modelValue')).toBe('list-mayoreo')
+  })
+
+  it('uses the discovered default without inventing an explicit priceListId', async () => {
+    const fetchMock = createCatalogFetch()
+    vi.stubGlobal('fetch', fetchMock)
+    const { wrapper } = await mountAt('/catalogo/centro')
+
+    await flushPromises()
+    expect(productRequestUrls(fetchMock)).toEqual([productsUrl('centro')])
+    expect(findSelectMenu(wrapper).props('modelValue')).toBe('list-1')
+    expect(wrapper.get('[aria-label="Lista de precios"]').text()).toContain('Público')
+  })
+
+  it('sends the exact Mayoreo context the visitor proposed', async () => {
+    const fetchMock = createCatalogFetch()
+    vi.stubGlobal('fetch', fetchMock)
+    const { wrapper } = await mountAt('/catalogo/centro?priceListId=list-mayoreo')
+
+    await flushPromises()
+    expect(productRequestUrls(fetchMock)).toEqual([
+      `${productsUrl('centro')}?priceListId=list-mayoreo`,
+    ])
+    expect(findSelectMenu(wrapper).props('modelValue')).toBe('list-mayoreo')
+  })
+
+  it('writes the selected context into the URL and restores it on back and forward', async () => {
+    const fetchMock = createCatalogFetch()
+    vi.stubGlobal('fetch', fetchMock)
+    const { wrapper, router } = await mountAt('/catalogo/centro')
+
+    await flushPromises()
+    findSelectMenu(wrapper).vm.$emit('update:modelValue', 'list-mayoreo')
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe('/catalogo/centro?priceListId=list-mayoreo')
+    expect(lastProductRequestUrl(fetchMock)).toBe(
+      `${productsUrl('centro')}?priceListId=list-mayoreo`,
+    )
+
+    const back = waitForNavigation(router)
+    router.back()
+    await back
+    await flushPromises()
+    expect(router.currentRoute.value.fullPath).toBe('/catalogo/centro')
+    expect(findSelectMenu(wrapper).props('modelValue')).toBe('list-1')
+
+    const forward = waitForNavigation(router)
+    router.forward()
+    await forward
+    await flushPromises()
+    expect(router.currentRoute.value.fullPath).toBe('/catalogo/centro?priceListId=list-mayoreo')
+    expect(findSelectMenu(wrapper).props('modelValue')).toBe('list-mayoreo')
+  })
+
+  it('drops only the previous priceListId when the branch changes while preserving query and hash', async () => {
+    const fetchMock = createCatalogFetch()
+    vi.stubGlobal('fetch', fetchMock)
+    const { wrapper, router } = await mountAt(
+      '/catalogo/centro?priceListId=list-mayoreo&source=home#top',
+    )
+
+    await flushPromises()
+    await wrapper.get('button[aria-label="Sucursal Norte"]').trigger('click')
+    await flushPromises()
+
+    expect(router.currentRoute.value.fullPath).toBe('/catalogo/norte?source=home#top')
+    expect(lastProductRequestUrl(fetchMock)).toBe(productsUrl('norte'))
+  })
+
+  it.each([
+    ['/catalogo/centro?priceListId=%20', 'blank'],
+    ['/catalogo/centro?priceListId=list-1&priceListId=list-mayoreo', 'array'],
+    ['/catalogo/centro?priceListId=list-unknown', 'unknown'],
+    ['/catalogo/centro?priceListId=%20list-1%20', 'padded'],
+  ])(
+    'never requests products for a %s explicit context and never selects the default',
+    async (path) => {
+      const fetchMock = createCatalogFetch()
+      vi.stubGlobal('fetch', fetchMock)
+      const { wrapper } = await mountAt(path)
+
+      await flushPromises()
+      expect(productRequestUrls(fetchMock)).toEqual([])
+      expect(fetchMock).toHaveBeenCalledTimes(2)
+      expect(wrapper.text()).toContain('La lista de precios seleccionada no está disponible')
+      // An invalid/unknown/padded proposal must not show the discovered default as selected.
+      expect(findSelectMenu(wrapper).props('modelValue')).toBeNull()
+    },
+  )
+
+  it('never invents a context when discovery publishes no default', async () => {
+    const noDefaultContexts: PublicCatalogPriceContextDto[] = [
+      { priceListId: 'list-mayoreo', name: 'Mayoreo', isCatalogDefault: false },
+    ]
+    const fetchMock = createCatalogFetch({ contexts: () => jsonResponse(noDefaultContexts) })
+    vi.stubGlobal('fetch', fetchMock)
+    const { wrapper } = await mountAt('/catalogo/centro')
+
+    await flushPromises()
+    expect(productRequestUrls(fetchMock)).toEqual([])
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(wrapper.text()).toContain('Elige una lista de precios para ver productos')
+    expect(wrapper.text()).not.toContain('No pudimos cargar los productos')
+    // A populated selector without a default stays usable and unselected.
+    expect(findSelectMenu(wrapper).props('disabled')).toBe(false)
+    expect(findSelectMenu(wrapper).props('modelValue')).toBeNull()
+    expect(
+      (findSelectMenu(wrapper).props('items') as PublicCatalogPriceContextDto[]).map(
+        (item) => item.priceListId,
+      ),
+    ).toEqual(['list-mayoreo'])
+  })
+
+  it.each([
+    [
+      'empty',
+      () => jsonResponse([]),
+      'Este catálogo todavía no tiene listas de precios publicadas',
+    ],
+    [
+      'rate-limit',
+      () => jsonResponse({ message: 'throttled' }, 429),
+      'Demasiadas solicitudes. Intenta de nuevo más tarde.',
+    ],
+    [
+      'server',
+      () => jsonResponse({ message: 'boom' }, 500),
+      'No pudimos cargar las listas de precios.',
+    ],
+    [
+      'network',
+      () => Promise.reject(new TypeError('Failed to fetch')),
+      'No se pudo conectar. Revisa tu conexión.',
+    ],
+  ])(
+    'keeps the %s context discovery state separate from products and retries discovery only',
+    async (_state, firstContexts, copy) => {
+      const fetchMock = vi.fn().mockResolvedValueOnce(jsonResponse(branches))
+      fetchMock.mockImplementationOnce(firstContexts as () => unknown)
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse(priceContexts))
+        .mockResolvedValueOnce(jsonResponse(productsResponse()))
+      vi.stubGlobal('fetch', fetchMock)
+      const { wrapper } = await mountAt('/catalogo/centro')
+
+      await flushPromises()
+      expect(wrapper.text()).toContain(copy)
+      expect(productRequestUrls(fetchMock)).toEqual([])
+
+      const retry = wrapper.get('button[aria-label="Reintentar carga de listas de precios"]')
+      await retry.trigger('click')
+      await flushPromises()
+
+      expect(wrapper.get('main h2').text()).toBe('Café molido')
+      expect(fetchMock).toHaveBeenCalledTimes(4)
+    },
+  )
+
+  it('renders a stale explicit context 404 as a price-context unavailable state, never a generic product failure', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(branches))
+      .mockResolvedValueOnce(jsonResponse(priceContexts))
+      .mockResolvedValueOnce(jsonResponse({}, 404))
+    vi.stubGlobal('fetch', fetchMock)
+    const { wrapper } = await mountAt('/catalogo/centro?priceListId=list-mayoreo')
+
+    await flushPromises()
+    expect(wrapper.text()).toContain('La lista de precios seleccionada no está disponible')
+    expect(wrapper.text()).toContain('Elige otra lista de precios para ver el catálogo.')
+    expect(wrapper.text()).not.toContain('No pudimos cargar los productos.')
+    expect(wrapper.find('button[aria-label="Reintentar productos"]').exists()).toBe(false)
+  })
+
+  it('prefers the authoritative list response context and keeps a stale one selectable', async () => {
+    const staleContext = {
+      priceListId: 'list-from-response',
+      name: 'Lista resuelta',
+      isCatalogDefault: false,
+    }
+    const fetchMock = createCatalogFetch({
+      contexts: () => jsonResponse([priceContexts[0]!]),
+      products: () => jsonResponse({ ...productsResponse(), priceContext: staleContext }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const { wrapper } = await mountAt('/catalogo/centro')
+
+    await flushPromises()
+    const menu = findSelectMenu(wrapper)
+    expect(menu.props('modelValue')).toBe('list-from-response')
+    expect(
+      (menu.props('items') as PublicCatalogPriceContextDto[]).map((item) => item.priceListId),
+    ).toEqual(['list-1', 'list-from-response'])
+    expect(wrapper.get('[aria-label="Lista de precios"]').text()).toContain('Lista resuelta')
+  })
+
+  it('does not claim a context selection when navigation is rejected', async () => {
+    const fetchMock = createCatalogFetch()
+    vi.stubGlobal('fetch', fetchMock)
+    const { wrapper, router } = await mountAt('/catalogo/centro')
+    await flushPromises()
+    const push = vi.spyOn(router, 'push').mockRejectedValueOnce(new Error('navigation blocked'))
+
+    findSelectMenu(wrapper).vm.$emit('update:modelValue', 'list-mayoreo')
+    await flushPromises()
+
+    expect(push).toHaveBeenCalled()
+    expect(router.currentRoute.value.fullPath).toBe('/catalogo/centro')
+    expect(findSelectMenu(wrapper).props('modelValue')).toBe('list-1')
+    expect(productRequestUrls(fetchMock).some((url) => url.includes('priceListId'))).toBe(false)
+  })
+
+  it('keeps the header controls 320px-safe with a full-width wrapped search and selector row', async () => {
+    const fetchMock = createCatalogFetch()
+    vi.stubGlobal('fetch', fetchMock)
+    const { wrapper } = await mountAt('/catalogo/centro')
+
+    await flushPromises()
+    const controls = wrapper.get('[data-testid="catalog-header-controls"]')
+    expect(controls.classes()).toEqual(
+      expect.arrayContaining(['w-full', 'min-w-0', 'flex-col', 'sm:flex-row']),
+    )
+    const selector = wrapper.get('[data-testid="catalog-price-context-selector"]')
+    expect(selector.classes()).toEqual(expect.arrayContaining(['w-full', 'min-w-0']))
+
+    expect(wrapper.find('button[aria-label="Explorar sucursales"]').exists()).toBe(true)
+    expect(wrapper.find('button[aria-label="Cambiar tema"]').exists()).toBe(true)
+    expect(wrapper.find('button[aria-label="Ver carrito"]').attributes('disabled')).toBeDefined()
+    expect(
+      wrapper.find('input[aria-label="Buscar en el catálogo"]').attributes('disabled'),
+    ).toBeDefined()
   })
 
   it('passes detail error state and retry events through the modal boundary', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(jsonResponse(branches))
+      .mockResolvedValueOnce(jsonResponse(priceContexts))
       .mockResolvedValueOnce(jsonResponse(productsResponse()))
       .mockResolvedValueOnce(jsonResponse({}, 500))
       .mockResolvedValueOnce(jsonResponse(detailResponse()))
@@ -437,7 +773,7 @@ describe('CatalogView public browse', () => {
 
     await wrapper.get('button[aria-label="Reintentar detalle"]').trigger('click')
     await flushPromises()
-    expect(fetchMock).toHaveBeenCalledTimes(4)
+    expect(fetchMock).toHaveBeenCalledTimes(5)
     expect(wrapper.get('[role="dialog"] [data-testid="detail-id"]').text()).toBe(product.id)
   })
 })

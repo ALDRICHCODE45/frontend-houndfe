@@ -126,6 +126,10 @@ describe('fetchCatalogProducts', () => {
         stockPresentation: { mode: 'HIDDEN', status: null, customQuantity: null },
       }),
     ],
+    [
+      'a padded but nonblank price-context name',
+      { ...response, priceContext: { ...priceContext, name: ' Lista pública ' } },
+    ],
   ])('accepts %s', async (_, body) => {
     vi.stubGlobal(
       'fetch',
@@ -155,6 +159,11 @@ describe('fetchCatalogProducts', () => {
       'an incomplete price context',
       { ...response, priceContext: { ...priceContext, isCatalogDefault: undefined } },
     ],
+    [
+      'a blank price-context id',
+      { ...response, priceContext: { ...priceContext, priceListId: '   ' } },
+    ],
+    ['a blank price-context name', { ...response, priceContext: { ...priceContext, name: '  ' } }],
     ['a non-null rating', withProduct({ rating: 4.5 })],
     ['a non-null featured label', withProduct({ featuredLabel: 'Nuevo' })],
     [
@@ -290,7 +299,7 @@ describe('fetchCatalogProducts', () => {
   it.each([
     [429, 'rate-limit'],
     [400, 'server'],
-    [404, 'server'],
+    [404, 'unavailable'],
     [500, 'server'],
     [503, 'server'],
     [201, 'server'],
@@ -300,6 +309,117 @@ describe('fetchCatalogProducts', () => {
       vi.fn().mockResolvedValue(new Response(JSON.stringify(response), { status })),
     )
     await expect(fetchCatalogProducts('centro')).rejects.toMatchObject({ kind, status })
+  })
+
+  it('serializes exactly one encoded priceListId query when an explicit context is requested', async () => {
+    const explicitContext = {
+      priceListId: 'list & mayoreo',
+      name: 'Mayoreo',
+      isCatalogDefault: false,
+    }
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ ...response, priceContext: explicitContext }), {
+        status: 200,
+      }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await expect(fetchCatalogProducts('north & south', 'list & mayoreo')).resolves.toMatchObject({
+      priceContext: explicitContext,
+    })
+    const url = fetchMock.mock.calls[0]?.[0] as string
+    expect(url).toBe(
+      'http://localhost:3000/public/catalog/north%20%26%20south/products?priceListId=list%20%26%20mayoreo',
+    )
+    expect(url.match(/priceListId=/g)).toHaveLength(1)
+  })
+
+  it.each([[undefined], [null]])(
+    'omits the priceListId query only for an absent caller default (%j)',
+    async (priceListId) => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(new Response(JSON.stringify(response), { status: 200 }))
+      vi.stubGlobal('fetch', fetchMock)
+
+      await expect(fetchCatalogProducts('centro', priceListId)).resolves.toEqual(response)
+      expect(fetchMock).toHaveBeenCalledWith(
+        'http://localhost:3000/public/catalog/centro/products',
+        { method: 'GET', credentials: 'omit' },
+      )
+    },
+  )
+
+  it.each([[''], ['   ']])(
+    'serializes exactly one explicit priceListId query for a malformed explicit id (%j) and never accepts a default response',
+    async (priceListId) => {
+      const fetchMock = vi
+        .fn()
+        .mockResolvedValue(new Response(JSON.stringify(response), { status: 200 }))
+      vi.stubGlobal('fetch', fetchMock)
+
+      await expect(fetchCatalogProducts('centro', priceListId)).rejects.toMatchObject({
+        kind: 'server',
+        status: 200,
+      })
+      const url = fetchMock.mock.calls[0]?.[0] as string
+      expect(url).toBe(
+        `http://localhost:3000/public/catalog/centro/products?priceListId=${encodeURIComponent(priceListId)}`,
+      )
+      expect(url.match(/priceListId=/g)).toHaveLength(1)
+    },
+  )
+
+  it('accepts an explicit-id response whose priceContext matches the request', async () => {
+    const explicitContext = {
+      priceListId: 'list-mayoreo',
+      name: 'Mayoreo',
+      isCatalogDefault: false,
+    }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify({ ...response, priceContext: explicitContext }), {
+          status: 200,
+        }),
+      ),
+    )
+
+    await expect(fetchCatalogProducts('centro', 'list-mayoreo')).resolves.toMatchObject({
+      priceContext: explicitContext,
+    })
+  })
+
+  it('rejects an explicit-id response that silently resolves a different context', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify(response), { status: 200 })),
+    )
+
+    await expect(fetchCatalogProducts('centro', 'list-mayoreo')).rejects.toMatchObject({
+      kind: 'server',
+      status: 200,
+    })
+  })
+
+  it('forwards the AbortSignal alongside an explicit priceListId', async () => {
+    const controller = new AbortController()
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          ...response,
+          priceContext: { priceListId: 'list-mayoreo', name: 'Mayoreo', isCatalogDefault: false },
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await fetchCatalogProducts('centro', 'list-mayoreo', controller.signal)
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://localhost:3000/public/catalog/centro/products?priceListId=list-mayoreo',
+      { method: 'GET', credentials: 'omit', signal: controller.signal },
+    )
   })
 
   it('classifies a transport rejection as a network failure', async () => {
@@ -318,7 +438,7 @@ describe('fetchCatalogProducts', () => {
         }),
     )
     vi.stubGlobal('fetch', fetchMock)
-    const request = fetchCatalogProducts('centro', controller.signal)
+    const request = fetchCatalogProducts('centro', null, controller.signal)
     expect(fetchMock).toHaveBeenCalledWith('http://localhost:3000/public/catalog/centro/products', {
       method: 'GET',
       credentials: 'omit',

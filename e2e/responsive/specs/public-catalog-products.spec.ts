@@ -36,6 +36,13 @@ const productRoute = (
   slug: string,
   route: Omit<DeclaredRoute, 'method' | 'path'>,
 ): DeclaredRoute => ({ method: 'GET', path: `/public/catalog/${slug}/products`, ...route })
+/** Anonymous tenant-scoped discovery always precedes the anonymous product list for the same branch. */
+const priceContextsRoute = (slug: string, count = 1): DeclaredRoute => ({
+  method: 'GET',
+  path: `/public/catalog/${slug}/price-contexts`,
+  json: [priceContext],
+  count,
+})
 
 function expectOnlyCatalogRequests(
   strictNetwork: {
@@ -66,7 +73,11 @@ function expectOnlyCatalogRequests(
 test.describe('public catalog product selection', () => {
   test.use({
     declaredRoutes: {
-      routes: [branchRoute(), productRoute('centro', { json: productPage(), count: 1 })],
+      routes: [
+        branchRoute(),
+        priceContextsRoute('centro'),
+        productRoute('centro', { json: productPage(), count: 1 }),
+      ],
     },
   })
 
@@ -113,6 +124,7 @@ test.describe('public catalog product selection', () => {
     ])
     expectOnlyCatalogRequests(strictNetwork, [
       '/public/catalog/branches',
+      '/public/catalog/centro/price-contexts',
       '/public/catalog/centro/products',
     ])
   })
@@ -132,6 +144,7 @@ test.describe('public catalog direct URL presentation', () => {
     declaredRoutes: {
       routes: [
         branchRoute(),
+        priceContextsRoute('centro'),
         productRoute('centro', { json: productPage([hiddenProduct]), count: 1 }),
       ],
     },
@@ -156,6 +169,7 @@ test.describe('public catalog direct URL presentation', () => {
     })
     expectOnlyCatalogRequests(strictNetwork, [
       '/public/catalog/branches',
+      '/public/catalog/centro/price-contexts',
       '/public/catalog/centro/products',
     ])
   })
@@ -164,7 +178,11 @@ test.describe('public catalog direct URL presentation', () => {
 test.describe('public catalog empty products', () => {
   test.use({
     declaredRoutes: {
-      routes: [branchRoute(), productRoute('centro', { json: productPage([]), count: 1 })],
+      routes: [
+        branchRoute(),
+        priceContextsRoute('centro'),
+        productRoute('centro', { json: productPage([]), count: 1 }),
+      ],
     },
   })
 
@@ -177,6 +195,7 @@ test.describe('public catalog empty products', () => {
     ).toBeVisible()
     expectOnlyCatalogRequests(strictNetwork, [
       '/public/catalog/branches',
+      '/public/catalog/centro/price-contexts',
       '/public/catalog/centro/products',
     ])
   })
@@ -193,6 +212,7 @@ test.describe('public catalog custom quantity', () => {
     declaredRoutes: {
       routes: [
         branchRoute(),
+        priceContextsRoute('centro'),
         productRoute('centro', { json: productPage([quantityProduct]), count: 1 }),
       ],
     },
@@ -209,6 +229,7 @@ test.describe('public catalog custom quantity', () => {
     await expect(page.getByText(/Disponible|Pocas piezas|Agotado/)).toHaveCount(0)
     expectOnlyCatalogRequests(strictNetwork, [
       '/public/catalog/branches',
+      '/public/catalog/centro/price-contexts',
       '/public/catalog/centro/products',
     ])
   })
@@ -225,6 +246,7 @@ test.describe('public catalog aggregate custom quantity', () => {
     declaredRoutes: {
       routes: [
         branchRoute(),
+        priceContextsRoute('centro'),
         productRoute('centro', { json: productPage([aggregateQuantityProduct]), count: 1 }),
       ],
     },
@@ -245,6 +267,7 @@ test.describe('public catalog aggregate custom quantity', () => {
     })
     expectOnlyCatalogRequests(strictNetwork, [
       '/public/catalog/branches',
+      '/public/catalog/centro/price-contexts',
       '/public/catalog/centro/products',
     ])
   })
@@ -271,6 +294,7 @@ test.describe('public catalog product loading', () => {
     declaredRoutes: {
       routes: [
         branchRoute(),
+        priceContextsRoute('centro'),
         productRoute('centro', { deferred: true, json: productPage(), count: 1 }),
       ],
     },
@@ -287,6 +311,7 @@ test.describe('public catalog product loading', () => {
     await expect(page.getByRole('heading', { name: visibleProduct.name })).toBeVisible()
     expectOnlyCatalogRequests(strictNetwork, [
       '/public/catalog/branches',
+      '/public/catalog/centro/price-contexts',
       '/public/catalog/centro/products',
     ])
   })
@@ -301,6 +326,7 @@ for (const [status, message] of [
       declaredRoutes: {
         routes: [
           branchRoute(),
+          priceContextsRoute('centro'),
           productRoute('centro', {
             status,
             json: { message: 'retryable product failure' },
@@ -331,6 +357,7 @@ for (const [status, message] of [
         .toBe(2)
       expectOnlyCatalogRequests(strictNetwork, [
         '/public/catalog/branches',
+        '/public/catalog/centro/price-contexts',
         '/public/catalog/centro/products',
         '/public/catalog/centro/products',
       ])
@@ -341,7 +368,11 @@ for (const [status, message] of [
 test.describe('public catalog network recovery', () => {
   test.use({
     declaredRoutes: {
-      routes: [branchRoute(), productRoute('centro', { json: productPage(), count: 1 })],
+      routes: [
+        branchRoute(),
+        priceContextsRoute('centro'),
+        productRoute('centro', { json: productPage(), count: 1 }),
+      ],
     },
   })
 
@@ -365,6 +396,7 @@ test.describe('public catalog network recovery', () => {
     expect(productAttempts).toBe(2)
     expectOnlyCatalogRequests(strictNetwork, [
       '/public/catalog/branches',
+      '/public/catalog/centro/price-contexts',
       '/public/catalog/centro/products',
     ])
   })
@@ -377,6 +409,8 @@ test.describe('public catalog browser history', () => {
     declaredRoutes: {
       routes: [
         branchRoute([centro, norte]),
+        priceContextsRoute('centro', 2),
+        priceContextsRoute('norte', 2),
         productRoute('centro', { json: productPage([centroProduct]), count: 2 }),
         productRoute('norte', { json: productPage([norteProduct]), count: 2 }),
       ],
@@ -406,9 +440,13 @@ test.describe('public catalog browser history', () => {
     await expect(page.getByRole('heading', { name: norteProduct.name })).toBeVisible()
     expectOnlyCatalogRequests(strictNetwork, [
       '/public/catalog/branches',
+      '/public/catalog/centro/price-contexts',
       '/public/catalog/centro/products',
+      '/public/catalog/norte/price-contexts',
       '/public/catalog/norte/products',
+      '/public/catalog/centro/price-contexts',
       '/public/catalog/centro/products',
+      '/public/catalog/norte/price-contexts',
       '/public/catalog/norte/products',
     ])
   })

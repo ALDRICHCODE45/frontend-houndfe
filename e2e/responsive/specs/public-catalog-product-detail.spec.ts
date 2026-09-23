@@ -137,10 +137,12 @@ const hiddenDetail = {
 }
 
 const branchesPath = '/public/catalog/branches'
+const priceContextsPath = `/public/catalog/${branchSlug}/price-contexts`
 const productsPath = `/public/catalog/${branchSlug}/products`
 const detailPath = (productId: string) => `${productsPath}/${productId}`
 
 const branchesPathname = `${API_PREFIX}${branchesPath}`
+const priceContextsPathname = `${API_PREFIX}${priceContextsPath}`
 const productsPathname = `${API_PREFIX}${productsPath}`
 const detailPathname = (productId: string) => `${API_PREFIX}${detailPath(productId)}`
 
@@ -148,6 +150,13 @@ const branchRoute: DeclaredRoute = {
   method: 'GET',
   path: branchesPath,
   json: [branch],
+  count: 1,
+}
+/** Anonymous discovery is a direct array of the same tenant context the list response echoes. */
+const priceContextsRoute: DeclaredRoute = {
+  method: 'GET',
+  path: priceContextsPath,
+  json: [priceContext],
   count: 1,
 }
 const productsRoute = (items: readonly unknown[]): DeclaredRoute => ({
@@ -251,7 +260,7 @@ function captureAnonymousTraffic(page: Page, productId: string): AnonymousTraffi
   }
 }
 
-/** The whole declared ledger: one anonymous branches read, one anonymous list read, N exact detail reads. */
+/** The whole declared ledger: one anonymous branches read, one anonymous price-context discovery, one anonymous list read, N exact detail reads. */
 function expectExactCatalogTraffic(
   strictNetwork: StrictNetworkController,
   productId: string,
@@ -259,6 +268,7 @@ function expectExactCatalogTraffic(
 ): void {
   expect(strictNetwork.requests()).toEqual([
     { method: 'GET', path: branchesPath, query: {}, body: undefined },
+    { method: 'GET', path: priceContextsPath, query: {}, body: undefined },
     { method: 'GET', path: productsPath, query: {}, body: undefined },
     ...Array.from({ length: detailCount }, () => ({
       method: 'GET',
@@ -373,7 +383,12 @@ interface ControlSnapshot {
 const controlKey = (control: ControlSnapshot): string => `${control.role} "${control.name}"`
 
 /** The inert storefront shell plus one detail invoker per rendered product card. */
-const SHELL_CONTROL_NAMES = ['Explorar sucursales', 'Cambiar tema', branch.name] as const
+const SHELL_CONTROL_NAMES = [
+  'Explorar sucursales',
+  'Lista de precios',
+  'Cambiar tema',
+  branch.name,
+] as const
 const invokerControlName = (productName: string): string => `Ver detalles de ${productName}`
 
 const shellControls = (productNames: readonly string[]): ControlSnapshot[] => [
@@ -480,6 +495,7 @@ for (const viewport of viewports) {
       declaredRoutes: {
         routes: [
           branchRoute,
+          priceContextsRoute,
           productsRoute([targetProduct, decoyProduct]),
           detailRoute(targetProductId, targetDetail, 2),
         ],
@@ -617,6 +633,7 @@ for (const viewport of viewports) {
       declaredRoutes: {
         routes: [
           branchRoute,
+          priceContextsRoute,
           productsRoute([hiddenProduct]),
           detailRoute(hiddenProductId, hiddenDetail, 1),
         ],
@@ -685,6 +702,7 @@ for (const viewport of viewports) {
       declaredRoutes: {
         routes: [
           branchRoute,
+          priceContextsRoute,
           productsRoute([targetProduct]),
           // The accepted manual retry is the only request reaching the declared route, and it is held
           // in flight so a concurrent second activation would be an exceeded, aborted request.

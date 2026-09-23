@@ -63,6 +63,21 @@ function mountHarness(initialSlug: string | null) {
   return { catalog: () => catalog!, tenantSlug, wrapper, queryClient }
 }
 
+function mountHarnessWithPriceList(initialSlug: string | null, initialPriceListId: string | null) {
+  const tenantSlug = shallowRef<string | null>(initialSlug)
+  const priceListId = shallowRef<string | null>(initialPriceListId)
+  let catalog: ReturnType<typeof useCatalogProducts>
+  const Harness = defineComponent({
+    setup: () => {
+      catalog = useCatalogProducts(tenantSlug, priceListId)
+      return () => null
+    },
+  })
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+  mount(Harness, { global: { plugins: [[VueQueryPlugin, { queryClient }]] } })
+  return { catalog: () => catalog!, tenantSlug, priceListId, queryClient }
+}
+
 describe('useCatalogProducts', () => {
   beforeEach(() => fetchCatalogProductsMock.mockReset())
 
@@ -87,17 +102,150 @@ describe('useCatalogProducts', () => {
     await flushPromises()
     expect(catalog().state.value).toBe('populated')
     expect(catalog().products.value).toEqual([product])
-    expect(fetchCatalogProductsMock).toHaveBeenCalledWith('centro', expect.any(AbortSignal))
+    expect(fetchCatalogProductsMock).toHaveBeenCalledWith('centro', null, expect.any(AbortSignal))
   })
 
-  it('keeps the resolved API base as an identity segment of the query key', () => {
+  it('keeps the resolved API base as an identity segment and marks the caller default with a sentinel', () => {
     // 'http://localhost:3000' is the resolved base when VITE_API_BASE_URL is unset in unit tests.
     expect(catalogProductsQueryKey('centro')).toEqual([
       'public-catalog',
       'products',
       'http://localhost:3000',
       'centro',
+      ['default'],
     ])
+    expect(catalogProductsQueryKey('centro', undefined)).toEqual(catalogProductsQueryKey('centro'))
+    expect(catalogProductsQueryKey('centro', null)).toEqual(catalogProductsQueryKey('centro'))
+    // A supplied string is explicit and identity-significant, even when malformed.
+    expect(catalogProductsQueryKey('centro', '')).toEqual([
+      'public-catalog',
+      'products',
+      'http://localhost:3000',
+      'centro',
+      ['explicit', ''],
+    ])
+    expect(catalogProductsQueryKey('centro', '   ')).toEqual([
+      'public-catalog',
+      'products',
+      'http://localhost:3000',
+      'centro',
+      ['explicit', '   '],
+    ])
+    expect(catalogProductsQueryKey('centro', '')).not.toEqual(catalogProductsQueryKey('centro'))
+    expect(catalogProductsQueryKey('centro', '   ')).not.toEqual(catalogProductsQueryKey('centro'))
+    expect(catalogProductsQueryKey('centro', '')).not.toEqual(
+      catalogProductsQueryKey('centro', '   '),
+    )
+  })
+
+  it('forwards an explicit priceListId under an identity disjoint from the default sentinel', async () => {
+    fetchCatalogProductsMock.mockResolvedValue(page())
+    const { catalog } = mountHarnessWithPriceList('centro', 'list-mayoreo')
+
+    expect(catalog().state.value).toBe('loading')
+    await flushPromises()
+    expect(catalog().state.value).toBe('populated')
+    expect(fetchCatalogProductsMock).toHaveBeenCalledWith(
+      'centro',
+      'list-mayoreo',
+      expect.any(AbortSignal),
+    )
+    expect(catalogProductsQueryKey('centro', 'list-mayoreo')).not.toEqual(
+      catalogProductsQueryKey('centro'),
+    )
+    // An id that spells the sentinel must still own a distinct identity.
+    expect(catalogProductsQueryKey('centro', 'default')).not.toEqual(
+      catalogProductsQueryKey('centro'),
+    )
+    expect(catalogProductsQueryKey('centro', 'explicit')).not.toEqual(
+      catalogProductsQueryKey('centro', 'default'),
+    )
+  })
+
+  it.each([[''], ['   ']])(
+    'forwards an explicit malformed priceListId exactly as supplied instead of collapsing it to the caller default (%j)',
+    async (priceListId) => {
+      fetchCatalogProductsMock.mockResolvedValue(page())
+      const { catalog } = mountHarnessWithPriceList('centro', priceListId)
+
+      expect(catalog().state.value).toBe('loading')
+      await flushPromises()
+      expect(fetchCatalogProductsMock).toHaveBeenCalledTimes(1)
+      expect(fetchCatalogProductsMock).toHaveBeenCalledWith(
+        'centro',
+        priceListId,
+        expect.any(AbortSignal),
+      )
+      expect(fetchCatalogProductsMock).not.toHaveBeenCalledWith(
+        'centro',
+        null,
+        expect.any(AbortSignal),
+      )
+      expect(catalogProductsQueryKey('centro', priceListId)).not.toEqual(
+        catalogProductsQueryKey('centro', null),
+      )
+    },
+  )
+
+  it('exposes the unavailable state for an unavailable context with a guarded manual retry', async () => {
+    fetchCatalogProductsMock
+      .mockRejectedValueOnce(Object.assign(new Error('unavailable'), { kind: 'unavailable' }))
+      .mockResolvedValueOnce(page())
+    const { catalog } = mountHarness('centro')
+
+    await flushPromises()
+    expect(catalog().state.value).toBe('unavailable')
+    expect(fetchCatalogProductsMock).toHaveBeenCalledTimes(1)
+    await catalog().retry()
+    await flushPromises()
+    expect(catalog().state.value).toBe('populated')
+  })
+
+  it('discards the previous context products and refetches under a disjoint identity when the explicit id changes', async () => {
+    const cachedDefaultPage = page()
+    const mayoreoPage = page([{ ...product, id: 'product-2', name: 'Café mayoreo' }])
+    const refreshedDefaultPage = page([{ ...product, name: 'Café molido actualizado' }])
+    const pendingMayoreo = deferred<ReturnType<typeof page>>()
+    fetchCatalogProductsMock
+      .mockResolvedValueOnce(cachedDefaultPage)
+      .mockReturnValueOnce(pendingMayoreo.promise)
+      .mockResolvedValueOnce(refreshedDefaultPage)
+    const { catalog, priceListId } = mountHarnessWithPriceList('centro', null)
+
+    await flushPromises()
+    expect(catalog().products.value).toEqual([product])
+    priceListId.value = 'list-mayoreo'
+    await nextTick()
+    expect(catalog().state.value).toBe('loading')
+    expect(catalog().products.value).toEqual([])
+    pendingMayoreo.resolve(mayoreoPage)
+    await flushPromises()
+    expect(catalog().products.value).toEqual(mayoreoPage.items)
+    expect(fetchCatalogProductsMock).toHaveBeenCalledTimes(2)
+
+    // Switching back restores the default identity. TanStack's collection timing decides whether
+    // that key's cached default payload is still present, but the Mayoreo payload must never
+    // surface under the default identity.
+    priceListId.value = null
+    await nextTick()
+    expect(catalogProductsQueryKey('centro', null)).toEqual(catalogProductsQueryKey('centro'))
+    expect(catalogProductsQueryKey('centro', 'list-mayoreo')).not.toEqual(
+      catalogProductsQueryKey('centro', null),
+    )
+    expect(catalog().products.value).not.toEqual(mayoreoPage.items)
+    expect(catalog().products.value.every((item) => item.id === product.id)).toBe(true)
+
+    // The default identity still refetches and the fresh default response replaces the payload.
+    await flushPromises()
+    expect(catalog().state.value).toBe('populated')
+    expect(catalog().products.value).toEqual(refreshedDefaultPage.items)
+    expect(catalog().products.value).not.toEqual(mayoreoPage.items)
+    expect(fetchCatalogProductsMock).toHaveBeenCalledTimes(3)
+    expect(fetchCatalogProductsMock).toHaveBeenLastCalledWith(
+      'centro',
+      null,
+      expect.any(AbortSignal),
+    )
   })
 
   it('shows empty, rate-limit, server, and network states without automatic retries', async () => {

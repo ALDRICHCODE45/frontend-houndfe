@@ -5,35 +5,139 @@ import CatalogHeader from '../components/CatalogHeader.vue'
 import CatalogCategoryBar from '../components/CatalogCategoryBar.vue'
 import CatalogFooter from '../components/CatalogFooter.vue'
 import CatalogProductDetailModal from '../components/CatalogProductDetailModal.vue'
-import CatalogProductGrid from '../components/CatalogProductGrid.vue'
+import CatalogProductGrid, {
+  type CatalogProductContextState,
+} from '../components/CatalogProductGrid.vue'
 import { useCatalogBranches } from '../composables/useCatalogBranches'
 import { useCatalogProductDetail } from '../composables/useCatalogProductDetail'
 import { useCatalogProducts } from '../composables/useCatalogProducts'
+import { useCatalogPriceContexts } from '../composables/useCatalogPriceContexts'
+import type { PublicCatalogPriceContextDto } from '../interfaces/public-catalog-price-context.types'
 
 const route = useRoute()
 const router = useRouter()
 const { branches, state: branchesState, retry: retryBranches } = useCatalogBranches()
-const selectedBranch = computed(() => {
+
+const branchSlug = computed(() => {
   const slug = route.params.branchSlug
-  return typeof slug === 'string'
-    ? (branches.value.find((branch) => branch.slug === slug) ?? null)
-    : null
+  return typeof slug === 'string' && slug.trim().length > 0 ? slug.trim() : null
 })
+const selectedBranch = computed(() =>
+  branchSlug.value === null
+    ? null
+    : (branches.value.find((branch) => branch.slug === branchSlug.value) ?? null),
+)
 const selectionState = computed<'none' | 'invalid' | 'selected'>(() => {
-  const slug = route.params.branchSlug
-  if (typeof slug !== 'string' || slug.trim().length === 0) return 'none'
+  if (branchSlug.value === null) return 'none'
   return selectedBranch.value ? 'selected' : 'invalid'
 })
+
+/**
+ * Discovery is branch-scoped and never runs before a real, published branch is
+ * selected. Until discovery is authoritative the catalog also refuses to request
+ * products, so it can never invent or mix a price context.
+ */
+const {
+  contexts,
+  state: priceContextsState,
+  retry: retryPriceContexts,
+} = useCatalogPriceContexts(
+  computed(() =>
+    selectionState.value === 'selected' ? (selectedBranch.value?.slug ?? null) : null,
+  ),
+)
+
+/**
+ * The URL is only a proposal. An absent `priceListId` means the backend default;
+ * a blank, array or unknown explicit id is unavailable and never falls back.
+ */
+type PriceContextProposal =
+  | { kind: 'default' }
+  | { kind: 'explicit'; id: string }
+  | { kind: 'invalid' }
+const priceContextProposal = computed<PriceContextProposal>(() => {
+  const raw = route.query.priceListId
+  if (raw === undefined) return { kind: 'default' }
+  if (typeof raw !== 'string') return { kind: 'invalid' }
+  // Trim is only a blank test: the original nonblank string stays the proposed id,
+  // so a padded id can never silently match an unpadded discovered context.
+  return raw.trim().length === 0 ? { kind: 'invalid' } : { kind: 'explicit', id: raw }
+})
+const discoveredDefault = computed(
+  () => contexts.value.find((context) => context.isCatalogDefault) ?? null,
+)
+const matchedExplicitContext = computed<PublicCatalogPriceContextDto | null>(() => {
+  const proposal = priceContextProposal.value
+  if (proposal.kind !== 'explicit') return null
+  return contexts.value.find((context) => context.priceListId === proposal.id) ?? null
+})
+
+const contextState = computed<CatalogProductContextState>(() => {
+  if (selectionState.value !== 'selected') return 'context-ready'
+  switch (priceContextsState.value) {
+    case 'idle':
+    case 'loading':
+    case 'retry-pending':
+      return 'context-loading'
+    case 'empty':
+      return 'context-empty'
+    case 'unavailable':
+      return 'context-unavailable'
+    case 'rate-limit':
+      return 'context-rate-limit'
+    case 'network':
+      return 'context-network'
+    case 'server':
+      return 'context-server'
+    case 'populated':
+      break
+  }
+
+  const proposal = priceContextProposal.value
+  if (proposal.kind === 'invalid') return 'context-unavailable'
+  if (proposal.kind === 'explicit') {
+    return matchedExplicitContext.value ? 'context-ready' : 'context-unavailable'
+  }
+  return discoveredDefault.value ? 'context-ready' : 'context-no-default'
+})
+
+const isContextReady = computed(() => contextState.value === 'context-ready')
 const {
   products,
   response,
   state: productsState,
   retry: retryProducts,
-} = useCatalogProducts(computed(() => selectedBranch.value?.slug ?? null))
+} = useCatalogProducts(
+  computed(() => (isContextReady.value ? (selectedBranch.value?.slug ?? null) : null)),
+  computed(() => {
+    if (!isContextReady.value) return null
+    return priceContextProposal.value.kind === 'explicit' ? priceContextProposal.value.id : null
+  }),
+)
+
+/** The list response context is authoritative for identity and selector display. */
+const authoritativePriceContext = computed(() => response.value?.priceContext ?? null)
+const priceListId = computed(() => authoritativePriceContext.value?.priceListId ?? null)
+const selectedPriceListId = computed(() => {
+  if (authoritativePriceContext.value) return authoritativePriceContext.value.priceListId
+  const proposal = priceContextProposal.value
+  // Only an absent query may fall back to the discovered default before a list
+  // response exists. Invalid or unmatched explicit proposals stay unselected.
+  if (proposal.kind === 'explicit') return matchedExplicitContext.value?.priceListId ?? null
+  if (proposal.kind === 'invalid') return null
+  return discoveredDefault.value?.priceListId ?? null
+})
+/** A stale discovery that omitted the authoritative context keeps it selectable. */
+const selectorOptions = computed<PublicCatalogPriceContextDto[]>(() => {
+  const authoritative = authoritativePriceContext.value
+  if (!authoritative) return contexts.value
+  if (contexts.value.some((context) => context.priceListId === authoritative.priceListId))
+    return contexts.value
+  return [...contexts.value, authoritative]
+})
 
 const selectedProductId = ref<string | null>(null)
 const isDetailOpen = ref(false)
-const priceListId = computed(() => response.value?.priceContext.priceListId ?? null)
 const detailProductId = computed(() =>
   isDetailOpen.value &&
   selectionState.value === 'selected' &&
@@ -98,16 +202,40 @@ function openDetail(productId: string, invoker: HTMLButtonElement) {
   isDetailOpen.value = true
 }
 
-watch([() => selectedBranch.value?.slug ?? null, priceListId], () => clearDetail(false), {
-  flush: 'sync',
+const priceContextProposalKey = computed(() => {
+  const proposal = priceContextProposal.value
+  return proposal.kind === 'explicit' ? proposal.id : proposal.kind
 })
+watch(
+  [() => selectedBranch.value?.slug ?? null, priceContextProposalKey, priceListId],
+  () => clearDetail(false),
+  { flush: 'sync' },
+)
 
+/** Branch selection drops the previous `priceListId` but preserves unrelated query/hash. */
 async function selectBranch(slug: string) {
+  const query = { ...route.query }
+  delete query.priceListId
   try {
     await router.push({
       name: 'public-catalog',
       params: { branchSlug: slug },
-      query: route.query,
+      query,
+      hash: route.hash,
+    })
+  } catch {
+    // Route state remains the only selection authority when navigation is rejected.
+  }
+}
+
+/** Selecting a context writes its exact id; a rejected push never claims it. */
+async function selectPriceContext(priceListIdToSelect: string) {
+  if (typeof priceListIdToSelect !== 'string' || priceListIdToSelect.trim().length === 0) return
+  try {
+    await router.push({
+      name: 'public-catalog',
+      params: route.params,
+      query: { ...route.query, priceListId: priceListIdToSelect },
       hash: route.hash,
     })
   } catch {
@@ -122,8 +250,13 @@ async function selectBranch(slug: string) {
       :branches="branches"
       :state="branchesState"
       :selected-slug="selectedBranch?.slug ?? null"
+      :price-context-options="selectorOptions"
+      :price-contexts-state="priceContextsState"
+      :selected-price-list-id="selectedPriceListId"
       @retry="retryBranches"
       @select="selectBranch"
+      @select-price-context="selectPriceContext"
+      @retry-price-contexts="retryPriceContexts"
     />
     <CatalogCategoryBar />
 
@@ -132,7 +265,9 @@ async function selectBranch(slug: string) {
         :selection-state="selectionState"
         :products="products"
         :state="productsState"
+        :context-state="contextState"
         @retry="retryProducts"
+        @retry-context="retryPriceContexts"
         @open-detail="openDetail"
       />
     </main>
