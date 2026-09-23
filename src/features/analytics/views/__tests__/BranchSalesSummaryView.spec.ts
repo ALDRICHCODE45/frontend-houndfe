@@ -20,9 +20,62 @@ import {
 } from '@/core/shared/utils/mexicoCityCalendar'
 import { isBranchSalesSummaryEmpty } from '../../utils/branchSalesSummary.utils'
 import type { BranchSalesSummaryResponse } from '../../interfaces/branch-sales-summary.types'
+import type {
+  BranchSalesTimeseriesPoint,
+  BranchSalesTimeseriesResponse,
+} from '../../interfaces/branch-sales-timeseries.types'
 import BranchSalesSummaryFilters from '@/features/analytics/components/BranchSalesSummaryFilters.vue'
 import BranchSalesSummaryMetrics from '@/features/analytics/components/BranchSalesSummaryMetrics.vue'
+import BranchSalesTrendChart from '@/features/analytics/components/BranchSalesTrendChart.vue'
 import BranchSalesSummaryView from '@/features/analytics/views/BranchSalesSummaryView.vue'
+
+// The trend chart is mounted for real so its props/events flow through the
+// view, but a real Unovis container needs layout primitives jsdom does not
+// implement. The stubs stay at the module boundary; production code is intact.
+vi.mock('@unovis/vue', async () => {
+  const { defineComponent, h } = await import('vue')
+  const VisXYContainer = defineComponent({
+    name: 'VisXYContainer',
+    inheritAttrs: false,
+    props: { data: { type: Array, default: () => [] } },
+    setup(props, { slots }) {
+      return () =>
+        h(
+          'div',
+          {
+            'data-unovis': 'xy-container',
+            'data-point-count': String((props.data as unknown[] | undefined)?.length ?? 0),
+          },
+          slots.default?.(),
+        )
+    },
+  })
+  const leaf = (name: string) =>
+    defineComponent({
+      name,
+      inheritAttrs: false,
+      setup:
+        (_props, { slots }) =>
+        () =>
+          h('div', { 'data-unovis': name }, slots.default?.()),
+    })
+
+  return {
+    VisXYContainer,
+    VisArea: leaf('VisArea'),
+    VisLine: leaf('VisLine'),
+    VisAxis: leaf('VisAxis'),
+  }
+})
+
+/** A daily-series response whose echo is the window that produced its buckets. */
+function makeTimeseriesResponse(
+  from: string,
+  to: string,
+  points: BranchSalesTimeseriesPoint[],
+): BranchSalesTimeseriesResponse {
+  return { timeZone: 'America/Mexico_City', from, to, interval: 'day', points }
+}
 
 /** 2025-01-01T04:00Z is still 2024-12-31 in Mexico City: a zone-sensitive instant. */
 const UTC_OFFSET_INSTANT = Date.UTC(2025, 0, 1, 4, 0, 0)
@@ -89,6 +142,40 @@ vi.mock('../../composables/useBranchSalesSummary', () => ({
   },
 }))
 
+// ── OI-5A: the daily series boundary ─────────────────────────────────────────
+
+const timeseriesPointsRef = ref<BranchSalesTimeseriesPoint[]>([])
+
+/**
+ * The retained response echo. `null` models the window before the first response
+ * lands, which is the only case where the requested boundaries are authoritative.
+ */
+const timeseriesPayloadRef = ref<BranchSalesTimeseriesResponse | null>(null)
+
+const timeseriesState = {
+  timeseries: timeseriesPayloadRef,
+  points: timeseriesPointsRef,
+  isInitialLoading: ref(false),
+  isRefetching: ref(false),
+  isError: ref(false),
+  error: ref<unknown>(null),
+  refetch: vi.fn().mockResolvedValue(undefined),
+  retry: vi.fn().mockResolvedValue(undefined),
+}
+
+const timeseriesCalls: Array<{
+  tenantId: MaybeRefOrGetter<string | null | undefined>
+  from: MaybeRefOrGetter<string>
+  to: MaybeRefOrGetter<string>
+}> = []
+
+vi.mock('../../composables/useBranchSalesTimeseries', () => ({
+  useBranchSalesTimeseries: (options: (typeof timeseriesCalls)[number]) => {
+    timeseriesCalls.push(options)
+    return timeseriesState
+  },
+}))
+
 const tenantIdRef = ref('tenant-1')
 
 vi.mock('@/features/auth/composables/useSafeTenantId', () => ({
@@ -151,6 +238,15 @@ function resetMocks() {
   state.error.value = null
   state.refetch.mockClear()
   state.retry.mockClear()
+  timeseriesCalls.length = 0
+  timeseriesPointsRef.value = []
+  timeseriesPayloadRef.value = null
+  timeseriesState.isInitialLoading.value = false
+  timeseriesState.isRefetching.value = false
+  timeseriesState.isError.value = false
+  timeseriesState.error.value = null
+  timeseriesState.refetch.mockClear()
+  timeseriesState.retry.mockClear()
   tenantIdRef.value = 'tenant-1'
   vi.mocked(getMexicoCityRangePreset).mockClear()
 }
@@ -400,6 +496,245 @@ describe('BranchSalesSummaryView — render states stay distinct', () => {
     const warning = view.find('[data-testid="branch-summary-refresh-error"]')
     expect(warning.attributes('role')).toBe('alert')
     expect(warning.text()).toContain('los últimos datos disponibles')
+  })
+})
+
+// ── Daily trend composition (OI-5A) ───────────────────────────────────
+
+/** Three backend buckets, including a zero-filled day that must survive. */
+const TIMESERIES_POINTS: BranchSalesTimeseriesPoint[] = [
+  {
+    date: '2025-03-01',
+    grossSalesCents: 125_000,
+    netSalesCents: 100_000,
+    collectedCents: 80_000,
+    outstandingDebtCents: 20_000,
+    saleCount: 3,
+    averageTicketCents: 33_333,
+  },
+  {
+    date: '2025-03-02',
+    grossSalesCents: 0,
+    netSalesCents: 0,
+    collectedCents: 0,
+    outstandingDebtCents: 0,
+    saleCount: 0,
+    averageTicketCents: 0,
+  },
+  {
+    date: '2025-03-03',
+    grossSalesCents: 250_000,
+    netSalesCents: 200_000,
+    collectedCents: 150_000,
+    outstandingDebtCents: 50_000,
+    saleCount: 4,
+    averageTicketCents: 50_000,
+  },
+]
+
+describe('BranchSalesSummaryView — daily trend composition', () => {
+  it('opens the daily series query once with the same live tenant/from/to as the summary', async () => {
+    setFakeNow(NOON_2025_03_15)
+    const view = mountView()
+
+    expect(composableCalls).toHaveLength(1)
+    expect(timeseriesCalls).toHaveLength(1)
+    expect(toValue(timeseriesCalls[0]!.from)).toBe(toValue(captured().from))
+    expect(toValue(timeseriesCalls[0]!.to)).toBe(toValue(captured().to))
+    expect(toValue(timeseriesCalls[0]!.tenantId)).toBe(toValue(captured().tenantId))
+
+    // The same boundary sources, not a snapshot copy: a preset moves both queries.
+    await presetButton(view, 'previousMonth').trigger('click')
+    expect(toValue(timeseriesCalls[0]!.from)).toBe('2025-02-01')
+    expect(toValue(timeseriesCalls[0]!.to)).toBe('2025-03-01')
+    expect(toValue(timeseriesCalls[0]!.from)).toBe(toValue(captured().from))
+    expect(toValue(timeseriesCalls[0]!.to)).toBe(toValue(captured().to))
+
+    tenantIdRef.value = 'tenant-2'
+    await nextTick()
+    expect(toValue(timeseriesCalls[0]!.tenantId)).toBe('tenant-2')
+    expect(toValue(timeseriesCalls[0]!.tenantId)).toBe(toValue(captured().tenantId))
+    expect(timeseriesCalls).toHaveLength(1)
+  })
+
+  it('binds the chart metadata to the displayed response window, not the requested one', async () => {
+    setFakeNow(NOON_2025_03_15)
+    summaryRef.value = NON_EMPTY_PAYLOAD
+    // The buckets on screen belong to the RESPONSE window `[2025-03-01, 2025-03-04)`,
+    // which is intentionally narrower than the requested current-month window.
+    const retained = makeTimeseriesResponse('2025-03-01', '2025-03-04', TIMESERIES_POINTS)
+    timeseriesPayloadRef.value = retained
+    timeseriesPointsRef.value = TIMESERIES_POINTS
+    const view = mountView()
+
+    const initialChart = view.findComponent(BranchSalesTrendChart)
+    expect(initialChart.props('from')).toBe('2025-03-01')
+    expect(initialChart.props('to')).toBe('2025-03-04')
+    expect(view.find('[data-testid="branch-sales-trend-table"] caption').text()).toContain(
+      '2025-03-04',
+    )
+    expect(
+      view.find('[data-testid="branch-sales-trend-chart"]').attributes('aria-label'),
+    ).toContain('2025-03-04')
+    expect(
+      view.find('[data-testid="branch-sales-trend-chart"]').attributes('aria-label'),
+    ).not.toContain('2025-03-16')
+
+    // Move the requested window while the previous response is still retained and
+    // the refetch is in flight. The edit is applied in ONE valid step (a manual
+    // `from` move inside the window), because a transient invalid range would
+    // legitimately unmount the trend while no query can exist.
+    timeseriesState.isRefetching.value = true
+    await emitBoundary(view, 0, '2025-03-02')
+    await nextTick()
+    // Re-resolve after the transition: a bound wrapper is not assumed to survive.
+    const chart = view.findComponent(BranchSalesTrendChart)
+
+    expect(toValue(timeseriesCalls[0]!.from)).toBe('2025-03-02')
+    expect(toValue(timeseriesCalls[0]!.to)).toBe('2025-03-16')
+    // The request moved, the data did not, so the metadata must not follow it.
+    expect(chart.props('from')).toBe('2025-03-01')
+    expect(chart.props('to')).toBe('2025-03-04')
+    expect(chart.props('isRefetching')).toBe(true)
+    expect(view.find('[data-testid="branch-sales-trend"]').exists()).toBe(true)
+    expect(
+      view.find('[data-testid="branch-sales-trend-chart"]').attributes('aria-label'),
+    ).toContain('2025-03-04')
+    expect(
+      view.find('[data-testid="branch-sales-trend-chart"]').attributes('aria-label'),
+    ).not.toContain('2025-03-16')
+    expect(view.find('[data-testid="branch-sales-trend-table"] caption').text()).not.toContain(
+      '2025-03-16',
+    )
+    // The buckets are still the retained ones, in retained order.
+    expect(
+      view.findAll('[data-testid="branch-sales-trend-date"]').map((cell) => cell.text()),
+    ).toEqual(TIMESERIES_POINTS.map((point) => point.date))
+
+    // Only when the new response replaces the old one does the metadata follow.
+    timeseriesState.isRefetching.value = false
+    timeseriesPayloadRef.value = makeTimeseriesResponse(
+      '2025-03-02',
+      '2025-03-16',
+      TIMESERIES_POINTS,
+    )
+    await nextTick()
+
+    const settled = view.findComponent(BranchSalesTrendChart)
+    expect(settled.props('from')).toBe('2025-03-02')
+    expect(settled.props('to')).toBe('2025-03-16')
+    expect(
+      view.find('[data-testid="branch-sales-trend-chart"]').attributes('aria-label'),
+    ).toContain('2025-03-16')
+    expect(view.find('[data-testid="branch-sales-trend-table"] caption').text()).toContain(
+      '2025-03-16',
+    )
+  })
+
+  it('falls back to the requested boundaries only while no response metadata exists', () => {
+    setFakeNow(NOON_2025_03_15)
+    summaryRef.value = NON_EMPTY_PAYLOAD
+    // Defensive branch: the real OI-4 composable always echoes the window, so this
+    // pins the documented fallback rather than a state the composable can emit.
+    timeseriesPointsRef.value = TIMESERIES_POINTS
+    const view = mountView()
+
+    const chart = view.findComponent(BranchSalesTrendChart)
+    expect(chart.props('from')).toBe('2025-03-01')
+    expect(chart.props('to')).toBe('2025-03-16')
+    expect(chart.props('from')).toBe(toValue(captured().from))
+    expect(chart.props('to')).toBe(toValue(captured().to))
+  })
+
+  it('renders the trend as an independent sibling inside the same large card', () => {
+    summaryRef.value = NON_EMPTY_PAYLOAD
+    timeseriesPointsRef.value = TIMESERIES_POINTS
+    const view = mountView()
+
+    const card = view.find('[data-testid="branch-summary-card"]')
+    const trend = view.find('[data-testid="branch-sales-trend"]')
+    expect(trend.exists()).toBe(true)
+    expect(card.element.contains(trend.element)).toBe(true)
+
+    const chart = view.findComponent(BranchSalesTrendChart)
+    expect(chart.props('points')).toEqual(TIMESERIES_POINTS)
+    expect(chart.props('from')).toBe(toValue(captured().from))
+    expect(chart.props('to')).toBe(toValue(captured().to))
+    expect(chart.props('isInitialLoading')).toBe(false)
+    expect(chart.props('isError')).toBe(false)
+    expect(view.find('[data-testid="branch-sales-trend-chart"]').exists()).toBe(true)
+  })
+
+  it('keeps the trend and its own state when the summary fails', () => {
+    state.isError.value = true
+    state.error.value = { response: { status: 403 } }
+    timeseriesPointsRef.value = TIMESERIES_POINTS
+    const view = mountView()
+
+    expect(view.find('[data-testid="branch-summary-error"]').exists()).toBe(true)
+    expect(view.find('[data-testid="branch-sales-trend"]').exists()).toBe(true)
+    expect(view.find('[data-testid="branch-sales-trend-chart"]').exists()).toBe(true)
+    expect(view.find('[data-testid="branch-sales-trend-error"]').exists()).toBe(false)
+    expect(view.find('[data-testid="branch-sales-trend-table"]').text()).toContain('2025-03-01')
+  })
+
+  it('keeps the loaded summary KPIs when the trend itself fails', () => {
+    summaryRef.value = NON_EMPTY_PAYLOAD
+    timeseriesState.isError.value = true
+    const view = mountView()
+
+    expect(view.find('[data-testid="branch-summary-metrics"]').exists()).toBe(true)
+    expect(view.find('[data-testid="branch-summary-error"]').exists()).toBe(false)
+    expect(view.find('[data-testid="branch-sales-trend-error"]').attributes('role')).toBe('alert')
+  })
+
+  it('reports trend loading independently of a loaded summary', () => {
+    summaryRef.value = NON_EMPTY_PAYLOAD
+    timeseriesState.isInitialLoading.value = true
+    const view = mountView()
+
+    expect(view.find('[data-testid="branch-summary-metrics"]').exists()).toBe(true)
+    expect(view.find('[data-testid="branch-sales-trend-loading"]').exists()).toBe(true)
+  })
+
+  it('routes the chart retry into the guarded daily-series retry exactly once', async () => {
+    timeseriesState.isError.value = true
+    const view = mountView()
+
+    await view.find('[data-testid="branch-sales-trend-retry"]').trigger('click')
+    await nextTick()
+
+    expect(timeseriesState.retry).toHaveBeenCalledTimes(1)
+    expect(timeseriesState.refetch).not.toHaveBeenCalled()
+    expect(state.retry).not.toHaveBeenCalled()
+  })
+
+  it('keeps the trend visible next to an empty summary instead of collapsing it', () => {
+    summaryRef.value = EMPTY_PAYLOAD
+    timeseriesPointsRef.value = TIMESERIES_POINTS
+    const view = mountView()
+
+    // The summary claims nothing, but the trend's own backend buckets still render.
+    expect(view.find('[data-testid="branch-summary-empty"]').exists()).toBe(true)
+    expect(view.find('[data-testid="branch-sales-trend-chart"]').exists()).toBe(true)
+    expect(view.find('[data-testid="branch-sales-trend-table"]').text()).toContain('$2,000.00')
+  })
+
+  it('renders no trend while the local range is invalid or no tenant is available', async () => {
+    summaryRef.value = NON_EMPTY_PAYLOAD
+    timeseriesPointsRef.value = TIMESERIES_POINTS
+    const view = mountView()
+    expect(view.find('[data-testid="branch-sales-trend"]').exists()).toBe(true)
+
+    await emitBoundary(view, 0, '2025-05-01')
+    await emitBoundary(view, 1, '2025-04-01')
+    expect(view.find('[data-testid="branch-sales-trend"]').exists()).toBe(false)
+
+    resetMocks()
+    summaryRef.value = NON_EMPTY_PAYLOAD
+    timeseriesPointsRef.value = TIMESERIES_POINTS
+    tenantIdRef.value = ''
+    expect(mountView().find('[data-testid="branch-sales-trend"]').exists()).toBe(false)
   })
 })
 

@@ -19,8 +19,51 @@ import { computed, nextTick, ref } from 'vue'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import { isBranchSalesSummaryEmpty } from '../../utils/branchSalesSummary.utils'
 import type { BranchSalesSummaryResponse } from '../../interfaces/branch-sales-summary.types'
+import type {
+  BranchSalesTimeseriesPoint,
+  BranchSalesTimeseriesResponse,
+} from '../../interfaces/branch-sales-timeseries.types'
 import BranchSalesSummaryMetrics from '@/features/analytics/components/BranchSalesSummaryMetrics.vue'
 import BranchSalesSummaryView from '@/features/analytics/views/BranchSalesSummaryView.vue'
+
+// Narrow Unovis module stub: the trend chart is mounted for real so its
+// independent failure state is exercised, while a real container needs layout
+// primitives jsdom does not implement. Production code is untouched.
+vi.mock('@unovis/vue', async () => {
+  const { defineComponent, h } = await import('vue')
+  const VisXYContainer = defineComponent({
+    name: 'VisXYContainer',
+    inheritAttrs: false,
+    props: { data: { type: Array, default: () => [] } },
+    setup(props, { slots }) {
+      return () =>
+        h(
+          'div',
+          {
+            'data-unovis': 'xy-container',
+            'data-point-count': String((props.data as unknown[] | undefined)?.length ?? 0),
+          },
+          slots.default?.(),
+        )
+    },
+  })
+  const leaf = (name: string) =>
+    defineComponent({
+      name,
+      inheritAttrs: false,
+      setup:
+        (_props, { slots }) =>
+        () =>
+          h('div', { 'data-unovis': name }, slots.default?.()),
+    })
+
+  return {
+    VisXYContainer,
+    VisArea: leaf('VisArea'),
+    VisLine: leaf('VisLine'),
+    VisAxis: leaf('VisAxis'),
+  }
+})
 
 function makePayload(
   overrides: Partial<BranchSalesSummaryResponse> = {},
@@ -71,6 +114,31 @@ vi.mock('../../composables/useBranchSalesSummary', () => ({
   useBranchSalesSummary: () => state,
 }))
 
+// ── OI-5A: the daily series boundary keeps its own independent failure state ──
+
+const timeseriesPointsRef = ref<BranchSalesTimeseriesPoint[]>([])
+
+/**
+ * The retained response echo. `null` models the window before the first response
+ * lands, which is the only case where the requested boundaries are authoritative.
+ */
+const timeseriesPayloadRef = ref<BranchSalesTimeseriesResponse | null>(null)
+
+const timeseriesState = {
+  timeseries: timeseriesPayloadRef,
+  points: timeseriesPointsRef,
+  isInitialLoading: ref(false),
+  isRefetching: ref(false),
+  isError: ref(false),
+  error: ref<unknown>(null),
+  refetch: vi.fn().mockResolvedValue(undefined),
+  retry: vi.fn().mockResolvedValue(undefined),
+}
+
+vi.mock('../../composables/useBranchSalesTimeseries', () => ({
+  useBranchSalesTimeseries: () => timeseriesState,
+}))
+
 const tenantIdRef = ref('tenant-1')
 
 vi.mock('@/features/auth/composables/useSafeTenantId', () => ({
@@ -110,6 +178,16 @@ function resetMocks() {
   state.error.value = null
   state.refetch.mockClear()
   state.retry.mockClear()
+  // The trend stays out of the way unless a test deliberately fails it, so the
+  // "exactly one retry" audits below keep measuring the summary's own action.
+  timeseriesPointsRef.value = []
+  timeseriesPayloadRef.value = null
+  timeseriesState.isInitialLoading.value = false
+  timeseriesState.isRefetching.value = false
+  timeseriesState.isError.value = false
+  timeseriesState.error.value = null
+  timeseriesState.refetch.mockClear()
+  timeseriesState.retry.mockClear()
   tenantIdRef.value = 'tenant-1'
 }
 
@@ -211,7 +289,68 @@ describe('BranchSalesSummaryView — no-data error copy and retry', () => {
   })
 })
 
-// ── Filter operability and responsive shell ──────────────────────────────────
+describe('BranchSalesSummaryView — independent summary and trend failures', () => {
+  const TREND_POINTS: BranchSalesTimeseriesPoint[] = [
+    {
+      date: '2025-03-01',
+      grossSalesCents: 125_000,
+      netSalesCents: 100_000,
+      collectedCents: 80_000,
+      outstandingDebtCents: 20_000,
+      saleCount: 3,
+      averageTicketCents: 33_333,
+    },
+  ]
+
+  it('scopes each failure to its own module and keeps both guarded retries reachable', async () => {
+    summaryRef.value = NON_EMPTY_PAYLOAD
+    state.isError.value = true
+    state.error.value = { response: { status: 403 } }
+    timeseriesPointsRef.value = TREND_POINTS
+    timeseriesState.isError.value = true
+    const view = mountView()
+
+    // The summary keeps its last KPIs and its own compact recovery...
+    expect(view.findComponent(BranchSalesSummaryMetrics).props('summary')).toEqual(
+      NON_EMPTY_PAYLOAD,
+    )
+    const summaryRetry = view.find('[data-testid="branch-summary-refresh-retry"]')
+    expect(summaryRetry.exists()).toBe(true)
+    // ...and the trend keeps its own last series and its own recovery.
+    const trendRetry = view.find('[data-testid="branch-sales-trend-refresh-retry"]')
+    expect(trendRetry.exists()).toBe(true)
+    expect(view.find('[data-testid="branch-sales-trend-table"]').text()).toContain('2025-03-01')
+
+    await summaryRetry.trigger('click')
+    await trendRetry.trigger('click')
+    await nextTick()
+
+    expect(state.retry).toHaveBeenCalledTimes(1)
+    expect(timeseriesState.retry).toHaveBeenCalledTimes(1)
+    expect(state.refetch).not.toHaveBeenCalled()
+    expect(timeseriesState.refetch).not.toHaveBeenCalled()
+  })
+
+  it('shows a trend-only failure without touching the summary retry inventory', () => {
+    summaryRef.value = NON_EMPTY_PAYLOAD
+    timeseriesState.isError.value = true
+    const view = mountView()
+
+    expect(view.find('[data-testid="branch-sales-trend-error"]').attributes('role')).toBe('alert')
+    expect(view.find('[data-testid="branch-summary-metrics"]').exists()).toBe(true)
+    expect(view.find('[data-testid="branch-summary-error"]').exists()).toBe(false)
+    // The trend owns its own recovery; the summary exposes none here.
+    expect(view.find('[data-testid="branch-summary-refresh-retry"]').exists()).toBe(false)
+    expect(retryButtons(view)).toHaveLength(1)
+    expect(
+      view
+        .find('[data-testid="branch-sales-trend"]')
+        .element.contains(retryButtons(view)[0]!.element),
+    ).toBe(true)
+  })
+})
+
+// ── Filter operability and responsive shell ────────────────────────────────
 
 describe('BranchSalesSummaryView — filter operability', () => {
   it('uses the filters loading state only for the initial load', () => {

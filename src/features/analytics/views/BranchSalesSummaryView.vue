@@ -18,6 +18,13 @@
  * States: initial loading skeleton -> local invalid range -> no-data error
  * (400 / 403 / unexpected) -> loaded empty -> loaded metrics, with retained-data
  * refresh indicator/warning layers and one guarded retry action.
+ *
+ * OI-5A adds the daily trend as an INDEPENDENT sibling inside the same large
+ * card: it consumes the committed `useBranchSalesTimeseries` boundary with the
+ * exact same reactive tenant/range sources as the summary, owns its own
+ * loading/error/empty states, and routes its single retry event into that
+ * composable's guarded action. It is deliberately not nested inside summary
+ * success, so neither module's failure can erase the other.
  */
 import { computed, ref, shallowRef } from 'vue'
 import {
@@ -28,8 +35,10 @@ import {
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
 import { useBranchSalesSummary } from '../composables/useBranchSalesSummary'
+import { useBranchSalesTimeseries } from '../composables/useBranchSalesTimeseries'
 import BranchSalesSummaryFilters from '../components/BranchSalesSummaryFilters.vue'
 import BranchSalesSummaryMetrics from '../components/BranchSalesSummaryMetrics.vue'
+import BranchSalesTrendChart from '../components/BranchSalesTrendChart.vue'
 
 const RANGE_VALIDATION_MESSAGE =
   'El rango no es válido: la fecha inicial debe ser anterior a la final y el periodo no puede superar 366 días.'
@@ -56,10 +65,36 @@ const activePreset = shallowRef<MexicoCityRangePresetId | null>('thisMonth')
 const tenantId = useSafeTenantId()
 const summaryState = useBranchSalesSummary({ tenantId, from, to })
 
+/**
+ * OI-5A: the daily trend query. Same tenant source and same `from`/`to` refs as
+ * the summary, so both boundaries always describe the SAME window, but a
+ * separate query key, request and error state.
+ */
+const timeseriesState = useBranchSalesTimeseries({ tenantId, from, to })
+
 const hasLocalRangeError = computed(() => !isValidMexicoCityDateRange(from.value, to.value))
 const validationMessage = computed(() =>
   hasLocalRangeError.value ? RANGE_VALIDATION_MESSAGE : undefined,
 )
+
+/**
+ * The trend renders only while a query can actually exist: a tenant is resolved
+ * and the local range is valid. That keeps a disabled query from being reported
+ * as "no daily data", which would be a claim about a window never requested.
+ */
+const hasTrendQuery = computed(() => Boolean(tenantId.value?.trim()) && !hasLocalRangeError.value)
+
+/**
+ * OI-5A metadata binding (verifier finding): the chart's caption and image label
+ * must describe the buckets actually ON SCREEN. The OI-4 query keeps the previous
+ * payload while a new window is in flight (`keepPreviousData`), so the requested
+ * `from`/`to` can already point at a window whose response has not landed. The
+ * response's own echoed boundaries are therefore authoritative whenever a
+ * response exists, and the requested boundaries are only the fallback for the
+ * window before the first response arrives (and while the query is disabled).
+ */
+const timeseriesBoundFrom = computed(() => timeseriesState.timeseries.value?.from ?? from.value)
+const timeseriesBoundTo = computed(() => timeseriesState.timeseries.value?.to ?? to.value)
 
 /**
  * A summary is on screen for every loaded render (empty included), but only a
@@ -114,6 +149,11 @@ function onToChange(value: string) {
 /** Guarded retry: the composable alone decides whether a refetch may start. */
 function onRetry() {
   void summaryState.retry()
+}
+
+/** Guarded trend retry: the OI-4 composable owns the enabled/in-flight guard. */
+function onTrendRetry() {
+  void timeseriesState.retry()
 }
 </script>
 
@@ -279,6 +319,28 @@ function onRetry() {
             No hay una consulta activa. Inicia sesión con una sucursal para consultar el resumen.
           </p>
         </template>
+
+        <!--
+          OI-5A: the daily trend is an INDEPENDENT sibling of the summary block
+          above, inside the same large card. It is deliberately NOT nested inside
+          summary success, so a summary failure never hides the trend and a trend
+          failure never erases loaded summary KPIs. Its visibility depends only
+          on whether the window can be queried at all.
+
+          `from`/`to` are the RESPONSE's echoed window, not the requested one: the
+          buckets stay on screen from the previous window while a new one is being
+          fetched, so labels must describe the data, not the request.
+        -->
+        <BranchSalesTrendChart
+          v-if="hasTrendQuery"
+          :points="timeseriesState.points.value"
+          :from="timeseriesBoundFrom"
+          :to="timeseriesBoundTo"
+          :is-initial-loading="timeseriesState.isInitialLoading.value"
+          :is-refetching="timeseriesState.isRefetching.value"
+          :is-error="timeseriesState.isError.value"
+          @retry="onTrendRetry"
+        />
       </div>
     </UCard>
   </div>
