@@ -8,6 +8,10 @@ This is ODD, not SDD. The user explicitly authorized implementation on local `ma
 
 No commit, push, destructive Git operation, OpenSpec mutation, or PR is authorized. Keep `stash@{0}`, the two historical untracked OpenSpec files, and prior `/tmp` evidence unchanged.
 
+### Semantic controls follow-up
+
+The user approved a follow-up refinement after the public catalog redesign was closed. This slice replaces backend-oriented stock labels with customer-facing language and explanatory previews, compacts the sparse global settings layout, replaces the global price-list chip/button workflow with the established Nuxt UI select pattern, changes catalog-related checkbox booleans to switches, and makes product/variant inheritance copy contextual. It must remain UI-only: enum values, inheritance semantics, permissions, emits, changed-only payloads, and API contracts stay unchanged.
+
 ## Product and design constraints
 
 - Use the project's existing backoffice language, spacing, surfaces, and interaction patterns.
@@ -32,6 +36,11 @@ No commit, push, destructive Git operation, OpenSpec mutation, or PR is authoriz
 - `src/features/POS/products/components/OnlineStockOverrideFields.vue`
 - `src/features/POS/products/components/__tests__/ProductCatalogSettingsSection.spec.ts`
 - `src/features/POS/products/views/__tests__/ProductDetailView.test.ts` only if parent-composition assertions require adjustment
+- `src/features/POS/products/components/VariantDetailModal.vue`
+- `src/features/POS/products/components/__tests__/VariantDetailModal.catalog.spec.ts`
+- `src/features/POS/products/components/ProductUpsertSlideover.vue`
+- directly related `ProductUpsertSlideover` specs only when required by the checkbox-to-switch migration
+- one catalog-settings-local shared UI copy module and its directly related tests, if extraction prevents duplicated labels/descriptions
 - this task document
 
 ## Tasks
@@ -43,6 +52,9 @@ No commit, push, destructive Git operation, OpenSpec mutation, or PR is authoriz
 - [x] **U5 — Unify catalog settings inside the established large-card shell.** Header, loading/error/form/read body, and the single responsive save/read-only area now live inside one `UCard`; detached/sticky page bars were removed. Independent focused verification passed with 29/29 view tests and scoped diff check.
 - [x] **U6 — Redesign product catalog configuration.** The section remains one sibling `UCard` with internal hierarchy/dividers; manual/native controls were replaced with `USwitch`, `UCheckbox`, labeled `USelectMenu`, `UInput`, and `UFormField`. Permission gates, nullable stock clearing, literal `0`, changed-only payloads, and parent integration are preserved. Independent focused verification passed (11 section tests, 12 parent tests, typecheck, scoped diff check).
 - [ ] **U7 — Verify both catalog surfaces.** Final combined automated verification is PASS: 8/8 focused files and 108/108 tests, `pnpm type-check`, `pnpm build`, and `git diff --check`; build reports only the existing chunk-size warning. Independent verification found no production, behavior, accessibility, responsive, or test-interaction defects. Human authenticated desktop/mobile smoke remains pending. No RDD for either surface by explicit user selection.
+- [x] **U8 — Clarify stock presentation and inheritance.** Centralized the four customer-facing labels, honest explanations, and selected-mode previews in `stockPresentationUi.ts`; product null now reads “Usar configuración global” and variant null reads “Usar configuración del producto”. Enum values, literal `0`, nullable clearing, emits, permissions, and storefront behavior remain unchanged. Writer and independent verifier both passed 5 focused files / 73 tests, `pnpm type-check`, and `git diff --check`; static responsive/accessibility inspection found no blocker. The new utility is intentionally untracked until ordinary delivery because commits/staging are not authorized.
+- [x] **U9 — Modernize catalog price-list and publication controls.** Replaced the tenant chip/button workflow with a searchable multi `USelectMenu` plus a clearable principal-list selector; product contexts and the quick-editor catalog opt-in now use `USwitch`; persisted variants use a contextual `USelectMenu`. Permissions, stale accepted ids, deterministic granular emits, form state, changed-only payloads, and empty/loading/error states remain intact. Writer and independent verifier both passed 4 focused files / 60 tests, `pnpm type-check`, and `git diff --check`; no behavioral blocker was found.
+- [x] **U10 — Rebalance and verify the refined surfaces.** The global editable form now uses a compact publication surface and a responsive one-column/mobile, two-column/large-screen contexts-plus-stock grid inside the single established outer card. Final independent evidence: exact 11-file candidate suite **159/159**, isolated `SaleDetailView` **28/28**, serial full suite **404/404 files and 6,624/6,624 tests**, type-check PASS, production build PASS, scoped Prettier PASS across all 18 changed/new paths, and `git diff --check` PASS. The ordinary parallel full-suite attempt timed out after 300 seconds with cross-file failures, while every implicated candidate-related file passed focused and the exact serial full suite passed; this supports parallel interference or resource pressure but does not identify which. Build retains the existing >500 kB chunk warning. Authenticated browser smoke remains unavailable without credentials and is still represented by U7's human smoke gate.
 
 ## Verification contract
 

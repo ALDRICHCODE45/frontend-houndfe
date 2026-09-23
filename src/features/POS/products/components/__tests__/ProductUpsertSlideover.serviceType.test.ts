@@ -5,7 +5,8 @@
  * (SERVICE edit hides; PRODUCT edit and create show).
  */
 
-import { describe, it, expect, vi } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
+import { DOMWrapper } from '@vue/test-utils'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import { nextTick } from 'vue'
 import ProductUpsertSlideover from '../ProductUpsertSlideover.vue'
@@ -63,6 +64,10 @@ vi.mock('vue-router', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }))
 
+// NOTE: the USlideover body is portaled into <body> by Nuxt UI, so the
+// rendered controls are queried through the document. `baseStubs.UCheckbox`
+// never matched the globally-registered `Checkbox` component, so the real
+// UCheckbox controls (role="checkbox") render and can be asserted.
 const baseStubs = {
   UInput: { name: 'UInput', template: '<input />' },
   UInputNumber: { name: 'UInputNumber', template: '<input type="number" />' },
@@ -79,6 +84,15 @@ const baseStubs = {
     inheritAttrs: false,
   },
 }
+
+// Nuxt UI teleports the real USlideover body into <body>, so the rendered
+// controls are queried through the document (the vm assertions stay on the
+// component wrapper). Clearing <body> keeps each test's portal fresh.
+const q = (selector: string) => new DOMWrapper(document.querySelector(selector)!)
+
+beforeEach(() => {
+  document.body.innerHTML = ''
+})
 
 describe('ProductUpsertSlideover - WU-E SERVICE-hiding (behavioral)', () => {
   const mountSlide = (product: ProductDetail | null, mode: 'create' | 'edit') =>
@@ -131,5 +145,39 @@ describe('ProductUpsertSlideover - WU-E SERVICE-hiding (behavioral)', () => {
     expect(vm.state.type).toBe('SERVICE')
     expect(vm.state.serviceDetail.capacity).toBe(3)
     expect(vm.state.serviceDetail.notes).toBe('Walk')
+  })
+
+  // U9: only the catalog-specific opt-in becomes a switch; the other product
+  // options stay checkboxes so the form semantics and payload are untouched.
+  it('renders the catalog opt-in as a labeled switch and keeps the other options as checkboxes', async () => {
+    const wrapper = mountSlide(productDetailPRODUCT, 'edit')
+    await nextTick()
+
+    const toggle = q('[data-testid="include-in-online-catalog-switch"]')
+    const switchRoot = toggle.element.closest('[data-slot="root"]')!
+    const label = switchRoot.querySelector('label')!
+
+    expect(toggle.exists()).toBe(true)
+    expect(toggle.attributes('role')).toBe('switch')
+    expect(toggle.attributes('aria-checked')).toBe('true')
+    expect(label.textContent).toContain('Catálogo online')
+    expect(switchRoot.textContent).toContain('El producto se muestra en el catálogo público')
+    // The visible label is wired to the rendered switch button.
+    expect(label.getAttribute('for')).toBe(toggle.attributes('id'))
+    // Usar stock, Vender en POS and Cobrar impuestos remain checkboxes.
+    expect(wrapper.findAllComponents({ name: 'Switch' })).toHaveLength(1)
+    expect(wrapper.findAllComponents({ name: 'Checkbox' })).toHaveLength(3)
+    expect(document.querySelectorAll('[role="checkbox"]')).toHaveLength(3)
+  })
+
+  it('toggles the catalog opt-in through the rendered switch', async () => {
+    const wrapper = mountSlide(productDetailPRODUCT, 'edit')
+    await nextTick()
+
+    await q('[data-testid="include-in-online-catalog-switch"]').trigger('click')
+    await nextTick()
+
+    const vm = wrapper.vm as unknown as { state: { includeInOnlineCatalog: boolean } }
+    expect(vm.state.includeInOnlineCatalog).toBe(false)
   })
 })

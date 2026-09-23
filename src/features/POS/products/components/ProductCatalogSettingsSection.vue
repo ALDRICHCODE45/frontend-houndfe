@@ -12,6 +12,14 @@
  * switch; UCheckbox replaces native checkboxes in a responsive list; OnlineStockOverrideFields
  * uses UFormField + USelectMenu + UInput; internal sections use spacing and dividers.
  * One UCard sibling of Inventario/Variantes with no nested cards.
+ *
+ * U8: the stock override is configured here with the product inheritance scope, so a
+ * null override reads "Usar configuración global" (the tenant default).
+ *
+ * U9: each catalog context is a labeled USwitch (instead of UCheckbox) and only the
+ * catalog-default context carries the "Lista predeterminada del catálogo" explanation.
+ * The responsive list semantics, `context-toggle` testid, permission/loading/error/empty
+ * states, disabled behavior and `toggle-context` emit are unchanged.
  */
 import { computed } from 'vue'
 import OnlineStockOverrideFields from './OnlineStockOverrideFields.vue'
@@ -91,6 +99,7 @@ const contextRows = computed(() =>
       <div class="flex flex-col gap-1">
         <OnlineStockOverrideFields
           :value="stockValue"
+          inheritance-scope="product"
           :disabled="props.disabled"
           @change="emit('stock-change', $event)"
         />
@@ -124,9 +133,10 @@ const contextRows = computed(() =>
           data-testid="context-list"
         >
           <li v-for="row in contextRows" :key="row.priceListId" class="min-w-0">
-            <UCheckbox
+            <USwitch
               :model-value="row.supported"
               :label="row.name"
+              :description="row.isCatalogDefault ? 'Lista predeterminada del catálogo' : undefined"
               data-testid="context-toggle"
               :disabled="props.disabled || !props.canReadSettings"
               @update:model-value="emit('toggle-context', row.priceListId)"

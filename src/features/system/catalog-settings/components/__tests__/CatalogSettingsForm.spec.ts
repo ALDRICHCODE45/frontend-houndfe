@@ -54,9 +54,49 @@ describe('CatalogSettingsForm — composition (REQ-12)', () => {
     for (const testId of ['publication-card', 'contexts-card', 'stock-card']) {
       expect(wrapper.find(`[data-testid="${testId}"]`).element.tagName).toBe('SECTION')
     }
-    expect(wrapper.find('[data-testid="catalog-settings-form"]').classes()).toContain('sm:gap-8')
-    expect(wrapper.find('[data-testid="contexts-card"]').classes()).toContain('border-t')
-    expect(wrapper.find('[data-testid="stock-card"]').classes()).toContain('sm:pt-8')
+  })
+
+  it('puts the publication switch on a compact subtle surface', () => {
+    const wrapper = mountForm()
+
+    const publicationCard = wrapper.find('[data-testid="publication-card"]')
+    expect(publicationCard.classes()).toContain('border')
+    expect(publicationCard.classes()).toContain('bg-elevated/50')
+    expect(publicationCard.classes()).toContain('min-w-0')
+    expect(publicationCard.find('[data-testid="publish-switch"]').exists()).toBe(true)
+  })
+
+  it('lays contexts and stock out in a responsive one/two-column internal grid', () => {
+    const wrapper = mountForm()
+
+    const grid = wrapper.find('[data-testid="settings-grid"]')
+    expect(grid.classes()).toContain('grid')
+    expect(grid.classes()).toContain('grid-cols-1')
+    expect(grid.classes()).toContain('lg:grid-cols-2')
+
+    const contextsCard = wrapper.find('[data-testid="contexts-card"]')
+    const stockCard = wrapper.find('[data-testid="stock-card"]')
+    // Both sections live inside the single internal grid (no nested cards).
+    expect(grid.element.contains(contextsCard.element)).toBe(true)
+    expect(grid.element.contains(stockCard.element)).toBe(true)
+    expect(wrapper.findAll('[data-testid="settings-grid"]')).toHaveLength(1)
+
+    // Overflow protection on both grid tracks.
+    expect(contextsCard.classes()).toContain('min-w-0')
+    expect(stockCard.classes()).toContain('min-w-0')
+  })
+
+  it('keeps the stack divider on mobile and switches it vertical on large screens', () => {
+    const wrapper = mountForm()
+
+    const grid = wrapper.find('[data-testid="settings-grid"]')
+    const stockCard = wrapper.find('[data-testid="stock-card"]')
+    // Row divider above the grid; vertical divider between columns on `lg`.
+    expect(grid.classes()).toContain('border-t')
+    expect(stockCard.classes()).toContain('border-t')
+    expect(stockCard.classes()).toContain('sm:pt-8')
+    expect(stockCard.classes()).toContain('lg:border-t-0')
+    expect(stockCard.classes()).toContain('lg:border-l')
   })
 
   it('emits granular draft intents instead of mutating props', async () => {

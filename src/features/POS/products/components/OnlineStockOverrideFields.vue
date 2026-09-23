@@ -8,8 +8,21 @@
  *
  * UI redesign: UFormField + USelectMenu (value-key) replace the native select;
  * UInput replaces the native number input. All props/emits contracts preserved.
+ *
+ * U8: `inheritanceScope` selects the contextual null-override copy — a product
+ * inherits the tenant global configuration and a variant inherits its product.
+ * Labels, the honest mode explanation, and the selected-mode preview come from
+ * the shared `stockPresentationUi` module.
  */
+import { computed } from 'vue'
 import type { OnlineStockPresentationMode } from '@/features/system/catalog-settings/interfaces/catalog-settings.types'
+import {
+  buildStockOverrideOptions,
+  getStockOverrideInheritanceCopy,
+  getStockPresentationCopy,
+  resolveStockOverridePreview,
+  type StockOverrideScope,
+} from '@/features/system/catalog-settings/utils/stockPresentationUi'
 
 interface StockOverrideValue {
   mode: OnlineStockPresentationMode | null
@@ -18,18 +31,24 @@ interface StockOverrideValue {
 
 const props = defineProps<{
   value: StockOverrideValue
+  /** Null-override inheritance target: product → tenant, variant → product. */
+  inheritanceScope: StockOverrideScope
   disabled?: boolean
 }>()
 
 const emit = defineEmits<{ (event: 'change', value: StockOverrideValue): void }>()
 
-const MODE_OPTIONS: Array<{ label: string; value: OnlineStockPresentationMode | null }> = [
-  { label: 'Predeterminado del tenant', value: null },
-  { label: 'Según estado del sistema', value: 'SYSTEM_STATUS' },
-  { label: 'Según estado abstracto', value: 'ABSTRACT_STATUS' },
-  { label: 'Cantidad personalizada', value: 'CUSTOM_QUANTITY' },
-  { label: 'Oculto', value: 'HIDDEN' },
-]
+const MODE_OPTIONS = computed(() => buildStockOverrideOptions(props.inheritanceScope))
+
+/** Selected-mode explanation: inherited copy when null, mode copy otherwise. */
+const selectedCopy = computed(() =>
+  props.value.mode === null
+    ? getStockOverrideInheritanceCopy(props.inheritanceScope)
+    : getStockPresentationCopy(props.value.mode),
+)
+const selectedPreview = computed(() =>
+  resolveStockOverridePreview(props.value.mode, props.value.customQuantity, props.inheritanceScope),
+)
 
 function onModeChange(next: OnlineStockPresentationMode | null) {
   if (next === null) {
@@ -73,6 +92,21 @@ function onQuantityInput(raw: string | number) {
       :disabled="props.disabled"
       @update:model-value="onModeChange"
     />
+
+    <!-- Selected-mode preview: inherited copy, or what the catalog shows. -->
+    <div
+      class="mt-3 rounded-lg border border-default bg-elevated/50 px-3 py-2"
+      role="status"
+      data-testid="stock-override-preview"
+    >
+      <p class="text-xs font-medium text-highlighted">{{ selectedCopy.label }}</p>
+      <p class="mt-0.5 text-xs text-muted">{{ selectedCopy.description }}</p>
+      <p class="mt-1.5 text-xs text-muted">
+        Vista previa:
+        <span class="font-medium text-default">{{ selectedPreview }}</span>
+      </p>
+    </div>
+
     <UFormField
       v-if="props.value.mode === 'CUSTOM_QUANTITY'"
       label="Cantidad a mostrar"

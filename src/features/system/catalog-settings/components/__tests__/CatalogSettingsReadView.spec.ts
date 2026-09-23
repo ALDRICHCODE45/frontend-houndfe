@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from 'vitest'
 import { mountWithUApp } from '@/test/mountWithUApp'
-import CatalogSettingsReadView from '@/features/system/catalog-settings/components/CatalogSettingsReadView.vue'
+import CatalogSettingsReadView from '../CatalogSettingsReadView.vue'
 import type { CatalogSettingsResponseDto } from '../../interfaces/catalog-settings.types'
 
 function makeResponse(
@@ -143,7 +143,7 @@ describe('CatalogSettingsReadView — contexts + default ul > li semantics (REQ-
 })
 
 describe('CatalogSettingsReadView — stock default (REQ-8)', () => {
-  it('renders the serialized non-custom mode without a quantity', () => {
+  it('renders the shared customer-facing mode label and explanation without a quantity', () => {
     const wrapper = mountWithUApp(CatalogSettingsReadView, {
       props: {
         settings: makeResponse({
@@ -153,7 +153,10 @@ describe('CatalogSettingsReadView — stock default (REQ-8)', () => {
     })
     const stock = wrapper.find('[data-testid="stock-default"]')
     expect(stock.exists()).toBe(true)
-    expect(stock.text()).toContain('Según estado del sistema')
+    expect(stock.text()).toContain('Estado detallado')
+    expect(stock.text()).toContain(
+      'Muestra Disponible, Pocas piezas o Agotado según las existencias reales, sin publicar cantidades.',
+    )
     expect(stock.text()).not.toContain('Mostrar 0')
   })
 
@@ -180,17 +183,46 @@ describe('CatalogSettingsReadView — stock default (REQ-8)', () => {
   })
 
   it.each([
-    ['ABSTRACT_STATUS', 'Según estado abstracto'],
-    ['HIDDEN', 'Oculto'],
-  ] as const)('renders mode %s with its Spanish label', (mode, label) => {
+    [
+      'ABSTRACT_STATUS',
+      'Solo disponibilidad',
+      'Muestra solo Disponible o Agotado, sin revelar cuándo queda poco stock.',
+    ],
+    [
+      'HIDDEN',
+      'No mostrar stock',
+      'No muestra ningún texto de stock en el catálogo; las validaciones de venta siguen usando las existencias reales.',
+    ],
+  ] as const)(
+    'renders mode %s with its shared label and explanation',
+    (mode, label, description) => {
+      const wrapper = mountWithUApp(CatalogSettingsReadView, {
+        props: {
+          settings: makeResponse({
+            stockPresentationDefault: { mode, customQuantity: null },
+          }),
+        },
+      })
+      const stock = wrapper.find('[data-testid="stock-default"]')
+      expect(stock.text()).toContain(label)
+      expect(stock.text()).toContain(description)
+    },
+  )
+
+  it('explains the fixed-quantity mode as display-only alongside the preserved quantity', () => {
     const wrapper = mountWithUApp(CatalogSettingsReadView, {
       props: {
         settings: makeResponse({
-          stockPresentationDefault: { mode, customQuantity: null },
+          stockPresentationDefault: { mode: 'CUSTOM_QUANTITY', customQuantity: 0 },
         }),
       },
     })
-    expect(wrapper.find('[data-testid="stock-default"]').text()).toContain(label)
+    const stock = wrapper.find('[data-testid="stock-default"]')
+    expect(stock.text()).toContain('Mostrar cantidad fija')
+    expect(stock.text()).toContain('Mostrar 0')
+    expect(stock.text()).toContain(
+      'Muestra siempre la cantidad definida como dato informativo; no cambia las existencias y la venta sigue bloqueada si no hay stock real.',
+    )
   })
 })
 

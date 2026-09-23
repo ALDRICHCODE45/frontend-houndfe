@@ -8,7 +8,13 @@ import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import { centsToDecimalInput, decimalInputToCents } from '../composables/useProductForm'
 import VariantPricingTable from './VariantPricingTable.vue'
-import type { ProductType, ProductVariant, UpdateVariantPayload, VariantCatalogForm, VariantPatchCatalogPayload } from '../interfaces/product.types'
+import type {
+  ProductType,
+  ProductVariant,
+  UpdateVariantPayload,
+  VariantCatalogForm,
+  VariantPatchCatalogPayload,
+} from '../interfaces/product.types'
 import OnlineStockOverrideFields from './OnlineStockOverrideFields.vue'
 
 declare const useToast: () => {
@@ -83,13 +89,32 @@ const catalogForm = reactive<VariantCatalogForm>({
   onlineStockPresentationCustomQty: null,
 })
 
+/** U9: contextual publication copy for the persisted variant. */
+const CATALOG_PUBLISH_MODE_OPTIONS: Array<{
+  value: VariantCatalogForm['catalogPublishMode']
+  label: string
+}> = [
+  { value: 'INHERIT', label: 'Usar publicación del producto' },
+  { value: 'ON', label: 'Publicar esta variante' },
+  { value: 'OFF', label: 'Ocultar esta variante' },
+]
+
+function onCatalogPublishModeChange(next: unknown) {
+  if (next === 'INHERIT' || next === 'ON' || next === 'OFF') {
+    catalogForm.catalogPublishMode = next
+  }
+}
+
 const catalogPristine = reactive<VariantCatalogForm>({
   catalogPublishMode: 'INHERIT',
   onlineStockPresentation: null,
   onlineStockPresentationCustomQty: null,
 })
 
-function onCatalogStockChange(value: { mode: VariantCatalogForm['onlineStockPresentation']; customQuantity: number | null }) {
+function onCatalogStockChange(value: {
+  mode: VariantCatalogForm['onlineStockPresentation']
+  customQuantity: number | null
+}) {
   catalogForm.onlineStockPresentation = value.mode
   catalogForm.onlineStockPresentationCustomQty = value.customQuantity
 }
@@ -143,11 +168,11 @@ function syncFormFromVariant(variant: ProductVariant | null) {
   formState.purchaseCost = initialState.purchaseCost
 
   const persisted = persistedCatalog.value
-    const nextCatalog = persisted ?? {
-      catalogPublishMode: 'INHERIT' as const,
-      onlineStockPresentation: null,
-      onlineStockPresentationCustomQty: null,
-    }
+  const nextCatalog = persisted ?? {
+    catalogPublishMode: 'INHERIT' as const,
+    onlineStockPresentation: null,
+    onlineStockPresentationCustomQty: null,
+  }
   Object.assign(catalogForm, nextCatalog)
   Object.assign(catalogPristine, nextCatalog)
 }
@@ -162,8 +187,10 @@ watch(
 )
 
 const updateVariantMutation = useMutation({
-  mutationFn: (params: { variantId: string; values: UpdateVariantPayload & VariantPatchCatalogPayload }) =>
-    productApi.updateVariant(props.productId, params.variantId, params.values),
+  mutationFn: (params: {
+    variantId: string
+    values: UpdateVariantPayload & VariantPatchCatalogPayload
+  }) => productApi.updateVariant(props.productId, params.variantId, params.values),
 })
 
 type ChangeableField = 'sku' | 'barcode' | 'quantity' | 'minQuantity' | 'purchaseCost'
@@ -224,17 +251,17 @@ async function persistChanges(
     return
   }
 
-    const changes: UpdateVariantPayload & VariantPatchCatalogPayload = getChanges(keys)
-    // Only an explicit-Save PATCH on a persisted variant carries catalog keys;
-    // blur autosaves must not swallow an unsent catalog draft.
-    const includeCatalogKeys = includeCatalog && persistedCatalog.value != null
-    if (includeCatalogKeys) {
-      Object.assign(changes, toVariantPatchCatalogPayload({ ...catalogForm }, { ...catalogPristine }))
-    }
-    if (Object.keys(changes).length === 0) {
-      if (closeAfterSave) modalOpen.value = false
-      return
-    }
+  const changes: UpdateVariantPayload & VariantPatchCatalogPayload = getChanges(keys)
+  // Only an explicit-Save PATCH on a persisted variant carries catalog keys;
+  // blur autosaves must not swallow an unsent catalog draft.
+  const includeCatalogKeys = includeCatalog && persistedCatalog.value != null
+  if (includeCatalogKeys) {
+    Object.assign(changes, toVariantPatchCatalogPayload({ ...catalogForm }, { ...catalogPristine }))
+  }
+  if (Object.keys(changes).length === 0) {
+    if (closeAfterSave) modalOpen.value = false
+    return
+  }
 
   try {
     await updateVariantMutation.mutateAsync({
@@ -242,7 +269,9 @@ async function persistChanges(
       values: changes,
     })
 
-    await queryClient.invalidateQueries({ queryKey: productQueryKeys.variants(tenantId.value, props.productId) })
+    await queryClient.invalidateQueries({
+      queryKey: productQueryKeys.variants(tenantId.value, props.productId),
+    })
 
     initialState.sku = normalizeText(changes.sku ?? initialState.sku)
     initialState.barcode = normalizeText(changes.barcode ?? initialState.barcode)
@@ -372,17 +401,17 @@ function handleCancel() {
 
           <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <UFormField label="Publicación en catálogo">
-              <select
-                id="catalog-publish-mode"
+              <USelectMenu
+                :model-value="catalogForm.catalogPublishMode"
+                :items="CATALOG_PUBLISH_MODE_OPTIONS"
+                value-key="value"
+                label-key="label"
                 data-testid="catalog-publish-mode"
-                class="rounded-lg border border-default px-2 py-1 text-sm"
+                aria-label="Publicación en catálogo"
+                class="w-full"
                 :disabled="!canUpdate"
-                v-model="catalogForm.catalogPublishMode"
-              >
-                <option value="INHERIT">Heredar</option>
-                <option value="ON">Publicado</option>
-                <option value="OFF">Oculto</option>
-              </select>
+                @update:model-value="onCatalogPublishModeChange"
+              />
             </UFormField>
 
             <OnlineStockOverrideFields
@@ -390,6 +419,7 @@ function handleCancel() {
                 mode: catalogForm.onlineStockPresentation,
                 customQuantity: catalogForm.onlineStockPresentationCustomQty,
               }"
+              inheritance-scope="variant"
               :disabled="!canUpdate"
               @change="onCatalogStockChange"
             />

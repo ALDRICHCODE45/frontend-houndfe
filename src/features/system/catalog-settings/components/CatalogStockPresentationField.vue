@@ -8,11 +8,21 @@
  * UI redesign: UFormField + USelectMenu (value-key) replace the native select;
  * UInput replaces the native number input. All props/emits contracts are
  * preserved; the emitted value shape is unchanged.
+ *
+ * U8: labels, the honest mode explanation, and the selected-mode preview come
+ * from the shared `stockPresentationUi` module, so the tenant default and the
+ * product/variant overrides can never drift apart.
  */
+import { computed } from 'vue'
 import type {
   CatalogStockPresentationDefaultDto,
   OnlineStockPresentationMode,
 } from '../interfaces/catalog-settings.types'
+import {
+  buildStockPresentationModeOptions,
+  getStockPresentationCopy,
+  resolveStockPresentationPreview,
+} from '../utils/stockPresentationUi'
 
 const props = withDefaults(
   defineProps<{
@@ -26,12 +36,12 @@ const emit = defineEmits<{
   (event: 'change', value: CatalogStockPresentationDefaultDto): void
 }>()
 
-const MODE_OPTIONS: Array<{ label: string; value: OnlineStockPresentationMode }> = [
-  { label: 'Según estado del sistema', value: 'SYSTEM_STATUS' },
-  { label: 'Según estado abstracto', value: 'ABSTRACT_STATUS' },
-  { label: 'Cantidad personalizada', value: 'CUSTOM_QUANTITY' },
-  { label: 'Oculto', value: 'HIDDEN' },
-]
+const MODE_OPTIONS = buildStockPresentationModeOptions()
+
+const selectedCopy = computed(() => getStockPresentationCopy(props.stockDefault.mode))
+const selectedPreview = computed(() =>
+  resolveStockPresentationPreview(props.stockDefault.mode, props.stockDefault.customQuantity),
+)
 
 function onModeChange(next: OnlineStockPresentationMode | null) {
   if (!next) return
@@ -71,6 +81,21 @@ function onQuantityInput(raw: string | number) {
       :disabled="props.disabled"
       @update:model-value="onModeChange"
     />
+
+    <!-- Selected-mode preview: what the public catalog shows, and why. -->
+    <div
+      class="mt-3 rounded-lg border border-default bg-elevated/50 px-3 py-2"
+      role="status"
+      data-testid="stock-mode-preview"
+    >
+      <p class="text-xs font-medium text-highlighted">{{ selectedCopy.label }}</p>
+      <p class="mt-0.5 text-xs text-muted">{{ selectedCopy.description }}</p>
+      <p class="mt-1.5 text-xs text-muted">
+        Vista previa:
+        <span class="font-medium text-default">{{ selectedPreview }}</span>
+      </p>
+    </div>
+
     <UFormField
       v-if="props.stockDefault.mode === 'CUSTOM_QUANTITY'"
       label="Cantidad a mostrar"

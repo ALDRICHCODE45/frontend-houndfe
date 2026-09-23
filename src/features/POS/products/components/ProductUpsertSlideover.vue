@@ -111,9 +111,7 @@ const showInventoryFields = computed(() => {
   if (props.mode !== 'edit') return true
   return inventoryFieldsVisible(props.product?.type ?? 'PRODUCT')
 })
-const locationLabel = computed(() =>
-  locationLabelFor(props.product?.type ?? 'PRODUCT'),
-)
+const locationLabel = computed(() => locationLabelFor(props.product?.type ?? 'PRODUCT'))
 
 watch(
   () => [props.mode, props.product, open.value] as const,
@@ -238,7 +236,12 @@ function handleCancel() {
             />
           </UFormField>
 
-          <UFormField v-if="showInventoryFields" label="Stock" name="quantity" :error="errors.quantity">
+          <UFormField
+            v-if="showInventoryFields"
+            label="Stock"
+            name="quantity"
+            :error="errors.quantity"
+          >
             <UInputNumber
               v-model="state.quantity"
               class="w-full"
@@ -248,7 +251,12 @@ function handleCancel() {
           </UFormField>
         </div>
 
-        <UFormField v-if="showInventoryFields" label="Stock mínimo" name="minQuantity" :error="errors.minQuantity">
+        <UFormField
+          v-if="showInventoryFields"
+          label="Stock mínimo"
+          name="minQuantity"
+          :error="errors.minQuantity"
+        >
           <UInputNumber
             v-model="state.minQuantity"
             class="w-full"
@@ -274,7 +282,13 @@ function handleCancel() {
         <div class="grid grid-cols-2 gap-4">
           <UCheckbox v-if="showInventoryFields" v-model="state.useStock" label="Usar stock" />
           <UCheckbox v-model="state.sellInPos" label="Vender en POS" />
-          <UCheckbox v-model="state.includeInOnlineCatalog" label="Catálogo online" />
+          <!-- U9: the catalog opt-in is a switch; every other option stays a checkbox. -->
+          <USwitch
+            v-model="state.includeInOnlineCatalog"
+            label="Catálogo online"
+            description="El producto se muestra en el catálogo público"
+            data-testid="include-in-online-catalog-switch"
+          />
           <UCheckbox v-model="state.chargeProductTaxes" label="Cobrar impuestos" />
         </div>
 

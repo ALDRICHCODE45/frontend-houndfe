@@ -9,8 +9,10 @@
  *
  * Warnings are mapped through the WU2B closed-set mapper: known codes render
  * the locked Spanish copy; unknown codes are dropped silently. The stock
- * default is serialized via the WU2B mapper and labeled per REQ-8
- * ("Mostrar 0" for CUSTOM_QUANTITY 0).
+ * default is serialized via the WU2B mapper; its label and explanation come
+ * from the shared `stockPresentationUi` module ("Estado detallado", "Solo
+ * disponibilidad", "Mostrar cantidad fija", "No mostrar stock"), and
+ * CUSTOM_QUANTITY 0 is labeled "Mostrar 0".
  *
  * UI redesign: semantic internal sections (publication status, lists, stock
  * default) are separated by responsive spacing and dividers inside the routed
@@ -23,17 +25,11 @@ import {
   mapCatalogSettingsWarning,
   serializeStockPresentationDefault,
 } from '../utils/catalogSettingsMappers'
+import { formatCustomQuantityLabel, getStockPresentationCopy } from '../utils/stockPresentationUi'
 
 const { settings } = defineProps<{
   settings: CatalogSettingsResponseDto
 }>()
-
-const STOCK_MODE_LABELS: Record<string, string> = {
-  SYSTEM_STATUS: 'Según estado del sistema',
-  ABSTRACT_STATUS: 'Según estado abstracto',
-  CUSTOM_QUANTITY: 'Cantidad personalizada',
-  HIDDEN: 'Oculto',
-}
 
 const publicationLabel = computed(() => (settings.catalogPublished ? 'Publicado' : 'No publicado'))
 const publicationColor = computed(() => (settings.catalogPublished ? 'success' : 'neutral'))
@@ -50,12 +46,10 @@ const visibleWarnings = computed(() =>
 const stockDefault = computed(() =>
   serializeStockPresentationDefault(settings.stockPresentationDefault),
 )
-const stockModeLabel = computed(
-  () => STOCK_MODE_LABELS[stockDefault.value.mode] ?? stockDefault.value.mode,
-)
+const stockModeCopy = computed(() => getStockPresentationCopy(stockDefault.value.mode))
 const stockQuantityLabel = computed(() =>
   stockDefault.value.mode === 'CUSTOM_QUANTITY'
-    ? `Mostrar ${stockDefault.value.customQuantity}`
+    ? formatCustomQuantityLabel(stockDefault.value.customQuantity)
     : null,
 )
 </script>
@@ -115,14 +109,17 @@ const stockQuantityLabel = computed(() =>
       </ul>
     </section>
 
-    <!-- Stock presentation default (REQ-8). -->
+    <!-- Stock presentation default (REQ-8): shared label + honest explanation. -->
     <section class="border-t border-default pt-6 sm:pt-8" data-testid="stock-card">
       <h2 class="text-sm font-semibold text-default">Stock en catálogo</h2>
-      <div class="mt-3 flex items-center gap-2" data-testid="stock-default">
-        <span class="text-sm text-muted">{{ stockModeLabel }}</span>
-        <span v-if="stockQuantityLabel" class="text-sm text-muted">
-          ({{ stockQuantityLabel }})
-        </span>
+      <div class="mt-3 flex flex-col gap-1" data-testid="stock-default">
+        <p class="text-sm text-default">
+          {{ stockModeCopy.label }}
+          <span v-if="stockQuantityLabel" class="text-muted">({{ stockQuantityLabel }})</span>
+        </p>
+        <p class="text-xs text-muted" data-testid="stock-default-description">
+          {{ stockModeCopy.description }}
+        </p>
       </div>
     </section>
 

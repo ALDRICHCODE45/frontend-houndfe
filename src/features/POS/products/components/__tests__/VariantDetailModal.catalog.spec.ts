@@ -12,7 +12,7 @@ import { DOMWrapper, flushPromises, mount, type VueWrapper } from '@vue/test-uti
 import { defineComponent, h, nextTick, onUnmounted, type Component } from 'vue'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import UApp from '@nuxt/ui/runtime/components/App.vue'
-import VariantDetailModal from '../VariantDetailModal.vue'
+import VariantDetailModal from '@/features/POS/products/components/VariantDetailModal.vue'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import type { ProductVariant } from '../../interfaces/product.types'
 
@@ -56,6 +56,12 @@ const makeVariant = (overrides: Partial<ProductVariant> = {}): ProductVariant =>
   ...overrides,
 })
 
+const PUBLISH_MODE_LABELS = {
+  INHERIT: 'Usar publicación del producto',
+  ON: 'Publicar esta variante',
+  OFF: 'Ocultar esta variante',
+} as const
+
 // Real UModal teleports its body into a document.body portal (stubs do not
 // apply through mountWithUApp), so queries go through the document.
 const q = (selector: string) => new DOMWrapper(document.querySelector(selector)!)
@@ -66,7 +72,10 @@ let invalidateSpy: ReturnType<typeof vi.spyOn>
 // Retain the real UApp host so cleanup disposes Vue effects, not just DOM.
 const rootUnmounted = vi.fn()
 let capturedRoot: VueWrapper | undefined
-const mountModalRoot = async (variant: ProductVariant | null): Promise<VueWrapper> => {
+const mountModalRoot = async (
+  variant: ProductVariant | null,
+  overrides: Record<string, unknown> = {},
+): Promise<VueWrapper> => {
   const RootCatcher = defineComponent({
     components: { UApp },
     setup() {
@@ -82,6 +91,7 @@ const mountModalRoot = async (variant: ProductVariant | null): Promise<VueWrappe
               useStock: false,
               canUpdate: true,
               variant,
+              ...overrides,
             }),
         })
     },
@@ -120,8 +130,11 @@ const cleanupModal = () => {
 
 afterEach(cleanupModal)
 
-const mountModal = async (variant: ProductVariant | null): Promise<VueWrapper> => {
-  return mountModalRoot(variant)
+const mountModal = async (
+  variant: ProductVariant | null,
+  overrides: Record<string, unknown> = {},
+): Promise<VueWrapper> => {
+  return mountModalRoot(variant, overrides)
 }
 
 const clickSave = async () => {
@@ -135,11 +148,11 @@ const clickSave = async () => {
 
 const patchBody = (call = 0) => productApiMocks.updateVariant.mock.calls[call]![2]
 
-// The redesigned shared field renders a USelectMenu button (not a native
-// <select>), so the stock override mode is chosen through the rendered popup:
-// open the selector, click the option by its visible Spanish label, and await
-// Vue updates. scrollIntoView is stubbed only for the Nuxt UI popup lifetime.
-async function selectStockOverrideMode(label: string) {
+// Nuxt UI select fields render a USelectMenu trigger button (not a native
+// <select>), so options are chosen through the rendered popup: open the
+// selector, click the option by its visible Spanish label, and await Vue
+// updates. scrollIntoView is stubbed only for the Nuxt UI popup lifetime.
+async function selectOptionByLabel(testid: string, label: string) {
   const originalScrollIntoView = HTMLElement.prototype.scrollIntoView
   Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
     configurable: true,
@@ -147,11 +160,11 @@ async function selectStockOverrideMode(label: string) {
   })
 
   try {
-    await q('[data-testid="stock-override-mode"]').trigger('click')
+    await q(`[data-testid="${testid}"]`).trigger('click')
     await nextTick()
     const options = [...document.body.querySelectorAll<HTMLElement>('[role="option"]')]
     const option = options.reverse().find((element) => element.textContent?.trim() === label)
-    expect(option).toBeDefined()
+    expect(option, `expected a rendered option labeled "${label}"`).toBeDefined()
     await new DOMWrapper(option!).trigger('click')
     await nextTick()
   } finally {
@@ -165,6 +178,9 @@ async function selectStockOverrideMode(label: string) {
     }
   }
 }
+
+const selectStockOverrideMode = (label: string) => selectOptionByLabel('stock-override-mode', label)
+const selectPublishMode = (label: string) => selectOptionByLabel('catalog-publish-mode', label)
 
 describe('VariantDetailModal — root cleanup', () => {
   it('unmounts Vue effects as well as restoring the pre-mount dialog baseline', async () => {
@@ -183,16 +199,74 @@ describe('VariantDetailModal — root cleanup', () => {
 })
 
 describe('VariantDetailModal — persisted-variant catalog controls (REQ-16)', () => {
-  it('renders the publication mode select with Spanish labels and the stock override for persisted variants only', async () => {
+  it('renders the publication selector with the inherited option selected for persisted variants', async () => {
     await mountModal(makeVariant())
     const select = q('[data-testid="catalog-publish-mode"]')
+
     expect(select.exists()).toBe(true)
-    expect(select.findAll('option').map((option) => option.text())).toEqual([
-      'Heredar',
-      'Publicado',
-      'Oculto',
-    ])
+    expect(select.text()).toContain('Usar publicación del producto')
+    expect(select.attributes('aria-haspopup')).toBe('listbox')
     expect(q('[data-testid="stock-override-mode"]').exists()).toBe(true)
+  })
+
+  it('offers the three contextual publication options through the rendered selector', async () => {
+    await mountModal(makeVariant())
+    const originalScrollIntoView = HTMLElement.prototype.scrollIntoView
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: () => {},
+    })
+
+    try {
+      await q('[data-testid="catalog-publish-mode"]').trigger('click')
+      await nextTick()
+      const labels = [...document.body.querySelectorAll<HTMLElement>('[role="option"]')].map(
+        (option) => option.textContent?.trim(),
+      )
+      expect(labels).toEqual([
+        'Usar publicación del producto',
+        'Publicar esta variante',
+        'Ocultar esta variante',
+      ])
+    } finally {
+      if (originalScrollIntoView) {
+        Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+          configurable: true,
+          value: originalScrollIntoView,
+        })
+      } else {
+        Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView')
+      }
+    }
+  })
+
+  it('wires the publication label to the rendered selector', async () => {
+    await mountModal(makeVariant())
+    const trigger = q('[data-testid="catalog-publish-mode"]')
+    const label = [...document.body.querySelectorAll('label')].find(
+      (element) => element.textContent?.trim() === 'Publicación en catálogo',
+    )
+
+    expect(label).toBeDefined()
+    expect(trigger.attributes('id')).toBe(label!.getAttribute('for'))
+    // reka-ui hardcodes an English "Show popup" name on the trigger, so the
+    // Spanish accessible name is pinned explicitly on the control.
+    expect(trigger.attributes('aria-label')).toBe('Publicación en catálogo')
+    expect(trigger.attributes('aria-haspopup')).toBe('listbox')
+  })
+
+  it('disables the publication selector when the variant cannot be updated', async () => {
+    await mountModal(makeVariant(), { canUpdate: false })
+
+    expect(q('[data-testid="catalog-publish-mode"]').attributes('disabled')).toBeDefined()
+  })
+
+  it('previews the variant-scope product inheritance when no override is set', async () => {
+    await mountModal(makeVariant())
+    const preview = q('[data-testid="stock-override-preview"]')
+
+    expect(preview.text()).toContain('Usar configuración del producto')
+    expect(preview.text()).toContain('El stock mostrado se toma de la configuración del producto.')
   })
 
   it('keeps the catalog controls absent for non-persisted (create/inline) variant objects', async () => {
@@ -215,7 +289,7 @@ describe('VariantDetailModal — persisted-variant catalog controls (REQ-16)', (
     'saves a %s mode change from pristine %s as the only PATCH key',
     async (mode, pristineMode) => {
       await mountModal(makeVariant({ catalogPublishMode: pristineMode }))
-      await q('[data-testid="catalog-publish-mode"]').setValue(mode)
+      await selectPublishMode(PUBLISH_MODE_LABELS[mode])
       await clickSave()
       expect(patchBody()).toEqual({ catalogPublishMode: mode })
     },
@@ -223,7 +297,7 @@ describe('VariantDetailModal — persisted-variant catalog controls (REQ-16)', (
 
   it('round-trips the stock override pair and emits no stock keys when only the mode changed', async () => {
     await mountModal(makeVariant())
-    await selectStockOverrideMode('Cantidad personalizada')
+    await selectStockOverrideMode('Mostrar cantidad fija')
     await q('[data-testid="stock-override-qty"]').setValue('5')
     await clickSave()
     expect(patchBody()).toEqual({
@@ -234,7 +308,7 @@ describe('VariantDetailModal — persisted-variant catalog controls (REQ-16)', (
 
   it('preserves customQuantity 0 literally with the "Mostrar 0" label', async () => {
     await mountModal(makeVariant())
-    await selectStockOverrideMode('Cantidad personalizada')
+    await selectStockOverrideMode('Mostrar cantidad fija')
     expect(document.body.textContent).toContain('Mostrar 0')
     await clickSave()
     expect(patchBody()).toEqual({
@@ -247,7 +321,7 @@ describe('VariantDetailModal — persisted-variant catalog controls (REQ-16)', (
     await mountModal(
       makeVariant({ onlineStockPresentation: 'HIDDEN', onlineStockPresentationCustomQty: null }),
     )
-    await selectStockOverrideMode('Predeterminado del tenant')
+    await selectStockOverrideMode('Usar configuración del producto')
     await clickSave()
     expect(patchBody()).toEqual({
       onlineStockPresentation: null,
@@ -277,7 +351,7 @@ describe('VariantDetailModal — persisted-variant catalog controls (REQ-16)', (
 
   it('invalidates productQueryKeys.variants only after a successful catalog save', async () => {
     await mountModal(makeVariant())
-    await q('[data-testid="catalog-publish-mode"]').setValue('OFF')
+    await selectPublishMode(PUBLISH_MODE_LABELS.OFF)
     await clickSave()
     expect(invalidateSpy).toHaveBeenCalledTimes(1)
     expect(invalidateSpy).toHaveBeenCalledWith({
@@ -291,7 +365,7 @@ describe('VariantDetailModal — persisted-variant catalog controls (REQ-16)', (
     'cost autosave that %s keeps the unsent catalog draft pending until explicit Save',
     async (outcome) => {
       await mountModal(makeVariant())
-      await q('[data-testid="catalog-publish-mode"]').setValue('OFF')
+      await selectPublishMode(PUBLISH_MODE_LABELS.OFF)
       if (outcome === 'rejected') {
         productApiMocks.updateVariant.mockRejectedValueOnce(new Error('boom'))
       }

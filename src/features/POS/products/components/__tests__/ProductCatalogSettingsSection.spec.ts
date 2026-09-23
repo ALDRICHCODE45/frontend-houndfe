@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { DOMWrapper } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { mountWithUApp } from '@/test/mountWithUApp'
-import ProductCatalogSettingsSection from '../ProductCatalogSettingsSection.vue'
+import ProductCatalogSettingsSection from '@/features/POS/products/components/ProductCatalogSettingsSection.vue'
 
 const contexts = [{ priceListId: 'pl_a', name: 'Lista A', isCatalogDefault: true }]
 
@@ -62,10 +62,31 @@ describe('ProductCatalogSettingsSection — advanced Catálogo online (REQ-14/RE
     expect(list.classes()).toContain('grid-cols-1')
     expect(list.classes()).toContain('sm:grid-cols-2')
     expect(list.find('li').classes()).toContain('min-w-0')
+    expect(toggle.attributes('role')).toBe('switch')
     expect(toggle.attributes('aria-checked')).toBe('true')
 
     await toggle.trigger('click')
     expect(wrapper.emitted('toggle-context')).toEqual([['pl_a']])
+  })
+
+  it('labels every context switch and explains only the catalog-default row', () => {
+    const wrapper = mountSection({
+      contexts: [
+        { priceListId: 'pl_a', name: 'Lista A', isCatalogDefault: true },
+        { priceListId: 'pl_b', name: 'Lista B', isCatalogDefault: false },
+      ],
+      supportedCatalogPriceListIds: ['pl_a'],
+    })
+
+    const rows = wrapper.findAll('[data-testid="context-list"] > li')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]!.text()).toContain('Lista A')
+    expect(rows[0]!.text()).toContain('Lista predeterminada del catálogo')
+    expect(rows[1]!.text()).toContain('Lista B')
+    expect(rows[1]!.text()).not.toContain('Lista predeterminada del catálogo')
+    expect(
+      wrapper.findAll('[data-testid="context-list"] label').map((label) => label.text()),
+    ).toEqual(['Lista A', 'Lista B'])
   })
 
   it('without settings-read, hides cached rows and renders a labeled disabled contexts control', () => {
@@ -156,7 +177,7 @@ describe('ProductCatalogSettingsSection — advanced Catálogo online (REQ-14/RE
     ])
   })
 
-  it('disables the switch, stock select, quantity input, and context checkbox globally', () => {
+  it('disables the switch, stock select, quantity input, and context switches globally', () => {
     const wrapper = mountSection({
       disabled: true,
       onlineStockPresentation: 'CUSTOM_QUANTITY',
@@ -170,7 +191,37 @@ describe('ProductCatalogSettingsSection — advanced Catálogo online (REQ-14/RE
     expect(wrapper.find('[data-testid="context-toggle"]').attributes('disabled')).toBeDefined()
   })
 
-  it('selects the rendered Predeterminado del tenant option and emits the null override pair', async () => {
+  it('previews the product-scope global inheritance when the stock override is null', () => {
+    const wrapper = mountSection()
+    const preview = wrapper.find('[data-testid="stock-override-preview"]')
+
+    expect(preview.exists()).toBe(true)
+    expect(preview.text()).toContain('Usar configuración global')
+    expect(preview.text()).toContain(
+      'El stock mostrado se toma de la configuración global del catálogo.',
+    )
+  })
+
+  it.each([
+    ['SYSTEM_STATUS', 'Estado detallado', 'Disponible · Pocas piezas · Agotado', null],
+    ['ABSTRACT_STATUS', 'Solo disponibilidad', 'Disponible · Agotado', null],
+    ['CUSTOM_QUANTITY', 'Mostrar cantidad fija', '4 unidades', 4],
+    ['HIDDEN', 'No mostrar stock', 'Sin texto de stock', null],
+  ] as const)(
+    'previews the %s override with its shared label and public sample',
+    (mode, label, sample, quantity) => {
+      const wrapper = mountSection({
+        onlineStockPresentation: mode,
+        onlineStockPresentationCustomQty: quantity,
+      })
+      const preview = wrapper.find('[data-testid="stock-override-preview"]').text()
+
+      expect(preview).toContain(label)
+      expect(preview).toContain(sample)
+    },
+  )
+
+  it('selects the rendered global-inheritance option and emits the null override pair', async () => {
     const originalScrollIntoView = HTMLElement.prototype.scrollIntoView
     Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
       configurable: true,
@@ -186,7 +237,7 @@ describe('ProductCatalogSettingsSection — advanced Catálogo online (REQ-14/RE
       await nextTick()
 
       const option = [...document.body.querySelectorAll<HTMLElement>('[role="option"]')].find(
-        (element) => element.textContent?.trim() === 'Predeterminado del tenant',
+        (element) => element.textContent?.trim() === 'Usar configuración global',
       )
       expect(option).toBeDefined()
 
