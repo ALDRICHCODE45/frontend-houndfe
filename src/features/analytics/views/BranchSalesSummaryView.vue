@@ -25,6 +25,14 @@
  * loading/error/empty states, and routes its single retry event into that
  * composable's guarded action. It is deliberately not nested inside summary
  * success, so neither module's failure can erase the other.
+ *
+ * OI-5B2 S3 adds the three optional operational modules (recent confirmed sales,
+ * debt-bearing sales, pending refunds) as a responsive grid AFTER the trend,
+ * inside the same card. Visibility and each composable's `enabled` flag come from
+ * the single permission authority `useAuthStore().userCan` — `read:Sale` for the
+ * two sales modules, `read:SaleRefund` for refunds — so a denied identity issues
+ * no request. Each module is independent: its own composable instance, its own
+ * state, and its own scoped retry, so one failure never erases a sibling.
  */
 import { computed, ref, shallowRef } from 'vue'
 import {
@@ -33,12 +41,19 @@ import {
   type MexicoCityRangePresetId,
 } from '@/core/shared/utils/mexicoCityCalendar'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
+import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
 import { useBranchSalesSummary } from '../composables/useBranchSalesSummary'
 import { useBranchSalesTimeseries } from '../composables/useBranchSalesTimeseries'
+import { useRecentConfirmedSales } from '../composables/useRecentConfirmedSales'
+import { useDebtConfirmedSales } from '../composables/useDebtConfirmedSales'
+import { usePendingRefunds } from '../composables/usePendingRefunds'
 import BranchSalesSummaryFilters from '../components/BranchSalesSummaryFilters.vue'
 import BranchSalesSummaryMetrics from '../components/BranchSalesSummaryMetrics.vue'
 import BranchSalesTrendChart from '../components/BranchSalesTrendChart.vue'
+import DashboardOperationalPanel from '../components/DashboardOperationalPanel.vue'
+import DashboardSaleRow from '../components/DashboardSaleRow.vue'
+import DashboardRefundRow from '../components/DashboardRefundRow.vue'
 
 const RANGE_VALIDATION_MESSAGE =
   'El rango no es válido: la fecha inicial debe ser anterior a la final y el periodo no puede superar 366 días.'
@@ -71,6 +86,21 @@ const summaryState = useBranchSalesSummary({ tenantId, from, to })
  * separate query key, request and error state.
  */
 const timeseriesState = useBranchSalesTimeseries({ tenantId, from, to })
+
+/**
+ * OI-5B2 S3: the three optional operational modules. `useAuthStore().userCan` is
+ * the single permission authority; the two sales modules share `read:Sale` and
+ * refunds require `read:SaleRefund`. The same booleans drive BOTH visibility and
+ * each composable's `enabled` guard, so a denied identity renders nothing and
+ * issues no request. Each slot is its own independent query/state/retry.
+ */
+const authStore = useAuthStore()
+const canReadSales = computed(() => authStore.userCan('read', 'Sale'))
+const canReadRefunds = computed(() => authStore.userCan('read', 'SaleRefund'))
+
+const recentSalesState = useRecentConfirmedSales({ tenantId, enabled: canReadSales })
+const debtSalesState = useDebtConfirmedSales({ tenantId, enabled: canReadSales })
+const pendingRefundsState = usePendingRefunds({ tenantId, enabled: canReadRefunds })
 
 const hasLocalRangeError = computed(() => !isValidMexicoCityDateRange(from.value, to.value))
 const validationMessage = computed(() =>
@@ -154,6 +184,19 @@ function onRetry() {
 /** Guarded trend retry: the OI-4 composable owns the enabled/in-flight guard. */
 function onTrendRetry() {
   void timeseriesState.retry()
+}
+
+/** Guarded per-module retries: each operational module owns its own request. */
+function onRecentSalesRetry() {
+  void recentSalesState.retry()
+}
+
+function onDebtSalesRetry() {
+  void debtSalesState.retry()
+}
+
+function onPendingRefundsRetry() {
+  void pendingRefundsState.retry()
 }
 </script>
 
@@ -341,6 +384,89 @@ function onTrendRetry() {
           :is-error="timeseriesState.isError.value"
           @retry="onTrendRetry"
         />
+
+        <!--
+          OI-5B2 S3: three optional operational modules AFTER the trend, still
+          inside the same card. Each panel is an INDEPENDENT sibling with its own
+          permissions, query state and scoped retry, so a fatal failure in one
+          never erases a loaded sibling. The outer grid renders only while at
+          least one permission grants a module; a denied identity issues no
+          request and renders no panel. Sections never overflow on narrow
+          viewports and collapse to one column below `lg`.
+        -->
+        <div
+          v-if="canReadSales || canReadRefunds"
+          data-testid="branch-summary-operational-grid"
+          class="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-3"
+        >
+          <DashboardOperationalPanel
+            v-if="canReadSales"
+            id="dashboard-recent-sales"
+            title="Ventas recientes"
+            description="Últimas ventas confirmadas de la sucursal."
+            icon="i-lucide-receipt-text"
+            :has-items="!recentSalesState.isEmpty.value"
+            :is-initial-loading="recentSalesState.isInitialLoading.value"
+            :is-refetching="recentSalesState.isRefetching.value"
+            :is-error="recentSalesState.isError.value"
+            loading-message="Cargando las ventas recientes…"
+            empty-message="No hay ventas confirmadas en el periodo."
+            error-message="No pudimos cargar las ventas recientes."
+            @retry="onRecentSalesRetry"
+          >
+            <DashboardSaleRow
+              v-for="sale in recentSalesState.items.value"
+              :key="sale.id"
+              :sale="sale"
+              kind="recent"
+            />
+          </DashboardOperationalPanel>
+
+          <DashboardOperationalPanel
+            v-if="canReadSales"
+            id="dashboard-debt-sales"
+            title="Ventas con deuda"
+            description="Ventas confirmadas con saldo pendiente."
+            icon="i-lucide-hand-coins"
+            :has-items="!debtSalesState.isEmpty.value"
+            :is-initial-loading="debtSalesState.isInitialLoading.value"
+            :is-refetching="debtSalesState.isRefetching.value"
+            :is-error="debtSalesState.isError.value"
+            loading-message="Cargando las ventas con deuda…"
+            empty-message="No hay ventas con deuda pendiente."
+            error-message="No pudimos cargar las ventas con deuda."
+            @retry="onDebtSalesRetry"
+          >
+            <DashboardSaleRow
+              v-for="sale in debtSalesState.items.value"
+              :key="sale.id"
+              :sale="sale"
+              kind="debt"
+            />
+          </DashboardOperationalPanel>
+
+          <DashboardOperationalPanel
+            v-if="canReadRefunds"
+            id="dashboard-pending-refunds"
+            title="Reembolsos pendientes"
+            description="Reembolsos pendientes de liquidar."
+            icon="i-lucide-rotate-ccw"
+            :has-items="!pendingRefundsState.isEmpty.value"
+            :is-initial-loading="pendingRefundsState.isInitialLoading.value"
+            :is-refetching="pendingRefundsState.isRefetching.value"
+            :is-error="pendingRefundsState.isError.value"
+            loading-message="Cargando los reembolsos pendientes…"
+            empty-message="No hay reembolsos pendientes."
+            error-message="No pudimos cargar los reembolsos pendientes."
+            @retry="onPendingRefundsRetry"
+          >
+            <DashboardRefundRow
+              v-for="refund in pendingRefundsState.items.value"
+              :key="refund.id"
+              :refund="refund"
+            />
+          </DashboardOperationalPanel>
+        </div>
       </div>
     </UCard>
   </div>

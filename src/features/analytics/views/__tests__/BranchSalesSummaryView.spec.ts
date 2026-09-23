@@ -27,6 +27,11 @@ import type {
 import BranchSalesSummaryFilters from '@/features/analytics/components/BranchSalesSummaryFilters.vue'
 import BranchSalesSummaryMetrics from '@/features/analytics/components/BranchSalesSummaryMetrics.vue'
 import BranchSalesTrendChart from '@/features/analytics/components/BranchSalesTrendChart.vue'
+import DashboardOperationalPanel from '@/features/analytics/components/DashboardOperationalPanel.vue'
+import DashboardSaleRow from '@/features/analytics/components/DashboardSaleRow.vue'
+import DashboardRefundRow from '@/features/analytics/components/DashboardRefundRow.vue'
+import type { ConfirmedSaleRow } from '@/features/POS/sales/interfaces/sale.types'
+import type { PendingRefundRow } from '@/features/POS/sales/interfaces/pending-refund.types'
 import BranchSalesSummaryView from '@/features/analytics/views/BranchSalesSummaryView.vue'
 
 // The trend chart is mounted for real so its props/events flow through the
@@ -97,6 +102,42 @@ function makePayload(
     averageTicketCents: 0,
     settledRefundsCents: 0,
     pendingRefundObligationsCents: 0,
+    ...overrides,
+  }
+}
+
+/** One confirmed sale row, typed exactly as the wire contract serializes it. */
+function makeSaleRow(overrides: Partial<ConfirmedSaleRow> = {}): ConfirmedSaleRow {
+  return {
+    id: 'sale-recent-1',
+    folio: 'VTA-2025-0001',
+    status: 'CONFIRMED',
+    paymentStatus: 'PAID',
+    deliveryStatus: 'DELIVERED',
+    totalCents: 123_456,
+    debtCents: 0,
+    confirmedAt: '2025-03-01T12:30:00.000Z',
+    dueDate: null,
+    customer: { id: 'customer-1', name: 'María López' },
+    cashier: { id: 'cashier-1', name: 'Caja Centro' },
+    seller: null,
+    paymentMethods: ['CASH'],
+    ...overrides,
+  }
+}
+
+/** One pending-refund row, typed exactly as the wire contract serializes it. */
+function makeRefundRow(overrides: Partial<PendingRefundRow> = {}): PendingRefundRow {
+  return {
+    id: 'refund-1',
+    saleId: 'sale-operational-id-001',
+    method: 'card_credit',
+    amountCents: 50_000,
+    settledCents: 12_500,
+    outstandingCents: 37_500,
+    reason: 'CUSTOMER_REQUEST',
+    status: 'PENDING',
+    createdAt: '2025-03-02T01:15:00.000Z',
     ...overrides,
   }
 }
@@ -182,6 +223,89 @@ vi.mock('@/features/auth/composables/useSafeTenantId', () => ({
   useSafeTenantId: () => tenantIdRef,
 }))
 
+// ── OI-5B2 S3: live permission authority + three independent operational slots ──
+
+/** Live granted permission codes; `userCan` reads this so the view stays reactive. */
+const grantedPermissions = ref(new Set<string>())
+
+const authMock = {
+  userCan: (action: string, subject: string) =>
+    grantedPermissions.value.has(`${action}:${subject}`),
+}
+
+vi.mock('@/features/auth/stores/useAuthStore', () => ({
+  useAuthStore: () => authMock,
+}))
+
+function grantPermissions(...codes: string[]) {
+  grantedPermissions.value = new Set(codes)
+}
+
+type OperationalCall = {
+  tenantId: MaybeRefOrGetter<string | null | undefined>
+  enabled: MaybeRefOrGetter<boolean>
+}
+
+const recentSalesItems = ref<ConfirmedSaleRow[]>([])
+const recentSalesState = {
+  items: recentSalesItems,
+  isEmpty: computed(() => recentSalesItems.value.length === 0),
+  isInitialLoading: ref(false),
+  isRefetching: ref(false),
+  isError: ref(false),
+  error: ref<unknown>(undefined),
+  refetch: vi.fn().mockResolvedValue(undefined),
+  retry: vi.fn().mockResolvedValue(undefined),
+}
+const recentSalesCalls: OperationalCall[] = []
+
+vi.mock('../../composables/useRecentConfirmedSales', () => ({
+  useRecentConfirmedSales: (options: OperationalCall) => {
+    recentSalesCalls.push(options)
+    return recentSalesState
+  },
+}))
+
+const debtSalesItems = ref<ConfirmedSaleRow[]>([])
+const debtSalesState = {
+  items: debtSalesItems,
+  isEmpty: computed(() => debtSalesItems.value.length === 0),
+  isInitialLoading: ref(false),
+  isRefetching: ref(false),
+  isError: ref(false),
+  error: ref<unknown>(undefined),
+  refetch: vi.fn().mockResolvedValue(undefined),
+  retry: vi.fn().mockResolvedValue(undefined),
+}
+const debtSalesCalls: OperationalCall[] = []
+
+vi.mock('../../composables/useDebtConfirmedSales', () => ({
+  useDebtConfirmedSales: (options: OperationalCall) => {
+    debtSalesCalls.push(options)
+    return debtSalesState
+  },
+}))
+
+const pendingRefundsItems = ref<PendingRefundRow[]>([])
+const pendingRefundsState = {
+  items: pendingRefundsItems,
+  isEmpty: computed(() => pendingRefundsItems.value.length === 0),
+  isInitialLoading: ref(false),
+  isRefetching: ref(false),
+  isError: ref(false),
+  error: ref<unknown>(undefined),
+  refetch: vi.fn().mockResolvedValue(undefined),
+  retry: vi.fn().mockResolvedValue(undefined),
+}
+const pendingRefundsCalls: OperationalCall[] = []
+
+vi.mock('../../composables/usePendingRefunds', () => ({
+  usePendingRefunds: (options: OperationalCall) => {
+    pendingRefundsCalls.push(options)
+    return pendingRefundsState
+  },
+}))
+
 /**
  * OI-3: the committed preset helper is wrapped, never replaced, so preset
  * intents can be counted while real Mexico City boundaries still resolve.
@@ -249,6 +373,31 @@ function resetMocks() {
   timeseriesState.retry.mockClear()
   tenantIdRef.value = 'tenant-1'
   vi.mocked(getMexicoCityRangePreset).mockClear()
+  grantedPermissions.value = new Set()
+  recentSalesCalls.length = 0
+  recentSalesItems.value = []
+  recentSalesState.isInitialLoading.value = false
+  recentSalesState.isRefetching.value = false
+  recentSalesState.isError.value = false
+  recentSalesState.error.value = undefined
+  recentSalesState.refetch.mockClear()
+  recentSalesState.retry.mockClear()
+  debtSalesCalls.length = 0
+  debtSalesItems.value = []
+  debtSalesState.isInitialLoading.value = false
+  debtSalesState.isRefetching.value = false
+  debtSalesState.isError.value = false
+  debtSalesState.error.value = undefined
+  debtSalesState.refetch.mockClear()
+  debtSalesState.retry.mockClear()
+  pendingRefundsCalls.length = 0
+  pendingRefundsItems.value = []
+  pendingRefundsState.isInitialLoading.value = false
+  pendingRefundsState.isRefetching.value = false
+  pendingRefundsState.isError.value = false
+  pendingRefundsState.error.value = undefined
+  pendingRefundsState.refetch.mockClear()
+  pendingRefundsState.retry.mockClear()
 }
 
 beforeEach(resetMocks)
@@ -735,6 +884,162 @@ describe('BranchSalesSummaryView — daily trend composition', () => {
     timeseriesPointsRef.value = TIMESERIES_POINTS
     tenantIdRef.value = ''
     expect(mountView().find('[data-testid="branch-sales-trend"]').exists()).toBe(false)
+  })
+})
+
+// ── Operational panel composition (OI-5B2 S3) ───────────────────────────────
+
+/** Module-scoped panel lookup: the generic panel test id repeats per module. */
+function panelByHeading(view: View, id: string) {
+  return view.find(`[data-testid="dashboard-operational-panel"][aria-labelledby="${id}-heading"]`)
+}
+
+describe('BranchSalesSummaryView — operational panel composition', () => {
+  it('opens all three operational boundaries once and renders no panel when both permissions are denied', () => {
+    grantPermissions()
+    const view = mountView()
+
+    expect(recentSalesCalls).toHaveLength(1)
+    expect(debtSalesCalls).toHaveLength(1)
+    expect(pendingRefundsCalls).toHaveLength(1)
+    expect(toValue(recentSalesCalls[0]!.enabled)).toBe(false)
+    expect(toValue(debtSalesCalls[0]!.enabled)).toBe(false)
+    expect(toValue(pendingRefundsCalls[0]!.enabled)).toBe(false)
+    expect(view.findAll('[data-testid="dashboard-operational-panel"]')).toHaveLength(0)
+    expect(view.find('[data-testid="branch-summary-operational-grid"]').exists()).toBe(false)
+  })
+
+  it('renders exactly the recent and debt panels for a Sale-only identity', () => {
+    grantPermissions('read:Sale')
+    const view = mountView()
+
+    expect(view.findAll('[data-testid="dashboard-operational-panel"]')).toHaveLength(2)
+    expect(panelByHeading(view, 'dashboard-recent-sales').exists()).toBe(true)
+    expect(panelByHeading(view, 'dashboard-debt-sales').exists()).toBe(true)
+    expect(panelByHeading(view, 'dashboard-pending-refunds').exists()).toBe(false)
+    expect(toValue(recentSalesCalls[0]!.enabled)).toBe(true)
+    expect(toValue(debtSalesCalls[0]!.enabled)).toBe(true)
+    expect(toValue(pendingRefundsCalls[0]!.enabled)).toBe(false)
+  })
+
+  it('renders exactly the refund panel for a SaleRefund-only identity', () => {
+    grantPermissions('read:SaleRefund')
+    const view = mountView()
+
+    expect(view.findAll('[data-testid="dashboard-operational-panel"]')).toHaveLength(1)
+    expect(panelByHeading(view, 'dashboard-pending-refunds').exists()).toBe(true)
+    expect(toValue(recentSalesCalls[0]!.enabled)).toBe(false)
+    expect(toValue(debtSalesCalls[0]!.enabled)).toBe(false)
+    expect(toValue(pendingRefundsCalls[0]!.enabled)).toBe(true)
+  })
+
+  it('flips every enabled computed when the live permission set changes', async () => {
+    grantPermissions('read:Sale', 'read:SaleRefund')
+    const view = mountView()
+
+    expect(toValue(recentSalesCalls[0]!.enabled)).toBe(true)
+    expect(toValue(debtSalesCalls[0]!.enabled)).toBe(true)
+    expect(toValue(pendingRefundsCalls[0]!.enabled)).toBe(true)
+
+    grantPermissions()
+    await nextTick()
+
+    expect(toValue(recentSalesCalls[0]!.enabled)).toBe(false)
+    expect(toValue(debtSalesCalls[0]!.enabled)).toBe(false)
+    expect(toValue(pendingRefundsCalls[0]!.enabled)).toBe(false)
+    expect(view.findAll('[data-testid="dashboard-operational-panel"]')).toHaveLength(0)
+    expect(recentSalesCalls).toHaveLength(1)
+    expect(pendingRefundsCalls).toHaveLength(1)
+  })
+
+  it('shares the live tenant source with all three operational boundaries exactly once', async () => {
+    grantPermissions('read:Sale', 'read:SaleRefund')
+    mountView()
+
+    expect(toValue(recentSalesCalls[0]!.tenantId)).toBe('tenant-1')
+    expect(toValue(debtSalesCalls[0]!.tenantId)).toBe('tenant-1')
+    expect(toValue(pendingRefundsCalls[0]!.tenantId)).toBe('tenant-1')
+    expect(toValue(recentSalesCalls[0]!.tenantId)).toBe(toValue(captured().tenantId))
+
+    tenantIdRef.value = 'tenant-2'
+    await nextTick()
+
+    expect(toValue(recentSalesCalls[0]!.tenantId)).toBe('tenant-2')
+    expect(toValue(debtSalesCalls[0]!.tenantId)).toBe('tenant-2')
+    expect(toValue(pendingRefundsCalls[0]!.tenantId)).toBe('tenant-2')
+    expect(toValue(pendingRefundsCalls[0]!.tenantId)).toBe(toValue(captured().tenantId))
+    expect(recentSalesCalls).toHaveLength(1)
+    expect(debtSalesCalls).toHaveLength(1)
+    expect(pendingRefundsCalls).toHaveLength(1)
+  })
+
+  it('renders each operational list with its exact row component kind and data', () => {
+    grantPermissions('read:Sale', 'read:SaleRefund')
+    recentSalesItems.value = [makeSaleRow()]
+    debtSalesItems.value = [
+      makeSaleRow({
+        id: 'sale-debt-1',
+        folio: 'VTA-2025-0002',
+        debtCents: 25_500,
+        dueDate: '2025-03-31T00:00:00.000Z',
+      }),
+    ]
+    pendingRefundsItems.value = [makeRefundRow()]
+    const view = mountView()
+
+    const saleRows = view.findAllComponents(DashboardSaleRow)
+    expect(saleRows).toHaveLength(2)
+    expect(saleRows.map((row) => row.props('kind'))).toEqual(['recent', 'debt'])
+    expect(saleRows.map((row) => row.props('sale').id)).toEqual(['sale-recent-1', 'sale-debt-1'])
+
+    const refundRows = view.findAllComponents(DashboardRefundRow)
+    expect(refundRows).toHaveLength(1)
+    expect(refundRows[0]!.props('refund')).toEqual(makeRefundRow())
+
+    // Rows stay scoped to their own module: no cross-panel bleed.
+    expect(
+      panelByHeading(view, 'dashboard-recent-sales').findAll('[data-testid="dashboard-sale-row"]'),
+    ).toHaveLength(1)
+    expect(
+      panelByHeading(view, 'dashboard-debt-sales').findAll('[data-testid="dashboard-sale-row"]'),
+    ).toHaveLength(1)
+    expect(
+      panelByHeading(view, 'dashboard-pending-refunds').findAll(
+        '[data-testid="dashboard-refund-row"]',
+      ),
+    ).toHaveLength(1)
+    expect(
+      panelByHeading(view, 'dashboard-recent-sales')
+        .find('[data-testid="dashboard-refund-row"]')
+        .exists(),
+    ).toBe(false)
+  })
+
+  it('places the operational grid after the trend with the responsive three-column contract', () => {
+    grantPermissions('read:Sale', 'read:SaleRefund')
+    summaryRef.value = NON_EMPTY_PAYLOAD
+    timeseriesPointsRef.value = TIMESERIES_POINTS
+    const view = mountView()
+
+    const grid = view.find('[data-testid="branch-summary-operational-grid"]')
+    expect(grid.classes()).toEqual(
+      expect.arrayContaining(['grid', 'min-w-0', 'grid-cols-1', 'gap-4', 'lg:grid-cols-3']),
+    )
+
+    const card = view.find('[data-testid="branch-summary-card"]')
+    expect(card.element.contains(grid.element)).toBe(true)
+    const ordered = Array.from(
+      card.element.querySelectorAll(
+        '[data-testid="branch-sales-trend"], [data-testid="branch-summary-operational-grid"]',
+      ),
+    ).map((element) => element.getAttribute('data-testid'))
+    expect(ordered).toEqual(['branch-sales-trend', 'branch-summary-operational-grid'])
+
+    // The modules compose into the existing card without a second page heading.
+    expect(view.findAll('h1')).toHaveLength(1)
+    expect(view.findComponent(DashboardOperationalPanel).attributes('aria-labelledby')).toBe(
+      'dashboard-recent-sales-heading',
+    )
   })
 })
 

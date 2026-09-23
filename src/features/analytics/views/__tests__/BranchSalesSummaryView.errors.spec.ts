@@ -15,7 +15,7 @@
 // instead of the wide Products page-card shell fails these tests.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { computed, nextTick, ref } from 'vue'
+import { computed, nextTick, ref, type MaybeRefOrGetter } from 'vue'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import { isBranchSalesSummaryEmpty } from '../../utils/branchSalesSummary.utils'
 import type { BranchSalesSummaryResponse } from '../../interfaces/branch-sales-summary.types'
@@ -23,6 +23,8 @@ import type {
   BranchSalesTimeseriesPoint,
   BranchSalesTimeseriesResponse,
 } from '../../interfaces/branch-sales-timeseries.types'
+import type { ConfirmedSaleRow } from '@/features/POS/sales/interfaces/sale.types'
+import type { PendingRefundRow } from '@/features/POS/sales/interfaces/pending-refund.types'
 import BranchSalesSummaryMetrics from '@/features/analytics/components/BranchSalesSummaryMetrics.vue'
 import BranchSalesSummaryView from '@/features/analytics/views/BranchSalesSummaryView.vue'
 
@@ -145,6 +147,89 @@ vi.mock('@/features/auth/composables/useSafeTenantId', () => ({
   useSafeTenantId: () => tenantIdRef,
 }))
 
+// ── OI-5B2 S3: live permission authority + three independent operational slots ──
+
+/** Live granted permission codes; `userCan` reads this so the view stays reactive. */
+const grantedPermissions = ref(new Set<string>())
+
+const authMock = {
+  userCan: (action: string, subject: string) =>
+    grantedPermissions.value.has(`${action}:${subject}`),
+}
+
+vi.mock('@/features/auth/stores/useAuthStore', () => ({
+  useAuthStore: () => authMock,
+}))
+
+function grantPermissions(...codes: string[]) {
+  grantedPermissions.value = new Set(codes)
+}
+
+type OperationalCall = {
+  tenantId: MaybeRefOrGetter<string | null | undefined>
+  enabled: MaybeRefOrGetter<boolean>
+}
+
+const recentSalesItems = ref<ConfirmedSaleRow[]>([])
+const recentSalesState = {
+  items: recentSalesItems,
+  isEmpty: computed(() => recentSalesItems.value.length === 0),
+  isInitialLoading: ref(false),
+  isRefetching: ref(false),
+  isError: ref(false),
+  error: ref<unknown>(undefined),
+  refetch: vi.fn().mockResolvedValue(undefined),
+  retry: vi.fn().mockResolvedValue(undefined),
+}
+const recentSalesCalls: OperationalCall[] = []
+
+vi.mock('../../composables/useRecentConfirmedSales', () => ({
+  useRecentConfirmedSales: (options: OperationalCall) => {
+    recentSalesCalls.push(options)
+    return recentSalesState
+  },
+}))
+
+const debtSalesItems = ref<ConfirmedSaleRow[]>([])
+const debtSalesState = {
+  items: debtSalesItems,
+  isEmpty: computed(() => debtSalesItems.value.length === 0),
+  isInitialLoading: ref(false),
+  isRefetching: ref(false),
+  isError: ref(false),
+  error: ref<unknown>(undefined),
+  refetch: vi.fn().mockResolvedValue(undefined),
+  retry: vi.fn().mockResolvedValue(undefined),
+}
+const debtSalesCalls: OperationalCall[] = []
+
+vi.mock('../../composables/useDebtConfirmedSales', () => ({
+  useDebtConfirmedSales: (options: OperationalCall) => {
+    debtSalesCalls.push(options)
+    return debtSalesState
+  },
+}))
+
+const pendingRefundsItems = ref<PendingRefundRow[]>([])
+const pendingRefundsState = {
+  items: pendingRefundsItems,
+  isEmpty: computed(() => pendingRefundsItems.value.length === 0),
+  isInitialLoading: ref(false),
+  isRefetching: ref(false),
+  isError: ref(false),
+  error: ref<unknown>(undefined),
+  refetch: vi.fn().mockResolvedValue(undefined),
+  retry: vi.fn().mockResolvedValue(undefined),
+}
+const pendingRefundsCalls: OperationalCall[] = []
+
+vi.mock('../../composables/usePendingRefunds', () => ({
+  usePendingRefunds: (options: OperationalCall) => {
+    pendingRefundsCalls.push(options)
+    return pendingRefundsState
+  },
+}))
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 type View = ReturnType<typeof mountWithUApp>
@@ -159,6 +244,47 @@ function filterInput(view: View, testid: string) {
 
 function presetButton(view: View, id: string) {
   return view.find(`[data-testid="branch-summary-preset"][data-preset-id="${id}"]`)
+}
+
+/** One confirmed sale row, typed exactly as the wire contract serializes it. */
+function makeSaleRow(overrides: Partial<ConfirmedSaleRow> = {}): ConfirmedSaleRow {
+  return {
+    id: 'sale-recent-1',
+    folio: 'VTA-2025-0001',
+    status: 'CONFIRMED',
+    paymentStatus: 'PAID',
+    deliveryStatus: 'DELIVERED',
+    totalCents: 123_456,
+    debtCents: 0,
+    confirmedAt: '2025-03-01T12:30:00.000Z',
+    dueDate: null,
+    customer: { id: 'customer-1', name: 'María López' },
+    cashier: { id: 'cashier-1', name: 'Caja Centro' },
+    seller: null,
+    paymentMethods: ['CASH'],
+    ...overrides,
+  }
+}
+
+/** One pending-refund row, typed exactly as the wire contract serializes it. */
+function makeRefundRow(overrides: Partial<PendingRefundRow> = {}): PendingRefundRow {
+  return {
+    id: 'refund-1',
+    saleId: 'sale-operational-id-001',
+    method: 'card_credit',
+    amountCents: 50_000,
+    settledCents: 12_500,
+    outstandingCents: 37_500,
+    reason: 'CUSTOMER_REQUEST',
+    status: 'PENDING',
+    createdAt: '2025-03-02T01:15:00.000Z',
+    ...overrides,
+  }
+}
+
+/** Module-scoped panel lookup: the generic panel test id repeats per module. */
+function panelByHeading(view: View, id: string) {
+  return view.find(`[data-testid="dashboard-operational-panel"][aria-labelledby="${id}-heading"]`)
 }
 
 /**
@@ -189,6 +315,31 @@ function resetMocks() {
   timeseriesState.refetch.mockClear()
   timeseriesState.retry.mockClear()
   tenantIdRef.value = 'tenant-1'
+  grantedPermissions.value = new Set()
+  recentSalesCalls.length = 0
+  recentSalesItems.value = []
+  recentSalesState.isInitialLoading.value = false
+  recentSalesState.isRefetching.value = false
+  recentSalesState.isError.value = false
+  recentSalesState.error.value = undefined
+  recentSalesState.refetch.mockClear()
+  recentSalesState.retry.mockClear()
+  debtSalesCalls.length = 0
+  debtSalesItems.value = []
+  debtSalesState.isInitialLoading.value = false
+  debtSalesState.isRefetching.value = false
+  debtSalesState.isError.value = false
+  debtSalesState.error.value = undefined
+  debtSalesState.refetch.mockClear()
+  debtSalesState.retry.mockClear()
+  pendingRefundsCalls.length = 0
+  pendingRefundsItems.value = []
+  pendingRefundsState.isInitialLoading.value = false
+  pendingRefundsState.isRefetching.value = false
+  pendingRefundsState.isError.value = false
+  pendingRefundsState.error.value = undefined
+  pendingRefundsState.refetch.mockClear()
+  pendingRefundsState.retry.mockClear()
 }
 
 beforeEach(resetMocks)
@@ -347,6 +498,70 @@ describe('BranchSalesSummaryView — independent summary and trend failures', ()
         .find('[data-testid="branch-sales-trend"]')
         .element.contains(retryButtons(view)[0]!.element),
     ).toBe(true)
+  })
+})
+
+describe('BranchSalesSummaryView — operational panel failure isolation', () => {
+  it('keeps loaded debt and refund panels on a fatal recent failure and retries only the recent module', async () => {
+    grantPermissions('read:Sale', 'read:SaleRefund')
+    recentSalesItems.value = []
+    recentSalesState.isError.value = true
+    recentSalesState.error.value = { response: { status: 500 } }
+    debtSalesItems.value = [makeSaleRow({ id: 'sale-debt-1' })]
+    pendingRefundsItems.value = [makeRefundRow()]
+
+    const view = mountView()
+
+    const recentPanel = panelByHeading(view, 'dashboard-recent-sales')
+    expect(recentPanel.exists()).toBe(true)
+    expect(recentPanel.find('[data-testid="dashboard-operational-error"]').attributes('role')).toBe(
+      'alert',
+    )
+    expect(recentPanel.find('[data-testid="dashboard-operational-list"]').exists()).toBe(false)
+
+    // The two other modules keep their loaded rows and expose no error state.
+    expect(
+      panelByHeading(view, 'dashboard-debt-sales').findAll('[data-testid="dashboard-sale-row"]'),
+    ).toHaveLength(1)
+    expect(
+      panelByHeading(view, 'dashboard-pending-refunds').findAll(
+        '[data-testid="dashboard-refund-row"]',
+      ),
+    ).toHaveLength(1)
+    expect(
+      panelByHeading(view, 'dashboard-debt-sales')
+        .find('[data-testid="dashboard-operational-error"]')
+        .exists(),
+    ).toBe(false)
+    expect(
+      panelByHeading(view, 'dashboard-pending-refunds')
+        .find('[data-testid="dashboard-operational-error"]')
+        .exists(),
+    ).toBe(false)
+
+    const recentRetry = recentPanel
+      .findAll('button')
+      .find((button) => /reintentar/i.test(button.text()))
+    expect(recentRetry).toBeDefined()
+    await recentRetry!.trigger('click')
+    await nextTick()
+
+    // Only the recent module's guarded retry runs; siblings and the summary stay untouched.
+    expect(recentSalesState.retry).toHaveBeenCalledTimes(1)
+    expect(debtSalesState.retry).not.toHaveBeenCalled()
+    expect(pendingRefundsState.retry).not.toHaveBeenCalled()
+    expect(state.retry).not.toHaveBeenCalled()
+    expect(timeseriesState.retry).not.toHaveBeenCalled()
+
+    // The retry did not erase the successfully loaded sibling modules.
+    expect(
+      panelByHeading(view, 'dashboard-debt-sales').findAll('[data-testid="dashboard-sale-row"]'),
+    ).toHaveLength(1)
+    expect(
+      panelByHeading(view, 'dashboard-pending-refunds').findAll(
+        '[data-testid="dashboard-refund-row"]',
+      ),
+    ).toHaveLength(1)
   })
 })
 
