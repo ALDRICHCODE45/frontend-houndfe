@@ -695,6 +695,54 @@ describe('saleApi', () => {
       expect(http.get).toHaveBeenCalledWith('/sales', { params: {} })
       expect(result.data).toHaveLength(0)
     })
+
+    // ODD dashboard-operational-insights OI-5B2 S1: additive, backwards-compatible
+    // transport extension. A superseded dashboard query must abort at the HTTP
+    // layer, so the TanStack AbortSignal has to reach `http.get`.
+    it('forwards an AbortSignal so a superseded request can be cancelled', async () => {
+      const response: ConfirmedSalesListResponse = {
+        data: [],
+        pagination: { page: 1, limit: 5, total: 0, totalPages: 0 },
+        counts: { all: 0, pendingPayments: 0, notDelivered: 0 },
+        summary: { salesCount: 0, totalSoldCents: 0, outstandingDebtCents: 0 },
+      }
+      vi.mocked(http.get).mockResolvedValue({ data: response })
+
+      const controller = new AbortController()
+      const params: ListSalesParams = {
+        page: 1,
+        limit: 5,
+        status: ['CONFIRMED'],
+        sortBy: 'confirmedAt',
+        sortOrder: 'desc',
+      }
+
+      await saleApi.listConfirmed(params, { signal: controller.signal })
+
+      const [path, config] = vi.mocked(http.get).mock.calls[0] ?? []
+      expect(path).toBe('/sales')
+      expect(config?.params).toEqual(params)
+      expect(config?.signal).toBe(controller.signal)
+    })
+
+    it('keeps the legacy one-argument call additive (unchanged params, no signal)', async () => {
+      const response: ConfirmedSalesListResponse = {
+        data: [],
+        pagination: { page: 1, limit: 5, total: 0, totalPages: 0 },
+        counts: { all: 0, pendingPayments: 0, notDelivered: 0 },
+        summary: { salesCount: 0, totalSoldCents: 0, outstandingDebtCents: 0 },
+      }
+      vi.mocked(http.get).mockResolvedValue({ data: response })
+
+      const params: ListSalesParams = { page: 1, limit: 5 }
+
+      await saleApi.listConfirmed(params)
+
+      const [path, config] = vi.mocked(http.get).mock.calls[0] ?? []
+      expect(path).toBe('/sales')
+      expect(config?.params).toEqual(params)
+      expect(config?.signal).toBeUndefined()
+    })
   })
 
   describe('getById', () => {

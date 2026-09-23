@@ -81,6 +81,15 @@ export const saleQueryKeys = {
   // the JWT) and the backend queue order stays authoritative.
   pendingRefunds: (tenantId: string, params: PendingRefundsQuery) =>
     ['sales', tenantId, 'pending-refunds', params.page, params.limit] as const,
+  // ODD dashboard-operational-insights OI-5B2 S1: the two fixed-slot dashboard
+  // sales queries. 'dashboard-recent' and 'dashboard-debt' are their OWN cache
+  // namespaces, disjoint from 'confirmed' (the caller-driven list) and from
+  // 'pending-refunds'. Each request is FIXED (page 1 / limit 5 plus the fixed
+  // status/payment filters), so no params participate: only tenant isolation
+  // does. Tenant is cache isolation only — it is never sent to the API (the
+  // backend resolves it from the JWT).
+  dashboardRecent: (tenantId: string) => ['sales', tenantId, 'dashboard-recent'] as const,
+  dashboardDebt: (tenantId: string) => ['sales', tenantId, 'dashboard-debt'] as const,
   detail: (tenantId: string, saleId: string) => ['sales', tenantId, 'detail', saleId] as const,
   posCatalog: (tenantId: string, p: PosCatalogSearchParams = {}) =>
     [

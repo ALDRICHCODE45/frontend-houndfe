@@ -940,3 +940,52 @@ describe('analyticsQueryKeys.salesTimeseries (ODD dashboard-operational-insights
     ])
   })
 })
+
+// ODD dashboard-operational-insights OI-5B2 S1: the two fixed dashboard sales
+// slots are their OWN cache namespaces. Each request is fixed (page 1 / limit 5
+// plus the fixed status/payment filters), so no params participate: only tenant
+// isolation does. They must stay disjoint from `confirmed` (the caller-driven
+// list) and from `pending-refunds`.
+describe('saleQueryKeys.dashboardRecent / dashboardDebt (ODD dashboard-operational-insights OI-5B2 S1)', () => {
+  const TENANT = 'tenant-abc'
+
+  it('returns the exact stable dashboard-recent tuple', () => {
+    expect(saleQueryKeys.dashboardRecent(TENANT)).toEqual(['sales', TENANT, 'dashboard-recent'])
+    expect(saleQueryKeys.dashboardRecent(TENANT)).toEqual(saleQueryKeys.dashboardRecent(TENANT))
+  })
+
+  it('returns the exact stable dashboard-debt tuple', () => {
+    expect(saleQueryKeys.dashboardDebt(TENANT)).toEqual(['sales', TENANT, 'dashboard-debt'])
+    expect(saleQueryKeys.dashboardDebt(TENANT)).toEqual(saleQueryKeys.dashboardDebt(TENANT))
+  })
+
+  it('isolates each slot by tenant', () => {
+    expect(saleQueryKeys.dashboardRecent('other')).not.toEqual(
+      saleQueryKeys.dashboardRecent(TENANT),
+    )
+    expect(saleQueryKeys.dashboardDebt('other')).not.toEqual(saleQueryKeys.dashboardDebt(TENANT))
+  })
+
+  it('keeps recent, debt, confirmed and pending-refund slots mutually disjoint', () => {
+    const recent = saleQueryKeys.dashboardRecent(TENANT)
+    const debt = saleQueryKeys.dashboardDebt(TENANT)
+    const confirmed = saleQueryKeys.confirmed(TENANT, { page: 1, limit: 5, status: ['CONFIRMED'] })
+    const pending = saleQueryKeys.pendingRefunds(TENANT, { page: 1, limit: 5 })
+
+    expect(recent).not.toEqual(debt)
+    expect(recent).not.toEqual(confirmed)
+    expect(recent).not.toEqual(pending)
+    expect(debt).not.toEqual(confirmed)
+    expect(debt).not.toEqual(pending)
+    expect(confirmed).not.toEqual(pending)
+
+    const namespaces = [recent[2], debt[2], confirmed[2], pending[2]]
+    expect(new Set(namespaces).size).toBe(4)
+    expect(namespaces).toEqual([
+      'dashboard-recent',
+      'dashboard-debt',
+      'confirmed',
+      'pending-refunds',
+    ])
+  })
+})

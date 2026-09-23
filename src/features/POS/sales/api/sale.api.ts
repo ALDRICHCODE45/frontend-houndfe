@@ -258,8 +258,19 @@ export const saleApi = {
     return data
   },
 
-  async listConfirmed(params: ListSalesParams): Promise<ConfirmedSalesListResponse> {
-    const { data } = await http.get<ConfirmedSalesListResponse>('/sales', { params })
+  // ODD dashboard-operational-insights OI-5B2 S1: additive, backwards-compatible
+  // transport extension. The optional `options.signal` (defaulted, so every
+  // existing one-argument caller stays valid) is forwarded to `http.get` so a
+  // superseded request aborts at the HTTP layer instead of merely being ignored.
+  // Params, response handling and domain types are unchanged.
+  async listConfirmed(
+    params: ListSalesParams,
+    options: { signal?: AbortSignal } = {},
+  ): Promise<ConfirmedSalesListResponse> {
+    const { data } = await http.get<ConfirmedSalesListResponse>('/sales', {
+      params,
+      signal: options.signal,
+    })
     return data
   },
 
