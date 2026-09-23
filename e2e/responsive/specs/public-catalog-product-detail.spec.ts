@@ -1,9 +1,10 @@
 /**
  * D4 responsive evidence for the public catalog product-detail slice.
  *
- * Strict `/__e2e-api/**` declarations prove exact anonymous branch, product-list and detail traffic,
- * the exact detail URL carrying the resolved list `priceListId`, credential-free wire headers on all
- * three request classes, the absence of any detail fetch before the product is activated, the real
+ * Strict `/__e2e-api/**` declarations prove exact anonymous branch, price-context discovery,
+ * product-list and detail traffic, the exact detail URL carrying the resolved list `priceListId`,
+ * credential-free wire headers on all four request classes, the absence of any detail fetch before
+ * the product is activated, the real
  * UModal focus lifecycle, the two synchronous activations of the connected retry control while the
  * accepted manual retry response is held in flight, and the read-only price/stock semantics at desktop,
  * 375 px and 320 px. It also proves the read-only media preview contract in the browser: the exact
@@ -182,10 +183,12 @@ const realVariantPreviewControlName = `Ampliar imagen de la variante ${realVaria
 const mediaControlNames = [mainPreviewControlName, realVariantPreviewControlName] as const
 
 const branchesPath = '/public/catalog/branches'
+const priceContextsPath = `/public/catalog/${branchSlug}/price-contexts`
 const productsPath = `/public/catalog/${branchSlug}/products`
 const detailPath = (productId: string) => `${productsPath}/${productId}`
 
 const branchesPathname = `${API_PREFIX}${branchesPath}`
+const priceContextsPathname = `${API_PREFIX}${priceContextsPath}`
 const productsPathname = `${API_PREFIX}${productsPath}`
 const detailPathname = (productId: string) => `${API_PREFIX}${detailPath(productId)}`
 
@@ -193,6 +196,13 @@ const branchRoute: DeclaredRoute = {
   method: 'GET',
   path: branchesPath,
   json: [branch],
+  count: 1,
+}
+/** Anonymous discovery is a direct array of the same tenant context the list response echoes. */
+const priceContextsRoute: DeclaredRoute = {
+  method: 'GET',
+  path: priceContextsPath,
+  json: [priceContext],
   count: 1,
 }
 const productsRoute = (items: readonly unknown[]): DeclaredRoute => ({
@@ -225,6 +235,7 @@ interface AnonymousRequestSnapshot {
 
 interface AnonymousTraffic {
   readonly branches: AnonymousRequestSnapshot[]
+  readonly priceContexts: AnonymousRequestSnapshot[]
   readonly products: AnonymousRequestSnapshot[]
   readonly detail: AnonymousRequestSnapshot[]
   /** Resolves once every observed request recorded its full wire headers. */
@@ -251,12 +262,13 @@ const anonymousRequest = (
 })
 
 /**
- * Observes branch discovery, the product list and product detail on the wire. `allHeaders()` is used
- * on purpose: `headers()` drops cookie-related headers, which would make the anonymity assertions
- * vacuous.
+ * Observes branch discovery, price-context discovery, the product list and product detail on the
+ * wire. `allHeaders()` is used on purpose: `headers()` drops cookie-related headers, which would make
+ * the anonymity assertions vacuous.
  */
 function captureAnonymousTraffic(page: Page, productId: string): AnonymousTraffic {
   const branches: AnonymousRequestSnapshot[] = []
+  const priceContexts: AnonymousRequestSnapshot[] = []
   const products: AnonymousRequestSnapshot[] = []
   const detail: AnonymousRequestSnapshot[] = []
   const pending: Promise<void>[] = []
@@ -265,11 +277,13 @@ function captureAnonymousTraffic(page: Page, productId: string): AnonymousTraffi
     const bucket =
       url.pathname === branchesPathname
         ? branches
-        : url.pathname === productsPathname
-          ? products
-          : url.pathname === detailPathname(productId)
-            ? detail
-            : null
+        : url.pathname === priceContextsPathname
+          ? priceContexts
+          : url.pathname === productsPathname
+            ? products
+            : url.pathname === detailPathname(productId)
+              ? detail
+              : null
     if (bucket === null) return
     pending.push(
       request.allHeaders().then((headers) => {
@@ -288,6 +302,7 @@ function captureAnonymousTraffic(page: Page, productId: string): AnonymousTraffi
   })
   return {
     branches,
+    priceContexts,
     products,
     detail,
     flush: async () => {
@@ -296,7 +311,10 @@ function captureAnonymousTraffic(page: Page, productId: string): AnonymousTraffi
   }
 }
 
-/** The whole declared ledger: one anonymous branches read, one anonymous list read, N exact detail reads. */
+/**
+ * The whole declared ledger: one anonymous branches read, one anonymous price-context discovery, one
+ * anonymous list read, then N exact detail reads.
+ */
 function expectExactCatalogTraffic(
   strictNetwork: StrictNetworkController,
   productId: string,
@@ -304,6 +322,7 @@ function expectExactCatalogTraffic(
 ): void {
   expect(strictNetwork.requests()).toEqual([
     { method: 'GET', path: branchesPath, query: {}, body: undefined },
+    { method: 'GET', path: priceContextsPath, query: {}, body: undefined },
     { method: 'GET', path: productsPath, query: {}, body: undefined },
     ...Array.from({ length: detailCount }, () => ({
       method: 'GET',
@@ -568,9 +587,11 @@ const controlKey = (control: ControlSnapshot): string => `${control.role} "${con
 
 /**
  * The inert storefront shell plus one detail invoker per rendered product card. Branch choices live
- * inside the closed-by-default `Seleccionar sucursal` dialog, so they are never shell controls.
+ * inside the closed-by-default `Seleccionar sucursal` dialog, so they are never shell controls. The
+ * tenant-scoped price-context selector is a real shell control once discovery resolves, so it belongs
+ * to this exact inventory instead of the dialog allowance.
  */
-const SHELL_CONTROL_NAMES = ['Explorar sucursales', 'Cambiar tema'] as const
+const SHELL_CONTROL_NAMES = ['Explorar sucursales', 'Lista de precios', 'Cambiar tema'] as const
 const invokerControlName = (productName: string): string => `Ver detalles de ${productName}`
 
 const shellControls = (productNames: readonly string[]): ControlSnapshot[] => [
@@ -703,6 +724,7 @@ for (const viewport of viewports) {
       declaredRoutes: {
         routes: [
           branchRoute,
+          priceContextsRoute,
           productsRoute([targetProduct, decoyProduct]),
           detailRoute(targetProductId, targetDetail, 2),
         ],
@@ -724,6 +746,7 @@ for (const viewport of viewports) {
       // No detail request exists before the product is activated, and no other API traffic occurs.
       await traffic.flush()
       expect(traffic.branches).toEqual([anonymousRequest(branchesPathname)])
+      expect(traffic.priceContexts).toEqual([anonymousRequest(priceContextsPathname)])
       expect(traffic.products).toEqual([anonymousRequest(productsPathname)])
       expect(traffic.detail).toEqual([])
       expectExactCatalogTraffic(strictNetwork, targetProductId, 0)
@@ -745,6 +768,7 @@ for (const viewport of viewports) {
         anonymousRequest(detailPathname(targetProductId), { priceListId }),
       ])
       expect(traffic.branches).toEqual([anonymousRequest(branchesPathname)])
+      expect(traffic.priceContexts).toEqual([anonymousRequest(priceContextsPathname)])
       expect(traffic.products).toEqual([anonymousRequest(productsPathname)])
       await expect(
         dialog.getByRole('heading', { name: decoyProduct.name, exact: true }),
@@ -1099,6 +1123,7 @@ for (const viewport of viewports) {
         anonymousRequest(detailPathname(targetProductId), { priceListId }),
       ])
       expect(traffic.branches).toEqual([anonymousRequest(branchesPathname)])
+      expect(traffic.priceContexts).toEqual([anonymousRequest(priceContextsPathname)])
       expect(traffic.products).toEqual([anonymousRequest(productsPathname)])
       expectExactCatalogTraffic(strictNetwork, targetProductId, 2)
     })
@@ -1109,6 +1134,7 @@ for (const viewport of viewports) {
       declaredRoutes: {
         routes: [
           branchRoute,
+          priceContextsRoute,
           productsRoute([hiddenProduct]),
           detailRoute(hiddenProductId, hiddenDetail, 1),
         ],
@@ -1195,6 +1221,7 @@ for (const viewport of viewports) {
       })
       await traffic.flush()
       expect(traffic.branches).toEqual([anonymousRequest(branchesPathname)])
+      expect(traffic.priceContexts).toEqual([anonymousRequest(priceContextsPathname)])
       expect(traffic.products).toEqual([anonymousRequest(productsPathname)])
       expect(traffic.detail).toEqual([
         anonymousRequest(detailPathname(hiddenProductId), { priceListId }),
@@ -1208,6 +1235,7 @@ for (const viewport of viewports) {
       declaredRoutes: {
         routes: [
           branchRoute,
+          priceContextsRoute,
           productsRoute([targetProduct]),
           // The accepted manual retry is the only request reaching the declared route, and it is held
           // in flight so a concurrent second activation would be an exceeded, aborted request.
@@ -1255,6 +1283,7 @@ for (const viewport of viewports) {
       // No automatic retry happened: exactly one anonymous attempt exists and no detail content leaked through.
       await traffic.flush()
       expect(traffic.branches).toEqual([anonymousRequest(branchesPathname)])
+      expect(traffic.priceContexts).toEqual([anonymousRequest(priceContextsPathname)])
       expect(traffic.products).toEqual([anonymousRequest(productsPathname)])
       expect(traffic.detail).toEqual([
         anonymousRequest(detailPathname(targetProductId), { priceListId }),

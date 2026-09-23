@@ -1,12 +1,14 @@
 /**
  * P1 responsive evidence for the discreet public catalog branch selector.
  *
- * Strict `/__e2e-api/**` declarations prove that `/catalogo` and a direct branch URL issue exactly one
- * anonymous branch read, that the closed shell exposes no branch choice and no dialog, that the
- * `Explorar sucursales` trigger opens one labelled dialog whose branch choices, current branch state
- * and polite live region are reachable, that the dialog fits 320/375/1280 without horizontal overflow,
- * and that both Escape and an outside pointer press close it while focus returns to its trigger.
- * Every step drives the real browser surface through accessible locators.
+ * Strict `/__e2e-api/**` declarations prove that `/catalogo` issues exactly one anonymous branch read,
+ * that a selected-branch URL issues exactly one anonymous branch read followed by its tenant-scoped
+ * price-context discovery and then the anonymous product list, that the closed shell exposes no branch
+ * choice and no dialog, that the `Explorar sucursales` trigger opens one labelled dialog whose branch
+ * choices, current branch state and polite live region are reachable, that the dialog fits
+ * 320/375/1280 without horizontal overflow, and that both Escape and an outside pointer press close it
+ * while focus returns to its trigger. Every step drives the real browser surface through accessible
+ * locators.
  */
 import type { Locator, Page } from '@playwright/test'
 import { expect, test, RESPONSIVE_ORIGIN } from '../fixtures/test'
@@ -42,11 +44,19 @@ const emptyProductPage = {
   excludedCount: 0,
   priceContext: { priceListId: 'list-1', name: 'Lista pública', isCatalogDefault: true },
 }
+/** Discovery is a direct array of the same tenant-scoped context the list response echoes. */
+const priceContextsResponse = [emptyProductPage.priceContext]
 const routes: readonly DeclaredRoute[] = [
   {
     method: 'GET',
     path: '/public/catalog/branches',
     json: [longNameBranch, addressedBranch],
+    count: 1,
+  },
+  {
+    method: 'GET',
+    path: '/public/catalog/centro/price-contexts',
+    json: priceContextsResponse,
     count: 1,
   },
   { method: 'GET', path: '/public/catalog/centro/products', json: emptyProductPage, count: 1 },
@@ -55,6 +65,12 @@ const routes: readonly DeclaredRoute[] = [
 const branchesRequest = {
   method: 'GET',
   path: '/public/catalog/branches',
+  query: {},
+  body: undefined,
+}
+const priceContextsRequest = {
+  method: 'GET',
+  path: '/public/catalog/centro/price-contexts',
   query: {},
   body: undefined,
 }
@@ -303,7 +319,11 @@ for (const viewport of viewports) {
         contentType: 'image/png',
       })
 
-      expect(strictNetwork.requests()).toEqual([branchesRequest, productsRequest])
+      expect(strictNetwork.requests()).toEqual([
+        branchesRequest,
+        priceContextsRequest,
+        productsRequest,
+      ])
       expect(strictNetwork.violations()).toEqual([])
     })
   })

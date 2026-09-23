@@ -1,15 +1,26 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useColorMode } from '@vueuse/core'
+import CatalogPriceContextSelector from './CatalogPriceContextSelector.vue'
 import type { PublicBranchDto } from '../interfaces/catalog.types'
+import type { PublicCatalogPriceContextDto } from '../interfaces/public-catalog-price-context.types'
 import type { CatalogBranchesState } from '../composables/useCatalogBranches'
+import type { CatalogPriceContextsState } from '../composables/useCatalogPriceContexts'
 
 const props = defineProps<{
   branches: PublicBranchDto[]
   state: CatalogBranchesState
   selectedBranch: PublicBranchDto | null
+  priceContextOptions: PublicCatalogPriceContextDto[]
+  priceContextsState: CatalogPriceContextsState
+  selectedPriceListId: string | null
 }>()
-const emit = defineEmits<{ retry: []; select: [slug: string] }>()
+const emit = defineEmits<{
+  retry: []
+  select: [slug: string]
+  'select-price-context': [priceListId: string]
+  'retry-price-contexts': []
+}>()
 
 const colorMode = useColorMode()
 const isDark = computed(() => colorMode.value === 'dark')
@@ -187,15 +198,26 @@ function toggleDarkMode() {
         </template>
       </UModal>
 
-      <div class="order-last w-full min-w-0 sm:order-none sm:w-auto sm:flex-1">
+      <div
+        data-testid="catalog-header-controls"
+        class="order-last flex w-full min-w-0 flex-col gap-2 sm:order-none sm:w-auto sm:flex-1 sm:flex-row sm:items-center sm:gap-3"
+      >
         <UInput
           placeholder="Buscar en el catálogo"
           icon="i-lucide-search"
           size="sm"
-          class="w-full"
+          class="w-full min-w-0 sm:flex-1"
           :ui="{ root: 'w-full' }"
           disabled
           aria-label="Buscar en el catálogo"
+        />
+        <CatalogPriceContextSelector
+          :options="props.priceContextOptions"
+          :state="props.priceContextsState"
+          :model-value="props.selectedPriceListId"
+          class="w-full min-w-0 sm:w-56"
+          @select="emit('select-price-context', $event)"
+          @retry="emit('retry-price-contexts')"
         />
       </div>
 

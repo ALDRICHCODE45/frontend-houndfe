@@ -3,7 +3,7 @@ import type {
   PublicCatalogProductsResponseDto,
 } from '../interfaces/public-catalog-products.types'
 
-export type CatalogProductsErrorKind = 'rate-limit' | 'server' | 'network'
+export type CatalogProductsErrorKind = 'unavailable' | 'rate-limit' | 'server' | 'network'
 
 export class CatalogProductsError extends Error {
   readonly kind: CatalogProductsErrorKind
@@ -11,11 +11,13 @@ export class CatalogProductsError extends Error {
 
   constructor(kind: CatalogProductsErrorKind = 'server', status?: number) {
     super(
-      kind === 'rate-limit'
-        ? 'Too many requests'
-        : kind === 'network'
-          ? 'Network failure'
-          : 'Server failure',
+      kind === 'unavailable'
+        ? 'Catalog unavailable'
+        : kind === 'rate-limit'
+          ? 'Too many requests'
+          : kind === 'network'
+            ? 'Network failure'
+            : 'Server failure',
     )
     this.name = 'CatalogProductsError'
     this.kind = kind
@@ -32,6 +34,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function isNullableString(value: unknown): value is string | null {
   return value === null || typeof value === 'string'
+}
+
+function isNonBlankString(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0
 }
 
 function isFiniteNumber(value: unknown): value is number {
@@ -118,7 +124,10 @@ function isProduct(value: unknown): value is PublicCatalogProductDto {
   )
 }
 
-function isProductsResponse(value: unknown): value is PublicCatalogProductsResponseDto {
+function isProductsResponse(
+  value: unknown,
+  requestedPriceListId: string | null,
+): value is PublicCatalogProductsResponseDto {
   if (!isRecord(value) || !Array.isArray(value.items) || !value.items.every(isProduct)) return false
   if (!isRecord(value.meta) || !isRecord(value.facets) || !Array.isArray(value.facets.categories))
     return false
@@ -131,8 +140,11 @@ function isProductsResponse(value: unknown): value is PublicCatalogProductsRespo
     isNonNegativeInteger(meta.total) &&
     isNonNegativeInteger(meta.totalPages) &&
     isNonNegativeInteger(value.excludedCount) &&
-    typeof priceContext.priceListId === 'string' &&
-    typeof priceContext.name === 'string' &&
+    isNonBlankString(priceContext.priceListId) &&
+    // An explicit request is identity-significant exactly as supplied, so a blank or
+    // whitespace-only explicit id can never accept a default response as data.
+    (requestedPriceListId === null || priceContext.priceListId === requestedPriceListId) &&
+    isNonBlankString(priceContext.name) &&
     typeof priceContext.isCatalogDefault === 'boolean' &&
     value.facets.categories.every(
       (category) =>
@@ -146,26 +158,34 @@ function isProductsResponse(value: unknown): value is PublicCatalogProductsRespo
 
 export async function fetchCatalogProducts(
   tenantSlug: string,
+  priceListId?: string | null,
   signal?: AbortSignal,
 ): Promise<PublicCatalogProductsResponseDto> {
+  // Only null/undefined are absent. A supplied string is explicit and identity-significant
+  // exactly as given, including an empty or whitespace-only malformed value.
+  const requestedPriceListId = priceListId ?? null
+  const path = `/public/catalog/${encodeURIComponent(tenantSlug)}/products`
+  const url =
+    requestedPriceListId === null
+      ? `${apiBase}${path}`
+      : `${apiBase}${path}?priceListId=${encodeURIComponent(requestedPriceListId)}`
   let response: Response
   try {
     const init = signal
-      ? { method: 'GET', credentials: 'omit' as const, signal }
-      : { method: 'GET', credentials: 'omit' as const }
-    response = await fetch(
-      `${apiBase}/public/catalog/${encodeURIComponent(tenantSlug)}/products`,
-      init,
-    )
+      ? { method: 'GET' as const, credentials: 'omit' as const, signal }
+      : { method: 'GET' as const, credentials: 'omit' as const }
+    response = await fetch(url, init)
   } catch {
     throw new CatalogProductsError('network')
   }
 
   try {
+    if (response.status === 404) throw new CatalogProductsError('unavailable', 404)
     if (response.status === 429) throw new CatalogProductsError('rate-limit', 429)
     if (response.status !== 200) throw new CatalogProductsError('server', response.status)
     const body: unknown = await response.json()
-    if (!isProductsResponse(body)) throw new CatalogProductsError('server', response.status)
+    if (!isProductsResponse(body, requestedPriceListId))
+      throw new CatalogProductsError('server', response.status)
     return body
   } catch (error) {
     if (error instanceof CatalogProductsError) throw error
