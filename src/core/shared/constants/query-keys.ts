@@ -7,6 +7,7 @@ import type {
   CustomerSalesHistoryParams,
 } from '@/features/POS/sales/interfaces/sale.types'
 import type { BranchSalesSummaryQuery } from '@/features/analytics/interfaces/branch-sales-summary.types'
+import type { BranchSalesTimeseriesQuery } from '@/features/analytics/interfaces/branch-sales-timeseries.types'
 
 export const productQueryKeys = {
   paginated: (tenantId: string) => ['products', tenantId, 'paginated'] as const,
@@ -286,6 +287,13 @@ export const analyticsQueryKeys = {
   salesSummaryPrefix: (tenantId: string) => ['analytics', tenantId, 'sales-summary'] as const,
   salesSummary: (tenantId: string, params: BranchSalesSummaryQuery) =>
     ['analytics', tenantId, 'sales-summary', params.from, params.to] as const,
+  // ODD dashboard-operational-insights OI-4: the daily series is its OWN cache
+  // slot. 'sales-timeseries' keeps it disjoint from 'sales-summary', and tenant
+  // + both boundaries + interval participate in the key so two windows can
+  // never share a cached payload. Tenant is cache isolation only — it is never
+  // sent to the API (the backend resolves it from the JWT).
+  salesTimeseries: (tenantId: string, params: BranchSalesTimeseriesQuery) =>
+    ['analytics', tenantId, 'sales-timeseries', params.from, params.to, params.interval] as const,
 }
 
 // ─── Payment-methods POS projection (sdd custom-payment-methods S4A) ──────────

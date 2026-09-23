@@ -11,6 +11,7 @@ import {
 } from '../query-keys'
 import { deliveryRouteQueryKeys } from '../query-keys'
 import { analyticsQueryKeys } from '../query-keys'
+import type { BranchSalesTimeseriesQuery } from '@/features/analytics/interfaces/branch-sales-timeseries.types'
 
 describe('promotionQueryKeys', () => {
   it('paginated() returns a tuple starting with "promotions"', () => {
@@ -833,5 +834,71 @@ describe('analyticsQueryKeys (ODD branch-sales-summary A1)', () => {
     expect(
       analyticsQueryKeys.salesSummary(TENANT, { from: TO, to: '2025-03-01' }).slice(0, 3),
     ).toEqual(prefix)
+  })
+})
+
+// ODD dashboard-operational-insights OI-4: the timeseries slot is a SEPARATE
+// tenant-scoped cache slot. It must not collide with the summary slot, and the
+// full window identity (tenant + both boundaries + interval) must participate in
+// the key so two windows can never share a cached payload.
+describe('analyticsQueryKeys.salesTimeseries (ODD dashboard-operational-insights OI-4)', () => {
+  const TENANT = 'tenant-abc'
+  const FROM = '2025-03-01'
+  const TO = '2025-03-04'
+  const interval = 'day' as const
+  const params: BranchSalesTimeseriesQuery = { from: FROM, to: TO, interval }
+
+  it('returns the exact timeseries key with boundaries and interval', () => {
+    expect(analyticsQueryKeys.salesTimeseries(TENANT, params)).toEqual([
+      'analytics',
+      TENANT,
+      'sales-timeseries',
+      FROM,
+      TO,
+      interval,
+    ])
+  })
+
+  it('is stable across calls with the same identity', () => {
+    expect(analyticsQueryKeys.salesTimeseries(TENANT, params)).toEqual(
+      analyticsQueryKeys.salesTimeseries(TENANT, { ...params }),
+    )
+  })
+
+  it('does not collide across tenant, from, to or interval', () => {
+    const base = analyticsQueryKeys.salesTimeseries(TENANT, params)
+
+    expect(analyticsQueryKeys.salesTimeseries('other', params)).not.toEqual(base)
+    expect(
+      analyticsQueryKeys.salesTimeseries(TENANT, { ...params, from: '2025-03-02' }),
+    ).not.toEqual(base)
+    expect(analyticsQueryKeys.salesTimeseries(TENANT, { ...params, to: '2025-03-05' })).not.toEqual(
+      base,
+    )
+    // The interval segment is part of the key identity, not decoration: a future
+    // non-day interval must not reuse the daily series cache slot.
+    expect(base[5]).toBe(interval)
+  })
+
+  it('stays isolated from the summary slot while preserving every summary key', () => {
+    const timeseries = analyticsQueryKeys.salesTimeseries(TENANT, params)
+    const summary = analyticsQueryKeys.salesSummary(TENANT, { from: FROM, to: TO })
+
+    expect(timeseries[2]).toBe('sales-timeseries')
+    expect(summary[2]).toBe('sales-summary')
+    expect(timeseries).not.toEqual(summary)
+
+    expect(analyticsQueryKeys.salesSummaryPrefix(TENANT)).toEqual([
+      'analytics',
+      TENANT,
+      'sales-summary',
+    ])
+    expect(analyticsQueryKeys.salesSummary(TENANT, { from: FROM, to: TO })).toEqual([
+      'analytics',
+      TENANT,
+      'sales-summary',
+      FROM,
+      TO,
+    ])
   })
 })
