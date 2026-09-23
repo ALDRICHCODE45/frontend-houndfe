@@ -740,3 +740,109 @@ describe('ability with PaymentMethod subject (sdd custom-payment-methods S1, REQ
         expect(subject).toBe('DeliveryRoute')
       })
     })
+
+// ODD branch-sales-summary A1: `read:Analytics` is the exact permission required by
+// GET /analytics/sales/summary. 'Analytics' must be registered in BOTH the compile-time
+// AppSubject union and the runtime APP_SUBJECTS registry; otherwise parsePermissionCode
+// returns null, the ability never updates, and the grant silently disappears.
+describe('ability with Analytics subject (ODD branch-sales-summary A1)', () => {
+  beforeEach(() => {
+    resetAbility()
+  })
+
+  it('grants read on Analytics from read:Analytics', () => {
+    updateAbilityFromPermissionCodes(['read:Analytics'])
+
+    expect(ability.can('read', 'Analytics')).toBe(true)
+  })
+
+  it('malformed sibling permissions do not drop or revoke the valid read:Analytics grant', () => {
+    updateAbilityFromPermissionCodes([
+      'read:Analytics:extra', // extra segment → dropped
+      'fly:Analytics', // unknown action → dropped
+      'read:UnknownSubject', // unknown subject → dropped
+      'read:Analytics', // well-formed → grants
+    ])
+
+    expect(ability.can('read', 'Analytics')).toBe(true)
+  })
+
+  it('validates Analytics is in the AppSubject type union (compile-time guarantee)', () => {
+    const subject: AppSubject = 'Analytics'
+    expect(subject).toBe('Analytics')
+  })
+})
+
+// ODD dashboard-operational-insights OI-5B1: `read:SaleRefund` is the exact
+// permission guarding GET /sales/refunds/pending. 'SaleRefund' must be registered
+// in BOTH the compile-time AppSubject union and the runtime APP_SUBJECTS registry.
+// If either half is missing, parsePermissionCode returns null, the ability never
+// updates, and the pending-refund module silently disappears — hence the explicit
+// no-silent-drop pin. The backend registry exposes only `read` and `update`
+// (refund rows are created by the cancellation flow), so no CRUD/manage widening
+// is asserted.
+describe('ability with SaleRefund subject (ODD dashboard-operational-insights OI-5B1)', () => {
+  beforeEach(() => {
+    resetAbility()
+  })
+
+  it('grants read on SaleRefund from read:SaleRefund without widening update', () => {
+    updateAbilityFromPermissionCodes(['read:SaleRefund'])
+
+    expect(ability.can('read', 'SaleRefund')).toBe(true)
+    expect(ability.can('update', 'SaleRefund')).toBe(false)
+  })
+
+  it('grants update on SaleRefund from update:SaleRefund without widening read', () => {
+    updateAbilityFromPermissionCodes(['update:SaleRefund'])
+
+    expect(ability.can('update', 'SaleRefund')).toBe(true)
+    expect(ability.can('read', 'SaleRefund')).toBe(false)
+  })
+
+  it('does NOT silently drop SaleRefund — parsePermissionCode resolves the registered subject', () => {
+    updateAbilityFromPermissionCodes(['read:SaleRefund'])
+
+    expect(ability.can('read', 'SaleRefund')).toBe(true)
+  })
+
+  it('keeps SaleRefund scoped — no bleed to Sale/Analytics/Customer', () => {
+    updateAbilityFromPermissionCodes(['read:SaleRefund'])
+
+    expect(ability.can('read', 'SaleRefund')).toBe(true)
+    expect(ability.can('read', 'Sale')).toBe(false)
+    expect(ability.can('read', 'Analytics')).toBe(false)
+    expect(ability.can('read', 'Customer')).toBe(false)
+  })
+
+  it('rejects malformed SaleRefund codes without revoking the valid sibling grant', () => {
+    updateAbilityFromPermissionCodes([
+      'read:SaleRefund:extra', // extra segment → dropped
+      'fly:SaleRefund', // unknown action → dropped
+      'read:UnknownSubject', // unknown subject → dropped
+      'read:SaleRefund', // well-formed → grants
+    ])
+
+    expect(ability.can('read', 'SaleRefund')).toBe(true)
+  })
+
+  it('still rejects an unknown subject entirely', () => {
+    updateAbilityFromPermissionCodes(['read:UnknownSubject'])
+
+    expect(ability.can('read', 'SaleRefund')).toBe(false)
+    expect(ability.can('read', 'UnknownSubject' as AppSubject)).toBe(false)
+  })
+
+  it('revokes the SaleRefund grant when the code leaves the list', () => {
+    updateAbilityFromPermissionCodes(['read:SaleRefund'])
+    expect(ability.can('read', 'SaleRefund')).toBe(true)
+
+    updateAbilityFromPermissionCodes([])
+    expect(ability.can('read', 'SaleRefund')).toBe(false)
+  })
+
+  it('validates SaleRefund is in the AppSubject type union (compile-time guarantee)', () => {
+    const subject: AppSubject = 'SaleRefund'
+    expect(subject).toBe('SaleRefund')
+  })
+})

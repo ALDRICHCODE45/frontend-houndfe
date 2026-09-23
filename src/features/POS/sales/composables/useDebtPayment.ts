@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import type { AxiosError } from 'axios'
 import { saleApi } from '../api/sale.api'
-import { saleQueryKeys } from '@/core/shared/constants/query-keys'
+import { analyticsQueryKeys, saleQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import type {
   DebtPaymentDomainErrorCode,
@@ -70,6 +70,11 @@ export function useDebtPayment(saleId: string) {
     onSuccess: (data: DebtPaymentResponse) => {
       void queryClient.invalidateQueries({ queryKey: saleQueryKeys.detail(tenantId.value, saleId) })
       void queryClient.invalidateQueries({ queryKey: saleQueryKeys.confirmed(tenantId.value) })
+      // ODD branch-sales-summary A4: a registered debt payment changes the
+      // branch totals for every date range. Tenant-scoped prefix only.
+      void queryClient.invalidateQueries({
+        queryKey: analyticsQueryKeys.salesSummaryPrefix(tenantId.value),
+      })
 
       const title = data.paymentStatus === SALE_PAYMENT_STATUS.PAID ? 'Venta pagada' : 'Pago parcial registrado'
       toast.add({ title, color: 'success' })

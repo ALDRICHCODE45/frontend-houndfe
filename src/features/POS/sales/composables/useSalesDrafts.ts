@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { saleApi } from '../api/sale.api'
-import { saleQueryKeys } from '@/core/shared/constants/query-keys'
+import { analyticsQueryKeys, saleQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import type {
   Sale,
@@ -271,6 +271,13 @@ export function useSalesDrafts() {
         draftsKey.value,
         removeChargedDraftFromCache(currentDrafts, response.saleId),
       )
+
+      // ODD branch-sales-summary A4: a confirmed sale changes the branch
+      // summary for every date range. Tenant-scoped prefix only, so sibling
+      // tenants and non-summary analytics slots are untouched.
+      queryClient.invalidateQueries({
+        queryKey: analyticsQueryKeys.salesSummaryPrefix(tenantId.value),
+      })
     },
   })
 

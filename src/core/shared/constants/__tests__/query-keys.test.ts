@@ -10,6 +10,8 @@ import {
   adminPaymentDetailQueryKeys,
 } from '../query-keys'
 import { deliveryRouteQueryKeys } from '../query-keys'
+import { analyticsQueryKeys } from '../query-keys'
+import type { BranchSalesTimeseriesQuery } from '@/features/analytics/interfaces/branch-sales-timeseries.types'
 
 describe('promotionQueryKeys', () => {
   it('paginated() returns a tuple starting with "promotions"', () => {
@@ -780,5 +782,210 @@ describe('catalogSettingsQueryKeys (sdd online-catalog-backoffice WU2A)', () => 
       const csKey = catalogSettingsQueryKeys.detail('tenant-1')
       expect(csKey[0]).toBe('catalog-settings')
     })
+  })
+})
+
+// ODD branch-sales-summary A1: tenant-scoped analytics summary keys. The exact-array
+// assertions also prove every key part is a plain, serializable string.
+describe('analyticsQueryKeys (ODD branch-sales-summary A1)', () => {
+  const TENANT = 'tenant-abc'
+  const FROM = '2025-01-01'
+  const TO = '2025-02-01'
+
+  it('returns the exact stable summary prefix for the tenant', () => {
+    expect(analyticsQueryKeys.salesSummaryPrefix(TENANT)).toEqual([
+      'analytics',
+      TENANT,
+      'sales-summary',
+    ])
+    expect(analyticsQueryKeys.salesSummaryPrefix(TENANT)).toEqual(
+      analyticsQueryKeys.salesSummaryPrefix(TENANT),
+    )
+  })
+
+  it('includes tenant, from and to in the exact summary key', () => {
+    expect(analyticsQueryKeys.salesSummary(TENANT, { from: FROM, to: TO })).toEqual([
+      'analytics',
+      TENANT,
+      'sales-summary',
+      FROM,
+      TO,
+    ])
+  })
+
+  it('does not collide across tenant, from or to', () => {
+    const base = analyticsQueryKeys.salesSummary(TENANT, { from: FROM, to: TO })
+
+    expect(analyticsQueryKeys.salesSummary('other', { from: FROM, to: TO })).not.toEqual(base)
+    expect(analyticsQueryKeys.salesSummary(TENANT, { from: '2025-01-02', to: TO })).not.toEqual(
+      base,
+    )
+    expect(analyticsQueryKeys.salesSummary(TENANT, { from: FROM, to: '2025-02-02' })).not.toEqual(
+      base,
+    )
+  })
+
+  it('prefix-matches every date range for the tenant (invalidation contract)', () => {
+    const prefix = analyticsQueryKeys.salesSummaryPrefix(TENANT)
+
+    expect(analyticsQueryKeys.salesSummary(TENANT, { from: FROM, to: TO }).slice(0, 3)).toEqual(
+      prefix,
+    )
+    expect(
+      analyticsQueryKeys.salesSummary(TENANT, { from: TO, to: '2025-03-01' }).slice(0, 3),
+    ).toEqual(prefix)
+  })
+})
+
+// ODD dashboard-operational-insights OI-5B1: the pending-refunds queue is its own
+// tenant-scoped slot. It must stay disjoint from the confirmed-sales keys and be
+// isolated by tenant, page and limit so two tenants or two pages can never share
+// a cached payload.
+describe('saleQueryKeys.pendingRefunds (ODD dashboard-operational-insights OI-5B1)', () => {
+  const TENANT = 'tenant-abc'
+
+  it('returns the exact stable tuple with tenant, page and limit', () => {
+    expect(saleQueryKeys.pendingRefunds(TENANT, { page: 1, limit: 5 })).toEqual([
+      'sales',
+      TENANT,
+      'pending-refunds',
+      1,
+      5,
+    ])
+    expect(saleQueryKeys.pendingRefunds(TENANT, { page: 1, limit: 5 })).toEqual(
+      saleQueryKeys.pendingRefunds(TENANT, { page: 1, limit: 5 }),
+    )
+  })
+
+  it('isolates the cache by tenant, page and limit', () => {
+    const base = saleQueryKeys.pendingRefunds(TENANT, { page: 1, limit: 5 })
+
+    expect(saleQueryKeys.pendingRefunds('other', { page: 1, limit: 5 })).not.toEqual(base)
+    expect(saleQueryKeys.pendingRefunds(TENANT, { page: 2, limit: 5 })).not.toEqual(base)
+    expect(saleQueryKeys.pendingRefunds(TENANT, { page: 1, limit: 10 })).not.toEqual(base)
+  })
+
+  it('stays disjoint from the confirmed-sales keys', () => {
+    const pending = saleQueryKeys.pendingRefunds(TENANT, { page: 1, limit: 5 })
+    const confirmed = saleQueryKeys.confirmed(TENANT, { page: 1, limit: 5 })
+
+    expect(pending[2]).toBe('pending-refunds')
+    expect(confirmed[2]).toBe('confirmed')
+    expect(pending).not.toEqual(confirmed)
+  })
+})
+
+// ODD dashboard-operational-insights OI-4: the timeseries slot is a SEPARATE
+// tenant-scoped cache slot. It must not collide with the summary slot, and the
+// full window identity (tenant + both boundaries + interval) must participate in
+// the key so two windows can never share a cached payload.
+describe('analyticsQueryKeys.salesTimeseries (ODD dashboard-operational-insights OI-4)', () => {
+  const TENANT = 'tenant-abc'
+  const FROM = '2025-03-01'
+  const TO = '2025-03-04'
+  const interval = 'day' as const
+  const params: BranchSalesTimeseriesQuery = { from: FROM, to: TO, interval }
+
+  it('returns the exact timeseries key with boundaries and interval', () => {
+    expect(analyticsQueryKeys.salesTimeseries(TENANT, params)).toEqual([
+      'analytics',
+      TENANT,
+      'sales-timeseries',
+      FROM,
+      TO,
+      interval,
+    ])
+  })
+
+  it('is stable across calls with the same identity', () => {
+    expect(analyticsQueryKeys.salesTimeseries(TENANT, params)).toEqual(
+      analyticsQueryKeys.salesTimeseries(TENANT, { ...params }),
+    )
+  })
+
+  it('does not collide across tenant, from, to or interval', () => {
+    const base = analyticsQueryKeys.salesTimeseries(TENANT, params)
+
+    expect(analyticsQueryKeys.salesTimeseries('other', params)).not.toEqual(base)
+    expect(
+      analyticsQueryKeys.salesTimeseries(TENANT, { ...params, from: '2025-03-02' }),
+    ).not.toEqual(base)
+    expect(analyticsQueryKeys.salesTimeseries(TENANT, { ...params, to: '2025-03-05' })).not.toEqual(
+      base,
+    )
+    // The interval segment is part of the key identity, not decoration: a future
+    // non-day interval must not reuse the daily series cache slot.
+    expect(base[5]).toBe(interval)
+  })
+
+  it('stays isolated from the summary slot while preserving every summary key', () => {
+    const timeseries = analyticsQueryKeys.salesTimeseries(TENANT, params)
+    const summary = analyticsQueryKeys.salesSummary(TENANT, { from: FROM, to: TO })
+
+    expect(timeseries[2]).toBe('sales-timeseries')
+    expect(summary[2]).toBe('sales-summary')
+    expect(timeseries).not.toEqual(summary)
+
+    expect(analyticsQueryKeys.salesSummaryPrefix(TENANT)).toEqual([
+      'analytics',
+      TENANT,
+      'sales-summary',
+    ])
+    expect(analyticsQueryKeys.salesSummary(TENANT, { from: FROM, to: TO })).toEqual([
+      'analytics',
+      TENANT,
+      'sales-summary',
+      FROM,
+      TO,
+    ])
+  })
+})
+
+// ODD dashboard-operational-insights OI-5B2 S1: the two fixed dashboard sales
+// slots are their OWN cache namespaces. Each request is fixed (page 1 / limit 5
+// plus the fixed status/payment filters), so no params participate: only tenant
+// isolation does. They must stay disjoint from `confirmed` (the caller-driven
+// list) and from `pending-refunds`.
+describe('saleQueryKeys.dashboardRecent / dashboardDebt (ODD dashboard-operational-insights OI-5B2 S1)', () => {
+  const TENANT = 'tenant-abc'
+
+  it('returns the exact stable dashboard-recent tuple', () => {
+    expect(saleQueryKeys.dashboardRecent(TENANT)).toEqual(['sales', TENANT, 'dashboard-recent'])
+    expect(saleQueryKeys.dashboardRecent(TENANT)).toEqual(saleQueryKeys.dashboardRecent(TENANT))
+  })
+
+  it('returns the exact stable dashboard-debt tuple', () => {
+    expect(saleQueryKeys.dashboardDebt(TENANT)).toEqual(['sales', TENANT, 'dashboard-debt'])
+    expect(saleQueryKeys.dashboardDebt(TENANT)).toEqual(saleQueryKeys.dashboardDebt(TENANT))
+  })
+
+  it('isolates each slot by tenant', () => {
+    expect(saleQueryKeys.dashboardRecent('other')).not.toEqual(
+      saleQueryKeys.dashboardRecent(TENANT),
+    )
+    expect(saleQueryKeys.dashboardDebt('other')).not.toEqual(saleQueryKeys.dashboardDebt(TENANT))
+  })
+
+  it('keeps recent, debt, confirmed and pending-refund slots mutually disjoint', () => {
+    const recent = saleQueryKeys.dashboardRecent(TENANT)
+    const debt = saleQueryKeys.dashboardDebt(TENANT)
+    const confirmed = saleQueryKeys.confirmed(TENANT, { page: 1, limit: 5, status: ['CONFIRMED'] })
+    const pending = saleQueryKeys.pendingRefunds(TENANT, { page: 1, limit: 5 })
+
+    expect(recent).not.toEqual(debt)
+    expect(recent).not.toEqual(confirmed)
+    expect(recent).not.toEqual(pending)
+    expect(debt).not.toEqual(confirmed)
+    expect(debt).not.toEqual(pending)
+    expect(confirmed).not.toEqual(pending)
+
+    const namespaces = [recent[2], debt[2], confirmed[2], pending[2]]
+    expect(new Set(namespaces).size).toBe(4)
+    expect(namespaces).toEqual([
+      'dashboard-recent',
+      'dashboard-debt',
+      'confirmed',
+      'pending-refunds',
+    ])
   })
 })

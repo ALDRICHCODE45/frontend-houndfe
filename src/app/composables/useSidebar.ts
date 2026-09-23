@@ -6,6 +6,7 @@ import { useRouter } from 'vue-router'
 import { mapTenantError } from '@/features/admin/tenants/api/tenants.api'
 import { navigationGroups } from '@/app/navigation/navigation.registry'
 import { buildCanAccess, filterAccessibleGroups, stripMeta } from '@/app/navigation/navigation.access'
+import { DASHBOARD_NAV_ITEM } from '@/app/navigation/navigation.landing'
 import type { AccessMeta } from '@/app/navigation/navigation.types'
 
 declare const useToast: () => {
@@ -123,11 +124,12 @@ export const useSidebar = () => {
 
   function getNavigationItems(collapsed: boolean): NavigationMenuItem[] {
     // Consumer-specific top-level extras (not part of the shared module tree).
+    // ODD dashboard-analytics D1: Dashboard entry comes from the shared
+    // navigation.landing definition so the sidebar and command palette stay
+    // aligned. Nueva Venta keeps its pre-existing create-sale grant.
     const topLevelExtras: GuardedNavigationMenuItem[] = [
       {
-        label: 'Dashboard',
-        icon: 'i-lucide-layout-dashboard',
-        to: '/',
+        ...DASHBOARD_NAV_ITEM,
         exact: true,
         class: 'text-coco-gold-500',
       },

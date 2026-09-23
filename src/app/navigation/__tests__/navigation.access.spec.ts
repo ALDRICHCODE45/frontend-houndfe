@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import {
   buildCanAccess,
+  canAccessMeta,
   filterAccessibleActions,
   filterAccessibleGroups,
   toPaletteItems,
@@ -15,8 +16,20 @@ const groups: NavGroup[] = [
     icon: 'i-lucide-shopping-cart',
     defaultOpen: true,
     children: [
-      { id: 'pos-sales', label: 'Ventas', icon: 'i-lucide-shopping-cart', to: '/pos/ventas', permission: ['read', 'Sale'] },
-      { id: 'pos-products', label: 'Productos', icon: 'i-lucide-package', to: '/pos/products', permission: ['read', 'Product'] },
+      {
+        id: 'pos-sales',
+        label: 'Ventas',
+        icon: 'i-lucide-shopping-cart',
+        to: '/pos/ventas',
+        permission: ['read', 'Sale'],
+      },
+      {
+        id: 'pos-products',
+        label: 'Productos',
+        icon: 'i-lucide-package',
+        to: '/pos/products',
+        permission: ['read', 'Product'],
+      },
     ],
   },
   {
@@ -24,14 +37,32 @@ const groups: NavGroup[] = [
     label: 'Admin',
     icon: 'i-lucide-shield-check',
     children: [
-      { id: 'admin-tenants', label: 'Sucursales', icon: 'i-lucide-building-2', to: '/admin/tenants', requiresSuperAdmin: true },
+      {
+        id: 'admin-tenants',
+        label: 'Sucursales',
+        icon: 'i-lucide-building-2',
+        to: '/admin/tenants',
+        requiresSuperAdmin: true,
+      },
     ],
   },
 ]
 
 const actions: NavAction[] = [
-  { id: 'new-product', label: 'Nuevo Producto', icon: 'i-lucide-plus', to: '/pos/products/new', permission: ['create', 'Product'] },
-  { id: 'new-employee', label: 'Nuevo Colaborador', icon: 'i-lucide-user-plus', to: '/admin/colaboradores', permission: ['create', 'Employee'] },
+  {
+    id: 'new-product',
+    label: 'Nuevo Producto',
+    icon: 'i-lucide-plus',
+    to: '/pos/products/new',
+    permission: ['create', 'Product'],
+  },
+  {
+    id: 'new-employee',
+    label: 'Nuevo Colaborador',
+    icon: 'i-lucide-user-plus',
+    to: '/admin/colaboradores',
+    permission: ['create', 'Employee'],
+  },
 ]
 
 const allowAll: CanAccess = () => true
@@ -107,6 +138,36 @@ describe('toPaletteItems', () => {
       icon: 'i-lucide-shopping-cart',
       to: '/pos/ventas',
     })
+  })
+})
+
+describe('canAccessMeta', () => {
+  it('forwards both the permission tuple and the super-admin flag to canAccess', () => {
+    const canAccess = vi.fn<CanAccess>(() => true)
+    expect(canAccessMeta({ permission: ['read', 'Sale'] }, canAccess)).toBe(true)
+    expect(canAccess).toHaveBeenCalledWith(['read', 'Sale'], undefined)
+
+    expect(
+      canAccessMeta({ permission: ['read', 'User'], requiresSuperAdmin: true }, canAccess),
+    ).toBe(true)
+    expect(canAccess).toHaveBeenCalledWith(['read', 'User'], true)
+  })
+
+  it('treats meta without access metadata as accessible via buildCanAccess', () => {
+    // No permission/requiresSuperAdmin in meta → no gating, even when the
+    // store denies every explicit permission.
+    const store: AccessAuthStore = { isSuperAdmin: false, userCan: () => false }
+    expect(canAccessMeta({}, buildCanAccess(store))).toBe(true)
+  })
+
+  it('denies a requiresSuperAdmin meta for non-super-admins via buildCanAccess', () => {
+    const store: AccessAuthStore = { isSuperAdmin: false, userCan: () => true }
+    expect(canAccessMeta({ requiresSuperAdmin: true }, buildCanAccess(store))).toBe(false)
+  })
+
+  it('allows a requiresSuperAdmin meta for super-admins via buildCanAccess', () => {
+    const store: AccessAuthStore = { isSuperAdmin: true, userCan: () => false }
+    expect(canAccessMeta({ requiresSuperAdmin: true }, buildCanAccess(store))).toBe(true)
   })
 })
 

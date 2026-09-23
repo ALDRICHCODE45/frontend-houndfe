@@ -3,6 +3,7 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { mount, flushPromises } from '@vue/test-utils'
 import { defineComponent, h, nextTick } from 'vue'
 import { saleApi } from '../../api/sale.api'
+import { analyticsQueryKeys } from '@/core/shared/constants/query-keys'
 import { useDebtPayment } from '../useDebtPayment'
 import { getSalePaymentErrorAction } from '../../utils/salePaymentErrors.utils'
 import type { DebtPaymentPayload, DebtPaymentResponse } from '../../interfaces/sale.types'
@@ -106,6 +107,13 @@ describe('useDebtPayment', () => {
 
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sales', 'tenant-1', 'detail', 'sale-1'] })
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sales', 'tenant-1', 'confirmed', {}] })
+    // ODD branch-sales-summary A4: the exact active-tenant summary prefix
+    // (refreshes every from/to slot). The call count pins exactly one
+    // analytics invalidation alongside the two pre-existing sale keys.
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: analyticsQueryKeys.salesSummaryPrefix('tenant-1'),
+    })
+    expect(invalidateQueries).toHaveBeenCalledTimes(3)
   })
 
   it('shows "Venta pagada" toast when paymentStatus is PAID', async () => {
@@ -152,6 +160,15 @@ describe('useDebtPayment', () => {
     expect(composable.externalErrorCode.value).toBe('PAYMENT_EXCEEDS_DEBT')
     expect(composable.shouldClose.value).toBe(false)
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sales', 'tenant-1', 'detail', 'sale-1'] })
+    // A4: this error path refetches the sale detail but must never invalidate
+    // ANY Analytics shape. Inspecting every call's queryKey first segment
+    // rejects broad ['analytics'], wrong-tenant prefixes and date-specific
+    // summary keys alike, without depending on one exact forbidden key.
+    expect(
+      invalidateQueries.mock.calls
+        .map(([filters]) => filters?.queryKey)
+        .filter((key) => Array.isArray(key) && key[0] === 'analytics'),
+    ).toEqual([])
   })
 
   it('signals close and toasts on NO_OUTSTANDING_DEBT', async () => {

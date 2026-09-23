@@ -31,6 +31,11 @@ export const navigationGroups: NavGroup[] = [
       { id: 'pos-delivery-routes', label: 'Rutas de entrega', icon: 'i-lucide-truck', to: '/pos/rutas-de-entrega', permission: ['read', 'DeliveryRoute'] },
     ],
   },
+  // ODD dashboard-analytics D1: the "Analítica" navigation group and the
+  // "/analytics/resumen-ventas" entry were removed. The Dashboard nav item
+  // is exported from `navigation.landing.ts` as a top-level extra consumed by
+  // the sidebar and the command palette. See resolveLandingDestination() for
+  // the canonical first-accessible destination contract.
   {
     id: 'rrhh',
     label: 'RR.HH.',

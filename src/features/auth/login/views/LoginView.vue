@@ -5,6 +5,9 @@ import { useMutation } from '@tanstack/vue-query'
 import LoginForm from '@/features/auth/login/components/LoginForm.vue'
 import LoginHero from '@/features/auth/login/components/LoginHero.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import { buildCanAccess, canAccessMeta } from '@/app/navigation/navigation.access'
+import { resolveLandingDestinationForAuth } from '@/app/navigation/navigation.landing'
+import type { AccessMeta } from '@/app/navigation/navigation.types'
 import type { LoginFormValues } from '../composables/useLoginForm'
 
 const isLoading = ref(false)
@@ -29,12 +32,26 @@ async function handleLogin(values: LoginFormValues) {
       return
     }
 
-    const redirectTo = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
+    // ODD dashboard-analytics D1: explicit safe ?redirect= remains supported
+    // — but only when the target resolves to a real application route the
+    // authenticated identity may actually enter. Removed paths fall through to
+    // the catch-all NotFoundView (name "not-found"); a real-but-forbidden route
+    // would be bounced to /403 by the router's beforeEach guard, so we drop it
+    // here and let the permission-aware resolver pick the landing destination.
+    const explicitRedirect = typeof route.query.redirect === 'string' ? route.query.redirect : null
+    const canAccess = buildCanAccess(authStore)
+    const explicitTarget = explicitRedirect !== null ? router.resolve(explicitRedirect) : null
+    const isAuthorizedExplicitRedirect =
+      explicitTarget !== null &&
+      explicitTarget.name !== 'not-found' &&
+      canAccessMeta(explicitTarget.meta as AccessMeta, canAccess)
+    const redirectTo =
+      (isAuthorizedExplicitRedirect ? explicitRedirect : null) ??
+      resolveLandingDestinationForAuth(authStore)
     await router.push(redirectTo)
   } catch {
     // Prefer store-level authError (e.g. 403 no active tenants) over generic message
-    loginError.value =
-      authStore.authError ?? 'No se pudo iniciar sesión. Verifica credenciales.'
+    loginError.value = authStore.authError ?? 'No se pudo iniciar sesión. Verifica credenciales.'
   } finally {
     isLoading.value = false
   }

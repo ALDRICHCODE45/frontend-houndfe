@@ -6,8 +6,10 @@ import {
   buildCanAccess,
   filterAccessibleActions,
   filterAccessibleGroups,
+  stripMeta,
   toPaletteItems,
 } from '@/app/navigation/navigation.access'
+import { DASHBOARD_NAV_ITEM } from '@/app/navigation/navigation.landing'
 
 // Shared state (singleton pattern)
 const isSidebarOpen = ref(false)
@@ -32,12 +34,21 @@ export const useDashboard = () => {
   }
 
   const searchGroups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => {
-    const homeItem: CommandPaletteItem = { id: 'home', label: 'Home', icon: 'i-lucide-home', to: '/' }
+    // ODD dashboard-analytics D1: shared permissioned Dashboard item sits at
+    // the top of the pages list; the previous hardcoded "/" Home entry is
+    // gone. Hidden without exact read:Analytics (same gate as sidebar).
+    const dashboardItem: CommandPaletteItem | null = canAccess(
+      DASHBOARD_NAV_ITEM.permission,
+      DASHBOARD_NAV_ITEM.requiresSuperAdmin,
+    )
+      ? stripMeta({ ...DASHBOARD_NAV_ITEM })
+      : null
 
-    const pageItems: CommandPaletteItem[] = [
-      homeItem,
-      ...toPaletteItems(filterAccessibleGroups(navigationGroups, canAccess)),
-    ]
+    const paletteFromRegistry = toPaletteItems(filterAccessibleGroups(navigationGroups, canAccess))
+
+    const pageItems: CommandPaletteItem[] = dashboardItem
+      ? [dashboardItem, ...paletteFromRegistry]
+      : paletteFromRegistry
 
     const actionItems: CommandPaletteItem[] = filterAccessibleActions(quickActions, canAccess)
 

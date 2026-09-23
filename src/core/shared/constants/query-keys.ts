@@ -6,6 +6,9 @@ import type {
   ListSalesParams,
   CustomerSalesHistoryParams,
 } from '@/features/POS/sales/interfaces/sale.types'
+import type { BranchSalesSummaryQuery } from '@/features/analytics/interfaces/branch-sales-summary.types'
+import type { BranchSalesTimeseriesQuery } from '@/features/analytics/interfaces/branch-sales-timeseries.types'
+import type { PendingRefundsQuery } from '@/features/POS/sales/interfaces/pending-refund.types'
 
 export const productQueryKeys = {
   paginated: (tenantId: string) => ['products', tenantId, 'paginated'] as const,
@@ -70,6 +73,23 @@ export const saleQueryKeys = {
   drafts: (tenantId: string) => ['sales', tenantId, 'drafts'] as const,
   confirmed: (tenantId: string, params: ListSalesParams = {}) =>
     ['sales', tenantId, 'confirmed', params] as const,
+  // ODD dashboard-operational-insights OI-5B1: the pending-refund queue is its
+  // OWN cache slot. 'pending-refunds' keeps it disjoint from 'confirmed' (the
+  // confirmed-sales list) and tenant + page + limit participate in the key so two
+  // tenants or two pages can never share a cached payload. Tenant is cache
+  // isolation only — it is never sent to the API (the backend resolves it from
+  // the JWT) and the backend queue order stays authoritative.
+  pendingRefunds: (tenantId: string, params: PendingRefundsQuery) =>
+    ['sales', tenantId, 'pending-refunds', params.page, params.limit] as const,
+  // ODD dashboard-operational-insights OI-5B2 S1: the two fixed-slot dashboard
+  // sales queries. 'dashboard-recent' and 'dashboard-debt' are their OWN cache
+  // namespaces, disjoint from 'confirmed' (the caller-driven list) and from
+  // 'pending-refunds'. Each request is FIXED (page 1 / limit 5 plus the fixed
+  // status/payment filters), so no params participate: only tenant isolation
+  // does. Tenant is cache isolation only — it is never sent to the API (the
+  // backend resolves it from the JWT).
+  dashboardRecent: (tenantId: string) => ['sales', tenantId, 'dashboard-recent'] as const,
+  dashboardDebt: (tenantId: string) => ['sales', tenantId, 'dashboard-debt'] as const,
   detail: (tenantId: string, saleId: string) => ['sales', tenantId, 'detail', saleId] as const,
   posCatalog: (tenantId: string, p: PosCatalogSearchParams = {}) =>
     [
@@ -273,6 +293,25 @@ export const deliveryRouteQueryKeys = {
     ['delivery-routes', tenantId, 'list'] as const,
   detail: (tenantId: string, id: string) =>
     ['delivery-routes', tenantId, 'detail', id] as const,
+}
+
+// ─── Analytics module query keys (ODD branch-sales-summary A1) ───────────────
+//
+// Tenant-scoped. `salesSummaryPrefix` is the stable invalidation prefix that
+// strict-prefix-matches EVERY date range for the active tenant; `salesSummary`
+// is the exact fetch slot, keyed on both calendar boundaries so two ranges can
+// never share a cached payload.
+export const analyticsQueryKeys = {
+  salesSummaryPrefix: (tenantId: string) => ['analytics', tenantId, 'sales-summary'] as const,
+  salesSummary: (tenantId: string, params: BranchSalesSummaryQuery) =>
+    ['analytics', tenantId, 'sales-summary', params.from, params.to] as const,
+  // ODD dashboard-operational-insights OI-4: the daily series is its OWN cache
+  // slot. 'sales-timeseries' keeps it disjoint from 'sales-summary', and tenant
+  // + both boundaries + interval participate in the key so two windows can
+  // never share a cached payload. Tenant is cache isolation only — it is never
+  // sent to the API (the backend resolves it from the JWT).
+  salesTimeseries: (tenantId: string, params: BranchSalesTimeseriesQuery) =>
+    ['analytics', tenantId, 'sales-timeseries', params.from, params.to, params.interval] as const,
 }
 
 // ─── Payment-methods POS projection (sdd custom-payment-methods S4A) ──────────

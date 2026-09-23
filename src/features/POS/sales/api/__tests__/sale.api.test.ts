@@ -695,6 +695,54 @@ describe('saleApi', () => {
       expect(http.get).toHaveBeenCalledWith('/sales', { params: {} })
       expect(result.data).toHaveLength(0)
     })
+
+    // ODD dashboard-operational-insights OI-5B2 S1: additive, backwards-compatible
+    // transport extension. A superseded dashboard query must abort at the HTTP
+    // layer, so the TanStack AbortSignal has to reach `http.get`.
+    it('forwards an AbortSignal so a superseded request can be cancelled', async () => {
+      const response: ConfirmedSalesListResponse = {
+        data: [],
+        pagination: { page: 1, limit: 5, total: 0, totalPages: 0 },
+        counts: { all: 0, pendingPayments: 0, notDelivered: 0 },
+        summary: { salesCount: 0, totalSoldCents: 0, outstandingDebtCents: 0 },
+      }
+      vi.mocked(http.get).mockResolvedValue({ data: response })
+
+      const controller = new AbortController()
+      const params: ListSalesParams = {
+        page: 1,
+        limit: 5,
+        status: ['CONFIRMED'],
+        sortBy: 'confirmedAt',
+        sortOrder: 'desc',
+      }
+
+      await saleApi.listConfirmed(params, { signal: controller.signal })
+
+      const [path, config] = vi.mocked(http.get).mock.calls[0] ?? []
+      expect(path).toBe('/sales')
+      expect(config?.params).toEqual(params)
+      expect(config?.signal).toBe(controller.signal)
+    })
+
+    it('keeps the legacy one-argument call additive (unchanged params, no signal)', async () => {
+      const response: ConfirmedSalesListResponse = {
+        data: [],
+        pagination: { page: 1, limit: 5, total: 0, totalPages: 0 },
+        counts: { all: 0, pendingPayments: 0, notDelivered: 0 },
+        summary: { salesCount: 0, totalSoldCents: 0, outstandingDebtCents: 0 },
+      }
+      vi.mocked(http.get).mockResolvedValue({ data: response })
+
+      const params: ListSalesParams = { page: 1, limit: 5 }
+
+      await saleApi.listConfirmed(params)
+
+      const [path, config] = vi.mocked(http.get).mock.calls[0] ?? []
+      expect(path).toBe('/sales')
+      expect(config?.params).toEqual(params)
+      expect(config?.signal).toBeUndefined()
+    })
   })
 
   describe('getById', () => {
@@ -1386,5 +1434,397 @@ describe('saleApi.getPaymentMethods (sdd custom-payment-methods S4A, REQ-PT-003)
     const sample: ActivePaymentMethodProjection[] = []
     vi.mocked(http.get).mockResolvedValue({ data: sample })
     expect(await saleApi.getPaymentMethods()).toEqual([])
+  })
+})
+
+// ─── ODD dashboard-operational-insights OI-5B1: listPendingRefunds ──────────
+//
+// GET /sales/refunds/pending is guarded by the exact `read:SaleRefund`
+// permission and resolves tenant/branch from the JWT. The response is UNTRUSTED
+// network input: this boundary validates it and REJECTS any deviation instead of
+// coercing, normalizing, deriving, sorting, truncating or repairing it. Backend
+// ordering (createdAt asc, id asc) is authoritative and is never re-sorted here.
+
+import type {
+  PendingRefundRow,
+  PendingRefundsQuery,
+  PendingRefundsResponse,
+} from '../../interfaces/pending-refund.types'
+
+const PENDING_REQUEST: PendingRefundsQuery = { page: 1, limit: 5 }
+
+const PENDING_ROWS: PendingRefundRow[] = [
+  {
+    id: 'refund-1',
+    saleId: 'sale-1',
+    method: 'card_debit',
+    amountCents: 50000,
+    settledCents: 20000,
+    outstandingCents: 30000,
+    reason: 'CUSTOMER_REQUEST',
+    status: 'PENDING',
+    createdAt: '2026-05-06T14:43:00.000Z',
+  },
+  {
+    id: 'refund-2',
+    saleId: 'sale-2',
+    method: 'cash',
+    amountCents: 12000,
+    settledCents: 0,
+    outstandingCents: 12000,
+    reason: 'OTHER',
+    status: 'PENDING',
+    createdAt: '2026-05-07T09:15:30.500Z',
+  },
+]
+
+const PENDING_PAYLOAD: PendingRefundsResponse = {
+  data: PENDING_ROWS,
+  pagination: { page: 1, limit: 5, total: 2, totalPages: 1 },
+}
+
+function pendingPayloadWith(
+  mutate: (payload: Record<string, unknown>) => void,
+): Record<string, unknown> {
+  const copy = structuredClone(PENDING_PAYLOAD) as unknown as Record<string, unknown>
+  mutate(copy)
+  return copy
+}
+
+function pendingRowWith(
+  index: number,
+  mutate: (row: Record<string, unknown>) => void,
+): Record<string, unknown> {
+  const copy = structuredClone(PENDING_PAYLOAD) as unknown as Record<string, unknown>
+  const rows = copy.data as Array<Record<string, unknown>>
+  mutate(rows[index] as Record<string, unknown>)
+  return copy
+}
+
+async function rejectPending(
+  data: unknown,
+  request: PendingRefundsQuery = PENDING_REQUEST,
+): Promise<void> {
+  vi.mocked(http.get).mockResolvedValue({ data, status: 200 } as never)
+  await expect(saleApi.listPendingRefunds(request)).rejects.toThrow()
+}
+
+describe('saleApi.listPendingRefunds (ODD dashboard-operational-insights OI-5B1)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('GETs the exact refunds path rebuilding only { page, limit } from a polluted object', async () => {
+    vi.mocked(http.get).mockResolvedValue({ data: PENDING_PAYLOAD, status: 200 } as never)
+
+    // Tenant/branch/status/sort belong to the JWT and the backend queue order:
+    // a buggy caller must not widen the wire surface.
+    const polluted = {
+      page: 1,
+      limit: 5,
+      tenantId: 'tenant-1',
+      branchId: 'branch-1',
+      status: 'PENDING',
+      sortBy: 'createdAt',
+      sortOrder: 'desc',
+    } as unknown as PendingRefundsQuery
+
+    await saleApi.listPendingRefunds(polluted)
+
+    expect(http.get).toHaveBeenCalledTimes(1)
+    const [path, config] = vi.mocked(http.get).mock.calls[0] ?? []
+    expect(path).toBe('/sales/refunds/pending')
+    expect(config?.params).toEqual({ page: 1, limit: 5 })
+    expect(Object.keys(config?.params as object)).toEqual(['page', 'limit'])
+  })
+
+  it('forwards the AbortSignal so a superseded request is cancelled', async () => {
+    vi.mocked(http.get).mockResolvedValue({ data: PENDING_PAYLOAD, status: 200 } as never)
+    const controller = new AbortController()
+
+    await saleApi.listPendingRefunds(PENDING_REQUEST, { signal: controller.signal })
+
+    const [, config] = vi.mocked(http.get).mock.calls[0] ?? []
+    expect(config?.signal).toBe(controller.signal)
+  })
+
+  it('returns the exact parsed rows in authoritative backend order', async () => {
+    vi.mocked(http.get).mockResolvedValue({ data: PENDING_PAYLOAD, status: 200 } as never)
+
+    const result = await saleApi.listPendingRefunds(PENDING_REQUEST)
+
+    expect(result).toEqual(PENDING_PAYLOAD)
+    expect(result.data.map((row) => row.id)).toEqual(['refund-1', 'refund-2'])
+    expect(result.pagination).toEqual({ page: 1, limit: 5, total: 2, totalPages: 1 })
+  })
+
+  it('accepts the exact empty page (data [] / total 0 / totalPages 0)', async () => {
+    const empty: PendingRefundsResponse = {
+      data: [],
+      pagination: { page: 1, limit: 5, total: 0, totalPages: 0 },
+    }
+    vi.mocked(http.get).mockResolvedValue({ data: empty, status: 200 } as never)
+
+    await expect(saleApi.listPendingRefunds(PENDING_REQUEST)).resolves.toEqual(empty)
+  })
+
+  it('accepts a current page beyond totalPages returning empty (not a rejection basis)', async () => {
+    const beyond: PendingRefundsResponse = {
+      data: [],
+      pagination: { page: 2, limit: 5, total: 3, totalPages: 1 },
+    }
+    vi.mocked(http.get).mockResolvedValue({ data: beyond, status: 200 } as never)
+
+    await expect(saleApi.listPendingRefunds({ page: 2, limit: 5 })).resolves.toEqual(beyond)
+  })
+
+  it('rejects unknown or missing keys anywhere in the envelope', async () => {
+    await rejectPending(
+      pendingPayloadWith((payload) => {
+        payload.extraCents = 1
+      }),
+    )
+    await rejectPending(
+      pendingPayloadWith((payload) => {
+        delete payload.data
+      }),
+    )
+    await rejectPending(
+      pendingPayloadWith((payload) => {
+        delete payload.pagination
+      }),
+    )
+    await rejectPending(
+      pendingPayloadWith((payload) => {
+        ;(payload.pagination as Record<string, unknown>).hasNext = true
+      }),
+    )
+    await rejectPending(
+      pendingRowWith(0, (row) => {
+        row.currency = 'MXN'
+      }),
+    )
+    await rejectPending(
+      pendingRowWith(0, (row) => {
+        delete row.reason
+      }),
+    )
+  })
+
+  it('rejects unknown enum values and any non-PENDING status', async () => {
+    await rejectPending(
+      pendingRowWith(0, (row) => {
+        row.method = 'crypto'
+      }),
+    )
+    await rejectPending(
+      pendingRowWith(0, (row) => {
+        row.reason = 'WHATEVER'
+      }),
+    )
+    await rejectPending(
+      pendingRowWith(0, (row) => {
+        row.status = 'SETTLED'
+      }),
+    )
+  })
+
+  it('accepts every documented refund method', async () => {
+    for (const method of ['cash', 'card_credit', 'card_debit', 'transfer', 'credit']) {
+      vi.mocked(http.get).mockResolvedValue({
+        data: pendingRowWith(0, (row) => {
+          row.method = method
+        }),
+        status: 200,
+      } as never)
+
+      await expect(saleApi.listPendingRefunds(PENDING_REQUEST)).resolves.toBeDefined()
+    }
+  })
+
+  it('accepts every documented cancel reason', async () => {
+    for (const reason of [
+      'CUSTOMER_REQUEST',
+      'ORDER_ERROR',
+      'OUT_OF_STOCK',
+      'DUPLICATE_SALE',
+      'OTHER',
+    ]) {
+      vi.mocked(http.get).mockResolvedValue({
+        data: pendingRowWith(0, (row) => {
+          row.reason = reason
+        }),
+        status: 200,
+      } as never)
+
+      await expect(saleApi.listPendingRefunds(PENDING_REQUEST)).resolves.toBeDefined()
+    }
+  })
+
+  it('rejects a non-ISO createdAt', async () => {
+    for (const createdAt of [
+      '2026-05-06',
+      '2026-05-06 14:43:00',
+      '06/05/2026',
+      'not-a-date',
+      '2026-13-45T99:99:99Z',
+    ]) {
+      await rejectPending(
+        pendingRowWith(0, (row) => {
+          row.createdAt = createdAt
+        }),
+      )
+    }
+  })
+
+  it.each([
+    ['negative', -1],
+    ['fractional', 12.5],
+    ['unsafe', Number.MAX_SAFE_INTEGER + 2],
+    ['string', '100'],
+    ['null', null],
+  ])('rejects a %s money value on the row', async (_label, value) => {
+    for (const field of ['amountCents', 'settledCents', 'outstandingCents']) {
+      await rejectPending(
+        pendingRowWith(0, (row) => {
+          row[field] = value
+        }),
+      )
+    }
+  })
+
+  it.each([
+    ['negative', -1],
+    ['fractional', 12.5],
+    ['unsafe', Number.MAX_SAFE_INTEGER + 2],
+    ['string', '1'],
+  ])('rejects a %s pagination count', async (_label, value) => {
+    for (const field of ['total', 'totalPages', 'page', 'limit']) {
+      await rejectPending(
+        pendingPayloadWith((payload) => {
+          ;(payload.pagination as Record<string, unknown>)[field] = value
+        }),
+      )
+    }
+  })
+
+  it('rejects a limit outside 1..100 even when it echoes the request bounds check', async () => {
+    await rejectPending(
+      pendingPayloadWith((payload) => {
+        ;(payload.pagination as Record<string, unknown>).limit = 101
+      }),
+    )
+    await rejectPending(
+      pendingPayloadWith((payload) => {
+        ;(payload.pagination as Record<string, unknown>).limit = 0
+      }),
+    )
+  })
+
+  it('rejects a response page or limit that does not echo the request', async () => {
+    await rejectPending(
+      pendingPayloadWith((payload) => {
+        ;(payload.pagination as Record<string, unknown>).page = 2
+      }),
+      { page: 1, limit: 5 },
+    )
+    await rejectPending(
+      pendingPayloadWith((payload) => {
+        ;(payload.pagination as Record<string, unknown>).limit = 10
+      }),
+      { page: 1, limit: 5 },
+    )
+  })
+
+  it('rejects a data list longer than the response limit', async () => {
+    await rejectPending(
+      pendingPayloadWith((payload) => {
+        payload.pagination = { page: 1, limit: 1, total: 2, totalPages: 2 }
+      }),
+      { page: 1, limit: 1 },
+    )
+  })
+
+  it('rejects an invalid totalPages (must be ceil(total/limit) or 0 for an empty total)', async () => {
+    await rejectPending(
+      pendingPayloadWith((payload) => {
+        ;(payload.pagination as Record<string, unknown>).totalPages = 3
+      }),
+    )
+    await rejectPending(
+      pendingPayloadWith((payload) => {
+        payload.pagination = { page: 1, limit: 5, total: 0, totalPages: 1 }
+      }),
+    )
+  })
+
+  it('accepts the exact ceil(total/limit) totalPages boundary', async () => {
+    const boundary: PendingRefundsResponse = {
+      data: [PENDING_ROWS[0] as PendingRefundRow],
+      pagination: { page: 1, limit: 5, total: 6, totalPages: 2 },
+    }
+    vi.mocked(http.get).mockResolvedValue({ data: boundary, status: 200 } as never)
+
+    await expect(saleApi.listPendingRefunds(PENDING_REQUEST)).resolves.toEqual(boundary)
+  })
+
+  it('accepts a full page at the limit boundary for a later page (multi-page queue)', async () => {
+    const rows = Array.from(
+      { length: 5 },
+      (_, index): PendingRefundRow => ({
+        ...(PENDING_ROWS[0] as PendingRefundRow),
+        id: `refund-${index}`,
+        saleId: `sale-${index}`,
+        createdAt: `2026-05-0${index + 1}T00:00:00.000Z`,
+      }),
+    )
+    const page2: PendingRefundsResponse = {
+      data: rows,
+      pagination: { page: 2, limit: 5, total: 12, totalPages: 3 },
+    }
+    vi.mocked(http.get).mockResolvedValue({ data: page2, status: 200 } as never)
+
+    const result = await saleApi.listPendingRefunds({ page: 2, limit: 5 })
+
+    expect(result).toEqual(page2)
+    expect(result.data.map((row) => row.id)).toEqual([
+      'refund-0',
+      'refund-1',
+      'refund-2',
+      'refund-3',
+      'refund-4',
+    ])
+  })
+
+  it('rejects inconsistent money invariants', async () => {
+    // settled > amount
+    await rejectPending(
+      pendingRowWith(0, (row) => {
+        row.amountCents = 100
+        row.settledCents = 150
+        row.outstandingCents = 0
+      }),
+    )
+    // outstanding !== amount - settled
+    await rejectPending(
+      pendingRowWith(0, (row) => {
+        row.amountCents = 100
+        row.settledCents = 50
+        row.outstandingCents = 999
+      }),
+    )
+  })
+
+  it('accepts the exact outstanding === amount - settled invariant', async () => {
+    vi.mocked(http.get).mockResolvedValue({
+      data: pendingRowWith(0, (row) => {
+        row.amountCents = 100
+        row.settledCents = 100
+        row.outstandingCents = 0
+      }),
+      status: 200,
+    } as never)
+
+    await expect(saleApi.listPendingRefunds(PENDING_REQUEST)).resolves.toBeDefined()
   })
 })

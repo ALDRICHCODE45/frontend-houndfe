@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
+import type { AppAction, AppSubject, TenantSummary } from '@/features/auth/interfaces/auth.types'
 
 // ─── Mocks ───────────────────────────────────────────────────────────────────
 
@@ -28,12 +29,12 @@ vi.mock('@vueuse/core', async () => {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-import type { TenantSummary } from '@/features/auth/interfaces/auth.types'
-
 const tenants: TenantSummary[] = [
   { id: 'tenant-1', name: 'Sucursal Centro', slug: 'centro' },
   { id: 'tenant-2', name: 'Sucursal Norte', slug: 'norte' },
 ]
+
+const DASHBOARD_PATH = '/dashboard'
 
 function makeAuthStore(overrides: Record<string, unknown> = {}) {
   return {
@@ -48,6 +49,13 @@ function makeAuthStore(overrides: Record<string, unknown> = {}) {
   }
 }
 
+/** Allow only a single (action, subject) tuple; deny everything else. */
+function userCanOnly(allowed: [AppAction, AppSubject]) {
+  return vi.fn(
+    (action: AppAction, subject: AppSubject) => allowed[0] === action && allowed[1] === subject,
+  )
+}
+
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 describe('useSidebar — tenant integration', () => {
@@ -57,7 +65,9 @@ describe('useSidebar — tenant integration', () => {
   })
 
   it('tenants comes from authStore.memberships', async () => {
-    vi.mocked(useAuthStore).mockReturnValue(makeAuthStore() as unknown as ReturnType<typeof useAuthStore>)
+    vi.mocked(useAuthStore).mockReturnValue(
+      makeAuthStore() as unknown as ReturnType<typeof useAuthStore>,
+    )
 
     const { useSidebar } = await import('../useSidebar')
     const sidebar = useSidebar()
@@ -131,7 +141,9 @@ describe('useSidebar — tenant integration', () => {
 
   it('showTenantSwitcher is true when user has multiple memberships', async () => {
     vi.mocked(useAuthStore).mockReturnValue(
-      makeAuthStore({ memberships: tenants, isSuperAdmin: false }) as unknown as ReturnType<typeof useAuthStore>,
+      makeAuthStore({ memberships: tenants, isSuperAdmin: false }) as unknown as ReturnType<
+        typeof useAuthStore
+      >,
     )
 
     const { useSidebar } = await import('../useSidebar')
@@ -182,7 +194,9 @@ describe('useSidebar — tenant integration', () => {
     const adminSection = items.find((item) => item.label === 'Admin')
     const adminChildren = adminSection?.children ?? []
 
-    expect(adminChildren.some((child) => child.label === 'Sucursales' && child.to === '/admin/tenants')).toBe(true)
+    expect(
+      adminChildren.some((child) => child.label === 'Sucursales' && child.to === '/admin/tenants'),
+    ).toBe(true)
   })
 
   it('hides Admin > Sucursales for non-super-admin users', async () => {
@@ -199,7 +213,52 @@ describe('useSidebar — tenant integration', () => {
     const adminSection = items.find((item) => item.label === 'Admin')
     const adminChildren = adminSection?.children ?? []
 
-    expect(adminChildren.some((child) => child.label === 'Sucursales' && child.to === '/admin/tenants')).toBe(false)
+    expect(
+      adminChildren.some((child) => child.label === 'Sucursales' && child.to === '/admin/tenants'),
+    ).toBe(false)
+  })
+})
+
+describe('useSidebar — Dashboard extra visibility (ODD dashboard-analytics D1)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+  })
+
+  it('exposes the Dashboard extra at /dashboard when exact read:Analytics is granted', async () => {
+    vi.mocked(useAuthStore).mockReturnValue(
+      makeAuthStore({ userCan: userCanOnly(['read', 'Analytics']) }) as unknown as ReturnType<
+        typeof useAuthStore
+      >,
+    )
+
+    const { useSidebar } = await import('../useSidebar')
+    const sidebar = useSidebar()
+
+    const dashboard = sidebar.getNavigationItems(false).find((item) => item.label === 'Dashboard')
+    expect(dashboard).toBeDefined()
+    expect(dashboard?.to).toBe(DASHBOARD_PATH)
+  })
+
+  it.each([
+    {
+      label: 'unrelated read grant',
+      userCan: userCanOnly(['read', 'NotificationConfig']),
+    },
+    { label: 'denied (no permissions)', userCan: vi.fn(() => false) },
+  ])('hides the Dashboard extra for $label', async ({ userCan }) => {
+    vi.mocked(useAuthStore).mockReturnValue(
+      makeAuthStore({ userCan }) as unknown as ReturnType<typeof useAuthStore>,
+    )
+
+    const { useSidebar } = await import('../useSidebar')
+    const sidebar = useSidebar()
+
+    expect(
+      sidebar
+        .getNavigationItems(false)
+        .some((item) => item.label === 'Dashboard' && item.to === DASHBOARD_PATH),
+    ).toBe(false)
   })
 })
 

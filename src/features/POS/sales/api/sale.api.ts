@@ -31,6 +31,11 @@ import type {
   ActivePaymentMethodProjection,
 } from '../interfaces/sale.types'
 import { SaleCommentError } from '../interfaces/sale.types'
+import {
+  parsePendingRefundsResponse,
+  type PendingRefundsQuery,
+  type PendingRefundsResponse,
+} from '../interfaces/pending-refund.types'
 
 interface DomainErrorResponse {
   error?: string
@@ -253,9 +258,40 @@ export const saleApi = {
     return data
   },
 
-  async listConfirmed(params: ListSalesParams): Promise<ConfirmedSalesListResponse> {
-    const { data } = await http.get<ConfirmedSalesListResponse>('/sales', { params })
+  // ODD dashboard-operational-insights OI-5B2 S1: additive, backwards-compatible
+  // transport extension. The optional `options.signal` (defaulted, so every
+  // existing one-argument caller stays valid) is forwarded to `http.get` so a
+  // superseded request aborts at the HTTP layer instead of merely being ignored.
+  // Params, response handling and domain types are unchanged.
+  async listConfirmed(
+    params: ListSalesParams,
+    options: { signal?: AbortSignal } = {},
+  ): Promise<ConfirmedSalesListResponse> {
+    const { data } = await http.get<ConfirmedSalesListResponse>('/sales', {
+      params,
+      signal: options.signal,
+    })
     return data
+  },
+
+  // ODD dashboard-operational-insights OI-5B1: queue of PENDING refund
+  // obligations guarded by the exact `read:SaleRefund` permission. The params
+  // object is REBUILT from the typed query so an over-wide caller object cannot
+  // leak tenant, branch, status or sort fields onto the wire (tenant/branch come
+  // from the JWT; queue order is backend-authoritative). The untrusted body is
+  // validated against the request before it reaches a composable, and the
+  // TanStack `signal` is forwarded so a superseded request aborts at the HTTP
+  // layer instead of merely being ignored.
+  async listPendingRefunds(
+    params: PendingRefundsQuery,
+    options: { signal?: AbortSignal } = {},
+  ): Promise<PendingRefundsResponse> {
+    const { data } = await http.get<unknown>('/sales/refunds/pending', {
+      params: { page: params.page, limit: params.limit },
+      signal: options.signal,
+    })
+
+    return parsePendingRefundsResponse(data, { page: params.page, limit: params.limit })
   },
 
   async getById(id: string): Promise<SaleDetail> {
