@@ -1,7 +1,7 @@
 import { mount } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
 import { describe, expect, it } from 'vitest'
-import CatalogProductGrid from '@/features/catalog/components/CatalogProductGrid.vue'
+import CatalogProductGrid from '../CatalogProductGrid.vue'
 
 const product = {
   id: 'product-1',

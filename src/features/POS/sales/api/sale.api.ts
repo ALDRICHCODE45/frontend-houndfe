@@ -31,6 +31,11 @@ import type {
   ActivePaymentMethodProjection,
 } from '../interfaces/sale.types'
 import { SaleCommentError } from '../interfaces/sale.types'
+import {
+  parsePendingRefundsResponse,
+  type PendingRefundsQuery,
+  type PendingRefundsResponse,
+} from '../interfaces/pending-refund.types'
 
 interface DomainErrorResponse {
   error?: string
@@ -38,10 +43,7 @@ interface DomainErrorResponse {
 
 export type SalePdfFormat = 'receipt-a4' | 'receipt-ticket'
 
-export type SalePdfErrorCode =
-  | 'INVALID_FORMAT'
-  | 'SALE_NOT_CONFIRMED'
-  | 'PDF_GENERATION_FAILED'
+export type SalePdfErrorCode = 'INVALID_FORMAT' | 'SALE_NOT_CONFIRMED' | 'PDF_GENERATION_FAILED'
 
 export class SalePdfError extends Error {
   readonly code: SalePdfErrorCode
@@ -75,7 +77,11 @@ async function parsePdfError(error: unknown): Promise<SalePdfError | null> {
 
 function parseCommentError(error: unknown): SaleCommentError | null {
   const code = (error as AxiosError<DomainErrorResponse>)?.response?.data?.error
-  const knownCodes: SaleCommentErrorCode[] = ['COMMENT_NOT_FOUND', 'COMMENT_AUTHOR_FORBIDDEN', 'SALE_NOT_FOUND']
+  const knownCodes: SaleCommentErrorCode[] = [
+    'COMMENT_NOT_FOUND',
+    'COMMENT_AUTHOR_FORBIDDEN',
+    'SALE_NOT_FOUND',
+  ]
   if (code && knownCodes.includes(code as SaleCommentErrorCode)) {
     return new SaleCommentError(code as SaleCommentErrorCode)
   }
@@ -143,7 +149,10 @@ export const saleApi = {
     itemId: string,
     payload: OverrideItemPricePayload,
   ): Promise<Sale> {
-    const { data } = await http.patch<Sale>(`/sales/drafts/${saleId}/items/${itemId}/price`, payload)
+    const { data } = await http.patch<Sale>(
+      `/sales/drafts/${saleId}/items/${itemId}/price`,
+      payload,
+    )
     return data
   },
 
@@ -152,7 +161,10 @@ export const saleApi = {
     itemId: string,
     payload: ApplyItemDiscountPayload,
   ): Promise<Sale> {
-    const { data } = await http.patch<Sale>(`/sales/drafts/${saleId}/items/${itemId}/discount`, payload)
+    const { data } = await http.patch<Sale>(
+      `/sales/drafts/${saleId}/items/${itemId}/discount`,
+      payload,
+    )
     return data
   },
 
@@ -184,7 +196,10 @@ export const saleApi = {
     await http.delete(`/sales/drafts/${saleId}/customer`)
   },
 
-  async assignShippingAddress(saleId: string, payload: AssignShippingAddressPayload): Promise<Sale> {
+  async assignShippingAddress(
+    saleId: string,
+    payload: AssignShippingAddressPayload,
+  ): Promise<Sale> {
     const { data } = await http.put<Sale>(`/sales/drafts/${saleId}/shipping-address`, payload)
     return data
   },
@@ -212,11 +227,15 @@ export const saleApi = {
     payload: ChargeSalePayload,
     idempotencyKey: string,
   ): Promise<ChargeSaleResponse> {
-    const { data } = await http.post<ChargeSaleResponse>(`/sales/drafts/${saleId}/charge`, payload, {
-      headers: {
-        'Idempotency-Key': idempotencyKey,
+    const { data } = await http.post<ChargeSaleResponse>(
+      `/sales/drafts/${saleId}/charge`,
+      payload,
+      {
+        headers: {
+          'Idempotency-Key': idempotencyKey,
+        },
       },
-    })
+    )
     return data
   },
 
@@ -233,8 +252,14 @@ export const saleApi = {
     return data
   },
 
-  async applyGlobalDiscount(saleId: string, payload: ApplyGlobalDiscountPayload): Promise<GlobalDiscountResponse> {
-    const { data } = await http.patch<GlobalDiscountResponse>(`/sales/drafts/${saleId}/discount`, payload)
+  async applyGlobalDiscount(
+    saleId: string,
+    payload: ApplyGlobalDiscountPayload,
+  ): Promise<GlobalDiscountResponse> {
+    const { data } = await http.patch<GlobalDiscountResponse>(
+      `/sales/drafts/${saleId}/discount`,
+      payload,
+    )
     return data
   },
 
@@ -253,9 +278,40 @@ export const saleApi = {
     return data
   },
 
-  async listConfirmed(params: ListSalesParams): Promise<ConfirmedSalesListResponse> {
-    const { data } = await http.get<ConfirmedSalesListResponse>('/sales', { params })
+  // ODD dashboard-operational-insights OI-5B2 S1: additive, backwards-compatible
+  // transport extension. The optional `options.signal` (defaulted, so every
+  // existing one-argument caller stays valid) is forwarded to `http.get` so a
+  // superseded request aborts at the HTTP layer instead of merely being ignored.
+  // Params, response handling and domain types are unchanged.
+  async listConfirmed(
+    params: ListSalesParams,
+    options: { signal?: AbortSignal } = {},
+  ): Promise<ConfirmedSalesListResponse> {
+    const { data } = await http.get<ConfirmedSalesListResponse>('/sales', {
+      params,
+      signal: options.signal,
+    })
     return data
+  },
+
+  // ODD dashboard-operational-insights OI-5B1: queue of PENDING refund
+  // obligations guarded by the exact `read:SaleRefund` permission. The params
+  // object is REBUILT from the typed query so an over-wide caller object cannot
+  // leak tenant, branch, status or sort fields onto the wire (tenant/branch come
+  // from the JWT; queue order is backend-authoritative). The untrusted body is
+  // validated against the request before it reaches a composable, and the
+  // TanStack `signal` is forwarded so a superseded request aborts at the HTTP
+  // layer instead of merely being ignored.
+  async listPendingRefunds(
+    params: PendingRefundsQuery,
+    options: { signal?: AbortSignal } = {},
+  ): Promise<PendingRefundsResponse> {
+    const { data } = await http.get<unknown>('/sales/refunds/pending', {
+      params: { page: params.page, limit: params.limit },
+      signal: options.signal,
+    })
+
+    return parsePendingRefundsResponse(data, { page: params.page, limit: params.limit })
   },
 
   async getById(id: string): Promise<SaleDetail> {
@@ -272,9 +328,16 @@ export const saleApi = {
     }
   },
 
-  async updateComment(saleId: string, commentId: string, payload: { body: string }): Promise<SaleComment> {
+  async updateComment(
+    saleId: string,
+    commentId: string,
+    payload: { body: string },
+  ): Promise<SaleComment> {
     try {
-      const { data } = await http.patch<SaleComment>(`/sales/${saleId}/comments/${commentId}`, payload)
+      const { data } = await http.patch<SaleComment>(
+        `/sales/${saleId}/comments/${commentId}`,
+        payload,
+      )
       return data
     } catch (error) {
       throw parseCommentError(error) ?? error
@@ -360,10 +423,7 @@ export const saleApi = {
   // pos-price-list-tiers: assign (or clear) the global price list on a draft.
   // Backend reprices all non-sticky lines on success. `null` payload clears
   // the assignment (reverts items to default pricing).
-  async setPriceList(
-    saleId: string,
-    payload: { globalPriceListId: string | null },
-  ): Promise<Sale> {
+  async setPriceList(saleId: string, payload: { globalPriceListId: string | null }): Promise<Sale> {
     const { data } = await http.put<Sale>(`/sales/drafts/${saleId}/price-list`, payload)
     return data
   },

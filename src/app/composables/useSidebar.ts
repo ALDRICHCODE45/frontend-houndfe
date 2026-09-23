@@ -5,7 +5,12 @@ import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { useRouter } from 'vue-router'
 import { mapTenantError } from '@/features/admin/tenants/api/tenants.api'
 import { navigationGroups } from '@/app/navigation/navigation.registry'
-import { buildCanAccess, filterAccessibleGroups, stripMeta } from '@/app/navigation/navigation.access'
+import {
+  buildCanAccess,
+  filterAccessibleGroups,
+  stripMeta,
+} from '@/app/navigation/navigation.access'
+import { DASHBOARD_NAV_ITEM } from '@/app/navigation/navigation.landing'
 import type { AccessMeta } from '@/app/navigation/navigation.types'
 
 declare const useToast: () => {
@@ -59,7 +64,9 @@ export const useSidebar = () => {
       await authStore.switchTenant(tenantId)
     } catch (error: unknown) {
       // Extract error code and map to user-facing message
-      const axiosError = error as { response?: { status?: number; data?: { code?: string; message?: string } } }
+      const axiosError = error as {
+        response?: { status?: number; data?: { code?: string; message?: string } }
+      }
       const errorCode = axiosError?.response?.data?.code
       const errorMessage = axiosError?.response?.data?.message
 
@@ -123,11 +130,12 @@ export const useSidebar = () => {
 
   function getNavigationItems(collapsed: boolean): NavigationMenuItem[] {
     // Consumer-specific top-level extras (not part of the shared module tree).
+    // ODD dashboard-analytics D1: Dashboard entry comes from the shared
+    // navigation.landing definition so the sidebar and command palette stay
+    // aligned. Nueva Venta keeps its pre-existing create-sale grant.
     const topLevelExtras: GuardedNavigationMenuItem[] = [
       {
-        label: 'Dashboard',
-        icon: 'i-lucide-layout-dashboard',
-        to: '/',
+        ...DASHBOARD_NAV_ITEM,
         exact: true,
         class: 'text-coco-gold-500',
       },
@@ -144,20 +152,21 @@ export const useSidebar = () => {
       .map(stripMeta)
 
     // Shared module groups, derived from the registry through the access filter.
-    const groupItems: NavigationMenuItem[] = filterAccessibleGroups(navigationGroups, canAccess).map(
-      (group) => ({
-        label: group.label,
-        icon: group.icon,
-        defaultOpen: group.defaultOpen,
-        children: collapsed
-          ? []
-          : group.children.map((child) => ({
-              label: child.label,
-              icon: child.icon,
-              to: child.to,
-            })),
-      }),
-    )
+    const groupItems: NavigationMenuItem[] = filterAccessibleGroups(
+      navigationGroups,
+      canAccess,
+    ).map((group) => ({
+      label: group.label,
+      icon: group.icon,
+      defaultOpen: group.defaultOpen,
+      children: collapsed
+        ? []
+        : group.children.map((child) => ({
+            label: child.label,
+            icon: child.icon,
+            to: child.to,
+          })),
+    }))
 
     return [...visibleExtras, ...groupItems]
   }

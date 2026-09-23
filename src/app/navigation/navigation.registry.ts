@@ -15,34 +15,99 @@ export const navigationGroups: NavGroup[] = [
     icon: 'i-lucide-shopping-cart',
     defaultOpen: true,
     children: [
-      { id: 'pos-sales', label: 'Ventas', icon: 'i-lucide-shopping-cart', to: '/pos/ventas', permission: ['read', 'Sale'] },
-      { id: 'pos-products', label: 'Productos', icon: 'i-lucide-package', to: '/pos/products', permission: ['read', 'Product'] },
-      { id: 'pos-orders', label: 'Órdenes', icon: 'i-lucide-receipt', to: '/pos/orders', permission: ['read', 'Order'] },
-      { id: 'pos-customers', label: 'Clientes', icon: 'i-lucide-users', to: '/pos/customers', permission: ['read', 'Customer'] },
-      { id: 'pos-promotions', label: 'Promociones', icon: 'i-lucide-tag', to: '/pos/promociones', permission: ['read', 'Promotion'] },
+      {
+        id: 'pos-sales',
+        label: 'Ventas',
+        icon: 'i-lucide-shopping-cart',
+        to: '/pos/ventas',
+        permission: ['read', 'Sale'],
+      },
+      {
+        id: 'pos-products',
+        label: 'Productos',
+        icon: 'i-lucide-package',
+        to: '/pos/products',
+        permission: ['read', 'Product'],
+      },
+      {
+        id: 'pos-orders',
+        label: 'Órdenes',
+        icon: 'i-lucide-receipt',
+        to: '/pos/orders',
+        permission: ['read', 'Order'],
+      },
+      {
+        id: 'pos-customers',
+        label: 'Clientes',
+        icon: 'i-lucide-users',
+        to: '/pos/customers',
+        permission: ['read', 'Customer'],
+      },
+      {
+        id: 'pos-promotions',
+        label: 'Promociones',
+        icon: 'i-lucide-tag',
+        to: '/pos/promociones',
+        permission: ['read', 'Promotion'],
+      },
       // sdd-quotations-crud S1 (REQ-QTN-001): sidebar entry gated by
       // read:Quotation. Hidden for users without the permission; the route
       // guard repeats the same check at /pos/cotizaciones.
-      { id: 'pos-quotations', label: 'Cotizaciones', icon: 'i-lucide-file-text', to: '/pos/cotizaciones', permission: ['read', 'Quotation'] },
+      {
+        id: 'pos-quotations',
+        label: 'Cotizaciones',
+        icon: 'i-lucide-file-text',
+        to: '/pos/cotizaciones',
+        permission: ['read', 'Quotation'],
+      },
       // sdd delivery-routes S1a (REQ-AUTH-DR-005 + §9.2): sidebar entry
       // gated by read:DeliveryRoute. The route guard repeats the same
       // check at /pos/rutas-de-entrega. The view itself discriminates
       // manager vs driver rendering from the role composable.
-      { id: 'pos-delivery-routes', label: 'Rutas de entrega', icon: 'i-lucide-truck', to: '/pos/rutas-de-entrega', permission: ['read', 'DeliveryRoute'] },
+      {
+        id: 'pos-delivery-routes',
+        label: 'Rutas de entrega',
+        icon: 'i-lucide-truck',
+        to: '/pos/rutas-de-entrega',
+        permission: ['read', 'DeliveryRoute'],
+      },
     ],
   },
+  // ODD dashboard-analytics D1: the "Analítica" navigation group and the
+  // "/analytics/resumen-ventas" entry were removed. The Dashboard nav item
+  // is exported from `navigation.landing.ts` as a top-level extra consumed by
+  // the sidebar and the command palette. See resolveLandingDestination() for
+  // the canonical first-accessible destination contract.
   {
     id: 'rrhh',
     label: 'RR.HH.',
     icon: 'i-lucide-users-round',
     defaultOpen: true,
     children: [
-      { id: 'rrhh-colaboradores', label: 'Colaboradores', icon: 'i-lucide-user-check', to: '/admin/colaboradores', permission: ['read', 'Employee'] },
-      { id: 'rrhh-vencimientos', label: 'Vencimientos', icon: 'i-lucide-file-clock', to: '/admin/colaboradores/documentos-vencer', permission: ['read', 'EmployeeDocument'] },
+      {
+        id: 'rrhh-colaboradores',
+        label: 'Colaboradores',
+        icon: 'i-lucide-user-check',
+        to: '/admin/colaboradores',
+        permission: ['read', 'Employee'],
+      },
+      {
+        id: 'rrhh-vencimientos',
+        label: 'Vencimientos',
+        icon: 'i-lucide-file-clock',
+        to: '/admin/colaboradores/documentos-vencer',
+        permission: ['read', 'EmployeeDocument'],
+      },
       // S5 (hr-validation-notifications): label reframe to the voseo/tenant-wide
       // concept "Validaciones pendientes". The path and the CASL permission are
       // intentionally kept — this is a label-only change.
-      { id: 'rrhh-aprobaciones', label: 'Validaciones pendientes', icon: 'i-lucide-calendar-check', to: '/admin/colaboradores/aprobaciones-pendientes', permission: ['read', 'EmployeeTimeOff'] },
+      {
+        id: 'rrhh-aprobaciones',
+        label: 'Validaciones pendientes',
+        icon: 'i-lucide-calendar-check',
+        to: '/admin/colaboradores/aprobaciones-pendientes',
+        permission: ['read', 'EmployeeTimeOff'],
+      },
     ],
   },
   {
@@ -51,15 +116,45 @@ export const navigationGroups: NavGroup[] = [
     icon: 'i-lucide-shield-check',
     defaultOpen: true,
     children: [
-      { id: 'admin-users', label: 'Usuarios', icon: 'i-lucide-users', to: '/admin/users', permission: ['read', 'User'] },
-      { id: 'admin-roles', label: 'Roles', icon: 'i-lucide-user-cog', to: '/admin/roles', permission: ['read', 'Role'] },
-      { id: 'admin-tenants', label: 'Sucursales', icon: 'i-lucide-building-2', to: '/admin/tenants', requiresSuperAdmin: true },
+      {
+        id: 'admin-users',
+        label: 'Usuarios',
+        icon: 'i-lucide-users',
+        to: '/admin/users',
+        permission: ['read', 'User'],
+      },
+      {
+        id: 'admin-roles',
+        label: 'Roles',
+        icon: 'i-lucide-user-cog',
+        to: '/admin/roles',
+        permission: ['read', 'Role'],
+      },
+      {
+        id: 'admin-tenants',
+        label: 'Sucursales',
+        icon: 'i-lucide-building-2',
+        to: '/admin/tenants',
+        requiresSuperAdmin: true,
+      },
       // sdd payment-details-admin S3 (REQ-PD-007): sidebar entry gated by read:PaymentDetail.
       // Hidden for users without the permission; the route guard repeats the check at /admin/payment-details.
-      { id: 'admin-payment-details', label: 'Datos bancarios', icon: 'i-lucide-credit-card', to: '/admin/payment-details', permission: ['read', 'PaymentDetail'] },
+      {
+        id: 'admin-payment-details',
+        label: 'Datos bancarios',
+        icon: 'i-lucide-credit-card',
+        to: '/admin/payment-details',
+        permission: ['read', 'PaymentDetail'],
+      },
       // sdd custom-payment-methods S2B (REQ-PM-006): sidebar entry gated by read:PaymentMethod.
       // Hidden for users without the permission; the route guard repeats the check at /admin/payment-methods.
-      { id: 'admin-payment-methods', label: 'Métodos de cobro', icon: 'i-lucide-wallet', to: '/admin/payment-methods', permission: ['read', 'PaymentMethod'] },
+      {
+        id: 'admin-payment-methods',
+        label: 'Métodos de cobro',
+        icon: 'i-lucide-wallet',
+        to: '/admin/payment-methods',
+        permission: ['read', 'PaymentMethod'],
+      },
     ],
   },
   {
@@ -68,21 +163,69 @@ export const navigationGroups: NavGroup[] = [
     icon: 'i-lucide-settings',
     defaultOpen: true,
     children: [
-      { id: 'sistema-notificaciones', label: 'Notificaciones', icon: 'i-lucide-bell', to: '/sistema/configuracion/notificaciones', permission: ['read', 'NotificationConfig'] },
+      {
+        id: 'sistema-notificaciones',
+        label: 'Notificaciones',
+        icon: 'i-lucide-bell',
+        to: '/sistema/configuracion/notificaciones',
+        permission: ['read', 'NotificationConfig'],
+      },
       // sdd online-catalog-backoffice WU3A (REQ-3): Sistema entry gated by
       // read:TenantCatalogSettings; the route guard repeats the same check
       // at /system/catalog-settings.
-      { id: 'sistema-catalog-settings', label: 'Catálogo online', icon: 'i-lucide-globe', to: '/system/catalog-settings', permission: ['read', 'TenantCatalogSettings'] },
+      {
+        id: 'sistema-catalog-settings',
+        label: 'Catálogo online',
+        icon: 'i-lucide-globe',
+        to: '/system/catalog-settings',
+        permission: ['read', 'TenantCatalogSettings'],
+      },
     ],
   },
 ]
 
 /** Create-shortcuts rendered in the command palette "Acciones" group. */
 export const quickActions: NavAction[] = [
-  { id: 'new-product', label: 'Nuevo Producto', icon: 'i-lucide-plus', to: '/pos/products/new', permission: ['create', 'Product'] },
-  { id: 'new-order', label: 'Nueva Orden', icon: 'i-lucide-plus', to: '/pos/orders/new', permission: ['create', 'Order'] },
-  { id: 'new-sale', label: 'Nueva Venta', icon: 'i-lucide-receipt-text', to: '/pos/ventas/nueva', permission: ['read', 'Sale'] },
-  { id: 'new-customer', label: 'Nuevo Cliente', icon: 'i-lucide-user-plus', to: '/pos/customers', permission: ['create', 'Customer'] },
-  { id: 'new-promotion', label: 'Nueva Promoción', icon: 'i-lucide-percent', to: '/pos/promociones', permission: ['create', 'Promotion'] },
-  { id: 'new-employee', label: 'Nuevo Colaborador', icon: 'i-lucide-user-plus', to: '/admin/colaboradores', permission: ['create', 'Employee'] },
+  {
+    id: 'new-product',
+    label: 'Nuevo Producto',
+    icon: 'i-lucide-plus',
+    to: '/pos/products/new',
+    permission: ['create', 'Product'],
+  },
+  {
+    id: 'new-order',
+    label: 'Nueva Orden',
+    icon: 'i-lucide-plus',
+    to: '/pos/orders/new',
+    permission: ['create', 'Order'],
+  },
+  {
+    id: 'new-sale',
+    label: 'Nueva Venta',
+    icon: 'i-lucide-receipt-text',
+    to: '/pos/ventas/nueva',
+    permission: ['read', 'Sale'],
+  },
+  {
+    id: 'new-customer',
+    label: 'Nuevo Cliente',
+    icon: 'i-lucide-user-plus',
+    to: '/pos/customers',
+    permission: ['create', 'Customer'],
+  },
+  {
+    id: 'new-promotion',
+    label: 'Nueva Promoción',
+    icon: 'i-lucide-percent',
+    to: '/pos/promociones',
+    permission: ['create', 'Promotion'],
+  },
+  {
+    id: 'new-employee',
+    label: 'Nuevo Colaborador',
+    icon: 'i-lucide-user-plus',
+    to: '/admin/colaboradores',
+    permission: ['create', 'Employee'],
+  },
 ]

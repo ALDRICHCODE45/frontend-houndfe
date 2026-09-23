@@ -63,47 +63,47 @@ describe('ability with Sale subject', () => {
 })
 
 describe('ability with catalog authorization subjects (online-catalog-backoffice WU1)', () => {
-      beforeEach(() => {
-        resetAbility()
-      })
+  beforeEach(() => {
+    resetAbility()
+  })
 
-      it('parses TenantCatalogSettings read/update independently and keeps subjects scoped', () => {
-        updateAbilityFromPermissionCodes(['read:TenantCatalogSettings', 'read:GlobalPriceList'])
+  it('parses TenantCatalogSettings read/update independently and keeps subjects scoped', () => {
+    updateAbilityFromPermissionCodes(['read:TenantCatalogSettings', 'read:GlobalPriceList'])
 
-        expect(ability.can('read', 'TenantCatalogSettings')).toBe(true)
-        expect(ability.can('update', 'TenantCatalogSettings')).toBe(false)
-        expect(ability.can('read', 'GlobalPriceList')).toBe(true)
-        expect(ability.can('update', 'GlobalPriceList')).toBe(false)
-      })
+    expect(ability.can('read', 'TenantCatalogSettings')).toBe(true)
+    expect(ability.can('update', 'TenantCatalogSettings')).toBe(false)
+    expect(ability.can('read', 'GlobalPriceList')).toBe(true)
+    expect(ability.can('update', 'GlobalPriceList')).toBe(false)
+  })
 
-      it('rejects malformed catalog subject codes without dropping valid siblings', () => {
-        updateAbilityFromPermissionCodes([
-          'read:TenantCatalogSettings:extra',
-          'tenant_catalog_settings:read',
-          'read:TenantCatalogSettings',
-        ])
+  it('rejects malformed catalog subject codes without dropping valid siblings', () => {
+    updateAbilityFromPermissionCodes([
+      'read:TenantCatalogSettings:extra',
+      'tenant_catalog_settings:read',
+      'read:TenantCatalogSettings',
+    ])
 
-        expect(ability.can('read', 'TenantCatalogSettings')).toBe(true)
-      })
+    expect(ability.can('read', 'TenantCatalogSettings')).toBe(true)
+  })
 
-      it('revokes omitted catalog subjects on the next permission update', () => {
-        updateAbilityFromPermissionCodes(['read:TenantCatalogSettings', 'read:GlobalPriceList'])
-        updateAbilityFromPermissionCodes(['read:TenantCatalogSettings'])
+  it('revokes omitted catalog subjects on the next permission update', () => {
+    updateAbilityFromPermissionCodes(['read:TenantCatalogSettings', 'read:GlobalPriceList'])
+    updateAbilityFromPermissionCodes(['read:TenantCatalogSettings'])
 
-        expect(ability.can('read', 'TenantCatalogSettings')).toBe(true)
-        expect(ability.can('read', 'GlobalPriceList')).toBe(false)
-      })
+    expect(ability.can('read', 'TenantCatalogSettings')).toBe(true)
+    expect(ability.can('read', 'GlobalPriceList')).toBe(false)
+  })
 
-      it('accepts TenantCatalogSettings in the AppSubject union', () => {
-        const subject: AppSubject = 'TenantCatalogSettings'
-        expect(subject).toBe('TenantCatalogSettings')
-      })
+  it('accepts TenantCatalogSettings in the AppSubject union', () => {
+    const subject: AppSubject = 'TenantCatalogSettings'
+    expect(subject).toBe('TenantCatalogSettings')
+  })
 
-      it('accepts GlobalPriceList in the AppSubject union', () => {
-        const subject: AppSubject = 'GlobalPriceList'
-        expect(subject).toBe('GlobalPriceList')
-      })
-    })
+  it('accepts GlobalPriceList in the AppSubject union', () => {
+    const subject: AppSubject = 'GlobalPriceList'
+    expect(subject).toBe('GlobalPriceList')
+  })
+})
 
 describe('ability with NotificationConfig subject (notification-config WU-1)', () => {
   beforeEach(() => {
@@ -125,10 +125,7 @@ describe('ability with NotificationConfig subject (notification-config WU-1)', (
   })
 
   it('should parse read+update+create codes together on NotificationConfig', () => {
-    updateAbilityFromPermissionCodes([
-      'read:NotificationConfig',
-      'update:NotificationConfig',
-    ])
+    updateAbilityFromPermissionCodes(['read:NotificationConfig', 'update:NotificationConfig'])
 
     expect(ability.can('read', 'NotificationConfig')).toBe(true)
     expect(ability.can('update', 'NotificationConfig')).toBe(true)
@@ -144,11 +141,7 @@ describe('ability with NotificationConfig subject (notification-config WU-1)', (
   })
 
   it('should keep NotificationConfig alongside other subjects without bleed', () => {
-    updateAbilityFromPermissionCodes([
-      'read:NotificationConfig',
-      'read:Product',
-      'update:Customer',
-    ])
+    updateAbilityFromPermissionCodes(['read:NotificationConfig', 'read:Product', 'update:Customer'])
 
     expect(ability.can('read', 'NotificationConfig')).toBe(true)
     expect(ability.can('read', 'Product')).toBe(true)
@@ -411,11 +404,7 @@ describe('ability with PaymentDetail subject (sdd payment-details-admin S1, REQ-
   })
 
   it('coexists with other subjects without bleed (PaymentDetail alongside Quotation)', () => {
-    updateAbilityFromPermissionCodes([
-      'read:PaymentDetail',
-      'read:Quotation',
-      'update:Customer',
-    ])
+    updateAbilityFromPermissionCodes(['read:PaymentDetail', 'read:Quotation', 'update:Customer'])
 
     expect(ability.can('read', 'PaymentDetail')).toBe(true)
     expect(ability.can('read', 'Quotation')).toBe(true)
@@ -531,11 +520,7 @@ describe('ability with PaymentMethod subject (sdd custom-payment-methods S1, REQ
   })
 
   it('coexists with other subjects without bleed (PaymentMethod alongside PaymentDetail + Sale)', () => {
-    updateAbilityFromPermissionCodes([
-      'read:PaymentMethod',
-      'read:PaymentDetail',
-      'update:Sale',
-    ])
+    updateAbilityFromPermissionCodes(['read:PaymentMethod', 'read:PaymentDetail', 'update:Sale'])
 
     expect(ability.can('read', 'PaymentMethod')).toBe(true)
     expect(ability.can('read', 'PaymentDetail')).toBe(true)
@@ -571,9 +556,7 @@ describe('ability with PaymentMethod subject (sdd custom-payment-methods S1, REQ
     // `manage:PaymentMethod` does grant everything by CASL semantics, but
     // the curated role UI never surfaces that code, so this is a
     // belt-and-suspenders assertion.
-    updateAbilityFromPermissionCodes([
-      'batch_delete:PaymentMethod',
-    ])
+    updateAbilityFromPermissionCodes(['batch_delete:PaymentMethod'])
 
     expect(ability.can('read', 'PaymentMethod')).toBe(false)
     expect(ability.can('create', 'PaymentMethod')).toBe(false)
@@ -594,149 +577,249 @@ describe('ability with PaymentMethod subject (sdd custom-payment-methods S1, REQ
   })
 })
 
-    // ── sdd delivery-routes S1a: CASL registration for DeliveryRoute ───────────
-    //
-    // REQ-AUTH-DR-001..003 — mirrors the PaymentDetail/PaymentMethod precedent.
-    // DeliveryRoute is added to AppSubject + APP_SUBJECTS so:
-    //   1. parsePermissionCode accepts the four CRUD codes.
-    //   2. updateAbilityFromPermissionCodes grants the corresponding CASL actions.
-    //   3. NO manage, NO batch_delete — backend registry exposes only CRUD.
-    //   4. Adding the subject does NOT alter PaymentDetail/PaymentMethod grants.
-    //   5. Removing the code revokes the grant on the next updateAbility call.
-    //   6. AppSubject union admits 'DeliveryRoute' (compile-time guarantee).
+// ── sdd delivery-routes S1a: CASL registration for DeliveryRoute ───────────
+//
+// REQ-AUTH-DR-001..003 — mirrors the PaymentDetail/PaymentMethod precedent.
+// DeliveryRoute is added to AppSubject + APP_SUBJECTS so:
+//   1. parsePermissionCode accepts the four CRUD codes.
+//   2. updateAbilityFromPermissionCodes grants the corresponding CASL actions.
+//   3. NO manage, NO batch_delete — backend registry exposes only CRUD.
+//   4. Adding the subject does NOT alter PaymentDetail/PaymentMethod grants.
+//   5. Removing the code revokes the grant on the next updateAbility call.
+//   6. AppSubject union admits 'DeliveryRoute' (compile-time guarantee).
 
-    describe('ability with DeliveryRoute subject (sdd delivery-routes S1a, REQ-AUTH-DR-001..003)', () => {
-      beforeEach(() => {
-        resetAbility()
-      })
+describe('ability with DeliveryRoute subject (sdd delivery-routes S1a, REQ-AUTH-DR-001..003)', () => {
+  beforeEach(() => {
+    resetAbility()
+  })
 
-      it('parses read:DeliveryRoute and grants read on DeliveryRoute only', () => {
-        updateAbilityFromPermissionCodes(['read:DeliveryRoute'])
+  it('parses read:DeliveryRoute and grants read on DeliveryRoute only', () => {
+    updateAbilityFromPermissionCodes(['read:DeliveryRoute'])
 
-        expect(ability.can('read', 'DeliveryRoute')).toBe(true)
-        expect(ability.can('create', 'DeliveryRoute')).toBe(false)
-        expect(ability.can('update', 'DeliveryRoute')).toBe(false)
-        expect(ability.can('delete', 'DeliveryRoute')).toBe(false)
-      })
+    expect(ability.can('read', 'DeliveryRoute')).toBe(true)
+    expect(ability.can('create', 'DeliveryRoute')).toBe(false)
+    expect(ability.can('update', 'DeliveryRoute')).toBe(false)
+    expect(ability.can('delete', 'DeliveryRoute')).toBe(false)
+  })
 
-      it('parses create:DeliveryRoute and grants create only', () => {
-        updateAbilityFromPermissionCodes(['create:DeliveryRoute'])
+  it('parses create:DeliveryRoute and grants create only', () => {
+    updateAbilityFromPermissionCodes(['create:DeliveryRoute'])
 
-        expect(ability.can('create', 'DeliveryRoute')).toBe(true)
-        expect(ability.can('read', 'DeliveryRoute')).toBe(false)
-      })
+    expect(ability.can('create', 'DeliveryRoute')).toBe(true)
+    expect(ability.can('read', 'DeliveryRoute')).toBe(false)
+  })
 
-      it('parses update:DeliveryRoute and grants update only', () => {
-        updateAbilityFromPermissionCodes(['update:DeliveryRoute'])
+  it('parses update:DeliveryRoute and grants update only', () => {
+    updateAbilityFromPermissionCodes(['update:DeliveryRoute'])
 
-        expect(ability.can('update', 'DeliveryRoute')).toBe(true)
-        expect(ability.can('read', 'DeliveryRoute')).toBe(false)
-      })
+    expect(ability.can('update', 'DeliveryRoute')).toBe(true)
+    expect(ability.can('read', 'DeliveryRoute')).toBe(false)
+  })
 
-      it('parses delete:DeliveryRoute and grants delete only', () => {
-        updateAbilityFromPermissionCodes(['delete:DeliveryRoute'])
+  it('parses delete:DeliveryRoute and grants delete only', () => {
+    updateAbilityFromPermissionCodes(['delete:DeliveryRoute'])
 
-        expect(ability.can('delete', 'DeliveryRoute')).toBe(true)
-      })
+    expect(ability.can('delete', 'DeliveryRoute')).toBe(true)
+  })
 
-      it('parses all four DeliveryRoute CRUD actions together (full lifecycle role)', () => {
-        updateAbilityFromPermissionCodes([
-          'create:DeliveryRoute',
-          'read:DeliveryRoute',
-          'update:DeliveryRoute',
-          'delete:DeliveryRoute',
-        ])
+  it('parses all four DeliveryRoute CRUD actions together (full lifecycle role)', () => {
+    updateAbilityFromPermissionCodes([
+      'create:DeliveryRoute',
+      'read:DeliveryRoute',
+      'update:DeliveryRoute',
+      'delete:DeliveryRoute',
+    ])
 
-        expect(ability.can('create', 'DeliveryRoute')).toBe(true)
-        expect(ability.can('read', 'DeliveryRoute')).toBe(true)
-        expect(ability.can('update', 'DeliveryRoute')).toBe(true)
-        expect(ability.can('delete', 'DeliveryRoute')).toBe(true)
-      })
+    expect(ability.can('create', 'DeliveryRoute')).toBe(true)
+    expect(ability.can('read', 'DeliveryRoute')).toBe(true)
+    expect(ability.can('update', 'DeliveryRoute')).toBe(true)
+    expect(ability.can('delete', 'DeliveryRoute')).toBe(true)
+  })
 
-      it('does NOT silently drop DeliveryRoute — parsePermissionCode returns the tuple when registered (REQ-AUTH-DR-003)', () => {
-        // If 'DeliveryRoute' were missing from APP_SUBJECTS, parsePermissionCode
-        // would return null and ability.can would stay false. Asserting true here
-        // guards against the silent-drop path during future APP_SUBJECTS edits.
-        updateAbilityFromPermissionCodes(['read:DeliveryRoute'])
+  it('does NOT silently drop DeliveryRoute — parsePermissionCode returns the tuple when registered (REQ-AUTH-DR-003)', () => {
+    // If 'DeliveryRoute' were missing from APP_SUBJECTS, parsePermissionCode
+    // would return null and ability.can would stay false. Asserting true here
+    // guards against the silent-drop path during future APP_SUBJECTS edits.
+    updateAbilityFromPermissionCodes(['read:DeliveryRoute'])
 
-        expect(ability.can('read', 'DeliveryRoute')).toBe(true)
-      })
+    expect(ability.can('read', 'DeliveryRoute')).toBe(true)
+  })
 
-      it('keeps DeliveryRoute scoped — no bleed to PaymentDetail/PaymentMethod/Sale/Customer/Product', () => {
-        updateAbilityFromPermissionCodes(['read:DeliveryRoute'])
+  it('keeps DeliveryRoute scoped — no bleed to PaymentDetail/PaymentMethod/Sale/Customer/Product', () => {
+    updateAbilityFromPermissionCodes(['read:DeliveryRoute'])
 
-        expect(ability.can('read', 'DeliveryRoute')).toBe(true)
-        expect(ability.can('read', 'PaymentDetail')).toBe(false)
-        expect(ability.can('read', 'PaymentMethod')).toBe(false)
-        expect(ability.can('read', 'Sale')).toBe(false)
-        expect(ability.can('read', 'Customer')).toBe(false)
-        expect(ability.can('read', 'Product')).toBe(false)
-      })
+    expect(ability.can('read', 'DeliveryRoute')).toBe(true)
+    expect(ability.can('read', 'PaymentDetail')).toBe(false)
+    expect(ability.can('read', 'PaymentMethod')).toBe(false)
+    expect(ability.can('read', 'Sale')).toBe(false)
+    expect(ability.can('read', 'Customer')).toBe(false)
+    expect(ability.can('read', 'Product')).toBe(false)
+  })
 
-      it('coexists with other subjects without bleed (DeliveryRoute alongside PaymentDetail + Sale)', () => {
-        updateAbilityFromPermissionCodes([
-          'read:DeliveryRoute',
-          'read:PaymentDetail',
-          'update:Sale',
-        ])
+  it('coexists with other subjects without bleed (DeliveryRoute alongside PaymentDetail + Sale)', () => {
+    updateAbilityFromPermissionCodes(['read:DeliveryRoute', 'read:PaymentDetail', 'update:Sale'])
 
-        expect(ability.can('read', 'DeliveryRoute')).toBe(true)
-        expect(ability.can('read', 'PaymentDetail')).toBe(true)
-        expect(ability.can('update', 'Sale')).toBe(true)
-        expect(ability.can('update', 'DeliveryRoute')).toBe(false)
-        expect(ability.can('create', 'Sale')).toBe(false)
-      })
+    expect(ability.can('read', 'DeliveryRoute')).toBe(true)
+    expect(ability.can('read', 'PaymentDetail')).toBe(true)
+    expect(ability.can('update', 'Sale')).toBe(true)
+    expect(ability.can('update', 'DeliveryRoute')).toBe(false)
+    expect(ability.can('create', 'Sale')).toBe(false)
+  })
 
-      it('grant is revoked when the DeliveryRoute code is removed from the code list', () => {
-        updateAbilityFromPermissionCodes(['read:DeliveryRoute'])
-        expect(ability.can('read', 'DeliveryRoute')).toBe(true)
+  it('grant is revoked when the DeliveryRoute code is removed from the code list', () => {
+    updateAbilityFromPermissionCodes(['read:DeliveryRoute'])
+    expect(ability.can('read', 'DeliveryRoute')).toBe(true)
 
-        updateAbilityFromPermissionCodes([])
-        expect(ability.can('read', 'DeliveryRoute')).toBe(false)
-      })
+    updateAbilityFromPermissionCodes([])
+    expect(ability.can('read', 'DeliveryRoute')).toBe(false)
+  })
 
-      it('rejects malformed DeliveryRoute codes (extra segments / unknown action / unknown subject)', () => {
-        updateAbilityFromPermissionCodes([
-          'read:DeliveryRoute:extra', // extra segment → dropped
-          'fly:DeliveryRoute', // unknown action → dropped
-          'read:UnknownSubject', // unknown subject → dropped
-          'read:DeliveryRoute', // well-formed → grants
-        ])
+  it('rejects malformed DeliveryRoute codes (extra segments / unknown action / unknown subject)', () => {
+    updateAbilityFromPermissionCodes([
+      'read:DeliveryRoute:extra', // extra segment → dropped
+      'fly:DeliveryRoute', // unknown action → dropped
+      'read:UnknownSubject', // unknown subject → dropped
+      'read:DeliveryRoute', // well-formed → grants
+    ])
 
-        expect(ability.can('read', 'DeliveryRoute')).toBe(true)
-      })
+    expect(ability.can('read', 'DeliveryRoute')).toBe(true)
+  })
 
-      it('adding DeliveryRoute does NOT alter PaymentDetail grants (lock-step invariant)', () => {
-        updateAbilityFromPermissionCodes(['read:PaymentDetail', 'read:DeliveryRoute'])
+  it('adding DeliveryRoute does NOT alter PaymentDetail grants (lock-step invariant)', () => {
+    updateAbilityFromPermissionCodes(['read:PaymentDetail', 'read:DeliveryRoute'])
 
-        expect(ability.can('read', 'DeliveryRoute')).toBe(true)
-        expect(ability.can('read', 'PaymentDetail')).toBe(true)
-        expect(ability.can('update', 'PaymentDetail')).toBe(false)
-        expect(ability.can('update', 'DeliveryRoute')).toBe(false)
-      })
+    expect(ability.can('read', 'DeliveryRoute')).toBe(true)
+    expect(ability.can('read', 'PaymentDetail')).toBe(true)
+    expect(ability.can('update', 'PaymentDetail')).toBe(false)
+    expect(ability.can('update', 'DeliveryRoute')).toBe(false)
+  })
 
-      it('only the 4 CRUD actions grant their respective verbs — no implicit manage bleed-through', () => {
-        // Backend registry exposes only create / read / update / delete for
-        // DeliveryRoute (REQ-AUTH-DR-002). `manage` or `batch_delete` MUST NOT
-        // surface in the curated role UI for this subject; assert the CASL
-        // layer does not implicitly widen the action set.
-        updateAbilityFromPermissionCodes([
-          'batch_delete:DeliveryRoute',
-        ])
+  it('only the 4 CRUD actions grant their respective verbs — no implicit manage bleed-through', () => {
+    // Backend registry exposes only create / read / update / delete for
+    // DeliveryRoute (REQ-AUTH-DR-002). `manage` or `batch_delete` MUST NOT
+    // surface in the curated role UI for this subject; assert the CASL
+    // layer does not implicitly widen the action set.
+    updateAbilityFromPermissionCodes(['batch_delete:DeliveryRoute'])
 
-        expect(ability.can('read', 'DeliveryRoute')).toBe(false)
-        expect(ability.can('create', 'DeliveryRoute')).toBe(false)
-        expect(ability.can('update', 'DeliveryRoute')).toBe(false)
-        expect(ability.can('delete', 'DeliveryRoute')).toBe(false)
-        // batch_delete IS parseable for the subject (regression guard).
-        expect(ability.can('batch_delete', 'DeliveryRoute')).toBe(true)
-      })
+    expect(ability.can('read', 'DeliveryRoute')).toBe(false)
+    expect(ability.can('create', 'DeliveryRoute')).toBe(false)
+    expect(ability.can('update', 'DeliveryRoute')).toBe(false)
+    expect(ability.can('delete', 'DeliveryRoute')).toBe(false)
+    // batch_delete IS parseable for the subject (regression guard).
+    expect(ability.can('batch_delete', 'DeliveryRoute')).toBe(true)
+  })
 
-      it('validates DeliveryRoute is in the AppSubject type union (compile-time guarantee)', () => {
-        // If AppSubject no longer includes 'DeliveryRoute' (someone
-        // accidentally removed it from auth.types.ts), this assignment fails
-        // the build.
-        const subject: AppSubject = 'DeliveryRoute'
-        expect(subject).toBe('DeliveryRoute')
-      })
-    })
+  it('validates DeliveryRoute is in the AppSubject type union (compile-time guarantee)', () => {
+    // If AppSubject no longer includes 'DeliveryRoute' (someone
+    // accidentally removed it from auth.types.ts), this assignment fails
+    // the build.
+    const subject: AppSubject = 'DeliveryRoute'
+    expect(subject).toBe('DeliveryRoute')
+  })
+})
+
+// ODD branch-sales-summary A1: `read:Analytics` is the exact permission required by
+// GET /analytics/sales/summary. 'Analytics' must be registered in BOTH the compile-time
+// AppSubject union and the runtime APP_SUBJECTS registry; otherwise parsePermissionCode
+// returns null, the ability never updates, and the grant silently disappears.
+describe('ability with Analytics subject (ODD branch-sales-summary A1)', () => {
+  beforeEach(() => {
+    resetAbility()
+  })
+
+  it('grants read on Analytics from read:Analytics', () => {
+    updateAbilityFromPermissionCodes(['read:Analytics'])
+
+    expect(ability.can('read', 'Analytics')).toBe(true)
+  })
+
+  it('malformed sibling permissions do not drop or revoke the valid read:Analytics grant', () => {
+    updateAbilityFromPermissionCodes([
+      'read:Analytics:extra', // extra segment → dropped
+      'fly:Analytics', // unknown action → dropped
+      'read:UnknownSubject', // unknown subject → dropped
+      'read:Analytics', // well-formed → grants
+    ])
+
+    expect(ability.can('read', 'Analytics')).toBe(true)
+  })
+
+  it('validates Analytics is in the AppSubject type union (compile-time guarantee)', () => {
+    const subject: AppSubject = 'Analytics'
+    expect(subject).toBe('Analytics')
+  })
+})
+
+// ODD dashboard-operational-insights OI-5B1: `read:SaleRefund` is the exact
+// permission guarding GET /sales/refunds/pending. 'SaleRefund' must be registered
+// in BOTH the compile-time AppSubject union and the runtime APP_SUBJECTS registry.
+// If either half is missing, parsePermissionCode returns null, the ability never
+// updates, and the pending-refund module silently disappears — hence the explicit
+// no-silent-drop pin. The backend registry exposes only `read` and `update`
+// (refund rows are created by the cancellation flow), so no CRUD/manage widening
+// is asserted.
+describe('ability with SaleRefund subject (ODD dashboard-operational-insights OI-5B1)', () => {
+  beforeEach(() => {
+    resetAbility()
+  })
+
+  it('grants read on SaleRefund from read:SaleRefund without widening update', () => {
+    updateAbilityFromPermissionCodes(['read:SaleRefund'])
+
+    expect(ability.can('read', 'SaleRefund')).toBe(true)
+    expect(ability.can('update', 'SaleRefund')).toBe(false)
+  })
+
+  it('grants update on SaleRefund from update:SaleRefund without widening read', () => {
+    updateAbilityFromPermissionCodes(['update:SaleRefund'])
+
+    expect(ability.can('update', 'SaleRefund')).toBe(true)
+    expect(ability.can('read', 'SaleRefund')).toBe(false)
+  })
+
+  it('does NOT silently drop SaleRefund — parsePermissionCode resolves the registered subject', () => {
+    updateAbilityFromPermissionCodes(['read:SaleRefund'])
+
+    expect(ability.can('read', 'SaleRefund')).toBe(true)
+  })
+
+  it('keeps SaleRefund scoped — no bleed to Sale/Analytics/Customer', () => {
+    updateAbilityFromPermissionCodes(['read:SaleRefund'])
+
+    expect(ability.can('read', 'SaleRefund')).toBe(true)
+    expect(ability.can('read', 'Sale')).toBe(false)
+    expect(ability.can('read', 'Analytics')).toBe(false)
+    expect(ability.can('read', 'Customer')).toBe(false)
+  })
+
+  it('rejects malformed SaleRefund codes without revoking the valid sibling grant', () => {
+    updateAbilityFromPermissionCodes([
+      'read:SaleRefund:extra', // extra segment → dropped
+      'fly:SaleRefund', // unknown action → dropped
+      'read:UnknownSubject', // unknown subject → dropped
+      'read:SaleRefund', // well-formed → grants
+    ])
+
+    expect(ability.can('read', 'SaleRefund')).toBe(true)
+  })
+
+  it('still rejects an unknown subject entirely', () => {
+    updateAbilityFromPermissionCodes(['read:UnknownSubject'])
+
+    expect(ability.can('read', 'SaleRefund')).toBe(false)
+    expect(ability.can('read', 'UnknownSubject' as AppSubject)).toBe(false)
+  })
+
+  it('revokes the SaleRefund grant when the code leaves the list', () => {
+    updateAbilityFromPermissionCodes(['read:SaleRefund'])
+    expect(ability.can('read', 'SaleRefund')).toBe(true)
+
+    updateAbilityFromPermissionCodes([])
+    expect(ability.can('read', 'SaleRefund')).toBe(false)
+  })
+
+  it('validates SaleRefund is in the AppSubject type union (compile-time guarantee)', () => {
+    const subject: AppSubject = 'SaleRefund'
+    expect(subject).toBe('SaleRefund')
+  })
+})

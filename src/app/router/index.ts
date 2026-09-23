@@ -1,13 +1,14 @@
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import type { AppAction, AppSubject } from '@/features/auth/interfaces/auth.types'
 import { createRouter, createWebHistory } from 'vue-router'
+import { resolveLandingDestination } from '@/app/navigation/navigation.landing'
+import { buildCanAccess } from '@/app/navigation/navigation.access'
 
 type RoutePermission = [AppAction, AppSubject]
 
 const LoginView = () => import('@/features/auth/login/views/LoginView.vue')
 const TenantSelectionView = () =>
   import('@/features/auth/tenant-selection/views/TenantSelectionView.vue')
-const DashboardHomeView = () => import('@/features/dashboard/home/views/DashboardHomeView.vue')
 const ProductsView = () => import('@/features/POS/products/views/ProductsView.vue')
 const ProductDetailView = () => import('@/features/POS/products/views/ProductDetailView.vue')
 const OrdersView = () => import('@/features/POS/orders/views/OrdersView.vue')
@@ -16,8 +17,7 @@ const SalesView = () => import('@/features/POS/sales/views/SalesView.vue')
 const SalesListView = () => import('@/features/POS/sales/views/SalesListView.vue')
 const SaleDetailView = () => import('@/features/POS/sales/views/SaleDetailView.vue')
 const PromotionsView = () => import('@/features/POS/promotions/views/PromotionsView.vue')
-const PromotionDetailView = () =>
-  import('@/features/POS/promotions/views/PromotionDetailView.vue')
+const PromotionDetailView = () => import('@/features/POS/promotions/views/PromotionDetailView.vue')
 // ─── Quotations module (sdd-quotations-crud S1, REQ-QTN-001) ──────────────────
 //
 // Three lazy routes, mirroring the sales convention:
@@ -26,17 +26,13 @@ const PromotionDetailView = () =>
 //                                        view itself fires createDraft() on
 //                                        mount in S4 and redirects to /:id)
 //   - id    /pos/cotizaciones/:id   → QuotationDetailView (read:Quotation)
-const QuotationsListView = () =>
-  import('@/features/POS/quotations/views/QuotationsListView.vue')
-const QuotationDetailView = () =>
-  import('@/features/POS/quotations/views/QuotationDetailView.vue')
+const QuotationsListView = () => import('@/features/POS/quotations/views/QuotationsListView.vue')
+const QuotationDetailView = () => import('@/features/POS/quotations/views/QuotationDetailView.vue')
 const AdminUsersView = () => import('@/features/admin/users/views/AdminUsersView.vue')
 const AdminRolesView = () => import('@/features/admin/roles/views/AdminRolesView.vue')
 // ─── Employees module (WU-02, WU-06A, WU-12B) ───────────────────────────────
-const EmployeesListView = () =>
-  import('@/features/admin/employees/views/EmployeesListView.vue')
-const EmployeeDetailView = () =>
-  import('@/features/admin/employees/views/EmployeeDetailView.vue')
+const EmployeesListView = () => import('@/features/admin/employees/views/EmployeesListView.vue')
+const EmployeeDetailView = () => import('@/features/admin/employees/views/EmployeeDetailView.vue')
 const ExpiringDocumentsView = () =>
   import('@/features/admin/employees/views/ExpiringDocumentsView.vue')
 const PendingApprovalsView = () =>
@@ -68,12 +64,16 @@ const CatalogView = () => import('@/features/catalog/views/CatalogView.vue')
 // ─── Notification config (WU-11) ──────────────────────────────────────────
 const NotificationConfigView = () =>
   import('@/features/system/notifications/views/NotificationConfigView.vue')
-    // ─── Online catalog backoffice (WU3A, REQ-3/REQ-4) ───────────────────────
-    // Tenant-scoped Sistema route guarded by read:TenantCatalogSettings;
-    // no skipTenantCheck / requiresSuperAdmin. Read-only at WU3A; WU3B
-    // layers the editable form + confirmation modal on the same route.
-    const TenantCatalogSettingsView = () =>
-      import('@/features/system/catalog-settings/views/TenantCatalogSettingsView.vue')
+// ─── Online catalog backoffice (WU3A, REQ-3/REQ-4) ───────────────────────
+// Tenant-scoped Sistema route guarded by read:TenantCatalogSettings;
+// no skipTenantCheck / requiresSuperAdmin. Read-only at WU3A; WU3B
+// layers the editable form + confirmation modal on the same route.
+const TenantCatalogSettingsView = () =>
+  import('@/features/system/catalog-settings/views/TenantCatalogSettingsView.vue')
+// ─── Branch sales summary (ODD branch-sales-summary A3d) ─────────────────
+// Analytics route guarded by read:Analytics; no skipTenantCheck /
+// requiresSuperAdmin. The view is lazy-loaded on navigation.
+const BranchSalesSummaryView = () => import('@/features/analytics/views/BranchSalesSummaryView.vue')
 const ForbiddenView = () => import('@/features/errors/views/ForbiddenView.vue')
 const NotFoundView = () => import('@/features/errors/views/NotFoundView.vue')
 
@@ -92,12 +92,9 @@ const router = createRouter({
       component: TenantSelectionView,
       meta: { layout: 'auth', requiresAuth: true, skipTenantCheck: true },
     },
-    {
-      path: '/',
-      name: 'home',
-      component: DashboardHomeView,
-      meta: { layout: 'dashboard' },
-    },
+    // ODD dashboard-analytics D1: the "/" route was removed entirely; it is
+    // neither an application route nor an alias for /dashboard. Direct
+    // navigation to "/" now falls through to the catch-all NotFoundView.
     {
       path: '/pos/products',
       name: 'pos-products',
@@ -369,6 +366,20 @@ const router = createRouter({
         permission: ['read', 'TenantCatalogSettings'] as RoutePermission,
       },
     },
+    // ─── Dashboard (ODD dashboard-analytics D1) ─────────────────────────────
+    // Sole Dashboard/Analytics destination. Until D2 composes the visual
+    // dashboard home, /dashboard renders the committed BranchSalesSummaryView
+    // so the route already exposes real backend-backed content. The exact
+    // read:Analytics gate repeats in nav and resolver.
+    {
+      path: '/dashboard',
+      name: 'dashboard',
+      component: BranchSalesSummaryView,
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'Analytics'] as RoutePermission,
+      },
+    },
     // ─── Public catalog ─────────────────────────────────────────────────────────
     {
       path: '/catalogo/:branchSlug?',
@@ -414,7 +425,11 @@ router.beforeEach(async (to) => {
 
   // Allow /select-tenant when the user has a tempToken (multi-tenant login pending selection)
   const hasTenantSelectionToken = authStore.tempToken !== null
-  if (!isPublic && !authStore.isAuthenticated && !(to.name === 'select-tenant' && hasTenantSelectionToken)) {
+  if (
+    !isPublic &&
+    !authStore.isAuthenticated &&
+    !(to.name === 'select-tenant' && hasTenantSelectionToken)
+  ) {
     return {
       path: '/login',
       query: { redirect: to.fullPath },
@@ -441,7 +456,10 @@ router.beforeEach(async (to) => {
   }
 
   if (to.path === '/login' && authStore.isAuthenticated) {
-    return '/'
+    // ODD dashboard-analytics D1: authenticated /login redirect now resolves
+    // the first permitted application destination via the shared resolver
+    // instead of hardcoding "/". Permissions are guaranteed loaded above.
+    return resolveLandingDestination(buildCanAccess(authStore))
   }
 
   if (to.meta.requiresSuperAdmin === true && !authStore.isSuperAdmin) {

@@ -10,6 +10,8 @@ vi.mock('vue-router', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }))
 
+const DASHBOARD_PATH = '/dashboard'
+
 function makeAuthStore(overrides: Record<string, unknown> = {}) {
   return {
     isSuperAdmin: false,
@@ -18,9 +20,16 @@ function makeAuthStore(overrides: Record<string, unknown> = {}) {
   }
 }
 
-/** Deny access to a specific subject, allow everything else. */
+/** Allow everything except a specific subject. */
 function makeUserCanExcept(blocked: AppSubject) {
   return vi.fn((_action: AppAction, subject: AppSubject) => subject !== blocked)
+}
+
+/** Allow only a single (action, subject) tuple; deny everything else. */
+function makeUserCanOnly(allowed: [AppAction, AppSubject]) {
+  return vi.fn(
+    (action: AppAction, subject: AppSubject) => allowed[0] === action && allowed[1] === subject,
+  )
 }
 
 describe('useDashboard — palette derives from navigation registry', () => {
@@ -41,8 +50,6 @@ describe('useDashboard — palette derives from navigation registry', () => {
 
     expect(labels).toContain('RR.HH. / Colaboradores')
     expect(labels).toContain('RR.HH. / Vencimientos')
-    // S5 (hr-validation-notifications): reframe of the tray label from
-    // "Aprobaciones" to "Validaciones pendientes" (voseo, tenant-wide).
     expect(labels).toContain('RR.HH. / Validaciones pendientes')
     expect(labels).toContain('Sistema / Notificaciones')
   })
@@ -56,9 +63,9 @@ describe('useDashboard — palette derives from navigation registry', () => {
     const dashboard = useDashboard()
 
     const actionItems = dashboard.searchGroups.value.find((g) => g.id === 'actions')?.items ?? []
-    expect(actionItems.some((i) => i.id === 'new-employee' && i.label === 'Nuevo Colaborador')).toBe(
-      true,
-    )
+    expect(
+      actionItems.some((i) => i.id === 'new-employee' && i.label === 'Nuevo Colaborador'),
+    ).toBe(true)
   })
 
   it('hides RR.HH./Colaboradores when the user lacks read:Employee', async () => {
@@ -75,7 +82,6 @@ describe('useDashboard — palette derives from navigation registry', () => {
     const labels = pageItems.map((i) => i.label)
 
     expect(labels).not.toContain('RR.HH. / Colaboradores')
-    // Sistema is unaffected by the Employee block.
     expect(labels).toContain('Sistema / Notificaciones')
 
     const actionItems = dashboard.searchGroups.value.find((g) => g.id === 'actions')?.items ?? []
@@ -99,19 +105,54 @@ describe('useDashboard — palette derives from navigation registry', () => {
     expect(labels).toContain('RR.HH. / Colaboradores')
   })
 
-  it('keeps the existing "POS / Ventas" and "Admin / Usuarios" palette format', async () => {
+  it('keeps the existing POS and Admin palette labels', async () => {
     vi.mocked(useAuthStore).mockReturnValue(
       makeAuthStore() as unknown as ReturnType<typeof useAuthStore>,
     )
 
     const { useDashboard } = await import('../useDashboard')
     const dashboard = useDashboard()
+    const labels = (
+      dashboard.searchGroups.value.find((group) => group.id === 'pages')?.items ?? []
+    ).map((item) => item.label)
 
-    const pageItems = dashboard.searchGroups.value.find((g) => g.id === 'pages')?.items ?? []
-    const labels = pageItems.map((i) => i.label)
-
-    expect(labels[0]).toBe('Home')
     expect(labels).toContain('POS / Ventas')
     expect(labels).toContain('Admin / Usuarios')
+  })
+})
+
+describe('useDashboard — Dashboard page visibility (ODD dashboard-analytics D1)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('surfaces Dashboard as the first pages-group entry when read:Analytics is granted', async () => {
+    vi.mocked(useAuthStore).mockReturnValue(
+      makeAuthStore({ userCan: makeUserCanOnly(['read', 'Analytics']) }) as unknown as ReturnType<
+        typeof useAuthStore
+      >,
+    )
+
+    const { useDashboard } = await import('../useDashboard')
+    const dashboard = useDashboard()
+
+    const pageItems = dashboard.searchGroups.value.find((g) => g.id === 'pages')?.items ?? []
+    expect(pageItems[0]).toMatchObject({ id: 'dashboard', label: 'Dashboard', to: DASHBOARD_PATH })
+    expect(pageItems[0]?.to).toBe(DASHBOARD_PATH)
+  })
+
+  it.each([
+    { label: 'unrelated grants (read:Sale only)', userCan: makeUserCanOnly(['read', 'Sale']) },
+    { label: 'denied (no permissions)', userCan: vi.fn(() => false) },
+  ])('hides the Dashboard entry when $label', async ({ userCan }) => {
+    vi.mocked(useAuthStore).mockReturnValue(
+      makeAuthStore({ userCan }) as unknown as ReturnType<typeof useAuthStore>,
+    )
+
+    const { useDashboard } = await import('../useDashboard')
+    const dashboard = useDashboard()
+
+    const pageItems = dashboard.searchGroups.value.find((g) => g.id === 'pages')?.items ?? []
+    expect(pageItems.some((i) => i.to === DASHBOARD_PATH)).toBe(false)
   })
 })

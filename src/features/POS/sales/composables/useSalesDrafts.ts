@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { saleApi } from '../api/sale.api'
-import { saleQueryKeys } from '@/core/shared/constants/query-keys'
+import { analyticsQueryKeys, saleQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import type {
   Sale,
@@ -165,7 +165,10 @@ export function useSalesDrafts() {
       saleApi.addItem(saleId, payload),
     onSuccess: (updatedSale) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
-      queryClient.setQueryData(draftsKey.value, reconcileDraftMutationInCache(currentDrafts, updatedSale))
+      queryClient.setQueryData(
+        draftsKey.value,
+        reconcileDraftMutationInCache(currentDrafts, updatedSale),
+      )
       invalidateApplicablePromotions(updatedSale.id)
     },
   })
@@ -182,7 +185,10 @@ export function useSalesDrafts() {
     }) => saleApi.updateItemQty(saleId, itemId, payload),
     onSuccess: (updatedSale) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
-      queryClient.setQueryData(draftsKey.value, reconcileDraftMutationInCache(currentDrafts, updatedSale))
+      queryClient.setQueryData(
+        draftsKey.value,
+        reconcileDraftMutationInCache(currentDrafts, updatedSale),
+      )
       invalidateApplicablePromotions(updatedSale.id)
     },
   })
@@ -191,7 +197,10 @@ export function useSalesDrafts() {
     mutationFn: saleApi.clearItems,
     onSuccess: (updatedSale) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
-      queryClient.setQueryData(draftsKey.value, reconcileDraftMutationInCache(currentDrafts, updatedSale))
+      queryClient.setQueryData(
+        draftsKey.value,
+        reconcileDraftMutationInCache(currentDrafts, updatedSale),
+      )
       invalidateApplicablePromotions(updatedSale.id)
     },
   })
@@ -208,17 +217,30 @@ export function useSalesDrafts() {
     }) => saleApi.updateItemPrice(saleId, itemId, payload),
     onSuccess: (updatedSale) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
-      queryClient.setQueryData(draftsKey.value, reconcileDraftMutationInCache(currentDrafts, updatedSale))
+      queryClient.setQueryData(
+        draftsKey.value,
+        reconcileDraftMutationInCache(currentDrafts, updatedSale),
+      )
       invalidateApplicablePromotions(updatedSale.id)
     },
   })
 
   const applyItemDiscountMutation = useMutation({
-    mutationFn: ({ saleId, itemId, payload }: { saleId: string; itemId: string; payload: ApplyItemDiscountPayload }) =>
-      saleApi.applyItemDiscount(saleId, itemId, payload),
+    mutationFn: ({
+      saleId,
+      itemId,
+      payload,
+    }: {
+      saleId: string
+      itemId: string
+      payload: ApplyItemDiscountPayload
+    }) => saleApi.applyItemDiscount(saleId, itemId, payload),
     onSuccess: (updatedSale) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
-      queryClient.setQueryData(draftsKey.value, reconcileDraftMutationInCache(currentDrafts, updatedSale))
+      queryClient.setQueryData(
+        draftsKey.value,
+        reconcileDraftMutationInCache(currentDrafts, updatedSale),
+      )
       invalidateApplicablePromotions(updatedSale.id)
     },
   })
@@ -228,7 +250,10 @@ export function useSalesDrafts() {
       saleApi.removeItemDiscount(saleId, itemId),
     onSuccess: (updatedSale) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
-      queryClient.setQueryData(draftsKey.value, reconcileDraftMutationInCache(currentDrafts, updatedSale))
+      queryClient.setQueryData(
+        draftsKey.value,
+        reconcileDraftMutationInCache(currentDrafts, updatedSale),
+      )
       invalidateApplicablePromotions(updatedSale.id)
     },
   })
@@ -238,7 +263,10 @@ export function useSalesDrafts() {
       saleApi.removeItem(saleId, itemId),
     onSuccess: (updatedSale) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
-      queryClient.setQueryData(draftsKey.value, reconcileDraftMutationInCache(currentDrafts, updatedSale))
+      queryClient.setQueryData(
+        draftsKey.value,
+        reconcileDraftMutationInCache(currentDrafts, updatedSale),
+      )
       invalidateApplicablePromotions(updatedSale.id)
     },
   })
@@ -248,7 +276,10 @@ export function useSalesDrafts() {
       saleApi.applyGlobalDiscount(saleId, payload),
     onSuccess: (response: GlobalDiscountResponse) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
-      queryClient.setQueryData(draftsKey.value, reconcileDraftMutationInCache(currentDrafts, response.sale))
+      queryClient.setQueryData(
+        draftsKey.value,
+        reconcileDraftMutationInCache(currentDrafts, response.sale),
+      )
       invalidateApplicablePromotions(response.sale.id)
     },
   })
@@ -257,7 +288,10 @@ export function useSalesDrafts() {
     mutationFn: saleApi.removeGlobalDiscount,
     onSuccess: (updatedSale) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
-      queryClient.setQueryData(draftsKey.value, reconcileDraftMutationInCache(currentDrafts, updatedSale))
+      queryClient.setQueryData(
+        draftsKey.value,
+        reconcileDraftMutationInCache(currentDrafts, updatedSale),
+      )
       invalidateApplicablePromotions(updatedSale.id)
     },
   })
@@ -271,6 +305,13 @@ export function useSalesDrafts() {
         draftsKey.value,
         removeChargedDraftFromCache(currentDrafts, response.saleId),
       )
+
+      // ODD branch-sales-summary A4: a confirmed sale changes the branch
+      // summary for every date range. Tenant-scoped prefix only, so sibling
+      // tenants and non-summary analytics slots are untouched.
+      queryClient.invalidateQueries({
+        queryKey: analyticsQueryKeys.salesSummaryPrefix(tenantId.value),
+      })
     },
   })
 
@@ -282,7 +323,10 @@ export function useSalesDrafts() {
       saleApi.applyManualPromotion(saleId, promotionId),
     onSuccess: (updatedSale) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
-      queryClient.setQueryData(draftsKey.value, reconcileDraftMutationInCache(currentDrafts, updatedSale))
+      queryClient.setQueryData(
+        draftsKey.value,
+        reconcileDraftMutationInCache(currentDrafts, updatedSale),
+      )
       invalidateApplicablePromotions(updatedSale.id)
     },
   })
@@ -292,7 +336,10 @@ export function useSalesDrafts() {
       saleApi.removeManualPromotion(saleId, promotionId),
     onSuccess: (updatedSale) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
-      queryClient.setQueryData(draftsKey.value, reconcileDraftMutationInCache(currentDrafts, updatedSale))
+      queryClient.setQueryData(
+        draftsKey.value,
+        reconcileDraftMutationInCache(currentDrafts, updatedSale),
+      )
       invalidateApplicablePromotions(updatedSale.id)
     },
   })
@@ -302,7 +349,10 @@ export function useSalesDrafts() {
       saleApi.vetoAutoPromotion(saleId, promotionId),
     onSuccess: (updatedSale) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
-      queryClient.setQueryData(draftsKey.value, reconcileDraftMutationInCache(currentDrafts, updatedSale))
+      queryClient.setQueryData(
+        draftsKey.value,
+        reconcileDraftMutationInCache(currentDrafts, updatedSale),
+      )
       invalidateApplicablePromotions(updatedSale.id)
     },
   })
@@ -320,7 +370,10 @@ export function useSalesDrafts() {
     }) => saleApi.setPriceList(saleId, { globalPriceListId }),
     onSuccess: (updatedSale) => {
       const currentDrafts = queryClient.getQueryData<Sale[]>(draftsKey.value) ?? []
-      queryClient.setQueryData(draftsKey.value, reconcileDraftMutationInCache(currentDrafts, updatedSale))
+      queryClient.setQueryData(
+        draftsKey.value,
+        reconcileDraftMutationInCache(currentDrafts, updatedSale),
+      )
       invalidateApplicablePromotions(updatedSale.id)
     },
   })
@@ -332,19 +385,19 @@ export function useSalesDrafts() {
       closeMutation.isPending.value ||
       addItemMutation.isPending.value ||
       updateQtyMutation.isPending.value ||
-      clearItemsMutation.isPending.value
-      || updateItemPriceMutation.isPending.value
-      || applyItemDiscountMutation.isPending.value
-      || removeItemDiscountMutation.isPending.value
-      || removeItemMutation.isPending.value
-      || applyGlobalDiscountMutation.isPending.value
-      || removeGlobalDiscountMutation.isPending.value
-      || chargeDraftMutation.isPending.value
-      || applyManualPromotionMutation.isPending.value
-      || removeManualPromotionMutation.isPending.value
-      || vetoAutoPromotionMutation.isPending.value
+      clearItemsMutation.isPending.value ||
+      updateItemPriceMutation.isPending.value ||
+      applyItemDiscountMutation.isPending.value ||
+      removeItemDiscountMutation.isPending.value ||
+      removeItemMutation.isPending.value ||
+      applyGlobalDiscountMutation.isPending.value ||
+      removeGlobalDiscountMutation.isPending.value ||
+      chargeDraftMutation.isPending.value ||
+      applyManualPromotionMutation.isPending.value ||
+      removeManualPromotionMutation.isPending.value ||
+      vetoAutoPromotionMutation.isPending.value ||
       // pos-price-list-tiers:
-      || setPriceListMutation.isPending.value
+      setPriceListMutation.isPending.value
     )
   })
 
@@ -399,9 +452,16 @@ export function useSalesDrafts() {
     })
   }
 
-  const applyItemDiscount = async (itemId: string, payload: ApplyItemDiscountPayload): Promise<Sale> => {
+  const applyItemDiscount = async (
+    itemId: string,
+    payload: ApplyItemDiscountPayload,
+  ): Promise<Sale> => {
     if (!activeTabId.value) throw new Error('No active tab')
-    return await applyItemDiscountMutation.mutateAsync({ saleId: activeTabId.value, itemId, payload })
+    return await applyItemDiscountMutation.mutateAsync({
+      saleId: activeTabId.value,
+      itemId,
+      payload,
+    })
   }
 
   const removeItemDiscount = async (itemId: string): Promise<Sale> => {
@@ -414,7 +474,9 @@ export function useSalesDrafts() {
     return await removeItemMutation.mutateAsync({ saleId: activeTabId.value, itemId })
   }
 
-  const applyGlobalDiscount = async (payload: ApplyGlobalDiscountPayload): Promise<GlobalDiscountResponse> => {
+  const applyGlobalDiscount = async (
+    payload: ApplyGlobalDiscountPayload,
+  ): Promise<GlobalDiscountResponse> => {
     if (!activeTabId.value) throw new Error('No active tab')
     return await applyGlobalDiscountMutation.mutateAsync({ saleId: activeTabId.value, payload })
   }
@@ -461,10 +523,7 @@ export function useSalesDrafts() {
   // pos-price-list-tiers: assign (or clear) the global price list on a draft.
   // saleId is passed explicitly so callers can target any draft, not only the
   // currently active one. `null` clears the assignment (reverts to PUBLICO).
-  const setPriceList = async (
-    saleId: string,
-    globalPriceListId: string | null,
-  ): Promise<Sale> => {
+  const setPriceList = async (saleId: string, globalPriceListId: string | null): Promise<Sale> => {
     return await setPriceListMutation.mutateAsync({ saleId, globalPriceListId })
   }
 

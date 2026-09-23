@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import type { AxiosError } from 'axios'
 import { saleApi } from '../api/sale.api'
-import { saleQueryKeys } from '@/core/shared/constants/query-keys'
+import { analyticsQueryKeys, saleQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import type {
   DebtPaymentDomainErrorCode,
@@ -45,9 +45,7 @@ const REFETCH_DETAIL_CODES: ReadonlySet<string> = new Set([
   'SALE_NOT_CONFIRMABLE_FOR_PAYMENT',
 ])
 
-const INVALIDATE_LIST_CODES: ReadonlySet<string> = new Set([
-  'SALE_NOT_FOUND',
-])
+const INVALIDATE_LIST_CODES: ReadonlySet<string> = new Set(['SALE_NOT_FOUND'])
 
 export function useDebtPayment(saleId: string) {
   const tenantId = useSafeTenantId()
@@ -70,22 +68,33 @@ export function useDebtPayment(saleId: string) {
     onSuccess: (data: DebtPaymentResponse) => {
       void queryClient.invalidateQueries({ queryKey: saleQueryKeys.detail(tenantId.value, saleId) })
       void queryClient.invalidateQueries({ queryKey: saleQueryKeys.confirmed(tenantId.value) })
+      // ODD branch-sales-summary A4: a registered debt payment changes the
+      // branch totals for every date range. Tenant-scoped prefix only.
+      void queryClient.invalidateQueries({
+        queryKey: analyticsQueryKeys.salesSummaryPrefix(tenantId.value),
+      })
 
-      const title = data.paymentStatus === SALE_PAYMENT_STATUS.PAID ? 'Venta pagada' : 'Pago parcial registrado'
+      const title =
+        data.paymentStatus === SALE_PAYMENT_STATUS.PAID ? 'Venta pagada' : 'Pago parcial registrado'
       toast.add({ title, color: 'success' })
     },
     onError: (error: AxiosError<DomainErrorResponse>) => {
       // sdd custom-payment-methods S5A (REQ-CAT-011): catalog charge errors
       // resolve FIRST — clear/refetch/toast per design §8.2 — and short-circuit
       // BEFORE the legacy getSalePaymentErrorAction path.
-      if (applyCatalogChargeErrorAction(error, { queryClient, tenantId, toast, catalogClearSignal }).handled) {
+      if (
+        applyCatalogChargeErrorAction(error, { queryClient, tenantId, toast, catalogClearSignal })
+          .handled
+      ) {
         return
       }
 
       const code = error.response?.data?.error
 
       if (code && REFETCH_DETAIL_CODES.has(code)) {
-        void queryClient.invalidateQueries({ queryKey: saleQueryKeys.detail(tenantId.value, saleId) })
+        void queryClient.invalidateQueries({
+          queryKey: saleQueryKeys.detail(tenantId.value, saleId),
+        })
       }
 
       if (code && INVALIDATE_LIST_CODES.has(code)) {
@@ -103,7 +112,9 @@ export function useDebtPayment(saleId: string) {
       }
 
       if (code) {
-        const action = getSalePaymentErrorAction(code as Parameters<typeof getSalePaymentErrorAction>[0])
+        const action = getSalePaymentErrorAction(
+          code as Parameters<typeof getSalePaymentErrorAction>[0],
+        )
         // S5A TRIANGULATE: an unknown code yields undefined here (the map is
         // total over ChargeDomainErrorCode only) — fall through to the generic
         // toast instead of crashing on action.message.
@@ -126,7 +137,9 @@ export function useDebtPayment(saleId: string) {
     shouldClose.value = false
   }
 
-  async function submitSafe(input: DebtPaymentMutationInput): Promise<DebtPaymentResponse | undefined> {
+  async function submitSafe(
+    input: DebtPaymentMutationInput,
+  ): Promise<DebtPaymentResponse | undefined> {
     try {
       return await mutation.mutateAsync(input)
     } catch {

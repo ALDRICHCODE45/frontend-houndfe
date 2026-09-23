@@ -6,17 +6,24 @@ import type {
   ListSalesParams,
   CustomerSalesHistoryParams,
 } from '@/features/POS/sales/interfaces/sale.types'
+import type { BranchSalesSummaryQuery } from '@/features/analytics/interfaces/branch-sales-summary.types'
+import type { BranchSalesTimeseriesQuery } from '@/features/analytics/interfaces/branch-sales-timeseries.types'
+import type { PendingRefundsQuery } from '@/features/POS/sales/interfaces/pending-refund.types'
 
 export const productQueryKeys = {
   paginated: (tenantId: string) => ['products', tenantId, 'paginated'] as const,
-  detail: (tenantId: string, productId: string) => ['products', tenantId, 'detail', productId] as const,
+  detail: (tenantId: string, productId: string) =>
+    ['products', tenantId, 'detail', productId] as const,
   categories: (tenantId: string) => ['products', tenantId, 'categories'] as const,
   brands: (tenantId: string) => ['products', tenantId, 'brands'] as const,
-  variants: (tenantId: string, productId: string) => ['products', tenantId, 'variants', productId] as const,
+  variants: (tenantId: string, productId: string) =>
+    ['products', tenantId, 'variants', productId] as const,
   lots: (tenantId: string, productId: string) => ['products', tenantId, 'lots', productId] as const,
   globalPriceLists: () => ['price-lists', 'global'] as const,
-  priceLists: (tenantId: string, productId: string) => ['products', tenantId, 'price-lists', productId] as const,
-  images: (tenantId: string, productId: string) => ['products', tenantId, 'images', productId] as const,
+  priceLists: (tenantId: string, productId: string) =>
+    ['products', tenantId, 'price-lists', productId] as const,
+  images: (tenantId: string, productId: string) =>
+    ['products', tenantId, 'images', productId] as const,
   variantPrices: (tenantId: string, productId: string, variantId: string) =>
     ['products', tenantId, 'variant-prices', productId, variantId] as const,
 }
@@ -43,24 +50,29 @@ export const authQueryKeys = {
 
 export const adminUserQueryKeys = {
   paginated: (tenantId: string) => ['admin', 'users', tenantId, 'paginated'] as const,
-  detail: (tenantId: string, userId: string) => ['admin', 'users', tenantId, 'detail', userId] as const,
+  detail: (tenantId: string, userId: string) =>
+    ['admin', 'users', tenantId, 'detail', userId] as const,
 }
 
 export const adminRoleQueryKeys = {
   paginated: (tenantId: string) => ['admin', 'roles', tenantId, 'paginated'] as const,
-  detail: (tenantId: string, roleId: string) => ['admin', 'roles', tenantId, 'detail', roleId] as const,
+  detail: (tenantId: string, roleId: string) =>
+    ['admin', 'roles', tenantId, 'detail', roleId] as const,
   permissions: () => ['admin', 'permissions', 'grouped'] as const,
 }
 
 export const customerQueryKeys = {
   paginated: (tenantId: string) => ['customers', tenantId, 'paginated'] as const,
-  detail: (tenantId: string, customerId: string) => ['customers', tenantId, 'detail', customerId] as const,
-  addresses: (tenantId: string, customerId: string) => ['customers', tenantId, 'addresses', customerId] as const,
+  detail: (tenantId: string, customerId: string) =>
+    ['customers', tenantId, 'detail', customerId] as const,
+  addresses: (tenantId: string, customerId: string) =>
+    ['customers', tenantId, 'addresses', customerId] as const,
 }
 
 export const promotionQueryKeys = {
   paginated: (tenantId: string) => ['promotions', tenantId, 'paginated'] as const,
-  detail: (tenantId: string, promotionId: string) => ['promotions', tenantId, 'detail', promotionId] as const,
+  detail: (tenantId: string, promotionId: string) =>
+    ['promotions', tenantId, 'detail', promotionId] as const,
   /** ACTIVE promotions of one method, for quotation detail pickers. */
   available: (tenantId: string, method: 'MANUAL' | 'AUTOMATIC') =>
     ['promotions', tenantId, 'available', method] as const,
@@ -70,6 +82,23 @@ export const saleQueryKeys = {
   drafts: (tenantId: string) => ['sales', tenantId, 'drafts'] as const,
   confirmed: (tenantId: string, params: ListSalesParams = {}) =>
     ['sales', tenantId, 'confirmed', params] as const,
+  // ODD dashboard-operational-insights OI-5B1: the pending-refund queue is its
+  // OWN cache slot. 'pending-refunds' keeps it disjoint from 'confirmed' (the
+  // confirmed-sales list) and tenant + page + limit participate in the key so two
+  // tenants or two pages can never share a cached payload. Tenant is cache
+  // isolation only — it is never sent to the API (the backend resolves it from
+  // the JWT) and the backend queue order stays authoritative.
+  pendingRefunds: (tenantId: string, params: PendingRefundsQuery) =>
+    ['sales', tenantId, 'pending-refunds', params.page, params.limit] as const,
+  // ODD dashboard-operational-insights OI-5B2 S1: the two fixed-slot dashboard
+  // sales queries. 'dashboard-recent' and 'dashboard-debt' are their OWN cache
+  // namespaces, disjoint from 'confirmed' (the caller-driven list) and from
+  // 'pending-refunds'. Each request is FIXED (page 1 / limit 5 plus the fixed
+  // status/payment filters), so no params participate: only tenant isolation
+  // does. Tenant is cache isolation only — it is never sent to the API (the
+  // backend resolves it from the JWT).
+  dashboardRecent: (tenantId: string) => ['sales', tenantId, 'dashboard-recent'] as const,
+  dashboardDebt: (tenantId: string) => ['sales', tenantId, 'dashboard-debt'] as const,
   detail: (tenantId: string, saleId: string) => ['sales', tenantId, 'detail', saleId] as const,
   posCatalog: (tenantId: string, p: PosCatalogSearchParams = {}) =>
     [
@@ -93,18 +122,14 @@ export const saleQueryKeys = {
   // Invalidated by S5A dispatch on PAYMENT_METHOD_NOT_FOUND /
   // INACTIVE_PAYMENT_METHOD so the cashier sees the updated tile set on
   // the next open.
-  paymentMethods: (tenantId: string) =>
-    ['sales', tenantId, 'payment-methods'] as const,
+  paymentMethods: (tenantId: string) => ['sales', tenantId, 'payment-methods'] as const,
   // sdd customer-sales-history S1: prefix for invalidating all customer-history
   // slots for a given tenant/customer pair. Never sends status or customerIncludeNull.
   // The prefix omits params so page changes (different keys) are invalidated together.
   customerHistoryPrefix: (tenantId: string, customerId: string) =>
     ['sales', tenantId, 'customer-history', customerId] as const,
-  customerHistory: (
-    tenantId: string,
-    customerId: string,
-    params: CustomerSalesHistoryParams,
-  ) => ['sales', tenantId, 'customer-history', customerId, params] as const,
+  customerHistory: (tenantId: string, customerId: string, params: CustomerSalesHistoryParams) =>
+    ['sales', tenantId, 'customer-history', customerId, params] as const,
 }
 
 // ─── Quotations module query keys (sdd-quotations-crud S1, REQ-QTN-015) ──────
@@ -202,8 +227,7 @@ export const employeeTimeOffQueryKeys = {
    * so the cache key is scoped only per tenant. The current user is implicit
    * in the JWT and does NOT participate in the key.
    */
-  pending: (tenantId: string) =>
-    ['employees', tenantId, 'time-off-pending'] as const,
+  pending: (tenantId: string) => ['employees', tenantId, 'time-off-pending'] as const,
 }
 
 export const employeeEmergencyContactQueryKeys = {
@@ -227,8 +251,7 @@ export const employeePositionQueryKeys = {
 // it (the list carries all DTO fields).
 
 export const adminPaymentDetailQueryKeys = {
-  list: (tenantId: string) =>
-    ['admin', 'payment-details', tenantId, 'list'] as const,
+  list: (tenantId: string) => ['admin', 'payment-details', tenantId, 'list'] as const,
   detail: (tenantId: string, id: string) =>
     ['admin', 'payment-details', tenantId, 'detail', id] as const,
 }
@@ -244,12 +267,10 @@ export const adminPaymentDetailQueryKeys = {
 // it (the list carries all DTO fields).
 
 export const adminPaymentMethodQueryKeys = {
-  list: (tenantId: string) =>
-    ['admin', 'payment-methods', tenantId, 'list'] as const,
+  list: (tenantId: string) => ['admin', 'payment-methods', tenantId, 'list'] as const,
   detail: (tenantId: string, id: string) =>
     ['admin', 'payment-methods', tenantId, 'detail', id] as const,
 }
-
 
 // ─── Delivery-routes module query keys (sdd delivery-routes S1a, REQ-AUTH-DR-005) ──
 //
@@ -269,10 +290,27 @@ export const adminPaymentMethodQueryKeys = {
 export const deliveryRouteQueryKeys = {
   list: (tenantId: string, params: Record<string, unknown> = {}) =>
     ['delivery-routes', tenantId, 'list', params] as const,
-  listPrefix: (tenantId: string) =>
-    ['delivery-routes', tenantId, 'list'] as const,
-  detail: (tenantId: string, id: string) =>
-    ['delivery-routes', tenantId, 'detail', id] as const,
+  listPrefix: (tenantId: string) => ['delivery-routes', tenantId, 'list'] as const,
+  detail: (tenantId: string, id: string) => ['delivery-routes', tenantId, 'detail', id] as const,
+}
+
+// ─── Analytics module query keys (ODD branch-sales-summary A1) ───────────────
+//
+// Tenant-scoped. `salesSummaryPrefix` is the stable invalidation prefix that
+// strict-prefix-matches EVERY date range for the active tenant; `salesSummary`
+// is the exact fetch slot, keyed on both calendar boundaries so two ranges can
+// never share a cached payload.
+export const analyticsQueryKeys = {
+  salesSummaryPrefix: (tenantId: string) => ['analytics', tenantId, 'sales-summary'] as const,
+  salesSummary: (tenantId: string, params: BranchSalesSummaryQuery) =>
+    ['analytics', tenantId, 'sales-summary', params.from, params.to] as const,
+  // ODD dashboard-operational-insights OI-4: the daily series is its OWN cache
+  // slot. 'sales-timeseries' keeps it disjoint from 'sales-summary', and tenant
+  // + both boundaries + interval participate in the key so two windows can
+  // never share a cached payload. Tenant is cache isolation only — it is never
+  // sent to the API (the backend resolves it from the JWT).
+  salesTimeseries: (tenantId: string, params: BranchSalesTimeseriesQuery) =>
+    ['analytics', tenantId, 'sales-timeseries', params.from, params.to, params.interval] as const,
 }
 
 // ─── Payment-methods POS projection (sdd custom-payment-methods S4A) ──────────
@@ -283,4 +321,3 @@ export const deliveryRouteQueryKeys = {
 // `paymentMethods` slot is invalidated by S5A when the catalog surfaces a
 // `PAYMENT_METHOD_NOT_FOUND` or `INACTIVE_PAYMENT_METHOD` mid-charge so the
 // cashier sees the updated state on the next open.
-

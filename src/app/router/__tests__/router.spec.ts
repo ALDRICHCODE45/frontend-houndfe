@@ -230,18 +230,42 @@ describe('router tenant guard', () => {
     expect(mockAuthStore.fetchPermissions).toHaveBeenCalledTimes(1)
   })
 
-  it('continues redirecting authenticated users away from /login', async () => {
-    mockAuthStore.accessToken = 'access-token'
-    mockAuthStore.user = { id: 'user-1' }
-    mockAuthStore.isAuthenticated = true
-    mockAuthStore.permissionsLoaded = true
-    mockAuthStore.currentTenant = { id: 'tenant-1', name: 'Sucursal Centro', slug: 'centro' }
+  // The full-suite lazy-route graph can exceed Vitest's default 5s under shared worker load.
+  it.each([
+    {
+      label: 'resolves /dashboard when read:Analytics is granted',
+      expected: '/dashboard',
+      userCan: undefined,
+    },
+    {
+      label: 'falls through to /pos/ventas when only read:Sale is granted',
+      expected: '/pos/ventas',
+      userCan: (a: string, s: string) => a === 'read' && s === 'Sale',
+    },
+    {
+      label: 'falls through to /403 when no application route is accessible',
+      expected: '/403',
+      userCan: () => false,
+    },
+  ])(
+    'authenticated /login redirect $label',
+    async ({ expected, userCan }) => {
+      mockAuthStore.accessToken = 'access-token'
+      mockAuthStore.user = { id: 'user-1' }
+      mockAuthStore.isAuthenticated = true
+      mockAuthStore.permissionsLoaded = true
+      mockAuthStore.currentTenant = { id: 'tenant-1', name: 'Sucursal Centro', slug: 'centro' }
+      mockAuthStore.userCan.mockReset()
+      if (userCan) mockAuthStore.userCan.mockImplementation(userCan)
+      else mockAuthStore.userCan.mockReturnValue(true)
 
-    const { default: router } = await import('../index')
+      const { default: router } = await import('../index')
 
-    await router.push('/login')
-    await router.isReady()
+      await router.push('/login')
+      await router.isReady()
 
-    expect(router.currentRoute.value.path).toBe('/')
-  })
+      expect(router.currentRoute.value.path).toBe(expected)
+    },
+    10_000,
+  )
 })

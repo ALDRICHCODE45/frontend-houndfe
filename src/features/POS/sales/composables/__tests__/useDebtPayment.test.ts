@@ -3,6 +3,7 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { mount, flushPromises } from '@vue/test-utils'
 import { defineComponent, h, nextTick } from 'vue'
 import { saleApi } from '../../api/sale.api'
+import { analyticsQueryKeys } from '@/core/shared/constants/query-keys'
 import { useDebtPayment } from '../useDebtPayment'
 import { getSalePaymentErrorAction } from '../../utils/salePaymentErrors.utils'
 import type { DebtPaymentPayload, DebtPaymentResponse } from '../../interfaces/sale.types'
@@ -92,11 +93,7 @@ describe('useDebtPayment', () => {
 
     await composable.submit({ payload: MULTI_PAYLOAD, idempotencyKey: 'key-1' })
 
-    expect(saleApi.registerDebtPayment).toHaveBeenCalledWith(
-      'sale-1',
-      MULTI_PAYLOAD,
-      'key-1',
-    )
+    expect(saleApi.registerDebtPayment).toHaveBeenCalledWith('sale-1', MULTI_PAYLOAD, 'key-1')
   })
 
   it('invalidates detail and confirmed list queries on success', async () => {
@@ -104,8 +101,19 @@ describe('useDebtPayment', () => {
 
     await composable.submit({ payload: MULTI_PAYLOAD, idempotencyKey: 'key-2' })
 
-    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sales', 'tenant-1', 'detail', 'sale-1'] })
-    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sales', 'tenant-1', 'confirmed', {}] })
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['sales', 'tenant-1', 'detail', 'sale-1'],
+    })
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['sales', 'tenant-1', 'confirmed', {}],
+    })
+    // ODD branch-sales-summary A4: the exact active-tenant summary prefix
+    // (refreshes every from/to slot). The call count pins exactly one
+    // analytics invalidation alongside the two pre-existing sale keys.
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: analyticsQueryKeys.salesSummaryPrefix('tenant-1'),
+    })
+    expect(invalidateQueries).toHaveBeenCalledTimes(3)
   })
 
   it('shows "Venta pagada" toast when paymentStatus is PAID', async () => {
@@ -138,7 +146,10 @@ describe('useDebtPayment', () => {
     vi.mocked(saleApi.registerDebtPayment).mockRejectedValueOnce({
       response: { data: { error: 'PAYMENT_EXCEEDS_DEBT' } },
     })
-    vi.mocked(getSalePaymentErrorAction).mockReturnValueOnce({ type: 'inline', message: 'El monto supera la deuda actual.' })
+    vi.mocked(getSalePaymentErrorAction).mockReturnValueOnce({
+      type: 'inline',
+      message: 'El monto supera la deuda actual.',
+    })
 
     const composable = mountComposable()
     try {
@@ -151,14 +162,28 @@ describe('useDebtPayment', () => {
     await flushPromises()
     expect(composable.externalErrorCode.value).toBe('PAYMENT_EXCEEDS_DEBT')
     expect(composable.shouldClose.value).toBe(false)
-    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sales', 'tenant-1', 'detail', 'sale-1'] })
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['sales', 'tenant-1', 'detail', 'sale-1'],
+    })
+    // A4: this error path refetches the sale detail but must never invalidate
+    // ANY Analytics shape. Inspecting every call's queryKey first segment
+    // rejects broad ['analytics'], wrong-tenant prefixes and date-specific
+    // summary keys alike, without depending on one exact forbidden key.
+    expect(
+      invalidateQueries.mock.calls
+        .map(([filters]) => filters?.queryKey)
+        .filter((key) => Array.isArray(key) && key[0] === 'analytics'),
+    ).toEqual([])
   })
 
   it('signals close and toasts on NO_OUTSTANDING_DEBT', async () => {
     vi.mocked(saleApi.registerDebtPayment).mockRejectedValueOnce({
       response: { data: { error: 'NO_OUTSTANDING_DEBT' } },
     })
-    vi.mocked(getSalePaymentErrorAction).mockReturnValueOnce({ type: 'refetch', message: 'Ya no tiene deuda.' })
+    vi.mocked(getSalePaymentErrorAction).mockReturnValueOnce({
+      type: 'refetch',
+      message: 'Ya no tiene deuda.',
+    })
 
     const composable = mountComposable()
     // Use submitSafe (catches rejection) to let onError run before assertions
@@ -173,14 +198,19 @@ describe('useDebtPayment', () => {
     vi.mocked(saleApi.registerDebtPayment).mockRejectedValueOnce({
       response: { data: { error: 'SALE_NOT_FOUND' } },
     })
-    vi.mocked(getSalePaymentErrorAction).mockReturnValueOnce({ type: 'refetch', message: 'No existe.' })
+    vi.mocked(getSalePaymentErrorAction).mockReturnValueOnce({
+      type: 'refetch',
+      message: 'No existe.',
+    })
 
     const composable = mountComposable()
     await composable.submitSafe({ payload: MULTI_PAYLOAD, idempotencyKey: 'key-7' })
     await flushPromises()
 
     expect(composable.shouldClose.value).toBe(true)
-    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sales', 'tenant-1', 'confirmed', {}] })
+    expect(invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['sales', 'tenant-1', 'confirmed', {}],
+    })
   })
 
   it('shows generic toast on network error without error code', async () => {
@@ -200,7 +230,10 @@ describe('useDebtPayment', () => {
     vi.mocked(saleApi.registerDebtPayment).mockRejectedValueOnce({
       response: { data: { error: 'PAYMENT_EXCEEDS_DEBT' } },
     })
-    vi.mocked(getSalePaymentErrorAction).mockReturnValueOnce({ type: 'inline', message: 'Supera deuda.' })
+    vi.mocked(getSalePaymentErrorAction).mockReturnValueOnce({
+      type: 'inline',
+      message: 'Supera deuda.',
+    })
 
     const composable = mountComposable()
     try {
@@ -233,7 +266,10 @@ describe('useDebtPayment S5A — catalog charge error dispatch (REQ-CAT-007..011
     // explicitly and re-establish the default implementation.
     addToast.mockClear()
     vi.mocked(getSalePaymentErrorAction).mockReset()
-    vi.mocked(getSalePaymentErrorAction).mockImplementation(() => ({ type: 'inline', message: 'Error de prueba' }))
+    vi.mocked(getSalePaymentErrorAction).mockImplementation(() => ({
+      type: 'inline',
+      message: 'Error de prueba',
+    }))
     vi.mocked(saleApi.registerDebtPayment).mockResolvedValue(SUCCESS_RESPONSE)
   })
 

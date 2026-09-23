@@ -3,7 +3,7 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { mount } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
 import { saleApi } from '../../api/sale.api'
-import { saleQueryKeys } from '@/core/shared/constants/query-keys'
+import { analyticsQueryKeys, saleQueryKeys } from '@/core/shared/constants/query-keys'
 import {
   appendSaleToCache,
   removeSaleFromCache,
@@ -397,6 +397,8 @@ describe('useSalesDrafts - pure cache update functions', () => {
   })
 
   describe('chargeDraft mutation skeleton', () => {
+    const expectedAnalyticsPrefix = analyticsQueryKeys.salesSummaryPrefix('tenant-1')
+
     it('evicts charged draft from cache after successful charge', async () => {
       vi.mocked(saleApi.listDrafts).mockResolvedValue(mockSales)
       vi.mocked(saleApi.chargeDraft).mockResolvedValue({
@@ -417,7 +419,15 @@ describe('useSalesDrafts - pure cache update functions', () => {
         expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual(mockSales)
       })
 
-      await result.chargeDraft('sale-2', { method: 'card_credit', amountCents: 10000 }, 'idem-key-2')
+      // ODD branch-sales-summary A4: spy AFTER the initial list query settles
+      // so only the charge mutation's invalidations are recorded.
+      const spy = vi.spyOn(queryClient, 'invalidateQueries')
+
+      await result.chargeDraft(
+        'sale-2',
+        { method: 'card_credit', amountCents: 10000 },
+        'idem-key-2',
+      )
 
       const cachedDrafts = queryClient.getQueryData<Sale[]>(tenantDraftsKey)
       expect(cachedDrafts).toHaveLength(1)
@@ -427,6 +437,15 @@ describe('useSalesDrafts - pure cache update functions', () => {
         { method: 'card_credit', amountCents: 10000 },
         'idem-key-2',
       )
+
+      // A4: exactly one analytics invalidation and it is the exact
+      // active-tenant prefix — no broad ['analytics'], no date-specific key,
+      // no other tenant, no duplicate.
+      expect(
+        spy.mock.calls
+          .map(([filters]) => filters?.queryKey)
+          .filter((key) => Array.isArray(key) && key[0] === 'analytics'),
+      ).toEqual([expectedAnalyticsPrefix])
     })
 
     it('exposes pending state while charge mutation is in flight', async () => {
@@ -446,12 +465,15 @@ describe('useSalesDrafts - pure cache update functions', () => {
         expect(result.drafts.value).toHaveLength(2)
       })
 
-      const chargePromise = result.chargeDraft('sale-2', { method: 'cash', amountCents: 10000 }, 'idem-key-pending')
+      const chargePromise = result.chargeDraft(
+        'sale-2',
+        { method: 'cash', amountCents: 10000 },
+        'idem-key-pending',
+      )
 
       await vi.waitFor(() => {
         expect(result.isMutating.value).toBe(true)
       })
-
       ;(resolveCharge as unknown as (value: ChargeSaleResponse) => void)({
         saleId: 'sale-2',
         folio: 'A-202605-000002',
@@ -480,12 +502,18 @@ describe('useSalesDrafts - pure cache update functions', () => {
         expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual(mockSales)
       })
 
+      const spy = vi.spyOn(queryClient, 'invalidateQueries')
+
       await expect(
         result.chargeDraft('sale-2', { method: 'cash', amountCents: 10000 }, 'idem-key-fail'),
       ).rejects.toThrow('network')
 
       expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual(mockSales)
       expect(result.isMutating.value).toBe(false)
+      // A4: the failure path invalidates nothing at all — the tenant analytics
+      // summary prefix must never be refreshed for a charge that did not land.
+      expect(spy).not.toHaveBeenCalled()
+      expect(spy).not.toHaveBeenCalledWith({ queryKey: expectedAnalyticsPrefix })
     })
   })
 
@@ -572,7 +600,9 @@ describe('useSalesDrafts - pure cache update functions', () => {
       })
       result.activeTabId.value = 'sale-1'
 
-      await expect(result.updateItemPrice('item-1', { priceListId: 'list-1' })).rejects.toThrow('conflict')
+      await expect(result.updateItemPrice('item-1', { priceListId: 'list-1' })).rejects.toThrow(
+        'conflict',
+      )
 
       const cachedDrafts = queryClient.getQueryData<Sale[]>(tenantDraftsKey)
       expect(cachedDrafts).toEqual([existingDraft])
@@ -583,58 +613,137 @@ describe('useSalesDrafts - pure cache update functions', () => {
   describe('item discount mutations cache behavior', () => {
     it('replaces draft cache on successful applyItemDiscount', async () => {
       const existingDraft: Sale = {
-        id: 'sale-1', userId: 'user-1', status: 'DRAFT', createdAt: 'x', updatedAt: 'x',
-        items: [{ id: 'item-1', productId: 'prod-1', variantId: null, productName: 'Aspirina', variantName: null, quantity: 1, unitPriceCents: 10000, unitPriceCurrency: 'MXN' }],
+        id: 'sale-1',
+        userId: 'user-1',
+        status: 'DRAFT',
+        createdAt: 'x',
+        updatedAt: 'x',
+        items: [
+          {
+            id: 'item-1',
+            productId: 'prod-1',
+            variantId: null,
+            productName: 'Aspirina',
+            variantName: null,
+            quantity: 1,
+            unitPriceCents: 10000,
+            unitPriceCurrency: 'MXN',
+          },
+        ],
       }
       const updatedDraft: Sale = {
         ...existingDraft,
         updatedAt: 'y',
-        items: [{ ...existingDraft.items[0]!, unitPriceCents: 8000, discountType: 'amount', discountAmountCents: 2000 }],
+        items: [
+          {
+            ...existingDraft.items[0]!,
+            unitPriceCents: 8000,
+            discountType: 'amount',
+            discountAmountCents: 2000,
+          },
+        ],
       }
       vi.mocked(saleApi.listDrafts).mockResolvedValue([existingDraft])
       vi.mocked(saleApi.applyItemDiscount).mockResolvedValue(updatedDraft)
 
       const { result, queryClient } = mountComposable(() => useSalesDrafts())
-      await vi.waitFor(() => expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual([existingDraft]))
+      await vi.waitFor(() =>
+        expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual([existingDraft]),
+      )
       result.activeTabId.value = 'sale-1'
 
       await result.applyItemDiscount('item-1', { type: 'amount', amountCents: 2000 })
 
-      expect(saleApi.applyItemDiscount).toHaveBeenCalledWith('sale-1', 'item-1', { type: 'amount', amountCents: 2000 })
-      expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)?.[0]?.items[0]?.unitPriceCents).toBe(8000)
+      expect(saleApi.applyItemDiscount).toHaveBeenCalledWith('sale-1', 'item-1', {
+        type: 'amount',
+        amountCents: 2000,
+      })
+      expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)?.[0]?.items[0]?.unitPriceCents).toBe(
+        8000,
+      )
     })
 
     it('replaces draft cache on successful removeItemDiscount', async () => {
       const existingDraft: Sale = {
-        id: 'sale-1', userId: 'user-1', status: 'DRAFT', createdAt: 'x', updatedAt: 'x',
-        items: [{ id: 'item-1', productId: 'prod-1', variantId: null, productName: 'Aspirina', variantName: null, quantity: 1, unitPriceCents: 8000, unitPriceCurrency: 'MXN', discountType: 'amount', discountAmountCents: 2000 }],
+        id: 'sale-1',
+        userId: 'user-1',
+        status: 'DRAFT',
+        createdAt: 'x',
+        updatedAt: 'x',
+        items: [
+          {
+            id: 'item-1',
+            productId: 'prod-1',
+            variantId: null,
+            productName: 'Aspirina',
+            variantName: null,
+            quantity: 1,
+            unitPriceCents: 8000,
+            unitPriceCurrency: 'MXN',
+            discountType: 'amount',
+            discountAmountCents: 2000,
+          },
+        ],
       }
       const updatedDraft: Sale = {
         ...existingDraft,
         updatedAt: 'z',
-        items: [{ ...existingDraft.items[0]!, unitPriceCents: 10000, discountType: null, discountAmountCents: null }],
+        items: [
+          {
+            ...existingDraft.items[0]!,
+            unitPriceCents: 10000,
+            discountType: null,
+            discountAmountCents: null,
+          },
+        ],
       }
       vi.mocked(saleApi.listDrafts).mockResolvedValue([existingDraft])
       vi.mocked(saleApi.removeItemDiscount).mockResolvedValue(updatedDraft)
 
       const { result, queryClient } = mountComposable(() => useSalesDrafts())
-      await vi.waitFor(() => expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual([existingDraft]))
+      await vi.waitFor(() =>
+        expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual([existingDraft]),
+      )
       result.activeTabId.value = 'sale-1'
 
       await result.removeItemDiscount('item-1')
 
       expect(saleApi.removeItemDiscount).toHaveBeenCalledWith('sale-1', 'item-1')
-      expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)?.[0]?.items[0]?.discountType).toBeNull()
+      expect(
+        queryClient.getQueryData<Sale[]>(tenantDraftsKey)?.[0]?.items[0]?.discountType,
+      ).toBeNull()
     })
   })
 
   describe('removeItem mutation cache behavior', () => {
     it('replaces draft cache on successful removeItem', async () => {
       const existingDraft: Sale = {
-        id: 'sale-1', userId: 'user-1', status: 'DRAFT', createdAt: 'x', updatedAt: 'x',
+        id: 'sale-1',
+        userId: 'user-1',
+        status: 'DRAFT',
+        createdAt: 'x',
+        updatedAt: 'x',
         items: [
-          { id: 'item-1', productId: 'prod-1', variantId: null, productName: 'Aspirina', variantName: null, quantity: 1, unitPriceCents: 10000, unitPriceCurrency: 'MXN' },
-          { id: 'item-2', productId: 'prod-2', variantId: null, productName: 'Ibuprofeno', variantName: null, quantity: 1, unitPriceCents: 5000, unitPriceCurrency: 'MXN' },
+          {
+            id: 'item-1',
+            productId: 'prod-1',
+            variantId: null,
+            productName: 'Aspirina',
+            variantName: null,
+            quantity: 1,
+            unitPriceCents: 10000,
+            unitPriceCurrency: 'MXN',
+          },
+          {
+            id: 'item-2',
+            productId: 'prod-2',
+            variantId: null,
+            productName: 'Ibuprofeno',
+            variantName: null,
+            quantity: 1,
+            unitPriceCents: 5000,
+            unitPriceCurrency: 'MXN',
+          },
         ],
       }
       const updatedDraft: Sale = {
@@ -646,7 +755,9 @@ describe('useSalesDrafts - pure cache update functions', () => {
       vi.mocked(saleApi.removeItem).mockResolvedValue(updatedDraft)
 
       const { result, queryClient } = mountComposable(() => useSalesDrafts())
-      await vi.waitFor(() => expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual([existingDraft]))
+      await vi.waitFor(() =>
+        expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual([existingDraft]),
+      )
       result.activeTabId.value = 'sale-1'
 
       await result.removeItem('item-1')
@@ -767,7 +878,10 @@ describe('useSalesDrafts - pure cache update functions', () => {
     })
 
     it('applyGlobalDiscount onSuccess invalidates applicable-promotions for the affected draft', async () => {
-      vi.mocked(saleApi.applyGlobalDiscount).mockResolvedValue({ sale: updatedDraft, skippedItems: [] })
+      vi.mocked(saleApi.applyGlobalDiscount).mockResolvedValue({
+        sale: updatedDraft,
+        skippedItems: [],
+      })
       const { result, spy } = await setupWithSpy()
 
       await result.applyGlobalDiscount({ type: 'percentage', percent: 10 })
@@ -787,7 +901,13 @@ describe('useSalesDrafts - pure cache update functions', () => {
     // ── 3 new promotion mutations: mirror existing pattern (setQueryData + invalidate) ──
 
     async function assertSetQueryDataAndInvalidate(
-      result: { activeDraft: unknown; addItem: unknown; applyManualPromotion: any; removeManualPromotion: any; vetoAutoPromotion: any },
+      result: {
+        activeDraft: unknown
+        addItem: unknown
+        applyManualPromotion: any
+        removeManualPromotion: any
+        vetoAutoPromotion: any
+      },
       // Loosely-typed QueryClient surface — only the bits the helper uses
       // (getQueryData + setQueryData for vi.spyOn). The runtime value is the
       // real QueryClient; the parameter is intentionally narrow to keep the
@@ -800,17 +920,17 @@ describe('useSalesDrafts - pure cache update functions', () => {
       spy: { mock: { calls: any[] } } & ((...args: unknown[]) => unknown),
       invoke: () => Promise<unknown>,
     ) {
-      const resultSpy = vi.spyOn(queryClient as unknown as { setQueryData: () => void }, 'setQueryData')
+      const resultSpy = vi.spyOn(
+        queryClient as unknown as { setQueryData: () => void },
+        'setQueryData',
+      )
       await invoke()
       expect(spy).toHaveBeenCalledWith({ queryKey: expectedApplicableKey })
       // setQueryData was called with the draftsKey + the result of
       // replaceSaleInCache(currentDrafts, updatedSale) which is a Sale[]
       // (matches the imperative pattern used by every other mutation in this
       // composable — getQueryData → setQueryData(array)).
-      expect(resultSpy).toHaveBeenCalledWith(
-        tenantDraftsKey,
-        expect.any(Array),
-      )
+      expect(resultSpy).toHaveBeenCalledWith(tenantDraftsKey, expect.any(Array))
       resultSpy.mockRestore()
     }
 
@@ -824,7 +944,10 @@ describe('useSalesDrafts - pure cache update functions', () => {
         spy as never,
         // Public surface mirrors the existing useSalesDrafts pattern:
         // saleId comes from activeTabId; only promotionId is an arg.
-        () => (result as { applyManualPromotion: (promotionId: string) => Promise<unknown> }).applyManualPromotion('promo-a'),
+        () =>
+          (
+            result as { applyManualPromotion: (promotionId: string) => Promise<unknown> }
+          ).applyManualPromotion('promo-a'),
       )
 
       expect(saleApi.applyManualPromotion).toHaveBeenCalledWith('sale-1', 'promo-a')
@@ -838,7 +961,10 @@ describe('useSalesDrafts - pure cache update functions', () => {
         result as never,
         queryClient as never,
         spy as never,
-        () => (result as { removeManualPromotion: (promotionId: string) => Promise<unknown> }).removeManualPromotion('promo-b'),
+        () =>
+          (
+            result as { removeManualPromotion: (promotionId: string) => Promise<unknown> }
+          ).removeManualPromotion('promo-b'),
       )
 
       expect(saleApi.removeManualPromotion).toHaveBeenCalledWith('sale-1', 'promo-b')
@@ -852,7 +978,10 @@ describe('useSalesDrafts - pure cache update functions', () => {
         result as never,
         queryClient as never,
         spy as never,
-        () => (result as { vetoAutoPromotion: (promotionId: string) => Promise<unknown> }).vetoAutoPromotion('promo-c'),
+        () =>
+          (
+            result as { vetoAutoPromotion: (promotionId: string) => Promise<unknown> }
+          ).vetoAutoPromotion('promo-c'),
       )
 
       expect(saleApi.vetoAutoPromotion).toHaveBeenCalledWith('sale-1', 'promo-c')
@@ -1062,7 +1191,9 @@ describe('useSalesDrafts - pure cache update functions', () => {
 
       const returned = await result.setPriceList('sale-1', 'list-mayoreo')
 
-      expect(saleApi.setPriceList).toHaveBeenCalledWith('sale-1', { globalPriceListId: 'list-mayoreo' })
+      expect(saleApi.setPriceList).toHaveBeenCalledWith('sale-1', {
+        globalPriceListId: 'list-mayoreo',
+      })
       expect(returned).toEqual(updatedDraft)
 
       const cached = queryClient.getQueryData<Sale[]>(tenantDraftsKey)
@@ -1096,7 +1227,9 @@ describe('useSalesDrafts - pure cache update functions', () => {
       vi.mocked(saleApi.setPriceList).mockRejectedValue(new Error('PRICE_LIST_NOT_FOUND'))
       const { result, queryClient } = await setupWithSpyForPriceList()
 
-      await expect(result.setPriceList('sale-1', 'list-mayoreo')).rejects.toThrow('PRICE_LIST_NOT_FOUND')
+      await expect(result.setPriceList('sale-1', 'list-mayoreo')).rejects.toThrow(
+        'PRICE_LIST_NOT_FOUND',
+      )
 
       const cached = queryClient.getQueryData<Sale[]>(tenantDraftsKey)
       expect(cached).toEqual([existingDraft])
@@ -1120,7 +1253,6 @@ describe('useSalesDrafts - pure cache update functions', () => {
       await vi.waitFor(() => {
         expect(result.isMutating.value).toBe(true)
       })
-
       ;(resolveSetPriceList as unknown as (value: Sale) => void)(updatedDraft)
       await inFlight
 
