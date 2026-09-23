@@ -46,6 +46,13 @@ const APP_SUBJECTS: AppSubject[] = [
   // The pin-tests in ability.test.ts assert the grant AND that a malformed
   // sibling permission cannot revoke or drop the well-formed rule.
   'Analytics',
+  // ODD dashboard-operational-insights OI-5B1: 'SaleRefund' joins the APP_SUBJECTS
+  // runtime registry (before 'all'). Without this entry parsePermissionCode returns
+  // null for every refund code (`read:SaleRefund` included) and the ability
+  // silently drops — the permission-gated pending-refund module would never fetch.
+  // The pin-tests in ability.test.ts assert the grant AND that malformed sibling
+  // permissions cannot revoke or drop the well-formed rule.
+  'SaleRefund',
   'all',
 ]
 

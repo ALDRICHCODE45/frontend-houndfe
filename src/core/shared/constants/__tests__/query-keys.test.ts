@@ -837,6 +837,44 @@ describe('analyticsQueryKeys (ODD branch-sales-summary A1)', () => {
   })
 })
 
+// ODD dashboard-operational-insights OI-5B1: the pending-refunds queue is its own
+// tenant-scoped slot. It must stay disjoint from the confirmed-sales keys and be
+// isolated by tenant, page and limit so two tenants or two pages can never share
+// a cached payload.
+describe('saleQueryKeys.pendingRefunds (ODD dashboard-operational-insights OI-5B1)', () => {
+  const TENANT = 'tenant-abc'
+
+  it('returns the exact stable tuple with tenant, page and limit', () => {
+    expect(saleQueryKeys.pendingRefunds(TENANT, { page: 1, limit: 5 })).toEqual([
+      'sales',
+      TENANT,
+      'pending-refunds',
+      1,
+      5,
+    ])
+    expect(saleQueryKeys.pendingRefunds(TENANT, { page: 1, limit: 5 })).toEqual(
+      saleQueryKeys.pendingRefunds(TENANT, { page: 1, limit: 5 }),
+    )
+  })
+
+  it('isolates the cache by tenant, page and limit', () => {
+    const base = saleQueryKeys.pendingRefunds(TENANT, { page: 1, limit: 5 })
+
+    expect(saleQueryKeys.pendingRefunds('other', { page: 1, limit: 5 })).not.toEqual(base)
+    expect(saleQueryKeys.pendingRefunds(TENANT, { page: 2, limit: 5 })).not.toEqual(base)
+    expect(saleQueryKeys.pendingRefunds(TENANT, { page: 1, limit: 10 })).not.toEqual(base)
+  })
+
+  it('stays disjoint from the confirmed-sales keys', () => {
+    const pending = saleQueryKeys.pendingRefunds(TENANT, { page: 1, limit: 5 })
+    const confirmed = saleQueryKeys.confirmed(TENANT, { page: 1, limit: 5 })
+
+    expect(pending[2]).toBe('pending-refunds')
+    expect(confirmed[2]).toBe('confirmed')
+    expect(pending).not.toEqual(confirmed)
+  })
+})
+
 // ODD dashboard-operational-insights OI-4: the timeseries slot is a SEPARATE
 // tenant-scoped cache slot. It must not collide with the summary slot, and the
 // full window identity (tenant + both boundaries + interval) must participate in

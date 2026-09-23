@@ -8,6 +8,7 @@ import type {
 } from '@/features/POS/sales/interfaces/sale.types'
 import type { BranchSalesSummaryQuery } from '@/features/analytics/interfaces/branch-sales-summary.types'
 import type { BranchSalesTimeseriesQuery } from '@/features/analytics/interfaces/branch-sales-timeseries.types'
+import type { PendingRefundsQuery } from '@/features/POS/sales/interfaces/pending-refund.types'
 
 export const productQueryKeys = {
   paginated: (tenantId: string) => ['products', tenantId, 'paginated'] as const,
@@ -72,6 +73,14 @@ export const saleQueryKeys = {
   drafts: (tenantId: string) => ['sales', tenantId, 'drafts'] as const,
   confirmed: (tenantId: string, params: ListSalesParams = {}) =>
     ['sales', tenantId, 'confirmed', params] as const,
+  // ODD dashboard-operational-insights OI-5B1: the pending-refund queue is its
+  // OWN cache slot. 'pending-refunds' keeps it disjoint from 'confirmed' (the
+  // confirmed-sales list) and tenant + page + limit participate in the key so two
+  // tenants or two pages can never share a cached payload. Tenant is cache
+  // isolation only — it is never sent to the API (the backend resolves it from
+  // the JWT) and the backend queue order stays authoritative.
+  pendingRefunds: (tenantId: string, params: PendingRefundsQuery) =>
+    ['sales', tenantId, 'pending-refunds', params.page, params.limit] as const,
   detail: (tenantId: string, saleId: string) => ['sales', tenantId, 'detail', saleId] as const,
   posCatalog: (tenantId: string, p: PosCatalogSearchParams = {}) =>
     [

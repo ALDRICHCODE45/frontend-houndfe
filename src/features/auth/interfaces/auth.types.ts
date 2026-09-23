@@ -94,6 +94,15 @@ export type AppSubject =
   // never updates, and the analytics entry/route stay hidden — hence the
   // explicit no-silent-drop pin-tests in ability.test.ts.
   | 'Analytics'
+  // ODD dashboard-operational-insights OI-5B1: 'SaleRefund' joins the AppSubject
+  // union before 'all'. Backend endpoint GET /sales/refunds/pending requires the
+  // exact permission `read:SaleRefund`; registering the subject here is half of
+  // the single act that unlocks permission parsing + ability grants (the runtime
+  // half is APP_SUBJECTS in authorization/ability.ts). Silent-drop risk if
+  // dropped: parsePermissionCode returns null, the ability never updates, and the
+  // pending-refund module silently disappears — hence the explicit
+  // no-silent-drop pin-tests in ability.test.ts.
+  | 'SaleRefund'
   | 'all'
 
 export interface EffectivePermission {
