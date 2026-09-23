@@ -4,6 +4,10 @@
 // boundary strings, recomputing dates locally, emitting a date instead of the
 // preset id, wiring only one boundary accessibly, disabling only the first preset,
 // or leaving `to`/presets active while loading fails these tests.
+//
+// OI-3 adds the active-preset contract: `aria-pressed` on exactly the active
+// preset, prop-controlled selection, semantic (never hardcoded) selected styling,
+// and 44px targets plus a visible focus indicator in both states.
 
 import { describe, expect, it } from 'vitest'
 import { nextTick } from 'vue'
@@ -171,5 +175,76 @@ describe('BranchSalesSummaryFilters — validation and controls', () => {
 
     expect(mountFilters({ loading: true }).find(root).attributes('aria-busy')).toBe('true')
     expect(mountFilters({ disabled: true }).find(root).attributes('aria-busy')).toBeUndefined()
+  })
+})
+
+// ── Active preset semantics (OI-3) ───────────────────────────────────────────
+
+describe('BranchSalesSummaryFilters — active preset semantics', () => {
+  /** Palette/named colors and raw color functions are not semantic tokens. */
+  const HARDCODED_PALETTE_COLOR =
+    /^(?:bg|text|border|ring|outline)-(?:red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|gray|zinc|stone|neutral)-\d{2,3}$/
+  const RAW_COLOR_VALUE = /#[0-9a-f]{3,8}|rgba?\(|hsla?\(|oklch\(/i
+
+  function preset(w: ReturnType<typeof mountFilters>, id: MexicoCityRangePresetId) {
+    return w.find(`[data-testid="branch-summary-preset"][data-preset-id="${id}"]`)
+  }
+
+  it('exposes aria-pressed only on the active preset', () => {
+    const w = mountFilters({ activePreset: 'thisMonth' })
+
+    for (const id of MEXICO_CITY_RANGE_PRESET_IDS) {
+      expect(preset(w, id).attributes('aria-pressed')).toBe(id === 'thisMonth' ? 'true' : 'false')
+    }
+  })
+
+  it('renders every preset unpressed when the active preset is null or absent', () => {
+    for (const activePreset of [null, undefined]) {
+      const w = mountFilters({ activePreset })
+
+      for (const id of MEXICO_CITY_RANGE_PRESET_IDS) {
+        expect(preset(w, id).attributes('aria-pressed')).toBe('false')
+      }
+    }
+  })
+
+  it('stays prop-controlled: a click emits the intent without selecting locally', async () => {
+    const w = mountFilters({ activePreset: 'thisMonth' })
+
+    await preset(w, 'previousMonth').trigger('click')
+
+    expect(w.emitted('preset')).toEqual([['previousMonth']])
+    expect(preset(w, 'previousMonth').attributes('aria-pressed')).toBe('false')
+    expect(preset(w, 'thisMonth').attributes('aria-pressed')).toBe('true')
+  })
+
+  it('distinguishes the selected preset with semantic tokens instead of hardcoded colors', () => {
+    const w = mountFilters({ activePreset: 'today' })
+    const selected = preset(w, 'today')
+    const unselected = preset(w, 'thisMonth')
+
+    expect(selected.classes()).not.toEqual(unselected.classes())
+    expect(selected.classes()).toContain('bg-primary')
+    expect(unselected.classes()).not.toContain('bg-primary')
+
+    for (const id of MEXICO_CITY_RANGE_PRESET_IDS) {
+      for (const token of preset(w, id).classes()) {
+        expect(token, token).not.toMatch(HARDCODED_PALETTE_COLOR)
+        expect(token, token).not.toMatch(RAW_COLOR_VALUE)
+      }
+    }
+  })
+
+  it('keeps the 44px target and a visible focus indicator in both states', () => {
+    const w = mountFilters({ activePreset: 'today' })
+
+    for (const id of MEXICO_CITY_RANGE_PRESET_IDS) {
+      const button = preset(w, id)
+      expect(button.classes()).toContain('min-h-11')
+      expect(
+        button.classes().some((token) => token.startsWith('focus-visible:')),
+        `${id} focus indicator`,
+      ).toBe(true)
+    }
   })
 })

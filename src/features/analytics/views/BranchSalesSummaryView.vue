@@ -4,16 +4,22 @@
  * summary screen (ODD branch-sales-summary A3c).
  *
  * Thin composition only: the view owns the two exact `YYYY-MM-DD` Mexico City
- * boundaries, resolves preset intents through the committed calendar helpers,
- * derives the local range validation, and renders the composable's states. The
- * tenant comes from `useSafeTenantId` for cache isolation only and is never sent
- * to the transport, and no aggregate, currency math or status body is invented.
+ * boundaries, the typed active-preset selection, resolves preset intents through
+ * the committed calendar helpers, derives the local range validation, and renders
+ * the composable's states. The tenant comes from `useSafeTenantId` for cache
+ * isolation only and is never sent to the transport, and no aggregate, currency
+ * math or status body is invented.
+ *
+ * Range semantics (OI-3): `Este mes` is the initial preset, a preset click
+ * resolves boundaries through the committed helper and marks that preset active,
+ * and a manual boundary edit clears only the selection while preserving the exact
+ * edited range and its validation/query behavior.
  *
  * States: initial loading skeleton -> local invalid range -> no-data error
  * (400 / 403 / unexpected) -> loaded empty -> loaded metrics, with retained-data
  * refresh indicator/warning layers and one guarded retry action.
  */
-import { computed, ref } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
 import {
   getMexicoCityRangePreset,
   isValidMexicoCityDateRange,
@@ -35,10 +41,17 @@ const ERROR_MESSAGES: Record<number, string> = {
 }
 const ERROR_FALLBACK_MESSAGE = 'No pudimos cargar el resumen de ventas. Reintenta en unos segundos.'
 
-/** Initial window: the committed last-7-days preset, resolved once per mount. */
-const initialRange = getMexicoCityRangePreset('last7Days')
+/** Initial window: the committed current-month preset, resolved once per mount. */
+const initialRange = getMexicoCityRangePreset('thisMonth')
 const from = ref(initialRange.from)
 const to = ref(initialRange.to)
+
+/**
+ * The single source of truth for the selected preset. It starts as `thisMonth`
+ * and becomes `null` as soon as either boundary is edited manually, so a custom
+ * range stays active without any preset pretending to own it.
+ */
+const activePreset = shallowRef<MexicoCityRangePresetId | null>('thisMonth')
 
 const tenantId = useSafeTenantId()
 const summaryState = useBranchSalesSummary({ tenantId, from, to })
@@ -80,15 +93,22 @@ function onPreset(id: MexicoCityRangePresetId) {
   const range = getMexicoCityRangePreset(id)
   from.value = range.from
   to.value = range.to
+  activePreset.value = id
 }
 
-/** Boundary edits stay exact strings; this view never parses or reformats them. */
+/**
+ * Boundary edits stay exact strings; this view never parses or reformats them.
+ * A manual edit clears only the preset selection: the emitted date stays exactly
+ * as received and the query/validation behavior is unchanged.
+ */
 function onFromChange(value: string) {
   from.value = value
+  activePreset.value = null
 }
 
 function onToChange(value: string) {
   to.value = value
+  activePreset.value = null
 }
 
 /** Guarded retry: the composable alone decides whether a refetch may start. */
@@ -167,6 +187,7 @@ function onRetry() {
             <BranchSalesSummaryFilters
               :from="from"
               :to="to"
+              :active-preset="activePreset"
               :loading="summaryState.isInitialLoading.value"
               :validation-message="validationMessage"
               @update:from="onFromChange"
@@ -186,6 +207,7 @@ function onRetry() {
           <BranchSalesSummaryFilters
             :from="from"
             :to="to"
+            :active-preset="activePreset"
             :loading="summaryState.isInitialLoading.value"
             :validation-message="validationMessage"
             @update:from="onFromChange"

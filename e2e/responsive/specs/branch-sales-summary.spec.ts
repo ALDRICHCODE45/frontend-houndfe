@@ -3,7 +3,7 @@
  * routed at the canonical `/dashboard` destination (ODD dashboard-analytics D1).
  *
  * Standalone on purpose: it declares only the strict `/__e2e-api` surface the
- * view really uses, pins the browser clock so the deterministic last-seven-days
+ * view really uses, pins the browser clock so the deterministic current-month
  * `[from, to)` window cannot drift across midnight in `America/Mexico_City`,
  * seeds the committed `vueuse-color-mode` preference so both light and dark
  * resolve deterministically for every matrix viewport, and records explicit
@@ -49,10 +49,19 @@ const shiftCalendarDays = (calendarDate: string, days: number): string => {
   return new Date(utcMidnight).toISOString().slice(0, 10)
 }
 
+/** First calendar day of the month that contains an exact `YYYY-MM-DD` date. */
+const startOfCalendarMonth = (calendarDate: string): string => `${calendarDate.slice(0, 7)}-01`
+
 const TODAY = mexicoCityCalendarDate(FIXED_NOW_MS)
-/** The view's committed initial preset is `last7Days`: `[today - 6, today + 1)`. */
-const EXPECTED_FROM = shiftCalendarDays(TODAY, -6)
+/** The view's committed initial preset is `thisMonth`: `[month start, tomorrow)`. */
+const EXPECTED_FROM = startOfCalendarMonth(TODAY)
 const EXPECTED_TO = shiftCalendarDays(TODAY, 1)
+
+/**
+ * Manual custom `from` used to prove the preset clears while the range still
+ * queries: `[CUSTOM_FROM, EXPECTED_TO)` stays valid and keeps `to` untouched.
+ */
+const CUSTOM_FROM = '2025-06-05'
 
 /** The eight authoritative metric fields the summary contract owns, in payload order. */
 const METRIC_KEYS = [
@@ -94,6 +103,18 @@ const SUMMARY: SummaryPayload = {
   averageTicketCents: 80012,
   settledRefundsCents: 150000,
   pendingRefundObligationsCents: 25000,
+}
+
+/**
+ * Distinct second response for the manually edited window: the changed net-sales
+ * amount proves the edited query's response — not a cached render — is on screen.
+ */
+const CUSTOM_SUMMARY: SummaryPayload = {
+  ...SUMMARY,
+  from: CUSTOM_FROM,
+  to: EXPECTED_TO,
+  netSalesCents: 42424242,
+  saleCount: 777,
 }
 
 /** Mirrors the committed `CURRENCY_CONFIG` + `formatCentsMXN` presentation contract. */
@@ -152,6 +173,9 @@ const ABSENT_VISUALIZATION_SELECTORS = [
 /** Committed quick-range preset labels, in display order. */
 const PRESET_LABELS = ['Hoy', 'Últimos 7 días', 'Este mes', 'Mes anterior'] as const
 
+/** `PRESET_LABELS` index of the view's committed initial selection (`Este mes`). */
+const SELECTED_PRESET_INDEX = 2
+
 /** Bounded initial-render wait: the cold dev server transforms the whole app on the first test. */
 const INITIAL_RENDER_TIMEOUT_MS = 15_000
 
@@ -192,13 +216,35 @@ const ROUTES: readonly DeclaredRoute[] = [
     json: SUMMARY,
     count: 1,
   },
+  {
+    method: 'GET',
+    path: SUMMARY_PATH,
+    query: { from: CUSTOM_FROM, to: EXPECTED_TO },
+    json: CUSTOM_SUMMARY,
+    count: 1,
+  },
 ]
+
+/**
+ * Wrapped in the fixture's object form on purpose: Playwright reads a plain
+ * two-element array option value as a `[fixtureFn, options]` tuple, so a second
+ * route entry would otherwise replace the option with the first route object.
+ */
+const DECLARED_ROUTES = { routes: ROUTES } as const
 
 /** The exact request the transport may emit: two calendar boundaries, nothing else. */
 const EXPECTED_REQUEST = {
   method: 'GET',
   path: SUMMARY_PATH,
   query: { from: EXPECTED_FROM, to: EXPECTED_TO },
+  body: undefined,
+}
+
+/** Exact second request a manual `from` edit must produce: only `from` moved. */
+const CUSTOM_REQUEST = {
+  method: 'GET',
+  path: SUMMARY_PATH,
+  query: { from: CUSTOM_FROM, to: EXPECTED_TO },
   body: undefined,
 }
 
@@ -298,12 +344,130 @@ async function expectMinimumTargetHeight(locator: Locator, label: string): Promi
   ).toBeGreaterThanOrEqual(MIN_INTERACTION_TARGET_PX)
 }
 
+interface PresetComputedStyle {
+  readonly backgroundColor: string
+  readonly color: string
+  readonly focusVisible: boolean
+  readonly outlineStyle: string
+  readonly outlineWidth: string
+  readonly outlineColor: string
+  readonly boxShadow: string
+}
+
+/**
+ * Browser-computed color, `:focus-visible` match and indicator properties.
+ * Assertions compare these rendered values against each other, so no Coco
+ * palette literal is repeated here.
+ */
+function readPresetStyle(locator: Locator): Promise<PresetComputedStyle> {
+  return locator.evaluate((element) => {
+    const style = window.getComputedStyle(element)
+    return {
+      backgroundColor: style.backgroundColor,
+      color: style.color,
+      focusVisible: element.matches(':focus-visible'),
+      outlineStyle: style.outlineStyle,
+      outlineWidth: style.outlineWidth,
+      outlineColor: style.outlineColor,
+      boxShadow: style.boxShadow,
+    }
+  })
+}
+
+/**
+ * `toBeFocused()` requires `document.hasFocus()`, which headless Chromium does
+ * not guarantee, so the active-element identity is asserted directly instead.
+ */
+function isActiveElement(locator: Locator): Promise<boolean> {
+  return locator.evaluate((element) => element.ownerDocument.activeElement === element)
+}
+
+/** Compact description of the actually focused element, for actionable failures. */
+function describeActiveElement(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const element = document.activeElement
+    if (!element) return '<none>'
+    return [
+      element.tagName.toLowerCase(),
+      element.getAttribute('data-testid') && `testid=${element.getAttribute('data-testid')}`,
+      element.getAttribute('data-preset-id') && `preset=${element.getAttribute('data-preset-id')}`,
+      element.getAttribute('type') && `type=${element.getAttribute('type')}`,
+    ]
+      .filter(Boolean)
+      .join(' ')
+  })
+}
+
+/**
+ * Headless Chromium does not grant the page window focus, and without it
+ * `document.hasFocus()` is false. Bringing the page forward plus CDP focus
+ * emulation gives it a focused-document state so `:focus-visible` can be
+ * inspected without claiming sequential `Tab` traversal.
+ */
+async function prepareKeyboardFocus(page: Page): Promise<void> {
+  await page.bringToFront()
+  const session = await page.context().newCDPSession(page)
+  await session.send('Emulation.setFocusEmulationEnabled', { enabled: true })
+}
+
+/** Chromium extends `FocusOptions` with `focusVisible`; the DOM lib does not declare it. */
+type KeyboardFocusOptions = FocusOptions & { readonly focusVisible: boolean }
+
+/**
+ * Requests focus with the browser's own keyboard-visibility signal. This
+ * headless Chromium performs no sequential focus navigation for synthesized
+ * `Tab` presses (the observed focus trail never leaves the `to` input) and the
+ * application installs no `Tab` handler, so `focusVisible` requests exactly the
+ * keyboard focus state the committed `focus-visible:` utilities target.
+ */
+function requestKeyboardFocus(locator: Locator): Promise<void> {
+  return locator.evaluate((element) => {
+    ;(element as HTMLElement).focus({ focusVisible: true } satisfies KeyboardFocusOptions)
+  })
+}
+
+/** Sequential-focus reachability contract of the rendered control. */
+function readFocusReachability(
+  locator: Locator,
+): Promise<{ readonly tabIndex: number; readonly disabled: boolean }> {
+  return locator.evaluate((element) => {
+    const button = element as HTMLButtonElement
+    return { tabIndex: button.tabIndex, disabled: button.disabled }
+  })
+}
+
+/** Committed focus indicator strength: a `2px` outline or ring, never the resting `1px` ring. */
+const FOCUS_INDICATOR_MIN_PX = 2
+
+/** Every `px` length inside a computed `box-shadow`, normalized by the browser. */
+function boxShadowWidths(boxShadow: string): readonly number[] {
+  return [...boxShadow.matchAll(/(\d+(?:\.\d+)?)px/g)].map((match) => Number.parseFloat(match[1]!))
+}
+
+/** Rendered outline or ring strong enough to be the committed focus indicator. */
+function rendersFocusIndicator(style: PresetComputedStyle): boolean {
+  const outlineWidth = Number.parseFloat(style.outlineWidth)
+  const hasOutline =
+    style.outlineStyle !== 'none' &&
+    Number.isFinite(outlineWidth) &&
+    outlineWidth >= FOCUS_INDICATOR_MIN_PX
+  const hasRing =
+    style.boxShadow !== 'none' &&
+    boxShadowWidths(style.boxShadow).some((width) => width >= FOCUS_INDICATOR_MIN_PX)
+  return hasOutline || hasRing
+}
+
+/** The rendered indicator itself, so focus-driven change can be compared exactly. */
+function focusIndicatorSignature(style: PresetComputedStyle): string {
+  return [style.outlineStyle, style.outlineWidth, style.outlineColor, style.boxShadow].join('|')
+}
+
 for (const viewport of RESPONSIVE_VIEWPORTS) {
   for (const theme of THEMES) {
     test.describe(`branch sales summary ${viewport.key} ${viewport.width}x${viewport.height} ${theme.mode}`, () => {
-      test.use({ declaredRoutes: ROUTES, colorScheme: theme.mode })
+      test.use({ declaredRoutes: DECLARED_ROUTES, colorScheme: theme.mode })
 
-      test(`renders the eight intercepted metrics in ${theme.mode} for the exact last-seven-days window`, async ({
+      test(`renders the eight intercepted metrics in ${theme.mode} for the exact current-month window`, async ({
         page,
         strictNetwork,
       }) => {
@@ -335,8 +499,8 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
 
         // Rendered metrics prove the intercepted response settled; then audit the wire exactly.
         await expect(page.getByTestId('branch-summary-metrics')).toBeVisible()
-        // Exact window: 2025-06-15 in Mexico City -> [2025-06-09, 2025-06-16).
-        expect([EXPECTED_FROM, EXPECTED_TO]).toEqual(['2025-06-09', '2025-06-16'])
+        // Exact window: 2025-06-15 in Mexico City -> [2025-06-01, 2025-06-16).
+        expect([EXPECTED_FROM, EXPECTED_TO]).toEqual(['2025-06-01', '2025-06-16'])
         expect(METRIC_KEYS).toHaveLength(8)
         expect([...SALES_CARDS, ...REFUNDS_CARDS]).toHaveLength(8)
         // Strict two-parameter request proof: exactly `from` and `to`, no extras.
@@ -389,6 +553,13 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
           await expectMinimumTargetHeight(presets.nth(index), `preset control ${index}`)
         }
 
+        // Selected-preset semantics: `Este mes` is pressed and every sibling is not.
+        await expect(presets.nth(SELECTED_PRESET_INDEX)).toHaveAttribute('aria-pressed', 'true')
+        for (const index of PRESET_LABELS.keys()) {
+          if (index === SELECTED_PRESET_INDEX) continue
+          await expect(presets.nth(index)).toHaveAttribute('aria-pressed', 'false')
+        }
+
         // Rendered hierarchy proof: single-column reading order below `lg`, shared
         // top row at `lg`, with the secondary grids full width beneath the overview.
         const overview = await requireBox(
@@ -437,6 +608,78 @@ for (const viewport of RESPONSIVE_VIEWPORTS) {
         expect(viewportEvidence.measurements.innerHeight).toBe(viewport.height)
         expect(viewportEvidence.status, JSON.stringify(viewportEvidence.measurements)).toBe('pass')
         expect(overflowEvidence.status, JSON.stringify(overflowEvidence.measurements)).toBe('pass')
+
+        // ── Selected/unselected appearance: rendered values, not class tokens ──
+        const selectedPresetStyle = await readPresetStyle(presets.nth(SELECTED_PRESET_INDEX))
+        const unselectedPresetStyle = await readPresetStyle(presets.nth(0))
+        expect(
+          selectedPresetStyle.backgroundColor,
+          'selected preset background must differ from an unselected preset',
+        ).not.toBe(unselectedPresetStyle.backgroundColor)
+        expect(
+          selectedPresetStyle.color,
+          'selected preset text color must differ from an unselected preset',
+        ).not.toBe(unselectedPresetStyle.color)
+        expect(
+          selectedPresetStyle.boxShadow,
+          'selected preset ring must differ from an unselected preset',
+        ).not.toBe(unselectedPresetStyle.boxShadow)
+
+        // ── Keyboard focus: a visible rendered indicator on both variants ──────
+        await prepareKeyboardFocus(page)
+        for (const index of [0, SELECTED_PRESET_INDEX]) {
+          const preset = presets.nth(index)
+          const reachability = await readFocusReachability(preset)
+          expect(reachability.disabled, `preset ${index} must be enabled`).toBe(false)
+          expect(
+            reachability.tabIndex,
+            `preset ${index} must be reachable by sequential keyboard focus`,
+          ).toBeGreaterThanOrEqual(0)
+
+          const beforeFocus = await readPresetStyle(preset)
+          expect(
+            beforeFocus.focusVisible,
+            `preset ${index} must not be :focus-visible before focus`,
+          ).toBe(false)
+          expect(
+            rendersFocusIndicator(beforeFocus),
+            `preset ${index} must not show the focus indicator before focus`,
+          ).toBe(false)
+
+          await requestKeyboardFocus(preset)
+          expect(
+            await isActiveElement(preset),
+            `preset ${index} must become the focused element; active element is ${await describeActiveElement(page)}`,
+          ).toBe(true)
+
+          const afterFocus = await readPresetStyle(preset)
+          expect(afterFocus.focusVisible, `preset ${index} must match :focus-visible`).toBe(true)
+          expect(
+            focusIndicatorSignature(afterFocus),
+            `preset ${index} outline/ring must change on keyboard focus`,
+          ).not.toBe(focusIndicatorSignature(beforeFocus))
+          expect(
+            rendersFocusIndicator(afterFocus),
+            `preset ${index} must render a visible focus indicator`,
+          ).toBe(true)
+        }
+
+        // ── Manual custom-date edit: exact updated request, preset cleared ────
+        await filters.getByTestId('branch-summary-from').fill(CUSTOM_FROM)
+        await expect(page.getByTestId('branch-summary-range')).toHaveText(
+          `${CUSTOM_FROM} → ${EXPECTED_TO}`,
+        )
+        await expect(filters.getByTestId('branch-summary-from')).toHaveValue(CUSTOM_FROM)
+        await expect(filters.getByTestId('branch-summary-to')).toHaveValue(EXPECTED_TO)
+        for (const index of PRESET_LABELS.keys()) {
+          await expect(presets.nth(index)).toHaveAttribute('aria-pressed', 'false')
+        }
+        await expect(page.getByTestId('branch-summary-validation')).toHaveCount(0)
+        await expectMetricCard(sales, ['Ventas netas', amount(CUSTOM_SUMMARY.netSalesCents)])
+
+        const editedRequests = strictNetwork.requests()
+        expect(editedRequests).toEqual([EXPECTED_REQUEST, CUSTOM_REQUEST])
+        expect(Object.keys(editedRequests[1]!.query).sort()).toEqual(['from', 'to'])
 
         expect(strictNetwork.violations()).toEqual([])
       })

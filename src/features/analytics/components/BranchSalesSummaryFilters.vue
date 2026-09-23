@@ -8,6 +8,11 @@
  * City calendar strings and are handed back verbatim through `update:from` /
  * `update:to`; a preset click emits only its committed `MexicoCityRangePresetId`
  * so the route view resolves the range through the shared calendar helpers.
+ *
+ * Selection is controlled too (OI-3): `activePreset` arrives as an explicit prop
+ * and a click emits intent without selecting locally. The active control exposes
+ * `aria-pressed` and a semantic Nuxt UI color/variant swap (no hardcoded colors),
+ * so the selected state is visible in both light and dark themes.
  */
 import { computed, useId } from 'vue'
 import type { MexicoCityRangePresetId } from '@/core/shared/utils/mexicoCityCalendar'
@@ -18,12 +23,14 @@ const props = withDefaults(
     from: string
     /** Exclusive `YYYY-MM-DD` boundary in `America/Mexico_City`. */
     to: string
+    /** Caller-owned active preset; `null` means the range is a custom selection. */
+    activePreset?: MexicoCityRangePresetId | null
     disabled?: boolean
     loading?: boolean
     /** Caller-owned validation text; this component invents no validation logic. */
     validationMessage?: string
   }>(),
-  { disabled: false, loading: false, validationMessage: undefined },
+  { activePreset: null, disabled: false, loading: false, validationMessage: undefined },
 )
 
 const emit = defineEmits<{
@@ -55,6 +62,11 @@ const describedBy = computed(() =>
 /** Pass the edited string straight through; never parse it into an instant. */
 function toBoundary(value: unknown): string {
   return typeof value === 'string' ? value : String(value ?? '')
+}
+
+/** The caller owns selection; this component only reflects the prop. */
+function isPresetActive(id: MexicoCityRangePresetId): boolean {
+  return props.activePreset === id
 }
 </script>
 
@@ -109,8 +121,9 @@ function toBoundary(value: unknown): string {
         v-for="preset in PRESETS"
         :key="preset.id"
         type="button"
-        variant="outline"
-        color="neutral"
+        :variant="isPresetActive(preset.id) ? 'solid' : 'outline'"
+        :color="isPresetActive(preset.id) ? 'primary' : 'neutral'"
+        :aria-pressed="isPresetActive(preset.id) ? 'true' : 'false'"
         data-testid="branch-summary-preset"
         :data-preset-id="preset.id"
         class="min-h-11"

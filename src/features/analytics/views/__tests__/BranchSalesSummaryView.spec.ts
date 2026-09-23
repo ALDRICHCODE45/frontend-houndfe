@@ -4,7 +4,11 @@
 // events flow through the view. Failure copy, guarded retry, filter operability
 // and the responsive-shell pins live in the sibling
 // BranchSalesSummaryView.errors.spec.ts (A3c-2), which runs independently.
-// TDD is off for this ODD unit (see odd/tasks/branch-sales-summary.md).
+//
+// OI-3 owns the default-range and active-preset contract here under strict TDD:
+// `Este mes` is the initial preset, the view owns one typed active-preset source
+// of truth, a preset click resolves boundaries through the committed helper
+// exactly once, and a manual boundary edit clears only that selection.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { computed, nextTick, ref, toValue, type MaybeRefOrGetter } from 'vue'
@@ -91,6 +95,20 @@ vi.mock('@/features/auth/composables/useSafeTenantId', () => ({
   useSafeTenantId: () => tenantIdRef,
 }))
 
+/**
+ * OI-3: the committed preset helper is wrapped, never replaced, so preset
+ * intents can be counted while real Mexico City boundaries still resolve.
+ */
+vi.mock('@/core/shared/utils/mexicoCityCalendar', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/core/shared/utils/mexicoCityCalendar')>()
+  return {
+    ...actual,
+    getMexicoCityRangePreset: vi.fn((...args: Parameters<typeof actual.getMexicoCityRangePreset>) =>
+      actual.getMexicoCityRangePreset(...args),
+    ),
+  }
+})
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 type View = ReturnType<typeof mountWithUApp>
@@ -134,6 +152,7 @@ function resetMocks() {
   state.refetch.mockClear()
   state.retry.mockClear()
   tenantIdRef.value = 'tenant-1'
+  vi.mocked(getMexicoCityRangePreset).mockClear()
 }
 
 beforeEach(resetMocks)
@@ -142,19 +161,31 @@ afterEach(() => vi.useRealTimers())
 // ── Initialization and wiring ────────────────────────────────────────────────
 
 describe('BranchSalesSummaryView — initialization and composable wiring', () => {
-  it('initializes to the committed last-7-days preset under a UTC instant whose Mexico City day differs', () => {
+  it('initializes to the committed current-month preset under a UTC instant whose Mexico City day differs', () => {
     setFakeNow(UTC_OFFSET_INSTANT)
     const view = mountView()
 
-    expect(getMexicoCityRangePreset('last7Days')).toEqual({ from: '2024-12-25', to: '2025-01-01' })
-    expect(toValue(captured().from)).toBe('2024-12-25')
+    expect(getMexicoCityRangePreset('thisMonth')).toEqual({ from: '2024-12-01', to: '2025-01-01' })
+    expect(toValue(captured().from)).toBe('2024-12-01')
     expect(toValue(captured().to)).toBe('2025-01-01')
-    expect(view.find('[data-testid="branch-summary-range"]').text()).toBe('2024-12-25 → 2025-01-01')
+    expect(view.find('[data-testid="branch-summary-range"]').text()).toBe('2024-12-01 → 2025-01-01')
     expect((filterInput(view, 'branch-summary-from').element as HTMLInputElement).value).toBe(
-      '2024-12-25',
+      '2024-12-01',
     )
     expect((filterInput(view, 'branch-summary-to').element as HTMLInputElement).value).toBe(
       '2025-01-01',
+    )
+  })
+
+  it('owns one typed active preset initialized to the current month and passes it to the filters', () => {
+    const view = mountView()
+    const filters = view.findComponent(BranchSalesSummaryFilters)
+
+    expect(filters.props('activePreset')).toBe('thisMonth')
+    expect(presetButton(view, 'thisMonth').attributes('aria-pressed')).toBe('true')
+    expect(presetButton(view, 'last7Days').attributes('aria-pressed')).toBe('false')
+    expect(view.findAll('[data-testid="branch-summary-preset"][aria-pressed="true"]')).toHaveLength(
+      1,
     )
   })
 
@@ -195,19 +226,99 @@ describe('BranchSalesSummaryView — boundary and preset intents', () => {
   }
 
   it.each([...MEXICO_CITY_RANGE_PRESET_IDS])(
-    'resolves the %s preset intent through committed calendar semantics',
+    'resolves the %s preset intent through committed calendar semantics exactly once and marks it active',
     async (id) => {
       setFakeNow(NOON_2025_03_15)
       const view = mountView()
       const [expectedFrom, expectedTo] = PRESET_EXPECTATIONS[id]
+      const helper = vi.mocked(getMexicoCityRangePreset)
+      // Resolve the expectation BEFORE the baseline so this test-owned call is
+      // never counted as part of the click under measurement.
+      expect(getMexicoCityRangePreset(id)).toEqual({ from: expectedFrom, to: expectedTo })
+      helper.mockClear()
+      const helperCallsBeforeClick = helper.mock.calls.length
 
       await presetButton(view, id).trigger('click')
 
-      expect(getMexicoCityRangePreset(id)).toEqual({ from: expectedFrom, to: expectedTo })
+      // The WHOLE mocked helper gains exactly one call for the click, and that
+      // single call carries this exact preset id.
+      expect(helper.mock.calls.length).toBe(helperCallsBeforeClick + 1)
+      expect(helper.mock.calls.map(([calledId]) => calledId)).toEqual([id])
       expect(toValue(captured().from)).toBe(expectedFrom)
       expect(toValue(captured().to)).toBe(expectedTo)
+      const filters = view.findComponent(BranchSalesSummaryFilters)
+      expect(filters.props('activePreset')).toBe(id)
+      expect(presetButton(view, id).attributes('aria-pressed')).toBe('true')
+      expect(
+        view.findAll('[data-testid="branch-summary-preset"][aria-pressed="true"]'),
+      ).toHaveLength(1)
     },
   )
+})
+
+// ── Manual edit clears only the preset selection (OI-3) ──────────────────────
+
+describe('BranchSalesSummaryView — manual boundary edits clear only the preset selection', () => {
+  /** 2025-03-15 in Mexico City: `thisMonth` resolves to [2025-03-01, 2025-03-16). */
+  const MANUAL_EDITS: ReadonlyArray<{
+    readonly index: 0 | 1
+    readonly edited: 'from' | 'to'
+    readonly value: string
+    readonly from: string
+    readonly to: string
+  }> = [
+    { index: 0, edited: 'from', value: '2025-03-05', from: '2025-03-05', to: '2025-03-16' },
+    { index: 1, edited: 'to', value: '2025-03-20', from: '2025-03-01', to: '2025-03-20' },
+  ]
+
+  it.each(MANUAL_EDITS)(
+    'preserves the edited $edited value and clears the active preset',
+    async ({ index, edited, value, from: expectedFrom, to: expectedTo }) => {
+      setFakeNow(NOON_2025_03_15)
+      const view = mountView()
+      await presetButton(view, 'thisMonth').trigger('click')
+      expect(view.findComponent(BranchSalesSummaryFilters).props('activePreset')).toBe('thisMonth')
+
+      const helper = vi.mocked(getMexicoCityRangePreset)
+      helper.mockClear()
+      const helperCallsBeforeEdit = helper.mock.calls.length
+
+      await emitBoundary(view, index, value)
+
+      // A manual edit resolves no preset: the committed helper is never consulted.
+      expect(helper.mock.calls.length).toBe(helperCallsBeforeEdit)
+
+      const filters = view.findComponent(BranchSalesSummaryFilters)
+      expect(filters.props('activePreset')).toBeNull()
+      expect(
+        view.findAll('[data-testid="branch-summary-preset"][aria-pressed="true"]'),
+      ).toHaveLength(0)
+      expect(filters.props(edited)).toBe(value)
+      expect(toValue(captured().from)).toBe(expectedFrom)
+      expect(toValue(captured().to)).toBe(expectedTo)
+      expect(view.find('[data-testid="branch-summary-validation"]').exists()).toBe(false)
+    },
+  )
+
+  it('re-selects a preset after a manual edit and restores its committed boundaries once', async () => {
+    setFakeNow(NOON_2025_03_15)
+    const view = mountView()
+    await emitBoundary(view, 0, '2025-03-05')
+    expect(view.findComponent(BranchSalesSummaryFilters).props('activePreset')).toBeNull()
+
+    const helper = vi.mocked(getMexicoCityRangePreset)
+    helper.mockClear()
+    const helperCallsBeforeClick = helper.mock.calls.length
+    await presetButton(view, 'last7Days').trigger('click')
+
+    // Re-selection resolves the preset once through the committed helper.
+    expect(helper.mock.calls.length).toBe(helperCallsBeforeClick + 1)
+    expect(helper.mock.calls.map(([id]) => id)).toEqual(['last7Days'])
+    expect(toValue(captured().from)).toBe('2025-03-09')
+    expect(toValue(captured().to)).toBe('2025-03-16')
+    expect(view.findComponent(BranchSalesSummaryFilters).props('activePreset')).toBe('last7Days')
+    expect(presetButton(view, 'last7Days').attributes('aria-pressed')).toBe('true')
+  })
 })
 
 // ── Render states ────────────────────────────────────────────────────────────
