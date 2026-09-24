@@ -127,6 +127,24 @@ export const SALE_TIMELINE_EVENT_TYPE = {
   COMMENT: 'COMMENT',
 } as const
 
+// ─── SALE_CANCELLATION_REASON (UPPERCASE, backend v1) ────────────────────────
+// Type: `SaleCancellationReason` from `interfaces/sale.types` (derived from this
+// const via `(typeof SALE_CANCELLATION_REASON)[keyof typeof SALE_CANCELLATION_REASON]`).
+//
+// PCA-3 (promotion-capacity-alerts): the mandatory `reason` of
+// `POST /sales/:saleId/cancel` (backend guide §2.8). The backend accepts the
+// full five-value enum; the POS UI flow intentionally only ever sends
+// `CUSTOMER_REQUEST` (no selector), while the wire contract stays fully typed.
+// Any value outside this set is a `400` from the DTO validation pipe.
+
+export const SALE_CANCELLATION_REASON = {
+  CUSTOMER_REQUEST: 'CUSTOMER_REQUEST',
+  ORDER_ERROR: 'ORDER_ERROR',
+  OUT_OF_STOCK: 'OUT_OF_STOCK',
+  DUPLICATE_SALE: 'DUPLICATE_SALE',
+  OTHER: 'OTHER',
+} as const
+
 // ─── POS_ACTIVE_TAB_STORAGE_KEY (single-tenant storage key freeze) ───────────
 //
 // The active POS tab (which draft sale is currently being edited) is the

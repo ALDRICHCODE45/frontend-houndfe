@@ -2,6 +2,7 @@ import type { CustomerAddress } from '@/features/POS/customers/interfaces/custom
 
 import type {
   PAYMENT_METHOD,
+  SALE_CANCELLATION_REASON,
   SALE_DELIVERY_STATUS,
   SALE_DETAIL_PAYMENT_METHOD,
   SALE_PAYMENT_STATUS,
@@ -260,6 +261,36 @@ export interface SaleDetail {
   // confirmed. Null means PUBLICO (the system default). Optional so
   // pre-existing fixtures that omit the field still type-check.
   globalPriceListId?: string | null
+}
+
+// ─── PCA-3 (promotion-capacity-alerts): full sale cancellation ───────────────
+//
+// Backend guide §§2.1, 2.8–2.9. `POST /sales/:saleId/cancel` guarded by the
+// exact `delete:Sale` permission. The body is mandatory and validated against
+// the five-value enum; the response reports the monetary refund plus the exact
+// restocked lines (stock and promotion-capacity restoration happen server-side,
+// once per sale, and are idempotent with a server-derived key). The frontend
+// NEVER sends `idempotency-key` here.
+
+export type SaleCancellationReason =
+  (typeof SALE_CANCELLATION_REASON)[keyof typeof SALE_CANCELLATION_REASON]
+
+export interface SaleCancellationRequest {
+  reason: SaleCancellationReason
+}
+
+export interface SaleCancellationRestockedItem {
+  productId: string
+  variantId: string | null
+  quantity: number
+}
+
+export interface SaleCancellationResponse {
+  saleId: string
+  status: 'CANCELED'
+  refundedCents: number
+  restockedItems: SaleCancellationRestockedItem[]
+  canceledAt: string
 }
 
 export interface ListSalesParams {

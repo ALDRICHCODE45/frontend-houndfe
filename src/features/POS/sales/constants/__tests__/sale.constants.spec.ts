@@ -21,6 +21,7 @@ import {
   PAYMENT_METHOD,
   SALE_DETAIL_PAYMENT_METHOD,
   SALE_TIMELINE_EVENT_TYPE,
+  SALE_CANCELLATION_REASON,
   POS_ACTIVE_TAB_STORAGE_KEY,
 } from '../sale.constants'
 
@@ -90,6 +91,19 @@ const groups: Array<[group: string, cases: PinRow[]]> = [
       [SALE_TIMELINE_EVENT_TYPE.PAYMENT_RECEIVED, 'PAYMENT_RECEIVED'],
       [SALE_TIMELINE_EVENT_TYPE.PRODUCTS_DELIVERED, 'PRODUCTS_DELIVERED'],
       [SALE_TIMELINE_EVENT_TYPE.COMMENT, 'COMMENT'],
+    ],
+  ],
+  [
+    // PCA-3: the mandatory `reason` of POST /sales/:saleId/cancel. The backend
+    // accepts this full five-value enum; the POS UI only ever sends
+    // CUSTOMER_REQUEST. Any drift here would produce a 400 from the DTO pipe.
+    'SALE_CANCELLATION_REASON',
+    [
+      [SALE_CANCELLATION_REASON.CUSTOMER_REQUEST, 'CUSTOMER_REQUEST'],
+      [SALE_CANCELLATION_REASON.ORDER_ERROR, 'ORDER_ERROR'],
+      [SALE_CANCELLATION_REASON.OUT_OF_STOCK, 'OUT_OF_STOCK'],
+      [SALE_CANCELLATION_REASON.DUPLICATE_SALE, 'DUPLICATE_SALE'],
+      [SALE_CANCELLATION_REASON.OTHER, 'OTHER'],
     ],
   ],
 ]

@@ -27,6 +27,8 @@ import SaleDetailHistoryCard from '../components/SaleDetailHistoryCard.vue'
 import PaymentsListSection from '../components/PaymentsListSection.vue'
 import DebtPaymentModal from '../components/DebtPaymentModal.vue'
 import AssignSellerSlideover from '../components/AssignSellerSlideover.vue'
+import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
+import { useSaleCancellation } from '../composables/useSaleCancellation'
 
 declare const useToast: () => {
   add: (options: {
@@ -47,6 +49,15 @@ const { addComment, updateComment, deleteComment, isPending: commentsPending, la
 const debtModalOpen = ref(false)
 const sellerSlideoverOpen = ref(false)
 const { isSubmitting } = useDebtPayment(saleId.value)
+// PCA-3: full confirmed-sale cancellation. The composable hard-codes the
+// backend reason (`CUSTOMER_REQUEST`) — the view never chooses one.
+const { cancelSale, isPending: cancellationPending } = useSaleCancellation(saleId)
+const cancelModalOpen = ref(false)
+const canCancelSale = computed(
+  () => sale.value?.status === SALE_STATUS.CONFIRMED && authStore.userCan('delete', 'Sale'),
+)
+const cancellationDescription =
+  'Esta acción cancela la venta completa: se restauran el stock de los productos y el cupo consumido de las promociones. No es un reembolso parcial y no se puede deshacer.'
 // sales-pos-charge WU-B.7: PaymentsListSection emits `submit`; the view owns
 // the mutation per design D6 so the section stays presentational and the
 // slideover can be tested in isolation. The composable handles its own
@@ -97,6 +108,7 @@ const actionItems = computed(() => {
     icon: string
     disabled: boolean
     loading?: boolean
+    color?: 'error'
     onSelect?: (event: Event) => void
   }> = []
 
@@ -119,8 +131,31 @@ const actionItems = computed(() => {
     )
   }
 
+  // PCA-3: full-sale cancellation lives INSIDE this dropdown (not a wide
+  // header button) so the mobile header never overflows. Rendered only for a
+  // CONFIRMED sale AND the exact `delete:Sale` permission (backend guide §2.1).
+  if (canCancelSale.value) {
+    items.push({
+      label: 'Cancelar venta',
+      icon: 'i-lucide-x-circle',
+      disabled: false,
+      color: 'error',
+      onSelect: () => {
+        cancelModalOpen.value = true
+      },
+    })
+  }
+
   return items
 })
+
+// PCA-3: success closes the modal; failure keeps it open so the user can
+// recover (retry) or dismiss without losing context. The composable owns the
+// success/error toasts and the cache invalidation.
+async function handleConfirmCancellation() {
+  const result = await cancelSale()
+  if (result) cancelModalOpen.value = false
+}
 
 // sales-pdf-download: show the dropdown whenever there are items, regardless
 // of enabled state — the user must see disabled PDF entries on DRAFT sales
@@ -292,22 +327,22 @@ watch(
             <UDropdownMenu v-if="hasAnyAction" :items="actionItems">
               <UTooltip v-if="triggerTooltipText" :text="triggerTooltipText">
                 <UButton
-                  icon="i-lucide-file-text"
+                  icon="i-lucide-ellipsis"
                   trailing-icon="i-lucide-chevron-down"
                   variant="outline"
                   size="sm"
-                  aria-label="Comprobante"
+                  aria-label="Acciones de venta"
                 />
               </UTooltip>
               <UButton
                 v-else
-                icon="i-lucide-file-text"
+                icon="i-lucide-ellipsis"
                 trailing-icon="i-lucide-chevron-down"
                 variant="outline"
                 size="sm"
-                aria-label="Comprobante"
+                aria-label="Acciones de venta"
               >
-                Comprobante
+                Acciones
               </UButton>
             </UDropdownMenu>
 
@@ -405,6 +440,16 @@ watch(
         <AssignSellerSlideover
           v-model:open="sellerSlideoverOpen"
           :sale-id="sale.id"
+        />
+        <ConfirmModal
+          :open="cancelModalOpen"
+          title="Cancelar venta"
+          :description="cancellationDescription"
+          confirm-label="Cancelar venta"
+          confirm-color="error"
+          :loading="cancellationPending"
+          @update:open="cancelModalOpen = $event"
+          @confirm="handleConfirmCancellation"
         />
       </div>
     </div>

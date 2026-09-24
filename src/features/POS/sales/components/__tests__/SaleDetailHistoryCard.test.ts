@@ -1,9 +1,26 @@
-import { describe, it, expect, vi } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
+import { ref } from 'vue'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import type { SaleTimelineEvent } from '../../interfaces/sale.types'
 
 const toastAdd = vi.fn()
-vi.stubGlobal('useToast', () => ({ add: toastAdd }))
+vi.mock('@nuxt/ui/composables/useToast', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@nuxt/ui/composables/useToast')>()
+  return {
+    ...actual,
+    useToast: () => ({
+      add: toastAdd,
+      update: vi.fn(),
+      remove: vi.fn(),
+      clear: vi.fn(),
+      toasts: ref([]),
+    }),
+  }
+})
+
+beforeEach(() => {
+  toastAdd.mockReset()
+})
 
 import SaleDetailHistoryCard from '../SaleDetailHistoryCard.vue'
 

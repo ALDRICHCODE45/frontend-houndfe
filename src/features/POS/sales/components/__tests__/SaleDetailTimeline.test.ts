@@ -1,10 +1,26 @@
-import { describe, it, expect, vi } from 'vitest'
+import { beforeEach, describe, it, expect, vi } from 'vitest'
+import { ref } from 'vue'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import SaleDetailTimeline from '../SaleDetailTimeline.vue'
 
 const toastAdd = vi.fn()
+vi.mock('@nuxt/ui/composables/useToast', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@nuxt/ui/composables/useToast')>()
+  return {
+    ...actual,
+    useToast: () => ({
+      add: toastAdd,
+      update: vi.fn(),
+      remove: vi.fn(),
+      clear: vi.fn(),
+      toasts: ref([]),
+    }),
+  }
+})
 
-vi.stubGlobal('useToast', () => ({ add: toastAdd }))
+beforeEach(() => {
+  toastAdd.mockReset()
+})
 
 const mockTimeline = [
   { type: 'SALE_REGISTERED', at: '2026-05-06T14:41:00.000Z', actor: null, register: 'Principal' },
@@ -135,6 +151,9 @@ describe('SaleDetailTimeline', () => {
     await Promise.resolve()
 
     expect(wrapper.find('[data-testid="comment-edit-form"]').exists()).toBe(true)
+    expect(toastAdd).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Error', color: 'error' }),
+    )
   })
 
   it('renders comment edit/delete buttons as neutral link variant', () => {

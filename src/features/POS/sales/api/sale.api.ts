@@ -25,6 +25,8 @@ import type {
   SetDueDatePayload,
   SaleComment,
   SaleCommentErrorCode,
+  SaleCancellationRequest,
+  SaleCancellationResponse,
   ListApplicablePromotionsResponse,
   UpdatePaymentReferencePayload,
   UpdatedPaymentReference,
@@ -425,6 +427,24 @@ export const saleApi = {
   // the assignment (reverts items to default pricing).
   async setPriceList(saleId: string, payload: { globalPriceListId: string | null }): Promise<Sale> {
     const { data } = await http.put<Sale>(`/sales/drafts/${saleId}/price-list`, payload)
+    return data
+  },
+
+  // PCA-3 (promotion-capacity-alerts): full confirmed-sale cancellation.
+  // Backend guide §§2.1, 2.8–2.9. Guarded by the exact `delete:Sale`
+  // permission. The body is REBUILT from `payload.reason` so an over-wide
+  // caller object can never leak tenant/actor fields onto the wire. NO third
+  // request-config argument: the server derives its own cancellation key
+  // (`sale:cancel:<saleId>`), so the frontend MUST NOT send `idempotency-key`.
+  // Domain errors (SALE_NOT_FOUND, IDEMPOTENCY_KEY_CONFLICT, ...) rethrow
+  // unchanged for the composable to classify.
+  async cancelSale(
+    saleId: string,
+    payload: SaleCancellationRequest,
+  ): Promise<SaleCancellationResponse> {
+    const { data } = await http.post<SaleCancellationResponse>(`/sales/${saleId}/cancel`, {
+      reason: payload.reason,
+    })
     return data
   },
 

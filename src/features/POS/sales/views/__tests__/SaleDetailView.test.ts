@@ -34,7 +34,15 @@ vi.mock('@/features/POS/products/api/product.api', () => ({
 // Intercept Nuxt UI's useToast. Nuxt UI's vite plugin auto-imports useToast
 // as a module import at compile time (not as a free variable), so
 // vi.stubGlobal cannot override it. Mocking the module replaces the import
-// binding in the compiled SaleDetailView module.
+// binding both in the compiled SaleDetailView module and in the real <UApp>
+// Toaster that mountWithUApp renders.
+//
+// `toasts` MUST be a real empty ref (or array). Toaster renders it with
+// `v-for="toast of toasts"`: a plain `{ value: [] }` object is not
+// auto-unwrapped in the template and is iterated as an object, producing one
+// bogus entry that mounts a real UToast and schedules reka-ui's 5s close
+// timer. That timer fires after jsdom teardown and throws
+// "ReferenceError: document is not defined" from ToastRootImpl.
 vi.mock('@nuxt/ui/composables/useToast', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@nuxt/ui/composables/useToast')>()
   return {
@@ -44,7 +52,7 @@ vi.mock('@nuxt/ui/composables/useToast', async (importOriginal) => {
       update: vi.fn(),
       remove: vi.fn(),
       clear: vi.fn(),
-      toasts: { value: [] },
+      toasts: ref([]),
     }),
   }
 })
@@ -58,7 +66,7 @@ vi.mock('vue-router', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }))
 
-const mockSaleDetail = vi.hoisted(() => ({ value: null as any }))
+const mockSaleDetail = vi.hoisted(() => ({ value: null as unknown }))
 
 vi.mock('../../composables/useSaleDetail', () => ({
   useSaleDetail: () => ({
@@ -127,6 +135,16 @@ vi.mock('../../components/PaymentsListSection.vue', () => ({
   },
 }))
 
+// PCA-3: the view now installs the cancellation mutation at setup. Like every
+// other sale composable above, mock it here so this spec stays
+// framework-light (no QueryClient/VueQueryPlugin needed).
+vi.mock('../../composables/useSaleCancellation', () => ({
+  useSaleCancellation: () => ({
+    cancelSale: vi.fn().mockResolvedValue(undefined),
+    isPending: computed(() => false),
+  }),
+}))
+
 vi.mock('@/features/auth/stores/useAuthStore', () => ({
   useAuthStore: () => ({ userCan: vi.fn(() => true) }),
 }))
@@ -186,15 +204,23 @@ describe('SaleDetailView', () => {
   }
 
   function findActionItem(label: string) {
-    return (items: Array<{ label: string; disabled?: boolean; loading?: boolean; onSelect?: (e: Event) => void }>) =>
-      items.find(i => i.label === label)
+    return (
+      items: Array<{
+        label: string
+        disabled?: boolean
+        loading?: boolean
+        onSelect?: (e: Event) => void
+      }>,
+    ) => items.find((i) => i.label === label)
   }
 
   // PDF tests need to vary sale.status across CONFIRMED / DRAFT / CANCELED,
   // so widen the helper's input type away from the CONFIRMED-only default.
-  type TestSale = Omit<typeof defaultSale, 'status'> & { status: typeof defaultSale.status | 'DRAFT' | 'CANCELED' }
+  type TestSale = Omit<typeof defaultSale, 'status'> & {
+    status: typeof defaultSale.status | 'DRAFT' | 'CANCELED'
+  }
 
-   function mountWithDropdown(sale: TestSale) {
+  function mountWithDropdown(sale: TestSale) {
     mockSaleDetail.value = sale as typeof defaultSale
     return mountWithUApp(SaleDetailView, {
       global: {
@@ -246,14 +272,24 @@ describe('SaleDetailView', () => {
     // HST-REQ-002: header sticky surface is coco-neutral-50/950 (translucency
     // kept for the sticky blur).
     const header = wrapper.get('[data-testid="sale-detail-header"]')
-    expect(header.classes()).toEqual(expect.arrayContaining(['bg-coco-neutral-50/90', 'dark:bg-coco-neutral-950/90']))
+    expect(header.classes()).toEqual(
+      expect.arrayContaining(['bg-coco-neutral-50/90', 'dark:bg-coco-neutral-950/90']),
+    )
     expect(header.classes()).not.toContain('bg-white/90')
     expect(header.classes()).not.toContain('dark:bg-zinc-950/90')
 
     // HST-REQ-002: every Datos-tab reflow card carries the coco-neutral surface.
-    for (const testid of ['reflow-cajero', 'reflow-vendedor', 'reflow-cliente', 'reflow-price-list', 'reflow-payment-methods']) {
+    for (const testid of [
+      'reflow-cajero',
+      'reflow-vendedor',
+      'reflow-cliente',
+      'reflow-price-list',
+      'reflow-payment-methods',
+    ]) {
       const card = wrapper.get(`[data-testid="${testid}"]`)
-      expect(card.classes()).toEqual(expect.arrayContaining(['bg-coco-neutral-50', 'dark:bg-coco-neutral-950']))
+      expect(card.classes()).toEqual(
+        expect.arrayContaining(['bg-coco-neutral-50', 'dark:bg-coco-neutral-950']),
+      )
       expect(card.classes()).not.toContain('bg-white')
       expect(card.classes()).not.toContain('dark:bg-zinc-900')
     }
@@ -264,7 +300,12 @@ describe('SaleDetailView', () => {
   // totals-card "Registrar Pago" so both open DebtPaymentModal with identical
   // visual prominence.
   it('pins Cobrar precedent on the register-payment-header button (HST-REQ-003)', () => {
-    mockSaleDetail.value = { ...defaultSale, paymentStatus: 'PARTIAL', debtCents: 50000, paidCents: 77000 }
+    mockSaleDetail.value = {
+      ...defaultSale,
+      paymentStatus: 'PARTIAL',
+      debtCents: 50000,
+      paidCents: 77000,
+    }
 
     const wrapper = mountWithUApp(SaleDetailView, {
       global: {
@@ -281,7 +322,13 @@ describe('SaleDetailView', () => {
 
     const button = wrapper.get('[data-testid="register-payment-header"]')
     expect(button.classes()).toEqual(
-      expect.arrayContaining(['!bg-(--brand-action)', '!text-black', 'rounded-xl', 'font-semibold', 'shadow-sm'])
+      expect.arrayContaining([
+        '!bg-(--brand-action)',
+        '!text-black',
+        'rounded-xl',
+        'font-semibold',
+        'shadow-sm',
+      ]),
     )
   })
 
@@ -325,9 +372,14 @@ describe('SaleDetailView', () => {
     function totalsStubWithDebt() {
       return {
         props: [
-          'subtotalCents', 'discountCents', 'totalCents',
-          'paidCents', 'debtCents', 'changeDueCents',
-          'canRegisterPayment', 'isPaymentSubmitting',
+          'subtotalCents',
+          'discountCents',
+          'totalCents',
+          'paidCents',
+          'debtCents',
+          'changeDueCents',
+          'canRegisterPayment',
+          'isPaymentSubmitting',
         ],
         emits: ['register-payment'],
         template: `
@@ -346,7 +398,12 @@ describe('SaleDetailView', () => {
     }
 
     it('shows debt payment CTA for non-PAID sale and opens modal', async () => {
-      mockSaleDetail.value = { ...defaultSale, paymentStatus: 'PARTIAL', paidCents: 90000, debtCents: 37000 }
+      mockSaleDetail.value = {
+        ...defaultSale,
+        paymentStatus: 'PARTIAL',
+        paidCents: 90000,
+        debtCents: 37000,
+      }
 
       const wrapper = mountWithUApp(SaleDetailView, {
         global: {
@@ -373,13 +430,23 @@ describe('SaleDetailView', () => {
     })
 
     it('shows register payment button when sale is CREDIT or PARTIAL and CONFIRMED; hides when PAID', () => {
-      mockSaleDetail.value = { ...defaultSale, paymentStatus: 'PARTIAL', debtCents: 50000, paidCents: 77000 }
+      mockSaleDetail.value = {
+        ...defaultSale,
+        paymentStatus: 'PARTIAL',
+        debtCents: 50000,
+        paidCents: 77000,
+      }
       const partialWrapper = mountWithUApp(SaleDetailView, {
         global: { stubs: { SaleDetailTotalsCard: totalsStubWithDebt() } },
       })
       expect(partialWrapper.find('[data-testid="register-debt-payment"]').exists()).toBe(true)
 
-      mockSaleDetail.value = { ...defaultSale, paymentStatus: 'CREDIT', debtCents: 127000, paidCents: 0 }
+      mockSaleDetail.value = {
+        ...defaultSale,
+        paymentStatus: 'CREDIT',
+        debtCents: 127000,
+        paidCents: 0,
+      }
       const creditWrapper = mountWithUApp(SaleDetailView, {
         global: { stubs: { SaleDetailTotalsCard: totalsStubWithDebt() } },
       })
@@ -394,13 +461,20 @@ describe('SaleDetailView', () => {
 
     it('disables register payment button while submitting', () => {
       debtSubmittingRef.value = true
-      mockSaleDetail.value = { ...defaultSale, paymentStatus: 'PARTIAL', debtCents: 50000, paidCents: 77000 }
+      mockSaleDetail.value = {
+        ...defaultSale,
+        paymentStatus: 'PARTIAL',
+        debtCents: 50000,
+        paidCents: 77000,
+      }
 
       const wrapper = mountWithUApp(SaleDetailView, {
         global: { stubs: { SaleDetailTotalsCard: totalsStubWithDebt() } },
       })
 
-      expect(wrapper.get('[data-testid="register-debt-payment"]').attributes('disabled')).toBeDefined()
+      expect(
+        wrapper.get('[data-testid="register-debt-payment"]').attributes('disabled'),
+      ).toBeDefined()
     })
   })
 
@@ -503,7 +577,11 @@ describe('SaleDetailView', () => {
   describe('actionItems PDF entries (sales-pdf-download)', () => {
     it('CONFIRMED sale exposes both Recibo A4 and Recibo Ticket enabled with onSelect handlers', () => {
       const wrapper = mountWithDropdown({ ...defaultSale, status: 'CONFIRMED' })
-      const items = wrapper.vm.actionItems as Array<{ label: string; disabled: boolean; onSelect?: () => void }>
+      const items = wrapper.vm.actionItems as Array<{
+        label: string
+        disabled: boolean
+        onSelect?: () => void
+      }>
 
       const a4 = findActionItem('Recibo A4')(items)
       const ticket = findActionItem('Recibo Ticket')(items)
@@ -563,7 +641,10 @@ describe('SaleDetailView', () => {
       vi.useRealTimers()
     })
 
-    function triggerPreviewPdf(wrapper: ReturnType<typeof mountWithDropdown>, label: 'Recibo A4' | 'Recibo Ticket') {
+    function triggerPreviewPdf(
+      wrapper: ReturnType<typeof mountWithDropdown>,
+      label: 'Recibo A4' | 'Recibo Ticket',
+    ) {
       const items = wrapper.vm.actionItems as Array<{ label: string; onSelect?: () => void }>
       const item = items.find((i) => i.label === label)
       expect(item?.onSelect).toBeTypeOf('function')
@@ -595,20 +676,27 @@ describe('SaleDetailView', () => {
     })
 
     it('CONFIRMED click on "Recibo Ticket" passes receipt-ticket format', async () => {
-      vi.mocked(saleApi.getPdfBlob).mockResolvedValue(new Blob(['%PDF'], { type: 'application/pdf' }))
+      vi.mocked(saleApi.getPdfBlob).mockResolvedValue(
+        new Blob(['%PDF'], { type: 'application/pdf' }),
+      )
 
       const wrapper = mountWithDropdown({ ...defaultSale, status: 'CONFIRMED' as const })
       triggerPreviewPdf(wrapper, 'Recibo Ticket')
       await nextTick()
       await nextTick()
 
-      expect(saleApi.getPdfBlob).toHaveBeenCalledWith('sale-1', 'receipt-ticket', expect.any(Object))
+      expect(saleApi.getPdfBlob).toHaveBeenCalledWith(
+        'sale-1',
+        'receipt-ticket',
+        expect.any(Object),
+      )
     })
 
     it('shows an info toast with download fallback when window.open returns null (popup blocked)', async () => {
-      vi.mocked(saleApi.getPdfBlob).mockResolvedValue(new Blob(['%PDF'], { type: 'application/pdf' }))
+      vi.mocked(saleApi.getPdfBlob).mockResolvedValue(
+        new Blob(['%PDF'], { type: 'application/pdf' }),
+      )
       windowOpenSpy.mockReturnValue(null)
-      vi.stubGlobal('useToast', () => ({ add: addToast }))
 
       const wrapper = mountWithDropdown({ ...defaultSale, status: 'CONFIRMED' as const })
       triggerPreviewPdf(wrapper, 'Recibo A4')
@@ -616,10 +704,11 @@ describe('SaleDetailView', () => {
       await nextTick()
 
       expect(addToast).toHaveBeenCalledWith(
-        expect.objectContaining({ color: 'primary', description: expect.stringContaining('descargó el recibo') }),
+        expect.objectContaining({
+          color: 'primary',
+          description: expect.stringContaining('descargó el recibo'),
+        }),
       )
-
-      vi.unstubAllGlobals()
     })
   })
 
@@ -628,18 +717,21 @@ describe('SaleDetailView', () => {
   // wording from the spec — these messages are user-facing copy.
   describe('handlePreviewPdf error toasts (sales-pdf-download)', () => {
     beforeEach(() => {
-      vi.stubGlobal('useToast', () => ({ add: addToast }))
       vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:mock-url')
       vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
       vi.spyOn(window, 'open').mockReturnValue(null)
     })
 
     afterEach(() => {
-      vi.unstubAllGlobals()
       vi.restoreAllMocks()
     })
 
-    async function clickAndExpectToast(sale: typeof defaultSale, label: 'Recibo A4' | 'Recibo Ticket', expectedDescription: string, expectedColor: 'error' | 'warning') {
+    async function clickAndExpectToast(
+      sale: typeof defaultSale,
+      label: 'Recibo A4' | 'Recibo Ticket',
+      expectedDescription: string,
+      expectedColor: 'error' | 'warning',
+    ) {
       const wrapper = mountWithDropdown(sale)
       const items = wrapper.vm.actionItems as Array<{ label: string; onSelect?: () => void }>
       const item = items.find((i) => i.label === label)
@@ -656,7 +748,12 @@ describe('SaleDetailView', () => {
       const { SalePdfError } = await import('../../api/sale.api')
       vi.mocked(saleApi.getPdfBlob).mockRejectedValue(new SalePdfError('INVALID_FORMAT'))
 
-      await clickAndExpectToast({ ...defaultSale, status: 'CONFIRMED' as const }, 'Recibo A4', 'Formato de recibo no válido', 'error')
+      await clickAndExpectToast(
+        { ...defaultSale, status: 'CONFIRMED' as const },
+        'Recibo A4',
+        'Formato de recibo no válido',
+        'error',
+      )
     })
 
     it('400 SALE_NOT_CONFIRMED → "Solo ventas confirmadas pueden descargar recibo"', async () => {
@@ -807,17 +904,22 @@ describe('SaleDetailView', () => {
       expect(wrapper.find('[data-testid="comment-input"]').exists()).toBe(true)
     })
 
-    // REQ-LAYOUT-003 S1: CONFIRMED sale renders the "Comprobante" label
-    // and the dropdown trigger is updated.
-    it('labels Comprobante trigger for CONFIRMED sale', async () => {
-      const wrapper = mountWithDropdown({ ...defaultSale, status: 'CONFIRMED' as TestSale['status'] })
+    // REQ-LAYOUT-003 S1 / PCA-3: CONFIRMED sale renders the action-dropdown
+    // trigger. PCA-3 added a non-PDF action (cancel), so the copy is now the
+    // honest "Acciones" / aria-label "Acciones de venta" instead of the
+    // PDF-only "Comprobante".
+    it('labels the action dropdown trigger for CONFIRMED sale', async () => {
+      const wrapper = mountWithDropdown({
+        ...defaultSale,
+        status: 'CONFIRMED' as TestSale['status'],
+      })
 
-      // Visible "Comprobante" text in the trigger (CONFIRMED v-else branch).
-      expect(wrapper.text()).toContain('Comprobante')
+      // Visible "Acciones" text in the trigger (CONFIRMED v-else branch).
+      expect(wrapper.text()).toContain('Acciones')
 
-      // aria-label updated to "Comprobante" (per MODIFIED HST-REQ-008) —
-      // the real UDropdownMenu renders the trigger button with this attr.
-      const trigger = wrapper.find('[aria-label="Comprobante"]')
+      // aria-label updated to "Acciones de venta" — the real UDropdownMenu
+      // renders the trigger button with this attr.
+      const trigger = wrapper.find('[aria-label="Acciones de venta"]')
       expect(trigger.exists()).toBe(true)
 
       // The trigger is the dropdown menu trigger (aria-haspopup="menu").
@@ -828,9 +930,9 @@ describe('SaleDetailView', () => {
       expect(trigger.attributes('aria-expanded')).toBe('true')
     })
 
-    // REQ-LAYOUT-003 S3: DRAFT sale keeps the disabled + tooltip affordance
-    // and does NOT show the visible "Comprobante" label.
-    it('keeps icon-only DRAFT trigger with tooltip and no visible Comprobante label', () => {
+    // REQ-LAYOUT-003 S3 / PCA-3: DRAFT sale keeps the disabled + tooltip
+    // affordance and does NOT show the visible "Acciones" label.
+    it('keeps icon-only DRAFT trigger with tooltip and no visible label', () => {
       const wrapper = mountWithDropdown({ ...defaultSale, status: 'DRAFT' as TestSale['status'] })
 
       // The DRAFT branch sets triggerTooltipText to the DRAFT-only tooltip
@@ -840,12 +942,12 @@ describe('SaleDetailView', () => {
       expect(wrapper.vm.triggerTooltipText).toBe('Solo disponible para ventas confirmadas')
 
       // The trigger on the DRAFT branch is icon-only — no visible
-      // "Comprobante" text appears in the wrapper. The aria-label is still
-      // "Comprobante" (per MODIFIED HST-REQ-008 carve-out).
-      const trigger = wrapper.find('[aria-label="Comprobante"]')
+      // "Acciones" text appears in the wrapper. The aria-label is still
+      // "Acciones de venta".
+      const trigger = wrapper.find('[aria-label="Acciones de venta"]')
       expect(trigger.exists()).toBe(true)
       // The trigger element on DRAFT is the icon-only button (no slot text).
-      expect(trigger.text()).not.toContain('Comprobante')
+      expect(trigger.text()).not.toContain('Acciones')
     })
 
     // REQ-LAYOUT-008: the sm:hidden mobile header total is removed. The
