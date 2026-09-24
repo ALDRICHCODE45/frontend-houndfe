@@ -3,7 +3,11 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { mount } from '@vue/test-utils'
 import { defineComponent, h } from 'vue'
 import { saleApi } from '../../api/sale.api'
-import { analyticsQueryKeys, saleQueryKeys } from '@/core/shared/constants/query-keys'
+import {
+  analyticsQueryKeys,
+  promotionQueryKeys,
+  saleQueryKeys,
+} from '@/core/shared/constants/query-keys'
 import {
   appendSaleToCache,
   removeSaleFromCache,
@@ -515,6 +519,72 @@ describe('useSalesDrafts - pure cache update functions', () => {
       expect(spy).not.toHaveBeenCalled()
       expect(spy).not.toHaveBeenCalledWith({ queryKey: expectedAnalyticsPrefix })
     })
+
+    // PCA-2 (backend guide §3.3): a successful charge consumes promotion units,
+    // so the active-tenant promotion list/detail slots AND the confirmed-sale
+    // slots must refresh alongside the preserved draft eviction + analytics
+    // invalidation.
+    it('PCA-2: invalidates promotion and confirmed-sale state after a successful charge', async () => {
+      vi.mocked(saleApi.listDrafts).mockResolvedValue(mockSales)
+      vi.mocked(saleApi.chargeDraft).mockResolvedValue({
+        saleId: 'sale-2',
+        folio: 'A-202605-000002',
+        subtotalCents: 10000,
+        discountCents: 0,
+        totalCents: 10000,
+        paidCents: 10000,
+        debtCents: 0,
+        changeDueCents: 0,
+        paymentStatus: 'PAID',
+        confirmedAt: '2026-05-06T21:00:00.000Z',
+      })
+
+      const { result, queryClient } = mountComposable(() => useSalesDrafts())
+      await vi.waitFor(() => {
+        expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual(mockSales)
+      })
+
+      const spy = vi.spyOn(queryClient, 'invalidateQueries')
+
+      await result.chargeDraft('sale-2', { method: 'cash', amountCents: 10000 }, 'idem-capacity')
+
+      const keys = spy.mock.calls.map(([filters]) => filters?.queryKey)
+      // Promotion list + detail slots are prefix-matched by the tenant `all` key.
+      expect(keys).toContainEqual(promotionQueryKeys.all('tenant-1'))
+      // Confirmed-sale list prefix (all filter/page permutations) + new detail.
+      expect(keys).toContainEqual(['sales', 'tenant-1', 'confirmed'])
+      expect(keys).toContainEqual(['sales', 'tenant-1', 'detail', 'sale-2'])
+      // Existing analytics invalidation and draft eviction are preserved.
+      expect(keys).toContainEqual(analyticsQueryKeys.salesSummaryPrefix('tenant-1'))
+      expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toHaveLength(1)
+      expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)?.[0]?.id).toBe('sale-1')
+    })
+  })
+
+  // PCA-2: the re-quote flow rereads the draft through the existing drafts
+  // query so the refreshed server totals become the single source of truth.
+  describe('refetchDrafts', () => {
+    it('re-reads the drafts list and returns the fresh server data', async () => {
+      const initial: Sale[] = [mockSales[0]!]
+      const refreshed: Sale[] = [
+        { ...mockSales[0]!, subtotalCents: 10000, discountCents: 1000, totalCents: 9000 },
+      ]
+
+      vi.mocked(saleApi.listDrafts).mockResolvedValue(initial)
+
+      const { result, queryClient } = mountComposable(() => useSalesDrafts())
+      await vi.waitFor(() => {
+        expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual(initial)
+      })
+
+      // Server now returns the recalculated draft — the refetch must surface it.
+      vi.mocked(saleApi.listDrafts).mockResolvedValue(refreshed)
+
+      const data = await result.refetchDrafts()
+
+      expect(data).toEqual(refreshed)
+      expect(queryClient.getQueryData<Sale[]>(tenantDraftsKey)).toEqual(refreshed)
+    })
   })
 
   describe('updateItemPrice mutation cache behavior', () => {
@@ -901,23 +971,16 @@ describe('useSalesDrafts - pure cache update functions', () => {
     // ── 3 new promotion mutations: mirror existing pattern (setQueryData + invalidate) ──
 
     async function assertSetQueryDataAndInvalidate(
-      result: {
-        activeDraft: unknown
-        addItem: unknown
-        applyManualPromotion: any
-        removeManualPromotion: any
-        vetoAutoPromotion: any
-      },
       // Loosely-typed QueryClient surface — only the bits the helper uses
       // (getQueryData + setQueryData for vi.spyOn). The runtime value is the
       // real QueryClient; the parameter is intentionally narrow to keep the
       // helper easy to call.
       queryClient: {
         getQueryData: <T>(key: readonly unknown[]) => T | undefined
-        setQueryData: <T>(key: unknown, value: unknown) => unknown
+        setQueryData: (key: unknown, value: unknown) => unknown
         [k: string]: unknown
       },
-      spy: { mock: { calls: any[] } } & ((...args: unknown[]) => unknown),
+      spy: { mock: { calls: unknown[][] } } & ((...args: unknown[]) => unknown),
       invoke: () => Promise<unknown>,
     ) {
       const resultSpy = vi.spyOn(
@@ -939,7 +1002,6 @@ describe('useSalesDrafts - pure cache update functions', () => {
       const { result, queryClient, spy } = await setupWithSpy()
 
       await assertSetQueryDataAndInvalidate(
-        result as never,
         queryClient as never,
         spy as never,
         // Public surface mirrors the existing useSalesDrafts pattern:
@@ -957,14 +1019,10 @@ describe('useSalesDrafts - pure cache update functions', () => {
       vi.mocked(saleApi.removeManualPromotion).mockResolvedValue(updatedDraft)
       const { result, queryClient, spy } = await setupWithSpy()
 
-      await assertSetQueryDataAndInvalidate(
-        result as never,
-        queryClient as never,
-        spy as never,
-        () =>
-          (
-            result as { removeManualPromotion: (promotionId: string) => Promise<unknown> }
-          ).removeManualPromotion('promo-b'),
+      await assertSetQueryDataAndInvalidate(queryClient as never, spy as never, () =>
+        (
+          result as { removeManualPromotion: (promotionId: string) => Promise<unknown> }
+        ).removeManualPromotion('promo-b'),
       )
 
       expect(saleApi.removeManualPromotion).toHaveBeenCalledWith('sale-1', 'promo-b')
@@ -974,14 +1032,10 @@ describe('useSalesDrafts - pure cache update functions', () => {
       vi.mocked(saleApi.vetoAutoPromotion).mockResolvedValue(updatedDraft)
       const { result, queryClient, spy } = await setupWithSpy()
 
-      await assertSetQueryDataAndInvalidate(
-        result as never,
-        queryClient as never,
-        spy as never,
-        () =>
-          (
-            result as { vetoAutoPromotion: (promotionId: string) => Promise<unknown> }
-          ).vetoAutoPromotion('promo-c'),
+      await assertSetQueryDataAndInvalidate(queryClient as never, spy as never, () =>
+        (
+          result as { vetoAutoPromotion: (promotionId: string) => Promise<unknown> }
+        ).vetoAutoPromotion('promo-c'),
       )
 
       expect(saleApi.vetoAutoPromotion).toHaveBeenCalledWith('sale-1', 'promo-c')

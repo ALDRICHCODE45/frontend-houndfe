@@ -70,6 +70,13 @@ export const customerQueryKeys = {
 }
 
 export const promotionQueryKeys = {
+  /**
+   * PCA-2: active-tenant promotion prefix. Prefix-matches EVERY promotion
+   * list/detail/available slot so a successful charge (a capacity mutation)
+   * refreshes all of them in one call. Use this for cross-slot invalidation;
+   * use `paginated`/`detail`/`available` for reads and exact-slot writes.
+   */
+  all: (tenantId: string) => ['promotions', tenantId] as const,
   paginated: (tenantId: string) => ['promotions', tenantId, 'paginated'] as const,
   detail: (tenantId: string, promotionId: string) =>
     ['promotions', tenantId, 'detail', promotionId] as const,
@@ -82,6 +89,13 @@ export const saleQueryKeys = {
   drafts: (tenantId: string) => ['sales', tenantId, 'drafts'] as const,
   confirmed: (tenantId: string, params: ListSalesParams = {}) =>
     ['sales', tenantId, 'confirmed', params] as const,
+  /**
+   * PCA-2: confirmed-sale list prefix. TanStack prefix-matches array keys, so
+   * this refetches EVERY confirmed-list slot (all page/filter permutations)
+   * after a successful charge, without the trailing-params mismatch that
+   * `confirmed(tenantId)` (trailing `{}`) would have.
+   */
+  confirmedPrefix: (tenantId: string) => ['sales', tenantId, 'confirmed'] as const,
   // ODD dashboard-operational-insights OI-5B1: the pending-refund queue is its
   // OWN cache slot. 'pending-refunds' keeps it disjoint from 'confirmed' (the
   // confirmed-sales list) and tenant + page + limit participate in the key so two
@@ -90,6 +104,12 @@ export const saleQueryKeys = {
   // the JWT) and the backend queue order stays authoritative.
   pendingRefunds: (tenantId: string, params: PendingRefundsQuery) =>
     ['sales', tenantId, 'pending-refunds', params.page, params.limit] as const,
+  // PCA-3: pending-refund queue prefix. TanStack prefix-matches array keys, so
+  // this invalidates EVERY page/limit slot of the queue in one call after a
+  // successful sale cancellation (the canceled sale may no longer owe a
+  // refund). Kept SEPARATE from `pendingRefunds(tenantId, {...})` because that
+  // key's trailing page/limit would not prefix-match a different page slot.
+  pendingRefundsPrefix: (tenantId: string) => ['sales', tenantId, 'pending-refunds'] as const,
   // ODD dashboard-operational-insights OI-5B2 S1: the two fixed-slot dashboard
   // sales queries. 'dashboard-recent' and 'dashboard-debt' are their OWN cache
   // namespaces, disjoint from 'confirmed' (the caller-driven list) and from
@@ -311,6 +331,11 @@ export const analyticsQueryKeys = {
   // sent to the API (the backend resolves it from the JWT).
   salesTimeseries: (tenantId: string, params: BranchSalesTimeseriesQuery) =>
     ['analytics', tenantId, 'sales-timeseries', params.from, params.to, params.interval] as const,
+  // PCA-3: time-series prefix. TanStack prefix-matches array keys, so a
+  // successful sale cancellation refetches EVERY daily-series window for the
+  // active tenant (the restored units change the series) without the trailing
+  // from/to/interval that `salesTimeseries(tenantId, {...})` requires.
+  salesTimeseriesPrefix: (tenantId: string) => ['analytics', tenantId, 'sales-timeseries'] as const,
 }
 
 // ─── Payment-methods POS projection (sdd custom-payment-methods S4A) ──────────

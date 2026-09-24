@@ -1,7 +1,11 @@
 import { ref, computed } from 'vue'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/vue-query'
 import { saleApi } from '../api/sale.api'
-import { analyticsQueryKeys, saleQueryKeys } from '@/core/shared/constants/query-keys'
+import {
+  analyticsQueryKeys,
+  promotionQueryKeys,
+  saleQueryKeys,
+} from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import type {
   Sale,
@@ -119,7 +123,11 @@ export function useSalesDrafts() {
   }
 
   // Query for drafts list
-  const { data: drafts, isLoading: isLoadingList } = useQuery({
+  const {
+    data: drafts,
+    isLoading: isLoadingList,
+    refetch: refetchDraftsQuery,
+  } = useQuery({
     queryKey: draftsKey,
     queryFn: saleApi.listDrafts,
     staleTime: Infinity,
@@ -312,6 +320,17 @@ export function useSalesDrafts() {
       queryClient.invalidateQueries({
         queryKey: analyticsQueryKeys.salesSummaryPrefix(tenantId.value),
       })
+
+      // PCA-2 (backend guide §3.3): `charge` consumes promotion units, so the
+      // active-tenant promotion list/detail slots AND the confirmed-sale
+      // list/detail slots must refresh alongside the analytics invalidation.
+      // The draft eviction above is preserved. Prefixes only — never a
+      // scattered literal array.
+      queryClient.invalidateQueries({ queryKey: promotionQueryKeys.all(tenantId.value) })
+      queryClient.invalidateQueries({ queryKey: saleQueryKeys.confirmedPrefix(tenantId.value) })
+      queryClient.invalidateQueries({
+        queryKey: saleQueryKeys.detail(tenantId.value, response.saleId),
+      })
     },
   })
 
@@ -494,6 +513,15 @@ export function useSalesDrafts() {
     return await chargeDraftMutation.mutateAsync({ saleId, payload, idempotencyKey })
   }
 
+  // PCA-2: the capacity re-quote flow rereads the authoritative draft from the
+  // existing drafts query (forced fetch, bypassing the `Infinity` staleTime)
+  // and returns the fresh server list so the caller can render the recalculated
+  // totals. The query cache is updated as a side effect of `refetch()`.
+  const refetchDrafts = async (): Promise<Sale[]> => {
+    const result = await refetchDraftsQuery()
+    return result.data ?? []
+  }
+
   // promotions-in-sale A.4: public surface for the 3 new promotion mutations.
   // Each requires an active tab (the seller is acting on a specific draft).
   const applyManualPromotion = async (promotionId: string): Promise<Sale> => {
@@ -547,6 +575,7 @@ export function useSalesDrafts() {
     applyGlobalDiscount,
     removeGlobalDiscount,
     chargeDraft,
+    refetchDrafts,
     // promotions-in-sale A.4:
     applyManualPromotion,
     removeManualPromotion,

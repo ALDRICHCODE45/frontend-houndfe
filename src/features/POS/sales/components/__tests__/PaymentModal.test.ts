@@ -24,7 +24,8 @@ const buttonStub = {
 const inputNumberStub = {
   props: ['modelValue', 'disabled', 'readonly'],
   emits: ['update:modelValue'],
-  template: '<input :value="modelValue" :disabled="disabled" :readonly="readonly" @input="$emit(\'update:modelValue\', Number($event.target.value))" />',
+  template:
+    '<input :value="modelValue" :disabled="disabled" :readonly="readonly" @input="$emit(\'update:modelValue\', Number($event.target.value))" />',
 }
 
 const inputStub = {
@@ -43,7 +44,8 @@ const selectStub = {
 
 const formFieldStub = {
   props: ['label', 'help', 'error'],
-  template: '<label><span>{{ label }}</span><slot /><p v-if="help">{{ help }}</p><p v-if="error">{{ error }}</p></label>',
+  template:
+    '<label><span>{{ label }}</span><slot /><p v-if="help">{{ help }}</p><p v-if="error">{{ error }}</p></label>',
 }
 
 const stubs = {
@@ -69,7 +71,8 @@ const stubs = {
   Icon: { template: '<span />' },
   UAlert: {
     props: ['title', 'description'],
-    template: '<div role="alert"><p>{{ title }}</p><p>{{ description }}</p><slot name="actions" /></div>',
+    template:
+      '<div role="alert"><p>{{ title }}</p><p>{{ description }}</p><slot name="actions" /></div>',
   },
   URadioGroup: {
     props: ['modelValue', 'items'],
@@ -84,7 +87,8 @@ const stubs = {
   USwitch: {
     props: ['modelValue', 'disabled', 'label', 'description'],
     emits: ['update:modelValue'],
-    template: '<input type="checkbox" v-bind="$attrs" :checked="modelValue" :disabled="disabled" @change="$emit(\'update:modelValue\', $event.target.checked)" />',
+    template:
+      '<input type="checkbox" v-bind="$attrs" :checked="modelValue" :disabled="disabled" @change="$emit(\'update:modelValue\', $event.target.checked)" />',
   },
   // Both `USwitch` and `Switch` keys mirror the existing UButton/Button
   // dual-stub pattern: the auto-imported form (`<USwitch>`) resolves to a
@@ -96,7 +100,8 @@ const stubs = {
   Switch: {
     props: ['modelValue', 'disabled', 'label', 'description'],
     emits: ['update:modelValue'],
-    template: '<input type="checkbox" v-bind="$attrs" :checked="modelValue" :disabled="disabled" @change="$emit(\'update:modelValue\', $event.target.checked)" />',
+    template:
+      '<input type="checkbox" v-bind="$attrs" :checked="modelValue" :disabled="disabled" @change="$emit(\'update:modelValue\', $event.target.checked)" />',
   },
 }
 
@@ -198,7 +203,7 @@ describe('PaymentModal', () => {
         open: true,
         totalCents: 15000,
         saleId: 'sale-1',
-        customer: { id: 'customer-1', firstName: 'Test', lastName: 'Customer' }
+        customer: { id: 'customer-1', firstName: 'Test', lastName: 'Customer' },
       },
       global: { stubs },
     })
@@ -217,7 +222,7 @@ describe('PaymentModal', () => {
         open: true,
         totalCents: 15000,
         saleId: 'sale-1',
-        customer: null
+        customer: null,
       },
       global: { stubs },
     })
@@ -234,7 +239,7 @@ describe('PaymentModal', () => {
         open: true,
         totalCents: 15000,
         saleId: 'sale-1',
-        customer: { id: 'customer-1', firstName: 'Test', lastName: 'Customer' }
+        customer: { id: 'customer-1', firstName: 'Test', lastName: 'Customer' },
       },
       global: { stubs },
     })
@@ -528,7 +533,8 @@ describe('PaymentModal', () => {
     const dueDateStub = {
       props: ['modelValue', 'placeholder', 'disabled', 'minIso', 'testid'],
       emits: ['update:modelValue'],
-      template: '<input :data-testid="testid" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+      template:
+        '<input :data-testid="testid" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
     }
 
     const wrapper = mount(PaymentModal, {
@@ -632,7 +638,10 @@ describe('PaymentModal S4B — custom payment method tiles (sdd custom-payment-m
     projectionData.value = []
   })
 
-  function mountWithProjection(projection: ActivePaymentMethodProjection[], props: Record<string, unknown> = {}) {
+  function mountWithProjection(
+    projection: ActivePaymentMethodProjection[],
+    props: Record<string, unknown> = {},
+  ) {
     projectionData.value = projection
     return mount(PaymentModal, {
       props: { open: true, totalCents: 15000, saleId: 'sale-1', ...props },
@@ -647,9 +656,9 @@ describe('PaymentModal S4B — custom payment method tiles (sdd custom-payment-m
     expect(wrapper.find('[data-testid="payment-method-tile-card_credit"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="payment-method-tile-card_debit"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="payment-method-tile-transfer"]').exists()).toBe(true)
-    expect(
-      wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_A}"]`).text(),
-    ).toContain('Mercado Pago')
+    expect(wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_A}"]`).text()).toContain(
+      'Mercado Pago',
+    )
   })
 
   it('REQ-PT-007 — custom tile renders the grey subtitle sub-line when present', () => {
@@ -661,13 +670,17 @@ describe('PaymentModal S4B — custom payment method tiles (sdd custom-payment-m
   })
 
   it('REQ-PT-007 — null subtitle hides the sub-line', () => {
-    const wrapper = mountWithProjection([{ id: UUID_B, name: 'Efectivo USD', category: 'cash', subtitle: null }])
+    const wrapper = mountWithProjection([
+      { id: UUID_B, name: 'Efectivo USD', category: 'cash', subtitle: null },
+    ])
 
     expect(wrapper.find('[data-testid^="payment-method-tile-subtitle-"]').exists()).toBe(false)
   })
 
   it('REQ-PT-007 — whitespace-only subtitle is treated as absent', () => {
-    const wrapper = mountWithProjection([{ id: UUID_B, name: 'Foo', category: 'cash', subtitle: '   ' }])
+    const wrapper = mountWithProjection([
+      { id: UUID_B, name: 'Foo', category: 'cash', subtitle: '   ' },
+    ])
 
     expect(wrapper.find('[data-testid^="payment-method-tile-subtitle-"]').exists()).toBe(false)
   })
@@ -702,16 +715,30 @@ describe('PaymentModal S4B — custom payment method tiles (sdd custom-payment-m
   })
 
   it('REQ-PT-001 — two customs of the same category coexist and toggle independently (distinct keys)', async () => {
-    const bbva: ActivePaymentMethodProjection = { id: UUID_A, name: 'Transferencia BBVA', category: 'transfer', subtitle: null }
-    const afirme: ActivePaymentMethodProjection = { id: UUID_B, name: 'Transferencia AFIRME', category: 'transfer', subtitle: null }
+    const bbva: ActivePaymentMethodProjection = {
+      id: UUID_A,
+      name: 'Transferencia BBVA',
+      category: 'transfer',
+      subtitle: null,
+    }
+    const afirme: ActivePaymentMethodProjection = {
+      id: UUID_B,
+      name: 'Transferencia AFIRME',
+      category: 'transfer',
+      subtitle: null,
+    }
     const wrapper = mountWithProjection([bbva, afirme])
 
     await wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_A}"]`).trigger('click')
     await wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_B}"]`).trigger('click')
 
     expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(2)
-    expect(wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_A}"]`).text()).toContain('1')
-    expect(wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_B}"]`).text()).toContain('1')
+    expect(wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_A}"]`).text()).toContain(
+      '1',
+    )
+    expect(wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_B}"]`).text()).toContain(
+      '1',
+    )
 
     // Toggling BBVA off removes ONLY BBVA's entry
     await wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_A}"]`).trigger('click')
@@ -719,7 +746,12 @@ describe('PaymentModal S4B — custom payment method tiles (sdd custom-payment-m
   })
 
   it('REQ-PT-001 — a fixed tile and a custom tile of the same category do NOT collide', async () => {
-    const custom: ActivePaymentMethodProjection = { id: UUID_A, name: 'Transferencia BBVA', category: 'transfer', subtitle: null }
+    const custom: ActivePaymentMethodProjection = {
+      id: UUID_A,
+      name: 'Transferencia BBVA',
+      category: 'transfer',
+      subtitle: null,
+    }
     const wrapper = mountWithProjection([custom])
 
     // Fixed Transferencia tile
@@ -767,7 +799,11 @@ describe('PaymentModal S4B — custom payment method tiles (sdd custom-payment-m
     await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
 
     const submitted = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
-    const payments = (submitted?.payload as { payments: Array<{ method: string; amountCents: number; paymentMethodId?: string }> }).payments
+    const payments = (
+      submitted?.payload as {
+        payments: Array<{ method: string; amountCents: number; paymentMethodId?: string }>
+      }
+    ).payments
     expect(payments).toHaveLength(2)
     expect(payments[0]).toEqual({ method: 'cash', amountCents: 10000 })
     expect(payments[1]).toEqual({ method: 'transfer', amountCents: 5000, paymentMethodId: UUID_A })
@@ -777,7 +813,10 @@ describe('PaymentModal S4B — custom payment method tiles (sdd custom-payment-m
     // totalCents 10000 so the fixed cash entry (prefilled to the full total)
     // alone is a complete payment AFTER the custom entry is filtered — a
     // partial leftover would (correctly) block the second submit.
-    const wrapper = mountWithProjection([customMercadoPago], { catalogClearSignal: 0, totalCents: 10000 })
+    const wrapper = mountWithProjection([customMercadoPago], {
+      catalogClearSignal: 0,
+      totalCents: 10000,
+    })
 
     await wrapper.get('[data-testid="add-payment-entry"]').trigger('click')
     await wrapper.get(`[data-testid="payment-method-tile-custom-${UUID_A}"]`).trigger('click')
@@ -950,7 +989,9 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
 
     const submitted = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
     expect(submitted).toBeDefined()
-    const payload = submitted!.payload as unknown as Record<string, unknown> & { payments: unknown[] }
+    const payload = submitted!.payload as unknown as Record<string, unknown> & {
+      payments: unknown[]
+    }
     expect(payload.delivery).toBe(true)
     expect(payload.payments).toHaveLength(2)
     // Legacy discriminants MUST stay absent
@@ -1003,7 +1044,9 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
     await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
 
     const submitted = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
-    const payload = submitted!.payload as unknown as Record<string, unknown> & { payments: unknown[] }
+    const payload = submitted!.payload as unknown as Record<string, unknown> & {
+      payments: unknown[]
+    }
     expect('delivery' in payload).toBe(false)
     expect(payload.payments).toHaveLength(2)
   })
@@ -1064,7 +1107,8 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
     await wrapper.get('[data-testid="delivery-toggle"]').setValue(true)
     await wrapper.vm.$nextTick()
     await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
-    const secondKey = (wrapper.emitted('submit')?.[1]?.[0] as PaymentModalSubmitEvent).idempotencyKey
+    const secondKey = (wrapper.emitted('submit')?.[1]?.[0] as PaymentModalSubmitEvent)
+      .idempotencyKey
 
     expect(secondKey).not.toBe(firstKey)
 
@@ -1098,7 +1142,8 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
     // Asserting equality locks "no spurious regeneration on idle submits"
     // (counterpart of the regen-on-flip test above).
     await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
-    const secondKey = (wrapper.emitted('submit')?.[1]?.[0] as PaymentModalSubmitEvent).idempotencyKey
+    const secondKey = (wrapper.emitted('submit')?.[1]?.[0] as PaymentModalSubmitEvent)
+      .idempotencyKey
 
     expect(secondKey).toBe(firstKey)
   })
@@ -1184,7 +1229,8 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
     const dueDateStub = {
       props: ['modelValue', 'placeholder', 'disabled', 'minIso', 'testid'],
       emits: ['update:modelValue'],
-      template: '<input :data-testid="testid" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+      template:
+        '<input :data-testid="testid" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
     }
 
     const wrapper = mount(PaymentModal, {
@@ -1210,7 +1256,12 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
 
     const submitted = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
     const payload = submitted!.payload as unknown as Record<string, unknown>
-    expect(payload).toMatchObject({ method: 'cash', amountCents: 10000, delivery: true, dueDate: '2099-12-31' })
+    expect(payload).toMatchObject({
+      method: 'cash',
+      amountCents: 10000,
+      delivery: true,
+      dueDate: '2099-12-31',
+    })
   })
 
   it('clips inset corners and stacks full-width actions on mobile', () => {
@@ -1229,5 +1280,88 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
     for (const button of actions.findAll('button')) {
       expect(button.classes()).toEqual(expect.arrayContaining(['w-full', 'sm:w-auto']))
     }
+  })
+})
+
+// ─── PCA-2 — capacity re-quote acceptance signal ─────────────────────────────
+//
+// After a `PROMO_CAPACITY_RE_QUOTE` the parent refetches the draft and shows a
+// separate acceptance modal. ONLY when the cashier accepts that refreshed
+// quote does the parent bump `requoteAcceptSignal`; the modal must then mint a
+// fresh idempotency key while preserving the entered payments. An unchanged
+// retry (no signal bump, no payment edit) must keep reusing the current key.
+describe('PaymentModal PCA-2 — capacity re-quote acceptance signal', () => {
+  async function mountWithSingleCashEntry(signal: number) {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+        customer: { id: 'c-1', firstName: 'Ada', lastName: null },
+        requoteAcceptSignal: signal,
+      },
+      global: { stubs },
+    })
+
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
+    return wrapper
+  }
+
+  it('regenerates the idempotency key when the parent bumps requoteAcceptSignal', async () => {
+    const wrapper = await mountWithSingleCashEntry(0)
+
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    const firstKey = (wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent).idempotencyKey
+
+    // Acceptance of the refreshed quote — entries are intentionally untouched.
+    await wrapper.setProps({ requoteAcceptSignal: 1 })
+    await wrapper.vm.$nextTick()
+
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    const secondKey = (wrapper.emitted('submit')?.[1]?.[0] as PaymentModalSubmitEvent)
+      .idempotencyKey
+
+    expect(secondKey).not.toBe(firstKey)
+    // The payments the cashier entered survive the key regeneration.
+    expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(1)
+  })
+
+  it('reuses the current key on an unchanged retry (no signal bump, no data change)', async () => {
+    const wrapper = await mountWithSingleCashEntry(7)
+
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    const firstKey = (wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent).idempotencyKey
+
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    const secondKey = (wrapper.emitted('submit')?.[1]?.[0] as PaymentModalSubmitEvent)
+      .idempotencyKey
+
+    expect(secondKey).toBe(firstKey)
+  })
+
+  it('does not regenerate the key from a signal bump while the modal is closed', async () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: false,
+        totalCents: 15000,
+        saleId: 'sale-1',
+        requoteAcceptSignal: 0,
+      },
+      global: { stubs },
+    })
+
+    await wrapper.setProps({ requoteAcceptSignal: 1 })
+    await wrapper.vm.$nextTick()
+
+    // Opening afterwards mints exactly one key (the open watcher), and no
+    // submit fired while closed.
+    await wrapper.setProps({ open: true })
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+
+    const submitted = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
+    expect(submitted?.idempotencyKey).toBeTruthy()
   })
 })

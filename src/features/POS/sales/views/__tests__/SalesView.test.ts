@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { mount } from '@vue/test-utils'
+import { mount, flushPromises } from '@vue/test-utils'
 import { computed, ref } from 'vue'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import type { Sale } from '../../interfaces/sale.types'
@@ -41,11 +41,15 @@ const { legacyErrorDispatch } = vi.hoisted(() => ({ legacyErrorDispatch: vi.fn()
 
 vi.mock('../../utils/salePaymentErrors.utils', async (importOriginal) => {
   const actual = await importOriginal<{
-    getSalePaymentErrorAction: (code: import('../../interfaces/sale.types').ChargeDomainErrorCode) => import('../../utils/salePaymentErrors.utils').SalePaymentUxAction
+    getSalePaymentErrorAction: (
+      code: import('../../interfaces/sale.types').ChargeDomainErrorCode,
+    ) => import('../../utils/salePaymentErrors.utils').SalePaymentUxAction
   }>()
   return {
     ...actual,
-    getSalePaymentErrorAction: (code: import('../../interfaces/sale.types').ChargeDomainErrorCode) => {
+    getSalePaymentErrorAction: (
+      code: import('../../interfaces/sale.types').ChargeDomainErrorCode,
+    ) => {
       legacyErrorDispatch(code)
       return actual.getSalePaymentErrorAction(code)
     },
@@ -53,6 +57,7 @@ vi.mock('../../utils/salePaymentErrors.utils', async (importOriginal) => {
 })
 
 const chargeDraft = vi.fn()
+const refetchDraftsMock = vi.fn()
 const unassignCustomerMock = vi.fn()
 const clearShippingAddressMock = vi.fn()
 const vetoAutoPromotionMock = vi.fn()
@@ -66,7 +71,18 @@ const drafts = ref<Sale[]>([
     id: 'sale-1',
     userId: 'user-1',
     status: 'DRAFT',
-    items: [{ id: 'item-1', productId: 'prod-1', variantId: null, productName: 'A', variantName: null, quantity: 1, unitPriceCents: 10000, unitPriceCurrency: 'MXN' }],
+    items: [
+      {
+        id: 'item-1',
+        productId: 'prod-1',
+        variantId: null,
+        productName: 'A',
+        variantName: null,
+        quantity: 1,
+        unitPriceCents: 10000,
+        unitPriceCurrency: 'MXN',
+      },
+    ],
     createdAt: 'x',
     updatedAt: 'x',
   },
@@ -92,6 +108,7 @@ vi.mock('../../composables/useSalesDrafts', () => ({
     applyGlobalDiscount: vi.fn(),
     removeGlobalDiscount: vi.fn(),
     chargeDraft,
+    refetchDrafts: refetchDraftsMock,
     vetoAutoPromotion: vetoAutoPromotionMock,
     // C.4 — manual-promo mutations consumed by the accordion.
     applyManualPromotion: applyManualPromotionMock,
@@ -105,7 +122,10 @@ vi.mock('../../composables/useSalesDrafts', () => ({
 // C.4 — mock the applicable-promotions query composable. The exports are
 // refs that tests can mutate BEFORE mounting to simulate different query
 // states (e.g. populated list, fetching=true).
-const applicablePromotionsData = ref<{ saleId: string; promotions: Array<{ id: string; title: string; type: 'PRODUCT_DISCOUNT' | 'ORDER_DISCOUNT' }> }>({
+const applicablePromotionsData = ref<{
+  saleId: string
+  promotions: Array<{ id: string; title: string; type: 'PRODUCT_DISCOUNT' | 'ORDER_DISCOUNT' }>
+}>({
   saleId: 'sale-1',
   promotions: [],
 })
@@ -154,7 +174,10 @@ const focusSearchSpy = vi.fn()
 const globalStubs = {
   ProductSearchPanel: {
     name: 'ProductSearchPanel',
-    setup(_props: Record<string, unknown>, { expose }: { expose: (obj: Record<string, unknown>) => void }) {
+    setup(
+      _props: Record<string, unknown>,
+      { expose }: { expose: (obj: Record<string, unknown>) => void },
+    ) {
       expose({
         searchInputRef: { focus: () => focusSearchSpy() },
       })
@@ -164,45 +187,91 @@ const globalStubs = {
   },
   ActiveSalePanel: {
     name: 'ActiveSalePanel',
-    props: ['activeDraft', 'applicablePromotions', 'isLoadingPromotions', 'appliedManualPromotionIds', 'mobileSheet'],
+    props: [
+      'activeDraft',
+      'applicablePromotions',
+      'isLoadingPromotions',
+      'appliedManualPromotionIds',
+      'mobileSheet',
+    ],
     // C.5: `remove-promo` (per-line) is now forwarded from ActiveSalePanel
     // alongside the existing `remove-order-promo` (order-level).
-    emits: ['charge-click', 'unassign-customer', 'remove-order-promo', 'remove-promo', 'apply-manual-promo', 'remove-manual-promo'],
+    emits: [
+      'charge-click',
+      'unassign-customer',
+      'remove-order-promo',
+      'remove-promo',
+      'apply-manual-promo',
+      'remove-manual-promo',
+    ],
     template:
-      '<div>'
-      + '<button data-testid="charge-click" @click="$emit(\'charge-click\')">charge</button>'
-      + '<button data-testid="unassign-customer" @click="$emit(\'unassign-customer\')">unassign</button>'
-      + '<button data-testid="remove-order-promo" @click="$emit(\'remove-order-promo\', \'order-promo-uuid\')">remove-order-promo</button>'
-      + '<button data-testid="remove-line-promo" @click="$emit(\'remove-promo\', \'line-promo-uuid\')">remove-line-promo</button>'
-      + '<p data-testid="applicable-promotions-count">{{ (applicablePromotions ?? []).length }}</p>'
-      + '<p data-testid="is-loading-promotions">{{ isLoadingPromotions }}</p>'
-      + '</div>',
+      '<div>' +
+      '<button data-testid="charge-click" @click="$emit(\'charge-click\')">charge</button>' +
+      '<button data-testid="unassign-customer" @click="$emit(\'unassign-customer\')">unassign</button>' +
+      '<button data-testid="remove-order-promo" @click="$emit(\'remove-order-promo\', \'order-promo-uuid\')">remove-order-promo</button>' +
+      '<button data-testid="remove-line-promo" @click="$emit(\'remove-promo\', \'line-promo-uuid\')">remove-line-promo</button>' +
+      '<p data-testid="applicable-promotions-count">{{ (applicablePromotions ?? []).length }}</p>' +
+      '<p data-testid="is-loading-promotions">{{ isLoadingPromotions }}</p>' +
+      '</div>',
   },
   PaymentModal: {
-    props: ['open', 'saleId', 'externalError', 'isSubmitting', 'customer', 'totalCents', 'catalogClearSignal', 'shippingAddress'],
+    props: [
+      'open',
+      'saleId',
+      'externalError',
+      'isSubmitting',
+      'customer',
+      'totalCents',
+      'catalogClearSignal',
+      'shippingAddress',
+      'requoteAcceptSignal',
+    ],
     emits: ['submit', 'update:open', 'request-assign-customer'],
     template:
-      '<div><p data-testid="payment-modal-open">{{ open }}</p><p data-testid="payment-modal-total-cents">{{ totalCents }}</p><p data-testid="payment-modal-catalog-clear-signal">{{ catalogClearSignal }}</p><p data-testid="payment-modal-shipping-address-id">{{ shippingAddress?.id }}</p><button data-testid="submit-charge" :disabled="isSubmitting" @click="$emit(\'submit\', { saleId, payload: { method: \'cash\', amountCents: totalCents }, idempotencyKey: \'idem-1\' })">submit</button><button data-testid="request-assign-customer" @click="$emit(\'request-assign-customer\')">assign</button><p data-testid="external-error">{{ externalError }}</p><p data-testid="modal-customer-id">{{ customer?.id }}</p></div>',
+      '<div><p data-testid="payment-modal-open">{{ open }}</p><p data-testid="payment-modal-total-cents">{{ totalCents }}</p><p data-testid="payment-modal-catalog-clear-signal">{{ catalogClearSignal }}</p><p data-testid="payment-modal-requote-signal">{{ requoteAcceptSignal }}</p><p data-testid="payment-modal-shipping-address-id">{{ shippingAddress?.id }}</p><button data-testid="submit-charge" :disabled="isSubmitting" @click="$emit(\'submit\', { saleId, payload: { method: \'cash\', amountCents: totalCents }, idempotencyKey: \'idem-1\' })">submit</button><button data-testid="request-assign-customer" @click="$emit(\'request-assign-customer\')">assign</button><p data-testid="external-error">{{ externalError }}</p><p data-testid="modal-customer-id">{{ customer?.id }}</p></div>',
+  },
+  PromotionCapacityRequoteModal: {
+    name: 'PromotionCapacityRequoteModal',
+    props: ['open', 'subtotalCents', 'discountCents', 'totalCents', 'excludedPromotions'],
+    emits: ['accept', 'update:open'],
+    template:
+      '<div data-testid="requote-modal-stub">' +
+      '<p data-testid="requote-open">{{ open }}</p>' +
+      '<p data-testid="requote-subtotal">{{ subtotalCents }}</p>' +
+      '<p data-testid="requote-discount">{{ discountCents }}</p>' +
+      '<p data-testid="requote-total">{{ totalCents }}</p>' +
+      '<p data-testid="requote-excluded">{{ (excludedPromotions ?? []).map((p) => p.label).join("|") }}</p>' +
+      '<button data-testid="requote-accept" @click="$emit(\'accept\')">accept</button>' +
+      '</div>',
   },
   PaymentSuccessModal: {
     props: ['open', 'folio', 'debtCents', 'paymentStatus'],
-    template: '<div data-testid="success-modal">{{ folio }}|{{ debtCents }}|{{ paymentStatus }}</div>',
+    template:
+      '<div data-testid="success-modal">{{ folio }}|{{ debtCents }}|{{ paymentStatus }}</div>',
   },
   // C.5: stubbed ConfirmModal — surfaces its `open` prop + a `confirm` button
   // so we can drive the veto confirmation flow without the real UModal.
   ConfirmModal: {
     name: 'ConfirmModal',
-    props: ['open', 'title', 'description', 'confirmLabel', 'cancelLabel', 'confirmColor', 'loading'],
+    props: [
+      'open',
+      'title',
+      'description',
+      'confirmLabel',
+      'cancelLabel',
+      'confirmColor',
+      'loading',
+    ],
     emits: ['update:open', 'confirm', 'cancel'],
     template:
-      '<div data-testid="confirm-modal">'
-      + '<p data-testid="confirm-modal-open">{{ open }}</p>'
-      + '<p data-testid="confirm-modal-title">{{ title }}</p>'
-      + '<p data-testid="confirm-modal-description">{{ description }}</p>'
-      + '<p data-testid="confirm-modal-confirm-color">{{ confirmColor }}</p>'
-      + '<button data-testid="confirm-modal-confirm" @click="$emit(\'confirm\')">confirm</button>'
-      + '<button data-testid="confirm-modal-cancel" @click="$emit(\'update:open\', false); $emit(\'cancel\')">cancel</button>'
-      + '</div>',
+      '<div data-testid="confirm-modal">' +
+      '<p data-testid="confirm-modal-open">{{ open }}</p>' +
+      '<p data-testid="confirm-modal-title">{{ title }}</p>' +
+      '<p data-testid="confirm-modal-description">{{ description }}</p>' +
+      '<p data-testid="confirm-modal-confirm-color">{{ confirmColor }}</p>' +
+      '<button data-testid="confirm-modal-confirm" @click="$emit(\'confirm\')">confirm</button>' +
+      '<button data-testid="confirm-modal-cancel" @click="$emit(\'update:open\', false); $emit(\'cancel\')">cancel</button>' +
+      '</div>',
   },
   USkeleton: { template: '<div />' },
   AssignCustomerSlideover: {
@@ -235,7 +304,9 @@ const globalStubs = {
 }
 
 function mountView() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  })
   return mount(SalesView, {
     global: {
       plugins: [[VueQueryPlugin, { queryClient }]],
@@ -292,7 +363,11 @@ describe('SalesView charge orchestration', () => {
     await wrapper.get('[data-testid="charge-click"]').trigger('click')
     await wrapper.get('[data-testid="submit-charge"]').trigger('click')
 
-    expect(chargeDraft).toHaveBeenCalledWith('sale-1', { method: 'cash', amountCents: 10000 }, 'idem-1')
+    expect(chargeDraft).toHaveBeenCalledWith(
+      'sale-1',
+      { method: 'cash', amountCents: 10000 },
+      'idem-1',
+    )
     expect(wrapper.get('[data-testid="success-modal"]').text()).toContain('A-202605-000123')
   })
 
@@ -324,7 +399,9 @@ describe('SalesView charge orchestration', () => {
     await wrapper.get('[data-testid="charge-click"]').trigger('click')
     await wrapper.get('[data-testid="submit-charge"]').trigger('click')
 
-    expect(wrapper.get('[data-testid="success-modal"]').text()).toContain('A-202605-000987|5000|PARTIAL')
+    expect(wrapper.get('[data-testid="success-modal"]').text()).toContain(
+      'A-202605-000987|5000|PARTIAL',
+    )
   })
 
   it('maps PRICE_OUT_OF_DATE by error code and invalidates drafts', async () => {
@@ -359,7 +436,18 @@ describe('SalesView charge orchestration', () => {
         id: 'sale-2',
         userId: 'user-1',
         status: 'DRAFT',
-        items: [{ id: 'item-2', productId: 'prod-2', variantId: null, productName: 'B', variantName: null, quantity: 1, unitPriceCents: 5000, unitPriceCurrency: 'MXN' }],
+        items: [
+          {
+            id: 'item-2',
+            productId: 'prod-2',
+            variantId: null,
+            productName: 'B',
+            variantName: null,
+            quantity: 1,
+            unitPriceCents: 5000,
+            unitPriceCurrency: 'MXN',
+          },
+        ],
         createdAt: 'y',
         updatedAt: 'y',
       },
@@ -380,7 +468,18 @@ describe('SalesView charge orchestration', () => {
         id: 'sale-2',
         userId: 'user-1',
         status: 'DRAFT',
-        items: [{ id: 'item-2', productId: 'prod-2', variantId: null, productName: 'B', variantName: null, quantity: 1, unitPriceCents: 5000, unitPriceCurrency: 'MXN' }],
+        items: [
+          {
+            id: 'item-2',
+            productId: 'prod-2',
+            variantId: null,
+            productName: 'B',
+            variantName: null,
+            quantity: 1,
+            unitPriceCents: 5000,
+            unitPriceCurrency: 'MXN',
+          },
+        ],
         createdAt: 'y',
         updatedAt: 'y',
       },
@@ -394,7 +493,9 @@ describe('SalesView charge orchestration', () => {
   })
 
   it('maps STOCK_INSUFFICIENT_AT_CONFIRM and invalidates drafts', async () => {
-    chargeDraft.mockRejectedValueOnce({ response: { data: { error: 'STOCK_INSUFFICIENT_AT_CONFIRM' } } })
+    chargeDraft.mockRejectedValueOnce({
+      response: { data: { error: 'STOCK_INSUFFICIENT_AT_CONFIRM' } },
+    })
     const wrapper = mountView()
 
     await wrapper.get('[data-testid="charge-click"]').trigger('click')
@@ -450,7 +551,18 @@ describe('SalesView B.3 — totals + order-promo event wiring', () => {
         id: 'sale-1',
         userId: 'user-1',
         status: 'DRAFT',
-        items: [{ id: 'item-1', productId: 'prod-1', variantId: null, productName: 'A', variantName: null, quantity: 1, unitPriceCents: 10000, unitPriceCurrency: 'MXN' }],
+        items: [
+          {
+            id: 'item-1',
+            productId: 'prod-1',
+            variantId: null,
+            productName: 'A',
+            variantName: null,
+            quantity: 1,
+            unitPriceCents: 10000,
+            unitPriceCurrency: 'MXN',
+          },
+        ],
         subtotalCents: 10000,
         discountCents: 1500,
         totalCents: 8500,
@@ -474,7 +586,18 @@ describe('SalesView B.3 — totals + order-promo event wiring', () => {
         id: 'sale-1',
         userId: 'user-1',
         status: 'DRAFT',
-        items: [{ id: 'item-1', productId: 'prod-1', variantId: null, productName: 'A', variantName: null, quantity: 1, unitPriceCents: 10000, unitPriceCurrency: 'MXN' }],
+        items: [
+          {
+            id: 'item-1',
+            productId: 'prod-1',
+            variantId: null,
+            productName: 'A',
+            variantName: null,
+            quantity: 1,
+            unitPriceCents: 10000,
+            unitPriceCurrency: 'MXN',
+          },
+        ],
         // subtotalCents/discountCents/totalCents are intentionally undefined.
         createdAt: 'x',
         updatedAt: 'x',
@@ -517,7 +640,11 @@ describe('SalesView B.3 — totals + order-promo event wiring', () => {
     const wrapper = mountView()
     // Wrap toast.add so we can spy on it (the real @nuxt/ui useToast isn't
     // affected by vi.stubGlobal — see C.5 manual success-toast tests below).
-    const toastRef = (wrapper.vm as unknown as { toast: { add: (opts: { title: string; color: string }) => unknown } }).toast
+    const toastRef = (
+      wrapper.vm as unknown as {
+        toast: { add: (opts: { title: string; color: string }) => unknown }
+      }
+    ).toast
     const realAdd = toastRef.add
     const addCalls: Array<{ title: string; color?: string }> = []
     toastRef.add = (opts) => {
@@ -534,7 +661,9 @@ describe('SalesView B.3 — totals + order-promo event wiring', () => {
     //  confirm-color "error").
     expect(wrapper.get('[data-testid="confirm-modal-open"]').text()).toBe('true')
     expect(wrapper.get('[data-testid="confirm-modal-title"]').text()).toBe('Quitar promoción')
-    expect(wrapper.get('[data-testid="confirm-modal-description"]').text()).toBe('Esta acción es permanente para este borrador.')
+    expect(wrapper.get('[data-testid="confirm-modal-description"]').text()).toBe(
+      'Esta acción es permanente para este borrador.',
+    )
     expect(wrapper.get('[data-testid="confirm-modal-confirm-color"]').text()).toBe('error')
 
     // Step 3: veto MUST NOT have run yet — confirmation is the gate.
@@ -550,7 +679,9 @@ describe('SalesView B.3 — totals + order-promo event wiring', () => {
     await vi.waitFor(() => {
       expect(addCalls.length).toBeGreaterThan(0)
     })
-    expect(addCalls[0]).toEqual(expect.objectContaining({ title: 'Promoción quitada', color: 'success' }))
+    expect(addCalls[0]).toEqual(
+      expect.objectContaining({ title: 'Promoción quitada', color: 'success' }),
+    )
   })
 
   it('C.5 — does NOT call vetoAutoPromotion if the user cancels the confirm modal', async () => {
@@ -574,7 +705,11 @@ describe('SalesView B.3 — totals + order-promo event wiring', () => {
     activeTabId.value = 'sale-1'
 
     const wrapper = mountView()
-    const toastRef = (wrapper.vm as unknown as { toast: { add: (opts: { title: string; color: string }) => unknown } }).toast
+    const toastRef = (
+      wrapper.vm as unknown as {
+        toast: { add: (opts: { title: string; color: string }) => unknown }
+      }
+    ).toast
     const realAdd = toastRef.add
     const addCalls: Array<{ title: string; color?: string }> = []
     toastRef.add = (opts) => {
@@ -614,7 +749,18 @@ describe('SalesView C.4 — applicable-promotions data + manual-promo event wiri
         id: 'sale-1',
         userId: 'user-1',
         status: 'DRAFT',
-        items: [{ id: 'item-1', productId: 'prod-1', variantId: null, productName: 'A', variantName: null, quantity: 1, unitPriceCents: 10000, unitPriceCurrency: 'MXN' }],
+        items: [
+          {
+            id: 'item-1',
+            productId: 'prod-1',
+            variantId: null,
+            productName: 'A',
+            variantName: null,
+            quantity: 1,
+            unitPriceCents: 10000,
+            unitPriceCurrency: 'MXN',
+          },
+        ],
         createdAt: 'x',
         updatedAt: 'x',
       },
@@ -698,7 +844,18 @@ describe('SalesView C.5 — veto confirm flow + manual success toasts', () => {
         id: 'sale-1',
         userId: 'user-1',
         status: 'DRAFT',
-        items: [{ id: 'item-1', productId: 'prod-1', variantId: null, productName: 'A', variantName: null, quantity: 1, unitPriceCents: 10000, unitPriceCurrency: 'MXN' }],
+        items: [
+          {
+            id: 'item-1',
+            productId: 'prod-1',
+            variantId: null,
+            productName: 'A',
+            variantName: null,
+            quantity: 1,
+            unitPriceCents: 10000,
+            unitPriceCurrency: 'MXN',
+          },
+        ],
         createdAt: 'x',
         updatedAt: 'x',
       },
@@ -714,7 +871,11 @@ describe('SalesView C.5 — veto confirm flow + manual success toasts', () => {
     expect(panel.exists()).toBe(true)
     // Wrap toast.add so we can spy on it (the real @nuxt/ui useToast isn't
     // affected by vi.stubGlobal — see C.5 manual success-toast tests below).
-    const toastRef = (wrapper.vm as unknown as { toast: { add: (opts: { title: string; color: string }) => unknown } }).toast
+    const toastRef = (
+      wrapper.vm as unknown as {
+        toast: { add: (opts: { title: string; color: string }) => unknown }
+      }
+    ).toast
     const realAdd = toastRef.add
     const addCalls: Array<{ title: string; color?: string }> = []
     toastRef.add = (opts) => {
@@ -733,7 +894,9 @@ describe('SalesView C.5 — veto confirm flow + manual success toasts', () => {
     // same confirmation (veto is permanent regardless of scope).
     expect(wrapper.get('[data-testid="confirm-modal-open"]').text()).toBe('true')
     expect(wrapper.get('[data-testid="confirm-modal-title"]').text()).toBe('Quitar promoción')
-    expect(wrapper.get('[data-testid="confirm-modal-description"]').text()).toBe('Esta acción es permanente para este borrador.')
+    expect(wrapper.get('[data-testid="confirm-modal-description"]').text()).toBe(
+      'Esta acción es permanente para este borrador.',
+    )
     expect(wrapper.get('[data-testid="confirm-modal-confirm-color"]').text()).toBe('error')
 
     expect(vetoAutoPromotionMock).not.toHaveBeenCalled()
@@ -748,7 +911,9 @@ describe('SalesView C.5 — veto confirm flow + manual success toasts', () => {
     await vi.waitFor(() => {
       expect(addCalls.length).toBeGreaterThan(0)
     })
-    expect(addCalls[0]).toEqual(expect.objectContaining({ title: 'Promoción quitada', color: 'success' }))
+    expect(addCalls[0]).toEqual(
+      expect.objectContaining({ title: 'Promoción quitada', color: 'success' }),
+    )
   })
 
   it('C.5 — adds a success toast when applyManualPromotion resolves', async () => {
@@ -759,7 +924,11 @@ describe('SalesView C.5 — veto confirm flow + manual success toasts', () => {
     // The `toast` ref captured in setup holds the same function the handler calls.
     // (`@nuxt/ui` auto-imports the real useToast; vi.stubGlobal only shadows the
     // global lookup, not the local binding, so we wrap toast.add to spy on it.)
-    const toastRef = (wrapper.vm as unknown as { toast: { add: (opts: { title: string; color: string }) => unknown } }).toast
+    const toastRef = (
+      wrapper.vm as unknown as {
+        toast: { add: (opts: { title: string; color: string }) => unknown }
+      }
+    ).toast
     const realAdd = toastRef.add
     const addCalls: Array<{ title: string; color?: string }> = []
     toastRef.add = (opts) => {
@@ -773,7 +942,9 @@ describe('SalesView C.5 — veto confirm flow + manual success toasts', () => {
       expect(addCalls.length).toBeGreaterThan(0)
     })
     expect(applyManualPromotionMock).toHaveBeenCalledWith('promo-uuid-42')
-    expect(addCalls[0]).toEqual(expect.objectContaining({ title: 'Promoción aplicada', color: 'success' }))
+    expect(addCalls[0]).toEqual(
+      expect.objectContaining({ title: 'Promoción aplicada', color: 'success' }),
+    )
   })
 
   it('C.5 — adds a success toast when removeManualPromotion resolves', async () => {
@@ -781,7 +952,11 @@ describe('SalesView C.5 — veto confirm flow + manual success toasts', () => {
 
     const wrapper = mountView()
     const panel = wrapper.findComponent({ name: 'ActiveSalePanel' })
-    const toastRef = (wrapper.vm as unknown as { toast: { add: (opts: { title: string; color: string }) => unknown } }).toast
+    const toastRef = (
+      wrapper.vm as unknown as {
+        toast: { add: (opts: { title: string; color: string }) => unknown }
+      }
+    ).toast
     const realAdd = toastRef.add
     const addCalls: Array<{ title: string; color?: string }> = []
     toastRef.add = (opts) => {
@@ -795,7 +970,9 @@ describe('SalesView C.5 — veto confirm flow + manual success toasts', () => {
       expect(addCalls.length).toBeGreaterThan(0)
     })
     expect(removeManualPromotionMock).toHaveBeenCalledWith('promo-uuid-99')
-    expect(addCalls[0]).toEqual(expect.objectContaining({ title: 'Promoción quitada', color: 'success' }))
+    expect(addCalls[0]).toEqual(
+      expect.objectContaining({ title: 'Promoción quitada', color: 'success' }),
+    )
   })
 })
 
@@ -816,7 +993,18 @@ describe('SalesView — setPriceList wiring (pos-price-list-tiers)', () => {
         id: 'sale-1',
         userId: 'user-1',
         status: 'DRAFT',
-        items: [{ id: 'item-1', productId: 'prod-1', variantId: null, productName: 'A', variantName: null, quantity: 1, unitPriceCents: 1000, unitPriceCurrency: 'MXN' }],
+        items: [
+          {
+            id: 'item-1',
+            productId: 'prod-1',
+            variantId: null,
+            productName: 'A',
+            variantName: null,
+            quantity: 1,
+            unitPriceCents: 1000,
+            unitPriceCurrency: 'MXN',
+          },
+        ],
         createdAt: 'x',
         updatedAt: 'x',
       },
@@ -862,7 +1050,11 @@ describe('SalesView — setPriceList wiring (pos-price-list-tiers)', () => {
     const panel = wrapper.findComponent({ name: 'ActiveSalePanel' })
     // Spy on the real toast (see C.5 manual success-toast tests for the
     // vi.stubGlobal caveat — we wrap toast.add to capture calls).
-    const toastRef = (wrapper.vm as unknown as { toast: { add: (opts: { title: string; color: string; description?: string }) => unknown } }).toast
+    const toastRef = (
+      wrapper.vm as unknown as {
+        toast: { add: (opts: { title: string; color: string; description?: string }) => unknown }
+      }
+    ).toast
     const realAdd = toastRef.add
     const addCalls: Array<{ title: string; color?: string; description?: string }> = []
     toastRef.add = (opts) => {
@@ -904,7 +1096,18 @@ describe('SalesView 14a.1 — layout proportion + keyboard shortcut', () => {
         id: 'sale-1',
         userId: 'user-1',
         status: 'DRAFT',
-        items: [{ id: 'item-1', productId: 'prod-1', variantId: null, productName: 'A', variantName: null, quantity: 1, unitPriceCents: 10000, unitPriceCurrency: 'MXN' }],
+        items: [
+          {
+            id: 'item-1',
+            productId: 'prod-1',
+            variantId: null,
+            productName: 'A',
+            variantName: null,
+            quantity: 1,
+            unitPriceCents: 10000,
+            unitPriceCurrency: 'MXN',
+          },
+        ],
         createdAt: 'x',
         updatedAt: 'x',
       },
@@ -1005,7 +1208,18 @@ describe('SalesView S5A — catalog charge error dispatch (REQ-CAT-007..011)', (
         id: 'sale-1',
         userId: 'user-1',
         status: 'DRAFT',
-        items: [{ id: 'item-1', productId: 'prod-1', variantId: null, productName: 'A', variantName: null, quantity: 1, unitPriceCents: 10000, unitPriceCurrency: 'MXN' }],
+        items: [
+          {
+            id: 'item-1',
+            productId: 'prod-1',
+            variantId: null,
+            productName: 'A',
+            variantName: null,
+            quantity: 1,
+            unitPriceCents: 10000,
+            unitPriceCurrency: 'MXN',
+          },
+        ],
         createdAt: 'x',
         updatedAt: 'x',
       },
@@ -1025,7 +1239,11 @@ describe('SalesView S5A — catalog charge error dispatch (REQ-CAT-007..011)', (
   // only shadows the global lookup), so we wrap `wrapper.vm.toast.add` to spy
   // on calls — the same pattern as the C.5 tests above.
   function captureToast(wrapper: ReturnType<typeof mountView>) {
-    const toastRef = (wrapper.vm as unknown as { toast: { add: (opts: { title: string; color?: string; description?: string }) => unknown } }).toast
+    const toastRef = (
+      wrapper.vm as unknown as {
+        toast: { add: (opts: { title: string; color?: string; description?: string }) => unknown }
+      }
+    ).toast
     const realAdd = toastRef.add
     const addCalls: Array<{ title: string; color?: string; description?: string }> = []
     toastRef.add = (opts) => {
@@ -1041,7 +1259,9 @@ describe('SalesView S5A — catalog charge error dispatch (REQ-CAT-007..011)', (
   }
 
   it('PAYMENT_METHOD_CATEGORY_MISMATCH → increments the clear signal exactly once, shows NO toast, skips legacy dispatch', async () => {
-    chargeDraft.mockRejectedValueOnce({ response: { data: { error: 'PAYMENT_METHOD_CATEGORY_MISMATCH' } } })
+    chargeDraft.mockRejectedValueOnce({
+      response: { data: { error: 'PAYMENT_METHOD_CATEGORY_MISMATCH' } },
+    })
     const wrapper = mountView()
     const addCalls = captureToast(wrapper)
 
@@ -1110,7 +1330,9 @@ describe('SalesView S5A — catalog charge error dispatch (REQ-CAT-007..011)', (
   })
 
   it('INVALID_PAYMENT_METHOD_ID → defensive toast only: no clear, no refetch, skips legacy dispatch', async () => {
-    chargeDraft.mockRejectedValueOnce({ response: { data: { error: 'INVALID_PAYMENT_METHOD_ID' } } })
+    chargeDraft.mockRejectedValueOnce({
+      response: { data: { error: 'INVALID_PAYMENT_METHOD_ID' } },
+    })
     const wrapper = mountView()
     const addCalls = captureToast(wrapper)
 
@@ -1127,7 +1349,9 @@ describe('SalesView S5A — catalog charge error dispatch (REQ-CAT-007..011)', (
   })
 
   it('legacy code (PAYMENT_AMOUNT_INSUFFICIENT) → legacy dispatch unchanged, signal NOT incremented', async () => {
-    chargeDraft.mockRejectedValueOnce({ response: { data: { error: 'PAYMENT_AMOUNT_INSUFFICIENT' } } })
+    chargeDraft.mockRejectedValueOnce({
+      response: { data: { error: 'PAYMENT_AMOUNT_INSUFFICIENT' } },
+    })
     const wrapper = mountView()
 
     await submitCharge(wrapper)
@@ -1149,7 +1373,11 @@ describe('SalesView S5A — catalog charge error dispatch (REQ-CAT-007..011)', (
     await submitCharge(wrapper)
 
     await vi.waitFor(() => {
-      expect(addCalls.some((c) => c.title === 'Error' && c.description === 'No se pudo cobrar la venta. Reintenta.')).toBe(true)
+      expect(
+        addCalls.some(
+          (c) => c.title === 'Error' && c.description === 'No se pudo cobrar la venta. Reintenta.',
+        ),
+      ).toBe(true)
     })
     expect(wrapper.get('[data-testid="payment-modal-catalog-clear-signal"]').text()).toBe('0')
   })
@@ -1177,7 +1405,18 @@ describe('SalesView S2 — shippingAddress pass-through to PaymentModal (pos-sal
         id: 'sale-1',
         userId: 'user-1',
         status: 'DRAFT',
-        items: [{ id: 'item-1', productId: 'prod-1', variantId: null, productName: 'A', variantName: null, quantity: 1, unitPriceCents: 10000, unitPriceCurrency: 'MXN' }],
+        items: [
+          {
+            id: 'item-1',
+            productId: 'prod-1',
+            variantId: null,
+            productName: 'A',
+            variantName: null,
+            quantity: 1,
+            unitPriceCents: 10000,
+            unitPriceCurrency: 'MXN',
+          },
+        ],
         createdAt: 'x',
         updatedAt: 'x',
       },
@@ -1398,5 +1637,176 @@ describe('SalesView work units B+C — mobile cart CTA, payment sequencing, shee
       .findAllComponents({ name: 'ActiveSalePanel' })
       .find((p) => p.props('mobileSheet') !== true)
     expect(desktopPanel).toBeDefined()
+  })
+})
+
+// ─── PCA-2 — capacity-safe charge re-quote ───────────────────────────────
+//
+// Three DISTINCT flat backend envelopes drive the recovery UX. The pre-existing
+// `PROMO_RE_QUOTE` bot error must stay a different contract.
+describe('SalesView PCA-2 — capacity-safe charge re-quote', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    drafts.value = [{ ...drafts.value[0]!, items: [...drafts.value[0]!.items] }]
+    activeTabId.value = 'sale-1'
+    isMutating.value = false
+    refetchDraftsMock.mockReset()
+    resetApplicablePromotionsMock()
+  })
+
+  async function triggerCharge(wrapper: ReturnType<typeof mountView>) {
+    await wrapper.get('[data-testid="charge-click"]').trigger('click')
+    await wrapper.get('[data-testid="submit-charge"]').trigger('click')
+    await flushPromises()
+  }
+
+  it('PROMO_CAPACITY_RE_QUOTE keeps the modal open, refetches, and shows the accepted totals + excluded labels without auto-retry', async () => {
+    chargeDraft.mockRejectedValueOnce({
+      response: {
+        data: {
+          statusCode: 409,
+          error: 'PROMO_CAPACITY_RE_QUOTE',
+          message: 'Promotion capacity changed during charge — re-quote required',
+          timestamp: '2024-06-01T12:00:00.000Z',
+          appliedPromotionIds: ['promo-line-1', 'promo-order-1'],
+          excludedPromotionIds: ['promo-line-1'],
+        },
+      },
+    })
+    applicablePromotionsData.value = {
+      saleId: 'sale-1',
+      promotions: [{ id: 'promo-line-1', title: 'Promo de línea', type: 'PRODUCT_DISCOUNT' }],
+    }
+    refetchDraftsMock.mockResolvedValueOnce([
+      { ...drafts.value[0]!, subtotalCents: 10000, discountCents: 1000, totalCents: 9000 },
+    ])
+
+    const wrapper = mountView()
+    await triggerCharge(wrapper)
+
+    expect(chargeDraft).toHaveBeenCalledTimes(1)
+    expect(refetchDraftsMock).toHaveBeenCalledTimes(1)
+    expect(wrapper.get('[data-testid="payment-modal-open"]').text()).toBe('true')
+    expect(wrapper.get('[data-testid="requote-open"]').text()).toBe('true')
+    expect(wrapper.get('[data-testid="requote-subtotal"]').text()).toBe('10000')
+    expect(wrapper.get('[data-testid="requote-discount"]').text()).toBe('1000')
+    expect(wrapper.get('[data-testid="requote-total"]').text()).toBe('9000')
+    expect(wrapper.get('[data-testid="requote-excluded"]').text()).toContain('Promo de línea')
+    // The acceptance nonce did not move before the cashier accepted.
+    expect(wrapper.get('[data-testid="payment-modal-requote-signal"]').text()).toBe('0')
+  })
+
+  it('accepting the refreshed quote mints the fresh-key signal and still requires an explicit second charge', async () => {
+    chargeDraft.mockRejectedValueOnce({
+      response: {
+        data: {
+          statusCode: 409,
+          error: 'PROMO_CAPACITY_RE_QUOTE',
+          message: 'Promotion capacity changed during charge — re-quote required',
+          timestamp: '2024-06-01T12:00:00.000Z',
+          appliedPromotionIds: ['promo-line-1'],
+          excludedPromotionIds: ['promo-line-1'],
+        },
+      },
+    })
+    refetchDraftsMock.mockResolvedValueOnce([
+      { ...drafts.value[0]!, subtotalCents: 10000, discountCents: 500, totalCents: 9500 },
+    ])
+
+    const wrapper = mountView()
+    await triggerCharge(wrapper)
+
+    expect(wrapper.get('[data-testid="requote-open"]').text()).toBe('true')
+
+    await wrapper.get('[data-testid="requote-accept"]').trigger('click')
+    await flushPromises()
+
+    // Acceptance closes the request modal and mints the fresh-key signal.
+    expect(wrapper.find('[data-testid="requote-modal-stub"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="payment-modal-requote-signal"]').text()).toBe('1')
+    expect(chargeDraft).toHaveBeenCalledTimes(1)
+    expect(wrapper.get('[data-testid="payment-modal-open"]').text()).toBe('true')
+  })
+
+  it('does not present a refetched draft lacking authoritative totals; keeps the modal open with an actionable error', async () => {
+    chargeDraft.mockRejectedValueOnce({
+      response: {
+        data: {
+          statusCode: 409,
+          error: 'PROMO_CAPACITY_RE_QUOTE',
+          message: 'Promotion capacity changed during charge — re-quote required',
+          timestamp: '2024-06-01T12:00:00.000Z',
+          appliedPromotionIds: ['promo-line-1'],
+          excludedPromotionIds: ['promo-line-1'],
+        },
+      },
+    })
+    refetchDraftsMock.mockResolvedValueOnce([{ ...drafts.value[0]! }])
+
+    const wrapper = mountView()
+    await triggerCharge(wrapper)
+
+    expect(chargeDraft).toHaveBeenCalledTimes(1)
+    // No acceptance modal is presented and no new attempt is created.
+    expect(wrapper.find('[data-testid="requote-modal-stub"]').exists()).toBe(false)
+    expect(wrapper.get('[data-testid="payment-modal-open"]').text()).toBe('true')
+    expect(wrapper.get('[data-testid="external-error"]').text()).toContain(
+      'No pudimos actualizar los totales de la venta',
+    )
+  })
+
+  it.each(['PROMOTION_CAPACITY_EXCEEDED', 'PROMOTION_CAPACITY_CLAIM_MISMATCH'])(
+    '%s keeps the modal open, preserves the key, refreshes capacity state, and never succeeds',
+    async (code) => {
+      chargeDraft.mockRejectedValueOnce({
+        response: {
+          data: {
+            statusCode: 409,
+            error: code,
+            message: 'Promotion capacity changed during charge',
+            timestamp: '2024-06-01T12:00:00.000Z',
+            saleId: 'sale-1',
+            promotionId: 'promo-1',
+            units: 2,
+          },
+        },
+      })
+
+      const wrapper = mountView()
+      await triggerCharge(wrapper)
+
+      expect(chargeDraft).toHaveBeenCalledTimes(1)
+      expect(wrapper.get('[data-testid="payment-modal-open"]').text()).toBe('true')
+      expect(wrapper.get('[data-testid="payment-modal-requote-signal"]').text()).toBe('0')
+      expect(wrapper.find('[data-testid="requote-modal-stub"]').exists()).toBe(false)
+      expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['sales', 'tenant-1', 'drafts'] })
+      expect(invalidateQueries).toHaveBeenCalledWith({
+        queryKey: ['sales', 'tenant-1', 'applicable-promotions', 'sale-1'],
+      })
+      expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['promotions', 'tenant-1'] })
+      // NOTE: the actionable retry toast is not asserted here — this file's
+      // module-scoped `addToast` mock does not observe SalesView's toast
+      // (same known limitation documented on the veto-flow test above).
+    },
+  )
+
+  it('does not treat the unrelated PROMO_RE_QUOTE bot error as a capacity re-quote', async () => {
+    chargeDraft.mockRejectedValueOnce({
+      response: {
+        data: {
+          error: 'PROMO_RE_QUOTE',
+          recomputedTotalCents: 12000,
+          expectedTotalCents: 15000,
+          discountCents: 3000,
+        },
+      },
+    })
+
+    const wrapper = mountView()
+    await triggerCharge(wrapper)
+
+    expect(refetchDraftsMock).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-testid="requote-modal-stub"]').exists()).toBe(false)
+    expect(invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ['promotions', 'tenant-1'] })
   })
 })

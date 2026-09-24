@@ -10,6 +10,7 @@ import ProductSearchPanel from '../components/ProductSearchPanel.vue'
 import ActiveSalePanel from '../components/ActiveSalePanel.vue'
 import SalesTabsStrip from '../components/SalesTabsStrip.vue'
 import PaymentModal from '../components/PaymentModal.vue'
+import PromotionCapacityRequoteModal from '../components/PromotionCapacityRequoteModal.vue'
 import PaymentSuccessModal from '../components/PaymentSuccessModal.vue'
 import AssignCustomerSlideover from '../components/AssignCustomerSlideover.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
@@ -23,12 +24,22 @@ import type {
   OverrideItemPricePayload,
   Sale,
 } from '../interfaces/sale.types'
-import { DraftCustomerAssignmentError, useDraftCustomerAssignment } from '../composables/useDraftCustomerAssignment'
+import {
+  DraftCustomerAssignmentError,
+  useDraftCustomerAssignment,
+} from '../composables/useDraftCustomerAssignment'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
-import { saleQueryKeys } from '@/core/shared/constants/query-keys'
+import { promotionQueryKeys, saleQueryKeys } from '@/core/shared/constants/query-keys'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import { getSalePaymentErrorAction } from '../utils/salePaymentErrors.utils'
 import { applyCatalogChargeErrorAction } from '../utils/paymentMethodChargeErrors.utils' // sdd custom-payment-methods S5A
+import {
+  collectExcludedPromotionLabels,
+  parsePromotionCapacityChargeError,
+  readDraftServerTotals,
+  type ExcludedPromotionLabel,
+  type PromotionCapacityReQuoteError,
+} from '../utils/promotionCapacityChargeErrors.utils' // PCA-2 capacity-safe charge
 import { POS_ACTIVE_TAB_STORAGE_KEY } from '../constants/sale.constants' // sdd/magic-string-constants slice 3: the ONLY raw localStorage key left in the project.
 
 declare const useToast: () => {
@@ -64,6 +75,9 @@ const {
   applyGlobalDiscount,
   removeGlobalDiscount,
   chargeDraft,
+  // PCA-2 (capacity re-quote): forced re-read of the drafts list so the
+  // recalculated server totals become authoritative before reconfirmation.
+  refetchDrafts,
   // promotions-in-sale C.5: drives the auto-promo veto confirmation flow
   // (ConfirmModal → vetoAutoPromotion → toast). Both order-level
   // `remove-order-promo` and per-line `remove-promo` route here.
@@ -81,15 +95,10 @@ const {
 // promotions-in-sale C.4: applicable-promo list for the active draft.
 // Adapts to MaybeRefOrGetter via toValue inside the composable, so passing
 // the computed getter keeps the query reactive as the seller switches tabs.
-const applicablePromotionsQuery = useApplicablePromotions(
-  () => activeTabId.value ?? undefined,
-)
-const applicablePromotions = computed(
-  () => applicablePromotionsQuery.data.value?.promotions ?? [],
-)
+const applicablePromotionsQuery = useApplicablePromotions(() => activeTabId.value ?? undefined)
+const applicablePromotions = computed(() => applicablePromotionsQuery.data.value?.promotions ?? [])
 const isLoadingPromotions = computed(
-  () => applicablePromotionsQuery.isPending.value
-    || applicablePromotionsQuery.isFetching.value,
+  () => applicablePromotionsQuery.isPending.value || applicablePromotionsQuery.isFetching.value,
 )
 
 const paymentModalOpen = ref(false)
@@ -104,6 +113,29 @@ const inFlightUntil = ref<number>(0)
 // drop every entry carrying a `paymentMethodId` (custom tiles). The
 // error → increment dispatch lands in S5A; this slice only wires the prop.
 const catalogClearSignal = ref(0)
+
+// ── PCA-2 — capacity-safe charge re-quote state ───────────────────────────
+//
+// On `PROMO_CAPACITY_RE_QUOTE` the charge did NOT happen. We refetch the draft
+// and show a dedicated acceptance modal with the recalculated server totals.
+// Confirming only bumps `requoteAcceptSignal` (mints a fresh idempotency key
+// in PaymentModal) — it never auto-charges; the cashier must click the charge
+// action again. The draft/payment modal stays open throughout.
+const requoteModalOpen = ref(false)
+const requoteAcceptSignal = ref(0)
+const requoteSnapshot = ref<{
+  subtotalCents: number
+  discountCents: number
+  totalCents: number
+  excludedPromotions: ExcludedPromotionLabel[]
+} | null>(null)
+
+// Spanish, cashier-facing copy. Kept as constants so tests and the two
+// recovery paths cannot drift apart.
+const REQUOTE_TOTALS_UNAVAILABLE_MESSAGE =
+  'No pudimos actualizar los totales de la venta. Revisá el carrito y volvé a intentar el cobro.'
+const CAPACITY_RACE_MESSAGE =
+  'La capacidad de una promoción cambió durante el cobro. Actualizamos la venta; revisá los pagos y confirmá el cobro de nuevo.'
 
 // ── Mobile cart drawer (responsive UX, not functionality) ──────────────────
 // Below the lg breakpoint the cart panel moves out of the split layout and
@@ -142,7 +174,11 @@ function handleCartAfterLeave() {
 
 const isChargeTemporarilyBlocked = computed(() => Date.now() < inFlightUntil.value)
 const activeDraftId = computed(() => activeDraft.value?.id ?? '')
-const { unassignCustomer, clearShippingAddress, isPending: isCustomerMutationPending } = useDraftCustomerAssignment(activeDraftId)
+const {
+  unassignCustomer,
+  clearShippingAddress,
+  isPending: isCustomerMutationPending,
+} = useDraftCustomerAssignment(activeDraftId)
 
 // 14a.1 (sales-screen-redesign — R6): template ref to ProductSearchPanel so
 // the global Ctrl+K / ⌘K shortcut can request focus on its UInput.
@@ -151,7 +187,8 @@ const productSearchPanelRef = ref<{
 } | null>(null)
 
 function mapCustomerAssignmentErrorMessage(error: unknown): string {
-  const code = error instanceof DraftCustomerAssignmentError ? error.code : (error as { code?: string })?.code
+  const code =
+    error instanceof DraftCustomerAssignmentError ? error.code : (error as { code?: string })?.code
 
   switch (code) {
     case 'CUSTOMER_NOT_FOUND':
@@ -290,7 +327,11 @@ function parseStockError(message: string): string {
   return message
 }
 
-async function handleAddProduct(productId: string, variantId: string | null, imageUrl: string | null = null) {
+async function handleAddProduct(
+  productId: string,
+  variantId: string | null,
+  imageUrl: string | null = null,
+) {
   // Store image for rendering in sale items
   if (imageUrl) {
     setImage(getImageKey(productId, variantId), imageUrl)
@@ -385,8 +426,12 @@ async function handleApplyGlobalDiscount(payload: ApplyGlobalDiscountPayload) {
   try {
     const result = await applyGlobalDiscount(payload)
     if (result.skippedItems.length > 0) {
-      const alreadyDiscounted = result.skippedItems.filter((s) => s.reason === 'ALREADY_DISCOUNTED').length
-      const amountInvalid = result.skippedItems.filter((s) => s.reason === 'DISCOUNT_AMOUNT_INVALID').length
+      const alreadyDiscounted = result.skippedItems.filter(
+        (s) => s.reason === 'ALREADY_DISCOUNTED',
+      ).length
+      const amountInvalid = result.skippedItems.filter(
+        (s) => s.reason === 'DISCOUNT_AMOUNT_INVALID',
+      ).length
       const parts: string[] = []
       if (alreadyDiscounted > 0) parts.push(`${alreadyDiscounted} ya tenían descuento`)
       if (amountInvalid > 0) parts.push(`${amountInvalid} con precio inferior al monto`)
@@ -437,7 +482,11 @@ async function handleCreateTab() {
   }
 }
 
-async function handleChargeDraft(saleId: string, payload: ChargeSalePayload, idempotencyKey: string) {
+async function handleChargeDraft(
+  saleId: string,
+  payload: ChargeSalePayload,
+  idempotencyKey: string,
+) {
   inlineAmountError.value = null
   try {
     const response = await chargeDraft(saleId, payload, idempotencyKey)
@@ -456,7 +505,23 @@ async function handleChargeDraft(saleId: string, payload: ChargeSalePayload, ide
     // sdd custom-payment-methods S5A (REQ-CAT-011): catalog charge errors
     // resolve FIRST — clear/refetch/toast per design §8.2 — and
     // short-circuit BEFORE the legacy getSalePaymentErrorAction dispatch.
-    if (applyCatalogChargeErrorAction(err, { queryClient, tenantId, toast, catalogClearSignal }).handled) {
+    if (
+      applyCatalogChargeErrorAction(err, { queryClient, tenantId, toast, catalogClearSignal })
+        .handled
+    ) {
+      return
+    }
+
+    // PCA-2: the three distinct capacity envelopes are handled BEFORE the
+    // legacy `getSalePaymentErrorAction` map. `PROMO_RE_QUOTE` stays a
+    // different, unrelated contract and is intentionally not matched here.
+    const capacityError = parsePromotionCapacityChargeError(err)
+    if (capacityError) {
+      if (capacityError.kind === 're-quote') {
+        await handleCapacityReQuote(saleId, capacityError)
+      } else {
+        handleCapacityRaceError(saleId)
+      }
       return
     }
 
@@ -514,6 +579,79 @@ async function handleChargeDraft(saleId: string, payload: ChargeSalePayload, ide
   }
 }
 
+// PCA-2 — race guards (`PROMOTION_CAPACITY_EXCEEDED` /
+// `PROMOTION_CAPACITY_CLAIM_MISMATCH`). Never a success: keep the draft and
+// payment modal open, refresh the affected server state, and preserve the
+// current logical-attempt key (payments were not touched). The cashier gets
+// actionable retry copy.
+function handleCapacityRaceError(saleId: string): void {
+  queryClient.invalidateQueries({ queryKey: saleQueryKeys.drafts(tenantId.value) })
+  queryClient.invalidateQueries({
+    queryKey: saleQueryKeys.applicablePromotions(tenantId.value, saleId),
+  })
+  queryClient.invalidateQueries({ queryKey: promotionQueryKeys.all(tenantId.value) })
+
+  toast.add({
+    title: 'Cobro no completado',
+    description: CAPACITY_RACE_MESSAGE,
+    color: 'warning',
+  })
+}
+
+// PCA-2 — `PROMO_CAPACITY_RE_QUOTE`. Never auto-retries: captures the excluded
+// promotion labels from the pre-refetch snapshot, re-reads the draft, and only
+// opens the acceptance modal when the refetched draft carries authoritative
+// subtotal/discount/total. Otherwise it keeps the payment modal open and shows
+// an actionable error without creating a new attempt.
+async function handleCapacityReQuote(
+  saleId: string,
+  error: PromotionCapacityReQuoteError,
+): Promise<void> {
+  const excludedPromotions = collectExcludedPromotionLabels(
+    error.excludedPromotionIds,
+    activeDraft.value,
+    applicablePromotions.value,
+  )
+
+  let refreshed: Sale[]
+  try {
+    refreshed = await refetchDrafts()
+  } catch {
+    inlineAmountError.value = REQUOTE_TOTALS_UNAVAILABLE_MESSAGE
+    return
+  }
+
+  const totals = readDraftServerTotals(refreshed.find((draft) => draft.id === saleId))
+  if (!totals) {
+    inlineAmountError.value = REQUOTE_TOTALS_UNAVAILABLE_MESSAGE
+    return
+  }
+
+  requoteSnapshot.value = {
+    subtotalCents: totals.subtotalCents,
+    discountCents: totals.discountCents,
+    totalCents: totals.totalCents,
+    excludedPromotions,
+  }
+  requoteModalOpen.value = true
+}
+
+// Accepting the refreshed quote ONLY mints a fresh idempotency key in
+// PaymentModal (via the nonce prop). It never charges — the cashier reviews
+// the payments and clicks the existing charge action again.
+function handleAcceptRequote(): void {
+  requoteModalOpen.value = false
+  requoteSnapshot.value = null
+  requoteAcceptSignal.value += 1
+}
+
+// Closing the payment modal always drops any pending re-quote acceptance.
+watch(paymentModalOpen, (open) => {
+  if (open) return
+  requoteModalOpen.value = false
+  requoteSnapshot.value = null
+})
+
 function openPaymentModal() {
   if (!activeDraft.value || activeDraft.value.items.length === 0) return
   if (isMutating.value || isChargeTemporarilyBlocked.value) return
@@ -548,7 +686,7 @@ function handleSearchShortcut(event: KeyboardEvent) {
   if (!exposed) return
   const input = (exposed as { value?: unknown }).value ?? exposed
   if (input && typeof (input as { focus?: () => void }).focus === 'function') {
-    (input as { focus: () => void }).focus()
+    ;(input as { focus: () => void }).focus()
   }
 }
 
@@ -583,7 +721,11 @@ async function handleUnassignCustomer() {
     await unassignCustomer()
     await clearShippingAddress()
   } catch (error) {
-    toast.add({ title: 'Error', description: mapCustomerAssignmentErrorMessage(error), color: 'error' })
+    toast.add({
+      title: 'Error',
+      description: mapCustomerAssignmentErrorMessage(error),
+      color: 'error',
+    })
   }
 }
 
@@ -706,7 +848,9 @@ async function handleChangePriceList(globalPriceListId: string | null) {
 
       <!-- Right skeleton panel: hidden on mobile, 40% lg / 25% xl -->
       <div class="hidden lg:block lg:w-[40%] xl:w-[25%] shrink-0 p-3 lg:p-4">
-        <div class="h-full flex flex-col rounded-2xl border border-default bg-elevated/60 shadow-sm p-4 space-y-3">
+        <div
+          class="h-full flex flex-col rounded-2xl border border-default bg-elevated/60 shadow-sm p-4 space-y-3"
+        >
           <USkeleton class="h-10 w-48" />
           <USkeleton class="h-10 w-full" />
           <div class="flex-1 flex items-center justify-center">
@@ -733,7 +877,10 @@ async function handleChangePriceList(globalPriceListId: string | null) {
          so BOTH the desktop right-panel ActiveSalePanel instance AND the
          mobile slideover ActiveSalePanel instance reflect the same
          active tab — single source of truth, no desync risk. -->
-    <div v-else class="h-full w-full flex flex-col bg-(--light-surface-page) dark:bg-coco-neutral-950">
+    <div
+      v-else
+      class="h-full w-full flex flex-col bg-(--light-surface-page) dark:bg-coco-neutral-950"
+    >
       <!-- View-level tab strip. The ActiveSalePanel instances below no
            longer render their own strip — they were double-mounted and
            could desync on rapid tab switches. -->
@@ -747,31 +894,35 @@ async function handleChangePriceList(globalPriceListId: string | null) {
       />
 
       <div class="flex-1 flex flex-col lg:flex-row w-full min-h-0">
-      <!-- Left panel: Product catalog (60% lg, 75% xl, full-width on mobile). -->
-      <div class="lg:w-[60%] xl:w-[75%] flex flex-col min-w-0 px-3 lg:px-4 pt-1.5 lg:pt-2 pb-3 lg:pb-4">
-        <div class="h-full rounded-2xl border border-default/50 overflow-hidden">
-          <ProductSearchPanel ref="productSearchPanelRef" @add-product="handleAddProduct" />
+        <!-- Left panel: Product catalog (60% lg, 75% xl, full-width on mobile). -->
+        <div
+          class="lg:w-[60%] xl:w-[75%] flex flex-col min-w-0 px-3 lg:px-4 pt-1.5 lg:pt-2 pb-3 lg:pb-4"
+        >
+          <div class="h-full rounded-2xl border border-default/50 overflow-hidden">
+            <ProductSearchPanel ref="productSearchPanelRef" @add-product="handleAddProduct" />
+          </div>
         </div>
-      </div>
 
-      <!-- Right panel: Active sale cart (40% lg, 25% xl. Hidden on mobile
+        <!-- Right panel: Active sale cart (40% lg, 25% xl. Hidden on mobile
            where the cart lives inside the USlideover below). -->
-      <div class="hidden lg:block lg:w-[40%] xl:w-[25%] shrink-0 px-3 lg:px-4 pt-1.5 lg:pt-2 pb-3 lg:pb-4">
-        <div class="h-full w-full rounded-2xl border border-default/50 overflow-hidden">
-          <ActiveSalePanel
-            :drafts="drafts"
-            :active-draft="activeDraft"
-            :active-tab-id="activeTabId"
-             :is-loading-list="isLoadingList"
-             :is-mutating="isMutating"
-             :is-customer-mutation-pending="isCustomerMutationPending"
-             :item-image-map="itemImageMap"
-             :applicable-promotions="applicablePromotions"
-             :is-loading-promotions="isLoadingPromotions"
-             :applied-manual-promotion-ids="[]"
-            :on-submit-price-override="handleSubmitPriceOverride"
-            :on-apply-discount="handleApplyDiscount"
-            :on-remove-discount="handleRemoveDiscount"
+        <div
+          class="hidden lg:block lg:w-[40%] xl:w-[25%] shrink-0 px-3 lg:px-4 pt-1.5 lg:pt-2 pb-3 lg:pb-4"
+        >
+          <div class="h-full w-full rounded-2xl border border-default/50 overflow-hidden">
+            <ActiveSalePanel
+              :drafts="drafts"
+              :active-draft="activeDraft"
+              :active-tab-id="activeTabId"
+              :is-loading-list="isLoadingList"
+              :is-mutating="isMutating"
+              :is-customer-mutation-pending="isCustomerMutationPending"
+              :item-image-map="itemImageMap"
+              :applicable-promotions="applicablePromotions"
+              :is-loading-promotions="isLoadingPromotions"
+              :applied-manual-promotion-ids="[]"
+              :on-submit-price-override="handleSubmitPriceOverride"
+              :on-apply-discount="handleApplyDiscount"
+              :on-remove-discount="handleRemoveDiscount"
               :on-remove-item="handleRemoveItem"
               :on-apply-global-discount="handleApplyGlobalDiscount"
               :on-remove-global-discount="handleRemoveGlobalDiscount"
@@ -784,101 +935,101 @@ async function handleChangePriceList(globalPriceListId: string | null) {
               @remove-manual-promo="handleRemoveManualPromo"
               @change-price-list="handleChangePriceList"
               @switch-tab="handleSwitchTab"
-             @close-tab="handleCloseTab"
-            @create-tab="handleCreateTab"
-            @update-qty="handleUpdateQty"
-@clear-items="handleClearItems"
-           />
-        </div>
-      </div>
-
-      <!-- Mobile-only cart CTA and bottom slideover. The slideover stays
-           mounted below lg so its after:leave event can sequence payment. -->
-      <button
-        v-if="isMobileViewport"
-        type="button"
-        class="fixed z-30 left-3 right-3 bottom-0 flex items-center justify-between gap-3
-               bg-primary text-white shadow-lg shadow-primary/30 rounded-t-2xl
-               px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]
-               min-h-[48px] font-semibold text-sm
-               active:scale-[0.99] transition-transform"
-        data-testid="mobile-cart-fab"
-        aria-label="Abrir carrito de venta"
-        @click="openCartDrawer"
-      >
-        <span class="flex items-center gap-2 min-w-0">
-          <UIcon name="i-lucide-shopping-bag" class="h-5 w-5 shrink-0" />
-          <span class="tabular-nums">{{ formatCents(activeDraftTotalCents) }}</span>
-          <span
-            v-if="activeDraftItemsCount > 0"
-            class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5
-                   rounded-full bg-white/20 text-white text-xs font-bold tabular-nums"
-            data-testid="mobile-cart-fab-count"
-          >
-            {{ activeDraftItemsCount }}
-          </span>
-        </span>
-        <span class="flex items-center gap-1 shrink-0">
-          Ver carrito
-          <UIcon name="i-lucide-chevron-right" class="h-4 w-4" data-testid="mobile-cart-chevron" />
-        </span>
-      </button>
-
-      <AppResponsiveDrawer
-        v-if="isMobileViewport"
-        :open="cartDrawerOpen"
-        title="Carrito"
-        :description="`${activeDraftItemsCount} ${activeDraftItemsCount === 1 ? 'artículo' : 'artículos'} · ${formatCents(activeDraftTotalCents)}`"
-        close-aria-label="Cerrar carrito"
-        mobile-body-class="overflow-hidden"
-        data-testid="mobile-cart-drawer"
-        @update:open="cartDrawerOpen = $event"
-        @after:leave="handleCartAfterLeave"
-      >
-        <template #title>
-          <div class="flex min-w-0 flex-col">
-            <span class="text-base font-bold leading-tight text-highlighted">Carrito</span>
-            <span class="text-xs tabular-nums text-muted">
-              {{ activeDraftItemsCount }} {{ activeDraftItemsCount === 1 ? 'artículo' : 'artículos' }} ·
-              {{ formatCents(activeDraftTotalCents) }}
-            </span>
+              @close-tab="handleCloseTab"
+              @create-tab="handleCreateTab"
+              @update-qty="handleUpdateQty"
+              @clear-items="handleClearItems"
+            />
           </div>
-        </template>
-        <template #body>
-          <ActiveSalePanel
-            :drafts="drafts"
-            :active-draft="activeDraft"
-            :active-tab-id="activeTabId"
-            :is-loading-list="isLoadingList"
-            :is-mutating="isMutating"
-            :is-customer-mutation-pending="isCustomerMutationPending"
-            :item-image-map="itemImageMap"
-            :applicable-promotions="applicablePromotions"
-            :is-loading-promotions="isLoadingPromotions"
-            :applied-manual-promotion-ids="[]"
-            :mobile-sheet="true"
-            :on-submit-price-override="handleSubmitPriceOverride"
-            :on-apply-discount="handleApplyDiscount"
-            :on-remove-discount="handleRemoveDiscount"
-            :on-remove-item="handleRemoveItem"
-            :on-apply-global-discount="handleApplyGlobalDiscount"
-            :on-remove-global-discount="handleRemoveGlobalDiscount"
-            @charge-click="openPaymentModal"
-            @open-customer-assignment="handleOpenCustomerAssignment"
-            @unassign-customer="handleUnassignCustomer"
-            @remove-order-promo="handleVetoRequest"
-            @remove-promo="handleVetoRequest"
-            @apply-manual-promo="handleApplyManualPromo"
-            @remove-manual-promo="handleRemoveManualPromo"
-            @change-price-list="handleChangePriceList"
-            @switch-tab="handleSwitchTab"
-            @close-tab="handleCloseTab"
-            @create-tab="handleCreateTab"
-            @update-qty="handleUpdateQty"
-            @clear-items="handleClearItems"
-          />
-        </template>
-      </AppResponsiveDrawer>
+        </div>
+
+        <!-- Mobile-only cart CTA and bottom slideover. The slideover stays
+           mounted below lg so its after:leave event can sequence payment. -->
+        <button
+          v-if="isMobileViewport"
+          type="button"
+          class="fixed z-30 left-3 right-3 bottom-0 flex items-center justify-between gap-3 bg-primary text-white shadow-lg shadow-primary/30 rounded-t-2xl px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] min-h-[48px] font-semibold text-sm active:scale-[0.99] transition-transform"
+          data-testid="mobile-cart-fab"
+          aria-label="Abrir carrito de venta"
+          @click="openCartDrawer"
+        >
+          <span class="flex items-center gap-2 min-w-0">
+            <UIcon name="i-lucide-shopping-bag" class="h-5 w-5 shrink-0" />
+            <span class="tabular-nums">{{ formatCents(activeDraftTotalCents) }}</span>
+            <span
+              v-if="activeDraftItemsCount > 0"
+              class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-white/20 text-white text-xs font-bold tabular-nums"
+              data-testid="mobile-cart-fab-count"
+            >
+              {{ activeDraftItemsCount }}
+            </span>
+          </span>
+          <span class="flex items-center gap-1 shrink-0">
+            Ver carrito
+            <UIcon
+              name="i-lucide-chevron-right"
+              class="h-4 w-4"
+              data-testid="mobile-cart-chevron"
+            />
+          </span>
+        </button>
+
+        <AppResponsiveDrawer
+          v-if="isMobileViewport"
+          :open="cartDrawerOpen"
+          title="Carrito"
+          :description="`${activeDraftItemsCount} ${activeDraftItemsCount === 1 ? 'artículo' : 'artículos'} · ${formatCents(activeDraftTotalCents)}`"
+          close-aria-label="Cerrar carrito"
+          mobile-body-class="overflow-hidden"
+          data-testid="mobile-cart-drawer"
+          @update:open="cartDrawerOpen = $event"
+          @after:leave="handleCartAfterLeave"
+        >
+          <template #title>
+            <div class="flex min-w-0 flex-col">
+              <span class="text-base font-bold leading-tight text-highlighted">Carrito</span>
+              <span class="text-xs tabular-nums text-muted">
+                {{ activeDraftItemsCount }}
+                {{ activeDraftItemsCount === 1 ? 'artículo' : 'artículos' }} ·
+                {{ formatCents(activeDraftTotalCents) }}
+              </span>
+            </div>
+          </template>
+          <template #body>
+            <ActiveSalePanel
+              :drafts="drafts"
+              :active-draft="activeDraft"
+              :active-tab-id="activeTabId"
+              :is-loading-list="isLoadingList"
+              :is-mutating="isMutating"
+              :is-customer-mutation-pending="isCustomerMutationPending"
+              :item-image-map="itemImageMap"
+              :applicable-promotions="applicablePromotions"
+              :is-loading-promotions="isLoadingPromotions"
+              :applied-manual-promotion-ids="[]"
+              :mobile-sheet="true"
+              :on-submit-price-override="handleSubmitPriceOverride"
+              :on-apply-discount="handleApplyDiscount"
+              :on-remove-discount="handleRemoveDiscount"
+              :on-remove-item="handleRemoveItem"
+              :on-apply-global-discount="handleApplyGlobalDiscount"
+              :on-remove-global-discount="handleRemoveGlobalDiscount"
+              @charge-click="openPaymentModal"
+              @open-customer-assignment="handleOpenCustomerAssignment"
+              @unassign-customer="handleUnassignCustomer"
+              @remove-order-promo="handleVetoRequest"
+              @remove-promo="handleVetoRequest"
+              @apply-manual-promo="handleApplyManualPromo"
+              @remove-manual-promo="handleRemoveManualPromo"
+              @change-price-list="handleChangePriceList"
+              @switch-tab="handleSwitchTab"
+              @close-tab="handleCloseTab"
+              @create-tab="handleCreateTab"
+              @update-qty="handleUpdateQty"
+              @clear-items="handleClearItems"
+            />
+          </template>
+        </AppResponsiveDrawer>
       </div>
     </div>
 
@@ -898,8 +1049,26 @@ async function handleChangePriceList(globalPriceListId: string | null) {
       :is-submitting="isMutating || isChargeTemporarilyBlocked"
       :external-error="inlineAmountError"
       :catalog-clear-signal="catalogClearSignal"
-      @submit="({ saleId, payload, idempotencyKey }) => void handleChargeDraft(saleId, payload, idempotencyKey)"
+      :requote-accept-signal="requoteAcceptSignal"
+      @submit="
+        ({ saleId, payload, idempotencyKey }) =>
+          void handleChargeDraft(saleId, payload, idempotencyKey)
+      "
       @request-assign-customer="handleRequestAssignCustomerFromPayment"
+    />
+
+    <!-- PCA-2 (backend guide §3.2): dedicated acceptance modal for a
+         `PROMO_CAPACITY_RE_QUOTE`. The payment draft stays open beneath it;
+         confirming only mints a fresh key and returns the cashier to the
+         payment state (no auto-charge). -->
+    <PromotionCapacityRequoteModal
+      v-if="requoteSnapshot"
+      :open="requoteModalOpen"
+      :subtotal-cents="requoteSnapshot.subtotalCents"
+      :discount-cents="requoteSnapshot.discountCents"
+      :total-cents="requoteSnapshot.totalCents"
+      :excluded-promotions="requoteSnapshot.excludedPromotions"
+      @accept="handleAcceptRequote"
     />
 
     <PaymentSuccessModal

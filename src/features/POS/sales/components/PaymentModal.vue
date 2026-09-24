@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { ChargeSalePayload, LegacyChargePayload, NonCreditPaymentMethod, PaymentEntry, SaleDraftCustomer } from '../interfaces/sale.types'
+import type {
+  ChargeSalePayload,
+  LegacyChargePayload,
+  NonCreditPaymentMethod,
+  PaymentEntry,
+  SaleDraftCustomer,
+} from '../interfaces/sale.types'
 import type { CustomerAddress } from '@/features/POS/customers/interfaces/customer.types'
 import { PAYMENT_METHOD } from '../constants/sale.constants' // sdd/magic-string-constants slice 3 — lowercase contract.
 import DateFieldPopover from './DateFieldPopover.vue'
@@ -41,6 +47,13 @@ const props = defineProps<{
   // then drops every entry carrying a `paymentMethodId` (custom tiles) and
   // preserves fixed entries. The increment dispatch lands in S5A.
   catalogClearSignal?: number
+  // PCA-2 (capacity re-quote): the parent increments this nonce ONLY when the
+  // cashier accepts a refreshed server quote after a `PROMO_CAPACITY_RE_QUOTE`.
+  // The modal then mints a fresh idempotency key while preserving the entered
+  // payments; it never charges automatically — the cashier must click the
+  // charge action again. An unchanged retry leaves the nonce untouched, so the
+  // current logical-attempt key is reused.
+  requoteAcceptSignal?: number
 }>()
 
 const emit = defineEmits<{
@@ -95,7 +108,9 @@ const isDueDateValid = computed(() => {
 // fixed tiles followed by every active custom method from the projection.
 // Empty / failed projection degrades to fixed-only (REQ-PT-005 / 006).
 const { data: projection } = useSalePaymentMethods()
-const methodOptions = computed<PaymentMethodTile[]>(() => buildMergedMethodOptions(projection.value ?? []))
+const methodOptions = computed<PaymentMethodTile[]>(() =>
+  buildMergedMethodOptions(projection.value ?? []),
+)
 
 function tileTestId(tile: PaymentMethodTile): string {
   if (tile.kind === 'custom') return `payment-method-tile-custom-${tile.paymentMethodId}`
@@ -107,9 +122,14 @@ function tileTestId(tile: PaymentMethodTile): string {
 
 const totalFormatted = computed(() => formatCentsMXN(props.totalCents))
 const paidSumCents = computed(() => {
-  return entries.value.reduce((sum, entry) => sum + Math.max(0, Math.round(entry.amountPesos * 100)), 0)
+  return entries.value.reduce(
+    (sum, entry) => sum + Math.max(0, Math.round(entry.amountPesos * 100)),
+    0,
+  )
 })
-const hasCashPayment = computed(() => entries.value.some((entry) => entry.method === PAYMENT_METHOD.CASH))
+const hasCashPayment = computed(() =>
+  entries.value.some((entry) => entry.method === PAYMENT_METHOD.CASH),
+)
 const remainingCents = computed(() => props.totalCents - paidSumCents.value)
 const hasCustomer = computed(() => props.customer != null)
 // pos-sale-delivery S2 (CAP-DLV-1): drives the USwitch `:disabled` and the
@@ -126,7 +146,10 @@ const changeDueCents = computed(() => {
 })
 const canAddEntry = computed(() => entries.value.length < MAX_ENTRIES)
 const canSubmit = computed(
-  () => !props.isSubmitting && (entries.value.length === 0 ? hasCustomer.value : (!isPartial.value || canSubmitPartial.value)) && !inlineError.value,
+  () =>
+    !props.isSubmitting &&
+    (entries.value.length === 0 ? hasCustomer.value : !isPartial.value || canSubmitPartial.value) &&
+    !inlineError.value,
 )
 const confirmButtonLabel = computed(() => {
   if (entries.value.length === 0 && hasCustomer.value) {
@@ -228,23 +251,28 @@ watch(
   { immediate: true },
 )
 
+// Collapses the optional due-date field and clears any half-entered value.
+function collapseDueDate() {
+  dueDateInput.value = null
+  isDueDateExpanded.value = false
+}
+
 // The "no customer + partial/empty payment" state is communicated by the UAlert
 // in the footer (with its CTA). Do NOT duplicate that message in inlineError —
 // it would render twice (yellow alert + red inline text). inlineError is kept
 // for orthogonal validation messages (due-date in the past, etc.).
-watch([isPartial, hasCustomer, entries], () => {
-  if (!props.open) return
-  inlineError.value = null
-}, { deep: true })
+watch(
+  [isPartial, hasCustomer, entries],
+  () => {
+    if (!props.open) return
+    inlineError.value = null
+  },
+  { deep: true },
+)
 
 // sdd custom-payment-methods S4B: entry construction is tile-aware so custom
 // tiles thread their UUID while fixed tiles stay byte-identical (REQ-CAT-001).
-// The no-arg `addEntry()` was dead code (nothing called it) and is replaced by
-// the tile-aware versions below.
-function addEntryWithMethod(tile: PaymentMethodTile) {
-  if (!canAddEntry.value) return
-  entries.value.push(createDefaultEntry(tile))
-}
+// toggleMethod(tile) below is the single add/remove entry path.
 
 // toggleMethod(tile) — tile-identity matcher (design §1.2/§1.4). The grid
 // passes the WHOLE tile; the matcher resolves the selection key as
@@ -379,11 +407,14 @@ watch(entries, (next) => {
 // buildPayload(). buildPayload() is additionally gated by the
 // `delivery.value ? … : {}` patch, but this watch makes the user-visible
 // state honest too (the switch shows OFF the moment the gate closes).
-watch(() => props.shippingAddress, (addr) => {
-  if (addr == null) {
-    delivery.value = false
-  }
-})
+watch(
+  () => props.shippingAddress,
+  (addr) => {
+    if (addr == null) {
+      delivery.value = false
+    }
+  },
+)
 
 // sdd custom-payment-methods S4B (design §8.3 / REQ-CAT-007): when the parent
 // increments `catalogClearSignal` (a charge resolved a catalog error), drop
@@ -395,6 +426,21 @@ watch(
   () => {
     if (!props.open) return
     entries.value = entries.value.filter((entry) => entry.paymentMethodId === undefined)
+  },
+)
+
+// PCA-2 (capacity re-quote): the ONLY path that mints a fresh key after a
+// `PROMO_CAPACITY_RE_QUOTE` without an explicit payment edit. The parent bumps
+// `requoteAcceptSignal` when the cashier accepts the refreshed quote; the
+// entries (and therefore the rest of the payment draft) stay untouched, and no
+// submit is emitted here — the cashier must click the existing charge action
+// again. Ignored while the modal is closed so the open watcher stays the
+// single source of the initial key.
+watch(
+  () => props.requoteAcceptSignal,
+  () => {
+    if (!props.open) return
+    idempotencyKey.value = newIdempotencyKey()
   },
 )
 
@@ -431,9 +477,15 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
             />
           </div>
 
-          <div class="rounded-2xl border border-coco-gold-500/20 bg-coco-gold-500/5 px-5 py-4 text-center">
-            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-muted">Total a cobrar</p>
-            <p class="mt-1 text-4xl font-black tabular-nums text-highlighted">{{ totalFormatted }}</p>
+          <div
+            class="rounded-2xl border border-coco-gold-500/20 bg-coco-gold-500/5 px-5 py-4 text-center"
+          >
+            <p class="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
+              Total a cobrar
+            </p>
+            <p class="mt-1 text-4xl font-black tabular-nums text-highlighted">
+              {{ totalFormatted }}
+            </p>
           </div>
         </div>
 
@@ -455,7 +507,9 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
                     ? 'border-coco-gold-500/40 bg-coco-gold-500/5'
                     : 'border-default bg-elevated hover:border-coco-gold-500/40 hover:bg-coco-gold-500/5'
                 "
-                :disabled="getMethodCount(wireEntries, option) === 0 && !canAddEntry || isSubmitting"
+                :disabled="
+                  (getMethodCount(wireEntries, option) === 0 && !canAddEntry) || isSubmitting
+                "
                 @click="toggleMethod(option)"
               >
                 <UBadge
@@ -467,7 +521,10 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
                 >
                   {{ getMethodCount(wireEntries, option) }}
                 </UBadge>
-                <UIcon :name="option.icon" class="mb-2 size-6 text-coco-gold-700 dark:text-coco-gold-400" />
+                <UIcon
+                  :name="option.icon"
+                  class="mb-2 size-6 text-coco-gold-700 dark:text-coco-gold-400"
+                />
                 <p class="text-sm font-semibold text-highlighted">{{ option.label }}</p>
                 <!-- REQ-PT-007: custom tiles render the subtitle as a grey sub-line (trimmed, when present) -->
                 <p
@@ -501,12 +558,20 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
               class="space-y-3 rounded-xl border border-default bg-default px-3 py-3"
             >
               <div class="flex items-center gap-3">
-                <UBadge :color="getMethodColor(entry.method)" variant="soft" size="lg" class="shrink-0">
+                <UBadge
+                  :color="getMethodColor(entry.method)"
+                  variant="soft"
+                  size="lg"
+                  class="shrink-0"
+                >
                   <UIcon :name="PAYMENT_METHOD_CATEGORY_ICONS[entry.method]" class="size-4" />
                 </UBadge>
 
                 <div class="min-w-0 flex-1">
-                  <p :data-testid="`payment-method-${index}`" class="text-sm font-semibold text-highlighted">
+                  <p
+                    :data-testid="`payment-method-${index}`"
+                    class="text-sm font-semibold text-highlighted"
+                  >
                     {{ entryDisplays[index]?.label }}
                   </p>
                 </div>
@@ -543,61 +608,59 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
                 />
               </UFormField>
 
-              <UFormField
-                v-if="entryNeedsReference(entry.method)"
-                label="Referencia (opcional)"
-              >
+              <UFormField v-if="entryNeedsReference(entry.method)" label="Referencia (opcional)">
                 <UInput
                   :data-testid="`payment-reference-${index}`"
                   v-model="entry.reference"
                   placeholder="Ej: VOUCHER-123"
                   :disabled="isSubmitting"
                 />
-                </UFormField>
-              </div>
-            </section>
+              </UFormField>
+            </div>
+          </section>
 
-            <!-- Optional due date for resulting debt — collapsed by default -->
-            <section data-testid="due-date-section">
-              <button
-                v-if="!isDueDateExpanded && !dueDateInput"
-                type="button"
-                data-testid="expand-due-date"
-                class="flex items-center gap-1.5 text-xs text-coco-gold-700 dark:text-coco-gold-400 hover:underline disabled:opacity-50"
-                :disabled="isSubmitting"
-                @click="isDueDateExpanded = true"
-              >
-                <UIcon name="i-lucide-calendar-plus" class="size-3.5" />
-                Agregar fecha de vencimiento
-              </button>
+          <!-- Optional due date for resulting debt — collapsed by default -->
+          <section data-testid="due-date-section">
+            <button
+              v-if="!isDueDateExpanded && !dueDateInput"
+              type="button"
+              data-testid="expand-due-date"
+              class="flex items-center gap-1.5 text-xs text-coco-gold-700 dark:text-coco-gold-400 hover:underline disabled:opacity-50"
+              :disabled="isSubmitting"
+              @click="isDueDateExpanded = true"
+            >
+              <UIcon name="i-lucide-calendar-plus" class="size-3.5" />
+              Agregar fecha de vencimiento
+            </button>
 
-              <div v-else class="space-y-1.5">
-                <div class="flex items-center justify-between">
-                  <p class="text-sm font-medium text-highlighted">Vencimiento</p>
-                  <button
-                    type="button"
-                    data-testid="collapse-due-date"
-                    class="text-xs text-muted hover:underline"
-                    :disabled="isSubmitting"
-                    @click="dueDateInput = null; isDueDateExpanded = false"
-                  >
-                    Quitar
-                  </button>
-                </div>
-                <p class="text-xs text-muted">
-                  Fecha en que vence la deuda generada. Si no la indicás, el sistema aplica el plazo por defecto.
-                </p>
-                <DateFieldPopover
-                  v-model="dueDateInput"
-                  testid="due-date-input"
-                  placeholder="Elegir fecha"
+            <div v-else class="space-y-1.5">
+              <div class="flex items-center justify-between">
+                <p class="text-sm font-medium text-highlighted">Vencimiento</p>
+                <button
+                  type="button"
+                  data-testid="collapse-due-date"
+                  class="text-xs text-muted hover:underline"
                   :disabled="isSubmitting"
-                  :min-iso="minDueDate"
-                />
+                  @click="collapseDueDate"
+                >
+                  Quitar
+                </button>
               </div>
-            </section>
+              <p class="text-xs text-muted">
+                Fecha en que vence la deuda generada. Si no la indicás, el sistema aplica el plazo
+                por defecto.
+              </p>
+              <DateFieldPopover
+                v-model="dueDateInput"
+                testid="due-date-input"
+                placeholder="Elegir fecha"
+                :disabled="isSubmitting"
+                :min-iso="minDueDate"
+              />
+            </div>
+          </section>
 
-            <!-- pos-sale-delivery S2 (CAP-DLV-1): "Entrega a domicilio" toggle.
+          <!-- pos-sale-delivery S2 (CAP-DLV-1): "Entrega a domicilio" toggle.
                  Gates on `hasShippingAddress` (design §2/Q1, §2/Q7). When the
                  gate is closed the switch is disabled and an inline hint
                  explains why, plus a CTA that reuses the existing
@@ -605,44 +668,45 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
                  Placed immediately after the due-date section per design
                  §2/Q1 (due-date + delivery are the two optional charge
                  modifiers that only make sense after a customer is assigned). -->
-            <section data-testid="delivery-section" class="space-y-2">
-              <USwitch
-                v-model="delivery"
-                :disabled="!hasShippingAddress || isSubmitting"
-                label="Entrega a domicilio"
-                description="Marca la venta para entrega a domicilio; el estado inicial será pendiente."
-                data-testid="delivery-toggle"
-              />
+          <section data-testid="delivery-section" class="space-y-2">
+            <USwitch
+              v-model="delivery"
+              :disabled="!hasShippingAddress || isSubmitting"
+              label="Entrega a domicilio"
+              description="Marca la venta para entrega a domicilio; el estado inicial será pendiente."
+              data-testid="delivery-toggle"
+            />
 
-              <p
-                v-if="!hasShippingAddress"
-                data-testid="delivery-hint"
-                class="text-xs text-warning"
+            <p v-if="!hasShippingAddress" data-testid="delivery-hint" class="text-xs text-warning">
+              asigná cliente y dirección primero
+            </p>
+
+            <div v-if="!hasShippingAddress">
+              <UButton
+                data-testid="delivery-assign-cta"
+                color="warning"
+                variant="soft"
+                size="sm"
+                :disabled="isSubmitting"
+                @click="emit('request-assign-customer')"
               >
-                asigná cliente y dirección primero
-              </p>
-
-              <div v-if="!hasShippingAddress">
-                <UButton
-                  data-testid="delivery-assign-cta"
-                  color="warning"
-                  variant="soft"
-                  size="sm"
-                  :disabled="isSubmitting"
-                  @click="emit('request-assign-customer')"
-                >
-                  Asignar cliente
-                </UButton>
-              </div>
-            </section>
-          </div>
+                Asignar cliente
+              </UButton>
+            </div>
+          </section>
+        </div>
 
         <!-- Sticky footer -->
         <div class="shrink-0 space-y-3 border-t border-default bg-default px-5 py-4">
           <div class="rounded-xl border border-default bg-elevated px-4 py-3 text-sm">
             <div class="flex items-center justify-between gap-2">
-              <p>Recibido: <span class="font-semibold">{{ formatCentsMXN(paidSumCents) }}</span></p>
-              <p>Restante: <span class="font-semibold">{{ formatCentsMXN(Math.max(remainingCents, 0)) }}</span></p>
+              <p>
+                Recibido: <span class="font-semibold">{{ formatCentsMXN(paidSumCents) }}</span>
+              </p>
+              <p>
+                Restante:
+                <span class="font-semibold">{{ formatCentsMXN(Math.max(remainingCents, 0)) }}</span>
+              </p>
             </div>
             <p v-if="changeDueCents > 0" class="mt-1">
               Cambio: <span class="font-semibold">{{ formatCentsMXN(changeDueCents) }}</span>
@@ -674,13 +738,24 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
             v-if="(isPartial || entries.length === 0) && hasCustomer"
             class="flex items-center justify-between gap-2 rounded-xl border border-warning/20 bg-warning/10 px-4 py-3 text-sm"
           >
-            <p class="text-highlighted">Deuda a generar: <span class="font-semibold">{{ formatCentsMXN(debtToGenerateCents) }}</span></p>
+            <p class="text-highlighted">
+              Deuda a generar:
+              <span class="font-semibold">{{ formatCentsMXN(debtToGenerateCents) }}</span>
+            </p>
           </div>
 
-          <p v-if="inlineError || externalError" class="text-sm text-error">{{ inlineError ?? externalError }}</p>
+          <p v-if="inlineError || externalError" class="text-sm text-error">
+            {{ inlineError ?? externalError }}
+          </p>
 
           <div data-testid="payment-actions" class="flex flex-col gap-2 sm:flex-row sm:justify-end">
-            <UButton color="neutral" variant="soft" class="w-full justify-center sm:w-auto" :disabled="isSubmitting" @click="emit('update:open', false)">
+            <UButton
+              color="neutral"
+              variant="soft"
+              class="w-full justify-center sm:w-auto"
+              :disabled="isSubmitting"
+              @click="emit('update:open', false)"
+            >
               Cancelar
             </UButton>
             <UButton
