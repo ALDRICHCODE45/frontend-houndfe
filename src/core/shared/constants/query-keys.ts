@@ -9,6 +9,7 @@ import type {
 import type { BranchSalesSummaryQuery } from '@/features/analytics/interfaces/branch-sales-summary.types'
 import type { BranchSalesTimeseriesQuery } from '@/features/analytics/interfaces/branch-sales-timeseries.types'
 import type { PendingRefundsQuery } from '@/features/POS/sales/interfaces/pending-refund.types'
+import type { HumanDecisionListParams } from '@/features/POS/human-decisions/interfaces/human-decision.types'
 
 export const productQueryKeys = {
   paginated: (tenantId: string) => ['products', tenantId, 'paginated'] as const,
@@ -346,3 +347,18 @@ export const analyticsQueryKeys = {
 // `paymentMethods` slot is invalidated by S5A when the catalog surfaces a
 // `PAYMENT_METHOD_NOT_FOUND` or `INACTIVE_PAYMENT_METHOD` mid-charge so the
 // cashier sees the updated state on the next open.
+
+// ─── Human-decisions module query keys (HD2B, RESTOCK inbox) ──────────────────
+//
+// Tenant-scoped per the POS convention. TanStack prefix-matches array keys, so
+// `all` clears every human-decision slot for the active tenant while
+// `listPrefix` clears only the list cache. `list` carries the params object, so
+// its trailing params would NOT prefix-match another page/search slot — use
+// `listPrefix` for invalidation. `detail` is its own slot, disjoint from list.
+export const humanDecisionQueryKeys = {
+  all: (tenantId: string) => ['human-decisions', tenantId] as const,
+  list: (tenantId: string, params: HumanDecisionListParams) =>
+    ['human-decisions', tenantId, 'list', params] as const,
+  listPrefix: (tenantId: string) => ['human-decisions', tenantId, 'list'] as const,
+  detail: (tenantId: string, id: string) => ['human-decisions', tenantId, 'detail', id] as const,
+}
