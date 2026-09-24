@@ -21,7 +21,7 @@ import type {
   NotificationConfigPutBody,
   NotificationConfigResponse,
 } from '../interfaces/notification-config.types'
-import { findActionDescriptor } from '../registry/action-registry'
+import { filterRegisteredActionKeys, findActionDescriptor } from '../registry/action-registry'
 
 /**
  * Hydrate the form model from a GET response.
@@ -29,6 +29,10 @@ import { findActionDescriptor } from '../registry/action-registry'
  * `recipients` (GET) is renamed to `recipientUserIds` (form/PUT) here.
  * Stale ids are intentionally preserved so the user can decide whether
  * to remove them — never auto-stripped.
+ *
+ * `enabledActions` is filtered against the registry whitelist (PCA-4): a
+ * key the frontend cannot render can never survive into the form and be
+ * echoed back on the next PUT.
  *
  * Defaults are identity for never-configured responses (the backend already
  * returns `{enabled:false, recipients:[], enabledActions:[]}`), so this
@@ -38,7 +42,7 @@ export function fromConfigResponse(view: NotificationConfigResponse): Notificati
   return {
     enabled: view.enabled,
     recipientUserIds: [...view.recipients],
-    enabledActions: [...view.enabledActions],
+    enabledActions: filterRegisteredActionKeys(view.enabledActions),
   }
 }
 
@@ -47,6 +51,11 @@ export function fromConfigResponse(view: NotificationConfigResponse): Notificati
  * keys (`enabled`, `recipientUserIds`, `enabledActions`) — the backend DTO
  * uses `forbidNonWhitelisted`, so any extra property would be rejected.
  *
+ * `enabledActions` is filtered against the registry whitelist so an unknown
+ * key can never reach the backend (which would answer `400 UNKNOWN_ACTION_KEY`).
+ * Filtering preserves input order and every valid enabled key — it never
+ * adds keys, so it cannot silently enable an action the tenant had off.
+ *
  * Returning a fresh literal (not the form reference) is intentional: the
  * mutation body must not share identity with the reactive form snapshot.
  */
@@ -54,7 +63,7 @@ export function toPutBody(form: NotificationConfigForm): NotificationConfigPutBo
   return {
     enabled: form.enabled,
     recipientUserIds: [...form.recipientUserIds],
-    enabledActions: [...form.enabledActions],
+    enabledActions: filterRegisteredActionKeys(form.enabledActions),
   }
 }
 
@@ -85,8 +94,7 @@ export function isDirty(
 
 /** Neutral Spanish copy lives in one place so strings never drift. */
 const ERROR_COPY = {
-  invalidRecipientField:
-    'Uno de los usuarios seleccionados no pertenece a esta cuenta',
+  invalidRecipientField: 'Uno de los usuarios seleccionados no pertenece a esta cuenta',
   unknownActionToast: 'Una o más acciones seleccionadas no están disponibles',
   unauthorized: 'Tu sesión expiró. Vuelve a iniciar sesión.',
   forbidden: 'No tienes permisos para guardar esta configuración',
@@ -165,8 +173,7 @@ export function mapNotificationConfigError(
     return { toast: ERROR_COPY.fallback }
   }
 
-  const input: NotificationConfigErrorInput =
-    typeof error === 'string' ? { code: error } : error
+  const input: NotificationConfigErrorInput = typeof error === 'string' ? { code: error } : error
 
   const code = normaliseCode(input.code)
   const status = input.status
@@ -183,7 +190,10 @@ export function mapNotificationConfigError(
   }
 
   // Class-validator style 400 — generic data-shape error.
-  if (looksLikeClassValidator(code) || (status === 400 && code.length > 0 && code !== 'INVALID_RECIPIENT')) {
+  if (
+    looksLikeClassValidator(code) ||
+    (status === 400 && code.length > 0 && code !== 'INVALID_RECIPIENT')
+  ) {
     return { toast: ERROR_COPY.classValidator }
   }
 
@@ -231,10 +241,5 @@ export function computeCanSave(input: {
   zeroRecipientViolation: boolean
   canUpdate: boolean
 }): boolean {
-  return (
-    input.isDirty &&
-    !input.isPending &&
-    !input.zeroRecipientViolation &&
-    input.canUpdate
-  )
+  return input.isDirty && !input.isPending && !input.zeroRecipientViolation && input.canUpdate
 }

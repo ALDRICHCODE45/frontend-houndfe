@@ -33,8 +33,7 @@ export const ACTION_REGISTRY: readonly ModuleDescriptor[] = [
       {
         key: 'LOW_STOCK',
         label: 'Bajo inventario',
-        description:
-          'Envía un correo cuando un producto cae por debajo de su inventario mínimo.',
+        description: 'Envía un correo cuando un producto cae por debajo de su inventario mínimo.',
       },
     ],
   },
@@ -62,6 +61,27 @@ export const ACTION_REGISTRY: readonly ModuleDescriptor[] = [
       },
     ],
   },
+  {
+    // Visual-only group (handoff §3.4): the two promotion alerts are flat
+    // members of the backend enum. The group is NOT part of the PUT body —
+    // they are sent as individual keys inside `enabledActions`.
+    moduleKey: 'promotions',
+    moduleLabel: 'Promociones',
+    actions: [
+      {
+        key: 'PROMOTION_EXPIRING',
+        label: 'Vencimiento próximo',
+        description:
+          'Envía un correo cuando una promoción activa vence en los próximos 7 días. La entrega es asíncrona y puede demorar.',
+      },
+      {
+        key: 'PROMOTION_NEAR_CAPACITY',
+        label: 'Cerca del límite',
+        description:
+          'Envía un correo cuando el consumo de una promoción con cupo finito pasa desde menos del 80% hasta alcanzar o superar ese umbral. Las promociones sin límite no generan esta alerta. La entrega es asíncrona y puede demorar.',
+      },
+    ],
+  },
 ] as const
 
 /**
@@ -85,6 +105,20 @@ const ACTION_LOOKUP: ReadonlyMap<ActionKey, ActionDescriptor> = (() => {
  */
 export function isRegisteredActionKey(key: string): key is ActionKey {
   return ACTION_LOOKUP.has(key as ActionKey)
+}
+
+/**
+ * Filter an arbitrary key list down to the registered keys, preserving input
+ * order. Non-registered keys are dropped silently — callers never branch on
+ * an action key, they only ask the registry whether it is renderable.
+ *
+ * This is the runtime whitelist the mapper layer filters against so an
+ * unknown key (for example a stale backend value) can never be echoed into
+ * the PUT body. It derives from `ACTION_REGISTRY`, so it can never drift
+ * from what the UI renders.
+ */
+export function filterRegisteredActionKeys(keys: readonly string[]): ActionKey[] {
+  return keys.filter(isRegisteredActionKey)
 }
 
 /**

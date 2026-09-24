@@ -8,9 +8,12 @@
 // mount the real one with deps mocked at the boundary).
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { nextTick, reactive, ref } from 'vue'
+import { nextTick, reactive, ref, watchEffect } from 'vue'
+import { readFileSync } from 'node:fs'
+import { fileURLToPath } from 'node:url'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import NotificationConfigView from '../NotificationConfigView.vue'
+import { ACTION_REGISTRY } from '../../registry/action-registry'
 import type {
   NotificationConfigForm,
   NotificationConfigResponse,
@@ -103,7 +106,6 @@ vi.mock('../../composables/useNotificationConfigForm', () => ({
     // Mimic the real composable's watch(source, hydrate, { immediate: true })
     // by hydrating on setup if a source value exists, AND watching future
     // changes. We use a watchEffect for simplicity here.
-    const { watchEffect } = require('vue') as typeof import('vue')
     watchEffect(() => {
       const value = source.value
       if (value) currentFormMock.hydrate(value)
@@ -290,5 +292,61 @@ describe('NotificationConfigView — in-view permission gate (WU-12)', () => {
     const wrapper = mountWithUApp(NotificationConfigView)
     const saveBtn = wrapper.find('[data-testid="save-button"]')
     expect(saveBtn.attributes('disabled')).toBeDefined()
+  })
+})
+
+describe('NotificationConfigView — Promociones group (PCA-4)', () => {
+  function promotions() {
+    return ACTION_REGISTRY.find((m) => m.moduleKey === 'promotions')!
+  }
+
+  it('renders the Promociones module + both actions straight from the registry', () => {
+    queryMockState.data.value = undefined
+    const wrapper = mountWithUApp(NotificationConfigView)
+    expect(wrapper.text()).toContain(promotions().moduleLabel)
+    for (const action of promotions().actions) {
+      expect(wrapper.text()).toContain(action.label)
+    }
+  })
+
+  it('renders exactly one action row per registry action (data-driven, no duplicates)', () => {
+    queryMockState.data.value = undefined
+    const wrapper = mountWithUApp(NotificationConfigView)
+    const expected = ACTION_REGISTRY.reduce((total, m) => total + m.actions.length, 0)
+    expect(wrapper.findAll('[data-testid^="action-row-"]')).toHaveLength(expected)
+  })
+
+  it('renders both promotion toggles OFF by default (tenant default disabled)', () => {
+    queryMockState.data.value = undefined
+    const wrapper = mountWithUApp(NotificationConfigView)
+    expect(
+      wrapper.find('[data-testid="action-row-promotion-expiring"]').attributes('data-checked'),
+    ).toBe('false')
+    expect(
+      wrapper.find('[data-testid="action-row-promotion-near-capacity"]').attributes('data-checked'),
+    ).toBe('false')
+  })
+
+  it('keeps permission/save gating with the promotion group present', () => {
+    queryMockState.data.value = undefined
+    currentFormMock.canUpdate.value = false
+    currentFormMock.canSave.value = false
+    const wrapper = mountWithUApp(NotificationConfigView)
+    expect(wrapper.text()).toContain(promotions().moduleLabel)
+    expect(wrapper.find('[data-testid="save-button"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('No tienes permisos para guardar')
+  })
+
+  it('has NO bespoke promotion branches in the view/accordion/row sources (registry-only)', () => {
+    const files = [
+      '../NotificationConfigView.vue',
+      '../../components/ActionsAccordion.vue',
+      '../../components/ModuleAccordionItem.vue',
+      '../../components/ActionRow.vue',
+    ]
+    for (const relative of files) {
+      const source = readFileSync(fileURLToPath(new URL(relative, import.meta.url)), 'utf8')
+      expect(source).not.toMatch(/PROMOTION_/)
+    }
   })
 })

@@ -16,7 +16,8 @@ import {
   computeCanSave,
   computeZeroRecipientViolation,
 } from '../notificationConfigMappers'
-import type { NotificationConfigForm } from '../../interfaces/notification-config.types'
+import { toggleActionMembership } from '../../components/notificationRowState'
+import type { ActionKey, NotificationConfigForm } from '../../interfaces/notification-config.types'
 
 const baseForm: NotificationConfigForm = {
   enabled: true,
@@ -147,24 +148,21 @@ describe('isDirty (snapshot diff)', () => {
   })
 
   it('returns true when enabled flipped', () => {
-    expect(
-      isDirty({ enabled: true, recipientUserIds: [], enabledActions: [] }, baseForm),
-    ).toBe(true)
+    expect(isDirty({ enabled: true, recipientUserIds: [], enabledActions: [] }, baseForm)).toBe(
+      true,
+    )
   })
 
   it('returns true when recipientUserIds differ', () => {
     expect(
-      isDirty(
-        { enabled: true, recipientUserIds: ['u2'], enabledActions: ['LOW_STOCK'] },
-        baseForm,
-      ),
+      isDirty({ enabled: true, recipientUserIds: ['u2'], enabledActions: ['LOW_STOCK'] }, baseForm),
     ).toBe(true)
   })
 
   it('returns true when enabledActions differ', () => {
-    expect(
-      isDirty({ enabled: true, recipientUserIds: ['u1'], enabledActions: [] }, baseForm),
-    ).toBe(true)
+    expect(isDirty({ enabled: true, recipientUserIds: ['u1'], enabledActions: [] }, baseForm)).toBe(
+      true,
+    )
   })
 
   it('returns false when arrays are both empty (no spurious dirty)', () => {
@@ -258,9 +256,7 @@ describe('mapNotificationConfigError', () => {
 
 describe('computeZeroRecipientViolation', () => {
   it('no actions → not a violation (master off is fine)', () => {
-    expect(
-      computeZeroRecipientViolation({ enabledActions: [], recipientUserIds: [] }),
-    ).toBe(false)
+    expect(computeZeroRecipientViolation({ enabledActions: [], recipientUserIds: [] })).toBe(false)
   })
 
   it('actions enabled, no recipients → violation', () => {
@@ -414,5 +410,126 @@ describe('computeCanSave (pure, no auth-store coupling)', () => {
         canUpdate: false,
       }),
     ).toBe(false)
+  })
+})
+
+describe('PCA-4 — promotion keys: full replacement + whitelisting', () => {
+  it('GET hydration keeps the mixed old/new enabled subset and renames recipients', () => {
+    const form = fromConfigResponse({
+      enabled: true,
+      recipients: ['u1', 'u2'],
+      enabledActions: ['LOW_STOCK', 'PROMOTION_EXPIRING'],
+    })
+
+    expect(form).toEqual({
+      enabled: true,
+      recipientUserIds: ['u1', 'u2'],
+      enabledActions: ['LOW_STOCK', 'PROMOTION_EXPIRING'],
+    })
+  })
+
+  it('PUT sends exactly the three whitelisted keys and the recipientUserIds rename', () => {
+    const body = toPutBody({
+      enabled: true,
+      recipientUserIds: ['u1'],
+      enabledActions: ['LOW_STOCK', 'PROMOTION_NEAR_CAPACITY'],
+    })
+
+    expect(Object.keys(body)).toEqual(['enabled', 'recipientUserIds', 'enabledActions'])
+    expect(Object.keys(body)).toHaveLength(3)
+    expect(body.recipientUserIds).toEqual(['u1'])
+    expect((body as unknown as Record<string, unknown>).recipients).toBeUndefined()
+  })
+
+  it('does NOT auto-enable the full five-key set (only the selected subset is sent)', () => {
+    const body = toPutBody({
+      enabled: true,
+      recipientUserIds: ['u1'],
+      enabledActions: ['PROMOTION_EXPIRING'],
+    })
+
+    expect(body.enabledActions).toEqual(['PROMOTION_EXPIRING'])
+    expect(body.enabledActions).not.toContain('PROMOTION_NEAR_CAPACITY')
+    expect(body.enabledActions).not.toContain('LOW_STOCK')
+    expect(body.enabledActions).not.toContain('TIME_OFF_REQUESTED')
+    expect(body.enabledActions).not.toContain('DELIVERY_NEXT_STOP')
+  })
+
+  it('preserves unrelated enabled keys when a promotion key is present', () => {
+    const body = toPutBody({
+      enabled: true,
+      recipientUserIds: ['u1'],
+      enabledActions: ['LOW_STOCK', 'DELIVERY_NEXT_STOP', 'PROMOTION_EXPIRING'],
+    })
+
+    expect(body.enabledActions).toEqual(['LOW_STOCK', 'DELIVERY_NEXT_STOP', 'PROMOTION_EXPIRING'])
+  })
+
+  it('after toggling a promotion OFF, the PUT body keeps unrelated keys and drops only that key', () => {
+    // End-to-end seam for "toggling off preserves the rest": the row helper
+    // derives the post-toggle subset, then the mapper forwards it verbatim
+    // (it never re-adds the promotion key that was turned off).
+    const postToggle = toggleActionMembership('PROMOTION_NEAR_CAPACITY', [
+      'LOW_STOCK',
+      'DELIVERY_NEXT_STOP',
+      'PROMOTION_NEAR_CAPACITY',
+    ])
+    const body = toPutBody({
+      enabled: true,
+      recipientUserIds: ['u1'],
+      enabledActions: postToggle as ActionKey[],
+    })
+
+    expect(body.enabledActions).toEqual(['LOW_STOCK', 'DELIVERY_NEXT_STOP'])
+    expect(body.enabledActions).not.toContain('PROMOTION_NEAR_CAPACITY')
+  })
+
+  it('never echoes an unknown key into the PUT body (whitelist at the mapper boundary)', () => {
+    const body = toPutBody({
+      enabled: true,
+      recipientUserIds: ['u1'],
+      enabledActions: ['LOW_STOCK', 'GHOST_KEY', 'PROMOTION_EXPIRING'] as unknown as ActionKey[],
+    })
+
+    expect(body.enabledActions).toEqual(['LOW_STOCK', 'PROMOTION_EXPIRING'])
+    expect(body.enabledActions).not.toContain('GHOST_KEY')
+  })
+
+  it('hydration also drops unknown keys while preserving every valid key', () => {
+    const form = fromConfigResponse({
+      enabled: true,
+      recipients: ['u1'],
+      enabledActions: [
+        'LOW_STOCK',
+        'GHOST_KEY',
+        'PROMOTION_NEAR_CAPACITY',
+      ] as unknown as ActionKey[],
+    })
+
+    expect(form.enabledActions).toEqual(['LOW_STOCK', 'PROMOTION_NEAR_CAPACITY'])
+  })
+
+  it('keeps both promotion keys disabled by default for an unconfigured tenant', () => {
+    const form = fromConfigResponse({ enabled: false, recipients: [], enabledActions: [] })
+
+    expect(form.enabledActions).toEqual([])
+    expect(form.enabledActions).not.toContain('PROMOTION_EXPIRING')
+    expect(form.enabledActions).not.toContain('PROMOTION_NEAR_CAPACITY')
+  })
+
+  it('full replacement is stable: toPutBody(fromConfigResponse(view)) round-trips the subset', () => {
+    const view = {
+      enabled: true,
+      recipients: ['u1'],
+      enabledActions: ['LOW_STOCK', 'PROMOTION_EXPIRING'] as ActionKey[],
+    }
+
+    const body = toPutBody(fromConfigResponse(view))
+
+    expect(body).toEqual({
+      enabled: true,
+      recipientUserIds: ['u1'],
+      enabledActions: ['LOW_STOCK', 'PROMOTION_EXPIRING'],
+    })
   })
 })

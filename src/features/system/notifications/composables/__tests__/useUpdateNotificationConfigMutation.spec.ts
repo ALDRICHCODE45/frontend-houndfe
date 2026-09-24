@@ -49,7 +49,10 @@ describe('handleUpdateSuccess', () => {
     expect(deps.setForm).toHaveBeenCalledWith(fromConfigResponse(response))
     // Spanish success toast — non-empty, contains the canonical copy.
     expect(deps.addToast).toHaveBeenCalledTimes(1)
-    const toastCall = vi.mocked(deps.addToast).mock.calls[0]?.[0] as { title: string; color?: string }
+    const toastCall = vi.mocked(deps.addToast).mock.calls[0]?.[0] as {
+      title: string
+      color?: string
+    }
     expect(toastCall.color).toBe('success')
     expect(toastCall.title.length).toBeGreaterThan(0)
     expect(toastCall.title).toMatch(/guardad|guardada|configuraci/i) // spec text
@@ -83,6 +86,44 @@ describe('handleUpdateSuccess', () => {
       recipientUserIds: [],
       enabledActions: [],
     })
+  })
+
+  it('PCA-4 — rehydrates a PUT round-trip that includes both promotion keys', () => {
+    // §3.4: the optimistic state comes from the PUT response, not from
+    // assuming the toggle result. The canonical round-trip may include any
+    // mix of the five keys; promotion keys must survive the map and
+    // `recipients` must be renamed to `recipientUserIds`.
+    const deps = makeDeps()
+    const response: NotificationConfigResponse = {
+      enabled: true,
+      recipients: ['u1', 'u2'],
+      enabledActions: ['LOW_STOCK', 'PROMOTION_EXPIRING', 'PROMOTION_NEAR_CAPACITY'],
+    }
+
+    handleUpdateSuccess(response, deps)
+
+    expect(deps.setForm).toHaveBeenCalledWith({
+      enabled: true,
+      recipientUserIds: ['u1', 'u2'],
+      enabledActions: ['LOW_STOCK', 'PROMOTION_EXPIRING', 'PROMOTION_NEAR_CAPACITY'],
+    })
+    expect(deps.invalidateConfig).toHaveBeenCalledTimes(1)
+    expect(deps.clearFieldError).toHaveBeenCalledWith('recipients')
+  })
+
+  it('PCA-4 — a round-trip with only one promotion key does not invent the other', () => {
+    const deps = makeDeps()
+    const response: NotificationConfigResponse = {
+      enabled: true,
+      recipients: ['u1'],
+      enabledActions: ['PROMOTION_NEAR_CAPACITY'],
+    }
+
+    handleUpdateSuccess(response, deps)
+
+    const received = vi.mocked(deps.setForm).mock.calls[0]?.[0]
+    expect(received!.enabledActions).toEqual(['PROMOTION_NEAR_CAPACITY'])
+    expect(received!.enabledActions).not.toContain('PROMOTION_EXPIRING')
   })
 })
 
@@ -148,7 +189,10 @@ describe('handleUpdateError (routes through mapNotificationConfigError)', () => 
     handleUpdateError(error, deps)
 
     expect(deps.addToast).toHaveBeenCalledTimes(1)
-    const toastCall = vi.mocked(deps.addToast).mock.calls[0]?.[0] as { title: string; color?: string }
+    const toastCall = vi.mocked(deps.addToast).mock.calls[0]?.[0] as {
+      title: string
+      color?: string
+    }
     expect(toastCall.title.length).toBeGreaterThan(0)
     expect(toastCall.color).toBe('error')
     expect(deps.setFieldError).not.toHaveBeenCalled()
@@ -218,9 +262,7 @@ describe('extractErrorPayload (reads the REAL backend error field)', () => {
   })
 
   it('falls back to response.data.code for resilience (legacy shape)', () => {
-    const payload = extractErrorPayload(
-      makeAxiosError({ code: 'INVALID_RECIPIENT' }),
-    )
+    const payload = extractErrorPayload(makeAxiosError({ code: 'INVALID_RECIPIENT' }))
 
     expect(payload.code).toBe('INVALID_RECIPIENT')
   })
@@ -234,9 +276,7 @@ describe('extractErrorPayload (reads the REAL backend error field)', () => {
   })
 
   it('ignores non-string discriminators and keeps status for the fallback path', () => {
-    const payload = extractErrorPayload(
-      makeAxiosError({ error: 42, code: {} }, 500),
-    )
+    const payload = extractErrorPayload(makeAxiosError({ error: 42, code: {} }, 500))
 
     expect(payload.code).toBeUndefined()
     expect(payload.status).toBe(500)

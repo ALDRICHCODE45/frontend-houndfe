@@ -9,8 +9,18 @@
 /**
  * Known notification action keys. Add here ONLY when the backend adds a new
  * action to the registry; the front-end action registry mirrors it.
+ *
+ * The backend enum has EXACTLY five members (handoff §2.10): the three
+ * pre-existing keys plus the two promotion-capacity alerts. `PROMOTION_*`
+ * never leave the frontend as a group — they are sent as flat keys inside
+ * `enabledActions`.
  */
-export type ActionKey = 'LOW_STOCK' | 'TIME_OFF_REQUESTED' | 'DELIVERY_NEXT_STOP'
+export type ActionKey =
+  | 'LOW_STOCK'
+  | 'TIME_OFF_REQUESTED'
+  | 'DELIVERY_NEXT_STOP'
+  | 'PROMOTION_EXPIRING'
+  | 'PROMOTION_NEAR_CAPACITY'
 
 /**
  * GET /notification-config response.
@@ -57,6 +67,8 @@ export interface NotificationConfigForm {
  * opt-out today is `DELIVERY_NEXT_STOP` — the backend resolves the
  * recipient to the next customer's email server-side, so empty
  * `recipientUserIds` is legal when it is the only enabled action.
+ * `PROMOTION_EXPIRING` / `PROMOTION_NEAR_CAPACITY` keep the default (they
+ * use the shared recipient list).
  * See `computeZeroRecipientViolation` in
  * `utils/notificationConfigMappers.ts`.
  */

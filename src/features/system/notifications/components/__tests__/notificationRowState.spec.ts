@@ -7,10 +7,8 @@ import {
   computeModuleActionCount,
   toggleActionMembership,
 } from '../notificationRowState'
-import type {
-  ActionDescriptor,
-  ModuleDescriptor,
-} from '../../interfaces/notification-config.types'
+import { ACTION_REGISTRY, findActionDescriptor } from '../../registry/action-registry'
+import type { ActionDescriptor, ModuleDescriptor } from '../../interfaces/notification-config.types'
 
 const LOW_STOCK = { key: 'LOW_STOCK', label: 'Bajo inventario' } as const
 
@@ -116,5 +114,75 @@ describe('toggleActionMembership', () => {
 
   it('appends the new key at the end when adding', () => {
     expect(toggleActionMembership('LOW_STOCK', ['A', 'B'])).toEqual(['A', 'B', 'LOW_STOCK'])
+  })
+})
+
+describe('Promociones row state / counts (PCA-4)', () => {
+  const promotions = ACTION_REGISTRY.find((m) => m.moduleKey === 'promotions')!
+
+  it('reports 0/2 with nothing enabled (tenant default: both OFF)', () => {
+    expect(computeModuleActionCount(promotions, [])).toEqual({
+      enabled: 0,
+      total: 2,
+      label: '0/2',
+    })
+  })
+
+  it('reports 1/2 with exactly one promotion enabled', () => {
+    expect(computeModuleActionCount(promotions, ['PROMOTION_EXPIRING']).label).toBe('1/2')
+    expect(computeModuleActionCount(promotions, ['PROMOTION_NEAR_CAPACITY']).label).toBe('1/2')
+  })
+
+  it('reports 2/2 with both promotion actions enabled', () => {
+    expect(
+      computeModuleActionCount(promotions, ['PROMOTION_EXPIRING', 'PROMOTION_NEAR_CAPACITY']).label,
+    ).toBe('2/2')
+  })
+
+  it('counts only this module (unrelated enabled keys do not leak in)', () => {
+    expect(computeModuleActionCount(promotions, ['LOW_STOCK', 'DELIVERY_NEXT_STOP']).label).toBe(
+      '0/2',
+    )
+  })
+
+  it('renders both promotion rows unchecked by default and togglable', () => {
+    expect(computeActionRowState(findActionDescriptor('PROMOTION_EXPIRING')!, true, [])).toEqual({
+      checked: false,
+      disabled: false,
+    })
+    expect(
+      computeActionRowState(findActionDescriptor('PROMOTION_NEAR_CAPACITY')!, true, []),
+    ).toEqual({ checked: false, disabled: false })
+  })
+
+  it('greys both promotion rows when the master toggle is OFF', () => {
+    expect(computeActionRowState(findActionDescriptor('PROMOTION_EXPIRING')!, false, [])).toEqual({
+      checked: false,
+      disabled: true,
+    })
+  })
+
+  it('independent toggling: enabling one promotion preserves unrelated enabled actions', () => {
+    expect(
+      toggleActionMembership('PROMOTION_EXPIRING', ['LOW_STOCK', 'DELIVERY_NEXT_STOP']),
+    ).toEqual(['LOW_STOCK', 'DELIVERY_NEXT_STOP', 'PROMOTION_EXPIRING'])
+  })
+
+  it('independent toggling: the two promotion keys do not imply each other', () => {
+    const one = toggleActionMembership('PROMOTION_EXPIRING', [])
+    expect(one).toEqual(['PROMOTION_EXPIRING'])
+    expect(one).not.toContain('PROMOTION_NEAR_CAPACITY')
+
+    const two = toggleActionMembership('PROMOTION_NEAR_CAPACITY', one)
+    expect(two).toEqual(['PROMOTION_EXPIRING', 'PROMOTION_NEAR_CAPACITY'])
+  })
+
+  it('disabling one promotion preserves the other promotion key', () => {
+    expect(
+      toggleActionMembership('PROMOTION_EXPIRING', [
+        'PROMOTION_EXPIRING',
+        'PROMOTION_NEAR_CAPACITY',
+      ]),
+    ).toEqual(['PROMOTION_NEAR_CAPACITY'])
   })
 })

@@ -201,9 +201,7 @@ describe('Delivery module entry (S2 — delivery-next-stop-notification)', () =>
   it('carries the exact Spanish description for DELIVERY_NEXT_STOP', () => {
     const delivery = ACTION_REGISTRY.find((m) => m.moduleKey === 'delivery')
     const action = delivery!.actions.find((a) => a.key === 'DELIVERY_NEXT_STOP')!
-    expect(action.description).toBe(
-      'Avisa al siguiente cliente que su paquete está por llegar.',
-    )
+    expect(action.description).toBe('Avisa al siguiente cliente que su paquete está por llegar.')
   })
 
   it('requiresRecipients is explicitly false for DELIVERY_NEXT_STOP (server resolves recipient)', () => {
@@ -232,5 +230,105 @@ describe('Delivery module entry (S2 — delivery-next-stop-notification)', () =>
   it('ActionKey union accepts the literal "DELIVERY_NEXT_STOP" (compile-time contract)', () => {
     const key: ActionKey = 'DELIVERY_NEXT_STOP'
     expect(key).toBe('DELIVERY_NEXT_STOP')
+  })
+})
+
+describe('Promociones module entry (PCA-4 — promotion-capacity-alerts)', () => {
+  // The backend enum has EXACTLY five members (handoff §2.10). If the union
+  // or the registry drifts, the PUT whitelist and the rendered accordion
+  // would disagree — this pins both to the same five keys.
+  const EXPECTED_ACTION_KEYS: readonly ActionKey[] = [
+    'LOW_STOCK',
+    'TIME_OFF_REQUESTED',
+    'DELIVERY_NEXT_STOP',
+    'PROMOTION_EXPIRING',
+    'PROMOTION_NEAR_CAPACITY',
+  ]
+
+  function promotionsModule(): ModuleDescriptor {
+    return ACTION_REGISTRY.find((m) => m.moduleKey === 'promotions')!
+  }
+
+  it('ActionKey union accepts both promotion literals (compile-time contract)', () => {
+    const expiring: ActionKey = 'PROMOTION_EXPIRING'
+    const nearCapacity: ActionKey = 'PROMOTION_NEAR_CAPACITY'
+    expect(expiring).toBe('PROMOTION_EXPIRING')
+    expect(nearCapacity).toBe('PROMOTION_NEAR_CAPACITY')
+  })
+
+  it('registry covers EXACTLY the five allowed keys (no more, no less)', () => {
+    const keys = ACTION_REGISTRY.flatMap((m) => m.actions.map((a) => a.key))
+    expect(keys).toHaveLength(5)
+    expect([...keys].sort()).toEqual([...EXPECTED_ACTION_KEYS].sort())
+  })
+
+  it('has exactly ONE "Promociones" module (unique group)', () => {
+    const modules = ACTION_REGISTRY.filter((m) => m.moduleLabel === 'Promociones')
+    expect(modules).toHaveLength(1)
+    expect(modules[0]!.moduleKey).toBe('promotions')
+  })
+
+  it('Promociones contains exactly the two promotion actions, in order', () => {
+    expect(promotionsModule().actions.map((a) => a.key)).toEqual([
+      'PROMOTION_EXPIRING',
+      'PROMOTION_NEAR_CAPACITY',
+    ])
+  })
+
+  it('registers both keys via isRegisteredActionKey / findActionDescriptor', () => {
+    for (const key of ['PROMOTION_EXPIRING', 'PROMOTION_NEAR_CAPACITY'] as const) {
+      expect(isRegisteredActionKey(key)).toBe(true)
+      const descriptor = findActionDescriptor(key)
+      expect(descriptor).toBeDefined()
+      expect(descriptor!.key).toBe(key)
+    }
+  })
+
+  it('both promotion actions require the shared recipient list (default true)', () => {
+    expect(findActionDescriptor('PROMOTION_EXPIRING')!.requiresRecipients).toBeUndefined()
+    expect(findActionDescriptor('PROMOTION_NEAR_CAPACITY')!.requiresRecipients).toBeUndefined()
+  })
+
+  it('uses concise Spanish labels', () => {
+    const byKey = new Map(promotionsModule().actions.map((a) => [a.key, a]))
+    expect(byKey.get('PROMOTION_EXPIRING')!.label).toBe('Vencimiento próximo')
+    expect(byKey.get('PROMOTION_NEAR_CAPACITY')!.label).toBe('Cerca del límite')
+  })
+
+  it('expiry copy states email + the 7-day horizon + asynchronous delivery', () => {
+    const description = findActionDescriptor('PROMOTION_EXPIRING')!.description ?? ''
+    expect(description).toMatch(/correo/i)
+    expect(description).toMatch(/7 d[ií]as/i)
+    expect(description).toMatch(/as[ií]ncrona/i)
+  })
+
+  it('capacity copy states email + the 80% upward cross + unlimited opt-out + async delivery', () => {
+    const description = findActionDescriptor('PROMOTION_NEAR_CAPACITY')!.description ?? ''
+    expect(description).toMatch(/correo/i)
+    expect(description).toMatch(/80\s*%/)
+    // PCA-4 correction: the alert fires on the UPWARD crossing of the
+    // threshold — from BELOW it up to reaching/exceeding it. Asserting the
+    // bare "80%" would pass for a flat, directionless "cruza el 80%" copy,
+    // so pin both the origin (from under the threshold) and the upward
+    // arrival at or beyond it.
+    expect(description).toMatch(/desde menos del 80\s*%/)
+    expect(description).toMatch(/alcanzar o superar/)
+    expect(description).toMatch(/sin l[ií]mite/i)
+    expect(description).toMatch(/as[ií]ncrona/i)
+  })
+
+  it('never invents other channels or immediate delivery', () => {
+    for (const action of promotionsModule().actions) {
+      const description = action.description ?? ''
+      expect(description).not.toMatch(/\b(push|sms|slack|webhook|webhooks|in-app|whatsapp)\b/i)
+      // No claim of immediate delivery. Copy under test uses 'asíncrona y
+      // puede demorar', so the forbidden token must not appear at all.
+      expect(description).not.toMatch(/inmediat/i)
+    }
+  })
+
+  it('getActionsByKeys renders both promotion descriptors in input order', () => {
+    const result = getActionsByKeys(['PROMOTION_NEAR_CAPACITY', 'PROMOTION_EXPIRING'])
+    expect(result.map((a) => a.key)).toEqual(['PROMOTION_NEAR_CAPACITY', 'PROMOTION_EXPIRING'])
   })
 })

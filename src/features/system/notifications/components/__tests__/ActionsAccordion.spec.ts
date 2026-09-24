@@ -180,3 +180,54 @@ describe('ActionsAccordion — toggle wiring', () => {
     expect(initial).toEqual(['LOW_STOCK'])
   })
 })
+
+describe('ActionsAccordion — Promociones module (PCA-4)', () => {
+  it('renders the Promociones module trigger straight from the registry', () => {
+    const wrapper = mountAccordion({ modelValue: [] })
+    expect(wrapper.text()).toContain('Promociones')
+  })
+
+  it('renders the two promotion action rows from the registry', () => {
+    const wrapper = mountAccordion({ modelValue: [] })
+    expect(findActionRow(wrapper, 'PROMOTION_EXPIRING').exists()).toBe(true)
+    expect(findActionRow(wrapper, 'PROMOTION_NEAR_CAPACITY').exists()).toBe(true)
+  })
+
+  it('shows the promotion module count 0/2 with nothing enabled', () => {
+    const wrapper = mountAccordion({ modelValue: [] })
+    expect(wrapper.text()).toContain('0/2')
+  })
+
+  it('reflects one/both enabled promotions in the module count (1/2, 2/2)', () => {
+    const one = mountAccordion({ modelValue: ['PROMOTION_EXPIRING'] })
+    expect(one.text()).toContain('1/2')
+
+    const two = mountAccordion({
+      modelValue: ['PROMOTION_EXPIRING', 'PROMOTION_NEAR_CAPACITY'],
+    })
+    expect(two.text()).toContain('2/2')
+  })
+
+  it('emits the promotion key without dropping unrelated enabled keys', async () => {
+    const wrapper = mountAccordion({ modelValue: ['LOW_STOCK'] })
+    const row = findActionRow(wrapper, 'PROMOTION_EXPIRING')
+    const innerButton = row.find('button[role="switch"]')
+    await innerButton.trigger('click')
+    await nextTick()
+
+    const events = wrapper.emitted('update:modelValue')
+    expect(events![events!.length - 1]).toEqual([['LOW_STOCK', 'PROMOTION_EXPIRING']])
+  })
+
+  it('toggles the two promotion rows independently (no implied pair)', async () => {
+    const wrapper = mountAccordion({ modelValue: [] })
+    const expiring = findActionRow(wrapper, 'PROMOTION_EXPIRING')
+    await expiring.find('button[role="switch"]').trigger('click')
+    await nextTick()
+
+    const emitted = wrapper.emitted('update:modelValue')!
+    const afterFirst = emitted[emitted.length - 1] as [string[]]
+    expect(afterFirst[0]).toEqual(['PROMOTION_EXPIRING'])
+    expect(afterFirst[0]).not.toContain('PROMOTION_NEAR_CAPACITY')
+  })
+})
