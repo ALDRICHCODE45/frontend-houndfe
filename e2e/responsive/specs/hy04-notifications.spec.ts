@@ -130,6 +130,7 @@ test.describe('HY-04 strict responsive conformance', () => {
       const chipRemove = owner.getByRole('button', { name: 'Quitar Usuario E2E' })
       const save = resolved.actions.save
       const footer = resolved.states.footer
+      const promotionsTrigger = owner.getByRole('button', { name: /Promociones/ })
       const attached: EvidenceResult[] = []
       const semantic = await assertNamedControls([
         { id: 'master-switch', locator: master, role: 'switch', name: 'Notificaciones' },
@@ -152,12 +153,108 @@ test.describe('HY-04 strict responsive conformance', () => {
         ['master-switch', master, [footer]], ['action-switch', posSwitch, [footer]], ['recipient-trigger', trigger, [footer]], ['chip-remove', chipRemove, [footer]], ['save', save, []],
       ]
       for (const [id, locator, sticky] of focused) { await locator.focus(); const result = await assertFocusNotObscured(locator, sticky); attached.push(result); evidenceSession.attach(record(viewport, `success-focus-${id}`, result)) }
+      // Pristine state: Save is disabled, so native Tab correctly skips it. The accordion headers are their
+      // own keyboard widget, so WAI-ARIA navigation between them is ArrowDown — the Entregas -> Promociones
+      // order is asserted with that key from the Entregas trigger and passes only when focus actually lands
+      // on the rendered Promociones trigger. The enabled Save lifecycle is exercised in the isolated block below.
+      const focusedDescriptor = () =>
+        page.evaluate(() => {
+          const el = document.activeElement as HTMLElement | null
+          if (!el || el === document.body) return null
+          return {
+            role: el.getAttribute('role') ?? el.tagName.toLowerCase(),
+            name: el.getAttribute('aria-label') ?? (el.textContent ?? '').trim(),
+          }
+        })
+      const promotionsIdentity = await promotionsTrigger.evaluate((el) => ({
+        role: el.getAttribute('role') ?? el.tagName.toLowerCase(),
+        name: el.getAttribute('aria-label') ?? (el.textContent ?? '').trim(),
+      }))
+      await owner.getByRole('button', { name: /Entregas/ }).focus()
+      await page.keyboard.press('ArrowDown')
+      const focusedAfterArrow = await focusedDescriptor()
+      const isPromotionsFocused = await promotionsTrigger.evaluate(
+        (el) => el === document.activeElement,
+      )
+      const arrowLanded =
+        isPromotionsFocused &&
+        focusedAfterArrow !== null &&
+        focusedAfterArrow.role === promotionsIdentity.role &&
+        focusedAfterArrow.name === promotionsIdentity.name
+      const arrowOrder: EvidenceResult = arrowLanded
+        ? {
+            assertionId: 'keyboard',
+            status: 'pass',
+            measurements: { key: 'ArrowDown', order: [focusedAfterArrow] },
+          }
+        : {
+            assertionId: 'keyboard',
+            status: 'fail',
+            measurements: { key: 'ArrowDown', order: [focusedAfterArrow], isPromotionsFocused },
+            failure: {
+              taxonomy: 'focus-order',
+              message:
+                'ArrowDown from the Entregas header did not move focus to the Promociones header',
+              expected: promotionsIdentity,
+              actual: focusedAfterArrow,
+            },
+          }
       const orderResults = [
         await assertKeyboardSequence(page, master, [{ id: 'recipient-trigger', role: 'button', name: 'Buscar usuarios...' }]),
         await assertKeyboardSequence(page, trigger, [{ id: 'chip-remove', role: 'button', name: 'Quitar Usuario E2E' }]),
-        await assertKeyboardSequence(page, owner.getByRole('button', { name: /Entregas/ }), [{ id: 'save', role: 'button', name: 'Guardar cambios' }]),
+        arrowOrder,
       ]
       orderResults.forEach((result, index) => { attached.push(result); evidenceSession.attach(record(viewport, `success-focus-order-${index}`, result)) })
+      // Isolated enabled-control lifecycle, before the recipient overlay / HR interaction can alter baseline state.
+      // The master switch is toggled once to dirty the form; only then can Promociones -> Guardar be reached, because
+      // a disabled Save is correctly skipped by native Tab. The master is restored to its original state afterwards so
+      // the existing interactions below still begin from the same baseline.
+      const pristineMasterState = await master.getAttribute('data-state')
+      const dirtyMaster = await keyboardEvidence(master, {
+        key: 'Enter',
+        verify: async () => (await master.getAttribute('data-state')) !== pristineMasterState,
+      })
+      dirtyMaster.forEach((result, index) => {
+        attached.push(result)
+        evidenceSession.attach(record(viewport, `success-keyboard-master-dirty-${index}`, result))
+      })
+      const saveEnabled = await save.isEnabled()
+      if (saveEnabled) {
+        const dirtyOrder = await assertKeyboardSequence(page, promotionsTrigger, [
+          { id: 'save', role: 'button', name: 'Guardar cambios' },
+        ])
+        const dirtyResult: EvidenceResult = {
+          ...dirtyOrder,
+          measurements: { ...dirtyOrder.measurements, saveEnabled },
+        }
+        attached.push(dirtyResult)
+        evidenceSession.attach(record(viewport, 'success-focus-order-dirty', dirtyResult))
+      } else {
+        const dirtyFailure: EvidenceResult = {
+          assertionId: 'keyboard',
+          status: 'fail',
+          measurements: { saveEnabled },
+          failure: {
+            taxonomy: 'focus-order',
+            message:
+              'Save did not become enabled after the isolated master-switch activation dirtied the form, so the Promociones -> Guardar sequence is unreachable',
+            expected: 'enabled Guardar cambios control reachable from the Promociones trigger',
+            actual: { saveEnabled },
+          },
+        }
+        attached.push(dirtyFailure)
+        evidenceSession.attach(record(viewport, 'success-focus-order-dirty', dirtyFailure))
+      }
+      const restoredMaster = await keyboardEvidence(master, {
+        key: 'Enter',
+        verify: async () => (await master.getAttribute('data-state')) === pristineMasterState,
+      })
+      restoredMaster.forEach((result, index) => {
+        attached.push(result)
+        evidenceSession.attach(
+          record(viewport, `success-keyboard-master-restore-${index}`, result),
+        )
+      })
       const recipientKeyboard = await keyboardEvidence(trigger, { key: 'Enter', verify: within(page.getByRole('option', { name: 'Usuario E2E' })) })
       recipientKeyboard.forEach((result, index) => { attached.push(result); evidenceSession.attach(record(viewport, `success-keyboard-recipient-${index}`, result)) })
       await page.keyboard.press('Escape')
