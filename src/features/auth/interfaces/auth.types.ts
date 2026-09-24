@@ -103,6 +103,16 @@ export type AppSubject =
   // pending-refund module silently disappears — hence the explicit
   // no-silent-drop pin-tests in ability.test.ts.
   | 'SaleRefund'
+  // ODD human-decisions-restock-inbox HD1: 'HumanDecision' joins the AppSubject
+  // union before 'all'. The inbox is guarded by the exact permissions
+  // `read:HumanDecision` (consult pending human-intervention decisions) and
+  // `update:HumanDecision` (register an authorized response). Registering the
+  // subject here is half of the single act that unlocks permission parsing +
+  // route guards + navigation gating (the runtime half is APP_SUBJECTS in
+  // authorization/ability.ts). Silent-drop risk if dropped: parsePermissionCode
+  // returns null, the ability never updates, and the inbox silently disappears
+  // — hence the explicit no-silent-drop pin-tests in ability.test.ts.
+  | 'HumanDecision'
   | 'all'
 
 export interface EffectivePermission {

@@ -68,6 +68,10 @@ const SUBJECT_LABELS: Record<string, string> = {
   // the sidebar/menu AND the role permissions UI. Must stay in sync with
   // auth.types.ts AppSubject + ability.ts APP_SUBJECTS.
   DeliveryRoute: 'Rutas de entrega',
+  // ODD human-decisions-restock-inbox HD1: subject label surfaced in the sidebar/
+  // menu AND the role permissions UI. Generic and future-safe (not RESTOCK-only).
+  // Must stay in sync with auth.types.ts AppSubject + ability.ts APP_SUBJECTS.
+  HumanDecision: 'Decisiones pendientes',
 }
 
 export function getSubjectLabel(subject: string): string {
@@ -654,6 +658,24 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
     delete: {
       label: 'Eliminar rutas de entrega',
       description: 'Eliminar rutas en borrador sin paradas.',
+    },
+  },
+
+  // ODD human-decisions-restock-inbox HD1: HumanDecision registers exactly the two
+  // backend actions (read / update). NO create/delete/manage/batch_delete. Copy is
+  // generic and future-safe: it describes consulting human-intervention decisions
+  // and registering authorized responses, and never claims the domain mutation is
+  // performed by the frontend.
+  HumanDecision: {
+    read: {
+      label: 'Ver decisiones pendientes',
+      description:
+        'Consultar las decisiones que requieren intervención humana y el contexto autorizado de cada una.',
+    },
+    update: {
+      label: 'Resolver decisiones pendientes',
+      description:
+        'Registrar la respuesta autorizada a una decisión pendiente, sin alterar por sí sola el estado del negocio.',
     },
   },
 }

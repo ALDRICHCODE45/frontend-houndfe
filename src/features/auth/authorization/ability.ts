@@ -53,6 +53,13 @@ const APP_SUBJECTS: AppSubject[] = [
   // The pin-tests in ability.test.ts assert the grant AND that malformed sibling
   // permissions cannot revoke or drop the well-formed rule.
   'SaleRefund',
+  // ODD human-decisions-restock-inbox HD1: 'HumanDecision' joins the APP_SUBJECTS
+  // runtime registry (before 'all'). Without this entry parsePermissionCode returns
+  // null for `read:HumanDecision` / `update:HumanDecision` and the ability silently
+  // drops — the inbox route and its navigation entry would never open. The pin-tests
+  // in ability.test.ts assert both grants AND that malformed sibling permissions
+  // cannot drop the well-formed rule.
+  'HumanDecision',
   'all',
 ]
 

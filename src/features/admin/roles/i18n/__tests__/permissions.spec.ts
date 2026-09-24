@@ -416,3 +416,63 @@ it('keeps DeliveryRoute alongside PaymentDetail/PaymentMethod without disturbing
   }
 })
 })
+
+// ──────────────────────────────────────────────────────────────────────────
+// ODD human-decisions-restock-inbox HD1 — HumanDecision registration
+//
+// `HumanDecision` registers EXACTLY the backend's two actions (read / update).
+// The subject stays VISIBLE and the copy is generic + future-safe: it describes
+// consulting human-intervention decisions and registering authorized responses,
+// never a RESTOCK-only label and never a claimed domain effect (no stock
+// mutation, no customer delivery).
+// ──────────────────────────────────────────────────────────────────────────
+
+describe('permissions i18n — HumanDecision subject (ODD human-decisions-restock-inbox HD1)', () => {
+  it('exposes HumanDecision with the generic "Decisiones pendientes" label', () => {
+    expect(getSubjectLabel('HumanDecision')).toBe('Decisiones pendientes')
+    expect(getSubjectLabel('HumanDecision')).not.toBe('HumanDecision')
+  })
+
+  it('does NOT hide HumanDecision (HIDDEN_SUBJECTS untouched)', () => {
+    expect(isSubjectHidden('HumanDecision')).toBe(false)
+    expect(HIDDEN_SUBJECTS).not.toContain('HumanDecision')
+  })
+
+  it('maps read + update to the approved Spanish labels without leaking the identifier', () => {
+    expect(getPermissionLabel('HumanDecision', 'read')).toBe('Ver decisiones pendientes')
+    expect(getPermissionLabel('HumanDecision', 'update')).toBe('Resolver decisiones pendientes')
+    expect(getPermissionLabel('HumanDecision', 'read')).not.toContain('HumanDecision')
+    expect(getPermissionLabel('HumanDecision', 'update')).not.toContain('HumanDecision')
+  })
+
+  it('exposes exactly read and update — every other action falls back to the generic concatenation', () => {
+    // 'create' / 'delete' / 'manage' / 'batch_delete' MUST fall through to the
+    // generic "<action>: <subject>" label, proving the curated copy has no such
+    // keys. This is the cheapest public-API assertion of "read/update only".
+    for (const action of ['create', 'delete', 'manage', 'batch_delete'] as const) {
+      const label = getPermissionLabel('HumanDecision', action)
+      const fallback = `${getPermissionLabel('Other', action).split(':')[0]?.trim()}: Decisiones pendientes`
+      expect(label).toBe(fallback)
+      expect(label).not.toContain('HumanDecision')
+    }
+  })
+
+  it('describes consulting decisions and registering responses without claiming domain effects', () => {
+    const read = getPermissionDescription('HumanDecision', 'read')
+    const update = getPermissionDescription('HumanDecision', 'update')
+    expect(read.length).toBeGreaterThan(20)
+    expect(update.length).toBeGreaterThan(20)
+    expect(read).toMatch(/consult/i)
+    expect(update).toMatch(/registr|resolv|respond/i)
+    for (const copy of [read, update]) {
+      expect(copy).not.toMatch(/stock|inventario|entrega al cliente/i)
+    }
+  })
+
+  it('keeps HumanDecision alongside existing delivered subjects without disturbing their copy', () => {
+    for (const action of ['create', 'read', 'update', 'delete'] as const) {
+      expect(getPermissionDescription('DeliveryRoute', action).length).toBeGreaterThan(20)
+      expect(getPermissionDescription('PaymentDetail', action).length).toBeGreaterThan(20)
+    }
+  })
+})

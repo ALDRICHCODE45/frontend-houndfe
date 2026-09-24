@@ -823,3 +823,91 @@ describe('ability with SaleRefund subject (ODD dashboard-operational-insights OI
     expect(subject).toBe('SaleRefund')
   })
 })
+
+// ODD human-decisions-restock-inbox HD1: `read:HumanDecision` and
+// `update:HumanDecision` are the exact codes guarding the human-decision inbox.
+// 'HumanDecision' must be registered in BOTH the compile-time AppSubject union
+// and the runtime APP_SUBJECTS registry; if either half is missing,
+// parsePermissionCode returns null, the ability never updates, and the inbox
+// route/navigation silently stays closed — hence the explicit no-silent-drop pin.
+// The backend registry exposes only `read` and `update`, so no CRUD/manage
+// widening is asserted.
+describe('ability with HumanDecision subject (ODD human-decisions-restock-inbox HD1)', () => {
+  beforeEach(() => {
+    resetAbility()
+  })
+
+  it('grants read on HumanDecision from read:HumanDecision without widening update', () => {
+    updateAbilityFromPermissionCodes(['read:HumanDecision'])
+
+    expect(ability.can('read', 'HumanDecision')).toBe(true)
+    expect(ability.can('update', 'HumanDecision')).toBe(false)
+  })
+
+  it('grants update on HumanDecision from update:HumanDecision without widening read', () => {
+    updateAbilityFromPermissionCodes(['update:HumanDecision'])
+
+    expect(ability.can('update', 'HumanDecision')).toBe(true)
+    expect(ability.can('read', 'HumanDecision')).toBe(false)
+  })
+
+  it('parses read+update together and keeps create/delete/manage/batch_delete closed', () => {
+    updateAbilityFromPermissionCodes(['read:HumanDecision', 'update:HumanDecision'])
+
+    expect(ability.can('read', 'HumanDecision')).toBe(true)
+    expect(ability.can('update', 'HumanDecision')).toBe(true)
+    expect(ability.can('create', 'HumanDecision')).toBe(false)
+    expect(ability.can('delete', 'HumanDecision')).toBe(false)
+    expect(ability.can('manage', 'HumanDecision')).toBe(false)
+    expect(ability.can('batch_delete', 'HumanDecision')).toBe(false)
+  })
+
+  it('does NOT silently drop HumanDecision — parsePermissionCode resolves the registered subject', () => {
+    updateAbilityFromPermissionCodes(['read:HumanDecision'])
+
+    expect(ability.can('read', 'HumanDecision')).toBe(true)
+  })
+
+  it('keeps HumanDecision scoped — no bleed to Sale/Analytics/SaleRefund/Customer', () => {
+    updateAbilityFromPermissionCodes(['read:HumanDecision', 'update:HumanDecision'])
+
+    expect(ability.can('read', 'HumanDecision')).toBe(true)
+    expect(ability.can('read', 'Sale')).toBe(false)
+    expect(ability.can('read', 'Analytics')).toBe(false)
+    expect(ability.can('read', 'SaleRefund')).toBe(false)
+    expect(ability.can('read', 'Customer')).toBe(false)
+  })
+
+  it('rejects malformed HumanDecision codes without revoking the valid sibling grant', () => {
+    updateAbilityFromPermissionCodes([
+      'read:HumanDecision:extra', // extra segment → dropped
+      'fly:HumanDecision', // unknown action → dropped
+      'read:UnknownSubject', // unknown subject → dropped
+      'update:HumanDecision', // well-formed → grants
+    ])
+
+    expect(ability.can('update', 'HumanDecision')).toBe(true)
+    expect(ability.can('read', 'HumanDecision')).toBe(false)
+  })
+
+  it('still rejects an unknown subject entirely', () => {
+    updateAbilityFromPermissionCodes(['read:HumanDecisionUnknown'])
+
+    expect(ability.can('read', 'HumanDecisionUnknown' as AppSubject)).toBe(false)
+    expect(ability.can('read', 'HumanDecision')).toBe(false)
+  })
+
+  it('revokes the HumanDecision grants when the codes leave the list', () => {
+    updateAbilityFromPermissionCodes(['read:HumanDecision', 'update:HumanDecision'])
+    expect(ability.can('update', 'HumanDecision')).toBe(true)
+
+    updateAbilityFromPermissionCodes([])
+    expect(ability.can('read', 'HumanDecision')).toBe(false)
+    expect(ability.can('update', 'HumanDecision')).toBe(false)
+  })
+
+  it('validates HumanDecision is in the AppSubject type union (compile-time guarantee)', () => {
+    const subject: AppSubject = 'HumanDecision'
+    expect(subject).toBe('HumanDecision')
+  })
+})
