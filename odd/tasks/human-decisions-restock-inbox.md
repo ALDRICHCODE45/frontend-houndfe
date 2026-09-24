@@ -1,0 +1,76 @@
+# Human decisions RESTOCK inbox
+
+## Goal
+
+Implement the approved RESTOCK human-decision contract in the frontend as a permission-gated POS inbox. Reviewers must be able to page through pending decisions, inspect a sanitized typed snapshot, and record exactly one server-authoritative RESTOCK response without implying stock mutation or customer delivery.
+
+## Authority and boundaries
+
+- The user authorized local frontend implementation on an isolated feature branch/worktree, starting with HD1.
+- Branch: `feat/human-decisions-restock-inbox`.
+- Worktree: `/home/aldrich_coder45/Desktop/workspace/houndfe/frontend-houndfe-human-decisions-restock`.
+- Approved contract: `/home/aldrich_coder45/Desktop/workspace/houndfe/houndfe-chatbot-human-decisions/docs/human-decisions-contract-v1.md`.
+- Do not modify backend or chatbot repositories.
+- No push, pull request, deployment, live-service calls, branch deletion, merge, reset, clean, rebase, force operation, provider call, or database operation is authorized.
+- Preserve the principal worktree and its protected untracked OpenSpec artifacts.
+- Technical artifacts remain English; user-facing UI copy remains Spanish.
+- Any contract objection or required contract change must be raised before implementation continues.
+- Each implementation unit is capped at 390 authored diff lines, including tests and documentation. Target 320–340 lines to preserve review margin.
+
+## Contract invariants
+
+- Human decision type is exactly `RESTOCK`; status is exactly `PENDING | RESOLVED`.
+- PENDING has `resolution: null`, version 1, and only the exact allowed action codes authorized by the backend. RESOLVED has a typed non-null resolution, version 2, and no allowed actions.
+- `PROVIDE_RESTOCK_ESTIMATE` requires an integer `restockDays` from 1 through 365 natural days.
+- `REPORT_RESTOCK_ESTIMATE_UNAVAILABLE` forbids `restockDays` and means only that no ETA is currently available.
+- Every logical resolve attempt uses one UUID `resolutionRequestId`; transport retries reuse it. `expectedVersion` is server-authoritative.
+- Resolve success and exact replay return the same full detail projection with HTTP 200. A 409 triggers detail/list refetch and a read-only already-handled state.
+- Frontend never computes an ETA date, mutates stock/sales, renders arbitrary HTML/JSON, derives permissions from action codes, or claims the customer was notified.
+- Success copy is exactly honest about local responsibility: `Respuesta registrada`.
+- Backend channel outcomes and one-hour application freshness are outside the frontend v1 projection.
+- List pagination uses a one-based request page, zero-based response `pageIndex`, default 20, and allowed page sizes 20/50.
+- Route/list/detail require `read:HumanDecision`; resolve additionally requires `update:HumanDecision`. Register `HumanDecision` in both subject registries and pin that invariant with tests.
+
+## Allowed implementation surfaces
+
+- `src/features/auth/interfaces/auth.types.ts`
+- `src/features/auth/authorization/**`
+- `src/features/admin/roles/i18n/permissions.ts`
+- future RESTOCK inbox files under `src/features/POS/human-decisions/**`
+- `src/core/shared/constants/query-keys.ts`
+- `src/app/router/**`
+- `src/app/navigation/**`
+- directly related responsive E2E files under `e2e/responsive/**`
+- `odd/tasks/human-decisions-restock-inbox.md`
+
+Any file outside these surfaces requires reassessment before writing.
+
+## Tasks
+
+- [ ] **HD1 — Register HumanDecision permissions and pin the subject registry.** Add the exact subject to authorization types and runtime allowlist, provide Spanish read/update permission labels, and add focused tests proving valid abilities survive parsing while unknown subjects remain rejected. Verify focused authorization/permissions tests, type-check, exact-file formatting/lint, and diff-check; then create one local Conventional Commit.
+- [ ] **HD2 — Add typed RESTOCK transport and read state.** Add discriminated projections, typed RESTOCK snapshot/resolution DTOs, exact error/action codes, API list/detail/resolve adapters, tenant-scoped query keys, server-table list state, and lazy detail state with focused tests. No UI or live calls.
+- [ ] **HD3 — Add the read-only pending inbox.** Add the POS route/navigation entry, permission gate, server-paginated table/mobile-card view, loading/error/empty/refresh states, and safe sanitized text rendering with focused router/navigation/view tests.
+- [ ] **HD4 — Add RESTOCK detail and resolve.** Add the typed slideover, explicit estimate/unavailable confirmation, integer 1..365 validation, UUID attempt identity, no optimistic success, permission/action intersection, honest success copy, and 409 refetch/read-only handling with focused tests.
+- [ ] **HD5 — Verify the integrated responsive workflow.** Add bounded routed browser evidence for desktop/tablet/375/320 widths, permission behavior, list/detail/resolve, validation, 409 recovery, keyboard/focus, 44px targets, overflow, and honest copy. Run cumulative type/build/unit/responsive checks without live services.
+
+SHIPPING_APPROVAL remains out of scope until RESTOCK passes the same complete verification gates and receives separate authorization.
+
+## Verification contract
+
+Minimum per-unit checks:
+
+```sh
+pnpm test:unit --run <focused specs>
+pnpm type-check
+pnpm exec prettier --check <changed supported files>
+pnpm exec eslint <changed source files>
+git diff --check
+```
+
+Run broader authorization/POS suites when the touched surface requires them. HD5 additionally requires the production build, responsive type-check, and focused routed Playwright at all approved widths. Report inherited failures separately; never suppress or relabel them as passing.
+
+## Evidence
+
+- Branch point: `bed98c03bbcad0468e8c3cd2cb2bcc55c247f447` (`main`).
+- The principal worktree remained untouched; implementation is isolated in the registered sibling worktree.
+- Contract received final frontend approval before implementation authorization.
