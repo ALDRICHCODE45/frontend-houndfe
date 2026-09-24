@@ -12,7 +12,7 @@ import type {
   PromotionType,
   UpdatePromotionPayload,
 } from '../interfaces/promotion.types'
-import { DAY_OF_WEEK_LABELS } from '../interfaces/promotion.types'
+import { DAY_OF_WEEK_LABELS, PROMOTION_CAPACITY_MODE } from '../interfaces/promotion.types'
 import {
   CUSTOMER_SCOPE,
   DAY_OF_WEEK,
@@ -22,10 +22,7 @@ import {
   PROMOTION_TYPE,
   TARGET_SIDE,
 } from '../constants/promotion.constants'
-import {
-  computeOverlappingTargets,
-  type OverlappingTarget,
-} from '../utils/advancedTargets.utils'
+import { computeOverlappingTargets, type OverlappingTarget } from '../utils/advancedTargets.utils'
 
 // ── Select option types ────────────────────────────────────────────────────────
 
@@ -130,6 +127,12 @@ export function getInitialState(type: PromotionType): PromotionFormState {
     priceListIds: [],
     hasDaysOfWeek: false,
     daysOfWeek: [],
+    // Capacity (PCA-1). Create defaults to explicit unlimited: the request
+    // always carries `maxProductUnits: null` until the merchant sets a cap.
+    capacityMode: PROMOTION_CAPACITY_MODE.UNLIMITED,
+    maxProductUnits: null,
+    consumedProductUnits: 0,
+    remainingProductUnits: null,
   }
 }
 
@@ -213,6 +216,14 @@ export function promotionToFormState(response: PromotionResponse): PromotionForm
     priceListIds: response.priceLists.map((pl) => pl.globalPriceListId),
     hasDaysOfWeek: response.daysOfWeek.length > 0,
     daysOfWeek: response.daysOfWeek.map((d) => d.day),
+    // Capacity (PCA-1). Edit starts UNCHANGED so an untouched save omits the
+    // key (preserve). The server values stay VERBATIM — no nullish fallbacks,
+    // so an absent runtime counter stays `undefined` and the status resolver
+    // degrades it to `stale` instead of faking `unlimited`/`0`.
+    capacityMode: PROMOTION_CAPACITY_MODE.UNCHANGED,
+    maxProductUnits: response.maxProductUnits,
+    consumedProductUnits: response.consumedProductUnits,
+    remainingProductUnits: response.remainingProductUnits,
   }
 }
 
@@ -297,10 +308,22 @@ export function toCreatePayload(state: PromotionFormState): CreatePromotionPaylo
 // ── Form State → Update Payload ───────────────────────────────────────────────
 
 export function toUpdatePayload(state: PromotionFormState): UpdatePromotionPayload {
-  // Build the full create payload and strip the type field
+  // Build the full create payload and strip the type field.
+  // SAFETY: `CreatePromotionPayload` is a union whose branches share no common
+  // index signature, so the keyed read/write below needs a plain object view.
+  // The runtime shape is always an object literal produced by
+  // `toCreatePayload`; only the `type` key is removed afterwards.
   const full = toCreatePayload(state) as unknown as Record<string, unknown>
 
   const { type: _type, ...rest } = full
+
+  // Capacity tri-state: untouched edit must OMIT the key so the backend
+  // preserves the current cap. Explicit unlimited/long values stay in `rest`
+  // (null / positive integer).
+  if (state.capacityMode === PROMOTION_CAPACITY_MODE.UNCHANGED) {
+    delete rest.maxProductUnits
+  }
+
   return rest as UpdatePromotionPayload
 }
 
@@ -310,6 +333,9 @@ function buildBasePayload(state: PromotionFormState) {
   return {
     title: state.title,
     method: state.method,
+    // Capacity create semantics: explicit `null` when unlimited, the positive
+    // integer when limited. `toUpdatePayload` strips the key for `unchanged`.
+    ...buildCapacityPayload(state),
     ...(state.hasVigencia && state.startDate ? { startDate: state.startDate } : {}),
     ...(state.hasVigencia && state.endDate ? { endDate: state.endDate } : {}),
     // customerScope: always include when not ALL
@@ -322,6 +348,19 @@ function buildBasePayload(state: PromotionFormState) {
     // daysOfWeek: always include the array — empty [] clears relation on backend
     daysOfWeek: state.hasDaysOfWeek ? state.daysOfWeek : [],
   }
+}
+
+/**
+ * Resolve the capacity payload fragment. Returns the positive integer when the
+ * form is LIMITED with a value, otherwise an explicit `null` (unlimited). This
+ * NEVER emits `consumedProductUnits`/`remainingProductUnits` — they are
+ * response-only and rejected by the backend's `forbidNonWhitelisted` pipe.
+ */
+function buildCapacityPayload(state: PromotionFormState): { maxProductUnits: number | null } {
+  if (state.capacityMode === PROMOTION_CAPACITY_MODE.LIMITED && state.maxProductUnits != null) {
+    return { maxProductUnits: state.maxProductUnits }
+  }
+  return { maxProductUnits: null }
 }
 
 // ── Field-level error mapping ─────────────────────────────────────────────────

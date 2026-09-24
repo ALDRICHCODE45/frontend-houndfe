@@ -26,14 +26,36 @@ export type PromotionStatus = (typeof PROMOTION_STATUS)[keyof typeof PROMOTION_S
 
 export type DiscountType = (typeof DISCOUNT_TYPE)[keyof typeof DISCOUNT_TYPE]
 
-export type PromotionTargetType =
-  (typeof PROMOTION_TARGET_TYPE)[keyof typeof PROMOTION_TARGET_TYPE]
+export type PromotionTargetType = (typeof PROMOTION_TARGET_TYPE)[keyof typeof PROMOTION_TARGET_TYPE]
 
 export type CustomerScope = (typeof CUSTOMER_SCOPE)[keyof typeof CUSTOMER_SCOPE]
 
 export type DayOfWeek = (typeof DAY_OF_WEEK)[keyof typeof DAY_OF_WEEK]
 
 export type TargetSide = (typeof TARGET_SIDE)[keyof typeof TARGET_SIDE]
+
+// ── Promotion capacity tri-state (PCA-1) ───────────────────────────────────────
+//
+// The backend contract distinguishes three intents for `maxProductUnits`:
+//   - omit the key  → create defaults to unlimited; update preserves the cap
+//   - explicit null → unlimited (create AND update)
+//   - positive INT  → finite cap (1..2147483647)
+// The form model keeps that intent explicit so the create/update serializers can
+// never collapse "preserve" into "remove". Value constant lives here (not in
+// `constants/promotion.constants.ts`) because only the promotions interfaces are
+// in scope for this task.
+
+export const PROMOTION_CAPACITY_MODE = {
+  UNCHANGED: 'unchanged',
+  UNLIMITED: 'unlimited',
+  LIMITED: 'limited',
+} as const
+
+export type PromotionCapacityMode =
+  (typeof PROMOTION_CAPACITY_MODE)[keyof typeof PROMOTION_CAPACITY_MODE]
+
+/** PostgreSQL `INT` upper bound for `maxProductUnits` (backend source of truth). */
+export const MAX_PRODUCT_UNITS_LIMIT = 2147483647
 
 // ── Backend Response Shape ─────────────────────────────────────────────────────
 
@@ -106,6 +128,12 @@ export interface PromotionResponse {
   customers: PromotionCustomer[]
   priceLists: PromotionPriceList[]
   daysOfWeek: PromotionDayOfWeek[]
+  /** Server-owned cap. `null` = unlimited. Never derived on the client. */
+  maxProductUnits: number | null
+  /** Server-owned ledger consumption (integer >= 0). Response-only. */
+  consumedProductUnits: number
+  /** Server-owned remaining count. `null` iff `maxProductUnits === null`. */
+  remainingProductUnits: number | null
   createdAt: string
   updatedAt: string
 }
@@ -136,6 +164,8 @@ interface CreatePromotionBase {
   customerIds?: string[]
   priceListIds?: string[]
   daysOfWeek?: DayOfWeek[]
+  /** Optional finite cap. `null` = unlimited. Omit on update to preserve. */
+  maxProductUnits?: number | null
 }
 
 export interface CreateProductDiscountPayload extends CreatePromotionBase {
@@ -224,6 +254,15 @@ export interface PromotionFormState {
   priceListIds: string[]
   hasDaysOfWeek: boolean
   daysOfWeek: DayOfWeek[]
+  // Capacity (PCA-1)
+  /** Tri-state intent: omit key / explicit null / positive integer. */
+  capacityMode: PromotionCapacityMode
+  /** The entered limit when limited; the server value for context otherwise. */
+  maxProductUnits: number | null
+  /** Server-owned consumption, read-only context for the limit guard. */
+  consumedProductUnits: number
+  /** Server-owned remaining, read-only context. Never derived. */
+  remainingProductUnits: number | null
 }
 
 // ── Label & Color Constants ────────────────────────────────────────────────────

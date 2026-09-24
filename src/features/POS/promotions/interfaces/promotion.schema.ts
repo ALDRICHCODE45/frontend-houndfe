@@ -7,6 +7,7 @@ import {
   PROMOTION_METHOD,
   PROMOTION_TYPE,
 } from '../constants/promotion.constants'
+import { MAX_PRODUCT_UNITS_LIMIT, PROMOTION_CAPACITY_MODE } from './promotion.types'
 
 // ── BXGY-only constants (REQ-11) ───────────────────────────────────────────────
 //
@@ -73,12 +74,51 @@ const baseSchema = z.object({
       DAY_OF_WEEK.SUNDAY,
     ]),
   ),
+  // Capacity (PCA-1). Optional so pre-existing form fixtures without the
+  // capacity fields keep validating; the live form always provides them.
+  // `z.number()` rejects NaN, strings and other coercions; `.int()` rejects
+  // decimals; the bounds mirror the backend INT column.
+  capacityMode: z
+    .enum([
+      PROMOTION_CAPACITY_MODE.UNCHANGED,
+      PROMOTION_CAPACITY_MODE.UNLIMITED,
+      PROMOTION_CAPACITY_MODE.LIMITED,
+    ])
+    .optional(),
+  maxProductUnits: z.number().int().min(1).max(MAX_PRODUCT_UNITS_LIMIT).nullable().optional(),
+  consumedProductUnits: z.number().int().min(0).optional(),
 })
 
 // ── superRefine: all type-conditional + cross-field validation ─────────────────
 
 export const promotionFormSchema = baseSchema.superRefine((data, ctx) => {
   const type = data.type
+
+  // ── Capacity tri-state coherence (PCA-1) ────────────────────────────────────
+  // `capacityMode` decides intent; the numeric bounds are enforced by the base
+  // object. Here we only add the cross-field rules the base schema cannot see:
+  // a "limited" intent needs a numeric cap, and the cap may never sink below the
+  // server-owned consumed count. Backend remains the final authority.
+  if (data.capacityMode === PROMOTION_CAPACITY_MODE.LIMITED) {
+    if (data.maxProductUnits == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Indicá una cantidad límite de unidades',
+        path: ['maxProductUnits'],
+      })
+    } else if (
+      typeof data.consumedProductUnits === 'number' &&
+      Number.isInteger(data.consumedProductUnits) &&
+      data.consumedProductUnits >= 0 &&
+      data.maxProductUnits < data.consumedProductUnits
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `El límite no puede ser menor al consumo actual (${data.consumedProductUnits} unidades)`,
+        path: ['maxProductUnits'],
+      })
+    }
+  }
 
   // ── Title already validated in base schema ──────────────────────────────────
 

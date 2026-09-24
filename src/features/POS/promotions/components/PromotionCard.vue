@@ -20,6 +20,7 @@ import {
   getTypeConfig,
 } from '../utils/promotionStatusConfig.utils'
 import type { PromotionResponse } from '../interfaces/promotion.types'
+import PromotionCapacityStatus from './PromotionCapacityStatus.vue'
 
 const props = defineProps<{
   promotion: PromotionResponse
@@ -43,34 +44,30 @@ const createdAtLabel = computed(() => formatPromotionDate(props.promotion.create
     @click="emit('click', promotion)"
   >
     <div class="flex items-start gap-3">
-      <EntityAvatar
-        :name="promotion.title"
-        :seed="promotion.id"
-        size="lg"
-      />
+      <EntityAvatar :name="promotion.title" :seed="promotion.id" size="lg" />
 
       <div class="min-w-0 flex-1 space-y-1">
         <p class="line-clamp-2 text-sm font-semibold leading-tight text-highlighted">
           {{ promotion.title }}
         </p>
-        <StatusDotBadge
-          :tone="statusConfig.tone"
-          :label="statusConfig.label"
-          compact
-        />
+        <StatusDotBadge :tone="statusConfig.tone" :label="statusConfig.label" compact />
       </div>
     </div>
 
     <div class="mt-3 flex min-h-6 flex-wrap items-center gap-1.5">
-      <AppBadge
-        :tone="typeConfig.tone"
-        :icon="typeConfig.icon"
-        :label="typeConfig.label"
-      />
-      <AppBadge
-        :tone="methodConfig.tone"
-        :label="methodConfig.label"
-        variant="outline"
+      <AppBadge :tone="typeConfig.tone" :icon="typeConfig.icon" :label="typeConfig.label" />
+      <AppBadge :tone="methodConfig.tone" :label="methodConfig.label" variant="outline" />
+    </div>
+
+    <!-- Server-owned capacity (PCA-1). Renders the three backend values; the
+         card never derives a remaining counter. -->
+    <div class="mt-2 flex items-center justify-between gap-2">
+      <span class="text-xs text-muted">Cupo</span>
+      <PromotionCapacityStatus
+        :max-product-units="promotion.maxProductUnits"
+        :consumed-product-units="promotion.consumedProductUnits"
+        :remaining-product-units="promotion.remainingProductUnits"
+        compact
       />
     </div>
 

@@ -261,9 +261,7 @@ describe('usePromotionTargetNames', () => {
   })
 
   it('VARIANTS: mixed entries — productId-bearing resolve, others fall back unchanged', async () => {
-    getVariantsMock.mockResolvedValueOnce([
-      { id: 'v1', productId: 'p1', name: 'Talle M' },
-    ])
+    getVariantsMock.mockResolvedValueOnce([{ id: 'v1', productId: 'p1', name: 'Talle M' }])
 
     const { resolveTargetNames } = mountComposable()
     const result = await resolveTargetNames('VARIANTS', [
@@ -289,9 +287,7 @@ describe('usePromotionTargetNames', () => {
   })
 
   it('VARIANTS: variant id not present in the fetched list → entry returned unchanged', async () => {
-    getVariantsMock.mockResolvedValueOnce([
-      { id: 'v1', productId: 'p1', name: 'Talle M' },
-    ])
+    getVariantsMock.mockResolvedValueOnce([{ id: 'v1', productId: 'p1', name: 'Talle M' }])
 
     const { resolveTargetNames } = mountComposable()
     const result = await resolveTargetNames('VARIANTS', [
@@ -321,9 +317,7 @@ describe('usePromotionTargetNames', () => {
   //   - Bounded: ONE fetch per unique productId (never unbounded).
 
   it('REQ-6: variant WITH session productId resolves to the variant name (edit-mode hydration)', async () => {
-    getVariantsMock.mockResolvedValueOnce([
-      { id: 'v1', productId: 'p1', name: 'Rojo' },
-    ])
+    getVariantsMock.mockResolvedValueOnce([{ id: 'v1', productId: 'p1', name: 'Rojo' }])
 
     const { resolveTargetNames } = mountComposable()
     const result = await resolveTargetNames('VARIANTS', [
@@ -338,9 +332,7 @@ describe('usePromotionTargetNames', () => {
   it('REQ-6: variant WITHOUT productId keeps honest fallback identifier (targetId preserved, name stays empty)', async () => {
     // Fresh backend load — entry carries no parent-product context.
     const { resolveTargetNames } = mountComposable()
-    const result = await resolveTargetNames('VARIANTS', [
-      { targetId: 'v-orphan-uuid', name: '' },
-    ])
+    const result = await resolveTargetNames('VARIANTS', [{ targetId: 'v-orphan-uuid', name: '' }])
 
     // No fetch, no throw. Entry shape intact: targetId preserved (this is
     // the "identifier" the chipLabel util renders), name stays empty (so
@@ -356,17 +348,17 @@ describe('usePromotionTargetNames', () => {
   it('REQ-6: BOUNDED — N variants across M unique productIds fetch EXACTLY M times (never one-per-variant)', async () => {
     // 5 variants across 3 unique productIds → exactly 3 getVariants fetches.
     getVariantsMock.mockImplementation(async (productId: string) => {
-      if (productId === 'p1') return [
-        { id: 'v1', productId: 'p1', name: 'Talle M' },
-        { id: 'v2', productId: 'p1', name: 'Talle L' },
-      ]
-      if (productId === 'p2') return [
-        { id: 'v3', productId: 'p2', name: 'Rojo' },
-      ]
-      if (productId === 'p3') return [
-        { id: 'v4', productId: 'p3', name: 'XL' },
-        { id: 'v5', productId: 'p3', name: 'XS' },
-      ]
+      if (productId === 'p1')
+        return [
+          { id: 'v1', productId: 'p1', name: 'Talle M' },
+          { id: 'v2', productId: 'p1', name: 'Talle L' },
+        ]
+      if (productId === 'p2') return [{ id: 'v3', productId: 'p2', name: 'Rojo' }]
+      if (productId === 'p3')
+        return [
+          { id: 'v4', productId: 'p3', name: 'XL' },
+          { id: 'v5', productId: 'p3', name: 'XS' },
+        ]
       return []
     })
 
@@ -447,7 +439,9 @@ describe('usePromotionTargetNames', () => {
     // To be even more defensive, we give the mock an explicit mock that
     // would fail if called.
     getVariantsMock.mockImplementation(async () => {
-      throw new Error('REQ-8 short-circuit violated: getVariants should NOT be called when name is already populated')
+      throw new Error(
+        'REQ-8 short-circuit violated: getVariants should NOT be called when name is already populated',
+      )
     })
 
     const { resolveTargetNames } = mountComposable()
@@ -467,7 +461,9 @@ describe('usePromotionTargetNames', () => {
 
   it('REQ-8: when ALL hydrated entries have non-empty names, the resolver still issues ZERO getVariants calls (mixed productIds)', async () => {
     getVariantsMock.mockImplementation(async () => {
-      throw new Error('REQ-8 short-circuit violated: getVariants should NOT be called when every name is populated')
+      throw new Error(
+        'REQ-8 short-circuit violated: getVariants should NOT be called when every name is populated',
+      )
     })
 
     const { resolveTargetNames } = mountComposable()
@@ -524,6 +520,9 @@ describe('usePromotionTargetNames', () => {
       customers: [],
       priceLists: [],
       daysOfWeek: [],
+      maxProductUnits: null,
+      consumedProductUnits: 0,
+      remainingProductUnits: null,
       createdAt: '2026-01-01T00:00:00Z',
       updatedAt: '2026-01-01T00:00:00Z',
     }
@@ -533,7 +532,9 @@ describe('usePromotionTargetNames', () => {
 
     // Now the resolver must short-circuit. Mock getVariants to throw if hit.
     getVariantsMock.mockImplementation(async () => {
-      throw new Error('REQ-8 round-trip violated: resolver must not fetch when hydration populated the name')
+      throw new Error(
+        'REQ-8 round-trip violated: resolver must not fetch when hydration populated the name',
+      )
     })
 
     const { resolveTargetNames } = mountComposable()

@@ -49,7 +49,12 @@ vi.mock('@/core/shared/composables/useServerTable', () => {
     clearSelection: vi.fn(),
   }
   return {
-    useServerTable: vi.fn(() => defaultReturn as unknown as ReturnType<typeof import('@/core/shared/composables/useServerTable').useServerTable<unknown>>),
+    useServerTable: vi.fn(
+      () =>
+        defaultReturn as unknown as ReturnType<
+          typeof import('@/core/shared/composables/useServerTable').useServerTable<unknown>
+        >,
+    ),
   }
 })
 
@@ -95,10 +100,11 @@ vi.mock('../../composables/usePromotionColumns', () => ({
       }
       return map[type] ?? { label: type, tone: 'type', icon: '' }
     },
-    getMethodConfig: (method: string) => ({
-      AUTOMATIC: { label: 'Automático', tone: 'automatic' },
-      MANUAL: { label: 'Manual', tone: 'manual' },
-    }[method] ?? { label: method, tone: 'automatic', icon: '' }),
+    getMethodConfig: (method: string) =>
+      ({
+        AUTOMATIC: { label: 'Automático', tone: 'automatic' },
+        MANUAL: { label: 'Manual', tone: 'manual' },
+      })[method] ?? { label: method, tone: 'automatic', icon: '' },
   }),
 }))
 
@@ -144,7 +150,17 @@ process.on('unhandledRejection', () => {})
 const STUBS = {
   AppDataTable: {
     inheritAttrs: false,
-    props: ['columns', 'data', 'loading', 'empty', 'bulkActions', 'enableRowSelection', 'error', 'errorMessage', 'displayMode'],
+    props: [
+      'columns',
+      'data',
+      'loading',
+      'empty',
+      'bulkActions',
+      'enableRowSelection',
+      'error',
+      'errorMessage',
+      'displayMode',
+    ],
     emits: ['add', 'refresh'],
     // The view passes `:error="isError"` and the mock may return either a
     // real Vue ref (after auto-unwrap → boolean) or a plain `{ value: ... }`
@@ -204,7 +220,8 @@ const STUBS = {
   },
   TableHeaderDescription: {
     props: ['title', 'description'],
-    template: '<div data-testid="table-header"><span data-testid="header-title">{{ title }}</span></div>',
+    template:
+      '<div data-testid="table-header"><span data-testid="header-title">{{ title }}</span></div>',
   },
   ConfirmModal: {
     props: ['open', 'description', 'confirmLabel', 'confirmColor', 'loading', 'items'],
@@ -245,7 +262,8 @@ const STUBS = {
   UButton: {
     props: ['label', 'color', 'variant', 'icon', 'loading', 'disabled'],
     emits: ['click'],
-    template: '<button :disabled="disabled" @click="$emit(\'click\')"><slot>{{ label }}</slot></button>',
+    template:
+      '<button :disabled="disabled" @click="$emit(\'click\')"><slot>{{ label }}</slot></button>',
   },
   USelect: {
     props: ['modelValue', 'items', 'placeholder', 'valueKey', 'labelKey'],
@@ -321,6 +339,9 @@ function makePromotion(id: string, title: string): PromotionResponse {
     customers: [],
     priceLists: [],
     daysOfWeek: [],
+    maxProductUnits: null,
+    consumedProductUnits: 0,
+    remainingProductUnits: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
   }
@@ -406,7 +427,9 @@ describe('PromotionsView', () => {
     ;(wrapper.vm as unknown as Record<string, string>)['filterType'] = 'PRODUCT_DISCOUNT'
     await wrapper.vm.$nextTick()
     expect(vm.filterType).toBe('PRODUCT_DISCOUNT')
-    expect(wrapper.find('[data-testid="filter-type"]').attributes('modelvalue')).toBe('PRODUCT_DISCOUNT')
+    expect(wrapper.find('[data-testid="filter-type"]').attributes('modelvalue')).toBe(
+      'PRODUCT_DISCOUNT',
+    )
     expect(wrapper.find('[data-testid="clear-filters-btn"]').exists()).toBe(true)
   })
 
@@ -517,13 +540,18 @@ describe('PromotionsView — Row Actions', () => {
     endAction!.onSelect()
     await wrapper.vm.$nextTick()
     expect(wrapper.find('[data-testid="confirm-modal"]').attributes('data-open')).toBe('true')
-    expect(wrapper.find('[data-testid="confirm-modal"]').attributes('data-description')).toContain('Test Promo')
+    expect(wrapper.find('[data-testid="confirm-modal"]').attributes('data-description')).toContain(
+      'Test Promo',
+    )
   })
 
   it('S09: Confirming End calls promotionApi.end with promotion id', async () => {
     const wrapper = mountView()
     const vm = wrapper.vm as unknown as { getRowItems: (p: PromotionResponse) => unknown[][] }
-    const allItems = vm.getRowItems(samplePromotion).flat() as Array<{ label: string; onSelect: () => void }>
+    const allItems = vm.getRowItems(samplePromotion).flat() as Array<{
+      label: string
+      onSelect: () => void
+    }>
     allItems.find((a) => a.label === 'Finalizar')!.onSelect()
     await wrapper.vm.$nextTick()
     await wrapper.find('[data-testid="confirm-btn"]').trigger('click')
@@ -534,19 +562,27 @@ describe('PromotionsView — Row Actions', () => {
   it('S10: Delete action opens confirm modal with promotion title in description', async () => {
     const wrapper = mountView()
     const vm = wrapper.vm as unknown as { getRowItems: (p: PromotionResponse) => unknown[][] }
-    const allItems = vm.getRowItems(samplePromotion).flat() as Array<{ label: string; onSelect: () => void }>
+    const allItems = vm.getRowItems(samplePromotion).flat() as Array<{
+      label: string
+      onSelect: () => void
+    }>
     const deleteAction = allItems.find((a) => a.label === 'Eliminar')
     expect(deleteAction).toBeDefined()
     deleteAction!.onSelect()
     await wrapper.vm.$nextTick()
     expect(wrapper.find('[data-testid="confirm-modal"]').attributes('data-open')).toBe('true')
-    expect(wrapper.find('[data-testid="confirm-modal"]').attributes('data-description')).toContain('Test Promo')
+    expect(wrapper.find('[data-testid="confirm-modal"]').attributes('data-description')).toContain(
+      'Test Promo',
+    )
   })
 
   it('S10: Confirming Delete calls promotionApi.remove with promotion id', async () => {
     const wrapper = mountView()
     const vm = wrapper.vm as unknown as { getRowItems: (p: PromotionResponse) => unknown[][] }
-    const allItems = vm.getRowItems(samplePromotion).flat() as Array<{ label: string; onSelect: () => void }>
+    const allItems = vm.getRowItems(samplePromotion).flat() as Array<{
+      label: string
+      onSelect: () => void
+    }>
     allItems.find((a) => a.label === 'Eliminar')!.onSelect()
     await wrapper.vm.$nextTick()
     await wrapper.find('[data-testid="confirm-btn"]').trigger('click')
@@ -558,7 +594,10 @@ describe('PromotionsView — Row Actions', () => {
     const wrapper = mountView()
     const vm = wrapper.vm as unknown as { getRowItems: (p: PromotionResponse) => unknown[][] }
     const endedPromotion: PromotionResponse = { ...samplePromotion, status: 'ENDED' }
-    const allItems = vm.getRowItems(endedPromotion).flat() as Array<{ label: string; onSelect: () => void }>
+    const allItems = vm.getRowItems(endedPromotion).flat() as Array<{
+      label: string
+      onSelect: () => void
+    }>
     const endAction = allItems.find((a) => a.label === 'Finalizar')
     expect(endAction).toBeUndefined()
   })
@@ -580,7 +619,10 @@ describe('PromotionsView — batch delete (sdd-10)', () => {
   })
 
   // ── Helpers ──────────────────────────────────────────────────────────────
-  function mockUseServerTableWith(promotions: PromotionResponse[], selected: Record<string, boolean> = {}) {
+  function mockUseServerTableWith(
+    promotions: PromotionResponse[],
+    selected: Record<string, boolean> = {},
+  ) {
     return async () => {
       const { useServerTable } = await import('@/core/shared/composables/useServerTable')
       const selectedRows = (idx: number) => selected[String(idx)]
@@ -610,7 +652,12 @@ describe('PromotionsView — batch delete (sdd-10)', () => {
 
   function triggerBulkAction(wrapper: ReturnType<typeof mountView>) {
     const vm = wrapper.vm as unknown as {
-      bulkActions: Array<{ id: string; label: string; disabled?: boolean; onClick: (rows: PromotionResponse[]) => void }>
+      bulkActions: Array<{
+        id: string
+        label: string
+        disabled?: boolean
+        onClick: (rows: PromotionResponse[]) => void
+      }>
     }
     const bulkDelete = vm.bulkActions.find((a) => a.id === 'batch-delete')
     expect(bulkDelete).toBeDefined()
@@ -619,11 +666,9 @@ describe('PromotionsView — batch delete (sdd-10)', () => {
 
   // ── BD-REQ-001: permission gating ─────────────────────────────────────────
   it('BD-REQ-001: canBatchDelete is false when user lacks batch_delete:Promotion → bulkActions is empty', () => {
-    userCanMock.mockImplementation((action: string, subject: string) =>
-      !(
-        subject === 'Promotion' &&
-        (action === 'batch_delete' || action === 'update')
-      ),
+    userCanMock.mockImplementation(
+      (action: string, subject: string) =>
+        !(subject === 'Promotion' && (action === 'batch_delete' || action === 'update')),
     )
 
     const wrapper = mountView()
@@ -636,8 +681,8 @@ describe('PromotionsView — batch delete (sdd-10)', () => {
   })
 
   it('BD-REQ-001: canBatchDelete is true when user has batch_delete:Promotion → bulkActions is non-empty', () => {
-    userCanMock.mockImplementation((action: string, subject: string) =>
-      action === 'batch_delete' && subject === 'Promotion',
+    userCanMock.mockImplementation(
+      (action: string, subject: string) => action === 'batch_delete' && subject === 'Promotion',
     )
 
     const wrapper = mountView()
@@ -666,7 +711,11 @@ describe('PromotionsView — batch delete (sdd-10)', () => {
   it('BD-REQ-003: bulk action label is "Eliminar (N)" when 3 rows are selected', async () => {
     userCanMock.mockReturnValue(true)
     await mockUseServerTableWith(
-      [makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B'), makePromotion('p3', 'Promo C')],
+      [
+        makePromotion('p1', 'Promo A'),
+        makePromotion('p2', 'Promo B'),
+        makePromotion('p3', 'Promo C'),
+      ],
       { 0: true, 1: true, 2: true },
     )()
 
@@ -735,10 +784,10 @@ describe('PromotionsView — batch delete (sdd-10)', () => {
   // ── BD-REQ-005: success path ──────────────────────────────────────────────
   it('BD-REQ-005: 200 success → toast.success, rowSelection cleared, invalidateQueries called', async () => {
     userCanMock.mockReturnValue(true)
-    await mockUseServerTableWith(
-      [makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B')],
-      { 0: true, 1: true },
-    )()
+    await mockUseServerTableWith([makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B')], {
+      0: true,
+      1: true,
+    })()
     vi.mocked(promotionApi.batchDelete).mockResolvedValueOnce({ deleted: 2 })
 
     const wrapper = mountView()
@@ -760,10 +809,10 @@ describe('PromotionsView — batch delete (sdd-10)', () => {
   // ── BD-REQ-006: 409 PROMOTION_REFERENCED_BY_SALE ──────────────────────────
   it('BD-REQ-006: 409 PROMOTION_REFERENCED_BY_SALE → error toast + offendingIds populated + selection preserved', async () => {
     userCanMock.mockReturnValue(true)
-    await mockUseServerTableWith(
-      [makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B')],
-      { 0: true, 1: true },
-    )()
+    await mockUseServerTableWith([makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B')], {
+      0: true,
+      1: true,
+    })()
     const axiosError = new AxiosError('conflict')
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(axiosError as any).response = {
@@ -795,10 +844,10 @@ describe('PromotionsView — batch delete (sdd-10)', () => {
   // ── BD-REQ-007: 409 BATCH_DELETE_NOT_FOUND ────────────────────────────────
   it('BD-REQ-007: 409 BATCH_DELETE_NOT_FOUND → warning toast + invalidate + selection cleared', async () => {
     userCanMock.mockReturnValue(true)
-    await mockUseServerTableWith(
-      [makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B')],
-      { 0: true, 1: true },
-    )()
+    await mockUseServerTableWith([makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B')], {
+      0: true,
+      1: true,
+    })()
     const axiosError = new AxiosError('conflict')
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(axiosError as any).response = {
@@ -825,10 +874,7 @@ describe('PromotionsView — batch delete (sdd-10)', () => {
   // ── BD-REQ-008: 403 INSUFFICIENT_PERMISSIONS ──────────────────────────────
   it('BD-REQ-008: 403 → error toast, selection preserved (no state change)', async () => {
     userCanMock.mockReturnValue(true)
-    await mockUseServerTableWith(
-      [makePromotion('p1', 'Promo A')],
-      { 0: true },
-    )()
+    await mockUseServerTableWith([makePromotion('p1', 'Promo A')], { 0: true })()
     const axiosError = new AxiosError('forbidden')
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(axiosError as any).response = {
@@ -921,8 +967,8 @@ describe('PromotionsView — batch end', () => {
   }
 
   it('BE-REQ-001: omits Finalizar when user lacks update:Promotion', () => {
-    userCanMock.mockImplementation((action: string, subject: string) =>
-      !(action === 'update' && subject === 'Promotion'),
+    userCanMock.mockImplementation(
+      (action: string, subject: string) => !(action === 'update' && subject === 'Promotion'),
     )
 
     const wrapper = mountView()
@@ -936,13 +982,15 @@ describe('PromotionsView — batch end', () => {
   })
 
   it('BE-REQ-009: shows row selection for update-only users', () => {
-    userCanMock.mockImplementation((action: string, subject: string) =>
-      action === 'update' && subject === 'Promotion',
+    userCanMock.mockImplementation(
+      (action: string, subject: string) => action === 'update' && subject === 'Promotion',
     )
 
     const wrapper = mountView()
 
-    expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-enable-row-selection')).toBe('true')
+    expect(
+      wrapper.find('[data-testid="app-data-table"]').attributes('data-enable-row-selection'),
+    ).toBe('true')
   })
 
   it('BE-REQ-003: renders warning Finalizar (3) enabled with 3 selected rows', async () => {
@@ -959,7 +1007,12 @@ describe('PromotionsView — batch end', () => {
     }
     const action = vm.bulkActions.find((item) => item.id === 'batch-end')
 
-    expect(action).toMatchObject({ id: 'batch-end', label: 'Finalizar (3)', variant: 'warning', disabled: false })
+    expect(action).toMatchObject({
+      id: 'batch-end',
+      label: 'Finalizar (3)',
+      variant: 'warning',
+      disabled: false,
+    })
   })
 
   it('BE-REQ-003/010: disables Finalizar at zero and above the 100-row cap', async () => {
@@ -978,10 +1031,10 @@ describe('PromotionsView — batch end', () => {
   })
 
   it('BE-REQ-004: opens warning confirmation with selected titles and Finalizar label', async () => {
-    await mockUseServerTableWith(
-      [makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B')],
-      { 0: true, 1: true },
-    )()
+    await mockUseServerTableWith([makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B')], {
+      0: true,
+      1: true,
+    })()
 
     const wrapper = mountView()
     triggerBatchEnd(wrapper)
@@ -998,10 +1051,10 @@ describe('PromotionsView — batch end', () => {
   })
 
   it('BE-REQ-005: success shows toast, clears selection and closes modal', async () => {
-    await mockUseServerTableWith(
-      [makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B')],
-      { 0: true, 1: true },
-    )()
+    await mockUseServerTableWith([makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B')], {
+      0: true,
+      1: true,
+    })()
     vi.mocked(promotionApi.batchEnd).mockResolvedValueOnce({ ended: 2 })
 
     const wrapper = mountView()
@@ -1014,15 +1067,18 @@ describe('PromotionsView — batch end', () => {
     expect(toastCalls.find((toast) => toast.color === 'success')?.title).toContain(
       '2 promociones finalizadas',
     )
-    expect((wrapper.vm as unknown as { rowSelection: { value: Record<string, boolean> } }).rowSelection.value).toEqual({})
+    expect(
+      (wrapper.vm as unknown as { rowSelection: { value: Record<string, boolean> } }).rowSelection
+        .value,
+    ).toEqual({})
     expect(wrapper.find('[data-testid="confirm-modal"]').attributes('data-open')).toBe('false')
   })
 
   it('BE-REQ-006: 404 BATCH_DELETE_NOT_FOUND shows count toast and clears selection', async () => {
-    await mockUseServerTableWith(
-      [makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B')],
-      { 0: true, 1: true },
-    )()
+    await mockUseServerTableWith([makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B')], {
+      0: true,
+      1: true,
+    })()
     const axiosError = new AxiosError('not found')
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(axiosError as any).response = {
@@ -1040,7 +1096,10 @@ describe('PromotionsView — batch end', () => {
     expect(toastCalls.find((toast) => toast.color === 'warning')?.title).toContain(
       '2 promocion(es) no encontrada(s)',
     )
-    expect((wrapper.vm as unknown as { rowSelection: { value: Record<string, boolean> } }).rowSelection.value).toEqual({})
+    expect(
+      (wrapper.vm as unknown as { rowSelection: { value: Record<string, boolean> } }).rowSelection
+        .value,
+    ).toEqual({})
   })
 
   it('BE-REQ-008: binds pending batch-end state to ConfirmModal loading', async () => {
@@ -1079,8 +1138,13 @@ describe('PromotionsView — batch end', () => {
     await wrapper.find('[data-testid="confirm-btn"]').trigger('click')
     await flushPromises()
 
-    expect(toastCalls.find((toast) => toast.color === 'error')?.title).toContain('No tenés permisos')
-    expect((wrapper.vm as unknown as { rowSelection: { value: Record<string, boolean> } }).rowSelection.value).toEqual({ 0: true })
+    expect(toastCalls.find((toast) => toast.color === 'error')?.title).toContain(
+      'No tenés permisos',
+    )
+    expect(
+      (wrapper.vm as unknown as { rowSelection: { value: Record<string, boolean> } }).rowSelection
+        .value,
+    ).toEqual({ 0: true })
   })
 })
 
@@ -1138,8 +1202,8 @@ describe('PromotionsView — batch activate (sdd-13)', () => {
 
   // ── BA-REQ-001: permission gating ──────────────────────────────────────────
   it('BA-REQ-001: omits Reactivar when user lacks update:Promotion', () => {
-    userCanMock.mockImplementation((action: string, subject: string) =>
-      !(action === 'update' && subject === 'Promotion'),
+    userCanMock.mockImplementation(
+      (action: string, subject: string) => !(action === 'update' && subject === 'Promotion'),
     )
 
     const wrapper = mountView()
@@ -1192,10 +1256,10 @@ describe('PromotionsView — batch activate (sdd-13)', () => {
 
   // ── BA-REQ-004: confirm modal ──────────────────────────────────────────────
   it('BA-REQ-004: opens primary confirmation with selected titles and Reactivar label', async () => {
-    await mockUseServerTableWith(
-      [makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B')],
-      { 0: true, 1: true },
-    )()
+    await mockUseServerTableWith([makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B')], {
+      0: true,
+      1: true,
+    })()
 
     const wrapper = mountView()
     triggerBatchActivate(wrapper)
@@ -1225,10 +1289,10 @@ describe('PromotionsView — batch activate (sdd-13)', () => {
 
   // ── BA-REQ-005: success path ───────────────────────────────────────────────
   it('BA-REQ-005: 200 success → reactivadas toast, rowSelection cleared, modal closes', async () => {
-    await mockUseServerTableWith(
-      [makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B')],
-      { 0: true, 1: true },
-    )()
+    await mockUseServerTableWith([makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B')], {
+      0: true,
+      1: true,
+    })()
     vi.mocked(promotionApi.batchActivate).mockResolvedValueOnce({ activated: 2 })
 
     const wrapper = mountView()
@@ -1249,10 +1313,10 @@ describe('PromotionsView — batch activate (sdd-13)', () => {
 
   // ── BA-REQ-006: 404 BATCH_DELETE_NOT_FOUND ─────────────────────────────────
   it('BA-REQ-006: 404 BATCH_DELETE_NOT_FOUND → count toast + invalidate + clear selection', async () => {
-    await mockUseServerTableWith(
-      [makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B')],
-      { 0: true, 1: true },
-    )()
+    await mockUseServerTableWith([makePromotion('p1', 'Promo A'), makePromotion('p2', 'Promo B')], {
+      0: true,
+      1: true,
+    })()
     const axiosError = new AxiosError('not found')
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ;(axiosError as any).response = {
@@ -1270,7 +1334,10 @@ describe('PromotionsView — batch activate (sdd-13)', () => {
     expect(toastCalls.find((toast) => toast.color === 'warning')?.title).toContain(
       '2 promocion(es) no encontrada(s)',
     )
-    expect((wrapper.vm as unknown as { rowSelection: { value: Record<string, boolean> } }).rowSelection.value).toEqual({})
+    expect(
+      (wrapper.vm as unknown as { rowSelection: { value: Record<string, boolean> } }).rowSelection
+        .value,
+    ).toEqual({})
   })
 
   // ── BA-REQ-007: 403 INSUFFICIENT_PERMISSIONS ───────────────────────────────
@@ -1290,8 +1357,13 @@ describe('PromotionsView — batch activate (sdd-13)', () => {
     await wrapper.find('[data-testid="confirm-btn"]').trigger('click')
     await flushPromises()
 
-    expect(toastCalls.find((toast) => toast.color === 'error')?.title).toContain('No tenés permisos')
-    expect((wrapper.vm as unknown as { rowSelection: { value: Record<string, boolean> } }).rowSelection.value).toEqual({ 0: true })
+    expect(toastCalls.find((toast) => toast.color === 'error')?.title).toContain(
+      'No tenés permisos',
+    )
+    expect(
+      (wrapper.vm as unknown as { rowSelection: { value: Record<string, boolean> } }).rowSelection
+        .value,
+    ).toEqual({ 0: true })
   })
 
   // ── BA-REQ-008: loading state ──────────────────────────────────────────────
@@ -1317,12 +1389,14 @@ describe('PromotionsView — batch activate (sdd-13)', () => {
 
   // ── BA-REQ-009: row selection gate ─────────────────────────────────────────
   it('BA-REQ-009: checkboxes visible when canBatchActivate is the only batch permission', () => {
-    userCanMock.mockImplementation((action: string, subject: string) =>
-      action === 'update' && subject === 'Promotion',
+    userCanMock.mockImplementation(
+      (action: string, subject: string) => action === 'update' && subject === 'Promotion',
     )
 
     const wrapper = mountView()
-    expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-enable-row-selection')).toBe('true')
+    expect(
+      wrapper.find('[data-testid="app-data-table"]').attributes('data-enable-row-selection'),
+    ).toBe('true')
   })
 })
 
@@ -1480,17 +1554,21 @@ describe('PromotionsView — standardization (REQ-1..7)', () => {
   it('REQ-2: passes display-mode="table" by default', async () => {
     const wrapper = mountView()
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe('table')
+    expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe(
+      'table',
+    )
   })
 
   it('REQ-2: passes display-mode="cards" after toggling to card mode', async () => {
     localStorage.setItem('promotions-view-mode', 'card')
     const wrapper = mountView()
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe('cards')
+    expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe(
+      'cards',
+    )
   })
 
-// ── REQ-3: card view ───────────────────────────────────────────────────────
+  // ── REQ-3: card view ───────────────────────────────────────────────────────
   it('REQ-3: renders PromotionCardGrid inside the cards slot when display-mode is cards', async () => {
     const { useServerTable } = await import('@/core/shared/composables/useServerTable')
     vi.mocked(useServerTable).mockReturnValueOnce({
@@ -1572,7 +1650,7 @@ describe('PromotionsView — standardization (REQ-1..7)', () => {
     expect(wrapper.findAll('[aria-haspopup="menu"]').length).toBe(0)
   })
 
-it('REQ-5: shows the kebab dropdown when user has update permission', async () => {
+  it('REQ-5: shows the kebab dropdown when user has update permission', async () => {
     userCanMock.mockImplementation(
       (action: string, subject: string) =>
         (action === 'update' && subject === 'Promotion') || action === 'read',
@@ -1677,4 +1755,3 @@ it('REQ-5: shows the kebab dropdown when user has update permission', async () =
     expect(vm.rowSelection.value).toEqual({})
   })
 })
-

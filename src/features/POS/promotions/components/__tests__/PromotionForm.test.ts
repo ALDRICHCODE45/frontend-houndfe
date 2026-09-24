@@ -15,7 +15,8 @@ const FULL_STUBS = {
     inheritAttrs: false,
     props: ['state', 'schema'],
     emits: ['submit'],
-    template: '<form v-bind="$attrs" @submit.prevent="$emit(\'submit\', { data: state })"><slot /></form>',
+    template:
+      '<form v-bind="$attrs" @submit.prevent="$emit(\'submit\', { data: state })"><slot /></form>',
   },
   UFormField: {
     props: ['label', 'name'],
@@ -25,17 +26,20 @@ const FULL_STUBS = {
     inheritAttrs: false,
     props: ['modelValue', 'placeholder'],
     emits: ['update:modelValue'],
-    template: '<input v-bind="$attrs" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+    template:
+      '<input v-bind="$attrs" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
   },
   USelect: {
     props: ['modelValue', 'items'],
     emits: ['update:modelValue'],
-    template: '<select :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="i in items" :key="i.value" :value="i.value">{{ i.label }}</option></select>',
+    template:
+      '<select :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="i in items" :key="i.value" :value="i.value">{{ i.label }}</option></select>',
   },
   UCheckbox: {
     props: ['modelValue', 'label'],
     emits: ['update:modelValue'],
-    template: '<input type="checkbox" :checked="modelValue" @change="$emit(\'update:modelValue\', $event.target.checked)" />',
+    template:
+      '<input type="checkbox" :checked="modelValue" @change="$emit(\'update:modelValue\', $event.target.checked)" />',
   },
   UBadge: {
     props: ['color'],
@@ -79,6 +83,19 @@ const FULL_STUBS = {
     props: ['formState'],
     template: '<div data-testid="summary-card" />',
   },
+  // Capacity editor (PCA-1) — stubbed to keep this suite focused on the
+  // form's type-specific sections instead of the shared capacity controls.
+  PromotionCapacityField: {
+    props: [
+      'modelValue',
+      'maxProductUnits',
+      'consumedProductUnits',
+      'remainingProductUnits',
+      'editing',
+    ],
+    emits: ['update:modelValue', 'update:maxProductUnits'],
+    template: '<div data-testid="capacity-field-stub" />',
+  },
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -87,10 +104,7 @@ function makeQueryClient() {
   return new QueryClient({ defaultOptions: { queries: { retry: false, enabled: false } } })
 }
 
-function mountForm(
-  type: PromotionType,
-  props: Record<string, unknown> = {},
-) {
+function mountForm(type: PromotionType, props: Record<string, unknown> = {}) {
   const queryClient = makeQueryClient()
   return mount(PromotionForm, {
     props: {
@@ -221,7 +235,9 @@ describe('PromotionForm', () => {
     await wrapper.find('[data-testid="method-card-MANUAL"]').trigger('click')
     await wrapper.vm.$nextTick()
     // AUTOMATIC card no longer selected
-    expect(wrapper.find('[data-testid="method-card-AUTOMATIC"]').classes()).not.toContain('border-coco-gold-500')
+    expect(wrapper.find('[data-testid="method-card-AUTOMATIC"]').classes()).not.toContain(
+      'border-coco-gold-500',
+    )
   })
 
   it('S19: MANUAL method card shows selected style after click', async () => {
@@ -241,8 +257,12 @@ describe('PromotionForm', () => {
     await wrapper.vm.$nextTick()
     await wrapper.find('[data-testid="method-card-AUTOMATIC"]').trigger('click')
     await wrapper.vm.$nextTick()
-    expect(wrapper.find('[data-testid="method-card-AUTOMATIC"]').classes()).toContain('border-coco-gold-500')
-    expect(wrapper.find('[data-testid="method-card-MANUAL"]').classes()).not.toContain('border-coco-gold-500')
+    expect(wrapper.find('[data-testid="method-card-AUTOMATIC"]').classes()).toContain(
+      'border-coco-gold-500',
+    )
+    expect(wrapper.find('[data-testid="method-card-MANUAL"]').classes()).not.toContain(
+      'border-coco-gold-500',
+    )
   })
 
   // ── S25/S26: BUY_X_GET_Y preset autofill (REQ-10 locked table) ────────────

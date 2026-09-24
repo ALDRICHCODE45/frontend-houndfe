@@ -38,7 +38,8 @@ const STUBS = {
   UButton: {
     props: ['label', 'color', 'variant', 'icon', 'loading', 'disabled', 'type', 'form'],
     emits: ['click'],
-    template: '<button :data-testid="label || $attrs[\'data-testid\'] || \'btn\'" :disabled="disabled" @click="$emit(\'click\')"><slot>{{ label }}</slot></button>',
+    template:
+      '<button :data-testid="label || $attrs[\'data-testid\'] || \'btn\'" :disabled="disabled" @click="$emit(\'click\')"><slot>{{ label }}</slot></button>',
   },
   UBadge: {
     props: ['color', 'variant'],
@@ -58,7 +59,9 @@ const STUBS = {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function makeQueryClient() {
-  return new QueryClient({ defaultOptions: { queries: { retry: false, enabled: false }, mutations: { retry: false } } })
+  return new QueryClient({
+    defaultOptions: { queries: { retry: false, enabled: false }, mutations: { retry: false } },
+  })
 }
 
 function mountCreate(type: PromotionType = 'PRODUCT_DISCOUNT') {
@@ -100,6 +103,9 @@ function mountEdit(id: string = 'promo-123') {
     customers: [],
     priceLists: [],
     daysOfWeek: [],
+    maxProductUnits: null,
+    consumedProductUnits: 0,
+    remainingProductUnits: null,
     createdAt: '2026-01-01T00:00:00.000Z',
     updatedAt: '2026-01-01T00:00:00.000Z',
   })
@@ -133,12 +139,16 @@ describe('PromotionDetailView — Create Mode', () => {
 
   it('passes type from route param to PromotionForm', () => {
     const wrapper = mountCreate('ORDER_DISCOUNT')
-    expect(wrapper.find('[data-testid="promotion-form"]').attributes('data-type')).toBe('ORDER_DISCOUNT')
+    expect(wrapper.find('[data-testid="promotion-form"]').attributes('data-type')).toBe(
+      'ORDER_DISCOUNT',
+    )
   })
 
   it('passes BUY_X_GET_Y type to PromotionForm', () => {
     const wrapper = mountCreate('BUY_X_GET_Y')
-    expect(wrapper.find('[data-testid="promotion-form"]').attributes('data-type')).toBe('BUY_X_GET_Y')
+    expect(wrapper.find('[data-testid="promotion-form"]').attributes('data-type')).toBe(
+      'BUY_X_GET_Y',
+    )
   })
 
   it('passes ADVANCED type to PromotionForm', () => {

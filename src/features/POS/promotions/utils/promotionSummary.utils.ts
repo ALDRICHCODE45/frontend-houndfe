@@ -2,12 +2,179 @@ import type {
   PromotionFormState,
   PromotionTargetItemFormEntry,
 } from '../interfaces/promotion.types'
+import { PROMOTION_CAPACITY_MODE } from '../interfaces/promotion.types'
+import type { AppBadgeTone } from '@/core/shared/utils/badge.utils'
 import {
   CUSTOMER_SCOPE,
   DISCOUNT_TYPE,
   PROMOTION_METHOD,
   PROMOTION_TYPE,
 } from '../constants/promotion.constants'
+
+// ── Capacity state (PCA-1) ────────────────────────────────────────────────────
+//
+// The promotion capacity surface renders SERVER-OWNED values only. This pure
+// resolver maps the three fields the backend returns (`maxProductUnits`,
+// `consumedProductUnits`, `remainingProductUnits`) into one of the six states
+// the UI exposes. It never computes a remaining counter; it only classifies the
+// server numbers and detects internally inconsistent (stale) snapshots so the
+// component can degrade honestly instead of crashing or lying.
+
+export type PromotionCapacityState =
+  | 'unlimited'
+  | 'unlimited_consumed'
+  | 'available'
+  | 'near_limit'
+  | 'exhausted'
+  | 'stale'
+
+export interface PromotionCapacityDescriptor {
+  state: PromotionCapacityState
+  label: string
+  tone: AppBadgeTone
+  icon: string
+  /** Server-owned cap, or null when unlimited. */
+  max: number | null
+  /** Server-owned consumption, or null when the server value is unreadable. */
+  consumed: number | null
+  /** Server-owned remaining, or null when unlimited/unreadable. */
+  remaining: number | null
+}
+
+/** 80% threshold, mirrored as `consumed * 5 >= max * 4` to avoid float drift. */
+const NEAR_LIMIT_MULTIPLIER = 5
+const NEAR_LIMIT_DIVISOR = 4
+
+function normalizeCount(value: unknown): number | null {
+  if (value == null) return null
+  if (typeof value !== 'number' || !Number.isInteger(value)) return null
+  return value
+}
+
+function wasProvidedButInvalid(value: unknown): boolean {
+  return value != null && (typeof value !== 'number' || !Number.isInteger(value))
+}
+
+const LABEL_UNLIMITED = 'Sin límite'
+const LABEL_EXHAUSTED = 'Sin cupo'
+const LABEL_STALE = 'Datos de cupo desactualizados'
+
+/**
+ * Classify the server-owned capacity snapshot. Pure and defensive: any missing,
+ * non-integer or physically impossible combination resolves to `stale` and the
+ * caller renders an honest fallback instead of throwing.
+ */
+export function resolvePromotionCapacityState(input: {
+  maxProductUnits?: number | null
+  consumedProductUnits?: number | null
+  remainingProductUnits?: number | null
+}): PromotionCapacityDescriptor {
+  const rawMax = input.maxProductUnits
+  const rawConsumed = input.consumedProductUnits
+  const rawRemaining = input.remainingProductUnits
+
+  // Required counters must be PRESENT. Only an explicit `null` (max/remaining)
+  // means "unlimited"/"not applicable"; an absent field is unreadable and must
+  // degrade to `stale` instead of being mistaken for an unlimited cap.
+  if (rawMax === undefined || rawConsumed === undefined || rawRemaining === undefined) {
+    return staleDescriptor()
+  }
+
+  // Any value that was present but is not a plain integer is unreadable.
+  if (
+    wasProvidedButInvalid(rawMax) ||
+    wasProvidedButInvalid(rawConsumed) ||
+    wasProvidedButInvalid(rawRemaining)
+  ) {
+    return staleDescriptor()
+  }
+
+  // `consumedProductUnits` has no "not applicable" meaning, so an explicit
+  // null is unreadable. Only `maxProductUnits` (unlimited) and — under
+  // unlimited semantics — `remainingProductUnits` may legitimately be null.
+  if (rawConsumed === null) {
+    return staleDescriptor()
+  }
+
+  const max = normalizeCount(rawMax)
+  const consumed = normalizeCount(rawConsumed)
+  const remaining = normalizeCount(rawRemaining)
+
+  if (max == null) {
+    // Unlimited: remaining MUST be null, and negative consumption is impossible.
+    if (remaining != null || (consumed != null && consumed < 0)) {
+      return staleDescriptor()
+    }
+    if (consumed != null && consumed > 0) {
+      return {
+        state: 'unlimited_consumed',
+        label: `${LABEL_UNLIMITED} · ${consumed} unidades consumidas`,
+        tone: 'info',
+        icon: 'i-lucide-history',
+        max,
+        consumed,
+        remaining,
+      }
+    }
+    return {
+      state: 'unlimited',
+      label: LABEL_UNLIMITED,
+      tone: 'neutral',
+      icon: 'i-lucide-infinity',
+      max,
+      consumed,
+      remaining,
+    }
+  }
+
+  // Finite cap: the snapshot must be internally consistent.
+  if (
+    max < 1 ||
+    remaining == null ||
+    remaining < 0 ||
+    remaining > max ||
+    (consumed != null && consumed < 0) ||
+    (consumed != null && consumed + remaining !== max)
+  ) {
+    return staleDescriptor()
+  }
+
+  if (remaining === 0) {
+    return {
+      state: 'exhausted',
+      label: LABEL_EXHAUSTED,
+      tone: 'error',
+      icon: 'i-lucide-circle-slash',
+      max,
+      consumed,
+      remaining,
+    }
+  }
+
+  const nearLimit = consumed != null && consumed * NEAR_LIMIT_MULTIPLIER >= max * NEAR_LIMIT_DIVISOR
+
+  return {
+    state: nearLimit ? 'near_limit' : 'available',
+    label: `Quedan ${remaining} unidades`,
+    tone: nearLimit ? 'warning' : 'success',
+    icon: nearLimit ? 'i-lucide-triangle-alert' : 'i-lucide-gauge',
+    max,
+    consumed,
+    remaining,
+  }
+}
+
+function staleDescriptor(): PromotionCapacityDescriptor {
+  return {
+    state: 'stale',
+    label: LABEL_STALE,
+    tone: 'warning',
+    icon: 'i-lucide-refresh-cw',
+    max: null,
+    consumed: null,
+    remaining: null,
+  }
+}
 
 // ── Summary bullet builder ────────────────────────────────────────────────────
 
@@ -40,11 +207,7 @@ export function buildPromotionSummaryBullets(state: PromotionFormState): string[
   }
 
   // ── BUY_X_GET_Y ──────────────────────────────────────────────────────────
-  if (
-    state.type === PROMOTION_TYPE.BUY_X_GET_Y &&
-    state.buyQuantity &&
-    state.getQuantity
-  ) {
+  if (state.type === PROMOTION_TYPE.BUY_X_GET_Y && state.buyQuantity && state.getQuantity) {
     const buy = state.buyQuantity
     const get = state.getQuantity
     const pct = state.getDiscountPercent
@@ -61,11 +224,7 @@ export function buildPromotionSummaryBullets(state: PromotionFormState): string[
   }
 
   // ── ADVANCED ─────────────────────────────────────────────────────────────
-  if (
-    state.type === PROMOTION_TYPE.ADVANCED &&
-    state.buyQuantity &&
-    state.getQuantity
-  ) {
+  if (state.type === PROMOTION_TYPE.ADVANCED && state.buyQuantity && state.getQuantity) {
     const discountText =
       state.getDiscountPercent === 0
         ? 'gratis'
@@ -119,6 +278,23 @@ export function buildPromotionSummaryBullets(state: PromotionFormState): string[
   // ── Days of week ──────────────────────────────────────────────────────────
   if (state.hasDaysOfWeek && state.daysOfWeek.length > 0) {
     bullets.push(`Disponible ${state.daysOfWeek.length} día(s) de la semana`)
+  }
+
+  // ── Capacity (PCA-1) ──────────────────────────────────────────────────────
+  // Only the editable intent is summarized. We NEVER show a derived remaining
+  // counter here — the server owns that and it lives in the status surface.
+  if (state.capacityMode === PROMOTION_CAPACITY_MODE.LIMITED && state.maxProductUnits != null) {
+    bullets.push(`Cupo limitado a ${state.maxProductUnits} unidades`)
+  } else if (
+    state.capacityMode === PROMOTION_CAPACITY_MODE.UNCHANGED &&
+    state.maxProductUnits != null
+  ) {
+    bullets.push(`Se conserva el cupo actual de ${state.maxProductUnits} unidades`)
+  } else if (
+    state.capacityMode === PROMOTION_CAPACITY_MODE.UNLIMITED &&
+    state.consumedProductUnits > 0
+  ) {
+    bullets.push(`Sin límite · ${state.consumedProductUnits} unidades consumidas`)
   }
 
   return bullets

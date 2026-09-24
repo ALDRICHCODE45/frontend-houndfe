@@ -48,6 +48,16 @@ export function usePromotionColumns() {
       enableSorting: false,
     },
 
+    // ── Cupo — server-owned capacity (PCA-1) ──────────────────────────
+    // Rendered via the #capacity-cell slot in PromotionsView.vue using the
+    // single-responsibility PromotionCapacityStatus component. Not sortable:
+    // the backend listing exposes no capacity sort key.
+    {
+      id: 'capacity',
+      header: 'Cupo',
+      enableSorting: false,
+    },
+
     // ── Fecha de inicio (sortable) ─────────────────────────────────────
     {
       accessorKey: 'startDate',

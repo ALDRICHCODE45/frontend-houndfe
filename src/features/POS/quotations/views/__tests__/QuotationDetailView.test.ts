@@ -96,15 +96,16 @@ vi.mock('@nuxt/ui/runtime/composables/useToast', () => ({
   }),
 }))
 
-const quotationPdfErrorMock = vi.hoisted(() =>
-  class extends Error {
-    readonly code: string
-    constructor(code: string) {
-      super(code)
-      this.code = code
-      this.name = 'QuotationPdfError'
-    }
-  },
+const quotationPdfErrorMock = vi.hoisted(
+  () =>
+    class extends Error {
+      readonly code: string
+      constructor(code: string) {
+        super(code)
+        this.code = code
+        this.name = 'QuotationPdfError'
+      }
+    },
 )
 vi.mock('../../api/quotation.api', () => ({
   quotationApi: quotationApiMock,
@@ -241,6 +242,9 @@ function makePromotion(overrides: Partial<PromotionResponse> = {}): PromotionRes
     customers: [],
     priceLists: [],
     daysOfWeek: [],
+    maxProductUnits: null,
+    consumedProductUnits: 0,
+    remainingProductUnits: null,
     createdAt: '2026-08-01T00:00:00.000Z',
     updatedAt: '2026-08-01T00:00:00.000Z',
     ...overrides,
@@ -268,7 +272,8 @@ const stubs = {
   PriceListSelector: {
     props: ['activeDraft', 'isMutating'],
     emits: ['change-price-list', 'request-confirm'],
-    template: '<div data-testid="price-list-selector">Lista: {{ activeDraft?.globalPriceListId ?? "PUBLICO" }}</div>',
+    template:
+      '<div data-testid="price-list-selector">Lista: {{ activeDraft?.globalPriceListId ?? "PUBLICO" }}</div>',
   },
   QuotationItemRow: {
     props: ['item', 'readonly'],
@@ -382,12 +387,14 @@ const stubs = {
   UModal: {
     props: ['open', 'title', 'dismissible', 'close'],
     emits: ['update:open'],
-    template: '<div data-testid="price-override-modal"><slot name="body" /><slot name="footer" /></div>',
+    template:
+      '<div data-testid="price-override-modal"><slot name="body" /><slot name="footer" /></div>',
   },
   Modal: {
     props: ['open', 'title', 'dismissible', 'close'],
     emits: ['update:open'],
-    template: '<div data-testid="price-override-modal"><slot name="body" /><slot name="footer" /></div>',
+    template:
+      '<div data-testid="price-override-modal"><slot name="body" /><slot name="footer" /></div>',
   },
   UButton: {
     props: ['label', 'color', 'variant', 'loading', 'disabled'],
@@ -477,8 +484,7 @@ beforeEach(() => {
   quotationApiMock.updateNotes.mockReset()
   quotationApiMock.setTaxRate.mockReset()
   quotationApiMock.deleteQuotation.mockReset()
-  quotationApiMock.setSeller.mockReset()
-    .mockResolvedValue(makeQuotation())
+  quotationApiMock.setSeller.mockReset().mockResolvedValue(makeQuotation())
   productApiMock.getGlobalPriceLists.mockReset()
   productApiMock.getGlobalPriceLists.mockResolvedValue(GLOBAL_PRICE_LISTS)
   usersApiMock.listAssignable.mockReset()
@@ -556,7 +562,9 @@ describe('QuotationDetailView — progress stepper (T-UI-11)', () => {
     state.quotation.value = undefined
     let resolveCreate!: (value: QuotationResponseDto) => void
     state.createDraft.mockReturnValue(
-      new Promise<QuotationResponseDto>((resolve) => { resolveCreate = resolve }),
+      new Promise<QuotationResponseDto>((resolve) => {
+        resolveCreate = resolve
+      }),
     )
 
     const wrapper = mountView()
@@ -665,7 +673,9 @@ describe('QuotationDetailView create flow', () => {
     state.quotation.value = undefined
     let resolveCreate!: (value: QuotationResponseDto) => void
     state.createDraft.mockReturnValue(
-      new Promise<QuotationResponseDto>((resolve) => { resolveCreate = resolve }),
+      new Promise<QuotationResponseDto>((resolve) => {
+        resolveCreate = resolve
+      }),
     )
 
     const wrapper = mountView()
@@ -702,9 +712,9 @@ describe('QuotationDetailView items section (S5)', () => {
           id: 'item-1',
           productId: 'product-1',
           variantId: null,
-              productName: 'Test Product',
-        variantName: null,
-    quantity: 2,
+          productName: 'Test Product',
+          variantName: null,
+          quantity: 2,
           product: { id: 'product-1', name: 'Playera M', sku: 'SKU-1', imageUrl: null },
           variant: null,
           unitPriceCents: 15000,
@@ -723,9 +733,9 @@ describe('QuotationDetailView items section (S5)', () => {
           id: 'item-2',
           productId: 'product-2',
           variantId: null,
-              productName: 'Test Product',
-        variantName: null,
-    quantity: 1,
+          productName: 'Test Product',
+          variantName: null,
+          quantity: 1,
           product: { id: 'product-2', name: 'Jeans 32', sku: 'SKU-2', imageUrl: null },
           variant: null,
           unitPriceCents: 45000,
@@ -801,9 +811,9 @@ describe('QuotationDetailView items section (S5)', () => {
           id: 'item-1',
           productId: 'product-1',
           variantId: null,
-              productName: 'Test Product',
-        variantName: null,
-    quantity: 2,
+          productName: 'Test Product',
+          variantName: null,
+          quantity: 2,
           product: { id: 'product-1', name: 'Playera M', sku: 'SKU-1', imageUrl: null },
           variant: null,
           unitPriceCents: 15000,
@@ -834,9 +844,9 @@ describe('QuotationDetailView items section (S5)', () => {
           id: 'item-1',
           productId: 'product-1',
           variantId: null,
-              productName: 'Test Product',
-        variantName: null,
-    quantity: 2,
+          productName: 'Test Product',
+          variantName: null,
+          quantity: 2,
           product: { id: 'product-1', name: 'Playera M', sku: 'SKU-1', imageUrl: null },
           variant: null,
           unitPriceCents: 15000,
@@ -869,9 +879,9 @@ describe('QuotationDetailView items section (S5)', () => {
           id: 'item-1',
           productId: 'product-1',
           variantId: null,
-              productName: 'Test Product',
-        variantName: null,
-    quantity: 2,
+          productName: 'Test Product',
+          variantName: null,
+          quantity: 2,
           product: { id: 'product-1', name: 'Playera M', sku: 'SKU-1', imageUrl: null },
           variant: null,
           unitPriceCents: 15000,
@@ -907,9 +917,9 @@ describe('QuotationDetailView items section (S5)', () => {
           id: 'item-1',
           productId: 'product-1',
           variantId: null,
-              productName: 'Test Product',
-        variantName: null,
-    quantity: 2,
+          productName: 'Test Product',
+          variantName: null,
+          quantity: 2,
           product: { id: 'product-1', name: 'Playera M', sku: 'SKU-1', imageUrl: null },
           variant: null,
           unitPriceCents: 15000,
@@ -946,9 +956,9 @@ describe('QuotationDetailView items section (S5)', () => {
           id: 'item-1',
           productId: 'product-1',
           variantId: null,
-              productName: 'Test Product',
-        variantName: null,
-    quantity: 2,
+          productName: 'Test Product',
+          variantName: null,
+          quantity: 2,
           product: { id: 'product-1', name: 'Playera M', sku: 'SKU-1', imageUrl: null },
           variant: null,
           unitPriceCents: 15000,
@@ -1231,9 +1241,7 @@ describe('QuotationDetailView — customer notes backend persistence (T-UI-21/22
 describe('QuotationDetailView — tax rate override (T-UI-29)', () => {
   it('calls quotationApi.setTaxRate when the footer emits update:tax-rate in DRAFT', async () => {
     state.quotation.value = makeQuotation({ taxRate: 0.16, taxCents: 1600 })
-    quotationApiMock.setTaxRate.mockResolvedValue(
-      makeQuotation({ taxRate: 0.08, taxCents: 800 }),
-    )
+    quotationApiMock.setTaxRate.mockResolvedValue(makeQuotation({ taxRate: 0.08, taxCents: 800 }))
 
     const wrapper = mountView()
     await flushPromises()
@@ -1242,17 +1250,12 @@ describe('QuotationDetailView — tax rate override (T-UI-29)', () => {
     await flushPromises()
 
     expect(quotationApiMock.setTaxRate).toHaveBeenCalledTimes(1)
-    expect(quotationApiMock.setTaxRate).toHaveBeenCalledWith(
-      'quotation-12345678',
-      0.08,
-    )
+    expect(quotationApiMock.setTaxRate).toHaveBeenCalledWith('quotation-12345678', 0.08)
   })
 
   it('forwards a 0 (Exento) selection to setTaxRate', async () => {
     state.quotation.value = makeQuotation({ taxRate: 0.16, taxCents: 1600 })
-    quotationApiMock.setTaxRate.mockResolvedValue(
-      makeQuotation({ taxRate: 0, taxCents: 0 }),
-    )
+    quotationApiMock.setTaxRate.mockResolvedValue(makeQuotation({ taxRate: 0, taxCents: 0 }))
 
     const wrapper = mountView()
     await flushPromises()
@@ -1260,10 +1263,7 @@ describe('QuotationDetailView — tax rate override (T-UI-29)', () => {
     await wrapper.get('[data-testid="stub-summary-iva-set-exento"]').trigger('click')
     await flushPromises()
 
-    expect(quotationApiMock.setTaxRate).toHaveBeenCalledWith(
-      'quotation-12345678',
-      0,
-    )
+    expect(quotationApiMock.setTaxRate).toHaveBeenCalledWith('quotation-12345678', 0)
   })
 
   it('does NOT call setTaxRate when the status is not DRAFT', async () => {
@@ -1383,7 +1383,12 @@ describe('QuotationDetailView — testid migration (T-UI-28 / design.md)', () =>
   it('exposes the "quotation-customer-card" testid on the customer section', () => {
     state.quotation.value = makeQuotation({
       customerId: 'customer-1',
-      customer: { id: 'customer-1', firstName: 'María', lastName: 'Pérez', email: 'maria@example.com' },
+      customer: {
+        id: 'customer-1',
+        firstName: 'María',
+        lastName: 'Pérez',
+        email: 'maria@example.com',
+      },
     })
     const wrapper = mountView()
     expect(wrapper.find('[data-testid="quotation-customer-card"]').exists()).toBe(true)
@@ -1513,7 +1518,12 @@ describe('QuotationDetailView promotions section (S6)', () => {
 
   it('renders vetoed promotion titles from the lookup', () => {
     availablePromotionsMock.automatic.promotions = [
-      makePromotion({ id: 'promo-auto-1', title: 'Promo de envío', method: 'AUTOMATIC', type: 'ORDER_DISCOUNT' }),
+      makePromotion({
+        id: 'promo-auto-1',
+        title: 'Promo de envío',
+        method: 'AUTOMATIC',
+        type: 'ORDER_DISCOUNT',
+      }),
     ]
     state.quotation.value = makeQuotation({ vetoedPromotionIds: ['promo-auto-1'] })
     const wrapper = mountView()
@@ -1524,7 +1534,12 @@ describe('QuotationDetailView promotions section (S6)', () => {
 
   it('calls unvetoPromotion when Re-activar is clicked', async () => {
     availablePromotionsMock.automatic.promotions = [
-      makePromotion({ id: 'promo-auto-1', title: 'Promo de envío', method: 'AUTOMATIC', type: 'ORDER_DISCOUNT' }),
+      makePromotion({
+        id: 'promo-auto-1',
+        title: 'Promo de envío',
+        method: 'AUTOMATIC',
+        type: 'ORDER_DISCOUNT',
+      }),
     ]
     state.quotation.value = makeQuotation({ vetoedPromotionIds: ['promo-auto-1'] })
     const wrapper = mountView()
@@ -1559,11 +1574,19 @@ describe('QuotationDetailView promotions section (S6)', () => {
       makePromotion({ id: 'promo-manual-1', title: 'Cupón 10%', type: 'ORDER_DISCOUNT' }),
     ]
     availablePromotionsMock.automatic.promotions = [
-      makePromotion({ id: 'promo-auto-1', title: 'Promo Verano', method: 'AUTOMATIC', type: 'BUY_X_GET_Y' }),
+      makePromotion({
+        id: 'promo-auto-1',
+        title: 'Promo Verano',
+        method: 'AUTOMATIC',
+        type: 'BUY_X_GET_Y',
+      }),
     ]
     const wrapper = mountView()
 
-    const selector = wrapper.findComponent('[data-testid="manual-promo-select"]') as unknown as { vm: { $emit: (e: string, ...a: unknown[]) => void }; props: (k: string) => unknown }
+    const selector = wrapper.findComponent('[data-testid="manual-promo-select"]') as unknown as {
+      vm: { $emit: (e: string, ...a: unknown[]) => void }
+      props: (k: string) => unknown
+    }
     selector.vm.$emit('update:modelValue', 'promo-auto-1')
     await flushPromises()
     expect(state.unvetoPromotion).toHaveBeenCalledWith('promo-auto-1')
@@ -1576,7 +1599,10 @@ describe('QuotationDetailView promotions section (S6)', () => {
     availablePromotionsMock.automatic.promotions = []
     const wrapper = mountView()
 
-    const selector = wrapper.findComponent('[data-testid="manual-promo-select"]') as unknown as { vm: { $emit: (e: string, ...a: unknown[]) => void }; props: (k: string) => unknown }
+    const selector = wrapper.findComponent('[data-testid="manual-promo-select"]') as unknown as {
+      vm: { $emit: (e: string, ...a: unknown[]) => void }
+      props: (k: string) => unknown
+    }
     selector.vm.$emit('update:modelValue', 'promo-manual-1')
     await flushPromises()
     expect(state.applyManualPromotion).toHaveBeenCalledWith('promo-manual-1')
@@ -1597,8 +1623,12 @@ describe('QuotationDetailView promotions section (S6)', () => {
     // the root + `promo-remove-btn` on the action button. The view
     // passes `method='MANUAL'` for opted-in promos and `method='AUTOMATIC'`
     // for everything else, so the card renders "Quitar" / "Vetar".
-    expect(wrapper.get('[data-promotion-id="promo-1"]').get('[data-testid="promo-remove-btn"]').text()).toContain('Quitar')
-    expect(wrapper.get('[data-promotion-id="promo-2"]').get('[data-testid="promo-remove-btn"]').text()).toContain('Vetar')
+    expect(
+      wrapper.get('[data-promotion-id="promo-1"]').get('[data-testid="promo-remove-btn"]').text(),
+    ).toContain('Quitar')
+    expect(
+      wrapper.get('[data-promotion-id="promo-2"]').get('[data-testid="promo-remove-btn"]').text(),
+    ).toContain('Vetar')
   })
 
   it('shows all promotions in the unified picker with "(Aplicada)" prefix for applied ones', () => {
@@ -1612,14 +1642,30 @@ describe('QuotationDetailView promotions section (S6)', () => {
       makePromotion({ id: 'promo-free-manual', title: 'Promo Manual', type: 'PRODUCT_DISCOUNT' }),
     ]
     availablePromotionsMock.automatic.promotions = [
-      makePromotion({ id: 'promo-auto-free', title: 'Promo Auto', method: 'AUTOMATIC', type: 'ADVANCED' }),
+      makePromotion({
+        id: 'promo-auto-free',
+        title: 'Promo Auto',
+        method: 'AUTOMATIC',
+        type: 'ADVANCED',
+      }),
     ]
     const wrapper = mountView()
 
-    const selector = wrapper.findComponent('[data-testid="manual-promo-select"]') as unknown as { vm: { $emit: (e: string, ...a: unknown[]) => void }; props: (k: string) => unknown }
-    const items = selector.props('items') as Array<{ value: string; label: string; description: string }>
+    const selector = wrapper.findComponent('[data-testid="manual-promo-select"]') as unknown as {
+      vm: { $emit: (e: string, ...a: unknown[]) => void }
+      props: (k: string) => unknown
+    }
+    const items = selector.props('items') as Array<{
+      value: string
+      label: string
+      description: string
+    }>
     // All promos appear (no filtering), applied one has "(Aplicada)" prefix
-    expect(items.map((i) => i.value)).toEqual(['promo-applied', 'promo-free-manual', 'promo-auto-free'])
+    expect(items.map((i) => i.value)).toEqual([
+      'promo-applied',
+      'promo-free-manual',
+      'promo-auto-free',
+    ])
     const appliedItem = items.find((i) => i.value === 'promo-applied')!
     expect(appliedItem.description).toContain('(Aplicada)')
     const freeItem = items.find((i) => i.value === 'promo-free-manual')!
@@ -1638,7 +1684,10 @@ describe('QuotationDetailView promotions section (S6)', () => {
     ]
     const wrapper = mountView()
 
-    const selector = wrapper.findComponent('[data-testid="manual-promo-select"]') as unknown as { vm: { $emit: (e: string, ...a: unknown[]) => void }; props: (k: string) => unknown }
+    const selector = wrapper.findComponent('[data-testid="manual-promo-select"]') as unknown as {
+      vm: { $emit: (e: string, ...a: unknown[]) => void }
+      props: (k: string) => unknown
+    }
     selector.vm.$emit('update:modelValue', 'promo-1')
     await flushPromises()
     expect(state.applyManualPromotion).not.toHaveBeenCalled()
@@ -1652,11 +1701,19 @@ describe('QuotationDetailView promotions section (S6)', () => {
       ],
     })
     availablePromotionsMock.automatic.promotions = [
-      makePromotion({ id: 'promo-auto-1', title: 'Promo Auto', method: 'AUTOMATIC', type: 'PRODUCT_DISCOUNT' }),
+      makePromotion({
+        id: 'promo-auto-1',
+        title: 'Promo Auto',
+        method: 'AUTOMATIC',
+        type: 'PRODUCT_DISCOUNT',
+      }),
     ]
     const wrapper = mountView()
 
-    const selector = wrapper.findComponent('[data-testid="manual-promo-select"]') as unknown as { vm: { $emit: (e: string, ...a: unknown[]) => void }; props: (k: string) => unknown }
+    const selector = wrapper.findComponent('[data-testid="manual-promo-select"]') as unknown as {
+      vm: { $emit: (e: string, ...a: unknown[]) => void }
+      props: (k: string) => unknown
+    }
     selector.vm.$emit('update:modelValue', 'promo-auto-1')
     await flushPromises()
     expect(state.applyManualPromotion).not.toHaveBeenCalled()
@@ -1706,7 +1763,10 @@ describe('QuotationDetailView — PDF preview (S7)', () => {
     window.open = vi.fn().mockReturnValue(null) as unknown as typeof window.open
     const { quotationApi } = await import('../../api/quotation.api')
     vi.mocked(quotationApi.getPdfBlob).mockImplementationOnce(
-      () => new Promise<Blob>((resolve) => { resolveFetch = resolve }),
+      () =>
+        new Promise<Blob>((resolve) => {
+          resolveFetch = resolve
+        }),
     )
 
     const wrapper = mountView()
@@ -1867,9 +1927,9 @@ describe('QuotationDetailView — read-only enforcement (REQ-QTN-012 / S8)', () 
           id: 'item-1',
           productId: 'product-1',
           variantId: null,
-              productName: 'Test Product',
-        variantName: null,
-    quantity: 1,
+          productName: 'Test Product',
+          variantName: null,
+          quantity: 1,
           product: { id: 'product-1', name: 'Playera M', sku: 'SKU-1', imageUrl: null },
           variant: null,
           unitPriceCents: 15000,
@@ -2056,7 +2116,9 @@ describe('QuotationDetailView — seller section (REQ-QTN-016 / §3.13d)', () =>
     usersApiMock.listAssignable.mockReset()
     let resolveUsers!: (value: typeof ASSIGNABLE_USERS) => void
     usersApiMock.listAssignable.mockReturnValueOnce(
-      new Promise<typeof ASSIGNABLE_USERS>((resolve) => { resolveUsers = resolve }),
+      new Promise<typeof ASSIGNABLE_USERS>((resolve) => {
+        resolveUsers = resolve
+      }),
     )
     // The mock returns the default in subsequent calls so the next test
     // doesn't accidentally keep the never-resolving promise.
@@ -2085,14 +2147,22 @@ describe('QuotationDetailView — seller section (REQ-QTN-016 / §3.13d)', () =>
       seller: { id: 'user-1', name: 'Juan Pérez' },
     })
     const wrapper = mountView()
-    const picker = wrapper.findComponent('[data-testid="seller-select"]') as unknown as { exists: () => boolean; vm: { $emit: (e: string, ...a: unknown[]) => void }; props: (k: string) => unknown }
+    const picker = wrapper.findComponent('[data-testid="seller-select"]') as unknown as {
+      exists: () => boolean
+      vm: { $emit: (e: string, ...a: unknown[]) => void }
+      props: (k: string) => unknown
+    }
     expect(picker.exists()).toBe(true)
     expect(picker.props('modelValue')).toBe('user-1')
   })
 
   it('passes the assignable users as options (label + value shape)', () => {
     const wrapper = mountView()
-    const picker = wrapper.findComponent('[data-testid="seller-select"]') as unknown as { exists: () => boolean; vm: { $emit: (e: string, ...a: unknown[]) => void }; props: (k: string) => unknown }
+    const picker = wrapper.findComponent('[data-testid="seller-select"]') as unknown as {
+      exists: () => boolean
+      vm: { $emit: (e: string, ...a: unknown[]) => void }
+      props: (k: string) => unknown
+    }
     const items = picker.props('items') as Array<{ label: string; value: string }>
     expect(items.map((i) => i.value).sort()).toEqual(['user-1', 'user-2'])
     expect(items.find((i) => i.value === 'user-1')?.label).toBe('Juan Pérez')
@@ -2142,7 +2212,11 @@ describe('QuotationDetailView — seller section (REQ-QTN-016 / §3.13d)', () =>
       seller: { id: 'user-1', name: 'Juan Pérez' },
     })
     const wrapper = mountView()
-    const picker = wrapper.findComponent('[data-testid="seller-select"]') as unknown as { exists: () => boolean; vm: { $emit: (e: string, ...a: unknown[]) => void }; props: (k: string) => unknown }
+    const picker = wrapper.findComponent('[data-testid="seller-select"]') as unknown as {
+      exists: () => boolean
+      vm: { $emit: (e: string, ...a: unknown[]) => void }
+      props: (k: string) => unknown
+    }
     picker.vm.$emit('update:modelValue', 'user-2')
     await flushPromises()
 
@@ -2160,7 +2234,11 @@ describe('QuotationDetailView — seller section (REQ-QTN-016 / §3.13d)', () =>
       seller: { id: 'user-1', name: 'Juan Pérez' },
     })
     const wrapper = mountView()
-    const picker = wrapper.findComponent('[data-testid="seller-select"]') as unknown as { exists: () => boolean; vm: { $emit: (e: string, ...a: unknown[]) => void }; props: (k: string) => unknown }
+    const picker = wrapper.findComponent('[data-testid="seller-select"]') as unknown as {
+      exists: () => boolean
+      vm: { $emit: (e: string, ...a: unknown[]) => void }
+      props: (k: string) => unknown
+    }
     picker.vm.$emit('update:modelValue', 'user-2')
     await flushPromises()
 

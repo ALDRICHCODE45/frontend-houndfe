@@ -2,7 +2,12 @@
 import { computed, ref, watch } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import type { AxiosError } from 'axios'
-import { AppDataTable, FilterSectionCard, SelectColumn, SortableHeader } from '@/core/shared/components/DataTable'
+import {
+  AppDataTable,
+  FilterSectionCard,
+  SelectColumn,
+  SortableHeader,
+} from '@/core/shared/components/DataTable'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { promotionQueryKeys } from '@/core/shared/constants/query-keys'
 import type { BulkAction } from '@/core/shared/types/table.types'
@@ -16,9 +21,15 @@ import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import { promotionApi } from '../api/promotion.api'
 import { usePromotionColumns } from '../composables/usePromotionColumns'
 import { usePromotionViewMode, isPromotionViewMode } from '../composables/usePromotionViewMode'
-import type { PromotionMethod, PromotionResponse, PromotionStatus, PromotionType } from '../interfaces/promotion.types'
+import type {
+  PromotionMethod,
+  PromotionResponse,
+  PromotionStatus,
+  PromotionType,
+} from '../interfaces/promotion.types'
 import PromotionTypeSelector from '../components/PromotionTypeSelector.vue'
 import PromotionCardGrid from '../components/PromotionCardGrid.vue'
+import PromotionCapacityStatus from '../components/PromotionCapacityStatus.vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import {
@@ -40,7 +51,8 @@ const queryClient = useQueryClient()
 const toast = useToast()
 const authStore = useAuthStore()
 const tenantId = computed(() => authStore.currentTenantId)
-const { columns, getStatusConfig, getTypeConfig, getMethodConfig, formatDate } = usePromotionColumns()
+const { columns, getStatusConfig, getTypeConfig, getMethodConfig, formatDate } =
+  usePromotionColumns()
 
 // ── Permission helpers ────────────────────────────────────────────────────────
 //
@@ -53,9 +65,7 @@ const canDelete = computed(() => authStore.userCan('delete', 'Promotion'))
 const canBatchDelete = computed(() => authStore.userCan('batch_delete', 'Promotion'))
 const canBatchEnd = computed(() => authStore.userCan('update', 'Promotion'))
 const canBatchActivate = computed(() => authStore.userCan('update', 'Promotion'))
-const canManagePromotionActions = computed(
-  () => canUpdate.value || canDelete.value,
-)
+const canManagePromotionActions = computed(() => canUpdate.value || canDelete.value)
 
 // ── View mode (table ↔ card) ──────────────────────────────────────────────────
 const { viewMode, setMode: setViewMode, displayMode } = usePromotionViewMode()
@@ -349,7 +359,9 @@ const batchDeleteMutation = useMutation({
           title: 'Algunas promociones ya no existen. La lista se actualizó.',
           color: 'warning',
         })
-        void queryClient.invalidateQueries({ queryKey: promotionQueryKeys.paginated(tenantId.value) })
+        void queryClient.invalidateQueries({
+          queryKey: promotionQueryKeys.paginated(tenantId.value),
+        })
         rowSelection.value = {}
         break
       case 'INSUFFICIENT_PERMISSIONS':
@@ -392,7 +404,9 @@ const batchEndMutation = useMutation({
           title: `${offendingCount} promocion(es) no encontrada(s)`,
           color: 'warning',
         })
-        void queryClient.invalidateQueries({ queryKey: promotionQueryKeys.paginated(tenantId.value) })
+        void queryClient.invalidateQueries({
+          queryKey: promotionQueryKeys.paginated(tenantId.value),
+        })
         rowSelection.value = {}
         break
       case 'INSUFFICIENT_PERMISSIONS':
@@ -437,7 +451,9 @@ const batchActivateMutation = useMutation({
           title: `${offendingCount} promocion(es) no encontrada(s)`,
           color: 'warning',
         })
-        void queryClient.invalidateQueries({ queryKey: promotionQueryKeys.paginated(tenantId.value) })
+        void queryClient.invalidateQueries({
+          queryKey: promotionQueryKeys.paginated(tenantId.value),
+        })
         rowSelection.value = {}
         break
       case 'INSUFFICIENT_PERMISSIONS':
@@ -467,34 +483,35 @@ function handleEnd(promotion: PromotionResponse) {
     `¿Quieres finalizar la promoción "${promotion.title}"? Esta acción no se puede deshacer.`,
     'Finalizar',
     'warning',
-    () => { void endMutation.mutateAsync(promotion.id) },
+    () => {
+      void endMutation.mutateAsync(promotion.id)
+    },
   )
 }
 
 function handleDelete(promotion: PromotionResponse) {
-  openConfirm(
-    `¿Quieres eliminar la promoción "${promotion.title}"?`,
-    'Eliminar',
-    'error',
-    () => { void deleteMutation.mutateAsync(promotion.id) },
-  )
+  openConfirm(`¿Quieres eliminar la promoción "${promotion.title}"?`, 'Eliminar', 'error', () => {
+    void deleteMutation.mutateAsync(promotion.id)
+  })
 }
 
 function getRowItems(promotion: PromotionResponse) {
-  const mainActions = (canUpdate.value
-      ? [{ label: 'Editar', onSelect: () => handleEdit(promotion) }]
-      : [])
+  const mainActions = canUpdate.value
+    ? [{ label: 'Editar', onSelect: () => handleEdit(promotion) }]
+    : []
 
   const extraActions = [
     ...(canUpdate.value && promotion.status !== PROMOTION_STATUS.ENDED
       ? [{ label: 'Finalizar', onSelect: () => handleEnd(promotion) }]
       : []),
     ...(canDelete.value
-      ? [{
-          label: 'Eliminar',
-          color: 'error' as const,
-          onSelect: () => handleDelete(promotion),
-        }]
+      ? [
+          {
+            label: 'Eliminar',
+            color: 'error' as const,
+            onSelect: () => handleDelete(promotion),
+          },
+        ]
       : []),
   ]
 
@@ -613,10 +630,7 @@ defineExpose({
 <template>
   <div class="flex flex-col gap-6 md:px-10">
     <!-- ── Type Selector Modal ──────────────────────────────────────────────── -->
-    <PromotionTypeSelector
-      v-model:open="isTypeSelectorOpen"
-      @select="isTypeSelectorOpen = false"
-    />
+    <PromotionTypeSelector v-model:open="isTypeSelectorOpen" @select="isTypeSelectorOpen = false" />
 
     <!-- ── Confirm Modal ───────────────────────────────────────────────────── -->
     <ConfirmModal
@@ -624,7 +638,13 @@ defineExpose({
       :description="confirmState.description"
       :confirm-label="confirmState.label"
       :confirm-color="confirmState.color"
-      :loading="endMutation.isPending.value || deleteMutation.isPending.value || batchDeleteMutation.isPending.value || batchEndMutation.isPending.value || batchActivateMutation.isPending.value"
+      :loading="
+        endMutation.isPending.value ||
+        deleteMutation.isPending.value ||
+        batchDeleteMutation.isPending.value ||
+        batchEndMutation.isPending.value ||
+        batchActivateMutation.isPending.value
+      "
       :items="confirmState.items"
       @update:open="confirmState.open = $event"
       @confirm="handleConfirm"
@@ -662,7 +682,9 @@ defineExpose({
           :bulk-actions="bulkActions"
           :enable-row-selection="canBatchDelete || canBatchEnd"
           :show-add-button="canCreate"
-          :active-filter-count="(filterType ? 1 : 0) + (filterStatus ? 1 : 0) + (filterMethod ? 1 : 0)"
+          :active-filter-count="
+            (filterType ? 1 : 0) + (filterStatus ? 1 : 0) + (filterMethod ? 1 : 0)
+          "
           search-placeholder="Buscar promociones..."
           add-button-text="Nueva Promoción"
           add-button-icon="i-lucide-percent"
@@ -792,6 +814,16 @@ defineExpose({
             />
           </template>
 
+          <!-- Server-owned capacity (PCA-1). Renders backend values verbatim. -->
+          <template #capacity-cell="{ row }">
+            <PromotionCapacityStatus
+              :max-product-units="row.original.maxProductUnits"
+              :consumed-product-units="row.original.consumedProductUnits"
+              :remaining-product-units="row.original.remainingProductUnits"
+              compact
+            />
+          </template>
+
           <template #createdAt-cell="{ row }">
             <span class="text-sm text-muted">
               {{ formatDate(row.original.createdAt) }}
@@ -821,9 +853,7 @@ defineExpose({
                 <UIcon name="i-lucide-percent" class="h-8 w-8 text-dimmed" />
               </div>
               <div>
-                <p class="text-base font-semibold text-highlighted">
-                  No hay promociones todavía
-                </p>
+                <p class="text-base font-semibold text-highlighted">No hay promociones todavía</p>
                 <p class="mt-1 text-sm text-muted">
                   Añade tu primera promoción para empezar a ofrecer descuentos.
                 </p>

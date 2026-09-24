@@ -29,6 +29,7 @@ import {
 import PromotionConditionsSection from './PromotionConditionsSection.vue'
 import PromotionTargetItemsSection from './PromotionTargetItemsSection.vue'
 import PromotionSummaryCard from './PromotionSummaryCard.vue'
+import PromotionCapacityField from './PromotionCapacityField.vue'
 
 // ── Props & emits ─────────────────────────────────────────────────────────────
 
@@ -74,25 +75,16 @@ const { resolveTargetNames } = usePromotionTargetNames()
 async function resolveAndApplyNames() {
   if (props.mode !== 'edit') return
   if (formState.targetItems.length > 0 && formState.targetItems.some((i) => !i.name)) {
-    formState.targetItems = await resolveTargetNames(
-      formState.appliesTo,
-      formState.targetItems,
-    )
+    formState.targetItems = await resolveTargetNames(formState.appliesTo, formState.targetItems)
   }
   if (formState.type === PROMOTION_TYPE.ADVANCED) {
-    if (
-      formState.buyTargetItems.length > 0 &&
-      formState.buyTargetItems.some((i) => !i.name)
-    ) {
+    if (formState.buyTargetItems.length > 0 && formState.buyTargetItems.some((i) => !i.name)) {
       formState.buyTargetItems = await resolveTargetNames(
         formState.buyTargetType,
         formState.buyTargetItems,
       )
     }
-    if (
-      formState.getTargetItems.length > 0 &&
-      formState.getTargetItems.some((i) => !i.name)
-    ) {
+    if (formState.getTargetItems.length > 0 && formState.getTargetItems.some((i) => !i.name)) {
       formState.getTargetItems = await resolveTargetNames(
         formState.getTargetType,
         formState.getTargetItems,
@@ -252,11 +244,19 @@ const overlappingTargets = computed(() =>
                 class="inline-flex items-center gap-2 rounded-xl border border-default bg-elevated/50 px-4 py-3"
               >
                 <UIcon
-                  :name="formState.method === PROMOTION_METHOD.AUTOMATIC ? 'i-lucide-cpu' : 'i-lucide-hand'"
+                  :name="
+                    formState.method === PROMOTION_METHOD.AUTOMATIC
+                      ? 'i-lucide-cpu'
+                      : 'i-lucide-hand'
+                  "
                   class="h-4 w-4 text-toned"
                 />
                 <span class="text-sm font-medium text-highlighted">
-                  {{ formState.method === PROMOTION_METHOD.AUTOMATIC ? 'Aplicar automáticamente' : 'Manualmente' }}
+                  {{
+                    formState.method === PROMOTION_METHOD.AUTOMATIC
+                      ? 'Aplicar automáticamente'
+                      : 'Manualmente'
+                  }}
                 </span>
                 <span class="ml-1 text-xs text-muted">(no editable)</span>
               </div>
@@ -281,7 +281,9 @@ const overlappingTargets = computed(() =>
                       class="h-4 w-4 text-toned"
                     />
                     <span class="text-sm font-medium text-highlighted">
-                      {{ m === PROMOTION_METHOD.AUTOMATIC ? 'Aplicar automáticamente' : 'Manualmente' }}
+                      {{
+                        m === PROMOTION_METHOD.AUTOMATIC ? 'Aplicar automáticamente' : 'Manualmente'
+                      }}
                     </span>
                   </div>
                   <p class="text-xs text-muted">
@@ -294,11 +296,24 @@ const overlappingTargets = computed(() =>
                 </button>
               </div>
             </div>
+
+            <!-- Capacity editor (PCA-1) — shared across every promotion type -->
+            <PromotionCapacityField
+              v-model="formState.capacityMode"
+              :max-product-units="formState.maxProductUnits"
+              :consumed-product-units="formState.consumedProductUnits"
+              :remaining-product-units="formState.remainingProductUnits"
+              :editing="mode === 'edit'"
+              @update:max-product-units="formState.maxProductUnits = $event"
+            />
           </div>
         </UCard>
 
         <!-- ── Card 2: PRODUCT_DISCOUNT ───────────────────────────────── -->
-        <UCard v-if="type === PROMOTION_TYPE.PRODUCT_DISCOUNT" data-testid="product-discount-section">
+        <UCard
+          v-if="type === PROMOTION_TYPE.PRODUCT_DISCOUNT"
+          data-testid="product-discount-section"
+        >
           <template #header>
             <h3 class="font-semibold text-highlighted">Valor del Descuento</h3>
           </template>
@@ -320,7 +335,9 @@ const overlappingTargets = computed(() =>
                   v-model="formState.discountValue"
                   :min="formState.discountType === DISCOUNT_TYPE.PERCENTAGE ? 1 : 1"
                   :max="formState.discountType === DISCOUNT_TYPE.PERCENTAGE ? 100 : undefined"
-                  :placeholder="formState.discountType === DISCOUNT_TYPE.PERCENTAGE ? '1-100' : 'Ej.: 150'"
+                  :placeholder="
+                    formState.discountType === DISCOUNT_TYPE.PERCENTAGE ? '1-100' : 'Ej.: 150'
+                  "
                   size="lg"
                 >
                   <template #trailing>
@@ -348,7 +365,10 @@ const overlappingTargets = computed(() =>
         </UCard>
 
         <!-- ── Card 2: ORDER_DISCOUNT ─────────────────────────────────── -->
-        <UCard v-else-if="type === PROMOTION_TYPE.ORDER_DISCOUNT" data-testid="order-discount-section">
+        <UCard
+          v-else-if="type === PROMOTION_TYPE.ORDER_DISCOUNT"
+          data-testid="order-discount-section"
+        >
           <template #header>
             <h3 class="font-semibold text-highlighted">Valor del Descuento</h3>
           </template>
@@ -370,7 +390,9 @@ const overlappingTargets = computed(() =>
                   v-model="formState.discountValue"
                   :min="formState.discountType === DISCOUNT_TYPE.PERCENTAGE ? 1 : 1"
                   :max="formState.discountType === DISCOUNT_TYPE.PERCENTAGE ? 100 : undefined"
-                  :placeholder="formState.discountType === DISCOUNT_TYPE.PERCENTAGE ? '1-100' : 'Ej.: 150'"
+                  :placeholder="
+                    formState.discountType === DISCOUNT_TYPE.PERCENTAGE ? '1-100' : 'Ej.: 150'
+                  "
                   size="lg"
                 />
               </UFormField>

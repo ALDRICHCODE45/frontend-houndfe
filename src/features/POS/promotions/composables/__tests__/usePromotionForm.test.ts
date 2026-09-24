@@ -47,6 +47,9 @@ function makeBaseResponse(overrides: Partial<PromotionResponse> = {}): Promotion
     customers: [],
     priceLists: [],
     daysOfWeek: [],
+    maxProductUnits: null,
+    consumedProductUnits: 0,
+    remainingProductUnits: null,
     createdAt: '2026-01-01T00:00:00Z',
     updatedAt: '2026-01-01T00:00:00Z',
     ...overrides,
@@ -147,11 +150,7 @@ describe('BUY_X_GET_Y_PRESETS', () => {
 
   it('has exactly the three locked presets (no stale extras)', () => {
     expect(BUY_X_GET_Y_PRESETS).toHaveLength(3)
-    expect(BUY_X_GET_Y_PRESETS.map((p) => p.label)).toEqual([
-      '2x1',
-      '3x2',
-      'Segundo al 50%',
-    ])
+    expect(BUY_X_GET_Y_PRESETS.map((p) => p.label)).toEqual(['2x1', '3x2', 'Segundo al 50%'])
   })
 })
 
@@ -531,9 +530,7 @@ describe('promotionToFormState', () => {
     // into the payload).
     const response = makeBaseResponse({
       appliesTo: 'VARIANTS',
-      targetItems: [
-        { id: 'ti-1', side: 'DEFAULT', targetType: 'VARIANTS', targetId: 'v-deleted' },
-      ],
+      targetItems: [{ id: 'ti-1', side: 'DEFAULT', targetType: 'VARIANTS', targetId: 'v-deleted' }],
     })
     const state = promotionToFormState(response)
     expect(state.targetItems).toHaveLength(1)
@@ -559,9 +556,7 @@ describe('promotionToFormState', () => {
       getDiscountPercent: 50,
       buyTargetType: 'VARIANTS',
       getTargetType: 'VARIANTS',
-      targetItems: [
-        { id: 'ti-1', side: 'BUY', targetType: 'VARIANTS', targetId: 'v-buy-deleted' },
-      ],
+      targetItems: [{ id: 'ti-1', side: 'BUY', targetType: 'VARIANTS', targetId: 'v-buy-deleted' }],
     })
     const state = promotionToFormState(response)
     expect(state.buyTargetItems).toEqual([{ targetId: 'v-buy-deleted', name: '' }])
@@ -578,9 +573,7 @@ describe('promotionToFormState', () => {
       getDiscountPercent: 50,
       buyTargetType: 'VARIANTS',
       getTargetType: 'VARIANTS',
-      targetItems: [
-        { id: 'ti-1', side: 'GET', targetType: 'VARIANTS', targetId: 'v-get-deleted' },
-      ],
+      targetItems: [{ id: 'ti-1', side: 'GET', targetType: 'VARIANTS', targetId: 'v-get-deleted' }],
     })
     const state = promotionToFormState(response)
     expect(state.getTargetItems).toEqual([{ targetId: 'v-get-deleted', name: '' }])
@@ -1067,9 +1060,7 @@ describe('toCreatePayload', () => {
     // to the backend). They MUST be UNDEFINED so the spread strips them.
     const response = makeBaseResponse({
       appliesTo: 'VARIANTS',
-      targetItems: [
-        { id: 'ti-1', side: 'DEFAULT', targetType: 'VARIANTS', targetId: 'v-deleted' },
-      ],
+      targetItems: [{ id: 'ti-1', side: 'DEFAULT', targetType: 'VARIANTS', targetId: 'v-deleted' }],
     })
     const state = promotionToFormState(response)
     const entry = state.targetItems[0]!
@@ -1081,11 +1072,13 @@ describe('toCreatePayload', () => {
     state.discountValue = 10
     const payload = toCreatePayload(state) as CreateProductDiscountPayload
     expect(payload.targetItems).toEqual([{ targetType: 'VARIANTS', targetId: 'v-deleted' }])
-    // Verify the serialized form has no `null` keys either.
-    const serialized = JSON.stringify(payload)
-    expect(serialized).not.toContain('null')
-    expect(serialized).not.toContain('productId')
-    expect(serialized).not.toContain('productName')
+    // Verify the serialized TARGET ENTRIES carry no `null` enrichment keys.
+    // (The top-level payload legitimately carries `maxProductUnits: null` now —
+    // explicit unlimited is part of the PCA-1 create contract.)
+    const serializedItems = JSON.stringify(payload.targetItems)
+    expect(serializedItems).not.toContain('null')
+    expect(serializedItems).not.toContain('productId')
+    expect(serializedItems).not.toContain('productName')
   })
 })
 
@@ -1205,9 +1198,7 @@ describe('mapApiErrorToFields', () => {
   it('REQ-12: maps INVALID_FIELD_CHANGE to a user-visible Spanish toast, no field errors', () => {
     const result = mapApiErrorToFields({ error: 'INVALID_FIELD_CHANGE', message: 'cannot change' })
     expect(result.fieldErrors).toEqual([])
-    expect(result.toastMessage).toBe(
-      'No se puede cambiar el tipo de una promoción existente.',
-    )
+    expect(result.toastMessage).toBe('No se puede cambiar el tipo de una promoción existente.')
   })
 
   it('maps INVALID_TARGET to field-level error on targetItems with Spanish message (REQ-6)', () => {
@@ -1291,9 +1282,7 @@ describe('mapApiErrorToFields', () => {
       message: 'either BUY or GET has no targets',
     })
     expect(result.fieldErrors).toEqual([])
-    expect(result.toastMessage).toBe(
-      'Debe seleccionar objetivos de compra y de obtención.',
-    )
+    expect(result.toastMessage).toBe('Debe seleccionar objetivos de compra y de obtención.')
   })
 
   it('ADVANCED-2: maps lowercase "advanced_missing_targets" identically (case-insensitive, REQ-12)', () => {
@@ -1302,9 +1291,7 @@ describe('mapApiErrorToFields', () => {
       message: 'missing',
     })
     expect(result.fieldErrors).toEqual([])
-    expect(result.toastMessage).toBe(
-      'Debe seleccionar objetivos de compra y de obtención.',
-    )
+    expect(result.toastMessage).toBe('Debe seleccionar objetivos de compra y de obtención.')
   })
 
   it('ADVANCED-3: ValidationPipe envelope `{ message[], error: "Bad Request" }` for ADVANCED_OVERLAPPING_TARGETS still routes', () => {
@@ -1352,9 +1339,7 @@ describe('mapApiErrorToFields', () => {
       'No se permite modificar ese campo para este tipo de promoción.',
     )
     const immutable = mapApiErrorToFields({ error: 'INVALID_FIELD_CHANGE', message: 'type' })
-    expect(immutable.toastMessage).toBe(
-      'No se puede cambiar el tipo de una promoción existente.',
-    )
+    expect(immutable.toastMessage).toBe('No se puede cambiar el tipo de una promoción existente.')
   })
 
   // ── A3.3 verify: ADVANCED VARIANTS payload with getDiscountPercent:100, type omitted on PATCH ──
@@ -1370,13 +1355,9 @@ describe('mapApiErrorToFields', () => {
       getQuantity: 1,
       getDiscountPercent: 100, // free reward — bound 0..100 inclusive (REQ-9 MODIFIED)
       buyTargetType: 'VARIANTS',
-      buyTargetItems: [
-        { targetId: 'v1', name: 'Rojo', productId: 'p1', productName: 'Remera' },
-      ],
+      buyTargetItems: [{ targetId: 'v1', name: 'Rojo', productId: 'p1', productName: 'Remera' }],
       getTargetType: 'VARIANTS',
-      getTargetItems: [
-        { targetId: 'v2', name: 'XL', productId: 'p2', productName: 'Buzo' },
-      ],
+      getTargetItems: [{ targetId: 'v2', name: 'XL', productId: 'p2', productName: 'Buzo' }],
     })
     const payload = toCreatePayload(state) as unknown as Record<string, unknown>
     expect(payload['type']).toBe('ADVANCED')
