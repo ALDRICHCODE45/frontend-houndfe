@@ -75,6 +75,7 @@ function mountDetail(
     loading?: boolean
     error?: boolean
     canUpdate?: boolean
+    resolutionErrorMessage?: string
     onOpen?: (value: boolean) => void
     onResolve?: (input: HumanDecisionResolutionInput) => void
   } = {},
@@ -87,6 +88,7 @@ function mountDetail(
       error: options.error,
       errorMessage: 'No se pudo cargar el detalle.',
       canUpdate: options.canUpdate,
+      resolutionErrorMessage: options.resolutionErrorMessage,
       'onUpdate:open': options.onOpen,
       onResolve: options.onResolve,
     },
@@ -137,6 +139,16 @@ describe('HumanDecisionDetailSlideover', () => {
     expect(failed.emitted('retry')).toHaveLength(1)
 
     expect(mountDetail(null).get('[role="status"]').text()).toContain('Selecciona una decisión')
+  })
+
+  it('shows a resolve error while keeping the pending controls available to retry', () => {
+    const wrapper = mountDetail(pending(), {
+      canUpdate: true,
+      resolutionErrorMessage: 'No se pudo registrar la respuesta. Intenta de nuevo.',
+    })
+
+    expect(wrapper.get('[role="alert"]').text()).toContain('No se pudo registrar la respuesta')
+    expect(wrapper.get('[data-testid="stub-resolution"]').text()).toBe('Resolver')
   })
 
   it('renders the pending sanitized snapshot with honest fallbacks and literal text', () => {

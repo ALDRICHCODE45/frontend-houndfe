@@ -1,11 +1,33 @@
 <script setup lang="ts">
-/**
- * HumanDecisionsView — routed shell at /pos/decisiones-pendientes (HD3A).
- *
- * Deliberately inert: this slice ships no list, detail or resolve UI and
- * issues no backend read. HD3B layers the pending list on the same route, so
- * the copy states the boundary instead of rendering a false empty result.
- */
+import HumanDecisionDetailSlideover from '../components/HumanDecisionDetailSlideover.vue'
+import HumanDecisionsListPanel from '../components/HumanDecisionsListPanel.vue'
+import { useHumanDecisionsInbox } from '../composables/useHumanDecisionsInbox'
+
+const {
+  list: {
+    data,
+    pagination,
+    globalFilter,
+    totalCount,
+    pageCount,
+    isLoading: listLoading,
+    isFetching,
+    isError: listError,
+    pageSizeOptions,
+    showingFrom,
+    showingTo,
+    refresh,
+  },
+  detail: { data: decision, isLoading: detailLoading, isError: detailError },
+  detailOpen,
+  canUpdate,
+  resolving,
+  resolutionErrorMessage,
+  resolutionConflict,
+  openDetail,
+  resolveDecision,
+  retryDetail,
+} = useHumanDecisionsInbox()
 </script>
 
 <template>
@@ -13,15 +35,37 @@
     <header class="space-y-1">
       <h1 class="text-2xl font-semibold text-highlighted">Decisiones pendientes</h1>
       <p class="text-sm text-muted">
-        Bandeja de decisiones de reposición que requieren una intervención antes de continuar.
+        Responde solicitudes de reposición con la información operativa disponible.
       </p>
     </header>
 
-    <div
-      role="status"
-      class="rounded-lg border border-default bg-elevated/50 p-6 text-sm text-muted"
-    >
-      Aquí aparecerán las solicitudes de reposición que necesitan una respuesta.
-    </div>
+    <HumanDecisionsListPanel
+      v-model:pagination="pagination"
+      v-model:global-filter="globalFilter"
+      :data="data"
+      :loading="listLoading"
+      :fetching="isFetching"
+      :error="listError"
+      :page-count="pageCount"
+      :total-count="totalCount"
+      :page-size-options="pageSizeOptions"
+      :showing-from="showingFrom"
+      :showing-to="showingTo"
+      @refresh="refresh"
+      @open-detail="openDetail"
+    />
+
+    <HumanDecisionDetailSlideover
+      v-model:open="detailOpen"
+      :decision="decision ?? null"
+      :loading="detailLoading"
+      :error="detailError"
+      :can-update="canUpdate"
+      :resolving="resolving"
+      :conflict="resolutionConflict"
+      :resolution-error-message="resolutionErrorMessage"
+      @retry="retryDetail"
+      @resolve="resolveDecision"
+    />
   </section>
 </template>

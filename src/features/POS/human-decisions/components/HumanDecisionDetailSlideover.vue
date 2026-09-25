@@ -21,6 +21,7 @@ const props = withDefaults(
     canUpdate?: boolean
     resolving?: boolean
     conflict?: boolean
+    resolutionErrorMessage?: string | null
   }>(),
   {
     loading: false,
@@ -29,6 +30,7 @@ const props = withDefaults(
     canUpdate: false,
     resolving: false,
     conflict: false,
+    resolutionErrorMessage: null,
   },
 )
 const emit = defineEmits<{
@@ -171,14 +173,24 @@ function resolutionCopy(decision: ResolvedHumanDecision): string {
           </p>
         </section>
 
-        <HumanDecisionResolutionControls
-          v-else-if="canUpdate || conflict"
-          :decision="decision"
-          :can-update="canUpdate"
-          :resolving="resolving"
-          :conflict="conflict"
-          @resolve="emit('resolve', $event)"
-        />
+        <template v-else>
+          <p
+            v-if="resolutionErrorMessage"
+            role="alert"
+            class="rounded-lg border border-error/30 bg-error/5 p-3 text-sm text-error"
+          >
+            {{ resolutionErrorMessage }}
+          </p>
+
+          <HumanDecisionResolutionControls
+            v-if="canUpdate || conflict"
+            :decision="decision"
+            :can-update="canUpdate"
+            :resolving="resolving"
+            :conflict="conflict"
+            @resolve="emit('resolve', $event)"
+          />
+        </template>
       </article>
     </template>
   </AppResponsiveDrawer>
