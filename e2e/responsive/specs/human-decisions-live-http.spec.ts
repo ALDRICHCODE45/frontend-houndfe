@@ -1,7 +1,7 @@
 import type { Page } from '@playwright/test'
 import { seedAuthSession } from '../fixtures/auth'
 import { expect, RESPONSIVE_ORIGIN, test } from '../fixtures/test'
-import type { DeclaredRoute } from '../fixtures/network'
+import type { DeclaredRoute, StrictNetworkController } from '../fixtures/network'
 
 const decisionId = 'decision-restock-0001'
 const resolutionRequestId = '00000000-0000-4000-8000-000000000001'
@@ -53,6 +53,11 @@ const emptyPage = {
   data: [],
   pagination: { pageIndex: 0, pageSize: 20, totalCount: 0, pageCount: 0 },
 }
+const resolutionPayload = {
+  action: 'REPORT_RESTOCK_ESTIMATE_UNAVAILABLE',
+  expectedVersion: 1,
+  resolutionRequestId,
+} as const
 
 function readRoutes(): readonly DeclaredRoute[] {
   return [
@@ -61,7 +66,9 @@ function readRoutes(): readonly DeclaredRoute[] {
   ]
 }
 
-function resolveRoutes(): readonly DeclaredRoute[] {
+function resolveRoutes(
+  responses: NonNullable<DeclaredRoute['responses']> = [{ json: resolvedDecision }],
+): readonly DeclaredRoute[] {
   return [
     {
       method: 'GET',
@@ -77,13 +84,8 @@ function resolveRoutes(): readonly DeclaredRoute[] {
     {
       method: 'POST',
       path: `/human-decisions/${decisionId}/resolve`,
-      body: {
-        action: 'REPORT_RESTOCK_ESTIMATE_UNAVAILABLE',
-        expectedVersion: 1,
-        resolutionRequestId,
-      },
-      json: resolvedDecision,
-      count: 1,
+      body: resolutionPayload,
+      responses,
     },
   ]
 }
@@ -94,6 +96,27 @@ async function openDecision(page: Page): Promise<void> {
   await expect(page.getByText('Alimento seco 15 kg')).toBeVisible()
   await page.getByTestId('human-decision-table-open').click()
   await expect(page.getByTestId('human-decision-detail')).toBeVisible()
+}
+
+async function submitUnavailable(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Sin fecha estimada por ahora' }).click()
+  await page
+    .getByRole('dialog', { name: 'Confirmar respuesta' })
+    .getByRole('button', { name: 'Registrar respuesta' })
+    .click()
+}
+
+function expectRequestCounts(network: StrictNetworkController, postCount: number): void {
+  const requests = network.requests()
+  expect(
+    requests.filter(({ method, path }) => method === 'GET' && path === '/human-decisions'),
+  ).toHaveLength(2)
+  expect(
+    requests.filter(
+      ({ method, path }) => method === 'GET' && path === `/human-decisions/${decisionId}`,
+    ),
+  ).toHaveLength(2)
+  expect(requests.filter(({ method }) => method === 'POST')).toHaveLength(postCount)
 }
 
 test.describe('RESTOCK live HTTP mount — read only', () => {
@@ -131,9 +154,7 @@ test.describe('RESTOCK live HTTP mount — resolve', () => {
     }, resolutionRequestId)
     await test.step('open production HTTP-backed detail', async () => openDecision(page))
 
-    await page.getByRole('button', { name: 'Sin fecha estimada por ahora' }).click()
-    const confirmation = page.getByRole('dialog', { name: 'Confirmar respuesta' })
-    await confirmation.getByRole('button', { name: 'Registrar respuesta' }).click()
+    await submitUnavailable(page)
 
     await expect(page.getByText('Respondida')).toBeVisible()
     await expect(
@@ -142,16 +163,81 @@ test.describe('RESTOCK live HTTP mount — resolve', () => {
     await expect(page.getByText('No hay decisiones pendientes.')).toBeVisible()
     await expect(page.getByText('cliente notificado')).toHaveCount(0)
     expect(strictNetwork.violations()).toEqual([])
-    expect(strictNetwork.requests()).toHaveLength(5)
+    expectRequestCounts(strictNetwork, 1)
     expect(strictNetwork.requests().filter(({ method }) => method === 'POST')).toEqual([
       expect.objectContaining({
         path: `/human-decisions/${decisionId}/resolve`,
-        body: {
-          action: 'REPORT_RESTOCK_ESTIMATE_UNAVAILABLE',
-          expectedVersion: 1,
-          resolutionRequestId,
-        },
+        body: resolutionPayload,
       }),
     ])
+  })
+})
+
+test.describe('RESTOCK live HTTP mount — retry', () => {
+  test.use({
+    declaredRoutes: {
+      routes: resolveRoutes([
+        { status: 503, json: { code: 'SERVICE_UNAVAILABLE', message: 'Reintenta.' } },
+        { json: resolvedDecision },
+      ]),
+    },
+  })
+
+  test('ambiguous retry reuses the same resolution request id', async ({ page, strictNetwork }) => {
+    await seedAuthSession(page, {
+      permissions: ['read:HumanDecision', 'update:HumanDecision'],
+    })
+    await page.addInitScript((id) => {
+      Object.defineProperty(window.crypto, 'randomUUID', { configurable: true, value: () => id })
+    }, resolutionRequestId)
+    await openDecision(page)
+
+    await submitUnavailable(page)
+    await expect(page.getByRole('alert')).toContainText('No se pudo registrar la respuesta')
+    await submitUnavailable(page)
+
+    await expect(page.getByText('Respondida')).toBeVisible()
+    await expect(page.getByText('No hay decisiones pendientes.')).toBeVisible()
+    expect(strictNetwork.violations()).toEqual([])
+    expectRequestCounts(strictNetwork, 2)
+    expect(
+      strictNetwork
+        .requests()
+        .filter(({ method }) => method === 'POST')
+        .map(({ body }) => body),
+    ).toEqual([resolutionPayload, resolutionPayload])
+  })
+})
+
+test.describe('RESTOCK live HTTP mount — version conflict', () => {
+  test.use({
+    declaredRoutes: {
+      routes: resolveRoutes([
+        {
+          status: 409,
+          json: { code: 'VERSION_CONFLICT', message: 'La decisión cambió.' },
+        },
+      ]),
+    },
+  })
+
+  test('refetches canonical resolved state and removes stale actions', async ({
+    page,
+    strictNetwork,
+  }) => {
+    await seedAuthSession(page, {
+      permissions: ['read:HumanDecision', 'update:HumanDecision'],
+    })
+    await page.addInitScript((id) => {
+      Object.defineProperty(window.crypto, 'randomUUID', { configurable: true, value: () => id })
+    }, resolutionRequestId)
+    await openDecision(page)
+    await submitUnavailable(page)
+
+    await expect(page.getByText('Respondida')).toBeVisible()
+    await expect(page.getByText('No hay decisiones pendientes.')).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Sin fecha estimada por ahora' })).toHaveCount(0)
+    expect(strictNetwork.violations()).toEqual([])
+    expectRequestCounts(strictNetwork, 1)
   })
 })
