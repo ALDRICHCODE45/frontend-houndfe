@@ -2,6 +2,8 @@
 import { computed } from 'vue'
 import AppResponsiveDrawer from '@/core/shared/components/AppResponsiveDrawer.vue'
 import type { HumanDecision, ResolvedHumanDecision } from '../interfaces/human-decision.types'
+import type { HumanDecisionResolutionInput } from '../utils/humanDecisionResolutionAttempt'
+import HumanDecisionResolutionControls from './HumanDecisionResolutionControls.vue'
 import {
   branchPresentationLabel,
   createdAtPresentationLabel,
@@ -16,14 +18,23 @@ const props = withDefaults(
     loading?: boolean
     error?: boolean
     errorMessage?: string
+    canUpdate?: boolean
+    resolving?: boolean
+    conflict?: boolean
   }>(),
   {
     loading: false,
     error: false,
     errorMessage: 'No se pudo cargar el detalle. Reintenta.',
+    canUpdate: false,
+    resolving: false,
+    conflict: false,
   },
 )
-const emit = defineEmits<{ retry: [] }>()
+const emit = defineEmits<{
+  retry: []
+  resolve: [input: HumanDecisionResolutionInput]
+}>()
 const open = defineModel<boolean>('open', { default: false })
 const drawerTitle = computed(() => props.decision?.title ?? 'Detalle de decisión')
 
@@ -159,6 +170,15 @@ function resolutionCopy(decision: ResolvedHumanDecision): string {
             {{ createdAtPresentationLabel(decision.resolution.resolvedAt) }}
           </p>
         </section>
+
+        <HumanDecisionResolutionControls
+          v-else-if="canUpdate || conflict"
+          :decision="decision"
+          :can-update="canUpdate"
+          :resolving="resolving"
+          :conflict="conflict"
+          @resolve="emit('resolve', $event)"
+        />
       </article>
     </template>
   </AppResponsiveDrawer>

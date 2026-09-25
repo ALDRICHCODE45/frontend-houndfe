@@ -6,6 +6,7 @@ import type {
   PendingHumanDecision,
   ResolvedHumanDecision,
 } from '../../interfaces/human-decision.types'
+import type { HumanDecisionResolutionInput } from '../../utils/humanDecisionResolutionAttempt'
 
 const AppResponsiveDrawerStub = {
   name: 'AppResponsiveDrawer',
@@ -20,6 +21,16 @@ const AppResponsiveDrawerStub = {
   `,
 }
 const UButtonStub = { template: '<button type="button"><slot /></button>' }
+const ResolutionControlsStub = {
+  name: 'HumanDecisionResolutionControls',
+  emits: ['resolve'],
+  template: `
+    <button
+      data-testid="stub-resolution"
+      @click="$emit('resolve', { action: 'REPORT_RESTOCK_ESTIMATE_UNAVAILABLE', expectedVersion: 1 })"
+    >Resolver</button>
+  `,
+}
 
 function pending(overrides: Partial<PendingHumanDecision> = {}): PendingHumanDecision {
   return {
@@ -60,7 +71,13 @@ function resolved(resolution: ResolvedHumanDecision['resolution']): ResolvedHuma
 
 function mountDetail(
   decision: HumanDecision | null,
-  options: { loading?: boolean; error?: boolean; onOpen?: (value: boolean) => void } = {},
+  options: {
+    loading?: boolean
+    error?: boolean
+    canUpdate?: boolean
+    onOpen?: (value: boolean) => void
+    onResolve?: (input: HumanDecisionResolutionInput) => void
+  } = {},
 ) {
   return mount(HumanDecisionDetailSlideover, {
     props: {
@@ -69,10 +86,16 @@ function mountDetail(
       loading: options.loading,
       error: options.error,
       errorMessage: 'No se pudo cargar el detalle.',
+      canUpdate: options.canUpdate,
       'onUpdate:open': options.onOpen,
+      onResolve: options.onResolve,
     },
     global: {
-      stubs: { AppResponsiveDrawer: AppResponsiveDrawerStub, UButton: UButtonStub },
+      stubs: {
+        AppResponsiveDrawer: AppResponsiveDrawerStub,
+        UButton: UButtonStub,
+        HumanDecisionResolutionControls: ResolutionControlsStub,
+      },
     },
   })
 }
@@ -90,6 +113,17 @@ describe('HumanDecisionDetailSlideover', () => {
     })
     await wrapper.get('[data-testid="drawer-close"]').trigger('click')
     expect(onOpen).toHaveBeenCalledWith(false)
+  })
+
+  it('forwards an offline resolution input only when update is allowed', async () => {
+    const onResolve = vi.fn<(input: HumanDecisionResolutionInput) => void>()
+    const wrapper = mountDetail(pending(), { canUpdate: true, onResolve })
+    await wrapper.get('[data-testid="stub-resolution"]').trigger('click')
+    expect(onResolve).toHaveBeenCalledWith({
+      action: 'REPORT_RESTOCK_ESTIMATE_UNAVAILABLE',
+      expectedVersion: 1,
+    })
+    expect(mountDetail(pending()).find('[data-testid="stub-resolution"]').exists()).toBe(false)
   })
 
   it('renders distinct loading, error/retry, and no-selection states', async () => {
