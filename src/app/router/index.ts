@@ -16,9 +16,11 @@ const CustomersView = () => import('@/features/POS/customers/views/CustomersView
 const SalesView = () => import('@/features/POS/sales/views/SalesView.vue')
 const SalesListView = () => import('@/features/POS/sales/views/SalesListView.vue')
 const SaleDetailView = () => import('@/features/POS/sales/views/SaleDetailView.vue')
-// ODD human-decisions-restock-inbox HD3A: permission-gated POS inbox shell.
+// ODD human-decisions-restock-inbox: production shell plus explicitly gated offline demo.
 const HumanDecisionsView = () =>
-  import('@/features/POS/human-decisions/views/HumanDecisionsView.vue')
+  import.meta.env.DEV && import.meta.env.VITE_HUMAN_DECISIONS_OFFLINE_DEMO === 'true'
+    ? import('@/features/POS/human-decisions/views/HumanDecisionsOfflineDemoRouteView.vue')
+    : import('@/features/POS/human-decisions/views/HumanDecisionsView.vue')
 const PromotionsView = () => import('@/features/POS/promotions/views/PromotionsView.vue')
 const PromotionDetailView = () => import('@/features/POS/promotions/views/PromotionDetailView.vue')
 // ─── Quotations module (sdd-quotations-crud S1, REQ-QTN-001) ──────────────────

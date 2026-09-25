@@ -45,6 +45,8 @@ const readHumanDecision = (action: string, subject: string) =>
 describe('router — /pos/decisiones-pendientes (HD3A)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.unstubAllEnvs()
+    vi.resetModules()
     mockAuthStore.accessToken = null
     mockAuthStore.user = null
     mockAuthStore.isAuthenticated = false
@@ -84,6 +86,23 @@ describe('router — /pos/decisiones-pendientes (HD3A)', () => {
     const component = (resolved as { default?: unknown }).default ?? resolved
     const expected = (await import('@/features/POS/human-decisions/views/HumanDecisionsView.vue'))
       .default
+    expect(component).toBe(expected)
+  })
+
+  it('lazy-resolves the offline demo only with the exact DEV flag', async () => {
+    vi.stubEnv('VITE_HUMAN_DECISIONS_OFFLINE_DEMO', 'true')
+    authenticate(readHumanDecision)
+    const { default: router } = await import('../index')
+
+    await router.push('/pos/decisiones-pendientes')
+    await router.isReady()
+
+    const raw = router.currentRoute.value.matched[0]!.components!.default as unknown
+    const resolved = typeof raw === 'function' ? await (raw as () => Promise<unknown>)() : raw
+    const component = (resolved as { default?: unknown }).default ?? resolved
+    const expected = (
+      await import('@/features/POS/human-decisions/views/HumanDecisionsOfflineDemoRouteView.vue')
+    ).default
     expect(component).toBe(expected)
   })
 
