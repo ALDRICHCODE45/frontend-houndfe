@@ -16,6 +16,9 @@ const CustomersView = () => import('@/features/POS/customers/views/CustomersView
 const SalesView = () => import('@/features/POS/sales/views/SalesView.vue')
 const SalesListView = () => import('@/features/POS/sales/views/SalesListView.vue')
 const SaleDetailView = () => import('@/features/POS/sales/views/SaleDetailView.vue')
+// ODD human-decisions-restock-inbox HD3A: permission-gated POS inbox shell.
+const HumanDecisionsView = () =>
+  import('@/features/POS/human-decisions/views/HumanDecisionsView.vue')
 const PromotionsView = () => import('@/features/POS/promotions/views/PromotionsView.vue')
 const PromotionDetailView = () => import('@/features/POS/promotions/views/PromotionDetailView.vue')
 // ─── Quotations module (sdd-quotations-crud S1, REQ-QTN-001) ──────────────────
@@ -165,6 +168,16 @@ const router = createRouter({
       meta: {
         layout: 'dashboard',
         permission: ['read', 'Sale'] as RoutePermission,
+      },
+    },
+    // ─── Pending human decisions (ODD human-decisions-restock-inbox HD3A) ────
+    {
+      path: '/pos/decisiones-pendientes',
+      name: 'pos-human-decisions',
+      component: HumanDecisionsView,
+      meta: {
+        layout: 'dashboard',
+        permission: ['read', 'HumanDecision'] as RoutePermission,
       },
     },
     {

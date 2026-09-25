@@ -22,6 +22,16 @@ export const navigationGroups: NavGroup[] = [
         to: '/pos/ventas',
         permission: ['read', 'Sale'],
       },
+      // ODD human-decisions-restock-inbox HD3A: POS inbox entry gated by
+      // read:HumanDecision; the route guard repeats the same check at
+      // /pos/decisiones-pendientes.
+      {
+        id: 'pos-human-decisions',
+        label: 'Decisiones pendientes',
+        icon: 'i-lucide-inbox',
+        to: '/pos/decisiones-pendientes',
+        permission: ['read', 'HumanDecision'],
+      },
       {
         id: 'pos-products',
         label: 'Productos',
