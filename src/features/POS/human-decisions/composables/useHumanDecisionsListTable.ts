@@ -21,6 +21,7 @@ import type { ServerTableParams } from '@/core/shared/types/table.types'
 
 const DEFAULT_PAGE_SIZE = 20
 const PAGE_SIZE_OPTIONS = [20, 50]
+const WHITESPACE_RUN = /\s+/gu
 
 /** Pure: ServerTableParams (0-indexed) → HumanDecisionListParams (1-indexed). */
 export function mapServerTableParamsToHumanDecisionListParams(
@@ -35,7 +36,8 @@ export function mapServerTableParamsToHumanDecisionListParams(
     sortOrder: 'asc',
   }
 
-  if (params.globalFilter) mapped.search = params.globalFilter
+  const search = (params.globalFilter ?? '').normalize('NFC').replace(WHITESPACE_RUN, ' ').trim()
+  if (search) mapped.search = search
 
   return mapped
 }

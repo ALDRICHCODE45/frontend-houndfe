@@ -16,11 +16,16 @@ export type HumanDecisionActionCode =
 
 export type HumanDecisionErrorCode =
   | 'VALIDATION_ERROR'
+  | 'UNAUTHORIZED'
   | 'FORBIDDEN'
   | 'NOT_FOUND'
+  | 'IDEMPOTENCY_CONFLICT'
   | 'VERSION_CONFLICT'
   | 'ALREADY_RESOLVED'
-  | 'IDEMPOTENCY_CONFLICT'
+  | 'CONFLICT'
+  | 'RATE_LIMITED'
+  | 'REQUEST_ERROR'
+  | 'INTERNAL_ERROR'
 
 export interface HumanDecisionErrorResponse {
   statusCode: number

@@ -145,6 +145,19 @@ describe('HD2B · mapServerTableParamsToHumanDecisionListParams', () => {
     expect('search' in mapped).toBe(false)
     expect(JSON.stringify(mapped)).not.toContain('RESOLVED')
   })
+
+  it('normalizes search whitespace and omits an explicit blank', () => {
+    const base = { pageIndex: 0, pageSize: 20, sorting: [] }
+    expect(
+      mapServerTableParamsToHumanDecisionListParams({
+        ...base,
+        globalFilter: '  alimento   premium  ',
+      }).search,
+    ).toBe('alimento premium')
+    expect(
+      mapServerTableParamsToHumanDecisionListParams({ ...base, globalFilter: '   ' }),
+    ).not.toHaveProperty('search')
+  })
 })
 
 describe('HD2B · useHumanDecisionsListTable', () => {
