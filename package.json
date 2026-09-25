@@ -10,6 +10,8 @@
     "test:unit": "vitest",
     "test:responsive:harness": "playwright test --config=playwright.responsive.config.ts --grep @responsive-harness",
     "test:responsive:promotion-capacity": "playwright test --config=playwright.responsive.config.ts e2e/responsive/specs/promotion-capacity.spec.ts e2e/responsive/specs/promotion-capacity-requote.spec.ts e2e/responsive/specs/sale-cancellation.spec.ts e2e/responsive/specs/promotion-alerts.spec.ts",
+    "test:responsive:human-decisions-demo": "playwright test --config=playwright.responsive.config.ts e2e/responsive/specs/human-decisions-offline-demo.spec.ts",
+    "demo:human-decisions:offline": "HUMAN_DECISIONS_DEMO_PAUSE=true playwright test --headed --config=playwright.responsive.config.ts e2e/responsive/specs/human-decisions-offline-demo.spec.ts --grep desktop-1024",
     "test:responsive:conformance": "playwright test --config=playwright.responsive.config.ts e2e/responsive/specs/dt01-products.spec.ts e2e/responsive/specs/hy04-notifications.spec.ts",
     "test:responsive:headed": "playwright test --headed --config=playwright.responsive.config.ts e2e/responsive/specs/dt01-products.spec.ts e2e/responsive/specs/hy04-notifications.spec.ts",
     "type-check:responsive": "tsc --noEmit -p tsconfig.responsive.json",

@@ -22,7 +22,10 @@ export default defineConfig({
   reporter: [
     ['line'],
     ['html', { outputFolder: `${runArtifactRoot}/html`, open: 'never' }],
-    ['./e2e/responsive/evidence/reporter.ts', { runId: resolveRunId(process.env), outputRoot: `${runArtifactRoot}/evidence` }],
+    [
+      './e2e/responsive/evidence/reporter.ts',
+      { runId: resolveRunId(process.env), outputRoot: `${runArtifactRoot}/evidence` },
+    ],
   ],
   use: {
     locale: 'es-MX',
@@ -39,6 +42,9 @@ export default defineConfig({
     url: RESPONSIVE_WEB_SERVER_URL,
     reuseExistingServer: false,
     timeout: 120_000,
-    env: { VITE_API_BASE_URL: '/__e2e-api' },
+    env: {
+      VITE_API_BASE_URL: '/__e2e-api',
+      VITE_HUMAN_DECISIONS_OFFLINE_DEMO: 'true',
+    },
   },
 })
