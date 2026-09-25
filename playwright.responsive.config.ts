@@ -11,6 +11,7 @@ export function resolveRunId(env: Record<string, string | undefined>): string {
 }
 
 const runArtifactRoot = `artifacts/responsive/${resolveRunId(process.env)}`
+const humanDecisionsLiveMode = process.env.RESPONSIVE_HUMAN_DECISIONS_MODE === 'live'
 
 export default defineConfig({
   testDir: 'e2e/responsive/specs',
@@ -44,7 +45,8 @@ export default defineConfig({
     timeout: 120_000,
     env: {
       VITE_API_BASE_URL: '/__e2e-api',
-      VITE_HUMAN_DECISIONS_OFFLINE_DEMO: 'true',
+      VITE_HUMAN_DECISIONS_OFFLINE_DEMO: humanDecisionsLiveMode ? 'false' : 'true',
+      RESPONSIVE_DISABLE_HMR: humanDecisionsLiveMode ? 'true' : 'false',
     },
   },
 })

@@ -8,6 +8,9 @@ import ui from '@nuxt/ui/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
+  server: {
+    hmr: process.env.RESPONSIVE_DISABLE_HMR === 'true' ? false : undefined,
+  },
   plugins: [
     vue(),
     tailwindcss(),

@@ -1,4 +1,4 @@
-/** Strict same-origin `/__e2e-api/**` interception: exact method/path/query/body/count matching; undeclared and external requests fail deterministically (never hang). */
+/** Strict same-origin `/__e2e-api/**` interception with exact request matching and bounded response sequences. */
 import type { Page, Route } from '@playwright/test'
 
 export const API_PREFIX = '/__e2e-api'
@@ -16,15 +16,25 @@ export interface DeclaredRoute {
   readonly body?: unknown
   readonly status?: number
   readonly json?: unknown
+  /** Optional ordered responses; their length becomes the exact request count unless `count` is set. */
+  readonly responses?: readonly { readonly status?: number; readonly json?: unknown }[]
   /** Hold the response until the release gate fulfills it (loading/fetching states). */
   readonly deferred?: boolean
   /** Exact expected number of matching requests; further matches fail deterministically. */
   readonly count?: number
 }
 
-export interface RouteRequestLog { readonly method: string; readonly path: string; readonly query: Readonly<Record<string, string>>; readonly body: unknown }
+export interface RouteRequestLog {
+  readonly method: string
+  readonly path: string
+  readonly query: Readonly<Record<string, string>>
+  readonly body: unknown
+}
 /** An external startup request that remains blocked, but is expected and audited separately. */
-export interface ExpectedBlockedExternal { readonly origin: string; readonly pathPrefix: string }
+export interface ExpectedBlockedExternal {
+  readonly origin: string
+  readonly pathPrefix: string
+}
 export const EXPECTED_BLOCKED_STARTUP_EXTERNALS: readonly ExpectedBlockedExternal[] = [
   { origin: 'https://fonts.googleapis.com', pathPrefix: '/css2' },
   { origin: 'https://api.iconify.design', pathPrefix: '/lucide.json' },
@@ -40,24 +50,52 @@ export interface StrictNetworkController {
   releaseDeferred(): Promise<void>
 }
 
-const canonicalQuery = (query: Readonly<Record<string, string>>): string => Object.keys(query).sort().map((key) => `${key}=${query[key]}`).join('&')
-const jsonResponse = (route: DeclaredRoute): { status: number; contentType: string; body: string } => ({ status: route.status ?? 200, contentType: 'application/json', body: JSON.stringify(route.json ?? null) })
+const canonicalQuery = (query: Readonly<Record<string, string>>): string =>
+  Object.keys(query)
+    .sort()
+    .map((key) => `${key}=${query[key]}`)
+    .join('&')
+const jsonResponse = (
+  route: DeclaredRoute,
+  response?: { readonly status?: number; readonly json?: unknown },
+): { status: number; contentType: string; body: string } => ({
+  status: response?.status ?? route.status ?? 200,
+  contentType: 'application/json',
+  body: JSON.stringify((response === undefined ? route.json : response.json) ?? null),
+})
 
-export async function installStrictNetwork(page: Page, origin: string, declared: readonly DeclaredRoute[], expectedBlocked: readonly ExpectedBlockedExternal[] = []): Promise<StrictNetworkController> {
+export async function installStrictNetwork(
+  page: Page,
+  origin: string,
+  declared: readonly DeclaredRoute[],
+  expectedBlocked: readonly ExpectedBlockedExternal[] = [],
+): Promise<StrictNetworkController> {
   const requests: RouteRequestLog[] = []
   const violations: string[] = []
   const expectedBlockedExternals: string[] = []
-  const pending: Array<{ route: DeclaredRoute; route0: Route; resolve: () => void }> = []
+  const pending: Array<{
+    route: DeclaredRoute
+    response?: { readonly status?: number; readonly json?: unknown }
+    route0: Route
+    resolve: () => void
+  }> = []
   const counts = new Map<DeclaredRoute, number>()
 
   // Registered first so the later `/__e2e-api/**` handler wins for API paths; same-origin non-API traffic passes through.
   await page.route('**/*', (route0) => {
     const url = new URL(route0.request().url())
     if (url.origin !== origin) {
-      const request = route0.request(), external = expectedBlocked.find((rule) => rule.origin === url.origin && url.pathname.startsWith(rule.pathPrefix))
+      const request = route0.request(),
+        external = expectedBlocked.find(
+          (rule) => rule.origin === url.origin && url.pathname.startsWith(rule.pathPrefix),
+        )
       const entry = `${request.method()} ${url.origin}${url.pathname}${url.search}`
-      if (external) { expectedBlockedExternals.push(entry); return route0.abort() }
-      violations.push(`${EXTERNAL_REQUEST} ${entry}`); return route0.abort()
+      if (external) {
+        expectedBlockedExternals.push(entry)
+        return route0.abort()
+      }
+      violations.push(`${EXTERNAL_REQUEST} ${entry}`)
+      return route0.abort()
     }
     return route0.fallback()
   })
@@ -69,29 +107,55 @@ export async function installStrictNetwork(page: Page, origin: string, declared:
     const query = Object.fromEntries(url.searchParams)
     const raw = request.postData()
     let body: unknown
-    try { body = raw === null ? undefined : JSON.parse(raw) } catch { body = raw }
-    const match = declared.find((candidate) => candidate.method === request.method() && candidate.path === path
-      && (candidate.query === undefined || canonicalQuery(candidate.query) === canonicalQuery(query))
-      && (candidate.body === undefined || JSON.stringify(candidate.body) === JSON.stringify(body)))
-    if (!match || (match.count !== undefined && (counts.get(match) ?? 0) >= match.count)) {
-      violations.push(`${match ? EXCEEDED_REQUEST_COUNT : UNDECLARED_REQUEST} ${request.method()} ${path}${url.search}`)
+    try {
+      body = raw === null ? undefined : JSON.parse(raw)
+    } catch {
+      body = raw
+    }
+    const match = declared.find(
+      (candidate) =>
+        candidate.method === request.method() &&
+        candidate.path === path &&
+        (candidate.query === undefined ||
+          canonicalQuery(candidate.query) === canonicalQuery(query)) &&
+        (candidate.body === undefined || JSON.stringify(candidate.body) === JSON.stringify(body)),
+    )
+    const seen = match ? (counts.get(match) ?? 0) : 0
+    const maximum = match?.count ?? match?.responses?.length
+    if (!match || (maximum !== undefined && seen >= maximum)) {
+      violations.push(
+        `${match ? EXCEEDED_REQUEST_COUNT : UNDECLARED_REQUEST} ${request.method()} ${path}${url.search}`,
+      )
       return route0.abort()
     }
-    requests.push({ method: request.method(), path, query, body }); counts.set(match, (counts.get(match) ?? 0) + 1)
-    if (match.deferred) return new Promise<void>((resolve) => pending.push({ route: match, route0, resolve }))
-    return route0.fulfill(jsonResponse(match))
+    const response = match.responses?.[seen]
+    requests.push({ method: request.method(), path, query, body })
+    counts.set(match, seen + 1)
+    if (match.deferred)
+      return new Promise<void>((resolve) =>
+        pending.push({ route: match, response, route0, resolve }),
+      )
+    return route0.fulfill(jsonResponse(match, response))
   })
 
   return {
-    requests: () => [...requests], violations: () => [...violations], expectedBlockedExternals: () => [...expectedBlockedExternals],
-      releaseDeferred: async () => {
-        const batch = pending.splice(0)
-        // Resolve every held gate even when one fulfill rejects; retain the first error and rethrow after the loop.
-        let firstError: unknown
-        for (const entry of batch) {
-          try { await entry.route0.fulfill(jsonResponse(entry.route)) } catch (error) { firstError ??= error } finally { entry.resolve() }
+    requests: () => [...requests],
+    violations: () => [...violations],
+    expectedBlockedExternals: () => [...expectedBlockedExternals],
+    releaseDeferred: async () => {
+      const batch = pending.splice(0)
+      // Resolve every held gate even when one fulfill rejects; retain the first error and rethrow after the loop.
+      let firstError: unknown
+      for (const entry of batch) {
+        try {
+          await entry.route0.fulfill(jsonResponse(entry.route, entry.response))
+        } catch (error) {
+          firstError ??= error
+        } finally {
+          entry.resolve()
         }
-        if (firstError !== undefined) throw firstError
-      },
+      }
+      if (firstError !== undefined) throw firstError
+    },
   }
 }
