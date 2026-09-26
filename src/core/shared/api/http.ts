@@ -1,4 +1,8 @@
-import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
+import axios, {
+  type AxiosError,
+  type AxiosRequestConfig,
+  type InternalAxiosRequestConfig,
+} from 'axios'
 import { getActivePinia } from 'pinia'
 import { authStorage } from '@/features/auth/services/auth-storage'
 import { emitSessionExpired } from '@/features/auth/services/session-events'
@@ -7,6 +11,19 @@ import { csvParamsSerializer } from './paramsSerializer'
 
 const API_BASE_URL =
   (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:3000'
+
+export interface VerifiedLoginPermissionsConfig extends AxiosRequestConfig {
+  verifiedLoginPermissions: true
+}
+
+function isVerifiedPermissionsRequest(config?: AxiosRequestConfig) {
+  return (
+    (config as Partial<VerifiedLoginPermissionsConfig> | undefined)?.verifiedLoginPermissions ===
+      true &&
+    config?.url === '/auth/me/permissions' &&
+    (config.method ?? 'get').toLowerCase() === 'get'
+  )
+}
 
 interface RetryableRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean
@@ -23,9 +40,13 @@ export const http = axios.create({
 })
 
 http.interceptors.request.use((config) => {
-  const token = authStorage.getAccessToken()
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+  if (isVerifiedPermissionsRequest(config)) {
+    if (!/^Bearer \S+$/.test(String(config.headers.Authorization ?? ''))) {
+      throw new Error('Verified permissions token missing')
+    }
+  } else {
+    const token = authStorage.getAccessToken()
+    if (token) config.headers.Authorization = `Bearer ${token}`
   }
 
   // Disable HTTP cache on authenticated GETs.
@@ -47,9 +68,20 @@ http.interceptors.response.use(
     const requestUrl = originalRequest?.url ?? ''
     const message = (error.response?.data as { message?: string } | undefined)?.message
 
-    const isAuthFreePath = authFreePaths.some((path) => requestUrl.includes(path))
+    const isTenantSelection =
+      originalRequest?.method?.toLowerCase() === 'post' &&
+      /^\/auth\/select-tenant\/?(?:[?#].*)?$/.test(requestUrl)
+    const isAuthFreePath =
+      isTenantSelection || authFreePaths.some((path) => requestUrl.includes(path))
 
-    if (error.response?.status === 401 && message === 'Tenant context required') {
+    // This bootstrap belongs to an uncommitted login, never the persisted session.
+    if (isVerifiedPermissionsRequest(originalRequest)) return Promise.reject(error)
+
+    if (
+      !isAuthFreePath &&
+      error.response?.status === 401 &&
+      message === 'Tenant context required'
+    ) {
       emitSessionExpired('tenant-required')
       return Promise.reject(error)
     }
