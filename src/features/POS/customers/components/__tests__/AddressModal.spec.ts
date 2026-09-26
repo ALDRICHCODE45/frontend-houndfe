@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { computed, defineComponent, h, nextTick, ref } from 'vue'
@@ -22,7 +21,7 @@ import type { CustomerAddress } from '../../interfaces/customer.types'
 // the teleport boundary that the real UModal creates.
 const modalStub = {
   name: 'UModal',
-  props: ['open', 'title'],
+  props: ['open', 'title', 'dismissible', 'close'],
   emits: ['update:open'],
   template:
     '<div v-if="open" data-testid="u-modal"><h1>{{ title }}</h1><slot name="body" /><slot name="footer" /></div>',
@@ -90,24 +89,32 @@ vi.mock('@/core/shared/components/AddressMapPicker.vue', () => ({
       // Plain render fn avoids the SFC template-string compile path that's
       // unreliable in vitest when the SFC plugin isn't fully loaded.
       return h('div', { 'data-testid': 'address-map-picker' }, [
-        h('button', {
-          'data-testid': 'address-map-emit-coords',
-          type: 'button',
-          onClick: () => {
-            this.localModel = { lat: 19.4326, lng: -99.1332 }
+        h(
+          'button',
+          {
+            'data-testid': 'address-map-emit-coords',
+            type: 'button',
+            onClick: () => {
+              this.localModel = { lat: 19.4326, lng: -99.1332 }
+            },
           },
-        }, 'Emit coords'),
-        h('button', {
-          'data-testid': 'address-map-clear-pin',
-          type: 'button',
-          onClick: () => {
-            this.localModel = null
+          'Emit coords',
+        ),
+        h(
+          'button',
+          {
+            'data-testid': 'address-map-clear-pin',
+            type: 'button',
+            onClick: () => {
+              this.localModel = null
+            },
           },
-        }, 'Clear pin'),
+          'Clear pin',
+        ),
       ])
     },
   }),
-  pinToGeoPoint: (source: { latitude?: number | null, longitude?: number | null }) => {
+  pinToGeoPoint: (source: { latitude?: number | null; longitude?: number | null }) => {
     const lat = source.latitude
     const lng = source.longitude
     if (typeof lat !== 'number' || typeof lng !== 'number') return null
@@ -197,6 +204,35 @@ describe('AddressModal — AddressMapPicker integration', () => {
     setMapProvider(MOCK_PROVIDER)
   })
 
+  it('blocks busy cancellation by default through the footer and modal dismissal', async () => {
+    const { modal, wrapper } = mountAddressModal({ loading: true })
+    const cancel = modal.findAll('button').find((button) => button.text() === 'Cancelar')!
+    expect(cancel.attributes('disabled')).toBeDefined()
+    await cancel.trigger('click')
+    const shell = modal.findComponent({ name: 'UModal' })
+    expect(shell.props('dismissible')).toBe(false)
+    expect(shell.props('close')).toBe(false)
+    shell.vm.$emit('update:open', false)
+    await nextTick()
+    expect(modal.emitted('close')).toBeUndefined()
+    expect(modal.emitted('update:open')).toBeUndefined()
+    wrapper.unmount()
+  })
+
+  it('allows ordinary dismissal again after the write finishes', async () => {
+    const { modal, wrapper } = mountAddressModal({ loading: true })
+    await wrapper.setProps({ loading: false })
+    const shell = modal.findComponent({ name: 'UModal' })
+    expect(shell.props('dismissible')).toBe(true)
+    expect(shell.props('close')).toBe(true)
+    await modal
+      .findAll('button')
+      .find((button) => button.text() === 'Cancelar')!
+      .trigger('click')
+    expect(modal.emitted('update:open')).toEqual([[false]])
+    wrapper.unmount()
+  })
+
   it('mounts <AddressMapPicker mode="write" v-model="pin" /> when the modal opens', async () => {
     const { modal } = mountAddressModal()
     await nextTick()
@@ -233,7 +269,7 @@ describe('AddressModal — AddressMapPicker integration', () => {
     await nextTick()
 
     const vm = modal.vm as unknown as {
-      formState: { latitude: number | null, longitude: number | null }
+      formState: { latitude: number | null; longitude: number | null }
     }
     expect(vm.formState.latitude).toBe(19.5)
     expect(vm.formState.longitude).toBe(-99.2)
@@ -250,7 +286,7 @@ describe('AddressModal — AddressMapPicker integration', () => {
     await nextTick()
 
     const vm = modal.vm as unknown as {
-      formState: { latitude: number | null, longitude: number | null }
+      formState: { latitude: number | null; longitude: number | null }
     }
     expect(vm.formState.latitude).toBeNull()
     expect(vm.formState.longitude).toBeNull()
@@ -258,6 +294,7 @@ describe('AddressModal — AddressMapPicker integration', () => {
 
   it('emits latitude/longitude on save ONLY when both coordinates are present', async () => {
     const { wrapper } = mountAddressModal()
+    await wrapper.find('input').setValue('Test street')
     await nextTick()
 
     const form = wrapper.find('[data-testid="address-form"]')
@@ -268,7 +305,7 @@ describe('AddressModal — AddressMapPicker integration', () => {
     const onSave = wrapper.vm.onSave as unknown as ReturnType<typeof vi.fn>
     expect(onSave).toHaveBeenCalledTimes(1)
     expect(onSave.mock.calls[0]?.[0]).toEqual({
-      street: '',
+      street: 'Test street',
     })
     expect(onSave.mock.calls[0]?.[0]).not.toHaveProperty('latitude')
     expect(onSave.mock.calls[0]?.[0]).not.toHaveProperty('longitude')
@@ -320,13 +357,13 @@ describe('AddressModal — AddressMapPicker integration', () => {
     expect(onSave.mock.calls[0]?.[0]).not.toHaveProperty('longitude')
   })
 
-  it('omits latitude/longitude when only one coordinate is set (no half-pins)', async () => {
+  it('rejects submission when only one coordinate is set (no half-pins)', async () => {
     const { modal, wrapper } = mountAddressModal()
     await nextTick()
 
     // Simulate a half-pin by writing only latitude through the form path.
     const vm = modal.vm as unknown as {
-      formState: { street: string, latitude: number | null, longitude: number | null }
+      formState: { street: string; latitude: number | null; longitude: number | null }
     }
     vm.formState.street = 'Av. Reforma'
     vm.formState.latitude = 19.4326
@@ -339,12 +376,118 @@ describe('AddressModal — AddressMapPicker integration', () => {
     await flushPromises()
 
     const onSave = wrapper.vm.onSave as unknown as ReturnType<typeof vi.fn>
-    expect(onSave.mock.calls[0]?.[0]).not.toHaveProperty('latitude')
-    expect(onSave.mock.calls[0]?.[0]).not.toHaveProperty('longitude')
+    expect(onSave).not.toHaveBeenCalled()
 
     // Silence unused-var warning by referencing the picker.
     expect(modal.findComponent({ name: 'AddressMapPicker' }).exists()).toBe(true)
   })
+
+  it.each([
+    [undefined, undefined],
+    [null, null],
+    [0, 0],
+    [19.4326123456789, -99.1332123456789],
+  ])(
+    'preserves an untouched saved pair %s / %s by omitting both fields',
+    async (latitude, longitude) => {
+      const { modal, wrapper } = mountAddressModal({
+        address: makeAddress({ latitude, longitude }),
+      })
+      await wrapper.find('input').setValue('Edited street')
+      await wrapper.find('form').trigger('submit')
+      const payload = modal.emitted('save')?.[0]?.[0]
+      expect(payload).toMatchObject({ street: 'Edited street' })
+      expect(payload).not.toHaveProperty('latitude')
+      expect(payload).not.toHaveProperty('longitude')
+      wrapper.unmount()
+    },
+  )
+
+  it.each([null, makeAddress()])(
+    'omits both fields after clearing an unsaved pin',
+    async (address) => {
+      const { modal, wrapper } = mountAddressModal({ address })
+      await wrapper.find('input').setValue('Test street')
+      const picker = modal.findComponent({ name: 'AddressMapPicker' })
+      picker.vm.$emit('update:modelValue', { lat: 1, lng: 2 })
+      picker.vm.$emit('update:modelValue', null)
+      await wrapper.find('form').trigger('submit')
+      expect(modal.emitted('save')?.[0]?.[0]).not.toHaveProperty('latitude')
+      expect(modal.emitted('save')?.[0]?.[0]).not.toHaveProperty('longitude')
+      wrapper.unmount()
+    },
+  )
+
+  it('clears a saved pin explicitly without mutating props, and resets intent on reopen/switch', async () => {
+    const address = makeAddress({ latitude: 0, longitude: -99.1332123456789 })
+    const { modal, wrapper } = mountAddressModal({ address })
+    await wrapper.find('[data-testid="address-map-clear-pin"]').trigger('click')
+    await wrapper.find('form').trigger('submit')
+    expect(modal.emitted('save')?.[0]?.[0]).toMatchObject({ latitude: null, longitude: null })
+    await modal
+      .findAll('button')
+      .find((button) => button.text() === 'Cancelar')!
+      .trigger('click')
+    wrapper.vm.open = false
+    await nextTick()
+    wrapper.vm.open = true
+    await nextTick()
+    expect(modal.findComponent({ name: 'AddressMapPicker' }).props('modelValue')).toEqual({
+      lat: 0,
+      lng: address.longitude,
+    })
+    await wrapper.find('form').trigger('submit')
+    expect(modal.emitted('save')?.[1]?.[0]).not.toHaveProperty('latitude')
+    await wrapper.find('[data-testid="address-map-clear-pin"]').trigger('click')
+    await wrapper.setProps({ address: makeAddress({ id: 'addr-2', latitude: 5, longitude: 6 }) })
+    await wrapper.find('form').trigger('submit')
+    expect(modal.emitted('save')?.[2]?.[0]).not.toHaveProperty('latitude')
+    expect(address).toMatchObject({ latitude: 0, longitude: -99.1332123456789 })
+    wrapper.unmount()
+  })
+
+  it.each([
+    [0, 0],
+    [90, 180],
+    [-90, -180],
+    [19.4326123456789, -99.1332123456789],
+  ])('sends deliberate replacement %s / %s without rounding', async (latitude, longitude) => {
+    for (const address of [null, makeAddress({ latitude: 1, longitude: 2 })]) {
+      const { modal, wrapper } = mountAddressModal({ address })
+      await wrapper.find('input').setValue('Test street')
+      modal
+        .findComponent({ name: 'AddressMapPicker' })
+        .vm.$emit('update:modelValue', { lat: latitude, lng: longitude })
+      await wrapper.find('form').trigger('submit')
+      expect(modal.emitted('save')?.[0]?.[0]).toMatchObject({ latitude, longitude })
+      wrapper.unmount()
+    }
+  })
+
+  it.each([
+    [1, null],
+    [null, 1],
+    [1, undefined],
+    [undefined, 1],
+    [NaN, 1],
+    [1, Infinity],
+    [-Infinity, 1],
+    [90.001, 1],
+    [-90.001, 1],
+    [1, 180.001],
+    [1, -180.001],
+  ])(
+    'rejects invalid pair %s / %s in the form schema and submit guard',
+    async (latitude, longitude) => {
+      const { modal, wrapper } = mountAddressModal({ address: makeAddress() })
+      const form = modal.findComponent({ name: 'UForm' })
+      Object.assign(form.props('state'), { latitude, longitude })
+      expect(form.props('schema').safeParse(form.props('state')).success).toBe(false)
+      await wrapper.find('form').trigger('submit')
+      expect(modal.emitted('save')).toBeUndefined()
+      wrapper.unmount()
+    },
+  )
 
   it('does not add a `label` field on save — label stays delivery-routes-only', async () => {
     const { modal, wrapper } = mountAddressModal()

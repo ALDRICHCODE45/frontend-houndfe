@@ -119,6 +119,8 @@ const isCreateOpen = ref(false)
 const isEditOpen = ref(false)
 const selectedCustomer = ref<CustomerDetail | null>(null)
 const selectedCustomerId = ref<string | null>(null)
+let editSession = 0
+let loadingEdit = false
 const formErrors = ref<Partial<Record<string, string>>>({})
 
 const confirmState = ref({
@@ -137,6 +139,7 @@ function handleConfirm() {
 }
 
 function clearFormContext() {
+  editSession++
   selectedCustomer.value = null
   selectedCustomerId.value = null
   formErrors.value = {}
@@ -195,10 +198,13 @@ function resetVisibilityContextAfterCreate(created: Customer) {
 }
 
 const createMutation = useMutation({
-  mutationFn: (payload: CreateCustomerPayload) => customerApi.create(payload),
-  onSuccess: async (created: Customer) => {
-    isCreateOpen.value = false
-    clearFormContext()
+  mutationFn: ({ values }: { values: CreateCustomerPayload; session: number }) =>
+    customerApi.create(values),
+  onSuccess: async (created: Customer, { session }) => {
+    if (session === editSession && isCreateOpen.value) {
+      isCreateOpen.value = false
+      clearFormContext()
+    }
     resetVisibilityContextAfterCreate(created)
     toast.add({
       title: 'Cliente creado',
@@ -207,9 +213,13 @@ const createMutation = useMutation({
     })
 
     await queryClient.invalidateQueries({ queryKey: customerQueryKeys.paginated(tenantId.value) })
-    await queryClient.refetchQueries({ queryKey: customerQueryKeys.paginated(tenantId.value), type: 'active' })
+    await queryClient.refetchQueries({
+      queryKey: customerQueryKeys.paginated(tenantId.value),
+      type: 'active',
+    })
   },
-  onError: (error) => {
+  onError: (error, { session }) => {
+    if (session !== editSession || !isCreateOpen.value) return
     const { message, fields } = mapDomainError(error as AxiosError<DomainApiError>)
     formErrors.value = fields
     toast.add({ title: 'Error al crear cliente', description: message, color: 'error' })
@@ -217,11 +227,13 @@ const createMutation = useMutation({
 })
 
 const updateMutation = useMutation({
-  mutationFn: (payload: { customerId: string; values: UpdateCustomerPayload }) =>
+  mutationFn: (payload: { customerId: string; values: UpdateCustomerPayload; session: number }) =>
     customerApi.update(payload.customerId, payload.values),
   onSuccess: async (_, variables) => {
-    isEditOpen.value = false
-    clearFormContext()
+    if (isCurrentEdit(variables.customerId, variables.session)) {
+      isEditOpen.value = false
+      clearFormContext()
+    }
     toast.add({
       title: 'Cliente actualizado',
       description: 'Los cambios se guardaron correctamente.',
@@ -235,7 +247,8 @@ const updateMutation = useMutation({
       }),
     ])
   },
-  onError: (error) => {
+  onError: (error, { customerId, session }) => {
+    if (!isCurrentEdit(customerId, session)) return
     const { message, fields } = mapDomainError(error as AxiosError<DomainApiError>)
     formErrors.value = fields
     toast.add({ title: 'Error al actualizar cliente', description: message, color: 'error' })
@@ -259,22 +272,55 @@ const deleteMutation = useMutation({
   },
 })
 
+async function refreshAddressSelection(customerId: string, session: number) {
+  if (!isCurrentEdit(customerId, session)) return
+  try {
+    const refreshed = await customerApi.getById(customerId)
+    if (isCurrentEdit(customerId, session)) selectedCustomer.value = refreshed
+  } catch {
+    toast.add({
+      title: 'Dirección guardada',
+      description:
+        'La dirección se guardó, pero no se pudo actualizar la vista. Reabre el cliente para verla.',
+      color: 'warning',
+    })
+  }
+}
+
+async function invalidateAddressList() {
+  try {
+    await queryClient.invalidateQueries({ queryKey: customerQueryKeys.paginated(tenantId.value) })
+  } catch {
+    toast.add({
+      title: 'Dirección guardada',
+      description: 'La lista no se pudo actualizar. Recarga para ver los cambios.',
+      color: 'warning',
+    })
+  }
+}
+
+function isCurrentEdit(customerId: string, session: number) {
+  return session === editSession && isEditOpen.value && selectedCustomerId.value === customerId
+}
+
 const createAddressMutation = useMutation({
-  mutationFn: ({ customerId, payload }: { customerId: string; payload: CreateCustomerAddressPayload }) =>
-    customerApi.createAddress(customerId, payload),
-  onSuccess: async (_, { customerId }) => {
+  mutationFn: ({
+    customerId,
+    payload,
+  }: {
+    customerId: string
+    payload: CreateCustomerAddressPayload
+    session: number
+  }) => customerApi.createAddress(customerId, payload),
+  onSuccess: async (_, { customerId, session }) => {
     toast.add({
       title: 'Dirección añadida',
       description: 'La dirección se añadió correctamente.',
       color: 'success',
     })
-    
-    // Refresh the selected customer to show the new address
-    if (selectedCustomerId.value === customerId) {
-      selectedCustomer.value = await customerApi.getById(customerId)
-    }
-    
-    await queryClient.invalidateQueries({ queryKey: customerQueryKeys.paginated(tenantId.value) })
+
+    await refreshAddressSelection(customerId, session)
+    await invalidateAddressList()
   },
   onError: (error) => {
     const { message } = mapDomainError(error as AxiosError<DomainApiError>)
@@ -283,24 +329,25 @@ const createAddressMutation = useMutation({
 })
 
 const updateAddressMutation = useMutation({
-  mutationFn: ({ customerId, addressId, payload }: { 
-    customerId: string; 
-    addressId: string; 
-    payload: CreateCustomerAddressPayload 
+  mutationFn: ({
+    customerId,
+    addressId,
+    payload,
+  }: {
+    customerId: string
+    addressId: string
+    payload: CreateCustomerAddressPayload
+    session: number
   }) => customerApi.updateAddress(customerId, addressId, payload),
-  onSuccess: async (_, { customerId }) => {
+  onSuccess: async (_, { customerId, session }) => {
     toast.add({
       title: 'Dirección actualizada',
       description: 'La dirección se actualizó correctamente.',
       color: 'success',
     })
-    
-    // Refresh the selected customer to show the updated address
-    if (selectedCustomerId.value === customerId) {
-      selectedCustomer.value = await customerApi.getById(customerId)
-    }
-    
-    await queryClient.invalidateQueries({ queryKey: customerQueryKeys.paginated(tenantId.value) })
+
+    await refreshAddressSelection(customerId, session)
+    await invalidateAddressList()
   },
   onError: (error) => {
     const { message } = mapDomainError(error as AxiosError<DomainApiError>)
@@ -309,21 +356,23 @@ const updateAddressMutation = useMutation({
 })
 
 const removeAddressMutation = useMutation({
-  mutationFn: ({ customerId, addressId }: { customerId: string; addressId: string }) =>
-    customerApi.removeAddress(customerId, addressId),
-  onSuccess: async (_, { customerId }) => {
+  mutationFn: ({
+    customerId,
+    addressId,
+  }: {
+    customerId: string
+    addressId: string
+    session: number
+  }) => customerApi.removeAddress(customerId, addressId),
+  onSuccess: async (_, { customerId, session }) => {
     toast.add({
       title: 'Dirección eliminada',
       description: 'La dirección se eliminó correctamente.',
       color: 'success',
     })
-    
-    // Refresh the selected customer to show the address is gone
-    if (selectedCustomerId.value === customerId) {
-      selectedCustomer.value = await customerApi.getById(customerId)
-    }
-    
-    await queryClient.invalidateQueries({ queryKey: customerQueryKeys.paginated(tenantId.value) })
+
+    await refreshAddressSelection(customerId, session)
+    await invalidateAddressList()
   },
   onError: (error) => {
     const { message } = mapDomainError(error as AxiosError<DomainApiError>)
@@ -343,18 +392,38 @@ const isSubmitting = computed(
 
 function handleAdd() {
   // TODO: check canCreateCustomer permission when available
+  editSession++
+  loadingEdit = false
+  isEditOpen.value = false
+  selectedCustomer.value = null
+  selectedCustomerId.value = null
   formErrors.value = {}
   isCreateOpen.value = true
 }
 
+function handleSlideoverClose() {
+  if (!loadingEdit && !isCreateOpen.value && !isEditOpen.value) clearFormContext()
+}
+
 async function handleOpenEdit(customer: Customer) {
   // TODO: check canUpdateCustomer permission when available
+  const session = ++editSession
+  loadingEdit = true
+  isEditOpen.value = false
+  isCreateOpen.value = false
+  selectedCustomer.value = null
+  selectedCustomerId.value = null
   try {
     formErrors.value = {}
-    selectedCustomer.value = await customerApi.getById(customer.id)
+    const detail = await customerApi.getById(customer.id)
+    if (session !== editSession) return
+    loadingEdit = false
+    selectedCustomer.value = detail
     selectedCustomerId.value = customer.id
     isEditOpen.value = true
   } catch {
+    if (session !== editSession) return
+    loadingEdit = false
     toast.add({
       title: 'No se pudo abrir el editor',
       description: 'No pudimos cargar el detalle del cliente.',
@@ -365,29 +434,55 @@ async function handleOpenEdit(customer: Customer) {
 
 async function handleDelete(customer: Customer) {
   // TODO: check canDeleteCustomer permission when available
-  openConfirm(
-    `¿Quieres eliminar al cliente ${customer.fullName}?`,
-    () => {
-      void deleteMutation.mutateAsync(customer.id)
-    },
-  )
+  openConfirm(`¿Quieres eliminar al cliente ${customer.fullName}?`, () => {
+    void deleteMutation.mutateAsync(customer.id)
+  })
+}
+
+function handleCreateSubmit(values: CreateCustomerPayload) {
+  if (!isCreateOpen.value) return
+  createMutation.mutate({ values, session: editSession })
 }
 
 function handleEditSubmit(values: UpdateCustomerPayload) {
-  if (!selectedCustomerId.value) return
-  updateMutation.mutate({ customerId: selectedCustomerId.value, values })
+  if (!selectedCustomerId.value || !isEditOpen.value) return
+  updateMutation.mutate({ customerId: selectedCustomerId.value, values, session: editSession })
 }
 
-function handleCreateAddress(customerId: string, payload: CreateCustomerAddressPayload) {
-  createAddressMutation.mutate({ customerId, payload })
+async function handleCreateAddress(
+  customerId: string,
+  payload: CreateCustomerAddressPayload,
+  acknowledge?: (saved: boolean) => void,
+) {
+  if (!isCurrentEdit(customerId, editSession)) return
+  const session = editSession
+  try {
+    await createAddressMutation.mutateAsync({ customerId, payload, session })
+    acknowledge?.(true)
+  } catch {
+    acknowledge?.(false)
+  }
 }
 
-function handleUpdateAddress(customerId: string, addressId: string, payload: CreateCustomerAddressPayload) {
-  updateAddressMutation.mutate({ customerId, addressId, payload })
+async function handleUpdateAddress(
+  customerId: string,
+  addressId: string,
+  payload: CreateCustomerAddressPayload,
+  acknowledge?: (saved: boolean) => void,
+) {
+  if (!isCurrentEdit(customerId, editSession)) return
+  const session = editSession
+  try {
+    await updateAddressMutation.mutateAsync({ customerId, addressId, payload, session })
+    acknowledge?.(true)
+  } catch {
+    acknowledge?.(false)
+  }
 }
 
 function handleRemoveAddress(customerId: string, addressId: string) {
-  removeAddressMutation.mutate({ customerId, addressId })
+  if (!isCurrentEdit(customerId, editSession)) return
+  removeAddressMutation.mutate({ customerId, addressId, session: editSession })
 }
 
 // ── S4: Sales history entry ──────────────────────────────────────────────────
@@ -401,20 +496,27 @@ function handleOpenHistory(customer: Customer) {
 
 // ── Table kebab: main group includes history action ──────────────────────────
 function getRowItems(customer: Customer) {
-  const mainActions = (canUpdate.value || canReadSales.value
+  const mainActions =
+    canUpdate.value || canReadSales.value
       ? [
-          ...(canUpdate.value ? [{ label: 'Editar', onSelect: () => handleOpenEdit(customer) }] : []),
-          ...(canReadSales.value ? [{ label: 'Ver historial de ventas', onSelect: () => handleOpenHistory(customer) }] : []),
+          ...(canUpdate.value
+            ? [{ label: 'Editar', onSelect: () => handleOpenEdit(customer) }]
+            : []),
+          ...(canReadSales.value
+            ? [{ label: 'Ver historial de ventas', onSelect: () => handleOpenHistory(customer) }]
+            : []),
         ]
-      : [])
+      : []
 
-  const destructiveActions = (canDelete.value
-      ? [{
+  const destructiveActions = canDelete.value
+    ? [
+        {
           label: 'Eliminar',
           color: 'error' as const,
           onSelect: () => handleDelete(customer),
-        }]
-      : [])
+        },
+      ]
+    : []
 
   return [mainActions, destructiveActions].filter((section) => section.length > 0)
 }
@@ -434,8 +536,8 @@ const bulkActions = computed<BulkAction<Customer>[]>(() => [])
       :global-price-lists="globalPriceLists"
       :loading="isSubmitting"
       :errors="formErrors"
-      @create="createMutation.mutate"
-      @close="clearFormContext"
+      @create="handleCreateSubmit"
+      @close="handleSlideoverClose"
     />
 
     <CustomerUpsertSlideover
@@ -449,7 +551,7 @@ const bulkActions = computed<BulkAction<Customer>[]>(() => [])
       @create-address="handleCreateAddress"
       @update-address="handleUpdateAddress"
       @remove-address="handleRemoveAddress"
-      @close="clearFormContext"
+      @close="handleSlideoverClose"
     />
 
     <ConfirmModal
@@ -462,20 +564,14 @@ const bulkActions = computed<BulkAction<Customer>[]>(() => [])
       @confirm="handleConfirm"
     />
 
-    <CustomerSalesHistorySlideover
-      v-model:open="isHistoryOpen"
-      :customer="historyCustomer"
-    />
+    <CustomerSalesHistorySlideover v-model:open="isHistoryOpen" :customer="historyCustomer" />
 
-        <UCard
-          :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }"
-          class="w-full min-w-0 max-w-full overflow-hidden shadow-sm"
-        >
+    <UCard
+      :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }"
+      class="w-full min-w-0 max-w-full overflow-hidden shadow-sm"
+    >
       <template #header>
-        <TableHeaderDescription
-          description="Gestión de clientes"
-          title="Clientes"
-        />
+        <TableHeaderDescription description="Gestión de clientes" title="Clientes" />
       </template>
       <div class="w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
         <AppDataTable
@@ -562,7 +658,8 @@ const bulkActions = computed<BulkAction<Customer>[]>(() => [])
           <template #phone-cell="{ row }">
             <span class="font-mono text-sm">
               <template v-if="row.original.phone">
-                {{ row.original.phoneCountryCode ? `${row.original.phoneCountryCode} ` : '' }}{{ row.original.phone }}
+                {{ row.original.phoneCountryCode ? `${row.original.phoneCountryCode} ` : ''
+                }}{{ row.original.phone }}
               </template>
               <template v-else>—</template>
             </span>
@@ -573,10 +670,7 @@ const bulkActions = computed<BulkAction<Customer>[]>(() => [])
           </template>
 
           <template #globalPriceListName-cell="{ row }">
-            <AppBadge
-              v-if="row.original.globalPriceListName"
-              tone="neutral"
-            >
+            <AppBadge v-if="row.original.globalPriceListName" tone="neutral">
               {{ row.original.globalPriceListName }}
             </AppBadge>
             <span v-else class="text-sm text-muted">—</span>

@@ -1,28 +1,36 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui'
-import { computed, reactive, watch } from 'vue'
+import { computed, reactive, shallowRef, watch } from 'vue'
 import { z } from 'zod'
 import { MEXICO_STATE_OPTIONS } from '../composables/useCustomerForm'
 import AddressMapPicker, { pinToGeoPoint } from '@/core/shared/components/AddressMapPicker.vue'
 import type { GeoPoint } from '@/core/shared/maps/map-provider'
 import type { CustomerAddress, CreateCustomerAddressPayload } from '../interfaces/customer.types'
 
-const addressSchema = z.object({
-  street: z
-    .string({ required_error: 'La calle es obligatoria' })
-    .trim()
-    .min(1, 'La calle es obligatoria')
-    .max(200, 'Máximo 200 caracteres'),
-  exteriorNumber: z.string().trim().max(30, 'Máximo 30 caracteres'),
-  interiorNumber: z.string().trim().max(30, 'Máximo 30 caracteres'),
-  zipCode: z.string().trim().max(10, 'Máximo 10 caracteres'),
-  neighborhood: z.string().trim().max(100, 'Máximo 100 caracteres'),
-  municipality: z.string().trim().max(100, 'Máximo 100 caracteres'),
-  city: z.string().trim().max(100, 'Máximo 100 caracteres'),
-  state: z.string().trim(),
-  latitude: z.number().nullable().optional(),
-  longitude: z.number().nullable().optional(),
-})
+const addressSchema = z
+  .object({
+    street: z
+      .string({ required_error: 'La calle es obligatoria' })
+      .trim()
+      .min(1, 'La calle es obligatoria')
+      .max(200, 'Máximo 200 caracteres'),
+    exteriorNumber: z.string().trim().max(30, 'Máximo 30 caracteres'),
+    interiorNumber: z.string().trim().max(30, 'Máximo 30 caracteres'),
+    zipCode: z.string().trim().max(10, 'Máximo 10 caracteres'),
+    neighborhood: z.string().trim().max(100, 'Máximo 100 caracteres'),
+    municipality: z.string().trim().max(100, 'Máximo 100 caracteres'),
+    city: z.string().trim().max(100, 'Máximo 100 caracteres'),
+    state: z.string().trim(),
+    latitude: z.number().finite().min(-90).max(90).nullable().optional(),
+    longitude: z.number().finite().min(-180).max(180).nullable().optional(),
+  })
+  .refine(
+    ({ latitude, longitude }) =>
+      (latitude === undefined && longitude === undefined) ||
+      (latitude === null && longitude === null) ||
+      (typeof latitude === 'number' && typeof longitude === 'number'),
+    { message: 'La ubicación requiere latitud y longitud válidas', path: ['latitude'] },
+  )
 
 type AddressFormValues = z.infer<typeof addressSchema>
 
@@ -31,10 +39,14 @@ const props = withDefaults(
     open: boolean
     address?: CustomerAddress | null
     loading?: boolean
+    error?: string
+    allowBusyCancellation?: boolean
   }>(),
   {
     address: null,
     loading: false,
+    error: '',
+    allowBusyCancellation: false,
   },
 )
 
@@ -60,9 +72,11 @@ const formState = reactive<AddressFormValues>({
 // The picker's v-model contract is a `GeoPoint | null`. Map the form coords to
 // a point for the picker (and back on emit) so the picker never sees
 // `undefined`. `0,0` is a legal pin (design §4.3 REFACTOR).
+const pinEdited = shallowRef(false)
 const pin = computed<GeoPoint | null>({
   get: () => pinToGeoPoint(formState),
   set: (point) => {
+    pinEdited.value = true
     formState.latitude = point?.lat ?? null
     formState.longitude = point?.lng ?? null
   },
@@ -87,6 +101,7 @@ watch(
   () => [props.open, props.address] as const,
   ([isOpen, address]) => {
     if (!isOpen) return
+    pinEdited.value = false
 
     if (address) {
       Object.assign(formState, {
@@ -110,12 +125,21 @@ watch(
 )
 
 function handleSubmit(event: FormSubmitEvent<AddressFormValues>) {
-  // Emit latitude/longitude ONLY when both coordinates are present. A half-pin
-  // (one coord set, the other missing) is silently dropped so the backend
-  // never receives an inconsistent pair (spec REQ-AMP-005).
-  const hasFullPin =
-    typeof event.data.latitude === 'number' &&
-    typeof event.data.longitude === 'number'
+  if (props.loading) return
+  if (!addressSchema.safeParse(event.data).success) return
+  const { latitude, longitude } = event.data
+  const hasFullPin = typeof latitude === 'number' && typeof longitude === 'number'
+  const hadSavedPin =
+    typeof props.address?.latitude === 'number' && typeof props.address?.longitude === 'number'
+  // PATCH omission preserves the saved pair; only picker actions replace/clear it.
+  const coordinates =
+    props.address && !pinEdited.value
+      ? {}
+      : hasFullPin
+        ? { latitude, longitude }
+        : hadSavedPin && pinEdited.value
+          ? { latitude: null, longitude: null }
+          : {}
 
   const payload: CreateCustomerAddressPayload = {
     street: event.data.street,
@@ -126,14 +150,20 @@ function handleSubmit(event: FormSubmitEvent<AddressFormValues>) {
     ...(event.data.municipality ? { municipality: event.data.municipality } : {}),
     ...(event.data.city ? { city: event.data.city } : {}),
     ...(event.data.state ? { state: event.data.state } : {}),
-    ...(hasFullPin
-      ? { latitude: event.data.latitude as number, longitude: event.data.longitude as number }
-      : {}),
+    ...coordinates,
   }
   emit('save', payload)
 }
 
+const canDismiss = computed(() => !props.loading || props.allowBusyCancellation)
+
+function handleOpenChange(value: boolean) {
+  if (!value && !canDismiss.value) return
+  emit('update:open', value)
+}
+
 function handleClose() {
+  if (!canDismiss.value) return
   emit('update:open', false)
   emit('close')
 }
@@ -144,7 +174,9 @@ function handleClose() {
     :open="open"
     :title="address ? 'Editar dirección' : 'Añadir dirección'"
     :content="{ class: 'sm:max-w-lg' }"
-    @update:open="emit('update:open', $event)"
+    :dismissible="canDismiss"
+    :close="canDismiss"
+    @update:open="handleOpenChange"
   >
     <template #body>
       <UForm
@@ -251,22 +283,25 @@ function handleClose() {
     </template>
 
     <template #footer>
-      <div class="flex w-full justify-end gap-3">
-        <UButton
-          label="Cancelar"
-          color="neutral"
-          variant="outline"
-          :disabled="loading"
-          @click="handleClose"
-        />
-        <UButton
-          :label="address ? 'Guardar cambios' : 'Añadir dirección'"
-          color="primary"
-          class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
-          type="submit"
-          form="address-modal-form"
-          :loading="loading"
-        />
+      <div class="flex w-full flex-col gap-3">
+        <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
+        <div class="flex justify-end gap-3">
+          <UButton
+            label="Cancelar"
+            color="neutral"
+            variant="outline"
+            :disabled="!canDismiss"
+            @click="handleClose"
+          />
+          <UButton
+            :label="address ? 'Guardar cambios' : 'Añadir dirección'"
+            color="primary"
+            class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+            type="submit"
+            form="address-modal-form"
+            :loading="loading"
+          />
+        </div>
       </div>
     </template>
   </UModal>

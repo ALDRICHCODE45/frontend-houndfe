@@ -43,8 +43,17 @@ const emit = defineEmits<{
   create: [payload: CreateCustomerPayload]
   edit: [payload: UpdateCustomerPayload]
   close: []
-  'create-address': [customerId: string, payload: CreateCustomerAddressPayload]
-  'update-address': [customerId: string, addressId: string, payload: CreateCustomerAddressPayload]
+  'create-address': [
+    customerId: string,
+    payload: CreateCustomerAddressPayload,
+    acknowledge?: (saved: boolean) => void,
+  ]
+  'update-address': [
+    customerId: string,
+    addressId: string,
+    payload: CreateCustomerAddressPayload,
+    acknowledge?: (saved: boolean) => void,
+  ]
   'remove-address': [customerId: string, addressId: string]
 }>()
 
@@ -62,6 +71,20 @@ const tabs = [
 const isAddressModalOpen = ref(false)
 const editingAddress = ref<CustomerAddress | null>(null)
 const editingAddressIndex = ref<number | null>(null)
+const addressOwnerId = ref<string | null>(null)
+const addressSaving = ref(false)
+const addressError = ref('')
+let editorSession = 0
+
+function closeAddressEditor() {
+  editorSession++
+  isAddressModalOpen.value = false
+  editingAddress.value = null
+  editingAddressIndex.value = null
+  addressOwnerId.value = null
+  addressSaving.value = false
+  addressError.value = ''
+}
 
 // Pending addresses (create mode only)
 const pendingAddresses = ref<CreateCustomerAddressPayload[]>([])
@@ -81,15 +104,16 @@ const priceListItems = computed(() =>
 )
 
 watch(
-  () => [props.mode, props.customer, open.value] as const,
-  ([mode, customer, isOpen]) => {
+  [() => props.mode, () => props.customer?.id, open],
+  ([mode, customerId, isOpen]) => {
+    closeAddressEditor()
     if (!isOpen) return
 
     activeTab.value = 'basic'
     pendingAddresses.value = []
 
-    if (mode === 'edit' && customer) {
-      setState(customerToFormInput(customer))
+    if (mode === 'edit' && props.customer && customerId) {
+      setState(customerToFormInput(props.customer))
       return
     }
 
@@ -108,31 +132,45 @@ watch(
 )
 
 function openAddressModal() {
-  editingAddress.value = null
-  editingAddressIndex.value = null
+  closeAddressEditor()
+  addressOwnerId.value = props.mode === 'edit' ? (props.customer?.id ?? null) : null
   isAddressModalOpen.value = true
 }
 
 function handleAddressSave(payload: CreateCustomerAddressPayload) {
+  if (!isAddressModalOpen.value || addressSaving.value) return
+  const ownerId = addressOwnerId.value
+  if (props.mode === 'edit' && (!ownerId || ownerId !== props.customer?.id || !open.value)) return
   if (props.mode === 'create') {
     if (editingAddressIndex.value !== null) {
       pendingAddresses.value[editingAddressIndex.value] = payload
     } else {
       pendingAddresses.value.push(payload)
     }
-  } else if (props.mode === 'edit' && props.customer) {
-    // Edit mode: emit events for parent to handle
+    closeAddressEditor()
+  } else if (props.mode === 'edit' && ownerId) {
+    addressSaving.value = true
+    addressError.value = ''
+    const session = editorSession
+    const acknowledge = (saved: boolean) => {
+      if (
+        session !== editorSession ||
+        !isAddressModalOpen.value ||
+        ownerId !== props.customer?.id ||
+        !open.value
+      )
+        return
+      addressSaving.value = false
+      if (saved) closeAddressEditor()
+      else
+        addressError.value = 'No se pudo guardar la dirección. Revisa los datos e intenta de nuevo.'
+    }
     if (editingAddress.value?.id) {
-      // Update existing address
-      emit('update-address', props.customer.id, editingAddress.value.id, payload)
+      emit('update-address', ownerId, editingAddress.value.id, payload, acknowledge)
     } else {
-      // Create new address
-      emit('create-address', props.customer.id, payload)
+      emit('create-address', ownerId, payload, acknowledge)
     }
   }
-  isAddressModalOpen.value = false
-  editingAddress.value = null
-  editingAddressIndex.value = null
 }
 
 function removePendingAddress(index: number) {
@@ -140,6 +178,9 @@ function removePendingAddress(index: number) {
 }
 
 function editExistingAddress(address: CustomerAddress) {
+  closeAddressEditor()
+  if (!open.value || props.mode !== 'edit' || props.customer?.id !== address.customerId) return
+  addressOwnerId.value = address.customerId
   editingAddress.value = address
   editingAddressIndex.value = null
   isAddressModalOpen.value = true
@@ -160,7 +201,12 @@ function onSubmit(event: FormSubmitEvent<CustomerFormValues>) {
   emit('edit', toUpdatePayload(event.data))
 }
 
+function handleAddressOpenChange(value: boolean) {
+  if (!value) closeAddressEditor()
+}
+
 function handleCancel() {
+  closeAddressEditor()
   resetForm()
   open.value = false
 }
@@ -531,10 +577,12 @@ function handleCancel() {
   <AddressModal
     :open="isAddressModalOpen"
     :address="editingAddress"
-    :loading="loading"
-    @update:open="isAddressModalOpen = $event"
+    :loading="loading || addressSaving"
+    :error="addressError"
+    allow-busy-cancellation
+    @update:open="handleAddressOpenChange"
     @save="handleAddressSave"
-    @close="isAddressModalOpen = false"
+    @close="closeAddressEditor"
   />
 </template>
 

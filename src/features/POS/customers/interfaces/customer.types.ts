@@ -147,12 +147,10 @@ export interface CreateCustomerAddressPayload {
   municipality?: string
   city?: string
   state?: string
-  // Optional map pin; emitted only when both coordinates are present.
-  // Type widened to `number | null` per REQ-CA-003 (sdd delivery-routes
-  // S7 verify remediation). The runtime contract is unchanged — `null`
-  // is omitted at the API boundary — but the literal type must accept
-  // `null` so callers can pass `null` to mean "no pin" without a ts
-  // complaint.
+  // Coordinate pair is passed verbatim: omit both on CREATE for no pin,
+  // omit both on PATCH to preserve, or send both null to clear.
+  // Replacement requires both finite numbers (latitude ±90, longitude ±180).
+  // Callers must validate the pair; zero and full numeric precision are valid.
   latitude?: number | null
   longitude?: number | null
 }
