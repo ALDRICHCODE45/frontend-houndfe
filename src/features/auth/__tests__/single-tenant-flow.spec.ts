@@ -1,36 +1,17 @@
-/**
- * Integration test — Single-tenant full flow
- *
- * Verifies: login() → store authenticated → currentTenant set → CASL permissions loaded
- */
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, setActivePinia } from 'pinia'
 import { useAuthStore } from '../stores/useAuthStore'
 import { authApi } from '../api/auth.api'
+import { authStorage } from '../services/auth-storage'
 import { decodeJwtClaims } from '../services/jwt.utils'
-import { ability } from '../authorization/ability'
-import type { AuthUser, TenantSummary } from '../interfaces/auth.types'
-
-// ─── Mocks ───────────────────────────────────────────────────────────────────
+import { ability, resetAbility } from '../authorization/ability'
 
 vi.mock('../api/auth.api', () => ({
-  authApi: {
-    login: vi.fn(),
-    mePermissions: vi.fn(),
-    logout: vi.fn(),
-  },
+  authApi: { login: vi.fn(), verifyLoginOtp: vi.fn(), mePermissions: vi.fn() },
 }))
-
+vi.mock('../services/jwt.utils', () => ({ decodeJwtClaims: vi.fn() }))
 vi.mock('../services/auth-storage', () => ({
   authStorage: {
-    getAccessToken: vi.fn(() => null),
-    getRefreshToken: vi.fn(() => null),
-    getUser: vi.fn(() => null),
-    getPermissionCodes: vi.fn(() => null),
-    getCurrentTenant: vi.fn(() => null),
-    getMemberships: vi.fn(() => null),
-    getIsSuperAdmin: vi.fn(() => null),
-    getTempToken: vi.fn(() => null),
     setTokens: vi.fn(),
     setUser: vi.fn(),
     setPermissionCodes: vi.fn(),
@@ -43,31 +24,33 @@ vi.mock('../services/auth-storage', () => ({
   },
 }))
 
-vi.mock('../services/jwt.utils', () => ({
-  decodeJwtClaims: vi.fn(),
-}))
-
-// ─── Fixtures ────────────────────────────────────────────────────────────────
-
-const user: AuthUser = {
+const user = {
   id: 'user-1',
   email: 'admin@hound.test',
-  name: 'Admin User',
+  name: 'Admin',
   isActive: true,
-  createdAt: '2026-05-02T00:00:00.000Z',
+  createdAt: '',
 }
+const tenant = { id: 'tenant-1', name: 'Sucursal Centro', slug: 'centro' }
 
-const tenant: TenantSummary = { id: 'tenant-1', name: 'Sucursal Centro', slug: 'centro' }
-
-// ─── Tests ───────────────────────────────────────────────────────────────────
-
-describe('Single-tenant full flow', () => {
+describe('Single-tenant password → OTP → final session', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
-    vi.clearAllMocks()
-  })
-
-  it('login() → authPhase transitions idle → authenticating → authenticated', async () => {
+    vi.resetAllMocks()
+    resetAbility()
+    vi.mocked(authApi.login).mockResolvedValue({
+      requiresOtp: true,
+      challengeId: 'challenge',
+      expiresIn: 600,
+      resendAfter: 60,
+    })
+    vi.mocked(authApi.verifyLoginOtp).mockResolvedValue({
+      requiresTenantSelection: false,
+      user,
+      tenants: [tenant],
+      accessToken: 'verified',
+      refreshToken: 'refresh',
+    })
     vi.mocked(decodeJwtClaims).mockReturnValue({
       sub: user.id,
       email: user.email,
@@ -76,117 +59,54 @@ describe('Single-tenant full flow', () => {
       isSuperAdmin: false,
       iat: 1,
       exp: 9999999999,
-    })
-    vi.mocked(authApi.login).mockResolvedValue({
-      requiresTenantSelection: false,
-      user,
-      tenants: [tenant],
-      accessToken: 'access-tok',
-      refreshToken: 'refresh-tok',
-    })
-    vi.mocked(authApi.mePermissions).mockResolvedValue({
-      permissions: [],
-      permissionCodes: ['read:Product', 'read:Order'],
-    })
-
-    const store = useAuthStore()
-
-    expect(store.authPhase).toBe('idle')
-
-    const loginPromise = store.login({ email: user.email, password: 'secret' })
-    expect(store.authPhase).toBe('authenticating')
-
-    await loginPromise
-
-    expect(store.authPhase).toBe('authenticated')
-  })
-
-  it('login() → currentTenant is populated after single-tenant login', async () => {
-    vi.mocked(decodeJwtClaims).mockReturnValue({
-      sub: user.id,
-      email: user.email,
-      tenantId: tenant.id,
-      tenantSlug: tenant.slug,
-      isSuperAdmin: false,
-      iat: 1,
-      exp: 9999999999,
-    })
-    vi.mocked(authApi.login).mockResolvedValue({
-      requiresTenantSelection: false,
-      user,
-      tenants: [tenant],
-      accessToken: 'access-tok',
-      refreshToken: 'refresh-tok',
-    })
-    vi.mocked(authApi.mePermissions).mockResolvedValue({
-      permissions: [],
-      permissionCodes: [],
-    })
-
-    const store = useAuthStore()
-    await store.login({ email: user.email, password: 'secret' })
-
-    expect(store.currentTenant).not.toBeNull()
-    expect(store.currentTenant!.id).toBe(tenant.id)
-    expect(store.currentTenant!.slug).toBe(tenant.slug)
-  })
-
-  it('login() → CASL permissions are loaded from mePermissions response', async () => {
-    vi.mocked(decodeJwtClaims).mockReturnValue({
-      sub: user.id,
-      email: user.email,
-      tenantId: tenant.id,
-      tenantSlug: tenant.slug,
-      isSuperAdmin: false,
-      iat: 1,
-      exp: 9999999999,
-    })
-    vi.mocked(authApi.login).mockResolvedValue({
-      requiresTenantSelection: false,
-      user,
-      tenants: [tenant],
-      accessToken: 'access-tok',
-      refreshToken: 'refresh-tok',
     })
     vi.mocked(authApi.mePermissions).mockResolvedValue({
       permissions: [{ subject: 'Product', action: 'read' }],
       permissionCodes: ['read:Product'],
     })
+  })
 
+  async function passwordThenProof() {
     const store = useAuthStore()
-    await store.login({ email: user.email, password: 'secret' })
+    expect(store.authPhase).toBe('idle')
+    const pending = store.login({ email: user.email, password: 'synthetic' })
+    expect(store.authPhase).toBe('authenticating')
+    await pending
+    expect(store.isAuthenticated).toBe(false)
+    expect(store.currentTenant).toBeNull()
+    expect(store.user).toBeNull()
+    expect(authStorage.setTokens).not.toHaveBeenCalled()
+    expect(authApi.mePermissions).not.toHaveBeenCalled()
+    expect(ability.can('read', 'Product')).toBe(false)
+    await store.verifyLoginOtp('001234')
+    return store
+  }
 
+  it('authenticates only after proof', async () => {
+    const store = await passwordThenProof()
+    expect(store.authPhase).toBe('authenticated')
+    expect(store.otpChallenge).toBeNull()
+    expect(authStorage.setTokens).toHaveBeenCalledWith({
+      accessToken: 'verified',
+      refreshToken: 'refresh',
+    })
+  })
+
+  it('populates the tenant and user after proof', async () => {
+    const store = await passwordThenProof()
+    expect(store.currentTenant).toEqual(tenant)
+    expect(store.user).toEqual(user)
+  })
+
+  it('loads CASL permissions after proof', async () => {
+    const store = await passwordThenProof()
     expect(store.permissionsLoaded).toBe(true)
-    expect(store.permissionCodes).toContain('read:Product')
-    // CASL ability is updated
+    expect(store.permissionCodes).toEqual(['read:Product'])
     expect(ability.can('read', 'Product')).toBe(true)
   })
 
-  it('login() → mePermissions is called exactly once after successful login', async () => {
-    vi.mocked(decodeJwtClaims).mockReturnValue({
-      sub: user.id,
-      email: user.email,
-      tenantId: tenant.id,
-      tenantSlug: tenant.slug,
-      isSuperAdmin: false,
-      iat: 1,
-      exp: 9999999999,
-    })
-    vi.mocked(authApi.login).mockResolvedValue({
-      requiresTenantSelection: false,
-      user,
-      tenants: [tenant],
-      accessToken: 'access-tok',
-      refreshToken: 'refresh-tok',
-    })
-    vi.mocked(authApi.mePermissions).mockResolvedValue({
-      permissions: [],
-      permissionCodes: [],
-    })
-
-    const store = useAuthStore()
-    await store.login({ email: user.email, password: 'secret' })
-
-    expect(vi.mocked(authApi.mePermissions)).toHaveBeenCalledOnce()
+  it('bootstraps permissions exactly once with the verified token', async () => {
+    await passwordThenProof()
+    expect(authApi.mePermissions).toHaveBeenCalledExactlyOnceWith('verified')
   })
 })

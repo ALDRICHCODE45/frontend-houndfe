@@ -1,81 +1,70 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { authApi } from '../auth.api'
 import { http } from '@/core/shared/api/http'
-import type { LoginResponse, SelectTenantResponse, SwitchTenantResponse } from '../../interfaces/auth.types'
 
-vi.mock('@/core/shared/api/http', () => ({
-  http: {
-    post: vi.fn(),
-    get: vi.fn(),
-  },
-}))
+vi.mock('@/core/shared/api/http', () => ({ http: { post: vi.fn(), get: vi.fn() } }))
+
+const challenge = { requiresOtp: true, challengeId: 'challenge', expiresIn: 600, resendAfter: 60 }
 
 describe('authApi', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
+  beforeEach(() => vi.clearAllMocks())
+
+  it('unwraps the password challenge without changing the password DTO', async () => {
+    vi.mocked(http.post).mockResolvedValue({ data: challenge })
+    const payload = { email: 'user@hound.test', password: 'secret' }
+    expect(await authApi.login(payload)).toEqual(challenge)
+    expect(http.post).toHaveBeenCalledWith('/auth/login', payload)
   })
 
-  it('login returns LoginResponse union payload', async () => {
-    const response: LoginResponse = {
-      requiresTenantSelection: true,
-      user: {
-        id: 'user-1',
-        email: 'user@hound.test',
-        name: 'User One',
-        isActive: true,
-        createdAt: '2026-05-02T00:00:00.000Z',
-      },
-      tenants: [{ id: 'tenant-1', name: 'Sucursal Norte', slug: 'sucursal-norte' }],
-      tempToken: 'temp-token',
-      expiresIn: 300,
-    }
-
-    vi.mocked(http.post).mockResolvedValue({ data: response })
-
-    const result = await authApi.login({ email: 'user@hound.test', password: 'secret' })
-
-    expect(http.post).toHaveBeenCalledWith('/auth/login', {
-      email: 'user@hound.test',
-      password: 'secret',
+  it('verifies a string code, preserving leading zeros', async () => {
+    const result = { requiresTenantSelection: true, tempToken: 'verified-selection' }
+    vi.mocked(http.post).mockResolvedValue({ data: result })
+    expect(await authApi.verifyLoginOtp({ challengeId: 'challenge', code: '001234' })).toEqual(
+      result,
+    )
+    expect(http.post).toHaveBeenCalledWith('/auth/login/otp/verify', {
+      challengeId: 'challenge',
+      code: '001234',
     })
-    expect(result.requiresTenantSelection).toBe(true)
   })
 
-  it('selectTenant exchanges temp token for session', async () => {
-    const response: SelectTenantResponse = {
-      user: {
-        id: 'user-1',
-        email: 'user@hound.test',
-        name: 'User One',
-        isActive: true,
-        createdAt: '2026-05-02T00:00:00.000Z',
-      },
-      accessToken: 'access-token',
-      refreshToken: 'refresh-token',
-    }
+  it('unwraps the complete replacement challenge', async () => {
+    vi.mocked(http.post).mockResolvedValue({ data: challenge })
+    expect(await authApi.resendLoginOtp({ challengeId: 'old' })).toEqual(challenge)
+    expect(http.post).toHaveBeenCalledWith('/auth/login/otp/resend', { challengeId: 'old' })
+  })
 
-    vi.mocked(http.post).mockResolvedValue({ data: response })
+  it('opts only the verified-token permissions bootstrap into isolation', async () => {
+    const permissions = { permissions: [], permissionCodes: [] }
+    vi.mocked(http.get).mockResolvedValue({ data: permissions })
+    expect(await authApi.mePermissions('verified')).toEqual(permissions)
+    expect(http.get).toHaveBeenCalledWith('/auth/me/permissions', {
+      verifiedLoginPermissions: true,
+      headers: { Authorization: 'Bearer verified' },
+    })
+    await authApi.mePermissions()
+    expect(http.get).toHaveBeenLastCalledWith('/auth/me/permissions')
+  })
 
-    const result = await authApi.selectTenant({ tempToken: 'temp-token', tenantId: 'tenant-1' })
+  it.each([undefined, null, '', '   ', 123, {}, ['token']])(
+    'rejects an explicitly supplied invalid bootstrap token without any request (%j)',
+    async (token) => {
+      await expect(authApi.mePermissions(token as never)).rejects.toThrow()
+      expect(http.get).not.toHaveBeenCalled()
+      expect(http.post).not.toHaveBeenCalled()
+    },
+  )
 
+  it('preserves tenant selection and switching DTOs', async () => {
+    vi.mocked(http.post).mockResolvedValue({
+      data: { accessToken: 'access', refreshToken: 'refresh' },
+    })
+    await authApi.selectTenant({ tempToken: 'verified-selection', tenantId: 'tenant' })
     expect(http.post).toHaveBeenCalledWith('/auth/select-tenant', {
-      tempToken: 'temp-token',
-      tenantId: 'tenant-1',
+      tempToken: 'verified-selection',
+      tenantId: 'tenant',
     })
-    expect(result.accessToken).toBe('access-token')
-  })
-
-  it('switchTenant exchanges current context tokens', async () => {
-    const response: SwitchTenantResponse = {
-      accessToken: 'new-access-token',
-      refreshToken: 'new-refresh-token',
-    }
-
-    vi.mocked(http.post).mockResolvedValue({ data: response })
-
-    const result = await authApi.switchTenant({ tenantId: 'tenant-2' })
-
-    expect(http.post).toHaveBeenCalledWith('/auth/switch-tenant', { tenantId: 'tenant-2' })
-    expect(result.refreshToken).toBe('new-refresh-token')
+    await authApi.switchTenant({ tenantId: 'tenant' })
+    expect(http.post).toHaveBeenCalledWith('/auth/switch-tenant', { tenantId: 'tenant' })
   })
 })

@@ -1,286 +1,289 @@
-import { mount } from '@vue/test-utils'
-import { defineComponent, h } from 'vue'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { flushPromises, mount } from '@vue/test-utils'
+import { defineComponent, h, reactive } from 'vue'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import LoginView from '../LoginView.vue'
 
-const pushMock = vi.fn()
-const loginMock = vi.fn()
-
-interface ResolvedRoute {
-  name: string
-  meta: { permission?: [string, string]; requiresSuperAdmin?: boolean }
+const push = vi.fn()
+const login = vi.fn()
+const verify = vi.fn()
+const resend = vi.fn()
+const cancel = vi.fn()
+const challenge = {
+  requiresOtp: true as const,
+  challengeId: 'challenge',
+  expiresAt: 600000,
+  resendAt: 60000,
 }
-
-// Minimal app-route table for the router.resolve mock. Each entry mirrors the
-// production route's `meta.permission` / `meta.requiresSuperAdmin` so the login
-// redirect logic can be exercised against realistic authorization metadata.
-// Anything missing here falls through to the wildcard NotFoundView
-// (`name: 'not-found'`), matching the production router's behavior for paths
-// that no longer exist (e.g. "/" and "/analytics/resumen-ventas" after ODD D1).
-const appRoutes: Record<string, ResolvedRoute> = {
-  '/dashboard': { name: 'dashboard', meta: { permission: ['read', 'Analytics'] } },
-  '/pos/orders': { name: 'pos-orders', meta: { permission: ['read', 'Order'] } },
-  '/pos/ventas': { name: 'pos-sales-list', meta: { permission: ['read', 'Sale'] } },
-  '/pos/products': { name: 'pos-products', meta: { permission: ['read', 'Product'] } },
-  '/admin/tenants': { name: 'admin-tenants', meta: { requiresSuperAdmin: true } },
-}
-
-const resolveMock = vi.fn(
-  (path: string): ResolvedRoute => appRoutes[path] ?? { name: 'not-found', meta: {} },
-)
-
-const authStoreMock = {
-  login: loginMock,
-  authPhase: 'authenticated' as 'idle' | 'authenticated' | 'needs-tenant-selection',
+const store = reactive({
+  login,
+  verifyLoginOtp: verify,
+  resendLoginOtp: resend,
+  cancelLogin: cancel,
+  otpChallenge: null as typeof challenge | null,
+  otpRestartRequired: false,
+  otpError: null as string | null,
+  otpRetryAt: 0,
+  loginBusy: false,
+  authPhase: 'idle',
   authError: null as string | null,
   isSuperAdmin: false,
-  userCan: vi.fn().mockReturnValue(true) as ReturnType<typeof vi.fn>,
-  currentTenant: null as { id: string; name: string; slug: string } | null,
+  currentTenant: null,
+  userCan: vi.fn().mockReturnValue(true),
+})
+const route = { query: {} as Record<string, string> }
+const routes: Record<
+  string,
+  { name: string; meta: { permission?: [string, string]; requiresSuperAdmin?: boolean } }
+> = {
+  '/dashboard': { name: 'dashboard', meta: { permission: ['read', 'Analytics'] } },
+  '/pos/orders': { name: 'orders', meta: { permission: ['read', 'Order'] } },
+  '/pos/ventas': { name: 'sales', meta: { permission: ['read', 'Sale'] } },
+  '/admin/tenants': { name: 'tenants', meta: { requiresSuperAdmin: true } },
 }
-
-const routeMock = {
-  query: {} as Record<string, string>,
-}
-
 vi.mock('vue-router', () => ({
-  useRouter: () => ({ push: pushMock, resolve: resolveMock }),
-  useRoute: () => routeMock,
+  useRouter: () => ({
+    push,
+    resolve: (path: string) => routes[path] ?? { name: 'not-found', meta: {} },
+  }),
+  useRoute: () => route,
 }))
-
 vi.mock('@tanstack/vue-query', () => ({
-  useMutation: ({ mutationFn }: { mutationFn: (payload: unknown) => Promise<unknown> }) => ({
-    mutateAsync: mutationFn,
-  }),
+  useMutation: ({ mutationFn }: { mutationFn: unknown }) => ({ mutateAsync: mutationFn }),
 }))
-
-vi.mock('@/features/auth/stores/useAuthStore', () => ({
-  useAuthStore: () => authStoreMock,
-}))
-
+vi.mock('@/features/auth/stores/useAuthStore', () => ({ useAuthStore: () => store }))
 vi.mock('@/features/auth/login/components/LoginHero.vue', () => ({
-  default: defineComponent({
-    name: 'LoginHero',
-    setup() {
-      return () => h('div', { 'data-test': 'login-hero' })
-    },
-  }),
+  default: { template: '<div />' },
 }))
-
 vi.mock('@/features/auth/login/components/LoginForm.vue', () => ({
   default: defineComponent({
-    name: 'LoginForm',
     emits: ['submit'],
     setup(_, { emit }) {
       return () =>
         h(
           'button',
           {
-            'data-test': 'submit-login',
-            onClick: () => emit('submit', { email: 'user@hound.test', password: 'secret' }),
+            'data-test': 'password',
+            onClick: () => emit('submit', { email: 'user@hound.test', password: 'synthetic' }),
           },
           'Ingresar',
         )
     },
   }),
 }))
-
-describe('LoginView redirects by auth phase', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    authStoreMock.authPhase = 'authenticated'
-    authStoreMock.authError = null
-    authStoreMock.isSuperAdmin = false
-    authStoreMock.currentTenant = null
-    routeMock.query = {}
-    loginMock.mockResolvedValue(undefined)
-  })
-
-  it('redirects to /select-tenant when login finishes in needs-tenant-selection phase', async () => {
-    authStoreMock.authPhase = 'needs-tenant-selection'
-    const wrapper = mount(LoginView)
-
-    await wrapper.get('[data-test="submit-login"]').trigger('click')
-
-    expect(loginMock).toHaveBeenCalledWith({ email: 'user@hound.test', password: 'secret' })
-    expect(pushMock).toHaveBeenCalledWith('/select-tenant')
-  })
-
-  it('redirects super-admin global login to /select-tenant', async () => {
-    loginMock.mockImplementation(async () => {
-      authStoreMock.authPhase = 'needs-tenant-selection'
-      authStoreMock.isSuperAdmin = true
-      authStoreMock.currentTenant = null
-    })
-    const wrapper = mount(LoginView)
-
-    await wrapper.get('[data-test="submit-login"]').trigger('click')
-
-    expect(pushMock).toHaveBeenCalledWith('/select-tenant')
-  })
-
-  it('redirects to query redirect when authenticated phase is reached', async () => {
-    routeMock.query = { redirect: '/pos/orders' }
-    const wrapper = mount(LoginView)
-
-    await wrapper.get('[data-test="submit-login"]').trigger('click')
-
-    expect(pushMock).toHaveBeenCalledWith('/pos/orders')
-  })
-})
-
-describe('LoginView — ?redirect= validation (ODD dashboard-analytics D1)', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    authStoreMock.authPhase = 'authenticated'
-    authStoreMock.authError = null
-    authStoreMock.isSuperAdmin = false
-    authStoreMock.currentTenant = null
-    authStoreMock.userCan.mockReturnValue(true)
-    routeMock.query = {}
-    loginMock.mockResolvedValue(undefined)
-  })
-
-  it.each([{ removedPath: '/' }, { removedPath: '/analytics/resumen-ventas' }])(
-    'falls back to the resolver when ?redirect= is the removed path "$removedPath"',
-    async ({ removedPath }) => {
-      routeMock.query = { redirect: removedPath }
-      const wrapper = mount(LoginView)
-
-      await wrapper.get('[data-test="submit-login"]').trigger('click')
-
-      expect(pushMock).toHaveBeenCalledTimes(1)
-      expect(pushMock).not.toHaveBeenCalledWith(removedPath)
-      // Resolver with read:Analytics allowed (userCan = true) → /dashboard.
-      expect(pushMock).toHaveBeenCalledWith('/dashboard')
+vi.mock('@/features/auth/login/components/LoginOtpForm.vue', () => ({
+  default: defineComponent({
+    name: 'LoginOtpForm',
+    props: [
+      'resendSeconds',
+      'expiresSeconds',
+      'retrySeconds',
+      'error',
+      'restartRequired',
+      'loading',
+    ],
+    emits: ['verify', 'resend', 'restart'],
+    setup(props, { emit }) {
+      return () =>
+        h('div', [
+          h('span', { 'data-test': 'seconds' }, String(props.resendSeconds)),
+          h('span', props.error as string),
+          ...(['verify', 'resend', 'restart'] as const).map((event) =>
+            h(
+              'button',
+              {
+                'data-test': event,
+                onClick: () => (event === 'verify' ? emit(event, '001234') : emit(event)),
+              },
+              event,
+            ),
+          ),
+        ])
     },
-  )
+  }),
+}))
 
-  it('uses the explicit ?redirect= when it points to a real application route', async () => {
-    routeMock.query = { redirect: '/pos/ventas' }
-    const wrapper = mount(LoginView)
+const wrappers: ReturnType<typeof mount>[] = []
+function render() {
+  const wrapper = mount(LoginView, {
+    global: { stubs: { UAlert: { props: ['title'], template: '<div>{{ title }}</div>' } } },
+  })
+  wrappers.push(wrapper)
+  return wrapper
+}
+async function password(wrapper: ReturnType<typeof mount>) {
+  await wrapper.get('[data-test="password"]').trigger('click')
+  await flushPromises()
+}
+async function submitCode(wrapper: ReturnType<typeof mount>) {
+  await wrapper.get('[data-test="verify"]').trigger('click')
+  await flushPromises()
+}
 
-    await wrapper.get('[data-test="submit-login"]').trigger('click')
-
-    expect(pushMock).toHaveBeenCalledWith('/pos/ventas')
-    expect(pushMock).toHaveBeenCalledTimes(1)
+describe('LoginView password then OTP', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    Object.assign(store, {
+      otpChallenge: null,
+      otpRestartRequired: false,
+      otpError: null,
+      otpRetryAt: 0,
+      loginBusy: false,
+      authPhase: 'idle',
+      authError: null,
+      isSuperAdmin: false,
+    })
+    route.query = {}
+    store.userCan.mockReturnValue(true)
+    login.mockImplementation(async () => {
+      store.otpChallenge = {
+        ...challenge,
+        expiresAt: Date.now() + 600000,
+        resendAt: Date.now() + 60000,
+      }
+      return challenge
+    })
+    verify.mockImplementation(async () => {
+      store.authPhase = 'authenticated'
+      store.otpChallenge = null
+      return { requiresTenantSelection: false }
+    })
+    resend.mockResolvedValue(challenge)
+    cancel.mockImplementation(() => {
+      store.otpChallenge = null
+      store.otpRestartRequired = false
+      store.loginBusy = false
+    })
+  })
+  afterEach(() => {
+    wrappers.splice(0).forEach((wrapper) => wrapper.unmount())
+    vi.useRealTimers()
   })
 
-  it('ignores an authorized-looking ?redirect=/dashboard the identity cannot read, landing on the first permitted route', async () => {
-    // Regression: lacks read:Analytics but holds read:Sale. The old code pushed
-    // /dashboard because it only checked that the route existed, then the
-    // router guard bounced the user to /403.
-    routeMock.query = { redirect: '/dashboard' }
-    authStoreMock.userCan.mockImplementation(
-      (action: string, subject: string) => action === 'read' && subject === 'Sale',
-    )
-    const wrapper = mount(LoginView)
-
-    await wrapper.get('[data-test="submit-login"]').trigger('click')
-
-    expect(pushMock).toHaveBeenCalledTimes(1)
-    expect(pushMock).toHaveBeenCalledWith('/pos/ventas')
-    expect(pushMock).not.toHaveBeenCalledWith('/dashboard')
-    expect(pushMock).not.toHaveBeenCalledWith('/403')
+  it('does not navigate after password, even with an existing authenticated session', async () => {
+    store.authPhase = 'authenticated'
+    const wrapper = render()
+    await password(wrapper)
+    expect(push).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-test="password"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="verify"]').exists()).toBe(true)
+    await submitCode(wrapper)
+    expect(verify).toHaveBeenCalledWith('001234')
+    expect(push).toHaveBeenCalledWith('/dashboard')
   })
 
-  it('ignores an explicit redirect to a real but unauthorized route', async () => {
-    routeMock.query = { redirect: '/pos/orders' }
-    authStoreMock.userCan.mockImplementation(
-      (action: string, subject: string) => action === 'read' && subject === 'Sale',
-    )
-    const wrapper = mount(LoginView)
-
-    await wrapper.get('[data-test="submit-login"]').trigger('click')
-
-    expect(pushMock).toHaveBeenCalledTimes(1)
-    expect(pushMock).toHaveBeenCalledWith('/pos/ventas')
-    expect(pushMock).not.toHaveBeenCalledWith('/pos/orders')
-  })
-
-  it('honors a super-admin-only explicit redirect for a super admin', async () => {
-    routeMock.query = { redirect: '/admin/tenants' }
-    authStoreMock.isSuperAdmin = true
-    const wrapper = mount(LoginView)
-
-    await wrapper.get('[data-test="submit-login"]').trigger('click')
-
-    expect(pushMock).toHaveBeenCalledTimes(1)
-    expect(pushMock).toHaveBeenCalledWith('/admin/tenants')
-  })
-
-  it('ignores a super-admin-only explicit redirect for a non-super-admin', async () => {
-    routeMock.query = { redirect: '/admin/tenants' }
-    authStoreMock.isSuperAdmin = false
-    authStoreMock.userCan.mockReturnValue(false)
-    const wrapper = mount(LoginView)
-
-    await wrapper.get('[data-test="submit-login"]').trigger('click')
-
-    expect(pushMock).toHaveBeenCalledTimes(1)
-    expect(pushMock).not.toHaveBeenCalledWith('/admin/tenants')
-    expect(pushMock).toHaveBeenCalledWith('/403')
+  it.each([false, true])('routes verified tenant selection (superadmin=%s)', async (superadmin) => {
+    verify.mockImplementation(async () => {
+      store.authPhase = 'needs-tenant-selection'
+      store.isSuperAdmin = superadmin
+      return {}
+    })
+    const wrapper = render()
+    await password(wrapper)
+    await submitCode(wrapper)
+    expect(push).toHaveBeenCalledWith('/select-tenant')
   })
 
   it.each([
-    {
-      label: 'first permitted registry child (/pos/ventas) when only read:Sale is granted',
-      userCan: (action: string, subject: string) => action === 'read' && subject === 'Sale',
-      expected: '/pos/ventas',
-    },
-    {
-      label: '/403 when no application route is accessible',
-      userCan: () => false,
-      expected: '/403',
-    },
-  ])('resolver outcome: $label', async ({ userCan, expected }) => {
-    authStoreMock.userCan.mockImplementation(userCan)
-    const wrapper = mount(LoginView)
-
-    await wrapper.get('[data-test="submit-login"]').trigger('click')
-
-    expect(pushMock).toHaveBeenCalledWith(expected)
-    expect(pushMock).not.toHaveBeenCalledWith('/dashboard')
-  })
-})
-
-describe('LoginView — 403 no active tenants error display', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    authStoreMock.authPhase = 'authenticated'
-    authStoreMock.authError = null
-    loginMock.mockReset()
-    routeMock.query = {}
+    ['/', '/dashboard'],
+    ['/analytics/resumen-ventas', '/dashboard'],
+    ['/pos/orders', '/pos/orders'],
+    ['/pos/ventas', '/pos/ventas'],
+  ])('preserves authorized landing for redirect %s', async (redirect, expected) => {
+    route.query.redirect = redirect
+    const wrapper = render()
+    await password(wrapper)
+    await submitCode(wrapper)
+    expect(push).toHaveBeenCalledExactlyOnceWith(expected)
   })
 
-  it('displays authError from store when login throws 403 no-active-tenants', async () => {
-    const error403 = Object.assign(new Error('Forbidden'), {
-      isAxiosError: true,
-      response: { status: 403, data: { message: 'User does not belong to an active tenant' } },
-    })
-    // The store sets authError internally; login rejects
-    loginMock.mockImplementation(async () => {
-      authStoreMock.authError = 'No tienes acceso a ninguna sucursal. Contacta al administrador.'
-      authStoreMock.authPhase = 'idle'
-      throw error403
-    })
+  it.each(['/dashboard', '/pos/orders', '/admin/tenants'])(
+    'ignores forbidden redirect %s',
+    async (redirect) => {
+      route.query.redirect = redirect
+      store.userCan.mockImplementation(
+        (action: string, subject: string) => action === 'read' && subject === 'Sale',
+      )
+      const wrapper = render()
+      await password(wrapper)
+      await submitCode(wrapper)
+      expect(push).toHaveBeenCalledExactlyOnceWith('/pos/ventas')
+    },
+  )
 
-    const wrapper = mount(LoginView)
-    await wrapper.get('[data-test="submit-login"]').trigger('click')
+  it('honors a superadmin route after proof', async () => {
+    route.query.redirect = '/admin/tenants'
+    store.isSuperAdmin = true
+    const wrapper = render()
+    await password(wrapper)
+    await submitCode(wrapper)
+    expect(push).toHaveBeenCalledExactlyOnceWith('/admin/tenants')
+  })
 
-    // Wait for DOM update after the async handler settles
-    await wrapper.vm.$nextTick()
+  it('lands on 403 when no route is permitted', async () => {
+    store.userCan.mockReturnValue(false)
+    const wrapper = render()
+    await password(wrapper)
+    await submitCode(wrapper)
+    expect(push).toHaveBeenCalledExactlyOnceWith('/403')
+  })
 
-    expect(wrapper.text()).toContain(
-      'No tienes acceso a ninguna sucursal. Contacta al administrador.',
+  it('preserves the password error and store-specific 403 UX', async () => {
+    login.mockRejectedValue(new Error('Unauthorized'))
+    const wrapper = render()
+    await password(wrapper)
+    expect(wrapper.text()).toContain('Verifica credenciales')
+    store.authError = 'No tienes acceso a ninguna sucursal. Contacta al administrador.'
+    await password(wrapper)
+    expect(wrapper.text()).toContain(store.authError)
+    expect(push).not.toHaveBeenCalled()
+  })
+
+  it('restarts on request and fences late verification navigation after restart', async () => {
+    let resolve!: (value: unknown) => void
+    verify.mockImplementation(
+      () =>
+        new Promise((res) => {
+          resolve = res
+        }),
     )
+    const wrapper = render()
+    await password(wrapper)
+    await wrapper.get('[data-test="verify"]').trigger('click')
+    await wrapper.get('[data-test="restart"]').trigger('click')
+    expect(cancel).toHaveBeenCalled()
+    expect(wrapper.find('[data-test="password"]').exists()).toBe(true)
+    resolve({ requiresTenantSelection: false })
+    await flushPromises()
+    expect(push).not.toHaveBeenCalled()
   })
 
-  it('does NOT show authError message when login succeeds', async () => {
-    loginMock.mockResolvedValue(undefined)
-    authStoreMock.authError = null
+  it('fences a late password failure after unmount', async () => {
+    let reject!: (error: unknown) => void
+    login.mockImplementation(
+      () =>
+        new Promise((_, rej) => {
+          reject = rej
+        }),
+    )
+    const wrapper = render()
+    await wrapper.get('[data-test="password"]').trigger('click')
+    wrapper.unmount()
+    reject(new Error('late'))
+    await flushPromises()
+    expect(cancel).toHaveBeenCalled()
+    expect(push).not.toHaveBeenCalled()
+  })
 
-    const wrapper = mount(LoginView)
-
-    expect(wrapper.text()).not.toContain('No tienes acceso')
+  it('uses response deadlines for countdown and cleans its timer on unmount', async () => {
+    vi.useFakeTimers({ toFake: ['Date', 'setInterval', 'clearInterval'] })
+    const wrapper = render()
+    await password(wrapper)
+    expect(wrapper.get('[data-test="seconds"]').text()).toBe('60')
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(wrapper.get('[data-test="seconds"]').text()).toBe('58')
+    await wrapper.get('[data-test="resend"]').trigger('click')
+    expect(resend).toHaveBeenCalledOnce()
+    wrapper.unmount()
+    expect(vi.getTimerCount()).toBe(0)
   })
 })

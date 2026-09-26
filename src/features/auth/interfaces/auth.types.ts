@@ -135,6 +135,18 @@ export interface AuthLoginRequest {
   password: string
 }
 
+export interface LoginOtpChallenge {
+  requiresOtp: true
+  challengeId: string
+  expiresIn: number
+  resendAfter: number
+}
+
+export interface VerifyLoginOtpRequest {
+  challengeId: string
+  code: string
+}
+
 export interface LoginSuccessResponse extends AuthTokens {
   requiresTenantSelection: false
   user: AuthUser
