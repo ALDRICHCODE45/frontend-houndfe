@@ -97,8 +97,7 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
   TenantMembership: {
     create: {
       label: 'Agregar miembros a la sucursal',
-      description:
-        'Invitar usuarios existentes y asignarles un rol dentro de esta sucursal.',
+      description: 'Invitar usuarios existentes y asignarles un rol dentro de esta sucursal.',
     },
     read: {
       label: 'Ver miembros de la sucursal',
@@ -110,8 +109,7 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
     },
     delete: {
       label: 'Quitar miembros de la sucursal',
-      description:
-        'Sacar a un usuario de esta sucursal. La cuenta del usuario sigue existiendo.',
+      description: 'Sacar a un usuario de esta sucursal. La cuenta del usuario sigue existiendo.',
     },
     manage: {
       label: 'Gestión completa de miembros',
@@ -123,8 +121,7 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
   User: {
     create: {
       label: 'Crear usuarios nuevos',
-      description:
-        'Dar de alta una cuenta nueva en la plataforma (email, contraseña, nombre).',
+      description: 'Dar de alta una cuenta nueva en la plataforma (email, contraseña, nombre).',
     },
     read: {
       label: 'Ver listado de usuarios',
@@ -136,13 +133,11 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
     },
     delete: {
       label: 'Desactivar usuarios',
-      description:
-        'Marcar un usuario como inactivo. No se borra de la base; puede reactivarse.',
+      description: 'Marcar un usuario como inactivo. No se borra de la base; puede reactivarse.',
     },
     manage: {
       label: 'Gestión completa de usuarios',
-      description:
-        'Crear, ver, editar y desactivar cualquier usuario sin restricciones.',
+      description: 'Crear, ver, editar y desactivar cualquier usuario sin restricciones.',
     },
   },
 
@@ -174,8 +169,7 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
   Role: {
     create: {
       label: 'Crear roles',
-      description:
-        'Definir un nuevo rol con su combinación de permisos para asignar a usuarios.',
+      description: 'Definir un nuevo rol con su combinación de permisos para asignar a usuarios.',
     },
     read: {
       label: 'Ver roles',
@@ -212,8 +206,7 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
     },
     delete: {
       label: 'Eliminar marcas',
-      description:
-        'Borrar una marca. Los productos asociados pueden verse afectados.',
+      description: 'Borrar una marca. Los productos asociados pueden verse afectados.',
     },
     manage: {
       label: 'Gestión completa de marcas',
@@ -236,8 +229,7 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
     },
     delete: {
       label: 'Eliminar categorías',
-      description:
-        'Borrar una categoría. Los productos asociados pueden verse afectados.',
+      description: 'Borrar una categoría. Los productos asociados pueden verse afectados.',
     },
     manage: {
       label: 'Gestión completa de categorías',
@@ -405,8 +397,7 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
     },
     manage: {
       label: 'Gestión completa de colaboradores',
-      description:
-        'Registrar, ver, editar y desactivar colaboradores sin restricciones.',
+      description: 'Registrar, ver, editar y desactivar colaboradores sin restricciones.',
     },
   },
 
@@ -448,8 +439,7 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
     },
     manage: {
       label: 'Gestión completa de contactos de emergencia',
-      description:
-        'Agregar, ver, editar y eliminar contactos de emergencia sin restricciones.',
+      description: 'Agregar, ver, editar y eliminar contactos de emergencia sin restricciones.',
     },
   },
 
@@ -464,8 +454,7 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
     },
     manage: {
       label: 'Gestión completa de compensaciones',
-      description:
-        'Registrar y consultar compensaciones sin restricciones. Información sensible.',
+      description: 'Registrar y consultar compensaciones sin restricciones. Información sensible.',
     },
   },
 
@@ -488,8 +477,7 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
     },
     manage: {
       label: 'Gestión completa de ausencias',
-      description:
-        'Solicitar, ver, aprobar y cancelar ausencias de cualquier colaborador.',
+      description: 'Solicitar, ver, aprobar y cancelar ausencias de cualquier colaborador.',
     },
   },
 
@@ -504,13 +492,11 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
   GlobalPriceList: {
     create: {
       label: 'Crear listas de precios globales',
-      description:
-        'Dar de alta listas de precios que se comparten entre todas las sucursales.',
+      description: 'Dar de alta listas de precios que se comparten entre todas las sucursales.',
     },
     read: {
       label: 'Ver listas de precios globales',
-      description:
-        'Consultar las listas de precios disponibles para los productos.',
+      description: 'Consultar las listas de precios disponibles para los productos.',
     },
     update: {
       label: 'Editar listas de precios globales',
@@ -522,8 +508,7 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
     },
     manage: {
       label: 'Gestión completa de listas de precios',
-      description:
-        'Crear, ver, editar y eliminar listas de precios globales sin restricciones.',
+      description: 'Crear, ver, editar y eliminar listas de precios globales sin restricciones.',
     },
   },
 
@@ -531,8 +516,7 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
   SatKey: {
     read: {
       label: 'Ver claves del SAT',
-      description:
-        'Consultar el catálogo de claves de productos y servicios del SAT.',
+      description: 'Consultar el catálogo de claves de productos y servicios del SAT.',
     },
   },
 
@@ -544,13 +528,11 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
     },
     update: {
       label: 'Revisar comprobantes de pago',
-      description:
-        'Confirmar o rechazar los comprobantes de pago enviados para revisión.',
+      description: 'Confirmar o rechazar los comprobantes de pago enviados para revisión.',
     },
     manage: {
       label: 'Gestión completa de comprobantes',
-      description:
-        'Ver, confirmar y rechazar comprobantes de pago sin restricciones.',
+      description: 'Ver, confirmar y rechazar comprobantes de pago sin restricciones.',
     },
   },
 
@@ -563,15 +545,15 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
     },
     update: {
       label: 'Editar configuración del catálogo online',
-      description: 'Modificar la publicación, los contextos públicos y la presentación de stock del catálogo.',
+      description:
+        'Modificar la publicación, los contextos públicos y la presentación de stock del catálogo.',
     },
   },
 
   NotificationConfig: {
     read: {
       label: 'Ver configuración de notificaciones',
-      description:
-        'Consultar la configuración de notificaciones y alertas de la sucursal.',
+      description: 'Consultar la configuración de notificaciones y alertas de la sucursal.',
     },
     update: {
       label: 'Editar configuración de notificaciones',
@@ -616,7 +598,8 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
   PaymentMethod: {
     create: {
       label: 'Crear métodos de cobro',
-      description: 'Dar de alta métodos personalizados para recibir pagos (Mercado Pago, SPEI, etc.).',
+      description:
+        'Dar de alta métodos personalizados para recibir pagos (Mercado Pago, SPEI, etc.).',
     },
     read: {
       label: 'Ver métodos de cobro',
@@ -642,18 +625,15 @@ const PERMISSION_COPY: Record<string, Record<string, PermissionCopy>> = {
   DeliveryRoute: {
     create: {
       label: 'Crear rutas de entrega',
-      description:
-        'Agrupar ventas pendientes o enviadas en una ruta y asignar un repartidor.',
+      description: 'Agrupar ventas pendientes o enviadas en una ruta y asignar un repartidor.',
     },
     read: {
       label: 'Ver rutas de entrega',
-      description:
-        'Listar y consultar rutas de entrega (propias para repartidores).',
+      description: 'Listar y consultar rutas de entrega (propias para repartidores).',
     },
     update: {
       label: 'Editar rutas de entrega',
-      description:
-        'Editar rutas en borrador, iniciarlas, cancelarlas y registrar entregas.',
+      description: 'Editar rutas en borrador, iniciarlas, cancelarlas y registrar entregas.',
     },
     delete: {
       label: 'Eliminar rutas de entrega',
