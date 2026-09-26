@@ -47,6 +47,38 @@ for (const viewport of VIEWPORTS) {
     await expect(page.getByText('Alimento seco 15 kg')).toBeVisible()
     await expect(page.getByText('ALIM-15KG-DEMO')).toBeVisible()
     await expect(page.getByText('No contiene una conversación del cliente')).toBeVisible()
+    const statusFilter = page.getByRole('combobox', { name: 'Estado' })
+    await expect(statusFilter).toHaveText('Todas')
+    await statusFilter.click()
+    await page.getByRole('option', { name: 'Respondidas recientemente', exact: true }).click()
+    await expect(statusFilter).toHaveText('Respondidas recientemente')
+    await expect(page.getByText('No hay solicitudes para este filtro.')).toBeVisible()
+    const resolvedOverflow = await assertDocumentNoHorizontalOverflow(page)
+    expect(resolvedOverflow.status, JSON.stringify(resolvedOverflow)).toBe('pass')
+    await statusFilter.click()
+    await page.getByRole('option', { name: 'Todas', exact: true }).click()
+    await expect(statusFilter).toHaveText('Todas')
+
+    const viewToggle = page.getByRole('tablist', { name: 'Seleccionar vista' })
+    const toolbarTargets = await assertMinimumTargets([
+      { id: 'status-filter', locator: statusFilter },
+      { id: 'table-view', locator: viewToggle.getByRole('tab', { name: 'Tabla', exact: true }) },
+      { id: 'card-view', locator: viewToggle.getByRole('tab', { name: 'Tarjetas', exact: true }) },
+    ])
+    expect(toolbarTargets.status, JSON.stringify(toolbarTargets)).toBe('pass')
+    await expect
+      .poll(() =>
+        viewToggle.evaluate((element) => {
+          const lastTab = element.querySelector('[role="tab"]:last-child')
+          if (!lastTab) return Infinity
+          const style = getComputedStyle(element)
+          const expectedGap = parseFloat(style.paddingRight) + parseFloat(style.borderRightWidth)
+          const actualGap =
+            element.getBoundingClientRect().right - lastTab.getBoundingClientRect().right
+          return Math.abs(actualGap - expectedGap)
+        }),
+      )
+      .toBeLessThanOrEqual(1)
 
     const initialOverflow = await assertDocumentNoHorizontalOverflow(page)
     expect(initialOverflow.status, JSON.stringify(initialOverflow)).toBe('pass')
@@ -104,8 +136,8 @@ for (const viewport of VIEWPORTS) {
     await confirmation.getByRole('button', { name: 'Registrar respuesta' }).click()
 
     await expect(page.getByText('Respuesta registrada solo en esta simulación')).toBeVisible()
-    await expect(page.getByText('Respondida')).toBeVisible()
-    await expect(page.getByText('No hay decisiones pendientes.')).toBeVisible()
+    await expect(detail.getByText('Respondida', { exact: true })).toBeVisible()
+    await expect(page.getByText('No hay solicitudes para este filtro.')).toHaveCount(0)
     await expect(page.getByText('cliente notificado')).toHaveCount(0)
 
     const finalOverflow = await assertDocumentNoHorizontalOverflow(page)

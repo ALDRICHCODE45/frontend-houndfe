@@ -123,15 +123,18 @@ export type HumanDecisionResolvePayload =
 
 export type HumanDecisionPageSize = 20 | 50
 
-/** List requires `status=PENDING`; `page` is one-based; `sortBy`/`sortOrder` fixed. */
-export interface HumanDecisionListParams {
-  status: 'PENDING'
+export type HumanDecisionListFilter = 'ALL' | HumanDecisionStatus
+
+/** ALL has a server-owned composite order and must omit both sort fields. */
+export type HumanDecisionListParams = {
   page: number
   limit: HumanDecisionPageSize
   search?: string
-  sortBy: 'createdAt'
-  sortOrder: 'asc'
-}
+} & (
+  | { status: 'ALL'; sortBy?: never; sortOrder?: never }
+  | { status: 'PENDING'; sortBy: 'createdAt'; sortOrder: 'asc' }
+  | { status: 'RESOLVED'; sortBy: 'resolvedAt'; sortOrder: 'desc' }
+)
 
-/** Response pagination is zero-based (`pageIndex`/`pageSize`/`totalCount`/`pageCount`). */
-export type HumanDecisionListResponse = PaginatedResponse<PendingHumanDecision>
+/** Response pagination is zero-based; rows and order belong to the server. */
+export type HumanDecisionListResponse = PaginatedResponse<HumanDecision>

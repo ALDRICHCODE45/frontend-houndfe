@@ -1,13 +1,8 @@
-// navigation.humanDecisions.spec.ts — STRICT-TDD tests for the HD3A POS
-// "Decisiones pendientes" entry (ODD human-decisions-restock-inbox HD3A).
-//
-// Registry contract: POS child id `pos-human-decisions`, label
-// `Decisiones pendientes`, icon `i-lucide-inbox`, path
-// `/pos/decisiones-pendientes`, exact `['read', 'HumanDecision']`, placed
-// immediately after Ventas, with no quick action.
+// Chatbot navigation keeps the existing HumanDecision route and read permission.
 
 import { describe, expect, it } from 'vitest'
 import { navigationGroups, quickActions } from '../navigation.registry'
+import { resolveLandingDestination } from '../navigation.landing'
 import {
   buildCanAccess,
   filterAccessibleGroups,
@@ -26,19 +21,24 @@ function store(userCan: UserCan): AccessAuthStore {
   return { isSuperAdmin: false, userCan }
 }
 
-function posGroup(groups = navigationGroups) {
-  return groups.find((g) => g.id === 'pos')
+function chatbotGroup(groups = navigationGroups) {
+  return groups.find((g) => g.id === 'chatbot')
 }
 
-describe('navigation registry — POS "Decisiones pendientes" entry (HD3A)', () => {
-  it('registers the exact entry immediately after Ventas', () => {
-    const pos = posGroup()!
-    const index = pos.children.findIndex((c) => c.id === ENTRY_ID)
-    expect(index).toBe(1)
-    expect(pos.children[0]!.id).toBe('pos-sales')
+describe('navigation registry — Chatbot / Solicitudes', () => {
+  it('registers a single request entry in Chatbot immediately after POS', () => {
+    const index = navigationGroups.findIndex((g) => g.id === 'pos')
+    const chatbot = navigationGroups[index + 1]!
+    expect(chatbot).toMatchObject({ id: 'chatbot', label: 'Chatbot', icon: 'i-lucide-bot' })
+    expect(chatbot.children).toHaveLength(1)
+    expect(navigationGroups[index]!.children.some((c) => c.id === ENTRY_ID)).toBe(false)
+    expect(
+      navigationGroups.flatMap((g) => g.children).filter((c) => c.id === ENTRY_ID),
+    ).toHaveLength(1)
 
-    const entry = pos.children[index]!
-    expect(entry.label).toBe('Decisiones pendientes')
+    const entry = chatbot.children[0]!
+    expect(entry.id).toBe(ENTRY_ID)
+    expect(entry.label).toBe('Solicitudes')
     expect(entry.icon).toBe('i-lucide-inbox')
     expect(entry.to).toBe(ENTRY_PATH)
     expect(entry.permission).toEqual(['read', 'HumanDecision'])
@@ -57,9 +57,11 @@ describe('navigation registry — POS "Decisiones pendientes" entry (HD3A)', () 
       navigationGroups,
       buildCanAccess(store(canReadHumanDecision)),
     )
-    const entry = posGroup(granted)!.children.find((c) => c.id === ENTRY_ID)
+    expect(granted.map((g) => g.label)).toEqual(['Chatbot'])
+    const entry = chatbotGroup(granted)!.children.find((c) => c.id === ENTRY_ID)
     expect(entry).toBeDefined()
     expect(entry!.to).toBe(ENTRY_PATH)
+    expect(resolveLandingDestination(buildCanAccess(store(canReadHumanDecision)))).toBe(ENTRY_PATH)
   })
 
   it.each([
@@ -75,13 +77,16 @@ describe('navigation registry — POS "Decisiones pendientes" entry (HD3A)', () 
   ])('hides the entry for %s grants', (_label, userCan) => {
     const filtered = filterAccessibleGroups(navigationGroups, buildCanAccess(store(userCan)))
     expect(filtered.flatMap((g) => g.children).some((c) => c.id === ENTRY_ID)).toBe(false)
+    expect(chatbotGroup(filtered)).toBeUndefined()
   })
 
   it('feeds the command palette only when read:HumanDecision is held', () => {
     const granted = toPaletteItems(
       filterAccessibleGroups(navigationGroups, buildCanAccess(store(canReadHumanDecision))),
     )
-    expect(granted.some((i) => i.id === ENTRY_ID && i.to === ENTRY_PATH)).toBe(true)
+    expect(granted).toEqual([
+      { id: ENTRY_ID, label: 'Chatbot / Solicitudes', icon: 'i-lucide-inbox', to: ENTRY_PATH },
+    ])
 
     const denied = toPaletteItems(
       filterAccessibleGroups(navigationGroups, buildCanAccess(store(() => false))),
@@ -90,10 +95,10 @@ describe('navigation registry — POS "Decisiones pendientes" entry (HD3A)', () 
   })
 
   it('does not mutate the registry while filtering', () => {
-    const before = posGroup()!.children.map((c) => c.id)
+    const before = chatbotGroup()!.children.map((c) => c.id)
     filterAccessibleGroups(navigationGroups, buildCanAccess(store(() => false)))
-    expect(posGroup()!.children.map((c) => c.id)).toEqual(before)
-    expect(posGroup()!.children.find((c) => c.id === ENTRY_ID)!.permission).toEqual([
+    expect(chatbotGroup()!.children.map((c) => c.id)).toEqual(before)
+    expect(chatbotGroup()!.children.find((c) => c.id === ENTRY_ID)!.permission).toEqual([
       'read',
       'HumanDecision',
     ])

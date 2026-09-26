@@ -1,4 +1,7 @@
-import type { PendingHumanDecision } from '../interfaces/human-decision.types'
+import type {
+  HumanDecisionResolution,
+  PendingHumanDecision,
+} from '../interfaces/human-decision.types'
 
 const MEXICO_CITY_TIME_ZONE = 'America/Mexico_City'
 export const BRANCH_FALLBACK = 'Sucursal no especificada'
@@ -53,6 +56,13 @@ export function createdAtPresentationLabel(createdAt: string): string {
   const date = new Date(createdAt)
   if (Number.isNaN(date.getTime())) return CREATED_AT_FALLBACK
   return createdAtFormatter.format(date)
+}
+
+/** Match the approved detail wording without coupling list presentation to a column factory. */
+export function resolvedResponseLabel(resolution: HumanDecisionResolution): string {
+  return resolution.action === 'PROVIDE_RESTOCK_ESTIMATE'
+    ? `Reposición estimada en ${resolution.restockDays} días naturales.`
+    : 'Por ahora no tenemos una fecha estimada de reposición.'
 }
 
 export function presentPendingHumanDecision(

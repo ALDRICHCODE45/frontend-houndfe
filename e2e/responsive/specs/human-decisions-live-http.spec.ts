@@ -39,19 +39,23 @@ const resolvedDecision = {
   },
 } as const
 const listQuery = {
-  status: 'PENDING',
+  status: 'ALL',
   page: '1',
   limit: '20',
-  sortBy: 'createdAt',
-  sortOrder: 'asc',
+}
+const otherPendingDecision = {
+  ...pendingDecision,
+  id: 'decision-restock-0002',
+  title: 'Otra solicitud de reposición',
+  snapshot: { ...pendingDecision.snapshot, productName: 'Arena 5 kg' },
+}
+const recentPage = {
+  data: [otherPendingDecision, resolvedDecision],
+  pagination: { pageIndex: 0, pageSize: 20, totalCount: 2, pageCount: 1 },
 }
 const pendingPage = {
-  data: [pendingDecision],
-  pagination: { pageIndex: 0, pageSize: 20, totalCount: 1, pageCount: 1 },
-}
-const emptyPage = {
-  data: [],
-  pagination: { pageIndex: 0, pageSize: 20, totalCount: 0, pageCount: 0 },
+  data: [pendingDecision, otherPendingDecision],
+  pagination: { pageIndex: 0, pageSize: 20, totalCount: 2, pageCount: 1 },
 }
 const resolutionPayload = {
   action: 'REPORT_RESTOCK_ESTIMATE_UNAVAILABLE',
@@ -74,7 +78,7 @@ function resolveRoutes(
       method: 'GET',
       path: '/human-decisions',
       query: listQuery,
-      responses: [{ json: pendingPage }, { json: emptyPage }],
+      responses: [{ json: pendingPage }, { json: recentPage }],
     },
     {
       method: 'GET',
@@ -92,9 +96,11 @@ function resolveRoutes(
 
 async function openDecision(page: Page): Promise<void> {
   await page.goto(`${RESPONSIVE_ORIGIN}/pos/decisiones-pendientes`)
-  await expect(page.getByRole('heading', { name: 'Decisiones pendientes' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Solicitudes' })).toBeVisible()
   await expect(page.getByText('Alimento seco 15 kg')).toBeVisible()
-  await page.getByTestId('human-decision-table-open').click()
+  await page
+    .getByRole('button', { name: 'Abrir detalle: Solicitud de reposición', exact: true })
+    .click()
   await expect(page.getByTestId('human-decision-detail')).toBeVisible()
 }
 
@@ -108,9 +114,11 @@ async function submitUnavailable(page: Page): Promise<void> {
 
 function expectRequestCounts(network: StrictNetworkController, postCount: number): void {
   const requests = network.requests()
-  expect(
-    requests.filter(({ method, path }) => method === 'GET' && path === '/human-decisions'),
-  ).toHaveLength(2)
+  const listRequests = requests.filter(
+    ({ method, path }) => method === 'GET' && path === '/human-decisions',
+  )
+  expect(listRequests).toHaveLength(2)
+  expect(listRequests.map(({ query }) => query)).toEqual([listQuery, listQuery])
   expect(
     requests.filter(
       ({ method, path }) => method === 'GET' && path === `/human-decisions/${decisionId}`,
@@ -156,11 +164,17 @@ test.describe('RESTOCK live HTTP mount — resolve', () => {
 
     await submitUnavailable(page)
 
-    await expect(page.getByText('Respondida')).toBeVisible()
     await expect(
-      page.getByText('Por ahora no tenemos una fecha estimada de reposición.'),
+      page.getByTestId('human-decision-detail').getByText('Respondida', { exact: true }),
     ).toBeVisible()
-    await expect(page.getByText('No hay decisiones pendientes.')).toBeVisible()
+    await expect(
+      page
+        .getByTestId('human-decision-detail')
+        .getByText('Por ahora no tenemos una fecha estimada de reposición.'),
+    ).toBeVisible()
+    await expect(page.getByTestId('human-decision-response').last()).toContainText(
+      'Por ahora no tenemos una fecha estimada de reposición.',
+    )
     await expect(page.getByText('cliente notificado')).toHaveCount(0)
     expect(strictNetwork.violations()).toEqual([])
     expectRequestCounts(strictNetwork, 1)
@@ -196,8 +210,12 @@ test.describe('RESTOCK live HTTP mount — retry', () => {
     await expect(page.getByRole('alert')).toContainText('No se pudo registrar la respuesta')
     await submitUnavailable(page)
 
-    await expect(page.getByText('Respondida')).toBeVisible()
-    await expect(page.getByText('No hay decisiones pendientes.')).toBeVisible()
+    await expect(
+      page.getByTestId('human-decision-detail').getByText('Respondida', { exact: true }),
+    ).toBeVisible()
+    await expect(page.getByTestId('human-decision-response').last()).toContainText(
+      'Por ahora no tenemos una fecha estimada de reposición.',
+    )
     expect(strictNetwork.violations()).toEqual([])
     expectRequestCounts(strictNetwork, 2)
     expect(
@@ -234,8 +252,12 @@ test.describe('RESTOCK live HTTP mount — version conflict', () => {
     await openDecision(page)
     await submitUnavailable(page)
 
-    await expect(page.getByText('Respondida')).toBeVisible()
-    await expect(page.getByText('No hay decisiones pendientes.')).toBeVisible()
+    await expect(
+      page.getByTestId('human-decision-detail').getByText('Respondida', { exact: true }),
+    ).toBeVisible()
+    await expect(page.getByTestId('human-decision-response').last()).toContainText(
+      'Por ahora no tenemos una fecha estimada de reposición.',
+    )
     await expect(page.getByRole('button', { name: 'Sin fecha estimada por ahora' })).toHaveCount(0)
     expect(strictNetwork.violations()).toEqual([])
     expectRequestCounts(strictNetwork, 1)

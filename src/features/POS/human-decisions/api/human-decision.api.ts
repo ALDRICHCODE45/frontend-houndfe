@@ -10,7 +10,7 @@ import type {
 } from '../interfaces/human-decision.types'
 
 export const humanDecisionApi = {
-  /** GET /human-decisions — PENDING RESTOCK inbox page (one-based request page). */
+  /** GET /human-decisions — one server-ordered inbox page for the selected status filter. */
   async list(params: HumanDecisionListParams): Promise<HumanDecisionListResponse> {
     const { data } = await http.get<HumanDecisionListResponse>('/human-decisions', { params })
     return data

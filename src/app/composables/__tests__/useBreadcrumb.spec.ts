@@ -40,6 +40,15 @@ describe('useBreadcrumb', () => {
     expect(breadcrumb.value).toEqual([{ label: 'POS' }, { label: 'Ventas', to: '/pos/ventas' }])
   })
 
+  it('uses Chatbot / Solicitudes for the existing POS inbox URL', () => {
+    routePath.value = '/pos/decisiones-pendientes'
+    const { breadcrumb } = useBreadcrumb()
+    expect(breadcrumb.value).toEqual([
+      { label: 'Chatbot' },
+      { label: 'Solicitudes', to: '/pos/decisiones-pendientes' },
+    ])
+  })
+
   it('keeps the parent section for a detail sub-route (/:id)', () => {
     routePath.value = '/pos/ventas/123'
     const { breadcrumb } = useBreadcrumb()

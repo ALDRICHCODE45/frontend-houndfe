@@ -14,6 +14,9 @@ const presentation = computed(() => presentPendingHumanDecision(props.decision))
     class="flex w-full flex-col gap-3 rounded-xl border border-default bg-default p-4"
   >
     <header class="space-y-1">
+      <UBadge color="warning" variant="subtle" data-testid="human-decision-status"
+        >Pendiente</UBadge
+      >
       <h2 class="text-base font-semibold text-highlighted">{{ decision.title }}</h2>
       <p class="text-sm text-muted">{{ decision.sanitizedSummary }}</p>
     </header>

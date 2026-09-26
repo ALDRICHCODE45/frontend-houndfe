@@ -95,6 +95,7 @@ describe('HD3B1 · HumanDecisionCard', () => {
     const wrapper = mountCard(makePending())
     expect(wrapper.find('[data-testid="human-decision-card"]').exists()).toBe(true)
     const text = wrapper.text()
+    expect(wrapper.get('[data-testid="human-decision-status"]').text()).toBe('Pendiente')
     expect(text).toContain('Reposición solicitada')
     expect(text).toContain('Kibble 15kg')
     expect(text).toContain('Sucursal Centro')
@@ -128,13 +129,15 @@ describe('HD3B1 · useHumanDecisionColumns', () => {
     const { columns } = useHumanDecisionColumns()
     expect(columns.map((c) => c.id)).toEqual([
       'product',
+      'status',
       'branch',
       'requestedQuantity',
       'createdAt',
+      'response',
       'actions',
     ])
   })
-  it('disables sorting on every column because transport fixes createdAt asc', () => {
+  it('disables sorting on every column because the server owns ordering', () => {
     const { columns } = useHumanDecisionColumns()
     for (const column of columns) expect(column.enableSorting).toBe(false)
   })

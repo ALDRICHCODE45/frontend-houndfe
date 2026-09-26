@@ -9,7 +9,10 @@ import type {
 import type { BranchSalesSummaryQuery } from '@/features/analytics/interfaces/branch-sales-summary.types'
 import type { BranchSalesTimeseriesQuery } from '@/features/analytics/interfaces/branch-sales-timeseries.types'
 import type { PendingRefundsQuery } from '@/features/POS/sales/interfaces/pending-refund.types'
-import type { HumanDecisionListParams } from '@/features/POS/human-decisions/interfaces/human-decision.types'
+import type {
+  HumanDecisionListFilter,
+  HumanDecisionListParams,
+} from '@/features/POS/human-decisions/interfaces/human-decision.types'
 
 export const productQueryKeys = {
   paginated: (tenantId: string) => ['products', tenantId, 'paginated'] as const,
@@ -360,5 +363,7 @@ export const humanDecisionQueryKeys = {
   list: (tenantId: string, params: HumanDecisionListParams) =>
     ['human-decisions', tenantId, 'list', params] as const,
   listPrefix: (tenantId: string) => ['human-decisions', tenantId, 'list'] as const,
+  filteredListPrefix: (tenantId: string, status: HumanDecisionListFilter) =>
+    ['human-decisions', tenantId, 'list', status] as const,
   detail: (tenantId: string, id: string) => ['human-decisions', tenantId, 'detail', id] as const,
 }

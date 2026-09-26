@@ -6,7 +6,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { mount } from '@vue/test-utils'
-import { defineComponent, h, ref } from 'vue'
+import { defineComponent, h, reactive, ref } from 'vue'
 import { humanDecisionQueryKeys } from '@/core/shared/constants/query-keys'
 import {
   mapServerTableParamsToHumanDecisionListParams,
@@ -17,15 +17,18 @@ import { humanDecisionApi } from '../../api/human-decision.api'
 import type {
   HumanDecisionListParams,
   PendingHumanDecision,
+  ResolvedHumanDecision,
 } from '../../interfaces/human-decision.types'
 
 vi.mock('../../api/human-decision.api', () => ({
   humanDecisionApi: { list: vi.fn(), getById: vi.fn() },
 }))
 
-vi.mock('@/features/auth/stores/useAuthStore', () => ({
-  useAuthStore: () => ({ currentTenantId: 'tenant-1' }),
-}))
+const auth = reactive({ currentTenantId: 'tenant-1' })
+vi.mock('@/features/auth/stores/useAuthStore', () => ({ useAuthStore: () => auth }))
+beforeEach(() => {
+  auth.currentTenantId = 'tenant-1'
+})
 
 const pending: PendingHumanDecision = {
   id: 'hd-1',
@@ -55,13 +58,12 @@ const page = {
   pagination: { pageIndex: 2, pageSize: 20, totalCount: 41, pageCount: 3 },
 }
 
-/** Complete list-params fixture — query-key slots must carry the real DTO shape. */
-const listParams = (overrides: Partial<HumanDecisionListParams> = {}): HumanDecisionListParams => ({
-  status: 'PENDING',
+const listParams = (
+  overrides: { page?: number; search?: string } = {},
+): HumanDecisionListParams => ({
+  status: 'ALL',
   page: 1,
   limit: 20,
-  sortBy: 'createdAt',
-  sortOrder: 'asc',
   ...overrides,
 })
 
@@ -118,16 +120,14 @@ describe('HD2B · mapServerTableParamsToHumanDecisionListParams', () => {
         sorting: [{ id: 'createdAt', desc: false }],
       }),
     ).toEqual({
-      status: 'PENDING',
+      status: 'ALL',
       page: 3,
       limit: 50,
       search: 'kibble',
-      sortBy: 'createdAt',
-      sortOrder: 'asc',
     })
   })
 
-  it('defaults to limit 20, omits empty search and never emits RESOLVED or an arbitrary sort', () => {
+  it('defaults to ALL and limit 20, omitting empty search and both sort fields', () => {
     const mapped = mapServerTableParamsToHumanDecisionListParams({
       pageIndex: 0,
       pageSize: 20,
@@ -135,15 +135,39 @@ describe('HD2B · mapServerTableParamsToHumanDecisionListParams', () => {
       globalFilter: '',
     })
 
-    expect(mapped).toEqual({
-      status: 'PENDING',
-      page: 1,
-      limit: 20,
-      sortBy: 'createdAt',
-      sortOrder: 'asc',
-    })
+    expect(mapped).toEqual({ status: 'ALL', page: 1, limit: 20 })
     expect('search' in mapped).toBe(false)
     expect(JSON.stringify(mapped)).not.toContain('RESOLVED')
+  })
+
+  it.each([
+    ['PENDING', 'createdAt', 'asc'],
+    ['RESOLVED', 'resolvedAt', 'desc'],
+  ] as const)('preserves the %s single-state contract', (status, sortBy, sortOrder) => {
+    expect(
+      mapServerTableParamsToHumanDecisionListParams({ pageIndex: 2, pageSize: 50 }, status),
+    ).toEqual({ status, page: 3, limit: 50, sortBy, sortOrder })
+  })
+
+  it('normalizes Unicode and clamps unsupported page sizes for resolved requests', () => {
+    expect(
+      mapServerTableParamsToHumanDecisionListParams(
+        {
+          pageIndex: 2,
+          pageSize: 10,
+          globalFilter: '  cafe\u0301   alimento ',
+          sorting: [{ id: 'title', desc: false }],
+        },
+        'RESOLVED',
+      ),
+    ).toEqual({
+      status: 'RESOLVED',
+      page: 3,
+      limit: 20,
+      search: 'café alimento',
+      sortBy: 'resolvedAt',
+      sortOrder: 'desc',
+    })
   })
 
   it('normalizes search whitespace and omits an explicit blank', () => {
@@ -166,16 +190,14 @@ describe('HD2B · useHumanDecisionsListTable', () => {
     vi.mocked(humanDecisionApi.list).mockResolvedValue(page)
   })
 
-  it('calls the API with fixed PENDING params and surfaces the shared pagination untouched', async () => {
+  it('calls one ALL request without sorting and surfaces server pagination untouched', async () => {
     const { result, queryClient, wrapper } = mountComposable(() => useHumanDecisionsListTable())
 
     await vi.waitFor(() => expect(humanDecisionApi.list).toHaveBeenCalled())
-    expect(humanDecisionApi.list).toHaveBeenCalledWith({
-      status: 'PENDING',
+    expect(humanDecisionApi.list).toHaveBeenCalledExactlyOnceWith({
+      status: 'ALL',
       page: 1,
       limit: 20,
-      sortBy: 'createdAt',
-      sortOrder: 'asc',
     })
     expect(
       queryClient
@@ -188,6 +210,118 @@ describe('HD2B · useHumanDecisionsListTable', () => {
     expect(result.totalCount.value).toBe(41)
     expect(result.pageCount.value).toBe(3)
     expect(result.pageSizeOptions).toEqual([20, 50])
+    wrapper.unmount()
+  })
+})
+
+describe('unified filter state', () => {
+  it('isolates tenant/page/search keys and refreshes the selected status on demand', async () => {
+    vi.mocked(humanDecisionApi.list).mockClear().mockResolvedValue(page)
+    const { result, queryClient, wrapper } = mountComposable(useHumanDecisionsListTable)
+    queryClient.setQueryDefaults(humanDecisionQueryKeys.listPrefix('tenant-1'), {
+      gcTime: Infinity,
+    })
+    result.setStatusFilter('RESOLVED')
+    await vi.waitFor(() => expect(result.totalCount.value).toBe(41))
+    result.pagination.value = { pageIndex: 1, pageSize: 50 }
+    await vi.waitFor(() =>
+      expect(humanDecisionApi.list).toHaveBeenLastCalledWith({
+        status: 'RESOLVED',
+        page: 2,
+        limit: 50,
+        sortBy: 'resolvedAt',
+        sortOrder: 'desc',
+      }),
+    )
+    result.globalFilter.value = ' alimento '
+    await vi.waitFor(() =>
+      expect(humanDecisionApi.list).toHaveBeenLastCalledWith(
+        expect.objectContaining({ status: 'RESOLVED', page: 1, search: 'alimento' }),
+      ),
+    )
+    const calls = vi.mocked(humanDecisionApi.list).mock.calls.length
+    result.refresh()
+    await vi.waitFor(() => expect(humanDecisionApi.list).toHaveBeenCalledTimes(calls + 1))
+    auth.currentTenantId = 'tenant-2'
+    await vi.waitFor(() =>
+      expect(
+        queryClient
+          .getQueryCache()
+          .findAll({ queryKey: humanDecisionQueryKeys.filteredListPrefix('tenant-2', 'RESOLVED') }),
+      ).toHaveLength(1),
+    )
+    expect(
+      queryClient
+        .getQueryCache()
+        .findAll({ queryKey: humanDecisionQueryKeys.filteredListPrefix('tenant-1', 'RESOLVED') })
+        .length,
+    ).toBeGreaterThan(1)
+    wrapper.unmount()
+    queryClient.clear()
+  })
+  it('resets page before fetching a new status and isolates all filters below the invalidation prefix', async () => {
+    vi.mocked(humanDecisionApi.list).mockClear().mockResolvedValue(page)
+    const { result, queryClient, wrapper } = mountComposable(useHumanDecisionsListTable)
+    queryClient.setQueryDefaults(humanDecisionQueryKeys.listPrefix('tenant-1'), {
+      gcTime: Infinity,
+    })
+    await vi.waitFor(() => expect(result.data.value).toEqual([pending]))
+    result.pagination.value = { pageIndex: 2, pageSize: 50 }
+    await vi.waitFor(() =>
+      expect(humanDecisionApi.list).toHaveBeenLastCalledWith({ status: 'ALL', page: 3, limit: 50 }),
+    )
+    for (const status of ['RESOLVED', 'PENDING', 'ALL'] as const) {
+      result.setStatusFilter(status)
+      expect(result.pagination.value.pageIndex).toBe(0)
+      await vi.waitFor(() =>
+        expect(humanDecisionApi.list).toHaveBeenLastCalledWith(
+          expect.objectContaining({ status, page: 1, limit: 50 }),
+        ),
+      )
+    }
+    expect(
+      vi
+        .mocked(humanDecisionApi.list)
+        .mock.calls.some(([params]) => params.status !== 'ALL' && params.page === 3),
+    ).toBe(false)
+    const keys = queryClient
+      .getQueryCache()
+      .findAll({ queryKey: humanDecisionQueryKeys.listPrefix('tenant-1') })
+      .map((query) => query.queryKey)
+    for (const status of ['ALL', 'PENDING', 'RESOLVED'])
+      expect(keys.some((key) => key[3] === status)).toBe(true)
+    await queryClient.invalidateQueries({
+      queryKey: humanDecisionQueryKeys.listPrefix('tenant-1'),
+      refetchType: 'none',
+    })
+    expect(
+      queryClient
+        .getQueryCache()
+        .findAll({ queryKey: humanDecisionQueryKeys.listPrefix('tenant-1') })
+        .every((query) => query.state.isInvalidated),
+    ).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('preserves mixed rows, response metadata, server ordering and the single total without a client cutoff', async () => {
+    const resolved: ResolvedHumanDecision = {
+      ...pending,
+      id: 'resolved',
+      status: 'RESOLVED',
+      version: 2,
+      allowedActions: [],
+      resolution: {
+        action: 'REPORT_RESTOCK_ESTIMATE_UNAVAILABLE',
+        resolvedAt: '2000-01-01T00:00:00Z',
+        resolvedBy: { id: 'reviewer', displayName: 'Ana' },
+      },
+    }
+    const rows = [resolved, pending]
+    vi.mocked(humanDecisionApi.list).mockResolvedValue({ ...page, data: rows })
+    const { result, wrapper } = mountComposable(useHumanDecisionsListTable)
+    await vi.waitFor(() => expect(result.data.value).toEqual(rows))
+    expect(result.totalCount.value).toBe(41)
+    expect(result.pageCount.value).toBe(3)
     wrapper.unmount()
   })
 })

@@ -1,11 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
-import { defineComponent, h } from 'vue'
+import { QueryClient, VueQueryPlugin, useQuery } from '@tanstack/vue-query'
+import { defineComponent, h, nextTick } from 'vue'
+import type { PaginatedResponse, ServerTableParams } from '@/core/shared/types/table.types'
+import {
+  useHumanDecisionsListTable,
+  mapServerTableParamsToHumanDecisionListParams,
+} from '../useHumanDecisionsListTable'
 import { mount } from '@vue/test-utils'
 import type { AxiosError } from 'axios'
 import { humanDecisionQueryKeys } from '@/core/shared/constants/query-keys'
 import { humanDecisionApi } from '../../api/human-decision.api'
 import type {
+  HumanDecision,
+  HumanDecisionListFilter,
+  HumanDecisionListParams,
   HumanDecisionErrorResponse,
   ResolvedHumanDecision,
 } from '../../interfaces/human-decision.types'
@@ -16,7 +24,7 @@ import {
 import { useResolveHumanDecision } from '../useResolveHumanDecision'
 
 vi.mock('../../api/human-decision.api', () => ({
-  humanDecisionApi: { resolve: vi.fn() },
+  humanDecisionApi: { resolve: vi.fn(), list: vi.fn() },
 }))
 vi.mock('@/features/auth/stores/useAuthStore', () => ({
   useAuthStore: () => ({ currentTenantId: 'tenant-1' }),
@@ -169,6 +177,225 @@ describe('useResolveHumanDecision', () => {
       })
       expect(attempt.payload.resolutionRequestId).toBe('7d4101dd-c50e-43e6-8ff8-9b4229b912f0')
       wrapper.unmount()
+    },
+  )
+
+  it.each(['success', 'VERSION_CONFLICT', 'ALREADY_RESOLVED'] as const)(
+    'refreshes every live status filter for %s without optimistic insertion or another tenant refresh',
+    async (outcome) => {
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+      const pendingPage = vi.fn().mockResolvedValue({ data: [] })
+      const recentPage = vi.fn().mockResolvedValue({ data: [resolved] })
+      const mixedPage = vi.fn().mockResolvedValue({ data: [resolved] })
+      const otherTenant = vi.fn().mockResolvedValue({ data: [] })
+      let mutation!: ReturnType<typeof useResolveHumanDecision>
+      const wrapper = mount(
+        defineComponent({
+          setup() {
+            useQuery({
+              queryKey: [
+                ...humanDecisionQueryKeys.filteredListPrefix('tenant-1', 'PENDING'),
+                { page: 1 },
+              ],
+              queryFn: pendingPage,
+            })
+            useQuery({
+              queryKey: [
+                ...humanDecisionQueryKeys.filteredListPrefix('tenant-1', 'RESOLVED'),
+                { page: 1 },
+              ],
+              queryFn: recentPage,
+            })
+            useQuery({
+              queryKey: [
+                ...humanDecisionQueryKeys.filteredListPrefix('tenant-2', 'ALL'),
+                { page: 1 },
+              ],
+              queryFn: otherTenant,
+            })
+            useQuery({
+              queryKey: [
+                ...humanDecisionQueryKeys.filteredListPrefix('tenant-1', 'ALL'),
+                { page: 2, search: 'alimento' },
+              ],
+              queryFn: mixedPage,
+            })
+            mutation = useResolveHumanDecision()
+            return () => h('div')
+          },
+        }),
+        { global: { plugins: [[VueQueryPlugin, { queryClient: client }]] } },
+      )
+      await vi.waitFor(() => expect(recentPage).toHaveBeenCalledTimes(1))
+      const write = vi.spyOn(client, 'setQueryData')
+      let finish!: () => void
+      vi.mocked(humanDecisionApi.resolve).mockImplementation(
+        () =>
+          new Promise((resolve, reject) => {
+            finish = () => (outcome === 'success' ? resolve(resolved) : reject(conflict(outcome)))
+          }),
+      )
+      const attempt = createHumanDecisionResolutionAttempt('decision-1', {
+        action: 'REPORT_RESTOCK_ESTIMATE_UNAVAILABLE',
+        expectedVersion: 1,
+      })
+      const request = mutation.mutateAsync(attempt).catch(() => undefined)
+      await vi.waitFor(() => expect(finish).toBeTypeOf('function'))
+      expect(write).not.toHaveBeenCalled()
+      expect(recentPage).toHaveBeenCalledTimes(1)
+      finish()
+      await request
+      await vi.waitFor(() => {
+        expect(pendingPage).toHaveBeenCalledTimes(2)
+        expect(recentPage).toHaveBeenCalledTimes(2)
+        expect(mixedPage).toHaveBeenCalledTimes(2)
+      })
+      expect(otherTenant).toHaveBeenCalledTimes(1)
+      expect(write.mock.calls.every(([key]) => Array.isArray(key) && key[2] === 'detail')).toBe(
+        true,
+      )
+      wrapper.unmount()
+      client.clear()
+    },
+  )
+
+  it.each(['VERSION_CONFLICT', 'ALREADY_RESOLVED'] as const)(
+    'keeps visited filter/page/search caches bound to their own requests after %s',
+    async (code) => {
+      const client = new QueryClient({
+        defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+      })
+      let generation = 0
+      const responseFor = (params: HumanDecisionListParams): PaginatedResponse<HumanDecision> => {
+        const row: HumanDecision =
+          params.status === 'RESOLVED'
+            ? resolved
+            : {
+                ...resolved,
+                status: 'PENDING',
+                version: 1,
+                resolution: null,
+                allowedActions: ['PROVIDE_RESTOCK_ESTIMATE', 'REPORT_RESTOCK_ESTIMATE_UNAVAILABLE'],
+              }
+        return {
+          data: [
+            {
+              ...row,
+              id: JSON.stringify({
+                status: params.status,
+                page: params.page,
+                limit: params.limit,
+                search: params.search,
+                sortBy: params.sortBy,
+                sortOrder: params.sortOrder,
+                generation,
+              }),
+            },
+          ],
+          pagination: {
+            pageIndex: params.page - 1,
+            pageSize: params.limit,
+            totalCount: 200,
+            pageCount: 10,
+          },
+        }
+      }
+      vi.mocked(humanDecisionApi.list).mockImplementation(async (params) => responseFor(params))
+      let table!: ReturnType<typeof useHumanDecisionsListTable>
+      let mutation!: ReturnType<typeof useResolveHumanDecision>
+      const wrapper = mount(
+        defineComponent({
+          setup() {
+            table = useHumanDecisionsListTable()
+            mutation = useResolveHumanDecision()
+            return () => h('div')
+          },
+        }),
+        { global: { plugins: [[VueQueryPlugin, { queryClient: client }]] } },
+      )
+      try {
+        await vi.waitFor(() => expect(table.data.value).toHaveLength(1))
+        for (const [status, search, pageIndex] of [
+          ['ALL', 'food', 1],
+          ['PENDING', 'seed', 2],
+          ['RESOLVED', 'hay', 3],
+        ] as const) {
+          table.setStatusFilter(status)
+          table.globalFilter.value = search
+          await vi.waitFor(() =>
+            expect(humanDecisionApi.list).toHaveBeenCalledWith(
+              mapServerTableParamsToHumanDecisionListParams(
+                { pageIndex: 0, pageSize: 20, globalFilter: search },
+                status,
+              ),
+            ),
+          )
+          table.pagination.value = { pageIndex, pageSize: 50 }
+          await vi.waitFor(() =>
+            expect(table.data.value[0]?.id).toContain(`"page":${pageIndex + 1}`),
+          )
+          // Restore the standard size so each next search has an unambiguous page-reset request.
+          table.pagination.value = { pageIndex, pageSize: 20 }
+          await nextTick()
+          await vi.waitFor(() => expect(table.isFetching.value).toBe(false))
+        }
+        const retained = client
+          .getQueryCache()
+          .findAll({ queryKey: humanDecisionQueryKeys.listPrefix('tenant-1') })
+        expect(retained.filter((query) => !query.isActive()).length).toBeGreaterThan(3)
+        generation = 1
+        vi.mocked(humanDecisionApi.list).mockClear()
+        const error = conflict(code)
+        vi.mocked(humanDecisionApi.resolve).mockRejectedValue(error)
+        await expect(
+          mutation.mutateAsync(
+            createHumanDecisionResolutionAttempt('decision-1', {
+              action: 'REPORT_RESTOCK_ESTIMATE_UNAVAILABLE',
+              expectedVersion: 1,
+            }),
+          ),
+        ).rejects.toBe(error)
+        for (const query of retained) {
+          const key = query.queryKey
+          const params = key[key.length - 1] as ServerTableParams
+          const status = key[key.length - 2] as HumanDecisionListFilter
+          const request = mapServerTableParamsToHumanDecisionListParams(params, status)
+          expect(humanDecisionApi.list).toHaveBeenCalledWith(request)
+          expect(client.getQueryData(key)).toEqual(responseFor(request))
+          if (status === 'ALL') {
+            expect(request).not.toHaveProperty('sortBy')
+            expect(request).not.toHaveProperty('sortOrder')
+          }
+        }
+        const calls = vi.mocked(humanDecisionApi.list).mock.calls.length
+        table.setStatusFilter('PENDING')
+        table.globalFilter.value = 'seed'
+        await vi.waitFor(() =>
+          expect(table.data.value).toEqual(
+            responseFor({
+              status: 'PENDING',
+              page: 1,
+              limit: 20,
+              search: 'seed',
+              sortBy: 'createdAt',
+              sortOrder: 'asc',
+            }).data,
+          ),
+        )
+        // A transient filter key may fetch before the search debounce, but the retained key is fresh.
+        expect(
+          vi
+            .mocked(humanDecisionApi.list)
+            .mock.calls.slice(calls)
+            .some(
+              ([params]) =>
+                params.status === 'PENDING' && params.search === 'seed' && params.page === 1,
+            ),
+        ).toBe(false)
+      } finally {
+        wrapper.unmount()
+        client.clear()
+      }
     },
   )
 

@@ -1,61 +1,60 @@
-/**
- * HD2B — RESTOCK inbox list table. Wraps the shared `useServerTable`.
- *
- * The backend list endpoint is fixed: `status=PENDING`, sort `createdAt asc`,
- * and a `limit` of 20 or 50. The pure mapper below is the single place that
- * translates the table's zero-based state into that contract; the API response
- * already matches the shared `{data,pagination}` shape, so it is returned as-is.
- */
-
-import { computed } from 'vue'
+/** One server-owned inbox page; no client ordering or recent-response cutoff. */
+import { computed, readonly, shallowRef } from 'vue'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { humanDecisionQueryKeys } from '@/core/shared/constants/query-keys'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { humanDecisionApi } from '../api/human-decision.api'
 import type {
+  HumanDecision,
+  HumanDecisionListFilter,
   HumanDecisionListParams,
   HumanDecisionPageSize,
-  PendingHumanDecision,
 } from '../interfaces/human-decision.types'
 import type { ServerTableParams } from '@/core/shared/types/table.types'
 
-const DEFAULT_PAGE_SIZE = 20
-const PAGE_SIZE_OPTIONS = [20, 50]
-const WHITESPACE_RUN = /\s+/gu
-
-/** Pure: ServerTableParams (0-indexed) → HumanDecisionListParams (1-indexed). */
+/** Translate zero-based table pagination and normalize product-only search. */
 export function mapServerTableParamsToHumanDecisionListParams(
   params: ServerTableParams,
+  status: HumanDecisionListFilter = 'ALL',
 ): HumanDecisionListParams {
   const limit: HumanDecisionPageSize = params.pageSize === 50 ? 50 : 20
-  const mapped: HumanDecisionListParams = {
-    status: 'PENDING',
-    page: params.pageIndex + 1,
-    limit,
-    sortBy: 'createdAt',
-    sortOrder: 'asc',
-  }
-
-  const search = (params.globalFilter ?? '').normalize('NFC').replace(WHITESPACE_RUN, ' ').trim()
+  const page = params.pageIndex + 1
+  const mapped: HumanDecisionListParams =
+    status === 'ALL'
+      ? { status, page, limit }
+      : status === 'PENDING'
+        ? { status, page, limit, sortBy: 'createdAt', sortOrder: 'asc' }
+        : { status, page, limit, sortBy: 'resolvedAt', sortOrder: 'desc' }
+  const search = (params.globalFilter ?? '').normalize('NFC').replace(/\s+/gu, ' ').trim()
   if (search) mapped.search = search
-
   return mapped
 }
 
 export function useHumanDecisionsListTable() {
   const authStore = useAuthStore()
   const tenantId = computed(() => authStore.currentTenantId)
-
-  return useServerTable<PendingHumanDecision>({
-    // `useServerTable` appends the live server params, so the base key is the
-    // list prefix: the full key stays `[..., 'list', serverParams]`.
-    queryKey: () => humanDecisionQueryKeys.listPrefix(tenantId.value),
-    queryFn: (params) =>
-      humanDecisionApi.list(mapServerTableParamsToHumanDecisionListParams(params)),
-    defaultPageSize: DEFAULT_PAGE_SIZE,
-    pageSizeOptions: PAGE_SIZE_OPTIONS,
-    defaultSorting: [{ id: 'createdAt', desc: false }],
+  const statusFilter = shallowRef<HumanDecisionListFilter>('ALL')
+  const table = useServerTable<HumanDecision>({
+    queryKey: () => humanDecisionQueryKeys.filteredListPrefix(tenantId.value, statusFilter.value),
+    queryFn: (params, { queryKey }) => {
+      // filteredListPrefix ends in status; useServerTable appends the captured params.
+      const status = queryKey[queryKey.length - 2]
+      if (status !== 'ALL' && status !== 'PENDING' && status !== 'RESOLVED') {
+        throw new Error('Invalid human decision list query status')
+      }
+      return humanDecisionApi.list(mapServerTableParamsToHumanDecisionListParams(params, status))
+    },
+    defaultPageSize: 20,
+    pageSizeOptions: [20, 50],
     persistKey: 'pos-human-decisions-list',
     urlSync: false,
   })
+
+  function setStatusFilter(status: HumanDecisionListFilter) {
+    if (status === statusFilter.value) return
+    table.pagination.value = { ...table.pagination.value, pageIndex: 0 }
+    statusFilter.value = status
+  }
+
+  return { ...table, statusFilter: readonly(statusFilter), setStatusFilter }
 }

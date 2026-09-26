@@ -95,6 +95,36 @@ describe('HD2A/HD4A · humanDecisionApi', () => {
     expect(result).toBe(response)
   })
 
+  it('list() sends ALL without sort fields and preserves the mixed envelope', async () => {
+    const response = {
+      data: [pending, resolved],
+      pagination: { pageIndex: 0, pageSize: 20, totalCount: 42, pageCount: 3 },
+    }
+    vi.mocked(http.get).mockResolvedValue({ data: response })
+    expect(await humanDecisionApi.list({ status: 'ALL', page: 1, limit: 20 })).toBe(response)
+    expect(http.get).toHaveBeenCalledExactlyOnceWith('/human-decisions', {
+      params: { status: 'ALL', page: 1, limit: 20 },
+    })
+  })
+
+  it('list() sends the fixed resolved contract and unwraps the page', async () => {
+    const response = {
+      data: [resolved],
+      pagination: { pageIndex: 1, pageSize: 50, totalCount: 51, pageCount: 2 },
+    }
+    vi.mocked(http.get).mockResolvedValue({ data: response })
+    const params = {
+      status: 'RESOLVED',
+      page: 2,
+      limit: 50,
+      search: 'kibble',
+      sortBy: 'resolvedAt',
+      sortOrder: 'desc',
+    } as const
+    expect(await humanDecisionApi.list(params)).toBe(response)
+    expect(http.get).toHaveBeenCalledWith('/human-decisions', { params })
+  })
+
   it('getById() GETs /human-decisions/:id and unwraps the resolved detail', async () => {
     vi.mocked(http.get).mockResolvedValue({ data: resolved })
 

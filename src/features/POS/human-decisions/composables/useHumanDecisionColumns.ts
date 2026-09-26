@@ -1,17 +1,24 @@
 import type { TableColumn } from '@nuxt/ui'
 import { createSimpleHeader } from '@/core/shared/components/DataTable'
-import type { PendingHumanDecision } from '../interfaces/human-decision.types'
+import type { HumanDecision } from '../interfaces/human-decision.types'
 import {
   branchPresentationLabel,
   requestedQuantityPresentationLabel,
+  resolvedResponseLabel,
 } from '../utils/humanDecisionPresentation'
 
 export function useHumanDecisionColumns() {
-  const columns: TableColumn<PendingHumanDecision>[] = [
+  const columns: TableColumn<HumanDecision>[] = [
     {
       id: 'product',
       accessorFn: (row) => row.snapshot.productName,
       header: createSimpleHeader('Producto'),
+      enableSorting: false,
+    },
+    {
+      id: 'status',
+      accessorFn: (row) => (row.status === 'PENDING' ? 'Pendiente' : 'Respondida'),
+      header: createSimpleHeader('Estado'),
       enableSorting: false,
     },
     {
@@ -30,6 +37,13 @@ export function useHumanDecisionColumns() {
       id: 'createdAt',
       accessorFn: (row) => row.createdAt,
       header: createSimpleHeader('Creada'),
+      enableSorting: false,
+    },
+    {
+      id: 'response',
+      accessorFn: (row) =>
+        row.status === 'RESOLVED' ? resolvedResponseLabel(row.resolution) : '—',
+      header: createSimpleHeader('Respuesta'),
       enableSorting: false,
     },
     {
