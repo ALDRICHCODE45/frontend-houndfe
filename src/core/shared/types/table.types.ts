@@ -38,7 +38,11 @@ export interface ServerTableParams {
 // Configuration for useServerTable composable
 export interface ServerTableConfig<T> {
   queryKey: readonly unknown[] | ((...args: unknown[]) => readonly unknown[])
-  queryFn: (params: ServerTableParams) => Promise<PaginatedResponse<T>>
+  /** Parameters and key belong to the executing query, including inactive refetches. */
+  queryFn: (
+    params: ServerTableParams,
+    context: { readonly queryKey: readonly unknown[] },
+  ) => Promise<PaginatedResponse<T>>
   defaultPageSize?: number
   pageSizeOptions?: number[]
   defaultSorting?: SortingState

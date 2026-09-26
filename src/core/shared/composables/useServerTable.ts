@@ -135,7 +135,11 @@ export function useServerTable<T>(config: ServerTableConfig<T>): UseServerTableR
     refetch,
   } = useQuery<PaginatedResponse<T>>({
     queryKey,
-    queryFn: () => config.queryFn(serverParams.value),
+    queryFn: ({ queryKey: capturedKey }) => {
+      // The final key segment is appended above; live refs may now describe another page.
+      const params = capturedKey[capturedKey.length - 1] as ServerTableParams
+      return config.queryFn(params, { queryKey: capturedKey })
+    },
     placeholderData: keepPreviousData,
     refetchOnWindowFocus: false,
     staleTime,
