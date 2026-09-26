@@ -1,3 +1,6 @@
+# This worktree reuses installed dependencies; never auto-install before scripts.
+verifyDepsBeforeRun: false
+
 allowBuilds:
   esbuild: true
   vue-demi: true
