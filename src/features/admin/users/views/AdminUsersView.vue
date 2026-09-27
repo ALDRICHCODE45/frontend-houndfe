@@ -16,6 +16,7 @@ import type { UserWithRolesResponse } from '../../shared/interfaces/rbac.types'
 import { editUserSchema, sameRoleIds } from '../composables/useUserForm'
 import UserUpsertSlideover from '../components/UserUpsertSlideover.vue'
 import UserCardGrid from '../components/UserCardGrid.vue'
+import SellerSalesReportDrawer from '../seller-report/components/SellerSalesReportDrawer.vue'
 import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
 
 const queryClient = useQueryClient()
@@ -88,6 +89,12 @@ const isCreateOpen = ref(false)
 const isEditOpen = ref(false)
 const selectedUser = ref<UserTableRow | null>(null)
 const editSession = ref(0)
+/** Seller sales report drawer: the selected row and its mount fence. */
+const isReportOpen = ref(false)
+const reportSeller = ref<UserTableRow | null>(null)
+/** Tenant the open report belongs to: a tenant switch must not keep it on screen. */
+const reportTenantId = ref<string | null>(null)
+const reportSession = ref(0)
 const editDetail = ref<UserWithRolesResponse | null>(null)
 const detailLoading = ref(false)
 const editError = ref('')
@@ -274,7 +281,23 @@ const isSubmitting = computed(
 const canCreateUser = computed(() => authStore.userCan('create', 'User'))
 const canUpdateUser = computed(() => authStore.userCan('update', 'User'))
 const canDeleteUser = computed(() => authStore.userCan('delete', 'User'))
-const canManageUserActions = computed(() => canUpdateUser.value || canDeleteUser.value)
+
+/**
+ * The seller report is a read-only cross-domain view: it needs the user's own
+ * read permission PLUS both domains it reports on. It is deliberately NOT tied
+ * to update/delete, so a read-only operator can consult it, and an inactive
+ * seller is still reportable (their confirmed sales happened).
+ */
+const canReadSalesReport = computed(
+  () =>
+    authStore.userCan('read', 'User') &&
+    authStore.userCan('read', 'Sale') &&
+    authStore.userCan('read', 'Analytics'),
+)
+
+const canShowUserActions = computed(
+  () => canUpdateUser.value || canDeleteUser.value || canReadSalesReport.value,
+)
 
 // Synchronous revision changes fence cancel/reopen and A→B→A before promises settle.
 watch(
@@ -286,6 +309,34 @@ watch(
     editError.value = ''
     saveNotice.value = ''
     void loadEditDetail()
+  },
+  { flush: 'sync' },
+)
+
+// Every open/close/seller change remounts the report drawer, so its query, its
+// window and its print state never leak from one seller to another.
+watch(
+  [isReportOpen, () => reportSeller.value?.id, reportTenantId],
+  () => {
+    reportSession.value++
+  },
+  { flush: 'sync' },
+)
+
+// The report is only readable while the identity that opened it still holds the
+// read authority for the SAME tenant: a revoke or a tenant switch closes it (and
+// unmounts its query) instead of leaving another tenant's numbers on screen.
+watch(
+  [canReadSalesReport, tenantId],
+  () => {
+    if (!isReportOpen.value) return
+    if (
+      !canReadSalesReport.value ||
+      !reportSeller.value ||
+      tenantId.value !== reportTenantId.value
+    ) {
+      closeReport()
+    }
   },
   { flush: 'sync' },
 )
@@ -308,6 +359,19 @@ function openEdit(user: UserTableRow) {
   isEditOpen.value = true
 }
 
+function openReport(user: UserTableRow) {
+  if (!canReadSalesReport.value) return
+  reportTenantId.value = tenantId.value
+  reportSeller.value = user
+  isReportOpen.value = true
+}
+
+function closeReport() {
+  isReportOpen.value = false
+  reportSeller.value = null
+  reportTenantId.value = null
+}
+
 function handleCardClick(user: UserTableRow) {
   openEdit(user)
 }
@@ -320,9 +384,15 @@ async function handleDelete(user: UserTableRow) {
 }
 
 function getRowItems(user: UserTableRow) {
-  const mainActions = canUpdateUser.value
-    ? [{ label: 'Editar', onSelect: () => openEdit(user) }]
-    : []
+  const mainActions =
+    canUpdateUser.value || canReadSalesReport.value
+      ? [
+          ...(canUpdateUser.value ? [{ label: 'Editar', onSelect: () => openEdit(user) }] : []),
+          ...(canReadSalesReport.value
+            ? [{ label: 'Ver reporte de ventas', onSelect: () => openReport(user) }]
+            : []),
+        ]
+      : []
 
   const destructiveActions = canDeleteUser.value
     ? [
@@ -371,6 +441,19 @@ function getRowItems(user: UserTableRow) {
       :loading="deleteMutation.isPending.value"
       @update:open="confirmState.open = $event"
       @confirm="handleConfirm"
+    />
+
+    <!--
+      Seller sales report. `reportSession` fences the instance: a new seller or a
+      reopen gets a fresh query/print state, and the drawer is only ever mounted
+      for the identity that opened it.
+    -->
+    <SellerSalesReportDrawer
+      :key="reportSession"
+      v-model:open="isReportOpen"
+      :tenant-id="tenantId"
+      :seller="reportSeller"
+      :can-read="canReadSalesReport"
     />
 
     <UCard :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }">
@@ -450,7 +533,7 @@ function getRowItems(user: UserTableRow) {
 
           <template #actions-cell="{ row }">
             <UDropdownMenu
-              v-if="canManageUserActions"
+              v-if="canShowUserActions"
               :items="getRowItems(row.original)"
               :content="{ align: 'end' }"
             >

@@ -204,6 +204,25 @@ vi.mock('@/features/admin/shared/components/AdminPageHeader.vue', () => ({
   },
 }))
 
+// The seller report drawer is a separate slice with its own specs. Here the view
+// contract is only: which seller, which tenant, which permission, open or not.
+vi.mock('../../seller-report/components/SellerSalesReportDrawer.vue', () => ({
+  default: {
+    name: 'SellerSalesReportDrawer',
+    template: `
+      <div
+        data-testid="seller-report-drawer"
+        :data-open="String(open)"
+        :data-tenant-id="tenantId"
+        :data-seller-id="seller && seller.id"
+        :data-can-read="String(canRead)"
+      />
+    `,
+    props: ['open', 'tenantId', 'seller', 'canRead'],
+    emits: ['update:open'],
+  },
+}))
+
 // Stub Nuxt UI primitives used by AdminUsersView directly.
 //
 // We rely on the real Reka UI rendering for the kebab trigger (just like
@@ -709,5 +728,141 @@ describe('AdminUsersView — submission boundaries', () => {
     submit(editor(wrapper), { name: 'Edited' })
     await flushPromises()
     expect(apiMock.update).not.toHaveBeenCalled()
+  })
+})
+
+// ── Seller sales report entry ────────────────────────────────
+
+interface KebabItem {
+  label?: string
+  color?: string
+  onSelect?: () => void
+}
+
+/**
+ * The kebab's PUBLIC `items` prop is the asserted surface, exactly like the
+ * committed CustomersView specs: Reka internals are not the view's contract.
+ * The real Nuxt UI component is rendered here (so the existing trigger
+ * assertions keep their meaning), which means it is found under its own SFC
+ * name rather than under the auto-import alias.
+ */
+function rowKebabItems(wrapper: VueWrapper): KebabItem[] {
+  const dropdowns = [
+    ...wrapper.findAllComponents({ name: 'UDropdownMenu' }),
+    ...wrapper.findAllComponents({ name: 'DropdownMenu' }),
+  ]
+  if (dropdowns.length === 0) return []
+  const groups = (dropdowns[0]!.props('items') as Array<Array<KebabItem>> | undefined) ?? []
+  return groups.flat()
+}
+
+function reportDrawer(wrapper: VueWrapper) {
+  return wrapper.find('[data-testid="seller-report-drawer"]')
+}
+
+describe('AdminUsersView — seller sales report entry', () => {
+  it('offers the report to a reader who cannot update or delete users', async () => {
+    authMock.userCan.mockImplementation((action: string) => action === 'read')
+    mockState.data.value = [makeUser()]
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(rowKebabItems(wrapper).map((item) => item.label)).toEqual(['Ver reporte de ventas'])
+    expect(reportDrawer(wrapper).attributes('data-open')).toBe('false')
+  })
+
+  it('requires read:User AND read:Sale AND read:Analytics for the report action', async () => {
+    const labelsByMissingRead: Record<string, string[]> = {}
+
+    for (const missing of ['User', 'Sale', 'Analytics'] as const) {
+      authMock.userCan.mockImplementation(
+        (action: string, subject: string) =>
+          (action === 'update' && subject === 'User') || (action === 'read' && subject !== missing),
+      )
+      mockState.data.value = [makeUser()]
+      const wrapper = mountView()
+      await flushPromises()
+
+      labelsByMissingRead[missing] = rowKebabItems(wrapper).map((item) => item.label ?? '')
+    }
+
+    // Update-only identities keep 'Editar'; the report disappears entirely.
+    expect(labelsByMissingRead).toEqual({
+      User: ['Editar'],
+      Sale: ['Editar'],
+      Analytics: ['Editar'],
+    })
+  })
+
+  it('hides the kebab when only a partial read set is granted', async () => {
+    authMock.userCan.mockImplementation(
+      (action: string, subject: string) => action === 'read' && subject !== 'Sale',
+    )
+    mockState.data.value = [makeUser()]
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.html()).not.toContain('reka-dropdown-menu-trigger')
+  })
+
+  it('opens the report for the selected seller, including an inactive user', async () => {
+    authMock.userCan.mockImplementation((action: string) => action === 'read')
+    mockState.data.value = [makeUser({ id: 'user-inactive', name: 'Inactiva', isActive: false })]
+    const wrapper = mountView()
+    await flushPromises()
+
+    rowKebabItems(wrapper)[0]?.onSelect?.()
+    await flushPromises()
+
+    const drawer = reportDrawer(wrapper)
+    expect(drawer.attributes('data-open')).toBe('true')
+    expect(drawer.attributes('data-seller-id')).toBe('user-inactive')
+    expect(drawer.attributes('data-tenant-id')).toBe('tenant-1')
+    expect(drawer.attributes('data-can-read')).toBe('true')
+  })
+
+  it('closes the report when the read permission is lost while it is open', async () => {
+    const readAllowed = ref(true)
+    authMock.userCan.mockImplementation((action: string) => action === 'read' && readAllowed.value)
+    mockState.data.value = [makeUser()]
+    const wrapper = mountView()
+    await flushPromises()
+
+    rowKebabItems(wrapper)[0]?.onSelect?.()
+    await flushPromises()
+    expect(reportDrawer(wrapper).attributes('data-open')).toBe('true')
+
+    readAllowed.value = false
+    await flushPromises()
+
+    expect(reportDrawer(wrapper).attributes('data-open')).toBe('false')
+    // The seller is cleared, so the attribute is absent rather than empty.
+    expect(reportDrawer(wrapper).attributes('data-seller-id')).toBeUndefined()
+  })
+
+  it('closes the report when the tenant changes while it is open', async () => {
+    authMock.userCan.mockImplementation((action: string) => action === 'read')
+    mockState.data.value = [makeUser()]
+    const wrapper = mountView()
+    await flushPromises()
+
+    rowKebabItems(wrapper)[0]?.onSelect?.()
+    await flushPromises()
+    expect(reportDrawer(wrapper).attributes('data-open')).toBe('true')
+
+    authMock.currentTenantId = 'tenant-2'
+    await flushPromises()
+
+    expect(reportDrawer(wrapper).attributes('data-open')).toBe('false')
+  })
+
+  it('keeps the report action out of reach when it is missing at open time', async () => {
+    authMock.userCan.mockImplementation((action: string) => action === 'read')
+    mockState.data.value = [makeUser()]
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(reportDrawer(wrapper).attributes('data-open')).toBe('false')
+    expect(rowKebabItems(wrapper).map((item) => item.label)).toEqual(['Ver reporte de ventas'])
   })
 })
