@@ -3,7 +3,12 @@ import { usersApi } from '../users.api'
 import { http } from '@/core/shared/api/http'
 import type { ServerTableParams } from '@/core/shared/types/table.types'
 
-vi.mock('@/core/shared/api/http')
+vi.mock('@/core/shared/api/http', () => {
+  const deny = () => {
+    throw new Error('Unexpected HTTP transport')
+  }
+  return { http: { get: vi.fn(deny), post: vi.fn(deny), patch: vi.fn(deny), delete: vi.fn(deny) } }
+})
 
 describe('usersApi.getPaginated', () => {
   beforeEach(() => {
@@ -196,5 +201,39 @@ describe('usersApi.getPaginated', () => {
     })
 
     expect(result.data.map((row) => row.id)).toEqual(['u2', 'u1'])
+  })
+})
+
+describe('usersApi edit contract', () => {
+  it('forwards the complete PATCH payload unchanged', async () => {
+    const payload = { name: 'Ana', email: 'new@test.com', roleIds: ['role-a', 'role-b'] }
+    vi.mocked(http.patch).mockImplementationOnce(async (url, body) => {
+      expect(url).toBe('/admin/users/user-1')
+      expect(body).toEqual(payload)
+      return { data: { name: 'Ana' } }
+    })
+    expect(await usersApi.update('user-1', payload)).toEqual({ name: 'Ana' })
+  })
+
+  it('preserves omission and propagates useful errors', async () => {
+    const error = { response: { status: 409, data: { message: 'Email already exists' } } }
+    vi.mocked(http.patch).mockImplementationOnce(async (url, body) => {
+      expect(url).toBe('/admin/users/user-1')
+      expect(body).toEqual({ name: 'Ana' })
+      throw error
+    })
+    await expect(usersApi.update('user-1', { name: 'Ana' })).rejects.toBe(error)
+  })
+
+  it('uses the detail envelope without flattening tenant roles into list roles', async () => {
+    const detail = {
+      user: { id: 'user-1', name: 'Ana' },
+      roles: [{ id: 'tenant-role', name: 'Operator' }],
+    }
+    vi.mocked(http.get).mockImplementationOnce(async (url) => {
+      expect(url).toBe('/admin/users/user-1')
+      return { data: detail }
+    })
+    expect(await usersApi.getById('user-1')).toEqual(detail)
   })
 })

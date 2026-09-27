@@ -1,7 +1,8 @@
-// @ts-nocheck
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
-import { computed, ref } from 'vue'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { mount, flushPromises, type VueWrapper } from '@vue/test-utils'
+import { computed, ref, reactive } from 'vue'
+import { routeLocationKey } from 'vue-router'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import AdminUsersView from '../AdminUsersView.vue'
 import type { UserTableRow } from '../../interfaces/user.types'
 
@@ -49,11 +50,11 @@ vi.mock('@/core/shared/composables/useServerTable', () => ({
   }),
 }))
 
-const authMock = {
+const authMock = reactive({
   userCan: vi.fn(),
   currentTenantId: 'tenant-1',
   currentTenant: { name: 'Acme Tenant' },
-}
+})
 vi.mock('@/features/auth/stores/useAuthStore', () => ({
   useAuthStore: () => authMock,
 }))
@@ -61,19 +62,36 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
 const toastMock = { add: vi.fn() }
 ;(globalThis as { useToast?: () => typeof toastMock }).useToast = () => toastMock
 
-vi.mock('@tanstack/vue-query', () => ({
-  useQuery: () => ({ data: ref([]), isLoading: ref(false) }),
-  useMutation: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: ref(false) }),
-  useQueryClient: () => ({ invalidateQueries: vi.fn(), refetchQueries: vi.fn() }),
+const apiMock = vi.hoisted(() => ({
+  getById: vi.fn(),
+  update: vi.fn(),
+  create: vi.fn(),
+  remove: vi.fn(),
 }))
+vi.mock('../../api/users.api', () => ({ usersApi: apiMock }))
+const invalidateQueries = vi.fn()
+const setQueryData = vi.fn()
+vi.mock('@tanstack/vue-query', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@tanstack/vue-query')>()
+  return { ...actual, useQueryClient: () => ({ invalidateQueries, setQueryData }) }
+})
 
 vi.mock('../../components/UserUpsertSlideover.vue', () => ({
   default: {
     name: 'UserUpsertSlideover',
     template:
       '<div :data-testid="`user-upsert-slideover-${mode}`" :data-mode="mode" :data-user-id="user && user.id"></div>',
-    props: ['open', 'mode', 'user', 'loading'],
-    emits: ['create', 'edit', 'close'],
+    props: [
+      'open',
+      'mode',
+      'user',
+      'loading',
+      'detail',
+      'detailLoading',
+      'errorMessage',
+      'session',
+    ],
+    emits: ['create', 'edit', 'update:open', 'retry'],
   },
 }))
 
@@ -162,15 +180,28 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
 }))
 
 vi.mock('@/core/shared/components/AppBadge.vue', () => ({
-  default: { name: 'AppBadge', template: '<span><slot /></span>', props: ['label', 'value', 'tone', 'icon', 'variant'] },
+  default: {
+    name: 'AppBadge',
+    template: '<span><slot /></span>',
+    props: ['label', 'value', 'tone', 'icon', 'variant'],
+  },
 }))
 
 vi.mock('@/core/shared/components/ConfirmModal.vue', () => ({
-  default: { name: 'ConfirmModal', template: '<div />', props: ['open', 'description', 'confirmLabel', 'confirmColor', 'loading'], emits: ['update:open', 'confirm'] },
+  default: {
+    name: 'ConfirmModal',
+    template: '<div />',
+    props: ['open', 'description', 'confirmLabel', 'confirmColor', 'loading'],
+    emits: ['update:open', 'confirm'],
+  },
 }))
 
 vi.mock('@/features/admin/shared/components/AdminPageHeader.vue', () => ({
-  default: { name: 'AdminPageHeader', template: '<div data-testid="admin-page-header"><slot /></div>', props: ['title', 'description'] },
+  default: {
+    name: 'AdminPageHeader',
+    template: '<div data-testid="admin-page-header"><slot /></div>',
+    props: ['title', 'description'],
+  },
 }))
 
 // Stub Nuxt UI primitives used by AdminUsersView directly.
@@ -196,7 +227,11 @@ vi.mock('@nuxt/ui', () => ({
   },
   UAvatar: { name: 'UAvatar', template: '<span data-testid="u-avatar" />', props: ['alt', 'text'] },
   UIcon: { name: 'UIcon', template: '<span />', props: ['name'] },
-  UModal: { name: 'UModal', template: '<div><slot name="body" /><slot name="footer" /></div>', props: ['open', 'title', 'content'] },
+  UModal: {
+    name: 'UModal',
+    template: '<div><slot name="body" /><slot name="footer" /></div>',
+    props: ['open', 'title', 'content'],
+  },
   UCard: { name: 'UCard', template: '<div><slot name="header" /><slot /></div>' },
 }))
 
@@ -214,14 +249,40 @@ function makeUser(overrides: Partial<UserTableRow> = {}): UserTableRow {
   }
 }
 
+const wrappers: VueWrapper[] = []
 function mountView() {
-  return mount(AdminUsersView)
+  const wrapper = mount(AdminUsersView, {
+    global: {
+      plugins: [
+        [
+          VueQueryPlugin,
+          { queryClient: new QueryClient({ defaultOptions: { mutations: { retry: false } } }) },
+        ],
+      ],
+      provide: { [routeLocationKey as symbol]: {} },
+    },
+  })
+  wrappers.push(wrapper)
+  return wrapper
 }
+afterEach(() => {
+  wrappers.splice(0).forEach((wrapper) => wrapper.unmount())
+})
 
 // ── Reset mock state between tests ───────────────────────────────────────────
 
 beforeEach(() => {
   localStorage.clear()
+  authMock.currentTenantId = 'tenant-1'
+  apiMock.getById.mockReset().mockImplementation(async (id: string) => ({
+    user: makeUser({ id }),
+    roles: [{ id: roleA, name: 'Tenant role' }],
+  }))
+  apiMock.update.mockReset().mockResolvedValue({})
+  apiMock.create.mockReset().mockRejectedValue(new Error('Unexpected create'))
+  apiMock.remove.mockReset().mockRejectedValue(new Error('Unexpected remove'))
+  invalidateQueries.mockReset().mockResolvedValue(undefined)
+  setQueryData.mockReset()
   mockState.pagination.value = { pageIndex: 0, pageSize: 10 }
   mockState.sorting.value = [{ id: 'name', desc: false }]
   mockState.globalFilter.value = ''
@@ -295,14 +356,18 @@ describe('AdminUsersView — view mode', () => {
   it('passes display-mode="table" by default', async () => {
     const wrapper = mountView()
     await flushPromises()
-    expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe('table')
+    expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe(
+      'table',
+    )
   })
 
   it('passes display-mode="cards" after toggling to card mode via localStorage', async () => {
     localStorage.setItem('admin-users-view-mode', 'card')
     const wrapper = mountView()
     await flushPromises()
-    expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe('cards')
+    expect(wrapper.find('[data-testid="app-data-table"]').attributes('data-display-mode')).toBe(
+      'cards',
+    )
   })
 
   it('wires enable-column-visibility on the AppDataTable', async () => {
@@ -363,8 +428,7 @@ describe('AdminUsersView — card slot', () => {
   it('card click opens the edit slideover with the clicked user and does not push to router', async () => {
     // No router push should occur — there is no detail route.
     const routerPush = vi.fn()
-    // @ts-expect-error - intentional global to detect any router import.
-    globalThis.useRouter = () => ({ push: routerPush })
+    vi.stubGlobal('useRouter', () => ({ push: routerPush }))
 
     mockState.data.value = [makeUser({ id: 'user-42', name: 'Maria Lopez' })]
     localStorage.setItem('admin-users-view-mode', 'card')
@@ -386,7 +450,264 @@ describe('AdminUsersView — card slot', () => {
     expect(routerPush).not.toHaveBeenCalled()
 
     // Cleanup the global stub so it does not leak across tests.
-    // @ts-expect-error - intentional global to detect any router import.
-    delete globalThis.useRouter
+    vi.unstubAllGlobals()
+  })
+})
+
+const roleA = 'abd93355-a3dc-4ae7-8f17-877ff3986d2c'
+const roleB = 'bdbaea96-4b0b-4c6e-ae92-b1306f7e369d'
+function deferred() {
+  let resolve!: (value: unknown) => void
+  let reject!: (error: unknown) => void
+  const promise = new Promise((yes, no) => {
+    resolve = yes
+    reject = no
+  })
+  return { promise, resolve, reject }
+}
+function editor(wrapper: VueWrapper) {
+  return wrapper
+    .findAllComponents({ name: 'UserUpsertSlideover' })
+    .find((child) => child.props('mode') === 'edit')!
+}
+async function openEditor(wrapper: VueWrapper, id = 'user-1') {
+  await wrapper.find(`[data-testid="card-${id}"]`).trigger('click')
+  await flushPromises()
+  return editor(wrapper)
+}
+function submit(
+  child: ReturnType<typeof editor>,
+  payload: { name: string; email?: string; roleIds?: string[] },
+) {
+  child.vm.$emit('edit', payload, child.props('session'))
+}
+
+describe('AdminUsersView — detail-backed mutations', () => {
+  beforeEach(() => {
+    mockState.data.value = [makeUser(), makeUser({ id: 'user-2' })]
+  })
+
+  it('loads authoritative detail and forwards email and the complete role set', async () => {
+    const wrapper = mountView()
+    const child = await openEditor(wrapper)
+    expect(apiMock.getById).toHaveBeenCalledWith('user-1')
+    expect(child.props('detail').roles).toEqual([{ id: roleA, name: 'Tenant role' }])
+    submit(child, { name: 'Edited', email: 'new@test.com', roleIds: [roleA, roleB] })
+    await flushPromises()
+    expect(apiMock.update).toHaveBeenCalledWith('user-1', {
+      name: 'Edited',
+      email: 'new@test.com',
+      roleIds: [roleA, roleB],
+    })
+    expect(invalidateQueries).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: ['admin', 'users', 'tenant-1', 'paginated'] }),
+      { throwOnError: true },
+    )
+    expect(invalidateQueries).toHaveBeenCalledWith(
+      expect.objectContaining({ queryKey: ['admin', 'users', 'tenant-1', 'detail', 'user-1'] }),
+    )
+    expect(apiMock.getById).toHaveBeenCalledTimes(2)
+    expect(editor(wrapper).props('open')).toBe(false)
+  })
+
+  it('cannot submit before detail loads or after detail fails', async () => {
+    const request = deferred()
+    apiMock.getById.mockReturnValueOnce(request.promise)
+    const wrapper = mountView()
+    const child = await openEditor(wrapper)
+    submit(child, { name: 'Edited' })
+    expect(apiMock.update).not.toHaveBeenCalled()
+    request.reject({ response: { data: { message: 'Forbidden detail' } } })
+    await flushPromises()
+    submit(editor(wrapper), { name: 'Edited' })
+    expect(apiMock.update).not.toHaveBeenCalled()
+    expect(editor(wrapper).props('errorMessage')).toContain('Forbidden detail')
+    editor(wrapper).vm.$emit('retry')
+    await flushPromises()
+    expect(editor(wrapper).props('detail').user.id).toBe('user-1')
+  })
+
+  it.each([400, 403, 409])('preserves the editor on HTTP %s', async (status) => {
+    apiMock.update.mockRejectedValueOnce({
+      response: { status, data: { message: ['Useful error'] } },
+    })
+    const child = await openEditor(mountView())
+    submit(child, { name: 'Edited', email: 'new@test.com' })
+    await flushPromises()
+    expect(child.props('open')).toBe(true)
+    expect(child.props('errorMessage')).toContain('Useful error')
+    expect(invalidateQueries).not.toHaveBeenCalled()
+  })
+
+  it('treats a refresh failure as saved, not as a failed write', async () => {
+    invalidateQueries.mockRejectedValue(new Error('Refresh failed'))
+    const wrapper = mountView()
+    submit(await openEditor(wrapper), { name: 'Edited' })
+    await flushPromises()
+    expect(apiMock.update).toHaveBeenCalledTimes(1)
+    expect(editor(wrapper).props('open')).toBe(false)
+    expect(wrapper.text()).toContain('guardado')
+    expect(apiMock.getById).toHaveBeenCalledTimes(2)
+  })
+
+  it('omits reordered roles and gates replacement without blocking profile edits', async () => {
+    authMock.userCan.mockImplementation(
+      (_action: string, subject: string) => subject !== 'TenantMembership',
+    )
+    const child = await openEditor(mountView())
+    submit(child, { name: 'Edited', roleIds: [roleB] })
+    await flushPromises()
+    expect(apiMock.update).not.toHaveBeenCalled()
+    submit(child, { name: 'Edited' })
+    await flushPromises()
+    expect(apiMock.update).toHaveBeenCalledWith('user-1', { name: 'Edited' })
+  })
+
+  it('does not serialize a role set that is unchanged', async () => {
+    const child = await openEditor(mountView())
+    submit(child, { name: 'Edited', roleIds: [roleA] })
+    await flushPromises()
+    expect(apiMock.update).toHaveBeenCalledWith('user-1', { name: 'Edited' })
+  })
+
+  it.each(['user', 'tenant', 'reopen'])('fences stale detail on %s ABA', async (change) => {
+    const oldRequest = deferred()
+    apiMock.getById.mockReturnValueOnce(oldRequest.promise)
+    const wrapper = mountView()
+    await openEditor(wrapper)
+    if (change === 'user') {
+      await openEditor(wrapper, 'user-2')
+      await openEditor(wrapper)
+    }
+    if (change === 'tenant') {
+      authMock.currentTenantId = 'tenant-2'
+      await flushPromises()
+      authMock.currentTenantId = 'tenant-1'
+      await flushPromises()
+    }
+    if (change === 'reopen') {
+      editor(wrapper).vm.$emit('update:open', false)
+      await flushPromises()
+      await openEditor(wrapper)
+    }
+    oldRequest.resolve({ user: makeUser({ name: 'STALE' }), roles: [] })
+    await flushPromises()
+    expect(editor(wrapper).props('detail').user.name).not.toBe('STALE')
+  })
+
+  it.each(['user', 'tenant', 'reopen'])(
+    'stale mutation cannot close a newer editor after %s',
+    async (change) => {
+      const oldWrite = deferred()
+      apiMock.update.mockReturnValueOnce(oldWrite.promise)
+      const wrapper = mountView()
+      submit(await openEditor(wrapper), { name: 'Edited' })
+      await flushPromises()
+      if (change === 'user') {
+        await openEditor(wrapper, 'user-2')
+        await openEditor(wrapper)
+      }
+      if (change === 'tenant') {
+        authMock.currentTenantId = 'tenant-2'
+        await flushPromises()
+        authMock.currentTenantId = 'tenant-1'
+        await flushPromises()
+      }
+      if (change === 'reopen') {
+        editor(wrapper).vm.$emit('update:open', false)
+        await flushPromises()
+        await openEditor(wrapper)
+      }
+      oldWrite.resolve({})
+      await flushPromises()
+      expect(editor(wrapper).props('open')).toBe(true)
+      expect(editor(wrapper).props('errorMessage')).toBe('')
+    },
+  )
+})
+
+describe('AdminUsersView — submission boundaries', () => {
+  beforeEach(() => {
+    mockState.data.value = [makeUser()]
+  })
+
+  it('rejects empty/duplicate role replacements without issuing a PATCH', async () => {
+    const child = await openEditor(mountView())
+    submit(child, { name: 'Edited', roleIds: [] })
+    submit(child, { name: 'Edited', roleIds: [roleA, roleA] })
+    await flushPromises()
+    expect(apiMock.update).not.toHaveBeenCalled()
+  })
+
+  it('prevents duplicate submissions while a write is pending', async () => {
+    const write = deferred()
+    apiMock.update.mockReturnValueOnce(write.promise)
+    const child = await openEditor(mountView())
+    submit(child, { name: 'Edited' })
+    await flushPromises()
+    submit(child, { name: 'Edited twice' })
+    await flushPromises()
+    expect(apiMock.update).toHaveBeenCalledTimes(1)
+    write.resolve({})
+    await flushPromises()
+  })
+
+  it('ignores a delayed submit event from a closed editor session', async () => {
+    const wrapper = mountView()
+    const oldChild = await openEditor(wrapper)
+    const session = oldChild.props('session')
+    oldChild.vm.$emit('update:open', false)
+    await flushPromises()
+    const child = await openEditor(wrapper)
+    child.vm.$emit('edit', { name: 'Stale' }, session)
+    await flushPromises()
+    expect(apiMock.update).not.toHaveBeenCalled()
+  })
+
+  it('does not refresh an old user using a different current tenant', async () => {
+    const write = deferred()
+    apiMock.update.mockReturnValueOnce(write.promise)
+    const wrapper = mountView()
+    submit(await openEditor(wrapper), { name: 'Edited' })
+    await flushPromises()
+    authMock.currentTenantId = 'tenant-2'
+    await flushPromises()
+    const count = apiMock.getById.mock.calls.length
+    write.resolve({})
+    await flushPromises()
+    expect(apiMock.getById).toHaveBeenCalledTimes(count)
+    expect(invalidateQueries).toHaveBeenCalledWith(
+      { queryKey: ['admin', 'users', 'tenant-1', 'paginated'], refetchType: 'none' },
+      { throwOnError: true },
+    )
+    expect(editor(wrapper).props('open')).toBe(true)
+  })
+
+  it('does not show an old mutation error in a reopened editor', async () => {
+    const write = deferred()
+    apiMock.update.mockReturnValueOnce(write.promise)
+    const wrapper = mountView()
+    const child = await openEditor(wrapper)
+    submit(child, { name: 'Edited' })
+    await flushPromises()
+    child.vm.$emit('update:open', false)
+    await flushPromises()
+    await openEditor(wrapper)
+    write.reject(new Error('Stale error'))
+    await flushPromises()
+    expect(editor(wrapper).props('errorMessage')).toBe('')
+  })
+
+  it('requires update:User even when other permissions exist', async () => {
+    authMock.userCan.mockImplementation(
+      (action: string, subject: string) => !(action === 'update' && subject === 'User'),
+    )
+    const wrapper = mountView()
+    await openEditor(wrapper)
+    expect(editor(wrapper).props('open')).toBe(false)
+    expect(apiMock.getById).not.toHaveBeenCalled()
+    submit(editor(wrapper), { name: 'Edited' })
+    await flushPromises()
+    expect(apiMock.update).not.toHaveBeenCalled()
   })
 })

@@ -98,8 +98,29 @@ describe('useUserForm', () => {
     it('initializes editState with empty name', () => {
       const { editState } = useUserForm('edit')
 
-      const expected: EditUserFormValues = { name: '' }
+      const expected: EditUserFormValues = { name: '', email: '', roleIds: undefined }
       expect(editState).toEqual(expected)
     })
+  })
+})
+
+describe('edit payload validation', () => {
+  const roleA = 'abd93355-a3dc-4ae7-8f17-877ff3986d2c'
+  const roleB = 'bdbaea96-4b0b-4c6e-ae92-b1306f7e369d'
+
+  it('retains email and the complete multi-role replacement', () => {
+    const payload = { name: 'Ana', email: 'new@example.com', roleIds: [roleA, roleB] }
+    expect(useUserForm('edit').schema.parse(payload)).toEqual(payload)
+  })
+
+  it.each([
+    { email: null },
+    { email: 'invalid' },
+    { roleIds: null },
+    { roleIds: [] },
+    { roleIds: ['invalid'] },
+    { roleIds: [roleA, roleA] },
+  ])('rejects invalid supplied fields: %j', (fields) => {
+    expect(useUserForm('edit').schema.safeParse({ name: 'Ana', ...fields }).success).toBe(false)
   })
 })

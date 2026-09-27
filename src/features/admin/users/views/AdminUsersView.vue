@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch, onScopeDispose } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
@@ -11,7 +11,9 @@ import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { usersApi } from '../api/users.api'
 import { useUserColumns } from '../composables/useUserColumns'
 import { useUserViewMode, isUserViewMode } from '../composables/useUserViewMode'
-import type { UserTableRow } from '../interfaces/user.types'
+import type { UserTableRow, UpdateUserRequest } from '../interfaces/user.types'
+import type { UserWithRolesResponse } from '../../shared/interfaces/rbac.types'
+import { editUserSchema, sameRoleIds } from '../composables/useUserForm'
 import UserUpsertSlideover from '../components/UserUpsertSlideover.vue'
 import UserCardGrid from '../components/UserCardGrid.vue'
 import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
@@ -85,6 +87,51 @@ const usersErrorMessage = computed(() => {
 const isCreateOpen = ref(false)
 const isEditOpen = ref(false)
 const selectedUser = ref<UserTableRow | null>(null)
+const editSession = ref(0)
+const editDetail = ref<UserWithRolesResponse | null>(null)
+const detailLoading = ref(false)
+const editError = ref('')
+const saveNotice = ref('')
+let disposed = false
+onScopeDispose(() => {
+  disposed = true
+  editSession.value++
+})
+
+function editErrorMessage(error: unknown) {
+  const err = error as { response?: { data?: { message?: unknown } }; message?: string }
+  const message = err?.response?.data?.message
+  if (typeof message === 'string' && message.trim()) return message
+  if (Array.isArray(message)) {
+    const messages = message.filter((item): item is string => typeof item === 'string')
+    if (messages.length) return messages.join('. ')
+  }
+  return err?.message || 'No se pudo guardar el usuario. Reintenta.'
+}
+
+function isCurrentEdit(session: number) {
+  return !disposed && isEditOpen.value && editSession.value === session
+}
+
+async function loadEditDetail() {
+  const userId = selectedUser.value?.id
+  const tenant = tenantId.value
+  const session = editSession.value
+  if (!userId || !tenant || !isEditOpen.value || !canUpdateUser.value || detailLoading.value) return
+  detailLoading.value = true
+  editError.value = ''
+  try {
+    const detail = await usersApi.getById(userId)
+    if (!isCurrentEdit(session)) return
+    if (detail.user.id !== userId) throw new Error('El usuario recibido no coincide. Reintenta.')
+    editDetail.value = detail
+    queryClient.setQueryData(adminUserQueryKeys.detail(tenant, userId), detail)
+  } catch (error) {
+    if (isCurrentEdit(session)) editError.value = editErrorMessage(error)
+  } finally {
+    if (isCurrentEdit(session)) detailLoading.value = false
+  }
+}
 const confirmState = ref({
   open: false,
   description: '',
@@ -108,15 +155,107 @@ const createMutation = useMutation({
   },
 })
 
+type EditSubmission = {
+  userId: string
+  tenant: string
+  session: number
+  data: UpdateUserRequest
+}
+
 const editMutation = useMutation({
-  mutationFn: (payload: { userId: string; name: string }) =>
-    usersApi.update(payload.userId, { name: payload.name }),
-  onSuccess: async () => {
-    isEditOpen.value = false
-    selectedUser.value = null
-    await queryClient.invalidateQueries({ queryKey: adminUserQueryKeys.paginated(tenantId.value) })
+  mutationFn: (submission: EditSubmission) => {
+    if (
+      !isCurrentEdit(submission.session) ||
+      tenantId.value !== submission.tenant ||
+      !canUpdateUser.value ||
+      (submission.data.roleIds && !authStore.userCan('update', 'TenantMembership'))
+    ) {
+      throw new Error('El contexto o los permisos cambiaron. Vuelve a abrir el usuario.')
+    }
+    return usersApi.update(submission.userId, submission.data)
+  },
+  onSuccess: async (_result, submission) => {
+    const current = isCurrentEdit(submission.session)
+    if (current) {
+      isEditOpen.value = false
+      selectedUser.value = null
+    }
+    const refreshSession = editSession.value
+    const sameTenant = tenantId.value === submission.tenant
+    // A committed write stays successful even if one of these independent refreshes fails.
+    const results = await Promise.allSettled([
+      queryClient.invalidateQueries(
+        {
+          queryKey: adminUserQueryKeys.paginated(submission.tenant),
+          refetchType: sameTenant ? 'active' : 'none',
+        },
+        { throwOnError: true },
+      ),
+      queryClient.invalidateQueries({
+        queryKey: adminUserQueryKeys.detail(submission.tenant, submission.userId),
+        refetchType: 'none',
+      }),
+      (async () => {
+        if (!sameTenant || disposed || !canUpdateUser.value) return
+        const detail = await usersApi.getById(submission.userId)
+        if (detail.user.id !== submission.userId)
+          throw new Error('El usuario recibido no coincide.')
+        if (!disposed && editSession.value === refreshSession) {
+          queryClient.setQueryData(
+            adminUserQueryKeys.detail(submission.tenant, submission.userId),
+            detail,
+          )
+        }
+      })(),
+    ])
+    if (
+      current &&
+      !disposed &&
+      editSession.value === refreshSession &&
+      results.some((result) => result.status === 'rejected')
+    ) {
+      saveNotice.value =
+        'Usuario guardado. No se pudieron actualizar todos los datos; vuelve a cargarlos.'
+    }
+  },
+  onError: (error, submission) => {
+    if (isCurrentEdit(submission.session)) editError.value = editErrorMessage(error)
   },
 })
+
+function handleEdit(payload: UpdateUserRequest, session: number) {
+  const detail = editDetail.value
+  if (
+    !isCurrentEdit(session) ||
+    !canUpdateUser.value ||
+    detailLoading.value ||
+    !detail ||
+    detail.user.id !== selectedUser.value?.id ||
+    editMutation.isPending.value
+  )
+    return
+  const parsed = editUserSchema.safeParse(payload)
+  if (!parsed.success) {
+    editError.value = parsed.error.issues.map((issue) => issue.message).join('. ')
+    return
+  }
+  const data = parsed.data
+  if (data.roleIds) {
+    if (!authStore.userCan('update', 'TenantMembership') || !authStore.userCan('read', 'Role')) {
+      editError.value = 'No tienes permisos para modificar los roles.'
+      return
+    }
+    if (
+      sameRoleIds(
+        data.roleIds,
+        detail.roles.map((role) => role.id),
+      )
+    )
+      delete data.roleIds
+  }
+  editError.value = ''
+  editMutation.mutate({ userId: detail.user.id, tenant: tenantId.value, session, data })
+}
 
 const deleteMutation = useMutation({
   mutationFn: usersApi.remove,
@@ -136,6 +275,20 @@ const canCreateUser = computed(() => authStore.userCan('create', 'User'))
 const canUpdateUser = computed(() => authStore.userCan('update', 'User'))
 const canDeleteUser = computed(() => authStore.userCan('delete', 'User'))
 const canManageUserActions = computed(() => canUpdateUser.value || canDeleteUser.value)
+
+// Synchronous revision changes fence cancel/reopen and A→B→A before promises settle.
+watch(
+  [isEditOpen, () => selectedUser.value?.id, tenantId, canUpdateUser],
+  () => {
+    editSession.value++
+    editDetail.value = null
+    detailLoading.value = false
+    editError.value = ''
+    saveNotice.value = ''
+    void loadEditDetail()
+  },
+  { flush: 'sync' },
+)
 
 const dateFormatter = new Intl.DateTimeFormat('es-AR', {
   day: '2-digit',
@@ -168,9 +321,7 @@ async function handleDelete(user: UserTableRow) {
 
 function getRowItems(user: UserTableRow) {
   const mainActions = canUpdateUser.value
-    ? [
-        { label: 'Editar', onSelect: () => openEdit(user) },
-      ]
+    ? [{ label: 'Editar', onSelect: () => openEdit(user) }]
     : []
 
   const destructiveActions = canDeleteUser.value
@@ -196,15 +347,20 @@ function getRowItems(user: UserTableRow) {
       @create="createMutation.mutate"
     />
 
+    <p v-if="saveNotice" role="status" class="text-sm text-warning">{{ saveNotice }}</p>
+
     <UserUpsertSlideover
+      :key="editSession"
       v-model:open="isEditOpen"
       mode="edit"
       :user="selectedUser"
+      :detail="editDetail"
+      :detail-loading="detailLoading"
+      :error-message="editError"
+      :session="editSession"
       :loading="isSubmitting"
-      @edit="
-        (payload) =>
-          selectedUser && editMutation.mutate({ userId: selectedUser.id, name: payload.name })
-      "
+      @edit="handleEdit"
+      @retry="loadEditDetail"
     />
 
     <ConfirmModal
