@@ -161,6 +161,7 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
           <div v-for="row in (Array.isArray(data) ? data : [])" :key="row.id">
             <slot name="name-header" :column="{ id: 'name', getIsSorted: () => false, toggleSorting: () => {} }" />
             <slot name="email-header" :column="{ id: 'email', getIsSorted: () => false, toggleSorting: () => {} }" />
+            <slot name="name-cell" :row="{ original: row }" />
             <slot name="actions-cell" :row="{ original: row }" />
           </div>
         </div>
@@ -184,6 +185,18 @@ vi.mock('@/core/shared/components/AppBadge.vue', () => ({
     name: 'AppBadge',
     template: '<span><slot /></span>',
     props: ['label', 'value', 'tone', 'icon', 'variant'],
+  },
+}))
+
+// The Usuario cell owns the avatar contract: which name, which seed and whether
+// the status dot renders. Exposing those props as data attributes keeps the spec
+// on the view's public surface, exactly like the other child stubs here.
+vi.mock('@/core/shared/components/EntityAvatar.vue', () => ({
+  default: {
+    name: 'EntityAvatar',
+    template:
+      '<span data-testid="entity-avatar" :data-name="name" :data-seed="seed" :data-show-dot="String(showDot)" />',
+    props: ['name', 'seed', 'showDot', 'dotClass', 'size'],
   },
 }))
 
@@ -395,6 +408,37 @@ describe('AdminUsersView — view mode', () => {
     expect(
       wrapper.find('[data-testid="app-data-table"]').attributes('data-column-visibility'),
     ).toBe('true')
+  })
+})
+
+describe('AdminUsersView — usuario avatar', () => {
+  it('renders EntityAvatar with the user name and id seed and the active dot', async () => {
+    mockState.data.value = [makeUser({ id: 'user-7', name: 'Ana Gomez', isActive: true })]
+    const wrapper = mountView()
+    await flushPromises()
+
+    const avatar = wrapper.find('[data-testid="entity-avatar"]')
+    expect(avatar.exists()).toBe(true)
+    expect(avatar.attributes('data-name')).toBe('Ana Gomez')
+    expect(avatar.attributes('data-seed')).toBe('user-7')
+    expect(avatar.attributes('data-show-dot')).toBe('true')
+  })
+
+  it('omits the active dot for an inactive user', async () => {
+    mockState.data.value = [makeUser({ id: 'user-8', name: 'Beto Ruiz', isActive: false })]
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="entity-avatar"]').attributes('data-show-dot')).toBe('false')
+  })
+
+  it('replaces the legacy UAvatar in the name cell', async () => {
+    mockState.data.value = [makeUser()]
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="entity-avatar"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="u-avatar"]').exists()).toBe(false)
   })
 })
 

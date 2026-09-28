@@ -5,6 +5,7 @@ import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
 import ViewToggle from '@/core/shared/components/ViewToggle.vue'
+import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { adminUserQueryKeys } from '@/core/shared/constants/query-keys'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
@@ -347,12 +348,6 @@ const dateFormatter = new Intl.DateTimeFormat('es-AR', {
   year: 'numeric',
 })
 
-function getInitials(name: string) {
-  const parts = name.trim().split(' ').filter(Boolean)
-  const initials = parts.slice(0, 2).map((part) => part[0]?.toUpperCase() ?? '')
-  return initials.join('') || 'U'
-}
-
 function openEdit(user: UserTableRow) {
   if (!canUpdateUser.value) return
   selectedUser.value = user
@@ -503,7 +498,11 @@ function getRowItems(user: UserTableRow) {
 
           <template #name-cell="{ row }">
             <div class="flex items-center gap-3">
-              <UAvatar :alt="row.original.name" :text="getInitials(row.original.name)" />
+              <EntityAvatar
+                :name="row.original.name"
+                :seed="row.original.id"
+                :show-dot="row.original.isActive"
+              />
               <p class="font-medium">{{ row.original.name }}</p>
             </div>
           </template>
