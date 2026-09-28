@@ -4,9 +4,12 @@
  *
  * It owns only orchestration and layout:
  *   - The committed `AppResponsiveDrawer` provides the responsive shell.
- *   - The committed CDMX filter component provides the window controls, so the
- *     drawer never re-implements boundary editing or preset resolution. The
- *     initial window is the current month resolved once by the committed helper.
+ *   - The report-local `SellerReportDateRangeFilter` provides the window controls,
+ *     so the drawer never re-implements boundary editing or preset resolution.
+ *     It is local (not the shared analytics filter) because the owner asked for
+ *     Nuxt UI date controls instead of native HTML date inputs, and changing the
+ *     shared filter would alter shared analytics. The initial window is the
+ *     current month resolved once by the committed helper.
  *   - `useSellerSalesReport` owns the request, its guards, and the print flow,
  *     which is why this component only forwards events.
  *
@@ -16,7 +19,7 @@
  */
 import { computed, ref, shallowRef } from 'vue'
 import AppResponsiveDrawer from '@/core/shared/components/AppResponsiveDrawer.vue'
-import BranchSalesSummaryFilters from '@/features/analytics/components/BranchSalesSummaryFilters.vue'
+import SellerReportDateRangeFilter from './SellerReportDateRangeFilter.vue'
 import {
   getMexicoCityRangePreset,
   isValidMexicoCityDateRange,
@@ -45,6 +48,18 @@ const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 
 const RANGE_VALIDATION_MESSAGE =
   'El rango no es válido: la fecha inicial debe ser anterior a la final y el periodo no puede superar 366 días.'
+
+/**
+ * Desktop-only slideover width: roughly 45vw (just under half the viewport).
+ *
+ * `AppResponsiveDrawer` forwards this as the `ui` prop of the desktop
+ * `USlideover`, so only the report's desktop presentation changes; the mobile
+ * bottom sheet keeps its committed styling. Verified against tailwind-merge v3
+ * (the merge used by the shared drawer's `tv`): a plain `w-full max-w-none`
+ * replaces the default `w-[calc(100%-2rem)]` / `max-w-md`, and the `sm:` pair
+ * then sets the 45vw width on desktop. No `!important` syntax is needed.
+ */
+const DESKTOP_UI = { content: 'w-full max-w-none sm:w-[45vw] sm:max-w-[45vw]' } as const
 
 /** Initial window: the committed current-month preset, resolved once per mount. */
 const initialRange = getMexicoCityRangePreset('thisMonth')
@@ -117,11 +132,12 @@ function onPrint() {
     title="Reporte de ventas"
     :description="drawerDescription"
     close-aria-label="Cerrar el reporte de ventas"
+    :desktop-ui="DESKTOP_UI"
     @update:open="emit('update:open', $event)"
   >
     <template #body>
       <div class="flex w-full min-w-0 flex-col gap-4 px-4 py-4">
-        <BranchSalesSummaryFilters
+        <SellerReportDateRangeFilter
           :from="from"
           :to="to"
           :active-preset="activePreset"

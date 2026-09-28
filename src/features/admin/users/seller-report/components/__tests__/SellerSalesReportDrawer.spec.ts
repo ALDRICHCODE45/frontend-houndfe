@@ -1,10 +1,12 @@
 // SellerSalesReportDrawer.spec.ts — the drawer shell: identity-driven request,
-// reused CDMX filters, state pass-through and the fresh-snapshot print action.
+// the report-local Nuxt UI date filter, desktop width override, state
+// pass-through and the fresh-snapshot print action.
 //
 // Mutation-sensitive: requesting without open/permission/seller, sending the
-// tenant to the API, ignoring the selected window, printing a stale payload,
-// printing while no report is loaded, or dropping the print failure copy fails
-// at least one of these tests.
+// tenant to the API, ignoring the selected window, reverting to the shared
+// analytics filter (native date inputs), dropping the ~45vw desktop width,
+// printing a stale payload, printing while no report is loaded, or dropping the
+// print failure copy fails at least one of these tests.
 
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
@@ -29,6 +31,7 @@ vi.mock('@/core/shared/components/AppResponsiveDrawer.vue', () => ({
         :data-open="String(open)"
         :data-title="title"
         :data-description="description"
+        :data-desktop-ui="desktopUi ? JSON.stringify(desktopUi) : ''"
       >
         <slot name="title" />
         <slot name="body" />
@@ -224,22 +227,45 @@ describe('SellerSalesReportDrawer — request identity', () => {
     expect(wrapper.findAll('[data-testid="seller-report-confirmed-row"]')).toHaveLength(1)
   })
 
-  it('reuses the CDMX filters and stops querying when the window becomes invalid', async () => {
+  it('renders the report-local Nuxt UI date filter and stops querying when the window becomes invalid', async () => {
     apiMock.getReport.mockResolvedValue(makeReport())
 
     const wrapper = mountDrawer()
     await flushPromises()
     expect(apiMock.getReport).toHaveBeenCalledTimes(1)
 
-    // The reused filter component owns the boundary UI; the drawer only forwards.
-    const filters = wrapper.findComponent({ name: 'BranchSalesSummaryFilters' })
+    // The report no longer reuses the shared analytics filter (which renders a
+    // native date input); it renders the report-local Nuxt UI calendar filter.
+    const filters = wrapper.findComponent({ name: 'SellerReportDateRangeFilter' })
     expect(filters.exists()).toBe(true)
+    expect(wrapper.findComponent({ name: 'BranchSalesSummaryFilters' }).exists()).toBe(false)
+    expect(wrapper.findAll('input[type="date"]:not([aria-hidden="true"])')).toHaveLength(0)
+
+    // The local filter owns the boundary UI; the drawer only forwards.
     filters.vm.$emit('update:from', MONTH.to)
     filters.vm.$emit('update:to', MONTH.from)
     await flushPromises()
 
     expect(apiMock.getReport).toHaveBeenCalledTimes(1)
     expect(wrapper.find('[data-testid="seller-report-invalid-range"]').exists()).toBe(true)
+  })
+
+  it('forwards a desktop-only width override a little under half the viewport', async () => {
+    apiMock.getReport.mockResolvedValue(makeReport())
+
+    const wrapper = mountDrawer()
+    await flushPromises()
+
+    const drawn = wrapper.findComponent({ name: 'AppResponsiveDrawer' })
+    const forwarded = JSON.parse(
+      wrapper.find('[data-testid="responsive-drawer"]').attributes('data-desktop-ui') ?? '{}',
+    ) as { content?: string }
+
+    expect(forwarded.content).toContain('sm:w-[45vw]')
+    expect(forwarded.content).toContain('sm:max-w-[45vw]')
+    expect(forwarded.content).toContain('max-w-none')
+    // Mobile bottom sheet stays untouched: no mobile class override is sent.
+    expect(drawn.props('mobileBodyClass')).toBeUndefined()
   })
 
   it('reports a failed load through the shared failure copy', async () => {
