@@ -4,10 +4,11 @@ import {
   onScopeDispose,
   ref,
   toValue,
+  watch,
   type ComputedRef,
   type MaybeRefOrGetter,
 } from 'vue'
-import { useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useQuery } from '@tanstack/vue-query'
 import { isValidMexicoCityDateRange } from '@/core/shared/utils/mexicoCityCalendar'
 import { sellerReportApi } from '../api/sellerReport.api'
 import { sellerSalesReportQueryKeys } from '../query-keys'
@@ -18,19 +19,14 @@ import {
   type SellerSalesReport,
 } from '../interfaces/seller-report.types'
 import {
-  SELLER_REPORT_PRINT_DIALOG_FAILURE_MESSAGE,
-  SELLER_REPORT_PRINT_REFRESH_FAILURE_MESSAGE,
+  SELLER_REPORT_DOWNLOAD_FAILURE_MESSAGE,
   sellerReportFailureMessage,
 } from '../utils/sellerReportPresentation'
-import {
-  createSellerReportPrinter,
-  renderSellerReportDocumentHtml,
-  type SellerReportPrintSession,
-  type SellerReportPrinter,
-} from '../utils/sellerReportPrint'
+import { triggerSellerReportPdfDownload } from '../utils/sellerReportDownload'
 
 /**
- * useSellerSalesReport.ts — one seller report: its query and its print flow.
+ * useSellerSalesReport.ts — one seller report: its on-screen query and its PDF
+ * download flow.
  *
  * Query contract:
  *   - The key carries tenant + seller + both boundaries. The tenant is cache
@@ -46,19 +42,23 @@ import {
  *     payload must never be presented as current, and a failed request must
  *     surface as a failure instead of an automatic retry storm.
  *   - A failure MASKS the retained payload (`report` becomes undefined) and
- *     disables printing. Everything the UI shows and prints therefore comes from
- *     one validated snapshot.
+ *     disables downloading. Everything the UI shows comes from one validated
+ *     snapshot.
  *
- * Print contract:
- *   - Printing refetches a FRESH snapshot through `queryClient.fetchQuery` with
- *     the same key and no caching, validates it through the API boundary, and
- *     prints ONLY that snapshot inside an isolated document. A stale payload is
- *     never reused, and a failed refresh prints nothing.
- *   - Identity, permission, seller and window are rechecked after the refresh
- *     await AND after the isolated document loads; if any of them changed, the
- *     document is disposed and nothing is committed.
- *   - Print failures are reported separately from load failures, and the session
- *     is disposed on every failure path and on scope teardown.
+ * Download contract:
+ *   - Downloading asks the backend for a FRESH PDF for the same seller/window
+ *     (`GET …/report/pdf`). The bytes are an independent server snapshot: the
+ *     browser neither renders HTML nor recalculates a metric, and the on-screen
+ *     JSON payload is never reused as the document.
+ *   - One run at a time: a second request while one is in flight is ignored, and
+ *     a completed run can be repeated for the same filter.
+ *   - Identity, permission, seller, window and drawer visibility are fenced
+ *     before the request AND after the response (including the bounded blob
+ *     parse). Any change aborts the in-flight request and discards its bytes, so
+ *     a tenant switch, a permission revoke, a seller/window change or a drawer
+ *     close can never download a document that no longer matches the screen.
+ *   - Loading ownership is token-based: a run only clears the loading flag it
+ *     owns, so a superseded/cancelled run cannot strand or hijack the UI.
  */
 
 export interface UseSellerSalesReportOptions {
@@ -70,12 +70,10 @@ export interface UseSellerSalesReportOptions {
   from: MaybeRefOrGetter<string>
   /** Exclusive `YYYY-MM-DD` Mexico City boundary. */
   to: MaybeRefOrGetter<string>
-  /** Drawer visibility. A closed report issues no request and cannot print. */
+  /** Drawer visibility. A closed report issues no request and cannot download. */
   open: MaybeRefOrGetter<boolean>
   /** Single permission authority: `read:User` AND `read:Sale` AND `read:Analytics`. */
   canRead: MaybeRefOrGetter<boolean>
-  /** Injectable isolated-document printer (deterministic lifecycle tests). */
-  printer?: SellerReportPrinter
 }
 
 export interface UseSellerSalesReportResult {
@@ -88,16 +86,16 @@ export interface UseSellerSalesReportResult {
   failure: ComputedRef<SellerReportFailure | null>
   /** Actionable Spanish copy for `failure`, or `null`. */
   errorMessage: ComputedRef<string | null>
-  canPrint: ComputedRef<boolean>
-  isPrinting: ComputedRef<boolean>
-  /** Print-specific failure copy; empty while nothing failed. */
-  printError: ComputedRef<string>
+  canDownload: ComputedRef<boolean>
+  isDownloading: ComputedRef<boolean>
+  /** Download-specific failure copy; empty while nothing failed. */
+  downloadError: ComputedRef<string>
   retry: () => Promise<void>
-  print: () => Promise<void>
+  download: () => Promise<void>
 }
 
-/** The exact context a print run was started for. */
-interface SellerReportPrintContext {
+/** The exact context a download run was started for. */
+interface SellerReportDownloadContext {
   tenantId: string
   sellerUserId: string
   from: string
@@ -131,7 +129,6 @@ export function useSellerSalesReport(
     to: to.value,
   }))
 
-  const queryClient = useQueryClient()
   const query = useQuery({
     queryKey: computed(() => sellerSalesReportQueryKeys.report(tenantId.value, request.value)),
     queryFn: ({ signal }) =>
@@ -142,21 +139,34 @@ export function useSellerSalesReport(
     retry: false,
   })
 
-  const printer = options.printer ?? createSellerReportPrinter()
-  const isPrintingFlag = ref(false)
-  const printErrorFlag = ref('')
-  let activeSession: SellerReportPrintSession | null = null
+  const isDownloadingFlag = ref(false)
+  const downloadErrorFlag = ref('')
+  // The run that currently owns the loading flag. Only this run may clear it.
+  let activeDownloadController: AbortController | null = null
 
-  // A report may be unmounted mid-print (drawer closed, route left): the
-  // isolated frame must not outlive its owner.
+  /**
+   * Every fact a download depends on. A change invalidates whatever is in
+   * flight: the bytes it will return no longer belong to the current state.
+   */
+  const downloadContextSignature = computed(() =>
+    [tenantId.value, sellerUserId.value, from.value, to.value, isOpen.value, canRead.value].join(
+      '\u0000',
+    ),
+  )
+  const stopDownloadContextWatch = watch(downloadContextSignature, () => {
+    activeDownloadController?.abort()
+  })
+
+  // A report may be unmounted mid-download (drawer closed, route left): the
+  // request must not outlive its owner.
   if (getCurrentScope()) {
     onScopeDispose(() => {
-      activeSession?.dispose()
-      activeSession = null
+      stopDownloadContextWatch()
+      activeDownloadController?.abort()
     })
   }
 
-  /** Mask the payload on failure: nothing stale may be shown or printed. */
+  /** Mask the payload on failure: nothing stale may be shown or downloaded. */
   const report = computed<SellerSalesReport | null>(() =>
     query.isError.value ? null : (query.data.value ?? null),
   )
@@ -167,7 +177,7 @@ export function useSellerSalesReport(
     failure.value ? sellerReportFailureMessage(failure.value) : null,
   )
 
-  function currentPrintContext(): SellerReportPrintContext | null {
+  function currentDownloadContext(): SellerReportDownloadContext | null {
     if (!isEnabled.value) return null
     return {
       tenantId: tenantId.value,
@@ -177,8 +187,8 @@ export function useSellerSalesReport(
     }
   }
 
-  /** True while every fact the print run started with is still the current one. */
-  function isContextCurrent(context: SellerReportPrintContext): boolean {
+  /** True while every fact the download run started with is still the current one. */
+  function isDownloadContextCurrent(context: SellerReportDownloadContext): boolean {
     return (
       isEnabled.value &&
       tenantId.value === context.tenantId &&
@@ -188,11 +198,11 @@ export function useSellerSalesReport(
     )
   }
 
-  /** Refresh-failure copy: a domain error explains itself, anything else is generic. */
-  function refreshFailureMessage(error: unknown): string {
+  /** A domain error explains itself; anything else is the generic download copy. */
+  function downloadFailureMessage(error: unknown): string {
     const parsed = parseSellerReportFailure(error)
     return parsed.kind === 'unknown'
-      ? SELLER_REPORT_PRINT_REFRESH_FAILURE_MESSAGE
+      ? SELLER_REPORT_DOWNLOAD_FAILURE_MESSAGE
       : sellerReportFailureMessage(parsed)
   }
 
@@ -201,18 +211,18 @@ export function useSellerSalesReport(
     await query.refetch()
   }
 
-  async function print(): Promise<void> {
-    // One print run at a time: a second request while a dialog is opening must
-    // not mount a parallel document.
-    if (isPrintingFlag.value) return
+  async function download(): Promise<void> {
+    // One download at a time: a repeat while a request is in flight is ignored,
+    // but the same filter may be downloaded again once the run settles.
+    if (isDownloadingFlag.value) return
 
-    const context = currentPrintContext()
+    const context = currentDownloadContext()
     if (!context) return
 
-    isPrintingFlag.value = true
-    printErrorFlag.value = ''
-    let session: SellerReportPrintSession | null = null
-    let stage: 'refresh' | 'document' = 'refresh'
+    const controller = new AbortController()
+    activeDownloadController = controller
+    isDownloadingFlag.value = true
+    downloadErrorFlag.value = ''
 
     try {
       const request: SellerReportRequest = {
@@ -221,44 +231,27 @@ export function useSellerSalesReport(
         to: context.to,
       }
 
-      // Fresh, freshly validated snapshot: never the cached payload, never a
-      // placeholder, never the previous window.
-      const snapshot = await queryClient.fetchQuery({
-        queryKey: sellerSalesReportQueryKeys.report(context.tenantId, request),
-        queryFn: () => sellerReportApi.getReport(request, { tenantId: context.tenantId }),
-        staleTime: 0,
-        gcTime: 0,
-        retry: false,
+      const { blob, fileName } = await sellerReportApi.getReportPdf(request, {
+        tenantId: context.tenantId,
+        signal: controller.signal,
       })
 
-      if (!isContextCurrent(context)) return
+      // Fence after the await AND after the bounded blob parse: the bytes must
+      // belong to the context that is still on screen.
+      if (controller.signal.aborted || !isDownloadContextCurrent(context)) return
 
-      stage = 'document'
-      session = printer.mount(renderSellerReportDocumentHtml(snapshot))
-      activeSession = session
-      await session.ready
-
-      // The frame load is another await: what was approved at the start of the
-      // run may no longer be true.
-      if (!isContextCurrent(context)) {
-        session.dispose()
-        return
-      }
-
-      session.commit()
+      triggerSellerReportPdfDownload(blob, fileName)
     } catch (error) {
-      session?.dispose()
-      // A context that moved on is not a failure to report: the user did not ask
-      // for this report any more.
-      if (isContextCurrent(context)) {
-        printErrorFlag.value =
-          stage === 'document'
-            ? SELLER_REPORT_PRINT_DIALOG_FAILURE_MESSAGE
-            : refreshFailureMessage(error)
+      // A cancelled run is not a failure to report: the user moved on.
+      if (controller.signal.aborted) return
+      if (isDownloadContextCurrent(context)) {
+        downloadErrorFlag.value = downloadFailureMessage(error)
       }
     } finally {
-      if (activeSession === session) activeSession = null
-      isPrintingFlag.value = false
+      if (activeDownloadController === controller) {
+        activeDownloadController = null
+        isDownloadingFlag.value = false
+      }
     }
   }
 
@@ -269,10 +262,10 @@ export function useSellerSalesReport(
     isError: computed(() => query.isError.value),
     failure,
     errorMessage,
-    canPrint: computed(() => report.value !== null && !isPrintingFlag.value),
-    isPrinting: computed(() => isPrintingFlag.value),
-    printError: computed(() => printErrorFlag.value),
+    canDownload: computed(() => report.value !== null && !isDownloadingFlag.value),
+    isDownloading: computed(() => isDownloadingFlag.value),
+    downloadError: computed(() => downloadErrorFlag.value),
     retry,
-    print,
+    download,
   }
 }

@@ -1,12 +1,13 @@
 // SellerSalesReportDrawer.spec.ts — the drawer shell: identity-driven request,
 // the report-local Nuxt UI date filter, desktop width override, state
-// pass-through and the fresh-snapshot print action.
+// pass-through and the fresh-PDF download action.
 //
 // Mutation-sensitive: requesting without open/permission/seller, sending the
 // tenant to the API, ignoring the selected window, reverting to the shared
 // analytics filter (native date inputs), dropping the ~45vw desktop width,
-// printing a stale payload, printing while no report is loaded, or dropping the
-// print failure copy fails at least one of these tests.
+// downloading a stale payload instead of a backend PDF, downloading while no
+// report is loaded, mislabeling the action, or dropping the download failure
+// copy fails at least one of these tests.
 
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
@@ -15,8 +16,14 @@ import { getMexicoCityRangePreset } from '@/core/shared/utils/mexicoCityCalendar
 import SellerSalesReportDrawer from '../SellerSalesReportDrawer.vue'
 import type { SellerSalesReport } from '../../interfaces/seller-report.types'
 
-const apiMock = vi.hoisted(() => ({ getReport: vi.fn() }))
+const apiMock = vi.hoisted(() => ({ getReport: vi.fn(), getReportPdf: vi.fn() }))
 vi.mock('../../api/sellerReport.api', () => ({ sellerReportApi: apiMock }))
+
+const downloadMock = vi.hoisted(() => ({ triggerSellerReportPdfDownload: vi.fn() }))
+vi.mock('../../utils/sellerReportDownload', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../utils/sellerReportDownload')>()
+  return { ...actual, triggerSellerReportPdfDownload: downloadMock.triggerSellerReportPdfDownload }
+})
 
 // The committed responsive drawer renders its body through a teleported slide
 // over, which this spec deliberately does not exercise: the drawer's own layout
@@ -45,28 +52,6 @@ vi.mock('@/core/shared/components/AppResponsiveDrawer.vue', () => ({
     emits: ['update:open', 'after:enter', 'after:leave'],
   },
 }))
-
-const printMock = vi.hoisted(() => ({
-  mount: vi.fn(),
-  commit: vi.fn(),
-  dispose: vi.fn(),
-}))
-vi.mock('../../utils/sellerReportPrint', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../utils/sellerReportPrint')>()
-  return {
-    ...actual,
-    createSellerReportPrinter: () => ({
-      mount: (html: string) => {
-        printMock.mount(html)
-        return {
-          ready: Promise.resolve(),
-          commit: printMock.commit,
-          dispose: printMock.dispose,
-        }
-      },
-    }),
-  }
-})
 
 const SELLER_ID = '8f14e45f-ceea-4a2b-9c3d-1a2b3c4d5e6f'
 const TENANT_ID = '11111111-2222-4333-8444-555555555555'
@@ -110,14 +95,23 @@ function makeReport(overrides: Partial<SellerSalesReport> = {}): SellerSalesRepo
   }
 }
 
+function pdfResult() {
+  return {
+    blob: new Blob(['%PDF-1.7\nbytes'], { type: 'application/pdf' }),
+    fileName: 'reporte-ana.pdf',
+  }
+}
+
 const wrappers: VueWrapper[] = []
 
 function createDeferred<T>() {
   let resolve!: (value: T) => void
-  const promise = new Promise<T>((res) => {
+  let reject!: (error: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
     resolve = res
+    reject = rej
   })
-  return { promise, resolve }
+  return { promise, resolve, reject }
 }
 
 function mountDrawer(props: Record<string, unknown> = {}) {
@@ -148,9 +142,8 @@ afterEach(() => {
 
 beforeEach(() => {
   apiMock.getReport.mockReset()
-  printMock.mount.mockReset()
-  printMock.commit.mockReset()
-  printMock.dispose.mockReset()
+  apiMock.getReportPdf.mockReset()
+  downloadMock.triggerSellerReportPdfDownload.mockReset()
 })
 
 describe('SellerSalesReportDrawer — request identity', () => {
@@ -193,15 +186,15 @@ describe('SellerSalesReportDrawer — request identity', () => {
     })
   })
 
-  it('renders the loaded report and keeps printing disabled until one exists', async () => {
+  it('renders the loaded report and keeps downloading disabled until one exists', async () => {
     const deferred = createDeferred<SellerSalesReport>()
     apiMock.getReport.mockReturnValue(deferred.promise)
 
     const wrapper = mountDrawer()
     await flushPromises()
 
-    const printButton = () => wrapper.find('[data-testid="seller-report-print"]')
-    expect(printButton().attributes('disabled')).toBeDefined()
+    const downloadButton = () => wrapper.find('[data-testid="seller-report-download"]')
+    expect(downloadButton().attributes('disabled')).toBeDefined()
     expect(wrapper.find('[data-testid="seller-report-loading"]').exists()).toBe(true)
 
     deferred.resolve(makeReport())
@@ -212,7 +205,8 @@ describe('SellerSalesReportDrawer — request identity', () => {
       '$1,160.00',
     )
     expect(wrapper.findAll('[data-testid="seller-report-confirmed-row"]')).toHaveLength(1)
-    expect(printButton().attributes('disabled')).toBeUndefined()
+    expect(downloadButton().attributes('disabled')).toBeUndefined()
+    expect(downloadButton().text()).toContain('Descargar PDF')
   })
 
   it('keeps an inactive seller reportable and says so', async () => {
@@ -277,7 +271,9 @@ describe('SellerSalesReportDrawer — request identity', () => {
     await flushPromises()
 
     expect(wrapper.find('[data-testid="seller-report-error-message"]').text()).toContain('vendedor')
-    expect(wrapper.find('[data-testid="seller-report-print"]').attributes('disabled')).toBeDefined()
+    expect(
+      wrapper.find('[data-testid="seller-report-download"]').attributes('disabled'),
+    ).toBeDefined()
   })
 
   it('forwards drawer closure to the caller', async () => {
@@ -294,43 +290,75 @@ describe('SellerSalesReportDrawer — request identity', () => {
   })
 })
 
-describe('SellerSalesReportDrawer — printing', () => {
-  it('prints a fresh validated snapshot inside the isolated document', async () => {
+describe('SellerSalesReportDrawer — PDF download', () => {
+  it('downloads a fresh backend PDF for the current seller and window', async () => {
+    apiMock.getReport.mockResolvedValue(makeReport())
+    const pdf = pdfResult()
+    apiMock.getReportPdf.mockResolvedValue(pdf)
+
+    const wrapper = mountDrawer()
+    await flushPromises()
+    await flushPromises()
+    expect(wrapper.findAll('[data-testid="seller-report-confirmed-row"]')).toHaveLength(1)
+
+    await wrapper.find('[data-testid="seller-report-download"]').trigger('click')
+    await flushPromises()
+
+    expect(apiMock.getReportPdf).toHaveBeenCalledTimes(1)
+    const [request, context] = apiMock.getReportPdf.mock.calls[0] ?? []
+    expect(request).toEqual({ sellerUserId: SELLER_ID, from: MONTH.from, to: MONTH.to })
+    expect(context?.tenantId).toBe(TENANT_ID)
+    expect(downloadMock.triggerSellerReportPdfDownload).toHaveBeenCalledWith(pdf.blob, pdf.fileName)
+    expect(wrapper.find('[data-testid="seller-report-download-error"]').exists()).toBe(false)
+  })
+
+  it('shows the loading state on the action while the PDF request is in flight', async () => {
+    apiMock.getReport.mockResolvedValue(makeReport())
+    const deferred = createDeferred<ReturnType<typeof pdfResult>>()
+    apiMock.getReportPdf.mockReturnValue(deferred.promise)
+
+    const wrapper = mountDrawer()
+    await flushPromises()
+    await flushPromises()
+
+    const button = () => wrapper.find('[data-testid="seller-report-download"]')
+    expect(button().attributes('disabled')).toBeUndefined()
+
+    await button().trigger('click')
+    await flushPromises()
+    expect(button().attributes('disabled')).toBeDefined()
+
+    deferred.resolve(pdfResult())
+    await flushPromises()
+    expect(button().attributes('disabled')).toBeUndefined()
+  })
+
+  it('never downloads when the fresh PDF request fails, and says so', async () => {
+    apiMock.getReport.mockResolvedValue(makeReport())
+    apiMock.getReportPdf.mockRejectedValue({
+      response: { status: 500, data: { error: 'PDF_GENERATION_FAILED' } },
+    })
+
+    const wrapper = mountDrawer()
+    await flushPromises()
+    await flushPromises()
+
+    await wrapper.find('[data-testid="seller-report-download"]').trigger('click')
+    await flushPromises()
+
+    expect(downloadMock.triggerSellerReportPdfDownload).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-testid="seller-report-download-error"]').text()).toContain('PDF')
+  })
+
+  it('discloses that the PDF is an independent, freshly generated snapshot', async () => {
     apiMock.getReport.mockResolvedValue(makeReport())
 
     const wrapper = mountDrawer()
     await flushPromises()
     await flushPromises()
-    expect(wrapper.findAll('[data-testid="seller-report-confirmed-row"]')).toHaveLength(1)
 
-    await wrapper.find('[data-testid="seller-report-print"]').trigger('click')
-    await flushPromises()
-
-    // One load request plus the fresh print refetch.
-    expect(apiMock.getReport).toHaveBeenCalledTimes(2)
-    const html = printMock.mount.mock.calls[0]?.[0] as string
-    expect(html).toContain('F-0001')
-    expect(html).toContain('Ana Vendedora')
-    expect(html).not.toContain('<script')
-    expect(printMock.commit).toHaveBeenCalledTimes(1)
-    expect(printMock.dispose).not.toHaveBeenCalled()
-    expect(wrapper.find('[data-testid="seller-report-print-error"]').exists()).toBe(false)
-  })
-
-  it('never opens a document when the fresh refetch fails, and says so', async () => {
-    apiMock.getReport.mockResolvedValueOnce(makeReport())
-    const wrapper = mountDrawer()
-    await flushPromises()
-    await flushPromises()
-    expect(wrapper.findAll('[data-testid="seller-report-confirmed-row"]')).toHaveLength(1)
-
-    apiMock.getReport.mockRejectedValue(new Error('Network Error'))
-    await wrapper.find('[data-testid="seller-report-print"]').trigger('click')
-    await flushPromises()
-
-    expect(apiMock.getReport).toHaveBeenCalledTimes(2)
-    expect(printMock.mount).not.toHaveBeenCalled()
-    expect(printMock.commit).not.toHaveBeenCalled()
-    expect(wrapper.find('[data-testid="seller-report-print-error"]').text()).toContain('actualizar')
+    const notice = wrapper.find('[data-testid="seller-report-pdf-notice"]')
+    expect(notice.exists()).toBe(true)
+    expect(notice.text().toLowerCase()).toContain('pdf')
   })
 })

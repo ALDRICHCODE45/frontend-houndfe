@@ -25,6 +25,57 @@ function isVerifiedPermissionsRequest(config?: AxiosRequestConfig) {
   )
 }
 
+/**
+ * Request opt-in for `responseType: 'blob'` calls whose 401 body still carries
+ * the backend `message`. `responseType: 'blob'` hides that message from the
+ * synchronous `response.data.message` read, so without this flag a
+ * `Tenant context required` 401 would take the refresh path instead of the
+ * tenant-required path. Only the caller that sets it is affected.
+ */
+export interface TenantContextBlobErrorConfig extends AxiosRequestConfig {
+  tenantContextBlobError: true
+}
+
+function isTenantContextBlobErrorRequest(config?: AxiosRequestConfig) {
+  return (
+    (config as Partial<TenantContextBlobErrorConfig> | undefined)?.tenantContextBlobError === true
+  )
+}
+
+/** Upper bound on an error body we are willing to read from a Blob. */
+const TENANT_CONTEXT_BLOB_MAX_BYTES = 4 * 1024
+
+/**
+ * Recover `response.data.message` for an opted-in Blob 401.
+ *
+ * Strictly bounded and defensive: a non-opted-in request, a non-401 response, a
+ * non-Blob body, an oversized blob, an already-aborted signal, invalid JSON or a
+ * non-object/non-string `message` all yield `undefined`, which leaves the
+ * ordinary 401 handling untouched. The error and its response are never mutated,
+ * so the original Axios error/config still reach the refresh retry and the
+ * feature's own normalization.
+ */
+async function readTenantContextBlobMessage(
+  error: AxiosError,
+  config?: RetryableRequestConfig,
+): Promise<string | undefined> {
+  const response = error.response
+  if (!isTenantContextBlobErrorRequest(config) || response?.status !== 401) return undefined
+  if (config?.signal?.aborted) return undefined
+
+  const data: unknown = response.data
+  if (!(data instanceof Blob) || data.size > TENANT_CONTEXT_BLOB_MAX_BYTES) return undefined
+
+  try {
+    const parsed: unknown = JSON.parse(await data.text())
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return undefined
+    const message = (parsed as { message?: unknown }).message
+    return typeof message === 'string' ? message : undefined
+  } catch {
+    return undefined
+  }
+}
+
 interface RetryableRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean
 }
@@ -66,7 +117,7 @@ http.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as RetryableRequestConfig | undefined
     const requestUrl = originalRequest?.url ?? ''
-    const message = (error.response?.data as { message?: string } | undefined)?.message
+    const jsonMessage = (error.response?.data as { message?: string } | undefined)?.message
 
     const isTenantSelection =
       originalRequest?.method?.toLowerCase() === 'post' &&
@@ -76,6 +127,23 @@ http.interceptors.response.use(
 
     // This bootstrap belongs to an uncommitted login, never the persisted session.
     if (isVerifiedPermissionsRequest(originalRequest)) return Promise.reject(error)
+
+    // A Blob 401 (opted-in) hides its message from the synchronous read above:
+    // recover it from a bounded JSON read so the tenant-context case is
+    // classified before the refresh flow. Any other request is unchanged.
+    let message = typeof jsonMessage === 'string' ? jsonMessage : undefined
+    if (
+      message === undefined &&
+      error.response?.status === 401 &&
+      isTenantContextBlobErrorRequest(originalRequest)
+    ) {
+      message = await readTenantContextBlobMessage(error, originalRequest)
+      // The read is async: if the request was cancelled while it ran, the
+      // cancelled work must not produce global side effects (a session-expired
+      // event, a refresh attempt or an auth clear). Reject the original error
+      // untouched, with no further async gap before this decision.
+      if (originalRequest?.signal?.aborted) return Promise.reject(error)
+    }
 
     if (
       !isAuthFreePath &&

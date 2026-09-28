@@ -1,42 +1,48 @@
-// useSellerSalesReport.spec.ts — query identity/guards plus the fresh-snapshot
-// print orchestration.
+// useSellerSalesReport.spec.ts — query identity/guards plus the PDF download
+// orchestration.
 //
 // Mutation-sensitive: sending the tenant identity to the API, enabling the query
 // without open + permissions + seller + a valid window, keeping stale data
-// visible after a failure, printing the cached (stale) payload instead of a
-// fresh refetch, skipping the identity/permission recheck after the await or
-// after the frame load, reusing the document when the refresh failed, or leaking
-// the isolated session on scope teardown fails at least one of these tests.
+// visible after a failure, reusing the on-screen JSON payload instead of asking
+// the backend for a fresh PDF, skipping the context fence after the await,
+// failing to abort on a context change, clearing another run's loading flag,
+// blocking a legitimate repeat of the same filter, or leaking an unbounded
+// transport error into user copy fails at least one of these tests.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { Mock } from 'vitest'
 import { effectScope, ref } from 'vue'
 import { flushPromises } from '@vue/test-utils'
-import { useQuery, useQueryClient } from '@tanstack/vue-query'
+import { useQuery } from '@tanstack/vue-query'
 import { sellerReportApi } from '../../api/sellerReport.api'
+import { triggerSellerReportPdfDownload } from '../../utils/sellerReportDownload'
 import { sellerSalesReportQueryKeys } from '../../query-keys'
-import {
-  SELLER_REPORT_PRINT_DIALOG_FAILURE_MESSAGE,
-  SELLER_REPORT_PRINT_REFRESH_FAILURE_MESSAGE,
-} from '../../utils/sellerReportPresentation'
+import { SELLER_REPORT_DOWNLOAD_FAILURE_MESSAGE } from '../../utils/sellerReportPresentation'
 import { useSellerSalesReport } from '../useSellerSalesReport'
 import type { SellerSalesReport } from '../../interfaces/seller-report.types'
-import type { SellerReportPrinter } from '../../utils/sellerReportPrint'
+import type { SellerReportPdf } from '../../api/sellerReport.api'
 
 vi.mock('@tanstack/vue-query', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@tanstack/vue-query')>()
-  return { ...actual, useQuery: vi.fn(), useQueryClient: vi.fn() }
+  return { ...actual, useQuery: vi.fn() }
 })
 
 vi.mock('../../api/sellerReport.api', () => ({
-  sellerReportApi: { getReport: vi.fn() },
+  sellerReportApi: { getReport: vi.fn(), getReportPdf: vi.fn() },
+}))
+
+vi.mock('../../utils/sellerReportDownload', () => ({
+  triggerSellerReportPdfDownload: vi.fn(),
 }))
 
 const SELLER_ID = '8f14e45f-ceea-4a2b-9c3d-1a2b3c4d5e6f'
 const OTHER_SELLER_ID = '00000000-1111-4222-8333-444444444444'
 const TENANT_ID = '11111111-2222-4333-8444-555555555555'
+const OTHER_TENANT_ID = '99999999-2222-4333-8444-555555555555'
 const FROM = '2025-03-01'
 const TO = '2025-04-01'
+
+const getReportPdf = vi.mocked(sellerReportApi.getReportPdf)
+const triggerDownload = vi.mocked(triggerSellerReportPdfDownload)
 
 function makeReport(overrides: Partial<SellerSalesReport> = {}): SellerSalesReport {
   return {
@@ -76,6 +82,13 @@ function makeReport(overrides: Partial<SellerSalesReport> = {}): SellerSalesRepo
   }
 }
 
+function pdfResult(): SellerReportPdf {
+  return {
+    blob: new Blob(['%PDF-1.7\nbytes'], { type: 'application/pdf' }),
+    fileName: 'reporte-ana.pdf',
+  }
+}
+
 interface CapturedQueryOptions {
   queryKey: { value: unknown }
   queryFn: (context: { signal: AbortSignal }) => Promise<unknown>
@@ -99,54 +112,11 @@ function setupQueryResult() {
   return result
 }
 
-const fetchQuery = vi.fn()
-
 function capturedOptions(): CapturedQueryOptions {
   const calls = vi.mocked(useQuery).mock.calls
   const call = calls[calls.length - 1]
   if (!call) throw new Error('useQuery was not called')
   return call[0] as unknown as CapturedQueryOptions
-}
-
-interface FakeSession {
-  html: string
-  ready: Promise<void>
-  settle: () => void
-  fail: (error: unknown) => void
-  commit: Mock<() => void>
-  dispose: Mock<() => void>
-}
-
-function createFakePrinter() {
-  const sessions: FakeSession[] = []
-  let settleReady: (() => void) | null = null
-  let failReady: ((error: unknown) => void) | null = null
-
-  const printer: SellerReportPrinter = {
-    mount: vi.fn((html: string) => {
-      const session: FakeSession = {
-        html,
-        ready: new Promise<void>((resolve, reject) => {
-          settleReady = resolve
-          failReady = reject
-        }),
-        settle: () => settleReady?.(),
-        fail: (error: unknown) => failReady?.(error),
-        commit: vi.fn((): void => {}),
-        dispose: vi.fn((): void => {}),
-      }
-      sessions.push(session)
-      return {
-        ready: session.ready,
-        // Wrapper arrows: the returned session keeps the plain port shape while
-        // the fake keeps its spies for assertions.
-        commit: () => session.commit(),
-        dispose: () => session.dispose(),
-      }
-    }),
-  }
-
-  return { printer, sessions }
 }
 
 function createDeferred<T>() {
@@ -174,7 +144,6 @@ function defaultOptions(overrides: Record<string, unknown> = {}) {
 describe('useSellerSalesReport — query identity and guards', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(useQueryClient).mockReturnValue({ fetchQuery } as never)
   })
 
   it('tracks tenant, seller and both boundaries independently in the cache key', () => {
@@ -298,21 +267,21 @@ describe('useSellerSalesReport — query identity and guards', () => {
     result.isLoading.value = true
     expect(api.report.value).toBeNull()
     expect(api.isInitialLoading.value).toBe(true)
-    expect(api.canPrint.value).toBe(false)
+    expect(api.canDownload.value).toBe(false)
 
     result.data.value = makeReport()
     result.isLoading.value = false
     expect(api.report.value).toEqual(makeReport())
     expect(api.isInitialLoading.value).toBe(false)
-    expect(api.canPrint.value).toBe(true)
+    expect(api.canDownload.value).toBe(true)
 
-    // A failed refetch masks the retained payload: nothing stale is printable.
+    // A failed refetch masks the retained payload: nothing stale is downloadable.
     result.isError.value = true
     result.error.value = {
       response: { status: 404, data: { statusCode: 404, error: 'SELLER_NOT_FOUND' } },
     }
     expect(api.report.value).toBeNull()
-    expect(api.canPrint.value).toBe(false)
+    expect(api.canDownload.value).toBe(false)
     expect(api.failure.value?.kind).toBe('seller-not-found')
     expect(api.errorMessage.value).toContain('vendedor')
   })
@@ -336,222 +305,254 @@ describe('useSellerSalesReport — query identity and guards', () => {
   })
 })
 
-describe('useSellerSalesReport — fresh snapshot printing', () => {
+describe('useSellerSalesReport — PDF download', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(useQueryClient).mockReturnValue({ fetchQuery } as never)
-    fetchQuery.mockReset()
   })
 
-  it('refetches a fresh validated snapshot and prints only that document', async () => {
+  it('requests a fresh PDF for the seller/window and hands the validated bytes to the browser', async () => {
     const result = setupQueryResult()
-    const { printer, sessions } = createFakePrinter()
-    const api = useSellerSalesReport(defaultOptions({ printer }))
+    const api = useSellerSalesReport(defaultOptions())
     result.data.value = makeReport()
+    const pdf = pdfResult()
+    getReportPdf.mockResolvedValue(pdf)
 
-    const fresh = makeReport({
-      rowCount: 1,
-      confirmed: {
-        dateBasis: 'confirmedAt',
-        summary: {
-          saleCount: 1,
-          netSalesCents: 232_000,
-          collectedCents: 32_000,
-          outstandingDebtCents: 200_000,
-          averageTicketCents: 232_000,
-        },
-        rows: [
-          {
-            id: 'a1111111-1111-4111-8111-111111111111',
-            folio: 'F-9999',
-            confirmedAt: '2025-03-05T18:30:00.000Z',
-            totalCents: 232_000,
-            paidCents: 32_000,
-            debtCents: 200_000,
-            paymentStatus: 'PARTIAL',
-          },
-        ],
-      },
-    })
-    fetchQuery.mockResolvedValue(fresh)
+    const downloading = api.download()
+    expect(api.isDownloading.value).toBe(true)
+    await downloading
 
-    const printing = api.print()
-    expect(api.isPrinting.value).toBe(true)
-
-    await flushPromises()
-    expect(fetchQuery).toHaveBeenCalledTimes(1)
-    const fetchOptions = fetchQuery.mock.calls[0]?.[0] as Record<string, unknown>
-    expect(fetchOptions.queryKey).toEqual(
-      sellerSalesReportQueryKeys.report(TENANT_ID, {
-        sellerUserId: SELLER_ID,
-        from: FROM,
-        to: TO,
-      }),
-    )
-    expect(fetchOptions.staleTime).toBe(0)
-    expect(fetchOptions.gcTime).toBe(0)
-    expect(fetchOptions.retry).toBe(false)
-
-    const session = sessions[0]!
-    // The FRESH row is in the document, and the stale cached payload is not.
-    expect(session.html).toContain('F-9999')
-    expect(session.html).not.toContain('$1,160.00')
-    expect(session.commit).not.toHaveBeenCalled()
-
-    session.settle()
-    await printing
-
-    expect(session.commit).toHaveBeenCalledTimes(1)
-    expect(session.dispose).not.toHaveBeenCalled()
-    expect(api.isPrinting.value).toBe(false)
-    expect(api.printError.value).toBe('')
+    expect(getReportPdf).toHaveBeenCalledTimes(1)
+    const [request, context] = getReportPdf.mock.calls[0] ?? []
+    expect(request).toEqual({ sellerUserId: SELLER_ID, from: FROM, to: TO })
+    expect(context?.tenantId).toBe(TENANT_ID)
+    expect(context?.signal).toBeInstanceOf(AbortSignal)
+    // The JSON endpoint is never touched by a download.
+    expect(vi.mocked(sellerReportApi.getReport)).not.toHaveBeenCalled()
+    expect(triggerDownload).toHaveBeenCalledWith(pdf.blob, pdf.fileName)
+    expect(api.isDownloading.value).toBe(false)
+    expect(api.downloadError.value).toBe('')
   })
 
-  it('never opens a document when the fresh refetch fails', async () => {
-    setupQueryResult()
-    const { printer, sessions } = createFakePrinter()
-    const api = useSellerSalesReport(defaultOptions({ printer }))
-    fetchQuery.mockRejectedValue({
-      response: {
-        status: 422,
-        data: { error: 'SELLER_REPORT_ROW_LIMIT_EXCEEDED', rowLimit: 1000, rowCount: 1500 },
-      },
-    })
-
-    await api.print()
-
-    expect(sessions).toHaveLength(0)
-    expect(printer.mount).not.toHaveBeenCalled()
-    expect(api.isPrinting.value).toBe(false)
-    expect(api.printError.value).toContain('1,500')
-  })
-
-  it('reports an unexpected refresh failure with the refresh copy', async () => {
-    setupQueryResult()
-    const { printer } = createFakePrinter()
-    const api = useSellerSalesReport(defaultOptions({ printer }))
-    fetchQuery.mockRejectedValue(new Error('Network Error'))
-
-    await api.print()
-
-    expect(printer.mount).not.toHaveBeenCalled()
-    expect(api.printError.value).toBe(SELLER_REPORT_PRINT_REFRESH_FAILURE_MESSAGE)
-  })
-
-  it('rechecks identity and permission after the refresh await', async () => {
-    setupQueryResult()
-    const canRead = ref(true)
-    const seller = ref<string | null>(SELLER_ID)
-    const { printer } = createFakePrinter()
-    const api = useSellerSalesReport(defaultOptions({ canRead, sellerUserId: seller, printer }))
-
-    const deferred = createDeferred<SellerSalesReport>()
-    fetchQuery.mockReturnValue(deferred.promise)
-
-    const printing = api.print()
-    await flushPromises()
-
-    // The permission is revoked while the refresh is in flight.
-    canRead.value = false
-    seller.value = OTHER_SELLER_ID
-    deferred.resolve(makeReport())
-    await printing
-
-    expect(printer.mount).not.toHaveBeenCalled()
-    expect(api.printError.value).toBe('')
-  })
-
-  it('does not commit when the context is lost while the isolated document loads', async () => {
-    setupQueryResult()
-    const open = ref(true)
-    const { printer, sessions } = createFakePrinter()
-    const api = useSellerSalesReport(defaultOptions({ open, printer }))
-    fetchQuery.mockResolvedValue(makeReport())
-    const printing = api.print()
-    await flushPromises()
-
-    const session = sessions[0]!
-    expect(session.commit).not.toHaveBeenCalled()
-
-    // The drawer is closed while the frame is still loading.
-    open.value = false
-    session.settle()
-    await printing
-
-    expect(session.commit).not.toHaveBeenCalled()
-    expect(session.dispose).toHaveBeenCalledTimes(1)
-  })
-
-  it('disposes the isolated session and reports a dialog failure when the load fails', async () => {
-    setupQueryResult()
-    const { printer, sessions } = createFakePrinter()
-    const api = useSellerSalesReport(defaultOptions({ printer }))
-    fetchQuery.mockResolvedValue(makeReport())
-
-    const printing = api.print()
-    await flushPromises()
-
-    const session = sessions[0]!
-    session.fail(new Error('frame exploded'))
-    await printing
-
-    expect(session.commit).not.toHaveBeenCalled()
-    expect(session.dispose).toHaveBeenCalledTimes(1)
-    expect(api.printError.value).toBe(SELLER_REPORT_PRINT_DIALOG_FAILURE_MESSAGE)
-  })
-
-  it('ignores a second print request while one is already running', async () => {
-    setupQueryResult()
-    const { printer, sessions } = createFakePrinter()
-    const api = useSellerSalesReport(defaultOptions({ printer }))
-    fetchQuery.mockResolvedValue(makeReport())
-
-    const first = api.print()
-    const second = api.print()
-    await flushPromises()
-
-    expect(fetchQuery).toHaveBeenCalledTimes(1)
-    expect(printer.mount).toHaveBeenCalledTimes(1)
-
-    sessions[0]!.settle()
-    await first
-    await second
-    expect(sessions).toHaveLength(1)
-  })
-
-  it('refuses to print without an open, permitted and identified context', async () => {
+  it('refuses to download without an open, permitted, identified and in-range context', async () => {
+    const attempts: Record<string, number> = {}
     for (const overrides of [
       { open: false },
       { canRead: false },
       { sellerUserId: null },
-      { from: '2025-04-01', to: '2025-03-01' },
+      { tenantId: null },
+      { from: TO, to: FROM },
     ]) {
       setupQueryResult()
-      const { printer } = createFakePrinter()
-      const api = useSellerSalesReport(defaultOptions({ printer, ...overrides }))
-
-      await api.print()
-
-      expect(printer.mount).not.toHaveBeenCalled()
+      const api = useSellerSalesReport(defaultOptions(overrides))
+      await api.download()
+      attempts[JSON.stringify(overrides)] = getReportPdf.mock.calls.length
     }
-    expect(fetchQuery).not.toHaveBeenCalled()
+
+    expect(Object.values(attempts).every((count) => count === 0)).toBe(true)
+    expect(triggerDownload).not.toHaveBeenCalled()
   })
 
-  it('disposes a pending session when its scope is torn down', async () => {
+  it('aborts and never downloads when the context changes while the request is in flight', async () => {
+    const changes: Array<{
+      label: string
+      apply: (context: ReturnType<typeof makeContextRefs>) => void
+    }> = [
+      { label: 'seller', apply: (c) => (c.sellerUserId.value = OTHER_SELLER_ID) },
+      { label: 'tenant', apply: (c) => (c.tenantId.value = OTHER_TENANT_ID) },
+      { label: 'from', apply: (c) => (c.from.value = '2025-02-01') },
+      { label: 'to', apply: (c) => (c.to.value = '2025-05-01') },
+      { label: 'permission', apply: (c) => (c.canRead.value = false) },
+      { label: 'dialog', apply: (c) => (c.open.value = false) },
+    ]
+
+    const observed: Record<
+      string,
+      { aborted: boolean; triggered: number; error: string; loading: boolean }
+    > = {}
+
+    for (const change of changes) {
+      vi.clearAllMocks()
+      setupQueryResult()
+      const context = makeContextRefs()
+      const api = useSellerSalesReport(context)
+      const deferred = createDeferred<SellerReportPdf>()
+      getReportPdf.mockReturnValueOnce(deferred.promise)
+
+      const running = api.download()
+      await flushPromises()
+      const signal = getReportPdf.mock.calls[0]?.[1]?.signal
+
+      change.apply(context)
+      await flushPromises()
+      // The bytes arrive AFTER the context moved on: they must be discarded.
+      deferred.resolve(pdfResult())
+      await running
+
+      observed[change.label] = {
+        aborted: signal?.aborted ?? false,
+        triggered: triggerDownload.mock.calls.length,
+        error: api.downloadError.value,
+        loading: api.isDownloading.value,
+      }
+    }
+
+    for (const change of changes) {
+      expect(observed[change.label]).toEqual({
+        aborted: true,
+        triggered: 0,
+        error: '',
+        loading: false,
+      })
+    }
+  })
+
+  it('ignores a second download while one is already running', async () => {
     setupQueryResult()
-    const { printer, sessions } = createFakePrinter()
-    const scope = effectScope()
-    fetchQuery.mockResolvedValue(makeReport())
+    const api = useSellerSalesReport(defaultOptions())
+    const deferred = createDeferred<SellerReportPdf>()
+    getReportPdf.mockReturnValue(deferred.promise)
 
-    const api = scope.run(() => useSellerSalesReport(defaultOptions({ printer })))!
-
-    void api.print()
+    const first = api.download()
+    const second = api.download()
     await flushPromises()
-    expect(sessions).toHaveLength(1)
+
+    expect(getReportPdf).toHaveBeenCalledTimes(1)
+
+    deferred.resolve(pdfResult())
+    await first
+    await second
+    expect(triggerDownload).toHaveBeenCalledTimes(1)
+    expect(api.isDownloading.value).toBe(false)
+  })
+
+  it('allows repeating the same filter once the previous download settled', async () => {
+    setupQueryResult()
+    const api = useSellerSalesReport(defaultOptions())
+    getReportPdf.mockResolvedValue(pdfResult())
+
+    await api.download()
+    await api.download()
+
+    expect(getReportPdf).toHaveBeenCalledTimes(2)
+    expect(triggerDownload).toHaveBeenCalledTimes(2)
+  })
+
+  it('treats an abort caused by a context change as a silent cancellation', async () => {
+    setupQueryResult()
+    const open = ref(true)
+    const api = useSellerSalesReport(defaultOptions({ open }))
+    const deferred = createDeferred<SellerReportPdf>()
+    getReportPdf.mockReturnValueOnce(deferred.promise)
+
+    const running = api.download()
+    await flushPromises()
+    open.value = false
+    await flushPromises()
+    deferred.reject({ code: 'ERR_CANCELED' })
+    await running
+
+    expect(triggerDownload).not.toHaveBeenCalled()
+    expect(api.downloadError.value).toBe('')
+    expect(api.isDownloading.value).toBe(false)
+  })
+
+  it('maps domain and transport failures to bounded copy', async () => {
+    const cases: Array<{ label: string; error: unknown; expected: (message: string) => boolean }> =
+      [
+        {
+          label: 'row limit',
+          error: {
+            response: {
+              status: 422,
+              data: { error: 'SELLER_REPORT_ROW_LIMIT_EXCEEDED', rowLimit: 1000, rowCount: 1500 },
+            },
+          },
+          expected: (message) => message.includes('1,500'),
+        },
+        {
+          label: 'pdf generation',
+          error: { response: { status: 500, data: { error: 'PDF_GENERATION_FAILED' } } },
+          expected: (message) => message.includes('PDF'),
+        },
+        {
+          label: 'network',
+          error: new Error('Network Error'),
+          expected: (message) => message === SELLER_REPORT_DOWNLOAD_FAILURE_MESSAGE,
+        },
+        {
+          label: 'non-pdf body',
+          error: new Error('SELLER_REPORT_PDF_NON_PDF_BODY'),
+          expected: (message) => message === SELLER_REPORT_DOWNLOAD_FAILURE_MESSAGE,
+        },
+      ]
+
+    const observed: Record<string, boolean> = {}
+    for (const testCase of cases) {
+      vi.clearAllMocks()
+      setupQueryResult()
+      const api = useSellerSalesReport(defaultOptions())
+      getReportPdf.mockRejectedValue(testCase.error)
+
+      await api.download()
+
+      observed[testCase.label] = testCase.expected(api.downloadError.value)
+      expect(triggerDownload).not.toHaveBeenCalled()
+      expect(api.isDownloading.value).toBe(false)
+      expect(api.downloadError.value).not.toMatch(/[A-Z_]{6,}/)
+    }
+
+    expect(observed).toEqual({
+      'row limit': true,
+      'pdf generation': true,
+      network: true,
+      'non-pdf body': true,
+    })
+  })
+
+  it('reports no failure when the context moved on before the request rejected', async () => {
+    setupQueryResult()
+    const open = ref(true)
+    const api = useSellerSalesReport(defaultOptions({ open }))
+    const deferred = createDeferred<SellerReportPdf>()
+    getReportPdf.mockReturnValueOnce(deferred.promise)
+
+    const running = api.download()
+    await flushPromises()
+    open.value = false
+    await flushPromises()
+    deferred.reject({ response: { status: 500, data: { error: 'PDF_GENERATION_FAILED' } } })
+    await running
+
+    expect(api.downloadError.value).toBe('')
+  })
+
+  it('aborts an in-flight download when its scope is torn down', async () => {
+    setupQueryResult()
+    const scope = effectScope()
+    const api = scope.run(() => useSellerSalesReport(defaultOptions()))!
+    const deferred = createDeferred<SellerReportPdf>()
+    getReportPdf.mockReturnValueOnce(deferred.promise)
+
+    void api.download()
+    await flushPromises()
+    const signal = getReportPdf.mock.calls[0]?.[1]?.signal
 
     scope.stop()
 
-    expect(sessions[0]!.dispose).toHaveBeenCalledTimes(1)
-    expect(sessions[0]!.commit).not.toHaveBeenCalled()
+    expect(signal?.aborted).toBe(true)
+    deferred.resolve(pdfResult())
+    await flushPromises()
+    expect(triggerDownload).not.toHaveBeenCalled()
   })
 })
+
+function makeContextRefs() {
+  return {
+    tenantId: ref(TENANT_ID),
+    sellerUserId: ref<string | null>(SELLER_ID),
+    from: ref(FROM),
+    to: ref(TO),
+    open: ref(true),
+    canRead: ref(true),
+  }
+}

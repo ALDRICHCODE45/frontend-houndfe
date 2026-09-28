@@ -48,6 +48,11 @@ export default defineConfig({
     include: [
       'src/features/admin/users/seller-report/**/__tests__/*.spec.ts',
       'src/features/admin/users/views/__tests__/AdminUsersView.test.ts',
+      // The shared HTTP interceptor spec is included because the report PDF
+      // request opts into a bounded blob-error read in that interceptor. It is
+      // standalone-compatible: it mocks its own transport/adapter and never asks
+      // this config to load the application Vite config or an `.env*` file.
+      'src/core/shared/api/__tests__/http.spec.ts',
     ],
     exclude: ['e2e/**', '**/node_modules/**'],
   },

@@ -1,4 +1,9 @@
-import { http } from '@/core/shared/api/http'
+import { http, type TenantContextBlobErrorConfig } from '@/core/shared/api/http'
+import {
+  isSellerReportPdfBlob,
+  normalizeSellerReportPdfError,
+  parseSellerReportPdfFileName,
+} from '../utils/sellerReportDownload'
 import {
   parseSellerSalesReportResponse,
   type SellerReportRequest,
@@ -37,6 +42,12 @@ export interface SellerReportRequestContext {
   signal?: AbortSignal
 }
 
+/** A validated PDF body plus the safe file name derived from the headers. */
+export interface SellerReportPdf {
+  blob: Blob
+  fileName: string
+}
+
 export const sellerReportApi = {
   async getReport(
     params: SellerReportRequest,
@@ -56,5 +67,53 @@ export const sellerReportApi = {
       from: params.from,
       to: params.to,
     })
+  },
+
+  /**
+   * Download the backend-generated PDF for the same seller and window.
+   *
+   * The same authenticated tenant/UUID/`[from,to)` contract applies; the bytes
+   * are an independent, fresh server snapshot. The transport refuses any status
+   * other than 200 and any body that is not a real PDF (never downloading JSON
+   * as PDF) and normalizes a binary domain error so the shared failure contract
+   * can read it. The request opts into the interceptor's bounded Blob-error read
+   * so a `Tenant context required` 401 is classified correctly for a
+   * `responseType: 'blob'` call; headers, bearer token and the ordinary 401
+   * refresh keep flowing through the shared interceptors.
+   */
+  async getReportPdf(
+    params: SellerReportRequest,
+    context: SellerReportRequestContext,
+  ): Promise<SellerReportPdf> {
+    try {
+      const config: TenantContextBlobErrorConfig = {
+        params: { from: params.from, to: params.to },
+        responseType: 'blob',
+        signal: context.signal,
+        tenantContextBlobError: true,
+      }
+      const response = await http.get<Blob>(
+        `/analytics/sales/sellers/${encodeURIComponent(params.sellerUserId)}/report/pdf`,
+        config,
+      )
+
+      // This endpoint only ever answers 200. A 206 (or any other carried status)
+      // could prefix a valid PDF and must never be treated as a full report.
+      if (response.status !== 200) {
+        throw new Error('SELLER_REPORT_PDF_UNEXPECTED_STATUS')
+      }
+
+      const blob = response.data
+      if (!(blob instanceof Blob) || !(await isSellerReportPdfBlob(blob, context.signal))) {
+        throw new Error('SELLER_REPORT_PDF_NON_PDF_BODY')
+      }
+
+      return {
+        blob,
+        fileName: parseSellerReportPdfFileName(response.headers?.['content-disposition'] ?? null),
+      }
+    } catch (error) {
+      throw await normalizeSellerReportPdfError(error, context.signal)
+    }
   },
 }

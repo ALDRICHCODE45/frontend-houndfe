@@ -10,12 +10,14 @@
  *     Nuxt UI date controls instead of native HTML date inputs, and changing the
  *     shared filter would alter shared analytics. The initial window is the
  *     current month resolved once by the committed helper.
- *   - `useSellerSalesReport` owns the request, its guards, and the print flow,
- *     which is why this component only forwards events.
+ *   - `useSellerSalesReport` owns the request, its guards, and the PDF download
+ *     flow, which is why this component only forwards events.
  *
- * Printing is a footer action, not an automatic side effect: the composable
- * refetches a fresh snapshot, and only then is a document handed to the print
- * dialog. The failure copy sits next to the action that produced it.
+ * Downloading is a footer action, not an automatic side effect: the composable
+ * asks the backend for a fresh PDF for the same seller/window, and only then are
+ * the bytes handed to the browser. The failure copy sits next to the action that
+ * produced it, and a short notice explains that the PDF is an independent,
+ * freshly generated snapshot.
  */
 import { computed, ref, shallowRef } from 'vue'
 import AppResponsiveDrawer from '@/core/shared/components/AppResponsiveDrawer.vue'
@@ -73,11 +75,11 @@ const {
   isFetching,
   isError,
   errorMessage,
-  canPrint,
-  isPrinting,
-  printError,
+  canDownload,
+  isDownloading,
+  downloadError,
   retry,
-  print,
+  download,
 } = useSellerSalesReport({
   tenantId: () => props.tenantId,
   sellerUserId: () => props.seller?.id ?? null,
@@ -121,8 +123,8 @@ function onRetry() {
   void retry()
 }
 
-function onPrint() {
-  void print()
+function onDownload() {
+  void download()
 }
 </script>
 
@@ -173,23 +175,29 @@ function onPrint() {
       <div
         class="flex min-w-0 flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
       >
-        <p
-          v-if="printError"
-          data-testid="seller-report-print-error"
-          role="alert"
-          class="text-sm text-error"
-        >
-          {{ printError }}
-        </p>
+        <div class="flex min-w-0 flex-col gap-1">
+          <p
+            v-if="downloadError"
+            data-testid="seller-report-download-error"
+            role="alert"
+            class="text-sm text-error"
+          >
+            {{ downloadError }}
+          </p>
+          <p v-else data-testid="seller-report-pdf-notice" class="text-xs text-muted">
+            El PDF se genera en el servidor con una consulta nueva del periodo; puede diferir del
+            reporte en pantalla.
+          </p>
+        </div>
         <UButton
           color="primary"
-          data-testid="seller-report-print"
+          data-testid="seller-report-download"
           class="min-h-11 w-full justify-center sm:w-auto"
-          :disabled="!canPrint || isPrinting"
-          :loading="isPrinting"
-          @click="onPrint"
+          :disabled="!canDownload || isDownloading"
+          :loading="isDownloading"
+          @click="onDownload"
         >
-          {{ isPrinting ? 'Preparando…' : 'Imprimir' }}
+          {{ isDownloading ? 'Preparando…' : 'Descargar PDF' }}
         </UButton>
       </div>
     </template>

@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest'
 import { ZodError } from 'zod'
 import {
+  SELLER_REPORT_PDF_GENERATION_ERROR,
   parseSellerReportFailure,
   parseSellerSalesReportResponse,
   type SellerReportExpectation,
@@ -602,6 +603,24 @@ describe('parseSellerReportFailure — status + error code mapping', () => {
     )
     expect(parseSellerReportFailure(axiosError(400, {})).kind).toBe('invalid-request')
     expect(parseSellerReportFailure(axiosError(404, undefined)).kind).toBe('unknown')
+  })
+
+  it('maps the exact 500 PDF envelope to pdf-generation-failed', () => {
+    const body = {
+      statusCode: 500,
+      error: SELLER_REPORT_PDF_GENERATION_ERROR,
+      message: SELLER_REPORT_PDF_GENERATION_ERROR,
+      timestamp: '2025-04-01T15:04:05.000Z',
+    }
+    expect(parseSellerReportFailure(axiosError(500, body))).toEqual({
+      kind: 'pdf-generation-failed',
+      status: 500,
+      rowLimit: null,
+      rowCount: null,
+    })
+    // The code alone is not enough: the status must agree.
+    expect(parseSellerReportFailure(axiosError(503, body)).kind).toBe('unknown')
+    expect(parseSellerReportFailure(axiosError(500, { error: 'OTHER' })).kind).toBe('unknown')
   })
 
   it('treats a missing, malformed or network failure as unknown with a null status', () => {

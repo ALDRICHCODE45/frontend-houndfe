@@ -97,16 +97,17 @@ export const SELLER_REPORT_FAILURE_MESSAGES: Record<SellerReportFailure['kind'],
   unauthorized: 'Tu sesión expiró. Inicia sesión de nuevo para consultar el reporte.',
   'invalid-request':
     'El servidor rechazó el periodo solicitado. Ajusta las fechas e inténtalo de nuevo.',
+  'pdf-generation-failed':
+    'No se pudo generar el PDF del reporte. Inténtalo de nuevo en unos segundos.',
   unknown: 'No pudimos cargar el reporte de ventas. Reintenta en unos segundos.',
 }
 
-/** Print-specific copy: the fresh refetch failed, so nothing was printed. */
-export const SELLER_REPORT_PRINT_REFRESH_FAILURE_MESSAGE =
-  'No pudimos actualizar el reporte para imprimirlo; no se imprimió nada. Inténtalo de nuevo.'
-
-/** Print-specific copy: the isolated document or the print dialog failed. */
-export const SELLER_REPORT_PRINT_DIALOG_FAILURE_MESSAGE =
-  'No se pudo abrir el diálogo de impresión. Revisa los permisos del navegador e inténtalo de nuevo.'
+/**
+ * Download-specific copy for a failure that is not a mapped domain error: a
+ * network drop or a response that was not a PDF at all (never downloaded).
+ */
+export const SELLER_REPORT_DOWNLOAD_FAILURE_MESSAGE =
+  'No pudimos descargar el PDF del reporte. Inténtalo de nuevo en unos segundos.'
 
 /**
  * Actionable Spanish copy for a normalized failure.

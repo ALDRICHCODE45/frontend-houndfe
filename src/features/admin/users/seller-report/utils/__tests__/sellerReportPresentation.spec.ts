@@ -9,11 +9,10 @@ import { describe, expect, it } from 'vitest'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import type { SellerReportFailure } from '../../interfaces/seller-report.types'
 import {
+  SELLER_REPORT_DOWNLOAD_FAILURE_MESSAGE,
   SELLER_REPORT_FAILURE_MESSAGES,
   SELLER_REPORT_PAYMENT_STATUS_LABELS,
   SELLER_REPORT_PAYMENT_STATUS_TONES,
-  SELLER_REPORT_PRINT_DIALOG_FAILURE_MESSAGE,
-  SELLER_REPORT_PRINT_REFRESH_FAILURE_MESSAGE,
   SELLER_REPORT_TIME_ZONE_LABEL,
   formatSellerReportCalendarDate,
   formatSellerReportCents,
@@ -118,6 +117,7 @@ describe('sellerReportFailureMessage', () => {
       'forbidden',
       'unauthorized',
       'invalid-request',
+      'pdf-generation-failed',
       'unknown',
     ] as const
 
@@ -130,15 +130,21 @@ describe('sellerReportFailureMessage', () => {
     expect(Object.keys(SELLER_REPORT_FAILURE_MESSAGES).sort()).toEqual([...kinds].sort())
   })
 
-  it('keeps print-specific copy distinct from the load copy', () => {
-    expect(SELLER_REPORT_PRINT_REFRESH_FAILURE_MESSAGE).not.toBe(
-      SELLER_REPORT_FAILURE_MESSAGES.unknown,
+  it('explains a PDF-generation failure without exposing the backend code', () => {
+    const message = sellerReportFailureMessage(
+      failure({ kind: 'pdf-generation-failed', status: 500 }),
     )
-    expect(SELLER_REPORT_PRINT_DIALOG_FAILURE_MESSAGE).not.toBe(
-      SELLER_REPORT_PRINT_REFRESH_FAILURE_MESSAGE,
+    expect(message).toContain('PDF')
+    expect(message).not.toContain('PDF_GENERATION_FAILED')
+    expect(message).not.toContain('500')
+  })
+
+  it('keeps the generic download copy distinct from every domain failure copy', () => {
+    expect(SELLER_REPORT_DOWNLOAD_FAILURE_MESSAGE).not.toBe(SELLER_REPORT_FAILURE_MESSAGES.unknown)
+    expect(SELLER_REPORT_DOWNLOAD_FAILURE_MESSAGE).not.toBe(
+      SELLER_REPORT_FAILURE_MESSAGES['pdf-generation-failed'],
     )
-    expect(SELLER_REPORT_PRINT_REFRESH_FAILURE_MESSAGE).toContain('actualiz')
-    expect(SELLER_REPORT_PRINT_DIALOG_FAILURE_MESSAGE).toContain('impresión')
+    expect(SELLER_REPORT_DOWNLOAD_FAILURE_MESSAGE).toContain('PDF')
   })
 
   it('names the authoritative zone in Spanish', () => {

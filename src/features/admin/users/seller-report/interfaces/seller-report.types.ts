@@ -414,6 +414,7 @@ export type SellerReportFailureKind =
   | 'forbidden'
   | 'unauthorized'
   | 'invalid-request'
+  | 'pdf-generation-failed'
   | 'unknown'
 
 /**
@@ -430,6 +431,8 @@ export interface SellerReportFailure {
 /** Exact domain error codes this endpoint may return. */
 export const SELLER_NOT_FOUND_ERROR = 'SELLER_NOT_FOUND'
 export const SELLER_REPORT_ROW_LIMIT_ERROR = 'SELLER_REPORT_ROW_LIMIT_EXCEEDED'
+/** Raised by the PDF endpoint when the server cannot render the document. */
+export const SELLER_REPORT_PDF_GENERATION_ERROR = 'PDF_GENERATION_FAILED'
 
 function responseStatus(error: unknown): number | null {
   if (typeof error !== 'object' || error === null) return null
@@ -488,5 +491,8 @@ export function parseSellerReportFailure(error: unknown): SellerReportFailure {
   if (status === 401) return { ...base, kind: 'unauthorized' }
   if (status === 403) return { ...base, kind: 'forbidden' }
   if (status === 400) return { ...base, kind: 'invalid-request' }
+  if (status === 500 && code === SELLER_REPORT_PDF_GENERATION_ERROR) {
+    return { ...base, kind: 'pdf-generation-failed' }
+  }
   return { ...base, kind: 'unknown' }
 }
