@@ -1,10 +1,33 @@
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import type { AppAction, AppSubject } from '@/features/auth/interfaces/auth.types'
-import { createRouter, createWebHistory } from 'vue-router'
-import { resolveLandingDestination } from '@/app/navigation/navigation.landing'
-import { buildCanAccess } from '@/app/navigation/navigation.access'
+import { defineComponent } from 'vue'
+import { createRouter, createWebHistory, type RouteMeta } from 'vue-router'
+import {
+  isRememberableLandingLocation,
+  resolveLandingDestination,
+  resolveRememberedLandingPath,
+  ROOT_PATH,
+  ROOT_ROUTE_NAME,
+  type LandingRouteFacts,
+  type LandingRouteMeta,
+} from '@/app/navigation/navigation.landing'
+import { buildCanAccess, type CanAccess } from '@/app/navigation/navigation.access'
+import {
+  clearRememberedLanding,
+  readRememberedLanding,
+  writeRememberedLanding,
+} from '@/app/navigation/navigation.memory'
 
 type RoutePermission = [AppAction, AppSubject]
+
+// Resolver-only root route: the global guard always redirects it (replace) to
+// the remembered destination or the permission-aware default. It renders
+// nothing, so a redirect can never flash the NotFound view while auth state is
+// still hydrating.
+const RootRedirectView = defineComponent({
+  name: 'RootRedirectView',
+  render: () => null,
+})
 
 const LoginView = () => import('@/features/auth/login/views/LoginView.vue')
 const TenantSelectionView = () =>
@@ -85,6 +108,15 @@ const NotFoundView = () => import('@/features/errors/views/NotFoundView.vue')
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    // ODD root-last-route: explicit named root route. It is not public and not
+    // a tenant-skip route, so the global guard resolves it only after auth
+    // hydration, user, tenant and permission readiness.
+    {
+      path: ROOT_PATH,
+      name: ROOT_ROUTE_NAME,
+      component: RootRedirectView,
+      meta: { layout: 'auth' },
+    },
     {
       path: '/login',
       name: 'login',
@@ -106,6 +138,7 @@ const router = createRouter({
       component: ProductsView,
       meta: {
         layout: 'dashboard',
+        rememberAsLanding: true,
         permission: ['read', 'Product'] as RoutePermission,
       },
     },
@@ -133,6 +166,7 @@ const router = createRouter({
       component: OrdersView,
       meta: {
         layout: 'dashboard',
+        rememberAsLanding: true,
         permission: ['read', 'Order'] as RoutePermission,
       },
     },
@@ -142,6 +176,7 @@ const router = createRouter({
       component: CustomersView,
       meta: {
         layout: 'dashboard',
+        rememberAsLanding: true,
         permission: ['read', 'Customer'] as RoutePermission,
       },
     },
@@ -151,6 +186,7 @@ const router = createRouter({
       component: SalesListView,
       meta: {
         layout: 'dashboard',
+        rememberAsLanding: true,
         permission: ['read', 'Sale'] as RoutePermission,
       },
     },
@@ -179,6 +215,7 @@ const router = createRouter({
       component: HumanDecisionsView,
       meta: {
         layout: 'dashboard',
+        rememberAsLanding: true,
         permission: ['read', 'HumanDecision'] as RoutePermission,
       },
     },
@@ -188,6 +225,7 @@ const router = createRouter({
       component: PromotionsView,
       meta: {
         layout: 'dashboard',
+        rememberAsLanding: true,
         permission: ['read', 'Promotion'] as RoutePermission,
       },
     },
@@ -216,6 +254,7 @@ const router = createRouter({
       component: QuotationsListView,
       meta: {
         layout: 'dashboard',
+        rememberAsLanding: true,
         permission: ['read', 'Quotation'] as RoutePermission,
       },
     },
@@ -244,6 +283,7 @@ const router = createRouter({
       component: EmployeesListView,
       meta: {
         layout: 'dashboard',
+        rememberAsLanding: true,
         permission: ['read', 'Employee'] as RoutePermission,
       },
     },
@@ -263,6 +303,7 @@ const router = createRouter({
       component: ExpiringDocumentsView,
       meta: {
         layout: 'dashboard',
+        rememberAsLanding: true,
         permission: ['read', 'EmployeeDocument'] as RoutePermission,
       },
     },
@@ -272,6 +313,7 @@ const router = createRouter({
       component: PendingApprovalsView,
       meta: {
         layout: 'dashboard',
+        rememberAsLanding: true,
         permission: ['read', 'EmployeeTimeOff'] as RoutePermission,
       },
     },
@@ -281,6 +323,7 @@ const router = createRouter({
       component: AdminUsersView,
       meta: {
         layout: 'dashboard',
+        rememberAsLanding: true,
         permission: ['read', 'User'] as RoutePermission,
       },
     },
@@ -290,6 +333,7 @@ const router = createRouter({
       component: AdminRolesView,
       meta: {
         layout: 'dashboard',
+        rememberAsLanding: true,
         permission: ['read', 'Role'] as RoutePermission,
       },
     },
@@ -299,6 +343,7 @@ const router = createRouter({
       component: AdminTenantsView,
       meta: {
         layout: 'dashboard',
+        rememberAsLanding: true,
         requiresAuth: true,
         skipTenantCheck: true,
         requiresSuperAdmin: true,
@@ -322,6 +367,7 @@ const router = createRouter({
       component: AdminPaymentDetailsView,
       meta: {
         layout: 'dashboard',
+        rememberAsLanding: true,
         permission: ['read', 'PaymentDetail'] as RoutePermission,
       },
     },
@@ -335,6 +381,7 @@ const router = createRouter({
       component: AdminPaymentMethodsView,
       meta: {
         layout: 'dashboard',
+        rememberAsLanding: true,
         permission: ['read', 'PaymentMethod'] as RoutePermission,
       },
     },
@@ -349,6 +396,7 @@ const router = createRouter({
       component: DeliveryRoutesListView,
       meta: {
         layout: 'dashboard',
+        rememberAsLanding: true,
         permission: ['read', 'DeliveryRoute'] as RoutePermission,
       },
     },
@@ -368,6 +416,7 @@ const router = createRouter({
       component: NotificationConfigView,
       meta: {
         layout: 'dashboard',
+        rememberAsLanding: true,
         permission: ['read', 'NotificationConfig'] as RoutePermission,
       },
     },
@@ -378,6 +427,7 @@ const router = createRouter({
       component: TenantCatalogSettingsView,
       meta: {
         layout: 'dashboard',
+        rememberAsLanding: true,
         permission: ['read', 'TenantCatalogSettings'] as RoutePermission,
       },
     },
@@ -392,6 +442,7 @@ const router = createRouter({
       component: BranchSalesSummaryView,
       meta: {
         layout: 'dashboard',
+        rememberAsLanding: true,
         permission: ['read', 'Analytics'] as RoutePermission,
       },
     },
@@ -416,6 +467,51 @@ const router = createRouter({
     },
   ],
 })
+
+/** Read the access/landing flags off vue-router's loosely typed metadata. */
+function toLandingRouteMeta(meta: RouteMeta): LandingRouteMeta {
+  return {
+    permission: meta.permission as LandingRouteMeta['permission'],
+    requiresSuperAdmin: meta.requiresSuperAdmin === true,
+    public: meta.public === true,
+    rememberAsLanding: meta.rememberAsLanding === true,
+  }
+}
+
+/** Canonical facts for a candidate remembered path, or null when unmatched. */
+function resolveLandingRouteFacts(path: string): LandingRouteFacts | null {
+  const resolved = router.resolve(path)
+  if (typeof resolved.name !== 'string' || resolved.matched.length === 0) return null
+
+  return {
+    canonicalPath: resolved.path,
+    meta: toLandingRouteMeta(resolved.meta),
+    dynamicParams: Object.keys(resolved.params),
+  }
+}
+
+/**
+ * Resolve the destination for a root visit: the remembered stable route for
+ * this (user, tenant) scope when it is still eligible, else the permission-aware
+ * default. An unusable record is invalidated instead of being left behind.
+ */
+function resolveRootLandingTarget(
+  authStore: ReturnType<typeof useAuthStore>,
+  canAccess: CanAccess,
+): string {
+  const scope = {
+    userId: authStore.user?.id,
+    tenantId: authStore.currentTenant?.id,
+  }
+
+  const memory = readRememberedLanding(scope)
+  const remembered = resolveRememberedLandingPath(memory.path, resolveLandingRouteFacts, canAccess)
+  if (remembered !== null) return remembered
+
+  if (memory.hasRecord) clearRememberedLanding(scope)
+
+  return resolveLandingDestination(canAccess)
+}
 
 router.beforeEach(async (to) => {
   if (to.name === 'public-catalog') return true
@@ -445,6 +541,12 @@ router.beforeEach(async (to) => {
     !authStore.isAuthenticated &&
     !(to.name === 'select-tenant' && hasTenantSelectionToken)
   ) {
+    // ODD root-last-route: an unauthenticated root visit is not a deep link, so
+    // it must not add a `redirect=/` query — login stays the plain entry point.
+    if (to.name === ROOT_ROUTE_NAME) {
+      return { path: '/login' }
+    }
+
     return {
       path: '/login',
       query: { redirect: to.fullPath },
@@ -470,11 +572,22 @@ router.beforeEach(async (to) => {
     }
   }
 
+  const canAccess = buildCanAccess(authStore)
+
+  if (to.name === ROOT_ROUTE_NAME) {
+    // ODD root-last-route: "/" resolves only after auth hydration, user, tenant
+    // and permission readiness. Restore the remembered destination for this
+    // (user, tenant) scope when it is still a stable opted-in route the
+    // identity may enter; otherwise fall back to the permission-aware default.
+    // Always replace, so root never grows the history stack.
+    return { path: resolveRootLandingTarget(authStore, canAccess), replace: true }
+  }
+
   if (to.path === '/login' && authStore.isAuthenticated) {
     // ODD dashboard-analytics D1: authenticated /login redirect now resolves
     // the first permitted application destination via the shared resolver
     // instead of hardcoding "/". Permissions are guaranteed loaded above.
-    return resolveLandingDestination(buildCanAccess(authStore))
+    return resolveLandingDestination(canAccess)
   }
 
   if (to.meta.requiresSuperAdmin === true && !authStore.isSuperAdmin) {
@@ -487,6 +600,33 @@ router.beforeEach(async (to) => {
   }
 
   return true
+})
+
+router.afterEach((to, _from, failure) => {
+  // A failed, aborted, cancelled or duplicated navigation never commits, so it
+  // must never rewrite the remembered destination.
+  if (failure) return
+
+  // A guard-redirected navigation (root resolution, the authenticated /login
+  // redirect, an error redirect) commits successfully with `redirectedFrom`
+  // pointing at the location the user actually requested. Those are automatic
+  // landings: they must never overwrite the stable section the user chose
+  // directly. Only a direct, committed navigation may update memory.
+  if (to.redirectedFrom) return
+
+  const rememberable = isRememberableLandingLocation({
+    path: to.path,
+    name: typeof to.name === 'string' ? to.name : null,
+    meta: toLandingRouteMeta(to.meta),
+    dynamicParams: Object.keys(to.params),
+  })
+  if (!rememberable) return
+
+  const authStore = useAuthStore()
+  writeRememberedLanding(
+    { userId: authStore.user?.id, tenantId: authStore.currentTenant?.id },
+    to.path,
+  )
 })
 
 export default router

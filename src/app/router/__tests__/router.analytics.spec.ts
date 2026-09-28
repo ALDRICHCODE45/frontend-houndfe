@@ -8,10 +8,11 @@
 // BranchSalesSummaryView component.
 //
 // Drift this suite must fail on: wrong path/name/layout/permission, a return
-// of /analytics/resumen-ventas, a return of "/" as an application route, a
-// super-admin gate, a public flag, a /dashboard open redirect for a denied
-// user, or a substitution of the route component with anything other than the
-// BranchSalesSummaryView module.
+// of /analytics/resumen-ventas, a super-admin gate, a public flag, a /dashboard
+// open redirect for a denied user, or a substitution of the route component
+// with anything other than the BranchSalesSummaryView module. The root path "/"
+// is no longer a 404: ODD root-last-route makes it the explicit resolver-only
+// `root` route, covered below.
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -134,17 +135,25 @@ describe('router — /dashboard (ODD dashboard-analytics D1)', () => {
     expect(router.currentRoute.value.path).toBe(expected)
   })
 
-  it.each([
-    { path: '/', name: 'not-found' },
-    { path: '/analytics/resumen-ventas', name: 'not-found' },
-  ])(
-    '"$path" is not an application route and falls through to NotFoundView',
-    async ({ path, name }) => {
-      const { default: router } = await import('../index')
-      await router.push(path)
-      await router.isReady()
-      expect(router.currentRoute.value.path).toBe(path)
-      expect(router.currentRoute.value.name).toBe(name)
-    },
-  )
+  it('exposes "/" as the explicit root resolver route, not a 404', async () => {
+    const { default: router } = await import('../index')
+
+    expect(router.resolve('/').name).toBe('root')
+    expect(router.resolve('/analytics/resumen-ventas').name).toBe('not-found')
+
+    await router.push('/')
+    await router.isReady()
+
+    // Unauthenticated root resolves to login without a redirect-to-root query.
+    expect(router.currentRoute.value.path).toBe('/login')
+    expect(router.currentRoute.value.query.redirect).toBeUndefined()
+  })
+
+  it('"/analytics/resumen-ventas" is not an application route and falls through to NotFoundView', async () => {
+    const { default: router } = await import('../index')
+    await router.push('/analytics/resumen-ventas')
+    await router.isReady()
+    expect(router.currentRoute.value.path).toBe('/analytics/resumen-ventas')
+    expect(router.currentRoute.value.name).toBe('not-found')
+  })
 })
