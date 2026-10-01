@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import AppResponsiveDrawer from '@/core/shared/components/AppResponsiveDrawer.vue'
-import type { HumanDecision, ResolvedHumanDecision } from '../interfaces/human-decision.types'
+import type { HumanDecision } from '../interfaces/human-decision.types'
 import type { HumanDecisionResolutionInput } from '../utils/humanDecisionResolutionAttempt'
 import HumanDecisionResolutionControls from './HumanDecisionResolutionControls.vue'
 import {
   branchPresentationLabel,
   createdAtPresentationLabel,
+  productMetaPresentationLabel,
   requestedQuantityPresentationLabel,
-  skuPresentationLabel,
-  variantPresentationLabel,
+  resolvedResponseLabel,
 } from '../utils/humanDecisionPresentation'
 
 const props = withDefaults(
@@ -39,17 +39,15 @@ const emit = defineEmits<{
 }>()
 const open = defineModel<boolean>('open', { default: false })
 const drawerTitle = computed(() => props.decision?.title ?? 'Detalle de decisión')
+const drawerDescription = computed(() =>
+  props.decision?.type === 'EXPIRATION'
+    ? 'Detalle de la solicitud de vencimiento.'
+    : 'Detalle de la solicitud de reposición.',
+)
 
 function unitsLabel(value: number | null): string {
   if (value === null) return 'No observado'
   return `${value} ${value === 1 ? 'unidad' : 'unidades'}`
-}
-
-function resolutionCopy(decision: ResolvedHumanDecision): string {
-  if (decision.resolution.action === 'PROVIDE_RESTOCK_ESTIMATE') {
-    return `Reposición estimada en ${decision.resolution.restockDays} días naturales.`
-  }
-  return 'Por ahora no tenemos una fecha estimada de reposición.'
 }
 </script>
 
@@ -57,7 +55,7 @@ function resolutionCopy(decision: ResolvedHumanDecision): string {
   <AppResponsiveDrawer
     v-model:open="open"
     :title="drawerTitle"
-    description="Detalle de la solicitud de reposición."
+    :description="drawerDescription"
     close-aria-label="Cerrar detalle de decisión"
     :desktop-ui="{ content: 'sm:max-w-xl motion-reduce:transition-none' }"
   >
@@ -117,8 +115,7 @@ function resolutionCopy(decision: ResolvedHumanDecision): string {
                 {{ decision.snapshot.productName }}
               </dd>
               <dd class="text-xs text-muted">
-                {{ skuPresentationLabel(decision.snapshot.sku) }} ·
-                {{ variantPresentationLabel(decision.snapshot.variantId) }}
+                {{ productMetaPresentationLabel(decision) }}
               </dd>
             </div>
             <div>
@@ -127,19 +124,19 @@ function resolutionCopy(decision: ResolvedHumanDecision): string {
                 {{ branchPresentationLabel(decision.snapshot.branchName) }}
               </dd>
             </div>
-            <div>
+            <div v-if="decision.type === 'RESTOCK'">
               <dt class="text-xs text-muted">Cantidad solicitada</dt>
               <dd class="text-sm text-highlighted">
                 {{ requestedQuantityPresentationLabel(decision.snapshot.requestedQuantity) }}
               </dd>
             </div>
-            <div>
+            <div v-if="decision.type === 'RESTOCK'">
               <dt class="text-xs text-muted">Stock observado</dt>
               <dd class="text-sm text-highlighted">
                 {{ unitsLabel(decision.snapshot.observedStockAtRequest) }}
               </dd>
             </div>
-            <div>
+            <div v-if="decision.type === 'RESTOCK'">
               <dt class="text-xs text-muted">Observado el</dt>
               <dd class="text-sm text-highlighted">
                 {{
@@ -166,7 +163,7 @@ function resolutionCopy(decision: ResolvedHumanDecision): string {
           <h2 id="human-decision-resolution-heading" class="text-sm font-semibold text-highlighted">
             Respuesta registrada
           </h2>
-          <p class="text-sm text-highlighted">{{ resolutionCopy(decision) }}</p>
+          <p class="text-sm text-highlighted">{{ resolvedResponseLabel(decision.resolution) }}</p>
           <p class="text-xs text-muted">
             {{ decision.resolution.resolvedBy.displayName }} ·
             {{ createdAtPresentationLabel(decision.resolution.resolvedAt) }}
@@ -183,13 +180,16 @@ function resolutionCopy(decision: ResolvedHumanDecision): string {
           </p>
 
           <HumanDecisionResolutionControls
-            v-if="canUpdate || conflict"
+            v-if="decision.type === 'RESTOCK' && (canUpdate || conflict)"
             :decision="decision"
             :can-update="canUpdate"
             :resolving="resolving"
             :conflict="conflict"
             @resolve="emit('resolve', $event)"
           />
+          <p v-else-if="decision.type === 'EXPIRATION'" role="status" class="text-sm text-muted">
+            Aún no puedes responder solicitudes de vencimiento desde aquí.
+          </p>
         </template>
       </article>
     </template>

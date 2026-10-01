@@ -7,6 +7,13 @@ import type {
   ResolvedHumanDecision,
 } from '../../interfaces/human-decision.types'
 import type { HumanDecisionResolutionInput } from '../../utils/humanDecisionResolutionAttempt'
+import { EXPIRATION_UNAVAILABLE_LABEL } from '../../utils/humanDecisionPresentation'
+import {
+  pendingExpiration,
+  provideExpiration,
+  resolvedExpiration,
+  unavailableExpiration,
+} from '../../interfaces/__tests__/expirationDecision.fixture'
 
 const AppResponsiveDrawerStub = {
   name: 'AppResponsiveDrawer',
@@ -75,6 +82,7 @@ function mountDetail(
     loading?: boolean
     error?: boolean
     canUpdate?: boolean
+    conflict?: boolean
     resolutionErrorMessage?: string
     onOpen?: (value: boolean) => void
     onResolve?: (input: HumanDecisionResolutionInput) => void
@@ -88,6 +96,7 @@ function mountDetail(
       error: options.error,
       errorMessage: 'No se pudo cargar el detalle.',
       canUpdate: options.canUpdate,
+      conflict: options.conflict,
       resolutionErrorMessage: options.resolutionErrorMessage,
       'onUpdate:open': options.onOpen,
       onResolve: options.onResolve,
@@ -202,5 +211,29 @@ describe('HumanDecisionDetailSlideover', () => {
     )
     expect(wrapper.text()).toContain('Por ahora no tenemos una fecha estimada de reposición.')
     expect(wrapper.text()).not.toContain('días naturales')
+  })
+
+  it.each([{}, { canUpdate: true }, { canUpdate: true, conflict: true }])(
+    'never mounts RESTOCK controls for an EXPIRATION pending decision (%o)',
+    (options) => {
+      const wrapper = mountDetail(pendingExpiration, options)
+      expect(wrapper.props('conflict')).toBe('conflict' in options)
+      expect(wrapper.find('[data-testid="stub-resolution"]').exists()).toBe(false)
+      expect(wrapper.text()).toContain('vencimiento')
+      expect(wrapper.text()).not.toMatch(/Stock observado|Cantidad solicitada/)
+      expect(wrapper.emitted('resolve')).toBeUndefined()
+    },
+  )
+
+  it('renders the recorded expiration text literally and the negative copy', () => {
+    const unsafe = { ...provideExpiration, expirationText: '<img src=x onerror=alert(1)> Vence' }
+    const positive = mountDetail(resolvedExpiration(unsafe))
+    expect(positive.find('img').exists()).toBe(false)
+    expect(positive.text()).toContain('<img src=x onerror=alert(1)> Vence')
+    expect(positive.text()).toContain('Ana')
+    expect(positive.text()).not.toMatch(/Stock observado|Sin SKU/)
+    const negative = mountDetail(resolvedExpiration(unavailableExpiration))
+    expect(negative.text()).toContain(EXPIRATION_UNAVAILABLE_LABEL)
+    expect(negative.text()).not.toContain('días naturales')
   })
 })

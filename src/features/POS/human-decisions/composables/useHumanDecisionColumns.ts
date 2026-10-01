@@ -29,7 +29,10 @@ export function useHumanDecisionColumns() {
     },
     {
       id: 'requestedQuantity',
-      accessorFn: (row) => requestedQuantityPresentationLabel(row.snapshot.requestedQuantity),
+      accessorFn: (row) =>
+        row.type === 'EXPIRATION'
+          ? '—'
+          : requestedQuantityPresentationLabel(row.snapshot.requestedQuantity),
       header: createSimpleHeader('Solicitado'),
       enableSorting: false,
     },

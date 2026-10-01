@@ -69,14 +69,13 @@ export function useHumanDecisionsInbox(generateId: () => string = () => crypto.r
     }
 
     const decision = detail.data.value
-    const actionAllowed =
-      decision?.status === 'PENDING' &&
-      decision.allowedActions.some((action) => action === input.action)
     if (
       !decision ||
+      decision.type !== 'RESTOCK' ||
+      decision.status !== 'PENDING' ||
       decision.id !== selectedDecisionId.value ||
-      !actionAllowed ||
-      decision.version !== input.expectedVersion
+      decision.version !== input.expectedVersion ||
+      !decision.allowedActions.some((action) => action === input.action)
     ) {
       resolutionErrorMessage.value = 'Esta respuesta ya no está disponible.'
       return

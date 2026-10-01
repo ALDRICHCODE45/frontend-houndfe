@@ -1,9 +1,11 @@
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
+  HumanDecision,
   PendingHumanDecision,
   ResolvedHumanDecision,
 } from '../../interfaces/human-decision.types'
+import { pendingExpiration } from '../../interfaces/__tests__/expirationDecision.fixture'
 import { useHumanDecisionsListTable } from '../useHumanDecisionsListTable'
 import { useHumanDecisionDetail } from '../useHumanDecisionDetail'
 import { useResolveHumanDecision } from '../useResolveHumanDecision'
@@ -66,7 +68,7 @@ const listState = {
   refresh: vi.fn(),
 }
 const detailState = {
-  data: ref<PendingHumanDecision | ResolvedHumanDecision>(pending),
+  data: ref<HumanDecision>(pending),
   isLoading: ref(false),
   isError: ref(false),
   error: ref(null),
@@ -138,6 +140,21 @@ describe('useHumanDecisionsInbox', () => {
       expectedVersion: 1,
     })
     expect(mutateAsync).not.toHaveBeenCalled()
+    expect(inbox.resolutionErrorMessage.value).toContain('ya no está disponible')
+  })
+
+  it.each([
+    { action: 'PROVIDE_RESTOCK_ESTIMATE', restockDays: 3, expectedVersion: 1 },
+    { action: 'REPORT_RESTOCK_ESTIMATE_UNAVAILABLE', expectedVersion: 1 },
+  ] as const)('refuses $action on EXPIRATION before UUID or mutation', async (input) => {
+    const generateId = vi.fn(() => 'request-1')
+    mutateAsync.mockResolvedValue(resolved)
+    const inbox = setup(generateId)
+    detailState.data.value = pendingExpiration
+    inbox.openDetail('exp-1')
+    await inbox.resolveDecision(input)
+    expect(mutateAsync).not.toHaveBeenCalled()
+    expect(generateId).not.toHaveBeenCalled()
     expect(inbox.resolutionErrorMessage.value).toContain('ya no está disponible')
   })
 

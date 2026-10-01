@@ -11,8 +11,8 @@ import type { HumanDecision, HumanDecisionListFilter } from '../interfaces/human
 import {
   branchPresentationLabel,
   createdAtPresentationLabel,
+  productMetaPresentationLabel,
   requestedQuantityPresentationLabel,
-  skuPresentationLabel,
   resolvedResponseLabel,
 } from '../utils/humanDecisionPresentation'
 import HumanDecisionCard from './HumanDecisionCard.vue'
@@ -143,7 +143,7 @@ function selectViewMode(mode: string): void {
             <p class="truncate text-xs text-muted">{{ row.original.sanitizedSummary }}</p>
             <p class="truncate text-xs text-muted">
               {{ row.original.snapshot.productName }} ·
-              {{ skuPresentationLabel(row.original.snapshot.sku) }}
+              {{ productMetaPresentationLabel(row.original) }}
             </p>
           </div>
         </template>
@@ -179,8 +179,12 @@ function selectViewMode(mode: string): void {
         </template>
 
         <template #requestedQuantity-cell="{ row }">
-          <span class="text-sm">
-            {{ requestedQuantityPresentationLabel(row.original.snapshot.requestedQuantity) }}
+          <span class="text-sm" data-testid="human-decision-quantity">
+            {{
+              row.original.type === 'EXPIRATION'
+                ? '—'
+                : requestedQuantityPresentationLabel(row.original.snapshot.requestedQuantity)
+            }}
           </span>
         </template>
 

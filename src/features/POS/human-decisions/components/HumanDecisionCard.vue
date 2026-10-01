@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { PendingHumanDecision } from '../interfaces/human-decision.types'
+import type { HumanDecision } from '../interfaces/human-decision.types'
 import { presentPendingHumanDecision } from '../utils/humanDecisionPresentation'
 
-const props = defineProps<{ decision: PendingHumanDecision }>()
+const props = defineProps<{ decision: Extract<HumanDecision, { status: 'PENDING' }> }>()
 const emit = defineEmits<{ openDetail: [decisionId: string] }>()
 const presentation = computed(() => presentPendingHumanDecision(props.decision))
 </script>
@@ -25,16 +25,14 @@ const presentation = computed(() => presentPendingHumanDecision(props.decision))
         <dt class="text-muted">Producto</dt>
         <dd class="mt-0.5 min-w-0">
           <p class="truncate font-medium text-default">{{ presentation.productLabel }}</p>
-          <p class="truncate text-muted">
-            {{ presentation.skuLabel }} · {{ presentation.variantLabel }}
-          </p>
+          <p class="truncate text-muted">{{ presentation.productMetaLabel }}</p>
         </dd>
       </div>
       <div class="min-w-0">
         <dt class="text-muted">Sucursal</dt>
         <dd class="mt-0.5 truncate text-default">{{ presentation.branchLabel }}</dd>
       </div>
-      <div class="min-w-0">
+      <div v-if="presentation.requestedQuantityLabel" class="min-w-0">
         <dt class="text-muted">Solicitado</dt>
         <dd class="mt-0.5 truncate text-default">{{ presentation.requestedQuantityLabel }}</dd>
       </div>

@@ -12,7 +12,16 @@ const storageKey = 'human-decisions-view-mode'
 import { mount } from '@vue/test-utils'
 import HumanDecisionsListPanel from '../HumanDecisionsListPanel.vue'
 import type { PaginationState } from '@/core/shared/types/table.types'
-import type { PendingHumanDecision } from '../../interfaces/human-decision.types'
+import type { HumanDecision, PendingHumanDecision } from '../../interfaces/human-decision.types'
+import { EXPIRATION_UNAVAILABLE_LABEL } from '../../utils/humanDecisionPresentation'
+import {
+  pendingExpiration,
+  provideExpiration,
+  resolvedExpiration,
+  unavailableExpiration,
+} from '../../interfaces/__tests__/expirationDecision.fixture'
+
+const PROVIDE_COPY = provideExpiration.expirationText
 
 const AppDataTableStub = {
   name: 'AppDataTable',
@@ -322,4 +331,35 @@ describe('HumanDecisionsListPanel', () => {
     await wrapper.get('[data-testid="human-decision-open-detail"]').trigger('click')
     expect(wrapper.emitted('openDetail')).toContainEqual([{ id: 'decision-1', status: 'PENDING' }])
   })
+
+  it.each([
+    [pendingExpiration, 'Pendiente', ['—']],
+    [resolvedExpiration(provideExpiration), 'Respondida', [PROVIDE_COPY, 'Ana']],
+    [
+      resolvedExpiration(unavailableExpiration),
+      'Respondida',
+      [EXPIRATION_UNAVAILABLE_LABEL, 'Ana'],
+    ],
+  ] as [HumanDecision, string, string[]][])(
+    'renders EXPIRATION metadata, response and detail access',
+    async (row, status, responseParts) => {
+      const wrapper = mountPanel()
+      await wrapper.setProps({ data: [row] })
+      const text = wrapper.text()
+      expect(text).toContain('Alimento húmedo')
+      expect(text).toContain('kg · Presentación (Tamaño: Grande)')
+      expect(text).toContain(status)
+      expect(text).not.toContain('Sin SKU')
+      expect(text).not.toContain('Cantidad no especificada')
+      expect(wrapper.get('[data-testid="human-decision-quantity"]').text()).toBe('—')
+      const responseCell = wrapper.get('[data-testid="human-decision-response"]').text()
+      for (const part of responseParts) expect(responseCell).toContain(part)
+      const openTestId =
+        row.status === 'PENDING'
+          ? 'human-decision-open-detail'
+          : 'resolved-human-decision-open-detail'
+      await wrapper.get(`[data-testid="${openTestId}"]`).trigger('click')
+      expect(wrapper.emitted('openDetail')).toContainEqual([{ id: 'exp-1', status: row.status }])
+    },
+  )
 })

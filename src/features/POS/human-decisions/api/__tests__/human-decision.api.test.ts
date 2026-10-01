@@ -8,16 +8,23 @@ import { beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
 import { humanDecisionApi } from '../human-decision.api'
 import { http } from '@/core/shared/api/http'
 import type {
+  HumanDecision,
   HumanDecisionErrorCode,
   HumanDecisionErrorResponse,
   HumanDecisionListParams,
   HumanDecisionListResponse,
   HumanDecisionResolvePayload,
+  HumanDecisionType,
   PendingHumanDecision,
   ProvideRestockEstimateResolution,
   ReportRestockEstimateUnavailableResolution,
   ResolvedHumanDecision,
 } from '../../interfaces/human-decision.types'
+import {
+  pendingExpiration,
+  provideExpiration,
+  resolvedExpiration,
+} from '../../interfaces/__tests__/expirationDecision.fixture'
 
 vi.mock('@/core/shared/api/http', () => ({ http: { get: vi.fn(), post: vi.fn() } }))
 
@@ -134,6 +141,32 @@ describe('HD2A/HD4A · humanDecisionApi', () => {
     expect(result).toBe(resolved)
   })
 
+  it('preserves the mixed server order and unwraps an EXPIRATION page', async () => {
+    const response = {
+      data: [pending, pendingExpiration, resolved, resolvedExpiration(provideExpiration)],
+      pagination: { pageIndex: 0, pageSize: 20, totalCount: 4, pageCount: 1 },
+    }
+    vi.mocked(http.get).mockResolvedValue({ data: response })
+    const result = await humanDecisionApi.list({ status: 'ALL', page: 1, limit: 20 })
+    expect(result).toBe(response)
+    expect(result.data.map((row) => row.type)).toEqual([
+      'RESTOCK',
+      'EXPIRATION',
+      'RESTOCK',
+      'EXPIRATION',
+    ])
+  })
+
+  it.each([pendingExpiration, resolvedExpiration(provideExpiration)])(
+    'getById() unwraps the EXPIRATION $id detail',
+    async (row) => {
+      vi.mocked(http.get).mockResolvedValue({ data: row })
+      const result = await humanDecisionApi.getById(row.id)
+      expect(result).toBe(row)
+      expect(result.type).toBe('EXPIRATION')
+    },
+  )
+
   it.each([
     {
       payload: {
@@ -163,6 +196,25 @@ describe('HD2A/HD4A · humanDecisionApi', () => {
       expect(result).toBe(response)
     },
   )
+})
+
+describe('WU3 · public read union', () => {
+  it('admits EXPIRATION rows while RESTOCK rows stay pinned', () => {
+    expectTypeOf<HumanDecisionType>().toEqualTypeOf<'RESTOCK' | 'EXPIRATION'>()
+    expectTypeOf(pending.type).toEqualTypeOf<'RESTOCK'>()
+    const restock: HumanDecision[] = [pending, resolved]
+    const expired: HumanDecision[] = [pendingExpiration, resolvedExpiration(provideExpiration)]
+    expect([...restock, ...expired].map((row) => row.type)).toEqual([
+      'RESTOCK',
+      'RESTOCK',
+      'EXPIRATION',
+      'EXPIRATION',
+    ])
+    const expiration = expired[0]
+    if (expiration?.type === 'EXPIRATION') {
+      expectTypeOf(expiration.snapshot.unit).toEqualTypeOf<string>()
+    }
+  })
 })
 
 describe('HD2A · typed RESTOCK contract', () => {
