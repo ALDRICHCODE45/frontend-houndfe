@@ -20,6 +20,7 @@ export default defineConfig({
     include: [
       'src/features/auth/services/__tests__/auth-storage.spec.ts',
       'src/features/auth/services/__tests__/auth-storage-context.spec.ts',
+      'src/features/auth/services/__tests__/session-context.spec.ts',
       'src/features/auth/services/__tests__/jwt.utils.spec.ts',
       'src/features/auth/stores/__tests__/useAuthStore.spec.ts',
       'src/core/shared/api/__tests__/http.spec.ts',
