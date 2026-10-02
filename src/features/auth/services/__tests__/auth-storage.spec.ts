@@ -249,4 +249,170 @@ describe('authStorage session generation', () => {
     expect(localStorage.getItem(ACCESS_KEY)).toBe('new-access')
     expect(localStorage.getItem(REFRESH_KEY)).toBe('old-refresh')
   })
+  it('keeps the partial rotation, bumps once and rejects the stale retry', () => {
+    const user = {
+      id: 'u',
+      email: 'u@h.test',
+      name: 'User',
+      isActive: true,
+      createdAt: '2024-01-01',
+    }
+    authStorage.setTokens({ accessToken: token(), refreshToken: 'old-refresh' })
+    authStorage.setUser(user)
+    authStorage.setPermissionCodes(['read:Product'])
+    // Captured right before the call: commitRotation never advances on its own.
+    const generation = authStorage.getSessionGeneration()
+    const next = pair({ tenantSlug: 'renewed' }, 'new-refresh')
+    const error = new Error('refresh write denied')
+    const originalSetItem = globalThis.localStorage.setItem.bind(globalThis.localStorage)
+    const setItem = vi
+      .spyOn(globalThis.localStorage, 'setItem')
+      .mockImplementation((key, value) => {
+        if (key === REFRESH_KEY) throw error
+        originalSetItem(key, value)
+      })
+    let thrown: unknown
+    let writes = 0
+    try {
+      try {
+        authStorage.commitRotation(generation, next)
+      } catch (caught) {
+        thrown = caught
+      }
+      writes = setItem.mock.calls.length
+    } finally {
+      setItem.mockRestore()
+    }
+    // Storage-service evidence only; the store/HTTP specs mock this module.
+    expect(thrown).toBe(error)
+    expect(writes).toBe(2)
+    expect(authStorage.getSessionGeneration()).toBe(generation + 1)
+    expect(localStorage.getItem(ACCESS_KEY)).toBe(next.accessToken)
+    expect(localStorage.getItem(REFRESH_KEY)).toBe('old-refresh')
+    expect(authStorage.getRefreshToken()).toBe('old-refresh')
+    expect(authStorage.getUser()).toEqual(user)
+    expect(authStorage.getPermissionCodes()).toEqual(['read:Product'])
+
+    const retrySetItem = vi.spyOn(globalThis.localStorage, 'setItem')
+    try {
+      expect(authStorage.commitRotation(generation, pair({}, 'retry-refresh'))).toBeNull()
+      expect(retrySetItem).not.toHaveBeenCalled()
+    } finally {
+      retrySetItem.mockRestore()
+    }
+    expect(authStorage.getSessionGeneration()).toBe(generation + 1)
+    expect(localStorage.getItem(ACCESS_KEY)).toBe(next.accessToken)
+    expect(localStorage.getItem(REFRESH_KEY)).toBe('old-refresh')
+  })
+  it('keeps the partial clear, bumps once and stays one-shot when a removal fails', () => {
+    const tenant: TenantSummary = { id: 'tenant-a', name: 'Sucursal A', slug: 'a' }
+    const user = {
+      id: 'u',
+      email: 'u@h.test',
+      name: 'User',
+      isActive: true,
+      createdAt: '2024-01-01',
+    }
+    authStorage.setTokens({ accessToken: token(), refreshToken: 'old-refresh' })
+    authStorage.setUser(user)
+    authStorage.setPermissionCodes(['read:Product'])
+    authStorage.setCurrentTenant(tenant)
+    authStorage.setMemberships([tenant])
+    authStorage.setIsSuperAdmin(true)
+    authStorage.setTempToken('temp-token')
+    const prepared = authStorage.prepareClear()
+    // Captured after prepareClear: the commit must add exactly one more bump.
+    const generation = authStorage.getSessionGeneration()
+    const error = new Error('refresh removal denied')
+    const originalRemoveItem = globalThis.localStorage.removeItem.bind(globalThis.localStorage)
+    const removeItem = vi.spyOn(globalThis.localStorage, 'removeItem').mockImplementation((key) => {
+      if (key === REFRESH_KEY) throw error
+      originalRemoveItem(key)
+    })
+    let thrown: unknown
+    let removes = 0
+    try {
+      try {
+        prepared.commit()
+      } catch (caught) {
+        thrown = caught
+      }
+      removes = removeItem.mock.calls.length
+    } finally {
+      removeItem.mockRestore()
+    }
+    expect(thrown).toBe(error)
+    expect(removes).toBe(2)
+    expect(authStorage.getSessionGeneration()).toBe(generation + 1)
+    expect(localStorage.getItem(ACCESS_KEY)).toBeNull()
+    expect(localStorage.getItem(REFRESH_KEY)).toBe('old-refresh')
+    expect(authStorage.getUser()).toEqual(user)
+    expect(authStorage.getPermissionCodes()).toEqual(['read:Product'])
+    expect(authStorage.getCurrentTenant()).toEqual(tenant)
+    expect(authStorage.getMemberships()).toEqual([tenant])
+    expect(authStorage.getIsSuperAdmin()).toBe(true)
+    expect(authStorage.getTempToken()).toBe('temp-token')
+
+    const retryRemoveItem = vi.spyOn(globalThis.localStorage, 'removeItem')
+    const retrySetItem = vi.spyOn(globalThis.localStorage, 'setItem')
+    try {
+      expect(prepared.commit()).toBe(false)
+      expect(retryRemoveItem).not.toHaveBeenCalled()
+      expect(retrySetItem).not.toHaveBeenCalled()
+    } finally {
+      retryRemoveItem.mockRestore()
+      retrySetItem.mockRestore()
+    }
+    expect(authStorage.getSessionGeneration()).toBe(generation + 1)
+    expect(localStorage.getItem(REFRESH_KEY)).toBe('old-refresh')
+  })
+  it('leaves storage untouched and bumps once when the first mutation fails', () => {
+    const storedAccess = token()
+    authStorage.setTokens({ accessToken: storedAccess, refreshToken: 'old-refresh' })
+    const rotationGeneration = authStorage.getSessionGeneration()
+    const rotationError = new Error('access write denied')
+    const setItem = vi.spyOn(globalThis.localStorage, 'setItem').mockImplementation(() => {
+      throw rotationError
+    })
+    let rotationThrown: unknown
+    let writes = 0
+    try {
+      try {
+        authStorage.commitRotation(rotationGeneration, pair({ tenantSlug: 'renewed' }))
+      } catch (caught) {
+        rotationThrown = caught
+      }
+      writes = setItem.mock.calls.length
+    } finally {
+      setItem.mockRestore()
+    }
+    expect(rotationThrown).toBe(rotationError)
+    expect(writes).toBe(1)
+    expect(authStorage.getSessionGeneration()).toBe(rotationGeneration + 1)
+    expect(localStorage.getItem(ACCESS_KEY)).toBe(storedAccess)
+    expect(localStorage.getItem(REFRESH_KEY)).toBe('old-refresh')
+
+    const prepared = authStorage.prepareClear()
+    const clearError = new Error('access removal denied')
+    const removeItem = vi.spyOn(globalThis.localStorage, 'removeItem').mockImplementation(() => {
+      throw clearError
+    })
+    let clearThrown: unknown
+    let removes = 0
+    try {
+      try {
+        prepared.commit()
+      } catch (caught) {
+        clearThrown = caught
+      }
+      removes = removeItem.mock.calls.length
+    } finally {
+      removeItem.mockRestore()
+    }
+    expect(clearThrown).toBe(clearError)
+    expect(removes).toBe(1)
+    expect(authStorage.getSessionGeneration()).toBe(prepared.generation + 1)
+    expect(localStorage.getItem(ACCESS_KEY)).toBe(storedAccess)
+    expect(localStorage.getItem(REFRESH_KEY)).toBe('old-refresh')
+  })
 })
