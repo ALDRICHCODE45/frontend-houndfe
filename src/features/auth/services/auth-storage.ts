@@ -1,4 +1,5 @@
-import type { AuthTokens, AuthUser, TenantSummary } from '../interfaces/auth.types'
+import type { AuthJwtClaims, AuthTokens, AuthUser, TenantSummary } from '../interfaces/auth.types'
+import { decodeJwtClaims } from './jwt.utils'
 
 const ACCESS_TOKEN_KEY = 'hound.auth.accessToken'
 const REFRESH_TOKEN_KEY = 'hound.auth.refreshToken'
@@ -11,6 +12,82 @@ const TEMP_TOKEN_KEY = 'hound.auth.tempToken'
 
 function isClient() {
   return typeof window !== 'undefined'
+}
+
+const TOKEN_PATTERN = /^\S+$/
+
+/** A store write prepared against one runtime session generation. */
+export interface PreparedSessionWrite {
+  readonly generation: number
+  commit(): boolean
+}
+
+/** Result of a coherent, context-preserving refresh rotation. */
+export type SessionRotationReceipt = Readonly<AuthTokens & { generation: number }>
+
+let sessionGeneration = 0
+function advanceSessionGeneration(): number {
+  sessionGeneration += 1
+  return sessionGeneration
+}
+function isTokenString(value: unknown): value is string {
+  return typeof value === 'string' && TOKEN_PATTERN.test(value)
+}
+function snapshotTokenPair(tokens: unknown): AuthTokens | null {
+  if (typeof tokens !== 'object' || tokens === null) return null
+  const { accessToken, refreshToken } = tokens as { accessToken?: unknown; refreshToken?: unknown }
+  if (!isTokenString(accessToken) || !isTokenString(refreshToken)) return null
+  return { accessToken, refreshToken }
+}
+function readValidClaims(accessToken: string): AuthJwtClaims | null {
+  let decoded: unknown
+  try {
+    decoded = decodeJwtClaims(accessToken)
+  } catch {
+    return null
+  }
+  if (typeof decoded !== 'object' || decoded === null || Array.isArray(decoded)) return null
+  const { sub, tenantId, tenantSlug, isSuperAdmin } = decoded as Record<string, unknown>
+  if (typeof sub !== 'string' || sub.length === 0) return null
+  if (tenantId !== null && !(typeof tenantId === 'string' && tenantId.length > 0)) return null
+  if (typeof isSuperAdmin !== 'boolean') return null
+  if (tenantSlug !== null && typeof tenantSlug !== 'string') return null
+  return decoded as AuthJwtClaims
+}
+function writeCredentialPair(tokens: AuthTokens) {
+  localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken)
+  localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken)
+}
+function removeAllSessionKeys() {
+  localStorage.removeItem(ACCESS_TOKEN_KEY)
+  localStorage.removeItem(REFRESH_TOKEN_KEY)
+  localStorage.removeItem(USER_KEY)
+  localStorage.removeItem(PERMISSION_CODES_KEY)
+  localStorage.removeItem(CURRENT_TENANT_KEY)
+  localStorage.removeItem(MEMBERSHIPS_KEY)
+  localStorage.removeItem(IS_SUPER_ADMIN_KEY)
+  localStorage.removeItem(TEMP_TOKEN_KEY)
+}
+function writeOrInvalidate(effect: () => void) {
+  try {
+    effect()
+  } catch (error) {
+    advanceSessionGeneration()
+    throw error
+  }
+}
+function createPreparedWrite(generation: number, effect: () => void): PreparedSessionWrite {
+  let consumed = false
+  return {
+    generation,
+    commit(): boolean {
+      if (consumed || sessionGeneration !== generation) return false
+      consumed = true
+      if (!isClient()) return false
+      writeOrInvalidate(effect)
+      return true
+    },
+  }
 }
 
 export const authStorage = {
@@ -88,10 +165,51 @@ export const authStorage = {
     return localStorage.getItem(TEMP_TOKEN_KEY)
   },
 
+  getSessionGeneration(): number {
+    return sessionGeneration
+  },
+
+  prepareReplacement(tokens: unknown): PreparedSessionWrite | null {
+    const snapshot = snapshotTokenPair(tokens)
+    if (!snapshot) return null
+    return createPreparedWrite(advanceSessionGeneration(), () => writeCredentialPair(snapshot))
+  },
+
+  prepareClear(): PreparedSessionWrite {
+    return createPreparedWrite(advanceSessionGeneration(), removeAllSessionKeys)
+  },
+
+  commitRotation(expectedGeneration: number, tokens: unknown): SessionRotationReceipt | null {
+    if (!Number.isSafeInteger(expectedGeneration) || expectedGeneration < 0) return null
+    if (!isClient()) return null
+    const next = snapshotTokenPair(tokens)
+    if (!next) return null
+    if (sessionGeneration !== expectedGeneration) return null
+
+    const storedAccess = localStorage.getItem(ACCESS_TOKEN_KEY)
+    const storedRefresh = localStorage.getItem(REFRESH_TOKEN_KEY)
+    if (!isTokenString(storedAccess) || !isTokenString(storedRefresh)) return null
+
+    const currentClaims = readValidClaims(storedAccess)
+    const nextClaims = readValidClaims(next.accessToken)
+    if (!currentClaims || !nextClaims) return null
+    const sameContext =
+      currentClaims.sub === nextClaims.sub &&
+      currentClaims.tenantId === nextClaims.tenantId &&
+      currentClaims.isSuperAdmin === nextClaims.isSuperAdmin
+    // Re-check ownership immediately before the write so a superseded rotation stays fail-closed.
+    if (!sameContext || sessionGeneration !== expectedGeneration) return null
+
+    writeOrInvalidate(() => writeCredentialPair(next))
+    return {
+      accessToken: next.accessToken,
+      refreshToken: next.refreshToken,
+      generation: expectedGeneration,
+    }
+  },
+
   setTokens(tokens: AuthTokens) {
-    if (!isClient()) return
-    localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken)
-    localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken)
+    authStorage.prepareReplacement(tokens)?.commit()
   },
 
   setUser(user: AuthUser | null) {
@@ -113,10 +231,15 @@ export const authStorage = {
   setCurrentTenant(tenant: TenantSummary | null) {
     if (!isClient()) return
     if (!tenant) {
+      advanceSessionGeneration()
       localStorage.removeItem(CURRENT_TENANT_KEY)
       return
     }
 
+    const current = authStorage.getCurrentTenant()
+    if (!current || current.id !== tenant.id) {
+      advanceSessionGeneration()
+    }
     localStorage.setItem(CURRENT_TENANT_KEY, JSON.stringify(tenant))
   },
 
@@ -146,6 +269,7 @@ export const authStorage = {
 
   clearTenantState() {
     if (!isClient()) return
+    advanceSessionGeneration()
     localStorage.removeItem(CURRENT_TENANT_KEY)
     localStorage.removeItem(MEMBERSHIPS_KEY)
     localStorage.removeItem(IS_SUPER_ADMIN_KEY)
@@ -153,14 +277,6 @@ export const authStorage = {
   },
 
   clear() {
-    if (!isClient()) return
-    localStorage.removeItem(ACCESS_TOKEN_KEY)
-    localStorage.removeItem(REFRESH_TOKEN_KEY)
-    localStorage.removeItem(USER_KEY)
-    localStorage.removeItem(PERMISSION_CODES_KEY)
-    localStorage.removeItem(CURRENT_TENANT_KEY)
-    localStorage.removeItem(MEMBERSHIPS_KEY)
-    localStorage.removeItem(IS_SUPER_ADMIN_KEY)
-    localStorage.removeItem(TEMP_TOKEN_KEY)
+    authStorage.prepareClear().commit()
   },
 }
