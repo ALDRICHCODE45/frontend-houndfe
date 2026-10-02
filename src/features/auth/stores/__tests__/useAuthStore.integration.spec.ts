@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createPinia, disposePinia, setActivePinia, type Pinia } from 'pinia'
 import { watch } from 'vue'
 import { useAuthStore } from '../useAuthStore'
+import { authApi } from '../../api/auth.api'
 import { authStorage } from '../../services/auth-storage'
 import { decodeJwtClaims } from '../../services/jwt.utils'
 import { resetAbility } from '../../authorization/ability'
@@ -20,7 +21,7 @@ vi.mock('../../api/auth.api', () => ({
     resendLoginOtp: blockedApi,
     selectTenant: blockedApi,
     switchTenant: blockedApi,
-    me: blockedApi,
+    me: vi.fn(() => blockedApi()),
     mePermissions: blockedApi,
     logout: blockedApi,
   },
@@ -167,6 +168,69 @@ describe('auth store integration baseline (owner not activated)', () => {
       stop()
     }
     // This asserts watcher timing, not atomicity or ownership of legacy setters.
+  })
+
+  it.each([
+    { claimTenant: tenant.id, responseTenant: { ...tenant, id: 'foreign' } },
+    { claimTenant: tenant.id, responseTenant: null },
+    { claimTenant: null, responseTenant: tenant },
+  ])(
+    'rejects /me tenant mismatch without clearing or persisting ($claimTenant)',
+    async ({ claimTenant, responseTenant }) => {
+      persistSession(['read:Product'])
+      const tokens = credentials(claimTenant)
+      authStorage.setTokens(tokens)
+      authStorage.setCurrentTenant(claimTenant === null ? null : tenant)
+      const store = useAuthStore()
+      store.hydrateFromStorage()
+      const originalTenant = store.currentTenant
+      const generation = authStorage.getSessionGeneration()
+      vi.mocked(authApi.me).mockResolvedValueOnce({
+        ...user,
+        name: 'Must not publish',
+        tenant: responseTenant,
+        memberships: [],
+      })
+      expect(await store.fetchMe()).toBeNull()
+      expect(authApi.me).toHaveBeenCalledTimes(1)
+      expect(store.user).toEqual(user)
+      expect(store.currentTenant).toEqual(originalTenant)
+      expect(store.memberships).toEqual([tenant])
+      expect(store.accessToken).toBe(tokens.accessToken)
+      expect(store.refreshToken).toBe(tokens.refreshToken)
+      expect(store.isAuthenticated).toBe(true)
+      expect(store.authPhase).toBe('authenticated')
+      expect(store.permissionsLoaded).toBe(true)
+      expect(store.userCan('read', 'Product')).toBe(true)
+      expect(authStorage.getSessionGeneration()).toBe(generation)
+      expect(authStorage.getUser()).toEqual(user)
+      expect(authStorage.getCurrentTenant()).toEqual(originalTenant)
+      expect(authStorage.getMemberships()).toEqual([tenant])
+      expect(authStorage.getAccessToken()).toBe(tokens.accessToken)
+      expect(authStorage.getRefreshToken()).toBe(tokens.refreshToken)
+      expect(authStorage.getPermissionCodes()).toEqual(['read:Product'])
+    },
+  )
+
+  it('enriches matching tenant metadata without changing credentials or privilege', async () => {
+    const tokens = persistSession(['read:Product'])
+    const store = useAuthStore()
+    store.hydrateFromStorage()
+    const generation = authStorage.getSessionGeneration()
+    const enriched = { ...tenant, name: 'Updated name', slug: 'updated', address: 'Main street' }
+    const response = { ...user, name: 'Updated user', tenant: enriched, memberships: [enriched] }
+    vi.mocked(authApi.me).mockResolvedValueOnce(response)
+    expect(await store.fetchMe()).toEqual(response)
+    expect(store.currentTenant).toEqual(enriched)
+    expect(authStorage.getCurrentTenant()).toEqual(enriched)
+    expect(store.user?.name).toBe('Updated user')
+    expect(store.memberships).toEqual([enriched])
+    expect(store.accessToken).toBe(tokens.accessToken)
+    expect(store.refreshToken).toBe(tokens.refreshToken)
+    expect(store.isSuperAdmin).toBe(false)
+    expect(authStorage.getIsSuperAdmin()).toBe(false)
+    expect(authStorage.getSessionGeneration()).toBe(generation)
+    expect(store.userCan('read', 'Product')).toBe(true)
   })
 
   it('clears hydrated credentials, context and real permission ability', () => {

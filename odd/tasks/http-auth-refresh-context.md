@@ -7,8 +7,9 @@ Units (authored separately, then independently verified and reviewed):
 - [x] C1-STORAGE: committed `7c49e05`, review `890526d3c21f1fe3` approved; failure-path coverage committed `8008e95`, review `598e9951b90e607f` approved.
 - [x] C1-CONTEXT: committed `1536560`, 242 lines; review `27396ad0bf491735` approved/acknowledged. No store activation.
 - [x] C1-REACTIVE: committed `3db3400`, 317 lines; review `5e78f3444d58286e` approved/acknowledged. Still isolated.
-- [~] C1-INTEGRATION-BASELINE: real store/storage/JWT/ability harness without owner activation; independent verification/review pending.
-- [ ] C1-STORE: activation must be rescoped before implementation. Read-only scouting estimates 577–951 authored lines with callers, compatibility migrations and integration tests, exceeding 400. No partial activation that omits immediate abandonment handling. Rotation remains separate.
+- [x] C1-INTEGRATION-BASELINE: committed `04885a5`, 207 lines; review `9cbb648f6ae770b2` approved/acknowledged. Owner remains inactive.
+- [~] C1-ME-CONTEXT: user confirmed JWT tenant authority; reject mismatching `/me` updates without automatic logout. Independent verification/review pending.
+- [ ] C1-STORE: final activation still estimated at 439–713 lines after preparatory migrations; no defensible <=400 cut yet. Immediate sidebar/login/refresh callers must be included, not deferred as C2. No partial owner activation. Rotation remains separate.
 - [ ] C1-HTTP: generation-bound HTTP refresh/replay, preserving the existing public `setSessionFromTokens` API until integration.
 - [ ] C2 (pending): switch/logout start and settlement ownership, permissions and cleanup continuations, integrated regression tests.
 
@@ -31,6 +32,10 @@ The auth-storage spec drives the real `authStorage` service and the real `jwt.ut
 C1-INTEGRATION-BASELINE: `useAuthStore.integration.spec.ts` uses real Pinia/store/storage/JWT/CASL over the Map-backed Storage fixture. API calls fail closed via mocks; query cache is mocked and asserted unused. Fresh Pinia, disposed scopes and storage/ability resets isolate cases. Nine tests cover loaded-empty versus absent permissions during hydration, persisted membership/user context, tenantless admin, synchronous watcher timing and clear. Assertions target settled legacy behavior, not coherent publication, generation ownership, stale-tail protection or native browser acceptance. No production source or existing assertions changed.
 
 Verification: no functional RED claimed for this baseline-only test addition; the first focused run passed 9 tests. After a lint-only assertion-helper correction, `node_modules/.bin/vitest run --config vitest.auth.owner.config.ts --no-file-parallelism` passed 170 tests across 7 files. Test vue-tsc, ESLint, Oxlint and Prettier passed. Runtime harness is the local real-module Vitest run, not a browser/server. Rollback: remove the new integration spec, its isolated-config entry/comment change and this tracking update; all committed production behavior remains independent.
+
+C1-ME-CONTEXT: `/me` may enrich tenant metadata only when its nullable tenant ID equals the current JWT tenant ID. A mismatch returns `null` before user/tenant/membership writes, preserving credentials, permissions and session state. This is deliberately not a thrown error: the existing router catch clears sessions. The legacy mismatching-ID fixture was changed explicitly to the agreed same-ID enrichment contract, retaining its assertions. Real integration tests cover a different ID, missing tenant, tenantless-token mismatch, and same-ID name/slug/address enrichment. The API mock remains fail-closed by default; these tests supply one-shot `/me` responses only.
+
+Evidence: focused integration run failed the 3 mismatch assertions before production edits (10 others passed); afterward the whole isolated runner passed 174 tests across 7 files. Both app/test vue-tsc and ESLint passed. Oxlint is clean for production and real integration tests; the legacy spec reports 15 pre-existing diagnostics at unchanged HEAD lines (conditional expects/missing throw messages), not a clean whole-file result. No suppressions or unrelated assertion refactors. Runtime verification uses real store/storage/JWT/CASL over Map-backed Storage, not browser/backend. This contract check does not add request-generation/ABA fences, reentrant continuation protection or owner activation. Rollback boundary: the `fetchMe` guard, matching legacy fixture, four new integration cases/mock allowance and this tracking update.
 
 Contract:
 

@@ -923,7 +923,7 @@ describe('fetchMe synchronization', () => {
     })
   })
 
-  it('maps /auth/me tenant and memberships into dedicated store fields', async () => {
+  it('enriches /auth/me tenant metadata only within the JWT tenant', async () => {
     const store = useAuthStore()
     store.setSessionFromTokens('access', 'refresh')
 
@@ -933,22 +933,22 @@ describe('fetchMe synchronization', () => {
       name: 'User One',
       isActive: true,
       createdAt: '2026-05-02T00:00:00.000Z',
-      tenant: { id: 'tenant-2', name: 'Sucursal Norte', slug: 'norte' },
-      memberships: [{ id: 'tenant-2', name: 'Sucursal Norte', slug: 'norte' }],
+      tenant: { id: 'tenant-1', name: 'Sucursal Norte', slug: 'norte' },
+      memberships: [{ id: 'tenant-1', name: 'Sucursal Norte', slug: 'norte' }],
     })
 
     await store.fetchMe()
 
     expect(store.user?.email).toBe('user@hound.test')
-    expect(store.currentTenant).toEqual({ id: 'tenant-2', name: 'Sucursal Norte', slug: 'norte' })
-    expect(store.memberships).toEqual([{ id: 'tenant-2', name: 'Sucursal Norte', slug: 'norte' }])
+    expect(store.currentTenant).toEqual({ id: 'tenant-1', name: 'Sucursal Norte', slug: 'norte' })
+    expect(store.memberships).toEqual([{ id: 'tenant-1', name: 'Sucursal Norte', slug: 'norte' }])
     expect(authStorage.setCurrentTenant).toHaveBeenCalledWith({
-      id: 'tenant-2',
+      id: 'tenant-1',
       name: 'Sucursal Norte',
       slug: 'norte',
     })
     expect(authStorage.setMemberships).toHaveBeenCalledWith([
-      { id: 'tenant-2', name: 'Sucursal Norte', slug: 'norte' },
+      { id: 'tenant-1', name: 'Sucursal Norte', slug: 'norte' },
     ])
   })
 })
