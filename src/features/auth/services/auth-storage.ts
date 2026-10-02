@@ -54,6 +54,21 @@ function readValidClaims(accessToken: string): AuthJwtClaims | null {
   if (tenantSlug !== null && typeof tenantSlug !== 'string') return null
   return decoded as AuthJwtClaims
 }
+function snapshotTenant(value: unknown): TenantSummary | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
+  const { id, name, slug, address, status, onShiftCount } = value as Record<string, unknown>
+  if (typeof id !== 'string' || !id.trim()) return null
+  if (typeof name !== 'string' || typeof slug !== 'string') return null
+  if (address != null && typeof address !== 'string') return null
+  if (status != null && typeof status !== 'string') return null
+  if (
+    onShiftCount != null &&
+    (typeof onShiftCount !== 'number' || !Number.isFinite(onShiftCount))
+  ) {
+    return null
+  }
+  return { id, name, slug, address, status, onShiftCount } as TenantSummary
+}
 function writeCredentialPair(tokens: AuthTokens) {
   localStorage.setItem(ACCESS_TOKEN_KEY, tokens.accessToken)
   localStorage.setItem(REFRESH_TOKEN_KEY, tokens.refreshToken)
@@ -173,6 +188,38 @@ export const authStorage = {
     const snapshot = snapshotTokenPair(tokens)
     if (!snapshot) return null
     return createPreparedWrite(advanceSessionGeneration(), () => writeCredentialPair(snapshot))
+  },
+
+  /**
+   * Prepare credentials and their resolved tenant context under one generation.
+   * Claims are decoded context metadata, not proof of token authenticity.
+   * Persistence may be partial on error; no reactive store publication occurs here.
+   */
+  prepareContextReplacement(tokens: unknown, context: unknown): PreparedSessionWrite | null {
+    const credentials = snapshotTokenPair(tokens)
+    if (!credentials || typeof context !== 'object' || context === null || Array.isArray(context)) {
+      return null
+    }
+    const { tenant, isSuperAdmin } = context as Record<string, unknown>
+    if (typeof isSuperAdmin !== 'boolean') return null
+    const resolvedTenant = tenant === null ? null : snapshotTenant(tenant)
+    if (tenant !== null && !resolvedTenant) return null
+    const claims = readValidClaims(credentials.accessToken)
+    if (
+      !claims ||
+      claims.tenantId !== (resolvedTenant?.id ?? null) ||
+      claims.isSuperAdmin !== isSuperAdmin
+    ) {
+      return null
+    }
+    // Serialize before preparation so later caller mutations cannot change the write.
+    const serializedTenant = resolvedTenant === null ? null : JSON.stringify(resolvedTenant)
+    return createPreparedWrite(advanceSessionGeneration(), () => {
+      writeCredentialPair(credentials)
+      if (serializedTenant === null) localStorage.removeItem(CURRENT_TENANT_KEY)
+      else localStorage.setItem(CURRENT_TENANT_KEY, serializedTenant)
+      localStorage.setItem(IS_SUPER_ADMIN_KEY, String(isSuperAdmin))
+    })
   },
 
   prepareClear(): PreparedSessionWrite {
