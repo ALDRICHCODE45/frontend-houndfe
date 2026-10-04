@@ -25,6 +25,7 @@ export default defineConfig({
       'src/features/auth/stores/__tests__/useAuthStore.spec.ts',
       'src/features/auth/stores/__tests__/useAuthStore.integration.spec.ts',
       'src/core/shared/api/__tests__/http.spec.ts',
+      'src/features/POS/human-decisions/api/__tests__/human-decision.api.test.ts',
     ],
     exclude: ['e2e/**', '**/node_modules/**'],
   },

@@ -373,6 +373,120 @@ describe('http response interceptor', () => {
     })
   })
 
+  // ── Opt-in EXPIRATION resolve transport ─────────────────────────────────
+  //
+  // The EXPIRATION resolve call treats a `401` as terminal for itself: no token
+  // rotation, no session clear, no tenant event, no replay. The original error is
+  // propagated so the feature can ask the user to re-authenticate and retry. The
+  // opt-in is restricted to `POST /human-decisions/:id/resolve`, so tagging an
+  // unrelated request cannot bypass the global refresh flow.
+
+  describe('opted-in EXPIRATION resolve 401', () => {
+    function resolveError(
+      config: Record<string, unknown> = {},
+      body: unknown = { message: 'Token expired' },
+    ): AxiosError {
+      return {
+        response: { status: 401, data: body },
+        config: {
+          url: '/human-decisions/hd-1/resolve',
+          method: 'post',
+          expirationResolveIsolation: true,
+          headers: {},
+          ...config,
+        },
+      } as unknown as AxiosError
+    }
+
+    function refreshedAdapter() {
+      return vi.fn().mockResolvedValue({
+        data: { ok: true },
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: { headers: {} },
+      })
+    }
+
+    it('propagates a normal 401 without refresh, clear, store publish, event or replay', async () => {
+      const adapter = vi.fn()
+      const error = resolveError({ adapter })
+
+      await expect(responseRejected(error)).rejects.toBe(error)
+
+      expect(axios.post).not.toHaveBeenCalled()
+      expect(authStorage.getRefreshToken).not.toHaveBeenCalled()
+      expect(authStorage.setTokens).not.toHaveBeenCalled()
+      expect(authStorage.clear).not.toHaveBeenCalled()
+      expect(setSessionFromTokensMock).not.toHaveBeenCalled()
+      expect(emitSessionExpired).not.toHaveBeenCalled()
+      expect(adapter).not.toHaveBeenCalled()
+    })
+
+    it('propagates a tenant-context 401 without the tenant-required event', async () => {
+      const error = resolveError({}, { message: 'Tenant context required' })
+
+      await expect(responseRejected(error)).rejects.toBe(error)
+
+      expect(emitSessionExpired).not.toHaveBeenCalled()
+      expect(axios.post).not.toHaveBeenCalled()
+      expect(authStorage.clear).not.toHaveBeenCalled()
+    })
+
+    it('never consults the refresh token or clears the session on an opted-in 401', async () => {
+      const error = resolveError()
+
+      await expect(responseRejected(error)).rejects.toBe(error)
+
+      expect(authStorage.getRefreshToken).not.toHaveBeenCalled()
+      expect(authStorage.clear).not.toHaveBeenCalled()
+      expect(emitSessionExpired).not.toHaveBeenCalled()
+      expect(axios.post).not.toHaveBeenCalled()
+    })
+
+    it('does not read a combined blob body when both opt-ins are tagged', async () => {
+      const text = vi.fn()
+      const data = new Blob(['{"message":"Tenant context required"}'], {
+        type: 'application/json',
+      })
+      Object.defineProperty(data, 'text', { value: text })
+      const error = resolveError({ tenantContextBlobError: true }, data)
+
+      await expect(responseRejected(error)).rejects.toBe(error)
+
+      expect(text).not.toHaveBeenCalled()
+      expect(emitSessionExpired).not.toHaveBeenCalled()
+      expect(axios.post).not.toHaveBeenCalled()
+    })
+
+    it('still refreshes an un-tagged resolve 401 (existing behavior preserved)', async () => {
+      vi.mocked(axios.post).mockResolvedValue({ data: { accessToken: 'a', refreshToken: 'b' } })
+      const adapter = refreshedAdapter()
+      const error = resolveError({ expirationResolveIsolation: undefined, adapter })
+
+      await responseRejected(error)
+
+      expect(axios.post).toHaveBeenCalledTimes(1)
+      expect(authStorage.setTokens).toHaveBeenCalledWith({ accessToken: 'a', refreshToken: 'b' })
+      expect(setSessionFromTokensMock).toHaveBeenCalledWith('a', 'b')
+      expect(adapter).toHaveBeenCalledTimes(1)
+    })
+
+    it.each([
+      { label: 'a wrong method', config: { method: 'get' } },
+      { label: 'a wrong path', config: { url: '/human-decisions/hd-1' } },
+      { label: 'a nested path', config: { url: '/human-decisions/hd-1/resolve/extra' } },
+    ])('cannot bypass global refresh with the opt-in on $label', async ({ config }) => {
+      vi.mocked(axios.post).mockResolvedValue({ data: { accessToken: 'a', refreshToken: 'b' } })
+      const adapter = refreshedAdapter()
+
+      await responseRejected(resolveError({ ...config, adapter }))
+
+      expect(axios.post).toHaveBeenCalledTimes(1)
+      expect(adapter).toHaveBeenCalledTimes(1)
+    })
+  })
+
   it('clears the session with missing-refresh-token for a normal JWT 401 without a refresh token', async () => {
     vi.mocked(authStorage.getRefreshToken).mockReturnValueOnce(null)
     const error = {

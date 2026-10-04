@@ -25,6 +25,7 @@ import {
   provideExpiration,
   resolvedExpiration,
 } from '../../interfaces/__tests__/expirationDecision.fixture'
+import type { ExpirationDecisionResolvePayload } from '../../interfaces/expiration-decision.types'
 
 vi.mock('@/core/shared/api/http', () => ({ http: { get: vi.fn(), post: vi.fn() } }))
 
@@ -196,6 +197,49 @@ describe('HD2A/HD4A · humanDecisionApi', () => {
       expect(result).toBe(response)
     },
   )
+  it('resolveExpiration() POSTs the exact EXPIRATION payload with the opt-in flag and unwraps', async () => {
+    const response = resolvedExpiration(provideExpiration)
+    vi.mocked(http.post).mockResolvedValue({ data: response })
+    const payload = {
+      action: 'PROVIDE_EXPIRATION_TEXT',
+      expirationText: 'Consumir antes del 20 de marzo de 2026.',
+      expectedVersion: 1,
+      resolutionRequestId: 'a1b2c3d4-0000-4000-8000-000000000001',
+    } satisfies ExpirationDecisionResolvePayload
+
+    const result = await humanDecisionApi.resolveExpiration('exp-1', payload)
+
+    expect(http.post).toHaveBeenCalledWith('/human-decisions/exp-1/resolve', payload, {
+      expirationResolveIsolation: true,
+    })
+    expect(result).toBe(response)
+  })
+
+  it('resolve() RESTOCK call carries no EXPIRATION opt-in flag', async () => {
+    vi.mocked(http.post).mockResolvedValue({ data: resolved })
+
+    await humanDecisionApi.resolve('hd-2', {
+      action: 'REPORT_RESTOCK_ESTIMATE_UNAVAILABLE',
+      expectedVersion: 1,
+      resolutionRequestId: 'b1b2c3d4-0000-4000-8000-000000000002',
+    })
+
+    expect(http.post).toHaveBeenCalledWith('/human-decisions/hd-2/resolve', expect.anything())
+    expect(vi.mocked(http.post).mock.calls[0]).toHaveLength(2)
+  })
+
+  it('resolveExpiration() propagates the API error untouched', async () => {
+    const error = new Error('unauthorized')
+    vi.mocked(http.post).mockRejectedValue(error)
+
+    await expect(
+      humanDecisionApi.resolveExpiration('exp-1', {
+        action: 'REPORT_EXPIRATION_UNAVAILABLE',
+        expectedVersion: 1,
+        resolutionRequestId: 'c1b2c3d4-0000-4000-8000-000000000003',
+      }),
+    ).rejects.toBe(error)
+  })
 })
 
 describe('WU3 · public read union', () => {

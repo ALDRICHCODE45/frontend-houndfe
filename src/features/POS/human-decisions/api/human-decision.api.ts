@@ -1,6 +1,6 @@
-/** HD2A/HD4A — RESTOCK human-decision transport; each method unwraps `{ data }`. */
+/** HD2A/HD4A — human-decision transport; each method unwraps `{ data }`. */
 
-import { http } from '@/core/shared/api/http'
+import { http, type ExpirationResolveIsolationConfig } from '@/core/shared/api/http'
 import type {
   HumanDecision,
   HumanDecisionListParams,
@@ -8,6 +8,10 @@ import type {
   HumanDecisionResolvePayload,
   ResolvedHumanDecision,
 } from '../interfaces/human-decision.types'
+import type {
+  ExpirationDecisionResolvePayload,
+  ResolvedExpirationDecision,
+} from '../interfaces/expiration-decision.types'
 
 export const humanDecisionApi = {
   /** GET /human-decisions — one server-ordered inbox page for the selected status filter. */
@@ -27,6 +31,24 @@ export const humanDecisionApi = {
     const { data } = await http.post<ResolvedHumanDecision>(
       `/human-decisions/${id}/resolve`,
       payload,
+    )
+    return data
+  },
+
+  /**
+   * POST /human-decisions/:id/resolve — EXPIRATION opt-in. A `401` is propagated
+   * without rotating tokens, clearing the session or replaying, so the feature can
+   * ask the user to re-authenticate and retry. The RESTOCK `resolve` is unchanged.
+   */
+  async resolveExpiration(
+    id: string,
+    payload: ExpirationDecisionResolvePayload,
+  ): Promise<ResolvedExpirationDecision> {
+    const config: ExpirationResolveIsolationConfig = { expirationResolveIsolation: true }
+    const { data } = await http.post<ResolvedExpirationDecision>(
+      `/human-decisions/${id}/resolve`,
+      payload,
+      config,
     )
     return data
   },
