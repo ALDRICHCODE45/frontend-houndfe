@@ -328,6 +328,7 @@ describe('useResolveHumanDecision', () => {
                 { pageIndex: 0, pageSize: 20, globalFilter: search },
                 status,
               ),
+              { signal: expect.any(AbortSignal) },
             ),
           )
           table.pagination.value = { pageIndex, pageSize: 50 }
@@ -360,7 +361,9 @@ describe('useResolveHumanDecision', () => {
           const params = key[key.length - 1] as ServerTableParams
           const status = key[key.length - 2] as HumanDecisionListFilter
           const request = mapServerTableParamsToHumanDecisionListParams(params, status)
-          expect(humanDecisionApi.list).toHaveBeenCalledWith(request)
+          expect(humanDecisionApi.list).toHaveBeenCalledWith(request, {
+            signal: expect.any(AbortSignal),
+          })
           expect(client.getQueryData(key)).toEqual(responseFor(request))
           if (status === 'ALL') {
             expect(request).not.toHaveProperty('sortBy')

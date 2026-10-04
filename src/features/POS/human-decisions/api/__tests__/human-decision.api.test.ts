@@ -138,8 +138,42 @@ describe('HD2A/HD4A · humanDecisionApi', () => {
 
     const result = await humanDecisionApi.getById('hd-2')
 
-    expect(http.get).toHaveBeenCalledWith('/human-decisions/hd-2')
+    expect(http.get).toHaveBeenCalledWith('/human-decisions/hd-2', expect.anything())
     expect(result).toBe(resolved)
+  })
+
+  it('list() forwards only the read signal and keeps URLs/params intact', async () => {
+    const response: HumanDecisionListResponse = {
+      data: [pending],
+      pagination: { pageIndex: 0, pageSize: 20, totalCount: 1, pageCount: 1 },
+    }
+    vi.mocked(http.get).mockResolvedValue({ data: response })
+    const controller = new AbortController()
+    const params = {
+      status: 'PENDING',
+      page: 1,
+      limit: 20,
+      sortBy: 'createdAt',
+      sortOrder: 'asc',
+    } satisfies HumanDecisionListParams
+
+    await humanDecisionApi.list(params, { signal: controller.signal })
+
+    expect(http.get).toHaveBeenCalledExactlyOnceWith('/human-decisions', {
+      params,
+      signal: controller.signal,
+    })
+  })
+
+  it('getById() forwards the read signal and keeps the exact URL', async () => {
+    vi.mocked(http.get).mockResolvedValue({ data: pending })
+    const controller = new AbortController()
+
+    await humanDecisionApi.getById('hd-1', { signal: controller.signal })
+
+    expect(http.get).toHaveBeenCalledExactlyOnceWith('/human-decisions/hd-1', {
+      signal: controller.signal,
+    })
   })
 
   it('preserves the mixed server order and unwraps an EXPIRATION page', async () => {

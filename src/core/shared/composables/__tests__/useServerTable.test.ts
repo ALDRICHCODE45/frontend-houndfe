@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { defineComponent, h, nextTick, ref } from 'vue'
 import { mount } from '@vue/test-utils'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
-import type { ServerTableParams } from '../../types/table.types'
+import type { PaginatedResponse, ServerTableParams } from '../../types/table.types'
 import { useServerTable } from '../useServerTable'
 
 vi.mock('@tanstack/vue-query', async (importOriginal) => {
@@ -72,6 +72,86 @@ describe('useServerTable - captured query parameters', () => {
       }
     } finally {
       wrapper.unmount()
+      client.clear()
+    }
+  })
+})
+
+describe('useServerTable - query signal forwarding', () => {
+  it('passes the executing query signal to the callback context', async () => {
+    const actual =
+      await vi.importActual<typeof import('@tanstack/vue-query')>('@tanstack/vue-query')
+    const { useQuery } = await import('@tanstack/vue-query')
+    vi.mocked(useQuery).mockImplementation(actual.useQuery)
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+    const seen: { signal?: AbortSignal } = {}
+    const queryFn = vi.fn(
+      async (
+        _params: ServerTableParams,
+        context: { queryKey: readonly unknown[]; signal?: AbortSignal },
+      ) => {
+        seen.signal = context.signal
+        return new Promise<never>(() => {})
+      },
+    )
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          useServerTable<Row>({ queryKey: ['signal'], queryFn, urlSync: false })
+          return () => h('div')
+        },
+      }),
+      { global: { plugins: [[VueQueryPlugin, { queryClient: client }]] } },
+    )
+    try {
+      await vi.waitFor(() => expect(seen.signal).toBeInstanceOf(AbortSignal))
+      expect(seen.signal?.aborted).toBe(false)
+      wrapper.unmount()
+      await vi.waitFor(() => expect(seen.signal?.aborted).toBe(true))
+    } finally {
+      client.clear()
+    }
+  })
+})
+
+describe('useServerTable - lazy query signal forwarding', () => {
+  it('keeps a late result for a callback that ignores the shared context', async () => {
+    const actual =
+      await vi.importActual<typeof import('@tanstack/vue-query')>('@tanstack/vue-query')
+    const { useQuery } = await import('@tanstack/vue-query')
+    vi.mocked(useQuery).mockImplementation(actual.useQuery)
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+    })
+    let resolveLate!: (value: PaginatedResponse<Row>) => void
+    const deferred = new Promise<PaginatedResponse<Row>>((resolve) => {
+      resolveLate = resolve
+    })
+    // One-argument callback: it never reads the shared context, so the signal must
+    // stay unconsumed and the query must not be cancelled when the last observer leaves.
+    const queryFn = vi.fn((_params: ServerTableParams) => deferred)
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          useServerTable<Row>({ queryKey: ['late'], queryFn, urlSync: false })
+          return () => h('div')
+        },
+      }),
+      { global: { plugins: [[VueQueryPlugin, { queryClient: client }]] } },
+    )
+    try {
+      await vi.waitFor(() => expect(queryFn).toHaveBeenCalled())
+      const query = client.getQueryCache().findAll({ queryKey: ['late'] })[0]
+      expect(query).toBeDefined()
+      const key = [...query!.queryKey]
+      wrapper.unmount()
+      const late = {
+        data: [{ id: 'late', name: 'Late' }],
+        pagination: { pageIndex: 0, pageSize: 10, totalCount: 1, pageCount: 1 },
+      }
+      resolveLate(late)
+      await vi.waitFor(() => expect(client.getQueryData(key)).toEqual(late))
+    } finally {
       client.clear()
     }
   })

@@ -13,16 +13,29 @@ import type {
   ResolvedExpirationDecision,
 } from '../interfaces/expiration-decision.types'
 
+export interface HumanDecisionReadOptions {
+  /** The executing TanStack query signal — the only read knob forwarded. */
+  signal?: AbortSignal
+}
+
 export const humanDecisionApi = {
   /** GET /human-decisions — one server-ordered inbox page for the selected status filter. */
-  async list(params: HumanDecisionListParams): Promise<HumanDecisionListResponse> {
-    const { data } = await http.get<HumanDecisionListResponse>('/human-decisions', { params })
+  async list(
+    params: HumanDecisionListParams,
+    options?: HumanDecisionReadOptions,
+  ): Promise<HumanDecisionListResponse> {
+    const { data } = await http.get<HumanDecisionListResponse>('/human-decisions', {
+      params,
+      signal: options?.signal,
+    })
     return data
   },
 
   /** GET /human-decisions/:id — full PENDING or RESOLVED detail projection. */
-  async getById(id: string): Promise<HumanDecision> {
-    const { data } = await http.get<HumanDecision>(`/human-decisions/${id}`)
+  async getById(id: string, options?: HumanDecisionReadOptions): Promise<HumanDecision> {
+    const { data } = await http.get<HumanDecision>(`/human-decisions/${id}`, {
+      signal: options?.signal,
+    })
     return data
   },
 
