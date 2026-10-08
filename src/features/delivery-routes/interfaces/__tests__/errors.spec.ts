@@ -1,7 +1,13 @@
 import { describe, it, expect, vi } from 'vitest'
 import {
   DELIVERY_ROUTE_ERROR_MAP,
+  DELIVERY_ROUTE_TRANSFER_REASON_MAP,
+  DELIVERY_ROUTE_TRANSFER_FORBIDDEN_MESSAGE,
+  DELIVERY_ROUTE_TRANSFER_DESTINATIONS_FORBIDDEN_MESSAGE,
   extractDeliveryRouteErrorCode,
+  extractDeliveryRouteTransferReason,
+  resolveTransferErrorMessage,
+  resolveTransferDestinationsErrorMessage,
   surfaceDeliveryRouteError,
   type DeliveryRouteDomainErrorCode,
   type DeliveryRouteErrorSurface,
@@ -231,5 +237,141 @@ describe('surfaceDeliveryRouteError (sdd delivery-routes S5a, design §7.2, REFA
     const surface = makeSurface()
     expect(() => surfaceDeliveryRouteError(undefined, 'toast', surface)).not.toThrow()
     expect(surface.addToast).toHaveBeenCalledTimes(1)
+  })
+})
+
+// ─── T3 S2/S4 — draft-to-draft transfer error mapping ────────────────────────
+// The 422 reason is a FLAT `reason` string on response.data (NOT the error code,
+// NOT nested under details). The 409 conflict carries the flat code and a
+// possibly-empty `conflictSaleIds`. 403 INSUFFICIENT_PERMISSIONS must surface a
+// meaningful permission message while the dialog stays actionable.
+
+describe('DELIVERY_ROUTE_TRANSFER_REASON_MAP (T3 S2/S4)', () => {
+  it('covers exactly the four backend transfer reasons', () => {
+    expect(Object.keys(DELIVERY_ROUTE_TRANSFER_REASON_MAP).sort()).toEqual(
+      ['DESTINATION_ALREADY_HAS_SALE', 'NOT_DRAFT', 'SAME_ROUTE_TRANSFER', 'UNKNOWN_STOP_ID'].sort(),
+    )
+  })
+
+  it('each value is a non-empty trimmed Spanish string', () => {
+    for (const value of Object.values(DELIVERY_ROUTE_TRANSFER_REASON_MAP)) {
+      expect(typeof value).toBe('string')
+      expect(value.trim().length).toBeGreaterThan(0)
+    }
+  })
+
+  it('describes the source/destination sameness and draft-only rules', () => {
+    expect(DELIVERY_ROUTE_TRANSFER_REASON_MAP.SAME_ROUTE_TRANSFER).toMatch(/diferente|distinta/i)
+    expect(DELIVERY_ROUTE_TRANSFER_REASON_MAP.NOT_DRAFT).toMatch(/borrador/i)
+  })
+})
+
+describe('extractDeliveryRouteTransferReason (flat `reason`, NOT the error code)', () => {
+  it('reads the flat reason when the error code is DELIVERY_ROUTE_INVALID_TRANSITION', () => {
+    const err = {
+      response: {
+        status: 422,
+        data: { error: 'DELIVERY_ROUTE_INVALID_TRANSITION', reason: 'SAME_ROUTE_TRANSFER' },
+      },
+    }
+    expect(extractDeliveryRouteTransferReason(err)).toBe('SAME_ROUTE_TRANSFER')
+    // The reason is NOT the error code.
+    expect(extractDeliveryRouteErrorCode(err)).toBe('DELIVERY_ROUTE_INVALID_TRANSITION')
+  })
+
+  it.each(['NOT_DRAFT', 'UNKNOWN_STOP_ID', 'DESTINATION_ALREADY_HAS_SALE'] as const)(
+    'returns %s when present flat',
+    (reason) => {
+      expect(
+        extractDeliveryRouteTransferReason({ response: { data: { reason, error: 'x' } } }),
+      ).toBe(reason)
+    },
+  )
+
+  it('returns null when the reason is nested under details (flat contract)', () => {
+    const err = {
+      response: {
+        status: 422,
+        data: { error: 'DELIVERY_ROUTE_INVALID_TRANSITION', details: { reason: 'NOT_DRAFT' } },
+      },
+    }
+    expect(extractDeliveryRouteTransferReason(err)).toBeNull()
+  })
+
+  it('returns null for an unknown reason / missing reason / malformed input', () => {
+    expect(
+      extractDeliveryRouteTransferReason({ response: { data: { reason: 'SOMETHING' } } }),
+    ).toBeNull()
+    expect(extractDeliveryRouteTransferReason({ response: { data: {} } })).toBeNull()
+    expect(extractDeliveryRouteTransferReason({ response: { data: { reason: 42 } } })).toBeNull()
+    expect(extractDeliveryRouteTransferReason(null)).toBeNull()
+    expect(extractDeliveryRouteTransferReason(undefined)).toBeNull()
+  })
+})
+
+describe('resolveTransferErrorMessage (T3 S2/S4)', () => {
+  it('maps each 422 reason to its Spanish copy', () => {
+    const reasons = Object.keys(DELIVERY_ROUTE_TRANSFER_REASON_MAP) as Array<
+      keyof typeof DELIVERY_ROUTE_TRANSFER_REASON_MAP
+    >
+    for (const reason of reasons) {
+      const msg = resolveTransferErrorMessage({
+        response: { status: 422, data: { error: 'DELIVERY_ROUTE_INVALID_TRANSITION', reason } },
+      })
+      expect(msg).toBe(DELIVERY_ROUTE_TRANSFER_REASON_MAP[reason])
+    }
+  })
+
+  it('maps a 403 to the permission message (dialog stays actionable)', () => {
+    const msg = resolveTransferErrorMessage({
+      response: { status: 403, data: { error: 'INSUFFICIENT_PERMISSIONS', message: 'no' } },
+    })
+    expect(msg).toBe(DELIVERY_ROUTE_TRANSFER_FORBIDDEN_MESSAGE)
+  })
+
+  it('maps a 409 active-route conflict to the existing domain copy', () => {
+    const msg = resolveTransferErrorMessage({
+      response: {
+        status: 409,
+        data: { error: 'DELIVERY_ROUTE_STOP_SALE_ALREADY_ON_ACTIVE_ROUTE', conflictSaleIds: [] },
+      },
+    })
+    expect(msg).toMatch(/otra ruta activa/i)
+  })
+
+  it('maps ENTITY_NOT_FOUND to "Ruta no encontrada."', () => {
+    expect(
+      resolveTransferErrorMessage({
+        response: { status: 404, data: { error: 'ENTITY_NOT_FOUND' } },
+      }),
+    ).toBe(DELIVERY_ROUTE_ERROR_MAP.ENTITY_NOT_FOUND)
+  })
+
+  it('falls back to normalizeApiError for a generic 500', () => {
+    const msg = resolveTransferErrorMessage({ response: { status: 500, data: { message: 'boom' } } })
+    expect(msg.trim().length).toBeGreaterThan(0)
+    expect(msg).not.toBe('')
+  })
+
+  it('never throws for null/undefined', () => {
+    expect(() => resolveTransferErrorMessage(undefined)).not.toThrow()
+    expect(resolveTransferErrorMessage(undefined).trim().length).toBeGreaterThan(0)
+  })
+})
+
+describe('resolveTransferDestinationsErrorMessage (list 403 stays graceful)', () => {
+  it('maps a 403 list failure to the destinations permission message', () => {
+    expect(
+      resolveTransferDestinationsErrorMessage({
+        response: { status: 403, data: { error: 'INSUFFICIENT_PERMISSIONS' } },
+      }),
+    ).toBe(DELIVERY_ROUTE_TRANSFER_DESTINATIONS_FORBIDDEN_MESSAGE)
+  })
+
+  it('falls back for a generic list failure', () => {
+    const msg = resolveTransferDestinationsErrorMessage({
+      response: { status: 500, data: { message: 'boom' } },
+    })
+    expect(msg.trim().length).toBeGreaterThan(0)
   })
 })

@@ -242,6 +242,51 @@ describe('deliveryRoutesApi (sdd delivery-routes S1b, design §3/§6.3)', () => 
       expect(http.post).toHaveBeenCalledWith('/delivery-routes/route-1/stops/stop-1/check-in')
     })
   })
+
+  describe('transferStop() (T3 S2/S4, draft-to-draft transfer)', () => {
+    it('POST /delivery-routes/:routeId/stops/:stopId/transfer with the destinationRouteId body', async () => {
+      vi.mocked(http.post).mockResolvedValue({
+        data: { originRoute: makeRoute(), destinationRoute: makeRoute({ id: 'route-2' }) },
+      })
+      const payload = { destinationRouteId: '22222222-2222-4222-8222-222222222222' }
+      await deliveryRoutesApi.transferStop('route-1', 'stop-9', payload)
+      expect(http.post).toHaveBeenCalledWith(
+        '/delivery-routes/route-1/stops/stop-9/transfer',
+        payload,
+      )
+    })
+
+    it('returns the { originRoute, destinationRoute } tuple (NOT a single route)', async () => {
+      const originRoute = makeRoute({ id: 'route-1' })
+      const destinationRoute = makeRoute({ id: 'route-2' })
+      vi.mocked(http.post).mockResolvedValue({ data: { originRoute, destinationRoute } })
+      const result = await deliveryRoutesApi.transferStop('route-1', 'stop-9', {
+        destinationRouteId: '22222222-2222-4222-8222-222222222222',
+      })
+      expect(result).toEqual({ originRoute, destinationRoute })
+    })
+
+    it('WHITELIST: never sends id/stopId/saleId/originRouteId/status/stops', async () => {
+      vi.mocked(http.post).mockResolvedValue({
+        data: { originRoute: makeRoute(), destinationRoute: makeRoute({ id: 'route-2' }) },
+      })
+      await deliveryRoutesApi.transferStop('route-1', 'stop-9', {
+        destinationRouteId: '22222222-2222-4222-8222-222222222222',
+        id: 'x',
+        stopId: 'x',
+        saleId: 'x',
+        originRouteId: 'x',
+        status: 'DRAFT' as never,
+        stops: [],
+      } as unknown as Parameters<typeof deliveryRoutesApi.transferStop>[2])
+
+      const body = vi.mocked(http.post).mock.calls[0]?.[1] as Record<string, unknown>
+      for (const forbidden of ['id', 'stopId', 'saleId', 'originRouteId', 'status', 'stops']) {
+        expect(body).not.toHaveProperty(forbidden)
+      }
+      expect(Object.keys(body).sort()).toEqual(['destinationRouteId'])
+    })
+  })
 })
 
 describe('paginateDeliveryRoutes (sdd delivery-routes S1b, design §6.2 + useDeliveryRoutesTable)', () => {

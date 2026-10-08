@@ -6,6 +6,8 @@ import type {
   DeliveryRouteResponseDto,
   DeliveryRouteStatus,
   ReorderDeliveryRouteStopsRequest,
+  TransferDeliveryRouteStopRequest,
+  TransferDeliveryRouteStopResponseDto,
   UpdateDeliveryRouteRequest,
 } from '../interfaces/delivery-route.types'
 
@@ -39,6 +41,7 @@ import type {
 const CREATE_ALLOWED_KEYS: readonly string[] = ['saleIds', 'driverUserId', 'notes']
 const UPDATE_ALLOWED_KEYS: readonly string[] = ['driverUserId', 'notes']
 const APPEND_ALLOWED_KEYS: readonly string[] = ['saleId']
+const TRANSFER_ALLOWED_KEYS: readonly string[] = ['destinationRouteId']
 const REORDER_ALLOWED_KEYS: readonly string[] = ['orderedStopIds']
 
 function filterAllowedKeys<T extends object>(
@@ -156,6 +159,27 @@ export const deliveryRoutesApi = {
   async checkInStop(id: string, stopId: string): Promise<DeliveryRouteResponseDto> {
     const { data } = await http.post<DeliveryRouteResponseDto>(
       `/delivery-routes/${id}/stops/${stopId}/check-in`,
+    )
+    return data
+  },
+
+  /**
+   * T3 S2/S4 — move a stop from one DRAFT route to another DRAFT route.
+   *
+   * `POST /delivery-routes/:routeId/stops/:stopId/transfer` with
+   * `{ destinationRouteId }`. The response is a TUPLE of both affected routes;
+   * callers MUST refresh both detail slots. The backend revalidates that both
+   * routes are DRAFT and that the caller can update BOTH.
+   */
+  async transferStop(
+    routeId: string,
+    stopId: string,
+    payload: TransferDeliveryRouteStopRequest,
+  ): Promise<TransferDeliveryRouteStopResponseDto> {
+    const safePayload = filterAllowedKeys(payload, TRANSFER_ALLOWED_KEYS)
+    const { data } = await http.post<TransferDeliveryRouteStopResponseDto>(
+      `/delivery-routes/${routeId}/stops/${stopId}/transfer`,
+      safePayload,
     )
     return data
   },

@@ -85,6 +85,103 @@ export function extractSaleConflictIds(error: unknown): string[] | null {
   return data.conflictSaleIds.filter((id): id is string => typeof id === 'string')
 }
 
+// ─── T3 S2/S4 — draft-to-draft transfer errors ──────────────────────────────
+
+/**
+ * DeliveryRouteTransferReason — the FLAT `reason` value the backend emits on a
+ * `422 DELIVERY_ROUTE_INVALID_TRANSITION` for the transfer endpoint.
+ *
+ * IMPORTANT: the reason is NOT the error code and is NOT nested under
+ * `details`. It lives at `response.data.reason` (flat). The error code stays
+ * `DELIVERY_ROUTE_INVALID_TRANSITION` for all four reasons.
+ */
+export type DeliveryRouteTransferReason =
+  | 'SAME_ROUTE_TRANSFER'
+  | 'NOT_DRAFT'
+  | 'UNKNOWN_STOP_ID'
+  | 'DESTINATION_ALREADY_HAS_SALE'
+
+/** Flat reason → Spanish copy for the inline dialog message. */
+export const DELIVERY_ROUTE_TRANSFER_REASON_MAP: Record<DeliveryRouteTransferReason, string> = {
+  SAME_ROUTE_TRANSFER: 'La ruta de destino debe ser diferente a la ruta actual.',
+  NOT_DRAFT: 'Solo puedes mover paradas entre rutas en borrador.',
+  UNKNOWN_STOP_ID: 'La parada ya no existe en esta ruta.',
+  DESTINATION_ALREADY_HAS_SALE: 'La ruta de destino ya tiene esta venta.',
+}
+
+/** 403 INSUFFICIENT_PERMISSIONS on the transfer mutation (dialog stays open). */
+export const DELIVERY_ROUTE_TRANSFER_FORBIDDEN_MESSAGE =
+  'No tienes permisos para mover esta parada.'
+
+/** 403 while loading the destination list (list read permission is not implied). */
+export const DELIVERY_ROUTE_TRANSFER_DESTINATIONS_FORBIDDEN_MESSAGE =
+  'No tienes permisos para consultar las rutas de destino.'
+
+interface MaybeTransferError {
+  response?: {
+    status?: number
+    data?: { error?: unknown, reason?: unknown }
+  }
+}
+
+/**
+ * extractDeliveryRouteTransferReason — pure extractor for the FLAT reason.
+ *
+ * Reads ONLY `error.response.data.reason`. Returns the reason when it is a known
+ * key, otherwise `null`. Never throws.
+ */
+export function extractDeliveryRouteTransferReason(
+  error: unknown,
+): DeliveryRouteTransferReason | null {
+  const maybe = error as MaybeTransferError
+  const reason = maybe?.response?.data?.reason
+  if (typeof reason === 'string' && reason in DELIVERY_ROUTE_TRANSFER_REASON_MAP) {
+    return reason as DeliveryRouteTransferReason
+  }
+  return null
+}
+
+/**
+ * resolveTransferErrorMessage — pure, defensive mapping of a transfer failure
+ * to a user-facing Spanish message. Priority:
+ *   1. flat transfer reason (422)
+ *   2. domain error code (409 conflict / 404 / generic 422)
+ *   3. flat HTTP status 403 (INSUFFICIENT_PERMISSIONS)
+ *   4. normalizeApiError fallback
+ *
+ * Used by the dialog to render the inline error and KEEP the dialog open.
+ * Never throws.
+ */
+export function resolveTransferErrorMessage(
+  error: unknown,
+  fallback = 'No se pudo mover la parada',
+): string {
+  const reason = extractDeliveryRouteTransferReason(error)
+  if (reason) return DELIVERY_ROUTE_TRANSFER_REASON_MAP[reason]
+
+  const code = extractDeliveryRouteErrorCode(error)
+  if (code) return DELIVERY_ROUTE_ERROR_MAP[code]
+
+  const status = (error as MaybeTransferError | null | undefined)?.response?.status
+  if (status === 403) return DELIVERY_ROUTE_TRANSFER_FORBIDDEN_MESSAGE
+
+  return normalizeApiError(error, fallback).message
+}
+
+/**
+ * resolveTransferDestinationsErrorMessage — pure mapping for a failed
+ * destination-list fetch. A 403 is graceful (permission message) because the
+ * destination list's read permission does NOT imply update on the destination.
+ */
+export function resolveTransferDestinationsErrorMessage(
+  error: unknown,
+  fallback = 'No se pudieron cargar las rutas de destino.',
+): string {
+  const status = (error as MaybeTransferError | null | undefined)?.response?.status
+  if (status === 403) return DELIVERY_ROUTE_TRANSFER_DESTINATIONS_FORBIDDEN_MESSAGE
+  return normalizeApiError(error, fallback).message
+}
+
 // ─── Surfacing channel (design §7.2) ────────────────────────────────────────
 
 /**

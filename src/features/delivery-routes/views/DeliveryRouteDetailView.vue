@@ -49,13 +49,14 @@ import DeliveryRouteUpsertSlideover from '../components/DeliveryRouteUpsertSlide
 import DeliveryRouteReorderPanel from '../components/DeliveryRouteReorderPanel.vue'
 import DriverRouteCockpit from '../components/cockpit/DriverRouteCockpit.vue'
 import EligibleSalesPicker from '../components/EligibleSalesPicker.vue'
+import TransferDeliveryRouteStopModal from '../components/TransferDeliveryRouteStopModal.vue'
 import { extractDeliveryRouteErrorCode } from '../interfaces/errors'
 import { buildStopProgress } from '../utils/delivery-route-actions.utils'
 import {
   DELIVERY_ROUTE_STATUS_LABELS,
   DELIVERY_ROUTE_STATUS_TONES,
-  type DeliveryRouteResponseDto,
   type DeliveryRouteStatus,
+  type DeliveryRouteStop,
   type UpdateDeliveryRouteRequest,
 } from '../interfaces/delivery-route.types'
 import { DELIVERY_ROUTE_COPY } from '../copy'
@@ -213,6 +214,19 @@ async function onAppend(): Promise<void> {
   }
 }
 
+// ─── Transfer-stop wiring (T3 S2/S4) ──────────────────────────────────────────
+// Per-stop "Mover" opens the destination-selection + explicit-confirmation
+// dialog. The dialog owns the mutation, destination list fetch and inline error
+// surfacing; the view only tracks which stop was chosen and whether the dialog
+// is open. No immediate mutation fires from this action.
+const transferStop = ref<DeliveryRouteStop | null>(null)
+const isTransferOpen = ref(false)
+
+function onMoveStop(stop: DeliveryRouteStop): void {
+  transferStop.value = stop
+  isTransferOpen.value = true
+}
+
 // ─── Per-action gating ───────────────────────────────────────────────────────
 // Delete button is HIDDEN unless ALL three rules pass:
 //   - DRAFT status (per design §6.3 DELETE-only-for-DRAFT contract)
@@ -235,6 +249,17 @@ const canShowAppend = computed<boolean>(() => {
   const r = routeData.value
   if (!r) return false
   if (r.id !== routeId.value) return false // keepPreviousData stale guard
+  if (r.status !== 'DRAFT') return false
+  return canUpdate.value
+})
+
+// Per-stop "Mover" is available only while BOTH routes can be DRAFT: the source
+// must be DRAFT (destination list is DRAFT-only) and the manager needs update.
+// The keepPreviousData stale guard keeps the control off stale rows.
+const canShowMove = computed<boolean>(() => {
+  const r = routeData.value
+  if (!r) return false
+  if (r.id !== routeId.value) return false
   if (r.status !== 'DRAFT') return false
   return canUpdate.value
 })
@@ -442,6 +467,14 @@ defineExpose({
       @confirm="onConfirm"
     />
 
+    <!-- Per-stop draft-to-draft move dialog (T3 S2/S4). The dialog owns the
+         destination list + mutation; it never mutates on selection alone. -->
+    <TransferDeliveryRouteStopModal
+      v-model:open="isTransferOpen"
+      :origin-route-id="routeId"
+      :stop="transferStop"
+    />
+
     <!-- Header / summary (REQ-DRM-014) -->
     <header
       data-testid="detail-route-summary"
@@ -523,6 +556,7 @@ defineExpose({
       </header>
       <EligibleSalesPicker
         :model-value="appendSelectedSaleIds"
+        source="append"
         data-testid="detail-append-sales-picker"
         @update:selected="onAppendSalePicked"
       />
@@ -562,7 +596,19 @@ defineExpose({
             <span class="font-medium">{{ stop.saleFolio ?? stop.id.slice(0, 8) }}</span>
             <span class="ml-2 text-muted">{{ stop.customer?.name ?? 'Cliente sin nombre' }}</span>
           </span>
-          <span class="text-xs text-muted">{{ stop.status }}</span>
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-muted">{{ stop.status }}</span>
+            <UButton
+              v-if="canShowMove"
+              color="primary"
+              variant="link"
+              size="xs"
+              :label="DELIVERY_ROUTE_COPY.actions.moveStop"
+              :aria-label="DELIVERY_ROUTE_COPY.transfer.moveAriaLabel.replace('{folio}', stop.saleFolio ?? stop.id.slice(0, 8))"
+              :data-testid="`detail-stop-move-${stop.id}`"
+              @click="onMoveStop(stop)"
+            />
+          </div>
         </li>
       </ul>
       <p v-else class="text-sm text-muted">Sin paradas</p>

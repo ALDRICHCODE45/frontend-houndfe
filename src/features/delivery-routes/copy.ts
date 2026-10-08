@@ -40,6 +40,7 @@ export const DELIVERY_ROUTE_COPY = {
     start: 'Iniciar ruta',
     cancel: 'Cancelar ruta',
     appendStop: 'Agregar parada',
+    moveStop: 'Mover',
     reorderStops: 'Reordenar paradas',
     // S3 contract: S7 + S8 read this key verbatim. Do NOT duplicate under `cockpit.*`.
     checkIn: 'Marcar entregada',
@@ -51,6 +52,7 @@ export const DELIVERY_ROUTE_COPY = {
     startSuccess: 'Ruta iniciada',
     cancelSuccess: 'Ruta cancelada',
     appendSuccess: 'Parada agregada',
+    transferSuccess: 'Parada movida',
     reorderSuccess: 'Orden guardado',
     checkInSuccess: 'Entrega registrada',
     // Domain errors — surface verbatim from DELIVERY_ROUTE_ERROR_MAP when the
@@ -129,6 +131,32 @@ export const DELIVERY_ROUTE_COPY = {
       confirmLabel: 'Sí, iniciar',
       cancelLabel: 'Volver',
     },
+  },
+  // T3 S2/S4 — draft-to-draft per-stop transfer dialog. The dialog owns the
+  // destination selection + explicit confirmation and renders inline failures
+  // (422 flat reason / 403) while staying open. `{folio}` / `{destination}` are
+  // interpolated at render time by TransferDeliveryRouteStopModal.vue.
+  transfer: {
+    title: 'Mover parada',
+    description:
+      'Elige la ruta de destino. La parada se quitará de esta ruta y quedará como la última parada de la ruta elegida.',
+    selectLabel: 'Ruta de destino',
+    continueLabel: 'Continuar',
+    backLabel: 'Volver',
+    confirmTitle: 'Confirmar movimiento',
+    confirmBody:
+      'La parada {folio} se moverá a {destination}. Ya no estará en esta ruta.',
+    confirmLabel: 'Sí, mover',
+    cancelLabel: 'Cancelar',
+    moveAriaLabel: 'Mover {folio} a otra ruta',
+    loading: 'Cargando rutas de destino…',
+    empty: 'No hay otras rutas en borrador disponibles.',
+    destinationUnavailable:
+      'La ruta de destino ya no está disponible como borrador. Elige otra ruta.',
+    destinationsError: 'No se pudieron cargar las rutas de destino.',
+    retry: 'Reintentar',
+    driverFallback: 'Sin repartidor',
+    routeFallback: 'Ruta {id}',
   },
   timeline: {
     routeCreated: 'Ruta creada',

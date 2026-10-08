@@ -109,6 +109,15 @@ export const DeliveryRouteResponseSchema = z.object({
   timeline: z.array(DeliveryRouteTimelineEventSchema),
 })
 
+/**
+ * Transfer response (T3 S2/S4) — a TUPLE of both affected routes, NOT a single
+ * route. The client MUST refresh both detail slots after a successful move.
+ */
+export const TransferDeliveryRouteStopResponseSchema = z.object({
+  originRoute: DeliveryRouteResponseSchema,
+  destinationRoute: DeliveryRouteResponseSchema,
+})
+
 // ─── Request payloads (whitelisted; nothing else crosses the wire) ────────────
 // forbidNonWhitelisted: NEVER id/tenantId/createdAt/updatedAt/timeline/activeRouteId.
 // .strict() forbids unknown keys; combined with the explicit whitelist this is
@@ -135,6 +144,18 @@ export const AppendDeliveryRouteStopSchema = z
   })
   .strict()
 
+/**
+ * POST /delivery-routes/:routeId/stops/:stopId/transfer body (T3 S2/S4).
+ * Only `destinationRouteId` crosses the wire — the origin route + stop come
+ * from the URL path; .strict() is the client-side mirror of the backend's
+ * forbidNonWhitelisted.
+ */
+export const TransferDeliveryRouteStopSchema = z
+  .object({
+    destinationRouteId: UuidSchema,
+  })
+  .strict()
+
 export const ReorderDeliveryRouteStopsSchema = z
   .object({
     orderedStopIds: z.array(UuidSchema).min(1, 'La ruta debe tener al menos una parada'),
@@ -149,9 +170,13 @@ export type DeliveryRouteShippingAddress = z.infer<typeof DeliveryRouteShippingA
 export type DeliveryRouteStop = z.infer<typeof DeliveryRouteStopSchema>
 export type DeliveryRouteTimelineEvent = z.infer<typeof DeliveryRouteTimelineEventSchema>
 export type DeliveryRouteResponseDto = z.infer<typeof DeliveryRouteResponseSchema>
+export type TransferDeliveryRouteStopResponseDto = z.infer<
+  typeof TransferDeliveryRouteStopResponseSchema
+>
 export type CreateDeliveryRouteRequest = z.infer<typeof CreateDeliveryRouteSchema>
 export type UpdateDeliveryRouteRequest = z.infer<typeof UpdateDeliveryRouteSchema>
 export type AppendDeliveryRouteStopRequest = z.infer<typeof AppendDeliveryRouteStopSchema>
+export type TransferDeliveryRouteStopRequest = z.infer<typeof TransferDeliveryRouteStopSchema>
 export type ReorderDeliveryRouteStopsRequest = z.infer<typeof ReorderDeliveryRouteStopsSchema>
 
 // ─── Label / tone maps (single source for table cells + timeline) ─────────────

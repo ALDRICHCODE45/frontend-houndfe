@@ -179,12 +179,16 @@ vi.mock('../../components/EligibleSalesPicker.vue', () => ({
       disabled: { type: Boolean, default: false },
       placeholder: { type: String, default: '' },
       error: { type: String, default: '' },
+      source: { type: String, default: '' },
     },
     emits: ['update:selected'],
     setup(props, { emit }) {
       const sales = (props.modelValue as string[])
       return () =>
-        h('div', { 'data-testid': 'detail-eligible-sales-picker-stub' }, [
+        h('div', {
+          'data-testid': 'detail-eligible-sales-picker-stub',
+          'data-source': props.source,
+        }, [
           h('button', {
             type: 'button',
             'data-testid': 'detail-eligible-pick-sale-sale-1',
@@ -201,6 +205,32 @@ vi.mock('../../components/EligibleSalesPicker.vue', () => ({
           }, 'pick-sale-2'),
           h('span', { 'data-testid': 'detail-eligible-current' }, JSON.stringify(sales)),
         ])
+    },
+  }),
+}))
+
+// ─── Stub TransferDeliveryRouteStopModal — per-stop draft-to-draft move dialog ─
+const transferModalState: { open: boolean; originRouteId: string; stopId: string | null } = {
+  open: false,
+  originRouteId: '',
+  stopId: null,
+}
+vi.mock('../../components/TransferDeliveryRouteStopModal.vue', () => ({
+  default: defineComponent({
+    name: 'TransferDeliveryRouteStopModal',
+    props: {
+      open: { type: Boolean, default: false },
+      originRouteId: { type: String, default: '' },
+      stop: { type: Object, default: null },
+    },
+    emits: ['update:open', 'moved'],
+    setup(props) {
+      return () => {
+        transferModalState.open = props.open
+        transferModalState.originRouteId = props.originRouteId
+        transferModalState.stopId = (props.stop as { id?: string } | null)?.id ?? null
+        return h('div', { 'data-testid': 'transfer-stop-modal-stub' })
+      }
     },
   }),
 }))
@@ -603,6 +633,11 @@ describe('DeliveryRouteDetailView — manager branch wiring (design §4.1, §6.4
     expect(wrapper.find('[data-testid="detail-append-button"]').exists()).toBe(true)
     // The picker is stubbed; the section testid is exposed by the view.
     expect(wrapper.find('[data-testid="detail-append-section"]').exists()).toBe(true)
+    // Finding 1: the append consumer MUST keep the legacy confirmed-sales path
+    // (update-gated), not the create-gated authoritative eligible-sales source.
+    expect(
+      wrapper.find('[data-testid="detail-append-sales-picker"]').attributes('data-source'),
+    ).toBe('append')
   })
 
   it('hides the append-stop affordance on non-DRAFT (REQ-DRM-008, REQ-DRM-013)', async () => {
@@ -1177,5 +1212,62 @@ describe('DeliveryRouteDetailView — ConfirmModal for start/cancel/delete (REQ-
     await wrapper.find('[data-testid="detail-confirm-modal-confirm"]').trigger('click')
     await flushPromises()
     expect(startMutateMock).toHaveBeenCalledWith('route-42')
+  })
+})
+
+// ─── T3 S2/S4 — per-stop "Mover" action (draft-to-draft transfer) ────────────
+describe('DeliveryRouteDetailView — per-stop Mover action (T3 S2/S4)', () => {
+  beforeEach(() => {
+    transferModalState.open = false
+    transferModalState.originRouteId = ''
+    transferModalState.stopId = null
+  })
+
+  it('renders a Mover control per stop on a DRAFT route with update permission', async () => {
+    resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+    resetDetailState({ data: makeDraftRoute({ stopsLength: 2 }) })
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="detail-stop-move-s1"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="detail-stop-move-s2"]').exists()).toBe(true)
+  })
+
+  it('hides the Mover control on a non-DRAFT route (both routes must be draft)', async () => {
+    resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+    resetDetailState({
+      data: { ...makeDraftRoute({ stopsLength: 2 }), status: 'ACTIVE', startedAt: '2025-01-01T00:00:00Z' },
+    })
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="detail-stop-move-s1"]').exists()).toBe(false)
+  })
+
+  it('hides the Mover control when canUpdate is false', async () => {
+    resetRoleFlags({ isManager: { value: true }, canUpdate: { value: false } })
+    resetDetailState({ data: makeDraftRoute({ stopsLength: 2 }) })
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="detail-stop-move-s1"]').exists()).toBe(false)
+  })
+
+  it('clicking Mover opens the destination dialog with that stop (no immediate mutation)', async () => {
+    resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+    resetDetailState({ data: makeDraftRoute({ stopsLength: 2 }) })
+    const wrapper = mountView()
+    await flushPromises()
+    expect(transferModalState.open).toBe(false)
+    await wrapper.find('[data-testid="detail-stop-move-s2"]').trigger('click')
+    await nextTick()
+    expect(transferModalState.open).toBe(true)
+    expect(transferModalState.originRouteId).toBe('route-42')
+    expect(transferModalState.stopId).toBe('s2')
+  })
+
+  it('does not render Mover controls when routeData is stale (keepPreviousData guard)', async () => {
+    resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+    resetDetailState({ data: makeDraftRoute({ id: 'route-OTHER', stopsLength: 2 }) })
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="detail-stop-move-s1"]').exists()).toBe(false)
   })
 })
