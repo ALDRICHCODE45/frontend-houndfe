@@ -57,6 +57,7 @@ vi.mock('../../utils/salePaymentErrors.utils', async (importOriginal) => {
 })
 
 const chargeDraft = vi.fn()
+const openNewTabMock = vi.fn()
 const refetchDraftsMock = vi.fn()
 const unassignCustomerMock = vi.fn()
 const clearShippingAddressMock = vi.fn()
@@ -95,7 +96,7 @@ vi.mock('../../composables/useSalesDrafts', () => ({
     activeTabId,
     isLoadingList: ref(false),
     isMutating,
-    openNewTab: vi.fn(),
+    openNewTab: openNewTabMock,
     closeTab: vi.fn(),
     switchTab: vi.fn(),
     addItem: vi.fn(),
@@ -339,6 +340,42 @@ describe('SalesView charge orchestration', () => {
     window.dispatchEvent(eventNoItems)
     expect(eventNoItems.defaultPrevented).toBe(true)
   })
+
+  it.each([0, 1])(
+    'keeps an active sale after charging with %i other drafts',
+    async (remainingCount) => {
+      const original = { ...drafts.value[0]!, id: 'sale-1', totalCents: 10000 }
+      const other = { ...original, id: 'sale-other' }
+      const next = { ...original, id: 'sale-next', items: [], totalCents: 0 }
+      drafts.value = remainingCount ? [original, other] : [original]
+      openNewTabMock.mockImplementationOnce(async () => {
+        drafts.value = [next]
+        activeTabId.value = next.id
+        return next
+      })
+      chargeDraft.mockImplementationOnce(async () => {
+        drafts.value = drafts.value.filter((draft) => draft.id !== original.id)
+        return { saleId: original.id, folio: 'PAID-1', debtCents: 0, paymentStatus: 'PAID' }
+      })
+      const wrapper = mountView()
+      try {
+        await wrapper.get('[data-testid="charge-click"]').trigger('click')
+        await wrapper.get('[data-testid="submit-charge"]').trigger('click')
+        await flushPromises()
+        expect(chargeDraft).toHaveBeenCalledTimes(1)
+        expect(openNewTabMock).toHaveBeenCalledTimes(remainingCount ? 0 : 1)
+        expect(drafts.value).toEqual([remainingCount ? other : next])
+        expect(activeTabId.value).toBe(remainingCount ? other.id : next.id)
+        expect(wrapper.get('[data-testid="payment-modal-open"]').text()).toBe('false')
+        expect(wrapper.get('[data-testid="success-modal"]').text()).toContain('PAID-1')
+      } finally {
+        wrapper.unmount()
+        drafts.value = [original]
+        activeTabId.value = original.id
+        openNewTabMock.mockReset()
+      }
+    },
+  )
 
   it('handles successful charge and exposes success confirmation details', async () => {
     chargeDraft.mockResolvedValueOnce({

@@ -498,6 +498,10 @@ async function handleChargeDraft(
     if (activeDraft.value?.id === saleId) {
       activeTabId.value = drafts.value[0]?.id ?? null
     }
+    if (drafts.value.length === 0) {
+      // Creation errors must not turn a completed charge into a payment failure.
+      await handleCreateTab()
+    }
     return
   } catch (error) {
     const err = error as AxiosError<DomainApiError & { error?: ChargeDomainErrorCode }>
