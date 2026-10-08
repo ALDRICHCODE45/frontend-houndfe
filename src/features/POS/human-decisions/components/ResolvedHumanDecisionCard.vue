@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import type { ResolvedHumanDecision } from '../interfaces/human-decision.types'
+import { computed } from 'vue'
+import type { HumanDecision } from '../interfaces/human-decision.types'
 import {
   branchPresentationLabel,
   createdAtPresentationLabel,
-  skuPresentationLabel,
+  productMetaPresentationLabel,
   resolvedResponseLabel,
 } from '../utils/humanDecisionPresentation'
 
-defineProps<{ decision: ResolvedHumanDecision }>()
+const props = defineProps<{ decision: Extract<HumanDecision, { status: 'RESOLVED' }> }>()
 const emit = defineEmits<{ openDetail: [decisionId: string] }>()
+const productMetaLabel = computed(() => productMetaPresentationLabel(props.decision))
 </script>
 
 <template>
@@ -21,9 +23,7 @@ const emit = defineEmits<{ openDetail: [decisionId: string] }>()
         >Respondida</UBadge
       >
       <h3 class="text-base font-semibold text-highlighted">{{ decision.title }}</h3>
-      <p class="text-sm text-muted">
-        {{ decision.snapshot.productName }} · {{ skuPresentationLabel(decision.snapshot.sku) }}
-      </p>
+      <p class="text-sm text-muted">{{ decision.snapshot.productName }} · {{ productMetaLabel }}</p>
       <p class="text-xs text-muted">{{ branchPresentationLabel(decision.snapshot.branchName) }}</p>
     </header>
     <dl class="space-y-3 text-sm">

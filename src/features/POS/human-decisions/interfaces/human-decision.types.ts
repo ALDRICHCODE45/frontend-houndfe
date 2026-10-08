@@ -5,8 +5,9 @@
  */
 
 import type { PaginatedResponse } from '@/core/shared/types/table.types'
+import type { ExpirationDecision } from './expiration-decision.types'
 
-export type HumanDecisionType = 'RESTOCK'
+export type HumanDecisionType = 'RESTOCK' | 'EXPIRATION'
 
 export type HumanDecisionStatus = 'PENDING' | 'RESOLVED'
 
@@ -72,7 +73,8 @@ export type HumanDecisionResolution =
 
 interface HumanDecisionBase {
   id: string
-  type: HumanDecisionType
+  /** Pinned: widening `HumanDecisionType` must never widen a RESTOCK row. */
+  type: 'RESTOCK'
   title: string
   sanitizedSummary: string
   createdAt: string
@@ -101,7 +103,7 @@ export interface ResolvedHumanDecision extends HumanDecisionBase {
   allowedActions: []
 }
 
-export type HumanDecision = PendingHumanDecision | ResolvedHumanDecision
+export type HumanDecision = PendingHumanDecision | ResolvedHumanDecision | ExpirationDecision
 
 /** Resolve payloads ship in HD4; `restockDays` is an integer 1..365. */
 export interface ResolveProvideRestockEstimatePayload {

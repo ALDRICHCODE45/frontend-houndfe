@@ -8,16 +8,24 @@ import { beforeEach, describe, expect, expectTypeOf, it, vi } from 'vitest'
 import { humanDecisionApi } from '../human-decision.api'
 import { http } from '@/core/shared/api/http'
 import type {
+  HumanDecision,
   HumanDecisionErrorCode,
   HumanDecisionErrorResponse,
   HumanDecisionListParams,
   HumanDecisionListResponse,
   HumanDecisionResolvePayload,
+  HumanDecisionType,
   PendingHumanDecision,
   ProvideRestockEstimateResolution,
   ReportRestockEstimateUnavailableResolution,
   ResolvedHumanDecision,
 } from '../../interfaces/human-decision.types'
+import {
+  pendingExpiration,
+  provideExpiration,
+  resolvedExpiration,
+} from '../../interfaces/__tests__/expirationDecision.fixture'
+import type { ExpirationDecisionResolvePayload } from '../../interfaces/expiration-decision.types'
 
 vi.mock('@/core/shared/api/http', () => ({ http: { get: vi.fn(), post: vi.fn() } }))
 
@@ -130,9 +138,69 @@ describe('HD2A/HD4A · humanDecisionApi', () => {
 
     const result = await humanDecisionApi.getById('hd-2')
 
-    expect(http.get).toHaveBeenCalledWith('/human-decisions/hd-2')
+    expect(http.get).toHaveBeenCalledWith('/human-decisions/hd-2', expect.anything())
     expect(result).toBe(resolved)
   })
+
+  it('list() forwards only the read signal and keeps URLs/params intact', async () => {
+    const response: HumanDecisionListResponse = {
+      data: [pending],
+      pagination: { pageIndex: 0, pageSize: 20, totalCount: 1, pageCount: 1 },
+    }
+    vi.mocked(http.get).mockResolvedValue({ data: response })
+    const controller = new AbortController()
+    const params = {
+      status: 'PENDING',
+      page: 1,
+      limit: 20,
+      sortBy: 'createdAt',
+      sortOrder: 'asc',
+    } satisfies HumanDecisionListParams
+
+    await humanDecisionApi.list(params, { signal: controller.signal })
+
+    expect(http.get).toHaveBeenCalledExactlyOnceWith('/human-decisions', {
+      params,
+      signal: controller.signal,
+    })
+  })
+
+  it('getById() forwards the read signal and keeps the exact URL', async () => {
+    vi.mocked(http.get).mockResolvedValue({ data: pending })
+    const controller = new AbortController()
+
+    await humanDecisionApi.getById('hd-1', { signal: controller.signal })
+
+    expect(http.get).toHaveBeenCalledExactlyOnceWith('/human-decisions/hd-1', {
+      signal: controller.signal,
+    })
+  })
+
+  it('preserves the mixed server order and unwraps an EXPIRATION page', async () => {
+    const response = {
+      data: [pending, pendingExpiration, resolved, resolvedExpiration(provideExpiration)],
+      pagination: { pageIndex: 0, pageSize: 20, totalCount: 4, pageCount: 1 },
+    }
+    vi.mocked(http.get).mockResolvedValue({ data: response })
+    const result = await humanDecisionApi.list({ status: 'ALL', page: 1, limit: 20 })
+    expect(result).toBe(response)
+    expect(result.data.map((row) => row.type)).toEqual([
+      'RESTOCK',
+      'EXPIRATION',
+      'RESTOCK',
+      'EXPIRATION',
+    ])
+  })
+
+  it.each([pendingExpiration, resolvedExpiration(provideExpiration)])(
+    'getById() unwraps the EXPIRATION $id detail',
+    async (row) => {
+      vi.mocked(http.get).mockResolvedValue({ data: row })
+      const result = await humanDecisionApi.getById(row.id)
+      expect(result).toBe(row)
+      expect(result.type).toBe('EXPIRATION')
+    },
+  )
 
   it.each([
     {
@@ -163,6 +231,68 @@ describe('HD2A/HD4A · humanDecisionApi', () => {
       expect(result).toBe(response)
     },
   )
+  it('resolveExpiration() POSTs the exact EXPIRATION payload with the opt-in flag and unwraps', async () => {
+    const response = resolvedExpiration(provideExpiration)
+    vi.mocked(http.post).mockResolvedValue({ data: response })
+    const payload = {
+      action: 'PROVIDE_EXPIRATION_TEXT',
+      expirationText: 'Consumir antes del 20 de marzo de 2026.',
+      expectedVersion: 1,
+      resolutionRequestId: 'a1b2c3d4-0000-4000-8000-000000000001',
+    } satisfies ExpirationDecisionResolvePayload
+
+    const result = await humanDecisionApi.resolveExpiration('exp-1', payload)
+
+    expect(http.post).toHaveBeenCalledWith('/human-decisions/exp-1/resolve', payload, {
+      expirationResolveIsolation: true,
+    })
+    expect(result).toBe(response)
+  })
+
+  it('resolve() RESTOCK call carries no EXPIRATION opt-in flag', async () => {
+    vi.mocked(http.post).mockResolvedValue({ data: resolved })
+
+    await humanDecisionApi.resolve('hd-2', {
+      action: 'REPORT_RESTOCK_ESTIMATE_UNAVAILABLE',
+      expectedVersion: 1,
+      resolutionRequestId: 'b1b2c3d4-0000-4000-8000-000000000002',
+    })
+
+    expect(http.post).toHaveBeenCalledWith('/human-decisions/hd-2/resolve', expect.anything())
+    expect(vi.mocked(http.post).mock.calls[0]).toHaveLength(2)
+  })
+
+  it('resolveExpiration() propagates the API error untouched', async () => {
+    const error = new Error('unauthorized')
+    vi.mocked(http.post).mockRejectedValue(error)
+
+    await expect(
+      humanDecisionApi.resolveExpiration('exp-1', {
+        action: 'REPORT_EXPIRATION_UNAVAILABLE',
+        expectedVersion: 1,
+        resolutionRequestId: 'c1b2c3d4-0000-4000-8000-000000000003',
+      }),
+    ).rejects.toBe(error)
+  })
+})
+
+describe('WU3 · public read union', () => {
+  it('admits EXPIRATION rows while RESTOCK rows stay pinned', () => {
+    expectTypeOf<HumanDecisionType>().toEqualTypeOf<'RESTOCK' | 'EXPIRATION'>()
+    expectTypeOf(pending.type).toEqualTypeOf<'RESTOCK'>()
+    const restock: HumanDecision[] = [pending, resolved]
+    const expired: HumanDecision[] = [pendingExpiration, resolvedExpiration(provideExpiration)]
+    expect([...restock, ...expired].map((row) => row.type)).toEqual([
+      'RESTOCK',
+      'RESTOCK',
+      'EXPIRATION',
+      'EXPIRATION',
+    ])
+    const expiration = expired[0]
+    if (expiration?.type === 'EXPIRATION') {
+      expectTypeOf(expiration.snapshot.unit).toEqualTypeOf<string>()
+    }
+  })
 })
 
 describe('HD2A · typed RESTOCK contract', () => {

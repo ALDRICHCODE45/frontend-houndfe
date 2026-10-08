@@ -12,6 +12,11 @@ import type {
 } from '../interfaces/human-decision.types'
 import type { ServerTableParams } from '@/core/shared/types/table.types'
 
+type HumanDecisionListContext = {
+  queryKey: readonly unknown[]
+  signal?: AbortSignal
+}
+
 /** Translate zero-based table pagination and normalize product-only search. */
 export function mapServerTableParamsToHumanDecisionListParams(
   params: ServerTableParams,
@@ -36,13 +41,20 @@ export function useHumanDecisionsListTable() {
   const statusFilter = shallowRef<HumanDecisionListFilter>('ALL')
   const table = useServerTable<HumanDecision>({
     queryKey: () => humanDecisionQueryKeys.filteredListPrefix(tenantId.value, statusFilter.value),
-    queryFn: (params, { queryKey }) => {
+    queryFn: (params, { queryKey, signal }: HumanDecisionListContext) => {
       // filteredListPrefix ends in status; useServerTable appends the captured params.
       const status = queryKey[queryKey.length - 2]
       if (status !== 'ALL' && status !== 'PENDING' && status !== 'RESOLVED') {
         throw new Error('Invalid human decision list query status')
       }
-      return humanDecisionApi.list(mapServerTableParamsToHumanDecisionListParams(params, status))
+      // `enabled` is not set on the shared table: guard the captured tenant before dispatch.
+      const tenant = queryKey[1]
+      if (typeof tenant !== 'string' || tenant.length === 0 || tenant !== tenantId.value) {
+        throw new Error('Invalid human decision list tenant context')
+      }
+      return humanDecisionApi.list(mapServerTableParamsToHumanDecisionListParams(params, status), {
+        signal,
+      })
     },
     defaultPageSize: 20,
     pageSizeOptions: [20, 50],

@@ -11,6 +11,18 @@ import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { humanDecisionApi } from '../api/human-decision.api'
 import type { HumanDecision } from '../interfaces/human-decision.types'
 
+/** Read the validated detail identity from the captured key — never a live ref. */
+function readDetailContext(queryKey: readonly unknown[]): { tenantId: string; id: string } {
+  const [, tenantId, slot, id] = queryKey
+  if (slot !== 'detail' || typeof tenantId !== 'string' || tenantId.length === 0) {
+    throw new Error('Invalid human decision detail query context')
+  }
+  if (typeof id !== 'string' || id.length === 0) {
+    throw new Error('Invalid human decision detail query context')
+  }
+  return { tenantId, id }
+}
+
 export function useHumanDecisionDetail(decisionId: Ref<string | null>) {
   const authStore = useAuthStore()
   const tenantId = computed(() => authStore.currentTenantId)
@@ -18,7 +30,15 @@ export function useHumanDecisionDetail(decisionId: Ref<string | null>) {
 
   return useQuery<HumanDecision>({
     queryKey: computed(() => humanDecisionQueryKeys.detail(tenantId.value, id.value ?? '')),
-    queryFn: () => humanDecisionApi.getById(id.value as string),
+    queryFn: ({ queryKey, signal }) => {
+      // `enabled` guards automatic reads only: manual refetch still runs this,
+      // so the captured identity and the active tenant are validated before dispatch.
+      const captured = readDetailContext(queryKey)
+      if (captured.tenantId !== tenantId.value) {
+        throw new Error('Human decision detail tenant is no longer active')
+      }
+      return humanDecisionApi.getById(captured.id, { signal })
+    },
     enabled: computed(() => Boolean(tenantId.value && id.value)),
     refetchOnWindowFocus: false,
     staleTime: 30_000,

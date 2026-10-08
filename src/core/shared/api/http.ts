@@ -80,6 +80,28 @@ interface RetryableRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean
 }
 
+/**
+ * Request opt-in for the EXPIRATION resolve call (`POST /human-decisions/:id/resolve`).
+ * A `401` on this request must NOT rotate tokens, clear the session, publish a
+ * session event or replay: it is propagated untouched so the feature can ask the
+ * user to re-authenticate and retry. The flag is restricted to that exact method
+ * and path, so tagging an unrelated request cannot bypass the global refresh flow.
+ */
+export interface ExpirationResolveIsolationConfig extends AxiosRequestConfig {
+  expirationResolveIsolation: true
+}
+
+const EXPIRATION_RESOLVE_PATH = /^\/human-decisions\/[^/?#]+\/resolve\/?(?:[?#].*)?$/
+
+function isExpirationResolveIsolationRequest(config?: AxiosRequestConfig) {
+  if (!config) return false
+  return (
+    (config as Partial<ExpirationResolveIsolationConfig>).expirationResolveIsolation === true &&
+    (config.method ?? 'get').toLowerCase() === 'post' &&
+    EXPIRATION_RESOLVE_PATH.test(config.url ?? '')
+  )
+}
+
 const authFreePaths = ['/auth/login', '/auth/register', '/auth/refresh']
 let refreshPromise: Promise<{ accessToken: string; refreshToken: string }> | null = null
 
@@ -116,6 +138,14 @@ http.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as RetryableRequestConfig | undefined
+
+    // Opted-in EXPIRATION resolve: a 401 is terminal for this request. Reject the
+    // original error before any tenant event, Blob read, refresh, token write,
+    // clear or replay so the feature can surface "re-authenticate and retry".
+    if (error.response?.status === 401 && isExpirationResolveIsolationRequest(originalRequest)) {
+      return Promise.reject(error)
+    }
+
     const requestUrl = originalRequest?.url ?? ''
     const jsonMessage = (error.response?.data as { message?: string } | undefined)?.message
 

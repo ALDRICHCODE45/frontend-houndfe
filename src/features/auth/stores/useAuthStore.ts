@@ -471,6 +471,14 @@ export const useAuthStore = defineStore('auth', () => {
     if (!accessToken.value) return null
 
     const me = await authApi.me()
+    // /me enriches the JWT tenant; it cannot select a different session context.
+    // Return null (not an error) so the router does not clear the session on mismatch.
+    if (
+      !accessToken.value ||
+      (me.tenant?.id ?? null) !== decodeJwtClaims(accessToken.value).tenantId
+    ) {
+      return null
+    }
 
     user.value = {
       id: me.id,

@@ -30,7 +30,8 @@ const canResolveSelection = computed(
   () =>
     props.canUpdate &&
     selection.value?.status === 'PENDING' &&
-    selectedDecision.value?.status === 'PENDING',
+    selectedDecision.value?.status === 'PENDING' &&
+    selectedDecision.value?.type === 'RESTOCK',
 )
 
 const filteredDecisions = computed(() => {
@@ -104,6 +105,7 @@ function resolveInMemory(input: HumanDecisionResolutionInput): void {
   if (
     !canResolveSelection.value ||
     pending?.status !== 'PENDING' ||
+    pending.type !== 'RESTOCK' ||
     input.expectedVersion !== pending.version
   )
     return

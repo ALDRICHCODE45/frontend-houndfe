@@ -135,10 +135,22 @@ export function useServerTable<T>(config: ServerTableConfig<T>): UseServerTableR
     refetch,
   } = useQuery<PaginatedResponse<T>>({
     queryKey,
-    queryFn: ({ queryKey: capturedKey }) => {
+    queryFn: (queryContext) => {
+      // Read the captured key WITHOUT touching queryContext.signal: QueryCore's
+      // signal getter marks abortSignalConsumed, which cancels late results on
+      // last-observer removal even for consumers that never read it.
+      const capturedKey = queryContext.queryKey
       // The final key segment is appended above; live refs may now describe another page.
       const params = capturedKey[capturedKey.length - 1] as ServerTableParams
-      return config.queryFn(params, { queryKey: capturedKey })
+      // Forward the executing signal LAZILY: the getter is evaluated only if the
+      // downstream callback actually reads `context.signal`.
+      const context = {
+        queryKey: capturedKey,
+        get signal() {
+          return queryContext.signal
+        },
+      }
+      return config.queryFn(params, context)
     },
     placeholderData: keepPreviousData,
     refetchOnWindowFocus: false,

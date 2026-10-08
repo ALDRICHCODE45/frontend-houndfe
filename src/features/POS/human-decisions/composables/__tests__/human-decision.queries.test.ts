@@ -15,7 +15,9 @@ import {
 import { useHumanDecisionDetail } from '../useHumanDecisionDetail'
 import { humanDecisionApi } from '../../api/human-decision.api'
 import type {
+  HumanDecision,
   HumanDecisionListParams,
+  HumanDecisionListResponse,
   PendingHumanDecision,
   ResolvedHumanDecision,
 } from '../../interfaces/human-decision.types'
@@ -67,7 +69,7 @@ const listParams = (
   ...overrides,
 })
 
-function mountComposable<T>(composable: () => T) {
+function mountComposable<T>(composable: () => T, gcTime = 0) {
   let result: T | undefined
   const TestComponent = defineComponent({
     setup() {
@@ -75,7 +77,7 @@ function mountComposable<T>(composable: () => T) {
       return () => h('div')
     },
   })
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime } } })
   const wrapper = mount(TestComponent, {
     global: { plugins: [[VueQueryPlugin, { queryClient }]] },
   })
@@ -194,11 +196,10 @@ describe('HD2B · useHumanDecisionsListTable', () => {
     const { result, queryClient, wrapper } = mountComposable(() => useHumanDecisionsListTable())
 
     await vi.waitFor(() => expect(humanDecisionApi.list).toHaveBeenCalled())
-    expect(humanDecisionApi.list).toHaveBeenCalledExactlyOnceWith({
-      status: 'ALL',
-      page: 1,
-      limit: 20,
-    })
+    expect(humanDecisionApi.list).toHaveBeenCalledExactlyOnceWith(
+      { status: 'ALL', page: 1, limit: 20 },
+      expect.anything(),
+    )
     expect(
       queryClient
         .getQueryCache()
@@ -211,6 +212,19 @@ describe('HD2B · useHumanDecisionsListTable', () => {
     expect(result.pageCount.value).toBe(3)
     expect(result.pageSizeOptions).toEqual([20, 50])
     wrapper.unmount()
+  })
+
+  it('forwards the list query signal to the transport and aborts it on unmount', async () => {
+    vi.mocked(humanDecisionApi.list).mockReturnValue(
+      new Promise<HumanDecisionListResponse>(() => {}),
+    )
+    const { wrapper } = mountComposable(useHumanDecisionsListTable)
+    await vi.waitFor(() => expect(humanDecisionApi.list).toHaveBeenCalled())
+    const signal = vi.mocked(humanDecisionApi.list).mock.calls[0]?.[1]?.signal
+    expect(signal).toBeInstanceOf(AbortSignal)
+    expect(signal?.aborted).toBe(false)
+    wrapper.unmount()
+    await vi.waitFor(() => expect(signal?.aborted).toBe(true))
   })
 })
 
@@ -225,18 +239,16 @@ describe('unified filter state', () => {
     await vi.waitFor(() => expect(result.totalCount.value).toBe(41))
     result.pagination.value = { pageIndex: 1, pageSize: 50 }
     await vi.waitFor(() =>
-      expect(humanDecisionApi.list).toHaveBeenLastCalledWith({
-        status: 'RESOLVED',
-        page: 2,
-        limit: 50,
-        sortBy: 'resolvedAt',
-        sortOrder: 'desc',
-      }),
+      expect(humanDecisionApi.list).toHaveBeenLastCalledWith(
+        { status: 'RESOLVED', page: 2, limit: 50, sortBy: 'resolvedAt', sortOrder: 'desc' },
+        expect.anything(),
+      ),
     )
     result.globalFilter.value = ' alimento '
     await vi.waitFor(() =>
       expect(humanDecisionApi.list).toHaveBeenLastCalledWith(
         expect.objectContaining({ status: 'RESOLVED', page: 1, search: 'alimento' }),
+        expect.anything(),
       ),
     )
     const calls = vi.mocked(humanDecisionApi.list).mock.calls.length
@@ -268,7 +280,10 @@ describe('unified filter state', () => {
     await vi.waitFor(() => expect(result.data.value).toEqual([pending]))
     result.pagination.value = { pageIndex: 2, pageSize: 50 }
     await vi.waitFor(() =>
-      expect(humanDecisionApi.list).toHaveBeenLastCalledWith({ status: 'ALL', page: 3, limit: 50 }),
+      expect(humanDecisionApi.list).toHaveBeenLastCalledWith(
+        { status: 'ALL', page: 3, limit: 50 },
+        expect.anything(),
+      ),
     )
     for (const status of ['RESOLVED', 'PENDING', 'ALL'] as const) {
       result.setStatusFilter(status)
@@ -276,6 +291,7 @@ describe('unified filter state', () => {
       await vi.waitFor(() =>
         expect(humanDecisionApi.list).toHaveBeenLastCalledWith(
           expect.objectContaining({ status, page: 1, limit: 50 }),
+          expect.anything(),
         ),
       )
     }
@@ -340,7 +356,9 @@ describe('HD2B · useHumanDecisionDetail', () => {
     expect(humanDecisionApi.getById).not.toHaveBeenCalled()
 
     id.value = 'hd-1'
-    await vi.waitFor(() => expect(humanDecisionApi.getById).toHaveBeenCalledWith('hd-1'))
+    await vi.waitFor(() =>
+      expect(humanDecisionApi.getById).toHaveBeenCalledWith('hd-1', expect.anything()),
+    )
     await vi.waitFor(() => expect(result.data.value).toEqual(pending))
     expect(
       queryClient
@@ -349,5 +367,87 @@ describe('HD2B · useHumanDecisionDetail', () => {
         .map((query) => [...query.queryKey]),
     ).toContainEqual(['human-decisions', 'tenant-1', 'detail', 'hd-1'])
     wrapper.unmount()
+  })
+
+  it('refetches a retained detail key with its captured id after the selection changes', async () => {
+    const id = ref<string | null>('hd-1')
+    const { queryClient, wrapper } = mountComposable(() => useHumanDecisionDetail(id), Infinity)
+    await vi.waitFor(() =>
+      expect(humanDecisionApi.getById).toHaveBeenCalledWith('hd-1', expect.anything()),
+    )
+    id.value = 'hd-2'
+    await vi.waitFor(() =>
+      expect(humanDecisionApi.getById).toHaveBeenCalledWith('hd-2', expect.anything()),
+    )
+    vi.mocked(humanDecisionApi.getById).mockClear()
+    await queryClient.refetchQueries({
+      queryKey: humanDecisionQueryKeys.detail('tenant-1', 'hd-1'),
+      type: 'all',
+    })
+    expect(humanDecisionApi.getById).toHaveBeenCalledWith('hd-1', expect.anything())
+    expect(humanDecisionApi.getById).not.toHaveBeenCalledWith('hd-2', expect.anything())
+    wrapper.unmount()
+  })
+
+  it('refuses a manual detail read with no captured id', async () => {
+    const id = ref<string | null>(null)
+    const { result, wrapper } = mountComposable(() => useHumanDecisionDetail(id))
+    await result.refetch().catch(() => undefined)
+    expect(humanDecisionApi.getById).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('refuses a manual detail read with no captured tenant', async () => {
+    auth.currentTenantId = ''
+    const id = ref<string | null>('hd-1')
+    const { result, wrapper } = mountComposable(() => useHumanDecisionDetail(id))
+    await result.refetch().catch(() => undefined)
+    expect(humanDecisionApi.getById).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('refuses a stale captured-tenant detail read after the tenant changes', async () => {
+    const id = ref<string | null>('hd-1')
+    const { queryClient, wrapper } = mountComposable(() => useHumanDecisionDetail(id), Infinity)
+    await vi.waitFor(() =>
+      expect(humanDecisionApi.getById).toHaveBeenCalledWith('hd-1', expect.anything()),
+    )
+    auth.currentTenantId = 'tenant-2'
+    await vi.waitFor(() =>
+      expect(
+        queryClient
+          .getQueryCache()
+          .find({ queryKey: humanDecisionQueryKeys.detail('tenant-2', 'hd-1') })?.state.data,
+      ).toEqual(pending),
+    )
+    vi.mocked(humanDecisionApi.getById).mockClear()
+    await queryClient.refetchQueries({
+      queryKey: humanDecisionQueryKeys.detail('tenant-1', 'hd-1'),
+      type: 'all',
+    })
+    expect(humanDecisionApi.getById).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('forwards and aborts the captured detail signal when the query becomes obsolete', async () => {
+    vi.mocked(humanDecisionApi.getById).mockReturnValue(new Promise<HumanDecision>(() => {}))
+    const id = ref<string | null>('hd-1')
+    const { wrapper } = mountComposable(() => useHumanDecisionDetail(id))
+    await vi.waitFor(() => expect(humanDecisionApi.getById).toHaveBeenCalled())
+    const signal = vi.mocked(humanDecisionApi.getById).mock.calls[0]?.[1]?.signal
+    expect(signal).toBeInstanceOf(AbortSignal)
+    expect(signal?.aborted).toBe(false)
+    id.value = 'hd-2'
+    await vi.waitFor(() => expect(signal?.aborted).toBe(true))
+    wrapper.unmount()
+  })
+
+  it('aborts the captured detail signal on unmount', async () => {
+    vi.mocked(humanDecisionApi.getById).mockReturnValue(new Promise<HumanDecision>(() => {}))
+    const { wrapper } = mountComposable(() => useHumanDecisionDetail(ref<string | null>('hd-1')))
+    await vi.waitFor(() => expect(humanDecisionApi.getById).toHaveBeenCalled())
+    const signal = vi.mocked(humanDecisionApi.getById).mock.calls[0]?.[1]?.signal
+    wrapper.unmount()
+    await vi.waitFor(() => expect(signal?.aborted).toBe(true))
   })
 })
