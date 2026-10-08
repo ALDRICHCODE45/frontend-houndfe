@@ -149,8 +149,11 @@ vi.mock('../../components/DeliveryRouteUpsertSlideover.vue', () => ({
       open: { type: Boolean, default: false },
       mode: { type: String, default: 'create' },
       routeId: { type: String, default: '' },
+      createConflict: { type: Boolean, default: false },
+      conflictSaleIds: { type: Array as () => string[], default: () => [] },
+      conflictAttempt: { type: Number, default: 0 },
     },
-    emits: ['update:open', 'create', 'edit'],
+    emits: ['update:open', 'update:createConflict', 'create', 'edit'],
     setup(props, { emit }) {
       function fireCreate() {
         const payload = { saleIds: ['s1'], driverUserId: 'd1', notes: undefined }
@@ -162,6 +165,9 @@ vi.mock('../../components/DeliveryRouteUpsertSlideover.vue', () => ({
         slideoverState.emits.edit.push(payload)
         emit('edit', payload)
       }
+      function clearConflict() {
+        emit('update:createConflict', false)
+      }
       return () =>
         h(
           'div',
@@ -169,6 +175,9 @@ vi.mock('../../components/DeliveryRouteUpsertSlideover.vue', () => ({
           [
             h('span', { 'data-testid': 'slideover-stub-open' }, String(props.open)),
             h('span', { 'data-testid': 'slideover-stub-mode' }, String(props.mode)),
+            h('span', { 'data-testid': 'slideover-stub-conflict' }, String(props.createConflict)),
+            h('span', { 'data-testid': 'slideover-stub-conflict-ids' }, (props.conflictSaleIds as string[]).join(',')),
+            h('span', { 'data-testid': 'slideover-stub-conflict-attempt' }, String(props.conflictAttempt)),
             h(
               'button',
               { type: 'button', 'data-testid': 'slideover-fire-create', onClick: fireCreate },
@@ -178,6 +187,11 @@ vi.mock('../../components/DeliveryRouteUpsertSlideover.vue', () => ({
               'button',
               { type: 'button', 'data-testid': 'slideover-fire-edit', onClick: fireEdit },
               'fire-edit',
+            ),
+            h(
+              'button',
+              { type: 'button', 'data-testid': 'slideover-clear-conflict', onClick: clearConflict },
+              'clear-conflict',
             ),
           ],
         )
@@ -540,6 +554,109 @@ describe('DeliveryRoutesListView — manager branch (design.md §6.4, §11, REQ-
     const lastProps = dataTableProps[dataTableProps.length - 1]!
     expect(lastProps.error).toBe(true)
     expect(String(lastProps.errorMessage)).toMatch(/red rota|operación|reintenta/i)
+  })
+
+  // ─── T3 S2 — create conflict stays open + surfaces the conflict inline ─────
+  it('keeps the create slideover open and forwards conflictSaleIds on a 409 conflict', async () => {
+    resetRoleFlags({ isManager: { value: true }, canCreate: { value: true } })
+    resetTableState({ data: [], totalCount: 0 })
+    createMutateMock.mockRejectedValueOnce({
+      response: {
+        status: 409,
+        data: {
+          error: 'DELIVERY_ROUTE_STOP_SALE_ALREADY_ON_ACTIVE_ROUTE',
+          conflictSaleIds: ['s1'],
+        },
+      },
+    })
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.find('[data-testid="app-data-table-stub-add"]').trigger('click')
+    await nextTick()
+    await wrapper.find('[data-testid="slideover-fire-create"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="slideover-stub-open"]').text()).toBe('true')
+    expect(wrapper.find('[data-testid="slideover-stub-conflict"]').text()).toBe('true')
+    expect(wrapper.find('[data-testid="slideover-stub-conflict-ids"]').text()).toContain('s1')
+  })
+
+  it('does NOT flag a conflict for a non-conflict create failure (TRIANGULATE)', async () => {
+    resetRoleFlags({ isManager: { value: true }, canCreate: { value: true } })
+    resetTableState({ data: [], totalCount: 0 })
+    createMutateMock.mockRejectedValueOnce({
+      response: { status: 422, data: { error: 'DELIVERY_ROUTE_STOP_SALE_NOT_ELIGIBLE' } },
+    })
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.find('[data-testid="app-data-table-stub-add"]').trigger('click')
+    await nextTick()
+    await wrapper.find('[data-testid="slideover-fire-create"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="slideover-stub-conflict"]').text()).toBe('false')
+  })
+
+  it('clears the conflict state when the create slideover is reopened', async () => {
+    resetRoleFlags({ isManager: { value: true }, canCreate: { value: true } })
+    resetTableState({ data: [], totalCount: 0 })
+    createMutateMock.mockRejectedValueOnce({
+      response: {
+        status: 409,
+        data: {
+          error: 'DELIVERY_ROUTE_STOP_SALE_ALREADY_ON_ACTIVE_ROUTE',
+          conflictSaleIds: ['s1'],
+        },
+      },
+    })
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.find('[data-testid="app-data-table-stub-add"]').trigger('click')
+    await nextTick()
+    await wrapper.find('[data-testid="slideover-fire-create"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="slideover-stub-conflict"]').text()).toBe('true')
+
+    // Close then reopen via the table's add button → conflict state resets.
+    await wrapper.find('[data-testid="app-data-table-stub-add"]').trigger('click')
+    await nextTick()
+    expect(wrapper.find('[data-testid="slideover-stub-conflict"]').text()).toBe('false')
+  })
+
+  // Fix 4 — explicit attempt signal + controlled update:createConflict wiring.
+  it('reblocks repeated empty-id 409 conflicts and honors update:createConflict from the slideover', async () => {
+    resetRoleFlags({ isManager: { value: true }, canCreate: { value: true } })
+    resetTableState({ data: [], totalCount: 0 })
+    const emptyConflict = {
+      response: {
+        status: 409,
+        data: {
+          error: 'DELIVERY_ROUTE_STOP_SALE_ALREADY_ON_ACTIVE_ROUTE',
+          conflictSaleIds: [],
+        },
+      },
+    }
+    createMutateMock.mockRejectedValueOnce(emptyConflict).mockRejectedValueOnce(emptyConflict)
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.find('[data-testid="app-data-table-stub-add"]').trigger('click')
+    await nextTick()
+    await wrapper.find('[data-testid="slideover-fire-create"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="slideover-stub-conflict"]').text()).toBe('true')
+    expect(wrapper.find('[data-testid="slideover-stub-conflict-attempt"]').text()).toBe('1')
+
+    // The slideover signals the conflict was reconciled → the view clears the boolean.
+    await wrapper.find('[data-testid="slideover-clear-conflict"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="slideover-stub-conflict"]').text()).toBe('false')
+
+    // A second EMPTY-id 409 reblocks with a NEW attempt (independent of array identity).
+    await wrapper.find('[data-testid="slideover-fire-create"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="slideover-stub-conflict"]').text()).toBe('true')
+    expect(wrapper.find('[data-testid="slideover-stub-conflict-attempt"]').text()).toBe('2')
   })
 })
 

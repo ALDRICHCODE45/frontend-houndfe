@@ -23,12 +23,14 @@ import {
   type AppendMutationDeps,
 } from '../useAppendDeliveryRouteStop'
 import { deliveryRouteQueryKeys, saleQueryKeys } from '@/core/shared/constants/query-keys'
+import { eligibleSalesQueryKeys } from '../useEligibleSales'
 
 function makeDeps(overrides: Partial<AppendMutationDeps> = {}): AppendMutationDeps {
   return {
     invalidateDetail: vi.fn(),
     invalidateList: vi.fn(),
     invalidateConfirmedSales: vi.fn(),
+    invalidateEligibleSales: vi.fn(),
     addToast: vi.fn(),
     ...overrides,
   }
@@ -66,7 +68,17 @@ describe('handleAppendSuccess (sdd delivery-routes S5b, design §6.3)', () => {
     const confirmedCall = vi.mocked(deps.invalidateConfirmedSales).mock.calls[0]?.[0] as
       | { queryKey?: readonly unknown[] }
       | undefined
-    expect(confirmedCall?.queryKey).toEqual(saleQueryKeys.confirmed('tenant-1'))
+    expect(confirmedCall?.queryKey).toEqual(saleQueryKeys.confirmedPrefix('tenant-1'))
+  })
+
+  it('invalidates the new eligible-sales prefix (finding 2)', () => {
+    const deps = makeDeps()
+    handleAppendSuccess('tenant-1', 'route-42', deps)
+    expect(deps.invalidateEligibleSales).toHaveBeenCalledTimes(1)
+    const eligibleCall = vi.mocked(deps.invalidateEligibleSales).mock.calls[0]?.[0] as
+      | { queryKey?: readonly unknown[] }
+      | undefined
+    expect(eligibleCall?.queryKey).toEqual(eligibleSalesQueryKeys.listPrefix('tenant-1'))
   })
 
   it('fires the Spanish "Parada agregada" success toast', () => {

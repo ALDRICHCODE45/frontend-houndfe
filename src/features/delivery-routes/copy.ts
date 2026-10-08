@@ -74,6 +74,42 @@ export const DELIVERY_ROUTE_COPY = {
     noEligibleSales:
       'No hay ventas pendientes o enviadas disponibles para asignar.',
   },
+  // T3 S3 — create-route eligible-sales selector copy. Single source for the
+  // server-searched picker: labels, unavailable-row reasons, pagination and the
+  // inline create-conflict alert. `{folio}` / `{from}` / `{to}` / `{total}` are
+  // interpolated at render time by EligibleSalesPicker.vue.
+  eligibleSales: {
+    searchLabel: 'Buscar ventas',
+    searchPlaceholder: 'Cliente, folio o dirección',
+    empty: 'No hay ventas pendientes o enviadas',
+    noResults: 'No hay ventas que coincidan con la búsqueda',
+    loading: 'Cargando ventas elegibles…',
+    errorFallback: 'No se pudieron cargar las ventas elegibles. Reintenta.',
+    retry: 'Reintentar',
+    selectedHeading: 'Ventas seleccionadas',
+    remove: 'Quitar {folio}',
+    available: 'Disponible',
+    reasonOccupiedDraft: 'Reservada en un borrador de ruta',
+    reasonOccupiedActive: 'Ya pertenece a otra ruta activa',
+    reasonOccupied: 'Ya pertenece a otra ruta',
+    reasonInCurrentRoute: 'Ya está en esta ruta',
+    reasonMissingAddress: 'Sin dirección de envío',
+    reasonDeliveryStatus: 'Estado de entrega no permitido',
+    reasonUnavailable: 'No disponible',
+    paginationRange: 'Mostrando {from}–{to} de {total}',
+    previousPage: 'Página anterior',
+    nextPage: 'Página siguiente',
+    conflictTitle: 'Una o más ventas ya están en otra ruta',
+    conflictBody:
+      'No se creó la ruta. Revisa la disponibilidad y quita las ventas en conflicto; tu selección se mantiene.',
+    conflictRefresh: 'Actualizar disponibilidad',
+    conflictListLabel: 'Ventas en conflicto',
+    invalidSelection:
+      'Hay ventas seleccionadas que ya no están disponibles. Revísalas o actualiza la disponibilidad para continuar.',
+    noCustomer: 'Cliente sin nombre',
+    noAddress: 'Sin dirección registrada',
+    noFolio: 'Sin folio',
+  },
   confirm: {
     delete: {
       title: 'Eliminar ruta',

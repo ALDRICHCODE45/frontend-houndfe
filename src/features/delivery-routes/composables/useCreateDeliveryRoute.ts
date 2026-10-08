@@ -23,9 +23,11 @@ import { deliveryRouteQueryKeys } from '@/core/shared/constants/query-keys'
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
 import { DELIVERY_ROUTE_COPY } from '../copy'
 import { deliveryRoutesApi } from '../api/delivery-routes.api'
+import { eligibleSalesQueryKeys } from './useEligibleSales'
 import {
   DELIVERY_ROUTE_ERROR_MAP,
   extractDeliveryRouteErrorCode,
+  extractSaleConflictIds,
 } from '../interfaces/errors'
 import type { CreateDeliveryRouteRequest, DeliveryRouteResponseDto } from '../interfaces/delivery-route.types'
 
@@ -47,6 +49,13 @@ declare const useToast: () => {
 export interface CreateMutationDeps {
   /** Invalidate the per-tenant list prefix query so the next read is fresh. */
   invalidateList: () => void
+  /**
+   * Invalidate the eligible-sales availability slot. Called ONLY on a 409
+   * `DELIVERY_ROUTE_STOP_SALE_ALREADY_ON_ACTIVE_ROUTE` conflict so the picker
+   * refetches authoritative availability (occupied/ineligible reasons). Optional
+   * so pure handler tests can omit it.
+   */
+  invalidateEligibleSales?: () => void
   /** Fire a Spanish toast (success or error). */
   addToast: (toast: { title: string; description?: string; color: 'success' | 'error' }) => void
 }
@@ -69,6 +78,14 @@ export function handleCreateError(
   error: unknown,
   deps: CreateMutationDeps,
 ): void {
+  // 409 conflict: the backend rejected the whole operation and reported which
+  // sales are already on another route. Refetch the authoritative availability
+  // so the picker can disable/mark them — the caller preserves the user's form
+  // and selection (never silently removes sales).
+  if (extractSaleConflictIds(error) !== null) {
+    deps.invalidateEligibleSales?.()
+  }
+
   const code = extractDeliveryRouteErrorCode(error)
   if (code) {
     deps.addToast({ title: DELIVERY_ROUTE_ERROR_MAP[code], color: 'error' })
@@ -114,6 +131,11 @@ export function useCreateDeliveryRoute() {
     onError: (error: AxiosError) => {
       handleCreateError(error, {
         invalidateList: () => undefined,
+        invalidateEligibleSales: () => {
+          void queryClient.invalidateQueries({
+            queryKey: eligibleSalesQueryKeys.listPrefix(tenantId.value),
+          })
+        },
         addToast: (t) => toast.add(t),
       })
     },

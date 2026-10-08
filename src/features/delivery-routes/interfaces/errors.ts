@@ -58,6 +58,33 @@ export function extractDeliveryRouteErrorCode(
   return null
 }
 
+interface MaybeConflictError {
+  response?: { data?: { error?: unknown, conflictSaleIds?: unknown } }
+}
+
+/**
+ * extractSaleConflictIds — pure extractor for the 409 conflict payload.
+ *
+ * The backend emits the conflicting sale ids as a **FLAT** `conflictSaleIds:
+ * string[]` on `error.response.data` (never nested under `details`). An empty
+ * array is valid: the conflict is detected in a race, so the caller must still
+ * treat the request as conflicted (the boolean signal is the code, not the
+ * array length).
+ *
+ * Returns:
+ *   - `string[]` (possibly empty) when the error IS the active-route conflict,
+ *   - `null` for any other code / a missing envelope.
+ */
+export function extractSaleConflictIds(error: unknown): string[] | null {
+  const maybe = error as MaybeConflictError
+  const data = maybe?.response?.data
+  if (!data || data.error !== 'DELIVERY_ROUTE_STOP_SALE_ALREADY_ON_ACTIVE_ROUTE') {
+    return null
+  }
+  if (!Array.isArray(data.conflictSaleIds)) return []
+  return data.conflictSaleIds.filter((id): id is string => typeof id === 'string')
+}
+
 // ─── Surfacing channel (design §7.2) ────────────────────────────────────────
 
 /**

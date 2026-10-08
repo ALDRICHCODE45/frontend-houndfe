@@ -82,10 +82,16 @@ const textareaStub = {
 // AND a unique marker data attribute so `findComponent` callers can locate it.
 const eligibleSalesStub = defineComponent({
   name: 'EligibleSalesPicker',
-  props: { modelValue: { type: Array, default: () => [] }, error: { type: String, default: '' } },
-  emits: ['update:selected'],
+  props: {
+    modelValue: { type: Array, default: () => [] },
+    error: { type: String, default: '' },
+    conflictActive: { type: Boolean, default: false },
+    conflictSaleIds: { type: Array as () => string[], default: () => [] },
+    conflictAttempt: { type: Number, default: 0 },
+  },
+  emits: ['update:selected', 'update:validity', 'update:conflictActive'],
   template:
-    '<div data-testid="eligible-sales-picker" data-stub="eligible-sales-picker" :data-count="modelValue.length" :data-error="error"><span>{{ error }}</span></div>',
+    '<div data-testid="eligible-sales-picker" data-stub="eligible-sales-picker" :data-count="modelValue.length" :data-error="error" :data-conflict="String(conflictActive)" :data-conflict-ids="conflictSaleIds.join(\',\')" :data-conflict-attempt="String(conflictAttempt)"><span>{{ error }}</span></div>',
 })
 
 // ─── Driver picker stub ──────────────────────────────────────────────────────
@@ -407,5 +413,132 @@ describe('DeliveryRouteUpsertSlideover — payload shape (TRIANGULATE)', () => {
     const keys = Object.keys(lastPayload).sort()
     expect(keys.every((k) => ['driverUserId', 'notes'].includes(k))).toBe(true)
     expect(keys).not.toContain('saleIds')
+  })
+})
+
+// ─── T3 S2 — inline create conflict is forwarded to the picker ──────────────
+// The slideover OWNS the selection; on a 409 it must keep the form + selection
+// intact and forward the conflict to the picker so the alert + reasons render.
+describe('DeliveryRouteUpsertSlideover — inline create conflict (S2)', () => {
+  it('forwards the conflict state + ids to the picker', async () => {
+    const wrapper = mountSlideover({
+      mode: 'create',
+      createConflict: true,
+      conflictSaleIds: ['a1111111-1111-4111-8111-111111111111'],
+    })
+    await flushPromises()
+    const picker = wrapper.find('[data-testid="eligible-sales-picker"]')
+    expect(picker.attributes('data-conflict')).toBe('true')
+    expect(picker.attributes('data-conflict-ids')).toContain('a1111111-1111-4111-8111-111111111111')
+  })
+
+  it('forwards the monotonic conflictAttempt signal to the picker (fix 4)', async () => {
+    const wrapper = mountSlideover({
+      mode: 'create',
+      createConflict: true,
+      conflictSaleIds: ['a1111111-1111-4111-8111-111111111111'],
+      conflictAttempt: 3,
+    })
+    await flushPromises()
+    expect(
+      wrapper.find('[data-testid="eligible-sales-picker"]').attributes('data-conflict-attempt'),
+    ).toBe('3')
+  })
+
+  it('preserves the current selection when a conflict arrives', async () => {
+    const wrapper = mountSlideover({ mode: 'create' })
+    await flushPromises()
+    const vm = wrapper.vm as unknown as {
+      __testSelectedSaleIds: { value: string[] }
+    }
+    vm.__testSelectedSaleIds.value = ['a1111111-1111-4111-8111-111111111111']
+    await nextTick()
+
+    await wrapper.setProps({ createConflict: true, conflictSaleIds: ['a1111111-1111-4111-8111-111111111111'] })
+    await flushPromises()
+
+    const picker = wrapper.find('[data-testid="eligible-sales-picker"]')
+    // The selection is NOT silently removed by the conflict.
+    expect(picker.attributes('data-count')).toBe('1')
+    expect(vm.__testSelectedSaleIds.value).toEqual(['a1111111-1111-4111-8111-111111111111'])
+  })
+
+  it('renders no conflict state on a clean create form', async () => {
+    const wrapper = mountSlideover({ mode: 'create' })
+    await flushPromises()
+    const picker = wrapper.find('[data-testid="eligible-sales-picker"]')
+    expect(picker.attributes('data-conflict')).toBe('false')
+    expect(picker.attributes('data-conflict-ids')).toBe('')
+  })
+
+  it('forwards the picker conflict-cleared signal to update:createConflict', async () => {
+    const wrapper = mountSlideover({ mode: 'create', createConflict: true, conflictSaleIds: ['a1'] })
+    await flushPromises()
+    wrapper.findComponent(eligibleSalesStub).vm.$emit('update:conflictActive', false)
+    await nextTick()
+    expect(wrapper.emitted('update:createConflict')).toBeTruthy()
+    expect(wrapper.emitted('update:createConflict')![0]).toEqual([false])
+  })
+})
+
+// ─── Finding 3: block submit on a known-stale/invalid selection ─────────────
+describe('DeliveryRouteUpsertSlideover — invalid selection blocks create (finding 3)', () => {
+  const SALE = 'a1111111-1111-4111-8111-111111111111'
+  const DRIVER = 'b1111111-1111-4111-8111-111111111111'
+
+  async function primeValidForm(wrapper: ReturnType<typeof mountSlideover>) {
+    const vm = wrapper.vm as unknown as {
+      __testSelectedSaleIds: { value: string[] }
+      __testSelectedDriverUserId: { value: string | null }
+    }
+    vm.__testSelectedSaleIds.value = [SALE]
+    vm.__testSelectedDriverUserId.value = DRIVER
+    await nextTick()
+  }
+
+  it('blocks submission and shows actionable feedback while the picker reports an invalid selection', async () => {
+    const wrapper = mountSlideover({ mode: 'create' })
+    await flushPromises()
+    await primeValidForm(wrapper)
+    wrapper.findComponent(eligibleSalesStub).vm.$emit('update:validity', {
+      valid: false,
+      invalidSaleIds: [SALE],
+    })
+    await nextTick()
+
+    await wrapper.find('form#create-delivery-route-form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.emitted('create')).toBeFalsy()
+    expect(wrapper.text()).toMatch(/no están disponibles|actualiza la disponibilidad/i)
+    // Selection is preserved (never silently removed).
+    expect(
+      (wrapper.vm as unknown as { __testSelectedSaleIds: { value: string[] } })
+        .__testSelectedSaleIds.value,
+    ).toEqual([SALE])
+  })
+
+  it('allows submission once the picker reports the selection valid again', async () => {
+    const wrapper = mountSlideover({ mode: 'create' })
+    await flushPromises()
+    await primeValidForm(wrapper)
+    wrapper.findComponent(eligibleSalesStub).vm.$emit('update:validity', {
+      valid: false,
+      invalidSaleIds: [SALE],
+    })
+    await nextTick()
+    await wrapper.find('form#create-delivery-route-form').trigger('submit')
+    await flushPromises()
+    expect(wrapper.emitted('create')).toBeFalsy()
+
+    wrapper.findComponent(eligibleSalesStub).vm.$emit('update:validity', {
+      valid: true,
+      invalidSaleIds: [],
+    })
+    await nextTick()
+    await wrapper.find('form#create-delivery-route-form').trigger('submit')
+    await flushPromises()
+
+    expect(wrapper.emitted('create')).toBeTruthy()
   })
 })

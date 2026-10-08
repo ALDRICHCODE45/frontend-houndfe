@@ -37,6 +37,7 @@ import { useStartDeliveryRoute } from '../composables/useStartDeliveryRoute'
 import DeliveryRouteUpsertSlideover from '../components/DeliveryRouteUpsertSlideover.vue'
 import DriverRouteCard from '../components/DriverRouteCard.vue'
 import { DELIVERY_ROUTE_COPY } from '../copy'
+import { extractSaleConflictIds } from '../interfaces/errors'
 import {
   buildDeliveryRouteStartActions,
   type DeliveryRouteRowActionItem,
@@ -112,14 +113,42 @@ function onSelectRoute(routeId: string): void {
 const isCreateOpen = ref(false)
 const { mutateAsync: createRoute, isPending: createIsPending } = useCreateDeliveryRoute()
 
+// T3 S2 — inline create conflict. On a 409 the backend rejected the whole
+// operation and reported the conflicting sales (flat `conflictSaleIds`, possibly
+// empty on a race). We keep the slideover open + the selection untouched and
+// forward the conflict so the picker marks/disables the affected rows and the
+// mutation's `invalidateEligibleSales` refetches authoritative availability.
+const createConflict = ref(false)
+const createConflictSaleIds = ref<string[]>([])
+// Monotonically incremented on EVERY 409 so a repeated EMPTY-id conflict
+// reblocks the picker independent of the conflictSaleIds array identity.
+const createConflictAttempt = ref(0)
+
+function openCreate(): void {
+  createConflict.value = false
+  createConflictSaleIds.value = []
+  createConflictAttempt.value = 0
+  isCreateOpen.value = true
+}
+
 async function onCreate(payload: CreateDeliveryRouteRequest): Promise<void> {
   try {
     await createRoute(payload)
     // Close only on success — the mutation's onSuccess already fired the toast.
     isCreateOpen.value = false
-  } catch {
+    createConflict.value = false
+    createConflictSaleIds.value = []
+    createConflictAttempt.value = 0
+  } catch (error) {
     // Error already surfaced via the composable's onError toast; keep the
     // slideover open so the user can correct the input.
+    const conflictIds = extractSaleConflictIds(error)
+    if (conflictIds !== null) {
+      // Do NOT clear known conflict metadata before a successful reconciliation.
+      createConflict.value = true
+      createConflictSaleIds.value = conflictIds
+      createConflictAttempt.value += 1
+    }
   }
 }
 
@@ -291,8 +320,11 @@ function statusLabel(status: DeliveryRouteStatus) {
   <div v-else-if="isManager" class="flex flex-col gap-6 md:px-6 lg:px-10">
     <DeliveryRouteUpsertSlideover
       v-model:open="isCreateOpen"
+      v-model:create-conflict="createConflict"
       mode="create"
       :loading="createIsPending"
+      :conflict-sale-ids="createConflictSaleIds"
+      :conflict-attempt="createConflictAttempt"
       @create="onCreate"
     />
 
@@ -332,7 +364,7 @@ function statusLabel(status: DeliveryRouteStatus) {
       :page-size-options="pageSizeOptions"
       :show-add-button="canCreate"
       :add-button-text="DELIVERY_ROUTE_COPY.actions.create"
-      @add="isCreateOpen = true"
+      @add="openCreate"
       @refresh="refresh"
     >
       <template #id-cell="{ row }">

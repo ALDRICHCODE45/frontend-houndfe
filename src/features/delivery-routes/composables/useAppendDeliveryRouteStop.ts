@@ -27,6 +27,7 @@ import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { deliveryRouteQueryKeys, saleQueryKeys } from '@/core/shared/constants/query-keys'
 import { DELIVERY_ROUTE_COPY } from '../copy'
 import { deliveryRoutesApi } from '../api/delivery-routes.api'
+import { eligibleSalesQueryKeys } from './useEligibleSales'
 import {
   surfaceDeliveryRouteError,
   type DeliveryRouteErrorSurface,
@@ -55,13 +56,21 @@ export interface AppendMutationDeps extends DeliveryRouteErrorSurface {
   invalidateDetail: (args: { queryKey: readonly unknown[] }) => void
   /** Invalidate the per-tenant list prefix query. */
   invalidateList: (args: { queryKey: readonly unknown[] }) => void
-  /** Invalidate the confirmed-sales slot so the eligible picker refreshes. */
+  /** Invalidate the confirmed-sales prefix so the append picker refreshes. */
   invalidateConfirmedSales: (args: { queryKey: readonly unknown[] }) => void
+  /** Invalidate the eligible-sales prefix so a create picker refreshes too. */
+  invalidateEligibleSales: (args: { queryKey: readonly unknown[] }) => void
 }
 
 /**
- * PURE success handler — invalidates detail + listPrefix + confirmed-sales +
- * fires Spanish toast. Exported for direct unit testing.
+ * PURE success handler — invalidates detail + listPrefix + confirmed-sales
+ * prefix + eligible-sales prefix, then fires the Spanish toast.
+ *
+ * The confirmed-sales slot uses `confirmedPrefix` (NOT `confirmed(tenantId)`),
+ * because the shared picker keys its query with params (`confirmedPrefix`
+ * prefix-matches every page/search slot; `confirmed(tenantId)` has a trailing
+ * `{}` that would not). The new eligible-sales prefix is invalidated as well so
+ * any open create selector loses its now-stale availability.
  */
 export function handleAppendSuccess(
   tenantId: string,
@@ -70,7 +79,8 @@ export function handleAppendSuccess(
 ): void {
   deps.invalidateDetail({ queryKey: deliveryRouteQueryKeys.detail(tenantId, id) })
   deps.invalidateList({ queryKey: deliveryRouteQueryKeys.listPrefix(tenantId) })
-  deps.invalidateConfirmedSales({ queryKey: saleQueryKeys.confirmed(tenantId) })
+  deps.invalidateConfirmedSales({ queryKey: saleQueryKeys.confirmedPrefix(tenantId) })
+  deps.invalidateEligibleSales({ queryKey: eligibleSalesQueryKeys.listPrefix(tenantId) })
   deps.addToast({ title: DELIVERY_ROUTE_COPY.toasts.appendSuccess, color: 'success' })
 }
 
@@ -124,6 +134,9 @@ export function useAppendDeliveryRouteStop() {
         invalidateConfirmedSales: ({ queryKey }) => {
           void queryClient.invalidateQueries({ queryKey })
         },
+        invalidateEligibleSales: ({ queryKey }) => {
+          void queryClient.invalidateQueries({ queryKey })
+        },
         addToast: (t) => toast.add(t),
       })
     },
@@ -133,6 +146,7 @@ export function useAppendDeliveryRouteStop() {
         invalidateDetail: () => undefined,
         invalidateList: () => undefined,
         invalidateConfirmedSales: () => undefined,
+        invalidateEligibleSales: () => undefined,
         addToast: (t) => toast.add(t),
       })
     },

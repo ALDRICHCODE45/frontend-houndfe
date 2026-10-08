@@ -32,7 +32,6 @@
  *     (whitelist — never send an empty string).
  */
 import { computed, reactive, ref, watch } from 'vue'
-import type { FormSubmitEvent } from '@nuxt/ui'
 import { z } from 'zod'
 import EligibleSalesPicker from './EligibleSalesPicker.vue'
 import DriverPicker from './DriverPicker.vue'
@@ -54,17 +53,27 @@ const props = withDefaults(
     initialDriverUserId?: string | null
     /** Submit in-flight state — disables the submit button. */
     loading?: boolean
+    /** True when the last create attempt was rejected as a 409 sale conflict. */
+    createConflict?: boolean
+    /** Sale ids the backend reported as already on another route (409, flat). */
+    conflictSaleIds?: readonly string[]
+    /** Monotonic attempt signal re-emitted to the picker on every 409. */
+    conflictAttempt?: number
   }>(),
   {
     routeId: '',
     initialNotes: '',
     initialDriverUserId: null,
     loading: false,
+    createConflict: false,
+    conflictSaleIds: () => [],
+    conflictAttempt: 0,
   },
 )
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
+  'update:createConflict': [value: boolean]
   create: [payload: CreateDeliveryRouteRequest]
   edit: [payload: UpdateDeliveryRouteRequest]
 }>()
@@ -93,10 +102,15 @@ const salesError = ref<string | undefined>(undefined)
 const driverError = ref<string | undefined>(undefined)
 const notesError = ref<string | undefined>(undefined)
 
+// Validity of the picker's current selection. `false` means the selection holds
+// a known-stale (OCCUPIED/INELIGIBLE) or conflict sale id, so the create must be
+// blocked until the picker reports it valid again (ids removed or refreshed).
+const selectionValid = ref(true)
+
 // ─── Edit-mode prefill watcher ───────────────────────────────────────────────
 watch(
   () => [props.mode, props.routeId, props.open] as const,
-  ([mode, _routeId, isOpen]) => {
+  ([mode, , isOpen]) => {
     if (mode !== 'edit') return
     if (!isOpen) return
     formState.driverUserId = props.initialDriverUserId ?? null
@@ -118,12 +132,12 @@ watch(
     salesError.value = undefined
     driverError.value = undefined
     notesError.value = undefined
+    selectionValid.value = true
   },
   { immediate: true },
 )
 
 const isCreate = computed(() => props.mode === 'create')
-const isEdit = computed(() => props.mode === 'edit')
 
 const title = computed(() =>
   props.mode === 'create' ? 'Crear ruta de entrega' : 'Editar ruta de entrega',
@@ -152,6 +166,11 @@ function tryEmitCreate(payload: CreateDeliveryRouteRequest): boolean {
   const result = CreateDeliveryRouteSchema.safeParse(payload)
   if (!result.success) {
     applyZodErrors(result.error)
+    return false
+  }
+  // Known-stale / conflicting selection: block until the picker reports valid.
+  if (!selectionValid.value) {
+    salesError.value = DELIVERY_ROUTE_COPY.eligibleSales.invalidSelection
     return false
   }
   clearErrors()
@@ -205,7 +224,7 @@ function applyZodErrors(err: z.ZodError): void {
   }
 }
 
-function onSubmit(_event: FormSubmitEvent<unknown>): void {
+function onSubmit(): void {
   // Normalize notes (trim) before validation; preserve the user's typed value
   // for edit-mode null-on-clear semantics.
   const trimmedNotes = formState.notes.trim()
@@ -238,6 +257,16 @@ function handleClose() {
 function onSalesChange(next: string[]) {
   formState.saleIds = Array.isArray(next) ? [...next] : []
   if (formState.saleIds.length > 0 && salesError.value) {
+    salesError.value = undefined
+  }
+}
+
+function onValidityChange(payload: { valid: boolean, invalidSaleIds: string[] }): void {
+  selectionValid.value = payload.valid
+  if (
+    payload.valid &&
+    salesError.value === DELIVERY_ROUTE_COPY.eligibleSales.invalidSelection
+  ) {
     salesError.value = undefined
   }
 }
@@ -326,8 +355,13 @@ defineExpose({
                 :model-value="formState.saleIds"
                 :error="salesError"
                 :highlight="false"
+                :conflict-active="props.createConflict"
+                :conflict-sale-ids="props.conflictSaleIds"
+                :conflict-attempt="props.conflictAttempt"
                 @update:selected="onSalesChange"
                 @update:model-value="onSalesChange"
+                @update:validity="onValidityChange"
+                @update:conflictActive="(value: boolean) => emit('update:createConflict', value)"
           />
         </UFormField>
 

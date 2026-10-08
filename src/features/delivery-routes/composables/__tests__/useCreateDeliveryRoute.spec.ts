@@ -21,11 +21,13 @@ import {
   handleCreateError,
   type CreateMutationDeps,
 } from '../useCreateDeliveryRoute'
+import { extractSaleConflictIds } from '../../interfaces/errors'
 import { deliveryRouteQueryKeys } from '@/core/shared/constants/query-keys'
 
 function makeDeps(overrides: Partial<CreateMutationDeps> = {}): CreateMutationDeps {
   return {
     invalidateList: vi.fn(),
+    invalidateEligibleSales: vi.fn(),
     addToast: vi.fn(),
     ...overrides,
   }
@@ -165,5 +167,101 @@ describe('cache key contract (design §6.3)', () => {
       'tenant-1',
       'list',
     ])
+  })
+})
+
+// ─── T3 S2 — inline create conflict ──────────────────────────────────────────
+// The 409 payload carries a FLAT `conflictSaleIds: string[]` (empty allowed on
+// a race). The client must NOT invent nesting under `details`.
+describe('extractSaleConflictIds (409 flat conflictSaleIds)', () => {
+  it('returns the flat conflictSaleIds for the active-route conflict code', () => {
+    const error = {
+      response: {
+        status: 409,
+        data: {
+          error: 'DELIVERY_ROUTE_STOP_SALE_ALREADY_ON_ACTIVE_ROUTE',
+          message: 'conflict',
+          conflictSaleIds: ['sale-1', 'sale-2'],
+        },
+      },
+    }
+    expect(extractSaleConflictIds(error)).toEqual(['sale-1', 'sale-2'])
+  })
+
+  it('returns an empty array when the conflict carries no ids (race)', () => {
+    const error = {
+      response: {
+        status: 409,
+        data: {
+          error: 'DELIVERY_ROUTE_STOP_SALE_ALREADY_ON_ACTIVE_ROUTE',
+          message: 'conflict',
+          conflictSaleIds: [],
+        },
+      },
+    }
+    expect(extractSaleConflictIds(error)).toEqual([])
+  })
+
+  it('returns null for a different (non-conflict) domain code', () => {
+    const error = {
+      response: { status: 422, data: { error: 'DELIVERY_ROUTE_STOP_SALE_NOT_ELIGIBLE' } },
+    }
+    expect(extractSaleConflictIds(error)).toBeNull()
+  })
+
+  it('returns null for null/undefined and non-axios errors', () => {
+    expect(extractSaleConflictIds(null)).toBeNull()
+    expect(extractSaleConflictIds(undefined)).toBeNull()
+    expect(extractSaleConflictIds(new Error('boom'))).toBeNull()
+  })
+
+  it('filters out non-string entries defensively', () => {
+    const error = {
+      response: {
+        status: 409,
+        data: {
+          error: 'DELIVERY_ROUTE_STOP_SALE_ALREADY_ON_ACTIVE_ROUTE',
+          conflictSaleIds: ['sale-1', 42, null],
+        },
+      },
+    }
+    expect(extractSaleConflictIds(error)).toEqual(['sale-1'])
+  })
+})
+
+describe('handleCreateError — conflict refetches authoritative availability (T3 S2)', () => {
+  const conflictError = {
+    response: {
+      status: 409,
+      data: {
+        error: 'DELIVERY_ROUTE_STOP_SALE_ALREADY_ON_ACTIVE_ROUTE',
+        message: 'conflict',
+        conflictSaleIds: ['sale-1'],
+      },
+    },
+  }
+
+  it('invalidates the eligible-sales availability on a conflict', () => {
+    const deps = makeDeps()
+    handleCreateError(conflictError, deps)
+    expect(deps.invalidateEligibleSales).toHaveBeenCalledTimes(1)
+  })
+
+  it('still surfaces the domain conflict toast', () => {
+    const deps = makeDeps()
+    handleCreateError(conflictError, deps)
+    expect(deps.addToast).toHaveBeenCalledTimes(1)
+    const toast = vi.mocked(deps.addToast).mock.calls[0]?.[0] as { title: string; color: string }
+    expect(toast.color).toBe('error')
+    expect(toast.title).toMatch(/ruta activa/i)
+  })
+
+  it('does NOT invalidate eligible sales for a non-conflict error (TRIANGULATE)', () => {
+    const deps = makeDeps()
+    handleCreateError(
+      { response: { status: 422, data: { error: 'DELIVERY_ROUTE_STOP_SALE_NOT_ELIGIBLE' } } },
+      deps,
+    )
+    expect(deps.invalidateEligibleSales).not.toHaveBeenCalled()
   })
 })
