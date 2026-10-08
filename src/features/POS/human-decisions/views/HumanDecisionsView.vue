@@ -2,6 +2,7 @@
 import { computed, shallowRef } from 'vue'
 import type { HumanDecision } from '../interfaces/human-decision.types'
 import type { HumanDecisionResolutionInput } from '../utils/humanDecisionResolutionAttempt'
+import type { ExpirationDecisionResolutionInput } from '../utils/expirationResolutionAttempt'
 import HumanDecisionDetailSlideover from '../components/HumanDecisionDetailSlideover.vue'
 import HumanDecisionsListPanel from '../components/HumanDecisionsListPanel.vue'
 import { useHumanDecisionsInbox } from '../composables/useHumanDecisionsInbox'
@@ -29,8 +30,13 @@ const {
   resolving,
   resolutionErrorMessage,
   resolutionConflict,
+  expirationResolving,
+  expirationErrorMessage,
+  expirationConflict,
+  expirationRequiresReauthentication,
   openDetail,
   resolveDecision,
+  resolveExpirationDecision,
   retryDetail,
 } = useHumanDecisionsInbox()
 
@@ -49,8 +55,41 @@ function selectDetail(row: Pick<HumanDecision, 'id' | 'status'>) {
   openDetail(row.id)
 }
 
+const isExpirationDetail = computed(() => decision.value?.type === 'EXPIRATION')
+// One presentation channel, projected from the feedback of the displayed type only.
+const activeResolving = computed(() =>
+  isExpirationDetail.value ? expirationResolving.value : resolving.value,
+)
+const activeConflict = computed(() =>
+  isExpirationDetail.value ? expirationConflict.value : resolutionConflict.value,
+)
+const activeResolutionError = computed(() =>
+  isExpirationDetail.value ? expirationErrorMessage.value : resolutionErrorMessage.value,
+)
+const activeRequiresReauthentication = computed(
+  () => isExpirationDetail.value && expirationRequiresReauthentication.value,
+)
+
 function resolvePending(input: HumanDecisionResolutionInput) {
   if (canResolveSelection.value) return resolveDecision(input)
+}
+
+function resolveExpiration(detailId: string, input: ExpirationDecisionResolutionInput) {
+  const current = decision.value
+  if (
+    !detailOpen.value ||
+    detailId !== selection.value?.id ||
+    current?.id !== detailId ||
+    current.type !== 'EXPIRATION' ||
+    current.status !== 'PENDING' ||
+    !canResolveSelection.value ||
+    expirationResolving.value ||
+    expirationConflict.value ||
+    expirationRequiresReauthentication.value
+  ) {
+    return
+  }
+  return resolveExpirationDecision(input)
 }
 </script>
 
@@ -80,11 +119,13 @@ function resolvePending(input: HumanDecisionResolutionInput) {
       :loading="detailLoading"
       :error="detailError"
       :can-update="canResolveSelection"
-      :resolving="resolving"
-      :conflict="resolutionConflict"
-      :resolution-error-message="resolutionErrorMessage"
+      :resolving="activeResolving"
+      :conflict="activeConflict"
+      :resolution-error-message="activeResolutionError"
+      :requires-reauthentication="activeRequiresReauthentication"
       @retry="retryDetail"
       @resolve="resolvePending"
+      @resolve-expiration="resolveExpiration"
     />
   </section>
 </template>

@@ -22,12 +22,26 @@ const AppResponsiveDrawerStub = {
   template: `
     <section data-testid="drawer-stub">
       <h1>{{ title }}</h1>
+      <p>{{ description }}</p>
       <button data-testid="drawer-close" @click="$emit('update:open', false)">Cerrar</button>
       <slot name="body" />
     </section>
   `,
 }
-const UButtonStub = { template: '<button type="button"><slot /></button>' }
+const UButtonStub = {
+  props: ['disabled', 'loading'],
+  template: '<button type="button" :disabled="disabled || loading"><slot /></button>',
+}
+const UTextareaStub = {
+  props: ['modelValue'],
+  emits: ['update:modelValue'],
+  template: `<textarea :value="modelValue" @input="$emit('update:modelValue', $event.target.value)"></textarea>`,
+}
+const ConfirmModalStub = {
+  props: ['open', 'title', 'description', 'loading'],
+  emits: ['confirm', 'update:open'],
+  template: `<div v-if="open" role="dialog"><button data-testid="confirm-expiration" :disabled="loading" @click="$emit('confirm')">Confirmar</button></div>`,
+}
 const ResolutionControlsStub = {
   name: 'HumanDecisionResolutionControls',
   emits: ['resolve'],
@@ -83,6 +97,7 @@ function mountDetail(
     error?: boolean
     canUpdate?: boolean
     conflict?: boolean
+    requiresReauthentication?: boolean
     resolutionErrorMessage?: string
     onOpen?: (value: boolean) => void
     onResolve?: (input: HumanDecisionResolutionInput) => void
@@ -97,6 +112,7 @@ function mountDetail(
       errorMessage: 'No se pudo cargar el detalle.',
       canUpdate: options.canUpdate,
       conflict: options.conflict,
+      requiresReauthentication: options.requiresReauthentication,
       resolutionErrorMessage: options.resolutionErrorMessage,
       'onUpdate:open': options.onOpen,
       onResolve: options.onResolve,
@@ -105,6 +121,8 @@ function mountDetail(
       stubs: {
         AppResponsiveDrawer: AppResponsiveDrawerStub,
         UButton: UButtonStub,
+        UTextarea: UTextareaStub,
+        ConfirmModal: ConfirmModalStub,
         HumanDecisionResolutionControls: ResolutionControlsStub,
       },
     },
@@ -235,5 +253,41 @@ describe('HumanDecisionDetailSlideover', () => {
     const negative = mountDetail(resolvedExpiration(unavailableExpiration))
     expect(negative.text()).toContain(EXPIRATION_UNAVAILABLE_LABEL)
     expect(negative.text()).not.toContain('días naturales')
+  })
+
+  it('routes the exact EXPIRATION input with its origin detail id through the real control', async () => {
+    const wrapper = mountDetail(pendingExpiration, { canUpdate: true })
+    expect(wrapper.find('[data-testid="stub-resolution"]').exists()).toBe(false)
+    await wrapper.get('[data-testid="report-expiration-unavailable"]').trigger('click')
+    await wrapper.get('[data-testid="confirm-expiration"]').trigger('click')
+    expect(wrapper.emitted('resolveExpiration')).toEqual([
+      ['exp-1', { action: 'REPORT_EXPIRATION_UNAVAILABLE', expectedVersion: 1 }],
+    ])
+    expect(wrapper.emitted('resolve')).toBeUndefined()
+  })
+
+  it('keeps the EXPIRATION controls read-only without permission and on conflict', () => {
+    const readOnly = mountDetail(pendingExpiration, { canUpdate: false })
+    expect(readOnly.text()).toContain('Solo lectura')
+    expect(readOnly.find('[data-testid="provide-expiration-text"]').exists()).toBe(false)
+
+    const conflicted = mountDetail(pendingExpiration, { canUpdate: true, conflict: true })
+    expect(conflicted.get('[role="alert"]').text()).toContain('ya fue atendida')
+    expect(conflicted.find('[data-testid="report-expiration-unavailable"]').exists()).toBe(false)
+    expect(conflicted.emitted('resolveExpiration')).toBeUndefined()
+  })
+
+  it('suppresses EXPIRATION actions for the expired session and shows only that alert', () => {
+    const wrapper = mountDetail(pendingExpiration, {
+      canUpdate: true,
+      requiresReauthentication: true,
+      resolutionErrorMessage:
+        'Tu sesión expiró. Inicia sesión de nuevo para registrar la respuesta.',
+    })
+    expect(wrapper.get('[role="alert"]').text()).toContain('sesión expiró')
+    expect(wrapper.find('[data-testid="report-expiration-unavailable"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="provide-expiration-text"]').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Solo lectura')
+    expect(wrapper.emitted('resolveExpiration')).toBeUndefined()
   })
 })

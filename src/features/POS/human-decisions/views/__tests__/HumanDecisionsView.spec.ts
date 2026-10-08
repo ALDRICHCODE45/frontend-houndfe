@@ -2,9 +2,16 @@ import { mount } from '@vue/test-utils'
 import { ref } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
+  HumanDecision,
   HumanDecisionListFilter,
   PendingHumanDecision,
 } from '../../interfaces/human-decision.types'
+import type { ExpirationDecisionResolutionInput } from '../../utils/expirationResolutionAttempt'
+import {
+  pendingExpiration,
+  resolvedExpiration,
+  unavailableExpiration,
+} from '../../interfaces/__tests__/expirationDecision.fixture'
 import { useHumanDecisionsInbox } from '../../composables/useHumanDecisionsInbox'
 import HumanDecisionsView from '../HumanDecisionsView.vue'
 
@@ -34,6 +41,7 @@ const decision: PendingHumanDecision = {
 }
 const openDetail = vi.fn()
 const resolveDecision = vi.fn()
+const resolveExpirationDecision = vi.fn()
 const retryDetail = vi.fn()
 const refresh = vi.fn()
 const statusFilter = ref<HumanDecisionListFilter>('ALL')
@@ -58,7 +66,7 @@ const inbox = {
     setStatusFilter,
   },
   detail: {
-    data: ref<PendingHumanDecision | null>(decision),
+    data: ref<HumanDecision | null>(decision),
     isLoading: ref(false),
     isError: ref(false),
   },
@@ -68,8 +76,13 @@ const inbox = {
   resolutionErrorMessage: ref<string | null>(null),
   resolutionConflict: ref(false),
   resolutionSucceeded: ref(false),
+  expirationResolving: ref(false),
+  expirationErrorMessage: ref<string | null>(null),
+  expirationConflict: ref(false),
+  expirationRequiresReauthentication: ref(false),
   openDetail,
   resolveDecision,
+  resolveExpirationDecision,
   retryDetail,
 }
 const ListStub = {
@@ -88,12 +101,18 @@ const DetailStub = {
     'canUpdate',
     'resolving',
     'conflict',
+    'requiresReauthentication',
     'resolutionErrorMessage',
   ],
-  emits: ['retry', 'resolve', 'update:open'],
+  emits: ['retry', 'resolve', 'resolveExpiration', 'update:open'],
   template: '<section />',
 }
 const input = { action: 'REPORT_RESTOCK_ESTIMATE_UNAVAILABLE', expectedVersion: 1 } as const
+const expirationInput: ExpirationDecisionResolutionInput = {
+  action: 'REPORT_EXPIRATION_UNAVAILABLE',
+  expectedVersion: 1,
+}
+const secondExpiration = { ...pendingExpiration, id: 'exp-2' }
 function mountView() {
   return mount(HumanDecisionsView, {
     global: {
@@ -102,12 +121,27 @@ function mountView() {
   })
 }
 
+async function selectDetail(wrapper: ReturnType<typeof mountView>, row: HumanDecision = decision) {
+  inbox.detail.data.value = row
+  wrapper.getComponent(ListStub).vm.$emit('openDetail', { id: row.id, status: 'PENDING' })
+  inbox.detailOpen.value = true
+  await wrapper.vm.$nextTick()
+  return wrapper.getComponent(DetailStub)
+}
+
 describe('HumanDecisionsView unified selection', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     inbox.resolutionErrorMessage.value = null
     inbox.resolutionConflict.value = false
+    inbox.resolving.value = false
     inbox.canUpdate.value = true
+    inbox.detail.data.value = decision
+    inbox.detailOpen.value = false
+    inbox.expirationResolving.value = false
+    inbox.expirationErrorMessage.value = null
+    inbox.expirationConflict.value = false
+    inbox.expirationRequiresReauthentication.value = false
     inbox.list.data.value = [decision]
     statusFilter.value = 'ALL'
     vi.mocked(useHumanDecisionsInbox).mockReturnValue(inbox as never)
@@ -185,5 +219,83 @@ describe('HumanDecisionsView unified selection', () => {
     })
     detail.vm.$emit('retry')
     expect(retryDetail).toHaveBeenCalledOnce()
+  })
+
+  it('activates a pending EXPIRATION decision with the exact routed input', async () => {
+    const wrapper = mountView()
+    const detail = await selectDetail(wrapper, pendingExpiration)
+    expect(detail.props()).toMatchObject({ decision: pendingExpiration, canUpdate: true })
+    detail.vm.$emit('resolveExpiration', pendingExpiration.id, expirationInput)
+    await wrapper.vm.$nextTick()
+    expect(resolveExpirationDecision).toHaveBeenCalledExactlyOnceWith(expirationInput)
+  })
+
+  it('rejects an old-origin EXPIRATION event when version and action still match', async () => {
+    const wrapper = mountView()
+    const detail = await selectDetail(wrapper, pendingExpiration)
+    await selectDetail(wrapper, secondExpiration)
+    expect(detail.props('decision')).toMatchObject({ id: 'exp-2', version: 1 })
+    detail.vm.$emit('resolveExpiration', pendingExpiration.id, expirationInput)
+    await wrapper.vm.$nextTick()
+    expect(resolveExpirationDecision).not.toHaveBeenCalled()
+    detail.vm.$emit('resolveExpiration', secondExpiration.id, expirationInput)
+    await wrapper.vm.$nextTick()
+    expect(resolveExpirationDecision).toHaveBeenCalledExactlyOnceWith(expirationInput)
+  })
+
+  it('projects resolving, conflict and error feedback per selected decision type', async () => {
+    const wrapper = mountView()
+    const detail = await selectDetail(wrapper)
+    inbox.resolving.value = true
+    inbox.resolutionConflict.value = true
+    inbox.resolutionErrorMessage.value = 'restock-error'
+    inbox.expirationResolving.value = true
+    inbox.expirationConflict.value = true
+    inbox.expirationErrorMessage.value = 'expiration-error'
+    inbox.expirationRequiresReauthentication.value = true
+    await wrapper.vm.$nextTick()
+    expect(detail.props()).toMatchObject({
+      resolving: true,
+      conflict: true,
+      resolutionErrorMessage: 'restock-error',
+      requiresReauthentication: false,
+    })
+    await selectDetail(wrapper, pendingExpiration)
+    expect(detail.props()).toMatchObject({
+      resolving: true,
+      conflict: true,
+      resolutionErrorMessage: 'expiration-error',
+      requiresReauthentication: true,
+    })
+  })
+
+  it.each([
+    ['a closed detail', () => (inbox.detailOpen.value = false)],
+    ['missing update permission', () => (inbox.canUpdate.value = false)],
+    ['an in-flight resolution', () => (inbox.expirationResolving.value = true)],
+    ['a conflict', () => (inbox.expirationConflict.value = true)],
+    ['a required reauthentication', () => (inbox.expirationRequiresReauthentication.value = true)],
+  ])('denies EXPIRATION dispatch with %s', async (_label, mutate) => {
+    const wrapper = mountView()
+    await selectDetail(wrapper, pendingExpiration)
+    mutate()
+    await wrapper.vm.$nextTick()
+    wrapper
+      .getComponent(DetailStub)
+      .vm.$emit('resolveExpiration', pendingExpiration.id, expirationInput)
+    await wrapper.vm.$nextTick()
+    expect(resolveExpirationDecision).not.toHaveBeenCalled()
+  })
+
+  it('denies EXPIRATION dispatch for resolved and non-EXPIRATION details', async () => {
+    const wrapper = mountView()
+    const detail = await selectDetail(wrapper, resolvedExpiration(unavailableExpiration))
+    detail.vm.$emit('resolveExpiration', 'exp-1', expirationInput)
+    await wrapper.vm.$nextTick()
+    expect(resolveExpirationDecision).not.toHaveBeenCalled()
+    await selectDetail(wrapper, decision)
+    detail.vm.$emit('resolveExpiration', decision.id, expirationInput)
+    await wrapper.vm.$nextTick()
+    expect(resolveExpirationDecision).not.toHaveBeenCalled()
   })
 })

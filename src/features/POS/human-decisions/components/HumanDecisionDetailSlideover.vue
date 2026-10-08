@@ -3,7 +3,9 @@ import { computed } from 'vue'
 import AppResponsiveDrawer from '@/core/shared/components/AppResponsiveDrawer.vue'
 import type { HumanDecision } from '../interfaces/human-decision.types'
 import type { HumanDecisionResolutionInput } from '../utils/humanDecisionResolutionAttempt'
+import type { ExpirationDecisionResolutionInput } from '../utils/expirationResolutionAttempt'
 import HumanDecisionResolutionControls from './HumanDecisionResolutionControls.vue'
+import ExpirationDecisionResolutionControls from './ExpirationDecisionResolutionControls.vue'
 import {
   branchPresentationLabel,
   createdAtPresentationLabel,
@@ -21,6 +23,7 @@ const props = withDefaults(
     canUpdate?: boolean
     resolving?: boolean
     conflict?: boolean
+    requiresReauthentication?: boolean
     resolutionErrorMessage?: string | null
   }>(),
   {
@@ -30,12 +33,14 @@ const props = withDefaults(
     canUpdate: false,
     resolving: false,
     conflict: false,
+    requiresReauthentication: false,
     resolutionErrorMessage: null,
   },
 )
 const emit = defineEmits<{
   retry: []
   resolve: [input: HumanDecisionResolutionInput]
+  resolveExpiration: [detailId: string, input: ExpirationDecisionResolutionInput]
 }>()
 const open = defineModel<boolean>('open', { default: false })
 const drawerTitle = computed(() => props.decision?.title ?? 'Detalle de decisión')
@@ -187,9 +192,14 @@ function unitsLabel(value: number | null): string {
             :conflict="conflict"
             @resolve="emit('resolve', $event)"
           />
-          <p v-else-if="decision.type === 'EXPIRATION'" role="status" class="text-sm text-muted">
-            Aún no puedes responder solicitudes de vencimiento desde aquí.
-          </p>
+          <ExpirationDecisionResolutionControls
+            v-else-if="decision.type === 'EXPIRATION' && !requiresReauthentication"
+            :decision="decision"
+            :can-update="canUpdate"
+            :resolving="resolving"
+            :conflict="conflict"
+            @resolve="emit('resolveExpiration', decision.id, $event)"
+          />
         </template>
       </article>
     </template>
