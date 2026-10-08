@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { computed, ref } from 'vue'
+import { computed, defineComponent, h, ref } from 'vue'
+import UApp from '@nuxt/ui/runtime/components/App.vue'
+import { es } from '@nuxt/ui/locale'
 import PaymentModal from '../PaymentModal.vue'
 import type { ActivePaymentMethodProjection, ChargeSalePayload } from '../../interfaces/sale.types'
 
@@ -147,6 +149,79 @@ const SHIPPING_ADDRESS_FIXTURE = {
   createdAt: '2026-01-01T00:00:00.000Z',
   updatedAt: '2026-01-01T00:00:00.000Z',
 }
+
+describe('PaymentModal received amounts', () => {
+  beforeEach(() => {
+    projectionData.value = []
+  })
+
+  it.each(['cash', 'card_credit', 'card_debit', 'transfer', 'custom'])(
+    'prefills %s with the sale total and submits the exact cents',
+    async (method) => {
+      const customId = '11111111-1111-4111-8111-111111111111'
+      projectionData.value = [
+        { id: customId, name: 'Mercado Pago', category: 'transfer', subtitle: null },
+      ]
+      const wrapper = mount(PaymentModal, {
+        props: { open: true, totalCents: 45050, saleId: 'sale-1' },
+        global: { stubs },
+      })
+      try {
+        const selector =
+          method === 'custom'
+            ? `[data-testid="payment-method-tile-custom-${customId}"]`
+            : `[data-method="${method}"]`
+        await wrapper.get(selector).trigger('click')
+        expect(
+          (wrapper.get('[data-testid="payment-amount-0"]').element as HTMLInputElement).value,
+        ).toBe('450.5')
+        await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+        const event = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent
+        expect(event.payload).toEqual({
+          method: method === 'custom' ? 'transfer' : method,
+          amountCents: 45050,
+          ...(method === 'custom' ? { paymentMethodId: customId } : {}),
+        })
+      } finally {
+        wrapper.unmount()
+      }
+    },
+  )
+
+  it.each(['cash', 'card_credit', 'card_debit', 'transfer'])(
+    'parses a typed decimal with the real %s number input under Spanish app locale',
+    async (method) => {
+      const Host = defineComponent({
+        setup: () => () =>
+          h(
+            UApp,
+            { locale: es },
+            {
+              default: () => h(PaymentModal, { open: true, totalCents: 4550, saleId: 'sale-1' }),
+            },
+          ),
+      })
+      const host = mount(Host, {
+        attachTo: document.body,
+        global: { stubs: { ...stubs, UInputNumber: false, InputNumber: false } },
+      })
+      try {
+        const wrapper = host.findComponent(PaymentModal)
+        await wrapper.get(`[data-method="${method}"]`).trigger('click')
+        const input = wrapper.get('input[role="spinbutton"]')
+        await input.setValue('45.5')
+        await input.trigger('blur')
+        expect((input.element as HTMLInputElement).value).toContain('45.50')
+        expect(wrapper.text()).toContain('Recibido: $45.50')
+        await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+        const event = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent
+        expect(event.payload).toEqual({ method, amountCents: 4550 })
+      } finally {
+        host.unmount()
+      }
+    },
+  )
+})
 
 describe('PaymentModal', () => {
   it('opens with empty payments list (no method preselected)', () => {

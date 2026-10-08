@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { es } from '@nuxt/ui/locale'
 import type {
   ChargeSalePayload,
   LegacyChargePayload,
@@ -77,6 +78,8 @@ const CARD_METHODS: NonCreditPaymentMethod[] = [
   PAYMENT_METHOD.TRANSFER,
 ]
 const MAX_ENTRIES = 5
+// InputNumber reads Reka's provider locale, not an input-level locale attribute.
+const paymentAmountLocale = { ...es, code: 'es-MX' }
 
 const entries = ref<PaymentEntryForm[]>([])
 const inlineError = ref<string | null>(null)
@@ -197,7 +200,7 @@ const entryDisplays = computed<EntryDisplay[]>(() =>
 function createDefaultEntry(tile: PaymentMethodTile): PaymentEntryForm {
   const entry: PaymentEntryForm = {
     method: tile.value,
-    amountPesos: tile.value === PAYMENT_METHOD.CASH ? props.totalCents / 100 : 0,
+    amountPesos: props.totalCents / 100,
     reference: '',
   }
 
@@ -589,23 +592,25 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
               </div>
 
               <UFormField label="Monto recibido">
-                <UInputNumber
-                  :data-testid="`payment-amount-${index}`"
-                  v-model="entry.amountPesos"
-                  :min="0"
-                  :step="1"
-                  :disabled="isSubmitting"
-                  :format-options="{
-                    style: 'currency',
-                    currency: 'MXN',
-                    currencyDisplay: 'narrowSymbol',
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  }"
-                  color="warning"
-                  variant="outline"
-                  class="w-full"
-                />
+                <UApp :locale="paymentAmountLocale" :toaster="null">
+                  <UInputNumber
+                    :data-testid="`payment-amount-${index}`"
+                    v-model="entry.amountPesos"
+                    :min="0"
+                    :step="0.01"
+                    :disabled="isSubmitting"
+                    :format-options="{
+                      style: 'currency',
+                      currency: 'MXN',
+                      currencyDisplay: 'narrowSymbol',
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    }"
+                    color="warning"
+                    variant="outline"
+                    class="w-full"
+                  />
+                </UApp>
               </UFormField>
 
               <UFormField v-if="entryNeedsReference(entry.method)" label="Referencia (opcional)">
