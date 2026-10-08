@@ -11,10 +11,12 @@ Integrate existing EXPIRATION commits and pending activation into the primary fr
 ## Tasks
 
 - T1 [done] (S1–S3): integrated all15 committed units and recovered only four activation files and their document; route: parent; commit: 0638832.
-- T2 [done] (S1): own checks and independent verifier passed; route: parent checks plus independent verifier; commit: activation unit below.
-- T3 [in_progress] (S1,S2): retain existing commit history, commit activation and fast-forward primary main to the verified integration branch; route: parent; commit: pending.
+- T2 [done] (S1): own checks and independent verifier passed; route: parent checks plus independent verifier; commit: d72778a9.
+- T3 [done] (S1–S3): retained history, committed activation and fast-forwarded primary main; route: parent; commits: 06388328 (integration), d72778a9 (activation).
 
 ## Log
+
+L10 — Primary main fast-forwarded to d72778a9 after independent PASS. Native committed activation assessment: medium, reviewDuefalse; required independent verification already passed. Tracked worktree/index clean after merge; only pre-existing .worktrees/ untracked. Original stash preserved. User owns push. Manual visual/live backend testing remains unperformed; no deployment or backend changes made.
 
 L9 — Independent verifier muzptwlm-6-vkk6 PASS integrationS1–S3 and activationS1/S2/S4; automated activationS3 passed, manual visual/live backend unperformed. Probes198auth/8files and363focused/21files passed. Checkout/delivery preserved, four activation hashes exact to stash. Generated declarations restored after verifier completed. LSP provenance advisory remains. Native assessment medium/reviewDuefalse; no new review required for this activation candidate.
 
