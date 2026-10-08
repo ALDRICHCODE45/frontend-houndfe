@@ -9,11 +9,13 @@ Integrate only delivery-route changes into local main in the primary worktrees. 
 
 ## Tasks
 
-- T1 [done] (S1,S2): isolate delivery-only candidate from main and coordinate backend owner; route: parent; commit: pending.
-- T2 [in_progress] (S1,S2): test and independently verify main-based frontend candidate; route: parent checks plus verifier; commit: pending.
-- T3 [pending] (S1,S2): commit delivery unit and integrate local main in primary worktree, preserving excluded work; route: parent Git integration/backend coordination; commit: pending.
+- T1 [done] (S1,S2): isolate delivery-only candidate from main and coordinate backend owner; route: parent; commit: 75cc9d61.
+- T2 [done with recorded suite timeout] (S1,S2): test and independently verify main-based frontend candidate; route: parent checks plus verifier; commits: 75cc9d61, d44ea65a, 3d6bb9c9. See L12-L15 for verification limits.
+- T3 [done] (S1,S2): commit delivery units and integrate local main in primary worktree, preserving excluded work; route: parent Git integration/backend coordination; commits: 75cc9d61, d44ea65a, 3d6bb9c9; primary main fast-forward confirmed.
 
 ## Log
+
+L15 — Primary frontend switched to main and fast-forwarded from1bad8877 to3d6bb9c9 (selector75cc9d61, transferd44ea65a, browser/docs3d6bb9c9). Final review-7db6e4706e2b659f approved/acknowledged; informational browser advisories R3-001/002/003 remain separate follow-ups. Before switching, all36 pending tracked/untracked files outside .worktrees were preserved byte-for-byte and verified in stash3e051befb2bb699ac189600ffb596034cee3cd34; original feat/expiration-human-decisions remains40e46a732bc7497625a787ad531d58f59768078f. Do not apply the whole stash to main: it includes EXPIRATION and original delivery copies. No push/deploy/DB. Frontend runtime source and browser specs match the tested final snapshot. Full suite had7967PASS/1timeout; that product file passed2/2 isolated; no wholly green full-suite rerun claimed. Build/types and five mocked browser cases PASS. Real frontend/backend browser integration and production deployment remain untested/out of scope.
 
 L14 — Final browser acceptance5/5 PASS (desktop/mobile selection, flat409 recovery, desktop/mobile transfer) and responsive tsc PASS. Runtime APIs are mocked, not real backend integration. Generated declarations restored; source and both browser files exactly match a585a3. Final evidence slice assessment medium, reviewDue=true (slice budget), writer self-verification sufficient.
 
