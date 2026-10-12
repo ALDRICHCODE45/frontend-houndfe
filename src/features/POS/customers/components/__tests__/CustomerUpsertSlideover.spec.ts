@@ -473,3 +473,130 @@ describe('CustomerUpsertSlideover', () => {
     })
   })
 })
+
+// ── Clients overlays visual migration (S1-S3) ──────────────────────────────
+// These stubs expose the native `ui` slot object passed to the Nuxt UI shells
+// so the theme marker is asserted as a public prop, not as source substrings.
+describe('CustomerUpsertSlideover — Clients overlay presentation contract', () => {
+  const themedSlideover = {
+    props: ['ui', 'title', 'description'],
+    template:
+      '<div :data-ui-content="ui && ui.content"><slot name="body" /><slot name="footer" /></div>',
+  }
+  const themedTabs = {
+    props: ['modelValue', 'items'],
+    template:
+      '<div><slot name="content" v-bind="{ item: { value: \'basic\' } }" /><slot name="content" v-bind="{ item: { value: \'billing\' } }" /></div>',
+  }
+  const themedSelect = {
+    props: ['ui', 'modelValue', 'items'],
+    template:
+      '<select :data-ui-content="ui && ui.content"><option v-for="(item, index) in (items || [])" :key="index">{{ item && item.label !== undefined ? item.label : item }}</option></select>',
+  }
+  // Nuxt UI auto-imports register the primitives under both the `U*` and the
+  // unprefixed resolver name, so the stub override must cover both keys.
+  const themeStubs = {
+    ...editorStubs,
+    USlideover: themedSlideover,
+    Slideover: themedSlideover,
+    UTabs: themedTabs,
+    Tabs: themedTabs,
+    USelect: themedSelect,
+    Select: themedSelect,
+  }
+
+  function mountCreate() {
+    return mount(CustomerUpsertSlideover, {
+      props: { mode: 'create', open: true },
+      global: { stubs: themeStubs },
+    })
+  }
+
+  it('marks the slideover portal root with the approved Clients form theme', () => {
+    const wrapper = mountCreate()
+    try {
+      const shell = wrapper.find('[data-ui-content]')
+      expect(shell.exists(), wrapper.html()).toBe(true)
+      expect(shell.attributes('data-ui-content')).toBe(
+        'hf-theme hf-ui hf-form-overlay clients-form-portal',
+      )
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('repeats the select popup theme on every teleported select', async () => {
+    const wrapper = mountCreate()
+    try {
+      const vm = wrapper.vm as unknown as {
+        state: { assignPriceList: boolean; showBillingAddress: boolean }
+      }
+      vm.state.assignPriceList = true
+      vm.state.showBillingAddress = true
+      await nextTick()
+      const selects = wrapper.findAll('select')
+      // Country code + price list (basic) and fiscal regime + billing state (billing).
+      expect(selects).toHaveLength(4)
+      for (const select of selects) {
+        expect(select.attributes('data-ui-content')).toBe('hf-theme hf-ui clients-form-portal')
+        // The overlay-shell marker must not leak onto select popups.
+        expect(select.attributes('data-ui-content')).not.toContain('hf-form-overlay')
+      }
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('adds the clients-form-section hook to both existing grouped panels', () => {
+    const wrapper = mountCreate()
+    try {
+      expect(wrapper.findAll('.clients-form-section')).toHaveLength(2)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('adds the clients-form-link hook to the billing address toggle', () => {
+    const wrapper = mountCreate()
+    try {
+      const links = wrapper.findAll('button.clients-form-link')
+      expect(links).toHaveLength(1)
+      expect(links[0]!.text()).toContain('dirección de facturación')
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('swaps the forced gold primary submit for the shared primary control hook', () => {
+    const wrapper = mountCreate()
+    try {
+      const submit = wrapper.findAll('button').find((button) => button.text().includes('Crear cliente'))
+      expect(submit, wrapper.html()).toBeTruthy()
+      const classes = submit!.attributes('class') ?? ''
+      expect(classes).toContain('hf-primary-control')
+      expect(classes).not.toContain('brand-action')
+      expect(classes).not.toContain('text-black')
+      expect(submit!.attributes('type')).toBe('submit')
+      expect(submit!.attributes('form')).toBe('create-customer-form')
+    } finally {
+      wrapper.unmount()
+    }
+  })
+
+  it('stacks the two-column field rows at narrow widths without adding fields', async () => {
+    const wrapper = mountCreate()
+    try {
+      const vm = wrapper.vm as unknown as { state: { showBillingAddress: boolean } }
+      vm.state.showBillingAddress = true
+      await nextTick()
+      const stacked = wrapper.findAll('.grid-cols-1')
+      expect(stacked).toHaveLength(4)
+      for (const grid of stacked) {
+        expect(grid.classes()).toContain('sm:grid-cols-2')
+      }
+      expect(wrapper.findAll('.grid-cols-2')).toHaveLength(0)
+    } finally {
+      wrapper.unmount()
+    }
+  })
+})

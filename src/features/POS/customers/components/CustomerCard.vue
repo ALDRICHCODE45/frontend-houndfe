@@ -23,6 +23,7 @@ const props = defineProps<{
   canUpdate?: boolean
   canDelete?: boolean
   canReadSales?: boolean
+  portalClass?: string
 }>()
 
 const emit = defineEmits<{
@@ -57,7 +58,7 @@ function handleViewHistory(): void {
 
 <template>
   <article
-    class="group relative flex w-full min-w-0 max-w-full cursor-pointer flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+    class="clients-card group relative flex w-full min-w-0 max-w-full cursor-pointer flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
     @click="emit('click', customer)"
   >
     <!-- Top-right kebab (gated by canManage) -->
@@ -76,6 +77,7 @@ function handleViewHistory(): void {
             : []),
         ]"
         :content="{ align: 'end' }"
+        :ui="portalClass ? { content: portalClass } : undefined"
       >
         <UButton
           icon="i-lucide-ellipsis-vertical"
@@ -108,7 +110,7 @@ function handleViewHistory(): void {
         <AppBadge
           v-if="customer.globalPriceListName"
           tone="neutral"
-          class="min-w-0 max-w-full"
+          class="clients-badge min-w-0 max-w-full"
         >
           <span class="block max-w-full truncate">{{ customer.globalPriceListName }}</span>
         </AppBadge>

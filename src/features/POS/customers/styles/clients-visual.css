@@ -1,0 +1,200 @@
+@import '../../../../core/shared/design-system/houndfe-ui.css';
+
+/* Clients listing and form overlays. Sales history and global toasts stay
+ * outside this boundary. Repeat the approved shell palette on owned list and
+ * form portals, which cannot inherit shell variables after teleport. Keep the
+ * foundation's field-border contrast. This local bridge does not change the
+ * shared shell or Products contracts. */
+.hf-theme.clients-visual,
+.hf-theme.clients-list-portal,
+.hf-theme.clients-form-portal {
+  --hf-page: #f3f6fa;
+  --hf-surface: #ffffff;
+  --hf-surface-muted: #eaf0f8;
+  --hf-field: #f3f6fa;
+  --hf-ink: #1e3555;
+  --hf-heading: #1e3555;
+  --hf-muted: #63748b;
+  --hf-border: #dce3ed;
+  --hf-action: #315ce7;
+  --hf-on-action: #ffffff;
+  --hf-active: #315ce7;
+  --hf-active-soft: #e9effd;
+  --hf-focus: #315ce7;
+  --radius-sm: 6px;
+  --radius-md: var(--hf-radius-control);
+  --radius-lg: var(--hf-radius-card);
+  --radius-xl: var(--hf-radius-card);
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
+}
+
+.dark .hf-theme.clients-visual,
+.dark .hf-theme.clients-list-portal,
+.dark .hf-theme.clients-form-portal {
+  --hf-page: #101720;
+  --hf-surface: #1b2736;
+  --hf-surface-muted: #223044;
+  --hf-field: #101720;
+  --hf-ink: #e4ebf5;
+  --hf-heading: #e4ebf5;
+  --hf-muted: #9aaac0;
+  --hf-border: #2d3b4d;
+  --hf-action: #91b0ff;
+  --hf-on-action: #172b51;
+  --hf-active: #91b0ff;
+  --hf-active-soft: #253b60;
+  --hf-focus: #91b0ff;
+}
+
+.hf-theme.clients-list-portal {
+  background-color: var(--hf-surface);
+  border-color: var(--hf-border);
+  color: var(--hf-ink);
+}
+
+/* Form overlays and their nested select popups paint on the same palette
+ * boundary as the listing portals. */
+.hf-theme.clients-form-portal {
+  background-color: var(--hf-surface);
+  border-color: var(--hf-border);
+  color: var(--hf-ink);
+}
+
+/* ── Form overlays ───────────────────────────────────────────────────────── */
+
+/* Teleported slideovers, the address dialog and the delete confirmation carry
+ * `hf-theme hf-ui hf-form-overlay clients-form-portal` on the content root, so
+ * the native header/body/footer and the fields inherit the semantic
+ * surface/text/font/border/focus roles from the shared `hf-ui` adapter. Only
+ * the overlay's own hooks are styled here, never an element-blind data slot. */
+
+/* Grouped form panels stay quiet: one muted surface and one restrained border
+ * instead of a second elevated card. */
+.clients-form-portal .clients-form-section {
+  background-color: var(--hf-surface-muted);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+}
+
+/* The billing disclosure toggle replaces the legacy gold link with the action
+ * role and the shared focus ring. */
+.clients-form-portal .clients-form-link {
+  color: var(--hf-action);
+}
+
+.clients-form-portal .clients-form-link:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+/* Submits opt into the shared primary-control pairing; the local adapter only
+ * keeps the operational hit area. */
+.clients-form-portal .hf-primary-control {
+  min-height: var(--hf-control-height);
+}
+
+/* No type filter exists in Clients, so only search and actions occupy the
+ * desktop row. Mobile retains the shared toolbar's stacked arrangement. */
+@media (min-width: 768px) {
+  .clients-visual .hf-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+  }
+
+  .clients-visual .hf-toolbar-search-region {
+    display: contents;
+  }
+
+  .clients-visual .hf-toolbar-search {
+    grid-area: 1 / 1;
+    width: 100%;
+    max-width: 26rem;
+  }
+
+  .clients-visual .hf-toolbar-actions {
+    grid-area: 1 / 2;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    justify-self: end;
+  }
+}
+
+.clients-visual .hf-toolbar :where(button, input, [data-slot='root']) {
+  min-height: var(--hf-control-height);
+}
+
+.clients-visual .clients-view-toggle {
+  width: auto;
+  flex-shrink: 0;
+}
+
+.clients-visual .clients-view-toggle :where(button, [role='tab']) {
+  min-width: max-content;
+  white-space: nowrap;
+}
+
+.clients-visual .hf-pagination-summary {
+  white-space: nowrap;
+}
+
+.clients-visual .hf-pagination-size {
+  width: auto;
+  min-height: 36px;
+}
+
+.clients-visual .hf-pagination-navigation {
+  margin-inline-start: auto;
+}
+
+.clients-visual .hf-pagination-navigation :where(button) {
+  min-height: 36px;
+}
+
+/* Keep spare tracks: a lone customer must not stretch across the workspace. */
+.clients-visual .clients-card-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+  gap: 0.75rem;
+  align-content: start;
+}
+
+.clients-visual .clients-card {
+  background-color: var(--hf-surface);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  color: var(--hf-ink);
+  box-shadow: none;
+}
+
+.clients-visual .clients-card:hover {
+  transform: none;
+  border-color: var(--hf-action);
+  box-shadow: none;
+}
+
+.clients-visual .clients-badge {
+  width: fit-content;
+  max-width: 100%;
+  border-radius: var(--hf-radius-control);
+}
+
+.clients-visual .clients-empty-state {
+  min-height: 20rem;
+  padding-block: 2rem;
+}
+
+.clients-visual .clients-empty-icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: var(--hf-radius-card);
+  background-color: var(--hf-active-soft);
+  color: var(--hf-heading);
+}
+
+.clients-visual .clients-empty-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+}

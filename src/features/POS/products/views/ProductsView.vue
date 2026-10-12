@@ -11,7 +11,6 @@ import { productQueryKeys } from '@/core/shared/constants/query-keys'
 import type { BulkAction } from '@/core/shared/types/table.types'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
-import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import DotBadge from '@/core/shared/components/DotBadge.vue'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
@@ -19,7 +18,9 @@ import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { productApi } from '../api/product.api'
 import ProductCardGrid from '../components/ProductCardGrid.vue'
+import ProductsEmptyState from '../components/ProductsEmptyState.vue'
 import ProductUpsertSlideover from '../components/ProductUpsertSlideover.vue'
+import '../styles/products-visual.css'
 import { useProductColumns } from '../composables/useProductColumns'
 import { useProductViewMode, isProductViewMode } from '../composables/useProductViewMode'
 import type {
@@ -279,7 +280,10 @@ const createMutation = useMutation({
     })
 
     await queryClient.invalidateQueries({ queryKey: productQueryKeys.paginated(tenantId.value) })
-    await queryClient.refetchQueries({ queryKey: productQueryKeys.paginated(tenantId.value), type: 'active' })
+    await queryClient.refetchQueries({
+      queryKey: productQueryKeys.paginated(tenantId.value),
+      type: 'active',
+    })
   },
   onError: (error) => {
     const { message, fields } = mapDomainError(error as AxiosError<DomainApiError>)
@@ -306,7 +310,10 @@ const createCategoryMutation = useMutation({
     })
 
     await queryClient.invalidateQueries({ queryKey: productQueryKeys.categories(tenantId.value) })
-    await queryClient.refetchQueries({ queryKey: productQueryKeys.categories(tenantId.value), type: 'active' })
+    await queryClient.refetchQueries({
+      queryKey: productQueryKeys.categories(tenantId.value),
+      type: 'active',
+    })
   },
   onError: (error) => {
     const { message } = mapDomainError(error as AxiosError<DomainApiError>)
@@ -348,7 +355,10 @@ const createBrandMutation = useMutation({
     })
 
     await queryClient.invalidateQueries({ queryKey: productQueryKeys.brands(tenantId.value) })
-    await queryClient.refetchQueries({ queryKey: productQueryKeys.brands(tenantId.value), type: 'active' })
+    await queryClient.refetchQueries({
+      queryKey: productQueryKeys.brands(tenantId.value),
+      type: 'active',
+    })
   },
   onError: (error) => {
     const { message } = mapDomainError(error as AxiosError<DomainApiError>)
@@ -386,7 +396,9 @@ const updateMutation = useMutation({
 
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: productQueryKeys.paginated(tenantId.value) }),
-      queryClient.invalidateQueries({ queryKey: productQueryKeys.detail(tenantId.value, variables.productId) }),
+      queryClient.invalidateQueries({
+        queryKey: productQueryKeys.detail(tenantId.value, variables.productId),
+      }),
     ])
   },
   onError: (error) => {
@@ -520,7 +532,7 @@ const productsErrorMessage = computed(() => {
 </script>
 
 <template>
-  <div class="flex w-full min-w-0 flex-col gap-6 md:px-10">
+  <div class="hf-theme hf-ui products-visual flex w-full min-w-0 flex-col gap-6 md:px-10">
     <ProductUpsertSlideover
       v-model:open="isCreateOpen"
       mode="create"
@@ -552,6 +564,7 @@ const productsErrorMessage = computed(() => {
       v-model:open="isCreateCategoryModalOpen"
       title="Nueva categoría"
       :content="{ class: 'sm:max-w-lg' }"
+      :ui="{ content: 'hf-theme hf-ui hf-form-overlay hf-shell-products-portal' }"
     >
       <template #body>
         <UForm
@@ -588,7 +601,7 @@ const productsErrorMessage = computed(() => {
             type="submit"
             form="create-category-modal-form"
             color="primary"
-            class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+            class="hf-primary-control"
             :loading="createCategoryMutation.isPending.value"
           />
         </div>
@@ -599,6 +612,7 @@ const productsErrorMessage = computed(() => {
       v-model:open="isCreateBrandModalOpen"
       title="Nueva marca"
       :content="{ class: 'sm:max-w-lg' }"
+      :ui="{ content: 'hf-theme hf-ui hf-form-overlay hf-shell-products-portal' }"
     >
       <template #body>
         <UForm
@@ -635,7 +649,7 @@ const productsErrorMessage = computed(() => {
             type="submit"
             form="create-brand-modal-form"
             color="primary"
-            class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+            class="hf-primary-control"
             :loading="createBrandMutation.isPending.value"
           />
         </div>
@@ -648,21 +662,21 @@ const productsErrorMessage = computed(() => {
       confirm-label="Eliminar"
       confirm-color="error"
       :loading="deleteMutation.isPending.value"
+      :ui="{ content: 'hf-theme hf-ui hf-form-overlay hf-shell-products-portal' }"
       @update:open="confirmState.open = $event"
       @confirm="handleConfirm"
     />
 
-        <UCard
-          :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }"
-          class="w-full min-w-0 max-w-full overflow-hidden shadow-sm"
-        >
-      <template #header>
-        <TableHeaderDescription
-          description="Gestión de inventario y catálogo de productos"
-          title="Productos"
-        />
-      </template>
-      <div class="w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
+    <div class="hf-page-header">
+      <h1 class="hf-page-title">Productos</h1>
+      <p class="hf-page-subtitle">Gestión de inventario y catálogo de productos</p>
+    </div>
+
+    <UCard
+      :ui="{ body: 'p-0 sm:p-0' }"
+      class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm"
+    >
+      <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"
@@ -690,10 +704,12 @@ const productsErrorMessage = computed(() => {
           enable-column-visibility
           :enable-row-selection="false"
           empty="No se encontraron productos"
+          class="hf-data-table"
+          :portal-class="'hf-theme hf-ui hf-shell-products-portal'"
           @add="handleAdd"
           @refresh="refresh"
         >
-          <template #actions>
+          <template #filters>
             <USelect
               v-model="filterType"
               :items="[
@@ -704,9 +720,14 @@ const productsErrorMessage = computed(() => {
               size="sm"
               aria-label="Filtrar por tipo"
               class="w-36"
+              :ui="{ content: 'hf-theme hf-ui hf-shell-products-portal' }"
             />
+          </template>
+
+          <template #actions>
             <ViewToggle
               :model-value="viewMode"
+              class="products-view-toggle"
               aria-label="Seleccionar vista de productos"
               @update:model-value="handleViewModeChange"
             />
@@ -728,6 +749,10 @@ const productsErrorMessage = computed(() => {
             />
           </template>
 
+          <template #empty>
+            <ProductsEmptyState message="No se encontraron productos" />
+          </template>
+
           <template #select-header="{ table }">
             <SelectColumn mode="header" :table="table" />
           </template>
@@ -738,6 +763,7 @@ const productsErrorMessage = computed(() => {
 
           <template #type-cell="{ row }">
             <AppBadge
+              class="products-badge"
               :tone="getProductTypeBadge((row.original as Product).type).tone"
               :icon="getProductTypeBadge((row.original as Product).type).icon"
               :label="getProductTypeBadge((row.original as Product).type).label"
@@ -788,6 +814,7 @@ const productsErrorMessage = computed(() => {
 
           <template #quantity-cell="{ row }">
             <DotBadge
+              class="products-badge"
               :label="getProductStockDisplay(row.original as Product).label"
               :dot-class="getProductStockDotClass(row.original as Product)"
             />
@@ -795,6 +822,7 @@ const productsErrorMessage = computed(() => {
 
           <template #status-cell="{ row }">
             <StatusDotBadge
+              class="products-badge"
               :tone="productStatusConfig[(row.original as Product).status].tone"
               :label="productStatusConfig[(row.original as Product).status].label"
             />
@@ -805,6 +833,7 @@ const productsErrorMessage = computed(() => {
               v-if="canManageProductActions"
               :items="getRowItems(row.original)"
               :content="{ align: 'end' }"
+              :ui="{ content: 'hf-theme hf-ui hf-shell-products-portal' }"
             >
               <UButton
                 icon="i-lucide-ellipsis-vertical"

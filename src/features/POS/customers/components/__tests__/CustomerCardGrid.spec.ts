@@ -105,6 +105,29 @@ describe('CustomerCardGrid available-width containment (S3)', () => {
   })
 })
 
+describe('CustomerCardGrid presentation forwarding', () => {
+  it('forwards list portalClass without inventing it for legacy consumers', async () => {
+    const wrapper = mount(CustomerCardGrid, { props: { customers: [makeCustomer()] } })
+    expect(wrapper.getComponent(CustomerCard).props('portalClass')).toBeUndefined()
+    await wrapper.setProps({ portalClass: 'hf-theme hf-ui clients-list-portal' })
+    expect(wrapper.getComponent(CustomerCard).props('portalClass')).toBe('hf-theme hf-ui clients-list-portal')
+  })
+
+  it('uses the custom empty slot only when empty and not loading', async () => {
+    const wrapper = mount(CustomerCardGrid, {
+      props: { customers: [], loading: true },
+      slots: { empty: '<div data-testid="custom-empty">No se encontraron clientes</div>' },
+    })
+    expect(wrapper.find('[data-testid="custom-empty"]').exists()).toBe(false)
+    expect(wrapper.findAll('[data-testid="card-skeleton"]')).toHaveLength(8)
+    await wrapper.setProps({ loading: false })
+    expect(wrapper.get('[data-testid="custom-empty"]').text()).toBe('No se encontraron clientes')
+    await wrapper.setProps({ customers: [makeCustomer()] })
+    expect(wrapper.find('[data-testid="custom-empty"]').exists()).toBe(false)
+    expect(wrapper.findAll('article')).toHaveLength(1)
+  })
+})
+
 describe('CustomerCardGrid', () => {
   it('renders one card per customer', () => {
     const wrapper = mount(CustomerCardGrid, {

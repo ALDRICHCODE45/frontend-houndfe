@@ -138,7 +138,7 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
           <p data-testid="error-message">{{ errorMessage }}</p>
           <button data-testid="table-error-retry" @click="$emit('refresh')">Reintentar</button>
         </div>
-        <div v-else-if="(data ?? []).length === 0" data-testid="table-empty-state">{{ empty }}</div>
+        <div v-else-if="(data ?? []).length === 0" data-testid="table-empty-state"><slot name="empty">{{ empty }}</slot></div>
         <div v-else data-testid="table-data">
           <div v-for="row in data" :key="row.id">
             <slot name="fullName-header" :column="{ id: 'fullName', getIsSorted: () => false, toggleSorting: () => {} }" />
@@ -158,8 +158,14 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
       errorMessage: { default: 'No se pudieron cargar los datos. Reintenta.' },
       empty: { default: 'No se encontraron resultados' },
       columnPinning: { default: undefined },
+      portalClass: { default: undefined },
+      paginationPortalClass: { default: undefined },
+      globalFilter: { default: '' },
+      sorting: { default: () => [] },
+      pagination: { default: () => ({ pageIndex: 0, pageSize: 10 }) },
+      showAddButton: { default: false },
     },
-    emits: ['add', 'refresh'],
+    emits: ['add', 'refresh', 'update:globalFilter', 'update:sorting', 'update:pagination'],
   },
 }))
 
@@ -172,7 +178,7 @@ vi.mock('@/core/shared/components/AppBadge.vue', () => ({
 }))
 
 vi.mock('@/core/shared/components/ConfirmModal.vue', () => ({
-  default: { name: 'ConfirmModal', template: '<div />', props: ['open', 'description', 'confirmLabel', 'confirmColor', 'loading'], emits: ['update:open', 'confirm'] },
+  default: { name: 'ConfirmModal', template: '<div />', props: ['open', 'description', 'confirmLabel', 'confirmColor', 'loading', 'ui'], emits: ['update:open', 'confirm'] },
 }))
 
 vi.mock('@/core/shared/components/DataTable/TableHeaderDescription.vue', () => ({
@@ -185,7 +191,7 @@ vi.mock('@nuxt/ui', () => ({
   UDropdownMenu: {
     name: 'UDropdownMenu',
     template: '<div data-testid="kebab-menu"><slot /></div>',
-    props: ['items', 'content'],
+    props: ['items', 'content', 'ui'],
     emits: ['select'],
   },
   UButton: {
@@ -202,13 +208,13 @@ vi.mock('@nuxt/ui', () => ({
 // mock those so the kebab `items` are assertable via findAllComponents
 // without Reka UI internals.
 vi.mock('@nuxt/ui/components/DropdownMenu.vue', () => ({
-  default: { name: 'UDropdownMenu', template: '<div data-testid="kebab-menu"><slot /></div>', props: ['items', 'content'], emits: ['select'] },
+  default: { name: 'UDropdownMenu', template: '<div data-testid="kebab-menu"><slot /></div>', props: ['items', 'content', 'ui'], emits: ['select'] },
 }))
 vi.mock('@nuxt/ui/components/Button.vue', () => ({
   default: { name: 'UButton', template: '<button v-bind="$attrs"><slot /></button>', props: ['icon', 'color', 'variant'], emits: ['click'] },
 }))
 vi.mock('@nuxt/ui/runtime/components/DropdownMenu.vue', () => ({
-  default: { name: 'UDropdownMenu', template: '<div data-testid="kebab-menu"><slot /></div>', props: ['items', 'content'], emits: ['select'] },
+  default: { name: 'UDropdownMenu', template: '<div data-testid="kebab-menu"><slot /></div>', props: ['items', 'content', 'ui'], emits: ['select'] },
 }))
 vi.mock('@nuxt/ui/runtime/components/Button.vue', () => ({
   default: { name: 'UButton', template: '<button v-bind="$attrs"><slot /></button>', props: ['icon', 'color', 'variant'], emits: ['click'] },
@@ -588,5 +594,98 @@ describe('CustomersView — sales history entry (S4)', () => {
     const slideover = wrapper.findComponent({ name: 'CustomerSalesHistorySlideover' })
     expect(slideover.props('open')).toBe(true)
     expect(slideover.props('customer')).toEqual(customerB)
+  })
+})
+
+
+describe('Customers main workspace visual boundary', () => {
+  it('opts in only the listing, keeps overlays outside and moves the title above the panel', () => {
+    const wrapper = mount(CustomersView)
+    const workspace = wrapper.get('.clients-visual')
+    expect(workspace.classes()).toEqual(expect.arrayContaining(['hf-theme', 'hf-ui']))
+    expect(workspace.get('h1').text()).toBe('Clientes')
+    expect(workspace.get('.hf-page-subtitle').text()).toBe('Gestión de clientes')
+    expect(workspace.get('h1').element.closest('.hf-table-surface')).toBeNull()
+    expect(workspace.findComponent({ name: 'CustomerUpsertSlideover' }).exists()).toBe(false)
+    expect(workspace.findComponent({ name: 'CustomerSalesHistorySlideover' }).exists()).toBe(false)
+    expect(workspace.findComponent({ name: 'ConfirmModal' }).exists()).toBe(false)
+    expect(workspace.get('[data-testid="app-data-table"]').classes()).toContain('hf-data-table')
+  })
+
+  it('owns list and row portals without borrowing the Products marker', () => {
+    mockState.data.value = [makeCustomer()]
+    const wrapper = mount(CustomersView)
+    const portalClass = 'hf-theme hf-ui clients-list-portal'
+    expect(wrapper.getComponent({ name: 'AppDataTable' }).props('portalClass')).toBe(portalClass)
+    expect(wrapper.getComponent({ name: 'AppDataTable' }).props('paginationPortalClass')).toBe(portalClass)
+    expect(wrapper.getComponent({ name: 'UDropdownMenu' }).props('ui')).toEqual({ content: portalClass })
+    expect(wrapper.getComponent({ name: 'CustomerCardGrid' }).attributes('portal-class')).toBe(portalClass)
+  })
+
+  it('renders the same empty-state unit through the table slot without masking errors', () => {
+    const wrapper = mount(CustomersView)
+    expect(wrapper.get('[data-testid="table-empty-state"]').text()).toContain('No se encontraron clientes')
+    expect(wrapper.get('[data-testid="table-empty-state"]').find('[data-testid="customers-empty-state"]').exists()).toBe(true)
+    mockState.isError.value = true
+    return flushPromises().then(() => {
+      expect(wrapper.find('[data-testid="table-empty-state"]').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="table-error-state"]').exists()).toBe(true)
+    })
+  })
+
+  it('preserves search, sorting, pagination and create-permission bindings', async () => {
+    customerAuthMock.userCan.mockReturnValue(false)
+    const wrapper = mount(CustomersView)
+    const table = wrapper.getComponent({ name: 'AppDataTable' })
+    expect(table.props('showAddButton')).toBe(false)
+    table.vm.$emit('update:globalFilter', 'Juan')
+    table.vm.$emit('update:sorting', [{ id: 'email', desc: true }])
+    table.vm.$emit('update:pagination', { pageIndex: 2, pageSize: 20 })
+    await flushPromises()
+    expect(mockState.globalFilter.value).toBe('Juan')
+    expect(mockState.sorting.value).toEqual([{ id: 'email', desc: true }])
+    expect(mockState.pagination.value).toEqual({ pageIndex: 2, pageSize: 20 })
+  })
+})
+
+// ── S1-S3: deletion confirmation opt-in ──────────────────────────────────────
+describe('CustomersView — delete confirmation opt-in (S1-S3)', () => {
+  const overlayMarker = 'hf-theme hf-ui hf-form-overlay clients-form-portal'
+
+  it('forwards the form-portal content marker while keeping destructive semantics', async () => {
+    customerAuthMock.userCan.mockReturnValue(true)
+    mockState.data.value = [makeCustomer()]
+    const wrapper = mount(CustomersView)
+    await flushPromises()
+
+    const confirm = wrapper.findComponent({ name: 'ConfirmModal' })
+    expect(confirm.exists()).toBe(true)
+    // Public `ui` prop contract: content root opts into the Clients palette.
+    expect(confirm.props('ui')).toEqual({ content: overlayMarker })
+    // Semantic confirm color, label and loading wiring stay untouched.
+    expect(confirm.props('confirmColor')).toBe('error')
+    expect(confirm.props('confirmLabel')).toBe('Eliminar')
+    expect(confirm.props('loading')).toBe(false)
+  })
+
+  it('keeps the destructive prompt description and close wiring intact', async () => {
+    customerAuthMock.userCan.mockReturnValue(true)
+    mockState.data.value = [makeCustomer({ id: 'cust-A', fullName: 'Ana Álvarez' })]
+    const wrapper = mount(CustomersView)
+    await flushPromises()
+
+    const confirm = wrapper.findComponent({ name: 'ConfirmModal' })
+    const del = flatRowKebabItems(wrapper).find((item) => item.label === 'Eliminar')
+    expect(del).toBeDefined()
+    del!.onSelect!()
+    await flushPromises()
+
+    expect(confirm.props('open')).toBe(true)
+    expect(confirm.props('description')).toContain('Ana Álvarez')
+    expect(confirm.props('confirmColor')).toBe('error')
+
+    confirm.vm.$emit('update:open', false)
+    await flushPromises()
+    expect(confirm.props('open')).toBe(false)
   })
 })

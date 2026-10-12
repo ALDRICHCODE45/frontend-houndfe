@@ -173,7 +173,9 @@ function handleClose() {
   <UModal
     :open="open"
     :title="address ? 'Editar dirección' : 'Añadir dirección'"
-    :content="{ class: 'sm:max-w-lg' }"
+    :content="{
+      class: 'sm:max-w-lg hf-theme hf-ui hf-form-overlay clients-form-portal',
+    }"
     :dismissible="canDismiss"
     :close="canDismiss"
     @update:open="handleOpenChange"
@@ -196,7 +198,7 @@ function handleClose() {
           />
         </UFormField>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <UFormField label="Número Exterior" name="exteriorNumber">
             <UInput
               v-model="formState.exteriorNumber"
@@ -218,7 +220,7 @@ function handleClose() {
           </UFormField>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <UFormField label="Código Postal" name="zipCode">
             <UInput
               v-model="formState.zipCode"
@@ -250,7 +252,7 @@ function handleClose() {
           />
         </UFormField>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <UFormField label="Ciudad" name="city">
             <UInput
               v-model="formState.city"
@@ -269,6 +271,7 @@ function handleClose() {
               class="w-full"
               size="lg"
               :disabled="loading"
+              :ui="{ content: 'hf-theme hf-ui clients-form-portal' }"
             />
           </UFormField>
         </div>
@@ -296,7 +299,7 @@ function handleClose() {
           <UButton
             :label="address ? 'Guardar cambios' : 'Añadir dirección'"
             color="primary"
-            class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+            class="hf-primary-control"
             type="submit"
             form="address-modal-form"
             :loading="loading"

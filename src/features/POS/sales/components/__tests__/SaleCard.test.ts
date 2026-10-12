@@ -45,6 +45,17 @@ describe('SaleCard — EmployeeCard pattern (REQ-13)', () => {
     expect(article.classes()).toEqual(expect.arrayContaining(['border-default', 'bg-default']))
   })
 
+  it('carries the feature-owned sales-card hook without changing its surface classes', () => {
+    const wrapper = mountCard()
+    const article = wrapper.get('article')
+    expect(article.classes()).toContain('sales-card')
+    // Presentation is scoped by the opted-in listing root, so the hook is inert
+    // for any other consumer of SaleCard.
+    expect(article.classes()).toEqual(
+      expect.arrayContaining(['border-default', 'bg-default']),
+    )
+  })
+
   it('does NOT use bg-coco-neutral-* tokens on the article root', () => {
     const wrapper = mountCard()
     const article = wrapper.get('article')

@@ -29,6 +29,7 @@ import DebtPaymentModal from '../components/DebtPaymentModal.vue'
 import AssignSellerSlideover from '../components/AssignSellerSlideover.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import { useSaleCancellation } from '../composables/useSaleCancellation'
+import '../styles/sales-detail-visual.css'
 
 declare const useToast: () => {
   add: (options: {
@@ -257,7 +258,10 @@ watch(
 </script>
 
 <template>
-  <div v-if="canReadSales" class="-m-4 flex h-[calc(100%+2rem)] flex-col sm:-m-6 sm:h-[calc(100%+3rem)]">
+  <div
+    v-if="canReadSales"
+    class="sales-detail-visual hf-theme hf-ui -m-4 flex h-[calc(100%+2rem)] flex-col sm:-m-6 sm:h-[calc(100%+3rem)]"
+  >
     <!-- Fixed compact header — identity + actions persist on scroll.
          The root consumes the dashboard panel body's padding (-m-4 sm:-m-6)
          so this header spans the full panel width at the very top. The body
@@ -267,7 +271,7 @@ watch(
          sticky top-0 z-50 retained for HST-REQ-002 semantics. -->
     <header
       v-if="!isLoading && sale"
-      class="sticky top-0 z-50 w-full shrink-0 border-b border-default bg-coco-neutral-50/90 backdrop-blur-sm dark:bg-coco-neutral-950/90"
+      class="sales-detail-sticky-header sticky top-0 z-50 w-full shrink-0 border-b border-default bg-coco-neutral-50/90 backdrop-blur-sm dark:bg-coco-neutral-950/90"
       data-testid="sale-detail-header"
     >
       <div class="mx-auto w-full max-w-7xl">
@@ -324,8 +328,16 @@ watch(
               <p class="text-xl font-bold tabular-nums">{{ formatCentsMXN(sale.totalCents) }}</p>
             </div>
 
-            <UDropdownMenu v-if="hasAnyAction" :items="actionItems">
-              <UTooltip v-if="triggerTooltipText" :text="triggerTooltipText">
+            <UDropdownMenu
+              v-if="hasAnyAction"
+              :items="actionItems"
+              :ui="{ content: 'hf-theme hf-ui sales-detail-portal' }"
+            >
+              <UTooltip
+                v-if="triggerTooltipText"
+                :text="triggerTooltipText"
+                :ui="{ content: 'hf-theme hf-ui sales-detail-portal' }"
+              >
                 <UButton
                   icon="i-lucide-ellipsis"
                   trailing-icon="i-lucide-chevron-down"
@@ -352,7 +364,7 @@ watch(
               icon="i-lucide-credit-card"
               size="sm"
               data-testid="register-payment-header"
-              class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+              class="sales-detail-primary-action !bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
               :disabled="isSubmitting"
               @click="debtModalOpen = true"
             >
@@ -399,7 +411,10 @@ watch(
           data-testid="sale-detail-layout-body"
         >
           <div class="space-y-6 order-2 lg:order-1">
-            <SaleDetailItemsList :items="sale.items" />
+            <SaleDetailItemsList
+              :items="sale.items"
+              portal-class="hf-theme hf-ui sales-detail-portal"
+            />
             <SaleDetailSalesDataCard :sale="sale" @assign-seller="sellerSlideoverOpen = true" />
             <SaleDetailHistoryCard
               :timeline="sale.timeline"
@@ -408,6 +423,7 @@ watch(
               :on-update-comment="updateComment"
               :on-delete-comment="deleteComment"
               :on-submit-comment="addComment"
+              portal-class="hf-theme hf-ui hf-form-overlay sales-detail-portal"
             />
           </div>
           <div class="space-y-6 order-1 lg:order-2">
@@ -426,6 +442,7 @@ watch(
               :payments="sale.payments"
               :loading="referencePending"
               data-testid="sale-detail-payments-list"
+              portal-class="hf-theme hf-ui hf-form-overlay sales-detail-portal"
               @submit="handleReferenceSubmit"
             />
           </div>
@@ -435,11 +452,13 @@ watch(
           v-model:open="debtModalOpen"
           :sale-id="sale.id"
           :debt-cents="sale.debtCents"
+          portal-class="hf-theme hf-ui hf-form-overlay sales-detail-portal"
           @success="debtModalOpen = false"
         />
         <AssignSellerSlideover
           v-model:open="sellerSlideoverOpen"
           :sale-id="sale.id"
+          portal-class="hf-theme hf-ui hf-form-overlay sales-detail-portal"
         />
         <ConfirmModal
           :open="cancelModalOpen"
@@ -448,6 +467,7 @@ watch(
           confirm-label="Cancelar venta"
           confirm-color="error"
           :loading="cancellationPending"
+          :ui="{ content: 'hf-theme hf-ui hf-form-overlay sales-detail-portal' }"
           @update:open="cancelModalOpen = $event"
           @confirm="handleConfirmCancellation"
         />

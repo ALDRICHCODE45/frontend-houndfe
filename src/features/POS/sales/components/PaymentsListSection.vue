@@ -25,6 +25,11 @@ const props = withDefaults(
   defineProps<{
     payments: SaleDetailPayment[]
     loading?: boolean
+    /**
+     * Optional teleport boundary marker forwarded to the owned reference
+     * slideover. Absent by default, which preserves the previous `ui` value.
+     */
+    portalClass?: string
   }>(),
   {
     loading: false,
@@ -150,6 +155,7 @@ function isReferenceTruncated(reference: string | null): boolean {
               v-if="payment.reference"
               :text="payment.reference"
               :disabled="!isReferenceTruncated(payment.reference)"
+              :ui="{ content: 'hf-theme hf-ui sales-detail-portal' }"
             >
               <span
                 class="font-mono tabular-nums"
@@ -187,6 +193,7 @@ function isReferenceTruncated(reference: string | null): boolean {
       :current-reference="editingReference"
       :payment-method="editingMethod"
       :loading="loading"
+      :portal-class="portalClass"
       data-testid="payments-list-edit-slideover"
       @update:open="(open) => !open && closeEdit()"
       @submit="handleSubmit"

@@ -1,0 +1,222 @@
+@import '../../../../core/shared/design-system/houndfe-ui.css';
+
+/* Products visual pilot entry.
+ *
+ * This file layers Products-specific presentation on top of the shared
+ * `hf-theme hf-ui` adapter. Every rule is scoped under `.products-visual`, so
+ * it only applies when the Products workspace opts in. Unmigrated screens and
+ * the Caja pilot keep their current presentation.
+ *
+ * Product metadata values and labels read through the shared `--hf-*` token
+ * mapping, so no per-screen color literals are introduced here.
+ */
+
+/* Restrained geometry inside the pilot only. The global theme keeps its legacy
+ * radius scale for unmigrated screens; here the old utilities (`rounded-xl` was
+ * 28px) resolve to the shared card/control corners instead. `--radius-full` is
+ * deliberately untouched so avatars and dot indicators keep their circles. */
+.products-visual {
+  --radius-sm: 6px;
+  --radius-md: var(--hf-radius-control);
+  --radius-lg: var(--hf-radius-card);
+  --radius-xl: var(--hf-radius-card);
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
+}
+
+/* ── Toolbar ─────────────────────────────────────────────────────────────── */
+
+/* From `md` up the toolbar becomes a two-row grid: search and the action
+ * cluster share the first row, and the type filter drops to a second row so
+ * the segmented view toggle is never clipped by an inline filter. The search
+ * region is dissolved with `display: contents` so its children participate in
+ * the grid directly. Mobile keeps the shared three-row stack untouched. */
+@media (min-width: 768px) {
+  .products-visual .hf-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+  }
+
+  .products-visual .hf-toolbar-search-region {
+    display: contents;
+  }
+
+  .products-visual .hf-toolbar-search {
+    grid-area: 1 / 1;
+    width: 100%;
+    max-width: 26rem;
+  }
+
+  .products-visual .hf-toolbar-actions {
+    grid-area: 1 / 2;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    justify-self: end;
+  }
+
+  .products-visual .hf-toolbar-filters {
+    grid-area: 2 / 1 / 3 / -1;
+  }
+}
+
+/* One control height for the whole toolbar row; wraps instead of clipping when
+ * the action cluster runs out of horizontal room. */
+.products-visual .hf-toolbar :where(button, input, [data-slot='root']) {
+  min-height: var(--hf-control-height);
+}
+
+/* The segmented toggle sizes to its own content and never shrinks, so its
+ * labels stay on one line and the toggle is not squeezed by the filter. */
+.products-visual .products-view-toggle {
+  width: auto;
+  flex-shrink: 0;
+}
+
+.products-visual .products-view-toggle :where(button, [role='tab']) {
+  min-width: max-content;
+  white-space: nowrap;
+}
+
+/* ── Pagination ──────────────────────────────────────────────────────────── */
+
+/* Compact footer: the summary never wraps and the page-size trigger sizes to
+ * its label instead of stretching across the row. The shared
+ * `[data-testid='pagination-controls']` wrapper already centers its children
+ * from `sm` up, so its mobile column layout stays untouched. */
+.products-visual .hf-pagination-summary {
+  white-space: nowrap;
+}
+
+.products-visual .hf-pagination-size {
+  width: auto;
+  min-height: 36px;
+}
+
+.products-visual .hf-pagination-navigation {
+  margin-inline-start: auto;
+}
+
+/* Footer navigation buttons are compact like the page-size trigger (36px),
+ * not the 44px toolbar control height. */
+.products-visual .hf-pagination-navigation :where(button) {
+  min-height: 36px;
+}
+
+/* ── Products card grid ──────────────────────────────────────────────────── */
+
+/* `auto-fill` (not `auto-fit`) reserves every track, so a lone product keeps
+ * its card width instead of stretching across the whole workspace. */
+.products-visual .products-card-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+  gap: 0.75rem;
+  align-content: start;
+}
+
+/* Product card surface. Restrained geometry and a single border, with no
+ * nested decorative panel. */
+.products-visual .products-card {
+  background-color: var(--hf-surface);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  color: var(--hf-ink);
+}
+
+.products-visual .products-card:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+/* Muted metadata and glyphs. The shared adapter already maps the semantic
+ * muted aliases; this keeps the Products card contract explicit and on the
+ * quiet role instead of a fixed palette. */
+.products-visual .products-card :where(.text-muted, small, time) {
+  color: var(--hf-muted);
+}
+
+/* ── Badges ──────────────────────────────────────────────────────────────── */
+
+/* Every badge shell is content-sized with the restrained control radius. A
+ * round leading dot does not require a pill-shaped shell, so DotBadge and
+ * StatusDotBadge roots adopt the same radius; the circular child dot and
+ * avatars keep their own shape because no rule here targets them. */
+.products-visual .products-badge {
+  width: fit-content;
+  max-width: 100%;
+  border-radius: var(--hf-radius-control);
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+
+/* Reference-like hierarchy: a soft tile, a larger heading and enough minimum
+ * vertical space to breathe, with `padding-block` trimmed so the unit's own
+ * `py-16` utility no longer adds extra whitespace. No fixed height, so narrow
+ * viewports can still shrink. */
+.products-visual .products-empty-state {
+  min-height: 20rem;
+  padding-block: 2rem;
+}
+
+.products-visual .products-empty-icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: var(--hf-radius-card);
+  background-color: var(--hf-active-soft);
+  color: var(--hf-heading);
+}
+
+/* The unit ships a muted glyph utility; the tile heading color must win so the
+ * icon reads as part of the title hierarchy. */
+.products-visual .products-empty-icon :where(svg, span) {
+  color: inherit;
+}
+
+.products-visual .products-empty-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+.products-visual .products-empty-description {
+  max-width: 42ch;
+  color: var(--hf-muted);
+}
+
+/* ── Native select controls ──────────────────────────────────────────────── */
+
+/* The native trigger owns the single visible field boundary and the shared
+ * focus ring. Option buttons inside its dropdown keep their own look. */
+.products-visual .products-select-trigger {
+  min-height: var(--hf-control-height);
+  border: 1px solid var(--hf-field-border);
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-field);
+  color: var(--hf-ink);
+  font-family: var(--hf-font);
+}
+
+.products-visual .products-select-trigger:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+/* Retain legacy utility classes for controls reused by the full editor;
+ * only the opted-in quick form replaces their gold ring and action color. */
+.products-visual .products-select-trigger:focus {
+  --tw-ring-color: var(--hf-focus);
+}
+
+.products-visual .products-select-action {
+  color: var(--hf-action);
+}
+
+/* The normal field boundary must not override an existing validation error. */
+.products-visual .products-select-trigger.border-error {
+  border-color: var(--ui-error);
+}
+
+/* Primary operational controls keep the shared 44px hit area. */
+.products-visual .hf-primary-control {
+  min-height: var(--hf-control-height);
+}

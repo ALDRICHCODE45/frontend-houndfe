@@ -245,6 +245,8 @@ const appDataTableStub = {
     showAddButton: { default: false },
     addButtonText: { default: 'Agregar' },
     addButtonTestId: { default: undefined },
+    portalClass: { default: undefined },
+    paginationPortalClass: { default: undefined },
     displayMode: { default: 'auto' },
     mobileRender: { default: 'table' },
   },
@@ -264,6 +266,8 @@ const appDataTableStub = {
       :data-mobile-render="mobileRender"
       :data-show-add-button="showAddButton ? 'true' : 'false'"
       :data-add-button-text="addButtonText"
+      :data-portal-class="portalClass ?? ''"
+      :data-pagination-portal-class="paginationPortalClass ?? ''"
     >
       <slot name="filters" />
       <slot name="actions" />
@@ -323,7 +327,7 @@ const stubs = {
   },
   AppDataTable: appDataTableStub,
   DataTableFilters: {
-    props: ['state', 'schema', 'errors', 'embedded'],
+    props: ['state', 'schema', 'errors', 'embedded', 'portalClass'],
     emits: ['update:state'],
     // The `set-status-filter` button lets a test drive real filter state
     // through the real useDataTableFilters, so "Limpiar" can be verified by
@@ -339,6 +343,7 @@ const stubs = {
         :data-errors="JSON.stringify(errors)"
         :data-schema="JSON.stringify(schema)"
         :data-embedded="String(!!embedded)"
+        :data-portal-class="portalClass ?? ''"
       >
         <button
           data-testid="set-status-filter"
@@ -843,6 +848,68 @@ describe('SalesListView — consolidated toolbar (REQ-14, REQ-15)', () => {
     // Sorting, search text, and view mode are deliberately untouched.
     expect(mockState.sorting.value).toEqual([{ id: 'totalCents', desc: false }])
     expect(mockState.globalFilter.value).toBe('ada')
+  })
+})
+
+// S1/S3-S5: the Sales listing adopts the Products-style page header and a
+// separate table surface, and forwards an owned portal boundary to every
+// teleported control. Behaviour (filters, tabs, sort, search, actions, error
+// states, mode persistence, pagination) is covered by the suites above.
+describe('SalesListView — list visual adaptation (S1, S3-S5)', () => {
+  const MARKER = 'hf-theme hf-ui sales-list-portal'
+
+  it('themes the routed root and keeps the desktop/mobile gutters', () => {
+    const wrapper = mountSalesList()
+    const rootClasses = Array.from(wrapper.element.classList)
+
+    expect(rootClasses).toEqual(expect.arrayContaining(['hf-theme', 'hf-ui', 'sales-list-visual']))
+    expect(rootClasses).toEqual(expect.arrayContaining(['w-full', 'min-w-0', 'md:px-10']))
+    expect(rootClasses).not.toContain('hf-shell-products-portal')
+    expect(rootClasses.join(' ')).not.toContain('bg-coco-neutral')
+  })
+
+  it('renders the Products-style page header outside the separate table surface', () => {
+    const wrapper = mountSalesList()
+
+    expect(wrapper.get('.hf-page-title').text()).toBe('Ventas')
+    expect(wrapper.get('.hf-page-subtitle').text()).toBe('Listado de ventas confirmadas')
+
+    const header = wrapper.get('.hf-page-header')
+    const surface = wrapper.get('.hf-table-surface')
+    expect(surface.element.contains(header.element)).toBe(false)
+  })
+
+  it('nests the table content hook inside the surface and keeps the data-table hook', () => {
+    const wrapper = mountSalesList()
+
+    const surface = wrapper.get('.hf-table-surface')
+    const content = wrapper.get('.hf-table-content')
+    expect(surface.element.contains(content.element)).toBe(true)
+    expect(wrapper.get('[data-testid="app-data-table"]').classes()).toContain('hf-data-table')
+  })
+
+  it('forwards the owned portal boundary to the pagination and filter teleports', () => {
+    const wrapper = mountSalesList()
+    const table = wrapper.get('[data-testid="app-data-table"]')
+
+    expect(table.attributes('data-portal-class')).toBe(MARKER)
+    expect(table.attributes('data-pagination-portal-class')).toBe(MARKER)
+    expect(wrapper.get('[data-testid="sales-filters"]').attributes('data-portal-class')).toBe(MARKER)
+  })
+
+  it('scopes the native sort select content to the sales portal boundary', () => {
+    const wrapper = mountSalesList()
+    const sortSelect = wrapper.findComponent({ name: 'Select' })
+
+    expect(sortSelect.exists()).toBe(true)
+    expect(sortSelect.props('ui')).toEqual({ content: MARKER })
+  })
+
+  it('keeps the view toggle and money cells on feature-owned hooks', () => {
+    const wrapper = mountSalesList()
+
+    expect(wrapper.find('[role="tablist"]').classes()).toContain('sales-view-toggle')
+    expect(wrapper.find('.sales-total-value').exists()).toBe(true)
   })
 })
 

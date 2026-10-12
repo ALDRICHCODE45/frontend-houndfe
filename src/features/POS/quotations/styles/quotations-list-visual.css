@@ -1,0 +1,158 @@
+@import '../../../../core/shared/design-system/houndfe-ui.css';
+
+/* Quotations listing visual entry.
+ *
+ * Opt-in presentation adapter for the Quotations list, its cards and the
+ * teleported popups the listing owns. Every rule is scoped under
+ * `.quotations-list-visual` or the owned `.quotations-list-portal` marker, so
+ * unmigrated screens, the Caja pilot and the shared shell keep their current
+ * presentation.
+ *
+ * Light and dark values come from the foundation semantic roles in
+ * `houndfe-theme.css` through the shared `hf-theme hf-ui` boundary. This file
+ * introduces no palette literals, no global root override and no global
+ * mutation; only the geometry compatibility aliases below are remapped
+ * locally. The legacy `coco-tokens.css` stays untouched next to this file.
+ */
+
+/* Compatibility aliases: inside the opted-in boundary the legacy utility
+ * radii resolve to the shared control/card corners. The full-radius alias is
+ * deliberately left untouched so avatars, dots and rings keep their circles. */
+.quotations-list-visual,
+.hf-theme.quotations-list-portal {
+  --radius-sm: var(--hf-radius-control);
+  --radius-md: var(--hf-radius-control);
+  --radius-lg: var(--hf-radius-card);
+  --radius-xl: var(--hf-radius-card);
+  --radius-2xl: var(--hf-radius-card);
+}
+
+/* ── Toolbar ─────────────────────────────────────────────────────────────── */
+
+/* From `md` up the toolbar becomes a two-row grid: search and the action
+ * cluster share the first row and the filter region drops to a second row, so
+ * the filter trigger is never clipped by the inline search. Mobile keeps the
+ * shared three-region stack untouched. */
+@media (min-width: 768px) {
+  .quotations-list-visual .hf-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+  }
+
+  .quotations-list-visual .hf-toolbar-search-region {
+    display: contents;
+  }
+
+  .quotations-list-visual .hf-toolbar-search {
+    grid-area: 1 / 1;
+    width: 100%;
+    max-width: 26rem;
+  }
+
+  .quotations-list-visual .hf-toolbar-actions {
+    grid-area: 1 / 2;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    justify-self: end;
+  }
+
+  .quotations-list-visual .hf-toolbar-filters {
+    grid-area: 2 / 1 / 3 / -1;
+  }
+}
+
+/* One control height for the whole toolbar row; the action cluster wraps
+ * instead of clipping when it runs out of horizontal room. */
+.quotations-list-visual .hf-toolbar :where(button, input) {
+  min-height: var(--hf-control-height);
+}
+
+/* The segmented view toggle sizes to its own content and never shrinks, so
+ * its labels stay on one line and the filter never squeezes it. */
+.quotations-list-visual .quotations-view-toggle {
+  width: auto;
+  flex-shrink: 0;
+}
+
+.quotations-list-visual .quotations-view-toggle :where(button, [role='tab']) {
+  min-width: max-content;
+  white-space: nowrap;
+}
+
+/* ── Status tabs ─────────────────────────────────────────────────────────── */
+
+/* The tab row keeps its existing composition; the adapter only supplies the
+ * shared focus indicator the legacy utilities lacked. */
+.quotations-list-visual .quotations-status-tab:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+/* ── Pagination ──────────────────────────────────────────────────────────── */
+
+/* Compact footer: the summary never wraps and the page-size trigger sizes to
+ * its label instead of stretching across the row. */
+.quotations-list-visual .hf-pagination-summary {
+  white-space: nowrap;
+}
+
+.quotations-list-visual .hf-pagination-size {
+  width: auto;
+  min-height: 36px;
+}
+
+.quotations-list-visual .hf-pagination-navigation {
+  margin-inline-start: auto;
+}
+
+.quotations-list-visual .hf-pagination-navigation :where(button) {
+  min-height: 36px;
+}
+
+/* ── Card surface ────────────────────────────────────────────────────────── */
+
+/* Restrained surface: one border, the shared card radius and no nested
+ * elevation. The legacy hover lift is neutralised so the card stays quiet. */
+.quotations-list-visual .quotations-card {
+  background-color: var(--hf-surface);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  color: var(--hf-ink);
+  box-shadow: none;
+}
+
+.quotations-list-visual .quotations-card:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: var(--hf-action);
+}
+
+/* Keyboard focus inside the card stays visible on the card surface itself. */
+.quotations-list-visual .quotations-card:focus-within {
+  border-color: var(--hf-action);
+}
+
+/* ── Numeric cells ───────────────────────────────────────────────────────── */
+
+/* Money stays readable and comparable: tabular figures on the semantic ink
+ * role. The value class is feature-owned and never reaches into a shared
+ * table slot. */
+.quotations-list-visual .quotations-total-value {
+  color: var(--hf-ink);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* ── Owned portal boundary ───────────────────────────────────────────────── */
+
+/* Teleported surfaces the listing owns (row/column menus, page-size menu, the
+ * mobile filter sheet and the delete confirmation) escape the listing
+ * ancestor, so they repeat `hf-theme hf-ui` on their own root. The palette
+ * still comes from the foundation roles; this rule only paints the boundary. */
+.hf-theme.quotations-list-portal {
+  background-color: var(--hf-surface);
+  border-color: var(--hf-border);
+  color: var(--hf-ink);
+}

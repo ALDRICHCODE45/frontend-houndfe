@@ -36,7 +36,7 @@ function clearAll(): SalesListTabChange {
     <UButton
       variant="soft"
       color="neutral"
-      class="whitespace-nowrap"
+      class="sales-status-tab whitespace-nowrap"
       data-testid="sales-tab-all"
       @click="emit('change', clearAll())"
     >
@@ -46,7 +46,7 @@ function clearAll(): SalesListTabChange {
     <UButton
       variant="soft"
       color="neutral"
-      class="whitespace-nowrap"
+      class="sales-status-tab whitespace-nowrap"
       data-testid="sales-tab-pending-payments"
       @click="emit('change', { paymentStatus: 'PARTIAL,CREDIT' })"
     >
@@ -63,7 +63,7 @@ function clearAll(): SalesListTabChange {
     <UButton
       variant="soft"
       color="neutral"
-      class="whitespace-nowrap"
+      class="sales-status-tab whitespace-nowrap"
       data-testid="sales-tab-pending-delivery"
       @click="emit('change', { deliveryStatus: SALE_DELIVERY_STATUS.PENDING })"
     >

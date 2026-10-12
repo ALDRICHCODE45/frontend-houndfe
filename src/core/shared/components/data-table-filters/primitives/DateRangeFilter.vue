@@ -14,9 +14,15 @@ const props = withDefaults(defineProps<{
    * without keeping a parallel chips row above the slideover.
    */
   isActive?: boolean
+  /**
+   * Optional theme boundary for the teleported popover content. Absent keeps
+   * the Nuxt UI default so existing consumers are untouched.
+   */
+  portalClass?: string
 }>(), {
   presets: true,
   isActive: false,
+  portalClass: undefined,
 })
 
 const modelValue = defineModel<{ from?: string; to?: string }>({ default: () => ({}) })
@@ -148,7 +154,10 @@ const rangeLabel = computed(() => {
 
 <template>
   <UFormField :label="props.label" :error="resolvedError" class="w-full" data-testid="date-range-filter">
-    <UPopover :content="{ align: 'start', side: 'bottom', sideOffset: 8 }">
+    <UPopover
+      :content="{ align: 'start', side: 'bottom', sideOffset: 8 }"
+      :ui="props.portalClass ? { content: props.portalClass } : undefined"
+    >
       <UButton
         data-testid="date-range-trigger"
         variant="outline"

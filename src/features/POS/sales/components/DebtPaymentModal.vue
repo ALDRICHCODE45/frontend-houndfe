@@ -37,6 +37,12 @@ const props = defineProps<{
   // modal then drops every entry carrying a `paymentMethodId` (custom tiles)
   // and preserves fixed entries. The increment dispatch lands in S5A.
   catalogClearSignal?: number
+  /**
+   * Optional teleport boundary marker forwarded to the installed slideover
+   * content root. Absent by default, which preserves this modal's original
+   * `ui` value and every existing consumer's presentation.
+   */
+  portalClass?: string
 }>()
 
 const emit = defineEmits<{
@@ -86,6 +92,14 @@ const entryErrors = computed(() => entries.value.map((entry) => validateEntry(en
 const hasEntryErrors = computed(() => entryErrors.value.some((errors) => Object.keys(errors).length > 0))
 const canSubmit = computed(() => entries.value.length > 0 && !aggregateError.value && !hasEntryErrors.value && !isSubmitting.value)
 const canAddEntry = computed(() => entries.value.length < MAX_PAYMENT_ENTRIES)
+
+// Presentation-only merge: keep the modal's existing width/body overrides and
+// append the optional caller boundary when opted in. An absent prop yields the
+// exact previous value (`sm:max-w-lg`), so no consumer changes.
+const slideoverUi = computed(() => ({
+  content: props.portalClass ? `sm:max-w-lg ${props.portalClass}` : 'sm:max-w-lg',
+  body: 'p-0 flex flex-col h-full',
+}))
 
 // --- Entry form state (pesos for UInputNumber) ---
 type EntryForm = { method: CollectionPaymentMethod; amountPesos: number; reference: string }
@@ -222,10 +236,7 @@ watch(catalogClearSignal, () => {
   <USlideover
     :open="open"
     inset
-    :ui="{
-      content: 'sm:max-w-lg',
-      body: 'p-0 flex flex-col h-full',
-    }"
+    :ui="slideoverUi"
     @update:open="emit('update:open', $event)"
   >
     <template #content>
@@ -404,7 +415,7 @@ watch(catalogClearSignal, () => {
               color="primary"
               :loading="isSubmitting"
               :disabled="!canSubmit"
-              class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+              class="sales-detail-primary-action !bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
               @click="handleSubmit"
             >
               Confirmar cobro

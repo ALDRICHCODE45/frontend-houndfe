@@ -8,8 +8,9 @@ import DataTablePagination from '../DataTablePagination.vue'
 
 function menuStub() {
   return {
-    props: ['items'],
-    template: `<div data-testid="page-size-menu"><button data-testid="page-size-first" type="button" @click="items[0][0].onSelect()" /></div>`,
+    name: 'PageSizeMenuProbe',
+    props: ['items', 'ui'],
+    template: `<div data-testid="page-size-menu"><slot /><button data-testid="page-size-first" type="button" @click="items[0][0].onSelect()" /></div>`,
   }
 }
 
@@ -46,6 +47,24 @@ function mountPagination(propsOverride: Record<string, unknown> = {}) {
 function expectShrinkContainment(classes: string[]) {
   expect(classes).toEqual(expect.arrayContaining(['w-full', 'min-w-0', 'max-w-full']))
 }
+
+describe('DataTablePagination — optional portal boundary', () => {
+  it('themes only an explicitly opted-in page-size menu and preserves its event', async () => {
+    const wrapper = mountPagination({ portalClass: 'hf-theme hf-ui clients-list-portal' })
+    const menu = wrapper.getComponent({ name: 'PageSizeMenuProbe' })
+    expect(menu.props('ui')).toEqual({ content: 'hf-theme hf-ui clients-list-portal' })
+    await wrapper.get('[data-testid="page-size-first"]').trigger('click')
+    expect(wrapper.emitted('update:pageSize')).toEqual([[5]])
+  })
+
+  it('leaves omitted portal styling and the existing page bridge unchanged', async () => {
+    const wrapper = mountPagination({ pageIndex: 4 })
+    const menu = wrapper.getComponent({ name: 'PageSizeMenuProbe' })
+    expect(menu.props('ui')).toBeUndefined()
+    await wrapper.get('[data-testid="pagination-list"]').trigger('click')
+    expect(wrapper.emitted('update:pageIndex')).toEqual([[5]])
+  })
+})
 
 describe('DataTablePagination — unchanged value bridge and content', () => {
   it('emits a zero-based pageIndex when UPagination reports the next one-based page', async () => {
@@ -93,5 +112,36 @@ describe('DataTablePagination — mobile containment (S1)', () => {
     // intentionally NOT forced on it so the sm+ row layout is unchanged.
     expect(classes).toEqual(expect.arrayContaining(['min-w-0', 'max-w-full']))
     expect(classes).not.toContain('overflow-x-auto')
+  })
+})
+
+// ─── Products-visual inert marker hooks (T2 / S2) ────────────────────────────
+// The Products stylesheet opts into these classes; the shared pagination only
+// carries the hooks. The zero-based page bridge, the size menu event, and the
+// totalCount > 0 visibility guard all stay unchanged.
+
+describe('DataTablePagination — products-visual marker hooks (T2 / S2)', () => {
+  it('marks the root, summary, size control, and navigation with inert hooks', () => {
+    const wrapper = mountPagination()
+
+    expect(wrapper.element.classList.contains('hf-pagination')).toBe(true)
+
+    const summary = wrapper.get('.hf-pagination-summary')
+    expect(summary.text()).toContain('Mostrando 1-10 de 25')
+
+    const sizeButton = wrapper.get('.hf-pagination-size')
+    expect(sizeButton.text()).toContain('10 por página')
+
+    const navigation = wrapper.get('.hf-pagination-navigation')
+    expect(navigation.attributes('data-page')).toBe('1')
+  })
+
+  it('keeps the zero-result summary and the value-bridge events after adding hooks', async () => {
+    const empty = mountPagination({ totalCount: 0, showingFrom: 0, showingTo: 0 })
+    expect(empty.get('.hf-pagination-summary').text()).toContain('Sin resultados')
+
+    const wrapper = mountPagination({ pageIndex: 4 })
+    await wrapper.get('.hf-pagination-navigation').trigger('click')
+    expect(wrapper.emitted('update:pageIndex')).toEqual([[5]])
   })
 })

@@ -1,0 +1,533 @@
+@import '../../../../core/shared/design-system/houndfe-theme.css';
+
+/* Caja adapter for the opt-in HoundFe retail foundation. Existing
+ * presentation contracts and global Nuxt UI settings remain unchanged.
+ */
+
+.cash-visual,
+.cash-workspace {
+  --cash-canvas: var(--hf-page);
+  --cash-surface: var(--hf-surface);
+  --cash-surface-muted: var(--hf-surface-muted);
+  --cash-ink: var(--hf-ink);
+  --cash-muted: var(--hf-muted);
+  --cash-border: var(--hf-border);
+  --cash-primary: var(--hf-action);
+  --cash-primary-soft: var(--hf-active-soft);
+  --cash-warning: var(--hf-warning);
+  --cash-warning-soft: var(--hf-warning-soft);
+  --cash-success: var(--hf-success);
+  --cash-radius-card: var(--hf-radius-card);
+  --cash-radius-control: var(--hf-radius-control);
+  --radius-md: var(--hf-radius-control);
+  --radius-lg: var(--hf-radius-card);
+  --cash-tile: 40px;
+  --cash-tile-sm: 30px;
+  --cash-page-max: 1320px;
+  --cash-rail: 280px;
+
+  /*
+   * Local semantic mapping. Nuxt UI reads `--ui-primary` from the closest
+   * ancestor, so this only swaps the primary INSIDE the Caja surfaces: actions
+   * use the approved retail blue with theme-aware contrast. The global theme is
+   * untouched.
+   */
+  --ui-primary: var(--cash-primary);
+
+  /* Warning text is semantic amber, not the low-contrast decorative gold.
+   * Remap both Nuxt and Tailwind aliases inside Caja, with the existing
+   * light/dark foundation supplying the readable foreground in either theme.
+   */
+  --ui-warning: var(--cash-warning);
+  --color-warning: var(--cash-warning);
+  --text-color-warning: var(--cash-warning);
+  --background-color-warning: var(--cash-warning);
+  --border-color-warning: var(--cash-warning);
+
+  /*
+   * The app's neutral is `coco-neutral` (lavender-tinted), and Nuxt UI resolves
+   * `text-muted` / `bg-elevated` / `border-default` through generated `@theme`
+   * aliases that themselves indirect through `--ui-*` on `:root`. Overriding
+   * ONLY `--ui-primary` therefore left helpers, controls and panels inheriting
+   * lavender. This block remaps BOTH layers locally to the Caja neutral palette
+   * so the audit is deterministic here rather than inherited. Inverted text
+   * is not remapped at this scope: the rule below adapts primary controls only,
+   * leaving neutral controls and teleported portals on their existing theme.
+   */
+  --ui-text-highlighted: var(--cash-ink);
+  --ui-text: var(--cash-ink);
+  --ui-text-toned: var(--cash-muted);
+  --ui-text-muted: var(--cash-muted);
+  --ui-text-dimmed: color-mix(in srgb, var(--cash-muted) 70%, var(--cash-surface));
+  --ui-bg: var(--cash-surface);
+  --ui-bg-muted: var(--cash-surface-muted);
+  --ui-bg-elevated: var(--cash-surface);
+  --ui-bg-accented: var(--cash-surface-muted);
+  --ui-border: var(--cash-border);
+  --ui-border-muted: var(--cash-border);
+  --ui-border-accented: color-mix(in srgb, var(--cash-muted) 45%, var(--cash-border));
+
+  --text-color-highlighted: var(--cash-ink);
+  --text-color-default: var(--cash-ink);
+  --text-color-toned: var(--cash-muted);
+  --text-color-muted: var(--cash-muted);
+  --text-color-dimmed: color-mix(in srgb, var(--cash-muted) 70%, var(--cash-surface));
+  --background-color-default: var(--cash-surface);
+  --background-color-muted: var(--cash-surface-muted);
+  --background-color-elevated: var(--cash-surface);
+  --background-color-accented: var(--cash-surface-muted);
+  --background-color-border: var(--cash-border);
+  --border-color-default: var(--cash-border);
+  --border-color-muted: var(--cash-border);
+  --border-color-accented: color-mix(in srgb, var(--cash-muted) 45%, var(--cash-border));
+}
+
+/* Primary controls get a matching foreground, without changing neutral
+ * controls or portals outside the pilot's scope.
+ */
+.cash-visual .bg-primary,
+.cash-workspace .bg-primary {
+  --ui-text-inverted: var(--hf-on-action);
+  --text-color-inverted: var(--hf-on-action);
+}
+
+.cash-visual
+  :where(
+    input:not([type='checkbox']):not([type='radio']):not([type='hidden']),
+    select,
+    textarea,
+    [role='combobox']
+  ) {
+  min-height: var(--hf-control-height);
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-field);
+  font-family: var(--hf-font);
+}
+
+.cash-visual :where(input, select, textarea, [role='combobox']):focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+/* ── Bounded canvas ──────────────────────────────────────────────────────── */
+
+.cash-page {
+  width: 100%;
+  max-width: var(--cash-page-max);
+  margin-inline: auto;
+  background: var(--cash-canvas);
+  color: var(--cash-ink);
+}
+
+.cash-page-title {
+  color: var(--hf-heading);
+  font-size: clamp(1.75rem, 1.55rem + 0.6vw, 2rem);
+  line-height: 1.25;
+  letter-spacing: -0.045em;
+  font-weight: 600;
+}
+
+.cash-workspace-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.cash-workspace-eyebrow {
+  border-inline-start: 3px solid var(--hf-gold);
+  padding-inline-start: 0.5rem;
+  color: var(--hf-heading);
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.cash-workspace-subtitle {
+  color: var(--cash-muted);
+  font-size: 0.82rem;
+  max-width: 60ch;
+}
+
+/* ── Layout: main column + quiet context rail ────────────────────────────── */
+
+.cash-workspace-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.cash-workspace-main,
+.cash-workspace-context {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+@media (min-width: 1024px) {
+  .cash-workspace-grid {
+    grid-template-columns: minmax(0, 1fr) var(--cash-rail);
+    align-items: start;
+  }
+}
+
+/* ── Panel + header primitives (shared with the reception/operation unit) ── */
+
+.cash-panel {
+  background: var(--cash-surface);
+  border: 1px solid var(--cash-border);
+  border-radius: var(--cash-radius-card);
+}
+
+.cash-panel-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 1.1rem 1.25rem 0.9rem;
+}
+
+.cash-panel-header-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.cash-panel-title {
+  color: var(--cash-ink);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.cash-panel-subtitle {
+  margin-top: 0.15rem;
+  color: var(--cash-muted);
+  font-size: 0.75rem;
+}
+
+.cash-panel-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.cash-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 0 1.25rem 1.25rem;
+}
+
+.cash-icon-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: var(--cash-tile);
+  height: var(--cash-tile);
+  border: 1px solid var(--cash-border);
+  border-radius: 8px;
+  background: var(--hf-active-soft);
+  color: var(--hf-active);
+}
+
+.cash-icon-tile svg {
+  width: 1.15rem;
+  height: 1.15rem;
+}
+
+.cash-icon-tile-sm {
+  width: var(--cash-tile-sm);
+  height: var(--cash-tile-sm);
+  border-radius: 8px;
+}
+
+.cash-icon-tile-sm svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+/* Nuxt inputs put class on a root wrapper: only buttons own this surface.
+ * Native fields keep their own border and the shared field/focus tokens above.
+ */
+.cash-control:where(button, a) {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0 1rem;
+  border: 1px solid var(--cash-border);
+  border-radius: var(--cash-radius-control);
+  background: var(--cash-surface);
+  color: var(--cash-ink);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.cash-control:where(button, a):hover {
+  border-color: var(--cash-primary);
+  color: var(--cash-primary);
+}
+
+.cash-control:where(button, a):focus-visible {
+  outline: 2px solid var(--cash-primary);
+  outline-offset: 2px;
+}
+
+.cash-form-content {
+  width: 100%;
+  max-width: 42rem;
+}
+
+/* ── Selected-turn hero ──────────────────────────────────────────────────── */
+
+.cash-shift-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.4rem 1.5rem;
+  border: 1px solid color-mix(in srgb, var(--cash-primary) 28%, var(--cash-border));
+  border-radius: var(--cash-radius-card);
+  background: var(--cash-surface);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--cash-ink) 5%, transparent);
+}
+
+.cash-shift-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.cash-shift-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--cash-primary);
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.cash-shift-register {
+  color: var(--cash-ink);
+  font-size: clamp(1.35rem, 1.2rem + 0.5vw, 1.6rem);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+.cash-shift-description {
+  color: var(--cash-muted);
+  font-size: 0.82rem;
+  max-width: 58ch;
+}
+
+.cash-shift-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin: 0;
+}
+
+.cash-shift-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  color: var(--cash-ink);
+  font-size: 0.82rem;
+}
+
+.cash-shift-meta-item small {
+  display: block;
+  margin-bottom: 0.05rem;
+  color: var(--cash-muted);
+  font-size: 0.68rem;
+}
+
+.cash-shift-bottom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--cash-border);
+}
+
+.cash-shift-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cash-shift-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--cash-muted);
+  font-size: 0.75rem;
+}
+
+.cash-shift-note svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.cash-live-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background: var(--cash-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cash-success) 20%, transparent);
+}
+
+/* ── Quiet contextual task navigation ────────────────────────────────────── */
+
+.cash-task-nav-title {
+  color: var(--cash-ink);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.cash-task-nav-subtitle {
+  margin-top: 0.1rem;
+  color: var(--cash-muted);
+  font-size: 0.72rem;
+}
+
+.cash-task-nav-list {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0.85rem 0 0;
+  padding: 0 0 0.25rem;
+  list-style: none;
+  overflow-x: auto;
+}
+
+@media (min-width: 1024px) {
+  .cash-task-nav-list {
+    flex-direction: column;
+    padding-bottom: 0;
+    overflow: visible;
+  }
+}
+
+.cash-task {
+  display: flex;
+  width: 100%;
+  min-width: 13rem;
+  min-height: 44px;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--cash-border);
+  border-radius: var(--cash-radius-control);
+  background: var(--cash-surface);
+  cursor: pointer;
+  text-align: left;
+}
+
+.cash-task:hover {
+  border-color: color-mix(in srgb, var(--cash-primary) 45%, var(--cash-border));
+}
+
+.cash-task:focus-visible {
+  outline: 2px solid var(--cash-primary);
+  outline-offset: 2px;
+}
+
+.cash-task-active {
+  border-color: var(--hf-active);
+  background: var(--cash-primary-soft);
+  box-shadow: inset 3px 0 0 var(--hf-active);
+}
+
+.cash-task-active .cash-icon-tile {
+  border-color: color-mix(in srgb, var(--cash-primary) 30%, var(--cash-border));
+  background: var(--cash-surface);
+}
+
+.cash-task-body {
+  min-width: 0;
+}
+
+.cash-task-label {
+  display: block;
+  color: var(--cash-ink);
+  font-size: 0.82rem;
+  font-weight: 550;
+}
+
+.cash-task-hint {
+  display: block;
+  margin-top: 0.1rem;
+  color: var(--cash-muted);
+  font-size: 0.7rem;
+}
+
+/* ── Summary facts ───────────────────────────────────────────────────────── */
+
+.cash-session-summary {
+  display: flex;
+  flex-direction: column;
+}
+
+.cash-session-summary--flat {
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--cash-border);
+}
+
+.cash-session-summary--flat .cash-panel-header {
+  padding: 0.9rem 0 0.6rem;
+}
+
+.cash-session-summary--flat .cash-panel-body {
+  padding: 0 0 0.15rem;
+}
+
+.cash-facts-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  margin: 0;
+}
+
+@media (min-width: 640px) {
+  .cash-facts-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.cash-fact dt {
+  color: var(--cash-muted);
+  font-size: 0.7rem;
+}
+
+.cash-fact-value {
+  margin-top: 0.15rem;
+  color: var(--cash-ink);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.cash-note {
+  margin: 0;
+  padding: 0.75rem 0.9rem;
+  border: 1px solid var(--cash-border);
+  border-radius: var(--cash-radius-control);
+  background: var(--cash-surface-muted);
+  color: var(--cash-muted);
+  font-size: 0.75rem;
+  line-height: 1.5;
+}
+
+.cash-note--warning {
+  border-color: color-mix(in srgb, var(--cash-warning) 40%, var(--cash-border));
+  background: var(--cash-warning-soft);
+  color: var(--cash-warning);
+}

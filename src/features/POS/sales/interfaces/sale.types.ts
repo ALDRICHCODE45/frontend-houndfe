@@ -29,8 +29,7 @@ export type PriceSource = 'default' | 'price_list' | 'custom'
 export type PaymentMethod = (typeof PAYMENT_METHOD)[keyof typeof PAYMENT_METHOD]
 export type NonCreditPaymentMethod = Exclude<PaymentMethod, 'credit'>
 export type CollectionPaymentMethod = NonCreditPaymentMethod
-export type SalePaymentStatus =
-  (typeof SALE_PAYMENT_STATUS)[keyof typeof SALE_PAYMENT_STATUS]
+export type SalePaymentStatus = (typeof SALE_PAYMENT_STATUS)[keyof typeof SALE_PAYMENT_STATUS]
 export type SaleDeliveryStatus =
   // sdd delivery-routes S1a — REQ-SALES-DR-001: derived from the matching
   // `as const` object in `constants/sale.constants.ts` so adding `SHIPPED`
@@ -124,7 +123,10 @@ export type CustomerSalesHistoryParams = Required<
 export type SaleDetailPaymentMethod =
   (typeof SALE_DETAIL_PAYMENT_METHOD)[keyof typeof SALE_DETAIL_PAYMENT_METHOD] // UPPERCASE — distinct from PaymentMethod (LOWERCASE). Two different backend contracts.
 
-export type SaleCommentErrorCode = 'COMMENT_NOT_FOUND' | 'COMMENT_AUTHOR_FORBIDDEN' | 'SALE_NOT_FOUND'
+export type SaleCommentErrorCode =
+  | 'COMMENT_NOT_FOUND'
+  | 'COMMENT_AUTHOR_FORBIDDEN'
+  | 'SALE_NOT_FOUND'
 
 export interface SaleDetailItem {
   productName: string
@@ -184,38 +186,38 @@ export interface SaleDetailPayment {
 
 export type SaleTimelineEvent =
   | {
-    type: 'SALE_REGISTERED'
-    at: string
-    actor: SaleActorRef | null
-    register: string
-  }
+      type: 'SALE_REGISTERED'
+      at: string
+      actor: SaleActorRef | null
+      register: string
+    }
   | {
-    type: 'PAYMENT_RECEIVED'
-    at: string
-    actor: SaleActorRef | null
-    register: string
-    method: SaleDetailPaymentMethod
-    amountCents: number
-    reference: string | null
-    // sdd custom-payment-methods S4A (REQ-CAT-004): same 3 optional
-    // catalog snapshot fields as SaleDetailPayment.
-    paymentMethodId?: string
-    paymentMethodName?: string
-    paymentMethodSubtitle?: string
-  }
+      type: 'PAYMENT_RECEIVED'
+      at: string
+      actor: SaleActorRef | null
+      register: string
+      method: SaleDetailPaymentMethod
+      amountCents: number
+      reference: string | null
+      // sdd custom-payment-methods S4A (REQ-CAT-004): same 3 optional
+      // catalog snapshot fields as SaleDetailPayment.
+      paymentMethodId?: string
+      paymentMethodName?: string
+      paymentMethodSubtitle?: string
+    }
   | {
-    type: 'PRODUCTS_DELIVERED'
-    at: string
-    actor: SaleActorRef | null
-    register: string
-  }
+      type: 'PRODUCTS_DELIVERED'
+      at: string
+      actor: SaleActorRef | null
+      register: string
+    }
   | {
-    type: 'COMMENT'
-    at: string
-    actor: SaleActorRef
-    commentId: string
-    body: string
-  }
+      type: 'COMMENT'
+      at: string
+      actor: SaleActorRef
+      commentId: string
+      body: string
+    }
 
 export interface SaleComment {
   id: string
@@ -229,7 +231,10 @@ export interface SaleComment {
 }
 
 export class SaleCommentError extends Error {
-  constructor(public readonly code: SaleCommentErrorCode, message?: string) {
+  constructor(
+    public readonly code: SaleCommentErrorCode,
+    message?: string,
+  ) {
     super(message ?? code)
     this.name = 'SaleCommentError'
   }
@@ -336,6 +341,12 @@ export interface LegacyChargePayload {
    *  this flag into the wire payload only when the toggle is ON. Omission
    *  preserves byte-identical legacy charges (backend treats absent as `false`). */
   delivery?: boolean
+  /** Optional explicit Caja session link (T6/S3). Present ONLY when the cashier
+   *  selected an own/OPEN session; omitted entirely for a legacy unbound charge
+   *  (no key, no `null`, no empty string). Null/empty/non-UUID values are
+   *  rejected by the backend with `INVALID_CASH_SESSION_ID`, so the modal never
+   *  sends them. The link is never nested inside `payments`. */
+  cashSessionId?: string
 }
 
 export interface PaymentEntry {
@@ -356,6 +367,10 @@ export interface MultiPaymentChargePayload {
    *  contract as `LegacyChargePayload.delivery` — omit when off, `true`
    *  when the toggle is ON. See that field for the full rationale. */
   delivery?: boolean
+  /** Optional explicit Caja session link (T6/S3). Same contract as
+   *  `LegacyChargePayload.cashSessionId`: present only for an explicit
+   *  selection, omitted for a legacy unbound charge. */
+  cashSessionId?: string
 }
 
 export type ChargeSalePayload =
@@ -517,7 +532,10 @@ export type SellerAssignmentErrorCode =
   | 'SALE_UPDATE_FORBIDDEN'
 
 export class SellerAssignmentError extends Error {
-  constructor(public readonly code: SellerAssignmentErrorCode, message?: string) {
+  constructor(
+    public readonly code: SellerAssignmentErrorCode,
+    message?: string,
+  ) {
     super(message ?? code)
     this.name = 'SellerAssignmentError'
   }
@@ -535,7 +553,10 @@ export type SaleDueDateErrorCode =
   | 'SALE_UPDATE_FORBIDDEN'
 
 export class SaleDueDateError extends Error {
-  constructor(public readonly code: SaleDueDateErrorCode, message?: string) {
+  constructor(
+    public readonly code: SaleDueDateErrorCode,
+    message?: string,
+  ) {
     super(message ?? code)
     this.name = 'SaleDueDateError'
   }
@@ -635,8 +656,18 @@ export type ApplyItemDiscountPayload =
 export type GlobalDiscountStrategy = 'replace' | 'skip'
 
 export type ApplyGlobalDiscountPayload =
-  | { type: 'amount'; amountCents: number; discountTitle?: string; strategy?: GlobalDiscountStrategy }
-  | { type: 'percentage'; percent: number; discountTitle?: string; strategy?: GlobalDiscountStrategy }
+  | {
+      type: 'amount'
+      amountCents: number
+      discountTitle?: string
+      strategy?: GlobalDiscountStrategy
+    }
+  | {
+      type: 'percentage'
+      percent: number
+      discountTitle?: string
+      strategy?: GlobalDiscountStrategy
+    }
 
 export interface GlobalDiscountSkippedItem {
   itemId: string

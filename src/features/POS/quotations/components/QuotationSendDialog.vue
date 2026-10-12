@@ -101,7 +101,12 @@ function handleClose(): void {
     title="Enviar cotización"
     :dismissible="!isSending"
     :close="!isSending"
-    @update:open="(value: boolean) => { if (!value) handleClose() }"
+    :ui="{ content: 'hf-theme hf-ui hf-form-overlay quotations-workspace-portal' }"
+    @update:open="
+      (value: boolean) => {
+        if (!value) handleClose()
+      }
+    "
   >
     <template #body>
       <div class="flex flex-col gap-4" data-testid="send-dialog">
@@ -123,12 +128,8 @@ function handleClose(): void {
         >
           <UIcon name="i-lucide-alert-triangle" class="h-4 w-4 mt-0.5 shrink-0" />
           <span>
-            <template v-if="customerName">
-              {{ customerName }} no tiene email registrado.
-            </template>
-            <template v-else>
-              La cotización no tiene cliente asignado.
-            </template>
+            <template v-if="customerName"> {{ customerName }} no tiene email registrado. </template>
+            <template v-else> La cotización no tiene cliente asignado. </template>
             No se puede enviar por email — usá "Marcar como enviado" si entregás el PDF en persona.
           </span>
         </div>

@@ -92,7 +92,7 @@ const showChangeRow = computed(() => props.changeDueCents > 0)
         block
         icon="i-lucide-credit-card"
         data-testid="register-debt-payment"
-        class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+        class="sales-detail-primary-action !bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
         :disabled="isPaymentSubmitting"
         @click="emit('register-payment')"
       >

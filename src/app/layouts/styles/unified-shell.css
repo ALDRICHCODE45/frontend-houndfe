@@ -1,0 +1,703 @@
+/*
+ * Unified shell adapter — scoped palette, chrome geometry and hook ownership.
+ *
+ * Every selector is bounded to `.hf-shell`, a `.hf-shell-*` hook or the
+ * Products-only bridge. Nothing here is global: the routed workspace keeps its
+ * own controls and the Caja/auth/sales surfaces are untouched.
+ *
+ * Layer model (three planes, one system):
+ *   page   -> --shell-page      (workspace backdrop, deep)
+ *   chrome -> --shell-chrome    (sidebar + navbar frame)
+ *   card   -> --shell-card      (elevated panel/menus)
+ *
+ * The `.hf-shell` root declares ONLY `--shell-*` variables. Nuxt UI aliases
+ * (`--ui-*`, `--text-color-*`, `--background-color-*`, `--border-color-*`) are
+ * remapped exclusively on the teleported `.hf-shell-portal` boundary, so a
+ * menu that renders outside the shell still resolves the shell theme without
+ * leaking a global alias override into routed pages.
+ *
+ * Fonts: the shell borrows the already-registered Manrope family through
+ * `--shell-font` (falling back to the existing `--hf-font`) and never assigns
+ * a global font-family. The scoped `@import` below is a load fallback for
+ * routes that do not already load the foundation stylesheet.
+ */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;650;700&display=swap');
+
+/* ── Palette (root + teleported portals) ────────────────────────────────── */
+
+/* `.hf-shell-products-portal` is the standalone Products portal marker: a
+ * teleported Products surface that carries `hf-theme hf-ui` without any shell
+ * ancestor. It repeats the shell palette so the shared `--hf-*` bridge below
+ * resolves the same planes the scoped workspace uses. */
+.hf-shell,
+.hf-shell-portal,
+.hf-shell-products-portal {
+  --shell-page: #f3f6fa;
+  --shell-chrome: #f9fbfd;
+  --shell-card: #ffffff;
+  --shell-ink: #1e3555;
+  --shell-muted: #63748b;
+  --shell-border: #dce3ed;
+  --shell-muted-surface: #eaf0f8;
+  --shell-action: #315ce7;
+  --shell-on-action: #ffffff;
+  --shell-active: #e9effd;
+  --shell-table-head: #e8eef7;
+
+  /* Geometry. */
+  --shell-row: 35px;
+  --shell-row-tall: 38px;
+  --shell-radius-control: 6px;
+  --shell-radius-panel: 12px;
+  --shell-radius-tenant: 8px;
+
+  /* Identity font, never a global assignment. */
+  --shell-font: var(--hf-font, 'Manrope', ui-sans-serif, system-ui, sans-serif);
+}
+
+.dark .hf-shell,
+.dark .hf-shell-portal,
+.dark .hf-shell-products-portal {
+  --shell-page: #101720;
+  --shell-chrome: #151e2b;
+  --shell-card: #1b2736;
+  --shell-ink: #e4ebf5;
+  --shell-muted: #9aaac0;
+  --shell-border: #2d3b4d;
+  --shell-muted-surface: #223044;
+  --shell-action: #91b0ff;
+  --shell-on-action: #172b51;
+  --shell-active: #253b60;
+  --shell-table-head: #223044;
+}
+
+/* Teleported shell menus (dropdowns, dialogs, search) escape the shell root,
+ * so the portal repeats the palette above and is the ONLY place allowed to
+ * remap the Nuxt UI / generated Tailwind aliases. */
+.hf-shell-portal {
+  --ui-primary: var(--shell-action);
+  --ui-text-highlighted: var(--shell-ink);
+  --ui-text: var(--shell-ink);
+  --ui-text-toned: var(--shell-muted);
+  --ui-text-muted: var(--shell-muted);
+  --ui-text-dimmed: color-mix(in srgb, var(--shell-muted) 70%, var(--shell-card));
+  --ui-bg: var(--shell-card);
+  --ui-bg-muted: var(--shell-muted-surface);
+  --ui-bg-elevated: var(--shell-card);
+  --ui-bg-accented: var(--shell-muted-surface);
+  --ui-border: var(--shell-border);
+  --ui-border-muted: var(--shell-border);
+  --ui-border-accented: color-mix(in srgb, var(--shell-muted) 45%, var(--shell-border));
+  --ui-radius: var(--shell-radius-control);
+
+  --text-color-highlighted: var(--shell-ink);
+  --text-color-default: var(--shell-ink);
+  --text-color-toned: var(--shell-muted);
+  --text-color-muted: var(--shell-muted);
+  --background-color-default: var(--shell-card);
+  --background-color-muted: var(--shell-muted-surface);
+  --background-color-elevated: var(--shell-card);
+  --background-color-accented: var(--shell-muted-surface);
+  --border-color-default: var(--shell-border);
+  --border-color-muted: var(--shell-border);
+
+  background-color: var(--shell-card);
+  border-color: var(--shell-border);
+  color: var(--shell-ink);
+  font-family: var(--shell-font);
+}
+
+/* The standalone Products portal root repeats the shell surfaces without
+ * remapping any Nuxt UI alias: the unchanged `hf-ui` adapter still owns the
+ * `--ui-*` / generated Tailwind aliases and reads them through `--hf-*`. */
+.hf-theme.hf-shell-products-portal {
+  background-color: var(--shell-card);
+  border-color: var(--shell-border);
+  color: var(--shell-ink);
+  font-family: var(--shell-font);
+}
+
+/* ── Sidebar frame ──────────────────────────────────────────────────────── */
+
+/* The width stays owned by the installed resizable sidebar; this hook only
+ * paints the chrome plane. */
+.hf-shell-sidebar {
+  background-color: var(--shell-chrome);
+  border-inline-end: 1px solid var(--shell-border);
+  color: var(--shell-ink);
+  font-family: var(--shell-font);
+}
+
+/* The hook regions below own their own padding. The body stays a bounded flex
+ * column so the nav scrolls internally and the footer remains pinned. */
+.hf-shell-sidebar [data-slot='body'] {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.hf-shell-brand {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  height: 76px;
+  padding: 0 24px;
+  gap: 10px;
+}
+
+.hf-shell-brand-mark {
+  width: 27px;
+  font-size: 27px;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -5px;
+  color: var(--shell-action);
+}
+
+/* The lowercase "f" sits on the baseline of the registered "h". */
+.hf-shell-brand-mark > span {
+  display: inline-block;
+  transform: translateY(3px);
+}
+
+.hf-shell-brand-name {
+  font-size: 23px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  color: var(--shell-ink);
+}
+
+/* Additive image hook for the real login brand asset. No recolor filter: the
+ * installed asset is a full-colour PNG, so it keeps its own artwork. */
+.hf-shell-brand-logo {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: 40px;
+  object-fit: contain;
+  object-position: left center;
+}
+
+/* Registered mark reads as a small superscript, not part of the wordmark. */
+.hf-shell-brand-name > span {
+  display: inline-block;
+  margin: 5px 0 0 3px;
+  font-size: 10px;
+  font-weight: inherit;
+  letter-spacing: 0;
+  vertical-align: top;
+  color: var(--shell-muted);
+}
+
+.hf-shell-tenant {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 10px;
+  padding: 11px 10px;
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius-tenant);
+  background-color: var(--shell-card);
+  color: var(--shell-ink);
+  text-align: left;
+}
+
+.hf-shell-tenant strong,
+.hf-shell-user > span {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.hf-shell-tenant small {
+  display: block;
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--shell-muted);
+}
+
+/* The installed trigger is a neutral/outline UButton, which paints a `ring`
+ * (box-shadow), `bg-default` and `text-default` from the Coco palette. The hook
+ * states the complete shell surface: flat outline, transparent plane, shell
+ * text and an accessibly scoped focus ring, all without priority hacks. */
+.hf-shell-search {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 9px;
+  padding: 8px 10px;
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius-control);
+  background-color: transparent;
+  box-shadow: none;
+  color: var(--shell-muted);
+  font-size: 13px;
+}
+
+.hf-shell-search:hover {
+  background-color: var(--shell-muted-surface);
+  color: var(--shell-ink);
+}
+
+.hf-shell-search:focus-visible {
+  outline: 2px solid var(--shell-action);
+  outline-offset: 3px;
+  box-shadow: none;
+}
+
+.hf-shell-search [data-slot='label'] {
+  color: var(--shell-muted);
+}
+
+/* The installed trigger renders two UKbd <kbd> nodes inside the trailing slot.
+ * They inherit the Coco `text-default` hue, so the shell states the restrained
+ * 4px keycap: muted border, shell text and no purple. */
+.hf-shell-search [data-slot='trailing'] kbd {
+  background-color: var(--shell-chrome);
+  box-shadow: none;
+  border: 1px solid var(--shell-border);
+  border-radius: 4px;
+  padding: 0 4px;
+  color: var(--shell-muted);
+  font-family: var(--shell-font);
+  font-size: 11px;
+}
+
+/* ── Navigation ─────────────────────────────────────────────────────────── */
+
+.hf-shell-nav {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 12px 18px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--shell-border) transparent;
+}
+
+/* Rows are bound to the installed NavigationMenu `link` slot only, so nested
+ * routed controls are never hit. */
+.hf-shell-nav [data-slot='link'] {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 11px;
+  min-height: var(--shell-row);
+  padding: 7px 11px;
+  border-radius: var(--shell-radius-control);
+  color: var(--shell-muted);
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.hf-shell-nav [data-slot='link']:hover {
+  background-color: var(--shell-muted-surface);
+  color: var(--shell-ink);
+}
+
+.hf-shell-nav [data-slot='link'][aria-current='page'],
+.hf-shell-nav [data-slot='link'][data-active='true'],
+.hf-shell-nav [data-slot='link'].hf-shell-nav-active {
+  background-color: var(--shell-active);
+  color: var(--shell-action);
+  font-weight: 600;
+}
+
+/* Selected destination marker. */
+.hf-shell-nav [data-slot='link'].hf-shell-nav-active:not([aria-expanded])::after,
+.hf-shell-nav [data-slot='link'][aria-current='page']::after {
+  content: '';
+  flex-shrink: 0;
+  width: 5px;
+  height: 5px;
+  margin-inline-start: 3px;
+  border-radius: 50%;
+  background-color: var(--shell-action);
+}
+
+/* Group headings are quiet expand/collapse labels. An active child must not
+ * repaint the heading as if it were the selected destination. */
+.hf-shell-nav [data-slot='link'][aria-expanded],
+.hf-shell-nav [data-slot='link'][data-state] {
+  min-height: 0;
+  gap: 10px;
+  padding: 6px 11px;
+  color: var(--shell-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+}
+
+.hf-shell-nav [data-slot='link'][aria-expanded]:hover,
+.hf-shell-nav [data-slot='link'][data-state]:hover {
+  background-color: var(--shell-muted-surface);
+  color: var(--shell-ink);
+}
+
+.hf-shell-nav [data-slot='link'][aria-expanded].hf-shell-nav-active,
+.hf-shell-nav [data-slot='link'][data-state].hf-shell-nav-active {
+  background-color: transparent;
+  color: var(--shell-muted);
+}
+
+/* The selected group heading (a child is the active destination) must still
+ * answer hover. This rule lands after the quiet reset above and carries one
+ * extra class, so it wins the cascade instead of being cancelled by it. */
+.hf-shell-nav [data-slot='link'][aria-expanded].hf-shell-nav-active:hover,
+.hf-shell-nav [data-slot='link'][data-state].hf-shell-nav-active:hover {
+  background-color: var(--shell-muted-surface);
+  color: var(--shell-ink);
+}
+
+/* Reference expanded groups hide the leading icon; the compact rail keeps it. */
+.hf-shell-sidebar:not([data-collapsed='true'])
+  .hf-shell-nav
+  [data-slot='link'][aria-expanded]
+  [data-slot='linkLeadingIcon'],
+.hf-shell-sidebar:not([data-collapsed='true'])
+  .hf-shell-nav
+  [data-slot='link'][data-state]
+  [data-slot='linkLeadingIcon'] {
+  display: none;
+}
+
+/* Neutralize the native vertical accordion indent and rail. */
+.hf-shell-nav [data-slot='childList'] {
+  margin-inline-start: 0;
+  border-inline-start: 0;
+}
+
+.hf-shell-nav [data-slot='childItem'] {
+  margin-inline-start: 0;
+  padding-inline-start: 0;
+}
+
+.hf-shell-nav [data-slot='label'] {
+  padding: 6px 11px;
+  color: var(--shell-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+}
+
+.hf-shell-nav [data-slot='childLink'] {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: var(--shell-row);
+  padding: 7px 11px;
+  border-radius: var(--shell-radius-control);
+  color: var(--shell-muted);
+  font-size: 13px;
+  text-align: left;
+}
+
+.hf-shell-nav [data-slot='childLink']:hover {
+  background-color: var(--shell-muted-surface);
+  color: var(--shell-ink);
+}
+
+.hf-shell-nav [data-slot='childLink'][data-active='true'],
+.hf-shell-nav [data-slot='childLink'].hf-shell-nav-active {
+  color: var(--shell-action);
+}
+
+/* Icon roles mirror the row hierarchy: muted at rest, ink on hover and the
+ * action hue only for the selected destination. The color is set on the icon
+ * node itself because Nuxt applies `text-dimmed`/`text-primary` utilities
+ * directly to it; those explicit utilities beat an inherited link color. */
+.hf-shell-nav [data-slot='linkLeadingIcon'] {
+  color: var(--shell-muted);
+}
+
+.hf-shell-nav [data-slot='link']:hover [data-slot='linkLeadingIcon'] {
+  color: var(--shell-ink);
+}
+
+.hf-shell-nav [data-slot='link'].hf-shell-nav-active [data-slot='linkLeadingIcon'],
+.hf-shell-nav [data-slot='link'][aria-current='page'] [data-slot='linkLeadingIcon'] {
+  color: var(--shell-action);
+}
+
+/* A group heading stays quiet even when a child is the selected destination:
+ * the parent item also receives `.hf-shell-nav-active`. The extra class keeps
+ * this rule above the destination rule so the heading icon never competes. */
+.hf-shell-nav [data-slot='link'][aria-expanded].hf-shell-nav-active [data-slot='linkLeadingIcon'],
+.hf-shell-nav [data-slot='link'][data-state].hf-shell-nav-active [data-slot='linkLeadingIcon'] {
+  color: var(--shell-muted);
+}
+
+/* Expanded headings hide the leading icon, so this only affects the compact
+ * rail, where the visible icon follows the heading hover to the ink hue. */
+.hf-shell-nav
+  [data-slot='link'][aria-expanded].hf-shell-nav-active:hover
+  [data-slot='linkLeadingIcon'],
+.hf-shell-nav
+  [data-slot='link'][data-state].hf-shell-nav-active:hover
+  [data-slot='linkLeadingIcon'] {
+  color: var(--shell-ink);
+}
+
+/* ── Teleported compact nav popover ─────────────────────────────────────── */
+
+/* The compact group popover escapes the sidebar root, so its own marker
+ * repeats the navigable child rows. Nothing here depends on a `.hf-shell`
+ * ancestor; the `hf-shell-portal` boundary already repeats the palette. */
+.hf-shell-portal.hf-shell-nav-portal [data-slot='childLink'] {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-height: var(--shell-row);
+  padding: 7px 11px;
+  border-radius: var(--shell-radius-control);
+  color: var(--shell-muted);
+  font-size: 13px;
+  text-align: left;
+}
+
+.hf-shell-portal.hf-shell-nav-portal [data-slot='childLink']:hover {
+  background-color: var(--shell-muted-surface);
+  color: var(--shell-ink);
+}
+
+.hf-shell-portal.hf-shell-nav-portal [data-slot='childLink'][data-active='true'],
+.hf-shell-portal.hf-shell-nav-portal [data-slot='childLink'].hf-shell-nav-active {
+  color: var(--shell-action);
+}
+
+.hf-shell-portal.hf-shell-nav-portal [data-slot='childLinkIcon'],
+.hf-shell-portal.hf-shell-nav-portal [data-slot='linkLeadingIcon'] {
+  color: var(--shell-muted);
+}
+
+.hf-shell-portal.hf-shell-nav-portal [data-slot='childLink']:hover [data-slot='childLinkIcon'],
+.hf-shell-portal.hf-shell-nav-portal [data-slot='childLink']:hover [data-slot='linkLeadingIcon'] {
+  color: var(--shell-ink);
+}
+
+.hf-shell-portal.hf-shell-nav-portal
+  [data-slot='childLink'].hf-shell-nav-active
+  [data-slot='childLinkIcon'],
+.hf-shell-portal.hf-shell-nav-portal
+  [data-slot='childLink'].hf-shell-nav-active
+  [data-slot='linkLeadingIcon'] {
+  color: var(--shell-action);
+}
+
+/* ── Sidebar footer + user ──────────────────────────────────────────────── */
+
+.hf-shell-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 12px;
+  border-top: 1px solid var(--shell-border);
+}
+
+.hf-shell-user {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 10px;
+  padding: 6px;
+  border-radius: var(--shell-radius-control);
+  color: var(--shell-ink);
+  text-align: left;
+}
+
+.hf-shell-user:hover {
+  background-color: var(--shell-muted-surface);
+}
+
+/* Explicit shell paint for text/icon/avatar roles. The unit's inherited
+ * `text-muted`/`text-dimmed` utilities and Nuxt leading-icon aliases otherwise
+ * resolve the Coco/gold theme, so every shell hook states its own shell token. */
+.hf-shell-breadcrumb :where(svg, .iconify),
+.hf-shell-search [data-slot='leadingIcon'],
+.hf-shell-tenant :where(svg, .iconify),
+.hf-shell-user :where(svg, .iconify),
+.hf-shell-footer [data-slot='leadingIcon'],
+.hf-shell-navbar [data-slot='leadingIcon'],
+.hf-shell-actions [data-slot='leadingIcon'] {
+  color: var(--shell-muted);
+}
+
+.hf-shell-tenant [data-slot='root'],
+.hf-shell-user [data-slot='root'],
+.hf-shell-actions [data-slot='leadingAvatar'] {
+  background-color: var(--shell-muted-surface);
+  color: var(--shell-ink);
+}
+
+.hf-shell-tenant [data-slot='fallback'],
+.hf-shell-user [data-slot='fallback'],
+.hf-shell-actions [data-slot='fallback'] {
+  color: var(--shell-ink);
+}
+
+/* ── Navbar chrome ──────────────────────────────────────────────────────── */
+
+.hf-shell-navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  height: 65px;
+  padding: 0 28px;
+  background-color: var(--shell-chrome);
+  border-bottom: 1px solid var(--shell-border);
+  color: var(--shell-ink);
+  font-family: var(--shell-font);
+}
+
+.hf-shell-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: var(--shell-muted);
+  font-size: 13px;
+}
+
+.hf-shell-breadcrumb [aria-current='page'],
+.hf-shell-breadcrumb-current {
+  color: var(--shell-ink);
+  font-weight: 600;
+}
+
+.hf-shell-actions {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+/* Icon controls match the reference 32px target; the native mobile sidebar
+ * trigger keeps its 44px accessible hit area. */
+.hf-shell-navbar [data-slot='left'] :where(button),
+.hf-shell-actions :where(button) {
+  width: 32px;
+  height: 32px;
+}
+
+.hf-shell-navbar [data-slot='toggle'] {
+  width: 44px;
+  height: 44px;
+}
+
+/* ── Workspace + panel ──────────────────────────────────────────────────── */
+
+/* The workspace owns the page plane only; routed controls stay untouched. */
+.hf-shell-workspace {
+  background-color: var(--shell-page);
+}
+
+.hf-shell-panel {
+  background-color: var(--shell-card);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius-panel);
+}
+
+/* ── Products-only palette bridge ───────────────────────────────────────── */
+
+/* Locally remap the shared `--hf-*` foundation roles onto the shell planes only
+ * while Products renders inside the shell, and for the standalone Products
+ * portal marker that has no shell ancestor. Source data, business logic and
+ * layout are unchanged, the Caja `--cash-*` tokens are never referenced, and
+ * gold/status semantics stay with the Products pilot. The `.hf-theme` prefix on
+ * the standalone branch raises specificity above the foundation dark palette. */
+.hf-shell .products-visual,
+.dark .hf-shell .products-visual,
+.hf-theme.hf-shell-products-portal,
+.dark .hf-theme.hf-shell-products-portal {
+  --hf-page: var(--shell-page);
+  --hf-surface: var(--shell-card);
+  --hf-surface-muted: var(--shell-muted-surface);
+  /* Reference fields sit on the page plane; the foundation `--hf-field-border`
+   * is intentionally left in place so dark inputs keep accessible contrast. */
+  --hf-field: var(--shell-page);
+  --hf-ink: var(--shell-ink);
+  --hf-heading: var(--shell-ink);
+  --hf-muted: var(--shell-muted);
+  --hf-border: var(--shell-border);
+  --hf-action: var(--shell-action);
+  --hf-on-action: var(--shell-on-action);
+  --hf-active: var(--shell-action);
+  --hf-active-soft: var(--shell-active);
+  --hf-focus: var(--shell-action);
+}
+
+/* ── Compact rail (native [data-collapsed="true"]) ──────────────────────── */
+
+/* The native sidebar root already carries data-collapsed; every compact rule
+ * hangs off that hook so the expanded rail and the always-expanded drawer are
+ * untouched. */
+.hf-shell-sidebar[data-collapsed='true'] .hf-shell-brand {
+  gap: 0;
+  padding: 0;
+  justify-content: center;
+}
+
+.hf-shell-sidebar[data-collapsed='true'] .hf-shell-brand-logo {
+  width: 44px;
+  height: 44px;
+  object-position: center;
+}
+
+.hf-shell-sidebar[data-collapsed='true'] :has(> .hf-shell-tenant),
+.hf-shell-sidebar[data-collapsed='true'] :has(> .hf-shell-search) {
+  padding-inline: 14px;
+}
+
+.hf-shell-sidebar[data-collapsed='true'] .hf-shell-tenant {
+  padding: 6px;
+  justify-content: center;
+}
+
+.hf-shell-sidebar[data-collapsed='true'] .hf-shell-search {
+  gap: 0;
+  padding: 10px;
+  justify-content: center;
+}
+
+.hf-shell-sidebar[data-collapsed='true'] .hf-shell-nav {
+  padding-inline: 14px;
+}
+
+.hf-shell-sidebar[data-collapsed='true'] .hf-shell-nav [data-slot='link'] {
+  gap: 0;
+  padding: 10px;
+  justify-content: center;
+}
+
+.hf-shell-sidebar[data-collapsed='true'] .hf-shell-nav [data-slot='link'][aria-expanded],
+.hf-shell-sidebar[data-collapsed='true'] .hf-shell-nav [data-slot='link'][data-state] {
+  padding: 12px;
+  justify-content: center;
+}
+
+.hf-shell-sidebar[data-collapsed='true'] .hf-shell-footer {
+  padding-inline: 14px;
+  justify-content: center;
+}
+
+/* ── Responsive rhythm ──────────────────────────────────────────────────── */
+
+@media (max-width: 700px) {
+  .hf-shell-navbar {
+    height: 60px;
+    padding: 0 16px;
+  }
+}
+
+@media (min-height: 950px) {
+  .hf-shell-nav [data-slot='link'],
+  .hf-shell-nav [data-slot='childLink'] {
+    min-height: var(--shell-row-tall);
+  }
+}

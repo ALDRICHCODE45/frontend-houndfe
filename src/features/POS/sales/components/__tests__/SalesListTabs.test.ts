@@ -86,6 +86,24 @@ describe('SalesListTabs', () => {
     ])
   })
 
+  it('carries the feature-owned sales-status-tab hook on every quick tab', () => {
+    const wrapper = mount(SalesListTabs, {
+      props: {
+        counts: {
+          all: 12,
+          pendingPayments: 4,
+          notDelivered: 2,
+        },
+      },
+    })
+
+    const buttons = wrapper.findAll('button[data-testid^="sales-tab-"]')
+    expect(buttons).toHaveLength(3)
+    buttons.forEach((btn) => {
+      expect(btn.classes()).toContain('sales-status-tab')
+    })
+  })
+
   it('renders 3 quick filter buttons with whitespace-nowrap to prevent text wrapping in mobile toolbars', () => {
     const wrapper = mount(SalesListTabs, {
       props: {

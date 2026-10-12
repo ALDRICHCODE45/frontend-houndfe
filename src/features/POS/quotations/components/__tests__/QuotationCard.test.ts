@@ -338,3 +338,34 @@ describe('QuotationCard — EmployeeCard pattern (REQ-18)', () => {
     }
   })
 })
+
+// ─── T2 / S3-S4: card presentation adaptation (presentation only) ────────────
+
+describe('QuotationCard — listing visual adaptation (S3/S4)', () => {
+  it('lays the card on the owned presentation hook while keeping the legacy surface utilities', () => {
+    const wrapper = mountCard(makeQuotation())
+    const article = wrapper.get('article[data-testid="quotation-card"]')
+
+    expect(article.classes()).toContain('quotations-card')
+    expect(article.classes()).toEqual(expect.arrayContaining(['border-default', 'bg-default']))
+  })
+
+  it('repeats the owned portal boundary on the teleported row menu', async () => {
+    const wrapper = mountCard(makeQuotation({ status: 'DRAFT' }), true, {
+      attachTo: document.body,
+    })
+    try {
+      await openDropdown(wrapper)
+      const portal = Array.from(document.querySelectorAll('*')).find((el) =>
+        el.classList.contains('quotations-list-portal'),
+      )
+
+      expect(portal).toBeDefined()
+      expect(Array.from(portal!.classList)).toEqual(
+        expect.arrayContaining(['hf-theme', 'hf-ui']),
+      )
+    } finally {
+      wrapper.unmount()
+    }
+  })
+})

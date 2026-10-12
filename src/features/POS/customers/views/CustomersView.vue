@@ -5,7 +5,8 @@ import type { AxiosError } from 'axios'
 import { AppDataTable, SortableHeader, SelectColumn } from '@/core/shared/components/DataTable'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { customerQueryKeys, productQueryKeys } from '@/core/shared/constants/query-keys'
-import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
+import CustomersEmptyState from '../components/CustomersEmptyState.vue'
+import '../styles/clients-visual.css'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
 import ViewToggle from '@/core/shared/components/ViewToggle.vue'
@@ -560,138 +561,163 @@ const bulkActions = computed<BulkAction<Customer>[]>(() => [])
       confirm-label="Eliminar"
       confirm-color="error"
       :loading="deleteMutation.isPending.value"
+      :ui="{ content: 'hf-theme hf-ui hf-form-overlay clients-form-portal' }"
       @update:open="confirmState.open = $event"
       @confirm="handleConfirm"
     />
 
     <CustomerSalesHistorySlideover v-model:open="isHistoryOpen" :customer="historyCustomer" />
 
-    <UCard
-      :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }"
-      class="w-full min-w-0 max-w-full overflow-hidden shadow-sm"
+    <section
+      class="hf-theme hf-ui clients-visual flex w-full min-w-0 flex-col gap-6"
+      aria-labelledby="clients-title"
     >
-      <template #header>
-        <TableHeaderDescription description="Gestión de clientes" title="Clientes" />
-      </template>
-      <div class="w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
-        <AppDataTable
-          v-model:sorting="sorting"
-          v-model:pagination="pagination"
-          v-model:global-filter="globalFilter"
-          v-model:column-pinning="columnPinning"
-          v-model:column-visibility="columnVisibility"
-          v-model:row-selection="rowSelection"
-          :columns="columns"
-          :data="data"
-          :loading="isLoading"
-          :fetching="isFetching"
-          :error="isError"
-          :error-message="customersErrorMessage"
-          :page-count="pageCount"
-          :total-count="totalCount"
-          :showing-from="showingFrom"
-          :showing-to="showingTo"
-          :page-size-options="pageSizeOptions"
-          :display-mode="displayMode"
-          :bulk-actions="bulkActions"
-          :show-add-button="canCreate"
-          search-placeholder="Buscar clientes..."
-          add-button-text="Nuevo Cliente"
-          add-button-icon="i-lucide-user-plus"
-          enable-column-visibility
-          :enable-row-selection="false"
-          empty="No se encontraron clientes"
-          @add="handleAdd"
-          @refresh="refresh"
-        >
-          <template #actions>
-            <ViewToggle
-              :model-value="viewMode"
-              aria-label="Seleccionar vista de clientes"
-              @update:model-value="handleViewModeChange"
-            />
-          </template>
-
-          <template #cards>
-            <CustomerCardGrid
-              :customers="data"
-              :loading="isLoading || isFetching"
-              :empty="'No se encontraron clientes'"
-              :can-update="canUpdate"
-              :can-delete="canDelete"
-              :can-read-sales="canReadSales"
-              @card-click="handleCardClick"
-              @edit="handleOpenEdit"
-              @delete="handleDelete"
-              @view-history="handleOpenHistory"
-            />
-          </template>
-
-          <template #select-header="{ table }">
-            <SelectColumn mode="header" :table="table" />
-          </template>
-
-          <template #select-cell="{ row }">
-            <SelectColumn mode="cell" :row="row" />
-          </template>
-
-          <template #fullName-header="{ column }">
-            <SortableHeader :column="column" label="Nombre" />
-          </template>
-
-          <template #fullName-cell="{ row }">
-            <span class="font-medium">{{ row.original.fullName }}</span>
-          </template>
-
-          <template #email-header="{ column }">
-            <SortableHeader :column="column" label="Email" />
-          </template>
-
-          <template #email-cell="{ row }">
-            <span class="text-sm text-muted">{{ row.original.email ?? '—' }}</span>
-          </template>
-
-          <template #phone-header="{ column }">
-            <SortableHeader :column="column" label="Teléfono" />
-          </template>
-
-          <template #phone-cell="{ row }">
-            <span class="font-mono text-sm">
-              <template v-if="row.original.phone">
-                {{ row.original.phoneCountryCode ? `${row.original.phoneCountryCode} ` : ''
-                }}{{ row.original.phone }}
-              </template>
-              <template v-else>—</template>
-            </span>
-          </template>
-
-          <template #globalPriceListName-header="{ column }">
-            <SortableHeader :column="column" label="Lista de Precios" />
-          </template>
-
-          <template #globalPriceListName-cell="{ row }">
-            <AppBadge v-if="row.original.globalPriceListName" tone="neutral">
-              {{ row.original.globalPriceListName }}
-            </AppBadge>
-            <span v-else class="text-sm text-muted">—</span>
-          </template>
-
-          <template #actions-cell="{ row }">
-            <UDropdownMenu
-              v-if="canShowCustomerActions"
-              :items="getRowItems(row.original)"
-              :content="{ align: 'end' }"
-            >
-              <UButton
-                icon="i-lucide-ellipsis-vertical"
-                color="neutral"
-                variant="ghost"
-                class="size-7"
+      <header class="hf-page-header">
+        <h1 id="clients-title" class="hf-page-title">Clientes</h1>
+        <p class="hf-page-subtitle">Gestión de clientes</p>
+      </header>
+      <UCard
+        :ui="{ body: 'p-0 sm:p-0' }"
+        class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm"
+      >
+        <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
+          <AppDataTable
+            v-model:sorting="sorting"
+            v-model:pagination="pagination"
+            v-model:global-filter="globalFilter"
+            v-model:column-pinning="columnPinning"
+            v-model:column-visibility="columnVisibility"
+            v-model:row-selection="rowSelection"
+            :columns="columns"
+            :data="data"
+            :loading="isLoading"
+            :fetching="isFetching"
+            :error="isError"
+            :error-message="customersErrorMessage"
+            :page-count="pageCount"
+            :total-count="totalCount"
+            :showing-from="showingFrom"
+            :showing-to="showingTo"
+            :page-size-options="pageSizeOptions"
+            :display-mode="displayMode"
+            :bulk-actions="bulkActions"
+            :show-add-button="canCreate"
+            search-placeholder="Buscar clientes..."
+            add-button-text="Nuevo Cliente"
+            add-button-icon="i-lucide-user-plus"
+            enable-column-visibility
+            :enable-row-selection="false"
+            empty="No se encontraron clientes"
+            class="hf-data-table"
+            portal-class="hf-theme hf-ui clients-list-portal"
+            pagination-portal-class="hf-theme hf-ui clients-list-portal"
+            @add="handleAdd"
+            @refresh="refresh"
+          >
+            <template #actions>
+              <ViewToggle
+                :model-value="viewMode"
+                class="clients-view-toggle"
+                aria-label="Seleccionar vista de clientes"
+                @update:model-value="handleViewModeChange"
               />
-            </UDropdownMenu>
-          </template>
-        </AppDataTable>
-      </div>
-    </UCard>
+            </template>
+
+            <template #empty>
+              <CustomersEmptyState />
+            </template>
+
+            <template #cards>
+              <CustomerCardGrid
+                :customers="data"
+                :loading="isLoading || isFetching"
+                :empty="'No se encontraron clientes'"
+                :can-update="canUpdate"
+                :can-delete="canDelete"
+                :can-read-sales="canReadSales"
+                portal-class="hf-theme hf-ui clients-list-portal"
+                @card-click="handleCardClick"
+                @edit="handleOpenEdit"
+                @delete="handleDelete"
+                @view-history="handleOpenHistory"
+              >
+                <template #empty>
+                  <CustomersEmptyState />
+                </template>
+              </CustomerCardGrid>
+            </template>
+
+            <template #select-header="{ table }">
+              <SelectColumn mode="header" :table="table" />
+            </template>
+
+            <template #select-cell="{ row }">
+              <SelectColumn mode="cell" :row="row" />
+            </template>
+
+            <template #fullName-header="{ column }">
+              <SortableHeader :column="column" label="Nombre" />
+            </template>
+
+            <template #fullName-cell="{ row }">
+              <span class="font-medium">{{ row.original.fullName }}</span>
+            </template>
+
+            <template #email-header="{ column }">
+              <SortableHeader :column="column" label="Email" />
+            </template>
+
+            <template #email-cell="{ row }">
+              <span class="text-sm text-muted">{{ row.original.email ?? '—' }}</span>
+            </template>
+
+            <template #phone-header="{ column }">
+              <SortableHeader :column="column" label="Teléfono" />
+            </template>
+
+            <template #phone-cell="{ row }">
+              <span class="font-mono text-sm">
+                <template v-if="row.original.phone">
+                  {{ row.original.phoneCountryCode ? `${row.original.phoneCountryCode} ` : ''
+                  }}{{ row.original.phone }}
+                </template>
+                <template v-else>—</template>
+              </span>
+            </template>
+
+            <template #globalPriceListName-header="{ column }">
+              <SortableHeader :column="column" label="Lista de Precios" />
+            </template>
+
+            <template #globalPriceListName-cell="{ row }">
+              <AppBadge
+                v-if="row.original.globalPriceListName"
+                tone="neutral"
+                class="clients-badge"
+              >
+                {{ row.original.globalPriceListName }}
+              </AppBadge>
+              <span v-else class="text-sm text-muted">—</span>
+            </template>
+
+            <template #actions-cell="{ row }">
+              <UDropdownMenu
+                v-if="canShowCustomerActions"
+                :items="getRowItems(row.original)"
+                :content="{ align: 'end' }"
+                :ui="{ content: 'hf-theme hf-ui clients-list-portal' }"
+              >
+                <UButton
+                  icon="i-lucide-ellipsis-vertical"
+                  color="neutral"
+                  variant="ghost"
+                  class="size-7"
+                />
+              </UDropdownMenu>
+            </template>
+          </AppDataTable>
+        </div>
+      </UCard>
+    </section>
   </div>
 </template>

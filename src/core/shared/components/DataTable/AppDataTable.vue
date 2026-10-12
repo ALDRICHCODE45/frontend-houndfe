@@ -42,6 +42,10 @@ const props = withDefaults(
     addButtonText?: string
     addButtonIcon?: string
     showRefresh?: boolean
+    /** Optional presentation boundary for toolbar content rendered through portals. */
+    portalClass?: string
+    /** Optional page-size menu boundary; independent from the toolbar opt-in. */
+    paginationPortalClass?: string
     /**
      * Optional `data-testid` for the toolbar refresh button. Forwarded to
      * DataTableToolbar. Default `undefined` → no testid rendered. Used by
@@ -185,6 +189,7 @@ function handleClearSelection() {
       :show-column-visibility="props.enableColumnVisibility && !isCardsMode"
       :show-refresh="props.showRefresh"
       :fetching="props.fetching"
+      :portal-class="props.portalClass"
       :table-api="tableApi"
       :refresh-button-test-id="props.refreshButtonTestId"
       :add-button-test-id="props.addButtonTestId"
@@ -265,11 +270,7 @@ function handleClearSelection() {
           {{ props.empty }}
         </div>
 
-        <div
-          v-else
-          class="grid w-full min-w-0 max-w-full gap-3"
-          data-testid="mobile-cards-list"
-        >
+        <div v-else class="grid w-full min-w-0 max-w-full gap-3" data-testid="mobile-cards-list">
           <slot
             v-for="(row, index) in props.data"
             :key="index"
@@ -343,6 +344,7 @@ function handleClearSelection() {
       :showing-to="props.showingTo"
       :page-size-options="props.pageSizeOptions"
       :fetching="props.fetching"
+      :portal-class="props.paginationPortalClass"
       @update:page-index="handlePageIndexChange"
       @update:page-size="handlePageSizeChange"
     />

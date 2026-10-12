@@ -88,11 +88,7 @@ function connectorState(connectorIndex: number): ConnectorState {
     data-testid="quotation-stepper"
     aria-label="Progreso de la cotización"
   >
-    <li
-      v-for="step in STEPS"
-      :key="step.index"
-      class="flex flex-1 items-center gap-2"
-    >
+    <li v-for="step in STEPS" :key="step.index" class="flex flex-1 items-center gap-2">
       <!-- Node: filled accent when active, accent-tinted when completed,
            white outline when future. The dark/muted label color is
            driven by the same data-state attribute. -->
@@ -103,25 +99,29 @@ function connectorState(connectorIndex: number): ConnectorState {
       >
         <span
           aria-hidden="true"
-          class="flex shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold transition-colors"
+          class="quotations-stepper-node flex shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold transition-colors"
           :class="[
             props.compact ? 'h-6 w-6 text-[10px]' : 'h-8 w-8',
             {
-              'border-[var(--coco-accent)] bg-[var(--coco-accent)] text-[var(--coco-card)] shadow-sm': stepState(step.index) === 'active',
-              'border-[var(--coco-accent)] bg-[var(--coco-accent-50)] text-[var(--coco-accent)]': stepState(step.index) === 'completed',
-              'border-[var(--coco-border)] bg-[var(--coco-card)] text-[var(--coco-text-tertiary)]': stepState(step.index) === 'future',
+              'quotations-gold-fill border-[var(--coco-accent)] bg-[var(--coco-accent)] text-[var(--coco-card)] shadow-sm':
+                stepState(step.index) === 'active',
+              'quotations-gold-ink border-[var(--coco-accent)] bg-[var(--coco-accent-50)] text-[var(--coco-accent)]':
+                stepState(step.index) === 'completed',
+              'border-[var(--coco-border)] bg-[var(--coco-card)] text-[var(--coco-text-tertiary)]':
+                stepState(step.index) === 'future',
             },
           ]"
         >
           {{ step.index + 1 }}
         </span>
         <span
-          class="whitespace-nowrap font-semibold tracking-wide uppercase"
+          class="quotations-stepper-label whitespace-nowrap font-semibold tracking-wide uppercase"
           :class="[
             props.compact ? 'text-[10px]' : 'text-xs',
             {
               'text-[var(--coco-text)]': stepState(step.index) === 'active',
-              'text-[var(--coco-accent)]': stepState(step.index) === 'completed',
+              'quotations-gold-ink text-[var(--coco-accent)]':
+                stepState(step.index) === 'completed',
               'text-[var(--coco-text-tertiary)]': stepState(step.index) === 'future',
             },
           ]"
@@ -134,7 +134,7 @@ function connectorState(connectorIndex: number): ConnectorState {
       <span
         v-if="step.index < STEPS.length - 1"
         aria-hidden="true"
-        class="h-0.5 flex-1 transition-colors"
+        class="quotations-stepper-connector h-0.5 flex-1 transition-colors"
         :class="{
           'bg-[var(--coco-accent)]': connectorState(step.index) === 'completed',
           'bg-[var(--coco-border)]': connectorState(step.index) === 'future',

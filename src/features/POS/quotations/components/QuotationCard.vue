@@ -94,7 +94,7 @@ const rowActions = computed(() => {
 <template>
   <article
     data-testid="quotation-card"
-    class="group relative flex min-h-[220px] cursor-pointer flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+    class="quotations-card group relative flex min-h-[220px] cursor-pointer flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
     @click="emit('click', quotation)"
   >
     <!-- Row action menu (top-right) — @click.stop so the dropdown does not
@@ -103,6 +103,7 @@ const rowActions = computed(() => {
       <UDropdownMenu
         :items="rowActions"
         :content="{ align: 'end' }"
+        :ui="{ content: 'hf-theme hf-ui quotations-list-portal' }"
       >
         <UButton
           icon="i-lucide-ellipsis-vertical"

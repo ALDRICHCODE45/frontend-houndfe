@@ -12,6 +12,11 @@ declare const useToast: () => {
 
 const props = defineProps<{
   isPending?: boolean
+  /**
+   * Optional teleport boundary marker forwarded to the owned comment
+   * slideover. Absent by default, which preserves the previous `ui` value.
+   */
+  portalClass?: string
   onSubmit: (payload: { body: string }) => Promise<unknown>
 }>()
 
@@ -45,6 +50,11 @@ async function handleSubmit(payload: { body: string }) {
       Agregar comentario
     </UButton>
 
-    <SaleCommentSlideover v-model:open="open" :is-pending="isPending" @submit="handleSubmit" />
+    <SaleCommentSlideover
+      v-model:open="open"
+      :is-pending="isPending"
+      :portal-class="portalClass"
+      @submit="handleSubmit"
+    />
   </div>
 </template>

@@ -69,7 +69,7 @@ function deferred<T>() {
   return { promise, resolve, reject }
 }
 
-describe('mandatory OTP boundary', () => {
+describe('login response boundary', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.resetAllMocks()
@@ -244,12 +244,108 @@ describe('mandatory OTP boundary', () => {
     },
   )
 
-  it('rejects legacy direct password sessions fail closed', async () => {
+  it('completes direct password sessions only after permission bootstrap', async () => {
     vi.mocked(authApi.login).mockResolvedValue(session as never)
+    const permissions = deferred<{ permissions: []; permissionCodes: string[] }>()
+    vi.mocked(authApi.mePermissions).mockReturnValue(permissions.promise)
+    const store = useAuthStore()
+    const pending = store.login(credentials)
+    await Promise.resolve()
+    expect(authApi.mePermissions).toHaveBeenCalledExactlyOnceWith('verified')
+    expect(store.accessToken).toBeNull()
+    expect(authStorage.setTokens).not.toHaveBeenCalled()
+    permissions.resolve({ permissions: [], permissionCodes: ['read:Product'] })
+    await expect(pending).resolves.toEqual(session)
+    expect(store.accessToken).toBe('verified')
+    expect(store.refreshToken).toBe('refresh')
+    expect(store.user).toEqual(session.user)
+    expect(store.authPhase).toBe('authenticated')
+    expect(store.otpChallenge).toBeNull()
+    expect(store.userCan('read', 'Product')).toBe(true)
+    expect(authStorage.setTokens).toHaveBeenCalledExactlyOnceWith({
+      accessToken: 'verified',
+      refreshToken: 'refresh',
+    })
+    expect(authApi.verifyLoginOtp).not.toHaveBeenCalled()
+  })
+
+  it('accepts direct tenant selection without committing a session', async () => {
+    vi.mocked(authApi.login).mockResolvedValue(selection as never)
+    const store = useAuthStore()
+    await expect(store.login(credentials)).resolves.toEqual(selection)
+    expect(store.authPhase).toBe('needs-tenant-selection')
+    expect(store.tempToken).toBe('selection')
+    expect(store.user).toEqual(session.user)
+    expect(store.memberships).toEqual(selection.tenants)
+    expect(authStorage.setTempToken).toHaveBeenCalledExactlyOnceWith('selection')
+    expect(store.accessToken).toBeNull()
+    expect(store.otpChallenge).toBeNull()
+    expect(authStorage.setTokens).not.toHaveBeenCalled()
+    expect(authApi.mePermissions).not.toHaveBeenCalled()
+    expect(authApi.verifyLoginOtp).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { ...session, accessToken: '' },
+    { ...selection, tempToken: '' },
+    { ...session, requiresOtp: false },
+    { ...session, challengeId: 'mixed' },
+  ])('rejects malformed or mixed direct responses %# without storage effects', async (response) => {
+    vi.mocked(authApi.login).mockResolvedValue(response as never)
     const store = useAuthStore()
     await expect(store.login(credentials)).rejects.toThrow()
     expect(store.accessToken).toBeNull()
+    expect(store.tempToken).toBeNull()
+    expect(authApi.mePermissions).not.toHaveBeenCalled()
     expect(authStorage.setTokens).not.toHaveBeenCalled()
+    expect(authStorage.setTempToken).not.toHaveBeenCalled()
+    expect(authStorage.setUser).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { ...challenge, requiresTenantSelection: false },
+    { ...session, tempToken: 'mixed-selection' },
+    { ...selection, accessToken: 'mixed-access' },
+    { ...selection, refreshToken: 'mixed-refresh' },
+  ])('rejects mixed login stages %# without replacing an existing session', async (response) => {
+    const store = await existingSession()
+    store.cancelLogin()
+    vi.clearAllMocks()
+    vi.mocked(authApi.login).mockResolvedValue(response as never)
+    await expect(store.login(credentials)).rejects.toThrow()
+    expectExistingSession(store)
+    expect(store.otpChallenge).toBeNull()
+    expect(store.tempToken).toBeNull()
+    expect(authApi.mePermissions).not.toHaveBeenCalled()
+    expect(authStorage.setTempToken).not.toHaveBeenCalled()
+    expect(authStorage.setMemberships).not.toHaveBeenCalled()
+  })
+
+  it('does not commit a direct session if permission bootstrap fails', async () => {
+    vi.mocked(authApi.login).mockResolvedValue(session as never)
+    vi.mocked(authApi.mePermissions).mockRejectedValue(new Error('Unavailable'))
+    const store = useAuthStore()
+    await expect(store.login(credentials)).rejects.toThrow('Unavailable')
+    expect(store.accessToken).toBeNull()
+    expect(store.authPhase).toBe('idle')
+    expect(authStorage.setTokens).not.toHaveBeenCalled()
+    expect(authStorage.setUser).not.toHaveBeenCalled()
+  })
+
+  it('ignores direct permission completion after login cancellation', async () => {
+    vi.mocked(authApi.login).mockResolvedValue(session as never)
+    const permissions = deferred<{ permissions: []; permissionCodes: string[] }>()
+    vi.mocked(authApi.mePermissions).mockReturnValue(permissions.promise)
+    const store = useAuthStore()
+    const pending = store.login(credentials)
+    await Promise.resolve()
+    expect(authApi.mePermissions).toHaveBeenCalledExactlyOnceWith('verified')
+    store.cancelLogin()
+    permissions.resolve({ permissions: [], permissionCodes: ['read:Product'] })
+    await expect(pending).resolves.toBeNull()
+    expect(store.accessToken).toBeNull()
+    expect(authStorage.setTokens).not.toHaveBeenCalled()
+    expect(store.permissionCodes).toEqual([])
   })
 
   it('preserves zeros and prepares permissions with the verified token before commit', async () => {

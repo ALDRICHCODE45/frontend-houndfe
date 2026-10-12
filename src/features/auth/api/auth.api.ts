@@ -15,7 +15,7 @@ import type {
 
 export const authApi = {
   async login(payload: AuthLoginRequest) {
-    const { data } = await http.post<LoginOtpChallenge>('/auth/login', payload)
+    const { data } = await http.post<LoginOtpChallenge | LoginResponse>('/auth/login', payload)
     return data
   },
 

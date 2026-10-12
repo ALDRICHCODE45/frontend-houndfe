@@ -224,7 +224,7 @@ describe('SatKeySelect', () => {
     expect(wrapper.find('[data-testid="sat-error"]').exists()).toBe(false)
   })
 
-  it('selected-item checkmark uses text-coco-gold-700 (SDD-7)', async () => {
+  it('keeps the shared default gold checkmark for non-pilot screens', async () => {
     searchState.items.value = [
       { key: '12345678', description: 'Servicios' },
       { key: '87654321', description: 'Comida' },
@@ -238,7 +238,22 @@ describe('SatKeySelect', () => {
     vi.advanceTimersByTime(300)
     await flushPromises()
 
-    // PRD-REQ-004 checkmark; 20px graphical object uses gold-700 (3:1).
+    // Full-editor (non-pilot) presentation is unchanged: the shared gold
+    // checkmark stays global and the pilot overrides under .products-visual.
     expect(wrapper.html()).toContain('text-coco-gold-700')
+    expect(wrapper.html()).not.toContain('text-primary')
+  })
+
+  it('exposes the products-select-trigger hook while preserving the shared default focus ring', () => {
+    const wrapper = mountSelect()
+
+    const trigger = wrapper.find('button.products-select-trigger')
+    expect(trigger.exists()).toBe(true)
+    // Default screens keep the legacy gold ring; the pilot overrides its color
+    // through .products-visual .products-select-trigger instead of a global edit.
+    expect(trigger.classes()).toEqual(
+      expect.arrayContaining(['focus:ring-2', 'focus:ring-coco-gold-500']),
+    )
+    expect(trigger.classes()).not.toContain('focus-visible:ring-primary')
   })
 })

@@ -1,0 +1,114 @@
+@import '../../../../core/shared/design-system/houndfe-ui.css';
+
+/*
+ * Sales detail visual adapter (T4 / S3 + S4).
+ *
+ * The persistent-header sale detail is a specialized workspace, not a table:
+ * its sticky identity bar, PRODUCTOS/DATOS/HISTORIAL column and
+ * TOTALES/PAGOS column keep their existing composition, density and
+ * interactions. This file only re-points the legacy presentation vocabulary at
+ * the shared `--hf-*` foundation so light/dark fidelity comes from
+ * `houndfe-theme.css` instead of a local palette.
+ *
+ * Every rule is scoped to `.sales-detail-visual` or `.sales-detail-portal`, so
+ * importing it never changes another screen. The shared foundation files stay
+ * read-only. Teleported overlays repeat `hf-theme hf-ui ... sales-detail-portal`
+ * on their own native content root because ancestor tokens do not survive the
+ * teleport.
+ */
+
+/*
+ * Legacy compatibility aliases.
+ *
+ * The detail still ships Tailwind theme utilities (`bg-coco-gold-*`,
+ * `bg-coco-neutral-*`) plus two forced-paint utilities
+ * (`!bg-(--brand-action)` / `!text-black`) that are pinned by existing
+ * behavior tests. Re-pointing the variables those utilities already consume
+ * keeps the classes and the previous markup while the computed paint follows
+ * the foundation roles in both themes — no blanket `!important` rule and no
+ * markup churn.
+ */
+.sales-detail-visual,
+.hf-theme.sales-detail-portal {
+  /* Action pair. `--brand-action` backs the solid CTA background and
+   * `--color-black` backs the fixed dark label; both resolve to the retail
+   * action/foreground pair, which stays readable on the light and dark action
+   * values. */
+  --brand-action: var(--hf-action);
+  --color-black: var(--hf-on-action);
+
+  /* Gold accents (timeline register event, comment trigger, debt banner and
+   * method tiles) use the restrained brand gold roles, not a second palette. */
+  --color-coco-gold-300: var(--hf-gold);
+  --color-coco-gold-400: var(--hf-gold);
+  --color-coco-gold-500: var(--hf-gold);
+  --color-coco-gold-700: var(--hf-gold-ink);
+  --color-coco-gold-800: var(--hf-gold-ink);
+
+  /* Quiet dividers (timeline connector) follow the shared border role. */
+  --color-coco-neutral-200: var(--hf-border);
+  --color-coco-neutral-800: var(--hf-border);
+
+  /* Restrained geometry: panels land on the foundation card radius and
+   * controls on the control radius. `--radius-full` is deliberately untouched
+   * so the timeline icon and other circles keep their shape. */
+  --radius-md: var(--hf-radius-control);
+  --radius-lg: var(--hf-radius-card);
+  --radius-xl: var(--hf-radius-card);
+  --radius-2xl: var(--hf-radius-card);
+}
+
+/* ── Teleported boundary ─────────────────────────────────────────────────── */
+
+/* The dialog/sheet/menu/listbox roots cannot inherit the workspace ancestor
+ * after teleport, so they repeat the boundary and paint on the foundation
+ * surface themselves. */
+.hf-theme.sales-detail-portal {
+  background-color: var(--hf-surface);
+  border-color: var(--hf-border);
+  color: var(--hf-ink);
+}
+
+/* Native UCard dark utilities do not consume the semantic background alias.
+ * The installed root/direct-body shape identifies reached cards without
+ * repainting nested muted facts, status badges or other root-slot controls. */
+.sales-detail-visual div[data-slot='root']:has(> div[data-slot='body']),
+.hf-theme.sales-detail-portal div[data-slot='root']:has(> div[data-slot='body']) {
+  background-color: var(--hf-surface);
+}
+
+/* ── Sticky identity bar ─────────────────────────────────────────────────── */
+
+/* The persistent header follows the surface role (with the same translucency
+ * the legacy sticky blur relied on) instead of the lavender neutral. `--hf-*`
+ * resolves per theme, so one rule covers both modes. */
+.sales-detail-visual .sales-detail-sticky-header {
+  background-color: color-mix(in srgb, var(--hf-surface) 92%, transparent);
+}
+
+/* ── Grouped fact cards ──────────────────────────────────────────────────── */
+
+/* Cajero/Vendedor/Cliente/Lista de precios/Métodos de pago are secondary
+ * grouping inside the DATOS card, so they use the muted surface role. */
+.sales-detail-visual .sales-detail-fact {
+  background-color: var(--hf-surface-muted);
+}
+
+/* The seller card is an interactive `role="button"` node; the shared focus
+ * indicator keeps the keyboard path visible. */
+.sales-detail-visual .sales-detail-fact[role='button']:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+/* ── Primary action geometry ─────────────────────────────────────────────── */
+
+/* The three "Registrar/Cobrar" CTAs and the debt confirmation all opt into the
+ * shared control height and corner. Their color comes from the action-pair
+ * aliases above so the fixed legacy utilities keep winning without an
+ * `!important` override. */
+.sales-detail-visual .sales-detail-primary-action,
+.hf-theme.sales-detail-portal .sales-detail-primary-action {
+  min-height: var(--hf-control-height);
+  border-radius: var(--hf-radius-control);
+}

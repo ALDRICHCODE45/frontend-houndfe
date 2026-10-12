@@ -34,7 +34,7 @@ const ButtonStub = {
   template: '<button type="button" v-bind="$attrs" @click="$emit(\'click\')"><slot /></button>',
 }
 type DrawerMountOptions = {
-  props?: Partial<{ open: boolean; title: string; description: string; desktopUi: Record<string, string>; mobileBodyClass: string }>
+  props?: Partial<{ open: boolean; title: string; description: string; desktopUi: Record<string, string>; mobileBodyClass: string; portalClass: string }>
   attrs?: Record<string, string>
   slots?: Record<string, string>
 }
@@ -112,6 +112,48 @@ describe('AppResponsiveDrawer', () => {
     expect(wrapper.text()).toContain('Venta 123')
     expect(wrapper.text()).toContain('Anterior')
   })
+  it('forwards an optional portalClass onto the native mobile content root', () => {
+    mobileViewport.value = true
+    const portalClass = 'hf-theme hf-ui sales-entry-portal'
+    const wrapper = mountDrawer({ props: { portalClass } })
+    const surface = wrapper.getComponent({ name: 'SlideoverStub' })
+
+    expect(surface.props('ui').content).toBe(
+      `h-[90dvh] max-h-[90dvh] rounded-t-2xl motion-reduce:transition-none ${portalClass}`,
+    )
+  })
+
+  it('keeps the mobile ui value and geometry unchanged when portalClass is omitted', () => {
+    mobileViewport.value = true
+    const wrapper = mountDrawer()
+    const surface = wrapper.getComponent({ name: 'SlideoverStub' })
+
+    expect(surface.props('ui').content).toBe(
+      'h-[90dvh] max-h-[90dvh] rounded-t-2xl motion-reduce:transition-none',
+    )
+  })
+
+  it('merges portalClass into the desktop ui without replacing other keys', () => {
+    const portalClass = 'hf-theme hf-ui sales-entry-portal'
+    const wrapper = mountDrawer({
+      props: { desktopUi: { content: 'sm:!max-w-[520px]', body: 'p-0' }, portalClass },
+    })
+    const surface = wrapper.getComponent({ name: 'SlideoverStub' })
+
+    expect(surface.props('ui')).toEqual({
+      content: `sm:!max-w-[520px] ${portalClass}`,
+      body: 'p-0',
+    })
+  })
+
+  it('substitutes a new ui object on desktop only when desktopUi was absent', () => {
+    const portalClass = 'hf-theme hf-ui sales-entry-portal'
+    const wrapper = mountDrawer({ props: { portalClass } })
+    const surface = wrapper.getComponent({ name: 'SlideoverStub' })
+
+    expect(surface.props('ui')).toEqual({ content: portalClass })
+  })
+
   it('forwards native lifecycle and model events exactly once', async () => {
     const wrapper = mountDrawer()
     const surface = wrapper.getComponent({ name: 'SlideoverStub' })

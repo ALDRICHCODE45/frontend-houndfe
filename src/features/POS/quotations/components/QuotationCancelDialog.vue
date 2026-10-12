@@ -97,13 +97,17 @@ function handleClose(): void {
     title="Cancelar cotización"
     :dismissible="!isCancelling"
     :close="!isCancelling"
-    @update:open="(value: boolean) => { if (!value) handleClose() }"
+    :ui="{ content: 'hf-theme hf-ui hf-form-overlay quotations-workspace-portal' }"
+    @update:open="
+      (value: boolean) => {
+        if (!value) handleClose()
+      }
+    "
   >
     <template #body>
       <div class="flex flex-col gap-4" data-testid="cancel-dialog">
         <p class="text-sm text-muted">
-          Seleccioná el motivo de cancelación. Esta acción es terminal y no se
-          puede deshacer.
+          Seleccioná el motivo de cancelación. Esta acción es terminal y no se puede deshacer.
         </p>
 
         <div role="radiogroup" class="flex flex-col gap-2">

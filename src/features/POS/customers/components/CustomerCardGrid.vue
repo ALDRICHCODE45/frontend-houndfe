@@ -18,6 +18,7 @@ defineProps<{
   canUpdate?: boolean
   canDelete?: boolean
   canReadSales?: boolean
+  portalClass?: string
 }>()
 
 const emit = defineEmits<{
@@ -31,7 +32,7 @@ const emit = defineEmits<{
 // width, not the viewport, decides the column count. Duplicated by design
 // across the three pilot grids — no shared wrapper.
 const gridClasses =
-  'grid w-full min-w-0 max-w-full grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-3'
+  'clients-card-grid grid w-full min-w-0 max-w-full grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-3'
 </script>
 
 <template>
@@ -55,8 +56,10 @@ const gridClasses =
     data-testid="card-grid-empty"
     class="flex w-full min-w-0 max-w-full flex-col items-center justify-center gap-3 py-16 text-center"
   >
-    <UIcon name="i-lucide-users" class="size-12 text-muted opacity-50" />
-    <p class="text-sm text-muted">{{ empty ?? 'No se encontraron clientes' }}</p>
+    <slot name="empty">
+      <UIcon name="i-lucide-users" class="size-12 text-muted opacity-50" />
+      <p class="text-sm text-muted">{{ empty ?? 'No se encontraron clientes' }}</p>
+    </slot>
   </div>
 
   <!-- Card grid -->
@@ -72,6 +75,7 @@ const gridClasses =
       :can-update="canUpdate"
       :can-delete="canDelete"
       :can-read-sales="canReadSales"
+      :portal-class="portalClass"
       @click="emit('card-click', $event)"
       @edit="emit('edit', $event)"
       @delete="emit('delete', $event)"

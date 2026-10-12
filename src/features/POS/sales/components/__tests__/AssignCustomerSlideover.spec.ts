@@ -169,6 +169,51 @@ function mountSlideover() {
   return { wrapper, queryClient, invalidateQueries }
 }
 
+function mountSlideoverWithRealOverlay(portalClass?: string) {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false, gcTime: 0 },
+      mutations: { retry: false },
+    },
+  })
+
+  return mount(AssignCustomerSlideover, {
+    props: portalClass
+      ? { open: true, saleId: 'sale-1', portalClass }
+      : { open: true, saleId: 'sale-1' },
+    attachTo: document.body,
+    global: {
+      plugins: [[VueQueryPlugin, { queryClient }]],
+      // The installed USlideover is intentionally NOT stubbed here: this mount
+      // proves the marker reaches the native content root.
+      stubs: {
+        UButton: {
+          props: ['label'],
+          emits: ['click'],
+          template: '<button @click="$emit(\'click\')"><slot />{{ label }}</button>',
+        },
+        UInput: {
+          props: ['modelValue'],
+          emits: ['update:modelValue'],
+          template:
+            '<input :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+        },
+        USkeleton: { template: '<div data-testid="skeleton" />' },
+        CustomerUpsertSlideover: {
+          name: 'CustomerUpsertSlideover',
+          emits: ['create', 'update:open'],
+          template: `<button data-testid="nested-customer-slideover" @click="$emit('create', { firstName: 'Nuevo' })" />`,
+        },
+        AddressModal: {
+          name: 'AddressModal',
+          props: ['open'],
+          template: '<div v-if="open" data-testid="address-modal" />',
+        },
+      },
+    },
+  })
+}
+
 function pageText() {
   return document.body.textContent ?? ''
 }
@@ -294,6 +339,42 @@ describe('AssignCustomerSlideover', () => {
     await flushPromises()
 
     expect(pageText()).not.toContain('+ Nuevo cliente')
+  })
+
+  it('keeps the empty-customer CTA legacy paint when no portal theme is requested', async () => {
+    const wrapper = mountSlideoverWithRealOverlay()
+    await wrapper.setProps({ saleId: undefined })
+    await flushPromises()
+
+    const button = document.querySelector<HTMLElement>(
+      '[data-testid="assign-customer-slideover"] .border-dashed [data-testid="open-create-customer"]',
+    )!
+    expect(button).not.toBeNull()
+    expect(button.classList.contains('!bg-(--brand-action)')).toBe(true)
+    expect(button.classList.contains('!text-black')).toBe(true)
+    expect(button.classList.contains('hf-primary-control')).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('pairs the reachable quotation empty-customer CTA with the opted-in action role', async () => {
+    const wrapper = mountSlideoverWithRealOverlay(
+      'hf-theme hf-ui hf-form-overlay quotations-workspace-portal',
+    )
+    await wrapper.setProps({ saleId: undefined })
+    await flushPromises()
+
+    const button = document.querySelector<HTMLElement>(
+      '[data-testid="assign-customer-slideover"] .border-dashed [data-testid="open-create-customer"]',
+    )!
+    expect(button).not.toBeNull()
+    expect(button.classList.contains('hf-primary-control')).toBe(true)
+    expect(button.classList.contains('!bg-(--brand-action)')).toBe(false)
+    expect(button.classList.contains('!text-black')).toBe(false)
+    expect(button.textContent).toContain('+ Nuevo cliente')
+    button.click()
+    await flushPromises()
+    expect(assignCustomerMock).not.toHaveBeenCalled()
+    wrapper.unmount()
   })
 
   it('shows empty state when no customers exist', async () => {
@@ -430,5 +511,54 @@ describe('AssignCustomerSlideover', () => {
     expect(expected).toContain('CP 64000')
     // Sanity: the OLD local helper shape MUST NOT match the shared output.
     expect(expected).not.toBe('Main St #10, Monterrey')
+  })
+
+  // ── T6 / S3,S4 — optional, inert portal opt-in on the installed USlideover ──
+  const FORM_PORTAL = 'hf-theme hf-ui hf-form-overlay quotations-workspace-portal'
+
+  it('forwards the marker onto the installed USlideover ui.content path when opted in', async () => {
+    const wrapper = mountSlideoverWithRealOverlay(FORM_PORTAL)
+    await flushPromises()
+
+    expect(wrapper.findComponent({ name: 'Slideover' }).props('ui')).toEqual({
+      content: FORM_PORTAL,
+    })
+    const contentRoot = document.body.querySelector('[data-slot="content"]')
+    expect(contentRoot).not.toBeNull()
+    expect(contentRoot!.classList.contains('quotations-workspace-portal')).toBe(true)
+
+    wrapper.unmount()
+  })
+
+  it('leaves the installed USlideover defaults untouched when the prop is absent', async () => {
+    const wrapper = mountSlideoverWithRealOverlay()
+    await flushPromises()
+
+    expect(wrapper.findComponent({ name: 'Slideover' }).props('ui')).toBeUndefined()
+    const contentRoot = document.body.querySelector('[data-slot="content"]')
+    expect(contentRoot).not.toBeNull()
+    expect(contentRoot!.classList.contains('quotations-workspace-portal')).toBe(false)
+
+    wrapper.unmount()
+  })
+
+  it('preserves the customer assignment acknowledgement path with the opt-in enabled', async () => {
+    const ada = makeCustomer()
+    customerApiMock.getPaginated.mockResolvedValueOnce(makePaginatedResponse([ada]))
+    customerApiMock.getById.mockResolvedValueOnce(makeCustomerDetail(ada, []))
+
+    const wrapper = mountSlideoverWithRealOverlay(FORM_PORTAL)
+    await flushPromises()
+
+    const row = document.body.querySelector(
+      '[data-testid="customer-row-customer-1"]',
+    ) as HTMLElement
+    row.click()
+    await flushPromises()
+
+    expect(assignCustomerMock).toHaveBeenCalledWith({ customerId: 'customer-1' })
+    expect(wrapper.emitted('update:open') ?? []).toEqual([])
+
+    wrapper.unmount()
   })
 })

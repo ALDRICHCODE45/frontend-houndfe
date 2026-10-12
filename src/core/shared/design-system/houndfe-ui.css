@@ -1,0 +1,218 @@
+@import './houndfe-theme.css';
+
+/* Shared opt-in semantic UI adapter for the HoundFe retail foundation.
+ *
+ * Importing this file never changes the global application theme. A consumer
+ * opts in by adding `hf-theme hf-ui` to its own root: `hf-theme` provides the
+ * semantic tokens and `hf-ui` maps the framework aliases inside that boundary.
+ * Both layers are mapped because Nuxt UI reads `--ui-*` while the generated
+ * Tailwind utilities read the `--text-color-*`, `--background-color-*` and
+ * `--border-color-*` aliases.
+ *
+ * Teleported content (dialogs, menus, slideovers) escapes its ancestor, so a
+ * portal must repeat `hf-theme hf-ui` on its own root. Unmigrated screens and
+ * the Caja pilot keep their own presentation because nothing here is global.
+ */
+
+.hf-ui {
+  /* Nuxt UI semantic aliases. */
+  --ui-primary: var(--hf-action);
+  --ui-text-highlighted: var(--hf-heading);
+  --ui-text: var(--hf-ink);
+  --ui-text-toned: var(--hf-muted);
+  --ui-text-muted: var(--hf-muted);
+  --ui-text-dimmed: color-mix(in srgb, var(--hf-muted) 70%, var(--hf-surface));
+  --ui-bg: var(--hf-surface);
+  --ui-bg-muted: var(--hf-surface-muted);
+  --ui-bg-elevated: var(--hf-surface);
+  --ui-bg-accented: var(--hf-surface-muted);
+  --ui-border: var(--hf-border);
+  --ui-border-muted: var(--hf-border);
+  --ui-border-accented: color-mix(in srgb, var(--hf-muted) 45%, var(--hf-border));
+  --ui-radius: var(--hf-radius-control);
+
+  /* Generated Tailwind aliases resolved through the same semantic roles. */
+  --text-color-highlighted: var(--hf-heading);
+  --text-color-default: var(--hf-ink);
+  --text-color-toned: var(--hf-muted);
+  --text-color-muted: var(--hf-muted);
+  --text-color-dimmed: color-mix(in srgb, var(--hf-muted) 70%, var(--hf-surface));
+  --background-color-default: var(--hf-surface);
+  --background-color-muted: var(--hf-surface-muted);
+  --background-color-elevated: var(--hf-surface);
+  --background-color-accented: var(--hf-surface-muted);
+  --border-color-default: var(--hf-border);
+  --border-color-muted: var(--hf-border);
+  --border-color-accented: color-mix(in srgb, var(--hf-muted) 45%, var(--hf-border));
+
+  /* Shared geometry and typography. */
+  --radius-md: var(--hf-radius-control);
+  --radius-lg: var(--hf-radius-card);
+  --color-primary: var(--hf-action);
+
+  color: var(--hf-ink);
+  font-family: var(--hf-font);
+}
+
+/* Error, warning, success and destructive controls keep their existing
+ * semantic roles: only the primary action surface adopts the retail blue, so a
+ * mixed control row never turns every colored action into the same hue. */
+
+/* Primary action pairing. The foreground always comes from `--hf-on-action`,
+ * which stays readable on both the light and the dark action value. */
+.hf-ui .bg-primary,
+.hf-ui .hf-primary-control {
+  --ui-text-inverted: var(--hf-on-action);
+  --text-color-inverted: var(--hf-on-action);
+}
+
+.hf-ui .hf-primary-control {
+  display: inline-flex;
+  min-height: var(--hf-control-height);
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding-inline: 1rem;
+  border: 1px solid transparent;
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-action);
+  color: var(--hf-on-action);
+  font-family: var(--hf-font);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.hf-ui .hf-primary-control:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+/* ── Page header (kept outside the data surface) ─────────────────────────── */
+
+.hf-ui .hf-page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.hf-ui .hf-page-title {
+  color: var(--hf-heading);
+  font-size: clamp(1.75rem, 1.55rem + 0.6vw, 2rem);
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.045em;
+}
+
+.hf-ui .hf-page-subtitle {
+  max-width: 62ch;
+  color: var(--hf-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+/* ── Canonical table workspace ───────────────────────────────────────────── */
+
+.hf-ui .hf-table-surface {
+  background-color: var(--hf-surface);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--hf-ink) 5%, transparent);
+  overflow: hidden;
+}
+
+.hf-ui .hf-table-content {
+  width: 100%;
+  min-width: 0;
+  padding: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .hf-ui .hf-table-content {
+    padding: 1rem;
+  }
+}
+
+/* Table-structure ownership. Nuxt UI reuses the same `data-slot` names across
+ * unrelated primitives — Button, Badge, Input and Select all render a
+ * `data-slot="base"` (and `root`) element — so an element-blind selector would
+ * restyle every control nested inside the data table. Each rule below anchors
+ * on the box type that actually owns the slot, which keeps table geometry on
+ * the `<table>` and its rows/cells only. */
+.hf-ui .hf-data-table [data-slot='root']:has(table[data-slot='base']) {
+  max-width: 100%;
+}
+
+.hf-ui .hf-data-table table[data-slot='base'] {
+  width: 100%;
+  max-width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.875rem;
+}
+
+.hf-ui .hf-data-table thead[data-slot='thead'] {
+  background-color: var(--hf-surface-muted);
+}
+
+.hf-ui .hf-data-table th[data-slot='th'] {
+  color: var(--hf-heading);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.hf-ui .hf-data-table td[data-slot='td'] {
+  color: var(--hf-ink);
+  vertical-align: middle;
+}
+
+.hf-ui .hf-data-table tr[data-slot='tr']:hover {
+  background-color: color-mix(in srgb, var(--hf-active-soft) 55%, var(--hf-surface));
+}
+
+.hf-ui .hf-data-table tr[data-slot='tr'][data-selected='true'] {
+  background-color: var(--hf-active-soft);
+}
+
+.hf-ui .hf-data-table td[data-slot='empty'],
+.hf-ui .hf-data-table td[data-slot='loading'] {
+  color: var(--hf-muted);
+}
+
+/* Operational touch targets, including teleported menu actions once their
+ * portal repeats the `hf-theme hf-ui` boundary. */
+.hf-ui [role='menuitem'],
+.hf-ui [role='option'] {
+  min-height: var(--hf-control-height);
+}
+
+/* ── Native field boundary ───────────────────────────────────────────────── */
+
+.hf-ui
+  :where(
+    input:not([type='checkbox']):not([type='radio']):not([type='hidden']),
+    select,
+    textarea,
+    [role='combobox']
+  ) {
+  min-height: var(--hf-control-height);
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-field);
+  font-family: var(--hf-font);
+}
+
+.hf-ui :where(input, select, textarea, [role='combobox']):focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+/* ── Slideover / dialog surface ──────────────────────────────────────────── */
+
+/* The portal root carries `hf-theme hf-ui hf-form-overlay` on one element, so
+ * the self-root selector is required; the descendant form stays for overlays
+ * nested inside an existing `.hf-ui` boundary. */
+.hf-ui .hf-form-overlay,
+.hf-ui.hf-form-overlay {
+  background-color: var(--hf-surface);
+  color: var(--hf-ink);
+}

@@ -44,3 +44,6 @@ __screenshots__/
 
 # Playwright responsive evidence artifacts
 artifacts/responsive/
+
+# Disposable cash-live credentials and redacted run artifacts
+/artifacts/cash-live/

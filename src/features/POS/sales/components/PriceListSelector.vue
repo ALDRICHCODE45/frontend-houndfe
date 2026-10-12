@@ -57,6 +57,12 @@ const PUBLICO_LABEL = 'PUBLICO'
 const props = defineProps<{
   activeDraft: PriceListDraft | null
   isMutating: boolean
+  /**
+   * Optional teleport boundary marker forwarded to the installed menu content
+   * root. Absent by default, which preserves every existing consumer's
+   * original presentation and behavior.
+   */
+  portalClass?: string
 }>()
 
 const emit = defineEmits<{
@@ -145,6 +151,7 @@ defineExpose({ handleUpdate })
       :loading="priceListsQuery.isFetching.value"
       value-key="value"
       class="w-[150px]"
+      :ui="portalClass ? { content: portalClass } : undefined"
       data-testid="price-list-menu"
       @update:model-value="handleUpdate"
     />

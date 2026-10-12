@@ -18,9 +18,17 @@ const props = withDefaults(defineProps<{
    * "Filtros" trigger + slideover behaviour.
    */
   embedded?: boolean
+  /**
+   * Optional theme boundary for this wrapper's teleported surfaces: the
+   * standalone slideover plus the nested enum/async/date popups in BOTH render
+   * paths. Absent (default) keeps every existing consumer's exact defaults; it
+   * is never turned into an empty ui object here.
+   */
+  portalClass?: string
 }>(), {
   errors: () => ({}),
   embedded: false,
+  portalClass: undefined,
 })
 
 const state = defineModel<FilterState>('state', { default: () => ({}) })
@@ -28,7 +36,19 @@ const state = defineModel<FilterState>('state', { default: () => ({}) })
 const isOpen = ref(false)
 const isDesktop = useBreakpoints(breakpointsTailwind).greaterOrEqual('md')
 const slideoverSide = computed(() => (isDesktop.value ? 'right' : 'bottom'))
-const slideoverUi = computed(() => (isDesktop.value ? {} : { content: 'h-[85vh] max-h-[85vh] rounded-t-2xl' }))
+
+/** Legacy mobile bottom-sheet classes; the opt-in must retain them. */
+const MOBILE_SHEET_CLASSES = ['h-[85vh]', 'max-h-[85vh]', 'rounded-t-2xl']
+
+const slideoverUi = computed(() => {
+  const classes = [...(isDesktop.value ? [] : MOBILE_SHEET_CLASSES), props.portalClass].filter(
+    (value): value is string => Boolean(value),
+  )
+
+  // Absent opt-in keeps the exact prior value: `{}` on desktop and the legacy
+  // bottom-sheet content class on mobile.
+  return classes.length > 0 ? { content: classes.join(' ') } : {}
+})
 
 const activeChips = computed(() => props.schema.activeChips(state.value))
 const activeCount = computed(() => activeChips.value.length)
@@ -128,6 +148,7 @@ defineExpose({ open, close })
           <template v-for="field in group.fields" :key="field.id">
             <MultiSelectEnumFilter
               v-if="field.kind === 'multi-enum'"
+              :portal-class="props.portalClass"
               v-model="state[field.id] as string[]"
               :include-null-value="getIncludeNullValue(field)"
               :label="field.label"
@@ -142,6 +163,7 @@ defineExpose({ open, close })
 
             <MultiSelectAsyncFilter
               v-else-if="field.kind === 'multi-async'"
+              :portal-class="props.portalClass"
               v-model="state[field.id] as string[]"
               :include-null-value="getIncludeNullValue(field)"
               :label="field.label"
@@ -180,6 +202,7 @@ defineExpose({ open, close })
 
             <DateRangeFilter
               v-else
+              :portal-class="props.portalClass"
               v-model="state[field.id] as { from?: string, to?: string }"
               :include-null-value="getIncludeNullValue(field)"
               :label="field.label"
@@ -226,6 +249,7 @@ defineExpose({ open, close })
                 <template v-for="field in group.fields" :key="field.id">
                   <MultiSelectEnumFilter
                     v-if="field.kind === 'multi-enum'"
+                    :portal-class="props.portalClass"
                     v-model="state[field.id] as string[]"
                     :include-null-value="getIncludeNullValue(field)"
                     :label="field.label"
@@ -240,6 +264,7 @@ defineExpose({ open, close })
 
                   <MultiSelectAsyncFilter
                     v-else-if="field.kind === 'multi-async'"
+                    :portal-class="props.portalClass"
                     v-model="state[field.id] as string[]"
                     :include-null-value="getIncludeNullValue(field)"
                     :label="field.label"
@@ -278,6 +303,7 @@ defineExpose({ open, close })
 
                   <DateRangeFilter
                     v-else
+                    :portal-class="props.portalClass"
                     v-model="state[field.id] as { from?: string, to?: string }"
                     :include-null-value="getIncludeNullValue(field)"
                     :label="field.label"

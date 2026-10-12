@@ -7,9 +7,10 @@ import type { QuotationItemResponseDto } from '../../interfaces/quotation.types'
 // Matches the pattern used by QuotationSendDialog / QuotationCancelDialog and
 // the sales module's PriceOverrideModal tests.
 const modalStub = {
-  props: ['open', 'title', 'dismissible', 'close'],
+  props: ['open', 'title', 'dismissible', 'close', 'ui'],
   emits: ['update:open'],
-  template: '<div data-testid="price-override-modal"><slot name="body" /><slot name="footer" /></div>',
+  template:
+    '<div data-testid="price-override-modal"><slot name="body" /><slot name="footer" /></div>',
 }
 const buttonStub = {
   props: ['label', 'color', 'variant', 'loading', 'disabled'],
@@ -102,6 +103,16 @@ describe('QuotationPriceOverrideModal — render', () => {
 
     const submit = wrapper.find('[data-testid="price-override-submit"]')
     expect((submit.element as HTMLButtonElement).disabled).toBe(true)
+  })
+
+  it('opts the teleported modal content into the feature form-portal boundary', () => {
+    const wrapper = mountModal()
+
+    expect(wrapper.findComponent(modalStub).props('ui')).toEqual({
+      content: 'hf-theme hf-ui hf-form-overlay quotations-workspace-portal',
+    })
+    // Validation state is untouched by the presentation opt-in.
+    expect(wrapper.find('[data-testid="price-override-error"]').exists()).toBe(false)
   })
 })
 

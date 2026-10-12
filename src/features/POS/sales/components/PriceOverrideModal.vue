@@ -9,6 +9,12 @@ const props = defineProps<{
   saleId: string
   itemId: string
   onSubmit: (itemId: string, payload: OverrideItemPricePayload) => Promise<unknown>
+  /**
+   * Optional teleport boundary marker forwarded to the installed Modal's
+   * `ui.content`. Absent by default, so the dialog keeps `sm:max-w-xl` and
+   * every native default.
+   */
+  portalClass?: string
 }>()
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 
@@ -33,6 +39,11 @@ const canSubmit = computed(() => {
   if (mode.value === 'price_list') return selectedPriceListId.value.length > 0
   return Number.isInteger(customPriceCents.value) && (customPriceCents.value ?? 0) >= 1
 })
+
+// T3: optional, inert unless the caller supplies the marker.
+const modalUi = computed(() =>
+  props.portalClass ? { content: props.portalClass } : undefined,
+)
 
 async function loadAvailablePrices() {
   isLoading.value = true
@@ -90,7 +101,7 @@ watch(
 </script>
 
 <template>
-  <UModal :open="open" title="Cambiar precio" :content="{ class: 'sm:max-w-xl' }" @update:open="emit('update:open', $event)">
+  <UModal :open="open" title="Cambiar precio" :content="{ class: 'sm:max-w-xl' }" :ui="modalUi" @update:open="emit('update:open', $event)">
     <template #body>
       <form id="price-override-form" class="space-y-4" @submit.prevent="submit">
         <section class="rounded-lg border border-default p-3 space-y-2 bg-elevated/30">

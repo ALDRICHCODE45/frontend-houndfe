@@ -8,6 +8,12 @@ const props = defineProps<{
   open: boolean
   productId: string
   variantId: string | null
+  /**
+   * Optional teleport boundary marker forwarded to the installed Modal's
+   * `ui.content`. Absent by default, so the dialog keeps `sm:max-w-2xl` and
+   * every native default.
+   */
+  portalClass?: string
 }>()
 
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
@@ -32,6 +38,11 @@ const displaySku = computed(() => activeVariant.value?.sku ?? detail.value?.sku 
 const displayBarcode = computed(() => activeVariant.value?.barcode ?? detail.value?.barcode ?? null)
 const displayPrice = computed(() => activeVariant.value?.price ?? detail.value?.price ?? null)
 const displayStock = computed(() => activeVariant.value?.stock ?? detail.value?.stock ?? null)
+
+// T3: optional, inert unless the caller supplies the marker.
+const modalUi = computed(() =>
+  props.portalClass ? { content: props.portalClass } : undefined,
+)
 
 function formatPrice(priceDecimal: number): string {
   return new Intl.NumberFormat('es-MX', {
@@ -73,7 +84,7 @@ watch(
 </script>
 
 <template>
-  <UModal :open="open" title="Detalle del producto" :content="{ class: 'sm:max-w-2xl' }" @update:open="emit('update:open', $event)">
+  <UModal :open="open" title="Detalle del producto" :content="{ class: 'sm:max-w-2xl' }" :ui="modalUi" @update:open="emit('update:open', $event)">
     <template #body>
       <!-- Loading state -->
       <div v-if="isLoading" class="space-y-4 py-4">

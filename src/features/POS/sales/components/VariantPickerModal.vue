@@ -10,6 +10,12 @@ const props = defineProps<{
   productId: string | null
   productName: string
   variants: PosCatalogVariant[]
+  /**
+   * Optional teleport boundary marker forwarded to the installed modal content
+   * root. Absent by default, which preserves every existing consumer's
+   * original presentation and behavior.
+   */
+  portalClass?: string
 }>()
 
 // ── Emits ─────────────────────────────────────────────────────────────────────
@@ -58,6 +64,7 @@ function isLowStock(variant: PosCatalogVariant): boolean {
   <UModal
     :open="open"
     :title="`Añadir ${productName}`"
+    :ui="portalClass ? { content: portalClass } : undefined"
     @update:open="emit('update:open', $event)"
   >
     <template #body>

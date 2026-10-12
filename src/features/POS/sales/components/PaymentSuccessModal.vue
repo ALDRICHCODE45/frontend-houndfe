@@ -13,6 +13,12 @@ const props = withDefaults(defineProps<{
   debtCents?: number
   paymentStatus?: SalePaymentStatus
   confirmedAt: string
+  /**
+   * Optional teleport boundary marker forwarded to the installed Modal's
+   * `ui.content`. Absent by default, so the dialog keeps `sm:max-w-md` and
+   * every native default.
+   */
+  portalClass?: string
 }>(), {
   debtCents: 0,
   paymentStatus: SALE_PAYMENT_STATUS.PAID,
@@ -37,6 +43,17 @@ const debtStatus = computed(() => {
 
   return { label: 'Pagado', color: 'success' as const }
 })
+
+// T3: only the caller's opt-in swaps the forced legacy gold utility; omission
+// keeps the previous class string exactly.
+const modalUi = computed(() => ({
+  content: props.portalClass ? `sm:max-w-md ${props.portalClass}` : 'sm:max-w-md',
+}))
+const closeButtonClass = computed(() =>
+  props.portalClass
+    ? 'sales-entry-primary-action rounded-xl font-semibold shadow-sm'
+    : '!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm',
+)
 </script>
 
 <template>
@@ -44,7 +61,7 @@ const debtStatus = computed(() => {
     :open="open"
     title="Cobro confirmado"
     description="La venta fue registrada correctamente."
-    :ui="{ content: 'sm:max-w-md' }"
+    :ui="modalUi"
     @update:open="emit('update:open', $event)"
   >
     <template #body>
@@ -86,7 +103,7 @@ const debtStatus = computed(() => {
 
     <template #footer>
       <div class="flex w-full justify-end">
-        <UButton color="primary" class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm" @click="emit('update:open', false)">Cerrar</UButton>
+        <UButton color="primary" :class="closeButtonClass" @click="emit('update:open', false)">Cerrar</UButton>
       </div>
     </template>
   </UModal>

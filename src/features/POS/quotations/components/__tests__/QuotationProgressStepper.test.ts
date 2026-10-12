@@ -24,11 +24,14 @@ beforeEach(() => {
 // `quotation.utils.ts` so this component owns only the visual logic.
 
 describe('QuotationProgressStepper — root contract', () => {
-  it.each(STATUSES)('renders the root container with testid "quotation-stepper" for %s', (status) => {
-    const wrapper = mountStepper(status)
-    const root = wrapper.find('[data-testid="quotation-stepper"]')
-    expect(root.exists()).toBe(true)
-  })
+  it.each(STATUSES)(
+    'renders the root container with testid "quotation-stepper" for %s',
+    (status) => {
+      const wrapper = mountStepper(status)
+      const root = wrapper.find('[data-testid="quotation-stepper"]')
+      expect(root.exists()).toBe(true)
+    },
+  )
 
   it.each(STATUSES)('renders exactly 3 step nodes for %s', (status) => {
     const wrapper = mountStepper(status)
@@ -36,13 +39,16 @@ describe('QuotationProgressStepper — root contract', () => {
     expect(steps).toHaveLength(3)
   })
 
-  it.each(STATUSES)('renders the 3 step labels (BORRADOR, ENVIADA, EXPIRADA/CANCELADA) for %s', (status) => {
-    const wrapper = mountStepper(status)
-    const text = wrapper.text()
-    for (const label of STEP_LABELS) {
-      expect(text).toContain(label)
-    }
-  })
+  it.each(STATUSES)(
+    'renders the 3 step labels (BORRADOR, ENVIADA, EXPIRADA/CANCELADA) for %s',
+    (status) => {
+      const wrapper = mountStepper(status)
+      const text = wrapper.text()
+      for (const label of STEP_LABELS) {
+        expect(text).toContain(label)
+      }
+    },
+  )
 })
 
 describe('QuotationProgressStepper — active step styling', () => {
@@ -85,21 +91,33 @@ describe('QuotationProgressStepper — connector lines', () => {
   it('marks connectors BEFORE the active step as completed (accent color)', () => {
     const wrapper = mountStepper('SENT')
     // step 0 → step 1 is completed (active is step 1, so the 0→1 connector is accent)
-    expect(wrapper.get('[data-testid="stepper-connector-0"]').attributes('data-state')).toBe('completed')
+    expect(wrapper.get('[data-testid="stepper-connector-0"]').attributes('data-state')).toBe(
+      'completed',
+    )
     // step 1 → step 2 is future (active is step 1, so the 1→2 connector is neutral)
-    expect(wrapper.get('[data-testid="stepper-connector-1"]').attributes('data-state')).toBe('future')
+    expect(wrapper.get('[data-testid="stepper-connector-1"]').attributes('data-state')).toBe(
+      'future',
+    )
   })
 
   it('marks both connectors as completed when status is EXPIRED (terminal)', () => {
     const wrapper = mountStepper('EXPIRED')
-    expect(wrapper.get('[data-testid="stepper-connector-0"]').attributes('data-state')).toBe('completed')
-    expect(wrapper.get('[data-testid="stepper-connector-1"]').attributes('data-state')).toBe('completed')
+    expect(wrapper.get('[data-testid="stepper-connector-0"]').attributes('data-state')).toBe(
+      'completed',
+    )
+    expect(wrapper.get('[data-testid="stepper-connector-1"]').attributes('data-state')).toBe(
+      'completed',
+    )
   })
 
   it('marks both connectors as future when status is DRAFT (start)', () => {
     const wrapper = mountStepper('DRAFT')
-    expect(wrapper.get('[data-testid="stepper-connector-0"]').attributes('data-state')).toBe('future')
-    expect(wrapper.get('[data-testid="stepper-connector-1"]').attributes('data-state')).toBe('future')
+    expect(wrapper.get('[data-testid="stepper-connector-0"]').attributes('data-state')).toBe(
+      'future',
+    )
+    expect(wrapper.get('[data-testid="stepper-connector-1"]').attributes('data-state')).toBe(
+      'future',
+    )
   })
 })
 
@@ -111,6 +129,31 @@ describe('QuotationProgressStepper — visual states via data attributes', () =>
       const state = step.attributes('data-state')
       expect(state).toMatch(/^(active|completed|future)$/)
     }
+  })
+
+  it('exposes renderer hooks for the node, label and connector so the workspace can theme them', () => {
+    const wrapper = mountStepper('SENT')
+
+    for (let i = 0; i < 3; i++) {
+      const step = wrapper.get(`[data-testid="stepper-step-${i}"]`)
+      expect(step.find('.quotations-stepper-node').exists()).toBe(true)
+      expect(step.find('.quotations-stepper-label').exists()).toBe(true)
+    }
+    expect(wrapper.get('[data-testid="stepper-connector-0"]').classes()).toContain(
+      'quotations-stepper-connector',
+    )
+    expect(wrapper.get('[data-testid="stepper-connector-1"]').classes()).toContain(
+      'quotations-stepper-connector',
+    )
+
+    // Completed nodes/labels use the readable gold-ink role; the filled active
+    // node keeps its own fill pairing.
+    expect(
+      wrapper.get('[data-testid="stepper-step-0"]').find('.quotations-stepper-node').classes(),
+    ).toContain('quotations-gold-ink')
+    expect(
+      wrapper.get('[data-testid="stepper-step-1"]').find('.quotations-stepper-node').classes(),
+    ).toContain('quotations-gold-fill')
   })
 
   it('keeps the stepper reactive — updating the status prop re-evaluates active/completed/future', async () => {

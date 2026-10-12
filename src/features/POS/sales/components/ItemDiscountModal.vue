@@ -3,7 +3,17 @@ import { computed, ref, watch } from 'vue'
 import type { ApplyItemDiscountPayload, SaleItem } from '../interfaces/sale.types'
 import { currencyToCents, formatCentsMXN, normalizeDecimalInput } from '../utils/currency.utils'
 
-const props = defineProps<{ open: boolean; item: SaleItem; onApplyDiscount: (itemId: string, payload: ApplyItemDiscountPayload) => Promise<unknown> }>()
+const props = defineProps<{
+  open: boolean
+  item: SaleItem
+  onApplyDiscount: (itemId: string, payload: ApplyItemDiscountPayload) => Promise<unknown>
+  /**
+   * Optional teleport boundary marker forwarded to the installed Modal's
+   * `ui.content`. Absent by default, so the dialog keeps `sm:max-w-lg` and
+   * every native default.
+   */
+  portalClass?: string
+}>()
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 
 const mode = ref<'amount' | 'percentage'>('amount')
@@ -33,6 +43,11 @@ const previewDiscountCents = computed(() => {
 })
 
 const previewFinalCents = computed(() => props.item.unitPriceCents - previewDiscountCents.value)
+
+// T3: optional, inert unless the caller supplies the marker.
+const modalUi = computed(() =>
+  props.portalClass ? { content: props.portalClass } : undefined,
+)
 
 const canSubmit = computed(() => {
   if (mode.value === 'amount') {
@@ -72,7 +87,7 @@ watch(
 </script>
 
 <template>
-  <UModal :open="open" title="Agregar descuento" :content="{ class: 'sm:max-w-lg' }" @update:open="emit('update:open', $event)">
+  <UModal :open="open" title="Agregar descuento" :content="{ class: 'sm:max-w-lg' }" :ui="modalUi" @update:open="emit('update:open', $event)">
     <template #body>
       <form id="item-discount-form" class="space-y-4" @submit.prevent="submit">
         <section class="rounded-lg border border-default p-3 space-y-2 bg-elevated/30">

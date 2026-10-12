@@ -16,6 +16,8 @@ import { formatCentsMXN } from '../utils/currency.utils'
 import { getPaymentMethodColor } from '../utils/salePaymentMethod.utils'
 import { normalizeReferenceInput } from '../utils/paymentEntries.utils'
 import { useSalePaymentMethods } from '../composables/useSalePaymentMethods'
+import { useCashSaleSession } from '@/features/POS/cash-register/composables/useCashSaleSession'
+import CashSaleSessionPicker from './CashSaleSessionPicker.vue'
 import {
   buildMergedMethodOptions,
   findEntryIndex,
@@ -55,6 +57,13 @@ const props = defineProps<{
   // charge action again. An unchanged retry leaves the nonce untouched, so the
   // current logical-attempt key is reused.
   requoteAcceptSignal?: number
+  /**
+   * Optional teleport boundary marker. Forwarded to the installed slideover
+   * content root, to the shared DateFieldPopover and to the owned
+   * CashSaleSessionPicker. Absent by default, so the sheet, the date popover
+   * and the session listbox keep their prior `ui` values and native defaults.
+   */
+  portalClass?: string
 }>()
 
 const emit = defineEmits<{
@@ -83,6 +92,15 @@ const paymentAmountLocale = { ...es, code: 'es-MX' }
 
 const entries = ref<PaymentEntryForm[]>([])
 const inlineError = ref<string | null>(null)
+// T6/S3: binding-specific validation error, kept separate from `inlineError` so
+// a deliberate binding edit can clear ONLY the stale-selection message without
+// wiping unrelated validation (e.g. an invalid due date).
+const bindingError = ref<string | null>(null)
+// T6/S3: true when a previous explicit binding was invalidated (identity /
+// permission / lifecycle reset, or a live scope change). The old scope id is
+// already gone; this marker blocks an IMPLICIT unbound charge until the cashier
+// re-selects a session or explicitly opts out. It holds no session id.
+const needsBindingDecision = ref(false)
 const idempotencyKey = ref<string>('')
 const dueDateInput = ref<string | null>(null)
 const isDueDateExpanded = ref(false)
@@ -124,6 +142,12 @@ function tileTestId(tile: PaymentMethodTile): string {
 }
 
 const totalFormatted = computed(() => formatCentsMXN(props.totalCents))
+
+// T6/S3: the optional explicit Caja session link. The composable owns the
+// eligible own/OPEN rows and the selected id; the charge payload carries the
+// id only when the cashier made an explicit selection. Nothing here auto-selects
+// a session, and a stale/invalid selection is blocked (never silently unbound).
+const cashSaleSession = useCashSaleSession()
 const paidSumCents = computed(() => {
   return entries.value.reduce(
     (sum, entry) => sum + Math.max(0, Math.round(entry.amountPesos * 100)),
@@ -152,7 +176,8 @@ const canSubmit = computed(
   () =>
     !props.isSubmitting &&
     (entries.value.length === 0 ? hasCustomer.value : !isPartial.value || canSubmitPartial.value) &&
-    !inlineError.value,
+    !inlineError.value &&
+    !bindingError.value,
 )
 const confirmButtonLabel = computed(() => {
   if (entries.value.length === 0 && hasCustomer.value) {
@@ -243,6 +268,7 @@ watch(
     if (!open) return
     entries.value = [] // Start with empty list, no preselected payment
     inlineError.value = null
+    bindingError.value = null
     idempotencyKey.value = newIdempotencyKey()
     dueDateInput.value = null
     isDueDateExpanded.value = false
@@ -250,8 +276,23 @@ watch(
     // every modal open so a stale ON state from a prior session cannot
     // leak into the next charge.
     delivery.value = false
+    // T6/S3: a reopened modal starts unbound; the cashier must re-select the
+    // Caja session explicitly. The composable would also drop the selection on
+    // any identity change. Any invalidated-binding marker is reset too.
+    cashSaleSession.clearSelection()
+    needsBindingDecision.value = false
   },
   { immediate: true },
+)
+
+// T6/S3: the selection belongs to the sale being charged. Switching drafts
+// clears it so a session picked for one sale can never bind another.
+watch(
+  () => props.saleId,
+  () => {
+    cashSaleSession.clearSelection()
+    needsBindingDecision.value = false
+  },
 )
 
 // Collapses the optional due-date field and clears any half-entered value.
@@ -331,11 +372,21 @@ function buildPayload(): ChargeSalePayload {
   // stay byte-identical (no `delivery: false` ever emitted, per spec).
   // `{ delivery: true }` when on → spread into BOTH branches below.
   const deliveryPatch = delivery.value ? { delivery: true } : {}
+  // T6/S3: the explicit Caja link is an OPTIONAL top-level key on BOTH payload
+  // shapes. `{}` when no explicit selection → key absent → byte-identical
+  // legacy charges (never `null`, never an empty string). The backend accepts
+  // it only as a top-level field, never nested inside `payments`.
+  const cashSessionPatch =
+    cashSaleSession.selectedId.value !== null
+      ? { cashSessionId: cashSaleSession.selectedId.value }
+      : {}
 
   if (payments.length === 1) {
     const single = payments[0]
     if (!single) {
-      return dueDate ? { payments, dueDate, ...deliveryPatch } : { payments, ...deliveryPatch }
+      return dueDate
+        ? { payments, dueDate, ...deliveryPatch, ...cashSessionPatch }
+        : { payments, ...deliveryPatch, ...cashSessionPatch }
     }
 
     // sdd custom-payment-methods S4B (REQ-CAT-002 / design §1.3): flatten a
@@ -346,6 +397,7 @@ function buildPayload(): ChargeSalePayload {
       method: single.method,
       amountCents: single.amountCents,
       ...deliveryPatch,
+      ...cashSessionPatch,
     }
     if (single.paymentMethodId !== undefined) {
       legacy.paymentMethodId = single.paymentMethodId
@@ -356,13 +408,45 @@ function buildPayload(): ChargeSalePayload {
     return legacy
   }
 
-  return dueDate ? { payments, dueDate, ...deliveryPatch } : { payments, ...deliveryPatch }
+  return dueDate
+    ? { payments, dueDate, ...deliveryPatch, ...cashSessionPatch }
+    : { payments, ...deliveryPatch, ...cashSessionPatch }
 }
 
 function handleSubmit() {
   if (!validate()) return
   if (!canSubmit.value) return
 
+  if (cashSaleSession.selectedId.value !== null) {
+    // A non-reactive scope change (e.g. a session-generation write) is not
+    // visible to the reactive reset watcher yet. Detect it here, clear the
+    // ACTUAL selection and require an explicit decision — never auto-emit.
+    if (!cashSaleSession.isSelectionScopeCurrent()) {
+      cashSaleSession.clearSelection()
+      needsBindingDecision.value = true
+      bindingError.value =
+        'La sesión de caja elegida ya no está disponible. Elegí otra o cobrá sin vincular.'
+      return
+    }
+    // The scope is current but the chosen row is not on the current page
+    // (ordinary paging/refetch): keep the explicit selection and block.
+    if (!cashSaleSession.revalidateSelection()) {
+      bindingError.value =
+        'La sesión de caja elegida ya no está disponible. Elegí otra o cobrá sin vincular.'
+      return
+    }
+  }
+
+  // A previously bound attempt lost its binding: require an explicit opt-out or
+  // a new selection before an implicit unbound charge can go out. Ordinary
+  // legacy unbound charges (no prior selection) are unaffected.
+  if (needsBindingDecision.value) {
+    bindingError.value =
+      'La sesión de caja elegida ya no está disponible. Elegí otra o cobrá sin vincular.'
+    return
+  }
+
+  bindingError.value = null
   emit('submit', {
     saleId: props.saleId,
     payload: buildPayload(),
@@ -395,6 +479,45 @@ watch(
     idempotencyKey.value = newIdempotencyKey()
   },
   { deep: true },
+)
+
+// T6/S3: the Caja binding is part of the request body, so ANY selection change
+// invalidates the current logical-attempt key — a new body must never reuse the
+// previous key. `flush: 'sync'` also covers a binding change that happens in the
+// SAME tick as the submit.
+//
+// `onSelectSession` is the modal's only selection writer: it distinguishes an
+// explicit opt-out (allowed) from a composable-driven reset of an actual
+// selection (which raises `needsBindingDecision` so the next confirm cannot
+// silently charge unbound).
+let explicitOptOut = false
+
+function onSelectSession(id: string | null): void {
+  explicitOptOut = true
+  cashSaleSession.selectSession(id)
+  explicitOptOut = false
+}
+
+function optOutBinding(): void {
+  onSelectSession(null)
+  needsBindingDecision.value = false
+  bindingError.value = null
+}
+
+watch(
+  () => cashSaleSession.selectedId.value,
+  (next, prev) => {
+    if (prev !== null && next === null) {
+      // An ACTUAL selection was cleared by an identity/permission/lifecycle
+      // reset — require an explicit decision before an unbound charge.
+      needsBindingDecision.value = !explicitOptOut
+    }
+    if (next !== null) needsBindingDecision.value = false
+    bindingError.value = null
+    if (!props.open) return
+    idempotencyKey.value = newIdempotencyKey()
+  },
+  { flush: 'sync' },
 )
 
 watch(entries, (next) => {
@@ -450,16 +573,31 @@ watch(
 function getMethodColor(method: NonCreditPaymentMethod): string {
   return getPaymentMethodColor(method.toUpperCase())
 }
+
+// T3: the prior content/body geometry is preserved; an opt-in only appends the
+// marker to the same native content root.
+const slideoverUi = computed(() => ({
+  content: props.portalClass
+    ? `sm:max-w-lg overflow-hidden ${props.portalClass}`
+    : 'sm:max-w-lg overflow-hidden',
+  body: 'p-0 flex flex-col h-full',
+}))
+
+// The forced legacy gold utility is replaced only on the caller's opt-in;
+// omission keeps the previous class string exactly. The existing Caja binding
+// logic and payload shape below are untouched.
+const confirmButtonClass = computed(() =>
+  props.portalClass
+    ? 'w-full justify-center sales-entry-primary-action rounded-xl font-semibold shadow-sm sm:w-auto'
+    : 'w-full justify-center sm:w-auto !bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm',
+)
 </script>
 
 <template>
   <USlideover
     :open="open"
     inset
-    :ui="{
-      content: 'sm:max-w-lg overflow-hidden',
-      body: 'p-0 flex flex-col h-full',
-    }"
+    :ui="slideoverUi"
     @update:open="emit('update:open', $event)"
   >
     <template #content>
@@ -624,6 +762,56 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
             </div>
           </section>
 
+          <!-- T6/S3: explicit Caja session link. Rendered only when
+               `read:CashSession` is held, so an unauthorized cashier never
+               renders it and never triggers a session read. Selection is
+               explicit — there is no automatic binding. -->
+          <section v-if="cashSaleSession.canReadSessions.value" class="space-y-2">
+            <CashSaleSessionPicker
+              :sessions="cashSaleSession.availableSessions.value"
+              :selected-id="cashSaleSession.selectedId.value"
+              :is-selection-eligible="cashSaleSession.isSelectionEligible.value"
+              :is-fetching="cashSaleSession.isFetching.value"
+              :is-error="cashSaleSession.isError.value"
+              :page="cashSaleSession.page.value"
+              :page-count="cashSaleSession.pageCount.value"
+              :total="cashSaleSession.total.value"
+              :portal-class="portalClass"
+              @update:selected-id="onSelectSession($event)"
+              @update:page="cashSaleSession.setPage($event)"
+            />
+            <p class="text-xs text-muted">
+              Vinculá el cobro a una sesión de caja abierta propia. Si no elegís ninguna, el cobro
+              queda sin vincular.
+            </p>
+          </section>
+
+          <!-- T6/S3: a lost binding needs an explicit decision. This control
+               lives OUTSIDE the permission-gated picker, so it stays reachable
+               when `read:CashSession` is revoked or unresolved. It preserves the
+               payment entries, delivery and due date. -->
+          <section
+            v-if="needsBindingDecision"
+            data-testid="cash-session-binding-lost"
+            class="space-y-2 rounded-xl border border-warning/30 bg-warning/10 px-3 py-3"
+          >
+            <p class="text-xs text-warning">
+              La sesión de caja vinculada ya no está disponible. Elegí otra sesión o cobrá sin
+              vincular.
+            </p>
+            <UButton
+              data-testid="cash-session-binding-optout"
+              type="button"
+              color="neutral"
+              variant="soft"
+              size="sm"
+              :disabled="isSubmitting"
+              @click="optOutBinding"
+            >
+              Cobrar sin vincular (legacy)
+            </UButton>
+          </section>
+
           <!-- Optional due date for resulting debt — collapsed by default -->
           <section data-testid="due-date-section">
             <button
@@ -661,6 +849,7 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
                 placeholder="Elegir fecha"
                 :disabled="isSubmitting"
                 :min-iso="minDueDate"
+                :portal-class="portalClass"
               />
             </div>
           </section>
@@ -749,8 +938,8 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
             </p>
           </div>
 
-          <p v-if="inlineError || externalError" class="text-sm text-error">
-            {{ inlineError ?? externalError }}
+          <p v-if="bindingError || inlineError || externalError" class="text-sm text-error">
+            {{ bindingError ?? inlineError ?? externalError }}
           </p>
 
           <div data-testid="payment-actions" class="flex flex-col gap-2 sm:flex-row sm:justify-end">
@@ -768,7 +957,7 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
               color="primary"
               :loading="isSubmitting"
               :disabled="!canSubmit"
-              class="w-full justify-center sm:w-auto !bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+              :class="confirmButtonClass"
               @click="handleSubmit"
             >
               {{ confirmButtonLabel }}

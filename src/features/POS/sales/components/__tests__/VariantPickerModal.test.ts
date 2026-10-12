@@ -170,4 +170,51 @@ describe('VariantPickerModal.vue', () => {
 
     wrapper.unmount()
   })
+
+  // T6 / S3,S4 — optional, inert portal opt-in forwarded to the installed
+  // UModal `ui.content` path; absent prop keeps the native defaults.
+  const FORM_PORTAL = 'hf-theme hf-ui hf-form-overlay quotations-workspace-portal'
+
+  it('forwards the marker onto the installed Modal ui.content path when opted in', async () => {
+    const wrapper = mount(VariantPickerModal, {
+      props: {
+        open: true,
+        productId: 'prod-1',
+        productName: 'Ibuprofeno',
+        variants: mockVariants,
+        portalClass: FORM_PORTAL,
+      },
+      attachTo: document.body,
+    })
+
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.findComponent({ name: 'Modal' }).props('ui')).toEqual({ content: FORM_PORTAL })
+    const contentRoot = document.body.querySelector('[data-slot="content"]')
+    expect(contentRoot).not.toBeNull()
+    expect(contentRoot!.classList.contains('quotations-workspace-portal')).toBe(true)
+
+    wrapper.unmount()
+  })
+
+  it('leaves the installed Modal ui untouched when the prop is absent', async () => {
+    const wrapper = mount(VariantPickerModal, {
+      props: {
+        open: true,
+        productId: 'prod-1',
+        productName: 'Ibuprofeno',
+        variants: mockVariants,
+      },
+      attachTo: document.body,
+    })
+
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.findComponent({ name: 'Modal' }).props('ui')).toBeUndefined()
+    const contentRoot = document.body.querySelector('[data-slot="content"]')
+    expect(contentRoot).not.toBeNull()
+    expect(contentRoot!.classList.contains('quotations-workspace-portal')).toBe(false)
+
+    wrapper.unmount()
+  })
 })

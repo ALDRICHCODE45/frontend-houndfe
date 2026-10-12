@@ -114,7 +114,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function replaceChallenge(value: LoginOtpChallenge) {
-    // Reject old direct-session responses and mixed envelopes before any session effect.
+    // Reject mixed envelopes before any session effect.
     if (
       !value ||
       value.requiresOtp !== true ||
@@ -124,7 +124,14 @@ export const useAuthStore = defineStore('auth', () => {
       value.expiresIn <= 0 ||
       !Number.isFinite(value.resendAfter) ||
       value.resendAfter < 0 ||
-      ['accessToken', 'refreshToken', 'tempToken', 'user', 'tenants'].some((key) => key in value)
+      [
+        'requiresTenantSelection',
+        'accessToken',
+        'refreshToken',
+        'tempToken',
+        'user',
+        'tenants',
+      ].some((key) => key in value)
     ) {
       throw new Error('Invalid login challenge')
     }
@@ -287,9 +294,16 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       const response = await authApi.login(payload)
       if (!operation.isCurrent()) return null
-      replaceChallenge(response)
-      authPhase.value = accessToken.value ? 'authenticated' : 'idle'
-      return response
+      // The server chooses OTP versus direct login. No client environment bypass.
+      if (response && 'requiresOtp' in response) {
+        replaceChallenge(response)
+        authPhase.value = accessToken.value ? 'authenticated' : 'idle'
+        return response
+      }
+      if (response && ['challengeId', 'resendAfter'].some((key) => key in response)) {
+        throw new Error('Invalid login response')
+      }
+      return await completeVerifiedLogin(response, operation.isCurrent)
     } catch (error: unknown) {
       if (!operation.isCurrent()) return null
       authPhase.value = accessToken.value ? 'authenticated' : 'idle'
@@ -360,6 +374,13 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function completeVerifiedLogin(response: LoginResponse, isCurrent: () => boolean) {
     validateLoginPayload(loginResultSchema, response)
+    // Do not mix proof stages, even if their required fields are otherwise valid.
+    const forbiddenFields = response.requiresTenantSelection
+      ? ['requiresOtp', 'challengeId', 'resendAfter', 'accessToken', 'refreshToken']
+      : ['requiresOtp', 'challengeId', 'resendAfter', 'tempToken']
+    if (forbiddenFields.some((key) => key in response)) {
+      throw new Error('Invalid login response')
+    }
     if (response.requiresTenantSelection) {
       tempToken.value = response.tempToken
       memberships.value = response.tenants

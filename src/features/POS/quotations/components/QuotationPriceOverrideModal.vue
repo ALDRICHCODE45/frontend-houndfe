@@ -36,7 +36,9 @@ const apiError = ref<string | null>(null)
 const isSubmitting = ref(false)
 
 const customPriceCents = computed<number | null>(() => {
-  const normalized = String(customPriceInput.value ?? '').replace(',', '.').trim()
+  const normalized = String(customPriceInput.value ?? '')
+    .replace(',', '.')
+    .trim()
   if (!normalized) return null
   const value = Number(normalized)
   if (!Number.isFinite(value) || value <= 0) return null
@@ -87,6 +89,7 @@ watch(
     :open="open"
     title="Cambiar precio"
     :content="{ class: 'sm:max-w-xl' }"
+    :ui="{ content: 'hf-theme hf-ui hf-form-overlay quotations-workspace-portal' }"
     data-testid="price-override-modal"
     @update:open="emit('update:open', $event)"
   >

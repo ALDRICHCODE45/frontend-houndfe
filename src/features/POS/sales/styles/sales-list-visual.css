@@ -1,0 +1,172 @@
+@import '../../../../core/shared/design-system/houndfe-ui.css';
+
+/* Sales listing visual entry.
+ *
+ * Opt-in presentation adapter for the Sales list, its cards and the teleported
+ * popups the listing owns. Every rule is scoped under `.sales-list-visual` or
+ * the owned `.sales-list-portal` marker, so unmigrated screens, the sale-entry
+ * workspace and the Caja pilot keep their current presentation.
+ *
+ * Light and dark values come from the foundation semantic roles in
+ * `houndfe-theme.css` through the shared `hf-theme hf-ui` boundary. This file
+ * introduces no palette literals, no global root override and no global
+ * mutation; only the geometry compatibility aliases below are remapped locally.
+ * The shared adapter already pairs solid action backgrounds with
+ * `--hf-on-action` in both themes, so no on-action literal lives here.
+ */
+
+/* Compatibility aliases: inside the opted-in boundary the legacy utility radii
+ * resolve to the shared control/card corners. The full-radius alias is
+ * deliberately left untouched so avatars, dots and rings keep their circles. */
+.sales-list-visual,
+.hf-theme.sales-list-portal {
+  --radius-sm: var(--hf-radius-control);
+  --radius-md: var(--hf-radius-control);
+  --radius-lg: var(--hf-radius-card);
+  --radius-xl: var(--hf-radius-card);
+  --radius-2xl: var(--hf-radius-card);
+}
+
+/* ── Toolbar ─────────────────────────────────────────────────────────────── */
+
+/* From `md` up the toolbar becomes a two-row grid: search and the action
+ * cluster share the first row and the filter region (chips + status tabs +
+ * sort) drops to a second row, so neither the tabs nor the segmented view
+ * toggle is clipped by an inline filter. Mobile keeps the shared three-region
+ * stack untouched. */
+@media (min-width: 768px) {
+  .sales-list-visual .hf-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+  }
+
+  .sales-list-visual .hf-toolbar-search-region {
+    display: contents;
+  }
+
+  .sales-list-visual .hf-toolbar-search {
+    grid-area: 1 / 1;
+    width: 100%;
+    max-width: 26rem;
+  }
+
+  .sales-list-visual .hf-toolbar-actions {
+    grid-area: 1 / 2;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    justify-self: end;
+  }
+
+  .sales-list-visual .hf-toolbar-filters {
+    grid-area: 2 / 1 / 3 / -1;
+  }
+}
+
+/* One control height for the whole toolbar row; the filter row wraps instead
+ * of clipping when it runs out of horizontal room. */
+.sales-list-visual .hf-toolbar :where(button, input) {
+  min-height: var(--hf-control-height);
+}
+
+/* The segmented view toggle sizes to its own content and never shrinks, so its
+ * labels stay on one line and the tabs do not squeeze it. */
+.sales-list-visual .sales-view-toggle {
+  width: auto;
+  flex-shrink: 0;
+}
+
+.sales-list-visual .sales-view-toggle :where(button, [role='tab']) {
+  min-width: max-content;
+  white-space: nowrap;
+}
+
+/* ── Status tabs ─────────────────────────────────────────────────────────── */
+
+/* The quick tabs keep their existing composition; the adapter only supplies
+ * the shared focus indicator the legacy utilities lacked. No active/selected
+ * state is added because the tabs have no selection semantics today. */
+.sales-list-visual .sales-status-tab:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+/* ── Pagination ──────────────────────────────────────────────────────────── */
+
+/* Compact footer: the summary never wraps and the page-size trigger sizes to
+ * its label instead of stretching across the row. */
+.sales-list-visual .hf-pagination-summary {
+  white-space: nowrap;
+}
+
+.sales-list-visual .hf-pagination-size {
+  width: auto;
+  min-height: 36px;
+}
+
+.sales-list-visual .hf-pagination-navigation {
+  margin-inline-start: auto;
+}
+
+/* Footer navigation buttons are compact like the page-size trigger (36px),
+ * not the 44px toolbar control height. */
+.sales-list-visual .hf-pagination-navigation :where(button) {
+  min-height: 36px;
+}
+
+/* ── Card grid ───────────────────────────────────────────────────────────── */
+
+/* `auto-fill` (not `auto-fit`) reserves every track, so a lone sale keeps its
+ * card width instead of stretching across the whole workspace. */
+.sales-list-visual .sales-card-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+  gap: 0.75rem;
+  align-content: start;
+}
+
+/* Sale card surface. Restrained geometry and a single border, with no nested
+ * decorative panel; the legacy hover lift is neutralised so the card stays
+ * quiet. The interest is feature-owned, so another SaleCard consumer outside
+ * this root is never repainted. */
+.sales-list-visual .sales-card {
+  background-color: var(--hf-surface);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  color: var(--hf-ink);
+  box-shadow: none;
+}
+
+.sales-list-visual .sales-card:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: var(--hf-action);
+}
+
+/* Keyboard focus inside the card stays visible on the card surface itself. */
+.sales-list-visual .sales-card:focus-within {
+  border-color: var(--hf-action);
+}
+
+/* ── Numeric cells ───────────────────────────────────────────────────────── */
+
+/* Money stays readable and comparable: tabular figures on the semantic ink
+ * role. The value hook is feature-owned and never reaches a shared table slot. */
+.sales-list-visual .sales-total-value {
+  color: var(--hf-ink);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* ── Owned portal boundary ───────────────────────────────────────────────── */
+
+/* Teleported surfaces the listing owns (the toolbar menus, the page-size menu,
+ * the mobile filter sheet and the nested filter popups) escape the listing
+ * ancestor, so they repeat `hf-theme hf-ui` plus this marker on their own root.
+ * The palette still comes from the foundation roles; this rule only paints the
+ * boundary. */
+.hf-theme.sales-list-portal {
+  background-color: var(--hf-surface);
+  border-color: var(--hf-border);
+  color: var(--hf-ink);
+}

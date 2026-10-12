@@ -25,6 +25,12 @@ const props = withDefaults(
       onRemoveItem?: (itemId: string) => Promise<unknown>
       /** Presentation-only density flag for the mobile cart sheet. */
       mobileSheet?: boolean
+      /**
+       * Optional teleport boundary marker forwarded to the installed row menu
+       * and to the owned item dialogs. Absent by default, so the row and its
+       * dialogs keep their native defaults and prior paint.
+       */
+      portalClass?: string
      }>(),
   {
     imageUrl: null,
@@ -282,7 +288,10 @@ function handleQtyCommit() {
             variant="ghost"
             @click="void props.onRemoveItem?.(props.item.id)"
           />
-          <UDropdownMenu :items="itemActions">
+          <UDropdownMenu
+            :items="itemActions"
+            :ui="portalClass ? { content: portalClass } : undefined"
+          >
             <UButton
               :size="mobileSheet ? 'sm' : 'xs'"
               :class="mobileSheet ? 'min-h-[44px] min-w-[44px]' : undefined"
@@ -310,7 +319,11 @@ function handleQtyCommit() {
             data-testid="sale-item-promo-badge"
             class="inline-flex items-center gap-0.5"
           >
-            <UTooltip v-if="inlinePromotionTitle" :text="inlinePromotionTitle">
+            <UTooltip
+              v-if="inlinePromotionTitle"
+              :text="inlinePromotionTitle"
+              :ui="portalClass ? { content: portalClass } : undefined"
+            >
               <AppBadge tone="info" icon="i-lucide-tag" :label="inlinePromotionTitle" />
             </UTooltip>
             <AppBadge v-else tone="info" icon="i-lucide-tag" label="Promoción" />
@@ -324,7 +337,11 @@ function handleQtyCommit() {
               @click.stop="handleInlineRemovePromo"
             />
           </span>
-          <UTooltip v-if="item.discountType && item.discountTitle" :text="item.discountTitle">
+          <UTooltip
+            v-if="item.discountType && item.discountTitle"
+            :text="item.discountTitle"
+            :ui="portalClass ? { content: portalClass } : undefined"
+          >
             <AppBadge tone="success" icon="i-lucide-badge-percent" :label="inlineDiscountLabel ?? ''" />
           </UTooltip>
           <AppBadge
@@ -375,6 +392,7 @@ function handleQtyCommit() {
     <div v-if="!isDraft" class="flex items-center gap-3 mt-1">
       <div class="flex-1 min-w-0">
         <SaleItemBadges
+          :portal-class="portalClass"
           :price-source="item.priceSource"
           :original-price-cents="item.originalPriceCents"
           :unit-price-cents="item.unitPriceCents"
@@ -395,6 +413,7 @@ function handleQtyCommit() {
       v-model:open="isPriceModalOpen"
       :sale-id="saleId"
       :item-id="item.id"
+      :portal-class="portalClass"
       :on-submit="onSubmitPriceOverride"
     />
 
@@ -402,6 +421,7 @@ function handleQtyCommit() {
       v-if="isDiscountModalOpen"
       v-model:open="isDiscountModalOpen"
       :item="item"
+      :portal-class="portalClass"
       :on-apply-discount="onApplyDiscount"
     />
 
@@ -410,6 +430,7 @@ function handleQtyCommit() {
       v-model:open="isDetailModalOpen"
       :product-id="item.productId"
       :variant-id="item.variantId"
+      :portal-class="portalClass"
     />
   </div>
 </template>

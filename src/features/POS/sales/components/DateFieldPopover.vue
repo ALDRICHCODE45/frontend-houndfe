@@ -14,6 +14,12 @@ const props = withDefaults(
     minIso?: string | null
     /** Optional data-testid for the trigger button. */
     testid?: string
+    /**
+     * Optional teleport boundary marker forwarded to the installed popover
+     * content root. Absent by default, which preserves every existing
+     * consumer's original presentation and behavior.
+     */
+    portalClass?: string
   }>(),
   {
     placeholder: 'Elegir fecha',
@@ -71,7 +77,7 @@ function clearDate() {
 </script>
 
 <template>
-  <UPopover :disabled="disabled">
+  <UPopover :disabled="disabled" :ui="portalClass ? { content: portalClass } : undefined">
     <UButton
       :label="formattedLabel || placeholder"
       icon="i-lucide-calendar"

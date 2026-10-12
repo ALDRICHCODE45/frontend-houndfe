@@ -37,7 +37,11 @@ vi.mock('../../composables/useProductSearch', () => ({
 // require runtime data; only the wrapper chrome is exercised here.
 const globalStubs = {
   ProductSearchResults: { template: '<div data-testid="results-stub" />' },
-  VariantPickerModal: { template: '<div data-testid="variant-modal-stub" />' },
+  VariantPickerModal: {
+    name: 'VariantPickerModal',
+    props: ['portalClass'],
+    template: '<div data-testid="variant-modal-stub" :data-portal-class="portalClass" />',
+  },
 }
 
 function resetMockState() {
@@ -51,8 +55,9 @@ function resetMockState() {
   mockTotalUnfiltered.value = 0
 }
 
-function mountPanel() {
+function mountPanel(props: Record<string, unknown> = {}) {
   return mount(ProductSearchPanel, {
+    props,
     global: { stubs: globalStubs },
   })
 }
@@ -144,5 +149,40 @@ describe('ProductSearchPanel — 14a.3 dark category panel (R6 panel half)', () 
     expect(todoButton).toBeDefined()
     todoButton!.trigger('click')
     expect(mockCategoryId.value).toBeUndefined()
+  })
+})
+
+// T6 / S3,S4 — optional, inert portal opt-in forwarded to the nested variant
+// modal (the teleport owner), not merely to the panel root/ancestor.
+describe('ProductSearchPanel — optional portalClass forwarding', () => {
+  const FORM_PORTAL = 'hf-theme hf-ui hf-form-overlay quotations-workspace-portal'
+
+  it('forwards the marker to the nested VariantPickerModal', () => {
+    const wrapper = mountPanel({ portalClass: FORM_PORTAL })
+
+    const modal = wrapper.get('[data-testid="variant-modal-stub"]')
+    expect(modal.attributes('data-portal-class')).toBe(FORM_PORTAL)
+
+    wrapper.unmount()
+  })
+
+  it('forwards no marker when the prop is absent (defaults inert)', () => {
+    const wrapper = mountPanel()
+
+    const modal = wrapper.get('[data-testid="variant-modal-stub"]')
+    expect(modal.attributes('data-portal-class')).toBeUndefined()
+
+    wrapper.unmount()
+  })
+
+  it('keeps the variant selection path wired to add-product alongside the opt-in', () => {
+    const wrapper = mountPanel({ portalClass: FORM_PORTAL })
+
+    const modal = wrapper.findComponent({ name: 'VariantPickerModal' })
+    modal.vm.$emit('add-variant', 'prod-1', 'var-1')
+
+    expect(wrapper.emitted('add-product')).toEqual([['prod-1', 'var-1', null]])
+
+    wrapper.unmount()
   })
 })

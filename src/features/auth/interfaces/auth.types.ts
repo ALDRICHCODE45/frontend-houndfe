@@ -113,6 +113,14 @@ export type AppSubject =
   // returns null, the ability never updates, and the inbox silently disappears
   // — hence the explicit no-silent-drop pin-tests in ability.test.ts.
   | 'HumanDecision'
+  | 'CashRegister'
+  | 'CashSession'
+  | 'CashSessionAudit'
+  | 'CashCount'
+  | 'CashIn'
+  | 'CashOut'
+  | 'CashVerification'
+  | 'CashHandover'
   | 'all'
 
 export interface EffectivePermission {

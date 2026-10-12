@@ -60,6 +60,14 @@ const APP_SUBJECTS: AppSubject[] = [
   // in ability.test.ts assert both grants AND that malformed sibling permissions
   // cannot drop the well-formed rule.
   'HumanDecision',
+  'CashRegister',
+  'CashSession',
+  'CashSessionAudit',
+  'CashCount',
+  'CashIn',
+  'CashOut',
+  'CashVerification',
+  'CashHandover',
   'all',
 ]
 

@@ -128,7 +128,11 @@ export const useSidebar = () => {
     },
   })
 
-  function getNavigationItems(collapsed: boolean): NavigationMenuItem[] {
+  // `collapsed` is part of the public call contract (the layout and its tests
+  // pass the live rail state) but no longer changes the item tree: groups stay
+  // closed for both the expanded rail and the compact popover (S6), and the
+  // authorized children are always present so the popover can reach them (S2).
+  function getNavigationItems(_collapsed: boolean): NavigationMenuItem[] {
     // Consumer-specific top-level extras (not part of the shared module tree).
     // ODD dashboard-analytics D1: Dashboard entry comes from the shared
     // navigation.landing definition so the sidebar and command palette stay
@@ -137,7 +141,6 @@ export const useSidebar = () => {
       {
         ...DASHBOARD_NAV_ITEM,
         exact: true,
-        class: 'text-coco-gold-500',
       },
       {
         label: 'Nueva Venta',
@@ -152,20 +155,30 @@ export const useSidebar = () => {
       .map(stripMeta)
 
     // Shared module groups, derived from the registry through the access filter.
+    //
+    // S6: every group starts closed. The registry keeps its `defaultOpen` for
+    // other consumers, but the sidebar no longer forwards it, so a freshly
+    // mounted shell never auto-expands a group — not even the one containing
+    // the active route. The user toggles groups through the native
+    // NavigationMenu accordion.
+    //
+    // Children are kept even when `collapsed` is true: the collapsed rail
+    // renders groups through the installed `UNavigationMenu` popover, so every
+    // authorized destination must remain in the item tree (S2). The CASL
+    // filter is unchanged — a group still disappears when it has no accessible
+    // child.
     const groupItems: NavigationMenuItem[] = filterAccessibleGroups(
       navigationGroups,
       canAccess,
     ).map((group) => ({
       label: group.label,
       icon: group.icon,
-      defaultOpen: group.defaultOpen,
-      children: collapsed
-        ? []
-        : group.children.map((child) => ({
-            label: child.label,
-            icon: child.icon,
-            to: child.to,
-          })),
+      defaultOpen: false,
+      children: group.children.map((child) => ({
+        label: child.label,
+        icon: child.icon,
+        to: child.to,
+      })),
     }))
 
     return [...visibleExtras, ...groupItems]

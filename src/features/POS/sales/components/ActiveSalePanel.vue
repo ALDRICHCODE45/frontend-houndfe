@@ -38,6 +38,12 @@ const props = defineProps<{
   appliedManualPromotionIds?: string[]
   /** Presentation-only density flag for the mobile bottom-sheet instance. */
   mobileSheet?: boolean
+  /**
+   * Optional teleport boundary marker. Forwarded to the owned row menus and
+   * dialogs (and to the shared PriceListSelector's existing opt-in). Absent by
+   * default, so every consumer keeps its native defaults and prior paint.
+   */
+  portalClass?: string
 }>()
 
 // ── Emits ─────────────────────────────────────────────────────────────────────
@@ -91,6 +97,11 @@ const pendingPriceListId = ref<string | null>(null)
 const hasGlobalDiscount = computed(() =>
   props.activeDraft?.items.some((item) => !!item.discountType) ?? false,
 )
+
+// T3: the same optional marker is the single "this panel is rendered inside the
+// sales entry boundary" signal, so the owned children reuse it instead of
+// growing a second flag. Absent marker → false → every prior class is kept.
+const isThemed = computed(() => Boolean(props.portalClass))
 
 const customerFullName = computed(() => {
   const customer = props.activeDraft?.customer
@@ -230,6 +241,7 @@ function handleConfirmPriceListChange() {
         <PriceListSelector
           :active-draft="activeDraft"
           :is-mutating="isMutating"
+          :portal-class="portalClass"
           @change-price-list="emit('change-price-list', $event)"
           @request-confirm="handleRequestPriceListConfirm"
         />
@@ -267,6 +279,7 @@ function handleConfirmPriceListChange() {
           :image-url="itemImageMap?.[item.variantId ? `${item.productId}:${item.variantId}` : item.productId] ?? null"
           :is-updating="isMutating"
           :mobile-sheet="mobileSheet"
+          :portal-class="portalClass"
           :on-submit-price-override="onSubmitPriceOverride"
           :on-apply-discount="onApplyDiscount"
           :on-remove-discount="onRemoveDiscount"
@@ -352,7 +365,10 @@ function handleConfirmPriceListChange() {
         data-testid="cart-actions-toolbar"
         class="px-4 pb-2 flex items-center justify-end gap-1"
       >
-        <UTooltip :text="'Vaciar venta'">
+        <UTooltip
+          :text="'Vaciar venta'"
+          :ui="portalClass ? { content: portalClass } : undefined"
+        >
           <UButton
             color="neutral"
             variant="ghost"
@@ -362,7 +378,10 @@ function handleConfirmPriceListChange() {
             @click="handleTrashClick"
           />
         </UTooltip>
-        <UDropdownMenu :items="moreMenuItems">
+        <UDropdownMenu
+          :items="moreMenuItems"
+          :ui="portalClass ? { content: portalClass } : undefined"
+        >
           <UButton
             color="neutral"
             variant="ghost"
@@ -379,6 +398,8 @@ function handleConfirmPriceListChange() {
         v-if="activeDraft"
         :sale="activeDraft"
         :is-charge-pending="isMutating"
+        :themed="isThemed"
+        :portal-class="portalClass"
         @charge-click="emit('charge-click')"
         @remove-order-promo="(promotionId) => emit('remove-order-promo', promotionId)"
       />
@@ -390,6 +411,7 @@ function handleConfirmPriceListChange() {
       v-model:open="globalDiscountModalOpen"
       :item-count="activeDraft?.items.length ?? 0"
       :has-existing-discounts="hasGlobalDiscount"
+      :portal-class="portalClass"
       :on-apply-global-discount="onApplyGlobalDiscount"
     />
 
@@ -400,6 +422,7 @@ function handleConfirmPriceListChange() {
       :description="getCloseTabDescription()"
       confirm-label="Cerrar venta"
       confirm-color="error"
+      :ui="portalClass ? { content: portalClass } : undefined"
       @confirm="handleConfirmCloseTab"
     />
 
@@ -409,6 +432,7 @@ function handleConfirmPriceListChange() {
       description="Vas a quitar todos los productos de esta venta. ¿Continuar?"
       confirm-label="Quitar todos"
       confirm-color="error"
+      :ui="portalClass ? { content: portalClass } : undefined"
       @confirm="handleConfirmTrash"
     />
 
@@ -422,6 +446,7 @@ function handleConfirmPriceListChange() {
       description="Esto va a recalcular los precios de todos los ítems."
       confirm-label="Cambiar lista"
       confirm-color="primary"
+      :ui="portalClass ? { content: portalClass } : undefined"
       @confirm="handleConfirmPriceListChange"
     />
   </div>

@@ -56,9 +56,9 @@ describe('QuotationTotalsFooter — items count', () => {
               id: 'item-1',
               productId: 'product-1',
               variantId: null,
-                  productName: 'Test Product',
-        variantName: null,
-    quantity: 1,
+              productName: 'Test Product',
+              variantName: null,
+              quantity: 1,
               product: { id: 'product-1', name: 'Playera M', sku: 'SKU-1', imageUrl: null },
               variant: null,
               unitPriceCents: 15000,
@@ -86,9 +86,9 @@ describe('QuotationTotalsFooter — items count', () => {
       id,
       productId: `product-${id}`,
       variantId: null,
-          productName: 'Test Product',
-        variantName: null,
-    quantity,
+      productName: 'Test Product',
+      variantName: null,
+      quantity,
       product: { id: `product-${id}`, name: `Item ${id}`, sku: `SKU-${id}`, imageUrl: null },
       variant: null,
       unitPriceCents: 100,
@@ -550,5 +550,46 @@ describe('QuotationTotalsFooter — IVA rate selector (T-UI-29)', () => {
     await wrapper.vm.$nextTick()
     events = wrapper.emitted('update:tax-rate')
     expect(events![events!.length - 1]).toEqual([0.21])
+  })
+})
+
+// ─── Quotations workspace visual adaptation (T3 / S3 + S4) ───────────────────
+// The RESUMEN card is feature-owned, so its teleported IVA listbox repeats the
+// workspace portal marker and the primary CTA opts into the shared action
+// foreground pairing. Meanings (rates, totals, labels) stay unchanged.
+describe('QuotationTotalsFooter — workspace visual boundary (S3/S4)', () => {
+  it('marks the IVA listbox popup with the workspace portal boundary', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: {
+        quotation: makeQuotation({ taxRate: 0.16, taxCents: 1600 }),
+        editable: true,
+      },
+    })
+
+    const select = wrapper.findAllComponents({ name: 'SelectMenu' })[0]
+    expect(select).toBeDefined()
+    expect(select!.props('ui')).toEqual({
+      content: 'hf-theme hf-ui quotations-workspace-portal',
+    })
+  })
+
+  it('pairs the send CTA with the shared action foreground without changing its label', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: { quotation: makeQuotation(), editable: true },
+    })
+
+    const cta = wrapper.get('[data-testid="summary-send-btn"]')
+    expect(cta.classes()).toContain('quotations-primary-action')
+    expect(cta.text()).toContain('Enviar cotización')
+  })
+
+  it('keeps the discount row on the existing semantic info role', () => {
+    const wrapper = mount(QuotationTotalsFooter, {
+      props: { quotation: makeQuotation({ discountCents: 1500, taxRate: 0.16, taxCents: 1600 }) },
+    })
+
+    expect(wrapper.find('[data-testid="discount-amount"]').classes().join(' ')).toMatch(
+      /text-\[var\(--coco-info\)\]/,
+    )
   })
 })

@@ -4,9 +4,9 @@ import MultiSelectAsyncFilter from '../MultiSelectAsyncFilter.vue'
 
 const SelectStub = {
   name: 'SelectStub',
-  props: ['modelValue', 'items', 'searchInput', 'valueKey', 'multiple', 'loading'],
+  props: ['modelValue', 'items', 'searchInput', 'valueKey', 'multiple', 'loading', 'ui'],
   emits: ['update:model-value'],
-  template: '<div data-testid="u-select-menu" :data-searchable="String(searchInput)" :data-value-key="valueKey" :data-multiple="String(multiple)" :data-loading="String(loading)"><slot /></div>',
+  template: '<div data-testid="u-select-menu" :data-searchable="String(searchInput)" :data-value-key="valueKey" :data-multiple="String(multiple)" :data-loading="String(loading)" :data-ui="ui ? JSON.stringify(ui) : \'\'"><slot /></div>',
 }
 
 function mountComponent() {
@@ -172,5 +172,75 @@ describe('MultiSelectAsyncFilter', () => {
   it('uses w-full on control root', () => {
     const wrapper = mountComponent()
     expect(wrapper.get('[data-testid="async-select"]').classes()).toContain('w-full')
+  })
+})
+
+// ── T5: optional portal opt-in, inert by default ─────────────────────────────
+
+describe('MultiSelectAsyncFilter — portal opt-in (T5)', () => {
+  const MARKER = 'hf-theme hf-ui quotations-list-portal'
+
+  it('passes no ui prop to USelectMenu when portalClass is absent (legacy default)', () => {
+    const wrapper = mountComponent()
+    expect(wrapper.findComponent(SelectStub).props('ui')).toBeUndefined()
+  })
+
+  it('forwards portalClass into the USelectMenu content slot only', () => {
+    const wrapper = mount(MultiSelectAsyncFilter, {
+      props: {
+        modelValue: [],
+        label: 'Cliente',
+        placeholder: 'Busca cliente',
+        options: [{ label: 'María Pérez', value: 'uuid-1' }],
+        portalClass: MARKER,
+      },
+      global: {
+        stubs: {
+          USelectMenu: { ...SelectStub },
+          SelectMenu: { ...SelectStub },
+          UFormField: { template: '<div><slot /></div>' },
+        },
+      },
+    })
+
+    expect(wrapper.findComponent(SelectStub).props('ui')).toEqual({ content: MARKER })
+    const select = wrapper.get('[data-testid="async-select"]')
+    expect(select.attributes('data-searchable')).toBe('true')
+    expect(select.attributes('data-loading')).toBe('false')
+  })
+
+  it('keeps search/loading/model emission unchanged while portalClass is set', async () => {
+    const wrapper = mount(MultiSelectAsyncFilter, {
+      props: {
+        modelValue: [],
+        label: 'Cliente',
+        placeholder: 'Busca cliente',
+        options: [{ label: 'María Pérez', value: 'uuid-1' }],
+        includeNullOption: 'Incluir público general',
+        includeNullValue: false,
+        loading: true,
+        loadingLabel: 'Cargando clientes...',
+        portalClass: MARKER,
+      },
+      global: {
+        stubs: {
+          USelectMenu: { ...SelectStub },
+          SelectMenu: { ...SelectStub },
+          UFormField: { template: '<div><slot /></div>' },
+        },
+      },
+    })
+
+    const select = wrapper.findComponent(SelectStub)
+    expect(wrapper.get('[data-testid="async-select"]').attributes('data-loading')).toBe('true')
+    expect(wrapper.get('[data-testid="async-loading-hint"]').text()).toContain(
+      'Cargando clientes...',
+    )
+
+    select.vm.$emit('update:model-value', ['uuid-1', '__INCLUDE_NULL__'])
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([['uuid-1']])
+    expect(wrapper.emitted('update:includeNullValue')?.[0]).toEqual([true])
   })
 })

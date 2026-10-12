@@ -8,7 +8,7 @@
  * runtime into the unit test.
  *
  * The view was rewritten to mirror the Sales pattern end-to-end:
- *   - UCard with split body bg (REQ-QAF-009) and TableHeaderDescription.
+ *   - Page heading outside the UCard table workspace (Products composition).
  *   - Status tabs + slideover + chips (REQ-QAF-010).
  *   - Single toolbar row assembled inside AppDataTable's DataTableToolbar:
  *     search + Filtros + refresh + Columnas + "Nueva cotización" + ViewToggle
@@ -195,6 +195,8 @@ const appDataTableStub = {
     'mobileRender',
     'displayMode',
     'enableColumnVisibility',
+    'portalClass',
+    'paginationPortalClass',
   ],
   emits: [
     'update:pagination',
@@ -224,6 +226,8 @@ const appDataTableStub = {
       :data-add-button-test-id="addButtonTestId ?? ''"
       :data-refresh-button-test-id="refreshButtonTestId ?? ''"
       :data-display-mode="displayMode ?? 'auto'"
+      :data-portal-class="portalClass ?? ''"
+      :data-pagination-portal-class="paginationPortalClass ?? ''"
     >
       <slot name="filters" />
         <slot name="actions" />
@@ -271,10 +275,10 @@ const appDataTableStub = {
 }
 
 const dataTableFiltersStub = {
-  props: ['schema', 'state', 'errors', 'embedded'],
+  props: ['schema', 'state', 'errors', 'embedded', 'portalClass'],
   emits: ['update:state'],
   template: `
-    <div data-testid="data-table-filters-stub" :data-embedded="String(!!embedded)">
+    <div data-testid="data-table-filters-stub" :data-embedded="String(!!embedded)" :data-portal-class="portalClass ?? ''">
       <button data-testid="filters-trigger" @click="$emit('update:state', state)">
         Filtros
       </button>
@@ -330,7 +334,7 @@ const stubs = {
     template: '<div data-testid="table-header-description"><h1>{{ title }}</h1><p>{{ description }}</p></div>',
   },
   ConfirmModal: {
-    props: ['open', 'title', 'description', 'confirmLabel', 'confirmColor', 'loading'],
+    props: ['open', 'title', 'description', 'confirmLabel', 'confirmColor', 'loading', 'ui'],
     emits: ['update:open', 'confirm'],
     template: `
       <div
@@ -339,6 +343,7 @@ const stubs = {
         :data-confirm-label="confirmLabel"
         :data-confirm-color="confirmColor"
         :data-loading="String(loading)"
+        :data-ui-content="ui?.content ?? ''"
       >
         <p data-testid="confirm-description">{{ description }}</p>
         <button data-testid="confirm-modal-confirm" @click="$emit('confirm')">stub-confirm</button>
@@ -402,7 +407,25 @@ function mountView(extraOpts: Parameters<typeof mount>[1] = {}) {
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('QuotationsListView — header chrome (REQ-QAF-009)', () => {
-  it('renders the page title and description via TableHeaderDescription', () => {
+  it('keeps the Products-style page heading outside the table surface', () => {
+    const wrapper = mountView()
+    const header = wrapper.get('.hf-page-header')
+    const surface = wrapper.get('[data-testid="quotations-list-view"]')
+
+    expect(header.get('h1.hf-page-title').text()).toBe('Cotizaciones')
+    expect(header.get('p.hf-page-subtitle').text()).toBe(
+      'Listado de cotizaciones por cliente, con filtros por estado, fechas y montos.',
+    )
+    expect(header.element.parentElement).toBe(surface.element.parentElement)
+    expect(header.element.nextElementSibling).toBe(surface.element)
+    expect(surface.find('.hf-page-header').exists()).toBe(false)
+    expect(surface.classes()).toContain('hf-table-surface')
+    expect(surface.find('[data-testid="status-tabs"]').exists()).toBe(true)
+    expect(surface.find('[data-testid="app-data-table"]').exists()).toBe(true)
+    wrapper.unmount()
+  })
+
+  it('renders the page title and description', () => {
     const wrapper = mountView()
 
     expect(wrapper.text()).toContain('Cotizaciones')
@@ -938,6 +961,102 @@ describe('QuotationsListView — REQ-QAF-016 anti-requirements', () => {
     const wrapper = mountView()
 
     expect(wrapper.find('[data-testid="quotation-search-input"]').exists()).toBe(false)
+  })
+})
+
+// ─── T2 / S1-S4: listing visual adaptation (presentation only) ───────────────
+
+describe('QuotationsListView — listing visual adaptation (S1/S3/S4)', () => {
+  const PORTAL_MARKER = 'hf-theme hf-ui quotations-list-portal'
+  const OVERLAY_MARKER = 'hf-theme hf-ui hf-form-overlay quotations-list-portal'
+
+  it('opts the routed root into the shared hf boundary without the Products marker', () => {
+    const wrapper = mountView()
+    const root = wrapper.element as HTMLElement
+
+    expect(root.classList.contains('hf-theme')).toBe(true)
+    expect(root.classList.contains('hf-ui')).toBe(true)
+    expect(root.classList.contains('quotations-list-visual')).toBe(true)
+    expect(root.classList.contains('hf-shell-products-portal')).toBe(false)
+    // The routed root is inert: the teleported-portal marker belongs to the
+    // owned popups only and must not leak onto the listing surface.
+    expect(root.classList.contains('quotations-list-portal')).toBe(false)
+    // Existing composition classes stay in place.
+    expect(root.classList.contains('flex')).toBe(true)
+    expect(root.classList.contains('md:px-10')).toBe(true)
+  })
+
+  it('keeps the Coco scope class on the table surface', () => {
+    const wrapper = mountView()
+    expect(wrapper.get('[data-testid="quotations-list-view"]').classes()).toContain(
+      'quotations-list-view',
+    )
+  })
+
+  it('forwards the owned portal boundary to the toolbar and pagination popups', () => {
+    const wrapper = mountView()
+    const table = wrapper.get('[data-testid="app-data-table"]')
+
+    expect(table.classes()).toContain('hf-data-table')
+    expect(table.attributes('data-portal-class')).toBe(PORTAL_MARKER)
+    expect(table.attributes('data-pagination-portal-class')).toBe(PORTAL_MARKER)
+  })
+
+  it('themes the row action menu with the owned portal boundary', () => {
+    composableState.data.value = [makeQuotation({ id: 'qtn-row-menu' })]
+    const wrapper = mountView()
+
+    // Nuxt UI's UDropdownMenu is a global component and is not replaceable by
+    // a vue-test-utils stub, so the public `ui` contract is read from the
+    // rendered component itself.
+    const menu = wrapper.getComponent({ name: 'DropdownMenu' })
+    expect(menu.props('ui')).toEqual({ content: PORTAL_MARKER })
+  })
+
+  it('opts the delete confirmation into the overlay boundary and keeps destructive semantics', async () => {
+    composableState.data.value = [makeQuotation({ id: 'qtn-del-boundary' })]
+    const wrapper = mountView()
+
+    const grid = wrapper.findComponent({ name: 'QuotationCardGrid' })
+    grid.vm.$emit('delete', composableState.data.value[0])
+    await wrapper.vm.$nextTick()
+
+    const modal = wrapper.get('[data-testid="confirm-modal"]')
+    expect(modal.attributes('data-ui-content')).toBe(OVERLAY_MARKER)
+    expect(modal.attributes('data-confirm-color')).toBe('error')
+    expect(modal.attributes('data-confirm-label')).toBe('Eliminar')
+  })
+
+  it('gives the status tabs and the view toggle owned presentation hooks', () => {
+    const wrapper = mountView()
+
+    expect(wrapper.get('[data-testid="status-tabs"] button').classes()).toContain(
+      'quotations-status-tab',
+    )
+    expect(wrapper.get('[data-testid="view-toggle"]').classes()).toContain('quotations-view-toggle')
+  })
+
+  it('opts the filter wrapper into the owned portal boundary in both render paths', () => {
+    const wrapper = mountView()
+    const filters = wrapper.get('[data-testid="data-table-filters-stub"]')
+
+    // Mobile default of the mounted view => embedded path. The marker is still
+    // forwarded so the nested enum/async/date popups inherit the boundary.
+    expect(filters.attributes('data-embedded')).toBe('true')
+    expect(filters.attributes('data-portal-class')).toBe(PORTAL_MARKER)
+  })
+
+  it('keeps model bindings, display mode and filter configuration unchanged', () => {
+    const wrapper = mountView()
+    const table = wrapper.find('[data-testid="app-data-table"]')
+
+    expect(table.attributes('data-display-mode')).toBe('table')
+    expect(table.attributes('data-enable-column-visibility')).toBe('true')
+    expect(table.attributes('data-show-refresh')).toBe('true')
+    expect(wrapper.findAll('[data-testid="filters-chips"]')).toHaveLength(1)
+    expect(
+      wrapper.find('[data-testid="data-table-filters-stub"]').attributes('data-embedded'),
+    ).toBe('true')
   })
 })
 

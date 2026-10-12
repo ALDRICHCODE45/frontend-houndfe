@@ -6,9 +6,10 @@ import type { CancelReason, QuotationResponseDto } from '../../interfaces/quotat
 // Stub Nuxt UI primitives so the test stays focused on the dialog's logic.
 // Matches the pattern used by ItemDiscountModal / DueDateEditModal tests.
 const modalStub = {
-  props: ['open', 'title', 'dismissible', 'close'],
+  props: ['open', 'title', 'dismissible', 'close', 'ui'],
   emits: ['update:open'],
-  template: '<div data-testid="cancel-dialog-modal"><slot name="body" /><slot name="footer" /></div>',
+  template:
+    '<div data-testid="cancel-dialog-modal"><slot name="body" /><slot name="footer" /></div>',
 }
 const buttonStub = {
   props: ['label', 'color', 'variant', 'loading', 'disabled'],
@@ -87,6 +88,17 @@ describe('QuotationCancelDialog — render', () => {
     expect(wrapper.find('[data-testid="reason-option-EXPIRED"]').exists()).toBe(true)
     expect(wrapper.find('[data-testid="reason-option-OTHER"]').exists()).toBe(true)
   })
+
+  it('opts the teleported modal content into the feature form-portal boundary', () => {
+    const wrapper = mountDialog()
+
+    const modal = wrapper.findComponent(modalStub)
+    expect(modal.props('ui')).toEqual({
+      content: 'hf-theme hf-ui hf-form-overlay quotations-workspace-portal',
+    })
+    // The destructive confirm semantics are preserved next to the theme opt-in.
+    expect(modal.props('title')).toBe('Cancelar cotización')
+  })
 })
 
 describe('QuotationCancelDialog — confirm gating', () => {
@@ -157,7 +169,10 @@ describe('QuotationCancelDialog — loading state', () => {
   it('disables both buttons while the cancel promise is pending', async () => {
     let resolveCancel!: () => void
     const cancel = vi.fn().mockImplementation(
-      () => new Promise<void>((resolve) => { resolveCancel = resolve }),
+      () =>
+        new Promise<void>((resolve) => {
+          resolveCancel = resolve
+        }),
     )
     const wrapper = mountDialog({ cancel })
 
@@ -165,8 +180,12 @@ describe('QuotationCancelDialog — loading state', () => {
     await wrapper.get('[data-testid="cancel-dialog-confirm"]').trigger('click')
     await flushPromises()
 
-    expect((wrapper.find('[data-testid="cancel-dialog-confirm"]').element as HTMLButtonElement).disabled).toBe(true)
-    expect((wrapper.find('[data-testid="cancel-dialog-cancel"]').element as HTMLButtonElement).disabled).toBe(true)
+    expect(
+      (wrapper.find('[data-testid="cancel-dialog-confirm"]').element as HTMLButtonElement).disabled,
+    ).toBe(true)
+    expect(
+      (wrapper.find('[data-testid="cancel-dialog-cancel"]').element as HTMLButtonElement).disabled,
+    ).toBe(true)
 
     resolveCancel()
     await flushPromises()

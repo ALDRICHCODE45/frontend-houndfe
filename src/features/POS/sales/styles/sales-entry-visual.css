@@ -1,0 +1,176 @@
+@import '../../../../core/shared/design-system/houndfe-ui.css';
+
+/*
+ * Sales entry (Venta) visual adapter — T3 / S1, S3-S5.
+ *
+ * Venta is a specialized composition, not a table: the catalog, the cart, the
+ * tab strip, the payment sheet and their nested dialogs keep their existing
+ * sections, order, divisions and behavior. This file only re-points the reached
+ * presentation at the shared `--hf-*` roles.
+ *
+ * Every rule is scoped under `.sales-entry-visual` (the in-page workspace the
+ * SalesView opts into with `hf-theme hf-ui`) or `.hf-theme.sales-entry-portal`
+ * (the marker each teleported surface repeats on its own native content root).
+ * Importing this file never changes another screen, and the shared foundation
+ * files stay read-only.
+ */
+
+/* ── Owned workspace boundary ───────────────────────────────────────────── */
+
+/* Restrained geometry: section cards land on the foundation card radius and
+ * controls on the control radius, matching the already-migrated modules. The
+ * `--radius-2xl` / `--radius-3xl` / `--radius-full` values stay untouched, so
+ * the mobile sheet's `rounded-t-2xl` and every circular control keep their
+ * exact prior shape. */
+.hf-theme.sales-entry-visual,
+.hf-theme.sales-entry-portal {
+  --radius-md: var(--hf-radius-control);
+  --radius-lg: var(--hf-radius-card);
+  --radius-xl: var(--hf-radius-card);
+}
+
+/* The workspace canvas is the quiet foundation page instead of the legacy
+ * light surface. The composition itself — the 60/40 and 75/25 split, the cart
+ * and the mobile drawer sequencing — is untouched. */
+.hf-theme.sales-entry-visual {
+  background-color: var(--hf-page);
+  color: var(--hf-ink);
+}
+
+.hf-theme.sales-entry-visual > .sales-entry-page {
+  background-color: var(--hf-page);
+}
+
+/* Catalog and cart panels sit on the foundation surface with one quiet border
+ * instead of the legacy translucent page tint. */
+.hf-theme.sales-entry-visual .sales-entry-panel {
+  background-color: var(--hf-surface);
+  border-color: var(--hf-border);
+}
+
+/* ── Teleported boundary ────────────────────────────────────────────────── */
+
+/* Dialogs, sheets, menus and listboxes escape their ancestor, so the marker
+ * repeats the boundary on the native content root. */
+.hf-theme.sales-entry-portal {
+  background-color: var(--hf-surface);
+  border-color: var(--hf-border);
+  color: var(--hf-ink);
+
+  /* The legacy gold utilities reached by the payment, success and customer
+   * surfaces resolve through the shared accent roles here instead of a second
+   * palette. Text uses the readable gold ink; the tints and edges stay
+   * alpha-derived from the single gold role, so both themes come from the
+   * foundation and no per-screen literal is introduced. */
+  --color-coco-gold-400: var(--hf-gold-ink);
+  --color-coco-gold-500: var(--hf-gold);
+  --color-coco-gold-700: var(--hf-gold-ink);
+}
+
+/* The installed UCard root owns a direct body slot. Its configured dark
+ * utility survives the native outline variant's bg-default class merge, so
+ * boundary aliases alone cannot repair it. Select only that reached card
+ * shape, not every element that happens to expose data-slot="root". */
+.hf-theme.sales-entry-portal div[data-slot='root']:has(> div[data-slot='body']) {
+  background-color: var(--hf-surface);
+}
+
+/* ── Primary action pairing ─────────────────────────────────────────────── */
+
+/* Charge, re-quote and success confirmations keep their own geometry
+ * (`rounded-xl`, sizing, shadow) but pair the action background with the
+ * matching foreground, including dark mode. Callers only swap into this class
+ * when they opt in; an omitted marker keeps the legacy gold classes byte for
+ * byte. */
+.sales-entry-visual .sales-entry-primary-action,
+.hf-theme.sales-entry-portal .sales-entry-primary-action {
+  background-color: var(--hf-action);
+  color: var(--hf-on-action);
+}
+
+.sales-entry-visual .sales-entry-primary-action:is(:hover, :active),
+.hf-theme.sales-entry-portal .sales-entry-primary-action:is(:hover, :active) {
+  filter: brightness(1.08);
+}
+
+/* ── Keyboard focus ─────────────────────────────────────────────────────── */
+
+.sales-entry-visual :where(button, a):focus-visible,
+.hf-theme.sales-entry-portal :where(button, a):focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+/* ── Product discovery (protected shared panel) ─────────────────────────── */
+
+/* The shared product search panel and its result cards are reused unchanged.
+ * The caller class only lets this feature correct the literal child utilities
+ * it actually reaches. */
+.hf-theme.sales-entry-visual .sales-entry-product-search > .sticky {
+  background-color: color-mix(in srgb, var(--hf-surface) 85%, transparent);
+  border-color: var(--hf-border);
+}
+
+/* Active category chips ship a literal `text-white`; even the shared inverted
+ * alias cannot reach it, so pair the chip (and its count badge) with the
+ * action foreground role in both modes. */
+.hf-theme.sales-entry-visual
+  .sales-entry-product-search
+  [data-testid^='category-chip-'].bg-primary {
+  background-color: var(--hf-action);
+  color: var(--hf-on-action);
+}
+
+.hf-theme.sales-entry-visual
+  .sales-entry-product-search
+  [data-testid^='category-chip-'].bg-primary
+  > span {
+  background-color: color-mix(in srgb, var(--hf-on-action) 20%, transparent);
+  color: var(--hf-on-action);
+}
+
+/* Prices are operational data and the variant count is supporting text. */
+.hf-theme.sales-entry-visual .sales-entry-product-search p.tabular-nums {
+  color: var(--hf-ink);
+}
+
+.hf-theme.sales-entry-visual .sales-entry-product-search p[class~='text-(--brand-primary)'] {
+  color: var(--hf-muted);
+}
+
+/* The mobile add action keeps its soft/solid distinction with the matching
+ * foreground pair. Stock-danger badges are deliberately not selected, so the
+ * `#N` warning semantics survive untouched. */
+.hf-theme.sales-entry-visual .sales-entry-product-search [data-testid='add-action'] {
+  background-color: var(--hf-active-soft);
+  color: var(--hf-action);
+}
+
+.hf-theme.sales-entry-visual
+  .sales-entry-product-search
+  [data-testid='add-action']:is(:hover, :active) {
+  background-color: color-mix(in srgb, var(--hf-action) 20%, var(--hf-surface));
+}
+
+.dark .hf-theme.sales-entry-visual .sales-entry-product-search [data-testid='add-action'] {
+  background-color: var(--hf-action);
+  color: var(--hf-on-action);
+}
+
+/* ── Protected shared customer sheet ───────────────────────────────────── */
+
+/* `AssignCustomerSlideover` is shared with the quotation flow and owns its own
+ * accepted boundary. The sales caller opts in with the portal marker, so the
+ * reached step-2 labels can use the foundation accent without editing that
+ * component. Only the gold-family label utility is re-pointed. */
+.hf-theme.sales-entry-portal [class~='text-coco-gold-800'] {
+  color: var(--hf-gold-ink);
+}
+
+/* The step-2 footer primary action ships a forced legacy utility that no
+ * ordinary scoped rule can repair. The repair stays narrow: exactly one
+ * control, only inside the opted-in sales portal. */
+.hf-theme.sales-entry-portal [data-testid='open-create-customer'][class~='!bg-(--brand-action)'][class~='!text-black'].w-full {
+  background-color: var(--hf-action) !important;
+  color: var(--hf-on-action) !important;
+}

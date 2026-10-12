@@ -161,10 +161,7 @@ function mountView() {
   })
 }
 
-function makeAxiosError(
-  status: number,
-  data: DomainApiError,
-): AxiosError<DomainApiError> {
+function makeAxiosError(status: number, data: DomainApiError): AxiosError<DomainApiError> {
   const err = new Error('Request failed') as AxiosError<DomainApiError>
   err.isAxiosError = true
   err.response = {
@@ -198,9 +195,7 @@ describe('ProductsView — SAT_KEY_NOT_FOUND field error mapping', () => {
     await nextTick()
 
     expect(slideoverErrors.value).toBeDefined()
-    expect(slideoverErrors.value?.satKey).toBe(
-      'SAT key "00000000" is not in the catalog.',
-    )
+    expect(slideoverErrors.value?.satKey).toBe('SAT key "00000000" is not in the catalog.')
   })
 
   it('does NOT populate formErrors.satKey for a 400 with a different error code', async () => {

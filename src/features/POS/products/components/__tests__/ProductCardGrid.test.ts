@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ProductCardGrid from '../ProductCardGrid.vue'
+import ProductsEmptyState from '../ProductsEmptyState.vue'
 import type { Product } from '../../interfaces/product.types'
 
 const product = {
@@ -70,6 +71,7 @@ describe('ProductCardGrid', () => {
     // viewport — decides the column count. The exact sm/lg/xl/2xl ladder
     // is intentionally retired for this grid.
     const availableWidthClasses = [
+      'products-card-grid',
       'grid',
       'gap-3',
       'w-full',
@@ -143,5 +145,33 @@ describe('ProductCardGrid', () => {
     )
     // Legacy coco-neutral tokens are gone.
     expect(skeletons[0]!.classes()).not.toContain('bg-coco-neutral-100')
+  })
+})
+
+// ─── Reusable empty presentation (T2 / S2) ───────────────────────────────────
+// The grid empty branch now renders the same ProductsEmptyState used by the
+// table #empty slot, while keeping the product-cards-empty testid, the
+// original message prop, and the loading-first precedence.
+
+describe('ProductCardGrid reusable empty presentation (T2 / S2)', () => {
+  it('renders the reusable ProductsEmptyState inside the preserved product-cards-empty container', () => {
+    const wrapper = mountComponent({ products: [], loading: false })
+    const emptyRoot = wrapper.get('[data-testid="product-cards-empty"]')
+
+    expect(emptyRoot.findComponent(ProductsEmptyState).exists()).toBe(true)
+    expect(emptyRoot.find('.products-empty-description').exists()).toBe(true)
+  })
+
+  it('keeps the loading skeleton ahead of the empty presentation during the initial fetch', () => {
+    const wrapper = mountComponent({ products: [], loading: true })
+
+    expect(wrapper.find('[data-testid="product-cards-skeleton"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="product-cards-empty"]').exists()).toBe(false)
+  })
+
+  it('still forwards the custom empty message to the reused component', () => {
+    const wrapper = mountComponent({ products: [], loading: false, empty: 'Catálogo vacío' })
+
+    expect(wrapper.get('.products-empty-title').text()).toBe('Catálogo vacío')
   })
 })

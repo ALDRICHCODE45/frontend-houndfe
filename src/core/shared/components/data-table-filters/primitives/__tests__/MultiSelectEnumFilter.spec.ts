@@ -4,9 +4,9 @@ import MultiSelectEnumFilter from '../MultiSelectEnumFilter.vue'
 
 const SelectStub = {
   name: 'SelectStub',
-  props: ['modelValue', 'searchInput', 'valueKey', 'items', 'multiple'],
+  props: ['modelValue', 'searchInput', 'valueKey', 'items', 'multiple', 'ui'],
   emits: ['update:model-value'],
-  template: '<div data-testid="u-select-menu" :data-searchable="String(searchInput)" :data-value-key="valueKey" :data-multiple="String(multiple)"><slot /></div>',
+  template: '<div data-testid="u-select-menu" :data-searchable="String(searchInput)" :data-value-key="valueKey" :data-multiple="String(multiple)" :data-ui="ui ? JSON.stringify(ui) : \'\'"><slot /></div>',
 }
 
 function mountComponent(overrideProps: Record<string, unknown> = {}) {
@@ -166,5 +166,41 @@ describe('MultiSelectEnumFilter', () => {
   it('uses w-full on control root', () => {
     const wrapper = mountComponent()
     expect(wrapper.get('[data-testid="enum-select"]').classes()).toContain('w-full')
+  })
+})
+
+// ── T5: optional portal opt-in, inert by default ─────────────────────────────
+
+describe('MultiSelectEnumFilter — portal opt-in (T5)', () => {
+  const MARKER = 'hf-theme hf-ui quotations-list-portal'
+
+  it('passes no ui prop to USelectMenu when portalClass is absent (legacy default)', () => {
+    const wrapper = mountComponent()
+    expect(wrapper.findComponent(SelectStub).props('ui')).toBeUndefined()
+  })
+
+  it('forwards portalClass into the USelectMenu content slot only', () => {
+    const wrapper = mountComponent({ portalClass: MARKER })
+
+    expect(wrapper.findComponent(SelectStub).props('ui')).toEqual({ content: MARKER })
+    // The additive prop must not disturb the existing select wiring.
+    const select = wrapper.get('[data-testid="enum-select"]')
+    expect(select.attributes('data-multiple')).toBe('true')
+    expect(select.attributes('data-value-key')).toBe('value')
+  })
+
+  it('keeps selection, includeNull and error wiring unchanged while portalClass is set', async () => {
+    const wrapper = mountComponent({
+      portalClass: MARKER,
+      modelValue: [],
+      error: 'Demasiados valores seleccionados',
+    })
+    const select = wrapper.findComponent(SelectStub)
+    select.vm.$emit('update:model-value', ['PAID', '__INCLUDE_NULL__'])
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([['PAID']])
+    expect(wrapper.emitted('update:includeNullValue')?.[0]).toEqual([true])
+    expect(wrapper.text()).toContain('Demasiados valores seleccionados')
   })
 })

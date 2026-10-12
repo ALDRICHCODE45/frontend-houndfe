@@ -36,6 +36,13 @@ const ProductsView = () => import('@/features/POS/products/views/ProductsView.vu
 const ProductDetailView = () => import('@/features/POS/products/views/ProductDetailView.vue')
 const OrdersView = () => import('@/features/POS/orders/views/OrdersView.vue')
 const CustomersView = () => import('@/features/POS/customers/views/CustomersView.vue')
+// ─── Cash register / Caja (cash-register-ui T2–T4, S1 subset) ────────────────
+// Single "Caja" route guarded by read:CashRegister: registers, session opening,
+// manual movements, blind freeze/count, append-only notes, independent
+// verification, recipient custody discovery, explicit FLOAT and drawer release.
+// Out of scope here: sales binding, refunds, closing/PDF.
+const CashRegisterView = () => import('@/features/POS/cash-register/views/CashRegisterView.vue')
+const CashReceptionView = () => import('@/features/POS/cash-register/views/CashReceptionView.vue')
 const SalesView = () => import('@/features/POS/sales/views/SalesView.vue')
 const SalesListView = () => import('@/features/POS/sales/views/SalesListView.vue')
 const SaleDetailView = () => import('@/features/POS/sales/views/SaleDetailView.vue')
@@ -178,6 +185,28 @@ const router = createRouter({
         layout: 'dashboard',
         rememberAsLanding: true,
         permission: ['read', 'Customer'] as RoutePermission,
+      },
+    },
+    // ─── Cash register / Caja (cash-register-ui T2, S1 subset) ───────────────
+
+    {
+      path: '/pos/caja',
+      name: 'pos-cash-register',
+      component: CashRegisterView,
+      meta: {
+        layout: 'dashboard',
+        rememberAsLanding: true,
+        permission: ['read', 'CashRegister'] as RoutePermission,
+      },
+    },
+    {
+      path: '/pos/caja/recepciones',
+      name: 'pos-cash-reception',
+      component: CashReceptionView,
+      meta: {
+        layout: 'dashboard',
+        rememberAsLanding: true,
+        permission: ['read', 'CashHandover'] as RoutePermission,
       },
     },
     {

@@ -175,6 +175,7 @@ const focusSearchSpy = vi.fn()
 const globalStubs = {
   ProductSearchPanel: {
     name: 'ProductSearchPanel',
+    props: ['portalClass'],
     setup(
       _props: Record<string, unknown>,
       { expose }: { expose: (obj: Record<string, unknown>) => void },
@@ -194,6 +195,7 @@ const globalStubs = {
       'isLoadingPromotions',
       'appliedManualPromotionIds',
       'mobileSheet',
+      'portalClass',
     ],
     // C.5: `remove-promo` (per-line) is now forwarded from ActiveSalePanel
     // alongside the existing `remove-order-promo` (order-level).
@@ -226,10 +228,11 @@ const globalStubs = {
       'catalogClearSignal',
       'shippingAddress',
       'requoteAcceptSignal',
+      'portalClass',
     ],
     emits: ['submit', 'update:open', 'request-assign-customer'],
     template:
-      '<div><p data-testid="payment-modal-open">{{ open }}</p><p data-testid="payment-modal-total-cents">{{ totalCents }}</p><p data-testid="payment-modal-catalog-clear-signal">{{ catalogClearSignal }}</p><p data-testid="payment-modal-requote-signal">{{ requoteAcceptSignal }}</p><p data-testid="payment-modal-shipping-address-id">{{ shippingAddress?.id }}</p><button data-testid="submit-charge" :disabled="isSubmitting" @click="$emit(\'submit\', { saleId, payload: { method: \'cash\', amountCents: totalCents }, idempotencyKey: \'idem-1\' })">submit</button><button data-testid="request-assign-customer" @click="$emit(\'request-assign-customer\')">assign</button><p data-testid="external-error">{{ externalError }}</p><p data-testid="modal-customer-id">{{ customer?.id }}</p></div>',
+      '<div><p data-testid="payment-modal-open">{{ open }}</p><p data-testid="payment-modal-total-cents">{{ totalCents }}</p><p data-testid="payment-modal-catalog-clear-signal">{{ catalogClearSignal }}</p><p data-testid="payment-modal-requote-signal">{{ requoteAcceptSignal }}</p><p data-testid="payment-modal-shipping-address-id">{{ shippingAddress?.id }}</p><button data-testid="submit-charge" :disabled="isSubmitting" @click="$emit(\'submit\', { saleId, payload: { method: \'cash\', amountCents: totalCents }, idempotencyKey: \'idem-1\' })">submit</button><button data-testid="submit-bound-charge" @click="$emit(\'submit\', { saleId, payload: { method: \'cash\', amountCents: totalCents, cashSessionId: \'11111111-1111-4111-8111-111111111111\' }, idempotencyKey: \'idem-bound\' })">submit-bound</button><button data-testid="request-assign-customer" @click="$emit(\'request-assign-customer\')">assign</button><p data-testid="external-error">{{ externalError }}</p><p data-testid="modal-customer-id">{{ customer?.id }}</p></div>',
   },
   PromotionCapacityRequoteModal: {
     name: 'PromotionCapacityRequoteModal',
@@ -276,7 +279,7 @@ const globalStubs = {
   },
   USkeleton: { template: '<div />' },
   AssignCustomerSlideover: {
-    props: ['open'],
+    props: ['open', 'portalClass'],
     template: '<div data-testid="assign-slideover-open">{{ open }}</div>',
   },
   Slideover: {
@@ -288,7 +291,7 @@ const globalStubs = {
   AppResponsiveDrawer: {
     name: 'AppResponsiveDrawerStub',
     inheritAttrs: false,
-    props: ['open', 'title', 'description', 'closeAriaLabel', 'mobileBodyClass'],
+    props: ['open', 'title', 'description', 'closeAriaLabel', 'mobileBodyClass', 'portalClass'],
     emits: ['after:leave', 'update:open'],
     template: `
       <div v-if="open" v-bind="$attrs">
@@ -1845,5 +1848,66 @@ describe('SalesView PCA-2 — capacity-safe charge re-quote', () => {
     expect(refetchDraftsMock).not.toHaveBeenCalled()
     expect(wrapper.find('[data-testid="requote-modal-stub"]').exists()).toBe(false)
     expect(invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ['promotions', 'tenant-1'] })
+  })
+})
+
+// ─── T6/S3 — explicit Caja session binding pass-through ──────────────────────
+//
+// SalesView does not interpret the charge payload: it forwards whatever
+// PaymentModal emits straight to `chargeDraft`. These specs pin that the explicit
+// `cashSessionId` travels verbatim, that a backend rejection of the selected
+// session is NOT retried as an unbound charge, and that exactly one API call is
+// made per submit.
+describe('SalesView T6 — explicit Caja session binding pass-through', () => {
+  const BOUND_UUID = '11111111-1111-4111-8111-111111111111'
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    drafts.value = [{ ...drafts.value[0]!, totalCents: 10000, items: [...drafts.value[0]!.items] }]
+    activeTabId.value = 'sale-1'
+    isMutating.value = false
+    unassignCustomerMock.mockReset()
+    clearShippingAddressMock.mockReset()
+  })
+
+  it('forwards the explicit cashSessionId to chargeDraft exactly once', async () => {
+    chargeDraft.mockResolvedValueOnce({
+      saleId: 'sale-1',
+      folio: 'A-202605-000123',
+      subtotalCents: 10000,
+      discountCents: 0,
+      totalCents: 10000,
+      paidCents: 10000,
+      debtCents: 0,
+      changeDueCents: 0,
+      paymentStatus: 'PAID',
+      confirmedAt: '2026-05-06T21:00:00.000Z',
+    })
+
+    const wrapper = mountView()
+    await wrapper.get('[data-testid="charge-click"]').trigger('click')
+    await wrapper.get('[data-testid="submit-bound-charge"]').trigger('click')
+    await flushPromises()
+
+    expect(chargeDraft).toHaveBeenCalledTimes(1)
+    expect(chargeDraft).toHaveBeenCalledWith(
+      'sale-1',
+      { method: 'cash', amountCents: 10000, cashSessionId: BOUND_UUID },
+      'idem-bound',
+    )
+  })
+
+  it('does not retry unbound when the backend rejects the selected session', async () => {
+    chargeDraft.mockRejectedValueOnce({
+      response: { data: { error: 'INVALID_CASH_SESSION_ID', message: 'Sesión de caja inválida' } },
+    })
+
+    const wrapper = mountView()
+    await wrapper.get('[data-testid="charge-click"]').trigger('click')
+    await wrapper.get('[data-testid="submit-bound-charge"]').trigger('click')
+    await flushPromises()
+
+    expect(chargeDraft).toHaveBeenCalledTimes(1)
+    expect(chargeDraft.mock.calls[0]?.[1]).toMatchObject({ cashSessionId: BOUND_UUID })
   })
 })

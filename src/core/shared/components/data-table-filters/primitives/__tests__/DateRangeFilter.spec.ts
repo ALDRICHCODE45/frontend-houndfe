@@ -13,8 +13,10 @@ const CalendarStub = {
 
 const PopoverStub = {
   name: 'UPopover',
+  props: ['ui'],
   data: () => ({ open: false }),
-  template: '<div><div data-testid="popover-trigger" @click="open = !open"><slot /></div><div v-if="open" data-testid="popover-content"><slot name="content" /></div></div>',
+  template:
+    '<div><div data-testid="popover-trigger" @click="open = !open"><slot /></div><div v-if="open" data-testid="popover-content" :data-ui="ui ? JSON.stringify(ui) : \'\'"><slot name="content" /></div></div>',
 }
 
 function mountComponent(modelValue: { from?: string; to?: string } = {}) {
@@ -259,5 +261,98 @@ describe('DateRangeFilter', () => {
     const wrapper = mountComponent()
     expect(wrapper.find('[data-testid="date-range-filter"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="date-range-trigger"]').classes()).toContain('w-full')
+  })
+})
+
+// ── T5: optional portal opt-in, inert by default ─────────────────────────────
+
+describe('DateRangeFilter — portal opt-in (T5)', () => {
+  const MARKER = 'hf-theme hf-ui quotations-list-portal'
+
+  it('passes no ui prop to UPopover when portalClass is absent (legacy default)', async () => {
+    const wrapper = mountComponent()
+    await wrapper.find('[data-testid="popover-trigger"]').trigger('click')
+
+    // The stub renders the raw ui prop; the empty string proves no ui object
+    // was passed, so the Nuxt UI content defaults stay untouched.
+    expect(wrapper.find('[data-testid="popover-content"]').attributes('data-ui')).toBe('')
+  })
+
+  it('forwards portalClass into the UPopover content slot only', async () => {
+    const wrapper = mount(DateRangeFilter, {
+      props: { modelValue: {}, label: 'Fecha', portalClass: MARKER },
+      global: {
+        stubs: {
+          UCalendar: CalendarStub,
+          Calendar: CalendarStub,
+          UPopover: PopoverStub,
+          Popover: PopoverStub,
+          UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
+          UFormField: {
+            props: ['error'],
+            template: '<div><slot /><p data-testid="error">{{ error }}</p></div>',
+          },
+        },
+      },
+    })
+
+    await wrapper.find('[data-testid="popover-trigger"]').trigger('click')
+    expect(wrapper.find('[data-testid="popover-content"]').attributes('data-ui')).toBe(
+      JSON.stringify({ content: MARKER }),
+    )
+  })
+
+  it('keeps date emission and includeNull behavior unchanged while portalClass is set', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-03-15T10:00:00.000Z'))
+    try {
+      const wrapper = mount(DateRangeFilter, {
+        props: {
+          modelValue: {},
+          label: 'vence_at',
+          includeNullOption: 'Incluir ventas sin vencimiento',
+          includeNullValue: false,
+          portalClass: MARKER,
+        },
+        global: {
+          stubs: {
+            UCalendar: CalendarStub,
+            Calendar: CalendarStub,
+            UPopover: PopoverStub,
+            Popover: PopoverStub,
+            UButton: { template: '<button v-bind="$attrs"><slot /></button>' },
+            UFormField: {
+              props: ['error'],
+              template: '<div><slot /></div>',
+            },
+            UCheckbox: {
+              props: ['modelValue'],
+              emits: ['update:modelValue'],
+              template:
+                '<button v-bind="$attrs" @click="$emit(\'update:modelValue\', !modelValue)" />',
+            },
+            USeparator: { template: '<hr />' },
+          },
+        },
+      })
+
+      await wrapper.find('[data-testid="popover-trigger"]').trigger('click')
+      const preset = wrapper
+        .findAll('[data-testid="date-preset"]')
+        .find((node) => node.text() === 'Hoy')
+      expect(preset).toBeDefined()
+      await preset!.trigger('click')
+
+      const events = wrapper.emitted('update:modelValue') ?? []
+      expect(events[events.length - 1]?.[0]).toEqual({
+        from: localStartOfDayUTC('2026-03-15'),
+        to: localEndOfDayUTC('2026-03-15'),
+      })
+
+      await wrapper.find('[data-testid="include-null-vence_at"]').trigger('click')
+      expect(wrapper.emitted('update:includeNullValue')?.[0]).toEqual([true])
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

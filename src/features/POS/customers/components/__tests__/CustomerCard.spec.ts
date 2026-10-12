@@ -15,7 +15,7 @@ interface KebabItem {
 }
 
 vi.mock('@nuxt/ui/components/DropdownMenu.vue', () => ({
-  default: { name: 'UDropdownMenu', template: '<div data-testid="kebab-menu-stub"><slot /></div>', props: ['items', 'content'], emits: ['select'] },
+  default: { name: 'UDropdownMenu', template: '<div data-testid="kebab-menu-stub"><slot /></div>', props: ['items', 'content', 'ui'], emits: ['select'] },
 }))
 vi.mock('@nuxt/ui/components/Button.vue', () => ({
   default: { name: 'UButton', template: '<button v-bind="$attrs"><slot /></button>', props: ['icon', 'color', 'variant'], emits: ['click'] },
@@ -59,6 +59,17 @@ function makeCustomer(overrides: Partial<Customer> = {}): Customer {
 }
 
 // ── S3: card shrink containment ─────────────────────────────────────────────
+describe('CustomerCard list portal opt-in', () => {
+  it('keeps the menu legacy when omitted and forwards the explicit list boundary', async () => {
+    const wrapper = mount(CustomerCard, { props: { customer: makeCustomer(), canUpdate: true } })
+    const menu = wrapper.getComponent({ name: 'UDropdownMenu' })
+    expect(menu.props('ui')).toBeUndefined()
+    await wrapper.setProps({ portalClass: 'hf-theme hf-ui clients-list-portal' })
+    expect(menu.props('ui')).toEqual({ content: 'hf-theme hf-ui clients-list-portal' })
+    expect(menu.props('items').map((item: KebabItem) => item.label)).toEqual(['Editar'])
+  })
+})
+
 describe('CustomerCard shrink containment (S3)', () => {
   it('keeps the card root shrinkable within its grid track', () => {
     const wrapper = mount(CustomerCard, { props: { customer: makeCustomer() } })

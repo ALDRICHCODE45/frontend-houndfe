@@ -44,7 +44,7 @@ const confirmedAtDisplay = computed(() =>
 
 <template>
   <article
-    class="group relative flex min-h-[220px] cursor-pointer flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+    class="sales-card group relative flex min-h-[220px] cursor-pointer flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
     @click="emit('click', sale)"
   >
     <div class="flex flex-col items-start gap-3">

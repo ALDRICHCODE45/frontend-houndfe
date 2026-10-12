@@ -26,6 +26,12 @@ const props = defineProps<{
   /** Sale drafts use the built-in assignment/address flow. Other consumers can
    * omit this and handle `customer-selected` themselves. */
   saleId?: string
+  /**
+   * Optional teleport boundary marker forwarded to the installed slideover
+   * content root. Absent by default, which preserves every existing consumer's
+   * original presentation and behavior.
+   */
+  portalClass?: string
 }>()
 
 const emit = defineEmits<{
@@ -196,7 +202,13 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
 </script>
 
 <template>
-  <USlideover :open="open" side="right" inset @update:open="emit('update:open', $event)">
+  <USlideover
+    :open="open"
+    side="right"
+    inset
+    :ui="portalClass ? { content: portalClass } : undefined"
+    @update:open="emit('update:open', $event)"
+  >
     <template #content>
       <div class="flex h-full flex-col" data-testid="assign-customer-slideover">
         <div class="border-b border-default px-5 py-4">
@@ -273,7 +285,8 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
                   color="primary"
                   variant="soft"
                   label="+ Nuevo cliente"
-                  class="mt-3 !bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+                  class="mt-3 rounded-xl font-semibold shadow-sm"
+                  :class="portalClass ? 'hf-primary-control' : '!bg-(--brand-action) !text-black hover:!brightness-110'"
                   @click="isCreateCustomerOpen = true"
                 />
               </div>

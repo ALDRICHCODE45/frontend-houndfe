@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import ProductCard from './ProductCard.vue'
+import ProductsEmptyState from './ProductsEmptyState.vue'
 import type { Product } from '../interfaces/product.types'
 
 const props = defineProps<{
@@ -29,7 +30,7 @@ const gridClasses =
 <template>
   <div
     v-if="props.loading && !props.products.length"
-        :class="gridClasses"
+        :class="[gridClasses, 'products-card-grid']"
         data-testid="product-cards-skeleton"
       >
     <div
@@ -41,17 +42,16 @@ const gridClasses =
 
   <div
     v-else-if="!props.products.length"
-    class="flex w-full min-w-0 max-w-full flex-col items-center justify-center gap-3 py-16 text-center"
+    class="w-full min-w-0 max-w-full"
     data-testid="product-cards-empty"
   >
-    <UIcon name="i-lucide-package-search" class="size-12 text-muted opacity-50" />
-    <p class="text-sm text-muted">{{ props.empty ?? 'No se encontraron productos' }}</p>
+    <ProductsEmptyState :message="props.empty ?? 'No se encontraron productos'" />
   </div>
 
   <div
     v-else
     data-testid="product-cards-grid"
-    :class="gridClasses"
+    :class="[gridClasses, 'products-card-grid']"
   >
     <ProductCard
       v-for="product in props.products"

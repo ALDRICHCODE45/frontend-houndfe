@@ -178,14 +178,15 @@ const AppDataTableStub = defineComponent({
   props: ['columns', 'data', 'displayMode'],
   setup(props, { slots }) {
     return () =>
-      h('div', {
-        'data-testid': 'app-data-table',
-        'data-display-mode': props.displayMode,
-        'data-column-count': String((props.columns as unknown[]).length),
-      }, [
-        slots.actions?.(),
-        props.displayMode === 'cards' ? slots.cards?.() : null,
-      ])
+      h(
+        'div',
+        {
+          'data-testid': 'app-data-table',
+          'data-display-mode': props.displayMode,
+          'data-column-count': String((props.columns as unknown[]).length),
+        },
+        [slots.actions?.(), props.displayMode === 'cards' ? slots.cards?.() : null],
+      )
   },
 })
 

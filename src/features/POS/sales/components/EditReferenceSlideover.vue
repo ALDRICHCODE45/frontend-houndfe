@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { getMethodMeta } from '../utils/paymentMethodMeta'
 import { normalizeReferenceInput } from '../utils/paymentEntries.utils'
 
@@ -18,6 +18,12 @@ const props = withDefaults(
     paymentMethod: string
     /** Disable inputs while the parent mutation is in-flight. */
     loading?: boolean
+    /**
+     * Optional teleport boundary marker forwarded to the installed slideover
+     * content root. Absent by default, which preserves the previous
+     * `!max-w-md` value and every existing consumer's presentation.
+     */
+    portalClass?: string
   }>(),
   {
     loading: false,
@@ -46,6 +52,13 @@ watch(
 
 const methodMeta = getMethodMeta(props.paymentMethod)
 
+// Presentation-only merge: keep the slideover's existing width override and
+// append the optional caller boundary when opted in. An absent prop yields the
+// exact previous value (`!max-w-md`), so no consumer changes.
+const slideoverUi = computed(() => ({
+  content: props.portalClass ? `!max-w-md ${props.portalClass}` : '!max-w-md',
+}))
+
 function handleSubmit() {
   // Per design D8: empty/whitespace input becomes `undefined`, which the
   // wire treats as "no change" — we map it to `null` here because the slideover
@@ -72,7 +85,7 @@ function handleCancel() {
     :description="`Método de pago: ${methodMeta.label}`"
     side="right"
     inset
-    :ui="{ content: '!max-w-md' }"
+    :ui="slideoverUi"
     data-testid="edit-reference-slideover"
     @update:open="emit('update:open', $event)"
   >

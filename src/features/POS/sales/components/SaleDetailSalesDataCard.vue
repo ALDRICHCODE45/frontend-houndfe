@@ -58,7 +58,7 @@ function openAssignSeller() {
     </template>
     <div class="grid gap-3 sm:grid-cols-2">
       <div
-        class="rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 border border-default p-3"
+        class="sales-detail-fact rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 border border-default p-3"
         data-testid="reflow-cajero"
       >
         <p class="text-xs font-semibold uppercase tracking-wider text-muted">Cajero</p>
@@ -67,7 +67,7 @@ function openAssignSeller() {
       <div
         role="button"
         tabindex="0"
-        class="cursor-pointer rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 border border-default p-3 transition-colors hover:bg-elevated/50"
+        class="sales-detail-fact cursor-pointer rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 border border-default p-3 transition-colors hover:bg-elevated/50"
         data-testid="reflow-vendedor"
         @click="openAssignSeller"
         @keydown.enter.prevent="openAssignSeller"
@@ -79,21 +79,21 @@ function openAssignSeller() {
         </p>
       </div>
       <div
-        class="rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 border border-default p-3"
+        class="sales-detail-fact rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 border border-default p-3"
         data-testid="reflow-cliente"
       >
         <p class="text-xs font-semibold uppercase tracking-wider text-muted">Cliente</p>
         <p class="font-medium">{{ sale.customer?.name ?? 'Público en General' }}</p>
       </div>
       <div
-        class="rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 border border-default p-3"
+        class="sales-detail-fact rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 border border-default p-3"
         data-testid="reflow-price-list"
       >
         <p class="text-xs font-semibold uppercase tracking-wider text-muted">Lista de precios</p>
         <p class="font-medium">{{ priceListName }}</p>
       </div>
       <div
-        class="rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 border border-default p-3 sm:col-span-2"
+        class="sales-detail-fact rounded-lg shadow-sm bg-coco-neutral-50 dark:bg-coco-neutral-950 border border-default p-3 sm:col-span-2"
         data-testid="reflow-payment-methods"
       >
         <p class="text-xs font-semibold uppercase tracking-wider text-muted">Métodos de pago</p>

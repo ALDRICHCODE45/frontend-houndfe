@@ -1,0 +1,134 @@
+@import '../../../../core/shared/design-system/houndfe-ui.css';
+
+/*
+ * Quotations workspace visual adapter (T3 / S3 + S4).
+ *
+ * The creation route and the detail route share `QuotationDetailView.vue`, so
+ * one owned boundary covers both. Every rule is scoped to
+ * `.quotations-workspace-visual` or `.quotations-workspace-portal`; importing
+ * this file never changes another screen, and the shared foundation files stay
+ * read-only.
+ *
+ * `coco-tokens.css` is shared with the quotations list workspace and keeps its
+ * legacy values. Inside this owned boundary the legacy `--coco-*` roles are
+ * re-pointed at the shared `--hf-*` semantics, so light/dark fidelity comes
+ * from `houndfe-theme.css` instead of a second local palette. Info, warning
+ * and destructive roles keep their existing semantic values.
+ */
+
+.quotations-workspace-visual {
+  --coco-primary: var(--hf-action);
+  --coco-accent: var(--hf-gold);
+  --coco-accent-50: var(--hf-gold-soft);
+  --coco-card: var(--hf-surface);
+  --coco-border: var(--hf-border);
+  --coco-text: var(--hf-ink);
+  --coco-text-tertiary: var(--hf-muted);
+  --coco-success: var(--hf-success);
+
+  /* Restrained geometry: section cards land on the foundation card radius and
+   * buttons/chips on the control radius. Circles and the shared Coco stylesheet
+   * stay untouched. */
+  --radius-md: var(--hf-radius-control);
+  --radius-lg: var(--hf-radius-control);
+  --radius-xl: var(--hf-radius-card);
+}
+
+/* Teleported feature surfaces repeat the foundation boundary on their own
+ * root because they cannot inherit the workspace ancestor after teleport. The
+ * marker keeps the feature's portals addressable without borrowing another
+ * module's marker; the shared `hf-ui` adapter already owns the semantic
+ * aliases on this same element. */
+.hf-theme.quotations-workspace-portal {
+  background-color: var(--hf-surface);
+  border-color: var(--hf-border);
+  color: var(--hf-ink);
+}
+
+/* ── Actions ─────────────────────────────────────────────────────────────── */
+
+/* The primary CTAs ship a fixed `text-white`. The action foreground role keeps
+ * the label readable when the dark action value is a light blue. */
+.quotations-workspace-visual .quotations-primary-action {
+  min-height: var(--hf-control-height);
+  color: var(--hf-on-action);
+}
+
+/* ── Keyboard focus ──────────────────────────────────────────────────────── */
+
+.quotations-workspace-visual :where(button, a):focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+/* ── Accent foreground pairing ───────────────────────────────────────────── */
+
+/* Gold-family text uses the dedicated gold-ink role, which stays readable on
+ * the page surface and the soft gold tint in both modes. The filled gold node
+ * needs the dark ink on light and the dark soft tint on dark. */
+.quotations-workspace-visual .quotations-gold-ink {
+  color: var(--hf-gold-ink);
+}
+
+.quotations-workspace-visual .quotations-gold-fill {
+  color: var(--hf-gold-ink);
+}
+
+.dark .quotations-workspace-visual .quotations-gold-fill {
+  color: var(--hf-gold-soft);
+}
+
+/* Shared product children keep their Sales presentation unless the quotation
+ * caller supplies this additional boundary inside its owned product sheet.
+ * Override only reached legacy color utilities, not stock-danger semantics. */
+.hf-theme.quotations-workspace-portal .quotations-product-search > .sticky {
+  background-color: color-mix(in srgb, var(--hf-surface) 80%, transparent);
+}
+
+.hf-theme.quotations-workspace-portal
+  .quotations-product-search
+  [data-testid^='category-chip-'].bg-primary {
+  background-color: var(--hf-action);
+  color: var(--hf-on-action);
+}
+
+.hf-theme.quotations-workspace-portal
+  .quotations-product-search
+  [data-testid^='category-chip-'].bg-primary
+  > span {
+  background-color: color-mix(in srgb, var(--hf-on-action) 20%, transparent);
+  color: var(--hf-on-action);
+}
+
+.hf-theme.quotations-workspace-portal .quotations-product-search p.tabular-nums {
+  color: var(--hf-ink);
+}
+
+.hf-theme.quotations-workspace-portal
+  .quotations-product-search
+  p[class~='text-(--brand-primary)'] {
+  color: var(--hf-muted);
+}
+
+.hf-theme.quotations-workspace-portal .quotations-product-search [data-testid='add-action'] {
+  background-color: var(--hf-active-soft);
+  color: var(--hf-action);
+}
+
+.hf-theme.quotations-workspace-portal
+  .quotations-product-search
+  [data-testid='add-action']:is(:hover, :active) {
+  background-color: color-mix(in srgb, var(--hf-action) 20%, var(--hf-surface));
+}
+
+.dark .hf-theme.quotations-workspace-portal .quotations-product-search [data-testid='add-action'] {
+  background-color: var(--hf-action);
+  color: var(--hf-on-action);
+}
+
+.dark
+  .hf-theme.quotations-workspace-portal
+  .quotations-product-search
+  [data-testid='add-action']:is(:hover, :active) {
+  background-color: color-mix(in srgb, var(--hf-action) 90%, transparent);
+}

@@ -5,10 +5,20 @@ import { formatCentsMXN } from '../utils/currency.utils'
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
-const props = defineProps<{
-  sale: Sale
-  isChargePending?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    sale: Sale
+    isChargePending?: boolean
+    /**
+     * Presentation-only opt-in used by the Sales entry boundary. When false
+     * (the default) the charge action keeps the exact prior legacy classes.
+     */
+    themed?: boolean
+    /** Optional native tooltip boundary; independent of the charge styling. */
+    portalClass?: string
+  }>(),
+  { themed: false },
+)
 
 // ── Emits ─────────────────────────────────────────────────────────────────────
 
@@ -38,6 +48,15 @@ const chargeTooltip = computed(() => {
   if (props.isChargePending) return 'Cobro en proceso'
   return ''
 })
+
+// T3: the caller opts into the shared action foreground pairing, so the forced
+// legacy gold utility is replaced only when requested. Omission keeps the
+// previous class string byte-identical.
+const chargeButtonClass = computed(() =>
+  props.themed
+    ? 'relative sales-entry-primary-action rounded-xl font-semibold shadow-sm w-full'
+    : 'relative !bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm w-full',
+)
 
 const subtotalFormatted = computed(() => formatCentsMXN(subtotalCents.value))
 const discountFormatted = computed(() => formatCentsMXN(discountCents.value))
@@ -119,14 +138,18 @@ function handleRemoveOrderPromo() {
 
     <!-- Cobrar button — Phase 14b: w-full -->
     <div class="mt-4">
-      <UTooltip :text="chargeTooltip" class="w-full">
+      <UTooltip
+        :text="chargeTooltip"
+        :ui="portalClass ? { content: portalClass } : undefined"
+        class="w-full"
+      >
         <UButton
           color="primary"
           block
           size="xl"
           :loading="isChargePending"
           :disabled="isChargeDisabled"
-          class="relative !bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm w-full"
+          :class="chargeButtonClass"
           @click="emit('charge-click')"
         >
           <template #leading>

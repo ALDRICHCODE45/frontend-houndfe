@@ -21,10 +21,10 @@ import type { CustomerAddress } from '../../interfaces/customer.types'
 // the teleport boundary that the real UModal creates.
 const modalStub = {
   name: 'UModal',
-  props: ['open', 'title', 'dismissible', 'close'],
+  props: ['open', 'title', 'dismissible', 'close', 'content'],
   emits: ['update:open'],
   template:
-    '<div v-if="open" data-testid="u-modal"><h1>{{ title }}</h1><slot name="body" /><slot name="footer" /></div>',
+    '<div v-if="open" data-testid="u-modal" :data-content-class="content && content.class"><h1>{{ title }}</h1><slot name="body" /><slot name="footer" /></div>',
 }
 const formStub = {
   name: 'UForm',
@@ -43,10 +43,10 @@ const inputStub = {
 }
 const selectStub = {
   name: 'USelect',
-  props: ['modelValue', 'items', 'disabled'],
+  props: ['modelValue', 'items', 'disabled', 'ui'],
   emits: ['update:modelValue'],
   template:
-    '<select :value="modelValue" :disabled="disabled" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="i in items" :key="i" :value="i">{{ i }}</option></select>',
+    '<select :value="modelValue" :disabled="disabled" :data-ui-content="ui && ui.content" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="i in items" :key="i" :value="i">{{ i }}</option></select>',
 }
 const buttonStub = {
   name: 'UButton',
@@ -145,6 +145,7 @@ setMapProvider(MOCK_PROVIDER)
 interface AddressModalFactoryArgs {
   address?: CustomerAddress | null
   loading?: boolean
+  error?: string
 }
 
 function mountAddressModal(args: AddressModalFactoryArgs = {}) {
@@ -153,6 +154,7 @@ function mountAddressModal(args: AddressModalFactoryArgs = {}) {
     props: {
       address: { type: Object as () => CustomerAddress | null, default: null },
       loading: { type: Boolean, default: false },
+      error: { type: String, default: '' },
     },
     setup(props) {
       const open = ref(true)
@@ -164,13 +166,18 @@ function mountAddressModal(args: AddressModalFactoryArgs = {}) {
         :open="open"
         :address="address"
         :loading="loading"
+        :error="error"
         @save="onSave"
       />
     `,
   })
 
   const wrapper = mount(Host, {
-    props: { address: args.address ?? null, loading: args.loading ?? false },
+    props: {
+      address: args.address ?? null,
+      loading: args.loading ?? false,
+      error: args.error ?? '',
+    },
     global: { stubs },
   })
 
@@ -504,6 +511,64 @@ describe('AddressModal — AddressMapPicker integration', () => {
 
     const onSave = wrapper.vm.onSave as unknown as ReturnType<typeof vi.fn>
     expect(onSave.mock.calls[0]?.[0]).not.toHaveProperty('label')
+  })
+
+  // ── Clients overlays visual migration (S1-S3) ────────────────────────────
+  describe('Clients overlay presentation contract', () => {
+    it('carries the Clients form portal marker while keeping the lg content sizing', () => {
+      const { modal, wrapper } = mountAddressModal()
+      const shell = modal.findComponent({ name: 'UModal' })
+      const content = shell.props('content') as { class: string }
+      expect(content.class).toContain('sm:max-w-lg')
+      expect(content.class).toContain('hf-theme hf-ui hf-form-overlay clients-form-portal')
+      expect(wrapper.find('[data-testid="u-modal"]').attributes('data-content-class')).toBe(
+        content.class,
+      )
+      wrapper.unmount()
+    })
+
+    it('marks the teleported state select popup with the clients form portal theme', () => {
+      const { modal, wrapper } = mountAddressModal()
+      const selects = modal.findAll('select')
+      expect(selects).toHaveLength(1)
+      expect(selects[0]!.attributes('data-ui-content')).toBe('hf-theme hf-ui clients-form-portal')
+      wrapper.unmount()
+    })
+
+    it('uses the shared primary control hook instead of forced gold paint', () => {
+      const { modal, wrapper } = mountAddressModal()
+      const submit = modal.findAll('button').find((button) => button.text() === 'Añadir dirección')!
+      const classes = submit.attributes('class') ?? ''
+      expect(classes).toContain('hf-primary-control')
+      expect(classes).not.toContain('brand-action')
+      expect(classes).not.toContain('text-black')
+      expect(submit.attributes('type')).toBe('submit')
+      expect(submit.attributes('form')).toBe('address-modal-form')
+      wrapper.unmount()
+    })
+
+    it('stacks the two-column field rows at narrow widths', () => {
+      const { wrapper } = mountAddressModal()
+      const stacked = wrapper.findAll('.grid-cols-1')
+      expect(stacked).toHaveLength(3)
+      for (const grid of stacked) {
+        expect(grid.classes()).toContain('sm:grid-cols-2')
+      }
+      expect(wrapper.findAll('.grid-cols-2')).toHaveLength(0)
+      wrapper.unmount()
+    })
+
+    it('retains the picker, error alert and busy cancellation semantics after the theme pass', () => {
+      const { modal, wrapper } = mountAddressModal({ error: 'No se pudo guardar', loading: true })
+      expect(modal.findComponent({ name: 'AddressMapPicker' }).exists()).toBe(true)
+      const alert = modal.find('[role="alert"]')
+      expect(alert.exists()).toBe(true)
+      expect(alert.text()).toContain('No se pudo guardar')
+      const cancel = modal.findAll('button').find((button) => button.text() === 'Cancelar')!
+      expect(cancel.attributes('disabled')).toBeDefined()
+      expect(modal.findComponent({ name: 'UModal' }).props('dismissible')).toBe(false)
+      wrapper.unmount()
+    })
   })
 })
 

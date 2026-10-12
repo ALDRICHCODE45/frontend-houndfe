@@ -60,7 +60,7 @@ function handleCardKeydown(event: KeyboardEvent): void {
 
 <template>
   <article
-    class="group relative flex min-h-[220px] w-full min-w-0 max-w-full flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+    class="products-card group relative flex min-h-[220px] w-full min-w-0 max-w-full flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
     :class="canOpenDetails ? 'cursor-pointer' : 'cursor-default'"
     :role="canOpenDetails ? 'button' : undefined"
     :tabindex="canOpenDetails ? 0 : undefined"
@@ -68,7 +68,11 @@ function handleCardKeydown(event: KeyboardEvent): void {
     @keydown="handleCardKeydown"
   >
     <div v-if="rowActions.length > 0" class="absolute right-3 top-3 z-10" @click.stop @keydown.stop>
-      <UDropdownMenu :items="rowActions" :content="{ align: 'end' }">
+      <UDropdownMenu
+        :items="rowActions"
+        :content="{ align: 'end' }"
+        :ui="{ content: 'hf-theme hf-ui hf-shell-products-portal' }"
+      >
         <UButton
           icon="i-lucide-ellipsis"
           color="neutral"
@@ -100,13 +104,19 @@ function handleCardKeydown(event: KeyboardEvent): void {
     <div class="mt-3 flex min-h-6 flex-wrap items-center gap-1.5">
       <DotBadge
         v-if="product.categoryName"
+        class="products-badge"
         :label="product.categoryName"
         dot-class="bg-violet-500"
         :truncate="true"
         :compact="true"
       />
 
-      <StatusDotBadge :tone="statusConfig.tone" :label="statusConfig.label" :compact="true" />
+      <StatusDotBadge
+        class="products-badge"
+        :tone="statusConfig.tone"
+        :label="statusConfig.label"
+        :compact="true"
+      />
     </div>
 
     <div class="my-3 border-t border-dashed border-default" />
@@ -123,7 +133,13 @@ function handleCardKeydown(event: KeyboardEvent): void {
       <div class="min-w-0">
         <p class="text-muted">Stock</p>
         <div class="mt-1">
-          <DotBadge :label="stockLabel" :dot-class="stockDotClass" :truncate="true" :compact="true" />
+          <DotBadge
+            class="products-badge"
+            :label="stockLabel"
+            :dot-class="stockDotClass"
+            :truncate="true"
+            :compact="true"
+          />
         </div>
       </div>
       <div class="min-w-0 text-right">

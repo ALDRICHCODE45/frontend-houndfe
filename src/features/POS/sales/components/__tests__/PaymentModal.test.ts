@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount } from '@vue/test-utils'
-import { computed, defineComponent, h, ref } from 'vue'
+import { flushPromises, mount } from '@vue/test-utils'
+import { computed, defineComponent, h, reactive, ref } from 'vue'
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import UApp from '@nuxt/ui/runtime/components/App.vue'
 import { es } from '@nuxt/ui/locale'
 import PaymentModal from '../PaymentModal.vue'
@@ -10,6 +11,19 @@ type PaymentModalSubmitEvent = {
   saleId: string
   payload: ChargeSalePayload
   idempotencyKey: string
+}
+
+/**
+ * Read the `index`-th emitted `submit` event. Fails the test with an explicit
+ * message when the modal did not emit it, so a missing event can never be
+ * masked by a non-null cast. The `emitted` generic keeps the event strongly
+ * typed, so callers never dereference an optional-chain result.
+ */
+function emittedSubmit(wrapper: ReturnType<typeof mount>, index = 0): PaymentModalSubmitEvent {
+  const event = wrapper.emitted<[PaymentModalSubmitEvent]>('submit')?.[index]?.[0]
+  expect(event).toBeDefined()
+  if (!event) throw new Error(`Expected a 'submit' event at index ${index}`)
+  return event
 }
 
 const modalStub = {
@@ -41,7 +55,7 @@ const selectStub = {
   props: ['modelValue', 'items', 'disabled'],
   emits: ['update:modelValue'],
   template:
-    '<select :value="modelValue" :disabled="disabled" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="item in items" :key="item.value" :value="item.value">{{ item.label }}</option></select>',
+    '<select v-bind="$attrs" :value="modelValue" :disabled="disabled" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="item in items" :key="item.value" :value="item.value">{{ item.label }}</option></select>',
 }
 
 const formFieldStub = {
@@ -107,6 +121,48 @@ const stubs = {
   },
 }
 
+// T6/S3 — every mount provides the TanStack Query client because `PaymentModal`
+// now consumes `useCashSaleSession`. The mocked ability defaults OFF, so the
+// picker stays hidden and no session query runs in the legacy payment tests.
+function makeQueryClient() {
+  return new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } })
+}
+
+const mountGlobal = {
+  stubs,
+  // A FRESH TanStack Query client on every mount read: the Caja binding must
+  // never reuse rows cached by a previous test, so an isolated run and the
+  // full-file run observe the same behaviour.
+  get plugins() {
+    return [[VueQueryPlugin, { queryClient: makeQueryClient() }]] as [
+      typeof VueQueryPlugin,
+      { queryClient: QueryClient },
+    ][]
+  },
+}
+
+// T6/S3 binding tests toggle this identity to grant `read:CashSession`. A stable
+// function identity reads the mutable flag, mirroring the real ability store.
+const cashAuth = reactive({
+  accessToken: 'token-1' as string | null,
+  currentTenantId: 'tenant-1',
+  user: { id: 'user-1' } as { id: string } | null,
+  permissionCodes: [] as string[],
+  permissionsLoaded: true,
+  canReadSessions: false,
+  userCan: (action: string, subject: string): boolean =>
+    cashAuth.canReadSessions && action === 'read' && subject === 'CashSession',
+})
+vi.mock('@/features/auth/stores/useAuthStore', () => ({ useAuthStore: () => cashAuth }))
+vi.mock('@/features/POS/cash-register/api/cash.api', () => ({
+  cashApi: { listSessions: vi.fn() },
+}))
+import { authStorage } from '@/features/auth/services/auth-storage'
+import { cashApi } from '@/features/POS/cash-register/api/cash.api'
+
+const cashListSessions = (cashApi as unknown as { listSessions: ReturnType<typeof vi.fn> })
+  .listSessions
+
 // sdd custom-payment-methods S4B: mock the projection composable so the modal
 // renders fixed + custom tiles deterministically. `data` is a computed over a
 // module-scoped ref that each test seeds before mounting (same convention as
@@ -164,7 +220,7 @@ describe('PaymentModal received amounts', () => {
       ]
       const wrapper = mount(PaymentModal, {
         props: { open: true, totalCents: 45050, saleId: 'sale-1' },
-        global: { stubs },
+        global: mountGlobal,
       })
       try {
         const selector =
@@ -203,7 +259,7 @@ describe('PaymentModal received amounts', () => {
       })
       const host = mount(Host, {
         attachTo: document.body,
-        global: { stubs: { ...stubs, UInputNumber: false, InputNumber: false } },
+        global: { ...mountGlobal, stubs: { ...stubs, UInputNumber: false, InputNumber: false } },
       })
       try {
         const wrapper = host.findComponent(PaymentModal)
@@ -231,7 +287,7 @@ describe('PaymentModal', () => {
         totalCents: 15000,
         saleId: 'sale-1',
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(0)
@@ -244,7 +300,7 @@ describe('PaymentModal', () => {
         totalCents: 15000,
         saleId: 'sale-1',
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     const cashButton = wrapper.get('[data-testid="add-payment-entry"]')
@@ -260,7 +316,7 @@ describe('PaymentModal', () => {
         totalCents: 15000,
         saleId: 'sale-1',
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     const cashButton = wrapper.get('[data-testid="add-payment-entry"]')
@@ -280,7 +336,7 @@ describe('PaymentModal', () => {
         saleId: 'sale-1',
         customer: { id: 'customer-1', firstName: 'Test', lastName: 'Customer' },
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     const submitButton = wrapper.get('[data-testid="confirm-charge"]')
@@ -299,7 +355,7 @@ describe('PaymentModal', () => {
         saleId: 'sale-1',
         customer: null,
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     const submitButton = wrapper.get('[data-testid="confirm-charge"]')
@@ -316,7 +372,7 @@ describe('PaymentModal', () => {
         saleId: 'sale-1',
         customer: { id: 'customer-1', firstName: 'Test', lastName: 'Customer' },
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     // Add a payment method with zero amount
@@ -341,7 +397,7 @@ describe('PaymentModal', () => {
         totalCents: 15000,
         saleId: 'sale-1',
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     // Each tile toggles ONE entry of its method. There are 4 supported methods.
@@ -360,7 +416,7 @@ describe('PaymentModal', () => {
         totalCents: 15000,
         saleId: 'sale-1',
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     await wrapper.get('[data-method="cash"]').trigger('click')
@@ -379,7 +435,7 @@ describe('PaymentModal', () => {
         totalCents: 15000,
         saleId: 'sale-1',
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     // Initially no entries, so no reference fields
@@ -405,7 +461,7 @@ describe('PaymentModal', () => {
         totalCents: 15000,
         saleId: 'sale-1',
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     await wrapper.get('[data-method="card_debit"]').trigger('click')
@@ -436,7 +492,7 @@ describe('PaymentModal', () => {
         totalCents: 15000,
         saleId: 'sale-1',
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     // Add a cash entry first
@@ -454,7 +510,7 @@ describe('PaymentModal', () => {
         totalCents: 15000,
         saleId: 'sale-1',
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     // Add a cash entry first
@@ -480,7 +536,7 @@ describe('PaymentModal', () => {
         totalCents: 15000,
         saleId: 'sale-1',
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     // Add a cash entry for single payment test
@@ -516,7 +572,7 @@ describe('PaymentModal', () => {
         totalCents: 15000,
         saleId: 'sale-1',
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     const html = wrapper.html()
@@ -535,7 +591,7 @@ describe('PaymentModal', () => {
         totalCents: 15000,
         saleId: 'sale-1',
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     await wrapper.get('[data-method="cash"]').trigger('click')
@@ -554,7 +610,7 @@ describe('PaymentModal', () => {
         saleId: 'sale-1',
         customer: { id: 'c-1', firstName: 'Ada', lastName: null },
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     await wrapper.get('[data-method="cash"]').trigger('click')
@@ -574,7 +630,7 @@ describe('PaymentModal', () => {
         totalCents: 15000,
         saleId: 'sale-1',
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     await wrapper.get('[data-method="cash"]').trigger('click')
@@ -593,7 +649,7 @@ describe('PaymentModal', () => {
         saleId: 'sale-1',
         customer: { id: 'c-2', firstName: 'Lin', lastName: null },
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     // No method selected = pure debt for the full total
@@ -620,6 +676,7 @@ describe('PaymentModal', () => {
         customer: { id: 'c-1', firstName: 'Ada', lastName: null },
       },
       global: {
+        ...mountGlobal,
         stubs: { ...stubs, DateFieldPopover: dueDateStub },
       },
     })
@@ -648,7 +705,7 @@ describe('PaymentModal', () => {
         saleId: 'sale-1',
         customer: { id: 'c-1', firstName: 'Ada', lastName: null },
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     await wrapper.get('[data-method="cash"]').trigger('click')
@@ -667,7 +724,7 @@ describe('PaymentModal', () => {
         totalCents: 15000,
         saleId: 'sale-1',
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     const confirmButton = wrapper.get('[data-testid="confirm-charge"]')
@@ -682,7 +739,7 @@ describe('PaymentModal', () => {
         totalCents: 15000,
         saleId: 'sale-1',
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     const cashTile = wrapper.get('[data-testid="add-payment-entry"]')
@@ -720,7 +777,7 @@ describe('PaymentModal S4B — custom payment method tiles (sdd custom-payment-m
     projectionData.value = projection
     return mount(PaymentModal, {
       props: { open: true, totalCents: 15000, saleId: 'sale-1', ...props },
-      global: { stubs },
+      global: mountGlobal,
     })
   }
 
@@ -873,9 +930,9 @@ describe('PaymentModal S4B — custom payment method tiles (sdd custom-payment-m
     await wrapper.get('[data-testid="payment-amount-1"]').setValue('50')
     await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
 
-    const submitted = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
+    const { payload } = emittedSubmit(wrapper)
     const payments = (
-      submitted?.payload as {
+      payload as {
         payments: Array<{ method: string; amountCents: number; paymentMethodId?: string }>
       }
     ).payments
@@ -924,7 +981,7 @@ describe('PaymentModal S4B — custom payment method tiles (sdd custom-payment-m
     projectionData.value = undefined as unknown as ActivePaymentMethodProjection[]
     const wrapper = mount(PaymentModal, {
       props: { open: true, totalCents: 15000, saleId: 'sale-1' },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     expect(wrapper.findAll('[data-method]')).toHaveLength(4)
@@ -956,7 +1013,7 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
         saleId: 'sale-1',
         shippingAddress: SHIPPING_ADDRESS_FIXTURE,
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     // The delivery section is a sibling of the due-date section, both inside
@@ -974,7 +1031,7 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
         saleId: 'sale-1',
         shippingAddress: null,
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     const toggle = wrapper.get('[data-testid="delivery-toggle"]')
@@ -990,7 +1047,7 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
         saleId: 'sale-1',
         shippingAddress: SHIPPING_ADDRESS_FIXTURE,
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     const toggle = wrapper.get('[data-testid="delivery-toggle"]')
@@ -1006,7 +1063,7 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
         saleId: 'sale-1',
         shippingAddress: null,
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     await wrapper.get('[data-testid="delivery-assign-cta"]').trigger('click')
@@ -1023,7 +1080,7 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
         customer: { id: 'c-1', firstName: 'Ada', lastName: null },
         shippingAddress: SHIPPING_ADDRESS_FIXTURE,
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     await wrapper.get('[data-method="cash"]').trigger('click')
@@ -1050,7 +1107,7 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
         customer: { id: 'c-1', firstName: 'Ada', lastName: null },
         shippingAddress: SHIPPING_ADDRESS_FIXTURE,
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     await wrapper.get('[data-method="cash"]').trigger('click')
@@ -1083,7 +1140,7 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
         customer: { id: 'c-1', firstName: 'Ada', lastName: null },
         shippingAddress: SHIPPING_ADDRESS_FIXTURE,
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     await wrapper.get('[data-method="cash"]').trigger('click')
@@ -1108,7 +1165,7 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
         customer: { id: 'c-1', firstName: 'Ada', lastName: null },
         shippingAddress: SHIPPING_ADDRESS_FIXTURE,
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     await wrapper.get('[data-method="cash"]').trigger('click')
@@ -1135,7 +1192,7 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
         shippingAddress: SHIPPING_ADDRESS_FIXTURE,
         customer: { id: 'c-1', firstName: 'Ada', lastName: null },
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     const toggle = wrapper.get('[data-testid="delivery-toggle"]')
@@ -1170,20 +1227,19 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
         customer: { id: 'c-1', firstName: 'Ada', lastName: null },
         shippingAddress: SHIPPING_ADDRESS_FIXTURE,
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     await wrapper.get('[data-method="cash"]').trigger('click')
     await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
     await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
-    const firstKey = (wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent).idempotencyKey
+    const firstKey = emittedSubmit(wrapper, 0).idempotencyKey
 
     // Flip the toggle ON — the watch on [entries, delivery] MUST regenerate
     await wrapper.get('[data-testid="delivery-toggle"]').setValue(true)
     await wrapper.vm.$nextTick()
     await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
-    const secondKey = (wrapper.emitted('submit')?.[1]?.[0] as PaymentModalSubmitEvent)
-      .idempotencyKey
+    const secondKey = emittedSubmit(wrapper, 1).idempotencyKey
 
     expect(secondKey).not.toBe(firstKey)
 
@@ -1191,7 +1247,7 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
     await wrapper.get('[data-testid="delivery-toggle"]').setValue(false)
     await wrapper.vm.$nextTick()
     await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
-    const thirdKey = (wrapper.emitted('submit')?.[2]?.[0] as PaymentModalSubmitEvent).idempotencyKey
+    const thirdKey = emittedSubmit(wrapper, 2).idempotencyKey
 
     expect(thirdKey).not.toBe(secondKey)
   })
@@ -1205,20 +1261,19 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
         customer: { id: 'c-1', firstName: 'Ada', lastName: null },
         shippingAddress: SHIPPING_ADDRESS_FIXTURE,
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     await wrapper.get('[data-method="cash"]').trigger('click')
     await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
     await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
-    const firstKey = (wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent).idempotencyKey
+    const firstKey = emittedSubmit(wrapper, 0).idempotencyKey
 
     // No state change (no entry edit, no toggle flip) — the key MUST stay stable.
     // Asserting equality locks "no spurious regeneration on idle submits"
     // (counterpart of the regen-on-flip test above).
     await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
-    const secondKey = (wrapper.emitted('submit')?.[1]?.[0] as PaymentModalSubmitEvent)
-      .idempotencyKey
+    const secondKey = emittedSubmit(wrapper, 1).idempotencyKey
 
     expect(secondKey).toBe(firstKey)
   })
@@ -1232,7 +1287,7 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
         customer: { id: 'c-1', firstName: 'Ada', lastName: null },
         shippingAddress: SHIPPING_ADDRESS_FIXTURE,
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     // Flip toggle ON while the gate is open
@@ -1272,7 +1327,7 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
         shippingAddress: SHIPPING_ADDRESS_FIXTURE,
         isSubmitting: true,
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     const toggle = wrapper.get('[data-testid="delivery-toggle"]')
@@ -1291,7 +1346,7 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
         saleId: 'sale-1',
         shippingAddress: SHIPPING_ADDRESS_FIXTURE,
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     expect(wrapper.find('[data-testid="delivery-assign-cta"]').exists()).toBe(false)
@@ -1317,6 +1372,7 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
         shippingAddress: SHIPPING_ADDRESS_FIXTURE,
       },
       global: {
+        ...mountGlobal,
         stubs: { ...stubs, DateFieldPopover: dueDateStub },
       },
     })
@@ -1342,7 +1398,7 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
   it('clips inset corners and stacks full-width actions on mobile', () => {
     const wrapper = mount(PaymentModal, {
       props: { open: true, totalCents: 15000, saleId: 'sale-1' },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     const slideover = wrapper.findComponent({ name: 'Slideover' })
@@ -1375,7 +1431,7 @@ describe('PaymentModal PCA-2 — capacity re-quote acceptance signal', () => {
         customer: { id: 'c-1', firstName: 'Ada', lastName: null },
         requoteAcceptSignal: signal,
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     await wrapper.get('[data-method="cash"]').trigger('click')
@@ -1387,15 +1443,14 @@ describe('PaymentModal PCA-2 — capacity re-quote acceptance signal', () => {
     const wrapper = await mountWithSingleCashEntry(0)
 
     await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
-    const firstKey = (wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent).idempotencyKey
+    const firstKey = emittedSubmit(wrapper, 0).idempotencyKey
 
     // Acceptance of the refreshed quote — entries are intentionally untouched.
     await wrapper.setProps({ requoteAcceptSignal: 1 })
     await wrapper.vm.$nextTick()
 
     await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
-    const secondKey = (wrapper.emitted('submit')?.[1]?.[0] as PaymentModalSubmitEvent)
-      .idempotencyKey
+    const secondKey = emittedSubmit(wrapper, 1).idempotencyKey
 
     expect(secondKey).not.toBe(firstKey)
     // The payments the cashier entered survive the key regeneration.
@@ -1406,11 +1461,10 @@ describe('PaymentModal PCA-2 — capacity re-quote acceptance signal', () => {
     const wrapper = await mountWithSingleCashEntry(7)
 
     await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
-    const firstKey = (wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent).idempotencyKey
+    const firstKey = emittedSubmit(wrapper, 0).idempotencyKey
 
     await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
-    const secondKey = (wrapper.emitted('submit')?.[1]?.[0] as PaymentModalSubmitEvent)
-      .idempotencyKey
+    const secondKey = emittedSubmit(wrapper, 1).idempotencyKey
 
     expect(secondKey).toBe(firstKey)
   })
@@ -1423,7 +1477,7 @@ describe('PaymentModal PCA-2 — capacity re-quote acceptance signal', () => {
         saleId: 'sale-1',
         requoteAcceptSignal: 0,
       },
-      global: { stubs },
+      global: mountGlobal,
     })
 
     await wrapper.setProps({ requoteAcceptSignal: 1 })
@@ -1438,5 +1492,536 @@ describe('PaymentModal PCA-2 — capacity re-quote acceptance signal', () => {
 
     const submitted = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
     expect(submitted?.idempotencyKey).toBeTruthy()
+  })
+})
+
+// ─── T6/S3 — explicit Caja session binding (cash-register-pesos-and-sales-binding) ──
+//
+// The pos charge may carry an explicit `cashSessionId`. It is a shared TOP-LEVEL
+// optional field on BOTH payload shapes, present ONLY when the cashier explicitly
+// selected an own/OPEN session. A legacy unbound charge must omit the key entirely
+// (never `null`, never an empty string), nothing is auto-selected, and a stale or
+// ineligible selection is blocked instead of silently downgrading to unbound.
+describe('PaymentModal T6 — explicit Caja session binding (cash-register-pesos-and-sales-binding)', () => {
+  const OPEN_UUID = '11111111-1111-4111-8111-111111111111'
+  const OTHER_OPEN_UUID = '22222222-2222-4222-8222-222222222222'
+  const COUNTING_UUID = '33333333-3333-4333-8333-333333333333'
+
+  function cashSession(overrides: Record<string, unknown> = {}) {
+    return {
+      id: OPEN_UUID,
+      tenantId: 'tenant-1',
+      registerId: 'r-1',
+      status: 'OPEN',
+      cashierUserId: 'user-1',
+      openingCents: 0,
+      frozenAt: null,
+      drawerReleasedAt: null,
+      blind: false,
+      ...overrides,
+    }
+  }
+
+  function enableBinding(items: unknown[] = [cashSession()], total = items.length) {
+    cashAuth.canReadSessions = true
+    cashAuth.permissionCodes = ['read:CashSession']
+    cashListSessions.mockResolvedValue({ items, page: 1, limit: 25, total })
+  }
+
+  async function mountModal(props: Record<string, unknown> = {}) {
+    const wrapper = mount(PaymentModal, {
+      props: { open: true, totalCents: 15000, saleId: 'sale-1', ...props },
+      global: mountGlobal,
+    })
+    await flushPromises()
+    return wrapper
+  }
+
+  function submitPayload(wrapper: ReturnType<typeof mount>): ChargeSalePayload | undefined {
+    const submitted = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
+    return submitted?.payload
+  }
+
+  beforeEach(() => {
+    cashListSessions.mockReset()
+    cashAuth.canReadSessions = false
+    cashAuth.permissionCodes = []
+    cashAuth.permissionsLoaded = true
+  })
+
+  it('does not render the picker and never fetches without read:CashSession', async () => {
+    const wrapper = await mountModal()
+
+    expect(wrapper.find('[data-testid="cash-session-binding"]').exists()).toBe(false)
+    expect(cashListSessions).not.toHaveBeenCalled()
+  })
+
+  it('legacy single-payment branch carries the explicit selected UUID at the top level', async () => {
+    enableBinding()
+    const wrapper = await mountModal()
+
+    await wrapper.get('[data-testid="cash-session-select"]').setValue(OPEN_UUID)
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+
+    expect(submitPayload(wrapper)).toEqual({
+      method: 'cash',
+      amountCents: 15000,
+      cashSessionId: OPEN_UUID,
+    })
+    expect(submitPayload(wrapper)).not.toHaveProperty('payments')
+  })
+
+  it('multi-payment branch carries the same top-level cashSessionId and never nests it in payments', async () => {
+    enableBinding()
+    const wrapper = await mountModal({
+      customer: { id: 'c-1', firstName: 'Ada', lastName: null },
+    })
+
+    await wrapper.get('[data-testid="cash-session-select"]').setValue(OPEN_UUID)
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-method="card_debit"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('100')
+    await wrapper.get('[data-testid="payment-amount-1"]').setValue('50')
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+
+    const payload = submitPayload(wrapper) as unknown as {
+      payments: Array<Record<string, unknown>>
+      cashSessionId?: string
+    }
+    expect(payload.cashSessionId).toBe(OPEN_UUID)
+    expect(payload.payments).toHaveLength(2)
+    for (const payment of payload.payments) {
+      expect(payment).not.toHaveProperty('cashSessionId')
+    }
+  })
+
+  it('legacy unbound charge omits the key entirely (no null, no empty string) even with eligible sessions visible', async () => {
+    enableBinding()
+    const wrapper = await mountModal()
+
+    // The picker offers an eligible session, but nothing is auto-selected.
+    expect(wrapper.find('[data-testid="cash-session-binding"]').exists()).toBe(true)
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+
+    const payload = submitPayload(wrapper) as unknown as Record<string, unknown>
+    expect('cashSessionId' in payload).toBe(false)
+  })
+
+  it('offers only own/OPEN/current-tenant rows (foreign and non-OPEN are not selectable)', async () => {
+    enableBinding([
+      cashSession({ id: OPEN_UUID }),
+      cashSession({ id: COUNTING_UUID, status: 'COUNTING' }),
+      cashSession({ id: OTHER_OPEN_UUID, cashierUserId: 'other-user' }),
+    ])
+    const wrapper = await mountModal()
+
+    const options = wrapper
+      .get('[data-testid="cash-session-select"]')
+      .findAll('option')
+      .map((option) => option.attributes('value'))
+    expect(options).toContain(OPEN_UUID)
+    expect(options).not.toContain(COUNTING_UUID)
+    expect(options).not.toContain(OTHER_OPEN_UUID)
+  })
+
+  it('blocks the charge (no submit, inline error) when the selected session is no longer eligible', async () => {
+    enableBinding([cashSession({ id: OPEN_UUID })], 30)
+    const wrapper = await mountModal()
+
+    await wrapper.get('[data-testid="cash-session-select"]').setValue(OPEN_UUID)
+
+    // The next page no longer exposes the selected session (backend reports it
+    // as COUNTING). The selection STAYS explicit and the charge must be blocked.
+    cashListSessions.mockResolvedValue({
+      items: [cashSession({ id: COUNTING_UUID, status: 'COUNTING' })],
+      page: 2,
+      limit: 25,
+      total: 30,
+    })
+    await wrapper.get('[data-testid="cash-session-next-page"]').trigger('click')
+    await flushPromises()
+
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+
+    expect(wrapper.emitted('submit')).toBeUndefined()
+    expect(wrapper.text()).toContain('ya no está disponible')
+  })
+
+  it('blocks a same-tick submit after the read ability is revoked (never emits the prior-scope charge)', async () => {
+    enableBinding()
+    const wrapper = await mountModal()
+
+    await wrapper.get('[data-testid="cash-session-select"]').setValue(OPEN_UUID)
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
+
+    // Revoke `read:CashSession` and submit in the SAME tick — no nextTick between.
+    cashAuth.permissionCodes = []
+    cashAuth.canReadSessions = false
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+
+    expect(wrapper.emitted('submit')).toBeUndefined()
+  })
+
+  it('blocks a same-tick submit after a same-principal lifecycle change', async () => {
+    enableBinding()
+    const wrapper = await mountModal()
+
+    await wrapper.get('[data-testid="cash-session-select"]').setValue(OPEN_UUID)
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
+
+    // Same user/tenant/permissions, NEW session lifecycle — the captured scope
+    // no longer describes the active session, so the charge must not go out.
+    authStorage.setTokens({ accessToken: 'token-2', refreshToken: 'refresh-2' })
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+
+    expect(wrapper.emitted('submit')).toBeUndefined()
+  })
+
+  it('mints a fresh key when the explicit binding changes (select B after submit A)', async () => {
+    enableBinding([cashSession({ id: OPEN_UUID }), cashSession({ id: OTHER_OPEN_UUID })], 2)
+    const wrapper = await mountModal()
+
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
+
+    await wrapper.get('[data-testid="cash-session-select"]').setValue(OPEN_UUID)
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    const first = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
+
+    await wrapper.get('[data-testid="cash-session-select"]').setValue(OTHER_OPEN_UUID)
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    const second = wrapper.emitted('submit')?.[1]?.[0] as PaymentModalSubmitEvent | undefined
+
+    expect(first).toBeDefined()
+    expect(second).toBeDefined()
+    if (!first || !second) throw new Error('Missing submit event payload')
+    expect(second.idempotencyKey).not.toBe(first.idempotencyKey)
+    expect((second.payload as unknown as Record<string, unknown>).cashSessionId).toBe(
+      OTHER_OPEN_UUID,
+    )
+  })
+
+  it('reuses the key on an unchanged bound retry (same selection, no payment edit)', async () => {
+    enableBinding()
+    const wrapper = await mountModal()
+
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
+    await wrapper.get('[data-testid="cash-session-select"]').setValue(OPEN_UUID)
+
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    const first = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
+
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    const second = wrapper.emitted('submit')?.[1]?.[0] as PaymentModalSubmitEvent | undefined
+
+    expect(first).toBeDefined()
+    expect(second).toBeDefined()
+    if (!first || !second) throw new Error('Missing submit event payload')
+    expect(second.idempotencyKey).toBe(first.idempotencyKey)
+  })
+
+  it('mints a fresh key when the binding is explicitly opted out', async () => {
+    enableBinding()
+    const wrapper = await mountModal()
+
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
+    await wrapper.get('[data-testid="cash-session-select"]').setValue(OPEN_UUID)
+
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    const first = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
+
+    await wrapper.get('[data-testid="cash-session-clear"]').trigger('click')
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    const second = wrapper.emitted('submit')?.[1]?.[0] as PaymentModalSubmitEvent | undefined
+
+    expect(first).toBeDefined()
+    expect(second).toBeDefined()
+    if (!first || !second) throw new Error('Missing submit event payload')
+    expect(second.idempotencyKey).not.toBe(first.idempotencyKey)
+    expect('cashSessionId' in (second.payload as unknown as Record<string, unknown>)).toBe(false)
+  })
+
+  it('mints a fresh key after a rejected bound attempt when the binding is deliberately edited', async () => {
+    enableBinding([cashSession({ id: OPEN_UUID }), cashSession({ id: OTHER_OPEN_UUID })], 2)
+    const wrapper = await mountModal()
+
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
+    await wrapper.get('[data-testid="cash-session-select"]').setValue(OPEN_UUID)
+
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    const first = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
+
+    // The parent surfaces the backend rejection on the same modal session.
+    await wrapper.setProps({ externalError: 'Pago rechazado' })
+    await wrapper.get('[data-testid="cash-session-select"]').setValue(OTHER_OPEN_UUID)
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    const second = wrapper.emitted('submit')?.[1]?.[0] as PaymentModalSubmitEvent | undefined
+
+    expect(first).toBeDefined()
+    expect(second).toBeDefined()
+    if (!first || !second) throw new Error('Missing submit event payload')
+    expect(second.idempotencyKey).not.toBe(first.idempotencyKey)
+  })
+
+  it('never reuses a prior key when the binding changes in the same tick as submit', async () => {
+    enableBinding([cashSession({ id: OPEN_UUID }), cashSession({ id: OTHER_OPEN_UUID })], 2)
+    const wrapper = await mountModal()
+
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
+
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    const first = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
+
+    const select = wrapper.get('[data-testid="cash-session-select"]')
+    ;(select.element as HTMLSelectElement).value = OTHER_OPEN_UUID
+    const pendingChange = select.trigger('change')
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    await pendingChange
+
+    const second = wrapper.emitted('submit')?.[1]?.[0] as PaymentModalSubmitEvent | undefined
+    expect(first).toBeDefined()
+    expect(second).toBeDefined()
+    if (!first || !second) throw new Error('Missing submit event payload')
+    expect(second.idempotencyKey).not.toBe(first.idempotencyKey)
+  })
+
+  it('recovers from a stale-selection block by picking an eligible replacement (no payment edit, no reopen)', async () => {
+    enableBinding([cashSession({ id: OPEN_UUID })], 30)
+    const wrapper = await mountModal()
+
+    await wrapper.get('[data-testid="cash-session-select"]').setValue(OPEN_UUID)
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
+
+    // Page 2 no longer exposes the selected session, but DOES offer an eligible one.
+    cashListSessions.mockResolvedValue({
+      items: [cashSession({ id: OTHER_OPEN_UUID })],
+      page: 2,
+      limit: 25,
+      total: 30,
+    })
+    await wrapper.get('[data-testid="cash-session-next-page"]').trigger('click')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    expect(wrapper.emitted('submit')).toBeUndefined()
+    expect(wrapper.text()).toContain('ya no está disponible')
+
+    // Deliberate binding edit ONLY: the eligible replacement unblocks the charge.
+    await wrapper.get('[data-testid="cash-session-select"]').setValue(OTHER_OPEN_UUID)
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+
+    const submitted = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
+    expect(submitted).toBeDefined()
+    expect((submitted!.payload as unknown as Record<string, unknown>).cashSessionId).toBe(
+      OTHER_OPEN_UUID,
+    )
+  })
+
+  it('recovers from a stale-selection block via explicit opt-out (legacy) without editing payments', async () => {
+    enableBinding([cashSession({ id: OPEN_UUID })], 30)
+    const wrapper = await mountModal()
+
+    await wrapper.get('[data-testid="cash-session-select"]').setValue(OPEN_UUID)
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
+
+    cashListSessions.mockResolvedValue({
+      items: [cashSession({ id: COUNTING_UUID, status: 'COUNTING' })],
+      page: 2,
+      limit: 25,
+      total: 30,
+    })
+    await wrapper.get('[data-testid="cash-session-next-page"]').trigger('click')
+    await flushPromises()
+
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    expect(wrapper.emitted('submit')).toBeUndefined()
+
+    // Explicit opt-out is its own recovery path: legacy unbound charge goes out.
+    await wrapper.get('[data-testid="cash-session-clear"]').trigger('click')
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+
+    const submitted = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
+    expect(submitted).toBeDefined()
+    expect('cashSessionId' in (submitted!.payload as unknown as Record<string, unknown>)).toBe(
+      false,
+    )
+  })
+
+  it('clears a lost binding on permission loss and offers an accessible explicit opt-out that preserves payments', async () => {
+    enableBinding()
+    const wrapper = await mountModal({
+      customer: { id: 'c-1', firstName: 'Ada', lastName: null },
+    })
+
+    await wrapper.get('[data-testid="cash-session-select"]').setValue(OPEN_UUID)
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('100')
+
+    // Read permission is lost: the permission-gated picker disappears and the
+    // ACTUAL selection is cleared (no old scope id remains).
+    cashAuth.permissionCodes = []
+    cashAuth.canReadSessions = false
+    await wrapper.vm.$nextTick()
+
+    expect(wrapper.find('[data-testid="cash-session-binding"]').exists()).toBe(false)
+
+    // The stale-scope confirm must NOT charge implicitly unbound.
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    expect(wrapper.emitted('submit')).toBeUndefined()
+
+    // An explicit opt-out stays reachable WITHOUT read permission.
+    const optOut = wrapper.get('[data-testid="cash-session-binding-optout"]')
+    await optOut.trigger('click')
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+
+    const submitted = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
+    expect(submitted).toBeDefined()
+    const payload = submitted!.payload as unknown as Record<string, unknown>
+    expect('cashSessionId' in payload).toBe(false)
+    // The payment entries are preserved (single cash entry → legacy shape).
+    expect(payload).toMatchObject({ method: 'cash', amountCents: 10000 })
+  })
+
+  it('clears a lost binding when permissions become unresolved and keeps the opt-out reachable', async () => {
+    enableBinding()
+    const wrapper = await mountModal({
+      customer: { id: 'c-1', firstName: 'Ada', lastName: null },
+    })
+
+    await wrapper.get('[data-testid="cash-session-select"]').setValue(OPEN_UUID)
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('100')
+
+    cashAuth.permissionsLoaded = false
+    await wrapper.vm.$nextTick()
+
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    expect(wrapper.emitted('submit')).toBeUndefined()
+
+    await wrapper.get('[data-testid="cash-session-binding-optout"]').trigger('click')
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+
+    const submitted = wrapper.emitted('submit')?.[0]?.[0] as PaymentModalSubmitEvent | undefined
+    expect(submitted).toBeDefined()
+    expect('cashSessionId' in (submitted!.payload as unknown as Record<string, unknown>)).toBe(
+      false,
+    )
+  })
+
+  it('does not wipe an unrelated validation error when the binding changes', async () => {
+    const dueDateStub = {
+      props: ['modelValue', 'placeholder', 'disabled', 'minIso', 'testid'],
+      emits: ['update:modelValue'],
+      template:
+        '<input :data-testid="testid" :value="modelValue" @input="$emit(\'update:modelValue\', $event.target.value)" />',
+    }
+    enableBinding([cashSession({ id: OPEN_UUID }), cashSession({ id: OTHER_OPEN_UUID })], 2)
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+        customer: { id: 'c-1', firstName: 'Ada', lastName: null },
+      },
+      global: { ...mountGlobal, stubs: { ...stubs, DateFieldPopover: dueDateStub } },
+    })
+    await flushPromises()
+
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('100')
+    await wrapper.get('[data-testid="expand-due-date"]').trigger('click')
+    await wrapper.get('[data-testid="due-date-input"]').setValue('2000-01-01')
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    expect(wrapper.text()).toContain('La fecha de vencimiento debe ser hoy o posterior')
+
+    // Changing the binding must clear ONLY the binding error, never this one.
+    await wrapper.get('[data-testid="cash-session-select"]').setValue(OPEN_UUID)
+    expect(wrapper.text()).toContain('La fecha de vencimiento debe ser hoy o posterior')
+  })
+
+  it('never downgrades a bound charge to unbound when the session list errors', async () => {
+    enableBinding([cashSession({ id: OPEN_UUID })], 30)
+    const wrapper = await mountModal()
+    await wrapper.get('[data-testid="cash-session-select"]').setValue(OPEN_UUID)
+
+    // The next page fails to load: the explicit selection stays (never silently
+    // dropped to unbound) and the picker surfaces the page error.
+    cashListSessions.mockRejectedValue(new Error('network'))
+    await wrapper.get('[data-testid="cash-session-next-page"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="cash-session-error"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="cash-session-stale"]').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="cash-session-clear"]').exists()).toBe(true)
+
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+
+    // The unavailable page cannot revalidate the choice: the submit is blocked
+    // (no unbound fallback) and the binding error explains why.
+    expect(wrapper.emitted('submit')).toBeUndefined()
+    expect(wrapper.text()).toContain('La sesión de caja elegida ya no está disponible')
+  })
+
+  it('keeps the peso conversion unchanged: sale $350 paid with $500 yields 35000/50000/15000 cents', async () => {
+    enableBinding()
+    const wrapper = await mountModal({ totalCents: 35000 })
+
+    await wrapper.get('[data-testid="cash-session-select"]').setValue(OPEN_UUID)
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('500')
+    expect(wrapper.text()).toContain('Cambio:')
+    expect(wrapper.text()).toContain('$150.00')
+
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+    const payload = submitPayload(wrapper) as { method: string; amountCents: number }
+    expect(payload.method).toBe('cash')
+    expect(payload.amountCents).toBe(50000)
+  })
+
+  it('clears the selection when the modal is reopened (a fresh modal starts unbound)', async () => {
+    enableBinding()
+    const wrapper = await mountModal()
+    await wrapper.get('[data-testid="cash-session-select"]').setValue(OPEN_UUID)
+
+    await wrapper.setProps({ open: false })
+    await wrapper.setProps({ open: true })
+    await flushPromises()
+
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+
+    const payload = submitPayload(wrapper) as unknown as Record<string, unknown>
+    expect('cashSessionId' in payload).toBe(false)
+  })
+
+  it('clears the selection when the charged sale changes', async () => {
+    enableBinding()
+    const wrapper = await mountModal()
+    await wrapper.get('[data-testid="cash-session-select"]').setValue(OPEN_UUID)
+
+    await wrapper.setProps({ saleId: 'sale-2' })
+    await wrapper.get('[data-method="cash"]').trigger('click')
+    await wrapper.get('[data-testid="payment-amount-0"]').setValue('150')
+    await wrapper.get('[data-testid="confirm-charge"]').trigger('click')
+
+    const submitted = emittedSubmit(wrapper)
+    expect(submitted.saleId).toBe('sale-2')
+    expect(submitted.payload).not.toHaveProperty('cashSessionId')
   })
 })

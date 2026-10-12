@@ -42,6 +42,8 @@ const props = withDefaults(
     removable?: boolean
     rewardKind?: SaleRewardKind
     rewardDiscountPercent?: number | null
+    /** Optional native tooltip boundary; omitted keeps the installed ui. */
+    portalClass?: string
   }>(),
   {
     removable: false,
@@ -124,7 +126,11 @@ function handleRemovePromo() {
       class="inline-flex items-center gap-0.5"
       data-testid="sale-item-promo-badge"
     >
-      <UTooltip v-if="discountTitle" :text="discountTitle">
+      <UTooltip
+        v-if="discountTitle"
+        :text="discountTitle"
+        :ui="portalClass ? { content: portalClass } : undefined"
+      >
         <AppBadge
           tone="info"
           icon="i-lucide-tag"
@@ -149,7 +155,11 @@ function handleRemovePromo() {
       />
     </span>
 
-    <UTooltip v-if="discountType && discountTitle" :text="discountTitle">
+    <UTooltip
+      v-if="discountType && discountTitle"
+      :text="discountTitle"
+      :ui="portalClass ? { content: portalClass } : undefined"
+    >
       <AppBadge
         tone="success"
         icon="i-lucide-badge-percent"

@@ -11,6 +11,15 @@ const emit = defineEmits<{
   'add-product': [productId: string, variantId: string | null, imageUrl: string | null]
 }>()
 
+/**
+ * Optional teleport boundary marker forwarded to the nested variant modal,
+ * which owns the real popup root. Absent by default, so existing consumers
+ * keep their original presentation and behavior.
+ */
+defineProps<{
+  portalClass?: string
+}>()
+
 // ── State ─────────────────────────────────────────────────────────────────────
 
 const { query, items, isLoading, isEmpty, hasQuery, categoryId, categories, totalUnfiltered } = useProductSearch()
@@ -155,6 +164,7 @@ function handleAddVariant(productId: string, variantId: string) {
       :product-id="selectedItem?.id || null"
       :product-name="selectedItem?.name || ''"
       :variants="selectedItem?.variants || []"
+      :portal-class="portalClass"
       @add-variant="handleAddVariant"
     />
   </div>

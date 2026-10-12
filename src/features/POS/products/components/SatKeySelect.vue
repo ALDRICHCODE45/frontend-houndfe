@@ -157,7 +157,7 @@ watch(
         :id="id"
         type="button"
         :disabled="disabled"
-        class="relative w-full rounded-md border bg-default px-3 py-2 text-left text-sm shadow-xs outline-none transition-colors focus:ring-2 focus:ring-coco-gold-500 disabled:cursor-not-allowed disabled:opacity-75"
+        class="products-select-trigger relative w-full rounded-md border bg-default px-3 py-2 text-left text-sm shadow-xs outline-none transition-colors focus:ring-2 focus:ring-coco-gold-500 disabled:cursor-not-allowed disabled:opacity-75"
         :class="error ? 'border-error' : 'border-accented'"
         @click="toggle"
         @keydown.down.prevent="open"

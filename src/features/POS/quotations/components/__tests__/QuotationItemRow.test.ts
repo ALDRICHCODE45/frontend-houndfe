@@ -67,8 +67,7 @@ const UInputNumberStub = {
 const stubs = {
   AppBadge: {
     props: ['label', 'tone', 'icon'],
-    template:
-      '<span class="app-badge" :data-tone="tone" :data-icon="icon">{{ label }}</span>',
+    template: '<span class="app-badge" :data-tone="tone" :data-icon="icon">{{ label }}</span>',
   },
   UButton: {
     props: ['icon', 'color', 'variant', 'disabled'],
@@ -141,9 +140,16 @@ describe('QuotationItemRow rendering', () => {
   })
 
   it('shows the product image alt text when imageUrl is set', () => {
-    const wrapper = mountRow(makeItem({
-      product: { id: 'product-1', name: 'Playera M', sku: 'SKU-1', imageUrl: 'https://example.com/img.png' },
-    }))
+    const wrapper = mountRow(
+      makeItem({
+        product: {
+          id: 'product-1',
+          name: 'Playera M',
+          sku: 'SKU-1',
+          imageUrl: 'https://example.com/img.png',
+        },
+      }),
+    )
     expect(wrapper.html()).toContain('https://example.com/img.png')
   })
 })
@@ -270,6 +276,20 @@ describe('QuotationItemRow actions dropdown', () => {
     expect(wrapper.find('[data-testid="item-actions-trigger"]').exists()).toBe(true)
   })
 
+  it('marks the teleported actions menu with the workspace portal boundary', () => {
+    const wrapper = mountRow(makeItem(), false)
+
+    // Nuxt UI's DropdownMenu is auto-imported, so the runtime component (not a
+    // stub) owns the teleported menu content and its `ui` contract.
+    const menu = wrapper.findComponent({ name: 'DropdownMenu' })
+    expect(menu.exists()).toBe(true)
+    expect(menu.props('ui')).toEqual({
+      content: 'hf-theme hf-ui quotations-workspace-portal',
+    })
+    // The anchor alignment config stays untouched next to the theme opt-in.
+    expect(menu.props('content')).toEqual({ align: 'end' })
+  })
+
   it('hides the actions dropdown trigger in readonly mode', () => {
     const wrapper = mountRow(makeItem(), true)
     expect(wrapper.find('[data-testid="item-actions-trigger"]').exists()).toBe(false)
@@ -282,9 +302,7 @@ describe('QuotationItemRow actions dropdown', () => {
     const vm = wrapper.vm as unknown as {
       itemActions: Array<Array<{ label: string; onSelect: () => void }>>
     }
-    const deleteAction = vm.itemActions[1]?.find(
-      (action) => action.label === 'Eliminar producto',
-    )
+    const deleteAction = vm.itemActions[1]?.find((action) => action.label === 'Eliminar producto')
     expect(deleteAction).toBeDefined()
     deleteAction!.onSelect()
     expect(wrapper.emitted('request-remove')).toEqual([['item-1']])
@@ -297,9 +315,7 @@ describe('QuotationItemRow price override', () => {
     const vm = wrapper.vm as unknown as {
       itemActions: Array<Array<{ label: string; onSelect: () => void }>>
     }
-    const priceAction = vm.itemActions[0]?.find(
-      (action) => action.label === 'Cambiar precio',
-    )
+    const priceAction = vm.itemActions[0]?.find((action) => action.label === 'Cambiar precio')
     expect(priceAction).toBeDefined()
     priceAction!.onSelect()
     expect(wrapper.emitted('request-price-override')).toEqual([['item-1']])
@@ -338,7 +354,12 @@ vi.mock('../../composables/useQuotationItemStock', () => ({
 
 function setStock(quantity: number, minQuantity = 0): void {
   stockApiMock.current = {
-    stock: { quantity, minQuantity, isLow: quantity <= minQuantity && quantity > 0, isOut: quantity <= 0 },
+    stock: {
+      quantity,
+      minQuantity,
+      isLow: quantity <= minQuantity && quantity > 0,
+      isOut: quantity <= 0,
+    },
     isAvailable: true,
     isError: false,
   }

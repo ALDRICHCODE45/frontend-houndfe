@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;650;700&display=swap');
+
+/* Opt-in foundation. Importing this file never changes the global app theme.
+ * Existing Caja presentation components are the first consumers; future
+ * surfaces can opt in with .hf-theme without depending on Nuxt UI aliases.
+ * Font loading is external; system fonts remain a usable offline fallback.
+ */
+.hf-theme,
+.cash-visual,
+.cash-workspace {
+  --hf-page: #f5f6f8;
+  --hf-surface: #ffffff;
+  --hf-surface-muted: #e7eef7;
+  --hf-field: #ffffff;
+  --hf-field-border: #8593a3;
+  --hf-ink: #24313d;
+  --hf-heading: #173968;
+  --hf-muted: #576574;
+  --hf-border: #dce2e8;
+  --hf-action: #2442f6;
+  --hf-on-action: #ffffff;
+  --hf-active: #2442f6;
+  --hf-active-soft: #edf0ff;
+  --hf-focus: #2442f6;
+  --hf-gold: #f6bb13;
+  --hf-gold-soft: #fff5d6;
+  --hf-gold-ink: #443218;
+  --hf-warning: #805511;
+  --hf-warning-soft: #fff5d6;
+  --hf-success: #236044;
+  --hf-font: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  --hf-radius-card: 12px;
+  --hf-radius-control: 6px;
+  --hf-control-height: 44px;
+
+  font-family: var(--hf-font);
+}
+
+.dark .hf-theme,
+.dark .cash-visual,
+.dark .cash-workspace {
+  --hf-page: #0e1520;
+  --hf-surface: #192332;
+  --hf-surface-muted: #202e43;
+  --hf-field: #121d2c;
+  --hf-field-border: #64758d;
+  --hf-ink: #edf2fa;
+  --hf-heading: #edf2fa;
+  --hf-muted: #adbcd0;
+  --hf-border: #354459;
+  --hf-action: #91b0ff;
+  --hf-on-action: #132344;
+  --hf-active: #b3caff;
+  --hf-active-soft: #223555;
+  --hf-focus: #a6c1ff;
+  --hf-gold: #f2c456;
+  --hf-gold-soft: #3b311d;
+  --hf-gold-ink: #f2cb71;
+  --hf-warning: #f2cb71;
+  --hf-warning-soft: #3b311d;
+  --hf-success: #a2d9b9;
+}

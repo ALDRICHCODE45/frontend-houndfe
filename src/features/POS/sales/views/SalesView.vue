@@ -15,6 +15,7 @@ import PaymentSuccessModal from '../components/PaymentSuccessModal.vue'
 import AssignCustomerSlideover from '../components/AssignCustomerSlideover.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import AppResponsiveDrawer from '@/core/shared/components/AppResponsiveDrawer.vue'
+import '../styles/sales-entry-visual.css' // T3: feature-owned Sales-entry presentation boundary.
 import type {
   ApplyItemDiscountPayload,
   ApplyGlobalDiscountPayload,
@@ -49,6 +50,12 @@ declare const useToast: () => {
     color?: 'success' | 'error' | 'warning' | 'primary' | 'neutral'
   }) => void
 }
+
+// T3 (sales visual adaptation): the entry workspace opts into the shared
+// foundation in-page, and every teleported entry surface repeats the boundary
+// on its own native content root through an optional marker. Omitting it keeps
+// each shared component's native defaults and prior geometry untouched.
+const ENTRY_PORTAL_CLASS = 'hf-theme hf-ui sales-entry-portal'
 
 // ── Composables ───────────────────────────────────────────────────────────────
 
@@ -829,7 +836,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
 </script>
 
 <template>
-  <div class="h-full flex bg-default">
+  <div class="h-full flex bg-default hf-theme hf-ui sales-entry-visual">
     <!-- Loading skeleton -->
     <div v-if="isLoadingList" class="h-full w-full flex flex-col lg:flex-row">
       <!-- Left skeleton panel: full-width on mobile, 60% lg / 75% xl -->
@@ -883,7 +890,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
          active tab — single source of truth, no desync risk. -->
     <div
       v-else
-      class="h-full w-full flex flex-col bg-(--light-surface-page) dark:bg-coco-neutral-950"
+      class="h-full w-full flex flex-col bg-(--light-surface-page) dark:bg-coco-neutral-950 sales-entry-page"
     >
       <!-- View-level tab strip. The ActiveSalePanel instances below no
            longer render their own strip — they were double-mounted and
@@ -902,8 +909,13 @@ async function handleChangePriceList(globalPriceListId: string | null) {
         <div
           class="lg:w-[60%] xl:w-[75%] flex flex-col min-w-0 px-3 lg:px-4 pt-1.5 lg:pt-2 pb-3 lg:pb-4"
         >
-          <div class="h-full rounded-2xl border border-default/50 overflow-hidden">
-            <ProductSearchPanel ref="productSearchPanelRef" @add-product="handleAddProduct" />
+          <div class="h-full rounded-2xl border border-default/50 overflow-hidden sales-entry-panel">
+            <ProductSearchPanel
+              ref="productSearchPanelRef"
+              class="sales-entry-product-search"
+              :portal-class="ENTRY_PORTAL_CLASS"
+              @add-product="handleAddProduct"
+            />
           </div>
         </div>
 
@@ -912,7 +924,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
         <div
           class="hidden lg:block lg:w-[40%] xl:w-[25%] shrink-0 px-3 lg:px-4 pt-1.5 lg:pt-2 pb-3 lg:pb-4"
         >
-          <div class="h-full w-full rounded-2xl border border-default/50 overflow-hidden">
+          <div class="h-full w-full rounded-2xl border border-default/50 overflow-hidden sales-entry-panel">
             <ActiveSalePanel
               :drafts="drafts"
               :active-draft="activeDraft"
@@ -924,6 +936,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
               :applicable-promotions="applicablePromotions"
               :is-loading-promotions="isLoadingPromotions"
               :applied-manual-promotion-ids="[]"
+              :portal-class="ENTRY_PORTAL_CLASS"
               :on-submit-price-override="handleSubmitPriceOverride"
               :on-apply-discount="handleApplyDiscount"
               :on-remove-discount="handleRemoveDiscount"
@@ -986,6 +999,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
           close-aria-label="Cerrar carrito"
           mobile-body-class="overflow-hidden"
           data-testid="mobile-cart-drawer"
+          :portal-class="ENTRY_PORTAL_CLASS"
           @update:open="cartDrawerOpen = $event"
           @after:leave="handleCartAfterLeave"
         >
@@ -1012,6 +1026,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
               :is-loading-promotions="isLoadingPromotions"
               :applied-manual-promotion-ids="[]"
               :mobile-sheet="true"
+              :portal-class="ENTRY_PORTAL_CLASS"
               :on-submit-price-override="handleSubmitPriceOverride"
               :on-apply-discount="handleApplyDiscount"
               :on-remove-discount="handleRemoveDiscount"
@@ -1041,6 +1056,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
       v-if="activeDraft?.id && assignCustomerSlideoverOpen"
       v-model:open="assignCustomerSlideoverOpen"
       :sale-id="activeDraft.id"
+      :portal-class="ENTRY_PORTAL_CLASS"
     />
 
     <PaymentModal
@@ -1054,6 +1070,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
       :external-error="inlineAmountError"
       :catalog-clear-signal="catalogClearSignal"
       :requote-accept-signal="requoteAcceptSignal"
+      :portal-class="ENTRY_PORTAL_CLASS"
       @submit="
         ({ saleId, payload, idempotencyKey }) =>
           void handleChargeDraft(saleId, payload, idempotencyKey)
@@ -1072,6 +1089,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
       :discount-cents="requoteSnapshot.discountCents"
       :total-cents="requoteSnapshot.totalCents"
       :excluded-promotions="requoteSnapshot.excludedPromotions"
+      :portal-class="ENTRY_PORTAL_CLASS"
       @accept="handleAcceptRequote"
     />
 
@@ -1085,6 +1103,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
       :debt-cents="latestChargeSuccess.debtCents"
       :payment-status="latestChargeSuccess.paymentStatus"
       :confirmed-at="latestChargeSuccess.confirmedAt"
+      :portal-class="ENTRY_PORTAL_CLASS"
     />
 
     <!-- promotions-in-sale C.5: auto-promo veto confirmation.
@@ -1096,6 +1115,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
       description="Esta acción es permanente para este borrador."
       confirm-label="Quitar promoción"
       confirm-color="error"
+      :ui="{ content: ENTRY_PORTAL_CLASS }"
       @confirm="handleConfirmVeto"
     />
   </div>

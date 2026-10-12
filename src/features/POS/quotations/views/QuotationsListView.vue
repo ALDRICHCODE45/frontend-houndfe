@@ -3,8 +3,8 @@
  * QuotationsListView — REQ-QAF-009..014 / T-FE-10.
  *
  * Brings the quotations list to feature parity with the Sales list:
- *   - UCard with split body bg (REQ-QAF-009).
- *   - TableHeaderDescription in the #header slot.
+ *   - Products-style page heading outside the table workspace surface.
+ *   - UCard containing the existing tabs, controls and data region.
  *   - Status tabs (Todos / Borradores / Enviadas / Expiradas / Canceladas).
  *   - Slideover with the 5 first-slice filters (status, customerId, createdAt,
  *     expiresAt, totalCents) + active chips (REQ-QAF-010).
@@ -32,6 +32,7 @@
  */
 
 import '../styles/coco-tokens.css'
+import '../styles/quotations-list-visual.css'
 
 import { computed, ref, watch } from 'vue'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
@@ -39,7 +40,6 @@ import { useQuery } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
 import type { TableColumn } from '@nuxt/ui'
 import { AppDataTable } from '@/core/shared/components/DataTable'
-import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
 import SortableHeader from '@/core/shared/components/DataTable/SortableHeader.vue'
 import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import {
@@ -387,20 +387,19 @@ const errorMessage = computed(() => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 md:px-10">
+  <div class="hf-theme hf-ui quotations-list-visual flex w-full min-w-0 flex-col gap-6 md:px-10">
+    <div class="hf-page-header">
+      <h1 class="hf-page-title">Cotizaciones</h1>
+      <p class="hf-page-subtitle">Listado de cotizaciones por cliente, con filtros por estado, fechas y montos.</p>
+    </div>
+
     <UCard
-      :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }"
-      class="quotations-list-view overflow-hidden rounded-2xl border border-default shadow-sm"
+      :ui="{ body: 'p-0 sm:p-0' }"
+      class="hf-table-surface quotations-list-view w-full min-w-0 max-w-full overflow-hidden shadow-sm"
       data-testid="quotations-list-view"
     >
-      <template #header>
-        <TableHeaderDescription
-          title="Cotizaciones"
-          description="Listado de cotizaciones por cliente, con filtros por estado, fechas y montos."
-        />
-      </template>
 
-      <div class="w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4 space-y-4">
+      <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4 space-y-4">
         <div class="space-y-4">
           <div class="flex flex-wrap items-center gap-1" data-testid="status-tabs" role="tablist" aria-label="Filtrar cotizaciones por estado">
             <button
@@ -410,7 +409,7 @@ const errorMessage = computed(() => {
               role="tab"
               :aria-selected="activeStatusTab === tab.value"
               :aria-current="activeStatusTab === tab.value ? 'page' : undefined"
-              class="rounded-lg px-3.5 py-2 text-sm font-medium transition-colors"
+              class="quotations-status-tab rounded-lg px-3.5 py-2 text-sm font-medium transition-colors"
               :class="
                 activeStatusTab === tab.value
                   ? 'border border-default bg-elevated text-highlighted shadow-sm'
@@ -444,6 +443,9 @@ const errorMessage = computed(() => {
             mobile-render="cards"
             :display-mode="displayMode"
             :enable-column-visibility="true"
+            class="hf-data-table"
+            portal-class="hf-theme hf-ui quotations-list-portal"
+            pagination-portal-class="hf-theme hf-ui quotations-list-portal"
             search-placeholder="Buscar cotizaciones…"
             empty="No hay cotizaciones"
             :show-add-button="canCreate"
@@ -467,12 +469,13 @@ const errorMessage = computed(() => {
                 v-model:state="filtersState"
                 :schema="quotationFiltersSchema"
                 :embedded="isMobile"
+                portal-class="hf-theme hf-ui quotations-list-portal"
               />
             </template>
 
             <!-- ViewToggle persisted via useQuotationsViewMode. -->
             <template #actions>
-              <ViewToggle v-model="viewMode" />
+              <ViewToggle v-model="viewMode" class="quotations-view-toggle" />
             </template>
 
             <!-- Sortable header slots — only columns the backend accepts as
@@ -514,7 +517,7 @@ const errorMessage = computed(() => {
             </template>
 
             <template #totalCents-cell="{ row }">
-              <span class="font-medium text-default">{{ formatCentsMXN(row.original.totalCents) }}</span>
+              <span class="quotations-total-value font-medium text-default">{{ formatCentsMXN(row.original.totalCents) }}</span>
             </template>
 
             <template #expiresAt-cell="{ row }">
@@ -529,6 +532,7 @@ const errorMessage = computed(() => {
               <UDropdownMenu
                 :items="getRowItems(row.original)"
                 :content="{ align: 'end' }"
+                :ui="{ content: 'hf-theme hf-ui quotations-list-portal' }"
               >
                 <UButton
                   icon="i-lucide-ellipsis-vertical"
@@ -560,6 +564,7 @@ const errorMessage = computed(() => {
         :description="`¿Eliminar la cotización #${confirmState.folio}? Esta acción no se puede deshacer.`"
         confirm-label="Eliminar"
         confirm-color="error"
+        :ui="{ content: 'hf-theme hf-ui hf-form-overlay quotations-list-portal' }"
         :loading="deleteMutation.isPending.value"
         @update:open="(val) => { if (!val) confirmState.open = false }"
         @confirm="handleConfirmDelete"

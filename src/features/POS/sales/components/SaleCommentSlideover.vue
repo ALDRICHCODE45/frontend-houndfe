@@ -5,6 +5,12 @@ const props = withDefaults(
   defineProps<{
     open: boolean
     isPending?: boolean
+    /**
+     * Optional teleport boundary marker forwarded to the installed slideover
+     * content root. Absent by default, which preserves the previous `ui` value
+     * and every existing consumer's presentation.
+     */
+    portalClass?: string
   }>(),
   {
     isPending: false,
@@ -61,7 +67,13 @@ function submit() {
 </script>
 
 <template>
-  <USlideover :open="open" side="right" inset @update:open="emit('update:open', $event)">
+  <USlideover
+    :open="open"
+    side="right"
+    inset
+    :ui="portalClass ? { content: portalClass } : undefined"
+    @update:open="emit('update:open', $event)"
+  >
     <template #content>
       <div class="flex h-full flex-col" data-testid="comment-form">
         <div class="border-b border-default px-5 py-4">

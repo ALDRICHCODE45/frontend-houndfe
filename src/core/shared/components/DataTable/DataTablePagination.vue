@@ -11,6 +11,8 @@ const props = withDefaults(
     showingTo: number
     pageSizeOptions?: number[]
     fetching?: boolean
+    /** Optional presentation boundary for the teleported page-size menu. */
+    portalClass?: string
   }>(),
   {
     pageSizeOptions: () => [5, 10, 20, 50],
@@ -42,10 +44,10 @@ const pageSizeItems = computed(() =>
 
 <template>
   <div
-    class="flex w-full min-w-0 max-w-full flex-col gap-3 border-default pt-4 sm:flex-row sm:items-center sm:justify-between border-t"
+    class="hf-pagination flex w-full min-w-0 max-w-full flex-col gap-3 border-default pt-4 sm:flex-row sm:items-center sm:justify-between border-t"
   >
     <!-- Showing info -->
-    <div class="text-sm text-muted">
+    <div class="hf-pagination-summary text-sm text-muted">
       <template v-if="totalCount > 0">
         Mostrando {{ showingFrom }}-{{ showingTo }} de {{ totalCount }}
       </template>
@@ -57,10 +59,15 @@ const pageSizeItems = computed(() =>
       data-testid="pagination-controls"
     >
       <!-- Page Size Selector -->
-      <UDropdownMenu :items="pageSizeItems" :content="{ align: 'end' as const }">
+      <UDropdownMenu
+        :items="pageSizeItems"
+        :content="{ align: 'end' as const }"
+        :ui="portalClass ? { content: portalClass } : undefined"
+      >
         <UButton
           color="neutral"
           variant="outline"
+          class="hf-pagination-size"
           :label="`${pageSize} por página`"
           trailing-icon="i-lucide-chevron-down"
           size="sm"
@@ -75,7 +82,7 @@ const pageSizeItems = computed(() =>
         :disabled="fetching"
         show-edges
         :sibling-count="1"
-        class="min-w-0 max-w-full"
+        class="hf-pagination-navigation min-w-0 max-w-full"
       />
     </div>
   </div>

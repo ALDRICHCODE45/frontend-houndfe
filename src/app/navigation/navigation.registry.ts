@@ -43,6 +43,22 @@ export const navigationGroups: NavGroup[] = [
         to: '/pos/customers',
         permission: ['read', 'Customer'],
       },
+      // Operational Caja stays register-gated; recipient custody has its own
+      // entry below and never requires register/session/audit access.
+      {
+        id: 'pos-cash-register',
+        label: 'Caja',
+        icon: 'i-lucide-banknote',
+        to: '/pos/caja',
+        permission: ['read', 'CashRegister'],
+      },
+      {
+        id: 'pos-cash-reception',
+        label: 'Recepciones de caja',
+        icon: 'i-lucide-hand-coins',
+        to: '/pos/caja/recepciones',
+        permission: ['read', 'CashHandover'],
+      },
       {
         id: 'pos-promotions',
         label: 'Promociones',

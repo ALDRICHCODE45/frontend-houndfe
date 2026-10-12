@@ -8,6 +8,8 @@ const props = withDefaults(
     methods: SaleDetailPaymentMethod[]
     maxVisible?: number
     compact?: boolean
+    /** Optional native tooltip boundary; omitted keeps the installed ui. */
+    portalClass?: string
   }>(),
   {
     maxVisible: 2,
@@ -55,7 +57,11 @@ const overflowLabel = computed(() =>
       </UBadge>
 
       <!-- Overflow chip -->
-      <UTooltip v-if="overflow.length > 0" :text="overflowLabel">
+      <UTooltip
+        v-if="overflow.length > 0"
+        :text="overflowLabel"
+        :ui="portalClass ? { content: portalClass } : undefined"
+      >
         <UBadge
           variant="subtle"
           color="neutral"

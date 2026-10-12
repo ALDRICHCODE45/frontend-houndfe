@@ -32,6 +32,12 @@ const props = withDefaults(
   defineProps<{
     expiresAt: string | null
     readonly?: boolean
+    /**
+     * Optional teleport boundary marker forwarded to the installed date
+     * popover. Absent by default, so existing consumers keep their original
+     * presentation and behavior.
+     */
+    portalClass?: string
   }>(),
   { readonly: false },
 )
@@ -136,11 +142,9 @@ function handleChipClick(chip: ShortcutChip): void {
   <div class="flex flex-col gap-3" data-testid="quotation-expiry-picker">
     <p class="text-xs font-semibold uppercase tracking-wide text-muted">Expira</p>
 
-    <p
-      v-if="readonly"
-      class="text-sm font-medium text-highlighted"
-      data-testid="expiry-display"
-    >{{ displayLabel }}</p>
+    <p v-if="readonly" class="text-sm font-medium text-highlighted" data-testid="expiry-display">
+      {{ displayLabel }}
+    </p>
 
     <div v-else class="flex flex-col gap-3" data-testid="expiry-editable">
       <div class="flex flex-wrap items-center gap-3">
@@ -149,6 +153,7 @@ function handleChipClick(chip: ShortcutChip): void {
           :disabled="readonly"
           placeholder="Sin expiración"
           testid="expiry-date-field"
+          :portal-class="portalClass"
           @update:model-value="handleDateUpdate"
         />
         <span class="text-sm text-muted">{{ displayLabel }}</span>
@@ -168,18 +173,17 @@ function handleChipClick(chip: ShortcutChip): void {
            active = accent-50 background with accent text. The
            data-active attribute drives the visual state via Tailwind
            arbitrary-value utilities. -->
-      <div
-        class="flex flex-wrap items-center gap-2"
-        data-testid="expiry-chips"
-      >
+      <div class="flex flex-wrap items-center gap-2" data-testid="expiry-chips">
         <button
           v-for="chip in DAY_CHIPS"
           :key="chip.id"
           type="button"
           class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium transition-colors"
-          :class="isChipActive(chip.id)
-            ? 'border-[var(--coco-accent)] bg-[var(--coco-accent-50)] text-[var(--coco-accent)]'
-            : 'border-default bg-default text-muted hover:bg-elevated'"
+          :class="
+            isChipActive(chip.id)
+              ? 'quotations-gold-ink border-[var(--coco-accent)] bg-[var(--coco-accent-50)] text-[var(--coco-accent)]'
+              : 'border-default bg-default text-muted hover:bg-elevated'
+          "
           :data-testid="`expiry-chip-${chip.id}`"
           :data-active="isChipActive(chip.id) ? 'true' : 'false'"
           @click="handleChipClick(chip)"

@@ -20,6 +20,11 @@ const props = withDefaults(defineProps<{
    * keeping a parallel chips row above the slideover.
    */
   isActive?: boolean
+  /**
+   * Optional theme boundary for the teleported select content. Absent keeps
+   * the Nuxt UI default so existing consumers are untouched.
+   */
+  portalClass?: string
 }>(), {
   placeholder: 'Seleccionar opciones',
   includeNullOption: undefined,
@@ -27,6 +32,7 @@ const props = withDefaults(defineProps<{
   loadingLabel: 'Cargando opciones...',
   error: undefined,
   isActive: false,
+  portalClass: undefined,
 })
 
 const modelValue = defineModel<string[]>({ default: () => [] })
@@ -100,6 +106,7 @@ const selectedLabel = computed(() => {
     <USelectMenu
       data-testid="async-select"
       :class="['w-full', props.isActive && 'ring-2 ring-primary ring-inset rounded']"
+      :ui="props.portalClass ? { content: props.portalClass } : undefined"
       v-model="selectionWithSentinel"
       :items="displayItems"
       :placeholder="props.placeholder"

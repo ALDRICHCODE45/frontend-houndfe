@@ -329,3 +329,102 @@ describe('useSidebar — switchTenant error handling', () => {
     expect(mockSwitch).toHaveBeenCalledOnce()
   })
 })
+
+describe('useSidebar — module groups start closed (S6)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+  })
+
+  it('returns every module group with defaultOpen false on first render', async () => {
+    vi.mocked(useAuthStore).mockReturnValue(
+      makeAuthStore({ isSuperAdmin: true, userCan: vi.fn(() => true) }) as unknown as ReturnType<
+        typeof useAuthStore
+      >,
+    )
+
+    const { useSidebar } = await import('../useSidebar')
+    const sidebar = useSidebar()
+
+    const groups = sidebar
+      .getNavigationItems(false)
+      .filter((item) => (item.children?.length ?? 0) > 0)
+
+    // The registry still declares `defaultOpen: true` for other consumers; the
+    // sidebar must stop forwarding it so every module starts collapsed.
+    expect(groups.length).toBeGreaterThan(0)
+    expect(groups.map((group) => group.defaultOpen)).toEqual(groups.map(() => false))
+  })
+
+  it('keeps authorized children on a closed group so the native menu can open it', async () => {
+    vi.mocked(useAuthStore).mockReturnValue(
+      makeAuthStore({ isSuperAdmin: true, userCan: vi.fn(() => true) }) as unknown as ReturnType<
+        typeof useAuthStore
+      >,
+    )
+
+    const { useSidebar } = await import('../useSidebar')
+    const sidebar = useSidebar()
+
+    const pos = sidebar.getNavigationItems(false).find((item) => item.label === 'POS')
+
+    expect(pos?.defaultOpen).toBe(false)
+    expect(pos?.children?.map((child) => child.to)).toContain('/pos/ventas')
+  })
+
+  it('keeps collapsed groups closed with their authorized children intact', async () => {
+    vi.mocked(useAuthStore).mockReturnValue(
+      makeAuthStore({ userCan: userCanOnly(['read', 'Sale']) }) as unknown as ReturnType<
+        typeof useAuthStore
+      >,
+    )
+
+    const { useSidebar } = await import('../useSidebar')
+    const sidebar = useSidebar()
+
+    const pos = sidebar.getNavigationItems(true).find((item) => item.label === 'POS')
+
+    expect(pos?.defaultOpen).toBe(false)
+    expect(pos?.children?.map((child) => child.to)).toEqual(['/pos/ventas'])
+  })
+})
+
+describe('useSidebar — collapsed rail keeps authorized destinations (S2/S4)', () => {
+  beforeEach(() => {
+    setActivePinia(createPinia())
+    vi.clearAllMocks()
+  })
+
+  it('keeps permission-filtered group children when collapsed so the popover can reach them', async () => {
+    vi.mocked(useAuthStore).mockReturnValue(
+      makeAuthStore({ userCan: userCanOnly(['read', 'Sale']) }) as unknown as ReturnType<
+        typeof useAuthStore
+      >,
+    )
+
+    const { useSidebar } = await import('../useSidebar')
+    const sidebar = useSidebar()
+
+    const pos = sidebar.getNavigationItems(true).find((item) => item.label === 'POS')
+
+    // The collapsed rail renders groups through the native NavigationMenu
+    // popover, so the authorized children must still be present in the items.
+    expect(pos?.children?.map((child) => child.to)).toEqual(['/pos/ventas'])
+  })
+
+  it('still drops groups with no accessible children when collapsed', async () => {
+    vi.mocked(useAuthStore).mockReturnValue(
+      makeAuthStore({ userCan: userCanOnly(['read', 'Sale']) }) as unknown as ReturnType<
+        typeof useAuthStore
+      >,
+    )
+
+    const { useSidebar } = await import('../useSidebar')
+    const sidebar = useSidebar()
+
+    const items = sidebar.getNavigationItems(true)
+
+    expect(items.some((item) => item.label === 'Admin')).toBe(false)
+    expect(items.every((item) => (item.children?.length ?? 0) > 0)).toBe(true)
+  })
+})

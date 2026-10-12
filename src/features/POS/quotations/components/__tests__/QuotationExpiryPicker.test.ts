@@ -18,11 +18,13 @@ const DateFieldPopoverStub = {
     disabled: { type: Boolean, default: false },
     minIso: { type: [String, Object], default: null },
     testid: { type: String, default: 'date-field-popover' },
+    portalClass: { type: String, default: undefined },
   },
   emits: ['update:modelValue'],
   template: `
     <button
       :data-testid="testid"
+      :data-portal-class="portalClass"
       @click="$emit('update:modelValue', '2026-12-25')"
     >{{ modelValue || placeholder }}</button>
   `,
@@ -32,7 +34,7 @@ beforeEach(() => {
   vi.clearAllMocks()
 })
 
-function mountPicker(props: { expiresAt: string | null; readonly: boolean }) {
+function mountPicker(props: { expiresAt: string | null; readonly: boolean; portalClass?: string }) {
   return mount(QuotationExpiryPicker, {
     props,
     global: {
@@ -244,7 +246,9 @@ describe('QuotationExpiryPicker — shortcut chips (T-UI-17/18/19 / REQ-UI-006)'
       expect(wrapper.get('[data-testid="expiry-chip-15"]').attributes('data-active')).toBe('true')
       expect(wrapper.get('[data-testid="expiry-chip-7"]').attributes('data-active')).toBe('false')
       expect(wrapper.get('[data-testid="expiry-chip-30"]').attributes('data-active')).toBe('false')
-      expect(wrapper.get('[data-testid="expiry-chip-none"]').attributes('data-active')).toBe('false')
+      expect(wrapper.get('[data-testid="expiry-chip-none"]').attributes('data-active')).toBe(
+        'false',
+      )
     } finally {
       vi.useRealTimers()
     }
@@ -254,6 +258,17 @@ describe('QuotationExpiryPicker — shortcut chips (T-UI-17/18/19 / REQ-UI-006)'
     const wrapper = mountPicker({ expiresAt: null, readonly: false })
     expect(wrapper.get('[data-testid="expiry-chip-none"]').attributes('data-active')).toBe('true')
     expect(wrapper.get('[data-testid="expiry-chip-7"]').attributes('data-active')).toBe('false')
+  })
+
+  it('exposes the workspace gold-ink hook on the selected shortcut chip only', () => {
+    const wrapper = mountPicker({ expiresAt: null, readonly: false })
+
+    expect(wrapper.get('[data-testid="expiry-chip-none"]').classes()).toContain(
+      'quotations-gold-ink',
+    )
+    expect(wrapper.get('[data-testid="expiry-chip-7"]').classes()).not.toContain(
+      'quotations-gold-ink',
+    )
   })
 
   it('falls back to no active chip when expiresAt does not match any shortcut', () => {
@@ -266,5 +281,42 @@ describe('QuotationExpiryPicker — shortcut chips (T-UI-17/18/19 / REQ-UI-006)'
     expect(wrapper.get('[data-testid="expiry-chip-15"]').attributes('data-active')).toBe('false')
     expect(wrapper.get('[data-testid="expiry-chip-30"]').attributes('data-active')).toBe('false')
     expect(wrapper.get('[data-testid="expiry-chip-none"]').attributes('data-active')).toBe('false')
+  })
+})
+
+// T6 / S3,S4 — optional, inert portal opt-in forwarded to the installed
+// DateFieldPopover (the teleport owner), preserving every existing behavior
+// when the prop is absent.
+describe('QuotationExpiryPicker — optional portalClass forwarding', () => {
+  const LISTBOX_PORTAL = 'hf-theme hf-ui quotations-workspace-portal'
+
+  it('forwards the workspace marker to the installed DateFieldPopover', () => {
+    const wrapper = mountPicker({ expiresAt: null, readonly: false, portalClass: LISTBOX_PORTAL })
+
+    expect(wrapper.get('[data-testid="expiry-date-field"]').attributes('data-portal-class')).toBe(
+      LISTBOX_PORTAL,
+    )
+  })
+
+  it('forwards no marker when the prop is absent (defaults inert)', () => {
+    const wrapper = mountPicker({ expiresAt: null, readonly: false })
+
+    expect(
+      wrapper.get('[data-testid="expiry-date-field"]').attributes('data-portal-class'),
+    ).toBeUndefined()
+  })
+
+  it('keeps the expiry update/clear mapping alongside the opt-in', async () => {
+    const wrapper = mountPicker({
+      expiresAt: '2026-09-15T12:00:00.000Z',
+      readonly: false,
+      portalClass: LISTBOX_PORTAL,
+    })
+
+    await wrapper.get('[data-testid="expiry-date-field"]').trigger('click')
+    expect(wrapper.emitted('update:expiresAt')![0]![0]).toBe('2026-12-25T00:00:00.000Z')
+
+    await wrapper.get('[data-testid="expiry-clear-button"]').trigger('click')
+    expect(wrapper.emitted('update:expiresAt')![1]![0]).toBeNull()
   })
 })

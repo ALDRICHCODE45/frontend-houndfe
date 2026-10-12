@@ -54,9 +54,7 @@ const previousQty = ref<number>(props.item.quantity)
 
 // ── Derived display helpers ──────────────────────────────────────────────────
 
-const lineSubtotalCents = computed(() =>
-  lineCents(props.item.unitPriceCents, props.item.quantity),
-)
+const lineSubtotalCents = computed(() => lineCents(props.item.unitPriceCents, props.item.quantity))
 
 /** Compact `${formatted}` for the unit price — matches SaleItemRow. */
 const unitPriceText = computed(() => formatCentsMXN(props.item.unitPriceCents))
@@ -184,7 +182,6 @@ const itemActions = computed<DropdownMenuItem[][]>(() => {
     ],
   ]
 })
-
 </script>
 
 <template>
@@ -224,32 +221,24 @@ const itemActions = computed<DropdownMenuItem[][]>(() => {
 
       <!-- Variant + unit price meta -->
       <p class="text-xs text-muted truncate" data-testid="product-meta">
-        <span
-          v-if="variantName"
-          class="uppercase tracking-wide"
-          data-testid="variant-badge"
-        >{{ variantName }} · </span>
-        <span v-if="props.item.product?.sku" class="font-mono">{{ props.item.product.sku }} · </span>
+        <span v-if="variantName" class="uppercase tracking-wide" data-testid="variant-badge"
+          >{{ variantName }} ·
+        </span>
+        <span v-if="props.item.product?.sku" class="font-mono"
+          >{{ props.item.product.sku }} ·
+        </span>
         <span class="font-medium text-toned" data-testid="unit-price">
           {{ unitPriceText }} c/u
         </span>
       </p>
 
       <!-- Discount info -->
-      <p
-        v-if="hasDiscount"
-        class="text-xs text-primary truncate"
-        data-testid="discount-info"
-      >
+      <p v-if="hasDiscount" class="text-xs text-primary truncate" data-testid="discount-info">
         {{ discountLabel }}
       </p>
 
       <!-- Stepper + subtotal (DRAFT only) -->
-      <div
-        v-if="!props.readonly"
-        class="flex items-center gap-1.5 mt-1"
-        data-testid="quantity-row"
-      >
+      <div v-if="!props.readonly" class="flex items-center gap-1.5 mt-1" data-testid="quantity-row">
         <UInputNumber
           v-model="localQty"
           size="sm"
@@ -295,10 +284,7 @@ const itemActions = computed<DropdownMenuItem[][]>(() => {
     </div>
 
     <!-- RIGHT: compact pricing (read-only or alongside stepper) -->
-    <div
-      v-if="props.readonly"
-      class="shrink-0 text-right flex flex-col items-end min-w-[80px]"
-    >
+    <div v-if="props.readonly" class="shrink-0 text-right flex flex-col items-end min-w-[80px]">
       <p class="text-xs text-muted tabular-nums">{{ unitPriceText }} c/u</p>
       <p v-if="hasDiscount" class="text-[10px] text-primary tabular-nums">{{ discountLabel }}</p>
       <p class="text-sm font-bold text-highlighted tabular-nums">{{ lineSubtotalText }}</p>
@@ -309,6 +295,7 @@ const itemActions = computed<DropdownMenuItem[][]>(() => {
       v-if="!props.readonly"
       :items="itemActions"
       :content="{ align: 'end' }"
+      :ui="{ content: 'hf-theme hf-ui quotations-workspace-portal' }"
       data-testid="item-actions-menu"
     >
       <UButton

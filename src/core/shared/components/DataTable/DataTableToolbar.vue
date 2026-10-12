@@ -12,6 +12,8 @@ const props = withDefaults(
     showColumnVisibility?: boolean
     showRefresh?: boolean
     fetching?: boolean
+    /** Optional content class; existing consumers retain their current portal theme. */
+    portalClass?: string
     /**
      * Optional `data-testid` for the refresh button. Default `undefined` —
      * no `data-testid` attribute is rendered. Forwarded by `AppDataTable`
@@ -98,28 +100,32 @@ function capitalize(str: string): string {
 </script>
 
 <template>
-  <div class="flex w-full min-w-0 max-w-full flex-col gap-3 md:flex-row md:items-center md:justify-between">
+  <div
+    class="hf-toolbar flex w-full min-w-0 max-w-full flex-col gap-3 md:flex-row md:items-center md:justify-between"
+  >
     <!-- ─── Desktop layout (md+) — historical horizontal layout ───────── -->
     <template v-if="!isMobile">
-      <div class="flex flex-1 flex-col items-stretch gap-2 sm:flex-row sm:items-center">
+      <div
+        class="hf-toolbar-search-region flex flex-1 flex-col items-stretch gap-2 sm:flex-row sm:items-center"
+      >
         <!-- Search Input -->
         <UInput
           :model-value="props.globalFilter"
           :placeholder="props.searchPlaceholder"
           icon="i-lucide-search"
-          class="w-full sm:max-w-sm"
+          class="hf-toolbar-search w-full sm:max-w-sm"
           @update:model-value="emit('update:globalFilter', $event as string)"
         />
 
         <!-- Inline filter slots (desktop only) -->
-        <div class="min-w-0 flex flex-1 items-center gap-2">
+        <div class="hf-toolbar-filters min-w-0 flex flex-1 items-center gap-2">
           <slot name="filters" />
         </div>
       </div>
 
-      <div class="flex items-center gap-2">
+      <div class="hf-toolbar-actions flex items-center gap-2">
         <!-- Refresh Button -->
-        <UTooltip v-if="showRefresh" text="Refrescar">
+        <UTooltip v-if="showRefresh" text="Refrescar" :ui="{ content: props.portalClass }">
           <UButton
             color="neutral"
             variant="ghost"
@@ -154,6 +160,7 @@ function capitalize(str: string): string {
           :content="{ align: 'end' as const }"
           :ui="{
             itemLeadingIcon: 'size-4 text-primary',
+            content: props.portalClass,
           }"
         >
           <UButton
@@ -182,14 +189,14 @@ function capitalize(str: string): string {
     <template v-else>
       <!-- Row 1 — search full-width -->
       <div
-        class="flex w-full min-w-0 max-w-full flex-col gap-2"
+        class="hf-toolbar-search-region flex w-full min-w-0 max-w-full flex-col gap-2"
         data-testid="toolbar-mobile-search-row"
       >
         <UInput
           :model-value="props.globalFilter"
           :placeholder="props.searchPlaceholder"
           icon="i-lucide-search"
-          class="w-full"
+          class="hf-toolbar-search w-full"
           @update:model-value="emit('update:globalFilter', $event as string)"
         />
       </div>
@@ -197,7 +204,7 @@ function capitalize(str: string): string {
       <!-- Row 2 — actions cluster (flex-wrap, fixed order) -->
       <div
         v-if="showAddButton || showRefresh || showColumnVisibility || !!slots.actions"
-        class="flex w-full min-w-0 max-w-full flex-wrap items-center gap-2"
+        class="hf-toolbar-actions flex w-full min-w-0 max-w-full flex-wrap items-center gap-2"
         data-testid="toolbar-mobile-actions-row"
       >
         <!-- Mobile order: add → refresh → Columnas → actions slot -->
@@ -210,7 +217,7 @@ function capitalize(str: string): string {
           @click="emit('add')"
         />
 
-        <UTooltip v-if="showRefresh" text="Refrescar">
+        <UTooltip v-if="showRefresh" text="Refrescar" :ui="{ content: props.portalClass }">
           <UButton
             color="neutral"
             variant="ghost"
@@ -244,6 +251,7 @@ function capitalize(str: string): string {
           :content="{ align: 'end' as const }"
           :ui="{
             itemLeadingIcon: 'size-4 text-primary',
+            content: props.portalClass,
           }"
         >
           <UButton
@@ -263,7 +271,7 @@ function capitalize(str: string): string {
       <!-- Row 3 — Filtros button + (optional) active-count badge -->
       <div
         v-if="hasFiltersSlot"
-        class="flex w-full min-w-0 max-w-full items-center gap-2"
+        class="hf-toolbar-filters flex w-full min-w-0 max-w-full items-center gap-2"
         data-testid="toolbar-mobile-filters-row"
       >
         <UButton
@@ -297,6 +305,7 @@ function capitalize(str: string): string {
         side="bottom"
         inset
         :dismissible="true"
+        :ui="{ content: props.portalClass }"
       >
         <template #content>
           <div class="flex h-full flex-col">

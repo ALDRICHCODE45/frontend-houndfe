@@ -6,6 +6,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 // via an `@layer coco-quotations` block. Importing the stylesheet here
 // keeps the token lifecycle tied to the view that owns it.
 import '../styles/coco-tokens.css'
+// T3 / S3-S4 — owned visual adapter for the shared creation/detail workspace.
+// Imported only here so the list workspace and unmigrated screens keep their
+// current presentation.
+import '../styles/quotations-workspace-visual.css'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
 import AssignCustomerSlideover from '@/features/POS/sales/components/AssignCustomerSlideover.vue'
 import PriceListSelector from '@/features/POS/sales/components/PriceListSelector.vue'
@@ -66,15 +70,8 @@ const quotationId = computed(() => {
   return typeof value === 'string' && value ? value : null
 })
 
-const {
-  quotation,
-  isLoading,
-  isError,
-  error,
-  createDraft,
-  assignCustomer,
-  changePriceList,
-} = useQuotationDetail(quotationId)
+const { quotation, isLoading, isError, error, createDraft, assignCustomer, changePriceList } =
+  useQuotationDetail(quotationId)
 
 // `useQuotationDraft` is only safe to instantiate when we have a real
 // quotation id. `createDraft` lives on `useQuotationDetail` because it
@@ -244,8 +241,7 @@ const setTaxRateMutation = useMutation<
   },
   onError: (error) => {
     const err = error as { response?: { data?: { message?: string } }; message?: string }
-    const message =
-      err.response?.data?.message ?? err.message ?? 'No se pudo actualizar el IVA'
+    const message = err.response?.data?.message ?? err.message ?? 'No se pudo actualizar el IVA'
     useToast().add({ title: 'Error', description: message, color: 'error' })
   },
 })
@@ -346,19 +342,13 @@ watch(
   },
 )
 
-async function handleAddProduct(
-  productId: string,
-  variantId: string | null,
-): Promise<void> {
+async function handleAddProduct(productId: string, variantId: string | null): Promise<void> {
   if (!isDraft.value) return // defense-in-depth
   await draft.addItem(productId, 1, variantId ?? undefined)
   isProductSearchOpen.value = false
 }
 
-async function handleUpdateQuantity(
-  itemId: string,
-  quantity: number,
-): Promise<void> {
+async function handleUpdateQuantity(itemId: string, quantity: number): Promise<void> {
   if (!isDraft.value) return
   await draft.updateQuantity(itemId, quantity)
 }
@@ -391,10 +381,7 @@ async function handleRemoveConfirm(): Promise<void> {
   await draft.removeItem(itemId)
 }
 
-async function handleOverridePrice(
-  itemId: string,
-  unitPriceCents: number,
-): Promise<void> {
+async function handleOverridePrice(itemId: string, unitPriceCents: number): Promise<void> {
   if (!isDraft.value) return
   // Slice 5 commits the override value as-is (the row passes back the
   // current unit price when the cashier clicks the pencil). Slice 8/9 can
@@ -478,8 +465,10 @@ async function handleUnvetoPromotion(promotionId: string): Promise<void> {
 // The manual apply picker (USelectMenu) over ACTIVE promotions — the cashier
 // never types a raw UUID. Options apply immediately on selection (the backend
 // still validates the ID + type server-side).
-const { promotions: manualPromotions, isLoading: isLoadingManualPromos } =
-  useAvailablePromotions(tenantId, 'MANUAL')
+const { promotions: manualPromotions, isLoading: isLoadingManualPromos } = useAvailablePromotions(
+  tenantId,
+  'MANUAL',
+)
 const { promotions: automaticPromotions, isLoading: isLoadingAutomaticPromos } =
   useAvailablePromotions(tenantId, 'AUTOMATIC')
 
@@ -524,7 +513,9 @@ function resolvePromotionTitle(promotionId: string, backendTitle?: string | null
   return promotionId
 }
 
-const isLoadingAllPromos = computed(() => isLoadingManualPromos.value || isLoadingAutomaticPromos.value)
+const isLoadingAllPromos = computed(
+  () => isLoadingManualPromos.value || isLoadingAutomaticPromos.value,
+)
 
 const allPromoItems = computed(() => {
   const appliedIds = new Set(appliedPromotions.value.map((p) => p.promotionId))
@@ -744,9 +735,7 @@ function formatDiscountCents(cents: number): string {
 onMounted(async () => {
   if (!isCreateRoute.value) return
   const rawCustomerId = route.query.customerId
-  const customerId = typeof rawCustomerId === 'string' && rawCustomerId
-    ? rawCustomerId
-    : undefined
+  const customerId = typeof rawCustomerId === 'string' && rawCustomerId ? rawCustomerId : undefined
 
   isCreating.value = true
   createError.value = null
@@ -761,7 +750,10 @@ onMounted(async () => {
 </script>
 
 <template>
-  <section class="quotation-detail-view flex flex-col gap-6 px-4 sm:px-8 lg:px-10" data-testid="quotation-detail-view">
+  <section
+    class="quotation-detail-view hf-theme hf-ui quotations-workspace-visual flex flex-col gap-6 px-4 sm:px-8 lg:px-10"
+    data-testid="quotation-detail-view"
+  >
     <header class="flex flex-col gap-4 border-b border-default pb-5">
       <button
         type="button"
@@ -775,9 +767,7 @@ onMounted(async () => {
 
       <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 class="text-2xl font-semibold text-highlighted">
-            Cotización #{{ folio }}
-          </h1>
+          <h1 class="hf-page-title">Cotización #{{ folio }}</h1>
           <div v-if="quotation" class="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted">
             <StatusDotBadge
               v-if="headerStatus"
@@ -843,11 +833,7 @@ onMounted(async () => {
       <!-- REQ-UI-003: 3-state progress stepper placed below the status
            metadata so it reads as a secondary detail, not the primary
            visual anchor. Compact presentation — smaller nodes and text. -->
-      <QuotationProgressStepper
-        v-if="quotation"
-        :status="quotation.status"
-        compact
-      />
+      <QuotationProgressStepper v-if="quotation" :status="quotation.status" compact />
     </header>
 
     <div
@@ -882,14 +868,8 @@ onMounted(async () => {
            lg breakpoint into a left col-span-2 (main sections) and a right
            col-span-1 sticky sidebar (RESUMEN). Below lg, everything stacks
            into a single column and the sticky behavior is dropped. -->
-      <div
-        class="grid gap-4 lg:grid-cols-3"
-        data-testid="quotation-detail-layout"
-      >
-        <div
-          class="flex flex-col gap-4 lg:col-span-2"
-          data-testid="quotation-detail-main"
-        >
+      <div class="grid gap-4 lg:grid-cols-3" data-testid="quotation-detail-layout">
+        <div class="flex flex-col gap-4 lg:col-span-2" data-testid="quotation-detail-main">
           <div class="grid gap-4 lg:grid-cols-3">
             <!-- T-UI-16 — REQ-UI-005 customer card. Extracted into
                  QuotationCustomerCard so the avatar / email / phone /
@@ -909,7 +889,9 @@ onMounted(async () => {
                 v-else-if="!isDraft"
                 class="text-sm text-muted"
                 data-testid="customer-empty-readonly"
-              >Sin cliente</p>
+              >
+                Sin cliente
+              </p>
               <QuotationCustomerCard
                 v-else
                 :customer="null"
@@ -918,17 +900,27 @@ onMounted(async () => {
               />
             </section>
 
-            <section class="rounded-xl border border-default bg-default p-5" data-testid="price-list-section">
-              <p class="text-xs font-semibold uppercase tracking-wide text-muted">Lista de precios</p>
+            <section
+              class="rounded-xl border border-default bg-default p-5"
+              data-testid="price-list-section"
+            >
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted">
+                Lista de precios
+              </p>
               <PriceListSelector
                 v-if="isDraft"
                 class="mt-3"
                 :active-draft="quotation"
                 :is-mutating="false"
+                portal-class="hf-theme hf-ui quotations-workspace-portal"
                 @change-price-list="handlePriceListChange"
                 @request-confirm="handlePriceListChange"
               />
-              <p v-else class="mt-2 text-sm font-medium text-highlighted" data-testid="price-list-name">
+              <p
+                v-else
+                class="mt-2 text-sm font-medium text-highlighted"
+                data-testid="price-list-name"
+              >
                 {{ priceListLabel }}
               </p>
             </section>
@@ -940,7 +932,10 @@ onMounted(async () => {
                  language of the price-list-section above. Lives in the
                  same 3-col grid as Cliente + Lista so the three settings
                  share the row instead of stacking. -->
-            <section class="rounded-xl border border-default bg-default p-5" data-testid="seller-section">
+            <section
+              class="rounded-xl border border-default bg-default p-5"
+              data-testid="seller-section"
+            >
               <p class="text-xs font-semibold uppercase tracking-wide text-muted">Vendedor</p>
               <div v-if="isDraft" class="mt-3">
                 <div
@@ -958,6 +953,7 @@ onMounted(async () => {
                   :disabled="draft.isMutating.value"
                   placeholder="Buscar vendedor..."
                   class="w-full"
+                  :ui="{ content: 'hf-theme hf-ui quotations-workspace-portal' }"
                   data-testid="seller-select"
                   @update:model-value="handleSellerChange"
                 >
@@ -992,6 +988,7 @@ onMounted(async () => {
             <QuotationExpiryPicker
               :expires-at="quotation.expiresAt"
               :readonly="!isDraft"
+              portal-class="hf-theme hf-ui quotations-workspace-portal"
               @update:expires-at="handleExpiryUpdate"
             />
           </section>
@@ -1014,7 +1011,7 @@ onMounted(async () => {
               <button
                 v-if="isDraft"
                 type="button"
-                class="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+                class="quotations-primary-action inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
                 data-testid="add-product-button"
                 @click="isProductSearchOpen = true"
               >
@@ -1029,14 +1026,12 @@ onMounted(async () => {
               data-testid="items-empty-state"
             >
               No hay productos en esta cotización.<br />
-              <span v-if="isDraft" class="text-xs">Usá el botón "Agregar producto" para buscar y añadir productos.</span>
+              <span v-if="isDraft" class="text-xs"
+                >Usá el botón "Agregar producto" para buscar y añadir productos.</span
+              >
             </p>
 
-            <ul
-              v-else
-              class="flex flex-col gap-2"
-              data-testid="items-list"
-            >
+            <ul v-else class="flex flex-col gap-2" data-testid="items-list">
               <li v-for="item in items" :key="item.id">
                 <QuotationItemRow
                   :item="item"
@@ -1067,9 +1062,7 @@ onMounted(async () => {
               class="flex flex-col gap-2"
               data-testid="applied-promotions-list"
             >
-              <p class="text-xs font-semibold uppercase tracking-wide text-muted">
-                Aplicadas
-              </p>
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted">Aplicadas</p>
               <ul class="flex flex-col gap-2">
                 <!-- T-UI-20 — REQ-UI-008 promotion cards. Extracted to
                      QuotationPromotionCard so the border-l-4 accent
@@ -1078,10 +1071,7 @@ onMounted(async () => {
                      removeManualPromotion and AUTOMATIC ones via
                      vetoPromotion — the card itself never calls the
                      API directly. -->
-                <li
-                  v-for="promo in resolvedAppliedPromotions"
-                  :key="promo.promotionId"
-                >
+                <li v-for="promo in resolvedAppliedPromotions" :key="promo.promotionId">
                   <QuotationPromotionCard
                     :promotion="promo"
                     :method="appliedMethod(promo.promotionId) === 'Manual' ? 'MANUAL' : 'AUTOMATIC'"
@@ -1097,9 +1087,7 @@ onMounted(async () => {
               class="flex flex-col gap-2"
               data-testid="vetoed-promotions-list"
             >
-              <p class="text-xs font-semibold uppercase tracking-wide text-muted">
-                Vetadas
-              </p>
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted">Vetadas</p>
               <ul class="flex flex-col gap-2">
                 <li
                   v-for="promo in vetoedPromotions"
@@ -1111,7 +1099,8 @@ onMounted(async () => {
                     <p class="text-sm font-medium text-highlighted truncate">{{ promo.title }}</p>
                     <span
                       class="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider bg-blue-500/10 text-blue-500 mt-1"
-                    >Automática</span>
+                      >Automática</span
+                    >
                   </div>
                   <button
                     type="button"
@@ -1138,6 +1127,7 @@ onMounted(async () => {
                 placeholder="Seleccioná una promoción…"
                 :search-input="{ icon: 'i-lucide-search' }"
                 class="w-full"
+                :ui="{ content: 'hf-theme hf-ui quotations-workspace-portal' }"
                 data-testid="manual-promo-select"
                 @update:model-value="handleSelectPromotion"
               >
@@ -1159,7 +1149,8 @@ onMounted(async () => {
           >
             <p class="font-semibold">Cotización cancelada</p>
             <p class="mt-1 text-error/80">
-              {{ cancelReasonLabel }}<span v-if="canceledAtFormatted"> · {{ canceledAtFormatted }}</span>
+              {{ cancelReasonLabel
+              }}<span v-if="canceledAtFormatted"> · {{ canceledAtFormatted }}</span>
             </p>
           </section>
 
@@ -1173,7 +1164,8 @@ onMounted(async () => {
           >
             <p class="font-semibold">Cotización expirada (vista)</p>
             <p class="mt-1 text-warning/80">
-              El servidor aún la reporta como Enviada. Esta cotización pasó a Expirada al cruzar la fecha límite y se mostrará así la próxima vez que el sistema la recargue.
+              El servidor aún la reporta como Enviada. Esta cotización pasó a Expirada al cruzar la
+              fecha límite y se mostrará así la próxima vez que el sistema la recargue.
             </p>
           </section>
 
@@ -1231,10 +1223,7 @@ onMounted(async () => {
               >
                 Notas
               </label>
-              <span
-                class="text-xs text-muted tabular-nums"
-                data-testid="notes-char-counter"
-              >
+              <span class="text-xs text-muted tabular-nums" data-testid="notes-char-counter">
                 {{ customerNotes.length }} / 280
               </span>
             </div>
@@ -1258,6 +1247,7 @@ onMounted(async () => {
 
       <AssignCustomerSlideover
         v-model:open="isAssignCustomerOpen"
+        portal-class="hf-theme hf-ui hf-form-overlay quotations-workspace-portal"
         @customer-selected="handleCustomerSelected"
       />
 
@@ -1267,7 +1257,12 @@ onMounted(async () => {
         description="¿Quitar este producto de la cotización? Esta acción no se puede deshacer."
         confirm-label="Quitar"
         confirm-color="error"
-        @update:open="(value) => { if (!value) handleRemoveCancel() }"
+        :ui="{ content: 'hf-theme hf-ui hf-form-overlay quotations-workspace-portal' }"
+        @update:open="
+          (value) => {
+            if (!value) handleRemoveCancel()
+          }
+        "
         @confirm="handleRemoveConfirm"
       />
 
@@ -1282,7 +1277,12 @@ onMounted(async () => {
         confirm-label="Eliminar"
         confirm-color="error"
         :loading="deleteMutation.isPending.value"
-        @update:open="(val) => { if (!val) isDeleteConfirmOpen = false }"
+        :ui="{ content: 'hf-theme hf-ui hf-form-overlay quotations-workspace-portal' }"
+        @update:open="
+          (val) => {
+            if (!val) isDeleteConfirmOpen = false
+          }
+        "
         @confirm="deleteMutation.mutate()"
       />
 
@@ -1291,7 +1291,11 @@ onMounted(async () => {
         :open="isPriceOverrideOpen"
         :item="pendingOverrideItem"
         :on-submit="handlePriceOverrideSubmit"
-        @update:open="(value: boolean) => { if (!value) handlePriceOverrideCancel() }"
+        @update:open="
+          (value: boolean) => {
+            if (!value) handlePriceOverrideCancel()
+          }
+        "
       />
 
       <!-- S7 — send dialog. Only mount in DRAFT (the button that opens it is
@@ -1325,14 +1329,19 @@ onMounted(async () => {
         :open="isProductSearchOpen"
         side="right"
         inset
-        :ui="{ content: '!max-w-xl' }"
-        @update:open="(value: boolean) => { if (!value) isProductSearchOpen = false }"
+        :ui="{ content: 'hf-theme hf-ui hf-form-overlay quotations-workspace-portal !max-w-xl' }"
+        @update:open="
+          (value: boolean) => {
+            if (!value) isProductSearchOpen = false
+          }
+        "
       >
         <template #title>Buscar productos</template>
         <template #body>
           <ProductSearchPanel
-            class="h-full product-search-panel--two-cols"
+            class="h-full product-search-panel--two-cols quotations-product-search"
             data-testid="product-search-panel"
+            portal-class="hf-theme hf-ui hf-form-overlay quotations-workspace-portal"
             @add-product="handleAddProduct"
           />
         </template>

@@ -10,6 +10,12 @@ interface Props {
   closeAriaLabel?: string
   desktopUi?: Record<string, string>
   mobileBodyClass?: string
+  /**
+   * Optional teleport boundary marker forwarded to the native slideover's
+   * `ui.content`. Absent by default, so the two branches keep their previous
+   * geometry, their prior `ui`/`desktopUi` value and every native default.
+   */
+  portalClass?: string
 }
 const props = defineProps<Props>()
 const emit = defineEmits<{
@@ -19,6 +25,24 @@ const emit = defineEmits<{
 }>()
 const isMobile = useBreakpoints(breakpointsTailwind).smaller('lg')
 const closeLabel = computed(() => props.closeAriaLabel ?? `Cerrar ${props.title}`)
+
+// Mobile geometry is fixed by this wrapper; an opt-in only appends the marker
+// to the same native content root.
+const MOBILE_CONTENT_UI = 'h-[90dvh] max-h-[90dvh] rounded-t-2xl motion-reduce:transition-none'
+const mobileUi = computed(() => ({
+  content: props.portalClass ? `${MOBILE_CONTENT_UI} ${props.portalClass}` : MOBILE_CONTENT_UI,
+}))
+
+// Desktop keeps the caller's `desktopUi` object identity/values untouched when
+// no marker is requested; an opt-in merges into a copy so other keys survive.
+const resolvedDesktopUi = computed(() =>
+  props.portalClass
+    ? {
+        ...(props.desktopUi ?? {}),
+        content: [props.desktopUi?.content, props.portalClass].filter(Boolean).join(' '),
+      }
+    : props.desktopUi,
+)
 </script>
 
 <template>
@@ -29,7 +53,7 @@ const closeLabel = computed(() => props.closeAriaLabel ?? `Cerrar ${props.title}
     :description="description"
     side="bottom"
     inset
-    :ui="{ content: 'h-[90dvh] max-h-[90dvh] rounded-t-2xl motion-reduce:transition-none' }"
+    :ui="mobileUi"
     @update:open="emit('update:open', $event)"
     @after:enter="emit('after:enter')"
     @after:leave="emit('after:leave')"
@@ -90,7 +114,7 @@ const closeLabel = computed(() => props.closeAriaLabel ?? `Cerrar ${props.title}
     side="right"
     inset
     :close="{ 'aria-label': closeLabel }"
-    :ui="desktopUi"
+    :ui="resolvedDesktopUi"
     v-bind="$attrs"
     @update:open="emit('update:open', $event)"
     @after:enter="emit('after:enter')"

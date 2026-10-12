@@ -50,6 +50,14 @@ describe('SaleCardGrid — Employee ladder (REQ-14)', () => {
     )
   })
 
+  it('carries the feature-owned sales-card-grid hook on the real grid container', () => {
+    const wrapper = mountGrid()
+    const grid = wrapper.find('[data-testid="sale-cards-grid"]')
+    // Presentation is scoped by the opted-in listing root, so the hook is inert
+    // for any other consumer of SaleCardGrid.
+    expect(grid.classes()).toContain('sales-card-grid')
+  })
+
   it('renders one SaleCard per row', () => {
     const wrapper = mountGrid({ sales: [sampleSale, { ...sampleSale, id: 'sale-2' }] })
     expect(wrapper.findAll('[data-testid="sale-card"]')).toHaveLength(2)

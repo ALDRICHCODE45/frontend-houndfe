@@ -47,9 +47,10 @@ async function handleLogin(values: LoginFormValues) {
   isLoading.value = true
   loginError.value = null
   try {
-    await authStore.login(values)
-    if (generation !== viewGeneration) return
+    const result = await authStore.login(values)
+    if (generation !== viewGeneration || !result) return
     now.value = Date.now()
+    if ('requiresTenantSelection' in result) await navigateAfterLogin()
   } catch {
     if (generation !== viewGeneration) return
     loginError.value = authStore.authError ?? 'No se pudo iniciar sesión. Verifica credenciales.'
@@ -75,31 +76,36 @@ async function handleVerify(code: string) {
   try {
     const result = await authStore.verifyLoginOtp(code)
     if (generation !== viewGeneration || !result) return
-    if (authStore.authPhase === 'needs-tenant-selection') {
-      await router.push('/select-tenant')
-      return
-    }
-
-    // ODD dashboard-analytics D1: explicit safe ?redirect= remains supported
-    // — but only when the target resolves to a real application route the
-    // authenticated identity may actually enter. Removed paths fall through to
-    // the catch-all NotFoundView (name "not-found"); a real-but-forbidden route
-    // would be bounced to /403 by the router's beforeEach guard, so we drop it
-    // here and let the permission-aware resolver pick the landing destination.
-    const explicitRedirect = typeof route.query.redirect === 'string' ? route.query.redirect : null
-    const canAccess = buildCanAccess(authStore)
-    const explicitTarget = explicitRedirect !== null ? router.resolve(explicitRedirect) : null
-    const isAuthorizedExplicitRedirect =
-      explicitTarget !== null &&
-      explicitTarget.name !== 'not-found' &&
-      canAccessMeta(explicitTarget.meta as AccessMeta, canAccess)
-    const redirectTo =
-      (isAuthorizedExplicitRedirect ? explicitRedirect : null) ??
-      resolveLandingDestinationForAuth(authStore)
-    await router.push(redirectTo)
+    await navigateAfterLogin()
   } catch {
     // Store-level errors never expose attempt counts or challenge status.
   }
+}
+
+async function navigateAfterLogin() {
+  if (authStore.authPhase === 'needs-tenant-selection') {
+    await router.push('/select-tenant')
+    return
+  }
+  if (authStore.authPhase !== 'authenticated') return
+
+  // ODD dashboard-analytics D1: explicit safe ?redirect= remains supported
+  // — but only when the target resolves to a real application route the
+  // authenticated identity may actually enter. Removed paths fall through to
+  // the catch-all NotFoundView (name "not-found"); a real-but-forbidden route
+  // would be bounced to /403 by the router's beforeEach guard, so we drop it
+  // here and let the permission-aware resolver pick the landing destination.
+  const explicitRedirect = typeof route.query.redirect === 'string' ? route.query.redirect : null
+  const canAccess = buildCanAccess(authStore)
+  const explicitTarget = explicitRedirect !== null ? router.resolve(explicitRedirect) : null
+  const isAuthorizedExplicitRedirect =
+    explicitTarget !== null &&
+    explicitTarget.name !== 'not-found' &&
+    canAccessMeta(explicitTarget.meta as AccessMeta, canAccess)
+  const redirectTo =
+    (isAuthorizedExplicitRedirect ? explicitRedirect : null) ??
+    resolveLandingDestinationForAuth(authStore)
+  await router.push(redirectTo)
 }
 </script>
 

@@ -8,6 +8,12 @@ const props = defineProps<{
   itemCount: number
   hasExistingDiscounts: boolean
   onApplyGlobalDiscount: (payload: ApplyGlobalDiscountPayload) => Promise<unknown>
+  /**
+   * Optional teleport boundary marker forwarded to the installed Modal's
+   * `ui.content`. Absent by default, so the dialog keeps `sm:max-w-lg` and
+   * every native default.
+   */
+  portalClass?: string
 }>()
 
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
@@ -41,6 +47,11 @@ const canSubmit = computed(() => {
   }
   return (percentValue.value ?? 0) > 0 && (percentValue.value ?? 0) <= 99
 })
+
+// T3: optional, inert unless the caller supplies the marker.
+const modalUi = computed(() =>
+  props.portalClass ? { content: props.portalClass } : undefined,
+)
 
 async function submit() {
   error.value = null
@@ -87,7 +98,7 @@ watch(
 </script>
 
 <template>
-  <UModal :open="open" title="Descuento global" :content="{ class: 'sm:max-w-lg' }" @update:open="emit('update:open', $event)">
+  <UModal :open="open" title="Descuento global" :content="{ class: 'sm:max-w-lg' }" :ui="modalUi" @update:open="emit('update:open', $event)">
     <template #body>
       <form id="global-discount-form" class="space-y-4" @submit.prevent="submit">
         <!-- Info section -->

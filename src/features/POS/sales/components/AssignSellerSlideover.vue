@@ -18,6 +18,12 @@ declare const useToast: () => {
 const props = defineProps<{
   open: boolean
   saleId: string
+  /**
+   * Optional teleport boundary marker forwarded to the installed slideover
+   * content root. Absent by default, which preserves the previous `ui` value
+   * and every existing consumer's presentation.
+   */
+  portalClass?: string
 }>()
 
 const emit = defineEmits<{
@@ -92,7 +98,13 @@ async function handleSelectUser(user: AssignableUser) {
 </script>
 
 <template>
-  <USlideover :open="open" side="right" inset @update:open="emit('update:open', $event)">
+  <USlideover
+    :open="open"
+    side="right"
+    inset
+    :ui="portalClass ? { content: portalClass } : undefined"
+    @update:open="emit('update:open', $event)"
+  >
     <template #content>
       <div class="flex h-full flex-col" data-testid="assign-seller-slideover">
         <!-- Header -->

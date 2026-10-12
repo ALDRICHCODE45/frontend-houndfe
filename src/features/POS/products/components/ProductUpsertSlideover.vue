@@ -179,6 +179,7 @@ function handleCancel() {
     :description="description"
     side="right"
     inset
+    :ui="{ content: 'hf-theme hf-ui hf-form-overlay products-visual hf-shell-products-portal' }"
     @after-leave="resetForm"
   >
     <template #body>
@@ -318,7 +319,7 @@ function handleCancel() {
           type="submit"
           :form="formId"
           color="primary"
-          class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+          class="hf-primary-control"
         />
       </div>
     </template>

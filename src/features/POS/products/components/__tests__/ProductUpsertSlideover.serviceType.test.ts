@@ -64,10 +64,22 @@ vi.mock('vue-router', () => ({
   useRouter: () => ({ push: vi.fn() }),
 }))
 
-// NOTE: the USlideover body is portaled into <body> by Nuxt UI, so the
+// NOTE: the slideover body/footer render through the document root, so the
 // rendered controls are queried through the document. `baseStubs.UCheckbox`
 // never matched the globally-registered `Checkbox` component, so the real
 // UCheckbox controls (role="checkbox") render and can be asserted.
+const slideoverStub = {
+  name: 'USlideover',
+  props: ['ui'],
+  template:
+    '<div data-testid="slideover-content" :data-ui-content="ui && ui.content"><slot name="body" /><slot name="footer" /></div>',
+  inheritAttrs: false,
+}
+
+// Nuxt UI resolves the local component name without the `U` prefix, so both
+// keys are declared (mirrors the sibling slideover specs).
+const buttonStub = { name: 'UButton', template: '<button><slot /></button>' }
+
 const baseStubs = {
   UInput: { name: 'UInput', template: '<input />' },
   UInputNumber: { name: 'UInputNumber', template: '<input type="number" />' },
@@ -77,12 +89,10 @@ const baseStubs = {
   UTextarea: { name: 'UTextarea', template: '<textarea />' },
   CategorySelect: { name: 'CategorySelect', template: '<select />' },
   SatKeySelect: { name: 'SatKeySelect', template: '<select />' },
-  UButton: { name: 'UButton', template: '<button><slot /></button>' },
-  USlideover: {
-    name: 'USlideover',
-    template: '<div><slot name="body" /><slot name="footer" /></div>',
-    inheritAttrs: false,
-  },
+  UButton: buttonStub,
+  Button: buttonStub,
+  USlideover: slideoverStub,
+  Slideover: slideoverStub,
 }
 
 // Nuxt UI teleports the real USlideover body into <body>, so the rendered
@@ -98,6 +108,9 @@ describe('ProductUpsertSlideover - WU-E SERVICE-hiding (behavioral)', () => {
   const mountSlide = (product: ProductDetail | null, mode: 'create' | 'edit') =>
     mountWithUApp(ProductUpsertSlideover, {
       props: { mode, product, open: true },
+      // The stub renders inline instead of portaling, so attach the tree to
+      // the document to keep the rendered controls queryable by the helpers.
+      attachTo: document.body,
       global: { stubs: baseStubs },
     })
 
@@ -134,6 +147,71 @@ describe('ProductUpsertSlideover - WU-E SERVICE-hiding (behavioral)', () => {
     expect((prod.vm as unknown as { locationLabel: string }).locationLabel).toBe(
       'Ubicación en almacén',
     )
+  })
+
+  it('propagates the pilot overlay classes into the teleported slideover content root', () => {
+    mountSlide(productDetailPRODUCT, 'edit')
+
+    // The slideover content renders outside the component view tree, so the
+    // theme boundary must ride the native Nuxt UI `:ui.content` slot contract
+    // instead of a class placed only on the trigger/root element.
+    const content = q('[data-testid="slideover-content"]')
+    expect(content.attributes('data-ui-content')).toBe(
+      'hf-theme hf-ui hf-form-overlay products-visual hf-shell-products-portal',
+    )
+  })
+
+  it('forwards the products portal hook into the real installed slideover content and nested category dropdown', async () => {
+    mountWithUApp(ProductUpsertSlideover, {
+      props: { mode: 'edit', product: productDetailPRODUCT, open: true },
+      attachTo: document.body,
+      global: {
+        stubs: {
+          UInput: { name: 'UInput', template: '<input />' },
+          UInputNumber: { name: 'UInputNumber', template: '<input type="number" />' },
+          UForm: { name: 'UForm', template: '<form><slot /></form>' },
+          UFormField: { name: 'UFormField', template: '<div><slot /></div>' },
+          UCheckbox: { name: 'UCheckbox', template: '<input type="checkbox" />' },
+          UTextarea: { name: 'UTextarea', template: '<textarea />' },
+          UButton: buttonStub,
+          Button: buttonStub,
+          SatKeySelect: { name: 'SatKeySelect', template: '<select />' },
+        },
+      },
+    })
+    await nextTick()
+
+    const content = document.body.querySelector<HTMLElement>(
+      '[data-slot="content"].hf-shell-products-portal',
+    )
+    expect(content, 'the installed slideover content must carry the portal hook').not.toBeNull()
+    expect(content!.classList.contains('hf-theme')).toBe(true)
+    expect(content!.classList.contains('hf-ui')).toBe(true)
+    expect(content!.classList.contains('products-visual')).toBe(true)
+
+    // CategorySelect renders inline (it does not teleport), so its dropdown
+    // inherits the Products portal theme from the slideover content instead
+    // of needing a marker hook of its own.
+    const categoryTrigger = content!.querySelector<HTMLElement>('button.products-select-trigger')
+    expect(categoryTrigger).not.toBeNull()
+    await new DOMWrapper(categoryTrigger!).trigger('click')
+    await nextTick()
+    expect(
+      content!.querySelector('[class*="z-[80]"]'),
+      'nested category dropdown must inherit the portal marker',
+    ).not.toBeNull()
+  })
+
+  it('hooks the footer submit button with the shared primary control class and no gold/black overrides', () => {
+    mountSlide(productDetailPRODUCT, 'edit')
+
+    const submit = q('.hf-primary-control')
+    expect(submit.attributes('type')).toBe('submit')
+    expect(submit.attributes('form')).toBe('edit-product-form')
+    expect(submit.attributes('color')).toBe('primary')
+    // The legacy hardcoded gold background / black foreground are gone.
+    expect(submit.attributes('class')).not.toContain('brand-action')
+    expect(submit.attributes('class')).not.toContain('text-black')
   })
 
   it('hydrates serviceDetail when editing SERVICE', async () => {

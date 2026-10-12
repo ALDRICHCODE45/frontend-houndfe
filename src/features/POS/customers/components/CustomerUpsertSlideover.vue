@@ -219,6 +219,7 @@ function handleCancel() {
     :description="description"
     side="right"
     inset
+    :ui="{ content: 'hf-theme hf-ui hf-form-overlay clients-form-portal' }"
     @after-leave="resetForm"
   >
     <template #body>
@@ -250,6 +251,7 @@ function handleCancel() {
                     :items="COUNTRY_CODE_OPTIONS"
                     size="lg"
                     class="w-32 shrink-0"
+                    :ui="{ content: 'hf-theme hf-ui clients-form-portal' }"
                   />
                   <UFormField name="phone" :error="errors.phone" class="flex-1">
                     <UInput
@@ -274,7 +276,9 @@ function handleCancel() {
               </UFormField>
 
               <!-- Sección Precios -->
-              <div class="rounded-lg border border-default bg-elevated/30 p-4">
+              <div
+                class="clients-form-section rounded-lg border border-default bg-elevated/30 p-4"
+              >
                 <p class="mb-3 font-semibold">Precios</p>
                 <UCheckbox
                   v-model="state.assignPriceList"
@@ -292,13 +296,16 @@ function handleCancel() {
                       placeholder="Seleccionar lista de precios"
                       class="w-full"
                       size="lg"
+                      :ui="{ content: 'hf-theme hf-ui clients-form-portal' }"
                     />
                   </UFormField>
                 </div>
               </div>
 
               <!-- Sección Dirección y Más -->
-              <div class="rounded-lg border border-default bg-elevated/30 p-4">
+              <div
+                class="clients-form-section rounded-lg border border-default bg-elevated/30 p-4"
+              >
                 <div class="mb-3 flex items-center justify-between">
                   <p class="font-semibold">Dirección</p>
                   <UButton
@@ -397,7 +404,7 @@ function handleCancel() {
                 />
               </UFormField>
 
-              <div class="grid grid-cols-2 gap-4">
+              <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <UFormField
                   label="Código Postal Fiscal"
                   name="fiscalZipCode"
@@ -428,6 +435,7 @@ function handleCancel() {
                   placeholder="Seleccionar régimen fiscal"
                   class="w-full"
                   size="lg"
+                  :ui="{ content: 'hf-theme hf-ui clients-form-portal' }"
                 />
               </UFormField>
 
@@ -435,7 +443,7 @@ function handleCancel() {
               <div>
                 <button
                   type="button"
-                  class="flex items-center gap-1 text-sm font-medium text-coco-gold-800 hover:underline"
+                  class="clients-form-link flex items-center gap-1 text-sm font-medium text-coco-gold-800 hover:underline"
                   @click="state.showBillingAddress = !state.showBillingAddress"
                 >
                   <UIcon
@@ -462,7 +470,7 @@ function handleCancel() {
                   />
                 </UFormField>
 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <UFormField
                     label="Número Exterior"
                     name="billingExteriorNumber"
@@ -490,7 +498,7 @@ function handleCancel() {
                   </UFormField>
                 </div>
 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <UFormField
                     label="Código Postal"
                     name="billingZipCode"
@@ -531,7 +539,7 @@ function handleCancel() {
                   />
                 </UFormField>
 
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <UFormField label="Ciudad" name="billingCity" :error="errors.billingCity">
                     <UInput
                       v-model="state.billingCity"
@@ -548,6 +556,7 @@ function handleCancel() {
                       placeholder="Seleccionar"
                       class="w-full"
                       size="lg"
+                      :ui="{ content: 'hf-theme hf-ui clients-form-portal' }"
                     />
                   </UFormField>
                 </div>
@@ -567,7 +576,7 @@ function handleCancel() {
           type="submit"
           :form="formId"
           color="primary"
-          class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+          class="hf-primary-control"
         />
       </div>
     </template>

@@ -1,35 +1,134 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { ref } from 'vue'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { nextTick, type Ref } from 'vue'
+import { enableAutoUnmount } from '@vue/test-utils'
 import { createRouter, createMemoryHistory } from 'vue-router'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { mountWithUApp } from '@/test/mountWithUApp'
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment -- vue-tsc resolves this SFC; the editor's plain TS language service cannot.
+// @ts-ignore -- vue-tsc resolves this SFC; the editor's plain TS language service cannot.
 import DashboardLayout from '../DashboardLayout.vue'
+import { useSidebar } from '@/app/composables/useSidebar'
+import { useDashboard } from '@/app/composables/useDashboard'
 
 /**
- * DSC-REQ-013 — TDD anchor for DashboardLayout Coco shell binding.
+ * Unified shell — DashboardLayout contract (odd/tasks/unified-shell-v0.md).
  *
- * Pins:
- * - UDashboardSidebar body receives :ui.body with coco-neutral surface
- * - UDashboardNavbar title + leading icon receive :ui with text-coco-gold-500
- * - UNavigationMenu receives :ui with linkLabel/linkActive/linkLeadingIconActive
- *   gold overrides
- * - UDashboardSearchButton receives :ui with hover:bg-coco-gold-500/10
- * - UDashboardSidebarCollapse receives :ui with leadingIcon text-coco-gold-500
- * - UDropdownMenu (user) receives :ui.itemLeadingIcon with
- *   group-data-[checked=true]:text-coco-gold-500
- * - UDashboardSearch :ui does NOT force any bg-coco-neutral-* on shell slots
- *   (NO :ui.header / :ui.body / :ui.footer bg — Engram #3427 hard rule)
+ * This suite replaces the obsolete DSC-REQ-* Coco/gold source pins with
+ * unified-shell contracts:
  *
- * Strategy: SFC source assertions. Nuxt UI 4 components do not expose
- * a `name` option and their default styling already includes some
- * Coco tokens (e.g. sidebar body), so DOM-level assertions either
- * pass for the wrong reason or are too fragile across Nuxt UI
- * versions. Asserting the SFC template carries the right :ui tokens
- * is the most direct way to pin the styling contract.
+ * - S1 palette/hooks: the shell exposes the 16 `hf-shell-*` hooks owned by
+ *   the CSS unit and no longer hardcodes Coco/gold palette classes. The
+ *   `hf-shell` root only scopes shell variables; routed content is untouched.
+ * - S2/S4 native sizing: `UDashboardGroup unit="px"` + native
+ *   `UDashboardSidebar` min/default/max/collapsed sizes drive the px rail
+ *   (`--width`), with the pre-existing `local`/`hound-dashboard` persistence.
+ *   Collapsed group destinations stay reachable through the native
+ *   `UNavigationMenu` popover.
+ * - S4 behavior preservation: breadcrumb, search, color-mode, tenant
+ *   switching, account menu and the native mobile sidebar toggle.
+ *
+ * Strategy: rendered-DOM assertions where the installed @nuxt/ui components
+ * produce observable output (`--width`, `data-collapsed`, aria-labels) plus
+ * narrow SFC source assertions for props the DOM does not expose (min/max).
+ * Source assertions are contracts, not rendered-fidelity proof (per L4).
  */
 
-// ── Router fixture (Nuxt UI Pro shell components inject route context) ────────
+// ── Mocks ─────────────────────────────────────────────────────────────────────
+
+vi.mock('@/app/composables/useSidebar', async () => {
+  const { ref } = await vi.importActual<typeof import('vue')>('vue')
+
+  const currentTenantLabel = ref('Sucursal Centro')
+  const currentTenantSlug = ref('centro')
+  const showTenantSwitcher = ref(true)
+  const user = ref({ name: 'Ana Torres', avatar: { alt: 'Ana Torres', text: 'AT' } })
+  const teamsItems = ref([[{ label: 'Sucursal Centro' }]])
+  const userItems = ref([[{ label: 'Perfil' }]])
+
+  const getNavigationItems = vi.fn(() => [
+    {
+      label: 'POS',
+      icon: 'i-lucide-shopping-cart',
+      // Mirrors the real `useSidebar` output after S6: every module group starts
+      // closed even on an active child route.
+      defaultOpen: false,
+      children: [
+        { label: 'Ventas', icon: 'i-lucide-shopping-cart', to: '/pos/ventas' },
+        { label: 'Productos', icon: 'i-lucide-package', to: '/pos/products' },
+      ],
+    },
+    { label: 'Dashboard', icon: 'i-lucide-layout-dashboard', to: '/dashboard' },
+  ])
+
+  return {
+    useSidebar: () => ({
+      tenants: ref([]),
+      currentTenantLabel,
+      currentTenantSlug,
+      showTenantSwitcher,
+      switchTenant: vi.fn(),
+      teamsItems,
+      user,
+      userItems,
+      getNavigationItems,
+      changeColorMode: vi.fn(),
+    }),
+  }
+})
+
+vi.mock('@/app/composables/useDashboard', async () => {
+  const { ref } = await vi.importActual<typeof import('vue')>('vue')
+
+  const isSidebarOpen = ref(false)
+  const isSidebarCollapsed = ref(false)
+  const isSearchOpen = ref(false)
+  const searchGroups = ref([])
+  const openSearch = vi.fn()
+
+  return {
+    useDashboard: () => ({
+      isSidebarOpen,
+      isSidebarCollapsed,
+      isSearchOpen,
+      searchGroups,
+      openSearch,
+      toggleSidebarOpen: vi.fn(),
+      toggleSidebarCollapse: vi.fn(),
+    }),
+  }
+})
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+// `mountWithUApp` returns a child wrapper, so `.unmount()` must be delegated to
+// the test-utils auto-unmount hook rather than called directly.
+enableAutoUnmount(afterEach)
+
+// The composables are mocked with module-scoped refs shared across tests, so
+// reset the shell state before every test to keep mounts independent.
+beforeEach(() => {
+  localStorage.clear()
+  const dashboard = useDashboard()
+  dashboard.isSidebarOpen.value = false
+  dashboard.isSidebarCollapsed.value = false
+  dashboard.isSearchOpen.value = false
+  setTenantSwitcher(true)
+})
+
+// jsdom does not implement `scrollIntoView`, which the command palette calls
+// when the shell search modal opens.
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {}
+}
+
+const SFC_PATH = join(__dirname, '..', 'DashboardLayout.vue')
+/** Key used by @nuxt/ui `useResizable` for `id="shell"` under storage-key "hound-dashboard". */
+const SIDEBAR_STORAGE_KEY = 'hound-dashboard-sidebar-shell'
+
+function readSfc(): string {
+  return readFileSync(SFC_PATH, 'utf-8')
+}
 
 function createTestRouter() {
   return createRouter({
@@ -38,299 +137,460 @@ function createTestRouter() {
   })
 }
 
-// ── Mocks ─────────────────────────────────────────────────────────────────────
-
-vi.mock('@/app/composables/useSidebar', () => ({
-  useSidebar: () => ({
-    tenants: ref([]),
-    currentTenantLabel: ref('Coco'),
-    currentTenantSlug: ref(''),
-    showTenantSwitcher: ref(false),
-    switchTenant: vi.fn(),
-    selectedTeam: ref({}),
-    teamsItems: ref([[]]),
-    user: ref({ name: 'Coco', avatar: { alt: 'Coco', text: 'CO' } }),
-    userItems: ref([[]]),
-    getNavigationItems: vi.fn().mockReturnValue([]),
-    changeColorMode: vi.fn(),
-  }),
-}))
-
-vi.mock('@/app/composables/useDashboard', () => ({
-  useDashboard: () => ({
-    isSidebarOpen: ref(false),
-    isSidebarCollapsed: ref(false),
-    isSearchOpen: ref(false),
-    searchGroups: ref([]),
-    toggleSidebarOpen: vi.fn(),
-    toggleSidebarCollapse: vi.fn(),
-    openSearch: vi.fn(),
-  }),
-}))
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-const LAYOUT_PATH = join(__dirname, '..', 'DashboardLayout.vue')
-const SIDEBAR_PATH = join(__dirname, '..', 'DashboardLayout.vue')
-
-function readSfc(): string {
-  return readFileSync(SIDEBAR_PATH, 'utf-8')
-}
-
-/**
- * Extract the `:ui="{ ... }"` body of a top-level component in the SFC
- * template. Uses a word boundary on the component name so it does NOT
- * match longer sibling names like `UDashboardSearchButton` /
- * `UDashboardSearchCollapse` when looking for `UDashboardSearch`.
- */
-function extractUiBlock(sfc: string, componentName: string): string {
-  // Match <ComponentName followed by space, `>`, or `/` to avoid
-  // matching prefixes like UDashboardSearchButton.
-  const pattern = new RegExp(
-    `<${componentName}(?:\\s|>|\\/)[\\s\\S]*?:ui="\\{([\\s\\S]*?)\\}\\s*"(?:\\s|>|\\/)`,
-  )
-  const match = sfc.match(pattern)
-  if (!match) return ''
-  return match[1] ?? ''
-}
-
-function mountLayout() {
+function mountLayout(initialPath = '/') {
   const router = createTestRouter()
+  router.push(initialPath)
   return mountWithUApp(DashboardLayout, {
     global: { plugins: [router] },
   })
 }
 
+async function mountLayoutAt(initialPath: string) {
+  const router = createTestRouter()
+  await router.push(initialPath)
+  await router.isReady()
+  return mountWithUApp(DashboardLayout, {
+    global: { plugins: [router] },
+  })
+}
+
+/** Locate a navigation group trigger by its visible label. */
+function findNavTrigger(wrapper: ReturnType<typeof mountWithUApp>, label: string) {
+  return wrapper
+    .findAll('.hf-shell-nav [data-slot="link"]')
+    .find((link) => link.text().includes(label))
+}
+
+/** Native accordion state of the list item that owns a group trigger. */
+function navGroupState(wrapper: ReturnType<typeof mountWithUApp>, label: string) {
+  return findNavTrigger(wrapper, label)
+    ?.element.closest('li[data-slot="item"]')
+    ?.getAttribute('data-state')
+}
+
+/** Toggle a closed group open through the installed Accordion trigger. */
+async function openNavGroup(wrapper: ReturnType<typeof mountWithUApp>, label: string) {
+  const trigger = findNavTrigger(wrapper, label)
+  if (!trigger) throw new Error(`navigation group "${label}" not found`)
+  await trigger.trigger('click')
+  await nextTick()
+}
+
+/**
+ * The real `useSidebar` exposes `showTenantSwitcher` as a readonly computed;
+ * the test mock supplies a writable ref so single-tenant rendering is testable.
+ */
+function setTenantSwitcher(value: boolean) {
+  ;(useSidebar().showTenantSwitcher as Ref<boolean>).value = value
+}
+
+/**
+ * Hooks owned by the CSS unit and rendered by the shell.
+ *
+ * `hf-shell-panel` (elevated card) is intentionally excluded: the routed views
+ * own their content panels, so the shell does not wrap `<slot />` (S3 "no
+ * page-content redesign"). The workspace hook paints the page plane on the
+ * panel body instead.
+ */
+const SHELL_HOOKS = [
+  'hf-shell',
+  'hf-shell-sidebar',
+  'hf-shell-brand',
+  'hf-shell-brand-logo',
+  'hf-shell-tenant',
+  'hf-shell-search',
+  'hf-shell-nav',
+  'hf-shell-footer',
+  'hf-shell-user',
+  'hf-shell-navbar',
+  'hf-shell-breadcrumb',
+  'hf-shell-actions',
+  'hf-shell-workspace',
+  'hf-shell-portal',
+  'hf-shell-nav-portal',
+] as const
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
-describe('DashboardLayout — Coco shell binding (DSC-REQ-013)', () => {
+describe('DashboardLayout — unified shell hooks and scoped palette (S1–S3)', () => {
   let wrapper: ReturnType<typeof mountWithUApp>
-  let sfc: string
 
   beforeEach(() => {
+    localStorage.clear()
     wrapper = mountLayout()
-    sfc = readSfc()
   })
 
-  // DSC-REQ-003: Sidebar body carries the coco-neutral surface token.
-  it('UDashboardSidebar :ui.body includes bg-coco-neutral-50 dark:bg-coco-neutral-950', () => {
-    const ui = extractUiBlock(sfc, 'UDashboardSidebar')
-    expect(ui, 'UDashboardSidebar :ui block must exist in DashboardLayout.vue').toBeTruthy()
-    expect(ui).toMatch(/body:\s*['"][^'"]*bg-coco-neutral-50[^'"]*dark:bg-coco-neutral-950/)
+  it('imports the CSS-unit stylesheet that owns the shell palette', () => {
+    const sfc = readSfc()
+    expect(sfc).toMatch(/import\s+['"]\.\/styles\/unified-shell\.css['"]/)
   })
 
-  // DSC-REQ-013-R: Navbar header is neutral (no gold) and renders a
-  // first-level breadcrumb instead of the hardcoded "Coco" title.
-  it('UDashboardNavbar :ui is neutral (no coco-gold) and drops the hardcoded title', () => {
-    const ui = extractUiBlock(sfc, 'UDashboardNavbar')
-    expect(ui, 'UDashboardNavbar :ui block must exist in DashboardLayout.vue').toBeTruthy()
-    // The header is now neutral - no gold on title/leading.
-    expect(ui).not.toMatch(/text-coco-gold-500/)
-    // The hardcoded brand title + dashboard icon are gone.
-    expect(sfc).not.toMatch(/title="Coco"/)
-    expect(sfc).not.toMatch(/icon="i-lucide-layout-dashboard"/)
-    // A nav[aria-label="breadcrumb"] renders in the #left slot.
-    expect(sfc).toMatch(/aria-label="breadcrumb"/)
+  it('does not hardcode obsolete Coco/gold palette classes in the shell', () => {
+    const sfc = readSfc()
+    expect(sfc).not.toMatch(/coco-gold/)
+    expect(sfc).not.toMatch(/coco-neutral/)
+    expect(sfc).not.toMatch(/coco-navy/)
   })
 
-  // DSC-REQ-003: Sidebar collapse button gold icon
-  it('UDashboardSidebarCollapse :ui carries text-coco-gold-500 on leadingIcon', () => {
-    // DashboardLayout renders two UDashboardSidebarCollapse instances
-    // (footer + navbar leading). At least one must carry the gold slot.
-    const pattern = /<UDashboardSidebarCollapse[^>]*:ui="\{([\s\S]*?)\}"/g
-    const matches = [...sfc.matchAll(pattern)]
-    expect(matches.length, 'at least one UDashboardSidebarCollapse must exist').toBeGreaterThanOrEqual(1)
-    const anyWithGold = matches.some((m) => /leadingIcon:\s*['"][^'"]*text-coco-gold-500/.test(m[1] ?? ''))
-    expect(anyWithGold, 'at least one UDashboardSidebarCollapse :ui.leadingIcon must carry text-coco-gold-500').toBe(true)
+  it.each(SHELL_HOOKS)('source declares the %s hook', (hook) => {
+    expect(readSfc()).toContain(hook)
   })
 
-  // DSC-REQ-004: UNavigationMenu active-state gold tokens
-  it('UNavigationMenu :ui carries linkLabel, linkActive, linkLeadingIconActive gold overrides', () => {
-    const ui = extractUiBlock(sfc, 'UNavigationMenu')
-    expect(ui, 'UNavigationMenu :ui block must exist in DashboardLayout.vue').toBeTruthy()
-    expect(ui).toMatch(/linkLabel:\s*['"][^'"]*text-coco-gold-500/)
-    expect(ui).toMatch(/linkActive:\s*['"][^'"]*bg-coco-gold-500\/10/)
-    expect(ui).toMatch(/linkLeadingIconActive:\s*['"][^'"]*text-coco-gold-500/)
+  it.each([
+    'hf-shell',
+    'hf-shell-sidebar',
+    'hf-shell-brand',
+    'hf-shell-brand-logo',
+    'hf-shell-tenant',
+    'hf-shell-search',
+    'hf-shell-nav',
+    'hf-shell-footer',
+    'hf-shell-user',
+    'hf-shell-navbar',
+    'hf-shell-breadcrumb',
+    'hf-shell-actions',
+    'hf-shell-workspace',
+  ])('renders the %s hook element in the live shell', (hook) => {
+    expect(wrapper.find(`.${hook}`).exists(), `.${hook} must render`).toBe(true)
   })
 
-  // DSC-REQ-005: Search button gold hover
-  it('UDashboardSearchButton :ui carries hover:bg-coco-gold-500/10 on base', () => {
-    const ui = extractUiBlock(sfc, 'UDashboardSearchButton')
-    expect(ui, 'UDashboardSearchButton :ui block must exist in DashboardLayout.vue').toBeTruthy()
-    expect(ui).toMatch(/base:\s*['"][^'"]*hover:bg-coco-gold-500\/10/)
+  it('scopes portal surfaces (dropdown + search) with hf-shell-portal', () => {
+    const sfc = readSfc()
+    const matches = sfc.match(/hf-shell-portal/g) ?? []
+    // tenant dropdown, footer user dropdown, navbar account menu, drawer and
+    // the global search modal.
+    expect(matches.length).toBeGreaterThanOrEqual(3)
+    expect(sfc).toMatch(/<(?:UDropdownMenu|UDashboardSearch)[^>]*hf-shell-portal/)
   })
 
-  // DSC-REQ-010: User dropdown checkicon gold (itemLeadingIcon)
-  it('user UDropdownMenu :ui.itemLeadingIcon carries group-data-[checked=true]:text-coco-gold-500', () => {
-    // DashboardLayout renders two UDropdownMenu instances (tenant +
-    // user). Tenant dropdown MUST NOT have Coco gold on itemLeadingIcon
-    // (DSC-REQ-009). User dropdown MUST have it. So we look for the
-    // user dropdown's :ui block specifically.
-    const pattern = /<UDropdownMenu[^>]*:ui="\{([\s\S]*?)\}"/g
-    const matches = [...sfc.matchAll(pattern)]
-    expect(matches.length, 'at least one UDropdownMenu :ui must exist').toBeGreaterThanOrEqual(1)
-    const anyWithGold = matches.some((m) =>
-      /itemLeadingIcon:\s*['"][^'"]*group-data-\[checked=true\]:text-coco-gold-500/.test(m[1] ?? ''),
+  it('scopes shell variables from the root without styling routed content globally', () => {
+    const sfc = readSfc()
+    // The root owns `hf-shell`; the layout must not introduce a global
+    // `hf-ui` override across routed pages.
+    expect(sfc).toMatch(/<UDashboardGroup[\s\S]*?class="[^"]*hf-shell/)
+    expect(sfc).not.toMatch(/hf-ui/)
+  })
+})
+
+describe('DashboardLayout — real login brand asset (S7)', () => {
+  let wrapper: ReturnType<typeof mountWithUApp>
+
+  beforeEach(() => {
+    localStorage.clear()
+    wrapper = mountLayout()
+  })
+
+  it('renders the actual login logo instead of the text imitation', () => {
+    const logo = wrapper.find('img.hf-shell-brand-logo')
+    expect(logo.exists()).toBe(true)
+    expect(logo.attributes('src')).toBe('/hounfeLogos/primary.png')
+    expect(logo.attributes('alt')).toBe('HounFe')
+  })
+
+  it('drops the artificial h/f wordmark markup from the brand row', () => {
+    const sfc = readSfc()
+    expect(sfc).not.toMatch(/hf-shell-brand-mark/)
+    expect(sfc).not.toMatch(/hf-shell-brand-name/)
+  })
+
+  it('keeps the logo inside the brand row on the compact rail with a real alt', async () => {
+    localStorage.setItem(
+      SIDEBAR_STORAGE_KEY,
+      JSON.stringify({ size: 256, collapsed: true }),
+    )
+    const compact = mountLayout()
+    await nextTick()
+
+    const logo = compact.find(
+      '.hf-shell-sidebar[data-collapsed="true"] .hf-shell-brand img.hf-shell-brand-logo',
+    )
+    expect(logo.exists()).toBe(true)
+    expect(logo.attributes('src')).toBe('/hounfeLogos/primary.png')
+    expect((logo.attributes('alt') ?? '').trim().length).toBeGreaterThan(0)
+  })
+})
+
+describe('DashboardLayout — native px sizing and persistence (S2/S4)', () => {
+  let wrapper: ReturnType<typeof mountWithUApp>
+
+  beforeEach(() => {
+    localStorage.clear()
+  })
+
+  it('uses the native px unit with min/default/max/collapsed sizes', () => {
+    const sfc = readSfc()
+    const groupTag = sfc.match(/<UDashboardGroup\b[\s\S]*?>/)![0]
+    expect(groupTag).toMatch(/unit="px"/)
+    expect(groupTag).toMatch(/storage="local"/)
+    expect(groupTag).toMatch(/storage-key="hound-dashboard"/)
+
+    const sidebarTag = sfc.match(/<UDashboardSidebar\b[\s\S]*?>/)![0]
+    expect(sidebarTag).toMatch(/:min-size="232"/)
+    expect(sidebarTag).toMatch(/:default-size="256"/)
+    expect(sidebarTag).toMatch(/:max-size="320"/)
+    expect(sidebarTag).toMatch(/:collapsed-size="76"/)
+    expect(sidebarTag).toMatch(/\bresizable\b/)
+    expect(sidebarTag).toMatch(/\bcollapsible\b/)
+  })
+
+  it('renders the native 256px default rail width', () => {
+    wrapper = mountLayout()
+    const style = wrapper.find('.hf-shell-sidebar').attributes('style') ?? ''
+    expect(style).toContain('--width: 256px')
+  })
+
+  it('renders the native 76px collapsed rail width from persisted state', async () => {
+    localStorage.setItem(
+      SIDEBAR_STORAGE_KEY,
+      JSON.stringify({ size: 256, collapsed: true }),
+    )
+    wrapper = mountLayout()
+    await nextTick()
+    expect(wrapper.find('.hf-shell-sidebar').attributes('data-collapsed')).toBe('true')
+    const style = wrapper.find('.hf-shell-sidebar').attributes('style') ?? ''
+    expect(style).toContain('--width: 76px')
+  })
+
+  it('keeps the existing collapse toggle wired to the native collapse control', () => {
+    wrapper = mountLayout()
+    expect(wrapper.find('button[aria-label="Collapse sidebar"]').exists()).toBe(true)
+  })
+})
+
+describe('DashboardLayout — collapsed rail reachability (S2/S4)', () => {
+  let wrapper: ReturnType<typeof mountWithUApp>
+
+  beforeEach(() => {
+    localStorage.clear()
+    useDashboard().isSidebarOpen.value = false
+  })
+
+  it('drives collapsed navigation through the native popover so groups stay reachable', () => {
+    const sfc = readSfc()
+    const navTag = sfc.match(/<UNavigationMenu\b[\s\S]*?\/?>/)![0]
+    expect(navTag).toMatch(/:collapsed="collapsed"/)
+    expect(navTag).toMatch(/\bpopover\b/)
+    // The active-class decoration is derived from the live route before the
+    // items reach the installed NavigationMenu.
+    expect(navTag).toMatch(/:items="navigationFor\(collapsed\)"/)
+  })
+
+  it('forwards the shell portal markers into the real installed compact popover content', async () => {
+    localStorage.setItem(
+      SIDEBAR_STORAGE_KEY,
+      JSON.stringify({ size: 256, collapsed: true }),
+    )
+    wrapper = mountLayout()
+    await nextTick()
+
+    // Collapsed group destinations open a teleported NavigationMenu popover.
+    // Focusing its trigger proves the `ui.content` markers reach the installed
+    // popover surface instead of only living in the SFC source.
+    await wrapper.get('.hf-shell-nav [data-slot="link"]').trigger('focus')
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    await nextTick()
+
+    const portalContent = document.body.querySelector<HTMLElement>(
+      '[data-slot="content"].hf-shell-nav-portal',
     )
     expect(
-      anyWithGold,
-      'user UDropdownMenu :ui.itemLeadingIcon must carry group-data-[checked=true]:text-coco-gold-500',
+      portalContent,
+      'the installed compact popover content must carry the nav portal hook',
+    ).not.toBeNull()
+    expect(portalContent!.classList.contains('hf-shell-portal')).toBe(true)
+    // The popover leaves the shell root, so the marker (not an ancestor) is
+    // what repeats the shell palette on the teleported surface.
+    expect(document.querySelector('.hf-shell [data-slot="content"].hf-shell-nav-portal')).toBeNull()
+  })
+
+  it('marks the active rail destination, including child links', async () => {
+    const active = await mountLayoutAt('/pos/ventas')
+
+    // S6: groups start closed, so the child link only exists once the user
+    // expands the group. Active styling still reaches both levels.
+    await openNavGroup(active, 'POS')
+
+    // Vertical child links render through the installed NavigationMenu `link`
+    // slot (the `childLink` slot is reserved for collapsed popovers), so the
+    // child anchor carries the class plus aria-current.
+    const childLink = active.find('a[href="/pos/ventas"].hf-shell-nav-active')
+    expect(childLink.exists()).toBe(true)
+    expect(childLink.text()).toContain('Ventas')
+    expect(childLink.attributes('aria-current')).toBe('page')
+    // Group heading is marked active too.
+    expect(active.findAll('.hf-shell-nav-active').length).toBeGreaterThanOrEqual(2)
+  })
+
+  it('marks the current breadcrumb item with the shell current hook', async () => {
+    const active = await mountLayoutAt('/pos/ventas')
+    const current = active.find('.hf-shell-breadcrumb-current')
+    expect(current.exists()).toBe(true)
+    expect(current.text()).toContain('Ventas')
+    expect(current.attributes('aria-current')).toBe('page')
+  })
+
+  it('keeps the mobile drawer expanded even when the desktop rail is collapsed', async () => {
+    localStorage.setItem(
+      SIDEBAR_STORAGE_KEY,
+      JSON.stringify({ size: 256, collapsed: true }),
+    )
+    useDashboard().isSidebarOpen.value = true
+
+    wrapper = mountLayout()
+    await nextTick()
+
+    expect(wrapper.find('.hf-shell-sidebar').attributes('data-collapsed')).toBe('true')
+
+    const drawer = document.body.querySelector('[data-hf-shell-drawer]')
+    expect(drawer, 'mobile drawer must render when open').not.toBeNull()
+    const drawerNav = drawer!.querySelector('[data-collapsed]')
+    expect(
+      drawerNav?.getAttribute('data-collapsed'),
+      'drawer navigation must not inherit the collapsed rail state',
+    ).toBe('false')
+
+    useDashboard().isSidebarOpen.value = false
+  })
+})
+
+describe('DashboardLayout — module groups start closed and stay user-toggleable (S6)', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    useDashboard().isSidebarOpen.value = false
+  })
+
+  it('mounts the active Products route with the POS group closed', async () => {
+    const wrapper = await mountLayoutAt('/pos/products')
+
+    expect(navGroupState(wrapper, 'POS')).toBe('closed')
+
+    // Route-active styling must mark the heading without forcing it open.
+    const trigger = findNavTrigger(wrapper, 'POS')
+    expect(trigger?.classes()).toContain('hf-shell-nav-active')
+    expect(wrapper.find('a[href="/pos/products"]').exists()).toBe(false)
+  })
+
+  it('opens a closed group on click and collapses it again', async () => {
+    const wrapper = await mountLayoutAt('/pos/products')
+
+    expect(navGroupState(wrapper, 'POS')).toBe('closed')
+
+    await openNavGroup(wrapper, 'POS')
+    expect(navGroupState(wrapper, 'POS')).toBe('open')
+    expect(wrapper.find('a[href="/pos/products"]').exists()).toBe(true)
+
+    await openNavGroup(wrapper, 'POS')
+    expect(navGroupState(wrapper, 'POS')).toBe('closed')
+  })
+})
+
+describe('DashboardLayout — preserved shell behavior (S4)', () => {
+  let wrapper: ReturnType<typeof mountWithUApp>
+
+  beforeEach(() => {
+    localStorage.clear()
+    useDashboard().isSidebarOpen.value = false
+    setTenantSwitcher(true)
+    wrapper = mountLayout()
+  })
+
+  it('mounts successfully under mountWithUApp with router', () => {
+    expect(wrapper.html().length).toBeGreaterThan(0)
+  })
+
+  it('renders the breadcrumb with an accessible nav landmark', () => {
+    expect(wrapper.find('nav[aria-label="breadcrumb"]').exists()).toBe(true)
+    expect(wrapper.find('.hf-shell-breadcrumb').text()).toContain('Dashboard')
+  })
+
+  it('wires the navbar search action to the existing openSearch behavior', async () => {
+    const openSearch = useDashboard().openSearch
+    const search = wrapper.find('button[aria-label="Buscar"]')
+    expect(search.exists()).toBe(true)
+    await search.trigger('click')
+    expect(openSearch).toHaveBeenCalled()
+  })
+
+  it('opens the shared dashboard search from the shell search trigger', async () => {
+    const trigger = wrapper.find('.hf-shell-search')
+    expect(trigger.exists()).toBe(true)
+    await trigger.trigger('click')
+    expect(useDashboard().isSearchOpen.value).toBe(true)
+  })
+
+  it('keeps the color-mode toggle in the navbar actions', () => {
+    expect(
+      wrapper.find('.hf-shell-actions button[aria-label^="Switch to"]').exists(),
     ).toBe(true)
   })
 
-  // DSC-REQ-009 (complement): tenant dropdown MUST NOT have Coco gold.
-  it('tenant UDropdownMenu :ui does NOT carry group-data-[checked=true]:text-coco-gold-500', () => {
-    // Read the file and inspect all UDropdownMenu :ui blocks. At least
-    // one (the tenant dropdown) must NOT carry the gold selector. The
-    // user dropdown does carry it. This is a sanity anchor for
-    // DSC-REQ-009.
-    const pattern = /<UDropdownMenu[^>]*:ui="\{([\s\S]*?)\}"/g
-    const matches = [...sfc.matchAll(pattern)]
-    const withoutGold = matches.filter(
-      (m) => !/itemLeadingIcon:\s*['"][^'"]*group-data-\[checked=true\]:text-coco-gold-500/.test(m[1] ?? ''),
+  it('renders the tenant card with actual tenant data and the switcher', () => {
+    expect(
+      wrapper.find('button[aria-label="Seleccionar sucursal: Sucursal Centro"]').exists(),
+    ).toBe(true)
+    expect(wrapper.find('.hf-shell-tenant').text()).toContain('Sucursal Centro')
+  })
+
+  it('falls back to a non-interactive tenant label for single-tenant users', async () => {
+    setTenantSwitcher(false)
+    await nextTick()
+    expect(
+      wrapper.find('button[aria-label="Seleccionar sucursal: Sucursal Centro"]').exists(),
+    ).toBe(false)
+    expect(wrapper.find('.hf-shell-tenant').text()).toContain('Sucursal Centro')
+  })
+
+  it('renders the account menu avatar in the navbar actions', () => {
+    expect(wrapper.find('.hf-shell-actions [aria-label="Abrir menú de usuario"]').exists()).toBe(
+      true,
     )
-    // We need at least one without the gold (tenant dropdown). And
-    // the wrapper must still render — regression anchor.
-    expect(withoutGold.length, 'at least one UDropdownMenu :ui must NOT carry the gold selector (tenant dropdown)').toBeGreaterThanOrEqual(1)
   })
 
-  // DSC-REQ-006: UDashboardSearch HARD RULE — no forced dark bg on shell slots.
-  it('UDashboardSearch :ui does NOT force any bg-coco-neutral-* on header/body/footer (Engram #3427)', () => {
-    const ui = extractUiBlock(sfc, 'UDashboardSearch')
-    expect(ui, 'UDashboardSearch :ui block must exist in DashboardLayout.vue').toBeTruthy()
-
-    // The shell slots must NOT contain any bg-coco-neutral-* class.
-    for (const slot of ['header', 'body', 'footer']) {
-      const slotPattern = new RegExp(`${slot}:\\s*['"]([^'"]*)['"]`)
-      const slotMatch = ui.match(slotPattern)
-      if (slotMatch) {
-        const slotValue = slotMatch[1]
-        expect(slotValue, `UDashboardSearch :ui.${slot} must NOT force bg-coco-neutral-*`).not.toMatch(
-          /bg-coco-neutral-/,
-        )
-        expect(slotValue, `UDashboardSearch :ui.${slot} must NOT force dark:bg-coco-neutral-*`).not.toMatch(
-          /dark:bg-coco-neutral-/,
-        )
-      }
-      // absence is allowed (slot key simply not defined) — explicit
-      // presence with Coco dark bg is the violation.
-    }
+  it('keeps the footer user trigger with the account menu', () => {
+    expect(wrapper.find('.hf-shell-footer .hf-shell-user').exists()).toBe(true)
+    expect(wrapper.find('.hf-shell-user').attributes('aria-label')).toBe('Abrir menú de usuario')
   })
 
-  // DSC-REQ-007: UDashboardSearch INTERNAL Coco accents
-  it('UDashboardSearch :ui carries Coco gold tokens on input, groupLabel, itemActive', () => {
-    const ui = extractUiBlock(sfc, 'UDashboardSearch')
-    expect(ui, 'UDashboardSearch :ui block must exist in DashboardLayout.vue').toBeTruthy()
-    expect(ui).toMatch(/input:\s*['"][^'"]*focus-visible:ring-coco-gold-500/)
-    expect(ui).toMatch(/groupLabel:\s*['"][^'"]*text-coco-gold-700[^'"]*dark:text-coco-gold-400/)
-    expect(ui).toMatch(/itemActive:\s*['"][^'"]*bg-coco-gold-500\/10/)
-  })
-
-  // Sanity: wrapper renders without crash (mount works)
-  it('mounts DashboardLayout successfully under mountWithUApp with router', () => {
-    const html = wrapper.html()
-    expect(html.length).toBeGreaterThan(0)
+  it('passes the live collapsed flag into the navigation composable', () => {
+    expect(useSidebar().getNavigationItems).toHaveBeenCalledWith(false)
   })
 })
 
 // ──────────────────────────────────────────────────────────────────────
-// S1 — App-shell mobile sidebar trigger (ASNT-REQ-001 / 002 / 003).
-//
-// Anchors the user-facing regression fix where `:toggle="false"` on
-// UDashboardNavbar suppressed the installed @nuxt/ui native
-// UDashboardSidebarToggle. The fix removes the suppression so the
-// native accessible sidebar trigger returns to the navbar leading
-// slot below `lg`, while the existing UDashboardSidebarCollapse (the
-// separate desktop collapse control) remains in place.
-//
-// Strategy: SFC source assertions are the primary contract (matching
-// the existing DSC-REQ-* convention). The mount seam below uses the
-// real @nuxt/ui UDashboardNavbar with the existing `mountLayout`
-// helper and queries the rendered DOM directly: once `:toggle="false"`
-// is removed, `toggle` defaults back to `true` and the navbar renders
-// its native UDashboardSidebarToggle in the leading position.
+// Native mobile sidebar trigger (ASNT-REQ-001/002/003) — preserved.
+// The user-facing fix keeps the installed @nuxt/ui native
+// UDashboardSidebarToggle in the navbar leading slot while the separate
+// desktop UDashboardSidebarCollapse stays in the same slot.
 // ──────────────────────────────────────────────────────────────────────
 
 describe('DashboardLayout — mobile sidebar trigger (ASNT-REQ-001/002/003)', () => {
-  let sfc: string
+  let wrapper: ReturnType<typeof mountWithUApp>
 
   beforeEach(() => {
-    sfc = readSfc()
+    localStorage.clear()
+    useDashboard().isSidebarOpen.value = false
+    wrapper = mountLayout()
   })
 
-  // ASNT-REQ-001 (primary RED pin): the literal `:toggle="false"` suppression
-  // MUST be removed from the UDashboardNavbar opening tag. Restoring the
-  // installed @nuxt/ui native UDashboardSidebarToggle is the user-facing
-  // fix; this source assertion is the most direct way to pin it.
-  it('UDashboardNavbar no longer suppresses the native sidebar toggle (ASNT-REQ-001)', () => {
-    const navbarTag = sfc.match(/<UDashboardNavbar\b[\s\S]*?>/)
-    expect(
-      navbarTag,
-      'UDashboardNavbar opening tag must exist in DashboardLayout.vue',
-    ).not.toBeNull()
-    expect(
-      navbarTag![0],
-      'UDashboardNavbar MUST NOT carry :toggle="false" — the native UDashboardSidebarToggle was being suppressed',
-    ).not.toMatch(/:toggle="false"/)
+  it('does not suppress the native sidebar toggle', () => {
+    const navbarTag = readSfc().match(/<UDashboardNavbar\b[\s\S]*?>/)![0]
+    expect(navbarTag).not.toMatch(/:toggle="false"/)
   })
 
-  // ASNT-REQ-002 (TRIANGULATE / preservation): the existing
-  // UDashboardSidebarCollapse in the navbar's `#left` slot MUST remain.
-  // Desktop collapse behavior is intentionally untouched.
-  it('preserves UDashboardSidebarCollapse inside the navbar #left slot (ASNT-REQ-002)', () => {
-    const leftSlot = sfc.match(/<template #left>[\s\S]*?<\/template>/)
-    expect(
-      leftSlot,
-      'UDashboardNavbar `<template #left>` block must exist',
-    ).not.toBeNull()
-    expect(
-      leftSlot![0],
-      'UDashboardSidebarCollapse must remain in the navbar #left slot — desktop collapse is a separate behavior',
-    ).toMatch(/UDashboardSidebarCollapse/)
-  })
-
-  // ASNT-REQ-003 (TRIANGULATE / scope): the navbar's :ui override and the
-  // right slot (search, bell, color mode) remain untouched. No unrelated
-  // shell restructuring is introduced.
-  it('keeps the navbar :ui override and right slot untouched (ASNT-REQ-003)', () => {
-    const navbarTag = sfc.match(/<UDashboardNavbar\b[\s\S]*?>/)
-    expect(navbarTag).not.toBeNull()
-    expect(
-      navbarTag![0],
-      'UDashboardNavbar :ui override for the left slot must remain',
-    ).toMatch(/:ui="\{ left: 'gap-3', toggle: 'size-11' \}"/)
-
-    expect(sfc, 'breadcrumbs must remain in the navbar').toMatch(/aria-label="breadcrumb"/)
-    expect(sfc, 'search trigger must remain in the navbar right slot').toMatch(/<template #right>/)
-    expect(sfc, 'color-mode button must remain in the navbar right slot').toMatch(/UColorModeButton/)
-  })
-
-  // ASNT-REQ-001 (mount seam / WCAG 2.5.5): with the layout mounted under
-  // the existing mountWithUApp seam, the installed @nuxt/ui native
-  // UDashboardSidebarToggle MUST be present in the rendered navbar output.
-  // The toggle renders as a <button> with the i18n-resolved aria-label
-  // "Open sidebar" (verified at node_modules/@nuxt/ui/dist/runtime/locale/
-  // en.js: dashboardSidebarToggle.open -> "Open sidebar") and is the leading
-  // control in the navbar #left slot, placed before the separate desktop
-  // UDashboardSidebarCollapse control. jsdom does not compute styles, so
-  // this test pins the rendered DOM: the toggle button MUST carry the exact
-  // `size-11` Tailwind class (44x44 px, WCAG 2.5.5 compliant).
-  it('native sidebar toggle renders with 44x44 target (ASNT-REQ-001 / WCAG 2.5.5)', () => {
-    const wrapper = mountLayout()
+  it('renders the native toggle with a 44x44 target before the breadcrumb', () => {
     const nativeToggle = wrapper.find('button[aria-label="Open sidebar"]')
     expect(nativeToggle.exists()).toBe(true)
     expect(nativeToggle.classes()).toContain('size-11')
-    // The toggle must precede the breadcrumb (it is the leading control).
+
     const breadcrumb = wrapper.find('nav[aria-label="breadcrumb"]')
     expect(breadcrumb.exists()).toBe(true)
     const position = nativeToggle.element.compareDocumentPosition(breadcrumb.element)
     expect(Boolean(position & Node.DOCUMENT_POSITION_FOLLOWING)).toBe(true)
-    // The desktop collapse control must remain in the same #left slot,
-    // distinct from the mobile toggle (ASNT-REQ-002).
-    const collapse = wrapper.find('button[aria-label="Collapse sidebar"]')
-    expect(collapse.exists()).toBe(true)
+  })
+
+  it('keeps the desktop collapse control in the navbar leading slot', () => {
+    const leftSlot = readSfc().match(/<template #left>[\s\S]*?<\/template>/)![0]
+    expect(leftSlot).toMatch(/UDashboardSidebarCollapse/)
+    expect(wrapper.find('button[aria-label="Collapse sidebar"]').exists()).toBe(true)
   })
 })
-
-// Re-export LAYOUT_PATH to keep the reference for debugging.
-export { LAYOUT_PATH }

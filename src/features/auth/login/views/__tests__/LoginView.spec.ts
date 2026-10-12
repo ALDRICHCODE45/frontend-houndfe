@@ -159,6 +159,43 @@ describe('LoginView password then OTP', () => {
     vi.useRealTimers()
   })
 
+  it.each([
+    ['authenticated', '/dashboard'],
+    ['needs-tenant-selection', '/select-tenant'],
+  ])('routes direct password completion in phase %s', async (phase, destination) => {
+    login.mockImplementation(async () => {
+      store.authPhase = phase
+      return { requiresTenantSelection: phase === 'needs-tenant-selection' }
+    })
+    const wrapper = render()
+    await password(wrapper)
+    expect(push).toHaveBeenCalledExactlyOnceWith(destination)
+    expect(wrapper.find('[data-test="verify"]').exists()).toBe(false)
+    expect(verify).not.toHaveBeenCalled()
+  })
+
+  it('uses permission-aware redirects for direct password login', async () => {
+    login.mockImplementation(async () => {
+      store.authPhase = 'authenticated'
+      return { requiresTenantSelection: false }
+    })
+    route.query.redirect = '/dashboard'
+    store.userCan.mockImplementation(
+      (action: string, subject: string) => action === 'read' && subject === 'Sale',
+    )
+    const wrapper = render()
+    await password(wrapper)
+    expect(push).toHaveBeenCalledExactlyOnceWith('/pos/ventas')
+  })
+
+  it('does not navigate for a cancelled direct login result', async () => {
+    store.authPhase = 'authenticated'
+    login.mockResolvedValue(null)
+    const wrapper = render()
+    await password(wrapper)
+    expect(push).not.toHaveBeenCalled()
+  })
+
   it('does not navigate after password, even with an existing authenticated session', async () => {
     store.authPhase = 'authenticated'
     const wrapper = render()

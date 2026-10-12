@@ -24,6 +24,12 @@ const props = withDefaults(
     discountCents: number
     totalCents: number
     excludedPromotions?: ExcludedPromotion[]
+    /**
+     * Optional teleport boundary marker forwarded to the installed Modal's
+     * `ui.content`. Absent by default, so the dialog keeps `sm:max-w-md` and
+     * every native default.
+     */
+    portalClass?: string
   }>(),
   {
     excludedPromotions: () => [],
@@ -39,6 +45,17 @@ const subtotalFormatted = computed(() => formatCentsMXN(props.subtotalCents))
 const discountFormatted = computed(() => formatCentsMXN(props.discountCents))
 const totalFormatted = computed(() => formatCentsMXN(props.totalCents))
 
+// T3: only the caller's opt-in swaps the forced legacy gold utility; omission
+// keeps the previous class string exactly.
+const modalUi = computed(() => ({
+  content: props.portalClass ? `sm:max-w-md ${props.portalClass}` : 'sm:max-w-md',
+}))
+const acceptButtonClass = computed(() =>
+  props.portalClass
+    ? 'w-full justify-center sales-entry-primary-action rounded-xl font-semibold shadow-sm sm:w-auto'
+    : 'w-full justify-center rounded-xl font-semibold shadow-sm sm:w-auto !bg-(--brand-action) !text-black hover:!brightness-110',
+)
+
 function handleAccept() {
   emit('accept')
 }
@@ -51,7 +68,7 @@ function handleAccept() {
     :close="false"
     title="Actualizamos los totales de tu venta"
     description="El cupo de una promoción cambió al confirmar el cobro. Revisá los nuevos importes antes de volver a cobrar."
-    :ui="{ content: 'sm:max-w-md' }"
+    :ui="modalUi"
   >
     <template #body>
       <div data-testid="requote-modal" class="space-y-4">
@@ -115,7 +132,7 @@ function handleAccept() {
         <UButton
           data-testid="requote-accept"
           color="primary"
-          class="w-full justify-center rounded-xl font-semibold shadow-sm sm:w-auto !bg-(--brand-action) !text-black hover:!brightness-110"
+          :class="acceptButtonClass"
           @click="handleAccept"
         >
           Entendido, revisar pagos

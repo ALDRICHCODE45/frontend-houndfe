@@ -16,6 +16,16 @@ describe('authApi', () => {
     expect(http.post).toHaveBeenCalledWith('/auth/login', payload)
   })
 
+  it.each([
+    { requiresTenantSelection: false, accessToken: 'direct', refreshToken: 'refresh' },
+    { requiresTenantSelection: true, tempToken: 'selection', expiresIn: 300 },
+  ])('unwraps direct login responses without changing the endpoint or DTO (%j)', async (result) => {
+    vi.mocked(http.post).mockResolvedValue({ data: result })
+    const payload = { email: 'user@hound.test', password: 'secret' }
+    expect(await authApi.login(payload)).toEqual(result)
+    expect(http.post).toHaveBeenCalledExactlyOnceWith('/auth/login', payload)
+  })
+
   it('verifies a string code, preserving leading zeros', async () => {
     const result = { requiresTenantSelection: true, tempToken: 'verified-selection' }
     vi.mocked(http.post).mockResolvedValue({ data: result })

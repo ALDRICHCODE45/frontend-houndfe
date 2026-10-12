@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it } from 'vitest'
 import { shallowMount } from '@vue/test-utils'
+import { nextTick } from 'vue'
+import { mountWithUApp } from '@/test/mountWithUApp'
 import ProductCard from '../ProductCard.vue'
 import type { Product } from '../../interfaces/product.types'
 
@@ -48,25 +50,26 @@ function mountComponent(overrideProps: Record<string, unknown> = {}) {
         UDropdownMenu: {
           name: 'UDropdownMenu',
           template: `
-            <div>
+            <div data-testid="actions-menu" :data-ui-content="ui && ui.content">
               <slot />
               <div v-for="(group, groupIndex) in items" :key="groupIndex">
                 <span v-for="item in group" :key="item.label">{{ item.label }}</span>
               </div>
             </div>
           `,
-          props: ['items'],
+          props: ['items', 'ui'],
         },
         DropdownMenu: {
+          name: 'DropdownMenu',
           template: `
-            <div>
+            <div data-testid="actions-menu" :data-ui-content="ui && ui.content">
               <slot />
               <div v-for="(group, groupIndex) in items" :key="groupIndex">
                 <span v-for="item in group" :key="item.label">{{ item.label }}</span>
               </div>
             </div>
           `,
-          props: ['items'],
+          props: ['items', 'ui'],
         },
       },
     },
@@ -187,5 +190,81 @@ function mountComponent(overrideProps: Record<string, unknown> = {}) {
     )
     expect(card.classes()).not.toContain('bg-coco-neutral-50')
     expect(card.classes()).not.toContain('hover:border-coco-gold-500/30')
+  })
+
+  it('carries the shared products-card hook and themes the teleported actions menu', () => {
+    const wrapper = mountComponent({ canRead: true, canUpdate: true })
+
+    // T2 pilot hook consumed by the T1 shared presentation stylesheet.
+    expect(wrapper.get('article').classes()).toContain('products-card')
+
+    // The dropdown is portaled out of the card, so the theme boundary must
+    // travel through the native Nuxt UI `:ui.content` slot contract.
+    const menu = wrapper.get('[data-testid="actions-menu"]')
+    expect(menu.attributes('data-ui-content')).toBe(
+      'hf-theme hf-ui hf-shell-products-portal',
+    )
+
+    // Actions stay reachable and permission-gated exactly as before.
+    expect(wrapper.text()).toContain('Detalles')
+    expect(wrapper.text()).toContain('Editar')
+  })
+})
+
+// ─── Products-visual badge marker (T2 / S3) ──────────────────────────────────
+// The card only carries an inert class hook on its badge calls; badge content,
+// permissions, and events are untouched.
+
+describe('ProductCard products-visual badge hook (T2 / S3)', () => {
+  it('marks every badge call with the inert products-badge hook', () => {
+    const wrapper = mountComponent({ canRead: true })
+
+    // Category DotBadge + status StatusDotBadge + stock DotBadge.
+    expect(wrapper.findAll('.products-badge')).toHaveLength(3)
+  })
+})
+
+// ─── Product portal standalone palette (S1-S5) ────────────────────────────
+// The row-action menu is teleported outside the (unmounted) shell ancestor,
+// so the marker must reach the real installed DropdownMenu content. This is
+// a real forwarding check, not an own-string assertion.
+
+describe('ProductCard real installed actions portal (S1-S5)', () => {
+  afterEach(() => {
+    document.body.innerHTML = ''
+  })
+
+  it('forwards the products portal hook into the installed dropdown content', async () => {
+    const wrapper = mountWithUApp(ProductCard, {
+      props: {
+        product,
+        currencyFormatter: new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: 'USD',
+        }),
+        canRead: true,
+        canUpdate: true,
+      },
+      global: {
+        stubs: {
+          StatusDotBadge: { template: '<span><slot /></span>' },
+          DotBadge: { template: '<span><slot /></span>' },
+          EntityAvatar: { template: '<div data-testid="avatar" />' },
+        },
+      },
+    })
+
+    await wrapper.get('button[aria-label="Acciones del producto"]').trigger('click')
+    await nextTick()
+
+    const content = document.body.querySelector<HTMLElement>(
+      '[data-slot="content"].hf-shell-products-portal',
+    )
+    expect(
+      content,
+      'the installed actions menu content must carry the products portal hook',
+    ).not.toBeNull()
+    expect(content!.classList.contains('hf-theme')).toBe(true)
+    expect(content!.classList.contains('hf-ui')).toBe(true)
   })
 })

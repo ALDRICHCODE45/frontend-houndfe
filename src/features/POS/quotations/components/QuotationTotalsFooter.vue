@@ -75,17 +75,11 @@ const totalUnits = computed(() =>
 
 const hasDiscount = computed(() => props.quotation.discountCents > 0)
 
-const subtotalFormatted = computed(() =>
-  formatCentsMXN(props.quotation.subtotalCents),
-)
+const subtotalFormatted = computed(() => formatCentsMXN(props.quotation.subtotalCents))
 
-const discountFormatted = computed(() =>
-  formatCentsMXN(props.quotation.discountCents),
-)
+const discountFormatted = computed(() => formatCentsMXN(props.quotation.discountCents))
 
-const totalFormatted = computed(() =>
-  formatCentsMXN(props.quotation.totalCents),
-)
+const totalFormatted = computed(() => formatCentsMXN(props.quotation.totalCents))
 
 /** IVA — read straight from the backend (`taxCents` + `taxRate`). The row
  *  only renders when both fields are non-null; older payloads that don't
@@ -127,10 +121,7 @@ const validityLabel = computed<string | null>(() => {
 const hasValidityNotice = computed<boolean>(() => validityLabel.value !== null)
 
 const contextLine = computed<string>(() => {
-  const parts: string[] = [
-    `${itemCount.value} productos`,
-    `${totalUnits.value} unidades`,
-  ]
+  const parts: string[] = [`${itemCount.value} productos`, `${totalUnits.value} unidades`]
   if (props.priceListName) parts.push(`lista ${props.priceListName}`)
   return parts.join(' · ')
 })
@@ -204,11 +195,10 @@ function handleTaxRateChange(value: number | null | undefined): void {
       <p
         class="text-xs font-semibold uppercase tracking-wide text-muted"
         data-testid="summary-title"
-      >RESUMEN</p>
-      <p
-        class="text-xs text-muted"
-        data-testid="summary-context"
       >
+        RESUMEN
+      </p>
+      <p class="text-xs text-muted" data-testid="summary-context">
         <span data-testid="items-count">{{ legacyItemsCount }}</span>
         <template v-if="props.priceListName"> · lista {{ props.priceListName }}</template>
       </p>
@@ -218,17 +208,12 @@ function handleTaxRateChange(value: number | null | undefined): void {
     <div class="flex flex-col gap-2">
       <div class="flex items-center justify-between">
         <span class="text-sm text-muted">Subtotal</span>
-        <span
-          data-testid="subtotal-amount"
-          class="text-sm text-muted tabular-nums"
-        >{{ subtotalFormatted }}</span>
+        <span data-testid="subtotal-amount" class="text-sm text-muted tabular-nums">{{
+          subtotalFormatted
+        }}</span>
       </div>
 
-      <div
-        v-if="hasDiscount"
-        class="flex items-center justify-between"
-        data-testid="discount-row"
-      >
+      <div v-if="hasDiscount" class="flex items-center justify-between" data-testid="discount-row">
         <span class="text-sm text-[var(--coco-info)] flex items-center gap-1">
           <UIcon name="i-lucide-badge-percent" class="h-3.5 w-3.5" />
           Descuentos
@@ -236,7 +221,8 @@ function handleTaxRateChange(value: number | null | undefined): void {
         <span
           data-testid="discount-amount"
           class="text-sm font-medium text-[var(--coco-info)] tabular-nums"
-        >-{{ discountFormatted }}</span>
+          >-{{ discountFormatted }}</span
+        >
       </div>
 
       <!-- T-UI-12/13 — IVA row. Rendered only when the backend stamps both
@@ -260,27 +246,24 @@ function handleTaxRateChange(value: number | null | undefined): void {
           label-key="label"
           size="xs"
           class="min-w-[140px]"
+          :ui="{ content: 'hf-theme hf-ui quotations-workspace-portal' }"
           data-testid="summary-iva-select"
           @update:model-value="handleTaxRateChange"
         />
         <span v-else class="text-sm text-muted">{{ ivaPercentLabel }}</span>
-        <span
-          class="text-sm text-muted tabular-nums"
-          data-testid="summary-iva-amount"
-        >{{ ivaFormatted }}</span>
+        <span class="text-sm text-muted tabular-nums" data-testid="summary-iva-amount">{{
+          ivaFormatted
+        }}</span>
       </div>
 
       <USeparator class="my-1 opacity-60" />
 
       <!-- TOTAL — large, bold, prominent -->
       <div class="flex items-baseline justify-between">
-        <p class="text-xs font-semibold text-muted uppercase tracking-wider">
-          Total
-        </p>
-        <span
-          data-testid="total-amount"
-          class="text-3xl font-bold text-highlighted tabular-nums"
-        >{{ totalFormatted }}</span>
+        <p class="text-xs font-semibold text-muted uppercase tracking-wider">Total</p>
+        <span data-testid="total-amount" class="text-3xl font-bold text-highlighted tabular-nums">{{
+          totalFormatted
+        }}</span>
       </div>
     </div>
 
@@ -290,14 +273,10 @@ function handleTaxRateChange(value: number | null | undefined): void {
          migration: `summary-actions` → `detail-sidebar-actions` per
          design.md migration table (the header action wrapper is
          `detail-header-actions`). -->
-    <div
-      v-if="editable"
-      class="flex flex-col gap-2"
-      data-testid="detail-sidebar-actions"
-    >
+    <div v-if="editable" class="flex flex-col gap-2" data-testid="detail-sidebar-actions">
       <button
         type="button"
-        class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--coco-primary)] px-4 py-3 text-sm font-semibold text-white hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
+        class="quotations-primary-action inline-flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--coco-primary)] px-4 py-3 text-sm font-semibold text-white hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
         data-testid="summary-send-btn"
         @click="handleSend"
       >

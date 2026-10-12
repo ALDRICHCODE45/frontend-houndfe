@@ -6,6 +6,8 @@ import SaleItemBadges from './SaleItemBadges.vue'
 
 const props = defineProps<{
   items: SaleDetailItem[]
+  /** Forwarded only to the owned badge tooltips; absent by default. */
+  portalClass?: string
 }>()
 
 // Per-item view model. Decoupling presentation logic from the template
@@ -90,6 +92,7 @@ const itemsView = computed(() =>
             </p>
             <SaleItemBadges
               class="mt-1"
+              :portal-class="portalClass"
               :price-source="item.priceSource"
               :original-price-cents="item.originalPriceCents"
               :unit-price-cents="item.unitPriceCents"

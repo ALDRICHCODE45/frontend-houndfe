@@ -25,7 +25,7 @@ const emit = defineEmits<{
 <template>
   <div
     v-if="loading && !sales.length"
-    class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-7"
+    class="sales-card-grid grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-7"
     data-testid="sale-cards-skeleton"
   >
     <div
@@ -47,7 +47,7 @@ const emit = defineEmits<{
   <div
     v-else
     data-testid="sale-cards-grid"
-    class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-7"
+    class="sales-card-grid grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-7"
   >
     <SaleCard
       v-for="sale in sales"

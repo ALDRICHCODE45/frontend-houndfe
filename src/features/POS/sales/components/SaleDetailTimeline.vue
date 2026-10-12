@@ -162,7 +162,10 @@ async function deleteCommentForEvent(event: SaleTimelineEvent) {
           <p v-if="actorLabel(event)" class="text-sm text-muted" data-testid="timeline-actor">
             {{ actorLabel(event) }}
           </p>
-          <UTooltip :text="formatSaleDate(event.at)">
+          <UTooltip
+            :text="formatSaleDate(event.at)"
+            :ui="{ content: 'hf-theme hf-ui sales-detail-portal' }"
+          >
             <p class="text-sm text-muted">{{ formatSaleDate(event.at) }}</p>
           </UTooltip>
         </div>

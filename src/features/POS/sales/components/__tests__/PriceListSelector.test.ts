@@ -210,3 +210,35 @@ describe('PriceListSelector (pos-price-list-tiers)', () => {
     ).toBe('[][]') // no events yet, just sanity-check empty arrays
   })
 })
+
+// T6 / S3,S4 — optional, inert portal opt-in. The shared selector forwards the
+// caller marker onto the installed UInputMenu `ui.content` path; with no prop
+// the native defaults are exactly as before.
+describe('PriceListSelector — optional portalClass opt-in', () => {
+  const LISTBOX_PORTAL = 'hf-theme hf-ui quotations-workspace-portal'
+
+  it('forwards the marker onto the installed InputMenu ui.content path', () => {
+    const wrapper = mountSelector({ portalClass: LISTBOX_PORTAL }, { preSeedLists: sampleLists })
+
+    expect(wrapper.findComponent({ name: 'InputMenu' }).props('ui')).toEqual({
+      content: LISTBOX_PORTAL,
+    })
+  })
+
+  it('leaves the installed InputMenu ui untouched when the prop is absent', () => {
+    const wrapper = mountSelector({}, { preSeedLists: sampleLists })
+
+    expect(wrapper.findComponent({ name: 'InputMenu' }).props('ui')).toBeUndefined()
+  })
+
+  it('keeps the mutating disable behavior alongside the opt-in', () => {
+    const wrapper = mountSelector(
+      { isMutating: true, portalClass: LISTBOX_PORTAL },
+      { preSeedLists: sampleLists },
+    )
+
+    const primaryInput = wrapper.find('input[aria-expanded]')
+    expect(primaryInput.exists()).toBe(true)
+    expect(primaryInput.attributes('disabled')).toBeDefined()
+  })
+})

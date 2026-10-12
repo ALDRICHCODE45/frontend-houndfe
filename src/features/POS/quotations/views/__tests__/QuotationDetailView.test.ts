@@ -253,7 +253,7 @@ function makePromotion(overrides: Partial<PromotionResponse> = {}): PromotionRes
 
 const USelectMenuStub = {
   name: 'USelectMenuStub',
-  props: ['modelValue', 'items', 'valueKey', 'loading'],
+  props: ['modelValue', 'items', 'valueKey', 'loading', 'ui'],
   emits: ['update:modelValue'],
   template:
     '<div v-bind="$attrs" :data-loading="loading"><slot v-if="(items ?? []).length === 0" name="empty" /><span v-if="(items ?? []).length > 0">{{ items[0].label }}</span></div>',
@@ -265,12 +265,12 @@ const stubs = {
     template: '<span data-testid="status-badge" :data-tone="tone">{{ label }}</span>',
   },
   AssignCustomerSlideover: {
-    props: ['open', 'saleId'],
+    props: ['open', 'saleId', 'portalClass'],
     emits: ['update:open', 'customer-selected'],
     template: '<div v-if="open" data-testid="customer-slideover" />',
   },
   PriceListSelector: {
-    props: ['activeDraft', 'isMutating'],
+    props: ['activeDraft', 'isMutating', 'portalClass'],
     emits: ['change-price-list', 'request-confirm'],
     template:
       '<div data-testid="price-list-selector">Lista: {{ activeDraft?.globalPriceListId ?? "PUBLICO" }}</div>',
@@ -282,17 +282,18 @@ const stubs = {
       '<div class="quotation-item-row" :data-testid="`quotation-item-row-${item.id}`" :data-readonly="readonly"><span class="row-product">{{ item.product.name }}</span></div>',
   },
   ProductSearchPanel: {
+    props: ['portalClass'],
     emits: ['add-product'],
     template: '<div data-testid="product-search-panel" />',
   },
   ConfirmModal: {
-    props: ['open', 'title', 'description', 'confirmLabel', 'loading'],
+    props: ['open', 'title', 'description', 'confirmLabel', 'confirmColor', 'loading', 'ui'],
     emits: ['update:open', 'confirm'],
     template:
       '<div v-if="open" data-testid="confirm-modal"><button data-testid="confirm-modal-confirm" type="button" @click="$emit(\'confirm\')">{{ confirmLabel ?? "Confirmar" }}</button><button data-testid="confirm-modal-cancel" type="button" @click="$emit(\'update:open\', false)">Cancelar</button></div>',
   },
   QuotationExpiryPicker: {
-    props: ['expiresAt', 'readonly'],
+    props: ['expiresAt', 'readonly', 'portalClass'],
     emits: ['update:expiresAt'],
     template:
       '<div data-testid="quotation-expiry-picker" :data-readonly="readonly"><span data-testid="expiry-display">{{ expiresAt ?? "Sin expiración" }}</span></div>',
@@ -2271,5 +2272,96 @@ describe('QuotationDetailView — seller section (REQ-QTN-016 / §3.13d)', () =>
     const picker = wrapper.find('[data-testid="seller-select"]')
     expect(picker.exists()).toBe(true)
     expect(picker.attributes('disabled')).toBe('true')
+  })
+})
+
+// ─── Quotations workspace visual adaptation (T3 / S3 + S4) ───────────────────
+// The shared creation/detail view opts into the foundation boundary and every
+// feature-owned portal repeats its own boundary, because teleported content
+// escapes the ancestor scope. These are runtime renderer contracts; the CSS
+// structural contract lives in the stylesheet spec.
+describe('QuotationDetailView — workspace visual boundary (S3/S4)', () => {
+  const workspaceClasses = ['hf-theme', 'hf-ui', 'quotations-workspace-visual']
+  const formPortal = 'hf-theme hf-ui hf-form-overlay quotations-workspace-portal'
+  const listboxPortal = 'hf-theme hf-ui quotations-workspace-portal'
+
+  it('opts the shared creation/detail workspace into the foundation boundary', () => {
+    const wrapper = mountView()
+    const workspace = wrapper.get('[data-testid="quotation-detail-view"]')
+    expect(workspace.classes()).toEqual(expect.arrayContaining(workspaceClasses))
+    // The legacy layout hook and composition classes stay untouched.
+    expect(workspace.classes()).toContain('quotation-detail-view')
+    expect(workspace.classes()).toContain('flex')
+    expect(workspace.classes()).toContain('flex-col')
+  })
+
+  it('adopts the shared page-title role and the action foreground for the primary CTA', () => {
+    const wrapper = mountView()
+    expect(wrapper.get('h1').classes()).toContain('hf-page-title')
+    const addButton = wrapper.get('[data-testid="add-product-button"]')
+    expect(addButton.classes()).toContain('quotations-primary-action')
+    expect(addButton.text()).toContain('Agregar producto')
+  })
+
+  it('marks both confirm dialogs with the feature form-portal boundary', () => {
+    const wrapper = mountView()
+    const confirms = wrapper.findAllComponents(stubs.ConfirmModal)
+    expect(confirms).toHaveLength(2)
+    for (const confirm of confirms) {
+      expect(confirm.props('ui')).toEqual({ content: formPortal })
+    }
+    // Destructive semantics stay untouched on both confirmations.
+    expect(confirms[0]!.props('confirmColor')).toBe('error')
+    expect(confirms[1]!.props('confirmColor')).toBe('error')
+  })
+
+  it('marks the seller and promotion selects with the listbox portal marker', () => {
+    const wrapper = mountView()
+    const selects = wrapper.findAllComponents(USelectMenuStub)
+    expect(selects).toHaveLength(2)
+    for (const select of selects) {
+      expect(select.props('ui')).toEqual({ content: listboxPortal })
+    }
+  })
+
+  it('marks the product-search slideover content with the form-portal boundary', async () => {
+    const wrapper = mountView()
+    expect(wrapper.findComponent({ name: 'Slideover' }).exists()).toBe(false)
+    await wrapper.get('[data-testid="add-product-button"]').trigger('click')
+    const slideover = wrapper.findComponent({ name: 'Slideover' })
+    expect(slideover.exists()).toBe(true)
+    expect(slideover.props('ui')).toEqual({ content: `${formPortal} !max-w-xl` })
+  })
+})
+
+// T6 / S3,S4 — the four shared Sales popups are opted in from the shared
+// creation/detail caller on BOTH route modes. The two intermediate forwards
+// (ProductSearchPanel -> VariantPickerModal, QuotationExpiryPicker ->
+// DateFieldPopover) are proven in their own component specs.
+describe('QuotationDetailView — shared Sales portal opt-ins (T6)', () => {
+  const formPortal = 'hf-theme hf-ui hf-form-overlay quotations-workspace-portal'
+  const listboxPortal = 'hf-theme hf-ui quotations-workspace-portal'
+
+  it.each([
+    ['create', '/pos/cotizaciones/nueva'],
+    ['detail', '/pos/cotizaciones/quotation-12345678'],
+  ] as const)('opts the shared popups in on the %s path', async (_label, path) => {
+    route.path = path
+    route.params = path.endsWith('/nueva') ? {} : { id: 'quotation-12345678' }
+    const wrapper = mountView()
+
+    expect(wrapper.findComponent(stubs.AssignCustomerSlideover).props('portalClass')).toBe(
+      formPortal,
+    )
+    expect(wrapper.findComponent(stubs.PriceListSelector).props('portalClass')).toBe(listboxPortal)
+    expect(wrapper.findComponent(stubs.QuotationExpiryPicker).props('portalClass')).toBe(
+      listboxPortal,
+    )
+
+    await wrapper.get('[data-testid="add-product-button"]').trigger('click')
+    expect(wrapper.findComponent(stubs.ProductSearchPanel).props('portalClass')).toBe(formPortal)
+    expect(wrapper.findComponent(stubs.ProductSearchPanel).classes()).toContain(
+      'quotations-product-search',
+    )
   })
 })

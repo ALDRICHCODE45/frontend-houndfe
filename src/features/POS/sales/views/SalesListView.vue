@@ -4,7 +4,6 @@ import { useQuery } from '@tanstack/vue-query'
 import { useRouter } from 'vue-router'
 import { AppDataTable } from '@/core/shared/components/DataTable'
 import { DataTableFilters, useDataTableFilters, useFiltersUrlAdapter } from '@/core/shared/data-table-filters'
-import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
 import SortableHeader from '@/core/shared/components/DataTable/SortableHeader.vue'
 import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
@@ -24,6 +23,7 @@ import { customerApi } from '@/features/POS/customers/api/customer.api'
 import { usersApi } from '@/features/POS/users/api/user.api'
 import { customerQueryKeys, usersQueryKeys } from '@/core/shared/constants/query-keys'
 import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
+import '../styles/sales-list-visual.css'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -159,16 +159,20 @@ watch(() => filtersCtl.serializedState.value, () => {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 md:px-10">
-    <UCard v-if="canReadSales" :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }">
-      <template #header>
-        <TableHeaderDescription
-          title="Ventas"
-          description="Listado de ventas confirmadas"
-        />
-      </template>
+  <div class="hf-theme hf-ui sales-list-visual flex w-full min-w-0 flex-col gap-6 md:px-10">
+    <template v-if="canReadSales">
+      <div class="hf-page-header">
+        <h1 class="hf-page-title">Ventas</h1>
+        <p class="hf-page-subtitle">Listado de ventas confirmadas</p>
+      </div>
+    </template>
 
-      <div class="w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4 space-y-4">
+    <UCard
+      v-if="canReadSales"
+      :ui="{ body: 'p-0 sm:p-0' }"
+      class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm"
+    >
+      <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4 space-y-4">
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"
@@ -195,6 +199,9 @@ watch(() => filtersCtl.serializedState.value, () => {
           enable-column-visibility
           search-placeholder="Buscar ventas..."
           empty="No hay ventas todavía"
+          class="hf-data-table"
+          portal-class="hf-theme hf-ui sales-list-portal"
+          pagination-portal-class="hf-theme hf-ui sales-list-portal"
           @add="goToNewSale"
           @refresh="refresh"
           @clear-filters="filtersCtl.clearAll()"
@@ -215,6 +222,7 @@ watch(() => filtersCtl.serializedState.value, () => {
                   :schema="salesFiltersSchema"
                   :errors="filterErrors"
                   :embedded="isMobile"
+                  portal-class="hf-theme hf-ui sales-list-portal"
                 />
               </div>
 
@@ -236,6 +244,7 @@ watch(() => filtersCtl.serializedState.value, () => {
                   { label: 'Creación reciente', value: 'createdAt:desc' },
                 ]"
                 class="w-56 shrink-0"
+                :ui="{ content: 'hf-theme hf-ui sales-list-portal' }"
               />
             </div>
           </template>
@@ -243,6 +252,7 @@ watch(() => filtersCtl.serializedState.value, () => {
           <template #actions>
             <ViewToggle
               v-model="viewMode"
+              class="sales-view-toggle"
               aria-label="Seleccionar vista de ventas"
             />
           </template>
@@ -296,11 +306,14 @@ watch(() => filtersCtl.serializedState.value, () => {
           </template>
 
           <template #paymentMethods-cell="{ row }">
-            <PaymentMethodPills :methods="row.original.paymentMethods" />
+            <PaymentMethodPills
+              :methods="row.original.paymentMethods"
+              portal-class="hf-theme hf-ui sales-list-portal"
+            />
           </template>
 
           <template #totalCents-cell="{ row }">
-            {{ formatCentsMXN(row.original.totalCents) }}
+            <span class="sales-total-value">{{ formatCentsMXN(row.original.totalCents) }}</span>
           </template>
 
           <template #debtCents-cell="{ row }">

@@ -14,6 +14,11 @@ defineProps<{
   onUpdateComment?: (commentId: string, payload: { body: string }) => Promise<unknown>
   onDeleteComment?: (commentId: string) => Promise<unknown>
   onSubmitComment: (payload: { body: string }) => Promise<unknown>
+  /**
+   * Optional teleport boundary marker forwarded to the owned comment
+   * slideover. Absent by default, which preserves the previous `ui` value.
+   */
+  portalClass?: string
 }>()
 </script>
 
@@ -35,7 +40,11 @@ defineProps<{
     />
 
     <template #footer>
-      <SaleCommentInput :is-pending="commentsPending" :on-submit="onSubmitComment" />
+      <SaleCommentInput
+        :is-pending="commentsPending"
+        :portal-class="portalClass"
+        :on-submit="onSubmitComment"
+      />
     </template>
   </UCard>
 </template>

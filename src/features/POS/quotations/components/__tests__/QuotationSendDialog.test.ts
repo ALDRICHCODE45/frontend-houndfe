@@ -8,7 +8,7 @@ import type { QuotationResponseDto } from '../../interfaces/quotation.types'
 // pattern used by ItemDiscountModal / PriceOverrideModal / DueDateEditModal
 // tests in the POS sales module.
 const modalStub = {
-  props: ['open', 'title', 'dismissible', 'close'],
+  props: ['open', 'title', 'dismissible', 'close', 'ui'],
   emits: ['update:open'],
   template: '<div data-testid="send-dialog-modal"><slot name="body" /><slot name="footer" /></div>',
 }
@@ -71,9 +71,9 @@ function mountDialog(
         id: 'item-1',
         productId: 'product-1',
         variantId: null,
-            productName: 'Test Product',
+        productName: 'Test Product',
         variantName: null,
-    quantity: 1,
+        quantity: 1,
         product: { id: 'product-1', name: 'Playera M', sku: 'SKU-1', imageUrl: null },
         variant: null,
         unitPriceCents: 15000,
@@ -121,6 +121,16 @@ describe('QuotationSendDialog — render', () => {
     expect(wrapper.find('[data-testid="mark-as-sent-button"]').exists()).toBe(true)
   })
 
+  it('opts the teleported modal content into the feature form-portal boundary', () => {
+    const wrapper = mountDialog()
+
+    const modal = wrapper.findComponent(modalStub)
+    expect(modal.props('ui')).toEqual({
+      content: 'hf-theme hf-ui hf-form-overlay quotations-workspace-portal',
+    })
+    expect(modal.props('title')).toBe('Enviar cotización')
+  })
+
   it('shows the customer email when one is present', () => {
     const wrapper = mountDialog()
     expect(wrapper.text()).toContain('maria@example.com')
@@ -130,7 +140,10 @@ describe('QuotationSendDialog — render', () => {
 describe('QuotationSendDialog — pre-validation', () => {
   it('shows a warning when the quotation has no items', () => {
     const wrapper = mountDialog({
-      quotation: makeQuotation({ items: [], customer: { id: 'c1', firstName: 'A', lastName: 'B', email: 'a@b.com' } }),
+      quotation: makeQuotation({
+        items: [],
+        customer: { id: 'c1', firstName: 'A', lastName: 'B', email: 'a@b.com' },
+      }),
     })
 
     expect(wrapper.find('[data-testid="no-items-warning"]').exists()).toBe(true)
@@ -213,15 +226,22 @@ describe('QuotationSendDialog — loading state', () => {
   it('disables both action buttons while the send promise is pending', async () => {
     let resolveSend!: () => void
     const send = vi.fn().mockImplementation(
-      () => new Promise<void>((resolve) => { resolveSend = resolve }),
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSend = resolve
+        }),
     )
     const wrapper = mountDialog({ send })
 
     await wrapper.get('[data-testid="send-by-email-button"]').trigger('click')
     await flushPromises()
 
-    expect((wrapper.find('[data-testid="send-by-email-button"]').element as HTMLButtonElement).disabled).toBe(true)
-    expect((wrapper.find('[data-testid="mark-as-sent-button"]').element as HTMLButtonElement).disabled).toBe(true)
+    expect(
+      (wrapper.find('[data-testid="send-by-email-button"]').element as HTMLButtonElement).disabled,
+    ).toBe(true)
+    expect(
+      (wrapper.find('[data-testid="mark-as-sent-button"]').element as HTMLButtonElement).disabled,
+    ).toBe(true)
 
     resolveSend()
     await flushPromises()

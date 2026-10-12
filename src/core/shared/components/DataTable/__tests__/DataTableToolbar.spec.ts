@@ -565,3 +565,97 @@ describe('DataTableToolbar — desktop layout invariance', () => {
     expect(refresh.exists()).toBe(true)
   })
 })
+
+// ─── Products-visual inert marker hooks (T2 / S2) ────────────────────────────
+// The Products stylesheet opts into these classes; the shared toolbar only
+// carries the hooks. No prop, state, event, slot, or mobile three-region
+// logic changes: the markers are inert class attributes.
+
+describe('DataTableToolbar — products-visual marker hooks (T2 / S2)', () => {
+  it('marks the desktop root plus the search, filters, and actions regions', () => {
+    isBelowBreakpoint.value = false
+    const wrapper = mountToolbar(
+      { showAddButton: true, showRefresh: true },
+      {
+        filters: '<span data-testid="fake-filter">F</span>',
+        actions: '<span data-testid="fake-action">A</span>',
+      },
+    )
+
+    expect(wrapper.element.classList.contains('hf-toolbar')).toBe(true)
+
+    const searchRegion = wrapper.get('.hf-toolbar-search-region')
+    expect(searchRegion.find('.hf-toolbar-search').exists()).toBe(true)
+    expect(searchRegion.find('.hf-toolbar-search input').exists()).toBe(true)
+
+    const filtersRegion = wrapper.get('.hf-toolbar-filters')
+    expect(filtersRegion.find('[data-testid="fake-filter"]').exists()).toBe(true)
+
+    const actionsRegion = wrapper.get('.hf-toolbar-actions')
+    expect(actionsRegion.find('[data-testid="fake-action"]').exists()).toBe(true)
+  })
+
+  it('keeps the desktop search → filters → actions ordering after the hooks', () => {
+    isBelowBreakpoint.value = false
+    const wrapper = mountToolbar(
+      { showAddButton: true, addButtonText: 'Agregar' },
+      {
+        filters: '<span data-testid="fake-filter">F</span>',
+        actions: '<span data-testid="fake-action">A</span>',
+      },
+    )
+
+    const html = wrapper.html()
+    const searchIdx = html.indexOf('hf-toolbar-search')
+    const filtersIdx = html.indexOf('hf-toolbar-filters')
+    const actionsIdx = html.indexOf('hf-toolbar-actions')
+    expect(searchIdx).toBeGreaterThan(-1)
+    expect(filtersIdx).toBeGreaterThan(searchIdx)
+    expect(actionsIdx).toBeGreaterThan(filtersIdx)
+  })
+
+  it('marks the three mobile regions with the same hooks and no reordering', () => {
+    isBelowBreakpoint.value = true
+    const wrapper = mountToolbar(
+      { showAddButton: true, showRefresh: true },
+      {
+        filters: '<span data-testid="fake-filter">F</span>',
+        actions: '<span data-testid="fake-action">A</span>',
+      },
+    )
+
+    const searchRow = wrapper.get('[data-testid="toolbar-mobile-search-row"]')
+    expect(searchRow.classes()).toContain('hf-toolbar-search-region')
+    expect(searchRow.find('.hf-toolbar-search input').exists()).toBe(true)
+
+    const actionsRow = wrapper.get('[data-testid="toolbar-mobile-actions-row"]')
+    expect(actionsRow.classes()).toContain('hf-toolbar-actions')
+    expect(actionsRow.find('[data-testid="fake-action"]').exists()).toBe(true)
+
+    const filtersRow = wrapper.get('[data-testid="toolbar-mobile-filters-row"]')
+    expect(filtersRow.classes()).toContain('hf-toolbar-filters')
+
+    const regions = wrapper.findAll('[data-testid^="toolbar-mobile-"]')
+    expect(regions.map(r => r.attributes('data-testid'))).toEqual([
+      'toolbar-mobile-search-row',
+      'toolbar-mobile-actions-row',
+      'toolbar-mobile-filters-row',
+    ])
+  })
+
+  it('preserves the default props and the update:globalFilter event with the hooks in place', async () => {
+    isBelowBreakpoint.value = false
+    const wrapper = mountToolbar({ showRefresh: true })
+
+    // Defaults stay off: no refresh testid and no add button.
+    expect(wrapper.find('[data-testid^="refresh-"]').exists()).toBe(false)
+    const refreshIcon = wrapper.get('svg[data-slot="leadingIcon"]')
+    expect((refreshIcon.element.parentElement as HTMLElement).hasAttribute('data-testid')).toBe(
+      false,
+    )
+
+    const input = wrapper.get('.hf-toolbar-search input')
+    await input.setValue('teclado')
+    expect(wrapper.emitted('update:globalFilter')).toEqual([['teclado']])
+  })
+})
