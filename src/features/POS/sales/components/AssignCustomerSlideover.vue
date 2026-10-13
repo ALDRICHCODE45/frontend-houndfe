@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
+import '../styles/sales-pos-customer.css'
 import { customerApi } from '@/features/POS/customers/api/customer.api'
 import CustomerUpsertSlideover from '@/features/POS/customers/components/CustomerUpsertSlideover.vue'
 import AddressModal from '@/features/POS/customers/components/AddressModal.vue'
@@ -13,7 +14,6 @@ import type {
   CreateCustomerAddressPayload,
   CreateCustomerPayload,
   Customer,
-  CustomerAddress,
   CustomerDetail,
 } from '@/features/POS/customers/interfaces/customer.types'
 
@@ -54,6 +54,40 @@ const isCreatingCustomer = ref(false)
 const isCreatingAddress = ref(false)
 
 const canCreateCustomer = computed(() => authStore.userCan('create', 'Customer'))
+
+/**
+ * Venta opt-in gate (T7).
+ *
+ * The sheet is shared: quotations opt into their own portal token, and other
+ * consumers pass nothing at all. Only the `sales-pos-customer` token selects
+ * the venta presentation, so a truthy `portalClass` is deliberately NOT the
+ * gate. Nested wrappers receive a single marker that they APPEND to their own
+ * accepted default; when it is `undefined` their prior `ui` value survives
+ * byte-for-byte.
+ */
+const SALE_PORTAL_TOKEN = 'sales-pos-customer'
+const SALE_FORM_MARKER = 'sales-pos-customer-form'
+
+const isSaleCustomerPortal = computed(
+  () => props.portalClass?.split(/\s+/).includes(SALE_PORTAL_TOKEN) ?? false,
+)
+const nestedFormPortalClass = computed(() =>
+  isSaleCustomerPortal.value ? SALE_FORM_MARKER : undefined,
+)
+
+/**
+ * Address-step context. It is built only from the customer that is already
+ * loaded; nothing is invented and no local selection draft is kept, because
+ * the flow saves an address immediately.
+ */
+const selectedCustomerContact = computed(() => {
+  const customer = selectedCustomer.value
+  if (!customer) return ''
+  const phone = customer.phone
+    ? [customer.phoneCountryCode, customer.phone].filter(Boolean).join(' ')
+    : ''
+  return [customer.email ?? '', phone].filter(Boolean).join(' · ')
+})
 
 watch(searchInput, (value) => {
   const timeout = setTimeout(() => {
@@ -211,56 +245,102 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
   >
     <template #content>
       <div class="flex h-full flex-col" data-testid="assign-customer-slideover">
-        <div class="border-b border-default px-5 py-4">
+        <div class="sales-pos-customer-header border-b border-default px-5 py-4">
           <!-- Step 1: Customer Selection Header -->
           <div v-if="!selectedCustomer" class="flex items-center justify-between gap-3">
             <div>
-              <p class="text-lg font-semibold">Asignar cliente</p>
-              <p class="text-sm text-muted">Selecciona un cliente</p>
+              <p class="sales-pos-customer-title text-lg font-semibold">Asignar cliente</p>
+              <p class="sales-pos-customer-subtitle text-sm text-muted">Selecciona un cliente</p>
             </div>
-            <UButton color="neutral" variant="ghost" icon="i-lucide-x" @click="emit('update:open', false)" />
+            <UButton
+              class="sales-pos-customer-close"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-x"
+              @click="emit('update:open', false)"
+            />
           </div>
 
           <!-- Step 2: Address Selection Header -->
-          <div v-else class="flex items-center justify-between gap-3">
-            <div class="flex items-center gap-3">
+          <div v-else class="sales-pos-customer-selected flex items-center justify-between gap-3">
+            <div class="flex min-w-0 items-center gap-3">
               <UAvatar :alt="selectedCustomer.fullName" size="sm" />
               <div class="min-w-0 flex-1">
                 <div class="flex items-center gap-2">
-                  <p class="text-lg font-semibold truncate">{{ selectedCustomer.fullName }}</p>
-                  <UBadge color="neutral" class="text-coco-gold-800" label="Seleccionado" size="xs" />
+                  <p class="sales-pos-customer-title text-lg font-semibold truncate">
+                    {{ selectedCustomer.fullName }}
+                  </p>
+                  <UBadge
+                    color="neutral"
+                    class="sales-pos-customer-selected-badge text-coco-gold-800"
+                    label="Seleccionado"
+                    size="xs"
+                  />
                 </div>
+                <p
+                  v-if="isSaleCustomerPortal && selectedCustomerContact"
+                  class="sales-pos-customer-contact text-xs text-muted truncate"
+                >
+                  {{ selectedCustomerContact }}
+                </p>
                 <button
                   type="button"
                   data-testid="change-customer-step"
-                  class="text-xs text-coco-gold-800 hover:underline"
+                  class="sales-pos-customer-change text-xs hover:underline"
+                  :class="isSaleCustomerPortal ? '' : 'text-coco-gold-800'"
                   @click="selectedCustomer = null"
                 >
                   Cambiar cliente
                 </button>
               </div>
             </div>
-            <UButton color="neutral" variant="ghost" icon="i-lucide-x" @click="emit('update:open', false)" />
+            <UButton
+              class="sales-pos-customer-close"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-x"
+              @click="emit('update:open', false)"
+            />
           </div>
         </div>
 
         <div class="flex-1 space-y-4 overflow-y-auto px-5 py-4">
           <!-- Step 1: Customer Selection -->
           <template v-if="!selectedCustomer">
-            <div class="flex items-center justify-between gap-3">
-              <UInput
-                v-model="searchInput"
-                data-testid="customer-search-input"
-                icon="i-lucide-search"
-                placeholder="Buscar por nombre, email o teléfono"
-                class="w-full"
-              />
+            <div class="sales-pos-customer-search-row flex items-center justify-between gap-3">
+              <div class="sales-pos-customer-search min-w-0 flex-1">
+                <label
+                  v-if="isSaleCustomerPortal"
+                  class="sales-pos-customer-search-label block text-sm"
+                  for="sales-pos-customer-search-input"
+                >
+                  Buscar cliente
+                </label>
+                <UInput
+                  id="sales-pos-customer-search-input"
+                  v-if="isSaleCustomerPortal"
+                  v-model="searchInput"
+                  data-testid="customer-search-input"
+                  icon="i-lucide-search"
+                  placeholder="Buscar por nombre, email o teléfono"
+                  class="sales-pos-customer-search-field w-full"
+                />
+                <UInput
+                  v-else
+                  v-model="searchInput"
+                  data-testid="customer-search-input"
+                  icon="i-lucide-search"
+                  placeholder="Buscar por nombre, email o teléfono"
+                  class="w-full"
+                />
+              </div>
               <UButton
                 v-if="canCreateCustomer"
                 data-testid="open-create-customer"
                 color="neutral"
                 variant="outline"
                 label="+ Nuevo cliente"
+                class="sales-pos-customer-new-customer"
                 @click="isCreateCustomerOpen = true"
               />
             </div>
@@ -297,14 +377,20 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
                 v-for="customer in filteredCustomers"
                 :key="customer.id"
                 :data-testid="`customer-row-${customer.id}`"
-                class="cursor-pointer transition-colors hover:bg-elevated/70"
+                class="sales-pos-customer-card cursor-pointer transition-colors hover:bg-elevated/70"
+                :role="isSaleCustomerPortal ? 'button' : undefined"
+                :tabindex="isSaleCustomerPortal ? 0 : undefined"
                 @click="handleSelectCustomer(customer)"
+                @keydown.enter.prevent="handleSelectCustomer(customer)"
+                @keydown.space.prevent="handleSelectCustomer(customer)"
               >
                 <div class="flex items-center gap-3">
                   <UAvatar :alt="customer.fullName" size="sm" />
                   <div class="min-w-0 flex-1">
-                    <p class="font-medium truncate">{{ customer.fullName }}</p>
-                    <p class="text-xs text-muted truncate">
+                    <p class="sales-pos-customer-card-name font-medium truncate">
+                      {{ customer.fullName }}
+                    </p>
+                    <p class="sales-pos-customer-card-meta text-xs text-muted truncate">
                       {{ customer.email ?? 'Sin email' }} · {{ customer.phone ?? 'Sin teléfono' }}
                     </p>
                   </div>
@@ -318,20 +404,26 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
           <template v-if="selectedCustomer">
             <div class="space-y-4">
               <div>
-                <h3 class="text-sm font-medium text-highlighted mb-3">Dirección de envío</h3>
-                
+                <h3 class="sales-pos-customer-section-title text-sm font-medium text-highlighted mb-3">
+                  Dirección de envío
+                </h3>
+
                 <div class="space-y-2">
                   <!-- No shipping address option -->
-                  <UCard 
+                  <UCard
                     data-testid="skip-shipping-address"
-                    class="cursor-pointer transition-colors hover:bg-elevated/70"
+                    class="sales-pos-customer-card sales-pos-customer-card-skip cursor-pointer transition-colors hover:bg-elevated/70"
+                    :role="isSaleCustomerPortal ? 'button' : undefined"
+                    :tabindex="isSaleCustomerPortal ? 0 : undefined"
                     @click="handleAddressSelect(null)"
+                    @keydown.enter.prevent="handleAddressSelect(null)"
+                    @keydown.space.prevent="handleAddressSelect(null)"
                   >
                     <div class="flex items-center gap-3">
-                      <UIcon name="i-lucide-circle-slash" class="size-5 text-muted" />
+                      <UIcon name="i-lucide-circle-slash" class="sales-pos-customer-card-icon size-5 text-muted" />
                       <div class="min-w-0 flex-1">
-                        <p class="font-medium">Sin dirección de envío</p>
-                        <p class="text-xs text-muted">El cliente recogerá en persona</p>
+                        <p class="sales-pos-customer-card-name font-medium">Sin dirección de envío</p>
+                        <p class="sales-pos-customer-card-meta text-xs text-muted">El cliente recogerá en persona</p>
                       </div>
                     </div>
                   </UCard>
@@ -342,14 +434,22 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
                       v-for="address in addresses"
                       :key="address.id"
                       :data-testid="`shipping-address-option-${address.id}`"
-                      class="cursor-pointer transition-colors hover:bg-elevated/70"
+                      class="sales-pos-customer-card cursor-pointer transition-colors hover:bg-elevated/70"
+                      :role="isSaleCustomerPortal ? 'button' : undefined"
+                      :tabindex="isSaleCustomerPortal ? 0 : undefined"
                       @click="handleAddressSelect(address.id)"
+                      @keydown.enter.prevent="handleAddressSelect(address.id)"
+                      @keydown.space.prevent="handleAddressSelect(address.id)"
                     >
                       <div class="flex items-center gap-3">
-                        <UIcon name="i-lucide-map-pin" class="size-5 text-muted" />
+                        <UIcon name="i-lucide-map-pin" class="sales-pos-customer-card-icon size-5 text-muted" />
                         <div class="min-w-0 flex-1">
-                          <p class="font-medium truncate">{{ formatAddress(address) }}</p>
-                          <p class="text-xs text-muted">{{ address.neighborhood ?? 'Sin colonia' }}</p>
+                          <p class="sales-pos-customer-card-name font-medium truncate">
+                            {{ formatAddress(address) }}
+                          </p>
+                          <p class="sales-pos-customer-card-meta text-xs text-muted">
+                            {{ address.neighborhood ?? 'Sin colonia' }}
+                          </p>
                         </div>
                       </div>
                     </UCard>
@@ -358,17 +458,19 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
               </div>
 
               <!-- Footer with actions -->
-              <div class="flex items-center justify-between pt-3 border-t border-default">
+              <div class="sales-pos-customer-footer flex items-center justify-between pt-3 border-t border-default">
                 <UButton
                   v-if="canCreateCustomer"
                   data-testid="open-create-address"
+                  class="sales-pos-customer-action"
                   label="+ Nueva dirección"
                   color="neutral"
-                  variant="ghost"
+                  :variant="isSaleCustomerPortal ? 'outline' : 'ghost'"
                   @click="isCreateAddressOpen = true"
                 />
                 <div class="flex gap-2">
                   <UButton
+                    class="sales-pos-customer-action"
                     label="Cancelar"
                     color="neutral"
                     variant="outline"
@@ -378,8 +480,10 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
               </div>
             </div>
 
-            <!-- Sticky footer for step 1 -->
-            <div class="border-t border-default p-4">
+            <!-- Legacy sticky new-client footer. It is a duplicate of the
+                 search-step action, so only the venta sheet drops it; every
+                 other consumer keeps exactly what it had. -->
+            <div v-if="!isSaleCustomerPortal" class="border-t border-default p-4">
               <UButton
                 v-if="canCreateCustomer"
                 data-testid="open-create-customer"
@@ -400,6 +504,7 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
     v-model:open="isCreateCustomerOpen"
     mode="create"
     :loading="isCreatingCustomer"
+    :portal-class="nestedFormPortalClass"
     @create="handleCreateCustomer"
   />
 
@@ -407,6 +512,7 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
     v-if="isCreateAddressOpen"
     :open="isCreateAddressOpen"
     :loading="isCreatingAddress"
+    :portal-class="nestedFormPortalClass"
     @update:open="isCreateAddressOpen = $event"
     @close="isCreateAddressOpen = false"
     @save="handleCreateAddress"

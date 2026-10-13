@@ -41,13 +41,37 @@ const props = withDefaults(
     loading?: boolean
     error?: string
     allowBusyCancellation?: boolean
+    /**
+     * Narrow sale-path opt-in (T7). Absent for every current consumer, which
+     * leaves the accepted Clients modal theme untouched; when present the
+     * marker is APPENDED to this modal's own content class.
+     */
+    portalClass?: string
   }>(),
   {
     address: null,
     loading: false,
     error: '',
     allowBusyCancellation: false,
+    portalClass: undefined,
   },
+)
+
+/**
+ * The shared Clients defaults are rebuilt here so the opt-in can only append:
+ * `clients-form-portal` remains the owner of the Clients theme, and the venta
+ * sheet forwards one extra marker through `AssignCustomerSlideover` /
+ * `CustomerUpsertSlideover`.
+ */
+const MODAL_CONTENT_BASE = 'sm:max-w-lg hf-theme hf-ui hf-form-overlay clients-form-portal'
+const SELECT_CONTENT_BASE = 'hf-theme hf-ui clients-form-portal'
+
+const modalContentClass = computed(() =>
+  props.portalClass ? `${MODAL_CONTENT_BASE} ${props.portalClass}` : MODAL_CONTENT_BASE,
+)
+
+const selectContentClass = computed(() =>
+  props.portalClass ? `${SELECT_CONTENT_BASE} ${props.portalClass}` : SELECT_CONTENT_BASE,
 )
 
 const emit = defineEmits<{
@@ -174,7 +198,7 @@ function handleClose() {
     :open="open"
     :title="address ? 'Editar dirección' : 'Añadir dirección'"
     :content="{
-      class: 'sm:max-w-lg hf-theme hf-ui hf-form-overlay clients-form-portal',
+      class: modalContentClass,
     }"
     :dismissible="canDismiss"
     :close="canDismiss"
@@ -185,7 +209,7 @@ function handleClose() {
         id="address-modal-form"
         :schema="addressSchema"
         :state="formState"
-        class="space-y-4"
+        class="sales-pos-customer-form-body space-y-4"
         @submit="handleSubmit"
       >
         <UFormField label="Calle" name="street" required>
@@ -271,26 +295,29 @@ function handleClose() {
               class="w-full"
               size="lg"
               :disabled="loading"
-              :ui="{ content: 'hf-theme hf-ui clients-form-portal' }"
+              :ui="{ content: selectContentClass }"
             />
           </UFormField>
         </div>
 
         <!-- Map pin (optional). NEVER gates address validation; the address
              is valid with or without coordinates (design §4.5 / REQ-AMP-005). -->
-        <div class="space-y-2">
-          <p class="text-sm font-medium">Ubicación en el mapa (opcional)</p>
+        <div class="sales-pos-customer-form-map space-y-2">
+          <p class="sales-pos-customer-form-map-title text-sm font-medium">
+            Ubicación en el mapa (opcional)
+          </p>
           <AddressMapPicker v-model="pin" mode="write" />
         </div>
       </UForm>
     </template>
 
     <template #footer>
-      <div class="flex w-full flex-col gap-3">
+      <div class="sales-pos-customer-form-footer flex w-full flex-col gap-3">
         <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
-        <div class="flex justify-end gap-3">
+        <div class="sales-pos-customer-form-actions flex justify-end gap-3">
           <UButton
             label="Cancelar"
+            class="sales-pos-customer-form-action"
             color="neutral"
             variant="outline"
             :disabled="!canDismiss"
@@ -299,7 +326,7 @@ function handleClose() {
           <UButton
             :label="address ? 'Guardar cambios' : 'Añadir dirección'"
             color="primary"
-            class="hf-primary-control"
+            class="hf-primary-control sales-pos-customer-form-action sales-pos-customer-form-submit"
             type="submit"
             form="address-modal-form"
             :loading="loading"

@@ -28,13 +28,36 @@ const props = withDefaults(
     customer?: CustomerDetail | null
     globalPriceLists?: { id: string; name: string }[]
     errors?: Partial<Record<string, string>>
+    /**
+     * Narrow sale-path opt-in (T7). Consumers that do not pass it keep the
+     * accepted Clients presentation byte-for-byte; when present the marker is
+     * APPENDED to this wrapper's own portal class, never swapped for it.
+     */
+    portalClass?: string
   }>(),
   {
     loading: false,
     customer: null,
     globalPriceLists: () => [],
     errors: () => ({}),
+    portalClass: undefined,
   },
+)
+
+/**
+ * The shared Clients defaults are rebuilt here so the opt-in can only append.
+ * `clients-form-portal` stays the owner of the Clients theme; the venta sheet
+ * forwards one extra marker and this file adds nothing else.
+ */
+const FORM_PORTAL_BASE = 'hf-theme hf-ui hf-form-overlay clients-form-portal'
+const SELECT_PORTAL_BASE = 'hf-theme hf-ui clients-form-portal'
+
+const contentClass = computed(() =>
+  props.portalClass ? `${FORM_PORTAL_BASE} ${props.portalClass}` : FORM_PORTAL_BASE,
+)
+
+const selectContentClass = computed(() =>
+  props.portalClass ? `${SELECT_PORTAL_BASE} ${props.portalClass}` : SELECT_PORTAL_BASE,
 )
 
 const open = defineModel<boolean>('open', { required: true })
@@ -219,7 +242,7 @@ function handleCancel() {
     :description="description"
     side="right"
     inset
-    :ui="{ content: 'hf-theme hf-ui hf-form-overlay clients-form-portal' }"
+    :ui="{ content: contentClass }"
     @after-leave="resetForm"
   >
     <template #body>
@@ -244,16 +267,16 @@ function handleCancel() {
 
               <!-- Teléfono: código de país + número -->
               <div>
-                <label class="mb-1.5 block text-sm font-medium">Teléfono</label>
-                <div class="flex gap-2">
+                <label class="sales-pos-customer-form-label mb-1.5 block text-sm font-medium">Teléfono</label>
+                <div class="sales-pos-customer-form-phone flex gap-2">
                   <USelect
                     v-model="state.phoneCountryCode"
                     :items="COUNTRY_CODE_OPTIONS"
                     size="lg"
-                    class="w-32 shrink-0"
-                    :ui="{ content: 'hf-theme hf-ui clients-form-portal' }"
+                    class="sales-pos-customer-form-country w-32 shrink-0"
+                    :ui="{ content: selectContentClass }"
                   />
-                  <UFormField name="phone" :error="errors.phone" class="flex-1">
+                  <UFormField name="phone" :error="errors.phone" class="sales-pos-customer-form-phone-number flex-1">
                     <UInput
                       v-model="state.phone"
                       class="w-full"
@@ -277,9 +300,9 @@ function handleCancel() {
 
               <!-- Sección Precios -->
               <div
-                class="clients-form-section rounded-lg border border-default bg-elevated/30 p-4"
+                class="clients-form-section sales-pos-customer-form-section rounded-lg border border-default bg-elevated/30 p-4"
               >
-                <p class="mb-3 font-semibold">Precios</p>
+                <p class="sales-pos-customer-form-section-title mb-3 font-semibold">Precios</p>
                 <UCheckbox
                   v-model="state.assignPriceList"
                   label="Asignar una lista de precios al cliente"
@@ -296,7 +319,7 @@ function handleCancel() {
                       placeholder="Seleccionar lista de precios"
                       class="w-full"
                       size="lg"
-                      :ui="{ content: 'hf-theme hf-ui clients-form-portal' }"
+                      :ui="{ content: selectContentClass }"
                     />
                   </UFormField>
                 </div>
@@ -304,12 +327,13 @@ function handleCancel() {
 
               <!-- Sección Dirección y Más -->
               <div
-                class="clients-form-section rounded-lg border border-default bg-elevated/30 p-4"
+                class="clients-form-section sales-pos-customer-form-section rounded-lg border border-default bg-elevated/30 p-4"
               >
-                <div class="mb-3 flex items-center justify-between">
-                  <p class="font-semibold">Dirección</p>
+                <div class="sales-pos-customer-form-address-header mb-3 flex items-center justify-between">
+                  <p class="sales-pos-customer-form-section-title font-semibold">Dirección</p>
                   <UButton
                     label="+ Añadir Dirección"
+                    class="sales-pos-customer-form-action sales-pos-customer-form-add-address"
                     size="sm"
                     color="neutral"
                     variant="ghost"
@@ -323,11 +347,12 @@ function handleCancel() {
                   <div
                     v-for="(addr, idx) in pendingAddresses"
                     :key="idx"
-                    class="flex items-center justify-between rounded-md border border-default bg-background px-3 py-2"
+                    class="sales-pos-customer-form-address-row flex items-center justify-between rounded-md border border-default bg-background px-3 py-2"
                   >
-                    <span class="truncate text-sm">{{ formatAddress(addr) }}</span>
+                    <span class="sales-pos-customer-form-address-text truncate text-sm">{{ formatAddress(addr) }}</span>
                     <UButton
                       icon="i-lucide-trash-2"
+                      class="sales-pos-customer-form-icon-action"
                       size="xs"
                       color="error"
                       variant="ghost"
@@ -345,13 +370,14 @@ function handleCancel() {
                   <div
                     v-for="addr in customer.addresses"
                     :key="addr.id"
-                    class="flex items-center justify-between rounded-md border border-default bg-background px-3 py-2"
+                    class="sales-pos-customer-form-address-row flex items-center justify-between rounded-md border border-default bg-background px-3 py-2"
                   >
-                    <span class="truncate text-sm">{{ formatAddress(addr) }}</span>
+                    <span class="sales-pos-customer-form-address-text truncate text-sm">{{ formatAddress(addr) }}</span>
                     <div class="flex gap-1">
                       <UButton
                         :data-testid="`edit-address-${addr.id}`"
                         icon="i-lucide-pencil"
+                        class="sales-pos-customer-form-icon-action"
                         size="xs"
                         color="neutral"
                         variant="ghost"
@@ -361,6 +387,7 @@ function handleCancel() {
                       <UButton
                         :data-testid="`remove-address-${addr.id}`"
                         icon="i-lucide-trash-2"
+                        class="sales-pos-customer-form-icon-action"
                         size="xs"
                         color="error"
                         variant="ghost"
@@ -375,7 +402,7 @@ function handleCancel() {
                   v-if="
                     mode === 'create' ? pendingAddresses.length === 0 : !customer?.addresses?.length
                   "
-                  class="text-sm text-muted"
+                  class="sales-pos-customer-form-empty text-sm text-muted"
                 >
                   Sin direcciones añadidas
                 </p>
@@ -435,7 +462,7 @@ function handleCancel() {
                   placeholder="Seleccionar régimen fiscal"
                   class="w-full"
                   size="lg"
-                  :ui="{ content: 'hf-theme hf-ui clients-form-portal' }"
+                  :ui="{ content: selectContentClass }"
                 />
               </UFormField>
 
@@ -443,7 +470,7 @@ function handleCancel() {
               <div>
                 <button
                   type="button"
-                  class="clients-form-link flex items-center gap-1 text-sm font-medium text-coco-gold-800 hover:underline"
+                  class="clients-form-link sales-pos-customer-form-link flex items-center gap-1 text-sm font-medium text-coco-gold-800 hover:underline"
                   @click="state.showBillingAddress = !state.showBillingAddress"
                 >
                   <UIcon
@@ -556,7 +583,7 @@ function handleCancel() {
                       placeholder="Seleccionar"
                       class="w-full"
                       size="lg"
-                      :ui="{ content: 'hf-theme hf-ui clients-form-portal' }"
+                      :ui="{ content: selectContentClass }"
                     />
                   </UFormField>
                 </div>
@@ -568,15 +595,21 @@ function handleCancel() {
     </template>
 
     <template #footer>
-      <div class="flex justify-end gap-3">
-        <UButton label="Cancelar" color="neutral" variant="outline" @click="handleCancel" />
+      <div class="sales-pos-customer-form-footer flex justify-end gap-3">
+        <UButton
+          label="Cancelar"
+          class="sales-pos-customer-form-action"
+          color="neutral"
+          variant="outline"
+          @click="handleCancel"
+        />
         <UButton
           :label="mode === 'create' ? 'Crear cliente' : 'Guardar cambios'"
           :loading="loading"
           type="submit"
           :form="formId"
           color="primary"
-          class="hf-primary-control"
+          class="hf-primary-control sales-pos-customer-form-action sales-pos-customer-form-submit"
         />
       </div>
     </template>
@@ -588,6 +621,7 @@ function handleCancel() {
     :address="editingAddress"
     :loading="loading || addressSaving"
     :error="addressError"
+    :portal-class="portalClass"
     allow-busy-cancellation
     @update:open="handleAddressOpenChange"
     @save="handleAddressSave"

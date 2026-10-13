@@ -1,0 +1,392 @@
+@import '../../../../core/shared/design-system/houndfe-ui.css';
+
+/*
+ * Sales entry — customer / address presentation (T7 / S1-S7).
+ *
+ * Composition-only adapter for the customer surfaces that appear INSIDE the
+ * Venta flow. It is imported exclusively from `AssignCustomerSlideover.vue`
+ * (never from `SalesView.vue`), and every rule is governed by one of three
+ * owned markers:
+ *
+ *   .sales-pos-customer          the assignment sheet. It is the portal token
+ *                                `SalesView` already forwards to the installed
+ *                                slideover content root, so the sheet is the
+ *                                only place this marker exists.
+ *   .sales-pos-customer-form     the nested `Nuevo cliente` slideover, the
+ *                                `Añadir dirección` modal and the select popups
+ *                                inside them. The sheet APPENDS this marker to
+ *                                each wrapper's own default only when the venta
+ *                                token is present; quotations and the Customers
+ *                                view never receive it, so `clients-form-portal`
+ *                                keeps its accepted geometry untouched.
+ *   .sales-pos-customer-summary  the in-cart trigger plus the assigned /
+ *                                unassigned summary, which lives in the page
+ *                                (no teleport) inside `ActiveSalePanel`.
+ *
+ * The palette, control pairing and keyboard focus already live in the accepted
+ * `sales-entry-visual.css`; nothing is repeated here. Rules win over the legacy
+ * utility literals by specificity — there is no `!important`, no palette
+ * literal, no `:root` and no wildcard.
+ *
+ * This file states no browser claim: measured contrast, real touch ergonomics
+ * and the visual acceptance of these windows stay user-owned.
+ */
+
+/* ── Assignment sheet: bounded, readable surfaces ─────────────────────────── */
+
+.sales-pos-customer {
+  background-color: var(--hf-surface);
+  font-family: var(--hf-font);
+}
+
+.sales-pos-customer .sales-pos-customer-header {
+  border-color: var(--hf-border);
+}
+
+.sales-pos-customer .sales-pos-customer-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+.sales-pos-customer .sales-pos-customer-subtitle {
+  font-size: 0.875rem;
+  color: var(--hf-muted);
+}
+
+.sales-pos-customer .sales-pos-customer-close {
+  min-height: var(--hf-control-height);
+  min-width: var(--hf-control-height);
+  border-radius: var(--hf-radius-control);
+  color: var(--hf-muted);
+}
+
+/* ── Labelled search + secondary outlined new-client action ───────────────── */
+
+.sales-pos-customer .sales-pos-customer-search-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.sales-pos-customer .sales-pos-customer-search {
+  display: grid;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.sales-pos-customer .sales-pos-customer-search-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+.sales-pos-customer .sales-pos-customer-search-field input {
+  font-size: 1rem;
+  min-height: var(--hf-control-height);
+}
+
+.sales-pos-customer .sales-pos-customer-new-customer {
+  width: 100%;
+  min-height: var(--hf-control-height);
+  justify-content: center;
+  border-color: var(--hf-field-border);
+  border-radius: var(--hf-radius-control);
+  color: var(--hf-action);
+  font-weight: 600;
+}
+
+/* ── Contact cards: hierarchy, states, touch + keyboard targets ───────────── */
+
+.sales-pos-customer .sales-pos-customer-card {
+  min-height: var(--hf-control-height);
+  border-width: 1px;
+  border-style: solid;
+  border-color: var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background-color: var(--hf-surface);
+}
+
+.sales-pos-customer .sales-pos-customer-card:hover {
+  background-color: var(--hf-surface-muted);
+}
+
+.sales-pos-customer .sales-pos-customer-card:focus-visible {
+  outline-width: 2px;
+  outline-style: solid;
+  outline-color: var(--hf-focus);
+  outline-offset: 2px;
+  background-color: var(--hf-surface-muted);
+}
+
+.sales-pos-customer .sales-pos-customer-card:active {
+  background-color: var(--hf-active-soft);
+}
+
+.sales-pos-customer .sales-pos-customer-card-skip {
+  border-style: dashed;
+}
+
+.sales-pos-customer .sales-pos-customer-card-name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+.sales-pos-customer .sales-pos-customer-card-meta {
+  font-size: 0.8125rem;
+  color: var(--hf-muted);
+}
+
+.sales-pos-customer .sales-pos-customer-card-icon {
+  color: var(--hf-muted);
+}
+
+/* ── Address step: real loaded context, quiet legacy literals ─────────────── */
+
+.sales-pos-customer .sales-pos-customer-section-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+.sales-pos-customer .sales-pos-customer-contact {
+  font-size: 0.8125rem;
+  color: var(--hf-muted);
+}
+
+.sales-pos-customer .sales-pos-customer-selected-badge {
+  background-color: var(--hf-active-soft);
+  border-color: var(--hf-action);
+  color: var(--hf-action);
+  font-weight: 600;
+}
+
+.sales-pos-customer .sales-pos-customer-change {
+  min-height: var(--hf-control-height);
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.8125rem;
+  color: var(--hf-action);
+  border-radius: var(--hf-radius-control);
+}
+
+.sales-pos-customer .sales-pos-customer-change:focus-visible {
+  outline-width: 2px;
+  outline-style: solid;
+  outline-color: var(--hf-focus);
+  outline-offset: 2px;
+}
+
+.sales-pos-customer .sales-pos-customer-footer {
+  border-top-color: var(--hf-border);
+}
+
+.sales-pos-customer .sales-pos-customer-action {
+  min-height: var(--hf-control-height);
+  border-radius: var(--hf-radius-control);
+}
+
+/* ── Nested forms: Nuevo cliente + Añadir dirección ───────────────────────── */
+
+.sales-pos-customer-form {
+  background-color: var(--hf-surface);
+  font-family: var(--hf-font);
+  color: var(--hf-ink);
+}
+
+.sales-pos-customer-form label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+.sales-pos-customer-form input,
+.sales-pos-customer-form textarea,
+.sales-pos-customer-form select {
+  font-size: 1rem;
+}
+
+.sales-pos-customer-form [role='tab'] {
+  min-height: var(--hf-control-height);
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--hf-muted);
+}
+
+.sales-pos-customer-form [role='tab'][aria-selected='true'] {
+  color: var(--hf-action);
+}
+
+.sales-pos-customer-form [role='option'] {
+  min-height: var(--hf-control-height);
+  font-size: 0.9375rem;
+}
+
+.sales-pos-customer-form [role='option'][data-highlighted] {
+  background-color: var(--hf-active-soft);
+  color: var(--hf-action);
+}
+
+.sales-pos-customer-form .sales-pos-customer-form-section {
+  border-color: var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background-color: var(--hf-surface-muted);
+}
+
+.sales-pos-customer-form .sales-pos-customer-form-section-title {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+.sales-pos-customer-form .sales-pos-customer-form-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+.sales-pos-customer-form .sales-pos-customer-form-country {
+  min-height: var(--hf-control-height);
+}
+
+.sales-pos-customer-form .sales-pos-customer-form-address-header {
+  gap: 0.75rem;
+}
+
+.sales-pos-customer-form .sales-pos-customer-form-add-address {
+  min-height: var(--hf-control-height);
+  justify-content: center;
+  border-radius: var(--hf-radius-control);
+  color: var(--hf-action);
+  font-weight: 600;
+}
+
+.sales-pos-customer-form .sales-pos-customer-form-address-row {
+  min-height: var(--hf-control-height);
+  border-color: var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-surface);
+}
+
+.sales-pos-customer-form .sales-pos-customer-form-address-text {
+  font-size: 0.875rem;
+  color: var(--hf-ink);
+}
+
+.sales-pos-customer-form .sales-pos-customer-form-empty {
+  font-size: 0.875rem;
+  color: var(--hf-muted);
+}
+
+.sales-pos-customer-form .sales-pos-customer-form-icon-action {
+  min-height: var(--hf-control-height);
+  min-width: var(--hf-control-height);
+  border-radius: var(--hf-radius-control);
+}
+
+.sales-pos-customer-form .sales-pos-customer-form-link {
+  min-height: var(--hf-control-height);
+  font-size: 0.875rem;
+  color: var(--hf-action);
+  border-radius: var(--hf-radius-control);
+}
+
+.sales-pos-customer-form .sales-pos-customer-form-map {
+  border-width: 1px;
+  border-style: solid;
+  border-color: var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background-color: var(--hf-surface-muted);
+}
+
+.sales-pos-customer-form .sales-pos-customer-form-map-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+.sales-pos-customer-form .sales-pos-customer-form-action {
+  min-height: var(--hf-control-height);
+  border-radius: var(--hf-radius-control);
+}
+
+.sales-pos-customer-form .sales-pos-customer-form-footer {
+  gap: 0.75rem;
+}
+
+/* ── In-cart trigger + assigned / unassigned summary ─────────────────────── */
+
+.sales-pos-customer-summary .sales-pos-customer-state {
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.sales-pos-customer-summary .sales-pos-customer-identity {
+  gap: 0.5rem;
+}
+
+.sales-pos-customer-summary .sales-pos-customer-icon {
+  color: var(--hf-muted);
+}
+
+.sales-pos-customer-summary .sales-pos-customer-label {
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--hf-muted);
+}
+
+.sales-pos-customer-summary .sales-pos-customer-value {
+  font-size: 0.875rem;
+  color: var(--hf-muted);
+}
+
+.sales-pos-customer-summary .sales-pos-customer-name {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+.sales-pos-customer-summary .sales-pos-customer-address {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.8125rem;
+  color: var(--hf-muted);
+}
+
+.sales-pos-customer-summary .sales-pos-customer-address-icon {
+  color: var(--hf-muted);
+}
+
+.sales-pos-customer-summary .sales-pos-customer-empty-address {
+  font-style: italic;
+}
+
+.sales-pos-customer-summary .sales-pos-customer-trigger {
+  min-height: var(--hf-control-height);
+  border-color: var(--hf-field-border);
+  border-radius: var(--hf-radius-control);
+  color: var(--hf-action);
+  font-weight: 600;
+}
+
+.sales-pos-customer-summary .sales-pos-customer-actions {
+  gap: 0.25rem;
+}
+
+.sales-pos-customer-summary .sales-pos-customer-action {
+  min-height: var(--hf-control-height);
+  font-size: 0.8125rem;
+}
+
+.sales-pos-customer-summary .sales-pos-customer-action:not(.sales-pos-customer-action-destructive) {
+  color: var(--hf-action);
+}
+
+/* Preserve the framework's error foreground for removing the assigned
+   customer; the adapter only normalizes its size and weight. */
+.sales-pos-customer-summary .sales-pos-customer-action-destructive {
+  font-weight: 600;
+}
