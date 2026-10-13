@@ -47,3 +47,7 @@ artifacts/responsive/
 
 # Disposable cash-live credentials and redacted run artifacts
 /artifacts/cash-live/
+
+# Local verification evidence and git worktrees (never committed)
+/artifacts/
+/.worktrees/
