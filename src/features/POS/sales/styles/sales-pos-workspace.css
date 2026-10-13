@@ -1,0 +1,642 @@
+@import '../../../../core/shared/design-system/houndfe-ui.css';
+
+/*
+ * Sales entry — workspace / catalog / cart composition (T2 / S1-S10).
+ *
+ * This adapter is composition-only and is imported exclusively from
+ * `SalesView.vue`, immediately after the accepted `sales-entry-visual.css`
+ * colour adapter. The palette, control pairing and portal paint already live
+ * there; here we bound and centre the workspace, place the accepted v0 heading,
+ * re-proportion the catalog grid, give the catalog controls their own surface,
+ * bound the catalog media and keep the cart wrapper neutral for unit B.
+ *
+ * S8 fidelity correction: the accepted v0 reference is a CENTERED, BOUNDED
+ * workspace (`max-width: 1900px`) with a NEUTRAL, padding-free cart wrapper
+ * whose VISIBLE 388px (420px from 1500px) surface is owned by the cart panel
+ * itself. The earlier candidate was rejected on four points, all corrected
+ * here: the `PUNTO DE VENTA` / `Nueva venta` heading was missing before the
+ * draft strip, the catalog controls were merged into one tall card that also
+ * held the products, the desktop grid was denser than the reference (4/5/6
+ * columns), and the cart wrapper added its own padding/border/rounding on top
+ * of the cart surface. The grid is now the reference's spacious three columns
+ * (two while the visible cart narrows the catalog) and never denser, the
+ * controls own the only left card, and the wrappers contribute no paint.
+ *
+ * Every rule is governed by one of the two owned boundaries:
+ *   - `.sales-pos-workspace` — the in-page workspace root, and
+ *   - `.sales-pos-cart`      — the mobile drawer's native content root.
+ *
+ * Shared components (product search/results, the cart panel and its rows,
+ * totals, promotions, draft strip) are reached through ADDITIVE class hooks
+ * only, so quotations, the Caja surfaces and any other consumer keep their
+ * prior paint and behavior. No palette literal, no `:root`, no wildcard.
+ */
+
+/* ── Bounded, centered workspace and two-pane proportions ──────────────────── */
+
+/* The accepted v0 composition bounds the working area and centers it, so an
+ * ultrawide monitor gets a readable column of work with quiet margins instead
+ * of a stretched catalog. Applies to both the loaded row and the loading
+ * skeleton row (`.sales-pos-split`), and to the draft strip above them. */
+.sales-pos-workspace .sales-pos-split,
+.sales-pos-workspace .sales-pos-workspace-header,
+.sales-pos-workspace .sales-pos-draft-strip {
+  width: 100%;
+  max-width: 118.75rem; /* 1900px — the accepted v0 workspace bound */
+  margin-inline: auto;
+}
+
+/* S11: one shared edge. The dashboard shell body already pads the routed page
+ * (16px, 24px from `sm`), so the heading, the draft strip and the split add
+ * NO horizontal gutter of their own below `lg` and only the 8px that completes
+ * v0's 32px gutter from `lg`. All three are declared together, before any
+ * media block, so a later base rule can never silently defeat a breakpoint
+ * (the rejected candidate shifted the draft strip 16px off the heading). */
+.sales-pos-workspace .sales-pos-workspace-header {
+  padding: 0 0 1.25rem;
+}
+
+.sales-pos-workspace .sales-pos-draft-strip {
+  gap: 0.5rem;
+  padding: 0 0 1rem;
+}
+
+.sales-pos-workspace .sales-pos-split {
+  padding: 0 0 1rem;
+}
+
+@media (min-width: 64rem) {
+  .sales-pos-workspace .sales-pos-workspace-header {
+    padding: 0 0.5rem 1.5rem;
+  }
+
+  .sales-pos-workspace .sales-pos-draft-strip,
+  .sales-pos-workspace .sales-pos-split {
+    padding: 0 0.5rem 1rem;
+  }
+}
+
+/* ── Workspace heading ─────────────────────────────────────────────────── */
+
+/* S8: the accepted v0 heading — `PUNTO DE VENTA` above `Nueva venta` — sits on
+ * the page canvas before the draft strip. The copy and ordering come from the
+ * authorized v0 source; the prototype's decorative gold dot is intentionally
+ * dropped (the shared foundation carries no decorative status dot). */
+.sales-pos-workspace .sales-pos-workspace-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.sales-pos-workspace .sales-pos-workspace-eyebrow {
+  color: var(--hf-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.sales-pos-workspace .sales-pos-workspace-title {
+  color: var(--hf-heading);
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.sales-pos-workspace .sales-pos-workspace-helper {
+  display: none;
+  color: var(--hf-muted);
+  font-size: 0.8125rem;
+}
+
+/* Legacy responsive width utilities that remain in the markup (catalog
+ * `lg:w-[60%]` / `xl:w-[75%]`, cart `lg:w-[40%]` / `xl:w-[25%]`) are inert by
+ * construction, not by luck: each pane owns a `width` in EVERY range — this
+ * unconditional rule for the stacked range and the `width` declarations in the
+ * media blocks from `lg` up — and every owned selector (two classes, 0-2-0)
+ * outranks a single Tailwind utility (0-1-0). So no share of the viewport can
+ * ever reach the sales composition, and the utilities can be removed later
+ * without changing a single rendered pixel. */
+.sales-pos-workspace .sales-pos-catalog-pane,
+.sales-pos-workspace .sales-pos-cart-pane {
+  width: 100%;
+  /* Neutralizes the legacy `px-3 lg:px-4` wrapper gutters at every width: the
+   * shared edge above is the only horizontal inset (S11). */
+  padding: 0;
+}
+
+/* The desktop catalog takes the remaining bounded width and the cart keeps a
+ * readable, absolute rail: a percentage rail either collapsed into a narrow
+ * strip or took over a wide viewport. The responsive split contract (two panes
+ * at lg, catalog-first below) and the mobile drawer sequencing are untouched. */
+@media (min-width: 64rem) {
+  /* The column gap lives on the bounded workspace (like the accepted
+   * reference), so both panes are neutral, padding-free wrappers: the VISIBLE
+   * cart surface equals the pane width instead of a padded wrapper. */
+  .sales-pos-workspace .sales-pos-split {
+    gap: 1.5rem;
+  }
+
+  .sales-pos-workspace .sales-pos-workspace-helper {
+    display: block;
+  }
+
+  .sales-pos-workspace .sales-pos-catalog-pane {
+    flex: 1 1 auto;
+    width: auto; /* neutralizes lg:w-[60%] / xl:w-[75%] */
+    min-width: 0;
+  }
+
+  /* Ordinary desktop keeps the reference's 388px cart column; the wider 420px
+   * column only opens once the viewport can pay for it. */
+  .sales-pos-workspace .sales-pos-cart-pane {
+    flex: 0 0 auto;
+    width: 24.25rem; /* 388px — the reference's ordinary desktop cart */
+    min-width: 24.25rem;
+    max-width: 26.25rem; /* 420px — the reference's >=1500px cart */
+  }
+}
+
+/* 1500px — the reference's own cart-column boundary. */
+@media (min-width: 93.75rem) {
+  .sales-pos-workspace .sales-pos-cart-pane {
+    width: 26.25rem; /* 420px visible cart surface */
+  }
+}
+
+/* ── Draft strip ────────────────────────────────────────────────────────── */
+
+.sales-pos-workspace .sales-pos-draft-tab {
+  min-height: var(--hf-control-height);
+  border-radius: var(--hf-radius-control);
+}
+
+.sales-pos-workspace .sales-pos-draft-tab[data-sales-pos-state='active'] {
+  background-color: var(--hf-surface);
+  border-color: var(--hf-border);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--hf-ink) 6%, transparent);
+}
+
+.sales-pos-workspace .sales-pos-draft-tab[data-sales-pos-state='idle'] {
+  background-color: transparent;
+  border-color: transparent;
+}
+
+.sales-pos-workspace .sales-pos-draft-count {
+  background-color: var(--hf-surface-muted);
+  color: var(--hf-muted);
+}
+
+/* ── Catalog controls surface, panes and results grid ───────────────────── */
+
+/* S8: one 12px surface holds the title, the real catalog count, the
+ * `Buscar producto` label, the search field and the category controls. The
+ * product grid stays on the page canvas — it is never wrapped inside the card.
+ * The hook only paints inside the sale opt-in, so the shared panel keeps its
+ * default chrome for quotations. */
+.hf-ui.sales-pos-workspace .sales-pos-catalog > .sales-pos-catalog-controls-surface.sticky {
+  background-color: var(--hf-surface);
+  border: 1px solid var(--hf-border);
+  border-bottom: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  margin-bottom: 1rem;
+}
+
+.sales-pos-workspace .sales-pos-catalog-controls {
+  padding: 1.25rem;
+}
+
+.sales-pos-workspace .sales-pos-catalog-count {
+  color: var(--hf-muted);
+}
+
+/* Controls use the shared 6px control radius and the 44px target, like the
+ * reference's search field and category buttons. */
+.sales-pos-workspace .sales-pos-catalog-search [data-slot='base'] {
+  border-radius: var(--hf-radius-control);
+  min-height: var(--hf-control-height);
+}
+
+.sales-pos-workspace .sales-pos-categories {
+  gap: 0.5rem;
+}
+
+.sales-pos-workspace .sales-pos-categories button {
+  min-height: var(--hf-control-height);
+  border-radius: var(--hf-radius-control);
+}
+
+/* The pane wrappers keep the protected `sales-entry-panel` caller hook but
+ * contribute no paint, radius or clipping: the catalog controls own the only
+ * card on the left, the grid sits on the canvas, and unit B owns the sole cart
+ * surface (no cloned placeholder panel). */
+.sales-pos-workspace .sales-pos-catalog-pane > .sales-entry-panel.sales-pos-catalog-shell,
+.sales-pos-workspace .sales-pos-cart-pane > .sales-entry-panel.sales-pos-cart-shell {
+  background-color: transparent;
+  border-style: none;
+  border-width: 0;
+  border-radius: 0;
+  overflow: visible;
+}
+
+/* S11: the product grid starts on the same edge as the controls card above
+ * it (v0), instead of a 20px inward step. Only the bottom keeps air so the
+ * last row is not glued to the scroll end. */
+.sales-pos-workspace .sales-pos-results {
+  padding: 0 0 1rem;
+}
+
+/* Mobile keeps the shared single-column, horizontal-card catalog untouched
+ * (S6 guard); only the type/media/padding inside each card is corrected. */
+.sales-pos-workspace .sales-pos-product-grid {
+  gap: 0.75rem;
+}
+
+/* S8: the accepted v0 catalog is spacious — three columns on desktop, two
+ * when the visible cart narrows the catalog, and never a denser grid just
+ * because the viewport is wider. Shared result utilities stay unchanged
+ * outside this opt-in, so quotations keep their own defaults. */
+@media (min-width: 40rem) {
+  .sales-pos-workspace .sales-pos-product-grid {
+    gap: 1rem;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Narrower desktop: the visible cart rail takes part of the catalog width, so
+ * the reference drops to two columns instead of crowding three. */
+@media (min-width: 64rem) {
+  .sales-pos-workspace .sales-pos-product-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Spacious desktop: three columns through the bounded 1900px workspace. */
+@media (min-width: 72rem) {
+  .sales-pos-workspace .sales-pos-product-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 93.75rem) {
+  .sales-pos-workspace .sales-pos-product-grid {
+    gap: 1.5rem; /* 24px — the reference's >=1500px catalog gap */
+  }
+}
+
+/* ── Product cards ──────────────────────────────────────────────────────── */
+
+/* Bounded media. The mobile card is a row, so its image keeps a fixed band and
+ * is never cropped (`contain`). A single fixed height across every width is
+ * what letterboxed the widened desktop cards, so from `sm` the band follows the
+ * (now bounded) card width and the image fills it, under an absolute ceiling
+ * that keeps a product image from becoming a hero. */
+.sales-pos-workspace .sales-pos-product-card {
+  border-color: var(--hf-border);
+  border-radius: var(--hf-radius-card);
+}
+
+.sales-pos-workspace .sales-pos-product-card:hover {
+  border-color: color-mix(in srgb, var(--hf-action) 45%, var(--hf-border));
+}
+
+.sales-pos-workspace .sales-pos-product-media {
+  width: 43%; /* Loading and loaded mobile media share only the Venta override. */
+  height: 8.5rem;
+  background-color: var(--hf-surface-muted);
+}
+
+.sales-pos-workspace .sales-pos-product-media img {
+  object-fit: contain;
+  padding: 0.5rem;
+}
+
+@media (min-width: 40rem) {
+  .sales-pos-workspace .sales-pos-product-media {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 10 / 7;
+    max-height: 13rem;
+  }
+
+  .sales-pos-workspace .sales-pos-product-media img {
+    object-fit: cover;
+    padding: 0;
+  }
+}
+
+/* v0 card body: 16px, 20px once the >=1500px catalog has room. */
+.sales-pos-workspace .sales-pos-product-body {
+  padding: 1rem;
+}
+
+@media (min-width: 93.75rem) {
+  .sales-pos-workspace .sales-pos-product-body {
+    padding: 1.25rem;
+  }
+}
+
+/* Operational facts stay in the readable 12-16px range: brand and stock as
+ * supporting text, name and price as the primary data. */
+.sales-pos-workspace .sales-pos-product-brand {
+  font-size: 0.75rem;
+}
+
+.sales-pos-workspace .sales-pos-product-name {
+  font-size: 0.9375rem;
+  line-height: 1.35;
+}
+
+.sales-pos-workspace .sales-pos-product-price {
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+
+/* After the base name rule so the breakpoint is not defeated by source order. */
+@media (min-width: 93.75rem) {
+  .sales-pos-workspace .sales-pos-product-name {
+    font-size: 1rem;
+  }
+}
+
+.sales-pos-workspace .sales-pos-product-stock {
+  font-size: 0.75rem;
+}
+
+.sales-pos-workspace .sales-pos-product-add {
+  min-height: var(--hf-control-height);
+  border-radius: var(--hf-radius-control);
+}
+
+/* ── Cart chrome ────────────────────────────────────────────────────────── */
+
+/* The mobile drawer's native content root carries both the entry portal paint
+ * and the owned cart boundary. */
+.sales-pos-cart {
+  background-color: var(--hf-surface);
+  color: var(--hf-ink);
+}
+
+.sales-pos-workspace .sales-pos-cart-panel,
+.sales-pos-cart .sales-pos-cart-panel {
+  background-color: var(--hf-surface);
+  color: var(--hf-ink);
+}
+
+.sales-pos-workspace .sales-pos-cart-body,
+.sales-pos-cart .sales-pos-cart-body {
+  padding-block: 0.25rem;
+  /* The scrolling region absorbs a long cart; the fixed regions below it keep
+   * their height so the customer summary cannot be pushed out of the rail. */
+  min-height: 0;
+}
+
+/* Fixed cart regions are never squeezed by their own content. */
+.sales-pos-workspace .sales-pos-cart-footer,
+.sales-pos-cart .sales-pos-cart-footer,
+.sales-pos-workspace .sales-pos-customer-summary,
+.sales-pos-cart .sales-pos-customer-summary {
+  flex-shrink: 0;
+}
+
+.sales-pos-workspace .sales-pos-cart-row,
+.sales-pos-cart .sales-pos-cart-row {
+  border-color: var(--hf-border);
+}
+
+.sales-pos-workspace .sales-pos-cart-row-media,
+.sales-pos-cart .sales-pos-cart-row-media {
+  background-color: var(--hf-surface-muted);
+  border-color: var(--hf-border);
+}
+
+.sales-pos-workspace .sales-pos-cart-row-name {
+  font-size: 0.9375rem;
+}
+
+.sales-pos-workspace .sales-pos-customer-summary,
+.sales-pos-cart .sales-pos-customer-summary {
+  background-color: var(--hf-surface-muted);
+  border-color: var(--hf-border);
+  border-radius: var(--hf-radius-card);
+}
+
+.sales-pos-workspace .sales-pos-cart-toolbar,
+.sales-pos-cart .sales-pos-cart-toolbar {
+  border-top: 1px solid var(--hf-border);
+}
+
+.sales-pos-workspace .sales-pos-promotions,
+.sales-pos-cart .sales-pos-promotions {
+  border-top-color: var(--hf-border);
+}
+
+/* The totals block stays anchored at the bottom of the cart and is separated
+ * from the scrolling rows; the charge action keeps a full touch target. */
+.sales-pos-workspace .sales-pos-totals,
+.sales-pos-cart .sales-pos-totals {
+  border-top: 1px solid var(--hf-border);
+}
+
+.sales-pos-workspace .sales-pos-total-amount,
+.sales-pos-cart .sales-pos-total-amount {
+  color: var(--hf-heading);
+}
+
+.sales-pos-workspace .sales-pos-charge-button,
+.sales-pos-cart .sales-pos-charge-button {
+  min-height: var(--hf-control-height);
+  font-size: 1rem;
+}
+
+/* ── Mobile persistent cart affordance ──────────────────────────────────── */
+
+/* The FAB paired its action background with a literal white foreground; under
+ * the dark theme that inverts to unreadable. Use the matching semantic pair. */
+.sales-pos-workspace .sales-pos-cart-fab {
+  background-color: var(--hf-action);
+  color: var(--hf-on-action);
+}
+
+.sales-pos-workspace .sales-pos-cart-fab-count {
+  background-color: color-mix(in srgb, var(--hf-on-action) 22%, transparent);
+  color: var(--hf-on-action);
+}
+
+/* ── S12: v0 catalog card (Venta composition) ───────────────────────────── */
+
+/* One bordered 12px surface: media band, identity, name, detail line, price,
+ * stock and a full-width action. The media and the name are buttons that open
+ * the product detail; the action adds or opens the variants. 0-3-0 selectors
+ * outrank the shared card rules above in either order. Mobile keeps the
+ * horizontal row; the vertical v0 card starts at `sm`. Base rules precede
+ * their media blocks so no breakpoint is silently defeated. */
+.sales-pos-workspace .sales-pos-product-card-composition {
+  background-color: var(--hf-surface);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  transition: border-color 0.15s ease;
+}
+
+.sales-pos-workspace .sales-pos-product-card-composition:hover {
+  border-color: var(--hf-action);
+}
+
+.sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-media {
+  width: 36%;
+  height: auto;
+  aspect-ratio: 1.1;
+  max-height: none;
+  padding: 0;
+  background-color: var(--hf-page);
+  cursor: pointer;
+}
+
+.sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-media img {
+  object-fit: cover;
+  padding: 0;
+}
+
+.sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-media:focus-visible,
+.sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-name:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: -2px;
+}
+
+.sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-image-badge {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  padding: 0.1875rem 0.375rem;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  color: var(--hf-muted);
+  background-color: var(--hf-surface);
+  border: 1px solid var(--hf-border);
+  border-radius: 0.25rem;
+}
+
+.sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-body {
+  padding: 0.75rem 1rem;
+}
+
+.sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-brand {
+  margin-bottom: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--hf-muted);
+}
+
+.sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-name {
+  padding: 0;
+  text-align: left;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--hf-ink);
+  cursor: pointer;
+}
+
+.sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-name:hover {
+  color: var(--hf-action);
+}
+
+.sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-detail {
+  margin-top: 0.1875rem;
+  font-size: 0.8125rem;
+  color: var(--hf-muted);
+}
+
+.sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-price {
+  margin-top: 0.75rem;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: var(--hf-heading);
+}
+
+.sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-stock-line {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-top: 0.3125rem;
+  font-size: 0.75rem;
+  color: var(--hf-muted);
+}
+
+.sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-stock-dot {
+  width: 0.375rem;
+  height: 0.375rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background-color: var(--hf-success);
+}
+
+.sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-stock-line[data-sales-pos-stock='low'] {
+  color: var(--hf-warning);
+}
+
+.sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-stock-line[data-sales-pos-stock='low'] .sales-pos-product-stock-dot {
+  background-color: var(--hf-warning);
+}
+
+.sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: var(--hf-control-height);
+  margin-top: 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+  background-color: var(--hf-surface);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+}
+
+.sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-add:hover {
+  background-color: var(--hf-surface-muted);
+}
+
+.sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-add-variants {
+  color: var(--hf-action);
+}
+
+@media (min-width: 40rem) {
+  .sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-media {
+    width: 100%;
+    aspect-ratio: 1.42;
+  }
+
+  .sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-image-badge {
+    top: 0.75rem;
+    left: 0.75rem;
+  }
+
+  .sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-body {
+    padding: 1rem;
+  }
+
+  .sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-price {
+    margin-top: 1rem;
+  }
+
+  .sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-add {
+    margin-top: 1rem;
+  }
+}
+
+/* >=1500px: the v0 card breathes (20px body, 16px name). */
+@media (min-width: 93.75rem) {
+  .sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-body {
+    padding: 1.25rem;
+  }
+
+  .sales-pos-workspace .sales-pos-product-card-composition .sales-pos-product-name {
+    font-size: 1rem;
+  }
+}

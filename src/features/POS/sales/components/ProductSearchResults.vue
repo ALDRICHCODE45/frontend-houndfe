@@ -4,22 +4,25 @@ import type { PosCatalogItem } from '../interfaces/sale.types'
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
-const props = defineProps<{
+defineProps<{
   items: PosCatalogItem[]
   isLoading: boolean
   isEmpty: boolean
   hasQuery: boolean
+  /** S12: Venta-only v0 card opt-in, forwarded to every result card. */
+  composition?: boolean
 }>()
 
 // ── Emits ─────────────────────────────────────────────────────────────────────
 
 const emit = defineEmits<{
   select: [item: PosCatalogItem]
+  'view-detail': [item: PosCatalogItem]
 }>()
 </script>
 
 <template>
-  <div class="overflow-y-auto flex-1 px-3 sm:px-5 py-3 sm:py-4 no-scrollbar">
+  <div class="overflow-y-auto flex-1 px-3 sm:px-5 py-3 sm:py-4 no-scrollbar sales-pos-results">
     <!-- Cards sit directly on the page surface (no intermediary tint layer).
          no-scrollbar hides the native track that otherwise shows as an
          always-visible bar at the panel's right edge. Scroll still works
@@ -27,10 +30,10 @@ const emit = defineEmits<{
     <!-- Loading skeleton mirrors horizontal cards on mobile and vertical cards from sm. -->
     <div
       v-if="isLoading && items.length === 0"
-      class="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-4 gap-4"
+      class="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-4 gap-4 sales-pos-product-grid"
     >
-      <div v-for="i in 8" :key="i" class="rounded-2xl border border-default bg-default overflow-hidden shadow-sm flex sm:flex-col">
-        <USkeleton class="h-28 w-28 sm:h-32 sm:w-full shrink-0" />
+      <div v-for="i in 8" :key="i" class="rounded-2xl border border-default bg-default overflow-hidden shadow-sm flex sm:flex-col sales-pos-product-card">
+        <USkeleton class="h-28 w-28 sm:h-32 sm:w-full shrink-0 sales-pos-product-media" />
         <div class="flex-1 min-w-0 px-3 py-2.5 space-y-1.5 sm:border-t sm:border-default/50">
           <USkeleton class="h-2.5 w-16" />
           <USkeleton class="h-3 w-full" />
@@ -41,7 +44,7 @@ const emit = defineEmits<{
     </div>
 
     <!-- Empty state -->
-    <div v-else-if="isEmpty" class="flex flex-col items-center justify-center py-20 px-4">
+    <div v-else-if="isEmpty" class="flex flex-col items-center justify-center py-20 px-4 sales-pos-catalog-empty">
       <div class="rounded-2xl bg-elevated/70 border border-default p-5 mb-4">
         <UIcon name="i-lucide-package-x" class="h-10 w-10 text-dimmed" />
       </div>
@@ -59,13 +62,15 @@ const emit = defineEmits<{
     <!-- Results card grid — horizontal single-column cards on mobile. -->
     <div
       v-else
-      class="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-4 gap-4"
+      class="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-4 gap-4 sales-pos-product-grid"
     >
       <ProductSearchResultItem
         v-for="item in items"
         :key="item.id"
         :item="item"
+        :composition="composition"
         @select="emit('select', $event)"
+        @view-detail="emit('view-detail', $event)"
       />
     </div>
   </div>

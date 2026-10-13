@@ -16,6 +16,7 @@ import AssignCustomerSlideover from '../components/AssignCustomerSlideover.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import AppResponsiveDrawer from '@/core/shared/components/AppResponsiveDrawer.vue'
 import '../styles/sales-entry-visual.css' // T3: feature-owned Sales-entry presentation boundary.
+import '../styles/sales-pos-workspace.css' // T2: workspace/catalog/cart composition boundary.
 import type {
   ApplyItemDiscountPayload,
   ApplyGlobalDiscountPayload,
@@ -56,6 +57,13 @@ declare const useToast: () => {
 // on its own native content root through an optional marker. Omitting it keeps
 // each shared component's native defaults and prior geometry untouched.
 const ENTRY_PORTAL_CLASS = 'hf-theme hf-ui sales-entry-portal'
+
+// T2 (workspace/catalog/cart composition): two owned presentation markers are
+// APPENDED to the entry marker on the teleport roots the workspace reaches.
+// The entry marker itself stays byte-exact, so every other caller and its
+// native defaults are unchanged.
+const MOBILE_CART_PORTAL_CLASS = `${ENTRY_PORTAL_CLASS} sales-pos-cart`
+const CUSTOMER_PORTAL_CLASS = `${ENTRY_PORTAL_CLASS} sales-pos-customer`
 
 // ── Composables ───────────────────────────────────────────────────────────────
 
@@ -836,42 +844,78 @@ async function handleChangePriceList(globalPriceListId: string | null) {
 </script>
 
 <template>
-  <div class="h-full flex bg-default hf-theme hf-ui sales-entry-visual">
-    <!-- Loading skeleton -->
-    <div v-if="isLoadingList" class="h-full w-full flex flex-col lg:flex-row">
-      <!-- Left skeleton panel: full-width on mobile, 60% lg / 75% xl -->
-      <div class="w-full lg:w-[60%] xl:w-[75%] p-3 sm:p-4 space-y-4">
-        <USkeleton class="h-10 w-full rounded-lg" />
-        <div class="flex gap-2">
-          <USkeleton v-for="i in 4" :key="i" class="h-8 w-24 rounded-full" />
-        </div>
-        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-4 gap-4 mt-3">
-          <div v-for="i in 8" :key="i" class="rounded-xl border border-default overflow-hidden">
-            <USkeleton class="aspect-square w-full" />
-            <div class="p-2.5 space-y-1.5">
-              <USkeleton class="h-2.5 w-16" />
-              <USkeleton class="h-3 w-full" />
-              <USkeleton class="h-3.5 w-20" />
+  <div class="h-full flex bg-default hf-theme hf-ui sales-entry-visual sales-pos-workspace">
+    <!-- Loading skeleton.
+         S6: the loading composition mirrors the loaded geometry — the same
+         bounded, centered `.sales-pos-split` row, the same pane hooks (so the
+         rail is bounded while loading too), the same `sales-entry-panel` card
+         and the same catalog grid/cards as `ProductSearchResults` (mobile
+         single-column horizontal cards, vertical from `sm`). Nothing jumps
+         when the drafts arrive. -->
+    <div
+      v-if="isLoadingList"
+      class="h-full w-full flex flex-col lg:flex-row min-h-0 sales-pos-split"
+    >
+      <!-- Left skeleton panel: full-width on mobile, 60% lg / 75% xl. -->
+      <div
+        class="sales-pos-catalog-pane lg:w-[60%] xl:w-[75%] flex flex-col min-w-0 px-3 lg:px-4 pt-1.5 lg:pt-2 pb-3 lg:pb-4"
+      >
+        <div class="h-full rounded-2xl border border-default/50 overflow-hidden sales-entry-panel sales-pos-catalog-shell">
+          <div class="h-full flex flex-col">
+            <div class="px-3 sm:px-5 py-4 space-y-3.5 sales-pos-catalog-controls">
+              <USkeleton class="h-10 w-full rounded-lg" />
+              <div class="flex gap-2 sales-pos-categories">
+                <USkeleton v-for="i in 4" :key="i" class="h-8 w-24 rounded-full" />
+              </div>
+            </div>
+            <div class="flex-1 min-h-0 overflow-y-auto px-3 sm:px-5 py-3 sm:py-4 sales-pos-results">
+              <div
+                class="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-4 gap-4 sales-pos-product-grid"
+              >
+                <div
+                  v-for="i in 8"
+                  :key="i"
+                  class="rounded-2xl border border-default bg-default overflow-hidden flex sm:flex-col sales-pos-product-card"
+                >
+                  <USkeleton
+                    class="w-[43%] min-h-28 sm:h-32 sm:w-full shrink-0 sales-pos-product-media"
+                  />
+                  <div
+                    class="flex-1 min-w-0 px-3 py-2.5 space-y-1.5 sm:border-t sm:border-default/50 sales-pos-product-body"
+                  >
+                    <USkeleton class="h-2.5 w-16 sales-pos-product-brand" />
+                    <USkeleton class="h-3 w-full sales-pos-product-name" />
+                    <USkeleton class="h-3.5 w-20 mt-1 sales-pos-product-price" />
+                    <USkeleton
+                      class="h-8 w-full mt-2 rounded-xl sm:hidden sales-pos-product-add"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Right skeleton panel: hidden on mobile, 40% lg / 25% xl -->
-      <div class="hidden lg:block lg:w-[40%] xl:w-[25%] shrink-0 p-3 lg:p-4">
+      <!-- Right skeleton panel: hidden on mobile, same bounded rail as loaded. -->
+      <div
+        class="sales-pos-cart-pane hidden lg:block lg:w-[40%] xl:w-[25%] shrink-0 px-3 lg:px-4 pt-1.5 lg:pt-2 pb-3 lg:pb-4"
+      >
         <div
-          class="h-full flex flex-col rounded-2xl border border-default bg-elevated/60 shadow-sm p-4 space-y-3"
+          class="h-full w-full rounded-2xl border border-default/50 overflow-hidden sales-entry-panel sales-pos-cart-shell"
         >
-          <USkeleton class="h-10 w-48" />
-          <USkeleton class="h-10 w-full" />
-          <div class="flex-1 flex items-center justify-center">
-            <div class="text-center space-y-3">
-              <USkeleton class="h-16 w-16 rounded-2xl mx-auto" />
-              <USkeleton class="h-3.5 w-32 mx-auto" />
-              <USkeleton class="h-3 w-48 mx-auto" />
+          <div class="h-full flex flex-col p-4 space-y-3 sales-pos-cart-panel">
+            <USkeleton class="h-10 w-48" />
+            <USkeleton class="h-10 w-full" />
+            <div class="flex-1 flex items-center justify-center">
+              <div class="text-center space-y-3">
+                <USkeleton class="h-16 w-16 rounded-2xl mx-auto" />
+                <USkeleton class="h-3.5 w-32 mx-auto" />
+                <USkeleton class="h-3 w-48 mx-auto" />
+              </div>
             </div>
+            <USkeleton class="h-40 w-full rounded-lg" />
           </div>
-          <USkeleton class="h-40 w-full rounded-lg" />
         </div>
       </div>
     </div>
@@ -892,6 +936,18 @@ async function handleChangePriceList(globalPriceListId: string | null) {
       v-else
       class="h-full w-full flex flex-col bg-(--light-surface-page) dark:bg-coco-neutral-950 sales-entry-page"
     >
+      <!-- S8 (fidelity): the accepted v0 workspace heading sits on the page
+           canvas BEFORE the draft strip. Static sale-page copy from the
+           authorized v0 source; the draft strip, Caja binding and every
+           shortcut/navigation contract below are untouched. -->
+      <header class="shrink-0 sales-pos-workspace-header">
+        <div class="min-w-0">
+          <p class="sales-pos-workspace-eyebrow">PUNTO DE VENTA</p>
+          <h1 class="sales-pos-workspace-title">Nueva venta</h1>
+        </div>
+        <span class="sales-pos-workspace-helper">Todo listo para tu próxima venta.</span>
+      </header>
+
       <!-- View-level tab strip. The ActiveSalePanel instances below no
            longer render their own strip — they were double-mounted and
            could desync on rapid tab switches. -->
@@ -904,15 +960,15 @@ async function handleChangePriceList(globalPriceListId: string | null) {
         @create="handleCreateTab"
       />
 
-      <div class="flex-1 flex flex-col lg:flex-row w-full min-h-0">
+      <div class="flex-1 flex flex-col lg:flex-row w-full min-h-0 sales-pos-split">
         <!-- Left panel: Product catalog (60% lg, 75% xl, full-width on mobile). -->
         <div
-          class="lg:w-[60%] xl:w-[75%] flex flex-col min-w-0 px-3 lg:px-4 pt-1.5 lg:pt-2 pb-3 lg:pb-4"
+          class="sales-pos-catalog-pane lg:w-[60%] xl:w-[75%] flex flex-col min-w-0 px-3 lg:px-4 pt-1.5 lg:pt-2 pb-3 lg:pb-4"
         >
-          <div class="h-full rounded-2xl border border-default/50 overflow-hidden sales-entry-panel">
+          <div class="h-full rounded-2xl border border-default/50 overflow-hidden sales-entry-panel sales-pos-catalog-shell">
             <ProductSearchPanel
               ref="productSearchPanelRef"
-              class="sales-entry-product-search"
+              class="sales-entry-product-search sales-pos-catalog"
               :portal-class="ENTRY_PORTAL_CLASS"
               @add-product="handleAddProduct"
             />
@@ -922,9 +978,9 @@ async function handleChangePriceList(globalPriceListId: string | null) {
         <!-- Right panel: Active sale cart (40% lg, 25% xl. Hidden on mobile
            where the cart lives inside the USlideover below). -->
         <div
-          class="hidden lg:block lg:w-[40%] xl:w-[25%] shrink-0 px-3 lg:px-4 pt-1.5 lg:pt-2 pb-3 lg:pb-4"
+          class="sales-pos-cart-pane hidden lg:block lg:w-[40%] xl:w-[25%] shrink-0 px-3 lg:px-4 pt-1.5 lg:pt-2 pb-3 lg:pb-4"
         >
-          <div class="h-full w-full rounded-2xl border border-default/50 overflow-hidden sales-entry-panel">
+          <div class="h-full w-full rounded-2xl border border-default/50 overflow-hidden sales-entry-panel sales-pos-cart-shell">
             <ActiveSalePanel
               :drafts="drafts"
               :active-draft="activeDraft"
@@ -965,7 +1021,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
         <button
           v-if="isMobileViewport"
           type="button"
-          class="fixed z-30 left-3 right-3 bottom-0 flex items-center justify-between gap-3 bg-primary text-white shadow-lg shadow-primary/30 rounded-t-2xl px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] min-h-[48px] font-semibold text-sm active:scale-[0.99] transition-transform"
+          class="sales-pos-cart-fab fixed z-30 left-3 right-3 bottom-0 flex items-center justify-between gap-3 bg-primary text-white shadow-lg shadow-primary/30 rounded-t-2xl px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] min-h-[48px] font-semibold text-sm active:scale-[0.99] transition-transform"
           data-testid="mobile-cart-fab"
           aria-label="Abrir carrito de venta"
           @click="openCartDrawer"
@@ -975,7 +1031,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
             <span class="tabular-nums">{{ formatCents(activeDraftTotalCents) }}</span>
             <span
               v-if="activeDraftItemsCount > 0"
-              class="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-white/20 text-white text-xs font-bold tabular-nums"
+              class="sales-pos-cart-fab-count inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-white/20 text-white text-xs font-bold tabular-nums"
               data-testid="mobile-cart-fab-count"
             >
               {{ activeDraftItemsCount }}
@@ -999,7 +1055,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
           close-aria-label="Cerrar carrito"
           mobile-body-class="overflow-hidden"
           data-testid="mobile-cart-drawer"
-          :portal-class="ENTRY_PORTAL_CLASS"
+          :portal-class="MOBILE_CART_PORTAL_CLASS"
           @update:open="cartDrawerOpen = $event"
           @after:leave="handleCartAfterLeave"
         >
@@ -1056,7 +1112,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
       v-if="activeDraft?.id && assignCustomerSlideoverOpen"
       v-model:open="assignCustomerSlideoverOpen"
       :sale-id="activeDraft.id"
-      :portal-class="ENTRY_PORTAL_CLASS"
+      :portal-class="CUSTOMER_PORTAL_CLASS"
     />
 
     <PaymentModal

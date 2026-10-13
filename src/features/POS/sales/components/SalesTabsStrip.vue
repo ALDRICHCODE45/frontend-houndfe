@@ -28,14 +28,15 @@ function isActive(saleId: string): boolean {
 </script>
 
 <template>
-  <div class="flex items-center gap-2 overflow-x-auto px-4 pt-2.5 pb-1.5">
+  <div class="flex items-center gap-2 overflow-x-auto px-4 pt-2.5 pb-1.5 sales-pos-draft-strip">
     <!-- Tab buttons -->
     <div
       v-for="(draft, index) in drafts"
       :key="draft.id"
       :data-testid="`tab-${draft.id}`"
+      :data-sales-pos-state="isActive(draft.id) ? 'active' : 'idle'"
       :class="[
-        'group flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-150 whitespace-nowrap cursor-pointer border',
+        'sales-pos-draft-tab group flex items-center gap-2 px-3.5 py-2 rounded-xl transition-all duration-150 whitespace-nowrap cursor-pointer border',
         isActive(draft.id)
           ? 'bg-elevated text-highlighted font-semibold shadow-sm border-default'
           : 'bg-default text-muted border-transparent hover:bg-elevated/60 hover:text-highlighted hover:border-default',
@@ -48,7 +49,7 @@ function isActive(saleId: string): boolean {
       <span
         v-if="draft.items.length > 0"
         :class="[
-          'inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-md text-[11px] font-semibold tabular-nums',
+          'inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-md text-[11px] font-semibold tabular-nums sales-pos-draft-count',
           isActive(draft.id)
             ? 'bg-primary/15 text-primary'
             : 'bg-elevated text-muted group-hover:bg-elevated/80',
