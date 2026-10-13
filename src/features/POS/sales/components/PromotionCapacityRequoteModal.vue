@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { formatCentsMXN } from '../utils/currency.utils'
+import { hasSalesEntryToken } from '../utils/salesEntryPortal'
 
 /**
  * PCA-2 — dedicated modal shown after a `PROMO_CAPACITY_RE_QUOTE` (409).
@@ -46,10 +47,15 @@ const discountFormatted = computed(() => formatCentsMXN(props.discountCents))
 const totalFormatted = computed(() => formatCentsMXN(props.totalCents))
 
 // T3: only the caller's opt-in swaps the forced legacy gold utility; omission
-// keeps the previous class string exactly.
-const modalUi = computed(() => ({
-  content: props.portalClass ? `sm:max-w-md ${props.portalClass}` : 'sm:max-w-md',
-}))
+// keeps the previous class string exactly. The owned checkout marker is
+// appended only for the sales opt-in.
+const modalUi = computed(() => {
+  if (!props.portalClass) return { content: 'sm:max-w-md' }
+  const content = hasSalesEntryToken(props.portalClass)
+    ? `sm:max-w-md ${props.portalClass} sales-pos-checkout`
+    : `sm:max-w-md ${props.portalClass}`
+  return { content }
+})
 const acceptButtonClass = computed(() =>
   props.portalClass
     ? 'w-full justify-center sales-entry-primary-action rounded-xl font-semibold shadow-sm sm:w-auto'
@@ -71,7 +77,7 @@ function handleAccept() {
     :ui="modalUi"
   >
     <template #body>
-      <div data-testid="requote-modal" class="space-y-4">
+      <div data-testid="requote-modal" class="space-y-4 sales-pos-checkout-requote">
         <UAlert
           color="warning"
           variant="soft"

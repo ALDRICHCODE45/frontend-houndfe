@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import { saleApi } from '../api/sale.api'
 import type { OverrideItemPricePayload } from '../interfaces/sale.types'
 import { formatCentsMXN } from '../utils/currency.utils'
+import { hasSalesEntryToken } from '../utils/salesEntryPortal'
 
 const props = defineProps<{
   open: boolean
@@ -40,10 +41,15 @@ const canSubmit = computed(() => {
   return Number.isInteger(customPriceCents.value) && (customPriceCents.value ?? 0) >= 1
 })
 
-// T3: optional, inert unless the caller supplies the marker.
-const modalUi = computed(() =>
-  props.portalClass ? { content: props.portalClass } : undefined,
-)
+// T3: optional, inert unless the caller supplies the marker. The owned
+// checkout marker is appended only for the sales opt-in.
+const modalUi = computed(() => {
+  if (!props.portalClass) return undefined
+  const content = hasSalesEntryToken(props.portalClass)
+    ? `${props.portalClass} sales-pos-checkout`
+    : props.portalClass
+  return { content }
+})
 
 async function loadAvailablePrices() {
   isLoading.value = true
@@ -103,7 +109,7 @@ watch(
 <template>
   <UModal :open="open" title="Cambiar precio" :content="{ class: 'sm:max-w-xl' }" :ui="modalUi" @update:open="emit('update:open', $event)">
     <template #body>
-      <form id="price-override-form" class="space-y-4" @submit.prevent="submit">
+      <form id="price-override-form" class="space-y-4 sales-pos-checkout-window" @submit.prevent="submit">
         <section class="rounded-lg border border-default p-3 space-y-2 bg-elevated/30">
           <p class="text-sm font-medium">Contexto del precio</p>
           <p class="text-xs text-muted">Elige una lista vigente o definí un valor manual para este ítem.</p>

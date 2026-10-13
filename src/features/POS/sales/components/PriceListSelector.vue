@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { hasSalesEntryToken } from '../utils/salesEntryPortal'
 /**
  * PriceListSelector — pos-price-list-tiers
  *
@@ -97,6 +98,17 @@ const modelValue = computed<string | null>(() =>
   props.activeDraft?.globalPriceListId ?? PUBLICO_SENTINEL,
 )
 
+// T3: optional, inert unless the caller supplies the marker. The owned checkout
+// marker is appended only for the sales opt-in, so the shared quotation caller
+// keeps its listbox `ui` value byte-identical.
+const menuUi = computed(() => {
+  if (!props.portalClass) return undefined
+  const content = hasSalesEntryToken(props.portalClass)
+    ? `${props.portalClass} sales-pos-checkout`
+    : props.portalClass
+  return { content }
+})
+
 function mapValueToEmit(raw: unknown): string | null {
   // PUBLICO sentinel → null (backend default-list contract)
   if (raw === PUBLICO_SENTINEL) return null
@@ -151,7 +163,7 @@ defineExpose({ handleUpdate })
       :loading="priceListsQuery.isFetching.value"
       value-key="value"
       class="w-[150px]"
-      :ui="portalClass ? { content: portalClass } : undefined"
+      :ui="menuUi"
       data-testid="price-list-menu"
       @update:model-value="handleUpdate"
     />

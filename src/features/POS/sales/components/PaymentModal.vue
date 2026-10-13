@@ -29,6 +29,11 @@ import {
   type PaymentMethodTile,
 } from '../utils/paymentMethodTile.utils'
 import { PAYMENT_METHOD_CATEGORY_ICONS } from '@/core/shared/constants/payment-method-category'
+// T3 (checkout composition): the owned checkout/support-window adapter. It is
+// imported from this statically imported modal so the stylesheet loads with the
+// sales feature only, and every rule is scoped to the `.sales-pos-checkout`
+// marker each checkout caller appends to its opt-in portal class.
+import '../styles/sales-pos-checkout.css'
 
 const props = defineProps<{
   open: boolean
@@ -574,11 +579,12 @@ function getMethodColor(method: NonCreditPaymentMethod): string {
   return getPaymentMethodColor(method.toUpperCase())
 }
 
-// T3: the prior content/body geometry is preserved; an opt-in only appends the
-// marker to the same native content root.
+// T3: the prior content/body geometry is preserved; an opt-in appends the
+// inherited marker plus the owned checkout composition marker to the same
+// native content root. Omission keeps the previous string exactly.
 const slideoverUi = computed(() => ({
   content: props.portalClass
-    ? `sm:max-w-lg overflow-hidden ${props.portalClass}`
+    ? `sm:max-w-lg overflow-hidden ${props.portalClass} sales-pos-checkout`
     : 'sm:max-w-lg overflow-hidden',
   body: 'p-0 flex flex-col h-full',
 }))
@@ -601,9 +607,9 @@ const confirmButtonClass = computed(() =>
     @update:open="emit('update:open', $event)"
   >
     <template #content>
-      <div class="flex h-full max-h-[100dvh] flex-col">
+      <div class="flex h-full max-h-[100dvh] flex-col sales-pos-checkout-sheet">
         <!-- Header -->
-        <div class="shrink-0 space-y-4 border-b border-default px-5 py-4">
+        <div class="shrink-0 space-y-4 border-b border-default px-5 py-4 sales-pos-checkout-header">
           <div class="flex items-center justify-between">
             <div>
               <p class="text-lg font-bold text-highlighted">Cobrar venta</p>
@@ -619,7 +625,7 @@ const confirmButtonClass = computed(() =>
           </div>
 
           <div
-            class="rounded-2xl border border-coco-gold-500/20 bg-coco-gold-500/5 px-5 py-4 text-center"
+            class="rounded-2xl border border-coco-gold-500/20 bg-coco-gold-500/5 px-5 py-4 text-center sales-pos-checkout-total"
           >
             <p class="text-xs font-semibold uppercase tracking-[0.16em] text-muted">
               Total a cobrar
@@ -631,9 +637,9 @@ const confirmButtonClass = computed(() =>
         </div>
 
         <!-- Scrollable body -->
-        <div class="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
+        <div class="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4 sales-pos-checkout-body">
           <!-- Method picker grid -->
-          <section class="space-y-3">
+          <section class="space-y-3 sales-pos-checkout-methods">
             <p class="text-sm font-semibold text-highlighted">Métodos de pago</p>
             <div class="grid grid-cols-2 gap-3">
               <button
@@ -641,8 +647,11 @@ const confirmButtonClass = computed(() =>
                 :key="paymentMethodTileKey(option)"
                 :data-testid="tileTestId(option)"
                 :data-method="option.value"
+                :data-sales-pos-checkout-state="
+                  getMethodCount(wireEntries, option) > 0 ? 'selected' : 'idle'
+                "
                 type="button"
-                class="relative rounded-xl border px-3 py-4 text-left transition disabled:cursor-not-allowed disabled:opacity-50"
+                class="relative rounded-xl border px-3 py-4 text-left transition disabled:cursor-not-allowed disabled:opacity-50 sales-pos-checkout-method-tile"
                 :class="
                   getMethodCount(wireEntries, option) > 0
                     ? 'border-coco-gold-500/40 bg-coco-gold-500/5'
@@ -682,7 +691,7 @@ const confirmButtonClass = computed(() =>
           <USeparator />
 
           <!-- Payment entries -->
-          <section class="space-y-3">
+          <section class="space-y-3 sales-pos-checkout-entries">
             <p class="text-sm font-semibold text-highlighted">Pagos agregados</p>
 
             <div
@@ -696,7 +705,7 @@ const confirmButtonClass = computed(() =>
               v-for="(entry, index) in entries"
               :key="paymentEntryKey(wireEntries[index]!)"
               :data-testid="`payment-entry-${index}`"
-              class="space-y-3 rounded-xl border border-default bg-default px-3 py-3"
+              class="space-y-3 rounded-xl border border-default bg-default px-3 py-3 sales-pos-checkout-payment-entry"
             >
               <div class="flex items-center gap-3">
                 <UBadge
@@ -766,7 +775,7 @@ const confirmButtonClass = computed(() =>
                `read:CashSession` is held, so an unauthorized cashier never
                renders it and never triggers a session read. Selection is
                explicit — there is no automatic binding. -->
-          <section v-if="cashSaleSession.canReadSessions.value" class="space-y-2">
+          <section v-if="cashSaleSession.canReadSessions.value" class="space-y-2 sales-pos-checkout-session">
             <CashSaleSessionPicker
               :sessions="cashSaleSession.availableSessions.value"
               :selected-id="cashSaleSession.selectedId.value"
@@ -793,7 +802,7 @@ const confirmButtonClass = computed(() =>
           <section
             v-if="needsBindingDecision"
             data-testid="cash-session-binding-lost"
-            class="space-y-2 rounded-xl border border-warning/30 bg-warning/10 px-3 py-3"
+            class="space-y-2 rounded-xl border border-warning/30 bg-warning/10 px-3 py-3 sales-pos-checkout-binding-lost"
           >
             <p class="text-xs text-warning">
               La sesión de caja vinculada ya no está disponible. Elegí otra sesión o cobrá sin
@@ -813,7 +822,7 @@ const confirmButtonClass = computed(() =>
           </section>
 
           <!-- Optional due date for resulting debt — collapsed by default -->
-          <section data-testid="due-date-section">
+          <section data-testid="due-date-section" class="sales-pos-checkout-due-date">
             <button
               v-if="!isDueDateExpanded && !dueDateInput"
               type="button"
@@ -862,7 +871,7 @@ const confirmButtonClass = computed(() =>
                  Placed immediately after the due-date section per design
                  §2/Q1 (due-date + delivery are the two optional charge
                  modifiers that only make sense after a customer is assigned). -->
-          <section data-testid="delivery-section" class="space-y-2">
+          <section data-testid="delivery-section" class="space-y-2 sales-pos-checkout-delivery">
             <USwitch
               v-model="delivery"
               :disabled="!hasShippingAddress || isSubmitting"
@@ -891,8 +900,8 @@ const confirmButtonClass = computed(() =>
         </div>
 
         <!-- Sticky footer -->
-        <div class="shrink-0 space-y-3 border-t border-default bg-default px-5 py-4">
-          <div class="rounded-xl border border-default bg-elevated px-4 py-3 text-sm">
+        <div class="shrink-0 space-y-3 border-t border-default bg-default px-5 py-4 sales-pos-checkout-footer">
+          <div class="rounded-xl border border-default bg-elevated px-4 py-3 text-sm sales-pos-checkout-summary">
             <div class="flex items-center justify-between gap-2">
               <p>
                 Recibido: <span class="font-semibold">{{ formatCentsMXN(paidSumCents) }}</span>

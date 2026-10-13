@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import type { ApplyGlobalDiscountPayload, GlobalDiscountStrategy } from '../interfaces/sale.types'
 import { currencyToCents, normalizeDecimalInput } from '../utils/currency.utils'
+import { hasSalesEntryToken } from '../utils/salesEntryPortal'
 
 const props = defineProps<{
   open: boolean
@@ -48,10 +49,15 @@ const canSubmit = computed(() => {
   return (percentValue.value ?? 0) > 0 && (percentValue.value ?? 0) <= 99
 })
 
-// T3: optional, inert unless the caller supplies the marker.
-const modalUi = computed(() =>
-  props.portalClass ? { content: props.portalClass } : undefined,
-)
+// T3: optional, inert unless the caller supplies the marker. The owned
+// checkout marker is appended only for the sales opt-in.
+const modalUi = computed(() => {
+  if (!props.portalClass) return undefined
+  const content = hasSalesEntryToken(props.portalClass)
+    ? `${props.portalClass} sales-pos-checkout`
+    : props.portalClass
+  return { content }
+})
 
 async function submit() {
   error.value = null
@@ -100,7 +106,7 @@ watch(
 <template>
   <UModal :open="open" title="Descuento global" :content="{ class: 'sm:max-w-lg' }" :ui="modalUi" @update:open="emit('update:open', $event)">
     <template #body>
-      <form id="global-discount-form" class="space-y-4" @submit.prevent="submit">
+      <form id="global-discount-form" class="space-y-4 sales-pos-checkout-window" @submit.prevent="submit">
         <!-- Info section -->
         <section class="rounded-lg border border-default p-3 space-y-1 bg-elevated/30">
           <div class="flex items-center gap-2">

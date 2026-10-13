@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { hasSalesEntryToken } from '../utils/salesEntryPortal'
 import { ref, watch, computed } from 'vue'
 import { saleApi } from '../api/sale.api'
 import type { PosProductDetail } from '../interfaces/sale.types'
@@ -39,10 +40,44 @@ const displayBarcode = computed(() => activeVariant.value?.barcode ?? detail.val
 const displayPrice = computed(() => activeVariant.value?.price ?? detail.value?.price ?? null)
 const displayStock = computed(() => activeVariant.value?.stock ?? detail.value?.stock ?? null)
 
-// T3: optional, inert unless the caller supplies the marker.
-const modalUi = computed(() =>
-  props.portalClass ? { content: props.portalClass } : undefined,
+// S12: the v0 detail composition is the Venta opt-in (exact token only).
+const isSalesEntry = computed(
+  () => hasSalesEntryToken(props.portalClass),
 )
+
+const eyebrow = computed(() =>
+  [detail.value?.brand?.name, detail.value?.category?.name].filter(Boolean).join(' · '),
+)
+
+const composedName = computed(() =>
+  displayVariantName.value ? `${displayName.value} ${displayVariantName.value}` : displayName.value,
+)
+
+// Real fields only; a missing value is named, never invented.
+const dataRows = computed(() => [
+  { label: 'SKU', value: displaySku.value ?? 'No registrado' },
+  { label: 'Código de barras', value: displayBarcode.value ?? 'No registrado' },
+  {
+    label: 'Stock',
+    value: displayStock.value ? `${displayStock.value.quantity} unidades` : 'No registrado',
+    low: displayStock.value
+      ? isLowStock(displayStock.value.quantity, displayStock.value.minQuantity)
+      : false,
+  },
+  { label: 'Ubicación', value: displayStock.value?.location || 'Sin ubicación' },
+  { label: 'Marca', value: detail.value?.brand?.name ?? 'Sin marca' },
+])
+
+// T3: optional, inert unless the caller supplies the marker. The owned
+// checkout marker is appended only for the exact sales opt-in token (a
+// substring such as `not-sales-entry-portal` must not repaint the dialog).
+const modalUi = computed(() => {
+  if (!props.portalClass) return undefined
+  const content = isSalesEntry.value
+    ? `${props.portalClass} sales-pos-checkout`
+    : props.portalClass
+  return { content }
+})
 
 function formatPrice(priceDecimal: number): string {
   return new Intl.NumberFormat('es-MX', {
@@ -73,6 +108,12 @@ watch(
 
     try {
       detail.value = await saleApi.getProductDetail(props.productId)
+      // S12: opened from a Venta catalog card (no variant yet), show the first
+      // variant like v0 instead of an empty product-level price.
+      const firstVariant = detail.value?.variants[0]
+      if (isSalesEntry.value && !activeVariantId.value && firstVariant) {
+        activeVariantId.value = firstVariant.id
+      }
     } catch {
       error.value = 'No se pudieron cargar los detalles del producto.'
     } finally {
@@ -84,7 +125,7 @@ watch(
 </script>
 
 <template>
-  <UModal :open="open" title="Detalle del producto" :content="{ class: 'sm:max-w-2xl' }" :ui="modalUi" @update:open="emit('update:open', $event)">
+  <UModal :open="open" title="Detalle del producto" :content="{ class: isSalesEntry ? 'sm:max-w-xl' : 'sm:max-w-2xl' }" :ui="modalUi" @update:open="emit('update:open', $event)">
     <template #body>
       <!-- Loading state -->
       <div v-if="isLoading" class="space-y-4 py-4">
@@ -109,8 +150,57 @@ watch(
         <p class="text-sm text-muted">{{ error }}</p>
       </div>
 
+      <!-- S12: v0 detail composition (Venta opt-in). -->
+      <div v-else-if="detail && isSalesEntry" class="sales-pos-checkout-window sales-pos-detail">
+        <div class="sales-pos-detail-hero">
+          <div class="sales-pos-detail-media">
+            <img v-if="displayImage" :src="displayImage" :alt="displayName" class="h-full w-full object-contain" />
+            <UIcon v-else name="i-lucide-package" class="h-10 w-10 text-primary/25" />
+          </div>
+          <div class="min-w-0">
+            <p v-if="eyebrow" data-testid="detail-eyebrow" class="sales-pos-detail-eyebrow">{{ eyebrow }}</p>
+            <h3 data-testid="detail-name" class="sales-pos-detail-name">{{ composedName }}</h3>
+            <p v-if="detail.description" data-testid="detail-description" class="sales-pos-detail-description">
+              {{ detail.description }}
+            </p>
+            <p data-testid="detail-price" class="tabular-nums sales-pos-detail-price">
+              {{ displayPrice ? formatPrice(displayPrice.priceDecimal) : 'Sin precio' }}
+            </p>
+            <p v-if="displayPrice" data-testid="detail-price-list" class="sales-pos-detail-price-list">
+              Precio lista · {{ displayPrice.priceListName }}
+            </p>
+          </div>
+        </div>
+
+        <dl class="sales-pos-detail-data">
+          <div v-for="row in dataRows" :key="row.label" data-testid="detail-data-row" class="sales-pos-detail-row">
+            <dt>{{ row.label }}</dt>
+            <dd :data-sales-pos-stock="row.low ? 'low' : undefined">{{ row.value }}</dd>
+          </div>
+        </dl>
+
+        <section v-if="detail.variants.length > 0" class="sales-pos-detail-variants">
+          <h3 class="sales-pos-detail-section-title">Variantes</h3>
+          <button
+            v-for="variant in detail.variants"
+            :key="variant.id"
+            type="button"
+            data-testid="detail-variant"
+            class="sales-pos-detail-variant"
+            :aria-pressed="activeVariantId === variant.id ? 'true' : 'false'"
+            @click="activeVariantId = variant.id"
+          >
+            <span class="min-w-0 truncate">{{ variant.name }} · {{ variant.price ? formatPrice(variant.price.priceDecimal) : 'Sin precio' }}</span>
+            <UIcon
+              :name="activeVariantId === variant.id ? 'i-lucide-check' : 'i-lucide-chevron-right'"
+              class="h-4 w-4 shrink-0"
+            />
+          </button>
+        </section>
+      </div>
+
       <!-- Detail content -->
-      <div v-else-if="detail" class="space-y-5">
+      <div v-else-if="detail" class="space-y-5 sales-pos-checkout-window">
         <!-- Top section: Image + Info -->
         <div class="flex gap-5">
           <!-- Product image -->

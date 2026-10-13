@@ -65,7 +65,7 @@ function clear() {
 </script>
 
 <template>
-  <section data-testid="cash-session-binding" class="space-y-2">
+  <section data-testid="cash-session-binding" class="space-y-2 sales-pos-cash-session">
     <UFormField label="Sesión de caja">
       <div class="space-y-2">
         <USelect

@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import type { ApplyItemDiscountPayload, SaleItem } from '../interfaces/sale.types'
 import { currencyToCents, formatCentsMXN, normalizeDecimalInput } from '../utils/currency.utils'
+import { hasSalesEntryToken } from '../utils/salesEntryPortal'
 
 const props = defineProps<{
   open: boolean
@@ -44,10 +45,15 @@ const previewDiscountCents = computed(() => {
 
 const previewFinalCents = computed(() => props.item.unitPriceCents - previewDiscountCents.value)
 
-// T3: optional, inert unless the caller supplies the marker.
-const modalUi = computed(() =>
-  props.portalClass ? { content: props.portalClass } : undefined,
-)
+// T3: optional, inert unless the caller supplies the marker. The owned
+// checkout marker is appended only for the sales opt-in.
+const modalUi = computed(() => {
+  if (!props.portalClass) return undefined
+  const content = hasSalesEntryToken(props.portalClass)
+    ? `${props.portalClass} sales-pos-checkout`
+    : props.portalClass
+  return { content }
+})
 
 const canSubmit = computed(() => {
   if (mode.value === 'amount') {
@@ -89,7 +95,7 @@ watch(
 <template>
   <UModal :open="open" title="Agregar descuento" :content="{ class: 'sm:max-w-lg' }" :ui="modalUi" @update:open="emit('update:open', $event)">
     <template #body>
-      <form id="item-discount-form" class="space-y-4" @submit.prevent="submit">
+      <form id="item-discount-form" class="space-y-4 sales-pos-checkout-window" @submit.prevent="submit">
         <section class="rounded-lg border border-default p-3 space-y-2 bg-elevated/30">
           <p class="text-sm font-medium">Resumen del ítem</p>
           <p class="text-xs text-muted">Precio actual: {{ formatCentsMXN(item.unitPriceCents) }}</p>

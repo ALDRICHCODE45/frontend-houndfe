@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import type { PosCatalogVariant } from '../interfaces/sale.types'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
+import { hasSalesEntryToken } from '../utils/salesEntryPortal'
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -39,6 +40,17 @@ const filteredVariants = computed(() => {
   return props.variants.filter((v) => v.name.toLowerCase().includes(search))
 })
 
+// T3: optional, inert unless the caller supplies the marker. The owned checkout
+// marker is appended only for the sales opt-in, so other consumers keep their
+// `ui` value byte-identical.
+const modalUi = computed(() => {
+  if (!props.portalClass) return undefined
+  const content = hasSalesEntryToken(props.portalClass)
+    ? `${props.portalClass} sales-pos-checkout`
+    : props.portalClass
+  return { content }
+})
+
 // ── Handlers ──────────────────────────────────────────────────────────────────
 
 function handleVariantClick(variantId: string) {
@@ -64,7 +76,7 @@ function isLowStock(variant: PosCatalogVariant): boolean {
   <UModal
     :open="open"
     :title="`Añadir ${productName}`"
-    :ui="portalClass ? { content: portalClass } : undefined"
+    :ui="modalUi"
     @update:open="emit('update:open', $event)"
   >
     <template #body>
@@ -78,12 +90,12 @@ function isLowStock(variant: PosCatalogVariant): boolean {
       </div>
 
       <!-- Variant list (immediate render, no loading) -->
-      <div v-if="filteredVariants.length > 0" class="space-y-2 max-h-96 overflow-y-auto">
+      <div v-if="filteredVariants.length > 0" class="space-y-2 max-h-96 overflow-y-auto sales-pos-checkout-variant-list">
         <div
           v-for="variant in filteredVariants"
           :key="variant.id"
           :data-testid="`variant-row-${variant.id}`"
-          class="flex items-center gap-3 p-3 rounded-lg border border-default hover:bg-elevated/60 hover:border-primary/30 cursor-pointer transition-all duration-150"
+          class="flex items-center gap-3 p-3 rounded-lg border border-default hover:bg-elevated/60 hover:border-primary/30 cursor-pointer transition-all duration-150 sales-pos-checkout-variant-row"
           @click="handleVariantClick(variant.id)"
         >
           <!-- Variant image or placeholder -->

@@ -1,0 +1,377 @@
+@import '../../../../core/shared/design-system/houndfe-ui.css';
+
+/*
+ * Sales entry — checkout + supporting windows (T3 / S1-S5).
+ *
+ * This adapter is composition-only and is imported exclusively from
+ * `PaymentModal.vue` (the statically imported checkout entry). The palette,
+ * control pairing, portal paint and keyboard focus already live in the
+ * accepted `sales-entry-visual.css` adapter; here we only compose the reached
+ * checkout surfaces: a compact readable total header, touch-sized method tiles
+ * with an explicit action selection, readable stacked payment fields and
+ * references, the explicit Caja session / lost-binding choice, the optional due
+ * date and delivery groups, and a scrollable body above an always-reachable
+ * footer that carries every debt/error/processing state.
+ *
+ * Every rule is governed by the single owned marker `.sales-pos-checkout`,
+ * which each checkout caller APPENDS to its existing opt-in portal class on the
+ * native teleport content root. Shared consumers (quotations, catalog) never
+ * receive the marker, so their prior paint is untouched. No palette literal,
+ * no `:root`, no wildcard.
+ */
+
+/* ── Owned boundary ─────────────────────────────────────────────────────── */
+
+.sales-pos-checkout {
+  background-color: var(--hf-surface);
+  color: var(--hf-ink);
+  /* S11: Nuxt UI paints `color="warning"` alerts/badges/text and `primary`
+   * actions from these variables. Inside the Venta checkout only, they resolve
+   * to the semantic foundation: the readable warning ink of each theme
+   * instead of the bright yellow that was unreadable on white,
+   * and the shared blue action. Sale detail and every other consumer keep
+   * their own values because they never receive this marker. */
+  --ui-warning: var(--hf-warning);
+  --ui-primary: var(--hf-action);
+}
+
+/* ── Sheet: compact header, scrollable body, reachable footer ───────────── */
+
+.sales-pos-checkout .sales-pos-checkout-sheet {
+  min-height: 0;
+}
+
+.sales-pos-checkout .sales-pos-checkout-header {
+  background-color: var(--hf-surface);
+  border-bottom-color: var(--hf-border);
+}
+
+/* One clear money figure: a 12px label over the readable total, on the neutral
+ * page tone (v0 `checkout-total`) instead of the gold wash or a tinted blue. */
+.sales-pos-checkout .sales-pos-checkout-total {
+  background-color: var(--hf-page);
+  border-color: var(--hf-border);
+  border-radius: var(--hf-radius-card);
+}
+
+.sales-pos-checkout .sales-pos-checkout-total > p:first-child {
+  color: var(--hf-muted);
+  font-size: 0.75rem;
+}
+
+.sales-pos-checkout .sales-pos-checkout-total > p:last-child {
+  color: var(--hf-heading);
+  font-size: 2.25rem;
+  line-height: 1.1;
+}
+
+/* The body owns the scroll; the footer stays a sibling so the final action is
+ * reachable while long conditional sections scroll. */
+.sales-pos-checkout .sales-pos-checkout-body {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.sales-pos-checkout .sales-pos-checkout-footer {
+  flex-shrink: 0;
+  background-color: var(--hf-surface);
+  border-top-color: var(--hf-border);
+}
+
+/* ── Method tiles: touch target and a distinct selection ────────────────── */
+
+.sales-pos-checkout .sales-pos-checkout-methods {
+  gap: 0.75rem;
+}
+
+/* v0 method tiles: one horizontal line (icon · label · count), ~54px tall, muted
+ * icon, blue selection — no gold icon, gold hover or tall stacked tile. */
+.sales-pos-checkout .sales-pos-checkout-method-tile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.5rem;
+  min-height: var(--hf-control-height);
+  padding: 1rem 0.75rem;
+  background-color: var(--hf-surface);
+  border-color: var(--hf-border);
+  border-radius: var(--hf-radius-control);
+}
+
+.sales-pos-checkout .sales-pos-checkout-method-tile > svg {
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  color: var(--hf-muted);
+}
+
+/* The count badge moves from the absolute corner to the end of the line. */
+.sales-pos-checkout .sales-pos-checkout-method-tile > [data-slot='base'] {
+  position: static;
+  order: 3;
+  margin-left: auto;
+}
+
+/* Custom-method subtitle wraps under the label instead of squeezing it. */
+.sales-pos-checkout .sales-pos-checkout-method-tile > p + p {
+  flex-basis: 100%;
+  order: 4;
+}
+
+.sales-pos-checkout .sales-pos-checkout-method-tile:is(:hover, :focus-visible) {
+  background-color: color-mix(in srgb, var(--hf-action) 4%, var(--hf-surface));
+  border-color: color-mix(in srgb, var(--hf-action) 40%, var(--hf-border));
+}
+
+.sales-pos-checkout .sales-pos-checkout-method-tile[data-sales-pos-checkout-state='selected'] {
+  background-color: var(--hf-active-soft);
+  border-color: var(--hf-action);
+}
+
+/* ── Payment entries: readable stacked fields ───────────────────────────── */
+
+.sales-pos-checkout .sales-pos-checkout-entries {
+  gap: 0.75rem;
+}
+
+.sales-pos-checkout .sales-pos-checkout-payment-entry {
+  background-color: var(--hf-surface-muted);
+  border-color: var(--hf-border);
+  border-radius: var(--hf-radius-card);
+}
+
+.sales-pos-checkout .sales-pos-checkout-payment-entry input {
+  font-size: 0.9375rem;
+}
+
+/* ── Caja session, lost binding and pagination ──────────────────────────── */
+
+.sales-pos-checkout .sales-pos-checkout-session {
+  border-radius: var(--hf-radius-card);
+}
+
+.sales-pos-checkout .sales-pos-cash-session [data-testid='cash-session-prev-page'],
+.sales-pos-checkout .sales-pos-cash-session [data-testid='cash-session-next-page'] {
+  min-height: var(--hf-control-height);
+  border-radius: var(--hf-radius-control);
+}
+
+.sales-pos-checkout .sales-pos-checkout-binding-lost {
+  background-color: var(--hf-warning-soft);
+  border-color: color-mix(in srgb, var(--hf-warning) 40%, var(--hf-border));
+  border-radius: var(--hf-radius-card);
+}
+
+/* ── Due date and delivery groups ───────────────────────────────────────── */
+
+.sales-pos-checkout .sales-pos-checkout-due-date,
+.sales-pos-checkout .sales-pos-checkout-delivery {
+  border-top: 1px solid var(--hf-border);
+  padding-top: 0.75rem;
+}
+
+/* The optional due-date disclosure is an action link, so it uses the action
+ * blue rather than the legacy gold ink. */
+.sales-pos-checkout [data-testid='expand-due-date'] {
+  min-height: var(--hf-control-height);
+  color: var(--hf-action);
+}
+
+/* ── Footer summary ─────────────────────────────────────────────────────── */
+
+/* v0 footer: plain received/remaining rows over the actions, not a tinted box. */
+.sales-pos-checkout .sales-pos-checkout-summary {
+  padding: 0;
+  background-color: transparent;
+  border-color: transparent;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Supporting windows (discount / price / product / variant) ──────────── */
+
+.sales-pos-checkout .sales-pos-checkout-window {
+  border-color: var(--hf-border);
+}
+
+.sales-pos-checkout .sales-pos-checkout-variant-list {
+  max-height: 24rem;
+  overflow-y: auto;
+}
+
+.sales-pos-checkout .sales-pos-checkout-variant-row {
+  min-height: var(--hf-control-height);
+  border-color: var(--hf-border);
+  border-radius: var(--hf-radius-control);
+}
+
+/* The price-list listbox is the only nested option list that appends this
+ * marker, so the reached options keep the shared touch target. */
+.sales-pos-checkout [role='option'] {
+  min-height: var(--hf-control-height);
+}
+
+/* ── Success and re-quote decision ──────────────────────────────────────── */
+
+.sales-pos-checkout .sales-pos-checkout-success {
+  border-color: var(--hf-border);
+  border-radius: var(--hf-radius-card);
+}
+
+.sales-pos-checkout .sales-pos-checkout-requote {
+  border-color: var(--hf-border);
+}
+
+/* ── S12: v0 product detail (Venta composition) ─────────────────────────── */
+
+/* Hero (image + brand/category, name, description, price, price list), a
+ * neutral fact sheet and variants as selectable choices. Only real detail
+ * fields are rendered; missing values are named, never invented. */
+.sales-pos-checkout .sales-pos-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.sales-pos-checkout .sales-pos-detail-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.sales-pos-checkout .sales-pos-detail-media {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 9.375rem;
+  aspect-ratio: 1.42;
+  flex-shrink: 0;
+  overflow: hidden;
+  background-color: var(--hf-page);
+  border-radius: 0.5rem;
+}
+
+.sales-pos-checkout .sales-pos-detail-eyebrow {
+  margin-bottom: 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--hf-muted);
+}
+
+.sales-pos-checkout .sales-pos-detail-name {
+  font-size: 1.125rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--hf-heading);
+}
+
+.sales-pos-checkout .sales-pos-detail-description {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--hf-muted);
+}
+
+.sales-pos-checkout .sales-pos-detail-price {
+  margin-top: 0.75rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--hf-heading);
+}
+
+.sales-pos-checkout .sales-pos-detail-price-list {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--hf-muted);
+}
+
+.sales-pos-checkout .sales-pos-detail-data {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 1rem;
+  font-size: 0.8125rem;
+  background-color: var(--hf-page);
+  border-radius: 0.5rem;
+}
+
+.sales-pos-checkout .sales-pos-detail-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.sales-pos-checkout .sales-pos-detail-row dt {
+  color: var(--hf-muted);
+}
+
+.sales-pos-checkout .sales-pos-detail-row dd {
+  margin: 0;
+  font-weight: 600;
+  text-align: right;
+  overflow-wrap: anywhere;
+  color: var(--hf-ink);
+}
+
+.sales-pos-checkout .sales-pos-detail-row dd[data-sales-pos-stock='low'] {
+  color: var(--hf-warning);
+}
+
+.sales-pos-checkout .sales-pos-detail-variants {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.sales-pos-checkout .sales-pos-detail-section-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+.sales-pos-checkout .sales-pos-detail-variant {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 4rem;
+  padding: 1rem;
+  text-align: left;
+  font-size: 0.875rem;
+  color: var(--hf-ink);
+  background-color: var(--hf-surface);
+  border: 1px solid var(--hf-border);
+  border-radius: 0.5rem;
+}
+
+.sales-pos-checkout .sales-pos-detail-variant > svg {
+  color: var(--hf-muted);
+}
+
+.sales-pos-checkout .sales-pos-detail-variant:is(:hover, :focus-visible) {
+  border-color: color-mix(in srgb, var(--hf-action) 40%, var(--hf-border));
+}
+
+.sales-pos-checkout .sales-pos-detail-variant[aria-pressed='true'] {
+  background-color: var(--hf-active-soft);
+  border-color: var(--hf-action);
+}
+
+.sales-pos-checkout .sales-pos-detail-variant[aria-pressed='true'] > svg {
+  color: var(--hf-action);
+}
+
+@media (min-width: 40rem) {
+  .sales-pos-checkout .sales-pos-detail-hero {
+    flex-direction: row;
+    align-items: center;
+    gap: 1.25rem;
+  }
+}

@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import type { SalePaymentStatus } from '../interfaces/sale.types'
 import { SALE_PAYMENT_STATUS } from '../constants/sale.constants' // sdd/magic-string-constants slice 3
 import { formatCentsMXN } from '../utils/currency.utils'
+import { hasSalesEntryToken } from '../utils/salesEntryPortal'
 
 const props = withDefaults(defineProps<{
   open: boolean
@@ -45,10 +46,16 @@ const debtStatus = computed(() => {
 })
 
 // T3: only the caller's opt-in swaps the forced legacy gold utility; omission
-// keeps the previous class string exactly.
-const modalUi = computed(() => ({
-  content: props.portalClass ? `sm:max-w-md ${props.portalClass}` : 'sm:max-w-md',
-}))
+// keeps the previous class string exactly. The owned checkout marker is
+// appended only for the sales opt-in, so other consumers keep their `ui` value
+// byte-identical.
+const modalUi = computed(() => {
+  if (!props.portalClass) return { content: 'sm:max-w-md' }
+  const content = hasSalesEntryToken(props.portalClass)
+    ? `sm:max-w-md ${props.portalClass} sales-pos-checkout`
+    : `sm:max-w-md ${props.portalClass}`
+  return { content }
+})
 const closeButtonClass = computed(() =>
   props.portalClass
     ? 'sales-entry-primary-action rounded-xl font-semibold shadow-sm'
@@ -65,7 +72,7 @@ const closeButtonClass = computed(() =>
     @update:open="emit('update:open', $event)"
   >
     <template #body>
-      <div class="space-y-4">
+      <div class="space-y-4 sales-pos-checkout-success">
         <div class="flex items-center gap-3 rounded-2xl border border-success/20 bg-success/10 p-4">
           <span class="flex h-11 w-11 items-center justify-center rounded-full bg-success text-white">
             <UIcon name="i-lucide-check" class="h-6 w-6" />
