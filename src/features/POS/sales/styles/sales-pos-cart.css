@@ -1,0 +1,286 @@
+@import '../../../../core/shared/design-system/houndfe-ui.css';
+
+/*
+ * Sales entry — exact cart composition (T11 / unit B, S1-S5 + S8 + S10).
+ *
+ * Cart-only adapter. It is imported exclusively from `ActiveSalePanel.vue`
+ * (never from `SalesView.vue`, the catalog or the row/footer children) and
+ * every rule is governed by the new exact-token root marker
+ * `.sales-pos-cart-composition`. That marker is added to the panel root only
+ * when the forwarded `portalClass` carries the exact `sales-entry-portal`
+ * token, so an omitted or unrelated opt-in keeps the previous presentation
+ * byte for byte (the legacy advisory `Boolean(portalClass)` flag is not used to
+ * gate anything new here).
+ *
+ * The accepted v0 cart is one bounded surface: a `Tu venta` heading with the
+ * real count over a supporting line, a separate price-list band, divider
+ * separated rows (image, name + menu, details, original/current unit price,
+ * quantity controls and the actual line total), the customer/promotion context
+ * and the totals with the full-width charge action. This adapter turns the
+ * panel into that single 12px surface and neutralizes the inherited boxed-card
+ * geometry of the rows and the customer summary by specificity only — no
+ * `!important`, no palette literal, no `:root`, no wildcard.
+ *
+ * It never imposes a fixed cart height: the pane bounds the panel, the body is
+ * the only scrolling region and the totals/charge stay available, so a short
+ * viewport cannot lose the payment action.
+ *
+ * This file states no browser claim: measured contrast, real touch ergonomics
+ * and the visual acceptance of the cart stay user-owned.
+ */
+
+/* ── The cart panel is the single 12px surface ───────────────────────────── */
+
+.sales-pos-cart-composition {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background-color: var(--hf-surface);
+  color: var(--hf-ink);
+  border-width: 1px;
+  border-style: solid;
+  border-color: var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  overflow: hidden;
+}
+
+/* Inside the mobile drawer the sheet root is already the surface, so the
+   panel drops its own card instead of nesting a second one. */
+.sales-pos-cart-composition.sales-pos-cart-composition-sheet {
+  border-width: 0;
+  border-radius: 0;
+}
+
+/* ── Heading: Tu venta + real count + supporting line ────────────────────── */
+
+.sales-pos-cart-composition .sales-pos-cart-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1.25rem 1.25rem 1rem;
+}
+
+.sales-pos-cart-composition .sales-pos-cart-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--hf-heading);
+}
+
+.sales-pos-cart-composition .sales-pos-cart-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  padding: 0.125rem 0.375rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--hf-action);
+  background-color: var(--hf-surface-muted);
+  border-radius: var(--hf-radius-control);
+}
+
+.sales-pos-cart-composition .sales-pos-cart-support {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--hf-muted);
+}
+
+/* ── Price-list band: its own divider band, not a second card ────────────── */
+
+.sales-pos-cart-composition .sales-pos-price-list-band {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: var(--hf-control-height);
+  padding: 0.25rem 1.25rem;
+  background-color: color-mix(in srgb, var(--hf-page) 65%, var(--hf-surface));
+  border-block: 1px solid var(--hf-border);
+}
+
+/* ── Body: the only scrolling region ─────────────────────────────────────── */
+
+.sales-pos-cart-panel.sales-pos-cart-composition .sales-pos-cart-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-inline: 1.25rem;
+  padding-block: 0;
+}
+
+.sales-pos-cart-composition .sales-pos-cart-empty {
+  justify-content: flex-start;
+  min-height: 0;
+  padding-block: 2rem;
+}
+
+/* ── Rows: dividers, not nested rounded cards ────────────────────────────── */
+
+.sales-pos-cart-composition .sales-pos-cart-row {
+  margin-inline: 0;
+  padding: 1rem 0;
+  border: 0;
+  border-bottom: 1px solid var(--hf-border);
+  border-radius: 0;
+}
+
+.sales-pos-cart-composition .sales-pos-cart-row .sales-pos-cart-row-media {
+  width: 3rem;
+  height: 3rem;
+  border-color: var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-surface-muted);
+}
+
+.sales-pos-cart-composition-sheet .sales-pos-cart-row .sales-pos-cart-row-media {
+  width: 3.5rem;
+  height: 3.5rem;
+}
+
+.sales-pos-cart-composition .sales-pos-cart-row-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+/* 0-3-0: outranks the workspace adapter's 0-2-0 row-name size in either order. */
+.sales-pos-cart-panel.sales-pos-cart-composition .sales-pos-cart-row-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+}
+
+.sales-pos-cart-composition .sales-pos-cart-row-detail {
+  margin-top: 0.125rem;
+  font-size: 0.75rem;
+  color: var(--hf-muted);
+}
+
+.sales-pos-cart-composition .sales-pos-cart-row-unit {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0.5rem 0;
+  font-size: 0.75rem;
+  color: var(--hf-muted);
+}
+
+.sales-pos-cart-composition .sales-pos-cart-row-unit-current {
+  font-weight: 600;
+  color: var(--hf-ink);
+}
+
+.sales-pos-cart-composition .sales-pos-cart-row-qty {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.sales-pos-cart-composition .sales-pos-cart-row-qty button {
+  min-height: var(--hf-control-height);
+  border-radius: var(--hf-radius-control);
+}
+
+/* v0's compact stepper: the quantity control keeps its own width instead of
+ * stretching across the row, so the line total reads on the same line. */
+.sales-pos-cart-composition .sales-pos-cart-row-qty > :first-child {
+  flex: 0 0 auto;
+  width: 7.5rem;
+}
+
+.sales-pos-cart-composition .sales-pos-cart-row-line {
+  margin-left: auto;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--hf-heading);
+}
+
+/* ── Customer context: divider band, not another rounded card ────────────── */
+
+.sales-pos-cart-composition .sales-pos-cart-footer .sales-pos-customer-summary {
+  margin-inline: 1.25rem;
+  padding: 0.75rem 0;
+  background-color: transparent;
+  border-radius: 0;
+  border-block: 1px solid var(--hf-border);
+}
+
+/* ── Toolbar, totals and the full-width charge action ────────────────────── */
+
+/* S11: dividers inside the cart are either the full-bleed heading/price-list
+ * bands or rules inset to the 20px content edge — never a mix that steps in
+ * and out. The sale options now sit in the heading (no extra full-bleed row)
+ * and the totals rely on the customer band's inset bottom rule. The 0-3-0
+ * selectors outrank the workspace adapter's 0-2-0 `border-top` in either
+ * stylesheet order. */
+.sales-pos-cart-panel.sales-pos-cart-composition .sales-pos-cart-toolbar {
+  padding: 0;
+  border-top: none;
+}
+
+.sales-pos-cart-panel.sales-pos-cart-composition .sales-pos-cart-toolbar button {
+  min-width: var(--hf-control-height);
+  min-height: var(--hf-control-height);
+  justify-content: center;
+}
+
+.sales-pos-cart-panel.sales-pos-cart-composition .sales-pos-totals {
+  padding: 0.75rem 1.25rem 1.25rem;
+  border-top: none;
+}
+
+.sales-pos-cart-composition .sales-pos-totals-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.sales-pos-cart-composition .sales-pos-summary-clear {
+  min-height: var(--hf-control-height);
+  border-radius: var(--hf-radius-control);
+}
+
+.sales-pos-cart-composition .sales-pos-totals-count {
+  font-size: 0.75rem;
+  color: var(--hf-muted);
+}
+
+.sales-pos-cart-composition .sales-pos-totals-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--hf-muted);
+}
+
+.sales-pos-cart-composition .sales-pos-totals-currency {
+  margin-top: 0.125rem;
+  font-size: 0.75rem;
+  color: var(--hf-muted);
+}
+
+.sales-pos-cart-composition .sales-pos-total-amount {
+  font-size: 1.6875rem;
+  letter-spacing: -1px;
+  color: var(--hf-heading);
+}
+
+.sales-pos-cart-composition .sales-pos-charge-button {
+  width: 100%;
+  min-height: var(--hf-control-height);
+  font-size: 1rem;
+}

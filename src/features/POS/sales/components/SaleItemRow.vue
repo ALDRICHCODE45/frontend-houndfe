@@ -26,6 +26,12 @@ const props = withDefaults(
       /** Presentation-only density flag for the mobile cart sheet. */
       mobileSheet?: boolean
       /**
+       * Presentation-only opt-in for the exact v0 cart composition (T11).
+       * False by default, so the row keeps its previous nested-card paint and
+       * its prior DOM for every other consumer.
+       */
+      composition?: boolean
+      /**
        * Optional teleport boundary marker forwarded to the installed row menu
        * and to the owned item dialogs. Absent by default, so the row and its
        * dialogs keep their native defaults and prior paint.
@@ -37,6 +43,7 @@ const props = withDefaults(
     isUpdating: false,
     isDraft: true,
     mobileSheet: false,
+    composition: false,
     onSubmitPriceOverride: async () => undefined,
     onApplyDiscount: async () => undefined,
     onRemoveDiscount: async () => undefined,
@@ -45,6 +52,18 @@ const props = withDefaults(
 )
 
 const imageBroken = ref(false)
+
+// T11 (unit B): the exact v0 cart composition drops the nested rounded card in
+// favour of a divider-separated row. Omitting the opt-in reproduces the prior
+// class string exactly, so no other consumer's paint moves.
+const cardClass = computed(() => {
+  if (props.composition) {
+    return 'sales-pos-cart-row sales-pos-cart-row-composition transition-all duration-150'
+  }
+  return props.mobileSheet
+    ? 'mx-3 border border-default transition-all duration-150 sales-pos-cart-row mb-3 rounded-2xl px-3.5 py-3'
+    : 'mx-3 border border-default transition-all duration-150 sales-pos-cart-row mb-2 rounded-xl hover:bg-elevated/40 hover:border-default px-3 py-2'
+})
 
 // ── Emits ─────────────────────────────────────────────────────────────────────
 
@@ -210,18 +229,12 @@ function handleQtyCommit() {
   <!-- Phase 14b — horizontal compact card layout.
        Left: thumbnail · Center: name/specs/qty · Right: pricing stack.
        All props, emits, computed, and data-testid attrs preserved. -->
-  <div
-    data-testid="sale-item-card"
-    class="mx-3 border border-default transition-all duration-150"
-    :class="mobileSheet
-      ? 'mb-3 rounded-2xl px-3.5 py-3'
-      : 'mb-2 rounded-xl hover:bg-elevated/40 hover:border-default px-3 py-2'"
-  >
+  <div data-testid="sale-item-card" :class="cardClass">
     <div class="flex items-start gap-3">
       <!-- LEFT — Thumbnail (48px square) -->
       <div
         data-testid="sale-item-thumbnail"
-        class="shrink-0 rounded-lg flex items-center justify-center overflow-hidden"
+        class="shrink-0 rounded-lg flex items-center justify-center overflow-hidden sales-pos-cart-row-media"
         :class="[
           mobileSheet ? 'h-14 w-14' : 'h-12 w-12',
           !imageUrl || imageBroken ? 'bg-primary/8 border border-primary/15' : 'bg-elevated border border-default',
@@ -243,17 +256,56 @@ function handleQtyCommit() {
       </div>
 
       <!-- CENTER — stacked info (name → specs → qty row → inline badges) -->
-      <div class="flex-1 min-w-0 flex flex-col" :class="mobileSheet ? 'gap-1' : 'gap-0.5'">
+      <div class="flex-1 min-w-0 flex flex-col sales-pos-cart-row-content" :class="mobileSheet ? 'gap-1' : 'gap-0.5'">
+        <!-- Composition head: clean name + item menu on the same line. -->
+        <div
+          v-if="composition"
+          data-testid="sale-item-head"
+          class="min-w-0 flex items-start justify-between gap-2 sales-pos-cart-row-head"
+        >
+          <p
+            data-testid="sale-item-name"
+            class="font-medium text-highlighted truncate sales-pos-cart-row-name"
+            :class="mobileSheet ? 'text-base' : 'text-sm'"
+          >
+            {{ item.productName }}
+          </p>
+          <UDropdownMenu
+            v-if="isDraft"
+            :items="itemActions"
+            :ui="portalClass ? { content: portalClass } : undefined"
+          >
+            <UButton
+              data-testid="sale-item-menu"
+              :size="mobileSheet ? 'sm' : 'xs'"
+              :class="mobileSheet ? 'min-h-[44px] min-w-[44px]' : undefined"
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-ellipsis-vertical"
+              :aria-label="`Opciones de ${item.productName}`"
+            />
+          </UDropdownMenu>
+        </div>
         <p
+          v-else
           data-testid="sale-item-name"
-          class="font-medium text-highlighted truncate"
+          class="font-medium text-highlighted truncate sales-pos-cart-row-name"
           :class="mobileSheet ? 'text-base' : 'text-sm'"
         >
           {{ item.productName }}
         </p>
 
-        <!-- Specs line: variant + unit price strikethroughs + current unit price -->
-        <p class="text-[11px] text-muted truncate">
+        <!-- Composition detail line: the available identity only. -->
+        <p
+          v-if="composition && item.variantName"
+          data-testid="sale-item-detail"
+          class="sales-pos-cart-row-detail"
+        >
+          {{ item.variantName }}
+        </p>
+
+        <!-- Specs line (prior paint): variant + unit price context. -->
+        <p v-if="!composition" class="text-[11px] text-muted truncate">
           <span v-if="item.variantName" class="uppercase tracking-wide">{{ item.variantName }}</span>
           <span v-if="item.variantName"> · </span>
           <span
@@ -269,8 +321,28 @@ function handleQtyCommit() {
           <span class="font-medium text-toned">{{ formatCentsMXN(item.unitPriceCents) }} c/u</span>
         </p>
 
+        <!-- Composition unit-price line: original/current price context. -->
+        <p v-else data-testid="sale-item-unit" class="sales-pos-cart-row-unit">
+          <span
+            v-if="showPriceOrigin"
+            data-testid="sale-item-unit-strike-original"
+            class="line-through"
+          >{{ formatCentsMXN(item.originalPriceCents ?? 0) }}</span>
+          <span
+            v-if="showDiscountOrigin"
+            data-testid="sale-item-unit-strike-pre-discount"
+            class="line-through"
+          >{{ formatCentsMXN(item.prePriceCentsBeforeDiscount ?? 0) }}</span>
+          <span class="sales-pos-cart-row-unit-current">{{ formatCentsMXN(item.unitPriceCents) }} c/u</span>
+        </p>
+
         <!-- Qty row: stepper + trash + actions dropdown (draft only) -->
-        <div v-if="isDraft" class="flex items-center" :class="mobileSheet ? 'gap-1.5 mt-1.5' : 'gap-1 mt-0.5'">
+        <div
+          v-if="isDraft"
+          data-testid="sale-item-qty-row"
+          class="flex items-center sales-pos-cart-row-qty"
+          :class="mobileSheet ? 'gap-1.5 mt-1.5' : 'gap-1 mt-0.5'"
+        >
           <UInputNumber
             v-model="localQty"
             :size="mobileSheet ? 'sm' : 'xs'"
@@ -281,6 +353,7 @@ function handleQtyCommit() {
             @change="handleQtyCommit"
           />
           <UButton
+            data-testid="sale-item-remove"
             icon="i-lucide-trash-2"
             :size="mobileSheet ? 'sm' : 'xs'"
             :class="mobileSheet ? 'min-h-[44px] min-w-[44px]' : undefined"
@@ -289,6 +362,7 @@ function handleQtyCommit() {
             @click="void props.onRemoveItem?.(props.item.id)"
           />
           <UDropdownMenu
+            v-if="!composition"
             :items="itemActions"
             :ui="portalClass ? { content: portalClass } : undefined"
           >
@@ -300,13 +374,23 @@ function handleQtyCommit() {
               icon="i-lucide-ellipsis-vertical"
             />
           </UDropdownMenu>
+          <strong
+            v-if="composition"
+            data-testid="sale-item-line-net"
+            class="sales-pos-cart-row-line tabular-nums"
+          >{{ formatCentsMXN(lineDisplay.netLine) }}</strong>
+          <span
+            v-if="composition && lineDisplay.showStruckGross"
+            data-testid="sale-item-line-gross-strike"
+            class="text-[10px] text-muted line-through tabular-nums"
+          >{{ formatCentsMXN(lineDisplay.grossLine) }}</span>
         </div>
 
         <!-- Draft inline badges (phase 14b — promo/discount/reward rendered inline, NOT via SaleItemBadges) -->
         <div
           v-if="isDraft && inlineHasAnyBadge"
           data-testid="sale-item-badge-group"
-          class="flex flex-wrap items-center gap-1 mt-0.5"
+          class="flex flex-wrap items-center gap-1 mt-0.5 sales-pos-cart-row-badges"
         >
           <AppBadge
             v-if="inlinePriceSourceBadge"
@@ -360,8 +444,12 @@ function handleQtyCommit() {
         </div>
       </div>
 
-      <!-- RIGHT — pricing stack (unit price · discount · subtotal) -->
-      <div class="shrink-0 text-right flex flex-col items-end min-w-[64px]">
+      <!-- RIGHT — pricing stack (prior paint; the composition moves the unit
+           price and the line total into the row body). -->
+      <div
+        v-if="!composition"
+        class="shrink-0 text-right flex flex-col items-end min-w-[64px] sales-pos-cart-row-price"
+      >
         <p class="text-xs text-muted tabular-nums leading-tight">
           {{ formatCentsMXN(item.unitPriceCents) }}
         </p>

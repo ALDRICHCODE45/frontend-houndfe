@@ -92,6 +92,7 @@ function handleRemove(promotionId: string) {
 <template>
   <UAccordion
     v-if="promotions.length > 0"
+    class="sales-pos-promotions"
     :items="accordionItems"
     type="single"
     collapsible

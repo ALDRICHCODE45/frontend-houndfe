@@ -16,14 +16,20 @@ const props = withDefaults(
     themed?: boolean
     /** Optional native tooltip boundary; independent of the charge styling. */
     portalClass?: string
+    /**
+     * Presentation-only opt-in for the exact v0 cart composition (T11). False
+     * by default, so the totals keep the previous labels and paint.
+     */
+    composition?: boolean
   }>(),
-  { themed: false },
+  { themed: false, composition: false },
 )
 
 // ── Emits ─────────────────────────────────────────────────────────────────────
 
 const emit = defineEmits<{
   'charge-click': []
+  'clear-click': []
   'remove-order-promo': [promotionId: string]
 }>()
 
@@ -54,7 +60,7 @@ const chargeTooltip = computed(() => {
 // previous class string byte-identical.
 const chargeButtonClass = computed(() =>
   props.themed
-    ? 'relative sales-entry-primary-action rounded-xl font-semibold shadow-sm w-full'
+    ? 'relative sales-entry-primary-action sales-pos-charge-button rounded-xl font-semibold shadow-sm w-full'
     : 'relative !bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm w-full',
 )
 
@@ -66,11 +72,6 @@ const hasDiscounts = computed(() => discountCents.value > 0)
 
 const orderPromotion = computed(() => props.sale.appliedOrderPromotion ?? null)
 const hasOrderPromotion = computed(() => orderPromotion.value !== null)
-const orderPromotionTitleFormatted = computed(() => {
-  const promo = orderPromotion.value
-  if (!promo) return ''
-  return `${promo.discountTitle} (−${formatCentsMXN(promo.discountAmountCents)})`
-})
 
 function handleRemoveOrderPromo() {
   if (orderPromotion.value) {
@@ -80,9 +81,27 @@ function handleRemoveOrderPromo() {
 </script>
 
 <template>
-  <div class="mt-auto px-5 py-4">
-    <!-- Phase 14b: items/units count line -->
-    <p class="text-xs text-muted mb-3">
+  <div
+    class="mt-auto px-5 py-4 sales-pos-totals"
+    :class="{ 'sales-pos-totals-composition': composition }"
+  >
+    <!-- Phase 14b: items/units count line. The exact cart composition reads the
+         accepted v0 wording; the omitted opt-in keeps the prior string. -->
+    <div v-if="composition" data-testid="totals-summary" class="sales-pos-totals-summary">
+      <p data-testid="totals-count" class="text-xs text-muted sales-pos-totals-count">
+        {{ lineCount }} {{ lineCount === 1 ? 'artículo' : 'artículos' }} · {{ totalQuantity }} {{ totalQuantity === 1 ? 'unidad' : 'unidades' }}
+      </p>
+      <UButton
+        data-testid="totals-clear"
+        class="sales-pos-summary-clear"
+        color="neutral"
+        variant="ghost"
+        icon="i-lucide-trash-2"
+        :disabled="isChargeDisabled"
+        @click="emit('clear-click')"
+      >Vaciar</UButton>
+    </div>
+    <p v-else data-testid="totals-count" class="text-xs text-muted mb-3 sales-pos-totals-count">
       {{ lineCount }} Artic · {{ totalQuantity }} Unidad
     </p>
 
@@ -105,12 +124,19 @@ function handleRemoveOrderPromo() {
 
     <!-- Total row — Phase 14b: large, bold, adaptive to surface -->
     <div class="flex items-baseline justify-between mb-1">
-      <p class="text-xs font-semibold text-muted uppercase tracking-wider">
-        TOTAL A COBRAR
-      </p>
+      <div class="flex flex-col">
+        <p class="text-xs font-semibold text-muted uppercase tracking-wider sales-pos-totals-label">
+          TOTAL A COBRAR
+        </p>
+        <span
+          v-if="composition"
+          data-testid="totals-currency"
+          class="sales-pos-totals-currency text-muted"
+        >Moneda MXN</span>
+      </div>
       <span
         data-testid="total-amount"
-        class="text-2xl font-extrabold text-highlighted tabular-nums"
+        class="text-2xl font-extrabold text-highlighted tabular-nums sales-pos-total-amount"
       >{{ totalFormatted }}</span>
     </div>
 
@@ -137,7 +163,7 @@ function handleRemoveOrderPromo() {
     </div>
 
     <!-- Cobrar button — Phase 14b: w-full -->
-    <div class="mt-4">
+    <div class="mt-4 sales-pos-charge">
       <UTooltip
         :text="chargeTooltip"
         :ui="portalClass ? { content: portalClass } : undefined"
