@@ -1,38 +1,77 @@
 # Sales-entry visual redesign — v0 brief
 
-Copy the prompt below into v0 and attach the screenshots listed afterward. Do not attach repository artifacts, credentials or real customer/payment data. This brief does not authorize a v0 API call or implementation in Houndfe.
+Copy the complete prompt below into v0 and attach the screenshots listed afterward. It is self-contained: the external designer needs no other documents or knowledge of our application internals. Do not share credentials or real customer/payment data.
 
 ## Copy-ready prompt
 
-Design a complete, high-fidelity **new-sale / point-of-sale workspace for Houndfe**, a retail business application. I am attaching screenshots of our existing UI. We like our current application-wide visual identity, but this specialized sale-creation workspace deserves a more intentional composition.
+Design a complete, high-fidelity **new-sale / point-of-sale workspace for Houndfe**, a retail business application. You are an external designer. All visual rules and required screen content are supplied in this brief; no other documents are available or required. I am attaching screenshots to explain the existing workflow. Redesign its composition, hierarchy and visual presentation according to the rules below.
 
 **This is a UI/UX design task, NOT a functional implementation task.** The functionality described below is context so that you can design the correct controls, information hierarchy and states. Do not implement it.
 
 ### 1. Scope and non-negotiable boundaries
 
-- Redesign sale creation: product discovery, simultaneous sale drafts, cart, customer/address assignment, discounts, promotions, checkout/payment and the reached overlays.
+- Redesign sale creation: product discovery, simultaneous sale drafts, cart, customer/address assignment, discounts, promotions, checkout/payment and its supporting windows.
 - Treat screenshots as evidence of existing capabilities, terminology and content, **not as a layout you must reproduce exactly**. Improve grouping, density, hierarchy and ergonomics without deleting capabilities.
-- Keep the established application shell as context. Do not redesign the sidebar/navigation, Sales listing/detail, Customers module/history, quotations or cash-register management. Existing shared customer/address forms remain visually consistent with their already-approved module.
+- Keep surrounding navigation shown in screenshots as context. Do not redesign the sidebar/navigation, Sales listing/detail, standalone customer management/history, quotations or cash-register management. Customer/address forms used within sale creation follow the visual rules supplied here.
 - Do not invent receipt printing, tax configuration, shipping charges, payment-terminal integrations, hardware barcode scanning or extra POS/business features. Barcode is a supported search term, not an integrated device flow.
 - The “Pedido” mode is currently disabled. Preserve it only as unavailable context if useful; do not turn it into a working feature. Do not expose dormant functionality.
-- Use fictional, hardcoded data. Supply all totals, discounts, balances, change, stock and statuses as predefined display values. **Do not calculate them.**
-- No backend, APIs, fetch calls, database, authentication, authorization engine, storage/localStorage, real customer creation, inventory operations, promotion engine or payment processing. Do not request credentials or connect external services.
-- Presentation-only interactions are allowed: switch between predefined visual examples, open/close sheets/dialogs, switch tabs and themes, expand sections and display a selected mock state. Do not implement stock validation, repricing, debt rules, financial math or real state persistence.
-- Our production application is Vue 3 with Nuxt UI. A v0 preview may use its usual UI stack, but this is a disposable **visual reference**, not a request to migrate the application or produce production integration code.
+- Use fictional sample content and predefined totals, discounts, balances, change, stock and statuses. **Do not calculate them or implement business functionality.**
+- Do not process payments, save customer records, connect external services or request credentials. The result is a visual proposal, not a working point-of-sale system.
+- If useful for presenting the design, allow only simple preview interactions: open/close windows, switch between sample screens/themes and expand sections. Business rules are context for which information and states must be visible, not work to implement.
+- Your deliverable is design only. Our team will handle construction and integration separately after the visual proposal is approved.
 
-### 2. Visual direction
+### 2. Explicit visual rules
 
-Build an operational workspace for a cashier who needs to find products, review a sale and charge quickly. Not a marketing page, dashboard of KPI cards or generic SaaS template.
+Build an operational workspace for a cashier who needs to find products, review a sale and charge quickly. Not a marketing page, a dashboard of KPI cards or a generic SaaS template. The identity is calm, precise retail software: restrained blue actions, a small gold accent and neutral, clearly separated working surfaces.
 
-- Preserve Houndfe's approved foundation: **Manrope**, restrained blue primary actions, a small gold accent, calm neutral surfaces, clear borders and purposeful icons.
-- Light: page `#f5f6f8`, surface `#ffffff`, primary action `#2442f6` with white text.
-- Dark: page `#0e1520`, surface `#192332`, primary action `#91b0ff` with `#132344` text.
-- Gold accent: `#f6bb13`. It is not the default paint for every action or section.
-- Foundation radii: 12px for cards/surfaces, 6px for controls. Keep typography and spacing aligned with the screenshots; avoid unnecessary gradients, heavy shadows, decorative panels and excessive pill badges.
-- Body and controls must remain legible in BOTH themes, including overlays, dropdowns, tooltips and error/warning states. Keep primary, secondary, destructive and unavailable actions visually distinct.
-- UI language: Spanish, using established labels. Currency: **MXN**, displayed in Mexican format such as `$1,250.00`. Use tabular numerals and strong alignment for money.
-- Prefer purposeful density to giant empty cards. Make the product/cart relationship and the final charge action the main visual hierarchy.
-- Accessible keyboard focus, clear labels and tooltips for icon-only actions, non-color-only status cues, comfortable touch targets and reduced-motion-friendly presentation.
+**These written rules take precedence over legacy styling visible in screenshots.** Screenshots explain content and workflow; do not copy conflicting colors or typography from them.
+
+#### Palette: light and dark are an equally complete pair
+
+| Visual role               | Light     | Dark      | Use                                                             |
+| ------------------------- | --------- | --------- | --------------------------------------------------------------- |
+| Page background           | `#f5f6f8` | `#0e1520` | Quiet canvas behind the working areas                           |
+| Main surface              | `#ffffff` | `#192332` | Catalog/cart areas, panels, forms and floating windows          |
+| Secondary surface         | `#e7eef7` | `#202e43` | Quieter grouped information and supporting summaries            |
+| Main text                 | `#24313d` | `#edf2fa` | Product names, labels, data and amounts                         |
+| Headings                  | `#173968` | `#edf2fa` | Titles and clear hierarchy                                      |
+| Supporting text           | `#576574` | `#adbcd0` | Descriptions, metadata and helper text                          |
+| Borders                   | `#dce2e8` | `#354459` | Subtle separation and field outlines                            |
+| Primary action background | `#2442f6` | `#91b0ff` | Main action in a task area                                      |
+| Text on primary action    | `#ffffff` | `#132344` | Always paired with its matching background                      |
+| Gold accent               | `#f6bb13` | `#f6bb13` | Small brand accents, not the default color for actions/statuses |
+
+Do not paint every badge or button blue. Selection, discounts, payment status, warning, success and destructive actions must remain distinguishable. Status feedback needs explicit words/icons as well as color; decorative gold is not a substitute for a legible warning. Keep success, warning, error and information visually distinct and accessible in both themes without changing their meaning.
+
+#### Typography and monetary information
+
+- Typeface: **Manrope**, with a readable system sans-serif fallback.
+- One dominant workspace title: 28–32px, weight 600, line-height approximately 1.25.
+- Section titles: 16–18px, weight 600; do not compete with the main title.
+- Operational text: 14–16px. Supporting text: 12–14px. Never shrink important amounts, labels or errors to fit more content.
+- Use stronger size/weight for the final total and restrained emphasis for subtotals and metadata. Keep prices and totals aligned for quick comparison, using tabular numerals.
+- UI copy: neutral Mexican Spanish, sentence case, concise and explicit. Preserve domain labels such as “Cobrar”, “Cliente”, “Descuentos” and “Total a cobrar”.
+- Currency: **MXN**, displayed in Mexican format such as `$1,250.00`. Do not change the meaning or precision of the sample amounts.
+
+#### Spacing, surfaces and controls
+
+- Spacing scale: **4, 8, 12, 16, 24, 32px**. Use small gaps for related elements and larger gaps between different tasks.
+- Surface/card corner radius: **12px**. Control corner radius: **6px**.
+- Controls should have a **44px minimum height or touch area**. Compact icons may be visually smaller without making their hit areas difficult to use.
+- Group meaningful tasks, not every label in its own card. Avoid excessive nesting, giant empty panels, gradients, heavy shadows and decorative badges.
+- Fields need a visible label, a single clear outline/surface, readable helper/error text and obvious focus. A placeholder is not a substitute for a label.
+- Give the main action in each task area the strongest emphasis; supporting actions stay quieter. Destructive actions require explicit wording and a distinct confirmation design.
+- Use one consistent family of simple outline icons, with consistent weight and sizing. Explain icon-only actions with accessible names/tooltips; no decorative icons pretending to be actions.
+
+#### States, responsiveness and accessibility
+
+- Clearly distinguish normal, hover, keyboard focus, persistent selection, disabled and processing states. Hover alone must not imply selection.
+- Distinguish initial loading, background updating, empty data, no search matches, failure and success. Include realistic long names, multiple cart items and overflowing content.
+- Apply this same visual language to every window, dropdown, date selector, menu and tooltip, including nested windows. Dark mode must not leave light-only or legacy-colored content behind.
+- Keep totals and charge/confirmation actions visible while long content scrolls. On narrow screens, fit the workflow without page-level horizontal overflow or hiding essential information.
+- Target contrast: **4.5:1 for normal text**, **3:1 for large text and necessary non-text indicators**. Choosing a palette alone does not demonstrate compliance.
+- Keep keyboard focus visible, labels understandable and statuses readable without color alone. Motion is optional, restrained and must not delay a cashier's action; respect reduced-motion preferences.
+- Sale creation needs its own purposeful composition. Do not force it into a generic data-table layout or invent a dashboard/context rail.
 
 ### 3. Main workspace and simultaneous sales
 
@@ -53,7 +92,7 @@ Include:
 - Responsive product cards with image/placeholder, product name, brand/SKU, MXN price, optional stock/low-stock indicator and a clear “Agregar” action.
 - Products with variants show “Ver variantes” and a variant count instead of pretending every product has one directly purchasable configuration.
 - A variant-picker dialog titled “Añadir {producto}”: variant search, image, name, SKU, price and optional stock for each row.
-- A reached read-only “Detalle del producto” dialog: image, name/variant, category, brand, description, SKU and stored barcode; price/price-list, stock and location summaries; variant rows with active selection. Include loading, error and missing-value examples. “Ir al producto” is a visual placeholder, not a new product-editor flow.
+- An in-sale read-only “Detalle del producto” dialog: image, name/variant, category, brand, description, SKU and stored barcode; price/price-list, stock and location summaries; variant rows with active selection. Include loading, error and missing-value examples. “Ir al producto” is a visual placeholder, not a new product-editor flow.
 - Catalog-loading skeleton, truly empty catalog, “Sin resultados” for a query and retry/error states where applicable. Do not make every empty state look identical.
 
 ### 5. Cart and pricing context
@@ -62,7 +101,7 @@ Provide an empty cart (“Tu venta está vacía”) and a populated cart.
 
 Each item needs room for image/placeholder, product and variant names, unit price, original/discounted price when applicable, quantity control, line monetary information and removal. Include a discreet menu for “Ver detalles”, “Cambiar precio”, “Agregar descuento” / “Quitar descuento” and “Eliminar producto”.
 
-Use compact, readable metadata for price origin (“Precio lista” / “Precio manual”), item discount, promotion title and reward information. Applied promotions and ordinary discounts are not interchangeable. Preserve an applied item/order promotion's reached removal action and confirmation; do not invent manual-promotion removal inside the available-promotions accordion, where it is currently inactive.
+Use compact, readable metadata for price origin (“Precio lista” / “Precio manual”), item discount, promotion title and reward information. Applied promotions and ordinary discounts are not interchangeable. Show the existing removal action/confirmation for applied item/order promotions; do not invent a removal action in the available-promotions section, where only “Aplicar” is currently available.
 
 Also design:
 
@@ -85,8 +124,8 @@ Design:
 - “Cliente: Sin asignar” / “Asignar cliente”.
 - Assigned-customer summary with name, selected address summary, “Cambiar” and “Quitar”.
 - Two-step assignment sheet: search by name/email/phone, matching customer cards, selected state and “Nuevo cliente”; then “Dirección de envío”, existing addresses, selected address and “Nueva dirección”.
-- Reached nested customer-creation form, consistent with the already-approved Customers UI: “Datos Básicos” and “Datos de Facturación” tabs. Basic fields: name, surname, country-code/phone, email, optional customer price-list assignment, pending addresses and comments. Billing fields: business/legal name, fiscal postal code, RFC, fiscal regime and an optional expandable billing address. These are existing profile fields, not a new tax-configuration or invoicing workflow.
-- Reached “Añadir dirección” form: street, exterior/interior numbers, postal code, neighborhood, municipality/delegation, city, state and optional “Ubicación en el mapa”. Represent the map/pin using a static placeholder or predefined demo image; no geocoder, map service, live coordinates or external integration. Keep field errors, cancel/save/loading states and nested-form context visible. Do not invent extra mandatory fields or a customer-management redesign.
+- A customer-creation form following the same visual rules supplied in this brief: “Datos Básicos” and “Datos de Facturación” tabs. Basic fields: name, surname, country-code/phone, email, optional customer price-list assignment, pending addresses and comments. Billing fields: business/legal name, fiscal postal code, RFC, fiscal regime and an optional expandable billing address. These are existing profile fields, not a new tax-configuration or invoicing workflow.
+- An “Añadir dirección” form: street, exterior/interior numbers, postal code, neighborhood, municipality/delegation, city, state and optional “Ubicación en el mapa”. Represent the map/pin using a static placeholder or predefined demo image; no geocoder, map service, live coordinates or external integration. Keep field errors, cancel/save/loading states and nested-form context visible. Do not invent extra mandatory fields or a customer-management redesign.
 - Searching/loading, no matching customers, no saved addresses and inline assignment/address errors. Keep parent selection context understandable when a nested dialog is open.
 
 ### 7. Payment / checkout sheet
@@ -102,7 +141,7 @@ Include:
 - Optional collapsed “Agregar fecha de vencimiento”, expanded date field and clear/reset affordance for resulting debt. This is the checkout date surface, not a new standalone debt editor.
 - “Entrega a domicilio” toggle. Without assigned customer/address, show an unavailable state, explanation and “Asignar cliente” action; with an address, show the available/on state. No shipping-charge field.
 - Footer summaries: “Recibido”, “Restante”, conditional “Cambio”, conditional “Deuda a generar”, inline errors and “Cancelar” / “Confirmar cobro”.
-- Fully paid, mixed payment, cash with change, partial payment with debt and no-payment credit examples. When a debt example has no customer, show “Asigna un cliente para registrar una venta con deuda” with its assignment action. Represent permitted/blocked states using fixtures, not a rules engine.
+- Fully paid, mixed payment, cash with change, partial payment with debt and no-payment credit examples. When a debt example has no customer, show “Asigna un cliente para registrar una venta con deuda” with its assignment action. Represent permitted/blocked states using predefined visual examples; do not implement the rules.
 - Clear pending/processing and disabled-action visuals, without simulated real payment calls.
 
 ### 8. Re-quote, confirmations and success
@@ -113,7 +152,7 @@ Include:
 
 ### 9. Deliverable
 
-Produce one coherent visual prototype covering the main workspace and all reached overlays, with representative predefined states easy to inspect. A separate clearly labeled **demo-state selector**, outside production navigation, is acceptable.
+Produce one coherent visual redesign covering the main workspace and all described windows, with representative predefined states easy to inspect. A separate clearly labeled **demo-state selector**, outside production navigation, is acceptable.
 
 Prioritize: (1) populated desktop catalog/cart, (2) desktop checkout, (3) mobile catalog/cart/checkout, (4) nested dialogs and edge states. Show both light and dark variants, with a realistic dense example rather than only an ideal empty screen.
 
@@ -139,15 +178,4 @@ Additional references when available:
 - Payment: cash/change, partial debt/credit, missing customer/address, expanded due date, session selection/lost-binding warning and disabled/processing state.
 - Paid and partial-debt success dialogs.
 
-Do not invoke real checkout, create real customer/address records or force a live promotion race just to obtain screenshots. Use existing safe fixtures/previews or let v0 compose the missing states from this brief. Clearly label which screenshots are references and which examples are desired mock states.
-
-## Repository evidence (not necessary to paste into v0)
-
-- Foundation: `docs/design-system.md`, `src/core/shared/design-system/houndfe-theme.css`.
-- Composition/drafts/mobile/shortcuts/re-quote: `src/features/POS/sales/views/SalesView.vue`, `components/SalesTabsStrip.vue`.
-- Catalog: shared `ProductSearchPanel.vue`, `ProductSearchResults.vue`, `ProductSearchResultItem.vue`, `VariantPickerModal.vue`.
-- Cart/discounts: Sales `ActiveSalePanel.vue`, `SaleItemRow.vue`, `SaleTotalsFooter.vue`, `SaleItemBadges.vue`, `PromocionesDisponiblesAccordion.vue`, `GlobalDiscountModal.vue`, `ItemDiscountModal.vue`, `PriceOverrideModal.vue`, `ProductDetailModal.vue`.
-- Customer/address: `AssignCustomerSlideover.vue` and its reached shared forms.
-- Checkout: `PaymentModal.vue`, reached `CashSaleSessionPicker.vue` and `DateFieldPopover.vue`, `PromotionCapacityRequoteModal.vue`, `PaymentSuccessModal.vue`.
-
-Only visuals are proposed; existing production behavior and accepted shared components remain unchanged.
+Do not invoke real checkout, create real customer/address records or force a live promotion race just to obtain screenshots. Use safe previews with fictional sample content or let v0 illustrate missing states from this brief. Clearly label which screenshots are references and which examples are desired mock states.
