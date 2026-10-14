@@ -167,3 +167,47 @@
   background-color: var(--hf-surface-muted);
   color: var(--hf-ink);
 }
+/* ── Collaborator detail ─────────────────────────────────────────────────── */
+
+/* Cards repaint the surface role: the global UCard theme paints literal
+ * palette colors that the semantic aliases never reach. */
+.employees-detail .employees-detail-section {
+  border: 1px solid var(--hf-border);
+  background-color: var(--hf-surface);
+  color: var(--hf-ink);
+  box-shadow: none;
+}
+
+.employees-detail .employees-detail-tabs {
+  border: 1px solid var(--hf-border);
+  background-color: var(--hf-surface-muted);
+}
+
+.employees-detail .employees-detail-tab {
+  color: var(--hf-muted);
+}
+
+.employees-detail .employees-detail-tab:hover {
+  color: var(--hf-ink);
+}
+
+.employees-detail .employees-detail-tab[aria-selected='true'] {
+  background-color: var(--hf-surface);
+  color: var(--hf-heading);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--hf-ink) 12%, transparent);
+}
+
+.employees-detail .employees-detail-tab:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+/* The avatar ring and the active dot border separate them from the card. */
+.employees-detail .employees-avatar-ring {
+  --tw-ring-color: var(--hf-surface);
+}
+
+.employees-detail .employees-active-dot {
+  border-color: var(--hf-surface);
+  background-color: var(--hf-success);
+}

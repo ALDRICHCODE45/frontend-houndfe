@@ -44,6 +44,7 @@ import AusenciasPanel from '../components/AusenciasPanel.vue'
 import EmergencyContactsPanel from '../components/EmergencyContactsPanel.vue'
 import type { Employee } from '../interfaces/employee.types'
 import type { AppAction, AppSubject } from '@/features/auth/interfaces/auth.types'
+import '../styles/employees-visual.css'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -146,7 +147,7 @@ function goBack(): void {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 px-4 sm:px-6 lg:px-10">
+  <div class="hf-theme hf-ui employees-visual employees-detail mx-auto flex w-full min-w-0 max-w-[1320px] flex-col gap-6 px-4 sm:px-6 lg:px-10">
     <!-- Loading state -->
     <div v-if="isLoading" class="flex flex-col gap-6">
       <!-- Back link skeleton -->
@@ -220,16 +221,11 @@ function goBack(): void {
         <div class="flex min-w-0 flex-1 flex-col gap-4">
           <!-- Tab navigation — horizontal scroll on mobile -->
           <div class="overflow-x-auto">
-            <div class="flex min-w-max gap-1 rounded-xl border border-default bg-elevated/50 p-1">
+            <div class="employees-detail-tabs flex min-w-max gap-1 rounded-xl p-1">
               <button
                 v-for="tab in visibleTabs"
                 :key="tab.key"
-                :class="[
-                  'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap',
-                  activeTab === tab.key
-                    ? 'bg-white text-primary shadow-sm dark:bg-elevated'
-                    : 'text-muted hover:text-default',
-                ]"
+                class="employees-detail-tab rounded-lg px-3 py-1.5 text-sm font-medium transition-colors whitespace-nowrap"
                 :aria-selected="activeTab === tab.key"
                 role="tab"
                 @click="setTab(tab.key)"

@@ -36,6 +36,7 @@ import {
 import DotBadge from '@/core/shared/components/DotBadge.vue'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
 import { AVATAR_PALETTE } from '@/app/constants/avatarPalette'
+import '../styles/employees-visual.css'
 
 const props = defineProps<{
   employee: Employee
@@ -63,11 +64,11 @@ const modalityLabel = computed(() => WORK_MODALITY_LABELS[props.employee.workMod
 function getModalityBadgeClass(modality: Employee['workModality']): string {
   switch (modality) {
     case WORK_MODALITY.REMOTE:
-      return 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/30 dark:bg-blue-500/15 dark:text-blue-300'
+      return 'employees-modality employees-modality--remote'
     case WORK_MODALITY.HYBRID:
-      return 'border-orange-200 bg-orange-50 text-orange-700 dark:border-orange-500/30 dark:bg-orange-500/15 dark:text-orange-300'
+      return 'employees-modality employees-modality--hybrid'
     case WORK_MODALITY.ONSITE:
-      return 'border-slate-200 bg-slate-100 text-slate-700 dark:border-slate-500/30 dark:bg-slate-500/15 dark:text-slate-300'
+      return 'employees-modality employees-modality--onsite'
   }
 }
 
@@ -114,7 +115,7 @@ const rowActions = computed(() =>
 </script>
 
 <template>
-  <UCard :ui="{ body: 'p-0 sm:p-0' }" class="overflow-hidden">
+  <UCard :ui="{ body: 'p-0 sm:p-0' }" class="employees-detail-section overflow-hidden">
     <!-- Decorative header band: soft gradient + bottom border -->
     <div
       class="relative h-20 bg-gradient-to-br from-primary-500/15 via-primary-500/5 to-transparent dark:from-primary-400/15 dark:via-primary-400/5"
@@ -128,7 +129,7 @@ const rowActions = computed(() =>
       <!-- Colorful avatar with active dot -->
       <div class="relative">
         <div
-          class="flex size-24 items-center justify-center rounded-full text-2xl font-bold shadow-lg ring-4 ring-white dark:ring-gray-900"
+          class="employees-avatar-ring flex size-24 items-center justify-center rounded-full text-2xl font-bold shadow-lg ring-4"
           :class="getAvatarClass(employee.id)"
           :aria-label="employee.fullName"
         >
@@ -137,7 +138,7 @@ const rowActions = computed(() =>
         <!-- Active status green dot -->
         <span
           v-if="employee.status === EMPLOYEE_STATUS.ACTIVE"
-          class="absolute bottom-1 right-1 size-4 rounded-full border-[3px] border-white bg-emerald-500 dark:border-gray-900"
+          class="employees-active-dot absolute bottom-1 right-1 size-4 rounded-full border-[3px]"
           aria-label="Activo"
         />
       </div>
@@ -220,6 +221,7 @@ const rowActions = computed(() =>
         v-if="rowActions.length > 1"
         :items="rowActions.filter(a => a.label !== 'Editar')"
         :content="{ align: 'end' }"
+        :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
       >
         <UButton
           icon="i-lucide-ellipsis"

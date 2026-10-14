@@ -112,3 +112,36 @@ describe('Employees dialogs and slideovers presentation adapter', () => {
     expect(view.match(new RegExp(`:ui="\\{ content: '${formPortal}' \\}"`, 'g'))?.length).toBe(2)
   })
 })
+
+// ── Collaborator detail (odd employee-detail-visual) ─────────────────────────
+const detail = read('views/EmployeeDetailView.vue')
+const profile = read('components/EmployeeProfileCard.vue')
+
+describe('Employee detail shell and profile card adapter', () => {
+  it('opts the detail into the employees boundary, centered at the Caja page width', () => {
+    expect(detail).toContain("import '../styles/employees-visual.css'")
+    expect(detail).toContain('hf-theme hf-ui employees-visual employees-detail')
+    expect(detail).toContain('mx-auto')
+    expect(detail).toContain('max-w-[1320px]')
+  })
+
+  it('paints the tab bar with semantic roles instead of literal white', () => {
+    expect(detail).not.toContain('bg-white')
+    expect(detail).toContain('employees-detail-tabs')
+    expect(detail).toContain('employees-detail-tab')
+    expect(css).toContain('.employees-detail .employees-detail-tab[aria-selected=\'true\']')
+  })
+
+  it('gives the profile card an owned section hook and themes its action menu', () => {
+    expect(profile).toContain('employees-detail-section')
+    expect(css).toContain('.employees-detail .employees-detail-section')
+    expect(profile).toContain(`:ui="{ content: '${formPortal}' }"`)
+  })
+
+  it('replaces literal palette chips and rings in the profile card with semantic hooks', () => {
+    expect(profile).not.toMatch(/(bg|text|border)-(blue|orange|slate|emerald)-|ring-white|border-white|dark:ring-gray|dark:border-gray/)
+    for (const modality of ['remote', 'hybrid', 'onsite']) expect(profile).toContain(`employees-modality--${modality}`)
+    expect(profile).toContain('employees-active-dot')
+    expect(css).toContain('.employees-detail .employees-active-dot')
+  })
+})
