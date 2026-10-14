@@ -1,49 +1,69 @@
 import { computed, ref } from 'vue'
+import { useQueryClient } from '@tanstack/vue-query'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { deliveryRouteQueryKeys } from '@/core/shared/constants/query-keys'
 import { useServerTable } from '@/core/shared/composables/useServerTable'
+import { deliveryRoutesApi } from '../api/delivery-routes.api'
+import type {
+  DeliveryRouteResponseDto,
+  DeliveryRouteStatus,
+} from '../interfaces/delivery-route.types'
 import {
-  deliveryRoutesApi,
-  paginateDeliveryRoutes,
-} from '../api/delivery-routes.api'
-import type { DeliveryRouteResponseDto, DeliveryRouteStatus } from '../interfaces/delivery-route.types'
+  countRoutesByStatus,
+  queryDeliveryRoutes,
+  type DeliveryRouteStatusFilter,
+} from '../utils/delivery-route-list.utils'
+
+/** Search, sort and page changes reuse the cached list inside this window. */
+const FULL_LIST_STALE_TIME_MS = 30_000
 
 /**
- * useDeliveryRoutesTable — LOCKED single-source wrapper (sdd delivery-routes, design.md §6.2).
+ * useDeliveryRoutesTable — manager listing over the full flat route list.
  *
- * Mirrors `usePaymentDetailsTable`: `useServerTable` only surfaces the page
- * slice (`data`), but the manager list needs the FULL flat list for row-action
- * gating (e.g. "can this DRAFT be started?" depends on `route.stops.length`,
- * which only `fullList` knows without an extra fetch per row). The backend list
- * is flat and client-paginated, so:
+ * The backend returns every route in one flat array, so search, status
+ * filter, sorting and pagination run client-side (`queryDeliveryRoutes`).
+ * `useServerTable` appends its params to the query key, so the raw list lives
+ * in its own cached slot (`[...listPrefix, 'full-list', status]`) and each
+ * keystroke or sort change re-slices it instead of refetching. Both slots sit
+ * under `deliveryRouteQueryKeys.listPrefix(tenantId)`, so mutation
+ * invalidations still refresh everything atomically.
  *
- *   - ONE fetch captures the full array in `fullList`,
- *   - the same fetch returns the page slice via `paginateDeliveryRoutes`,
- *   - cache key prefix is `deliveryRouteQueryKeys.listPrefix(tenantId)` (NOT
- *     `list(tenantId, {})`) so `invalidateQueries({queryKey:listPrefix(t)})`
- *     refetches every page/filter slot atomically.
- *
- * The `status` param is the driver-branch entry point (e.g. `'ACTIVE'`); the
- * manager list passes `undefined`. `deliveryRoutesApi.list(status)` already
- * omits the `params.status` key when status is undefined (axios-native), so
- * no extra branching is needed.
+ * `status` is the API-side filter (driver entry point); the manager list
+ * passes `undefined` and narrows with the exposed `statusFilter` instead.
  */
 export function useDeliveryRoutesTable(status?: DeliveryRouteStatus) {
   const authStore = useAuthStore()
+  const queryClient = useQueryClient()
   const tenantId = computed(() => authStore.currentTenantId)
 
   const fullList = ref<DeliveryRouteResponseDto[]>([])
+  const statusFilter = ref<DeliveryRouteStatusFilter>('ALL')
+  const statusCounts = computed(() => countRoutesByStatus(fullList.value))
 
   const table = useServerTable<DeliveryRouteResponseDto>({
-    queryKey: () => deliveryRouteQueryKeys.listPrefix(tenantId.value),
+    queryKey: () => [...deliveryRouteQueryKeys.listPrefix(tenantId.value), statusFilter.value],
     queryFn: async (params) => {
-      const rows = await deliveryRoutesApi.list(status)
+      const rows = await queryClient.fetchQuery({
+        queryKey: [
+          ...deliveryRouteQueryKeys.listPrefix(tenantId.value),
+          'full-list',
+          status ?? 'ALL',
+        ],
+        queryFn: () => deliveryRoutesApi.list(status),
+        staleTime: FULL_LIST_STALE_TIME_MS,
+      })
       fullList.value = rows
-      return paginateDeliveryRoutes(rows, params)
+      return queryDeliveryRoutes(rows, {
+        status: statusFilter.value,
+        search: params.globalFilter ?? '',
+        sorting: params.sorting,
+        pageIndex: params.pageIndex,
+        pageSize: params.pageSize,
+      })
     },
     defaultPageSize: 10,
     persistKey: 'pos-delivery-routes',
-    defaultSorting: [{ id: 'updatedAt', desc: true }],
+    defaultSorting: [{ id: 'createdAt', desc: true }],
     defaultPinning: { left: [], right: ['actions'] },
     urlSync: false,
   })
@@ -51,5 +71,7 @@ export function useDeliveryRoutesTable(status?: DeliveryRouteStatus) {
   return {
     ...table,
     fullList,
+    statusFilter,
+    statusCounts,
   }
 }

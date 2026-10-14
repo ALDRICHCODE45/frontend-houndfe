@@ -78,6 +78,16 @@ const authMock = {
   currentTenantId: 'tenant-1',
 }
 
+// The full list is cached in its own query slot; the wrapper reads it through
+// `queryClient.fetchQuery`. The fake runs the provided queryFn so every
+// assertion still goes through `deliveryRoutesApi.list`.
+const fetchQueryMock = vi.fn((options: { queryKey: unknown[]; queryFn: () => unknown }) =>
+  options.queryFn(),
+)
+vi.mock('@tanstack/vue-query', () => ({
+  useQueryClient: () => ({ fetchQuery: fetchQueryMock }),
+}))
+
 vi.mock('@/features/auth/stores/useAuthStore', () => ({
   useAuthStore: () => authMock,
 }))
@@ -138,8 +148,9 @@ describe('useDeliveryRoutesTable — useServerTable wrapper (design.md §6.2, RE
     expect(capturedQueryKeyFn).toBeDefined()
     const key = capturedQueryKeyFn!()
     // Different from the `list(tenantId, {})` suffix — the prefix slot is what
-    // mutations invalidate against (REQ-AUTH-DR-005 cache contract).
-    expect(key).toEqual(deliveryRouteQueryKeys.listPrefix('tenant-1'))
+    // mutations invalidate against (REQ-AUTH-DR-005 cache contract). The
+    // client-side status tab is appended after the prefix.
+    expect(key).toEqual([...deliveryRouteQueryKeys.listPrefix('tenant-1'), 'ALL'])
   })
 
   it('threads the status param into the query key (different status ⇒ different cache slot)', () => {
@@ -228,9 +239,62 @@ describe('useDeliveryRoutesTable — useServerTable wrapper (design.md §6.2, RE
     expect(result.pagination.pageCount).toBe(2)
   })
 
-  it('configures useServerTable with defaultSorting updatedAt desc (canonical backend order)', () => {
+  it('configures useServerTable with defaultSorting createdAt desc (the DTO has no updatedAt)', () => {
     useDeliveryRoutesTable()
-    expect(capturedDefaultSorting).toEqual([{ id: 'updatedAt', desc: true }])
+    expect(capturedDefaultSorting).toEqual([{ id: 'createdAt', desc: true }])
+  })
+
+  it('reads the full list through one cached query slot under the list prefix', async () => {
+    useDeliveryRoutesTable()
+    vi.mocked(deliveryRoutesApi.list).mockResolvedValue([makeRoute()])
+    await capturedQueryFn!({ pageIndex: 0, pageSize: 10 } as ServerTableParams)
+    expect(fetchQueryMock).toHaveBeenCalledTimes(1)
+    const options = fetchQueryMock.mock.calls[0]![0] as { queryKey: unknown[]; staleTime: number }
+    expect(options.queryKey.slice(0, 2)).toEqual([
+      ...deliveryRouteQueryKeys.listPrefix('tenant-1'),
+    ].slice(0, 2))
+    expect(options.queryKey).toContain('full-list')
+    expect(options.staleTime).toBeGreaterThan(0)
+  })
+
+  it('applies search and sorting client-side over the full list', async () => {
+    useDeliveryRoutesTable()
+    vi.mocked(deliveryRoutesApi.list).mockResolvedValue([
+      makeRoute({ id: 'a', driver: { id: 'd1', name: 'Ana', email: 'a@x.mx' } }),
+      makeRoute({ id: 'b', driver: { id: 'd2', name: 'Beto', email: 'b@x.mx' } }),
+    ])
+    const result = (await capturedQueryFn!({
+      pageIndex: 0,
+      pageSize: 10,
+      globalFilter: 'beto',
+      sorting: [{ id: 'driver', desc: false }],
+    } as ServerTableParams)) as { data: DeliveryRouteResponseDto[]; pagination: { totalCount: number } }
+    expect(result.data.map((r) => r.id)).toEqual(['b'])
+    expect(result.pagination.totalCount).toBe(1)
+  })
+
+  it('filters by the exposed statusFilter, keys the slot by it and counts every status', async () => {
+    const wrapper = useDeliveryRoutesTable()
+    expect(wrapper.statusFilter.value).toBe('ALL')
+    vi.mocked(deliveryRoutesApi.list).mockResolvedValue([
+      makeRoute({ id: 'a', status: 'DRAFT' }),
+      makeRoute({ id: 'b', status: 'ACTIVE' }),
+      makeRoute({ id: 'c', status: 'ACTIVE' }),
+    ])
+
+    wrapper.statusFilter.value = 'ACTIVE'
+    expect(capturedQueryKeyFn!()).toContain('ACTIVE')
+    const result = (await capturedQueryFn!({ pageIndex: 0, pageSize: 10 } as ServerTableParams)) as {
+      data: DeliveryRouteResponseDto[]
+    }
+    expect(result.data.map((r) => r.id)).toEqual(['b', 'c'])
+    expect(wrapper.statusCounts.value).toEqual({
+      ALL: 3,
+      DRAFT: 1,
+      ACTIVE: 2,
+      COMPLETED: 0,
+      CANCELLED: 0,
+    })
   })
 
   it('pins the actions column to the right', () => {
