@@ -449,7 +449,7 @@ defineExpose({
   <div
     v-else-if="isManager && routeData && routeData.id === routeId && managerDetail"
     data-testid="detail-manager-workspace"
-    class="hf-theme hf-ui delivery-routes-visual delivery-routes-detail flex w-full min-w-0 flex-col gap-6 px-4 py-6 sm:px-6 md:px-10"
+    class="hf-theme hf-ui delivery-routes-visual delivery-routes-detail mx-auto flex w-full min-w-0 max-w-[1320px] flex-col gap-6 px-4 py-6 sm:px-6 md:px-10"
   >
     <DeliveryRouteUpsertSlideover
       v-model:open="isEditOpen"

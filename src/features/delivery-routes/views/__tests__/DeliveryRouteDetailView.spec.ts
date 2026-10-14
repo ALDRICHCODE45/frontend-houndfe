@@ -1374,3 +1374,16 @@ describe('DeliveryRouteDetailView — manager workspace redesign (odd delivery-r
     }
   })
 })
+
+describe('DeliveryRouteDetailView — manager workspace width (odd delivery-routes-manager-detail-visual S6)', () => {
+  it('centers the manager workspace with the Caja 1320px maximum width', async () => {
+    resetRoleFlags({ isManager: { value: true } })
+    resetDetailState({ data: makeDraftRoute() })
+    const wrapper = mountView()
+    await flushPromises()
+    const root = wrapper.find('[data-testid="detail-manager-workspace"]')
+    expect(root.classes()).toContain('max-w-[1320px]')
+    expect(root.classes()).toContain('mx-auto')
+    expect(root.classes()).toContain('w-full')
+  })
+})
