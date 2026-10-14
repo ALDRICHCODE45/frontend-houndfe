@@ -17,7 +17,7 @@ S5. Stop status renders in Spanish with a status tone (today it shows the raw en
 T1 | S2,S5 | inline: pure manager detail view model (title, meta, KPIs, stop rows), RED/GREEN | done | RED unresolved import -> GREEN utils 130/5 | commit: see L3
 T2 | S2-S5 | inline: recompose manager branch + CSS + portal markers, RED/GREEN, existing detail spec green | done | RED 8 fail -> GREEN 1036/45, lint exit0, build exit0 | commit: see L4
 T4 | S6 | inline: centered 1320px max width on the manager workspace, RED/GREEN | done | RED 1 fail -> GREEN 1037/45, build exit0 | commit: see L7
-T3 | S1-S6 | inline checks: module suite, build, lint, native assess; user visual smoke (light/dark, draft/active/completed) | pending | commit: —
+T3 | S1-S6 | inline checks: module suite, build, lint, native assess; user visual smoke (light/dark, draft/active/completed) | done | user approved visually ("Si hermano, me gusta mucho. aprovado"); module 1037/45, build exit0 | commit: see L8
 
 ## Log
 
@@ -28,3 +28,4 @@ L4. T2: manager branch recomposed in DeliveryRouteDetailView.vue (root hf-theme 
 L5. Native assess 3c840881..142666ef: medium, reviewDue false (under_budget), no independent verifier. Pending: user visual smoke.
 L6. User verbatim: "si hermano, me gusta mucho, todo esta bien, solamente haria un cambio: /home/aldrich_coder45/Pictures/Screenshots/Screenshot_2026-10-14-15-00-41_5360x2520.png en pantallas grandes se ve asi, toma todo el ancho, me gustaria poner un ancho maximo como en la pantalla de caja, me explico?" Caja reference: cash-visual.css:26 --cash-page-max: 1320px.
 L7. T4: manager workspace root gains mx-auto max-w-[1320px] (Caja --cash-page-max). RED 1 failing -> GREEN delivery-routes 1037/45, pnpm build exit 0. Pending: user visual check of the width.
+L8. User verbatim: "Si hermano, me gusta mucho. aprovado". Native assess 4bb86811..c89fa9ee: medium, reviewDue false (under_budget). Feature closed; fast-forward merged to main (push by the user).
