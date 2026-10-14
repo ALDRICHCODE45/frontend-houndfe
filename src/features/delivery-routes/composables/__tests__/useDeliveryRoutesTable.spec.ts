@@ -84,8 +84,9 @@ const authMock = {
 const fetchQueryMock = vi.fn((options: { queryKey: unknown[]; queryFn: () => unknown }) =>
   options.queryFn(),
 )
+const invalidateQueriesMock = vi.fn(async () => undefined)
 vi.mock('@tanstack/vue-query', () => ({
-  useQueryClient: () => ({ fetchQuery: fetchQueryMock }),
+  useQueryClient: () => ({ fetchQuery: fetchQueryMock, invalidateQueries: invalidateQueriesMock }),
 }))
 
 vi.mock('@/features/auth/stores/useAuthStore', () => ({
@@ -365,5 +366,13 @@ describe('useDeliveryRoutesTable — useServerTable wrapper (design.md §6.2, RE
     void activeWrapper
     void draftWrapper
     void unfilteredWrapper
+  })
+
+  it('refresh invalidates the cached full list before refetching (no stale manual refresh)', async () => {
+    const wrapper = useDeliveryRoutesTable()
+    await wrapper.refresh()
+    expect(invalidateQueriesMock).toHaveBeenCalledWith({
+      queryKey: [...deliveryRouteQueryKeys.listPrefix('tenant-1'), 'full-list'],
+    })
   })
 })

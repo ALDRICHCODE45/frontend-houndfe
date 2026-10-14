@@ -30,7 +30,7 @@
 }
 
 .dark .hf-theme.delivery-routes-visual,
-.dark .dark .hf-theme.delivery-routes-list-portal,
+.dark .hf-theme.delivery-routes-list-portal,
 .dark .hf-theme.delivery-routes-form-portal {
   --hf-page: #101720;
   --hf-surface: #1b2736;

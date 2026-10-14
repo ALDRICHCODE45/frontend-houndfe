@@ -36,6 +36,11 @@ const name = computed(() => buildRouteDisplayName(props.route))
 const customers = computed(() => getRouteCustomers(props.route))
 const progress = computed(() => getRouteProgress(props.route))
 const createdAt = computed(() => formatRouteDateTime(getRouteCreatedAt(props.route)))
+const startedAt = computed(() => formatRouteDateTime(props.route.startedAt))
+/** The end of a route is its completion or its cancellation (same as the table). */
+const endedAt = computed(() =>
+  formatRouteDateTime(props.route.completedAt ?? props.route.cancelledAt),
+)
 </script>
 
 <template>
@@ -101,6 +106,16 @@ const createdAt = computed(() => formatRouteDateTime(getRouteCreatedAt(props.rou
       <div class="min-w-0">
         <dt class="delivery-routes-muted">Creada</dt>
         <dd>{{ createdAt }}</dd>
+      </div>
+      <div class="grid min-w-0 grid-cols-2 gap-2">
+        <div class="min-w-0">
+          <dt class="delivery-routes-muted">Inicio</dt>
+          <dd>{{ startedAt }}</dd>
+        </div>
+        <div class="min-w-0">
+          <dt class="delivery-routes-muted">Fin</dt>
+          <dd>{{ endedAt }}</dd>
+        </div>
       </div>
       <div v-if="route.notes" class="min-w-0">
         <dt class="delivery-routes-muted">Notas</dt>

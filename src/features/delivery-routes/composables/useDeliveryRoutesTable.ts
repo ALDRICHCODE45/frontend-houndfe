@@ -68,8 +68,20 @@ export function useDeliveryRoutesTable(status?: DeliveryRouteStatus) {
     urlSync: false,
   })
 
+  /**
+   * Manual refresh must reach the server: the cached full list would otherwise
+   * be reused for its stale window.
+   */
+  async function refresh(): Promise<void> {
+    await queryClient.invalidateQueries({
+      queryKey: [...deliveryRouteQueryKeys.listPrefix(tenantId.value), 'full-list'],
+    })
+    await table.refresh()
+  }
+
   return {
     ...table,
+    refresh,
     fullList,
     statusFilter,
     statusCounts,
