@@ -135,3 +135,39 @@ describe('PromotionTypeSelector component — selectType behavior', () => {
     expect(router.currentRoute.value.path).toBe('/pos/promociones/crear/ADVANCED')
   })
 })
+
+describe('PromotionTypeSelector component — optional theme boundary', () => {
+  const UModalStub = {
+    name: 'UModal',
+    props: ['open', 'title', 'ui'],
+    template: '<div data-testid="modal"><slot name="body" /></div>',
+  }
+
+  function mountWith(props: Record<string, unknown>) {
+    return shallowMount(PromotionTypeSelector, {
+      props: { open: true, ...props },
+      global: { plugins: [createTestRouter()], stubs: { Modal: UModalStub } },
+    })
+  }
+
+  it('forwards portalClass to the teleported dialog content, keeping its width', () => {
+    const wrapper = mountWith({ portalClass: 'hf-theme hf-ui promotions-form-portal' })
+    expect(wrapper.findComponent(UModalStub).props('ui')).toEqual({
+      width: 'max-w-xl',
+      content: 'hf-theme hf-ui promotions-form-portal',
+    })
+  })
+
+  it('keeps the previous dialog ui exactly when no portalClass is given', () => {
+    const wrapper = mountWith({})
+    expect(wrapper.findComponent(UModalStub).props('ui')).toEqual({ width: 'max-w-xl' })
+  })
+
+  it('renders every type option with the owned hooks and no decorative gold', () => {
+    const wrapper = mountWith({ portalClass: 'hf-theme hf-ui promotions-form-portal' })
+    const options = wrapper.findAll('.promotions-type-option')
+    expect(options).toHaveLength(PROMOTION_TYPE_CARDS.length)
+    expect(wrapper.findAll('.promotions-type-icon')).toHaveLength(PROMOTION_TYPE_CARDS.length)
+    expect(wrapper.html()).not.toContain('coco-gold')
+  })
+})

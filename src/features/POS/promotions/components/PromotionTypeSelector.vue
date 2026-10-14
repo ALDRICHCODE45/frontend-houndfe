@@ -10,6 +10,11 @@ import {
 
 const open = defineModel<boolean>('open', { required: true })
 
+/** Optional theme marker forwarded to the teleported dialog content. */
+const props = defineProps<{
+  portalClass?: string
+}>()
+
 const emit = defineEmits<{
   select: [type: PromotionType]
 }>()
@@ -33,7 +38,11 @@ defineExpose({ selectType })
   <UModal
     v-model:open="open"
     title="Elige el Tipo de Promoción"
-    :ui="{ width: 'max-w-xl' }"
+    :ui="
+      props.portalClass
+        ? { width: 'max-w-xl', content: props.portalClass }
+        : { width: 'max-w-xl' }
+    "
   >
     <template #body>
       <div class="flex flex-col gap-2">
@@ -42,12 +51,12 @@ defineExpose({ selectType })
           :key="card.type"
           :data-testid="`type-card-${card.type}`"
           type="button"
-          class="group flex cursor-pointer items-center gap-3 rounded-lg border border-default p-3 text-left transition-all duration-200 hover:border-coco-gold-500/40 hover:bg-coco-gold-500/10"
+          class="promotions-type-option group flex cursor-pointer items-center gap-3 rounded-lg border border-default p-3 text-left transition-colors duration-200"
           @click="selectType(card.type)"
         >
-          <!-- Icon with colored background -->
+          <!-- Icon with a quiet semantic background -->
           <div
-            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-coco-gold-500/15 text-coco-gold-700 transition-colors duration-200 group-hover:bg-coco-gold-500/25"
+            class="promotions-type-icon flex h-9 w-9 shrink-0 items-center justify-center"
           >
             <UIcon :name="card.icon" class="h-4 w-4" />
           </div>
@@ -61,7 +70,7 @@ defineExpose({ selectType })
           <!-- Chevron -->
           <UIcon
             name="i-lucide-chevron-right"
-            class="h-4 w-4 shrink-0 text-muted transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-coco-gold-700"
+            class="promotions-type-chevron h-4 w-4 shrink-0 text-muted transition-transform duration-200 group-hover:translate-x-0.5"
           />
         </button>
       </div>

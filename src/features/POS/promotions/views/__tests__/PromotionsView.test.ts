@@ -357,9 +357,15 @@ describe('PromotionsView', () => {
   })
 
   // ── Renders ───────────────────────────────────────────────────────────────
-  it('renders page title "Promociones"', () => {
+  it('renders page title "Promociones" outside the table surface', () => {
     const wrapper = mountView()
-    expect(wrapper.find('[data-testid="header-title"]').text()).toBe('Promociones')
+    const title = wrapper.find('h1.hf-page-title')
+    expect(title.text()).toBe('Promociones')
+    expect(wrapper.find('.hf-page-subtitle').text()).toBe('Gestión de promociones y descuentos')
+    const surface = wrapper.find('.hf-table-surface')
+    expect(surface.exists()).toBe(true)
+    expect(surface.find('h1').exists()).toBe(false)
+    expect(surface.find('[data-testid="app-data-table"]').exists()).toBe(true)
   })
 
   it('renders the AppDataTable component', () => {

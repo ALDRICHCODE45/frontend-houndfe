@@ -11,7 +11,6 @@ import {
 import { useServerTable } from '@/core/shared/composables/useServerTable'
 import { promotionQueryKeys } from '@/core/shared/constants/query-keys'
 import type { BulkAction } from '@/core/shared/types/table.types'
-import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
@@ -30,6 +29,7 @@ import type {
 import PromotionTypeSelector from '../components/PromotionTypeSelector.vue'
 import PromotionCardGrid from '../components/PromotionCardGrid.vue'
 import PromotionCapacityStatus from '../components/PromotionCapacityStatus.vue'
+import '../styles/promotions-visual.css'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import {
@@ -628,9 +628,13 @@ defineExpose({
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 md:px-10">
+  <div class="hf-theme hf-ui promotions-visual flex w-full min-w-0 flex-col gap-6 md:px-10">
     <!-- ── Type Selector Modal ──────────────────────────────────────────────── -->
-    <PromotionTypeSelector v-model:open="isTypeSelectorOpen" @select="isTypeSelectorOpen = false" />
+    <PromotionTypeSelector
+      v-model:open="isTypeSelectorOpen"
+      portal-class="hf-theme hf-ui hf-form-overlay promotions-form-portal"
+      @select="isTypeSelectorOpen = false"
+    />
 
     <!-- ── Confirm Modal ───────────────────────────────────────────────────── -->
     <ConfirmModal
@@ -646,20 +650,22 @@ defineExpose({
         batchActivateMutation.isPending.value
       "
       :items="confirmState.items"
+      :ui="{ content: 'hf-theme hf-ui hf-form-overlay promotions-form-portal' }"
       @update:open="confirmState.open = $event"
       @confirm="handleConfirm"
     />
 
     <!-- ── Main card ───────────────────────────────────────────────────────── -->
-    <UCard :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }">
-      <template #header>
-        <TableHeaderDescription
-          title="Promociones"
-          description="Gestión de promociones y descuentos"
-        />
-      </template>
+    <div class="hf-page-header">
+      <h1 class="hf-page-title">Promociones</h1>
+      <p class="hf-page-subtitle">Gestión de promociones y descuentos</p>
+    </div>
 
-      <div class="w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
+    <UCard
+      :ui="{ body: 'p-0 sm:p-0' }"
+      class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm"
+    >
+      <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"
@@ -690,6 +696,9 @@ defineExpose({
           add-button-icon="i-lucide-percent"
           enable-column-visibility
           empty="No hay promociones todavía"
+          class="hf-data-table"
+          portal-class="hf-theme hf-ui promotions-list-portal"
+          pagination-portal-class="hf-theme hf-ui promotions-list-portal"
           @add="handleAddPromotion"
           @refresh="refresh"
           @clear-filters="resetFilters"
@@ -697,6 +706,7 @@ defineExpose({
           <template #actions>
             <ViewToggle
               :model-value="viewMode"
+              class="promotions-view-toggle"
               aria-label="Seleccionar vista de promociones"
               @update:model-value="handleViewModeChange"
             />
@@ -712,6 +722,7 @@ defineExpose({
                   label-key="label"
                   placeholder="Tipo"
                   class="w-full sm:w-48"
+                  :ui="{ content: 'hf-theme hf-ui promotions-list-portal' }"
                   data-testid="filter-type"
                 />
                 <USelect
@@ -721,6 +732,7 @@ defineExpose({
                   label-key="label"
                   placeholder="Estado"
                   class="w-full sm:w-44"
+                  :ui="{ content: 'hf-theme hf-ui promotions-list-portal' }"
                   data-testid="filter-status"
                 />
                 <USelect
@@ -730,6 +742,7 @@ defineExpose({
                   label-key="label"
                   placeholder="Método"
                   class="w-full sm:w-40"
+                  :ui="{ content: 'hf-theme hf-ui promotions-list-portal' }"
                   data-testid="filter-method"
                 />
                 <UButton
@@ -846,14 +859,14 @@ defineExpose({
           <template #empty-state>
             <div
               v-if="isEmpty"
-              class="flex flex-col items-center gap-4 py-16 text-center"
+              class="promotions-empty-state flex flex-col items-center gap-4 py-16 text-center"
               data-testid="empty-state"
             >
-              <div class="rounded-full bg-elevated p-4">
-                <UIcon name="i-lucide-percent" class="h-8 w-8 text-dimmed" />
+              <div class="promotions-empty-icon flex items-center justify-center">
+                <UIcon name="i-lucide-percent" class="size-6" />
               </div>
               <div>
-                <p class="text-base font-semibold text-highlighted">No hay promociones todavía</p>
+                <p class="promotions-empty-title">No hay promociones todavía</p>
                 <p class="mt-1 text-sm text-muted">
                   Añade tu primera promoción para empezar a ofrecer descuentos.
                 </p>
@@ -875,6 +888,7 @@ defineExpose({
               v-if="canManagePromotionActions"
               :items="getRowItems(row.original)"
               :content="{ align: 'end' }"
+              :ui="{ content: 'hf-theme hf-ui promotions-list-portal' }"
             >
               <UButton
                 icon="i-lucide-ellipsis-vertical"

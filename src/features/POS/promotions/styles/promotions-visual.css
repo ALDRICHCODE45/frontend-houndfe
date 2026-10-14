@@ -1,0 +1,197 @@
+@import '../../../../core/shared/design-system/houndfe-ui.css';
+
+/* Promotions listing, its teleported menus/selects and the listing dialogs
+ * (type selector and confirmations). The creation/detail form stays outside
+ * this boundary. Repeat the approved shell palette on owned portals, which
+ * cannot inherit shell variables after teleport. This local bridge does not
+ * change the shared shell or other modules' contracts. */
+.hf-theme.promotions-visual,
+.hf-theme.promotions-list-portal,
+.hf-theme.promotions-form-portal {
+  --hf-page: #f3f6fa;
+  --hf-surface: #ffffff;
+  --hf-surface-muted: #eaf0f8;
+  --hf-field: #f3f6fa;
+  --hf-ink: #1e3555;
+  --hf-heading: #1e3555;
+  --hf-muted: #63748b;
+  --hf-border: #dce3ed;
+  --hf-action: #315ce7;
+  --hf-on-action: #ffffff;
+  --hf-active: #315ce7;
+  --hf-active-soft: #e9effd;
+  --hf-focus: #315ce7;
+  --radius-sm: 6px;
+  --radius-md: var(--hf-radius-control);
+  --radius-lg: var(--hf-radius-card);
+  --radius-xl: var(--hf-radius-card);
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
+}
+
+.dark .hf-theme.promotions-visual,
+.dark .hf-theme.promotions-list-portal,
+.dark .hf-theme.promotions-form-portal {
+  --hf-page: #101720;
+  --hf-surface: #1b2736;
+  --hf-surface-muted: #223044;
+  --hf-field: #101720;
+  --hf-ink: #e4ebf5;
+  --hf-heading: #e4ebf5;
+  --hf-muted: #9aaac0;
+  --hf-border: #2d3b4d;
+  --hf-action: #91b0ff;
+  --hf-on-action: #172b51;
+  --hf-active: #91b0ff;
+  --hf-active-soft: #253b60;
+  --hf-focus: #91b0ff;
+}
+
+.hf-theme.promotions-list-portal,
+.hf-theme.promotions-form-portal {
+  background-color: var(--hf-surface);
+  border-color: var(--hf-border);
+  color: var(--hf-ink);
+}
+
+/* ── Type selector dialog ────────────────────────────────────────────────── */
+
+/* Selection uses the action/active roles; gold stays a restrained brand
+ * accent, not a hover state. */
+.promotions-form-portal .promotions-type-option {
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-surface);
+  color: var(--hf-ink);
+  min-height: var(--hf-control-height);
+}
+
+.promotions-form-portal .promotions-type-option:hover {
+  border-color: var(--hf-action);
+  background-color: var(--hf-active-soft);
+}
+
+.promotions-form-portal .promotions-type-option:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+.promotions-form-portal .promotions-type-icon {
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-active-soft);
+  color: var(--hf-heading);
+}
+
+.promotions-form-portal .promotions-type-option:hover .promotions-type-chevron {
+  color: var(--hf-action);
+}
+
+/* ── Toolbar and pagination ──────────────────────────────────────────────── */
+
+/* Search and actions share the first desktop row; the three existing filters
+ * take their own row. Mobile retains the shared toolbar's stacked sheet. */
+@media (min-width: 768px) {
+  .promotions-visual .hf-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+  }
+
+  .promotions-visual .hf-toolbar-search-region {
+    display: contents;
+  }
+
+  .promotions-visual .hf-toolbar-search {
+    grid-area: 1 / 1;
+    width: 100%;
+    max-width: 26rem;
+  }
+
+  .promotions-visual .hf-toolbar-actions {
+    grid-area: 1 / 2;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    justify-self: end;
+  }
+
+  .promotions-visual .hf-toolbar-filters {
+    grid-area: 2 / 1 / 3 / -1;
+    flex-wrap: wrap;
+  }
+}
+
+.promotions-visual .hf-toolbar :where(button, input, [data-slot='root']) {
+  min-height: var(--hf-control-height);
+}
+
+.promotions-visual .promotions-view-toggle {
+  width: auto;
+  flex-shrink: 0;
+}
+
+.promotions-visual .promotions-view-toggle :where(button, [role='tab']) {
+  min-width: max-content;
+  white-space: nowrap;
+}
+
+.promotions-visual .hf-pagination-summary {
+  white-space: nowrap;
+}
+
+.promotions-visual .hf-pagination-size {
+  width: auto;
+  min-height: 36px;
+}
+
+.promotions-visual .hf-pagination-navigation {
+  margin-inline-start: auto;
+}
+
+.promotions-visual .hf-pagination-navigation :where(button) {
+  min-height: 36px;
+}
+
+/* ── Cards ───────────────────────────────────────────────────────────────── */
+
+/* Keep spare tracks: a lone promotion must not stretch across the workspace. */
+.promotions-visual .promotions-card-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr));
+  gap: 0.75rem;
+  align-content: start;
+}
+
+.promotions-visual .promotions-card {
+  background-color: var(--hf-surface);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  color: var(--hf-ink);
+  box-shadow: none;
+}
+
+.promotions-visual .promotions-card:hover {
+  transform: none;
+  border-color: var(--hf-action);
+  box-shadow: none;
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────────── */
+
+.promotions-visual .promotions-empty-state {
+  min-height: 20rem;
+  justify-content: center;
+}
+
+.promotions-visual .promotions-empty-icon {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: var(--hf-radius-card);
+  background-color: var(--hf-active-soft);
+  color: var(--hf-heading);
+}
+
+.promotions-visual .promotions-empty-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--hf-heading);
+}

@@ -51,7 +51,7 @@ const emit = defineEmits<{
   <div
     v-else
     data-testid="card-grid"
-    class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-7"
+    class="promotions-card-grid grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-7"
   >
     <PromotionCard
       v-for="promotion in promotions"

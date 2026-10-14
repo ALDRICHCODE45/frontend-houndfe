@@ -40,7 +40,7 @@ const createdAtLabel = computed(() => formatPromotionDate(props.promotion.create
 
 <template>
   <article
-    class="group relative flex cursor-pointer flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+    class="promotions-card group relative flex cursor-pointer flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
     @click="emit('click', promotion)"
   >
     <div class="flex items-start gap-3">
