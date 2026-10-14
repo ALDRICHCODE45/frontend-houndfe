@@ -13,10 +13,11 @@ S3. Teleports opened from the list carry the form portal: delete ConfirmModal, U
 
 T1 | S2,S3 | inline: list workspace + adapter CSS + list portals + cards + confirm + upsert slideover, RED/GREEN | done | RED 5 contract -> GREEN users 287/17 | commit: see L2
 T2 | S3 | inline: seller report drawer portalClass + date popovers, RED/GREEN | done | RED 2 contract -> GREEN users 287/17, lint exit0, build exit0 | commit: see L2
-T3 | S1-S3 | inline checks: module suite, build, lint, native assess; user visual smoke | pending | commit: —
+T3 | S1-S3 | inline checks: module suite, build, lint, native assess; user visual smoke | done | user approved visually ("Bien hermano, me gusta"); users 287/17, build exit0 | commit: see L4
 
 ## Log
 
 L1. User request verbatim: "Me gusta hermano, pasemos con usuarios por favor." Map: AdminUsersView wraps AdminPageHeader + AppDataTable in a UCard painted bg-coco-neutral; row UDropdownMenu, ConfirmModal, UserUpsertSlideover (2 USelectMenu), SellerSalesReportDrawer on AppResponsiveDrawer (supports portalClass) with SellerReportDateRangeFilter (2 UPopover); UserCard uses hover translate/shadow.
 L2. T1+T2 (one work-unit commit, shared contract spec): styles/users-visual.css derived from the employees adapter (palette for users-visual / users-list-portal / users-form-portal, toolbar/pagination/card hooks); AdminUsersView canonical header outside hf-table-surface (title "Gestión de usuarios", subtitle = existing headerDescription), AdminPageHeader + bg-coco-neutral removed, list portals on AppDataTable + row menu, view toggle hook, delete ConfirmModal form portal; UserCard/UserCardGrid owned hooks; UserUpsertSlideover slideover + 2 USelectMenu form portal; SellerSalesReportDrawer portal-class through AppResponsiveDrawer; both date UPopover form portal. RED 7 contract -> GREEN users 287/17; lint on changed files exit 0; pnpm build exit 0.
 L3. Native assess 130c6d9a..1c5262fa: medium, reviewDue false (under_budget), no independent verifier. Pending: user visual smoke.
+L4. User verbatim: "Bien hermano, me gusta, ahora lo que sigue por favor. Roles me parece". Feature closed; fast-forward merged to main (push by the user). Next: Roles.
