@@ -12,11 +12,12 @@ S4. Legacy coco gold/navy paint is replaced by semantic roles: primary check-in 
 
 ## Tasks
 
-T1 | S3,S4 | inline: theme boundary + portal markers + semantic paint across driver list and cockpit, RED/GREEN | in progress | commit: —
-T2 | S1-S4 | inline checks: module suite, build, lint, native assess; user visual smoke (mobile + desktop, light/dark) | pending | commit: —
+T1 | S3,S4 | inline: theme boundary + portal markers + semantic paint across driver list and cockpit, RED/GREEN | done | RED 9 fail -> GREEN 999/43 exit0, build exit0 | commit: a6af7157
+T2 | S1-S4 | inline checks: module suite, build, lint, native assess; user visual smoke (mobile + desktop, light/dark) | in progress (waiting user visual smoke) | commit: —
 
 ## Log
 
 L1. User request verbatim: "Si hermano, me gusta mucho, adaptaste tambien la vista del repartidor?? me refiero a toda la vista, la del seguimiento de la ruta tambien."
 L2. User answers: merge table now ("Sí, mergeá ya (Recomendado)"), "Adaptación (Recomendado)", "Repartidor primero". Table merged to main at 9b0b5c32.
 L3. Map: cockpit uses semantic utilities (bg-default/border-default/text-muted) that follow hf-ui aliases once a root opts in; legacy coco gold/navy in DriverCockpitDrawer (2 CTAs), DriverCockpitFooter (CTA), DriverOperationalStops (current emphasis), DriverRouteSummary (progress fill), DriverStopCard (current border, sequence, next badge, CTA). Teleports: UDrawer/USlideover (drawerUi/slideoverUi), header UDropdownMenu, ConfirmModal. Existing specs assert coco classes in DriverOperationalStops and DriverCockpitFooter; they move to the owned hooks.
+L4. T1 done: RED 9 failing (5 source contracts + 3 updated cockpit specs + dark palette marker) -> GREEN delivery-routes 999/43 exit 0; one more legacy spec asserting coco gold updated to hf-primary-control. pnpm build exit 0; eslint 0 errors (pre-existing unused-directive warning at DriverOperationalStops.spec.ts:9); prettier: styles files formatted, other touched files unchanged vs HEAD status. Commit a6af7157.
