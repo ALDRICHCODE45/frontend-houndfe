@@ -326,7 +326,10 @@ function routeEndedAt(route: DeliveryRouteResponseDto): string | null {
     error states follow design §11: skeletons during fetch, "No tienes rutas
     activas" when the list is empty, error block + retry on failure.
   -->
-  <div v-if="isDriver" class="flex flex-col gap-4 px-4 py-6 sm:px-6 lg:px-10">
+  <div
+    v-if="isDriver"
+    class="hf-theme hf-ui delivery-routes-driver flex flex-col gap-4 px-4 py-6 sm:px-6 lg:px-10"
+  >
     <header class="flex flex-col gap-1">
       <h1 class="text-xl font-semibold">{{ DELIVERY_ROUTE_COPY.list.driverHeader }}</h1>
     </header>

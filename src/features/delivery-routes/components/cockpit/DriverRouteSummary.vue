@@ -59,7 +59,7 @@ const showSkipped = computed<boolean>(() => props.counts.skipped > 0)
       >
         <div
           data-testid="driver-route-summary-progress-fill"
-          class="h-full rounded-full bg-coco-gold-500 transition-[width] motion-reduce:transition-none"
+          class="delivery-routes-progress-fill h-full rounded-full transition-[width] motion-reduce:transition-none"
           :style="{ width: fillPercent }"
         />
       </div>

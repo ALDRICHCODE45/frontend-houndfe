@@ -68,13 +68,13 @@ const hasAddress = computed<boolean>(() => formattedAddress.value.length > 0)
 const cardClass = computed<string[]>(() => [
   'relative flex w-full min-w-0 flex-col gap-3 rounded-lg border bg-default p-3 max-sm:p-2.5',
   'focus-visible:outline-none',
-  props.isCurrent ? 'border-coco-gold-500 border-l-4' : 'border-default',
+  props.isCurrent ? 'delivery-routes-stop-card--current border-l-4' : 'border-default',
 ])
 
 const sequenceClass = computed<string[]>(() => [
   'flex h-8 w-8 max-sm:h-7 max-sm:w-7 flex-none items-center justify-center rounded-full font-mono text-sm font-semibold',
   props.isCurrent
-    ? 'bg-coco-gold-500 text-coco-neutral-950'
+    ? 'delivery-routes-stop-sequence--current'
     : 'bg-elevated text-muted',
 ])
 
@@ -108,7 +108,7 @@ function checkIn(event: MouseEvent): void {
           <span
             v-if="props.isNext"
             data-testid="driver-stop-card-next-badge"
-            class="rounded-full border border-coco-gold-500 px-2 py-0.5 text-[11px] font-medium text-default"
+            class="delivery-routes-next-badge rounded-full border px-2 py-0.5 text-[11px] font-medium text-default"
           >{{ DELIVERY_ROUTE_COPY.cockpit.stops.nextBadge }}</span>
           <span
             v-if="hasFolio"
@@ -146,7 +146,7 @@ function checkIn(event: MouseEvent): void {
         data-testid="driver-stop-card-check-in"
         :aria-label="`${customerName} - ${DELIVERY_ROUTE_COPY.actions.checkIn}`"
         :disabled="props.checkInPending"
-        class="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 rounded-md bg-coco-gold-500 px-4 py-2 text-sm font-semibold text-coco-neutral-950 shadow-sm transition hover:bg-coco-gold-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:bg-coco-gold-500/60 motion-reduce:transition-none max-sm:w-full"
+        class="inline-flex min-h-11 min-w-11 items-center justify-center gap-2 hf-primary-control rounded-md px-4 py-2 text-sm font-semibold shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none max-sm:w-full"
         @click="checkIn"
       >
         <UIcon name="i-lucide-check" class="size-4" aria-hidden="true" />

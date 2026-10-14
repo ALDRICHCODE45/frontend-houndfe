@@ -51,14 +51,13 @@ const currentAvatarSeed = computed<string>(
 const currentFormattedAddress = computed<string>(() =>
   props.currentStop?.shippingAddress ? formatAddress(props.currentStop.shippingAddress) : '',
 )
-// PENDING gold · IN_PROGRESS navy · other muted. Uses Coco design tokens
-// (coco-gold-500 / coco-navy-500) so the emphasis color follows the global
-// brand palette and dark/light themes are inherited automatically.
+// PENDING active · IN_PROGRESS warning · other muted. Owned hooks map to the
+// delivery-routes semantic roles, so light/dark follow the theme boundary.
 const currentEmphasisClass = computed<string>(() => {
   if (!props.currentStop) return ''
   switch (props.currentStop.status) {
-    case 'PENDING': return 'border-l-4 border-coco-gold-500 bg-coco-gold-500/10'
-    case 'IN_PROGRESS': return 'border-l-4 border-coco-navy-500 bg-coco-navy-500/10'
+    case 'PENDING': return 'border-l-4 delivery-routes-stop-current--pending'
+    case 'IN_PROGRESS': return 'border-l-4 delivery-routes-stop-current--in-progress'
     default: return 'border-l-4 border-default bg-default/60'
   }
 })

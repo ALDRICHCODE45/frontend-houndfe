@@ -1,11 +1,13 @@
 @import '../../../core/shared/design-system/houndfe-ui.css';
 
-/* Delivery routes manager listing, its teleported menus and the listing
- * confirmation dialog. The create/edit slideover keeps its own presentation,
- * and the driver branch and route detail stay outside this boundary. Owned
+/* Delivery routes manager listing and the driver views (active-route list and
+ * route-tracking cockpit), with their teleported menus, drawer and
+ * confirmation dialogs. The create/edit slideover and the manager route detail
+ * keep their own presentation. Owned
  * portals repeat the approved shell palette because they cannot inherit it
  * after teleport. */
 .hf-theme.delivery-routes-visual,
+.hf-theme.delivery-routes-driver,
 .hf-theme.delivery-routes-list-portal,
 .hf-theme.delivery-routes-form-portal {
   --hf-page: #f3f6fa;
@@ -30,6 +32,7 @@
 }
 
 .dark .hf-theme.delivery-routes-visual,
+.dark .hf-theme.delivery-routes-driver,
 .dark .hf-theme.delivery-routes-list-portal,
 .dark .hf-theme.delivery-routes-form-portal {
   --hf-page: #101720;
@@ -202,4 +205,42 @@
 
 .delivery-routes-visual .delivery-routes-empty {
   color: var(--hf-muted);
+}
+
+/* ── Driver views (active-route list + route-tracking cockpit) ───────────── */
+
+/* Check-in actions use the shared primary pairing; hover deepens the action
+ * role instead of switching to a second hue. */
+:where(.delivery-routes-driver, .delivery-routes-form-portal)
+  .hf-primary-control:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--hf-action) 88%, var(--hf-ink));
+}
+
+/* Current stop: pending reads as the active selection, in-progress as the
+ * warning role (same meaning as an ACTIVE route); other states stay muted. */
+.delivery-routes-driver .delivery-routes-stop-current--pending {
+  border-color: var(--hf-active);
+  background-color: var(--hf-active-soft);
+}
+
+.delivery-routes-driver .delivery-routes-stop-current--in-progress {
+  border-color: var(--hf-warning);
+  background-color: var(--hf-warning-soft);
+}
+
+.delivery-routes-driver .delivery-routes-stop-card--current {
+  border-color: var(--hf-active);
+}
+
+.delivery-routes-driver .delivery-routes-stop-sequence--current {
+  background-color: var(--hf-action);
+  color: var(--hf-on-action);
+}
+
+.delivery-routes-driver .delivery-routes-next-badge {
+  border-color: var(--hf-active);
+}
+
+.delivery-routes-driver .delivery-routes-progress-fill {
+  background-color: var(--hf-success);
 }

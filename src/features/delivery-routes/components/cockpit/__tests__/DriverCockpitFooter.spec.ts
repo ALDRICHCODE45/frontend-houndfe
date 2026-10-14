@@ -87,7 +87,7 @@ describe('DriverCockpitFooter — current-action mode (REQ-DCS-006)', () => {
     expect((btn.element as HTMLButtonElement).disabled).toBe(false)
     expect(btn.classes()).toContain('min-h-11')
     expect(btn.classes()).toContain('min-w-11')
-    expect(btn.classes().join(' ')).toMatch(/focus-visible|coco-gold/)
+    expect(btn.classes()).toContain('hf-primary-control')
     expect(w.find('[data-testid="cockpit-footer-in-progress"]').exists()).toBe(false)
     expect(w.find('[data-testid="cockpit-footer-history"]').exists()).toBe(false)
     await btn.trigger('click')
@@ -222,8 +222,8 @@ describe('DriverCockpitFooter — mutual exclusivity + no duplicated button mark
         expect(cls).not.toMatch(/pb-\[env\(safe-area-inset-bottom\)\]/) ; expect(cls).toContain('pt-3')
         expect(cls).toMatch(/pb-\[calc\(0\.75rem\+env\(safe-area-inset-bottom\)\)\]/) ; expect(cls).toMatch(/\bsticky\b/) ; expect(cls).toMatch(/\bbottom-0\b/) ; expect(cls).toContain('0.75rem')
       })
-      it('Coco gold action; muted history; min-w-0; isDesktop: mobile=1 button desktop=0', async () => {
-        expect(mountFooter({ routeStatus: 'ACTIVE', currentStop: mkStop('s2', 2, 'PENDING'), canCheckIn: true }).find('[data-testid="cockpit-footer-action"]').classes().join(' ')).toMatch(/coco-gold/)
+      it('shared primary action; muted history; min-w-0; isDesktop: mobile=1 button desktop=0', async () => {
+        expect(mountFooter({ routeStatus: 'ACTIVE', currentStop: mkStop('s2', 2, 'PENDING'), canCheckIn: true }).find('[data-testid="cockpit-footer-action"]').classes()).toContain('hf-primary-control')
         expect(mountFooter({ routeStatus: 'COMPLETED', currentStop: mkStop('s0', 0, 'COMPLETED'), progress: { completed: 5, total: 5 } as CockpitProgress, canCheckIn: true }).find('[data-testid="cockpit-footer-history"]').classes().join(' ')).toMatch(/text-default|text-muted/)
         expect(mountFooter({ routeStatus: 'ACTIVE', currentStop: mkStop('s2', 2, 'PENDING'), canCheckIn: true }).find('[data-testid="cockpit-footer-root"]').classes().join(' ')).toMatch(/min-w-0/)
         expect(mountFooter({ isDesktop: false, currentStop: mkStop('s2', 2, 'PENDING'), canCheckIn: true }).findAll('button')).toHaveLength(1)

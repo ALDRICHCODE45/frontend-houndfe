@@ -187,6 +187,7 @@ function onOpenHistory() {
     <UDropdownMenu
       :items="menuItems"
       :content="{ align: 'end' as const }"
+      :ui="{ content: 'hf-theme hf-ui hf-form-overlay delivery-routes-form-portal' }"
     >
       <button
         ref="menuTrigger"

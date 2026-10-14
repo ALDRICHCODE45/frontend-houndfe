@@ -255,6 +255,6 @@ watch(() => props.checkInPending, (next, prev) => { if (prev && !next && state.v
         </div>
             <!-- Overlay surface: one drawer + sibling ConfirmModal (never an overlap). -->
             <DriverCockpitDrawer :open="drawerOpen" :mode="drawerMode" :route="props.route" :stop="drawerStop" :route-terminal="routeTerminal" :can-check-in="props.canCheckIn" :check-in-pending="props.checkInPending" :is-desktop="isDesktop" @update:open="onDrawerUpdateOpen" @closed="onDrawerClosed" @request-confirm="onDrawerRequestConfirm" />
-            <ConfirmModal :open="isConfirmOpen" :title="confirmTitle" :description="confirmBody" :confirm-label="DELIVERY_ROUTE_COPY.cockpit.confirm.confirmLabel" :cancel-label="DELIVERY_ROUTE_COPY.cockpit.confirm.cancelLabel" confirm-color="primary" @update:open="onConfirmUpdateOpen" @confirm="onConfirm" @cancel="onConfirmCancel" />
+            <ConfirmModal :open="isConfirmOpen" :title="confirmTitle" :description="confirmBody" :confirm-label="DELIVERY_ROUTE_COPY.cockpit.confirm.confirmLabel" :cancel-label="DELIVERY_ROUTE_COPY.cockpit.confirm.cancelLabel" confirm-color="primary" :ui="{ content: 'hf-theme hf-ui hf-form-overlay delivery-routes-form-portal' }" @update:open="onConfirmUpdateOpen" @confirm="onConfirm" @cancel="onConfirmCancel" />
           </section>
 </template>

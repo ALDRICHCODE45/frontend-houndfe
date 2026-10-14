@@ -48,6 +48,7 @@ import { useCheckInStop } from '../composables/useCheckInStop'
 import DeliveryRouteUpsertSlideover from '../components/DeliveryRouteUpsertSlideover.vue'
 import DeliveryRouteReorderPanel from '../components/DeliveryRouteReorderPanel.vue'
 import DriverRouteCockpit from '../components/cockpit/DriverRouteCockpit.vue'
+import '../styles/delivery-routes-visual.css'
 import EligibleSalesPicker from '../components/EligibleSalesPicker.vue'
 import TransferDeliveryRouteStopModal from '../components/TransferDeliveryRouteStopModal.vue'
 import { extractDeliveryRouteErrorCode } from '../interfaces/errors'
@@ -422,7 +423,7 @@ defineExpose({
       <div
         v-else-if="isDriver && routeData && routeData.id === routeId"
         data-testid="detail-driver-branch"
-        class="flex flex-col gap-6 px-4 py-6 sm:px-6 lg:px-10"
+        class="hf-theme hf-ui delivery-routes-driver flex flex-col gap-6 px-4 py-6 sm:px-6 lg:px-10"
       >
         <DriverRouteCockpit
           :route="routeData"

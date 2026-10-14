@@ -44,12 +44,12 @@ function mountStops(props: Record<string, unknown> = {}) {
 }
 
 describe('DriverOperationalStops — current section (REQ-DCS-003)', () => {
-  // B2 shell review: token emphasis (coco-gold-500 / coco-navy-500) replaces the
+  // Design-system adaptation: owned emphasis hooks (active / warning roles) replace the
   // raw hex strings; textual status comes from `DELIVERY_ROUTE_STOP_STATUS_LABELS`
   // so screen-reader + sighted users see the same canonical Spanish label.
   it.each([
-    ['PENDING', 'coco-gold-500', 'Pendiente'],
-    ['IN_PROGRESS', 'coco-navy-500', 'En curso'],
+    ['PENDING', 'delivery-routes-stop-current--pending', 'Pendiente'],
+    ['IN_PROGRESS', 'delivery-routes-stop-current--in-progress', 'En curso'],
   ] as const)('%s current uses token emphasis + textual status label (other triangulation fields render too)', (status, tokenClass, statusText) => {
     const stop = makeStop({
       sortOrder: 4, saleFolio: 'F-099', status,
@@ -93,6 +93,7 @@ describe('DriverOperationalStops — current section (REQ-DCS-003)', () => {
     expect(cls, `raw hex leaked into class list: ${cls}`).not.toMatch(/#[0-9a-fA-F]{3,6}/)
     expect(cls).not.toContain('coco-gold-500')
     expect(cls).not.toContain('coco-navy-500')
+    expect(cls).not.toContain('delivery-routes-stop-current--')
     expect(cls).not.toMatch(/(#f6bb13|f6bb13|gold|#173968|173968|navy)/i)
   })
 

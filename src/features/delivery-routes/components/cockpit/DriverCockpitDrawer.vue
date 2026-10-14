@@ -170,11 +170,11 @@ const modeContent = computed<ModeContent>(() => {
 
 // Motion-reduce override on each container's overlay + content slots (via `ui` prop).
 const drawerUi = {
-  content: 'motion-reduce:transition-none motion-reduce:duration-0',
+  content: 'hf-theme hf-ui hf-form-overlay delivery-routes-form-portal motion-reduce:transition-none motion-reduce:duration-0',
   overlay: 'motion-reduce:transition-none motion-reduce:duration-0',
 }
 const slideoverUi = {
-  content: 'overflow-hidden motion-reduce:transition-none motion-reduce:duration-0',
+  content: 'hf-theme hf-ui hf-form-overlay delivery-routes-form-portal overflow-hidden motion-reduce:transition-none motion-reduce:duration-0',
   overlay: 'motion-reduce:transition-none motion-reduce:duration-0',
 }
 
@@ -246,7 +246,7 @@ function onModeContentClose() { emit('update:open', false) }
               data-testid="overlay-footer-action"
               :aria-label="overlayFooterActionAriaLabel"
               :disabled="props.checkInPending"
-              class="mx-auto inline-flex min-h-11 min-w-11 w-full items-center justify-center gap-2 rounded-md bg-coco-gold-500 px-6 py-3 text-sm font-semibold text-coco-neutral-950 shadow-sm transition hover:bg-coco-gold-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:bg-coco-gold-500/60 motion-reduce:transition-none"
+              class="mx-auto inline-flex min-h-11 min-w-11 w-full items-center justify-center gap-2 hf-primary-control rounded-md px-6 py-3 text-sm font-semibold shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
               @click="onOverlayFooterAction"
             >
               <UIcon name="i-lucide-check" class="size-5" aria-hidden="true" />{{ DELIVERY_ROUTE_COPY.actions.checkIn }}
@@ -298,7 +298,7 @@ function onModeContentClose() { emit('update:open', false) }
             data-testid="overlay-footer-action"
             :aria-label="overlayFooterActionAriaLabel"
             :disabled="props.checkInPending"
-            class="mx-auto inline-flex min-h-11 min-w-11 w-full items-center justify-center gap-2 rounded-md bg-coco-gold-500 px-6 py-3 text-sm font-semibold text-coco-neutral-950 shadow-sm transition hover:bg-coco-gold-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:bg-coco-gold-500/60"
+            class="mx-auto inline-flex min-h-11 min-w-11 w-full items-center justify-center gap-2 hf-primary-control rounded-md px-6 py-3 text-sm font-semibold shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed disabled:opacity-60"
             @click="onOverlayFooterAction"
           >
             <UIcon name="i-lucide-check" class="size-5" aria-hidden="true" />{{ DELIVERY_ROUTE_COPY.actions.checkIn }}
