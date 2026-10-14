@@ -460,13 +460,12 @@ describe('PendingApprovalsView — no bulk affordances (REQ-7)', () => {
 
 // ── Header contract ───────────────────────────────────────────────────────────
 
-describe('PendingApprovalsView — AdminPageHeader', () => {
-  it('renders AdminPageHeader with title "Validaciones pendientes"', async () => {
+describe('PendingApprovalsView — page header', () => {
+  it('renders the canonical page header "Validaciones pendientes" outside the table surface', async () => {
     const wrapper = mount(getView().default)
     await flushPromises()
-    const header = wrapper.find('[data-testid="admin-page-header"]')
-    chaiExpect(header.exists()).toBe(true)
-    chaiExpect(header.attributes('data-title')).toBe('Validaciones pendientes')
+    chaiExpect(wrapper.find('.hf-page-title').text()).toBe('Validaciones pendientes')
+    chaiExpect(wrapper.find('.hf-table-surface .hf-page-title').exists()).toBe(false)
   })
 })
 

@@ -50,7 +50,7 @@ import { computed, ref, watch } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import type { ColumnPinningState } from '@tanstack/vue-table'
 import { AppDataTable } from '@/core/shared/components/DataTable'
-import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
+import '../styles/employees-visual.css'
 import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { employeeQueryKeys } from '@/core/shared/constants/query-keys'
@@ -291,18 +291,15 @@ function resolveEmployeeName(request: TimeOffRequest): string {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 md:px-6 lg:px-10">
-    <UCard :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }">
-      <template #header>
-        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <AdminPageHeader
-            title="Validaciones pendientes"
-            description="Solicitudes de ausencia de toda la organización que requieren validación."
-          />
-        </div>
-      </template>
+  <div class="hf-theme hf-ui employees-visual flex w-full min-w-0 flex-col gap-6 md:px-6 lg:px-10">
+    <!-- Canonical table workspace (design-system §4): heading outside the surface. -->
+    <div class="hf-page-header">
+      <h1 class="hf-page-title">Validaciones pendientes</h1>
+      <p class="hf-page-subtitle">Solicitudes de ausencia de toda la organización que requieren validación.</p>
+    </div>
 
-      <div class="w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
+    <UCard :ui="{ body: 'p-0 sm:p-0' }" class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm">
+      <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
         <AppDataTable
           v-model:pagination="pagination"
           v-model:global-filter="searchQuery"
@@ -322,12 +319,16 @@ function resolveEmployeeName(request: TimeOffRequest): string {
           :showing-to="showingTo"
           :page-size-options="[10, 20, 50]"
           empty="Sin solicitudes pendientes"
+          class="hf-data-table"
+          portal-class="hf-theme hf-ui employees-list-portal"
+          pagination-portal-class="hf-theme hf-ui employees-list-portal"
           @refresh="() => refetch()"
         >
           <!-- WU-B: Tabla / Tarjetas segmented toggle in the toolbar actions slot -->
           <template #actions>
             <ViewToggle
               :model-value="viewMode"
+              class="employees-view-toggle"
               aria-label="Seleccionar vista de validaciones pendientes"
               @update:model-value="handleViewModeChange"
             />
@@ -486,9 +487,12 @@ function resolveEmployeeName(request: TimeOffRequest): string {
     </UCard>
 
     <!-- Review confirmation dialog -->
-    <UModal v-model:open="isReviewDialogOpen">
+    <UModal
+      v-model:open="isReviewDialogOpen"
+      :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
+    >
       <template #content>
-        <UCard v-if="reviewingRequest">
+        <UCard v-if="reviewingRequest" class="employees-detail-section">
           <template #header>
             <h3 class="text-base font-semibold">
               {{

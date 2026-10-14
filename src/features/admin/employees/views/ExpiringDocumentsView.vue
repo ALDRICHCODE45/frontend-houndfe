@@ -5,7 +5,7 @@
  * Tenant-wide dashboard showing all EmployeeDocument records expiring soon.
  *
  * Layout:
- *   - Page header (AdminPageHeader) with the expiry-window selector moved to
+ *   - Canonical page header (hf-page-header) with the expiry-window selector moved to
  *     the table's `#filters` slot (REQ-7).
  *   - Shared AppDataTable: document, category badge, server-resolved employee
  *     (avatar + fullName), localized expiry date, days-remaining badge — with
@@ -36,7 +36,7 @@ import { computed } from 'vue'
 import type { TableColumn } from '@nuxt/ui'
 import { AppDataTable, FilterSectionCard, SortableHeader, createSimpleHeader } from '@/core/shared/components/DataTable'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
-import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
+import '../styles/employees-visual.css'
 import { useExpiringDocuments } from '../composables/useExpiringDocuments'
 import type { ExpiringDocumentTableRow } from '../composables/useExpiringDocuments'
 import { EMPLOYEE_DOCUMENT_CATEGORY } from '../constants/employee.constants'
@@ -142,16 +142,15 @@ function getCategoryLabel(category: string): string {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 md:px-6 lg:px-10">
-    <UCard :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }">
-      <template #header>
-        <AdminPageHeader
-          title="Documentos por vencer"
-          description="Documentos del personal próximos a su fecha de vencimiento"
-        />
-      </template>
+  <div class="hf-theme hf-ui employees-visual flex w-full min-w-0 flex-col gap-6 md:px-6 lg:px-10">
+    <!-- Canonical table workspace (design-system §4): heading outside the surface. -->
+    <div class="hf-page-header">
+      <h1 class="hf-page-title">Documentos por vencer</h1>
+      <p class="hf-page-subtitle">Documentos del personal próximos a su fecha de vencimiento</p>
+    </div>
 
-      <div class="w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
+    <UCard :ui="{ body: 'p-0 sm:p-0' }" class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm">
+      <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"
@@ -172,6 +171,9 @@ function getCategoryLabel(category: string): string {
           :active-filter-count="selectedThreshold !== 30 ? 1 : 0"
           enable-column-visibility
           :empty="emptyMessage"
+          class="hf-data-table"
+          portal-class="hf-theme hf-ui employees-list-portal"
+          pagination-portal-class="hf-theme hf-ui employees-list-portal"
           @refresh="refresh"
           @clear-filters="selectedThreshold = 30"
         >
@@ -191,6 +193,7 @@ function getCategoryLabel(category: string): string {
                   size="sm"
                   class="w-32"
                   aria-label="Ventana de vencimiento"
+                  :ui="{ content: 'hf-theme hf-ui employees-list-portal' }"
                 />
               </div>
             </FilterSectionCard>

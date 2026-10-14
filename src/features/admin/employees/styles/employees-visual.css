@@ -244,3 +244,22 @@
   background-color: var(--hf-surface-muted);
   color: var(--hf-ink);
 }
+/* ── Employees dashboards ────────────────────────────────────────────────── */
+
+.employees-visual .employees-approval-card {
+  border-color: var(--hf-border);
+  background-color: var(--hf-surface);
+  color: var(--hf-ink);
+}
+
+.employees-visual .employees-approval-card:hover {
+  border-color: var(--hf-action);
+}
+
+/* Cards inside the form portal (review dialog) repaint the surface role. */
+.employees-form-portal .employees-detail-section {
+  border: 1px solid var(--hf-border);
+  background-color: var(--hf-surface);
+  color: var(--hf-ink);
+  box-shadow: none;
+}

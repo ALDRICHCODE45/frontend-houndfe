@@ -48,7 +48,7 @@ function onReject(request: TimeOffRequest): void {
 
 <template>
   <div
-    class="rounded-lg border border-default bg-elevated/30 p-4 transition-colors hover:bg-elevated/50"
+    class="employees-approval-card rounded-lg border p-4 transition-colors"
     data-testid="pending-approval-card"
   >
     <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

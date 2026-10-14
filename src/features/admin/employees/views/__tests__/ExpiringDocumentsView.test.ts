@@ -327,7 +327,7 @@ describe('ExpiringDocumentsView — toolbar, search, column visibility (REQ-3, R
 // ── REQ-7: expiry-window selector lives in #filters (not header) ─────────────
 
 describe('ExpiringDocumentsView — threshold selector in #filters (REQ-7)', () => {
-  it('renders exactly one selector and it lives inside the #filters slot, not AdminPageHeader', async () => {
+  it('renders exactly one selector and it lives inside the #filters slot, not the page header', async () => {
     const wrapper = mountView()
     await flushPromises()
     // USelect auto-resolves to Nuxt UI's `Select` runtime component (v4).
@@ -336,8 +336,9 @@ describe('ExpiringDocumentsView — threshold selector in #filters (REQ-7)', () 
     chaiExpect(
       wrapper.find('[data-testid="filters-slot"]').find('[data-testid="expiring-threshold-filters"]').exists(),
     ).toBe(true)
+    chaiExpect(wrapper.find('.hf-page-title').text()).toBe('Documentos por vencer')
     chaiExpect(
-      wrapper.find('[data-testid="admin-page-header"]').find('[data-testid="expiring-threshold-filters"]').exists(),
+      wrapper.find('.hf-page-header').find('[data-testid="expiring-threshold-filters"]').exists(),
     ).toBe(false)
   })
 

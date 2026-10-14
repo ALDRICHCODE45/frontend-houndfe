@@ -182,3 +182,39 @@ describe('Employee detail panels adapter', () => {
     expect(css).toContain('.employees-detail .employees-doc-expiry')
   })
 })
+
+// ── Employees dashboards (odd employees-dashboards-visual) ───────────────────
+const expiring = read('views/ExpiringDocumentsView.vue')
+const pending = read('views/PendingApprovalsView.vue')
+const approvalCard = read('components/PendingApprovalCard.vue')
+
+describe('Employees dashboards follow the canonical table workspace', () => {
+  for (const [name, source] of [['expiring', expiring], ['pending', pending]] as const) {
+    it(`${name}: heading outside one table surface inside the employees boundary`, () => {
+      expect(source, name).toContain("import '../styles/employees-visual.css'")
+      expect(source, name).toContain('hf-theme hf-ui employees-visual')
+      expect(source, name).toContain('class="hf-page-header"')
+      expect(source, name).toContain('class="hf-page-title"')
+      expect(source, name).toContain('class="hf-page-subtitle"')
+      expect(source, name).toContain('hf-table-surface')
+      expect(source, name).toContain('class="hf-data-table"')
+      expect(source, name).not.toContain('AdminPageHeader')
+      expect(source, name).not.toContain('bg-coco-neutral')
+      expect(source, name).toContain(`portal-class="${listPortal}"`)
+      expect(source, name).toContain(`pagination-portal-class="${listPortal}"`)
+    })
+  }
+
+  it('expiring: themes the expiry-window select', () => {
+    expect(expiring).toContain(`:ui="{ content: '${listPortal}' }"`)
+  })
+
+  it('pending: themes the review dialog, its card and the approval cards', () => {
+    expect(pending).toContain(`:ui="{ content: '${formPortal}' }"`)
+    expect(pending).toMatch(/<UCard\b[^>]*employees-detail-section/)
+    expect(pending).toContain('employees-view-toggle')
+    expect(approvalCard).toContain('employees-approval-card')
+    expect(css).toContain('.employees-visual .employees-approval-card')
+    expect(css).toContain('.employees-form-portal .employees-detail-section')
+  })
+})
