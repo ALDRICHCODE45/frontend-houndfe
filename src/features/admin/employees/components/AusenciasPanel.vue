@@ -272,7 +272,7 @@ function typeColor(type: string): string {
     <div class="flex items-center justify-between gap-3">
       <div class="flex items-center gap-2">
         <span class="text-sm font-medium text-muted">Año:</span>
-        <USelect
+        <USelect :ui="{ content: 'hf-theme hf-ui employees-list-portal' }"
           v-model="selectedYear"
           :items="yearOptions"
           value-key="value"
@@ -372,11 +372,11 @@ function typeColor(type: string): string {
   </div>
 
   <!-- Request time-off modal -->
-  <UModal v-model:open="isRequestOpen" title="Solicitar ausencia">
+  <UModal :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }" v-model:open="isRequestOpen" title="Solicitar ausencia">
     <template #body>
       <div class="flex flex-col gap-4">
         <UFormField label="Tipo">
-          <USelect
+          <USelect :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
             v-model="requestForm.type"
             :items="TIME_OFF_TYPE_OPTIONS"
             value-key="value"
@@ -386,14 +386,14 @@ function typeColor(type: string): string {
           />
         </UFormField>
         <UFormField label="Fecha inicio">
-          <DateFieldPopover
+          <DateFieldPopover portal-class="hf-theme hf-ui hf-form-overlay employees-form-portal"
             v-model="requestForm.startDate"
             placeholder="Elegir fecha inicio"
             :min-iso="null"
           />
         </UFormField>
         <UFormField label="Fecha fin">
-          <DateFieldPopover
+          <DateFieldPopover portal-class="hf-theme hf-ui hf-form-overlay employees-form-portal"
             v-model="requestForm.endDate"
             placeholder="Elegir fecha fin"
             :min-iso="requestForm.startDate"
@@ -423,7 +423,7 @@ function typeColor(type: string): string {
   </UModal>
 
   <!-- Review modal -->
-  <UModal v-model:open="isReviewOpen" title="Revisar solicitud">
+  <UModal :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }" v-model:open="isReviewOpen" title="Revisar solicitud">
     <template #body>
       <div class="flex flex-col gap-4">
         <UFormField label="Decisión">

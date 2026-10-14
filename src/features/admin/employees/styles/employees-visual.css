@@ -211,3 +211,36 @@
   border-color: var(--hf-surface);
   background-color: var(--hf-success);
 }
+
+/* Document categories group into semantic tones; the label names the
+ * category. Expiry reads as a warning. */
+.employees-detail .employees-doc-category {
+  border: 1px solid var(--hf-border);
+  background-color: var(--hf-surface-muted);
+  color: var(--hf-ink);
+}
+
+.employees-detail .employees-doc-category--active {
+  border-color: color-mix(in srgb, var(--hf-active) 35%, transparent);
+  background-color: var(--hf-active-soft);
+  color: var(--hf-heading);
+}
+
+.employees-detail .employees-doc-category--success {
+  border-color: color-mix(in srgb, var(--hf-success) 40%, transparent);
+  background-color: color-mix(in srgb, var(--hf-success) 14%, var(--hf-surface));
+  color: var(--hf-ink);
+}
+
+.employees-detail .employees-doc-category--warning,
+.employees-detail .employees-doc-expiry {
+  border: 1px solid color-mix(in srgb, var(--hf-warning) 40%, transparent);
+  background-color: var(--hf-warning-soft);
+  color: var(--hf-ink);
+}
+
+.employees-detail .employees-doc-category--neutral {
+  border-color: var(--hf-border);
+  background-color: var(--hf-surface-muted);
+  color: var(--hf-ink);
+}

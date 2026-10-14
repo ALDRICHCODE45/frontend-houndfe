@@ -62,7 +62,7 @@ const managerSubtitle = computed(() => {
     <!-- Stats cards row -->
     <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
       <!-- Seniority -->
-      <UCard :ui="{ body: 'p-4 sm:p-4' }">
+      <UCard class="employees-detail-section" :ui="{ body: 'p-4 sm:p-4' }">
         <div class="flex flex-col gap-1">
           <div class="flex items-center gap-2 text-xs text-muted">
             <UIcon name="i-lucide-clock" class="size-3.5 text-primary" />
@@ -74,7 +74,7 @@ const managerSubtitle = computed(() => {
       </UCard>
 
       <!-- Current salary — only when canReadSalary and hasSalary -->
-      <UCard
+      <UCard class="employees-detail-section"
         v-if="canReadSalary && hasSalary(employee)"
         :ui="{ body: 'p-4 sm:p-4' }"
       >
@@ -89,7 +89,7 @@ const managerSubtitle = computed(() => {
       </UCard>
 
       <!-- Vacations (placeholder) -->
-      <UCard :ui="{ body: 'p-4 sm:p-4' }">
+      <UCard class="employees-detail-section" :ui="{ body: 'p-4 sm:p-4' }">
         <div class="flex flex-col gap-1">
           <div class="flex items-center gap-2 text-xs text-muted">
             <UIcon name="i-lucide-palmtree" class="size-3.5 text-primary" />
@@ -103,7 +103,7 @@ const managerSubtitle = computed(() => {
       </UCard>
 
       <!-- Department -->
-      <UCard :ui="{ body: 'p-4 sm:p-4' }">
+      <UCard class="employees-detail-section" :ui="{ body: 'p-4 sm:p-4' }">
         <div class="flex flex-col gap-1">
           <div class="flex items-center gap-2 text-xs text-muted">
             <UIcon name="i-lucide-building-2" class="size-3.5 text-primary" />
@@ -118,7 +118,7 @@ const managerSubtitle = computed(() => {
     </div>
 
     <!-- Manager section -->
-    <UCard :ui="{ body: 'p-5 sm:p-5' }">
+    <UCard class="employees-detail-section" :ui="{ body: 'p-5 sm:p-5' }">
       <h3 class="mb-4 text-sm font-semibold text-highlighted">Reporta a</h3>
 
       <template v-if="managerDisplay !== '—' && managerDisplay">
@@ -153,7 +153,7 @@ const managerSubtitle = computed(() => {
     </UCard>
 
     <!-- Responsibilities -->
-    <UCard
+    <UCard class="employees-detail-section"
       v-if="employee.currentResponsibilities"
       :ui="{ body: 'p-5 sm:p-5' }"
     >

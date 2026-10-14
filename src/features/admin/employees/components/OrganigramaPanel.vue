@@ -66,7 +66,7 @@ const chainTruncated = computed(() =>
   <div class="flex flex-col gap-6">
 
     <!-- ── Cadena de managers ─────────────────────────────────────────────── -->
-    <UCard :ui="{ body: 'p-0 sm:p-0' }">
+    <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
       <!-- Header -->
       <div class="flex items-center justify-between border-b border-default px-5 py-4">
         <div class="flex items-center gap-2">
@@ -74,7 +74,7 @@ const chainTruncated = computed(() =>
           <h3 class="text-sm font-semibold text-highlighted">Cadena de mando</h3>
         </div>
         <!-- "Árbol completo" — v2 placeholder, disabled -->
-        <UTooltip text="Disponible en una próxima versión">
+        <UTooltip :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }" text="Disponible en una próxima versión">
           <UButton
             icon="i-lucide-network"
             size="xs"
@@ -173,7 +173,7 @@ const chainTruncated = computed(() =>
     </UCard>
 
     <!-- ── Reportes directos (subordinados) ──────────────────────────────── -->
-    <UCard :ui="{ body: 'p-0 sm:p-0' }">
+    <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
       <!-- Header -->
       <div class="flex items-center justify-between border-b border-default px-5 py-4">
         <div class="flex items-center gap-2">

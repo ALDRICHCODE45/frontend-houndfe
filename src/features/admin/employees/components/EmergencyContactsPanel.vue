@@ -251,7 +251,7 @@ async function confirmDelete(): Promise<void> {
   </div>
 
   <!-- Create / Edit form modal -->
-  <UModal
+  <UModal :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
     v-model:open="isFormOpen"
     :title="editingContactId ? 'Editar contacto' : 'Agregar contacto de emergencia'"
   >
@@ -309,7 +309,7 @@ async function confirmDelete(): Promise<void> {
   </UModal>
 
   <!-- Delete confirm modal -->
-  <UModal v-model:open="isDeleteOpen" title="Eliminar contacto">
+  <UModal :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }" v-model:open="isDeleteOpen" title="Eliminar contacto">
     <template #body>
       <p class="text-sm text-muted">
         ¿Estás seguro de que quieres eliminar a

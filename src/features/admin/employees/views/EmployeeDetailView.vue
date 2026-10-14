@@ -61,7 +61,6 @@ const {
   tabs,
   canUpdate,
   canReadSalary,
-  initials,
   refetch,
 } = useEmployeeDetail()
 

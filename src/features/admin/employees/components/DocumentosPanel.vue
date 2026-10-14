@@ -196,18 +196,20 @@ async function onUploadSubmit(): Promise<void> {
   }
 }
 
-// ─── Category badge color ─────────────────────────────────────────────────────
+// ─── Category badge tone ──────────────────────────────────────────────────────
+// Categories share the semantic roles (employees-visual.css); the label carries
+// the category, the tone only groups related kinds.
 
 const CATEGORY_BADGE_COLORS: Record<EmployeeDocumentCategory, string> = {
-  [EMPLOYEE_DOCUMENT_CATEGORY.CONTRACT]: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-  [EMPLOYEE_DOCUMENT_CATEGORY.NDA]: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300',
-  [EMPLOYEE_DOCUMENT_CATEGORY.EVALUATION]: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
-  [EMPLOYEE_DOCUMENT_CATEGORY.CERTIFICATE]: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-300',
-  [EMPLOYEE_DOCUMENT_CATEGORY.WARNING]: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300',
-  [EMPLOYEE_DOCUMENT_CATEGORY.ID_DOCUMENT]: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
-  [EMPLOYEE_DOCUMENT_CATEGORY.CV]: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-300',
-  [EMPLOYEE_DOCUMENT_CATEGORY.MEDICAL]: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-  [EMPLOYEE_DOCUMENT_CATEGORY.OTHER]: 'bg-neutral-100 text-neutral-600 dark:bg-neutral-800 dark:text-neutral-400',
+  [EMPLOYEE_DOCUMENT_CATEGORY.CONTRACT]: 'employees-doc-category employees-doc-category--active',
+  [EMPLOYEE_DOCUMENT_CATEGORY.NDA]: 'employees-doc-category employees-doc-category--active',
+  [EMPLOYEE_DOCUMENT_CATEGORY.EVALUATION]: 'employees-doc-category employees-doc-category--success',
+  [EMPLOYEE_DOCUMENT_CATEGORY.CERTIFICATE]: 'employees-doc-category employees-doc-category--success',
+  [EMPLOYEE_DOCUMENT_CATEGORY.WARNING]: 'employees-doc-category employees-doc-category--warning',
+  [EMPLOYEE_DOCUMENT_CATEGORY.ID_DOCUMENT]: 'employees-doc-category employees-doc-category--neutral',
+  [EMPLOYEE_DOCUMENT_CATEGORY.CV]: 'employees-doc-category employees-doc-category--neutral',
+  [EMPLOYEE_DOCUMENT_CATEGORY.MEDICAL]: 'employees-doc-category employees-doc-category--warning',
+  [EMPLOYEE_DOCUMENT_CATEGORY.OTHER]: 'employees-doc-category employees-doc-category--neutral',
 }
 </script>
 
@@ -215,7 +217,7 @@ const CATEGORY_BADGE_COLORS: Record<EmployeeDocumentCategory, string> = {
   <div class="flex flex-col gap-6">
 
     <!-- ── Documentos adjuntos ──────────────────────────────────────────────── -->
-    <UCard :ui="{ body: 'p-0 sm:p-0' }">
+    <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
       <!-- Header -->
       <div class="flex items-center justify-between border-b border-default px-5 py-4">
         <div class="flex items-center gap-2">
@@ -307,7 +309,7 @@ const CATEGORY_BADGE_COLORS: Record<EmployeeDocumentCategory, string> = {
                 <!-- Expiration date badge -->
                 <span
                   v-if="entry.expiresAt"
-                  class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                  class="employees-doc-expiry inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs"
                 >
                   <UIcon name="i-lucide-calendar-clock" class="size-3" />
                   {{ entry.expiresAt }}
@@ -336,7 +338,7 @@ const CATEGORY_BADGE_COLORS: Record<EmployeeDocumentCategory, string> = {
     </UCard>
 
     <!-- ── Vencimientos ─────────────────────────────────────────────────────── -->
-    <UCard :ui="{ body: 'p-0 sm:p-0' }">
+    <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
       <!-- Header with threshold filter -->
       <div class="flex flex-wrap items-center justify-between gap-3 border-b border-default px-5 py-4">
         <div class="flex items-center gap-2">
@@ -411,7 +413,7 @@ const CATEGORY_BADGE_COLORS: Record<EmployeeDocumentCategory, string> = {
   </div>
 
   <!-- ── Upload modal ─────────────────────────────────────────────────────────── -->
-  <UModal v-model:open="isUploadOpen" title="Subir documento" :ui="{ footer: 'justify-end' }">
+  <UModal v-model:open="isUploadOpen" title="Subir documento" :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal', footer: 'justify-end' }">
     <template #body>
       <div class="flex flex-col gap-4">
         <!-- File picker -->
@@ -443,7 +445,7 @@ const CATEGORY_BADGE_COLORS: Record<EmployeeDocumentCategory, string> = {
 
         <!-- Category select -->
         <UFormField label="Categoría" required>
-          <USelect
+          <USelect :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
             v-model="uploadState.category"
             :items="CATEGORY_OPTIONS"
             value-key="value"
@@ -455,7 +457,7 @@ const CATEGORY_BADGE_COLORS: Record<EmployeeDocumentCategory, string> = {
 
         <!-- Expiration date -->
         <UFormField label="Fecha de vencimiento" hint="Opcional">
-          <DateFieldPopover
+          <DateFieldPopover portal-class="hf-theme hf-ui hf-form-overlay employees-form-portal"
             v-model="uploadState.expiresAt"
             placeholder="Elegir fecha de vencimiento"
             :min-iso="null"
@@ -496,7 +498,7 @@ const CATEGORY_BADGE_COLORS: Record<EmployeeDocumentCategory, string> = {
     v-model:open="isDeleteConfirmOpen"
     title="Eliminar documento"
     description="Esta acción no se puede deshacer."
-    :ui="{ footer: 'justify-end' }"
+    :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal', footer: 'justify-end' }"
   >
     <template #body>
       <div class="flex items-start gap-3 rounded-xl border border-error/20 bg-error/5 p-4">

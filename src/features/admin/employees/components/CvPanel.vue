@@ -114,7 +114,7 @@ async function handleFileSelected(event: Event): Promise<void> {
 <template>
   <div class="flex flex-col gap-6">
 
-    <UCard :ui="{ body: 'p-0 sm:p-0' }">
+    <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
       <!-- Header -->
       <div class="flex items-center gap-2 border-b border-default px-5 py-4">
         <UIcon name="i-lucide-file-text" class="size-4 text-primary" />

@@ -50,7 +50,7 @@ const contractLabel = computed(() => CONTRACT_TYPE_LABELS[props.employee.contrac
 <template>
   <div class="flex flex-col gap-6">
     <!-- Position + contract section -->
-    <UCard :ui="{ body: 'p-0 sm:p-0' }">
+    <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
       <div class="flex items-center justify-between border-b border-default px-5 py-4">
         <h3 class="text-sm font-semibold text-highlighted">Datos de empleo</h3>
         <UButton
@@ -129,7 +129,7 @@ const contractLabel = computed(() => CONTRACT_TYPE_LABELS[props.employee.contrac
     </UCard>
 
     <!-- Responsibilities section -->
-    <UCard
+    <UCard class="employees-detail-section"
       v-if="employee.currentResponsibilities"
       :ui="{ body: 'p-5 sm:p-5' }"
     >

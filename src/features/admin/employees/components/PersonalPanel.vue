@@ -64,7 +64,7 @@ function formatDob(dob: string | null | undefined): string {
 <template>
   <div class="flex flex-col gap-6">
     <!-- Personal info section -->
-    <UCard :ui="{ body: 'p-0 sm:p-0' }">
+    <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
       <!-- Section header -->
       <div class="flex items-center justify-between border-b border-default px-5 py-4">
         <h3 class="text-sm font-semibold text-highlighted">Información personal</h3>
@@ -138,7 +138,7 @@ function formatDob(dob: string | null | undefined): string {
     </UCard>
 
     <!-- Address section -->
-    <UCard :ui="{ body: 'p-0 sm:p-0' }">
+    <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
       <!-- Section header -->
       <div class="flex items-center justify-between border-b border-default px-5 py-4">
         <h3 class="text-sm font-semibold text-highlighted">Domicilio</h3>

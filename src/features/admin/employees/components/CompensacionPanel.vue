@@ -188,7 +188,7 @@ function closePositionModal(): void {
 
     <!-- ── Sueldo actual (gated by canReadSalary) ────────────────────────── -->
     <template v-if="canReadSalary">
-      <UCard :ui="{ body: 'p-0 sm:p-0' }">
+      <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
         <!-- Header -->
         <div class="flex items-center justify-between border-b border-default px-5 py-4">
           <div class="flex items-center gap-2">
@@ -222,7 +222,7 @@ function closePositionModal(): void {
       </UCard>
 
       <!-- Salary history timeline -->
-      <UCard :ui="{ body: 'p-0 sm:p-0' }">
+      <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
         <div class="flex items-center gap-2 border-b border-default px-5 py-4">
           <UIcon name="i-lucide-history" class="size-4 text-muted" />
           <h3 class="text-sm font-semibold text-highlighted">Historial de sueldos</h3>
@@ -289,7 +289,7 @@ function closePositionModal(): void {
     </template>
 
     <!-- Salary access denied notice (when user lacks read:EmployeeSalary) -->
-    <UCard v-else :ui="{ body: 'p-5 sm:p-5' }">
+    <UCard class="employees-detail-section" v-else :ui="{ body: 'p-5 sm:p-5' }">
       <div class="flex items-center gap-3 text-sm text-muted">
         <UIcon name="i-lucide-lock" class="size-4 shrink-0" />
         <span>No tienes acceso para ver la información de sueldos de este colaborador.</span>
@@ -297,7 +297,7 @@ function closePositionModal(): void {
     </UCard>
 
     <!-- ── Historial de posiciones ────────────────────────────────────────── -->
-    <UCard :ui="{ body: 'p-0 sm:p-0' }">
+    <UCard class="employees-detail-section" :ui="{ body: 'p-0 sm:p-0' }">
       <!-- Header -->
       <div class="flex items-center justify-between border-b border-default px-5 py-4">
         <div class="flex items-center gap-2">
@@ -383,7 +383,7 @@ function closePositionModal(): void {
   </div>
 
   <!-- ── Add Salary Change modal ───────────────────────────────────────────── -->
-  <UModal
+  <UModal :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
     v-model:open="isSalaryModalOpen"
     title="Registrar ajuste de sueldo"
     :dismissible="!isAddingSalary"
@@ -421,7 +421,7 @@ function closePositionModal(): void {
         </UFormField>
 
         <UFormField label="Fecha de vigencia" name="effectiveFrom" required>
-          <DateFieldPopover
+          <DateFieldPopover portal-class="hf-theme hf-ui hf-form-overlay employees-form-portal"
             v-model="salaryState.effectiveFrom"
             placeholder="Elegir fecha"
             :min-iso="null"
@@ -463,7 +463,7 @@ function closePositionModal(): void {
   </UModal>
 
   <!-- ── Add Position Change modal ─────────────────────────────────────────── -->
-  <UModal
+  <UModal :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
     v-model:open="isPositionModalOpen"
     title="Registrar cambio de posición"
     :dismissible="!isAddingPosition"
@@ -499,7 +499,7 @@ function closePositionModal(): void {
         </UFormField>
 
         <UFormField label="Fecha de vigencia" name="effectiveFrom" required>
-          <DateFieldPopover
+          <DateFieldPopover portal-class="hf-theme hf-ui hf-form-overlay employees-form-portal"
             v-model="positionState.effectiveFrom"
             placeholder="Elegir fecha"
             :min-iso="null"

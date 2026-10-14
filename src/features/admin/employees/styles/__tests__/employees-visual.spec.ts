@@ -145,3 +145,40 @@ describe('Employee detail shell and profile card adapter', () => {
     expect(css).toContain('.employees-detail .employees-active-dot')
   })
 })
+
+const panels = Object.fromEntries(
+  ['ResumenPanel', 'PersonalPanel', 'EmergencyContactsPanel', 'LaboralPanel', 'CompensacionPanel', 'OrganigramaPanel', 'CvPanel', 'DocumentosPanel', 'AusenciasPanel']
+    .map((name) => [name, read(`components/${name}.vue`)]),
+)
+
+describe('Employee detail panels adapter', () => {
+  it('gives every panel card an owned section hook', () => {
+    for (const [name, source] of Object.entries(panels)) {
+      const cards = source.match(/<UCard\b/g)?.length ?? 0
+      const hooked = source.match(/<UCard\b[^>]*employees-detail-section/g)?.length ?? 0
+      expect(hooked, name).toBe(cards)
+    }
+  })
+
+  it('marks every teleport opened from a panel with an owned portal', () => {
+    for (const [name, source] of Object.entries(panels)) {
+      const teleports = source.match(/<(UModal|USelect|USelectMenu|UTooltip|UDropdownMenu|DateFieldPopover)\b/g)?.length ?? 0
+      const marked = source.match(/hf-theme hf-ui (hf-form-overlay )?employees-(form|list)-portal/g)?.length ?? 0
+      expect(marked, name).toBe(teleports)
+    }
+  })
+
+  it('keeps the existing upload footer alignment while theming its dialog', () => {
+    expect(panels.DocumentosPanel).toContain(`:ui="{ content: '${formPortal}', footer: 'justify-end' }"`)
+  })
+
+  it('maps document categories and the expiry chip to semantic owned hooks', () => {
+    expect(panels.DocumentosPanel).not.toMatch(/(bg|text)-(blue|purple|green|teal|orange|yellow|cyan|red|neutral|amber)-\d/)
+    for (const tone of ['active', 'success', 'warning', 'neutral']) {
+      expect(panels.DocumentosPanel).toContain(`employees-doc-category--${tone}`)
+      expect(css).toContain(`.employees-detail .employees-doc-category--${tone}`)
+    }
+    expect(panels.DocumentosPanel).toContain('employees-doc-expiry')
+    expect(css).toContain('.employees-detail .employees-doc-expiry')
+  })
+})
