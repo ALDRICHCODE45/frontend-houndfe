@@ -30,6 +30,7 @@ import { describe, it, expect, vi } from 'vitest'
 
 import {
   assertReorderCoversStops,
+  buildDeliveryRouteListActions,
   buildDeliveryRouteRowActions,
   buildDeliveryRouteStartActions,
   buildStopProgress,
@@ -365,5 +366,63 @@ describe('buildStopProgress (sdd delivery-routes S5a, design §4.1, REQ-DRM-001)
       makeStop('s4', 'PENDING'),
     ]
     expect(buildStopProgress(stops)).toBe('1/4')
+  })
+})
+
+describe('buildDeliveryRouteListActions (manager list kebab, same gates as the detail view)', () => {
+  function ctx(overrides: { canUpdate?: boolean; canDelete?: boolean } = {}) {
+    return {
+      canUpdate: overrides.canUpdate ?? true,
+      canDelete: overrides.canDelete ?? true,
+      onView: vi.fn(),
+      onEdit: vi.fn(),
+      onStart: vi.fn(),
+      onCancel: vi.fn(),
+      onDelete: vi.fn(),
+    }
+  }
+  const labels = (sections: { label: string }[][]) => sections.map((s) => s.map((i) => i.label))
+  const { view, edit, start, cancel, delete: remove } = DELIVERY_ROUTE_COPY.actions
+
+  it('DRAFT with stops + update + delete: view, edit/start/cancel; no delete (route has stops)', () => {
+    const row = makeRoute({ stops: [makeStop('s1')] })
+    expect(labels(buildDeliveryRouteListActions(row, ctx()))).toEqual([[view], [edit, start, cancel]])
+  })
+
+  it('empty DRAFT: start hidden (no stops), delete shown last in its own error section', () => {
+    const sections = buildDeliveryRouteListActions(makeRoute(), ctx())
+    expect(labels(sections)).toEqual([[view], [edit, cancel], [remove]])
+    expect(sections[2]![0]!.color).toBe('error')
+  })
+
+  it('ACTIVE: only view and cancel', () => {
+    const row = makeRoute({ status: 'ACTIVE', stops: [makeStop('s1')] })
+    expect(labels(buildDeliveryRouteListActions(row, ctx()))).toEqual([[view], [cancel]])
+  })
+
+  it.each(['COMPLETED', 'CANCELLED'] as const)('%s: only view', (status) => {
+    expect(labels(buildDeliveryRouteListActions(makeRoute({ status }), ctx()))).toEqual([[view]])
+  })
+
+  it('without update permission: no edit/start/cancel, delete still gated by delete permission', () => {
+    expect(labels(buildDeliveryRouteListActions(makeRoute(), ctx({ canUpdate: false })))).toEqual([
+      [view],
+      [remove],
+    ])
+    expect(
+      labels(buildDeliveryRouteListActions(makeRoute(), ctx({ canUpdate: false, canDelete: false }))),
+    ).toEqual([[view]])
+  })
+
+  it('each item forwards the row to its handler', () => {
+    const row = makeRoute()
+    const handlers = ctx()
+    for (const section of buildDeliveryRouteListActions(row, handlers)) {
+      for (const item of section) item.onSelect()
+    }
+    for (const fn of [handlers.onView, handlers.onEdit, handlers.onCancel, handlers.onDelete]) {
+      expect(fn).toHaveBeenCalledWith(row)
+    }
+    expect(handlers.onStart).not.toHaveBeenCalled()
   })
 })

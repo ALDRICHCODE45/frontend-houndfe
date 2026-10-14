@@ -76,6 +76,8 @@ export interface DeliveryRouteRowActionItem {
   label: string
   /** Optional UDropdownMenu color hint (`'error'` on destructive). */
   color?: 'error'
+  /** Optional Lucide icon for the menu item. */
+  icon?: string
   /** Invoked when the user selects the item. */
   onSelect: () => void
 }
@@ -132,6 +134,75 @@ export function buildDeliveryRouteRowActions(
       ]
     : []
   return [main, destructive].filter((section) => section.length > 0)
+}
+
+// ─── Manager list kebab (same gates as the detail view) ──────────────────────
+
+export interface DeliveryRouteListActionContext {
+  /** `update:DeliveryRoute` — gates Edit / Start / Cancel. */
+  canUpdate: boolean
+  /** `delete:DeliveryRoute` — gates Delete. */
+  canDelete: boolean
+  onView: (row: DeliveryRouteResponseDto) => void
+  onEdit: (row: DeliveryRouteResponseDto) => void
+  onStart: (row: DeliveryRouteResponseDto) => void
+  onCancel: (row: DeliveryRouteResponseDto) => void
+  onDelete: (row: DeliveryRouteResponseDto) => void
+}
+
+/**
+ * buildDeliveryRouteListActions — Row menu for the manager list and cards.
+ *
+ * Every gate mirrors `DeliveryRouteDetailView` exactly (REQ-DRM-011/013):
+ *   - Edit:   DRAFT + canUpdate
+ *   - Start:  DRAFT + at least one stop + canUpdate
+ *   - Cancel: DRAFT or ACTIVE + canUpdate
+ *   - Delete: DRAFT + zero stops + canDelete
+ * "Ver detalle" is always available. Sections: [view], [edit, start, cancel],
+ * [delete]; empty sections are dropped so dividers never stack.
+ */
+export function buildDeliveryRouteListActions(
+  row: DeliveryRouteResponseDto,
+  ctx: DeliveryRouteListActionContext,
+): DeliveryRouteRowActionItem[][] {
+  const isDraft = row.status === 'DRAFT'
+  const lifecycle: DeliveryRouteRowActionItem[] = []
+  if (ctx.canUpdate && isDraft) {
+    lifecycle.push({
+      label: DELIVERY_ROUTE_COPY.actions.edit,
+      icon: 'i-lucide-pencil',
+      onSelect: () => ctx.onEdit(row),
+    })
+    if (row.stops.length > 0) {
+      lifecycle.push({
+        label: DELIVERY_ROUTE_COPY.actions.start,
+        icon: 'i-lucide-play',
+        onSelect: () => ctx.onStart(row),
+      })
+    }
+  }
+  if (ctx.canUpdate && (isDraft || row.status === 'ACTIVE')) {
+    lifecycle.push({
+      label: DELIVERY_ROUTE_COPY.actions.cancel,
+      icon: 'i-lucide-ban',
+      onSelect: () => ctx.onCancel(row),
+    })
+  }
+  const destructive: DeliveryRouteRowActionItem[] =
+    ctx.canDelete && isDraft && row.stops.length === 0
+      ? [
+          {
+            label: DELIVERY_ROUTE_COPY.actions.delete,
+            icon: 'i-lucide-trash-2',
+            color: 'error',
+            onSelect: () => ctx.onDelete(row),
+          },
+        ]
+      : []
+  const view: DeliveryRouteRowActionItem[] = [
+    { label: DELIVERY_ROUTE_COPY.actions.view, icon: 'i-lucide-eye', onSelect: () => ctx.onView(row) },
+  ]
+  return [view, lifecycle, destructive].filter((section) => section.length > 0)
 }
 
 // ─── START-only row-action builder (manager list kebab) ───────────────────────

@@ -34,6 +34,7 @@ export const DELIVERY_ROUTE_COPY = {
     driverTitle: 'Detalle de parada',
   },
   actions: {
+    view: 'Ver detalle',
     create: 'Nueva ruta',
     edit: 'Editar',
     delete: 'Eliminar',
