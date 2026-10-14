@@ -42,7 +42,7 @@ const userCountLabel = computed(() => `${props.role.userCount} usuarios`)
 
 <template>
   <article
-    class="group relative flex cursor-pointer flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+    class="roles-card group relative flex cursor-pointer flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
     data-testid="role-card"
     @click="emit('click', role)"
   >

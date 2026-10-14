@@ -3,6 +3,7 @@ import { computed, watch } from 'vue'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { useRoleForm, type RoleFormValues } from '../composables/useRoleForm'
 import type { RoleTableRow } from '../interfaces/role.types'
+import '../styles/roles-visual.css'
 
 const props = withDefaults(
   defineProps<{
@@ -53,7 +54,14 @@ function onSubmit(event: FormSubmitEvent<RoleFormValues>) {
 </script>
 
 <template>
-  <USlideover v-model:open="open" :title="title" side="right" inset @after-leave="resetForm">
+  <USlideover
+    v-model:open="open"
+    :title="title"
+    side="right"
+    inset
+    :ui="{ content: 'hf-theme hf-ui hf-form-overlay roles-form-portal' }"
+    @after-leave="resetForm"
+  >
     <template #body>
       <UForm id="role-form" :schema="schema" :state="state" class="space-y-4" @submit="onSubmit">
         <UFormField label="Nombre" name="name">

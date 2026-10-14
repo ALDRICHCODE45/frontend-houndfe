@@ -11,6 +11,7 @@ import {
   getSubjectLabel,
 } from '../i18n/permissions'
 import type { GroupedPermissions, RoleTableRow } from '../interfaces/role.types'
+import '../styles/roles-visual.css'
 
 const props = withDefaults(
   defineProps<{
@@ -117,7 +118,7 @@ function getCode(subject: string, action: string) {
     :description="`Selecciona permisos para el rol ${role?.name ?? ''}`"
     side="right"
     inset
-    :ui="{ content: '!max-w-2xl' }"
+    :ui="{ content: '!max-w-2xl hf-theme hf-ui hf-form-overlay roles-form-portal' }"
   >
     <template #body>
       <div class="space-y-4">

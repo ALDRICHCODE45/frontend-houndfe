@@ -16,7 +16,7 @@ import type { RoleTableRow } from '../interfaces/role.types'
 import RoleUpsertSlideover from '../components/RoleUpsertSlideover.vue'
 import RolePermissionsSlideover from '../components/RolePermissionsSlideover.vue'
 import RoleCardGrid from '../components/RoleCardGrid.vue'
-import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
+import '../styles/roles-visual.css'
 
 const queryClient = useQueryClient()
 const authStore = useAuthStore()
@@ -220,7 +220,7 @@ function getRowItems(role: RoleTableRow) {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 md:px-6 lg:px-10">
+  <div class="hf-theme hf-ui roles-visual flex w-full min-w-0 flex-col gap-6 md:px-6 lg:px-10">
     <RoleUpsertSlideover
       v-model:open="isCreateOpen"
       mode="create"
@@ -249,16 +249,19 @@ function getRowItems(role: RoleTableRow) {
       confirm-label="Eliminar"
       confirm-color="error"
       :loading="deleteMutation.isPending.value"
+      :ui="{ content: 'hf-theme hf-ui hf-form-overlay roles-form-portal' }"
       @update:open="confirmState.open = $event"
       @confirm="handleConfirm"
     />
 
-    <UCard :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }">
-      <template #header>
-        <AdminPageHeader title="Gestión de roles" :description="headerDescription" />
-      </template>
+    <!-- Canonical table workspace (design-system §4): heading outside the surface. -->
+    <div class="hf-page-header">
+      <h1 class="hf-page-title">Gestión de roles</h1>
+      <p class="hf-page-subtitle">{{ headerDescription }}</p>
+    </div>
 
-      <div class="w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
+    <UCard :ui="{ body: 'p-0 sm:p-0' }" class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm">
+      <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"
@@ -283,6 +286,9 @@ function getRowItems(role: RoleTableRow) {
           add-button-icon="i-lucide-user-plus"
           enable-column-visibility
           empty="No se encontraron roles"
+          class="hf-data-table"
+          portal-class="hf-theme hf-ui roles-list-portal"
+          pagination-portal-class="hf-theme hf-ui roles-list-portal"
           @add="isCreateOpen = true"
           @refresh="refresh"
         >
@@ -327,6 +333,7 @@ function getRowItems(role: RoleTableRow) {
               v-if="canManageRoleActions"
               :items="getRowItems(row.original)"
               :content="{ align: 'end' }"
+              :ui="{ content: 'hf-theme hf-ui roles-list-portal' }"
             >
               <UButton
                 icon="i-lucide-ellipsis-vertical"
@@ -340,6 +347,7 @@ function getRowItems(role: RoleTableRow) {
           <template #actions>
             <ViewToggle
               :model-value="viewMode"
+              class="roles-view-toggle"
               aria-label="Seleccionar vista de roles"
               @update:model-value="handleViewModeChange"
             />
