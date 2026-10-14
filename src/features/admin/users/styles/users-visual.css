@@ -1,0 +1,140 @@
+@import '../../../../core/shared/design-system/houndfe-ui.css';
+
+/* Users listing and its teleported menus, confirmation, slideover and the seller sales report drawer.
+ * Owned portals repeat the approved shell palette because they cannot
+ * inherit it after teleport. This local bridge does not change the shared
+ * shell or other modules' contracts. */
+.hf-theme.users-visual,
+.hf-theme.users-list-portal,
+.hf-theme.users-form-portal {
+  --hf-page: #f3f6fa;
+  --hf-surface: #ffffff;
+  --hf-surface-muted: #eaf0f8;
+  --hf-field: #f3f6fa;
+  --hf-ink: #1e3555;
+  --hf-heading: #1e3555;
+  --hf-muted: #63748b;
+  --hf-border: #dce3ed;
+  --hf-action: #315ce7;
+  --hf-on-action: #ffffff;
+  --hf-active: #315ce7;
+  --hf-active-soft: #e9effd;
+  --hf-focus: #315ce7;
+  --radius-sm: 6px;
+  --radius-md: var(--hf-radius-control);
+  --radius-lg: var(--hf-radius-card);
+  --radius-xl: var(--hf-radius-card);
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
+}
+
+.dark .hf-theme.users-visual,
+.dark .hf-theme.users-list-portal,
+.dark .hf-theme.users-form-portal {
+  --hf-page: #101720;
+  --hf-surface: #1b2736;
+  --hf-surface-muted: #223044;
+  --hf-field: #101720;
+  --hf-ink: #e4ebf5;
+  --hf-heading: #e4ebf5;
+  --hf-muted: #9aaac0;
+  --hf-border: #2d3b4d;
+  --hf-action: #91b0ff;
+  --hf-on-action: #172b51;
+  --hf-active: #91b0ff;
+  --hf-active-soft: #253b60;
+  --hf-focus: #91b0ff;
+}
+
+.hf-theme.users-list-portal,
+.hf-theme.users-form-portal {
+  background-color: var(--hf-surface);
+  border-color: var(--hf-border);
+  color: var(--hf-ink);
+}
+
+/* ── Toolbar and pagination ──────────────────────────────────────────────── */
+
+/* Search and actions share the first desktop row; the status filter takes its
+ * own row. Mobile retains the shared toolbar's stacked sheet. */
+@media (min-width: 768px) {
+  .users-visual .hf-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+  }
+
+  .users-visual .hf-toolbar-search-region {
+    display: contents;
+  }
+
+  .users-visual .hf-toolbar-search {
+    grid-area: 1 / 1;
+    width: 100%;
+    max-width: 26rem;
+  }
+
+  .users-visual .hf-toolbar-actions {
+    grid-area: 1 / 2;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    justify-self: end;
+  }
+
+  .users-visual .hf-toolbar-filters {
+    grid-area: 2 / 1 / 3 / -1;
+    flex-wrap: wrap;
+  }
+}
+
+.users-visual .hf-toolbar :where(button, input, [data-slot='root']) {
+  min-height: var(--hf-control-height);
+}
+
+.users-visual .users-view-toggle {
+  width: auto;
+  flex-shrink: 0;
+}
+
+.users-visual .users-view-toggle :where(button, [role='tab']) {
+  min-width: max-content;
+  white-space: nowrap;
+}
+
+.users-visual .hf-pagination-summary {
+  white-space: nowrap;
+}
+
+.users-visual .hf-pagination-size {
+  width: auto;
+  min-height: 36px;
+}
+
+.users-visual .hf-pagination-navigation {
+  margin-inline-start: auto;
+}
+
+.users-visual .hf-pagination-navigation :where(button) {
+  min-height: 36px;
+}
+
+/* ── Cards ───────────────────────────────────────────────────────────────── */
+
+.users-visual .users-card-grid {
+  align-content: start;
+}
+
+.users-visual .users-card {
+  background-color: var(--hf-surface);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  color: var(--hf-ink);
+  box-shadow: none;
+}
+
+.users-visual .users-card:hover {
+  transform: none;
+  border-color: var(--hf-action);
+  box-shadow: none;
+}

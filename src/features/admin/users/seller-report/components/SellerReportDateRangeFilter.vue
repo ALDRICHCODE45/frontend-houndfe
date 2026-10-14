@@ -203,6 +203,7 @@ function isPresetActive(id: MexicoCityRangePresetId): boolean {
         <UPopover
           :open="fromOpen"
           :content="{ align: 'start', side: 'bottom', sideOffset: 8 }"
+          :ui="{ content: 'hf-theme hf-ui hf-form-overlay users-form-portal' }"
           @update:open="setFromOpen"
         >
           <UInputDate
@@ -236,6 +237,7 @@ function isPresetActive(id: MexicoCityRangePresetId): boolean {
         <UPopover
           :open="toOpen"
           :content="{ align: 'start', side: 'bottom', sideOffset: 8 }"
+          :ui="{ content: 'hf-theme hf-ui hf-form-overlay users-form-portal' }"
           @update:open="setToOpen"
         >
           <UInputDate

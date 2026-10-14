@@ -11,6 +11,7 @@ import { useAdminRolesQuery } from '../composables/useAdminRolesQuery'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import type { UserTableRow } from '../interfaces/user.types'
 import type { UserWithRolesResponse } from '../../shared/interfaces/rbac.types'
+import '../styles/users-visual.css'
 
 const props = withDefaults(
   defineProps<{
@@ -159,7 +160,14 @@ function onSubmit(event: FormSubmitEvent<CreateUserFormValues | EditUserFormValu
 </script>
 
 <template>
-  <USlideover v-model:open="open" :title="title" :description="description" side="right" inset>
+  <USlideover
+    v-model:open="open"
+    :title="title"
+    :description="description"
+    side="right"
+    inset
+    :ui="{ content: 'hf-theme hf-ui hf-form-overlay users-form-portal' }"
+  >
     <template #body>
       <p v-if="mode === 'edit' && detailLoading" role="status">Cargando usuario…</p>
       <div v-if="errorMessage" role="alert" class="mb-4 text-error">
@@ -201,6 +209,7 @@ function onSubmit(event: FormSubmitEvent<CreateUserFormValues | EditUserFormValu
             name="roleIds"
           >
             <USelectMenu
+              :ui="{ content: 'hf-theme hf-ui hf-form-overlay users-form-portal' }"
               :model-value="selectedRoleIds"
               :items="roleOptions"
               multiple
@@ -247,6 +256,7 @@ function onSubmit(event: FormSubmitEvent<CreateUserFormValues | EditUserFormValu
 
           <UFormField label="Rol" name="roleId">
             <USelectMenu
+              :ui="{ content: 'hf-theme hf-ui hf-form-overlay users-form-portal' }"
               v-model="createState.roleId"
               :items="roleOptions"
               value-key="value"

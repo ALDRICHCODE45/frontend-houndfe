@@ -18,7 +18,7 @@ import { editUserSchema, sameRoleIds } from '../composables/useUserForm'
 import UserUpsertSlideover from '../components/UserUpsertSlideover.vue'
 import UserCardGrid from '../components/UserCardGrid.vue'
 import SellerSalesReportDrawer from '../seller-report/components/SellerSalesReportDrawer.vue'
-import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
+import '../styles/users-visual.css'
 
 const queryClient = useQueryClient()
 const authStore = useAuthStore()
@@ -404,7 +404,7 @@ function getRowItems(user: UserTableRow) {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 md:px-6 lg:px-10">
+  <div class="hf-theme hf-ui users-visual flex w-full min-w-0 flex-col gap-6 md:px-6 lg:px-10">
     <UserUpsertSlideover
       v-model:open="isCreateOpen"
       mode="create"
@@ -434,6 +434,7 @@ function getRowItems(user: UserTableRow) {
       confirm-label="Eliminar"
       confirm-color="error"
       :loading="deleteMutation.isPending.value"
+      :ui="{ content: 'hf-theme hf-ui hf-form-overlay users-form-portal' }"
       @update:open="confirmState.open = $event"
       @confirm="handleConfirm"
     />
@@ -451,12 +452,14 @@ function getRowItems(user: UserTableRow) {
       :can-read="canReadSalesReport"
     />
 
-    <UCard :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }">
-      <template #header>
-        <AdminPageHeader title="Gestión de usuarios" :description="headerDescription" />
-      </template>
+    <!-- Canonical table workspace (design-system §4): heading outside the surface. -->
+    <div class="hf-page-header">
+      <h1 class="hf-page-title">Gestión de usuarios</h1>
+      <p class="hf-page-subtitle">{{ headerDescription }}</p>
+    </div>
 
-      <div class="w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
+    <UCard :ui="{ body: 'p-0 sm:p-0' }" class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm">
+      <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"
@@ -481,6 +484,9 @@ function getRowItems(user: UserTableRow) {
           add-button-icon="i-lucide-user-plus"
           enable-column-visibility
           empty="No se encontraron usuarios"
+          class="hf-data-table"
+          portal-class="hf-theme hf-ui users-list-portal"
+          pagination-portal-class="hf-theme hf-ui users-list-portal"
           @add="isCreateOpen = true"
           @refresh="refresh"
         >
@@ -535,6 +541,7 @@ function getRowItems(user: UserTableRow) {
               v-if="canShowUserActions"
               :items="getRowItems(row.original)"
               :content="{ align: 'end' }"
+              :ui="{ content: 'hf-theme hf-ui users-list-portal' }"
             >
               <UButton
                 icon="i-lucide-ellipsis-vertical"
@@ -548,6 +555,7 @@ function getRowItems(user: UserTableRow) {
           <template #actions>
             <ViewToggle
               :model-value="viewMode"
+              class="users-view-toggle"
               aria-label="Seleccionar vista de usuarios"
               @update:model-value="handleViewModeChange"
             />

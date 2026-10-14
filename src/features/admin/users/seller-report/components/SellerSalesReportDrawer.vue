@@ -29,6 +29,7 @@ import {
 } from '@/core/shared/utils/mexicoCityCalendar'
 import SellerSalesReportContent from './SellerSalesReportContent.vue'
 import { useSellerSalesReport } from '../composables/useSellerSalesReport'
+import '../../styles/users-visual.css'
 
 export interface SellerReportSeller {
   id: string
@@ -135,6 +136,7 @@ function onDownload() {
     :description="drawerDescription"
     close-aria-label="Cerrar el reporte de ventas"
     :desktop-ui="DESKTOP_UI"
+    portal-class="hf-theme hf-ui hf-form-overlay users-form-portal"
     @update:open="emit('update:open', $event)"
   >
     <template #body>
