@@ -201,3 +201,16 @@ describe('DriverPicker — required marker', () => {
 
 // Tiny no-op to silence linter about unused vi in test file.
 vi.fn()
+
+describe('DriverPicker — design-system portal (visual adaptation)', () => {
+  it('teleports the driver menu inside the delivery-routes form theme boundary', async () => {
+    vi.spyOn(usersApi, 'listAssignableDrivers').mockResolvedValue(ASSIGNABLE)
+    const wrapper = mountPicker()
+    await nextTick()
+    const ui = wrapper.findComponent({ name: 'SelectMenu' }).props('ui') as { content?: string } | undefined
+    const content = (ui?.content ?? '').split(' ')
+    for (const marker of ['hf-theme', 'hf-ui', 'delivery-routes-form-portal']) {
+      expect(content).toContain(marker)
+    }
+  })
+})

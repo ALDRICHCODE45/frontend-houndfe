@@ -133,6 +133,7 @@ const selectedOption = computed<AssignableUser | null>(() => {
       :disabled="disabled"
       :placeholder="placeholder"
       :highlight="highlight"
+      :ui="{ content: 'hf-theme hf-ui delivery-routes-form-portal' }"
       class="w-full"
       data-testid="driver-picker-trigger"
       @update:model-value="onUpdate"

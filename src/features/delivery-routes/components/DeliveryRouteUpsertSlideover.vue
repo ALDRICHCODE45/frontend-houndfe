@@ -334,6 +334,7 @@ defineExpose({
     :description="description"
     side="right"
     inset
+    :ui="{ content: 'hf-theme hf-ui hf-form-overlay delivery-routes-form-portal' }"
     @update:open="handleClose"
   >
     <template #body>
@@ -403,6 +404,7 @@ defineExpose({
         <UButton
           :label="isCreate ? 'Crear ruta' : 'Guardar cambios'"
           :loading="loading"
+          class="hf-primary-control"
           type="submit"
           :form="formId"
         />

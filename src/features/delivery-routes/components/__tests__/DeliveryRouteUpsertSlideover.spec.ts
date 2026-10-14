@@ -31,8 +31,8 @@ import DeliveryRouteUpsertSlideover from '../DeliveryRouteUpsertSlideover.vue'
 // ─── @nuxt/ui stubs ──────────────────────────────────────────────────────────
 const slideoverStub = {
   template:
-    '<div data-testid="uslideover-stub"><slot /><slot name="body" /><slot name="footer" /></div>',
-  props: ['open', 'title', 'description', 'side', 'inset'],
+    '<div data-testid="uslideover-stub" :data-ui-content="ui?.content"><slot /><slot name="body" /><slot name="footer" /></div>',
+  props: ['open', 'title', 'description', 'side', 'inset', 'ui'],
   emits: ['update:open', 'after-leave'],
 }
 
@@ -540,5 +540,23 @@ describe('DeliveryRouteUpsertSlideover — invalid selection blocks create (find
     await flushPromises()
 
     expect(wrapper.emitted('create')).toBeTruthy()
+  })
+})
+
+describe('DeliveryRouteUpsertSlideover — design-system portal (visual adaptation)', () => {
+  it.each(['create', 'edit'] as const)('teleports the %s panel inside the delivery-routes form theme boundary', async (mode) => {
+    const wrapper = mountSlideover({ mode, routeId: 'r1' })
+    await flushPromises()
+    const content = wrapper.find('[data-testid="uslideover-stub"]').attributes('data-ui-content') ?? ''
+    for (const marker of ['hf-theme', 'hf-ui', 'hf-form-overlay', 'delivery-routes-form-portal']) {
+      expect(content.split(' ')).toContain(marker)
+    }
+  })
+
+  it('paints the submit action with the shared primary pairing', async () => {
+    const wrapper = mountSlideover({ mode: 'create' })
+    await flushPromises()
+    const submit = wrapper.findAll('button').find((b) => b.text() === 'Crear ruta')
+    expect(submit?.classes()).toContain('hf-primary-control')
   })
 })
