@@ -17,7 +17,7 @@ S8. Design system: heading outside `hf-table-surface`, feature-owned light/dark 
 ## Tasks
 
 T1 | S2,S3,S4,S7 | inline: pure list utils (display name, created date, customers, search, status filter + counts, sort, paginate) + cached full-list table composable, RED/GREEN | done | RED utils module missing + 4 composable fails -> GREEN module 969/41 exit0 | commit: 26518eba
-T2 | S5 | inline: gated row-action builder mirroring detail gates (Ver/Editar/Iniciar/Cancelar/Eliminar), RED/GREEN | pending | commit: —
+T2 | S5 | inline: gated row-action builder mirroring detail gates (Ver/Editar/Iniciar/Cancelar/Eliminar), RED/GREEN | done | RED 7 fail -> GREEN module 976/41 exit0 | commit: 3765eeb1
 T3 | S2-S8 | inline: list view on canonical workspace (header, tabs with counts, columns, row click, actions + confirm/edit wiring, card grid + view toggle, stylesheet/portals), RED/GREEN | pending | commit: —
 T4 | S1-S8 | inline checks: focused + module suites, build, lint; native assess; user visual smoke | pending | commit: —
 
@@ -27,3 +27,4 @@ L1. User request verbatim: "hay que seguir con rutas de entrega hermano, pero es
 L2. Findings before planning: manager rows cannot open detail; `paginateDeliveryRoutes` ignores globalFilter and sorting; default sort `updatedAt` does not exist on the DTO; identifier is a truncated UUID; DTO has no createdAt (derive from timeline ROUTE_CREATED); only Start in row kebab; no status filter, cards, or page header. `useServerTable` appends params to the query key, so the full list must be cached separately to avoid refetching per keystroke.
 L3. User answers: capabilities = all four options; cards = "Sí, con tarjetas"; identifier = "Derivado en el front (Recomendado)".
 L4. T1 done: RED (utils module missing, 4 new composable tests failing) -> GREEN delivery-routes 969 tests/41 files exit 0. Query key now listPrefix + status tab (prefix invalidation contract kept; test updated). Full list cached via queryClient.fetchQuery under listPrefix/'full-list' (staleTime 30s). Pre-existing @ts-nocheck lint error and spec formatting left untouched. Commit 26518eba.
+L5. T2 done: buildDeliveryRouteListActions (view always; edit DRAFT+update; start DRAFT+stops+update; cancel DRAFT|ACTIVE+update; delete empty DRAFT+delete), copy actions.view 'Ver detalle'. RED 7 failing -> GREEN 976/41 exit 0. Pre-existing prettier failures in touched files left. Commit 3765eeb1.
