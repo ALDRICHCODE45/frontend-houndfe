@@ -962,6 +962,21 @@ describe('DeliveryRoutesListView — manager branch (design.md §6.4, §11, REQ-
         expect(wrapper.find('[data-testid="slideover-stub"]').exists()).toBe(false)
       })
 
+      it('summarizes the driver workload under the header', async () => {
+        resetRoleFlags({ isManager: { value: false }, isDriver: { value: true }, canRead: { value: true } })
+        resetTableState({ data: [], totalCount: 0 })
+        const pending = { id: 's1', saleId: 'x', saleFolio: null, sortOrder: 0, status: 'PENDING', checkedInAt: null, completedAt: null, customer: null, shippingAddress: null }
+        resetDriverState({
+          data: [
+            { id: 'route-1', status: 'ACTIVE', driver: null, stops: [pending], timeline: [] },
+            { id: 'route-2', status: 'ACTIVE', driver: null, stops: [], timeline: [] },
+          ],
+        })
+        const wrapper = mountView()
+        await flushPromises()
+        expect(wrapper.find('[data-testid="driver-list-summary"]').text()).toBe('2 rutas · 1 parada pendiente')
+      })
+
       it('navigates to /pos/rutas-de-entrega/:id when a card is tapped (driver tap target wiring)', async () => {
         resetRoleFlags({
           isManager: { value: false },

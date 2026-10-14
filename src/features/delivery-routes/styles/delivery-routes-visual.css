@@ -244,3 +244,15 @@
 .delivery-routes-driver .delivery-routes-progress-fill {
   background-color: var(--hf-success);
 }
+
+/* Driver mission card: the target stop reads as the active selection, the
+ * same role the cockpit uses for the current pending stop. */
+.delivery-routes-driver .delivery-routes-mission-target {
+  border: 1px solid color-mix(in srgb, var(--hf-active) 35%, transparent);
+  background-color: var(--hf-active-soft);
+}
+
+.delivery-routes-driver .delivery-routes-mission-position {
+  background-color: var(--hf-active);
+  color: var(--hf-on-action);
+}

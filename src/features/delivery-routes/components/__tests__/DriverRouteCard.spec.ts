@@ -32,7 +32,6 @@ import { mount, flushPromises } from '@vue/test-utils'
 import UApp from '@nuxt/ui/runtime/components/App.vue'
 import DriverRouteCard from '../DriverRouteCard.vue'
 import type { DeliveryRouteResponseDto } from '../../interfaces/delivery-route.types'
-import { buildStopProgress } from '../../utils/delivery-route-actions.utils'
 
 // ─── Stubs ──────────────────────────────────────────────────────────────────
 const UButtonStub = defineComponent({
@@ -121,18 +120,11 @@ describe('DriverRouteCard — rendering (design §4.2, REQ-DRC-001)', () => {
     expect(wrapper.text()).toContain('route-ab')
   })
 
-  it('renders the driver name verbatim from the route projection', async () => {
+  it('does not repeat the driver name: the list is already scoped to the driver', async () => {
     const route = makeRoute({ driver: { id: 'd1', name: 'Ana Repartidor', email: 'a@x' } })
     const wrapper = mountCard({ route })
     await flushPromises()
-    expect(wrapper.text()).toContain('Ana Repartidor')
-  })
-
-  it('renders an em-dash fallback when the route has no driver projection', async () => {
-    const route = makeRoute({ driver: null })
-    const wrapper = mountCard({ route })
-    await flushPromises()
-    expect(wrapper.text()).toContain('—')
+    expect(wrapper.text()).not.toContain('Ana Repartidor')
   })
 
   it('renders the status badge with the correct tone + Spanish label', async () => {
@@ -145,16 +137,42 @@ describe('DriverRouteCard — rendering (design §4.2, REQ-DRC-001)', () => {
     expect(badge.attributes('data-label')).toBe('Activa')
   })
 
-  it('renders the stop progress as "x/y" when the route has stops', async () => {
-    const route = makeRoute({
-      stops: [makeStop(0, { status: 'COMPLETED' }), makeStop(1, { status: 'PENDING' })],
-    })
+  it('renders the mission: title, progress bar, target stop, notes and call to action', async () => {
+    const route = {
+      ...makeRoute({
+        stops: [makeStop(0, { status: 'COMPLETED' }), makeStop(1, { status: 'SKIPPED' }), makeStop(2, { status: 'PENDING' })],
+      }),
+      notes: 'Llevar cambio',
+      timeline: [{ type: 'ROUTE_CREATED' as const, at: '2026-10-14T08:00:00', actor: null }],
+    }
     const wrapper = mountCard({ route })
     await flushPromises()
-    // The util `buildStopProgress` is the single source of truth — pin its
-    // exact output here so the card never drifts from the manager surface.
-    expect(wrapper.text()).toContain(buildStopProgress(route.stops))
-    expect(wrapper.text()).toContain('1/2')
+    expect(wrapper.find('[data-testid="driver-route-card-title"]').text()).toBe('Ruta del 14 oct')
+    const bar = wrapper.find('[data-testid="driver-route-card-progress"]')
+    expect(bar.attributes('role')).toBe('progressbar')
+    expect(bar.attributes('aria-valuenow')).toBe('1')
+    expect(bar.attributes('aria-valuemax')).toBe('3')
+    expect(wrapper.find('[data-testid="driver-route-card-progress-fill"]').attributes('style')).toContain('width: 33%')
+    expect(wrapper.text()).toContain('1 de 3 entregadas')
+    expect(wrapper.text()).toContain('1 omitida')
+    const target = wrapper.find('[data-testid="driver-route-card-target"]')
+    expect(target.text()).toContain('Siguiente parada')
+    expect(target.text()).toContain('#3')
+    expect(target.text()).toContain('Cliente 3')
+    expect(target.text()).toContain('F-3')
+    expect(wrapper.find('[data-testid="driver-route-card-notes"]').text()).toContain('Llevar cambio')
+    const cta = wrapper.find('[data-testid="driver-route-card-cta"]')
+    expect(cta.text()).toContain('Continuar ruta')
+    expect(cta.classes()).toContain('hf-primary-control')
+  })
+
+  it('shows "Todas las paradas atendidas" and "Ver ruta" once every stop is attended', async () => {
+    const route = makeRoute({ stops: [makeStop(0, { status: 'COMPLETED' })] })
+    const wrapper = mountCard({ route })
+    await flushPromises()
+    expect(wrapper.find('[data-testid="driver-route-card-target"]').exists()).toBe(false)
+    expect(wrapper.text()).toContain('Todas las paradas atendidas')
+    expect(wrapper.find('[data-testid="driver-route-card-cta"]').text()).toContain('Ver ruta')
   })
 
   it('renders "Sin paradas" when the route has no stops', async () => {

@@ -49,6 +49,7 @@ import DeliveryRouteUpsertSlideover from '../components/DeliveryRouteUpsertSlide
 import DeliveryRouteCardGrid from '../components/DeliveryRouteCardGrid.vue'
 import DriverRouteCard from '../components/DriverRouteCard.vue'
 import { DELIVERY_ROUTE_COPY } from '../copy'
+import { summarizeDriverRoutes } from '../utils/delivery-route-driver.utils'
 import { extractSaleConflictIds } from '../interfaces/errors'
 import {
   buildDeliveryRouteListActions,
@@ -136,6 +137,11 @@ const {
   error: driverError,
   refetch: driverRefetch,
 } = useDriverActiveRoutes()
+
+// Workload line under the driver header ("2 rutas · 7 paradas pendientes").
+const driverSummary = computed(() =>
+  driverRoutes.value && driverRoutes.value.length > 0 ? summarizeDriverRoutes(driverRoutes.value) : null,
+)
 
 // Human-readable driver list error (block, not toast — design §11, REQ-DRM-014).
 const driverErrorMessage = computed(() =>
@@ -332,6 +338,13 @@ function routeEndedAt(route: DeliveryRouteResponseDto): string | null {
   >
     <header class="flex flex-col gap-1">
       <h1 class="text-xl font-semibold">{{ DELIVERY_ROUTE_COPY.list.driverHeader }}</h1>
+      <p
+        v-if="driverSummary"
+        class="text-sm text-muted"
+        data-testid="driver-list-summary"
+      >
+        {{ driverSummary }}
+      </p>
     </header>
 
     <!-- Loading skeleton (design §11). -->
@@ -374,10 +387,10 @@ function routeEndedAt(route: DeliveryRouteResponseDto): string | null {
     <!-- Active routes list — mobile-first, one card per row (cols widen on md+). -->
     <ul
       v-else
-      class="grid grid-cols-1 gap-3 sm:grid-cols-2"
+      class="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3"
       data-testid="driver-list-cards"
     >
-      <li v-for="route in driverRoutes" :key="route.id">
+      <li v-for="route in driverRoutes" :key="route.id" class="flex">
         <DriverRouteCard :route="route" @select="onSelectRoute" />
       </li>
     </ul>

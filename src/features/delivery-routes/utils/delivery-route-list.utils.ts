@@ -63,16 +63,20 @@ function formatDayMonth(iso: string): string | null {
   return `${date.getDate()} ${MONTHS_SHORT[date.getMonth()]}`
 }
 
+/** "Ruta del 13 oct"; unknown creation date falls back to the short id. */
+export function buildRouteTitle(route: DeliveryRouteResponseDto): string {
+  const createdAt = getRouteCreatedAt(route)
+  const day = createdAt ? formatDayMonth(createdAt) : null
+  return day ? `Ruta del ${day}` : `Ruta ${shortRouteId(route.id)}`
+}
+
 /**
  * Human identifier derived in the front (the backend has no folio):
  * "Ruta del 13 oct · Juan Pérez". Unknown creation date falls back to the
  * short id; an unassigned route reads "Sin repartidor".
  */
 export function buildRouteDisplayName(route: DeliveryRouteResponseDto): string {
-  const createdAt = getRouteCreatedAt(route)
-  const day = createdAt ? formatDayMonth(createdAt) : null
-  const prefix = day ? `Ruta del ${day}` : `Ruta ${shortRouteId(route.id)}`
-  return `${prefix} · ${route.driver?.name ?? 'Sin repartidor'}`
+  return `${buildRouteTitle(route)} · ${route.driver?.name ?? 'Sin repartidor'}`
 }
 
 /** Unique customer names in stop order; stops without customer are skipped. */
