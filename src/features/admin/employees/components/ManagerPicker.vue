@@ -23,6 +23,7 @@
 import { watch } from 'vue'
 import { useManagerPicker } from '../composables/useManagerPicker'
 import type { ManagerPickerOption } from '../composables/useManagerPicker'
+import '../styles/employees-visual.css'
 
 // ─── Props & emits ────────────────────────────────────────────────────────────
 
@@ -90,6 +91,7 @@ watch(
     :search-input="{ placeholder: 'Buscar...' }"
     ignore-filter
     class="w-full"
+    :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
     @update:model-value="onUpdate"
     @update:search-term="search = $event"
     @update:open="isOpen = $event"

@@ -35,6 +35,7 @@ import { useCreateEmployeeForm, formStateToDto } from '../composables/useCreateE
 import { useCreateEmployee } from '../composables/useCreateEmployee'
 import { useManagerPicker } from '../composables/useManagerPicker'
 import DateFieldPopover from '@/features/POS/sales/components/DateFieldPopover.vue'
+import '../styles/employees-visual.css'
 
 // ─── Props & emits ─────────────────────────────────────────────────────────────
 
@@ -117,6 +118,7 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
     description="Completa los datos para registrar al colaborador en el sistema"
     side="right"
     inset
+    :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
     @after-leave="resetForm"
   >
     <template #body>
@@ -199,6 +201,7 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
           <div class="flex flex-col gap-4">
             <UFormField label="Fecha de ingreso" name="hireDate" required>
               <DateFieldPopover
+                portal-class="hf-theme hf-ui hf-form-overlay employees-form-portal"
                 v-model="state.hireDate"
                 placeholder="Elegir fecha de ingreso"
                 :min-iso="null"
@@ -217,6 +220,7 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
                   class="w-full"
                   size="lg"
                   :disabled="isPending"
+                  :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
                 />
               </UFormField>
 
@@ -230,6 +234,7 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
                   class="w-full"
                   size="lg"
                   :disabled="isPending"
+                  :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
                 />
               </UFormField>
             </div>
@@ -268,6 +273,7 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
             <UFormField label="Jefe directo" name="managerId">
               <USelectMenu
                 v-model="state.managerId"
+                :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
                 v-model:open="isManagerPickerOpen"
                 v-model:search-term="managerSearchTerm"
                 :items="managerOptions"

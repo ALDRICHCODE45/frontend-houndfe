@@ -72,3 +72,43 @@ describe('Employees listing presentation adapter', () => {
     }
   })
 })
+
+// ── Dialogs and slideovers launched from the listing (S3) ───────────────────
+const formPortal = 'hf-theme hf-ui hf-form-overlay employees-form-portal'
+const formOwners = {
+  terminate: read('components/TerminateEmployeeDialog.vue'),
+  reactivate: read('components/ReactivateEmployeeDialog.vue'),
+  batchTerminate: read('components/BatchTerminateModal.vue'),
+  create: read('components/CreateEmployeeSlideover.vue'),
+  edit: read('components/EmployeeEditSlideover.vue'),
+  managerPicker: read('components/ManagerPicker.vue'),
+}
+
+describe('Employees dialogs and slideovers presentation adapter', () => {
+  it('themes every dialog and slideover content and loads the adapter wherever it is mounted', () => {
+    for (const [name, source] of Object.entries(formOwners)) {
+      expect(source, name).toContain("import '../styles/employees-visual.css'")
+      expect(source, name).toContain(`:ui="{ content: '${formPortal}' }"`)
+    }
+  })
+
+  it('themes the nested selects of the create and edit forms', () => {
+    const count = (source: string) => source.match(new RegExp(`:ui="\\{ content: '${formPortal}' \\}"`, 'g'))?.length ?? 0
+    // slideover + 2 selects + manager select menu
+    expect(count(formOwners.create)).toBe(4)
+    // slideover + 3 selects + manager select menu
+    expect(count(formOwners.edit)).toBe(5)
+  })
+
+  it('themes the date popovers of the create and edit forms', () => {
+    for (const [name, source] of [['create', formOwners.create], ['edit', formOwners.edit]] as const) {
+      const popovers = source.match(/<DateFieldPopover\b/g)?.length ?? 0
+      expect(popovers, name).toBeGreaterThan(0)
+      expect(source.split(`portal-class="${formPortal}"`).length - 1, name).toBe(popovers)
+    }
+  })
+
+  it('themes the bulk confirmation dialogs of the listing', () => {
+    expect(view.match(new RegExp(`:ui="\\{ content: '${formPortal}' \\}"`, 'g'))?.length).toBe(2)
+  })
+})

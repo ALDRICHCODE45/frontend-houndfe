@@ -26,6 +26,7 @@
 import { computed, reactive } from 'vue'
 import { BatchTerminateDtoSchema } from '../interfaces/employee.types'
 import { employeeStatusConfig } from '../utils/employeeBadgeConfig.utils'
+import '../styles/employees-visual.css'
 
 // ─── Props & emits ─────────────────────────────────────────────────────────────
 
@@ -95,6 +96,7 @@ function statusLabel(status: string): string {
     :dismissible="!props.loading"
     :close="!props.loading"
     data-testid="batch-terminate-modal"
+    :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
     @update:open="(value: boolean) => emit('update:open', value)"
   >
     <template #body>

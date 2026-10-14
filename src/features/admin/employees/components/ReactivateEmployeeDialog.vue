@@ -17,6 +17,7 @@
 
 import type { Employee } from '../interfaces/employee.types'
 import { useReactivateEmployee } from '../composables/useReactivateEmployee'
+import '../styles/employees-visual.css'
 
 // ─── Props & emits ─────────────────────────────────────────────────────────────
 
@@ -60,6 +61,7 @@ async function handleConfirm(): Promise<void> {
     title="Reactivar colaborador"
     :dismissible="!isPending"
     :close="!isPending"
+    :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
   >
     <template #body>
       <p class="text-sm text-muted">

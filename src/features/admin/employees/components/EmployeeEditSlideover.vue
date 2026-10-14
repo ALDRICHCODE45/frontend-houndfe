@@ -35,6 +35,7 @@ import { useManagerPicker, type ManagerPickerOption } from '../composables/useMa
 import { useManagerResolution } from '../composables/useManagerResolution'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import DateFieldPopover from '@/features/POS/sales/components/DateFieldPopover.vue'
+import '../styles/employees-visual.css'
 
 // ─── Props & emits ─────────────────────────────────────────────────────────────
 
@@ -175,6 +176,7 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
     description="Actualiza la información personal, domicilio y datos laborales visibles en el perfil."
     side="right"
     inset
+    :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
     @after-leave="resetForm"
   >
     <template #body>
@@ -266,6 +268,7 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
           <div class="flex flex-col gap-4">
             <UFormField label="Fecha de nacimiento" name="dateOfBirth">
               <DateFieldPopover
+                portal-class="hf-theme hf-ui hf-form-overlay employees-form-portal"
                 v-model="state.dateOfBirth"
                 placeholder="Elegir fecha de nacimiento"
                 :min-iso="null"
@@ -284,6 +287,7 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
                   class="w-full"
                   size="lg"
                   :disabled="isPending"
+                  :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
                 />
               </UFormField>
 
@@ -408,6 +412,7 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
                   class="w-full"
                   size="lg"
                   :disabled="isPending"
+                  :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
                 />
               </UFormField>
 
@@ -421,6 +426,7 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
                   class="w-full"
                   size="lg"
                   :disabled="isPending"
+                  :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
                 />
               </UFormField>
             </div>
@@ -480,6 +486,7 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
             <UFormField label="Jefe directo" name="managerId">
               <USelectMenu
                 v-model="state.managerId"
+                :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
                 v-model:open="isManagerPickerOpen"
                 v-model:search-term="managerSearchTerm"
                 :items="managerOptions"

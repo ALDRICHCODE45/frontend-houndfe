@@ -573,6 +573,7 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
   />
 
   <ConfirmModal
+    :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
     v-if="canBatchDelete"
     v-model:open="isBatchDeleteOpen"
     title="Eliminar colaboradores"
@@ -593,6 +594,7 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
   />
 
   <ConfirmModal
+    :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
     v-if="canBatchReactivate"
     v-model:open="isBatchReactivateOpen"
     title="Reactivar colaboradores"

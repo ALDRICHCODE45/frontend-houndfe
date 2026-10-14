@@ -21,6 +21,7 @@ import DateFieldPopover from '@/features/POS/sales/components/DateFieldPopover.v
 import { TerminateEmployeeDtoSchema } from '../interfaces/employee.types'
 import type { Employee } from '../interfaces/employee.types'
 import { useTerminateEmployee } from '../composables/useTerminateEmployee'
+import '../styles/employees-visual.css'
 
 // ─── Props & emits ─────────────────────────────────────────────────────────────
 
@@ -89,6 +90,7 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
     title="Dar de baja al colaborador"
     :dismissible="!isPending"
     :close="!isPending"
+    :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
     @after-leave="resetForm"
   >
     <template #body>
