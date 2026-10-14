@@ -128,7 +128,7 @@ async function onSelectAll() {
       </button>
       <button
         type="button"
-        class="flex cursor-pointer items-center gap-1 text-xs text-coco-gold-700 hover:underline disabled:opacity-60"
+        class="promotions-link flex cursor-pointer items-center gap-1 text-xs hover:underline disabled:opacity-60"
         :data-testid="`select-all-${productId}`"
         :disabled="isSelectingAll"
         @click="onSelectAll"
@@ -136,7 +136,7 @@ async function onSelectAll() {
         <span
           v-if="isSelectingAll"
           data-testid="select-all-spinner"
-          class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-coco-gold-500 border-t-transparent"
+          class="promotions-spinner inline-block h-3 w-3 animate-spin rounded-full border-2"
         />
         Seleccionar todas
       </button>

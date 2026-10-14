@@ -141,7 +141,7 @@ defineExpose({ onConfirm, onCancel, staged })
     :open="open"
     :title="`Seleccionar ${type === PROMOTION_TARGET_TYPE.CATEGORIES ? 'categorías' : type === PROMOTION_TARGET_TYPE.BRANDS ? 'marcas' : type === PROMOTION_TARGET_TYPE.PRODUCTS ? 'productos' : 'variantes'}`"
     description="Modal de selección de targets para promociones"
-    :ui="{ width: 'max-w-2xl' }"
+    :ui="{ width: 'max-w-2xl', content: 'hf-theme hf-ui hf-form-overlay promotions-form-portal' }"
     @update:open="(v: boolean) => emit('update:open', v)"
   >
     <template #body>
@@ -174,7 +174,7 @@ defineExpose({ onConfirm, onCancel, staged })
         </UButton>
         <UButton
           color="primary"
-          class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+          class="hf-primary-control"
           data-testid="confirm-add-selected"
           @click="onConfirm"
         >

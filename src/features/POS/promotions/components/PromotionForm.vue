@@ -199,12 +199,12 @@ const overlappingTargets = computed(() =>
         @submit="onSubmit"
       >
         <!-- ── Card 1: Promoción (shared) ──────────────────────────────── -->
-        <UCard>
+        <UCard class="promotions-form-section">
           <template #header>
             <div class="flex items-center gap-3">
               <div
                 data-testid="type-badge"
-                class="flex items-center gap-1.5 rounded-full bg-coco-gold-500/15 px-3 py-1 text-sm font-medium text-coco-gold-700"
+                class="promotions-type-badge flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-medium"
               >
                 <UIcon :name="typeConfig.icon" class="h-4 w-4" />
                 {{ typeConfig.label }}
@@ -267,12 +267,8 @@ const overlappingTargets = computed(() =>
                   :key="m"
                   type="button"
                   :data-testid="`method-card-${m}`"
-                  class="flex cursor-pointer flex-col gap-1 rounded-xl border p-4 text-left transition-all duration-200"
-                  :class="
-                    formState.method === m
-                      ? 'border-coco-gold-500 bg-coco-gold-500/15 ring-1 ring-coco-gold-500/35'
-                      : 'border-default bg-elevated/20 hover:border-coco-gold-500/40 hover:bg-elevated/60'
-                  "
+                  class="promotions-choice flex cursor-pointer flex-col gap-1 rounded-xl border p-4 text-left transition-colors duration-200"
+                  :class="formState.method === m ? 'promotions-choice-selected' : 'border-default'"
                   @click="selectMethod(m)"
                 >
                   <div class="flex items-center gap-2">
@@ -312,6 +308,7 @@ const overlappingTargets = computed(() =>
         <!-- ── Card 2: PRODUCT_DISCOUNT ───────────────────────────────── -->
         <UCard
           v-if="type === PROMOTION_TYPE.PRODUCT_DISCOUNT"
+          class="promotions-form-section"
           data-testid="product-discount-section"
         >
           <template #header>
@@ -328,6 +325,7 @@ const overlappingTargets = computed(() =>
                   value-key="value"
                   label-key="label"
                   placeholder="Seleccionar..."
+                  :ui="{ content: 'hf-theme hf-ui hf-form-overlay promotions-form-portal' }"
                 />
               </UFormField>
               <UFormField label="Valor" name="discountValue" class="flex-1">
@@ -367,6 +365,7 @@ const overlappingTargets = computed(() =>
         <!-- ── Card 2: ORDER_DISCOUNT ─────────────────────────────────── -->
         <UCard
           v-else-if="type === PROMOTION_TYPE.ORDER_DISCOUNT"
+          class="promotions-form-section"
           data-testid="order-discount-section"
         >
           <template #header>
@@ -383,6 +382,7 @@ const overlappingTargets = computed(() =>
                   value-key="value"
                   label-key="label"
                   placeholder="Seleccionar..."
+                  :ui="{ content: 'hf-theme hf-ui hf-form-overlay promotions-form-portal' }"
                 />
               </UFormField>
               <UFormField label="Valor" name="discountValue" class="flex-1">
@@ -416,7 +416,11 @@ const overlappingTargets = computed(() =>
         </UCard>
 
         <!-- ── Card 2: BUY_X_GET_Y ───────────────────────────────────── -->
-        <UCard v-else-if="type === PROMOTION_TYPE.BUY_X_GET_Y" data-testid="buy-x-get-y-section">
+        <UCard
+          v-else-if="type === PROMOTION_TYPE.BUY_X_GET_Y"
+          class="promotions-form-section"
+          data-testid="buy-x-get-y-section"
+        >
           <template #header>
             <h3 class="font-semibold text-highlighted">Tipo de Promoción</h3>
           </template>
@@ -431,7 +435,7 @@ const overlappingTargets = computed(() =>
                   :key="preset.label"
                   type="button"
                   :data-testid="`preset-${preset.label.replace(/\s+/g, '').toLowerCase()}`"
-                  class="cursor-pointer rounded-lg border border-default px-3 py-1.5 text-sm text-highlighted transition-colors duration-200 hover:border-coco-gold-500/40 hover:bg-coco-gold-500/10"
+                  class="promotions-preset cursor-pointer rounded-lg border border-default px-3 py-1.5 text-sm text-highlighted transition-colors duration-200"
                   @click="applyPreset(preset)"
                 >
                   {{ preset.label }}
@@ -455,6 +459,7 @@ const overlappingTargets = computed(() =>
                   label-key="label"
                   size="lg"
                   class="w-full"
+                  :ui="{ content: 'hf-theme hf-ui hf-form-overlay promotions-form-portal' }"
                   @update:model-value="formState.getDiscountPercent = Number($event)"
                 />
               </UFormField>
@@ -476,7 +481,11 @@ const overlappingTargets = computed(() =>
         </UCard>
 
         <!-- ── Card 2: ADVANCED ───────────────────────────────────────── -->
-        <UCard v-else-if="type === PROMOTION_TYPE.ADVANCED" data-testid="advanced-section">
+        <UCard
+          v-else-if="type === PROMOTION_TYPE.ADVANCED"
+          class="promotions-form-section"
+          data-testid="advanced-section"
+        >
           <template #header>
             <h3 class="font-semibold text-highlighted">Condiciones</h3>
           </template>
@@ -519,6 +528,7 @@ const overlappingTargets = computed(() =>
                     label-key="label"
                     size="lg"
                     class="w-full"
+                    :ui="{ content: 'hf-theme hf-ui hf-form-overlay promotions-form-portal' }"
                     @update:model-value="formState.getDiscountPercent = Number($event)"
                   />
                 </UFormField>
@@ -574,7 +584,7 @@ const overlappingTargets = computed(() =>
             type="submit"
             :loading="loading"
             color="primary"
-            class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+            class="hf-primary-control"
             data-testid="submit-btn"
           >
             {{ mode === 'create' ? 'Crear Promoción' : 'Guardar Cambios' }}

@@ -146,7 +146,7 @@ defineExpose({ updateField })
 <template>
   <div class="flex flex-col gap-4">
     <!-- ── Card 1: Vigencia ──────────────────────────────────────────────── -->
-    <UCard data-testid="vigencia-section">
+    <UCard class="promotions-form-section" data-testid="vigencia-section">
       <template #header>
         <h3 class="font-semibold text-highlighted">Vigencia</h3>
       </template>
@@ -160,7 +160,7 @@ defineExpose({ updateField })
 
         <div v-if="modelValue.hasVigencia" class="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <UFormField label="Fecha de inicio" name="startDate">
-            <UPopover>
+            <UPopover :ui="{ content: 'hf-theme hf-ui hf-form-overlay promotions-form-portal' }">
               <UButton
                 :label="formattedStartDate || 'Seleccionar fecha'"
                 icon="i-lucide-calendar"
@@ -176,7 +176,7 @@ defineExpose({ updateField })
           </UFormField>
 
           <UFormField label="Fecha de fin" name="endDate">
-            <UPopover>
+            <UPopover :ui="{ content: 'hf-theme hf-ui hf-form-overlay promotions-form-portal' }">
               <UButton
                 :label="formattedEndDate || 'Seleccionar fecha'"
                 icon="i-lucide-calendar"
@@ -195,7 +195,7 @@ defineExpose({ updateField })
     </UCard>
 
     <!-- ── Card 2: Condiciones adicionales ──────────────────────────────── -->
-    <UCard data-testid="conditions-section">
+    <UCard class="promotions-form-section" data-testid="conditions-section">
       <template #header>
         <h3 class="font-semibold text-highlighted">Condiciones Adicionales</h3>
       </template>
@@ -235,6 +235,7 @@ defineExpose({ updateField })
                 placeholder="Buscar clientes..."
                 searchable
                 searchable-placeholder="Escribí para buscar..."
+                :ui="{ content: 'hf-theme hf-ui hf-form-overlay promotions-form-portal' }"
               />
             </div>
           </div>
@@ -262,6 +263,7 @@ defineExpose({ updateField })
               placeholder="Seleccionar listas de precio"
               searchable
               searchable-placeholder="Buscar..."
+              :ui="{ content: 'hf-theme hf-ui hf-form-overlay promotions-form-portal' }"
             />
             <p v-else class="text-sm text-muted">Cargando listas de precio...</p>
           </div>

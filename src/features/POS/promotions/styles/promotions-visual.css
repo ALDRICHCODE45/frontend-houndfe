@@ -1,11 +1,11 @@
 @import '../../../../core/shared/design-system/houndfe-ui.css';
 
-/* Promotions listing, its teleported menus/selects and the listing dialogs
- * (type selector and confirmations). The creation/detail form stays outside
- * this boundary. Repeat the approved shell palette on owned portals, which
+/* Promotions listing, the route-switched creation/edit workspace, and their
+ * teleported menus, selects, popovers and dialogs. Repeat the approved shell palette on owned portals, which
  * cannot inherit shell variables after teleport. This local bridge does not
  * change the shared shell or other modules' contracts. */
 .hf-theme.promotions-visual,
+.hf-theme.promotions-workspace,
 .hf-theme.promotions-list-portal,
 .hf-theme.promotions-form-portal {
   --hf-page: #f3f6fa;
@@ -30,6 +30,7 @@
 }
 
 .dark .hf-theme.promotions-visual,
+.dark .hf-theme.promotions-workspace,
 .dark .hf-theme.promotions-list-portal,
 .dark .hf-theme.promotions-form-portal {
   --hf-page: #101720;
@@ -194,4 +195,85 @@
   font-size: 1.125rem;
   font-weight: 600;
   color: var(--hf-heading);
+}
+
+/* ── Creation / edit workspace ───────────────────────────────────────────── */
+
+/* `PromotionDetailView` serves both create and edit routes. Its existing
+ * sticky header, bounded column, section order and summary rail are kept; only
+ * semantic roles change. */
+.promotions-workspace .promotions-workspace-header {
+  background-color: var(--hf-surface);
+  border-color: var(--hf-border);
+}
+
+.promotions-workspace .promotions-workspace-title {
+  color: var(--hf-heading);
+}
+
+.promotions-workspace :where(button, a):focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+/* The global UCard theme (vite.config.ts) paints literal white /
+ * coco-neutral-900 roots that no semantic alias reaches, so each section card
+ * carries an owned hook onto the surface and border roles. */
+.promotions-workspace .promotions-form-section {
+  background-color: var(--hf-surface);
+  border-radius: var(--hf-radius-card);
+  box-shadow: 0 0 0 1px var(--hf-border);
+  color: var(--hf-ink);
+}
+
+/* Gold stays a restrained identity accent on the type badge and summary icon,
+ * using the paired soft/ink roles that remain readable in both modes. */
+.promotions-workspace .promotions-type-badge,
+.promotions-workspace .promotions-accent-icon {
+  background-color: var(--hf-gold-soft);
+  color: var(--hf-gold-ink);
+}
+
+/* Method cards, BUY_X_GET_Y presets and the target-type segments are
+ * selections, so they use the action/active roles instead of gold. */
+.promotions-workspace .promotions-choice {
+  border-color: var(--hf-border);
+  background-color: var(--hf-surface);
+}
+
+.promotions-workspace .promotions-choice:hover,
+.promotions-workspace .promotions-preset:hover {
+  border-color: var(--hf-action);
+  background-color: var(--hf-active-soft);
+}
+
+.promotions-workspace .promotions-choice-selected {
+  border-color: var(--hf-active);
+  background-color: var(--hf-active-soft);
+  box-shadow: 0 0 0 1px var(--hf-active);
+}
+
+.promotions-workspace .promotions-segment[aria-checked='true'] {
+  background-color: var(--hf-active-soft);
+  color: var(--hf-heading);
+  box-shadow: 0 0 0 1px var(--hf-active);
+}
+
+.promotions-workspace .promotions-segment:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+.promotions-workspace .promotions-summary-check {
+  color: var(--hf-action);
+}
+
+/* Teleported target-selection modal content. */
+.promotions-form-portal .promotions-link {
+  color: var(--hf-action);
+}
+
+.promotions-form-portal .promotions-spinner {
+  border-color: var(--hf-action);
+  border-top-color: transparent;
 }

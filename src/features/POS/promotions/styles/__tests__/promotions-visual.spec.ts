@@ -99,3 +99,80 @@ describe('Promotions listing presentation adapter', () => {
     expect(css).toContain('.promotions-visual .promotions-empty-title')
   })
 })
+
+// ── Creation / edit workspace (route-switched PromotionDetailView) ──────────
+const dir = 'src/features/POS/promotions'
+const read = (p: string) => readFileSync(`${dir}/${p}`, 'utf8')
+const detail = read('views/PromotionDetailView.vue')
+const form = read('components/PromotionForm.vue')
+const conditions = read('components/PromotionConditionsSection.vue')
+const targets = read('components/PromotionTargetItemsSection.vue')
+const summary = read('components/PromotionSummaryCard.vue')
+const targetModal = read('components/PromotionTargetSelection/PromotionTargetSelectionModal.vue')
+const variantRow = read('components/PromotionTargetSelection/VariantAccordionRow.vue')
+const workspaceSources = [detail, form, conditions, targets, summary, targetModal, variantRow]
+
+describe('Promotions creation/edit workspace adapter', () => {
+  it('opts the shared create/edit view into the promotions boundary without a new layout', () => {
+    expect(detail).toContain("import '../styles/promotions-visual.css'")
+    expect(detail).toContain('hf-theme hf-ui promotions-workspace')
+    expect(detail).toContain('promotions-workspace-header')
+    expect(detail).toContain('promotions-workspace-title')
+    expect(detail).toContain('max-w-6xl')
+    expect(css).toContain('.hf-theme.promotions-workspace')
+    expect(css).toContain('.dark .hf-theme.promotions-workspace')
+    expect(css).toContain('.promotions-workspace .promotions-workspace-header')
+  })
+
+  it('removes decorative gold and forced legacy paint from every workspace surface', () => {
+    for (const source of workspaceSources) {
+      expect(source).not.toContain('coco-gold')
+      expect(source).not.toContain('!bg-(--brand-action)')
+      expect(source).not.toContain('!text-black')
+    }
+  })
+
+  it('pairs primary actions with the shared action foreground', () => {
+    expect(form).toContain('data-testid="submit-btn"')
+    expect(form.match(/hf-primary-control/g)?.length).toBe(1)
+    expect(targets).toContain('hf-primary-control')
+    expect(targetModal).toContain('hf-primary-control')
+  })
+
+  it('marks selection with action/active roles and keeps gold as a restrained accent', () => {
+    expect(form).toContain('promotions-choice-selected')
+    expect(form).toContain('promotions-choice')
+    expect(form).toContain('promotions-preset')
+    expect(form).toContain('promotions-type-badge')
+    expect(summary).toContain('promotions-accent-icon')
+    expect(targets).toContain('promotions-segment')
+    expect(variantRow).toContain('promotions-link')
+    expect(css).toContain('.promotions-workspace .promotions-choice-selected')
+    expect(css).toContain(".promotions-workspace .promotions-segment[aria-checked='true']")
+    expect(css).toContain('.promotions-workspace .promotions-segment:focus-visible')
+    expect(css).toContain('var(--hf-gold-soft)')
+    expect(css).toContain('var(--hf-gold-ink)')
+  })
+
+  it('repaints every section card over the global literal UCard theme', () => {
+    // vite.config.ts paints UCard roots with literal bg-white/dark:bg-coco-neutral-900,
+    // which no semantic alias reaches; each card needs the owned section hook.
+    for (const source of [form, conditions, summary]) {
+      const cards = source.match(/<UCard\b[^>]*>/g) ?? []
+      expect(cards.length).toBeGreaterThan(0)
+      for (const card of cards) expect(card).toContain('promotions-form-section')
+    }
+    expect(css).toContain('.promotions-workspace .promotions-form-section')
+    expect(css).toMatch(
+      /\.promotions-workspace \.promotions-form-section \{[^}]*background-color: var\(--hf-surface\)/,
+    )
+  })
+
+  it('themes every teleported form surface with the owned form portal marker', () => {
+    const portal = "content: 'hf-theme hf-ui hf-form-overlay promotions-form-portal'"
+    expect(form.split(portal).length - 1).toBe(4)
+    expect(conditions.split(portal).length - 1).toBe(4)
+    expect(targetModal).toContain(portal)
+    expect(targetModal).toContain("width: 'max-w-2xl'")
+  })
+})

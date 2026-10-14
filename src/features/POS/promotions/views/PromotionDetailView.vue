@@ -8,6 +8,7 @@ import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { promotionApi } from '../api/promotion.api'
 import PromotionForm from '../components/PromotionForm.vue'
+import '../styles/promotions-visual.css'
 import type { PromotionFormState, PromotionType } from '../interfaces/promotion.types'
 import {
   toCreatePayload,
@@ -207,9 +208,13 @@ const formType = computed<PromotionType>(() => {
 </script>
 
 <template>
-  <div class="-m-4 flex h-[calc(100%+2rem)] flex-col sm:-m-6 sm:h-[calc(100%+3rem)]">
+  <div
+    class="hf-theme hf-ui promotions-workspace -m-4 flex h-[calc(100%+2rem)] flex-col sm:-m-6 sm:h-[calc(100%+3rem)]"
+  >
     <!-- ── Header bar ────────────────────────────────────────────────────────── -->
-    <div class="shrink-0 border-b border-default bg-default px-10 py-4">
+    <div
+      class="promotions-workspace-header shrink-0 border-b border-default bg-default px-10 py-4"
+    >
       <div class="mx-auto flex w-full max-w-6xl items-center justify-between">
         <!-- Back + title -->
         <div class="flex items-center gap-3">
@@ -220,7 +225,7 @@ const formType = computed<PromotionType>(() => {
             class="cursor-pointer"
             @click="handleCancel"
           />
-          <h1 class="text-lg font-semibold">
+          <h1 class="promotions-workspace-title text-lg font-semibold">
             {{ isCreateMode ? 'Crear Promoción' : 'Editar Promoción' }}
           </h1>
         </div>

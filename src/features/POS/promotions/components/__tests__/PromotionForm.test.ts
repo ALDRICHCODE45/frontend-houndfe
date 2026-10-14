@@ -226,8 +226,8 @@ describe('PromotionForm', () => {
   it('S18: AUTOMATIC method card is selected by default (initial state)', () => {
     const wrapper = mountForm('PRODUCT_DISCOUNT')
     const automaticCard = wrapper.find('[data-testid="method-card-AUTOMATIC"]')
-    // Selected card has Coco gold border class (from PromotionForm.vue class binding)
-    expect(automaticCard.classes()).toContain('border-coco-gold-500')
+    // Selected card carries the owned selection hook (from PromotionForm.vue class binding)
+    expect(automaticCard.classes()).toContain('promotions-choice-selected')
   })
 
   it('S18: AUTOMATIC method card loses selected style when MANUAL is clicked', async () => {
@@ -236,7 +236,7 @@ describe('PromotionForm', () => {
     await wrapper.vm.$nextTick()
     // AUTOMATIC card no longer selected
     expect(wrapper.find('[data-testid="method-card-AUTOMATIC"]').classes()).not.toContain(
-      'border-coco-gold-500',
+      'promotions-choice-selected',
     )
   })
 
@@ -244,11 +244,11 @@ describe('PromotionForm', () => {
     const wrapper = mountForm('PRODUCT_DISCOUNT')
     const manualCard = wrapper.find('[data-testid="method-card-MANUAL"]')
     // Not selected initially
-    expect(manualCard.classes()).not.toContain('border-coco-gold-500')
+    expect(manualCard.classes()).not.toContain('promotions-choice-selected')
     await manualCard.trigger('click')
     await wrapper.vm.$nextTick()
     // Now selected
-    expect(manualCard.classes()).toContain('border-coco-gold-500')
+    expect(manualCard.classes()).toContain('promotions-choice-selected')
   })
 
   it('S19: clicking MANUAL then AUTOMATIC restores AUTOMATIC as selected', async () => {
@@ -258,10 +258,10 @@ describe('PromotionForm', () => {
     await wrapper.find('[data-testid="method-card-AUTOMATIC"]').trigger('click')
     await wrapper.vm.$nextTick()
     expect(wrapper.find('[data-testid="method-card-AUTOMATIC"]').classes()).toContain(
-      'border-coco-gold-500',
+      'promotions-choice-selected',
     )
     expect(wrapper.find('[data-testid="method-card-MANUAL"]').classes()).not.toContain(
-      'border-coco-gold-500',
+      'promotions-choice-selected',
     )
   })
 
