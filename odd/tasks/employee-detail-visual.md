@@ -15,7 +15,7 @@ S5. Literal palette badges (profile modality chip, active dot, document categori
 
 T1 | S2,S5 | inline: detail shell (boundary, 1320px, breadcrumb, tabs) + profile card (section, menu portal, modality/dot hooks), RED/GREEN | done | RED 4 contract -> GREEN employees 976/37 | commit: see L3
 T2 | S3-S5 | inline: panels' section hooks, portal markers and document badge hooks, RED/GREEN | done | RED 4 contract -> GREEN employees 980/37, build exit0 | commit: see L4
-T3 | S1-S5 | inline checks: module suite, build, lint, native assess; user visual smoke (all tabs, light/dark, modals) | pending | commit: —
+T3 | S1-S5 | inline checks: module suite, build, lint, native assess; user visual smoke (all tabs, light/dark, modals) | done | user approved visually ("Me parece perfecto hermano, me gusta"); employees 980/37, build exit0 | commit: see L6
 
 ## Log
 
@@ -24,3 +24,4 @@ L2. Inventory: EmployeeProfileCard (1 UCard, 1 UDropdownMenu, literal modality c
 L3. T1: EmployeeDetailView root hf-theme hf-ui employees-visual employees-detail mx-auto max-w-[1320px]; tab bar uses employees-detail-tabs/-tab hooks (active via aria-selected, no bg-white); EmployeeProfileCard section hook, avatar ring + active dot hooks, modality chips reuse employees-modality hooks, action menu form portal; CSS detail block. RED 4 contract -> GREEN employees 976/37. Lint: one pre-existing error at EmployeeDetailView.vue:63 ('initials' unused, present on HEAD) left out of scope; touched code otherwise clean.
 L4. T2: guarded script added employees-detail-section to all 19 panel UCards (Resumen 6, Personal 2, Laboral 2, Compensación 4, Organigrama 2, CV 1, Documentos 2) and owned portals to 17 panel teleports (form portal for modals/selects/date popovers/tooltip, list portal for the Ausencias year filter; Documentos modals merge content with their existing footer ui); document categories mapped to active/success/warning/neutral tones and the expiry chip to a warning hook. Also removed the unused 'initials' destructure in EmployeeDetailView (dead variable, flagged on the touched file). RED 4 contract -> GREEN employees 980/37; pnpm build exit 0. Lint: 4 pre-existing errors on HEAD in DocumentosPanel (UploadDocumentDtoSchema, uploadFormId unused) and PersonalPanel (props, getFullAddress unused) left out of scope.
 L5. Native assess d6530c23..f6ceba97: medium, reviewDue false (under_budget), no independent verifier. Pending: user visual smoke.
+L6. User verbatim: "Me parece perfecto hermano, me gusta. lo que sigue". Feature closed; fast-forward merged to main (push by the user). Next: expiring documents + pending approvals.
