@@ -504,11 +504,14 @@ describe('EmployeesListView — error message precedence (REQ-1)', () => {
 })
 
 describe('EmployeesListView — header / column visibility / displayMode (REQ-3, REQ-5, REQ-6)', () => {
-  it('renders AdminPageHeader with title "Colaboradores"', async () => {
+  it('renders the canonical page header "Colaboradores" outside the table surface', async () => {
     const wrapper = mount(getView().default)
     await flushPromises()
-    chaiExpect(wrapper.find('[data-testid="admin-page-header"]').exists()).toBe(true)
-    chaiExpect(wrapper.find('[data-testid="admin-page-header"]').attributes('data-title')).toBe('Colaboradores')
+    chaiExpect(wrapper.find('.hf-page-title').text()).toBe('Colaboradores')
+    chaiExpect(wrapper.find('.hf-page-subtitle').text()).toBe(
+      'Equipo, lifecycle, organigrama y documentos del personal',
+    )
+    chaiExpect(wrapper.find('.hf-table-surface .hf-page-title').exists()).toBe(false)
   })
 
   it('passes enable-column-visibility=true to AppDataTable', async () => {

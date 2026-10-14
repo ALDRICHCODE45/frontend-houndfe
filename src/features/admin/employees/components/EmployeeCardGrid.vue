@@ -21,7 +21,7 @@ import type { Employee } from '../interfaces/employee.types'
 // width, not the viewport, decides the column count. Duplicated by design
 // across the three pilot grids — no shared wrapper.
 const gridClasses =
-  'grid w-full min-w-0 max-w-full grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-3'
+  'employees-card-grid grid w-full min-w-0 max-w-full grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-3'
 
 const props = defineProps<{
   employees: Employee[]

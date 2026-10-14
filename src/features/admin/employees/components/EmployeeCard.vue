@@ -68,7 +68,7 @@ const rowActions = computed(() =>
 
 <template>
   <article
-    class="group relative flex min-h-[220px] w-full min-w-0 max-w-full cursor-pointer flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+    class="employees-card group relative flex min-h-[220px] w-full min-w-0 max-w-full cursor-pointer flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
     @click="emit('click', employee)"
   >
     <!-- Row action menu (top-right corner) -->
@@ -76,6 +76,7 @@ const rowActions = computed(() =>
       <UDropdownMenu
         :items="rowActions"
         :content="{ align: 'end' }"
+        :ui="{ content: 'hf-theme hf-ui employees-list-portal' }"
       >
         <UButton
           icon="i-lucide-ellipsis"

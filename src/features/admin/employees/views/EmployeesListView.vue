@@ -2,7 +2,7 @@
 /**
  * EmployeesListView — WU-05B (action menu + edit/terminate/reactivate dialogs)
  *                       + WU-A (useServerTable migration, error surfacing,
- *                              AdminPageHeader, column visibility, dead-UI cleanup)
+ *                              page header, column visibility, dead-UI cleanup)
  *
  * Orchestrator view for the Colaboradores list page.
  * Composition surface: wires useEmployeesList + useEmployeeColumns +
@@ -28,7 +28,7 @@
  * WU-A additions:
  * - Migrate to useServerTable (shared composable) via Approach C (closure refs)
  * - Surface isError/error → employeesErrorMessage → AppDataTable :error/:error-message
- * - AdminPageHeader replaces the inline `<h1>Colaboradores</h1>`
+ * - Canonical page header (hf-page-header) sits outside the table surface
  * - enable-column-visibility + 7 data columns marked enableHiding: true
  * - :display-mode bridge (card → cards) via useEmployeeViewMode.displayMode
  * - v-model:sorting/global-filter/column-pinning/column-visibility wired
@@ -79,7 +79,6 @@ import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
 import DotBadge from '@/core/shared/components/DotBadge.vue'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
-import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
 import CreateEmployeeSlideover from '../components/CreateEmployeeSlideover.vue'
 import EmployeeEditSlideover from '../components/EmployeeEditSlideover.vue'
 import TerminateEmployeeDialog from '../components/TerminateEmployeeDialog.vue'
@@ -89,6 +88,7 @@ import { useBatchDeleteEmployee } from '../composables/useBatchDeleteEmployee'
 import { useBatchTerminateEmployee } from '../composables/useBatchTerminateEmployee'
 import { useBatchReactivateEmployee } from '../composables/useBatchReactivateEmployee'
 import type { Employee } from '../interfaces/employee.types'
+import '../styles/employees-visual.css'
 
 const authStore = useAuthStore()
 const router = useRouter()
@@ -329,15 +329,15 @@ const { managerMap } = useManagerResolution(
   () => tenantId.value,
 )
 
-// ── Modality badge class — kept inline (out of scope for this migration) ─────
+// ── Modality badge hook — semantic roles live in employees-visual.css ────────
 function getModalityBadgeClass(modality: Employee['workModality']): string {
   switch (modality) {
     case WORK_MODALITY.REMOTE:
-      return 'border-blue-200 bg-blue-50 text-blue-700'
+      return 'employees-modality employees-modality--remote'
     case WORK_MODALITY.HYBRID:
-      return 'border-orange-200 bg-orange-50 text-orange-700'
+      return 'employees-modality employees-modality--hybrid'
     case WORK_MODALITY.ONSITE:
-      return 'border-slate-200 bg-slate-100 text-slate-700'
+      return 'employees-modality employees-modality--onsite'
   }
 }
 
@@ -369,24 +369,16 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
 </script>
 
 <template>
-  <div class="flex w-full min-w-0 flex-col gap-4 py-3 md:px-6 lg:px-8">
-    <UCard :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }" class="w-full min-w-0 max-w-full overflow-hidden shadow-sm">
-      <!-- WU-A: AdminPageHeader replaces the inline <h1> (REQ-3) -->
-      <template #header>
-        <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-          <AdminPageHeader
-            title="Colaboradores"
-            description="Equipo, lifecycle, organigrama y documentos del personal"
-          />
+  <div class="hf-theme hf-ui employees-visual flex w-full min-w-0 flex-col gap-6 py-3 md:px-6 lg:px-8">
+    <!-- Canonical table workspace (design-system §4): heading on the page
+         background, outside the single data surface. -->
+    <div class="hf-page-header">
+      <h1 class="hf-page-title">Colaboradores</h1>
+      <p class="hf-page-subtitle">Equipo, lifecycle, organigrama y documentos del personal</p>
+    </div>
 
-          <!-- Toolbar actions slot — ViewToggle (card/table switch) -->
-          <div class="flex flex-wrap items-center gap-2">
-            <slot name="actions" />
-          </div>
-        </div>
-      </template>
-
-      <div class="flex w-full min-w-0 flex-col gap-4 px-3 py-3 sm:px-4 sm:py-4">
+    <UCard :ui="{ body: 'p-0 sm:p-0' }" class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm">
+      <div class="hf-table-content flex w-full min-w-0 flex-col gap-4 px-3 py-3 sm:px-4 sm:py-4">
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"
@@ -416,6 +408,9 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
           empty="No se encontraron colaboradores"
           search-placeholder="Buscar colaborador..."
           enable-column-visibility
+          class="hf-data-table"
+          portal-class="hf-theme hf-ui employees-list-portal"
+          pagination-portal-class="hf-theme hf-ui employees-list-portal"
           @refresh="refresh"
           @add="openCreateSlideover"
           @clear-filters="setStatusTab('all')"
@@ -423,6 +418,7 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
           <template #actions>
             <ViewToggle
               :model-value="viewMode"
+              class="employees-view-toggle"
               aria-label="Seleccionar vista de empleados"
               @update:model-value="handleViewModeChange"
             />
@@ -538,6 +534,7 @@ const selectedEmployeeItems = computed<ConfirmModalItem[]>(() =>
               v-if="getTableRowItems(row.original).length > 0"
               :items="getTableRowItems(row.original)"
               :content="{ align: 'end' }"
+              :ui="{ content: 'hf-theme hf-ui employees-list-portal' }"
             >
               <UButton
                 icon="i-lucide-ellipsis-vertical"

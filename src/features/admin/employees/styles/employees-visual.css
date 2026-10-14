@@ -1,0 +1,169 @@
+@import '../../../../core/shared/design-system/houndfe-ui.css';
+
+/* Colaboradores listing and its teleported menus, dialogs and slideovers.
+ * Owned portals repeat the approved shell palette because they cannot
+ * inherit it after teleport. This local bridge does not change the shared
+ * shell or other modules' contracts. */
+.hf-theme.employees-visual,
+.hf-theme.employees-list-portal,
+.hf-theme.employees-form-portal {
+  --hf-page: #f3f6fa;
+  --hf-surface: #ffffff;
+  --hf-surface-muted: #eaf0f8;
+  --hf-field: #f3f6fa;
+  --hf-ink: #1e3555;
+  --hf-heading: #1e3555;
+  --hf-muted: #63748b;
+  --hf-border: #dce3ed;
+  --hf-action: #315ce7;
+  --hf-on-action: #ffffff;
+  --hf-active: #315ce7;
+  --hf-active-soft: #e9effd;
+  --hf-focus: #315ce7;
+  --radius-sm: 6px;
+  --radius-md: var(--hf-radius-control);
+  --radius-lg: var(--hf-radius-card);
+  --radius-xl: var(--hf-radius-card);
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
+}
+
+.dark .hf-theme.employees-visual,
+.dark .hf-theme.employees-list-portal,
+.dark .hf-theme.employees-form-portal {
+  --hf-page: #101720;
+  --hf-surface: #1b2736;
+  --hf-surface-muted: #223044;
+  --hf-field: #101720;
+  --hf-ink: #e4ebf5;
+  --hf-heading: #e4ebf5;
+  --hf-muted: #9aaac0;
+  --hf-border: #2d3b4d;
+  --hf-action: #91b0ff;
+  --hf-on-action: #172b51;
+  --hf-active: #91b0ff;
+  --hf-active-soft: #253b60;
+  --hf-focus: #91b0ff;
+}
+
+.hf-theme.employees-list-portal,
+.hf-theme.employees-form-portal {
+  background-color: var(--hf-surface);
+  border-color: var(--hf-border);
+  color: var(--hf-ink);
+}
+
+/* ── Toolbar and pagination ──────────────────────────────────────────────── */
+
+/* Search and actions share the first desktop row; the status filter takes its
+ * own row. Mobile retains the shared toolbar's stacked sheet. */
+@media (min-width: 768px) {
+  .employees-visual .hf-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+  }
+
+  .employees-visual .hf-toolbar-search-region {
+    display: contents;
+  }
+
+  .employees-visual .hf-toolbar-search {
+    grid-area: 1 / 1;
+    width: 100%;
+    max-width: 26rem;
+  }
+
+  .employees-visual .hf-toolbar-actions {
+    grid-area: 1 / 2;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    justify-self: end;
+  }
+
+  .employees-visual .hf-toolbar-filters {
+    grid-area: 2 / 1 / 3 / -1;
+    flex-wrap: wrap;
+  }
+}
+
+.employees-visual .hf-toolbar :where(button, input, [data-slot='root']) {
+  min-height: var(--hf-control-height);
+}
+
+.employees-visual .employees-view-toggle {
+  width: auto;
+  flex-shrink: 0;
+}
+
+.employees-visual .employees-view-toggle :where(button, [role='tab']) {
+  min-width: max-content;
+  white-space: nowrap;
+}
+
+.employees-visual .hf-pagination-summary {
+  white-space: nowrap;
+}
+
+.employees-visual .hf-pagination-size {
+  width: auto;
+  min-height: 36px;
+}
+
+.employees-visual .hf-pagination-navigation {
+  margin-inline-start: auto;
+}
+
+.employees-visual .hf-pagination-navigation :where(button) {
+  min-height: 36px;
+}
+
+/* ── Cards ───────────────────────────────────────────────────────────────── */
+
+.employees-visual .employees-card-grid {
+  align-content: start;
+}
+
+.employees-visual .employees-card {
+  background-color: var(--hf-surface);
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  color: var(--hf-ink);
+  box-shadow: none;
+}
+
+.employees-visual .employees-card:hover {
+  transform: none;
+  border-color: var(--hf-action);
+  box-shadow: none;
+}
+
+/* ── Work modality badges ────────────────────────────────────────────────── */
+
+/* Modality is a category, not a status: remote reads as the active role,
+ * hybrid as the warning role, on-site stays neutral. Text always carries the
+ * meaning. */
+.employees-visual .employees-modality {
+  border: 1px solid var(--hf-border);
+  background-color: var(--hf-surface-muted);
+  color: var(--hf-ink);
+}
+
+.employees-visual .employees-modality--remote {
+  border-color: color-mix(in srgb, var(--hf-active) 35%, transparent);
+  background-color: var(--hf-active-soft);
+  color: var(--hf-heading);
+}
+
+.employees-visual .employees-modality--hybrid {
+  border-color: color-mix(in srgb, var(--hf-warning) 40%, transparent);
+  background-color: var(--hf-warning-soft);
+  color: var(--hf-ink);
+}
+
+.employees-visual .employees-modality--onsite {
+  border-color: var(--hf-border);
+  background-color: var(--hf-surface-muted);
+  color: var(--hf-ink);
+}
