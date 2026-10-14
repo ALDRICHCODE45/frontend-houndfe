@@ -6,6 +6,8 @@
  * touches Vue, the network or the clock beyond the provided ISO strings.
  */
 
+import { format } from 'date-fns'
+import { es } from 'date-fns/locale'
 import type { PaginatedResponse, SortingParam } from '@/core/shared/types/table.types'
 import type {
   DeliveryRouteResponseDto,
@@ -39,6 +41,14 @@ const MONTHS_SHORT = [
 /** The DTO has no createdAt; the ROUTE_CREATED timeline event carries it. */
 export function getRouteCreatedAt(route: DeliveryRouteResponseDto): string | null {
   return route.timeline.find((event) => event.type === 'ROUTE_CREATED')?.at ?? null
+}
+
+/** "13 oct 2026, 15:00" in local time; "—" for missing or invalid values. */
+export function formatRouteDateTime(iso: string | null): string {
+  if (!iso) return '—'
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return '—'
+  return format(date, 'd MMM yyyy, HH:mm', { locale: es })
 }
 
 /** Compact route identifier: first 8 characters of the UUID. */

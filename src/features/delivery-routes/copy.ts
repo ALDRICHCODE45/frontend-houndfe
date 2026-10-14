@@ -24,6 +24,9 @@
 export const DELIVERY_ROUTE_COPY = {
   list: {
     title: 'Rutas de entrega',
+    subtitle: 'Planeación y seguimiento de las entregas a clientes',
+    searchPlaceholder: 'Buscar por repartidor, cliente, folio o nota...',
+    statusTabsLabel: 'Filtrar rutas por estado',
     managerTabs: {
       all: 'Todas',
     },

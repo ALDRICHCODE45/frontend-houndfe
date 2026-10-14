@@ -18,41 +18,64 @@
  * Create flow (REQ-DRM-006): `@add` opens the slideover in create mode; the
  * slideover emits the zod-whitelisted payload → `useCreateDeliveryRoute().mutate`
  * (its onSuccess toast + list invalidation fire from the composable). The
- * slideover closes on emit. The START row action (S5b) is wired through the
- * three-dot kebab + shared ConfirmModal (REQ-DRM-010/011/013); edit/cancel/delete
- * row actions land in later S5a/S5b work.
+ * slideover closes on emit.
+ *
+ * Manager listing follows the canonical table workspace (docs/design-system.md
+ * §4): heading outside the surface, status tabs with counts, client-side
+ * search/sort over the cached full list, a derived route name that opens the
+ * detail, table/card views and the full row menu (View/Edit/Start/Cancel/
+ * Delete) gated exactly like the detail view, each mutation behind the shared
+ * ConfirmModal.
  */
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import '../styles/delivery-routes-visual.css'
 import type { TableColumn } from '@nuxt/ui'
-import { AppDataTable, createSimpleHeader } from '@/core/shared/components/DataTable'
+import { AppDataTable, SortableHeader, createSimpleHeader } from '@/core/shared/components/DataTable'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
+import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
 import { useDeliveryRouteRole } from '../composables/useDeliveryRouteRole'
 import { useDeliveryRoutesTable } from '../composables/useDeliveryRoutesTable'
 import { useDriverActiveRoutes } from '../composables/useDriverActiveRoutes'
 import { useCreateDeliveryRoute } from '../composables/useCreateDeliveryRoute'
 import { useStartDeliveryRoute } from '../composables/useStartDeliveryRoute'
+import { useCancelDeliveryRoute } from '../composables/useCancelDeliveryRoute'
+import { useDeleteDeliveryRoute } from '../composables/useDeleteDeliveryRoute'
+import { useUpdateDeliveryRoute } from '../composables/useUpdateDeliveryRoute'
+import { useDeliveryRouteViewMode } from '../composables/useDeliveryRouteViewMode'
 import DeliveryRouteUpsertSlideover from '../components/DeliveryRouteUpsertSlideover.vue'
+import DeliveryRouteCardGrid from '../components/DeliveryRouteCardGrid.vue'
 import DriverRouteCard from '../components/DriverRouteCard.vue'
 import { DELIVERY_ROUTE_COPY } from '../copy'
 import { extractSaleConflictIds } from '../interfaces/errors'
 import {
-  buildDeliveryRouteStartActions,
+  buildDeliveryRouteListActions,
   type DeliveryRouteRowActionItem,
 } from '../utils/delivery-route-actions.utils'
+import {
+  DELIVERY_ROUTE_STATUS_ORDER,
+  buildRouteDisplayName,
+  formatRouteDateTime,
+  getRouteCreatedAt,
+  getRouteCustomers,
+  getRouteProgress,
+  shortRouteId,
+  type DeliveryRouteStatusFilter,
+} from '../utils/delivery-route-list.utils'
 import {
   DELIVERY_ROUTE_STATUS_LABELS,
   DELIVERY_ROUTE_STATUS_TONES,
   type CreateDeliveryRouteRequest,
   type DeliveryRouteResponseDto,
   type DeliveryRouteStatus,
+  type UpdateDeliveryRouteRequest,
 } from '../interfaces/delivery-route.types'
 
 // ─── Role discriminator (manager vs driver, design §6.4 / §9.3) ──────────────
 // Destructured at top level so the template auto-unwraps the refs.
-const { isManager, isDriver, canCreate, canUpdate } = useDeliveryRouteRole()
+const { isManager, isDriver, canCreate, canUpdate, canDelete } = useDeliveryRouteRole()
 
 // ─── Router (driver branch navigates to the detail view, manager stays in-place) ─
 const router = useRouter()
@@ -75,7 +98,29 @@ const {
   pageSizeOptions,
   showingFrom,
   showingTo,
+  statusFilter,
+  statusCounts,
 } = useDeliveryRoutesTable()
+
+// ─── Status tabs (client-side filter over the cached full list) ───────────────
+const statusTabs = computed(() =>
+  (['ALL', ...DELIVERY_ROUTE_STATUS_ORDER] as DeliveryRouteStatusFilter[]).map((value) => ({
+    value,
+    label: value === 'ALL' ? DELIVERY_ROUTE_COPY.list.managerTabs.all : DELIVERY_ROUTE_STATUS_LABELS[value],
+    count: statusCounts.value[value],
+  })),
+)
+
+function selectStatus(value: DeliveryRouteStatusFilter): void {
+  statusFilter.value = value
+  pagination.value = { ...pagination.value, pageIndex: 0 }
+}
+
+// ─── Table / card view (persisted like the other modules) ─────────────────────
+const { viewMode, displayMode, setViewMode } = useDeliveryRouteViewMode()
+
+const LIST_PORTAL = 'hf-theme hf-ui delivery-routes-list-portal'
+const FORM_PORTAL = 'hf-theme hf-ui hf-form-overlay delivery-routes-form-portal'
 
 
   // Human-readable list error (block, not toast — design §11, REQ-DRM-014).
@@ -152,74 +197,104 @@ async function onCreate(payload: CreateDeliveryRouteRequest): Promise<void> {
   }
 }
 
-// ─── Start-action kebab + shared ConfirmModal (S5b, REQ-DRM-010/011/013) ──────
-// The kebab exposes ONLY the start action, gated per the detail-view
-// `canShowStart` rules (DRAFT + canUpdate + at least one stop). Selecting it
-// opens the shared ConfirmModal; the mutation fires only after the user
-// confirms — the composable owns pending state, toast, invalidation, and error.
+// ─── Row menu + shared ConfirmModal (same gates as the detail view) ─────────
+// Every lifecycle action opens the shared ConfirmModal; the mutation fires only
+// after the user confirms. The composables own pending state, toasts,
+// invalidation and the 409 conflict handling (design §10.1).
 const { mutateAsync: startRoute, isPending: startIsPending } = useStartDeliveryRoute()
+const { mutateAsync: cancelRoute, isPending: cancelIsPending } = useCancelDeliveryRoute()
+const { mutateAsync: deleteRoute, isPending: deleteIsPending } = useDeleteDeliveryRoute()
+const { mutateAsync: updateRoute, isPending: updateIsPending } = useUpdateDeliveryRoute()
 
-const confirmRoute = ref<DeliveryRouteResponseDto | null>(null)
-const isStartConfirmOpen = computed<boolean>(() => confirmRoute.value !== null)
+type ConfirmKind = 'start' | 'cancel' | 'delete'
+const confirmState = ref<{ kind: ConfirmKind; route: DeliveryRouteResponseDto } | null>(null)
+const isConfirmOpen = computed<boolean>(() => confirmState.value !== null)
+const confirmCopy = computed(() =>
+  confirmState.value ? DELIVERY_ROUTE_COPY.confirm[confirmState.value.kind] : null,
+)
+const confirmColor = computed<'primary' | 'warning' | 'error'>(() => {
+  if (confirmState.value?.kind === 'delete') return 'error'
+  if (confirmState.value?.kind === 'cancel') return 'warning'
+  return 'primary'
+})
+const confirmLoading = computed<boolean>(
+  () => startIsPending.value || cancelIsPending.value || deleteIsPending.value,
+)
 
-function openStartConfirm(row: DeliveryRouteResponseDto): void {
-  confirmRoute.value = row
+function openConfirm(kind: ConfirmKind, route: DeliveryRouteResponseDto): void {
+  confirmState.value = { kind, route }
 }
 
-function closeStartConfirm(): void {
-  confirmRoute.value = null
+function closeConfirm(): void {
+  confirmState.value = null
 }
 
-/** Per-row kebab items — the pure gate lives in `buildDeliveryRouteStartActions`. */
-function rowStartItems(row: DeliveryRouteResponseDto): DeliveryRouteRowActionItem[][] {
-  return buildDeliveryRouteStartActions(row, {
-    canUpdate: canUpdate.value,
-    onStart: openStartConfirm,
-  })
-}
-
-async function onConfirmStart(): Promise<void> {
-  const route = confirmRoute.value
-  closeStartConfirm()
-  if (!route) return
+async function onConfirm(): Promise<void> {
+  const state = confirmState.value
+  closeConfirm()
+  if (!state) return
   try {
-    await startRoute(route.id)
+    if (state.kind === 'start') await startRoute(state.route.id)
+    else if (state.kind === 'cancel') await cancelRoute(state.route.id)
+    else await deleteRoute(state.route.id)
   } catch {
-    // Errors already surfaced via the composable's onError toast (the 409
-    // conflict path owns its own refetch + toast per design §10.1).
+    // Errors already surfaced via the composable's onError toast.
   }
 }
 
-// ─── INLINE columns (no columns composable exists for this module) ────────────
+// ─── Edit slideover (DRAFT-only, gated by the row menu) ───────────────────────
+const editRoute = ref<DeliveryRouteResponseDto | null>(null)
+const isEditOpen = computed<boolean>({
+  get: () => editRoute.value !== null,
+  set: (open) => {
+    if (!open) editRoute.value = null
+  },
+})
+
+async function onEdit(payload: UpdateDeliveryRouteRequest): Promise<void> {
+  const route = editRoute.value
+  if (!route) return
+  try {
+    await updateRoute({ id: route.id, payload })
+    // Close only on success — the mutation's onSuccess already fired the toast.
+    editRoute.value = null
+  } catch {
+    // Error already surfaced via the composable's onError toast; keep it open.
+  }
+}
+
+function openRoute(routeId: string): void {
+  void router.push(`/pos/rutas-de-entrega/${routeId}`)
+}
+
+/** Per-row menu sections — the pure gate lives in `buildDeliveryRouteListActions`. */
+function rowActions(row: DeliveryRouteResponseDto): DeliveryRouteRowActionItem[][] {
+  return buildDeliveryRouteListActions(row, {
+    canUpdate: canUpdate.value,
+    canDelete: canDelete.value,
+    onView: (route) => openRoute(route.id),
+    onEdit: (route) => {
+      editRoute.value = route
+    },
+    onStart: (route) => openConfirm('start', route),
+    onCancel: (route) => openConfirm('cancel', route),
+    onDelete: (route) => openConfirm('delete', route),
+  })
+}
+
+// ─── INLINE columns ───────────────────────────────────────────────────────────
 // Structural definitions only — cell markup lives in the `#*-cell` slots below.
-// REQ-DRM-001: status badge + driver name (or '—') + x/y progress; the `actions`
-// column is right-pinned by `useDeliveryRoutesTable`'s defaultPinning and hosts
-// the START-only kebab (S5b) — gated per row via `buildDeliveryRouteStartActions`.
+// Sorting runs client-side in `queryDeliveryRoutes` for the sortable ids.
 const columns: TableColumn<DeliveryRouteResponseDto>[] = [
-  {
-    accessorKey: 'id',
-    header: 'Ruta',
-    enableSorting: false,
-    enableHiding: true,
-  },
-  {
-    accessorKey: 'driver',
-    header: 'Repartidor',
-    enableSorting: false,
-    enableHiding: true,
-  },
-  {
-    id: 'progress',
-    header: 'Progreso',
-    enableSorting: false,
-    enableHiding: true,
-  },
-  {
-    id: 'status',
-    header: createSimpleHeader('Estado'),
-    enableSorting: false,
-    enableHiding: true,
-  },
+  { id: 'name', header: createSimpleHeader('Ruta'), enableSorting: false, enableHiding: false },
+  { id: 'driver', header: 'Repartidor', enableSorting: true, enableHiding: true },
+  { id: 'customers', header: createSimpleHeader('Clientes'), enableSorting: false, enableHiding: true },
+  { id: 'progress', header: 'Progreso', enableSorting: true, enableHiding: true },
+  { id: 'status', header: 'Estado', enableSorting: true, enableHiding: true },
+  { id: 'createdAt', header: 'Creada', enableSorting: true, enableHiding: true },
+  { id: 'startedAt', header: 'Inicio', enableSorting: true, enableHiding: true },
+  { id: 'completedAt', header: 'Fin', enableSorting: true, enableHiding: true },
+  { id: 'notes', header: createSimpleHeader('Notas'), enableSorting: false, enableHiding: true },
   {
     id: 'actions',
     header: createSimpleHeader(''),
@@ -229,30 +304,18 @@ const columns: TableColumn<DeliveryRouteResponseDto>[] = [
   },
 ]
 
-/** Compact route identifier (quotations convention: first 8 chars + ellipsis). */
-function shortRouteId(id: string): string {
-  return id.length > 8 ? `${id.slice(0, 8)}…` : id
-}
-
-/**
- * x/y delivered-stops counter (REQ-DRM-001): `"{completed}/{total}"` when
- * `total > 0`, `"Sin paradas"` when the route has no stops.
- */
-function stopProgress(route: DeliveryRouteResponseDto): string {
-  const total = route.stops.length
-  if (total === 0) return 'Sin paradas'
-  const completed = route.stops.filter((stop) => stop.status === 'COMPLETED').length
-  return `${completed}/${total}`
-}
-
 // Typed status accessors keep the template free of `any`-indexed Record
-// lookups (vue-tsc rejects indexing the status label/tone maps with the
-// slot's `any`-typed row).
+// lookups (vue-tsc rejects indexing the status maps with the slot's row).
 function statusTone(status: DeliveryRouteStatus) {
   return DELIVERY_ROUTE_STATUS_TONES[status]
 }
 function statusLabel(status: DeliveryRouteStatus) {
   return DELIVERY_ROUTE_STATUS_LABELS[status]
+}
+
+/** The end of a route is its completion or its cancellation. */
+function routeEndedAt(route: DeliveryRouteResponseDto): string | null {
+  return route.completedAt ?? route.cancelledAt
 }
 </script>
 
@@ -317,7 +380,11 @@ function statusLabel(status: DeliveryRouteStatus) {
     </ul>
   </div>
 
-  <div v-else-if="isManager" class="flex flex-col gap-6 md:px-6 lg:px-10">
+  <section
+    v-else-if="isManager"
+    class="hf-theme hf-ui delivery-routes-visual flex w-full min-w-0 flex-col gap-6 md:px-10"
+    aria-labelledby="delivery-routes-title"
+  >
     <DeliveryRouteUpsertSlideover
       v-model:open="isCreateOpen"
       v-model:create-conflict="createConflict"
@@ -328,80 +395,220 @@ function statusLabel(status: DeliveryRouteStatus) {
       @create="onCreate"
     />
 
-    <!-- Shared ConfirmModal for the START action (REQ-DRM-010/011/013).
-         Selecting "Iniciar ruta" in the kebab opens it; the mutation fires
-         only after the user confirms. -->
-    <ConfirmModal
-      :open="isStartConfirmOpen"
-      :title="DELIVERY_ROUTE_COPY.confirm.start.title"
-      :description="DELIVERY_ROUTE_COPY.confirm.start.body"
-      :confirm-label="DELIVERY_ROUTE_COPY.confirm.start.confirmLabel"
-      :cancel-label="DELIVERY_ROUTE_COPY.confirm.start.cancelLabel"
-      confirm-color="primary"
-      :loading="startIsPending"
-      data-testid="list-start-confirm-modal"
-      @update:open="(value: boolean) => { if (!value) closeStartConfirm() }"
-      @confirm="onConfirmStart"
+    <DeliveryRouteUpsertSlideover
+      v-if="editRoute"
+      v-model:open="isEditOpen"
+      mode="edit"
+      :route-id="editRoute.id"
+      :initial-notes="editRoute.notes ?? ''"
+      :initial-driver-user-id="editRoute.driver?.id ?? null"
+      :loading="updateIsPending"
+      @edit="onEdit"
     />
 
-    <AppDataTable
-      v-model:sorting="sorting"
-      v-model:pagination="pagination"
-      v-model:global-filter="globalFilter"
-      v-model:column-pinning="columnPinning"
-      v-model:column-visibility="columnVisibility"
-      :columns="columns"
-      :data="data"
-      :loading="isLoading"
-      :fetching="isFetching"
-      :error="isError"
-      :error-message="routesErrorMessage"
-      :empty="DELIVERY_ROUTE_COPY.empty.manager"
-      :page-count="pageCount"
-      :total-count="totalCount"
-      :showing-from="showingFrom"
-      :showing-to="showingTo"
-      :page-size-options="pageSizeOptions"
-      :show-add-button="canCreate"
-      :add-button-text="DELIVERY_ROUTE_COPY.actions.create"
-      @add="openCreate"
-      @refresh="refresh"
+    <!-- Shared ConfirmModal for start / cancel / delete (REQ-DRM-010/011/012). -->
+    <ConfirmModal
+      :open="isConfirmOpen"
+      :title="confirmCopy?.title ?? ''"
+      :description="confirmCopy?.body ?? ''"
+      :confirm-label="confirmCopy?.confirmLabel ?? 'Confirmar'"
+      :cancel-label="confirmCopy?.cancelLabel ?? 'Cancelar'"
+      :confirm-color="confirmColor"
+      :loading="confirmLoading"
+      :ui="{ content: FORM_PORTAL }"
+      data-testid="list-start-confirm-modal"
+      @update:open="(value: boolean) => { if (!value) closeConfirm() }"
+      @confirm="onConfirm"
+    />
+
+    <header class="hf-page-header">
+      <h1 id="delivery-routes-title" class="hf-page-title">{{ DELIVERY_ROUTE_COPY.list.title }}</h1>
+      <p class="hf-page-subtitle">{{ DELIVERY_ROUTE_COPY.list.subtitle }}</p>
+    </header>
+
+    <UCard
+      :ui="{ body: 'p-0 sm:p-0' }"
+      class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm"
     >
-      <template #id-cell="{ row }">
-        <span class="font-medium" :title="row.original.id">{{ shortRouteId(row.original.id) }}</span>
-      </template>
-
-      <template #driver-cell="{ row }">
-        <span class="text-sm text-muted">{{ row.original.driver?.name ?? '—' }}</span>
-      </template>
-
-      <template #progress-cell="{ row }">
-        <span class="text-sm text-muted">{{ stopProgress(row.original) }}</span>
-      </template>
-
-      <template #status-cell="{ row }">
-        <StatusDotBadge
-          :tone="statusTone(row.original.status)"
-          :label="statusLabel(row.original.status)"
-        />
-      </template>
-
-      <template #actions-cell="{ row }">
-        <!-- START-only kebab (S5b, REQ-DRM-011/013): hidden when the pure gate
-             returns no items (non-DRAFT / no stops / no update permission). -->
-        <UDropdownMenu
-          v-if="rowStartItems(row.original).length > 0"
-          :items="rowStartItems(row.original)"
-          :content="{ align: 'end' }"
+      <div class="hf-table-content flex w-full min-w-0 flex-col gap-4">
+        <div
+          class="delivery-routes-tabs"
+          role="tablist"
+          :aria-label="DELIVERY_ROUTE_COPY.list.statusTabsLabel"
         >
-          <UButton
-            icon="i-lucide-ellipsis-vertical"
-            color="neutral"
-            variant="ghost"
-            class="size-7"
-          />
-        </UDropdownMenu>
-      </template>
-    </AppDataTable>
-  </div>
+          <button
+            v-for="tab in statusTabs"
+            :key="tab.value"
+            type="button"
+            role="tab"
+            class="delivery-routes-tab"
+            :aria-selected="statusFilter === tab.value"
+            :data-testid="`status-tab-${tab.value}`"
+            @click="selectStatus(tab.value)"
+          >
+            {{ tab.label }}
+            <span class="delivery-routes-tab-count">{{ tab.count }}</span>
+          </button>
+        </div>
+
+        <AppDataTable
+          v-model:sorting="sorting"
+          v-model:pagination="pagination"
+          v-model:global-filter="globalFilter"
+          v-model:column-pinning="columnPinning"
+          v-model:column-visibility="columnVisibility"
+          :columns="columns"
+          :data="data"
+          :loading="isLoading"
+          :fetching="isFetching"
+          :error="isError"
+          :error-message="routesErrorMessage"
+          :empty="DELIVERY_ROUTE_COPY.empty.manager"
+          :page-count="pageCount"
+          :total-count="totalCount"
+          :showing-from="showingFrom"
+          :showing-to="showingTo"
+          :page-size-options="pageSizeOptions"
+          :display-mode="displayMode"
+          :search-placeholder="DELIVERY_ROUTE_COPY.list.searchPlaceholder"
+          :show-add-button="canCreate"
+          :add-button-text="DELIVERY_ROUTE_COPY.actions.create"
+          add-button-icon="i-lucide-route"
+          enable-column-visibility
+          class="hf-data-table"
+          :portal-class="LIST_PORTAL"
+          :pagination-portal-class="LIST_PORTAL"
+          @add="openCreate"
+          @refresh="refresh"
+        >
+          <template #actions>
+            <ViewToggle
+              :model-value="viewMode"
+              class="delivery-routes-view-toggle"
+              aria-label="Seleccionar vista de rutas"
+              @update:model-value="setViewMode"
+            />
+          </template>
+
+          <template #cards>
+            <DeliveryRouteCardGrid
+              :routes="data"
+              :loading="isLoading"
+              :empty="DELIVERY_ROUTE_COPY.empty.manager"
+              :get-actions="rowActions"
+              :portal-class="LIST_PORTAL"
+              @open="openRoute"
+            />
+          </template>
+
+          <template #driver-header="{ column }">
+            <SortableHeader :column="column" label="Repartidor" />
+          </template>
+          <template #progress-header="{ column }">
+            <SortableHeader :column="column" label="Progreso" />
+          </template>
+          <template #status-header="{ column }">
+            <SortableHeader :column="column" label="Estado" />
+          </template>
+          <template #createdAt-header="{ column }">
+            <SortableHeader :column="column" label="Creada" />
+          </template>
+          <template #startedAt-header="{ column }">
+            <SortableHeader :column="column" label="Inicio" />
+          </template>
+          <template #completedAt-header="{ column }">
+            <SortableHeader :column="column" label="Fin" />
+          </template>
+
+          <template #name-cell="{ row }">
+            <button
+              type="button"
+              class="delivery-routes-name-link flex min-w-0 flex-col text-left"
+              data-testid="route-name-link"
+              :title="row.original.id"
+              @click="openRoute(row.original.id)"
+            >
+              <span class="text-sm font-medium">{{ buildRouteDisplayName(row.original) }}</span>
+              <span class="delivery-routes-id font-mono text-xs">{{ shortRouteId(row.original.id) }}</span>
+            </button>
+          </template>
+
+          <template #driver-cell="{ row }">
+            <span class="text-sm">{{ row.original.driver?.name ?? 'Sin repartidor' }}</span>
+          </template>
+
+          <template #customers-cell="{ row }">
+            <span class="block max-w-64 text-sm">
+              {{ getRouteCustomers(row.original).join(', ') || '—' }}
+            </span>
+          </template>
+
+          <template #progress-cell="{ row }">
+            <div class="flex min-w-32 flex-col gap-1">
+              <span class="text-sm tabular-nums">
+                {{
+                  getRouteProgress(row.original).total === 0
+                    ? 'Sin paradas'
+                    : `${getRouteProgress(row.original).completed}/${getRouteProgress(row.original).total}`
+                }}
+              </span>
+              <div
+                class="delivery-routes-progress"
+                role="progressbar"
+                :aria-valuenow="getRouteProgress(row.original).percent"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                :aria-label="`Progreso de entregas: ${getRouteProgress(row.original).percent}%`"
+              >
+                <span :style="{ width: `${getRouteProgress(row.original).percent}%` }" />
+              </div>
+            </div>
+          </template>
+
+          <template #status-cell="{ row }">
+            <StatusDotBadge
+              :tone="statusTone(row.original.status)"
+              :label="statusLabel(row.original.status)"
+            />
+          </template>
+
+          <template #createdAt-cell="{ row }">
+            <span class="text-sm tabular-nums">
+              {{ formatRouteDateTime(getRouteCreatedAt(row.original)) }}
+            </span>
+          </template>
+
+          <template #startedAt-cell="{ row }">
+            <span class="text-sm tabular-nums">{{ formatRouteDateTime(row.original.startedAt) }}</span>
+          </template>
+
+          <template #completedAt-cell="{ row }">
+            <span class="text-sm tabular-nums">{{ formatRouteDateTime(routeEndedAt(row.original)) }}</span>
+          </template>
+
+          <template #notes-cell="{ row }">
+            <span class="block max-w-72 whitespace-normal break-words text-sm">
+              {{ row.original.notes || '—' }}
+            </span>
+          </template>
+
+          <template #actions-cell="{ row }">
+            <UDropdownMenu
+              :items="rowActions(row.original)"
+              :content="{ align: 'end' }"
+              :ui="{ content: LIST_PORTAL }"
+            >
+              <UButton
+                icon="i-lucide-ellipsis-vertical"
+                color="neutral"
+                variant="ghost"
+                class="size-9"
+                aria-label="Acciones de la ruta"
+              />
+            </UDropdownMenu>
+          </template>
+        </AppDataTable>
+      </div>
+    </UCard>
+  </section>
 </template>

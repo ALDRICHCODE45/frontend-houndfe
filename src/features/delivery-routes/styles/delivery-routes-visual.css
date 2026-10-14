@@ -1,0 +1,205 @@
+@import '../../../core/shared/design-system/houndfe-ui.css';
+
+/* Delivery routes manager listing, its teleported menus and the listing
+ * confirmation dialog. The create/edit slideover keeps its own presentation,
+ * and the driver branch and route detail stay outside this boundary. Owned
+ * portals repeat the approved shell palette because they cannot inherit it
+ * after teleport. */
+.hf-theme.delivery-routes-visual,
+.hf-theme.delivery-routes-list-portal,
+.hf-theme.delivery-routes-form-portal {
+  --hf-page: #f3f6fa;
+  --hf-surface: #ffffff;
+  --hf-surface-muted: #eaf0f8;
+  --hf-field: #f3f6fa;
+  --hf-ink: #1e3555;
+  --hf-heading: #1e3555;
+  --hf-muted: #63748b;
+  --hf-border: #dce3ed;
+  --hf-action: #315ce7;
+  --hf-on-action: #ffffff;
+  --hf-active: #315ce7;
+  --hf-active-soft: #e9effd;
+  --hf-focus: #315ce7;
+  --radius-sm: 6px;
+  --radius-md: var(--hf-radius-control);
+  --radius-lg: var(--hf-radius-card);
+  --radius-xl: var(--hf-radius-card);
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
+}
+
+.dark .hf-theme.delivery-routes-visual,
+.dark .dark .hf-theme.delivery-routes-list-portal,
+.dark .hf-theme.delivery-routes-form-portal {
+  --hf-page: #101720;
+  --hf-surface: #1b2736;
+  --hf-surface-muted: #223044;
+  --hf-field: #101720;
+  --hf-ink: #e4ebf5;
+  --hf-heading: #e4ebf5;
+  --hf-muted: #9aaac0;
+  --hf-border: #2d3b4d;
+  --hf-action: #91b0ff;
+  --hf-on-action: #172b51;
+  --hf-active: #91b0ff;
+  --hf-active-soft: #253b60;
+  --hf-focus: #91b0ff;
+}
+
+.hf-theme.delivery-routes-list-portal,
+.hf-theme.delivery-routes-form-portal {
+  background-color: var(--hf-surface);
+  border-color: var(--hf-border);
+  color: var(--hf-ink);
+}
+
+/* ── Status tabs ─────────────────────────────────────────────────────────── */
+
+.delivery-routes-visual .delivery-routes-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.delivery-routes-visual .delivery-routes-tab {
+  display: inline-flex;
+  min-height: var(--hf-control-height);
+  align-items: center;
+  gap: 0.5rem;
+  padding-inline: 0.875rem;
+  border-radius: var(--hf-radius-control);
+  color: var(--hf-muted);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.delivery-routes-visual .delivery-routes-tab:hover {
+  background-color: var(--hf-surface-muted);
+  color: var(--hf-ink);
+}
+
+.delivery-routes-visual .delivery-routes-tab[aria-selected='true'] {
+  background-color: var(--hf-active-soft);
+  color: var(--hf-heading);
+  box-shadow: inset 0 0 0 1px var(--hf-active);
+}
+
+.delivery-routes-visual .delivery-routes-tab-count {
+  min-width: 1.5rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background-color: var(--hf-surface-muted);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.delivery-routes-visual :where(.delivery-routes-tab, .delivery-routes-name-link):focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+/* ── Cells ───────────────────────────────────────────────────────────────── */
+
+.delivery-routes-visual .delivery-routes-name-link {
+  color: var(--hf-heading);
+  cursor: pointer;
+}
+
+.delivery-routes-visual .delivery-routes-name-link:hover {
+  color: var(--hf-action);
+  text-decoration: underline;
+}
+
+.delivery-routes-visual :where(.delivery-routes-id, .delivery-routes-muted) {
+  color: var(--hf-muted);
+}
+
+.delivery-routes-visual .delivery-routes-progress {
+  height: 0.375rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background-color: var(--hf-surface-muted);
+}
+
+.delivery-routes-visual .delivery-routes-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background-color: var(--hf-success);
+}
+
+/* ── Toolbar and pagination ──────────────────────────────────────────────── */
+
+@media (min-width: 768px) {
+  .delivery-routes-visual .hf-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+  }
+
+  .delivery-routes-visual .hf-toolbar-search-region {
+    display: contents;
+  }
+
+  .delivery-routes-visual .hf-toolbar-search {
+    grid-area: 1 / 1;
+    width: 100%;
+    max-width: 28rem;
+  }
+
+  .delivery-routes-visual .hf-toolbar-actions {
+    grid-area: 1 / 2;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    justify-self: end;
+  }
+}
+
+.delivery-routes-visual .hf-toolbar :where(button, input, [data-slot='root']) {
+  min-height: var(--hf-control-height);
+}
+
+.delivery-routes-visual .delivery-routes-view-toggle {
+  width: auto;
+  flex-shrink: 0;
+}
+
+.delivery-routes-visual .hf-pagination-summary {
+  white-space: nowrap;
+}
+
+.delivery-routes-visual .hf-pagination-size {
+  width: auto;
+  min-height: 36px;
+}
+
+.delivery-routes-visual .hf-pagination-navigation {
+  margin-inline-start: auto;
+}
+
+/* ── Cards ───────────────────────────────────────────────────────────────── */
+
+/* Spare tracks keep a lone route from stretching across the workspace. */
+.delivery-routes-visual .delivery-routes-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+  gap: 0.75rem;
+  align-content: start;
+}
+
+.delivery-routes-visual .delivery-routes-card {
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background-color: var(--hf-surface);
+  color: var(--hf-ink);
+}
+
+.delivery-routes-visual .delivery-routes-card:hover {
+  border-color: var(--hf-action);
+}
+
+.delivery-routes-visual .delivery-routes-empty {
+  color: var(--hf-muted);
+}

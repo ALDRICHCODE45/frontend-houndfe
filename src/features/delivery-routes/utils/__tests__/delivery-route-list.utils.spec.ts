@@ -6,6 +6,7 @@ import type {
 import {
   buildRouteDisplayName,
   countRoutesByStatus,
+  formatRouteDateTime,
   getRouteCreatedAt,
   getRouteCustomers,
   getRouteProgress,
@@ -292,5 +293,16 @@ describe('queryDeliveryRoutes', () => {
     })
     expect(result.data).toEqual([])
     expect(result.pagination).toEqual({ pageIndex: 0, pageSize: 10, totalCount: 0, pageCount: 1 })
+  })
+})
+
+describe('formatRouteDateTime', () => {
+  it('formats a timestamp as day, short month, year and time', () => {
+    expect(formatRouteDateTime('2026-10-13T15:05:00')).toBe('13 oct 2026, 15:05')
+  })
+
+  it('returns an em dash for null or invalid values', () => {
+    expect(formatRouteDateTime(null)).toBe('—')
+    expect(formatRouteDateTime('no-date')).toBe('—')
   })
 })
