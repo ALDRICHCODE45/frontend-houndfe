@@ -5,14 +5,15 @@
  * The target stop reuses the cockpit selection (`deriveDriverRouteCockpit`)
  * so the list and the route cockpit always point at the same stop.
  */
-import { format, isSameDay } from 'date-fns'
-import { es } from 'date-fns/locale'
 import { formatAddress } from '@/core/shared/utils/formatAddress'
 import { deriveDriverRouteCockpit } from '../composables/cockpit/useDriverRouteCockpit'
 import type { DeliveryRouteResponseDto } from '../interfaces/delivery-route.types'
 import {
   buildRouteTitle,
+  formatDurationMinutes,
+  formatRouteMoment,
   getRouteProgress,
+  minutesBetween,
   shortRouteId,
   type DeliveryRouteProgress,
 } from './delivery-route-list.utils'
@@ -46,20 +47,10 @@ function parseDate(iso: string | null): Date | null {
   return Number.isNaN(date.getTime()) ? null : date
 }
 
-/** "Iniciada 09:40" today, "Iniciada 13 oct, 09:40" on an earlier day. */
-function formatStartedAt(startedAt: Date, now: Date): string {
-  const pattern = isSameDay(startedAt, now) ? 'HH:mm' : "d MMM, HH:mm"
-  return `Iniciada ${format(startedAt, pattern, { locale: es })}`
-}
-
 /** "Recién iniciada", "45 min en ruta", "2 h en ruta", "1 h 20 min en ruta". */
 function formatElapsed(startedAt: Date, now: Date): string {
-  const minutes = Math.max(0, Math.floor((now.getTime() - startedAt.getTime()) / 60_000))
-  if (minutes < 1) return 'Recién iniciada'
-  if (minutes < 60) return `${minutes} min en ruta`
-  const hours = Math.floor(minutes / 60)
-  const rest = minutes % 60
-  return rest === 0 ? `${hours} h en ruta` : `${hours} h ${rest} min en ruta`
+  const minutes = minutesBetween(startedAt, now)
+  return minutes < 1 ? 'Recién iniciada' : `${formatDurationMinutes(minutes)} en ruta`
 }
 
 export function buildDriverRouteMission(route: DeliveryRouteResponseDto, now: Date): DriverRouteMission {
@@ -83,7 +74,7 @@ export function buildDriverRouteMission(route: DeliveryRouteResponseDto, now: Da
   return {
     title: buildRouteTitle(route),
     reference: shortRouteId(route.id),
-    startedAtLabel: startedAt ? formatStartedAt(startedAt, now) : null,
+    startedAtLabel: startedAt ? `Iniciada ${formatRouteMoment(route.startedAt, now)}` : null,
     elapsedLabel: startedAt ? formatElapsed(startedAt, now) : null,
     progress,
     progressLabel:

@@ -6,7 +6,7 @@
  * touches Vue, the network or the clock beyond the provided ISO strings.
  */
 
-import { format } from 'date-fns'
+import { format, isSameDay } from 'date-fns'
 import { es } from 'date-fns/locale'
 import type { PaginatedResponse, SortingParam } from '@/core/shared/types/table.types'
 import type {
@@ -61,6 +61,33 @@ function formatDayMonth(iso: string): string | null {
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return null
   return `${date.getDate()} ${MONTHS_SHORT[date.getMonth()]}`
+}
+
+/**
+ * "09:40" when the instant falls on the same local day as `now`, otherwise
+ * "13 oct, 09:40". Null for missing or invalid values.
+ */
+export function formatRouteMoment(iso: string | null, now: Date): string | null {
+  if (!iso) return null
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return null
+  const time = format(date, 'HH:mm')
+  return isSameDay(date, now) ? time : `${formatDayMonth(iso)}, ${time}`
+}
+
+/** "Menos de 1 min", "45 min", "2 h", "1 h 20 min" from whole elapsed minutes. */
+export function formatDurationMinutes(minutes: number): string {
+  const total = Math.max(0, Math.floor(minutes))
+  if (total < 1) return 'Menos de 1 min'
+  if (total < 60) return `${total} min`
+  const hours = Math.floor(total / 60)
+  const rest = total % 60
+  return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`
+}
+
+/** Whole minutes between two instants, never negative. */
+export function minutesBetween(start: Date, end: Date): number {
+  return Math.max(0, Math.floor((end.getTime() - start.getTime()) / 60_000))
 }
 
 /** "Ruta del 13 oct"; unknown creation date falls back to the short id. */
