@@ -33,6 +33,7 @@
  * the discriminator is the one branching decision.
  */
 import { computed, ref } from 'vue'
+import { useNow } from '@vueuse/core'
 import { useRoute, useRouter } from 'vue-router'
 import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
@@ -52,7 +53,8 @@ import '../styles/delivery-routes-visual.css'
 import EligibleSalesPicker from '../components/EligibleSalesPicker.vue'
 import TransferDeliveryRouteStopModal from '../components/TransferDeliveryRouteStopModal.vue'
 import { extractDeliveryRouteErrorCode } from '../interfaces/errors'
-import { buildStopProgress } from '../utils/delivery-route-actions.utils'
+import { buildManagerRouteDetail } from '../utils/delivery-route-detail.utils'
+import DeliveryRouteTimeline from '../components/DeliveryRouteTimeline.vue'
 import {
   DELIVERY_ROUTE_STATUS_LABELS,
   DELIVERY_ROUTE_STATUS_TONES,
@@ -307,11 +309,15 @@ function statusLabel(status: DeliveryRouteStatus) {
   return DELIVERY_ROUTE_STATUS_LABELS[status]
 }
 
-const stopProgressLabel = computed<string>(() => {
-  const r = routeData.value
-  if (!r) return ''
-  return buildStopProgress(r.stops)
-})
+// Manager workspace view model (header, KPIs, progress, rich stop rows).
+// The clock ticks once a minute so "En ruta" stays current.
+const now = useNow({ interval: 60_000 })
+const managerDetail = computed(() =>
+  routeData.value ? buildManagerRouteDetail(routeData.value, now.value) : null,
+)
+
+// Teleported dialogs carry the module's form portal marker (design §3).
+const FORM_PORTAL = 'hf-theme hf-ui hf-form-overlay delivery-routes-form-portal'
 
 // ─── ConfirmModal payload helpers ─────────────────────────────────────────────
 const confirmTitle = computed<string>(() => {
@@ -436,11 +442,14 @@ defineExpose({
         />
       </div>
 
-  <!-- Manager branch — route detail with mutation affordances. Only when the
-       cached detail belongs to the CURRENT route id (keepPreviousData stale guard). -->
+  <!-- Manager branch — route detail workspace with mutation affordances. Only
+       when the cached detail belongs to the CURRENT route id (keepPreviousData
+       stale guard). Header + KPIs + progress, then stops (main column) and
+       details / activity (side column). -->
   <div
-    v-else-if="isManager && routeData && routeData.id === routeId"
-    class="flex flex-col gap-6 px-4 py-6 sm:px-6 lg:px-10"
+    v-else-if="isManager && routeData && routeData.id === routeId && managerDetail"
+    data-testid="detail-manager-workspace"
+    class="hf-theme hf-ui delivery-routes-visual delivery-routes-detail flex w-full min-w-0 flex-col gap-6 px-4 py-6 sm:px-6 md:px-10"
   >
     <DeliveryRouteUpsertSlideover
       v-model:open="isEditOpen"
@@ -463,6 +472,7 @@ defineExpose({
       :cancel-label="confirmCancelLabel"
       :confirm-color="confirmColor"
       :loading="confirmLoading"
+      :ui="{ content: FORM_PORTAL }"
       data-testid="detail-confirm-modal"
       @update:open="(value: boolean) => { if (!value) closeConfirm() }"
       @confirm="onConfirm"
@@ -479,140 +489,276 @@ defineExpose({
     <!-- Header / summary (REQ-DRM-014) -->
     <header
       data-testid="detail-route-summary"
-      class="flex flex-col gap-2 border-b border-default pb-4"
+      class="flex flex-col gap-4"
     >
-      <div class="flex flex-wrap items-center justify-between gap-3">
-        <div class="flex flex-col gap-1">
-          <span class="text-xs uppercase tracking-wide text-muted">Ruta</span>
-          <span class="font-mono text-sm">{{ routeData.id.slice(0, 8) }}</span>
+      <button
+        type="button"
+        data-testid="detail-back-link"
+        class="inline-flex w-fit items-center gap-1.5 rounded-md text-sm text-muted transition hover:text-default focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        @click="handleBack"
+      >
+        <UIcon name="i-lucide-arrow-left" class="size-4" aria-hidden="true" />
+        {{ DELIVERY_ROUTE_COPY.list.title }}
+      </button>
+
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div class="flex min-w-0 flex-col gap-2">
+          <div class="flex flex-wrap items-center gap-3">
+            <h1
+              class="hf-page-title"
+              data-testid="detail-route-title"
+            >{{ managerDetail.title }}</h1>
+            <StatusDotBadge
+              :tone="statusTone(routeData.status)"
+              :label="statusLabel(routeData.status)"
+            />
+          </div>
+          <p
+            data-testid="detail-route-meta"
+            class="hf-page-subtitle flex flex-wrap items-center gap-x-2 gap-y-1"
+          >
+            <span class="font-mono">#{{ managerDetail.reference }}</span>
+            <template v-for="moment in managerDetail.moments" :key="moment">
+              <span aria-hidden="true">·</span>
+              <span>{{ moment }}</span>
+            </template>
+          </p>
         </div>
-        <StatusDotBadge
-          :tone="statusTone(routeData.status)"
-          :label="statusLabel(routeData.status)"
-        />
-      </div>
-      <div class="flex flex-wrap gap-x-6 gap-y-1 text-sm text-muted">
-        <span>Repartidor: <strong class="text-default">{{ routeData.driver?.name ?? '—' }}</strong></span>
-        <span>Progreso: <strong class="text-default">{{ stopProgressLabel }}</strong></span>
+
+        <!-- Manager actions toolbar (S4c + S5a + S5b + S7 verify wiring).
+             Each button click opens the shared ConfirmModal; the mutation only
+             fires after the user confirms. -->
+        <div
+          v-if="canUpdate || canShowDelete"
+          data-testid="detail-actions-toolbar"
+          class="flex flex-wrap items-center gap-2"
+        >
+          <UButton
+            v-if="canShowEdit"
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-pencil"
+            :label="DELIVERY_ROUTE_COPY.actions.edit"
+            data-testid="detail-edit-button"
+            @click="isEditOpen = true"
+          />
+          <UButton
+            v-if="canShowStart"
+            color="primary"
+            variant="solid"
+            icon="i-lucide-play"
+            class="hf-primary-control"
+            :label="DELIVERY_ROUTE_COPY.actions.start"
+            :loading="startIsPending"
+            data-testid="detail-start-button"
+            @click="onStart"
+          />
+          <UButton
+            v-if="canShowCancel"
+            color="warning"
+            variant="outline"
+            icon="i-lucide-ban"
+            :label="DELIVERY_ROUTE_COPY.actions.cancel"
+            :loading="cancelIsPending"
+            data-testid="detail-cancel-button"
+            @click="onCancel"
+          />
+          <UButton
+            v-if="canShowDelete"
+            color="error"
+            variant="outline"
+            icon="i-lucide-trash-2"
+            :label="DELIVERY_ROUTE_COPY.actions.delete"
+            :loading="deleteIsPending"
+            data-testid="detail-delete-button"
+            @click="onDelete"
+          />
+        </div>
       </div>
     </header>
 
-    <!-- Manager actions toolbar (S4c + S5a + S5b + S7 verify wiring).
-         Each button click opens the shared ConfirmModal; the mutation only
-         fires after the user confirms. -->
-    <div
-      v-if="canUpdate || canShowDelete"
-      data-testid="detail-actions-toolbar"
-      class="flex flex-wrap items-center gap-2"
-    >
-      <UButton
-        v-if="canShowEdit"
-        color="primary"
-        variant="outline"
-        :label="DELIVERY_ROUTE_COPY.actions.edit"
-        data-testid="detail-edit-button"
-        @click="isEditOpen = true"
-      />
-      <UButton
-        v-if="canShowStart"
-        color="primary"
-        variant="solid"
-        :label="DELIVERY_ROUTE_COPY.actions.start"
-        :loading="startIsPending"
-        data-testid="detail-start-button"
-        @click="onStart"
-      />
-      <UButton
-        v-if="canShowCancel"
-        color="warning"
-        variant="outline"
-        :label="DELIVERY_ROUTE_COPY.actions.cancel"
-        :loading="cancelIsPending"
-        data-testid="detail-cancel-button"
-        @click="onCancel"
-      />
-      <UButton
-        v-if="canShowDelete"
-        color="error"
-        variant="outline"
-        :label="DELIVERY_ROUTE_COPY.actions.delete"
-        :loading="deleteIsPending"
-        data-testid="detail-delete-button"
-        @click="onDelete"
-      />
-    </div>
-
-    <!-- Append-stop affordance — single-sale selector + "Agregar parada" button.
-         DRAFT + canUpdate only (REQ-DRM-008/013). -->
+    <!-- KPI tiles -->
     <section
-      v-if="canShowAppend"
-      data-testid="detail-append-section"
-      class="flex flex-col gap-3 rounded-md border border-default bg-default p-4"
+      class="grid grid-cols-2 gap-3 lg:grid-cols-4"
+      aria-label="Resumen de la ruta"
     >
-      <header class="flex flex-col gap-1">
-        <h2 class="text-sm font-medium">{{ DELIVERY_ROUTE_COPY.actions.appendStop }}</h2>
-        <p class="text-xs text-muted">
-          Selecciona una venta pendiente o enviada para agregarla a la ruta.
-        </p>
-      </header>
-      <EligibleSalesPicker
-        :model-value="appendSelectedSaleIds"
-        source="append"
-        data-testid="detail-append-sales-picker"
-        @update:selected="onAppendSalePicked"
-      />
-      <div class="flex justify-end">
-        <UButton
-          color="primary"
-          variant="solid"
-          :label="DELIVERY_ROUTE_COPY.actions.appendStop"
-          :loading="appendIsPending"
-          :disabled="appendSelectedSaleId === null"
-          data-testid="detail-append-button"
-          @click="onAppend"
+      <div
+        v-for="kpi in managerDetail.kpis"
+        :key="kpi.key"
+        :data-testid="`detail-kpi-${kpi.key}`"
+        :class="['delivery-routes-detail-panel delivery-routes-detail-kpi flex flex-col gap-1 rounded-xl p-4', `delivery-routes-detail-kpi--${kpi.key}`]"
+      >
+        <span class="text-xs font-medium text-muted">{{ kpi.label }}</span>
+        <span class="text-2xl font-semibold tabular-nums text-highlighted">{{ kpi.value }}</span>
+      </div>
+    </section>
+
+    <!-- Progress -->
+    <section class="delivery-routes-detail-panel flex flex-col gap-2 rounded-xl p-4">
+      <div class="flex items-baseline justify-between gap-3 text-sm">
+        <span class="font-medium text-default">{{ managerDetail.progressLabel }}</span>
+        <span
+          v-if="managerDetail.progress.total > 0"
+          class="tabular-nums text-muted"
+        >{{ managerDetail.progress.percent }}%</span>
+      </div>
+      <div
+        role="progressbar"
+        data-testid="detail-progress"
+        :aria-valuenow="managerDetail.progress.completed"
+        aria-valuemin="0"
+        :aria-valuemax="managerDetail.progress.total"
+        :aria-label="managerDetail.progressLabel"
+        class="h-2 w-full overflow-hidden rounded-full bg-elevated"
+      >
+        <div
+          class="delivery-routes-progress-fill h-full rounded-full transition-[width] motion-reduce:transition-none"
+          :style="{ width: `${managerDetail.progress.percent}%` }"
         />
       </div>
     </section>
 
-    <!-- Reorder panel — only on DRAFT (DRM-009/010 gating). -->
-    <DeliveryRouteReorderPanel
-      v-if="routeData.status === 'DRAFT'"
-      :route="routeData"
-    />
-
-    <!-- Stops list (manager-side surface; S6b adds the driver-side detail). -->
-    <section data-testid="detail-stops-section" class="flex flex-col gap-2">
-      <h2 class="text-sm font-medium">Paradas</h2>
-      <ul
-        v-if="routeData.stops.length > 0"
-        class="flex flex-col gap-2"
-      >
-        <li
-          v-for="stop in routeData.stops"
-          :key="stop.id"
-          :data-testid="`detail-stop-${stop.id}`"
-          class="flex items-center justify-between rounded-md border border-default bg-default px-3 py-2"
+    <div class="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_22rem]">
+      <div class="flex min-w-0 flex-col gap-6">
+        <!-- Stops list (manager-side surface). -->
+        <section
+          data-testid="detail-stops-section"
+          class="delivery-routes-detail-panel flex flex-col gap-3 rounded-xl p-4 sm:p-5"
         >
-          <span class="text-sm">
-            <span class="font-medium">{{ stop.saleFolio ?? stop.id.slice(0, 8) }}</span>
-            <span class="ml-2 text-muted">{{ stop.customer?.name ?? 'Cliente sin nombre' }}</span>
-          </span>
-          <div class="flex items-center gap-3">
-            <span class="text-xs text-muted">{{ stop.status }}</span>
+          <header class="flex items-center justify-between gap-3">
+            <h2 class="text-base font-semibold text-highlighted">Paradas</h2>
+            <span class="text-xs text-muted">{{ routeData.stops.length }} en total</span>
+          </header>
+          <ol
+            v-if="managerDetail.stops.length > 0"
+            class="flex flex-col gap-2"
+          >
+            <li
+              v-for="row in managerDetail.stops"
+              :key="row.stop.id"
+              :data-testid="`detail-stop-${row.stop.id}`"
+              :class="['delivery-routes-detail-stop flex flex-col gap-2 rounded-lg p-3 sm:flex-row sm:items-center sm:gap-4', { 'delivery-routes-detail-stop--current': row.isCurrent }]"
+            >
+              <div class="flex min-w-0 flex-1 items-start gap-3">
+                <span class="delivery-routes-detail-position flex size-8 shrink-0 items-center justify-center rounded-full font-mono text-xs font-semibold">
+                  {{ row.position }}
+                </span>
+                <div class="flex min-w-0 flex-col gap-0.5">
+                  <span class="flex min-w-0 flex-wrap items-baseline gap-x-2">
+                    <span class="truncate font-medium text-default">{{ row.customer }}</span>
+                    <span class="font-mono text-xs text-muted">{{ row.folio }}</span>
+                  </span>
+                  <span
+                    v-if="row.address"
+                    class="flex min-w-0 items-start gap-1 text-sm text-muted"
+                  >
+                    <UIcon name="i-lucide-map-pin" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />
+                    <span class="line-clamp-2">{{ row.address }}</span>
+                  </span>
+                </div>
+              </div>
+              <div class="flex shrink-0 flex-wrap items-center gap-3 pl-11 sm:pl-0">
+                <span
+                  v-if="row.timeLabel"
+                  class="text-xs tabular-nums text-muted"
+                >{{ row.timeLabel }}</span>
+                <StatusDotBadge :tone="row.statusTone" :label="row.statusLabel" />
+                <UButton
+                  v-if="canShowMove"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  icon="i-lucide-arrow-right-left"
+                  :label="DELIVERY_ROUTE_COPY.actions.moveStop"
+                  :aria-label="DELIVERY_ROUTE_COPY.transfer.moveAriaLabel.replace('{folio}', row.stop.saleFolio ?? row.stop.id.slice(0, 8))"
+                  :data-testid="`detail-stop-move-${row.stop.id}`"
+                  @click="onMoveStop(row.stop)"
+                />
+              </div>
+            </li>
+          </ol>
+          <p v-else class="text-sm text-muted">Sin paradas</p>
+        </section>
+
+        <!-- Append-stop affordance — single-sale selector + "Agregar parada" button.
+             DRAFT + canUpdate only (REQ-DRM-008/013). -->
+        <section
+          v-if="canShowAppend"
+          data-testid="detail-append-section"
+          class="delivery-routes-detail-panel flex flex-col gap-3 rounded-xl p-4 sm:p-5"
+        >
+          <header class="flex flex-col gap-1">
+            <h2 class="text-base font-semibold text-highlighted">{{ DELIVERY_ROUTE_COPY.actions.appendStop }}</h2>
+            <p class="text-sm text-muted">
+              Selecciona una venta pendiente o enviada para agregarla a la ruta.
+            </p>
+          </header>
+          <EligibleSalesPicker
+            :model-value="appendSelectedSaleIds"
+            source="append"
+            data-testid="detail-append-sales-picker"
+            @update:selected="onAppendSalePicked"
+          />
+          <div class="flex justify-end">
             <UButton
-              v-if="canShowMove"
               color="primary"
-              variant="link"
-              size="xs"
-              :label="DELIVERY_ROUTE_COPY.actions.moveStop"
-              :aria-label="DELIVERY_ROUTE_COPY.transfer.moveAriaLabel.replace('{folio}', stop.saleFolio ?? stop.id.slice(0, 8))"
-              :data-testid="`detail-stop-move-${stop.id}`"
-              @click="onMoveStop(stop)"
+              variant="solid"
+              icon="i-lucide-plus"
+              class="hf-primary-control"
+              :label="DELIVERY_ROUTE_COPY.actions.appendStop"
+              :loading="appendIsPending"
+              :disabled="appendSelectedSaleId === null"
+              data-testid="detail-append-button"
+              @click="onAppend"
             />
           </div>
-        </li>
-      </ul>
-      <p v-else class="text-sm text-muted">Sin paradas</p>
-    </section>
+        </section>
+
+        <!-- Reorder panel — only on DRAFT (DRM-009/010 gating). -->
+        <section
+          v-if="routeData.status === 'DRAFT'"
+          class="delivery-routes-detail-panel rounded-xl p-4 sm:p-5"
+        >
+          <DeliveryRouteReorderPanel :route="routeData" />
+        </section>
+      </div>
+
+      <aside class="flex min-w-0 flex-col gap-6">
+        <section
+          data-testid="detail-side-details"
+          class="delivery-routes-detail-panel flex flex-col gap-4 rounded-xl p-4 sm:p-5"
+        >
+          <h2 class="text-base font-semibold text-highlighted">Detalles</h2>
+          <dl class="flex flex-col gap-4 text-sm">
+            <div class="flex flex-col gap-1">
+              <dt class="text-xs font-medium text-muted">Repartidor</dt>
+              <dd class="flex flex-col">
+                <span class="font-medium text-default">{{ routeData.driver?.name ?? 'Sin repartidor' }}</span>
+                <span v-if="routeData.driver?.email" class="text-xs text-muted">{{ routeData.driver.email }}</span>
+              </dd>
+            </div>
+            <div class="flex flex-col gap-1">
+              <dt class="text-xs font-medium text-muted">Notas</dt>
+              <dd class="whitespace-pre-line text-default">{{ routeData.notes?.trim() || 'Sin notas' }}</dd>
+            </div>
+            <div class="flex flex-col gap-1">
+              <dt class="text-xs font-medium text-muted">Fechas</dt>
+              <dd>
+                <ul class="flex flex-col gap-0.5 text-default">
+                  <li v-for="moment in managerDetail.moments" :key="moment">{{ moment }}</li>
+                </ul>
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        <section
+          data-testid="detail-side-activity"
+          class="delivery-routes-detail-panel rounded-xl p-4 sm:p-5"
+        >
+          <DeliveryRouteTimeline :route="routeData" heading="Actividad" />
+        </section>
+      </aside>
+    </div>
   </div>
 </template>

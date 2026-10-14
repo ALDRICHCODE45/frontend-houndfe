@@ -55,6 +55,7 @@ const modalStub = defineComponent({
     description: { type: String, default: '' },
     dismissible: { type: Boolean, default: true },
     close: { type: Boolean, default: true },
+    ui: { type: Object, default: undefined },
   },
   emits: ['update:open'],
   setup(props, { slots }) {
@@ -614,5 +615,17 @@ describe('TransferDeliveryRouteStopModal — accessibility (verifier correction 
     const wrapper = mountModal()
     await flushPromises()
     expect(wrapper.find('[data-testid="transfer-destinations-error"]').attributes('role')).toBe('alert')
+  })
+})
+
+describe('TransferDeliveryRouteStopModal — design-system portal (manager detail redesign)', () => {
+  it('teleports the dialog inside the delivery-routes form theme boundary', async () => {
+    const wrapper = mountModal()
+    await flushPromises()
+    const ui = wrapper.findComponent({ name: 'UModal' }).props('ui') as { content?: string } | undefined
+    const content = (ui?.content ?? '').split(' ')
+    for (const marker of ['hf-theme', 'hf-ui', 'hf-form-overlay', 'delivery-routes-form-portal']) {
+      expect(content).toContain(marker)
+    }
   })
 })

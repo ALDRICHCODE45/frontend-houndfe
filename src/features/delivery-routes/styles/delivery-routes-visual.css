@@ -1,9 +1,8 @@
 @import '../../../core/shared/design-system/houndfe-ui.css';
 
-/* Delivery routes manager listing and the driver views (active-route list and
- * route-tracking cockpit), with their teleported menus, drawer and
- * confirmation dialogs. The create/edit slideover and the manager route detail
- * keep their own presentation. Owned
+/* Delivery routes manager listing, the manager route detail workspace and the
+ * driver views (active-route list and route-tracking cockpit), with their
+ * teleported menus, drawer, slideover and dialogs. Owned
  * portals repeat the approved shell palette because they cannot inherit it
  * after teleport. */
 .hf-theme.delivery-routes-visual,
@@ -253,6 +252,57 @@
 }
 
 .delivery-routes-driver .delivery-routes-mission-position {
+  background-color: var(--hf-active);
+  color: var(--hf-on-action);
+}
+
+/* ── Manager route detail workspace ─────────────────────────────────────── */
+
+/* Panels repaint the surface role: the global card theme paints literal
+ * palette colors that the semantic aliases never reach. */
+.delivery-routes-detail .delivery-routes-detail-panel {
+  border: 1px solid var(--hf-border);
+  background-color: var(--hf-surface);
+}
+
+.delivery-routes-detail .delivery-routes-progress-fill {
+  background-color: var(--hf-success);
+}
+
+.delivery-routes-detail .delivery-routes-detail-kpi--delivered {
+  box-shadow: inset 3px 0 0 var(--hf-success);
+}
+
+.delivery-routes-detail .delivery-routes-detail-kpi--pending {
+  box-shadow: inset 3px 0 0 var(--hf-active);
+}
+
+.delivery-routes-detail .delivery-routes-detail-kpi--skipped {
+  box-shadow: inset 3px 0 0 var(--hf-muted);
+}
+
+.delivery-routes-detail .delivery-routes-detail-kpi--time {
+  box-shadow: inset 3px 0 0 var(--hf-warning);
+}
+
+.delivery-routes-detail .delivery-routes-detail-stop {
+  border: 1px solid var(--hf-border);
+  background-color: var(--hf-surface);
+}
+
+.delivery-routes-detail .delivery-routes-detail-position {
+  background-color: var(--hf-surface-muted);
+  color: var(--hf-ink);
+}
+
+/* The stop the driver is working on reads as the active selection, the same
+ * role the cockpit uses. */
+.delivery-routes-detail .delivery-routes-detail-stop--current {
+  border-color: var(--hf-active);
+  background-color: var(--hf-active-soft);
+}
+
+.delivery-routes-detail .delivery-routes-detail-stop--current .delivery-routes-detail-position {
   background-color: var(--hf-active);
   color: var(--hf-on-action);
 }

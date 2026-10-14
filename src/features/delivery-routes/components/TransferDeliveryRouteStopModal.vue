@@ -304,6 +304,7 @@ async function confirmMove(): Promise<void> {
     :description="modalDescription"
     :dismissible="!busy"
     :close="!busy"
+    :ui="{ content: 'hf-theme hf-ui hf-form-overlay delivery-routes-form-portal' }"
     @update:open="(value: boolean) => emit('update:open', value)"
   >
     <template #body>

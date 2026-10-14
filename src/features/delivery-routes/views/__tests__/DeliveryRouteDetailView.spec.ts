@@ -291,7 +291,7 @@ vi.mock('../../components/DeliveryRouteTimeline.vue', () => ({
 }))
 
 // ─── Stub the shared ConfirmModal primitive — record open state + emits ─
-const confirmModalState: { open: boolean; title: string; confirmColor?: string; description: string; confirmLabel: string; cancelLabel: string } = { open: false, title: '', description: '', confirmColor: 'primary', confirmLabel: '', cancelLabel: '' }
+const confirmModalState: { open: boolean; title: string; confirmColor?: string; description: string; confirmLabel: string; cancelLabel: string; uiContent?: string } = { open: false, title: '', description: '', confirmColor: 'primary', confirmLabel: '', cancelLabel: '' }
 const confirmEmits: { confirm: number; cancel: number; updateOpen: number[] } = { confirm: 0, cancel: 0, updateOpen: [] }
 function resetConfirmModalState() {
   confirmModalState.open = false
@@ -315,11 +315,13 @@ vi.mock('@/core/shared/components/ConfirmModal.vue', () => ({
       cancelLabel: { type: String, default: 'Cancelar' },
       confirmColor: { type: String, default: 'primary' },
       loading: { type: Boolean, default: false },
+      ui: { type: Object, default: undefined },
     },
     emits: ['update:open', 'confirm', 'cancel'],
     setup(props, { emit }) {
       return () => {
         confirmModalState.open = props.open
+        confirmModalState.uiContent = (props.ui as { content?: string } | undefined)?.content
         confirmModalState.title = props.title ?? ''
         confirmModalState.description = props.description ?? ''
         confirmModalState.confirmColor = (props.confirmColor as typeof confirmModalState.confirmColor) ?? 'primary'
@@ -705,9 +707,8 @@ describe('DeliveryRouteDetailView — manager branch wiring (design §4.1, §6.4
     await flushPromises()
     // Header testid is a stable surface the view exposes for the summary.
     expect(wrapper.find('[data-testid="detail-route-summary"]').exists()).toBe(true)
-    // Stops list rendered for the manager branch (the panel reads it via
-    // `route.stops`; the view itself renders the count via buildStopProgress).
-    expect(wrapper.text()).toContain('0/3')
+    // Progress reads as a sentence in the redesigned workspace header.
+    expect(wrapper.text()).toContain('0 de 3 entregadas')
   })
 
   it('does NOT render the manager summary when routeData is stale (different route id)', async () => {
@@ -1269,5 +1270,107 @@ describe('DeliveryRouteDetailView — per-stop Mover action (T3 S2/S4)', () => {
     const wrapper = mountView()
     await flushPromises()
     expect(wrapper.find('[data-testid="detail-stop-move-s1"]').exists()).toBe(false)
+  })
+})
+
+describe('DeliveryRouteDetailView — manager workspace redesign (odd delivery-routes-manager-detail-visual S2-S5)', () => {
+  function activeRoute(): Record<string, unknown> {
+    const base = makeDraftRoute({ stopsLength: 3 })
+    const stops = base.stops as Array<Record<string, unknown>>
+    stops[0] = { ...stops[0], status: 'COMPLETED', completedAt: '2026-10-14T10:05:00' }
+    stops[1] = { ...stops[1], status: 'IN_PROGRESS', checkedInAt: '2026-10-14T10:40:00' }
+    return {
+      ...base,
+      status: 'ACTIVE',
+      startedAt: '2026-10-14T09:40:00',
+      timeline: [{ type: 'ROUTE_CREATED', at: '2026-10-14T08:00:00', actor: null }],
+    }
+  }
+
+  beforeEach(() => {
+    routerPushMock.mockClear()
+    resetConfirmModalState()
+  })
+
+  it('opts the manager workspace into the delivery-routes theme boundary', async () => {
+    resetRoleFlags({ isManager: { value: true } })
+    resetDetailState({ data: makeDraftRoute() })
+    const wrapper = mountView()
+    await flushPromises()
+    const root = wrapper.find('[data-testid="detail-manager-workspace"]')
+    expect(root.exists()).toBe(true)
+    for (const marker of ['hf-theme', 'hf-ui', 'delivery-routes-visual']) expect(root.classes()).toContain(marker)
+  })
+
+  it('renders the rich header: back link, route title with driver, reference and lifecycle moments', async () => {
+    resetRoleFlags({ isManager: { value: true } })
+    resetDetailState({ data: activeRoute() })
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="detail-route-title"]').text()).toBe('Ruta del 14 oct · Ana')
+    const meta = wrapper.find('[data-testid="detail-route-meta"]').text()
+    expect(meta).toContain('#route-42')
+    expect(meta).toContain('Creada')
+    expect(meta).toContain('Iniciada')
+    await wrapper.find('[data-testid="detail-back-link"]').trigger('click')
+    expect(routerPushMock).toHaveBeenCalledWith('/pos/rutas-de-entrega')
+  })
+
+  it('renders the KPI tiles and the progress bar', async () => {
+    resetRoleFlags({ isManager: { value: true } })
+    resetDetailState({ data: activeRoute() })
+    const wrapper = mountView()
+    await flushPromises()
+    expect(wrapper.find('[data-testid="detail-kpi-delivered"]').text()).toContain('1')
+    expect(wrapper.find('[data-testid="detail-kpi-delivered"]').text()).toContain('Entregadas')
+    expect(wrapper.find('[data-testid="detail-kpi-pending"]').text()).toContain('2')
+    expect(wrapper.find('[data-testid="detail-kpi-skipped"]').text()).toContain('0')
+    expect(wrapper.find('[data-testid="detail-kpi-time"]').text()).toContain('En ruta')
+    const bar = wrapper.find('[data-testid="detail-progress"]')
+    expect(bar.attributes('role')).toBe('progressbar')
+    expect(bar.attributes('aria-valuenow')).toBe('1')
+    expect(bar.attributes('aria-valuemax')).toBe('3')
+    expect(wrapper.text()).toContain('1 de 3 entregadas')
+  })
+
+  it('renders each stop with position, translated status, time and current marker — never the raw enum', async () => {
+    resetRoleFlags({ isManager: { value: true } })
+    resetDetailState({ data: activeRoute() })
+    const wrapper = mountView()
+    await flushPromises()
+    const first = wrapper.find('[data-testid="detail-stop-s1"]')
+    expect(first.text()).toContain('Cliente 1')
+    expect(first.text()).toContain('F-1')
+    expect(first.text()).toContain('Entregada')
+    expect(first.text()).toMatch(/Entregada (\d{1,2} \w+, )?\d{2}:\d{2}/)
+    const second = wrapper.find('[data-testid="detail-stop-s2"]')
+    expect(second.text()).toMatch(/Check-in (\d{1,2} \w+, )?\d{2}:\d{2}/)
+    expect(second.classes()).toContain('delivery-routes-detail-stop--current')
+    expect(wrapper.find('[data-testid="detail-stop-s3"]').text()).toContain('Pendiente')
+    expect(wrapper.find('[data-testid="detail-stops-section"]').text()).not.toMatch(/PENDING|IN_PROGRESS|COMPLETED/)
+  })
+
+  it('renders the side column with driver, notes and the activity timeline', async () => {
+    resetRoleFlags({ isManager: { value: true } })
+    resetDetailState({ data: activeRoute() })
+    const wrapper = mountView()
+    await flushPromises()
+    const details = wrapper.find('[data-testid="detail-side-details"]')
+    expect(details.text()).toContain('Ana')
+    expect(details.text()).toContain('a@x')
+    expect(details.text()).toContain('notas')
+    const activity = wrapper.find('[data-testid="detail-side-activity"]')
+    expect(activity.find('[data-testid="delivery-route-timeline-stub"]').exists()).toBe(true)
+  })
+
+  it('teleports the shared ConfirmModal inside the delivery-routes form theme boundary', async () => {
+    resetRoleFlags({ isManager: { value: true }, canUpdate: { value: true } })
+    resetDetailState({ data: makeDraftRoute() })
+    mountView()
+    await flushPromises()
+    const content = (confirmModalState.uiContent ?? '').split(' ')
+    for (const marker of ['hf-theme', 'hf-ui', 'hf-form-overlay', 'delivery-routes-form-portal']) {
+      expect(content).toContain(marker)
+    }
   })
 })
