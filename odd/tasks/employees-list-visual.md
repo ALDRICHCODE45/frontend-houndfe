@@ -14,7 +14,7 @@ S4. Literal palette badges (work modality blue/orange/slate) move to semantic ow
 
 T1 | S2,S4 | inline: list workspace + adapter CSS + list portals + card hooks + modality hooks, RED/GREEN | done | RED 7 contract + 1 header -> GREEN employees 968/37, lint exit0 | commit: see L3
 T2 | S3 | inline: dialogs and slideovers form portals (incl. nested selects), RED/GREEN | done | RED 3 contract -> GREEN employees 972/37, lint exit0, build exit0 | commit: see L4
-T3 | S1-S4 | inline checks: module suite, build, lint, native assess; user visual smoke (table/cards, light/dark, dialogs, slideovers) | pending | commit: —
+T3 | S1-S4 | inline checks: module suite, build, lint, native assess; user visual smoke (table/cards, light/dark, dialogs, slideovers) | done | user approved visually ("me gusta mucho hermano, aprovado"); employees 972/37, build exit0 | commit: see L6
 
 ## Log
 
@@ -23,3 +23,4 @@ L2. Map: EmployeesListView wraps AdminPageHeader + AppDataTable inside a UCard p
 L3. T1: styles/employees-visual.css (palette bridge for employees-visual / employees-list-portal / employees-form-portal, toolbar/pagination/card/modality hooks), EmployeesListView canonical header outside hf-table-surface (AdminPageHeader removed, bg-coco-neutral removed, root paddings kept for the existing mobile density contract), list portal on AppDataTable + row menu + EmployeeCard menu, modality badges use employees-modality--remote/hybrid/onsite. Existing header test updated to the canonical header (requested change). RED: 7 contract specs + 1 header spec failing -> GREEN employees 968/37; lint touched files exit 0.
 L4. T2: form portal marker + adapter import on TerminateEmployeeDialog, ReactivateEmployeeDialog, BatchTerminateModal, CreateEmployeeSlideover (slideover + 2 USelect + manager USelectMenu + DateFieldPopover portalClass), EmployeeEditSlideover (slideover + 3 USelect + manager USelectMenu + DateFieldPopover), ManagerPicker, and the two bulk ConfirmModals of the list. These dialogs/slideovers are also opened from EmployeeDetailView, so they render themed there too (each imports the adapter CSS). A guarded patch script stopped on an ambiguous pattern before touching the slideovers; re-applied targeting <USelect> tags only. RED 3 contract specs; the date-popover spec was added after the change (not observed RED). GREEN employees 972/37; lint on changed files exit 0; pnpm build exit 0.
 L5. Native assess b2835aef..f2ae058c: medium, reviewDue false (under_budget), no independent verifier. Pending: user visual smoke.
+L6. User verbatim: "me gusta mucho hermano, aprovado. a lo siguinet". Feature closed; fast-forward merged to main (push by the user). Next slice: employee detail.
