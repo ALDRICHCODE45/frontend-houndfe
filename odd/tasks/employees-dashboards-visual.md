@@ -13,10 +13,11 @@ S3. Pending approvals: review UModal carries the form portal and its inner UCard
 
 T1 | S2 | inline: Documentos por vencer canonical workspace, RED/GREEN | done | RED 2 contract -> GREEN | commit: see L2
 T2 | S2,S3 | inline: Validaciones pendientes canonical workspace + review modal + cards, RED/GREEN | done | RED 2 contract -> GREEN employees 984/37, lint exit0, build exit0 | commit: see L2
-T3 | S1-S3 | inline checks: module suite, build, lint, native assess; user visual smoke | pending | commit: —
+T3 | S1-S3 | inline checks: module suite, build, lint, native assess; user visual smoke | done | user approved visually ("Me gusta hermano"); employees 984/37 (scoped), build exit0 | commit: see L4
 
 ## Log
 
 L1. User request verbatim: "Me parece perfecto hermano, me gusta. lo que sigue". Both views wrap AdminPageHeader + AppDataTable in a UCard painted bg-coco-neutral; ExpiringDocuments has a threshold USelect in #filters; PendingApprovals has ViewToggle, PendingApprovalCard tray and a review UModal with an inner UCard. Existing view tests pin AdminPageHeader (updated as a requested change).
 L2. T1+T2 (one work-unit commit, shared contract spec): both views root hf-theme hf-ui employees-visual with hf-page-header outside hf-table-surface, AdminPageHeader and bg-coco-neutral removed, list portals on AppDataTable; expiry-window USelect list portal; PendingApprovals view toggle hook, review UModal form portal + inner UCard section hook, PendingApprovalCard owned employees-approval-card hook. Existing header tests updated to the canonical header (requested change; the expiring selector test now asserts against .hf-page-header instead of a removed stub). RED 4 contract -> GREEN employees 984/37; lint on changed files exit 0; pnpm build exit 0.
 L3. Native assess 691dd560..7a55e767: medium, reviewDue false (under_budget), no independent verifier. Pending: user visual smoke.
+L4. User verbatim: "Me gusta hermano, pasemos con usuarios por favor." pi-lens reported 385/420 failures from an unscoped run; reproduced as stale copies under artifacts/** and .worktrees/** (same tests exist there); this checkout's employees suite passes 984/37. Feature closed; fast-forward merged to main (push by the user). Colaboradores module complete.
