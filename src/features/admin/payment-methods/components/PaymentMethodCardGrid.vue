@@ -53,7 +53,7 @@ function categoryLabel(category: string): string {
   <div
     v-if="props.loading"
     data-testid="card-grid-skeleton"
-    class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-7"
+    class="payment-methods-card-grid grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-7"
   >
     <div
       v-for="i in 8"
@@ -75,12 +75,12 @@ function categoryLabel(category: string): string {
   <div
     v-else
     data-testid="card-grid"
-    class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-7"
+    class="payment-methods-card-grid grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 2xl:grid-cols-7"
   >
     <article
       v-for="paymentMethod in props.paymentMethods"
       :key="paymentMethod.id"
-      class="group relative flex cursor-pointer flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+      class="payment-methods-card group relative flex cursor-pointer flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
       data-testid="payment-method-card"
       @click="emit('card-click', paymentMethod)"
     >

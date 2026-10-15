@@ -22,7 +22,7 @@ import {
 } from '../utils/payment-detail-actions.utils'
 import PaymentDetailUpsertSlideover from '../components/PaymentDetailUpsertSlideover.vue'
 import PaymentDetailCardGrid from '../components/PaymentDetailCardGrid.vue'
-import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
+import '../styles/payment-details-visual.css'
 
 /**
  * AdminPaymentDetailsView — sdd payment-details-admin S4 (design.md §6.2/§6.3/§6.5)
@@ -214,7 +214,7 @@ function getRowItems(row: PaymentDetailTableRow) {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 md:px-6 lg:px-10">
+  <div class="hf-theme hf-ui payment-details-visual flex w-full min-w-0 flex-col gap-6 md:px-6 lg:px-10">
     <UAlert
       v-if="!isLoading && !isError && !hasActiveAccount"
       data-testid="no-active-account-banner"
@@ -248,16 +248,20 @@ function getRowItems(row: PaymentDetailTableRow) {
       confirm-label="Desactivar"
       confirm-color="error"
       :loading="deleteMutation.isPending.value"
+      :ui="{ content: 'hf-theme hf-ui hf-form-overlay payment-details-form-portal' }"
       @update:open="confirmState.open = $event"
       @confirm="handleConfirm"
     />
 
-    <UCard :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }">
-      <template #header>
-        <AdminPageHeader title="Datos bancarios" description="Cuentas bancarias para cobros por transferencia" />
-      </template>
+    <!-- Canonical table workspace (design-system §4): heading outside the surface. -->
+    <div class="hf-page-header">
+      <h1 class="hf-page-title">Datos bancarios</h1>
+      <p class="hf-page-subtitle">Cuentas bancarias para cobros por transferencia</p>
+    </div>
 
-      <div class="w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
+    <UCard :ui="{ body: 'p-0 sm:p-0' }" class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm">
+
+      <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"
@@ -282,6 +286,9 @@ function getRowItems(row: PaymentDetailTableRow) {
           add-button-icon="i-lucide-credit-card"
           enable-column-visibility
           empty="No hay cuentas bancarias"
+          class="hf-data-table"
+          portal-class="hf-theme hf-ui payment-details-list-portal"
+          pagination-portal-class="hf-theme hf-ui payment-details-list-portal"
           @add="isCreateOpen = true"
           @refresh="refresh"
         >
@@ -321,6 +328,7 @@ function getRowItems(row: PaymentDetailTableRow) {
               v-if="canManagePaymentDetailActions"
               :items="getRowItems(row.original)"
               :content="{ align: 'end' }"
+              :ui="{ content: 'hf-theme hf-ui payment-details-list-portal' }"
             >
               <UButton
                 icon="i-lucide-ellipsis-vertical"
@@ -334,6 +342,7 @@ function getRowItems(row: PaymentDetailTableRow) {
           <template #actions>
             <ViewToggle
               :model-value="viewMode"
+              class="payment-details-view-toggle"
               aria-label="Seleccionar vista de datos bancarios"
               @update:model-value="handleViewModeChange"
             />

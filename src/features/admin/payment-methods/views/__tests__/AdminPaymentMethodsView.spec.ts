@@ -179,8 +179,10 @@ describe('AdminPaymentMethodsView — read view (sdd custom-payment-methods S2B,
   it('renders the page header with title and description (REQ-PM-001)', async () => {
     const wrapper = mountView()
     await flushPromises()
-    const titleEl = wrapper.find('[data-testid="admin-page-header-title"]')
-    const descEl = wrapper.find('[data-testid="admin-page-header-description"]')
+    // Canonical page header (design-system §4), outside the table surface.
+    const titleEl = wrapper.find('.hf-page-title')
+    const descEl = wrapper.find('.hf-page-subtitle')
+    expect(wrapper.find('.hf-table-surface .hf-page-title').exists()).toBe(false)
     expect(titleEl.exists()).toBe(true)
     expect(titleEl.text()).toBe('Métodos de cobro')
     expect(descEl.exists()).toBe(true)

@@ -1,0 +1,20 @@
+# Datos bancarios + Métodos de cobro — design-system adaptation
+
+Adapt Datos bancarios (`/admin/payment-details`) and Métodos de cobro (`/admin/payment-methods`) to the canonical table workspace of docs/design-system.md §4, with their row menus, confirmations and slideovers themed. No v0.
+Branch: `feat/payments-admin-visual`. Work-unit commits; push by the user.
+
+## Specs
+
+S1. Exact request: "Bien hermano, ahora lo siguiente. por favor." Next Admin entries after Sucursales; same treatment the user approved for Usuarios, Roles and Sucursales.
+S2. Both views: hf-page-header (existing titles and descriptions) outside one hf-table-surface; no AdminPageHeader, no bg-coco-neutral; module light/dark boundary; toolbar/pagination/row-menu list portals; view toggle content-sized; cards restrained via owned hooks; the "no active account" UAlert of Datos bancarios stays above the workspace. The toolbar 44px rule exempts switches and checkboxes.
+S3. ConfirmModals and both upsert slideovers carry the form portal, including the category USelect of Métodos de cobro. No change to columns, gating, active-account rules or mutations.
+
+## Tasks
+
+T1 | S2,S3 | inline: both views + per-module adapter CSS + portals + cards + slideovers, RED/GREEN | done | RED 8 contract -> GREEN 304/24, build exit0 | commit: see L2
+T2 | S1-S3 | inline checks: module suites, build, lint, native assess; user visual smoke | pending | commit: —
+
+## Log
+
+L1. User request verbatim: "Bien hermano, ahora lo siguiente. por favor." Map: AdminPaymentDetailsView (UAlert above, ConfirmModal, UCard bg-coco-neutral + AdminPageHeader "Datos bancarios", row UDropdownMenu, ViewToggle, PaymentDetailCardGrid inline cards with hover translate) and AdminPaymentMethodsView (same, "Métodos de cobro"); PaymentDetailUpsertSlideover; PaymentMethodUpsertSlideover with category USelect and an in-form USwitch. AdminPaymentMethodsView.spec pins admin-page-header-title/description (updated as a requested change).
+L2. T1: payment-details-visual.css and payment-methods-visual.css derived from the users adapter with the toolbar rule exempting role=switch/checkbox; both views canonical header outside hf-table-surface (titles and descriptions unchanged; Datos bancarios UAlert stays first), AdminPageHeader + bg-coco-neutral removed, list portals on AppDataTable + row menus, view toggle hooks, ConfirmModal form portal; card grids owned hooks; both upsert slideovers form portal (+ category USelect in Métodos de cobro). AdminPaymentMethodsView.spec header assertion moved to .hf-page-title/.hf-page-subtitle (requested change). RED 8 contract -> GREEN payment-details + payment-methods 304/24; pnpm build exit 0. Lint: 3 errors, identical count on HEAD for the touched files (pre-existing), none introduced.

@@ -8,6 +8,7 @@ import {
 } from '../composables/usePaymentMethodForm'
 import type { PaymentMethodTableRow } from '../interfaces/payment-method.types'
 import { PAYMENT_METHOD_CATEGORY_LABELS, PAYMENT_METHOD_CATEGORY_VALUES, type PaymentMethodCategory } from '@/core/shared/constants/payment-method-category'
+import '../styles/payment-methods-visual.css'
 
 /**
  * PaymentMethodUpsertSlideover — sdd custom-payment-methods S3B (design §10)
@@ -153,6 +154,7 @@ function onSubmit(event: FormSubmitEvent<CreatePaymentMethodFormValues | UpdateP
     :description="description"
     side="right"
     inset
+    :ui="{ content: 'hf-theme hf-ui hf-form-overlay payment-methods-form-portal' }"
     @after-leave="resetForm"
   >
     <template #body>
@@ -175,6 +177,7 @@ function onSubmit(event: FormSubmitEvent<CreatePaymentMethodFormValues | UpdateP
 
         <UFormField label="Categoría" name="category">
           <USelect
+            :ui="{ content: 'hf-theme hf-ui hf-form-overlay payment-methods-form-portal' }"
             :model-value="activeState.category"
             :items="categoryOptions"
             class="w-full"

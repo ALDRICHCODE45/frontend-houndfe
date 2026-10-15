@@ -7,6 +7,7 @@ import {
   type UpdatePaymentDetailFormValues,
 } from '../composables/usePaymentDetailForm'
 import type { PaymentDetailTableRow } from '../interfaces/payment-detail.types'
+import '../styles/payment-details-visual.css'
 
 /**
  * PaymentDetailUpsertSlideover — sdd payment-details-admin S4 (design.md §10.2)
@@ -111,6 +112,7 @@ function onSubmit(event: FormSubmitEvent<CreatePaymentDetailFormValues | UpdateP
     :description="description"
     side="right"
     inset
+    :ui="{ content: 'hf-theme hf-ui hf-form-overlay payment-details-form-portal' }"
     @after-leave="resetForm"
   >
     <template #body>
