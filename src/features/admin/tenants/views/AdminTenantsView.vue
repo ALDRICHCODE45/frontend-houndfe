@@ -294,7 +294,7 @@ function getRowItems(tenant: TenantTableRow) {
                  chrome + "Estado" title so the mobile sheet renders the slot
                  directly (no vnode capture). -->
             <FilterSectionCard title="Estado">
-              <UCheckbox v-model="includeInactive" label="Mostrar inactivos" />
+              <USwitch v-model="includeInactive" label="Mostrar inactivos" />
             </FilterSectionCard>
           </template>
 

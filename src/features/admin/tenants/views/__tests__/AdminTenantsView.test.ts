@@ -442,31 +442,32 @@ describe('AdminTenantsView — card slot', () => {
 })
 
 describe('AdminTenantsView — #filters slot and isActive cell', () => {
-  it('renders the includeInactive checkbox inside the filters slot in table mode', async () => {
+  it('renders the includeInactive switch inside the filters slot in table mode', async () => {
     const wrapper = mountView()
     await flushPromises()
-    // The UCheckbox (mocked or real) renders a checkbox role inside the
-    // AppDataTable toolbar. Assert it exists in the rendered tree.
-    expect(wrapper.findAll('[role="checkbox"]').length).toBeGreaterThan(0)
+    // "Mostrar inactivos" is a USwitch (role="switch"), not a checkbox.
+    expect(wrapper.findAll('[role="switch"]').length).toBeGreaterThan(0)
+    expect(wrapper.findAll('[role="checkbox"]').length).toBe(0)
   })
 
   // polish-filters-bottom-sheet: the includeInactive checkbox is wrapped in a
   // FilterSectionCard (title "Estado") — card chrome owned by the view, not
   // captured/re-rendered by the toolbar.
-  it('wraps the includeInactive checkbox in a FilterSectionCard titled "Estado"', async () => {
+  it('wraps the includeInactive switch in a FilterSectionCard titled "Estado"', async () => {
     const wrapper = mountView()
     await flushPromises()
     const card = wrapper.findComponent(FilterSectionCard)
     expect(card.exists()).toBe(true)
     expect(card.props('title')).toBe('Estado')
-    expect(card.find('[role="checkbox"]').exists()).toBe(true)
+    expect(card.find('[role="switch"]').exists()).toBe(true)
+    expect(card.text()).toContain('Mostrar inactivos')
   })
 
-  it('renders the includeInactive checkbox inside the filters slot in card mode', async () => {
+  it('renders the includeInactive switch inside the filters slot in card mode', async () => {
     localStorage.setItem('admin-tenants-view-mode', 'card')
     const wrapper = mountView()
     await flushPromises()
-    expect(wrapper.findAll('[role="checkbox"]').length).toBeGreaterThan(0)
+    expect(wrapper.findAll('[role="switch"]').length).toBeGreaterThan(0)
   })
 
   it('renders isActive=true via StatusDotBadge with data-testid, label "Activa", and aria-label "Estado: Activa"', async () => {

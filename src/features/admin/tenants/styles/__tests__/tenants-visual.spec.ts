@@ -71,3 +71,11 @@ describe('Sucursales presentation adapter', () => {
     expect(count(memberSlideover, `:ui="{ content: '${formPortal}' }"`)).toBe(3)
   })
 })
+
+describe('Sucursales "Mostrar inactivos" filter', () => {
+  it('uses a switch and keeps it out of the 44px toolbar control rule', () => {
+    expect(tenants).toContain('<USwitch v-model="includeInactive" label="Mostrar inactivos"')
+    expect(tenants).not.toContain('<UCheckbox')
+    expect(css).toContain(":not([role='switch'], [role='checkbox'])")
+  })
+})

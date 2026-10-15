@@ -88,7 +88,8 @@
   }
 }
 
-.tenants-visual .hf-toolbar :where(button, input, [data-slot='root']) {
+/* Switches and checkboxes keep their own size; only regular controls stretch. */
+.tenants-visual .hf-toolbar :where(button, input, [data-slot='root']):not([role='switch'], [role='checkbox']) {
   min-height: var(--hf-control-height);
 }
 
