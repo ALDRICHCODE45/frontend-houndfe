@@ -55,3 +55,14 @@ describe('AdminPaymentDetailsView.vue presentation adapter', () => {
     expect(count(slideover, `:ui="{ content: '${formPortal}' }"`)).toBe(1)
   })
 })
+
+describe('Datos bancarios "Sin cuenta activa" notice', () => {
+  it('uses the semantic warning role instead of the saturated solid warning', () => {
+    const banner = view.slice(view.indexOf('<UAlert'), view.indexOf('/>', view.indexOf('<UAlert')))
+    expect(banner).toContain('data-testid="no-active-account-banner"')
+    expect(banner).toContain('variant="soft"')
+    expect(banner).toContain('payment-details-notice')
+    expect(css).toContain('.payment-details-visual .payment-details-notice')
+    expect(css).toContain('var(--hf-warning-soft)')
+  })
+})

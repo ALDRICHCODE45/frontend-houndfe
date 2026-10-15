@@ -219,6 +219,9 @@ function getRowItems(row: PaymentDetailTableRow) {
       v-if="!isLoading && !isError && !hasActiveAccount"
       data-testid="no-active-account-banner"
       color="warning"
+      variant="soft"
+      icon="i-lucide-triangle-alert"
+      class="payment-details-notice"
       title="Sin cuenta activa"
       description="El bot no puede cobrar por transferencia hasta que haya una cuenta activa."
     />

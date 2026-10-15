@@ -139,3 +139,18 @@
   border-color: var(--hf-action);
   box-shadow: none;
 }
+
+/* ── "Sin cuenta activa" notice ──────────────────────────────────────────── */
+
+/* Semantic warning role (design-system §1): soft surface, readable ink and a
+ * warning accent, instead of the saturated solid warning fill. */
+.payment-details-visual .payment-details-notice {
+  border: 1px solid color-mix(in srgb, var(--hf-warning) 40%, transparent);
+  border-radius: var(--hf-radius-card);
+  background-color: var(--hf-warning-soft);
+  color: var(--hf-ink);
+}
+
+.payment-details-visual .payment-details-notice :where([data-slot='icon']) {
+  color: var(--hf-warning);
+}
