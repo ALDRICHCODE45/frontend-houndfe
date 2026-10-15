@@ -42,7 +42,7 @@ import {
 } from '@/core/shared/utils/mexicoCityCalendar'
 import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
-import TableHeaderDescription from '@/core/shared/components/DataTable/TableHeaderDescription.vue'
+import '../styles/dashboard-visual.css'
 import { useBranchSalesSummary } from '../composables/useBranchSalesSummary'
 import { useBranchSalesTimeseries } from '../composables/useBranchSalesTimeseries'
 import { useRecentConfirmedSales } from '../composables/useRecentConfirmedSales'
@@ -201,23 +201,32 @@ function onPendingRefundsRetry() {
 </script>
 
 <template>
-  <div data-testid="branch-sales-summary-view" class="flex w-full min-w-0 flex-col gap-6 md:px-10">
-    <UCard
-      data-testid="branch-summary-card"
-      :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }"
-      class="w-full min-w-0 max-w-full overflow-hidden shadow-sm"
-    >
-      <template #header>
-        <TableHeaderDescription
-          description="Ventas, cobros y reembolsos de la sucursal en el periodo seleccionado."
-          title="Resumen de ventas"
-        />
-        <p data-testid="branch-summary-range" class="text-muted mt-1 text-xs">
-          {{ from }} → {{ to }}
-        </p>
-      </template>
+  <div data-testid="branch-sales-summary-view" class="hf-theme hf-ui dashboard-visual">
+    <div data-testid="branch-summary-card" class="dashboard-inner">
+      <header class="dashboard-page-header">
+        <div class="dashboard-title-block">
+          <div class="dashboard-eyebrow">
+            <span class="dashboard-brand-marker" aria-hidden="true" /> CONTROL DE VENTAS
+          </div>
+          <h1>Resumen de ventas</h1>
+          <p>Ventas, cobros y reembolsos de la sucursal en el periodo seleccionado.</p>
+          <p data-testid="branch-summary-range" class="sr-only">{{ from }} → {{ to }}</p>
+        </div>
+        <div data-testid="branch-summary-controls" class="dashboard-header-controls">
+          <BranchSalesSummaryFilters
+            :from="from"
+            :to="to"
+            :active-preset="activePreset"
+            :loading="summaryState.isInitialLoading.value"
+            :validation-message="validationMessage"
+            @update:from="onFromChange"
+            @update:to="onToChange"
+            @preset="onPreset"
+          />
+        </div>
+      </header>
 
-      <div class="flex w-full min-w-0 flex-col gap-4 px-3 py-3 sm:px-4 sm:py-4">
+      <div class="dashboard-content">
         <!--
           Retained-data indicators only exist while a summary is already on
           screen, so the empty result and the live metrics both keep them.
@@ -259,45 +268,10 @@ function onPendingRefundsRetry() {
           </div>
         </template>
 
-        <!--
-          Loaded non-empty metrics own the single filters instance through the
-          metrics `controls` slot. That places the controls adjacent to the
-          net-sales hero at `lg` while the secondary KPI and refund grids span
-          the full dashboard width below the overview.
-        -->
-        <BranchSalesSummaryMetrics v-if="metricsSummary" :summary="metricsSummary">
-          <template #controls>
-            <BranchSalesSummaryFilters
-              :from="from"
-              :to="to"
-              :active-preset="activePreset"
-              :loading="summaryState.isInitialLoading.value"
-              :validation-message="validationMessage"
-              @update:from="onFromChange"
-              @update:to="onToChange"
-              @preset="onPreset"
-            />
-          </template>
-        </BranchSalesSummaryMetrics>
+        <!-- Period controls live in the header for every independent data state. -->
+        <BranchSalesSummaryMetrics v-if="metricsSummary" :summary="metricsSummary" />
 
-        <!--
-          Every non-metric state (loading, invalid, no-data error, empty, idle)
-          keeps exactly one standalone filters panel above its state panel. This
-          branch and the metrics slot above are mutually exclusive, so two
-          filters panels never render at once.
-        -->
         <template v-else>
-          <BranchSalesSummaryFilters
-            :from="from"
-            :to="to"
-            :active-preset="activePreset"
-            :loading="summaryState.isInitialLoading.value"
-            :validation-message="validationMessage"
-            @update:from="onFromChange"
-            @update:to="onToChange"
-            @preset="onPreset"
-          />
-
           <!-- Initial load: accessible skeleton, never synthetic metric values. -->
           <div
             v-if="summaryState.isInitialLoading.value"
@@ -468,6 +442,10 @@ function onPendingRefundsRetry() {
           </DashboardOperationalPanel>
         </div>
       </div>
-    </UCard>
+      <footer class="dashboard-page-footer">
+        <span>HoundFe<span class="dashboard-footer-divider">/</span>Resumen de ventas</span>
+        <span>Todos los importes en MXN · Hora de Ciudad de México</span>
+      </footer>
+    </div>
   </div>
 </template>

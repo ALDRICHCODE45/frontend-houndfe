@@ -325,7 +325,9 @@ vi.mock('@/core/shared/utils/mexicoCityCalendar', async (importOriginal) => {
 type View = ReturnType<typeof mountWithUApp>
 
 function mountView(): View {
-  return mountWithUApp(BranchSalesSummaryView)
+  return mountWithUApp(BranchSalesSummaryView, {
+    global: { stubs: { Popover: { template: '<div><slot /><slot name="content" /></div>' } } },
+  })
 }
 
 function captured() {

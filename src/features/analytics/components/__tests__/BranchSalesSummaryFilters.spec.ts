@@ -11,12 +11,50 @@
 
 import { describe, expect, it } from 'vitest'
 import { nextTick } from 'vue'
+import { DOMWrapper, flushPromises } from '@vue/test-utils'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import {
   MEXICO_CITY_RANGE_PRESET_IDS,
   type MexicoCityRangePresetId,
 } from '@/core/shared/utils/mexicoCityCalendar'
 import BranchSalesSummaryFilters from '../BranchSalesSummaryFilters.vue'
+
+describe('BranchSalesSummaryFilters — header and range popover', () => {
+  it('shows the included calendar days and safely falls back for exact invalid strings', () => {
+    expect(mountFilters({ from: '2026-10-01', to: '2026-10-16' }).find('.dashboard-period-meta').text())
+      .toContain('1 oct – 15 oct 2026')
+    expect(mountFilters({ from: '2025-12-31', to: '2026-01-02' }).find('.dashboard-period-meta').text())
+      .toContain('31 dic 2025 – 1 ene 2026')
+    expect(mountFilters({ from: ' 2025-1-1 ', to: '' }).find('.dashboard-period-meta').text())
+      .toContain('2025-1-1  →')
+  })
+
+  it('opens a themed teleported popover with both editable fields, then closes with Escape', async () => {
+    const w = mountWithUApp(BranchSalesSummaryFilters, {
+      props: { from: '2026-10-01', to: '2026-10-16', activePreset: 'thisMonth' },
+      attachTo: document.body,
+    })
+    try {
+      expect(document.querySelector('[data-testid="branch-summary-from"]')).toBeNull()
+      const trigger = w.find('[aria-label="Personalizar periodo"]')
+      await trigger.trigger('click')
+      await flushPromises()
+      expect(trigger.attributes('aria-expanded')).toBe('true')
+      const portal = new DOMWrapper(document.querySelector('.dashboard-range-portal')!)
+      expect(portal.classes()).toEqual(expect.arrayContaining(['hf-theme', 'hf-ui']))
+      expect(w.element.contains(portal.element)).toBe(false)
+      expect(portal.text()).toContain('El rango incluye el día «Desde» y excluye el día «Hasta».')
+      expect(portal.findAll('input')).toHaveLength(2)
+      await portal.find('[data-testid="branch-summary-from"]').setValue('2026-10-03')
+      expect(w.emitted('update:from')).toEqual([['2026-10-03']])
+      await portal.trigger('keydown', { key: 'Escape' })
+      await flushPromises()
+      expect(trigger.attributes('aria-expanded')).toBe('false')
+    } finally {
+      w.vm.$root?.$?.appContext.app.unmount()
+    }
+  })
+})
 
 const BOUNDARY_TESTIDS = ['branch-summary-from', 'branch-summary-to'] as const
 
@@ -35,6 +73,9 @@ const PRESET_LABELS: Record<MexicoCityRangePresetId, string> = {
 function mountFilters(props: Record<string, unknown> = {}) {
   return mountWithUApp(BranchSalesSummaryFilters, {
     props: { from: '2025-03-01', to: '2025-04-01', ...props },
+    // Exercise field contracts without coupling them to portal mounting timing.
+    // The real popover interaction is tested separately below.
+    global: { stubs: { Popover: { template: '<div><slot /><slot name="content" /></div>' } } },
   })
 }
 
@@ -224,8 +265,8 @@ describe('BranchSalesSummaryFilters — active preset semantics', () => {
     const unselected = preset(w, 'thisMonth')
 
     expect(selected.classes()).not.toEqual(unselected.classes())
-    expect(selected.classes()).toContain('bg-primary')
-    expect(unselected.classes()).not.toContain('bg-primary')
+    expect(selected.classes()).toContain('dashboard-preset-active')
+    expect(unselected.classes()).not.toContain('dashboard-preset-active')
 
     for (const id of MEXICO_CITY_RANGE_PRESET_IDS) {
       for (const token of preset(w, id).classes()) {

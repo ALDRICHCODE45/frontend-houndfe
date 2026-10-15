@@ -235,7 +235,9 @@ vi.mock('../../composables/usePendingRefunds', () => ({
 type View = ReturnType<typeof mountWithUApp>
 
 function mountView(): View {
-  return mountWithUApp(BranchSalesSummaryView)
+  return mountWithUApp(BranchSalesSummaryView, {
+    global: { stubs: { Popover: { template: '<div><slot /><slot name="content" /></div>' } } },
+  })
 }
 
 function filterInput(view: View, testid: string) {
@@ -598,41 +600,26 @@ describe('BranchSalesSummaryView — filter operability', () => {
   })
 })
 
-describe('BranchSalesSummaryView — wide page-card shell and composition', () => {
-  it('adopts the full-width Products page shell instead of the centered capped layout', () => {
+describe('BranchSalesSummaryView — dashboard page shell and composition', () => {
+  it('opts the page into its feature-owned theme boundary', () => {
     summaryRef.value = NON_EMPTY_PAYLOAD
     const view = mountView()
-
-    const root = view.find('[data-testid="branch-sales-summary-view"]')
-    expect(root.classes()).toEqual(
-      expect.arrayContaining(['flex', 'w-full', 'min-w-0', 'flex-col', 'gap-6', 'md:px-10']),
+    expect(view.find('[data-testid="branch-sales-summary-view"]').classes()).toEqual(
+      expect.arrayContaining(['hf-theme', 'hf-ui', 'dashboard-visual']),
     )
-    expect(root.classes()).not.toContain('mx-auto')
-    expect(root.classes()).not.toContain('max-w-full')
-    expect(root.classes().some((token) => /^lg:max-w-/.test(token))).toBe(false)
-    expect(root.classes().some((token) => /^lg:px-/.test(token))).toBe(false)
   })
 
-  it('renders the full-width card body with the Coco zero-padding shell and inner responsive wrapper', () => {
+  it('replaces the wrapping card with a centered column and page-background header/footer', () => {
     summaryRef.value = NON_EMPTY_PAYLOAD
     const view = mountView()
-
-    const card = view.find('[data-testid="branch-summary-card"]')
-    expect(card.classes()).toEqual(
-      expect.arrayContaining(['w-full', 'min-w-0', 'max-w-full', 'overflow-hidden']),
+    const column = view.find('[data-testid="branch-summary-card"]')
+    expect(column.classes()).toContain('dashboard-inner')
+    expect(column.find('[data-slot="body"]').exists()).toBe(false)
+    expect(column.find('.dashboard-page-header').text()).toContain('CONTROL DE VENTAS')
+    expect(column.find('.dashboard-page-footer').text()).toContain('HoundFe/Resumen de ventas')
+    expect(column.find('.dashboard-page-footer').text()).toContain(
+      'Todos los importes en MXN · Hora de Ciudad de México',
     )
-
-    const body = card.find('[data-slot="body"]')
-    expect(body.exists()).toBe(true)
-    expect(body.classes()).toEqual(
-      expect.arrayContaining(['p-0', 'sm:p-0', 'bg-coco-neutral-50', 'dark:bg-coco-neutral-950']),
-    )
-
-    const wrapper = body.element.children[0] as HTMLElement
-    expect(wrapper).toBeDefined()
-    for (const token of ['w-full', 'min-w-0', 'px-3', 'py-3', 'sm:px-4', 'sm:py-4']) {
-      expect(wrapper.classList.contains(token), token).toBe(true)
-    }
   })
 
   it('renders one H1 with a descriptive subtitle and the exact range as its own element', () => {
@@ -643,7 +630,7 @@ describe('BranchSalesSummaryView — wide page-card shell and composition', () =
     expect(headings).toHaveLength(1)
     expect(headings[0]!.text()).toBe('Resumen de ventas')
 
-    const header = view.find('[data-testid="branch-summary-card"] [data-slot="header"]')
+    const header = view.find('.dashboard-page-header')
     const subtitle = header.find('p')
     expect(subtitle.text().trim().length).toBeGreaterThan(0)
     expect(subtitle.text()).toMatch(/ventas|reembolsos/i)
@@ -659,28 +646,13 @@ describe('BranchSalesSummaryView — wide page-card shell and composition', () =
     expect(cardText).not.toContain('America/Mexico_City')
   })
 
-  it('routes the single filters panel through the metrics overview as the adjacent right column at lg', () => {
+  it('keeps a single period block in the page header, outside the metrics', () => {
     summaryRef.value = NON_EMPTY_PAYLOAD
     const view = mountView()
-
     expect(view.findAll('[data-testid="branch-summary-filters"]')).toHaveLength(1)
-
-    const overview = view.find('[data-testid="branch-summary-sales-overview"]')
-    expect(overview.exists()).toBe(true)
-    expect(overview.classes()).toContain('lg:grid-cols-2')
-
-    const controls = overview.find('[data-testid="branch-summary-controls"]')
-    const hero = overview.find('[data-testid="branch-summary-net-sales-hero"]')
-    expect(controls.exists()).toBe(true)
-    expect(hero.exists()).toBe(true)
-    expect(controls.find('[data-testid="branch-summary-filters"]').exists()).toBe(true)
-    expect(controls.classes()).toContain('lg:col-start-2')
-    expect(hero.element.closest('dl')!.classList.contains('lg:col-start-1')).toBe(true)
-
-    // Controls are first in DOM so narrow viewports read them above the hero.
-    expect(Array.from(overview.element.children)[0]!.getAttribute('data-testid')).toBe(
-      'branch-summary-controls',
-    )
+    expect(view.find('.dashboard-page-header [data-testid="branch-summary-controls"]').exists()).toBe(true)
+    expect(view.find('[data-testid="branch-summary-metrics"] [data-testid="branch-summary-filters"]').exists()).toBe(false)
+    expect(view.find('[data-testid="branch-summary-net-sales-hero"]').exists()).toBe(true)
   })
 
   it('keeps secondary sales KPIs and refunds outside the two-column overview, full width below', () => {
@@ -711,7 +683,7 @@ describe('BranchSalesSummaryView — wide page-card shell and composition', () =
     expect(loading.findAll('[data-testid="branch-summary-filters"]')).toHaveLength(1)
     expect(filterInput(loading, 'branch-summary-from').exists()).toBe(true)
     // No loaded metrics/controls exist while the initial skeleton shows.
-    expect(loading.find('[data-testid="branch-summary-controls"]').exists()).toBe(false)
+    expect(loading.find('[data-testid="branch-summary-controls"]').exists()).toBe(true)
     expect(loading.find('[data-testid="branch-summary-sales-overview"]').exists()).toBe(false)
 
     resetMocks()
@@ -719,20 +691,20 @@ describe('BranchSalesSummaryView — wide page-card shell and composition', () =
     state.error.value = { response: { status: 400 } }
     const errored = mountView()
     expect(errored.findAll('[data-testid="branch-summary-filters"]')).toHaveLength(1)
-    expect(errored.find('[data-testid="branch-summary-controls"]').exists()).toBe(false)
+    expect(errored.find('[data-testid="branch-summary-controls"]').exists()).toBe(true)
 
     resetMocks()
     summaryRef.value = makePayload()
     const empty = mountView()
     expect(empty.findAll('[data-testid="branch-summary-filters"]')).toHaveLength(1)
     expect(empty.find('[data-testid="branch-summary-empty"]').exists()).toBe(true)
-    expect(empty.find('[data-testid="branch-summary-controls"]').exists()).toBe(false)
+    expect(empty.find('[data-testid="branch-summary-controls"]').exists()).toBe(true)
 
     resetMocks()
     const idle = mountView()
     expect(idle.findAll('[data-testid="branch-summary-filters"]')).toHaveLength(1)
     expect(idle.find('[data-testid="branch-summary-idle"]').exists()).toBe(true)
-    expect(idle.find('[data-testid="branch-summary-controls"]').exists()).toBe(false)
+    expect(idle.find('[data-testid="branch-summary-controls"]').exists()).toBe(true)
 
     resetMocks()
     summaryRef.value = NON_EMPTY_PAYLOAD
