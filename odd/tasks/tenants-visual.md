@@ -14,7 +14,7 @@ S3. ConfirmModals, TenantUpsertSlideover and MembershipUpsertSlideover (+ 2 USel
 
 T1 | S2,S3 | inline: both views + adapter CSS + portals + cards + slideovers, RED/GREEN | done | RED 6 contract -> GREEN tenants 297/23, build exit0 | commit: see L2
 T3 | S4 | inline: Mostrar inactivos switch + toolbar rule exemption, RED/GREEN | done | RED 4 -> GREEN tenants 298/23, build exit0 | commit: see L5
-T2 | S1-S4 | inline checks: module suite, build, lint, native assess; user visual smoke | pending | commit: —
+T2 | S1-S4 | inline checks: module suite, build, lint, native assess; user visual smoke | done | user approved visually ("Bien hermano, me gusta"); tenants 298/23 (scoped), build exit0 | commit: see L6
 
 ## Log
 
@@ -23,3 +23,4 @@ L2. T1: styles/tenants-visual.css derived from the users adapter; AdminTenantsVi
 L3. Native assess cc9065cc..f388031a: medium, reviewDue false (under_budget), no independent verifier. Pending: user visual smoke.
 L4. User verbatim: "Bien hermnao: /home/aldrich_coder45/Pictures/Screenshots/Screenshot_2026-10-14-18-51-04_5360x2520.png pero lo unico que hay que corregir es el filtro de \"mostrar inactivos\" vamos a cambiarlo a un swithch por favor." Screenshot showed the checkbox stretched: the copied toolbar rule '.tenants-visual .hf-toolbar :where(button, input, [data-slot=root])' gave the checkbox button min-height 44px (regression from T1).
 L5. T3: UCheckbox -> USwitch (same v-model/label); toolbar rule now :not([role='switch'], [role='checkbox']). The same rule exists in other adapters but none has a switch/checkbox in its toolbar; left unchanged. Three view tests moved from role=checkbox to role=switch (requested change) + contract spec. RED 4 -> GREEN tenants 298/23; pnpm build exit 0.
+L6. User verbatim: "Bien hermano, me gusta, commit, merge y yo pusheo". pi-lens again reported 385/420 from its unscoped run (stale copies under artifacts/** and .worktrees/**, reproduced earlier); scoped tenants suite 298/23. Feature closed; fast-forward merged to main; push by the user.
