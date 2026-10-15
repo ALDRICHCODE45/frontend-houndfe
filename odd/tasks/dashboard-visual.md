@@ -106,13 +106,13 @@ stays inside its panel.
 
 | ID | Specs | Route | Status | Commit |
 | -- | ----- | ----- | ------ | ------ |
-| T0 | S1 | inline: branch, feature doc, v0 reference committed | done | pending commit |
-| T1 | S4, S9, S10 | worker: page shell, header, period controls, feature stylesheet | pending | — |
-| T2 | S5, S7 | worker: hero, metric grid, sparklines, refunds band | pending | — |
-| T3 | S6, S7 | worker: trend panel rebuilt on Unovis | pending | — |
-| T4 | S8, S7 | worker: operational panels and shared state blocks | pending | — |
-| T5 | S7, S11 | inline: reduced motion, responsive sweep, full checks | pending | — |
-| T6 | all | inline: close, docs, user visual smoke | pending | — |
+| T0 | S1 | inline: branch, feature doc, v0 reference committed | done | 2766d27e |
+| T1 | S4, S9, S10 | worker: page shell, header, period controls, feature stylesheet | done | 0968ea17 |
+| T2 | S5, S7 | worker: hero, metric grid, sparklines, refunds band | done | 9604f050 |
+| T3 | S6, S7 | worker: trend panel rebuilt on Unovis | done | 0f1de9da |
+| T4 | S8, S7 | worker: operational panels and shared state blocks | done | 44970297 |
+| T5 | S7, S11 | inline: reduced motion, responsive sweep, full checks | done | 25099ef4 |
+| T6 | all | inline: close, docs, user visual smoke | in progress | — |
 
 ## Log
 
@@ -129,6 +129,49 @@ backend"). The accepted reference needs none: v0 dropped the three optional prop
 (period-over-period delta, metric→chart linking, "Ver todas" navigation), so every value on
 screen already comes from `/analytics/sales/summary`, `/analytics/sales/timeseries` and the
 existing sales/refund queries. No backend request is opened.
+
+**L4 — slice boundaries.** Each task commits as its own work unit, around 400 authored lines.
+`2766d27e` is documentation: its 2390 lines are the verbatim v0 reference, external material
+read as one reference rather than reviewed line by line, plus the specs above. `0968ea17` is
+~370 authored lines of code. T2, T3 and T4 own disjoint files so they stay separately
+reviewable: T2 and T3 therefore get their own stylesheets (`dashboard-metrics.css`,
+`dashboard-trend.css`) instead of sharing `dashboard-visual.css`.
+
+**L5 — shell gutter defect found in T1 readback.** The worker copied the reference's
+`padding: 52px 40px 76px` and `background: var(--hf-page)` onto the page root. The dashboard
+shell body already pads routed pages (`p-4 sm:p-6` in `vite.config.ts`) and already paints the
+page plane through `.hf-shell-workspace`, so that stacked into doubled gutters and a color seam
+inside the shell padding — the same defect `docs/design-system.md` records for Venta. Fixed
+before the commit: the root is transparent and adds only the remainder (12px/0/14px, 28px/16px/52px
+from `sm`), pinned by a stylesheet contract.
+
+**L6 — axis tick defect found in T3 readback.** The worker inlined the Y-axis label as
+`$${tick / 100_000}k`. The cents-to-thousands conversion is right, but a chart tick is whatever
+the library picks for the current domain, so a non-round tick printed a long decimal tail
+(`$1.23456k`). Fixed test-first: `formatBranchSalesTimeseriesAxisTick` in
+`branchSalesTimeseries.utils.ts` now rounds to one decimal and drops a fractional count tick,
+with unit tests covering 0, round, non-round and count ticks. Two RED tests were observed
+before the implementation.
+
+**L7 — panel grid defect found in T5 sweep.** T4 wrote
+`grid-template-columns: repeat(min(2, var(--dashboard-panel-count)), minmax(0, 1fr))` for the
+narrow tier. `repeat()` takes a literal integer and browsers do not resolve a math function as
+its track count, so the declaration would be dropped and tablet would keep the desktop column
+count. Fixed test-first: the view renders `data-panel-count` and the narrow tier selects on it;
+two RED tests were observed before the fix.
+
+**L8 — T5 checks.** 302 analytics tests pass; `vue-tsc --build` exits 0; `vite build` succeeds.
+All four feature stylesheets carry a `prefers-reduced-motion` branch and `1190px` / `700px`
+tiers. The only consumers outside `src/features/analytics` are the router's route registration
+and its spec, both unchanged. Lint is unchanged debt: `oxlint src/features/analytics` reports 35
+pre-existing errors against 36 on `origin/main`, all in test files and none introduced here.
+
+**L9 — pre-existing suite flake, not a regression.** Running `src/app` together with
+`src/features/analytics` times out `router.humanDecisions.spec.ts` ("resolves exact route,
+dashboard layout and read:HumanDecision with no extra gates", 5000ms). A differential check
+reproduced the identical failure on `origin/main` in a scratch worktree, and the spec passes when
+`src/app` runs alone (316/316) and alongside analytics on its own (306/306). It is a test
+isolation/load problem that predates this feature; it is recorded, not fixed here.
 
 **L3 — library decision.** v0 ships framer-motion + recharts. `docs/design-system.md`
 authorizes no new library, so the adaptation keeps `@unovis/vue` for charts, `@vueuse/core`
