@@ -69,6 +69,26 @@ export function isValidCalendarDateString(value: string | null | undefined): boo
 }
 
 /**
+ * Serialize a date field's calendar selection to its exact `YYYY-MM-DD` string,
+ * or return `null` for anything that is not a complete, real calendar date: a
+ * cleared field, a string, a partial object or non-integer parts. A caller uses
+ * `null` to refuse the edit, so an invalid entry can never change a window.
+ *
+ * The numeric parts are re-assembled and validated by the parser above BEFORE
+ * any `CalendarDate` is built: that constructor silently constrains impossible
+ * input (`2025-02-30` -> `2025-02-28`, month `13` -> December), which would
+ * change the requested day instead of refusing it. No JS `Date` is involved, so
+ * no time zone can shift the day.
+ */
+export function calendarPartsToDateString(value: unknown): string | null {
+  if (!value || typeof value !== 'object') return null
+  const { year, month, day } = value as { year?: unknown; month?: unknown; day?: unknown }
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null
+  const candidate = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  return parseMexicoCityCalendarDate(candidate) ? candidate : null
+}
+
+/**
  * Resolve "today" in Mexico City from an absolute instant.
  *
  * `nowMs` defaults to the real clock; tests inject a fixed epoch so a UTC

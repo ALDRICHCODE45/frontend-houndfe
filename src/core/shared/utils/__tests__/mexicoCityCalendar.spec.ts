@@ -5,9 +5,11 @@
 // rules fails at least one of these tests.
 
 import { describe, it, expect } from 'vitest'
+import { CalendarDate } from '@internationalized/date'
 import {
   MEXICO_CITY_RANGE_PRESET_IDS,
   MEXICO_CITY_TIME_ZONE,
+  calendarPartsToDateString,
   getMexicoCityRangePreset,
   isValidCalendarDateString,
   isValidMexicoCityDateRange,
@@ -143,5 +145,41 @@ describe('isValidMexicoCityDateRange', () => {
     expect(isValidMexicoCityDateRange('2025-02-30', '2025-03-15')).toBe(false)
     expect(isValidMexicoCityDateRange('0000-01-01', '2025-03-15')).toBe(false)
     expect(isValidMexicoCityDateRange('', '2025-03-15')).toBe(false)
+  })
+})
+
+/**
+ * Date fields hand back a calendar object (or nothing). A boundary only changes
+ * when that object is a complete, real calendar date; everything else must be
+ * refused rather than silently normalized, because `new CalendarDate` constrains
+ * impossible input into a DIFFERENT real day (2025-02-30 -> 2025-02-28).
+ */
+describe('calendarPartsToDateString', () => {
+  it('serializes a complete, real calendar date to its exact string', () => {
+    expect(calendarPartsToDateString(new CalendarDate(2025, 5, 9))).toBe('2025-05-09')
+    expect(calendarPartsToDateString({ year: 2025, month: 3, day: 1 })).toBe('2025-03-01')
+    expect(calendarPartsToDateString({ year: 2024, month: 2, day: 29 })).toBe('2024-02-29')
+  })
+
+  it('refuses a cleared field, a string or a partial object', () => {
+    for (const value of [undefined, null, '', '2025-03-15', 20250315, { year: 2025, month: 3 }]) {
+      expect(calendarPartsToDateString(value)).toBeNull()
+    }
+  })
+
+  it('refuses impossible or non-integer parts instead of constraining them', () => {
+    for (const value of [
+      { year: 2025, month: 2, day: 30 },
+      { year: 2025, month: 2, day: 29 },
+      { year: 2025, month: 4, day: 31 },
+      { year: 2025, month: 0, day: 15 },
+      { year: 2025, month: 13, day: 15 },
+      { year: 2025, month: 1, day: 0 },
+      { year: 2025, month: 1, day: 32 },
+      { year: 2025, month: 1.5, day: 3 },
+      { year: 0, month: 1, day: 1 },
+    ]) {
+      expect(calendarPartsToDateString(value)).toBeNull()
+    }
   })
 })

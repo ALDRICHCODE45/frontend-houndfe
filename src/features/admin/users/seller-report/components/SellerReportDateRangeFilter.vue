@@ -3,11 +3,10 @@
  * SellerReportDateRangeFilter.vue — report-local Nuxt UI calendar controls for
  * the seller report `[from, to)` window.
  *
- * Why this is local instead of the shared analytics filter: the owner asked for
- * Nuxt UI date controls rather than native HTML date inputs, and the shared
- * branch-summary filter still renders `<input type="date">`. Changing it would
- * alter shared analytics behavior, so this component restates the same
- * controlled contract (`from` inclusivo / `to` exclusivo + preset intent) with
+ * The owner asked for Nuxt UI date controls rather than native HTML date
+ * inputs. This report keeps its own visible filter panel, while the dashboard's
+ * `BranchSalesSummaryFilters` places the same controlled contract (`from`
+ * inclusivo / `to` exclusivo + preset intent) in a header popover; both use
  * `UPopover` + `UInputDate` + `UCalendar`.
  *
  * Boundary semantics are preserved verbatim:
@@ -15,8 +14,8 @@
  *     so the caller's `[from, to)` query contract is untouched.
  *   - A boundary string is parsed with `parseMexicoCityCalendarDate` and handed
  *     to the calendar as a `CalendarDate`, and the calendar's selection is
- *     serialized back with `CalendarDate.toString()`. No JS `Date` is ever
- *     constructed, so no timezone conversion can shift a chosen day.
+ *     serialized back with the shared `calendarPartsToDateString`. No JS `Date`
+ *     is ever constructed, so no timezone conversion can shift a chosen day.
  *   - Incomplete or invalid input (`undefined`, `null`, a partial object) never
  *     emits: it cannot silently change the window. The field keeps showing the
  *     last committed boundary.
@@ -29,6 +28,7 @@
 import { computed, ref, useId, watch } from 'vue'
 import { CalendarDate } from '@internationalized/date'
 import {
+  calendarPartsToDateString,
   parseMexicoCityCalendarDate,
   type MexicoCityRangePresetId,
 } from '@/core/shared/utils/mexicoCityCalendar'
@@ -103,40 +103,6 @@ function toCalendarDate(value: string): CalendarDate | undefined {
   return parseMexicoCityCalendarDate(value) ?? undefined
 }
 
-/**
- * Serialize a Nuxt UI calendar selection back to the committed boundary string.
- *
- * Returns `null` for anything that is not a complete, real calendar date
- * (cleared field, partial object, string) so the caller's window can never be
- * changed by an invalid edit.
- *
- * The original numeric parts are re-assembled into a canonical string and
- * validated by the shared calendar parser BEFORE any `CalendarDate` is built:
- * that constructor silently constrains impossible input (`2025-02-30` ->
- * `2025-02-28`, month `0` -> January, month `13` -> December), which would
- * change the requested window instead of refusing it. The shared parser stays
- * the single source of leap-year and month-length truth; no local date
- * arithmetic is duplicated here.
- */
-function toBoundaryString(value: unknown): string | null {
-  if (!value || typeof value !== 'object') {
-    return null
-  }
-
-  const { year, month, day } = value as {
-    year?: unknown
-    month?: unknown
-    day?: unknown
-  }
-  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
-    return null
-  }
-
-  const candidate = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-  const parsed = parseMexicoCityCalendarDate(candidate)
-  return parsed?.toString() === candidate ? candidate : null
-}
-
 // Controlled calendar models: the props stay the source of truth, and this
 // mirror only exists so a refused edit can visibly snap back to the committed
 // boundary instead of leaving an empty field behind.
@@ -158,7 +124,7 @@ watch(
 
 /** Commit a picked inclusive boundary, or restore the committed one. */
 function commitFrom(value: unknown) {
-  const boundary = toBoundaryString(value)
+  const boundary = calendarPartsToDateString(value)
   if (boundary === null) {
     fromModel.value = toCalendarDate(props.from)
     return
@@ -169,7 +135,7 @@ function commitFrom(value: unknown) {
 
 /** Commit a picked exclusive boundary, or restore the committed one. */
 function commitTo(value: unknown) {
-  const boundary = toBoundaryString(value)
+  const boundary = calendarPartsToDateString(value)
   if (boundary === null) {
     toModel.value = toCalendarDate(props.to)
     return

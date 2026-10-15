@@ -17,6 +17,7 @@
 import { computed, ref, useId, watch } from 'vue'
 import type { CalendarDate } from '@internationalized/date'
 import {
+  calendarPartsToDateString,
   parseMexicoCityCalendarDate,
   type MexicoCityRangePresetId,
 } from '@/core/shared/utils/mexicoCityCalendar'
@@ -117,24 +118,6 @@ function toCalendarDate(value: string): CalendarDate | undefined {
   return parseMexicoCityCalendarDate(value) ?? undefined
 }
 
-/**
- * Serialize a calendar selection back to the exact boundary string, or `null`
- * for anything that is not a complete, real calendar date (a cleared field, a
- * partial object, a string), so an invalid edit can never change the window.
- *
- * The numeric parts are re-assembled and validated by the shared parser BEFORE
- * any `CalendarDate` is built: that constructor silently constrains impossible
- * input (`2025-02-30` -> `2025-02-28`, month 13 -> December), which would change
- * the requested window instead of refusing it.
- */
-function toBoundaryString(value: unknown): string | null {
-  if (!value || typeof value !== 'object') return null
-  const { year, month, day } = value as { year?: unknown; month?: unknown; day?: unknown }
-  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null
-  const candidate = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-  return parseMexicoCityCalendarDate(candidate)?.toString() === candidate ? candidate : null
-}
-
 // Controlled mirrors: the props stay the source of truth, and a refused edit
 // visibly snaps back to the committed boundary instead of leaving it empty.
 const fromModel = ref<CalendarDate | undefined>(toCalendarDate(props.from))
@@ -144,13 +127,13 @@ watch(() => props.from, (next) => { fromModel.value = toCalendarDate(next) })
 watch(() => props.to, (next) => { toModel.value = toCalendarDate(next) })
 
 function commitFrom(value: unknown) {
-  const boundary = toBoundaryString(value)
+  const boundary = calendarPartsToDateString(value)
   fromModel.value = toCalendarDate(boundary ?? props.from)
   if (boundary !== null) emit('update:from', boundary)
 }
 
 function commitTo(value: unknown) {
-  const boundary = toBoundaryString(value)
+  const boundary = calendarPartsToDateString(value)
   toModel.value = toCalendarDate(boundary ?? props.to)
   if (boundary !== null) emit('update:to', boundary)
 }
