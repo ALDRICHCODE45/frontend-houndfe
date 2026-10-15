@@ -338,18 +338,21 @@ function captured() {
   return call
 }
 
-/** Drive a real boundary UInput emission exactly as the child component does. */
+/**
+ * Drive the filters' boundary event exactly as the view receives it. The view's
+ * contract is to take that string verbatim; which control produced it (now our
+ * calendar field, which only emits canonical dates) is the filters' own
+ * contract, pinned in `BranchSalesSummaryFilters.spec.ts`.
+ */
 async function emitBoundary(view: View, index: 0 | 1, value: string) {
-  view.findAllComponents({ name: 'Input' })[index]!.vm.$emit('update:modelValue', value)
+  view
+    .findComponent(BranchSalesSummaryFilters)
+    .vm.$emit(index === 0 ? 'update:from' : 'update:to', value)
   await nextTick()
 }
 
 function presetButton(view: View, id: MexicoCityRangePresetId) {
   return view.find(`[data-testid="branch-summary-preset"][data-preset-id="${id}"]`)
-}
-
-function filterInput(view: View, testid: string) {
-  return view.find(`[data-testid="${testid}"]`)
 }
 
 function setFakeNow(utcMs: number) {
@@ -418,12 +421,9 @@ describe('BranchSalesSummaryView — initialization and composable wiring', () =
     expect(toValue(captured().from)).toBe('2024-12-01')
     expect(toValue(captured().to)).toBe('2025-01-01')
     expect(view.find('[data-testid="branch-summary-range"]').text()).toBe('2024-12-01 → 2025-01-01')
-    expect((filterInput(view, 'branch-summary-from').element as HTMLInputElement).value).toBe(
-      '2024-12-01',
-    )
-    expect((filterInput(view, 'branch-summary-to').element as HTMLInputElement).value).toBe(
-      '2025-01-01',
-    )
+    const [fromField, toField] = view.findAllComponents({ name: 'InputDate' })
+    expect(String(fromField!.props('modelValue'))).toBe('2024-12-01')
+    expect(String(toField!.props('modelValue'))).toBe('2025-01-01')
   })
 
   it('owns one typed active preset initialized to the current month and passes it to the filters', () => {

@@ -200,6 +200,11 @@
   border-radius: var(--hf-radius-card);
   background: var(--hf-surface);
 }
+/* The boundary calendars open in their own teleported layer above the range
+ * popover: they keep the same theme roles and size to the calendar itself. */
+.hf-theme.dashboard-calendar-portal {
+  width: auto;
+}
 .dashboard-range-portal .dashboard-range-fields {
   display: flex;
   flex-direction: column;

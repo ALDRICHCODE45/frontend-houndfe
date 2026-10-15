@@ -612,8 +612,8 @@ describe('BranchSalesSummaryView — filter operability', () => {
     state.isInitialLoading.value = true
     const loading = mountView()
 
-    expect(filterInput(loading, 'branch-summary-from').attributes('disabled')).toBeDefined()
-    expect(filterInput(loading, 'branch-summary-to').attributes('disabled')).toBeDefined()
+    expect(filterInput(loading, 'branch-summary-from').attributes('data-disabled')).toBeDefined()
+    expect(filterInput(loading, 'branch-summary-to').attributes('data-disabled')).toBeDefined()
     expect(loading.find('[data-testid="branch-summary-filters"]').attributes('aria-busy')).toBe(
       'true',
     )
@@ -627,8 +627,8 @@ describe('BranchSalesSummaryView — filter operability', () => {
     state.isRefetching.value = true
     const refetching = mountView()
 
-    expect(filterInput(refetching, 'branch-summary-from').attributes('disabled')).toBeUndefined()
-    expect(filterInput(refetching, 'branch-summary-to').attributes('disabled')).toBeUndefined()
+    expect(filterInput(refetching, 'branch-summary-from').attributes('data-disabled')).toBeUndefined()
+    expect(filterInput(refetching, 'branch-summary-to').attributes('data-disabled')).toBeUndefined()
     expect(presetButton(refetching, 'last7Days').attributes('disabled')).toBeUndefined()
     expect(
       refetching.find('[data-testid="branch-summary-filters"]').attributes('aria-busy'),
@@ -652,7 +652,9 @@ describe('BranchSalesSummaryView — dashboard page shell and composition', () =
     const view = mountView()
     const column = view.find('[data-testid="branch-summary-card"]')
     expect(column.classes()).toContain('dashboard-inner')
-    expect(column.find('[data-slot="body"]').exists()).toBe(false)
+    // No wrapping card anywhere. (A `data-slot="body"` probe is ambiguous: the
+    // calendar fields render their own `body` slot.)
+    expect(view.findComponent({ name: 'Card' }).exists()).toBe(false)
     expect(column.find('.dashboard-page-header').text()).toContain('CONTROL DE VENTAS')
     expect(column.find('.dashboard-page-footer').text()).toContain('HoundFe/Resumen de ventas')
     expect(column.find('.dashboard-page-footer').text()).toContain(

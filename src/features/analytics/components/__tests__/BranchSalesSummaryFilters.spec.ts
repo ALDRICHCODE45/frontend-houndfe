@@ -12,6 +12,7 @@
 import { describe, expect, it } from 'vitest'
 import { nextTick } from 'vue'
 import { DOMWrapper, flushPromises } from '@vue/test-utils'
+import { CalendarDate } from '@internationalized/date'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import {
   MEXICO_CITY_RANGE_PRESET_IDS,
@@ -44,9 +45,11 @@ describe('BranchSalesSummaryFilters — header and range popover', () => {
       expect(portal.classes()).toEqual(expect.arrayContaining(['hf-theme', 'hf-ui']))
       expect(w.element.contains(portal.element)).toBe(false)
       expect(portal.text()).toContain('El rango incluye el día «Desde» y excluye el día «Hasta».')
-      expect(portal.findAll('input')).toHaveLength(2)
-      await portal.find('[data-testid="branch-summary-from"]').setValue('2026-10-03')
-      expect(w.emitted('update:from')).toEqual([['2026-10-03']])
+      // Our calendar fields, never the browser's native date picker.
+      expect(portal.findAll('input[type="date"]:not([aria-hidden="true"])')).toHaveLength(0)
+      for (const testid of BOUNDARY_TESTIDS) {
+        expect(portal.find(`[data-testid="${testid}"] [data-segment="day"]`).exists()).toBe(true)
+      }
       await portal.trigger('keydown', { key: 'Escape' })
       await flushPromises()
       expect(trigger.attributes('aria-expanded')).toBe('false')
@@ -54,9 +57,42 @@ describe('BranchSalesSummaryFilters — header and range popover', () => {
       w.vm.$root?.$?.appContext.app.unmount()
     }
   })
+
+  // The boundary calendar is a popover INSIDE the range popover. Real
+  // components, no stubs: picking a day in the nested layer must emit and must
+  // not dismiss the range popover as an outside click.
+  it('picks a day in the nested calendar without closing the range popover', async () => {
+    const w = mountWithUApp(BranchSalesSummaryFilters, {
+      props: { from: '2026-10-01', to: '2026-10-16', activePreset: 'thisMonth' },
+      attachTo: document.body,
+    })
+    try {
+      const trigger = w.find('[aria-label="Personalizar periodo"]')
+      await trigger.trigger('click')
+      await flushPromises()
+
+      const field = document.querySelector<HTMLElement>('[data-testid="branch-summary-from"]')!
+      field.click()
+      await flushPromises()
+      const calendar = document.querySelector('[data-testid="branch-summary-from-calendar"]')
+      expect(calendar).not.toBeNull()
+      expect(calendar!.closest('.dashboard-calendar-portal')?.classList).toContain('hf-theme')
+
+      const day = calendar!.querySelector<HTMLElement>('[data-value="2026-10-03"]')!
+      day.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }))
+      day.click()
+      await flushPromises()
+
+      expect(w.emitted('update:from')).toEqual([['2026-10-03']])
+      expect(trigger.attributes('aria-expanded')).toBe('true')
+    } finally {
+      w.vm.$root?.$?.appContext.app.unmount()
+    }
+  })
 })
 
 const BOUNDARY_TESTIDS = ['branch-summary-from', 'branch-summary-to'] as const
+const CALENDAR_TESTIDS = ['branch-summary-from-calendar', 'branch-summary-to-calendar'] as const
 
 const DISABLE_STATES: ReadonlyArray<[string, Record<string, unknown>]> = [
   ['disabled', { disabled: true }],
@@ -83,6 +119,14 @@ function boundary(w: ReturnType<typeof mountFilters>, testid: string) {
   return w.find(`[data-testid="${testid}"]`)
 }
 
+/** Click a real calendar day cell by its `YYYY-MM-DD` value. */
+async function pickDay(w: ReturnType<typeof mountFilters>, testid: string, iso: string) {
+  const cell = w.find(`[data-testid="${testid}"] [data-value="${iso}"]`)
+  if (!cell.exists()) throw new Error(`calendar cell ${iso} was not rendered`)
+  await cell.trigger('click')
+  await flushPromises()
+}
+
 function hint(w: ReturnType<typeof mountFilters>) {
   return w.findAll('p').find((node) => node.text().includes('El rango incluye'))
 }
@@ -98,47 +142,92 @@ describe('BranchSalesSummaryFilters — inclusive/exclusive boundary copy', () =
     expect(w.text()).toContain('El rango incluye el día «Desde» y excluye el día «Hasta».')
   })
 
-  it('associates each label with its own native date-capable input', () => {
+  // The user asked for our calendar component instead of the browser's native
+  // date input. Reka's DateField keeps one `aria-hidden`, `tabindex=-1`
+  // `<input type="date">` as an invisible form mirror, so only VISIBLE native
+  // date inputs are forbidden.
+  it('renders our segmented calendar fields and no visible native date input', () => {
     const w = mountFilters()
+
+    expect(w.findAll('input[type="date"]:not([aria-hidden="true"])')).toHaveLength(0)
+    for (const testid of BOUNDARY_TESTIDS) {
+      const field = boundary(w, testid)
+      for (const segment of ['day', 'month', 'year']) {
+        expect(field.find(`[data-segment="${segment}"]`).attributes('contenteditable')).toBe('true')
+      }
+    }
+  })
+
+  it('shows each committed boundary in its own field and labels it', () => {
+    const w = mountFilters()
+    const [from, to] = w.findAllComponents({ name: 'InputDate' })
     const labels = w.findAll('label')
 
+    expect((from!.props('modelValue') as CalendarDate).toString()).toBe('2025-03-01')
+    expect((to!.props('modelValue') as CalendarDate).toString()).toBe('2025-04-01')
     for (const [index, testid] of BOUNDARY_TESTIDS.entries()) {
-      expect(boundary(w, testid).attributes('type')).toBe('date')
-      expect(labels[index]!.attributes('for')).toBe(boundary(w, testid).attributes('id'))
+      expect(boundary(w, testid).attributes('aria-labelledby')).toBe(labels[index]!.attributes('id'))
     }
-    expect((boundary(w, 'branch-summary-from').element as HTMLInputElement).value).toBe(
-      '2025-03-01',
-    )
-    expect((boundary(w, 'branch-summary-to').element as HTMLInputElement).value).toBe('2025-04-01')
+  })
+
+  it('opens a calendar for each boundary', () => {
+    const w = mountFilters()
+
+    for (const testid of CALENDAR_TESTIDS) {
+      expect(w.find(`[data-testid="${testid}"]`).exists()).toBe(true)
+    }
   })
 })
 
 describe('BranchSalesSummaryFilters — controlled emits', () => {
-  it('emits each edited boundary string exactly, with no calendar transformation', async () => {
-    const w = mountFilters()
+  it('emits the exact day picked in each calendar, with no timezone shift', async () => {
+    const w = mountFilters({ from: '2025-03-05' })
 
-    await boundary(w, 'branch-summary-from').setValue('2025-05-09')
-    await boundary(w, 'branch-summary-to').setValue('2025-06-10')
+    await pickDay(w, CALENDAR_TESTIDS[0], '2025-03-01')
+    await pickDay(w, CALENDAR_TESTIDS[1], '2025-04-10')
 
-    expect(w.emitted('update:from')).toEqual([['2025-05-09']])
-    expect(w.emitted('update:to')).toEqual([['2025-06-10']])
+    // A JS `Date` round trip would collapse 2025-03-01 to 2025-02-28 in
+    // UTC-negative zones; the boundary stays exact calendar arithmetic.
+    expect(w.emitted('update:from')).toEqual([['2025-03-01']])
+    expect(w.emitted('update:to')).toEqual([['2025-04-10']])
     expect(w.emitted('preset')).toBeUndefined()
   })
 
-  it('passes intentionally noncanonical boundary strings through unchanged', async () => {
+  it('emits a complete date typed into the field as its canonical string', async () => {
     const w = mountFilters()
-    // Native `type=date` normalizes invalid DOM values, so drive the rendered
-    // UInput emission directly: a trim, pad or parse anywhere would change these.
-    const rawFrom = ' 2025-1-1 '
-    const rawTo = '2025-02-30T24:00:00Z'
-    const [from, to] = w.findAllComponents({ name: 'Input' })
+    const [from, to] = w.findAllComponents({ name: 'InputDate' })
 
-    from!.vm.$emit('update:modelValue', rawFrom)
-    to!.vm.$emit('update:modelValue', rawTo)
+    from!.vm.$emit('update:modelValue', new CalendarDate(2025, 5, 9))
+    to!.vm.$emit('update:modelValue', { year: 2024, month: 2, day: 29 })
     await nextTick()
 
-    expect(w.emitted('update:from')).toEqual([[rawFrom]])
-    expect(w.emitted('update:to')).toEqual([[rawTo]])
+    expect(w.emitted('update:from')).toEqual([['2025-05-09']])
+    expect(w.emitted('update:to')).toEqual([['2024-02-29']])
+  })
+
+  it('never emits a cleared, partial or impossible date, and keeps the committed one', async () => {
+    const w = mountFilters({ activePreset: 'last7Days' })
+    const [from] = w.findAllComponents({ name: 'InputDate' })
+
+    // `new CalendarDate` would silently constrain every impossible value into a
+    // different real day, changing the window instead of refusing the edit.
+    for (const value of [
+      undefined,
+      null,
+      '2025-03-15',
+      { year: 2025, month: 3 },
+      { year: 2025, month: 2, day: 30 },
+      { year: 2025, month: 2, day: 29 },
+      { year: 2025, month: 13, day: 15 },
+      { year: 2025, month: 1, day: 0 },
+    ]) {
+      from!.vm.$emit('update:modelValue', value)
+    }
+    await nextTick()
+
+    expect(w.emitted('update:from')).toBeUndefined()
+    expect(w.emitted('preset')).toBeUndefined()
+    expect((from!.props('modelValue') as CalendarDate).toString()).toBe('2025-03-01')
   })
 
   it('emits every exact preset id and never a locally computed date', async () => {
@@ -200,8 +289,10 @@ describe('BranchSalesSummaryFilters — validation and controls', () => {
     (_label, props) => {
       const w = mountFilters(props)
 
+      // Our calendar field marks its disabled state on the field root.
       for (const testid of BOUNDARY_TESTIDS) {
-        expect(boundary(w, testid).attributes('disabled')).toBeDefined()
+        expect(boundary(w, testid).attributes('data-disabled')).toBeDefined()
+        expect(boundary(w, testid).attributes('aria-disabled')).toBe('true')
       }
       const presets = w.findAll('[data-testid="branch-summary-preset"]')
       expect(presets).toHaveLength(MEXICO_CITY_RANGE_PRESET_IDS.length)

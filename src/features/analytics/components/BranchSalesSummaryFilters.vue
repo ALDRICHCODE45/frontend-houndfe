@@ -14,7 +14,8 @@
  * `aria-pressed` and a feature-owned semantic selection (no hardcoded colors),
  * so the selected state is visible in both light and dark themes.
  */
-import { computed, useId } from 'vue'
+import { computed, ref, useId, watch } from 'vue'
+import type { CalendarDate } from '@internationalized/date'
 import {
   parseMexicoCityCalendarDate,
   type MexicoCityRangePresetId,
@@ -79,6 +80,8 @@ const periodLabel = computed(() => {
 const uid = useId()
 const fromId = `${uid}-from`
 const toId = `${uid}-to`
+const fromLabelId = `${uid}-from-label`
+const toLabelId = `${uid}-to-label`
 const hintId = `${uid}-hint`
 const validationId = `${uid}-validation`
 
@@ -88,10 +91,71 @@ const describedBy = computed(() =>
   hasValidationMessage.value ? `${hintId} ${validationId}` : hintId,
 )
 
-/** Pass the edited string straight through; never parse it into an instant. */
-function toBoundary(value: unknown): string {
-  return typeof value === 'string' ? value : String(value ?? '')
+// Our calendar fields (`UInputDate` + `UCalendar`) replace the native date
+// input, following `SellerReportDateRangeFilter`. Nuxt UI's Popover has no
+// `disabled` prop, so each calendar opens through a guarded controlled state.
+const fromOpen = ref(false)
+const toOpen = ref(false)
+
+watch(isDisabled, (next) => {
+  if (next) {
+    fromOpen.value = false
+    toOpen.value = false
+  }
+})
+
+function setFromOpen(value: boolean) {
+  fromOpen.value = !isDisabled.value && value
 }
+
+function setToOpen(value: boolean) {
+  toOpen.value = !isDisabled.value && value
+}
+
+/** Exact calendar string -> `CalendarDate`; never a JS `Date`. */
+function toCalendarDate(value: string): CalendarDate | undefined {
+  return parseMexicoCityCalendarDate(value) ?? undefined
+}
+
+/**
+ * Serialize a calendar selection back to the exact boundary string, or `null`
+ * for anything that is not a complete, real calendar date (a cleared field, a
+ * partial object, a string), so an invalid edit can never change the window.
+ *
+ * The numeric parts are re-assembled and validated by the shared parser BEFORE
+ * any `CalendarDate` is built: that constructor silently constrains impossible
+ * input (`2025-02-30` -> `2025-02-28`, month 13 -> December), which would change
+ * the requested window instead of refusing it.
+ */
+function toBoundaryString(value: unknown): string | null {
+  if (!value || typeof value !== 'object') return null
+  const { year, month, day } = value as { year?: unknown; month?: unknown; day?: unknown }
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null
+  const candidate = `${String(year).padStart(4, '0')}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+  return parseMexicoCityCalendarDate(candidate)?.toString() === candidate ? candidate : null
+}
+
+// Controlled mirrors: the props stay the source of truth, and a refused edit
+// visibly snaps back to the committed boundary instead of leaving it empty.
+const fromModel = ref<CalendarDate | undefined>(toCalendarDate(props.from))
+const toModel = ref<CalendarDate | undefined>(toCalendarDate(props.to))
+
+watch(() => props.from, (next) => { fromModel.value = toCalendarDate(next) })
+watch(() => props.to, (next) => { toModel.value = toCalendarDate(next) })
+
+function commitFrom(value: unknown) {
+  const boundary = toBoundaryString(value)
+  fromModel.value = toCalendarDate(boundary ?? props.from)
+  if (boundary !== null) emit('update:from', boundary)
+}
+
+function commitTo(value: unknown) {
+  const boundary = toBoundaryString(value)
+  toModel.value = toCalendarDate(boundary ?? props.to)
+  if (boundary !== null) emit('update:to', boundary)
+}
+
+const CALENDAR_PORTAL = 'hf-theme hf-ui dashboard-range-portal dashboard-calendar-portal'
 
 /** The caller owns selection; this component only reflects the prop. */
 function isPresetActive(id: MexicoCityRangePresetId): boolean {
@@ -150,35 +214,67 @@ function isPresetActive(id: MexicoCityRangePresetId): boolean {
             <h2 class="text-sm font-semibold text-highlighted">Periodo de análisis</h2>
             <div class="grid min-w-0 grid-cols-1 gap-3">
               <div class="flex min-w-0 flex-col gap-1.5">
-                <label :for="fromId" class="text-xs font-medium text-muted">Desde (incluyente)</label>
-                <UInput
-                  :id="fromId"
-                  data-testid="branch-summary-from"
-                  type="date"
-                  class="w-full min-w-0"
-                  :ui="{ base: 'min-h-11' }"
-                  :model-value="props.from"
-                  :disabled="isDisabled"
-                  :aria-invalid="hasValidationMessage ? 'true' : undefined"
-                  :aria-describedby="describedBy"
-                  @update:model-value="emit('update:from', toBoundary($event))"
-                />
+                <label :id="fromLabelId" :for="fromId" class="text-xs font-medium text-muted">Desde (incluyente)</label>
+                <UPopover
+                  :open="fromOpen"
+                  :content="{ align: 'start', side: 'bottom', sideOffset: 8 }"
+                  :ui="{ content: CALENDAR_PORTAL }"
+                  @update:open="setFromOpen"
+                >
+                  <UInputDate
+                    :id="fromId"
+                    data-testid="branch-summary-from"
+                    class="w-full min-w-0"
+                    :ui="{ base: 'min-h-11' }"
+                    :model-value="fromModel"
+                    :disabled="isDisabled"
+                    :aria-labelledby="fromLabelId"
+                    :aria-invalid="hasValidationMessage ? 'true' : undefined"
+                    :aria-describedby="describedBy"
+                    @update:model-value="commitFrom"
+                  />
+                  <template #content>
+                    <UCalendar
+                      data-testid="branch-summary-from-calendar"
+                      class="p-2"
+                      :model-value="fromModel"
+                      :disabled="isDisabled"
+                      @update:model-value="commitFrom"
+                    />
+                  </template>
+                </UPopover>
               </div>
 
               <div class="flex min-w-0 flex-col gap-1.5">
-                <label :for="toId" class="text-xs font-medium text-muted">Hasta (excluyente)</label>
-                <UInput
-                  :id="toId"
-                  data-testid="branch-summary-to"
-                  type="date"
-                  class="w-full min-w-0"
-                  :ui="{ base: 'min-h-11' }"
-                  :model-value="props.to"
-                  :disabled="isDisabled"
-                  :aria-invalid="hasValidationMessage ? 'true' : undefined"
-                  :aria-describedby="describedBy"
-                  @update:model-value="emit('update:to', toBoundary($event))"
-                />
+                <label :id="toLabelId" :for="toId" class="text-xs font-medium text-muted">Hasta (excluyente)</label>
+                <UPopover
+                  :open="toOpen"
+                  :content="{ align: 'start', side: 'bottom', sideOffset: 8 }"
+                  :ui="{ content: CALENDAR_PORTAL }"
+                  @update:open="setToOpen"
+                >
+                  <UInputDate
+                    :id="toId"
+                    data-testid="branch-summary-to"
+                    class="w-full min-w-0"
+                    :ui="{ base: 'min-h-11' }"
+                    :model-value="toModel"
+                    :disabled="isDisabled"
+                    :aria-labelledby="toLabelId"
+                    :aria-invalid="hasValidationMessage ? 'true' : undefined"
+                    :aria-describedby="describedBy"
+                    @update:model-value="commitTo"
+                  />
+                  <template #content>
+                    <UCalendar
+                      data-testid="branch-summary-to-calendar"
+                      class="p-2"
+                      :model-value="toModel"
+                      :disabled="isDisabled"
+                      @update:model-value="commitTo"
+                    />
+                  </template>
+                </UPopover>
               </div>
             </div>
             <p :id="hintId" class="text-xs text-muted">
