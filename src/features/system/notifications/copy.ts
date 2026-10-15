@@ -4,6 +4,10 @@
 // don't drift between the view, the composables, and the spec.
 
 export const NOTIFICATION_CONFIG_COPY = {
+  // ── Page header ──
+  pageTitle: 'Configuración de notificaciones',
+  pageSubtitle: 'Elige quién recibe notificaciones y qué acciones las disparan.',
+
   // ── Sections ──
   masterLabel: 'Notificaciones',
   masterDescription: 'Activa o desactiva el envío de notificaciones',

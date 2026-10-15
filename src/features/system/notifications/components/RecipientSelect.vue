@@ -21,6 +21,7 @@ import {
   resolveSelectedRows,
 } from './recipientSelectState'
 import { NOTIFICATION_CONFIG_COPY } from '../copy'
+import '../styles/notifications-visual.css'
 
 const props = withDefaults(
   defineProps<{
@@ -82,6 +83,7 @@ function removeChip(id: string) {
       multiple
       ignore-filter
       class="w-full"
+      :ui="{ content: 'hf-theme hf-ui hf-form-overlay notifications-form-portal' }"
       data-testid="recipient-select-trigger"
       @update:model-value="onUpdate"
     />

@@ -34,6 +34,7 @@ import MasterToggle from '../components/MasterToggle.vue'
 import RecipientSelect from '../components/RecipientSelect.vue'
 import ActionsAccordion from '../components/ActionsAccordion.vue'
 import { NOTIFICATION_CONFIG_COPY } from '../copy'
+import '../styles/notifications-visual.css'
 
 // ── Composable wiring ────────────────────────────────────────────────────────
 
@@ -68,13 +69,19 @@ function onSave() {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 p-6">
+  <div class="hf-theme hf-ui notifications-visual mx-auto flex w-full min-w-0 max-w-[1320px] flex-col gap-6 px-4 py-6 sm:px-6 lg:px-10">
+    <!-- Canonical page header (design-system §4), on the page background. -->
+    <div class="hf-page-header">
+      <h1 class="hf-page-title">{{ NOTIFICATION_CONFIG_COPY.pageTitle }}</h1>
+      <p class="hf-page-subtitle">{{ NOTIFICATION_CONFIG_COPY.pageSubtitle }}</p>
+    </div>
+
     <!-- Loading state — placeholders for the three cards (REQ-9). -->
     <template v-if="isLoading">
       <div
         v-for="i in 3"
         :key="i"
-        class="rounded-lg border border-default bg-default p-6"
+        class="notifications-section rounded-lg p-6"
       >
         <USkeleton class="mb-3 h-5 w-1/3" />
         <USkeleton class="h-4 w-2/3" />
@@ -84,7 +91,7 @@ function onSave() {
     <template v-else>
       <!-- Card 1 — Master toggle. -->
       <section
-        class="rounded-lg border border-default bg-default p-6"
+        class="notifications-section rounded-lg p-6"
         data-testid="notifications-card-master"
       >
         <header class="mb-4">
@@ -102,7 +109,7 @@ function onSave() {
 
       <!-- Card 2 — Recipients. -->
       <section
-        class="rounded-lg border border-default bg-default p-6"
+        class="notifications-section rounded-lg p-6"
         data-testid="notifications-card-recipients"
       >
         <header class="mb-4">
@@ -132,7 +139,7 @@ function onSave() {
 
       <!-- Card 3 — Actions. -->
       <section
-        class="rounded-lg border border-default bg-default p-6"
+        class="notifications-section rounded-lg p-6"
         data-testid="notifications-card-actions"
       >
         <header class="mb-4">
