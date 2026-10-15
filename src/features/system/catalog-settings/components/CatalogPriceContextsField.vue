@@ -21,6 +21,7 @@ import type {
   CatalogSettingsDraft,
   CatalogPriceContextDto,
 } from '../interfaces/catalog-settings.types'
+import '../styles/catalog-settings-visual.css'
 
 interface PriceListOption {
   value: string
@@ -123,6 +124,7 @@ function onDefaultChange(next: unknown) {
       <!-- Visible allowlist: one searchable multiple selection. -->
       <UFormField label="Listas visibles" class="w-full">
         <USelectMenu
+          :ui="{ content: 'hf-theme hf-ui hf-form-overlay catalog-settings-form-portal' }"
           :model-value="selectedIds"
           :items="listOptions"
           value-key="value"
@@ -162,6 +164,7 @@ function onDefaultChange(next: unknown) {
         class="w-full"
       >
         <USelectMenu
+          :ui="{ content: 'hf-theme hf-ui hf-form-overlay catalog-settings-form-portal' }"
           :model-value="props.draft.catalogDefaultPriceListId"
           :items="defaultOptions"
           value-key="value"

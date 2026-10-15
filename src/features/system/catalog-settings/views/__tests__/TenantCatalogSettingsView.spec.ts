@@ -307,13 +307,14 @@ describe('TenantCatalogSettingsView — card shell (U5)', () => {
     expect(wrapper.findAll('[data-testid="settings-card"]').length).toBe(1)
   })
 
-  // ── Header is inside the card ─────────────────────────────────────────────
+  // ── Canonical page header sits outside the card ──────────────────────────
 
-  it('header title and description are descendants of the card', () => {
+  it('renders the title and description in the page header, outside the card', () => {
     const wrapper = mountWithUApp(TenantCatalogSettingsView)
+    expect(wrapper.find('.hf-page-title').text()).toBe('Configuración del catálogo online')
+    expect(wrapper.find('.hf-page-subtitle').text()).toContain('Controla la visibilidad')
     const card = wrapper.find('[data-testid="settings-card"]')
-    expect(card.text()).toContain('Configuración del catálogo online')
-    expect(card.text()).toContain('Controla la visibilidad')
+    expect(card.text()).not.toContain('Configuración del catálogo online')
   })
 
   // ── Body states are descendants of the card ──────────────────────────────
