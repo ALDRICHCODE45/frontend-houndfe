@@ -89,7 +89,11 @@ keep `getMexicoCityRangePreset` as the only boundary source, "Este mes" stays th
 selection, and a manual edit still clears the selection while preserving the exact edited
 strings. The two date fields move into the custom-range popover with their existing labels
 "Desde (incluyente)" / "Hasta (excluyente)" and the helper "El rango incluye el día «Desde» y
-excluye el día «Hasta»." Validation and query behavior are unchanged.
+excluye el día «Hasta»." Per L10 they are our calendar fields (`UInputDate` + `UCalendar`, as in
+`SellerReportDateRangeFilter`), never the browser's native date input: a field emits only a
+complete, real calendar date as its exact `YYYY-MM-DD` string, and a cleared, partial or
+impossible value never emits and snaps back to the committed boundary. Validation and query
+behavior are unchanged.
 
 **S10 — Foundation and themes.** Use the `--hf-*` semantic roles through a feature-owned
 `dashboard-visual` boundary; v0's literal hex values are the same palette and must not be
@@ -112,6 +116,7 @@ stays inside its panel.
 | T3 | S6, S7 | worker: trend panel rebuilt on Unovis | done | 0f1de9da |
 | T4 | S8, S7 | worker: operational panels and shared state blocks | done | 44970297 |
 | T5 | S7, S11 | inline: reduced motion, responsive sweep, full checks | done | 25099ef4 |
+| T7 | S9 | inline: calendar fields replace the native date inputs (L10) | done | 3338b89f |
 | T6 | all | inline: close, docs, user visual smoke | in progress | — |
 
 ## Log
@@ -172,6 +177,18 @@ dashboard layout and read:HumanDecision with no extra gates", 5000ms). A differe
 reproduced the identical failure on `origin/main` in a scratch worktree, and the spec passes when
 `src/app` runs alone (316/316) and alongside analytics on its own (306/306). It is a test
 isolation/load problem that predates this feature; it is recorded, not fixed here.
+
+**L10 — user correction after the visual smoke (verbatim).**
+
+> Me encanta hermano, solament que recuerda que los inputs dates deben tener nuestro componente de calendarios por favor, en lugar de los inputs date por defecto
+
+Applied in T7 following the existing `SellerReportDateRangeFilter` pattern. Seven RED tests were
+observed before the implementation. The view specs now drive the filters' `update:from` /
+`update:to` events instead of a child input, so the view's verbatim-string contract stays pinned
+independently of which control produces the string. A real-component test (no stubs) proves a
+day picked in the nested calendar emits and does not dismiss the range popover. The guard that
+refuses impossible dates is duplicated from the seller report; extracting it into
+`mexicoCityCalendar.ts` is a possible follow-up, left out because it would touch the seller report.
 
 **L3 — library decision.** v0 ships framer-motion + recharts. `docs/design-system.md`
 authorizes no new library, so the adaptation keeps `@unovis/vue` for charts, `@vueuse/core`
