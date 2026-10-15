@@ -1028,9 +1028,8 @@ describe('BranchSalesSummaryView — operational panel composition', () => {
     const view = mountView()
 
     const grid = view.find('[data-testid="branch-summary-operational-grid"]')
-    expect(grid.classes()).toEqual(
-      expect.arrayContaining(['grid', 'min-w-0', 'grid-cols-1', 'gap-4', 'lg:grid-cols-3']),
-    )
+    expect(grid.classes()).toContain('dashboard-panel-grid')
+    expect(grid.attributes('style')).toContain('--dashboard-panel-count: 3')
 
     const card = view.find('[data-testid="branch-summary-card"]')
     expect(card.element.contains(grid.element)).toBe(true)

@@ -350,6 +350,42 @@ beforeEach(resetMocks)
 
 // ── No-data error copy and guarded retry ─────────────────────────────────────
 
+describe('BranchSalesSummaryView — T4 state presentation', () => {
+  it.each([
+    [['read:Sale', 'read:SaleRefund'], 3],
+    [['read:Sale'], 2],
+    [['read:SaleRefund'], 1],
+    [[], 0],
+  ] as const)('sizes the grid to granted panels: %s', (permissions, count) => {
+    grantPermissions(...permissions)
+    const view = mountView()
+    const grid = view.find('[data-testid="branch-summary-operational-grid"]')
+    expect(view.findAll('[data-testid="dashboard-operational-panel"]')).toHaveLength(count)
+    if (count) expect(grid.attributes('style')).toContain(`--dashboard-panel-count: ${count}`)
+    else expect(grid.exists()).toBe(false)
+  })
+
+  it.each([false, true])('disables summary retry with a spinner (retained: %s)', (retained) => {
+    if (retained) summaryRef.value = NON_EMPTY_PAYLOAD
+    state.isError.value = true
+    state.isRefetching.value = true
+    const view = mountView()
+    const testId = retained ? 'branch-summary-refresh-retry' : 'branch-summary-retry'
+    const retry = view.find(`[data-testid="${testId}"]`)
+    expect(retry.attributes('disabled')).toBeDefined()
+    expect(retry.find('.animate-spin').exists()).toBe(true)
+  })
+
+  it('dims the summary without dimming its independent operational siblings', () => {
+    summaryRef.value = NON_EMPTY_PAYLOAD
+    state.isRefetching.value = true
+    grantPermissions('read:Sale')
+    const view = mountView()
+    expect(view.find('.dashboard-summary-state').classes()).toContain('dashboard-state-refreshing')
+    expect(view.find('[data-testid="branch-summary-operational-grid"]').classes()).not.toContain('dashboard-state-refreshing')
+  })
+})
+
 describe('BranchSalesSummaryView — no-data error copy and retry', () => {
   const ERROR_CASES: ReadonlyArray<[string, unknown, string]> = [
     ['a 400 rejected range', { response: { status: 400 } }, 'rechazó el rango de fechas'],

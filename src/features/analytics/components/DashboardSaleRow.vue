@@ -26,20 +26,13 @@ const amount = computed(() =>
 </script>
 
 <template>
-  <li class="min-w-0 py-3 first:pt-0 last:pb-0" data-testid="dashboard-sale-row">
-    <div class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-      <div class="min-w-0">
-        <p class="flex items-center gap-2 text-sm font-medium text-highlighted">
-          <UIcon
-            :name="isDebt ? 'i-lucide-hand-coins' : 'i-lucide-receipt-text'"
-            class="size-4 shrink-0 text-toned"
-            aria-hidden="true"
-          />
-          <span class="break-words">Folio {{ folio }}</span>
-        </p>
-        <p class="mt-1 break-words text-sm text-default">{{ customerName }}</p>
-        <p v-if="isDebt" class="mt-1 text-xs text-muted">{{ dueDate }}</p>
-        <p v-else class="mt-1 text-xs text-muted">
+  <li class="dashboard-operation-row" data-testid="dashboard-sale-row">
+    <div class="dashboard-row-main">
+      <div class="dashboard-row-description">
+        <strong>Folio {{ folio }}</strong>
+        <span>{{ customerName }}</span>
+        <p v-if="isDebt" class="dashboard-row-date">{{ dueDate }}</p>
+        <p v-else class="dashboard-row-date">
           <time v-if="sale.confirmedAt" :datetime="sale.confirmedAt">{{ confirmedAt }}</time>
           <span v-else>{{ confirmedAt }}</span>
         </p>
@@ -47,13 +40,13 @@ const amount = computed(() =>
 
       <div
         data-testid="dashboard-sale-row-amount"
-        class="min-w-0 text-left sm:shrink-0 sm:text-right"
+        class="dashboard-row-amount"
         :class="isDebt ? 'text-warning' : 'text-highlighted'"
       >
-        <p class="text-xs font-medium">
+        <p class="dashboard-row-status" :class="{ 'dashboard-status-warning': isDebt }">
           {{ isDebt ? 'Deuda pendiente' : 'Venta confirmada' }}
         </p>
-        <p class="mt-1 break-words text-base font-semibold tabular-nums">{{ amount }}</p>
+        <strong>{{ amount }}</strong>
       </div>
     </div>
   </li>

@@ -18,39 +18,24 @@ const createdAt = computed(() => formatDashboardInstant(props.refund.createdAt))
 </script>
 
 <template>
-  <li class="min-w-0 py-3 first:pt-0 last:pb-0" data-testid="dashboard-refund-row">
-    <div class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-      <div class="min-w-0">
-        <p class="flex items-start gap-2 text-sm font-medium text-highlighted">
-          <UIcon
-            name="i-lucide-rotate-ccw"
-            class="mt-0.5 size-4 shrink-0 text-warning"
-            aria-hidden="true"
-          />
-          <span class="min-w-0 break-all">Venta {{ refund.saleId }}</span>
-        </p>
-        <p class="mt-1 text-xs text-muted">
+  <li class="dashboard-operation-row" data-testid="dashboard-refund-row">
+    <div class="dashboard-row-main">
+      <div class="dashboard-row-description">
+        <strong>Venta {{ refund.saleId }}</strong>
+        <p class="dashboard-row-date">
           <time :datetime="refund.createdAt">{{ createdAt }}</time>
         </p>
       </div>
 
-      <div class="min-w-0 text-left text-warning sm:shrink-0 sm:text-right">
-        <p class="text-xs font-medium">Pendiente</p>
-        <p class="mt-1 break-words text-base font-semibold tabular-nums">
-          {{ formatCentsMXN(refund.outstandingCents) }}
-        </p>
+      <div class="dashboard-row-amount text-warning">
+        <p class="dashboard-row-status dashboard-status-warning">Pendiente</p>
+        <strong>{{ formatCentsMXN(refund.outstandingCents) }}</strong>
       </div>
     </div>
 
-    <dl class="mt-3 grid min-w-0 grid-cols-1 gap-2 text-xs sm:grid-cols-2">
-      <div class="min-w-0 rounded-lg bg-elevated px-3 py-2">
-        <dt class="text-muted">Método</dt>
-        <dd class="mt-1 break-words font-medium text-default">{{ methodLabel }}</dd>
-      </div>
-      <div class="min-w-0 rounded-lg bg-elevated px-3 py-2">
-        <dt class="text-muted">Motivo</dt>
-        <dd class="mt-1 break-words font-medium text-default">{{ reasonLabel }}</dd>
-      </div>
+    <dl class="dashboard-refund-facts">
+      <div><dt>Método</dt><dd>{{ methodLabel }}</dd></div>
+      <div><dt>Motivo</dt><dd>{{ reasonLabel }}</dd></div>
     </dl>
   </li>
 </template>

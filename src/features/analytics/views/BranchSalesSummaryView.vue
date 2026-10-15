@@ -97,6 +97,7 @@ const timeseriesState = useBranchSalesTimeseries({ tenantId, from, to })
 const authStore = useAuthStore()
 const canReadSales = computed(() => authStore.userCan('read', 'Sale'))
 const canReadRefunds = computed(() => authStore.userCan('read', 'SaleRefund'))
+const operationalPanelCount = computed(() => (canReadSales.value ? 2 : 0) + (canReadRefunds.value ? 1 : 0))
 
 const recentSalesState = useRecentConfirmedSales({ tenantId, enabled: canReadSales })
 const debtSalesState = useDebtConfirmedSales({ tenantId, enabled: canReadSales })
@@ -236,7 +237,7 @@ function onPendingRefundsRetry() {
             v-if="summaryState.isRefetching.value"
             data-testid="branch-summary-refreshing"
             aria-live="polite"
-            class="flex min-w-0 items-center gap-2 text-xs text-muted"
+            class="dashboard-refresh-note"
           >
             <UIcon
               name="i-lucide-loader-circle"
@@ -251,8 +252,9 @@ function onPendingRefundsRetry() {
             v-if="summaryState.isError.value"
             data-testid="branch-summary-refresh-error"
             role="alert"
-            class="flex min-w-0 flex-col items-start gap-3 rounded-lg border border-warning/30 bg-warning/5 p-3 sm:flex-row sm:items-center sm:justify-between"
+            class="dashboard-stale-alert"
           >
+            <UIcon name="i-lucide-circle-alert" class="size-4 shrink-0" aria-hidden="true" />
             <p data-testid="branch-summary-refresh-error-message" class="text-sm text-warning">
               No pudimos actualizar el resumen; se muestran los últimos datos disponibles.
             </p>
@@ -260,7 +262,10 @@ function onPendingRefundsRetry() {
               color="warning"
               variant="outline"
               data-testid="branch-summary-refresh-retry"
-              class="min-h-11 w-full justify-center sm:w-auto"
+              class="dashboard-retry min-h-11"
+              icon="i-lucide-refresh-cw"
+              :loading="summaryState.isRefetching.value"
+              :disabled="summaryState.isRefetching.value"
               @click="onRetry"
             >
               Reintentar
@@ -268,6 +273,10 @@ function onPendingRefundsRetry() {
           </div>
         </template>
 
+        <div
+          class="dashboard-summary-state dashboard-state-content"
+          :class="{ 'dashboard-state-refreshing': hasLoadedSummary && summaryState.isRefetching.value }"
+        >
         <!-- Period controls live in the header for every independent data state. -->
         <BranchSalesSummaryMetrics
           v-if="metricsSummary"
@@ -282,13 +291,12 @@ function onPendingRefundsRetry() {
             data-testid="branch-summary-loading"
             role="status"
             aria-busy="true"
-            class="flex min-w-0 flex-col gap-3"
+            class="dashboard-summary-feedback dashboard-loading-block"
           >
             <span class="sr-only">Cargando el resumen de ventas…</span>
-            <USkeleton class="h-5 w-1/3" />
-            <div class="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-              <USkeleton v-for="i in 6" :key="i" class="h-16 w-full" />
-            </div>
+            <USkeleton class="dashboard-state-skeleton h-5 w-40" aria-hidden="true" />
+            <USkeleton class="dashboard-state-skeleton h-10 w-56 max-w-full" aria-hidden="true" />
+            <USkeleton class="dashboard-state-skeleton w-full flex-1" aria-hidden="true" />
           </div>
 
           <!-- Local invalid range: the filters own the alert; no new-range claim. -->
@@ -306,15 +314,19 @@ function onPendingRefundsRetry() {
             v-else-if="summaryState.isError.value && !summaryState.summary.value"
             data-testid="branch-summary-error"
             role="alert"
-            class="flex min-w-0 flex-col items-start gap-3 rounded-lg border border-error/30 bg-error/5 p-4"
+            class="dashboard-summary-feedback dashboard-error-block"
           >
+            <UIcon name="i-lucide-circle-alert" class="size-6 text-error" aria-hidden="true" />
             <p data-testid="branch-summary-error-message" class="text-sm text-error">
               {{ errorMessage }}
             </p>
             <UButton
               color="primary"
               data-testid="branch-summary-retry"
-              class="min-h-11"
+              class="dashboard-retry min-h-11"
+              icon="i-lucide-refresh-cw"
+              :loading="summaryState.isRefetching.value"
+              :disabled="summaryState.isRefetching.value"
               @click="onRetry"
             >
               Reintentar
@@ -327,9 +339,12 @@ function onPendingRefundsRetry() {
             v-else-if="summaryState.summary.value"
             data-testid="branch-summary-empty"
             role="status"
-            class="rounded-lg border border-default bg-elevated/40 p-6 text-center"
+            class="dashboard-summary-feedback dashboard-empty-block"
           >
-            <p class="text-sm font-medium text-highlighted">Sin actividad en el periodo</p>
+            <span class="dashboard-empty-icon" aria-hidden="true">
+              <UIcon name="i-lucide-inbox" class="size-[26px]" />
+            </span>
+            <strong>Sin actividad en el periodo</strong>
             <p class="mt-1 text-sm text-muted">
               No se registraron ventas ni reembolsos para el rango seleccionado.
             </p>
@@ -340,6 +355,8 @@ function onPendingRefundsRetry() {
             No hay una consulta activa. Inicia sesión con una sucursal para consultar el resumen.
           </p>
         </template>
+
+        </div>
 
         <!--
           OI-5A: the daily trend is an INDEPENDENT sibling of the summary block
@@ -375,7 +392,8 @@ function onPendingRefundsRetry() {
         <div
           v-if="canReadSales || canReadRefunds"
           data-testid="branch-summary-operational-grid"
-          class="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-3"
+          class="dashboard-panel-grid"
+          :style="{ '--dashboard-panel-count': operationalPanelCount }"
         >
           <DashboardOperationalPanel
             v-if="canReadSales"

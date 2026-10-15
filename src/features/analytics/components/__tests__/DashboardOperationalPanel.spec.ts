@@ -115,6 +115,18 @@ describe('DashboardOperationalPanel — structure and independent states', () =>
     expect(w.findAll('[data-testid^="row-"]')).toHaveLength(2)
   })
 
+  it.each([false, true])('disables retry and shows its spinner while refetching (retained: %s)', (hasItems) => {
+    const w = mountPanel({ hasItems, isError: true, isRefetching: true })
+    expect(w.find('button').attributes('disabled')).toBeDefined()
+    expect(w.find('button .animate-spin').exists()).toBe(true)
+  })
+
+  it('dims only the loaded list while refreshing and keeps the refresh note visible', () => {
+    const w = mountPanel({ hasItems: true, isRefetching: true })
+    expect(w.find('[data-testid="dashboard-operational-list"]').classes()).toContain('dashboard-state-refreshing')
+    expect(w.find('[data-testid="dashboard-operational-refreshing"]').classes()).not.toContain('sr-only')
+  })
+
   it('marks only active loading work as busy and preserves a semantic list', () => {
     const idle = mountPanel({ hasItems: true })
     const loading = mountPanel({ isInitialLoading: true })
@@ -133,7 +145,7 @@ describe('DashboardOperationalPanel — layout and claim discipline', () => {
     const w = mountPanel({ hasItems: true })
     const root = w.find('[data-testid="dashboard-operational-panel"]')
 
-    expect(root.classes()).toEqual(expect.arrayContaining(['min-w-0', 'border-default']))
+    expect(root.classes()).toEqual(expect.arrayContaining(['min-w-0', 'dashboard-operations']))
     expect(root.html()).not.toMatch(/min-w-\[|w-\[/)
     expect(root.html()).not.toContain('whitespace-nowrap')
   })
