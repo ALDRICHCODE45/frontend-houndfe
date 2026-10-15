@@ -412,12 +412,11 @@ describe('AdminTenantMembersView — view mode wiring', () => {
     ).toBe('table')
   })
 
-  it('renders AdminPageHeader with the standardized title', async () => {
+  it('renders the canonical page header with the standardized title outside the table surface', async () => {
     const wrapper = mountView()
     await flushPromises()
-    const header = wrapper.find('[data-testid="admin-page-header"]')
-    expect(header.exists()).toBe(true)
-    expect(header.attributes('data-title')).toBe('Miembros del tenant')
+    expect(wrapper.find('.hf-page-title').text()).toBe('Miembros del tenant')
+    expect(wrapper.find('.hf-table-surface .hf-page-title').exists()).toBe(false)
   })
 })
 

@@ -12,6 +12,7 @@ import type { MembershipTableRow } from '../interfaces/membership.types'
 import { mapEligibleUsersError } from '../api/memberships.api'
 import { useEligibleUsersQuery } from '../composables/useEligibleUsersQuery'
 import { useTenantRolesQuery } from '../composables/useTenantRolesQuery'
+import '../../styles/tenants-visual.css'
 
 declare const useToast: () => {
   add: (options: {
@@ -184,6 +185,7 @@ function onSubmit(
     :description="description"
     side="right"
     inset
+    :ui="{ content: 'hf-theme hf-ui hf-form-overlay tenants-form-portal' }"
     @after-leave="resetForm"
   >
     <template #body>
@@ -197,6 +199,7 @@ function onSubmit(
         <template v-if="mode === 'create'">
           <UFormField label="Usuario" name="userId">
             <USelectMenu
+              :ui="{ content: 'hf-theme hf-ui hf-form-overlay tenants-form-portal' }"
               v-model="createState.userId"
               :items="userOptions"
               value-key="value"
@@ -231,6 +234,7 @@ function onSubmit(
 
         <UFormField label="Rol" name="roleId">
           <USelectMenu
+            :ui="{ content: 'hf-theme hf-ui hf-form-overlay tenants-form-portal' }"
             v-model="activeState.roleId"
             :items="roleOptions"
             value-key="value"

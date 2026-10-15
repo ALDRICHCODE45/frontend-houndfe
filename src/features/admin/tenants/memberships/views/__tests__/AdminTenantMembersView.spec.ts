@@ -290,7 +290,9 @@ describe('AdminTenantMembersView - useServerTable wiring', () => {
       },
     })
 
-    expect(wrapper.find('h1').exists()).toBe(false)
+    // Canonical page header: exactly one page title, never duplicated.
+    expect(wrapper.findAll('h1')).toHaveLength(1)
+    expect(wrapper.find('h1').classes()).toContain('hf-page-title')
     expect(wrapper.text().match(/Miembros del tenant/g)?.length ?? 0).toBe(1)
     expect(wrapper.text().match(/Agregar miembro/g)?.length ?? 0).toBe(1)
   })

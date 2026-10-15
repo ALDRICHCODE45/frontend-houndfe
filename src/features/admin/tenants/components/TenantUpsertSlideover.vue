@@ -7,6 +7,7 @@ import {
   type EditTenantFormValues,
 } from '../composables/useTenantForm'
 import type { TenantTableRow } from '../interfaces/tenant.types'
+import '../styles/tenants-visual.css'
 
 const props = withDefaults(
   defineProps<{
@@ -89,6 +90,7 @@ function handleSlugInput(value: string) {
     :description="description"
     side="right"
     inset
+    :ui="{ content: 'hf-theme hf-ui hf-form-overlay tenants-form-portal' }"
     @after-leave="resetForm"
   >
     <template #body>

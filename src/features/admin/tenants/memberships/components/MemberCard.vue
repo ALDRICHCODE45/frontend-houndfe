@@ -48,7 +48,7 @@ const avatarSeed = computed(() => props.member.userId || props.member.id)
 
 <template>
   <article
-    class="group relative flex cursor-pointer flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
+    class="tenants-card group relative flex cursor-pointer flex-col rounded-xl border border-default bg-default px-4 py-4 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md"
     data-testid="member-card"
     @click="emit('click', member)"
   >

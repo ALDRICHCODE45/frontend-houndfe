@@ -20,7 +20,7 @@ import type {
 } from '../composables/useMembershipForm'
 import MembershipUpsertSlideover from '../components/MembershipUpsertSlideover.vue'
 import MemberCardGrid from '../components/MemberCardGrid.vue'
-import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
+import '../../styles/tenants-visual.css'
 import { useTenantSummary } from '@/features/admin/tenants/composables/useTenantSummary'
 
 declare const useToast: () => {
@@ -247,21 +247,24 @@ function getRowItems(membership: MembershipTableRow) {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 md:px-6 lg:px-10">
-    <UCard :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }">
-      <template #header>
-        <AdminPageHeader
-          title="Miembros del tenant"
-          :description="headerDescription"
-          :loading="isLoadingTenantName"
-        />
-      </template>
+  <div class="hf-theme hf-ui tenants-visual flex w-full min-w-0 flex-col gap-6 md:px-6 lg:px-10">
+    <!-- Canonical table workspace (design-system §4): heading outside the surface;
+         the subtitle shows a skeleton while the tenant name loads. -->
+    <div class="hf-page-header">
+      <h1 class="hf-page-title">Miembros del tenant</h1>
+      <div v-if="isLoadingTenantName" data-testid="tenant-members-subtitle-loading" class="mt-1">
+        <USkeleton class="h-4 w-48" />
+      </div>
+      <p v-else class="hf-page-subtitle">{{ headerDescription }}</p>
+    </div>
+
+    <UCard :ui="{ body: 'p-0 sm:p-0' }" class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm">
 
       <div v-if="!canReadMemberships" class="px-6 py-10 text-center text-sm text-muted">
         No tienes acceso a esta sección.
       </div>
 
-      <div v-else class="w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
+      <div v-else class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"
@@ -282,6 +285,9 @@ function getRowItems(membership: MembershipTableRow) {
           :display-mode="displayMode"
           search-placeholder="Buscar por email, nombre o rol..."
           empty="No hay miembros en este tenant"
+          class="hf-data-table"
+          portal-class="hf-theme hf-ui tenants-list-portal"
+          pagination-portal-class="hf-theme hf-ui tenants-list-portal"
           :show-add-button="canCreateMembership"
           add-button-text="Agregar miembro"
           add-button-icon="i-lucide-user-plus"
@@ -324,6 +330,7 @@ function getRowItems(membership: MembershipTableRow) {
               v-if="getRowItems(row.original).length > 0"
               :items="getRowItems(row.original)"
               :content="{ align: 'end' }"
+              :ui="{ content: 'hf-theme hf-ui tenants-list-portal' }"
             >
               <UButton icon="i-lucide-ellipsis-vertical" color="neutral" variant="ghost" class="size-7" />
             </UDropdownMenu>
@@ -332,6 +339,7 @@ function getRowItems(membership: MembershipTableRow) {
           <template #actions>
             <ViewToggle
               :model-value="viewMode"
+              class="tenants-view-toggle"
               aria-label="Seleccionar vista de miembros"
               @update:model-value="handleViewModeChange"
             />
@@ -372,6 +380,7 @@ function getRowItems(membership: MembershipTableRow) {
       :description="confirmState.description"
       confirm-text="Eliminar"
       cancel-text="Cancelar"
+      :ui="{ content: 'hf-theme hf-ui hf-form-overlay tenants-form-portal' }"
       @confirm="handleConfirm"
     />
   </div>

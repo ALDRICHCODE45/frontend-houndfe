@@ -18,7 +18,7 @@ import type { TenantTableRow } from '../interfaces/tenant.types'
 import type { CreateTenantFormValues, EditTenantFormValues } from '../composables/useTenantForm'
 import TenantUpsertSlideover from '../components/TenantUpsertSlideover.vue'
 import TenantCardGrid from '../components/TenantCardGrid.vue'
-import AdminPageHeader from '@/features/admin/shared/components/AdminPageHeader.vue'
+import '../styles/tenants-visual.css'
 import { buildTenantRowActions } from '../utils/tenant-actions.utils'
 
 declare const useToast: () => {
@@ -217,7 +217,7 @@ function getRowItems(tenant: TenantTableRow) {
 </script>
 
 <template>
-  <div class="flex flex-col gap-6 md:px-6 lg:px-10">
+  <div class="hf-theme hf-ui tenants-visual flex w-full min-w-0 flex-col gap-6 md:px-6 lg:px-10">
     <TenantUpsertSlideover
       v-model:open="isCreateOpen"
       mode="create"
@@ -242,16 +242,20 @@ function getRowItems(tenant: TenantTableRow) {
       confirm-label="Desactivar"
       confirm-color="error"
       :loading="deactivateMutation.isPending.value"
+      :ui="{ content: 'hf-theme hf-ui hf-form-overlay tenants-form-portal' }"
       @update:open="confirmState.open = $event"
       @confirm="handleConfirm"
     />
 
-    <UCard :ui="{ body: 'p-0 sm:p-0 bg-coco-neutral-50 dark:bg-coco-neutral-950' }">
-      <template #header>
-        <AdminPageHeader title="Gestión de sucursales" :description="headerDescription" />
-      </template>
+    <!-- Canonical table workspace (design-system §4): heading outside the surface. -->
+    <div class="hf-page-header">
+      <h1 class="hf-page-title">Gestión de sucursales</h1>
+      <p class="hf-page-subtitle">{{ headerDescription }}</p>
+    </div>
 
-      <div class="w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
+    <UCard :ui="{ body: 'p-0 sm:p-0' }" class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm">
+
+      <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"
@@ -277,6 +281,9 @@ function getRowItems(tenant: TenantTableRow) {
           add-button-icon="i-lucide-building"
           enable-column-visibility
           empty="No se encontraron sucursales"
+          class="hf-data-table"
+          portal-class="hf-theme hf-ui tenants-list-portal"
+          pagination-portal-class="hf-theme hf-ui tenants-list-portal"
           data-testid="create-tenant-button"
           @add="isCreateOpen = true"
           @refresh="refresh"
@@ -320,6 +327,7 @@ function getRowItems(tenant: TenantTableRow) {
               v-if="canManageTenantActions"
               :items="getRowItems(row.original)"
               :content="{ align: 'end' }"
+              :ui="{ content: 'hf-theme hf-ui tenants-list-portal' }"
             >
               <UButton
                 :data-testid="`edit-tenant-${row.original.id}`"
@@ -334,6 +342,7 @@ function getRowItems(tenant: TenantTableRow) {
           <template #actions>
             <ViewToggle
               :model-value="viewMode"
+              class="tenants-view-toggle"
               aria-label="Seleccionar vista de sucursales"
               @update:model-value="handleViewModeChange"
             />
