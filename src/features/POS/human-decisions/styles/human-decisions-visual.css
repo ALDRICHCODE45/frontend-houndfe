@@ -1,0 +1,130 @@
+@import '../../../../core/shared/design-system/houndfe-ui.css';
+
+/* Chatbot "Solicitudes" inbox, its detail drawer and resolution confirmations.
+ * Owned portals repeat the approved shell palette because they cannot
+ * inherit it after teleport. This local bridge does not change the shared
+ * shell or other modules' contracts. */
+.hf-theme.human-decisions-visual,
+.hf-theme.human-decisions-list-portal,
+.hf-theme.human-decisions-form-portal {
+  --hf-page: #f3f6fa;
+  --hf-surface: #ffffff;
+  --hf-surface-muted: #eaf0f8;
+  --hf-field: #f3f6fa;
+  --hf-ink: #1e3555;
+  --hf-heading: #1e3555;
+  --hf-muted: #63748b;
+  --hf-border: #dce3ed;
+  --hf-action: #315ce7;
+  --hf-on-action: #ffffff;
+  --hf-active: #315ce7;
+  --hf-active-soft: #e9effd;
+  --hf-focus: #315ce7;
+  --radius-sm: 6px;
+  --radius-md: var(--hf-radius-control);
+  --radius-lg: var(--hf-radius-card);
+  --radius-xl: var(--hf-radius-card);
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
+}
+
+.dark .hf-theme.human-decisions-visual,
+.dark .hf-theme.human-decisions-list-portal,
+.dark .hf-theme.human-decisions-form-portal {
+  --hf-page: #101720;
+  --hf-surface: #1b2736;
+  --hf-surface-muted: #223044;
+  --hf-field: #101720;
+  --hf-ink: #e4ebf5;
+  --hf-heading: #e4ebf5;
+  --hf-muted: #9aaac0;
+  --hf-border: #2d3b4d;
+  --hf-action: #91b0ff;
+  --hf-on-action: #172b51;
+  --hf-active: #91b0ff;
+  --hf-active-soft: #253b60;
+  --hf-focus: #91b0ff;
+}
+
+.hf-theme.human-decisions-list-portal,
+.hf-theme.human-decisions-form-portal {
+  background-color: var(--hf-surface);
+  border-color: var(--hf-border);
+  color: var(--hf-ink);
+}
+
+/* ── Toolbar and pagination ──────────────────────────────────────────────── */
+
+/* Search and actions share the first desktop row; the status filter takes its
+ * own row. Mobile retains the shared toolbar's stacked sheet. */
+@media (min-width: 768px) {
+  .human-decisions-visual .hf-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+  }
+
+  .human-decisions-visual .hf-toolbar-search-region {
+    display: contents;
+  }
+
+  .human-decisions-visual .hf-toolbar-search {
+    grid-area: 1 / 1;
+    width: 100%;
+    max-width: 26rem;
+  }
+
+  .human-decisions-visual .hf-toolbar-actions {
+    grid-area: 1 / 2;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    justify-self: end;
+  }
+
+  .human-decisions-visual .hf-toolbar-filters {
+    grid-area: 2 / 1 / 3 / -1;
+    flex-wrap: wrap;
+  }
+}
+
+/* Switches and checkboxes keep their own size; only regular controls stretch. */
+.human-decisions-visual .hf-toolbar :where(button, input, [data-slot='root']):not([role='switch'], [role='checkbox']) {
+  min-height: var(--hf-control-height);
+}
+
+.human-decisions-visual .human-decisions-view-toggle {
+  width: auto;
+  flex-shrink: 0;
+}
+
+.human-decisions-visual .human-decisions-view-toggle :where(button, [role='tab']) {
+  min-width: max-content;
+  white-space: nowrap;
+}
+
+.human-decisions-visual .hf-pagination-summary {
+  white-space: nowrap;
+}
+
+.human-decisions-visual .hf-pagination-size {
+  width: auto;
+  min-height: 36px;
+}
+
+.human-decisions-visual .hf-pagination-navigation {
+  margin-inline-start: auto;
+}
+
+.human-decisions-visual .hf-pagination-navigation :where(button) {
+  min-height: 36px;
+}
+
+/* ── Mobile cards ────────────────────────────────────────────────────────── */
+
+.human-decisions-visual .human-decisions-card {
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background-color: var(--hf-surface);
+  color: var(--hf-ink);
+}

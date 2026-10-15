@@ -11,7 +11,7 @@ const presentation = computed(() => presentPendingHumanDecision(props.decision))
 <template>
   <article
     data-testid="human-decision-card"
-    class="flex w-full flex-col gap-3 rounded-xl border border-default bg-default p-4"
+    class="human-decisions-card flex w-full flex-col gap-3 rounded-xl p-4"
   >
     <header class="space-y-1">
       <UBadge color="warning" variant="subtle" data-testid="human-decision-status"

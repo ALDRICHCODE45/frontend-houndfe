@@ -145,10 +145,11 @@ describe('HumanDecisionsListPanel', () => {
     vi.mocked(useBreakpoints).mockReturnValue({ smaller: () => isMobile } as never)
   })
 
-  it('encloses the shared heading and toolbar in a card', () => {
+  it('puts the canonical heading outside the card that encloses the toolbar', () => {
     const wrapper = mountPanel()
-    expect(wrapper.get('article header').text()).toContain('Solicitudes')
-    expect(wrapper.get('article header').text()).toContain('información operativa disponible')
+    expect(wrapper.get('.hf-page-title').text()).toBe('Solicitudes')
+    expect(wrapper.get('.hf-page-subtitle').text()).toContain('información operativa disponible')
+    expect(wrapper.find('article .hf-page-title').exists()).toBe(false)
     expect(wrapper.get('article [role="tablist"]').attributes('aria-label')).toBe(
       'Seleccionar vista',
     )

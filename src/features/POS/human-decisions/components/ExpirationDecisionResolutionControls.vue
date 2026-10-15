@@ -5,6 +5,7 @@ import type { PendingExpirationDecision } from '../interfaces/expiration-decisio
 import { validateExpirationText } from '../utils/expirationText'
 import type { ExpirationTextValidationReason } from '../utils/expirationText'
 import type { ExpirationDecisionResolutionInput } from '../utils/expirationResolutionAttempt'
+import '../styles/human-decisions-visual.css'
 const props = withDefaults(
   defineProps<{
     decision: PendingExpirationDecision
@@ -160,6 +161,7 @@ watch([() => props.canUpdate, () => props.conflict, canProvideText, canReportUna
     </div>
     <ConfirmModal
       :open="confirmation !== null"
+      :ui="{ content: 'hf-theme hf-ui hf-form-overlay human-decisions-form-portal' }"
       title="Confirmar respuesta"
       :description="confirmationDescription"
       confirm-label="Registrar respuesta"

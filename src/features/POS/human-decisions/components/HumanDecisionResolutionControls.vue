@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import type { PendingHumanDecision } from '../interfaces/human-decision.types'
 import type { HumanDecisionResolutionInput } from '../utils/humanDecisionResolutionAttempt'
+import '../styles/human-decisions-visual.css'
 
 const props = withDefaults(
   defineProps<{
@@ -152,6 +153,7 @@ function confirmResolution(): void {
 
     <ConfirmModal
       :open="confirmation !== null"
+      :ui="{ content: 'hf-theme hf-ui hf-form-overlay human-decisions-form-portal' }"
       title="Confirmar respuesta"
       :description="confirmationDescription"
       confirm-label="Registrar respuesta"

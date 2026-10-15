@@ -13,6 +13,7 @@ import {
   requestedQuantityPresentationLabel,
   resolvedResponseLabel,
 } from '../utils/humanDecisionPresentation'
+import '../styles/human-decisions-visual.css'
 
 const props = withDefaults(
   defineProps<{
@@ -63,6 +64,7 @@ function unitsLabel(value: number | null): string {
     :description="drawerDescription"
     close-aria-label="Cerrar detalle de decisión"
     :desktop-ui="{ content: 'sm:max-w-xl motion-reduce:transition-none' }"
+    portal-class="hf-theme hf-ui hf-form-overlay human-decisions-form-portal"
   >
     <template #body>
       <div
