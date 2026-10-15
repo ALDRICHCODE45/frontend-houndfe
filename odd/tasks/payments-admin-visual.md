@@ -14,7 +14,7 @@ S3. ConfirmModals and both upsert slideovers carry the form portal, including th
 
 T1 | S2,S3 | inline: both views + per-module adapter CSS + portals + cards + slideovers, RED/GREEN | done | RED 8 contract -> GREEN 304/24, build exit0 | commit: see L2
 T3 | S4 | inline: soft semantic warning for the no-active-account UAlert, RED/GREEN | done | RED 1 -> GREEN payment-details 153/12, build exit0 | commit: see L5
-T2 | S1-S4 | inline checks: module suites, build, lint, native assess; user visual smoke | pending | commit: —
+T2 | S1-S4 | inline checks: module suites, build, lint, native assess; user visual smoke | done | user approved visually ("Perfecto hermano, aprovado"); payment-details + payment-methods scoped suite green, build exit0 | commit: see L7
 
 ## Log
 
@@ -23,3 +23,5 @@ L2. T1: payment-details-visual.css and payment-methods-visual.css derived from t
 L3. Native assess 880d062e..44892e7e: nativeRisk high (hot_path signal "payments" from the paths), reviewDue true -> inspect -> start (lenses readability + reliability, reason: presentation-only, no API/data/permission/payment logic). Host resolved consent; group forecast relayed (pi_host_relay, 2 model runs); lineage review-5f23ac01c109d2f5 APPROVED and acknowledged (authority burned, gentle-ai.review-acknowledged/v1). Advisory R3-001 (reliability, WARNING, informational) at payment-methods-visual.spec.ts:53-55: the slideover contract counts marker strings in source rather than proving the mounted USelect receives ui.content; follow-up, not a blocker. Pending: user visual smoke.
 L4. Docs commit cde85796 re-triggered a high-tier review only because the path contains "payments": lineage review-f0e81bf5c74c5f54 (readability) APPROVED and acknowledged. To avoid review loops, later ODD notes for this feature are batched with code commits.
 L5. User verbatim: "Bien hermano, solamente que: /home/aldrich_coder45/Pictures/Screenshots/Screenshot_2026-10-14-19-19-03_5360x2520.png si te fijas, hay un alert hasta arriba que es AMARILLO, y no convina bien con lo demas, ese amarillo no se ve nada bien." T3: UAlert keeps color="warning" and adds variant="soft", icon i-lucide-triangle-alert and the owned payment-details-notice hook painting --hf-warning-soft surface, warning-tinted border, --hf-ink text and --hf-warning icon. RED 1 contract -> GREEN payment-details 153/12; pnpm build exit 0.
+L6. Commit 7cee3c39 re-triggered a high-tier review (payments path signal): lineage review-f44b67cd1b07b54f (readability) APPROVED and acknowledged.
+L7. User verbatim: "Perfecto hermano, aprovado, commit, merge y yo hago push." pi-lens again reported 385/420 from its unscoped run (stale copies under artifacts/** and .worktrees/**); scoped suites green (Test Files 24 passed (24) Tests 305 passed (305)). Feature closed; fast-forward merged to main; push by the user. Follow-up: advisory R3-001 (mounted-select contract for the payment methods slideover).
