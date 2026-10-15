@@ -117,7 +117,7 @@ stays inside its panel.
 | T4 | S8, S7 | worker: operational panels and shared state blocks | done | 44970297 |
 | T5 | S7, S11 | inline: reduced motion, responsive sweep, full checks | done | 25099ef4 |
 | T7 | S9 | inline: calendar fields replace the native date inputs (L10) | done | 3338b89f |
-| T6 | all | inline: close, docs, user visual smoke | in progress | — |
+| T6 | all | inline: close, docs, user visual smoke | done | this commit |
 
 ## Log
 
@@ -189,6 +189,12 @@ independently of which control produces the string. A real-component test (no st
 day picked in the nested calendar emits and does not dismiss the range popover. The guard that
 refuses impossible dates is duplicated from the seller report; extracting it into
 `mexicoCityCalendar.ts` is a possible follow-up, left out because it would touch the seller report.
+
+**L11 — closing.** The user accepted the visual smoke and asked to close: "Me parece perfecto
+hermano, commit, merge y yo pusheo. por favor." Final checks on `8dc98517`: `src/app` +
+`src/features/analytics` 48 files / 622 tests pass, `vue-tsc --build` exits 0, `vite build`
+succeeds. Native assess: medium, `reviewDue: false` (`under_budget`), no independent verifier.
+Fast-forward merged to `main`; the user pushes.
 
 **L3 — library decision.** v0 ships framer-motion + recharts. `docs/design-system.md`
 authorizes no new library, so the adaptation keeps `@unovis/vue` for charts, `@vueuse/core`
