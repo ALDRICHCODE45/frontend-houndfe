@@ -4,12 +4,27 @@
 // collapsing the refund flows, hiding refund-only activity, or dropping the
 // non-color debt/pending cues fails these tests.
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
-import { h } from 'vue'
+import { h, type Ref } from 'vue'
+import { usePreferredReducedMotion } from '@vueuse/core'
+
+vi.mock('@vueuse/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@vueuse/core')>()
+  const { shallowRef } = await import('vue')
+  const preference = shallowRef<'reduce' | 'no-preference'>('no-preference')
+  return { ...actual, usePreferredReducedMotion: () => preference }
+})
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import type { BranchSalesSummaryResponse } from '../../interfaces/branch-sales-summary.types'
 import BranchSalesSummaryMetrics from '../BranchSalesSummaryMetrics.vue'
+import type { BranchSalesTimeseriesPoint } from '../../interfaces/branch-sales-timeseries.types'
+
+vi.mock('@unovis/vue', () => ({
+  VisXYContainer: { name: 'VisXYContainer', props: ['data'], template: '<div><slot /></div>' },
+  VisArea: { name: 'VisArea', props: ['x', 'y', 'duration'], template: '<div />' },
+  VisLine: { name: 'VisLine', props: ['x', 'y', 'duration'], template: '<div />' },
+}))
 
 function makeSummary(over: Partial<BranchSalesSummaryResponse> = {}): BranchSalesSummaryResponse {
   return {
@@ -154,7 +169,7 @@ describe('BranchSalesSummaryMetrics — accessibility and structure', () => {
   it('exposes labelled sales/refund sections, dl/dt/dd semantics, and tabular numerals', () => {
     const w = mountMetrics(makeSummary())
 
-    expect(w.findAll('h2').map((heading) => heading.text())).toEqual(['Ventas', 'Reembolsos'])
+    expect(w.findAll('h2').map((heading) => heading.text())).toEqual(['Ventas netas', 'Reembolsos'])
     expect(w.findAll('section')).toHaveLength(2)
     expect(w.findAll('dl')).toHaveLength(3)
 
@@ -177,7 +192,7 @@ describe('BranchSalesSummaryMetrics — accessibility and structure', () => {
     const salesGrid = w.find('[data-testid="branch-summary-sales-section"] dl')
 
     expect(root.classes()).toContain('min-w-0')
-    expect(salesGrid.classes()).toEqual(expect.arrayContaining(['min-w-0', 'grid-cols-1']))
+    expect(salesGrid.classes()).toContain('min-w-0')
     // Monetary values wrap instead of forcing horizontal page overflow.
     expect(root.html()).not.toContain('whitespace-nowrap')
     expect(root.html()).not.toMatch(/min-w-\[|w-\[/)
@@ -292,6 +307,74 @@ describe('BranchSalesSummaryMetrics — valid description-list content model', (
   })
 })
 
+describe('BranchSalesSummaryMetrics — value motion', () => {
+  it('formats intermediate frames as currency/integer counts and reaches exact backend values', async () => {
+    vi.useFakeTimers()
+    const w = mountMetrics(makeSummary({ saleCount: 1, netSalesCents: 101 }))
+    try {
+      await w.setProps({ summary: makeSummary({ saleCount: 124, netSalesCents: 98765 }) })
+      await vi.advanceTimersByTimeAsync(250)
+      const count = w.findAll('dd')[4]!.text()
+      expect(count).toMatch(/^\d+$/)
+      expect(Number(count)).toBeGreaterThan(1)
+      expect(Number(count)).toBeLessThan(124)
+      expect(w.find('.dashboard-hero-value').text()).toMatch(/\$[\d,]+\.\d{2}MXN/)
+      await vi.advanceTimersByTimeAsync(350)
+      expect(w.findAll('dd')[4]!.text()).toBe('124')
+      expect(w.find('.dashboard-hero-value').text()).toContain(formatCentsMXN(98765))
+    } finally {
+      w.unmount()
+      vi.useRealTimers()
+    }
+  })
+
+  it('updates immediately with no tween when reduced motion is requested', async () => {
+    const preference = usePreferredReducedMotion() as Ref<'reduce' | 'no-preference'>
+    preference.value = 'reduce'
+    const w = mountMetrics(makeSummary())
+    try {
+      await w.setProps({ summary: makeSummary({ saleCount: 99, netSalesCents: 12345 }) })
+      expect(w.findAll('dd')[4]!.text()).toBe('99')
+      expect(w.find('.dashboard-hero-value').text()).toContain(formatCentsMXN(12345))
+    } finally {
+      w.unmount()
+      preference.value = 'no-preference'
+    }
+  })
+})
+
+describe('BranchSalesSummaryMetrics — backend sparklines', () => {
+  const points: BranchSalesTimeseriesPoint[] = [
+    { date: '2025-03-03', netSalesCents: 71, grossSalesCents: 99, collectedCents: 31, outstandingDebtCents: 17, saleCount: 5, averageTicketCents: 13 },
+    { date: '2025-03-01', netSalesCents: 11, grossSalesCents: 29, collectedCents: 7, outstandingDebtCents: 3, saleCount: 2, averageTicketCents: 19 },
+  ]
+
+  it('binds six independent fields in backend order with index X positions', async () => {
+    const w = mount(BranchSalesSummaryMetrics, { props: { summary: makeSummary(), points } })
+    const containers = w.findAllComponents({ name: 'VisXYContainer' })
+    expect(containers).toHaveLength(6)
+    const keys = ['netSalesCents', 'grossSalesCents', 'collectedCents', 'outstandingDebtCents', 'saleCount', 'averageTicketCents'] as const
+    containers.forEach((container, index) => {
+      expect(container.props('data')).toEqual(points)
+      const line = container.findComponent({ name: 'VisLine' })
+      expect(points.map((point, i) => line.props('x')(point, i))).toEqual([0, 1])
+      expect(points.map(line.props('y'))).toEqual(points.map(point => point[keys[index]!]))
+    })
+    expect(w.find('[data-testid="branch-summary-refunds-section"]').findComponent({ name: 'VisXYContainer' }).exists()).toBe(false)
+    expect(w.find('.dashboard-spark-dates').text()).toContain('3 mar')
+    expect(w.find('.dashboard-spark-dates').text()).toContain('1 mar')
+    await w.setProps({ points: [] })
+    expect(w.findAllComponents({ name: 'VisXYContainer' })).toHaveLength(0)
+    expect(w.findAll('dd')).toHaveLength(8)
+  })
+
+  it('labels the backend summary window with its inclusive final calendar day', () => {
+    const w = mountMetrics(makeSummary())
+    expect(w.text()).toContain('Del 1 mar al 31 mar de 2025')
+    expect(w.find('.dashboard-hero-value').text()).toContain('MXN')
+  })
+})
+
 describe('BranchSalesSummaryMetrics — adjacent overview and full-width lower grids', () => {
   function mountWithControls(summary: BranchSalesSummaryResponse) {
     return mount(BranchSalesSummaryMetrics, {
@@ -332,9 +415,7 @@ describe('BranchSalesSummaryMetrics — adjacent overview and full-width lower g
 
     expect(overview.element.contains(salesKpis.element)).toBe(false)
     expect(overview.element.contains(refunds.element)).toBe(false)
-    expect(salesKpis.classes()).toEqual(
-      expect.arrayContaining(['grid-cols-1', 'sm:grid-cols-2', 'xl:grid-cols-3']),
-    )
+    expect(salesKpis.classes()).toContain('dashboard-metric-grid')
     expect(salesKpis.findAll('[data-testid="branch-summary-kpi-card"]')).toHaveLength(5)
     expect(refunds.findAll('[data-testid="branch-summary-refund-card"]')).toHaveLength(2)
     // Six sales metric groups stay discoverable across the whole sales section.

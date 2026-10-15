@@ -64,6 +64,8 @@ vi.mock('@unovis/vue', async () => {
     VisArea: leaf('VisArea'),
     VisLine: leaf('VisLine'),
     VisAxis: leaf('VisAxis'),
+    VisCrosshair: leaf('VisCrosshair'),
+    VisTooltip: leaf('VisTooltip'),
   }
 })
 
@@ -666,9 +668,7 @@ describe('BranchSalesSummaryView — dashboard page shell and composition', () =
     // The prior half-width regression clamped these into the overview grid.
     expect(overview.element.contains(kpis.element)).toBe(false)
     expect(overview.element.contains(refunds.element)).toBe(false)
-    expect(kpis.classes()).toEqual(
-      expect.arrayContaining(['grid-cols-1', 'sm:grid-cols-2', 'xl:grid-cols-3']),
-    )
+    expect(kpis.classes()).toContain('dashboard-metric-grid')
     expect(kpis.findAll('[data-testid="branch-summary-kpi-card"]')).toHaveLength(5)
     expect(refunds.findAll('[data-testid="branch-summary-refund-card"]')).toHaveLength(2)
     // Six sales metric groups stay discoverable across the whole sales section.

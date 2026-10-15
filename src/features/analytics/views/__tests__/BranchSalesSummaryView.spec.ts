@@ -70,6 +70,8 @@ vi.mock('@unovis/vue', async () => {
     VisArea: leaf('VisArea'),
     VisLine: leaf('VisLine'),
     VisAxis: leaf('VisAxis'),
+    VisCrosshair: leaf('VisCrosshair'),
+    VisTooltip: leaf('VisTooltip'),
   }
 })
 
@@ -591,11 +593,13 @@ describe('BranchSalesSummaryView — render states stay distinct', () => {
 
   it('renders the metrics component with the exact summary payload', () => {
     summaryRef.value = NON_EMPTY_PAYLOAD
+    timeseriesPointsRef.value = TIMESERIES_POINTS
     const view = mountView()
 
     expect(view.find('[data-testid="branch-summary-metrics"]').exists()).toBe(true)
     const metrics = view.findComponent(BranchSalesSummaryMetrics)
     expect(metrics.props('summary')).toEqual(NON_EMPTY_PAYLOAD)
+    expect(metrics.props('points')).toEqual(TIMESERIES_POINTS)
     expect(view.find('[data-testid="branch-summary-empty"]').exists()).toBe(false)
     expect(view.text()).toContain('$9,999.99')
   })

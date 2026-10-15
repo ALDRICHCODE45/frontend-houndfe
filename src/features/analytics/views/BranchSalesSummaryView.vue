@@ -269,7 +269,11 @@ function onPendingRefundsRetry() {
         </template>
 
         <!-- Period controls live in the header for every independent data state. -->
-        <BranchSalesSummaryMetrics v-if="metricsSummary" :summary="metricsSummary" />
+        <BranchSalesSummaryMetrics
+          v-if="metricsSummary"
+          :summary="metricsSummary"
+          :points="timeseriesState.points.value"
+        />
 
         <template v-else>
           <!-- Initial load: accessible skeleton, never synthetic metric values. -->

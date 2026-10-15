@@ -1,0 +1,116 @@
+.dashboard-visual .dashboard-metrics {
+  min-width: 0;
+  animation: dashboard-metrics-enter 350ms ease-out 50ms both;
+  font-variant-numeric: tabular-nums;
+}
+.dashboard-visual .dashboard-metric-panel {
+  min-width: 0;
+  background: var(--hf-surface);
+  border: 1px solid var(--hf-border);
+  border-radius: 12px;
+  color: var(--hf-heading);
+  transition: transform 200ms, border-color 200ms;
+}
+.dashboard-visual .dashboard-hero {
+  position: relative;
+  padding: 28px 32px;
+  min-height: 201px;
+  overflow: hidden;
+}
+.dashboard-visual .dashboard-metric-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--hf-muted);
+  font-size: 12px;
+  font-weight: 500;
+}
+.dashboard-visual .dashboard-hero > .dashboard-metric-label,
+.dashboard-visual .dashboard-hero-value,
+.dashboard-visual .dashboard-hero-period { max-width: 43%; }
+.dashboard-visual .dashboard-hero h2 { font-size: 15px; font-weight: 600; }
+.dashboard-visual .dashboard-hero-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  color: var(--hf-action);
+  background: var(--hf-active-soft);
+}
+.dashboard-visual .dashboard-hero-value {
+  margin-top: 16px;
+  font-size: 48px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -2px;
+  overflow-wrap: anywhere;
+}
+.dashboard-visual .dashboard-hero-value > span:last-child {
+  margin-left: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: var(--hf-muted);
+}
+.dashboard-visual .dashboard-hero-period { margin-top: 10px; color: var(--hf-muted); font-size: 12px; }
+.dashboard-visual .dashboard-hero-visual { position: absolute; right: 32px; bottom: 28px; width: 55%; padding-left: 32px; }
+.dashboard-visual .dashboard-hero-spark { height: 120px; --vis-area-fill-opacity: 0.07; }
+.dashboard-visual .dashboard-spark-dates { display: flex; justify-content: space-between; padding-top: 8px; color: var(--hf-muted); font-size: 12px; }
+.dashboard-visual .dashboard-metric-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+.dashboard-visual .dashboard-metric-card { padding: 20px; min-height: 147px; overflow: hidden; }
+.dashboard-visual .dashboard-metric-card:hover { transform: translateY(-2px); border-color: var(--hf-action); }
+.dashboard-visual .dashboard-metric-value { margin-top: 13px; font-size: 25px; font-weight: 600; letter-spacing: -0.7px; overflow-wrap: anywhere; }
+.dashboard-visual .dashboard-sparkline { width: 100%; min-width: 0; overflow: hidden; animation: dashboard-spark-reveal 500ms ease-out both; }
+/* Explicitly cover html.dark: Unovis does not recognize that app selector.
+ * Both modes inherit the paired semantic action role rather than library colors. */
+.dark .dashboard-visual .dashboard-sparkline { --vis-color0: var(--hf-action); }
+.dashboard-visual .dashboard-card-spark { height: 30px; opacity: 0.6; margin-top: 10px; transition: opacity 200ms; }
+.dashboard-visual .dashboard-metric-card:hover .dashboard-card-spark { opacity: 1; }
+.dashboard-visual .dashboard-debt-card :is(.dashboard-metric-label, .dashboard-metric-value) { color: var(--hf-warning); }
+.dashboard-visual .dashboard-warning-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--hf-warning); margin-left: auto; flex-shrink: 0; }
+.dashboard-visual .dashboard-metric-status { display: flex; align-items: center; gap: 4px; margin-top: 4px; color: var(--hf-warning); font-size: 11px; }
+.dashboard-visual .dashboard-refund-group { padding-top: 24px; }
+.dashboard-visual .dashboard-refund-heading { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 12px; color: var(--hf-muted); }
+.dashboard-visual .dashboard-refund-heading h2 { font-size: 13px; font-weight: 600; color: var(--hf-ink); }
+.dashboard-visual .dashboard-refund-heading > span { font-size: 12px; margin-left: 4px; }
+.dashboard-visual .dashboard-refund-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); background: var(--hf-surface); border: 1px solid var(--hf-border); border-radius: 12px; }
+.dashboard-visual .dashboard-refund-item { display: flex; align-items: center; gap: 12px; padding: 16px 24px; min-width: 0; min-height: 72px; }
+.dashboard-visual .dashboard-refund-item + .dashboard-refund-item { border-left: 1px solid var(--hf-border); }
+.dashboard-visual .dashboard-refund-item dt { display: flex; align-items: center; gap: 12px; min-width: 0; color: var(--hf-muted); font-size: 12px; }
+.dashboard-visual .dashboard-refund-icon { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 32px; height: 32px; border-radius: 8px; background: var(--hf-page); }
+.dashboard-visual .dashboard-refund-item dd { min-width: 0; margin-left: auto; overflow-wrap: anywhere; }
+.dashboard-visual .dashboard-refund-item strong { font-size: 19px; letter-spacing: -0.4px; color: var(--hf-heading); }
+.dashboard-visual .dashboard-refund-pending :is(strong, .dashboard-refund-icon) { color: var(--hf-warning); }
+.dashboard-visual .dashboard-refund-pending .dashboard-refund-icon { background: var(--hf-warning-soft); }
+@keyframes dashboard-metrics-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes dashboard-spark-reveal { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
+@media (max-width: 1190px) {
+  .dashboard-visual .dashboard-metric-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .dashboard-visual .dashboard-refund-item { padding: 16px; }
+  .dashboard-visual .dashboard-refund-item strong { font-size: 17px; }
+}
+@media (max-width: 700px) {
+  .dashboard-visual .dashboard-hero { padding: 24px; min-height: 0; }
+  .dashboard-visual .dashboard-hero > .dashboard-metric-label,
+  .dashboard-visual .dashboard-hero-value,
+  .dashboard-visual .dashboard-hero-period { max-width: 100%; }
+  .dashboard-visual .dashboard-hero-value { font-size: 43px; }
+  .dashboard-visual .dashboard-hero-visual { position: static; width: 100%; margin-top: 12px; padding-left: 0; }
+  .dashboard-visual .dashboard-metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dashboard-visual .dashboard-metric-card { padding: 16px; min-height: 140px; }
+  .dashboard-visual .dashboard-metric-card:last-child { grid-column: 1 / -1; min-height: 110px; }
+  .dashboard-visual .dashboard-metric-value { font-size: 24px; }
+  .dashboard-visual .dashboard-refund-grid { grid-template-columns: minmax(0, 1fr); }
+  .dashboard-visual .dashboard-refund-item + .dashboard-refund-item { border-left: 0; border-top: 1px solid var(--hf-border); }
+  .dashboard-visual .dashboard-refund-item strong { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-visual .dashboard-metrics,
+  .dashboard-visual .dashboard-sparkline { animation: none; clip-path: none; }
+  .dashboard-visual .dashboard-metric-panel,
+  .dashboard-visual .dashboard-card-spark { transition: none; }
+  .dashboard-visual .dashboard-metric-card:hover { transform: none; }
+}
