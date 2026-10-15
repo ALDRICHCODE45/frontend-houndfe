@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 const dir = 'src/features/system/catalog-settings'
@@ -38,5 +38,19 @@ describe('Catálogo en línea presentation adapter', () => {
     expect(view).toContain(`:ui="{ content: '${formPortal}' }"`)
     expect(contexts).toContain("import '../styles/catalog-settings-visual.css'")
     expect(count(contexts, `:ui="{ content: '${formPortal}' }"`)).toBe(2)
+  })
+})
+
+
+describe('Catálogo en línea: every teleporting control is themed', () => {
+  it('marks every select menu, select and popover of the screen with the form portal', () => {
+    const sources = [
+      ...readdirSync(`${dir}/components`).filter((f) => f.endsWith('.vue')).map((f) => [f, read(`components/${f}`)] as const),
+      ['TenantCatalogSettingsView.vue', view] as const,
+    ]
+    for (const [name, source] of sources) {
+      const teleports = source.match(/<(USelectMenu|USelect|UPopover|UDropdownMenu)\b/g)?.length ?? 0
+      expect(count(source, `:ui="{ content: '${formPortal}' }"`) - (name === 'TenantCatalogSettingsView.vue' ? 1 : 0), name).toBe(teleports)
+    }
   })
 })

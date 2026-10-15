@@ -23,6 +23,7 @@ import {
   getStockPresentationCopy,
   resolveStockPresentationPreview,
 } from '../utils/stockPresentationUi'
+import '../styles/catalog-settings-visual.css'
 
 const props = withDefaults(
   defineProps<{
@@ -72,6 +73,7 @@ function onQuantityInput(raw: string | number) {
     :disabled="props.disabled"
   >
     <USelectMenu
+      :ui="{ content: 'hf-theme hf-ui hf-form-overlay catalog-settings-form-portal' }"
       :model-value="props.stockDefault.mode"
       :items="MODE_OPTIONS"
       value-key="value"
