@@ -14,6 +14,7 @@
 // exposing more than one retry path fails these tests.
 
 import { describe, expect, it, vi } from 'vitest'
+import { nextTick, shallowReactive } from 'vue'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 import type { BranchSalesTimeseriesPoint } from '../../interfaces/branch-sales-timeseries.types'
@@ -54,6 +55,10 @@ vi.mock('@unovis/vue', async () => {
         tickFormat: { type: Function, default: undefined },
         tickValues: { type: Array, default: undefined },
         numTicks: { type: Number, default: undefined },
+        circleRadius: { type: Number, default: undefined },
+        forceShowAt: { type: Number, default: undefined },
+        onCrosshairMove: { type: Function, default: undefined },
+        template: { type: Function, default: undefined },
       },
       setup:
         (_props, { slots }) =>
@@ -63,6 +68,8 @@ vi.mock('@unovis/vue', async () => {
 
   return {
     VisXYContainer,
+    VisCrosshair: leaf('VisCrosshair'),
+    VisTooltip: leaf('VisTooltip'),
     VisArea: leaf('VisArea'),
     VisLine: leaf('VisLine'),
     VisAxis: leaf('VisAxis'),
@@ -136,6 +143,67 @@ function retryButtons(wrapper: ReturnType<typeof mountChart>) {
 function tableRows(wrapper: ReturnType<typeof mountChart>) {
   return wrapper.findAll('[data-testid="branch-sales-trend-table"] tbody tr')
 }
+
+describe('BranchSalesTrendChart — v0 interaction', () => {
+  it('renders the accepted heading, icon and table action', () => {
+    const w = mountChart()
+    expect(w.text()).toContain('El comportamiento de tus ventas, día a día.')
+    expect(w.find('.dashboard-trend-heading [data-slot="icon"]').exists() || w.find('.dashboard-trend-heading .size-5').exists()).toBe(true)
+    expect(w.find('summary').text()).toContain('Ver datos en tabla')
+  })
+
+  it('walks backend order with arrows, clamps, announces exact values and clears on Escape', async () => {
+    const w = mountChart({ points: [POINTS[2]!, POINTS[0]!, POINTS[1]!] })
+    const chart = w.find('[data-testid="branch-sales-trend-chart"]')
+    expect(chart.attributes('tabindex')).toBe('0')
+    await chart.trigger('keydown', { key: 'ArrowRight' })
+    expect(w.find('[data-testid="branch-sales-trend-announcement"]').text()).toContain('03 mar 2025')
+    expect(w.find('[data-testid="branch-sales-trend-announcement"]').text()).toContain('$2,000.00')
+    await chart.trigger('keydown', { key: 'ArrowRight' })
+    expect(w.find('[data-testid="branch-sales-trend-announcement"]').text()).toContain('01 mar 2025')
+    await chart.trigger('keydown', { key: 'ArrowLeft' })
+    await chart.trigger('keydown', { key: 'ArrowLeft' })
+    expect(w.findComponent({ name: 'VisCrosshair' }).props('forceShowAt')).toBe(0)
+    await chart.trigger('keydown', { key: 'Escape' })
+    expect(w.find('[data-testid="branch-sales-trend-announcement"]').exists()).toBe(false)
+  })
+
+  it('resets the keyboard cursor on metric changes and backend replacement, including a singleton zero', async () => {
+    const props = shallowReactive({ points: POINTS, from: FROM, to: TO })
+    const w = mountWithUApp(BranchSalesTrendChart, { props })
+    const chart = w.find('[data-testid="branch-sales-trend-chart"]')
+    await chart.trigger('keydown', { key: 'ArrowRight' })
+    await w.find('[data-metric-key="saleCount"]').trigger('click')
+    expect(w.find('[data-testid="branch-sales-trend-announcement"]').exists()).toBe(false)
+    props.points = [POINTS[1]!]
+    await nextTick()
+    await chart.trigger('keydown', { key: 'ArrowRight' })
+    await chart.trigger('keydown', { key: 'ArrowRight' })
+    expect(w.findComponent({ name: 'VisCrosshair' }).props('forceShowAt')).toBe(0)
+    expect(w.find('[data-testid="branch-sales-trend-announcement"]').text()).toContain('02 mar 2025 · 0')
+    props.points = []
+    await nextTick()
+    expect(w.find('[data-testid="branch-sales-trend-announcement"]').exists()).toBe(false)
+    expect(w.find('[data-testid="branch-sales-trend-empty"]').exists()).toBe(true)
+  })
+
+  it('uses native Unovis hover positioning and safe exact-value tooltip content', async () => {
+    const w = mountChart()
+    const crosshair = w.findComponent({ name: 'VisCrosshair' })
+    expect(crosshair.props('circleRadius')).toBe(5)
+    expect(w.findComponent({ name: 'VisTooltip' }).exists()).toBe(true)
+    const template = crosshair.props('template') as (point: BranchSalesTimeseriesPoint) => HTMLElement
+    const tooltip = template(POINTS[0]!)
+    expect(tooltip.textContent).toContain('01 mar 2025')
+    expect(tooltip.textContent).toContain('$1,000.00')
+    const unsafe = template({ ...POINTS[0]!, date: '<img src=x onerror=alert(1)>' })
+    expect(unsafe.querySelector('img')).toBeNull()
+    await w.find('[data-metric-key="saleCount"]').trigger('click')
+    const countTemplate = w.findComponent({ name: 'VisCrosshair' }).props('template') as typeof template
+    expect(countTemplate(POINTS[0]!).textContent).toContain('3')
+    expect(countTemplate(POINTS[0]!).textContent).not.toContain('$')
+  })
+})
 
 describe('BranchSalesTrendChart — chart-scoped query states', () => {
   it('renders an accessible chart-scoped loading state without a chart claim', () => {
@@ -526,15 +594,17 @@ describe('BranchSalesTrendChart — forwarded Unovis config identity', () => {
   it('forwards a Y tick formatter whose identity changes from MXN to a grouped count', async () => {
     const w = mountChart()
     const before = forwardedYTickFormat(w)
-    expect(before(100_000)).toBe('$1,000.00')
-    expect(before(0)).toBe('$0.00')
+    expect(before(100_000)).toBe('$1k')
+    expect(before(250_000)).toBe('$2.5k')
+    expect(before(0)).toBe('$0')
 
     await selectMetric(w, 'saleCount')
 
     const after = forwardedYTickFormat(w)
     expect(after).not.toBe(before)
-    expect(after(100_000)).toBe('100,000')
+    expect(after(100_000)).toBe('100000')
     expect(after(25)).toBe('25')
+    expect(after(0.5)).toBe('')
     expect(after(100_000)).not.toContain('$')
   })
 

@@ -1,0 +1,181 @@
+/* T3 owns this panel only; paired colors inherit the dashboard foundation. */
+.dashboard-visual .dashboard-trend {
+  position: relative;
+  min-width: 0;
+  overflow: hidden;
+  padding-top: 24px;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background: var(--hf-surface);
+  font-variant-numeric: tabular-nums;
+  animation: dashboard-trend-enter 350ms ease-out 100ms both;
+}
+.dashboard-visual .dashboard-trend-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 24px;
+  color: var(--hf-muted);
+}
+.dashboard-visual .dashboard-trend-heading h2 {
+  color: var(--hf-heading);
+  font-size: 16px;
+  font-weight: 600;
+}
+.dashboard-visual .dashboard-trend-heading p { margin-top: 4px; font-size: 12px; }
+.dashboard-visual .dashboard-trend-description { padding: 8px 24px 0; }
+.dashboard-visual .dashboard-trend-tabs-scroll { overflow-x: auto; padding: 16px 24px 4px; }
+.dashboard-visual .dashboard-trend-tabs {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  min-width: 840px;
+}
+.dashboard-visual .dashboard-trend-tab {
+  position: relative;
+  min-height: var(--hf-control-height);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--hf-radius-control);
+  background: transparent;
+  color: var(--hf-muted);
+  font: 500 12px var(--hf-font);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.dashboard-visual .dashboard-trend-tab[aria-pressed="true"] { color: var(--hf-action); }
+.dashboard-visual .dashboard-trend-tab-indicator {
+  position: absolute;
+  z-index: -1;
+  inset: 0 auto 0 0;
+  width: calc(100% / 6);
+  border-radius: var(--hf-radius-control);
+  background: var(--hf-active-soft);
+  transition: transform 200ms ease;
+  pointer-events: none;
+}
+.dashboard-visual .branch-sales-trend-chart {
+  position: relative;
+  min-width: 0;
+  padding: 10px 20px 0 8px;
+  --vis-area-fill-opacity: 1;
+  --vis-axis-grid-color: var(--hf-border);
+  --vis-axis-tick-color: var(--hf-border);
+  --vis-axis-domain-color: var(--hf-border);
+  --vis-axis-tick-label-color: var(--hf-muted);
+  --vis-axis-tick-label-font-size: 12px;
+  --vis-axis-font-family: var(--hf-font);
+  --vis-crosshair-line-stroke-color: var(--hf-action);
+  --vis-crosshair-line-stroke-dasharray: 4 4;
+  --vis-crosshair-circle-stroke-color: var(--hf-surface);
+  --vis-crosshair-circle-stroke-width: 3px;
+  --vis-crosshair-circle-stroke-opacity: 1;
+  --vis-tooltip-background-color: var(--hf-surface);
+  --vis-tooltip-border-color: var(--hf-border);
+  --vis-tooltip-text-color: var(--hf-ink);
+  --vis-tooltip-padding: 0;
+  --vis-tooltip-border-radius: 8px;
+  --vis-tooltip-box-shadow: 0 4px 20px color-mix(in srgb, var(--hf-ink) 4%, transparent);
+}
+/* Unovis 1.7.0 does not recognize html.dark. Explicitly retain paired chrome
+ * instead of relying on its built-in dark-theme selector detection. */
+html.dark .dashboard-visual .branch-sales-trend-chart {
+  --vis-axis-grid-color: var(--hf-border);
+  --vis-axis-tick-color: var(--hf-border);
+  --vis-axis-domain-color: var(--hf-border);
+  --vis-axis-tick-label-color: var(--hf-muted);
+  --vis-area-fill-opacity: 1;
+  --vis-tooltip-background-color: var(--hf-surface);
+  --vis-tooltip-text-color: var(--hf-ink);
+}
+.dashboard-visual .dashboard-trend-canvas,
+.dashboard-visual .dashboard-trend-skeleton { height: 240px; width: 100%; min-width: 0; }
+.dashboard-visual .dashboard-trend-defs { position: absolute; pointer-events: none; }
+.dashboard-visual .branch-sales-trend-chart [class*="grid"] line { stroke-dasharray: 3 5; }
+/* Reveal the real series, never interpolate or synthesize backend values. */
+.dashboard-visual .branch-sales-trend-chart :is([class*="area-component"], [class*="line-component"]) {
+  animation: dashboard-trend-draw 500ms ease-out both;
+}
+.dashboard-visual .branch-sales-trend-chart [class*="crosshair"] :is(line, circle) {
+  transition: transform 80ms linear;
+}
+.dashboard-visual .dashboard-trend-tooltip {
+  border-radius: 8px;
+  padding: 12px 16px;
+  color: var(--hf-ink);
+  background: var(--hf-surface);
+  font: 12px var(--hf-font);
+}
+.dashboard-visual .dashboard-trend-tooltip > span { color: var(--hf-muted); }
+.dashboard-visual .dashboard-trend-tooltip p { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.dashboard-visual .dashboard-trend-tooltip strong { margin-left: 16px; }
+.dashboard-visual .dashboard-trend-legend-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--hf-action); }
+.dashboard-visual .dashboard-trend-keyboard-tooltip {
+  margin: 8px 24px;
+  color: var(--hf-ink);
+  font-size: 12px;
+}
+.dashboard-visual .dashboard-trend-footer {
+  position: relative;
+  margin-top: 12px;
+  border-top: 1px solid var(--hf-border);
+}
+.dashboard-visual .dashboard-trend-caption {
+  min-height: 56px;
+  padding: 18px 220px 18px 24px;
+  color: var(--hf-muted);
+  font-size: 12px;
+}
+.dashboard-visual .dashboard-trend-table { padding: 0 24px 8px; }
+.dashboard-visual .dashboard-trend-table summary {
+  position: absolute;
+  top: 6px;
+  right: 24px;
+  color: var(--hf-muted);
+  font-size: 12px;
+}
+.dashboard-visual .dashboard-trend-table summary:focus-visible,
+.dashboard-visual .dashboard-trend-tab:focus-visible,
+.dashboard-visual .branch-sales-trend-chart:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: -2px;
+}
+.dashboard-visual .dashboard-trend :is(.branch-sales-trend-chart, .dashboard-trend-table) { transition: opacity 200ms; }
+.dashboard-visual .dashboard-trend-refreshing :is(.branch-sales-trend-chart, .dashboard-trend-table) { opacity: 0.6; }
+.dashboard-visual .dashboard-trend > :is([role="status"], [role="alert"]) { margin: 16px 24px; }
+@keyframes dashboard-trend-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes dashboard-trend-draw {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0); }
+}
+@media (max-width: 700px) {
+  .dashboard-visual .dashboard-trend-heading { padding-inline: 16px; }
+  .dashboard-visual .dashboard-trend-tabs-scroll { padding-inline: 16px; }
+  .dashboard-visual .branch-sales-trend-chart { padding-right: 8px; padding-left: 0; }
+  .dashboard-visual .dashboard-trend-caption { min-height: 0; padding: 12px 16px 0; }
+  .dashboard-visual .dashboard-trend-table { padding-inline: 16px; }
+  .dashboard-visual .dashboard-trend-table summary { position: static; }
+  .dashboard-visual .dashboard-trend-canvas,
+  .dashboard-visual .dashboard-trend-skeleton { height: 220px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-visual .dashboard-trend,
+  .dashboard-visual .dashboard-trend .animate-spin,
+  .dashboard-visual .dashboard-trend .animate-pulse,
+  .dashboard-visual .branch-sales-trend-chart :is([class*="area-component"], [class*="line-component"]) {
+    animation: none;
+    clip-path: none;
+  }
+  .dashboard-visual .dashboard-trend-tab-indicator,
+  .dashboard-visual .dashboard-trend :is(.branch-sales-trend-chart, .dashboard-trend-table),
+  .dashboard-visual .branch-sales-trend-chart [class*="crosshair"] :is(line, circle),
+  .dashboard-visual .branch-sales-trend-chart [class*="tooltip"] {
+    --vis-axis-tick-label-hide-transition: none;
+    transition: none;
+  }
+}

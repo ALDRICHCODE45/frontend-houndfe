@@ -15,6 +15,7 @@ import {
   BRANCH_SALES_TIMESERIES_METRICS,
   DEFAULT_BRANCH_SALES_TIMESERIES_METRIC,
   buildBranchSalesTimeseriesChartLabel,
+  formatBranchSalesTimeseriesAxisTick,
   formatBranchSalesTimeseriesDate,
   formatBranchSalesTimeseriesValue,
   getBranchSalesTimeseriesMetric,
@@ -204,5 +205,27 @@ describe('branchSalesTimeseries.utils — timezone-neutral date formatting', () 
     expect(buildBranchSalesTimeseriesChartLabel('saleCount', '2025-06-01', '2025-06-16')).toContain(
       'Cantidad de ventas',
     )
+  })
+})
+
+/**
+ * The Y axis carries compact labels only: the exact backend value always stays
+ * reachable in the tooltip and in the data table. A tick is whatever Unovis
+ * picks for the current domain, so it is not guaranteed to be a round number
+ * and the label must stay short instead of printing every cent.
+ */
+describe('formatBranchSalesTimeseriesAxisTick', () => {
+  it('abbreviates cents as thousands of pesos without a long decimal tail', () => {
+    expect(formatBranchSalesTimeseriesAxisTick('netSalesCents', 0)).toBe('$0')
+    expect(formatBranchSalesTimeseriesAxisTick('netSalesCents', 250_000)).toBe('$2.5k')
+    expect(formatBranchSalesTimeseriesAxisTick('netSalesCents', 600_000)).toBe('$6k')
+    expect(formatBranchSalesTimeseriesAxisTick('netSalesCents', 123_456)).toBe('$1.2k')
+    expect(formatBranchSalesTimeseriesAxisTick('averageTicketCents', 77_652)).toBe('$0.8k')
+  })
+
+  it('keeps a count an integer and drops a fractional tick', () => {
+    expect(formatBranchSalesTimeseriesAxisTick('saleCount', 0)).toBe('0')
+    expect(formatBranchSalesTimeseriesAxisTick('saleCount', 63)).toBe('63')
+    expect(formatBranchSalesTimeseriesAxisTick('saleCount', 2.5)).toBe('')
   })
 })

@@ -4,8 +4,8 @@
  * branch sales summary (ODD dashboard-operational-insights OI-5A).
  *
  * Presentational only: it imports no API client and no composable, opens no
- * query and makes no request. Its single piece of own state is the selected
- * metric; everything else arrives as props and every recovery goes out as one
+ * query and makes no request. Own state is the selected metric and keyboard
+ * position; everything else arrives as props and every recovery goes out as one
  * `retry` event that the route view routes into the guarded OI-4 retry.
  *
  * Locked contract:
@@ -27,13 +27,15 @@
  * (`html[data-theme="dark"]`, `html.dark-theme`, ...). The app uses `html.dark`,
  * so the `.dark` overrides below are required chrome, not decoration.
  */
-import { computed, shallowRef, useId } from 'vue'
-import { VisArea, VisAxis, VisLine, VisXYContainer } from '@unovis/vue'
+import { computed, shallowRef, useId, watch } from 'vue'
+import { VisArea, VisAxis, VisCrosshair, VisLine, VisTooltip, VisXYContainer } from '@unovis/vue'
+import '../styles/dashboard-trend.css'
 import type { BranchSalesTimeseriesPoint } from '../interfaces/branch-sales-timeseries.types'
 import {
   BRANCH_SALES_TIMESERIES_METRICS,
   DEFAULT_BRANCH_SALES_TIMESERIES_METRIC,
   buildBranchSalesTimeseriesChartLabel,
+  formatBranchSalesTimeseriesAxisTick,
   formatBranchSalesTimeseriesDate,
   formatBranchSalesTimeseriesValue,
   getBranchSalesTimeseriesMetric,
@@ -62,7 +64,7 @@ const props = withDefaults(
 /** One recovery request; the parent owns the guarded action behind it. */
 const emit = defineEmits<{ retry: [] }>()
 
-/** The only state this component owns: which backend field is displayed. */
+/** Local presentation state only; no data transformation. */
 const selectedKey = shallowRef<BranchSalesTimeseriesMetricKey>(
   DEFAULT_BRANCH_SALES_TIMESERIES_METRIC,
 )
@@ -83,9 +85,52 @@ const tableCaption = computed(
     `${selectedMetric.value.label} por día del ${props.from} al ${props.to} (Hasta excluyente).`,
 )
 
-/** Series colors are Coco tokens resolved by CSS, so both themes stay on-brand. */
-const AREA_FILL = 'var(--coco-chart-area)'
-const LINE_STROKE = 'var(--coco-chart-line)'
+const LINE_STROKE = 'var(--hf-action)'
+const keyboardIndex = shallowRef<number | undefined>()
+const keyboardPoint = computed(() =>
+  keyboardIndex.value === undefined ? undefined : props.points[keyboardIndex.value],
+)
+const metricIndex = computed(() =>
+  BRANCH_SALES_TIMESERIES_METRICS.findIndex((metric) => metric.key === selectedKey.value),
+)
+
+// Reset positions when the window/data changes; never retain an obsolete bucket.
+watch(() => props.points, () => { keyboardIndex.value = undefined })
+
+function onChartKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') {
+    keyboardIndex.value = undefined
+    return
+  }
+  if (!['ArrowRight', 'ArrowLeft'].includes(event.key) || !hasPoints.value) return
+  event.preventDefault()
+  keyboardIndex.value = Math.max(0, Math.min(
+    props.points.length - 1,
+    (keyboardIndex.value ?? -1) + (event.key === 'ArrowRight' ? 1 : -1),
+  ))
+}
+
+/** Native Unovis positions and follows the pointer; textContent escapes backend strings. */
+const tooltipTemplate = computed(() => {
+  const key = selectedKey.value
+  const metric = getBranchSalesTimeseriesMetric(key)
+  return (point: BranchSalesTimeseriesPoint): HTMLElement => {
+    const tooltip = document.createElement('div')
+    tooltip.className = 'dashboard-trend-tooltip'
+    const date = document.createElement('span')
+    date.textContent = formatBranchSalesTimeseriesDate(point.date)
+    const row = document.createElement('p')
+    const dot = document.createElement('i')
+    dot.className = 'dashboard-trend-legend-dot'
+    const label = document.createElement('span')
+    label.textContent = metric.label
+    const value = document.createElement('strong')
+    value.textContent = formatBranchSalesTimeseriesValue(key, readBranchSalesTimeseriesValue(point, key))
+    row.append(dot, label, value)
+    tooltip.append(date, row)
+    return tooltip
+  }
+})
 
 /**
  * X placement is the backend array index ONLY. The array is never sorted,
@@ -124,19 +169,20 @@ const xTickFormat = computed(() => (tick: number | Date): string => {
 })
 
 /**
- * Y ticks use the same formatter as the table, so axis and values agree. The
- * metric is captured inside the getter for the same identity reason as
+ * Y ticks are compact labels only (cents to thousands of MXN); exact backend
+ * values remain in the tooltip and table. Capture the metric for the same reason as
  * `yAccessor`: a stable formatter reference would leave the old metric's axis
  * labels on screen.
  */
 const yTickFormat = computed(() => {
   const key = selectedKey.value
   return (tick: number | Date): string =>
-    typeof tick === 'number' ? formatBranchSalesTimeseriesValue(key, tick) : ''
+    typeof tick === 'number' ? formatBranchSalesTimeseriesAxisTick(key, tick) : ''
 })
 
 function selectMetric(key: BranchSalesTimeseriesMetricKey) {
   selectedKey.value = key
+  keyboardIndex.value = undefined
 }
 
 function onRetry() {
@@ -145,18 +191,29 @@ function onRetry() {
 
 const uid = useId()
 const headingId = `${uid}-heading`
+const descriptionId = `${uid}-description`
+const gradientId = `${uid}-area-fill`
+const areaFill = `url(#${gradientId})`
 </script>
 
 <template>
   <section
     data-testid="branch-sales-trend"
     :aria-labelledby="headingId"
-    class="flex min-w-0 flex-col gap-3 rounded-xl border border-default bg-default p-3 lg:p-4"
+    class="dashboard-trend"
+    :class="{ 'dashboard-trend-refreshing': hasPoints && props.isRefetching }"
   >
-    <div class="flex min-w-0 flex-col gap-1">
-      <h2 :id="headingId" class="text-sm font-semibold text-highlighted">Tendencia diaria</h2>
+    <header class="dashboard-trend-heading">
+      <div>
+        <h2 :id="headingId">Tendencia diaria</h2>
+        <p>El comportamiento de tus ventas, día a día.</p>
+      </div>
+      <UIcon name="i-lucide-chart-no-axes-combined" class="size-5 shrink-0" aria-hidden="true" />
+    </header>
+    <div class="dashboard-trend-description">
       <p
         v-if="hasPoints"
+        :id="descriptionId"
         data-testid="branch-sales-trend-description"
         class="text-xs leading-relaxed text-muted"
       >
@@ -216,7 +273,7 @@ const headingId = `${uid}-heading`
       class="flex min-w-0 flex-col gap-2"
     >
       <span class="sr-only">Cargando la tendencia diaria…</span>
-      <USkeleton class="h-56 w-full" />
+      <USkeleton class="dashboard-trend-skeleton w-full" />
     </div>
 
     <!-- Error with no data: chart-scoped copy and one guarded recovery. -->
@@ -251,30 +308,32 @@ const headingId = `${uid}-heading`
 
     <template v-else-if="hasPoints">
       <!-- One metric at a time: a semantic group of native pressed-state buttons. -->
+      <div class="dashboard-trend-tabs-scroll">
       <div
         data-testid="branch-sales-trend-metrics"
         role="group"
         aria-label="Métrica de la tendencia"
-        class="flex min-w-0 flex-wrap gap-2"
+        class="dashboard-trend-tabs"
       >
-        <UButton
+        <span class="dashboard-trend-tab-indicator" aria-hidden="true"
+          :style="{ transform: `translateX(${metricIndex * 100}%)` }" />
+        <button
           v-for="metric in BRANCH_SALES_TIMESERIES_METRICS"
           :key="metric.key"
           type="button"
           data-testid="branch-sales-trend-metric"
           :data-metric-key="metric.key"
-          :variant="selectedKey === metric.key ? 'solid' : 'outline'"
-          :color="selectedKey === metric.key ? 'primary' : 'neutral'"
           :aria-pressed="selectedKey === metric.key ? 'true' : 'false'"
-          class="min-h-11 focus-visible:ring-2 focus-visible:ring-coco-500/60 focus-visible:outline-none"
+          class="dashboard-trend-tab min-h-11 focus-visible:ring-2 focus-visible:outline-none"
           @click="selectMetric(metric.key)"
         >
           {{ metric.label }}
-        </UButton>
+        </button>
+      </div>
       </div>
 
       <!--
-        Chart region. The wrapper carries the Coco series variables and the
+        Chart region. The wrapper carries the semantic series variables and the
         `.dark` chrome overrides; Unovis resolves `var()` inside its fill/stroke
         presentation values, so both themes follow the tokens.
       -->
@@ -282,8 +341,21 @@ const headingId = `${uid}-heading`
         data-testid="branch-sales-trend-chart"
         role="img"
         :aria-label="chartLabel"
-        class="branch-sales-trend-chart min-w-0 overflow-hidden rounded-lg"
+        :aria-describedby="descriptionId"
+        tabindex="0"
+        class="branch-sales-trend-chart"
+        @keydown="onChartKeydown"
+        @pointermove="keyboardIndex = undefined"
+        @blur="keyboardIndex = undefined"
       >
+        <svg class="dashboard-trend-defs" aria-hidden="true" width="0" height="0">
+          <defs>
+            <linearGradient :id="gradientId" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="var(--hf-action)" stop-opacity="0.16" />
+              <stop offset="100%" stop-color="var(--hf-action)" stop-opacity="0.01" />
+            </linearGradient>
+          </defs>
+        </svg>
         <!--
           `:key` is load-bearing, not cosmetic. Unovis recomputes the shared X/Y
           scale domains only inside the CONTAINER's `_preRender`, and a metric
@@ -299,10 +371,19 @@ const headingId = `${uid}-heading`
           :key="selectedKey"
           :data="props.points"
           :prevent-empty-domain="true"
-          class="h-56 w-full min-w-0 sm:h-64"
+          :auto-margin="false"
+          :margin="{ top: 18, right: 16, left: 58, bottom: 32 }"
+          :duration="0"
+          class="dashboard-trend-canvas"
         >
-          <VisArea :x="xAccessor" :y="yAccessor" :color="AREA_FILL" />
-          <VisLine :x="xAccessor" :y="yAccessor" :color="LINE_STROKE" :line-width="2" />
+          <VisArea :x="xAccessor" :y="yAccessor" :color="areaFill" :duration="0" />
+          <VisLine :x="xAccessor" :y="yAccessor" :color="LINE_STROKE" :line-width="2.5" :duration="0" />
+          <VisCrosshair
+            :x="xAccessor" :y="yAccessor" :color="LINE_STROKE"
+            :circle-radius="5" :hide-when-far-from-pointer="false"
+            :force-show-at="keyboardIndex" :template="tooltipTemplate" :duration="0"
+          />
+          <VisTooltip :horizontal-shift="12" />
           <VisAxis
             type="x"
             position="bottom"
@@ -317,7 +398,7 @@ const headingId = `${uid}-heading`
           <VisAxis
             type="y"
             position="left"
-            :num-ticks="4"
+            :num-ticks="5"
             :tick-format="yTickFormat"
             :grid-line="true"
             :tick-line="false"
@@ -326,18 +407,26 @@ const headingId = `${uid}-heading`
         </VisXYContainer>
       </div>
 
+      <p v-if="keyboardPoint" data-testid="branch-sales-trend-announcement"
+        aria-live="polite" class="dashboard-trend-keyboard-tooltip">
+        {{ formatBranchSalesTimeseriesDate(keyboardPoint.date) }} ·
+        <strong>{{ formatBranchSalesTimeseriesValue(selectedKey, readBranchSalesTimeseriesValue(keyboardPoint, selectedKey)) }}</strong>
+      </p>
+
+      <footer class="dashboard-trend-footer">
+      <p class="dashboard-trend-caption">{{ tableCaption }}</p>
       <!--
         Keyboard-reachable alternative that never depends on SVG or hover: a
         native disclosure in front of a semantic table with the exact backend
         dates and the exact selected-metric values in backend order.
       -->
-      <details data-testid="branch-sales-trend-table-details" class="min-w-0">
+      <details data-testid="branch-sales-trend-table-details" class="dashboard-trend-table min-w-0">
         <summary
           data-testid="branch-sales-trend-table-summary"
           class="flex min-h-11 cursor-pointer items-center gap-2 rounded-lg px-1 text-sm font-medium text-highlighted focus-visible:ring-2 focus-visible:ring-coco-500/60 focus-visible:outline-none"
         >
           <UIcon name="i-lucide-table-2" aria-hidden="true" class="size-4 shrink-0" />
-          <span>Ver la tabla de datos</span>
+          <span>Ver datos en tabla</span>
         </summary>
 
         <div class="mt-2 min-w-0 overflow-x-auto">
@@ -387,39 +476,7 @@ const headingId = `${uid}-heading`
           </table>
         </div>
       </details>
+      </footer>
     </template>
   </section>
 </template>
-
-<style scoped>
-/*
- * Coco series colors plus Unovis chrome, expressed only through Coco tokens.
- * The wrapper is the inheritance root for everything Unovis renders below it.
- */
-.branch-sales-trend-chart {
-  --coco-chart-area: var(--color-coco-500);
-  --coco-chart-line: var(--color-coco-600);
-  --vis-area-fill-opacity: 0.22;
-  --vis-axis-grid-color: var(--color-coco-neutral-200);
-  --vis-axis-tick-color: var(--color-coco-neutral-300);
-  --vis-axis-domain-color: var(--color-coco-neutral-300);
-  --vis-axis-tick-label-color: var(--color-coco-neutral-700);
-  --vis-axis-tick-label-font-size: 10px;
-}
-
-/*
- * Unovis 1.7.0 enables its dark palette only for `html[data-theme="dark"]`,
- * `html.dark-theme`, `body.dark-theme`, `html.theme-dark` and
- * `body.theme-dark`. The app resolves dark mode with `html.dark`, which Unovis
- * never matches, so the dark values are declared explicitly here.
- */
-.dark .branch-sales-trend-chart {
-  --coco-chart-area: var(--color-coco-400);
-  --coco-chart-line: var(--color-coco-300);
-  --vis-area-fill-opacity: 0.3;
-  --vis-axis-grid-color: var(--color-coco-neutral-800);
-  --vis-axis-tick-color: var(--color-coco-neutral-700);
-  --vis-axis-domain-color: var(--color-coco-neutral-700);
-  --vis-axis-tick-label-color: var(--color-coco-neutral-300);
-}
-</style>

@@ -142,6 +142,30 @@ export function formatBranchSalesTimeseriesValue(
     : formatCentsMXN(value)
 }
 
+/**
+ * Format one Y-axis tick as a COMPACT label. This is deliberately not the exact
+ * formatter above: a tick is whatever value the chart library picks for the
+ * current domain, so it is frequently not a round number, and printing it in
+ * full would push a cents-precise string into the axis gutter. The exact
+ * backend value always stays reachable in the tooltip and in the data table, so
+ * abbreviating here loses no information.
+ *
+ * Monetary metrics are integer CENTS, so one thousand pesos is 100 000 cents.
+ * A count has no unit and a fractional count has no meaning, so a non-integer
+ * count tick is dropped rather than rounded into a number the backend never
+ * reported.
+ */
+export function formatBranchSalesTimeseriesAxisTick(
+  key: BranchSalesTimeseriesMetricKey,
+  tick: number,
+): string {
+  if (getBranchSalesTimeseriesMetric(key).format === 'count') {
+    return Number.isInteger(tick) ? String(tick) : ''
+  }
+  if (tick === 0) return '$0'
+  return `$${Math.round(tick / 10_000) / 10}k`
+}
+
 /** Fixed Spanish month abbreviations, indexed 0-11. No `Intl`, no locale data. */
 const MONTH_LABELS = [
   'ene',
