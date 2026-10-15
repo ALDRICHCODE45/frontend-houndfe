@@ -12,10 +12,11 @@ S3. Delete ConfirmModal, RoleUpsertSlideover and RolePermissionsSlideover (keepi
 ## Tasks
 
 T1 | S2,S3 | inline: list workspace + adapter CSS + portals + cards + both slideovers, RED/GREEN | done | RED 5 contract -> GREEN roles 122/7, build exit0 | commit: see L2
-T2 | S1-S3 | inline checks: module suite, build, lint, native assess; user visual smoke | pending | commit: —
+T2 | S1-S3 | inline checks: module suite, build, lint, native assess; user visual smoke | done | user approved visually ("me gusta hermano"); roles 122/7, build exit0 | commit: see L4
 
 ## Log
 
 L1. User request verbatim: "Bien hermano, me gusta, ahora lo que sigue por favor. Roles me parece". Map: AdminRolesView wraps AdminPageHeader + AppDataTable in a UCard painted bg-coco-neutral; row UDropdownMenu, ConfirmModal, RoleUpsertSlideover (USlideover), RolePermissionsSlideover (USlideover with ui.content '!max-w-2xl', semantic inner utilities); RoleCard hover translate/shadow. Existing view test pins admin-page-header (updated as a requested change).
 L2. T1: styles/roles-visual.css derived from the users adapter; AdminRolesView canonical header outside hf-table-surface (title "Gestión de roles", subtitle = existing headerDescription), AdminPageHeader + bg-coco-neutral removed, list portals on AppDataTable + row menu, view toggle hook, delete ConfirmModal form portal; RoleCard/RoleCardGrid owned hooks; RoleUpsertSlideover form portal; RolePermissionsSlideover keeps '!max-w-2xl' and adds the form portal. Header view test updated to the canonical header (requested change). RED 5 contract -> GREEN roles 122/7; pnpm build exit 0. Lint: the only finding is a pre-existing '// @ts-nocheck' at line 1 of AdminRolesView.test.ts (present on HEAD), left out of scope.
 L3. Native assess 4df64c15..f389f143: medium, reviewDue false (under_budget), no independent verifier. Pending: user visual smoke.
+L4. User verbatim: "me gusta hermano, commit y yo hago push. (pero primero merge a main por favor)". Feature closed; fast-forward merged to main; push by the user.
