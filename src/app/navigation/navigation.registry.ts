@@ -29,13 +29,15 @@ export const navigationGroups: NavGroup[] = [
         to: '/pos/products',
         permission: ['read', 'Product'],
       },
-      {
-        id: 'pos-orders',
-        label: 'Órdenes',
-        icon: 'i-lucide-receipt',
-        to: '/pos/orders',
-        permission: ['read', 'Order'],
-      },
+      // Orders is paused: hidden from navigation, the /pos/orders route and
+      // OrdersView stay registered. Uncomment to bring it back.
+      // {
+      //   id: 'pos-orders',
+      //   label: 'Órdenes',
+      //   icon: 'i-lucide-receipt',
+      //   to: '/pos/orders',
+      //   permission: ['read', 'Order'],
+      // },
       {
         id: 'pos-customers',
         label: 'Clientes',
@@ -225,13 +227,14 @@ export const quickActions: NavAction[] = [
     to: '/pos/products/new',
     permission: ['create', 'Product'],
   },
-  {
-    id: 'new-order',
-    label: 'Nueva Orden',
-    icon: 'i-lucide-plus',
-    to: '/pos/orders/new',
-    permission: ['create', 'Order'],
-  },
+  // Orders is paused (see the pos-orders entry above).
+  // {
+  //   id: 'new-order',
+  //   label: 'Nueva Orden',
+  //   icon: 'i-lucide-plus',
+  //   to: '/pos/orders/new',
+  //   permission: ['create', 'Order'],
+  // },
   {
     id: 'new-sale',
     label: 'Nueva Venta',
