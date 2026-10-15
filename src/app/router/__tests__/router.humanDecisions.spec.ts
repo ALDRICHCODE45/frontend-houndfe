@@ -29,6 +29,21 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
   useAuthStore: () => mockAuthStore,
 }))
 
+// Route-view stubs, the same isolation `router.cashRegister.spec.ts` uses. This
+// spec pins the route record, its metadata and the REAL global guard, not the
+// UI. Every test resets modules and navigates to the lazy route, so the first
+// one paid the cold transform of the whole inbox view graph and timed out at
+// 5000ms whenever the suite ran under load (it reproduced on the base commit,
+// not only after unrelated changes). The views keep their own unit coverage.
+// The identity assertions below still prove WHICH module each route resolves:
+// the router's lazy import and the test's import hit the same mocked path.
+vi.mock('@/features/POS/human-decisions/views/HumanDecisionsView.vue', () => ({
+  default: { name: 'HumanDecisionsView' },
+}))
+vi.mock('@/features/POS/human-decisions/views/HumanDecisionsOfflineDemoRouteView.vue', () => ({
+  default: { name: 'HumanDecisionsOfflineDemoRouteView' },
+}))
+
 function authenticate(userCan: (action: string, subject: string) => boolean) {
   mockAuthStore.accessToken = 'access-token'
   mockAuthStore.user = { id: 'user-1' }

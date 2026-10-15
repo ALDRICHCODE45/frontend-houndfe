@@ -41,6 +41,18 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
   useAuthStore: () => mockAuthStore,
 }))
 
+// Route-view stub, the same isolation `router.cashRegister.spec.ts` uses. This
+// spec pins the route record, its metadata and the REAL global guard, not the
+// UI. Routing to /dashboard lazily imports the dashboard view graph (Unovis
+// charts, four panels, their composables), and that cold transform was charged
+// to whichever test navigated there first, timing it out at 5000ms under suite
+// load. The view keeps its own coverage in `BranchSalesSummaryView.spec.ts`.
+// The identity assertion below still proves the route resolves THIS module:
+// the router's lazy import and the test's import hit the same mocked path.
+vi.mock('@/features/analytics/views/BranchSalesSummaryView.vue', () => ({
+  default: { name: 'BranchSalesSummaryView' },
+}))
+
 const DASHBOARD_PATH = '/dashboard'
 const DASHBOARD_NAME = 'dashboard'
 
