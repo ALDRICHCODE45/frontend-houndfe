@@ -1030,6 +1030,9 @@ describe('BranchSalesSummaryView — operational panel composition', () => {
     const grid = view.find('[data-testid="branch-summary-operational-grid"]')
     expect(grid.classes()).toContain('dashboard-panel-grid')
     expect(grid.attributes('style')).toContain('--dashboard-panel-count: 3')
+    // The narrower tier selects on this attribute, because `repeat()` cannot
+    // resolve a math function over the custom property.
+    expect(grid.attributes('data-panel-count')).toBe('3')
 
     const card = view.find('[data-testid="branch-summary-card"]')
     expect(card.element.contains(grid.element)).toBe(true)

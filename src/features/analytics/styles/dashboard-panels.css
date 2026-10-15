@@ -102,7 +102,14 @@
 @keyframes dashboard-row-enter { from { opacity: 0; } to { opacity: 1; } }
 @keyframes dashboard-panel-shimmer { to { background-position: -200% 0; } }
 @media (max-width: 1190px) {
-  .dashboard-visual .dashboard-panel-grid { grid-template-columns: repeat(min(2, var(--dashboard-panel-count)), minmax(0, 1fr)); }
+  /* `repeat()` takes a literal integer, so a math function over the custom
+   * property would drop the declaration and leave the desktop column count.
+   * Select on the rendered count instead; one granted panel keeps the base
+   * single-column rule. */
+  .dashboard-visual .dashboard-panel-grid[data-panel-count='2'],
+  .dashboard-visual .dashboard-panel-grid[data-panel-count='3'] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .dashboard-visual .dashboard-operations:last-child:nth-child(3) { grid-column: 1 / -1; }
 }
 @media (max-width: 700px) {

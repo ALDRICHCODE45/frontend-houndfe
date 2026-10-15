@@ -39,4 +39,17 @@ describe('Dashboard operational and summary state presentation', () => {
     expect(css).toContain('@media (max-width: 1190px)')
     expect(css).toContain('@media (max-width: 700px)')
   })
+
+  /**
+   * `repeat()` takes a literal integer: browsers do not resolve a math function
+   * such as `min()` or `calc()` as its track count, so the whole declaration is
+   * dropped and the grid silently falls back to the desktop column count. The
+   * narrower tier therefore selects on an explicit rendered panel count.
+   */
+  it('never puts a math function inside a repeat() track count', () => {
+    expect(css).not.toMatch(/repeat\(\s*(?:min|max|calc|clamp)\(/)
+    for (const count of [2, 3]) {
+      expect(css).toContain(`[data-panel-count='${count}']`)
+    }
+  })
 })

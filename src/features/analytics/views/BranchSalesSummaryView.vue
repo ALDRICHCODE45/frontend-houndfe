@@ -393,6 +393,7 @@ function onPendingRefundsRetry() {
           v-if="canReadSales || canReadRefunds"
           data-testid="branch-summary-operational-grid"
           class="dashboard-panel-grid"
+          :data-panel-count="operationalPanelCount"
           :style="{ '--dashboard-panel-count': operationalPanelCount }"
         >
           <DashboardOperationalPanel
