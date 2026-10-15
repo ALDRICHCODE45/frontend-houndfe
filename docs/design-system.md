@@ -67,6 +67,7 @@ Page width follows the task: data-heavy tables may use available width; forms ma
 
 - **Buttons:** primary emphasis for the main action in a task region; secondary and tertiary actions remain visually quieter. Destructive actions retain their existing confirmations and guards.
 - **Inputs:** visible label, one field surface, readable helper/error text, and a clear focus indicator. A placeholder is not a label.
+- **Date fields:** use our calendar component (`UInputDate` with a `UCalendar` popover), never the browser's native `<input type="date">`. A field commits only a complete, real calendar date as its exact `YYYY-MM-DD` string through the shared `calendarPartsToDateString` (`src/core/shared/utils/mexicoCityCalendar.ts`); a cleared, partial or impossible value never commits and snaps back to the last committed date. No JS `Date` is constructed, so no time zone can shift the day. References: `SellerReportDateRangeFilter.vue`, `BranchSalesSummaryFilters.vue`.
 - **Cards:** group meaningful content, not every individual label or input. All equivalent surfaces use the same semantic background in both modes.
 - **Badges:** communicate status with text and color. Selection and financial status must not become visually interchangeable.
 - **Dialogs and sheets:** keep existing close, submit, keyboard, focus-restoration, and unsaved-change behavior. Visual restyling must not replace accessible primitives with static markup. Apply the feature's theme marker to the actual teleported dialog content, not only its trigger or positioning wrapper. Shared wrappers must use an existing explicit public opt-in; a missing boundary is a migration gap, not permission to change every consumer.
@@ -153,7 +154,7 @@ The reference must show normal, loading, empty, error, selected, disabled, and o
 4. Reject generated replacement stores, mock business logic, new fetch layers, dependencies, or framework migrations.
 5. Preserve routes, handlers, queries, permissions, validation, calculations, and persisted state; verify them through the existing public interfaces.
 
-No v0 redesign was requested or generated as part of this documentation delivery. Tool availability and the selected reference will be resolved when that design step is authorized.
+Accepted v0 references so far: Venta and Dashboard (section 6). Commit an accepted reference's exported source verbatim under `docs/redesign/` as one Markdown document, not loose `.tsx` files, so the React/Next sources never enter type-checking or lint.
 
 ## 6. Specialized screens: Venta and Dashboard
 
@@ -198,6 +199,22 @@ Reference geometry must be translated through the shared semantic foundation: 12
 
 Scope every new presentation rule to Venta's explicit owned boundary. Reused catalog/cart components, omitted opt-ins, other modules and existing nested forms retain their defaults. Error/destructive roles must not inherit the generic action foreground. Both themes need the same hierarchy; do not introduce local palette literals or blanket overrides.
 
+### Dashboard: fidelity to the accepted composition
+
+The [accepted v0 reference](https://v0.app/bdps-projects/chat/ps6ftjVkTIL), exported verbatim to [`dashboard-v0-reference.md`](redesign/dashboard-v0-reference.md), governs the `/dashboard` composition and motion. Feature record: [`odd/tasks/dashboard-visual.md`](../odd/tasks/dashboard-visual.md).
+
+| Region | Composition contract |
+| ------ | -------------------- |
+| Page frame | The header sits on the page canvas, never inside a card: gold-square eyebrow `CONTROL DE VENTAS`, `Resumen de ventas`, its subtitle, and the period block on the right. Content is a centered 1320px column of independent 12px panels with 24px gaps, closed by the page footer. No single card wraps the whole page. |
+| Shell-aware gutters | Same rule as Venta: the shell body pads routed pages (`p-4 sm:p-6`) and paints the page plane. The reference's 52/40/76px gutter is the TOTAL, so the dashboard root is transparent and adds only the remainder (12/0/14px, 28/16/52px from `sm`). Painting a page background on the root draws a seam inside the shell padding. |
+| Period controls | Four presets in a segmented control with a sliding indicator. The indicator moves by `translateX(index * 100%)`, which is only correct over equal-width tracks, so the presets sit in an equal-column grid. The custom range opens a popover holding two calendar fields (see **Date fields**); each field's calendar is a nested popover inside the range popover, and picking a day must not dismiss the outer one. |
+| Metrics | A hero for `Ventas netas`, then five cards, then a separate refunds band (different accounting meaning, no sparkline). `Cantidad de ventas` is a count, never currency. The six sparklines read the already-fetched daily series, one backend field each, in backend order with the array index as X; a missing series renders no sparkline rather than a flat line. |
+| Charts | Keep `@unovis/vue`. Its dark mode only detects its own selectors, and the app uses `html.dark`, so the `.dark` overrides are required. A Y accessor must get a new identity per metric or Unovis skips the re-render. Axis ticks are compact and rounded (`formatBranchSalesTimeseriesAxisTick`): a tick is whatever the library picks, so an unrounded label prints a cents tail. Exact values live in the tooltip and the `Ver datos en tabla` table. Build tooltip content with `textContent`, never HTML strings. |
+| Motion | CSS plus `@vueuse/core` `useTransition` for number tweens; framer-motion and recharts are not dependencies. Entry is staggered once per mount; refresh dims content to 0.6 instead of blanking it. Every feature stylesheet carries a `prefers-reduced-motion` branch that removes tweens, draw-ins, staggers and slides. |
+| Independent states | Summary, trend and each operational panel load, refresh and fail independently; one failure never hides a sibling. Skeletons render inside the final geometry, never synthetic numbers. |
+| Panel grid | The column count follows the granted panels (`read:Sale` → two, `read:SaleRefund` → one). `repeat()` takes a literal integer: browsers drop a declaration whose track count is `min()`/`calc()`, silently keeping the wider layout. Narrow tiers select on the rendered `data-panel-count` attribute instead. |
+| Stylesheet ownership | One stylesheet per block (`dashboard-visual`, `-metrics`, `-trend`, `-panels`.css) so separate work units stay disjoint and individually reviewable. |
+
 **Evidence rule:** screenshots establish reported visual differences; the reference source establishes declared dimensions and section structure. Cropping, zoom and browser chrome can change apparent sizes, so do not infer exact CSS pixels from a screenshot alone. Public regression tests and source contracts establish bounded behavior, not rendered fidelity. The user owns real-browser flow and visual smoke checks, and a reported visual mismatch reopens acceptance even when tests pass.
 
 **Evolving rules:** as a migrated interface exposes a recurring composition or boundary problem, add a concise rule here with its reference and applicability. Keep feature-specific dimensions in the specialized-screen section; promote a rule globally only when actual consumers justify it. Documentation is not evidence that the application already implements the rule.
@@ -220,7 +237,7 @@ Recommended sequence:
 4. Roll out by coherent module using the same pattern; record only justified exceptions.
 5. Redesign Venta and Dashboard as separate bounded deliverables using v0 and explicit behavior inventories, in a user-selected order.
 
-This sequence is a recommendation, not an implementation checklist already in progress. No order between Venta and Dashboard has been selected.
+This sequence is a recommendation, not an implementation checklist. Venta and Dashboard have both since been redesigned from accepted v0 references; their composition contracts are in section 6.
 
 ## Acceptance checklist for each future migration
 
