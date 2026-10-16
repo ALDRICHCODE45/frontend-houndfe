@@ -37,6 +37,23 @@ vi.mock('@/features/auth/stores/useAuthStore', () => ({
   useAuthStore: () => mockAuthStore,
 }))
 
+// Shared-route stubs. The guard tests start at /login and land on /403 or the
+// not-found route; each of those is a lazy view too, and its cold transform was
+// charged to whichever test reached it first (a 5000ms timeout under suite
+// load). This spec asserts paths and metadata, never these components.
+vi.mock('@/features/auth/login/views/LoginView.vue', () => ({ default: { name: 'LoginView' } }))
+vi.mock('@/features/errors/views/ForbiddenView.vue', () => ({ default: { name: 'ForbiddenView' } }))
+vi.mock('@/features/errors/views/NotFoundView.vue', () => ({ default: { name: 'NotFoundView' } }))
+
+// Route-view stub, the same isolation `router.cashRegister.spec.ts` uses. This
+// spec pins the route record, its metadata and the REAL global guard, not the
+// UI. Routing here lazily imports the online catalog settings view graph, and that cold
+// transform was charged to whichever test navigated first, timing it out at
+// 5000ms under suite load. The view keeps its own unit coverage.
+vi.mock('@/features/system/catalog-settings/views/TenantCatalogSettingsView.vue', () => ({
+  default: { name: 'TenantCatalogSettingsView' },
+}))
+
 function authenticateWithPermission(granted: boolean) {
   mockAuthStore.accessToken = 'access-token'
   mockAuthStore.user = { id: 'user-1' }
