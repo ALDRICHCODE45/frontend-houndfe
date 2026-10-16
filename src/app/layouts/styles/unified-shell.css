@@ -590,6 +590,261 @@
   height: 44px;
 }
 
+/* ── Chrome controls: icon buttons, branch switcher, menus ──────────────── */
+
+/* The shell root declares only `--shell-*` variables, so Nuxt's ghost buttons
+ * inside it still resolve `hover:bg-elevated` from the legacy Coco palette.
+ * These hooks state the complete shell paint. Size stays owned by the accepted
+ * 32px navbar rule (and the 44px native mobile trigger); this only paints and
+ * animates. Unlayered, so it wins over Tailwind's layered utilities. */
+.hf-shell-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--shell-radius-control);
+  background-color: transparent;
+  box-shadow: none;
+  color: var(--shell-muted);
+  transition:
+    background-color 150ms ease,
+    color 150ms ease,
+    transform 120ms ease;
+}
+
+.hf-shell-icon-button:hover {
+  background-color: var(--shell-muted-surface);
+  color: var(--shell-ink);
+}
+
+.hf-shell-icon-button:hover [data-slot='leadingIcon'] {
+  color: var(--shell-ink);
+}
+
+.hf-shell-icon-button:active {
+  transform: scale(0.94);
+}
+
+.hf-shell-icon-button:focus-visible {
+  outline: 2px solid var(--shell-action);
+  outline-offset: 2px;
+}
+
+/* A menu trigger stays visibly engaged while its menu is open. */
+.hf-shell-icon-button[data-state='open'] {
+  background-color: var(--shell-active);
+  color: var(--shell-action);
+}
+
+.hf-shell-icon-button[data-state='open'] [data-slot='leadingIcon'] {
+  color: var(--shell-action);
+}
+
+/* The account avatar is a person, not a toolbar glyph: a round target that
+ * rings on hover instead of filling a square behind it. */
+.hf-shell-avatar-button {
+  border-radius: 999px;
+  background-color: transparent;
+  transition: box-shadow 150ms ease;
+}
+
+.hf-shell-avatar-button:hover {
+  background-color: transparent;
+  box-shadow: 0 0 0 3px var(--shell-active);
+}
+
+.hf-shell-avatar-button[data-state='open'] {
+  box-shadow: 0 0 0 3px var(--shell-action);
+}
+
+.hf-shell-avatar-button:focus-visible {
+  outline: 2px solid var(--shell-action);
+  outline-offset: 2px;
+}
+
+/* Branch switcher trigger: the initial becomes an action-tinted tile, the
+ * border warms toward the action color on hover and holds a soft ring while
+ * the menu is open. Only the interactive switcher answers hover; the
+ * single-branch label stays a plain card. */
+.hf-shell-tenant {
+  transition:
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    background-color 150ms ease;
+}
+
+.hf-shell-tenant .hf-shell-tenant-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background-color: var(--shell-active);
+  color: var(--shell-action);
+  font-size: 14px;
+  font-weight: 700;
+}
+
+button.hf-shell-tenant:hover {
+  border-color: color-mix(in srgb, var(--shell-action) 40%, var(--shell-border));
+}
+
+button.hf-shell-tenant:hover :where(svg, .iconify) {
+  color: var(--shell-ink);
+}
+
+button.hf-shell-tenant[data-state='open'] {
+  border-color: var(--shell-action);
+  box-shadow: 0 0 0 3px var(--shell-active);
+}
+
+button.hf-shell-tenant:focus-visible {
+  outline: 2px solid var(--shell-action);
+  outline-offset: 2px;
+}
+
+/* Shell dropdown menus (branch + account). Inside the portal `bg-elevated`
+ * maps to the card itself, so Nuxt's `before:bg-elevated/50` highlight was
+ * almost invisible; each row paints its own highlight instead. */
+.hf-shell-menu {
+  padding: 4px;
+  border-radius: var(--shell-radius-panel);
+  box-shadow:
+    0 12px 32px -12px rgb(15 23 42 / 0.28),
+    0 2px 6px rgb(15 23 42 / 0.06);
+}
+
+.hf-shell-menu [data-slot='group'] {
+  padding: 2px;
+}
+
+.hf-shell-menu [data-slot='item'] {
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  color: var(--shell-ink);
+  font-size: 13px;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.hf-shell-menu [data-slot='item']::before {
+  display: none;
+}
+
+.hf-shell-menu [data-slot='item'][data-highlighted],
+.hf-shell-menu [data-slot='item'][data-state='open'] {
+  background-color: var(--shell-muted-surface);
+  color: var(--shell-ink);
+}
+
+.hf-shell-menu [data-slot='itemLeadingIcon'] {
+  color: var(--shell-muted);
+}
+
+.hf-shell-menu [data-slot='item'][data-highlighted] [data-slot='itemLeadingIcon'] {
+  color: var(--shell-ink);
+}
+
+/* Branch menu: quiet uppercase heading, 44px rows with an initial tile, the
+ * slug as supporting text, and the current branch in the selection tokens. */
+.hf-shell-tenant-menu {
+  min-width: max(var(--reka-dropdown-menu-trigger-width, 0px), 248px);
+}
+
+.hf-shell-tenant-menu [data-slot='label'] {
+  padding: 8px 10px 6px;
+  color: var(--shell-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.hf-shell-tenant-menu [data-slot='item'] {
+  min-height: 44px;
+}
+
+.hf-shell-tenant-menu [data-slot='itemLeadingAvatar'] {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background-color: var(--shell-muted-surface);
+  color: var(--shell-ink);
+  font-size: 12px;
+  font-weight: 700;
+  transition:
+    background-color 120ms ease,
+    color 120ms ease;
+}
+
+.hf-shell-tenant-menu [data-slot='itemLeadingAvatar'] [data-slot='fallback'] {
+  color: inherit;
+}
+
+.hf-shell-tenant-menu [data-slot='itemLabel'] {
+  font-weight: 500;
+}
+
+.hf-shell-tenant-menu [data-slot='itemDescription'] {
+  color: var(--shell-muted);
+  font-size: 11px;
+}
+
+.hf-shell-tenant-menu [data-slot='item'][data-state='checked'] {
+  background-color: var(--shell-active);
+  color: var(--shell-action);
+}
+
+.hf-shell-tenant-menu [data-slot='item'][data-state='checked'] [data-slot='itemLabel'] {
+  font-weight: 600;
+}
+
+.hf-shell-tenant-menu [data-slot='item'][data-state='checked'] [data-slot='itemLeadingAvatar'] {
+  background-color: var(--shell-action);
+  color: var(--shell-on-action);
+}
+
+.hf-shell-tenant-menu [data-slot='itemTrailingIcon'] {
+  color: var(--shell-action);
+}
+
+.hf-shell-tenant-menu [data-slot='itemTrailingKbds'] {
+  gap: 3px;
+}
+
+.hf-shell-tenant-menu [data-slot='itemTrailingKbds'] kbd {
+  min-width: 18px;
+  padding: 0 4px;
+  border: 1px solid var(--shell-border);
+  border-radius: 4px;
+  background-color: var(--shell-chrome);
+  box-shadow: none;
+  color: var(--shell-muted);
+  font-family: var(--shell-font);
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hf-shell-icon-button,
+  .hf-shell-avatar-button,
+  .hf-shell-tenant,
+  .hf-shell-menu [data-slot='item'],
+  .hf-shell-tenant-menu [data-slot='itemLeadingAvatar'] {
+    transition: none;
+  }
+
+  .hf-shell-icon-button,
+  .hf-shell-icon-button:active {
+    transform: none;
+  }
+}
+
 /* ── Workspace + panel ──────────────────────────────────────────────────── */
 
 /* The workspace owns the page plane only; routed controls stay untouched. */

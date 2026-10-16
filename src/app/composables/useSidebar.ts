@@ -82,20 +82,39 @@ export const useSidebar = () => {
     }
   }
 
-  // ── Legacy team dropdown items (kept for layout backwards-compat) ────────────
-  /** @deprecated – kept for template compatibility while layout migrates */
+  // ── Branch switcher menu and shortcuts ─────────────────────────────────────────
+
+  /**
+   * Branches reachable by a single digit. The shortcut is the CHAINED `S` then
+   * the list number: Ctrl/Cmd+digit is reserved by browsers for tab switching
+   * and never reaches the page, which is why the old `CTRL N` hint never worked.
+   */
+  const MAX_TENANT_SHORTCUTS = 9
+
+  function tenantShortcutKey(index: number): string | undefined {
+    return index < MAX_TENANT_SHORTCUTS ? `s-${index + 1}` : undefined
+  }
+
+  /**
+   * Branch switcher rows. The current branch is a checked row, so it keeps its
+   * initial and the menu shows selection with a check instead of swapping the
+   * avatar for an icon. Each row advertises exactly the shortcut that
+   * `tenantShortcuts` registers.
+   */
   const teamsItems = computed<DropdownMenuItem[][]>(() => {
     const tenantItems: DropdownMenuItem[] = tenants.value.map((tenant, index) => {
-      const isCurrentTenant = authStore.currentTenant?.id === tenant.id
+      const shortcut = tenantShortcutKey(index)
 
       return {
         label: tenant.name,
+        description: tenant.slug || undefined,
         avatar: {
           alt: tenant.name,
           text: tenant.name.trim().charAt(0).toUpperCase() || 'S',
         },
-        icon: isCurrentTenant ? 'i-lucide-check' : undefined,
-        kbds: ['meta', String(index + 1)],
+        type: 'checkbox',
+        checked: authStore.currentTenant?.id === tenant.id,
+        kbds: shortcut ? shortcut.split('-') : undefined,
         onSelect() {
           void switchTenant(tenant.id)
         },
@@ -109,14 +128,30 @@ export const useSidebar = () => {
           alt: 'Global',
           text: 'G',
         },
-        icon: authStore.currentTenant ? undefined : 'i-lucide-check',
+        type: 'checkbox',
+        checked: !authStore.currentTenant,
         onSelect() {
           void switchTenant(null)
         },
       })
     }
 
-    return [tenantItems]
+    return [[{ type: 'label', label: 'Cambiar sucursal' }, ...tenantItems]]
+  })
+
+  /**
+   * Keyboard map for `defineShortcuts`: `s-1` … `s-9` switch to the branch at
+   * that list position, the same switch a click on that row performs. Empty
+   * when no switcher is shown, so a single-branch user gets no dead shortcut.
+   */
+  const tenantShortcuts = computed<Record<string, () => void>>(() => {
+    if (!showTenantSwitcher.value) return {}
+    return Object.fromEntries(
+      tenants.value.slice(0, MAX_TENANT_SHORTCUTS).map((tenant, index) => [
+        tenantShortcutKey(index)!,
+        () => void switchTenant(tenant.id),
+      ]),
+    )
   })
 
   // Keep selectedTeam as a derived ref for legacy template compatibility
@@ -201,18 +236,16 @@ export const useSidebar = () => {
     await router.push('/login')
   }
 
+  // Account menu: Mexican Spanish, and only actions that do something. The
+  // former "Profile" and "Settings" entries had no destination.
   const userItems = computed<DropdownMenuItem[][]>(() => [
     [
-      { label: 'Profile', icon: 'i-lucide-user' },
-      { label: 'Settings', icon: 'i-lucide-settings' },
-    ],
-    [
       {
-        label: 'Appearance',
+        label: 'Apariencia',
         icon: 'i-lucide-sun-moon',
         children: [
           {
-            label: 'Light',
+            label: 'Claro',
             icon: 'i-lucide-sun',
             type: 'checkbox',
             checked: colorMode.value === 'light',
@@ -224,7 +257,7 @@ export const useSidebar = () => {
             },
           },
           {
-            label: 'Dark',
+            label: 'Oscuro',
             icon: 'i-lucide-moon',
             type: 'checkbox',
             checked: colorMode.value === 'dark',
@@ -238,7 +271,7 @@ export const useSidebar = () => {
         ],
       },
     ],
-    [{ label: 'Log out', icon: 'i-lucide-log-out', onSelect: handleLogout }],
+    [{ label: 'Cerrar sesión', icon: 'i-lucide-log-out', onSelect: handleLogout }],
   ])
 
   const changeColorMode = () => {
@@ -252,9 +285,10 @@ export const useSidebar = () => {
     currentTenantSlug,
     showTenantSwitcher,
     switchTenant,
+    teamsItems,
+    tenantShortcuts,
     // legacy
     selectedTeam,
-    teamsItems,
     // user / navigation
     user,
     userItems,

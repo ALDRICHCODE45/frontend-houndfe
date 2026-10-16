@@ -45,6 +45,7 @@ vi.mock('@/app/composables/useSidebar', async () => {
   const user = ref({ name: 'Ana Torres', avatar: { alt: 'Ana Torres', text: 'AT' } })
   const teamsItems = ref([[{ label: 'Sucursal Centro' }]])
   const userItems = ref([[{ label: 'Perfil' }]])
+  const tenantShortcuts = ref({ 's-1': vi.fn(), 's-2': vi.fn() })
 
   const getNavigationItems = vi.fn(() => [
     {
@@ -69,6 +70,7 @@ vi.mock('@/app/composables/useSidebar', async () => {
       showTenantSwitcher,
       switchTenant: vi.fn(),
       teamsItems,
+      tenantShortcuts,
       user,
       userItems,
       getNavigationItems,
@@ -592,5 +594,124 @@ describe('DashboardLayout — mobile sidebar trigger (ASNT-REQ-001/002/003)', ()
     const leftSlot = readSfc().match(/<template #left>[\s\S]*?<\/template>/)![0]
     expect(leftSlot).toMatch(/UDashboardSidebarCollapse/)
     expect(wrapper.find('button[aria-label="Collapse sidebar"]').exists()).toBe(true)
+  })
+})
+
+// ──────────────────────────────────────────────────────────────────────
+// Branch shortcuts and inert navbar controls (feat/shell-chrome-polish).
+describe('DashboardLayout — branch shortcuts and navbar actions', () => {
+  let wrapper: ReturnType<typeof mountWithUApp>
+
+  /** The registry exposes `s-N` handlers; the layout registers them as-is. */
+  function shortcut(key: 's-1' | 's-2') {
+    return (useSidebar() as unknown as { tenantShortcuts: Ref<Record<string, () => void>> })
+      .tenantShortcuts.value[key] as ReturnType<typeof vi.fn>
+  }
+
+  /** One keydown per key from the focused element, bubbling up to `window`. */
+  async function press(...keys: string[]) {
+    for (const key of keys) {
+      ;(document.activeElement ?? document.body).dispatchEvent(
+        new KeyboardEvent('keydown', { key, bubbles: true }),
+      )
+    }
+    await nextTick()
+  }
+
+  beforeEach(() => {
+    localStorage.clear()
+    setTenantSwitcher(true)
+    shortcut('s-1').mockClear()
+    shortcut('s-2').mockClear()
+    wrapper = mountLayout()
+  })
+
+  it('switches branch with S then the list number', async () => {
+    await press('s', '2')
+
+    expect(shortcut('s-2')).toHaveBeenCalledOnce()
+    expect(shortcut('s-1')).not.toHaveBeenCalled()
+  })
+
+  it('does not switch branch while typing in a field', async () => {
+    const field = document.createElement('input')
+    document.body.append(field)
+    field.focus()
+    try {
+      await press('s', '1')
+      expect(shortcut('s-1')).not.toHaveBeenCalled()
+    } finally {
+      field.remove()
+    }
+  })
+
+  it('keeps the existing O shortcut that collapses the rail', async () => {
+    await press('o')
+
+    expect(useDashboard().isSidebarCollapsed.value).toBe(true)
+  })
+
+  it('hides the notifications bell, which had no action', () => {
+    expect(wrapper.find('button[aria-label="Notificaciones"]').exists()).toBe(false)
+    expect(wrapper.find('.hf-shell-actions button[aria-label="Buscar"]').exists()).toBe(true)
+  })
+})
+
+// ──────────────────────────────────────────────────────────────────────
+// Chrome control hooks (feat/shell-chrome-polish): every navbar/sidebar
+// control carries the hook whose shell paint the stylesheet contracts pin.
+describe('DashboardLayout — chrome control hooks', () => {
+  let wrapper: ReturnType<typeof mountWithUApp>
+
+  beforeEach(() => {
+    localStorage.clear()
+    setTenantSwitcher(true)
+    wrapper = mountLayout()
+  })
+
+  it('paints the navbar search and color-mode buttons as shell icon buttons', () => {
+    expect(wrapper.find('.hf-shell-actions button[aria-label="Buscar"]').classes()).toContain(
+      'hf-shell-icon-button',
+    )
+    expect(
+      wrapper.find('.hf-shell-actions button[aria-label^="Switch to"]').classes(),
+    ).toContain('hf-shell-icon-button')
+  })
+
+  it('paints both sidebar collapse toggles as shell icon buttons', () => {
+    const toggles = wrapper.findAll('button[aria-label="Collapse sidebar"]')
+    expect(toggles).toHaveLength(2)
+    for (const toggle of toggles) expect(toggle.classes()).toContain('hf-shell-icon-button')
+  })
+
+  it('rings the navbar account avatar', () => {
+    expect(
+      wrapper.find('.hf-shell-actions [aria-label="Abrir menú de usuario"]').classes(),
+    ).toContain('hf-shell-avatar-button')
+  })
+
+  it('shows the branch initial as a tile, in the switcher and the single-branch label', async () => {
+    expect(wrapper.find('button.hf-shell-tenant .hf-shell-tenant-tile').text()).toBe('S')
+
+    setTenantSwitcher(false)
+    await nextTick()
+    expect(wrapper.find('div.hf-shell-tenant .hf-shell-tenant-tile').text()).toBe('S')
+  })
+
+  it('uses the first letter for the tile, so the global scope reads G, not "("', async () => {
+    const label = useSidebar().currentTenantLabel as Ref<string>
+    label.value = '(Global)'
+    try {
+      await nextTick()
+      expect(wrapper.find('.hf-shell-tenant-tile').text()).toBe('G')
+    } finally {
+      label.value = 'Sucursal Centro'
+    }
+  })
+
+  it('marks the branch and account menus with the shell menu boundaries', () => {
+    const sfc = readSfc()
+    expect(sfc).toContain("content: 'hf-shell-portal hf-shell-menu hf-shell-tenant-menu'")
+    expect(sfc.match(/content: 'min-w-48 hf-shell-portal hf-shell-menu'/g)).toHaveLength(2)
   })
 })

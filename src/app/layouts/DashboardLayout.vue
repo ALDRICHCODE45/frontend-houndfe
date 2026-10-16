@@ -15,6 +15,7 @@ const {
   currentTenantSlug,
   showTenantSwitcher,
   teamsItems,
+  tenantShortcuts,
   user,
   userItems,
   getNavigationItems,
@@ -27,7 +28,11 @@ const { breadcrumb } = useBreadcrumb()
 
 const route = useRoute()
 
-const tenantInitial = computed(() => currentTenantLabel.value.trim().charAt(0).toUpperCase() || 'G')
+// First LETTER of the label: the super-admin scope is "(Global)", whose first
+// character is a parenthesis.
+const tenantInitial = computed(
+  () => currentTenantLabel.value.match(/\p{L}/u)?.[0]?.toUpperCase() ?? 'G',
+)
 
 const tenantTriggerLabel = computed(() => `Seleccionar sucursal: ${currentTenantLabel.value}`)
 
@@ -70,10 +75,15 @@ function navigationFor(collapsed: boolean): NavigationMenuItem[] {
   })
 }
 
-defineShortcuts({
-  o: () => (isSidebarCollapsed.value = !isSidebarCollapsed.value),
-  t: () => changeColorMode(),
-})
+// `s-1` … `s-9` are chained: S, then the branch's list number. Like `o` and
+// `t`, they are ignored while focus is in a text field.
+defineShortcuts(
+  computed(() => ({
+    o: () => (isSidebarCollapsed.value = !isSidebarCollapsed.value),
+    t: () => changeColorMode(),
+    ...tenantShortcuts.value,
+  })),
+)
 
 watch(isSearchOpen, async (open) => {
   if (open) return
@@ -110,10 +120,10 @@ watch(isSearchOpen, async (open) => {
           v-if="showTenantSwitcher"
           :items="teamsItems"
           :content="{ align: 'start', collisionPadding: 12 }"
-          :ui="{ content: 'min-w-48 hf-shell-portal' }"
+          :ui="{ content: 'hf-shell-portal hf-shell-menu hf-shell-tenant-menu' }"
         >
           <button type="button" class="hf-shell-tenant" :aria-label="tenantTriggerLabel">
-            <UAvatar :alt="currentTenantLabel" :text="tenantInitial" size="sm" />
+            <span class="hf-shell-tenant-tile" aria-hidden="true">{{ tenantInitial }}</span>
             <span v-if="!collapsed" class="min-w-0 flex-1">
               <strong class="block truncate">{{ currentTenantLabel }}</strong>
               <small v-if="currentTenantSlug" class="block truncate text-muted">
@@ -126,7 +136,7 @@ watch(isSearchOpen, async (open) => {
 
         <!-- Single-tenant: label only, no switcher (existing behavior) -->
         <div v-else class="hf-shell-tenant">
-          <UAvatar :alt="currentTenantLabel" :text="tenantInitial" size="sm" />
+          <span class="hf-shell-tenant-tile" aria-hidden="true">{{ tenantInitial }}</span>
           <span v-if="!collapsed" class="min-w-0 flex-1">
             <strong class="block truncate">{{ currentTenantLabel }}</strong>
             <small v-if="currentTenantSlug" class="block truncate text-muted">
@@ -154,14 +164,13 @@ watch(isSearchOpen, async (open) => {
         <UDashboardSidebarCollapse
           v-if="!collapsed && !inDrawer"
           variant="ghost"
-          class="mr-auto"
-          :ui="{ leadingIcon: 'text-dimmed' }"
+          class="hf-shell-icon-button mr-auto"
         />
 
         <UDropdownMenu
           :items="userItems"
           :content="{ align: collapsed ? 'start' : 'end', collisionPadding: 12 }"
-          :ui="{ content: 'min-w-48 hf-shell-portal' }"
+          :ui="{ content: 'min-w-48 hf-shell-portal hf-shell-menu' }"
         >
           <button type="button" class="hf-shell-user" aria-label="Abrir menú de usuario">
             <UAvatar :alt="user.avatar.alt" :text="user.avatar.text" size="sm" />
@@ -229,8 +238,7 @@ watch(isSearchOpen, async (open) => {
           <template #left>
             <UDashboardSidebarCollapse
               variant="ghost"
-              class="shrink-0"
-              :ui="{ leadingIcon: 'text-dimmed' }"
+              class="hf-shell-icon-button shrink-0"
             />
 
             <nav aria-label="breadcrumb" class="hf-shell-breadcrumb">
@@ -254,27 +262,29 @@ watch(isSearchOpen, async (open) => {
               color="neutral"
               variant="ghost"
               aria-label="Buscar"
+              class="hf-shell-icon-button"
               :ui="{ leadingIcon: 'shrink-0 size-4.5' }"
               @click="openSearch"
             />
-            <UButton
-              icon="i-lucide-bell"
-              color="neutral"
-              variant="ghost"
-              aria-label="Notificaciones"
+            <!--
+              Notifications bell hidden: it had no action. Restore it here when
+              a real notification center exists.
+            -->
+            <UColorModeButton
+              class="hf-shell-icon-button"
               :ui="{ leadingIcon: 'shrink-0 size-4.5' }"
             />
-            <UColorModeButton :ui="{ leadingIcon: 'shrink-0 size-4.5' }" />
             <UDropdownMenu
               :items="userItems"
               :content="{ align: 'end', collisionPadding: 12 }"
-              :ui="{ content: 'min-w-48 hf-shell-portal' }"
+              :ui="{ content: 'min-w-48 hf-shell-portal hf-shell-menu' }"
             >
               <UButton
                 :avatar="user.avatar"
                 color="neutral"
                 variant="ghost"
                 square
+                class="hf-shell-avatar-button"
                 aria-label="Abrir menú de usuario"
               />
             </UDropdownMenu>
