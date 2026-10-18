@@ -116,6 +116,28 @@ describe('CustomerUpsertSlideover', () => {
     vi.clearAllMocks()
   })
 
+  it.each(['52', '+52', '++52', null, '', '   '])(
+    'preselects México (+52) when editing country code %j',
+    async (phoneCountryCode) => {
+      const selectStub = {
+        props: ['modelValue', 'items'],
+        template: '<select :value="modelValue"><option v-for="item in items" :key="item.value" :value="item.value">{{ item.label }}</option></select>',
+      }
+      const wrapper = mount(CustomerUpsertSlideover, {
+        props: { mode: 'edit', customer: { ...mockCustomer, phoneCountryCode }, open: true },
+        global: { stubs: { ...editorStubs, USelect: selectStub, Select: selectStub } },
+      })
+      try {
+        await nextTick()
+        const select = wrapper.get<HTMLSelectElement>('.sales-pos-customer-form-phone select')
+        expect(select.element.value).toBe('+52')
+        expect(select.element.selectedOptions[0]?.textContent).toBe('🇲🇽 +52')
+      } finally {
+        wrapper.unmount()
+      }
+    },
+  )
+
   it('keeps the edit draft open on failure, ignores duplicate saves and fences a late acknowledgement', async () => {
     const wrapper = mount(CustomerUpsertSlideover, {
       props: { mode: 'edit', customer: mockCustomer, open: true },

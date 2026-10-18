@@ -11,6 +11,7 @@ import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
 import ViewToggle from '@/core/shared/components/ViewToggle.vue'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
+import { formatPhoneCountryCode } from '@/core/shared/utils/phone.utils'
 import type { BulkAction } from '@/core/shared/types/table.types'
 import { productApi } from '@/features/POS/products/api/product.api'
 import { customerApi } from '../api/customer.api'
@@ -678,8 +679,11 @@ const bulkActions = computed<BulkAction<Customer>[]>(() => [])
             <template #phone-cell="{ row }">
               <span class="font-mono text-sm">
                 <template v-if="row.original.phone">
-                  {{ row.original.phoneCountryCode ? `${row.original.phoneCountryCode} ` : ''
-                  }}{{ row.original.phone }}
+                  {{
+                    [formatPhoneCountryCode(row.original.phoneCountryCode), row.original.phone]
+                      .filter(Boolean)
+                      .join(' ')
+                  }}
                 </template>
                 <template v-else>—</template>
               </span>

@@ -180,6 +180,21 @@ describe('CustomerCard', () => {
     expect(avatar.attributes('data-name')).toBe('Juan Pérez')
   })
 
+  it.each([
+    ['52', '+52 5585876245'],
+    ['+52', '+52 5585876245'],
+    ['++52', '+52 5585876245'],
+    [null, '5585876245'],
+    ['', '5585876245'],
+    ['   ', '5585876245'],
+  ])('renders phone prefix %j as %j', (phoneCountryCode, expected) => {
+    const wrapper = mount(CustomerCard, {
+      props: { customer: makeCustomer({ phoneCountryCode, phone: '5585876245' }) },
+    })
+    expect(wrapper.get('p.font-mono').text()).toBe(expected)
+    wrapper.unmount()
+  })
+
   it('prepends the phone country code when both are present', () => {
     const wrapper = mount(CustomerCard, {
       props: {

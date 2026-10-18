@@ -1,5 +1,6 @@
 import { reactive } from 'vue'
 import { z } from 'zod'
+import { formatPhoneCountryCode } from '@/core/shared/utils/phone.utils'
 import type {
   CreateCustomerPayload,
   CustomerDetail,
@@ -182,7 +183,7 @@ export function customerToFormInput(customer: CustomerDetail): CustomerFormInput
   return {
     firstName: customer.firstName,
     lastName: customer.lastName ?? '',
-    phoneCountryCode: customer.phoneCountryCode ?? '+52',
+    phoneCountryCode: formatPhoneCountryCode(customer.phoneCountryCode) || '+52',
     phone: customer.phone ?? '',
     email: customer.email ?? '',
     comments: customer.comments ?? '',

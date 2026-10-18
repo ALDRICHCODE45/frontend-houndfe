@@ -16,6 +16,7 @@
 import { computed } from 'vue'
 import AppBadge from '@/core/shared/components/AppBadge.vue'
 import EntityAvatar from '@/core/shared/components/EntityAvatar.vue'
+import { formatPhoneCountryCode } from '@/core/shared/utils/phone.utils'
 import type { Customer } from '../interfaces/customer.types'
 
 const props = defineProps<{
@@ -39,8 +40,8 @@ const canManage = computed(
 
 const phoneDisplay = computed(() => {
   if (!props.customer.phone) return '—'
-  const code = props.customer.phoneCountryCode ? `${props.customer.phoneCountryCode} ` : ''
-  return `${code}${props.customer.phone}`
+  return [formatPhoneCountryCode(props.customer.phoneCountryCode), props.customer.phone]
+    .filter(Boolean).join(' ')
 })
 
 function handleEdit(): void {

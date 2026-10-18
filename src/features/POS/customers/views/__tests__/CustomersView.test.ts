@@ -144,6 +144,7 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
             <slot name="fullName-header" :column="{ id: 'fullName', getIsSorted: () => false, toggleSorting: () => {} }" />
             <slot name="email-header" :column="{ id: 'email', getIsSorted: () => false, toggleSorting: () => {} }" />
             <slot name="phone-header" :column="{ id: 'phone', getIsSorted: () => false, toggleSorting: () => {} }" />
+            <div data-testid="phone-cell"><slot name="phone-cell" :row="{ original: row }" /></div>
             <slot name="globalPriceListName-header" :column="{ id: 'globalPriceListName', getIsSorted: () => false, toggleSorting: () => {} }" />
             <slot name="actions-cell" :row="{ original: row }" />
           </div>
@@ -384,6 +385,23 @@ describe('CustomersView — error state', () => {
     await flushPromises()
     await wrapper.find('[data-testid="table-error-retry"]').trigger('click')
     expect(mockState.refresh).toHaveBeenCalled()
+  })
+})
+
+describe('CustomersView — customer phone rendering', () => {
+  it.each([
+    ['52', '+52 5585876245'],
+    ['+52', '+52 5585876245'],
+    ['++52', '+52 5585876245'],
+    [null, '5585876245'],
+    ['', '5585876245'],
+    ['   ', '5585876245'],
+  ])('renders phone prefix %j as %j in the list row', async (phoneCountryCode, expected) => {
+    mockState.data.value = [makeCustomer({ phoneCountryCode, phone: '5585876245' })]
+    const wrapper = mount(CustomersView)
+    await flushPromises()
+    expect(wrapper.get('[data-testid="phone-cell"]').text()).toBe(expected)
+    wrapper.unmount()
   })
 })
 

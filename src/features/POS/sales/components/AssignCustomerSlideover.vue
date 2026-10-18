@@ -10,6 +10,7 @@ import { useSafeTenantId } from '@/features/auth/composables/useSafeTenantId'
 import { customerQueryKeys } from '@/core/shared/constants/query-keys'
 import { useDraftCustomerAssignment, DraftCustomerAssignmentError } from '../composables/useDraftCustomerAssignment'
 import { formatAddress } from '@/core/shared/utils/formatAddress'
+import { formatPhoneCountryCode } from '@/core/shared/utils/phone.utils'
 import type {
   CreateCustomerAddressPayload,
   CreateCustomerPayload,
@@ -75,6 +76,12 @@ const nestedFormPortalClass = computed(() =>
   isSaleCustomerPortal.value ? SALE_FORM_MARKER : undefined,
 )
 
+function formatCustomerPhone(customer: Customer): string {
+  if (!customer.phone) return ''
+  return [formatPhoneCountryCode(customer.phoneCountryCode), customer.phone]
+    .filter(Boolean).join(' ')
+}
+
 /**
  * Address-step context. It is built only from the customer that is already
  * loaded; nothing is invented and no local selection draft is kept, because
@@ -83,9 +90,7 @@ const nestedFormPortalClass = computed(() =>
 const selectedCustomerContact = computed(() => {
   const customer = selectedCustomer.value
   if (!customer) return ''
-  const phone = customer.phone
-    ? [customer.phoneCountryCode, customer.phone].filter(Boolean).join(' ')
-    : ''
+  const phone = formatCustomerPhone(customer)
   return [customer.email ?? '', phone].filter(Boolean).join(' · ')
 })
 
@@ -391,7 +396,7 @@ async function handleCreateAddress(payload: CreateCustomerAddressPayload) {
                       {{ customer.fullName }}
                     </p>
                     <p class="sales-pos-customer-card-meta text-xs text-muted truncate">
-                      {{ customer.email ?? 'Sin email' }} · {{ customer.phone ?? 'Sin teléfono' }}
+                      {{ customer.email ?? 'Sin email' }} · {{ formatCustomerPhone(customer) || 'Sin teléfono' }}
                     </p>
                   </div>
                   <UIcon name="i-lucide-chevron-right" class="size-4 text-muted" />

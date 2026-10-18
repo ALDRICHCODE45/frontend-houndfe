@@ -242,6 +242,53 @@ describe('AssignCustomerSlideover', () => {
     customerApiMock.createAddress.mockResolvedValue(makeAddress('address-99'))
   })
 
+  it.each([
+    ['52', '+52 5585876245'],
+    ['+52', '+52 5585876245'],
+    ['++52', '+52 5585876245'],
+    [null, '5585876245'],
+    ['', '5585876245'],
+    ['   ', '5585876245'],
+  ])('renders phone prefix %j as %j in the customer search result', async (phoneCountryCode, expected) => {
+    const customer = makeCustomer({ phoneCountryCode, phone: '5585876245' })
+    customerApiMock.getPaginated.mockResolvedValueOnce(makePaginatedResponse([customer]))
+    const { wrapper, queryClient } = mountSlideover()
+    await flushPromises()
+    try {
+      expect(getByTestId('customer-row-customer-1')
+        .querySelector('.sales-pos-customer-card-meta')?.textContent?.trim())
+        .toBe(`ada@example.com · ${expected}`)
+    } finally {
+      wrapper.unmount()
+      queryClient.clear()
+    }
+  })
+
+  it.each([
+    ['52', '+52 5585876245'],
+    ['+52', '+52 5585876245'],
+    ['++52', '+52 5585876245'],
+    [null, '5585876245'],
+    ['', '5585876245'],
+    ['   ', '5585876245'],
+  ])('renders phone prefix %j as %j after selecting the customer', async (phoneCountryCode, expected) => {
+    const customer = makeCustomer({ phoneCountryCode, phone: '5585876245' })
+    customerApiMock.getPaginated.mockResolvedValueOnce(makePaginatedResponse([customer]))
+    customerApiMock.getById.mockResolvedValueOnce(makeCustomerDetail(customer, []))
+    const { wrapper, queryClient } = mountSlideover()
+    await wrapper.setProps({ portalClass: 'sales-pos-customer' })
+    await flushPromises()
+    try {
+      getByTestId('customer-row-customer-1').click()
+      await flushPromises()
+      expect(document.body.querySelector('.sales-pos-customer-contact')?.textContent?.trim())
+        .toBe(`ada@example.com · ${expected}`)
+    } finally {
+      wrapper.unmount()
+      queryClient.clear()
+    }
+  })
+
   it('loads customer list and renders rows', async () => {
     const ada = makeCustomer()
     const bob = makeCustomer({
