@@ -802,6 +802,14 @@ defineExpose({
             >
               {{ row.original.title }}
             </span>
+            <AppBadge
+              v-if="row.original.botEligible === true"
+              tone="success"
+              icon="i-lucide-message-circle"
+              label="WhatsApp"
+              variant="outline"
+              class="ml-2"
+            />
           </template>
 
           <template #status-cell="{ row }">

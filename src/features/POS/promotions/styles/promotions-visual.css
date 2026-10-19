@@ -268,6 +268,19 @@
   color: var(--hf-action);
 }
 
+.promotions-workspace .promotions-availability-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  align-items: start;
+  gap: 1.25rem;
+}
+
+.promotions-workspace .promotions-bot-notice {
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--hf-muted);
+}
+
 /* Teleported target-selection modal content. */
 .promotions-form-portal .promotions-link {
   color: var(--hf-action);

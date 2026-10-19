@@ -223,6 +223,7 @@ function makePromotion(overrides: Partial<PromotionResponse> = {}): PromotionRes
   return {
     id: 'promo-1',
     title: 'Cupón 10%',
+    botEligible: false,
     type: 'ORDER_DISCOUNT',
     method: 'MANUAL',
     status: 'ACTIVE',

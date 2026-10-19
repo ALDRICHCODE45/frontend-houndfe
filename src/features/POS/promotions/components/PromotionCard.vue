@@ -57,6 +57,13 @@ const createdAtLabel = computed(() => formatPromotionDate(props.promotion.create
     <div class="mt-3 flex min-h-6 flex-wrap items-center gap-1.5">
       <AppBadge :tone="typeConfig.tone" :icon="typeConfig.icon" :label="typeConfig.label" />
       <AppBadge :tone="methodConfig.tone" :label="methodConfig.label" variant="outline" />
+      <AppBadge
+        v-if="promotion.botEligible === true"
+        tone="success"
+        icon="i-lucide-message-circle"
+        label="WhatsApp"
+        variant="outline"
+      />
     </div>
 
     <!-- Server-owned capacity (PCA-1). Renders the three backend values; the

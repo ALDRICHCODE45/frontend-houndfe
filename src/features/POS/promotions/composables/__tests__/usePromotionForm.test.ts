@@ -28,6 +28,7 @@ function makeBaseResponse(overrides: Partial<PromotionResponse> = {}): Promotion
   return {
     id: 'promo-1',
     title: 'Test Promo',
+    botEligible: false,
     type: 'PRODUCT_DISCOUNT',
     method: 'AUTOMATIC',
     status: 'ACTIVE',

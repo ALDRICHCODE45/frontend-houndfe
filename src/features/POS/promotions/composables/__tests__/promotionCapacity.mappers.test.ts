@@ -13,6 +13,7 @@ function makeResponse(overrides: Partial<PromotionResponse> = {}): PromotionResp
   return {
     id: 'promo-1',
     title: 'Capacidad',
+    botEligible: false,
     type: 'PRODUCT_DISCOUNT',
     method: 'AUTOMATIC',
     status: 'ACTIVE',

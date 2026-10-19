@@ -97,6 +97,7 @@ export function getInitialState(type: PromotionType): PromotionFormState {
   return {
     // Shared
     title: '',
+    botEligible: false,
     type,
     method: PROMOTION_METHOD.AUTOMATIC,
     // Discount fields
@@ -182,6 +183,7 @@ export function promotionToFormState(response: PromotionResponse): PromotionForm
   return {
     // Shared
     title: response.title,
+    botEligible: response.botEligible,
     type: response.type,
     method: response.method,
     // Discount — convert cents → dollars for FIXED type display
@@ -332,6 +334,7 @@ export function toUpdatePayload(state: PromotionFormState): UpdatePromotionPaylo
 function buildBasePayload(state: PromotionFormState) {
   return {
     title: state.title,
+    botEligible: state.botEligible,
     method: state.method,
     // Capacity create semantics: explicit `null` when unlimited, the positive
     // integer when limited. `toUpdatePayload` strips the key for `unchanged`.
@@ -410,6 +413,16 @@ export function mapApiErrorToFields(input: ApiErrorInput): ApiErrorMapping {
   // stay readable against uppercase constants.
   const code = (input.error ?? '').toUpperCase()
   const rawMessage = Array.isArray(input.message) ? input.message.join(', ') : (input.message ?? '')
+
+  if (code === 'BOT_ELIGIBILITY_UNSUPPORTED') {
+    return {
+      fieldErrors: [{
+        path: 'botEligible',
+        message: 'Esta configuración no está disponible para el chatbot. Desactiva WhatsApp o ajusta las condiciones.',
+      }],
+      toastMessage: null,
+    }
+  }
 
   // ── INVALID_DATE_RANGE → always endDate field ──────────────────────────────
   if (code === 'INVALID_DATE_RANGE') {

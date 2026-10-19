@@ -21,6 +21,7 @@ import { MAX_PRODUCT_UNITS_LIMIT, PROMOTION_CAPACITY_MODE } from './promotion.ty
 // ── Base shared fields ─────────────────────────────────────────────────────────
 
 const baseSchema = z.object({
+  botEligible: z.boolean().default(false),
   title: z
     .string()
     .min(1, 'El título es requerido')

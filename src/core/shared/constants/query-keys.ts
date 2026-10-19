@@ -81,6 +81,8 @@ export const promotionQueryKeys = {
    * use `paginated`/`detail`/`available` for reads and exact-slot writes.
    */
   all: (tenantId: string) => ['promotions', tenantId] as const,
+  botEligibilityCapabilities: (tenantId: string) =>
+    ['promotions', tenantId, 'bot-eligibility-capabilities'] as const,
   paginated: (tenantId: string) => ['promotions', tenantId, 'paginated'] as const,
   detail: (tenantId: string, promotionId: string) =>
     ['promotions', tenantId, 'detail', promotionId] as const,

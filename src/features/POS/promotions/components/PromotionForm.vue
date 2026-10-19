@@ -17,6 +17,7 @@ import {
   type FormFieldError,
 } from '../composables/usePromotionForm'
 import { usePromotionTargetNames } from '../composables/usePromotionTargetNames'
+import { usePromotionBotEligibility } from '../composables/usePromotionBotEligibility'
 import { getTypeConfig } from '../utils/promotionStatusConfig.utils'
 import { computeOverlappingTargets } from '../utils/advancedTargets.utils'
 import {
@@ -61,6 +62,7 @@ const emit = defineEmits<{
 const formState = reactive<PromotionFormState>(
   props.initialData ? promotionToFormState(props.initialData) : getInitialState(props.type),
 )
+const { evaluation: botEligibility, notice: botEligibilityNotice } = usePromotionBotEligibility(formState)
 
 // ── Edit-mode name resolution ─────────────────────────────────────────────────
 //
@@ -293,15 +295,27 @@ const overlappingTargets = computed(() =>
               </div>
             </div>
 
-            <!-- Capacity editor (PCA-1) — shared across every promotion type -->
-            <PromotionCapacityField
-              v-model="formState.capacityMode"
-              :max-product-units="formState.maxProductUnits"
-              :consumed-product-units="formState.consumedProductUnits"
-              :remaining-product-units="formState.remainingProductUnits"
-              :editing="mode === 'edit'"
-              @update:max-product-units="formState.maxProductUnits = $event"
-            />
+            <div class="promotions-availability-fields">
+              <!-- Capacity editor (PCA-1) — shared across every promotion type -->
+              <PromotionCapacityField
+                v-model="formState.capacityMode"
+                :max-product-units="formState.maxProductUnits"
+                :consumed-product-units="formState.consumedProductUnits"
+                :remaining-product-units="formState.remainingProductUnits"
+                :editing="mode === 'edit'"
+                @update:max-product-units="formState.maxProductUnits = $event"
+              />
+              <UFormField name="botEligible" :description="botEligibility.reason">
+                <USwitch
+                  v-model="formState.botEligible"
+                  label="Disponible para el chatbot (WhatsApp)"
+                  :disabled="!botEligibility.supported"
+                />
+                <p v-if="botEligibilityNotice" role="status" class="promotions-bot-notice">
+                  {{ botEligibilityNotice }}
+                </p>
+              </UFormField>
+            </div>
           </div>
         </UCard>
 

@@ -320,6 +320,7 @@ function makePromotion(id: string, title: string): PromotionResponse {
   return {
     id,
     title,
+    botEligible: false,
     type: 'PRODUCT_DISCOUNT',
     method: 'AUTOMATIC',
     status: 'ACTIVE',
@@ -354,6 +355,36 @@ describe('PromotionsView', () => {
     vi.clearAllMocks()
     toastCalls.length = 0
     userCanMock.mockReturnValue(true)
+  })
+
+  async function mountWithPromotion(botEligible: boolean) {
+    const { useServerTable } = await import('@/core/shared/composables/useServerTable')
+    const base = useServerTable({} as never)
+    vi.mocked(useServerTable).mockReturnValueOnce({
+      ...base,
+      data: r([{ ...makePromotion('bot', 'Oferta'), botEligible }]),
+    } as unknown as ReturnType<typeof useServerTable>)
+    return mountView()
+  }
+
+  function whatsAppBadges(wrapper: ReturnType<typeof mountView>) {
+    return wrapper
+      .findAllComponents({ name: 'AppBadge' })
+      .filter((badge) => badge.props('label') === 'WhatsApp')
+  }
+
+  it('shows one WhatsApp table badge with its icon when botEligible is true', async () => {
+    const wrapper = await mountWithPromotion(true)
+    const badges = whatsAppBadges(wrapper)
+    expect(badges).toHaveLength(1)
+    expect(badges[0]!.props('icon')).toBe('i-lucide-message-circle')
+    wrapper.unmount()
+  })
+
+  it('shows no WhatsApp table badge when botEligible is false', async () => {
+    const wrapper = await mountWithPromotion(false)
+    expect(whatsAppBadges(wrapper)).toHaveLength(0)
+    wrapper.unmount()
   })
 
   // ── Renders ───────────────────────────────────────────────────────────────

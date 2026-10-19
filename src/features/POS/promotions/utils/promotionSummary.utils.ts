@@ -185,6 +185,10 @@ function staleDescriptor(): PromotionCapacityDescriptor {
 export function buildPromotionSummaryBullets(state: PromotionFormState): string[] {
   const bullets: string[] = []
 
+  if (state.botEligible === true) {
+    bullets.push('Disponible para el chatbot (WhatsApp)')
+  }
+
   // ── Method ──────────────────────────────────────────────────────────────────
   if (state.method === PROMOTION_METHOD.AUTOMATIC) {
     bullets.push('Se aplicará automáticamente en el Punto de Venta')

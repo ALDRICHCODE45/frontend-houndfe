@@ -35,6 +35,7 @@ function makePromotion(overrides: Partial<PromotionResponse> = {}): PromotionRes
   return {
     id: 'promo-1',
     title: 'Black Friday',
+    botEligible: false,
     type: 'PRODUCT_DISCOUNT',
     method: 'AUTOMATIC',
     status: 'ACTIVE',

@@ -1,6 +1,7 @@
 import type { PaginatedResponse, ServerTableParams } from '@/core/shared/types/table.types'
 import { http } from '@/core/shared/api/http'
 import type {
+  BotEligibilityCapabilities,
   CreatePromotionPayload,
   PromotionResponse,
   UpdatePromotionPayload,
@@ -58,6 +59,11 @@ function resolveSort(params: ServerTableParams) {
 // ── API object ────────────────────────────────────────────────────────────────
 
 export const promotionApi = {
+  async getBotEligibilityCapabilities(): Promise<BotEligibilityCapabilities> {
+    const { data } = await http.get<BotEligibilityCapabilities>('/promotions/bot-eligibility-capabilities')
+    return data
+  },
+
   async getPaginated(
     params: PromotionTableParams,
   ): Promise<PaginatedResponse<PromotionResponse>> {

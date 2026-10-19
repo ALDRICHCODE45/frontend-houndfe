@@ -106,7 +106,21 @@ export interface PromotionDayOfWeek {
   day: DayOfWeek
 }
 
+export interface BotEligibilityRule {
+  type: PromotionType
+  method: PromotionMethod
+  appliesTo: PromotionTargetType[] | null
+  customerScopes: CustomerScope[]
+  allowsPriceLists: boolean
+  allowsDaysOfWeek: boolean
+}
+
+export interface BotEligibilityCapabilities {
+  rules: BotEligibilityRule[]
+}
+
 export interface PromotionResponse {
+  botEligible: boolean
   id: string
   title: string
   type: PromotionType
@@ -156,6 +170,7 @@ export type CreatePromotionPayload =
   | CreateAdvancedPayload
 
 interface CreatePromotionBase {
+  botEligible?: boolean
   title: string
   method: PromotionMethod
   startDate?: string
@@ -222,6 +237,7 @@ export interface PromotionTargetItemFormEntry {
 }
 
 export interface PromotionFormState {
+  botEligible: boolean
   // Shared
   title: string
   type: PromotionType
