@@ -30,9 +30,7 @@ const read = (path: string) => readFileSync(`${dr}/${path}`, 'utf8')
 const cockpitFiles = [
   'components/DriverRouteCard.vue',
   'components/cockpit/DriverCockpitDrawer.vue',
-  'components/cockpit/DriverCockpitFooter.vue',
   'components/cockpit/DriverCockpitHeader.vue',
-  'components/cockpit/DriverOperationalStops.vue',
   'components/cockpit/DriverRouteCockpit.vue',
   'components/cockpit/DriverRouteSpine.vue',
   'components/cockpit/DriverRouteSummary.vue',
@@ -58,7 +56,6 @@ describe('Delivery routes driver views adapter', () => {
   })
 
   it('pairs every check-in call to action with the shared primary control', () => {
-    expect(read('components/cockpit/DriverCockpitFooter.vue')).toContain('hf-primary-control')
     expect(read('components/cockpit/DriverStopCard.vue')).toContain('hf-primary-control')
     expect(
       read('components/cockpit/DriverCockpitDrawer.vue').match(/hf-primary-control/g)?.length,

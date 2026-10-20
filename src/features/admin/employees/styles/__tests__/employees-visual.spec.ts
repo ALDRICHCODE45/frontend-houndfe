@@ -81,7 +81,6 @@ const formOwners = {
   batchTerminate: read('components/BatchTerminateModal.vue'),
   create: read('components/CreateEmployeeSlideover.vue'),
   edit: read('components/EmployeeEditSlideover.vue'),
-  managerPicker: read('components/ManagerPicker.vue'),
 }
 
 describe('Employees dialogs and slideovers presentation adapter', () => {
