@@ -4,7 +4,7 @@ import QuotationCancelDialog from '../QuotationCancelDialog.vue'
 import type { CancelReason, QuotationResponseDto } from '../../interfaces/quotation.types'
 
 // Stub Nuxt UI primitives so the test stays focused on the dialog's logic.
-// Matches the pattern used by ItemDiscountModal / DueDateEditModal tests.
+// Matches the pattern used by ItemDiscountModal tests.
 const modalStub = {
   props: ['open', 'title', 'dismissible', 'close', 'ui'],
   emits: ['update:open'],

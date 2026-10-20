@@ -1,13 +1,6 @@
 import type { CollectionPaymentMethod, PaymentEntry } from '../interfaces/sale.types'
 import { PAYMENT_METHOD } from '../constants/sale.constants' // sdd/magic-string-constants slice 3 — lowercase contract.
 
-export const COLLECTION_PAYMENT_METHODS: CollectionPaymentMethod[] = [
-  PAYMENT_METHOD.CASH,
-  PAYMENT_METHOD.CARD_CREDIT,
-  PAYMENT_METHOD.CARD_DEBIT,
-  PAYMENT_METHOD.TRANSFER,
-]
-
 export const MAX_PAYMENT_ENTRIES = 5
 
 type PaymentEntryPatch = Partial<Pick<PaymentEntry, 'amountCents' | 'reference' | 'paymentMethodId'>>

@@ -1,3 +1,5 @@
+> **Documento histórico.** El diseño vigente se rige por [docs/design-system.md](docs/design-system.md).
+
 # HoundFe Design System
 
 ## Palette

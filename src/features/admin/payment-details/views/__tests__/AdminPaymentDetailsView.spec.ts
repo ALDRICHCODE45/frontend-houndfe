@@ -187,14 +187,6 @@ vi.mock('@/core/shared/components/ConfirmModal.vue', () => ({
   },
 }))
 
-vi.mock('@/features/admin/shared/components/AdminPageHeader.vue', () => ({
-  default: {
-    name: 'AdminPageHeader',
-    template: '<div data-testid="admin-page-header"><slot /></div>',
-    props: ['title', 'description'],
-  },
-}))
-
 // Nuxt UI auto-imports register under BOTH the U* name and the unprefixed alias.
 const nuxtUiStubs = {
   UAlert: { name: 'UAlert', template: '<div><slot /></div>', props: ['title', 'description', 'color', 'icon'] },

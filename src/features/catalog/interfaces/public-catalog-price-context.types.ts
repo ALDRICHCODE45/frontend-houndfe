@@ -4,6 +4,3 @@ export interface PublicCatalogPriceContextDto {
   name: string
   isCatalogDefault: boolean
 }
-
-/** Discovery responds with this exact top-level array of tenant-published contexts. */
-export type PublicCatalogPriceContextsResponseDto = PublicCatalogPriceContextDto[]

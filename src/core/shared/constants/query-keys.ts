@@ -48,10 +48,6 @@ export const orderQueryKeys = {
   detail: (tenantId: string, orderId: string) => ['orders', tenantId, 'detail', orderId] as const,
 }
 
-export const authQueryKeys = {
-  me: () => ['auth', 'me'] as const,
-}
-
 export const adminUserQueryKeys = {
   paginated: (tenantId: string) => ['admin', 'users', tenantId, 'paginated'] as const,
   detail: (tenantId: string, userId: string) =>

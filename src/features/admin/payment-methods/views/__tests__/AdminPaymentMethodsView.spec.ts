@@ -118,14 +118,6 @@ vi.mock('@/core/shared/components/ViewToggle.vue', () => ({
   },
 }))
 
-vi.mock('@/features/admin/shared/components/AdminPageHeader.vue', () => ({
-  default: {
-    name: 'AdminPageHeader',
-    template: '<div data-testid="admin-page-header"><p data-testid="admin-page-header-title">{{ title }}</p><p data-testid="admin-page-header-description">{{ description }}</p></div>',
-    props: ['title', 'description'],
-  },
-}))
-
 const nuxtUiStubs = {
   UButton: { name: 'UButton', template: '<button v-bind="$attrs" @click="$emit(\'click\')" :data-testid="$attrs[\'data-testid\']"><slot /></button>', emits: ['click'] },
   Button: { name: 'Button', template: '<button @click="$emit(\'click\')"><slot /></button>' },

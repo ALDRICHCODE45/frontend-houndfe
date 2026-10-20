@@ -230,7 +230,6 @@ const baseStubs = {
   Button: { template: '<button><slot /></button>' },
   ConfirmModal: { template: '<div />' },
   ProductUpsertSlideover: { template: '<div />' },
-  TableHeaderDescription: { template: '<div />' },
   SortableHeader: true,
   SelectColumn: true,
   StatusDotBadge: { template: '<span><slot /></span>' },

@@ -329,10 +329,6 @@ const stubs = {
       </div>
     `,
   },
-  TableHeaderDescription: {
-    props: ['title', 'description'],
-    template: '<div data-testid="table-header-description"><h1>{{ title }}</h1><p>{{ description }}</p></div>',
-  },
   ConfirmModal: {
     props: ['open', 'title', 'description', 'confirmLabel', 'confirmColor', 'loading', 'ui'],
     emits: ['update:open', 'confirm'],

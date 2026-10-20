@@ -198,17 +198,6 @@ function applyLocalSort(rows: Product[], params: ServerTableParams): Product[] {
   })
 }
 
-/**
- * @deprecated Kept only for the "flat-array, no server search" branch where
- * we still want client-side text filtering on top of the unfiltered list.
- * New code should call {@link applyLocalTextFilter} and {@link applyLocalSort}
- * separately so server-side search results are not double-filtered.
- */
-function _applyLocalProductFilters(rows: Product[], params: ServerTableParams): Product[] {
-  const filtered = applyLocalTextFilter(rows, params.globalFilter)
-  return applyLocalSort(filtered, params)
-}
-
 function mapVariant(productId: string, item: ProductVariantBackendResponse): ProductVariant {
   return {
     id: item.id,

@@ -166,14 +166,6 @@ vi.mock('@/core/shared/components/ConfirmModal.vue', () => ({
   default: { name: 'ConfirmModal', template: '<div />', props: ['open', 'description', 'confirmLabel', 'confirmColor', 'loading'], emits: ['update:open', 'confirm'] },
 }))
 
-vi.mock('@/features/admin/shared/components/AdminPageHeader.vue', () => ({
-  default: {
-    name: 'AdminPageHeader',
-    template: '<div data-testid="admin-page-header" :data-title="title"><h2>{{ title }}</h2></div>',
-    props: ['title', 'description'],
-  },
-}))
-
 vi.mock('@/core/shared/components/ViewToggle.vue', () => ({
   default: {
     name: 'ViewToggle',

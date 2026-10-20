@@ -218,11 +218,6 @@ const STUBS = {
       </div>
     `,
   },
-  TableHeaderDescription: {
-    props: ['title', 'description'],
-    template:
-      '<div data-testid="table-header"><span data-testid="header-title">{{ title }}</span></div>',
-  },
   ConfirmModal: {
     props: ['open', 'description', 'confirmLabel', 'confirmColor', 'loading', 'items'],
     emits: ['update:open', 'confirm'],

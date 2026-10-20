@@ -1,6 +1,5 @@
 import type {
   AdminRole,
-  GroupedPermission,
   PermissionGroupedResponse,
 } from '../../shared/interfaces/rbac.types'
 
@@ -27,11 +26,6 @@ export interface UpdateRoleRequest {
 
 export interface AssignPermissionsRequest {
   permissionIds: string[]
-}
-
-export interface PermissionModule {
-  subject: string
-  permissions: GroupedPermission[]
 }
 
 export type GroupedPermissions = PermissionGroupedResponse

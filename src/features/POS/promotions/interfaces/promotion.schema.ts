@@ -353,5 +353,3 @@ export const promotionFormSchema = baseSchema.superRefine((data, ctx) => {
     }
   }
 })
-
-export type PromotionFormValues = z.infer<typeof promotionFormSchema>

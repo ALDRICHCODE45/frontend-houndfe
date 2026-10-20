@@ -209,14 +209,6 @@ vi.mock('@/core/shared/components/ConfirmModal.vue', () => ({
   },
 }))
 
-vi.mock('@/features/admin/shared/components/AdminPageHeader.vue', () => ({
-  default: {
-    name: 'AdminPageHeader',
-    template: '<div data-testid="admin-page-header"><slot /></div>',
-    props: ['title', 'description'],
-  },
-}))
-
 // The seller report drawer is a separate slice with its own specs. Here the view
 // contract is only: which seller, which tenant, which permission, open or not.
 vi.mock('../../seller-report/components/SellerSalesReportDrawer.vue', () => ({

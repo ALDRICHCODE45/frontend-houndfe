@@ -9,7 +9,7 @@
  *  - defaultPinning: { right: ['actions'] } is set on the table composable
  *  - persistKey: 'admin-employees' is set on the table composable
  *  - useServerTable pageSizeOptions: [10, 20, 50]
- *  - AdminPageHeader with title "Colaboradores"
+ *  - Page heading with title "Colaboradores"
  *  - Status tabs in #filters (Todos/Activos/Bajas) drive statusTab ref
  *  - Search input updates globalFilter (300ms debounce) → request search=juan
  *  - Card-click → router.push({ name: 'admin-employee-detail', params: { id } })
@@ -166,14 +166,6 @@ vi.mock('@/core/shared/components/ViewToggle.vue', () => ({
       '<div data-testid="view-toggle" :data-aria-label="ariaLabel"><slot /></div>',
     props: ['modelValue', 'options', 'ariaLabel'],
     emits: ['update:modelValue'],
-  },
-}))
-
-vi.mock('@/features/admin/shared/components/AdminPageHeader.vue', () => ({
-  default: {
-    name: 'AdminPageHeader',
-    template: '<div data-testid="admin-page-header" :data-title="title"><slot /></div>',
-    props: ['title', 'description', 'loading', 'fallbackText'],
   },
 }))
 

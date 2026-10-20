@@ -32,7 +32,6 @@ export const GenderSchema = z.enum(['MALE', 'FEMALE'])
 export type Gender = z.infer<typeof GenderSchema>
 
 export const MaritalStatusSchema = z.enum(['SINGLE', 'MARRIED', 'WIDOWED'])
-export type MaritalStatus = z.infer<typeof MaritalStatusSchema>
 
 /**
  * EmployeeDocumentCategory — backend v1 canonical values (9 categories).

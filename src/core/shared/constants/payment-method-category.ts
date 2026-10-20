@@ -61,12 +61,3 @@ export const PAYMENT_METHOD_CATEGORY_ICONS: Record<PaymentMethodCategory, string
 export function paymentMethodCategoryLabel(value: string): string {
   return (PAYMENT_METHOD_CATEGORY_LABELS as Record<string, string>)[value] ?? value
 }
-
-/**
- * paymentMethodCategoryIcon — Icon name for a category value.
- * Mirrors `paymentMethodCategoryLabel`; falls back to a neutral icon for
- * unknown values so the slideover never crashes on a malformed input.
- */
-export function paymentMethodCategoryIcon(value: string): string {
-  return (PAYMENT_METHOD_CATEGORY_ICONS as Record<string, string>)[value] ?? 'i-lucide-circle-help'
-}

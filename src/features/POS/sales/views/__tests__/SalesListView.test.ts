@@ -315,7 +315,6 @@ const appDataTableStub = {
 
 const stubs = {
   UCard: { template: '<div><slot name="header" /><slot /></div>' },
-  TableHeaderDescription: { template: '<div><slot /></div>', props: ['title', 'description'] },
   AppBadge: { template: '<span><slot /></span>' },
   StatusDotBadge: {
     props: ['label', 'tone'],

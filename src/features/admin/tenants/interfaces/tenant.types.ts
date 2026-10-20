@@ -14,8 +14,6 @@ export const tenantFormSchema = z.object({
   isActive: z.boolean().optional(),
 })
 
-export type TenantFormValues = z.infer<typeof tenantFormSchema>
-
 // Backend response
 export interface TenantResponse {
   id: string

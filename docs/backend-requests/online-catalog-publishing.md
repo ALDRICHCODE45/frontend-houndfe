@@ -1,5 +1,7 @@
 # Solicitud al Backend: Publicación de Catálogo Online (online-catalog-publishing)
 
+> **Contexto histórico:** las secciones 1–3 y la captura describen la demo original, no el estado actual. La API mock, sus datos, store, composable de carrito, modal de producto y drawer de carrito se eliminaron en `3f12159e`. Los contratos solicitados se conservan como referencia.
+
 > **Nota de alcance:** este documento es una solicitud formal de contratos y capacidades. Todas las sugerencias de modelado, endpoints y estructuras JSON son **no vinculantes**: el equipo de backend tiene la autoridad arquitectónica final sobre nombres, rutas, modelos de datos, patrones internos y decisiones de implementación. Lo que necesitamos del frontend son **contratos estables y evidencia**, no una implementación específica.
 
 ---
@@ -28,14 +30,14 @@ La captura muestra el catálogo actual. **Todo lo visible en ella es demo salvo 
 | Elemento visible                                | Estado real                                                                                    |
 | ----------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | Marca "Coco" en header/footer                   | Hardcodeada en `CatalogHeader.vue` / `CatalogFooter.vue`; no existe dato de marca del tenant   |
-| Selector de 3 sucursales                        | Mock: tres tenants ficticios en `data/mock-catalog.ts`                                         |
+| Selector de 3 sucursales                        | Demo histórica: `data/mock-catalog.ts` fue eliminado en `3f12159e`                            |
 | Categorías con emojis                           | Mapa fijo de emojis sobre IDs mock; los IDs reales de categoría son UUIDs que no coincidirán   |
 | Ratings y badges "destacado"                    | Mock; el backend v1 devuelve `rating: null` y `featuredLabel: null`                            |
 | Precios, stocks y disponibilidad multi-sucursal | Mock; el backend v1 devuelve una sola entrada de `availabilityByBranch` y nunca cantidad cruda |
 | Placeholder de colores pastel                   | Utilidad de presentación; puede quedar como fallback visual, no como verdad de producto        |
 | Botón de WhatsApp                               | Teléfono hardcodeado (`+5215512345678`), sin validación de carrito                             |
 
-**Conclusión:** nada de esta pantalla debe considerarse compromiso de comportamiento final. La estructura de componentes (header, barra de categorías, grid, modal, drawer de carrito) se conserva; los datos y comportamientos se reemplazan por contratos reales.
+**Conclusión histórica:** nada de esta pantalla debe considerarse compromiso de comportamiento final. El modal y el drawer de carrito de aquella demo fueron eliminados en `3f12159e`; esta captura no documenta la composición vigente.
 
 ---
 
@@ -46,11 +48,11 @@ La captura muestra el catálogo actual. **Todo lo visible en ella es demo salvo 
 | Área                    | Ruta                                                                                              | Estado                                                                                          |
 | ----------------------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | Ruta pública            | `src/app/router/index.ts` — `/catalogo/:branchSlug?`, `meta: { layout: 'catalog', public: true }` | Registrada; el slug no se sincroniza con la selección                                           |
-| API de catálogo         | `src/features/catalog/api/catalog.api.ts`                                                         | `getBranches`, `getProducts`, `getProductDetail` devuelven **mock**                             |
-| Datos mock              | `src/features/catalog/data/mock-catalog.ts`                                                       | 3 sucursales, 6 categorías emoji, 20 productos, ratings, labels, stocks por sucursal            |
-| Store                   | `src/features/catalog/composables/useCatalogStore.ts`                                             | Importa `MOCK_CATEGORIES`; slug por defecto `centro`; sin estados de carga/error/paginación     |
-| Carrito                 | `src/features/catalog/composables/useCatalogCart.ts`                                              | Carrito local sin persistir; teléfono WhatsApp hardcodeado; **nunca valida contra el backend**  |
-| Tipos                   | `src/features/catalog/interfaces/catalog.types.ts`                                                | Ya espejan los DTOs públicos v1 del backend (lista, detalle, carrito)                           |
+| API de catálogo (demo)  | `src/features/catalog/api/catalog.api.ts`                                                         | Eliminada en `3f12159e`                                                                         |
+| Datos mock              | `src/features/catalog/data/mock-catalog.ts`                                                       | Eliminados en `3f12159e`                                                                        |
+| Store (demo)            | `src/features/catalog/composables/useCatalogStore.ts`                                             | Eliminado en `3f12159e`                                                                         |
+| Carrito (demo)          | `src/features/catalog/composables/useCatalogCart.ts`                                              | Eliminado en `3f12159e`                                                                         |
+| Tipos                   | `src/features/catalog/interfaces/catalog.types.ts`                                                | Conserva el DTO de sucursal; se retiraron los tipos huérfanos de lista, detalle y carrito       |
 | HTTP autenticado        | `src/core/shared/api/http.ts`                                                                     | Inyecta bearer token y `no-cache` en GET: **no apto** para llamadas públicas anónimas con caché |
 | Publicación de producto | `src/features/POS/products/**`                                                                    | Checkbox `includeInOnlineCatalog` end-to-end (tipos, form, payload, UI)                         |
 | Publicación de variante | `src/features/POS/products/**`                                                                    | **No existe** ningún campo de publicación de variante en tipos ni formularios                   |

@@ -31,5 +31,3 @@ export const NOTIFICATION_CONFIG_COPY = {
   save: 'Guardar cambios',
   saving: 'Guardando…',
 } as const
-
-export type NotificationConfigCopy = typeof NOTIFICATION_CONFIG_COPY

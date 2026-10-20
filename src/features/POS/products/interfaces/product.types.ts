@@ -513,12 +513,6 @@ export interface TierPriceInput {
   priceCents: number
 }
 
-export interface CreatePriceListPayload {
-  name: string
-  priceCents: number
-  tierPrices?: TierPriceInput[]
-}
-
 export interface UpdatePriceListPayload {
   priceCents?: number
   tierPrices?: TierPriceInput[]

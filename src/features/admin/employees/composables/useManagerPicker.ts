@@ -1,7 +1,7 @@
 /**
  * useManagerPicker — WU-04B
  *
- * Composable for the manager picker UI (used by ManagerPicker.vue).
+ * Composable for manager search and picker options.
  *
  * Rules:
  * - NEVER send tenantId in query params (backend reads from JWT)

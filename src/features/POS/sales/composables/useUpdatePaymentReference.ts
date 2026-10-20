@@ -33,8 +33,7 @@ const MAX_RETRIES = 3
  *
  * Design notes (per `tasks.md` WU-B.3):
  * - Accepts `MaybeRefOrGetter<string>` so callers can pass a raw id, a Ref,
- *   or a getter that derives the id from props/route (mirrors the
- *   `useSaleDueDate` pattern at `composables/useSaleDueDate.ts:31`).
+ *   or a getter that derives the id from props/route.
  * - Retries network-level failures up to 3 times (transient), but skips
  *   retries for typed `ReferenceUpdateError` codes (404 / 403) — there is no
  *   value in retrying a missing-payment or forbidden-state response.

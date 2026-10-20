@@ -64,33 +64,6 @@ export interface BulkAction<T> {
   onClick: (selectedRows: T[]) => void | Promise<void>
 }
 
-// AppDataTable component props
-export interface AppDataTableProps<T> {
-  columns: TableColumn<T, unknown>[]
-  data: T[]
-  loading?: boolean
-  fetching?: boolean
-  empty?: string
-  // Pagination
-  pageCount?: number
-  totalCount?: number
-  pageSizeOptions?: number[]
-  // Features
-  enableSorting?: boolean
-  enableColumnVisibility?: boolean
-  enableRowSelection?: boolean
-  enableColumnPinning?: boolean
-  // Bulk actions
-  bulkActions?: BulkAction<T>[]
-  // Actions slot
-  showAddButton?: boolean
-  addButtonText?: string
-  addButtonIcon?: string
-  // Mobile rendering
-  mobileRender?: 'table' | 'cards'
-  mobileBreakpoint?: 'sm' | 'md' | 'lg' | 'xl'
-}
-
 // Re-export TanStack types for convenience
 export type {
   TableColumn,

@@ -182,10 +182,6 @@ vi.mock('@/core/shared/components/ConfirmModal.vue', () => ({
   default: { name: 'ConfirmModal', template: '<div />', props: ['open', 'description', 'confirmLabel', 'confirmColor', 'loading', 'ui'], emits: ['update:open', 'confirm'] },
 }))
 
-vi.mock('@/core/shared/components/DataTable/TableHeaderDescription.vue', () => ({
-  default: { name: 'TableHeaderDescription', template: '<div data-testid="table-header-description"><slot /></div>', props: ['title', 'description'] },
-}))
-
 // Stub Nuxt UI primitives used by CustomersView directly (UDropdownMenu
 // in the actions-cell slot, UButton in the kebab trigger).
 vi.mock('@nuxt/ui', () => ({

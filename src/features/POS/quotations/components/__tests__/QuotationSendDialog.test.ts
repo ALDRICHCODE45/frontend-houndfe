@@ -5,7 +5,7 @@ import type { QuotationResponseDto } from '../../interfaces/quotation.types'
 
 // Stub Nuxt UI primitives so the test stays focused on the dialog's logic.
 // UModal renders only its `#body` and `#footer` slots in jsdom — matches the
-// pattern used by ItemDiscountModal / PriceOverrideModal / DueDateEditModal
+// pattern used by ItemDiscountModal / PriceOverrideModal
 // tests in the POS sales module.
 const modalStub = {
   props: ['open', 'title', 'dismissible', 'close', 'ui'],

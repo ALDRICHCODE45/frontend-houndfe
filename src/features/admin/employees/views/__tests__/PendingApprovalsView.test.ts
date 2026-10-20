@@ -15,7 +15,7 @@
  *  - v-model:column-pinning is { right: ['acciones'] }
  *  - :show-toolbar="queueNonEmpty" (hidden on empty queue)
  *  - NO `bulkActions` / `enableRowSelection` props passed (REQ-7)
- *  - AdminPageHeader with title "Validaciones pendientes"
+ *  - Page heading with title "Validaciones pendientes"
  *
  * Mocks usePendingApprovals (mockState incl. isError / error / refetch) + the
  * picker listForPicker query + useReviewTimeOff (isReviewing). Real
@@ -148,14 +148,6 @@ vi.mock('@/core/shared/components/DataTable/AppDataTable.vue', () => ({
       bulkActions: { default: () => [] },
     },
     emits: ['add', 'refresh', 'update:global-filter', 'update:pagination', 'update:column-pinning', 'update:column-visibility'],
-  },
-}))
-
-vi.mock('@/features/admin/shared/components/AdminPageHeader.vue', () => ({
-  default: {
-    name: 'AdminPageHeader',
-    template: '<div data-testid="admin-page-header" :data-title="title"><slot /></div>',
-    props: ['title', 'description', 'loading', 'fallbackText'],
   },
 }))
 

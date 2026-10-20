@@ -82,11 +82,6 @@ export function resolveManagerEmail(
 
 // ─── Reactive composable ──────────────────────────────────────────────────────
 
-export interface UseManagerResolutionOptions {
-  /** The tenant id for cache scoping */
-  tenantId: string
-}
-
 /**
  * useManagerResolution — batch-resolves manager names for a list of employees.
  *

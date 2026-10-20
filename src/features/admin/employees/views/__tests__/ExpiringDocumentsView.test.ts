@@ -5,7 +5,7 @@
  * `useServerTable` directly, which stays UNTOUCHED), stubs `AppDataTable`
  * (data-error / data-error-message / data-column-visibility / data-show-toolbar
  * attrs, #filters / cell / header slots), keeps REAL `SortableHeader`, and
- * stubs `AdminPageHeader` / `EntityAvatar` / `vue-router` only (migrated view
+ * stubs `EntityAvatar` / `vue-router` only (migrated view
  * no longer imports the picker/name-resolution query layer).
  *
  * Pinned contracts:
@@ -15,7 +15,7 @@
  *    → error.message → "No se pudieron cargar los documentos. Intenta de nuevo."
  *  - retry → refresh; empty placeholder suppressed on error (REQ-5)
  *  - search → globalFilter (v-model); no paginateRows slice runs (REQ-3/REQ-1)
- *  - 30/60/90 USelect lives in the #filters slot (NOT AdminPageHeader) and is
+ *  - 30/60/90 USelect lives in the #filters slot and is
  *    bound to selectedThreshold (REQ-7)
  *  - colaborador renders server fullName; avatar seed stays employeeId (REQ-8)
  *  - NO listForPicker / name-resolution query fires from this view (REQ-8)
@@ -55,14 +55,6 @@ const mockPaginateRows = vi.fn(() => ({ pageRows: [], total: 0, pageCount: 0 }))
 vi.mock('@/features/admin/employees/composables/useExpiringDocuments', () => ({
   useExpiringDocuments: () => mockComposable,
   paginateRows: mockPaginateRows,
-}))
-
-vi.mock('@/features/admin/shared/components/AdminPageHeader.vue', () => ({
-  default: {
-    name: 'AdminPageHeader',
-    template: '<div data-testid="admin-page-header" :data-title="title"><slot /></div>',
-    props: ['title', 'description', 'loading', 'fallbackText'],
-  },
 }))
 
 vi.mock('@/core/shared/components/EntityAvatar.vue', () => ({

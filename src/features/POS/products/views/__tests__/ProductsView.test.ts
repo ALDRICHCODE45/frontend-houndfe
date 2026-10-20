@@ -241,7 +241,6 @@ function mountView() {
         // Nuxt UI components (USelect / UDropdownMenu) are globally registered,
         // so shallowMount auto-stubs them; their `ui` prop is read via
         // findComponent({ name }) in the presentation contracts below.
-        TableHeaderDescription: { template: '<div />' },
         SortableHeader: true,
         SelectColumn: true,
         StatusDotBadge: { template: '<span><slot /></span>' },

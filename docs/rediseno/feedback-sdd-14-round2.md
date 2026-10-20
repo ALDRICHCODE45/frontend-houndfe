@@ -122,7 +122,7 @@ El próximo modelo debería confirmar esto abriendo la imagen 2.
 +   <div class="h-full w-full rounded-l-2xl border border-default/50 overflow-hidden border-r-0">
 ```
 
-### Estructura actual del cart:
+### Estructura histórica del cart (previa a `3f12159e`):
 ```
 SalesView (h-full flex flex-col bg-default)
 ├── SalesTabsStrip (sticky top)
@@ -133,7 +133,7 @@ SalesView (h-full flex flex-col bg-default)
         ├── cart-body (SaleItemRow × N o empty state)
         └── cart-footer
             ├── customer slot
-            ├── PromocionesFlatList (v-if applicablePromotions.length)
+            ├── PromocionesFlatList (eliminado en 3f12159e)
             └── SaleTotalsFooter (items count, subtotal, total, Cobrar)
 ```
 
@@ -161,7 +161,7 @@ SalesView (h-full flex flex-col bg-default)
 5. **NO toques**:
    - `SaleItemRow.vue` (el usuario lo aprueba)
    - `SaleTotalsFooter.vue` (la sección de totales funciona bien)
-   - `PromocionesFlatList.vue` (no se ve en las capturas pero pasa tests)
+   - Nota histórica: `PromocionesFlatList.vue` y sus tests se eliminaron en `3f12159e`.
    - La lógica de negocio de la venta (no es problema de UI)
 
 **Si NO podés ver las imágenes** (heredaste este doc sin acceso):

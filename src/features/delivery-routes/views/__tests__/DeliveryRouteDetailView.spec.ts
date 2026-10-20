@@ -19,7 +19,7 @@
 //   - Driver 403 → SAME full-page not-found state; no banner, no toast
 //     (no presence leak; design §7.2, §11).
 //   - Loading skeleton during fetch.
-//   - The view consumes `useDeliveryRoutePermissions` (REFACTOR target).
+//   - The view reads per-action permissions from `useDeliveryRouteRole`.
 //
 // We mock the inner composables + components to focus on the composition surface
 // (i.e. which branches render given inputs). Mirrors the

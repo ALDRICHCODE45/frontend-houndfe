@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import type { DropdownMenuItem, NavigationMenuItem } from '@nuxt/ui'
 import { useColorMode } from '@vueuse/core'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
@@ -154,15 +154,6 @@ export const useSidebar = () => {
     )
   })
 
-  // Keep selectedTeam as a derived ref for legacy template compatibility
-  const selectedTeam = ref({
-    label: currentTenantLabel.value,
-    avatar: {
-      src: '/hounfeLogos/primary.png',
-      alt: currentTenantLabel.value,
-    },
-  })
-
   // `collapsed` is part of the public call contract (the layout and its tests
   // pass the live rail state) but no longer changes the item tree: groups stay
   // closed for both the expanded rail and the compact popover (S6), and the
@@ -287,8 +278,6 @@ export const useSidebar = () => {
     switchTenant,
     teamsItems,
     tenantShortcuts,
-    // legacy
-    selectedTeam,
     // user / navigation
     user,
     userItems,

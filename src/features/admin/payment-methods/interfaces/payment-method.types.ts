@@ -145,8 +145,6 @@ export const PAYMENT_METHOD_STATUS_LABELS = {
   inactive: 'Inactivo',
 } as const
 
-export type PaymentMethodStatusLabelKey = keyof typeof PAYMENT_METHOD_STATUS_LABELS
-
 /**
  * Resolve the i18n label for a payment-method active flag.
  * Pure; called from table cells, card rows.

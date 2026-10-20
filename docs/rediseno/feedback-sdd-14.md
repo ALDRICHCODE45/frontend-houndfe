@@ -150,7 +150,7 @@ El rediseño fracasó visualmente. Los cambios estructurales (75/25 split, SaleI
 - ✅ Items/units count "0 Artic · 0 Unidad" — commit `3ccab5c`
 - ✅ "TOTAL A COBRAR" prominente — commit `3ccab5c`
 - ✅ Botón "Cobrar" amarillo + F8 — commit `3ccab5c`
-- ✅ `PromocionesFlatList` — commit `58a1897` (no se ve en las capturas porque el cart está vacío, pero pasa tests)
+- Histórico: `PromocionesFlatList` se incorporó en `58a1897`; el componente y sus tests se eliminaron en `3f12159e`.
 
 ---
 

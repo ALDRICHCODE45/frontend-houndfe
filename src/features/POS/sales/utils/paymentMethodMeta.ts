@@ -20,8 +20,6 @@ const FALLBACK_META: MethodMeta = {
   icon: 'i-lucide-circle-help',
 }
 
-export type MethodMetaKey = keyof typeof METHOD_META
-
 export function getMethodMeta(code: string): MethodMeta {
   return (METHOD_META as Record<string, MethodMeta>)[code] ?? FALLBACK_META
 }

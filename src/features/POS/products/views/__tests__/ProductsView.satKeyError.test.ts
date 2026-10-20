@@ -151,7 +151,6 @@ function mountView() {
         UButton: { template: '<button><slot /></button>' },
         ConfirmModal: { template: '<div />' },
         ProductUpsertSlideover: ProductUpsertSlideoverStub,
-        TableHeaderDescription: { template: '<div />' },
         SortableHeader: true,
         SelectColumn: true,
         StatusDotBadge: { template: '<span><slot /></span>' },

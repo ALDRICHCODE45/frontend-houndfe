@@ -6,9 +6,7 @@
  *
  * Route-level composition surface for `/pos/rutas-de-entrega/:id`. ONE route
  * serves both roles; the view discriminates manager vs driver via a SINGLE
- * `useDeliveryRouteRole` call (REFACTOR target of S6a). The view consumes
- * `useDeliveryRoutePermissions` as a thin re-export wrapper to keep the
- * permission reads co-located at the call site.
+ * `useDeliveryRouteRole` call, which also provides the per-action permissions.
  *
  *   - Manager branch (`isManager=true`): renders the route detail with the S4c
  *     + S5a + S5b + S7 mutation affordances:

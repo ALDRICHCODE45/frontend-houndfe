@@ -11,10 +11,6 @@
 
 export type ExpirationDecisionType = 'EXPIRATION'
 
-export type ExpirationDecisionActionCode =
-  | 'PROVIDE_EXPIRATION_TEXT'
-  | 'REPORT_EXPIRATION_UNAVAILABLE'
-
 export interface ExpirationDecisionResolver {
   id: string
   displayName: string

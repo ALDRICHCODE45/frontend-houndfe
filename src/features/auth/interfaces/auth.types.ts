@@ -171,10 +171,6 @@ export interface LoginTenantSelectionResponse {
 
 export type LoginResponse = LoginSuccessResponse | LoginTenantSelectionResponse
 
-export interface AuthResponse extends AuthTokens {
-  user: AuthUser
-}
-
 export interface SelectTenantRequest {
   tempToken: string
   tenantId: string

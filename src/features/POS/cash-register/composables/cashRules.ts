@@ -110,10 +110,6 @@ export function isCashSessionWritable(session: CashSession | null | undefined): 
   return session?.status === 'OPEN'
 }
 
-export function isDrawerReleased(session: CashSession | null | undefined): boolean {
-  return Boolean(session?.drawerReleasedAt)
-}
-
 /** Blanks are never zero; an explicit `0` is a valid counted zero. */
 export function countEntryErrors(
   channels: readonly CountChannel[],
@@ -233,11 +229,6 @@ function buildCountPayloadFrom(
     }))
   }
   return payload
-}
-
-export function cashLineCents(lines: readonly CashCountLine[]): number | null {
-  const cash = lines.find((line) => line.channelKey === CASH_CHANNEL_KEY)
-  return cash ? cash.amountCents : null
 }
 
 export function sumDenominations(

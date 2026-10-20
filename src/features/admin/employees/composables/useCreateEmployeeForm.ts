@@ -6,7 +6,7 @@
  * Design decisions:
  * - All optional fields use '' (empty string) as the initial value so Nuxt UI's
  *   UInput / USelect renders the placeholder correctly without controlled/uncontrolled conflicts.
- * - managerId uses null (not '') because ManagerPicker emits null for "no selection".
+ * - managerId uses null (not '') to represent "no manager selected".
  * - annualVacationDays is kept as string in the form (type="number" UInput returns string).
  *   formStateToDto() casts it to integer before sending to the backend.
  * - formStateToDto() strips empty optional strings — the backend treats their absence
@@ -59,7 +59,7 @@ export const CreateEmployeeFormSchema = z.object({
  *
  * Required fields are '' (will fail Zod min(1) if left empty — shows UForm error).
  * Optional selects are '' so USelect renders its placeholder.
- * managerId is null — ManagerPicker emits null for "no selection".
+ * managerId is null when no manager is selected.
  * annualVacationDays is '' (string) — cast to number in formStateToDto.
  */
 export interface CreateEmployeeFormState {
