@@ -7,8 +7,8 @@ import type {
   NonCreditPaymentMethod,
   PaymentEntry,
   SaleDraftCustomer,
+  SaleShippingAddress,
 } from '../interfaces/sale.types'
-import type { CustomerAddress } from '@/features/POS/customers/interfaces/customer.types'
 import { PAYMENT_METHOD } from '../constants/sale.constants' // sdd/magic-string-constants slice 3 — lowercase contract.
 import DateFieldPopover from './DateFieldPopover.vue'
 import { newIdempotencyKey } from '../utils/idempotency.utils'
@@ -47,7 +47,9 @@ const props = defineProps<{
   // SalesView passes `activeDraft.shippingAddress ?? null` so prop changes
   // follow backend-driven clears (e.g. customer reassign → backend
   // shippingAddress: null → hasShippingAddress flips → toggle disables).
-  shippingAddress?: CustomerAddress | null
+  // The sale snapshot keeps every field even when its `id` is null (customer
+  // deleted the address later), so presence — not the id — opens the gate.
+  shippingAddress?: SaleShippingAddress | null
   isSubmitting?: boolean
   externalError?: string | null
   // sdd custom-payment-methods S4B (design §8.3 / REQ-CAT-007): the parent

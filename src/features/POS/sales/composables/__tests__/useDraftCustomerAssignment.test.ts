@@ -244,6 +244,35 @@ describe('useDraftCustomerAssignment', () => {
     })
   })
 
+  // The backend snapshots the shipping address on the sale; when the customer
+  // later deletes that address, the snapshot keeps every field but `id: null`.
+  // There is no address to preserve by reference, so none is sent.
+  it('sends no shippingAddressId when the snapshot address has no id', async () => {
+    const { composable, queryClient } = mountComposable('sale-1')
+    queryClient.setQueryData(saleQueryKeys.drafts('tenant-1'), [
+      makeSale({
+        shippingAddress: {
+          id: null,
+          customerId: 'customer-1',
+          street: 'Main',
+          exteriorNumber: '10',
+          interiorNumber: null,
+          zipCode: '64000',
+          neighborhood: 'Centro',
+          municipality: 'Monterrey',
+          city: 'Monterrey',
+          state: 'Nuevo León',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      }),
+    ])
+
+    await composable.assignCustomer({ customerId: 'customer-2', preserveShipping: true })
+
+    expect(saleApi.assignCustomer).toHaveBeenCalledWith('sale-1', { customerId: 'customer-2' })
+  })
+
 
 
   it('maps backend domain errors to typed lastError', async () => {

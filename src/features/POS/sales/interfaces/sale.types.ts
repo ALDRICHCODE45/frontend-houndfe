@@ -562,13 +562,20 @@ export class SaleDueDateError extends Error {
   }
 }
 
+/**
+ * Shipping address snapshotted on the sale. Same shape as the customer's
+ * address, but `id` is `null` once the customer deletes that address: the
+ * snapshot stays complete and the id is only an optional reference.
+ */
+export type SaleShippingAddress = Omit<CustomerAddress, 'id'> & { id: string | null }
+
 export interface Sale {
   id: string
   userId: string
   status: SaleStatus
   items: SaleItem[]
   customer?: SaleDraftCustomer | null
-  shippingAddress?: CustomerAddress | null
+  shippingAddress?: SaleShippingAddress | null
   createdAt: string
   updatedAt: string
   // pos-price-list-tiers: identifier of the global price list active on this

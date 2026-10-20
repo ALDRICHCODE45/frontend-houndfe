@@ -26,7 +26,8 @@
 
 // ─── Shipping address projection (eligible-sales shape) ────────────────────────
 export interface EligibleSaleAddress {
-  id: string
+  /** Snapshot reference; `null` when the customer deleted the address after the sale. */
+  id: string | null
   label: string | null
   street: string
   exteriorNumber: string | null

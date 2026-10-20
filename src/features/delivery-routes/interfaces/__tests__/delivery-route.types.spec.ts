@@ -422,3 +422,31 @@ describe('Label + tone maps (sdd delivery-routes S1b, design §5.1)', () => {
     expect(DELIVERY_ROUTE_STOP_STATUS_LABELS.SKIPPED).toBe('Omitida')
   })
 })
+
+// Backend sale shipping snapshot: when the customer deletes the address after
+// the sale, the stop keeps the full address but `id` becomes null. It is an
+// optional reference, never a signal that the address is missing.
+describe('DeliveryRouteShippingAddressSchema — snapshot without a live address', () => {
+  const snapshot = {
+    street: 'Av. Juárez',
+    exteriorNumber: '12',
+    interiorNumber: null,
+    zipCode: '06000',
+    neighborhood: 'Centro',
+    municipality: 'Cuauhtémoc',
+    city: 'Ciudad de México',
+    state: 'CDMX',
+    label: 'Casa',
+  }
+
+  it('accepts a complete address whose id is null', () => {
+    const result = DeliveryRouteShippingAddressSchema.safeParse({ ...snapshot, id: null })
+    expect(result.success).toBe(true)
+    expect(result.data?.id).toBeNull()
+    expect(result.data?.street).toBe('Av. Juárez')
+  })
+
+  it('still accepts an address that keeps its id', () => {
+    expect(DeliveryRouteShippingAddressSchema.safeParse({ ...snapshot, id: 'addr-1' }).success).toBe(true)
+  })
+})

@@ -1055,6 +1055,25 @@ describe('PaymentModal S2 — delivery toggle (pos-sale-delivery, CAP-DLV-1)', (
     expect(wrapper.html()).not.toContain('asigná cliente y dirección primero')
   })
 
+  // Backend sale shipping snapshot: a customer who deletes the address after
+  // the sale leaves a complete address with `id: null`. It is still an address
+  // to deliver to, so the toggle must stay available.
+  it('toggle stays enabled when the snapshot address has no id', () => {
+    const wrapper = mount(PaymentModal, {
+      props: {
+        open: true,
+        totalCents: 15000,
+        saleId: 'sale-1',
+        shippingAddress: { ...SHIPPING_ADDRESS_FIXTURE, id: null },
+      },
+      global: mountGlobal,
+    })
+
+    const toggle = wrapper.get('[data-testid="delivery-toggle"]')
+    expect(toggle.attributes('disabled')).toBeUndefined()
+    expect(wrapper.html()).not.toContain('asigná cliente y dirección primero')
+  })
+
   it('CTA emits request-assign-customer when toggle is gated (shippingAddress null)', async () => {
     const wrapper = mount(PaymentModal, {
       props: {
