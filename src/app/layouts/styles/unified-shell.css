@@ -2,7 +2,8 @@
  * Unified shell adapter — scoped palette, chrome geometry and hook ownership.
  *
  * Every selector is bounded to `.hf-shell`, a `.hf-shell-*` hook or the
- * Products-only bridge. Nothing here is global: the routed workspace keeps its
+ * Products-only bridge. Toast roots subscribe only to the shared palette.
+ * Nothing here is global: the routed workspace keeps its
  * own controls and the Caja/auth/sales surfaces are untouched.
  *
  * Layer model (three planes, one system):
@@ -31,6 +32,7 @@
  * resolves the same planes the scoped workspace uses. */
 .hf-shell,
 .hf-shell-portal,
+.hf-shell-toast,
 .hf-shell-products-portal {
   --shell-page: #f3f6fa;
   --shell-chrome: #f9fbfd;
@@ -43,6 +45,9 @@
   --shell-on-action: #ffffff;
   --shell-active: #e9effd;
   --shell-table-head: #e8eef7;
+  /* Elevation roles reuse the shell menu's existing shadow palette. */
+  --shell-shadow: rgb(15 23 42 / 0.28);
+  --shell-shadow-soft: rgb(15 23 42 / 0.06);
 
   /* Geometry. */
   --shell-row: 35px;
@@ -57,6 +62,7 @@
 
 .dark .hf-shell,
 .dark .hf-shell-portal,
+.dark .hf-shell-toast,
 .dark .hf-shell-products-portal {
   --shell-page: #101720;
   --shell-chrome: #151e2b;

@@ -6,6 +6,7 @@
  * Font loading is external; system fonts remain a usable offline fallback.
  */
 .hf-theme,
+.hf-shell-toast,
 .cash-visual,
 .cash-workspace {
   --hf-page: #f5f6f8;
@@ -37,6 +38,7 @@
 }
 
 .dark .hf-theme,
+.dark .hf-shell-toast,
 .dark .cash-visual,
 .dark .cash-workspace {
   --hf-page: #0e1520;

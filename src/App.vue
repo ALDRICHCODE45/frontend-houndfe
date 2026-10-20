@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import '@/core/shared/design-system/hf-toast.css'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { es } from '@nuxt/ui/locale'

@@ -1,0 +1,235 @@
+@import './houndfe-theme.css';
+@import '../../../app/layouts/styles/unified-shell.css';
+
+/* UToaster teleports to body on every layout. Its theme hooks opt into the
+ * shared light/dark palettes above, never into a dashboard ancestor.
+ * Defaults are decorative CSS masks because UToast renders its icon slot only
+ * when callers supply `icon`. No toast payload, callback or timer is changed.
+ */
+.hf-shell-toast {
+  --toast-accent: var(--shell-action);
+  --toast-soft: var(--shell-active);
+  --toast-icon: var(--toast-icon-info);
+  /* Lucide-style 24px stroke glyphs: intrinsic color is irrelevant to a mask. */
+  --toast-icon-info: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4m0-4h.01'/%3E%3C/svg%3E");
+  --toast-icon-check: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='m8 12 3 3 5-6'/%3E%3C/svg%3E");
+  --toast-icon-alert: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 8v4m0 4h.01'/%3E%3C/svg%3E");
+  --toast-icon-warning: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m13.73 4 8.13 14a2 2 0 0 1-1.73 3H3.87a2 2 0 0 1-1.73-3l8.13-14a2 2 0 0 1 3.46 0M12 9v4m0 4h.01'/%3E%3C/svg%3E");
+}
+
+.hf-shell-toast.hf-toast--primary,
+.hf-shell-toast.hf-toast--secondary,
+.hf-shell-toast.hf-toast--info {
+  --toast-accent: var(--shell-action);
+  --toast-soft: var(--shell-active);
+  --toast-icon: var(--toast-icon-info);
+}
+
+.hf-shell-toast.hf-toast--success {
+  --toast-accent: var(--hf-success);
+  --toast-soft: color-mix(in srgb, var(--hf-success) 12%, var(--shell-card));
+  --toast-icon: var(--toast-icon-check);
+}
+
+.hf-shell-toast.hf-toast--error {
+  /* Preserve the installed, theme-aware destructive role. */
+  --toast-accent: var(--ui-error);
+  --toast-soft: color-mix(in srgb, var(--ui-error) 12%, var(--shell-card));
+  --toast-icon: var(--toast-icon-alert);
+}
+
+.hf-shell-toast.hf-toast--warning {
+  --toast-accent: var(--hf-warning);
+  --toast-soft: var(--hf-warning-soft);
+  --toast-icon: var(--toast-icon-warning);
+}
+
+.hf-shell-toast.hf-toast--neutral {
+  --toast-accent: var(--shell-muted);
+  --toast-soft: var(--shell-muted-surface);
+  --toast-icon: var(--toast-icon-info);
+}
+
+.hf-toast-viewport {
+  width: min(360px, calc(100vw - 32px));
+}
+
+.hf-shell-toast[data-state] {
+  gap: 12px;
+  padding: 16px;
+  background-color: var(--shell-card);
+  border: 1px solid var(--shell-border);
+  border-radius: var(--shell-radius-panel);
+  box-shadow:
+    0 12px 32px -12px var(--shell-shadow),
+    0 2px 6px var(--shell-shadow-soft);
+  color: var(--shell-ink);
+  font-family: var(--shell-font);
+}
+
+/* The tile takes one flex column; the mask or explicit icon sits over it.
+ * An avatar already owns its column and keeps the native UToast rendering. */
+.hf-shell-toast::before {
+  content: '';
+  flex: 0 0 36px;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--shell-radius-control);
+  background-color: var(--toast-soft);
+  pointer-events: none;
+}
+
+.hf-shell-toast::after {
+  content: '';
+  position: absolute;
+  inset-inline-start: 24px;
+  top: 24px;
+  width: 20px;
+  height: 20px;
+  color: var(--toast-accent);
+  background-color: currentColor;
+  mask: var(--toast-icon) center / contain no-repeat;
+  pointer-events: none;
+}
+
+.hf-shell-toast > [data-slot='icon'] {
+  position: absolute;
+  inset-inline-start: 24px;
+  top: 24px;
+  width: 20px;
+  height: 20px;
+  color: var(--toast-accent);
+}
+
+.hf-shell-toast:has(> [data-slot='icon'])::after,
+.hf-shell-toast:has(> .hf-toast-avatar)::after,
+.hf-shell-toast:has(> .hf-toast-avatar)::before {
+  display: none;
+}
+
+.hf-shell-toast [data-slot='wrapper'] {
+  min-width: 0;
+  padding-block: 1px;
+}
+
+.hf-shell-toast [data-slot='title'] {
+  color: var(--shell-ink);
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.hf-shell-toast [data-slot='description'] {
+  color: var(--shell-muted);
+  font-size: 13px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+/* UButton owns its actual data-slot='base', not Toast's close slot name. */
+.hf-shell-toast .hf-toast-close,
+.hf-shell-toast [data-slot='actions'] button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 6px 8px;
+  border-radius: var(--shell-radius-control);
+  background-color: transparent;
+  box-shadow: none;
+  color: var(--shell-muted);
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+
+.hf-shell-toast .hf-toast-close {
+  width: 32px;
+  margin: -4px -4px 0 0;
+}
+
+.hf-shell-toast .hf-toast-close:hover,
+.hf-shell-toast [data-slot='actions'] button:hover {
+  background-color: var(--shell-muted-surface);
+  color: var(--shell-ink);
+}
+
+.hf-shell-toast:focus-visible,
+.hf-shell-toast .hf-toast-close:focus-visible,
+.hf-shell-toast [data-slot='actions'] button:focus-visible {
+  outline: 2px solid var(--shell-action);
+  outline-offset: 2px;
+}
+
+.hf-shell-toast [data-slot='actions'] {
+  flex-wrap: wrap;
+}
+
+.hf-shell-toast [data-slot='actions'] [data-slot='label'] {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.hf-shell-toast [data-slot='progress'] [data-slot='base'] {
+  height: 3px;
+  border-radius: 0;
+  background-color: var(--toast-soft);
+}
+
+.hf-shell-toast [data-slot='progress'] [data-slot='indicator'] {
+  border-radius: 0;
+  background-color: var(--toast-accent);
+}
+
+/* Animate translate, not transform: UToaster retains its native transform for
+ * offsets/stacking and its translate for swipe gestures. The default edge is
+ * bottom-right; --translate-factor also preserves top-edge direction. */
+.hf-shell-toast[data-state='open'] {
+  animation: hf-toast-enter 200ms ease-out;
+}
+
+.hf-shell-toast[data-state='closed'] {
+  animation: hf-toast-exit 160ms ease-in forwards;
+}
+
+.hf-shell-toast[data-swipe='move'],
+.hf-shell-toast[data-swipe='cancel'],
+.hf-shell-toast[data-swipe='end'] {
+  animation: none;
+}
+
+@keyframes hf-toast-enter {
+  from {
+    opacity: 0;
+    translate: 0 calc(var(--translate-factor, -1px) * -12);
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes hf-toast-exit {
+  to {
+    opacity: 0;
+    translate: 0 calc(var(--translate-factor, -1px) * -8);
+  }
+}
+
+@media (pointer: coarse) {
+  .hf-shell-toast .hf-toast-close,
+  .hf-shell-toast [data-slot='actions'] button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hf-shell-toast[data-state],
+  .hf-shell-toast[data-state] *,
+  .hf-toast-viewport {
+    animation: none;
+    transition: none;
+  }
+}

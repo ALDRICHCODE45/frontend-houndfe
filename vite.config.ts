@@ -47,6 +47,30 @@ export default defineConfig({
             leadingIcon: 'shrink-0 size-4.5',
           },
         },
+        // Visual-only defaults: Nuxt still owns timing, queueing and rendering.
+        // Role hooks select decorative CSS fallback glyphs; explicit UToast
+        // icons/avatars suppress them without mutating useToast's payload.
+        toast: {
+          slots: {
+            root: 'hf-shell-toast',
+            close: 'hf-toast-close',
+            avatar: 'hf-toast-avatar',
+          },
+          variants: {
+            color: {
+              primary: { root: 'hf-toast--primary' },
+              secondary: { root: 'hf-toast--secondary' },
+              success: { root: 'hf-toast--success' },
+              info: { root: 'hf-toast--info' },
+              warning: { root: 'hf-toast--warning' },
+              error: { root: 'hf-toast--error' },
+              neutral: { root: 'hf-toast--neutral' },
+            },
+          },
+        },
+        toaster: {
+          slots: { viewport: 'hf-toast-viewport' },
+        },
         card: {
           slots: {
             root: 'rounded-lg overflow-hidden shadow-sm dark:shadow-md dark:shadow-black/20 bg-white dark:bg-coco-neutral-900',
