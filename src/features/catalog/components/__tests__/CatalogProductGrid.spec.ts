@@ -37,6 +37,35 @@ const mountGrid = (props: Partial<InstanceType<typeof CatalogProductGrid>['$prop
   })
 
 describe('CatalogProductGrid', () => {
+  it('describes an empty public result without inventing a publication or exclusion cause', async () => {
+    const wrapper = mountGrid({ state: 'empty', products: [] })
+    expect(wrapper.text()).toContain('No hay productos disponibles en este momento')
+    expect(wrapper.text()).not.toMatch(/publicados|excluidos|excludedCount/)
+    await wrapper.get('button[aria-label="Reintentar productos"]').trigger('click')
+    expect(wrapper.emitted('retry')).toHaveLength(1)
+  })
+
+  it('retries authoritative empty branch discovery without requesting products', async () => {
+    const wrapper = mountGrid({ branchesState: 'empty', selectionState: 'none' })
+    await wrapper
+      .get('button[aria-label="Reintentar descubrimiento de sucursales"]')
+      .trigger('click')
+    expect(wrapper.emitted('retry-branches')).toEqual([[]])
+    expect(wrapper.emitted('retry')).toBeUndefined()
+    expect(wrapper.find('[data-catalog-product-id]').exists()).toBe(false)
+  })
+
+  it.each(['loading', 'retry-pending', 'network', 'server', 'rate-limit'] as const)(
+    'never calls %s branch discovery an authoritative empty result',
+    (branchesState) => {
+      const wrapper = mountGrid({ branchesState, selectionState: 'invalid' })
+      expect(wrapper.text()).not.toMatch(
+        /No hay sucursales publicadas|Esta sucursal no está disponible/,
+      )
+      expect(wrapper.find('[data-catalog-product-id]').exists()).toBe(false)
+    },
+  )
+
   it('relays the exact product ID from a populated real card', async () => {
     const wrapper = mountGrid()
 

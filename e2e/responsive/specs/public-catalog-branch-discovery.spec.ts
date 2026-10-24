@@ -336,7 +336,7 @@ for (const viewport of viewports) {
       ).toBe(true)
       await expect(page.getByRole('dialog')).toHaveCount(0)
       await expect(
-        page.getByRole('heading', { name: 'Esta sucursal todavía no tiene productos publicados' }),
+        page.getByRole('heading', { name: 'No hay productos disponibles en este momento' }),
       ).toBeVisible()
 
       await expect(

@@ -33,6 +33,36 @@ const mountCard = (overrides = {}) =>
   })
 
 describe('CatalogProductCard', () => {
+  it('labels the unchanged differing variant-derived amount as reference, not minimum or product price', () => {
+    const wrapper = mountCard({
+      hasVariants: true,
+      price: { fromPriceCents: 14900, priceCents: 12900, hidden: false },
+    })
+    expect(wrapper.get('[data-testid="catalog-product-price"]').text()).toBe(formatCentsMXN(14900))
+    expect(wrapper.text()).toContain('Precio de referencia')
+    expect(wrapper.text()).toContain('Consulta los precios por presentación en el detalle.')
+    expect(wrapper.text()).not.toMatch(/Desde|Precio del producto/)
+  })
+
+  it.each([
+    { hasVariants: false, price: { fromPriceCents: 14900, priceCents: 12900, hidden: false } },
+    { hasVariants: true, price: { fromPriceCents: null, priceCents: null, hidden: false } },
+    { hasVariants: true, price: { fromPriceCents: 14900, priceCents: 12900, hidden: true } },
+  ])('withholds reference scope when inapplicable (%j)', (overrides) => {
+    expect(mountCard(overrides).text()).not.toMatch(
+      /Precio de referencia|Consulta los precios por presentación/,
+    )
+  })
+
+  it('retains product-price fallback when the reference amount is null', () => {
+    const wrapper = mountCard({
+      hasVariants: true,
+      price: { fromPriceCents: null, priceCents: 12900, hidden: false },
+    })
+    expect(wrapper.get('[data-testid="catalog-product-price"]').text()).toBe(formatCentsMXN(12900))
+    expect(wrapper.text()).toContain('Precio de referencia')
+  })
+
   it('contains published media and makes the read-only detail action visible without nested controls', () => {
     const wrapper = mountCard({ hasVariants: true })
 

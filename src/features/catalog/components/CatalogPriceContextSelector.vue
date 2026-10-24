@@ -49,6 +49,9 @@ function onSelect(value: string | null) {
     data-testid="catalog-price-context-selector"
     class="flex w-full min-w-0 flex-col gap-1 sm:w-56"
   >
+    <span data-testid="catalog-price-context-label" class="text-xs font-medium text-muted">
+      Lista de precios
+    </span>
     <USelectMenu
       :model-value="modelValue"
       :items="options"

@@ -270,10 +270,12 @@ async function selectPriceContext(priceListIdToSelect: string) {
       </div>
       <CatalogProductGrid
         :selection-state="selectionState"
+        :branches-state="branchesState"
         :products="products"
         :state="productsState"
         :context-state="contextState"
         @retry="retryProducts"
+        @retry-branches="retryBranches"
         @retry-context="retryPriceContexts"
         @open-detail="openDetail"
       />

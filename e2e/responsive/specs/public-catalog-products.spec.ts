@@ -223,7 +223,7 @@ test.describe('public catalog empty products', () => {
     await page.goto(`${RESPONSIVE_ORIGIN}/catalogo/centro`)
 
     await expect(
-      page.getByRole('heading', { name: 'Esta sucursal todavía no tiene productos publicados' }),
+      page.getByRole('heading', { name: 'No hay productos disponibles en este momento' }),
     ).toBeVisible()
     expectOnlyCatalogRequests(strictNetwork, [
       '/public/catalog/branches',

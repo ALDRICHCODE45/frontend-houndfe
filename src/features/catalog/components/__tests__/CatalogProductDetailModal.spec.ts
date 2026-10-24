@@ -340,6 +340,23 @@ describe('CatalogProductDetailModal', () => {
     expect(renderedText()).not.toMatch(/especificaciones técnicas|medidas|material|caudal/i)
   })
 
+  it('keeps differing product and variant prices independent and labels only the product scope', async () => {
+    mountModal({
+      detail: {
+        ...detail,
+        price: { priceCents: 12900, hidden: false },
+        variants: [{ ...detail.variants[0], price: { priceCents: 14900, hidden: false } }],
+      },
+    })
+    await nextTick()
+    expect(getRendered('[data-testid="catalog-detail-price-label"]').text()).toBe(
+      'Precio del producto',
+    )
+    expect(getRendered('[data-testid="catalog-detail-price"]').text()).toBe('$129.00')
+    expect(getRendered('[data-testid="catalog-detail-variant-price"]').text()).toBe('$149.00')
+    expect(renderedText()).not.toMatch(/Desde|Precio de referencia/)
+  })
+
   it('renders the populated detail with main image, plain-text description, price, category, availability, and read-only variants', async () => {
     mountModal()
     await nextTick()
@@ -352,6 +369,9 @@ describe('CatalogProductDetailModal', () => {
     expect(getRendered('[data-testid="catalog-detail-category"]').text()).toBe('Café')
     expect(getRendered('[data-testid="catalog-detail-name"]').text()).toBe(detail.name)
     expect(getRendered('[data-testid="catalog-detail-price"]').text()).toBe('$25.99')
+    expect(getRendered('[data-testid="catalog-detail-price-label"]').text()).toBe(
+      'Precio del producto',
+    )
     expect(renderedText()).toContain('Disponible')
     expect(getRendered('[data-testid="catalog-detail-availability"]').text()).toContain(
       'Disponible',

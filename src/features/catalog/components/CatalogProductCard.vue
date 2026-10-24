@@ -146,7 +146,13 @@ function openDetail(event: MouseEvent) {
 
         <div class="flex-1" />
 
-        <div class="mt-3 flex min-w-0 flex-wrap items-end justify-between gap-x-3 gap-y-1">
+        <p v-if="product.hasVariants && formattedPrice" class="mt-3 text-xs font-medium text-muted">
+          Precio de referencia
+        </p>
+        <div
+          class="flex min-w-0 flex-wrap items-end justify-between gap-x-3 gap-y-1"
+          :class="product.hasVariants && formattedPrice ? '' : 'mt-3'"
+        >
           <p
             v-if="formattedPrice"
             data-testid="catalog-product-price"
@@ -169,6 +175,9 @@ function openDetail(event: MouseEvent) {
             {{ presentationQuantity }}
           </span>
         </div>
+        <p v-if="product.hasVariants && formattedPrice" class="text-xs leading-relaxed text-muted">
+          Consulta los precios por presentación en el detalle.
+        </p>
         <span class="catalog-product-action mt-2 text-sm font-semibold text-primary">
           Ver detalles
         </span>

@@ -294,6 +294,11 @@ describe('CatalogView public browse', () => {
       wrapper.get('button[aria-label="Ordenar catálogo"]').attributes('disabled'),
     ).toBeDefined()
     expect(wrapper.get('button[aria-label="Ver carrito"]').attributes('disabled')).toBeDefined()
+    for (const label of ['Ver carrito', 'Ordenar catálogo', 'Todas las categorías']) {
+      const control = wrapper.get(`button[aria-label="${label}"]`)
+      expect(control.classes()).toContain('catalog-unavailable')
+      expect(control.text()).toContain('No disponible')
+    }
     expect(wrapper.findAll('[role="dialog"], a[href^="tel:"], a[href*="whatsapp"]').length).toBe(0)
   })
 
@@ -401,7 +406,7 @@ describe('CatalogView public browse', () => {
       expect(wrapper.text()).toContain(expectedCopy)
       await wrapper.get('button[aria-label="Reintentar productos"]').trigger('click')
       await flushPromises()
-      expect(wrapper.text()).toContain('Esta sucursal todavía no tiene productos publicados')
+      expect(wrapper.text()).toContain('No hay productos disponibles en este momento')
       expect(fetchMock).toHaveBeenCalledTimes(4)
     },
   )
@@ -430,7 +435,7 @@ describe('CatalogView public browse', () => {
     expect(wrapper.text()).toContain('Cargando productos…')
     resolveInitial(jsonResponse(productsResponse([])))
     await flushPromises()
-    expect(wrapper.text()).toContain('Esta sucursal todavía no tiene productos publicados')
+    expect(wrapper.text()).toContain('No hay productos disponibles en este momento')
 
     void wrapper.get('button[aria-label="Reintentar productos"]').trigger('click')
     await flushPromises()
@@ -933,12 +938,18 @@ describe('CatalogView public browse', () => {
     expect(discovery.wrapper.text()).not.toContain('0 productos')
     expect(discoveryFetch).toHaveBeenCalledTimes(1)
 
-    const emptyFetch = createCatalogFetch({ products: () => jsonResponse(productsResponse([])) })
+    const emptyFetch = createCatalogFetch({
+      products: () => jsonResponse({ ...productsResponse([]), excludedCount: 2 }),
+    })
     vi.stubGlobal('fetch', emptyFetch)
     const selected = await mountAt('/catalogo/centro')
 
     await flushPromises()
     expect(selected.wrapper.get('[data-testid="catalog-result-total"]').text()).toBe('0 productos')
+    expect(selected.wrapper.get('main').text()).toContain(
+      'No hay productos disponibles en este momento',
+    )
+    expect(selected.wrapper.get('main').text()).not.toMatch(/publicados|excluidos|excludedCount/)
   })
 
   it('announces in-progress branch discovery inside the polite chooser region once the selector is open', async () => {
@@ -958,6 +969,8 @@ describe('CatalogView public browse', () => {
     const announcement = chooser.get('[role="status"]')
     expect(announcement.attributes('aria-busy')).toBeDefined()
     expect(announcement.text()).toBe('Cargando sucursales…')
+    expect(wrapper.get('main').text()).toContain('Cargando sucursales…')
+    expect(wrapper.get('main').text()).not.toContain('No hay sucursales publicadas')
 
     resolveBranches(jsonResponse(branches))
     await flushPromises()
@@ -988,6 +1001,11 @@ describe('CatalogView public browse', () => {
       const { wrapper } = await mountAt('/catalogo')
 
       await flushPromises()
+      expect(wrapper.get('main').text()).toContain(copy)
+      expect(wrapper.get('main').text()).not.toContain('Selecciona una sucursal publicada')
+      if (_state !== 'empty') {
+        expect(wrapper.get('main').text()).not.toContain('No hay sucursales publicadas')
+      }
       await openBranchSelector(wrapper)
       const chooser = branchDialog(wrapper).get('[data-testid="catalog-branch-choices"]')
       expect(chooser.attributes('aria-live')).toBe('polite')

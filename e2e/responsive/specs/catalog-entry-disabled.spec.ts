@@ -37,6 +37,11 @@ for (const viewport of viewports) {
         ['button', 'Ver carrito'],
       ] as const)
         await expect(page.getByRole(role, { name })).toBeDisabled()
+      for (const name of ['Todas las categorías', 'Ordenar catálogo', 'Ver carrito']) {
+        const control = page.getByRole('button', { name, exact: true })
+        await expect(control).toContainText('No disponible')
+        await expect(control).toHaveClass(/catalog-unavailable/)
+      }
       await expect(
         page.locator(
           '[role="dialog"], a[href^="tel:"], a[href*="whatsapp"], button:text-is("Ver")',

@@ -18,6 +18,7 @@ export type CatalogProductContextState =
 <script setup lang="ts">
 import { computed } from 'vue'
 import CatalogProductCard from './CatalogProductCard.vue'
+import type { CatalogBranchesState } from '../composables/useCatalogBranches'
 import type { CatalogProductsState } from '../composables/useCatalogProducts'
 import type { PublicCatalogProductDto } from '../interfaces/public-catalog-products.types'
 
@@ -27,14 +28,35 @@ const props = withDefaults(
     products: PublicCatalogProductDto[]
     state: CatalogProductsState
     contextState?: CatalogProductContextState
+    branchesState?: CatalogBranchesState
   }>(),
-  { contextState: 'context-ready' },
+  { contextState: 'context-ready', branchesState: 'populated' },
 )
 const emit = defineEmits<{
   retry: []
   'retry-context': []
+  'retry-branches': []
   'open-detail': [productId: string, invoker: HTMLButtonElement]
 }>()
+
+const branchesPending = computed(
+  () => props.branchesState === 'loading' || props.branchesState === 'retry-pending',
+)
+const branchesCopy = computed(() => {
+  switch (props.branchesState) {
+    case 'loading':
+    case 'retry-pending':
+      return 'Cargando sucursales…'
+    case 'empty':
+      return 'No hay sucursales publicadas'
+    case 'rate-limit':
+      return 'Demasiadas solicitudes. Intenta de nuevo más tarde.'
+    case 'network':
+      return 'No se pudo conectar. Revisa tu conexión.'
+    default:
+      return 'No pudimos cargar las sucursales.'
+  }
+})
 
 const contextCopy = computed(() => {
   switch (props.contextState) {
@@ -68,7 +90,29 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
 <template>
   <div class="catalog-container py-6 lg:py-8">
     <section
-      v-if="selectionState === 'none'"
+      v-if="branchesState !== 'populated'"
+      class="flex flex-col items-center justify-center gap-3 py-16 text-center"
+      role="status"
+      aria-live="polite"
+      :aria-busy="branchesPending"
+    >
+      <h1 class="text-lg font-semibold text-highlighted">{{ branchesCopy }}</h1>
+      <p v-if="branchesState === 'empty'" class="max-w-sm text-sm text-muted">
+        El catálogo no está disponible en este momento. Vuelve a consultar más tarde.
+      </p>
+      <button
+        v-if="!branchesPending"
+        type="button"
+        aria-label="Reintentar descubrimiento de sucursales"
+        class="min-h-11 text-sm font-medium text-primary focus-visible:ring-2 focus-visible:ring-primary"
+        @click="emit('retry-branches')"
+      >
+        Actualizar
+      </button>
+    </section>
+
+    <section
+      v-else-if="selectionState === 'none'"
       class="flex flex-col items-center justify-center gap-3 py-16 text-center"
       aria-live="polite"
     >
@@ -171,7 +215,7 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
     >
       <UIcon name="i-lucide-package-open" class="size-8 text-primary" />
       <h1 class="text-lg font-semibold text-highlighted">
-        Esta sucursal todavía no tiene productos publicados
+        No hay productos disponibles en este momento
       </h1>
       <button
         class="text-sm font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"

@@ -573,6 +573,13 @@ onBeforeUnmount(() => {
           <div class="flex min-w-0 flex-col gap-1.5">
             <p
               v-if="detailPrice"
+              data-testid="catalog-detail-price-label"
+              class="text-xs font-medium text-muted"
+            >
+              Precio del producto
+            </p>
+            <p
+              v-if="detailPrice"
               data-testid="catalog-detail-price"
               class="break-words text-3xl font-bold tracking-tight text-highlighted tabular-nums"
             >

@@ -53,7 +53,7 @@ body[data-catalog-theme='light'] .catalog-header {
 
 body[data-catalog-theme='light'] .catalog-header-inner {
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr) 64px;
+  grid-template-columns: max-content minmax(0, 1fr) 76px;
   align-items: center;
   gap: 12px 8px;
   padding-block: 16px;
@@ -98,6 +98,28 @@ body[data-catalog-theme='light'] .catalog-branch-dialog button {
 
 body[data-catalog-theme='light'] .catalog-categories {
   background: var(--catalog-surface);
+}
+
+/* Unavailable tools are informational, not calls to action. Keep labels legible. */
+body[data-catalog-theme='light'] .catalog-unavailable:disabled {
+  color: var(--catalog-muted);
+  background: var(--catalog-page);
+  border: 1px dashed var(--catalog-border);
+  box-shadow: none;
+  opacity: 1;
+  cursor: not-allowed;
+}
+
+body[data-catalog-theme='light'] .catalog-cart {
+  padding-inline: 4px;
+}
+
+body[data-catalog-theme='light'] .catalog-unavailable-note {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.2;
+  white-space: normal;
 }
 
 /* Keep the informational band borderless and its toolbar strictly inset. */
@@ -284,7 +306,7 @@ body[data-catalog-theme='light'] .bg-red-50 {
 
 @media (max-width: 359px) {
   body[data-catalog-theme='light'] .catalog-header-inner {
-    grid-template-columns: minmax(0, 1fr) 64px;
+    grid-template-columns: minmax(0, 1fr) 76px;
   }
   body[data-catalog-theme='light'] .catalog-cart {
     grid-column: 2;
@@ -311,7 +333,7 @@ body[data-catalog-theme='light'] .bg-red-50 {
     padding-inline: 24px;
   }
   body[data-catalog-theme='light'] .catalog-header-inner {
-    grid-template-columns: auto minmax(0, 1fr) auto 64px;
+    grid-template-columns: auto minmax(0, 1fr) auto 76px;
     gap: 16px;
   }
   body[data-catalog-theme='light'] .catalog-header-controls {

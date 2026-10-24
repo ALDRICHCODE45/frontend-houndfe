@@ -206,12 +206,12 @@ function selectBranch(slug: string) {
         color="neutral"
         variant="outline"
         size="sm"
-        class="catalog-cart min-h-11 min-w-11 shrink-0 rounded-lg"
+        class="catalog-cart catalog-unavailable min-h-11 min-w-11 shrink-0 rounded-lg"
         disabled
         aria-label="Ver carrito"
         title="Carrito no disponible"
       >
-        <span>Carrito</span>
+        <span>Carrito<span class="catalog-unavailable-note">No disponible</span></span>
       </UButton>
     </div>
   </header>

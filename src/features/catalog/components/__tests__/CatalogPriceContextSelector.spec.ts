@@ -26,6 +26,9 @@ describe('CatalogPriceContextSelector', () => {
 
   it('presents only the discovered options with priceListId identity and the accessible Spanish label', () => {
     const wrapper = mountSelector()
+    const label = wrapper.get('[data-testid="catalog-price-context-label"]')
+    expect(label.text()).toBe('Lista de precios')
+    expect(label.classes()).not.toContain('sr-only')
     expect(findMenu(wrapper).props('items')).toEqual(options)
     expect(findMenu(wrapper).props('valueKey')).toBe('priceListId')
     expect(findMenu(wrapper).props('labelKey')).toBe('name')
