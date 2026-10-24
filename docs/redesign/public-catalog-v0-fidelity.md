@@ -1,6 +1,6 @@
 # Public catalog v0 fidelity — shell and product surfaces
 
-T1 implements S1–S2 for the shell; T2 implements S1 for cards/grid/detail. T3 complete-feature acceptance remains parent-owned. No commerce, filtering, account or checkout capability was added. The T1 record below is historical; its remaining product work is superseded by the T2 evidence section.
+T1 implements S1–S2 for the shell; T2 implements S1 for cards/grid/detail. T3 engineering verification is complete; human visual approval is not asserted. No commerce, filtering, account or checkout capability was added. The T1 record below is historical; its remaining product work is superseded by the T2 evidence section.
 
 ## Source and component boundaries
 
@@ -79,6 +79,14 @@ Compared the original `.playwright-review/home-390.png`, `home-1440.png`, `detai
 ### Limits
 
 S1's scoped T2 implementation and focused verification are complete; this is not user visual approval or T3 acceptance. Live data has exactly one synthetic product and one real variant, so multi-row alignment and alternate branch/context changes are protected by existing unit tests, not fabricated live population. The read-only variant layout and modal-versus-page detail are explicit supported-capability differences. Existing user preview4173/backend3000 remain running. Parent owns commits, task tracking and review; unrelated untracked research and the concurrent parent task-document change were preserved.
+
+## T3 — final parent verification
+
+Parent independently reran the focused catalog/layout suite and `node artifacts/v0-fidelity/t2/check.mjs` against the rebuilt user preview: both exited0 (job7),373 tests and all six widths320/390/768/1024/1440/2680. Parent directly read the390/1440 final listing/detail captures and the matching original v0 reference captures. Original branding/photo, hero composition, navy Manrope, compact media, two mobile columns and outlined detail affordance are present. Pointer and keyboard paths, independent preview closing, exact focus return and real prices remain verified.
+
+This is an adaptation to supported capabilities, not pixel-identical reproduction: no search/cart/account/species/filter rows, no fabricated product population, five desktop tracks without a sidebar, real price-context selection, and modal read-only detail rather than a purchase page. Those differences are visible and intentional. One synthetic product cannot establish multi-row live alignment or multiple live branch/context scenarios.
+
+Worker project/responsive types and build passed; existing CSS-token/chunk warnings remain. Mocked responsive suites were not run because their server conflicts with the user's4173 preview. Native assessment returned the explicit-untracked-declaration precondition, so **no native review approval** is claimed; its returned plan retained self-verification and did not require an independent verifier. No push/PR/merge, new database/CDN mutation, or user-service restart occurred. Preview for human visual review: `http://localhost:4173/catalogo/centro`.
 
 ## Key Learnings
 
