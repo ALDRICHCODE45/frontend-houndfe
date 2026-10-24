@@ -18,21 +18,18 @@ const resultTotalLabel = computed(() =>
 </script>
 
 <template>
-  <!--
-    The band stays transparent so the page has no full-bleed divider. The informational controls
-    live on one contained, ringed surface instead of a page-wide rule.
-  -->
-  <div data-testid="catalog-category-bar" class="bg-transparent px-4 py-3 sm:px-6">
-    <div
-      data-testid="catalog-category-toolbar"
-      class="mx-auto flex w-full max-w-6xl flex-col gap-3 rounded-2xl bg-elevated px-3 py-3 shadow-sm ring-1 ring-default sm:flex-row sm:items-center sm:justify-between sm:px-4"
-    >
+  <nav
+    data-testid="catalog-category-bar"
+    class="catalog-categories"
+    aria-label="Categorías del catálogo"
+  >
+    <div data-testid="catalog-category-toolbar" class="catalog-category-toolbar catalog-container">
       <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
         <UButton
-          color="primary"
-          variant="solid"
+          color="neutral"
+          variant="ghost"
           size="sm"
-          class="shrink-0 rounded-full"
+          class="min-h-11 shrink-0 rounded-lg"
           disabled
           aria-label="Todas las categorías"
         >
@@ -44,7 +41,7 @@ const resultTotalLabel = computed(() =>
           color="neutral"
           variant="outline"
           size="sm"
-          class="min-w-0 max-w-full rounded-full"
+          class="min-h-11 min-w-0 max-w-full rounded-lg"
           disabled
           :aria-label="category.name"
         >
@@ -67,14 +64,14 @@ const resultTotalLabel = computed(() =>
           color="neutral"
           variant="outline"
           size="sm"
-          class="shrink-0 rounded-full"
+          class="min-h-11 shrink-0 rounded-lg"
           disabled
           aria-label="Ordenar catálogo"
         >
           <template #leading><UIcon name="i-lucide-arrow-up-down" class="size-3.5" /></template>
-          <span class="hidden sm:inline">Ordenar</span>
+          <span>Ordenar</span>
         </UButton>
       </div>
     </div>
-  </div>
+  </nav>
 </template>

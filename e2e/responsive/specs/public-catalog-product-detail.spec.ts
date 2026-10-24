@@ -591,7 +591,7 @@ const controlKey = (control: ControlSnapshot): string => `${control.role} "${con
  * tenant-scoped price-context selector is a real shell control once discovery resolves, so it belongs
  * to this exact inventory instead of the dialog allowance.
  */
-const SHELL_CONTROL_NAMES = ['Explorar sucursales', 'Lista de precios', 'Cambiar tema'] as const
+const SHELL_CONTROL_NAMES = ['Explorar sucursales', 'Lista de precios'] as const
 const invokerControlName = (productName: string): string => `Ver detalles de ${productName}`
 
 const shellControls = (productNames: readonly string[]): ControlSnapshot[] => [

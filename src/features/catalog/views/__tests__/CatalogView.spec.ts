@@ -781,14 +781,14 @@ describe('CatalogView public browse', () => {
 
     await flushPromises()
     const controls = wrapper.get('[data-testid="catalog-header-controls"]')
-    expect(controls.classes()).toEqual(
-      expect.arrayContaining(['w-full', 'min-w-0', 'flex-col', 'sm:flex-row']),
-    )
+    expect(controls.classes()).toContain('catalog-header-controls')
     const selector = wrapper.get('[data-testid="catalog-price-context-selector"]')
     expect(selector.classes()).toEqual(expect.arrayContaining(['w-full', 'min-w-0']))
 
     expect(wrapper.find('button[aria-label="Explorar sucursales"]').exists()).toBe(true)
-    expect(wrapper.find('button[aria-label="Cambiar tema"]').exists()).toBe(true)
+    expect(wrapper.find('button[aria-label="Cambiar tema"]').exists()).toBe(false)
+    expect(wrapper.get('[aria-label="HoundFe, catálogo"]').text()).toBe('HoundFe.')
+    expect(wrapper.get('main h1').text()).toBe('Nuestro catálogo')
     expect(wrapper.find('button[aria-label="Ver carrito"]').attributes('disabled')).toBeDefined()
     expect(
       wrapper.find('input[aria-label="Buscar en el catálogo"]').attributes('disabled'),
@@ -867,7 +867,7 @@ describe('CatalogView public browse', () => {
     }
   })
 
-  it('contains the informational category controls in one centered rounded toolbar with no full-bleed divider', async () => {
+  it('groups real informational categories in a labelled compact navigation band', async () => {
     const categories = [{ id: 'coffee', name: 'Café', count: 3 }]
     const fetchMock = createCatalogFetch({
       products: () =>
@@ -883,27 +883,14 @@ describe('CatalogView public browse', () => {
     await flushPromises()
     const bar = wrapper.get('[data-testid="catalog-category-bar"]')
 
-    // The page band stays transparent and borderless: the old full-width rule is gone.
-    expect(bar.classes()).toContain('bg-transparent')
-    expect(bar.classes()).not.toContain('border-b')
-    expect(bar.classes()).not.toContain('border-default')
-    expect(bar.classes().some((className) => className.startsWith('border-'))).toBe(false)
+    expect(bar.element.tagName).toBe('NAV')
+    expect(bar.attributes('aria-label')).toBe('Categorías del catálogo')
 
     // Exactly one contained toolbar renders inside that band.
     expect(bar.element.children).toHaveLength(1)
     const toolbar = bar.get('[data-testid="catalog-category-toolbar"]')
     expect(bar.element.firstElementChild).toBe(toolbar.element)
-    expect(toolbar.classes()).toEqual(
-      expect.arrayContaining([
-        'mx-auto',
-        'w-full',
-        'max-w-6xl',
-        'rounded-2xl',
-        'ring-1',
-        'shadow-sm',
-      ]),
-    )
-    expect(toolbar.classes().some((className) => className.startsWith('border-'))).toBe(false)
+    expect(toolbar.classes()).toContain('catalog-container')
 
     // Every informational control belongs to that one surface, never to the page band.
     const chips = [
@@ -923,12 +910,11 @@ describe('CatalogView public browse', () => {
     const { wrapper } = await mountAt('/catalogo')
 
     await flushPromises()
-    expect(enabledControlLabels()).toEqual(['Cambiar tema', 'Explorar sucursales'])
+    expect(enabledControlLabels()).toEqual(['Explorar sucursales'])
 
     await openBranchSelector(wrapper)
     expect(enabledControlLabels()).toEqual(
       [
-        'Cambiar tema',
         'Explorar sucursales',
         'Cerrar selección de sucursal',
         'Sucursal Centro',

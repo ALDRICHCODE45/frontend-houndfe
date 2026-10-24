@@ -6,7 +6,7 @@
  * price-context discovery and then the anonymous product list, that the closed shell exposes no branch
  * choice and no dialog, that the `Explorar sucursales` trigger opens one labelled dialog whose branch
  * choices, current branch state and polite live region are reachable, that the dialog fits
- * 320/375/1280 without horizontal overflow, and that both Escape and an outside pointer press close it
+ * 320/390/768/1024/1440 without horizontal overflow, and that both Escape and an outside pointer press close it
  * while focus returns to its trigger. Every step drives the real browser surface through accessible
  * locators.
  */
@@ -33,8 +33,10 @@ const addressedBranch = {
 }
 const viewports = [
   { name: 'compact', width: 320, height: 568 },
-  { name: 'mobile', width: 375, height: 667 },
-  { name: 'desktop', width: 1280, height: 800 },
+  { name: 'mobile', width: 390, height: 844 },
+  { name: 'tablet', width: 768, height: 844 },
+  { name: 'small-desktop', width: 1024, height: 844 },
+  { name: 'desktop', width: 1440, height: 900 },
 ] as const
 
 const emptyProductPage = {
@@ -176,7 +178,7 @@ function expectInsideViewport(
   )
 }
 
-const shellControls = ['button Cambiar tema', 'button Explorar sucursales']
+const shellControls = ['button Explorar sucursales']
 const dialogControls = [
   'button Cerrar selección de sucursal',
   `button ${longNameBranch.name}`,
@@ -201,6 +203,25 @@ for (const viewport of viewports) {
       await expect(trigger).toHaveAttribute('aria-haspopup', 'dialog')
       await expect(trigger).toHaveAttribute('aria-expanded', 'false')
       await expect(trigger).toContainText('Elegir sucursal')
+      await expect(
+        page.getByRole('heading', {
+          name: 'Elige una sucursal para explorar el catálogo',
+          exact: true,
+        }),
+      ).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Cambiar tema' })).toHaveCount(0)
+      await expect(page.locator('body')).toHaveAttribute('data-catalog-theme', 'light')
+      await expect(page.locator('header')).toHaveCSS('background-color', 'rgb(255, 255, 255)')
+      const wordmarkLocator = page.locator('header .catalog-wordmark')
+      expect(
+        await wordmarkLocator.evaluate((element) => element.scrollWidth <= element.clientWidth),
+      ).toBe(true)
+      const wordmark = await measurableBox(wordmarkLocator, 'wordmark')
+      const triggerBox = await measurableBox(trigger, 'branch trigger')
+      expect(
+        triggerBox.y >= wordmark.y + wordmark.height || triggerBox.x >= wordmark.x + wordmark.width,
+        'the branch trigger must not overlap the wordmark',
+      ).toBe(true)
 
       // The closed shell carries no dialog, no branch choice and no branch copy.
       await expect(page.getByRole('dialog')).toHaveCount(0)
@@ -230,6 +251,7 @@ for (const viewport of viewports) {
 
       const dialog = branchDialog(page)
       await expect(dialog).toBeVisible()
+      await expect(dialog).toHaveCSS('background-color', 'rgb(255, 255, 255)')
       await settleAnimations(page)
       // An open modal marks the background shell `aria-hidden`, so the trigger stays assertable
       // only through an explicit hidden-inclusive role query while the dialog is open.
@@ -297,11 +319,33 @@ for (const viewport of viewports) {
 
       const trigger = branchTrigger(page)
       await expect(trigger).toContainText(longNameBranch.name)
+      const wordmark = await measurableBox(page.locator('header .catalog-wordmark'), 'wordmark')
+      const triggerBox = await measurableBox(trigger, 'selected branch trigger')
+      expect(
+        triggerBox.y >= wordmark.y + wordmark.height || triggerBox.x >= wordmark.x + wordmark.width,
+        'the selected branch trigger must not overlap the wordmark',
+      ).toBe(true)
+      const categories = await measurableBox(
+        page.getByRole('button', { name: 'Todas las categorías', exact: true }),
+        'categories',
+      )
+      const total = await measurableBox(page.getByTestId('catalog-result-total'), 'total')
+      expect(
+        total.y >= categories.y + categories.height || total.x >= categories.x + categories.width,
+        'result total must not overlap category navigation',
+      ).toBe(true)
       await expect(page.getByRole('dialog')).toHaveCount(0)
       await expect(
         page.getByRole('heading', { name: 'Esta sucursal todavía no tiene productos publicados' }),
       ).toBeVisible()
 
+      await expect(
+        page.getByRole('button', { name: 'Lista de precios', exact: true }),
+      ).toBeVisible()
+      await testInfo.attach(`${viewport.name}-catalog-selected-shell`, {
+        body: await page.screenshot({ fullPage: true }),
+        contentType: 'image/png',
+      })
       await trigger.click()
 
       const dialog = branchDialog(page)

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useColorMode } from '@vueuse/core'
 import CatalogPriceContextSelector from './CatalogPriceContextSelector.vue'
 import type { PublicBranchDto } from '../interfaces/catalog.types'
 import type { PublicCatalogPriceContextDto } from '../interfaces/public-catalog-price-context.types'
@@ -22,8 +21,6 @@ const emit = defineEmits<{
   'retry-price-contexts': []
 }>()
 
-const colorMode = useColorMode()
-const isDark = computed(() => colorMode.value === 'dark')
 /**
  * Branch selection is a discreet, closed-by-default dialog owned by the header trigger.
  * `/catalogo` never opens it on its own, and the catalog keeps no permanent hero space for it.
@@ -54,27 +51,14 @@ function selectBranch(slug: string) {
   isChooserOpen.value = false
   emit('select', slug)
 }
-
-function toggleDarkMode() {
-  colorMode.value = isDark.value ? 'light' : 'dark'
-}
 </script>
 
 <template>
-  <header class="sticky top-0 z-40 border-b border-default bg-default/85 backdrop-blur-xl">
-    <div
-      class="mx-auto flex w-full max-w-6xl flex-wrap items-center gap-2 px-4 py-2.5 sm:flex-nowrap sm:gap-3 sm:px-6 sm:py-3"
-    >
-      <div class="flex shrink-0 items-center gap-2">
-        <span
-          class="flex size-9 items-center justify-center rounded-full bg-primary text-white shadow-sm"
-        >
-          <UIcon name="i-lucide-store" class="size-5" />
-        </span>
-        <span class="hidden text-lg font-bold tracking-tight text-highlighted sm:block"
-          >Catálogo</span
-        >
-      </div>
+  <header class="catalog-header">
+    <div class="catalog-header-inner catalog-container">
+      <span class="catalog-wordmark" aria-label="HoundFe, catálogo"
+        >HoundFe<span aria-hidden="true">.</span></span
+      >
 
       <UModal
         v-model:open="isChooserOpen"
@@ -83,7 +67,7 @@ function toggleDarkMode() {
         :close="false"
         :ui="{
           overlay: 'bg-coco-950/45 backdrop-blur-sm',
-          content: 'max-w-md rounded-2xl shadow-xl',
+          content: 'catalog-branch-dialog max-w-md rounded-xl shadow-xl',
           header: 'items-start',
           body: 'flex-1 p-4 overscroll-contain sm:p-5',
         }"
@@ -92,7 +76,7 @@ function toggleDarkMode() {
           color="neutral"
           variant="outline"
           size="sm"
-          class="min-h-11 min-w-0 shrink rounded-full"
+          class="catalog-branch-trigger min-h-11 min-w-0 shrink rounded-lg"
           aria-label="Explorar sucursales"
         >
           <template #leading>
@@ -116,7 +100,7 @@ function toggleDarkMode() {
             aria-label="Cerrar selección de sucursal"
             class="ms-auto inline-flex size-11 shrink-0 items-center justify-center rounded-full text-muted transition-[background-color,color,transform] duration-150 ease-out hover:bg-elevated/70 hover:text-highlighted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100"
           >
-            <UIcon name="i-lucide-x" class="size-5" />
+            <span class="text-xs">Cerrar</span>
           </button>
         </template>
 
@@ -198,15 +182,12 @@ function toggleDarkMode() {
         </template>
       </UModal>
 
-      <div
-        data-testid="catalog-header-controls"
-        class="order-last flex w-full min-w-0 flex-col gap-2 sm:order-none sm:w-auto sm:flex-1 sm:flex-row sm:items-center sm:gap-3"
-      >
+      <div data-testid="catalog-header-controls" class="catalog-header-controls">
         <UInput
-          placeholder="Buscar en el catálogo"
+          placeholder="Búsqueda no disponible"
           icon="i-lucide-search"
-          size="sm"
-          class="w-full min-w-0 sm:flex-1"
+          size="lg"
+          class="catalog-search w-full min-w-0"
           :ui="{ root: 'w-full' }"
           disabled
           aria-label="Buscar en el catálogo"
@@ -223,24 +204,14 @@ function toggleDarkMode() {
 
       <UButton
         color="neutral"
-        variant="ghost"
-        size="sm"
-        class="shrink-0"
-        aria-label="Cambiar tema"
-        @click="toggleDarkMode"
-      >
-        <UIcon :name="isDark ? 'i-lucide-sun' : 'i-lucide-moon'" class="size-4" />
-      </UButton>
-
-      <UButton
-        color="neutral"
         variant="outline"
         size="sm"
-        class="shrink-0 rounded-full"
+        class="catalog-cart min-h-11 min-w-11 shrink-0 rounded-lg"
         disabled
         aria-label="Ver carrito"
+        title="Carrito no disponible"
       >
-        <UIcon name="i-lucide-shopping-bag" class="size-4" />
+        <span>Carrito</span>
       </UButton>
     </div>
   </header>

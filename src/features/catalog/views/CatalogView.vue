@@ -264,6 +264,10 @@ async function selectPriceContext(priceListIdToSelect: string) {
     />
 
     <main class="flex-1">
+      <div v-if="productsState === 'populated'" class="catalog-intro catalog-container">
+        <h1>Nuestro catálogo</h1>
+        <p>Precios y existencias por sucursal.</p>
+      </div>
       <CatalogProductGrid
         :selection-state="selectionState"
         :products="products"
