@@ -73,21 +73,21 @@ function openDetail(event: MouseEvent) {
 </script>
 
 <template>
-  <article class="min-w-0">
+  <article class="h-full min-w-0">
     <button
       :aria-label="`Ver detalles de ${product.name}`"
       :data-catalog-product-id="product.id"
-      class="group flex w-full min-w-0 flex-col overflow-hidden rounded-[20px] border border-default bg-default text-left shadow-sm transition-[transform,box-shadow,border-color] duration-150 ease-out hover:-translate-y-0.5 hover:border-coco-300 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-default active:scale-[0.98] motion-reduce:transition-none motion-reduce:hover:translate-y-0 motion-reduce:active:scale-100 dark:hover:border-coco-700"
+      class="catalog-product-card group flex h-full w-full min-w-0 flex-col overflow-hidden border border-default bg-default text-left"
       type="button"
       @click="openDetail"
     >
       <div
         data-testid="catalog-product-media"
-        class="relative aspect-square overflow-hidden bg-coco-neutral-100 dark:bg-coco-neutral-800"
+        class="catalog-product-media relative aspect-square w-full shrink-0 overflow-hidden"
       >
         <img
           v-if="showImage && productImageUrl"
-          class="size-full object-cover"
+          class="size-full object-contain p-6"
           :src="productImageUrl"
           :alt="`Imagen de ${product.name}`"
           @error="markImageFailed"
@@ -116,30 +116,30 @@ function openDetail(event: MouseEvent) {
         <span
           v-if="availability"
           data-testid="catalog-product-availability"
-          class="absolute top-3 left-3 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 shadow-sm ring-1 ring-black/5 dark:bg-coco-neutral-900/90 dark:ring-white/10"
+          class="absolute top-3 left-3 inline-flex max-w-[calc(100%-24px)] items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 ring-1 ring-black/5"
         >
           <span class="size-1.5 rounded-full" :class="availability.dot" />
-          <span class="text-[11px] font-semibold" :class="availability.text">
+          <span class="text-xs font-semibold" :class="availability.text">
             {{ availability.label }}
           </span>
         </span>
       </div>
 
-      <div data-testid="catalog-product-body" class="flex flex-1 flex-col gap-1 p-4">
+      <div data-testid="catalog-product-body" class="flex w-full min-w-0 flex-1 flex-col gap-2 p-4">
         <p
           v-if="product.brand"
           data-testid="catalog-product-brand"
-          class="break-words text-[11px] font-semibold tracking-[0.14em] text-primary uppercase"
+          class="break-words text-sm font-medium text-muted"
         >
           {{ product.brand.name }}
         </p>
-        <h2 class="break-words text-sm leading-snug font-semibold text-highlighted">
+        <h2 class="break-words text-base leading-snug font-semibold text-highlighted">
           {{ product.name }}
         </h2>
         <p
           v-if="product.category"
           data-testid="catalog-product-category"
-          class="break-words text-xs text-muted"
+          class="break-words text-sm text-muted"
         >
           {{ product.category.name }}
         </p>
@@ -150,7 +150,7 @@ function openDetail(event: MouseEvent) {
           <p
             v-if="formattedPrice"
             data-testid="catalog-product-price"
-            class="min-w-0 break-words text-lg font-bold tracking-tight text-highlighted tabular-nums"
+            class="min-w-0 break-words text-2xl font-bold tracking-tight text-highlighted tabular-nums"
           >
             {{ formattedPrice }}
           </p>
@@ -164,11 +164,14 @@ function openDetail(event: MouseEvent) {
           <span
             v-if="presentationQuantity"
             data-testid="catalog-product-quantity"
-            class="min-w-0 break-words text-[11px] font-medium text-muted tabular-nums"
+            class="min-w-0 break-words text-sm font-medium text-muted tabular-nums"
           >
             {{ presentationQuantity }}
           </span>
         </div>
+        <span class="catalog-product-action mt-2 text-sm font-semibold text-primary">
+          Ver detalles
+        </span>
       </div>
     </button>
   </article>

@@ -1,5 +1,86 @@
 # Public catalog: Vue adaptation
 
+## T2 — listing and cards (S1, S2, S3)
+
+### Visual decisions and preservation
+
+- Reuse T1's 1360 px container and 16/24/32 px gutters. One mobile column
+  prioritizes legible names/prices over copying the prototype's cramped two-column
+  mobile cards; two columns start at 640 px, three at 768 px, four at 1280 px.
+- White, square media regions contain the published image with 24 px inset rather
+  than cropping packaging. Honest absent/failed-media fallback remains unchanged.
+  Cards have 12 px corners, quiet borders, no lifting/shadow animation and visible
+  keyboard outlines. Existing catalog palette and local/system font remain.
+- Sentence-case 14 px brand/category metadata, 16 px product names, 24 px tabular
+  prices and 14 px quantities. Cards stretch within each row; names are not clamped.
+  Long prices and custom quantities wrap; the visible `Ver detalles` cue is text
+  inside the existing single button, not a second control or purchase action.
+- No script, DTO, adapter, composable, request, price/stock helper, header or detail
+  changes. `formatCentsMXN`, existing availability labels, hidden/null-price copy,
+  actual `image.url`, failed-image recovery and exact emitted ID/invoker remain.
+  No `Desde`, presentation counts, fabricated product metadata, per-card detail
+  fetching, cart, filters or presentation selection. S2/F1 cannot be recreated by
+  these cards because no variant specifications are copied or synthesized;
+  prototype-only F2/F3/F4 flows remain absent. Detail adaptation remains T3.
+
+### Test-first and validation evidence
+
+- RED: root-only unit command below exited 1: 345 passed, 2 intended failures
+  (contained image / visible detail cue, shell container / tablet density).
+- Browser fixture setup initially failed all five new viewport cases because the
+  fixtures' top-level availability did not match stock presentation. Corrected
+  only fixtures, not the adapter. This was not an intended behavior RED.
+- Meaningful browser RED after fixture correction: 24 passed / 5 failed, exit 1:
+  absent visible detail cue at 320/390, wrong column counts at 768/1024, unequal
+  card heights at 1440. Then implementation passed all 29 tests, exit 0.
+- GREEN: `pnpm test:unit --run src/features/catalog src/app/layouts/__tests__/CatalogLayout.spec.ts --exclude '.worktrees/**'`:
+  exit 0, **347/347** tests, 15 files. New negative checks cover null and hidden
+  prices plus no invented presentation controls; existing media, zero quantity,
+  context gate, retry and exact event contracts pass unchanged.
+- `pnpm type-check`: exit 0 (`vue-tsc --build`). Tool-side Vue import diagnostics
+  remain non-authoritative; the required project type-check passes.
+- `pnpm exec playwright test --config playwright.responsive.config.ts e2e/responsive/specs/public-catalog-products.spec.ts e2e/responsive/specs/public-catalog-product-detail.spec.ts`:
+  exit 0, **29/29** (20 products, 9 detail). Preserves strict request ledger,
+  enabled-control inventory, price, stock, keyboard activation and exact invoker
+  focus-return assertions. Adds populated 320/390/768/1024/1440 checks for rendered
+  density, equal row heights, gutters, containment, typography, focus outline,
+  long values, fallback and unsupported-control absence.
+- Scoped `pnpm exec prettier --write` and `pnpm exec prettier --check` on the
+  seven T2 source/test/document paths: exit 0. `git diff --check`: exit 0.
+- Colors, corner radius and other cosmetics have no meaningful behavior RED;
+  evidence is browser readback, not invented test-first lifecycle claims.
+
+### Populated screenshot readback
+
+Inspected these full-page captures in `artifacts/responsive/local-run/html/data/`:
+
+| Width | Screenshot                                     | Observed composition                                                         |
+| ----- | ---------------------------------------------- | ---------------------------------------------------------------------------- |
+| 320   | `9a4de53f4fb5c9455dddf7bd308623c0ff571d32.png` | One column, extra shell rows, long quantity wraps below price.               |
+| 390   | `a7119a37843bc31df695959b3a85a52ffd0c186c.png` | One column, readable price/name, contained media.                            |
+| 768   | `057f6659362548123751248a181a2d15ad1d1e0e.png` | Three columns, long title wraps, quantity takes another line, actions align. |
+| 1024  | `3174f690c9b9a3cdb0207d4e439a1d615ac01d3f.png` | Three columns, 32 px gutters, roomy price/quantity row.                      |
+| 1440  | `8ce4cfe676759868d1d83ac6a0592c868a708daf.png` | Four columns, grid aligns to intro/header container; equal-height row.       |
+
+All five have no document or card horizontal overflow. Focused first-card outlines
+are visible. The bowl illustration and long-value scenarios are isolated browser
+fixtures only, not production fallback media or catalog additions. The existing
+Vue dev toolbar overlays portions of captures; external icon requests are still
+blocked by the strict fixture, so the no-image glyph is absent but its written
+state remains visible. No icon/dependency/configuration repair was attempted.
+No physical-device, screen-reader or comprehensive WCAG audit is claimed.
+
+### S1–S3 self-review and rollback boundary
+
+S1: listing follows the accepted light product-first hierarchy, not prototype
+commerce. S2: truthful published price/stock/media and read-only semantics remain;
+no unsupported prototype notices or variant metadata. S3: this is one uncommitted
+listing work unit for parent review; no staging/branch/commit operations performed.
+Rollback scope is the two card/grid components, their two unit tests, listing-only
+CSS additions, new products browser cases and this T2 section. Preserve T1 and all
+pre-existing research, task edits and screenshots. No technical blocker remains;
+T3 detail and T4 integrated verification are still pending.
+
 ## T1 — shell only (S1, S3)
 
 The accepted reference is `v0-public-catalog-prompt.md` and the latest

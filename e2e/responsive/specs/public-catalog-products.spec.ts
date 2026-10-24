@@ -596,6 +596,123 @@ test.describe('public catalog card media failure', () => {
   })
 })
 
+// Local illustrated media is test evidence only; production cards use the published image URL.
+const listingImage = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 200"><rect width="300" height="200" fill="white"/><ellipse cx="150" cy="157" rx="110" ry="18" fill="#e7eef7"/><path d="M65 65h170l22 85q-107 42-214 0Z" fill="#bac6d0" stroke="#576574" stroke-width="4"/><ellipse cx="150" cy="65" rx="85" ry="25" fill="#576574"/><ellipse cx="150" cy="62" rx="72" ry="17" fill="#e7eef7"/></svg>')}`
+const listingProducts = [
+  { ...visibleProduct, name: 'Comedero de acero inoxidable', image: { url: listingImage } },
+  {
+    ...visibleProduct,
+    id: 'long',
+    availability: null,
+    name: 'Comedero de acero inoxidable con base antideslizante para uso diario',
+    image: { url: listingImage },
+    price: { fromPriceCents: 123456789, priceCents: 123456789, hidden: false },
+    stockPresentation: { mode: 'CUSTOM_QUANTITY', status: null, customQuantity: 1234 },
+  },
+  {
+    ...visibleProduct,
+    id: 'hidden',
+    availability: null,
+    name: 'Producto sin precio público',
+    image: null,
+    price: { fromPriceCents: null, priceCents: null, hidden: true },
+    stockPresentation: { mode: 'HIDDEN', status: null, customQuantity: null },
+  },
+  {
+    ...visibleProduct,
+    id: 'low',
+    availability: 'low_stock',
+    name: 'Comedero pequeño',
+    image: { url: listingImage },
+    stockPresentation: { mode: 'SYSTEM_STATUS', status: 'low_stock', customQuantity: null },
+  },
+  {
+    ...visibleProduct,
+    id: 'out',
+    availability: 'out_of_stock',
+    name: 'Comedero grande',
+    image: { url: listingImage },
+    stockPresentation: { mode: 'SYSTEM_STATUS', status: 'out_of_stock', customQuantity: null },
+  },
+  {
+    ...visibleProduct,
+    id: 'minimal',
+    name: 'Comedero',
+    image: { url: listingImage },
+    brand: null,
+    category: null,
+  },
+]
+
+for (const width of [320, 390, 768, 1024, 1440]) {
+  test.describe(`populated listing at ${width}px`, () => {
+    test.use({
+      declaredRoutes: {
+        routes: [
+          branchRoute(),
+          priceContextsRoute('centro'),
+          productRoute('centro', { json: productPage(listingProducts), count: 1 }),
+        ],
+      },
+    })
+
+    test('contains media, aligns rows and shell gutters, and preserves truthful read-only cards', async ({
+      page,
+      strictNetwork,
+    }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto(`${RESPONSIVE_ORIGIN}/catalogo/centro`)
+      const grid = page.getByTestId('catalog-product-grid')
+      await expect(grid.locator('button')).toHaveCount(6)
+      const columns = width < 640 ? 1 : width < 768 ? 2 : width < 1280 ? 3 : 4
+      const geometry = await grid.evaluate((element) => {
+        const style = getComputedStyle(element)
+        const cards = Array.from(element.querySelectorAll('button'))
+        return {
+          columns: style.gridTemplateColumns.split(' ').length,
+          cards: cards.map((card) => ({
+            height: card.getBoundingClientRect().height,
+            y: card.getBoundingClientRect().y,
+            overflow: card.scrollWidth > card.clientWidth,
+          })),
+        }
+      })
+      expect(geometry.columns).toBe(columns)
+      expect(geometry.cards.every((card) => !card.overflow)).toBe(true)
+      expect(new Set(geometry.cards.slice(0, columns).map((card) => card.y)).size).toBe(1)
+      expect(new Set(geometry.cards.slice(0, columns).map((card) => card.height)).size).toBe(1)
+      const box = await measurableBox(grid, 'populated grid')
+      const gutter = width < 768 ? 16 : width < 1024 ? 24 : 32
+      expect(box.x).toBe((width - Math.min(width, 1360)) / 2 + gutter)
+      expect(box.width).toBe(Math.min(width, 1360) - gutter * 2)
+      const card = grid.locator('button').first()
+      await expect(card.getByText('Ver detalles', { exact: true })).toBeVisible()
+      await expect(card.locator('img')).toHaveCSS('object-fit', 'contain')
+      await expect(card.getByRole('heading')).toHaveCSS('font-size', '16px')
+      await expect(card.getByTestId('catalog-product-price')).toHaveCSS('font-size', '24px')
+      await expect(grid.getByText('Consultar precio', { exact: true })).toHaveCount(1)
+      await expect(grid.getByText('Pocas piezas', { exact: true })).toHaveCount(1)
+      await expect(grid.getByText('Agotado', { exact: true })).toHaveCount(1)
+      await expect(grid.getByText('1234 unidades', { exact: true })).toBeVisible()
+      await expect(grid.getByText(/Desde|presentaciones|Agregar al carrito/)).toHaveCount(0)
+      await expect(grid.locator('button button, button a, select, input')).toHaveCount(0)
+      await expect(page.locator('html')).toHaveJSProperty('scrollWidth', width)
+      await card.focus()
+      await expect(card).toBeFocused()
+      await expect(card).toHaveCSS('outline-style', 'solid')
+      await testInfo.attach(`catalog-listing-${width}`, {
+        body: await page.screenshot({ fullPage: true }),
+        contentType: 'image/png',
+      })
+      expectOnlyCatalogRequests(strictNetwork, [
+        '/public/catalog/branches',
+        '/public/catalog/centro/price-contexts',
+        '/public/catalog/centro/products',
+      ])
+    })
+  })
+}
+
 test.describe('public catalog browser history', () => {
   const centroProduct = { ...visibleProduct, id: 'centro-product', name: 'Producto Centro' }
   const norteProduct = { ...visibleProduct, id: 'norte-product', name: 'Producto Norte' }

@@ -150,6 +150,41 @@ body[data-catalog-theme='light'] .catalog-footer-inner {
   gap: 16px 32px;
 }
 
+/* Listing surfaces only: no dialog or backoffice selectors. */
+body[data-catalog-theme='light'] .catalog-product-card {
+  border-radius: 12px;
+  transition: border-color 150ms ease-out;
+}
+
+body[data-catalog-theme='light'] .catalog-product-card:hover {
+  border-color: var(--catalog-action);
+}
+
+body[data-catalog-theme='light'] .catalog-product-card:focus-visible {
+  outline: 2px solid var(--catalog-action);
+  outline-offset: 3px;
+}
+
+body[data-catalog-theme='light'] .catalog-product-media {
+  background: var(--catalog-surface);
+  border-bottom: 1px solid var(--catalog-border);
+}
+
+body[data-catalog-theme='light'] .catalog-product-action {
+  text-underline-offset: 3px;
+}
+
+body[data-catalog-theme='light'] .catalog-product-card:hover .catalog-product-action,
+body[data-catalog-theme='light'] .catalog-product-card:focus-visible .catalog-product-action {
+  text-decoration: underline;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-catalog-theme='light'] .catalog-product-card {
+    transition: none;
+  }
+}
+
 /* Compatibility with existing card/detail dark utilities until their own visual units.
    Keep their light surfaces readable under a dark host without touching html.dark. */
 body[data-catalog-theme='light'] .bg-coco-50 {

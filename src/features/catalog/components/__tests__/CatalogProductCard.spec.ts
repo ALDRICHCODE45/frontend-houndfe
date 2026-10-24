@@ -33,6 +33,25 @@ const mountCard = (overrides = {}) =>
   })
 
 describe('CatalogProductCard', () => {
+  it('contains published media and makes the read-only detail action visible without nested controls', () => {
+    const wrapper = mountCard({ hasVariants: true })
+
+    expect(wrapper.get('img').classes()).toContain('object-contain')
+    expect(wrapper.get('button').text()).toContain('Ver detalles')
+    expect(wrapper.findAll('button')).toHaveLength(1)
+    expect(wrapper.find('button button, button a, select, input').exists()).toBe(false)
+    expect(wrapper.text()).not.toMatch(/Desde|presentaciones|Agregar|Elegir presentación/)
+  })
+
+  it.each([
+    { fromPriceCents: null, priceCents: null, hidden: false },
+    { fromPriceCents: 2599, priceCents: 2599, hidden: true },
+  ])('keeps unavailable public prices neutral (%j)', (price) => {
+    const wrapper = mountCard({ price })
+    expect(wrapper.get('[data-testid="catalog-product-price"]').text()).toBe('Consultar precio')
+    expect(wrapper.text()).not.toContain('$')
+  })
+
   it('renders a real product image, meaningful alt text, MXN cents, and authoritative system status', () => {
     const wrapper = mountCard()
 

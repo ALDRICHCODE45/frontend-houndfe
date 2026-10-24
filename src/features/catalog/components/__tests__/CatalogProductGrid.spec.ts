@@ -46,12 +46,13 @@ describe('CatalogProductGrid', () => {
     expect(wrapper.emitted('open-detail')).toEqual([[product.id, card.element]])
   })
 
-  it('lays out one compact column, two tablet columns and four desktop columns', () => {
+  it('aligns with the shell container and adds tablet density before four wide desktop columns', () => {
     const wrapper = mountGrid()
 
+    expect(wrapper.classes()).toContain('catalog-container')
     const grid = wrapper.get('[data-testid="catalog-product-grid"]')
     expect(grid.classes()).toEqual(
-      expect.arrayContaining(['grid-cols-1', 'sm:grid-cols-2', 'lg:grid-cols-4']),
+      expect.arrayContaining(['grid-cols-1', 'sm:grid-cols-2', 'md:grid-cols-3', 'xl:grid-cols-4']),
     )
   })
 

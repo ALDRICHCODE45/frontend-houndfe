@@ -66,7 +66,7 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 lg:py-8">
+  <div class="catalog-container py-6 lg:py-8">
     <section
       v-if="selectionState === 'none'"
       class="flex flex-col items-center justify-center gap-3 py-16 text-center"
@@ -152,7 +152,7 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
       <p class="sr-only" role="status">Productos cargados</p>
       <div
         data-testid="catalog-product-grid"
-        class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5"
+        class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 xl:gap-6"
       >
         <CatalogProductCard
           v-for="product in products"
