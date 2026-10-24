@@ -178,7 +178,7 @@ function expectInsideViewport(
   )
 }
 
-const shellControls = ['button Explorar sucursales']
+const shellControls = ['button Explorar sucursales', 'link Explorar productos']
 const dialogControls = [
   'button Cerrar selección de sucursal',
   `button ${longNameBranch.name}`,
@@ -212,7 +212,7 @@ for (const viewport of viewports) {
       await expect(page.getByRole('button', { name: 'Cambiar tema' })).toHaveCount(0)
       await expect(page.locator('body')).toHaveAttribute('data-catalog-theme', 'light')
       await expect(page.locator('header')).toHaveCSS('background-color', 'rgb(255, 255, 255)')
-      const wordmarkLocator = page.locator('header .catalog-wordmark')
+      const wordmarkLocator = page.locator('header .catalog-logo')
       expect(
         await wordmarkLocator.evaluate((element) => element.scrollWidth <= element.clientWidth),
       ).toBe(true)
@@ -234,7 +234,7 @@ for (const viewport of viewports) {
         ['button', 'Ordenar catálogo'],
         ['button', 'Ver carrito'],
       ] as const)
-        await expect(page.getByRole(role, { name })).toBeDisabled()
+        await expect(page.getByRole(role, { name })).toHaveCount(0)
 
       await expect(page.locator('html')).toHaveJSProperty('scrollWidth', viewport.width)
       expect(
@@ -310,7 +310,7 @@ for (const viewport of viewports) {
       expect(strictNetwork.violations()).toEqual([])
     })
 
-    test('marks the routed branch as current inside the selector without a permanent hero', async ({
+    test('marks the routed branch as current with the original editorial hero', async ({
       page,
       strictNetwork,
     }, testInfo) => {
@@ -319,15 +319,15 @@ for (const viewport of viewports) {
 
       const trigger = branchTrigger(page)
       await expect(trigger).toContainText(longNameBranch.name)
-      const wordmark = await measurableBox(page.locator('header .catalog-wordmark'), 'wordmark')
+      const wordmark = await measurableBox(page.locator('header .catalog-logo'), 'logo')
       const triggerBox = await measurableBox(trigger, 'selected branch trigger')
       expect(
         triggerBox.y >= wordmark.y + wordmark.height || triggerBox.x >= wordmark.x + wordmark.width,
         'the selected branch trigger must not overlap the wordmark',
       ).toBe(true)
       const categories = await measurableBox(
-        page.getByRole('button', { name: 'Todas las categorías', exact: true }),
-        'categories',
+        page.getByRole('heading', { name: 'Nuestro catálogo', exact: true }),
+        'catalog title',
       )
       const total = await measurableBox(page.getByTestId('catalog-result-total'), 'total')
       expect(

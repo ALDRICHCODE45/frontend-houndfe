@@ -602,6 +602,7 @@ const invokerControlName = (productName: string): string => `Ver detalles de ${p
 
 const shellControls = (productNames: readonly string[]): ControlSnapshot[] => [
   ...SHELL_CONTROL_NAMES.map((name) => ({ role: 'button', name })),
+  { role: 'link', name: 'Explorar productos' },
   ...productNames.map((name) => ({ role: 'button', name: invokerControlName(name) })),
 ]
 
@@ -632,8 +633,8 @@ async function enabledPageControls(page: Page): Promise<ControlSnapshot[]> {
 
 /**
  * Proves the read-only storefront across the complete page: the only enabled controls are the inert
- * shell controls and the product detail invokers, while search, category filter, sort and cart stay
- * the known intentionally disabled shell. Any auth, commerce, search, filter, sort or speculative
+ * shell controls, the catalog anchor and the product detail invokers. Unsupported search, category
+ * filters, sort and cart are omitted. Any auth, commerce, search, filter, sort or speculative
  * action would break this exact inventory.
  */
 async function expectReadOnlyStorefront(
@@ -650,9 +651,13 @@ async function expectReadOnlyStorefront(
     ['button', 'Ordenar catálogo'],
     ['button', 'Ver carrito'],
   ] as const) {
-    await expect(page.getByRole(role, { name, exact: true })).toBeDisabled()
+    await expect(page.getByRole(role, { name, exact: true })).toHaveCount(0)
   }
-  await expect(page.getByRole('link')).toHaveCount(0)
+  await expect(page.getByRole('link')).toHaveCount(1)
+  await expect(page.getByRole('link', { name: 'Explorar productos' })).toHaveAttribute(
+    'href',
+    '#catalogo',
+  )
   await expect(page.getByRole('searchbox')).toHaveCount(0)
 }
 

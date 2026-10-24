@@ -56,9 +56,13 @@ function selectBranch(slug: string) {
 <template>
   <header class="catalog-header">
     <div class="catalog-header-inner catalog-container">
-      <span class="catalog-wordmark" aria-label="HoundFe, catálogo"
-        >HoundFe<span aria-hidden="true">.</span></span
-      >
+      <img
+        class="catalog-logo"
+        src="/hounfeLogos/primary.png"
+        alt="HoundFe"
+        width="96"
+        height="96"
+      />
 
       <UModal
         v-model:open="isChooserOpen"
@@ -183,36 +187,15 @@ function selectBranch(slug: string) {
       </UModal>
 
       <div data-testid="catalog-header-controls" class="catalog-header-controls">
-        <UInput
-          placeholder="Búsqueda no disponible"
-          icon="i-lucide-search"
-          size="lg"
-          class="catalog-search w-full min-w-0"
-          :ui="{ root: 'w-full' }"
-          disabled
-          aria-label="Buscar en el catálogo"
-        />
         <CatalogPriceContextSelector
           :options="props.priceContextOptions"
           :state="props.priceContextsState"
           :model-value="props.selectedPriceListId"
-          class="w-full min-w-0 sm:w-56"
+          class="w-full min-w-0"
           @select="emit('select-price-context', $event)"
           @retry="emit('retry-price-contexts')"
         />
       </div>
-
-      <UButton
-        color="neutral"
-        variant="outline"
-        size="sm"
-        class="catalog-cart catalog-unavailable min-h-11 min-w-11 shrink-0 rounded-lg"
-        disabled
-        aria-label="Ver carrito"
-        title="Carrito no disponible"
-      >
-        <span>Carrito<span class="catalog-unavailable-note">No disponible</span></span>
-      </UButton>
     </div>
   </header>
 </template>

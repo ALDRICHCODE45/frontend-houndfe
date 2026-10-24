@@ -268,6 +268,11 @@ describe('CatalogView public browse', () => {
     expect(branchDialogElement(wrapper)).toBeNull()
     expect(wrapper.find('button[aria-label="Sucursal Centro"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="catalog-price-context-selector"]').exists()).toBe(false)
+    expect(wrapper.get('.catalog-hero img').attributes('src')).toBe(
+      '/images/catalog-companions.png',
+    )
+    expect(wrapper.get('.catalog-hero a').attributes('href')).toBe('#catalogo')
+    expect(wrapper.get('#catalogo').attributes('tabindex')).toBe('-1')
 
     await openBranchSelector(wrapper)
     await branchDialog(wrapper).get('button[aria-label="Sucursal Centro"]').trigger('click')
@@ -283,21 +288,14 @@ describe('CatalogView public browse', () => {
       productsUrl('centro'),
     ])
     expect(findSelectMenu(wrapper).props('modelValue')).toBe('list-1')
-    expect(wrapper.get('main h2').text()).toBe('Café molido')
-    expect(
-      wrapper.get('input[aria-label="Buscar en el catálogo"]').attributes('disabled'),
-    ).toBeDefined()
-    expect(
-      wrapper.get('button[aria-label="Todas las categorías"]').attributes('disabled'),
-    ).toBeDefined()
-    expect(
-      wrapper.get('button[aria-label="Ordenar catálogo"]').attributes('disabled'),
-    ).toBeDefined()
-    expect(wrapper.get('button[aria-label="Ver carrito"]').attributes('disabled')).toBeDefined()
-    for (const label of ['Ver carrito', 'Ordenar catálogo', 'Todas las categorías']) {
-      const control = wrapper.get(`button[aria-label="${label}"]`)
-      expect(control.classes()).toContain('catalog-unavailable')
-      expect(control.text()).toContain('No disponible')
+    expect(wrapper.get('.catalog-product-card h2').text()).toBe('Café molido')
+    for (const label of [
+      'Buscar en el catálogo',
+      'Ver carrito',
+      'Ordenar catálogo',
+      'Todas las categorías',
+    ]) {
+      expect(wrapper.find(`[aria-label="${label}"]`).exists()).toBe(false)
     }
     expect(wrapper.findAll('[role="dialog"], a[href^="tel:"], a[href*="whatsapp"]').length).toBe(0)
   })
@@ -316,7 +314,7 @@ describe('CatalogView public browse', () => {
 
     await flushPromises()
     expect(branchTrigger(wrapper).text()).toContain('Sucursal Centro')
-    expect(wrapper.get('main h2').text()).toBe('Producto Centro')
+    expect(wrapper.get('.catalog-product-card h2').text()).toBe('Producto Centro')
 
     await openBranchSelector(wrapper)
     const dialog = branchDialog(wrapper)
@@ -334,21 +332,21 @@ describe('CatalogView public browse', () => {
     await router.push('/catalogo/norte')
     await flushPromises()
     expect(branchTrigger(wrapper).text()).toContain('Sucursal Norte')
-    expect(wrapper.get('main h2').text()).toBe('Producto Norte')
+    expect(wrapper.get('.catalog-product-card h2').text()).toBe('Producto Norte')
 
     const back = waitForNavigation(router)
     router.back()
     await back
     await flushPromises()
     expect(branchTrigger(wrapper).text()).toContain('Sucursal Centro')
-    expect(wrapper.get('main h2').text()).toBe('Producto Centro')
+    expect(wrapper.get('.catalog-product-card h2').text()).toBe('Producto Centro')
 
     const forward = waitForNavigation(router)
     router.forward()
     await forward
     await flushPromises()
     expect(branchTrigger(wrapper).text()).toContain('Sucursal Norte')
-    expect(wrapper.get('main h2').text()).toBe('Producto Norte')
+    expect(wrapper.get('.catalog-product-card h2').text()).toBe('Producto Norte')
   })
 
   it.each([
@@ -360,7 +358,7 @@ describe('CatalogView public browse', () => {
     const { wrapper } = await mountAt(path)
 
     await flushPromises()
-    expect(wrapper.get('h1').text()).toBe(expectedHeading)
+    expect(wrapper.get('#catalogo h1').text()).toBe(expectedHeading)
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:3000/public/catalog/branches')
   })
@@ -443,7 +441,7 @@ describe('CatalogView public browse', () => {
     expect(wrapper.find('button[aria-label="Reintentar productos"]').exists()).toBe(false)
     resolveRetry(jsonResponse(productsResponse()))
     await flushPromises()
-    expect(wrapper.get('main h2').text()).toBe('Café molido')
+    expect(wrapper.get('.catalog-product-card h2').text()).toBe('Café molido')
     expect(fetchMock).toHaveBeenCalledTimes(4)
   })
 
@@ -720,7 +718,7 @@ describe('CatalogView public browse', () => {
       await retry.trigger('click')
       await flushPromises()
 
-      expect(wrapper.get('main h2').text()).toBe('Café molido')
+      expect(wrapper.get('.catalog-product-card h2').text()).toBe('Café molido')
       expect(fetchMock).toHaveBeenCalledTimes(4)
     },
   )
@@ -779,7 +777,7 @@ describe('CatalogView public browse', () => {
     expect(productRequestUrls(fetchMock).some((url) => url.includes('priceListId'))).toBe(false)
   })
 
-  it('keeps the header controls 320px-safe with a full-width wrapped search and selector row', async () => {
+  it('keeps real controls compact without unsupported header clutter', async () => {
     const fetchMock = createCatalogFetch()
     vi.stubGlobal('fetch', fetchMock)
     const { wrapper } = await mountAt('/catalogo/centro')
@@ -792,12 +790,10 @@ describe('CatalogView public browse', () => {
 
     expect(wrapper.find('button[aria-label="Explorar sucursales"]').exists()).toBe(true)
     expect(wrapper.find('button[aria-label="Cambiar tema"]').exists()).toBe(false)
-    expect(wrapper.get('[aria-label="HoundFe, catálogo"]').text()).toBe('HoundFe.')
-    expect(wrapper.get('main h1').text()).toBe('Nuestro catálogo')
-    expect(wrapper.find('button[aria-label="Ver carrito"]').attributes('disabled')).toBeDefined()
-    expect(
-      wrapper.find('input[aria-label="Buscar en el catálogo"]').attributes('disabled'),
-    ).toBeDefined()
+    expect(wrapper.get('header img').attributes('src')).toBe('/hounfeLogos/primary.png')
+    expect(wrapper.get('main h1').text()).toBe('Todo para quienes te acompañan.')
+    expect(wrapper.find('button[aria-label="Ver carrito"]').exists()).toBe(false)
+    expect(wrapper.find('input[aria-label="Buscar en el catálogo"]').exists()).toBe(false)
   })
 
   it('renders the branch selector dialog with a real address, a neutral address fallback and the current branch state', async () => {
@@ -860,16 +856,8 @@ describe('CatalogView public browse', () => {
     await flushPromises()
     const bar = wrapper.get('[data-testid="catalog-category-bar"]')
     expect(bar.get('[data-testid="catalog-result-total"]').text()).toContain('4 productos')
-    expect(
-      bar.get('button[aria-label="Todas las categorías"]').attributes('disabled'),
-    ).toBeDefined()
-    expect(bar.get('button[aria-label="Ordenar catálogo"]').attributes('disabled')).toBeDefined()
-    for (const category of categories) {
-      const chip = bar.get(`button[aria-label="${category.name}"]`)
-      expect(chip.attributes('disabled')).toBeDefined()
-      expect(chip.text()).toContain(category.name)
-      expect(chip.text()).toContain(String(category.count))
-    }
+    expect(bar.findAll('button, select')).toHaveLength(0)
+    expect(bar.text()).toContain('Nuestro catálogo')
   })
 
   it('groups real informational categories in a labelled compact navigation band', async () => {
@@ -888,24 +876,14 @@ describe('CatalogView public browse', () => {
     await flushPromises()
     const bar = wrapper.get('[data-testid="catalog-category-bar"]')
 
-    expect(bar.element.tagName).toBe('NAV')
-    expect(bar.attributes('aria-label')).toBe('Categorías del catálogo')
+    expect(bar.element.tagName).toBe('DIV')
+    expect(bar.findAll('button')).toHaveLength(0)
 
     // Exactly one contained toolbar renders inside that band.
     expect(bar.element.children).toHaveLength(1)
     const toolbar = bar.get('[data-testid="catalog-category-toolbar"]')
     expect(bar.element.firstElementChild).toBe(toolbar.element)
-    expect(toolbar.classes()).toContain('catalog-container')
-
-    // Every informational control belongs to that one surface, never to the page band.
-    const chips = [
-      toolbar.get('button[aria-label="Todas las categorías"]'),
-      toolbar.get(`button[aria-label="${categories[0]?.name}"]`),
-      toolbar.get('button[aria-label="Ordenar catálogo"]'),
-    ]
-    for (const chip of chips) {
-      expect(chip.attributes('disabled')).toBeDefined()
-    }
+    expect(toolbar.classes()).toContain('catalog-category-toolbar')
     expect(toolbar.get('[data-testid="catalog-result-total"]').text()).toContain('4 productos')
   })
 

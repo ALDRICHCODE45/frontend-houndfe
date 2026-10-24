@@ -2,6 +2,7 @@
 import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CatalogHeader from '../components/CatalogHeader.vue'
+import CatalogHero from '../components/CatalogHero.vue'
 import CatalogCategoryBar from '../components/CatalogCategoryBar.vue'
 import CatalogFooter from '../components/CatalogFooter.vue'
 import CatalogProductDetailModal from '../components/CatalogProductDetailModal.vue'
@@ -258,27 +259,32 @@ async function selectPriceContext(priceListIdToSelect: string) {
       @select-price-context="selectPriceContext"
       @retry-price-contexts="retryPriceContexts"
     />
-    <CatalogCategoryBar
-      :categories="response?.facets.categories ?? []"
-      :total="response?.meta.total ?? null"
-    />
-
-    <main class="flex-1">
-      <div v-if="productsState === 'populated'" class="catalog-intro catalog-container">
-        <h1>Nuestro catálogo</h1>
-        <p>Precios y existencias por sucursal.</p>
-      </div>
-      <CatalogProductGrid
-        :selection-state="selectionState"
-        :branches-state="branchesState"
-        :products="products"
-        :state="productsState"
-        :context-state="contextState"
-        @retry="retryProducts"
-        @retry-branches="retryBranches"
-        @retry-context="retryPriceContexts"
-        @open-detail="openDetail"
-      />
+    <main class="catalog-main flex-1">
+      <div class="catalog-container"><CatalogHero /></div>
+      <section
+        id="catalogo"
+        tabindex="-1"
+        aria-label="Catálogo de productos"
+        class="catalog-listing"
+      >
+        <div class="catalog-container">
+          <CatalogCategoryBar
+            :categories="response?.facets.categories ?? []"
+            :total="response?.meta.total ?? null"
+          />
+        </div>
+        <CatalogProductGrid
+          :selection-state="selectionState"
+          :branches-state="branchesState"
+          :products="products"
+          :state="productsState"
+          :context-state="contextState"
+          @retry="retryProducts"
+          @retry-branches="retryBranches"
+          @retry-context="retryPriceContexts"
+          @open-detail="openDetail"
+        />
+      </section>
     </main>
 
     <CatalogFooter />
