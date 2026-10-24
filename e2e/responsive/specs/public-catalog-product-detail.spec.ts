@@ -910,7 +910,7 @@ for (const viewport of viewports) {
       // assistive technology, it lives inside the labelled media button, and no button is named after it.
       const mainZoomAffordance = dialog.getByTestId('catalog-detail-image-zoom-affordance')
       await expect(mainZoomAffordance).toBeVisible()
-      expect(((await mainZoomAffordance.textContent()) ?? '').trim()).toBe('Ampliar')
+      expect(((await mainZoomAffordance.textContent()) ?? '').trim()).toBe('Ampliar imagen')
       expect(await mainZoomAffordance.getAttribute('aria-hidden')).toBe('true')
       expect(
         await affordanceOwnerLabel(mainZoomAffordance),

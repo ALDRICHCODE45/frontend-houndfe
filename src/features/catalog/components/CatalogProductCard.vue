@@ -83,11 +83,11 @@ function openDetail(event: MouseEvent) {
     >
       <div
         data-testid="catalog-product-media"
-        class="catalog-product-media relative aspect-square w-full shrink-0 overflow-hidden"
+        class="catalog-product-media relative w-full shrink-0 overflow-hidden"
       >
         <img
           v-if="showImage && productImageUrl"
-          class="size-full object-contain p-6"
+          class="catalog-product-image object-contain"
           :src="productImageUrl"
           :alt="`Imagen de ${product.name}`"
           @error="markImageFailed"
@@ -116,7 +116,7 @@ function openDetail(event: MouseEvent) {
         <span
           v-if="availability"
           data-testid="catalog-product-availability"
-          class="absolute top-3 left-3 inline-flex max-w-[calc(100%-24px)] items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 ring-1 ring-black/5"
+          class="catalog-product-availability inline-flex max-w-full items-center gap-1.5"
         >
           <span class="size-1.5 rounded-full" :class="availability.dot" />
           <span class="text-xs font-semibold" :class="availability.text">
@@ -125,38 +125,41 @@ function openDetail(event: MouseEvent) {
         </span>
       </div>
 
-      <div data-testid="catalog-product-body" class="flex w-full min-w-0 flex-1 flex-col gap-2 p-4">
+      <div
+        data-testid="catalog-product-body"
+        class="catalog-product-body flex w-full min-w-0 flex-1 flex-col"
+      >
         <p
           v-if="product.brand"
           data-testid="catalog-product-brand"
-          class="break-words text-sm font-medium text-muted"
+          class="catalog-product-brand break-words font-medium text-muted"
         >
           {{ product.brand.name }}
         </p>
-        <h2 class="break-words text-base leading-snug font-semibold text-highlighted">
+        <h2 class="catalog-product-name break-words font-semibold text-highlighted">
           {{ product.name }}
         </h2>
         <p
           v-if="product.category"
           data-testid="catalog-product-category"
-          class="break-words text-sm text-muted"
+          class="catalog-product-category break-words text-sm text-muted"
         >
           {{ product.category.name }}
         </p>
 
-        <div class="flex-1" />
-
-        <p v-if="product.hasVariants && formattedPrice" class="mt-3 text-xs font-medium text-muted">
+        <p
+          v-if="product.hasVariants && formattedPrice"
+          class="catalog-product-price-note text-muted"
+        >
           Precio de referencia
         </p>
         <div
-          class="flex min-w-0 flex-wrap items-end justify-between gap-x-3 gap-y-1"
-          :class="product.hasVariants && formattedPrice ? '' : 'mt-3'"
+          class="catalog-product-price-row flex min-w-0 flex-wrap items-end justify-between gap-x-3 gap-y-1"
         >
           <p
             v-if="formattedPrice"
             data-testid="catalog-product-price"
-            class="min-w-0 break-words text-2xl font-bold tracking-tight text-highlighted tabular-nums"
+            class="catalog-product-price min-w-0 break-words font-bold tracking-tight text-highlighted tabular-nums"
           >
             {{ formattedPrice }}
           </p>
@@ -175,11 +178,15 @@ function openDetail(event: MouseEvent) {
             {{ presentationQuantity }}
           </span>
         </div>
-        <p v-if="product.hasVariants && formattedPrice" class="text-xs leading-relaxed text-muted">
+        <p
+          v-if="product.hasVariants && formattedPrice"
+          class="catalog-product-price-note text-muted"
+        >
           Consulta los precios por presentación en el detalle.
         </p>
-        <span class="catalog-product-action mt-2 text-sm font-semibold text-primary">
+        <span class="catalog-product-action">
           Ver detalles
+          <UIcon name="i-lucide-chevron-right" class="size-4 shrink-0" aria-hidden="true" />
         </span>
       </div>
     </button>

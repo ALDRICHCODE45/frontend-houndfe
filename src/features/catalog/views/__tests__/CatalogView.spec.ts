@@ -358,7 +358,7 @@ describe('CatalogView public browse', () => {
     const { wrapper } = await mountAt(path)
 
     await flushPromises()
-    expect(wrapper.get('#catalogo h1').text()).toBe(expectedHeading)
+    expect(wrapper.get('#catalogo .catalog-container > section h2').text()).toBe(expectedHeading)
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:3000/public/catalog/branches')
   })

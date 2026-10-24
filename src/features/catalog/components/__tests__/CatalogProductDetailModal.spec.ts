@@ -266,7 +266,9 @@ describe('CatalogProductDetailModal', () => {
     expect(document.body.querySelector('button[aria-label="Cerrar diálogo"]')).toBeNull()
 
     const content = getRendered('[data-slot="content"]')
-    expect(content.classes()).toContain('max-w-4xl')
+    expect(content.classes()).toContain('max-w-6xl')
+    expect(content.classes()).toContain('z-50')
+    expect(getRendered('[data-slot="overlay"]').classes()).toContain('z-40')
     expect(content.classes()).not.toContain('max-w-lg')
     expect(content.classes()).toContain('rounded-2xl')
     expect(content.classes()).toContain('overflow-hidden')
@@ -900,7 +902,7 @@ describe('CatalogProductDetailModal', () => {
     expect(mainBadge.attributes('role')).toBeUndefined()
     expect(mainBadge.attributes('aria-label')).toBeUndefined()
     expect(mainBadge.attributes('type')).toBeUndefined()
-    expect(mainBadge.text()).toBe('Ampliar')
+    expect(mainBadge.text()).toBe('Ampliar imagen')
     expect(mainTrigger.element.contains(mainBadge.element)).toBe(true)
     expect(mainTrigger.attributes('aria-label')).toBe(`Ampliar imagen de ${detail.name}`)
 

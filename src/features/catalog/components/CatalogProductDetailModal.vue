@@ -407,8 +407,8 @@ onBeforeUnmount(() => {
     description="Información del producto seleccionado"
     :close="false"
     :ui="{
-      overlay: 'bg-coco-950/45 backdrop-blur-sm',
-      content: 'catalog-detail-dialog max-w-4xl rounded-2xl shadow-xl',
+      overlay: 'z-40 bg-coco-950/45 backdrop-blur-sm',
+      content: 'catalog-detail-dialog z-50 max-w-6xl rounded-2xl shadow-xl',
       header: 'sr-only',
       body: 'p-0 sm:p-0 overscroll-contain',
     }"
@@ -416,7 +416,7 @@ onBeforeUnmount(() => {
   >
     <template #body>
       <button
-        class="absolute end-4 top-4 z-10 inline-flex size-11 items-center justify-center rounded-full bg-white text-highlighted shadow-sm ring-1 ring-black/5 transition-[background-color,color,transform] duration-150 ease-out hover:bg-coco-50 focus-visible:ring-2 focus-visible:ring-coco-500 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100 dark:bg-coco-neutral-900 dark:ring-white/10 dark:hover:bg-coco-neutral-800"
+        class="catalog-detail-close absolute end-4 top-4 z-10 inline-flex size-11 items-center justify-center rounded-full bg-white text-highlighted shadow-sm ring-1 ring-black/5 transition-[background-color,color,transform] duration-150 ease-out hover:bg-coco-50 focus-visible:ring-2 focus-visible:ring-coco-500 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100 dark:bg-coco-neutral-900 dark:ring-white/10 dark:hover:bg-coco-neutral-800"
         type="button"
         aria-label="Cerrar detalle del producto"
         @click="close"
@@ -526,7 +526,7 @@ onBeforeUnmount(() => {
                 class="pointer-events-none absolute bottom-3 end-3 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-coco-700 shadow-sm ring-1 ring-black/5 dark:bg-coco-950/85 dark:text-coco-100 dark:ring-white/10"
               >
                 <UIcon name="i-lucide-zoom-in" class="size-3.5" />
-                Ampliar
+                Ampliar imagen
               </span>
             </button>
             <div
@@ -853,7 +853,7 @@ onBeforeUnmount(() => {
 
         <button
           data-testid="catalog-detail-image-preview-close"
-          class="absolute end-4 top-4 inline-flex size-11 items-center justify-center rounded-full bg-white text-highlighted shadow-sm ring-1 ring-black/5 transition-[background-color,transform] duration-200 ease-out hover:bg-coco-50 focus-visible:ring-2 focus-visible:ring-coco-500 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100 dark:bg-coco-neutral-900 dark:ring-white/10 dark:hover:bg-coco-neutral-800"
+          class="catalog-detail-close absolute end-4 top-4 inline-flex size-11 items-center justify-center rounded-full bg-white text-highlighted shadow-sm ring-1 ring-black/5 transition-[background-color,transform] duration-200 ease-out hover:bg-coco-50 focus-visible:ring-2 focus-visible:ring-coco-500 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100 dark:bg-coco-neutral-900 dark:ring-white/10 dark:hover:bg-coco-neutral-800"
           type="button"
           aria-label="Cerrar vista de imagen"
           @click="closePreview"

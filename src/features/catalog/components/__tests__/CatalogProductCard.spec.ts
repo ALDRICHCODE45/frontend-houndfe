@@ -54,6 +54,16 @@ describe('CatalogProductCard', () => {
     )
   })
 
+  it('preserves a zero reference amount ahead of a nonzero product price', () => {
+    const wrapper = mountCard({
+      hasVariants: true,
+      price: { fromPriceCents: 0, priceCents: 12900, hidden: false },
+    })
+    expect(wrapper.get('[data-testid="catalog-product-price"]').text()).toBe(formatCentsMXN(0))
+    expect(wrapper.text()).toContain('Precio de referencia')
+    expect(wrapper.text()).not.toMatch(/Desde|Consultar precio/)
+  })
+
   it('retains product-price fallback when the reference amount is null', () => {
     const wrapper = mountCard({
       hasVariants: true,

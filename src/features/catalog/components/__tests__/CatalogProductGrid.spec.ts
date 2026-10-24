@@ -75,14 +75,29 @@ describe('CatalogProductGrid', () => {
     expect(wrapper.emitted('open-detail')).toEqual([[product.id, card.element]])
   })
 
-  it('aligns with the shell container and adds tablet density before four wide desktop columns', () => {
+  it('keeps two compact mobile columns, then adds tablet and desktop density without a sidebar', () => {
     const wrapper = mountGrid()
 
     expect(wrapper.classes()).toContain('catalog-container')
     const grid = wrapper.get('[data-testid="catalog-product-grid"]')
     expect(grid.classes()).toEqual(
-      expect.arrayContaining(['grid-cols-1', 'sm:grid-cols-2', 'md:grid-cols-3', 'xl:grid-cols-4']),
+      expect.arrayContaining(['grid-cols-2', 'md:grid-cols-3', 'lg:grid-cols-4', 'xl:grid-cols-5']),
     )
+  })
+
+  it.each([
+    { branchesState: 'empty' as const },
+    { selectionState: 'none' as const },
+    { selectionState: 'invalid' as const },
+    { contextState: 'context-empty' as const },
+    { state: 'loading' as const },
+    { state: 'empty' as const },
+    { state: 'unavailable' as const },
+    { state: 'network' as const },
+  ])('keeps state headings below the shell hero h1 (%j)', (props) => {
+    const wrapper = mountGrid(props)
+    expect(wrapper.find('h1').exists()).toBe(false)
+    expect(wrapper.findAll('h2')).toHaveLength(1)
   })
 
   it.each([

@@ -223,7 +223,7 @@ test.describe('public catalog empty products', () => {
     await page.goto(`${RESPONSIVE_ORIGIN}/catalogo/centro`)
 
     await expect(
-      page.getByRole('heading', { name: 'No hay productos disponibles en este momento' }),
+      page.getByRole('heading', { level: 2, name: 'No hay productos disponibles en este momento' }),
     ).toBeVisible()
     expectOnlyCatalogRequests(strictNetwork, [
       '/public/catalog/branches',
@@ -664,7 +664,7 @@ for (const width of [320, 390, 768, 1024, 1440]) {
       await page.goto(`${RESPONSIVE_ORIGIN}/catalogo/centro`)
       const grid = page.getByTestId('catalog-product-grid')
       await expect(grid.locator('button')).toHaveCount(6)
-      const columns = width < 640 ? 1 : width < 768 ? 2 : width < 1280 ? 3 : 4
+      const columns = width < 768 ? 2 : width < 1024 ? 3 : width < 1280 ? 4 : 5
       const geometry = await grid.evaluate((element) => {
         const style = getComputedStyle(element)
         const cards = Array.from(element.querySelectorAll('button'))
@@ -682,14 +682,15 @@ for (const width of [320, 390, 768, 1024, 1440]) {
       expect(new Set(geometry.cards.slice(0, columns).map((card) => card.y)).size).toBe(1)
       expect(new Set(geometry.cards.slice(0, columns).map((card) => card.height)).size).toBe(1)
       const box = await measurableBox(grid, 'populated grid')
-      const gutter = width < 768 ? 16 : width < 1024 ? 24 : 32
-      expect(box.x).toBe((width - Math.min(width, 1360)) / 2 + gutter)
-      expect(box.width).toBe(Math.min(width, 1360) - gutter * 2)
+      const gutter = width <= 600 ? 16 : width <= 900 ? 24 : 32
+      expect(box.x).toBe((width - Math.min(width, 1424)) / 2 + gutter)
+      expect(box.width).toBe(Math.min(width, 1424) - gutter * 2)
       const card = grid.locator('button').first()
       await expect(card.getByText('Ver detalles', { exact: true })).toBeVisible()
       await expect(card.locator('img')).toHaveCSS('object-fit', 'contain')
-      await expect(card.getByRole('heading')).toHaveCSS('font-size', '16px')
-      await expect(card.getByTestId('catalog-product-price')).toHaveCSS('font-size', '24px')
+      await expect(card.getByRole('heading')).toHaveCSS('font-size', width <= 600 ? '14px' : '16px')
+      await expect(card.getByTestId('catalog-product-price')).toHaveCSS('font-size', '20px')
+      await expect(card.locator('img')).toHaveCSS('height', width <= 600 ? '130px' : '170px')
       await expect(grid.getByText('Consultar precio', { exact: true })).toHaveCount(1)
       await expect(grid.getByText('Pocas piezas', { exact: true })).toHaveCount(1)
       await expect(grid.getByText('Agotado', { exact: true })).toHaveCount(1)

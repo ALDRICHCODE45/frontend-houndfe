@@ -96,7 +96,7 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
       aria-live="polite"
       :aria-busy="branchesPending"
     >
-      <h1 class="text-lg font-semibold text-highlighted">{{ branchesCopy }}</h1>
+      <h2 class="text-lg font-semibold text-highlighted">{{ branchesCopy }}</h2>
       <p v-if="branchesState === 'empty'" class="max-w-sm text-sm text-muted">
         El catálogo no está disponible en este momento. Vuelve a consultar más tarde.
       </p>
@@ -121,9 +121,9 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
       >
         <UIcon name="i-lucide-store" class="size-7 text-primary" />
       </div>
-      <h1 class="text-lg font-semibold text-highlighted">
+      <h2 class="text-lg font-semibold text-highlighted">
         Elige una sucursal para explorar el catálogo
-      </h1>
+      </h2>
       <p class="max-w-sm text-sm text-muted">
         Selecciona una sucursal publicada para ver sus productos.
       </p>
@@ -139,7 +139,7 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
       >
         <UIcon name="i-lucide-map-pin-off" class="size-7 text-primary" />
       </div>
-      <h1 class="text-lg font-semibold text-highlighted">Esta sucursal no está disponible</h1>
+      <h2 class="text-lg font-semibold text-highlighted">Esta sucursal no está disponible</h2>
       <p class="max-w-sm text-sm text-muted">
         Elige una de las sucursales publicadas para explorar el catálogo.
       </p>
@@ -165,9 +165,9 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
         class="size-8 text-primary"
         :class="contextState === 'context-loading' ? 'animate-spin' : ''"
       />
-      <h1 class="text-lg font-semibold text-highlighted">
+      <h2 class="text-lg font-semibold text-highlighted">
         {{ contextState === 'context-loading' ? 'Cargando listas de precios…' : contextCopy }}
-      </h1>
+      </h2>
       <button
         v-if="contextRetryable"
         class="text-sm font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
@@ -187,16 +187,16 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
       :aria-busy="true"
     >
       <UIcon name="i-lucide-loader-circle" class="size-8 animate-spin text-primary" />
-      <h1 class="text-lg font-semibold text-highlighted">
+      <h2 class="text-lg font-semibold text-highlighted">
         {{ state === 'retry-pending' ? 'Reintentando productos…' : 'Cargando productos…' }}
-      </h1>
+      </h2>
     </section>
 
     <section v-else-if="state === 'populated'" aria-live="polite">
       <p class="sr-only" role="status">Productos cargados</p>
       <div
         data-testid="catalog-product-grid"
-        class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 xl:gap-6"
+        class="grid grid-cols-2 gap-2.5 md:grid-cols-3 md:gap-4 lg:grid-cols-4 xl:grid-cols-5"
       >
         <CatalogProductCard
           v-for="product in products"
@@ -214,9 +214,9 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
       aria-live="polite"
     >
       <UIcon name="i-lucide-package-open" class="size-8 text-primary" />
-      <h1 class="text-lg font-semibold text-highlighted">
+      <h2 class="text-lg font-semibold text-highlighted">
         No hay productos disponibles en este momento
-      </h1>
+      </h2>
       <button
         class="text-sm font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         type="button"
@@ -234,9 +234,9 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
       aria-live="polite"
     >
       <UIcon name="i-lucide-circle-alert" class="size-8 text-primary" />
-      <h1 class="text-lg font-semibold text-highlighted">
+      <h2 class="text-lg font-semibold text-highlighted">
         La lista de precios seleccionada no está disponible
-      </h1>
+      </h2>
       <p class="max-w-sm text-sm text-muted">Elige otra lista de precios para ver el catálogo.</p>
     </section>
 
@@ -247,7 +247,7 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
       aria-live="polite"
     >
       <UIcon name="i-lucide-circle-alert" class="size-8 text-primary" />
-      <h1 class="text-lg font-semibold text-highlighted">
+      <h2 class="text-lg font-semibold text-highlighted">
         {{
           state === 'rate-limit'
             ? 'Demasiadas solicitudes. Intenta de nuevo más tarde.'
@@ -255,7 +255,7 @@ function relayOpenDetail(productId: string, invoker: HTMLButtonElement) {
               ? 'No se pudo conectar. Revisa tu conexión.'
               : 'No pudimos cargar los productos.'
         }}
-      </h1>
+      </h2>
       <button
         class="text-sm font-medium text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         type="button"
