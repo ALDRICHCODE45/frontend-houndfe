@@ -283,7 +283,7 @@ describe('CatalogProductDetailModal', () => {
     expect(body.classes()).toContain('overflow-y-auto')
   })
 
-  it('composes the desktop split from a cobalt media region and a details region that collapse to one column', async () => {
+  it('composes identity, media and read-only details in mobile reading order', async () => {
     mountModal()
     await nextTick()
 
@@ -291,18 +291,21 @@ describe('CatalogProductDetailModal', () => {
     expect(split.classes()).toContain('grid')
     expect(split.classes()).toContain('grid-cols-1')
     expect(split.classes().some((className) => className.startsWith('md:grid-cols-'))).toBe(true)
-    expect(split.element.children).toHaveLength(2)
+    expect(split.element.children).toHaveLength(3)
 
     const media = getRendered('[data-testid="catalog-detail-media-panel"]')
     const details = getRendered('[data-testid="catalog-detail-details-panel"]')
-    expect(media.classes()).toContain('bg-coco-50')
+    expect(media.classes()).toContain('catalog-detail-media')
     expect(media.classes()).toContain('min-w-0')
     expect(details.classes()).toContain('min-w-0')
     expect(details.classes()).toContain('p-6')
     expect(media.element.parentElement).toBe(split.element)
     expect(details.element.parentElement).toBe(split.element)
-    expect(split.element.children[0]).toBe(media.element)
-    expect(split.element.children[1]).toBe(details.element)
+    expect(split.element.children[0]).toBe(
+      getRendered('[data-testid="catalog-detail-identity"]').element,
+    )
+    expect(split.element.children[1]).toBe(media.element)
+    expect(split.element.children[2]).toBe(details.element)
 
     // The only controls in a populated read-only detail are the 44px close target and media previews.
     expect(getAllRendered('button').map((button) => button.attributes('aria-label'))).toEqual([
@@ -312,6 +315,29 @@ describe('CatalogProductDetailModal', () => {
     const close = getNthRendered('button', 0)
     expect(close.attributes('type')).toBe('button')
     expect(close.classes()).toContain('size-11')
+  })
+
+  it('places product identity before media and separates general information from each variant’s own data', async () => {
+    mountModal()
+    await nextTick()
+
+    const split = getRendered('[data-testid="catalog-detail-split"]')
+    const identity = getRendered('[data-testid="catalog-detail-identity"]')
+    expect(split.element.firstElementChild).toBe(identity.element)
+    expect(identity.text()).toContain(detail.name)
+    expect(identity.text()).toContain('Tostadores')
+    expect(identity.text()).toContain('Café')
+    const general = getRendered('section[aria-labelledby="catalog-detail-general"]')
+    expect(general.text()).toContain(detail.description)
+    expect(general.text()).not.toContain('Tamaño: 500 g')
+    const variant = getRendered('[data-testid="catalog-detail-variant"]')
+    expect(variant.text()).toContain('Tamaño: 500 g')
+    expect(variant.text()).not.toContain(detail.description)
+    expect(getRendered('[data-testid="catalog-detail-price-context"]').text()).toBe(
+      'Lista de precios: Lista pública',
+    )
+    expect(renderedText()).toContain('Información de cada variante; no es una selección de compra.')
+    expect(renderedText()).not.toMatch(/especificaciones técnicas|medidas|material|caudal/i)
   })
 
   it('renders the populated detail with main image, plain-text description, price, category, availability, and read-only variants', async () => {
@@ -450,6 +476,34 @@ describe('CatalogProductDetailModal', () => {
     }
   })
 
+  it('never copies a sibling variant’s option, value, price or stock into another row', async () => {
+    mountModal({
+      detail: {
+        ...detail,
+        variants: [
+          { ...detail.variants[0], name: 'Chica', value: '250 g' },
+          {
+            ...detail.variants[0],
+            id: 'large',
+            name: 'Grande',
+            value: '1 kg',
+            price: { priceCents: null, hidden: true },
+            availabilityByBranch: [],
+            stockPresentation: { mode: 'HIDDEN', status: null, customQuantity: null },
+          },
+        ],
+      },
+    })
+    await nextTick()
+    const [small, large] = getAllRendered('[data-testid="catalog-detail-variant"]')
+    expect(small?.text()).toContain('Tamaño: 250 g')
+    expect(small?.text()).not.toContain('1 kg')
+    expect(large?.text()).toContain('Tamaño: 1 kg')
+    expect(large?.text()).toContain('Consultar precio')
+    expect(large?.text()).not.toMatch(/250 g|unidades|Pocas piezas|\$/)
+    expect(large?.findAll('button, input, select')).toHaveLength(0)
+  })
+
   it('renders the brand badge only when the response carries a real brand', async () => {
     mountModal({ detail: { ...detail, brand: null } })
     await nextTick()
@@ -467,16 +521,12 @@ describe('CatalogProductDetailModal', () => {
     expect(brand.text()).toBe(longBrand)
     expect(brand.classes()).not.toContain('truncate')
     expect(brand.classes()).toContain('break-words')
-    expect(brand.classes()).toContain('self-start')
-    // 44px close control + its 16px inset = the reserved 3.75rem gutter.
-    expect(brand.classes()).toContain('max-w-[calc(100%_-_3.75rem)]')
-    expect(brand.classes()).toContain('md:self-center')
-    expect(brand.classes()).toContain('md:max-w-full')
-
-    // The badge shares the top edge of the panel with the absolute close control.
-    const media = getRendered('[data-testid="catalog-detail-media-panel"]')
-    expect(brand.element.parentElement).toBe(media.element)
-    expect(media.element.children[0]).toBe(brand.element)
+    // Identity owns the close gutter; metadata wraps there instead of overlaying media.
+    const identity = getRendered('[data-testid="catalog-detail-identity"]')
+    expect(identity.element.contains(brand.element)).toBe(true)
+    expect(
+      getRendered('[data-testid="catalog-detail-media-panel"]').element.contains(brand.element),
+    ).toBe(false)
     expect(getRendered('[data-testid="catalog-detail-image-frame"]').classes()).toContain(
       'aspect-square',
     )

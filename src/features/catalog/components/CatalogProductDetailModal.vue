@@ -408,7 +408,7 @@ onBeforeUnmount(() => {
     :close="false"
     :ui="{
       overlay: 'bg-coco-950/45 backdrop-blur-sm',
-      content: 'max-w-4xl rounded-2xl shadow-xl',
+      content: 'catalog-detail-dialog max-w-4xl rounded-2xl shadow-xl',
       header: 'sr-only',
       body: 'p-0 sm:p-0 overscroll-contain',
     }"
@@ -467,27 +467,35 @@ onBeforeUnmount(() => {
       <div
         v-else-if="detail"
         data-testid="catalog-detail-split"
-        class="grid min-w-0 grid-cols-1 md:grid-cols-[minmax(0,46fr)_minmax(0,54fr)]"
+        class="catalog-detail-composition grid min-w-0 grid-cols-1 md:grid-cols-[minmax(0,46fr)_minmax(0,54fr)]"
       >
+        <header data-testid="catalog-detail-identity" class="catalog-detail-identity min-w-0">
+          <div class="flex min-w-0 flex-wrap gap-x-3 gap-y-1 text-sm text-muted">
+            <p v-if="detail.brand" data-testid="catalog-detail-brand" class="min-w-0 break-words">
+              {{ detail.brand.name }}
+            </p>
+            <p
+              v-if="detail.category"
+              data-testid="catalog-detail-category"
+              class="min-w-0 break-words"
+            >
+              {{ detail.category.name }}
+            </p>
+          </div>
+          <h2
+            data-testid="catalog-detail-name"
+            class="mt-2 text-balance break-words text-2xl leading-tight font-bold tracking-tight text-highlighted sm:text-3xl"
+          >
+            {{ detail.name }}
+          </h2>
+        </header>
         <div
           data-testid="catalog-detail-media-panel"
-          class="flex min-w-0 flex-col items-center justify-center gap-4 bg-coco-50 px-6 py-8 dark:bg-coco-950/40"
+          class="catalog-detail-media flex min-w-0 flex-col items-center justify-center gap-4"
         >
-          <!--
-            Below md the absolute close control overlays the panel's top-right corner, so the badge
-            starts at the safe cross-start edge and caps its width by that 44px control plus its 16px
-            inset. The real brand always wraps instead of being truncated.
-          -->
-          <p
-            v-if="detail.brand"
-            data-testid="catalog-detail-brand"
-            class="max-w-[calc(100%_-_3.75rem)] min-w-0 self-start break-words rounded-full bg-white/80 px-3 py-1 text-center text-[11px] font-semibold tracking-[0.14em] text-coco-700 uppercase ring-1 ring-coco-200 md:max-w-full md:self-center dark:bg-coco-900/70 dark:text-coco-100 dark:ring-coco-800"
-          >
-            {{ detail.brand.name }}
-          </p>
           <div
             data-testid="catalog-detail-image-frame"
-            class="flex aspect-square w-full max-w-[15rem] items-center justify-center overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5 md:max-w-[17rem] dark:bg-coco-neutral-900 dark:ring-white/10"
+            class="catalog-detail-image-frame flex aspect-square w-full items-center justify-center overflow-hidden rounded-xl bg-white ring-1 ring-default"
           >
             <!--
               The real main image is one full-frame media control: it opens the read-only preview and
@@ -502,7 +510,7 @@ onBeforeUnmount(() => {
               @click="openMainPreview"
             >
               <img
-                class="size-full object-cover transition-transform duration-200 ease-out group-hover:scale-[1.02] motion-reduce:transition-none"
+                class="size-full object-contain p-4 transition-transform duration-200 ease-out group-hover:scale-[1.02] motion-reduce:transition-none"
                 :src="displayImageUrl"
                 :alt="`Imagen de ${detail.name}`"
                 @error="markMainImageFailed"
@@ -546,16 +554,9 @@ onBeforeUnmount(() => {
 
         <div
           data-testid="catalog-detail-details-panel"
-          class="flex min-w-0 flex-col gap-5 p-6 md:p-8"
+          class="catalog-detail-details flex min-w-0 flex-col gap-5 p-6"
         >
-          <div class="flex min-w-0 flex-wrap items-center gap-2 pr-16">
-            <span
-              v-if="detail.category"
-              data-testid="catalog-detail-category"
-              class="rounded-full bg-coco-50 px-3 py-1 text-xs font-medium text-coco-700 ring-1 ring-coco-200 dark:bg-coco-950/60 dark:text-coco-200 dark:ring-coco-900"
-            >
-              {{ detail.category.name }}
-            </span>
+          <div class="flex min-w-0 flex-wrap items-center gap-2">
             <span
               v-if="detailAvailability"
               data-testid="catalog-detail-availability"
@@ -568,13 +569,6 @@ onBeforeUnmount(() => {
               </span>
             </span>
           </div>
-
-          <h2
-            data-testid="catalog-detail-name"
-            class="break-words text-2xl leading-tight font-bold tracking-tight text-highlighted sm:text-3xl"
-          >
-            {{ detail.name }}
-          </h2>
 
           <div class="flex min-w-0 flex-col gap-1.5">
             <p
@@ -592,6 +586,12 @@ onBeforeUnmount(() => {
               Consultar precio
             </p>
             <p
+              data-testid="catalog-detail-price-context"
+              class="break-words text-sm leading-relaxed text-muted"
+            >
+              Lista de precios: {{ detail.priceContext.name }}
+            </p>
+            <p
               v-if="detailQuantity"
               data-testid="catalog-detail-quantity"
               class="break-words text-sm font-medium text-muted tabular-nums"
@@ -603,13 +603,21 @@ onBeforeUnmount(() => {
             </p>
           </div>
 
-          <p
+          <section
             v-if="hasDescription"
-            data-testid="catalog-detail-description"
-            class="max-w-prose break-words whitespace-pre-line text-sm leading-relaxed text-muted"
+            aria-labelledby="catalog-detail-general"
+            class="catalog-detail-general"
           >
-            {{ detail.description }}
-          </p>
+            <h3 id="catalog-detail-general" class="mb-2 text-base font-semibold text-highlighted">
+              Información del producto
+            </h3>
+            <p
+              data-testid="catalog-detail-description"
+              class="max-w-prose break-words whitespace-pre-line text-sm leading-relaxed text-muted"
+            >
+              {{ detail.description }}
+            </p>
+          </section>
 
           <section
             v-if="hasVariants"
@@ -619,12 +627,15 @@ onBeforeUnmount(() => {
             <h3 id="catalog-detail-variants" class="text-sm font-semibold text-highlighted">
               Variantes disponibles
             </h3>
+            <p class="text-sm leading-relaxed text-muted">
+              Información de cada variante; no es una selección de compra.
+            </p>
             <ul class="flex min-w-0 flex-col gap-2">
               <li
                 v-for="variant in variants"
                 :key="variant.id"
                 data-testid="catalog-detail-variant"
-                class="flex min-w-0 items-start gap-3 rounded-xl bg-elevated/40 p-3 ring-1 ring-default"
+                class="catalog-detail-variant flex min-w-0 items-start gap-3 rounded-xl bg-white p-3 ring-1 ring-default"
               >
                 <!--
                   Read-only media thumbnail inside a read-only row: a real variant image opens the
@@ -682,7 +693,7 @@ onBeforeUnmount(() => {
                       <p class="break-words text-sm font-semibold text-highlighted">
                         {{ variant.name }}
                       </p>
-                      <p v-if="variant.optionValue" class="break-words text-xs text-muted">
+                      <p v-if="variant.optionValue" class="break-words text-sm text-muted">
                         {{ variant.optionValue }}
                       </p>
                     </div>
@@ -696,14 +707,14 @@ onBeforeUnmount(() => {
                     <p
                       v-else
                       data-testid="catalog-detail-variant-price"
-                      class="min-w-0 max-w-full break-words text-xs font-medium text-muted"
+                      class="min-w-0 max-w-full break-words text-sm font-medium text-muted"
                     >
                       Consultar precio
                     </p>
                   </div>
                   <div
                     v-if="variant.quantity || variant.availability"
-                    class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs"
+                    class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm"
                   >
                     <span
                       v-if="variant.quantity"
@@ -792,7 +803,8 @@ onBeforeUnmount(() => {
     :close="false"
     :ui="{
       overlay: 'z-[60] bg-coco-950/70 backdrop-blur-sm',
-      content: 'z-[61] max-w-3xl overflow-hidden rounded-2xl bg-coco-950/95 ring-1 ring-white/10',
+      content:
+        'catalog-detail-preview-dialog z-[61] max-w-3xl overflow-hidden rounded-2xl bg-coco-950/95 ring-1 ring-white/10',
       header: 'sr-only',
       body: 'p-0 sm:p-0',
     }"

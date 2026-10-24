@@ -1,5 +1,93 @@
 # Public catalog: Vue adaptation
 
+## Final integrated verification
+
+- Parent independently reproduced **349 current-worktree unit tests**; the four catalog browser suites passed **55 tests** in the T3 run.
+- Project type-check passed. Parent responsive type-check initially failed because the branch-discovery viewport helper inferred a literal union excluding its retained 375 × 667 retry case. Its parameter now accepts numeric dimensions; no cases or assertions were removed. `pnpm type-check:responsive` subsequently passed.
+- `pnpm build` passed. Vite warns about chunks larger than 500 kB; no bundle-size optimization or configuration changes were included.
+- Scoped formatting and `git diff --check` passed. Parent inspected mobile and desktop detail captures; workers inspected all five requested widths.
+- Native assessment was unavailable because pre-existing untracked research requires a scope declaration, including for committed-only assessment. No native review approval is claimed. LSP Vue-import findings/inconclusive probes remain separate from the successful project compiler check.
+- The earlier unscoped unit command failed in three untouched sibling worktree copies; current-worktree isolation is explicitly recorded, not a claim that the unscoped command passes.
+- Browser fixtures deliberately block external icons; production media/icon availability, physical devices and a comprehensive accessibility audit were not verified.
+- Delivery covers the existing browse-only catalog, cards and detail. Search, cart, checkout, buyer identity and commercial integrations were not implemented or simulated. Commits remain local; nothing was pushed or merged.
+
+
+## T3 — read-only detail (S1, S2, S3)
+
+### Composition and preservation
+
+S1: adapt the latest `detail-responsive-390.png` / `detail-responsive-1440.png`
+reference, not its simulated commerce. Identity (brand, category, product title)
+precedes media in DOM/mobile reading order. At 768 px the same identity sits beside
+contained media, above price and content. White panels, 12 px corners, navy balanced
+titles, 14 px metadata and the existing local/system font reuse T1 tokens. The
+published price-context name is shown without inferring price rules or currency
+conversion. Existing `formatCentsMXN` remains the formatter.
+
+Component map stays unchanged: `CatalogProductDetailModal` presents typed
+`open/detail/state` props and emits `close/retry`; its two existing Nuxt UI dialogs
+own detail and image presentation. No new component or orchestration boundary is
+needed for this scoped template/CSS adaptation. The view and composable retain
+request gating and stale-result isolation. The entire component script is unchanged.
+
+S2/F1: general plain-text description has its own labelled information region;
+each variant retains only its own name, option/value, image, price, custom quantity
+and selected-branch availability. The DTO has no structured technical attributes,
+so no specifications table, measurements, materials or inferred shared attributes
+are synthesized. Variant rows explicitly describe read-only information, not a
+purchase selection. Existing thumbnail enlargement suffices; no zoom/selection or
+commerce control was added. F2/F3/F4 flows remain absent and out of scope.
+
+All existing populated, loading, retry-pending, not-found, rate-limit, network,
+server, sparse-detail, hidden/null-price, hidden-stock and media-failure behavior
+remains. Main/variant/preview URL-keyed failure state, identity teardown, application
+isolation, Nuxt UI dismissal and exact trigger focus restoration are unchanged.
+No DTO, API, adapter, helper, composable, credentials or dependency changes.
+
+### Test-first and validation
+
+- RED: `pnpm test:unit --run src/features/catalog/components/__tests__/CatalogProductDetailModal.spec.ts --exclude '.worktrees/**'`
+  exited 1: 58 passed, one intended failure (missing identity region).
+- Browser RED: `pnpm exec playwright test --config playwright.responsive.config.ts e2e/responsive/specs/public-catalog-product-detail.spec.ts`
+  exited 1: 10 passed, five intended failures (mobile title after media at 320/390;
+  missing price-context at 768/1024/1440).
+- GREEN: those exact focused commands exited 0 with 59 units and 15 browser cases.
+  Added a passing triangulation test for distinct sibling option/value data and a
+  hidden-price/hidden-stock sibling; it proves no copying into that row. Cosmetics
+  use screenshot readback, not invented RED evidence. A single cosmetic readback
+  pass tightened panel corners and balanced titles; no failing validation remained.
+- Final `pnpm test:unit --run src/features/catalog src/app/layouts/__tests__/CatalogLayout.spec.ts --exclude '.worktrees/**'`:
+  exit 0, **349/349**, 15 files. Existing loading/failures, context retry, media
+  isolation, keyboard/close and sibling-data assertions pass.
+- `pnpm type-check`: exit 0. Known test Vue-import LSP diagnostic persists; project
+  `vue-tsc --build` is authoritative. No configuration workaround.
+- Final `pnpm exec playwright test --config playwright.responsive.config.ts e2e/responsive/specs/catalog-entry-disabled.spec.ts e2e/responsive/specs/public-catalog-branch-discovery.spec.ts e2e/responsive/specs/public-catalog-products.spec.ts e2e/responsive/specs/public-catalog-product-detail.spec.ts`:
+  exit 0, **55/55**, including 21 detail cases. Target widths 320/390/768/1024/1440
+  plus original 375×667 and 1280×800 coverage; 320 retains its original 568 px
+  height. Strict anonymous request ledger, exact control inventories, 72 px variant
+  frames, preview geometry, nested Escape, outside dismissal, exact invoker/media
+  focus return and concurrent context-preserving retry assertions remain intact.
+- Scoped Prettier check on the five T3 authored files and `git diff --check`: exit 0.
+
+### Screenshot readback and limits
+
+Inspected `artifacts/responsive/local-run/detail-{320,390,768,1024,1440}.png`.
+320/390 show identity above contained media, then price/context and general
+information; variants continue in the scrollable body. 768 uses a narrower split;
+1024/1440 show both variant rows alongside media with readable independent prices
+and statuses. No document/panel horizontal overflow at any tested width. A local
+SVG thermos illustration replaces the old blank data URI only in the browser
+fixture, not production media. Icons remain deliberately blocked by the fixture;
+the dev toolbar overlays capture bottoms. No icon/configuration repair, physical
+device, screen reader or comprehensive WCAG audit is claimed.
+
+S3: one uncommitted detail work unit for parent review. No branch, stage or commit
+operations; pre-existing task/research/review files remain untouched. Rollback only
+the T3 changes in the detail component/test, catalog detail CSS, detail browser spec,
+this section and generated `artifacts/responsive/local-run/**` evidence. Risk: none
+identified; no technical blocker. T4 final integration/build and independent review
+remain parent-owned and are not claimed complete.
+
 ## T2 — listing and cards (S1, S2, S3)
 
 ### Visual decisions and preservation

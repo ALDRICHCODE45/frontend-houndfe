@@ -36,8 +36,10 @@ const priceListId = '3f1a1f2e-6f4a-4c2b-9f6d-1b2c3d4e5f60'
 const targetProductId = '8d7c6b5a-4f3e-4d2c-9b1a-0f9e8d7c6b5a'
 const decoyProductId = '2b3c4d5e-6f70-4a8b-9c0d-1e2f3a4b5c6d'
 const hiddenProductId = '9a8b7c6d-5e4f-4a3b-8c2d-1e0f9a8b7c6d'
-const detailImageUrl =
-  'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="8" height="8"/%3E'
+/** Isolated illustration for readable media evidence; never a production fallback asset. */
+const detailImageUrl = `data:image/svg+xml,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400"><rect width="400" height="400" fill="white"/><ellipse cx="200" cy="350" rx="68" ry="10" fill="#e7eef7"/><rect x="148" y="76" width="104" height="264" rx="28" fill="#b7c4d0"/><path d="M166 106h17v201h-17z" fill="#e7eef7"/><rect x="145" y="60" width="110" height="54" rx="12" fill="#173968"/><path d="M158 78h84" stroke="#576574" stroke-width="6"/><rect x="148" y="274" width="104" height="40" fill="#173968"/></svg>',
+)}`
 /** The second variant of the same product carries no media, so it must stay an icon-only fallback. */
 const nullImageVariantName = 'Termo 1 L azul'
 /** The enlarged image is a distinct read-only sibling dialog with its own exact delivered title. */
@@ -51,9 +53,13 @@ const VARIANT_FRAME_SIZE_PX = 72
 const VARIANT_FRAME_MAX_RADIUS_PX = 24
 
 const viewports = [
-  { key: 'desktop', width: 1280, height: 800 },
-  { key: 'mobile', width: 375, height: 667 },
+  { key: 'desktop', width: 1440, height: 844 },
+  { key: 'mobile', width: 390, height: 844 },
   { key: 'compact', width: 320, height: 568 },
+  { key: 'tablet', width: 768, height: 844 },
+  { key: 'laptop', width: 1024, height: 844 },
+  { key: 'legacy-desktop', width: 1280, height: 800 },
+  { key: 'legacy-mobile', width: 375, height: 667 },
 ] as const
 
 const branch = { id: 'b-1', name: 'Sucursal Centro', slug: branchSlug, address: null, phone: null }
@@ -761,6 +767,39 @@ for (const viewport of viewports) {
       await expect(
         dialog.getByRole('heading', { name: targetDetail.name, exact: true }),
       ).toBeVisible()
+
+      await settleModalAnimations(dialog)
+      const titleBox = await measurableBox(
+        dialog.getByTestId('catalog-detail-name'),
+        'product title',
+      )
+      const mediaBox = await measurableBox(
+        dialog.getByTestId('catalog-detail-media-panel'),
+        'product media',
+      )
+      if (viewport.width < 768) {
+        expect(titleBox.y + titleBox.height, 'mobile identity precedes media').toBeLessThanOrEqual(
+          mediaBox.y,
+        )
+      }
+      await expect(dialog.getByTestId('catalog-detail-price-context')).toHaveText(
+        'Lista de precios: Lista pública',
+      )
+      const general = dialog.getByRole('region', { name: 'Información del producto', exact: true })
+      await expect(general).toContainText(targetDetail.description)
+      await expect(general).not.toContainText('Color: Rojo')
+      for (const testId of [
+        'catalog-detail-identity',
+        'catalog-detail-media-panel',
+        'catalog-detail-details-panel',
+      ]) {
+        const panel = dialog.getByTestId(testId)
+        expectWithinViewportWidth(await measurableBox(panel, testId), viewport, testId)
+        expect(
+          await panel.evaluate((element) => element.scrollWidth <= element.clientWidth + 1),
+        ).toBe(true)
+      }
+      await page.screenshot({ path: `artifacts/responsive/local-run/detail-${viewport.width}.png` })
 
       // The pointer activation requested exactly the clicked product, anonymously, with the list price context.
       await traffic.flush()

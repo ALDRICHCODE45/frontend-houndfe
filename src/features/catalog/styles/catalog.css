@@ -179,6 +179,67 @@ body[data-catalog-theme='light'] .catalog-product-card:focus-visible .catalog-pr
   text-decoration: underline;
 }
 
+/* Detail portals remain inside the catalog theme; dialog behavior is Nuxt UI-owned. */
+body[data-catalog-theme='light'] .catalog-detail-dialog,
+body[data-catalog-theme='light'] .catalog-detail-preview-dialog {
+  background: var(--catalog-surface);
+  color: var(--catalog-text);
+  border-radius: 12px;
+}
+
+body[data-catalog-theme='light'] .catalog-detail-identity {
+  padding: 24px 76px 16px 24px;
+}
+
+body[data-catalog-theme='light'] .catalog-detail-media {
+  padding: 0 24px;
+  background: var(--catalog-surface);
+}
+
+body[data-catalog-theme='light'] .catalog-detail-image-frame {
+  max-width: 360px;
+  border-radius: 12px;
+}
+
+body[data-catalog-theme='light'] .catalog-detail-variant {
+  border-radius: 12px;
+}
+
+body[data-catalog-theme='light'] .catalog-detail-details {
+  padding: 24px;
+}
+
+body[data-catalog-theme='light'] .catalog-detail-general {
+  padding-block: 20px;
+  border-block: 1px solid var(--catalog-border);
+}
+
+body[data-catalog-theme='light'] .catalog-detail-preview-dialog .text-white {
+  color: var(--catalog-title);
+}
+
+@media (min-width: 768px) {
+  body[data-catalog-theme='light'] .catalog-detail-composition {
+    grid-template-rows: auto 1fr;
+    align-items: start;
+  }
+  body[data-catalog-theme='light'] .catalog-detail-identity {
+    grid-column: 2;
+    grid-row: 1;
+    padding: 32px 76px 0 0;
+  }
+  body[data-catalog-theme='light'] .catalog-detail-media {
+    grid-column: 1;
+    grid-row: 1 / 3;
+    padding: 32px 24px;
+  }
+  body[data-catalog-theme='light'] .catalog-detail-details {
+    grid-column: 2;
+    grid-row: 2;
+    padding: 20px 32px 32px 0;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   body[data-catalog-theme='light'] .catalog-product-card {
     transition: none;

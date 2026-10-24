@@ -165,7 +165,7 @@ async function settleAnimations(page: Page): Promise<void> {
 
 function expectInsideViewport(
   box: { x: number; y: number; width: number; height: number },
-  viewport: (typeof viewports)[number],
+  viewport: { name: string; width: number; height: number },
   label: string,
 ): void {
   expect(box.x, `${label} must not start left of the viewport`).toBeGreaterThanOrEqual(0)
