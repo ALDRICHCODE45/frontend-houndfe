@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, nextTick, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import CatalogHeader from '../components/CatalogHeader.vue'
 import CatalogHero from '../components/CatalogHero.vue'
@@ -123,11 +123,38 @@ const page = computed(() => {
     ? Number(raw)
     : null
 })
+const search = computed(() => {
+  const raw = route.query.q
+  return raw === undefined ? '' : typeof raw === 'string' ? raw : null
+})
+const searchDraft = shallowRef('')
+watch(
+  () => route.fullPath,
+  () => {
+    searchDraft.value = search.value ?? ''
+  },
+  { immediate: true },
+)
+async function commitSearch(value: string) {
+  const query = { ...route.query }
+  delete query.page
+  if (value === '') delete query.q
+  else query.q = value
+  try {
+    await router.push({ query, hash: route.hash })
+  } catch {
+    // Rejected and aborted navigation never commits a draft or requests products.
+  } finally {
+    searchDraft.value = search.value ?? ''
+  }
+}
 const filterError = computed(() => {
+  if (search.value === null) return 'search'
   if (route.query.categoryId !== undefined && categoryId.value === null) return 'category'
   return page.value === null ? 'page' : null
 })
 const listingOptions = computed(() => ({
+  ...(search.value !== null && search.value !== '' ? { q: search.value } : {}),
   ...(categoryId.value !== null ? { categoryId: categoryId.value } : {}),
   ...(page.value !== null && page.value !== 1 ? { page: page.value } : {}),
 }))
@@ -281,7 +308,7 @@ watch(
     () => selectedBranch.value?.slug ?? null,
     priceContextProposalKey,
     priceListId,
-    () => JSON.stringify([route.query.categoryId, route.query.page]),
+    () => JSON.stringify([route.query.categoryId, route.query.page, search.value]),
   ],
   () => clearDetail(false),
   { flush: 'sync' },
@@ -364,6 +391,26 @@ async function selectPriceContext(priceListIdToSelect: string) {
         class="catalog-listing"
       >
         <div class="catalog-container">
+          <form
+            v-if="readyBranch !== null"
+            class="catalog-search"
+            role="search"
+            @submit.prevent="commitSearch(searchDraft)"
+          >
+            <label for="catalog-search">Buscar productos o marcas</label>
+            <div class="catalog-search-controls">
+              <input
+                id="catalog-search"
+                v-model="searchDraft"
+                type="search"
+                placeholder="¿Qué necesita tu compañero?"
+              />
+              <button type="submit" class="catalog-filter-button">Buscar</button>
+              <button type="button" class="catalog-filter-button" @click="commitSearch('')">
+                Limpiar búsqueda
+              </button>
+            </div>
+          </form>
           <CatalogCategoryBar
             :categories="categoryBaseline?.facets.categories ?? []"
             :all-total="categoryBaseline?.meta.total ?? null"
@@ -378,7 +425,15 @@ async function selectPriceContext(priceListIdToSelect: string) {
           />
         </div>
         <div v-if="filterError && readyBranch" class="catalog-container py-6" role="status">
-          <p>{{ filterError === 'category' ? 'Categoría no válida.' : 'Página no válida.' }}</p>
+          <p>
+            {{
+              filterError === 'search'
+                ? 'Búsqueda no válida.'
+                : filterError === 'category'
+                  ? 'Categoría no válida.'
+                  : 'Página no válida.'
+            }}
+          </p>
           <button
             v-if="filterError === 'category'"
             type="button"
@@ -387,7 +442,12 @@ async function selectPriceContext(priceListIdToSelect: string) {
           >
             Limpiar categoría
           </button>
-          <button v-else type="button" class="catalog-filter-button" @click="recoverPage">
+          <button
+            v-else-if="filterError === 'page'"
+            type="button"
+            class="catalog-filter-button"
+            @click="recoverPage"
+          >
             Restablecer página
           </button>
         </div>

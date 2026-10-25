@@ -35,9 +35,17 @@ export function catalogProductsQueryKey(
       ? defaultPriceSelection
       : explicitPriceSelection(priceListId)
   const base = ['public-catalog', 'products', apiBase, tenantSlug, selection] as const
-  return options.categoryId === undefined && (options.page ?? 1) === 1
+  const q = options.q === '' ? undefined : options.q
+  return options.categoryId === undefined && (options.page ?? 1) === 1 && q === undefined
     ? base
-    : ([...base, { categoryId: options.categoryId ?? null, page: options.page ?? 1 }] as const)
+    : ([
+        ...base,
+        {
+          categoryId: options.categoryId ?? null,
+          page: options.page ?? 1,
+          ...(q !== undefined ? { q } : {}),
+        },
+      ] as const)
 }
 
 export function useCatalogProducts(

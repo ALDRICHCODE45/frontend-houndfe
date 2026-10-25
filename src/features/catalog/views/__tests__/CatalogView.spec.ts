@@ -795,7 +795,7 @@ describe('CatalogView public browse', () => {
     expect(wrapper.get('header img').attributes('src')).toBe('/hounfeLogos/primary.png')
     expect(wrapper.get('main h1').text()).toBe('Todo para quienes te acompañan.')
     expect(wrapper.find('button[aria-label="Ver carrito"]').exists()).toBe(false)
-    expect(wrapper.find('input[aria-label="Buscar en el catálogo"]').exists()).toBe(false)
+    expect(wrapper.find('main input[type="search"]').exists()).toBe(true)
   })
 
   it('renders the branch selector dialog with a real address, a neutral address fallback and the current branch state', async () => {
@@ -1157,7 +1157,7 @@ describe('CatalogView public browse', () => {
     expect(select().attributes('aria-pressed')).toBe('true')
   })
 
-  it.each([`categoryId=${categoryId}`, 'page=2'])(
+  it.each([`categoryId=${categoryId}`, 'page=2', 'q=caf%C3%A9'])(
     'cancels pending detail on %s without late reopening or focus restoration',
     async (query) => {
       let finish!: (response: Response) => void
@@ -1206,7 +1206,7 @@ describe('CatalogView public browse', () => {
       detail: () => jsonResponse(detailResponse({ priceContext: priceContexts[1] })),
     })
     vi.stubGlobal('fetch', fetchMock)
-    const { wrapper } = await mountAt(`/catalogo/centro?categoryId=${categoryId}`)
+    const { wrapper } = await mountAt(`/catalogo/centro?categoryId=${categoryId}&q=café`)
     await flushPromises()
     expect(wrapper.find('button[aria-label="Categoría Café"]').exists()).toBe(false)
     expect(wrapper.find('button[aria-label="Todas las categorías"]').exists()).toBe(false)
@@ -1256,6 +1256,177 @@ describe('CatalogView public browse', () => {
     expect(wrapper.find('button[aria-label="Categoría Café"]').exists()).toBe(false)
   })
 
+  describe('committed search', () => {
+    const input = (wrapper: VueWrapper) => wrapper.get<HTMLInputElement>('input[type="search"]')
+    const clear = (wrapper: VueWrapper) =>
+      wrapper.findAll('button').find((b) => b.text() === 'Limpiar búsqueda')!
+    const installSearch = () => {
+      const fetchMock = createCatalogFetch({
+        products: (_slug, price, url) =>
+          jsonResponse({
+            ...categoryPage(url.searchParams.has('q')),
+            meta: {
+              page: Number(url.searchParams.get('page') ?? 1),
+              limit: 20,
+              total: url.searchParams.has('q') ? 21 : 52,
+              totalPages: 3,
+            },
+            priceContext:
+              priceContexts.find((context) => context.priceListId === price) ?? priceContext,
+          }),
+      })
+      vi.stubGlobal('fetch', fetchMock)
+      return fetchMock
+    }
+
+    it('submits and clears exact drafts only on commitment, preserving filters, hash and baseline', async () => {
+      const fetchMock = installSearch()
+      const { wrapper, router } = await mountAt(
+        `/catalogo/centro?categoryId=${categoryId}&priceListId=list-mayoreo&page=2&keep=yes#catalogo`,
+      )
+      await flushPromises()
+      expect(wrapper.get('label[for="catalog-search"]').text()).toBe('Buscar productos o marcas')
+      expect(input(wrapper).attributes('placeholder')).toBe('¿Qué necesita tu compañero?')
+      const before = fetchMock.mock.calls.length
+      await input(wrapper).setValue(' café &+ ')
+      await flushPromises()
+      expect(fetchMock).toHaveBeenCalledTimes(before)
+      await wrapper.get('form[role="search"]').trigger('submit')
+      await flushPromises()
+      expect(router.currentRoute.value.query).toEqual({
+        categoryId,
+        priceListId: 'list-mayoreo',
+        keep: 'yes',
+        q: ' café &+ ',
+      })
+      expect(router.currentRoute.value.hash).toBe('#catalogo')
+      expect(wrapper.text()).toContain('Café filtrado')
+      expect(wrapper.get('[data-testid="catalog-result-total"]').text()).toBe('21 productos')
+      expect(wrapper.get('button[aria-label="Todas las categorías"]').text()).toContain('52')
+      expect(wrapper.get('button[aria-label="Categoría Café"]').text()).toContain('3')
+      await wrapper
+        .findAll('button')
+        .find((b) => b.text() === 'Siguiente')!
+        .trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query).toMatchObject({ page: '2', q: ' café &+ ' })
+      await wrapper.get('button[aria-label="Todas las categorías"]').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query.categoryId).toBeUndefined()
+      expect(router.currentRoute.value.query.page).toBeUndefined()
+      expect(router.currentRoute.value.query.q).toBe(' café &+ ')
+      await router.push({
+        query: { ...router.currentRoute.value.query, categoryId, page: '2' },
+        hash: '#catalogo',
+      })
+      await clear(wrapper).trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query).toEqual({
+        categoryId,
+        priceListId: 'list-mayoreo',
+        keep: 'yes',
+      })
+      expect(router.currentRoute.value.hash).toBe('#catalogo')
+      expect(input(wrapper).element.value).toBe('')
+      const baselineCalls = fetchMock.mock.calls.filter(([url]) =>
+        String(url).endsWith('/products?priceListId=list-mayoreo'),
+      )
+      expect(baselineCalls).toHaveLength(1)
+    })
+
+    it('synchronizes direct entry, history and rejected/aborted submission and clear drafts', async () => {
+      installSearch()
+      const { wrapper, router } = await mountAt('/catalogo/centro?q=original&page=2')
+      await flushPromises()
+      expect(input(wrapper).element.value).toBe('original')
+      for (const aborted of [false, true]) {
+        const removeGuard = aborted ? router.beforeEach(() => false) : () => {}
+        for (const clearing of [false, true]) {
+          const push = aborted
+            ? null
+            : vi.spyOn(router, 'push').mockRejectedValueOnce(new Error('blocked'))
+          await input(wrapper).setValue('uncommitted')
+          if (clearing) await clear(wrapper).trigger('click')
+          else await wrapper.get('form[role="search"]').trigger('submit')
+          await flushPromises()
+          expect(input(wrapper).element.value).toBe('original')
+          expect(router.currentRoute.value.query).toEqual({ q: 'original', page: '2' })
+          push?.mockRestore()
+        }
+        removeGuard()
+      }
+      await input(wrapper).setValue('next')
+      await wrapper.get('form[role="search"]').trigger('submit')
+      await flushPromises()
+      await input(wrapper).setValue('unsubmitted')
+      router.back()
+      await flushPromises()
+      expect(input(wrapper).element.value).toBe('original')
+      router.forward()
+      await flushPromises()
+      expect(input(wrapper).element.value).toBe('next')
+    })
+
+    it.each(['?q', '?q=a&q=b'])(
+      'recovers invalid search %s by removing only q and page',
+      async (query) => {
+        const fetchMock = installSearch()
+        const { wrapper, router } = await mountAt(
+          `/catalogo/centro${query}&categoryId=${categoryId}&page=2&keep=yes#catalogo`,
+        )
+        await flushPromises()
+        expect(wrapper.text()).toContain('Búsqueda no válida.')
+        expect(wrapper.find('[data-testid="catalog-product-grid"]').exists()).toBe(false)
+        expect(
+          fetchMock.mock.calls.filter(([url]) => String(url).includes('/products')),
+        ).toHaveLength(1)
+        await clear(wrapper).trigger('click')
+        await flushPromises()
+        expect(router.currentRoute.value.query).toEqual({ categoryId, keep: 'yes' })
+        expect(router.currentRoute.value.hash).toBe('#catalogo')
+        expect(wrapper.find('[data-testid="catalog-product-grid"]').exists()).toBe(true)
+      },
+    )
+
+    it('keeps failed search distinct from baseline and retries only by explicit action', async () => {
+      let failing = true
+      const fetchMock = createCatalogFetch({
+        products: (_slug, _price, url) =>
+          url.searchParams.has('q') && failing
+            ? jsonResponse({}, 500)
+            : jsonResponse(categoryPage(url.searchParams.has('q'))),
+      })
+      vi.stubGlobal('fetch', fetchMock)
+      const { wrapper } = await mountAt('/catalogo/centro?q=café')
+      await flushPromises()
+      expect(wrapper.text()).not.toContain('Café molido')
+      expect(wrapper.find('nav[aria-label="Paginación del catálogo"]').exists()).toBe(false)
+      expect(wrapper.get('button[aria-label="Todas las categorías"]').text()).toContain('4')
+      const before = fetchMock.mock.calls.length
+      await input(wrapper).setValue('draft')
+      await flushPromises()
+      expect(fetchMock).toHaveBeenCalledTimes(before)
+      failing = false
+      await wrapper.get('button[aria-label="Reintentar productos"]').trigger('click')
+      await flushPromises()
+      expect(wrapper.text()).toContain('Café filtrado')
+      expect(String(fetchMock.mock.calls[fetchMock.mock.calls.length - 1]![0])).toContain(
+        'q=caf%C3%A9',
+      )
+    })
+
+    it('canonicalizes an empty direct-entry search to the baseline request', async () => {
+      const fetchMock = installSearch()
+      const { wrapper } = await mountAt('/catalogo/centro?q=')
+      await flushPromises()
+      expect(input(wrapper).element.value).toBe('')
+      expect(
+        fetchMock.mock.calls.filter(([url]) => String(url).includes('/products')),
+      ).toHaveLength(1)
+      expect(fetchMock.mock.calls.map(([url]) => String(url))).toContain(productsUrl('centro'))
+    })
+  })
+
   describe('metadata-driven pagination', () => {
     const pager = (wrapper: VueWrapper) => wrapper.get('nav[aria-label="Paginación del catálogo"]')
     const button = (wrapper: VueWrapper, label: string) =>
@@ -1303,7 +1474,7 @@ describe('CatalogView public browse', () => {
       })
       expect(router.currentRoute.value.hash).toBe('#catalogo')
       expect(fetchMock.mock.calls.map(([url]) => String(url))).toContain(
-        `${productsUrl('centro')}?priceListId=list-mayoreo&categoryId=${categoryId}&page=2`,
+        `${productsUrl('centro')}?priceListId=list-mayoreo&categoryId=${categoryId}&page=2&q=sin%20buscar`,
       )
       expect(wrapper.get('button[aria-label="Todas las categorías"]').text()).toContain('52')
       await button(wrapper, 'Siguiente').trigger('click')

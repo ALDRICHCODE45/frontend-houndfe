@@ -2,6 +2,7 @@ import type { PublicCatalogPriceContextDto } from './public-catalog-price-contex
 
 /** Optional server listing inputs; absence keeps the original first-page request. */
 export interface CatalogProductsOptions {
+  q?: string
   categoryId?: string
   page?: number
 }

@@ -127,6 +127,54 @@ describe('useCatalogProducts', () => {
     wrapper.unmount()
   })
 
+  it('deduplicates empty search with baseline and cancels obsolete exact search identities', async () => {
+    const options = shallowRef<CatalogProductsOptions>({ q: '' })
+    const pending = deferred<ReturnType<typeof page>>()
+    fetchCatalogProductsMock
+      .mockResolvedValueOnce(page())
+      .mockReturnValueOnce(pending.promise)
+      .mockResolvedValueOnce(page([{ ...product, id: 'current' }]))
+    let listing!: ReturnType<typeof useCatalogProducts>
+    let baseline!: ReturnType<typeof useCatalogProducts>
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          baseline = useCatalogProducts('centro')
+          listing = useCatalogProducts('centro', null, options)
+          return () => null
+        },
+      }),
+      { global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }]] } },
+    )
+    await flushPromises()
+    expect(fetchCatalogProductsMock).toHaveBeenCalledTimes(1)
+    expect(catalogProductsQueryKey('centro', null, { q: '' })).toEqual(
+      catalogProductsQueryKey('centro'),
+    )
+    options.value = { q: ' café &+ ' }
+    await nextTick()
+    const signal = fetchCatalogProductsMock.mock.calls[1]![2]!
+    expect(listing.products.value).toEqual([])
+    options.value = { q: ' café &+ ', categoryId: 'category-1', page: 2 }
+    await flushPromises()
+    expect(signal.aborted).toBe(true)
+    expect(fetchCatalogProductsMock).toHaveBeenLastCalledWith(
+      'centro',
+      null,
+      expect.any(AbortSignal),
+      options.value,
+    )
+    pending.resolve(page([{ ...product, id: 'late' }]))
+    await flushPromises()
+    expect(listing.products.value[0]?.id).toBe('current')
+    expect(baseline.products.value).toEqual([product])
+    const identities = [{ q: ' ' }, { q: 'café' }, { q: ' café &+ ' }, options.value].map((value) =>
+      JSON.stringify(catalogProductsQueryKey('centro', null, value)),
+    )
+    expect(new Set(identities).size).toBe(4)
+    wrapper.unmount()
+  })
+
   it.each([[null], [''], ['   ']])(
     'keeps the query disabled and retry guarded without a valid selected tenant slug (%j)',
     async (slug) => {

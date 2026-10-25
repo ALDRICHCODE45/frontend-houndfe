@@ -71,6 +71,26 @@ describe('fetchCatalogProducts', () => {
     )
   })
 
+  it('encodes exact search text and omits empty search without changing the old call', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() => Promise.resolve(new Response(JSON.stringify(response))))
+    vi.stubGlobal('fetch', fetchMock)
+    const signal = new AbortController().signal
+    await fetchCatalogProducts('centro', null, signal, { q: ' café & té+ ' })
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      'http://localhost:3000/public/catalog/centro/products?q=%20caf%C3%A9%20%26%20t%C3%A9%2B%20',
+      { method: 'GET', credentials: 'omit', signal },
+    )
+    for (const options of [undefined, { q: '' }]) {
+      await fetchCatalogProducts('centro', null, signal, options)
+      expect(fetchMock).toHaveBeenLastCalledWith(
+        'http://localhost:3000/public/catalog/centro/products',
+        { method: 'GET', credentials: 'omit', signal },
+      )
+    }
+  })
+
   it.each([
     [
       'an empty page',

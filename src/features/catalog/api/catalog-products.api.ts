@@ -173,6 +173,7 @@ export async function fetchCatalogProducts(
   if (options.categoryId !== undefined)
     params.push(`categoryId=${encodeURIComponent(options.categoryId)}`)
   if (options.page !== undefined) params.push(`page=${options.page}`)
+  if (options.q !== undefined && options.q !== '') params.push(`q=${encodeURIComponent(options.q)}`)
   const url = `${apiBase}${path}${params.length ? `?${params.join('&')}` : ''}`
   let response: Response
   try {
