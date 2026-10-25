@@ -1,20 +1,58 @@
 body[data-catalog-theme='light'] .catalog-search {
   display: grid;
-  gap: 8px;
-  margin-bottom: 20px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 8px;
+  margin-bottom: 12px;
   color: var(--catalog-title);
 }
 
+body[data-catalog-theme='light'] .catalog-search label {
+  grid-area: 1 / 1;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 body[data-catalog-theme='light'] .catalog-search-controls {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  display: contents;
+}
+
+body[data-catalog-theme='light'] .catalog-search button[type='submit'] {
+  grid-area: 2 / 2;
+  background: var(--catalog-title);
+  border-color: var(--catalog-title);
+  color: var(--catalog-surface);
+}
+
+body[data-catalog-theme='light'] .catalog-search button[type='button'] {
+  grid-area: 1 / 2;
+}
+
+body[data-catalog-theme='light'] .catalog-search button[type='button'],
+body[data-catalog-theme='light'] .catalog-category-controls button:not([aria-pressed]) {
+  padding-inline: 4px;
+  border-color: transparent;
+  background: transparent;
+  color: var(--catalog-muted);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (hover: hover) {
+  body[data-catalog-theme='light'] .catalog-search button:enabled:hover,
+  body[data-catalog-theme='light'] .catalog-category-controls button:enabled:hover {
+    border-color: var(--catalog-title);
+    background: var(--catalog-soft);
+    color: var(--catalog-title);
+  }
 }
 
 body[data-catalog-theme='light'] .catalog-search input {
-  flex: 1 1 240px;
+  grid-area: 2 / 1;
+  width: 100%;
   min-width: 0;
   min-height: 44px;
+  font-size: 14px;
   padding: 10px 12px;
   border: 1px solid var(--catalog-border);
   border-radius: var(--catalog-control-radius);
@@ -209,7 +247,7 @@ body[data-catalog-theme='light'] .catalog-hero-caption {
 }
 body[data-catalog-theme='light'] .catalog-listing {
   scroll-margin-top: 20px;
-  margin-top: 26px;
+  margin-top: 16px;
 }
 body[data-catalog-theme='light'] .catalog-listing:focus {
   outline: none;
@@ -294,6 +332,11 @@ body[data-catalog-theme='light'] .catalog-category-toolbar > span {
   gap: 6px;
   align-items: center;
 }
+body[data-catalog-theme='light'] .catalog-category-controls .catalog-filter-button {
+  padding-inline: 8px;
+  font-size: 12px;
+}
+
 .catalog-filter-button {
   min-height: 44px;
   max-width: 100%;
