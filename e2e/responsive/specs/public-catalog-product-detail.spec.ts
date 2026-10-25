@@ -592,24 +592,27 @@ interface ControlSnapshot {
 const controlKey = (control: ControlSnapshot): string => `${control.role} "${control.name}"`
 
 /**
- * The inert storefront shell plus one detail invoker per rendered product card. Branch choices live
+ * The read-only storefront shell plus one detail invoker per rendered product card. Branch choices live
  * inside the closed-by-default `Seleccionar sucursal` dialog, so they are never shell controls. The
  * tenant-scoped price-context selector is a real shell control once discovery resolves, so it belongs
  * to this exact inventory instead of the dialog allowance.
  */
-const SHELL_CONTROL_NAMES = ['Explorar sucursales', 'Lista de precios'] as const
+const SHELL_CONTROL_NAMES = [
+  'Explorar sucursales', 'Lista de precios', 'Buscar', 'Limpiar búsqueda', 'Todas las categorías',
+] as const
 const invokerControlName = (productName: string): string => `Ver detalles de ${productName}`
 
 const shellControls = (productNames: readonly string[]): ControlSnapshot[] => [
   ...SHELL_CONTROL_NAMES.map((name) => ({ role: 'button', name })),
   { role: 'link', name: 'Explorar productos' },
+  { role: 'searchbox', name: 'Buscar productos o marcas' },
   ...productNames.map((name) => ({ role: 'button', name: invokerControlName(name) })),
 ]
 
 /**
  * Every enabled control rendered anywhere on the complete page, keyed by accessible role and
- * accessible name. Disabled controls are excluded on purpose: the intentionally inert storefront
- * shell is asserted separately.
+ * accessible name (aria-label, associated input labels, then text). Disabled controls are excluded
+ * on purpose; modal isolation is asserted separately.
  */
 async function enabledPageControls(page: Page): Promise<ControlSnapshot[]> {
   const controls: ControlSnapshot[] = []
@@ -623,7 +626,11 @@ async function enabledPageControls(page: Page): Promise<ControlSnapshot[]> {
               !element.matches(':disabled') && element.getAttribute('aria-disabled') !== 'true',
           )
           .map(
-            (element) => element.getAttribute('aria-label') ?? (element.textContent ?? '').trim(),
+            (element) =>
+              element.getAttribute('aria-label') ??
+              (element instanceof HTMLInputElement && element.labels?.length
+                ? Array.from(element.labels, (label) => label.textContent?.trim() ?? '').join(' ')
+                : (element.textContent ?? '').trim()),
           ),
       )
     for (const name of names) controls.push({ role, name })
@@ -632,10 +639,10 @@ async function enabledPageControls(page: Page): Promise<ControlSnapshot[]> {
 }
 
 /**
- * Proves the read-only storefront across the complete page: the only enabled controls are the inert
- * shell controls, the catalog anchor and the product detail invokers. Unsupported search, category
- * filters, sort and cart are omitted. Any auth, commerce, search, filter, sort or speculative
- * action would break this exact inventory.
+ * Proves the read-only storefront across the complete page: shell controls include search and the
+ * all-categories control, the catalog anchor and product detail invokers. Empty fixture facets supply
+ * no named category buttons. Any auth, commerce, sort or additional speculative action breaks this
+ * exact inventory.
  */
 async function expectReadOnlyStorefront(
   page: Page,
@@ -647,7 +654,6 @@ async function expectReadOnlyStorefront(
 
   for (const [role, name] of [
     ['textbox', 'Buscar en el catálogo'],
-    ['button', 'Todas las categorías'],
     ['button', 'Ordenar catálogo'],
     ['button', 'Ver carrito'],
   ] as const) {
@@ -658,7 +664,8 @@ async function expectReadOnlyStorefront(
     'href',
     '#catalogo',
   )
-  await expect(page.getByRole('searchbox')).toHaveCount(0)
+  await expect(page.getByRole('searchbox')).toHaveCount(1)
+  await expect(page.getByRole('searchbox', { name: 'Buscar productos o marcas', exact: true })).toHaveCount(1)
 }
 
 /**
@@ -762,7 +769,7 @@ for (const viewport of viewports) {
       expect(traffic.detail).toEqual([])
       expectExactCatalogTraffic(strictNetwork, targetProductId, 0)
 
-      // The inherited storefront shell stays inert: search, filter, sort, cart and authentication are unavailable.
+      // The read-only shell includes search/category controls, but no sort, cart or authentication.
       await expectReadOnlyStorefront(page, [targetProduct.name, decoyProduct.name])
 
       await invoker.click()
@@ -804,7 +811,7 @@ for (const viewport of viewports) {
           await panel.evaluate((element) => element.scrollWidth <= element.clientWidth + 1),
         ).toBe(true)
       }
-      await page.screenshot({ path: `artifacts/responsive/local-run/detail-${viewport.width}.png` })
+      await page.screenshot({ path: testInfo.outputPath(`detail-${viewport.width}.png`) })
 
       // The pointer activation requested exactly the clicked product, anonymously, with the list price context.
       await traffic.flush()

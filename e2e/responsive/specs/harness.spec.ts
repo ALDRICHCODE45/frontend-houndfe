@@ -4,6 +4,9 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import responsiveConfig, {
   DEFAULT_RUN_ID,
+  DEFAULT_RESPONSIVE_WEB_SERVER_PORT,
+  RESPONSIVE_WEB_SERVER_PORT,
+  resolveWebServerPort,
   RUN_ID_ENV_VAR,
   resolveRunId,
 } from '../../../playwright.responsive.config'
@@ -113,13 +116,16 @@ test.describe('@responsive-harness runner wiring', () => {
       ? responsiveConfig.webServer[0]
       : responsiveConfig.webServer
     expect(webServer).toMatchObject({
-      url: 'http://127.0.0.1:4173/login',
+      url: `http://127.0.0.1:${RESPONSIVE_WEB_SERVER_PORT}/login`,
       reuseExistingServer: false,
       timeout: 120_000,
       env: { VITE_API_BASE_URL: '/__e2e-api' },
     })
     expect(webServer?.command).toContain('--strictPort')
-    expect(webServer?.command).toContain('--port 4173')
+    expect(webServer?.command).toContain(`--port ${RESPONSIVE_WEB_SERVER_PORT}`)
+    expect(RESPONSIVE_ORIGIN).toBe(`http://127.0.0.1:${RESPONSIVE_WEB_SERVER_PORT}`)
+    expect(DEFAULT_RESPONSIVE_WEB_SERVER_PORT).toBe(4173)
+    expect(resolveWebServerPort({})).toBe(4173)
   })
 
   test('roots diagnostic output under artifacts/responsive/<runId>', () => {

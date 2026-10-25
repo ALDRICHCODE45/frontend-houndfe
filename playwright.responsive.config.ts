@@ -1,6 +1,21 @@
 import { defineConfig, devices } from '@playwright/test'
 
-export const RESPONSIVE_WEB_SERVER_PORT = 4173
+export const DEFAULT_RESPONSIVE_WEB_SERVER_PORT = 4173
+
+export function resolveWebServerPort(env: Record<string, string | undefined>): number {
+  const candidate = env.RESPONSIVE_WEB_SERVER_PORT
+  if (candidate === undefined || candidate.trim() === '') return DEFAULT_RESPONSIVE_WEB_SERVER_PORT
+  if (!/^[0-9]+$/.test(candidate)) {
+    throw new Error('RESPONSIVE_WEB_SERVER_PORT must be an integer from 1 to 65535')
+  }
+  const port = Number(candidate)
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error('RESPONSIVE_WEB_SERVER_PORT must be an integer from 1 to 65535')
+  }
+  return port
+}
+
+export const RESPONSIVE_WEB_SERVER_PORT = resolveWebServerPort(process.env)
 export const RESPONSIVE_WEB_SERVER_URL = `http://127.0.0.1:${RESPONSIVE_WEB_SERVER_PORT}/login`
 export const RUN_ID_ENV_VAR = 'RESPONSIVE_RUN_ID'
 export const DEFAULT_RUN_ID = 'local-run'
