@@ -1057,6 +1057,7 @@ describe('CatalogView public browse', () => {
     const { wrapper, router } = await mountAt(`/catalogo/centro${query}&keep=yes#catalogo`)
     await flushPromises()
     expect(wrapper.find('[data-testid="catalog-product-grid"]').exists()).toBe(false)
+    expect(wrapper.find('nav[aria-label="Paginación del catálogo"]').exists()).toBe(false)
     expect(fetchMock.mock.calls.filter(([url]) => String(url).includes('/products'))).toHaveLength(
       1,
     )
@@ -1253,6 +1254,200 @@ describe('CatalogView public browse', () => {
     finish(jsonResponse({ ...productsResponseFor('list-mayoreo'), facets: { categories: [] } }))
     await flushPromises()
     expect(wrapper.find('button[aria-label="Categoría Café"]').exists()).toBe(false)
+  })
+
+  describe('metadata-driven pagination', () => {
+    const pager = (wrapper: VueWrapper) => wrapper.get('nav[aria-label="Paginación del catálogo"]')
+    const button = (wrapper: VueWrapper, label: string) =>
+      pager(wrapper)
+        .findAll('button')
+        .find((entry) => entry.text() === label)!
+    const paged = (page: number, total = 52, totalPages = 3) => ({
+      ...categoryPage(false),
+      items: page > totalPages ? [] : [product],
+      meta: { page, limit: 20, total, totalPages },
+    })
+    const installPages = () => {
+      const fetchMock = createCatalogFetch({
+        products: (_slug, price, url) =>
+          jsonResponse({
+            ...paged(Number(url.searchParams.get('page') ?? 1)),
+            priceContext:
+              priceContexts.find((context) => context.priceListId === price) ?? priceContext,
+          }),
+      })
+      vi.stubGlobal('fetch', fetchMock)
+      return fetchMock
+    }
+
+    it('uses response metadata for first/middle/last boundaries and preserves URL context', async () => {
+      const fetchMock = installPages()
+      const { wrapper, router } = await mountAt(
+        `/catalogo/centro?categoryId=${categoryId}&priceListId=list-mayoreo&q=sin%20buscar&keep=yes#catalogo`,
+      )
+      await flushPromises()
+      expect(pager(wrapper).text()).toContain('Página 1 de 3')
+      expect(button(wrapper, 'Anterior').attributes('disabled')).toBeDefined()
+      expect(button(wrapper, 'Siguiente').attributes('disabled')).toBeUndefined()
+      await button(wrapper, 'Siguiente').trigger('click')
+      await flushPromises()
+      expect(pager(wrapper).text()).toContain('Página 2 de 3')
+      expect(button(wrapper, 'Anterior').attributes('disabled')).toBeUndefined()
+      expect(button(wrapper, 'Siguiente').attributes('disabled')).toBeUndefined()
+      expect(router.currentRoute.value.query).toEqual({
+        categoryId,
+        priceListId: 'list-mayoreo',
+        q: 'sin buscar',
+        keep: 'yes',
+        page: '2',
+      })
+      expect(router.currentRoute.value.hash).toBe('#catalogo')
+      expect(fetchMock.mock.calls.map(([url]) => String(url))).toContain(
+        `${productsUrl('centro')}?priceListId=list-mayoreo&categoryId=${categoryId}&page=2`,
+      )
+      expect(wrapper.get('button[aria-label="Todas las categorías"]').text()).toContain('52')
+      await button(wrapper, 'Siguiente').trigger('click')
+      await flushPromises()
+      expect(pager(wrapper).text()).toContain('Página 3 de 3')
+      expect(button(wrapper, 'Siguiente').attributes('disabled')).toBeDefined()
+      await button(wrapper, 'Anterior').trigger('click')
+      await flushPromises()
+      await button(wrapper, 'Anterior').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query.page).toBeUndefined()
+      expect(router.currentRoute.value.query.q).toBe('sin buscar')
+      router.back()
+      await flushPromises()
+      expect(pager(wrapper).text()).toContain('Página 2 de 3')
+      router.forward()
+      await flushPromises()
+      expect(pager(wrapper).text()).toContain('Página 1 de 3')
+    })
+
+    it('retains the committed page when navigation is rejected or aborted', async () => {
+      installPages()
+      const { wrapper, router } = await mountAt('/catalogo/centro')
+      await flushPromises()
+      const push = vi.spyOn(router, 'push').mockRejectedValueOnce(new Error('blocked'))
+      await button(wrapper, 'Siguiente').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query.page).toBeUndefined()
+      expect(pager(wrapper).text()).toContain('Página 1 de 3')
+      push.mockRestore()
+      router.beforeEach(() => false)
+      await button(wrapper, 'Siguiente').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query.page).toBeUndefined()
+      expect(pager(wrapper).text()).toContain('Página 1 de 3')
+    })
+
+    it('hides stale pagination during loading and error, then restores it after manual retry', async () => {
+      let finish!: (response: Response) => void
+      let retry = false
+      vi.stubGlobal(
+        'fetch',
+        createCatalogFetch({
+          products: (_slug, _price, url) =>
+            url.searchParams.get('page') === '2'
+              ? retry
+                ? jsonResponse(paged(2))
+                : new Promise<Response>((resolve) => {
+                    finish = resolve
+                  })
+              : jsonResponse(paged(1)),
+        }),
+      )
+      const { wrapper } = await mountAt('/catalogo/centro')
+      await flushPromises()
+      await button(wrapper, 'Siguiente').trigger('click')
+      await flushPromises()
+      expect(wrapper.text()).toContain('Cargando productos')
+      expect(wrapper.find('nav[aria-label="Paginación del catálogo"]').exists()).toBe(false)
+      finish(jsonResponse({}, 500))
+      await flushPromises()
+      expect(wrapper.find('nav[aria-label="Paginación del catálogo"]').exists()).toBe(false)
+      retry = true
+      await wrapper.get('button[aria-label="Reintentar productos"]').trigger('click')
+      await flushPromises()
+      expect(pager(wrapper).text()).toContain('Página 2 de 3')
+    })
+
+    it.each([
+      [52, 3],
+      [0, 0],
+    ])('manually recovers an exhausted page with total %i and pages %i', async (total, pages) => {
+      vi.stubGlobal(
+        'fetch',
+        createCatalogFetch({
+          products: (_slug, _price, url) =>
+            jsonResponse(paged(Number(url.searchParams.get('page') ?? 1), total, pages)),
+        }),
+      )
+      const { wrapper, router } = await mountAt(
+        `/catalogo/centro?categoryId=${categoryId}&page=8&q=keep&keep=yes#catalogo`,
+      )
+      await flushPromises()
+      expect(router.currentRoute.value.query.page).toBe('8')
+      expect(wrapper.text()).toContain('Página fuera de rango')
+      expect(wrapper.text()).not.toContain('No hay productos disponibles')
+      expect(wrapper.find('nav[aria-label="Paginación del catálogo"]').exists()).toBe(false)
+      const recovery = () =>
+        wrapper
+          .findAll('button')
+          .find((entry) => entry.text() === 'Ir a la última página disponible')!
+      const push = vi.spyOn(router, 'push').mockRejectedValueOnce(new Error('blocked'))
+      await recovery().trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query.page).toBe('8')
+      expect(wrapper.text()).toContain('Página fuera de rango')
+      push.mockRestore()
+      await recovery().trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query).toEqual({
+        categoryId,
+        q: 'keep',
+        keep: 'yes',
+        ...(pages ? { page: '3' } : {}),
+      })
+      expect(router.currentRoute.value.hash).toBe('#catalogo')
+      expect(wrapper.text()).not.toContain('Página fuera de rango')
+      if (pages) expect(pager(wrapper).text()).toContain('Página 3 de 3')
+      else {
+        expect(wrapper.text()).toContain('No hay productos disponibles')
+        expect(wrapper.text()).not.toContain('Página 1 de 0')
+      }
+    })
+
+    it('permits metadata navigation after a successful empty in-range response', async () => {
+      vi.stubGlobal(
+        'fetch',
+        createCatalogFetch({
+          products: (_slug, _price, url) =>
+            jsonResponse({
+              ...paged(Number(url.searchParams.get('page') ?? 1)),
+              items: [],
+            }),
+        }),
+      )
+      const { wrapper, router } = await mountAt('/catalogo/centro?page=2')
+      await flushPromises()
+      expect(pager(wrapper).text()).toContain('Página 2 de 3')
+      await button(wrapper, 'Siguiente').trigger('click')
+      await flushPromises()
+      expect(router.currentRoute.value.query.page).toBe('3')
+    })
+
+    it('keeps a zero-result first page ordinary and never renders page 1 of 0', async () => {
+      vi.stubGlobal(
+        'fetch',
+        createCatalogFetch({ products: () => jsonResponse(productsResponse([])) }),
+      )
+      const { wrapper } = await mountAt('/catalogo/centro')
+      await flushPromises()
+      expect(wrapper.text()).toContain('No hay productos disponibles')
+      expect(wrapper.text()).not.toContain('Página fuera de rango')
+      expect(wrapper.find('nav[aria-label="Paginación del catálogo"]').exists()).toBe(false)
+    })
   })
 
   it('passes detail error state and retry events through the modal boundary', async () => {

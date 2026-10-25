@@ -149,6 +149,35 @@ const {
   listingOptions,
 )
 
+// Only the current successful listing can authorize navigation; baseline facets
+// and card count never determine pagination boundaries.
+const paginationMeta = computed(() =>
+  readyBranch.value !== null &&
+  filterError.value === null &&
+  (productsState.value === 'populated' || productsState.value === 'empty')
+    ? (response.value?.meta ?? null)
+    : null,
+)
+const lastAvailablePage = computed(() => Math.max(1, paginationMeta.value?.totalPages ?? 0))
+const isPageOutOfRange = computed(
+  () => paginationMeta.value !== null && paginationMeta.value.page > lastAvailablePage.value,
+)
+const showPager = computed(
+  () =>
+    paginationMeta.value !== null && paginationMeta.value.totalPages > 0 && !isPageOutOfRange.value,
+)
+async function navigatePage(target: number) {
+  if (!paginationMeta.value || target < 1 || target > lastAvailablePage.value) return
+  const query = { ...route.query }
+  if (target === 1) delete query.page
+  else query.page = String(target)
+  try {
+    await router.push({ query, hash: route.hash })
+  } catch {
+    // The committed URL remains authoritative after rejected navigation.
+  }
+}
+
 /** The list response context is authoritative for identity and selector display. */
 const authoritativePriceContext = computed(() => response.value?.priceContext ?? null)
 const priceListId = computed(() => authoritativePriceContext.value?.priceListId ?? null)
@@ -362,6 +391,20 @@ async function selectPriceContext(priceListIdToSelect: string) {
             Restablecer página
           </button>
         </div>
+        <div
+          v-else-if="isPageOutOfRange"
+          class="catalog-container catalog-range-recovery"
+          role="status"
+        >
+          <h2>Página fuera de rango</h2>
+          <button
+            type="button"
+            class="catalog-filter-button"
+            @click="navigatePage(lastAvailablePage)"
+          >
+            Ir a la última página disponible
+          </button>
+        </div>
         <CatalogProductGrid
           v-else
           :selection-state="selectionState"
@@ -374,6 +417,29 @@ async function selectPriceContext(priceListIdToSelect: string) {
           @retry-context="retryPriceContexts"
           @open-detail="openDetail"
         />
+        <div v-if="showPager && paginationMeta" class="catalog-container">
+          <nav class="catalog-pagination" aria-label="Paginación del catálogo">
+            <button
+              type="button"
+              class="catalog-filter-button"
+              :disabled="paginationMeta.page <= 1"
+              @click="navigatePage(paginationMeta.page - 1)"
+            >
+              Anterior
+            </button>
+            <span role="status" aria-live="polite">
+              Página {{ paginationMeta.page }} de {{ paginationMeta.totalPages }}
+            </span>
+            <button
+              type="button"
+              class="catalog-filter-button"
+              :disabled="paginationMeta.page >= paginationMeta.totalPages"
+              @click="navigatePage(paginationMeta.page + 1)"
+            >
+              Siguiente
+            </button>
+          </nav>
+        </div>
       </section>
     </main>
 

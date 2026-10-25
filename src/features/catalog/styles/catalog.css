@@ -286,6 +286,29 @@ body[data-catalog-theme='light'] .catalog-category-toolbar > span {
   background: var(--catalog-soft, #edf0ff);
   color: var(--catalog-action, #304acb);
 }
+.catalog-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-bottom: 24px;
+  color: var(--catalog-title, #242b36);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.catalog-pagination .catalog-filter-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.catalog-range-recovery {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  padding-block: 48px;
+  text-align: center;
+  color: var(--catalog-title, #242b36);
+}
 .catalog-filter-button:focus-visible {
   outline: 2px solid var(--catalog-action, #304acb);
   outline-offset: 2px;
