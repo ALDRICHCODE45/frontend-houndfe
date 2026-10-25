@@ -61,7 +61,17 @@ function onSelect(value: string | null) {
       :disabled="!isReady"
       placeholder="Elegir lista de precios"
       class="w-full min-w-0"
-      :ui="{ base: 'min-h-11' }"
+      :search-input="{
+        placeholder: 'Buscar lista de precios',
+        ui: { base: 'catalog-price-search min-h-11' },
+      }"
+      :ui="{
+        base: 'min-h-11',
+        content: 'catalog-price-popup z-30',
+        viewport: 'p-1.5',
+        item: 'catalog-price-option min-h-11 px-3 py-2',
+        itemLabel: 'whitespace-normal break-words',
+      }"
       aria-label="Lista de precios"
       data-testid="catalog-price-context-menu"
       @update:model-value="onSelect"

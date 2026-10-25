@@ -70,8 +70,8 @@ function selectBranch(slug: string) {
         description="Elige la sucursal para ver sus productos."
         :close="false"
         :ui="{
-          overlay: 'bg-coco-950/45 backdrop-blur-sm',
-          content: 'catalog-branch-dialog max-w-md rounded-xl shadow-xl',
+          overlay: 'catalog-branch-overlay z-40 bg-coco-950/45 backdrop-blur-sm',
+          content: 'catalog-branch-dialog z-50 max-w-md',
           header: 'items-start',
           body: 'flex-1 p-4 overscroll-contain sm:p-5',
         }"
@@ -102,9 +102,9 @@ function selectBranch(slug: string) {
           <button
             type="button"
             aria-label="Cerrar selección de sucursal"
-            class="ms-auto inline-flex size-11 shrink-0 items-center justify-center rounded-full text-muted transition-[background-color,color,transform] duration-150 ease-out hover:bg-elevated/70 hover:text-highlighted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100"
+            class="catalog-branch-close ms-auto inline-flex size-11 shrink-0 items-center justify-center text-muted transition-colors duration-150 hover:bg-elevated/70 hover:text-highlighted"
           >
-            <span class="text-xs">Cerrar</span>
+            <UIcon name="i-lucide-x" class="size-5" aria-hidden="true" />
           </button>
         </template>
 
@@ -129,16 +129,13 @@ function selectBranch(slug: string) {
             </template>
 
             <template v-else-if="state === 'populated'">
-              <ul
-                aria-label="Sucursales disponibles"
-                class="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2"
-              >
+              <ul aria-label="Sucursales disponibles" class="flex min-w-0 flex-col gap-2">
                 <li v-for="branch in branches" :key="branch.id" class="min-w-0">
                   <button
                     type="button"
                     :aria-label="branch.name"
                     :aria-current="branch.slug === selectedSlug ? 'page' : undefined"
-                    class="flex min-h-11 w-full min-w-0 items-center gap-3 rounded-xl px-3 py-2.5 text-left ring-1 transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
+                    class="catalog-branch-option flex min-h-11 w-full min-w-0 items-center gap-3 px-3 py-2.5 text-left ring-1 transition-colors duration-150 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary motion-reduce:transition-none"
                     :class="
                       branch.slug === selectedSlug
                         ? 'bg-primary/5 ring-primary/40 dark:bg-primary/15'

@@ -8,6 +8,9 @@ body[data-catalog-theme='light'] {
   --catalog-muted: #576574;
   --catalog-action: #2442f6;
   --catalog-border: #dce2e8;
+  --catalog-control-radius: 6px;
+  --catalog-panel-radius: 12px;
+  --catalog-panel-shadow: 0 12px 32px rgb(23 57 104 / 12%), 0 2px 6px rgb(23 57 104 / 6%);
   --ui-bg: var(--catalog-surface);
   --ui-bg-muted: var(--catalog-page);
   --ui-bg-elevated: var(--catalog-surface);
@@ -93,9 +96,9 @@ body[data-catalog-theme='light'] .catalog-price-context > p {
 body[data-catalog-theme='light'] .catalog-price-context button[aria-label='Lista de precios'] {
   box-shadow: none;
   border: 1px solid var(--catalog-border);
-  border-radius: 8px;
+  border-radius: var(--catalog-control-radius);
   font-size: 14px;
-  background: var(--catalog-page);
+  background: var(--catalog-surface);
   color: var(--catalog-title);
 }
 
@@ -112,6 +115,8 @@ body[data-catalog-theme='light'] .catalog-main {
 body[data-catalog-theme='light'] .catalog-hero {
   display: flex;
   position: relative;
+  /* Keep the photo/copy layering local, below every teleported control. */
+  isolation: isolate;
   overflow: hidden;
   border-radius: 12px;
   background: var(--catalog-soft);
@@ -181,10 +186,61 @@ body[data-catalog-theme='light'] .catalog-listing:focus {
   outline: none;
 }
 
-body[data-catalog-theme='light'] .catalog-header button,
-body[data-catalog-theme='light'] .catalog-categories button,
-body[data-catalog-theme='light'] .catalog-branch-dialog button {
-  border-radius: 8px;
+/* Catalog portal ownership: menu 30, modal 40/50, image preview 60/61.
+   Match modern control/panel geometry without importing the private app's theme. */
+body[data-catalog-theme='light'] .catalog-branch-trigger,
+body[data-catalog-theme='light'] .catalog-branch-option,
+body[data-catalog-theme='light'] .catalog-branch-close,
+body[data-catalog-theme='light'] .catalog-price-option {
+  border-radius: var(--catalog-control-radius);
+}
+body[data-catalog-theme='light'] .catalog-branch-dialog,
+body[data-catalog-theme='light'] .catalog-price-popup {
+  border: 1px solid var(--catalog-border);
+  border-radius: var(--catalog-panel-radius);
+  background: var(--catalog-surface);
+  color: var(--catalog-text);
+  box-shadow: var(--catalog-panel-shadow);
+  overscroll-behavior: contain;
+}
+body[data-catalog-theme='light'] .catalog-price-popup {
+  width: max(224px, var(--reka-combobox-trigger-width, 0px));
+  max-width: calc(100vw - 32px);
+}
+body[data-catalog-theme='light'] .catalog-price-search {
+  margin: 6px;
+  width: calc(100% - 12px);
+  border: 1px solid var(--catalog-border);
+  border-radius: var(--catalog-control-radius);
+  background: var(--catalog-page);
+  font-size: 14px;
+}
+body[data-catalog-theme='light'] .catalog-price-option {
+  align-items: center;
+  font-size: 14px;
+}
+body[data-catalog-theme='light'] .catalog-price-option::before {
+  border-radius: var(--catalog-control-radius);
+}
+body[data-catalog-theme='light']
+  .catalog-price-option:is([data-highlighted], [aria-selected='true']) {
+  background: var(--catalog-soft);
+  color: var(--catalog-title);
+}
+body[data-catalog-theme='light'] .catalog-price-option [data-slot='itemTrailingIcon'] {
+  color: var(--catalog-action);
+}
+body[data-catalog-theme='light'] .catalog-branch-close:focus-visible,
+body[data-catalog-theme='light'] .catalog-price-search:focus-visible {
+  outline: 2px solid var(--catalog-action);
+  outline-offset: 2px;
+}
+@media (hover: hover) {
+  body[data-catalog-theme='light']
+    .catalog-price-context
+    button[aria-label='Lista de precios']:enabled:hover {
+    border-color: #7b8999;
+  }
 }
 
 body[data-catalog-theme='light'] .catalog-category-toolbar h2 {

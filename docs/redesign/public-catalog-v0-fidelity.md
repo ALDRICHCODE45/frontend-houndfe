@@ -88,6 +88,24 @@ This is an adaptation to supported capabilities, not pixel-identical reproductio
 
 Worker project/responsive types and build passed; existing CSS-token/chunk warnings remain. Mocked responsive suites were not run because their server conflicts with the user's4173 preview. Native assessment returned the explicit-untracked-declaration precondition, so **no native review approval** is claimed; its returned plan retained self-verification and did not require an independent verifier. No push/PR/merge, new database/CDN mutation, or user-service restart occurred. Preview for human visual review: `http://localhost:4173/catalogo/centro`.
 
+## Selector and branch-dialog correction
+
+A follow-up audit found that the hero's positive stacking context escaped its surface: it painted sharp text over the branch backdrop and intercepted mobile price-option clicks. The trigger alone had received styling; its teleported popup and branch panel retained legacy geometry.
+
+The correction is catalog-local: isolate the hero; explicitly order menu30, modal40/50 and existing preview60/61; own the price popup/search/options; use modern6px controls and12px panels; make branch rows full-width; replace the text close action with an accessible44px icon button. Controlled selection, API requests and route ownership remain unchanged. Private application themes are not imported or modified.
+
+Browser regression command (against an already running, rebuilt preview):
+
+```sh
+node --test e2e/responsive/catalog-controls.test.mjs
+```
+
+`CATALOG_TEST_URL` optionally selects an existing frontend origin. The test starts no server and intercepts only public catalog API requests in isolated browser contexts. It uses one/two branches and two price contexts without changing stored data. At320/390/1440 it checks actual pointer and keyboard selection, URL identity, popup search and44px targets, hero containment/modal layers, viewport coverage, focus/scroll behavior, full-width rows and computed radii. Initial390 RED observed all five tests fail, including the actual hero pointer interception and28px panel radius. Final GREEN:15/15 browser regressions pass at320/390/1440 (job10). The first post-build run exposed test-harness errors: sampling an intermediate scale animation and directly focusing an option without activating the combobox highlight. Tests now wait for settled geometry and use search, ArrowDown and Enter; pointer selection, minimum sizes and exact URL assertions remain enforced.
+
+The373-test focused unit suite, project types, responsive types and build passed (job9; existing CSS/chunk warnings). Separate unmocked checks (job11) passed at320/390/1440: click the real price option, close the branch dialog, open detail/image preview with the pointer and restore exact focus on each close. All six viewport screenshots in `artifacts/catalog-polish-fix/` were read: the hero text now blurs with the rest of the background, the branch row spans the panel and the popup/search/options form one consistent surface. No database/CDN writes or service restarts occurred.
+
+The existing server-owning responsive suite was not run; the new standalone regression avoids that port conflict. Native assessment still reports the explicit-untracked-declaration precondition, not review approval. LSP confirmed two paths clean and left two inconclusive; project type checks passed. Safari and authenticated backoffice browser checks were not run. Only catalog-owned selectors/markup changed; private application styling and business logic remain untouched.
+
 ## Key Learnings
 
 - Small product-image reservations, rather than changing only column count, recover v0's card density.
