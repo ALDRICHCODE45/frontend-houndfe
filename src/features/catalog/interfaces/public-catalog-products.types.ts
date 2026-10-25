@@ -1,5 +1,11 @@
 import type { PublicCatalogPriceContextDto } from './public-catalog-price-context.types'
 
+/** Optional server listing inputs; absence keeps the original first-page request. */
+export interface CatalogProductsOptions {
+  categoryId?: string
+  page?: number
+}
+
 /** Public response contract for GET /public/catalog/:tenantSlug/products. */
 export type PublicCatalogProductAvailability = 'available' | 'low_stock' | 'out_of_stock' | null
 export type PublicCatalogStockPresentationMode =

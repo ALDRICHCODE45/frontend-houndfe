@@ -4,6 +4,7 @@ import { defineComponent, nextTick, shallowRef } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { catalogProductsQueryKey, useCatalogProducts } from '../useCatalogProducts'
 import { fetchCatalogProducts } from '../../api/catalog-products.api'
+import type { CatalogProductsOptions } from '../../interfaces/public-catalog-products.types'
 
 vi.mock('../../api/catalog-products.api', () => ({ fetchCatalogProducts: vi.fn() }))
 const fetchCatalogProductsMock = vi.mocked(fetchCatalogProducts)
@@ -80,6 +81,51 @@ function mountHarnessWithPriceList(initialSlug: string | null, initialPriceListI
 
 describe('useCatalogProducts', () => {
   beforeEach(() => fetchCatalogProductsMock.mockReset())
+
+  it('deduplicates baseline/listing then isolates category/page, aborting and ignoring stale results', async () => {
+    const options = shallowRef<CatalogProductsOptions>({})
+    const pending = deferred<ReturnType<typeof page>>()
+    fetchCatalogProductsMock
+      .mockResolvedValueOnce(page())
+      .mockReturnValueOnce(pending.promise)
+      .mockResolvedValueOnce(page([{ ...product, id: 'page-2' }]))
+    let listing!: ReturnType<typeof useCatalogProducts>
+    let baseline!: ReturnType<typeof useCatalogProducts>
+    const wrapper = mount(
+      defineComponent({
+        setup() {
+          baseline = useCatalogProducts('centro')
+          listing = useCatalogProducts('centro', null, options)
+          return () => null
+        },
+      }),
+      { global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }]] } },
+    )
+    await flushPromises()
+    expect(fetchCatalogProductsMock).toHaveBeenCalledTimes(1)
+    expect(catalogProductsQueryKey('centro', null, { page: 1 })).toEqual(
+      catalogProductsQueryKey('centro'),
+    )
+    options.value = { categoryId: 'category-1' }
+    await nextTick()
+    expect(listing.products.value).toEqual([])
+    const signal = fetchCatalogProductsMock.mock.calls[1]![2]!
+    expect(fetchCatalogProductsMock).toHaveBeenLastCalledWith('centro', null, signal, {
+      categoryId: 'category-1',
+    })
+    options.value = { categoryId: 'category-1', page: 2 }
+    await flushPromises()
+    expect(signal.aborted).toBe(true)
+    expect(listing.products.value[0]?.id).toBe('page-2')
+    pending.resolve(page([{ ...product, id: 'stale' }]))
+    await flushPromises()
+    expect(listing.products.value[0]?.id).toBe('page-2')
+    expect(baseline.products.value).toEqual([product])
+    expect(catalogProductsQueryKey('centro', null, { categoryId: 'category-1' })).not.toEqual(
+      catalogProductsQueryKey('centro', null, { categoryId: 'category-1', page: 2 }),
+    )
+    wrapper.unmount()
+  })
 
   it.each([[null], [''], ['   ']])(
     'keeps the query disabled and retry guarded without a valid selected tenant slug (%j)',

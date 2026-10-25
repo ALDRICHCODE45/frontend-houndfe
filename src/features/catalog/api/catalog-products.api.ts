@@ -1,4 +1,5 @@
 import type {
+  CatalogProductsOptions,
   PublicCatalogProductDto,
   PublicCatalogProductsResponseDto,
 } from '../interfaces/public-catalog-products.types'
@@ -160,15 +161,19 @@ export async function fetchCatalogProducts(
   tenantSlug: string,
   priceListId?: string | null,
   signal?: AbortSignal,
+  options: CatalogProductsOptions = {},
 ): Promise<PublicCatalogProductsResponseDto> {
   // Only null/undefined are absent. A supplied string is explicit and identity-significant
   // exactly as given, including an empty or whitespace-only malformed value.
   const requestedPriceListId = priceListId ?? null
   const path = `/public/catalog/${encodeURIComponent(tenantSlug)}/products`
-  const url =
-    requestedPriceListId === null
-      ? `${apiBase}${path}`
-      : `${apiBase}${path}?priceListId=${encodeURIComponent(requestedPriceListId)}`
+  const params: string[] = []
+  if (requestedPriceListId !== null)
+    params.push(`priceListId=${encodeURIComponent(requestedPriceListId)}`)
+  if (options.categoryId !== undefined)
+    params.push(`categoryId=${encodeURIComponent(options.categoryId)}`)
+  if (options.page !== undefined) params.push(`page=${options.page}`)
+  const url = `${apiBase}${path}${params.length ? `?${params.join('&')}` : ''}`
   let response: Response
   try {
     const init = signal

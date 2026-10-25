@@ -257,6 +257,39 @@ body[data-catalog-theme='light'] .catalog-category-toolbar > span {
   font-size: 14px;
 }
 
+.catalog-category-controls {
+  display: flex;
+  flex: 1 0 100%;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.catalog-filter-button {
+  min-height: 44px;
+  max-width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--catalog-border, #cbd1d8);
+  border-radius: 6px;
+  background: var(--catalog-surface, #fff);
+  color: var(--catalog-title, #242b36);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.catalog-filter-button span {
+  opacity: 0.7;
+  margin-left: 4px;
+}
+.catalog-filter-button[aria-pressed='true'] {
+  border-color: var(--catalog-action, #304acb);
+  background: var(--catalog-soft, #edf0ff);
+  color: var(--catalog-action, #304acb);
+}
+.catalog-filter-button:focus-visible {
+  outline: 2px solid var(--catalog-action, #304acb);
+  outline-offset: 2px;
+}
 body[data-catalog-theme='light'] .catalog-category-toolbar {
   display: flex;
   flex-wrap: wrap;

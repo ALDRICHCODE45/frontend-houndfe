@@ -50,6 +50,27 @@ describe('fetchCatalogProducts', () => {
     expect(init).not.toHaveProperty('body')
   })
 
+  it('appends optional server filters after the signal without changing anonymous request policy', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(() => Promise.resolve(new Response(JSON.stringify(response))))
+    vi.stubGlobal('fetch', fetchMock)
+    const signal = new AbortController().signal
+    await fetchCatalogProducts('centro', 'list-1', signal, {
+      categoryId: 'category & one',
+      page: 2,
+    })
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      'http://localhost:3000/public/catalog/centro/products?priceListId=list-1&categoryId=category%20%26%20one&page=2',
+      { method: 'GET', credentials: 'omit', signal },
+    )
+    await fetchCatalogProducts('centro', null, signal, { page: 3 })
+    expect(fetchMock).toHaveBeenLastCalledWith(
+      'http://localhost:3000/public/catalog/centro/products?page=3',
+      { method: 'GET', credentials: 'omit', signal },
+    )
+  })
+
   it.each([
     [
       'an empty page',

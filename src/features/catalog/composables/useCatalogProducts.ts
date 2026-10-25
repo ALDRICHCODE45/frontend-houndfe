@@ -1,7 +1,10 @@
 import { computed, ref, toValue, type MaybeRefOrGetter } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { fetchCatalogProducts, type CatalogProductsErrorKind } from '../api/catalog-products.api'
-import type { PublicCatalogProductsResponseDto } from '../interfaces/public-catalog-products.types'
+import type {
+  CatalogProductsOptions,
+  PublicCatalogProductsResponseDto,
+} from '../interfaces/public-catalog-products.types'
 
 export type CatalogProductsState =
   | 'loading'
@@ -20,19 +23,27 @@ const apiBase = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000').r
 const defaultPriceSelection = ['default'] as const
 const explicitPriceSelection = (priceListId: string) => ['explicit', priceListId] as const
 
-export function catalogProductsQueryKey(tenantSlug: string, priceListId?: string | null) {
+export function catalogProductsQueryKey(
+  tenantSlug: string,
+  priceListId?: string | null,
+  options: CatalogProductsOptions = {},
+) {
   // Only null/undefined are absent. Any supplied string stays explicit exactly as given,
   // so a blank or whitespace-only value cannot collide with the caller-default identity.
   const selection =
     priceListId === null || priceListId === undefined
       ? defaultPriceSelection
       : explicitPriceSelection(priceListId)
-  return ['public-catalog', 'products', apiBase, tenantSlug, selection] as const
+  const base = ['public-catalog', 'products', apiBase, tenantSlug, selection] as const
+  return options.categoryId === undefined && (options.page ?? 1) === 1
+    ? base
+    : ([...base, { categoryId: options.categoryId ?? null, page: options.page ?? 1 }] as const)
 }
 
 export function useCatalogProducts(
   tenantSlug: MaybeRefOrGetter<string | null>,
   priceListId?: MaybeRefOrGetter<string | null>,
+  options: MaybeRefOrGetter<CatalogProductsOptions> = {},
 ) {
   const selectedTenantSlug = computed(() => {
     const slug = toValue(tenantSlug)
@@ -49,13 +60,20 @@ export function useCatalogProducts(
   const retryRequested = ref(false)
   const query = useQuery<PublicCatalogProductsResponseDto>({
     queryKey: computed(() =>
-      catalogProductsQueryKey(selectedTenantSlug.value ?? '', selectedPriceListId.value),
+      catalogProductsQueryKey(
+        selectedTenantSlug.value ?? '',
+        selectedPriceListId.value,
+        toValue(options),
+      ),
     ),
     queryFn: ({ signal }) => {
       const slug = selectedTenantSlug.value
       if (slug === null)
         throw new Error('A tenant slug is required before fetching catalog products')
-      return fetchCatalogProducts(slug, selectedPriceListId.value, signal)
+      const listing = toValue(options)
+      return Object.keys(listing).length === 0
+        ? fetchCatalogProducts(slug, selectedPriceListId.value, signal)
+        : fetchCatalogProducts(slug, selectedPriceListId.value, signal, listing)
     },
     enabled,
     staleTime: 0,

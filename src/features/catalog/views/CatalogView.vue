@@ -103,22 +103,62 @@ const contextState = computed<CatalogProductContextState>(() => {
 })
 
 const isContextReady = computed(() => contextState.value === 'context-ready')
+const readyBranch = computed(() =>
+  isContextReady.value ? (selectedBranch.value?.slug ?? null) : null,
+)
+const requestedPrice = computed(() =>
+  isContextReady.value && priceContextProposal.value.kind === 'explicit'
+    ? priceContextProposal.value.id
+    : null,
+)
+const categoryId = computed(() => {
+  const raw = route.query.categoryId
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  return typeof raw === 'string' && uuid.test(raw) ? raw : null
+})
+const page = computed(() => {
+  const raw = route.query.page
+  if (raw === undefined) return 1
+  return typeof raw === 'string' && /^[1-9]\d*$/.test(raw) && Number.isSafeInteger(Number(raw))
+    ? Number(raw)
+    : null
+})
+const filterError = computed(() => {
+  if (route.query.categoryId !== undefined && categoryId.value === null) return 'category'
+  return page.value === null ? 'page' : null
+})
+const listingOptions = computed(() => ({
+  ...(categoryId.value !== null ? { categoryId: categoryId.value } : {}),
+  ...(page.value !== null && page.value !== 1 ? { page: page.value } : {}),
+}))
+// Facets are context-scoped, unfiltered, first-page data. The identical initial
+// listing shares this key/request; filtered responses never replace these options.
+const {
+  response: baseline,
+  state: baselineState,
+  retry: retryBaseline,
+} = useCatalogProducts(readyBranch, requestedPrice)
 const {
   products,
   response,
   state: productsState,
   retry: retryProducts,
 } = useCatalogProducts(
-  computed(() => (isContextReady.value ? (selectedBranch.value?.slug ?? null) : null)),
-  computed(() => {
-    if (!isContextReady.value) return null
-    return priceContextProposal.value.kind === 'explicit' ? priceContextProposal.value.id : null
-  }),
+  computed(() => (filterError.value === null ? readyBranch.value : null)),
+  requestedPrice,
+  listingOptions,
 )
 
 /** The list response context is authoritative for identity and selector display. */
 const authoritativePriceContext = computed(() => response.value?.priceContext ?? null)
 const priceListId = computed(() => authoritativePriceContext.value?.priceListId ?? null)
+const baselineContextMismatch = computed(
+  () =>
+    baseline.value !== null &&
+    priceListId.value !== null &&
+    baseline.value.priceContext.priceListId !== priceListId.value,
+)
+const categoryBaseline = computed(() => (baselineContextMismatch.value ? null : baseline.value))
 const selectedPriceListId = computed(() => {
   if (authoritativePriceContext.value) return authoritativePriceContext.value.priceListId
   const proposal = priceContextProposal.value
@@ -208,10 +248,37 @@ const priceContextProposalKey = computed(() => {
   return proposal.kind === 'explicit' ? proposal.id : proposal.kind
 })
 watch(
-  [() => selectedBranch.value?.slug ?? null, priceContextProposalKey, priceListId],
+  [
+    () => selectedBranch.value?.slug ?? null,
+    priceContextProposalKey,
+    priceListId,
+    () => JSON.stringify([route.query.categoryId, route.query.page]),
+  ],
   () => clearDetail(false),
   { flush: 'sync' },
 )
+
+/** Only committed route state changes selection, including rejected navigation. */
+async function selectCategory(id: string | null) {
+  const query = { ...route.query }
+  delete query.page
+  if (id === null) delete query.categoryId
+  else query.categoryId = id
+  try {
+    await router.push({ query, hash: route.hash })
+  } catch {
+    // Keep the current route authoritative.
+  }
+}
+async function recoverPage() {
+  const query = { ...route.query }
+  delete query.page
+  try {
+    await router.push({ query, hash: route.hash })
+  } catch {
+    // Keep the current route authoritative.
+  }
+}
 
 /** Branch selection drops the previous `priceListId` but preserves unrelated query/hash. */
 async function selectBranch(slug: string) {
@@ -269,11 +336,34 @@ async function selectPriceContext(priceListIdToSelect: string) {
       >
         <div class="catalog-container">
           <CatalogCategoryBar
-            :categories="response?.facets.categories ?? []"
-            :total="response?.meta.total ?? null"
+            :categories="categoryBaseline?.facets.categories ?? []"
+            :all-total="categoryBaseline?.meta.total ?? null"
+            :context-mismatch="baselineContextMismatch"
+            :total="filterError ? null : (response?.meta.total ?? null)"
+            :selected-id="categoryId"
+            :has-category="route.query.categoryId !== undefined"
+            :ready="readyBranch !== null"
+            :state="baselineState"
+            @select="selectCategory"
+            @retry="retryBaseline"
           />
         </div>
+        <div v-if="filterError && readyBranch" class="catalog-container py-6" role="status">
+          <p>{{ filterError === 'category' ? 'Categoría no válida.' : 'Página no válida.' }}</p>
+          <button
+            v-if="filterError === 'category'"
+            type="button"
+            class="catalog-filter-button"
+            @click="selectCategory(null)"
+          >
+            Limpiar categoría
+          </button>
+          <button v-else type="button" class="catalog-filter-button" @click="recoverPage">
+            Restablecer página
+          </button>
+        </div>
         <CatalogProductGrid
+          v-else
           :selection-state="selectionState"
           :branches-state="branchesState"
           :products="products"
