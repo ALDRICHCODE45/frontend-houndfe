@@ -18,6 +18,8 @@ import {
   writeRememberedLanding,
 } from '@/app/navigation/navigation.memory'
 
+import { canReadEditorial } from '@/features/POS/products/authorization/editorial-access'
+
 type RoutePermission = [AppAction, AppSubject]
 
 // Resolver-only root route: the global guard always redirects it (replace) to
@@ -166,6 +168,12 @@ const router = createRouter({
         layout: 'dashboard',
         permission: ['read', 'Product'] as RoutePermission,
       },
+    },
+    {
+      path: '/pos/products/:id/editorial',
+      name: 'pos-product-editorial',
+      component: () => import('@/features/POS/products/views/ProductEditorialView.vue'),
+      meta: { layout: 'dashboard', editorialRead: true },
     },
     {
       path: '/pos/orders',
@@ -620,6 +628,14 @@ router.beforeEach(async (to) => {
   }
 
   if (to.meta.requiresSuperAdmin === true && !authStore.isSuperAdmin) {
+    return '/403'
+  }
+
+  // Feature-local opt-in, only after the existing authentication/tenant hydration.
+  // Editorial grants never inherit CASL wildcard/manage or operational Product access.
+  if (to.meta.editorialRead === true &&
+    (!authStore.user?.id || !authStore.permissionsLoaded ||
+      !canReadEditorial(authStore.permissionCodes))) {
     return '/403'
   }
 
