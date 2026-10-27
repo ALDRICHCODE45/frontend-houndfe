@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AxiosError, AxiosHeaders, type AxiosAdapter } from 'axios'
 import { http } from '@/core/shared/api/http'
 import { editorialApi, EditorialApiError } from '../product-editorial.api'
+import { editorialQueryKeys } from '../../constants/product-editorial-query-keys'
 
 const document = {
   commercialTitle: null, description: null, mediaRefs: [], familyCode: null, values: [],
@@ -44,6 +45,37 @@ describe('closed editorial HTTP transport', () => {
     expect(config.headers.get('Cache-Control')).toBe('no-cache')
     expect(config.headers.get('Pragma')).toBe('no-cache')
     expect(config.headers.has('Idempotency-Key')).toBe(false)
+  })
+
+  it.each([
+    { variants: [] },
+    { variants: [{ id: 'z', name: 'Same' }, { id: 'a', name: 'Same' }, { id: 'b', name: 'Alpha' }] },
+  ])('unwraps complete context without flags, sorting, query or body: %j', async (context) => {
+    respond(context)
+    await expect(editorialApi.getContext('p/1')).resolves.toEqual(context)
+    const config = adapter.mock.calls[0]![0]
+    expect(config.url).toBe('/products/p%2F1/editorial/context')
+    expect(config.method).toBe('get')
+    expect(config.params).toBeUndefined()
+    expect(config.data).toBeUndefined()
+    expect(config.headers.has('Idempotency-Key')).toBe(false)
+  })
+
+  it('uses the same safe read envelope for context failures', async () => {
+    reject(403, { statusCode: 403, error: 'FORBIDDEN', message: 'unsafe' })
+    await expect(editorialApi.getContext('p')).rejects.toMatchObject({
+      status: 403, code: 'FORBIDDEN', envelope: { statusCode: 403, error: 'FORBIDDEN' },
+    })
+  })
+
+  it('scopes context keys by tenant, authenticated scope and product independently of state', () => {
+    const scope = { tenantId: 't', authScope: 'u' }
+    const key = editorialQueryKeys.context(scope, 'p')
+    expect(key).toEqual(['product-editorial', 't', 'u', 'context', 'p'])
+    expect(key).not.toEqual(editorialQueryKeys.state(scope, 'p'))
+    expect(key).not.toEqual(editorialQueryKeys.context({ ...scope, tenantId: 'other' }, 'p'))
+    expect(key).not.toEqual(editorialQueryKeys.context({ ...scope, authScope: 'other' }, 'p'))
+    expect(key).not.toEqual(editorialQueryKeys.context(scope, 'other'))
   })
 
   it('initializes with nullable cycle, unwraps the 201 body and optional warnings', async () => {

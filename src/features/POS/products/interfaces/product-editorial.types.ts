@@ -83,6 +83,11 @@ export type EditorialDefinition = EditorialDefinitionBase & (
   | { type: 'number'; units: EditorialUnit[]; options?: never }
   | { type: 'single' | 'multi'; options: EditorialOption[]; units?: never }
 )
+// Complete server-ordered qualification snapshot; never infer from assignments/flags.
+export interface EditorialContext {
+  variants: Array<{ id: string; name: string }>
+}
+
 export interface EditorialVocabulary {
   families: EditorialFamily[]
   definitions: EditorialDefinition[]

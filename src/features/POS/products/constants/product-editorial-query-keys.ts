@@ -10,5 +10,7 @@ const scopeKey = ({ tenantId, authScope }: EditorialQueryScope) =>
 export const editorialQueryKeys = {
   state: (scope: EditorialQueryScope, productId: string) =>
     [...scopeKey(scope), 'state', productId] as const,
+  context: (scope: EditorialQueryScope, productId: string) =>
+    [...scopeKey(scope), 'context', productId] as const,
   vocabulary: (scope: EditorialQueryScope) => [...scopeKey(scope), 'vocabulary'] as const,
 }

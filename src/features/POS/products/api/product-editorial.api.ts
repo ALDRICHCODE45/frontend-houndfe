@@ -1,7 +1,7 @@
 import { isAxiosError, type AxiosResponse } from 'axios'
 import { http } from '@/core/shared/api/http'
 import type {
-  EditorialErrorEnvelope, EditorialInitializeRequest, EditorialSaveRequest,
+  EditorialContext, EditorialErrorEnvelope, EditorialInitializeRequest, EditorialSaveRequest,
   EditorialState, EditorialVocabulary, EditorialWriteResponse,
 } from '../interfaces/product-editorial.types'
 
@@ -58,6 +58,8 @@ const writeConfig = (idempotencyKey: string) => ({
 export const editorialApi = {
   getState: (productId: string): Promise<EditorialState> =>
     unwrap(http.get<EditorialState>(editorialPath(productId))),
+  getContext: (productId: string): Promise<EditorialContext> =>
+    unwrap(http.get<EditorialContext>(`${editorialPath(productId)}/context`)),
   getVocabulary: (): Promise<EditorialVocabulary> =>
     unwrap(http.get<EditorialVocabulary>('/catalog-editorial/vocabulary')),
   initialize: (
