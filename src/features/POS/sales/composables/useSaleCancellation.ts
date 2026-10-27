@@ -112,6 +112,16 @@ export function useSaleCancellation(saleId: MaybeRefOrGetter<string>) {
     onError: (error: unknown) => {
       const code = (error as AxiosError<DomainErrorResponse>)?.response?.data?.error
 
+      if (code === 'RESTOCK_TARGET_HAS_VARIANTS') {
+        toast.add({
+          title: 'No se pudo cancelar la venta',
+          description:
+            'No se realizó la cancelación porque un producto ahora tiene variantes y no se puede restaurar su stock. La venta permanece sin cambios.',
+          color: 'error',
+        })
+        return
+      }
+
       if (code === 'IDEMPOTENCY_KEY_CONFLICT') {
         // Another actor/reason already canceled this sale. The units were NOT
         // restored again — never imply they were.

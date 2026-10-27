@@ -209,6 +209,51 @@ describe('useSaleCancellation (PCA-3)', () => {
     expect(keys).toContainEqual(['sales', 'tenant-1', 'confirmed'])
   })
 
+  it('explains RESTOCK_TARGET_HAS_VARIANTS without canceling or refreshing the unchanged sale', async () => {
+    vi.mocked(saleApi.cancelSale).mockRejectedValue({
+      response: {
+        status: 422,
+        data: {
+          statusCode: 422,
+          error: 'RESTOCK_TARGET_HAS_VARIANTS',
+          message: 'Cannot restore stock to Product Producto de prueba because it now has Variants',
+          timestamp: '2026-10-27T17:30:00.000Z',
+          productId: '00000000-0000-4000-8000-000000000001',
+        },
+      },
+    })
+    const { composable, invalidateQueries } = mountComposable(() => 'sale-1')
+
+    const result = await composable.cancelSale()
+
+    // The caller closes the confirmation only on a truthy success response.
+    expect(result).toBeUndefined()
+    expect(composable.isPending.value).toBe(false)
+    expect(invalidateQueries).not.toHaveBeenCalled()
+    expect(saleApi.cancelSale).toHaveBeenCalledTimes(1)
+    expect(toastAddMock).toHaveBeenCalledExactlyOnceWith({
+      title: 'No se pudo cancelar la venta',
+      description:
+        'No se realizó la cancelación porque un producto ahora tiene variantes y no se puede restaurar su stock. La venta permanece sin cambios.',
+      color: 'error',
+    })
+  })
+
+  it.each([null, undefined, {}, { response: { data: { error: 'UNKNOWN_CODE' } } }])(
+    'preserves generic feedback for unknown rejection %j',
+    async (error) => {
+      vi.mocked(saleApi.cancelSale).mockRejectedValue(error)
+      const { composable, invalidateQueries } = mountComposable(() => 'sale-1')
+      expect(await composable.cancelSale()).toBeUndefined()
+      expect(invalidateQueries).not.toHaveBeenCalled()
+      expect(toastAddMock).toHaveBeenCalledExactlyOnceWith({
+        title: 'No se pudo cancelar la venta',
+        description: 'Reintenta en unos segundos.',
+        color: 'error',
+      })
+    },
+  )
+
   it('handles a generic failure with an error toast and no restoration claim', async () => {
     vi.mocked(saleApi.cancelSale).mockRejectedValue(new Error('boom'))
     const { composable } = mountComposable(() => 'sale-1')

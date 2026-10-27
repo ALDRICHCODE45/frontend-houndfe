@@ -940,7 +940,10 @@ const updateMutation = useMutation({
     await Promise.all(invalidateKeys.map((key) => queryClient.invalidateQueries({ queryKey: key })))
   },
   onError: (error) => {
-    const message = mapDomainError(error as AxiosError<DomainApiError>)
+    const code = (error as AxiosError<DomainApiError>)?.response?.data?.error
+    const message = code === 'PRODUCT_HAS_VARIANTS'
+      ? 'No puedes desactivar las variantes mientras el producto tenga variantes. Elimínalas primero.'
+      : mapDomainError(error as AxiosError<DomainApiError>)
     toast.add({ title: 'Error al actualizar producto', description: message, color: 'error' })
   },
 })
