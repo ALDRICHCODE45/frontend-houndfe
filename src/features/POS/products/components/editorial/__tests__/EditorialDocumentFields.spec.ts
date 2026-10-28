@@ -122,14 +122,23 @@ describe('editorial document controls', () => {
     expect(wrapper.text()).toContain('1 referencias de medios conservadas')
     wrapper.unmount()
   })
-  it('preserves missing binding values visibly and supports explicit removal without a repair promise', async () => {
+  it('preserves missing binding values visibly and asks for explicit correction before saving', async () => {
     const wrapper = mount(EditorialDocumentFields, { props: { document: { ...document, values: [{ ...value, code: 'gone' }] },
       vocabulary, context: { variants: [] }, baseline: document, issues: [], disabled: false } })
     expect(wrapper.text()).toContain('Atributo huérfano')
     expect(wrapper.text()).toContain('CONSERVAR')
-    expect(wrapper.text()).toContain('no garantiza')
+    expect(wrapper.text()).toContain('Quítalo o corrígelo para poder guardar el borrador.')
+    expect(wrapper.text()).not.toContain('limitación conocida')
+    expect(wrapper.text()).not.toContain('no garantiza')
     await wrapper.get('[data-testid="remove-0"]').trigger('click')
     expect(wrapper.emitted('update:document')?.[0]?.[0]).toEqual({ ...document, values: [] })
+    wrapper.unmount()
+  })
+  it('shows the stored unit of an orphaned number value', () => {
+    const stored = { code: 'gone', owner: 'product', variantId: null, type: 'number', value: 0.25, unit: 'kg' } as const
+    const wrapper = mount(EditorialDocumentFields, { props: { document: { ...document, values: [stored] },
+      vocabulary, context: { variants: [] }, baseline: document, issues: [], disabled: false } })
+    expect(wrapper.get('.stored-value').text()).toBe('0.25 kg')
     wrapper.unmount()
   })
   it('adds only after an explicit binding and valid value choice, never inventing defaults', async () => {

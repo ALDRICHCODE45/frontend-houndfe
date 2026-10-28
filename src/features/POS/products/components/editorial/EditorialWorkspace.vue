@@ -94,7 +94,7 @@ async function submit() { if (fieldsValid.value) await editor.save() }
           <p v-else>La versión publicada permanece intacta. Puedes iniciar un borrador a partir de ella.</p>
           <button v-if="canWrite" type="button" class="editorial-button" data-testid="initialize" :disabled="!canInitialize" @click="editor.initialize()">{{ authoritative.published ? 'Iniciar borrador desde Publicado' : 'Iniciar borrador vacío' }}</button>
         </div>
-        <p v-if="invalidHistoryContext" role="status" class="editorial-panel warning">Historial con atributos o contexto no disponibles. Se conserva intacto. Por una limitación conocida, el servidor puede rechazar incluso un borrador corregido; cambiar o quitar atributos no garantiza desbloquear el guardado.</p>
+        <p v-if="invalidHistoryContext" role="status" class="editorial-panel warning">Historial con atributos o contexto no disponibles. Se conserva intacto. Quita o corrige esos atributos en el borrador para poder guardarlo.</p>
         <form v-if="canWrite && buffer && vocabulary && qualification" id="editorial-form" class="editorial-form" aria-label="Editar borrador editorial" novalidate @submit.prevent="submit">
           <div v-if="issues.length" role="alert" class="editorial-panel warning"><p>Revisa el contenido antes de guardar.</p><ul><li v-for="(issue, index) in issues" :key="index">{{ issue.valueIndex === undefined ? '' : `Atributo ${issue.valueIndex + 1}: ` }}{{ editorialIssueMessage(issue) }}</li></ul></div>
           <EditorialDocumentFields :document="buffer" :baseline="authoritative.draft?.document" :vocabulary="vocabulary" :context="qualification" :issues="issues" :disabled="!editable" @update:document="editor.replaceDocument" @validity="fieldsValid = $event" />
@@ -116,7 +116,6 @@ async function submit() { if (fieldsValid.value) await editor.save() }
             </template>
           </section>
         </div>
-        <p v-if="canWrite" class="editorial-context">Limitación conocida: si el historial guardado tiene atributos o contexto que ya no están disponibles, el servidor puede rechazar el guardado aunque corrijas el borrador local. La corrección no garantiza desbloquear el guardado. Tus cambios se conservan ante un rechazo.</p>
       </template>
     </template>
   </main>

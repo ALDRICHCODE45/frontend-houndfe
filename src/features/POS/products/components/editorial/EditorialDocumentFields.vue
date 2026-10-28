@@ -96,6 +96,7 @@ function orphan(value: EditorialValue) {
     (value.owner === 'sellable' && (props.context.variants.length ? !props.context.variants.some(item => item.id === value.variantId) : value.variantId !== null))
 }
 function valueText(value: EditorialValue) {
+  if (value.type === 'number') return `${value.value}${value.unit ? ` ${value.unit}` : ''}`
   return value.type === 'multi' ? value.value.join(', ') : value.type === 'boolean' ? value.value ? 'Sí' : 'No' : String(value.value)
 }
 function baselineFor(value: Pick<EditorialValue, 'code' | 'owner' | 'variantId' | 'type'>): EditorialValue | null {
@@ -148,7 +149,7 @@ function assignmentIssue(index: number) { return props.issues.filter(issue => is
         <template v-if="orphan(value)">
           <p class="warning">Atributo huérfano o contexto no disponible: {{ value.code }}</p>
           <p class="stored-value">{{ valueText(value) }}</p>
-          <p class="editorial-help">Se conserva sin cambios. Quitar o cambiar este atributo localmente no garantiza que el servidor acepte el guardado; hay una limitación conocida al validar el historial.</p>
+          <p class="editorial-help">Se conserva sin cambios. Quítalo o corrígelo para poder guardar el borrador.</p>
         </template>
         <EditorialAttributeField v-else :id="`editorial-value-${index}`" :definition="definitionFor(value.code)!" :assignment="value" :baseline="baselineFor(value)" :disabled="disabled" :issue="assignmentIssue(index)" @update:assignment="updateValue(index, $event)" @validity="validity(value, $event)" />
         <p v-if="orphan(value) && assignmentIssue(index)" role="alert" class="warning">{{ assignmentIssue(index) }}</p>

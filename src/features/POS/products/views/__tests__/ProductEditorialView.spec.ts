@@ -53,7 +53,7 @@ describe('editorial editor integration', () => {
     expect(wrapper.findAll('img')).toHaveLength(0)
     expect(wrapper.text()).not.toContain('private-1')
   })
-  it('maps receipt warnings by current vocabulary IDs and marks invalid history without promising repair', async () => {
+  it('maps receipt warnings by current vocabulary IDs and asks to correct invalid history before saving', async () => {
     auth.permissionCodes = ['read:ProductEditorialDraft', 'update:ProductEditorialDraft']
     getVocabulary.mockResolvedValue({ families: [{ id: 'family-now', code: 'f', label: 'Familia actual', bindings: [
       { definitionId: 'definition-now', definitionCode: 'color', owner: 'product', sortOrder: 0 },
@@ -65,6 +65,9 @@ describe('editorial editor integration', () => {
       document: { ...document, familyCode: 'f', values: [orphan] } }, published: null })
     render(); await settle()
     expect(wrapper.text()).toContain('Historial con atributos o contexto no disponibles')
+    expect(wrapper.text()).toContain('Quita o corrige esos atributos en el borrador para poder guardarlo.')
+    expect(wrapper.text()).not.toContain('Limitación conocida')
+    expect(wrapper.text()).not.toContain('no garantiza')
     expect(wrapper.text()).toContain('Atributo huérfano')
     await wrapper.get('[data-testid="remove-0"]').trigger('click')
     save.mockRejectedValueOnce(new EditorialApiError(400, { statusCode: 400, error: 'MALFORMED' }))
