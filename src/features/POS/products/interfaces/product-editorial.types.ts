@@ -47,6 +47,10 @@ export type EditorialWriteResponse = EditorialState & {
   warnings?: EditorialArchivedOptionWarning[]
 }
 export interface EditorialInitializeRequest { expectedCycle: number | null }
+export interface EditorialTransitionRequest {
+  expectedCycle: number
+  expectedRevision: number
+}
 export interface EditorialSaveRequest {
   expectedCycle: number
   expectedRevision: number

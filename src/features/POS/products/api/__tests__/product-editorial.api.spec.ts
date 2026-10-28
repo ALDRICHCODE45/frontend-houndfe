@@ -133,6 +133,25 @@ describe('closed editorial HTTP transport', () => {
     expect(body.document).toBe(document)
   })
 
+  it.each(['publish', 'discard'] as const)('posts the closed %s body and key and unwraps the receipt', async action => {
+    const body = { expectedCycle: 4, expectedRevision: 8 }
+    const receipt = { cycle: 4, draft: null, published: { revision: 3, document } }
+    respond(receipt)
+    await expect(editorialApi[action]('p/1', body, ' exact key ')).resolves.toEqual(receipt)
+    const config = adapter.mock.calls[0]![0]
+    expect(config.url).toBe(`/products/p%2F1/editorial/draft/${action}`)
+    expect(config.method).toBe('post')
+    expect(config.data).toBe(JSON.stringify(body))
+    expect(config.headers.get('Idempotency-Key')).toBe(' exact key ')
+  })
+
+  it.each(['publish', 'discard'] as const)('normalizes %s conflicts without retry', async action => {
+    reject(409, { statusCode: 409, error: 'CONFLICT' })
+    await expect(editorialApi[action]('p', { expectedCycle: 4, expectedRevision: 8 }, 'k'))
+      .rejects.toMatchObject({ status: 409, code: 'CONFLICT' })
+    expect(adapter).toHaveBeenCalledTimes(1)
+  })
+
   it('preserves vocabulary labels, discriminants and server order without client sorting', async () => {
     const vocabulary = { families: [{ id: 'f', code: 'z', label: 'BE label', bindings: [] }],
       definitions: [

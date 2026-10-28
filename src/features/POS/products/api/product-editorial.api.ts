@@ -2,7 +2,7 @@ import { isAxiosError, type AxiosResponse } from 'axios'
 import { http } from '@/core/shared/api/http'
 import type {
   EditorialContext, EditorialErrorEnvelope, EditorialInitializeRequest, EditorialSaveRequest,
-  EditorialState, EditorialVocabulary, EditorialWriteResponse,
+  EditorialState, EditorialTransitionRequest, EditorialVocabulary, EditorialWriteResponse,
 } from '../interfaces/product-editorial.types'
 
 const errorCodes = {
@@ -66,6 +66,16 @@ export const editorialApi = {
     productId: string, body: EditorialInitializeRequest, idempotencyKey: string,
   ): Promise<EditorialWriteResponse> => unwrap(http.post<EditorialWriteResponse>(
     `${editorialPath(productId)}/draft/initialize`, body, writeConfig(idempotencyKey),
+  )),
+  publish: (
+    productId: string, body: EditorialTransitionRequest, idempotencyKey: string,
+  ): Promise<EditorialWriteResponse> => unwrap(http.post<EditorialWriteResponse>(
+    `${editorialPath(productId)}/draft/publish`, body, writeConfig(idempotencyKey),
+  )),
+  discard: (
+    productId: string, body: EditorialTransitionRequest, idempotencyKey: string,
+  ): Promise<EditorialWriteResponse> => unwrap(http.post<EditorialWriteResponse>(
+    `${editorialPath(productId)}/draft/discard`, body, writeConfig(idempotencyKey),
   )),
   save: (
     productId: string, body: EditorialSaveRequest, idempotencyKey: string,

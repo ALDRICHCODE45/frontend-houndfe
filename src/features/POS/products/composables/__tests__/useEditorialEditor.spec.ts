@@ -34,6 +34,44 @@ beforeEach(() => {
 afterEach(() => scope?.stop())
 
 describe('editorial editor public orchestration', () => {
+  it('exposes publish to read+publish without update and retransmits the same intent', async () => {
+    auth.permissionCodes = ['read:ProductEditorialDraft', 'publish:ProductEditorialDraft']
+    reads(snapshot({ ...empty, commercialTitle: ' a ' }))
+    const editor = setup(); await flushPromises()
+    expect(editor.canPublish.value).toBe(true)
+    expect(editor.canSave.value).toBe(false)
+    http.post.mockRejectedValueOnce(new Error('network'))
+    expect(await editor.publish()).toBe(false)
+    http.post.mockResolvedValue({ data: { cycle: 1, draft: null, published: null } })
+    expect(await editor.retransmit()).toBe(true)
+    expect(http.post.mock.calls[1]).toEqual(http.post.mock.calls[0])
+  })
+  it('exposes discard even with unreadable history and failed metadata', async () => {
+    reads(snapshot({ unreadable: true }), null)
+    const editor = setup(); await flushPromises()
+    expect(editor.canDiscard.value).toBe(true)
+    expect(editor.canPublish.value).toBe(false)
+    http.post.mockResolvedValue({ data: { cycle: 1, draft: null, published: null } })
+    expect(await editor.discard()).toBe(true)
+    expect(http.post.mock.calls[0]![1]).toEqual({ expectedCycle: 1, expectedRevision: 2 })
+  })
+  it('prevalidates against Published rather than the draft and blocks unsaved changes', async () => {
+    auth.permissionCodes.push('publish:ProductEditorialDraft')
+    const assignment = { code: 'color', owner: 'product' as const, variantId: null, type: 'single' as const, value: 'old' }
+    const saved = { ...empty, commercialTitle: 'Ready', familyCode: 'general', values: [assignment] }
+    reads(snapshot(saved))
+    const editor = setup(); await flushPromises()
+    expect(await editor.publish()).toBe(false)
+    expect(editor.publishIssues.value).toContainEqual({ code: 'archived', valueIndex: 0 })
+    const published = { revision: 1, document: saved }
+    http.get.mockImplementation((url: string) => Promise.resolve({ data:
+      url.endsWith('/context') ? { variants: [] } : url.includes('vocabulary') ? vocabulary : { ...snapshot(saved), published } }))
+    await editor.refresh('discard')
+    expect(editor.canPublish.value).toBe(true)
+    editor.replaceDocument({ ...saved, description: 'local' })
+    expect(await editor.publish()).toBe(false)
+    expect(http.post).not.toHaveBeenCalled()
+  })
   it('loads exactly the three editorial GETs and saves the unnormalized buffer with the persisted revision', async () => {
     const editor = setup(); await flushPromises()
     expect(http.get.mock.calls.map(call => call[0]).sort()).toEqual([

@@ -41,10 +41,10 @@ export function useEditorialEditor(productId: MaybeRefOrGetter<string>) {
     productId: toValue(productId), permissionsLoaded: auth.permissionsLoaded,
     permissionCodes: auth.permissionCodes,
   }))
-  const lifecycle = useEditorialDraft(context)
-  const identity = computed(() => JSON.stringify(context.value))
   const vocabulary = shallowRef<EditorialVocabulary | null>(null)
   const qualification = shallowRef<EditorialContext | null>(null)
+  const lifecycle = useEditorialDraft(context, () => ({ vocabulary: vocabulary.value, context: qualification.value }))
+  const identity = computed(() => JSON.stringify(context.value))
   const loading = shallowRef(false)
   const readError = shallowRef<string | null>(null)
   const metadataMessage = shallowRef<string | null>(null)
@@ -130,13 +130,21 @@ export function useEditorialEditor(productId: MaybeRefOrGetter<string>) {
     issues.value = validation.issues
     return validation.valid ? lifecycle.save() : false
   }
+  const canPublish = computed(() => !loading.value && !readError.value && lifecycle.canPublishDraft.value)
+  const canDiscard = computed(() => !loading.value && !readError.value && lifecycle.canDiscard.value)
+  async function publish() { return canPublish.value ? lifecycle.publish() : false }
+  async function discard() { return canDiscard.value ? lifecycle.discard() : false }
   async function initialize() { return canInitialize.value ? lifecycle.initialize() : false }
   async function retransmit() {
-    return lifecycle.canWrite.value && metadataReady.value && !loading.value && !readError.value
-      ? lifecycle.retransmit() : false
+    const kind = lifecycle.pendingIntent.value?.kind
+    const allowed = kind === 'publish' || kind === 'discard'
+      ? lifecycle.canRead.value : lifecycle.canWrite.value && metadataReady.value
+    return allowed && !loading.value && !readError.value ? lifecycle.retransmit() : false
   }
   const errorMessage = computed(() => !lifecycle.canRead.value
     ? 'No tienes acceso al contenido editorial en el contexto actual.' : readError.value)
   return { lifecycle, vocabulary, qualification, loading, errorMessage, metadataMessage,
-    issues, sections, editable, canSave, canInitialize, replaceDocument, refresh, initialize, save, retransmit }
+    issues, sections, editable, canSave, canInitialize, canPublish, canDiscard,
+    publishIssues: lifecycle.publishIssues, hasUnsavedChanges: lifecycle.hasUnsavedChanges,
+    replaceDocument, refresh, initialize, save, publish, discard, retransmit }
 }

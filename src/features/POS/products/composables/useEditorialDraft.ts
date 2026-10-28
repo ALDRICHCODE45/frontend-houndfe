@@ -1,13 +1,14 @@
 import { computed, onScopeDispose, ref, shallowRef, toValue, watch, type MaybeRefOrGetter } from 'vue'
 import { z } from 'zod'
 import { editorialApi, EditorialApiError } from '../api/product-editorial.api'
-import { canReadEditorial, canWriteEditorial } from '../authorization/editorial-access'
+import { canPublishEditorial, canReadEditorial, canWriteEditorial } from '../authorization/editorial-access'
 import type {
   EditorialDocument, EditorialInitializeRequest, EditorialSaveRequest,
-  EditorialState, EditorialWriteResponse,
+  EditorialState, EditorialTransitionRequest, EditorialWriteResponse,
 } from '../interfaces/product-editorial.types'
 import { decodeEditorialDocument } from '../utils/product-editorial-document'
 import { validateEditorialSave } from '../utils/product-editorial-save-validation'
+import { validateEditorialPublish } from '../utils/product-editorial-publish-validation'
 
 export interface EditorialDraftContext {
   authenticated: boolean
@@ -20,6 +21,7 @@ export interface EditorialDraftContext {
 export type EditorialIntent = Readonly<{ key: string; productId: string } & (
   | { kind: 'initialize'; body: EditorialInitializeRequest }
   | { kind: 'save'; body: EditorialSaveRequest }
+  | { kind: 'publish' | 'discard'; body: EditorialTransitionRequest }
 )>
 export interface EditorialSnapshotTicket { readonly id: symbol }
 type Outcome = 'acknowledged' | 'ambiguous' | 'conflict' | 'rejected'
@@ -54,7 +56,10 @@ function freeze<T>(value: T): T {
  * Call beginSnapshotRead BEFORE issuing a fresh GET, then explicitly reconcile
  * its result with retain/discard. Never ingest a write receipt as a GET result.
  */
-export function useEditorialDraft(context: MaybeRefOrGetter<EditorialDraftContext>) {
+export function useEditorialDraft(
+  context: MaybeRefOrGetter<EditorialDraftContext>,
+  publishMetadata: MaybeRefOrGetter<{ vocabulary: unknown; context: unknown }> = { vocabulary: null, context: null },
+) {
   const authoritative = shallowRef<EditorialState | null>(null)
   const buffer = ref<EditorialDocument | null>(null)
   const pendingIntent = shallowRef<EditorialIntent | null>(null)
@@ -77,6 +82,25 @@ export function useEditorialDraft(context: MaybeRefOrGetter<EditorialDraftContex
       c.permissionsLoaded && canReadEditorial(c.permissionCodes))
   })
   const canWrite = computed(() => canRead.value && canWriteEditorial(toValue(context).permissionCodes))
+  const canPublish = computed(() => canRead.value && canPublishEditorial(toValue(context).permissionCodes))
+  const hasUnsavedChanges = computed(() => {
+    if (buffer.value === null) return false
+    const saved = decodeEditorialDocument(authoritative.value?.draft?.document)
+    const local = decodeEditorialDocument(buffer.value)
+    return !saved.readable || !local.readable || JSON.stringify(saved.document) !== JSON.stringify(local.document)
+  })
+  const publishIssues = computed(() => validateEditorialPublish({
+    document: authoritative.value?.draft?.document,
+    publishedDocument: authoritative.value?.published?.document ?? null,
+    ...toValue(publishMetadata),
+  }).issues)
+  const canDiscard = computed(() => freshActionAllowed() && authoritative.value?.cycle !== null &&
+    Boolean(authoritative.value?.draft))
+  const canPublishDraft = computed(() => freshActionAllowed('publish') && authoritative.value?.cycle !== null &&
+    Boolean(authoritative.value?.draft) && !hasUnsavedChanges.value && publishIssues.value.length === 0)
+  function intentAllowed(kind: EditorialIntent['kind']) {
+    return kind === 'publish' ? canPublish.value : canWrite.value
+  }
   function resetContext() {
     generation++
     activeTicket = null
@@ -116,13 +140,13 @@ export function useEditorialDraft(context: MaybeRefOrGetter<EditorialDraftContex
     error.value = null
     return true
   }
-  function freshActionAllowed(): boolean {
-    return canWrite.value && !isPending.value && pendingIntent.value === null && authoritative.value !== null
+  function freshActionAllowed(kind: EditorialIntent['kind'] = 'save'): boolean {
+    return intentAllowed(kind) && !isPending.value && pendingIntent.value === null && authoritative.value !== null
   }
   async function transmit(intent: EditorialIntent): Promise<boolean> {
     const requestedGeneration = generation
     const current = () => !disposed.value && requestedGeneration === generation &&
-      canWrite.value && pendingIntent.value === intent
+      intentAllowed(intent.kind) && pendingIntent.value === intent
     activeTicket = null
     isPending.value = true
     outcome.value = null
@@ -130,7 +154,9 @@ export function useEditorialDraft(context: MaybeRefOrGetter<EditorialDraftContex
     try {
       const response = intent.kind === 'initialize'
         ? await editorialApi.initialize(intent.productId, intent.body, intent.key)
-        : await editorialApi.save(intent.productId, intent.body, intent.key)
+        : intent.kind === 'save'
+          ? await editorialApi.save(intent.productId, intent.body, intent.key)
+          : await editorialApi[intent.kind](intent.productId, intent.body, intent.key)
       if (!current()) return false
       // This can be an old replay. Do not decode it as a new baseline, apply
       // fresh caps, or replace either GET state or edits. Preserve all warnings.
@@ -167,8 +193,18 @@ export function useEditorialDraft(context: MaybeRefOrGetter<EditorialDraftContex
     pendingIntent.value = intent
     return transmit(intent)
   }
+  async function transition(kind: 'publish' | 'discard'): Promise<boolean> {
+    if (kind === 'publish' ? !canPublishDraft.value : !canDiscard.value) return false
+    const snapshot = authoritative.value!
+    const intent: EditorialIntent = freeze({ kind, key: crypto.randomUUID(),
+      productId: toValue(context).productId, body: {
+        expectedCycle: snapshot.cycle!, expectedRevision: snapshot.draft!.revision,
+      } })
+    pendingIntent.value = intent
+    return transmit(intent)
+  }
   async function retransmit(): Promise<boolean> {
-    if (!canWrite.value || isPending.value || outcome.value !== 'ambiguous' || !pendingIntent.value) return false
+    if (!pendingIntent.value || !intentAllowed(pendingIntent.value.kind) || isPending.value || outcome.value !== 'ambiguous') return false
     // Explicit ambiguous retry only: no changed-buffer validation or new key.
     return transmit(pendingIntent.value)
   }
@@ -176,7 +212,9 @@ export function useEditorialDraft(context: MaybeRefOrGetter<EditorialDraftContex
     authoritative: computed(() => authoritative.value), buffer,
     pendingIntent: computed(() => pendingIntent.value), receipt: computed(() => receipt.value),
     outcome: computed(() => outcome.value), error: computed(() => error.value),
-    isPending: computed(() => isPending.value), canRead, canWrite,
+    isPending: computed(() => isPending.value), canRead, canWrite, canPublish,
+    canPublishDraft, canDiscard, hasUnsavedChanges, publishIssues,
     beginSnapshotRead, reconcileSnapshot, initialize, save, retransmit,
+    publish: () => transition('publish'), discard: () => transition('discard'),
   }
 }
