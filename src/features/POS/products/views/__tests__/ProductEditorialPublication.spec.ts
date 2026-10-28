@@ -63,6 +63,11 @@ describe('editorial publication public UI', () => {
     expect(wrapper.text()).toContain('Solicitud de publicación confirmada.')
     expect(wrapper.text()).toContain('Este acuse no representa el estado actual.')
     expect(panel().text()).toContain('Publicado: revisión 1')
+    // The published buffer is dropped: no stale form, local-change notice or save action remains.
+    expect(wrapper.find('form#editorial-form').exists()).toBe(false)
+    expect(panel().text()).not.toContain('Tienes cambios locales sin guardar.')
+    expect(button('Guardar borrador')).toBeUndefined()
+    expect(button('Consultar y cargar borrador')).toBeDefined()
   })
   it('supports a first publication for read+publish without exposing editing', async () => {
     auth.permissionCodes = ['read:ProductEditorialDraft', 'publish:ProductEditorialDraft']

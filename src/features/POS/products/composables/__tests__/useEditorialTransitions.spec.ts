@@ -140,6 +140,16 @@ describe('explicit saved draft transitions', () => {
     expect(editor.authoritative.value).toEqual(state())
     expect(editor.receipt.value).toEqual(receipt)
   })
+  it.each((['publish', 'discard'] as const).flatMap(action => [400, 401, 403, 404].map(status => [action, status] as const)))(
+    'keeps the local buffer when %s is rejected with %i', async (action, status) => {
+      const { editor } = setup()
+      const before = structuredClone(toRaw(editor.buffer.value!))
+      http.post.mockRejectedValueOnce({ isAxiosError: true, response: { status, data: { statusCode: status, error: 'X' } } })
+      expect(await editor[action]()).toBe(false)
+      expect(editor.outcome.value).toBe('rejected')
+      expect(editor.buffer.value).toEqual(before)
+      expect(editor.receipt.value).toBeNull()
+    })
   const identityChanges = [
     ['permission loss', (c: EditorialDraftContext) => { c.permissionCodes = [read] }],
     ['user change', (c: EditorialDraftContext) => { c.userId = 'other' }],
