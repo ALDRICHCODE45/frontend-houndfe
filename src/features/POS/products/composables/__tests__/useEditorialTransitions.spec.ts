@@ -41,7 +41,9 @@ describe('explicit saved draft transitions', () => {
       { expectedCycle: 4, expectedRevision: 7 }, { headers: { 'Idempotency-Key': editor.pendingIntent.value!.key } })
     expect(editor.receipt.value).toEqual(receipt)
     expect(editor.authoritative.value).toEqual(saved)
-    expect(editor.buffer.value!.commercialTitle).toBe(' a ')
+    // The published content is the saved draft: no local edits remain to keep.
+    expect(editor.buffer.value).toBeNull()
+    expect(editor.hasUnsavedChanges.value).toBe(false)
     expect(await editor.publish()).toBe(false)
     expect(http.get).not.toHaveBeenCalled()
   })
@@ -79,11 +81,11 @@ describe('explicit saved draft transitions', () => {
     'discards invalid saved history without document validation %#', async saved => {
       const { editor } = setup(saved, [read, update])
       http.post.mockResolvedValue({ data: { cycle: 4, draft: null, published: null } })
-      const before = editor.buffer.value
       expect(await editor.discard()).toBe(true)
       expect(http.post).toHaveBeenCalledExactlyOnceWith('/products/p%2F1/editorial/draft/discard',
         { expectedCycle: 4, expectedRevision: 7 }, { headers: { 'Idempotency-Key': editor.pendingIntent.value!.key } })
-      expect(editor.buffer.value).toBe(before)
+      // A confirmed discard also drops local edits, as its confirmation states.
+      expect(editor.buffer.value).toBeNull()
       expect(editor.authoritative.value).toEqual(saved)
     })
   it.each([[read, publish], ['manage:all'], [update], [read]])('refuses discard without read+update %j', async (...codes) => {
@@ -131,7 +133,10 @@ describe('explicit saved draft transitions', () => {
     expect(http.post.mock.calls[1]).toEqual(original)
     expect(http.post.mock.calls[1]![1]).toBe(original[1])
     expect(editor.pendingIntent.value).toBe(intent)
-    expect(editor.buffer.value).toEqual(buffer)
+    // Edits made after the publish attempt were not published and survive;
+    // a confirmed discard drops them as announced.
+    if (action === 'publish') expect(editor.buffer.value).toEqual(buffer)
+    else expect(editor.buffer.value).toBeNull()
     expect(editor.authoritative.value).toEqual(state())
     expect(editor.receipt.value).toEqual(receipt)
   })

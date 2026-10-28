@@ -162,6 +162,10 @@ export function useEditorialDraft(
       // fresh caps, or replace either GET state or edits. Preserve all warnings.
       receipt.value = freeze(copy(response))
       outcome.value = 'acknowledged'
+      // The confirmed transition consumed the saved draft. A discard announces
+      // that local edits are lost; a publish only drops a buffer that equals the
+      // published saved draft, keeping edits made after the attempt.
+      if (intent.kind === 'discard' || (intent.kind === 'publish' && !hasUnsavedChanges.value)) buffer.value = null
       return true
     } catch (failure) {
       if (!current()) return false

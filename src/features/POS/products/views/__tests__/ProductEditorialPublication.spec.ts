@@ -87,7 +87,10 @@ describe('editorial publication public UI', () => {
     await button('Descartar borrador guardado…').trigger('click'); await button('Descartar borrador').trigger('click'); await flushPromises()
     expect(api.discard).toHaveBeenCalledExactlyOnceWith('p1', { expectedCycle: 2, expectedRevision: 4 }, expect.any(String))
     expect(wrapper.text()).toContain('Solicitud para descartar el borrador confirmada.')
-    expect(button('Consultar y descartar cambios…')).toBeDefined()
+    // Local edits were dropped with the confirmed discard: no stale local-change controls remain.
+    expect(button('Consultar y descartar cambios…')).toBeUndefined()
+    expect(button('Consultar y cargar borrador')).toBeDefined()
+    expect(panel().text()).not.toContain('Tienes cambios locales sin guardar.')
   })
   it.each([
     ['title', { ...document, commercialTitle: '  ' }, 'Agrega un título comercial editorial y guarda el borrador antes de publicar.'],
