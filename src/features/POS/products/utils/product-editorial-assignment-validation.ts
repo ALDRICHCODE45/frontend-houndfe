@@ -85,6 +85,25 @@ function hasFamily(document: EditorialDocument, vocabulary: Vocabulary): boolean
   return document.familyCode === null || vocabulary.families.filter(family => family.code === document.familyCode).length === 1
 }
 
+function baselineMatchesContext(document: EditorialDocument, vocabulary: Vocabulary, context: Context): boolean {
+  return hasFamily(document, vocabulary) && document.values.every(value =>
+    qualify(value, document.familyCode, vocabulary, context) === null)
+}
+
+/** Archived eligibility only: qualify persisted history against current authority
+ * without fresh-save caps, rewriting history or treating it as a new candidate.
+ * A null result cannot authorize conservation; it does not decide readability.
+ */
+export function qualifyEditorialBaseline(
+  input: Pick<EditorialAssignmentInput, 'persistedBaseline' | 'vocabulary' | 'context'>,
+): EditorialDocument | null {
+  const baseline = decodeEditorialDocument(input.persistedBaseline)
+  const vocabulary = vocabularySchema.safeParse(input.vocabulary)
+  const context = contextSchema.safeParse(input.context)
+  if (!baseline.readable || !vocabulary.success || !context.success) return null
+  return baselineMatchesContext(baseline.document, vocabulary.data, context.data) ? baseline.document : null
+}
+
 /** Fresh-save backstop only; never run against GET/history to determine readability.
  * Both documents resolve through CURRENT vocabulary (S8), not historical IDs.
  * One issue per assignment (at most 200); indexes refer to the unchanged input.
@@ -106,8 +125,7 @@ export function validateEditorialAssignments(input: EditorialAssignmentInput): E
 
   // Baseline eligibility has contextual checks, NOT fresh-save caps. Invalid
   // persisted assignments cannot authorize archived membership in a fresh save.
-  const baselineQualifies = hasFamily(baseline.document, vocabulary.data) && baseline.document.values.every(value =>
-    qualify(value, baseline.document.familyCode, vocabulary.data, context.data) === null)
+  const baselineQualifies = baselineMatchesContext(baseline.document, vocabulary.data, context.data)
   const issues: EditorialAssignmentIssue[] = []
   document.values.forEach((value, valueIndex) => {
     const issue = qualify(value, document.familyCode, vocabulary.data, context.data)

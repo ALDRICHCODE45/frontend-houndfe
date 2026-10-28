@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { EditorialDocument, EditorialValue, EditorialVocabulary } from '../../interfaces/product-editorial.types'
-import { validateEditorialAssignments } from '../product-editorial-assignment-validation'
+import { qualifyEditorialBaseline, validateEditorialAssignments } from '../product-editorial-assignment-validation'
 
 const vocabulary: EditorialVocabulary = {
   families: [
@@ -48,6 +48,50 @@ function invalid(doc: unknown, baseline?: unknown, vocab?: unknown, ctx?: unknow
   expect(result.issues.length).toBeLessThanOrEqual(200)
   return result.issues
 }
+
+describe('persisted editorial baseline qualification', () => {
+  it('qualifies intact history independently of every fresh-save cap', () => {
+    const variants = Array.from({ length: 201 }, (_, index) => ({ id: `v-${index}`, name: `Presentación ${index}` }))
+    const baseline = { ...document(variants.map(variant => ({ ...single, variantId: variant.id, value: 'old' }))),
+      commercialTitle: '😀'.repeat(201), description: 'x'.repeat(100001),
+      mediaRefs: Array.from({ length: 21 }, (_, index) => `private-${index}`) }
+    const input = { persistedBaseline: baseline, vocabulary, context: { variants } }
+    const before = JSON.stringify(input)
+    expect(qualifyEditorialBaseline(input)).toEqual(baseline)
+    expect(validateEditorialAssignments({ ...input, document: baseline })).toEqual({ valid: false, issues: [{ code: 'limits' }] })
+    expect(JSON.stringify(input)).toBe(before)
+  })
+
+  it('cannot authorize conservation from unreadable, unknown or context-invalid history', () => {
+    const archived = { ...single, value: 'old' }
+    const baseline = document([archived])
+    const noBinding = structuredClone(vocabulary)
+    noBinding.families[0]!.bindings = []
+    const noOption = structuredClone(vocabulary)
+    const definition = noOption.definitions[0]!
+    if (definition.type === 'single') definition.options = []
+    const inputs = [
+      { persistedBaseline: null, vocabulary, context },
+      { persistedBaseline: { ...baseline, extra: true }, vocabulary, context },
+      { persistedBaseline: baseline, vocabulary: null, context },
+      { persistedBaseline: baseline, vocabulary, context: null },
+      { persistedBaseline: { ...baseline, familyCode: 'unknown' }, vocabulary, context },
+      { persistedBaseline: document([archived, { ...single, code: 'unknown', variantId: 'v2' }]), vocabulary, context },
+      { persistedBaseline: baseline, vocabulary: noBinding, context },
+      { persistedBaseline: baseline, vocabulary: noOption, context },
+      { persistedBaseline: document([archived, { code: 'weight', owner: 'product', variantId: null, type: 'number', value: 1, unit: 'unknown' }]), vocabulary, context },
+      { persistedBaseline: baseline, vocabulary, context: { variants: [] } },
+      { persistedBaseline: document([archived, { ...single, variantId: 'orphan' }]), vocabulary, context },
+    ]
+    const before = JSON.stringify(inputs)
+    for (const input of inputs) expect(qualifyEditorialBaseline(input)).toBeNull()
+    expect(JSON.stringify(inputs)).toBe(before)
+    const replacementIds = structuredClone(vocabulary)
+    replacementIds.definitions[0]!.id = 'current-id'
+    replacementIds.families[0]!.bindings[0]!.definitionId = 'current-id'
+    expect(qualifyEditorialBaseline({ persistedBaseline: baseline, vocabulary: replacementIds, context })).toEqual(baseline)
+  })
+})
 
 describe('fresh editorial assignment validation', () => {
   it('allows current bindings, all value types and explicit null units without requiring every binding', () => {
