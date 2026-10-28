@@ -51,3 +51,7 @@ artifacts/responsive/
 # Local verification evidence and git worktrees (never committed)
 /artifacts/
 /.worktrees/
+
+# Playwright MCP session logs and ad-hoc browser review evidence (never committed)
+/.playwright-mcp/
+/.playwright-review/
