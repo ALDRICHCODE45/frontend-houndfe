@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { computed, shallowRef, watch } from 'vue'
+import { computed, getCurrentInstance, onBeforeUnmount, shallowRef, watch } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
+import EditorialPublication from './EditorialPublication.vue'
 import { useEditorialEditor, editorialErrorMessage, editorialIssueMessage } from '../../composables/useEditorialEditor'
 import EditorialDocumentFields from './EditorialDocumentFields.vue'
 import type { EditorialValue } from '../../interfaces/product-editorial.types'
@@ -9,6 +11,20 @@ const props = defineProps<{ productId: string }>()
 const editor = useEditorialEditor(() => props.productId)
 const { lifecycle, vocabulary, qualification, loading, errorMessage, metadataMessage, sections, issues, editable, canSave, canInitialize } = editor
 const { authoritative, buffer, canRead, canWrite, isPending, receipt, outcome, error, pendingIntent } = lifecycle
+const { canPublish, canDiscard, publishIssues, hasUnsavedChanges } = editor
+const publishPermission = lifecycle.canPublish
+// Standalone workspace mounts have no router; routed views register the leave guard.
+if (getCurrentInstance()?.appContext.config.globalProperties.$router) {
+  onBeforeRouteLeave(() => !hasUnsavedChanges.value || window.confirm('Tienes cambios sin guardar en el borrador editorial. ¿Salir sin guardarlos?'))
+}
+function preventUnload(event: BeforeUnloadEvent) { event.preventDefault() }
+watch(hasUnsavedChanges, dirty => {
+  if (dirty) window.addEventListener('beforeunload', preventUnload)
+  else window.removeEventListener('beforeunload', preventUnload)
+}, { immediate: true, flush: 'sync' })
+onBeforeUnmount(() => window.removeEventListener('beforeunload', preventUnload))
+const retransmitAllowed = computed(() => pendingIntent.value?.kind === 'publish'
+  ? publishPermission.value : canWrite.value && (pendingIntent.value?.kind === 'discard' || Boolean(vocabulary.value && qualification.value)))
 const discardPending = shallowRef(false)
 const fieldsValid = shallowRef(true)
 watch(() => [props.productId, authoritative.value], () => { discardPending.value = false; fieldsValid.value = true })
@@ -66,7 +82,7 @@ async function submit() { if (fieldsValid.value) await editor.save() }
         <button v-if="canWrite && buffer" class="hf-primary-control" type="submit" form="editorial-form" :disabled="!canSave || !fieldsValid">{{ isPending ? 'Enviando…' : 'Guardar borrador' }}</button>
       </div>
     </header>
-    <p v-if="!canWrite" class="editorial-notice">Solo consulta. Necesitas permisos editoriales explícitos de lectura y actualización para editar.</p>
+    <p v-if="!canWrite" class="editorial-notice">Solo consulta. Necesitas permisos editoriales explícitos de lectura y actualización para editar.<template v-if="publishPermission"> Puedes publicar el borrador guardado.</template></p>
     <div v-if="discardPending && canRead" role="group" aria-labelledby="discard-title" class="editorial-panel confirmation">
       <h2 id="discard-title">Descartar cambios locales y consultar</h2><p>El borrador local se reemplazará con el resultado de una nueva consulta. Esta acción no envía cambios al servidor.</p>
       <div class="editorial-actions"><button type="button" class="editorial-button" data-testid="cancel-discard" @click="discardPending = false">Cancelar</button><button type="button" class="editorial-button" data-testid="confirm-discard" :disabled="loading || isPending" @click="discard">Descartar cambios y consultar</button></div>
@@ -79,16 +95,22 @@ async function submit() { if (fieldsValid.value) await editor.save() }
         <template v-if="outcome === 'acknowledged' || receipt">
           <h2>Acuse histórico{{ outcome === 'acknowledged' ? ' · solicitud confirmada' : ' · solicitud anterior' }}</h2>
           <p>Este acuse no representa el estado actual.</p>
+          <p v-if="outcome === 'acknowledged' && pendingIntent?.kind === 'publish'">Solicitud de publicación confirmada.</p>
+          <p v-if="outcome === 'acknowledged' && pendingIntent?.kind === 'discard'">Solicitud para descartar el borrador confirmada.</p>
           <p v-if="pendingIntent">Haz una consulta explícita y elige conservar o descartar los cambios antes de una nueva acción.</p>
           <p v-else>El estado de la consulta explícita se muestra por separado.</p>
           <p v-for="(warning, index) in warnings" :key="index" class="warning">Opción archivada conservada: {{ warning }}</p>
         </template>
         <p v-if="error" role="alert">{{ editorialErrorMessage(error.status) }}</p>
-        <button v-if="outcome === 'ambiguous' && pendingIntent" type="button" class="editorial-button" :disabled="!canWrite || isPending || loading || !vocabulary || !qualification" @click="editor.retransmit()">Retransmitir la misma solicitud (mismo contenido y clave)</button>
+        <button v-if="outcome === 'ambiguous' && pendingIntent" type="button" class="editorial-button" :disabled="!retransmitAllowed || isPending || loading" @click="editor.retransmit()">Retransmitir la misma solicitud (mismo contenido y clave)</button>
         <p v-if="outcome === 'conflict'">No se reenvía automáticamente. Usa las opciones de consulta para reconciliar el borrador.</p>
       </div>
       <template v-if="authoritative">
         <p class="editorial-context">Ciclo editorial: {{ authoritative.cycle ?? 'Sin iniciar' }} · {{ authoritative.draft ? `Revisión consultada: ${authoritative.draft.revision}` : 'Sin borrador' }}</p>
+        <EditorialPublication v-if="canRead && (canWrite || publishPermission)" :state="authoritative"
+          :can-write="canWrite" :publish-permission="publishPermission" :can-publish="canPublish" :can-discard="canDiscard"
+          :has-unsaved-changes="hasUnsavedChanges" :publish-issues="publishIssues" :busy="loading || isPending"
+          :needs-reconciliation="Boolean(pendingIntent)" :vocabulary="vocabulary" :context="qualification" @publish="editor.publish()" @discard="editor.discard()" />
         <div v-if="!authoritative.draft" class="editorial-panel">
           <p v-if="!authoritative.published">Todavía no hay contenido editorial. No existe un borrador ni una versión publicada.</p>
           <p v-else>La versión publicada permanece intacta. Puedes iniciar un borrador a partir de ella.</p>
@@ -139,7 +161,7 @@ async function submit() { if (fieldsValid.value) await editor.save() }
 .editorial-details summary { cursor: pointer; padding: 12px 0; min-height: 44px; color: var(--hf-heading); }
 .editorial-details h3 { font-weight: 600; margin-top: 16px; }
 .editorial-description { white-space: pre-wrap; margin-top: 8px; }
-.editorial-button { min-height: var(--hf-control-height); padding: 8px 16px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-control); background: var(--hf-surface); color: var(--hf-ink); cursor: pointer; }
+.editorial-button { min-height: var(--hf-control-height); padding: 8px 16px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-control); background: var(--hf-surface); color: var(--hf-ink); font-family: var(--hf-font); font-size: 0.875rem; cursor: pointer; }
 .editorial-button:hover:not(:disabled) { background: var(--hf-surface-muted); }
 .editorial-button:disabled, .hf-primary-control:disabled { cursor: default; opacity: .65; }
 .editorial-button:focus-visible, .editorial-details summary:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 3px; }

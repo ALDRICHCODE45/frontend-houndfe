@@ -42,6 +42,11 @@ Capturas del último pulido: `artifacts/catalog-controls-polish/{320,390,768,144
 - Historial inválido (L16): verificado contra la API real de dev (main backend `3f02f6f`). Guardar conservando una presentación borrada responde 400 sin cambios y la UI lo bloquea antes de enviar; el borrador corregido guarda con 200. Se retiró el aviso de limitación; ahora el editor pide quitar o corregir los atributos no disponibles. Los valores numéricos huérfanos muestran su unidad. Capturas: `artifacts/editorial-l16-*.png`. Este editor no permite quitar medios y no normaliza documentos ilegibles.
 - Pendiente aparte (sin corregir): la pantalla de inicio de sesión dice «Ingresá tus credenciales» (voseo), no español neutro de México.
 
+## Editor editorial — publicar y descartar (2026-10-28)
+
+- V9 — Pendiente de revisión humana: panel «Publicación» en `/pos/products/:id/editorial` con estado publicado/borrador guardado/cambios locales, «Publicar borrador…» y «Descartar borrador guardado…» con confirmación, motivos concretos cuando no se puede publicar (título vacío, medios, opción archivada fuera de la versión publicada, cambios sin guardar), comparación del borrador guardado contra la versión publicada con etiquetas del vocabulario, y aviso al salir con cambios sin guardar.
+- Verificado por el agente con Playwright MCP y respuestas sintéticas del contrato cerrado v0.3 (no hay backend implementado todavía): 1440 claro/oscuro, 390 claro, teclado (foco visible, la confirmación recibe el foco en «Cancelar» y lo devuelve al botón), controles de 44px y zoom 200% sin desborde. Capturas `artifacts/editorial-publish-*.png`. No acredita integración real ni aceptación visual humana.
+
 ## Criterio para próximos cambios de UI
 
 - V1–V5 siguen pendientes de revisión humana; la continuidad del desarrollo no equivale a aceptación visual.
