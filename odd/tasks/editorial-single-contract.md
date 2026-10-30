@@ -180,12 +180,32 @@ type CareReview =
 ```
 Only primitive closed-shape/scalar decoding in T2b. Do not enforce fresh nonblank/count/calendar/unique keys/references/evidence sufficiency/family permission or publication readiness here. Preserve unknown, prepared contradictory/unresolved/private/public-required states for subsequent explicit correction; no silent sanitization/removal/legal inference. Empty arrays and unresolved capture are readable, not publication approval. Do not infer none_applicable requires empty arrays at this primitive boundary; that publication rule is later T6/T8. Decode one non-null CareReview to detached typed object or null on invalid; nullable careReview handling belongs to later SellableFacts composition. Reuse existing Evidence/scalar/snapshot exports, unchanged. No UI/API/receipt/attestation integration.
 
+S13. T2 composes exact target §3/§4 document and subject forms using already-verified primitive readers. Verbatim machine shapes (Value/Declaration/CareReview are S4/S11/S12):
+```ts
+type SellableFacts = {
+  variantId: string | null;
+  presentation: string;
+  declarations: Declaration[];
+  careReview: CareReview | null;
+};
+type Document = {
+  schemaVersion: 2;
+  commercialTitle: string | null;
+  description: string | null;
+  mediaRefs: string[];
+  familyCode: string | null;
+  values: Value[];
+  facts: SellableFacts[];
+};
+```
+All fields required, closed shapes, no modes or conversion, scalar strings. Public readers return detached complete typed value or null; one malformed nested item rejects the whole object rather than pruning or substituting unknown/defaults. Root null is invalid for either reader; careReview:null is explicitly valid within facts. Preserve all document array ordering and strings, including inactive/unknown/contradictory content. Primitive reader does NOT require nonblank/unique/current variant/reference/limits/family-null emptiness/family permissions/numeric domains/evidence or publication readiness: fresh T6 admission enforces those. Do not discard stored information to make a document readable. Reject old five-key documents, flat old values and mode wrappers; schemaVersion must be exactly2. Clean noPublished initialization shape in S6 is readable; don't add initializer mutation or alter copy-Published behavior. Export project-prefixed types in new contract module; existing old document module/consumers remain untouched until coordinated integration.
+
 ## Tasks
 T1 | S1,S3,S4 | delegated (context backstop) | done | Worker assertion RED11fail/36pass then GREEN49pass; parent full3file readback/diff-check and job-3 exit0 after20s:139/139 across6files, app vue-tsc exit0. LSP1unconfirmed plus7auxiliary hints; typecheck provides type evidence. ASSESS unavailable for untracked scope, not approval. Risk:none. Commit2cd9acb15524d1548912ad2b6e654863f65c6c81 (328 authored lines incl tracking); delivery feature-branch-chain; no live integration. Native assessment unavailable even committed-only; no native approval claimed.
 T3a | S3,S9,S10 | delegated (context backstop) | done | Worker assertion RED71fail/26pass then GREEN97. Parent full readback and job-4 exit0 after17s:146/146tests across2suites, explicit test-file tsc and app vue-tsc pass. LSP1auxiliary unknown-input hint only. Native assess unavailable/untracked, not approval. Risk:none; no existing consumer/helper changed. Commit00ec542f73550b8eb52959f1e6f28936cefa69a7 (319 authored lines including tracking); no metadata integration.
 T2a | S3,S4,S9,S11 | delegated (context backstop) | done | Worker RED33fail/61pass then94/94GREEN. Parent readback and job-5 exit0 after26s:191/191tests, explicit test-file tsc and app vue-tsc passed. Only3additive exports in existing helpers, bodies unchanged; Risk:none. LSP11auxiliary hints/warnings only; no type errors. Native assess unavailable, no approval. Commita46db57e3de7f1a13d0e3912d4a9e54a03c59d6a (371authoredlines incl spec/evidence); no integration.
-T2b | S3,S4,S12 | delegated (context backstop) | done | Worker assertion RED34fail/58pass then93/93GREEN. Parent full3file readback and job-6 exit0 after19s:235/235tests, explicit care-test tsc +app vue-tsc pass. LSP2auxiliary findings only. Native assess unavailable/untracked, no approval. Risk:none, helpers unchanged. No publication/UI integration; commit pending recording.
-T2 | S3,S4,S6,S9 | delegated (context backstop) | pending | Exact SellableFacts/full Document primitive composition after T2a/T2b; scoped admission separated; commit pending.
+T2b | S3,S4,S12 | delegated (context backstop) | done | Worker assertion RED34fail/58pass then93/93GREEN. Parent full3file readback and job-6 exit0 after19s:235/235tests, explicit care-test tsc +app vue-tsc pass. LSP2auxiliary findings only. Native assess unavailable/untracked, no approval. Risk:none, helpers unchanged. No publication/UI integration; commit6c11e0950e256a45ad2680c7bc134300cc30f563 (312authoredlines incl spec/evidence).
+T2 | S3,S4,S6,S9,S13 | delegated (context backstop) | done | Worker assertion RED6fail/153pass then159/159GREEN. Parent full3file readback and job-7 exit0 after19s:256/256tests +explicit document-test tsc +app vue-tsc pass. LSP6auxiliary findings only. Native assess unavailable, no approval. Risk:none; helpers/consumers unchanged. Commit pending recording.
 T3 | S3,S9 | delegated (context backstop) | pending | Target vocabulary types/decoder using T3a finite catalog; commit pending.
 T4 | S3,S5 | delegated (context backstop) | pending | Target transport headers/envelopes/error mapping with adapter tests; commit pending.
 T5 | S5,S6 | delegated (context backstop) | pending | Coherent scoped reads and immutable R/care write intents, coordinated consumer transition; commit pending.
@@ -217,3 +237,6 @@ L19. job-5 completed exit0 after26s;191/191tests across3explicit suites plus dec
 L20. T2a committeda46db57e3de7f1a13d0e3912d4a9e54a03c59d6a; separate chain slice3=00ec542→a46db57,371authoredlines, next slice startsa46db57. Native assessment unavailable/untracked, no approval; no retry/authority bypass. Total authored commit sum1018 (net branch tool1002), NOT one review candidate. T2b care primitive separated from subsequent document composition for cohesive review, no new behavior.
 L21. T2b parent read complete3files; target shapes/enums match S12, snapshot reused unchanged, contradictory/unresolved capture preserved. Risk:none (new isolated decoder, existing helpers untouched). Parent job-6 runs four bounded primitive suites then explicit compile assertions/app types. LSP import-extension warning follows existing bundler convention; unknown-input hint is at actual decoder boundary. Await proof, no completion claimed.
 L22. Parent job-6 completed exit0 after19s:235/235tests in4focused suites, care-test tsc and app vue-tsc pass. T2b verified/done. No browser check applicable; pi-lens callgraph advisory is informational. No live code/permissions/publication behavior changed.
+L23. T2b commit6c11e0950e256a45ad2680c7bc134300cc30f563; separate chain slice4 a46db57→6c11e09,312authoredlines; next boundary6c11e09. Accumulated authored sum1330, net branch tool1310; never one review candidate. Native assessment unavailable/untracked, no approval. Proceed T2 composition using exact S13; no old consumer changes.
+L24. T2 parent readback: exact S13 composition, nullable care not missing field, atomic nested failure, no normalization/adoption/pruning, deep detachment. Risk:none (isolated new readers, reused helpers unchanged). Parent job-7 checks5explicit primitive suites and compile/app types sequentially with60s deadlines. No browser checks apply to this pure unit; pending result before completion.
+L25. job-7 exited0 after19s:256/256tests in5focused suites, document-test tsc and app vue-tsc passed. T2 verified/done. Whole-document decoding now composed, still not connected to existing editor/API. No failed or missing applicable functional proof for this unit; native assessment unavailable and prior resource incident remain explicitly recorded.
