@@ -4,6 +4,7 @@ import type {
   EditorialBinding, EditorialContractVocabulary as Vocabulary, EditorialPolicyCase,
 } from '../../interfaces/editorial-contract-vocabulary.types'
 import { qualifyEditorialContractVocabulary as qualify } from '../editorial-contract-vocabulary-qualification'
+import { decodeEditorialContractVocabulary } from '../editorial-contract-vocabulary'
 
 type Choice = Extract<EditorialDefinition, { type: 'single' | 'multi' }>
 type Numeric = Extract<EditorialDefinition, { type: 'number' | 'range' }>
@@ -76,6 +77,30 @@ function check(mutate: Mutation, accepted: boolean) {
 }
 
 describe('S16 consumer vocabulary qualification (not full backend admission)', () => {
+  it.each([
+    ['product', 'product', true], ['product', 'sellable', false],
+    ['sellable', 'product', true], ['sellable', 'sellable', true],
+  ] as const)('S30 target %s with selector %s accepted=%s', (target, selector, accepted) => {
+    const input = fixture()
+    bindings(input)[1]!.owner = target
+    bindings(input)[0]!.owner = selector
+    const before = structuredClone(input)
+    expect(decodeEditorialContractVocabulary(input)).toEqual(before)
+    expect(qualify(input)).toEqual(accepted ? before : null)
+    expect(input).toEqual(before)
+  })
+
+  it('S30 does not reject product pending or unconditional rules because sellable bindings exist', () => {
+    check(v => {
+      bindings(v)[1]!.owner = 'product'; bindings(v)[0]!.owner = 'sellable'
+      bindings(v)[1]!.policy = { route: 'pending' }
+    }, true)
+    check(v => {
+      bindings(v)[1]!.owner = 'product'; bindings(v)[0]!.owner = 'sellable'
+      cases(v, [{ ...policyCase(), when: [] }])
+    }, true)
+  })
+
   it.each<[string, Mutation]>([
     ['family IDs unique', v => { v.families.push({ ...structuredClone(v.families[0]!), code: 'other' }) }],
     ['family codes unique', v => { v.families.push({ ...structuredClone(v.families[0]!), id: 'other' }) }],

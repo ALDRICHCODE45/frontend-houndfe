@@ -78,7 +78,10 @@ function qualifiesFamily(
         binding.publicationCheck !== 'always')) return false
       if (!unique(item.when.map(test => test.definitionCode))) return false
       for (const test of item.when) {
-        if (!bound.has(test.definitionCode)) return false
+        const selectorBinding = bound.get(test.definitionCode)
+        if (!selectorBinding) return false
+        // Product rules evaluate once: their selectors must not vary by sellable subject.
+        if (binding.owner === 'product' && selectorBinding.owner === 'sellable') return false
         const selector = byCode.get(test.definitionCode)
         if (!selector || (selector.type !== 'single' && selector.type !== 'multi')) return false
         const options = new Set(selector.options.map(option => option.code))
