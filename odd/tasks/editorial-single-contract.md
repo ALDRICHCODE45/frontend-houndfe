@@ -30,10 +30,83 @@ S7. Family-change question: «Si cambiás la familia de un borrador (por ejemplo
 S8. Retain existing UI design and Spanish project copy. Historical user requirement: «por favor pruebes en el navegador (con el mcp de playwhrit) todo lo que hagas en la ui, sigue el system design del sistema, las reglas de ui, y no solo valides funcionalidad, tambien valida que lo que hagas tenga buen diseño, esto es muy importante hermano, lo que no quiero es llegar a revisar el resultado y tner que haver 1000 correcciones de diseño». No visual redesign. Verify controls, focus, narrow/wide screens, light/dark and explicit confirmations against isolated mocked contract until BE coordinated cutover.
 S9. Exact normative68-code catalog received from backend at c90e2e0:32 CHOICES/25 NUMBERS/11 OTHER. Parent holds exact attachment. Do not expand ProductionDefinitionCode with custom codes, groups or aliases. Backend authoritative Unicode17 alias admission is not a browser runtime guard/parity requirement. Exact metadata/facts/care machine excerpts must accompany their later implementation units.
 
+S10. Exact production definition membership from the backend attachment at c90e2e0 (first-column codes only; not option identities). T3a adds a readonly/frozen finite catalog, its literal union and primitive membership guard; no inference from prefixes, no normalization, no custom expansion, and no policy/transport integration. Preserve this exact order (32 choices,25 numeric,11 other):
+```text
+animal.target
+life.stage
+pack.form
+pack.sale
+content.kind
+material
+color.base
+size.label
+size.animal
+food.format
+food.role
+food.process
+food.texture
+food.aquatic
+treat.form
+treat.base
+toy.type
+toy.feature
+hygiene.type
+hygiene.form
+hygiene.litter
+hygiene.scent
+accessory.type
+accessory.closure
+accessory.feature
+habitat.type
+habitat.environment
+habitat.substrate
+habitat.component
+care.type
+care.form
+care.device
+measure.net_mass
+measure.net_volume
+measure.content_count
+measure.pack_count
+measure.dimensions.external_length
+measure.dimensions.external_width
+measure.dimensions.external_height
+measure.dimensions.external_diameter
+measure.dimensions.internal_length
+measure.dimensions.internal_width
+measure.dimensions.internal_height
+measure.dimensions.internal_diameter
+measure.fit.neck
+measure.fit.chest
+measure.fit.back_length
+measure.animal_mass
+measure.capacity.container
+measure.capacity.habitat_usable_volume
+measure.equipment.power
+measure.equipment.voltage
+measure.equipment.frequency
+measure.equipment.flow
+measure.equipment.temperature
+measure.coverage.length
+measure.coverage.area
+text.ingredients
+text.protein_origin
+text.composition
+text.manufacturer_care
+text.instructions
+text.clinical_analysis
+text.concentration
+text.regulatory_warnings
+feature.washable
+feature.reusable
+feature.waterproof
+```
+
 ## Tasks
-T1 | S1,S3,S4 | delegated (context backstop) | done | Worker assertion RED11fail/36pass then GREEN49pass; parent full3file readback/diff-check and job-3 exit0 after20s:139/139 across6files, app vue-tsc exit0. LSP1unconfirmed plus7auxiliary hints; typecheck provides type evidence. ASSESS unavailable for untracked scope, not approval. Risk:none. Commit pending recording below; delivery strategy selected feature-branch-chain; no live integration.
-T2 | S3,S4,S6,S9 | delegated (context backstop) | pending | Exact facts/care and full Document primitive decoding, scoped admission separated; next after first verified work-unit commit; commit pending.
-T3 | S3,S9 | delegated (context backstop) | pending | Target vocabulary types/decoder and exact finite catalog; commit pending.
+T1 | S1,S3,S4 | delegated (context backstop) | done | Worker assertion RED11fail/36pass then GREEN49pass; parent full3file readback/diff-check and job-3 exit0 after20s:139/139 across6files, app vue-tsc exit0. LSP1unconfirmed plus7auxiliary hints; typecheck provides type evidence. ASSESS unavailable for untracked scope, not approval. Risk:none. Commit2cd9acb15524d1548912ad2b6e654863f65c6c81 (328 authored lines incl tracking); delivery feature-branch-chain; no live integration. Native assessment unavailable even committed-only; no native approval claimed.
+T3a | S3,S9,S10 | delegated (context backstop) | done | Worker assertion RED71fail/26pass then GREEN97. Parent full readback and job-4 exit0 after17s:146/146tests across2suites, explicit test-file tsc and app vue-tsc pass. LSP1auxiliary unknown-input hint only. Native assess unavailable/untracked, not approval. Risk:none; no existing consumer/helper changed. Commit pending recording; no metadata integration.
+T2 | S3,S4,S6,S9 | delegated (context backstop) | pending | Exact facts/care and full Document primitive decoding after finite code catalog, scoped admission separated; commit pending.
+T3 | S3,S9 | delegated (context backstop) | pending | Target vocabulary types/decoder using T3a finite catalog; commit pending.
 T4 | S3,S5 | delegated (context backstop) | pending | Target transport headers/envelopes/error mapping with adapter tests; commit pending.
 T5 | S5,S6 | delegated (context backstop) | pending | Coherent scoped reads and immutable R/care write intents, coordinated consumer transition; commit pending.
 T6 | S4,S6,S9 | delegated (context backstop) | pending | Fresh document/assignment/evidence/facts qualification and conservation; commit pending.
@@ -55,3 +128,6 @@ L10. job-2 exited1 after2s; parent read full log: exactly requested test file, f
 L11. Worker delivery: isolated target decoder/types and49tests, assertion RED11fail/36pass, GREEN47 then49. Parent full readback matches S4 closed shape/fresh-admission separation; no existing consumers/helpers changed. Risk: none (standalone unconsumed shape decoder, no security/permission guard, no shared contract replacement yet). Native ASSESS unassessable due untracked declaration; no review approval. Parent launched job-3: explicit six editorial test paths, one worker/no parallelism/worktree exclusion, then app vue-tsc sequentially; hard60s per step. Await results. LSP check has1unconfirmed file and7auxiliary hints for unknown/typeof at actual decoding boundary; no blanket clean claim. T1 remains in_progress.
 L12. Parent job-3 completed exit0 after20s: six explicitly selected suites139/139 passed, followed by app vue-tsc exit0. T1 outcome verified and marked done; no live integration. Initial timeout/runaway failures remain historical failed checks, not omitted. No browser checks applicable to this pure unconsumed decoder. Need human delivery-shape choice before first work-unit commit because feature forecast exceeds400lines; no push/PR created.
 L13. Human selected «Cadena sobre rama de la funcionalidad (recomendado)» (feature-branch-chain). Tracker/integration feat/editorial-single-contract; first slice T1 decoder plus tests/tracking, subsequent slices dependency-ordered. No main changes/push/PR now. Authored count recorded from commits; no oversized accumulated PR.
+L14. T1 committed2cd9acb15524d1548912ad2b6e654863f65c6c81,328authored lines. Native assess remains unavailable due original unrelated untracked proposal even with committedOnly; no approval invented and no mutation to unrelated proposal. T1 functional/type proof remains valid. Dependency refinement: do exact finite catalog T3a before facts T2 so facts/types do not widen ProductionDefinitionCode to arbitrary string. This is the already-agreed S9 input, not new inventory policy. Subsequent review slice starts after2cd9acb; tracker branch retained, no publication.
+L15. T3a parent read exact catalog/test sources;97tests worker GREEN. Parent runs both new-unit suites plus explicit tsc on compile-time assertions because tsconfig.app.json excludes __tests__, then app vue-tsc; job-4, maxWorkers1 and hard60s per step. No additional runtime integration or rule changes.
+L16. job-4 completed exit0 after17s:146/146 focused tests, test-file tsc assertions valid, app vue-tsc clean. T3a verified/done. Risk:none; no existing consumers touched. Native assessment remains unavailable, not an approval. No browser check applies to pure isolated catalog. Commit includes catalog/tests/spec evidence only.
