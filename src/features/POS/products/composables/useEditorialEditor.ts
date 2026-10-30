@@ -1,24 +1,20 @@
 import { computed, onScopeDispose, shallowRef, toValue, watch, type MaybeRefOrGetter } from 'vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
-import { editorialApi, EditorialApiError } from '../api/product-editorial.api'
-import type { EditorialContext, EditorialDocument, EditorialVocabulary } from '../interfaces/product-editorial.types'
-import { decodeEditorialDocument } from '../utils/product-editorial-document'
-import { validateEditorialAssignments, type EditorialAssignmentIssue } from '../utils/product-editorial-assignment-validation'
+import { editorialContractApi, EditorialContractApiError } from '../api/editorial-contract.api'
+import { loadEditorialContractSnapshot } from '../utils/editorial-contract-snapshot'
+import type { EditorialDocumentEditingState } from '../utils/editorial-contract-document-editing'
+import type { EditorialRuntimeIssue } from '../utils/editorial-contract-publication-checks'
 import { useEditorialDraft } from './useEditorialDraft'
 
-const metadataProbe: EditorialDocument = {
-  commercialTitle: null, description: null, familyCode: null, mediaRefs: [], values: [],
-}
-export function editorialIssueMessage(issue: EditorialAssignmentIssue): string {
-  const messages: Record<EditorialAssignmentIssue['code'], string> = {
-    structure: 'Revisa el formato del contenido.', limits: 'El contenido supera los límites de guardado (200 caracteres de título, 20,000 de descripción, 20 medios, 200 atributos o 100 kB por solicitud).',
-    metadata: 'No se pudieron validar los metadatos editoriales.', baseline: 'El borrador guardado no se puede interpretar.',
-    family: 'La familia ya no está disponible.', binding: 'El atributo ya no corresponde a esta familia o cambió de tipo.',
-    variant: 'La presentación guardada ya no está disponible en el contexto actual.', unit: 'Selecciona una unidad disponible.',
-    option: 'Una opción guardada ya no está disponible.', archived: 'No se pueden introducir opciones archivadas fuera de su asignación guardada.',
-    media: 'Las referencias de medios deben conservarse sin cambios.',
-  }
-  return messages[issue.code]
+export function editorialIssueMessage(issue: EditorialRuntimeIssue): string {
+  if (issue.code === 'title') return 'Agrega un título comercial editorial y guarda el borrador antes de publicar.'
+  if (issue.code === 'media') return 'El borrador tiene referencias de medios. Por ahora no se pueden publicar medios ni quitarlos desde este editor; descarta el borrador guardado para salir de este estado.'
+  if (issue.code === 'INCOMPLETE_INPUT') return 'Completa o corrige los campos y las evidencias antes de guardar.'
+  if (issue.code === 'FACTS_CAPTURE') return 'Revisa la captura de hechos, declaraciones y cuidado.'
+  if (issue.code === 'NA_NOT_ALLOWED') return 'La política seleccionada no permite «No aplica».'
+  if (issue.code === 'NUMERIC_POLICY_PENDING') return 'La política numérica está pendiente; no se puede publicar este valor.'
+  if (issue.code.includes('ARCHIVED')) return 'Un atributo usa una opción archivada fuera de su asignación guardada. Corrígela antes de continuar.'
+  return `Revisa el contenido editorial (${issue.code}).`
 }
 export function editorialErrorMessage(status: number | null): string {
   switch (status) {
@@ -32,119 +28,67 @@ export function editorialErrorMessage(status: number | null): string {
   }
 }
 
-/** Owns scoped reads only. T3 owns all write intent/replay state; T4a owns qualification. */
-export function useEditorialEditor(productId: MaybeRefOrGetter<string>) {
+/** Scoped read orchestration; the raw owner installs exactly one coherent pair. */
+export function useEditorialEditor(productId: MaybeRefOrGetter<string>, api: MaybeRefOrGetter<typeof editorialContractApi> = editorialContractApi) {
   const auth = useAuthStore()
-  const context = computed(() => ({
-    authenticated: auth.isAuthenticated && auth.authPhase === 'authenticated',
-    userId: auth.user?.id ?? null, tenantId: auth.currentTenant?.id ?? null,
-    productId: toValue(productId), permissionsLoaded: auth.permissionsLoaded,
-    permissionCodes: auth.permissionCodes,
-  }))
-  const vocabulary = shallowRef<EditorialVocabulary | null>(null)
-  const qualification = shallowRef<EditorialContext | null>(null)
-  const lifecycle = useEditorialDraft(context, () => ({ vocabulary: vocabulary.value, context: qualification.value }))
-  const identity = computed(() => JSON.stringify(context.value))
+  const context = computed(() => ({ authenticated: auth.isAuthenticated && auth.authPhase === 'authenticated',
+    userId: auth.user?.id ?? null, tenantId: auth.currentTenant?.id ?? null, productId: toValue(productId),
+    permissionsLoaded: auth.permissionsLoaded, permissionCodes: auth.permissionCodes }))
+  const lifecycle = useEditorialDraft(context, api)
+  const vocabulary = computed(() => lifecycle.snapshot.value?.vocabulary.vocabulary ?? null)
+  const qualification = computed(() => lifecycle.snapshot.value?.context ?? null)
   const loading = shallowRef(false)
   const readError = shallowRef<string | null>(null)
-  const metadataMessage = shallowRef<string | null>(null)
-  const issues = shallowRef<EditorialAssignmentIssue[]>([])
+  const metadataMessage = computed(() => readError.value ? 'No se pudieron cargar metadatos editoriales coherentes. Vuelve a consultar.' : null)
   let generation = 0
+  let controller: AbortController | null = null
   let disposed = false
-
   async function refresh(choice: 'retain' | 'discard') {
-    if (loading.value || lifecycle.isPending.value || !lifecycle.canRead.value) return false
+    if (loading.value || lifecycle.isPending.value || !lifecycle.canRead.value || disposed) return false
     const ticket = lifecycle.beginSnapshotRead()
     if (!ticket) return false
-    const currentGeneration = generation
-    const current = () => !disposed && generation === currentGeneration && lifecycle.canRead.value
+    const requestedGeneration = generation
+    const requestedApi = toValue(api)
     const requestedProduct = context.value.productId
-    loading.value = true
-    readError.value = null
-    // No cached authority is reused while a refresh is outstanding or fails.
-    vocabulary.value = null
-    qualification.value = null
-    metadataMessage.value = null
-    const [stateResult, vocabularyResult, contextResult] = await Promise.allSettled([
-      editorialApi.getState(requestedProduct), editorialApi.getVocabulary(), editorialApi.getContext(requestedProduct),
-    ])
-    if (!current()) return false
-    if (stateResult.status === 'fulfilled') {
-      if (!lifecycle.reconcileSnapshot(ticket, stateResult.value, choice)) {
-        readError.value = 'No se pudo consultar un estado editorial válido. El historial y los cambios locales no se normalizan.'
-      }
-    } else {
-      readError.value = stateResult.reason instanceof EditorialApiError && [401, 403, 404].includes(stateResult.reason.status ?? 0)
-        ? editorialErrorMessage(stateResult.reason.status)
-        : 'No se pudo consultar el contenido editorial. Puedes actualizar para intentar de nuevo.'
-    }
-    // Reuse the closed T4a metadata schemas, without testing historical documents
-    // against fresh-save limits or replacing failed authority with an empty catalog.
-    if (vocabularyResult.status === 'fulfilled' && contextResult.status === 'fulfilled' &&
-      validateEditorialAssignments({ document: metadataProbe, persistedBaseline: metadataProbe,
-        vocabulary: vocabularyResult.value, context: contextResult.value }).valid) {
-      vocabulary.value = vocabularyResult.value
-      qualification.value = contextResult.value
-    } else metadataMessage.value = 'No se pudieron cargar metadatos editoriales válidos. La edición y el guardado están deshabilitados; puedes volver a consultar.'
-    issues.value = []
-    loading.value = false
-    return !readError.value
+    const abort = new AbortController(); controller = abort
+    const current = () => !disposed && generation === requestedGeneration && requestedApi === toValue(api) && !abort.signal.aborted && lifecycle.canRead.value
+    loading.value = true; readError.value = null
+    try {
+      const snapshot = await loadEditorialContractSnapshot(requestedApi, requestedProduct, abort.signal)
+      if (!current()) return false
+      if (!lifecycle.reconcileSnapshot(ticket, snapshot, choice)) throw new Error('Invalid editorial snapshot')
+      return true
+    } catch (failure) {
+      if (!current()) return false
+      lifecycle.cancelSnapshotRead(ticket)
+      readError.value = failure instanceof EditorialContractApiError && [401, 403, 404].includes(failure.status ?? 0)
+        ? editorialErrorMessage(failure.status) : 'No se pudo consultar el contenido editorial coherente. Puedes actualizar para intentar de nuevo.'
+      return false
+    } finally { if (current()) { loading.value = false; controller = null } }
   }
-  watch(identity, () => {
-    generation++
-    vocabulary.value = null
-    qualification.value = null
-    readError.value = null
-    metadataMessage.value = null
-    issues.value = []
-    loading.value = false
+  watch([() => JSON.stringify(context.value), () => toValue(api)], () => {
+    generation++; controller?.abort(); controller = null; readError.value = null; loading.value = false
     if (lifecycle.canRead.value) void refresh('discard')
   }, { immediate: true, flush: 'sync' })
-  onScopeDispose(() => { disposed = true; generation++ }, true)
-
-  const sections = computed(() => {
-    if (!lifecycle.canRead.value || readError.value) return []
-    return (['draft', 'published'] as const).map(key => {
-      const entry = lifecycle.authoritative.value?.[key]
-      return { key, label: key === 'draft' ? 'Borrador' : 'Publicado', revision: entry?.revision ?? null,
-        decoded: entry ? decodeEditorialDocument(entry.document) : null }
-    })
-  })
-  const readableDraft = computed(() => sections.value.some(section => section.key === 'draft' && section.decoded?.readable))
-  const metadataReady = computed(() => Boolean(vocabulary.value && qualification.value))
-  const editable = computed(() => lifecycle.canWrite.value && metadataReady.value && readableDraft.value &&
-    !loading.value && !readError.value && !lifecycle.isPending.value)
-  const canSave = computed(() => editable.value && lifecycle.pendingIntent.value === null && lifecycle.buffer.value !== null)
-  const canInitialize = computed(() => lifecycle.canWrite.value && metadataReady.value && !loading.value &&
-    !readError.value && lifecycle.authoritative.value?.draft === null && !lifecycle.pendingIntent.value && !lifecycle.isPending.value)
-  function replaceDocument(document: EditorialDocument) {
-    if (!editable.value) return
-    lifecycle.buffer.value = document
-    issues.value = []
-  }
-  async function save() {
-    if (!canSave.value) return false
-    const validation = validateEditorialAssignments({ document: lifecycle.buffer.value,
-      persistedBaseline: lifecycle.authoritative.value?.draft?.document,
-      vocabulary: vocabulary.value, context: qualification.value })
-    issues.value = validation.issues
-    return validation.valid ? lifecycle.save() : false
-  }
+  onScopeDispose(() => { disposed = true; generation++; controller?.abort(); loading.value = false; readError.value = null }, true)
+  const sections = computed(() => !lifecycle.canRead.value || readError.value ? [] : (['draft', 'published'] as const).map(key => {
+    const entry = lifecycle.authoritative.value?.[key]
+    return { key, label: key === 'draft' ? 'Borrador' : 'Publicado', revision: entry?.revision ?? null, document: entry?.document ?? null }
+  }))
+  const editable = computed(() => lifecycle.canWrite.value && Boolean(vocabulary.value && qualification.value && lifecycle.authoritative.value?.draft) && !loading.value && !readError.value && !lifecycle.isPending.value)
+  const canSave = computed(() => editable.value && !lifecycle.pendingIntent.value && Boolean(lifecycle.buffer.value))
+  const canInitialize = computed(() => lifecycle.canWrite.value && Boolean(vocabulary.value && qualification.value) && !loading.value && !readError.value && lifecycle.authoritative.value?.draft === null && !lifecycle.pendingIntent.value && !lifecycle.isPending.value)
+  function replaceDocument(document: EditorialDocumentEditingState) { if (editable.value) { lifecycle.buffer.value = document; lifecycle.issues.value = [] } }
   const canPublish = computed(() => !loading.value && !readError.value && lifecycle.canPublishDraft.value)
   const canDiscard = computed(() => !loading.value && !readError.value && lifecycle.canDiscard.value)
-  async function publish() { return canPublish.value ? lifecycle.publish() : false }
-  async function discard() { return canDiscard.value ? lifecycle.discard() : false }
-  async function initialize() { return canInitialize.value ? lifecycle.initialize() : false }
-  async function retransmit() {
-    const kind = lifecycle.pendingIntent.value?.kind
-    const allowed = kind === 'publish' || kind === 'discard'
-      ? lifecycle.canRead.value : lifecycle.canWrite.value && metadataReady.value
-    return allowed && !loading.value && !readError.value ? lifecycle.retransmit() : false
-  }
-  const errorMessage = computed(() => !lifecycle.canRead.value
-    ? 'No tienes acceso al contenido editorial en el contexto actual.' : readError.value)
-  return { lifecycle, vocabulary, qualification, loading, errorMessage, metadataMessage,
-    issues, sections, editable, canSave, canInitialize, canPublish, canDiscard,
-    publishIssues: lifecycle.publishIssues, hasUnsavedChanges: lifecycle.hasUnsavedChanges,
-    replaceDocument, refresh, initialize, save, publish, discard, retransmit }
+  // Retransmission uses only captured intent and current grants, not fresh candidate
+  // admission or current metadata. A failed read cannot rewrite the original R/token.
+  async function retransmit() { return !loading.value ? lifecycle.retransmit() : false }
+  const errorMessage = computed(() => !lifecycle.canRead.value ? 'No tienes acceso al contenido editorial en el contexto actual.' : readError.value)
+  return { lifecycle, vocabulary, qualification, loading, errorMessage, metadataMessage, issues: lifecycle.issues,
+    sections, editable, canSave, canInitialize, canPublish, canDiscard, publishIssues: lifecycle.publishIssues, hasUnsavedChanges: lifecycle.hasUnsavedChanges,
+    replaceDocument, refresh, retransmit, save: () => canSave.value ? lifecycle.save() : Promise.resolve(false),
+    initialize: () => canInitialize.value ? lifecycle.initialize() : Promise.resolve(false),
+    publish: (confirmation: 'review-v1' | null = null) => canPublish.value ? lifecycle.publish(confirmation) : Promise.resolve(false),
+    discard: () => canDiscard.value ? lifecycle.discard() : Promise.resolve(false) }
 }

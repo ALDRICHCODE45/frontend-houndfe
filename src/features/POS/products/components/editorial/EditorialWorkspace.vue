@@ -3,9 +3,10 @@ import { computed, getCurrentInstance, onBeforeUnmount, shallowRef, watch } from
 import { onBeforeRouteLeave } from 'vue-router'
 import EditorialPublication from './EditorialPublication.vue'
 import { useEditorialEditor, editorialErrorMessage, editorialIssueMessage } from '../../composables/useEditorialEditor'
-import EditorialDocumentFields from './EditorialDocumentFields.vue'
-import type { EditorialValue } from '../../interfaces/product-editorial.types'
-import { validateEditorialAssignments } from '../../utils/product-editorial-assignment-validation'
+import EditorialContractDocumentFields from './EditorialContractDocumentFields.vue'
+import EditorialContractHistory from './EditorialContractHistory.vue'
+import { inspectEditorialDocumentReferences } from '../../utils/editorial-contract-document-references'
+import { qualifyEditorialConservationBaseline } from '../../utils/editorial-contract-conservation'
 import '@/core/shared/design-system/houndfe-ui.css'
 const props = defineProps<{ productId: string }>()
 const editor = useEditorialEditor(() => props.productId)
@@ -26,17 +27,29 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', preventUnload))
 const retransmitAllowed = computed(() => pendingIntent.value?.kind === 'publish'
   ? publishPermission.value : canWrite.value && (pendingIntent.value?.kind === 'discard' || Boolean(vocabulary.value && qualification.value)))
 const discardPending = shallowRef(false)
-const fieldsValid = shallowRef(true)
-watch(() => [props.productId, authoritative.value], () => { discardPending.value = false; fieldsValid.value = true })
-watch(canRead, () => { discardPending.value = false; fieldsValid.value = true }, { flush: 'sync' })
-const invalidHistoryContext = computed(() => vocabulary.value && qualification.value && sections.value.some(section => {
-  if (!section.decoded?.readable) return false
-  const document = section.decoded.document
-  const result = validateEditorialAssignments({ document, persistedBaseline: document,
-    vocabulary: vocabulary.value, context: qualification.value })
-  return result.issues.some(issue => ['family', 'binding', 'variant', 'unit', 'option', 'archived'].includes(issue.code))
-}))
-const warnings = computed(() => (receipt.value?.warnings ?? []).map(warning => {
+watch(() => [props.productId, authoritative.value], () => { discardPending.value = false })
+watch(canRead, () => { discardPending.value = false }, { flush: 'sync' })
+const subjects = computed(() => qualification.value?.variants.length
+  ? qualification.value.variants.map(variant => ({ variantId: variant.id, label: variant.name }))
+  : [{ variantId: null, label: 'Sin presentación' }])
+const invalidHistoryContext = computed(() => vocabulary.value && qualification.value && sections.value.some(section => section.document &&
+  inspectEditorialDocumentReferences({ document: section.document, vocabulary: vocabulary.value!, context: qualification.value! }).length > 0))
+// Display admission uses only the entire reference-qualified saved Draft, never
+// a previous local selection, encoded candidate or acknowledgement document.
+const assignmentFeedback = computed(() => {
+  const feedback = new Map<string, { conservedOptions: readonly string[] }>()
+  if (!vocabulary.value || !qualification.value || !buffer.value) return feedback
+  const baseline = qualifyEditorialConservationBaseline(authoritative.value?.draft?.document, vocabulary.value, qualification.value)
+  if (!baseline || baseline.familyCode !== buffer.value.familyCode) return feedback
+  for (const row of buffer.value.values) {
+    const previous = baseline.values.find(value => value.code === row.target.code && value.owner === row.target.owner && value.variantId === row.target.variantId)
+    if (previous?.state !== 'known') continue
+    const payload = previous.payload
+    if (payload.type === 'single' || payload.type === 'multi') feedback.set(row.id, { conservedOptions: payload.type === 'single' ? [payload.value] : payload.value })
+  }
+  return feedback
+})
+const warnings = computed(() => (receipt.value?.state.warnings ?? []).map(warning => {
   const family = vocabulary.value?.families.find(item => item.id === warning.familyId)
   const definition = vocabulary.value?.definitions.find(item => item.id === warning.definitionId)
   const option = definition && (definition.type === 'single' || definition.type === 'multi')
@@ -45,15 +58,6 @@ const warnings = computed(() => (receipt.value?.warnings ?? []).map(warning => {
   const bounded = (text: string) => text.slice(0, 80)
   return `${family?.label ?? 'Familia no disponible'} · ${definition?.label ?? 'Atributo no disponible'} · ${option?.label ?? bounded(warning.optionCode)} · ${warning.owner === 'product' ? 'Producto' : variant ? `${variant.name} · ${variant.id.slice(0, 8)}` : warning.variantId ? `Presentación ${bounded(warning.variantId)}` : 'Sin presentación'}`
 }))
-function familyLabel(code: string | null): string {
-  return vocabulary.value?.families.find(item => item.code === code)?.label ?? code ?? 'Sin familia'
-}
-function assignmentText(assignment: EditorialValue): string {
-  if (assignment.type === 'multi') return assignment.value.join(', ') || 'Sin opciones'
-  if (assignment.type === 'boolean') return assignment.value ? 'Sí' : 'No'
-  if (assignment.type === 'number') return `${assignment.value}${assignment.unit ? ` ${assignment.unit}` : ''}`
-  return assignment.value
-}
 const refreshLabel = computed(() => {
   if (loading.value) return 'Actualizando…'
   if (!canWrite.value) return 'Actualizar contenido'
@@ -65,21 +69,21 @@ async function refreshFromHeader() {
   await editor.refresh(canWrite.value && buffer.value === null ? 'discard' : 'retain')
 }
 async function discard() { discardPending.value = false; await editor.refresh('discard') }
-async function submit() { if (fieldsValid.value) await editor.save() }
+async function submit() { await editor.save() }
 </script>
 
 <template>
-  <main class="hf-theme hf-ui editorial-workspace" aria-labelledby="editorial-title">
+  <main class="hf-theme hf-ui editorial-workspace" aria-labelledby="editorial-workspace-title">
     <header class="hf-page-header editorial-header">
       <div class="editorial-heading">
         <p class="editorial-eyebrow">PRODUCTO · CONTENIDO EDITORIAL</p>
-        <h1 id="editorial-title" class="hf-page-title">Contenido editorial</h1>
+        <h1 id="editorial-workspace-title" class="hf-page-title">Contenido editorial</h1>
         <p class="hf-page-subtitle">Edita el borrador por separado de los datos operativos. Guardar no publica el contenido.</p>
       </div>
       <div class="editorial-actions">
         <button class="editorial-button" type="button" data-testid="refresh-retain" :disabled="!canRead || loading || isPending" @click="refreshFromHeader">{{ refreshLabel }}</button>
         <button v-if="canWrite && buffer" class="editorial-button" type="button" data-testid="refresh-discard" :disabled="loading || isPending" @click="discardPending = true">Consultar y descartar cambios…</button>
-        <button v-if="canWrite && buffer" class="hf-primary-control" type="submit" form="editorial-form" :disabled="!canSave || !fieldsValid">{{ isPending ? 'Enviando…' : 'Guardar borrador' }}</button>
+        <button v-if="canWrite && buffer" class="hf-primary-control" type="submit" form="editorial-form" :disabled="!canSave">{{ isPending ? 'Enviando…' : 'Guardar borrador' }}</button>
       </div>
     </header>
     <p v-if="!canWrite" class="editorial-notice">Solo consulta. Necesitas permisos editoriales explícitos de lectura y actualización para editar.<template v-if="publishPermission"> Puedes publicar el borrador guardado.</template></p>
@@ -110,7 +114,7 @@ async function submit() { if (fieldsValid.value) await editor.save() }
         <EditorialPublication v-if="canRead && (canWrite || publishPermission)" :state="authoritative"
           :can-write="canWrite" :publish-permission="publishPermission" :can-publish="canPublish" :can-discard="canDiscard"
           :has-unsaved-changes="hasUnsavedChanges" :publish-issues="publishIssues" :busy="loading || isPending"
-          :needs-reconciliation="Boolean(pendingIntent)" :vocabulary="vocabulary" :context="qualification" @publish="editor.publish()" @discard="editor.discard()" />
+          :needs-reconciliation="Boolean(pendingIntent)" :vocabulary="vocabulary" :context="qualification" @publish="editor.publish($event)" @discard="editor.discard()" />
         <div v-if="!authoritative.draft" class="editorial-panel">
           <p v-if="!authoritative.published">Todavía no hay contenido editorial. No existe un borrador ni una versión publicada.</p>
           <p v-else>La versión publicada permanece intacta. Puedes iniciar un borrador a partir de ella.</p>
@@ -119,23 +123,14 @@ async function submit() { if (fieldsValid.value) await editor.save() }
         <p v-if="invalidHistoryContext" role="status" class="editorial-panel warning">Historial con atributos o contexto no disponibles. Se conserva intacto. Quita o corrige esos atributos en el borrador para poder guardarlo.</p>
         <form v-if="canWrite && buffer && vocabulary && qualification" id="editorial-form" class="editorial-form" aria-label="Editar borrador editorial" novalidate @submit.prevent="submit">
           <div v-if="issues.length" role="alert" class="editorial-panel warning"><p>Revisa el contenido antes de guardar.</p><ul><li v-for="(issue, index) in issues" :key="index">{{ issue.valueIndex === undefined ? '' : `Atributo ${issue.valueIndex + 1}: ` }}{{ editorialIssueMessage(issue) }}</li></ul></div>
-          <EditorialDocumentFields :document="buffer" :baseline="authoritative.draft?.document" :vocabulary="vocabulary" :context="qualification" :issues="issues" :disabled="!editable" @update:document="editor.replaceDocument" @validity="fieldsValid = $event" />
+          <EditorialContractDocumentFields id="editorial" :model-value="buffer" :vocabulary="vocabulary" :subjects="subjects" :next-id="lifecycle.nextId" :assignment-feedback="assignmentFeedback" :disabled="!editable" @update:model-value="editor.replaceDocument" />
           <p class="editorial-context">Sin guardado automático. El servidor valida el contenido y el contexto final.</p>
         </form>
         <div class="editorial-state" :aria-busy="loading">
           <section v-for="section in sections" :key="section.key" class="editorial-panel" :aria-labelledby="`editorial-${section.key}`">
             <header class="editorial-section-header"><h2 :id="`editorial-${section.key}`">{{ section.label }}{{ canWrite ? ' · historial consultado' : '' }}</h2><span v-if="section.revision !== null" class="editorial-context">Revisión {{ section.revision }}</span></header>
-            <p v-if="!section.decoded">{{ section.key === 'draft' ? 'Sin borrador' : 'Sin versión publicada' }}</p>
-            <p v-else-if="!section.decoded.readable" role="status">No se puede interpretar este documento. Se conserva sin cambios y solo se puede consultar su estado.</p>
-            <template v-else>
-              <dl class="editorial-facts"><div><dt>Título comercial editorial</dt><dd>{{ section.decoded.document.commercialTitle ?? 'Sin título editorial' }}</dd></div><div><dt>Familia editorial</dt><dd>{{ familyLabel(section.decoded.document.familyCode) }}</dd></div></dl>
-              <p class="editorial-context">{{ section.decoded.document.mediaRefs.length }} referencias de medios conservadas · {{ section.decoded.document.values.length }} atributos guardados</p>
-              <details class="editorial-details"><summary>Ver descripción editorial y atributos de {{ section.label.toLowerCase() }}</summary>
-                <h3>Descripción editorial</h3><p class="editorial-description">{{ section.decoded.document.description ?? 'Sin descripción editorial' }}</p>
-                <h3>Atributos guardados</h3><p v-if="!section.decoded.document.values.length">Sin atributos.</p>
-                <dl v-else class="editorial-facts"><div v-for="value in section.decoded.document.values" :key="JSON.stringify([value.code, value.variantId])"><dt>{{ value.code }} · {{ value.owner === 'product' ? 'Producto' : 'Presentación' }}{{ value.variantId ? ` · ${value.variantId}` : '' }}</dt><dd>{{ assignmentText(value) }}</dd></div></dl>
-              </details>
-            </template>
+            <p v-if="!section.document">{{ section.key === 'draft' ? 'Sin borrador' : 'Sin versión publicada' }}</p>
+            <EditorialContractHistory v-else :document="section.document" :vocabulary="vocabulary" :context="qualification" />
           </section>
         </div>
       </template>
