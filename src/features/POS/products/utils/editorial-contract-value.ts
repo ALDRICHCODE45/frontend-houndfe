@@ -2,7 +2,7 @@ import { z } from 'zod'
 import type { EditorialValue } from '../interfaces/editorial-contract-value.types'
 
 // Unicode mode treats a valid surrogate pair as one code point, not a surrogate.
-const scalarString = z.string().refine((value) => !/[\uD800-\uDFFF]/u.test(value))
+export const scalarString = z.string().refine((value) => !/[\uD800-\uDFFF]/u.test(value))
 const finiteNumber = z.number().finite()
 const payloadSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('text'), value: scalarString }).strict(),
@@ -12,7 +12,7 @@ const payloadSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('multi'), value: z.array(scalarString) }).strict(),
   z.object({ type: z.literal('range'), min: finiteNumber, max: finiteNumber, unit: scalarString }).strict(),
 ])
-const evidenceSchema = z.object({ sourceRef: scalarString, verifiedOn: scalarString }).strict()
+export const evidenceSchema = z.object({ sourceRef: scalarString, verifiedOn: scalarString }).strict()
 const assignment = {
   code: scalarString,
   owner: z.enum(['product', 'sellable']),
@@ -30,7 +30,7 @@ type JsonData = null | string | boolean | number | JsonData[] | { [key: string]:
 
 // Zod reads properties directly. Snapshot data descriptors first so submitted
 // getters, class instances and toJSON hooks never participate in validation.
-function snapshotJson(raw: unknown, ancestors = new Set<object>()): JsonData {
+export function snapshotJson(raw: unknown, ancestors = new Set<object>()): JsonData {
   if (raw === null || typeof raw === 'string' || typeof raw === 'boolean') return raw
   if (typeof raw === 'number' && Number.isFinite(raw)) return raw
   if (typeof raw !== 'object' || raw === null || ancestors.has(raw)) throw new Error('Not JSON data')

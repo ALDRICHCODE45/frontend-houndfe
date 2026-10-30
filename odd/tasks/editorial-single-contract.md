@@ -102,10 +102,57 @@ feature.reusable
 feature.waterproof
 ```
 
+S11. T2a exact private declaration shapes from target §4 (verbatim shapes with imported ProductionDefinitionCode from S10). This unit is primitive decoding only: preserve submitted order/strings and detached output. Do not yet enforce counts/nonblank/calendar/evidence sufficiency/bounds/current family membership/unique subsets/known-negative publication rules; those are T6. Static finite enum identities in these types are not expanded by custom definitions. Unknown declarations have neither value nor basis. Evidence uses S4 shape, not fresh admission. Reuse existing descriptor-safe snapshot/scalar/evidence primitives without changing existing decodeEditorialValue results; any new shared export must retain T1 regression checks.
+```ts
+type DimensionCode =
+  | 'measure.dimensions.external_length'
+  | 'measure.dimensions.external_width'
+  | 'measure.dimensions.external_height'
+  | 'measure.dimensions.external_diameter'
+  | 'measure.dimensions.internal_length'
+  | 'measure.dimensions.internal_width'
+  | 'measure.dimensions.internal_height'
+  | 'measure.dimensions.internal_diameter';
+type FitCode = 'measure.fit.neck' | 'measure.fit.chest' | 'measure.fit.back_length';
+type CapacityCode = 'measure.capacity.container' | 'measure.capacity.habitat_usable_volume';
+type EquipmentCode =
+  | 'measure.equipment.power' | 'measure.equipment.voltage'
+  | 'measure.equipment.frequency' | 'measure.equipment.flow'
+  | 'measure.equipment.temperature';
+type ContentMagnitude = 'mass' | 'volume' | 'count' | 'length' | 'area';
+type DeclarationValues = {
+  contentMagnitude: ContentMagnitude;
+  consumable: boolean;
+  animalApplied: boolean;
+  fitDeterminesChoice: boolean;
+  capacityDeterminesChoice: boolean;
+  electricalApplies: boolean;
+  relevantDimensionCodes: { codes: DimensionCode[]; toyTypes: string[] };
+  relevantFitCodes: FitCode[];
+  relevantCapacityCodes: CapacityCode[];
+  relevantEquipmentCodes: EquipmentCode[];
+  presentationKind: 'formulation' | 'device' | 'packaging';
+  optionalNonpertinenceCodes: ProductionDefinitionCode[];
+};
+type Declaration = {
+  [K in keyof DeclarationValues]:
+    | { key: K; state: 'unknown'; evidence: null }
+    | {
+        key: K;
+        state: 'known';
+        value: DeclarationValues[K];
+        evidence: Evidence;
+        basis: string;
+      };
+}[keyof DeclarationValues];
+```
+Use project-prefixed exported type names to avoid DOM/global collisions; wire keys remain exact. All objects closed/required, Unicode scalar strings, no coercion/defaults/normalization. Primitive shape errors return null without mutating input. Successful known false/empty arrays remain explicit values; unknown is distinct. No live consumer integration. Exact care/facts/document shapes follow in T2b before its writer.
+
 ## Tasks
 T1 | S1,S3,S4 | delegated (context backstop) | done | Worker assertion RED11fail/36pass then GREEN49pass; parent full3file readback/diff-check and job-3 exit0 after20s:139/139 across6files, app vue-tsc exit0. LSP1unconfirmed plus7auxiliary hints; typecheck provides type evidence. ASSESS unavailable for untracked scope, not approval. Risk:none. Commit2cd9acb15524d1548912ad2b6e654863f65c6c81 (328 authored lines incl tracking); delivery feature-branch-chain; no live integration. Native assessment unavailable even committed-only; no native approval claimed.
-T3a | S3,S9,S10 | delegated (context backstop) | done | Worker assertion RED71fail/26pass then GREEN97. Parent full readback and job-4 exit0 after17s:146/146tests across2suites, explicit test-file tsc and app vue-tsc pass. LSP1auxiliary unknown-input hint only. Native assess unavailable/untracked, not approval. Risk:none; no existing consumer/helper changed. Commit pending recording; no metadata integration.
-T2 | S3,S4,S6,S9 | delegated (context backstop) | pending | Exact facts/care and full Document primitive decoding after finite code catalog, scoped admission separated; commit pending.
+T3a | S3,S9,S10 | delegated (context backstop) | done | Worker assertion RED71fail/26pass then GREEN97. Parent full readback and job-4 exit0 after17s:146/146tests across2suites, explicit test-file tsc and app vue-tsc pass. LSP1auxiliary unknown-input hint only. Native assess unavailable/untracked, not approval. Risk:none; no existing consumer/helper changed. Commit00ec542f73550b8eb52959f1e6f28936cefa69a7 (319 authored lines including tracking); no metadata integration.
+T2a | S3,S4,S9,S11 | delegated (context backstop) | done | Worker RED33fail/61pass then94/94GREEN. Parent readback and job-5 exit0 after26s:191/191tests, explicit test-file tsc and app vue-tsc passed. Only3additive exports in existing helpers, bodies unchanged; Risk:none. LSP11auxiliary hints/warnings only; no type errors. Native assess unavailable, no approval. Commit pending recording; no integration.
+T2 | S3,S4,S6,S9 | delegated (context backstop) | pending | Exact care/SellableFacts/full Document primitive decoding after T2a declarations; scoped admission separated; commit pending.
 T3 | S3,S9 | delegated (context backstop) | pending | Target vocabulary types/decoder using T3a finite catalog; commit pending.
 T4 | S3,S5 | delegated (context backstop) | pending | Target transport headers/envelopes/error mapping with adapter tests; commit pending.
 T5 | S5,S6 | delegated (context backstop) | pending | Coherent scoped reads and immutable R/care write intents, coordinated consumer transition; commit pending.
@@ -131,3 +178,6 @@ L13. Human selected «Cadena sobre rama de la funcionalidad (recomendado)» (fea
 L14. T1 committed2cd9acb15524d1548912ad2b6e654863f65c6c81,328authored lines. Native assess remains unavailable due original unrelated untracked proposal even with committedOnly; no approval invented and no mutation to unrelated proposal. T1 functional/type proof remains valid. Dependency refinement: do exact finite catalog T3a before facts T2 so facts/types do not widen ProductionDefinitionCode to arbitrary string. This is the already-agreed S9 input, not new inventory policy. Subsequent review slice starts after2cd9acb; tracker branch retained, no publication.
 L15. T3a parent read exact catalog/test sources;97tests worker GREEN. Parent runs both new-unit suites plus explicit tsc on compile-time assertions because tsconfig.app.json excludes __tests__, then app vue-tsc; job-4, maxWorkers1 and hard60s per step. No additional runtime integration or rule changes.
 L16. job-4 completed exit0 after17s:146/146 focused tests, test-file tsc assertions valid, app vue-tsc clean. T3a verified/done. Risk:none; no existing consumers touched. Native assessment remains unavailable, not an approval. No browser check applies to pure isolated catalog. Commit includes catalog/tests/spec evidence only.
+L17. T3a committed00ec542f73550b8eb52959f1e6f28936cefa69a7. Chain slice boundaries: slice1 parent→2cd9acb (T1,328 authored lines); slice2 2cd9acb→00ec542 (T3a,319 authored lines); accumulated authored sum647, net branch diff tool641. These are separate future review/PR slices on feature-branch-chain, NOT a single641-line candidate; no push/PR created. Native assess of committed slice2 unavailable/untracked, no approval. Next slice begins00ec542. T2 split declaration primitive behavior T2a, then care/document composition T2; existing remaining IDs kept.
+L18. T2a readback: exact12key/value correlation, closed envelopes, static subset identities, detached snapshot, fresh admission excluded. Existing value decoder diff is three additive export modifiers only; no body/control-flow/contract removals. Risk:none (additive unconsumed API, no behavioral change to existing helper). Parent job-5 verifies declarations/value/catalog and compile assertions, then app types with bounded sequential execution. Existing Vite extensionless imports are repository convention, auxiliary lint suggestions not TS errors; do not reconfigure tooling.
+L19. job-5 completed exit0 after26s;191/191tests across3explicit suites plus declaration test tsc and app vue-tsc pass. T2a verified/done. Advisory about incomplete callgraph is informational; no blocker emitted. No browser checks applicable to isolated primitives. Work-unit commit will contain317source/test authoredlines plus exact spec/evidence.
