@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { canReadEditorial, canWriteEditorial } from '../editorial-access'
 
 const { auth } = vi.hoisted(() => ({ auth: {
-  accessToken: 'synthetic', user: { id: 'user-1' }, isAuthenticated: true,
+  accessToken: 'synthetic', user: { id: 'user-1' } as { id: string } | null, isAuthenticated: true, authPhase: 'authenticated',
   currentTenant: { id: 'tenant-1' } as { id: string } | null,
   permissionsLoaded: true, permissionCodes: [] as string[], tempToken: null,
   isSuperAdmin: false, hydrateFromStorage: vi.fn(), fetchMe: vi.fn(),
@@ -20,6 +20,9 @@ const update = 'update:ProductEditorialDraft'
 describe('exact editorial access and application routing', () => {
   beforeEach(async () => {
     auth.isAuthenticated = true
+    auth.authPhase = 'authenticated'
+    auth.isSuperAdmin = false
+    auth.user = { id: 'user-1' }
     auth.accessToken = 'synthetic'
     auth.currentTenant = { id: 'tenant-1' }
     auth.permissionsLoaded = true
@@ -31,7 +34,7 @@ describe('exact editorial access and application routing', () => {
 
   it.each([
     [[], false, false], [[read], true, false], [[update], false, false],
-    [[read, update], true, true], [['manage:all'], false, false],
+    [[read, update], true, true], [['manage:all'], true, true],
     [['read:Product', 'update:Product', 'manage:ProductEditorialDraft'], false, false],
     [['read:*', '*:ProductEditorialDraft'], false, false],
   ])('checks literal grants %j', (codes, readable, writable) => {
@@ -39,7 +42,7 @@ describe('exact editorial access and application routing', () => {
     expect(canWriteEditorial(codes as string[])).toBe(writable)
   })
 
-  it.each([[[read], '/pos/products/p1/editorial'], [[update], '/403'], [['manage:all'], '/403']])(
+  it.each([[[read], '/pos/products/p1/editorial'], [[update], '/403'], [['manage:all'], '/pos/products/p1/editorial']])(
     'navigates with %j without a Product prerequisite', async (codes, destination) => {
       auth.permissionCodes = codes as string[]
       auth.userCan.mockReturnValue(true) // CASL wildcard allowance must not substitute.
@@ -48,6 +51,26 @@ describe('exact editorial access and application routing', () => {
       expect(router.currentRoute.value.path).toBe(destination)
     },
   )
+
+  it.each([false, true])('global claim %s with empty codes uses no profile or CASL substitute', async privileged => {
+    auth.isSuperAdmin = privileged
+    expect(canReadEditorial([], privileged)).toBe(privileged)
+    expect(canWriteEditorial([], privileged)).toBe(privileged)
+    const { default: router } = await import('@/app/router')
+    await router.push('/pos/products/p1/editorial')
+    expect(router.currentRoute.value.path).toBe(privileged ? '/pos/products/p1/editorial' : '/403')
+  })
+
+  it.each(['user', 'tenant', 'readiness', 'selecting-tenant', 'authenticating'])('admin still requires current context: %s', async missing => {
+    auth.isSuperAdmin = true
+    if (missing === 'user') { auth.user = null; auth.fetchMe.mockResolvedValueOnce(undefined) }
+    if (missing === 'tenant') auth.currentTenant = null
+    if (missing === 'readiness') { auth.permissionsLoaded = false; auth.fetchPermissions.mockResolvedValueOnce(undefined) }
+    if (missing === 'selecting-tenant' || missing === 'authenticating') auth.authPhase = missing
+    const { default: router } = await import('@/app/router')
+    await router.push('/pos/products/p1/editorial')
+    expect(router.currentRoute.value.name).not.toBe('pos-product-editorial')
+  })
 
   it('waits for permission hydration before the exact check', async () => {
     auth.permissionsLoaded = false

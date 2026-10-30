@@ -5,9 +5,9 @@ import { document, state, envelope, vocabularyEnvelope, careDocument, careVocabu
 const http = vi.hoisted(() => ({ post: vi.fn(), put: vi.fn(), get: vi.fn() }))
 vi.mock('@/core/shared/api/http', () => ({ http }))
 const scopes: ReturnType<typeof effectScope>[] = []
-function setup(doc = document(), codes = [read, update, publish]) {
+function setup(doc = document(), codes = [read, update, publish], isSuperAdmin = false) {
   const scope = effectScope(); scopes.push(scope)
-  const context = ref<EditorialDraftContext>({ authenticated: true, userId: 'u', tenantId: 't', productId: 'p/1', permissionsLoaded: true, permissionCodes: codes })
+  const context = ref<EditorialDraftContext>({ authenticated: true, userId: 'u', tenantId: 't', productId: 'p/1', permissionsLoaded: true, permissionCodes: codes, isSuperAdmin })
   const editor = scope.run(() => useEditorialDraft(context))!
   const install = (revision = 3) => editor.reconcileSnapshot(editor.beginSnapshotRead()!, { state: envelope(state(doc, revision)),
     vocabulary: vocabularyEnvelope(doc.familyCode === 'care' ? careVocabulary() : undefined), context: { variants: [] } }, 'discard')
@@ -18,6 +18,49 @@ beforeEach(() => vi.resetAllMocks())
 afterEach(() => scopes.splice(0).forEach(scope => scope.stop()))
 
 describe('saved target transitions, not local eligibility certification', () => {
+  it.each(['global', 'tenant'] as const)('%s admin retains public save/publication guards and explicit care consent', async kind => {
+    const codes = kind === 'global' ? [] : ['manage:all']
+    const privileged = kind === 'global'
+    for (const change of [{ commercialTitle: null }, { mediaRefs: ['private'] }, { description: 'x'.repeat(20001) }]) {
+      const { editor } = setup({ ...document(), ...change }, codes, privileged)
+      expect(editor.canPublish.value).toBe(true)
+      expect(await editor.publish()).toBe(false)
+    }
+    const { editor } = setup(document(), codes, privileged)
+    editor.buffer.value!.values.push({ id: 'raw', target: { code: 'n', owner: 'product', variantId: null },
+      input: { state: 'known', payload: { type: 'number', value: '-' }, evidence: null } })
+    expect(await editor.save()).toBe(false)
+    expect(editor.issues.value).toEqual([{ code: 'INCOMPLETE_INPUT' }])
+    expect(await editor.publish()).toBe(false) // raw dirty cannot publish old saved state
+    const numeric = setup(document(), codes, privileged).editor
+    const vocab = vocabularyEnvelope().vocabulary
+    vocab.definitions = [{ id: 'n', code: 'n', label: 'Número', type: 'number', units: [{ code: null, label: null, sortOrder: 0 }],
+      numericPolicy: { status: 'resolved', magnitude: 'count', integer: true, lower: 0, lowerInclusive: true, upper: null, upperInclusive: false } }]
+    vocab.families = [{ id: 'f', code: 'f', label: 'Familia', bindings: [{ definitionId: 'n', definitionCode: 'n', owner: 'product', sortOrder: 0,
+      exposure: 'INTERNAL', searchable: false, publicationCheck: 'when_asserted', policy: { route: 'pending' } }] }]
+    const invalidNumber = { ...document(), familyCode: 'f', values: [{ code: 'n', owner: 'product' as const, variantId: null, state: 'known' as const,
+      payload: { type: 'number' as const, value: -1, unit: null }, evidence: null }] }
+    expect(numeric.reconcileSnapshot(numeric.beginSnapshotRead()!, { state: envelope(state(invalidNumber)),
+      vocabulary: vocabularyEnvelope(vocab), context: { variants: [] } }, 'discard')).toBe(true)
+    expect(await numeric.save()).toBe(false)
+    expect(numeric.issues.value.length).toBeGreaterThan(0)
+    expect(await numeric.publish()).toBe(false)
+    const care = setup(careDocument(), codes, privileged).editor
+    expect(await care.publish()).toBe(false)
+    expect(http.post).not.toHaveBeenCalled()
+    expect(http.put).not.toHaveBeenCalled()
+    http.post.mockResolvedValue(success())
+    expect(await care.publish('review-v1')).toBe(true)
+    expect(http.post.mock.calls[0]![2].headers['Editorial-Care-Confirmation']).toBe('review-v1')
+    const noncare = setup(document(), codes, privileged).editor
+    expect(await noncare.publish('review-v1')).toBe(false)
+    expect(await noncare.discard()).toBe(true)
+    const empty = setup(document(), codes, privileged)
+    expect(empty.editor.reconcileSnapshot(empty.editor.beginSnapshotRead()!, { state: envelope({ cycle: null, draft: null, published: null }),
+      vocabulary: vocabularyEnvelope(), context: { variants: [] } }, 'discard')).toBe(true)
+    http.post.mockResolvedValue(success(state(), 201))
+    expect(await empty.editor.initialize()).toBe(true)
+  })
   it('read+publish alone sends exact counters/R with explicit null token on noncare', async () => {
     const { editor } = setup(document(), [read, publish])
     http.post.mockResolvedValue(success({ cycle: 2, draft: null, published: { revision: 1, document: document() } }))
@@ -79,7 +122,7 @@ describe('saved target transitions, not local eligibility certification', () => 
     expect(await editor.publish()).toBe(false)
     expect(key).not.toHaveBeenCalled(); key.mockRestore()
   })
-  it.each([[read, update], ['manage:all'], [publish], [update], [read]])('requires exact read+publish grants %j', async (...codes) => {
+  it.each([[read, update], [publish], [update], [read]])('requires exact read+publish grants %j', async (...codes) => {
     const { editor } = setup(document(), codes)
     expect(await editor.publish()).toBe(false)
     expect(http.post).not.toHaveBeenCalled()

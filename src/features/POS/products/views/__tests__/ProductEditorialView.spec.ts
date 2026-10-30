@@ -83,7 +83,7 @@ describe('integrated target workspace', () => {
   })
   it('does not render unsafe failures, retry automatically, or retain identity-private UI on revocation', async () => {
     await render(); expect(wrapper.text()).toContain(' exact ')
-    auth.permissionCodes = ['manage:all']; await flushPromises()
+    auth.permissionCodes = []; await flushPromises()
     expect(wrapper.text()).not.toContain(' exact ')
     expect(wrapper.find('form').exists()).toBe(false)
     expect(http.get).toHaveBeenCalledTimes(3)

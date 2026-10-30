@@ -33,7 +33,7 @@ export function useEditorialEditor(productId: MaybeRefOrGetter<string>, api: May
   const auth = useAuthStore()
   const context = computed(() => ({ authenticated: auth.isAuthenticated && auth.authPhase === 'authenticated',
     userId: auth.user?.id ?? null, tenantId: auth.currentTenant?.id ?? null, productId: toValue(productId),
-    permissionsLoaded: auth.permissionsLoaded, permissionCodes: auth.permissionCodes }))
+    permissionsLoaded: auth.permissionsLoaded, permissionCodes: auth.permissionCodes, isSuperAdmin: auth.isSuperAdmin }))
   const lifecycle = useEditorialDraft(context, api)
   const vocabulary = computed(() => lifecycle.snapshot.value?.vocabulary.vocabulary ?? null)
   const qualification = computed(() => lifecycle.snapshot.value?.context ?? null)

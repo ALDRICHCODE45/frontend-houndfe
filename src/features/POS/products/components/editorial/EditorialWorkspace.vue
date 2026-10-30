@@ -86,7 +86,7 @@ async function submit() { await editor.save() }
         <button v-if="canWrite && buffer" class="hf-primary-control" type="submit" form="editorial-form" :disabled="!canSave">{{ isPending ? 'Enviando…' : 'Guardar borrador' }}</button>
       </div>
     </header>
-    <p v-if="!canWrite" class="editorial-notice">Solo consulta. Necesitas permisos editoriales explícitos de lectura y actualización para editar.<template v-if="publishPermission"> Puedes publicar el borrador guardado.</template></p>
+    <p v-if="!canWrite" class="editorial-notice">Solo consulta. Para editar necesitas acceso de administrador en el tenant seleccionado o permisos editoriales de lectura y actualización.<template v-if="publishPermission"> Puedes publicar el borrador guardado.</template></p>
     <div v-if="discardPending && canRead" role="group" aria-labelledby="discard-title" class="editorial-panel confirmation">
       <h2 id="discard-title">Descartar cambios locales y consultar</h2><p>El borrador local se reemplazará con el resultado de una nueva consulta. Esta acción no envía cambios al servidor.</p>
       <div class="editorial-actions"><button type="button" class="editorial-button" data-testid="cancel-discard" @click="discardPending = false">Cancelar</button><button type="button" class="editorial-button" data-testid="confirm-discard" :disabled="loading || isPending" @click="discard">Descartar cambios y consultar</button></div>

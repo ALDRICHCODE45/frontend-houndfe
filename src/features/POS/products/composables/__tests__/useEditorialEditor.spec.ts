@@ -6,7 +6,7 @@ import { editorialContractApi } from '../../api/editorial-contract.api'
 import { document, state, success, vocabularyEnvelope, R, read, update, publish, failure, deferred } from '../../__tests__/editorial-contract-fixtures'
 const http = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn() }))
 vi.mock('@/core/shared/api/http', () => ({ http }))
-const auth = reactive({ isAuthenticated: true, authPhase: 'authenticated', user: { id: 'u1' }, currentTenant: { id: 't1' }, permissionsLoaded: true, permissionCodes: [read, update] })
+const auth = reactive({ isSuperAdmin: false, isAuthenticated: true, authPhase: 'authenticated', user: { id: 'u1' }, currentTenant: { id: 't1' }, permissionsLoaded: true, permissionCodes: [read, update] })
 vi.mock('@/features/auth/stores/useAuthStore', () => ({ useAuthStore: () => auth }))
 const scopes: ReturnType<typeof effectScope>[] = []
 function setup() {
@@ -19,10 +19,61 @@ function reads(snapshot = state()) {
   http.get.mockImplementation((url: string) => Promise.resolve(url.includes('vocabulary') ? { ...success(), data: vocabularyEnvelope() }
     : url.endsWith('/context') ? { status: 200, data: { variants: [] } } : success(snapshot)))
 }
-beforeEach(() => { vi.resetAllMocks(); Object.assign(auth, { isAuthenticated: true, authPhase: 'authenticated', user: { id: 'u1' }, currentTenant: { id: 't1' }, permissionsLoaded: true, permissionCodes: [read, update] }); reads() })
+beforeEach(() => { vi.resetAllMocks(); Object.assign(auth, { isSuperAdmin: false, isAuthenticated: true, authPhase: 'authenticated', user: { id: 'u1' }, currentTenant: { id: 't1' }, permissionsLoaded: true, permissionCodes: [read, update] }); reads() })
 afterEach(() => scopes.splice(0).forEach(scope => scope.stop()))
 
 describe('coherent scoped editor orchestration', () => {
+  it.each(['global', 'tenant'] as const)('%s admin loads selected tenant and edits valid incomplete raw content', async kind => {
+    auth.isSuperAdmin = kind === 'global'
+    auth.permissionCodes = kind === 'global' ? [] : ['manage:all']
+    const { editor } = setup(); await flushPromises()
+    expect(http.get).toHaveBeenCalledTimes(3)
+    expect(editor.editable.value).toBe(true)
+    editor.replaceDocument({ ...editor.lifecycle.buffer.value!, commercialTitle: 'x'.repeat(201) })
+    expect(editor.lifecycle.buffer.value!.commercialTitle).toHaveLength(201)
+    expect(await editor.save()).toBe(false)
+    expect(http.put).not.toHaveBeenCalled()
+  })
+  it.each(['global', 'tenant'] as const)('%s privilege loss aborts reads, clears private data, and ignores late ignored-abort failure after regain', async kind => {
+    auth.isSuperAdmin = kind === 'global'
+    auth.permissionCodes = kind === 'global' ? [] : ['manage:all']
+    const { editor } = setup(); await flushPromises()
+    editor.lifecycle.buffer.value!.description = 'private'
+    const late = deferred<unknown>()
+    http.get.mockReturnValueOnce(late.promise)
+    const refreshing = editor.refresh('retain')
+    const signal = http.get.mock.calls[3]![1].signal as AbortSignal
+    if (kind === 'global') auth.isSuperAdmin = false
+    else auth.permissionCodes = []
+    expect(signal.aborted).toBe(true)
+    expect(editor.lifecycle.snapshot.value).toBeNull()
+    expect(editor.lifecycle.buffer.value).toBeNull()
+    expect(editor.sections.value).toEqual([])
+    auth.isSuperAdmin = kind === 'global'
+    auth.permissionCodes = kind === 'global' ? [] : ['manage:all']
+    await flushPromises()
+    late.reject(new Error('private old failure'))
+    expect(await refreshing).toBe(false)
+    expect(editor.errorMessage.value).toBeNull()
+    expect(editor.lifecycle.buffer.value!.description).toBe(document().description)
+  })
+  it.each((['global', 'tenant'] as const).flatMap(kind => ['selecting-tenant', 'authenticating'].map(phase => [kind, phase] as const)))('%s admin cannot read/write during %s', async (kind, phase) => {
+    auth.isSuperAdmin = kind === 'global'
+    auth.permissionCodes = kind === 'global' ? [] : ['manage:all']
+    auth.authPhase = phase
+    const { editor } = setup(); await flushPromises()
+    expect(await editor.refresh('discard')).toBe(false)
+    expect(await editor.initialize()).toBe(false)
+    expect(await editor.save()).toBe(false)
+    expect(await editor.publish()).toBe(false)
+    expect(await editor.discard()).toBe(false)
+    expect(http.get).not.toHaveBeenCalled()
+    expect(http.put).not.toHaveBeenCalled()
+    expect(http.post).not.toHaveBeenCalled()
+    auth.authPhase = 'authenticated'; await flushPromises()
+    expect(editor.editable.value).toBe(true)
+    expect(http.get).toHaveBeenCalledTimes(3)
+  })
   it('loads vocabulary first, then pinned state/context in parallel, never installs a partial pair', async () => {
     const vocab = deferred<unknown>(); const saved = deferred<unknown>(); const context = deferred<unknown>()
     http.get.mockImplementation((url: string) => url.includes('vocabulary') ? vocab.promise : url.endsWith('/context') ? context.promise : saved.promise)
@@ -90,9 +141,9 @@ describe('coherent scoped editor orchestration', () => {
     expect(editor.errorMessage.value).toContain('No se pudo consultar')
     expect(http.get).toHaveBeenCalledTimes(6)
   })
-  it.each(['read-only', 'manage', 'hydrating'])('enforces exact grants and auth hydration: %s', async mode => {
+  it.each(['read-only', 'hydrating', 'selecting-tenant', 'authenticating'])('enforces exact grants and auth hydration: %s', async mode => {
     if (mode === 'read-only') auth.permissionCodes = [read]
-    if (mode === 'manage') auth.permissionCodes = ['manage:all']
+    if (mode === 'selecting-tenant' || mode === 'authenticating') auth.authPhase = mode
     if (mode === 'hydrating') auth.permissionsLoaded = false
     const { editor } = setup(); await flushPromises()
     expect(await editor.save()).toBe(false); expect(await editor.initialize()).toBe(false)

@@ -6,7 +6,7 @@ import ProductEditorialView from '../ProductEditorialView.vue'
 import { document, state, success, vocabularyEnvelope, careDocument, careVocabulary, read, update, publish, failure } from '../../__tests__/editorial-contract-fixtures'
 const http = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn() }))
 vi.mock('@/core/shared/api/http', () => ({ http }))
-const auth = reactive({ isAuthenticated: true, authPhase: 'authenticated', user: { id: 'u' }, currentTenant: { id: 't' }, permissionsLoaded: true, permissionCodes: [read, update, publish] })
+const auth = reactive({ isSuperAdmin: false, isAuthenticated: true, authPhase: 'authenticated', user: { id: 'u' }, currentTenant: { id: 't' }, permissionsLoaded: true, permissionCodes: [read, update, publish] })
 vi.mock('@/features/auth/stores/useAuthStore', () => ({ useAuthStore: () => auth }))
 let wrapper: ReturnType<typeof mount>
 let router: ReturnType<typeof createRouter>
@@ -22,10 +22,31 @@ async function render() {
 }
 function button(text: string) { return wrapper.findAll('button').find(item => item.text() === text)! }
 const panel = () => wrapper.get('[aria-labelledby="publication-title"]')
-beforeEach(() => { vi.resetAllMocks(); auth.permissionCodes = [read, update, publish]; reads(); http.post.mockResolvedValue(success({ cycle: 2, draft: null, published: { revision: 2, document: document() } })) })
+beforeEach(() => { vi.resetAllMocks(); auth.isSuperAdmin = false; auth.permissionCodes = [read, update, publish]; reads(); http.post.mockResolvedValue(success({ cycle: 2, draft: null, published: { revision: 2, document: document() } })) })
 afterEach(() => { wrapper?.unmount(); vi.restoreAllMocks() })
 
 describe('live publication integration', () => {
+  it.each(['global', 'tenant'] as const)('%s admin loses pending care confirmation on privilege away/back', async kind => {
+    auth.isSuperAdmin = kind === 'global'
+    auth.permissionCodes = kind === 'global' ? [] : ['manage:all']
+    reads(true); await render()
+    expect(wrapper.find('form').exists()).toBe(true)
+    await button('Publicar borrador…').trigger('click')
+    await panel().get('input[type="checkbox"]').setValue(true)
+    if (kind === 'global') auth.isSuperAdmin = false
+    else auth.permissionCodes = []
+    await flushPromises()
+    expect(wrapper.find('form').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Presentación exacta')
+    auth.isSuperAdmin = kind === 'global'
+    auth.permissionCodes = kind === 'global' ? [] : ['manage:all']
+    await flushPromises()
+    expect(button('Publicar ahora')).toBeUndefined()
+    await button('Publicar borrador…').trigger('click')
+    expect((panel().get('input[type="checkbox"]').element as HTMLInputElement).checked).toBe(false)
+    expect(button('Publicar ahora').attributes('disabled')).toBeDefined()
+    expect(http.post).not.toHaveBeenCalled()
+  })
   it('publishes saved GET only with explicit confirmation and keeps receipt out of current comparison', async () => {
     await render(); await button('Publicar borrador…').trigger('click')
     expect(panel().text()).toContain('Se publicará la revisión 3')

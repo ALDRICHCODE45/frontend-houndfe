@@ -11,7 +11,7 @@ import { inspectEditorialPublicationContent, inspectEditorialRuntimeCandidate, t
 
 export interface EditorialDraftContext {
   authenticated: boolean; userId: string | null; tenantId: string | null; productId: string
-  permissionsLoaded: boolean; permissionCodes: readonly string[]
+  permissionsLoaded: boolean; permissionCodes: readonly string[]; isSuperAdmin?: boolean
 }
 export type EditorialIntent = Readonly<{ key: string; productId: string; revision: string; confirmation: 'review-v1' | null } & (
   | { kind: 'initialize'; body: EditorialContractInitializeRequest }
@@ -51,14 +51,14 @@ export function useEditorialDraft(context: MaybeRefOrGetter<EditorialDraftContex
   const disposed = shallowRef(false)
   const identity = computed(() => {
     const c = toValue(context)
-    return JSON.stringify([c.authenticated, c.userId, c.tenantId, c.productId, c.permissionsLoaded, c.permissionCodes])
+    return JSON.stringify([c.authenticated, c.userId, c.tenantId, c.productId, c.permissionsLoaded, c.permissionCodes, c.isSuperAdmin === true])
   })
   const canRead = computed(() => {
     const c = toValue(context)
-    return !disposed.value && Boolean(c.authenticated && c.userId && c.tenantId && c.productId && c.permissionsLoaded && canReadEditorial(c.permissionCodes))
+    return !disposed.value && Boolean(c.authenticated && c.userId && c.tenantId && c.productId && c.permissionsLoaded && canReadEditorial(c.permissionCodes, c.isSuperAdmin))
   })
-  const canWrite = computed(() => canRead.value && canWriteEditorial(toValue(context).permissionCodes))
-  const canPublish = computed(() => canRead.value && canPublishEditorial(toValue(context).permissionCodes))
+  const canWrite = computed(() => canRead.value && canWriteEditorial(toValue(context).permissionCodes, toValue(context).isSuperAdmin))
+  const canPublish = computed(() => canRead.value && canPublishEditorial(toValue(context).permissionCodes, toValue(context).isSuperAdmin))
   const nextId = () => `editorial-${generation}-${++idCounter}`
   const hasUnsavedChanges = computed(() => {
     if (!buffer.value) return false

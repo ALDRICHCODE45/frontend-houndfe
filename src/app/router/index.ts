@@ -632,10 +632,11 @@ router.beforeEach(async (to) => {
   }
 
   // Feature-local opt-in, only after the existing authentication/tenant hydration.
-  // Editorial grants never inherit CASL wildcard/manage or operational Product access.
+  // Selected-tenant editorial policy is independent of CASL/operational Product access.
   if (to.meta.editorialRead === true &&
-    (!authStore.user?.id || !authStore.permissionsLoaded ||
-      !canReadEditorial(authStore.permissionCodes))) {
+    (!authStore.isAuthenticated || authStore.authPhase !== 'authenticated' ||
+      !authStore.user?.id || !authStore.currentTenant?.id || !authStore.permissionsLoaded ||
+      !canReadEditorial(authStore.permissionCodes, authStore.isSuperAdmin))) {
     return '/403'
   }
 

@@ -7,21 +7,65 @@ import { document, state, envelope, vocabularyEnvelope, R, read, update, publish
 const http = vi.hoisted(() => ({ post: vi.fn(), put: vi.fn(), get: vi.fn() }))
 vi.mock('@/core/shared/api/http', () => ({ http }))
 const scopes: ReturnType<typeof effectScope>[] = []
-function setup(snapshot = state()) {
-  const context = ref<EditorialDraftContext>({ authenticated: true, userId: 'u', tenantId: 't', productId: 'p/1', permissionsLoaded: true, permissionCodes: [read, update, publish] })
+function setup(snapshot = state(), access: Partial<EditorialDraftContext> = {}) {
+  const context = ref<EditorialDraftContext>({ authenticated: true, userId: 'u', tenantId: 't', productId: 'p/1', permissionsLoaded: true, permissionCodes: [read, update, publish], ...access })
   const api = shallowRef(editorialContractApi)
   const scope = effectScope(); scopes.push(scope)
   const editor = scope.run(() => useEditorialDraft(context, api))!
   const install = (next = snapshot, choice: 'retain' | 'discard' = 'retain', revision = R) => editor.reconcileSnapshot(editor.beginSnapshotRead()!, {
     vocabulary: vocabularyEnvelope(undefined, revision), state: envelope(next, revision), context: { variants: [] },
   }, choice)
-  expect(install(snapshot, 'discard')).toBe(true)
+  if (editor.canRead.value) expect(install(snapshot, 'discard')).toBe(true)
   return { editor, context, api, scope, install }
 }
 beforeEach(() => vi.resetAllMocks())
 afterEach(() => scopes.splice(0).forEach(scope => scope.stop()))
 
 describe('target raw owner and frozen intents', () => {
+  it.each((['global', 'tenant'] as const).flatMap(kind => (['privilege', 'user', 'tenant', 'readiness'] as const).map(loss => [kind, loss] as const)))('%s admin saves without editorial grants and clears private state on %s away/back', async (kind, loss) => {
+    const access = kind === 'global' ? { isSuperAdmin: true, permissionCodes: [] } : { isSuperAdmin: false, permissionCodes: ['manage:all'] }
+    const { editor, context, install } = setup(state(), access)
+    expect(editor.canRead.value).toBe(true)
+    expect(editor.canWrite.value).toBe(true)
+    expect(editor.canPublish.value).toBe(true)
+    const original = structuredClone(toRaw(context.value))
+    const late = deferred<ReturnType<typeof success>>()
+    http.put.mockReturnValue(late.promise)
+    const saving = editor.save()
+    const signal = http.put.mock.calls[0]![2].signal as AbortSignal
+    if (loss === 'privilege') {
+      if (kind === 'global') context.value.isSuperAdmin = false
+      else context.value.permissionCodes = []
+    }
+    if (loss === 'user') context.value.userId = 'other'
+    if (loss === 'tenant') context.value.tenantId = 'other'
+    if (loss === 'readiness') context.value.permissionsLoaded = false
+    expect(signal.aborted).toBe(true)
+    expect(editor.snapshot.value).toBeNull()
+    expect(editor.buffer.value).toBeNull()
+    expect(editor.pendingIntent.value).toBeNull()
+    expect(editor.receipt.value).toBeNull()
+    context.value = original
+    expect(install(state(document(), 10), 'discard')).toBe(true)
+    late.resolve(success(state(document(), 99))) // transport deliberately ignores abort
+    expect(await saving).toBe(false)
+    expect(editor.authoritative.value!.draft!.revision).toBe(10)
+    expect(editor.receipt.value).toBeNull()
+    expect(editor.outcome.value).toBeNull()
+  })
+  it.each(['userId', 'tenantId', 'permissionsLoaded', 'authenticated'] as const)('global privilege does not waive %s', async missing => {
+    const { editor, context } = setup(state(), { isSuperAdmin: true, permissionCodes: [] })
+    if (missing === 'userId' || missing === 'tenantId') context.value[missing] = null
+    else context.value[missing] = false
+    expect(editor.canRead.value).toBe(false)
+    expect(editor.beginSnapshotRead()).toBeNull()
+    expect(await editor.initialize()).toBe(false)
+    expect(await editor.save()).toBe(false)
+    expect(await editor.publish()).toBe(false)
+    expect(await editor.discard()).toBe(false)
+    expect(http.put).not.toHaveBeenCalled()
+    expect(http.post).not.toHaveBeenCalled()
+  })
   it('freezes the exact body/key/R while edits continue; receipt is not GET authority', async () => {
     const { editor, install } = setup()
     const response = deferred<ReturnType<typeof success>>()

@@ -83,7 +83,25 @@ El usuario respondió «si hermano, adelante» a «¿Confirmás la regla del pun
 
 Pruebas PostgreSQL en una nueva instancia desechable aislada y datos sintéticos, sin bases existentes; cleanup exacto al terminar. El target anterior está retirado. Familia/definición conserva códigos estables, dueño en binding único por familia/definición; archivo solo opciones. Unidad nula permitida requiere unicidad real por definición, no confiar en UNIQUE ordinario sobre NULL. Catálogo vacío real es un estado observado, no un editor listo ni licencia para usar fixtures como fuente runtime.
 
-## Decisión vigente: permisos editoriales explícitos
+## Decisión vigente: administradores en el tenant seleccionado (S62–S64)
+
+La política editorial frontend permite consultar, inicializar, guardar, publicar y descartar a:
+
+- Super Admin global identificado por `authStore.isSuperAdmin` (claim JWT, no propiedad del perfil), incluso con `permissionCodes=[]`.
+- Miembro con el código exacto `manage:all`, exclusivamente en su tenant actual; esto no le otorga identidad global.
+- Otros usuarios con `read:ProductEditorialDraft` para consultar, lectura + `update:ProductEditorialDraft` para inicializar/guardar/descartar, y lectura + `publish:ProductEditorialDraft` para publicar. Actualización o publicación sin lectura, permisos Product, `manage:ProductEditorialDraft`, `read:*` y otros comodines no sustituyen estos pares.
+
+Siempre se requieren sesión autenticada en fase `authenticated`, usuario, permisos listos y tenant seleccionado concreto. El Super Admin con tenant seleccionado sigue limitado a ese contexto. La pérdida/cambio de claim, permisos, cuenta, tenant, producto o API cancela e invalida operaciones anteriores y limpia estado privado; recuperar privilegios no restaura intentos ni consentimientos anteriores. La política está centralizada en los tres helpers editoriales, sin ampliar CASL ni alterar roles/grants/selector de tenants.
+
+El acceso administrativo no evita validadores de captura/publicación, baselines de conservación, cambios locales sin guardar, medios restringidos, CAS, confirmación explícita de cuidado `review-v1`, acuses históricos ni retransmisión del intento congelado. No se cambian endpoints ni DTO.
+
+**Pendiente: global/null e integración.** Backend entregó el contrato verificado en `4549d5f22707dcd0c36f0dd5078dcae067d8c62a`: en modo global verifica actor y rol persistidos y resuelve el tenant del producto del lado servidor, sin nuevos payloads. Este corte frontend continúa requiriendo tenant seleccionado: no resuelve el tenant de un producto, no inventa IDs/headers/payloads ni acredita soporte global/null. La adaptación global frontend y la prueba contra servicios reales siguen pendientes.
+
+Verificación de este corte seleccionado: 133 pruebas en siete suites y tipos Vue aprobados por writer, padre (tests) y verificador independiente. Navegador Chromium aislado: ocho grupos, 48 GET, dos PUT y cuatro POST interceptados; ambos administradores, validaciones, confirmación explícita, pérdida de privilegios y cambio de tenant comprobados. Cuatro capturas claro/oscuro a 1280/390 revisadas por el padre, con 109 controles por captura de al menos44px, foco2px y sin desborde horizontal. Primer intento falló por selector del checkbox en el arnés; corrección acotada posterior aprobada. Recursos tipográficos externos bloqueados: 22 errores de recurso esperados y fuentes de sistema; cero errores de página. Es prueba del Workspace, no del login/router en navegador ni de integración con backend real. Evidencia local: `.editorial-field-preview/admin-access-*`; servidor y navegador propios cerrados.
+
+### Evidencia histórica superada: permisos explícitos también para administradores
+
+Las siguientes decisiones e informes anteriores se conservan como historia; S62–S64 sustituyen únicamente su restricción administrativa. Las reglas de datos, medios y publicación no se amplían.
 
 Respuesta literal del usuario: «si hermano, los permisos explicitos (tu recomendacion) son la mejor opcion segun yo.» Los administradores también necesitan permisos editoriales explícitos: `manage:all` no concede por sí solo lectura, creación ni guardado del borrador. Se conserva actor activo, membresía vigente y acceso al producto de la sucursal; publicar sigue separado y fuera de este corte.
 
