@@ -2,14 +2,12 @@ import type { EditorialContractDocument } from '../interfaces/editorial-contract
 import type { EditorialContractContext } from '../interfaces/editorial-contract-request.types'
 import type { EditorialContractVocabulary } from '../interfaces/editorial-contract-vocabulary.types'
 import { decodeEditorialContractDocument } from './editorial-contract-document'
+import { inspectEditorialBasicReferences, type EditorialBasicReferenceIssue } from './editorial-contract-document-references'
 import { isFreshEditorialEvidence } from './editorial-contract-evidence-validation'
 
-export type EditorialBasicIssue =
-  | { code: 'STRUCTURE' | 'TITLE_LIMIT' | 'DESCRIPTION_LIMIT' | 'MEDIA_LIMIT' | 'VALUES_LIMIT'
-      | 'FACTS_LIMIT' | 'MEDIA_DUPLICATE' | 'FAMILY_NULL_CONTENT' | 'FAMILY_UNKNOWN' }
-  | { code: 'DUPLICATE_VALUE' | 'EVIDENCE' | 'BINDING_UNKNOWN' | 'OWNER_MISMATCH'
-      | 'SUBJECT' | 'PAYLOAD_TYPE' | 'MULTI_DUPLICATE' | 'OPTION_UNKNOWN'
-      | 'UNIT_UNKNOWN' | 'RANGE_ORDER' | 'NUMERIC_INTEGER' | 'NUMERIC_BOUNDS'; valueIndex: number }
+export type EditorialBasicIssue = EditorialBasicReferenceIssue
+  | { code: 'STRUCTURE' | 'TITLE_LIMIT' | 'DESCRIPTION_LIMIT' | 'MEDIA_LIMIT' | 'VALUES_LIMIT' | 'FACTS_LIMIT' }
+  | { code: 'EVIDENCE' | 'RANGE_ORDER' | 'NUMERIC_INTEGER' | 'NUMERIC_BOUNDS'; valueIndex: number }
 export type EditorialBasicInput = {
   document: unknown
   vocabulary: EditorialContractVocabulary
@@ -40,48 +38,32 @@ export function inspectEditorialBasicAdmission(input: EditorialBasicInput): {
   if (document.mediaRefs.length > 20) issues.push({ code: 'MEDIA_LIMIT' })
   if (document.values.length > 200) issues.push({ code: 'VALUES_LIMIT' })
   if (document.facts.length > 200) issues.push({ code: 'FACTS_LIMIT' })
-  if (new Set(document.mediaRefs).size !== document.mediaRefs.length) issues.push({ code: 'MEDIA_DUPLICATE' })
+  const references = inspectEditorialBasicReferences({ ...input, document })
+  const valueReferences = new Map<number, Extract<EditorialBasicReferenceIssue, { valueIndex: number }>[]>()
+  for (const issue of references) {
+    if (!('valueIndex' in issue)) issues.push(issue)
+    else {
+      const row = valueReferences.get(issue.valueIndex) ?? []
+      row.push(issue)
+      valueReferences.set(issue.valueIndex, row)
+    }
+  }
   const family = input.vocabulary.families.find(item => item.code === document.familyCode)
-  if (document.familyCode === null) {
-    if (document.values.length || document.facts.length) issues.push({ code: 'FAMILY_NULL_CONTENT' })
-  } else if (!family) issues.push({ code: 'FAMILY_UNKNOWN' })
-
   const bindings = new Map(family?.bindings.map(binding => [binding.definitionCode, binding]))
   const definitions = new Map(input.vocabulary.definitions.map(definition => [definition.code, definition]))
-  const variantIds = new Set(input.context.variants.map(variant => variant.id))
-  const identities = new Map<string, Set<string | null>>()
   document.values.forEach((value, valueIndex) => {
     const report = (code: ValueIssueCode) => issues.push({ code, valueIndex })
-    const subjects = identities.get(value.code) ?? new Set<string | null>()
-    if (subjects.has(value.variantId)) report('DUPLICATE_VALUE')
-    subjects.add(value.variantId)
-    identities.set(value.code, subjects)
+    const row = valueReferences.get(valueIndex) ?? []
+    // Evidence remains after duplicate identity and before binding/payload references.
+    let referenceIndex = 0
+    if (row[0]?.code === 'DUPLICATE_VALUE') { issues.push(row[0]); referenceIndex++ }
     if (value.evidence !== null && !isFreshEditorialEvidence(value.evidence)) report('EVIDENCE')
-    const binding = bindings.get(value.code)
+    issues.push(...row.slice(referenceIndex))
     const definition = definitions.get(value.code)
-    // Missing family is already a root issue, not an invented binding per row.
-    if (family && !binding) report('BINDING_UNKNOWN')
-    if (binding && binding.owner !== value.owner) report('OWNER_MISMATCH')
-    const subjectMatches = value.owner === 'product' ? value.variantId === null
-      : variantIds.size === 0 ? value.variantId === null
-        : value.variantId !== null && variantIds.has(value.variantId)
-    if (!subjectMatches) report('SUBJECT')
-    if (value.state !== 'known' || !binding || !definition) return
+    if (value.state !== 'known' || !bindings.has(value.code) || !definition) return
     const payload = value.payload
-    if (payload.type !== definition.type) {
-      report('PAYLOAD_TYPE')
-      return
-    }
-    if ((payload.type === 'single' || payload.type === 'multi')
-      && (definition.type === 'single' || definition.type === 'multi')) {
-      const options = new Set(definition.options.map(option => option.code))
-      const selected = payload.type === 'single' ? [payload.value] : payload.value
-      if (payload.type === 'multi' && new Set(selected).size !== selected.length) report('MULTI_DUPLICATE')
-      if (selected.some(option => !options.has(option))) report('OPTION_UNKNOWN')
-    }
-    if ((payload.type === 'number' || payload.type === 'range')
+    if ((payload.type === 'number' || payload.type === 'range') && payload.type === definition.type
       && (definition.type === 'number' || definition.type === 'range')) {
-      if (!definition.units.some(unit => unit.code === payload.unit)) report('UNIT_UNKNOWN')
       if (payload.type === 'range' && payload.min > payload.max) report('RANGE_ORDER')
       // The primitive reader already rejects numeric strings and nonfinite numbers.
       const numbers = payload.type === 'number' ? [payload.value] : [payload.min, payload.max]
