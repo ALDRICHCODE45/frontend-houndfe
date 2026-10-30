@@ -327,6 +327,86 @@ type VocabularyResponse = {
 R exact syntax: «ev2-sha256-» followed by64lowercase ASCIIhex; no trimming/uppercase/list/leading/trailing whitespace (including newline). Export a primitive revision guard for later transport; no hash computation or global identity assumption. Stored response counters positiveint32; null cycle requires null draft/published («No state means cycle/draft/published all null»). Positive cycle with cleared slots is valid. Nullable basePublishedRevision can be historical; do not enforce equality with current Published. Warning objects closed; IDs/optionCode scalar nonblank, exact code/owner; preserve ordering, omission versus present-empty warnings, all original strings. Request counter validation is a DIFFERENT boundary and must not inherit storageint32 limits ahead of receipt lookup.
 T4a public readers decodeEditorialStateResponse and decodeEditorialVocabularyResponse return complete detached typed envelope or null, no partial state/vocabulary or data wrapper. Direct document slots only, reuse new document reader without fresh validation; no old raw-state fallback, document modes or invented warning/evidence/attestation fields. Vocabulary reader invokes existing S16 qualifier; no canonical hashing/producer admission. Header/bodyR matching and request pinning are later T4 transport, no HTTP/network in this unit. All keys required except warnings; reject unknown/extra fields. No existing consumers/helpers changed.
 
+S18. T4 exact transport excerpts from backend c90e2e0 attachment re-sent seq30 (target, not live implementation):
+> Paths below are controller-relative (retain any existing deployment API prefix).
+> All seven paths/statuses are retained; no internal create or media route is added.
+> No query parameters are accepted. Product IDs use the existing UUID validation.
+> Document/context GET reject nonempty decoded bodies; GETs take no input document.
+
+| Operation | Method and relative path | Success / body |
+| --- | --- | --- |
+| Vocabulary | `GET /catalog-editorial/vocabulary` | `200 VocabularyResponse` |
+| Document | `GET /products/:productId/editorial` | `200 StateResponse` |
+| Context | `GET /products/:productId/editorial/context` | `200 Context` |
+| Initialize | `POST /products/:productId/editorial/draft/initialize` | `201 StateResponse` |
+| Save | `PUT /products/:productId/editorial/draft` | `200 StateResponse` |
+| Publish | `POST /products/:productId/editorial/draft/publish` | `200 StateResponse` |
+| Discard | `POST /products/:productId/editorial/draft/discard` | `200 StateResponse` |
+
+```ts
+type InitializeBody = { expectedCycle: number | null };
+type TransitionBody = { expectedCycle: number; expectedRevision: number };
+type SaveBody = TransitionBody & { document: Document };
+type Context = { variants: { id: string; name: string }[] };
+```
+> Context is unchanged: complete variants sorted by name then id, no pagination,
+> SKU, stock, prices, flags, R envelope or invented revision semantics.
+> Header names are case-insensitive; semantic values are exact, untrimmed tokens.
+> Inspect raw occurrences: duplicate or comma-list semantic headers and malformed
+> values are `400 MALFORMED`, including when otherwise prohibited. Presence of a
+> prohibited header, even empty, fails. No version header is needed on requests.
+
+| Request | `Editorial-Vocabulary-Revision` | `Idempotency-Key` | `Editorial-Care-Confirmation` |
+| --- | --- | --- | --- |
+| Vocabulary GET | Forbidden | Forbidden | Forbidden |
+| Document GET | Required R | Forbidden | Forbidden |
+| Initialize/save/discard | Required R | Required | Forbidden |
+| Publish | Required R | Required | Only exact `review-v1`; conditional below |
+
+> R syntax: `ev2-sha256-` followed by 64 lowercase hex digits. Write keys retain the
+> existing 1–200 character, untrimmed contract. Context retains existing header
+> behavior; do not attach new pinning/idempotency requirements to it. The obsolete
+> **request** headers `Editorial-Contract-Version` and `Editorial-Adoption` are
+> forbidden on this editorial surface and produce `400 MALFORMED`.
+> Publish parses a supplied confirmation token before lookup. After receipt miss
+> and locked CAS, fresh care publish requires it; fresh non-care publish forbids it.
+> The identical token/null belongs to receipt intent, never an implicit UI default.
+> All editorial successes/errors: `Cache-Control: no-store`.
+> Vocabulary/document/write successes: `Editorial-Contract-Version: 2` and
+> `Editorial-Vocabulary-Revision: R`, equal to envelope R (recorded R on replay).
+> Context: unchanged `{variants}` response; no semantic revision/version envelope.
+> Target editorial errors: informational `Editorial-Contract-Version: 2`, no
+> `Editorial-Vocabulary-Revision`, no document or vocabulary in error body.
+> CORS allows `Authorization`, `Content-Type`, `Editorial-Vocabulary-Revision`,
+> `Idempotency-Key`, `Editorial-Care-Confirmation`; exposes
+> `Editorial-Contract-Version` and `Editorial-Vocabulary-Revision`. Obsolete request
+> version/adoption headers are not supported CORS inputs.
+> Dynamic Date/request IDs and JSON byte layout are not replay guarantees.
+> Malformed nonpositive/noninteger request counters are 400; do not invent a new
+> pre-lookup safe-integer or storage-bound wire rule.
+> Same intent→exact recorded status/body/R/warnings acknowledgement, not current GET, no restoration or
+> republish.
+> Editorial envelope is exactly `{statusCode,error}`, no message/timestamp/field
+> hints/document/R. The complete target error enum is:
+
+| Status | error |
+| --- | --- |
+| 400 | MALFORMED |
+| 401 | UNAUTHORIZED |
+| 403 | FORBIDDEN |
+| 404 | NOT_FOUND |
+| 409 | CONFLICT |
+| 409 | VOCABULARY_CHANGED |
+| 500 | EDITORIAL_VOCABULARY_UNREPRESENTABLE |
+| 500 | INTERNAL_ERROR |
+
+> No 406, unsupported, adoption or upgrade errors.
+> Framework invalid JSON/413/unmatched-route errors
+> remain outside this local envelope; FE handles non-envelope failures generically.
+> On either 409 retain edits and offer explicit reload/reconciliation;
+> no autosave retry, inferred success or automatic new key.
+Implementation boundary: add isolated editorial-contract.api.ts and request/error types, with Axios adapter tests; existing product-editorial.api.ts and shared HTTP/auth untouched until T5 cutover. Seven methods retain deployment prefix/shared authenticated GET no-cache behavior. Use T4a success readers and require expected status, exact response version header and valid header/body R equality; pinned state/write response R also equals the supplied original R, never a later global/current R. Invalid success becomes sanitized UNKNOWN protocol failure, not invented backend error. Context stays unpinned and preserves returned variant ordering; closed shape without fresh reference admission. Normalize only exact status/error pairs with closed envelope; all non-envelope/network/abort/invalid-success failures are safe generic errors, no raw payload/message propagation. No new local domain/request-counter bounds, key generation, retries, global cache or care inference. Caller supplies R/key and publish token/null explicitly; pass optional AbortSignal through for later scoped reads without custom header escape hatch. Preserve exact body/key/R/token on caller retransmissions; shared auth refresh remains shared HTTP responsibility, not changed here. Browser raw duplicate header visibility is limited by Axios/browser normalization; reject observable lists/arrays/malformed tokens and do not claim inspection of inaccessible raw occurrences. Server owns raw header admission, cache-control and CORS configuration. Add no request version/adoption headers or compatibility branch.
+
 ## Tasks
 T1 | S1,S3,S4 | delegated (context backstop) | done | Worker assertion RED11fail/36pass then GREEN49pass; parent full3file readback/diff-check and job-3 exit0 after20s:139/139 across6files, app vue-tsc exit0. LSP1unconfirmed plus7auxiliary hints; typecheck provides type evidence. ASSESS unavailable for untracked scope, not approval. Risk:none. Commit2cd9acb15524d1548912ad2b6e654863f65c6c81 (328 authored lines incl tracking); delivery feature-branch-chain; no live integration. Native assessment unavailable even committed-only; no native approval claimed.
 T3a | S3,S9,S10 | delegated (context backstop) | done | Worker assertion RED71fail/26pass then GREEN97. Parent full readback and job-4 exit0 after17s:146/146tests across2suites, explicit test-file tsc and app vue-tsc pass. LSP1auxiliary unknown-input hint only. Native assess unavailable/untracked, not approval. Risk:none; no existing consumer/helper changed. Commit00ec542f73550b8eb52959f1e6f28936cefa69a7 (319 authored lines including tracking); no metadata integration.
@@ -336,8 +416,8 @@ T2 | S3,S4,S6,S9,S13 | delegated (context backstop) | done | Worker assertion RE
 T3b | S3,S9,S14 | delegated (context backstop) | done | Worker assertion RED20fail/201pass then223/223GREEN. Parent full3file readback and job-8 exit0 after20s:430/430tests +explicit definition-test tsc +app vue-tsc passed. LSP2auxiliary findings only. Native assess unavailable, no approval. Risk:none; helpers/consumers unchanged. Commitee831c744663bff7bfc565a93863553bef7aaadb (353authoredlines incl spec/evidence).
 T3c | S3,S9,S15 | delegated (context backstop) | done | Worker RED113fail/310pass then425/425GREEN. Parent full readback +Family obsolete-field regression; job-9 exit0 after21s:681/681tests +explicit vocab-test tsc +app vue-tsc pass. LSP3unconfirmed, explicit typechecks provide proof. Risk:none, no helper/consumer change. Native assess unavailable, no approval. Commit13abb12a764aa844f2ee6ef7f1f5a9db3f3cc880 (399authoredlines incl spec/evidence).
 T3 | S3,S9,S16 | delegated (context backstop) | done | Worker45intended assertionRED plus1fixed test-helper failure, final319/319GREEN. Parent full2file readback and job-10 exit0 after24s:749/749tests +explicit qualifier-test tsc +app vue-tsc passed. LSP2unconfirmed; explicit types proof observed. Risk:none, helpers/consumers unchanged. Native assess unavailable, no approval. Commita09cd572cc78e0c10edb6ad013498602587b1855 (379authoredlines incl spec/evidence).
-T4a | S3,S5,S17 | delegated (context backstop) | done | Worker369lines; RED20assertion failures/248passes, final281/281GREEN. Parent full3file readback; job-11 exit0 after24s:941/941tests across9suites +response-test tsc +app vue-tsc passed. LSP3unconfirmed, native assess unavailable/untracked (no approval). Risk:none; no HTTP/helpers/consumers changed. Commit pending recording.
-T4 | S3,S5 | delegated (context backstop) | pending | Target HTTP transport headers/errors using T4a readers with adapter tests; exact wire spec before writer, commit pending.
+T4a | S3,S5,S17 | delegated (context backstop) | done | Worker369lines; RED20assertion failures/248passes, final281/281GREEN. Parent full3file readback; job-11 exit0 after24s:941/941tests across9suites +response-test tsc +app vue-tsc passed. LSP3unconfirmed, native assess unavailable/untracked (no approval). Risk:none; no HTTP/helpers/consumers changed. Commit1448aab2984111939d7740fef6cb08248a48c2b3 (409authoredlines including specs/evidence).
+T4 | S3,S5,S18 | delegated (context backstop) | in_progress | Exact transport contract recovered from seq30 and persisted as S18. Isolated HTTP adapter and adapter tests, shared auth/current consumers untouched; commit pending.
 T5 | S5,S6 | delegated (context backstop) | pending | Coherent scoped reads and immutable R/care write intents, coordinated consumer transition; commit pending.
 T6 | S4,S6,S9 | delegated (context backstop) | pending | Fresh document/assignment/evidence/facts qualification and conservation; commit pending.
 T7 | S4,S7,S8,S9 | delegated (context backstop) | pending | Existing editor value/range/evidence/facts controls and confirmed family change, split by coherent behavior as needed; commit pending.
@@ -380,3 +460,5 @@ L32. T3c committed13abb12a764aa844f2ee6ef7f1f5a9db3f3cc880. Slice7=ee831c7→13a
 L33. T3 parent readback confirms Map/Set exactidentity lookup, numeric/null flags, group/alias references, per-family selectorgraphKahn traversal, requiredconsistency/factrulecoherence. Risk:none (new isolated qualifier, existing readers unchanged). Worker RED included45real expected failures plus1testhelper mistake later fixed; record separately, not all46behavioral. Parent job-10 explicit8suites+testtsc+apptypes running bounded sequentially; LSPsilent/unconfirmed, use actual typecheck proof.
 L34. Parent job-10 exit0 after24s:749/749tests across8focused suites, qualifier-test tsc and app vue-tsc pass. T3 verified/done; generic callgraph advisory informational, no blocker. Client metadata qualification is ready but not wired. No native approval, publication or full backend-admission claim.
 L35. T3 commita09cd572cc78e0c10edb6ad013498602587b1855; separate slice8=13abb12→a09cd57,379authoredlines; next boundarya09cd57. Sum2761authoredlines/nettool2725; no accumulated candidate/push/PR. Native assess unavailable/untracked, no approval. T4a success envelopes next before HTTP wiring, so parsing/state-counter limits are not mixed into request primitive admission.
+
+L36. T4a verified job-11 exit0 after24s:941/941tests, explicit response-test tsc and app vue-tsc passed. Commit1448aab2984111939d7740fef6cb08248a48c2b3; separate slice9=a09cd57→1448aab,409authoredlines including specs/evidence; next boundary1448aab. Existing helpers/consumers unchanged, Risk:none. LSP3unconfirmed and native assessment unavailable, no approval claim. Requested exact transport excerpts from backend peer before T4; waiting for asynchronous reply, no speculative wire implementation.
