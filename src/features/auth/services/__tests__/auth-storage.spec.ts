@@ -168,9 +168,9 @@ describe('authStorage session generation', () => {
       createdAt: '2024-01-01',
     }
     authStorage.setUser(user)
-    authStorage.setPermissionCodes(['read:Product'])
     authStorage.setMemberships([tenantA])
     authStorage.setTokens({ accessToken: token(), refreshToken: 'old-refresh' })
+    authStorage.setPermissionCodes(['read:Product'])
     const generation = authStorage.getSessionGeneration()
     const next = pair({ tenantSlug: 'renewed', permissions: ['write:Order'] }, 'new-refresh')
     expect(authStorage.commitRotation(generation, next)).toEqual({
@@ -315,8 +315,8 @@ describe('authStorage session generation', () => {
     }
     authStorage.setTokens({ accessToken: token(), refreshToken: 'old-refresh' })
     authStorage.setUser(user)
-    authStorage.setPermissionCodes(['read:Product'])
     authStorage.setCurrentTenant(tenant)
+    authStorage.setPermissionCodes(['read:Product'])
     authStorage.setMemberships([tenant])
     authStorage.setIsSuperAdmin(true)
     authStorage.setTempToken('temp-token')

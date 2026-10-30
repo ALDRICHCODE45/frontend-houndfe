@@ -4,7 +4,7 @@ import axios, {
   type InternalAxiosRequestConfig,
 } from 'axios'
 import { getActivePinia } from 'pinia'
-import { authStorage } from '@/features/auth/services/auth-storage'
+import { authStorage, type SessionRotationReceipt } from '@/features/auth/services/auth-storage'
 import { emitSessionExpired } from '@/features/auth/services/session-events'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import { csvParamsSerializer } from './paramsSerializer'
@@ -78,6 +78,7 @@ async function readTenantContextBlobMessage(
 
 interface RetryableRequestConfig extends InternalAxiosRequestConfig {
   _retry?: boolean
+  _sessionGeneration?: number
 }
 
 /**
@@ -103,7 +104,7 @@ function isExpirationResolveIsolationRequest(config?: AxiosRequestConfig) {
 }
 
 const authFreePaths = ['/auth/login', '/auth/register', '/auth/refresh']
-let refreshPromise: Promise<{ accessToken: string; refreshToken: string }> | null = null
+let refreshFlight: { generation: number; promise: Promise<SessionRotationReceipt | null> } | null = null
 
 export const http = axios.create({
   baseURL: API_BASE_URL,
@@ -112,7 +113,12 @@ export const http = axios.create({
   },
 })
 
-http.interceptors.request.use((config) => {
+http.interceptors.request.use((config: RetryableRequestConfig) => {
+  const generation = authStorage.getSessionGeneration()
+  if (config._sessionGeneration !== undefined && config._sessionGeneration !== generation) {
+    throw new axios.CanceledError('Session changed')
+  }
+  config._sessionGeneration = generation
   if (isVerifiedPermissionsRequest(config)) {
     if (!/^Bearer \S+$/.test(String(config.headers.Authorization ?? ''))) {
       throw new Error('Verified permissions token missing')
@@ -158,6 +164,10 @@ http.interceptors.response.use(
     // This bootstrap belongs to an uncommitted login, never the persisted session.
     if (isVerifiedPermissionsRequest(originalRequest)) return Promise.reject(error)
 
+    const generation = originalRequest?._sessionGeneration ?? authStorage.getSessionGeneration()
+    const isCurrent = () => generation === authStorage.getSessionGeneration()
+    if (!isCurrent() || originalRequest?.signal?.aborted) return Promise.reject(error)
+
     // A Blob 401 (opted-in) hides its message from the synchronous read above:
     // recover it from a bounded JSON read so the tenant-context case is
     // classified before the refresh flow. Any other request is unchanged.
@@ -172,7 +182,7 @@ http.interceptors.response.use(
       // cancelled work must not produce global side effects (a session-expired
       // event, a refresh attempt or an auth clear). Reject the original error
       // untouched, with no further async gap before this decision.
-      if (originalRequest?.signal?.aborted) return Promise.reject(error)
+      if (!isCurrent() || originalRequest?.signal?.aborted) return Promise.reject(error)
     }
 
     if (
@@ -200,33 +210,38 @@ http.interceptors.response.use(
       }
 
       try {
-        if (!refreshPromise) {
-          refreshPromise = axios
-            .post<{ accessToken: string; refreshToken: string }>(`${API_BASE_URL}/auth/refresh`, {
-              refreshToken,
-            })
-            .then((res) => res.data)
-            .finally(() => {
-              refreshPromise = null
-            })
+        if (!refreshFlight || refreshFlight.generation !== generation) {
+          const flight = {
+            generation,
+            promise: axios
+              .post<{ accessToken: string; refreshToken: string }>(`${API_BASE_URL}/auth/refresh`, {
+                refreshToken,
+              })
+              .then((res) => {
+                if (!isCurrent()) return null
+                const receipt = authStorage.commitRotation(generation, res.data)
+                if (!receipt) throw new Error('Invalid session rotation')
+                const activePinia = getActivePinia()
+                if (activePinia) useAuthStore(activePinia).applySessionRotation(receipt)
+                return receipt
+              })
+              .finally(() => {
+                if (refreshFlight === flight) refreshFlight = null
+              }),
+          }
+          refreshFlight = flight
         }
 
-        const tokens = await refreshPromise
-
-        authStorage.setTokens(tokens)
-
-        const activePinia = getActivePinia()
-        if (activePinia) {
-          const authStore = useAuthStore(activePinia)
-          authStore.setSessionFromTokens(tokens.accessToken, tokens.refreshToken)
-        }
-
+        const tokens = await refreshFlight.promise
+        if (!tokens || !isCurrent() || originalRequest.signal?.aborted) return Promise.reject(error)
+        originalRequest._sessionGeneration = generation
         originalRequest.headers.Authorization = `Bearer ${tokens.accessToken}`
-
         return http(originalRequest)
       } catch (refreshError) {
-        authStorage.clear()
-        emitSessionExpired('refresh-failed')
+        if (isCurrent()) {
+          authStorage.clear()
+          emitSessionExpired('refresh-failed')
+        }
         return Promise.reject(refreshError)
       }
     }

@@ -187,7 +187,10 @@ export const authStorage = {
   prepareReplacement(tokens: unknown): PreparedSessionWrite | null {
     const snapshot = snapshotTokenPair(tokens)
     if (!snapshot) return null
-    return createPreparedWrite(advanceSessionGeneration(), () => writeCredentialPair(snapshot))
+    return createPreparedWrite(advanceSessionGeneration(), () => {
+      localStorage.removeItem(PERMISSION_CODES_KEY)
+      writeCredentialPair(snapshot)
+    })
   },
 
   /**
@@ -215,6 +218,7 @@ export const authStorage = {
     // Serialize before preparation so later caller mutations cannot change the write.
     const serializedTenant = resolvedTenant === null ? null : JSON.stringify(resolvedTenant)
     return createPreparedWrite(advanceSessionGeneration(), () => {
+      localStorage.removeItem(PERMISSION_CODES_KEY)
       writeCredentialPair(credentials)
       if (serializedTenant === null) localStorage.removeItem(CURRENT_TENANT_KEY)
       else localStorage.setItem(CURRENT_TENANT_KEY, serializedTenant)
@@ -279,6 +283,7 @@ export const authStorage = {
     if (!isClient()) return
     if (!tenant) {
       advanceSessionGeneration()
+      localStorage.removeItem(PERMISSION_CODES_KEY)
       localStorage.removeItem(CURRENT_TENANT_KEY)
       return
     }
@@ -286,6 +291,7 @@ export const authStorage = {
     const current = authStorage.getCurrentTenant()
     if (!current || current.id !== tenant.id) {
       advanceSessionGeneration()
+      localStorage.removeItem(PERMISSION_CODES_KEY)
     }
     localStorage.setItem(CURRENT_TENANT_KEY, JSON.stringify(tenant))
   },
@@ -317,6 +323,7 @@ export const authStorage = {
   clearTenantState() {
     if (!isClient()) return
     advanceSessionGeneration()
+    localStorage.removeItem(PERMISSION_CODES_KEY)
     localStorage.removeItem(CURRENT_TENANT_KEY)
     localStorage.removeItem(MEMBERSHIPS_KEY)
     localStorage.removeItem(IS_SUPER_ADMIN_KEY)

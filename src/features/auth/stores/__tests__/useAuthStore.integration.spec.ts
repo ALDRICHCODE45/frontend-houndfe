@@ -181,6 +181,7 @@ describe('auth store integration baseline (owner not activated)', () => {
       const tokens = credentials(claimTenant)
       authStorage.setTokens(tokens)
       authStorage.setCurrentTenant(claimTenant === null ? null : tenant)
+      authStorage.setPermissionCodes(['read:Product'])
       const store = useAuthStore()
       store.hydrateFromStorage()
       const originalTenant = store.currentTenant

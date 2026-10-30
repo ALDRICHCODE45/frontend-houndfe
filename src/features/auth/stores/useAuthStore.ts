@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { z } from 'zod'
 import { authApi } from '../api/auth.api'
-import { authStorage } from '../services/auth-storage'
+import { authStorage, type SessionRotationReceipt } from '../services/auth-storage'
 import { ability, resetAbility, updateAbilityFromPermissionCodes } from '../authorization/ability'
 import { decodeJwtClaims } from '../services/jwt.utils'
 import { queryClient } from '@/core/shared/api/queryClient'
@@ -98,12 +98,18 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function beginLoginOperation() {
-    const generation = loginGeneration
+    let generation = loginGeneration
     const identity = Symbol('login operation')
     activeLoginOperation = identity
     loginBusy.value = true
     return {
       isCurrent: () => generation === loginGeneration && identity === activeLoginOperation,
+      renew() {
+        // Retire reads of the previous session without cancelling this proof owner.
+        if (generation === loginGeneration && identity === activeLoginOperation) {
+          generation = ++loginGeneration
+        }
+      },
       finish() {
         if (generation === loginGeneration && identity === activeLoginOperation) {
           activeLoginOperation = null
@@ -205,6 +211,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   function hydrateFromStorage() {
+    cancelLogin()
     accessToken.value = authStorage.getAccessToken()
     refreshToken.value = authStorage.getRefreshToken()
     user.value = authStorage.getUser()
@@ -244,7 +251,16 @@ export const useAuthStore = defineStore('auth', () => {
 
   function setSessionFromTokens(nextAccessToken: string, nextRefreshToken: string) {
     cancelLogin()
+    clearPermissions()
     applySessionTokens(nextAccessToken, nextRefreshToken)
+  }
+
+  // Storage has already committed this context-preserving rotation. Do not create
+  // a replacement generation or cancel the login/switch that owns this session.
+  function applySessionRotation(receipt: SessionRotationReceipt) {
+    if (authStorage.getSessionGeneration() !== receipt.generation || !accessToken.value) return
+    accessToken.value = receipt.accessToken
+    refreshToken.value = receipt.refreshToken
   }
 
   function applySessionTokens(nextAccessToken: string, nextRefreshToken: string) {
@@ -303,7 +319,7 @@ export const useAuthStore = defineStore('auth', () => {
       if (response && ['challengeId', 'resendAfter'].some((key) => key in response)) {
         throw new Error('Invalid login response')
       }
-      return await completeVerifiedLogin(response, operation.isCurrent)
+      return await completeVerifiedLogin(response, operation)
     } catch (error: unknown) {
       if (!operation.isCurrent()) return null
       authPhase.value = accessToken.value ? 'authenticated' : 'idle'
@@ -359,7 +375,7 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await authApi.verifyLoginOtp({ challengeId, code })
       if (!operation.isCurrent()) return null
       proofConsumed = true
-      const result = await completeVerifiedLogin(response, operation.isCurrent)
+      const result = await completeVerifiedLogin(response, operation)
       if (!operation.isCurrent()) return null
       otpChallenge.value = null
       return result
@@ -372,7 +388,10 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  async function completeVerifiedLogin(response: LoginResponse, isCurrent: () => boolean) {
+  async function completeVerifiedLogin(
+    response: LoginResponse,
+    operation: ReturnType<typeof beginLoginOperation>,
+  ) {
     validateLoginPayload(loginResultSchema, response)
     // Do not mix proof stages, even if their required fields are otherwise valid.
     const forbiddenFields = response.requiresTenantSelection
@@ -396,9 +415,10 @@ export const useAuthStore = defineStore('auth', () => {
     const permissions = requiresSuperAdminTenantSelection
       ? null
       : await authApi.mePermissions(response.accessToken)
-    if (!isCurrent()) return null
+    if (!operation.isCurrent()) return null
     if (!requiresSuperAdminTenantSelection) validateLoginPayload(permissionCodesSchema, permissions)
 
+    operation.renew()
     memberships.value = response.tenants
     authStorage.setMemberships(response.tenants)
     applySessionTokens(response.accessToken, response.refreshToken)
@@ -432,6 +452,7 @@ export const useAuthStore = defineStore('auth', () => {
       const permissions = await authApi.mePermissions(response.accessToken)
       if (!operation.isCurrent()) throw new Error('Login operation cancelled')
       validateLoginPayload(permissionCodesSchema, permissions)
+      operation.renew()
       applySessionTokens(response.accessToken, response.refreshToken)
       user.value = response.user
       authStorage.setUser(response.user)
@@ -457,16 +478,24 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function switchTenant(tenantId: string | null) {
+    cancelLogin()
+    let operation = beginLoginOperation()
     authPhase.value = 'selecting-tenant'
 
     try {
       const response = await authApi.switchTenant({ tenantId })
-      setSessionFromTokens(response.accessToken, response.refreshToken)
+      if (!operation.isCurrent()) throw new Error('Login operation cancelled')
+      // Also retire reads launched against the old tenant during the exchange.
+      loginGeneration++
+      operation = beginLoginOperation()
       clearPermissions()
+      applySessionTokens(response.accessToken, response.refreshToken)
       queryClient.clear()
       await fetchPermissions()
+      if (!operation.isCurrent()) throw new Error('Login operation cancelled')
       authPhase.value = 'authenticated'
     } catch (error) {
+      if (!operation.isCurrent()) throw new Error('Login operation cancelled')
       // Distinguish recoverable errors from unrecoverable ones
       const axiosError = error as { response?: { status?: number; data?: { code?: string } } }
       const errorCode = axiosError?.response?.data?.code
@@ -485,16 +514,26 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       throw error
+    } finally {
+      operation.finish()
     }
   }
 
   async function fetchMe() {
     if (!accessToken.value) return null
 
-    const me = await authApi.me()
+    const generation = loginGeneration
+    let me: Awaited<ReturnType<typeof authApi.me>>
+    try {
+      me = await authApi.me()
+    } catch (error) {
+      if (generation !== loginGeneration || !accessToken.value) return null
+      throw error
+    }
     // /me enriches the JWT tenant; it cannot select a different session context.
     // Return null (not an error) so the router does not clear the session on mismatch.
     if (
+      generation !== loginGeneration ||
       !accessToken.value ||
       (me.tenant?.id ?? null) !== decodeJwtClaims(accessToken.value).tenantId
     ) {
@@ -521,9 +560,16 @@ export const useAuthStore = defineStore('auth', () => {
   async function fetchPermissions(): Promise<UserPermissionsResponse | null> {
     if (!accessToken.value) return null
 
-    const response = await authApi.mePermissions()
-    setPermissionCodes(response.permissionCodes)
-    return response
+    const generation = loginGeneration
+    try {
+      const response = await authApi.mePermissions()
+      if (generation !== loginGeneration || !accessToken.value) return null
+      setPermissionCodes(response.permissionCodes)
+      return response
+    } catch (error) {
+      if (generation !== loginGeneration || !accessToken.value) return null
+      throw error
+    }
   }
 
   function userCan(action: AppAction, subject: AppSubject) {
@@ -535,12 +581,14 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function logout() {
+    cancelLogin()
+    const generation = loginGeneration
     try {
       if (accessToken.value) {
         await authApi.logout()
       }
     } finally {
-      clearSession()
+      if (generation === loginGeneration) clearSession()
     }
   }
 
@@ -562,6 +610,7 @@ export const useAuthStore = defineStore('auth', () => {
     hydrateTenantFromStorage,
     setSession,
     setSessionFromTokens,
+    applySessionRotation,
     setPermissionCodes,
     clearPermissions,
     clearSession,

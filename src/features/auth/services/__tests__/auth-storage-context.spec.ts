@@ -53,7 +53,7 @@ describe('prepared credential and tenant context replacement', () => {
     expect(authStorage.getRefreshToken()).toBe(expectedTokens.refreshToken)
     expect(authStorage.getCurrentTenant()).toEqual(expectedTenant)
     expect(authStorage.getIsSuperAdmin()).toBe(admin)
-    expect(authStorage.getPermissionCodes()).toEqual(['read:Product'])
+    expect(authStorage.getPermissionCodes()).toBeNull()
     const committed = snapshot()
     expect(prepared.commit()).toBe(false)
     expect(snapshot()).toEqual(committed)
@@ -159,8 +159,10 @@ describe('prepared credential and tenant context replacement', () => {
       isSuperAdmin: true,
     })!
     const error = new Error('tenant removal denied')
-    const remove = vi.spyOn(localStorage, 'removeItem').mockImplementation(() => {
-      throw error
+    const originalRemove = localStorage.removeItem.bind(localStorage)
+    const remove = vi.spyOn(localStorage, 'removeItem').mockImplementation((key) => {
+      if (key === TENANT) throw error
+      originalRemove(key)
     })
     let thrown: unknown
     try {
