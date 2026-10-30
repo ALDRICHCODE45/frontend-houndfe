@@ -293,6 +293,40 @@ S16. T3 consumer metadata qualification, grounded in target §5/§7 (not a dupli
 - Fact rule reference coherence: family equals actual family.code, parameter equals bound definition.code, owner sellable as required for production bindings. Static enum already decoded. This also rejects custom-family fact_rule without inventing a second policy dispatch. Complete canonical production inventory/type/route/exposure/evidence mapping remains backend authority, not this consumer qualifier.
 - API implementation choice: qualifyEditorialContractVocabulary(unknown) returns a fully decoded detached unchanged-order Vocabulary or null. It invokes the verified primitive decoder, performs checks without mutation, rejects WHOLE snapshot on any failed consumer invariant; no inferred defaults/filtered fallback/side effects. Existing helper readers unchanged. This consumer-safety proof does not claim full backend admission, hashing, applicability evaluation, public exposure or live integration.
 
+S17. T4a target §5/§8 exact success response bodies (verbatim; Owner=S4, Document=S13, Vocabulary=S15 qualified by S16):
+```ts
+type ArchivedWarning = {
+  code: 'ARCHIVED_OPTION';
+  familyId: string;
+  definitionId: string;
+  owner: Owner;
+  variantId: string | null;
+  optionCode: string;
+};
+type EditorialState = {
+  cycle: number | null;
+  draft: {
+    revision: number;
+    basePublishedRevision: number | null;
+    document: Document;
+  } | null;
+  published: { revision: number; document: Document } | null;
+  warnings?: ArchivedWarning[];
+};
+type StateResponse = {
+  contractVersion: 2;
+  vocabularyRevision: string;
+  state: EditorialState;
+};
+type VocabularyResponse = {
+  contractVersion: 2;
+  vocabularyRevision: string;
+  vocabulary: Vocabulary;
+};
+```
+R exact syntax: «ev2-sha256-» followed by64lowercase ASCIIhex; no trimming/uppercase/list/leading/trailing whitespace (including newline). Export a primitive revision guard for later transport; no hash computation or global identity assumption. Stored response counters positiveint32; null cycle requires null draft/published («No state means cycle/draft/published all null»). Positive cycle with cleared slots is valid. Nullable basePublishedRevision can be historical; do not enforce equality with current Published. Warning objects closed; IDs/optionCode scalar nonblank, exact code/owner; preserve ordering, omission versus present-empty warnings, all original strings. Request counter validation is a DIFFERENT boundary and must not inherit storageint32 limits ahead of receipt lookup.
+T4a public readers decodeEditorialStateResponse and decodeEditorialVocabularyResponse return complete detached typed envelope or null, no partial state/vocabulary or data wrapper. Direct document slots only, reuse new document reader without fresh validation; no old raw-state fallback, document modes or invented warning/evidence/attestation fields. Vocabulary reader invokes existing S16 qualifier; no canonical hashing/producer admission. Header/bodyR matching and request pinning are later T4 transport, no HTTP/network in this unit. All keys required except warnings; reject unknown/extra fields. No existing consumers/helpers changed.
+
 ## Tasks
 T1 | S1,S3,S4 | delegated (context backstop) | done | Worker assertion RED11fail/36pass then GREEN49pass; parent full3file readback/diff-check and job-3 exit0 after20s:139/139 across6files, app vue-tsc exit0. LSP1unconfirmed plus7auxiliary hints; typecheck provides type evidence. ASSESS unavailable for untracked scope, not approval. Risk:none. Commit2cd9acb15524d1548912ad2b6e654863f65c6c81 (328 authored lines incl tracking); delivery feature-branch-chain; no live integration. Native assessment unavailable even committed-only; no native approval claimed.
 T3a | S3,S9,S10 | delegated (context backstop) | done | Worker assertion RED71fail/26pass then GREEN97. Parent full readback and job-4 exit0 after17s:146/146tests across2suites, explicit test-file tsc and app vue-tsc pass. LSP1auxiliary unknown-input hint only. Native assess unavailable/untracked, not approval. Risk:none; no existing consumer/helper changed. Commit00ec542f73550b8eb52959f1e6f28936cefa69a7 (319 authored lines including tracking); no metadata integration.
@@ -301,8 +335,9 @@ T2b | S3,S4,S12 | delegated (context backstop) | done | Worker assertion RED34fa
 T2 | S3,S4,S6,S9,S13 | delegated (context backstop) | done | Worker assertion RED6fail/153pass then159/159GREEN. Parent full3file readback and job-7 exit0 after19s:256/256tests +explicit document-test tsc +app vue-tsc pass. LSP6auxiliary findings only. Native assess unavailable, no approval. Risk:none; helpers/consumers unchanged. Commitd596024340b0de4edde616cc12e8dae021e73cd1 (300authoredlines incl spec/evidence).
 T3b | S3,S9,S14 | delegated (context backstop) | done | Worker assertion RED20fail/201pass then223/223GREEN. Parent full3file readback and job-8 exit0 after20s:430/430tests +explicit definition-test tsc +app vue-tsc passed. LSP2auxiliary findings only. Native assess unavailable, no approval. Risk:none; helpers/consumers unchanged. Commitee831c744663bff7bfc565a93863553bef7aaadb (353authoredlines incl spec/evidence).
 T3c | S3,S9,S15 | delegated (context backstop) | done | Worker RED113fail/310pass then425/425GREEN. Parent full readback +Family obsolete-field regression; job-9 exit0 after21s:681/681tests +explicit vocab-test tsc +app vue-tsc pass. LSP3unconfirmed, explicit typechecks provide proof. Risk:none, no helper/consumer change. Native assess unavailable, no approval. Commit13abb12a764aa844f2ee6ef7f1f5a9db3f3cc880 (399authoredlines incl spec/evidence).
-T3 | S3,S9,S16 | delegated (context backstop) | done | Worker45intended assertionRED plus1fixed test-helper failure, final319/319GREEN. Parent full2file readback and job-10 exit0 after24s:749/749tests +explicit qualifier-test tsc +app vue-tsc passed. LSP2unconfirmed; explicit types proof observed. Risk:none, helpers/consumers unchanged. Native assess unavailable, no approval. Commit pending recording.
-T4 | S3,S5 | delegated (context backstop) | pending | Target transport headers/envelopes/error mapping with adapter tests; commit pending.
+T3 | S3,S9,S16 | delegated (context backstop) | done | Worker45intended assertionRED plus1fixed test-helper failure, final319/319GREEN. Parent full2file readback and job-10 exit0 after24s:749/749tests +explicit qualifier-test tsc +app vue-tsc passed. LSP2unconfirmed; explicit types proof observed. Risk:none, helpers/consumers unchanged. Native assess unavailable, no approval. Commita09cd572cc78e0c10edb6ad013498602587b1855 (379authoredlines incl spec/evidence).
+T4a | S3,S5,S17 | delegated (context backstop) | done | Worker369lines; RED20assertion failures/248passes, final281/281GREEN. Parent full3file readback; job-11 exit0 after24s:941/941tests across9suites +response-test tsc +app vue-tsc passed. LSP3unconfirmed, native assess unavailable/untracked (no approval). Risk:none; no HTTP/helpers/consumers changed. Commit pending recording.
+T4 | S3,S5 | delegated (context backstop) | pending | Target HTTP transport headers/errors using T4a readers with adapter tests; exact wire spec before writer, commit pending.
 T5 | S5,S6 | delegated (context backstop) | pending | Coherent scoped reads and immutable R/care write intents, coordinated consumer transition; commit pending.
 T6 | S4,S6,S9 | delegated (context backstop) | pending | Fresh document/assignment/evidence/facts qualification and conservation; commit pending.
 T7 | S4,S7,S8,S9 | delegated (context backstop) | pending | Existing editor value/range/evidence/facts controls and confirmed family change, split by coherent behavior as needed; commit pending.
@@ -344,3 +379,4 @@ L31. job-9 exited0 after21s:681/681tests in7explicit suites, vocabulary-test tsc
 L32. T3c committed13abb12a764aa844f2ee6ef7f1f5a9db3f3cc880. Slice7=ee831c7→13abb12,399authoredlines; next boundary13abb12. Sum2382authoredlines, net branch2350; separate feature-chain review slices, not one candidate. Native assessment unavailable/untracked, no approval. S16 now pins consumer qualification subset before live integration; no extra business rule or browser Unicode engine.
 L33. T3 parent readback confirms Map/Set exactidentity lookup, numeric/null flags, group/alias references, per-family selectorgraphKahn traversal, requiredconsistency/factrulecoherence. Risk:none (new isolated qualifier, existing readers unchanged). Worker RED included45real expected failures plus1testhelper mistake later fixed; record separately, not all46behavioral. Parent job-10 explicit8suites+testtsc+apptypes running bounded sequentially; LSPsilent/unconfirmed, use actual typecheck proof.
 L34. Parent job-10 exit0 after24s:749/749tests across8focused suites, qualifier-test tsc and app vue-tsc pass. T3 verified/done; generic callgraph advisory informational, no blocker. Client metadata qualification is ready but not wired. No native approval, publication or full backend-admission claim.
+L35. T3 commita09cd572cc78e0c10edb6ad013498602587b1855; separate slice8=13abb12→a09cd57,379authoredlines; next boundarya09cd57. Sum2761authoredlines/nettool2725; no accumulated candidate/push/PR. Native assess unavailable/untracked, no approval. T4a success envelopes next before HTTP wiring, so parsing/state-counter limits are not mixed into request primitive admission.
