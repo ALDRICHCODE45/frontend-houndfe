@@ -235,14 +235,64 @@ type Definition = { id: string; code: string; label: string } & (
 ```
 T3b is a single-definition primitive reader, not complete metadata admission. All listed fields required/closed, strings Unicode scalar, numbers finite, sortOrder safe integer (negative valid). ID/code/label fields nonblank under ECMAScript trim and retained byte-for-byte; magnitude remains scalar string, not an invented enum. Arrays present even empty; nullable unit code/label retained. No coercion/defaults/order changes; detached complete value or null. Do not prematurely enforce cross-field numeric policy bounds, null-code/label pairing, range-null-unit ban, unique identities, group/alias memberships or production identity/type/domain rules in this primitive reader: T3 final metadata qualification must enforce those before editor use. Do not implement Unicode17 browser alias parity, provisioning or family policy here. Definitions may have custom codes; finite S10 applies FactRule parameter/fact subset, not global Definition.code. No live consumers.
 
+S15. T3c target §5 policy/family/vocabulary machine shapes (verbatim; Definition=S14, Owner=S4, ProductionDefinitionCode=S10):
+```ts
+type OptionTest = {
+  definitionCode: string;
+  operator: 'equals_set' | 'contains_all' | 'intersects';
+  optionCodes: string[];
+};
+type PolicyCase = {
+  code: string;
+  when: OptionTest[];
+  applicability: 'applicable' | 'not_applicable' | 'unresolved';
+  required: boolean;
+  allowNA: boolean;
+  evidenceRequired: boolean;
+  documentary: 'resolved' | 'not_applicable' | 'unresolved';
+};
+type ProductionFamily = 'food' | 'treat' | 'toy' | 'hygiene' | 'accessory' | 'habitat' | 'care';
+type RuleId = 'required' | 'optional' | 'animal' | 'form' | 'content' | 'dimensions'
+  | 'fit' | 'capacity' | 'space' | 'equipment' | 'optional_equipment' | 'presentation';
+type FactRule = {
+  family: ProductionFamily;
+  ruleId: RuleId;
+  parameter: ProductionDefinitionCode;
+};
+type RuleResult = Pick<PolicyCase,
+  'applicability' | 'required' | 'allowNA' | 'evidenceRequired' | 'documentary'>;
+type BindingPolicy =
+  | { route: 'pending' }
+  | { route: 'option_cases'; cases: PolicyCase[] }
+  | { route: 'fact_rule'; rule: FactRule };
+type Binding = {
+  definitionId: string;
+  definitionCode: string;
+  owner: Owner;
+  sortOrder: number;
+  exposure: 'INTERNAL' | 'DETAIL' | 'FACET';
+  searchable: boolean;
+  publicationCheck: 'always' | 'when_asserted';
+  policy: BindingPolicy;
+};
+type Family = { id: string; code: string; label: string; bindings: Binding[] };
+type Vocabulary = {
+  semanticsVersion: 'editorial-production-1';
+  families: Family[];
+  definitions: Definition[];
+};
+```
+T3c primitive reader only, whole-object atomic failure, all keys required/closed. No minimumContractVersion accepted. Scalar nonblank IDs/codes/labels and safeinteger sortOrder (negative allowed), exact route/enum literals, no defaults/coercion. FactRule static family/ruleId/parameter enums exact; standalone custom definition/family codes remain strings. Reuse verified definition reader and snapshot primitives unchanged. Preserve original array order/strings/labels/archives/policies; detached output. Cross-field/identity/reference/numeric/selector-graph/production admission is T3, not silently imposed or claimed by T3c. Cases/tests/optionCodes arrays may be empty or duplicate at primitive boundary; later qualification handles nonempty expected sets, identity uniqueness and required/publication consistency. No policy evaluation, hashing, HTTP envelope, normalized alias engine or live consumer wiring here.
+
 ## Tasks
 T1 | S1,S3,S4 | delegated (context backstop) | done | Worker assertion RED11fail/36pass then GREEN49pass; parent full3file readback/diff-check and job-3 exit0 after20s:139/139 across6files, app vue-tsc exit0. LSP1unconfirmed plus7auxiliary hints; typecheck provides type evidence. ASSESS unavailable for untracked scope, not approval. Risk:none. Commit2cd9acb15524d1548912ad2b6e654863f65c6c81 (328 authored lines incl tracking); delivery feature-branch-chain; no live integration. Native assessment unavailable even committed-only; no native approval claimed.
 T3a | S3,S9,S10 | delegated (context backstop) | done | Worker assertion RED71fail/26pass then GREEN97. Parent full readback and job-4 exit0 after17s:146/146tests across2suites, explicit test-file tsc and app vue-tsc pass. LSP1auxiliary unknown-input hint only. Native assess unavailable/untracked, not approval. Risk:none; no existing consumer/helper changed. Commit00ec542f73550b8eb52959f1e6f28936cefa69a7 (319 authored lines including tracking); no metadata integration.
 T2a | S3,S4,S9,S11 | delegated (context backstop) | done | Worker RED33fail/61pass then94/94GREEN. Parent readback and job-5 exit0 after26s:191/191tests, explicit test-file tsc and app vue-tsc passed. Only3additive exports in existing helpers, bodies unchanged; Risk:none. LSP11auxiliary hints/warnings only; no type errors. Native assess unavailable, no approval. Commita46db57e3de7f1a13d0e3912d4a9e54a03c59d6a (371authoredlines incl spec/evidence); no integration.
 T2b | S3,S4,S12 | delegated (context backstop) | done | Worker assertion RED34fail/58pass then93/93GREEN. Parent full3file readback and job-6 exit0 after19s:235/235tests, explicit care-test tsc +app vue-tsc pass. LSP2auxiliary findings only. Native assess unavailable/untracked, no approval. Risk:none, helpers unchanged. No publication/UI integration; commit6c11e0950e256a45ad2680c7bc134300cc30f563 (312authoredlines incl spec/evidence).
 T2 | S3,S4,S6,S9,S13 | delegated (context backstop) | done | Worker assertion RED6fail/153pass then159/159GREEN. Parent full3file readback and job-7 exit0 after19s:256/256tests +explicit document-test tsc +app vue-tsc pass. LSP6auxiliary findings only. Native assess unavailable, no approval. Risk:none; helpers/consumers unchanged. Commitd596024340b0de4edde616cc12e8dae021e73cd1 (300authoredlines incl spec/evidence).
-T3b | S3,S9,S14 | delegated (context backstop) | done | Worker assertion RED20fail/201pass then223/223GREEN. Parent full3file readback and job-8 exit0 after20s:430/430tests +explicit definition-test tsc +app vue-tsc passed. LSP2auxiliary findings only. Native assess unavailable, no approval. Risk:none; helpers/consumers unchanged. Commit pending recording.
-T3 | S3,S9 | delegated (context backstop) | pending | Policy/family/vocabulary types/composition and metadata qualification using T3a/T3b; may split coherent behavior units, commit pending.
+T3b | S3,S9,S14 | delegated (context backstop) | done | Worker assertion RED20fail/201pass then223/223GREEN. Parent full3file readback and job-8 exit0 after20s:430/430tests +explicit definition-test tsc +app vue-tsc passed. LSP2auxiliary findings only. Native assess unavailable, no approval. Risk:none; helpers/consumers unchanged. Commitee831c744663bff7bfc565a93863553bef7aaadb (353authoredlines incl spec/evidence).
+T3c | S3,S9,S15 | delegated (context backstop) | done | Worker RED113fail/310pass then425/425GREEN. Parent full readback +Family obsolete-field regression; job-9 exit0 after21s:681/681tests +explicit vocab-test tsc +app vue-tsc pass. LSP3unconfirmed, explicit typechecks provide proof. Risk:none, no helper/consumer change. Native assess unavailable, no approval. Commit pending recording.
+T3 | S3,S9 | delegated (context backstop) | pending | Metadata qualification over T3c: numeric/null pairing, unique identities/references/policy consistency before editor use; backend owns normative full production/Unicode/overlap admission; exact scope recorded before writer; commit pending.
 T4 | S3,S5 | delegated (context backstop) | pending | Target transport headers/envelopes/error mapping with adapter tests; commit pending.
 T5 | S5,S6 | delegated (context backstop) | pending | Coherent scoped reads and immutable R/care write intents, coordinated consumer transition; commit pending.
 T6 | S4,S6,S9 | delegated (context backstop) | pending | Fresh document/assignment/evidence/facts qualification and conservation; commit pending.
@@ -279,3 +329,6 @@ L25. job-7 exited0 after19s:256/256tests in5focused suites, document-test tsc an
 L26. T2 committedd596024340b0de4edde616cc12e8dae021e73cd1. Separate chain slice5=6c11e09→d596024,300authoredlines; next boundaryd596024. Sum1630authoredlines, net tool1606; no accumulated review candidate/push/PR. Native assess unavailable/untracked, no approval. T3b definition primitive next; cross-field/relational/full metadata qualification explicitly remains T3, not lost in decomposition.
 L27. T3b parent readback confirms S14 six closed definition branches, safe integer order and nonblank labels preserve originals; magnitude remains scalarstring. Relational numeric/null/unique/reference/production qualification still deferred explicitly, not editor authority. Risk:none. job-8 runs6focused suites plus compile/app types,1worker/60s perstep. No browser needed for isolated reader; await observed checks.
 L28. Parent job-8 exit0 after20s:430/430tests across6focused suites, definition-test tsc and app vue-tsc passed. T3b verified/done. pi-lens callgraph advisory informational, no blocker. No live reader integration or fullmetadata-admission claim.
+L29. T3b commitee831c744663bff7bfc565a93863553bef7aaadb; slice6=d596024→ee831c7,353authoredlines; next boundaryee831c7. Sum1983authoredlines (net branch tool1955), separate review slices. Native assessment unavailable/untracked, no approval. T3c full vocabulary primitive next; T3 qualification is separate consumer-safety checks, not duplicate backend provisioning/static Unicode17/production admission engine.
+L30. T3c parent readback confirms exact S15 routes/fields/static enums and unchanged child decoder; no crossqualification claimed. Added explicit obsolete field rejection at Family location, not just root; no meaningful new RED because strict family extras already reject. Risk:none, helpers/consumers unchanged. job-9 bounded7suite/tsc/app checks pending; LSP3files unconfirmed despite no diagnostics, use explicit typechecks as evidence.
+L31. job-9 exited0 after21s:681/681tests in7explicit suites, vocabulary-test tsc and app vue-tsc pass. T3c verified/done. Generic callgraph extraction advisory informational only. No browser applicable, no live vocabulary admission or UI change.
