@@ -6,13 +6,13 @@ import { editorialContractApi } from '../../api/editorial-contract.api'
 import { document, state, success, vocabularyEnvelope, R, read, update, publish, failure, deferred } from '../../__tests__/editorial-contract-fixtures'
 const http = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn() }))
 vi.mock('@/core/shared/api/http', () => ({ http }))
-const auth = reactive({ isSuperAdmin: false, isAuthenticated: true, authPhase: 'authenticated', user: { id: 'u1' }, currentTenant: { id: 't1' }, permissionsLoaded: true, permissionCodes: [read, update] })
+const auth = reactive({ isSuperAdmin: false, isAuthenticated: true, authPhase: 'authenticated', user: { id: 'u1' }, currentTenant: { id: 't1' } as { id: string } | null, permissionsLoaded: true, permissionCodes: [read, update] })
 vi.mock('@/features/auth/stores/useAuthStore', () => ({ useAuthStore: () => auth }))
 const scopes: ReturnType<typeof effectScope>[] = []
-function setup() {
+function setup(productId = shallowRef('p1')) {
   const scope = effectScope(); scopes.push(scope)
   const api = shallowRef(editorialContractApi)
-  const editor = scope.run(() => useEditorialEditor(() => 'p1', api))!
+  const editor = scope.run(() => useEditorialEditor(productId, api))!
   return { editor, api, scope }
 }
 function reads(snapshot = state()) {
@@ -23,6 +23,75 @@ beforeEach(() => { vi.resetAllMocks(); Object.assign(auth, { isSuperAdmin: false
 afterEach(() => scopes.splice(0).forEach(scope => scope.stop()))
 
 describe('coherent scoped editor orchestration', () => {
+  it.each(['needs-tenant-selection', 'selecting-tenant', 'authenticating', 'readiness'])(
+    'global/null remains denied during %s', async mode => {
+      auth.isSuperAdmin = true; auth.currentTenant = null; auth.permissionCodes = []
+      if (mode === 'readiness') auth.permissionsLoaded = false
+      else auth.authPhase = mode
+      const { editor } = setup(); await flushPromises()
+      expect(await editor.refresh('discard')).toBe(false)
+      expect(await editor.initialize()).toBe(false)
+      expect(await editor.save()).toBe(false)
+      expect(await editor.publish()).toBe(false)
+      expect(await editor.discard()).toBe(false)
+      expect(http.get).not.toHaveBeenCalled()
+      expect(http.post).not.toHaveBeenCalled()
+      expect(http.put).not.toHaveBeenCalled()
+    },
+  )
+  it.each(['null-to-tenant', 'tenant-to-null', 'product', 'claim', 'readiness'])(
+    'global scope %s clears raw state and ignores late ignored-abort read', async change => {
+      auth.isSuperAdmin = true; auth.permissionCodes = []
+      auth.currentTenant = change === 'tenant-to-null' ? { id: 't1' } : null
+      const product = shallowRef('p1')
+      const { editor } = setup(product); await flushPromises()
+      expect(editor.editable.value).toBe(true)
+      editor.lifecycle.buffer.value!.description = 'PRIVATE'
+      const late = deferred<unknown>()
+      http.get.mockReturnValueOnce(late.promise)
+      const refreshing = editor.refresh('retain')
+      const signal = http.get.mock.calls[3]![1].signal as AbortSignal
+      if (change === 'null-to-tenant') auth.currentTenant = { id: 't2' }
+      if (change === 'tenant-to-null') auth.currentTenant = null
+      if (change === 'product') product.value = 'p2'
+      if (change === 'claim') auth.isSuperAdmin = false
+      if (change === 'readiness') auth.permissionsLoaded = false
+      expect(signal.aborted).toBe(true)
+      expect(editor.lifecycle.buffer.value).toBeNull()
+      expect(editor.lifecycle.snapshot.value).toBeNull()
+      await flushPromises()
+      late.resolve({ ...success(), data: vocabularyEnvelope(undefined, `ev2-sha256-${'b'.repeat(64)}`) })
+      expect(await refreshing).toBe(false)
+      if (change === 'claim' || change === 'readiness') {
+        expect(editor.lifecycle.snapshot.value).toBeNull()
+        expect(editor.sections.value).toEqual([])
+      } else {
+        expect(editor.lifecycle.snapshot.value!.state.vocabularyRevision).toBe(R)
+        expect(editor.lifecycle.buffer.value!.description).not.toBe('PRIVATE')
+        expect(http.get.mock.calls.some(call => call[0] === `/products/${product.value}/editorial`)).toBe(true)
+      }
+      expect(editor.errorMessage.value ?? '').not.toContain('PRIVATE')
+    },
+  )
+  it('global/null backend denial stays safe with no fallback grant or retry', async () => {
+    auth.isSuperAdmin = true; auth.currentTenant = null; auth.permissionCodes = []
+    const { editor } = setup(); await flushPromises()
+    expect(editor.editable.value).toBe(true)
+    http.put.mockRejectedValue(failure(403, 'FORBIDDEN'))
+    expect(await editor.save()).toBe(false)
+    expect(editor.lifecycle.error.value).toEqual({ status: 403, code: 'FORBIDDEN' })
+    expect(editor.lifecycle.receipt.value).toBeNull()
+    expect(await editor.retransmit()).toBe(false)
+    expect(http.put).toHaveBeenCalledTimes(1)
+    http.get.mockRejectedValue(failure(403, 'FORBIDDEN'))
+    expect(await editor.refresh('retain')).toBe(false)
+    expect(editor.errorMessage.value).toBe('No tienes acceso al contenido editorial de este producto.')
+    expect(editor.editable.value).toBe(false)
+    expect(editor.sections.value).toEqual([])
+    expect(http.get).toHaveBeenCalledTimes(4)
+    expect(await editor.save()).toBe(false)
+    expect(http.post).not.toHaveBeenCalled()
+  })
   it.each(['global', 'tenant'] as const)('%s admin loads selected tenant and edits valid incomplete raw content', async kind => {
     auth.isSuperAdmin = kind === 'global'
     auth.permissionCodes = kind === 'global' ? [] : ['manage:all']
@@ -117,7 +186,7 @@ describe('coherent scoped editor orchestration', () => {
     http.get.mockReturnValueOnce(old.promise)
     const { editor, api, scope } = setup()
     const oldSignal = http.get.mock.calls[0]![1].signal as AbortSignal
-    if (change === 'tenant') { auth.currentTenant.id = 'other'; auth.currentTenant.id = 't1' }
+    if (change === 'tenant') { auth.currentTenant!.id = 'other'; auth.currentTenant!.id = 't1' }
     if (change === 'account') { auth.user.id = 'other'; auth.user.id = 'u1' }
     if (change === 'grants') { auth.permissionCodes = []; auth.permissionCodes = [read, update] }
     if (change === 'api') { const original = api.value; api.value = { ...original }; api.value = original }

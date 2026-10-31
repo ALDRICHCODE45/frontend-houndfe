@@ -592,7 +592,12 @@ router.beforeEach(async (to) => {
 
   const hasOperationalTenantContext = authStore.currentTenant !== null
 
-  if (authStore.isAuthenticated && requiresTenantScopedContext && !hasOperationalTenantContext) {
+  // Global mode is presentation eligibility only on the existing editorial route.
+  // Initial login still selects a tenant; operational/root routes never use this exception.
+  const hasGlobalEditorialContext = to.meta.editorialRead === true &&
+    authStore.isSuperAdmin === true && authStore.authPhase === 'authenticated'
+
+  if (authStore.isAuthenticated && requiresTenantScopedContext && !hasOperationalTenantContext && !hasGlobalEditorialContext) {
     return { name: 'select-tenant' }
   }
 
@@ -632,10 +637,11 @@ router.beforeEach(async (to) => {
   }
 
   // Feature-local opt-in, only after the existing authentication/tenant hydration.
-  // Selected-tenant editorial policy is independent of CASL/operational Product access.
+  // Editorial policy is independent of CASL/operational Product access.
+  // A selected tenant remains authoritative even for a global administrator.
   if (to.meta.editorialRead === true &&
     (!authStore.isAuthenticated || authStore.authPhase !== 'authenticated' ||
-      !authStore.user?.id || !authStore.currentTenant?.id || !authStore.permissionsLoaded ||
+      !authStore.user?.id || (!authStore.currentTenant?.id && authStore.isSuperAdmin !== true) || !authStore.permissionsLoaded ||
       !canReadEditorial(authStore.permissionCodes, authStore.isSuperAdmin))) {
     return '/403'
   }

@@ -22,8 +22,30 @@ beforeEach(() => vi.resetAllMocks())
 afterEach(() => scopes.splice(0).forEach(scope => scope.stop()))
 
 describe('target raw owner and frozen intents', () => {
-  it.each((['global', 'tenant'] as const).flatMap(kind => (['privilege', 'user', 'tenant', 'readiness'] as const).map(loss => [kind, loss] as const)))('%s admin saves without editorial grants and clears private state on %s away/back', async (kind, loss) => {
-    const access = kind === 'global' ? { isSuperAdmin: true, permissionCodes: [] } : { isSuperAdmin: false, permissionCodes: ['manage:all'] }
+  it('admits ready global/null owner without grants and sends unchanged save intent', async () => {
+    const { editor } = setup(state(), { tenantId: null, isSuperAdmin: true, permissionCodes: [] })
+    expect(editor.canRead.value).toBe(true)
+    expect(editor.canWrite.value).toBe(true)
+    expect(editor.canPublish.value).toBe(true)
+    http.put.mockResolvedValue(success())
+    expect(await editor.save()).toBe(true)
+    expect(http.put.mock.calls[0]![0]).toBe('/products/p%2F1/editorial/draft')
+    expect(http.put.mock.calls[0]![1]).toEqual({ expectedCycle: 2, expectedRevision: 3, document: document() })
+    expect(http.put.mock.calls[0]![2].headers).toEqual({ 'Idempotency-Key': editor.pendingIntent.value!.key, 'Editorial-Vocabulary-Revision': R })
+  })
+  it.each([[], ['manage:all'], [read, update, publish]].map(codes => ({ codes })))('null ordinary codes $codes never read or write', async ({ codes }) => {
+    const { editor } = setup(state(), { tenantId: null, permissionCodes: codes })
+    expect(editor.beginSnapshotRead()).toBeNull()
+    expect(await editor.initialize()).toBe(false)
+    expect(await editor.save()).toBe(false)
+    expect(await editor.publish()).toBe(false)
+    expect(await editor.discard()).toBe(false)
+    expect(http.get).not.toHaveBeenCalled()
+    expect(http.put).not.toHaveBeenCalled()
+    expect(http.post).not.toHaveBeenCalled()
+  })
+  it.each((['global', 'global-null', 'tenant'] as const).flatMap(kind => (['privilege', 'user', 'tenant', 'product', 'readiness'] as const).map(loss => [kind, loss] as const)))('%s admin saves without editorial grants and clears private state on %s away/back', async (kind, loss) => {
+    const access = kind !== 'tenant' ? { isSuperAdmin: true, permissionCodes: [], ...(kind === 'global-null' ? { tenantId: null } : {}) } : { isSuperAdmin: false, permissionCodes: ['manage:all'] }
     const { editor, context, install } = setup(state(), access)
     expect(editor.canRead.value).toBe(true)
     expect(editor.canWrite.value).toBe(true)
@@ -34,11 +56,12 @@ describe('target raw owner and frozen intents', () => {
     const saving = editor.save()
     const signal = http.put.mock.calls[0]![2].signal as AbortSignal
     if (loss === 'privilege') {
-      if (kind === 'global') context.value.isSuperAdmin = false
+      if (kind !== 'tenant') context.value.isSuperAdmin = false
       else context.value.permissionCodes = []
     }
     if (loss === 'user') context.value.userId = 'other'
-    if (loss === 'tenant') context.value.tenantId = 'other'
+    if (loss === 'tenant') context.value.tenantId = context.value.tenantId === null ? 'other' : null
+    if (loss === 'product') context.value.productId = 'other'
     if (loss === 'readiness') context.value.permissionsLoaded = false
     expect(signal.aborted).toBe(true)
     expect(editor.snapshot.value).toBeNull()
@@ -53,9 +76,9 @@ describe('target raw owner and frozen intents', () => {
     expect(editor.receipt.value).toBeNull()
     expect(editor.outcome.value).toBeNull()
   })
-  it.each(['userId', 'tenantId', 'permissionsLoaded', 'authenticated'] as const)('global privilege does not waive %s', async missing => {
+  it.each(['userId', 'permissionsLoaded', 'authenticated'] as const)('global privilege does not waive %s', async missing => {
     const { editor, context } = setup(state(), { isSuperAdmin: true, permissionCodes: [] })
-    if (missing === 'userId' || missing === 'tenantId') context.value[missing] = null
+    if (missing === 'userId') context.value[missing] = null
     else context.value[missing] = false
     expect(editor.canRead.value).toBe(false)
     expect(editor.beginSnapshotRead()).toBeNull()

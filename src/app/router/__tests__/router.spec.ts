@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   buildLandingMemoryKey,
   clearRememberedLanding,
@@ -21,6 +21,7 @@ const mockAuthStore = {
     | 'authenticated',
   currentTenant: null as { id: string; name: string; slug: string } | null,
   isSuperAdmin: false,
+  permissionCodes: [] as string[],
   tempToken: null as string | null,
   hydrateFromStorage: vi.fn(),
   fetchMe: vi.fn(),
@@ -73,6 +74,7 @@ function resetRouterTestState() {
   mockAuthStore.authPhase = 'idle'
   mockAuthStore.currentTenant = null
   mockAuthStore.isSuperAdmin = false
+  mockAuthStore.permissionCodes = []
   mockAuthStore.tempToken = null
   mockAuthStore.hydrateFromStorage.mockReset()
   mockAuthStore.fetchMe.mockReset()
@@ -81,6 +83,71 @@ function resetRouterTestState() {
   mockAuthStore.userCan.mockReset()
   mockAuthStore.userCan.mockReturnValue(true)
 }
+
+describe('editorial global boundary', () => {
+  beforeEach(resetRouterTestState)
+  afterEach(async () => {
+    const { default: router } = await import('../index')
+    await router.push('/catalogo')
+  })
+
+  it('admits only ready explicit global identity on the actual editorial route', async () => {
+    authenticate()
+    mockAuthStore.currentTenant = null
+    mockAuthStore.isSuperAdmin = true
+    const { default: router } = await import('../index')
+    await router.push('/pos/products/p1/editorial')
+    expect(router.currentRoute.value.name).toBe('pos-product-editorial')
+    expect(mockAuthStore.fetchPermissions).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { codes: [], global: true, allowed: true },
+    { codes: ['manage:all'], global: false, allowed: true },
+    { codes: ['read:ProductEditorialDraft'], global: false, allowed: true },
+    { codes: ['update:ProductEditorialDraft'], global: false, allowed: false },
+    { codes: ['publish:ProductEditorialDraft'], global: false, allowed: false },
+    { codes: ['manage:Product'], global: false, allowed: false },
+  ])('preserves selected-tenant policy $codes/$global', async ({ codes, global, allowed }) => {
+    authenticate()
+    mockAuthStore.permissionCodes = codes
+    mockAuthStore.isSuperAdmin = global
+    const { default: router } = await import('../index')
+    await router.push('/pos/products/p1/editorial')
+    expect(router.currentRoute.value.name === 'pos-product-editorial').toBe(allowed)
+    expect(mockAuthStore.currentTenant?.id).toBe('tenant-1')
+  })
+
+  it.each(['ordinary', 'wildcard', 'initial-login', 'selecting', 'identity', 'readiness'])(
+    'does not admit null-tenant %s', async mode => {
+      authenticate()
+      mockAuthStore.currentTenant = null
+      mockAuthStore.isSuperAdmin = !['ordinary', 'wildcard'].includes(mode)
+      if (mode === 'wildcard') mockAuthStore.permissionCodes = ['manage:all']
+      if (mode === 'initial-login') mockAuthStore.authPhase = 'needs-tenant-selection'
+      if (mode === 'selecting') mockAuthStore.authPhase = 'selecting-tenant'
+      if (mode === 'identity') mockAuthStore.user = { id: '' }
+      if (mode === 'readiness') mockAuthStore.permissionsLoaded = false
+      const { default: router } = await import('../index')
+      await router.push('/pos/products/p1/editorial')
+      expect(router.currentRoute.value.name).not.toBe('pos-product-editorial')
+    },
+  )
+
+  it.each([false, true].flatMap(global => [false, true].flatMap(selected =>
+    ['/catalogo', '/', '/pos/orders'].map(path => ({ global, selected, path })))),
+  )('preserves non-editorial boundary $global/$selected/$path', async ({ global, selected, path }) => {
+    authenticate()
+    mockAuthStore.isSuperAdmin = global
+    if (!selected) mockAuthStore.currentTenant = null
+    const { default: router } = await import('../index')
+    await router.push(path)
+    const destination = router.currentRoute.value.path
+    if (!selected && path !== '/catalogo') expect(destination).toBe('/select-tenant')
+    else if (path === '/pos/orders') expect(destination).toBe('/pos/orders')
+    else expect(destination).not.toBe('/select-tenant')
+  })
+})
 
 describe('router tenant guard', () => {
   beforeEach(resetRouterTestState)

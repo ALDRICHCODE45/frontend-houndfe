@@ -55,7 +55,7 @@ export function useEditorialDraft(context: MaybeRefOrGetter<EditorialDraftContex
   })
   const canRead = computed(() => {
     const c = toValue(context)
-    return !disposed.value && Boolean(c.authenticated && c.userId && c.tenantId && c.productId && c.permissionsLoaded && canReadEditorial(c.permissionCodes, c.isSuperAdmin))
+    return !disposed.value && Boolean(c.authenticated && c.userId && (c.tenantId || c.isSuperAdmin === true) && c.productId && c.permissionsLoaded && canReadEditorial(c.permissionCodes, c.isSuperAdmin))
   })
   const canWrite = computed(() => canRead.value && canWriteEditorial(toValue(context).permissionCodes, toValue(context).isSuperAdmin))
   const canPublish = computed(() => canRead.value && canPublishEditorial(toValue(context).permissionCodes, toValue(context).isSuperAdmin))

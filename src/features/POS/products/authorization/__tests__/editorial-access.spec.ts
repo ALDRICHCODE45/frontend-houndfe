@@ -61,15 +61,27 @@ describe('exact editorial access and application routing', () => {
     expect(router.currentRoute.value.path).toBe(privileged ? '/pos/products/p1/editorial' : '/403')
   })
 
-  it.each(['user', 'tenant', 'readiness', 'selecting-tenant', 'authenticating'])('admin still requires current context: %s', async missing => {
+  it.each(['user', 'readiness', 'selecting-tenant', 'authenticating'])('admin still requires current context: %s', async missing => {
     auth.isSuperAdmin = true
     if (missing === 'user') { auth.user = null; auth.fetchMe.mockResolvedValueOnce(undefined) }
-    if (missing === 'tenant') auth.currentTenant = null
     if (missing === 'readiness') { auth.permissionsLoaded = false; auth.fetchPermissions.mockResolvedValueOnce(undefined) }
     if (missing === 'selecting-tenant' || missing === 'authenticating') auth.authPhase = missing
     const { default: router } = await import('@/app/router')
     await router.push('/pos/products/p1/editorial')
     expect(router.currentRoute.value.name).not.toBe('pos-product-editorial')
+  })
+
+  it('null tenant accepts explicit global claim only, not tenant manage:all', async () => {
+    auth.currentTenant = null
+    auth.isSuperAdmin = true
+    const { default: router } = await import('@/app/router')
+    await router.push('/pos/products/p1/editorial')
+    expect(router.currentRoute.value.name).toBe('pos-product-editorial')
+    await router.push('/catalogo')
+    auth.isSuperAdmin = false
+    auth.permissionCodes = ['manage:all']
+    await router.push('/pos/products/p1/editorial')
+    expect(router.currentRoute.value.path).toBe('/select-tenant')
   })
 
   it('waits for permission hydration before the exact check', async () => {
