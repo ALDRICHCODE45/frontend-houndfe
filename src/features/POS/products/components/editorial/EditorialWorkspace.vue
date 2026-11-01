@@ -8,7 +8,11 @@ import EditorialContractHistory from './EditorialContractHistory.vue'
 import { inspectEditorialDocumentReferences } from '../../utils/editorial-contract-document-references'
 import { qualifyEditorialConservationBaseline } from '../../utils/editorial-contract-conservation'
 import '@/core/shared/design-system/houndfe-ui.css'
-const props = defineProps<{ productId: string }>()
+const props = defineProps<{
+  productId: string
+  embedded?: boolean
+  activeSection?: 'content' | 'review'
+}>()
 const editor = useEditorialEditor(() => props.productId)
 const { lifecycle, vocabulary, qualification, loading, errorMessage, metadataMessage, sections, issues, editable, canSave, canInitialize } = editor
 const { authoritative, buffer, canRead, canWrite, isPending, receipt, outcome, error, pendingIntent } = lifecycle
@@ -73,11 +77,11 @@ async function submit() { await editor.save() }
 </script>
 
 <template>
-  <main class="hf-theme hf-ui editorial-workspace" aria-labelledby="editorial-workspace-title">
+  <component :is="embedded ? 'section' : 'main'" class="hf-theme hf-ui editorial-workspace" aria-labelledby="editorial-workspace-title">
     <header class="hf-page-header editorial-header">
       <div class="editorial-heading">
         <p class="editorial-eyebrow">PRODUCTO · CONTENIDO EDITORIAL</p>
-        <h1 id="editorial-workspace-title" class="hf-page-title">Contenido editorial</h1>
+        <component :is="embedded ? 'h2' : 'h1'" id="editorial-workspace-title" class="hf-page-title">Contenido editorial</component>
         <p class="hf-page-subtitle">Edita el borrador por separado de los datos operativos. Guardar no publica el contenido.</p>
       </div>
       <div class="editorial-actions">
@@ -111,7 +115,7 @@ async function submit() { await editor.save() }
       </div>
       <template v-if="authoritative">
         <p class="editorial-context">Ciclo editorial: {{ authoritative.cycle ?? 'Sin iniciar' }} · {{ authoritative.draft ? `Revisión consultada: ${authoritative.draft.revision}` : 'Sin borrador' }}</p>
-        <EditorialPublication v-if="canRead && (canWrite || publishPermission)" :state="authoritative"
+        <EditorialPublication v-if="canRead && (canWrite || publishPermission)" v-show="activeSection !== 'content'" :state="authoritative"
           :can-write="canWrite" :publish-permission="publishPermission" :can-publish="canPublish" :can-discard="canDiscard"
           :has-unsaved-changes="hasUnsavedChanges" :publish-issues="publishIssues" :busy="loading || isPending"
           :needs-reconciliation="Boolean(pendingIntent)" :vocabulary="vocabulary" :context="qualification" @publish="editor.publish($event)" @discard="editor.discard()" />
@@ -121,12 +125,12 @@ async function submit() { await editor.save() }
           <button v-if="canWrite" type="button" class="editorial-button" data-testid="initialize" :disabled="!canInitialize" @click="editor.initialize()">{{ authoritative.published ? 'Iniciar borrador desde Publicado' : 'Iniciar borrador vacío' }}</button>
         </div>
         <p v-if="invalidHistoryContext" role="status" class="editorial-panel warning">Historial con atributos o contexto no disponibles. Se conserva intacto. Quita o corrige esos atributos en el borrador para poder guardarlo.</p>
-        <form v-if="canWrite && buffer && vocabulary && qualification" id="editorial-form" class="editorial-form" aria-label="Editar borrador editorial" novalidate @submit.prevent="submit">
+        <form v-if="canWrite && buffer && vocabulary && qualification" v-show="activeSection !== 'review'" id="editorial-form" class="editorial-form" aria-label="Editar borrador editorial" novalidate @submit.prevent="submit">
           <div v-if="issues.length" role="alert" class="editorial-panel warning"><p>Revisa el contenido antes de guardar.</p><ul><li v-for="(issue, index) in issues" :key="index">{{ issue.valueIndex === undefined ? '' : `Atributo ${issue.valueIndex + 1}: ` }}{{ editorialIssueMessage(issue) }}</li></ul></div>
           <EditorialContractDocumentFields id="editorial" :model-value="buffer" :vocabulary="vocabulary" :subjects="subjects" :next-id="lifecycle.nextId" :assignment-feedback="assignmentFeedback" :disabled="!editable" @update:model-value="editor.replaceDocument" />
           <p class="editorial-context">Sin guardado automático. El servidor valida el contenido y el contexto final.</p>
         </form>
-        <div class="editorial-state" :aria-busy="loading">
+        <div v-show="activeSection !== 'content'" class="editorial-state" :aria-busy="loading">
           <section v-for="section in sections" :key="section.key" class="editorial-panel" :aria-labelledby="`editorial-${section.key}`">
             <header class="editorial-section-header"><h2 :id="`editorial-${section.key}`">{{ section.label }}{{ canWrite ? ' · historial consultado' : '' }}</h2><span v-if="section.revision !== null" class="editorial-context">Revisión {{ section.revision }}</span></header>
             <p v-if="!section.document">{{ section.key === 'draft' ? 'Sin borrador' : 'Sin versión publicada' }}</p>
@@ -135,7 +139,7 @@ async function submit() { await editor.save() }
         </div>
       </template>
     </template>
-  </main>
+  </component>
 </template>
 
 <style scoped>
