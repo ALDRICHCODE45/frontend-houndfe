@@ -90,7 +90,8 @@ async function submit() { await editor.save() }
         <button v-if="canWrite && buffer" class="hf-primary-control" type="submit" form="editorial-form" :disabled="!canSave">{{ isPending ? 'Enviando…' : 'Guardar borrador' }}</button>
       </div>
     </header>
-    <p v-if="!canWrite" class="editorial-notice">Solo consulta. Para editar necesitas acceso de administrador en el tenant seleccionado o permisos editoriales de lectura y actualización.<template v-if="publishPermission"> Puedes publicar el borrador guardado.</template></p>
+    <p v-if="!canWrite" class="editorial-notice">Solo consulta. Para editar necesitas acceso de administrador en el tenant seleccionado o permisos editoriales de lectura y actualización.</p>
+    <p v-if="activeSection === 'content' || (!canWrite && !publishPermission)" role="status" class="editorial-notice">Publicación pendiente de habilitación del backend</p>
     <div v-if="discardPending && canRead" role="group" aria-labelledby="discard-title" class="editorial-panel confirmation">
       <h2 id="discard-title">Descartar cambios locales y consultar</h2><p>El borrador local se reemplazará con el resultado de una nueva consulta. Esta acción no envía cambios al servidor.</p>
       <div class="editorial-actions"><button type="button" class="editorial-button" data-testid="cancel-discard" @click="discardPending = false">Cancelar</button><button type="button" class="editorial-button" data-testid="confirm-discard" :disabled="loading || isPending" @click="discard">Descartar cambios y consultar</button></div>
@@ -116,9 +117,9 @@ async function submit() { await editor.save() }
       <template v-if="authoritative">
         <p class="editorial-context">Ciclo editorial: {{ authoritative.cycle ?? 'Sin iniciar' }} · {{ authoritative.draft ? `Revisión consultada: ${authoritative.draft.revision}` : 'Sin borrador' }}</p>
         <EditorialPublication v-if="canRead && (canWrite || publishPermission)" v-show="activeSection !== 'content'" :state="authoritative"
-          :can-write="canWrite" :publish-permission="publishPermission" :can-publish="canPublish" :can-discard="canDiscard"
+          :publication-available="false" :can-write="canWrite" :publish-permission="publishPermission" :can-publish="canPublish" :can-discard="canDiscard"
           :has-unsaved-changes="hasUnsavedChanges" :publish-issues="publishIssues" :busy="loading || isPending"
-          :needs-reconciliation="Boolean(pendingIntent)" :vocabulary="vocabulary" :context="qualification" @publish="editor.publish($event)" @discard="editor.discard()" />
+          :needs-reconciliation="Boolean(pendingIntent)" :vocabulary="vocabulary" :context="qualification" @discard="editor.discard()" />
         <div v-if="!authoritative.draft" class="editorial-panel">
           <p v-if="!authoritative.published">Todavía no hay contenido editorial. No existe un borrador ni una versión publicada.</p>
           <p v-else>La versión publicada permanece intacta. Puedes iniciar un borrador a partir de ella.</p>

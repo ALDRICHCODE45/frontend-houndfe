@@ -2,7 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
 import { reactive } from 'vue'
 import ProductEditorialView from '../ProductEditorialView.vue'
-import { document, state, success, vocabularyEnvelope, read, update, failure, deferred } from '../../__tests__/editorial-contract-fixtures'
+import EditorialWorkspace from '../../components/editorial/EditorialWorkspace.vue'
+import { document, state, success, vocabularyEnvelope, read, update, publish, failure, deferred } from '../../__tests__/editorial-contract-fixtures'
 const http = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn() }))
 vi.mock('@/core/shared/api/http', () => ({ http }))
 const auth = reactive({ isAuthenticated: true, authPhase: 'authenticated', user: { id: 'u' }, currentTenant: { id: 't' }, permissionsLoaded: true, permissionCodes: [read, update] })
@@ -19,6 +20,29 @@ beforeEach(() => { vi.resetAllMocks(); Object.assign(auth, { isAuthenticated: tr
 afterEach(() => wrapper?.unmount())
 
 describe('integrated target workspace', () => {
+  it.each([false, true])('keeps production publication unavailable (embedded=%s) with comparison and discard intact', async embedded => {
+    auth.permissionCodes = ['manage:all']
+    wrapper = mount(EditorialWorkspace, { props: { productId: 'p1', embedded } })
+    await flushPromises()
+    expect(wrapper.text()).toContain('Publicación pendiente de habilitación del backend')
+    expect(wrapper.text()).not.toContain('Puedes publicar')
+    expect(wrapper.findAll('button').some(item => item.text().includes('Publicar'))).toBe(false)
+    wrapper.findComponent({ name: 'EditorialPublication' }).vm.$emit('publish', null)
+    await flushPromises()
+    expect(wrapper.text()).toContain('Comparar borrador guardado con la versión publicada')
+    expect(wrapper.text()).toContain('Descartar borrador guardado…')
+    expect(http.get).toHaveBeenCalledTimes(3)
+    expect(http.post).not.toHaveBeenCalled()
+  })
+  it('does not promise publication to a read-and-publish user without update access', async () => {
+    auth.permissionCodes = [read, publish]
+    await render()
+    expect(wrapper.text()).toContain('Publicación pendiente de habilitación del backend')
+    expect(wrapper.text()).not.toContain('Puedes publicar')
+    expect(wrapper.find('form').exists()).toBe(false)
+    expect(wrapper.findAll('button').some(item => item.text().includes('Publicar'))).toBe(false)
+    expect(http.post).not.toHaveBeenCalled()
+  })
   it('uses the real controlled document form, sends exact raw text, preserves receipt as historical', async () => {
     http.put.mockResolvedValue(success(state({ ...document(), commercialTitle: 'RECEIPT ONLY' }, 99)))
     await render()

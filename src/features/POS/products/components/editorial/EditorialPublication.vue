@@ -6,9 +6,10 @@ import type { EditorialContractVocabulary } from '../../interfaces/editorial-con
 import type { EditorialRuntimeIssue } from '../../utils/editorial-contract-publication-checks'
 import { editorialIssueMessage } from '../../composables/useEditorialEditor'
 import EditorialContractHistory from './EditorialContractHistory.vue'
-const props = defineProps<{ state: EditorialContractState; canWrite: boolean; publishPermission: boolean; canPublish: boolean;
+const props = withDefaults(defineProps<{ state: EditorialContractState; canWrite: boolean; publishPermission: boolean; canPublish: boolean;
+  publicationAvailable?: boolean;
   canDiscard: boolean; hasUnsavedChanges: boolean; publishIssues: readonly EditorialRuntimeIssue[]; busy: boolean;
-  needsReconciliation: boolean; vocabulary: EditorialContractVocabulary | null; context: EditorialContractContext | null }>()
+  needsReconciliation: boolean; vocabulary: EditorialContractVocabulary | null; context: EditorialContractContext | null }>(), { publicationAvailable: true })
 const emit = defineEmits<{ publish: [confirmation: 'review-v1' | null]; discard: [] }>()
 const confirmation = shallowRef<'publish' | 'discard' | null>(null)
 const careConfirmed = shallowRef(false)
@@ -17,7 +18,7 @@ const publishTrigger = useTemplateRef<HTMLButtonElement>('publishTrigger')
 const discardTrigger = useTemplateRef<HTMLButtonElement>('discardTrigger')
 const cancelButton = useTemplateRef<HTMLButtonElement>('cancelButton')
 async function openConfirmation(action: 'publish' | 'discard') {
-  if (props.busy || props.needsReconciliation || (action === 'publish' ? !props.canPublish : !props.canDiscard)) return
+  if (props.busy || props.needsReconciliation || (action === 'publish' ? !props.publicationAvailable || !props.canPublish : !props.canDiscard)) return
   careConfirmed.value = false; confirmation.value = action
   await nextTick(); cancelButton.value?.focus()
 }
@@ -27,7 +28,7 @@ async function closeConfirmation(action: 'publish' | 'discard' | null) {
 }
 // Scope changes remove/recreate the component. Any new GET/revision/cycle or
 // authority change resets both private confirmation and its actual DOM control.
-watch(() => [props.state, props.publishPermission, props.canWrite, props.canPublish, props.canDiscard, props.busy, props.needsReconciliation], () => {
+watch(() => [props.state, props.publicationAvailable, props.publishPermission, props.canWrite, props.canPublish, props.canDiscard, props.busy, props.needsReconciliation], () => {
   confirmation.value = null; careConfirmed.value = false
 }, { flush: 'sync' })
 const messages = computed(() => {
@@ -96,7 +97,7 @@ const comparison = computed(() => {
 function confirmAction() {
   if (props.busy || props.needsReconciliation) return
   const action = confirmation.value
-  if (action === 'publish' && props.publishPermission && props.canPublish && (!care.value || careConfirmed.value)) emit('publish', care.value ? 'review-v1' : null)
+  if (action === 'publish' && props.publicationAvailable && props.publishPermission && props.canPublish && (!care.value || careConfirmed.value)) emit('publish', care.value ? 'review-v1' : null)
   if (action === 'discard' && props.canWrite && props.canDiscard) emit('discard')
   void closeConfirmation(action)
 }
@@ -105,6 +106,7 @@ function confirmAction() {
 <template>
   <section class="editorial-panel publication" aria-labelledby="publication-title">
     <h2 id="publication-title">Publicación</h2>
+    <p v-if="!publicationAvailable" role="status" class="publication-pending">Publicación pendiente de habilitación del backend</p>
     <div class="publication-status">
       <p>{{ state.published ? `Publicado: revisión ${state.published.revision}` : 'Sin versión publicada' }}</p>
       <p>{{ state.draft ? `Borrador guardado: revisión ${state.draft.revision}` : 'Sin borrador guardado' }}</p>
@@ -118,7 +120,7 @@ function confirmAction() {
       <EditorialContractHistory :document="state.draft.document" :vocabulary="vocabulary" :context="context" />
     </section>
     <div v-if="!confirmation" class="editorial-actions">
-      <button v-if="publishPermission" ref="publishTrigger" type="button" class="hf-primary-control" :disabled="!canPublish || busy || needsReconciliation" :aria-describedby="messages.length ? 'publication-reasons' : undefined" @click="openConfirmation('publish')">Publicar borrador…</button>
+      <button v-if="publicationAvailable && publishPermission" ref="publishTrigger" type="button" class="hf-primary-control" :disabled="!canPublish || busy || needsReconciliation" :aria-describedby="messages.length ? 'publication-reasons' : undefined" @click="openConfirmation('publish')">Publicar borrador…</button>
       <button v-if="canDiscard" ref="discardTrigger" type="button" class="editorial-button" :disabled="busy || needsReconciliation" @click="openConfirmation('discard')">Descartar borrador guardado…</button>
     </div>
     <div v-else role="group" aria-labelledby="publication-confirm-title" class="confirmation">
@@ -163,6 +165,7 @@ function confirmAction() {
 .editorial-button:focus-visible, .hf-primary-control:focus-visible, .editorial-details summary:focus-visible, .care-consent input:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 3px; }
 .confirmation { padding: 16px; background: var(--hf-warning-soft); border-radius: var(--hf-radius-control); }
 .care-consent { display: flex; align-items: center; gap: 12px; min-height: 44px; cursor: pointer; }
+.publication-pending { padding: 16px; border-radius: var(--hf-radius-control); background: var(--hf-warning-soft); color: var(--hf-warning); }
 .warning { color: var(--hf-warning); }
 .editorial-details { min-width: 0; border-top: 1px solid var(--hf-border); }
 .editorial-details summary { cursor: pointer; padding: 12px 0; min-height: 44px; color: var(--hf-heading); }

@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { flushPromises, mount } from '@vue/test-utils'
-import { reactive } from 'vue'
+import { defineComponent, reactive } from 'vue'
+import EditorialPublication from '../../components/editorial/EditorialPublication.vue'
+import { useEditorialEditor } from '../../composables/useEditorialEditor'
 import { createMemoryHistory, createRouter } from 'vue-router'
 import ProductEditorialView from '../ProductEditorialView.vue'
 import { document, state, success, vocabularyEnvelope, careDocument, careVocabulary, read, update, publish, failure } from '../../__tests__/editorial-contract-fixtures'
@@ -15,8 +17,33 @@ function reads(care = false, revision = 3) {
   http.get.mockImplementation((url: string) => Promise.resolve(url.includes('vocabulary') ? { ...success(), data: vocabularyEnvelope(care ? careVocabulary() : undefined) }
     : url.endsWith('/context') ? { status: 200, data: { variants: [] } } : success(state(doc, revision))))
 }
-async function render() {
-  router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/editor/:id', component: ProductEditorialView }, { path: '/away', component: { template: '<p>Away</p>' } }] })
+// Contract host only: production Workspace deliberately has no publish event path.
+// These integrations exercise the generic publisher with the real scoped lifecycle.
+const PublicationContractHost = defineComponent({
+  components: { EditorialPublication },
+  setup() {
+    const editor = useEditorialEditor('p1')
+    return { ...editor, ...editor.lifecycle, editor }
+  },
+  template: `
+    <button data-testid="refresh-retain" @click="editor.refresh('retain')">Consultar</button>
+    <form v-if="canWrite && buffer">
+      <input id="editorial-title" v-model="buffer.commercialTitle">
+    </form>
+    <template v-if="outcome || receipt">
+      <p v-if="outcome === 'acknowledged' && pendingIntent?.kind === 'publish'">Solicitud de publicación confirmada.</p>
+      <p v-if="outcome === 'conflict'">No se reenvía automáticamente.</p>
+      <button v-if="outcome === 'ambiguous' && pendingIntent" @click="editor.retransmit()">Retransmitir la misma solicitud (mismo contenido y clave)</button>
+    </template>
+    <EditorialPublication v-if="canRead && authoritative" :state="authoritative"
+      :can-write="canWrite" :publish-permission="canPublish" :can-publish="editor.canPublish.value"
+      :can-discard="editor.canDiscard.value" :has-unsaved-changes="hasUnsavedChanges"
+      :publish-issues="publishIssues" :busy="loading || isPending" :needs-reconciliation="Boolean(pendingIntent)"
+      :vocabulary="vocabulary" :context="qualification" @publish="editor.publish($event)" @discard="editor.discard()" />
+  `,
+})
+async function render(production = false) {
+  router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/editor/:id', component: production ? ProductEditorialView : PublicationContractHost }, { path: '/away', component: { template: '<p>Away</p>' } }] })
   await router.push('/editor/p1'); await router.isReady()
   wrapper = mount({ template: '<router-view />' }, { global: { plugins: [router] } }); await flushPromises()
 }
@@ -25,7 +52,7 @@ const panel = () => wrapper.get('[aria-labelledby="publication-title"]')
 beforeEach(() => { vi.resetAllMocks(); auth.isSuperAdmin = false; auth.permissionCodes = [read, update, publish]; reads(); http.post.mockResolvedValue(success({ cycle: 2, draft: null, published: { revision: 2, document: document() } })) })
 afterEach(() => { wrapper?.unmount(); vi.restoreAllMocks() })
 
-describe('live publication integration', () => {
+describe('generic publication and real lifecycle integration', () => {
   it.each(['global', 'tenant'] as const)('%s admin loses pending care confirmation on privilege away/back', async kind => {
     auth.isSuperAdmin = kind === 'global'
     auth.permissionCodes = kind === 'global' ? [] : ['manage:all']
@@ -121,7 +148,7 @@ describe('live publication integration', () => {
   })
   it('guards route leave and beforeunload only while raw dirty, removing listeners on unmount', async () => {
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
-    await render()
+    await render(true)
     const clean = new Event('beforeunload', { cancelable: true }); window.dispatchEvent(clean); expect(clean.defaultPrevented).toBe(false)
     await wrapper.get('#editorial-title').setValue('local')
     const dirty = new Event('beforeunload', { cancelable: true }); window.dispatchEvent(dirty); expect(dirty.defaultPrevented).toBe(true)
