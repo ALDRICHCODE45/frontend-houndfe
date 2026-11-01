@@ -13,6 +13,12 @@ const props = defineProps<{
   embedded?: boolean
   activeSection?: 'content' | 'review'
 }>()
+defineSlots<{
+  summary?(props: {
+    title: string | null | undefined; draftRevision: number | null; publishedRevision: number | null
+    dirty: boolean; acknowledged: boolean
+  }): unknown
+}>()
 const editor = useEditorialEditor(() => props.productId)
 const { lifecycle, vocabulary, qualification, loading, errorMessage, metadataMessage, sections, issues, editable, canSave, canInitialize } = editor
 const { authoritative, buffer, canRead, canWrite, isPending, receipt, outcome, error, pendingIntent } = lifecycle
@@ -78,6 +84,7 @@ async function submit() { await editor.save() }
 
 <template>
   <component :is="embedded ? 'section' : 'main'" class="hf-theme hf-ui editorial-workspace" aria-labelledby="editorial-workspace-title">
+    <div class="editorial-content">
     <header class="hf-page-header editorial-header">
       <div class="editorial-heading">
         <p class="editorial-eyebrow">PRODUCTO · CONTENIDO EDITORIAL</p>
@@ -126,12 +133,12 @@ async function submit() { await editor.save() }
           <button v-if="canWrite" type="button" class="editorial-button" data-testid="initialize" :disabled="!canInitialize" @click="editor.initialize()">{{ authoritative.published ? 'Iniciar borrador desde Publicado' : 'Iniciar borrador vacío' }}</button>
         </div>
         <p v-if="invalidHistoryContext" role="status" class="editorial-panel warning">Historial con atributos o contexto no disponibles. Se conserva intacto. Quita o corrige esos atributos en el borrador para poder guardarlo.</p>
+        <div v-if="canWrite && buffer && issues.length" role="alert" class="editorial-panel warning"><p>Revisa el contenido antes de guardar. Puedes corregirlo en Contenido.</p><ul><li v-for="(issue, index) in issues" :key="index">{{ issue.valueIndex === undefined ? '' : `Atributo ${issue.valueIndex + 1}: ` }}{{ editorialIssueMessage(issue) }}</li></ul></div>
         <form v-if="canWrite && buffer && vocabulary && qualification" v-show="activeSection !== 'review'" id="editorial-form" class="editorial-form" aria-label="Editar borrador editorial" novalidate @submit.prevent="submit">
-          <div v-if="issues.length" role="alert" class="editorial-panel warning"><p>Revisa el contenido antes de guardar.</p><ul><li v-for="(issue, index) in issues" :key="index">{{ issue.valueIndex === undefined ? '' : `Atributo ${issue.valueIndex + 1}: ` }}{{ editorialIssueMessage(issue) }}</li></ul></div>
           <EditorialContractDocumentFields id="editorial" :model-value="buffer" :vocabulary="vocabulary" :subjects="subjects" :next-id="lifecycle.nextId" :assignment-feedback="assignmentFeedback" :disabled="!editable" @update:model-value="editor.replaceDocument" />
           <p class="editorial-context">Sin guardado automático. El servidor valida el contenido y el contexto final.</p>
         </form>
-        <div v-show="activeSection !== 'content'" class="editorial-state" :aria-busy="loading">
+        <div v-show="activeSection !== 'content' || !canWrite" class="editorial-state" :aria-busy="loading">
           <section v-for="section in sections" :key="section.key" class="editorial-panel" :aria-labelledby="`editorial-${section.key}`">
             <header class="editorial-section-header"><h2 :id="`editorial-${section.key}`">{{ section.label }}{{ canWrite ? ' · historial consultado' : '' }}</h2><span v-if="section.revision !== null" class="editorial-context">Revisión {{ section.revision }}</span></header>
             <p v-if="!section.document">{{ section.key === 'draft' ? 'Sin borrador' : 'Sin versión publicada' }}</p>
@@ -140,10 +147,16 @@ async function submit() { await editor.save() }
         </div>
       </template>
     </template>
+    </div>
+    <slot v-if="canRead && authoritative && !errorMessage" name="summary"
+      :title="authoritative.draft?.document.commercialTitle ?? authoritative.published?.document.commercialTitle"
+      :draft-revision="authoritative.draft?.revision ?? null" :published-revision="authoritative.published?.revision ?? null"
+      :dirty="hasUnsavedChanges" :acknowledged="outcome === 'acknowledged' || Boolean(receipt)" />
   </component>
 </template>
 
 <style scoped>
+.editorial-content { display: contents; }
 .editorial-workspace { display: flex; flex-direction: column; gap: 24px; max-width: 1100px; margin: 0 auto; color: var(--hf-ink); }
 .editorial-workspace .editorial-header, .editorial-section-header { display: flex; flex-direction: row; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .editorial-heading { flex: 1 1 320px; min-width: 0; }
