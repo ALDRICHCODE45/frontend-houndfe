@@ -1930,7 +1930,7 @@ function handleEditLotPlaceholder() {
           @submit="handleSubmitMainForm"
           @error="revealInvalidTask"
         >
-        <fieldset :disabled="isFormReadonly" class="space-y-6">
+        <fieldset :disabled="isFormReadonly" class="min-w-0 space-y-6">
           <div v-show="activeTask === 'identity'" data-product-task="identity">
           <UCard :ui="{ root: 'overflow-visible' }">
             <template #header>
