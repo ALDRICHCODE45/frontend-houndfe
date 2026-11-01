@@ -41,13 +41,26 @@ the standalone editorial route and production publication restriction are intact
 Risk item 2: access gating is security-sensitive. The focused integration matrix
 covers unavailable sessions, grant revocation, actor/tenant replacement, tenant-local
 manage:all versus explicit global claims, and independent operational read-only state.
+Hidden actor/tenant transitions were source-verified through lifecycle watchers,
+not covered by a dedicated integration test.
 
-## Remaining work
+## Delivered in I2c (S2, S5, S6)
 
-I2c replaces legacy surfaces/actions
-and the desktop-only summary with responsive HF presentation and operational
-readiness wording. The existing “Lista para publicar” summary is legacy copy,
-not a new publication guarantee; its replacement belongs to I2c.
+The screen and its locally owned modal surfaces opt into the existing HF adapter;
+primary actions use HF action/on-action pairing instead of forced gold/black.
+Scoped styles apply HF surfaces, title, control geometry and keyboard focus
+without changing shared CSS or editorial components.
+
+The actual-data summary remains alongside the workspace above 720px and flows
+below it on mobile; it is no longer hidden on smaller screens. It retains the
+existing image, name, product/service type, POS/Online flags, price, cost, margin,
+stock and checklist calculations. Pending name/cost changes update the summary;
+existing create/update price semantics and service stock restrictions remain.
+The inline summary stays with its existing computed owner; no new state owner.
+
+“Datos operativos” replaces the publication-readiness claim and explicitly does
+not indicate editorial eligibility. This is not a public catalog preview.
+Parent I4 browser/theme verification remains pending.
 
 ## Verification and rollback
 
@@ -56,9 +69,13 @@ reveal for identity and operational fields, new-product unavailable copy, form
 scope and read-only browsing. Existing catalog, service and variant suites remain.
 I2b also tests the real Workspace with mocked contract reads: lazy admission,
 single mounted root and pending input, independent form scope and context retirement.
-Focused Vitest: 46 tests across four files passed. App `vue-tsc` passed; it does
+I2c replaces the obsolete gold assertion and checks HF boundaries, responsive
+summary structure, actual and pending values, service stock and creation readiness.
+Focused Vitest: 48 tests across four files passed. App `vue-tsc` passed; it does
 not type-check tests. Browser/theme verification remains with the parent.
 
+I2c rollback boundary: restore its previous summary markup/action classes and
+remove its scoped styles and presentation assertions; keep I2a/I2b behavior.
 I2b rollback boundary: remove Workspace admission/rendering and its added tests,
 restoring the interim I2a notices. I2a rollback: remove the navigation component,
 task state/error reveal and

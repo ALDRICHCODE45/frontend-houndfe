@@ -298,7 +298,7 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
     expect(modal.props('canDelete')).toBe(true)
   })
 
-  it('page bg + completion bar + main submit use coco tokens (SDD-7)', async () => {
+  it('uses HF presentation and an always-rendered operational summary (S2/S5/S6)', async () => {
     const wrapper = mountWithUApp(ProductDetailView, {
       global: getGlobalConfig(),
       attachTo: document.body,
@@ -307,17 +307,21 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
     await wrapper.vm.$nextTick()
     await new Promise((resolve) => setTimeout(resolve, 100))
 
-    // PRD-REQ-005 page bg — find the root container that carries the
-    // bg-coco-neutral-50 class (any of the wrappers will match).
-    const pageBg = wrapper.find('[class*="bg-coco-neutral-50"]')
-    expect(pageBg.exists()).toBe(true)
-
-    // PRD-REQ-004 completion-bar fill uses bg-coco-gold-500.
-    expect(wrapper.html()).toContain('bg-coco-gold-500')
-
-    // PRD-REQ-003 main submit uses the Cobrar class string.
-    expect(wrapper.html()).toContain('bg-(--brand-action)')
-    expect(wrapper.html()).toContain('!text-black')
+    expect(wrapper.find('.product-workspace.hf-theme.hf-ui').exists()).toBe(true)
+    expect(wrapper.get('h1').classes()).toContain('hf-page-title')
+    const submit = wrapper.get('button[form="product-detail-form"]')
+    expect(submit.classes()).toContain('hf-primary-control')
+    expect(submit.attributes('type')).toBe('submit')
+    expect(wrapper.html()).not.toContain('!text-black')
+    expect(wrapper.html()).not.toContain('brand-action')
+    const summary = wrapper.get('aside[aria-label="Resumen operativo del producto"]')
+    expect(summary.classes().join(' ')).not.toMatch(/hidden|xl:block/)
+    for (const text of ['Test Product', 'Producto', 'POS', 'Online', 'Precio de venta', 'Costo', 'Margen', 'Stock', '30', '$0.00', 'Datos operativos', '1/4']) {
+      expect(summary.text()).toContain(text)
+    }
+    expect(summary.text()).toContain('No indica elegibilidad editorial')
+    expect(summary.text()).not.toContain('Lista para publicar')
+    expect(wrapper.find('.product-workspace-grid > aside').exists()).toBe(true)
   })
 
   describe('flexible product tasks (S1/S5/S6)', () => {
@@ -334,6 +338,31 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
       await flushPromises()
       return wrapper
     }
+
+    it('derives the summary from pending form values without changing saved price semantics', async () => {
+      const wrapper = await mountTasks()
+      const summary = wrapper.get('aside[aria-label="Resumen operativo del producto"]')
+      await wrapper.get('input[name="name"]').setValue('Nombre operativo pendiente')
+      await wrapper.get('[data-task="presentations"]').trigger('click')
+      await wrapper.get('input[name="purchaseCost"]').setValue('12.50')
+      expect(summary.text()).toContain('Nombre operativo pendiente')
+      expect(summary.get('[data-summary="cost"]').text()).toBe('$12.50')
+      expect(summary.get('[data-summary="price"]').text()).toBe('$0.00')
+      expect(summary.get('[data-summary="stock"]').text()).toBe('30')
+      expect(productApiMocks.update).not.toHaveBeenCalled()
+      wrapper.unmount()
+    })
+
+    it('shows service identity without inventing inventory in the summary', async () => {
+      const wrapper = await mountTasks()
+      await wrapper.get('[role="radio"][value="SERVICE"]').trigger('click')
+      const summary = wrapper.get('aside[aria-label="Resumen operativo del producto"]')
+      expect(summary.text()).toContain('Servicio')
+      expect(summary.get('[data-summary="stock"]').text()).toBe('—')
+      expect(summary.get('[data-summary="price"]').text()).toBe('$0.00')
+      expect(productApiMocks.update).not.toHaveBeenCalled()
+      wrapper.unmount()
+    })
 
     it('keeps raw operational controls mounted across freely selected tasks', async () => {
       const wrapper = await mountTasks()
@@ -380,6 +409,10 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
     it('explains that new products need creation before editorial work', async () => {
       routeState.params = {}
       const wrapper = await mountTasks()
+      const summary = wrapper.get('aside[aria-label="Resumen operativo del producto"]')
+      expect(summary.text()).toContain('Imágenes disponibles después de crear')
+      expect(summary.text()).toContain('0/3')
+      expect(summary.get('[data-summary="price"]').text()).toBe('$0.00')
       for (const task of ['content', 'review']) {
         await wrapper.get(`[data-task="${task}"]`).trigger('click')
         expect(wrapper.get('[data-testid="editorial-unavailable"]').text()).toContain('Crea el producto primero')

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import '@/core/shared/design-system/houndfe-ui.css'
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { AxiosError } from 'axios'
 import { computed, reactive, ref, shallowRef, watch } from 'vue'
@@ -1843,9 +1844,9 @@ function handleEditLotPlaceholder() {
 </script>
 
 <template>
-  <div class="-m-4 flex h-[calc(100%+2rem)] flex-col bg-coco-neutral-50 sm:-m-6 sm:h-[calc(100%+3rem)] dark:bg-coco-neutral-950">
-    <div class="shrink-0 border-b border-default bg-coco-neutral-50/95 px-10 py-4 backdrop-blur dark:bg-coco-neutral-950/95">
-      <div class="mx-auto flex w-full max-w-[1480px] items-center justify-between">
+  <div class="hf-theme hf-ui product-workspace -m-4 flex h-[calc(100%+2rem)] flex-col sm:-m-6 sm:h-[calc(100%+3rem)]">
+    <div class="product-workspace-header shrink-0 border-b border-default px-4 py-4 sm:px-6 lg:px-10">
+      <div class="mx-auto flex w-full max-w-[1480px] flex-wrap items-center justify-between gap-4">
         <div class="flex items-center gap-3">
           <UButton
             icon="i-lucide-arrow-left"
@@ -1855,11 +1856,11 @@ function handleEditLotPlaceholder() {
             @click="handleBack"
           />
           <div>
-            <h1 class="text-xl font-semibold text-coco-neutral-950 dark:text-white">
+            <h1 class="hf-page-title">
               {{ isCreateMode ? createModeTitle : formState.name || 'Producto' }}
             </h1>
-            <p class="text-sm text-muted">
-              {{ isCreateMode ? 'Completa la información del artículo para tu catálogo' : 'Editando producto' }}
+            <p class="hf-page-subtitle">
+              {{ isCreateMode ? 'Empieza con lo esencial y elige qué quieres trabajar.' : 'Datos operativos y contenido editorial, con guardados separados.' }}
             </p>
           </div>
         </div>
@@ -1874,7 +1875,7 @@ function handleEditLotPlaceholder() {
             :loading="updateMutation.isPending.value || createMutation.isPending.value"
             :disabled="!canSubmitMainForm"
             color="primary"
-            class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+            class="hf-primary-control"
           />
         </div>
       </div>
@@ -1898,7 +1899,7 @@ function handleEditLotPlaceholder() {
         <p class="text-sm text-muted">Cargando datos del producto...</p>
       </div>
 
-      <div v-else class="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_332px]">
+      <div v-else class="product-workspace-grid">
         <div class="min-w-0">
         <ProductWorkspaceNavigation :active-task="activeTask" @select="activeTask = $event" />
         <section
@@ -2608,7 +2609,7 @@ function handleEditLotPlaceholder() {
                   type="button"
                   label="Agregar"
                   color="primary"
-                  class="!bg-coco-gold-500/15 !text-coco-gold-800 dark:!text-coco-gold-300 hover:!bg-coco-gold-500/25"
+                  class="hf-primary-control"
                   :disabled="!pendingPriceListSelection"
                   @click="handleAddPendingPriceList"
                 />
@@ -2707,7 +2708,7 @@ function handleEditLotPlaceholder() {
                 label="Agregar Lista de Precios"
                 color="neutral"
                 variant="ghost"
-                class="text-coco-gold-800 dark:text-coco-gold-400"
+                class="text-(--hf-active)"
                 @click="isAddPriceListPickerOpen = true"
               />
             </div>
@@ -2733,102 +2734,50 @@ function handleEditLotPlaceholder() {
       </UForm>
         </div>
 
-        <aside class="hidden xl:block">
-          <div class="sticky top-6 space-y-4">
-            <div class="overflow-hidden rounded-[13px] border border-default bg-coco-neutral-50 shadow-sm dark:bg-coco-neutral-950">
-              <div class="flex h-44 items-center justify-center overflow-hidden bg-[repeating-linear-gradient(45deg,var(--color-coco-neutral-50)_0,var(--color-coco-neutral-50)_10px,var(--color-coco-neutral-100)_10px,var(--color-coco-neutral-100)_20px)] text-muted dark:bg-[repeating-linear-gradient(45deg,var(--color-coco-neutral-950)_0,var(--color-coco-neutral-950)_10px,var(--color-coco-neutral-900)_10px,var(--color-coco-neutral-900)_20px)]">
-                <img
-                  v-if="previewMainImage"
-                  :src="previewMainImage.url"
-                  :alt="formState.name || 'Imagen del producto'"
-                  class="h-full w-full object-cover"
-                >
-                <div v-else class="text-center">
-                  <UIcon name="i-lucide-image" class="mx-auto mb-2 size-8" />
-                  <p class="font-mono text-xs">sin imagen</p>
-                </div>
-              </div>
-
-              <div class="space-y-4 p-4">
-                <div>
-                  <p class="text-xs font-semibold uppercase tracking-wide text-muted">Vista previa</p>
-                  <h2 class="mt-1 line-clamp-2 text-lg font-semibold text-coco-neutral-950 dark:text-white">
-                    {{ formState.name || 'Producto sin nombre' }}
-                  </h2>
-                  <div class="mt-2 flex flex-wrap gap-2">
-                    <span class="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-200">
-                      {{ formState.type === 'PRODUCT' ? 'Producto' : 'Servicio' }}
-                    </span>
-                    <span v-if="formState.sellInPos" class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-                      POS
-                    </span>
-                    <span v-if="formState.includeInOnlineCatalog" class="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-                      Online
-                    </span>
-                  </div>
-                </div>
-
-                <div class="grid grid-cols-2 overflow-hidden rounded-lg border border-default">
-                  <div class="border-b border-r border-default p-3">
-                    <p class="text-[11px] font-semibold uppercase tracking-wide text-muted">Precio venta</p>
-                    <p class="mt-1 font-mono text-xl font-bold text-coco-neutral-950 dark:text-white">
-                      {{ formatCentsMXN(previewPublicPriceCents) }}
-                    </p>
-                  </div>
-                  <div class="border-b border-default p-3">
-                    <p class="text-[11px] font-semibold uppercase tracking-wide text-muted">Costo</p>
-                    <p class="mt-1 font-mono text-xl font-bold text-coco-neutral-950 dark:text-white">
-                      {{ formatCentsMXN(previewCostCents) }}
-                    </p>
-                  </div>
-                  <div class="border-r border-default p-3">
-                    <p class="text-[11px] font-semibold uppercase tracking-wide text-muted">Margen</p>
-                    <p
-                      class="mt-1 font-mono text-lg font-bold"
-                      :class="previewMarginPercent == null ? 'text-muted' : previewMarginPercent >= 0 ? 'text-success' : 'text-error'"
-                    >
-                      {{ previewMarginPercent == null ? '—' : `${previewMarginPercent}%` }}
-                    </p>
-                  </div>
-                  <div class="p-3">
-                    <p class="text-[11px] font-semibold uppercase tracking-wide text-muted">Stock</p>
-                    <p class="mt-1 font-mono text-lg font-bold text-coco-gold-700 dark:text-coco-gold-400">
-                      {{ previewStockTotal ?? '—' }}
-                    </p>
-                  </div>
-                </div>
-              </div>
+        <aside class="product-summary" aria-label="Resumen operativo del producto">
+          <div class="product-summary-image">
+            <img v-if="previewMainImage" :src="previewMainImage.url" :alt="formState.name || 'Imagen del producto'">
+            <p v-else class="text-sm text-muted">Sin imagen</p>
+          </div>
+          <div class="product-summary-body">
+            <h2 class="text-lg font-semibold">{{ formState.name || 'Producto sin nombre' }}</h2>
+            <div class="mt-2 flex flex-wrap gap-2 text-sm text-muted">
+              <span>{{ formState.type === 'PRODUCT' ? 'Producto' : 'Servicio' }}</span>
+              <span v-if="formState.sellInPos">POS</span>
+              <span v-if="formState.includeInOnlineCatalog">Online</span>
             </div>
-
-            <div class="rounded-[13px] border border-default bg-coco-neutral-50 p-4 shadow-sm dark:bg-coco-neutral-950">
-              <div class="mb-3 flex items-center justify-between">
-                <h3 class="font-semibold text-coco-neutral-950 dark:text-white">Lista para publicar</h3>
-                <span class="font-mono text-sm font-semibold text-coco-gold-800 dark:text-coco-gold-400">
-                  {{ previewCompletedItems }}/{{ previewApplicableChecklistItems.length }}
-                </span>
+            <dl class="product-summary-values">
+              <div>
+                <dt>Precio de venta</dt>
+                <dd data-summary="price">{{ formatCentsMXN(previewPublicPriceCents) }}</dd>
               </div>
-
-              <div class="mb-4 h-2 overflow-hidden rounded-full bg-coco-neutral-100 dark:bg-coco-neutral-900">
-                <div class="h-full rounded-full bg-coco-gold-500 transition-all" :style="{ width: `${previewCompletionPercent}%` }" />
+              <div>
+                <dt>Costo</dt>
+                <dd data-summary="cost">{{ formatCentsMXN(previewCostCents) }}</dd>
               </div>
-
-              <ul class="space-y-3">
-                <li
-                  v-for="item in previewChecklistItems"
-                  :key="item.label"
-                  class="flex items-center gap-3 text-sm"
-                  :class="item.disabled ? 'text-muted' : 'text-coco-neutral-700 dark:text-coco-neutral-300'"
-                >
-                  <span
-                    class="flex size-4 shrink-0 items-center justify-center rounded border"
-                    :class="item.done ? 'border-emerald-500 bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'border-coco-neutral-200 dark:border-coco-neutral-800 bg-coco-neutral-100 dark:bg-coco-neutral-900'"
-                  >
-                    <UIcon v-if="item.done" name="i-lucide-check" class="size-3" />
-                  </span>
-                  <span>{{ item.label }}</span>
-                </li>
-              </ul>
+              <div>
+                <dt>Margen</dt>
+                <dd :class="previewMarginPercent == null ? 'text-muted' : previewMarginPercent >= 0 ? 'text-success' : 'text-error'">
+                  {{ previewMarginPercent == null ? '—' : `${previewMarginPercent}%` }}
+                </dd>
+              </div>
+              <div>
+                <dt>Stock</dt>
+                <dd data-summary="stock">{{ previewStockTotal ?? '—' }}</dd>
+              </div>
+            </dl>
+            <div class="mt-6 flex items-center justify-between gap-3">
+              <h3 id="operation-readiness" class="font-semibold">Datos operativos</h3>
+              <span class="text-sm">{{ previewCompletedItems }}/{{ previewApplicableChecklistItems.length }}</span>
             </div>
+            <progress class="product-readiness-progress" :value="previewCompletionPercent" max="100" aria-labelledby="operation-readiness" />
+            <ul class="mt-4 space-y-3 text-sm">
+              <li v-for="item in previewChecklistItems" :key="item.label" class="flex gap-2" :class="{ 'text-muted': item.disabled }">
+                <UIcon :name="item.done ? 'i-lucide-check' : 'i-lucide-minus'" class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+                <span>{{ item.label }}<span class="sr-only">: {{ item.disabled ? 'Después de crear' : item.done ? 'Completo' : 'Pendiente' }}</span></span>
+              </li>
+            </ul>
+            <p class="mt-4 text-sm text-muted">No indica elegibilidad editorial ni publica contenido. Los guardados operativos y de variantes son independientes.</p>
           </div>
         </aside>
       </div>
@@ -2837,7 +2786,7 @@ function handleEditLotPlaceholder() {
     <UModal
       v-model:open="isTierPricesModalOpen"
       title="Precios por Cantidad"
-      :content="{ class: 'sm:max-w-3xl' }"
+      :content="{ class: 'hf-theme hf-ui sm:max-w-3xl' }"
     >
       <template #body>
         <div class="space-y-4">
@@ -2893,7 +2842,7 @@ function handleEditLotPlaceholder() {
             type="button"
             label="Guardar"
             color="primary"
-            class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+            class="hf-primary-control"
             @click="saveTierRows"
           />
         </div>
@@ -2903,7 +2852,7 @@ function handleEditLotPlaceholder() {
     <UModal
       v-model:open="isPendingVariantDetailModalOpen"
       title="Editar variante"
-      :content="{ class: 'sm:max-w-4xl' }"
+      :content="{ class: 'hf-theme hf-ui sm:max-w-4xl' }"
     >
       <template #body>
         <div class="space-y-4">
@@ -3025,7 +2974,7 @@ function handleEditLotPlaceholder() {
       <template #footer>
         <div class="flex w-full justify-end gap-3">
           <UButton type="button" label="Cancelar" color="neutral" variant="outline" @click="closePendingVariantDetailModal" />
-          <UButton type="button" label="Guardar" color="primary" class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm" @click="savePendingVariantDetailModal" />
+          <UButton type="button" label="Guardar" color="primary" class="hf-primary-control" @click="savePendingVariantDetailModal" />
         </div>
       </template>
     </UModal>
@@ -3033,7 +2982,7 @@ function handleEditLotPlaceholder() {
     <UModal
       v-model:open="isPendingVariantTierModalOpen"
       title="Precios por Cantidad"
-      :content="{ class: 'sm:max-w-3xl' }"
+      :content="{ class: 'hf-theme hf-ui sm:max-w-3xl' }"
     >
       <template #body>
         <div class="space-y-4">
@@ -3101,7 +3050,7 @@ function handleEditLotPlaceholder() {
             variant="outline"
             @click="closePendingVariantTierPricesModal"
           />
-          <UButton type="button" label="Guardar" color="primary" class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm" @click="savePendingVariantTierPricesModal" />
+          <UButton type="button" label="Guardar" color="primary" class="hf-primary-control" @click="savePendingVariantTierPricesModal" />
         </div>
       </template>
     </UModal>
@@ -3143,7 +3092,7 @@ function handleEditLotPlaceholder() {
     <UModal
       v-model:open="isCategoryModalOpen"
       title="Nueva categoría"
-      :content="{ class: 'sm:max-w-lg' }"
+      :content="{ class: 'hf-theme hf-ui sm:max-w-lg' }"
     >
       <template #body>
         <UForm
@@ -3180,14 +3129,14 @@ function handleEditLotPlaceholder() {
             type="submit"
             form="create-category-modal-form"
             color="primary"
-            class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+            class="hf-primary-control"
             :loading="createCategoryMutation.isPending.value"
           />
         </div>
       </template>
     </UModal>
 
-    <UModal v-model:open="isBrandModalOpen" title="Nueva marca" :content="{ class: 'sm:max-w-lg' }">
+    <UModal v-model:open="isBrandModalOpen" title="Nueva marca" :content="{ class: 'hf-theme hf-ui sm:max-w-lg' }">
       <template #body>
         <UForm
           id="create-brand-modal-form"
@@ -3223,7 +3172,7 @@ function handleEditLotPlaceholder() {
             type="submit"
             form="create-brand-modal-form"
             color="primary"
-            class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+            class="hf-primary-control"
             :loading="createBrandMutation.isPending.value"
           />
         </div>
@@ -3233,7 +3182,7 @@ function handleEditLotPlaceholder() {
     <UModal
       v-model:open="isLotModalOpen"
       title="Agregar lote"
-      :content="{ class: 'sm:max-w-2xl' }"
+      :content="{ class: 'hf-theme hf-ui sm:max-w-2xl' }"
       @after-leave="resetLotForm"
     >
       <template #body>
@@ -3277,7 +3226,7 @@ function handleEditLotPlaceholder() {
             type="submit"
             form="create-lot-modal-form"
             color="primary"
-            class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+            class="hf-primary-control"
             :loading="createLotMutation.isPending.value"
           />
         </div>
@@ -3287,7 +3236,7 @@ function handleEditLotPlaceholder() {
     <UModal
       v-model:open="isVariantModalOpen"
       :title="variantModalTitle"
-      :content="{ class: 'sm:max-w-2xl' }"
+      :content="{ class: 'hf-theme hf-ui sm:max-w-2xl' }"
       @after-leave="resetVariantForm"
     >
       <template #body>
@@ -3371,7 +3320,7 @@ function handleEditLotPlaceholder() {
             type="submit"
             form="variant-modal-form"
             color="primary"
-            class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+            class="hf-primary-control"
             :loading="
               createVariantMutation.isPending.value || updateVariantMutation.isPending.value
             "
@@ -3381,3 +3330,70 @@ function handleEditLotPlaceholder() {
     </UModal>
   </div>
 </template>
+
+<style scoped>
+.product-workspace { background: var(--hf-page); }
+.product-workspace-header { background: var(--hf-surface); }
+.product-workspace-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  align-items: start;
+  gap: 24px;
+  min-width: 0;
+}
+.product-summary {
+  position: sticky;
+  top: 24px;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--hf-border);
+  border-radius: var(--hf-radius-card);
+  background: var(--hf-surface);
+  overflow-wrap: anywhere;
+}
+.product-summary-image {
+  display: grid;
+  place-items: center;
+  height: 176px;
+  background: var(--hf-surface-muted);
+}
+.product-summary-image img { width: 100%; height: 100%; object-fit: cover; }
+.product-summary-body { padding: 24px; }
+.product-summary-body h2, .product-summary-body h3 { color: var(--hf-heading); }
+.product-summary-values {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+.product-summary-values dt { color: var(--hf-muted); font-size: 0.8125rem; }
+.product-summary-values dd { margin-top: 4px; font-size: 1.125rem; font-weight: 600; }
+.product-readiness-progress {
+  width: 100%;
+  height: 8px;
+  margin-top: 12px;
+  accent-color: var(--hf-active);
+}
+#product-detail-form :deep([data-slot='root'].divide-y) {
+  background: var(--hf-surface);
+  border-radius: var(--hf-radius-card);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--hf-ink) 5%, transparent);
+}
+#product-detail-form :deep(h2) { color: var(--hf-heading); }
+.product-workspace-header :deep(button),
+#product-detail-form :deep(button[data-slot='base']:not([role])) {
+  min-height: var(--hf-control-height);
+}
+.product-workspace-header :deep(button:focus-visible),
+#product-detail-form :deep(button:focus-visible) {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+#product-detail-form :deep(.overflow-hidden:has(> table)) { overflow-x: auto; }
+@media (max-width: 720px) {
+  .product-workspace-grid { grid-template-columns: minmax(0, 1fr); }
+  .product-summary { position: static; }
+  .product-summary-image { height: 112px; }
+  .product-summary-body { padding: 16px; }
+}
+</style>
