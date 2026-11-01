@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui'
 import type { AxiosError } from 'axios'
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, shallowRef, watch } from 'vue'
+import ProductWorkspaceNavigation, { type ProductWorkspaceTask } from '../components/ProductWorkspaceNavigation.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { z } from 'zod'
@@ -124,6 +125,17 @@ function getDefaultFormState(): ProductFormInput {
 }
 
 const formState = reactive<ProductFormInput>(getDefaultFormState())
+const activeTask = shallowRef<ProductWorkspaceTask>('identity')
+const identityFields = new Set([
+  'type', 'name', 'barcode', 'sku', 'sellInPos', 'includeInOnlineCatalog',
+  'requiresPrescription', 'unit', 'categoryId', 'brandId', 'location', 'satKey', 'description',
+])
+
+function revealInvalidTask(event: { errors: { name?: string }[] }) {
+  const name = event.errors[0]?.name
+  if (!name) return
+  activeTask.value = identityFields.has(name) ? 'identity' : 'presentations'
+}
 
 const categorySchema = z.object({
   name: z
@@ -1868,14 +1880,33 @@ function handleEditLotPlaceholder() {
       </div>
 
       <div v-else class="grid min-w-0 grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1fr)_332px]">
+        <div class="min-w-0">
+        <ProductWorkspaceNavigation :active-task="activeTask" @select="activeTask = $event" />
+        <section
+          v-if="activeTask === 'content' || activeTask === 'review'"
+          data-testid="editorial-unavailable"
+          class="rounded-lg border border-default bg-default p-6"
+          aria-labelledby="editorial-unavailable-title"
+        >
+          <h2 id="editorial-unavailable-title" class="text-lg font-semibold">
+            {{ activeTask === 'content' ? 'Contenido editorial' : 'Revisión editorial' }}
+          </h2>
+          <p class="mt-2 text-sm text-muted">
+            {{ isCreateMode
+              ? 'Crea el producto primero para trabajar su contenido editorial.'
+              : 'El contenido editorial todavía no está integrado en este espacio.' }}
+          </p>
+        </section>
         <UForm
           id="product-detail-form"
           class="min-w-0"
           :schema="productFormSchema"
           :state="formState"
           @submit="handleSubmitMainForm"
+          @error="revealInvalidTask"
         >
         <fieldset :disabled="isFormReadonly" class="space-y-6">
+          <div v-show="activeTask === 'identity'" data-product-task="identity">
           <UCard :ui="{ root: 'overflow-visible' }">
             <template #header>
               <h2 class="text-lg font-semibold">Datos del producto</h2>
@@ -2005,6 +2036,11 @@ function handleEditLotPlaceholder() {
             </div>
           </UCard>
 
+          </div>
+          <div v-show="activeTask === 'presentations'" data-product-task="presentations" class="space-y-6">
+          <p class="text-sm text-muted">
+            Precios, impuestos y existencias son datos operativos. Las variantes conservan sus guardados independientes al salir del campo o presionar Enter.
+          </p>
           <UCard v-if="showInventoryFields">
             <template #header>
               <h2 class="text-lg font-semibold">Precio de Compra</h2>
@@ -2668,8 +2704,10 @@ function handleEditLotPlaceholder() {
             :can-update="canUpdateProduct"
             :can-delete="canDeleteProduct"
           />
+          </div>
         </fieldset>
       </UForm>
+        </div>
 
         <aside class="hidden xl:block">
           <div class="sticky top-6 space-y-4">

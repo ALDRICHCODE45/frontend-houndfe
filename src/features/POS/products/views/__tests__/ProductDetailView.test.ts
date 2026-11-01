@@ -4,16 +4,21 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
-import { flushPromises } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
+import { h } from 'vue'
+import UApp from '@nuxt/ui/runtime/components/App.vue'
+import UForm from '@nuxt/ui/runtime/components/Form.vue'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import ProductDetailView from '@/features/POS/products/views/ProductDetailView.vue'
 import VariantImagePickerModal from '@/features/POS/products/components/VariantImagePickerModal.vue'
 import ProductCatalogSettingsSection from '@/features/POS/products/components/ProductCatalogSettingsSection.vue'
 
+const routeState = vi.hoisted(() => ({ params: { id: 'test-product-id' } as Record<string, string> }))
+
 // Mock router
 vi.mock('vue-router', () => ({
   useRoute: vi.fn(() => ({
-    params: { id: 'test-product-id' },
+    params: routeState.params,
   })),
   useRouter: vi.fn(() => ({
     push: vi.fn(),
@@ -143,6 +148,7 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
         mutations: { retry: false },
       },
     })
+    routeState.params = { id: 'test-product-id' }
     mockToast.add.mockClear()
     authState.userCan.mockImplementation((_action: string, _resource: string) => true)
     productApiMocks.update.mockReset()
@@ -288,6 +294,87 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
     // PRD-REQ-003 main submit uses the Cobrar class string.
     expect(wrapper.html()).toContain('bg-(--brand-action)')
     expect(wrapper.html()).toContain('!text-black')
+  })
+
+  describe('flexible product tasks (S1/S5/S6)', () => {
+    async function mountTasks(readonly = false) {
+      if (readonly) {
+        authState.userCan.mockImplementation((action, subject) =>
+          !(action === 'update' && subject === 'Product'))
+      }
+      const wrapper = mount(UApp, {
+        slots: { default: () => h(ProductDetailView) },
+        global: getGlobalConfig(),
+        attachTo: document.body,
+      })
+      await flushPromises()
+      return wrapper
+    }
+
+    it('keeps raw operational controls mounted across freely selected tasks', async () => {
+      const wrapper = await mountTasks()
+      const identity = wrapper.get('[data-product-task="identity"]')
+      const presentations = wrapper.get('[data-product-task="presentations"]')
+      const input = identity.get('input').element as HTMLInputElement
+      await identity.get('input').setValue('Nombre pendiente sin normalizar  ')
+      expect(identity.isVisible()).toBe(true)
+      expect(presentations.isVisible()).toBe(false)
+      await wrapper.get('[data-task="presentations"]').trigger('click')
+      expect(identity.isVisible()).toBe(false)
+      expect(presentations.isVisible()).toBe(true)
+      // Existing variants, prices, inventory and image controls are not replaced.
+      expect(wrapper.findAll('[data-testid="variant-image-button"]')).toHaveLength(2)
+      await wrapper.get('[data-task="review"]').trigger('click')
+      expect(presentations.isVisible()).toBe(false)
+      expect(wrapper.get('[data-testid="editorial-unavailable"]').text()).toContain('todavía no está integrado')
+      expect(wrapper.find('form form').exists()).toBe(false)
+      expect(wrapper.find('[data-testid="editorial-unavailable"]').element.closest('form')).toBeNull()
+      await wrapper.get('[data-task="identity"]').trigger('click')
+      expect(identity.get('input').element).toBe(input)
+      expect(input.value).toBe('Nombre pendiente sin normalizar  ')
+      expect(productApiMocks.update).not.toHaveBeenCalled()
+      wrapper.unmount()
+    })
+
+    it.each([
+      ['purchaseCost', 'presentations'],
+      ['serviceDetail.capacity', 'presentations'],
+      ['name', 'identity'],
+      ['categoryId', 'identity'],
+    ])('reveals the task containing invalid %s without replacing controls', async (name, task) => {
+      const wrapper = await mountTasks()
+      const input = wrapper.get('[data-product-task="identity"] input').element
+      await wrapper.get('[data-task="content"]').trigger('click')
+      wrapper.findComponent(UForm).vm.$emit('error', { errors: [{ name }] })
+      await wrapper.vm.$nextTick()
+      expect(wrapper.get(`[data-product-task="${task}"]`).isVisible()).toBe(true)
+      expect(wrapper.get(`[data-task="${task}"]`).attributes('aria-current')).toBe('page')
+      expect(wrapper.get('[data-product-task="identity"] input').element).toBe(input)
+      wrapper.unmount()
+    })
+
+    it('explains that new products need creation before editorial work', async () => {
+      routeState.params = {}
+      const wrapper = await mountTasks()
+      for (const task of ['content', 'review']) {
+        await wrapper.get(`[data-task="${task}"]`).trigger('click')
+        expect(wrapper.get('[data-testid="editorial-unavailable"]').text()).toContain('Crea el producto primero')
+      }
+      expect(wrapper.find('[data-testid="product-image-gallery"]').exists()).toBe(false)
+      expect(productApiMocks.update).not.toHaveBeenCalled()
+      wrapper.unmount()
+    })
+
+    it('allows read-only navigation without enabling operational editing', async () => {
+      const wrapper = await mountTasks(true)
+      expect(wrapper.get('fieldset').attributes('disabled')).toBeDefined()
+      await wrapper.get('[data-task="presentations"]').trigger('click')
+      expect(wrapper.get('[data-product-task="presentations"]').isVisible()).toBe(true)
+      expect(wrapper.get('fieldset').attributes('disabled')).toBeDefined()
+      expect(wrapper.find('[data-task="presentations"]').element.closest('fieldset')).toBeNull()
+      expect(productApiMocks.update).not.toHaveBeenCalled()
+      wrapper.unmount()
+    })
   })
 
   // ── WU5: advanced 'Catálogo online' section (REQ-14 / REQ-15 / REQ-18) ──────
