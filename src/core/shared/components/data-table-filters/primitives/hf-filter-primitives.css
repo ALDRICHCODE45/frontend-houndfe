@@ -1,0 +1,62 @@
+/* Family-owned paint only. The App/explicit portal boundary supplies HF roles;
+ * no standalone theme opt-in, positioning, focus trapping or event overrides. */
+.hf-ui .hf-filter-control:is(button, input),
+.hf-ui .hf-filter-control input {
+  min-height: var(--hf-control-height);
+  border-radius: var(--hf-radius-control);
+  background-color: var(--hf-field);
+  color: var(--hf-ink);
+  font-family: var(--hf-font);
+}
+
+/* Form errors keep Nuxt's semantic error ring instead of the neutral field. */
+.hf-ui .hf-filter-control:is(button, input):not([aria-invalid='true']),
+.hf-ui .hf-filter-control input:not([aria-invalid='true']) {
+  --tw-ring-color: var(--hf-field-border);
+}
+
+.hf-ui .hf-filter-active:not([aria-invalid='true']) {
+  --tw-ring-color: var(--hf-active);
+}
+
+.hf-ui .hf-filter-control.hf-filter-active:not([aria-invalid='true']) {
+  --tw-ring-color: var(--hf-active);
+}
+
+.hf-ui .hf-filter-control:is(button, input):focus-visible,
+.hf-ui .hf-filter-control input:focus-visible {
+  outline: 2px solid var(--hf-focus);
+  outline-offset: 2px;
+}
+
+/* Both inherited App portals and explicit isolated feature portals work.
+ * Do not alter native collision sizing, z-index or mobile overlay ownership. */
+.hf-ui .hf-filter-portal,
+.hf-ui.hf-filter-portal {
+  background-color: var(--hf-surface);
+  color: var(--hf-ink);
+  --tw-ring-color: var(--hf-border);
+  border-radius: var(--hf-radius-control);
+  font-family: var(--hf-font);
+}
+
+.hf-ui .hf-filter-portal [role='option'][data-highlighted],
+.hf-ui.hf-filter-portal [role='option'][data-highlighted] {
+  background-color: var(--hf-surface-muted);
+}
+
+.hf-ui .hf-filter-portal [role='option'][data-state='checked'],
+.hf-ui.hf-filter-portal [role='option'][data-state='checked'] {
+  background-color: var(--hf-active-soft);
+  color: var(--hf-active);
+}
+
+.hf-ui .hf-filter-preset {
+  min-height: var(--hf-control-height);
+  border-radius: var(--hf-radius-control);
+  color: var(--hf-ink);
+}
+
+.hf-ui .hf-filter-preset:hover {
+  background-color: var(--hf-surface-muted);
+}

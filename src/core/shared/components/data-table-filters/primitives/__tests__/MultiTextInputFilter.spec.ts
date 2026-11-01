@@ -70,7 +70,9 @@ describe('MultiTextInputFilter', () => {
 
   it('uses w-full in input root', () => {
     const wrapper = mountComponent()
-    expect(wrapper.get('[data-testid="multi-text-input"]').classes()).toContain('w-full')
+    const input = wrapper.get('[data-testid="multi-text-input"]')
+    expect(input.classes()).toContain('w-full')
+    expect(input.element.closest('.hf-filter-control')).not.toBeNull()
   })
 
   it('renders external error message', () => {

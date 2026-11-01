@@ -86,6 +86,55 @@ function mountDate(portalClass?: string) {
   })
 }
 
+describe('HF filter roles preserve optional feature portal boundaries (A4/S2,S3,S6)', () => {
+  it.each([
+    ['enum', mountEnum, 'enum-select'],
+    ['async', mountAsync, 'async-select'],
+    ['date', mountDate, 'date-range-trigger'],
+  ] as const)('marks the real control and portal without inventing a feature opt-in (%s)', async (_name, mountFilter, testId) => {
+    const wrapper = mountFilter()
+    const trigger = wrapper.get(`[data-testid="${testId}"]`)
+    expect(trigger.classes()).toContain('hf-filter-control')
+    await trigger.trigger('click')
+    await flushPromises()
+    expect(portalContent()?.classList.contains('hf-filter-portal')).toBe(true)
+    expect(portalContent()?.classList.contains('quotations-list-portal')).toBe(false)
+  })
+})
+
+describe('HF filter native interaction regressions (A4/S6)', () => {
+  it.each([
+    [mountEnum, 'enum-select', 'Estado'],
+    [mountAsync, 'async-select', 'Vendedor'],
+  ] as const)('names the native trigger after its visible field label (%s)', (mountFilter, testId, label) => {
+    const wrapper = mountFilter()
+    expect(wrapper.get(`[data-testid="${testId}"]`).attributes('aria-label')).toBe(label)
+  })
+  it('keeps real async search and multiselection with a feature portal', async () => {
+    const wrapper = mountAsync(MARKER)
+    await wrapper.get('[data-testid="async-select"]').trigger('click')
+    await flushPromises()
+    const content = portalContent()!
+    const input = content.querySelector('input')!
+    input.value = 'Ana'
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+    await flushPromises()
+    const option = content.querySelector<HTMLElement>('[role="option"]')!
+    expect(option.textContent).toContain('Ana')
+    option.click()
+    await flushPromises()
+    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([['seller-1']])
+    // Multiple mode stays open; selecting again removes that value.
+    expect(content.isConnected).toBe(true)
+    option.click()
+    await flushPromises()
+    expect(wrapper.emitted('update:modelValue')?.[1]).toEqual([[]])
+    content.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await flushPromises()
+    expect(wrapper.get('[data-testid="async-select"]').attributes('aria-expanded')).toBe('false')
+  })
+})
+
 describe('Filter popup portal opt-in — absence is inert (T5/S3)', () => {
   it('renders no quotations marker on the real enum select popup when portalClass is absent', async () => {
     const wrapper = mountEnum()

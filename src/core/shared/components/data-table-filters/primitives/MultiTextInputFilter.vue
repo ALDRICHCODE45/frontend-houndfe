@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import './hf-filter-primitives.css'
 
 const props = withDefaults(defineProps<{
   label: string
@@ -76,7 +77,7 @@ function onKeydown(event: KeyboardEvent) {
   <UFormField :label="props.label" :error="props.error" class="w-full" data-testid="multi-text-input-filter">
     <UInput
       v-model="inputValue"
-      :class="['w-full', props.isActive && 'ring-2 ring-primary ring-inset rounded']"
+      :class="['w-full hf-filter-control', props.isActive && 'hf-filter-active ring-2 ring-primary ring-inset rounded']"
       :data-testid="'multi-text-input'"
       :placeholder="props.placeholder"
       @blur="commit"

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import './hf-filter-primitives.css'
 import { CURRENCY_CONFIG } from '@/core/shared/utils/currency.utils'
 
 const props = withDefaults(defineProps<{
@@ -90,10 +91,10 @@ function updateMax(value: unknown) {
 
 <template>
   <UFormField :label="props.label" :error="resolvedError" class="w-full" data-testid="numeric-range-filter">
-    <div :class="['grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded', props.isActive && 'ring-2 ring-primary ring-inset p-1']">
+    <div :class="['grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 rounded', props.isActive && 'hf-filter-active ring-2 ring-primary ring-inset p-1']">
       <UInputNumber
         data-testid="numeric-min"
-        class="w-full"
+        class="w-full hf-filter-control"
         :min="0"
         :step="props.step"
         :model-value="minDisplay"
@@ -108,7 +109,7 @@ function updateMax(value: unknown) {
 
       <UInputNumber
         data-testid="numeric-max"
-        class="w-full"
+        class="w-full hf-filter-control"
         :min="0"
         :step="props.step"
         :model-value="maxDisplay"

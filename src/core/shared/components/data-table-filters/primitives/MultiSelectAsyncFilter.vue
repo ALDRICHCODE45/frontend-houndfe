@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import './hf-filter-primitives.css'
 
 type PrimitiveOption = {
   label: string
@@ -105,7 +106,9 @@ const selectedLabel = computed(() => {
   <UFormField :label="props.label" :error="props.error" class="w-full" data-testid="multi-select-async-filter">
     <USelectMenu
       data-testid="async-select"
-      :class="['w-full', props.isActive && 'ring-2 ring-primary ring-inset rounded']"
+      :aria-label="props.label"
+      :class="['w-full hf-filter-control', props.isActive && 'hf-filter-active ring-2 ring-primary ring-inset rounded']"
+      :content="{ class: 'hf-filter-portal' }"
       :ui="props.portalClass ? { content: props.portalClass } : undefined"
       v-model="selectionWithSentinel"
       :items="displayItems"

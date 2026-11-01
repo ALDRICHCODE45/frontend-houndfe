@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { CalendarDate, getLocalTimeZone, today } from '@internationalized/date'
 import { computed, shallowRef, watch } from 'vue'
+import './hf-filter-primitives.css'
 import { localEndOfDayUTC, localStartOfDayUTC } from '@/core/shared/utils/dateRangeBoundaries'
 
 const props = withDefaults(defineProps<{
@@ -99,7 +100,7 @@ type Preset = {
   label: string
 }
 
-const presets: Preset[] = [
+const presetOptions: Preset[] = [
   { key: 'today', label: 'Hoy' },
   { key: 'yesterday', label: 'Ayer' },
   { key: 'last7', label: 'Últimos 7 días' },
@@ -155,27 +156,27 @@ const rangeLabel = computed(() => {
 <template>
   <UFormField :label="props.label" :error="resolvedError" class="w-full" data-testid="date-range-filter">
     <UPopover
-      :content="{ align: 'start', side: 'bottom', sideOffset: 8 }"
+      :content="{ align: 'start', side: 'bottom', sideOffset: 8, class: 'hf-filter-portal max-w-[calc(100vw-2rem)]' }"
       :ui="props.portalClass ? { content: props.portalClass } : undefined"
     >
       <UButton
         data-testid="date-range-trigger"
         variant="outline"
         color="neutral"
-        :class="['w-full justify-start', props.isActive && 'ring-2 ring-primary ring-inset']"
+        :class="['w-full justify-start hf-filter-control', props.isActive && 'hf-filter-active ring-2 ring-primary ring-inset']"
       >
         {{ rangeLabel }}
       </UButton>
 
       <template #content>
-        <div class="flex max-w-full flex-col gap-3 p-2 sm:min-w-[540px] sm:flex-row">
-          <div v-if="props.presets" class="-mx-1 flex gap-1 overflow-x-auto px-1 sm:mx-0 sm:w-44 sm:flex-col sm:overflow-visible sm:px-0">
+        <div class="flex w-[min(540px,calc(100vw-2rem))] min-w-0 max-w-full flex-col gap-3 p-2 sm:flex-row">
+          <div v-if="props.presets" class="flex min-w-0 max-w-full gap-1 overflow-x-auto sm:w-44 sm:shrink-0 sm:flex-col sm:overflow-visible">
             <UButton
-              v-for="preset in presets"
+              v-for="preset in presetOptions"
               :key="preset.key"
               variant="ghost"
               color="neutral"
-              class="justify-start whitespace-nowrap"
+              class="hf-filter-preset justify-start whitespace-nowrap"
               data-testid="date-preset"
               @click="applyPreset(preset.key)"
             >
@@ -185,7 +186,7 @@ const rangeLabel = computed(() => {
 
           <UCalendar
             data-testid="date-range-calendar"
-            class="w-full"
+            class="min-w-0 w-full"
             range
             :model-value="selectedRange"
             @update:model-value="updateRange"
