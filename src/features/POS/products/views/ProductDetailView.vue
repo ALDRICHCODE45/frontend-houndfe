@@ -3,6 +3,8 @@ import type { FormSubmitEvent } from '@nuxt/ui'
 import type { AxiosError } from 'axios'
 import { computed, reactive, ref, shallowRef, watch } from 'vue'
 import ProductWorkspaceNavigation, { type ProductWorkspaceTask } from '../components/ProductWorkspaceNavigation.vue'
+import EditorialWorkspace from '../components/editorial/EditorialWorkspace.vue'
+import { canReadEditorial } from '../authorization/editorial-access'
 import { useRoute, useRouter } from 'vue-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { z } from 'zod'
@@ -288,6 +290,23 @@ const canSubmitMainForm = computed(() =>
   isCreateMode.value ? canCreateProduct.value : canUpdateProduct.value,
 )
 const isFormReadonly = computed(() => !isCreateMode.value && !canUpdateProduct.value)
+const isEditorialTask = computed(() => activeTask.value === 'content' || activeTask.value === 'review')
+const editorialVisited = shallowRef(false)
+const editorialUnavailableReason = computed(() => {
+  if (isCreateMode.value) return 'Crea el producto primero para trabajar su contenido editorial.'
+  if (!authStore.isAuthenticated || authStore.authPhase !== 'authenticated' || !authStore.user?.id)
+    return 'Espera a que tu sesión esté lista para consultar contenido editorial.'
+  if (!authStore.permissionsLoaded) return 'Espera a que se carguen tus permisos editoriales.'
+  if (!authStore.currentTenant?.id && !authStore.isSuperAdmin)
+    return 'Selecciona un tenant para consultar contenido editorial.'
+  if (!canReadEditorial(authStore.permissionCodes, authStore.isSuperAdmin))
+    return 'No tienes permiso para consultar el contenido editorial de este producto.'
+  return null
+})
+const canAccessEditorial = computed(() => editorialUnavailableReason.value === null)
+watch([isEditorialTask, canAccessEditorial], ([selected, allowed]) => {
+  if (selected && allowed) editorialVisited.value = true
+}, { flush: 'sync' })
 
 const {
   data: product,
@@ -1883,7 +1902,7 @@ function handleEditLotPlaceholder() {
         <div class="min-w-0">
         <ProductWorkspaceNavigation :active-task="activeTask" @select="activeTask = $event" />
         <section
-          v-if="activeTask === 'content' || activeTask === 'review'"
+          v-if="isEditorialTask && !canAccessEditorial"
           data-testid="editorial-unavailable"
           class="rounded-lg border border-default bg-default p-6"
           aria-labelledby="editorial-unavailable-title"
@@ -1892,11 +1911,16 @@ function handleEditLotPlaceholder() {
             {{ activeTask === 'content' ? 'Contenido editorial' : 'Revisión editorial' }}
           </h2>
           <p class="mt-2 text-sm text-muted">
-            {{ isCreateMode
-              ? 'Crea el producto primero para trabajar su contenido editorial.'
-              : 'El contenido editorial todavía no está integrado en este espacio.' }}
+            {{ editorialUnavailableReason }}
           </p>
         </section>
+        <EditorialWorkspace
+          v-if="editorialVisited && canAccessEditorial"
+          v-show="isEditorialTask"
+          :product-id="productIdOrEmpty"
+          :embedded="true"
+          :active-section="activeTask === 'review' ? 'review' : 'content'"
+        />
         <UForm
           id="product-detail-form"
           class="min-w-0"

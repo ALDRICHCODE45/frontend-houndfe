@@ -5,7 +5,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query'
 import { flushPromises, mount } from '@vue/test-utils'
-import { h } from 'vue'
+import { h, reactive } from 'vue'
+import EditorialWorkspace from '../../components/editorial/EditorialWorkspace.vue'
+import { envelope, vocabularyEnvelope } from '../../__tests__/editorial-contract-fixtures'
 import UApp from '@nuxt/ui/runtime/components/App.vue'
 import UForm from '@nuxt/ui/runtime/components/Form.vue'
 import { mountWithUApp } from '@/test/mountWithUApp'
@@ -31,6 +33,16 @@ const mockToast = {
 }
 vi.stubGlobal('useToast', () => mockToast)
 
+const editorialSession = reactive({
+  isAuthenticated: true, authPhase: 'authenticated', userId: 'user-1',
+  tenantId: 'tenant-1' as string | null, permissionsLoaded: true,
+  permissionCodes: [] as string[], isSuperAdmin: false,
+})
+const editorialReads = vi.hoisted(() => ({
+  getVocabulary: vi.fn(), getState: vi.fn(), getContext: vi.fn(),
+}))
+vi.mock('../../api/editorial-contract.api', () => ({ editorialContractApi: editorialReads }))
+
 // Mock auth store — controllable grants + tenant id (WU5 gate matrix).
 const authState = vi.hoisted(() => ({
   userCan: vi.fn((_action: string, _resource: string) => true),
@@ -39,7 +51,13 @@ const authState = vi.hoisted(() => ({
 
 vi.mock('@/features/auth/stores/useAuthStore', () => ({
   useAuthStore: vi.fn(() => ({
-    user: { id: 'user-1', email: 'test@test.com' },
+    get user() { return { id: editorialSession.userId, email: 'test@test.com' } },
+    get isAuthenticated() { return editorialSession.isAuthenticated },
+    get authPhase() { return editorialSession.authPhase },
+    get currentTenant() { return editorialSession.tenantId ? { id: editorialSession.tenantId } : null },
+    get permissionsLoaded() { return editorialSession.permissionsLoaded },
+    get permissionCodes() { return editorialSession.permissionCodes },
+    get isSuperAdmin() { return editorialSession.isSuperAdmin },
     userCan: authState.userCan,
     currentTenantId: authState.currentTenantId,
   })),
@@ -148,6 +166,12 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
         mutations: { retry: false },
       },
     })
+    Object.assign(editorialSession, { isAuthenticated: true, authPhase: 'authenticated',
+      userId: 'user-1', tenantId: 'tenant-1', permissionsLoaded: true,
+      permissionCodes: [], isSuperAdmin: false })
+    editorialReads.getVocabulary.mockReset().mockResolvedValue(vocabularyEnvelope())
+    editorialReads.getState.mockReset().mockResolvedValue(envelope())
+    editorialReads.getContext.mockReset().mockResolvedValue({ variants: [], priceLists: [] })
     routeState.params = { id: 'test-product-id' }
     mockToast.add.mockClear()
     authState.userCan.mockImplementation((_action: string, _resource: string) => true)
@@ -326,7 +350,7 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
       expect(wrapper.findAll('[data-testid="variant-image-button"]')).toHaveLength(2)
       await wrapper.get('[data-task="review"]').trigger('click')
       expect(presentations.isVisible()).toBe(false)
-      expect(wrapper.get('[data-testid="editorial-unavailable"]').text()).toContain('todavía no está integrado')
+      expect(wrapper.get('[data-testid="editorial-unavailable"]').text()).toContain('No tienes permiso')
       expect(wrapper.find('form form').exists()).toBe(false)
       expect(wrapper.find('[data-testid="editorial-unavailable"]').element.closest('form')).toBeNull()
       await wrapper.get('[data-task="identity"]').trigger('click')
@@ -361,9 +385,88 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
         expect(wrapper.get('[data-testid="editorial-unavailable"]').text()).toContain('Crea el producto primero')
       }
       expect(wrapper.find('[data-testid="product-image-gallery"]').exists()).toBe(false)
+      expect(editorialReads.getVocabulary).not.toHaveBeenCalled()
       expect(productApiMocks.update).not.toHaveBeenCalled()
       wrapper.unmount()
     })
+
+    it('lazily mounts one real editor outside UForm and retains its pending input', async () => {
+      editorialSession.permissionCodes = ['read:ProductEditorialDraft', 'update:ProductEditorialDraft']
+      const wrapper = await mountTasks()
+      expect(editorialReads.getVocabulary).not.toHaveBeenCalled()
+      expect(wrapper.findComponent(EditorialWorkspace).exists()).toBe(false)
+      await wrapper.get('[data-task="content"]').trigger('click')
+      await flushPromises()
+      const workspace = wrapper.getComponent(EditorialWorkspace)
+      expect(workspace.props('embedded')).toBe(true)
+      expect(workspace.props('activeSection')).toBe('content')
+      expect(workspace.element.closest('#product-detail-form')).toBeNull()
+      const input = workspace.get('input')
+      await input.setValue('Título pendiente  ')
+      for (const task of ['review', 'identity', 'presentations', 'content']) {
+        await wrapper.get(`[data-task="${task}"]`).trigger('click')
+        expect(wrapper.findAllComponents(EditorialWorkspace)).toHaveLength(1)
+        expect(wrapper.getComponent(EditorialWorkspace).element === workspace.element).toBe(true)
+        expect(workspace.isVisible()).toBe(task === 'review' || task === 'content')
+        if (task === 'review') expect(workspace.props('activeSection')).toBe('review')
+      }
+      expect(workspace.get('input').element).toBe(input.element)
+      expect((input.element as HTMLInputElement).value).toBe('Título pendiente  ')
+      expect(editorialReads.getVocabulary).toHaveBeenCalledTimes(1)
+      expect(editorialReads.getState).toHaveBeenCalledTimes(1)
+      expect(productApiMocks.update).not.toHaveBeenCalled()
+      wrapper.unmount()
+    })
+
+    it.each([
+      [{ permissionCodes: [] }, 'No tienes permiso'],
+      [{ permissionCodes: ['publish:ProductEditorialDraft'] }, 'No tienes permiso'],
+      [{ permissionCodes: ['manage:all'], tenantId: null }, 'tenant'],
+      [{ permissionsLoaded: false }, 'Espera'],
+      [{ isAuthenticated: false }, 'sesión'],
+      [{ authPhase: 'authenticating' }, 'sesión'],
+      [{ userId: '' }, 'sesión'],
+      [{ tenantId: null }, 'tenant'],
+    ])('does not mount or read for an unavailable session: %j', async (changes, reason) => {
+      editorialSession.permissionCodes = ['read:ProductEditorialDraft']
+      Object.assign(editorialSession, changes)
+      const wrapper = await mountTasks()
+      await wrapper.get('[data-task="review"]').trigger('click')
+      expect(wrapper.get('[data-testid="editorial-unavailable"]').text()).toContain(reason)
+      expect(wrapper.findComponent(EditorialWorkspace).exists()).toBe(false)
+      expect(editorialReads.getVocabulary).not.toHaveBeenCalled()
+      wrapper.unmount()
+    })
+
+    it.each([
+      { permissionCodes: ['read:ProductEditorialDraft'] },
+      { permissionCodes: ['manage:all'] },
+      { permissionCodes: [], isSuperAdmin: true, tenantId: null },
+    ])('uses existing editorial grants independently of operational update: %j', async grants => {
+      Object.assign(editorialSession, grants)
+      const wrapper = await mountTasks(true)
+      await wrapper.get('[data-task="content"]').trigger('click')
+      await flushPromises()
+      expect(wrapper.findComponent(EditorialWorkspace).exists()).toBe(true)
+      expect(editorialReads.getState).toHaveBeenCalledTimes(1)
+      expect(wrapper.get('#product-detail-form fieldset').attributes('disabled')).toBeDefined()
+      expect(productApiMocks.update).not.toHaveBeenCalled()
+      wrapper.unmount()
+    })
+
+    it.each([{ userId: 'user-2' }, { tenantId: 'tenant-2' }, { permissionCodes: [] }])(
+      'retires prior sensitive controls when session context changes: %j', async changes => {
+        editorialSession.permissionCodes = ['read:ProductEditorialDraft', 'update:ProductEditorialDraft']
+        const wrapper = await mountTasks()
+        await wrapper.get('[data-task="content"]').trigger('click')
+        await flushPromises()
+        const oldInput = wrapper.getComponent(EditorialWorkspace).get('input').element
+        Object.assign(editorialSession, changes)
+        await flushPromises()
+        expect(wrapper.findAll('input').some(input => input.element === oldInput)).toBe(false)
+        wrapper.unmount()
+      },
+    )
 
     it('allows read-only navigation without enabling operational editing', async () => {
       const wrapper = await mountTasks(true)
