@@ -10,6 +10,11 @@ coverage in [`hf-ui-complete-audit.md`](../odd/tasks/hf-ui-complete-audit.md).
 body-targeted teleports inherit the same semantic defaults. Cleanup removes only
 markers installed by that App. Importing the stylesheet outside App still does
 not activate it. Nuxt cards and dashboard panels use semantic surface defaults.
+Legacy surface/text roles are rebound to HF at `.hf-ui`, where the referenced
+variables actually exist. Referenced Coco shade scales remain until their
+consumers migrate. Legacy actions with forced black foreground retain their HF
+gold background temporarily; feature-owned blue actions keep the matching
+`--hf-on-action` foreground. Do not flatten status colors into the action color.
 
 This supersedes the historical opt-in-only rollout restrictions below, not their
 feature-composition or behavioral contracts. Feature markers still own layout,

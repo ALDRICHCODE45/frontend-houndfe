@@ -13,6 +13,26 @@ body.hf-app {
 }
 
 .hf-ui {
+  /* Rebind the root compatibility vocabulary where HF tokens actually live.
+   * Do not remap shade scales: their foreground/background compositions and
+   * status uses require individual migration. Feature-owned aliases below
+   * this boundary (for example sales detail's blue action pair) still win. */
+  --surface-page: var(--hf-page);
+  --surface-card: var(--hf-surface);
+  --surface-hover: var(--hf-surface-muted);
+  --surface-input: var(--hf-field);
+  --border-subtle: var(--hf-border);
+  --border-card: var(--hf-border);
+  --text-primary: var(--hf-ink);
+  --text-secondary: var(--hf-muted);
+  --text-muted: var(--hf-muted);
+  --brand-primary: var(--hf-action);
+  --brand-soft: var(--hf-active-soft);
+  --brand-action: var(--hf-gold);
+  --brand-accent: var(--hf-active);
+  --brand-warm: var(--hf-gold-ink);
+  --brand-warm-soft: var(--hf-gold-soft);
+
   /* Nuxt UI semantic aliases. */
   --ui-primary: var(--hf-action);
   --ui-text-highlighted: var(--hf-heading);

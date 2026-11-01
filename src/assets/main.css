@@ -74,29 +74,29 @@
   --coco-white:  #ffffff;
   --coco-red:    #ef4444;
 
-  /* ── Semantic surface tokens (dark-first) ── */
-  --surface-page:    #000000;
-  --surface-card:    #2c2434;
-  --surface-hover:   #493f54;
-  --surface-input:   #2c2434;
-
-  /* ── Semantic border tokens ── */
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-card:   rgba(255, 255, 255, 0.12);
-
-  /* ── Semantic text tokens ── */
-  --text-primary:   #ffffff;
-  --text-secondary: rgba(255, 255, 255, 0.60);
-  --text-muted:     rgba(255, 255, 255, 0.38);
-
-  /* ── Semantic brand role tokens ── */
-  --brand-primary:  #2442f6;
-  --brand-soft:     #173968;
-  --brand-action:   #f6bb13;
-  --brand-accent:   #5eeaf1;
-  --brand-danger:   #ef4444;
-  --brand-warm:     #443218;
-  --brand-warm-soft: #ebd5d0;
+  /* Legacy semantic vocabulary now follows HF, not a dark-first palette.
+   * Rebound at .hf-ui as well: root var() values cannot resolve tokens that
+   * only exist on a descendant boundary. Shade scales above remain literal
+   * until their individual consumers migrate. */
+  --surface-page: var(--hf-page);
+  --surface-card: var(--hf-surface);
+  --surface-hover: var(--hf-surface-muted);
+  --surface-input: var(--hf-field);
+  --border-subtle: var(--hf-border);
+  --border-card: var(--hf-border);
+  --text-primary: var(--hf-ink);
+  --text-secondary: var(--hf-muted);
+  --text-muted: var(--hf-muted);
+  --brand-primary: var(--hf-action);
+  --brand-soft: var(--hf-active-soft);
+  /* Existing consumers pair this background with forced black text. Keep
+   * the gold pair; blue primary actions use --hf-action/--hf-on-action. The
+   * fallback preserves isolated legacy consumers without activating HF. */
+  --brand-action: var(--hf-gold, #f6bb13);
+  --brand-accent: var(--hf-active);
+  --brand-danger: #ef4444;
+  --brand-warm: var(--hf-gold-ink);
+  --brand-warm-soft: var(--hf-gold-soft);
 
   /* ── Radius scale ── */
   --radius-xs:   4px;
