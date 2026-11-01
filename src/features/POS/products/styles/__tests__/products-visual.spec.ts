@@ -120,8 +120,8 @@ afterEach(() => {
   styles.splice(0).forEach((style) => style.remove())
 })
 
-describe('shared opt-in UI adapter', () => {
-  it('reuses the theme foundation without global resets or fixed palettes', () => {
+describe('shared HF UI adapter', () => {
+  it('allows the app-owned canvas without unscoped resets or fixed palettes', () => {
     expect(shared).toMatch(/@import\s+['"][^'"]*houndfe-theme\.css['"]/)
     expect(shared).not.toContain('!important')
     expect(shared).not.toContain('coco-')
@@ -130,6 +130,11 @@ describe('shared opt-in UI adapter', () => {
     const optIn =
       /\.hf-(?:ui|theme|page-header|page-title|page-subtitle|table-surface|table-content|data-table|form-overlay|primary-control)/
     for (const selector of selectorsOf(shared)) {
+      if (selector === 'body.hf-app') {
+        const canvas = styleRules(shared).find(rule => rule.selectorText.trim() === selector)!
+        expect(canvas.style.getPropertyValue('background-color').trim()).toBe('var(--hf-page)')
+        continue
+      }
       expect(selector).not.toMatch(/^(?:\*|html|body|:root|button|input|select|textarea|a|table)\b/)
       expect(selector).toMatch(optIn)
     }

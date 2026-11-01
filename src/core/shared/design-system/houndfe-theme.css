@@ -1,8 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;650;700&display=swap');
 
-/* Opt-in foundation. Importing this file never changes the global app theme.
- * Existing Caja presentation components are the first consumers; future
- * surfaces can opt in with .hf-theme without depending on Nuxt UI aliases.
+/* HF foundation. App installs .hf-theme on body for routed UI and teleports;
+ * isolated consumers can still opt in without activating a global boundary.
  * Font loading is external; system fonts remain a usable offline fallback.
  */
 .hf-theme,

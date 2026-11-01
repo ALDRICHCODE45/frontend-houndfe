@@ -2,6 +2,27 @@
 
 Use the accepted Caja visual language as the shared foundation, standardize table-based screens first, and use v0 for carefully scoped design exploration. Preserve existing behavior throughout migration. This document defines the design contract; it does not implement or approve a system-wide code rollout.
 
+## Current application rollout
+
+The complete HF audit is now explicitly authorized; track implementation and
+coverage in [`hf-ui-complete-audit.md`](../odd/tasks/hf-ui-complete-audit.md).
+`App.vue` installs `hf-theme hf-ui hf-app` on `body`, so routed content and
+body-targeted teleports inherit the same semantic defaults. Cleanup removes only
+markers installed by that App. Importing the stylesheet outside App still does
+not activate it. Nuxt cards and dashboard panels use semantic surface defaults.
+
+This supersedes the historical opt-in-only rollout restrictions below, not their
+feature-composition or behavioral contracts. Feature markers still own layout,
+spacing and specialized variants; a global boundary does not override literal
+child colors or prove nested-overlay coverage. Isolated consumers still need an
+explicit boundary. Preserve destructive/status semantics and existing handlers.
+
+Current evidence: 74 tests across eight focused suites, full `pnpm build` and
+`git diff --check` passed. Actual product-editor category/SAT menus were checked
+at 390/1440px in light/dark: 44px triggers, 2px focus and horizontal containment.
+This is not all-route, all-state, contrast or slideover acceptance. Build warnings
+for generated `env(...)` CSS and chunks over 500kB remain recorded.
+
 ## Quick path
 
 1. Classify the screen: table-based workspace or specialized workflow.

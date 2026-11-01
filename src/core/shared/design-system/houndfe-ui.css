@@ -1,18 +1,16 @@
 @import './houndfe-theme.css';
 
-/* Shared opt-in semantic UI adapter for the HoundFe retail foundation.
- *
- * Importing this file never changes the global application theme. A consumer
- * opts in by adding `hf-theme hf-ui` to its own root: `hf-theme` provides the
- * semantic tokens and `hf-ui` maps the framework aliases inside that boundary.
- * Both layers are mapped because Nuxt UI reads `--ui-*` while the generated
- * Tailwind utilities read the `--text-color-*`, `--background-color-*` and
- * `--border-color-*` aliases.
- *
- * Teleported content (dialogs, menus, slideovers) escapes its ancestor, so a
- * portal must repeat `hf-theme hf-ui` on its own root. Unmigrated screens and
- * the Caja pilot keep their own presentation because nothing here is global.
+/* HF semantic adapter. App installs `hf-theme hf-ui` on body so routed
+ * content and body-targeted teleports share defaults without feature opt-ins.
+ * Isolated consumers can still mark their own root; stylesheet import alone
+ * does not activate HF. Nuxt reads --ui-*; generated Tailwind utilities read
+ * the corresponding text/background/border aliases, so both must be mapped.
+ * Feature composition and semantic status colors remain independently owned.
  */
+
+body.hf-app {
+  background-color: var(--hf-page);
+}
 
 .hf-ui {
   /* Nuxt UI semantic aliases. */
@@ -179,8 +177,8 @@
   color: var(--hf-muted);
 }
 
-/* Operational touch targets, including teleported menu actions once their
- * portal repeats the `hf-theme hf-ui` boundary. */
+/* Operational touch targets, including body portals in App and explicitly
+ * marked portals in isolated consumers. */
 .hf-ui [role='menuitem'],
 .hf-ui [role='option'] {
   min-height: var(--hf-control-height);

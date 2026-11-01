@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import '@/core/shared/design-system/hf-toast.css'
+import '@/core/shared/design-system/houndfe-ui.css'
+import { useHfAppTheme } from '@/core/shared/design-system/useHfAppTheme'
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { es } from '@nuxt/ui/locale'
@@ -7,6 +9,7 @@ import DashboardLayout from '@/app/layouts/DashboardLayout.vue'
 import AuthLayout from '@/app/layouts/AuthLayout.vue'
 import CatalogLayout from '@/app/layouts/CatalogLayout.vue'
 
+useHfAppTheme()
 const route = useRoute()
 
 const currentLayout = computed(() => {
