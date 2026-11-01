@@ -2735,17 +2735,22 @@ function handleEditLotPlaceholder() {
         </div>
 
         <aside class="product-summary" aria-label="Resumen operativo del producto">
+          <div class="product-summary-identity">
           <div class="product-summary-image">
             <img v-if="previewMainImage" :src="previewMainImage.url" :alt="formState.name || 'Imagen del producto'">
             <p v-else class="text-sm text-muted">Sin imagen</p>
           </div>
-          <div class="product-summary-body">
+          <div class="product-summary-heading">
+            <p class="product-summary-eyebrow">Resumen del producto</p>
             <h2 class="text-lg font-semibold">{{ formState.name || 'Producto sin nombre' }}</h2>
             <div class="mt-2 flex flex-wrap gap-2 text-sm text-muted">
               <span>{{ formState.type === 'PRODUCT' ? 'Producto' : 'Servicio' }}</span>
               <span v-if="formState.sellInPos">POS</span>
               <span v-if="formState.includeInOnlineCatalog">Online</span>
             </div>
+          </div>
+          </div>
+          <div class="product-summary-body">
             <dl class="product-summary-values">
               <div>
                 <dt>Precio de venta</dt>
@@ -3336,7 +3341,7 @@ function handleEditLotPlaceholder() {
 .product-workspace-header { background: var(--hf-surface); }
 .product-workspace-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 280px;
+  grid-template-columns: minmax(0, 1fr) 320px;
   align-items: start;
   gap: 24px;
   min-width: 0;
@@ -3351,29 +3356,45 @@ function handleEditLotPlaceholder() {
   background: var(--hf-surface);
   overflow-wrap: anywhere;
 }
-.product-summary-image {
-  display: grid;
-  place-items: center;
-  height: 176px;
-  background: var(--hf-surface-muted);
-}
-.product-summary-image img { width: 100%; height: 100%; object-fit: cover; }
-.product-summary-body { padding: 24px; }
-.product-summary-body h2, .product-summary-body h3 { color: var(--hf-heading); }
+.product-summary-identity { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 16px; align-items: center; padding: 24px 24px 20px; }
+.product-summary-image { display: grid; place-items: center; width: 72px; height: 88px; min-height: 0; overflow: hidden; border-radius: var(--hf-radius-control); background: var(--hf-surface-muted); }
+.product-summary-image img { display: block; width: 100%; height: 100%; min-height: 0; max-height: 88px; object-fit: contain; }
+.product-summary-image p { text-align: center; padding: 8px; }
+.product-summary-heading { min-width: 0; }
+.product-summary-eyebrow { margin-bottom: 8px; font-size: 0.75rem; color: var(--hf-muted); }
+.product-summary-heading h2 { color: var(--hf-heading); font-size: 0.9375rem; line-height: 1.4; }
+.product-summary-heading > div { gap: 4px 8px; font-size: 0.75rem; }
+.product-summary-body { padding: 0 24px 24px; }
+.product-summary-body h3 { color: var(--hf-heading); font-size: 0.875rem; }
 .product-summary-values {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  margin-top: 24px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px 12px;
+  padding: 20px 0;
+  border-top: 1px solid var(--hf-border);
+  border-bottom: 1px solid var(--hf-border);
 }
+.product-summary-values > div:first-child { grid-column: 1 / -1; }
+.product-summary-values > div:first-child dd { font-size: 2rem; line-height: 1.15; letter-spacing: -0.04em; color: var(--hf-heading); }
 .product-summary-values dt { color: var(--hf-muted); font-size: 0.8125rem; }
 .product-summary-values dd { margin-top: 4px; font-size: 1.125rem; font-weight: 600; }
 .product-readiness-progress {
   width: 100%;
-  height: 8px;
+  display: block;
+  height: 4px;
   margin-top: 12px;
-  accent-color: var(--hf-active);
+  appearance: none;
+  border: 0;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--hf-surface-muted);
+  color: var(--hf-active);
 }
+.product-readiness-progress::-webkit-progress-bar { background: var(--hf-surface-muted); }
+.product-readiness-progress::-webkit-progress-value { background: var(--hf-active); }
+.product-readiness-progress::-moz-progress-bar { background: var(--hf-active); }
+.product-summary-body > ul { font-size: 0.8125rem; }
+.product-summary-body > p:last-child { padding-top: 16px; border-top: 1px solid var(--hf-border); font-size: 0.75rem; line-height: 1.6; }
 #product-detail-form :deep([data-slot='root'].divide-y) {
   background: var(--hf-surface);
   border-radius: var(--hf-radius-card);
@@ -3393,7 +3414,7 @@ function handleEditLotPlaceholder() {
 @media (max-width: 720px) {
   .product-workspace-grid { grid-template-columns: minmax(0, 1fr); }
   .product-summary { position: static; }
-  .product-summary-image { height: 112px; }
-  .product-summary-body { padding: 16px; }
+  .product-summary-identity { padding: 20px 20px 16px; }
+  .product-summary-body { padding: 0 20px 20px; }
 }
 </style>

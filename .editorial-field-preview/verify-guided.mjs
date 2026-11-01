@@ -90,6 +90,18 @@ async function capture(name, width, theme) {
   await page.screenshot({ path, fullPage: true }); report.screenshots.push(path)
   assert(metrics.scroll <= metrics.width, 'Horizontal overflow: ' + JSON.stringify(metrics))
   assert(metrics.token, 'Missing HF theme')
+  const summary = page.locator('.product-summary')
+  if (await summary.count()) {
+    const bounds = await summary.evaluate(card => {
+      const box = card.querySelector('.product-summary-image').getBoundingClientRect()
+      const image = card.querySelector('.product-summary-image img')?.getBoundingClientRect()
+      const heading = card.querySelector('h2').getBoundingClientRect()
+      return { image: image && { left: image.left, right: image.right, top: image.top, bottom: image.bottom }, box: { left: box.left, right: box.right, top: box.top, bottom: box.bottom }, headingLeft: heading.left }
+    })
+    report.layout.at(-1).summaryBounds = bounds
+    if (bounds.image) assert(bounds.image.left >= bounds.box.left && bounds.image.right <= bounds.box.right + 1 && bounds.image.top >= bounds.box.top && bounds.image.bottom <= bounds.box.bottom + 1, 'Summary image escapes thumbnail: ' + JSON.stringify(bounds))
+    assert(bounds.headingLeft >= bounds.box.right, 'Summary image overlaps identity heading')
+  }
   if (name === 'presentations') {
     const bounds = await page.locator('#product-detail-form').evaluate(form => ({
       form: form.getBoundingClientRect().width,
