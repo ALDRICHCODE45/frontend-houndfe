@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import DateFieldPopover from '../DateFieldPopover.vue'
+import { today, getLocalTimeZone } from '@internationalized/date'
 
 // Shared Sales popup seam (T6 / S1,S3,S4). DateFieldPopover owns an installed
 // Nuxt UI `UPopover` whose content teleports out of the routed workspace. The
@@ -79,6 +80,31 @@ describe('DateFieldPopover — existing contract', () => {
     const calendar = wrapper.findComponent({ name: 'Calendar' })
     expect(calendar.exists()).toBe(true)
     expect(String(calendar.props('minValue'))).toBe('2026-06-01')
+  })
+})
+
+describe('DateFieldPopover — calendar year boundaries', () => {
+  it('preserves the today minimum for null and omitted minimums', async () => {
+    for (const props of [{}, { minIso: null }]) {
+      const wrapper = mountPopover(props)
+      await openPopover(wrapper)
+      expect(String(wrapper.findComponent({ name: 'Calendar' }).props('minValue')))
+        .toBe(today(getLocalTimeZone()).toString())
+      cleanup()
+    }
+  })
+
+  it('renders and emits year 0001 without a 1900 offset or shortened ISO year', async () => {
+    const wrapper = mountPopover({ modelValue: '0001-09-22', minIso: '0001-01-01' })
+    expect(wrapper.get('[data-testid="date-field-popover"]').text()).toMatch(/septiembre de 1$/)
+    await openPopover(wrapper)
+    const day = Array.from(document.body.querySelectorAll<HTMLButtonElement>('[data-slot="cellTrigger"]'))
+      .find((button) => button.textContent?.trim() === '23')!
+    expect(day).toBeTruthy()
+    expect(day.getAttribute('aria-disabled')).not.toBe('true')
+    day.click()
+    await flushPromises()
+    expect(wrapper.emitted('update:modelValue')?.[0]).toEqual(['0001-09-23'])
   })
 })
 

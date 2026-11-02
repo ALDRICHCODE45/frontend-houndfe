@@ -51,7 +51,11 @@ const emit = defineEmits<{
 
 // ─── Form composable ───────────────────────────────────────────────────────────
 
-const { state, schema, resetForm } = useEditEmployeeForm(() => props.employee)
+const { state, schema, resetForm, fillFromEmployee } = useEditEmployeeForm(() => props.employee)
+
+watch(open, (isOpen) => {
+  if (isOpen && props.employee) fillFromEmployee(props.employee)
+})
 const { mutateAsync, isPending } = useUpdateEmployee()
 
 // ─── Manager picker (exclude self, preload current manager) ───────────────────
@@ -171,7 +175,7 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
     side="right"
     inset
     :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
-    @after-leave="resetForm"
+    @after-leave="!open && resetForm()"
   >
     <template #body>
         <UForm
@@ -265,7 +269,7 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
                 portal-class="hf-theme hf-ui hf-form-overlay employees-form-portal"
                 v-model="state.dateOfBirth"
                 placeholder="Elegir fecha de nacimiento"
-                :min-iso="null"
+                min-iso="0001-01-01"
                 :disabled="isPending"
               />
             </UFormField>

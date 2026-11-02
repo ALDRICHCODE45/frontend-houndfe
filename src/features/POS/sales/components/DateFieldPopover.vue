@@ -44,7 +44,7 @@ function isoToCalendarDate(iso: string | null): CalendarDate | undefined {
 
 function calendarDateToIso(date: CalendarDate | undefined): string | null {
   if (!date) return null
-  return `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`
+  return date.toString()
 }
 
 function formatCalendarDate(date: CalendarDate | undefined): string {
@@ -53,7 +53,7 @@ function formatCalendarDate(date: CalendarDate | undefined): string {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-  }).format(new Date(date.year, date.month - 1, date.day))
+  }).format(date.toDate(getLocalTimeZone()))
 }
 
 const calendarValue = computed({
