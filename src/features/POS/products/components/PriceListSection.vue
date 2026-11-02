@@ -585,7 +585,7 @@ function formatMarginAmount(list: PriceList): string {
         label="Agregar Lista de Precios"
         icon="i-lucide-plus"
         variant="link"
-        class="text-coco-gold-800 dark:text-coco-gold-400"
+        class="min-h-11 text-[var(--hf-action)]"
         size="sm"
         @click="openCreate"
       />
@@ -698,7 +698,7 @@ function formatMarginAmount(list: PriceList): string {
           type="submit"
           form="price-list-form"
           color="primary"
-          class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+          class="hf-primary-control"
           :loading="isSaving"
         />
       </div>
@@ -782,7 +782,7 @@ function formatMarginAmount(list: PriceList): string {
           type="button"
           label="Guardar"
           color="primary"
-          class="!bg-(--brand-action) !text-black hover:!brightness-110 rounded-xl font-semibold shadow-sm"
+          class="hf-primary-control"
           :loading="updateMutation.isPending.value"
           @click="handleSaveTierModal"
         />

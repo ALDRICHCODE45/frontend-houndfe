@@ -59,9 +59,11 @@ const productDetailPRODUCT: ProductDetail = {
   unit: 'KILOGRAMO',
 }
 
+const routerPush = vi.hoisted(() => vi.fn())
+
 vi.mock('vue-router', () => ({
   useRoute: vi.fn(() => ({ params: {} })),
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: routerPush }),
 }))
 
 // NOTE: the slideover body/footer render through the document root, so the
@@ -128,6 +130,16 @@ describe('ProductUpsertSlideover - WU-E SERVICE-hiding (behavioral)', () => {
     await nextTick()
     const vm = wrapper.vm as unknown as { showInventoryFields: boolean }
     expect(vm.showInventoryFields).toBe(true)
+  })
+
+  it('uses an HF full-editor action while preserving close and navigation', async () => {
+    const wrapper = mountSlide(null, 'create')
+    const link = wrapper.findAll('button').find(button => button.text() === 'ir al editor completo')!
+    expect(link.classes()).toContain('text-[var(--hf-action)]')
+    expect(link.classes()).not.toContain('text-coco-gold-800')
+    await link.trigger('click')
+    expect(wrapper.emitted('update:open')).toEqual([[false]])
+    expect(routerPush).toHaveBeenCalledWith('/pos/products/new')
   })
 
   it('shows fields in create mode (create stays PRODUCT-only)', async () => {

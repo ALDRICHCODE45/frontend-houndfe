@@ -300,7 +300,7 @@ function handleCancel() {
             Para editar Impuestos, Unidades, Lotes, Variantes, etc.,
             <button
               type="button"
-              class="font-medium text-coco-gold-800 dark:text-coco-gold-400 hover:underline"
+              class="inline-flex min-h-11 items-center font-medium text-[var(--hf-action)] underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-[var(--hf-focus)] focus-visible:outline-offset-2"
               @click="goToFullEditor"
             >
               ir al editor completo
