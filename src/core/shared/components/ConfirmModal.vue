@@ -62,6 +62,10 @@ function handleCancel() {
     :ui="props.ui"
     @update:open="emit('update:open', $event)"
   >
+    <template #description>
+      <span class="sr-only">{{ props.description }}</span>
+    </template>
+
     <template #body>
       <ul
         v-if="props.items && props.items.length > 0"
