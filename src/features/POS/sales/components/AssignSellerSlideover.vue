@@ -101,35 +101,21 @@ async function handleSelectUser(user: AssignableUser) {
   <USlideover
     :open="open"
     side="right"
+    title="Asignar vendedor"
+    description="Selecciona un usuario activo del equipo"
+    :close="{ 'aria-label': 'Cerrar asignación de vendedor' }"
     inset
     :ui="portalClass ? { content: portalClass } : undefined"
     @update:open="emit('update:open', $event)"
   >
-    <template #content>
-      <div class="flex h-full flex-col" data-testid="assign-seller-slideover">
-        <!-- Header -->
-        <div class="border-b border-default px-5 py-4">
-          <div class="flex items-center justify-between gap-3">
-            <div>
-              <p class="text-lg font-semibold">Asignar vendedor</p>
-              <p class="text-sm text-muted">Selecciona un usuario activo del equipo</p>
-            </div>
-            <UButton
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-x"
-              @click="emit('update:open', false)"
-            />
-          </div>
-        </div>
-
-        <!-- Body -->
-        <div class="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+    <template #body>
+      <div class="space-y-4" data-testid="assign-seller-slideover">
           <UInput
             v-model="searchInput"
             data-testid="seller-search-input"
             icon="i-lucide-search"
             placeholder="Buscar por nombre"
+            aria-label="Buscar vendedor por nombre"
             class="w-full"
           />
 
@@ -157,8 +143,11 @@ async function handleSelectUser(user: AssignableUser) {
             <UCard
               v-for="user in filteredUsers"
               :key="user.id"
+              as="button"
+              type="button"
+              :disabled="isPending"
               :data-testid="`seller-row-${user.id}`"
-              class="cursor-pointer transition-colors hover:bg-elevated/70"
+              class="w-full cursor-pointer text-left transition-colors hover:bg-elevated/70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--hf-focus)]"
               :class="{ 'pointer-events-none opacity-60': isPending }"
               @click="handleSelectUser(user)"
             >
@@ -171,7 +160,6 @@ async function handleSelectUser(user: AssignableUser) {
               </div>
             </UCard>
           </div>
-        </div>
       </div>
     </template>
   </USlideover>
