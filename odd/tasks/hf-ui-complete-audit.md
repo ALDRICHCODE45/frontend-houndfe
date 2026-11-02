@@ -38,7 +38,7 @@ A7 | S9,S5 | parent inline | done | af70c6e: compact summary, image containment;
 A8 | S1,S2,S3,S5,S6 | parallel catalog worker | done (438b68d, bounded unit) | Migrate catalog-owned detail/image/branch overlay paint, preserve always-light policy and interaction lifecycle; bounded first slice.
 A9 | S1,S2,S5,S6 | parallel confirmation worker | done (9827c40, association repair) | Replace confirmation test gaps with real modal coverage; source edits only for reproduced presentation/interaction defects.
 
-A10 | S8,S10 | parent + backend repository owner | in_progress | Consolidate existing single-contract work, verify legacy retirement, commit owned delivery artifacts and merge locally to main; no push. Resume broader audit and persisted editorial flow next session at user request.
+A10 | S8,S10 | parent + backend repository owner | done | Consolidate existing single-contract work, verify legacy retirement, commit owned delivery artifacts and merge locally to main; no push. Resume broader audit and persisted editorial flow next session at user request.
 
 ## Log
 L1. Original user request verbatim:
@@ -116,3 +116,5 @@ L39. A10 started: relayed exact instruction to backend owner01a18558; no push/pr
 
 L40. A10 delivery checks: fresh src/tests/config search found zero retired-module references. Job38 passed2797tests/91suites/fullbuild/diff. Commits f8f3abe retires17legacyfiles (1805 deletions, coherent obsolete subsystem); d3c586f fixes typedFormtestselector/docs. Native reliability review-cb042c6e054cf1bc approved that bounded1813line19path range and exact acknowledgement burned authority. Risk: none for requested unused-code retirement; no shared live logic changed. Historical full-suite600stimeout remains.
 L41. Backendseq45 reports localmain2c2cb4044d0f243c9455df67de6655af1deb8d68 FFcomplete, tracked/indexclean, no push/production; fourlegacy states/23receipts, publication/C3.3,S89 and persistedcurrentruntimeE2E remainpending. Frontend retained authored design directions in d2dbc9e/c987e66/8e739bf, historical reproducible verification in ccf8299, proposal-only vocabulary attachment in77cbc37. Reports are larger passive artifacts; screenshots/scratch remain local and untouched. Explicit12textfile credential-pattern screen found no matches; not a universal secret audit. Handoff docs/redesign/editorial-session-handoff.md preserves limits. Main integration pending final doc commit.
+
+L42. Frontend main fast-forward integration observed from5629d61e to316008429dd619777ae18f151d13b507cf21ba3d; main/feature/HEAD equal and tracked/index clean before this closing record. Backend main2c2cb40 confirmed independently by owner. No push, deployment or new DB mutation. A10 delivery completed; A2/A3/A4/A5/A6 umbrella work and persisted E2E remain paused/open per user's explicit 'cerraremos sesion y continuaremos con los siguientes pasos recomendados'. Closing record itself is a documentation-only follow-up.
