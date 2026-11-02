@@ -70,7 +70,7 @@ function selectBranch(slug: string) {
         description="Elige la sucursal para ver sus productos."
         :close="false"
         :ui="{
-          overlay: 'catalog-branch-overlay z-40 bg-coco-950/45 backdrop-blur-sm',
+          overlay: 'catalog-branch-overlay z-40 backdrop-blur-sm',
           content: 'catalog-branch-dialog z-50 max-w-md',
           header: 'items-start',
           body: 'flex-1 p-4 overscroll-contain sm:p-5',

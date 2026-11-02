@@ -230,6 +230,57 @@ function holdPreviewLeave() {
 }
 
 describe('CatalogProductDetailModal', () => {
+  it.each([false, true])('uses catalog-owned preview paint under html.dark=%s', async (dark) => {
+    document.documentElement.classList.toggle('dark', dark)
+    document.body.setAttribute('data-catalog-theme', 'light')
+    const wrapper = mountModal()
+    try {
+      await nextTick()
+      expect(getRendered('[data-slot="overlay"]').classes()).toContain('catalog-detail-overlay')
+      await getRendered(mainPreviewTrigger).trigger('click')
+      await nextTick()
+      const content = previewContentElement()
+      expect(content.className).not.toMatch(/coco-|ring-white/)
+      expect(document.querySelector('.catalog-detail-preview-overlay')).not.toBeNull()
+      await getRendered(previewImage).trigger('error')
+      expect(getRendered(previewFallback).attributes('aria-label')).toContain(detail.name)
+      expect(getRendered(previewFallback).element.innerHTML).not.toMatch(/coco-|text-white|bg-white/)
+      expect(getRendered(previewClose).attributes('class')).not.toMatch(/coco-|dark:/)
+      expect(document.documentElement.classList.contains('dark')).toBe(dark)
+    } finally {
+      wrapper.unmount()
+      document.body.removeAttribute('data-catalog-theme')
+      document.documentElement.classList.remove('dark')
+    }
+  })
+
+  it.each(['populated', 'loading', 'server'] as const)(
+    'uses semantic detail paint in the %s state without changing status colors',
+    async (state) => {
+      const wrapper = mountModal({ state, detail: state === 'populated' ? detail : null })
+      try {
+        await nextTick()
+        const content = getRendered('.catalog-detail-dialog')
+        expect(content.element.innerHTML).not.toMatch(/coco-/)
+        if (state === 'populated') {
+          expect(getRendered('[data-testid="catalog-detail-availability"]').classes()).toContain(
+            'bg-emerald-50',
+          )
+          expect(getRendered('[data-testid="catalog-detail-variant-availability"]').text()).toContain(
+            'Pocas piezas',
+          )
+        }
+        if (state === 'server') {
+          expect(getRendered('[data-testid="catalog-detail-retry"]').classes()).toContain(
+            'catalog-detail-retry',
+          )
+        }
+      } finally {
+        wrapper.unmount()
+      }
+    },
+  )
+
   afterEach(() => {
     document.body.replaceChildren()
     vi.unstubAllGlobals()
@@ -1786,7 +1837,7 @@ describe('CatalogProductDetailModal', () => {
     expect(loading.classes()).toContain('grid-cols-1')
     expect(loading.classes().some((className) => className.startsWith('md:grid-cols-'))).toBe(true)
     expect(getRendered('[data-testid="catalog-detail-media-skeleton"]').classes()).toContain(
-      'bg-coco-50',
+      'catalog-detail-soft',
     )
     getRendered('[data-testid="catalog-detail-details-skeleton"]')
     expect(document.body.querySelectorAll('[aria-label="loading"]').length).toBeGreaterThanOrEqual(

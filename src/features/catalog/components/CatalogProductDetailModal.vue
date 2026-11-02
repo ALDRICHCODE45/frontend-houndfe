@@ -407,7 +407,7 @@ onBeforeUnmount(() => {
     description="Información del producto seleccionado"
     :close="false"
     :ui="{
-      overlay: 'z-40 bg-coco-950/45 backdrop-blur-sm',
+      overlay: 'catalog-detail-overlay z-40 backdrop-blur-sm',
       content: 'catalog-detail-dialog z-50 max-w-6xl rounded-2xl shadow-xl',
       header: 'sr-only',
       body: 'p-0 sm:p-0 overscroll-contain',
@@ -416,7 +416,7 @@ onBeforeUnmount(() => {
   >
     <template #body>
       <button
-        class="catalog-detail-close absolute end-4 top-4 z-10 inline-flex size-11 items-center justify-center rounded-full bg-white text-highlighted shadow-sm ring-1 ring-black/5 transition-[background-color,color,transform] duration-150 ease-out hover:bg-coco-50 focus-visible:ring-2 focus-visible:ring-coco-500 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100 dark:bg-coco-neutral-900 dark:ring-white/10 dark:hover:bg-coco-neutral-800"
+        class="catalog-detail-close absolute end-4 top-4 z-10 inline-flex size-11 items-center justify-center transition-[background-color,color,transform] duration-150 ease-out active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100"
         type="button"
         aria-label="Cerrar detalle del producto"
         @click="close"
@@ -433,7 +433,7 @@ onBeforeUnmount(() => {
       >
         <div
           data-testid="catalog-detail-media-skeleton"
-          class="flex min-w-0 flex-col items-center justify-center gap-4 bg-coco-50 px-6 py-8 dark:bg-coco-950/40"
+          class="catalog-detail-soft flex min-w-0 flex-col items-center justify-center gap-4 px-6 py-8"
         >
           <USkeleton class="h-6 w-24 rounded-full" />
           <USkeleton class="aspect-square w-full max-w-[15rem] rounded-2xl md:max-w-[17rem]" />
@@ -504,7 +504,7 @@ onBeforeUnmount(() => {
             <button
               v-if="displayImageUrl && !mainImageFailed"
               data-testid="catalog-detail-image-preview-trigger"
-              class="group relative size-full cursor-zoom-in transition-transform duration-200 ease-out focus-visible:ring-2 focus-visible:ring-coco-500 focus-visible:ring-inset focus-visible:outline-none active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100"
+              class="group relative size-full cursor-zoom-in transition-transform duration-200 ease-out focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset focus-visible:outline-none active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100"
               type="button"
               :aria-label="`Ampliar imagen de ${detail.name}`"
               @click="openMainPreview"
@@ -523,7 +523,7 @@ onBeforeUnmount(() => {
               <span
                 aria-hidden="true"
                 data-testid="catalog-detail-image-zoom-affordance"
-                class="pointer-events-none absolute bottom-3 end-3 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-coco-700 shadow-sm ring-1 ring-black/5 dark:bg-coco-950/85 dark:text-coco-100 dark:ring-white/10"
+                class="pointer-events-none absolute bottom-3 end-3 inline-flex items-center gap-1.5 rounded-full bg-default px-2.5 py-1 text-[11px] font-semibold text-highlighted shadow-sm ring-1 ring-default"
               >
                 <UIcon name="i-lucide-zoom-in" class="size-3.5" />
                 Ampliar imagen
@@ -532,7 +532,7 @@ onBeforeUnmount(() => {
             <div
               v-else
               data-testid="catalog-detail-image-fallback"
-              class="flex size-full flex-col items-center justify-center gap-3 bg-coco-50 px-6 text-center dark:bg-coco-950/40"
+              class="catalog-detail-soft flex size-full flex-col items-center justify-center gap-3 px-6 text-center"
               :aria-label="`Imagen no disponible para ${detail.name}`"
               role="img"
             >
@@ -541,11 +541,11 @@ onBeforeUnmount(() => {
                 a cobalt-tinted surface, one contained glyph and the written state. No invented URL.
               -->
               <span
-                class="flex size-20 items-center justify-center rounded-3xl bg-white/80 text-coco-500 ring-1 ring-coco-200/80 dark:bg-coco-900/50 dark:text-coco-300 dark:ring-coco-800/60"
+                class="flex size-20 items-center justify-center rounded-3xl bg-default text-highlighted ring-1 ring-default"
               >
                 <UIcon name="i-lucide-image-off" class="size-9" />
               </span>
-              <span class="text-sm font-medium text-coco-700 dark:text-coco-200">
+              <span class="text-sm font-medium text-highlighted">
                 Imagen no disponible
               </span>
             </div>
@@ -655,12 +655,12 @@ onBeforeUnmount(() => {
                 -->
                 <div
                   data-testid="catalog-detail-variant-image-frame"
-                  class="flex size-[4.5rem] shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white ring-1 ring-default dark:bg-coco-neutral-900 dark:ring-white/10"
+                  class="flex size-[4.5rem] shrink-0 items-center justify-center overflow-hidden rounded-lg bg-default ring-1 ring-default"
                 >
                   <button
                     v-if="variant.imageUrl && !variant.imageFailed"
                     data-testid="catalog-detail-variant-image-preview-trigger"
-                    class="group relative size-full cursor-zoom-in transition-transform duration-200 ease-out focus-visible:ring-2 focus-visible:ring-coco-500 focus-visible:ring-inset focus-visible:outline-none active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100"
+                    class="group relative size-full cursor-zoom-in transition-transform duration-200 ease-out focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-inset focus-visible:outline-none active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100"
                     type="button"
                     :aria-label="`Ampliar imagen de la variante ${variant.name}`"
                     @click="openVariantPreview(variant, $event)"
@@ -678,7 +678,7 @@ onBeforeUnmount(() => {
                     <span
                       aria-hidden="true"
                       data-testid="catalog-detail-variant-image-zoom-affordance"
-                      class="pointer-events-none absolute end-0.5 bottom-0.5 inline-flex size-5 items-center justify-center rounded-full bg-white/95 text-coco-700 shadow-sm ring-1 ring-black/5 dark:bg-coco-950/85 dark:text-coco-100 dark:ring-white/10"
+                      class="pointer-events-none absolute end-0.5 bottom-0.5 inline-flex size-5 items-center justify-center rounded-full bg-default text-highlighted shadow-sm ring-1 ring-default"
                     >
                       <UIcon name="i-lucide-zoom-in" class="size-3" />
                     </span>
@@ -686,7 +686,7 @@ onBeforeUnmount(() => {
                   <div
                     v-else
                     data-testid="catalog-detail-variant-image-fallback"
-                    class="flex size-full items-center justify-center bg-coco-50 text-coco-500 dark:bg-coco-950/40 dark:text-coco-300"
+                    class="catalog-detail-soft flex size-full items-center justify-center text-highlighted"
                     :aria-label="`Imagen no disponible para la variante ${variant.name}`"
                     role="img"
                   >
@@ -760,7 +760,7 @@ onBeforeUnmount(() => {
           >
             <span
               aria-hidden="true"
-              class="flex size-12 items-center justify-center rounded-2xl bg-coco-50 text-coco-500 ring-1 ring-coco-200/80 dark:bg-coco-950/50 dark:text-coco-300 dark:ring-coco-800/60"
+              class="catalog-detail-soft flex size-12 items-center justify-center rounded-2xl text-highlighted ring-1 ring-default"
             >
               <UIcon name="i-lucide-info" class="size-6" />
             </span>
@@ -782,14 +782,14 @@ onBeforeUnmount(() => {
       >
         <UIcon
           :name="state === 'not-found' ? 'i-lucide-package-x' : 'i-lucide-circle-alert'"
-          class="size-10 text-coco-500"
+          class="size-10 text-highlighted"
         />
         <h2 class="text-lg font-semibold text-highlighted">No pudimos mostrar este producto</h2>
         <p class="max-w-sm text-sm text-muted">{{ errorCopy(state) }}</p>
         <button
           v-if="canRetry"
           data-testid="catalog-detail-retry"
-          class="mt-2 inline-flex min-h-11 items-center justify-center rounded-xl bg-coco-600 px-4 text-sm font-semibold text-white transition-[background-color,transform] duration-150 ease-out hover:bg-coco-700 focus-visible:ring-2 focus-visible:ring-coco-500 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100"
+          class="catalog-detail-retry mt-2 inline-flex min-h-11 items-center justify-center px-4 text-sm font-semibold transition-[background-color,transform] duration-150 ease-out active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100"
           type="button"
           @click="emit('retry')"
         >
@@ -809,9 +809,9 @@ onBeforeUnmount(() => {
     description="Imagen del producto en tamaño completo"
     :close="false"
     :ui="{
-      overlay: 'z-[60] bg-coco-950/70 backdrop-blur-sm',
+      overlay: 'catalog-detail-preview-overlay z-[60] backdrop-blur-sm',
       content:
-        'catalog-detail-preview-dialog z-[61] max-w-3xl overflow-hidden rounded-2xl bg-coco-950/95 ring-1 ring-white/10',
+        'catalog-detail-preview-dialog z-[61] max-w-3xl overflow-hidden rounded-2xl',
       header: 'sr-only',
       body: 'p-0 sm:p-0',
     }"
@@ -844,16 +844,16 @@ onBeforeUnmount(() => {
           role="img"
         >
           <span
-            class="flex size-20 items-center justify-center rounded-3xl bg-white/10 text-coco-200 ring-1 ring-white/15"
+            class="catalog-detail-preview-fallback-icon flex size-20 items-center justify-center rounded-3xl"
           >
             <UIcon name="i-lucide-image-off" class="size-9" />
           </span>
-          <span class="text-sm font-medium text-white">Imagen no disponible</span>
+          <span class="text-sm font-medium text-highlighted">Imagen no disponible</span>
         </div>
 
         <button
           data-testid="catalog-detail-image-preview-close"
-          class="catalog-detail-close absolute end-4 top-4 inline-flex size-11 items-center justify-center rounded-full bg-white text-highlighted shadow-sm ring-1 ring-black/5 transition-[background-color,transform] duration-200 ease-out hover:bg-coco-50 focus-visible:ring-2 focus-visible:ring-coco-500 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100 dark:bg-coco-neutral-900 dark:ring-white/10 dark:hover:bg-coco-neutral-800"
+          class="catalog-detail-close absolute end-4 top-4 inline-flex size-11 items-center justify-center transition-[background-color,transform] duration-200 ease-out active:scale-[0.96] motion-reduce:transition-none motion-reduce:active:scale-100"
           type="button"
           aria-label="Cerrar vista de imagen"
           @click="closePreview"

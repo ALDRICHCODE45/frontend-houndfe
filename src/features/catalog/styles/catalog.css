@@ -74,6 +74,7 @@ body[data-catalog-theme='light'] {
   --catalog-text: #24313d;
   --catalog-muted: #576574;
   --catalog-action: #2442f6;
+  --catalog-on-action: #ffffff;
   --catalog-border: #dce2e8;
   --catalog-control-radius: 6px;
   --catalog-panel-radius: 12px;
@@ -525,6 +526,15 @@ body[data-catalog-theme='light'] .catalog-product-card:focus-visible .catalog-pr
   }
 }
 
+/* These scrims belong to catalog portals, not the private app or html.dark. */
+body[data-catalog-theme='light'] .catalog-branch-overlay,
+body[data-catalog-theme='light'] .catalog-detail-overlay {
+  background: color-mix(in srgb, var(--catalog-title) 45%, transparent);
+}
+body[data-catalog-theme='light'] .catalog-detail-preview-overlay {
+  background: color-mix(in srgb, var(--catalog-title) 70%, transparent);
+}
+
 /* Detail portals remain inside the catalog theme; dialog behavior is Nuxt UI-owned. */
 body[data-catalog-theme='light'] .catalog-detail-dialog,
 body[data-catalog-theme='light'] .catalog-detail-preview-dialog {
@@ -582,8 +592,34 @@ body[data-catalog-theme='light'] [data-testid='catalog-detail-image-zoom-afforda
   font-weight: 400;
 }
 body[data-catalog-theme='light'] .catalog-detail-close {
-  border-radius: 8px;
+  border: 1px solid var(--catalog-border);
+  border-radius: var(--catalog-control-radius);
+  background: var(--catalog-surface);
+  color: var(--catalog-title);
   box-shadow: none;
+}
+body[data-catalog-theme='light'] .catalog-detail-close:hover {
+  background: var(--catalog-soft);
+}
+body[data-catalog-theme='light'] .catalog-detail-retry {
+  border-radius: var(--catalog-control-radius);
+  background: var(--catalog-action);
+  color: var(--catalog-on-action);
+}
+body[data-catalog-theme='light'] .catalog-detail-retry:hover {
+  background: var(--catalog-title);
+}
+body[data-catalog-theme='light'] :is(.catalog-detail-close, .catalog-detail-retry):focus-visible {
+  outline: 2px solid var(--catalog-action);
+  outline-offset: 2px;
+}
+body[data-catalog-theme='light'] .catalog-detail-soft {
+  background: var(--catalog-soft);
+}
+body[data-catalog-theme='light'] .catalog-detail-preview-fallback-icon {
+  background: var(--catalog-soft);
+  color: var(--catalog-title);
+  border: 1px solid var(--catalog-border);
 }
 body[data-catalog-theme='light'] [data-testid='catalog-detail-empty-note'] {
   min-height: 0;
@@ -594,10 +630,6 @@ body[data-catalog-theme='light'] [data-testid='catalog-detail-empty-note'] {
 body[data-catalog-theme='light'] .catalog-detail-general {
   padding-block: 20px;
   border-block: 1px solid var(--catalog-border);
-}
-
-body[data-catalog-theme='light'] .catalog-detail-preview-dialog .text-white {
-  color: var(--catalog-title);
 }
 
 @media (min-width: 768px) {
