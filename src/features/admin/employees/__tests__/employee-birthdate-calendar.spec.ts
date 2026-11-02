@@ -1,4 +1,4 @@
-import { afterEach, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils'
 import { defineComponent, h, ref } from 'vue'
 import { createMemoryHistory, createRouter } from 'vue-router'
@@ -23,7 +23,7 @@ const employee: Employee = {
 
 afterEach(() => { wrapper?.unmount(); document.body.innerHTML = ''; vi.clearAllMocks() })
 
-it('allows a historical birthdate draft and cancels without an employee mutation', async () => {
+beforeEach(async () => {
   const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { template: '<div />' } }] })
   await router.push('/')
   await router.isReady()
@@ -39,6 +39,20 @@ it('allows a historical birthdate draft and cancels without an employee mutation
     },
   }), { attachTo: document.body, global: { plugins: [router] } })
   await flushPromises()
+})
+
+it('names the native manager trigger for its field', async () => {
+  const trigger = document.querySelector<HTMLButtonElement>('button[aria-label="Jefe directo"]')
+  expect(trigger).not.toBeNull()
+  expect(trigger?.textContent).toContain('Seleccionar jefe directo')
+  // Installed ComboboxTrigger opens on click; real keyboard activation is browser-verified.
+  trigger!.click()
+  await flushPromises()
+  expect(document.querySelector('[role="listbox"]')).not.toBeNull()
+  expect(update).not.toHaveBeenCalled()
+})
+
+it('allows a historical birthdate draft and cancels without an employee mutation', async () => {
   const trigger = document.querySelector<HTMLButtonElement>('[data-testid="date-field-popover"]')!
   expect(trigger.textContent).toContain('1988')
   trigger.click()
@@ -54,10 +68,10 @@ it('allows a historical birthdate draft and cancels without an employee mutation
     .find((element) => element.textContent?.trim() === 'Cancelar')!
   cancel.click()
   await flushPromises()
-  expect(wrapper.findComponent(EmployeeEditSlideover).emitted('update:open')).toContainEqual([false])
+  expect(wrapper!.findComponent(EmployeeEditSlideover).emitted('update:open')).toContainEqual([false])
   expect(update).not.toHaveBeenCalled()
   expect(employee.dateOfBirth).toBe('1988-09-22')
-  await wrapper.get('[data-testid="reopen"]').trigger('click')
+  await wrapper!.get('[data-testid="reopen"]').trigger('click')
   await flushPromises()
   expect(document.querySelector('[data-testid="date-field-popover"]')?.textContent)
     .toContain('22 de septiembre de 1988')

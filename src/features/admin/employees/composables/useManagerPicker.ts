@@ -22,7 +22,7 @@
  *   The `search` param is optional; omit it to return the first 100 active employees.
  */
 
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { ref, computed, watch, onUnmounted, toValue, type MaybeRefOrGetter } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { employeeQueryKeys } from '@/core/shared/constants/query-keys'
 import { employeesApi } from '../api/employees.api'
@@ -107,8 +107,8 @@ export function mergeCurrentManagerOption(
 // ─── Composable ───────────────────────────────────────────────────────────────
 
 export interface UseManagerPickerOptions {
-  /** When provided, this employee is excluded from results (edit mode self-exclusion) */
-  excludeId?: string | null
+  /** Reactive or scalar employee ID excluded from fetched and selected options. */
+  excludeId?: MaybeRefOrGetter<string | null>
   /**
    * Reactive getter for the currently-selected manager (edit mode).
    * When provided, the option is always merged at the top of `managers` so the
@@ -191,9 +191,11 @@ export function useManagerPicker(options: UseManagerPickerOptions = {}) {
    */
   const managers = computed<ManagerPickerOption[]>(() => {
     const raw = rawData.value ?? []
-    const filtered = filterExcludedId(raw, options.excludeId)
+    const excludedId = toValue(options.excludeId)
+    const filtered = filterExcludedId(raw, excludedId)
     const built = buildPickerOptions(filtered)
-    return mergeCurrentManagerOption(built, options.currentManager?.() ?? null)
+    const current = options.currentManager?.() ?? null
+    return mergeCurrentManagerOption(built, current?.id === excludedId ? null : current)
   })
 
   return {

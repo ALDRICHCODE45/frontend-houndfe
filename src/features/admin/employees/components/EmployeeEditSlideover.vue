@@ -95,7 +95,7 @@ const {
   managers,
   isLoading: isLoadingManagers,
 } = useManagerPicker({
-  excludeId: props.employee?.id ?? null,
+  excludeId: () => props.employee?.id ?? null,
   currentManager: () => currentManagerOption.value,
 })
 const managerSearchTerm = ref('')
@@ -483,6 +483,7 @@ async function onSubmit(event: FormSubmitEvent<typeof state>): Promise<void> {
 
             <UFormField label="Jefe directo" name="managerId">
               <USelectMenu
+                aria-label="Jefe directo"
                 v-model="state.managerId"
                 :ui="{ content: 'hf-theme hf-ui hf-form-overlay employees-form-portal' }"
                 v-model:open="isManagerPickerOpen"
