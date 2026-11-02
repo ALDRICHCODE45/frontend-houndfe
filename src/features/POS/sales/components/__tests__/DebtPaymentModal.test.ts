@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 import { mount, flushPromises } from '@vue/test-utils'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import DebtPaymentModal from '../DebtPaymentModal.vue'
+import { mountWithUApp } from '@/test/mountWithUApp'
 import type { ActivePaymentMethodProjection, PaymentEntry } from '../../interfaces/sale.types'
 
 const submitSafeMock = vi.fn()
@@ -123,6 +124,52 @@ describe('DebtPaymentModal', () => {
     externalErrorCodeRef.value = null
     shouldCloseRef.value = false
     catalogClearSignalRef.value = 0
+  })
+
+  it('names the installed close and entry-removal buttons without submitting payments', async () => {
+    const wrapper = mountWithUApp(DebtPaymentModal, {
+      props: { open: true, saleId: 'sale-1', debtCents: 80000 }, attachTo: document.body,
+    })
+    try {
+      await flushPromises()
+      expect(document.querySelector('button[aria-label="Cerrar cobro de deuda"]')).not.toBeNull()
+      const cash = document.querySelector<HTMLButtonElement>('[data-testid="payment-method-tile-cash"]')!
+      cash.click()
+      await flushPromises()
+      const remove = document.querySelector<HTMLButtonElement>('[data-testid="remove-payment-entry-0"]')!
+      expect(remove.getAttribute('aria-label')).toBe('Eliminar pago 1')
+      remove.click()
+      await flushPromises()
+      expect(document.querySelector('[data-testid="payment-entry-0"]')).toBeNull()
+      expect(submitSafeMock).not.toHaveBeenCalled()
+    } finally { wrapper.vm.$.appContext.app.unmount() }
+  })
+
+  it('associates a native dialog title and description without submitting', async () => {
+    const wrapper = mountWithUApp(DebtPaymentModal, {
+      props: { open: true, saleId: 'sale-1', debtCents: 80000 }, attachTo: document.body,
+    })
+    try {
+      await flushPromises()
+      const dialog = document.querySelector('[role="dialog"]')!
+      expect(document.getElementById(dialog.getAttribute('aria-labelledby')!)?.textContent)
+        .toBe('Cobrar deuda')
+      expect(document.getElementById(dialog.getAttribute('aria-describedby')!)?.textContent)
+        .toBe('Selecciona los métodos de pago')
+      expect(submitSafeMock).not.toHaveBeenCalled()
+    } finally { wrapper.vm.$.appContext.app.unmount() }
+  })
+
+  it('announces payment tile selection and preserves toggle behavior', async () => {
+    const wrapper = mountModal()
+    const cash = wrapper.get('[data-testid="payment-method-tile-cash"]')
+    expect(cash.attributes('aria-pressed')).toBe('false')
+    await cash.trigger('click')
+    expect(cash.attributes('aria-pressed')).toBe('true')
+    await cash.trigger('click')
+    expect(cash.attributes('aria-pressed')).toBe('false')
+    expect(wrapper.findAll('[data-testid^="payment-entry-"]')).toHaveLength(0)
+    expect(submitSafeMock).not.toHaveBeenCalled()
   })
 
   it('opens with empty entries and submit disabled', () => {

@@ -235,6 +235,8 @@ watch(catalogClearSignal, () => {
 <template>
   <USlideover
     :open="open"
+    title="Cobrar deuda"
+    description="Selecciona los métodos de pago"
     inset
     :ui="slideoverUi"
     @update:open="emit('update:open', $event)"
@@ -252,6 +254,7 @@ watch(catalogClearSignal, () => {
               color="neutral"
               variant="ghost"
               icon="i-lucide-x"
+              aria-label="Cerrar cobro de deuda"
               :disabled="isSubmitting"
               @click="close"
             />
@@ -274,6 +277,7 @@ watch(catalogClearSignal, () => {
                 v-for="option in methodOptions"
                 :key="paymentMethodTileKey(option)"
                 :data-testid="tileTestId(option)"
+                :aria-pressed="getMethodCount(entries, option) > 0"
                 type="button"
                 class="relative rounded-xl border px-3 py-4 text-left transition disabled:cursor-not-allowed disabled:opacity-50"
                 :class="
@@ -340,6 +344,7 @@ watch(catalogClearSignal, () => {
 
                 <UButton
                   :data-testid="`remove-payment-entry-${index}`"
+                  :aria-label="`Eliminar pago ${index + 1}`"
                   type="button"
                   color="error"
                   variant="ghost"
