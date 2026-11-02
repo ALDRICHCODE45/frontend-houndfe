@@ -66,8 +66,13 @@ describe('CashCustodyActions · custody declaration', () => {
       selectorEntitled: true,
       assignableUsers: [{ id: 'user-9', name: 'Ana' }],
     })
-    expect(wrapper.find('[data-testid="cash-handover-recipient-select"]').exists()).toBe(true)
+    const recipient = wrapper.get('[data-testid="cash-handover-recipient-select"]')
+    expect(recipient.element.tagName).toBe('BUTTON')
+    expect(recipient.attributes('aria-haspopup')).toBe('listbox')
+    expect(recipient.attributes('aria-label')).toBe('Persona destinataria')
     expect(wrapper.find('[data-testid="cash-handover-recipient-uuid"]').exists()).toBe(false)
+    expect(wrapper.emitted('declare')).toBeUndefined()
+    expect(wrapper.emitted('release')).toBeUndefined()
   })
 
   it('blocks a same-person WITHDRAWAL but allows a same-person FLOAT', async () => {

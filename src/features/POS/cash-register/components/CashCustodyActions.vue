@@ -234,6 +234,7 @@ function submitRelease() {
               label-key="name"
               :loading="loadingRecipients"
               class="w-full"
+              aria-label="Persona destinataria"
               data-testid="cash-handover-recipient-select"
             />
           </UFormField>
