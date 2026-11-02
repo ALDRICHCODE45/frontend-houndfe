@@ -6,6 +6,7 @@ export type AppAbility = MongoAbility<[AppAction, AppSubject]>
 const APP_ACTIONS: AppAction[] = ['create', 'read', 'update', 'delete', 'batch_delete', 'manage']
 const APP_SUBJECTS: AppSubject[] = [
   'Product',
+  'ProcurementSupplier',
   'Order',
   'User',
   'Role',
