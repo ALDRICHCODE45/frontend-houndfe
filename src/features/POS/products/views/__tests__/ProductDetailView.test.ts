@@ -9,7 +9,6 @@ import { h, reactive } from 'vue'
 import EditorialWorkspace from '../../components/editorial/EditorialWorkspace.vue'
 import { envelope, vocabularyEnvelope } from '../../__tests__/editorial-contract-fixtures'
 import UApp from '@nuxt/ui/runtime/components/App.vue'
-import UForm from '@nuxt/ui/runtime/components/Form.vue'
 import { mountWithUApp } from '@/test/mountWithUApp'
 import ProductDetailView from '@/features/POS/products/views/ProductDetailView.vue'
 import VariantImagePickerModal from '@/features/POS/products/components/VariantImagePickerModal.vue'
@@ -398,7 +397,7 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
       const wrapper = await mountTasks()
       const input = wrapper.get('[data-product-task="identity"] input').element
       await wrapper.get('[data-task="content"]').trigger('click')
-      wrapper.findComponent(UForm).vm.$emit('error', { errors: [{ name }] })
+      wrapper.getComponent({ name: 'Form' }).vm.$emit('error', { errors: [{ name }] })
       await wrapper.vm.$nextTick()
       expect(wrapper.get(`[data-product-task="${task}"]`).isVisible()).toBe(true)
       expect(wrapper.get(`[data-task="${task}"]`).attributes('aria-current')).toBe('page')

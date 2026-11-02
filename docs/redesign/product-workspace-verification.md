@@ -18,6 +18,11 @@ standalone editorial view. Publication remains explicitly unavailable.
 - Mobile fieldset regression: RED measured 662.625px inside a 358px form; adding
   `min-w-0` made both 358px. Final capture was visually inspected.
 - Every final owned browser context, browser and Vite server closed successfully.
+- Full `pnpm build` initially failed in a test selector (TS2339, `DOMWrapper.vm`).
+  Selecting the form by component name, without casts, corrected the inference.
+  The affected test suite, full build (including project-reference type checking),
+  and diff check then passed together in job22. Vite retains a nonblocking
+  warning about chunks larger than 500 kB.
 
 ## Reproduce the isolated browser checks
 
