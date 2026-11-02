@@ -21,6 +21,9 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { nextTick, ref } from 'vue'
+import { enableAutoUnmount } from '@vue/test-utils'
+
+enableAutoUnmount(afterEach)
 import { mountWithUApp } from '@/test/mountWithUApp'
 import SatKeySelect from '../SatKeySelect.vue'
 
@@ -59,6 +62,7 @@ const flushPromises = async () => {
 
 function mountSelect(props: Record<string, unknown> = {}) {
   return mountWithUApp(SatKeySelect, {
+    attachTo: document.body,
     props: { modelValue: '', ...props },
   })
 }
@@ -224,7 +228,7 @@ describe('SatKeySelect', () => {
     expect(wrapper.find('[data-testid="sat-error"]').exists()).toBe(false)
   })
 
-  it('keeps the shared default gold checkmark for non-pilot screens', async () => {
+  it('uses HF selection roles for every consumer', async () => {
     searchState.items.value = [
       { key: '12345678', description: 'Servicios' },
       { key: '87654321', description: 'Comida' },
@@ -238,22 +242,46 @@ describe('SatKeySelect', () => {
     vi.advanceTimersByTime(300)
     await flushPromises()
 
-    // Full-editor (non-pilot) presentation is unchanged: the shared gold
-    // checkmark stays global and the pilot overrides under .products-visual.
-    expect(wrapper.html()).toContain('text-coco-gold-700')
-    expect(wrapper.html()).not.toContain('text-primary')
+    expect(wrapper.classes()).toContain('hf-theme')
+    expect(wrapper.html()).not.toContain('coco-gold')
+    expect(wrapper.get('[aria-selected="true"]').text()).toContain('Servicios')
   })
 
-  it('exposes the products-select-trigger hook while preserving the shared default focus ring', () => {
-    const wrapper = mountSelect()
+  it('selects results with arrows/Enter and exposes an accessible error relationship', async () => {
+    searchState.items.value = [{ key: '12345678', description: 'Servicios' }]
+    const wrapper = mountSelect({ id: 'sat', error: 'Clave inválida' })
+    const trigger = wrapper.get('button.products-select-trigger')
+    await trigger.trigger('keydown', { key: 'ArrowDown' })
+    await flushPromises()
+    const input = wrapper.get('input')
+    expect(document.activeElement).toBe(input.element)
+    await input.setValue('Serv')
+    searchState.debouncedTerm.value = 'Serv'
+    await flushPromises()
+    await input.trigger('keydown', { key: 'ArrowDown' })
+    expect(wrapper.get('[data-highlighted="true"]').text()).toContain('Servicios')
+    await input.trigger('keydown', { key: 'Enter' })
+    expect(wrapper.emitted('update:modelValue')).toEqual([['12345678']])
+    expect(document.activeElement).toBe(trigger.element)
+    expect(trigger.attributes('aria-expanded')).toBe('false')
+    expect(trigger.attributes('aria-invalid')).toBe('true')
+    expect(trigger.attributes('aria-describedby')).toBe(wrapper.get('[data-testid="sat-error"]').attributes('id'))
+  })
 
-    const trigger = wrapper.find('button.products-select-trigger')
-    expect(trigger.exists()).toBe(true)
-    // Default screens keep the legacy gold ring; the pilot overrides its color
-    // through .products-visual .products-select-trigger instead of a global edit.
-    expect(trigger.classes()).toEqual(
-      expect.arrayContaining(['focus:ring-2', 'focus:ring-coco-gold-500']),
-    )
-    expect(trigger.classes()).not.toContain('focus-visible:ring-primary')
+  it('announces loading and closes with Escape; disabled selections cannot be cleared', async () => {
+    const wrapper = mountSelect()
+    await openDropdown(wrapper)
+    searchState.debouncedTerm.value = 'Serv'
+    searchState.isFetching.value = true
+    await flushPromises()
+    expect(wrapper.get('[role="status"]').text()).toContain('Buscando')
+    await wrapper.get('input').trigger('keydown', { key: 'Escape' })
+    expect(wrapper.find('input').exists()).toBe(false)
+    expect(document.activeElement).toBe(wrapper.get('button').element)
+    const disabled = mountSelect({ modelValue: '12345678', disabled: true })
+    expect(disabled.find('button[aria-label="Limpiar"]').exists()).toBe(false)
+    await disabled.get('button').trigger('click')
+    expect(disabled.find('input').exists()).toBe(false)
+    expect(disabled.emitted('update:modelValue')).toBeUndefined()
   })
 })

@@ -142,6 +142,12 @@ describe('ProductUpsertSlideover - WU-E SERVICE-hiding (behavioral)', () => {
     expect(routerPush).toHaveBeenCalledWith('/pos/products/new')
   })
 
+  it('gives the SAT picker a full-width row in the narrow slideover', () => {
+    const wrapper = mountSlide(null, 'create')
+    const picker = wrapper.findComponent({ name: 'SatKeySelect' })
+    expect(picker.element.closest('.grid')?.classList.contains('grid-cols-1')).toBe(true)
+  })
+
   it('shows fields in create mode (create stays PRODUCT-only)', async () => {
     const wrapper = mountSlide(null, 'create')
     await nextTick()

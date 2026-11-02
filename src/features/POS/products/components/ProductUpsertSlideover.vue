@@ -270,7 +270,7 @@ function handleCancel() {
           <UTextarea v-model="state.description" class="w-full" :rows="3" placeholder="Opcional" />
         </UFormField>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 gap-4">
           <UFormField :label="locationLabel" name="location" :error="errors.location">
             <UInput v-model="state.location" class="w-full" placeholder="Opcional" />
           </UFormField>

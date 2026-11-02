@@ -1,11 +1,12 @@
 <script setup lang="ts">
 /**
- * Custom select that visually matches Nuxt UI's USelect but uses plain HTML.
+ * HF category select using plain HTML.
  * Built specifically to avoid the Reka UI focus trap conflict that occurs
  * when USelect is placed inside USlideover (freezes UI in Vite dev mode).
  * See: https://github.com/nuxt/ui/issues/3408
  */
-import { computed, ref, watch, nextTick } from 'vue'
+import '@/core/shared/design-system/houndfe-ui.css'
+import { computed, ref, watch, nextTick, useId } from 'vue'
 import { onClickOutside } from '@vueuse/core'
 
 export interface CategorySelectItem {
@@ -37,6 +38,8 @@ const emit = defineEmits<{
   action: [value: string]
 }>()
 
+const listId = useId()
+const triggerRef = ref<HTMLButtonElement | null>(null)
 const isOpen = ref(false)
 const search = ref('')
 const highlightedIndex = ref(-1)
@@ -59,6 +62,13 @@ const filteredItems = computed(() => {
     return item.label.toLowerCase().includes(query)
   })
 })
+
+const navigableItems = computed(() => filteredItems.value.filter((item) => item.type !== 'separator'))
+
+function close() {
+  isOpen.value = false
+  nextTick(() => triggerRef.value?.focus())
+}
 
 const selectedLabel = computed(() => {
   const found = selectableItems.value.find((item) => item.value === props.modelValue)
@@ -87,16 +97,16 @@ function toggle() {
 function selectItem(item: CategorySelectItem) {
   if (item.type === 'action') {
     emit('action', item.value)
-    isOpen.value = false
+    close()
     return
   }
 
   emit('update:modelValue', item.value)
-  isOpen.value = false
+  close()
 }
 
 function handleKeydown(e: KeyboardEvent) {
-  const navigable = filteredItems.value.filter((i) => i.type !== 'separator')
+  const navigable = navigableItems.value
 
   if (e.key === 'ArrowDown') {
     e.preventDefault()
@@ -109,7 +119,8 @@ function handleKeydown(e: KeyboardEvent) {
     const item = navigable[highlightedIndex.value]
     if (item) selectItem(item)
   } else if (e.key === 'Escape') {
-    isOpen.value = false
+    e.stopPropagation()
+    close()
   }
 }
 
@@ -119,12 +130,16 @@ watch(search, () => {
 </script>
 
 <template>
-  <div ref="containerRef" class="relative w-full">
+  <div ref="containerRef" class="hf-theme hf-ui category-select relative min-w-0 w-full">
     <!-- Trigger -->
     <button
+      ref="triggerRef"
       type="button"
       :disabled="disabled"
-      class="products-select-trigger relative w-full rounded-md border border-accented bg-default shadow-xs outline-none transition-colors focus:ring-2 focus:ring-coco-gold-500 disabled:cursor-not-allowed disabled:opacity-75"
+      aria-haspopup="listbox"
+      :aria-expanded="isOpen"
+      :aria-controls="isOpen ? listId : undefined"
+      class="products-select-trigger hf-select-field relative w-full rounded-md border text-left disabled:cursor-not-allowed disabled:opacity-75"
       :class="sizeClasses"
       @click="toggle"
       @keydown.down.prevent="toggle"
@@ -151,7 +166,7 @@ watch(search, () => {
     >
       <div
         v-if="isOpen"
-        class="absolute z-[80] mt-1 w-full overflow-hidden rounded-md bg-default shadow-lg ring ring-default"
+        class="hf-select-menu absolute z-[80] mt-1 w-full overflow-hidden rounded-md shadow-lg"
       >
         <!-- Search -->
         <div class="border-b border-default p-1.5">
@@ -159,14 +174,19 @@ watch(search, () => {
             ref="searchInputRef"
             v-model="search"
             type="text"
-            class="w-full rounded bg-transparent px-2 py-1.5 text-sm text-default placeholder:text-dimmed outline-none"
+            class="hf-select-field w-full min-w-0 rounded px-2 py-1.5 text-sm"
+            aria-label="Buscar opciones"
+            role="combobox"
+            aria-expanded="true"
+            :aria-controls="listId"
+            :aria-activedescendant="highlightedIndex >= 0 ? `${listId}-${highlightedIndex}` : undefined"
             placeholder="Buscar..."
             @keydown="handleKeydown"
           />
         </div>
 
         <!-- Items -->
-        <div class="max-h-60 overflow-y-auto p-1 scroll-py-1">
+        <div :id="listId" role="listbox" :aria-label="placeholder" class="max-h-60 overflow-y-auto p-1 scroll-py-1">
           <template v-if="filteredItems.length === 0">
             <p class="p-2.5 text-center text-sm text-muted">Sin resultados</p>
           </template>
@@ -179,31 +199,39 @@ watch(search, () => {
             <button
               v-else-if="item.type === 'action'"
               type="button"
-              class="products-select-action relative flex w-full items-center gap-1.5 rounded-md px-1.5 py-1.5 text-sm text-coco-gold-800 dark:text-coco-gold-400 outline-none transition-colors before:absolute before:inset-px before:z-[-1] before:rounded-md hover:before:bg-elevated/50"
+              class="products-select-action hf-select-option relative flex w-full min-w-0 items-center gap-1.5 rounded-md px-2 py-2 text-left text-sm"
+              :id="`${listId}-${navigableItems.indexOf(item)}`"
+              role="option"
+              :aria-selected="false"
+              :data-highlighted="highlightedIndex === navigableItems.indexOf(item)"
+              @focus="highlightedIndex = navigableItems.indexOf(item)"
+              @keydown="handleKeydown"
               @click="selectItem(item)"
             >
               <UIcon v-if="item.icon" :name="item.icon" class="size-5 shrink-0" />
-              <span>{{ item.label }}</span>
+              <span class="min-w-0 break-words">{{ item.label }}</span>
             </button>
 
             <!-- Regular item -->
             <button
               v-else
               type="button"
-              class="relative flex w-full items-center gap-1.5 rounded-md px-1.5 py-1.5 text-sm text-default outline-none transition-colors before:absolute before:inset-px before:z-[-1] before:rounded-md hover:before:bg-elevated/50"
-              :class="{
-                'before:bg-elevated/50 text-highlighted':
-                  highlightedIndex === selectableItems.indexOf(item),
-              }"
+              class="hf-select-option relative flex w-full min-w-0 items-center gap-1.5 rounded-md px-2 py-2 text-left text-sm"
+              :id="`${listId}-${navigableItems.indexOf(item)}`"
+              role="option"
+              :aria-selected="item.value === modelValue"
+              :data-highlighted="highlightedIndex === navigableItems.indexOf(item)"
+              @focus="highlightedIndex = navigableItems.indexOf(item)"
+              @keydown="handleKeydown"
               @click="selectItem(item)"
-              @mouseenter="highlightedIndex = selectableItems.indexOf(item)"
+              @mouseenter="highlightedIndex = navigableItems.indexOf(item)"
             >
               <UIcon v-if="item.icon" :name="item.icon" class="size-5 shrink-0 text-dimmed" />
               <span class="truncate">{{ item.label }}</span>
               <UIcon
                 v-if="item.value === modelValue"
                 name="i-lucide-check"
-                class="ml-auto size-5 shrink-0 text-coco-gold-700 dark:text-coco-gold-400"
+                class="ml-auto size-5 shrink-0 text-[var(--hf-active)]"
               />
             </button>
           </template>
@@ -212,3 +240,14 @@ watch(search, () => {
     </Transition>
   </div>
 </template>
+
+<style scoped>
+.hf-select-field, .hf-select-option { min-height: var(--hf-control-height); }
+.hf-select-field { background: var(--hf-field); border-color: var(--hf-field-border); color: var(--hf-ink); }
+.hf-select-field:focus-visible, .hf-select-option:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: -2px; }
+.hf-select-menu { background: var(--hf-surface); border: 1px solid var(--hf-border); }
+.hf-select-option { color: var(--hf-ink); overflow-wrap: anywhere; }
+.hf-select-option:hover, .hf-select-option[data-highlighted='true'], .hf-select-option[aria-selected='true'] { background: var(--hf-active-soft); color: var(--hf-active); }
+.products-select-action { color: var(--hf-action); }
+@media (prefers-reduced-motion: reduce) { .category-select :deep(*) { transition: none; } }
+</style>
