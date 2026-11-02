@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HoundFe · Espacio de producto · Propuesta visual</title>
+<style>
+:root{
+--hf-page:#f5f6f8;
+--hf-surface:#ffffff;
+--hf-surface-muted:#e7eef7;
+--hf-field:#ffffff;
+--hf-field-border:#8593a3;
+--hf-ink:#24313d;
+--hf-heading:#173968;
+--hf-muted:#576574;
+--hf-border:#dce2e8;
+--hf-action:#2442f6;
+--hf-on-action:#ffffff;
+--hf-active:#2442f6;
+--hf-active-soft:#edf0ff;
+--hf-focus:#2442f6;
+--hf-gold:#f6bb13;
+--hf-gold-soft:#fff5d6;
+--hf-gold-ink:#443218;
+--hf-warning:#805511;
+--hf-warning-soft:#fff5d6;
+--hf-success:#236044;
+--hf-font:ui-sans-serif, system-ui, sans-serif;
+--hf-radius-card:12px;
+--hf-radius-control:6px;
+--hf-control-height:44px;
+}
+html.dark{
+--hf-page:#0e1520;
+--hf-surface:#192332;
+--hf-surface-muted:#202e43;
+--hf-field:#121d2c;
+--hf-field-border:#64758d;
+--hf-ink:#edf2fa;
+--hf-heading:#edf2fa;
+--hf-muted:#adbcd0;
+--hf-border:#354459;
+--hf-action:#91b0ff;
+--hf-on-action:#132344;
+--hf-active:#b3caff;
+--hf-active-soft:#223555;
+--hf-focus:#a6c1ff;
+--hf-gold:#f2c456;
+--hf-gold-soft:#3b311d;
+--hf-gold-ink:#f2cb71;
+--hf-warning:#f2cb71;
+--hf-warning-soft:#3b311d;
+--hf-success:#a2d9b9;
+}
+*{box-sizing:border-box}body{margin:0;font:14px/1.5 var(--hf-font);background:var(--hf-page);color:var(--hf-ink)}
+button,input,select,textarea{font:inherit;color:inherit}button,select,input{min-height:var(--hf-control-height)}
+button{cursor:pointer;border:1px solid var(--hf-border);border-radius:var(--hf-radius-control);background:var(--hf-surface);padding:8px 16px;font-weight:600}
+button:hover:not(:disabled){border-color:var(--hf-active)}button:disabled{cursor:not-allowed;color:var(--hf-muted);background:var(--hf-page)}
+:focus-visible{outline:2px solid var(--hf-focus);outline-offset:2px}input,select,textarea{width:100%;background:var(--hf-field);border:1px solid var(--hf-field-border);border-radius:var(--hf-radius-control);padding:8px 12px}
+textarea{resize:vertical;min-height:128px}label{display:grid;gap:8px;font-weight:600}label small{font-weight:400}small,.subtle{font-size:12px;color:var(--hf-muted)}
+h1,h2,h3,p{margin:0}h1{font-size:clamp(1.75rem,1.55rem + .6vw,2rem);line-height:1.25;letter-spacing:-.045em;font-weight:600;color:var(--hf-heading)}
+h2{font-size:18px;font-weight:600;color:var(--hf-heading)}h3{font-size:16px;font-weight:600;color:var(--hf-heading)}p{max-width:62ch}svg.icon{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+[hidden]{display:none!important}.row{display:flex;align-items:center;gap:12px}.spread{justify-content:space-between}.wrap{flex-wrap:wrap}.stack{display:grid;gap:24px}.compact{gap:12px}.primary{background:var(--hf-action);color:var(--hf-on-action);border-color:var(--hf-action)}
+.shell{display:grid;grid-template-columns:176px minmax(0,1fr);min-height:100vh}.sidebar{background:var(--hf-surface);border-right:1px solid var(--hf-border);padding:24px 16px;display:flex;flex-direction:column;gap:32px}
+.brand{font-size:22px;font-weight:700;color:var(--hf-heading)}.brand b{color:var(--hf-gold-ink);background:var(--hf-gold-soft);border-radius:6px;padding:0 4px}.sidebar nav{display:grid;gap:8px}.nav-info{display:flex;align-items:center;gap:12px;min-height:44px;padding:8px;color:var(--hf-muted)}
+.nav-info.current{background:var(--hf-active-soft);color:var(--hf-active);border-radius:6px;font-weight:600}.sidebar footer{margin-top:auto;color:var(--hf-muted);font-size:12px}
+.topbar{padding:16px 32px;border-bottom:1px solid var(--hf-border);background:var(--hf-surface)}.proposal{font-size:12px;color:var(--hf-muted)}.theme{display:flex;gap:8px;align-items:center;min-width:44px}
+main{max-width:1320px;padding:32px;margin:auto}.identity{margin-bottom:24px}.identity p{color:var(--hf-muted);margin-top:8px}.breadcrumb{font-size:12px;color:var(--hf-muted);margin-bottom:16px}
+.scope{display:flex;gap:8px;border-bottom:1px solid var(--hf-border);margin:24px 0}.scope button{border:0;border-radius:0;background:transparent;padding:12px 16px;border-bottom:2px solid transparent}.scope button[aria-pressed="true"]{color:var(--hf-active);border-bottom-color:var(--hf-active)}
+.workspace{display:grid;grid-template-columns:152px minmax(0,1fr) 232px;gap:24px;align-items:start}.tasks{display:grid;gap:8px}.tasks button{text-align:left;border:0;background:transparent;font-weight:400;padding:8px 12px}.tasks button[aria-current="page"]{color:var(--hf-active);background:var(--hf-active-soft);font-weight:600}.mobile-task{display:none}
+.paper{background:var(--hf-surface);border:1px solid var(--hf-border);border-radius:var(--hf-radius-card);padding:24px;min-width:0}.section-head{margin-bottom:24px}.section-head p{color:var(--hf-muted);margin-top:8px}.fields{display:grid;gap:24px}.two{display:grid;grid-template-columns:1fr 1fr;gap:16px}.rule{border-top:1px solid var(--hf-border);padding-top:24px}.field-note{font-size:12px;color:var(--hf-muted);font-weight:400}
+.actions{margin-top:24px;padding-top:16px;border-top:1px solid var(--hf-border);display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}.status{font-size:12px;color:var(--hf-success)}.warning{padding:16px;border-radius:6px;background:var(--hf-warning-soft);color:var(--hf-warning)}
+.context{display:grid;gap:24px}.context section{border-bottom:1px solid var(--hf-border);padding-bottom:24px}.context h3{margin-bottom:12px}.context p{font-size:12px;color:var(--hf-muted)}.context dl{margin:12px 0 0;display:grid;gap:12px}.context dt{font-size:12px;color:var(--hf-muted)}.context dd{margin:0;font-weight:600}.product-art{width:100%;height:168px;background:var(--hf-surface-muted);border-radius:12px;color:var(--hf-heading)}
+.tag{display:inline-block;background:var(--hf-active-soft);color:var(--hf-active);border-radius:6px;padding:4px 8px;font-size:12px}.tag.gold{background:var(--hf-gold-soft);color:var(--hf-gold-ink)}
+.table-wrap{overflow:auto}table{border-collapse:collapse;width:100%;text-align:left}th,td{padding:12px 8px;border-bottom:1px solid var(--hf-border)}th{color:var(--hf-muted);font-size:12px;font-weight:600}td input{min-width:100px}caption{text-align:left;color:var(--hf-muted);padding-bottom:16px}.presentation{background:var(--hf-page);padding:16px;border-radius:6px}.presentation label{margin-top:16px}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:24px}.compare h3{margin:8px 0 12px}.compare p{margin-bottom:16px;white-space:pre-wrap;overflow-wrap:anywhere}.scenario{padding:16px;background:var(--hf-page);border-radius:6px;margin-bottom:24px}.scenario small{display:block;margin-top:8px}.comparison-value{font-size:16px;font-weight:600;color:var(--hf-heading)}
+details{border-top:1px solid var(--hf-border);padding-top:16px}summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-weight:600}dialog{width:min(520px,calc(100% - 32px));background:var(--hf-surface);color:var(--hf-ink);border:1px solid var(--hf-border);border-radius:12px;padding:24px}dialog::backdrop{background:color-mix(in srgb,var(--hf-ink) 40%,transparent)}dialog p{margin:16px 0}.consent{display:flex;align-items:flex-start;gap:12px;font-weight:400;min-height:44px}.consent input{width:20px;min-height:24px;margin:0}.dialog-actions{display:flex;gap:12px;justify-content:flex-end;margin-top:24px}.notice{margin-top:24px;min-height:24px;color:var(--hf-success)}
+@media(min-width:1500px){main{padding:32px 48px}}@media(max-width:1180px){.shell{grid-template-columns:140px minmax(0,1fr)}.workspace{grid-template-columns:136px minmax(0,1fr)}.context{grid-column:2;grid-template-columns:1fr 1fr}.context section:last-child{grid-column:1/-1}.topbar{padding:16px 24px}main{padding:24px}}
+@media(max-width:760px){.shell{display:block}.sidebar{display:none}.topbar{padding:12px 16px;gap:12px}.topbar .subtle{display:none}main{padding:24px 16px}.identity .row{align-items:flex-start}.identity .row button{padding:8px 12px}.workspace{display:block}.tasks{display:none}.mobile-task{display:grid;margin-bottom:16px}.paper{padding:16px}.context{margin-top:24px;grid-template-columns:1fr 1fr;gap:16px}.context section{min-width:0}.context section:last-child{grid-column:1/-1}.two,.compare{grid-template-columns:1fr}.compare>div+div{border-top:1px solid var(--hf-border);padding-top:16px}.scope button{padding:12px}.scope{gap:0}.proposal{max-width:24ch}.theme{padding:8px}.theme span{display:none}.product-art{height:136px}.actions{align-items:stretch}.actions button{width:100%}h1{max-width:12ch}.table-wrap{margin-right:-8px}button{white-space:normal}}
+</style>
+</head>
+<body>
+<svg hidden aria-hidden="true"><defs>
+<symbol id="box" viewBox="0 0 24 24"><path d="m3 7 9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10M7 5l9 4"/></symbol>
+<symbol id="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1 1M18 18l1 1M5 19l1-1M18 6l1-1"/></symbol>
+<symbol id="store" viewBox="0 0 24 24"><path d="M3 10h18l-2-6H5zM4 10v10h16V10M9 20v-6h6v6"/></symbol>
+</defs></svg>
+<div class="shell">
+<aside class="sidebar" aria-label="Contexto de HoundFe">
+<div class="brand">hound<b>fe</b></div>
+<nav aria-label="Ubicación de referencia"><span class="nav-info"><svg class="icon"><use href="#store"/></svg>Caja</span><span class="nav-info current"><svg class="icon"><use href="#box"/></svg>Productos</span></nav>
+<footer>Administración<br>Marco de navegación ilustrativo</footer>
+</aside>
+<div>
+<header class="topbar row spread"><div><strong>Productos</strong><div class="proposal">Propuesta visual · datos de ejemplo</div></div><div class="row"><span class="subtle">Espacio de trabajo / Dirección 1</span><button id="theme" class="theme" aria-pressed="false" aria-label="Activar tema oscuro"><svg class="icon"><use href="#sun"/></svg><span>Cambiar tema</span></button></div></header>
+<main>
+<div class="breadcrumb">Catálogo / Productos / Terra</div>
+<header class="identity"><div class="row spread wrap"><div><h1>Arnés ajustable Terra</h1><p>Producto físico · 2 presentaciones · Categoría: Accesorios</p></div><button id="new-product">Nuevo producto</button></div></header>
+<div class="scope" role="group" aria-label="Ámbito de trabajo"><button data-scope="operation" aria-pressed="false">Operación</button><button data-scope="editorial" aria-pressed="true">Contenido editorial</button></div>
+<div class="workspace">
+<nav class="tasks" aria-label="Tareas del producto"></nav>
+<label class="mobile-task">Tarea del producto<select id="mobile-task"></select></label>
+<div class="paper">
+<section id="editorial" class="view">
+<header class="section-head"><div class="row spread wrap"><h2>Una historia clara para Terra</h2><span class="tag gold" id="draft-badge">Borrador guardado · ejemplo</span></div><p>Lo que cuentas del producto. Guardar aquí no cambia lo publicado.</p></header>
+<form id="editorial-form" class="fields">
+<label>Familia editorial<select id="family"><option>Paseo y comodidad</option><option>Accesorios de uso diario</option></select><small>Organiza el contenido y sus atributos. No sustituye la categoría «Accesorios».</small></label>
+<label>Título público<input id="title" value="Arnés Terra para paseos cómodos" maxlength="120"><small>Un nombre reconocible, sin modificar el nombre operativo.</small></label>
+<label>Descripción<textarea id="description" maxlength="1600">Acompaña sus paseos diarios con un arnés ajustable, ligero y fácil de colocar. Elige la talla según la medida del pecho de tu perro.</textarea></label>
+<div class="rule"><h3>Por presentación</h3><p class="subtle">Las presentaciones ya existen en Operación. Aquí solo editas su contenido.</p></div>
+<div class="presentation"><strong>Mediano · azul</strong><label>Nota de presentación<input id="medium-note" value="Para pecho de 45 a 60 cm." maxlength="160"></label></div>
+<div class="presentation"><strong>Grande · azul</strong><label>Nota de presentación<input id="large-note" value="Para pecho de 60 a 80 cm." maxlength="160"></label></div>
+<details><summary>Referencias de medios · solo lectura</summary><p class="subtle">Referencia ilustrativa: terra-azul-frente. La carga y edición de medios no forman parte de esta propuesta.</p></details>
+<div class="actions"><span class="subtle">Solo borrador editorial</span><button class="primary" id="save-editorial" type="submit">Simular guardar borrador</button></div>
+</form>
+</section>
+<section id="identity" class="view" hidden>
+<header class="section-head"><h2>Identidad del producto</h2><p>Datos internos para reconocer y vender Terra. Guardado independiente del contenido editorial.</p></header>
+<form id="identity-form" class="fields"><label>Nombre operativo<input value="Arnés ajustable Terra" required></label><div class="two"><label>Tipo<select><option>Producto físico</option></select></label><label>Categoría<select><option>Accesorios</option><option>Paseo</option></select></label></div><label>Tratamiento fiscal<select><option>IVA 16% · ejemplo</option><option>Exento · ejemplo</option></select></label><div class="actions"><span class="subtle" id="identity-state">Sin cambios locales</span><button class="primary">Simular guardar identidad</button></div></form>
+</section>
+<section id="variants" class="view" hidden>
+<header class="section-head"><h2>Variantes</h2><p>Presentaciones operativas existentes. El contenido editorial no crea variantes.</p></header>
+<div class="table-wrap"><table><caption>Identidad por presentación · datos ficticios</caption><thead><tr><th>Presentación</th><th>SKU</th></tr></thead><tbody><tr><td>Mediano · azul</td><td>TERRA-M-AZ</td></tr><tr><td>Grande · azul</td><td>TERRA-G-AZ</td></tr></tbody></table></div><p class="field-note" style="margin-top:24px">Consulta de variantes en esta propuesta; sin alta ni eliminación simuladas.</p>
+</section>
+<section id="pricing" class="view" hidden>
+<header class="section-head"><h2>Precios</h2><p>MXN · cada fila se guarda por separado. Publicar contenido no modifica precios.</p></header>
+<form class="row-save fields"><h3>Mediano · azul</h3><label>Precio de venta (MXN)<input type="number" min="0" step="0.01" value="349" required></label><button>Simular guardar precio · Mediano</button><span class="subtle" role="status">Precio de ejemplo</span></form>
+<form class="row-save fields rule" style="margin-top:24px"><h3>Grande · azul</h3><label>Precio de venta (MXN)<input type="number" min="0" step="0.01" value="399" required></label><button>Simular guardar precio · Grande</button><span class="subtle" role="status">Precio de ejemplo</span></form>
+</section>
+<section id="inventory" class="view" hidden>
+<header class="section-head"><h2>Inventario</h2><p>Existencias operativas de ejemplo. No se modifican al guardar ni publicar contenido.</p></header>
+<table><thead><tr><th>Presentación</th><th>Disponible</th></tr></thead><tbody><tr><td>Mediano · azul</td><td>18 piezas</td></tr><tr><td>Grande · azul</td><td>12 piezas</td></tr></tbody></table><p class="warning" style="margin-top:24px">Consulta ilustrativa. Edición de lotes no disponible; sin movimientos de inventario en este prototipo.</p><p class="subtle" style="margin-top:16px">Los servicios no tienen inventario, lotes ni programación de citas en esta propuesta.</p>
+</section>
+<section id="review" class="view" hidden>
+<header class="section-head"><h2>Revisión de publicación</h2><p>Compara el borrador guardado con la versión publicada, no con cambios sin guardar.</p></header>
+<div class="scenario"><label>Escenario del prototipo<select id="scenario"><option value="normal">Normal</option><option value="readonly">Solo lectura</option><option value="conflict">Conflicto de versión</option><option value="care">Confirmación de cuidado</option><option value="ambiguous">Respuesta incierta</option></select></label><small>Estado simulado local. No consulta permisos ni elegibilidad reales.</small></div>
+<p id="review-notice" class="warning" style="margin-bottom:24px">La elegibilidad final la valida el servidor; esta simulación no la demuestra.</p>
+<div class="compare"><div><span class="tag">Borrador guardado</span><h3>Propuesta para publicar</h3><p class="subtle" id="saved-family"></p><p id="saved-title" class="comparison-value"></p><p id="saved-description"></p><p class="subtle" id="saved-notes"></p></div><div><span class="tag gold">Publicado · ejemplo</span><h3>Lo visible actualmente</h3><p class="subtle" id="published-family"></p><p id="published-title" class="comparison-value"></p><p id="published-description"></p><p class="subtle" id="published-notes"></p></div></div>
+<details style="margin-top:24px"><summary>Vista pública conceptual</summary><p class="subtle">Concepto de contenido público; no confirma un contrato de catálogo. Solo título, descripción y notas por presentación. La evidencia privada nunca se incluye.</p></details>
+<div id="care-evidence" class="warning" style="margin-top:24px" hidden><strong>Solo administración · evidencia privada de ejemplo</strong><p>Revisar indicaciones de ajuste y supervisión. Esta nota no se envía a la vista pública ni genera políticas.</p></div>
+<div class="actions"><span class="subtle" id="review-state">Sin publicación automática</span><button id="publish" class="primary">Revisar confirmación simulada</button></div>
+</section>
+<section id="concepts" class="view" hidden><header class="section-head"><h2>Familias y diccionario</h2><p>Diseño futuro · consulta conceptual, solo lectura.</p></header><h3>Paseo y comodidad</h3><p style="margin-top:12px">Familia editorial: agrupa atributos como ajuste y material. La categoría operativa sigue siendo Accesorios.</p><p class="subtle" style="margin-top:24px">Diccionario conceptual: «Ajuste» describe cómo adaptar el arnés. No hay edición, generación de políticas ni administración de vocabulario en este prototipo.</p></section>
+<section id="create" class="view" hidden><header class="section-head"><h2>Nuevo producto</h2><p>Empieza con la identidad mínima. Después puedes completar las tareas en cualquier orden.</p></header><form id="create-form" class="fields"><label>Nombre del producto<input id="new-name" required maxlength="120" placeholder="Ej. Arnés ajustable Terra"></label><label>Tipo<select id="new-type"><option>Producto físico</option><option>Servicio</option></select></label><label>Categoría<select><option>Accesorios</option><option>Servicios</option></select></label><div class="rule"><h3>Fotos</h3><p class="subtle" id="photo-reason">Primero crea el producto. No se permite cargar fotos antes de crearlo.</p><button type="button" disabled aria-describedby="photo-reason" style="margin-top:12px">Agregar fotos · no disponible</button></div><div class="actions"><span class="subtle">Sin variantes ni precios obligatorios aquí</span><button class="primary">Simular creación local</button></div><p id="create-result" role="status"></p></form></section>
+<p class="notice" id="feedback" role="status" aria-live="polite"></p>
+</div>
+<aside class="context" aria-label="Contexto del producto">
+<section><svg class="product-art" role="img" aria-labelledby="art-title" viewBox="0 0 240 180"><title id="art-title">Ilustración de un arnés azul, no es una fotografía</title><g fill="none" stroke="currentColor" stroke-linejoin="round"><path d="M79 32c-27 24-37 71-13 100l29-16c-13-23-6-47 9-63zM161 32c27 24 37 71 13 100l-29-16c13-23 6-47-9-63z" stroke-width="12"/><path d="m93 48 54 76M147 48l-54 76M68 121c33 29 71 29 104 0" stroke-width="12"/><rect x="105" y="70" width="30" height="28" rx="4" fill="var(--hf-surface)" stroke-width="4"/><path d="M113 78h14v12h-14z" stroke-width="2"/><path d="M113 130v16a7 7 0 0 0 14 0v-16" stroke-width="3"/></g></svg><p style="margin-top:8px">Ilustración del producto · no es foto real</p></section>
+<section><h3>Estado del contenido</h3><dl><div><dt>En este formulario</dt><dd id="local-state">Sin cambios locales</dd></div><div><dt>Borrador editorial</dt><dd id="saved-state">Guardado · muestra inicial</dd></div><div><dt>Publicación</dt><dd id="public-state">Versión anterior · ejemplo</dd></div></dl></section>
+<section><h3>Una tarea, un alcance</h3><p>Identidad, precios e inventario viven en Operación. Guardar el borrador no publica ni mueve existencias.</p><button data-go="review" style="margin-top:16px">Ir a revisión</button></section>
+</aside>
+</div>
+</main>
+</div>
+</div>
+<dialog id="confirm-dialog" aria-labelledby="dialog-title"><h2 id="dialog-title">Simular publicación</h2><p>Se copiará únicamente el borrador guardado a la columna publicada de este prototipo. No cambia datos remotos, precios ni existencias.</p><p id="dialog-care" class="warning" hidden>Confirma que revisaste la evidencia privada de cuidado. La elegibilidad real corresponde al servidor.</p><label class="consent"><input type="checkbox" id="consent">Confirmo la simulación de publicación del borrador guardado y, cuando aplica, la revisión de cuidado.</label><div class="dialog-actions"><button id="cancel">Cancelar</button><button id="confirm" class="primary" disabled>Confirmar simulación</button></div></dialog>
+<script>
+'use strict';
+const $ = selector => document.querySelector(selector);
+const editorialFields = ['family', 'title', 'description', 'medium-note', 'large-note'];
+const readDraft = () => Object.fromEntries(editorialFields.map(id => [id, $('#' + id).value]));
+let saved = readDraft();
+let published = {...saved, title:'Arnés ajustable Terra', description:'Arnés ajustable para paseos diarios.', 'medium-note':'Mediano · azul', 'large-note':'Grande · azul'};
+let scope = 'editorial', active = 'editorial';
+let scenario = 'normal';
+const taskMap = {editorial:[['editorial','Contenido principal'],['review','Revisión y publicación'],['concepts','Familias y diccionario']],operation:[['identity','Identidad'],['variants','Variantes'],['pricing','Precios'],['inventory','Inventario']]};
+const dirty = () => JSON.stringify(readDraft()) !== JSON.stringify(saved);
+const say = text => { $('#feedback').textContent = text; };
+function updateDraftState() {
+  $('#local-state').textContent = dirty() ? 'Cambios sin guardar' : 'Sin cambios locales';
+  $('#draft-badge').textContent = dirty() ? 'Cambios sin guardar' : 'Borrador guardado · ejemplo';
+}
+function renderComparison() {
+  for (const [prefix, data] of [['saved',saved],['published',published]]) {
+    $('#' + prefix + '-family').textContent = 'Familia editorial: ' + data.family;
+    $('#' + prefix + '-title').textContent = data.title;
+    $('#' + prefix + '-description').textContent = data.description;
+    $('#' + prefix + '-notes').textContent = 'Mediano · azul: ' + data['medium-note'] + ' / Grande · azul: ' + data['large-note'];
+  }
+  const notices = {normal:'La elegibilidad final la valida el servidor; esta simulación no la demuestra.',readonly:'Solo lectura simulado: no puedes guardar contenido ni publicar. Solicita permisos en el sistema real.',conflict:'Conflicto simulado: existe otra versión. Publicación bloqueada; no se sobrescribe ni se fusiona contenido.',care:'Cuidado: requiere revisión administrativa y confirmación explícita. Elegibilidad final a cargo del servidor.',ambiguous:'Respuesta incierta simulada: no se puede confirmar la publicación. No reintentar a ciegas; verificar el estado en el sistema real.'};
+  $('#review-notice').textContent = notices[scenario];
+  $('#care-evidence').hidden = scenario !== 'care';
+  $('#publish').disabled = ['readonly','conflict','ambiguous'].includes(scenario) || dirty();
+  $('#review-state').textContent = dirty() ? 'Primero guarda los cambios locales del borrador.' : 'Solo se publica el borrador guardado · simulación';
+  $('#save-editorial').disabled = scenario === 'readonly';
+  editorialFields.forEach(id => $('#' + id).disabled = scenario === 'readonly');
+}
+function navigate(id, moveFocus = false) {
+  active = id;
+  if (id !== 'create') scope = taskMap.operation.some(([key]) => key === id) ? 'operation' : 'editorial';
+  document.querySelectorAll('.view').forEach(view => view.hidden = view.id !== id);
+  document.querySelectorAll('[data-scope]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.scope === scope)));
+  const nav = $('.tasks'), select = $('#mobile-task');
+  nav.replaceChildren(); select.replaceChildren();
+  const tasks = id === 'create' ? [['create','Nuevo producto'], ...taskMap[scope]] : taskMap[scope];
+  tasks.forEach(([key,label]) => {
+    const button = document.createElement('button'); button.type = 'button'; button.textContent = label;
+    if (key === active) button.setAttribute('aria-current','page');
+    button.addEventListener('click', () => navigate(key, true)); nav.append(button);
+    const option = document.createElement('option'); option.value = key; option.textContent = label; option.selected = key === active; select.append(option);
+  });
+  say(''); renderComparison();
+  if (moveFocus) { const heading = $('#' + id + ' h2'); heading.tabIndex = -1; heading.focus(); }
+}
+document.querySelectorAll('[data-scope]').forEach(button => button.addEventListener('click', () => navigate(taskMap[button.dataset.scope][0][0], true)));
+document.querySelectorAll('[data-go]').forEach(button => button.addEventListener('click', () => navigate(button.dataset.go, true)));
+$('#mobile-task').addEventListener('change', event => navigate(event.target.value, true));
+$('#new-product').addEventListener('click', () => navigate('create', true));
+$('#theme').addEventListener('click', event => {
+  const dark = document.documentElement.classList.toggle('dark');
+  event.currentTarget.setAttribute('aria-pressed',String(dark));
+  event.currentTarget.setAttribute('aria-label',dark ? 'Activar tema claro' : 'Activar tema oscuro');
+});
+$('#editorial-form').addEventListener('input', () => {updateDraftState(); renderComparison();});
+$('#editorial-form').addEventListener('submit', event => {
+  event.preventDefault(); if (scenario === 'readonly') return;
+  saved = readDraft(); updateDraftState(); renderComparison();
+  $('#saved-state').textContent = 'Guardado local simulado';
+  say('Borrador guardado solo en esta página. No se guardó en un servidor ni se publicó.');
+});
+$('#identity-form').addEventListener('input', () => $('#identity-state').textContent = 'Cambios operativos sin guardar');
+$('#identity-form').addEventListener('submit', event => {event.preventDefault(); $('#identity-state').textContent = 'Identidad guardada localmente · simulación'; say('Simulación de guardado de identidad; sin cambios remotos ni editoriales.');});
+document.querySelectorAll('.row-save').forEach(form => {
+  form.addEventListener('input', () => form.querySelector('[role="status"]').textContent = 'Precio sin guardar');
+  form.addEventListener('submit', event => {event.preventDefault(); form.querySelector('[role="status"]').textContent = 'Precio guardado localmente · simulación'; say('Solo esta fila: simulación local. No afecta contenido ni inventario.');});
+});
+$('#create-form').addEventListener('submit', event => {
+  event.preventDefault();
+  $('#create-result').textContent = 'Creación local simulada: ' + $('#new-name').value + ' (' + $('#new-type').value + '). No existe un registro remoto. La carga de fotos queda fuera de esta propuesta.';
+  $('#photo-reason').textContent = 'Creación simulada completada. Carga de fotos no implementada en este prototipo.';
+});
+$('#scenario').addEventListener('change', event => {scenario = event.target.value; renderComparison();});
+const dialog = $('#confirm-dialog');
+$('#publish').addEventListener('click', () => {
+  if ($('#publish').disabled) return;
+  $('#consent').checked = false; $('#confirm').disabled = true;
+  $('#dialog-care').hidden = scenario !== 'care'; dialog.showModal();
+});
+$('#consent').addEventListener('change', event => $('#confirm').disabled = !event.target.checked);
+$('#cancel').addEventListener('click', () => dialog.close());
+dialog.addEventListener('close', () => $('#publish').focus());
+$('#confirm').addEventListener('click', () => {
+  if (!$('#consent').checked || dirty() || ['readonly','conflict','ambiguous'].includes(scenario)) return;
+  published = {...saved}; renderComparison(); $('#public-state').textContent = 'Publicación simulada local'; dialog.close();
+  say('Publicación simulada confirmada. Solo cambió esta vista local; sin envío ni guardado remoto.');
+});
+navigate('editorial');
+</script>
+</body>
+</html>

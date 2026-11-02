@@ -1,0 +1,28 @@
+{
+  "title": "Producto y contenido editorial · HoundFe",
+  "brief": "Tres propuestas para crear/editar productos y preparar contenido editorial, coherentes con el sistema visual HoundFe. Datos ficticios e interacciones locales; no producción.",
+  "feature": "odd/tasks/product-editorial-design.md",
+  "artboards": [
+    {
+      "file": "01-task-workspace.html",
+      "title": "Por tareas",
+      "tradeoff": "Acceso directo y contexto estable; requiere distinguir ámbitos.",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "02-document-inspector.html",
+      "title": "Ficha con inspector",
+      "tradeoff": "Contenido y lectura protagonistas; la operación queda en una vista separada.",
+      "width": 1440,
+      "height": 1000
+    },
+    {
+      "file": "03-guided-workspace.html",
+      "title": "Recorrido flexible",
+      "tradeoff": "Orientación para altas y revisión; más navegación para usuarios expertos.",
+      "width": 1440,
+      "height": 1000
+    }
+  ]
+}
