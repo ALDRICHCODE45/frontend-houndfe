@@ -1,0 +1,529 @@
+{
+  "checks": [
+    {
+      "name": "01-task-workspace.html 1440 light: no horizontal overflow",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "01-task-workspace.html 1440 light: focus 2px",
+      "pass": true,
+      "actual": "2px",
+      "expected": "2px"
+    },
+    {
+      "name": "01-task-workspace.html 1440 light: touch targets",
+      "pass": true,
+      "actual": 0,
+      "expected": 0
+    },
+    {
+      "name": "01-task-workspace.html 1440 dark: no horizontal overflow",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "01-task-workspace.html 1440 dark: focus 2px",
+      "pass": true,
+      "actual": "2px",
+      "expected": "2px"
+    },
+    {
+      "name": "01-task-workspace.html 1440 dark: touch targets",
+      "pass": true,
+      "actual": 0,
+      "expected": 0
+    },
+    {
+      "name": "01-task-workspace.html 390 light: no horizontal overflow",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "01-task-workspace.html 390 light: focus 2px",
+      "pass": true,
+      "actual": "2px",
+      "expected": "2px"
+    },
+    {
+      "name": "01-task-workspace.html 390 light: touch targets",
+      "pass": true,
+      "actual": 0,
+      "expected": 0
+    },
+    {
+      "name": "01-task-workspace.html 390 dark: no horizontal overflow",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "01-task-workspace.html 390 dark: focus 2px",
+      "pass": true,
+      "actual": "2px",
+      "expected": "2px"
+    },
+    {
+      "name": "01-task-workspace.html 390 dark: touch targets",
+      "pass": true,
+      "actual": 0,
+      "expected": 0
+    },
+    {
+      "name": "01-task-workspace.html: dirty cannot publish",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "01-task-workspace.html: saved can review publication",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "01-task-workspace.html: explicit consent",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "01-task-workspace.html: escape closes dialog",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "01-task-workspace.html: scenario readonly",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "01-task-workspace.html: scenario conflict",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "01-task-workspace.html: scenario ambiguous",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "01-task-workspace.html: consent required before confirmation",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "01-task-workspace.html: cancelling preserves published copy",
+      "pass": true,
+      "actual": "Arnés ajustable Terra",
+      "expected": "Arnés ajustable Terra"
+    },
+    {
+      "name": "01-task-workspace.html: confirmation closes dialog",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "01-task-workspace.html: confirmation copies only saved content",
+      "pass": true,
+      "actual": "Título local de prueba",
+      "expected": "Título local de prueba"
+    },
+    {
+      "name": "01-task-workspace.html: publication blocked in readonly",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "01-task-workspace.html: publication blocked in conflict",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "01-task-workspace.html: publication blocked in ambiguous",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "01-task-workspace.html: mobile editorial no overflow",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "01-task-workspace.html: mobile review no overflow",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "01-task-workspace.html: mobile concepts no overflow",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "02-document-inspector.html 1440 light: no horizontal overflow",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "02-document-inspector.html 1440 light: focus 2px",
+      "pass": true,
+      "actual": "2px",
+      "expected": "2px"
+    },
+    {
+      "name": "02-document-inspector.html 1440 light: touch targets",
+      "pass": true,
+      "actual": 0,
+      "expected": 0
+    },
+    {
+      "name": "02-document-inspector.html 1440 dark: no horizontal overflow",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "02-document-inspector.html 1440 dark: focus 2px",
+      "pass": true,
+      "actual": "2px",
+      "expected": "2px"
+    },
+    {
+      "name": "02-document-inspector.html 1440 dark: touch targets",
+      "pass": true,
+      "actual": 0,
+      "expected": 0
+    },
+    {
+      "name": "02-document-inspector.html 390 light: no horizontal overflow",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "02-document-inspector.html 390 light: focus 2px",
+      "pass": true,
+      "actual": "2px",
+      "expected": "2px"
+    },
+    {
+      "name": "02-document-inspector.html 390 light: touch targets",
+      "pass": true,
+      "actual": 0,
+      "expected": 0
+    },
+    {
+      "name": "02-document-inspector.html 390 dark: no horizontal overflow",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "02-document-inspector.html 390 dark: focus 2px",
+      "pass": true,
+      "actual": "2px",
+      "expected": "2px"
+    },
+    {
+      "name": "02-document-inspector.html 390 dark: touch targets",
+      "pass": true,
+      "actual": 0,
+      "expected": 0
+    },
+    {
+      "name": "02-document-inspector.html: dirty cannot publish",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "02-document-inspector.html: incomplete draft can be saved",
+      "pass": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "02-document-inspector.html: scenario readonly",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "02-document-inspector.html: scenario conflict",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "02-document-inspector.html: scenario uncertain",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "02-document-inspector.html: consent required before confirmation",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "02-document-inspector.html: cancelling preserves published copy",
+      "pass": true,
+      "actual": "Arnés ajustable Terra",
+      "expected": "Arnés ajustable Terra"
+    },
+    {
+      "name": "02-document-inspector.html: care requires additional acknowledgement",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "02-document-inspector.html: confirmation closes dialog",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "02-document-inspector.html: confirmation copies only saved content",
+      "pass": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "02-document-inspector.html: publication blocked in readonly",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "02-document-inspector.html: publication blocked in conflict",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "02-document-inspector.html: publication blocked in uncertain",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "02-document-inspector.html: mobile editorial no overflow",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "02-document-inspector.html: mobile operations no overflow",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "02-document-inspector.html: mobile new no overflow",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "02-document-inspector.html: mobile review no overflow",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "03-guided-workspace.html 1440 light: no horizontal overflow",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "03-guided-workspace.html 1440 light: focus 2px",
+      "pass": true,
+      "actual": "2px",
+      "expected": "2px"
+    },
+    {
+      "name": "03-guided-workspace.html 1440 light: touch targets",
+      "pass": true,
+      "actual": 0,
+      "expected": 0
+    },
+    {
+      "name": "03-guided-workspace.html 1440 dark: no horizontal overflow",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "03-guided-workspace.html 1440 dark: focus 2px",
+      "pass": true,
+      "actual": "2px",
+      "expected": "2px"
+    },
+    {
+      "name": "03-guided-workspace.html 1440 dark: touch targets",
+      "pass": true,
+      "actual": 0,
+      "expected": 0
+    },
+    {
+      "name": "03-guided-workspace.html 390 light: no horizontal overflow",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "03-guided-workspace.html 390 light: focus 2px",
+      "pass": true,
+      "actual": "2px",
+      "expected": "2px"
+    },
+    {
+      "name": "03-guided-workspace.html 390 light: touch targets",
+      "pass": true,
+      "actual": 0,
+      "expected": 0
+    },
+    {
+      "name": "03-guided-workspace.html 390 dark: no horizontal overflow",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "03-guided-workspace.html 390 dark: focus 2px",
+      "pass": true,
+      "actual": "2px",
+      "expected": "2px"
+    },
+    {
+      "name": "03-guided-workspace.html 390 dark: touch targets",
+      "pass": true,
+      "actual": 0,
+      "expected": 0
+    },
+    {
+      "name": "03-guided-workspace.html: incomplete draft can be saved",
+      "pass": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "03-guided-workspace.html: consent required before confirmation",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "03-guided-workspace.html: cancelling preserves published copy",
+      "pass": true,
+      "actual": "Arnés Terra",
+      "expected": "Arnés Terra"
+    },
+    {
+      "name": "03-guided-workspace.html: confirmation closes dialog",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "03-guided-workspace.html: confirmation copies only saved content",
+      "pass": true,
+      "actual": "",
+      "expected": ""
+    },
+    {
+      "name": "03-guided-workspace.html: publication blocked in readonly",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "03-guided-workspace.html: publication blocked in conflict",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "03-guided-workspace.html: publication blocked in uncertain",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "03-guided-workspace.html: mobile identity no overflow",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "03-guided-workspace.html: mobile variants no overflow",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "03-guided-workspace.html: mobile content no overflow",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "03-guided-workspace.html: mobile review no overflow",
+      "pass": true,
+      "actual": true,
+      "expected": true
+    },
+    {
+      "name": "No JavaScript page errors",
+      "pass": true,
+      "actual": 0,
+      "expected": 0
+    },
+    {
+      "name": "No external network requests",
+      "pass": true,
+      "actual": 0,
+      "expected": 0
+    }
+  ],
+  "screenshots": [
+    "design/product-editorial/.screenshots/1-1440-light.png",
+    "design/product-editorial/.screenshots/1-1440-dark.png",
+    "design/product-editorial/.screenshots/1-390-light.png",
+    "design/product-editorial/.screenshots/1-390-dark.png",
+    "design/product-editorial/.screenshots/1-390-review.png",
+    "design/product-editorial/.screenshots/2-1440-light.png",
+    "design/product-editorial/.screenshots/2-1440-dark.png",
+    "design/product-editorial/.screenshots/2-390-light.png",
+    "design/product-editorial/.screenshots/2-390-dark.png",
+    "design/product-editorial/.screenshots/2-390-review.png",
+    "design/product-editorial/.screenshots/3-1440-light.png",
+    "design/product-editorial/.screenshots/3-1440-dark.png",
+    "design/product-editorial/.screenshots/3-390-light.png",
+    "design/product-editorial/.screenshots/3-390-dark.png",
+    "design/product-editorial/.screenshots/3-390-review.png"
+  ],
+  "pageErrors": [],
+  "network": [],
+  "cleanup": true,
+  "status": "passed"
+}
