@@ -1,0 +1,1332 @@
+{
+  "source": "src/app/router/index.ts:117-507",
+  "routeRecords": 39,
+  "renderingDestinations": 38,
+  "note": "39 route records, 38 rendering destinations. Partial entries name bounded observed controls; only complete route/state coverage may set verified=true.",
+  "routes": [
+    {
+      "route": "/",
+      "kind": "resolver",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/login",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/select-tenant",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/pos/products",
+      "kind": "rendering-destination",
+      "inspected": true,
+      "corrected": true,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "partial",
+          "evidence": [
+            "docs/redesign/product-selector-verification.md",
+            "docs/redesign/product-actions-verification.md"
+          ]
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "partial",
+          "evidence": [
+            "docs/redesign/product-selector-verification.md",
+            "docs/redesign/product-actions-verification.md"
+          ]
+        },
+        {
+          "mode": "light-mobile",
+          "status": "partial",
+          "evidence": [
+            "docs/redesign/product-selector-verification.md",
+            "docs/redesign/product-actions-verification.md"
+          ]
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "partial",
+          "evidence": [
+            "docs/redesign/product-selector-verification.md",
+            "docs/redesign/product-actions-verification.md"
+          ]
+        }
+      ],
+      "controls": "Quick-create category/SAT keyboard selection, nested Escape, focus restoration and SAT clear checked at390/1440 light/dark; SAT full-width311/385px. Full-editor link navigation checked without saves. Remaining route/control states pending.",
+      "variants": []
+    },
+    {
+      "route": "/pos/products/new",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/pos/products/:id",
+      "kind": "rendering-destination",
+      "inspected": true,
+      "corrected": true,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "partial",
+          "evidence": [
+            "summary-after-1440-light.png",
+            "settled-category-select-1440-light.png",
+            "settled-sat-select-1440-light.png",
+            "docs/redesign/product-actions-verification.md",
+            "docs/redesign/confirmation-modal-verification.md"
+          ]
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "partial",
+          "evidence": [
+            "summary-after-1440-dark.png",
+            "settled-category-select-1440-dark.png",
+            "settled-sat-select-1440-dark.png",
+            "docs/redesign/product-actions-verification.md",
+            "docs/redesign/confirmation-modal-verification.md"
+          ]
+        },
+        {
+          "mode": "light-mobile",
+          "status": "partial",
+          "evidence": [
+            "summary-after-390-light.png",
+            "settled-category-select-390-light.png",
+            "settled-sat-select-390-light.png",
+            "docs/redesign/product-actions-verification.md",
+            "docs/redesign/confirmation-modal-verification.md"
+          ]
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "partial",
+          "evidence": [
+            "summary-after-390-dark.png",
+            "settled-category-select-390-dark.png",
+            "settled-sat-select-390-dark.png",
+            "docs/redesign/product-actions-verification.md",
+            "docs/redesign/confirmation-modal-verification.md"
+          ]
+        }
+      ],
+      "controls": "Operational summary, category/SAT menus, create-list and tier-save action paint and shared confirmation association/cancel-focus checked in four modes. No product/price/delete submissions; remaining editor states pending.",
+      "variants": []
+    },
+    {
+      "route": "/pos/products/:id/editorial",
+      "kind": "rendering-destination",
+      "inspected": true,
+      "corrected": false,
+      "verified": false,
+      "blocked": "Authenticated vocabulary500 EDITORIAL_VOCABULARY_UNREPRESENTABLE; human STARTER_V1 disposition required. CORS resolved.",
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/pos/orders",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/pos/customers",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/pos/caja",
+      "kind": "rendering-destination",
+      "inspected": true,
+      "corrected": true,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "partial",
+          "evidence": [
+            "docs/redesign/cash-recipient-verification.md"
+          ]
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "partial",
+          "evidence": [
+            "docs/redesign/cash-recipient-verification.md"
+          ]
+        },
+        {
+          "mode": "light-mobile",
+          "status": "partial",
+          "evidence": [
+            "docs/redesign/cash-recipient-verification.md"
+          ]
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "partial",
+          "evidence": [
+            "docs/redesign/cash-recipient-verification.md"
+          ]
+        }
+      ],
+      "controls": "Recipient picker: simulated GET session/list/detail/users, actual permissions unchanged. Four modes verify accessible name, keyboard selection, Escape/focus, settled horizontal containment and HF surfaces; zero mutation attempts. No live custody or complete-route claim. Commit ec0d58d.",
+      "variants": []
+    },
+    {
+      "route": "/pos/caja/recepciones",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/pos/ventas",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/pos/ventas/nueva",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/pos/ventas/:id",
+      "kind": "rendering-destination",
+      "inspected": true,
+      "corrected": true,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "partial",
+          "evidence": [
+            "docs/redesign/seller-picker-verification.md",
+            "docs/redesign/debt-dialog-verification.md"
+          ]
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "partial",
+          "evidence": [
+            "docs/redesign/seller-picker-verification.md",
+            "docs/redesign/debt-dialog-verification.md"
+          ]
+        },
+        {
+          "mode": "light-mobile",
+          "status": "partial",
+          "evidence": [
+            "docs/redesign/seller-picker-verification.md",
+            "docs/redesign/debt-dialog-verification.md"
+          ]
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "partial",
+          "evidence": [
+            "docs/redesign/seller-picker-verification.md",
+            "docs/redesign/debt-dialog-verification.md"
+          ]
+        }
+      ],
+      "controls": "Seller picker names/Tab/native buttons/focus/containment checked in four real modes without assigning users. Debt dialog four-mode evidence uses an isolated GET-response fixture, zero financial mutation attempts; not live debt/payment proof.",
+      "variants": []
+    },
+    {
+      "route": "/pos/decisiones-pendientes",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/pos/promociones",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/pos/promociones/crear/:type",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/pos/promociones/:id",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/pos/cotizaciones",
+      "kind": "rendering-destination",
+      "inspected": true,
+      "corrected": true,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "partial",
+          "evidence": [
+            "quotation-enum-1440-light.png",
+            "date-fixed-1440-light.png"
+          ]
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "partial",
+          "evidence": [
+            "quotation-enum-1440-dark.png",
+            "date-fixed-1440-dark.png"
+          ]
+        },
+        {
+          "mode": "light-mobile",
+          "status": "partial",
+          "evidence": [
+            "quotation-enum-390-light.png",
+            "date-fixed-390-light.png"
+          ]
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "partial",
+          "evidence": [
+            "quotation-enum-390-dark.png",
+            "date-fixed-390-dark.png"
+          ]
+        }
+      ],
+      "controls": "Enum and date nested popups checked at390/1440 light/dark; async selection/removal and accessible names checked mobile-dark. Remaining states, numeric/multitext, full contrast and other controls pending.",
+      "variants": []
+    },
+    {
+      "route": "/pos/cotizaciones/nueva",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/pos/cotizaciones/:id",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/admin/colaboradores",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/admin/colaboradores/:id",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/admin/colaboradores/documentos-vencer",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/admin/colaboradores/aprobaciones-pendientes",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/admin/users",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/admin/roles",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/admin/tenants",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/admin/tenants/:tenantId/members",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/admin/payment-details",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/admin/payment-methods",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/pos/rutas-de-entrega",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/pos/rutas-de-entrega/:id",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/sistema/configuracion/notificaciones",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/system/catalog-settings",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/dashboard",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/catalogo/:branchSlug?",
+      "kind": "rendering-destination",
+      "inspected": true,
+      "corrected": true,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "partial",
+          "evidence": [
+            "docs/redesign/catalog-hf-overlays-verification.md"
+          ]
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "partial",
+          "evidence": [
+            "docs/redesign/catalog-hf-overlays-verification.md"
+          ]
+        },
+        {
+          "mode": "light-mobile",
+          "status": "partial",
+          "evidence": [
+            "docs/redesign/catalog-hf-overlays-verification.md"
+          ]
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "partial",
+          "evidence": [
+            "docs/redesign/catalog-hf-overlays-verification.md"
+          ]
+        }
+      ],
+      "controls": "12settled branch/detail/missing-image/main-image-preview cases across390/1440 and light/dark host retain always-light catalog paint and containment. Variant/error/contrast/focus coverage remains partial.",
+      "variants": []
+    },
+    {
+      "route": "/403",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    },
+    {
+      "route": "/:pathMatch(.*)*",
+      "kind": "rendering-destination",
+      "inspected": false,
+      "corrected": false,
+      "verified": false,
+      "blocked": null,
+      "coverage": [
+        {
+          "mode": "light-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-desktop",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "light-mobile",
+          "status": "pending",
+          "evidence": []
+        },
+        {
+          "mode": "dark-mobile",
+          "status": "pending",
+          "evidence": []
+        }
+      ],
+      "controls": "inventory pending per route",
+      "variants": []
+    }
+  ]
+}
