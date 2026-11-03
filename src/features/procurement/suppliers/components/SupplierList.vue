@@ -3,15 +3,15 @@ import { computed } from 'vue'
 import AppDataTable from '@/core/shared/components/DataTable/AppDataTable.vue'
 import type { TableColumn } from '@/core/shared/types/table.types'
 import type { Supplier } from '../interfaces/supplier.types'
-const props = defineProps<{ items: readonly Supplier[]; canEdit: boolean; loading?: boolean; fetching?: boolean; error?: boolean; disabled?: boolean }>()
-const emit = defineEmits<{ open: [supplier: Supplier]; changeStatus: [supplier: Supplier]; refresh: [] }>()
+const props = defineProps<{ items: readonly Supplier[]; canEdit: boolean; canDelete?: boolean; loading?: boolean; fetching?: boolean; error?: boolean; disabled?: boolean }>()
+const emit = defineEmits<{ open: [supplier: Supplier]; changeStatus: [supplier: Supplier]; delete: [supplier: Supplier]; refresh: [] }>()
 const search = defineModel<string>('search', { default: '' })
 const data = computed(() => [...props.items])
 const columns = computed<TableColumn<Supplier, unknown>[]>(() => [
   { accessorKey: 'displayName', header: 'Proveedor', enableSorting: false },
   { accessorKey: 'termsText', header: 'Condiciones', enableSorting: false },
   { accessorKey: 'status', header: 'Estado', enableSorting: false },
-  ...(props.canEdit ? [{ id: 'actions', header: 'Acciones', enableSorting: false }] : []),
+  ...(props.canEdit || props.canDelete ? [{ id: 'actions', header: 'Acciones', enableSorting: false }] : []),
 ])
 </script>
 
@@ -34,7 +34,10 @@ const columns = computed<TableColumn<Supplier, unknown>[]>(() => [
     <template #termsText-cell="{ row }"><p class="supplier-terms">{{ row.original.termsText || 'Sin condiciones registradas' }}</p></template>
     <template #status-cell="{ row }"><span class="supplier-badge" :class="{ archived: row.original.status === 'ARCHIVED' }">{{ row.original.status === 'ACTIVE' ? 'Activo' : 'Archivado' }}</span></template>
     <template #actions-cell="{ row }">
-      <button v-if="canEdit" type="button" class="supplier-status" data-testid="supplier-status" :disabled="disabled" :aria-label="`${row.original.status === 'ACTIVE' ? 'Archivar' : 'Reactivar'} ${row.original.displayName}`" @click="emit('changeStatus', row.original)">{{ row.original.status === 'ACTIVE' ? 'Archivar' : 'Reactivar' }}</button>
+      <div class="supplier-actions">
+        <button v-if="canEdit" type="button" class="supplier-status" data-testid="supplier-status" :disabled="disabled" :aria-label="`${row.original.status === 'ACTIVE' ? 'Archivar' : 'Reactivar'} ${row.original.displayName}`" @click="emit('changeStatus', row.original)">{{ row.original.status === 'ACTIVE' ? 'Archivar' : 'Reactivar' }}</button>
+        <button v-if="canDelete" type="button" class="supplier-status supplier-delete" data-testid="supplier-delete" :disabled="disabled" :aria-label="`Eliminar ${row.original.displayName}`" @click="emit('delete', row.original)"><UIcon name="i-lucide-trash-2" aria-hidden="true" />Eliminar</button>
+      </div>
     </template>
     <template #mobile-card="{ row }">
       <article class="supplier-card">
@@ -43,7 +46,10 @@ const columns = computed<TableColumn<Supplier, unknown>[]>(() => [
           <span class="supplier-badge" :class="{ archived: row.status === 'ARCHIVED' }">{{ row.status === 'ACTIVE' ? 'Activo' : 'Archivado' }}</span>
         </div>
         <dl class="supplier-card-details"><dt>Condiciones</dt><dd>{{ row.termsText || 'Sin condiciones registradas' }}</dd></dl>
-        <div v-if="canEdit" class="supplier-card-actions"><button type="button" class="supplier-status" data-testid="supplier-status" :disabled="disabled" :aria-label="`${row.status === 'ACTIVE' ? 'Archivar' : 'Reactivar'} ${row.displayName}`" @click="emit('changeStatus', row)">{{ row.status === 'ACTIVE' ? 'Archivar' : 'Reactivar' }}</button></div>
+        <div v-if="canEdit || canDelete" class="supplier-card-actions">
+          <button v-if="canEdit" type="button" class="supplier-status" data-testid="supplier-status" :disabled="disabled" :aria-label="`${row.status === 'ACTIVE' ? 'Archivar' : 'Reactivar'} ${row.displayName}`" @click="emit('changeStatus', row)">{{ row.status === 'ACTIVE' ? 'Archivar' : 'Reactivar' }}</button>
+          <button v-if="canDelete" type="button" class="supplier-status supplier-delete" data-testid="supplier-delete" :disabled="disabled" :aria-label="`Eliminar ${row.displayName}`" @click="emit('delete', row)"><UIcon name="i-lucide-trash-2" aria-hidden="true" />Eliminar</button>
+        </div>
       </article>
     </template>
   </AppDataTable>
@@ -59,7 +65,10 @@ const columns = computed<TableColumn<Supplier, unknown>[]>(() => [
 .supplier-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .supplier-card-details { border-top: 1px solid var(--hf-border); margin-top: 12px; padding-top: 12px; font-size: 13px; overflow-wrap: anywhere; }
 .supplier-card-details dt { color: var(--hf-muted); margin-bottom: 4px; }
-.supplier-card-actions { display: flex; justify-content: flex-end; margin-top: 12px; }
+.supplier-card-actions, .supplier-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.supplier-card-actions { margin-top: 12px; }
+.supplier-actions { justify-content: flex-start; }
+.supplier-delete { display: inline-flex; align-items: center; gap: 6px; color: var(--ui-error); border-color: currentColor; }
 button:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
 button:disabled { opacity: .6; cursor: not-allowed; }
 </style>

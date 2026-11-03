@@ -18,7 +18,7 @@ vi.mock('@vueuse/core', async importOriginal => {
   return { ...actual, useBreakpoints: () => ({ smaller: () => isMobile }) }
 })
 vi.mock('@/features/auth/stores/useAuthStore', () => ({ useAuthStore: () => holder.auth }))
-vi.mock('../../api/suppliers.api', () => ({ suppliersApi: { list: vi.fn(), get: vi.fn(), create: vi.fn(), update: vi.fn() } }))
+vi.mock('../../api/suppliers.api', () => ({ suppliersApi: { list: vi.fn(), get: vi.fn(), create: vi.fn(), update: vi.fn(), delete: vi.fn() } }))
 const supplier = { id: 'supplier-1', displayName: 'Centro', termsText: null, status: 'ACTIVE' as const, version: 1, createdAt: '', updatedAt: '' }
 const dispose: Array<() => void> = []
 const Overlay = defineComponent({ props: ['open'], setup(props, { slots }) { return () => props.open ? h('section', [slots.body?.(), slots.footer?.()]) : null } })
@@ -213,5 +213,98 @@ describe('supplier screen integration', () => {
     holder.auth.currentTenantId = 'other'
     await flushPromises()
     expect(wrapper.find('[data-testid="supplier-readonly"]').exists()).toBe(false)
+  })
+})
+
+describe('supplier deletion', () => {
+  const rejection = (status: number, error: string) => Object.assign(new Error(error), { response: { status, data: { error } } })
+  it('shows Eliminar only with read and delete, independently of update, on desktop and mobile cards', async () => {
+    for (const mobile of [false, true]) {
+      isMobile.value = mobile
+      let wrapper = setup(['read', 'update'])
+      await flushPromises()
+      expect(wrapper.find('[data-testid="supplier-delete"]').exists()).toBe(false)
+      wrapper = setup(['read', 'delete'])
+      await flushPromises()
+      const action = wrapper.get('[data-testid="supplier-delete"]')
+      expect(action.text()).toBe('Eliminar')
+      expect(action.attributes('aria-label')).toBe('Eliminar Centro')
+      expect(wrapper.find('[data-testid="supplier-status"]').exists()).toBe(false)
+      dispose.splice(0).forEach(fn => fn())
+    }
+  })
+  it('deletes only after explicit confirmation with the CAS version and an idempotency key, then refreshes', async () => {
+    vi.mocked(suppliersApi.delete).mockResolvedValue(undefined)
+    const wrapper = setup(['read', 'delete'])
+    await flushPromises()
+    await wrapper.get('[data-testid="supplier-delete"]').trigger('click')
+    expect(suppliersApi.delete).not.toHaveBeenCalled()
+    // The overlay stub renders slots only; title/description fall through as attributes.
+    const dialog = wrapper.get('section[title="Eliminar proveedor"]')
+    expect(dialog.attributes('description')).toBe('Se eliminará permanentemente. Su historial de auditoría se conserva.')
+    expect(dialog.text()).toContain('Centro')
+    const confirm = wrapper.get('[data-testid="confirm-delete"]')
+    expect(confirm.text()).toBe('Sí, eliminar')
+    vi.mocked(suppliersApi.list).mockClear()
+    await confirm.trigger('click')
+    await flushPromises()
+    expect(suppliersApi.delete).toHaveBeenCalledExactlyOnceWith('supplier-1', { expectedVersion: 1 }, expect.any(String))
+    expect(suppliersApi.list).toHaveBeenCalled()
+    expect(wrapper.get('[role="status"]').text()).toBe('Proveedor eliminado correctamente.')
+    expect(wrapper.find('[data-testid="confirm-delete"]').exists()).toBe(false)
+  })
+  it('sends nothing when the deletion is cancelled', async () => {
+    const wrapper = setup(['read', 'delete'])
+    await flushPromises()
+    await wrapper.get('[data-testid="supplier-delete"]').trigger('click')
+    await wrapper.get('[data-testid="cancel-delete"]').trigger('click')
+    await flushPromises()
+    expect(suppliersApi.delete).not.toHaveBeenCalled()
+    expect(wrapper.find('[data-testid="confirm-delete"]').exists()).toBe(false)
+  })
+  it.each([
+    [409, 'SUPPLIER_HAS_PURCHASE_ORDERS', 'Este proveedor tiene órdenes de compra y no se puede eliminar. Puedes archivarlo.'],
+    [404, 'NOT_FOUND', 'El proveedor ya no está disponible en esta sucursal.'],
+    [409, 'SUPPLIER_VERSION_CONFLICT', 'El proveedor cambió en otra sesión. Cierra esta confirmación y vuelve a intentarlo con la versión actual.'],
+  ])('keeps the confirmation open and reports %s %s without claiming success', async (status, code, message) => {
+    vi.mocked(suppliersApi.delete).mockRejectedValue(rejection(status, code))
+    const wrapper = setup(['read', 'delete'])
+    await flushPromises()
+    await wrapper.get('[data-testid="supplier-delete"]').trigger('click')
+    await wrapper.get('[data-testid="confirm-delete"]').trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain(message)
+    expect(wrapper.text()).not.toContain('Proveedor eliminado correctamente.')
+    expect(wrapper.get('[data-testid="confirm-delete"]').attributes('disabled')).toBeDefined()
+  })
+  it('recovers an uncertain deletion only explicitly, with the same key, then refreshes', async () => {
+    vi.mocked(suppliersApi.delete).mockRejectedValueOnce(new Error('lost response')).mockResolvedValueOnce(undefined)
+    const wrapper = setup(['read', 'delete'])
+    await flushPromises()
+    await wrapper.get('[data-testid="supplier-delete"]').trigger('click')
+    await wrapper.get('[data-testid="confirm-delete"]').trigger('click')
+    await flushPromises()
+    expect(suppliersApi.delete).toHaveBeenCalledTimes(1)
+    const recover = wrapper.findAll('button').find(button => button.text() === 'Recuperar resultado')!
+    await recover.trigger('click')
+    await flushPromises()
+    const [first, second] = vi.mocked(suppliersApi.delete).mock.calls
+    expect(second).toEqual(first)
+    expect(wrapper.get('[role="status"]').text()).toBe('Proveedor eliminado correctamente.')
+  })
+  it('moves focus to the supplier search after a successful deletion', async () => {
+    vi.mocked(suppliersApi.delete).mockResolvedValue(undefined)
+    const wrapper = setup(['read', 'delete'], true)
+    await flushPromises()
+    const trigger = wrapper.get<HTMLButtonElement>('[data-testid="supplier-delete"]')
+    trigger.element.focus()
+    await trigger.trigger('click')
+    await flushPromises()
+    vi.mocked(suppliersApi.list).mockResolvedValue({ items: [], nextCursor: null })
+    ;(document.querySelector('[data-testid="confirm-delete"]') as HTMLButtonElement).click()
+    await flushPromises()
+    await new Promise(resolve => setTimeout(resolve, 50))
+    await flushPromises()
+    expect((document.activeElement as HTMLInputElement | null)?.placeholder).toBe('Buscar proveedor...')
   })
 })

@@ -16,6 +16,7 @@ const context = computed(() => ({
   canRead: auth.userCan('read', 'ProcurementSupplier'),
   canCreate: auth.userCan('read', 'ProcurementSupplier') && auth.userCan('create', 'ProcurementSupplier'),
   canUpdate: auth.userCan('read', 'ProcurementSupplier') && auth.userCan('update', 'ProcurementSupplier'),
+  canDelete: auth.userCan('read', 'ProcurementSupplier') && auth.userCan('delete', 'ProcurementSupplier'),
 }))
 const { search, status, items, hasNext, hasPrevious, next, back, refresh, isLoading, isFetching, error: listError } = useSuppliers(context)
 const commands = useSupplierCommands(context)
@@ -25,6 +26,9 @@ const open = shallowRef(false)
 const selected = shallowRef<Supplier | null>(null)
 const stateTarget = shallowRef<Supplier | null>(null)
 const confirmOpen = computed({ get: () => stateTarget.value !== null, set: value => { if (!value && !locked.value) stateTarget.value = null } })
+const deleteTarget = shallowRef<Supplier | null>(null)
+const deleteOpen = computed({ get: () => deleteTarget.value !== null, set: value => { if (!value && !locked.value) deleteTarget.value = null } })
+const page = shallowRef<HTMLElement | null>(null)
 const formKey = shallowRef(0)
 const detailLoading = shallowRef(false)
 const detailError = shallowRef(false)
@@ -44,7 +48,7 @@ function restoreInvoker(event: Event) {
   const origin = epoch
   overlayInvoker = null
   void nextTick(() => {
-    if (origin === epoch && !open.value && !confirmOpen.value && invoker?.isConnected && !invoker.disabled) {
+    if (origin === epoch && !open.value && !confirmOpen.value && !deleteOpen.value && invoker?.isConnected && !invoker.disabled) {
       invoker.focus({ preventScroll: true })
     }
   })
@@ -57,11 +61,12 @@ function clearContext() {
   open.value = false
   selected.value = null
   stateTarget.value = null
+  deleteTarget.value = null
   notice.value = ''
   detailError.value = false
   detailLoading.value = false
 }
-watch(() => [context.value.userId, context.value.tenantId, context.value.ready, context.value.canRead, context.value.canCreate, context.value.canUpdate], clearContext, { flush: 'sync' })
+watch(() => [context.value.userId, context.value.tenantId, context.value.ready, context.value.canRead, context.value.canCreate, context.value.canUpdate, context.value.canDelete], clearContext, { flush: 'sync' })
 onBeforeUnmount(clearContext)
 
 const errorCode = computed(() => (commandError.value as { response?: { data?: { error?: string } } } | null)?.response?.data?.error)
@@ -76,9 +81,15 @@ const commandMessage = computed(() => {
     FORBIDDEN: 'No tienes permiso para realizar esta operación.',
     NOT_FOUND: 'El proveedor ya no está disponible en esta sucursal.',
     IDEMPOTENCY_KEY_CONFLICT: 'Este intento no coincide con el registrado. Consulta el estado antes de volver a operar.',
+    SUPPLIER_HAS_PURCHASE_ORDERS: 'Este proveedor tiene órdenes de compra y no se puede eliminar. Puedes archivarlo.',
   }
   return messages[errorCode.value ?? ''] ?? 'No se pudo completar la operación.'
 })
+// Deletion has no local buffer to preserve, so its conflict copy differs from editing.
+const deleteMessage = computed(() => conflict.value && !hasUncertainResult.value
+  ? 'El proveedor cambió en otra sesión. Cierra esta confirmación y vuelve a intentarlo con la versión actual.'
+  : commandMessage.value)
+const deleteRejected = computed(() => !hasUncertainResult.value && commandError.value !== null)
 function create() {
   if (!context.value.ready || !context.value.canCreate || locked.value) return
   captureInvoker()
@@ -143,9 +154,41 @@ async function changeStatus() {
   const origin = epoch
   await finish(await commands.update(target.id, { expectedVersion: target.version, changes: { status: target.status === 'ACTIVE' ? 'ARCHIVED' : 'ACTIVE' } }), origin)
 }
+function requestDelete(supplier: Supplier) {
+  if (context.value.ready && context.value.canDelete && !locked.value) {
+    captureInvoker()
+    commands.clearFeedback()
+    deleteTarget.value = supplier
+  }
+}
+async function confirmDelete() {
+  const target = deleteTarget.value
+  if (!target || !context.value.canDelete || locked.value) return
+  const origin = epoch
+  await finishDelete(await commands.delete(target.id, { expectedVersion: target.version }), origin)
+}
+async function finishDelete(outcome: Awaited<ReturnType<typeof commands.delete>>, origin: number) {
+  if (origin !== epoch || outcome.status !== 'deleted') return
+  // The row that opened the confirmation disappears; continue from the search.
+  overlayInvoker = null
+  deleteTarget.value = null
+  if (selected.value?.id === outcome.id) selected.value = null
+  notice.value = 'Proveedor eliminado. Actualizando la lista…'
+  const result = await refresh()
+  if (origin !== epoch) return
+  notice.value = result?.isError
+    ? 'Proveedor eliminado; no se pudo actualizar la lista. Puedes volver a consultarla sin repetir la eliminación.'
+    : 'Proveedor eliminado correctamente.'
+  await nextTick()
+  if (origin === epoch && !open.value && !confirmOpen.value && !deleteOpen.value) {
+    page.value?.querySelector<HTMLInputElement>('input[placeholder="Buscar proveedor..."]')?.focus({ preventScroll: true })
+  }
+}
 async function retry() {
   const origin = epoch
-  await finish(await commands.retry(), origin)
+  const outcome = await commands.retry()
+  if (outcome.status === 'deleted') await finishDelete(outcome, origin)
+  else await finish(outcome, origin)
 }
 async function reloadSelected() {
   if (selected.value) await show(selected.value)
@@ -153,7 +196,7 @@ async function reloadSelected() {
 </script>
 
 <template>
-  <main class="hf-theme hf-ui suppliers-page">
+  <main ref="page" class="hf-theme hf-ui suppliers-page">
     <header class="hf-page-header suppliers-header">
       <div><h1 class="hf-page-title">Proveedores</h1><p class="hf-page-subtitle">Contactos comerciales y condiciones para preparar tus compras.</p></div>
     </header>
@@ -161,7 +204,7 @@ async function reloadSelected() {
     <p v-if="!context.ready || !context.canRead" role="status">No tienes acceso a los proveedores de esta sucursal.</p>
     <UCard v-else :ui="{ body: 'p-0 sm:p-0' }" class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm" aria-label="Directorio de proveedores">
       <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
-      <SupplierList v-model:search="search" :items="items" :loading="isLoading" :fetching="isFetching" :error="!!listError" :can-edit="context.canUpdate" :disabled="locked || detailLoading" @refresh="refresh" @open="show" @change-status="requestStatus">
+      <SupplierList v-model:search="search" :items="items" :loading="isLoading" :fetching="isFetching" :error="!!listError" :can-edit="context.canUpdate" :can-delete="context.ready && context.canDelete" :disabled="locked || detailLoading" @refresh="refresh" @open="show" @change-status="requestStatus" @delete="requestDelete">
         <template #filters>
           <label class="supplier-filter">Estado<select v-model="status"><option value="ACTIVE">Activos</option><option value="ARCHIVED">Archivados</option><option value="ALL">Todos</option></select></label>
         </template>
@@ -177,7 +220,7 @@ async function reloadSelected() {
       </div>
       </div>
     </UCard>
-    <div v-if="commandMessage && !open && !confirmOpen" role="alert" class="supplier-warning">{{ commandMessage }}<button v-if="hasUncertainResult" type="button" class="supplier-button" :disabled="isPending" @click="retry">Recuperar resultado</button></div>
+    <div v-if="commandMessage && !open && !confirmOpen && !deleteOpen" role="alert" class="supplier-warning">{{ commandMessage }}<button v-if="hasUncertainResult" type="button" class="supplier-button" :disabled="isPending" @click="retry">Recuperar resultado</button></div>
     <USlideover v-model:open="open" :content="{ onCloseAutoFocus: restoreInvoker }" :title="selected ? 'Detalle del proveedor' : 'Crear proveedor'" description="Datos comerciales de esta sucursal. No se modifican existencias, pagos ni deuda." :dismissible="!locked" :close="locked ? false : undefined" :ui="{ content: 'hf-theme hf-ui hf-form-overlay suppliers-portal' }">
       <template #body>
         <div v-if="commandMessage" role="alert" class="supplier-warning">
@@ -195,6 +238,14 @@ async function reloadSelected() {
         <button type="button" class="supplier-button" :disabled="locked" @click="stateTarget = null">Cancelar</button>
         <button v-if="hasUncertainResult" type="button" class="hf-primary-control" :disabled="isPending" @click="retry">Recuperar resultado</button>
         <button v-else type="button" data-testid="confirm-status" class="hf-primary-control" :disabled="isPending || conflict" @click="changeStatus">{{ stateTarget?.status === 'ACTIVE' ? 'Archivar' : 'Reactivar' }}</button>
+      </template>
+    </UModal>
+    <UModal v-model:open="deleteOpen" :content="{ onCloseAutoFocus: restoreInvoker }" title="Eliminar proveedor" description="Se eliminará permanentemente. Su historial de auditoría se conserva." :dismissible="!locked" :close="locked ? false : undefined" :ui="{ content: 'hf-theme hf-ui suppliers-portal' }">
+      <template #body><p>{{ deleteTarget?.displayName }}</p><p v-if="deleteMessage" role="alert" class="supplier-warning">{{ deleteMessage }}</p></template>
+      <template #footer>
+        <button type="button" data-testid="cancel-delete" class="supplier-button" :disabled="locked" @click="deleteTarget = null">Cancelar</button>
+        <button v-if="hasUncertainResult" type="button" class="hf-primary-control" :disabled="isPending" @click="retry">Recuperar resultado</button>
+        <UButton v-else data-testid="confirm-delete" color="error" icon="i-lucide-trash-2" :disabled="isPending || deleteRejected" :loading="isPending" @click="confirmDelete">Sí, eliminar</UButton>
       </template>
     </UModal>
   </main>

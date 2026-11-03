@@ -24,6 +24,11 @@ export const suppliersApi = {
     })
     return response.data
   },
+  async delete(id: string, input: { expectedVersion: number }, key: string): Promise<void> {
+    await http.delete(base + '/' + encodeURIComponent(id), {
+      data: { expectedVersion: input.expectedVersion }, headers: { 'Idempotency-Key': key },
+    })
+  },
   async update(id: string, input: SupplierPatch, key: string): Promise<Supplier> {
     const changes: Partial<SupplierInput> = {}
     for (const field of ['displayName', 'termsText', 'status'] as const) {

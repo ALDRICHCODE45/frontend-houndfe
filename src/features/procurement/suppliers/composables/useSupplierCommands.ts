@@ -8,12 +8,14 @@ export interface SupplierCommandContext {
   ready: boolean
   canCreate: boolean
   canUpdate: boolean
+  canDelete: boolean
 }
 type Attempt = { key: string } & (
   | { kind: 'create'; input: SupplierInput }
   | { kind: 'update'; id: string; input: SupplierPatch }
+  | { kind: 'delete'; id: string; input: { expectedVersion: number } }
 )
-type Outcome = { status: 'applied'; supplier: Supplier } | {
+type Outcome = { status: 'applied'; supplier: Supplier } | { status: 'deleted'; id: string } | {
   status: 'blocked' | 'discarded' | 'uncertain' | 'rejected'
 }
 
@@ -41,14 +43,14 @@ export function useSupplierCommands(context: MaybeRefOrGetter<SupplierCommandCon
   }
   watch(() => {
     const scope = toValue(context)
-    return [scope.userId, scope.tenantId, scope.ready, scope.canCreate, scope.canUpdate]
+    return [scope.userId, scope.tenantId, scope.ready, scope.canCreate, scope.canUpdate, scope.canDelete]
   }, retire, { flush: 'sync' })
   onScopeDispose(() => { disposed = true; retire() })
 
   function allowed(kind: Attempt['kind']) {
     const scope = toValue(context)
     return !disposed && scope.ready && Boolean(scope.userId && scope.tenantId)
-      && (kind === 'create' ? scope.canCreate : scope.canUpdate)
+      && { create: scope.canCreate, update: scope.canUpdate, delete: scope.canDelete }[kind]
   }
 
   async function run(current: Attempt): Promise<Outcome> {
@@ -63,14 +65,22 @@ export function useSupplierCommands(context: MaybeRefOrGetter<SupplierCommandCon
     acknowledged.value = null
     let outcome: Outcome = { status: 'discarded' }
     try {
-      const supplier = current.kind === 'create'
-        ? await suppliersApi.create(current.input, current.key)
-        : await suppliersApi.update(current.id, current.input, current.key)
-      if (!owns()) return { status: 'discarded' }
-      attempt = null
-      hasUncertainResult.value = false
-      acknowledged.value = supplier
-      outcome = { status: 'applied', supplier }
+      if (current.kind === 'delete') {
+        await suppliersApi.delete(current.id, current.input, current.key)
+        if (!owns()) return { status: 'discarded' }
+        attempt = null
+        hasUncertainResult.value = false
+        outcome = { status: 'deleted', id: current.id }
+      } else {
+        const supplier = current.kind === 'create'
+          ? await suppliersApi.create(current.input, current.key)
+          : await suppliersApi.update(current.id, current.input, current.key)
+        if (!owns()) return { status: 'discarded' }
+        attempt = null
+        hasUncertainResult.value = false
+        acknowledged.value = supplier
+        outcome = { status: 'applied', supplier }
+      }
     } catch (caught) {
       if (!owns()) return { status: 'discarded' }
       error.value = caught
@@ -101,12 +111,16 @@ export function useSupplierCommands(context: MaybeRefOrGetter<SupplierCommandCon
       expectedVersion: input.expectedVersion, changes: Object.freeze({ ...input.changes }),
     }) })
   }
+  function remove(id: string, input: { expectedVersion: number }): Promise<Outcome> {
+    if (attempt || request || !allowed('delete')) return Promise.resolve({ status: 'blocked' })
+    return run({ kind: 'delete', id, key: crypto.randomUUID(), input: Object.freeze({ expectedVersion: input.expectedVersion }) })
+  }
   function retry(): Promise<Outcome> {
     return attempt && hasUncertainResult.value ? run(attempt) : Promise.resolve({ status: 'blocked' })
   }
   function clearFeedback() {
     if (!isPending.value && !hasUncertainResult.value) error.value = null
   }
-  return { create, update, retry, clearFeedback, isPending: readonly(isPending),
+  return { create, update, delete: remove, retry, clearFeedback, isPending: readonly(isPending),
     hasUncertainResult: readonly(hasUncertainResult), acknowledged: readonly(acknowledged), error: readonly(error) }
 }

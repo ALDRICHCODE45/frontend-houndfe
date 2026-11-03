@@ -3,7 +3,7 @@ import { http } from '@/core/shared/api/http'
 import { suppliersApi } from '../suppliers.api'
 
 vi.mock('@/core/shared/api/http', () => ({
-  http: { get: vi.fn(), post: vi.fn(), patch: vi.fn() },
+  http: { get: vi.fn(), post: vi.fn(), patch: vi.fn(), delete: vi.fn() },
 }))
 
 const supplier = {
@@ -57,6 +57,15 @@ describe('supplier transport', () => {
     expect(http.patch).toHaveBeenCalledExactlyOnceWith('/procurement/suppliers/' + supplier.id,
       { expectedVersion: 1, changes: { status } },
       { headers: { 'Idempotency-Key': 'state-attempt' } })
+  })
+
+  it('deletes with a closed CAS body and caller key, returning void on 204', async () => {
+    vi.mocked(http.delete).mockResolvedValue({ status: 204, data: '' })
+    const input = { expectedVersion: 3, actorId: 'ignored' }
+    expect(await suppliersApi.delete('id/encoded', input, 'delete-attempt')).toBeUndefined()
+    expect(http.delete).toHaveBeenCalledExactlyOnceWith('/procurement/suppliers/id%2Fencoded', {
+      data: { expectedVersion: 3 }, headers: { 'Idempotency-Key': 'delete-attempt' },
+    })
   })
 
   it('propagates an uncertain transport result without generating a retry', async () => {

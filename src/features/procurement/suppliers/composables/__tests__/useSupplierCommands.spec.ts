@@ -3,11 +3,11 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { suppliersApi } from '../../api/suppliers.api'
 import { useSupplierCommands } from '../useSupplierCommands'
 
-vi.mock('../../api/suppliers.api', () => ({ suppliersApi: { create: vi.fn(), update: vi.fn() } }))
+vi.mock('../../api/suppliers.api', () => ({ suppliersApi: { create: vi.fn(), update: vi.fn(), delete: vi.fn() } }))
 const input = { displayName: 'Proveedor Centro', termsText: null, status: 'ACTIVE' as const }
 const supplier = { ...input, id: 'supplier-1', version: 1, createdAt: '2026-11-02T00:00:00Z', updatedAt: '2026-11-02T00:00:00Z' }
 function setup() {
-  const context = shallowRef<{ userId: string; tenantId: string; ready: boolean; canCreate: boolean; canUpdate: boolean }>({ userId: 'user-1', tenantId: 'branch-1', ready: true, canCreate: true, canUpdate: true })
+  const context = shallowRef<{ userId: string; tenantId: string; ready: boolean; canCreate: boolean; canUpdate: boolean; canDelete: boolean }>({ userId: 'user-1', tenantId: 'branch-1', ready: true, canCreate: true, canUpdate: true, canDelete: true })
   const scope = effectScope()
   const owner = scope.run(() => useSupplierCommands(context))!
   return { context, scope, owner }
@@ -20,6 +20,37 @@ function deferred<T>() {
 beforeEach(() => vi.resetAllMocks())
 
 describe('supplier command ownership', () => {
+  it('locks uncertain deletion and explicitly replays the same immutable CAS and key', async () => {
+    const { owner, scope } = setup()
+    vi.mocked(suppliersApi.delete).mockRejectedValueOnce(new Error('lost response')).mockResolvedValueOnce(undefined)
+    const input = { expectedVersion: 2 }
+    expect(await owner.delete(supplier.id, input)).toEqual({ status: 'uncertain' })
+    const [id, body, key] = vi.mocked(suppliersApi.delete).mock.calls[0]!
+    input.expectedVersion = 99
+    expect(await owner.update(supplier.id, { expectedVersion: 2, changes: { termsText: null } })).toEqual({ status: 'blocked' })
+    expect(suppliersApi.delete).toHaveBeenCalledTimes(1)
+    expect(await owner.retry()).toEqual({ status: 'deleted', id: supplier.id })
+    expect(suppliersApi.delete).toHaveBeenNthCalledWith(2, id, body, key)
+    expect(body).toEqual({ expectedVersion: 2 })
+    expect(Object.isFrozen(body)).toBe(true)
+    scope.stop()
+  })
+  it('requires delete independently and retires late deletion on context or permission change', async () => {
+    for (const change of ['tenant', 'permission', 'ready'] as const) {
+      const { owner, context, scope } = setup()
+      context.value = { ...context.value, canDelete: false }
+      expect(await owner.delete(supplier.id, { expectedVersion: 1 })).toEqual({ status: 'blocked' })
+      context.value = { ...context.value, canDelete: true, canUpdate: false }
+      const pending = deferred<void>()
+      vi.mocked(suppliersApi.delete).mockReturnValueOnce(pending.promise)
+      const result = owner.delete(supplier.id, { expectedVersion: 1 })
+      context.value = { ...context.value, ...(change === 'tenant' ? { tenantId: 'other' } : change === 'ready' ? { ready: false } : { canDelete: false }) }
+      pending.resolve()
+      expect(await result).toEqual({ status: 'discarded' })
+      expect(await owner.retry()).toEqual({ status: 'blocked' })
+      scope.stop()
+    }
+  })
   it('blocks dispatch without permission or while selecting tenant', async () => {
     const { owner, context, scope } = setup()
     context.value = { ...context.value, canCreate: false }
