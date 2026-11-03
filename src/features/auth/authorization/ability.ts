@@ -7,6 +7,7 @@ const APP_ACTIONS: AppAction[] = ['create', 'read', 'update', 'delete', 'batch_d
 const APP_SUBJECTS: AppSubject[] = [
   'Product',
   'ProcurementSupplier',
+  'ProcurementPurchaseOrder',
   'Order',
   'User',
   'Role',
