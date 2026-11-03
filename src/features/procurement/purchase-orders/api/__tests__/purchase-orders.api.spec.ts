@@ -26,13 +26,13 @@ const order = {
 describe('purchase order transport', () => {
   beforeEach(() => vi.resetAllMocks())
 
-  it('lists with supplier filter, cursor, limit and abort signal only', async () => {
+  it('lists with server search, supplier filter, cursor, limit and abort signal only', async () => {
     const signal = new AbortController().signal
     const page = { items: [], nextCursor: null }
     vi.mocked(http.get).mockResolvedValue({ data: page })
-    expect(await purchaseOrdersApi.list({ supplierId: input.supplierId!, cursor: 'c', limit: 25, tenantId: 'x' } as never, signal)).toEqual(page)
+    expect(await purchaseOrdersApi.list({ supplierId: input.supplierId!, search: '  nota  ', cursor: 'c', limit: 25, tenantId: 'x' } as never, signal)).toEqual(page)
     expect(http.get).toHaveBeenCalledExactlyOnceWith('/procurement/purchase-orders', {
-      params: { supplierId: input.supplierId, cursor: 'c', limit: 25 }, signal,
+      params: { supplierId: input.supplierId, search: '  nota  ', cursor: 'c', limit: 25 }, signal,
     })
   })
 

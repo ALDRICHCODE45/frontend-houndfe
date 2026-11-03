@@ -25,8 +25,8 @@ export function closedOrderInput(input: OrderInput): OrderInput {
 // Commands receive the immutable attempt's key and signal from their owner.
 export const purchaseOrdersApi = {
   async list(input: PurchaseOrderListInput, signal?: AbortSignal): Promise<PurchaseOrderPage> {
-    const { supplierId, cursor, limit } = input
-    const response = await http.get<PurchaseOrderPage>(base, { params: { supplierId, cursor, limit }, signal })
+    const { supplierId, search, cursor, limit } = input
+    const response = await http.get<PurchaseOrderPage>(base, { params: { supplierId, search, cursor, limit }, signal })
     return response.data
   },
   async get(id: string, signal?: AbortSignal): Promise<PurchaseOrder> {

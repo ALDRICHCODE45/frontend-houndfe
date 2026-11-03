@@ -42,6 +42,7 @@ export interface SaveDraftInput {
   order: OrderInput
 }
 export interface PurchaseOrderListInput {
+  search?: string
   supplierId?: string
   cursor?: string
   limit?: number
