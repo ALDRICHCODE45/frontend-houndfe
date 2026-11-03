@@ -107,6 +107,19 @@ export const navigationGroups: NavGroup[] = [
       },
     ],
   },
+  {
+    id: 'procurement',
+    label: 'Compras',
+    icon: 'i-lucide-package-plus',
+    defaultOpen: true,
+    children: [{
+      id: 'procurement-suppliers',
+      label: 'Proveedores',
+      icon: 'i-lucide-building-2',
+      to: '/procurement/suppliers',
+      permission: ['read', 'ProcurementSupplier'],
+    }],
+  },
   // ODD dashboard-analytics D1: the "Analítica" navigation group and the
   // "/analytics/resumen-ventas" entry were removed. The Dashboard nav item
   // is exported from `navigation.landing.ts` as a top-level extra consumed by

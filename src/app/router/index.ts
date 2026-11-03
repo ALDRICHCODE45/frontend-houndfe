@@ -397,6 +397,16 @@ const router = createRouter({
         requiresSuperAdmin: true,
       },
     },
+    {
+      path: '/procurement/suppliers',
+      name: 'procurement-suppliers',
+      component: () => import('@/features/procurement/suppliers/views/SupplierView.vue'),
+      meta: {
+        layout: 'dashboard',
+        rememberAsLanding: true,
+        permission: ['read', 'ProcurementSupplier'] as RoutePermission,
+      },
+    },
     // ─── Payment-details admin (sdd payment-details-admin S3, REQ-PD-007) ────
     {
       path: '/admin/payment-details',

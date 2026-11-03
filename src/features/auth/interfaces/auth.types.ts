@@ -48,6 +48,7 @@ export type AuthPhase =
 export type AppAction = 'create' | 'read' | 'update' | 'delete' | 'batch_delete' | 'manage'
 export type AppSubject =
   | 'Product'
+  | 'ProcurementSupplier'
   | 'Order'
   | 'User'
   | 'Role'
