@@ -30,7 +30,7 @@ describe('supplier command ownership', () => {
     expect(await owner.update(supplier.id, { expectedVersion: 2, changes: { termsText: null } })).toEqual({ status: 'blocked' })
     expect(suppliersApi.delete).toHaveBeenCalledTimes(1)
     expect(await owner.retry()).toEqual({ status: 'deleted', id: supplier.id })
-    expect(suppliersApi.delete).toHaveBeenNthCalledWith(2, id, body, key)
+    expect(vi.mocked(suppliersApi.delete).mock.calls[1]!.slice(0, 3)).toEqual([id, body, key])
     expect(body).toEqual({ expectedVersion: 2 })
     expect(Object.isFrozen(body)).toBe(true)
     scope.stop()
@@ -72,7 +72,7 @@ describe('supplier command ownership', () => {
     expect(suppliersApi.create).toHaveBeenCalledTimes(1)
     expect(owner.hasUncertainResult.value).toBe(true)
     expect(await owner.retry()).toEqual({ status: 'applied', supplier })
-    expect(suppliersApi.create).toHaveBeenNthCalledWith(2, body, key)
+    expect(vi.mocked(suppliersApi.create).mock.calls[1]!.slice(0, 2)).toEqual([body, key])
     expect(body.displayName).toBe(input.displayName)
     expect(owner.acknowledged.value).toEqual(supplier)
     scope.stop()
@@ -129,5 +129,31 @@ describe('supplier command ownership', () => {
     expect(owner.error.value).toBeNull()
     expect(await owner.retry()).toEqual({ status: 'blocked' })
     scope.stop()
+  })
+})
+
+describe('supplier command dispatch cancellation', () => {
+  it.each(['create', 'update', 'delete'] as const)('aborts the in-flight %s signal when readiness or permission retires the context', async (kind) => {
+    for (const change of ['ready', 'permission'] as const) {
+      vi.resetAllMocks()
+      const { owner, context, scope } = setup()
+      let fail!: (reason: unknown) => void
+      const pending = { promise: new Promise<never>((_, reject) => { fail = reject }) }
+      const method = kind === 'create' ? suppliersApi.create : kind === 'update' ? suppliersApi.update : suppliersApi.delete
+      vi.mocked(method).mockReturnValueOnce(pending.promise as never)
+      const result = kind === 'create' ? owner.create(input)
+        : kind === 'update' ? owner.update(supplier.id, { expectedVersion: 1, changes: { termsText: null } })
+          : owner.delete(supplier.id, { expectedVersion: 1 })
+      const call = vi.mocked(method).mock.calls[0] as unknown[]
+      const signal = call[call.length - 1] as AbortSignal
+      expect(signal).toBeInstanceOf(AbortSignal)
+      expect(signal.aborted).toBe(false)
+      const permission = kind === 'create' ? 'canCreate' : kind === 'update' ? 'canUpdate' : 'canDelete'
+      context.value = { ...context.value, ...(change === 'ready' ? { ready: false } : { [permission]: false }) }
+      expect(signal.aborted).toBe(true)
+      fail(new Error('aborted'))
+      expect(await result).toEqual({ status: 'discarded' })
+      scope.stop()
+    }
   })
 })

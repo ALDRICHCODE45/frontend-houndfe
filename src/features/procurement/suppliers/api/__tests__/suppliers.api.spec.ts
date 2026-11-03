@@ -77,3 +77,18 @@ describe('supplier transport', () => {
     expect(http.post).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('supplier command cancellation', () => {
+  it('forwards the attempt signal on every command so a credential-refresh replay can be cancelled', async () => {
+    const signal = new AbortController().signal
+    vi.mocked(http.post).mockResolvedValue({ data: supplier })
+    vi.mocked(http.patch).mockResolvedValue({ data: supplier })
+    vi.mocked(http.delete).mockResolvedValue({ status: 204, data: '' })
+    await suppliersApi.create({ displayName: 'A', termsText: null, status: 'ACTIVE' }, 'k1', signal)
+    await suppliersApi.update('id', { expectedVersion: 1, changes: { termsText: null } }, 'k2', signal)
+    await suppliersApi.delete('id', { expectedVersion: 1 }, 'k3', signal)
+    expect(vi.mocked(http.post).mock.calls[0]![2]).toMatchObject({ signal })
+    expect(vi.mocked(http.patch).mock.calls[0]![2]).toMatchObject({ signal })
+    expect(vi.mocked(http.delete).mock.calls[0]![1]).toMatchObject({ signal })
+  })
+})

@@ -31,9 +31,13 @@ export function useSupplierCommands(context: MaybeRefOrGetter<SupplierCommandCon
   let epoch = 0
   let disposed = false
   let request: symbol | null = null
+  // Cancels the in-flight dispatch, including a queued credential-refresh replay.
+  let controller: AbortController | null = null
 
   function retire() {
     epoch++
+    controller?.abort()
+    controller = null
     attempt = null
     request = null
     isPending.value = false
@@ -60,21 +64,23 @@ export function useSupplierCommands(context: MaybeRefOrGetter<SupplierCommandCon
     const owns = () => !disposed && origin === epoch && request === token && allowed(current.kind)
     request = token
     attempt = current
+    const dispatch = new AbortController()
+    controller = dispatch
     isPending.value = true
     error.value = null
     acknowledged.value = null
     let outcome: Outcome = { status: 'discarded' }
     try {
       if (current.kind === 'delete') {
-        await suppliersApi.delete(current.id, current.input, current.key)
+        await suppliersApi.delete(current.id, current.input, current.key, dispatch.signal)
         if (!owns()) return { status: 'discarded' }
         attempt = null
         hasUncertainResult.value = false
         outcome = { status: 'deleted', id: current.id }
       } else {
         const supplier = current.kind === 'create'
-          ? await suppliersApi.create(current.input, current.key)
-          : await suppliersApi.update(current.id, current.input, current.key)
+          ? await suppliersApi.create(current.input, current.key, dispatch.signal)
+          : await suppliersApi.update(current.id, current.input, current.key, dispatch.signal)
         if (!owns()) return { status: 'discarded' }
         attempt = null
         hasUncertainResult.value = false
@@ -92,6 +98,7 @@ export function useSupplierCommands(context: MaybeRefOrGetter<SupplierCommandCon
       if (!uncertain) attempt = null
       outcome = { status: uncertain ? 'uncertain' : 'rejected' }
     } finally {
+      if (controller === dispatch) controller = null
       if (request === token) {
         request = null
         isPending.value = false

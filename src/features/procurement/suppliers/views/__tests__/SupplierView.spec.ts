@@ -200,7 +200,7 @@ describe('supplier screen integration', () => {
     vi.mocked(suppliersApi.update).mockResolvedValue({ ...supplier, status: 'ARCHIVED', version: 2 })
     await wrapper.get('[data-testid="confirm-status"]').trigger('click')
     await flushPromises()
-    expect(suppliersApi.update).toHaveBeenCalledWith(supplier.id, { expectedVersion: 1, changes: { status: 'ARCHIVED' } }, expect.any(String))
+    expect(suppliersApi.update).toHaveBeenCalledWith(supplier.id, { expectedVersion: 1, changes: { status: 'ARCHIVED' } }, expect.any(String), expect.any(AbortSignal))
   })
   it('exposes no mutation controls to readers and closes private form on tenant change', async () => {
     const wrapper = setup(['read'])
@@ -248,7 +248,7 @@ describe('supplier deletion', () => {
     vi.mocked(suppliersApi.list).mockClear()
     await confirm.trigger('click')
     await flushPromises()
-    expect(suppliersApi.delete).toHaveBeenCalledExactlyOnceWith('supplier-1', { expectedVersion: 1 }, expect.any(String))
+    expect(suppliersApi.delete).toHaveBeenCalledExactlyOnceWith('supplier-1', { expectedVersion: 1 }, expect.any(String), expect.any(AbortSignal))
     expect(suppliersApi.list).toHaveBeenCalled()
     expect(wrapper.get('[role="status"]').text()).toBe('Proveedor eliminado correctamente.')
     expect(wrapper.find('[data-testid="confirm-delete"]').exists()).toBe(false)
@@ -289,7 +289,7 @@ describe('supplier deletion', () => {
     await recover.trigger('click')
     await flushPromises()
     const [first, second] = vi.mocked(suppliersApi.delete).mock.calls
-    expect(second).toEqual(first)
+    expect(second!.slice(0, 3)).toEqual(first!.slice(0, 3))
     expect(wrapper.get('[role="status"]').text()).toBe('Proveedor eliminado correctamente.')
   })
   it('moves focus to the supplier search after a successful deletion', async () => {

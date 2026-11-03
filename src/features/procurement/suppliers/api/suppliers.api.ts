@@ -17,19 +17,21 @@ export const suppliersApi = {
     const response = await http.get<Supplier>(base + '/' + encodeURIComponent(id), { signal })
     return response.data
   },
-  async create(input: SupplierInput, key: string): Promise<Supplier> {
+  // The signal lets the attempt's owner cancel a credential-refresh replay
+  // once its context retires (see http.ts refresh interceptor).
+  async create(input: SupplierInput, key: string, signal?: AbortSignal): Promise<Supplier> {
     const { displayName, termsText, status } = input
     const response = await http.post<Supplier>(base, { displayName, termsText, status }, {
-      headers: { 'Idempotency-Key': key },
+      headers: { 'Idempotency-Key': key }, signal,
     })
     return response.data
   },
-  async delete(id: string, input: { expectedVersion: number }, key: string): Promise<void> {
+  async delete(id: string, input: { expectedVersion: number }, key: string, signal?: AbortSignal): Promise<void> {
     await http.delete(base + '/' + encodeURIComponent(id), {
-      data: { expectedVersion: input.expectedVersion }, headers: { 'Idempotency-Key': key },
+      data: { expectedVersion: input.expectedVersion }, headers: { 'Idempotency-Key': key }, signal,
     })
   },
-  async update(id: string, input: SupplierPatch, key: string): Promise<Supplier> {
+  async update(id: string, input: SupplierPatch, key: string, signal?: AbortSignal): Promise<Supplier> {
     const changes: Partial<SupplierInput> = {}
     for (const field of ['displayName', 'termsText', 'status'] as const) {
       if (Object.prototype.hasOwnProperty.call(input.changes, field)) {
@@ -38,7 +40,7 @@ export const suppliersApi = {
     }
     const response = await http.patch<Supplier>(base + '/' + encodeURIComponent(id),
       { expectedVersion: input.expectedVersion, changes },
-      { headers: { 'Idempotency-Key': key } })
+      { headers: { 'Idempotency-Key': key }, signal })
     return response.data
   },
 }
