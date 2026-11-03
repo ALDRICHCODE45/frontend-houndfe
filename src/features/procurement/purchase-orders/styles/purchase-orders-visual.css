@@ -12,7 +12,10 @@
 .purchase-orders-portal .order-section > legend { color: var(--hf-heading); font-weight: 600; margin-bottom: 16px; }
 .purchase-orders-portal .order-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .purchase-orders-portal .order-section-heading h2 { color: var(--hf-heading); font-weight: 600; }
-.purchase-orders-portal .order-field { display: grid; gap: 6px; min-width: 0; font-size: 13px; font-weight: 600; }
+.purchase-orders-portal .order-field { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; min-width: 0; font-size: 13px; font-weight: 600; }
+/* A truncated picker value has a min-content width of its full text; keep the
+   field track and its wrappers from growing to it. */
+.purchase-orders-portal .order-field > * { min-width: 0; }
 .purchase-orders-portal .order-field :where(input, textarea, select) { width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--hf-field-border); border-radius: 6px; padding: 8px 12px; background: var(--hf-field); color: var(--hf-ink); font: inherit; font-weight: 400; }
 .purchase-orders-portal .order-help, .purchase-orders-portal .order-line-title p { color: var(--hf-muted); font-size: 13px; font-weight: 400; }
 .purchase-orders-portal .order-line { display: grid; gap: 16px; min-width: 0; padding: 16px; border: 1px solid var(--hf-border); border-radius: 12px; background: var(--hf-surface); }

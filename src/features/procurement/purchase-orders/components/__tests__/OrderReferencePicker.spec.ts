@@ -17,7 +17,18 @@ describe('searchable order reference picker', () => {
     expect(wrapper.emitted('update:modelValue')?.[0]).toEqual([active])
     await wrapper.get('[data-testid="picker-next"]').trigger('click')
     expect(wrapper.emitted('next')).toHaveLength(1)
-    menu.vm.$emit('update:modelValue', '')
+    const clear = menu.props('items').find((item: { label: string }) => item.label === 'Sin proveedor')
+    menu.vm.$emit('update:modelValue', clear.id)
     expect(wrapper.emitted('update:modelValue')?.[1]).toEqual([null])
+  })
+  // Reka's ComboboxItem throws at runtime for an empty-string value, which
+  // broke the real supplier picker; every option needs a non-empty value.
+  it('never gives an option or the cleared selection an empty-string value', async () => {
+    const wrapper = mount(OrderReferencePicker, { props: { modelValue: null, items: [{ id: 'a', label: 'A' }], searchTerm: '', clearLabel: 'Sin proveedor', placeholder: 'Proveedor', searchPlaceholder: 'Buscar...' }, global: { stubs: { USelectMenu: select, UButton: true } } })
+    const menu = wrapper.getComponent(select)
+    expect(menu.props('items').every((item: { id: string }) => item.id !== '')).toBe(true)
+    expect(menu.props('modelValue')).not.toBe('')
+    await wrapper.setProps({ clearLabel: undefined })
+    expect(menu.props('modelValue')).not.toBe('')
   })
 })

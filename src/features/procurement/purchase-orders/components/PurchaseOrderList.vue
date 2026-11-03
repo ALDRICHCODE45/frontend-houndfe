@@ -14,7 +14,7 @@ const columns = computed<TableColumn<PurchaseOrderSummary, unknown>[]>(() => [
   { accessorKey: 'issueCount', header: 'Avisos', enableSorting: false },
   { accessorKey: 'note', header: 'Nota', enableSorting: false },
   { accessorKey: 'updatedAt', header: 'Actualizado', enableSorting: false },
-  { id: 'actions', header: 'Acciones', enableSorting: false },
+  ...(props.canEdit || props.canDelete ? [{ id: 'actions', header: 'Acciones', enableSorting: false }] : []),
 ])
 const date = (value: string) => new Date(value).toLocaleString('es-MX')
 </script>
