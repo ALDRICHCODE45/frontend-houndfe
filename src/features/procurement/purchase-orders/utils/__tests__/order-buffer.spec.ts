@@ -24,6 +24,27 @@ describe('draft editor buffer', () => {
     buffer.lines[0]!.amount = '1e3'
     expect(bufferErrors(buffer)).toHaveLength(3)
   })
+  // Backend contract (L23): an unchanged persisted fraction that became invalid
+  // because the catalog unit changed is preserved with a diagnostic, never a 400.
+  it('keeps an unchanged persisted fraction saveable but blocks an edited one for an integer unit', () => {
+    const saved = {
+      id: 'o', version: 2, status: 'DRAFT', supplierId: null, note: null, location: { detail: null },
+      lines: [{ lineId: 'l1', productId: 'p', variantId: null, orderedQuantity: '1.5', informedUnitCost: null }],
+      createdAt: '', updatedAt: '', supplierDisplaySnapshot: null,
+      lineDisplaySnapshots: [{ lineId: 'l1', productName: 'Caja de croquetas', variantName: null, unit: 'CAJA' }],
+      lineSubtotals: [], locationSnapshot: { tenantId: 't', tenantName: 'Centro', detail: null },
+      validation: { issues: [{ path: '/lines/0/orderedQuantity', code: 'QUANTITY_FRACTION_NOT_ALLOWED' }] },
+    } as const
+    const buffer = createOrderBuffer(saved as never)
+    buffer.note = 'Otro cambio'
+    expect(bufferErrors(buffer)).toEqual([])
+    buffer.lines[0]!.quantity = '2.5'
+    expect(bufferErrors(buffer)).toEqual([{ path: '/lines/0/orderedQuantity', message: 'Escribe una cantidad positiva con el formato de esta unidad.' }])
+    buffer.lines[0]!.quantity = '1e3'
+    expect(bufferErrors(buffer)).toHaveLength(1)
+    buffer.lines[0]!.quantity = '1.5'
+    expect(bufferErrors(buffer)).toEqual([])
+  })
   it('blocks a noncanonical quantity on a line added without a product before sending', () => {
     const buffer = createOrderBuffer(null)
     buffer.lines.push(replaceLineProduct(null))
