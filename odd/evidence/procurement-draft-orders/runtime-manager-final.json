@@ -1,0 +1,748 @@
+{
+ "stage": "manager",
+ "checks": [
+  "known stage",
+  "explicit disposable API and authorized absolute credentials path configured",
+  "O3a credential schema and exact API origin",
+  "backend supplies unique synthetic fixture prefix",
+  "manager: real mounted auth store authenticated (no replacement router/store)",
+  "manager route admitted",
+  "direct probe restricted to allowlist",
+  "real list loads",
+  "no out-of-scope shell dependencies before mutations",
+  "POST 201 incomplete draft diagnostics",
+  "server diagnostics rendered",
+  "direct probe restricted to allowlist",
+  "server note search finds unique draft",
+  "direct probe restricted to allowlist",
+  "direct probe restricted to allowlist",
+  "direct probe restricted to allowlist",
+  "real seeded catalog reads",
+  "unambiguous prefixed ACTIVE/ARCHIVED, kg/unit/variant/nonstock/SERVICE fixtures",
+  "ARCHIVED supplier not offered",
+  "SERVICE excluded by real PRODUCT-only picker",
+  "PUT 200 canonical kilogram quantity/cost/tax",
+  "server subtotal displayed verbatim without FE arithmetic",
+  "UNIDAD 1.5 rejected locally with zero PUT requests",
+  "server VARIANT_REQUIRED on unselected UNIDAD variant",
+  "direct probe restricted to allowlist",
+  "two real seeded variants",
+  "variant selection clears server diagnostic",
+  "direct probe restricted to allowlist",
+  "server supplier-name search finds draft",
+  "manager: real mounted auth store authenticated (no replacement router/store)",
+  "direct probe restricted to allowlist",
+  "independent authenticated context competing PUT 200",
+  "409 ORDER_VERSION_CONFLICT preserves local buffer",
+  "explicit reload replaces local buffer",
+  "one real committed PUT response dropped; no automatic retry",
+  "direct probe restricted to allowlist",
+  "Reintentar identical key/body and single version increment",
+  "canonical list 390/light",
+  "no page overflow: list-390-light",
+  "no page overflow: editor-390-light",
+  "overlay bounds: editor-390-light",
+  "no horizontal scroll inside overlay: editor-390-light",
+  "no page overflow: discard-confirm-390-light",
+  "overlay bounds: discard-confirm-390-light",
+  "no horizontal scroll inside overlay: discard-confirm-390-light",
+  "canonical list 390/dark",
+  "no page overflow: list-390-dark",
+  "no page overflow: editor-390-dark",
+  "overlay bounds: editor-390-dark",
+  "no horizontal scroll inside overlay: editor-390-dark",
+  "no page overflow: discard-confirm-390-dark",
+  "overlay bounds: discard-confirm-390-dark",
+  "no horizontal scroll inside overlay: discard-confirm-390-dark",
+  "canonical list 1440/light",
+  "no page overflow: list-1440-light",
+  "no page overflow: editor-1440-light",
+  "overlay bounds: editor-1440-light",
+  "no horizontal scroll inside overlay: editor-1440-light",
+  "no page overflow: discard-confirm-1440-light",
+  "overlay bounds: discard-confirm-1440-light",
+  "no horizontal scroll inside overlay: discard-confirm-1440-light",
+  "canonical list 1440/dark",
+  "no page overflow: list-1440-dark",
+  "no page overflow: editor-1440-dark",
+  "overlay bounds: editor-1440-dark",
+  "no horizontal scroll inside overlay: editor-1440-dark",
+  "no page overflow: discard-confirm-1440-dark",
+  "overlay bounds: discard-confirm-1440-dark",
+  "no horizontal scroll inside overlay: discard-confirm-1440-dark",
+  "persisted draft references seeded supplier before restriction probe",
+  "real supplier route admitted",
+  "supplier screen DELETE 409 SUPPLIER_HAS_PURCHASE_ORDERS",
+  "no page overflow: supplier-delete-restricted",
+  "overlay bounds: supplier-delete-restricted",
+  "no horizontal scroll inside overlay: supplier-delete-restricted",
+  "direct probe restricted to allowlist",
+  "discard DELETE 204 removes row; detail GET 404",
+  "no outsideScope requests",
+  "zero uncaught browser runtime errors"
+ ],
+ "requests": [
+  {
+   "method": "POST",
+   "path": "/auth/login",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/auth/me/permissions",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/auth/me",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/suppliers",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "POST",
+   "path": "/procurement/purchase-orders",
+   "status": 201,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders/6f13f426-0bdb-4c71-949c-69a8ae0f4e14",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/suppliers",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/suppliers",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders/6f13f426-0bdb-4c71-949c-69a8ae0f4e14",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/suppliers",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/suppliers",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/suppliers",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/suppliers",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products/c8b5d4df-f53a-4d7e-8599-244f89469b07/variants",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "PUT",
+   "path": "/procurement/purchase-orders/6f13f426-0bdb-4c71-949c-69a8ae0f4e14/draft",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products/c8b5d4df-f53a-4d7e-8599-244f89469b07/variants",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/suppliers",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products/405761f1-7054-4539-ba8b-3de3801cdd8c/variants",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products/86938959-77d2-4e3f-90c3-fd376c1e95b2/variants",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "PUT",
+   "path": "/procurement/purchase-orders/6f13f426-0bdb-4c71-949c-69a8ae0f4e14/draft",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products/c8b5d4df-f53a-4d7e-8599-244f89469b07/variants",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products/86938959-77d2-4e3f-90c3-fd376c1e95b2/variants",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/suppliers",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products/86938959-77d2-4e3f-90c3-fd376c1e95b2/variants",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "PUT",
+   "path": "/procurement/purchase-orders/6f13f426-0bdb-4c71-949c-69a8ae0f4e14/draft",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products/c8b5d4df-f53a-4d7e-8599-244f89469b07/variants",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products/86938959-77d2-4e3f-90c3-fd376c1e95b2/variants",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/suppliers",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders/6f13f426-0bdb-4c71-949c-69a8ae0f4e14",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products/c8b5d4df-f53a-4d7e-8599-244f89469b07/variants",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products/86938959-77d2-4e3f-90c3-fd376c1e95b2/variants",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/suppliers",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "POST",
+   "path": "/auth/login",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/auth/me/permissions",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/auth/me",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "PUT",
+   "path": "/procurement/purchase-orders/6f13f426-0bdb-4c71-949c-69a8ae0f4e14/draft",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "PUT",
+   "path": "/procurement/purchase-orders/6f13f426-0bdb-4c71-949c-69a8ae0f4e14/draft",
+   "status": 409,
+   "error": "ORDER_VERSION_CONFLICT"
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders/6f13f426-0bdb-4c71-949c-69a8ae0f4e14",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/suppliers",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products/86938959-77d2-4e3f-90c3-fd376c1e95b2/variants",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products/c8b5d4df-f53a-4d7e-8599-244f89469b07/variants",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "PUT",
+   "path": "/procurement/purchase-orders/6f13f426-0bdb-4c71-949c-69a8ae0f4e14/draft",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products/c8b5d4df-f53a-4d7e-8599-244f89469b07/variants",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products/86938959-77d2-4e3f-90c3-fd376c1e95b2/variants",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/suppliers",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders/6f13f426-0bdb-4c71-949c-69a8ae0f4e14",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders/6f13f426-0bdb-4c71-949c-69a8ae0f4e14",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products/c8b5d4df-f53a-4d7e-8599-244f89469b07/variants",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/suppliers",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products/86938959-77d2-4e3f-90c3-fd376c1e95b2/variants",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders/6f13f426-0bdb-4c71-949c-69a8ae0f4e14",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products/c8b5d4df-f53a-4d7e-8599-244f89469b07/variants",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products/86938959-77d2-4e3f-90c3-fd376c1e95b2/variants",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/suppliers",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders/6f13f426-0bdb-4c71-949c-69a8ae0f4e14",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products/c8b5d4df-f53a-4d7e-8599-244f89469b07/variants",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products/86938959-77d2-4e3f-90c3-fd376c1e95b2/variants",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/suppliers",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders/6f13f426-0bdb-4c71-949c-69a8ae0f4e14",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products/c8b5d4df-f53a-4d7e-8599-244f89469b07/variants",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products/86938959-77d2-4e3f-90c3-fd376c1e95b2/variants",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/suppliers",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/suppliers",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/suppliers",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "DELETE",
+   "path": "/procurement/suppliers/77485eaa-01e5-4731-8d04-bdb9e058a64f",
+   "status": 409,
+   "error": "SUPPLIER_HAS_PURCHASE_ORDERS"
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "DELETE",
+   "path": "/procurement/purchase-orders/6f13f426-0bdb-4c71-949c-69a8ae0f4e14",
+   "status": 204,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders/6f13f426-0bdb-4c71-949c-69a8ae0f4e14",
+   "status": 404,
+   "error": "NOT_FOUND"
+  }
+ ],
+ "outsideScope": [],
+ "screenshots": [
+  "/home/aldrich_coder45/Desktop/workspace/houndfe/frontend-houndfe/odd/evidence/procurement-draft-orders/runtime-manager-list-390-light.png",
+  "/home/aldrich_coder45/Desktop/workspace/houndfe/frontend-houndfe/odd/evidence/procurement-draft-orders/runtime-manager-editor-390-light.png",
+  "/home/aldrich_coder45/Desktop/workspace/houndfe/frontend-houndfe/odd/evidence/procurement-draft-orders/runtime-manager-discard-confirm-390-light.png",
+  "/home/aldrich_coder45/Desktop/workspace/houndfe/frontend-houndfe/odd/evidence/procurement-draft-orders/runtime-manager-list-390-dark.png",
+  "/home/aldrich_coder45/Desktop/workspace/houndfe/frontend-houndfe/odd/evidence/procurement-draft-orders/runtime-manager-editor-390-dark.png",
+  "/home/aldrich_coder45/Desktop/workspace/houndfe/frontend-houndfe/odd/evidence/procurement-draft-orders/runtime-manager-discard-confirm-390-dark.png",
+  "/home/aldrich_coder45/Desktop/workspace/houndfe/frontend-houndfe/odd/evidence/procurement-draft-orders/runtime-manager-list-1440-light.png",
+  "/home/aldrich_coder45/Desktop/workspace/houndfe/frontend-houndfe/odd/evidence/procurement-draft-orders/runtime-manager-editor-1440-light.png",
+  "/home/aldrich_coder45/Desktop/workspace/houndfe/frontend-houndfe/odd/evidence/procurement-draft-orders/runtime-manager-discard-confirm-1440-light.png",
+  "/home/aldrich_coder45/Desktop/workspace/houndfe/frontend-houndfe/odd/evidence/procurement-draft-orders/runtime-manager-list-1440-dark.png",
+  "/home/aldrich_coder45/Desktop/workspace/houndfe/frontend-houndfe/odd/evidence/procurement-draft-orders/runtime-manager-editor-1440-dark.png",
+  "/home/aldrich_coder45/Desktop/workspace/houndfe/frontend-houndfe/odd/evidence/procurement-draft-orders/runtime-manager-discard-confirm-1440-dark.png",
+  "/home/aldrich_coder45/Desktop/workspace/houndfe/frontend-houndfe/odd/evidence/procurement-draft-orders/runtime-manager-supplier-delete-restricted.png"
+ ],
+ "runtimeErrorCount": 0,
+ "verdict": "script assertions passed; parent must visually inspect screenshots",
+ "coverage": "real mounted auth/router and UI; direct boundary probes use browser fetch, not feature adapters",
+ "orderPath": "/procurement/purchase-orders/6f13f426-0bdb-4c71-949c-69a8ae0f4e14",
+ "uncertainResult": {
+  "committedStatus": 200,
+  "sameKeyAndBody": true,
+  "versionAdvancedOnce": true,
+  "explicitReplayCount": 1
+ }
+}

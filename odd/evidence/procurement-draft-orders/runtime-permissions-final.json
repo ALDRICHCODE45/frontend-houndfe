@@ -1,0 +1,264 @@
+{
+ "stage": "permissions",
+ "checks": [
+  "known stage",
+  "explicit disposable API and authorized absolute credentials path configured",
+  "O3a credential schema and exact API origin",
+  "backend supplies unique synthetic fixture prefix",
+  "manager: real mounted auth store authenticated (no replacement router/store)",
+  "manager route admitted",
+  "direct probe restricted to allowlist",
+  "real list loads",
+  "no out-of-scope shell dependencies before mutations",
+  "POST 201 incomplete draft diagnostics",
+  "server diagnostics rendered",
+  "direct probe restricted to allowlist",
+  "server note search finds unique draft",
+  "real mounted store logout",
+  "reader: real mounted auth store authenticated (no replacement router/store)",
+  "reader route admitted",
+  "direct probe restricted to allowlist",
+  "reader real detail GET allowed",
+  "reader: no mutation UI",
+  "direct probe restricted to allowlist",
+  "reader: direct POST 403",
+  "direct probe restricted to allowlist",
+  "reader: direct PUT 403",
+  "direct probe restricted to allowlist",
+  "reader: direct DELETE 403",
+  "no page overflow: reader-1440-light",
+  "real mounted store logout",
+  "noaccess: real mounted auth store authenticated (no replacement router/store)",
+  "noaccess real router forbidden",
+  "direct probe restricted to allowlist",
+  "direct probe restricted to allowlist",
+  "noaccess GET/list 403",
+  "noaccess: no mutation UI",
+  "direct probe restricted to allowlist",
+  "noaccess: direct POST 403",
+  "direct probe restricted to allowlist",
+  "noaccess: direct PUT 403",
+  "direct probe restricted to allowlist",
+  "noaccess: direct DELETE 403",
+  "no page overflow: noaccess-1440-light",
+  "real mounted store logout",
+  "no outsideScope requests",
+  "zero uncaught browser runtime errors"
+ ],
+ "requests": [
+  {
+   "method": "POST",
+   "path": "/auth/login",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/auth/me/permissions",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/auth/me",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/suppliers",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "POST",
+   "path": "/procurement/purchase-orders",
+   "status": 201,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/products",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/suppliers",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders/321e109a-84a4-4b3f-9625-667303558c91",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "POST",
+   "path": "/auth/logout",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "POST",
+   "path": "/auth/login",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/auth/me/permissions",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/auth/me",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders/321e109a-84a4-4b3f-9625-667303558c91",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "POST",
+   "path": "/procurement/purchase-orders",
+   "status": 403,
+   "error": "FORBIDDEN"
+  },
+  {
+   "method": "PUT",
+   "path": "/procurement/purchase-orders/321e109a-84a4-4b3f-9625-667303558c91/draft",
+   "status": 403,
+   "error": "FORBIDDEN"
+  },
+  {
+   "method": "DELETE",
+   "path": "/procurement/purchase-orders/321e109a-84a4-4b3f-9625-667303558c91",
+   "status": 403,
+   "error": "FORBIDDEN"
+  },
+  {
+   "method": "POST",
+   "path": "/auth/logout",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "POST",
+   "path": "/auth/login",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/auth/me/permissions",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/auth/me",
+   "status": 200,
+   "error": null
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders",
+   "status": 403,
+   "error": "FORBIDDEN"
+  },
+  {
+   "method": "GET",
+   "path": "/procurement/purchase-orders/321e109a-84a4-4b3f-9625-667303558c91",
+   "status": 403,
+   "error": "FORBIDDEN"
+  },
+  {
+   "method": "POST",
+   "path": "/procurement/purchase-orders",
+   "status": 403,
+   "error": "FORBIDDEN"
+  },
+  {
+   "method": "PUT",
+   "path": "/procurement/purchase-orders/321e109a-84a4-4b3f-9625-667303558c91/draft",
+   "status": 403,
+   "error": "FORBIDDEN"
+  },
+  {
+   "method": "DELETE",
+   "path": "/procurement/purchase-orders/321e109a-84a4-4b3f-9625-667303558c91",
+   "status": 403,
+   "error": "FORBIDDEN"
+  },
+  {
+   "method": "POST",
+   "path": "/auth/logout",
+   "status": 200,
+   "error": null
+  }
+ ],
+ "outsideScope": [],
+ "screenshots": [
+  "/home/aldrich_coder45/Desktop/workspace/houndfe/frontend-houndfe/odd/evidence/procurement-draft-orders/runtime-permissions-reader-1440-light.png",
+  "/home/aldrich_coder45/Desktop/workspace/houndfe/frontend-houndfe/odd/evidence/procurement-draft-orders/runtime-permissions-noaccess-1440-light.png"
+ ],
+ "runtimeErrorCount": 0,
+ "verdict": "script assertions passed; parent must visually inspect screenshots",
+ "coverage": "real mounted auth/router and UI; direct boundary probes use browser fetch, not feature adapters",
+ "orderPath": "/procurement/purchase-orders/321e109a-84a4-4b3f-9625-667303558c91",
+ "retainedSyntheticDraft": true
+}
