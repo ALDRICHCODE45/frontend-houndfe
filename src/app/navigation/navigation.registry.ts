@@ -118,6 +118,12 @@ export const navigationGroups: NavGroup[] = [
       icon: 'i-lucide-building-2',
       to: '/procurement/suppliers',
       permission: ['read', 'ProcurementSupplier'],
+    }, {
+      id: 'procurement-purchase-orders',
+      label: 'Órdenes de compra',
+      icon: 'i-lucide-clipboard-list',
+      to: '/procurement/purchase-orders',
+      permission: ['read', 'ProcurementPurchaseOrder'],
     }],
   },
   // ODD dashboard-analytics D1: the "Analítica" navigation group and the

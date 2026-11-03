@@ -49,6 +49,7 @@ export type AppAction = 'create' | 'read' | 'update' | 'delete' | 'batch_delete'
 export type AppSubject =
   | 'Product'
   | 'ProcurementSupplier'
+  | 'ProcurementPurchaseOrder'
   | 'Order'
   | 'User'
   | 'Role'
