@@ -398,6 +398,16 @@ const router = createRouter({
       },
     },
     {
+      path: '/procurement/purchase-orders',
+      name: 'procurement-purchase-orders',
+      component: () => import('@/features/procurement/purchase-orders/views/PurchaseOrderView.vue'),
+      meta: {
+        layout: 'dashboard',
+        rememberAsLanding: true,
+        permission: ['read', 'ProcurementPurchaseOrder'] as RoutePermission,
+      },
+    },
+    {
       path: '/procurement/suppliers',
       name: 'procurement-suppliers',
       component: () => import('@/features/procurement/suppliers/views/SupplierView.vue'),

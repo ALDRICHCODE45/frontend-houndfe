@@ -1,0 +1,42 @@
+@import '../../../../core/shared/design-system/houndfe-ui.css';
+
+.purchase-orders-page { display: grid; gap: 24px; color: var(--hf-ink); }
+:where(.purchase-orders-page, .purchase-orders-portal) button { min-height: var(--hf-control-height); }
+.purchase-orders-portal .order-picker-footer { padding: 8px; border-top: 1px solid var(--hf-border); color: var(--hf-ink); font-size: 14px; }
+:where(.purchase-orders-page, .purchase-orders-portal) .order-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+:where(.purchase-orders-page, .purchase-orders-portal) .order-pagination { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--hf-border); padding-top: 16px; margin-top: 16px; }
+:where(.purchase-orders-page, .purchase-orders-portal) .order-warning { background: var(--hf-warning-soft); color: var(--hf-warning); padding: 8px 12px; border-radius: 6px; overflow-wrap: anywhere; font-size: 13px; }
+:where(.purchase-orders-page, .purchase-orders-portal) .order-notice { background: var(--hf-active-soft); color: var(--hf-ink); padding: 12px 16px; border-radius: 6px; }
+.purchase-orders-portal .order-form { display: grid; gap: 24px; min-width: 0; color: var(--hf-ink); }
+.purchase-orders-portal .order-section { display: grid; gap: 16px; min-width: 0; border: 0; padding: 0; }
+.purchase-orders-portal .order-section > legend { color: var(--hf-heading); font-weight: 600; margin-bottom: 16px; }
+.purchase-orders-portal .order-section-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.purchase-orders-portal .order-section-heading h2 { color: var(--hf-heading); font-weight: 600; }
+.purchase-orders-portal .order-field { display: grid; gap: 6px; min-width: 0; font-size: 13px; font-weight: 600; }
+.purchase-orders-portal .order-field :where(input, textarea, select) { width: 100%; min-width: 0; min-height: 44px; border: 1px solid var(--hf-field-border); border-radius: 6px; padding: 8px 12px; background: var(--hf-field); color: var(--hf-ink); font: inherit; font-weight: 400; }
+.purchase-orders-portal .order-help, .purchase-orders-portal .order-line-title p { color: var(--hf-muted); font-size: 13px; font-weight: 400; }
+.purchase-orders-portal .order-line { display: grid; gap: 16px; min-width: 0; padding: 16px; border: 1px solid var(--hf-border); border-radius: 12px; background: var(--hf-surface); }
+.purchase-orders-portal .order-line-heading { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+.purchase-orders-portal .order-product-icon { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 8px; border: 1px solid var(--hf-border); background: var(--hf-surface-muted); color: var(--hf-muted); }
+.purchase-orders-portal .order-line-title { flex: 1; min-width: 100px; overflow-wrap: anywhere; }
+.purchase-orders-portal .order-line-title h3 { color: var(--hf-heading); font-size: 14px; font-weight: 600; }
+.purchase-orders-portal .order-line-fields { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); }
+.purchase-orders-portal .order-line-with-variant, .purchase-orders-portal .order-cost-fields { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.purchase-orders-portal .order-cost { grid-column: 1 / -1; min-width: 0; border: 0; padding: 0; }
+.purchase-orders-portal .order-cost legend { margin-bottom: 8px; color: var(--hf-muted); font-size: 13px; }
+.purchase-orders-portal .order-subtotal { border-top: 1px solid var(--hf-border); padding-top: 12px; font-size: 13px; color: var(--hf-ink); }
+.purchase-orders-portal .order-picker { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--hf-border); border-radius: 12px; background: var(--hf-surface); }
+.purchase-orders-portal .hf-primary-control.order-confirm-danger { display: inline-flex; align-items: center; gap: 6px; background: var(--ui-error); border-color: var(--ui-error); color: var(--ui-bg); }
+:where(.purchase-orders-page, .purchase-orders-portal) :where(button, input, select, textarea):focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; }
+:where(.purchase-orders-page, .purchase-orders-portal) :where(button, input, select, textarea):disabled { opacity: .6; cursor: not-allowed; }
+@media (max-width: 639px) {
+  .purchase-orders-portal .order-line-fields, .purchase-orders-portal .order-cost-fields { grid-template-columns: minmax(0, 1fr); }
+}
+@media (min-width: 768px) {
+  .purchase-orders-page .hf-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: .5rem .75rem; }
+  .purchase-orders-page .hf-toolbar-search-region { display: contents; }
+  .purchase-orders-page .hf-toolbar-search { grid-area: 1 / 1; width: 100%; max-width: 26rem; }
+  .purchase-orders-page .hf-toolbar-actions { grid-area: 1 / 2; flex-wrap: wrap; justify-content: flex-end; justify-self: end; }
+  .purchase-orders-page .hf-toolbar-filters { grid-area: 2 / 1 / 3 / -1; flex-wrap: wrap; }
+}
+.purchase-orders-page .hf-toolbar :where(button, input, [data-slot='root']):not([role='switch'], [role='checkbox']) { min-height: var(--hf-control-height); }
