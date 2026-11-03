@@ -245,7 +245,7 @@ async function reloadSelected() {
       <template #footer>
         <button type="button" data-testid="cancel-delete" class="supplier-button" :disabled="locked" @click="deleteTarget = null">Cancelar</button>
         <button v-if="hasUncertainResult" type="button" class="hf-primary-control" :disabled="isPending" @click="retry">Recuperar resultado</button>
-        <UButton v-else data-testid="confirm-delete" color="error" icon="i-lucide-trash-2" :disabled="isPending || deleteRejected" :loading="isPending" @click="confirmDelete">Sí, eliminar</UButton>
+        <button v-else type="button" data-testid="confirm-delete" class="hf-primary-control supplier-confirm-danger" :disabled="isPending || deleteRejected" @click="confirmDelete"><UIcon name="i-lucide-trash-2" aria-hidden="true" />Sí, eliminar</button>
       </template>
     </UModal>
   </main>
@@ -257,6 +257,7 @@ async function reloadSelected() {
 .supplier-filter { display: grid; gap: 6px; font-size: 13px; font-weight: 600; }
 .supplier-filter select, .supplier-button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--hf-field-border); border-radius: 6px; background: var(--hf-field); color: var(--hf-ink); font: inherit; }
 .supplier-button { background: var(--hf-surface); }
+.hf-primary-control.supplier-confirm-danger { display: inline-flex; align-items: center; gap: 6px; background: var(--ui-error); border-color: var(--ui-error); color: var(--ui-bg); }
 .supplier-pagination { display: flex; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--hf-border); padding-top: 16px; }
 .supplier-notice { background: var(--hf-active-soft); color: var(--hf-ink); padding: 12px 16px; border-radius: 6px; }
 .supplier-warning { background: var(--hf-warning-soft); color: var(--hf-warning); padding: 12px; margin-bottom: 16px; border-radius: 6px; overflow-wrap: anywhere; }
