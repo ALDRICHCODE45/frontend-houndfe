@@ -20,10 +20,13 @@ function matchesEntire(pattern: RegExp, value: string): boolean {
   return pattern.exec(value)?.[0] === value
 }
 export function validateOrderQuantity(value: string, unit: string | null | undefined): 'valid' | 'invalid' | 'unknown' {
-  const rule = quantityRule(unit)
-  // Missing/stale unit metadata is a server diagnostic, not an invented rule.
-  if (rule === 'unknown') return 'unknown'
+  // The canonical positive syntax is part of the contract for every line,
+  // including lines without a product (unknown unit).
   if (!matchesEntire(quantityPattern, value) || !/[1-9]/.test(value)) return 'invalid'
+  const rule = quantityRule(unit)
+  // Missing/stale unit metadata defers only the integer/decimal step to the
+  // server diagnostic; it never invents a unit rule.
+  if (rule === 'unknown') return 'unknown'
   if (rule === 'integer' && value.includes('.')) return 'invalid'
   return 'valid'
 }

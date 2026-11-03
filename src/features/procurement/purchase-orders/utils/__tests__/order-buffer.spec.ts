@@ -24,4 +24,14 @@ describe('draft editor buffer', () => {
     buffer.lines[0]!.amount = '1e3'
     expect(bufferErrors(buffer)).toHaveLength(3)
   })
+  it('blocks a noncanonical quantity on a line added without a product before sending', () => {
+    const buffer = createOrderBuffer(null)
+    buffer.lines.push(replaceLineProduct(null))
+    for (const quantity of ['1e3', '-1', '0', '1.2345']) {
+      buffer.lines[0]!.quantity = quantity
+      expect(bufferErrors(buffer)).toEqual([{ path: '/lines/0/orderedQuantity', message: 'Escribe una cantidad positiva con el formato de esta unidad.' }])
+    }
+    buffer.lines[0]!.quantity = '2.5'
+    expect(bufferErrors(buffer)).toEqual([])
+  })
 })

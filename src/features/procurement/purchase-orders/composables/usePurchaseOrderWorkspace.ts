@@ -26,6 +26,13 @@ export function usePurchaseOrderWorkspace(context: MaybeRefOrGetter<OrderWorkspa
   const errorCode = computed(() => (commands.error.value as { response?: { data?: { error?: string } } } | null)?.response?.data?.error)
   const conflict = computed(() => errorCode.value === 'ORDER_VERSION_CONFLICT')
   const deleteRejected = computed(() => commands.error.value !== null && !commands.hasUncertainResult.value)
+  // A created draft becomes an update target: create-only users must not keep
+  // an enabled form whose save would be silently refused.
+  const canSave = computed(() => {
+    const c = toValue(context)
+    const references = c.canRead && c.canReadSupplier && c.canReadProduct
+    return references && (selected.value ? c.canUpdate : c.canCreate)
+  })
   let epoch = 0
   let request = 0
   let invoker: HTMLButtonElement | null = null
@@ -110,6 +117,6 @@ export function usePurchaseOrderWorkspace(context: MaybeRefOrGetter<OrderWorkspa
   }
   async function retry() { const origin = epoch; await finish(await commands.retry(), origin) }
   function reload() { if (selected.value) return show(selected.value, true) }
-  return { commands, selected, open, editorOpen, deleteOpen, dirty, formKey, detailLoading, detailError, deleteTarget, notice, locked, message, conflict, deleteRejected,
+  return { commands, selected, open, editorOpen, deleteOpen, dirty, formKey, detailLoading, detailError, deleteTarget, notice, locked, message, conflict, deleteRejected, canSave,
     create, show, save, close, canLeave, requestDelete, confirmDelete, retry, reload, restoreInvoker }
 }

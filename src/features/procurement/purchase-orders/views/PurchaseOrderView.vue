@@ -21,7 +21,7 @@ const context = computed(() => {
 const list = usePurchaseOrders(context)
 const { search, items, hasNext, hasPrevious, isLoading, isFetching, error } = list
 const workspace = usePurchaseOrderWorkspace(context, list.refresh)
-const { commands, selected, open, editorOpen, deleteOpen, dirty, formKey, detailLoading, detailError, deleteTarget, notice, locked, message, conflict, deleteRejected } = workspace
+const { commands, selected, open, editorOpen, deleteOpen, dirty, formKey, detailLoading, detailError, deleteTarget, notice, locked, message, conflict, deleteRejected, canSave } = workspace
 const { isPending, hasUncertainResult } = commands
 if (getCurrentInstance()?.appContext.config.globalProperties.$router) onBeforeRouteLeave(workspace.canLeave)
 function preventUnload(event: BeforeUnloadEvent) { event.preventDefault(); event.returnValue = '' }
@@ -51,7 +51,8 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', preventUnload))
         <div v-if="message" role="alert" class="order-warning">{{ message }}<div class="order-actions"><UButton v-if="hasUncertainResult" type="button" color="neutral" variant="outline" :disabled="isPending" @click="workspace.retry">Reintentar</UButton><UButton v-if="conflict && selected" type="button" color="neutral" variant="outline" :disabled="detailLoading || locked" @click="workspace.reload">Descartar cambios locales y cargar versión actual</UButton></div></div>
         <p v-if="detailError" role="alert">{{ detailError }}</p>
         <p v-if="!context.canReadSupplier || !context.canReadProduct" role="status" class="order-warning">Para guardar cambios necesitas permiso de lectura de proveedores y productos.</p>
-        <PurchaseOrderForm v-if="open" :key="formKey" :initial="selected" :context="context" :disabled="locked || detailLoading || !context.canReadSupplier || !context.canReadProduct" @save="workspace.save" @cancel="workspace.close" @dirty="dirty = $event" />
+        <p v-else-if="selected && !context.canUpdate" role="status" class="order-warning">Borrador guardado. Para seguir editándolo necesitas permiso para editar órdenes de compra.</p>
+        <PurchaseOrderForm v-if="open" :key="formKey" :initial="selected" :context="context" :disabled="locked || detailLoading || !canSave" @save="workspace.save" @cancel="workspace.close" @dirty="dirty = $event" />
       </template>
     </USlideover>
     <UModal v-model:open="deleteOpen" :content="{ onCloseAutoFocus: workspace.restoreInvoker }" title="Descartar borrador" description="Se eliminará permanentemente. Su historial de auditoría se conserva." :dismissible="!locked" :close="locked ? false : undefined" :ui="{ content: 'hf-theme hf-ui purchase-orders-portal' }">

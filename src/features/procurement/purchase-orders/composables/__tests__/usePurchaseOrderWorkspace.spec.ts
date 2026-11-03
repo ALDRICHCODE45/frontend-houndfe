@@ -20,6 +20,23 @@ function setup() {
   return { workspace, context }
 }
 describe('draft workspace command integration', () => {
+  it('exposes whether the open editor can save, so create-only users do not get an unsaveable form', async () => {
+    const { workspace: w, context } = setup()
+    context.canUpdate = false
+    mocks.create.mockResolvedValue(order)
+    w.create()
+    expect(w.canSave.value).toBe(true)
+    await w.save(input)
+    expect(w.selected.value?.id).toBe('o')
+    expect(w.canSave.value).toBe(false)
+    await w.save(input)
+    expect(mocks.saveDraft).not.toHaveBeenCalled()
+    context.canUpdate = true
+    await w.show(order)
+    expect(w.canSave.value).toBe(true)
+    context.canReadProduct = false
+    expect(w.canSave.value).toBe(false)
+  })
   it('creates then saves with expectedVersion; keeps the editor open for diagnostics', async () => {
     const { workspace: w } = setup()
     mocks.create.mockResolvedValue(order)

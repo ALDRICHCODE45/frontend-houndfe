@@ -22,10 +22,13 @@ describe('order decimal and unit rules without normalization', () => {
   it.each([null, undefined, '', 'UNKNOWN', 'kg', 'kilogramo', '__proto__'])('returns unknown for unrecognized unit %s, never inventing an integer rule', unit => {
     expect(quantityRule(unit)).toBe('unknown')
     expect(validateOrderQuantity('1.5', unit)).toBe('unknown')
+    for (const value of ['0', '0.000', '1.2345', '1000000000']) expect(validateOrderQuantity(value, unit)).toBe('invalid')
     expect(unitLabel(unit)).toBeNull()
   })
   it.each(['01', '00.5', '1e3', '1,5', '-1', '+1', '.5', '1.', ' 1', '1 ', '1\n', '', 'NaN', 'Infinity'])('rejects noncanonical quantity and amount %j unchanged', value => {
     expect(validateOrderQuantity(value, 'KILOGRAMO')).toBe('invalid')
+    // An unknown unit defers only the unit-specific step, never the contract syntax.
+    expect(validateOrderQuantity(value, null)).toBe('invalid')
     expect(isValidOrderAmount(value)).toBe(false)
   })
   it.each(['0', '0.0000', '0.0001', '1', '1.2345', '999999999999', '999999999999.9999'])('accepts amount boundary %s', value => {
