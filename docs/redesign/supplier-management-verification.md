@@ -87,3 +87,20 @@ Screenshots (`runtime-manager-*`, `runtime-permissions-*`) were inspected visual
 - At 390px the shared shell header breadcrumb "Proveedores" touches the search icon. Shared component; recorded as a follow-up, not changed here.
 - Backend audit history has no public endpoint and is not verified from the frontend.
 - No native review approval is claimed; native assessment is unassessable while untracked scope is undeclared.
+
+## Supplier deletion (S7)
+
+Decision: hard delete, chosen by the user ("Borrado definitivo (recomendado)"), following the Customer/Product convention. Audit history keeps the historical supplier id and snapshots; the deletion itself is audited. Backend migration was tested only on a disposable database.
+
+Contract: `DELETE /procurement/suppliers/:id`, JSON body `{"expectedVersion": N}`, `Idempotency-Key` header, 204 empty. Requires `read` and `delete:ProcurementSupplier` (no default grants). Allowed for active and archived suppliers. `SUPPLIER_HAS_PURCHASE_ORDERS` (409) is reserved for O3b, when purchase orders exist.
+
+UI: "Eliminar" (trash icon, error color) is the last row action on the desktop table and the mobile cards, only with read+delete. Confirmation "Eliminar proveedor" — "Se eliminará permanentemente. Su historial de auditoría se conserva." — with "Cancelar" / "Sí, eliminar". Errors are mapped by code (including 404 and a deletion-specific version-conflict message); a rejected deletion keeps the confirmation open and disabled. An uncertain result is recovered only through "Recuperar resultado" with the same key and body. After success the list is refreshed (no optimistic removal), the notice reads "Proveedor eliminado correctamente." and focus moves to the supplier search.
+
+Replay safety: every supplier command (create, update, delete) carries its own AbortSignal, aborted when the principal, branch, readiness or permissions change. This stops the shared HTTP client from replaying a retired request after a credential refresh. A same-context replay of the same confirmed request (same body and idempotency key) is kept as transport re-authentication.
+
+### Verification
+
+- Test-first: commands RED 2 → GREEN; view/list RED 8 → GREEN; replay cancellation reproduced with the real shared HTTP client (RED: request sent twice; GREEN: once). Final set 266 tests across 15 suites, Vue-aware typecheck, `vue-tsc --build` and production build passed.
+- Real disposable backend `http://127.0.0.1:45581` (parent-executed Playwright MCP, programmatic login; not independent, not login-form/OTP coverage): manager 97/97, permissions 35/35, deletion 55/55 — cancel sends nothing in 1440/390 light/dark with focus restored; stale deletion returns 409 `SUPPLIER_VERSION_CONFLICT` and keeps the supplier; real deletion returns 204, the row disappears and a later GET returns 404; reader and no-access users get 403 and the reader sees no "Eliminar". Zero out-of-scope requests and zero runtime errors. Evidence: `odd/evidence/procurement-suppliers/runtime-delete*-final.json`, screenshots `runtime-delete-*` reviewed by the parent.
+- Visual review found the destructive button shorter than "Cancelar"; it now uses the same control as the archive confirmation.
+- Independent verification: first pass blocked S5/S7 on the credential-refresh replay; after the fix, a targeted independent recheck passed S5 and S7 (93 tests, typecheck). Backend idempotency/re-authorization is a stated assumption verified on the backend side, not by the frontend verifier.

@@ -9,7 +9,7 @@ import base from '../../../vite.config.ts'
 const project = fileURLToPath(new URL('../../../', import.meta.url))
 const root = fileURLToPath(new URL('./runtime-server/', import.meta.url))
 // No .env reads. This is a disposable-origin override, not a persisted setting.
-process.env.VITE_API_BASE_URL = 'http://127.0.0.1:43859'
+process.env.VITE_API_BASE_URL = 'http://127.0.0.1:45581'
 await new Promise((yes, no) => {
   const probe = net.createServer()
   probe.once('error', () => no(new Error('Port 43179 occupied; do not kill its owner')))
