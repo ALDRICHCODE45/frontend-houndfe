@@ -73,10 +73,15 @@ Delegated by the user ("esa tarea te la quedas tu"):
 ## Tasks
 
 - T1 [S8]: auth subjects, plus nav and permission pins. High risk (permissions).
+  - Done: dd19421a (subjects in AppSubject and APP_SUBJECTS; pins in ability.inventory.spec.ts; no nav entry in O1).
 - T2 [S7]: inventory types, API client, and the stock and movements composables.
+  - Done: 62e42f6d (src/features/POS/inventory: types, inventoryApi, useInventoryAccess/useInventoryContext, useProductStock, useStockMovements).
 - T3 [S2,S3,S7]: the adjustment command (Idempotency-Key, replay, 409 mapping, physical-count delta). High risk (data integrity).
+  - Done: d7029cb2 (useStockAdjustment, utils/adjustment.ts). Own commit, high risk.
 - T4 [S2,S3,S9]: the adjustment dialog.
+  - Done: 4acc912b (StockAdjustmentDialog; emits applied, reload).
 - T5 [S4,S6,S9]: the stock panel and the kardex.
+  - Done: aa1c79ba (StockKardex, utils/kardex.ts), c63376a9 (InventoryStockPanel, utils/stock.ts). Components only; T6 mounts `<InventoryStockPanel :product-id>` in the detail.
 - T6 [S8]: the "Inventario" task in the product detail.
 - T7 [S1]: read-only quantity on edit, with quantity stripped from every PATCH. High risk (data integrity).
 - T8 [S7]: product error-code mapping and the first-variant confirmation.
@@ -103,3 +108,14 @@ L4. Implementation started after system-redesign T4 closed (c613573a). Two paral
 - Stream A builds the inventory module (O1 T1-T5) in src/features/POS/inventory and src/features/auth.
 - Stream B covers products and sales (O1 T7-T9).
 The parent wires the "Inventario" task in the product detail (T6) and runs T10 after both finish. The BE API runs from the O1 worktree on :3000.
+
+L5. Stream A done (T1-T5), all in src/features/POS/inventory and src/features/auth. The parent owns T6 and T10.
+- Entry point for T6: `InventoryStockPanel` (prop `productId`). It reads the context itself, shows "Sin acceso" without `read:InventoryJournal`, and shows "Ajustar" only with `create:InventoryAdjustment`. `useInventoryAccess()` returns `{ canRead, canAdjust }` for gating the task itself.
+- Decisions taken without asking:
+  - The dialog is a UModal. Its default mode is Sumar. "Conteo físico" preselects the reason PHYSICAL_COUNT, which stays editable. A count equal to the shown stock is refused next to the field.
+  - Local validation runs before sending (no negative result, OTHER needs a note, note at most 500). The 409 codes are still mapped.
+  - After a version conflict or a "Revisar stock", the panel re-reads the stock and hands the open dialog the new quantity and version. After an uncertain result the fields stay locked and only "Reintentar" replays the same key and body.
+  - The kardex folds consecutive SALE rows with the same `group.id` into one expandable row. The sum of the deltas is a client sum of integers. A sale and its cancellation are never merged.
+  - A single-row sale is a plain row. No ids are shown.
+  - The kardex has no whole-row click, because only grouped rows expand.
+- Open: `Idempotency-Key` conflict copy says to reopen the dialog. Check it against the real BE in T10.
