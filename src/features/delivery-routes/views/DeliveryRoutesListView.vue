@@ -21,20 +21,25 @@
  * slideover closes on emit.
  *
  * Manager listing follows the canonical table workspace (docs/design-system.md
- * §4): heading outside the surface, status tabs with counts, client-side
- * search/sort over the cached full list, a derived route name that opens the
- * detail, table/card views and the full row menu (View/Edit/Start/Cancel/
- * Delete) gated exactly like the detail view, each mutation behind the shared
- * ConfirmModal.
+ * §4, "List screens"): heading outside the surface, the Estado filter with
+ * counts, client-side search/sort over the cached full list, a derived route
+ * name that opens the detail (the whole row does too), a table on desktop and
+ * cards on mobile, and the ⋮ row menu (Ver detalle/Editar/Iniciar/Cancelar/
+ * Eliminar) gated exactly like the detail view, each mutation behind the shared
+ * ConfirmModal. A route that only offers "Ver detalle" shows no ⋮.
  */
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import '../styles/delivery-routes-visual.css'
 import type { TableColumn } from '@nuxt/ui'
-import { AppDataTable, SortableHeader, createSimpleHeader } from '@/core/shared/components/DataTable'
-import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
+import { AppDataTable, SortableHeader } from '@/core/shared/components/DataTable'
+import ToolbarSelectFilter from '@/core/shared/components/DataTable/ToolbarSelectFilter.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
-import ViewToggle from '@/core/shared/components/ViewToggle.vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
+import RowActionsMenu from '@/core/shared/components/RowActionsMenu.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import { useClickableRow } from '@/core/shared/composables/useClickableRow'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import { normalizeApiError } from '@/core/shared/utils/error.utils'
 import { useDeliveryRouteRole } from '../composables/useDeliveryRouteRole'
 import { useDeliveryRoutesTable } from '../composables/useDeliveryRoutesTable'
@@ -44,25 +49,24 @@ import { useStartDeliveryRoute } from '../composables/useStartDeliveryRoute'
 import { useCancelDeliveryRoute } from '../composables/useCancelDeliveryRoute'
 import { useDeleteDeliveryRoute } from '../composables/useDeleteDeliveryRoute'
 import { useUpdateDeliveryRoute } from '../composables/useUpdateDeliveryRoute'
-import { useDeliveryRouteViewMode } from '../composables/useDeliveryRouteViewMode'
 import DeliveryRouteUpsertSlideover from '../components/DeliveryRouteUpsertSlideover.vue'
-import DeliveryRouteCardGrid from '../components/DeliveryRouteCardGrid.vue'
 import DriverRouteCard from '../components/DriverRouteCard.vue'
 import { DELIVERY_ROUTE_COPY } from '../copy'
 import { summarizeDriverRoutes } from '../utils/delivery-route-driver.utils'
 import { extractSaleConflictIds } from '../interfaces/errors'
 import {
-  buildDeliveryRouteListActions,
-  type DeliveryRouteRowActionItem,
+  buildStopProgress,
+  deliveryRouteRowActions,
+  deliveryRouteRowLabel,
 } from '../utils/delivery-route-actions.utils'
 import {
   DELIVERY_ROUTE_STATUS_ORDER,
-  buildRouteDisplayName,
-  formatRouteDateTime,
+  buildRouteTitle,
   getRouteCreatedAt,
   getRouteCustomers,
+  getRouteIssues,
   getRouteProgress,
-  shortRouteId,
+  routeAvisoLabel,
   type DeliveryRouteStatusFilter,
 } from '../utils/delivery-route-list.utils'
 import {
@@ -103,31 +107,56 @@ const {
   statusCounts,
 } = useDeliveryRoutesTable()
 
-// ─── Status tabs (client-side filter over the cached full list) ───────────────
-const statusTabs = computed(() =>
+// ─── Estado filter (client-side over the cached full list) ──────────────────
+const statusItems = computed(() =>
   (['ALL', ...DELIVERY_ROUTE_STATUS_ORDER] as DeliveryRouteStatusFilter[]).map((value) => ({
     value,
-    label: value === 'ALL' ? DELIVERY_ROUTE_COPY.list.managerTabs.all : DELIVERY_ROUTE_STATUS_LABELS[value],
-    count: statusCounts.value[value],
+    label: `${
+      value === 'ALL' ? DELIVERY_ROUTE_COPY.list.managerTabs.all : DELIVERY_ROUTE_STATUS_LABELS[value]
+    } (${statusCounts.value[value]})`,
   })),
 )
 
-function selectStatus(value: DeliveryRouteStatusFilter): void {
-  statusFilter.value = value
-  pagination.value = { ...pagination.value, pageIndex: 0 }
-}
-
-// ─── Table / card view (persisted like the other modules) ─────────────────────
-const { viewMode, displayMode, setViewMode } = useDeliveryRouteViewMode()
+const statusModel = computed<string>({
+  get: () => statusFilter.value,
+  set: (value) => {
+    statusFilter.value = value as DeliveryRouteStatusFilter
+    pagination.value = { ...pagination.value, pageIndex: 0 }
+  },
+})
 
 const LIST_PORTAL = 'hf-theme hf-ui delivery-routes-list-portal'
 const FORM_PORTAL = 'hf-theme hf-ui hf-form-overlay delivery-routes-form-portal'
 
+// Human-readable list error (block, not toast — design §11, REQ-DRM-014).
+const routesErrorMessage = computed(() =>
+  normalizeApiError(error.value, 'No se pudieron cargar las rutas de entrega. Reintenta.').message,
+)
 
-  // Human-readable list error (block, not toast — design §11, REQ-DRM-014).
-  const routesErrorMessage = computed(() =>
-    normalizeApiError(error.value, 'No se pudieron cargar las rutas de entrega. Reintenta.').message,
-  )
+// ─── Shared list states (S10) ─────────────────────────────────────────────────
+const search = computed(() => globalFilter.value.trim())
+const activeFilterCount = computed(() => (statusFilter.value === 'ALL' ? 0 : 1))
+
+/** The list is empty because a search or the Estado filter matched nothing. */
+const filtered = computed(() => search.value.length > 0 || activeFilterCount.value > 0)
+
+const noMatchTitle = computed(() =>
+  search.value ? `Ningún resultado para «${search.value}»` : 'Ningún resultado',
+)
+
+const emptyState = computed(() => ({
+  title: DELIVERY_ROUTE_COPY.empty.managerTitle,
+  description: DELIVERY_ROUTE_COPY.empty.managerDescription,
+  ...(canCreate.value
+    ? { actionLabel: DELIVERY_ROUTE_COPY.actions.create, actionIcon: 'i-lucide-route' }
+    : {}),
+}))
+
+function resetFilters(): void {
+  globalFilter.value = ''
+  statusFilter.value = 'ALL'
+  pagination.value = { ...pagination.value, pageIndex: 0 }
+}
 
 // ─── Driver list — active routes scoped server-side via CASL (design §6.2) ─────
 const {
@@ -273,41 +302,36 @@ function openRoute(routeId: string): void {
   void router.push(`/pos/rutas-de-entrega/${routeId}`)
 }
 
-/** Per-row menu sections — the pure gate lives in `buildDeliveryRouteListActions`. */
-function rowActions(row: DeliveryRouteResponseDto): DeliveryRouteRowActionItem[][] {
-  return buildDeliveryRouteListActions(row, {
-    canUpdate: canUpdate.value,
-    canDelete: canDelete.value,
-    onView: (route) => openRoute(route.id),
-    onEdit: (route) => {
-      editRoute.value = route
-    },
-    onStart: (route) => openConfirm('start', route),
-    onCancel: (route) => openConfirm('cancel', route),
-    onDelete: (route) => openConfirm('delete', route),
-  })
+/** The whole row (and the whole card) opens the detail. */
+function openRow(route: DeliveryRouteResponseDto): void {
+  openRoute(route.id)
+}
+const { rowProps } = useClickableRow<DeliveryRouteResponseDto>(openRow, { focusable: false })
+
+/** Per-row menu — the pure gate lives in `deliveryRouteRowActions`. */
+function actionsFor(row: DeliveryRouteResponseDto) {
+  return deliveryRouteRowActions(row, { canUpdate: canUpdate.value, canDelete: canDelete.value })
 }
 
-// ─── INLINE columns ───────────────────────────────────────────────────────────
-// Structural definitions only — cell markup lives in the `#*-cell` slots below.
-// Sorting runs client-side in `queryDeliveryRoutes` for the sortable ids.
+function runAction(key: string, row: DeliveryRouteResponseDto): void {
+  if (key === 'view') openRoute(row.id)
+  else if (key === 'edit') editRoute.value = row
+  else if (key === 'start' || key === 'cancel' || key === 'delete') openConfirm(key, row)
+}
+
+// ─── Columns ──────────────────────────────────────────────────────────────────
+// Name first, status second, then what decides the next action. Structural
+// definitions only — cell markup lives in the `#*-cell` slots below. Sorting runs
+// client-side in `queryDeliveryRoutes` for the sortable ids.
 const columns: TableColumn<DeliveryRouteResponseDto>[] = [
-  { id: 'name', header: createSimpleHeader('Ruta'), enableSorting: false, enableHiding: false },
-  { id: 'driver', header: 'Repartidor', enableSorting: true, enableHiding: true },
-  { id: 'customers', header: createSimpleHeader('Clientes'), enableSorting: false, enableHiding: true },
-  { id: 'progress', header: 'Progreso', enableSorting: true, enableHiding: true },
+  { id: 'name', header: 'Ruta', enableSorting: false, enableHiding: false },
   { id: 'status', header: 'Estado', enableSorting: true, enableHiding: true },
+  { id: 'driver', header: 'Repartidor', enableSorting: true, enableHiding: true },
+  { id: 'progress', header: 'Progreso', enableSorting: true, enableHiding: true },
+  { id: 'customers', header: 'Clientes', enableSorting: false, enableHiding: true },
   { id: 'createdAt', header: 'Creada', enableSorting: true, enableHiding: true },
   { id: 'startedAt', header: 'Inicio', enableSorting: true, enableHiding: true },
-  { id: 'completedAt', header: 'Fin', enableSorting: true, enableHiding: true },
-  { id: 'notes', header: createSimpleHeader('Notas'), enableSorting: false, enableHiding: true },
-  {
-    id: 'actions',
-    header: createSimpleHeader(''),
-    enableSorting: false,
-    enableHiding: false,
-    meta: { class: { td: 'text-right' } },
-  },
+  { id: 'actions', header: 'Acciones', enableSorting: false, enableHiding: false },
 ]
 
 // Typed status accessors keep the template free of `any`-indexed Record
@@ -318,10 +342,14 @@ function statusTone(status: DeliveryRouteStatus) {
 function statusLabel(status: DeliveryRouteStatus) {
   return DELIVERY_ROUTE_STATUS_LABELS[status]
 }
+function driverName(route: DeliveryRouteResponseDto): string {
+  return route.driver?.name ?? 'Sin repartidor'
+}
 
-/** The end of a route is its completion or its cancellation. */
-function routeEndedAt(route: DeliveryRouteResponseDto): string | null {
-  return route.completedAt ?? route.cancelledAt
+/** "2/5 paradas" or "Sin paradas" for the card footer. */
+function stopsSummary(route: DeliveryRouteResponseDto): string {
+  const progress = getRouteProgress(route)
+  return progress.total === 0 ? buildStopProgress(route.stops) : `${buildStopProgress(route.stops)} paradas`
 }
 </script>
 
@@ -329,60 +357,56 @@ function routeEndedAt(route: DeliveryRouteResponseDto): string | null {
   <!--
     Driver branch (REQ-DRM-002 driver side, §4.2, §11): renders the
     `DriverRouteCard` list over `useDriverActiveRoutes`. Loading / empty /
-    error states follow design §11: skeletons during fetch, "No tienes rutas
-    activas" when the list is empty, error block + retry on failure.
+    error states follow design §11: skeletons during fetch, the shared
+    EmptyState when the list is empty, an error state + retry on failure.
   -->
   <div
     v-if="isDriver"
     class="hf-theme hf-ui delivery-routes-driver flex flex-col gap-4 px-4 py-6 sm:px-6 lg:px-10"
   >
-    <header class="flex flex-col gap-1">
-      <h1 class="text-xl font-semibold">{{ DELIVERY_ROUTE_COPY.list.driverHeader }}</h1>
+    <header class="hf-page-header">
+      <h1 class="hf-page-title">{{ DELIVERY_ROUTE_COPY.list.driverHeader }}</h1>
       <p
         v-if="driverSummary"
-        class="text-sm text-muted"
+        class="hf-page-subtitle"
         data-testid="driver-list-summary"
       >
         {{ driverSummary }}
       </p>
     </header>
 
-    <!-- Loading skeleton (design §11). -->
+    <!-- Loading skeleton (design §11): card-shaped blocks. -->
     <div
       v-if="driverIsLoading"
       data-testid="driver-list-loading"
-      class="flex flex-col gap-3"
+      aria-busy="true"
+      class="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3"
     >
-      <div class="h-24 animate-pulse rounded-lg bg-default" />
-      <div class="h-24 animate-pulse rounded-lg bg-default" />
-      <div class="h-24 animate-pulse rounded-lg bg-default" />
+      <div v-for="i in 3" :key="i" class="route-skeleton animate-pulse" />
     </div>
 
-    <!-- Error block (design §11, REQ-DRM-014). -->
-    <div
-      v-else-if="driverIsError"
-      data-testid="driver-list-error"
-      class="flex flex-col items-center gap-3 py-12 text-center"
-    >
-      <h2 class="text-base font-medium">No se pudieron cargar tus rutas</h2>
-      <p class="text-sm text-muted">{{ driverErrorMessage }}</p>
-      <button
-        type="button"
-        class="text-sm text-primary underline"
-        @click="() => driverRefetch()"
-      >
-        Reintentar
-      </button>
+    <!-- Error state (design §11, REQ-DRM-014). -->
+    <div v-else-if="driverIsError" data-testid="driver-list-error">
+      <EmptyState
+        kind="error"
+        title="No se pudieron cargar tus rutas"
+        :description="driverErrorMessage"
+        action-label="Reintentar"
+        action-test-id="driver-list-retry"
+        @action="() => driverRefetch()"
+      />
     </div>
 
     <!-- Empty state (design §11). -->
-    <p
+    <div
       v-else-if="!driverRoutes || driverRoutes.length === 0"
       data-testid="driver-list-empty"
-      class="py-12 text-center text-sm text-muted"
     >
-      {{ DELIVERY_ROUTE_COPY.empty.driver }}
-    </p>
+      <EmptyState
+        :title="DELIVERY_ROUTE_COPY.empty.driverTitle"
+        :description="DELIVERY_ROUTE_COPY.empty.driverDescription"
+      />
+    </div>
 
     <!-- Active routes list — mobile-first, one card per row (cols widen on md+). -->
     <ul
@@ -396,10 +420,9 @@ function routeEndedAt(route: DeliveryRouteResponseDto): string | null {
     </ul>
   </div>
 
-  <section
+  <div
     v-else-if="isManager"
     class="hf-theme hf-ui delivery-routes-visual flex w-full min-w-0 flex-col gap-6 md:px-10"
-    aria-labelledby="delivery-routes-title"
   >
     <DeliveryRouteUpsertSlideover
       v-model:open="isCreateOpen"
@@ -439,34 +462,13 @@ function routeEndedAt(route: DeliveryRouteResponseDto): string | null {
 
     <header class="hf-page-header">
       <h1 id="delivery-routes-title" class="hf-page-title">{{ DELIVERY_ROUTE_COPY.list.title }}</h1>
-      <p class="hf-page-subtitle">{{ DELIVERY_ROUTE_COPY.list.subtitle }}</p>
     </header>
 
     <UCard
       :ui="{ body: 'p-0 sm:p-0' }"
       class="hf-table-surface w-full min-w-0 max-w-full overflow-hidden shadow-sm"
     >
-      <div class="hf-table-content flex w-full min-w-0 flex-col gap-4">
-        <div
-          class="delivery-routes-tabs"
-          role="tablist"
-          :aria-label="DELIVERY_ROUTE_COPY.list.statusTabsLabel"
-        >
-          <button
-            v-for="tab in statusTabs"
-            :key="tab.value"
-            type="button"
-            role="tab"
-            class="delivery-routes-tab"
-            :aria-selected="statusFilter === tab.value"
-            :data-testid="`status-tab-${tab.value}`"
-            @click="selectStatus(tab.value)"
-          >
-            {{ tab.label }}
-            <span class="delivery-routes-tab-count">{{ tab.count }}</span>
-          </button>
-        </div>
-
+      <div class="hf-table-content w-full min-w-0 px-3 py-3 sm:px-4 sm:py-4">
         <AppDataTable
           v-model:sorting="sorting"
           v-model:pagination="pagination"
@@ -480,12 +482,18 @@ function routeEndedAt(route: DeliveryRouteResponseDto): string | null {
           :error="isError"
           :error-message="routesErrorMessage"
           :empty="DELIVERY_ROUTE_COPY.empty.manager"
+          :empty-state="emptyState"
+          :filtered="filtered"
+          :no-match-title="noMatchTitle"
+          :active-filter-count="activeFilterCount"
           :page-count="pageCount"
           :total-count="totalCount"
           :showing-from="showingFrom"
           :showing-to="showingTo"
           :page-size-options="pageSizeOptions"
-          :display-mode="displayMode"
+          :row-open="openRow"
+          display-mode="auto"
+          mobile-render="cards"
           :search-placeholder="DELIVERY_ROUTE_COPY.list.searchPlaceholder"
           :show-add-button="canCreate"
           :add-button-text="DELIVERY_ROUTE_COPY.actions.create"
@@ -495,36 +503,28 @@ function routeEndedAt(route: DeliveryRouteResponseDto): string | null {
           :portal-class="LIST_PORTAL"
           :pagination-portal-class="LIST_PORTAL"
           @add="openCreate"
+          @empty-action="openCreate"
           @refresh="refresh"
+          @clear-filters="resetFilters"
         >
-          <template #actions>
-            <ViewToggle
-              :model-value="viewMode"
-              class="delivery-routes-view-toggle"
-              aria-label="Seleccionar vista de rutas"
-              @update:model-value="setViewMode"
-            />
-          </template>
-
-          <template #cards>
-            <DeliveryRouteCardGrid
-              :routes="data"
-              :loading="isLoading"
-              :empty="DELIVERY_ROUTE_COPY.empty.manager"
-              :get-actions="rowActions"
+          <template #filters>
+            <ToolbarSelectFilter
+              v-model="statusModel"
+              :items="statusItems"
+              label="Estado"
               :portal-class="LIST_PORTAL"
-              @open="openRoute"
+              test-id="route-status-filter"
             />
           </template>
 
+          <template #status-header="{ column }">
+            <SortableHeader :column="column" label="Estado" />
+          </template>
           <template #driver-header="{ column }">
             <SortableHeader :column="column" label="Repartidor" />
           </template>
           <template #progress-header="{ column }">
             <SortableHeader :column="column" label="Progreso" />
-          </template>
-          <template #status-header="{ column }">
-            <SortableHeader :column="column" label="Estado" />
           </template>
           <template #createdAt-header="{ column }">
             <SortableHeader :column="column" label="Creada" />
@@ -532,44 +532,48 @@ function routeEndedAt(route: DeliveryRouteResponseDto): string | null {
           <template #startedAt-header="{ column }">
             <SortableHeader :column="column" label="Inicio" />
           </template>
-          <template #completedAt-header="{ column }">
-            <SortableHeader :column="column" label="Fin" />
-          </template>
+          <template #actions-header><span class="sr-only">Acciones</span></template>
 
           <template #name-cell="{ row }">
-            <button
-              type="button"
-              class="delivery-routes-name-link flex min-w-0 flex-col text-left"
-              data-testid="route-name-link"
-              :title="row.original.id"
-              @click="openRoute(row.original.id)"
-            >
-              <span class="text-sm font-medium">{{ buildRouteDisplayName(row.original) }}</span>
-              <span class="delivery-routes-id font-mono text-xs">{{ shortRouteId(row.original.id) }}</span>
-            </button>
+            <div class="route-primary">
+              <button
+                type="button"
+                class="hf-row-primary route-row-link"
+                data-testid="route-name-link"
+                @click="openRoute(row.original.id)"
+              >{{ buildRouteTitle(row.original) }}</button>
+              <span v-if="row.original.notes" class="hf-row-secondary">{{ row.original.notes }}</span>
+            </div>
+          </template>
+
+          <template #status-cell="{ row }">
+            <div class="route-status-cell">
+              <StatusBadge
+                data-testid="route-status"
+                :tone="statusTone(row.original.status)"
+                :label="statusLabel(row.original.status)"
+              />
+              <span
+                v-if="getRouteIssues(row.original).length > 0"
+                data-testid="route-aviso"
+                class="route-aviso"
+                :title="getRouteIssues(row.original).join(' · ')"
+              >
+                <UIcon name="i-lucide-triangle-alert" aria-hidden="true" />{{ routeAvisoLabel(getRouteIssues(row.original).length) }}
+                <span class="sr-only">: {{ getRouteIssues(row.original).join(', ') }}</span>
+              </span>
+            </div>
           </template>
 
           <template #driver-cell="{ row }">
-            <span class="text-sm">{{ row.original.driver?.name ?? 'Sin repartidor' }}</span>
-          </template>
-
-          <template #customers-cell="{ row }">
-            <span class="block max-w-64 text-sm">
-              {{ getRouteCustomers(row.original).join(', ') || '—' }}
-            </span>
+            <span class="route-text">{{ driverName(row.original) }}</span>
           </template>
 
           <template #progress-cell="{ row }">
-            <div class="flex min-w-32 flex-col gap-1">
-              <span class="text-sm tabular-nums">
-                {{
-                  getRouteProgress(row.original).total === 0
-                    ? 'Sin paradas'
-                    : `${getRouteProgress(row.original).completed}/${getRouteProgress(row.original).total}`
-                }}
-              </span>
+            <div class="route-progress-cell">
+              <span class="hf-figure route-progress-count">{{ buildStopProgress(row.original.stops) }}</span>
               <div
-                class="delivery-routes-progress"
+                class="route-progress"
                 role="progressbar"
                 :aria-valuenow="getRouteProgress(row.original).percent"
                 aria-valuemin="0"
@@ -581,50 +585,98 @@ function routeEndedAt(route: DeliveryRouteResponseDto): string | null {
             </div>
           </template>
 
-          <template #status-cell="{ row }">
-            <StatusDotBadge
-              :tone="statusTone(row.original.status)"
-              :label="statusLabel(row.original.status)"
-            />
+          <template #customers-cell="{ row }">
+            <span class="route-text route-customers" :title="getRouteCustomers(row.original).join(', ')">
+              {{ getRouteCustomers(row.original).join(', ') || '—' }}
+            </span>
           </template>
 
           <template #createdAt-cell="{ row }">
-            <span class="text-sm tabular-nums">
-              {{ formatRouteDateTime(getRouteCreatedAt(row.original)) }}
-            </span>
+            <span class="route-when">{{ formatShortDateTime(getRouteCreatedAt(row.original)) }}</span>
           </template>
 
           <template #startedAt-cell="{ row }">
-            <span class="text-sm tabular-nums">{{ formatRouteDateTime(row.original.startedAt) }}</span>
-          </template>
-
-          <template #completedAt-cell="{ row }">
-            <span class="text-sm tabular-nums">{{ formatRouteDateTime(routeEndedAt(row.original)) }}</span>
-          </template>
-
-          <template #notes-cell="{ row }">
-            <span class="block max-w-72 whitespace-normal break-words text-sm">
-              {{ row.original.notes || '—' }}
-            </span>
+            <span class="route-when">{{ formatShortDateTime(row.original.startedAt) }}</span>
           </template>
 
           <template #actions-cell="{ row }">
-            <UDropdownMenu
-              :items="rowActions(row.original)"
-              :content="{ align: 'end' }"
-              :ui="{ content: LIST_PORTAL }"
-            >
-              <UButton
-                icon="i-lucide-ellipsis-vertical"
-                color="neutral"
-                variant="ghost"
-                class="size-9"
-                aria-label="Acciones de la ruta"
-              />
-            </UDropdownMenu>
+            <RowActionsMenu
+              :actions="actionsFor(row.original)"
+              :row-label="deliveryRouteRowLabel(row.original)"
+              portal-class="delivery-routes-list-portal"
+              @select="runAction($event, row.original)"
+            />
+          </template>
+
+          <template #mobile-card="{ row }">
+            <article v-bind="rowProps(row)" class="route-card" data-testid="delivery-route-card">
+              <div class="route-card-head">
+                <button
+                  type="button"
+                  class="hf-row-primary route-row-link"
+                  data-testid="delivery-route-card-open"
+                  @click="openRoute(row.id)"
+                >{{ buildRouteTitle(row) }}</button>
+                <RowActionsMenu
+                  :actions="actionsFor(row)"
+                  :row-label="deliveryRouteRowLabel(row)"
+                  portal-class="delivery-routes-list-portal"
+                  @select="runAction($event, row)"
+                />
+              </div>
+              <span class="hf-row-secondary">{{ driverName(row) }}</span>
+              <span v-if="getRouteCustomers(row).length > 0" class="hf-row-secondary">
+                {{ getRouteCustomers(row).join(', ') }}
+              </span>
+              <div class="route-card-meta">
+                <StatusBadge
+                  data-testid="route-status"
+                  :tone="statusTone(row.status)"
+                  :label="statusLabel(row.status)"
+                />
+                <span
+                  v-if="getRouteIssues(row).length > 0"
+                  data-testid="route-aviso"
+                  class="route-aviso"
+                  :title="getRouteIssues(row).join(' · ')"
+                >
+                  <UIcon name="i-lucide-triangle-alert" aria-hidden="true" />{{ routeAvisoLabel(getRouteIssues(row).length) }}
+                  <span class="sr-only">: {{ getRouteIssues(row).join(', ') }}</span>
+                </span>
+              </div>
+              <div class="route-card-footer">
+                <span class="hf-figure route-card-stops">{{ stopsSummary(row) }}</span>
+                <span>{{ formatShortDateTime(getRouteCreatedAt(row)) }}</span>
+              </div>
+            </article>
           </template>
         </AppDataTable>
       </div>
     </UCard>
-  </section>
+  </div>
 </template>
+
+<style scoped>
+.route-primary { min-width: 0; }
+.route-row-link { padding: 0; border: 0; background: none; text-align: left; font-size: 14px; cursor: pointer; }
+.route-row-link:focus-visible { outline: 2px solid var(--hf-focus); outline-offset: 2px; border-radius: 4px; }
+.route-status-cell { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+.route-aviso { display: inline-flex; align-items: center; gap: 4px; color: var(--hf-warning); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.route-text { font-size: 14px; }
+.route-customers { display: block; max-width: 16rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.route-when { color: var(--hf-muted); font-size: 13px; white-space: nowrap; }
+.route-progress-cell { display: grid; min-width: 7rem; gap: 4px; }
+.route-progress-count { text-align: left; font-size: 14px; }
+.route-progress { height: 6px; overflow: hidden; border-radius: 999px; background: var(--hf-surface-muted); }
+.route-progress > span { display: block; height: 100%; border-radius: inherit; background: var(--hf-success); }
+.route-skeleton { height: 7.5rem; border-radius: 12px; background: var(--hf-surface-muted); }
+.route-card { position: relative; min-width: 0; border: 1px solid var(--hf-border); border-radius: 12px; background: var(--hf-surface); padding: 16px; }
+.route-card-head { display: flex; align-items: flex-start; gap: 4px; min-width: 0; }
+.route-card-head .route-row-link { flex: 1; min-width: 0; padding-top: 2px; font-size: 15px; line-height: 1.4; white-space: normal; }
+.route-card-head > :last-child { margin: -8px -8px 0 0; flex: none; }
+.route-card-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.route-card-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--hf-border); color: var(--hf-muted); font-size: 13px; }
+.route-card-stops { color: var(--hf-ink); font-weight: 600; }
+:deep(td[data-slot='td']) { height: 64px; padding-block: 10px; vertical-align: middle; }
+:deep(td[data-slot='td']:last-child) { padding-inline: 8px; }
+</style>

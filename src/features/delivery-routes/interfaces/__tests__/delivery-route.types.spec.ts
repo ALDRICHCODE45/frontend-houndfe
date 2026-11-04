@@ -409,10 +409,13 @@ describe('Label + tone maps (sdd delivery-routes S1b, design §5.1)', () => {
     expect(DELIVERY_ROUTE_STATUS_LABELS.CANCELLED).toBe('Cancelada')
   })
 
-  it('DELIVERY_ROUTE_STATUS_TONES exposes a tone per status', () => {
-    for (const v of ['DRAFT', 'ACTIVE', 'COMPLETED', 'CANCELLED'] as DeliveryRouteStatus[]) {
-      expect(DELIVERY_ROUTE_STATUS_TONES[v]).toMatch(/^(success|warning|error|neutral)$/)
-    }
+  it('DELIVERY_ROUTE_STATUS_TONES maps draft and cancelled to neutral, active to info', () => {
+    expect(DELIVERY_ROUTE_STATUS_TONES).toEqual({
+      DRAFT: 'neutral',
+      ACTIVE: 'info',
+      COMPLETED: 'success',
+      CANCELLED: 'neutral',
+    })
   })
 
   it('DELIVERY_ROUTE_STOP_STATUS_LABELS exposes every stop status', () => {

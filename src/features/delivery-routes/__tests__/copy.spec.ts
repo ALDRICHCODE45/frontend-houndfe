@@ -57,7 +57,8 @@ describe('copy.ts — single Spanish copy source (design.md §3)', () => {
 
   it('contains the empty states for the list view (manager + driver)', () => {
     expect(DELIVERY_ROUTE_COPY.empty.manager).toBe('No hay rutas de entrega')
-    expect(DELIVERY_ROUTE_COPY.empty.driver).toMatch(/no tienes rutas activas/i)
+    expect(DELIVERY_ROUTE_COPY.empty.managerTitle).toBe('Aún no hay rutas')
+    expect(DELIVERY_ROUTE_COPY.empty.driverTitle).toMatch(/no tienes rutas activas/i)
   })
 
   it('contains the confirm copy (delete/cancel/start) per REQ-DR-007', () => {

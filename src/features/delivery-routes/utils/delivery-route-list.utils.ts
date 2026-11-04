@@ -7,7 +7,6 @@
  */
 
 import { format, isSameDay } from 'date-fns'
-import { es } from 'date-fns/locale'
 import type { PaginatedResponse, SortingParam } from '@/core/shared/types/table.types'
 import type {
   DeliveryRouteResponseDto,
@@ -41,19 +40,6 @@ const MONTHS_SHORT = [
 /** The DTO has no createdAt; the ROUTE_CREATED timeline event carries it. */
 export function getRouteCreatedAt(route: DeliveryRouteResponseDto): string | null {
   return route.timeline.find((event) => event.type === 'ROUTE_CREATED')?.at ?? null
-}
-
-/** "13 oct 2026, 15:00" in local time; "—" for missing or invalid values. */
-export function formatRouteDateTime(iso: string | null): string {
-  if (!iso) return '—'
-  const date = new Date(iso)
-  if (Number.isNaN(date.getTime())) return '—'
-  return format(date, 'd MMM yyyy, HH:mm', { locale: es })
-}
-
-/** Compact route identifier: first 8 characters of the UUID. */
-export function shortRouteId(id: string): string {
-  return id.length > 8 ? id.slice(0, 8) : id
 }
 
 /** "13 oct" in local time, independent of the runtime's Intl month data. */
@@ -90,17 +76,16 @@ export function minutesBetween(start: Date, end: Date): number {
   return Math.max(0, Math.floor((end.getTime() - start.getTime()) / 60_000))
 }
 
-/** "Ruta del 13 oct"; unknown creation date falls back to the short id. */
+/** "Ruta del 13 oct"; an unknown creation date reads "Ruta sin fecha" (ids are never shown). */
 export function buildRouteTitle(route: DeliveryRouteResponseDto): string {
   const createdAt = getRouteCreatedAt(route)
   const day = createdAt ? formatDayMonth(createdAt) : null
-  return day ? `Ruta del ${day}` : `Ruta ${shortRouteId(route.id)}`
+  return day ? `Ruta del ${day}` : 'Ruta sin fecha'
 }
 
 /**
  * Human identifier derived in the front (the backend has no folio):
- * "Ruta del 13 oct · Juan Pérez". Unknown creation date falls back to the
- * short id; an unassigned route reads "Sin repartidor".
+ * "Ruta del 13 oct · Juan Pérez". An unassigned route reads "Sin repartidor".
  */
 export function buildRouteDisplayName(route: DeliveryRouteResponseDto): string {
   return `${buildRouteTitle(route)} · ${route.driver?.name ?? 'Sin repartidor'}`
@@ -115,6 +100,20 @@ export function getRouteCustomers(route: DeliveryRouteResponseDto): string[] {
   }
   return names
 }
+
+/**
+ * What keeps a draft from starting: no stops, no driver. Other statuses are
+ * past that point and carry no issues. Shown beside the badge as "⚠ 1 aviso".
+ */
+export function getRouteIssues(route: DeliveryRouteResponseDto): string[] {
+  if (route.status !== 'DRAFT') return []
+  const issues: string[] = []
+  if (route.stops.length === 0) issues.push('Sin paradas')
+  if (!route.driver) issues.push('Sin repartidor')
+  return issues
+}
+
+export const routeAvisoLabel = (count: number): string => `${count} ${count === 1 ? 'aviso' : 'avisos'}`
 
 export interface DeliveryRouteProgress {
   completed: number

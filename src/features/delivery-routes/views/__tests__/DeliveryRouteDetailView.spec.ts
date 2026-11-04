@@ -1302,14 +1302,14 @@ describe('DeliveryRouteDetailView — manager workspace redesign (odd delivery-r
     for (const marker of ['hf-theme', 'hf-ui', 'delivery-routes-visual']) expect(root.classes()).toContain(marker)
   })
 
-  it('renders the rich header: back link, route title with driver, reference and lifecycle moments', async () => {
+  it('renders the rich header: back link, route title with driver and lifecycle moments, never the id', async () => {
     resetRoleFlags({ isManager: { value: true } })
     resetDetailState({ data: activeRoute() })
     const wrapper = mountView()
     await flushPromises()
     expect(wrapper.find('[data-testid="detail-route-title"]').text()).toBe('Ruta del 14 oct · Ana')
     const meta = wrapper.find('[data-testid="detail-route-meta"]').text()
-    expect(meta).toContain('#route-42')
+    expect(meta).not.toContain('route-42')
     expect(meta).toContain('Creada')
     expect(meta).toContain('Iniciada')
     await wrapper.find('[data-testid="detail-back-link"]').trigger('click')

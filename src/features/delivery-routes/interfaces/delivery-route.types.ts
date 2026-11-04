@@ -190,14 +190,16 @@ export const DELIVERY_ROUTE_STATUS_LABELS: Record<DeliveryRouteStatus, string> =
   CANCELLED: 'Cancelada',
 }
 
+// Draft and cancelled are neutral; warning is reserved for a pending issue, which
+// the list shows as an inline "aviso" marker beside the badge.
 export const DELIVERY_ROUTE_STATUS_TONES: Record<
   DeliveryRouteStatus,
-  'success' | 'warning' | 'error' | 'neutral'
+  'success' | 'info' | 'neutral'
 > = {
   DRAFT: 'neutral',
-  ACTIVE: 'warning',
+  ACTIVE: 'info',
   COMPLETED: 'success',
-  CANCELLED: 'error',
+  CANCELLED: 'neutral',
 }
 
 export const DELIVERY_ROUTE_STOP_STATUS_LABELS: Record<DeliveryRouteStopStatus, string> = {

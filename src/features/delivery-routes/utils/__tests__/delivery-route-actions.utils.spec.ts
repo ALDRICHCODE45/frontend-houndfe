@@ -1,39 +1,22 @@
-// delivery-route-actions.utils.spec.ts — STRICT-TDD tests for the pure utility.
+// delivery-route-actions.utils.spec.ts — pure helpers for the manager surface.
 //
-// Contract (sdd delivery-routes S5a, design.md §4.1, §10.2, REQ-DRM-009):
-//   - `assertReorderCoversStops(orderedStopIds, existingStopIds)`:
-//       • length mismatch           → returns inline Spanish message (NOT null).
-//       • unknown id in ordered     → returns inline Spanish message.
-//       • duplicate id in ordered   → returns inline Spanish message.
-//       • valid (exactly-once)      → returns null.
-//   - `buildDeliveryRouteRowActions(row, ctx)`:
-//       • returns the manager dropdown sections per the gate contract
-//         (edit + start + cancel + delete + reorderStops), each item carrying
-//         `label`, optional `color: 'error'`, and an `onSelect` callback.
-//       • sections with zero items are filtered out (so the parent can pass
-//         the result verbatim to UDropdownMenu).
-//       • never includes keys the caller didn't ask for (no `disabled` items).
-//   - `buildDeliveryRouteStartActions(row, ctx)`:
-//       • START-only kebab content for the manager list; returns a single
-//         section with `DELIVERY_ROUTE_COPY.actions.start` when the row is
-//         DRAFT + canUpdate + has at least one stop (REQ-DRM-011/013), else `[]`.
-//       • the parent hides the kebab on `[]` (same contract as the full builder).
-//   - `buildStopProgress(stops)`:
-//       • `"Sin paradas"` when stops is empty.
-//       • `"{completed}/{total}"` when stops is non-empty.
-//   - All builders source labels from `DELIVERY_ROUTE_COPY` (never hardcode
-//     Spanish inline) — the spec pins every label via the copy tree.
+//   - `assertReorderCoversStops(orderedStopIds, existingStopIds)`: exactly-once
+//     guard for the reorder body (inline Spanish message or null).
+//   - `deliveryRouteRowActions(row, ctx)`: the ⋮ menu of a route row/card/detail,
+//     gated like the detail view. A menu whose only item is "Ver detalle"
+//     duplicates the row click, so it returns no actions at all.
+//   - `deliveryRouteRowLabel(row)`: names the row for the menu's aria-label.
+//   - `buildStopProgress(stops)`: the `x/y` delivered-stops counter.
 //
-// Pure helpers; no Vue / no axios / no Pinia. Tests run without `global.stubs`.
+// Pure helpers; no Vue / no axios / no Pinia.
 
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 
 import {
   assertReorderCoversStops,
-  buildDeliveryRouteListActions,
-  buildDeliveryRouteRowActions,
-  buildDeliveryRouteStartActions,
   buildStopProgress,
+  deliveryRouteRowActions,
+  deliveryRouteRowLabel,
 } from '../delivery-route-actions.utils'
 import { DELIVERY_ROUTE_COPY } from '../../copy'
 import type { DeliveryRouteResponseDto } from '../../interfaces/delivery-route.types'
@@ -125,210 +108,6 @@ describe('assertReorderCoversStops (sdd delivery-routes S5a, design §10.2, REQ-
   })
 })
 
-describe('buildDeliveryRouteRowActions (sdd delivery-routes S5a, design §4.1)', () => {
-  const row = makeRoute({ id: 'route-1' })
-
-  it('returns two sections (main + destructive) when all permissions are held; delete carries color: error', () => {
-    const sections = buildDeliveryRouteRowActions(row, {
-      canUpdate: true,
-      canDelete: true,
-      onEdit: () => {},
-      onStart: () => {},
-      onCancel: () => {},
-      onDelete: () => {},
-      onReorder: () => {},
-    })
-    // 2 sections: main (4 items) + destructive (Eliminar, color: error).
-    expect(sections).toHaveLength(2)
-    expect(sections[0]!.map((item) => item.label)).toEqual([
-      DELIVERY_ROUTE_COPY.actions.edit,
-      DELIVERY_ROUTE_COPY.actions.start,
-      DELIVERY_ROUTE_COPY.actions.cancel,
-      DELIVERY_ROUTE_COPY.actions.reorderStops,
-    ])
-    expect(sections[1]!.map((item) => item.label)).toEqual([
-      DELIVERY_ROUTE_COPY.actions.delete,
-    ])
-    expect(sections[1]![0]!.color).toBe('error')
-  })
-
-  it('omits the destructive delete item when canDelete is false (still labels it as `color: error` when shown)', () => {
-    const sections = buildDeliveryRouteRowActions(row, {
-      canUpdate: true,
-      canDelete: false,
-      onEdit: () => {},
-      onStart: () => {},
-      onCancel: () => {},
-      onDelete: () => {},
-      onReorder: () => {},
-    })
-    const labels = sections[0]!.map((item) => item.label)
-    expect(labels).not.toContain(DELIVERY_ROUTE_COPY.actions.delete)
-    expect(labels).toContain(DELIVERY_ROUTE_COPY.actions.edit)
-    expect(labels).toContain(DELIVERY_ROUTE_COPY.actions.reorderStops)
-  })
-
-  it('omits edit/start/cancel/reorder when canUpdate is false; keeps delete only if canDelete is true', () => {
-    const sections = buildDeliveryRouteRowActions(row, {
-      canUpdate: false,
-      canDelete: true,
-      onEdit: () => {},
-      onStart: () => {},
-      onCancel: () => {},
-      onDelete: () => {},
-      onReorder: () => {},
-    })
-    expect(sections).toHaveLength(1)
-    expect(sections[0]!.map((item) => item.label)).toEqual([
-      DELIVERY_ROUTE_COPY.actions.delete,
-    ])
-    expect(sections[0]![0]!.color).toBe('error')
-  })
-
-  it('returns an empty array when neither permission is held (parent hides the kebab)', () => {
-    const sections = buildDeliveryRouteRowActions(row, {
-      canUpdate: false,
-      canDelete: false,
-      onEdit: () => {},
-      onStart: () => {},
-      onCancel: () => {},
-      onDelete: () => {},
-      onReorder: () => {},
-    })
-    expect(sections).toEqual([])
-  })
-
-  it('invokes the supplied onEdit callback with the row when "Editar" is selected', () => {
-    const onEdit = vi.fn()
-    const sections = buildDeliveryRouteRowActions(row, {
-      canUpdate: true,
-      canDelete: false,
-      onEdit,
-      onStart: () => {},
-      onCancel: () => {},
-      onDelete: () => {},
-      onReorder: () => {},
-    })
-    const editItem = sections[0]!.find((item) => item.label === DELIVERY_ROUTE_COPY.actions.edit)!
-    editItem.onSelect()
-    expect(onEdit).toHaveBeenCalledTimes(1)
-    expect(onEdit).toHaveBeenCalledWith(row)
-  })
-
-  it('invokes the supplied onReorder callback with the row when "Reordenar paradas" is selected', () => {
-    const onReorder = vi.fn()
-    const sections = buildDeliveryRouteRowActions(row, {
-      canUpdate: true,
-      canDelete: false,
-      onEdit: () => {},
-      onStart: () => {},
-      onCancel: () => {},
-      onDelete: () => {},
-      onReorder,
-    })
-    const item = sections[0]!.find((i) => i.label === DELIVERY_ROUTE_COPY.actions.reorderStops)!
-    item.onSelect()
-    expect(onReorder).toHaveBeenCalledTimes(1)
-    expect(onReorder).toHaveBeenCalledWith(row)
-  })
-
-  it('invokes the supplied onDelete callback with the row when "Eliminar" is selected', () => {
-    const onDelete = vi.fn()
-    const sections = buildDeliveryRouteRowActions(row, {
-      canUpdate: false,
-      canDelete: true,
-      onEdit: () => {},
-      onStart: () => {},
-      onCancel: () => {},
-      onDelete,
-      onReorder: () => {},
-    })
-    sections[0]![0]!.onSelect()
-    expect(onDelete).toHaveBeenCalledTimes(1)
-    expect(onDelete).toHaveBeenCalledWith(row)
-  })
-
-  it('sources every action label from DELIVERY_ROUTE_COPY.actions.* (no inline copy)', () => {
-    // Regression pin: every label MUST equal the canonical copy string.
-    const sections = buildDeliveryRouteRowActions(row, {
-      canUpdate: true,
-      canDelete: true,
-      onEdit: () => {},
-      onStart: () => {},
-      onCancel: () => {},
-      onDelete: () => {},
-      onReorder: () => {},
-    })
-    const allLabels = sections.flatMap((section) => section.map((i) => i.label))
-    const expected = [
-      DELIVERY_ROUTE_COPY.actions.edit,
-      DELIVERY_ROUTE_COPY.actions.start,
-      DELIVERY_ROUTE_COPY.actions.cancel,
-      DELIVERY_ROUTE_COPY.actions.reorderStops,
-      DELIVERY_ROUTE_COPY.actions.delete,
-    ]
-    expect(allLabels).toEqual(expected)
-  })
-})
-
-describe('buildDeliveryRouteStartActions (START-only kebab gate, REQ-DRM-011/013)', () => {
-  // DRAFT + one stop — the happy path every gate test starts from.
-  const startableRow = makeRoute({ id: 'route-1', stops: [makeStop('s1')] })
-
-  it('returns a single section with the canonical start label when DRAFT + canUpdate + has stops', () => {
-    const sections = buildDeliveryRouteStartActions(startableRow, {
-      canUpdate: true,
-      onStart: () => {},
-    })
-    expect(sections).toHaveLength(1)
-    expect(sections[0]).toHaveLength(1)
-    expect(sections[0]![0]!.label).toBe(DELIVERY_ROUTE_COPY.actions.start)
-  })
-
-  it('returns an empty array for every non-DRAFT status (status gate)', () => {
-    for (const status of ['ACTIVE', 'COMPLETED', 'CANCELLED'] as const) {
-      const sections = buildDeliveryRouteStartActions(
-        { ...startableRow, status },
-        { canUpdate: true, onStart: () => {} },
-      )
-      expect(sections).toEqual([])
-    }
-  })
-
-  it('returns an empty array when the route has no stops (stop gate — backend 422)', () => {
-    const sections = buildDeliveryRouteStartActions(
-      makeRoute({ id: 'route-1' }), // stops: []
-      { canUpdate: true, onStart: () => {} },
-    )
-    expect(sections).toEqual([])
-  })
-
-  it('returns an empty array when the user cannot update DeliveryRoute (permission gate)', () => {
-    const sections = buildDeliveryRouteStartActions(startableRow, {
-      canUpdate: false,
-      onStart: () => {},
-    })
-    expect(sections).toEqual([])
-  })
-
-  it('invokes the supplied onStart callback with the row when "Iniciar ruta" is selected', () => {
-    const onStart = vi.fn()
-    const sections = buildDeliveryRouteStartActions(startableRow, { canUpdate: true, onStart })
-    sections[0]![0]!.onSelect()
-    expect(onStart).toHaveBeenCalledTimes(1)
-    expect(onStart).toHaveBeenCalledWith(startableRow)
-  })
-
-  it('sources the label verbatim from DELIVERY_ROUTE_COPY.actions.start (no inline copy)', () => {
-    const sections = buildDeliveryRouteStartActions(startableRow, {
-      canUpdate: true,
-      onStart: () => {},
-    })
-    expect(sections[0]![0]!.label).toBe(DELIVERY_ROUTE_COPY.actions.start)
-    expect(sections[0]![0]!.label).toBe('Iniciar ruta')
-  })
-})
-
 describe('buildStopProgress (sdd delivery-routes S5a, design §4.1, REQ-DRM-001)', () => {
   it('returns "Sin paradas" when the stops array is empty', () => {
     expect(buildStopProgress([])).toBe('Sin paradas')
@@ -369,60 +148,78 @@ describe('buildStopProgress (sdd delivery-routes S5a, design §4.1, REQ-DRM-001)
   })
 })
 
-describe('buildDeliveryRouteListActions (manager list kebab, same gates as the detail view)', () => {
-  function ctx(overrides: { canUpdate?: boolean; canDelete?: boolean } = {}) {
-    return {
-      canUpdate: overrides.canUpdate ?? true,
-      canDelete: overrides.canDelete ?? true,
-      onView: vi.fn(),
-      onEdit: vi.fn(),
-      onStart: vi.fn(),
-      onCancel: vi.fn(),
-      onDelete: vi.fn(),
-    }
-  }
-  const labels = (sections: { label: string }[][]) => sections.map((s) => s.map((i) => i.label))
-  const { view, edit, start, cancel, delete: remove } = DELIVERY_ROUTE_COPY.actions
+describe('deliveryRouteRowActions (row menu, same gates as the detail view)', () => {
+  const both = { canUpdate: true, canDelete: true }
+  const keys = (row: DeliveryRouteResponseDto, ctx = both) =>
+    deliveryRouteRowActions(row, ctx).map((action) => action.key)
 
-  it('DRAFT with stops + update + delete: view, edit/start/cancel; no delete (route has stops)', () => {
-    const row = makeRoute({ stops: [makeStop('s1')] })
-    expect(labels(buildDeliveryRouteListActions(row, ctx()))).toEqual([[view], [edit, start, cancel]])
+  it('DRAFT with stops: view, edit, start and cancel; no delete (the route has stops)', () => {
+    expect(keys(makeRoute({ stops: [makeStop('s1')] }))).toEqual(['view', 'edit', 'start', 'cancel'])
   })
 
-  it('empty DRAFT: start hidden (no stops), delete shown last in its own error section', () => {
-    const sections = buildDeliveryRouteListActions(makeRoute(), ctx())
-    expect(labels(sections)).toEqual([[view], [edit, cancel], [remove]])
-    expect(sections[2]![0]!.color).toBe('error')
+  it('empty DRAFT: start hidden, delete last and destructive', () => {
+    const actions = deliveryRouteRowActions(makeRoute(), both)
+    expect(actions.map((a) => a.key)).toEqual(['view', 'edit', 'cancel', 'delete'])
+    expect(actions[actions.length - 1]?.destructive).toBe(true)
+    expect(actions.filter((a) => a.destructive)).toHaveLength(1)
   })
 
-  it('ACTIVE: only view and cancel', () => {
-    const row = makeRoute({ status: 'ACTIVE', stops: [makeStop('s1')] })
-    expect(labels(buildDeliveryRouteListActions(row, ctx()))).toEqual([[view], [cancel]])
+  it('ACTIVE: view and cancel', () => {
+    expect(keys(makeRoute({ status: 'ACTIVE', stops: [makeStop('s1')] }))).toEqual(['view', 'cancel'])
   })
 
-  it.each(['COMPLETED', 'CANCELLED'] as const)('%s: only view', (status) => {
-    expect(labels(buildDeliveryRouteListActions(makeRoute({ status }), ctx()))).toEqual([[view]])
+  it('marks the items that open a confirmation with an ellipsis', () => {
+    const actions = deliveryRouteRowActions(makeRoute({ stops: [makeStop('s1')] }), both)
+    const label = (key: string) => actions.find((a) => a.key === key)?.label
+    expect(label('start')).toBe(`${DELIVERY_ROUTE_COPY.actions.start}…`)
+    expect(label('cancel')).toBe(`${DELIVERY_ROUTE_COPY.actions.cancel}…`)
+    expect(label('view')).toBe(DELIVERY_ROUTE_COPY.actions.view)
+    expect(label('edit')).toBe(DELIVERY_ROUTE_COPY.actions.edit)
+    const empty = deliveryRouteRowActions(makeRoute(), both)
+    expect(empty.find((a) => a.key === 'delete')?.label).toBe(`${DELIVERY_ROUTE_COPY.actions.delete}…`)
   })
 
-  it('without update permission: no edit/start/cancel, delete still gated by delete permission', () => {
-    expect(labels(buildDeliveryRouteListActions(makeRoute(), ctx({ canUpdate: false })))).toEqual([
-      [view],
-      [remove],
-    ])
+  it.each(['COMPLETED', 'CANCELLED'] as const)(
+    '%s: no menu at all, because "Ver detalle" only repeats the row click',
+    (status) => {
+      expect(deliveryRouteRowActions(makeRoute({ status }), both)).toEqual([])
+    },
+  )
+
+  it('without update permission keeps delete gated by its own permission', () => {
+    expect(keys(makeRoute(), { canUpdate: false, canDelete: true })).toEqual(['view', 'delete'])
+  })
+
+  it('without any permission the menu disappears', () => {
+    expect(keys(makeRoute(), { canUpdate: false, canDelete: false })).toEqual([])
+  })
+
+  it('gives every action an icon', () => {
+    for (const action of deliveryRouteRowActions(makeRoute(), both)) expect(action.icon).toBeTruthy()
+  })
+})
+
+describe('deliveryRouteRowLabel', () => {
+  it('names the route by day, driver and status, never by id', () => {
+    const label = deliveryRouteRowLabel(
+      makeRoute({
+        id: '3f2a9c1b-0000',
+        driver: { id: 'd1', name: 'Juan Pérez', email: 'j@x.mx' },
+        timeline: [{ type: 'ROUTE_CREATED', at: '2026-10-13T15:00:00', actor: null }],
+      }),
+    )
+    expect(label).toBe('la ruta del 13 oct de Juan Pérez, borrador')
+    expect(label).not.toContain('3f2a9c1b')
+  })
+
+  it('says it when the route has no driver', () => {
     expect(
-      labels(buildDeliveryRouteListActions(makeRoute(), ctx({ canUpdate: false, canDelete: false }))),
-    ).toEqual([[view]])
-  })
-
-  it('each item forwards the row to its handler', () => {
-    const row = makeRoute()
-    const handlers = ctx()
-    for (const section of buildDeliveryRouteListActions(row, handlers)) {
-      for (const item of section) item.onSelect()
-    }
-    for (const fn of [handlers.onView, handlers.onEdit, handlers.onCancel, handlers.onDelete]) {
-      expect(fn).toHaveBeenCalledWith(row)
-    }
-    expect(handlers.onStart).not.toHaveBeenCalled()
+      deliveryRouteRowLabel(
+        makeRoute({
+          status: 'ACTIVE',
+          timeline: [{ type: 'ROUTE_CREATED', at: '2026-10-13T15:00:00', actor: null }],
+        }),
+      ),
+    ).toBe('la ruta del 13 oct sin repartidor, activa')
   })
 })

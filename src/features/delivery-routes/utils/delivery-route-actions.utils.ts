@@ -9,11 +9,9 @@
  *   - `assertReorderCoversStops(orderedStopIds, existingStopIds): string | null`
  *       exactly-once guard. Returns an inline Spanish message on
  *       (length mismatch | unknown id | duplicate), else `null`.
- *   - `buildDeliveryRouteRowActions(row, ctx)` — dropdown sections per the
- *       manager gate contract (edit / start / cancel / delete / reorderStops).
- *   - `buildDeliveryRouteStartActions(row, ctx)` — the START-only kebab
- *       section for the manager list (DRAFT + canUpdate + ≥1 stop gate,
- *       mirroring the detail-view `canShowStart` rules).
+ *   - `deliveryRouteRowActions(row, ctx)` — the ⋮ menu of a row, card or detail
+ *       header, gated like the detail view.
+ *   - `deliveryRouteRowLabel(row)` — names the row for the menu's aria-label.
  *   - `buildStopProgress(stops)` — the `x/y` delivered-stops counter
  *       (`"Sin paradas"` when empty, `"{completed}/{total}"` otherwise).
  *
@@ -22,8 +20,14 @@
  * string below (matches the spec/delivery-route-management REQ-DRM-009 wording).
  */
 
+import type { RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 import { DELIVERY_ROUTE_COPY } from '../copy'
-import type { DeliveryRouteResponseDto, DeliveryRouteStop } from '../interfaces/delivery-route.types'
+import {
+  DELIVERY_ROUTE_STATUS_LABELS,
+  type DeliveryRouteResponseDto,
+  type DeliveryRouteStop,
+} from '../interfaces/delivery-route.types'
+import { buildRouteTitle } from './delivery-route-list.utils'
 
 /**
  * Canonical Spanish copy for the inline reorder guard.
@@ -69,181 +73,55 @@ export function assertReorderCoversStops(
   return null
 }
 
-// ─── Row-action builder ─────────────────────────────────────────────────────
-
-export interface DeliveryRouteRowActionItem {
-  /** Label sourced verbatim from DELIVERY_ROUTE_COPY. */
-  label: string
-  /** Optional UDropdownMenu color hint (`'error'` on destructive). */
-  color?: 'error'
-  /** Optional Lucide icon for the menu item. */
-  icon?: string
-  /** Invoked when the user selects the item. */
-  onSelect: () => void
-}
+// ─── Row menu ───────────────────────────────────────────────────────────────
 
 export interface DeliveryRouteRowActionContext {
-  /** `update:DeliveryRoute` — gates Edit / Start / Cancel / Reorder. */
-  canUpdate: boolean
-  /** `delete:DeliveryRoute` — gates Delete. */
-  canDelete: boolean
-  onEdit: (row: DeliveryRouteResponseDto) => void
-  onStart: (row: DeliveryRouteResponseDto) => void
-  onCancel: (row: DeliveryRouteResponseDto) => void
-  onDelete: (row: DeliveryRouteResponseDto) => void
-  onReorder: (row: DeliveryRouteResponseDto) => void
-}
-
-/**
- * buildDeliveryRouteRowActions — Build the manager-list kebab menu sections.
- *
- * Returns a flat array of sections (the parent passes it to `UDropdownMenu.items`
- * — sections are `UDropdownMenu` "group" rows that render a divider + their
- * children). Sections with zero items are filtered out.
- *
- *   - `canUpdate` only     → [ [Editar, Iniciar, Cancelar, Reordenar] ]
- *   - `canDelete` only     → [ [Eliminar (error)] ]
- *   - both                 → [ [Editar, Iniciar, Cancelar, Reordenar, Eliminar (error)] ]
- *   - neither              → [ ]  (parent hides the kebab)
- *
- * The order inside each section is stable: edit → start → cancel → reorder
- * → delete (the destructive item is always last, separated from the main
- * group by a divider when both `canUpdate` and `canDelete` are held).
- */
-export function buildDeliveryRouteRowActions(
-  row: DeliveryRouteResponseDto,
-  ctx: DeliveryRouteRowActionContext,
-): DeliveryRouteRowActionItem[][] {
-  const main: DeliveryRouteRowActionItem[] = []
-  if (ctx.canUpdate) {
-    main.push({ label: DELIVERY_ROUTE_COPY.actions.edit, onSelect: () => ctx.onEdit(row) })
-    main.push({ label: DELIVERY_ROUTE_COPY.actions.start, onSelect: () => ctx.onStart(row) })
-    main.push({ label: DELIVERY_ROUTE_COPY.actions.cancel, onSelect: () => ctx.onCancel(row) })
-    main.push({
-      label: DELIVERY_ROUTE_COPY.actions.reorderStops,
-      onSelect: () => ctx.onReorder(row),
-    })
-  }
-  const destructive: DeliveryRouteRowActionItem[] = ctx.canDelete
-    ? [
-        {
-          label: DELIVERY_ROUTE_COPY.actions.delete,
-          color: 'error',
-          onSelect: () => ctx.onDelete(row),
-        },
-      ]
-    : []
-  return [main, destructive].filter((section) => section.length > 0)
-}
-
-// ─── Manager list kebab (same gates as the detail view) ──────────────────────
-
-export interface DeliveryRouteListActionContext {
   /** `update:DeliveryRoute` — gates Edit / Start / Cancel. */
   canUpdate: boolean
   /** `delete:DeliveryRoute` — gates Delete. */
   canDelete: boolean
-  onView: (row: DeliveryRouteResponseDto) => void
-  onEdit: (row: DeliveryRouteResponseDto) => void
-  onStart: (row: DeliveryRouteResponseDto) => void
-  onCancel: (row: DeliveryRouteResponseDto) => void
-  onDelete: (row: DeliveryRouteResponseDto) => void
 }
 
 /**
- * buildDeliveryRouteListActions — Row menu for the manager list and cards.
+ * deliveryRouteRowActions — The ⋮ menu of a route row, card or detail header.
  *
  * Every gate mirrors `DeliveryRouteDetailView` exactly (REQ-DRM-011/013):
  *   - Edit:   DRAFT + canUpdate
  *   - Start:  DRAFT + at least one stop + canUpdate
  *   - Cancel: DRAFT or ACTIVE + canUpdate
  *   - Delete: DRAFT + zero stops + canDelete
- * "Ver detalle" is always available. Sections: [view], [edit, start, cancel],
- * [delete]; empty sections are dropped so dividers never stack.
+ * "Ver detalle" leads, destructive goes last, and the items that open a
+ * confirmation end in an ellipsis. When "Ver detalle" would be the only item it
+ * only repeats the row click, so the menu is empty and the ⋮ is not drawn.
  */
-export function buildDeliveryRouteListActions(
+export function deliveryRouteRowActions(
   row: DeliveryRouteResponseDto,
-  ctx: DeliveryRouteListActionContext,
-): DeliveryRouteRowActionItem[][] {
+  ctx: DeliveryRouteRowActionContext,
+): RowAction[] {
   const isDraft = row.status === 'DRAFT'
-  const lifecycle: DeliveryRouteRowActionItem[] = []
+  const { actions } = DELIVERY_ROUTE_COPY
+  const items: RowAction[] = []
   if (ctx.canUpdate && isDraft) {
-    lifecycle.push({
-      label: DELIVERY_ROUTE_COPY.actions.edit,
-      icon: 'i-lucide-pencil',
-      onSelect: () => ctx.onEdit(row),
-    })
+    items.push({ key: 'edit', label: actions.edit, icon: 'i-lucide-pencil' })
     if (row.stops.length > 0) {
-      lifecycle.push({
-        label: DELIVERY_ROUTE_COPY.actions.start,
-        icon: 'i-lucide-play',
-        onSelect: () => ctx.onStart(row),
-      })
+      items.push({ key: 'start', label: `${actions.start}…`, icon: 'i-lucide-play' })
     }
   }
   if (ctx.canUpdate && (isDraft || row.status === 'ACTIVE')) {
-    lifecycle.push({
-      label: DELIVERY_ROUTE_COPY.actions.cancel,
-      icon: 'i-lucide-ban',
-      onSelect: () => ctx.onCancel(row),
-    })
+    items.push({ key: 'cancel', label: `${actions.cancel}…`, icon: 'i-lucide-ban' })
   }
-  const destructive: DeliveryRouteRowActionItem[] =
-    ctx.canDelete && isDraft && row.stops.length === 0
-      ? [
-          {
-            label: DELIVERY_ROUTE_COPY.actions.delete,
-            icon: 'i-lucide-trash-2',
-            color: 'error',
-            onSelect: () => ctx.onDelete(row),
-          },
-        ]
-      : []
-  const view: DeliveryRouteRowActionItem[] = [
-    { label: DELIVERY_ROUTE_COPY.actions.view, icon: 'i-lucide-eye', onSelect: () => ctx.onView(row) },
-  ]
-  return [view, lifecycle, destructive].filter((section) => section.length > 0)
+  if (ctx.canDelete && isDraft && row.stops.length === 0) {
+    items.push({ key: 'delete', label: `${actions.delete}…`, icon: 'i-lucide-trash-2', destructive: true })
+  }
+  if (items.length === 0) return []
+  return [{ key: 'view', label: actions.view, icon: 'i-lucide-eye' }, ...items]
 }
 
-// ─── START-only row-action builder (manager list kebab) ───────────────────────
-
-export interface DeliveryRouteStartActionContext {
-  /** `update:DeliveryRoute` — gates the start action. */
-  canUpdate: boolean
-  /** Invoked with the row when "Iniciar ruta" is selected. */
-  onStart: (row: DeliveryRouteResponseDto) => void
-}
-
-/**
- * buildDeliveryRouteStartActions — Build the manager-list kebab content for the
- * START action only (S5b start wiring).
- *
- * Gating mirrors the detail-view `canShowStart` rules EXACTLY (REQ-DRM-013):
- *   - `row.status === 'DRAFT'`
- *   - `row.stops.length > 0` (the backend rejects empty-route starts with
- *     422 DELIVERY_ROUTE_INVALID_TRANSITION)
- *   - `canUpdate` (CASL `update:DeliveryRoute`)
- *
- * Returns a single section `[[{ label: 'Iniciar ruta', onSelect }]]` when ALL
- * rules pass, else `[]` — the parent hides the kebab on `[]`, the same
- * contract as `buildDeliveryRouteRowActions`. The label is sourced verbatim
- * from `DELIVERY_ROUTE_COPY.actions.start` (never hardcoded Spanish).
- */
-export function buildDeliveryRouteStartActions(
-  row: DeliveryRouteResponseDto,
-  ctx: DeliveryRouteStartActionContext,
-): DeliveryRouteRowActionItem[][] {
-  if (row.status !== 'DRAFT') return []
-  if (row.stops.length === 0) return []
-  if (!ctx.canUpdate) return []
-  return [
-    [
-      {
-        label: DELIVERY_ROUTE_COPY.actions.start,
-        onSelect: () => ctx.onStart(row),
-      },
-    ],
-  ]
+/** Names a route for the menu trigger: "la ruta del 13 oct de Juan Pérez, borrador". */
+export function deliveryRouteRowLabel(row: DeliveryRouteResponseDto): string {
+  const who = row.driver ? `de ${row.driver.name}` : 'sin repartidor'
+  const status = DELIVERY_ROUTE_STATUS_LABELS[row.status].toLowerCase()
+  return `la ${buildRouteTitle(row).toLowerCase()} ${who}, ${status}`
 }
 
 // ─── Stop-progress builder ──────────────────────────────────────────────────

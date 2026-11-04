@@ -37,10 +37,10 @@ function route(overrides: Partial<DeliveryRouteResponseDto> = {}): DeliveryRoute
 const NOW = new Date('2026-10-14T11:00:00')
 
 describe('buildManagerRouteDetail — header', () => {
-  it('titles the route with day and driver and keeps the short id as reference', () => {
+  it('titles the route with day and driver and never exposes the id', () => {
     const detail = buildManagerRouteDetail(route(), NOW)
     expect(detail.title).toBe('Ruta del 14 oct · Juan Pérez')
-    expect(detail.reference).toBe('9ea3c7b1')
+    expect(JSON.stringify(detail)).not.toContain('9ea3c7b1')
   })
 
   it('lists the lifecycle moments that exist, same-day as time only', () => {

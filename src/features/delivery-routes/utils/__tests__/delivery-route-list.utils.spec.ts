@@ -6,13 +6,13 @@ import type {
 import {
   buildRouteDisplayName,
   countRoutesByStatus,
-  formatRouteDateTime,
   getRouteCreatedAt,
   getRouteCustomers,
+  getRouteIssues,
   getRouteProgress,
   matchesRouteSearch,
   queryDeliveryRoutes,
-  shortRouteId,
+  routeAvisoLabel,
   sortDeliveryRoutes,
 } from '../delivery-route-list.utils'
 
@@ -75,18 +75,33 @@ describe('buildRouteDisplayName', () => {
     expect(buildRouteDisplayName(r)).toBe('Ruta del 2 ene · Sin repartidor')
   })
 
-  it('falls back to the short id when the creation date is unknown', () => {
-    expect(buildRouteDisplayName(route({ driver: driver('Ana') }))).toBe('Ruta 3f2a9c1b · Ana')
+  it('never shows the id when the creation date is unknown', () => {
+    const name = buildRouteDisplayName(route({ driver: driver('Ana') }))
+    expect(name).toBe('Ruta sin fecha · Ana')
+    expect(name).not.toContain('3f2a9c1b')
   })
 })
 
-describe('shortRouteId', () => {
-  it('keeps the first 8 characters of a long id', () => {
-    expect(shortRouteId('3f2a9c1b-0000-4000')).toBe('3f2a9c1b')
+describe('getRouteIssues', () => {
+  it('flags a draft without stops or driver', () => {
+    expect(getRouteIssues(route())).toEqual(['Sin paradas', 'Sin repartidor'])
   })
 
-  it('returns short ids unchanged', () => {
-    expect(shortRouteId('abc')).toBe('abc')
+  it('flags only what is missing on a draft', () => {
+    expect(getRouteIssues(route({ driver: driver('Ana') }))).toEqual(['Sin paradas'])
+    expect(getRouteIssues(route({ stops: [stop()] }))).toEqual(['Sin repartidor'])
+    expect(getRouteIssues(route({ stops: [stop()], driver: driver('Ana') }))).toEqual([])
+  })
+
+  it.each(['ACTIVE', 'COMPLETED', 'CANCELLED'] as const)('%s routes carry no issues', (status) => {
+    expect(getRouteIssues(route({ status }))).toEqual([])
+  })
+})
+
+describe('routeAvisoLabel', () => {
+  it('pluralizes the count', () => {
+    expect(routeAvisoLabel(1)).toBe('1 aviso')
+    expect(routeAvisoLabel(2)).toBe('2 avisos')
   })
 })
 
@@ -293,16 +308,5 @@ describe('queryDeliveryRoutes', () => {
     })
     expect(result.data).toEqual([])
     expect(result.pagination).toEqual({ pageIndex: 0, pageSize: 10, totalCount: 0, pageCount: 1 })
-  })
-})
-
-describe('formatRouteDateTime', () => {
-  it('formats a timestamp as day, short month, year and time', () => {
-    expect(formatRouteDateTime('2026-10-13T15:05:00')).toBe('13 oct 2026, 15:05')
-  })
-
-  it('returns an em dash for null or invalid values', () => {
-    expect(formatRouteDateTime(null)).toBe('—')
-    expect(formatRouteDateTime('no-date')).toBe('—')
   })
 })

@@ -4,7 +4,7 @@
  * `DeliveryRoutesListView`, sdd delivery-routes S6b; rich mission redesign).
  *
  * Surface (view model from `buildDriverRouteMission`):
- *   - Title "Ruta del 14 oct" + short id reference; the driver's own name is
+ *   - Title "Ruta del 14 oct" (never the id); the driver's own name is
  *     not repeated (the list is server-scoped to the driver).
  *   - Status badge from the shared `DELIVERY_ROUTE_STATUS_*` maps, start time
  *     and time on route (refreshed every minute).
@@ -21,7 +21,7 @@
 
 import { computed } from 'vue'
 import { useNow } from '@vueuse/core'
-import StatusDotBadge from '@/core/shared/components/StatusDotBadge.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import { buildDriverRouteMission } from '../utils/delivery-route-driver.utils'
 import {
   DELIVERY_ROUTE_STATUS_LABELS,
@@ -81,15 +81,11 @@ function onKeydown(event: KeyboardEvent) {
           data-testid="driver-route-card-title"
         >{{ mission.title }}</span>
         <span class="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
-          <span class="font-mono">#{{ mission.reference }}</span>
-          <template v-if="mission.startedAtLabel">
-            <span aria-hidden="true">·</span>
-            <span>{{ mission.startedAtLabel }}</span>
-          </template>
+          <span v-if="mission.startedAtLabel">{{ mission.startedAtLabel }}</span>
         </span>
       </div>
       <div class="flex shrink-0 flex-col items-end gap-1">
-        <StatusDotBadge :tone="statusTone" :label="statusLabel" />
+        <StatusBadge :tone="statusTone" :label="statusLabel" />
         <span
           v-if="mission.elapsedLabel"
           class="flex items-center gap-1 text-xs text-muted"
@@ -129,7 +125,7 @@ function onKeydown(event: KeyboardEvent) {
       class="delivery-routes-mission-target flex w-full min-w-0 flex-col gap-1.5 rounded-lg p-3"
       data-testid="driver-route-card-target"
     >
-      <span class="text-xs font-medium uppercase tracking-wide text-muted">{{ mission.target.heading }}</span>
+      <span class="text-xs font-medium text-muted">{{ mission.target.heading }}</span>
       <div class="flex min-w-0 items-center gap-2">
         <span class="delivery-routes-mission-position flex size-7 shrink-0 items-center justify-center rounded-full font-mono text-xs font-semibold">
           #{{ mission.target.position }}

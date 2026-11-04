@@ -20,7 +20,6 @@ import {
   getRouteCreatedAt,
   getRouteProgress,
   minutesBetween,
-  shortRouteId,
   type DeliveryRouteProgress,
 } from './delivery-route-list.utils'
 
@@ -53,7 +52,6 @@ interface ManagerRouteStopRow {
 
 export interface ManagerRouteDetail {
   title: string
-  reference: string
   /** "Creada 08:00", "Iniciada 09:40", "Completada …" / "Cancelada …". */
   moments: string[]
   kpis: ManagerRouteKpi[]
@@ -110,7 +108,6 @@ export function buildManagerRouteDetail(route: DeliveryRouteResponseDto, now: Da
 
   return {
     title: buildRouteDisplayName(route),
-    reference: shortRouteId(route.id),
     moments,
     kpis: [
       { key: 'delivered', label: 'Entregadas', value: String(count('COMPLETED')) },

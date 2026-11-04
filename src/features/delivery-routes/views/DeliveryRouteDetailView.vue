@@ -515,9 +515,8 @@ defineExpose({
             data-testid="detail-route-meta"
             class="hf-page-subtitle flex flex-wrap items-center gap-x-2 gap-y-1"
           >
-            <span class="font-mono">#{{ managerDetail.reference }}</span>
-            <template v-for="moment in managerDetail.moments" :key="moment">
-              <span aria-hidden="true">·</span>
+            <template v-for="(moment, index) in managerDetail.moments" :key="moment">
+              <span v-if="index > 0" aria-hidden="true">·</span>
               <span>{{ moment }}</span>
             </template>
           </p>

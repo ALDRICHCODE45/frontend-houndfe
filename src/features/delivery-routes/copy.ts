@@ -24,7 +24,6 @@
 export const DELIVERY_ROUTE_COPY = {
   list: {
     title: 'Rutas de entrega',
-    subtitle: 'Planeación y seguimiento de las entregas a clientes',
     searchPlaceholder: 'Buscar por repartidor, cliente, folio o nota...',
     statusTabsLabel: 'Filtrar rutas por estado',
     managerTabs: {
@@ -76,7 +75,10 @@ export const DELIVERY_ROUTE_COPY = {
   },
   empty: {
     manager: 'No hay rutas de entrega',
-    driver: 'No tienes rutas activas en este momento.',
+    managerTitle: 'Aún no hay rutas',
+    managerDescription: 'Aquí aparecerán las rutas de entrega que crees.',
+    driverTitle: 'No tienes rutas activas',
+    driverDescription: 'Cuando te asignen una ruta, aparecerá aquí.',
     noEligibleSales:
       'No hay ventas pendientes o enviadas disponibles para asignar.',
   },
