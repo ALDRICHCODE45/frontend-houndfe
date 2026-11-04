@@ -526,7 +526,10 @@ function handleReleaseDrawer() {
               commands.activeCommand.value === 'cashOut'
             "
             :error-message="errorFor('movements')"
+            :loading="detailQuery.isLoading.value"
+            :error="detailQuery.isError.value"
             @submit="handleMovement"
+            @refresh="detailQuery.refetch()"
           />
         </div>
 
