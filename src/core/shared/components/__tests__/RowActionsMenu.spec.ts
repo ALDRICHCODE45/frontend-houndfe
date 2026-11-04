@@ -167,7 +167,7 @@ describe('RowActionsMenu', () => {
   it('keeps Enter and Space from opening the row but lets Escape and Tab reach an enclosing dialog', async () => {
     const parent = vi.fn()
     const wrapper = mountMenu()
-    wrapper.element.parentElement?.addEventListener('keydown', event => parent((event as KeyboardEvent).key))
+    wrapper.element.parentElement?.addEventListener('keydown', (event: Event) => parent((event as KeyboardEvent).key))
     const trigger = wrapper.get('button')
     for (const key of ['Enter', ' ', 'Escape', 'Tab']) trigger.element.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }))
     expect(parent.mock.calls.map(call => call[0])).toEqual(['Escape', 'Tab'])

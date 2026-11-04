@@ -117,7 +117,7 @@ function remove(index: number) {
 
 <template>
   <form :id="ORDER_FORM_ID" class="order-form" novalidate @submit.prevent="save">
-    <OrderIssueChecklist v-if="initial" :items="checklist" :dirty="dirty" :ready="initial.canConfirm === true" :linkable="linkable" @goto="goToLine" />
+    <OrderIssueChecklist v-if="initial" :items="checklist" :dirty="dirty" :ready="initial.canConfirm === true" :compact="mobile" :linkable="linkable" @goto="goToLine" />
     <DefineSupplier>
       <UFormField label="Proveedor" class="order-field">
         <OrderReferencePicker :model-value="supplierOption" v-model:search-term="supplierSearch" :items="supplierOptions" clear-label="Sin proveedor" placeholder="Seleccionar proveedor" search-placeholder="Buscar proveedor activo..." :loading="supplierFetching" :disabled="disabled" :error="!!supplierError" :has-next="supplierNext" :has-previous="supplierPrevious" @update:model-value="selectSupplier" @previous="suppliers.back" @next="suppliers.next" @retry="suppliers.refresh" />

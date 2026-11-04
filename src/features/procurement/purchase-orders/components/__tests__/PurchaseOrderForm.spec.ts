@@ -187,6 +187,13 @@ describe('lines section', () => {
 })
 
 describe('mobile form', () => {
+  it('names the checklist link "Ver renglón" on mobile, keeping the product in its accessible name', () => {
+    const wrapper = mountForm(saved, { mobile: true })
+    const link = wrapper.get('button.order-check-link')
+    expect(link.text()).toBe('Ver renglón')
+    expect(link.attributes('aria-label')).toMatch(/^Ir a /)
+    wrapper.unmount()
+  })
   it('collapses location and note into one "Nota y ubicación" row that summarizes the location', () => {
     const wrapper = mountForm(saved, { mobile: true })
     const more = wrapper.get('details.order-more')
