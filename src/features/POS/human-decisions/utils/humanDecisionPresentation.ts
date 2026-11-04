@@ -1,3 +1,4 @@
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import type { HumanDecision, HumanDecisionResolution } from '../interfaces/human-decision.types'
 import type {
   ExpirationDecisionResolution,
@@ -82,6 +83,11 @@ export function createdAtPresentationLabel(createdAt: string): string {
   const date = new Date(createdAt)
   if (Number.isNaN(date.getTime())) return CREATED_AT_FALLBACK
   return createdAtFormatter.format(date)
+}
+
+/** Short date for lists and cards (`3 nov, 20:43`) in the operating time zone; the detail keeps the full date. */
+export function listDatePresentationLabel(value: string): string {
+  return formatShortDateTime(value, { timeZone: MEXICO_CITY_TIME_ZONE })
 }
 
 /** Match the approved detail wording without coupling list presentation to a column factory. */

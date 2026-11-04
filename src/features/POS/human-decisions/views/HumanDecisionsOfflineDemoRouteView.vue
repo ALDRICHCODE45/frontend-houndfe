@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import HumanDecisionsOfflineDemoView from './HumanDecisionsOfflineDemoView.vue'
 
@@ -16,7 +17,5 @@ const canUpdate = computed(() => authStore.userCan('update', 'HumanDecision'))
     :tenant-name="tenantName"
     :resolver-name="resolverName"
   />
-  <section v-else role="alert" class="p-6 text-sm text-error">
-    Selecciona una sucursal antes de abrir la simulación.
-  </section>
+  <EmptyState v-else kind="error" title="Selecciona una sucursal antes de abrir la simulación." />
 </template>

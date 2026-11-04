@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { breakpointsTailwind, useBreakpoints } from '@vueuse/core'
-import ViewToggle from '@/core/shared/components/ViewToggle.vue'
-import { useViewMode } from '@/core/shared/composables/useViewMode'
 import { AppDataTable } from '@/core/shared/components/DataTable'
+import ToolbarSelectFilter from '@/core/shared/components/DataTable/ToolbarSelectFilter.vue'
+import RowActionsMenu, { type RowAction } from '@/core/shared/components/RowActionsMenu.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import type { PaginationState, SortingState } from '@/core/shared/types/table.types'
 import { useHumanDecisionColumns } from '../composables/useHumanDecisionColumns'
 import type { HumanDecision, HumanDecisionListFilter } from '../interfaces/human-decision.types'
 import {
   branchPresentationLabel,
-  createdAtPresentationLabel,
+  listDatePresentationLabel,
   productMetaPresentationLabel,
   requestedQuantityPresentationLabel,
   resolvedResponseLabel,
@@ -18,7 +18,7 @@ import HumanDecisionCard from './HumanDecisionCard.vue'
 import ResolvedHumanDecisionCard from './ResolvedHumanDecisionCard.vue'
 import '../styles/human-decisions-visual.css'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     data: HumanDecision[]
     statusFilter?: HumanDecisionListFilter
@@ -56,6 +56,10 @@ function selectDecision(row: HumanDecision) {
   emit('openDetail', { id: row.id, status: row.status })
 }
 
+// One action today, but the menu keeps the Acciones column uniform and names
+// the row for assistive tech; the whole row and the title open the same detail.
+const rowActions: RowAction[] = [{ key: 'open', label: 'Ver detalle', icon: 'i-lucide-eye' }]
+
 const statusItems: { label: string; value: HumanDecisionListFilter }[] = [
   { label: 'Todas', value: 'ALL' },
   { label: 'Pendientes', value: 'PENDING' },
@@ -74,17 +78,21 @@ const globalFilter = defineModel<string>('globalFilter', { default: '' })
 const sorting = ref<SortingState>([])
 const { columns } = useHumanDecisionColumns()
 
-// The initial viewport supplies only the fallback; saved/manual choices win at any size.
-const isMobile = useBreakpoints(breakpointsTailwind).smaller('md')
-const { viewMode, setMode } = useViewMode(
-  'human-decisions-view-mode',
-  ['table', 'card'] as const,
-  isMobile.value ? 'card' : 'table',
+// ── List states ───────────────────────────────────────────────────────────────
+const searchTerm = computed(() => globalFilter.value.trim())
+const filtered = computed(() => searchTerm.value !== '' || props.statusFilter !== 'ALL')
+const noMatchTitle = computed(() =>
+  searchTerm.value ? `Ningún resultado para «${searchTerm.value}»` : 'Ningún resultado',
 )
-const displayMode = computed(() => (viewMode.value === 'card' ? 'cards' : 'table'))
+const emptyState = {
+  title: 'Aún no hay solicitudes',
+  description: 'Aquí aparecerán las solicitudes que necesiten tu respuesta.',
+}
 
-function selectViewMode(mode: string): void {
-  if (mode === 'table' || mode === 'card') setMode(mode)
+function clearFilters() {
+  globalFilter.value = ''
+  pagination.value = { ...pagination.value, pageIndex: 0 }
+  if (props.statusFilter !== 'ALL') emit('update:statusFilter', 'ALL')
 }
 </script>
 
@@ -93,9 +101,6 @@ function selectViewMode(mode: string): void {
     <!-- Canonical table workspace (design-system §4): heading outside the surface. -->
     <div class="hf-page-header">
       <h1 class="hf-page-title">Solicitudes</h1>
-      <p class="hf-page-subtitle">
-        Responde solicitudes de reposición con la información operativa disponible.
-      </p>
     </div>
 
     <UCard
@@ -113,13 +118,17 @@ function selectViewMode(mode: string): void {
           :fetching="fetching"
           :error="error"
           :error-message="errorMessage"
-          empty="No hay solicitudes para este filtro."
+          :empty-state="emptyState"
+          :filtered="filtered"
+          :no-match-title="noMatchTitle"
+          empty="Aún no hay solicitudes"
           :page-count="pageCount"
           :total-count="totalCount"
           :page-size-options="pageSizeOptions"
           :showing-from="showingFrom"
           :showing-to="showingTo"
-          :display-mode="displayMode"
+          :row-open="selectDecision"
+          display-mode="auto"
           mobile-render="cards"
           mobile-breakpoint="md"
           search-placeholder="Buscar por producto..."
@@ -128,72 +137,45 @@ function selectViewMode(mode: string): void {
           portal-class="hf-theme hf-ui human-decisions-list-portal"
           pagination-portal-class="hf-theme hf-ui human-decisions-list-portal"
           @refresh="emit('refresh')"
+          @clear-filters="clearFilters"
         >
-          <template #actions>
-            <div class="flex min-w-0 flex-wrap items-center gap-2 text-sm text-muted">
-              <label for="human-decisions-status">Estado</label>
-              <USelect
-                id="human-decisions-status"
-                :model-value="statusFilter"
-                :items="statusItems"
-                aria-label="Estado"
-                class="min-h-11 max-w-full"
-                :ui="{ content: 'hf-theme hf-ui human-decisions-list-portal' }"
-                @update:model-value="selectStatus"
-              />
-            </div>
-            <div class="w-max max-w-full flex-none">
-              <ViewToggle
-                :model-value="viewMode"
-                class="human-decisions-view-toggle"
-                @update:model-value="selectViewMode"
-              />
-            </div>
+          <template #filters>
+            <ToolbarSelectFilter
+              :model-value="statusFilter"
+              :items="statusItems"
+              label="Estado"
+              portal-class="hf-theme hf-ui human-decisions-list-portal"
+              test-id="human-decisions-status"
+              @update:model-value="selectStatus"
+            />
           </template>
 
           <template #product-cell="{ row }">
             <div class="min-w-0 max-w-80">
-              <p class="truncate font-medium text-highlighted">{{ row.original.title }}</p>
-              <p class="truncate text-xs text-muted">{{ row.original.sanitizedSummary }}</p>
-              <p class="truncate text-xs text-muted">
+              <button
+                type="button"
+                class="hf-row-primary text-left"
+                data-testid="human-decision-table-open"
+                @click="selectDecision(row.original)"
+              >
+                {{ row.original.title }}
+              </button>
+              <span class="hf-row-secondary">
                 {{ row.original.snapshot.productName }} ·
                 {{ productMetaPresentationLabel(row.original) }}
-              </p>
+              </span>
             </div>
           </template>
 
           <template #status-cell="{ row }">
-            <UBadge
-              :color="row.original.status === 'PENDING' ? 'warning' : 'success'"
-              variant="subtle"
-            >
-              {{ row.original.status === 'PENDING' ? 'Pendiente' : 'Respondida' }}
-            </UBadge>
-          </template>
-
-          <template #response-cell="{ row }">
-            <div data-testid="human-decision-response" class="max-w-72 whitespace-normal text-sm">
-              <template v-if="row.original.status === 'RESOLVED'">
-                <p>{{ resolvedResponseLabel(row.original.resolution) }}</p>
-                <p class="mt-1 text-xs text-muted">
-                  {{ row.original.resolution.resolvedBy.displayName }} ·
-                  <time :datetime="row.original.resolution.resolvedAt">{{
-                    createdAtPresentationLabel(row.original.resolution.resolvedAt)
-                  }}</time>
-                </p>
-              </template>
-              <span v-else aria-label="Sin respuesta">—</span>
-            </div>
-          </template>
-
-          <template #branch-cell="{ row }">
-            <span class="text-sm">{{
-              branchPresentationLabel(row.original.snapshot.branchName)
-            }}</span>
+            <StatusBadge
+              :label="row.original.status === 'PENDING' ? 'Pendiente' : 'Respondida'"
+              :tone="row.original.status === 'PENDING' ? 'warning' : 'success'"
+            />
           </template>
 
           <template #requestedQuantity-cell="{ row }">
-            <span class="text-sm" data-testid="human-decision-quantity">
+            <span class="hf-figure text-sm" data-testid="human-decision-quantity">
               {{
                 row.original.type === 'EXPIRATION'
                   ? '—'
@@ -202,26 +184,42 @@ function selectViewMode(mode: string): void {
             </span>
           </template>
 
+          <template #branch-cell="{ row }">
+            <span class="text-sm">{{
+              branchPresentationLabel(row.original.snapshot.branchName)
+            }}</span>
+          </template>
+
           <template #createdAt-cell="{ row }">
-            <time :datetime="row.original.createdAt" class="text-sm">
-              {{ createdAtPresentationLabel(row.original.createdAt) }}
+            <time :datetime="row.original.createdAt" class="text-sm text-muted">
+              {{ listDatePresentationLabel(row.original.createdAt) }}
             </time>
           </template>
 
-          <template #actions-cell="{ row }">
-            <div class="flex justify-end">
-              <UButton
-                type="button"
-                color="neutral"
-                variant="ghost"
-                class="min-h-11"
-                data-testid="human-decision-table-open"
-                :aria-label="`Abrir detalle: ${row.original.title}`"
-                @click="selectDecision(row.original)"
-              >
-                Ver detalle
-              </UButton>
+          <template #response-cell="{ row }">
+            <div data-testid="human-decision-response" class="max-w-72 whitespace-normal text-sm">
+              <template v-if="row.original.status === 'RESOLVED'">
+                <p>{{ resolvedResponseLabel(row.original.resolution) }}</p>
+                <p class="mt-1 text-[13px] text-muted">
+                  {{ row.original.resolution.resolvedBy.displayName }} ·
+                  <time :datetime="row.original.resolution.resolvedAt">{{
+                    listDatePresentationLabel(row.original.resolution.resolvedAt)
+                  }}</time>
+                </p>
+              </template>
+              <span v-else aria-label="Sin respuesta">—</span>
             </div>
+          </template>
+
+          <template #actions-header><span class="sr-only">Acciones</span></template>
+
+          <template #actions-cell="{ row }">
+            <RowActionsMenu
+              :actions="rowActions"
+              :row-label="`${row.original.title}, ${row.original.status === 'PENDING' ? 'pendiente' : 'respondida'}`"
+              portal-class="human-decisions-list-portal"
+              @select="selectDecision(row.original)"
+            />
           </template>
 
           <template #mobile-card="{ row }">

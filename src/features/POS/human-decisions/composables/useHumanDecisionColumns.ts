@@ -1,5 +1,4 @@
 import type { TableColumn } from '@nuxt/ui'
-import { createSimpleHeader } from '@/core/shared/components/DataTable'
 import type { HumanDecision } from '../interfaces/human-decision.types'
 import {
   branchPresentationLabel,
@@ -7,24 +6,21 @@ import {
   resolvedResponseLabel,
 } from '../utils/humanDecisionPresentation'
 
+// The request first, then its status, then what decides the next action
+// (how many, where, when), the response, and the ⋮ column last. Header text is
+// plain: the server owns ordering, so no column is sortable.
 export function useHumanDecisionColumns() {
   const columns: TableColumn<HumanDecision>[] = [
     {
       id: 'product',
       accessorFn: (row) => row.snapshot.productName,
-      header: createSimpleHeader('Producto'),
+      header: 'Solicitud',
       enableSorting: false,
     },
     {
       id: 'status',
       accessorFn: (row) => (row.status === 'PENDING' ? 'Pendiente' : 'Respondida'),
-      header: createSimpleHeader('Estado'),
-      enableSorting: false,
-    },
-    {
-      id: 'branch',
-      accessorFn: (row) => branchPresentationLabel(row.snapshot.branchName),
-      header: createSimpleHeader('Sucursal'),
+      header: 'Estado',
       enableSorting: false,
     },
     {
@@ -33,27 +29,35 @@ export function useHumanDecisionColumns() {
         row.type === 'EXPIRATION'
           ? '—'
           : requestedQuantityPresentationLabel(row.snapshot.requestedQuantity),
-      header: createSimpleHeader('Solicitado'),
+      header: 'Solicitado',
+      enableSorting: false,
+      meta: { class: { th: 'text-right', td: 'text-right' } },
+    },
+    {
+      id: 'branch',
+      accessorFn: (row) => branchPresentationLabel(row.snapshot.branchName),
+      header: 'Sucursal',
       enableSorting: false,
     },
     {
       id: 'createdAt',
       accessorFn: (row) => row.createdAt,
-      header: createSimpleHeader('Creada'),
+      header: 'Creada',
       enableSorting: false,
     },
     {
       id: 'response',
       accessorFn: (row) =>
         row.status === 'RESOLVED' ? resolvedResponseLabel(row.resolution) : '—',
-      header: createSimpleHeader('Respuesta'),
+      header: 'Respuesta',
       enableSorting: false,
     },
     {
       id: 'actions',
-      header: createSimpleHeader(''),
+      header: 'Acciones',
       enableSorting: false,
       enableHiding: false,
+      meta: { class: { th: 'w-16', td: 'w-16 text-right' } },
     },
   ]
 

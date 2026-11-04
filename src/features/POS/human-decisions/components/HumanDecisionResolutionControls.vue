@@ -93,7 +93,7 @@ function confirmResolution(): void {
     <p
       v-if="conflict"
       role="alert"
-      class="rounded-lg border border-warning/30 bg-warning/5 p-3 text-sm text-warning"
+      class="rounded-lg bg-[var(--hf-warning-soft)] p-3 text-sm text-[var(--hf-warning)]"
     >
       Esta decisión ya fue atendida. Revisa el detalle actualizado.
     </p>

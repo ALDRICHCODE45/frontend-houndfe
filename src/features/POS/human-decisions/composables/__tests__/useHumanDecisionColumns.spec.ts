@@ -21,8 +21,8 @@ describe('unified columns', () => {
     expect(columns.map((column) => column.id)).toEqual([
       'product',
       'status',
-      'branch',
       'requestedQuantity',
+      'branch',
       'createdAt',
       'response',
       'actions',
