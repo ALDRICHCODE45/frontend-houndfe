@@ -75,6 +75,9 @@ const warnings = computed(() => (receipt.value?.state.warnings ?? []).map(warnin
 // Not found, refused and failed reads are three different states (S10).
 const notFound = computed(() => Boolean(errorMessage.value) && readStatus.value === 404)
 const forbidden = computed(() => !canRead.value || readStatus.value === 401 || readStatus.value === 403)
+// Not found and a failed read carry their own action (way back, Reintentar); a refused read
+// keeps the header refresh, the only way to look again after access changes.
+const showHeaderActions = computed(() => !errorMessage.value || forbidden.value)
 const refreshLabel = computed(() => {
   if (!canWrite.value) return 'Actualizar contenido'
   return buffer.value ? 'Consultar y conservar cambios' : 'Consultar y cargar borrador'
@@ -91,11 +94,13 @@ async function submit() { await editor.save() }
 <template>
   <component :is="embedded ? 'section' : 'main'" class="hf-theme hf-ui editorial-workspace" aria-labelledby="editorial-workspace-title">
     <div class="editorial-content">
-    <header class="hf-page-header editorial-header">
-      <div class="editorial-heading">
-        <component :is="embedded ? 'h2' : 'h1'" id="editorial-workspace-title" class="hf-page-title">Contenido editorial</component>
+    <!-- Embedded under the product title the heading is for assistive tech only: two stacked titles repeat the Contenido tab. -->
+    <h2 v-if="embedded" id="editorial-workspace-title" class="sr-only">Contenido editorial</h2>
+    <header v-if="!embedded || showHeaderActions" class="hf-page-header editorial-header">
+      <div v-if="!embedded" class="editorial-heading">
+        <h1 id="editorial-workspace-title" class="hf-page-title">Contenido editorial</h1>
       </div>
-      <div class="editorial-actions">
+      <div v-if="showHeaderActions" class="editorial-actions">
         <button class="editorial-button" type="button" data-testid="refresh-retain" :disabled="!canRead || loading || isPending" @click="refreshFromHeader">{{ refreshLabel }}</button>
         <button v-if="canWrite && buffer" class="editorial-button" type="button" data-testid="refresh-discard" :disabled="loading || isPending" @click="discardPending = true">Consultar y descartar cambios…</button>
         <button v-if="canWrite && buffer" class="hf-primary-control" type="submit" form="editorial-form" :disabled="!canSave">{{ isPending ? 'Enviando…' : 'Guardar borrador' }}</button>
@@ -159,7 +164,6 @@ async function submit() { await editor.save() }
         <p v-if="outcome === 'conflict'">No se reenvía automáticamente. Usa las opciones de consulta para reconciliar el borrador.</p>
       </div>
       <template v-if="authoritative">
-        <p class="editorial-context">Ciclo editorial: {{ authoritative.cycle ?? 'Sin iniciar' }} · {{ authoritative.draft ? `Revisión consultada: ${authoritative.draft.revision}` : 'Sin borrador' }}</p>
         <EditorialPublication v-if="canRead && (canWrite || publishPermission)" v-show="activeSection !== 'content'" :state="authoritative"
           :publication-available="false" :can-write="canWrite" :publish-permission="publishPermission" :can-publish="canPublish" :can-discard="canDiscard"
           :has-unsaved-changes="hasUnsavedChanges" :publish-issues="publishIssues" :busy="loading || isPending"
@@ -200,10 +204,10 @@ async function submit() { await editor.save() }
 
 <style scoped>
 .editorial-content { display: contents; }
-.editorial-workspace { display: flex; flex-direction: column; gap: 24px; max-width: 1100px; margin: 0 auto; color: var(--hf-ink); }
+.editorial-workspace { display: flex; flex-direction: column; gap: 24px; color: var(--hf-ink); }
 .editorial-workspace .editorial-header, .editorial-section-header { display: flex; flex-direction: row; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .editorial-heading { flex: 1 1 320px; min-width: 0; }
-.editorial-actions { display: flex; flex-wrap: wrap; gap: 12px; min-width: 0; }
+.editorial-actions { display: flex; flex-wrap: wrap; gap: 12px; min-width: 0; margin-left: auto; }
 .editorial-actions > button { flex: 1 1 auto; white-space: normal; }
 .editorial-context, .editorial-notice, dt { color: var(--hf-muted); font-size: 14px; line-height: 1.5; }
 .editorial-loading { display: grid; gap: 16px; min-width: 0; }

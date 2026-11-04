@@ -55,7 +55,7 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.guided-workspace { max-width: 1240px; margin: 0 auto; display: grid; gap: 24px; color: var(--hf-ink); font-family: var(--hf-font); }
+.guided-workspace { display: grid; gap: 24px; color: var(--hf-ink); font-family: var(--hf-font); }
 .guided-header { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .guided-back { display: inline-grid; flex: none; place-items: center; width: 44px; height: 44px; border-radius: var(--hf-radius-control); color: var(--hf-muted); }
 .guided-back:hover { background: var(--hf-surface-muted); color: var(--hf-heading); }

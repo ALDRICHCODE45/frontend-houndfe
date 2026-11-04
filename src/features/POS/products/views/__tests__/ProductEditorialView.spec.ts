@@ -54,7 +54,7 @@ describe('integrated target workspace', () => {
     expect(http.put.mock.calls[0]![1]).toEqual({ expectedCycle: 2, expectedRevision: 3, document: { ...document(), commercialTitle: '  😀 exact  ' } })
     expect(wrapper.text()).toContain('Acuse histórico')
     expect(wrapper.text()).not.toContain('RECEIPT ONLY')
-    expect(wrapper.text()).toContain('Revisión consultada: 3')
+    expect(wrapper.text()).toContain('Revisión consultada 3')
     expect(wrapper.findAll('img')).toHaveLength(0)
   })
   it.each(['empty', 'Published'])('initializes %s explicitly, then loads only from a new coherent GET', async source => {
