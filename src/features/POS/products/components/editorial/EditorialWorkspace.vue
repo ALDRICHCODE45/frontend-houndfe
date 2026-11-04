@@ -180,12 +180,9 @@ async function submit() { await editor.save() }
 .editorial-panel { display: grid; gap: 12px; padding: 24px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-card); background: var(--hf-surface); overflow-wrap: anywhere; min-width: 0; }
 .editorial-state, .editorial-form { display: grid; gap: 24px; min-width: 0; }
 .editorial-panel h2 { font-size: 16px; font-weight: 600; color: var(--hf-heading); }
-.editorial-facts { display: grid; gap: 16px; margin: 16px 0; }
-.editorial-facts dd { margin: 4px 0 0; white-space: pre-wrap; }
 .editorial-details { margin-top: 16px; border-top: 1px solid var(--hf-border); }
 .editorial-details summary { cursor: pointer; padding: 12px 0; min-height: 44px; color: var(--hf-heading); }
 .editorial-details h3 { font-weight: 600; margin-top: 16px; }
-.editorial-description { white-space: pre-wrap; margin-top: 8px; }
 .editorial-button { min-height: var(--hf-control-height); padding: 8px 16px; border: 1px solid var(--hf-border); border-radius: var(--hf-radius-control); background: var(--hf-surface); color: var(--hf-ink); font-family: var(--hf-font); font-size: 0.875rem; cursor: pointer; }
 .editorial-button:hover:not(:disabled) { background: var(--hf-surface-muted); }
 .editorial-button:disabled, .hf-primary-control:disabled { cursor: default; opacity: .65; }

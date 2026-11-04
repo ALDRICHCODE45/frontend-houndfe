@@ -89,8 +89,6 @@ describe('Delivery routes driver views adapter', () => {
       'delivery-routes-progress-fill',
     )
     for (const hook of [
-      '.delivery-routes-stop-current--pending',
-      '.delivery-routes-stop-current--in-progress',
       '.delivery-routes-stop-card--current',
       '.delivery-routes-stop-sequence--current',
       '.delivery-routes-next-badge',
@@ -98,7 +96,7 @@ describe('Delivery routes driver views adapter', () => {
     ]) {
       expect(css, hook).toContain(hook)
     }
-    expect(css).toMatch(/\.delivery-routes-stop-current--in-progress\s*\{[^}]*--hf-warning/)
+    expect(css).not.toContain('delivery-routes-stop-current')
     expect(css).toMatch(/\.delivery-routes-progress-fill\s*\{[^}]*--hf-success/)
   })
 })

@@ -181,7 +181,6 @@ const CONTRACT_HOOKS = [
   'hf-shell-navbar',
   'hf-shell-breadcrumb',
   'hf-shell-actions',
-  'hf-shell-panel',
   'hf-shell-workspace',
   'hf-shell-portal',
 ]
@@ -391,10 +390,7 @@ describe('unified shell geometry', () => {
       expect(token(rule, name)).toBe(value)
     }
 
-    const panel = exactRule(shell, '.hf-shell-panel')
-    expect(panel).toBeDefined()
-    expect(panel!.style.getPropertyValue('border-radius').trim()).toBe('var(--shell-radius-panel)')
-    expect(panel!.style.getPropertyValue('background-color').trim()).toBe('var(--shell-card)')
+    expect(shell).not.toContain('hf-shell-panel')
 
     const tenant = exactRule(shell, '.hf-shell-tenant')
     expect(tenant).toBeDefined()

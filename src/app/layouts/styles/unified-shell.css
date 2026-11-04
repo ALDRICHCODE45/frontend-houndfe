@@ -838,12 +838,6 @@ button.hf-shell-tenant:focus-visible {
   background-color: var(--shell-page);
 }
 
-.hf-shell-panel {
-  background-color: var(--shell-card);
-  border: 1px solid var(--shell-border);
-  border-radius: var(--shell-radius-panel);
-}
-
 /* ── Products-only palette bridge ───────────────────────────────────────── */
 
 /* Locally remap the shared `--hf-*` foundation roles onto the shell planes only
