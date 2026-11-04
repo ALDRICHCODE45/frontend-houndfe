@@ -161,3 +161,12 @@ L7. T6 and T10 done by a delegated writer (commits 9ba3b837 and 9a92fa09; the ha
   - The pi-lens notes on the new specs and the harness could not be listed (no lens tool here); eslint and `pnpm type-check` are clean.
   - The "Idempotency-Key" conflict copy from L5 was not provoked: the BE only answers it for a reused key with another body, which the UI never does.
 
+
+L8. T10 rerun after the BE fix a886791 (`GET /products` and `GET /products/:id` now return `quantity` = untracked + lots) and the FE fix d67d2ef9 (the summary uses the saved total for lots products). It closes the first "Open" item of L7.
+- Harness: 6 new checks in `verify.mjs` (commit 4f47cd62). Run as manager in Sucursal Centro against the real BE, dev server from the root as in odd/evidence/system-redesign/README.md, then stopped. 29 PASS / 0 FAIL; the 23 earlier checks still pass. Adjustments were reverted again, so the quantities are the README's.
+- Croquetas, from the real data (total 72, sellable 64, minQuantity 10):
+  - `GET /products/:id` `quantity` is 72, the same as `/inventory/products/:id/stock`.
+  - Detail: the header shows only "Activo" (no "Sin stock"); the summary stock reads 72.
+  - List: the stock cell reads "72 unidades" in plain text. Healthy stock earns no badge, which is the existing rule (0 is danger, at or below minQuantity is warning). The status badge is not "Sin stock".
+  - Inventario panel: total 72, rows add up to 72, and the summary agrees.
+- Still open, not changed: Collar (variants) has `quantity: 0` in the product record while the journal total is 24. It shows its total through `variantStockTotal` and its header was not part of this check. No code change was needed on the FE in this rerun.
