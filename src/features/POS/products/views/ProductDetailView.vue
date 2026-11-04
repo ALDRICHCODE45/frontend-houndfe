@@ -14,12 +14,23 @@ import ProductCatalogSettingsSection from '../components/ProductCatalogSettingsS
 import { useCatalogSettingsQuery } from '@/features/system/catalog-settings/composables/useCatalogSettingsQuery'
 import type { OnlineStockPresentationMode } from '@/features/system/catalog-settings/interfaces/catalog-settings.types'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
-import AppBadge from '@/core/shared/components/AppBadge.vue'
 import { productQueryKeys } from '@/core/shared/constants/query-keys'
-import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
 import type { DomainApiError } from '@/core/shared/utils/error.utils'
 import { useAuthStore } from '@/features/auth/stores/useAuthStore'
 import PriceListSection from '../components/PriceListSection.vue'
+import ProductDetailSkeleton from '../components/ProductDetailSkeleton.vue'
+import ProductLotsTable, { type ProductLotRow } from '../components/ProductLotsTable.vue'
+import ProductPriceMarginTable, {
+  type ProductPriceRow,
+} from '../components/ProductPriceMarginTable.vue'
+import ProductQuickCreateModal from '../components/ProductQuickCreateModal.vue'
+import ProductSummaryPanel from '../components/ProductSummaryPanel.vue'
+import ProductVariantsTable, {
+  type ProductVariantRow,
+} from '../components/ProductVariantsTable.vue'
+import { productStatusConfig } from '../utils/productStatusConfig.utils'
 import ProductImageGallery from '../components/ProductImageGallery.vue'
 import CategorySelect from '../components/CategorySelect.vue'
 import SatKeySelect from '../components/SatKeySelect.vue'
@@ -485,6 +496,9 @@ const showInventoryCard = computed(() => formState.type === 'PRODUCT')
 const showInventoryFields = computed(() => inventoryFieldsVisible(formState.type))
 const locationFieldLabel = computed(() => locationLabelFor(formState.type))
 const showServiceDetailCard = computed(() => isService(formState.type))
+const productStatus = computed(() =>
+  product.value ? productStatusConfig[product.value.status] : undefined,
+)
 const createModeTitle = computed(() => (isService(formState.type) ? 'Nuevo servicio' : 'Nuevo producto'))
 const createModeSubmitLabel = computed(() =>
   isService(formState.type) ? 'Crear servicio' : 'Crear producto',
@@ -1601,12 +1615,12 @@ function isCatalogOnlySave(values: MainFormValues): boolean {
   })
 }
 
-function handleCreateCategory(event: FormSubmitEvent<CategoryFormState>) {
-  createCategoryMutation.mutate(event.data.name.trim())
+function handleCreateCategory(name: string) {
+  createCategoryMutation.mutate(name.trim())
 }
 
-function handleCreateBrand(event: FormSubmitEvent<BrandFormState>) {
-  createBrandMutation.mutate(event.data.name.trim())
+function handleCreateBrand(name: string) {
+  createBrandMutation.mutate(name.trim())
 }
 
 function handleCreateLot(event: FormSubmitEvent<LotFormState>) {
@@ -1841,63 +1855,184 @@ function handleEditLotPlaceholder() {
     color: 'warning',
   })
 }
+
+// ── Presentational tables: row models and the actions they emit ──────────────
+
+const variantTableRows = computed<ProductVariantRow[]>(() =>
+  isCreateMode.value
+    ? pendingVariants.value.map((pv) => ({
+        id: pv._localId,
+        label: pv.option ? `${pv.option}: ${pv.value}` : pv.value,
+        sku: pv.sku,
+        barcode: pv.barcode,
+        quantity: pv.quantity,
+        price: centsToDecimalInput(pv.publicPriceCents),
+        deleteName: pv.value || pv.option,
+      }))
+    : variantsList.value.map((variant) => ({
+        id: variant.id,
+        label: getVariantLabel(variant),
+        sku: variant.sku ?? '',
+        barcode: variant.barcode ?? '',
+        quantity: inlineVariantQuantityInputs[variant.id],
+        price: inlineVariantPublicPriceInputs[variant.id] ?? '',
+        deleteName: variant.name,
+      })),
+)
+
+function findSavedVariant(variantId: string): ProductVariant | undefined {
+  return variantsList.value.find((variant) => variant.id === variantId)
+}
+
+function handleVariantQuantityUpdate(id: string, value: number | undefined) {
+  if (isCreateMode.value) {
+    const pending = pendingVariants.value.find((pv) => pv._localId === id)
+    if (pending) pending.quantity = value ?? 0
+    return
+  }
+  inlineVariantQuantityInputs[id] = value as number
+}
+
+function handleVariantQuantityCommit(id: string) {
+  const variant = findSavedVariant(id)
+  if (!isCreateMode.value && variant) handleInlineVariantQuantityBlur(variant)
+}
+
+function handleVariantPriceUpdate(id: string, value: string) {
+  if (!isCreateMode.value) inlineVariantPublicPriceInputs[id] = value
+}
+
+function handleVariantPriceCommit(id: string, value: string) {
+  if (isCreateMode.value) {
+    setPendingVariantPublicPrice(id, decimalInputToCents(value))
+    return
+  }
+  const variant = findSavedVariant(id)
+  if (variant) handleInlineVariantPublicPriceBlur(variant)
+}
+
+function handleVariantAction(key: string, id: string) {
+  const variant = findSavedVariant(id)
+  const pending = pendingVariants.value.find((pv) => pv._localId === id)
+  if (key === 'photos' && variant) handleOpenVariantImageModal(variant)
+  else if (key === 'details') {
+    if (isCreateMode.value) openPendingVariantDetailModal(id)
+    else if (variant) handleOpenVariantDetailModal(variant)
+  } else if (key === 'edit') openEditVariantModal(id)
+  else if (key === 'delete') {
+    if (isCreateMode.value && pending) void handleDeleteVariant(id, pending.value || pending.option)
+    else if (variant) void handleDeleteVariant(id, variant.name)
+  }
+}
+
+const lotTableRows = computed<ProductLotRow[]>(() =>
+  isCreateMode.value
+    ? pendingLots.value.map((lot) => ({
+        id: lot._localId,
+        lotNumber: lot.lotNumber,
+        expirationDate: lot.expirationDate,
+        quantity: lot.quantity,
+      }))
+    : lotsList.value.map((lot) => ({
+        id: lot.id,
+        lotNumber: lot.lotNumber,
+        expirationDate: lot.expirationDate,
+        quantity: lot.quantity,
+      })),
+)
+
+function handleLotTableDelete(lot: ProductLotRow) {
+  void handleDeleteLot(lot.id, lot.lotNumber)
+}
+
+const pendingPriceListRows = computed<ProductPriceRow[]>(() =>
+  pendingPriceLists.value.map((pl) => ({
+    id: pl._localId,
+    name: pl.priceListName,
+    priceCents: pl.priceCents,
+    removable: !isDefaultPriceList(pl.priceListId),
+  })),
+)
+
+function handlePendingPriceListAction(key: string, id: string) {
+  if (key === 'tiers') openTierPricesModal(id)
+  else if (key === 'remove') removePendingPriceList(id)
+}
+
+const pendingVariantCostCents = computed(() =>
+  pendingVariantDetailState.purchaseCost
+    ? decimalInputToCents(pendingVariantDetailState.purchaseCost)
+    : 0,
+)
+
+const pendingVariantPriceRows = computed<ProductPriceRow[]>(() =>
+  pendingVariantDetailState.prices.map((price) => ({
+    id: price.priceListId,
+    name: price.priceListName,
+    priceCents: price.priceCents,
+    removable: false,
+  })),
+)
+
+function updatePendingVariantDetailPrice(priceListId: string, priceCents: number) {
+  const price = pendingVariantDetailState.prices.find((p) => p.priceListId === priceListId)
+  if (price) price.priceCents = priceCents
+}
+
+function handlePendingVariantPriceAction(key: string, priceListId: string) {
+  if (key === 'tiers') openPendingVariantTierPricesModal(priceListId)
+}
 </script>
 
 <template>
   <div class="hf-theme hf-ui product-workspace -m-4 flex h-[calc(100%+2rem)] flex-col sm:-m-6 sm:h-[calc(100%+3rem)]">
     <div class="product-workspace-header shrink-0 border-b border-default px-4 py-4 sm:px-6 lg:px-10">
       <div class="mx-auto flex w-full max-w-[1480px] flex-wrap items-center justify-between gap-4">
-        <div class="flex items-center gap-3">
+        <div class="flex min-w-0 items-center gap-3">
           <UButton
             icon="i-lucide-arrow-left"
             color="neutral"
             variant="ghost"
             size="sm"
+            aria-label="Volver a productos"
             @click="handleBack"
           />
-          <div>
-            <h1 class="hf-page-title">
+          <div class="min-w-0">
+            <div v-if="!isCreateMode && productStatus" class="mb-1">
+              <StatusBadge :label="productStatus.label" :tone="productStatus.tone" />
+            </div>
+            <h1 class="hf-page-title truncate">
               {{ isCreateMode ? createModeTitle : formState.name || 'Producto' }}
             </h1>
-            <p class="hf-page-subtitle">
-              {{ isCreateMode ? 'Empieza con lo esencial y elige qué quieres trabajar.' : 'Datos operativos y contenido editorial, con guardados separados.' }}
-            </p>
           </div>
         </div>
 
-        <div class="flex items-center gap-3">
-          <UButton type="button" label="Cancelar" color="neutral" variant="outline" @click="handleBack" />
-          <UButton
-            v-if="!isFormReadonly"
-            :label="isCreateMode ? createModeSubmitLabel : 'Guardar cambios'"
-            type="submit"
-            form="product-detail-form"
-            :loading="updateMutation.isPending.value || createMutation.isPending.value"
-            :disabled="!canSubmitMainForm"
-            color="primary"
-            class="hf-primary-control"
-          />
-        </div>
+        <UButton
+          v-if="!isFormReadonly"
+          :label="isCreateMode ? createModeSubmitLabel : 'Guardar cambios'"
+          type="submit"
+          form="product-detail-form"
+          :loading="updateMutation.isPending.value || createMutation.isPending.value"
+          :disabled="!canSubmitMainForm"
+          color="primary"
+          class="hf-primary-control"
+        />
       </div>
     </div>
 
     <div
       class="mx-auto flex w-full max-w-[1480px] flex-1 flex-col gap-6 overflow-y-auto px-4 pb-6 pt-6 sm:px-6 lg:px-10"
     >
-      <div
+      <EmptyState
         v-if="!isCreateMode && isProductError"
-        class="flex items-center justify-between gap-4 rounded-lg border border-error/30 bg-error/5 p-4"
-      >
-        <p class="text-sm text-error">No pudimos cargar el producto. Reintenta nuevamente.</p>
-        <UButton label="Reintentar" color="neutral" variant="outline" @click="refetchProduct" />
-      </div>
+        kind="error"
+        title="No se pudo cargar el producto"
+        description="Revisa tu conexión e inténtalo de nuevo."
+        action-label="Reintentar"
+        @action="refetchProduct"
+      />
 
-      <div
-        v-else-if="!isCreateMode && isLoadingProduct"
-        class="rounded-lg border border-default p-6"
-      >
-        <p class="text-sm text-muted">Cargando datos del producto...</p>
-      </div>
+      <ProductDetailSkeleton v-else-if="!isCreateMode && isLoadingProduct" />
 
       <div v-else class="product-workspace-grid">
         <div class="min-w-0">
@@ -1908,7 +2043,7 @@ function handleEditLotPlaceholder() {
           class="rounded-lg border border-default bg-default p-6"
           aria-labelledby="editorial-unavailable-title"
         >
-          <h2 id="editorial-unavailable-title" class="text-lg font-semibold">
+          <h2 id="editorial-unavailable-title" class="text-base font-semibold">
             {{ activeTask === 'content' ? 'Contenido editorial' : 'Revisión editorial' }}
           </h2>
           <p class="mt-2 text-sm text-muted">
@@ -1934,7 +2069,7 @@ function handleEditLotPlaceholder() {
           <div v-show="activeTask === 'identity'" data-product-task="identity">
           <UCard :ui="{ root: 'overflow-visible' }">
             <template #header>
-              <h2 class="text-lg font-semibold">Datos del producto</h2>
+              <h2 class="text-base font-semibold">Datos del producto</h2>
             </template>
 
             <div class="space-y-4">
@@ -2063,12 +2198,9 @@ function handleEditLotPlaceholder() {
 
           </div>
           <div v-show="activeTask === 'presentations'" data-product-task="presentations" class="space-y-6">
-          <p class="text-sm text-muted">
-            Precios, impuestos y existencias son datos operativos. Las variantes conservan sus guardados independientes al salir del campo o presionar Enter.
-          </p>
           <UCard v-if="showInventoryFields">
             <template #header>
-              <h2 class="text-lg font-semibold">Precio de Compra</h2>
+              <h2 class="text-base font-semibold">Precio de Compra</h2>
             </template>
 
             <div class="space-y-4">
@@ -2107,7 +2239,7 @@ function handleEditLotPlaceholder() {
 
           <UCard>
             <template #header>
-              <h2 class="text-lg font-semibold">Impuestos</h2>
+              <h2 class="text-base font-semibold">Impuestos</h2>
             </template>
 
             <div class="space-y-4">
@@ -2144,7 +2276,7 @@ function handleEditLotPlaceholder() {
 
           <UCard v-if="showServiceDetailCard">
             <template #header>
-              <h2 class="text-lg font-semibold">Detalles del servicio</h2>
+              <h2 class="text-base font-semibold">Detalles del servicio</h2>
             </template>
 
             <div class="space-y-4">
@@ -2181,7 +2313,7 @@ function handleEditLotPlaceholder() {
 
           <UCard v-if="showInventoryCard">
             <template #header>
-              <h2 class="text-lg font-semibold">Inventario</h2>
+              <h2 class="text-base font-semibold">Inventario</h2>
             </template>
 
             <div class="space-y-4">
@@ -2248,10 +2380,12 @@ function handleEditLotPlaceholder() {
               <UCard v-if="showVariantsSection">
             <template #header>
               <div class="flex items-center justify-between gap-3">
-                <h2 class="text-lg font-semibold">Variantes</h2>
+                <h2 class="text-base font-semibold">Variantes</h2>
                 <UButton
                   label="Agregar variante"
                   icon="i-lucide-plus"
+                  color="neutral"
+                  variant="outline"
                   :disabled="!isCreateMode && !canUpdateProduct"
                   @click="openAddVariantModal"
                 />
@@ -2277,215 +2411,45 @@ function handleEditLotPlaceholder() {
                 :key="group.option"
                 class="rounded-md border border-default bg-elevated/20 p-3"
               >
-                <p class="text-xs font-semibold uppercase tracking-wide text-muted">
+                <p class="text-xs font-semibold text-muted">
                   {{ group.option }}
                 </p>
                 <div class="mt-2 flex flex-wrap gap-2">
-                  <AppBadge
+                  <span
                     v-for="value in group.values"
                     :key="`${group.option}-${value}`"
-                    tone="neutral"
+                    class="rounded-md bg-elevated px-2 py-0.5 text-xs font-medium"
                   >
                     {{ value }}
-                  </AppBadge>
+                  </span>
                 </div>
               </div>
             </div>
 
-            <!-- Create mode: pending variants table -->
-            <div v-if="isCreateMode" class="overflow-hidden rounded-md border border-default">
-              <table class="min-w-full divide-y divide-default text-sm">
-                <thead class="bg-elevated/40">
-                  <tr>
-                    <th class="px-4 py-3 text-left font-medium">Variante</th>
-                    <th v-if="formState.useStock" class="px-4 py-3 text-left font-medium">
-                      Existencias
-                    </th>
-                    <th class="px-4 py-3 text-left font-medium">Precio Público</th>
-                    <th class="px-4 py-3 text-right font-medium">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-default">
-                  <tr v-if="pendingVariants.length === 0">
-                    <td :colspan="formState.useStock ? 4 : 3" class="px-4 py-3 text-muted">
-                      Sin variantes agregadas. Usa el botón "Agregar variante".
-                    </td>
-                  </tr>
-                  <tr v-for="pv in pendingVariants" :key="pv._localId">
-                    <td class="px-4 py-3">
-                      <div class="font-medium">
-                        {{ pv.option ? `${pv.option}: ${pv.value}` : pv.value }}
-                      </div>
-                      <div class="text-xs text-muted">
-                        SKU: {{ pv.sku || '—' }} · Código: {{ pv.barcode || '—' }}
-                      </div>
-                    </td>
-                    <td v-if="formState.useStock" class="px-4 py-3">
-                      <UInputNumber
-                        v-model="pv.quantity"
-                        :min="0"
-                        class="w-28"
-                      />
-                    </td>
-                    <td class="px-4 py-3">
-                      <div class="relative max-w-[8rem]">
-                        <span
-                          class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
-                          >$</span
-                        >
-                        <UInput
-                          :model-value="centsToDecimalInput(pv.publicPriceCents)"
-                          class="w-full"
-                          inputmode="decimal"
-                          placeholder="0.00"
-                          :ui="{ base: 'pl-7' }"
-                          @blur="(e: FocusEvent) => setPendingVariantPublicPrice(pv._localId, decimalInputToCents((e.target as HTMLInputElement).value))"
-                        />
-                      </div>
-                    </td>
-                    <td class="px-4 py-3">
-                      <div class="flex justify-end gap-2">
-                        <UButton
-                          type="button"
-                          label="Más Datos"
-                          color="neutral"
-                          variant="outline"
-                          @click="openPendingVariantDetailModal(pv._localId)"
-                        />
-                        <UButton
-                          type="button"
-                          label="Editar"
-                          color="neutral"
-                          variant="outline"
-                          @click="openEditVariantModal(pv._localId)"
-                        />
-                        <UButton
-                          type="button"
-                          label="Eliminar"
-                          color="error"
-                          variant="ghost"
-                          @click="handleDeleteVariant(pv._localId, pv.value || pv.option)"
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            <!-- Edit mode: backend variants table -->
-            <div v-else class="overflow-hidden rounded-md border border-default">
-              <table class="min-w-full divide-y divide-default text-sm">
-                <thead class="bg-elevated/40">
-                  <tr>
-                    <th class="px-4 py-3 text-left font-medium">Variante</th>
-                    <th v-if="formState.useStock" class="px-4 py-3 text-left font-medium">
-                      Existencias
-                    </th>
-                    <th class="px-4 py-3 text-left font-medium">Precio Público</th>
-                    <th class="px-4 py-3 text-right font-medium">Acciones</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-default">
-                  <tr v-if="isFetchingVariants">
-                    <td :colspan="formState.useStock ? 4 : 3" class="px-4 py-3 text-muted">
-                      Actualizando variantes...
-                    </td>
-                  </tr>
-                  <tr v-else-if="variantsList.length === 0">
-                    <td :colspan="formState.useStock ? 4 : 3" class="px-4 py-3 text-muted">
-                      Sin variantes registradas.
-                    </td>
-                  </tr>
-                  <template v-for="variant in variantsList" :key="variant.id">
-                    <tr>
-                      <td class="px-4 py-3">
-                        <div class="font-medium">{{ getVariantLabel(variant) }}</div>
-                        <div class="text-xs text-muted">
-                          SKU: {{ variant.sku ?? '—' }} · Código: {{ variant.barcode ?? '—' }}
-                        </div>
-                      </td>
-                      <td v-if="formState.useStock" class="px-4 py-3">
-                        <UInputNumber
-                          v-model="inlineVariantQuantityInputs[variant.id]"
-                          :min="0"
-                          class="w-28"
-                          :disabled="!canUpdateProduct"
-                          @blur="handleInlineVariantQuantityBlur(variant)"
-                          @keyup.enter="handleInlineVariantQuantityBlur(variant)"
-                        />
-                      </td>
-                      <td class="px-4 py-3">
-                        <div class="relative max-w-[8rem]">
-                          <span
-                            class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
-                            >$</span
-                          >
-                          <UInput
-                            v-model="inlineVariantPublicPriceInputs[variant.id]"
-                            class="w-full"
-                            inputmode="decimal"
-                            placeholder="0.00"
-                            :ui="{ base: 'pl-7' }"
-                            :disabled="!canUpdateProduct"
-                            @blur="handleInlineVariantPublicPriceBlur(variant)"
-                            @keyup.enter="handleInlineVariantPublicPriceBlur(variant)"
-                          />
-                        </div>
-                      </td>
-                      <td class="px-4 py-3">
-                        <div class="flex justify-end gap-2">
-                          <UTooltip text="Elegir fotos">
-                            <UButton
-                              type="button"
-                              icon="i-lucide-image"
-                              color="neutral"
-                              variant="ghost"
-                              data-testid="variant-image-button"
-                              :disabled="!canUpdateProduct"
-                              @click="handleOpenVariantImageModal(variant)"
-                            />
-                          </UTooltip>
-                          <UButton
-                            type="button"
-                            label="Más Datos"
-                            color="neutral"
-                            variant="outline"
-                            @click="handleOpenVariantDetailModal(variant)"
-                          />
-                          <UButton
-                            type="button"
-                            label="Editar"
-                            color="neutral"
-                            variant="outline"
-                            :disabled="!canUpdateProduct"
-                            @click="openEditVariantModal(variant.id)"
-                          />
-                          <UButton
-                            type="button"
-                            label="Eliminar"
-                            color="error"
-                            variant="ghost"
-                            :disabled="!canDeleteProduct"
-                            :loading="deleteVariantMutation.isPending.value"
-                            @click="handleDeleteVariant(variant.id, variant.name)"
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  </template>
-                </tbody>
-              </table>
-            </div>
+            <ProductVariantsTable
+              :rows="variantTableRows"
+              :pending="isCreateMode"
+              :show-stock="formState.useStock"
+              :loading="!isCreateMode && isFetchingVariants"
+              :can-update="canUpdateProduct"
+              :can-delete="canDeleteProduct"
+              @update-quantity="handleVariantQuantityUpdate"
+              @commit-quantity="handleVariantQuantityCommit"
+              @update-price="handleVariantPriceUpdate"
+              @commit-price="handleVariantPriceCommit"
+              @action="handleVariantAction"
+            />
           </UCard>
 
           <UCard v-if="showLotsSection">
             <template #header>
               <div class="flex items-center justify-between gap-3">
-                <h2 class="text-lg font-semibold">Lotes</h2>
+                <h2 class="text-base font-semibold">Lotes</h2>
                 <UButton
-                  label="Agregar Lote"
+                  label="Agregar lote"
                   icon="i-lucide-plus"
+                  color="neutral"
+                  variant="outline"
                   :disabled="!isCreateMode && !canUpdateProduct"
                   @click="isLotModalOpen = true"
                 />
@@ -2493,89 +2457,14 @@ function handleEditLotPlaceholder() {
             </template>
 
             <div class="space-y-3">
-              <!-- Create mode: pending lots table -->
-              <div v-if="isCreateMode" class="overflow-hidden rounded-md border border-default">
-                <table class="min-w-full divide-y divide-default text-sm">
-                  <thead class="bg-elevated/40">
-                    <tr>
-                      <th class="px-4 py-3 text-left font-medium">Lote</th>
-                      <th class="px-4 py-3 text-left font-medium">Caducidad</th>
-                      <th class="px-4 py-3 text-left font-medium">Existencias</th>
-                      <th class="px-4 py-3 text-right font-medium">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-default">
-                    <tr v-if="pendingLots.length === 0">
-                      <td colspan="4" class="px-4 py-3 text-muted">
-                        Sin lotes agregados. Usa el botón "Agregar Lote".
-                      </td>
-                    </tr>
-                    <tr v-for="pl in pendingLots" :key="pl._localId">
-                      <td class="px-4 py-3">{{ pl.lotNumber }}</td>
-                      <td class="px-4 py-3">{{ pl.expirationDate || 'Sin fecha' }}</td>
-                      <td class="px-4 py-3">{{ pl.quantity }}</td>
-                      <td class="px-4 py-3">
-                        <div class="flex justify-end gap-2">
-                          <UButton
-                            type="button"
-                            label="Eliminar"
-                            color="error"
-                            variant="ghost"
-                            @click="handleDeleteLot(pl._localId, pl.lotNumber)"
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              <!-- Edit mode: backend lots table -->
-              <div v-else class="overflow-hidden rounded-md border border-default">
-                <table class="min-w-full divide-y divide-default text-sm">
-                  <thead class="bg-elevated/40">
-                    <tr>
-                      <th class="px-4 py-3 text-left font-medium">Lote</th>
-                      <th class="px-4 py-3 text-left font-medium">Caducidad</th>
-                      <th class="px-4 py-3 text-left font-medium">Existencias</th>
-                      <th class="px-4 py-3 text-right font-medium">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-default">
-                    <tr v-if="isFetchingLots">
-                      <td colspan="4" class="px-4 py-3 text-muted">Actualizando lotes...</td>
-                    </tr>
-                    <tr v-else-if="lotsList.length === 0">
-                      <td colspan="4" class="px-4 py-3 text-muted">Sin lotes registrados.</td>
-                    </tr>
-                    <tr v-for="lot in lotsList" :key="lot.id">
-                      <td class="px-4 py-3">{{ lot.lotNumber }}</td>
-                      <td class="px-4 py-3">{{ lot.expirationDate ?? 'Sin fecha' }}</td>
-                      <td class="px-4 py-3">{{ lot.quantity }}</td>
-                      <td class="px-4 py-3">
-                        <div class="flex justify-end gap-2">
-                          <UButton
-                            type="button"
-                            label="Editar"
-                            color="neutral"
-                            variant="link"
-                            @click="handleEditLotPlaceholder"
-                          />
-                          <UButton
-                            type="button"
-                            label="X"
-                            color="error"
-                            variant="ghost"
-                            :disabled="!canDeleteProduct"
-                            :loading="deleteLotMutation.isPending.value"
-                            @click="handleDeleteLot(lot.id, lot.lotNumber)"
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              <ProductLotsTable
+                :lots="lotTableRows"
+                :pending="isCreateMode"
+                :loading="!isCreateMode && isFetchingLots"
+                :can-delete="canDeleteProduct"
+                @edit="handleEditLotPlaceholder"
+                @delete="handleLotTableDelete"
+              />
 
               <USeparator class="my-4" />
 
@@ -2590,7 +2479,7 @@ function handleEditLotPlaceholder() {
           <UCard v-if="isCreateMode">
             <template #header>
               <div class="flex items-center justify-between gap-3">
-                <h2 class="text-lg font-semibold">Listas de Precios</h2>
+                <h2 class="text-base font-semibold">Listas de Precios</h2>
               </div>
             </template>
 
@@ -2608,8 +2497,8 @@ function handleEditLotPlaceholder() {
                 <UButton
                   type="button"
                   label="Agregar"
-                  color="primary"
-                  class="hf-primary-control"
+                  color="neutral"
+                  variant="outline"
                   :disabled="!pendingPriceListSelection"
                   @click="handleAddPendingPriceList"
                 />
@@ -2621,85 +2510,13 @@ function handleEditLotPlaceholder() {
                 Todas las listas de precios están asignadas.
               </p>
 
-              <div v-if="pendingPriceLists.length > 0" class="overflow-hidden rounded-md border border-default">
-                <table class="min-w-full divide-y divide-default text-sm">
-                  <thead class="bg-elevated/40">
-                    <tr>
-                      <th class="px-4 py-3 text-left font-medium">Lista de Precios</th>
-                      <th class="px-4 py-3 text-left font-medium">
-                        <div>Precio de Venta</div>
-                        <div class="text-xs font-normal text-muted">(Con Impuestos Incluidos)</div>
-                      </th>
-                      <th class="px-4 py-3 text-center font-medium">+</th>
-                      <th class="px-4 py-3 text-center font-medium">Márgen</th>
-                      <th class="px-4 py-3 text-center font-medium">Ganancia</th>
-                      <th class="px-4 py-3 text-right font-medium">Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody class="divide-y divide-default">
-                    <tr v-for="ppl in pendingPriceLists" :key="ppl._localId">
-                      <td class="px-4 py-3 font-medium">{{ ppl.priceListName }}</td>
-                      <td class="px-4 py-3">
-                        <div class="relative max-w-[10rem]">
-                          <span
-                            class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
-                            >$</span
-                          >
-                          <UInput
-                            :model-value="centsToDecimalInput(ppl.priceCents)"
-                            class="w-full"
-                            inputmode="decimal"
-                            placeholder="0.00"
-                            :ui="{ base: 'pl-7' }"
-                            @blur="(e: FocusEvent) => updatePendingPriceListPrice(ppl._localId, decimalInputToCents((e.target as HTMLInputElement).value))"
-                          />
-                        </div>
-                      </td>
-                      <td class="px-4 py-3 text-center">
-                        <UButton
-                          type="button"
-                          icon="i-lucide-plus"
-                          color="neutral"
-                          variant="ghost"
-                          @click="openTierPricesModal(ppl._localId)"
-                        />
-                      </td>
-                      <td class="px-4 py-3 text-center">
-                        <span
-                          v-if="getPendingCostCents() > 0 && ppl.priceCents > 0"
-                          class="font-semibold"
-                          :class="ppl.priceCents >= getPendingCostCents() ? 'text-success' : 'text-error'"
-                        >
-                          {{ Math.round(((ppl.priceCents - getPendingCostCents()) / ppl.priceCents) * 100) }}%
-                        </span>
-                        <span v-else class="text-muted">--</span>
-                      </td>
-                      <td class="px-4 py-3 text-center">
-                        <span
-                          v-if="getPendingCostCents() > 0 && ppl.priceCents > 0"
-                          class="font-semibold"
-                          :class="ppl.priceCents >= getPendingCostCents() ? 'text-success' : 'text-error'"
-                        >
-                          $ {{ ((ppl.priceCents - getPendingCostCents()) / 100).toFixed(2) }} por Unidad
-                        </span>
-                        <span v-else class="text-muted">--</span>
-                      </td>
-                      <td class="px-4 py-3">
-                        <div class="flex justify-end">
-                          <UButton
-                            v-if="!isDefaultPriceList(ppl.priceListId)"
-                            type="button"
-                            label="Quitar"
-                            color="error"
-                            variant="ghost"
-                            @click="removePendingPriceList(ppl._localId)"
-                          />
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              <ProductPriceMarginTable
+                v-if="pendingPriceLists.length > 0"
+                :rows="pendingPriceListRows"
+                :cost-cents="getPendingCostCents()"
+                @update-price="updatePendingPriceListPrice"
+                @action="handlePendingPriceListAction"
+              />
 
               <UButton
                 v-if="availablePriceListOptions.length > 0 && !isAddPriceListPickerOpen"
@@ -2734,57 +2551,21 @@ function handleEditLotPlaceholder() {
       </UForm>
         </div>
 
-        <aside class="product-summary" aria-label="Resumen operativo del producto">
-          <div class="product-summary-identity">
-          <div class="product-summary-image">
-            <img v-if="previewMainImage" :src="previewMainImage.url" :alt="formState.name || 'Imagen del producto'">
-            <p v-else class="text-sm text-muted">Sin imagen</p>
-          </div>
-          <div class="product-summary-heading">
-            <p class="product-summary-eyebrow">Resumen del producto</p>
-            <h2 class="text-lg font-semibold">{{ formState.name || 'Producto sin nombre' }}</h2>
-            <div class="mt-2 flex flex-wrap gap-2 text-sm text-muted">
-              <span>{{ formState.type === 'PRODUCT' ? 'Producto' : 'Servicio' }}</span>
-              <span v-if="formState.sellInPos">POS</span>
-              <span v-if="formState.includeInOnlineCatalog">Online</span>
-            </div>
-          </div>
-          </div>
-          <div class="product-summary-body">
-            <dl class="product-summary-values">
-              <div>
-                <dt>Precio de venta</dt>
-                <dd data-summary="price">{{ formatCentsMXN(previewPublicPriceCents) }}</dd>
-              </div>
-              <div>
-                <dt>Costo</dt>
-                <dd data-summary="cost">{{ formatCentsMXN(previewCostCents) }}</dd>
-              </div>
-              <div>
-                <dt>Margen</dt>
-                <dd :class="previewMarginPercent == null ? 'text-muted' : previewMarginPercent >= 0 ? 'text-success' : 'text-error'">
-                  {{ previewMarginPercent == null ? '—' : `${previewMarginPercent}%` }}
-                </dd>
-              </div>
-              <div>
-                <dt>Stock</dt>
-                <dd data-summary="stock">{{ previewStockTotal ?? '—' }}</dd>
-              </div>
-            </dl>
-            <div class="mt-6 flex items-center justify-between gap-3">
-              <h3 id="operation-readiness" class="font-semibold">Datos operativos</h3>
-              <span class="text-sm">{{ previewCompletedItems }}/{{ previewApplicableChecklistItems.length }}</span>
-            </div>
-            <progress class="product-readiness-progress" :value="previewCompletionPercent" max="100" aria-labelledby="operation-readiness" />
-            <ul class="mt-4 space-y-3 text-sm">
-              <li v-for="item in previewChecklistItems" :key="item.label" class="flex gap-2" :class="{ 'text-muted': item.disabled }">
-                <UIcon :name="item.done ? 'i-lucide-check' : 'i-lucide-minus'" class="mt-0.5 size-4 shrink-0" aria-hidden="true" />
-                <span>{{ item.label }}<span class="sr-only">: {{ item.disabled ? 'Después de crear' : item.done ? 'Completo' : 'Pendiente' }}</span></span>
-              </li>
-            </ul>
-            <p class="mt-4 text-sm text-muted">No indica elegibilidad editorial ni publica contenido. Los guardados operativos y de variantes son independientes.</p>
-          </div>
-        </aside>
+        <ProductSummaryPanel
+          :name="formState.name"
+          :image-url="previewMainImage?.url"
+          :is-product="formState.type === 'PRODUCT'"
+          :sell-in-pos="formState.sellInPos"
+          :include-in-online-catalog="formState.includeInOnlineCatalog"
+          :price-cents="previewPublicPriceCents"
+          :cost-cents="previewCostCents"
+          :margin-percent="previewMarginPercent"
+          :stock-total="previewStockTotal"
+          :checklist="previewChecklistItems"
+          :completed-items="previewCompletedItems"
+          :applicable-items="previewApplicableChecklistItems.length"
+          :completion-percent="previewCompletionPercent"
+        />
       </div>
     </div>
 
@@ -2818,6 +2599,7 @@ function handleEditLotPlaceholder() {
                 icon="i-lucide-trash"
                 color="error"
                 variant="ghost"
+                aria-label="Quitar este precio por cantidad"
                 @click="removeTierRow(row.key)"
               />
             </div>
@@ -2910,68 +2692,12 @@ function handleEditLotPlaceholder() {
             <template #header>
               <h3 class="font-semibold">Precios</h3>
             </template>
-            <div class="overflow-hidden rounded-md border border-default">
-              <table class="min-w-full divide-y divide-default text-sm">
-                <thead class="bg-elevated/40">
-                  <tr>
-                    <th class="px-4 py-3 text-left font-medium">Lista de Precios</th>
-                    <th class="px-4 py-3 text-left font-medium">Precio de Venta (Con Impuestos Incluidos)</th>
-                    <th class="px-4 py-3 text-center font-medium">+</th>
-                    <th class="px-4 py-3 text-center font-medium">Márgen</th>
-                    <th class="px-4 py-3 text-center font-medium">Ganancia</th>
-                  </tr>
-                </thead>
-                <tbody class="divide-y divide-default">
-                  <tr v-for="price in pendingVariantDetailState.prices" :key="price.priceListId">
-                    <td class="px-4 py-3">{{ price.priceListName }}</td>
-                    <td class="px-4 py-3">
-                      <div class="relative max-w-[14rem]">
-                        <span class="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted"
-                          >$</span
-                        >
-                        <UInput
-                          :model-value="centsToDecimalInput(price.priceCents)"
-                          class="w-full"
-                          inputmode="decimal"
-                          placeholder="0.00"
-                          :ui="{ base: 'pl-7' }"
-                          @blur="(e: FocusEvent) => { price.priceCents = decimalInputToCents((e.target as HTMLInputElement).value) }"
-                        />
-                      </div>
-                    </td>
-                    <td class="px-4 py-3 text-center">
-                      <UButton
-                        type="button"
-                        icon="i-lucide-plus"
-                        color="neutral"
-                        variant="ghost"
-                        @click="openPendingVariantTierPricesModal(price.priceListId)"
-                      />
-                    </td>
-                    <td class="px-4 py-3 text-center">
-                      <span
-                        v-if="(pendingVariantDetailState.purchaseCost ? decimalInputToCents(pendingVariantDetailState.purchaseCost) : 0) > 0 && price.priceCents > 0"
-                        class="font-semibold"
-                        :class="price.priceCents >= (pendingVariantDetailState.purchaseCost ? decimalInputToCents(pendingVariantDetailState.purchaseCost) : 0) ? 'text-success' : 'text-error'"
-                      >
-                        {{ Math.round(((price.priceCents - (pendingVariantDetailState.purchaseCost ? decimalInputToCents(pendingVariantDetailState.purchaseCost) : 0)) / price.priceCents) * 100) }}%
-                      </span>
-                      <span v-else class="text-muted">--</span>
-                    </td>
-                    <td class="px-4 py-3 text-center">
-                      <span
-                        v-if="(pendingVariantDetailState.purchaseCost ? decimalInputToCents(pendingVariantDetailState.purchaseCost) : 0) > 0 && price.priceCents > 0"
-                        class="font-semibold"
-                        :class="price.priceCents >= (pendingVariantDetailState.purchaseCost ? decimalInputToCents(pendingVariantDetailState.purchaseCost) : 0) ? 'text-success' : 'text-error'"
-                      >
-                        $ {{ ((price.priceCents - (pendingVariantDetailState.purchaseCost ? decimalInputToCents(pendingVariantDetailState.purchaseCost) : 0)) / 100).toFixed(2) }}
-                      </span>
-                      <span v-else class="text-muted">--</span>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            <ProductPriceMarginTable
+              :rows="pendingVariantPriceRows"
+              :cost-cents="pendingVariantCostCents"
+              @update-price="updatePendingVariantDetailPrice"
+              @action="handlePendingVariantPriceAction"
+            />
           </UCard>
         </div>
       </template>
@@ -2993,7 +2719,7 @@ function handleEditLotPlaceholder() {
         <div class="space-y-4">
           <div class="flex flex-wrap items-center gap-2">
             <span class="font-medium">{{ pendingVariantDetailName }}</span>
-            <AppBadge tone="info">{{ pendingVariantTierPriceListName }}</AppBadge>
+            <span class="rounded-md bg-elevated px-2 py-0.5 text-xs font-medium">{{ pendingVariantTierPriceListName }}</span>
           </div>
 
           <div class="space-y-3">
@@ -3030,6 +2756,7 @@ function handleEditLotPlaceholder() {
                   icon="i-lucide-trash-2"
                   color="error"
                   variant="ghost"
+                  aria-label="Quitar este precio por cantidad"
                   @click="removePendingVariantTierRow(row.key)"
                 />
               </div>
@@ -3094,95 +2821,33 @@ function handleEditLotPlaceholder() {
       @confirm="handleConfirm"
     />
 
-    <UModal
+    <ProductQuickCreateModal
       v-model:open="isCategoryModalOpen"
+      v-model:name="categoryState.name"
       title="Nueva categoría"
-      :content="{ class: 'hf-theme hf-ui sm:max-w-lg' }"
-    >
-      <template #body>
-        <UForm
-          id="create-category-modal-form"
-          :schema="categorySchema"
-          :state="categoryState"
-          class="space-y-3"
-          @submit="handleCreateCategory"
-        >
-          <UFormField label="Nombre" name="name">
-            <UInput
-              v-model="categoryState.name"
-              placeholder="Nombre de la categoría"
-              :disabled="createCategoryMutation.isPending.value"
-            />
-          </UFormField>
+      label="Nombre"
+      placeholder="Nombre de la categoría"
+      form-id="create-category-modal-form"
+      :schema="categorySchema"
+      :error="categoryCreateError"
+      :pending="createCategoryMutation.isPending.value"
+      @submit="handleCreateCategory"
+      @cancel="closeCreateCategoryModal"
+    />
 
-          <p v-if="categoryCreateError" class="text-sm text-error">{{ categoryCreateError }}</p>
-        </UForm>
-      </template>
-
-      <template #footer>
-        <div class="flex w-full justify-end gap-3">
-          <UButton
-            type="button"
-            label="Cancelar"
-            color="neutral"
-            variant="outline"
-            :disabled="createCategoryMutation.isPending.value"
-            @click="closeCreateCategoryModal"
-          />
-          <UButton
-            label="Guardar"
-            type="submit"
-            form="create-category-modal-form"
-            color="primary"
-            class="hf-primary-control"
-            :loading="createCategoryMutation.isPending.value"
-          />
-        </div>
-      </template>
-    </UModal>
-
-    <UModal v-model:open="isBrandModalOpen" title="Nueva marca" :content="{ class: 'hf-theme hf-ui sm:max-w-lg' }">
-      <template #body>
-        <UForm
-          id="create-brand-modal-form"
-          :schema="brandSchema"
-          :state="brandState"
-          class="space-y-3"
-          @submit="handleCreateBrand"
-        >
-          <UFormField label="Nombre" name="name">
-            <UInput
-              v-model="brandState.name"
-              placeholder="Nombre de la marca"
-              :disabled="createBrandMutation.isPending.value"
-            />
-          </UFormField>
-
-          <p v-if="brandCreateError" class="text-sm text-error">{{ brandCreateError }}</p>
-        </UForm>
-      </template>
-
-      <template #footer>
-        <div class="flex w-full justify-end gap-3">
-          <UButton
-            type="button"
-            label="Cancelar"
-            color="neutral"
-            variant="outline"
-            :disabled="createBrandMutation.isPending.value"
-            @click="closeCreateBrandModal"
-          />
-          <UButton
-            label="Guardar"
-            type="submit"
-            form="create-brand-modal-form"
-            color="primary"
-            class="hf-primary-control"
-            :loading="createBrandMutation.isPending.value"
-          />
-        </div>
-      </template>
-    </UModal>
+    <ProductQuickCreateModal
+      v-model:open="isBrandModalOpen"
+      v-model:name="brandState.name"
+      title="Nueva marca"
+      label="Nombre"
+      placeholder="Nombre de la marca"
+      form-id="create-brand-modal-form"
+      :schema="brandSchema"
+      :error="brandCreateError"
+      :pending="createBrandMutation.isPending.value"
+      @submit="handleCreateBrand"
+      @cancel="closeCreateBrandModal"
+    />
 
     <UModal
       v-model:open="isLotModalOpen"
@@ -3346,55 +3011,6 @@ function handleEditLotPlaceholder() {
   gap: 24px;
   min-width: 0;
 }
-.product-summary {
-  position: sticky;
-  top: 24px;
-  min-width: 0;
-  overflow: hidden;
-  border: 1px solid var(--hf-border);
-  border-radius: var(--hf-radius-card);
-  background: var(--hf-surface);
-  overflow-wrap: anywhere;
-}
-.product-summary-identity { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 16px; align-items: center; padding: 24px 24px 20px; }
-.product-summary-image { display: grid; place-items: center; width: 72px; height: 88px; min-height: 0; overflow: hidden; border-radius: var(--hf-radius-control); background: var(--hf-surface-muted); }
-.product-summary-image img { display: block; width: 100%; height: 100%; min-height: 0; max-height: 88px; object-fit: contain; }
-.product-summary-image p { text-align: center; padding: 8px; }
-.product-summary-heading { min-width: 0; }
-.product-summary-eyebrow { margin-bottom: 8px; font-size: 0.75rem; color: var(--hf-muted); }
-.product-summary-heading h2 { color: var(--hf-heading); font-size: 0.9375rem; line-height: 1.4; }
-.product-summary-heading > div { gap: 4px 8px; font-size: 0.75rem; }
-.product-summary-body { padding: 0 24px 24px; }
-.product-summary-body h3 { color: var(--hf-heading); font-size: 0.875rem; }
-.product-summary-values {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 20px 12px;
-  padding: 20px 0;
-  border-top: 1px solid var(--hf-border);
-  border-bottom: 1px solid var(--hf-border);
-}
-.product-summary-values > div:first-child { grid-column: 1 / -1; }
-.product-summary-values > div:first-child dd { font-size: 2rem; line-height: 1.15; letter-spacing: -0.04em; color: var(--hf-heading); }
-.product-summary-values dt { color: var(--hf-muted); font-size: 0.8125rem; }
-.product-summary-values dd { margin-top: 4px; font-size: 1.125rem; font-weight: 600; }
-.product-readiness-progress {
-  width: 100%;
-  display: block;
-  height: 4px;
-  margin-top: 12px;
-  appearance: none;
-  border: 0;
-  border-radius: 4px;
-  overflow: hidden;
-  background: var(--hf-surface-muted);
-  color: var(--hf-active);
-}
-.product-readiness-progress::-webkit-progress-bar { background: var(--hf-surface-muted); }
-.product-readiness-progress::-webkit-progress-value { background: var(--hf-active); }
-.product-readiness-progress::-moz-progress-bar { background: var(--hf-active); }
-.product-summary-body > ul { font-size: 0.8125rem; }
-.product-summary-body > p:last-child { padding-top: 16px; border-top: 1px solid var(--hf-border); font-size: 0.75rem; line-height: 1.6; }
 #product-detail-form :deep([data-slot='root'].divide-y) {
   background: var(--hf-surface);
   border-radius: var(--hf-radius-card);
@@ -3410,11 +3026,7 @@ function handleEditLotPlaceholder() {
   outline: 2px solid var(--hf-focus);
   outline-offset: 2px;
 }
-#product-detail-form :deep(.overflow-hidden:has(> table)) { overflow-x: auto; }
 @media (max-width: 720px) {
   .product-workspace-grid { grid-template-columns: minmax(0, 1fr); }
-  .product-summary { position: static; }
-  .product-summary-identity { padding: 20px 20px 16px; }
-  .product-summary-body { padding: 0 20px 20px; }
 }
 </style>

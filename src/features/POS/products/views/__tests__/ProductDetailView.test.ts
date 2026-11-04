@@ -13,6 +13,7 @@ import { mountWithUApp } from '@/test/mountWithUApp'
 import ProductDetailView from '@/features/POS/products/views/ProductDetailView.vue'
 import VariantImagePickerModal from '@/features/POS/products/components/VariantImagePickerModal.vue'
 import ProductCatalogSettingsSection from '@/features/POS/products/components/ProductCatalogSettingsSection.vue'
+import ProductVariantsTable from '@/features/POS/products/components/ProductVariantsTable.vue'
 
 const routeState = vi.hoisted(() => ({ params: { id: 'test-product-id' } as Record<string, string> }))
 
@@ -178,6 +179,15 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
     productApiMocks.update.mockResolvedValue({ id: 'test-product-id' })
   })
 
+  // The ⋮ menu itself is covered with real components in ProductVariantsTable.spec.ts;
+  // here the view's wiring is what matters, so the table emits the chosen action.
+  async function chooseFirstVariantPhotos(wrapper: ReturnType<typeof mountWithUApp>) {
+    const table = wrapper.getComponent(ProductVariantsTable)
+    const firstRow = (table.props('rows') as { id: string }[])[0]!
+    table.vm.$emit('action', 'photos', firstRow.id)
+    await wrapper.vm.$nextTick()
+  }
+
   const getGlobalConfig = () => ({
     // Pre-existing mount-harness cast (legacy; typing global.plugins tuples is not worth the churn here).
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -237,9 +247,11 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
     const variantTable = wrapper.find('tbody')
     expect(variantTable.exists()).toBe(true)
 
-    // Check that there are image icon buttons for variants
-    const imageButtons = wrapper.findAll('[data-testid="variant-image-button"]')
-    expect(imageButtons.length).toBeGreaterThan(0)
+    // The variants table gets one row per variant, each with its ⋮ menu
+    const variantsTable = wrapper.findComponent(ProductVariantsTable)
+    expect(variantsTable.exists()).toBe(true)
+    expect(variantsTable.props('rows').length).toBeGreaterThan(0)
+    expect(variantsTable.props('pending')).toBe(false)
   })
 
   it('opens VariantImagePickerModal when image icon button is clicked', async () => {
@@ -255,12 +267,8 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
     // Initially, modal should be closed
     expect(wrapper.find('[data-testid="variant-image-modal"]').exists()).toBe(false)
 
-    // Click the first variant image button
-    const imageButton = wrapper.find('[data-testid="variant-image-button"]')
-    expect(imageButton.exists()).toBe(true)
-
-    await imageButton.trigger('click')
-    await wrapper.vm.$nextTick()
+    // Choose "Elegir fotos" in the first variant's ⋮ menu
+    await chooseFirstVariantPhotos(wrapper)
 
     // Modal should now be open
     expect(wrapper.find('[data-testid="variant-image-modal"]').exists()).toBe(true)
@@ -276,12 +284,8 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
     await wrapper.vm.$nextTick()
     await new Promise((resolve) => setTimeout(resolve, 100))
 
-    // Click to open modal
-    const imageButton = wrapper.find('[data-testid="variant-image-button"]')
-    expect(imageButton.exists()).toBe(true)
-
-    await imageButton.trigger('click')
-    await wrapper.vm.$nextTick()
+    // Open the modal from the first variant's ⋮ menu
+    await chooseFirstVariantPhotos(wrapper)
 
     // Find the modal component
     const modal = wrapper.findComponent(VariantImagePickerModal)
@@ -318,7 +322,7 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
     for (const text of ['Test Product', 'Producto', 'POS', 'Online', 'Precio de venta', 'Costo', 'Margen', 'Stock', '30', '$0.00', 'Datos operativos', '1/4']) {
       expect(summary.text()).toContain(text)
     }
-    expect(summary.text()).toContain('No indica elegibilidad editorial')
+    expect(summary.text()).not.toContain('No indica elegibilidad editorial')
     expect(summary.text()).not.toContain('Lista para publicar')
     expect(wrapper.find('.product-workspace-grid > aside').exists()).toBe(true)
   })
@@ -375,7 +379,7 @@ describe('ProductDetailView - Variant Image Modal Integration', () => {
       expect(identity.isVisible()).toBe(false)
       expect(presentations.isVisible()).toBe(true)
       // Existing variants, prices, inventory and image controls are not replaced.
-      expect(wrapper.findAll('[data-testid="variant-image-button"]')).toHaveLength(2)
+      expect(wrapper.getComponent(ProductVariantsTable).props('rows')).toHaveLength(2)
       await wrapper.get('[data-task="review"]').trigger('click')
       expect(presentations.isVisible()).toBe(false)
       expect(wrapper.get('[data-testid="editorial-unavailable"]').text()).toContain('No tienes permiso')
