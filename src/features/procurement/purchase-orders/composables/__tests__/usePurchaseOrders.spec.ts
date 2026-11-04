@@ -60,6 +60,20 @@ describe('purchase order scoped reads', () => {
     list.search.value = '   '; await flushPromises()
     expect(vi.mocked(purchaseOrdersApi.list).mock.lastCall?.[0]).toMatchObject({ search: undefined, cursor: undefined })
   })
+  it('sends the single status filter, defaults to every order and resets the cursor when it changes', async () => {
+    const { list } = setup(); await flushPromises()
+    expect(list.status.value).toBeUndefined()
+    expect(vi.mocked(purchaseOrdersApi.list).mock.lastCall?.[0]).not.toHaveProperty('status', 'DRAFT')
+    list.next(); await flushPromises()
+    expect(list.hasPrevious.value).toBe(true)
+    list.status.value = 'CONFIRMED'
+    expect(list.items.value).toEqual([])
+    await flushPromises()
+    expect(list.hasPrevious.value).toBe(false)
+    expect(purchaseOrdersApi.list).toHaveBeenLastCalledWith({ supplierId: undefined, search: undefined, status: 'CONFIRMED', cursor: undefined, limit: 25 }, expect.any(AbortSignal))
+    list.status.value = undefined; await flushPromises()
+    expect(vi.mocked(purchaseOrdersApi.list).mock.lastCall?.[0].status).toBeUndefined()
+  })
   it.each([{ ready: false }, { canRead: false }, { userId: '' }, { tenantId: '' }])('does not dispatch without complete access: %j', async patch => {
     const { list, detail } = setup(patch)
     await list.refresh(); await detail.refresh(); await flushPromises()

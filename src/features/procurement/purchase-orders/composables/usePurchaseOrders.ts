@@ -1,7 +1,7 @@
 import { computed, shallowRef, toValue, watch, type MaybeRefOrGetter } from 'vue'
 import { useQuery } from '@tanstack/vue-query'
 import { purchaseOrdersApi } from '../api/purchase-orders.api'
-import type { PurchaseOrderListInput } from '../interfaces/purchase-order.types'
+import type { PurchaseOrderListInput, PurchaseOrderStatus } from '../interfaces/purchase-order.types'
 
 export interface PurchaseOrderReadContext {
   userId: string
@@ -26,13 +26,14 @@ export function usePurchaseOrders(context: MaybeRefOrGetter<PurchaseOrderReadCon
   const { accessGeneration, enabled } = useReadAccess(context)
   const search = shallowRef('')
   const supplierId = shallowRef<string | undefined>(undefined)
+  const status = shallowRef<PurchaseOrderStatus | undefined>(undefined)
   const cursor = shallowRef<string | undefined>(undefined)
   const previous = shallowRef<Array<string | undefined>>([])
   watch(() => {
     const scope = toValue(context)
-    return [scope.userId, scope.tenantId, scope.ready, scope.canRead, supplierId.value, search.value]
+    return [scope.userId, scope.tenantId, scope.ready, scope.canRead, supplierId.value, status.value, search.value]
   }, () => { cursor.value = undefined; previous.value = [] }, { flush: 'sync' })
-  const input = computed<PurchaseOrderListInput>(() => ({ supplierId: supplierId.value, search: search.value.trim() || undefined, cursor: cursor.value, limit: 25 }))
+  const input = computed<PurchaseOrderListInput>(() => ({ supplierId: supplierId.value, search: search.value.trim() || undefined, status: status.value, cursor: cursor.value, limit: 25 }))
   const queryKey = computed(() => ['procurement-purchase-orders', toValue(context).userId, toValue(context).tenantId, accessGeneration.value, input.value])
   const query = useQuery({
     queryKey,
@@ -63,7 +64,7 @@ export function usePurchaseOrders(context: MaybeRefOrGetter<PurchaseOrderReadCon
     if (!enabled.value) return
     return query.refetch()
   }
-  return { search, supplierId, items, hasNext, hasPrevious, next, back, refresh,
+  return { search, supplierId, status, items, hasNext, hasPrevious, next, back, refresh,
     isLoading: query.isLoading, isFetching: query.isFetching,
     error: computed(() => enabled.value ? query.error.value : null) }
 }
