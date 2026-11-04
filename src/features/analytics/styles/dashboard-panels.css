@@ -109,7 +109,10 @@
   .dashboard-visual .dashboard-operations:last-child:nth-child(3) { grid-column: 1 / -1; }
 }
 @media (max-width: 700px) {
-  .dashboard-visual .dashboard-panel-grid { grid-template-columns: minmax(0, 1fr); }
+  /* The counted tiers out-rank a bare class, so they are repeated here. */
+  .dashboard-visual .dashboard-panel-grid,
+  .dashboard-visual .dashboard-panel-grid[data-panel-count='2'],
+  .dashboard-visual .dashboard-panel-grid[data-panel-count='3'] { grid-template-columns: minmax(0, 1fr); }
   .dashboard-visual .dashboard-operations { min-height: 0; }
   .dashboard-visual .dashboard-operations:last-child:nth-child(3) { grid-column: auto; }
   .dashboard-visual .dashboard-stale-alert,

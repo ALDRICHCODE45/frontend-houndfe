@@ -64,7 +64,7 @@ const ERROR_MESSAGES: Record<number, string> = {
   400: 'El servidor rechazó el rango de fechas. Ajusta el periodo e inténtalo de nuevo.',
   403: 'No tienes permiso para consultar el resumen de ventas de esta sucursal.',
 }
-const ERROR_FALLBACK_MESSAGE = 'No pudimos cargar el resumen de ventas. Reintenta en unos segundos.'
+const ERROR_FALLBACK_MESSAGE = 'No pudimos cargar el resumen de ventas'
 
 /** Initial window: the committed current-month preset, resolved once per mount. */
 const initialRange = getMexicoCityRangePreset('thisMonth')
@@ -149,6 +149,20 @@ const metricsSummary = computed(() =>
  * (`actionLoading`); the skeleton is only for the first load.
  */
 const showSummarySkeleton = computed(() => summaryState.isInitialLoading.value)
+
+/**
+ * A summary that failed with nothing to show is the ONE page-level error: the
+ * trend and the operational panels are not rendered at all, so a total outage
+ * never paints five red boxes. Once a summary has loaded, each module keeps its
+ * own compact inline error.
+ */
+const showSummaryPageError = computed(
+  () =>
+    summaryState.isError.value &&
+    !summaryState.summary.value &&
+    !summaryState.isInitialLoading.value &&
+    !hasLocalRangeError.value,
+)
 
 /** HTTP status is the ONLY error signal consumed for presentation copy. */
 function httpStatus(error: unknown): number | undefined {
@@ -370,7 +384,7 @@ function onPendingRefundsRetry() {
           fetched, so labels must describe the data, not the request.
         -->
         <BranchSalesTrendChart
-          v-if="hasTrendQuery"
+          v-if="hasTrendQuery && !showSummaryPageError"
           :points="timeseriesState.points.value"
           :from="timeseriesBoundFrom"
           :to="timeseriesBoundTo"
@@ -390,7 +404,7 @@ function onPendingRefundsRetry() {
           viewports and collapse to one column below `lg`.
         -->
         <div
-          v-if="canReadSales || canReadRefunds"
+          v-if="(canReadSales || canReadRefunds) && !showSummaryPageError"
           data-testid="branch-summary-operational-grid"
           class="dashboard-panel-grid"
           :data-panel-count="operationalPanelCount"

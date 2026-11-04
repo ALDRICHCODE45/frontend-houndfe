@@ -96,6 +96,13 @@ const isFlatSeries = computed(
     props.points.every((point) => readBranchSalesTimeseriesValue(point, selectedKey.value) === 0),
 )
 
+/** With no movement in ANY metric there is nothing to switch between: no tab strip. */
+const hasAnyMovement = computed(() =>
+  props.points.some((point) =>
+    BRANCH_SALES_TIMESERIES_METRICS.some((metric) => readBranchSalesTimeseriesValue(point, metric.key) !== 0),
+  ),
+)
+
 /** Skeleton shape: the six metric tabs, the grid and a rising run of bars. */
 const SKELETON_BARS = [18, 26, 22, 34, 30, 44, 38, 52, 48, 64, 58, 76] as const
 const SKELETON_TABS = 6
@@ -325,7 +332,7 @@ const areaFill = `url(#${gradientId})`
 
     <template v-else-if="hasPoints">
       <!-- One metric at a time: a semantic group of native pressed-state buttons. -->
-      <div class="dashboard-trend-tabs-scroll">
+      <div v-if="hasAnyMovement" class="dashboard-trend-tabs-scroll">
       <div
         data-testid="branch-sales-trend-metrics"
         role="group"

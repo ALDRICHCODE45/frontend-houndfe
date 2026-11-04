@@ -448,8 +448,25 @@ describe('BranchSalesTrendChart — chart region and Unovis wiring', () => {
 
     expect(w.find('[data-testid="branch-sales-trend-flat"]').exists()).toBe(true)
     expect(w.find('[data-testid="branch-sales-trend-chart"]').exists()).toBe(false)
-    expect(metricButtons(w)).toHaveLength(6)
+    // No metric has movement, so the strip has nothing to switch between.
+    expect(metricButtons(w)).toHaveLength(0)
     expect(tableRows(w)).toHaveLength(flat.length)
+  })
+
+  it('keeps the metric tabs when only the selected metric is flat', () => {
+    const onlyCounts = POINTS.map((point) => ({
+      ...point,
+      grossSalesCents: 0,
+      netSalesCents: 0,
+      collectedCents: 0,
+      outstandingDebtCents: 0,
+      averageTicketCents: 0,
+      saleCount: 2,
+    }))
+    const w = mountChart({ points: onlyCounts })
+
+    expect(w.find('[data-testid="branch-sales-trend-flat"]').exists()).toBe(true)
+    expect(metricButtons(w)).toHaveLength(6)
   })
 
   it('draws the chart as soon as the selected metric has one non-zero bucket', () => {

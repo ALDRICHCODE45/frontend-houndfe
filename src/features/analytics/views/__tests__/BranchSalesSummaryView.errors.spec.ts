@@ -385,7 +385,7 @@ describe('BranchSalesSummaryView — T4 state presentation', () => {
     expect(retry.find('.animate-spin').exists()).toBe(true)
   })
 
-  it('shows one page-level error and compact inline errors when everything fails', () => {
+  it('shows ONE page-level error and renders no trend or panels when the summary fails', () => {
     grantPermissions('read:Sale', 'read:SaleRefund')
     state.isError.value = true
     timeseriesState.isError.value = true
@@ -396,10 +396,30 @@ describe('BranchSalesSummaryView — T4 state presentation', () => {
 
     const page = view.find('[data-testid="branch-summary-error"]')
     expect(page.classes()).not.toContain('dashboard-compact-error')
-    const compact = view.findAll('.dashboard-compact-error')
-    // trend + 3 operational panels, all compact; only the summary is page-level.
-    expect(compact).toHaveLength(4)
-    expect(view.findAll('[data-kind="error"]')).toHaveLength(5)
+    expect(view.findAll('[data-kind="error"]')).toHaveLength(1)
+    expect(view.find('[data-testid="branch-sales-trend"]').exists()).toBe(false)
+    expect(view.find('[data-testid="branch-summary-operational-grid"]').exists()).toBe(false)
+    expect(view.findAll('[data-testid="dashboard-operational-panel"]')).toHaveLength(0)
+  })
+
+  it('shows a compact inline error per failed panel once the summary has loaded', () => {
+    grantPermissions('read:Sale', 'read:SaleRefund')
+    summaryRef.value = NON_EMPTY_PAYLOAD
+    timeseriesState.isError.value = true
+    recentSalesState.isError.value = true
+    debtSalesState.isError.value = true
+    pendingRefundsState.isError.value = true
+    const view = mountView()
+
+    expect(view.find('[data-testid="branch-summary-error"]').exists()).toBe(false)
+    expect(view.findAll('.dashboard-compact-error')).toHaveLength(4)
+  })
+
+  it('never tells the reader to wait or retry inside the error text', () => {
+    state.isError.value = true
+    const title = mountView().find('[data-testid="branch-summary-error"] .hf-empty-state__title').text()
+    expect(title).not.toMatch(/reintent/i)
+    expect(title).not.toMatch(/segundos/i)
   })
 
   it('dims the summary without dimming its independent operational siblings', () => {

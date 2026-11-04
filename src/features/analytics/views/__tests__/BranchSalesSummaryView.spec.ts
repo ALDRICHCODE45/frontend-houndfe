@@ -841,17 +841,14 @@ describe('BranchSalesSummaryView — daily trend composition', () => {
     expect(view.find('[data-testid="branch-sales-trend-chart"]').exists()).toBe(true)
   })
 
-  it('keeps the trend and its own state when the summary fails', () => {
+  it('shows only the page error, not the trend, when the summary fails with no data', () => {
     state.isError.value = true
     state.error.value = { response: { status: 403 } }
     timeseriesPointsRef.value = TIMESERIES_POINTS
     const view = mountView()
 
     expect(view.find('[data-testid="branch-summary-error"]').exists()).toBe(true)
-    expect(view.find('[data-testid="branch-sales-trend"]').exists()).toBe(true)
-    expect(view.find('[data-testid="branch-sales-trend-chart"]').exists()).toBe(true)
-    expect(view.find('[data-testid="branch-sales-trend-error"]').exists()).toBe(false)
-    expect(view.find('[data-testid="branch-sales-trend-table"]').text()).toContain('2025-03-01')
+    expect(view.find('[data-testid="branch-sales-trend"]').exists()).toBe(false)
   })
 
   it('keeps the loaded summary KPIs when the trend itself fails', () => {

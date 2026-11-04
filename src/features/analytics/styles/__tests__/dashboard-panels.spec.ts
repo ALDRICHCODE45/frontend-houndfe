@@ -32,6 +32,14 @@ describe('Dashboard operational and summary state presentation', () => {
     expect(css).toContain('.dashboard-operations:has(.dashboard-compact-error) { min-height: 0; }')
   })
 
+  it('stacks the panels in one column on mobile even for the counted two and three panel tiers', () => {
+    const mobile = css.slice(css.indexOf('@media (max-width: 700px)'), css.indexOf('@media (prefers-reduced-motion'))
+    // The count selectors above out-rank a bare class, so mobile repeats them.
+    expect(mobile).toContain("[data-panel-count='2']")
+    expect(mobile).toContain("[data-panel-count='3']")
+    expect(mobile).toMatch(/grid-template-columns: minmax\(0, 1fr\)/)
+  })
+
   it('animates entry, ordered rows, skeletons and refresh with a reduced-motion escape', () => {
     expect(css).toContain('350ms ease-out 150ms both')
     expect(css).toContain('45ms')
