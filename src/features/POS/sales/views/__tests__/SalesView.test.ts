@@ -67,6 +67,8 @@ const removeManualPromotionMock = vi.fn()
 const setPriceListMock = vi.fn()
 const activeTabId = ref<string | null>('sale-1')
 const isMutating = ref(false)
+const isLoadingList = ref(false)
+const isListError = ref(false)
 const drafts = ref<Sale[]>([
   {
     id: 'sale-1',
@@ -94,7 +96,8 @@ vi.mock('../../composables/useSalesDrafts', () => ({
     drafts: computed(() => drafts.value),
     activeDraft: computed(() => drafts.value.find((d) => d.id === activeTabId.value) ?? null),
     activeTabId,
-    isLoadingList: ref(false),
+    isLoadingList,
+    isListError,
     isMutating,
     openNewTab: openNewTabMock,
     closeTab: vi.fn(),
@@ -325,6 +328,8 @@ describe('SalesView charge orchestration', () => {
     drafts.value = [{ ...drafts.value[0]!, items: [...drafts.value[0]!.items] }]
     activeTabId.value = 'sale-1'
     isMutating.value = false
+    isLoadingList.value = false
+    isListError.value = false
     unassignCustomerMock.mockReset()
     clearShippingAddressMock.mockReset()
     vetoAutoPromotionMock.mockReset()
@@ -1571,10 +1576,10 @@ describe('SalesView work units B+C — mobile cart CTA, payment sequencing, shee
 
     const fab = wrapper.get('[data-testid="mobile-cart-fab"]')
     const classes = fab.classes()
-    // Touch target + explicit white-on-primary + near-full-width + safe area.
+    // Touch target + action-foreground-on-primary + near-full-width + safe area.
     expect(classes).toContain('min-h-[48px]')
     expect(classes).toContain('bg-primary')
-    expect(classes).toContain('text-white')
+    expect(classes).toContain('text-(--hf-on-action)')
     expect(classes).not.toContain('text-primary-contrast')
     expect(classes).toContain('left-3')
     expect(classes).toContain('right-3')
@@ -1909,5 +1914,50 @@ describe('SalesView T6 — explicit Caja session binding pass-through', () => {
 
     expect(chargeDraft).toHaveBeenCalledTimes(1)
     expect(chargeDraft.mock.calls[0]?.[1]).toMatchObject({ cashSessionId: BOUND_UUID })
+  })
+})
+
+describe('SalesView four states (S10)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    isLoadingList.value = false
+    isListError.value = false
+    activeTabId.value = 'sale-1'
+  })
+
+  it('loading: shows the page skeleton and neither the workspace nor a state message', () => {
+    isLoadingList.value = true
+    const wrapper = mountView()
+
+    const skeleton = wrapper.get('[data-testid="sales-loading-skeleton"]')
+    expect(skeleton.attributes('aria-busy')).toBe('true')
+    expect(wrapper.find('.sales-entry-page').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="sales-error-state"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
+
+  it('error: shows the error state with Reintentar that rereads the drafts', async () => {
+    isListError.value = true
+    const saved = drafts.value
+    drafts.value = []
+    const wrapper = mountView()
+
+    const state = wrapper.get('[data-testid="sales-error-state"]')
+    expect(state.attributes('role')).toBe('alert')
+    expect(state.text()).toContain('No se pudo cargar la venta')
+    expect(wrapper.find('.sales-entry-page').exists()).toBe(false)
+    await wrapper.get('[data-testid="sales-error-retry"]').trigger('click')
+    expect(refetchDraftsMock).toHaveBeenCalledTimes(1)
+    drafts.value = saved
+    wrapper.unmount()
+  })
+
+  it('data: shows the workspace with no state chrome', () => {
+    const wrapper = mountView()
+
+    expect(wrapper.find('.sales-entry-page').exists()).toBe(true)
+    expect(wrapper.find('[data-testid="sales-loading-skeleton"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="sales-error-state"]').exists()).toBe(false)
+    wrapper.unmount()
   })
 })

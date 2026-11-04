@@ -13,6 +13,7 @@ import PaymentModal from '../components/PaymentModal.vue'
 import PromotionCapacityRequoteModal from '../components/PromotionCapacityRequoteModal.vue'
 import PaymentSuccessModal from '../components/PaymentSuccessModal.vue'
 import AssignCustomerSlideover from '../components/AssignCustomerSlideover.vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import ConfirmModal from '@/core/shared/components/ConfirmModal.vue'
 import AppResponsiveDrawer from '@/core/shared/components/AppResponsiveDrawer.vue'
 import '../styles/sales-entry-visual.css' // T3: feature-owned Sales-entry presentation boundary.
@@ -76,6 +77,7 @@ const {
   activeDraft,
   activeTabId,
   isLoadingList,
+  isListError,
   isMutating,
   openNewTab,
   closeTab,
@@ -855,6 +857,8 @@ async function handleChangePriceList(globalPriceListId: string | null) {
     <div
       v-if="isLoadingList"
       class="h-full w-full flex flex-col lg:flex-row min-h-0 sales-pos-split"
+      data-testid="sales-loading-skeleton"
+      aria-busy="true"
     >
       <!-- Left skeleton panel: full-width on mobile, 60% lg / 75% xl. -->
       <div
@@ -920,6 +924,22 @@ async function handleChangePriceList(globalPriceListId: string | null) {
       </div>
     </div>
 
+    <!-- Error: the drafts list did not load and there is nothing to show. -->
+    <div
+      v-else-if="isListError && drafts.length === 0"
+      class="h-full w-full flex items-center justify-center px-4 bg-(--hf-page)"
+    >
+      <EmptyState
+        kind="error"
+        title="No se pudo cargar la venta"
+        action-label="Reintentar"
+        action-test-id="sales-error-retry"
+        data-testid="sales-error-state"
+        class="max-w-sm"
+        @action="void refetchDrafts()"
+      />
+    </div>
+
     <!-- Main split view.
          Two-phase responsive split so the cart is usable on medium screens
          (tablets / laptops) without being cramped:
@@ -934,7 +954,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
          active tab — single source of truth, no desync risk. -->
     <div
       v-else
-      class="h-full w-full flex flex-col bg-(--light-surface-page) dark:bg-coco-neutral-950 sales-entry-page"
+      class="h-full w-full flex flex-col bg-(--hf-page) sales-entry-page"
     >
       <!-- S8 (fidelity): the accepted v0 workspace heading sits on the page
            canvas BEFORE the draft strip. Static sale-page copy from the
@@ -1021,7 +1041,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
         <button
           v-if="isMobileViewport"
           type="button"
-          class="sales-pos-cart-fab fixed z-30 left-3 right-3 bottom-0 flex items-center justify-between gap-3 bg-primary text-white shadow-lg shadow-primary/30 rounded-t-2xl px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] min-h-[48px] font-semibold text-sm active:scale-[0.99] transition-transform"
+          class="sales-pos-cart-fab fixed z-30 left-3 right-3 bottom-0 flex items-center justify-between gap-3 bg-primary text-(--hf-on-action) shadow-lg rounded-t-2xl px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] min-h-[48px] font-semibold text-sm active:scale-[0.99] transition-transform"
           data-testid="mobile-cart-fab"
           aria-label="Abrir carrito de venta"
           @click="openCartDrawer"
@@ -1031,7 +1051,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
             <span class="tabular-nums">{{ formatCents(activeDraftTotalCents) }}</span>
             <span
               v-if="activeDraftItemsCount > 0"
-              class="sales-pos-cart-fab-count inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-white/20 text-white text-xs font-bold tabular-nums"
+              class="sales-pos-cart-fab-count inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-(--hf-on-action)/20 text-(--hf-on-action) text-xs font-semibold tabular-nums"
               data-testid="mobile-cart-fab-count"
             >
               {{ activeDraftItemsCount }}
@@ -1061,7 +1081,7 @@ async function handleChangePriceList(globalPriceListId: string | null) {
         >
           <template #title>
             <div class="flex min-w-0 flex-col">
-              <span class="text-base font-bold leading-tight text-highlighted">Carrito</span>
+              <span class="text-base font-semibold leading-tight text-highlighted">Carrito</span>
               <span class="text-xs tabular-nums text-muted">
                 {{ activeDraftItemsCount }}
                 {{ activeDraftItemsCount === 1 ? 'artículo' : 'artículos' }} ·

@@ -126,6 +126,7 @@ export function useSalesDrafts() {
   const {
     data: drafts,
     isLoading: isLoadingList,
+    isError: isListError,
     refetch: refetchDraftsQuery,
   } = useQuery({
     queryKey: draftsKey,
@@ -560,6 +561,7 @@ export function useSalesDrafts() {
     activeDraft,
     activeTabId,
     isLoadingList,
+    isListError,
     isMutating,
 
     openNewTab,
