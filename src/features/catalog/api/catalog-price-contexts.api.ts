@@ -2,7 +2,7 @@ import type { PublicCatalogPriceContextDto } from '../interfaces/public-catalog-
 
 export type CatalogPriceContextsErrorKind = 'unavailable' | 'rate-limit' | 'server' | 'network'
 
-export class CatalogPriceContextsError extends Error {
+class CatalogPriceContextsError extends Error {
   readonly kind: CatalogPriceContextsErrorKind
   readonly status?: number
 

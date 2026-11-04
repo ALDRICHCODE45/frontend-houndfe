@@ -4,7 +4,7 @@
 // Extracted from MasterToggle.vue so the badge label + tone are tested in
 // isolation. The SFC only reads this and forwards the props to UBadge.
 
-export type BadgeColor = 'success' | 'neutral'
+type BadgeColor = 'success' | 'neutral'
 
 export interface MasterBadgeState {
   label: string

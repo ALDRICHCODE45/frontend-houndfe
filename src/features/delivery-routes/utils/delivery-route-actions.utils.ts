@@ -34,7 +34,7 @@ import type { DeliveryRouteResponseDto, DeliveryRouteStop } from '../interfaces/
  * Exported for direct unit-test access and for callers that want to surface the
  * exact same text in a non-panel surface (e.g. an inline summary above the panel).
  */
-export const REORDER_GUARD_MESSAGE =
+const REORDER_GUARD_MESSAGE =
   'El orden debe incluir todas las paradas una sola vez.'
 
 /**

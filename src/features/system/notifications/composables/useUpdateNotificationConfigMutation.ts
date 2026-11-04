@@ -28,7 +28,6 @@ import type {
   NotificationConfigPutBody,
   NotificationConfigResponse,
 } from '../interfaces/notification-config.types'
-import { NOTIFICATION_CONFIG_COPY } from '../copy'
 
 // useToast is auto-imported by @nuxt/ui/vite plugin (unplugin-auto-import).
 // In tests, stub via vi.stubGlobal('useToast', () => ({ add: mockFn })).
@@ -198,6 +197,3 @@ export function extractErrorPayload(error: AxiosError): NotificationConfigErrorI
     ...(message !== undefined ? { message } : {}),
   }
 }
-
-// Re-export the success copy so WU-8 and the view can import the same string.
-export { NOTIFICATION_CONFIG_COPY }

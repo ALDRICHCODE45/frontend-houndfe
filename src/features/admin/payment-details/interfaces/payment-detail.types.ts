@@ -109,8 +109,6 @@ export const PAYMENT_DETAIL_STATUS_LABELS = {
   inactive: 'Inactiva',
 } as const
 
-export type PaymentDetailStatusLabelKey = keyof typeof PAYMENT_DETAIL_STATUS_LABELS
-
 /**
  * Resolve the i18n label for a payment-detail active flag.
  * Pure; called from table cells, card rows, and the "no active account" banner.

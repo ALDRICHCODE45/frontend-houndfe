@@ -43,11 +43,6 @@ export const satKeyQueryKeys = {
   detail: (key: string) => ['sat-keys', 'detail', key] as const,
 }
 
-export const orderQueryKeys = {
-  paginated: (tenantId: string) => ['orders', tenantId, 'paginated'] as const,
-  detail: (tenantId: string, orderId: string) => ['orders', tenantId, 'detail', orderId] as const,
-}
-
 export const adminUserQueryKeys = {
   paginated: (tenantId: string) => ['admin', 'users', tenantId, 'paginated'] as const,
   detail: (tenantId: string, userId: string) =>

@@ -6,7 +6,7 @@ import type { PublicBranchDto } from '../interfaces/catalog.types'
 export type CatalogBranchesState = 'loading' | 'retry-pending' | 'populated' | 'empty' | 'rate-limit' | 'server' | 'network'
 
 const apiBase = (import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3000').replace(/\/$/, '')
-export const catalogBranchesQueryKey = ['public-catalog', 'branches', apiBase] as const
+const catalogBranchesQueryKey = ['public-catalog', 'branches', apiBase] as const
 
 export function useCatalogBranches() {
   const retryRequested = ref(false)

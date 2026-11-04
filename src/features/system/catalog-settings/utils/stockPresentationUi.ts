@@ -25,7 +25,7 @@ export interface StockPresentationUiCopy {
 }
 
 /** Closed four-mode set, in the order the select renders it. */
-export const STOCK_PRESENTATION_MODE_ORDER: readonly OnlineStockPresentationMode[] = [
+const STOCK_PRESENTATION_MODE_ORDER: readonly OnlineStockPresentationMode[] = [
   'SYSTEM_STATUS',
   'ABSTRACT_STATUS',
   'CUSTOM_QUANTITY',
@@ -38,7 +38,7 @@ export const STOCK_PRESENTATION_MODE_ORDER: readonly OnlineStockPresentationMode
  * suppresses low-stock disclosure; `CUSTOM_QUANTITY` is display data only;
  * `HIDDEN` suppresses public stock text while operational validation remains.
  */
-export const STOCK_PRESENTATION_COPY: Record<OnlineStockPresentationMode, StockPresentationUiCopy> =
+const STOCK_PRESENTATION_COPY: Record<OnlineStockPresentationMode, StockPresentationUiCopy> =
   {
     SYSTEM_STATUS: {
       label: 'Estado detallado',
@@ -69,7 +69,7 @@ export const STOCK_PRESENTATION_COPY: Record<OnlineStockPresentationMode, StockP
  * Null-override inheritance copy. The product scope inherits from the tenant
  * global configuration; the variant scope inherits from its product.
  */
-export const STOCK_OVERRIDE_INHERITANCE_COPY: Record<StockOverrideScope, StockPresentationUiCopy> =
+const STOCK_OVERRIDE_INHERITANCE_COPY: Record<StockOverrideScope, StockPresentationUiCopy> =
   {
     product: {
       label: 'Usar configuración global',

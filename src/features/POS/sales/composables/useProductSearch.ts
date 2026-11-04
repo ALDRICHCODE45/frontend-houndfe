@@ -1,4 +1,4 @@
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { refDebounced } from '@vueuse/core'
 import { useQuery, keepPreviousData } from '@tanstack/vue-query'
 import { saleApi } from '../api/sale.api'

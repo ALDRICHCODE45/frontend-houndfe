@@ -127,7 +127,7 @@ export type AppSubject =
   | 'CashHandover'
   | 'all'
 
-export interface EffectivePermission {
+interface EffectivePermission {
   subject: AppSubject
   action: AppAction
 }
@@ -159,13 +159,13 @@ export interface VerifyLoginOtpRequest {
   code: string
 }
 
-export interface LoginSuccessResponse extends AuthTokens {
+interface LoginSuccessResponse extends AuthTokens {
   requiresTenantSelection: false
   user: AuthUser
   tenants: TenantSummary[]
 }
 
-export interface LoginTenantSelectionResponse {
+interface LoginTenantSelectionResponse {
   requiresTenantSelection: true
   user: AuthUser
   tenants: TenantSummary[]

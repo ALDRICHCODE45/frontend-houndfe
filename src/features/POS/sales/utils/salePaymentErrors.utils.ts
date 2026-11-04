@@ -1,6 +1,6 @@
 import type { ChargeDomainErrorCode } from '../interfaces/sale.types'
 
-export type SalePaymentUxActionType = 'inline' | 'retry' | 'refetch' | 'new-key'
+type SalePaymentUxActionType = 'inline' | 'retry' | 'refetch' | 'new-key'
 
 export interface SalePaymentUxAction {
   type: SalePaymentUxActionType

@@ -18,7 +18,7 @@ import {
   type DeliveryRouteProgress,
 } from './delivery-route-list.utils'
 
-export interface DriverRouteMissionTarget {
+interface DriverRouteMissionTarget {
   heading: 'Parada en curso' | 'Siguiente parada'
   /** 1-based position of the stop in the route. */
   position: number

@@ -32,7 +32,6 @@
 import { computed, reactive, ref } from 'vue'
 import DateFieldPopover from '@/features/POS/sales/components/DateFieldPopover.vue'
 import { EMPLOYEE_DOCUMENT_CATEGORY } from '../constants/employee.constants'
-import { UploadDocumentDtoSchema } from '../interfaces/employee.types'
 import type { Employee, EmployeeDocumentCategory } from '../interfaces/employee.types'
 import { downloadFile } from '@/core/shared/api/multipart'
 import {
@@ -143,7 +142,6 @@ async function onConfirmDelete(): Promise<void> {
 // ─── Upload modal ─────────────────────────────────────────────────────────────
 
 const isUploadOpen = ref(false)
-const uploadFormId = 'upload-document-form'
 
 const CATEGORY_OPTIONS: { label: string; value: EmployeeDocumentCategory }[] = [
   { label: 'Contrato', value: EMPLOYEE_DOCUMENT_CATEGORY.CONTRACT },

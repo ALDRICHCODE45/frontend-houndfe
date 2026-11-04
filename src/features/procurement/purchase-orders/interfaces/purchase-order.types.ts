@@ -2,7 +2,7 @@
 // amounts are canonical decimal strings owned by the server; never reformat.
 export type TaxBasis = 'INCLUDES_TAX' | 'EXCLUDES_TAX'
 export type PurchaseOrderStatus = 'DRAFT' | 'CONFIRMED' | 'CANCELLED'
-export interface InformedUnitCost {
+interface InformedUnitCost {
   amount: string | null
   currency: string | null
   unit: string | null

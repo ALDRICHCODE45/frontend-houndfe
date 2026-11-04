@@ -277,5 +277,3 @@ export const DELIVERY_ROUTE_COPY = {
     },
   },
 } as const
-
-export type DeliveryRouteCopy = typeof DELIVERY_ROUTE_COPY

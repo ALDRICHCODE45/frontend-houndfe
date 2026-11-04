@@ -120,12 +120,6 @@ const validityLabel = computed<string | null>(() => {
 
 const hasValidityNotice = computed<boolean>(() => validityLabel.value !== null)
 
-const contextLine = computed<string>(() => {
-  const parts: string[] = [`${itemCount.value} productos`, `${totalUnits.value} unidades`]
-  if (props.priceListName) parts.push(`lista ${props.priceListName}`)
-  return parts.join(' · ')
-})
-
 /** The legacy `items-count` row used the same plural-only wording so
  *  the original tests continue to anchor on "1 productos" / "1 unidades". */
 const legacyItemsCount = computed<string>(

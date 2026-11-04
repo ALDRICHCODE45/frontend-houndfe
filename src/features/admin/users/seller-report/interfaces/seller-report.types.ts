@@ -40,7 +40,7 @@ import {
  */
 
 /** The only calendar zone this endpoint accepts or emits. */
-export const SELLER_REPORT_TIME_ZONE = 'America/Mexico_City' as const
+const SELLER_REPORT_TIME_ZONE = 'America/Mexico_City' as const
 
 /** The authoritative maximum number of rows a single report may contain. */
 export const SELLER_REPORT_ROW_LIMIT = 1000
@@ -49,7 +49,7 @@ export const SELLER_REPORT_ROW_LIMIT = 1000
 export type SellerReportPaymentStatus = 'PAID' | 'PARTIAL' | 'CREDIT'
 
 /** One confirmed sale row. Every field is authoritative and rendered as returned. */
-export interface SellerReportConfirmedRow {
+interface SellerReportConfirmedRow {
   /** Sale identifier (used only for ordering stability and row keys). */
   id: string
   /** Human folio, or `null` when the sale has no folio assigned yet. */
@@ -67,7 +67,7 @@ export interface SellerReportConfirmedRow {
 }
 
 /** One canceled sale row. The amount is informational only. */
-export interface SellerReportCanceledRow {
+interface SellerReportCanceledRow {
   /** Sale identifier. */
   id: string
   /** Human folio, or `null` when the sale never had one. */
@@ -81,7 +81,7 @@ export interface SellerReportCanceledRow {
 }
 
 /** Backend-computed confirmed metrics. Never re-derived in the browser. */
-export interface SellerReportConfirmedSummary {
+interface SellerReportConfirmedSummary {
   /** Number of confirmed sales in the window (equals `rows.length`). */
   saleCount: number
   /** Net sales value in integer cents. */
@@ -95,14 +95,14 @@ export interface SellerReportConfirmedSummary {
 }
 
 /** Confirmed section: metrics plus every row in the window. */
-export interface SellerReportConfirmedSection {
+interface SellerReportConfirmedSection {
   dateBasis: 'confirmedAt'
   summary: SellerReportConfirmedSummary
   rows: SellerReportConfirmedRow[]
 }
 
 /** Canceled section: rows only — no metric may mix them with confirmed sales. */
-export interface SellerReportCanceledSection {
+interface SellerReportCanceledSection {
   dateBasis: 'canceledAt'
   saleCount: number
   rows: SellerReportCanceledRow[]
@@ -408,7 +408,7 @@ export function parseSellerSalesReportResponse(
 }
 
 /** How a failed report request must be presented. */
-export type SellerReportFailureKind =
+type SellerReportFailureKind =
   | 'seller-not-found'
   | 'row-limit-exceeded'
   | 'forbidden'
@@ -429,8 +429,8 @@ export interface SellerReportFailure {
 }
 
 /** Exact domain error codes this endpoint may return. */
-export const SELLER_NOT_FOUND_ERROR = 'SELLER_NOT_FOUND'
-export const SELLER_REPORT_ROW_LIMIT_ERROR = 'SELLER_REPORT_ROW_LIMIT_EXCEEDED'
+const SELLER_NOT_FOUND_ERROR = 'SELLER_NOT_FOUND'
+const SELLER_REPORT_ROW_LIMIT_ERROR = 'SELLER_REPORT_ROW_LIMIT_EXCEEDED'
 /** Raised by the PDF endpoint when the server cannot render the document. */
 export const SELLER_REPORT_PDF_GENERATION_ERROR = 'PDF_GENERATION_FAILED'
 

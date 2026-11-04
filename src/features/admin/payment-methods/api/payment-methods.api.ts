@@ -38,11 +38,9 @@ type SearchableField = (typeof SEARCH_FIELDS)[number]
 // else (id / tenantId / createdAt / updatedAt / metadataJson) is stripped so
 // a buggy caller can't smuggle it through the wrapper.
 const ALLOWED_UPDATE_KEYS = ['name', 'category', 'subtitle', 'isActive'] as const
-type AllowedUpdateKey = (typeof ALLOWED_UPDATE_KEYS)[number]
 
 // Create whitelist: NO `isActive` (REQ-PM-002 — create omits isActive).
 const ALLOWED_CREATE_KEYS = ['name', 'category', 'subtitle'] as const
-type AllowedCreateKey = (typeof ALLOWED_CREATE_KEYS)[number]
 
 function filterAllowedKeys<T extends object>(
   payload: T,
@@ -228,7 +226,3 @@ export const paymentMethodsApi = {
     await http.delete(`/admin/payment-methods/${id}`)
   },
 }
-
-// Re-export the allowed-key tuple type aliases for tests / callers that want
-// to assert on the wire shape without reaching into private tuples.
-export type { AllowedCreateKey, AllowedUpdateKey }

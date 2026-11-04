@@ -15,7 +15,7 @@ function closedLine(line: OrderLine): OrderLine {
     informedUnitCost: cost && { amount: cost.amount, currency: cost.currency, unit: cost.unit, taxBasis: cost.taxBasis },
   }
 }
-export function closedOrderInput(input: OrderInput): OrderInput {
+function closedOrderInput(input: OrderInput): OrderInput {
   return {
     supplierId: input.supplierId, note: input.note, location: { detail: input.location.detail },
     lines: input.lines.map(closedLine),

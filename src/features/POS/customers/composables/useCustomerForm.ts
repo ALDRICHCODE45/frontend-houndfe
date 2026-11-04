@@ -10,7 +10,7 @@ import type {
 
 // ── Select options ─────────────────────────────────────────
 
-export const MEXICO_STATES = [
+const MEXICO_STATES = [
   'Aguascalientes',
   'Baja California',
   'Baja California Sur',
@@ -112,7 +112,7 @@ export const COUNTRY_CODE_OPTIONS = COUNTRY_CODES.map((c) => ({
 
 // ── Schema ─────────────────────────────────────────────────
 
-export const customerFormSchema = z.object({
+const customerFormSchema = z.object({
   firstName: z
     .string({ required_error: 'El nombre es obligatorio' })
     .trim()

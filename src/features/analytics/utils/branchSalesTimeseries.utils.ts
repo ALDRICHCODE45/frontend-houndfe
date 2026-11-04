@@ -40,7 +40,7 @@ export const BRANCH_SALES_TIMESERIES_METRIC_KEYS = [
 export type BranchSalesTimeseriesMetricKey = (typeof BRANCH_SALES_TIMESERIES_METRIC_KEYS)[number]
 
 /** How a metric value is rendered: cents as MXN, or a grouped integer count. */
-export type BranchSalesTimeseriesMetricFormat = 'mxn' | 'count'
+type BranchSalesTimeseriesMetricFormat = 'mxn' | 'count'
 
 /** Typed metadata for one selectable metric. */
 export interface BranchSalesTimeseriesMetric {

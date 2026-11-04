@@ -8,14 +8,14 @@
  * tenant-members-api-enrichment-frontend-implementation.md` section 3.
  */
 
-export interface EligibleUser {
+interface EligibleUser {
   id: string
   email: string
   name: string
   isActive: boolean
 }
 
-export interface PaginationMeta {
+interface PaginationMeta {
   total: number
   page: number
   limit: number

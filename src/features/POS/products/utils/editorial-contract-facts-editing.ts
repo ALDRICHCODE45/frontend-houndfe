@@ -4,7 +4,7 @@ import type { EditorialDeclarationInput } from './editorial-contract-declaration
 import type { EditorialCareReviewInput } from './editorial-contract-care-input'
 import { toEditorialFactsInput, type EditorialFactsInput } from './editorial-contract-facts-input'
 import { snapshotJson } from './editorial-contract-value'
-export type EditorialDeclarationEditingRow = { id: string; declarationKey: keyof EditorialDeclarationValues; input: EditorialDeclarationInput }
+type EditorialDeclarationEditingRow = { id: string; declarationKey: keyof EditorialDeclarationValues; input: EditorialDeclarationInput }
 export type EditorialFactsEditingRow = {
   id: string; variantId: string | null; presentation: string; declarations: EditorialDeclarationEditingRow[]
   careReview: EditorialCareReviewInput; careRowIds: { requirements: string[]; warnings: string[] }

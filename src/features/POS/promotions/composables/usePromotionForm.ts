@@ -15,7 +15,6 @@ import type {
 import { DAY_OF_WEEK_LABELS, PROMOTION_CAPACITY_MODE } from '../interfaces/promotion.types'
 import {
   CUSTOMER_SCOPE,
-  DAY_OF_WEEK,
   DISCOUNT_TYPE,
   PROMOTION_METHOD,
   PROMOTION_TARGET_TYPE,

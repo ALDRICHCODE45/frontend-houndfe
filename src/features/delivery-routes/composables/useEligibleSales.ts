@@ -42,8 +42,8 @@ import type {
 } from '../interfaces/eligible-sales.types'
 
 export const DEFAULT_ELIGIBLE_SALES_PAGE_SIZE = 20
-export const ELIGIBLE_SALES_MAX_LIMIT = 100
-export const ELIGIBLE_SALES_MAX_QUERY_LENGTH = 200
+const ELIGIBLE_SALES_MAX_LIMIT = 100
+const ELIGIBLE_SALES_MAX_QUERY_LENGTH = 200
 
 const EMPTY_PAGINATION: EligibleSalesPagination = {
   page: 1,
@@ -90,7 +90,7 @@ export function normalizeEligibleSalesQuery(input: EligibleSalesQuery): Eligible
 }
 
 /** Pure: normalized query → axios `params` bag (omits empty q / absent route). */
-export function buildEligibleSalesRequestParams(query: EligibleSalesQuery): Record<string, unknown> {
+function buildEligibleSalesRequestParams(query: EligibleSalesQuery): Record<string, unknown> {
   const params: Record<string, unknown> = { page: query.page, limit: query.limit }
   if (query.q) params.q = query.q
   if (query.contextRouteId) params.contextRouteId = query.contextRouteId
@@ -98,7 +98,7 @@ export function buildEligibleSalesRequestParams(query: EligibleSalesQuery): Reco
 }
 
 /** Pure fetch seam — the only network call; mocked in tests. */
-export async function fetchEligibleSales(query: EligibleSalesQuery): Promise<EligibleSalesResponse> {
+async function fetchEligibleSales(query: EligibleSalesQuery): Promise<EligibleSalesResponse> {
   const { data } = await http.get<EligibleSalesResponse>('/delivery-routes/eligible-sales', {
     params: buildEligibleSalesRequestParams(query),
   })
@@ -278,7 +278,7 @@ export function useLegacyConfirmedEligibleSales(
 }
 
 /** Pure: normalized query → legacy confirmed-sales `ListSalesParams`. */
-export function buildLegacyConfirmedParams(query: EligibleSalesQuery): ListSalesParams {
+function buildLegacyConfirmedParams(query: EligibleSalesQuery): ListSalesParams {
   const params: ListSalesParams = {
     page: query.page,
     limit: query.limit,

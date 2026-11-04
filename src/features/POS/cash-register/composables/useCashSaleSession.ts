@@ -35,7 +35,7 @@ import { useCashAccess } from './useCashAccess'
 import { isSameCashIdentity, type CashIdentity } from './cashRules'
 import type { CashSession, CashSessionListResponse } from '../interfaces/cash.types'
 
-export const CASH_SALE_SESSION_PAGE_SIZE = 25
+const CASH_SALE_SESSION_PAGE_SIZE = 25
 
 /**
  * Strict canonical UUID check (any RFC 4122 version/variant, case-insensitive).
@@ -45,7 +45,7 @@ export const CASH_SALE_SESSION_PAGE_SIZE = 25
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /** The selected cash session must be canonical UUID, OPEN, own and same tenant. */
-export function isCashSessionSelectable(
+function isCashSessionSelectable(
   session: CashSession | null | undefined,
   scope: CashCacheScope | null | undefined,
 ): boolean {
@@ -61,7 +61,7 @@ export function isCashSessionSelectable(
  * Filter the raw list page down to the rows this principal may bind:
  * own + OPEN + current tenant + canonical UUID. Foreign rows never render.
  */
-export function filterSelectableCashSessions(
+function filterSelectableCashSessions(
   items: readonly CashSession[],
   scope: CashCacheScope | null | undefined,
 ): CashSession[] {

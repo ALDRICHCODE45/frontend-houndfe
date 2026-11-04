@@ -25,7 +25,7 @@
  */
 
 // ─── Shipping address projection (eligible-sales shape) ────────────────────────
-export interface EligibleSaleAddress {
+interface EligibleSaleAddress {
   /** Snapshot reference; `null` when the customer deleted the address after the sale. */
   id: string | null
   label: string | null
@@ -40,28 +40,28 @@ export interface EligibleSaleAddress {
 }
 
 // ─── Availability discriminant ─────────────────────────────────────────────────
-export interface EligibleSaleAvailabilityAvailable {
+interface EligibleSaleAvailabilityAvailable {
   state: 'AVAILABLE'
 }
 
-export interface EligibleSaleAvailabilityInCurrentRoute {
+interface EligibleSaleAvailabilityInCurrentRoute {
   state: 'IN_CURRENT_ROUTE'
   stopId: string
   sortOrder: number
 }
 
-export interface EligibleSaleAvailabilityOccupied {
+interface EligibleSaleAvailabilityOccupied {
   state: 'OCCUPIED'
   reason: 'RESERVED_BY_ROUTE'
   occupiedRoute: { id: string, status: 'DRAFT' | 'ACTIVE' } | null
 }
 
-export interface EligibleSaleAvailabilityIneligible {
+interface EligibleSaleAvailabilityIneligible {
   state: 'INELIGIBLE'
   reason: 'MISSING_ADDRESS' | 'DELIVERY_STATUS'
 }
 
-export type EligibleSaleAvailability =
+type EligibleSaleAvailability =
   | EligibleSaleAvailabilityAvailable
   | EligibleSaleAvailabilityInCurrentRoute
   | EligibleSaleAvailabilityOccupied

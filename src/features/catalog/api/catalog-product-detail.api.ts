@@ -4,9 +4,9 @@ import type {
   PublicCatalogProductDetailStockPresentationDto,
 } from '../interfaces/public-catalog-product-detail.types'
 
-export type CatalogProductDetailErrorKind = 'not-found' | 'rate-limit' | 'server' | 'network'
+type CatalogProductDetailErrorKind = 'not-found' | 'rate-limit' | 'server' | 'network'
 
-export class CatalogProductDetailError extends Error {
+class CatalogProductDetailError extends Error {
   readonly kind: CatalogProductDetailErrorKind
   readonly status?: number
 

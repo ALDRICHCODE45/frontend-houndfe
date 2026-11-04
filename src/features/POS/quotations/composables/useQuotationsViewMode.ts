@@ -3,7 +3,7 @@ import { useViewMode } from '@/core/shared/composables/useViewMode'
 
 export type QuotationViewMode = 'table' | 'card'
 
-export const QUOTATION_VIEW_MODE_STORAGE_KEY = 'quotations-view-mode'
+const QUOTATION_VIEW_MODE_STORAGE_KEY = 'quotations-view-mode'
 
 const VALID_MODES = ['table', 'card'] as const
 

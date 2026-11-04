@@ -6,7 +6,7 @@ import type {
 
 export type CatalogProductsErrorKind = 'unavailable' | 'rate-limit' | 'server' | 'network'
 
-export class CatalogProductsError extends Error {
+class CatalogProductsError extends Error {
   readonly kind: CatalogProductsErrorKind
   readonly status?: number
 

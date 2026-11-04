@@ -34,16 +34,16 @@ import {
  */
 
 /** The only calendar zone this endpoint accepts or emits. */
-export const BRANCH_SALES_TIMESERIES_TIME_ZONE = 'America/Mexico_City' as const
+const BRANCH_SALES_TIMESERIES_TIME_ZONE = 'America/Mexico_City' as const
 
 /** Literal type derived from the constant (the constant stays authoritative). */
-export type BranchSalesTimeseriesTimeZone = typeof BRANCH_SALES_TIMESERIES_TIME_ZONE
+type BranchSalesTimeseriesTimeZone = typeof BRANCH_SALES_TIMESERIES_TIME_ZONE
 
 /** The only interval v1 accepts; the literal type makes a typo uncompilable. */
 export const BRANCH_SALES_TIMESERIES_INTERVAL = 'day' as const
 
 /** Literal type derived from the constant. */
-export type BranchSalesTimeseriesInterval = typeof BRANCH_SALES_TIMESERIES_INTERVAL
+type BranchSalesTimeseriesInterval = typeof BRANCH_SALES_TIMESERIES_INTERVAL
 
 /**
  * Query contract. `from`/`to` are exact local calendar strings (`YYYY-MM-DD`)

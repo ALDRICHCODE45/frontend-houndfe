@@ -17,7 +17,6 @@ import { notificationConfigApi } from '../api/notificationConfig.api'
 import { usersApi } from '@/features/POS/users/api/user.api'
 import { fromConfigResponse } from '../utils/notificationConfigMappers'
 import type {
-  ActionKey,
   NotificationConfigForm,
   NotificationConfigResponse,
 } from '../interfaces/notification-config.types'
@@ -81,7 +80,3 @@ export function useAssignableUsersQuery() {
     error: query.error,
   }
 }
-
-// Re-export the ActionKey type for convenience so callers can build
-// form snapshots without importing the interfaces file directly.
-export type { ActionKey }

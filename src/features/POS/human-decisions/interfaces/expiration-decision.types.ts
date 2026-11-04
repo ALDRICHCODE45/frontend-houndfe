@@ -11,7 +11,7 @@
 
 export type ExpirationDecisionType = 'EXPIRATION'
 
-export interface ExpirationDecisionResolver {
+interface ExpirationDecisionResolver {
   id: string
   displayName: string
 }

@@ -2,7 +2,7 @@ import { useViewMode } from '@/core/shared/composables/useViewMode'
 
 export type ProductViewMode = 'table' | 'card'
 
-export const PRODUCT_VIEW_MODE_STORAGE_KEY = 'products-view-mode'
+const PRODUCT_VIEW_MODE_STORAGE_KEY = 'products-view-mode'
 
 const VALID_MODES = ['table', 'card'] as const
 

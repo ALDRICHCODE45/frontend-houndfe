@@ -39,7 +39,7 @@ import type { ManagerInfo } from './useManagerResolution'
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
 /** Visual tone for the type badge — mirrors the inline `getTypeColor` map. */
-export type PendingApprovalCardTypeColor =
+type PendingApprovalCardTypeColor =
   | 'primary'
   | 'warning'
   | 'error'

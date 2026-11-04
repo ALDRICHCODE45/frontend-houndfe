@@ -14,7 +14,7 @@
 
 import type { Employee } from '../interfaces/employee.types'
 
-const props = defineProps<{
+defineProps<{
   employee: Employee
   canUpdate?: boolean
 }>()
@@ -22,15 +22,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   edit: [employee: Employee]
 }>()
-
-// ── Address composed string ────────────────────────────────────────────────────
-function getFullAddress(e: Employee): string | null {
-  const street = e.street ? `${e.street}${e.exteriorNumber ? ` ${e.exteriorNumber}` : ''}${e.interiorNumber ? ` Int. ${e.interiorNumber}` : ''}` : null
-  const zone = [e.neighborhood, e.municipality, e.city, e.state].filter(Boolean).join(', ')
-  const cp = e.zipCode ? `C.P. ${e.zipCode}` : null
-  const parts = [street, zone, cp].filter(Boolean)
-  return parts.length > 0 ? parts.join(' · ') : null
-}
 
 // ── Identity document type labels ─────────────────────────────────────────────
 const ID_TYPE_LABELS: Record<string, string> = {

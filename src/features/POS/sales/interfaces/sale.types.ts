@@ -55,7 +55,7 @@ export type SaleTimelineEventType =
 // in future reward families (forward-compat without churn).
 export type SaleRewardKind = 'buy_x_get_y' | 'advanced' | (string & {}) | null
 
-export interface SaleActorRef {
+interface SaleActorRef {
   id: string
   name: string
 }
@@ -284,7 +284,7 @@ export interface SaleCancellationRequest {
   reason: SaleCancellationReason
 }
 
-export interface SaleCancellationRestockedItem {
+interface SaleCancellationRestockedItem {
   productId: string
   variantId: string | null
   quantity: number
@@ -359,7 +359,7 @@ export interface PaymentEntry {
   paymentMethodId?: string
 }
 
-export interface MultiPaymentChargePayload {
+interface MultiPaymentChargePayload {
   payments: PaymentEntry[]
   /** Optional ISO date string for debt due date (per backend §8). */
   dueDate?: string
@@ -546,22 +546,6 @@ export interface SetDueDatePayload {
   dueDate: string | null
 }
 
-export type SaleDueDateErrorCode =
-  | 'INVALID_DUE_DATE'
-  | 'SALE_FULLY_PAID'
-  | 'SALE_NOT_FOUND'
-  | 'SALE_UPDATE_FORBIDDEN'
-
-export class SaleDueDateError extends Error {
-  constructor(
-    public readonly code: SaleDueDateErrorCode,
-    message?: string,
-  ) {
-    super(message ?? code)
-    this.name = 'SaleDueDateError'
-  }
-}
-
 /**
  * Shipping address snapshotted on the sale. Same shape as the customer's
  * address, but `id` is `null` once the customer deletes that address: the
@@ -676,7 +660,7 @@ export type ApplyGlobalDiscountPayload =
       strategy?: GlobalDiscountStrategy
     }
 
-export interface GlobalDiscountSkippedItem {
+interface GlobalDiscountSkippedItem {
   itemId: string
   reason: string
 }
@@ -756,13 +740,13 @@ export interface PosCatalogSearchParams {
 }
 
 // POS Product Detail — extended info for "Ver Detalles" modal
-export interface PosProductDetailStock {
+interface PosProductDetailStock {
   quantity: number
   minQuantity: number
   location: string | null
 }
 
-export interface PosProductDetailVariant {
+interface PosProductDetailVariant {
   id: string
   name: string
   sku: string | null

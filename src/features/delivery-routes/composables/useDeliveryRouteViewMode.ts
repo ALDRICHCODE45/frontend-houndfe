@@ -1,9 +1,9 @@
 import { computed } from 'vue'
 import { useViewMode } from '@/core/shared/composables/useViewMode'
 
-export type DeliveryRouteViewMode = 'table' | 'card'
+type DeliveryRouteViewMode = 'table' | 'card'
 
-export const DELIVERY_ROUTE_VIEW_MODE_STORAGE_KEY = 'delivery-routes-view-mode'
+const DELIVERY_ROUTE_VIEW_MODE_STORAGE_KEY = 'delivery-routes-view-mode'
 
 const VALID_MODES = ['table', 'card'] as const
 

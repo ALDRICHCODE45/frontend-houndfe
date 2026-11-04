@@ -2,15 +2,15 @@ import { computed, shallowRef, type ComputedRef } from 'vue'
 import type { AuthTokens, TenantSummary } from '../interfaces/auth.types'
 import { authStorage, type PreparedSessionWrite } from './auth-storage'
 
-export interface SessionTenantContext {
+interface SessionTenantContext {
   readonly tenant: Readonly<TenantSummary> | null
   readonly isSuperAdmin: boolean
 }
-export interface SessionSnapshot extends SessionTenantContext {
+interface SessionSnapshot extends SessionTenantContext {
   readonly tokens: Readonly<AuthTokens> | null
   readonly generation: number
 }
-export interface PreparedSessionTransition {
+interface PreparedSessionTransition {
   readonly generation: number
   isCurrent(): boolean
   commit(): boolean

@@ -24,20 +24,20 @@ import {
   type DeliveryRouteProgress,
 } from './delivery-route-list.utils'
 
-export const DELIVERY_ROUTE_STOP_STATUS_TONES: Record<DeliveryRouteStopStatus, AppBadgeTone> = {
+const DELIVERY_ROUTE_STOP_STATUS_TONES: Record<DeliveryRouteStopStatus, AppBadgeTone> = {
   PENDING: 'neutral',
   IN_PROGRESS: 'warning',
   COMPLETED: 'success',
   SKIPPED: 'inactive',
 }
 
-export interface ManagerRouteKpi {
+interface ManagerRouteKpi {
   key: 'delivered' | 'pending' | 'skipped' | 'time'
   label: string
   value: string
 }
 
-export interface ManagerRouteStopRow {
+interface ManagerRouteStopRow {
   stop: DeliveryRouteStop
   /** 1-based position in the route. */
   position: number

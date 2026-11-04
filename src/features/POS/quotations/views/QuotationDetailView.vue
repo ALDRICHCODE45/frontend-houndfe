@@ -40,7 +40,6 @@ import QuotationCancelDialog from '../components/QuotationCancelDialog.vue'
 import QuotationProgressStepper from '../components/QuotationProgressStepper.vue'
 import QuotationCustomerCard from '../components/QuotationCustomerCard.vue'
 import QuotationPromotionCard from '../components/QuotationPromotionCard.vue'
-import { formatCentsMXN } from '../utils/currency.utils'
 import { isExpired, statusToLabel, statusToTone } from '../utils/quotation.utils'
 
 declare const useToast: () => {
@@ -159,12 +158,6 @@ const headerStatus = computed(() => {
     return { tone: QUOTATION_STATUS_TONE.EXPIRED, label: QUOTATION_STATUS_LABEL.EXPIRED }
   }
   return { tone: statusToTone(q.status), label: statusToLabel(q.status) }
-})
-
-const customerName = computed(() => {
-  const customer = quotation.value?.customer
-  if (!customer) return ''
-  return [customer.firstName, customer.lastName].filter(Boolean).join(' ')
 })
 
 const cancelReasonLabel = computed<string | null>(() => {
@@ -379,14 +372,6 @@ async function handleRemoveConfirm(): Promise<void> {
   pendingRemoveItemId.value = null
   if (!itemId) return
   await draft.removeItem(itemId)
-}
-
-async function handleOverridePrice(itemId: string, unitPriceCents: number): Promise<void> {
-  if (!isDraft.value) return
-  // Slice 5 commits the override value as-is (the row passes back the
-  // current unit price when the cashier clicks the pencil). Slice 8/9 can
-  // upgrade this to a dedicated modal without changing the public contract.
-  await draft.overridePrice(itemId, unitPriceCents)
 }
 
 // ── Price override flow ───────────────────────────────────────────────────────
@@ -724,13 +709,6 @@ onUnmounted(() => {
     }
   }
 })
-
-/** Tiny helper used by the applied-promotions list to render the discount
- *  next to the title. formatCentsMXN lives in `../utils/currency.utils` so
- *  we don't reach across to the core helper directly from the view. */
-function formatDiscountCents(cents: number): string {
-  return formatCentsMXN(cents)
-}
 
 onMounted(async () => {
   if (!isCreateRoute.value) return

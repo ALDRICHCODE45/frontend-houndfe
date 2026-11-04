@@ -13,7 +13,7 @@ export interface AccessMeta {
  * Shared fields for a navigable entry (a module item or an action shortcut).
  * {@link NavItem} and {@link NavAction} both derive from this single base.
  */
-export interface NavEntry extends AccessMeta {
+interface NavEntry extends AccessMeta {
   id: string
   label: string
   icon: string

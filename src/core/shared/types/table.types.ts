@@ -5,7 +5,6 @@ import type {
   SortingState,
   PaginationState,
   RowSelectionState,
-  ExpandedState,
 } from '@tanstack/vue-table'
 
 // Server response shape for paginated endpoints
@@ -14,7 +13,7 @@ export interface PaginatedResponse<T> {
   pagination: PaginationMeta
 }
 
-export interface PaginationMeta {
+interface PaginationMeta {
   pageIndex: number
   pageSize: number
   totalCount: number
@@ -72,5 +71,4 @@ export type {
   SortingState,
   PaginationState,
   RowSelectionState,
-  ExpandedState,
 }

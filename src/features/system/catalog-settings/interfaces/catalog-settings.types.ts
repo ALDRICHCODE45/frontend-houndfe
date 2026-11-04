@@ -24,10 +24,7 @@ export type OnlineStockPresentationMode =
 /** Variant publication mode — typed here for symmetry, body/UI land in WU6. */
 export type CatalogPublishMode = 'INHERIT' | 'ON' | 'OFF'
 
-/** Closed-set warning codes the backend may emit. */
-export type CatalogSettingsWarning = 'DEFAULT_CONTEXT_HAS_NO_VALID_PRICES'
-
-export const onlineStockPresentationModeSchema = z.enum([
+const onlineStockPresentationModeSchema = z.enum([
   'SYSTEM_STATUS',
   'ABSTRACT_STATUS',
   'CUSTOM_QUANTITY',
@@ -36,13 +33,13 @@ export const onlineStockPresentationModeSchema = z.enum([
 
 export const catalogSettingsWarningSchema = z.enum(['DEFAULT_CONTEXT_HAS_NO_VALID_PRICES'])
 
-export const catalogPriceContextDtoSchema = z.object({
+const catalogPriceContextDtoSchema = z.object({
   priceListId: z.string().min(1),
   name: z.string(),
   isCatalogDefault: z.boolean(),
 })
 
-export const catalogStockPresentationDefaultDtoSchema = z.object({
+const catalogStockPresentationDefaultDtoSchema = z.object({
   mode: onlineStockPresentationModeSchema,
   customQuantity: z.number().int().nonnegative().nullable(),
 })

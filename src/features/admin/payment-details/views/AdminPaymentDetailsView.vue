@@ -77,8 +77,6 @@ const {
   hasActiveAccount,
 } = usePaymentDetailsTable()
 
-const headerDescription = 'Cuentas bancarias para cobros por transferencia.'
-
 // ── View gating (CASL) ─────────────────────────────────────────────────────────
 const canCreatePaymentDetail = computed(() => authStore.userCan('create', 'PaymentDetail'))
 const canUpdatePaymentDetail = computed(() => authStore.userCan('update', 'PaymentDetail'))

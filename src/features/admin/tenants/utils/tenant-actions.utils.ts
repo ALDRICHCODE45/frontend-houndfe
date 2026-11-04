@@ -1,6 +1,6 @@
 import type { TenantTableRow } from '../interfaces/tenant.types'
 
-export type TenantRowAction = {
+type TenantRowAction = {
   label: string
   color?: 'error'
   onSelect: () => void

@@ -16,7 +16,7 @@
 export const SELLER_REPORT_PDF_MIME = 'application/pdf'
 
 /** The PDF magic prefix (`%PDF-`), the last line of defence against JSON/HTML. */
-export const SELLER_REPORT_PDF_SIGNATURE = '%PDF-'
+const SELLER_REPORT_PDF_SIGNATURE = '%PDF-'
 
 /** Safe name used whenever the header is missing, empty or unusable. */
 export const SELLER_REPORT_PDF_FALLBACK_FILE_NAME = 'reporte-ventas.pdf'
@@ -90,7 +90,7 @@ function decodeHeaderComponent(value: string): string {
 }
 
 /** Sanitize a candidate file name, or return the safe fallback. */
-export function sanitizeSellerReportPdfFileName(raw: string | null | undefined): string {
+function sanitizeSellerReportPdfFileName(raw: string | null | undefined): string {
   if (!raw) return SELLER_REPORT_PDF_FALLBACK_FILE_NAME
 
   // Strip every path component first: a hostile header must not steer the

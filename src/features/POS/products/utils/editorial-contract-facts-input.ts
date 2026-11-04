@@ -3,7 +3,7 @@ import { resolveEditorialDeclarationInput, toEditorialDeclarationInput, type Edi
 import { resolveEditorialCareReviewInput, toEditorialCareReviewInput, type EditorialCareReviewInput } from './editorial-contract-care-input'
 import { decodeEditorialSellableFacts } from './editorial-contract-document'
 import { snapshotJson } from './editorial-contract-value'
-export type EditorialFactsRowInput = Omit<EditorialSellableFacts, 'declarations' | 'careReview'> & {
+type EditorialFactsRowInput = Omit<EditorialSellableFacts, 'declarations' | 'careReview'> & {
   declarations: EditorialDeclarationInput[]; careReview: EditorialCareReviewInput
 }
 export type EditorialFactsInput = EditorialFactsRowInput[]

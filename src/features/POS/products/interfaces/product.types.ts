@@ -1,4 +1,4 @@
-export type ProductStatus = 'active' | 'inactive' | 'out_of_stock'
+type ProductStatus = 'active' | 'inactive' | 'out_of_stock'
 
 // WU4: the advanced catalog vocabulary is owned by the WU2 catalog-settings module.
 import type { CatalogPublishMode, OnlineStockPresentationMode } from '@/features/system/catalog-settings/interfaces/catalog-settings.types'
@@ -75,13 +75,13 @@ export interface ProductDetail extends Product {
   serviceDetail: ServiceDetail | null
 }
 
-export interface VariantPriceMargin {
+interface VariantPriceMargin {
   amountCents: number
   amountDecimal: number
   percent: number
 }
 
-export interface VariantTierPrice {
+interface VariantTierPrice {
   id: string
   minQuantity: number
   priceCents: number
@@ -143,7 +143,7 @@ export interface ProductBackendListResponse {
   }
 }
 
-export interface PurchaseCostResponse {
+interface PurchaseCostResponse {
   mode: string
   netCents: number
   grossCents: number
@@ -248,7 +248,7 @@ export interface ProductLotBackendResponse {
   updatedAt: string
 }
 
-export interface PurchaseCostPayload {
+interface PurchaseCostPayload {
   mode: 'NET' | 'GROSS'
   valueCents: number
 }
@@ -291,7 +291,7 @@ export interface CreateProductPayload {
 
 // ── Inline sub-resources for atomic product creation ─────────
 
-export interface CreateVariantInline {
+interface CreateVariantInline {
   option?: string
   value?: string
   name?: string
@@ -302,14 +302,14 @@ export interface CreateVariantInline {
   purchaseNetCostCents?: number | null
 }
 
-export interface CreateLotInline {
+interface CreateLotInline {
   lotNumber: string
   quantity?: number
   expirationDate: string
   manufactureDate?: string
 }
 
-export interface CreatePriceListInline {
+interface CreatePriceListInline {
   priceListId: string
   priceCents: number
   tierPrices?: {
@@ -318,7 +318,7 @@ export interface CreatePriceListInline {
   }[]
 }
 
-export interface CreateImageInline {
+interface CreateImageInline {
   url: string
   isMain?: boolean
   sortOrder?: number
@@ -339,7 +339,7 @@ export interface PendingVariant {
   variantPrices: PendingVariantPrice[]
 }
 
-export interface PendingVariantPrice {
+interface PendingVariantPrice {
   priceListId: string
   priceListName: string
   priceCents: number
@@ -377,7 +377,7 @@ export type UpdateVariantPayload = Partial<CreateVariantPayload>
 
 // ── Variant Pricing ──────────────────────────────────────────
 
-export interface VariantTierPriceInput {
+interface VariantTierPriceInput {
   minQuantity: number
   priceCents: number
 }
@@ -387,7 +387,7 @@ export interface UpsertVariantPricePayload {
   tierPrices?: VariantTierPriceInput[]
 }
 
-export interface BulkVariantPriceItem {
+interface BulkVariantPriceItem {
   priceListId: string
   priceCents: number
   tierPrices?: VariantTierPriceInput[]
@@ -476,13 +476,13 @@ export interface CreateGlobalPriceListPayload {
 
 // ── Price Lists (per product) ───────────────────────────────
 
-export interface TierPriceMargin {
+interface TierPriceMargin {
   amountCents: number
   amountDecimal: number
   percent: number
 }
 
-export interface TierPrice {
+interface TierPrice {
   id: string
   minQuantity: number
   priceCents: number
@@ -490,7 +490,7 @@ export interface TierPrice {
   margin?: TierPriceMargin
 }
 
-export interface PriceListMargin {
+interface PriceListMargin {
   amountCents: number
   amountDecimal: number
   percent: number

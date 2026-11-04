@@ -2,7 +2,7 @@ import type { EditorialDefinition } from './editorial-contract-definition.types'
 import type { EditorialOwner } from './editorial-contract-value.types'
 import type { EditorialProductionDefinitionCode } from './editorial-production-codes'
 
-export type EditorialOptionTest = {
+type EditorialOptionTest = {
   definitionCode: string
   operator: 'equals_set' | 'contains_all' | 'intersects'
   optionCodes: string[]
@@ -17,7 +17,7 @@ export type EditorialPolicyCase = {
   documentary: 'resolved' | 'not_applicable' | 'unresolved'
 }
 export type EditorialProductionFamily = 'food' | 'treat' | 'toy' | 'hygiene' | 'accessory' | 'habitat' | 'care'
-export type EditorialRuleId =
+type EditorialRuleId =
   | 'required' | 'optional' | 'animal' | 'form' | 'content' | 'dimensions'
   | 'fit' | 'capacity' | 'space' | 'equipment' | 'optional_equipment' | 'presentation'
 export type EditorialFactRule = {

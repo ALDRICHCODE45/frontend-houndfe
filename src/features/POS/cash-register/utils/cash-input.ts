@@ -34,7 +34,7 @@ export const MAX_CASH_MONEY_CENTS = 2147483647
 export const MAX_CASH_QUANTITY = 2147483647
 
 /** Denomination amounts are money and, unlike other money fields, must be >= 1 cent. */
-export const MIN_DENOMINATION_CENTS = 1
+const MIN_DENOMINATION_CENTS = 1
 
 export interface CentsBounds {
   /** Inclusive minimum in cents. Defaults to `0`; an explicit zero is valid money. */
