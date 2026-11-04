@@ -37,6 +37,11 @@ const props = withDefaults(
     // INSTEAD of the empty placeholder, so a failed request is never masked
     // as "0 results". Consumers wire this to useServerTable's isError.
     error?: boolean
+    /**
+     * Title of the error state. Optional: the default is a fixed human
+     * sentence. Pass a better one per list (`No se pudieron cargar los
+     * productos`), never a server or HTTP message.
+     */
     errorMessage?: string
     /**
      * Shared "nothing yet" state. When the list is empty (not loading, not
@@ -51,7 +56,10 @@ const props = withDefaults(
      * with "Limpiar filtros", which emits `clear-filters`.
      */
     filtered?: boolean
-    /** Title of the no-match state, e.g. `Ningún resultado para «collar»`. */
+    /**
+     * Title of the no-match state when there is no search term (filters only).
+     * With a search term the title is `Ningún resultado para «<term>»`.
+     */
     noMatchTitle?: string
     // Pagination
     pageCount?: number
@@ -68,6 +76,11 @@ const props = withDefaults(
     showAddButton?: boolean
     addButtonText?: string
     addButtonIcon?: string
+    /**
+     * Toolbar refresh button. Off by default: the error state's `Reintentar` is
+     * the retry and background refresh shows in the table. A consumer that
+     * passes it explicitly keeps its button.
+     */
     showRefresh?: boolean
     /** Optional presentation boundary for toolbar content rendered through portals. */
     portalClass?: string
@@ -115,7 +128,7 @@ const props = withDefaults(
     fetching: false,
     empty: 'No se encontraron resultados',
     error: false,
-    errorMessage: 'No se pudieron cargar los datos. Reintenta.',
+    errorMessage: 'No se pudo cargar la lista',
     emptyState: undefined,
     filtered: false,
     noMatchTitle: 'Ningún resultado',
@@ -131,7 +144,7 @@ const props = withDefaults(
     showAddButton: false,
     addButtonText: 'Agregar',
     addButtonIcon: 'i-lucide-plus',
-    showRefresh: true,
+    showRefresh: false,
     refreshButtonTestId: undefined,
     addButtonTestId: undefined,
     activeFilterCount: 0,
@@ -201,6 +214,10 @@ const sharedEmptyKind = computed<'no-match' | 'empty' | null>(() => {
   if (props.data.length > 0 || props.loading || props.error) return null
   if (props.filtered) return 'no-match'
   return props.emptyState ? 'empty' : null
+})
+const noMatchTitleText = computed(() => {
+  const term = globalFilter.value.trim()
+  return term ? `Ningún resultado para «${term}»` : props.noMatchTitle
 })
 const showTableSkeleton = computed(() => props.loading && props.data.length === 0)
 const skeletonColumnCount = computed(() => {
@@ -308,7 +325,7 @@ function handleClearSelection() {
         v-if="props.error"
         kind="error"
         :title="props.errorMessage"
-        :action-label="props.showRefresh ? 'Reintentar' : undefined"
+        action-label="Reintentar"
         action-test-id="cards-error-retry"
         class="w-full min-w-0 max-w-full"
         data-testid="cards-error-state"
@@ -327,20 +344,43 @@ function handleClearSelection() {
         <div
           v-if="isLoading"
           class="grid w-full min-w-0 max-w-full gap-3"
+          aria-busy="true"
           data-testid="mobile-cards-loading"
         >
+          <span class="sr-only">Cargando</span>
           <div
             v-for="index in 3"
             :key="`mobile-skeleton-${index}`"
-            class="h-28 animate-pulse rounded-lg border border-[var(--hf-border)] bg-[var(--hf-surface-muted)]"
+            class="flex animate-pulse flex-col gap-3 rounded-[var(--hf-radius-card)] border border-[var(--hf-border)] bg-[var(--hf-surface-muted)] p-4"
+            aria-hidden="true"
             data-testid="mobile-card-skeleton"
-          />
+          >
+            <span
+              class="h-4 w-3/5 rounded bg-[var(--hf-border)]"
+              data-testid="mobile-card-skeleton-title"
+            />
+            <span
+              class="h-3 w-2/5 rounded bg-[var(--hf-border)]"
+              data-testid="mobile-card-skeleton-secondary"
+            />
+            <span
+              class="h-6 w-20 rounded-full bg-[var(--hf-border)]"
+              data-testid="mobile-card-skeleton-badge"
+            />
+            <div
+              class="flex items-center justify-between border-t border-[var(--hf-border)] pt-3"
+              data-testid="mobile-card-skeleton-footer"
+            >
+              <span class="h-3 w-28 rounded bg-[var(--hf-border)]" />
+              <span class="h-3 w-12 rounded bg-[var(--hf-border)]" />
+            </div>
+          </div>
         </div>
 
         <EmptyState
           v-else-if="sharedEmptyKind === 'no-match'"
           kind="no-match"
-          :title="props.noMatchTitle"
+          :title="noMatchTitleText"
           action-label="Limpiar filtros"
           class="w-full min-w-0 max-w-full"
           data-testid="mobile-empty-state"
@@ -387,7 +427,7 @@ function handleClearSelection() {
         v-if="props.error"
         kind="error"
         :title="props.errorMessage"
-        :action-label="props.showRefresh ? 'Reintentar' : undefined"
+        action-label="Reintentar"
         action-test-id="table-error-retry"
         class="w-full min-w-0 max-w-full"
         data-testid="table-error-state"
@@ -461,7 +501,7 @@ function handleClearSelection() {
           <EmptyState
             v-if="sharedEmptyKind === 'no-match'"
             kind="no-match"
-            :title="props.noMatchTitle"
+            :title="noMatchTitleText"
             action-label="Limpiar filtros"
             @action="emit('clear-filters')"
           />

@@ -133,6 +133,20 @@ describe('AppDataTable states — no-match', () => {
     expect(wrapper.emitted('empty-action')).toBeUndefined()
   })
 
+  it('names the search term when there is one, in the table and in cards', () => {
+    const table = mountTable({ ...emptyList, filtered: true, globalFilter: '  collar ' })
+    expect(table.get('.hf-empty-state__title').text()).toBe('Ningún resultado para «collar»')
+
+    isBelowBreakpoint.value = true
+    const cards = mountTable({ ...emptyList, filtered: true, globalFilter: 'collar', mobileRender: 'cards' })
+    expect(cards.get('[data-testid="mobile-empty-state"] .hf-empty-state__title').text()).toBe('Ningún resultado para «collar»')
+  })
+
+  it('falls back to noMatchTitle when only filters (no search term) matched nothing', () => {
+    const wrapper = mountTable({ ...emptyList, filtered: true, globalFilter: '   ', noMatchTitle: 'Ninguna venta con esos filtros' })
+    expect(wrapper.get('.hf-empty-state__title').text()).toBe('Ninguna venta con esos filtros')
+  })
+
   it('uses noMatchTitle, and works without emptyState', () => {
     const wrapper = mountTable({ ...emptyList, filtered: true, noMatchTitle: 'Ningún resultado para «collar»' })
     expect(wrapper.get('.hf-empty-state__title').text()).toBe('Ningún resultado para «collar»')
@@ -188,6 +202,23 @@ describe('AppDataTable states — loading', () => {
     expect(wrapper.findAll('[data-testid="mobile-card-skeleton"]')).toHaveLength(3)
     expect(wrapper.find('.hf-empty-state').exists()).toBe(false)
   })
+
+  it('shapes each card skeleton like a mobile card: title, secondary, badge and a two-bar footer', () => {
+    isBelowBreakpoint.value = true
+    const wrapper = mountTable({ ...emptyList, loading: true, mobileRender: 'cards' })
+    const region = wrapper.get('[data-testid="mobile-cards-loading"]')
+    expect(region.attributes('aria-busy')).toBe('true')
+    const cards = region.findAll('[data-testid="mobile-card-skeleton"]')
+    expect(cards).toHaveLength(3)
+    for (const card of cards) {
+      expect(card.classes()).toEqual(expect.arrayContaining(['rounded-[var(--hf-radius-card)]', 'p-4', 'animate-pulse']))
+      expect(card.classes().join(' ')).toContain('bg-[var(--hf-surface-muted)]')
+      expect(card.get('[data-testid="mobile-card-skeleton-title"]').classes()).toContain('w-3/5')
+      expect(card.get('[data-testid="mobile-card-skeleton-secondary"]').classes()).toContain('w-2/5')
+      expect(card.get('[data-testid="mobile-card-skeleton-badge"]').classes()).toContain('rounded-full')
+      expect(card.findAll('[data-testid="mobile-card-skeleton-footer"] > span')).toHaveLength(2)
+    }
+  })
 })
 
 describe('AppDataTable states — error', () => {
@@ -212,9 +243,28 @@ describe('AppDataTable states — error', () => {
     expect(wrapper.emitted('refresh')).toHaveLength(1)
   })
 
-  it('has no retry button when showRefresh is off', () => {
-    const wrapper = mountTable({ ...emptyList, error: true, showRefresh: false })
-    expect(wrapper.find('[data-testid="table-error-retry"]').exists()).toBe(false)
+  it('uses the fixed human title by default and never shows a server message', () => {
+    const wrapper = mountTable({ ...emptyList, error: true })
+    expect(wrapper.get('[data-testid="table-error-state"] .hf-empty-state__title').text()).toBe('No se pudo cargar la lista')
+
+    isBelowBreakpoint.value = true
+    const cards = mountTable({ ...emptyList, error: true, mobileRender: 'cards' })
+    expect(cards.get('[data-testid="cards-error-state"] .hf-empty-state__title').text()).toBe('No se pudo cargar la lista')
+  })
+
+  it('lets a consumer pass a better title through errorMessage', () => {
+    const wrapper = mountTable({ ...emptyList, error: true, errorMessage: 'No se pudieron cargar los productos' })
+    expect(wrapper.get('[data-testid="table-error-state"] .hf-empty-state__title').text()).toBe('No se pudieron cargar los productos')
+  })
+
+  it('always offers Reintentar, with the default showRefresh and with it off', async () => {
+    for (const props of [{}, { showRefresh: false }]) {
+      const wrapper = mountTable({ ...emptyList, error: true, ...props })
+      const retry = wrapper.get('[data-testid="table-error-retry"]')
+      expect(retry.text()).toContain('Reintentar')
+      await retry.trigger('click')
+      expect(wrapper.emitted('refresh')).toHaveLength(1)
+    }
   })
 
   it('renders the same error block in cards mode', async () => {
