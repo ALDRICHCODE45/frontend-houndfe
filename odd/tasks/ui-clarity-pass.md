@@ -43,3 +43,5 @@ L16. T5 on 01ac0b6d (the harness split into tours plus mutations because of the 
   (P5) The mobile header meta breaks the date ("3 nov,"/"22:15").
   (P6) The mobile sticky bar "Guardar" label is left-aligned.
   (Q1, for the user) Money with sub-cent server precision renders as "$128.125", which is ambiguous in es-MX.
+L17. User decision on Q1, verbatim: "Dos decimales en pantalla (recomendado)". Money displays with 2 decimals (display-only rounding, es-MX), and the exact server value is available on hover (title) and in the detail. The wire value is never changed. This supersedes the earlier formatDecimalMoney rule "never rounding away what the server sent".
+L18. Fix-round writer mw1o64eg-c-5cy6 fixed P1-P7 test-first (about 33 RED, then GREEN; suite 12769 passed, 3 known failed; vue-tsc and build 0). The checklist groups by line and family; "Falta" appears once; the mobile card is a 3-column grid; .hf-row-primary has min-height 0 (shared) and rows are 64px; the header date is nowrap; the sticky buttons have equal widths and centered labels; money shows 2 decimals with the exact value in title. Committed in two slices. The runtime design review is next.
