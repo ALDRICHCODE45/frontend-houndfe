@@ -17,14 +17,6 @@ vi.mock('../../api/customer.api', () => ({ customerApi: api }))
 vi.mock('@/features/auth/stores/useAuthStore', () => ({
   useAuthStore: () => ({ currentTenantId: 'tenant-test', userCan: () => false }),
 }))
-vi.mock('../composables/useCustomerViewMode', () => ({
-  isCustomerViewMode: () => true,
-  useCustomerViewMode: () => ({
-    viewMode: ref('table'),
-    setMode: vi.fn(),
-    displayMode: ref('table'),
-  }),
-}))
 vi.mock('@/core/shared/composables/useServerTable', () => ({
   useServerTable: () => ({
     pagination: ref({ pageIndex: 0 }),

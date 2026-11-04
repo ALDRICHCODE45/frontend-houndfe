@@ -470,7 +470,7 @@ function handleCancel() {
               <div>
                 <button
                   type="button"
-                  class="clients-form-link sales-pos-customer-form-link flex items-center gap-1 text-sm font-medium text-coco-gold-800 hover:underline"
+                  class="clients-form-link sales-pos-customer-form-link flex items-center gap-1 text-sm font-medium hover:underline"
                   @click="state.showBillingAddress = !state.showBillingAddress"
                 >
                   <UIcon

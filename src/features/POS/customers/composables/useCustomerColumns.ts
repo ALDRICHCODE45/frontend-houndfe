@@ -1,53 +1,21 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { Customer } from '../interfaces/customer.types'
-import { createSimpleHeader } from '@/core/shared/components/DataTable'
 
+// Name first, then how to reach them, then the price list, then the ⋮ column.
+// Headers of the data columns come from the #<key>-header slots (SortableHeader)
+// in CustomersView.vue, since NuxtUI components need template context.
 export function useCustomerColumns() {
   const columns: TableColumn<Customer>[] = [
-    // ── Select checkbox ────────────────────────────────────────────────
-    // Header & cell rendered via #select-header / #select-cell slots
-    // in CustomersView.vue (NuxtUI components need template context)
-    {
-      id: 'select',
-      header: '',
-      enableSorting: false,
-      enableHiding: false,
-    },
-
-    // ── Nombre completo (sortable) ─────────────────────────────────────
-    {
-      accessorKey: 'fullName',
-      header: 'Nombre',
-    },
-
-    // ── Email ──────────────────────────────────────────────────────────
-    // header text comes from the #email-header slot (SortableHeader).
-    {
-      accessorKey: 'email',
-      header: 'Email',
-    },
-
-    // ── Teléfono ───────────────────────────────────────────────────────
-    // header text comes from the #phone-header slot (SortableHeader).
-    {
-      accessorKey: 'phone',
-      header: 'Teléfono',
-    },
-
-    // ── Lista de Precios ───────────────────────────────────────────────
-    // header text comes from the #globalPriceListName-header slot (SortableHeader).
-    {
-      accessorKey: 'globalPriceListName',
-      header: 'Lista de Precios',
-    },
-
-    // ── Acciones ──────────────────────────────────────────────────────
+    { accessorKey: 'fullName', header: 'Nombre' },
+    { accessorKey: 'email', header: 'Email' },
+    { accessorKey: 'phone', header: 'Teléfono' },
+    { accessorKey: 'globalPriceListName', header: 'Lista de precios' },
     {
       id: 'actions',
-      header: createSimpleHeader(''),
+      header: 'Acciones',
       enableHiding: false,
       enableSorting: false,
-      meta: { class: { td: 'text-right' } },
+      meta: { class: { th: 'w-16', td: 'w-16 text-right' } },
     },
   ]
 
