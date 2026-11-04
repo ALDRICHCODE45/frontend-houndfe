@@ -1539,9 +1539,9 @@ describe('DeliveryRouteDetailView — mobile detail header and progress (review 
     expect(source).toMatch(/@media \(min-width: 768px\) \{[^}]*\.route-back-link \{ display: none; \}/)
   })
 
-  it('adds no horizontal inset of its own on top of the shell gutter', () => {
+  it('uses the shared 40px page gutter on the manager skeleton and workspace', () => {
     const source = readFileSync('src/features/delivery-routes/views/DeliveryRouteDetailView.vue', 'utf8')
-    expect(source).not.toContain('md:px-10')
+    expect(source.match(/max-w-\[1320px\][^"]*md:px-10/g)).toHaveLength(2)
   })
 
   it('shows the meta separators only from sm, so a wrapped phone line never dangles a dot', async () => {

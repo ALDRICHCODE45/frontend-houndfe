@@ -383,7 +383,7 @@ defineExpose({
     v-else-if="isLoading && !routeData"
     data-testid="detail-loading-skeleton"
     aria-busy="true"
-    class="hf-theme hf-ui delivery-routes-visual mx-auto flex w-full min-w-0 max-w-[1320px] flex-col gap-6 px-4 py-6 sm:px-6"
+    class="hf-theme hf-ui delivery-routes-visual mx-auto flex w-full min-w-0 max-w-[1320px] flex-col gap-6 px-4 py-6 sm:px-6 md:px-10"
   >
     <div class="flex items-start justify-between gap-4">
       <div class="flex min-w-0 flex-1 flex-col gap-3">
@@ -460,7 +460,7 @@ defineExpose({
   <div
     v-else-if="isManager && routeData && routeData.id === routeId && managerDetail"
     data-testid="detail-manager-workspace"
-    class="hf-theme hf-ui delivery-routes-visual delivery-routes-detail mx-auto flex w-full min-w-0 max-w-[1320px] flex-col gap-6 px-4 py-6 sm:px-6"
+    class="hf-theme hf-ui delivery-routes-visual delivery-routes-detail mx-auto flex w-full min-w-0 max-w-[1320px] flex-col gap-6 px-4 py-6 sm:px-6 md:px-10"
   >
     <DeliveryRouteUpsertSlideover
       v-model:open="isEditOpen"

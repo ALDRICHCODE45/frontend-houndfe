@@ -208,7 +208,7 @@ async function reloadSelected() {
 </script>
 
 <template>
-  <main ref="page" class="hf-theme hf-ui suppliers-page">
+  <main ref="page" class="hf-theme hf-ui suppliers-page md:px-10">
     <header class="hf-page-header suppliers-header">
       <h1 class="hf-page-title">Proveedores</h1>
     </header>

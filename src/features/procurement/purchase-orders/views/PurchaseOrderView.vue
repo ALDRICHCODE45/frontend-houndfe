@@ -67,7 +67,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', preventUnload))
 </script>
 
 <template>
-  <main class="hf-theme hf-ui purchase-orders-page">
+  <main class="hf-theme hf-ui purchase-orders-page md:px-10">
     <header class="hf-page-header"><h1 class="hf-page-title">Órdenes de compra</h1></header>
     <p v-if="notice" role="status" class="order-notice">{{ notice }}</p>
     <p v-if="!context.ready || !context.canRead" role="status">No tienes acceso a las órdenes de compra de esta sucursal.</p>
