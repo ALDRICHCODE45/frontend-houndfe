@@ -32,22 +32,14 @@ function render(overrides: Record<string, unknown> = {}) {
 }
 
 describe('CashWorkspaceShiftCard', () => {
-  it('explains the genuine unselected turn and how to pick one', () => {
+  it('shows the genuine unselected turn on the shared empty state', () => {
     const wrapper = render()
 
     expect(wrapper.get('[data-testid="cash-workspace-shift-title"]').text()).toContain('Tu turno')
     expect(wrapper.find('[data-testid="cash-workspace-no-shift"]').exists()).toBe(true)
-    expect(wrapper.find('[data-testid="cash-session-summary"]').exists()).toBe(false)
-    // No selection is invented: the card only explains and offers the list.
-    expect(wrapper.text()).toContain('No se selecciona sola')
-  })
-
-  it('requests the session list without selecting anything itself', async () => {
-    const wrapper = render()
-
-    await wrapper.get('[data-testid="cash-workspace-shift-select"]').trigger('click')
-
-    expect(wrapper.emitted('requestSessions')).toHaveLength(1)
+    expect(wrapper.get('.hf-empty-state[data-kind="empty"]').text()).toContain(
+      'Aún no hay un turno en foco',
+    )
     expect(wrapper.find('[data-testid="cash-session-summary"]').exists()).toBe(false)
   })
 
@@ -67,20 +59,39 @@ describe('CashWorkspaceShiftCard', () => {
     expect(wrapper.find('[data-testid="cash-workspace-no-shift"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="cash-session-summary"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="cash-workspace-shift-title"]').text()).toContain(
-      'Tu turno, bajo control',
+      'Tu turno',
     )
     expect(wrapper.get('[data-testid="cash-shift-register"]').text()).toBe('Caja principal')
-    expect(wrapper.get('[data-testid="cash-shift-status"]').text()).toBe('Abierta')
+    const status = wrapper.get('[data-testid="cash-shift-status"]')
+    expect(status.classes()).toContain('hf-status-badge')
+    expect(status.text()).toBe('Abierta')
+    expect(status.attributes('data-tone')).toBe('success')
     // The cashier is described from real identity, never a discovered name.
     expect(wrapper.get('[data-testid="cash-shift-cashier"]').text()).toContain('Tú')
   })
 
-  it('describes the selected-session context without implementation jargon', () => {
+  it('carries no help paragraph, eyebrow or status note', () => {
     const wrapper = render({ hasSelection: true, detail: OPEN_DETAIL, isOwnShift: true })
 
-    const copy = wrapper.get('.cash-shift-description').text()
-    expect(copy).not.toMatch(/hero|componente|contexto del|wrapper/i)
-    expect(copy.length).toBeGreaterThan(20)
+    expect(wrapper.find('.cash-shift-description').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('Lista para seguir operando')
+    expect(wrapper.text()).not.toContain('Sobre este turno')
+  })
+
+  it('says the count has not started, then shows its short date', () => {
+    const pending = render({ hasSelection: true, detail: OPEN_DETAIL, isOwnShift: true })
+    expect(pending.get('[data-testid="cash-shift-frozen"]').text()).toBe('Sin iniciar')
+
+    const frozen = render({
+      hasSelection: true,
+      isOwnShift: true,
+      detail: {
+        ...OPEN_DETAIL,
+        session: { ...OPEN_DETAIL.session, status: 'COUNTING', frozenAt: '2020-03-03T20:43:00Z' },
+      },
+    })
+    expect(frozen.get('[data-testid="cash-shift-frozen"]').text()).not.toContain('2020-03-03')
+    expect(frozen.get('[data-testid="cash-shift-status"]').attributes('data-tone')).toBe('warning')
   })
 
   it('never renders a stale status badge while the selected detail is loading or failed', () => {
@@ -114,15 +125,17 @@ describe('CashWorkspaceShiftCard', () => {
   it('shows a loading state instead of stale turn facts while the detail is in flight', () => {
     const wrapper = render({ hasSelection: true, detail: OPEN_DETAIL, loading: true })
 
-    expect(wrapper.find('[data-testid="cash-shift-loading"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="cash-shift-loading"]').attributes('aria-busy')).toBe('true')
     expect(wrapper.find('[data-testid="cash-shift-register"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="cash-session-summary"]').exists()).toBe(false)
   })
 
-  it('shows the failure state instead of stale turn facts when the detail read fails', () => {
+  it('shows the failure state with Reintentar instead of stale turn facts when the read fails', async () => {
     const wrapper = render({ hasSelection: true, detail: OPEN_DETAIL, error: true })
 
-    expect(wrapper.find('[data-testid="cash-shift-error"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="cash-shift-error"]').attributes('role')).toBe('alert')
+    await wrapper.get('[data-testid="empty-state-action"]').trigger('click')
+    expect(wrapper.emitted('retry')).toHaveLength(1)
     expect(wrapper.find('[data-testid="cash-shift-register"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="cash-session-summary"]').exists()).toBe(false)
   })

@@ -21,6 +21,7 @@
  * closure/PDF and any live backend call.
  */
 import { computed, ref, watch } from 'vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
 import { useCashAccess } from '../composables/useCashAccess'
 import { useCashRegisters } from '../composables/useCashRegisters'
 import { useCashSessionDetail, useCashSessions } from '../composables/useCashSessions'
@@ -411,23 +412,18 @@ function handleReleaseDrawer() {
 
 <template>
   <section class="cash-visual cash-page flex flex-col gap-6 md:px-10">
-    <UCard
+    <EmptyState
       v-if="!access.canAnyCashRead.value"
-      :ui="{ body: 'p-4 sm:p-5' }"
+      kind="forbidden"
+      title="Sin acceso a Caja"
+      description="Pide a la persona administradora que asigne los permisos de caja a tu rol."
       data-testid="cash-access-denied"
-    >
-      <h1 class="text-lg font-semibold text-highlighted">Caja</h1>
-      <p class="mt-1 text-sm text-muted">
-        No tienes permisos de caja. Pídele a la persona administradora que asigne los permisos de
-        caja en tu rol.
-      </p>
-    </UCard>
+    />
 
     <CashWorkspace
       v-else
       :key="identityScope"
       title="Caja"
-      subtitle="Opera la caja por tareas: apertura, movimientos, conteo ciego, verificación y custodia. Elige la tarea que necesites."
       :tasks="visibleTasks"
       :active-task-id="activeTaskId"
       @select-task="selectTask"
@@ -439,8 +435,8 @@ function handleReleaseDrawer() {
           :loading="detailQuery.isLoading.value"
           :error="detailQuery.isError.value"
           :is-own-shift="isOwnShift"
-          @request-sessions="selectTask('historial')"
           @request-opening="selectTask('apertura')"
+          @retry="detailQuery.refetch()"
         />
       </template>
 

@@ -24,9 +24,6 @@ export interface CashWorkspaceTask {
   label: string
   /** Neutral es-MX page heading shown for the focused task (never a lifecycle step). */
   heading: string
-  /** One-line, neutral es-MX description of what the task does right now. */
-  description: string
-  hint: string
   icon: string
   /** The task only makes sense with an explicitly selected session. */
   needsSession: boolean
@@ -45,8 +42,6 @@ export const CASH_WORKSPACE_TASKS: readonly CashWorkspaceTask[] = [
     id: 'apertura',
     label: 'Apertura',
     heading: 'Abrir un turno',
-    description: 'Elige la caja y registra el fondo con el que empieza el turno.',
-    hint: 'Cajas y fondo inicial',
     icon: 'i-lucide-door-open',
     needsSession: false,
   },
@@ -54,8 +49,6 @@ export const CASH_WORKSPACE_TASKS: readonly CashWorkspaceTask[] = [
     id: 'historial',
     label: 'Sesiones',
     heading: 'Historial de turnos',
-    description: 'Consulta los turnos de caja y abre el que necesites.',
-    hint: 'Lista de sesiones existente',
     icon: 'i-lucide-history',
     needsSession: false,
   },
@@ -63,8 +56,6 @@ export const CASH_WORKSPACE_TASKS: readonly CashWorkspaceTask[] = [
     id: 'movimientos',
     label: 'Movimientos',
     heading: 'Movimientos de efectivo',
-    description: 'Registra el dinero que entra o sale del cajón durante el turno.',
-    hint: 'Ingresos y retiros manuales',
     icon: 'i-lucide-arrow-left-right',
     needsSession: true,
   },
@@ -72,8 +63,6 @@ export const CASH_WORKSPACE_TASKS: readonly CashWorkspaceTask[] = [
     id: 'conteo',
     label: 'Conteo',
     heading: 'Cuenta el dinero de tu cajón',
-    description: 'El conteo es ciego: congela el turno y declara cada canal.',
-    hint: 'Congelar y declarar el conteo ciego',
     icon: 'i-lucide-calculator',
     needsSession: true,
   },
@@ -81,8 +70,6 @@ export const CASH_WORKSPACE_TASKS: readonly CashWorkspaceTask[] = [
     id: 'notas',
     label: 'Notas',
     heading: 'Notas de la declaración',
-    description: 'Agrega una explicación a la declaración ya enviada.',
-    hint: 'Notas de la declaración enviada',
     icon: 'i-lucide-notebook-pen',
     needsSession: true,
   },
@@ -90,8 +77,6 @@ export const CASH_WORKSPACE_TASKS: readonly CashWorkspaceTask[] = [
     id: 'verificacion',
     label: 'Verificación',
     heading: 'Verifica el conteo',
-    description: 'Otra persona recuenta y compara el efectivo declarado.',
-    hint: 'Recuento de otra persona',
     icon: 'i-lucide-shield-check',
     needsSession: true,
   },
@@ -99,8 +84,6 @@ export const CASH_WORKSPACE_TASKS: readonly CashWorkspaceTask[] = [
     id: 'custodia',
     label: 'Custodia',
     heading: 'Entrega el dinero',
-    description: 'Declara la entrega, recibe el FLOAT y libera el cajón.',
-    hint: 'Entregas y liberación del cajón',
     icon: 'i-lucide-hand-coins',
     needsSession: true,
   },
@@ -108,8 +91,6 @@ export const CASH_WORKSPACE_TASKS: readonly CashWorkspaceTask[] = [
     id: 'recepcion',
     label: 'Recepciones',
     heading: 'Recepciones de caja',
-    description: 'Consulta y recibe las entregas destinadas a ti.',
-    hint: 'Entregas destinadas a ti',
     icon: 'i-lucide-inbox',
     needsSession: false,
   },

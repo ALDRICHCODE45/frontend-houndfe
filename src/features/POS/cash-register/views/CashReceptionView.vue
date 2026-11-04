@@ -83,21 +83,12 @@ const pendingDeclaredCents = computed(() =>
     class="cash-visual cash-page flex flex-col gap-6 md:px-10"
     data-testid="cash-reception-view"
   >
-    <header class="flex flex-col gap-2" data-testid="cash-reception-heading">
-      <span
-        class="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-primary"
-        data-testid="cash-reception-task-label"
-      >
-        <UIcon name="i-lucide-hand-coins" aria-hidden="true" class="size-4" />
-        Recepción de caja
-      </span>
+    <header class="flex flex-col gap-1" data-testid="cash-reception-heading">
       <h1 class="cash-page-title">Recibe tu custodia</h1>
-      <p class="max-w-2xl text-sm text-muted">
-        Consulta y recibe las entregas de efectivo destinadas a ti.
-      </p>
+      <p class="cash-list-subtitle">Entregas de efectivo destinadas a ti.</p>
     </header>
 
-    <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_19rem] lg:items-start">
+    <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_16rem] lg:items-start">
       <div class="flex min-w-0 flex-col gap-6" data-testid="cash-reception-operation">
         <UAlert
           v-if="errorMessage"
@@ -123,48 +114,26 @@ const pendingDeclaredCents = computed(() =>
 
       <!-- Contexto: esta pantalla es solo de recepción. Sin cajas ni auditoría. -->
       <aside class="flex min-w-0 flex-col gap-4" data-testid="cash-reception-context">
-        <section class="cash-panel">
-          <header class="cash-panel-header">
-            <span class="cash-icon-tile" aria-hidden="true">
-              <UIcon name="i-lucide-shield-check" />
-            </span>
-            <div class="cash-panel-header-text">
-              <h2 class="cash-panel-title">Solo recepción</h2>
-              <p class="cash-panel-subtitle">
-                Aquí solo se ven y se reciben las entregas destinadas a tu usuario. No se crean
-                cajas ni sesiones y no se amplía la auditoría.
-              </p>
-            </div>
-          </header>
-
-          <div class="cash-panel-body">
-            <dl class="cash-facts-grid">
-              <div class="cash-fact">
-                <dt>Entregas por recibir</dt>
-                <dd class="cash-fact-value" data-testid="cash-reception-context-pending">
-                  {{ pendingCount }}
-                </dd>
-              </div>
-              <div class="cash-fact">
-                <dt>Efectivo declarado por recibir</dt>
-                <dd class="cash-fact-value" data-testid="cash-reception-context-declared">
-                  {{ formatCentsMXN(pendingDeclaredCents) }}
-                </dd>
-              </div>
-              <div class="cash-fact">
-                <dt>FLOAT disponibles</dt>
-                <dd class="cash-fact-value" data-testid="cash-reception-context-float">
-                  {{ floatCount }}
-                </dd>
-              </div>
-            </dl>
-
-            <p class="cash-note">
-              Solo la persona destinataria puede confirmar la recepción. El FLOAT listado es una
-              referencia, no una reserva.
-            </p>
+        <dl class="cash-facts-grid cash-facts-panel">
+          <div class="cash-fact">
+            <dt>Entregas por recibir</dt>
+            <dd class="cash-fact-value hf-figure" data-testid="cash-reception-context-pending">
+              {{ pendingCount }}
+            </dd>
           </div>
-        </section>
+          <div class="cash-fact">
+            <dt>Efectivo declarado por recibir</dt>
+            <dd class="cash-fact-value hf-figure" data-testid="cash-reception-context-declared">
+              {{ formatCentsMXN(pendingDeclaredCents) }}
+            </dd>
+          </div>
+          <div class="cash-fact">
+            <dt>FLOAT disponibles</dt>
+            <dd class="cash-fact-value hf-figure" data-testid="cash-reception-context-float">
+              {{ floatCount }}
+            </dd>
+          </div>
+        </dl>
       </aside>
     </div>
   </section>

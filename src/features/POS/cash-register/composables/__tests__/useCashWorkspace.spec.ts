@@ -56,7 +56,8 @@ describe('useCashWorkspace', () => {
   it('exposes a neutral Spanish heading for every catalog task', () => {
     for (const task of CASH_WORKSPACE_TASKS) {
       expect(task.heading).toBeTruthy()
-      expect(task.description).toBeTruthy()
+      expect(task).not.toHaveProperty('description')
+      expect(task).not.toHaveProperty('hint')
     }
     expect(CASH_WORKSPACE_TASKS.find((task) => task.id === 'apertura')?.heading).toBe(
       'Abrir un turno',

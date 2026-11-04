@@ -13,8 +13,6 @@ const TASKS: CashWorkspaceTaskOption[] = [
     id: 'apertura',
     label: 'Apertura',
     heading: 'Abrir un turno',
-    description: 'Elige la caja y registra el fondo inicial del turno.',
-    hint: 'Cajas y fondo inicial',
     icon: 'i-lucide-door-open',
     needsSession: false,
     available: true,
@@ -23,8 +21,6 @@ const TASKS: CashWorkspaceTaskOption[] = [
     id: 'historial',
     label: 'Sesiones',
     heading: 'Historial de turnos',
-    description: 'Consulta los turnos de caja y abre el que necesites.',
-    hint: 'Lista de sesiones existente',
     icon: 'i-lucide-history',
     needsSession: false,
     available: true,
@@ -35,7 +31,6 @@ function render(overrides: Record<string, unknown> = {}) {
   return mountWithUApp(CashWorkspace, {
     props: {
       title: 'Caja',
-      subtitle: 'Opera la caja por tareas.',
       tasks: TASKS,
       activeTaskId: 'apertura',
       ...overrides,
@@ -57,21 +52,24 @@ describe('CashWorkspace', () => {
     )
     for (const task of TASKS) {
       expect(wrapper.find(`[data-testid="cash-workspace-task-${task.id}"]`).exists()).toBe(true)
-      // Each task carries a decorative icon tile and its own contextual metadata.
+      // Each task is an icon and a label: no per-task description line.
       expect(wrapper.find(`[data-testid="cash-task-icon-${task.id}"]`).exists()).toBe(true)
+      expect(wrapper.find('.cash-task-hint').exists()).toBe(false)
     }
   })
 
-  it('shows the active task heading and swaps it when another task is focused', () => {
+  it('shows only the active task heading, with no eyebrow, subtitle or nav copy', () => {
     const opening = render()
 
     expect(opening.get('h1').text()).toBe('Abrir un turno')
-    expect(opening.text()).toContain('Elige la caja y registra el fondo inicial del turno.')
+    expect(opening.find('.cash-workspace-eyebrow').exists()).toBe(false)
+    expect(opening.find('.cash-workspace-subtitle').exists()).toBe(false)
+    expect(opening.text()).not.toContain('¿Qué necesitas hacer?')
+    expect(opening.text()).not.toContain('Cada tarea, cuando la necesites')
 
     const history = render({ activeTaskId: 'historial' })
 
     expect(history.get('h1').text()).toBe('Historial de turnos')
-    expect(history.text()).toContain('Consulta los turnos de caja y abre el que necesites.')
   })
 
   it('marks the active task as current and keeps the tasks keyboard operable', () => {

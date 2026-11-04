@@ -1,21 +1,25 @@
 <script setup lang="ts">
 /**
- * Central "selected turn" hero.
+ * Central "selected turn" card.
  *
- * It frames the explicitly selected session as the reference overview does:
- * a task eyebrow, a soft status badge, the real register name and a small meta
- * row built only from values the session projection actually carries. It never
- * selects a register/session on its own, never discovers a cashier name and
- * never claims a session-opening time the contract does not expose.
+ * It frames the explicitly selected session: a status badge, the real register
+ * name and a small meta row built only from values the session projection
+ * actually carries. It never selects a register/session on its own, never
+ * discovers a cashier name and never claims a session-opening time the contract
+ * does not expose.
  *
- * Without a selection it renders a genuine unselected state: it explains how to
- * choose one and offers ONLY contextual navigation (open a turn / see the
- * session list), never a command.
+ * Without a selection it renders a genuine unselected state with ONE contextual
+ * navigation (open a turn), never a command. Loading, failure and no selection
+ * each have their own shape.
  */
 import { computed } from 'vue'
+import EmptyState from '@/core/shared/components/EmptyState.vue'
+import StatusBadge from '@/core/shared/components/StatusBadge.vue'
+import { formatShortDateTime } from '@/core/shared/utils/dateTime.utils'
 import CashSessionSummary from './CashSessionSummary.vue'
 import { blindSafeDetail, cashSessionFacts } from '../composables/cashRules'
-import type { CashSessionDetail, CashSessionStatus } from '../interfaces/cash.types'
+import type { CashSessionDetail } from '../interfaces/cash.types'
+import { CASH_SESSION_STATUS_LABELS, cashSessionStatusTone } from '../utils/cash-status'
 
 const props = withDefaults(
   defineProps<{
@@ -38,39 +42,24 @@ const props = withDefaults(
 )
 
 const emit = defineEmits<{
-  requestSessions: []
   requestOpening: []
+  retry: []
 }>()
-
-const STATUS_LABELS: Record<CashSessionStatus, string> = {
-  OPEN: 'Abierta',
-  COUNTING: 'Congelada',
-  SUBMITTED: 'Declarada',
-  CLOSED: 'Cerrada',
-}
-
-const STATUS_NOTES: Record<CashSessionStatus, string> = {
-  OPEN: 'Lista para seguir operando.',
-  COUNTING: 'Conteo en curso: los importes quedan ocultos.',
-  SUBMITTED: 'Declaración enviada.',
-  CLOSED: 'Turno cerrado.',
-}
 
 const safeDetail = computed(() => blindSafeDetail(props.detail))
 const facts = computed(() => cashSessionFacts(safeDetail.value?.session))
 
 const registerName = computed(() => safeDetail.value?.register?.name ?? '—')
-const statusLabel = computed(() => (facts.value.status ? STATUS_LABELS[facts.value.status] : null))
-const statusNote = computed(() => (facts.value.status ? STATUS_NOTES[facts.value.status] : null))
+const status = computed(() => facts.value.status)
 
 /**
  * The unselected card invites the viewer; a selected card only claims "tu turno"
  * when the shift is actually theirs. Another person's or an unknown shift is
- * presented neutrally, never as the viewer's own. Owner copy is untouched.
+ * presented neutrally, never as the viewer's own.
  */
 const heroTitle = computed(() => {
   if (!props.hasSelection) return 'Tu turno'
-  return props.isOwnShift === true ? 'Tu turno, bajo control' : 'Turno seleccionado'
+  return props.isOwnShift === true ? 'Tu turno' : 'Turno seleccionado'
 })
 
 const cashierLabel = computed(() => {
@@ -80,136 +69,72 @@ const cashierLabel = computed(() => {
 })
 
 const frozenLabel = computed(() =>
-  facts.value.frozenAt ? formattedTime(facts.value.frozenAt) : 'Aún no inicia el conteo',
+  facts.value.frozenAt ? formatShortDateTime(facts.value.frozenAt) : 'Sin iniciar',
 )
-
-function formattedTime(value: string): string {
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return value
-  return new Intl.DateTimeFormat('es-MX', {
-    day: '2-digit',
-    month: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date)
-}
 </script>
 
 <template>
-  <section class="cash-shift-hero" data-testid="cash-workspace-shift-card">
+  <section class="cash-shift-card" data-testid="cash-workspace-shift-card">
     <div class="cash-shift-top">
-      <p class="cash-shift-eyebrow" data-testid="cash-workspace-shift-title">
-        <span class="cash-icon-tile cash-icon-tile-sm" aria-hidden="true">
-          <UIcon :name="hasSelection ? 'i-lucide-wallet' : 'i-lucide-clock-3'" />
-        </span>
-        <span>{{ heroTitle }}</span>
-      </p>
-      <UBadge
-        v-if="hasSelection && !loading && !error && statusLabel"
-        color="primary"
-        variant="subtle"
+      <p class="cash-shift-label" data-testid="cash-workspace-shift-title">{{ heroTitle }}</p>
+      <StatusBadge
+        v-if="hasSelection && !loading && !error && status"
+        :label="CASH_SESSION_STATUS_LABELS[status]"
+        :tone="cashSessionStatusTone(status)"
         data-testid="cash-shift-status"
-      >
-        {{ statusLabel }}
-      </UBadge>
-      <UBadge v-else-if="hasSelection && loading" color="neutral" variant="subtle">
-        Cargando…
-      </UBadge>
-      <UBadge
-        v-else-if="!hasSelection"
-        color="neutral"
-        variant="subtle"
-        data-testid="cash-shift-status"
-      >
-        Sin sesión
-      </UBadge>
+      />
     </div>
 
-    <div v-if="hasSelection && loading" aria-busy="true" data-testid="cash-shift-loading">
-      <USkeleton class="h-24 w-full" />
+    <div
+      v-if="hasSelection && loading"
+      class="flex flex-col gap-3"
+      aria-busy="true"
+      data-testid="cash-shift-loading"
+    >
+      <span class="sr-only">Cargando</span>
+      <div class="h-6 w-1/3 animate-pulse rounded bg-[var(--hf-surface-muted)]" aria-hidden="true" />
+      <div class="h-16 w-full animate-pulse rounded bg-[var(--hf-surface-muted)]" aria-hidden="true" />
     </div>
 
-    <UAlert
+    <EmptyState
       v-else-if="hasSelection && error"
-      color="error"
-      variant="subtle"
+      kind="error"
       title="No se pudo cargar la sesión"
       :description="errorMessage"
+      action-label="Reintentar"
       data-testid="cash-shift-error"
+      @action="emit('retry')"
     />
 
     <template v-else-if="hasSelection">
       <h2 class="cash-shift-register" data-testid="cash-shift-register">{{ registerName }}</h2>
-      <p class="cash-shift-description" data-testid="cash-shift-description">
-        Sobre este turno trabajan las tareas que necesitan una sesión.
-      </p>
       <dl class="cash-shift-meta">
         <div class="cash-shift-meta-item">
-          <span class="cash-icon-tile" aria-hidden="true"
-            ><UIcon name="i-lucide-user-round"
-          /></span>
-          <span>
-            <small>Cajera/o</small>
-            <span data-testid="cash-shift-cashier">{{ cashierLabel }}</span>
-          </span>
+          <dt>Cajera/o</dt>
+          <dd data-testid="cash-shift-cashier">{{ cashierLabel }}</dd>
         </div>
         <div class="cash-shift-meta-item">
-          <span class="cash-icon-tile" aria-hidden="true"><UIcon name="i-lucide-clock-3" /></span>
-          <span>
-            <small>Conteo</small>
-            <span data-testid="cash-shift-frozen">{{ frozenLabel }}</span>
-          </span>
+          <dt>Conteo</dt>
+          <dd data-testid="cash-shift-frozen">{{ frozenLabel }}</dd>
         </div>
       </dl>
+      <CashSessionSummary
+        :detail="detail"
+        :loading="loading"
+        :error="error"
+        :error-message="errorMessage"
+        @retry="emit('retry')"
+      />
     </template>
 
-    <template v-else>
-      <h2 class="cash-shift-register" data-testid="cash-workspace-no-shift">
-        Aún no hay un turno en foco
-      </h2>
-      <p class="cash-shift-description">
-        No se selecciona sola: abre una caja o elige una sesión para operar, contar o verificar.
-      </p>
-      <div class="cash-shift-bottom">
-        <span class="cash-shift-note">
-          <UIcon name="i-lucide-info" aria-hidden="true" />
-          Elige una tarea cuando la necesites.
-        </span>
-        <div class="cash-shift-actions">
-          <button
-            type="button"
-            class="cash-control"
-            data-testid="cash-workspace-shift-open"
-            @click="emit('requestOpening')"
-          >
-            Abrir un turno
-          </button>
-          <UButton
-            type="button"
-            color="primary"
-            data-testid="cash-workspace-shift-select"
-            @click="emit('requestSessions')"
-          >
-            Ver sesiones
-          </UButton>
-        </div>
-      </div>
-    </template>
-
-    <div v-if="hasSelection && !loading && !error" class="cash-shift-bottom">
-      <span class="cash-shift-note">
-        <span class="cash-live-dot" aria-hidden="true" />
-        {{ statusNote }}
-      </span>
-    </div>
-
-    <CashSessionSummary
-      v-if="hasSelection && !loading && !error"
-      variant="flat"
-      :detail="detail"
-      :loading="loading"
-      :error="error"
-      :error-message="errorMessage"
+    <EmptyState
+      v-else
+      title="Aún no hay un turno en foco"
+      description="Abre una caja o elige una sesión para operar, contar o verificar."
+      action-label="Abrir un turno"
+      action-test-id="cash-workspace-shift-open"
+      data-testid="cash-workspace-no-shift"
+      @action="emit('requestOpening')"
     />
   </section>
 </template>

@@ -959,3 +959,84 @@ describe('CashRegisterView · contextual feedback after a selection change', () 
     expect(wrapper.find('[data-testid="cash-open-error"]').exists()).toBe(false)
   })
 })
+
+describe('CashRegisterView · four states (S10)', () => {
+  it('empty: registers, sessions and the unselected shift each say "nada todavía"', async () => {
+    api.listRegisters.mockResolvedValue([])
+    api.listSessions.mockResolvedValue({ items: [], page: 1, limit: 25, total: 0 })
+    const { wrapper } = mountView()
+    await flush()
+
+    const registers = wrapper.get('[data-testid="cash-registers-panel"]')
+    expect(registers.get('.hf-empty-state[data-kind="empty"]').text()).toContain('Aún no hay cajas')
+    const sessionsPanel = wrapper.get('[data-testid="cash-sessions-panel"]')
+    expect(sessionsPanel.get('.hf-empty-state[data-kind="empty"]').text()).toContain(
+      'Aún no hay sesiones',
+    )
+    expect(wrapper.get('[data-testid="cash-workspace-no-shift"]').text()).toContain(
+      'Aún no hay un turno en foco',
+    )
+  })
+
+  it('loading: the lists render their table skeletons, never a blank panel', async () => {
+    api.listRegisters.mockReturnValue(new Promise(() => {}))
+    api.listSessions.mockReturnValue(new Promise(() => {}))
+    const { wrapper } = mountView()
+    await flush()
+
+    expect(wrapper.get('[data-testid="cash-registers-panel"] [data-testid="table-skeleton"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="cash-sessions-panel"] [data-testid="table-skeleton"]').exists()).toBe(true)
+  })
+
+  it('data: registers and sessions are table rows with a status badge and the ⋮ menu', async () => {
+    const { wrapper } = mountView()
+    await flush()
+
+    const registers = wrapper.get('[data-testid="cash-registers-panel"]')
+    expect(registers.get('tbody .hf-status-badge').text()).toBe('Activa')
+    expect(registers.find('button[aria-haspopup="menu"]').exists()).toBe(true)
+    const sessionsPanel = wrapper.get('[data-testid="cash-sessions-panel"]')
+    expect(sessionsPanel.get('tbody .hf-status-badge').text()).toBe('Declarada')
+    expect(sessionsPanel.get('tbody td').text()).toBe('Caja principal')
+    expect(sessionsPanel.find('button[aria-haspopup="menu"]').exists()).toBe(true)
+  })
+
+  it('error: a failed read shows the alert with Reintentar that reads again', async () => {
+    api.listRegisters.mockRejectedValueOnce(new Error('boom'))
+    api.listSessions.mockRejectedValueOnce(new Error('boom'))
+    const { wrapper } = mountView()
+    await flush()
+
+    const registers = wrapper.get('[data-testid="cash-registers-panel"]')
+    expect(registers.get('[data-testid="table-error-state"]').attributes('role')).toBe('alert')
+    const sessionsPanel = wrapper.get('[data-testid="cash-sessions-panel"]')
+    expect(sessionsPanel.get('[data-testid="table-error-state"]').attributes('role')).toBe('alert')
+
+    api.listRegisters.mockClear()
+    await registers.get('[data-testid="table-error-retry"]').trigger('click')
+    await flush()
+    expect(api.listRegisters).toHaveBeenCalledTimes(1)
+    expect(wrapper.get('[data-testid="cash-registers-panel"]').find('[data-testid="table-error-state"]').exists()).toBe(false)
+  })
+
+  it('selected shift: loading shows a skeleton and a failed read offers Reintentar', async () => {
+    api.getSession.mockReturnValueOnce(new Promise(() => {}))
+    const loading = mountView()
+    await flush()
+    await selectFirstSession(loading.wrapper)
+    expect(loading.wrapper.get('[data-testid="cash-shift-loading"]').attributes('aria-busy')).toBe('true')
+
+    api.getSession.mockRejectedValueOnce(new Error('boom'))
+    const failed = mountView()
+    await flush()
+    await selectFirstSession(failed.wrapper)
+    expect(failed.wrapper.get('[data-testid="cash-shift-error"]').attributes('role')).toBe('alert')
+
+    api.getSession.mockClear()
+    api.getSession.mockResolvedValue(DETAIL)
+    await failed.wrapper.get('[data-testid="cash-shift-error"] [data-testid="empty-state-action"]').trigger('click')
+    await flush()
+    expect(api.getSession).toHaveBeenCalledTimes(1)
+    expect(failed.wrapper.find('[data-testid="cash-shift-error"]').exists()).toBe(false)
+  })
+})
