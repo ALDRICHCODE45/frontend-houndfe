@@ -6,7 +6,7 @@
  */
 import { formatCentsMXN } from '@/core/shared/utils/currency.utils'
 
-export interface ProductSummaryChecklistItem {
+interface ProductSummaryChecklistItem {
   label: string
   done: boolean
   disabled: boolean

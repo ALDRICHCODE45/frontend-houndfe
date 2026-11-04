@@ -1,6 +1,6 @@
 import type { RowAction } from '@/core/shared/components/RowActionsMenu.vue'
 
-export type TenantRowActionKey = 'edit' | 'members' | 'deactivate'
+type TenantRowActionKey = 'edit' | 'members' | 'deactivate'
 
 /**
  * Row actions for a tenant, in menu order: Editar, Gestionar miembros, then the

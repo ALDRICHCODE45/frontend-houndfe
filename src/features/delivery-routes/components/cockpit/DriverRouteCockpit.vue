@@ -7,7 +7,7 @@
  * CLOSING_TO_SWITCH for stop↔history, CLOSING_TO_CONFIRM for drawer→modal,
  * CONFIRM (open) → MUTATING (after accept) → CLOSED (after settle).
  */
-export type CockpitPhase = 'CLOSED' | 'DRAWER_STOP' | 'DRAWER_HISTORY' | 'CLOSING' | 'CLOSING_TO_SWITCH' | 'CLOSING_TO_CONFIRM' | 'CONFIRM' | 'MUTATING'
+type CockpitPhase = 'CLOSED' | 'DRAWER_STOP' | 'DRAWER_HISTORY' | 'CLOSING' | 'CLOSING_TO_SWITCH' | 'CLOSING_TO_CONFIRM' | 'CONFIRM' | 'MUTATING'
 
 export interface CockpitState {
   phase: CockpitPhase

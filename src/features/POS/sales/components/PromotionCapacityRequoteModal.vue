@@ -13,7 +13,7 @@ import { hasSalesEntryToken } from '../utils/salesEntryPortal'
  * charges; the cashier must return to the payment modal and click the
  * existing charge action again (with a fresh idempotency key).
  */
-export interface ExcludedPromotion {
+interface ExcludedPromotion {
   id: string
   label: string
 }
